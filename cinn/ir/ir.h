@@ -200,7 +200,7 @@ struct Block : public ExprNode<Block> {
 struct Builder {
   template <typename IRType, typename... Args>
   Expr make(Args... args) {
-    return std::shared_ptr<IRType>(args...);
+    return Expr(std::make_shared<IRType>(args...));
   }
 };
 
