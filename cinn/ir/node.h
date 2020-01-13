@@ -40,7 +40,8 @@ class IRVisitor;
   macro__(Block)                            \
   macro__(Call)                             \
   macro__(Cast)                             \
-  macro__(Module)
+  macro__(Module)                           \
+  macro__(Variable)                           \
 
 #define NODETY_FORALL(macro__)          \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \
@@ -103,6 +104,16 @@ class IRHandle : public std::enable_shared_from_this<IRHandle> {
 };
 
 template <typename T>
+struct StmtNode : public IRNode {
+  void Accept(IRVisitor* v) const override;
+
+  T* self() { return static_cast<T*>(this); }
+  const T* const_self() const { return static_cast<const T*>(this); }
+
+  IrNodeTy node_type() { return T::_node_type_; }
+};
+
+template <typename T>
 struct ExprNode : public IRNode {
   explicit ExprNode(Type t) : type_(t) {}
 
@@ -153,6 +164,9 @@ struct FloatImm : public ExprNode<FloatImm> {
   static const IrNodeTy _node_type_ = IrNodeTy::FloatImm;
 };
 
+/**
+ * An expression that represents some value or the result of some operations.
+ */
 struct Expr : public IRHandle {
  public:
   Expr() = default;
@@ -167,6 +181,18 @@ struct Expr : public IRHandle {
   explicit Expr(float x) : IRHandle(std::make_shared<IntImm>(Float(32), x)) {}
   explicit Expr(double x) : IRHandle(std::make_shared<IntImm>(Float(64), x)) {}
   // @}
+};
+
+/**
+ * An statement that doesn't have return value.
+ */
+struct Stmt : public IRHandle {
+ public:
+  Stmt() = default;
+
+  Stmt(const Stmt& other) : IRHandle(other.ptr()) {}
+  Stmt(const std::shared_ptr<IRNode>& p) : IRHandle(p) {}
+  void operator=(const std::shared_ptr<IRNode>& p) { ptr_ = p; }
 };
 
 template <typename T>
@@ -188,6 +214,23 @@ struct BinaryOpNode : public ExprNode<T> {
 
   //! The two arguments.
   Expr a, b;
+};
+
+enum class DeviceAPI {
+  UNK,
+  Host,
+};
+
+const DeviceAPI all_device_apis[] = {
+    DeviceAPI::UNK,   //
+    DeviceAPI::Host,  //
+};
+
+/**
+ * An enum describing different address spaces to be used with Func::store_in.
+ */
+enum class MemoryType {
+
 };
 
 }  // namespace ir

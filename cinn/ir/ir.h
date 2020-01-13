@@ -170,16 +170,62 @@ struct Call : public ExprNode<Call> {
   static const IrNodeTy _node_type_ = IrNodeTy::Call;
 };
 
-struct For : public ExprNode<For> {
-  For(Type t) : ExprNode<For>(t) {}
+struct Variable : public ExprNode<Variable> {
+  std::string name;
 
-  static const IrNodeTy _node_type_ = IrNodeTy::For;
+  Variable(const std::string& name, Type type) : ExprNode<Variable>(type), name(name) {}
+
+  static const IrNodeTy _node_type_ = IrNodeTy::Variable;
 };
 
-struct IfThenElse : public ExprNode<IfThenElse> {
-  IfThenElse(Type t) : ExprNode<IfThenElse>(t) {}
+struct IfThenElse : public StmtNode<IfThenElse> {
+  Expr condition;
+  Expr true_case;
+  Expr false_case;
+
+  IfThenElse(Expr condition, Expr true_case, Expr false_case)
+      : condition(condition), true_case(true_case), false_case(false_case) {
+    CHECK(condition.defined());
+    CHECK(true_case.defined());
+  }
 
   static const IrNodeTy _node_type_ = IrNodeTy::IfThenElse;
+};
+
+enum class ForType : int {
+  //! Serial execution.
+  Serial = 0,
+  //! Parallel execution.
+  Parallel = 1,
+  //! Vector SIMD loop annotation.
+  Vectorized = 2,
+  //! Unroll annotation.
+  Unrolled = 3,
+};
+
+struct For : public StmtNode<For> {
+  //! The loop variable.
+  Expr loop_var;
+  //! The minimum value of the iteration.
+  Expr min;
+  //! The extent of the iteration.
+  Expr extent;
+  //! The type of the for loop.
+  ForType for_type;
+
+  Stmt body;
+
+  DeviceAPI device_api;
+
+  For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt body) {
+    this->min = std::move(min);
+    this->extent = std::move(extent);
+    this->for_type = std::move(for_type);
+    this->device_api = device_api;
+    this->body = std::move(body);
+  }
+
+  static const IrNodeTy _node_type_ = IrNodeTy::For;
 };
 
 struct Module : public ExprNode<Module> {
