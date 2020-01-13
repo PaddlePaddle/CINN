@@ -44,9 +44,8 @@ class IRVisitor;
 
 #define NODETY_FORALL(macro__)          \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \
-NODETY_OP_FOR_EACH(__m)                 \
-NODETY_CONTROL_OP_FOR_EACH(__m)
-
+  NODETY_OP_FOR_EACH(__m)               \
+  NODETY_CONTROL_OP_FOR_EACH(__m)
 // clang-format on
 
 //! Define IrNodeTy
@@ -56,12 +55,14 @@ enum class IrNodeTy { NODETY_FORALL(__m) };
 #undef __m
 // @}
 
+std::ostream& operator<<(std::ostream& os, IrNodeTy type);
+
 class IRNode : public std::enable_shared_from_this<IRNode> {
  public:
   IRNode() = default;
   virtual ~IRNode() = default;
 
-  virtual void Accept(IRVisitor* v) const = 0;
+  virtual void Accept(IRVisitor* v) const {}
   virtual IrNodeTy node_type() = 0;
   virtual const Type& type() = 0;
 
@@ -88,7 +89,7 @@ class IRHandle : public std::enable_shared_from_this<IRHandle> {
   }
   template <typename T>
   T* As() {
-    if (node_type() == T::_type_info_) return static_cast<T*>(ptr_.get());
+    if (node_type() == T::_node_type_) return static_cast<T*>(ptr_.get());
     return nullptr;
   }
 
@@ -110,10 +111,8 @@ struct ExprNode : public IRNode {
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return static_cast<const T*>(this); }
 
-  IrNodeTy node_type() { return _node_type_; }
+  IrNodeTy node_type() { return T::_node_type_; }
   const Type& type() { return type_; }
-
-  static IrNodeTy _node_type_;
 
  private:
   Type type_;
@@ -158,6 +157,8 @@ struct Expr : public IRHandle {
  public:
   Expr() = default;
   Expr(const Expr& other) : IRHandle(other.ptr()) {}
+  Expr(const std::shared_ptr<IRNode>& p) : IRHandle(p) {}
+  void operator=(const std::shared_ptr<IRNode>& p) { ptr_ = p; }
 
   //! Helper function to construct numeric constants of various types.
   // @{
