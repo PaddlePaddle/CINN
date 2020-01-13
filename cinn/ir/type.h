@@ -19,6 +19,7 @@ struct Type {
     Float,
   };
 
+  Type() = default;
   Type(type_t t, int b, int w) : type_(t), bits_(b), width_(w) {}
 
   //! Some helper functions to tell a type.

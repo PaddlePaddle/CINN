@@ -61,13 +61,17 @@ std::ostream& operator<<(std::ostream& os, IrNodeTy type);
 class IRNode : public std::enable_shared_from_this<IRNode> {
  public:
   IRNode() = default;
+  IRNode(Type t) : type_(t) {}
   virtual ~IRNode() = default;
 
   virtual void Accept(IRVisitor* v) const {}
   virtual IrNodeTy node_type() = 0;
-  virtual const Type& type() = 0;
+  virtual Type& type() { return type_; }
 
   std::shared_ptr<const IRNode> getptr() const { return shared_from_this(); }
+
+ protected:
+  Type type_;
 };
 
 /**
@@ -81,7 +85,6 @@ class IRHandle : public std::enable_shared_from_this<IRHandle> {
   explicit IRHandle(const std::shared_ptr<IRNode>& x) { ptr_ = x; }
 
   IrNodeTy node_type() const { return ptr_->node_type(); }
-  Type type() const { return ptr_->type(); }
 
   template <typename T>
   const T* As() const {
@@ -105,6 +108,8 @@ class IRHandle : public std::enable_shared_from_this<IRHandle> {
 
 template <typename T>
 struct StmtNode : public IRNode {
+  StmtNode() = default;
+
   void Accept(IRVisitor* v) const override;
 
   T* self() { return static_cast<T*>(this); }
@@ -115,7 +120,7 @@ struct StmtNode : public IRNode {
 
 template <typename T>
 struct ExprNode : public IRNode {
-  explicit ExprNode(Type t) : type_(t) {}
+  explicit ExprNode(Type t) : IRNode(t) {}
 
   void Accept(IRVisitor* v) const override;
 
@@ -123,10 +128,6 @@ struct ExprNode : public IRNode {
   const T* const_self() const { return static_cast<const T*>(this); }
 
   IrNodeTy node_type() { return T::_node_type_; }
-  const Type& type() { return type_; }
-
- private:
-  Type type_;
 };
 
 struct IntImm : public ExprNode<IntImm> {
@@ -181,6 +182,8 @@ struct Expr : public IRHandle {
   explicit Expr(float x) : IRHandle(std::make_shared<IntImm>(Float(32), x)) {}
   explicit Expr(double x) : IRHandle(std::make_shared<IntImm>(Float(64), x)) {}
   // @}
+
+  const Type& type() { return ptr_->type(); }
 };
 
 /**

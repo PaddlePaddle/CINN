@@ -234,8 +234,16 @@ struct Module : public ExprNode<Module> {
   static const IrNodeTy _node_type_ = IrNodeTy::Module;
 };
 
-struct Block : public ExprNode<Block> {
-  Block(Type t) : ExprNode<Block>(t) {}
+struct Block : public StmtNode<Block> {
+  std::vector<Stmt> stmts;
+
+  Block() = default;
+
+  static Stmt make(const std::vector<Stmt>& stmts) {
+    auto node = std::make_shared<Block>();
+    node->stmts = stmts;
+    return Stmt(node);
+  }
 
   static const IrNodeTy _node_type_ = IrNodeTy::Block;
 };
