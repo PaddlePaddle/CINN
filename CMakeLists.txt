@@ -17,4 +17,5 @@ include(cmake/external/gtest.cmake)
 include(cmake/external/protobuf.cmake)
 include(cmake/external/mklml.cmake)
 
+find_package(Threads REQUIRED)
 add_subdirectory(cinn)
