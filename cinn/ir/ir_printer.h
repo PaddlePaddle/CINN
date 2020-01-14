@@ -14,6 +14,8 @@ struct IrPrinter : public IrVisitor {
   void Print(Expr e);
   //! Emit a statement on the output stream.
   void Print(Stmt s);
+  //! Emit a expression list with , splitted.
+  void Print(const std::vector<Expr> &exprs, const std::string &splitter = ", ");
   //! Emit a binary operator
   template <typename IRN>
   void PrintBinaryOp(const std::string &op, BinaryOpNode<IRN> *x) {
@@ -58,6 +60,10 @@ struct IrPrinter : public IrVisitor {
   void Visit(Module *x) override;
   void Visit(Variable *x) override;
   void Visit(Alloc *x) override;
+  void Visit(Select *x) override;
+  void Visit(Load *x) override;
+  void Visit(Store *x) override;
+  void Visit(Free *x) override;
 
  private:
   std::ostream &os_;

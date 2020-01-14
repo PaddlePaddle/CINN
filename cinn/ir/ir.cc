@@ -121,7 +121,7 @@ Stmt IfThenElse::Make(Expr condition, Stmt true_case, Stmt false_case) {
   return Stmt(node);
 }
 
-Stmt Store::Make(Expr buffer_var, Expr value, Expr index) {
+Stmt Store::Make(Var buffer_var, Expr value, Expr index) {
   auto node = std::make_shared<Store>();
   node->buffer_var = buffer_var;
   node->value = value;
@@ -129,7 +129,7 @@ Stmt Store::Make(Expr buffer_var, Expr value, Expr index) {
   return Stmt(node);
 }
 
-Stmt Alloc::Make(Expr buffer_var, Type type, const std::vector<Expr> &extents, Expr condition, Stmt body) {
+Stmt Alloc::Make(Var buffer_var, Type type, const std::vector<Expr> &extents, Expr condition, Stmt body) {
   auto node = std::make_shared<Alloc>();
   node->buffer_var = buffer_var;
   node->type = type;
@@ -155,5 +155,10 @@ int32_t Alloc::ConstantAllocationSize(const std::string &name, const std::vector
   return res;
 }
 
+Stmt Free::Make(Var var) {
+  auto node = std::make_shared<Free>();
+  node->var = var;
+  return Stmt(node);
+}
 }  // namespace ir
 }  // namespace cinn

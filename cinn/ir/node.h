@@ -8,7 +8,7 @@
 namespace cinn {
 namespace ir {
 
-class IRVisitor;
+class IrVisitor;
 
 // clang-format off
 #define NODETY_PRIMITIVE_TYPE_FOR_EACH(macro__) \
@@ -69,7 +69,7 @@ class IRNode : public std::enable_shared_from_this<IRNode> {
   IRNode(Type t) : type_(t) {}
   virtual ~IRNode() = default;
 
-  virtual void Accept(IRVisitor* v) const {}
+  virtual void Accept(IrVisitor* v) const;
   virtual IrNodeTy node_type() const = 0;
   virtual const Type& type() const { return type_; }
 
@@ -107,7 +107,7 @@ class IRHandle : public std::enable_shared_from_this<IRHandle> {
   const std::shared_ptr<IRNode>& ptr() const { return ptr_; }
   void set_ptr(const std::shared_ptr<IRNode>& x) { ptr_ = x; }
 
-  void Accept(IRVisitor* v) const { ptr_->Accept(v); }
+  void Accept(IrVisitor* v) const { ptr_->Accept(v); }
 
  protected:
   std::shared_ptr<IRNode> ptr_{};
@@ -117,7 +117,7 @@ template <typename T>
 struct StmtNode : public IRNode {
   StmtNode() = default;
 
-  void Accept(IRVisitor* v) const override;
+  void Accept(IrVisitor* v) const override;
 
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return static_cast<const T*>(this); }
@@ -129,7 +129,7 @@ template <typename T>
 struct ExprNode : public IRNode {
   explicit ExprNode(Type t) : IRNode(t) {}
 
-  void Accept(IRVisitor* v) const override;
+  void Accept(IrVisitor* v) const override;
 
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return static_cast<const T*>(this); }

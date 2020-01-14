@@ -3,8 +3,15 @@
 namespace cinn {
 namespace ir {
 
-void IrPrinter::Print(Expr e) { e.Accept(reinterpret_cast<IRVisitor *>(this)); }
-void IrPrinter::Print(Stmt s) { s.Accept(reinterpret_cast<IRVisitor *>(this)); }
+void IrPrinter::Print(Expr e) { e.Accept(reinterpret_cast<IrVisitor *>(this)); }
+void IrPrinter::Print(Stmt s) { s.Accept(reinterpret_cast<IrVisitor *>(this)); }
+void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitter) {
+  for (int i = 0; i < exprs.size() - 1; i++) {
+    Print(exprs[i]);
+    os_ << ", ";
+  }
+  if (exprs.size() > 1) Print(exprs.back());
+}
 
 void IrPrinter::Visit(IntImm *x) { os_ << x->value; }
 void IrPrinter::Visit(UIntImm *x) { os_ << x->value; }
@@ -81,7 +88,32 @@ void IrPrinter::Visit(Call *x) {}
 void IrPrinter::Visit(Cast *x) {}
 void IrPrinter::Visit(Module *x) {}
 void IrPrinter::Visit(Variable *x) { os_ << x->name; }
-void IrPrinter::Visit(Alloc *x) {}
+void IrPrinter::Visit(Alloc *x) {
+  os_ << "alloc(" << x->buffer_var->name << ", ";
+  Print(x->extents);
+  os_ << ")";
+}
+void IrPrinter::Visit(Select *x) {
+  os_ << "select(";
+  Print(x->condition);
+  os_ << ", ";
+  Print(x->true_value);
+  os_ << ", ";
+  Print(x->false_value);
+  os_ << ")";
+}
+void IrPrinter::Visit(Load *x) {
+  os_ << x->buffer_var->name << "[";
+  Print(x->index);
+  os_ << "]";
+}
+void IrPrinter::Visit(Store *x) {
+  os_ << x->buffer_var->name << "[";
+  Print(x->index);
+  os_ << "] = ";
+  Print(x->value);
+}
+void IrPrinter::Visit(Free *x) { os_ << "free(" << x->var->name << ")"; }
 
 void IrPrinter::DoIndent() {
   for (int i = 0; i < indent_; i++) os_ << ' ';

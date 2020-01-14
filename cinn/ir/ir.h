@@ -205,6 +205,7 @@ struct Variable : public ExprNode<Variable> {
 
 //! A named variable.
 struct Var : public IRHandle {
+  Var() = default;
   explicit Var(const std::shared_ptr<IRNode>& n) : IRHandle(n) {}
   explicit Var(const std::string& name_hint, Type t = type_of<int>()) : Var(Variable::Make(name_hint, t).ptr()) {}
 
@@ -254,10 +255,10 @@ struct Load : public ExprNode<Load> {
  * Store a `value` to the buffer at a given `index`.
  */
 struct Store : public StmtNode<Store> {
-  Expr buffer_var;
+  Var buffer_var;
   Expr value, index;
 
-  static Stmt Make(Expr buffer_var, Expr value, Expr index);
+  static Stmt Make(Var buffer_var, Expr value, Expr index);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Store;
 };
@@ -267,14 +268,14 @@ struct Store : public StmtNode<Store> {
  * within which it is freed.
  */
 struct Alloc : public StmtNode<Alloc> {
-  Expr buffer_var;
+  Var buffer_var;
   Type type;
   //! Dimensions of this buffer (as a multi-dimensional array).
   std::vector<Expr> extents;
   Expr condition;
   Stmt body;
 
-  static Stmt Make(Expr buffer_var, Type type, const std::vector<Expr>& extents, Expr condition, Stmt body);
+  static Stmt Make(Var buffer_var, Type type, const std::vector<Expr>& extents, Expr condition, Stmt body);
 
   int32_t ConstantAllocationSize() const;
   static int32_t ConstantAllocationSize(const std::string& name, const std::vector<Expr>& extents);
@@ -286,13 +287,9 @@ struct Alloc : public StmtNode<Alloc> {
  * Free the resources associated with the given buffer.
  */
 struct Free : public StmtNode<Free> {
-  Expr var;
+  Var var;
 
-  static Stmt Make(Expr var) {
-    auto node = std::make_shared<Free>();
-    node->var = var;
-    return Stmt(node);
-  }
+  static Stmt Make(Var var);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Free;
 };
