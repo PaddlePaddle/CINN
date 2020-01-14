@@ -17,6 +17,8 @@ namespace ir {
 struct Cast : public UnaryOpNode<Cast> {
   Cast(Type t, Expr v) : UnaryOpNode<Cast>(t, v) {}
 
+  static Expr Make(Type t, Expr v);
+
   static const IrNodeTy _node_type_ = IrNodeTy::Cast;
 };
 
@@ -25,6 +27,8 @@ struct Cast : public UnaryOpNode<Cast> {
  */
 struct Add : public BinaryOpNode<Add> {
   Add(Expr a, Expr b) : BinaryOpNode<Add>(a.type(), a, b) {}
+
+  static Expr Make(Expr a, Expr b);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Add;
 };
@@ -35,6 +39,8 @@ struct Add : public BinaryOpNode<Add> {
 struct Sub : public BinaryOpNode<Sub> {
   Sub(Expr a, Expr b) : BinaryOpNode<Sub>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
+
   static const IrNodeTy _node_type_ = IrNodeTy::Sub;
 };
 
@@ -44,6 +50,7 @@ struct Sub : public BinaryOpNode<Sub> {
 struct Mul : public BinaryOpNode<Mul> {
   Mul(Expr a, Expr b) : BinaryOpNode<Mul>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::Mul;
 };
 
@@ -53,6 +60,7 @@ struct Mul : public BinaryOpNode<Mul> {
 struct Div : public BinaryOpNode<Div> {
   Div(Expr a, Expr b) : BinaryOpNode<Div>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::Div;
 };
 
@@ -62,23 +70,27 @@ struct Div : public BinaryOpNode<Div> {
 struct Mod : public BinaryOpNode<Mod> {
   Mod(Expr a, Expr b) : BinaryOpNode<Mod>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::Mod;
 };
 
 /**
  * The lesser of two expressions.
  */
-struct Min : public UnaryOpNode<Min> {
-  Min(Expr v) : UnaryOpNode<Min>(v.type(), v) {}
+struct Min : public BinaryOpNode<Min> {
+  Min(Expr a, Expr b) : BinaryOpNode<Min>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::Min;
 };
 
 /**
  * The larger of two expressions.
  */
-struct Max : public UnaryOpNode<Max> {
-  Max(Expr v) : UnaryOpNode<Max>(v.type(), v) {}
+struct Max : public BinaryOpNode<Max> {
+  Max(Expr a, Expr b) : BinaryOpNode<Max>(a.type(), a, b) {}
+
+  static Expr Make(Expr a, Expr b);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Max;
 };
@@ -89,6 +101,7 @@ struct Max : public UnaryOpNode<Max> {
 struct EQ : public BinaryOpNode<EQ> {
   EQ(Expr a, Expr b) : BinaryOpNode<EQ>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::EQ;
 };
 
@@ -98,6 +111,7 @@ struct EQ : public BinaryOpNode<EQ> {
 struct NE : public BinaryOpNode<NE> {
   NE(Expr a, Expr b) : BinaryOpNode<NE>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::NE;
 };
 
@@ -107,6 +121,7 @@ struct NE : public BinaryOpNode<NE> {
 struct LT : public BinaryOpNode<LT> {
   LT(Expr a, Expr b) : BinaryOpNode<LT>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::LT;
 };
 
@@ -116,6 +131,7 @@ struct LT : public BinaryOpNode<LT> {
 struct LE : public BinaryOpNode<LE> {
   LE(Expr a, Expr b) : BinaryOpNode<LE>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::LE;
 };
 
@@ -125,6 +141,7 @@ struct LE : public BinaryOpNode<LE> {
 struct GT : public BinaryOpNode<GT> {
   GT(Expr a, Expr b) : BinaryOpNode<GT>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::GT;
 };
 
@@ -134,6 +151,7 @@ struct GT : public BinaryOpNode<GT> {
 struct GE : public BinaryOpNode<GE> {
   GE(Expr a, Expr b) : BinaryOpNode<GE>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::GE;
 };
 
@@ -143,6 +161,7 @@ struct GE : public BinaryOpNode<GE> {
 struct And : public BinaryOpNode<And> {
   And(Expr a, Expr b) : BinaryOpNode<And>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::And;
 };
 
@@ -152,14 +171,18 @@ struct And : public BinaryOpNode<And> {
 struct Or : public BinaryOpNode<Or> {
   Or(Expr a, Expr b) : BinaryOpNode<Or>(a.type(), a, b) {}
 
+  static Expr Make(Expr a, Expr b);
+
   static const IrNodeTy _node_type_ = IrNodeTy::Or;
 };
 
 /**
  * Logical not.
  */
-struct Not : public BinaryOpNode<Not> {
-  Not(Expr a, Expr b) : BinaryOpNode<Not>(a.type(), a, b) {}
+struct Not : public UnaryOpNode<Not> {
+  Not(Expr v) : UnaryOpNode<Not>(v.type(), v) {}
+
+  static Expr Make(Expr v);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Not;
 };
@@ -175,19 +198,23 @@ struct Variable : public ExprNode<Variable> {
 
   Variable(const std::string& name, Type type) : ExprNode<Variable>(type), name(name) {}
 
+  static Expr Make(const std::string& name, Type type);
+
   static const IrNodeTy _node_type_ = IrNodeTy::Variable;
 };
 
 struct IfThenElse : public StmtNode<IfThenElse> {
   Expr condition;
-  Expr true_case;
-  Expr false_case;
+  Stmt true_case;
+  Stmt false_case;
 
-  IfThenElse(Expr condition, Expr true_case, Expr false_case)
+  IfThenElse(Expr condition, Stmt true_case, Stmt false_case)
       : condition(condition), true_case(true_case), false_case(false_case) {
     CHECK(condition.defined());
     CHECK(true_case.defined());
   }
+
+  static Stmt Make(Expr condition, Stmt true_case, Stmt false_case);
 
   static const IrNodeTy _node_type_ = IrNodeTy::IfThenElse;
 };
@@ -217,13 +244,9 @@ struct For : public StmtNode<For> {
 
   DeviceAPI device_api;
 
-  For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt body) {
-    this->min = std::move(min);
-    this->extent = std::move(extent);
-    this->for_type = std::move(for_type);
-    this->device_api = device_api;
-    this->body = std::move(body);
-  }
+  For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt body);
+
+  static Stmt Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt body);
 
   static const IrNodeTy _node_type_ = IrNodeTy::For;
 };
@@ -239,11 +262,7 @@ struct Block : public StmtNode<Block> {
 
   Block() = default;
 
-  static Stmt make(const std::vector<Stmt>& stmts) {
-    auto node = std::make_shared<Block>();
-    node->stmts = stmts;
-    return Stmt(node);
-  }
+  static Stmt Make(const std::vector<Stmt>& stmts);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Block;
 };
@@ -253,8 +272,13 @@ struct Block : public StmtNode<Block> {
  */
 struct Builder {
   template <typename IRType, typename... Args>
-  Expr make(Args... args) {
-    return Expr(std::make_shared<IRType>(args...));
+  Expr MakeExpr(Args... args) {
+    return IRType::Make(args...);
+  }
+
+  template <typename IRType, typename... Args>
+  Stmt MakeStmt(Args... args) {
+    return IRType::Make(args...);
   }
 };
 
