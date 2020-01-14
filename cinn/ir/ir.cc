@@ -120,5 +120,40 @@ Stmt IfThenElse::Make(Expr condition, Stmt true_case, Stmt false_case) {
   auto node = std::make_shared<IfThenElse>(condition, true_case, false_case);
   return Stmt(node);
 }
+
+Stmt Store::Make(Expr buffer_var, Expr value, Expr index) {
+  auto node = std::make_shared<Store>();
+  node->buffer_var = buffer_var;
+  node->value = value;
+  node->index = index;
+  return Stmt(node);
+}
+
+Stmt Alloc::Make(Expr buffer_var, Type type, const std::vector<Expr> &extents, Expr condition, Stmt body) {
+  auto node = std::make_shared<Alloc>();
+  node->buffer_var = buffer_var;
+  node->type = type;
+  node->extents = extents;
+  node->condition = condition;
+  node->body = body;
+  return Stmt(node);
+}
+
+int32_t Alloc::ConstantAllocationSize() const {
+  auto *var = buffer_var.As<Variable>();
+  CHECK(var);
+  return ConstantAllocationSize(var->name, extents);
+}
+
+int32_t Alloc::ConstantAllocationSize(const std::string &name, const std::vector<Expr> &extents) {
+  int32_t res{1};
+  for (auto &e : extents) {
+    auto *p = e.As<IntImm>();
+    CHECK(p) << "extent should be IntImm";
+    res *= p->value;
+  }
+  return res;
+}
+
 }  // namespace ir
 }  // namespace cinn

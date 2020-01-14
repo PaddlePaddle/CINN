@@ -61,6 +61,8 @@ struct Type {
     return Type(type_, bits_, 1);
   }
 
+  friend std::ostream& operator<<(std::ostream& os, const Type& t);
+
  private:
   void CheckTypeValid() const { CHECK_NE(type_, Unk); }
 

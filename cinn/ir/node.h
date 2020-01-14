@@ -36,12 +36,17 @@ class IRVisitor;
 
 #define NODETY_CONTROL_OP_FOR_EACH(macro__) \
   macro__(For)                              \
+  macro__(Select)                           \
   macro__(IfThenElse)                       \
   macro__(Block)                            \
   macro__(Call)                             \
   macro__(Cast)                             \
   macro__(Module)                           \
-  macro__(Variable)                           \
+  macro__(Variable)                         \
+  macro__(Load)                             \
+  macro__(Store)                            \
+  macro__(Alloc)                            \
+  macro__(Free)                            \
 
 #define NODETY_FORALL(macro__)          \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \
@@ -65,8 +70,8 @@ class IRNode : public std::enable_shared_from_this<IRNode> {
   virtual ~IRNode() = default;
 
   virtual void Accept(IRVisitor* v) const {}
-  virtual IrNodeTy node_type() = 0;
-  virtual Type& type() { return type_; }
+  virtual IrNodeTy node_type() const = 0;
+  virtual const Type& type() const { return type_; }
 
   std::shared_ptr<const IRNode> getptr() const { return shared_from_this(); }
 
@@ -88,7 +93,7 @@ class IRHandle : public std::enable_shared_from_this<IRHandle> {
 
   template <typename T>
   const T* As() const {
-    if (node_type() == T::_type_info_) return static_cast<const T*>(ptr_.get());
+    if (node_type() == T::_node_type_) return static_cast<const T*>(ptr_.get());
     return nullptr;
   }
   template <typename T>
@@ -101,6 +106,8 @@ class IRHandle : public std::enable_shared_from_this<IRHandle> {
 
   const std::shared_ptr<IRNode>& ptr() const { return ptr_; }
   void set_ptr(const std::shared_ptr<IRNode>& x) { ptr_ = x; }
+
+  void Accept(IRVisitor* v) const { ptr_->Accept(v); }
 
  protected:
   std::shared_ptr<IRNode> ptr_{};
@@ -115,7 +122,7 @@ struct StmtNode : public IRNode {
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return static_cast<const T*>(this); }
 
-  IrNodeTy node_type() { return T::_node_type_; }
+  IrNodeTy node_type() const { return T::_node_type_; }
 };
 
 template <typename T>
@@ -127,7 +134,7 @@ struct ExprNode : public IRNode {
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return static_cast<const T*>(this); }
 
-  IrNodeTy node_type() { return T::_node_type_; }
+  IrNodeTy node_type() const { return T::_node_type_; }
 };
 
 struct IntImm : public ExprNode<IntImm> {
@@ -233,6 +240,7 @@ const DeviceAPI all_device_apis[] = {
  * An enum describing different address spaces to be used with Func::store_in.
  */
 enum class MemoryType {
+  Auto,
 
 };
 
