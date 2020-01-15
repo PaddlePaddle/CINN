@@ -120,7 +120,7 @@ struct StmtNode : public IRNode {
   void Accept(IrVisitor* v) const override;
 
   T* self() { return static_cast<T*>(this); }
-  const T* const_self() const { return static_cast<const T*>(this); }
+  const T* const_self() const { return dynamic_cast<const T*>(this); }
 
   IrNodeTy node_type() const { return T::_node_type_; }
 };
@@ -132,7 +132,7 @@ struct ExprNode : public IRNode {
   void Accept(IrVisitor* v) const override;
 
   T* self() { return static_cast<T*>(this); }
-  const T* const_self() const { return static_cast<const T*>(this); }
+  const T* const_self() const { return dynamic_cast<const T*>(this); }
 
   IrNodeTy node_type() const { return T::_node_type_; }
 };

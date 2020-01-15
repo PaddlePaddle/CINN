@@ -7,18 +7,22 @@ namespace ir {
 
 //! Implementations for Ir Expr Nodes.
 // @{
-#define __m(t__) \
-  template <>    \
-  void ExprNode<t__>::Accept(cinn::ir::IrVisitor *v) const {}
+#define __m(t__)                                             \
+  template <>                                                \
+  void ExprNode<t__>::Accept(cinn::ir::IrVisitor *v) const { \
+    v->Visit(const_self());                                  \
+  }
 NODETY_FORALL(__m)
 #undef __m
 // @}
 
 //! Implementations for Ir Stmt Nodes.
 // @{
-#define __m(t__) \
-  template <>    \
-  void StmtNode<t__>::Accept(cinn::ir::IrVisitor *v) const {}
+#define __m(t__)                                             \
+  template <>                                                \
+  void StmtNode<t__>::Accept(cinn::ir::IrVisitor *v) const { \
+    v->Visit(const_self());                                  \
+  }
 NODETY_FORALL(__m)
 #undef __m
 // @}
