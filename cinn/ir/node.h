@@ -8,7 +8,7 @@
 namespace cinn {
 namespace ir {
 
-class IRVisitor;
+class IrVisitor;
 
 // clang-format off
 #define NODETY_PRIMITIVE_TYPE_FOR_EACH(macro__) \
@@ -36,12 +36,17 @@ class IRVisitor;
 
 #define NODETY_CONTROL_OP_FOR_EACH(macro__) \
   macro__(For)                              \
+  macro__(Select)                           \
   macro__(IfThenElse)                       \
   macro__(Block)                            \
   macro__(Call)                             \
   macro__(Cast)                             \
   macro__(Module)                           \
-  macro__(Variable)                           \
+  macro__(Variable)                         \
+  macro__(Load)                             \
+  macro__(Store)                            \
+  macro__(Alloc)                            \
+  macro__(Free)                            \
 
 #define NODETY_FORALL(macro__)          \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \
@@ -61,13 +66,17 @@ std::ostream& operator<<(std::ostream& os, IrNodeTy type);
 class IRNode : public std::enable_shared_from_this<IRNode> {
  public:
   IRNode() = default;
+  IRNode(Type t) : type_(t) {}
   virtual ~IRNode() = default;
 
-  virtual void Accept(IRVisitor* v) const {}
-  virtual IrNodeTy node_type() = 0;
-  virtual const Type& type() = 0;
+  virtual void Accept(IrVisitor* v) const = 0;
+  virtual IrNodeTy node_type() const = 0;
+  virtual const Type& type() const { return type_; }
 
   std::shared_ptr<const IRNode> getptr() const { return shared_from_this(); }
+
+ protected:
+  Type type_;
 };
 
 /**
@@ -81,11 +90,10 @@ class IRHandle : public std::enable_shared_from_this<IRHandle> {
   explicit IRHandle(const std::shared_ptr<IRNode>& x) { ptr_ = x; }
 
   IrNodeTy node_type() const { return ptr_->node_type(); }
-  Type type() const { return ptr_->type(); }
 
   template <typename T>
   const T* As() const {
-    if (node_type() == T::_type_info_) return static_cast<const T*>(ptr_.get());
+    if (node_type() == T::_node_type_) return static_cast<const T*>(ptr_.get());
     return nullptr;
   }
   template <typename T>
@@ -99,34 +107,34 @@ class IRHandle : public std::enable_shared_from_this<IRHandle> {
   const std::shared_ptr<IRNode>& ptr() const { return ptr_; }
   void set_ptr(const std::shared_ptr<IRNode>& x) { ptr_ = x; }
 
+  void Accept(IrVisitor* v) const { ptr_->Accept(v); }
+
  protected:
   std::shared_ptr<IRNode> ptr_{};
 };
 
 template <typename T>
 struct StmtNode : public IRNode {
-  void Accept(IRVisitor* v) const override;
+  StmtNode() = default;
+
+  void Accept(IrVisitor* v) const override;
 
   T* self() { return static_cast<T*>(this); }
-  const T* const_self() const { return static_cast<const T*>(this); }
+  const T* const_self() const { return dynamic_cast<const T*>(this); }
 
-  IrNodeTy node_type() { return T::_node_type_; }
+  IrNodeTy node_type() const { return T::_node_type_; }
 };
 
 template <typename T>
 struct ExprNode : public IRNode {
-  explicit ExprNode(Type t) : type_(t) {}
+  explicit ExprNode(Type t) : IRNode(t) {}
 
-  void Accept(IRVisitor* v) const override;
+  void Accept(IrVisitor* v) const override;
 
   T* self() { return static_cast<T*>(this); }
-  const T* const_self() const { return static_cast<const T*>(this); }
+  const T* const_self() const { return dynamic_cast<const T*>(this); }
 
-  IrNodeTy node_type() { return T::_node_type_; }
-  const Type& type() { return type_; }
-
- private:
-  Type type_;
+  IrNodeTy node_type() const { return T::_node_type_; }
 };
 
 struct IntImm : public ExprNode<IntImm> {
@@ -181,6 +189,8 @@ struct Expr : public IRHandle {
   explicit Expr(float x) : IRHandle(std::make_shared<IntImm>(Float(32), x)) {}
   explicit Expr(double x) : IRHandle(std::make_shared<IntImm>(Float(64), x)) {}
   // @}
+
+  const Type& type() { return ptr_->type(); }
 };
 
 /**
@@ -230,6 +240,7 @@ const DeviceAPI all_device_apis[] = {
  * An enum describing different address spaces to be used with Func::store_in.
  */
 enum class MemoryType {
+  Auto,
 
 };
 
