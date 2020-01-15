@@ -13,41 +13,41 @@ void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitte
   if (exprs.size() > 1) Print(exprs.back());
 }
 
-void IrPrinter::Visit(IntImm *x) { os_ << x->value; }
-void IrPrinter::Visit(UIntImm *x) { os_ << x->value; }
-void IrPrinter::Visit(FloatImm *x) { os_ << x->value; }
-void IrPrinter::Visit(Add *x) { PrintBinaryOp("+", x); }
-void IrPrinter::Visit(Sub *x) { PrintBinaryOp("-", x); }
-void IrPrinter::Visit(Mul *x) { PrintBinaryOp("*", x); }
-void IrPrinter::Visit(Div *x) { PrintBinaryOp("/", x); }
-void IrPrinter::Visit(Mod *x) { PrintBinaryOp("%", x); }
-void IrPrinter::Visit(EQ *x) { PrintBinaryOp("==", x); }
-void IrPrinter::Visit(NE *x) { PrintBinaryOp("!=", x); }
-void IrPrinter::Visit(LT *x) { PrintBinaryOp("<", x); }
-void IrPrinter::Visit(LE *x) { PrintBinaryOp("<=", x); }
-void IrPrinter::Visit(GT *x) { PrintBinaryOp(">", x); }
-void IrPrinter::Visit(GE *x) { PrintBinaryOp("<=", x); }
-void IrPrinter::Visit(And *x) { PrintBinaryOp("and", x); }
-void IrPrinter::Visit(Or *x) { PrintBinaryOp("or", x); }
-void IrPrinter::Visit(Not *x) {
+void IrPrinter::Visit(const IntImm *x) { os_ << x->value; }
+void IrPrinter::Visit(const UIntImm *x) { os_ << x->value; }
+void IrPrinter::Visit(const FloatImm *x) { os_ << x->value; }
+void IrPrinter::Visit(const Add *x) { PrintBinaryOp("+", x); }
+void IrPrinter::Visit(const Sub *x) { PrintBinaryOp("-", x); }
+void IrPrinter::Visit(const Mul *x) { PrintBinaryOp("*", x); }
+void IrPrinter::Visit(const Div *x) { PrintBinaryOp("/", x); }
+void IrPrinter::Visit(const Mod *x) { PrintBinaryOp("%", x); }
+void IrPrinter::Visit(const EQ *x) { PrintBinaryOp("==", x); }
+void IrPrinter::Visit(const NE *x) { PrintBinaryOp("!=", x); }
+void IrPrinter::Visit(const LT *x) { PrintBinaryOp("<", x); }
+void IrPrinter::Visit(const LE *x) { PrintBinaryOp("<=", x); }
+void IrPrinter::Visit(const GT *x) { PrintBinaryOp(">", x); }
+void IrPrinter::Visit(const GE *x) { PrintBinaryOp("<=", x); }
+void IrPrinter::Visit(const And *x) { PrintBinaryOp("and", x); }
+void IrPrinter::Visit(const Or *x) { PrintBinaryOp("or", x); }
+void IrPrinter::Visit(const Not *x) {
   os_ << "!";
   Print(x->v);
 }
-void IrPrinter::Visit(Min *x) {
+void IrPrinter::Visit(const Min *x) {
   os_ << "min(";
   Print(x->a);
   os_ << ", ";
   Print(x->b);
   os_ << ")";
 }
-void IrPrinter::Visit(Max *x) {
+void IrPrinter::Visit(const Max *x) {
   os_ << "max(";
   Print(x->a);
   os_ << ", ";
   Print(x->b);
   os_ << ")";
 }
-void IrPrinter::Visit(For *x) {
+void IrPrinter::Visit(const For *x) {
   DoIndent();
   os_ << "for(";
   Print(x->min);
@@ -55,7 +55,7 @@ void IrPrinter::Visit(For *x) {
   Print(x->extent);
   os_ << ")";
 }
-void IrPrinter::Visit(IfThenElse *x) {
+void IrPrinter::Visit(const IfThenElse *x) {
   DoIndent();
   os_ << "if (";
   Print(x->condition);
@@ -69,7 +69,7 @@ void IrPrinter::Visit(IfThenElse *x) {
     os_ << "\n";
   }
 }
-void IrPrinter::Visit(Block *x) {
+void IrPrinter::Visit(const Block *x) {
   DoIndent();
   os_ << "{\n";
 
@@ -84,16 +84,16 @@ void IrPrinter::Visit(Block *x) {
   DoIndent();
   os_ << "}";
 }
-void IrPrinter::Visit(Call *x) {}
-void IrPrinter::Visit(Cast *x) {}
-void IrPrinter::Visit(Module *x) {}
-void IrPrinter::Visit(Variable *x) { os_ << x->name; }
-void IrPrinter::Visit(Alloc *x) {
+void IrPrinter::Visit(const Call *x) {}
+void IrPrinter::Visit(const Cast *x) {}
+void IrPrinter::Visit(const Module *x) {}
+void IrPrinter::Visit(const Variable *x) { os_ << x->name; }
+void IrPrinter::Visit(const Alloc *x) {
   os_ << "alloc(" << x->buffer_var->name << ", ";
   Print(x->extents);
   os_ << ")";
 }
-void IrPrinter::Visit(Select *x) {
+void IrPrinter::Visit(const Select *x) {
   os_ << "select(";
   Print(x->condition);
   os_ << ", ";
@@ -102,18 +102,18 @@ void IrPrinter::Visit(Select *x) {
   Print(x->false_value);
   os_ << ")";
 }
-void IrPrinter::Visit(Load *x) {
+void IrPrinter::Visit(const Load *x) {
   os_ << x->buffer_var->name << "[";
   Print(x->index);
   os_ << "]";
 }
-void IrPrinter::Visit(Store *x) {
+void IrPrinter::Visit(const Store *x) {
   os_ << x->buffer_var->name << "[";
   Print(x->index);
   os_ << "] = ";
   Print(x->value);
 }
-void IrPrinter::Visit(Free *x) { os_ << "free(" << x->var->name << ")"; }
+void IrPrinter::Visit(const Free *x) { os_ << "free(" << x->var->name << ")"; }
 
 void IrPrinter::DoIndent() {
   for (int i = 0; i < indent_; i++) os_ << ' ';

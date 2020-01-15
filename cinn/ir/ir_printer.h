@@ -18,7 +18,7 @@ struct IrPrinter : public IrVisitor {
   void Print(const std::vector<Expr> &exprs, const std::string &splitter = ", ");
   //! Emit a binary operator
   template <typename IRN>
-  void PrintBinaryOp(const std::string &op, BinaryOpNode<IRN> *x) {
+  void PrintBinaryOp(const std::string &op, const BinaryOpNode<IRN> *x) {
     os_ << "(";
     Print(x->a);
     os_ << " " + op + " ";
@@ -33,37 +33,37 @@ struct IrPrinter : public IrVisitor {
   //! Decrease the indent size.
   void DescIndent() { --indent_; }
 
-  void Visit(IntImm *x) override;
-  void Visit(UIntImm *x) override;
-  void Visit(FloatImm *x) override;
-  void Visit(Add *x) override;
-  void Visit(Sub *x) override;
-  void Visit(Mul *x) override;
-  void Visit(Div *x) override;
-  void Visit(Mod *x) override;
-  void Visit(EQ *x) override;
-  void Visit(NE *x) override;
-  void Visit(LT *x) override;
-  void Visit(LE *x) override;
-  void Visit(GT *x) override;
-  void Visit(GE *x) override;
-  void Visit(And *x) override;
-  void Visit(Or *x) override;
-  void Visit(Not *x) override;
-  void Visit(Min *x) override;
-  void Visit(Max *x) override;
-  void Visit(For *x) override;
-  void Visit(IfThenElse *x) override;
-  void Visit(Block *x) override;
-  void Visit(Call *x) override;
-  void Visit(Cast *x) override;
-  void Visit(Module *x) override;
-  void Visit(Variable *x) override;
-  void Visit(Alloc *x) override;
-  void Visit(Select *x) override;
-  void Visit(Load *x) override;
-  void Visit(Store *x) override;
-  void Visit(Free *x) override;
+  void Visit(const IntImm *x) override;
+  void Visit(const UIntImm *x) override;
+  void Visit(const FloatImm *x) override;
+  void Visit(const Add *x) override;
+  void Visit(const Sub *x) override;
+  void Visit(const Mul *x) override;
+  void Visit(const Div *x) override;
+  void Visit(const Mod *x) override;
+  void Visit(const EQ *x) override;
+  void Visit(const NE *x) override;
+  void Visit(const LT *x) override;
+  void Visit(const LE *x) override;
+  void Visit(const GT *x) override;
+  void Visit(const GE *x) override;
+  void Visit(const And *x) override;
+  void Visit(const Or *x) override;
+  void Visit(const Not *x) override;
+  void Visit(const Min *x) override;
+  void Visit(const Max *x) override;
+  void Visit(const For *x) override;
+  void Visit(const IfThenElse *x) override;
+  void Visit(const Block *x) override;
+  void Visit(const Call *x) override;
+  void Visit(const Cast *x) override;
+  void Visit(const Module *x) override;
+  void Visit(const Variable *x) override;
+  void Visit(const Alloc *x) override;
+  void Visit(const Select *x) override;
+  void Visit(const Load *x) override;
+  void Visit(const Store *x) override;
+  void Visit(const Free *x) override;
 
  private:
   std::ostream &os_;

@@ -40,7 +40,5 @@ std::ostream &operator<<(std::ostream &os, IrNodeTy type) {
   return os;
 }
 
-void IRNode::Accept(IrVisitor *v) const { v->Visit(this); }
-
 }  // namespace ir
 }  // namespace cinn

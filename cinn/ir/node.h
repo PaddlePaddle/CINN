@@ -69,7 +69,7 @@ class IRNode : public std::enable_shared_from_this<IRNode> {
   IRNode(Type t) : type_(t) {}
   virtual ~IRNode() = default;
 
-  virtual void Accept(IrVisitor* v) const;
+  virtual void Accept(IrVisitor* v) const = 0;
   virtual IrNodeTy node_type() const = 0;
   virtual const Type& type() const { return type_; }
 
