@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(CINN)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
 
 option(WITH_TESTING         "Compile with Unittests"          ON)
@@ -16,6 +16,7 @@ include(cmake/external/glog.cmake)
 include(cmake/external/gtest.cmake)
 include(cmake/external/protobuf.cmake)
 include(cmake/external/mklml.cmake)
+include(cmake/external/boost.cmake)
 
 find_package(Threads REQUIRED)
 add_subdirectory(cinn)
