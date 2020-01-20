@@ -34,14 +34,9 @@ class PODValue {
   operator void*() const;
   // @}
 
-  //! Setters.
-  // @{
-  bool set_float(Value value, int type_code);
-  bool set_double(Value value, int type_code);
-  bool set_int32(Value value, int type_code);
-  bool set_int64(Value value, int type_code);
-  bool set_handler(Value value, int type_code);
-  // @}
+  //! Set the value.
+  template <typename T>
+  void Set(T v);
 
   int type_code() const { return type_code_; }
 

@@ -68,12 +68,12 @@ class PackedFunc {
   template <typename... Args_>
   inline RetValue operator()(Args_&&... args) const {
     const int kNumArgs = sizeof...(Args_);
-    const int kArraySize = num_args > 0 ? num_args : 1;
+    const int kArraySize = kNumArgs > 0 ? kNumArgs : 1;
     Value values[kArraySize];
     int type_codes[kArraySize];
 
     RetValue ret_value;
-    body_(Args(values, type_codes, num_args), &ret_value);
+    body_(Args(values, type_codes, kNumArgs), &ret_value);
   }
 
  private:

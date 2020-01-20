@@ -10,10 +10,11 @@ namespace common {
   int PODValue::TypeCode<T>() { \
     return code__;              \
   }
-__m(int, 0) __m(int64_t, 1);
+__m(int, 0);
+__m(int64_t, 1);
 __m(float, 2);
 __m(double, 3);
-__m(void*, 4);
+__m(void *, 4);
 #undef __m
 //@}
 
@@ -37,10 +38,39 @@ PODValue::operator int64_t() const {
   CHECK_EQ(TypeCode<int64_t>(), type_code_);
   return value_.v_int64;
 };
-PODValue::operator void*() const {
-  CHECK_EQ(TypeCode<void*>(), type_code_);
+PODValue::operator void *() const {
+  CHECK_EQ(TypeCode<void *>(), type_code_);
   return value_.v_handle;
 };
+
+// Value setter for multiple types.
+// @{
+template <>
+void PODValue::Set<int32_t>(int32_t v) {
+  type_code_ = TypeCode<int32_t>();
+  value_.v_int64 = v;
+}
+template <>
+void PODValue::Set<int64_t>(int64_t v) {
+  type_code_ = TypeCode<int64_t>();
+  value_.v_int64 = v;
+}
+template <>
+void PODValue::Set<float>(float v) {
+  type_code_ = TypeCode<float>();
+  value_.v_float64 = v;
+}
+template <>
+void PODValue::Set<double>(double v) {
+  type_code_ = TypeCode<double>();
+  value_.v_float64 = v;
+}
+template <>
+void PODValue::Set<void *>(void *v) {
+  type_code_ = TypeCode<void *>();
+  value_.v_handle = v;
+}
+// @}
 
 }  // namespace common
 }  // namespace cinn
