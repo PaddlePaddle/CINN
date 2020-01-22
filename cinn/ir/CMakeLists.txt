@@ -5,6 +5,9 @@ cc_library(ir SRCS
         function.cc
         function_definition.cc
         ir_operators.cc
+        buffer.cc
+        tensor.cc
+        function_base.cc
         DEPS common boost
         )
 

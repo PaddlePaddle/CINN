@@ -8,11 +8,15 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/shared.h"
 #include "cinn/common/type.h"
 #include "cinn/ir/node.h"
 
 namespace cinn {
 namespace ir {
+
+using common::Object;
+using common::Shared;
 
 /**
  * Cast a node to another type, can't change the width.
@@ -210,9 +214,9 @@ struct Variable : public ExprNode<Variable> {
 };
 
 //! A named variable.
-struct Var : public IRNodeRef {
+struct Var : public IrNodeRef {
   Var() = default;
-  explicit Var(IRNode* n) : IRNodeRef(n) {}
+  explicit Var(IrNode* n) : IrNodeRef(n) {}
   explicit Var(const std::string& name_hint, Type t = type_of<int>()) : Var(Variable::Make(name_hint, t).ptr()) {}
 
   const Variable* operator->() const { return get(); }
@@ -363,6 +367,122 @@ struct Block : public StmtNode<Block> {
 
   static const IrNodeTy _node_type_ = IrNodeTy::Block;
 };
+
+class _Range_;
+class Range : public IrNodeRef {
+ public:
+  Range() = default;
+  Range(IrNodeRef n) : IrNodeRef(n) {}
+  Range(_Range_* n);
+  _Range_* operator->() const { return get()->As<_Range_>(); }
+};
+
+class _Range_ : public IrNode {
+ public:
+  //! Begin of the range.
+  Expr min;
+  //! Extent of the range.
+  Expr extent;
+
+  _Range_() = default;
+  _Range_(Expr min, Expr extent) : min(min), extent(extent) {}
+  IrNodeTy node_type() const override { return _node_type_; }
+  void Accept(IrVisitor* v) const override;
+
+  static Range Make(Expr min, Expr extent) {
+    auto node    = common::make_shared<_Range_>();
+    node->min    = min;
+    node->extent = extent;
+    return Range(node);
+  }
+
+  static const IrNodeTy _node_type_ = IrNodeTy::_Range_;
+};
+
+enum class IterVarType : int {
+  /**
+   * \brief Data parallel iteration.
+   * This normally corresponds to axis of Tensor.
+   * Allow all IterVar manipulations.
+   *
+   * \note This does't mean the loop have to be executed in parallel fashion.
+   */
+  kDataPar = 0,
+  /**
+   * \brief The IterVar itself is a thread-index of a fixed thread launching group.
+   * \note This is already assumed to be parallized.
+   *
+   * Disallow: split/fuse/vectorize/parallel
+   */
+  kThreadIndex = 1,
+  /**
+   * \brief Communicative reduction.
+   * \note Cannot be directly parallelized.
+   *
+   * Disallow: parallel/vectorize
+   */
+  kCommReduce = 2,
+  /**
+   * \brief Serial loops with loop carry dependency, the iteration must execute in order. Cannot be re-ordered.
+   *
+   * Disallow: reorder/parallel/vectorize.
+   */
+  kOrdered = 3,
+  /**
+   * \brief The loop is unrolled.
+   */
+  kUnrolled = 5,
+  /**
+   * \brief The loop is vectorized.
+   */
+  kVectorized = 6,
+  /**
+   * \brief The loop is parallelized.
+   */
+  kParallelized = 7,
+};
+
+class _IterVar_;
+class IterVar : public IrNodeRef {
+ public:
+  IterVar() = default;
+  IterVar(IrNodeRef n) : n_(n) {}
+  _IterVar_* operator->() { return n_.As<_IterVar_>(); }
+  const _IterVar_* operator->() const { return n_.As<_IterVar_>(); }
+
+ private:
+  IrNodeRef n_;
+};
+
+/**
+ * An iteration variable representing an iteration over a one-dimensional interval.
+ */
+class _IterVar_ : public IrNode {
+ public:
+  //! The domain of the iteration.
+  Range dom;
+  //! The looping variable.
+  Var var;
+  //! The type of the IterVar.
+  IterVarType iter_type;
+  //! Additional tag on the iteration variable.
+  std::string thread_tag;
+
+  //! Create a new instance of IterVar.
+  static IterVar Make(Range dom, Var var, IterVarType iter_type, const std::string& thread_tag = "");
+
+  void Accept(IrVisitor* v) const override;
+  IrNodeTy node_type() const override { return _node_type_; }
+
+  static const IrNodeTy _node_type_ = IrNodeTy::_Range_;
+};
+
+static IterVar thread_axis(Range dom, const std::string& tag) {
+  return _IterVar_::Make(dom, Var(tag), IterVarType::kThreadIndex, tag);
+}
+static IterVar reduce_axis(Range dom, const std::string& name) {
+  return _IterVar_::Make(dom, Var(name), IterVarType::kCommReduce);
+}
 
 /**
  * A builder to construct any IR node.

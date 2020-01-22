@@ -52,7 +52,11 @@ class IrVisitor;
   macro__(Load)                             \
   macro__(Store)                            \
   macro__(Alloc)                            \
-  macro__(Free)                            \
+  macro__(Free)                             \
+  macro__(_Range_)                            \
+  macro__(_IterVar_)                            \
+  macro__(_Buffer_)                            \
+  macro__(_Tensor_)                            \
 
 #define NODETY_FORALL(macro__)          \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \
@@ -63,7 +67,7 @@ class IrVisitor;
 //! Define IrNodeTy
 // @{
 #define __m(x__) x__,
-enum class IrNodeTy { NODETY_FORALL(__m) };
+enum class IrNodeTy { kUnk = -1, NODETY_FORALL(__m) };
 #undef __m
 // @}
 
@@ -72,14 +76,14 @@ std::ostream& operator<<(std::ostream& os, IrNodeTy type);
 /**
  * The base of all the nodes in the IR.
  */
-class IRNode : public common::Object {
+class IrNode : public common::Object {
  public:
-  IRNode() = default;
-  IRNode(Type t) : type_(t) {}
-  virtual ~IRNode() = default;
+  IrNode() = default;
+  IrNode(Type t) : type_(t) {}
+  virtual ~IrNode() = default;
 
   virtual void Accept(IrVisitor* v) const = 0;
-  virtual IrNodeTy node_type() const      = 0;
+  virtual IrNodeTy node_type() const { return IrNodeTy ::kUnk; }
   virtual const Type& type() const { return type_; }
 
   const char* type_info() const override { return __type_info__; }
@@ -92,11 +96,11 @@ class IRNode : public common::Object {
 /**
  * A handle to store any IRNode.
  */
-class IRNodeRef : public common::Shared<IRNode> {
+class IrNodeRef : public common::Shared<IrNode> {
  public:
-  IRNodeRef() = default;
-  IRNodeRef(IRNodeRef& other) : Shared(other.p_) {}
-  explicit IRNodeRef(IRNode* x) : Shared(x) {}
+  IrNodeRef() = default;
+  IrNodeRef(const IrNodeRef& other) : Shared(other.p_) {}
+  explicit IrNodeRef(IrNode* x) : Shared(x) {}
 
   IrNodeTy node_type() const { return get()->node_type(); }
 
@@ -111,14 +115,14 @@ class IRNodeRef : public common::Shared<IRNode> {
     return nullptr;
   }
 
-  IRNode* ptr() { return get(); }
-  IRNode* ptr() const { return get(); }
+  IrNode* ptr() { return get(); }
+  IrNode* ptr() const { return get(); }
 
   void Accept(IrVisitor* v) const { get()->Accept(v); }
 };
 
 template <typename T>
-struct StmtNode : public IRNode {
+struct StmtNode : public IrNode {
   StmtNode() = default;
 
   void Accept(IrVisitor* v) const override;
@@ -130,8 +134,8 @@ struct StmtNode : public IRNode {
 };
 
 template <typename T>
-struct ExprNode : public IRNode {
-  explicit ExprNode(Type t) : IRNode(t) {}
+struct ExprNode : public IrNode {
+  explicit ExprNode(Type t) : IrNode(t) {}
 
   void Accept(IrVisitor* v) const override;
 
@@ -179,18 +183,18 @@ struct FloatImm : public ExprNode<FloatImm> {
 /**
  * An expression that represents some value or the result of some operations.
  */
-struct Expr : public IRNodeRef {
+struct Expr : public IrNodeRef {
  public:
   Expr() = default;
-  Expr(const Expr& other) : IRNodeRef(other.ptr()) {}
-  Expr(IRNode* p) : IRNodeRef(p) {}
+  Expr(const Expr& other) : IrNodeRef(other.ptr()) {}
+  Expr(IrNode* p) : IrNodeRef(p) {}
 
   //! Helper function to construct numeric constants of various types.
   // @{
-  explicit Expr(int32_t x) : IRNodeRef(new IntImm(Int(32), x)) {}
-  explicit Expr(int64_t x) : IRNodeRef(new IntImm(Int(64), x)) {}
-  explicit Expr(float x) : IRNodeRef(new IntImm(Float(32), x)) {}
-  explicit Expr(double x) : IRNodeRef(new IntImm(Float(64), x)) {}
+  explicit Expr(int32_t x) : IrNodeRef(new IntImm(Int(32), x)) {}
+  explicit Expr(int64_t x) : IrNodeRef(new IntImm(Int(64), x)) {}
+  explicit Expr(float x) : IrNodeRef(new IntImm(Float(32), x)) {}
+  explicit Expr(double x) : IrNodeRef(new IntImm(Float(64), x)) {}
   // @}
 
   const Type& type() const { return p_->type(); }
@@ -199,12 +203,12 @@ struct Expr : public IRNodeRef {
 /**
  * An statement that doesn't have return value.
  */
-struct Stmt : public IRNodeRef {
+struct Stmt : public IrNodeRef {
  public:
   Stmt() = default;
 
-  Stmt(const Stmt& other) : IRNodeRef(other.ptr()) {}
-  Stmt(IRNode* p) : IRNodeRef(p) {}
+  Stmt(const Stmt& other) : IrNodeRef(other.ptr()) {}
+  Stmt(IrNode* p) : IrNodeRef(p) {}
 };
 
 template <typename T>

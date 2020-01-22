@@ -1,4 +1,5 @@
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_visitor.h"
 
 namespace cinn {
 namespace ir {
@@ -161,5 +162,21 @@ Stmt Free::Make(Var var) {
   node->var = var;
   return Stmt(node);
 }
+
+void _Range_::Accept(IrVisitor *v) const { v->Visit(this); }
+
+Range::Range(_Range_ *n) : IrNodeRef(n) {}
+
+void _IterVar_::Accept(IrVisitor *v) const { v->Visit(this); }
+
+IterVar _IterVar_::Make(Range dom, Var var, IterVarType iter_type, const std::string &thread_tag) {
+  auto node        = common::make_shared<_IterVar_>();
+  node->dom        = dom;
+  node->var        = var;
+  node->iter_type  = iter_type;
+  node->thread_tag = thread_tag;
+  return IterVar(IrNodeRef(node));
+}
+
 }  // namespace ir
 }  // namespace cinn
