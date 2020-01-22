@@ -45,6 +45,8 @@ class Tensor : public IrNodeRef {
    */
   Expr operator()(const std::vector<Var>& indices);
 
+  inline bool operator==(const Tensor& other) const;
+
   /**
    * Data structure to represent a slice that fixes first k coordinates.
    */
