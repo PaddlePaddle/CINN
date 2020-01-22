@@ -477,10 +477,10 @@ class _IterVar_ : public IrNode {
   static const IrNodeTy _node_type_ = IrNodeTy::_Range_;
 };
 
-IterVar thread_axis(Range dom, const std::string& tag) {
+static IterVar thread_axis(Range dom, const std::string& tag) {
   return _IterVar_::Make(dom, Var(tag), IterVarType::kThreadIndex, tag);
 }
-IterVar reduce_axis(Range dom, const std::string& name) {
+static IterVar reduce_axis(Range dom, const std::string& name) {
   return _IterVar_::Make(dom, Var(name), IterVarType::kCommReduce);
 }
 

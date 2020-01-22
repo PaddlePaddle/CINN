@@ -1,5 +1,7 @@
 #pragma once
+#include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/tensor.h"
 
 namespace cinn {
 namespace ir {

@@ -55,6 +55,8 @@ class IrVisitor;
   macro__(Free)                             \
   macro__(_Range_)                            \
   macro__(_IterVar_)                            \
+  macro__(_Buffer_)                            \
+  macro__(_Tensor_)                            \
 
 #define NODETY_FORALL(macro__)          \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \
@@ -65,7 +67,7 @@ class IrVisitor;
 //! Define IrNodeTy
 // @{
 #define __m(x__) x__,
-enum class IrNodeTy { NODETY_FORALL(__m) };
+enum class IrNodeTy { kUnk = -1, NODETY_FORALL(__m) };
 #undef __m
 // @}
 
@@ -81,7 +83,7 @@ class IrNode : public common::Object {
   virtual ~IrNode() = default;
 
   virtual void Accept(IrVisitor* v) const = 0;
-  virtual IrNodeTy node_type() const      = 0;
+  virtual IrNodeTy node_type() const { return IrNodeTy ::kUnk; }
   virtual const Type& type() const { return type_; }
 
   const char* type_info() const override { return __type_info__; }
