@@ -1,3 +1,6 @@
+/**
+ * This file contains all the internal representations used in CINN project.
+ */
 #pragma once
 
 #include <memory>
@@ -5,8 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/type.h"
 #include "cinn/ir/node.h"
-#include "cinn/ir/type.h"
 
 namespace cinn {
 namespace ir {
@@ -193,24 +196,27 @@ struct Call : public ExprNode<Call> {
   static const IrNodeTy _node_type_ = IrNodeTy::Call;
 };
 
+/**
+ * Variable used as iterator value or bound definition.
+ */
 struct Variable : public ExprNode<Variable> {
   std::string name;
 
   Variable(const std::string& name, Type type) : ExprNode<Variable>(type), name(name) {}
 
-  static Expr Make(const std::string& name, Type type);
+  static Expr Make(const std::string& name, const Type& type);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Variable;
 };
 
 //! A named variable.
-struct Var : public IRHandle {
+struct Var : public IRNodeRef {
   Var() = default;
-  explicit Var(const std::shared_ptr<IRNode>& n) : IRHandle(n) {}
+  explicit Var(IRNode* n) : IRNodeRef(n) {}
   explicit Var(const std::string& name_hint, Type t = type_of<int>()) : Var(Variable::Make(name_hint, t).ptr()) {}
 
   const Variable* operator->() const { return get(); }
-  const Variable* get() const { return static_cast<const Variable*>(ptr().get()); }
+  const Variable* get() const { return static_cast<const Variable*>(ptr()); }
 };
 
 /**
@@ -227,7 +233,7 @@ struct Select : public ExprNode<Select> {
   }
 
   static Expr Make(Expr condition, Expr true_value, Expr false_value) {
-    auto node = std::make_shared<Select>(condition, true_value, false_value);
+    auto node = new Select(condition, true_value, false_value);
     return Expr(node);
   }
 
@@ -244,7 +250,7 @@ struct Load : public ExprNode<Load> {
   Load(Var buffer, Expr index) : ExprNode<Load>(buffer->type().ElementOf()), buffer_var(buffer), index(index) {}
 
   static Expr Make(Var buffer, Expr index) {
-    auto node = std::make_shared<Load>(buffer, index);
+    auto node = new Load(buffer, index);
     return Expr(node);
   }
 

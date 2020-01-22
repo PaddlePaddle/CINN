@@ -1,12 +1,18 @@
 #pragma once
 
+#include <cinn/common/object.h>
 #include <memory>
 #include <string>
 
-#include "cinn/ir/type.h"
+#include "cinn/common/shared.h"
+#include "cinn/common/type.h"
 
 namespace cinn {
 namespace ir {
+using common::Float;
+using common::Int;
+using common::Type;
+using common::type_of;
 
 class IrVisitor;
 
@@ -63,54 +69,52 @@ enum class IrNodeTy { NODETY_FORALL(__m) };
 
 std::ostream& operator<<(std::ostream& os, IrNodeTy type);
 
-class IRNode : public std::enable_shared_from_this<IRNode> {
+/**
+ * The base of all the nodes in the IR.
+ */
+class IRNode : public common::Object {
  public:
   IRNode() = default;
   IRNode(Type t) : type_(t) {}
   virtual ~IRNode() = default;
 
   virtual void Accept(IrVisitor* v) const = 0;
-  virtual IrNodeTy node_type() const = 0;
+  virtual IrNodeTy node_type() const      = 0;
   virtual const Type& type() const { return type_; }
 
-  std::shared_ptr<const IRNode> getptr() const { return shared_from_this(); }
+  const char* type_info() const override { return __type_info__; }
 
  protected:
+  constexpr static const char* __type_info__ = "IRNode";
   Type type_;
 };
 
 /**
  * A handle to store any IRNode.
  */
-class IRHandle : public std::enable_shared_from_this<IRHandle> {
+class IRNodeRef : public common::Shared<IRNode> {
  public:
-  IRHandle() = default;
-  IRHandle(IRHandle& other) : ptr_(other.ptr_) {}
-  explicit IRHandle(IRNode* x) { ptr_.reset(x); }
-  explicit IRHandle(const std::shared_ptr<IRNode>& x) { ptr_ = x; }
+  IRNodeRef() = default;
+  IRNodeRef(IRNodeRef& other) : Shared(other.p_) {}
+  explicit IRNodeRef(IRNode* x) : Shared(x) {}
 
-  IrNodeTy node_type() const { return ptr_->node_type(); }
+  IrNodeTy node_type() const { return get()->node_type(); }
 
   template <typename T>
   const T* As() const {
-    if (node_type() == T::_node_type_) return static_cast<const T*>(ptr_.get());
+    if (node_type() == T::_node_type_) return static_cast<const T*>(get());
     return nullptr;
   }
   template <typename T>
   T* As() {
-    if (node_type() == T::_node_type_) return static_cast<T*>(ptr_.get());
+    if (node_type() == T::_node_type_) return static_cast<T*>(get());
     return nullptr;
   }
 
-  bool defined() const { return ptr_.get(); }
+  IRNode* ptr() { return get(); }
+  IRNode* ptr() const { return get(); }
 
-  const std::shared_ptr<IRNode>& ptr() const { return ptr_; }
-  void set_ptr(const std::shared_ptr<IRNode>& x) { ptr_ = x; }
-
-  void Accept(IrVisitor* v) const { ptr_->Accept(v); }
-
- protected:
-  std::shared_ptr<IRNode> ptr_{};
+  void Accept(IrVisitor* v) const { get()->Accept(v); }
 };
 
 template <typename T>
@@ -175,34 +179,32 @@ struct FloatImm : public ExprNode<FloatImm> {
 /**
  * An expression that represents some value or the result of some operations.
  */
-struct Expr : public IRHandle {
+struct Expr : public IRNodeRef {
  public:
   Expr() = default;
-  Expr(const Expr& other) : IRHandle(other.ptr()) {}
-  Expr(const std::shared_ptr<IRNode>& p) : IRHandle(p) {}
-  void operator=(const std::shared_ptr<IRNode>& p) { ptr_ = p; }
+  Expr(const Expr& other) : IRNodeRef(other.ptr()) {}
+  Expr(IRNode* p) : IRNodeRef(p) {}
 
   //! Helper function to construct numeric constants of various types.
   // @{
-  explicit Expr(int32_t x) : IRHandle(std::make_shared<IntImm>(Int(32), x)) {}
-  explicit Expr(int64_t x) : IRHandle(std::make_shared<IntImm>(Int(64), x)) {}
-  explicit Expr(float x) : IRHandle(std::make_shared<IntImm>(Float(32), x)) {}
-  explicit Expr(double x) : IRHandle(std::make_shared<IntImm>(Float(64), x)) {}
+  explicit Expr(int32_t x) : IRNodeRef(new IntImm(Int(32), x)) {}
+  explicit Expr(int64_t x) : IRNodeRef(new IntImm(Int(64), x)) {}
+  explicit Expr(float x) : IRNodeRef(new IntImm(Float(32), x)) {}
+  explicit Expr(double x) : IRNodeRef(new IntImm(Float(64), x)) {}
   // @}
 
-  const Type& type() { return ptr_->type(); }
+  const Type& type() const { return p_->type(); }
 };
 
 /**
  * An statement that doesn't have return value.
  */
-struct Stmt : public IRHandle {
+struct Stmt : public IRNodeRef {
  public:
   Stmt() = default;
 
-  Stmt(const Stmt& other) : IRHandle(other.ptr()) {}
-  Stmt(const std::shared_ptr<IRNode>& p) : IRHandle(p) {}
-  void operator=(const std::shared_ptr<IRNode>& p) { ptr_ = p; }
+  Stmt(const Stmt& other) : IRNodeRef(other.ptr()) {}
+  Stmt(IRNode* p) : IRNodeRef(p) {}
 };
 
 template <typename T>

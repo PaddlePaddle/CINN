@@ -1,7 +1,7 @@
-#include "cinn/ir/type.h"
+#include "cinn/common/type.h"
 
 namespace cinn {
-namespace ir {
+namespace common {
 
 std::ostream &operator<<(std::ostream &os, const Type &t) {
   switch (t.type()) {
@@ -28,5 +28,5 @@ std::ostream &operator<<(std::ostream &os, const Type &t) {
   return os;
 }
 
-}  // namespace ir
+}  // namespace common
 }  // namespace cinn

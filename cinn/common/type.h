@@ -4,7 +4,7 @@
 //! Much of the concepts are borrowed from Halide project.
 
 namespace cinn {
-namespace ir {
+namespace common {
 
 /**
  * Types in the CINN type system. They can be ints, unsigned ints, or floats of various bit-widths.
@@ -95,5 +95,5 @@ template <> inline Type type_of<int>() { return Int(32); }
 template <> inline Type type_of<signed char>() { return Int(8); }
 // clang-format on
 
-}  // namespace ir
+}  // namespace common
 }  // namespace cinn
