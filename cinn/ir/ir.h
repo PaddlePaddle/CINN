@@ -468,8 +468,21 @@ class _IterVar_ : public IrNode {
   //! Additional tag on the iteration variable.
   std::string thread_tag;
 
+  //! Create a new instance of IterVar.
+  static IterVar Make(Range dom, Var var, IterVarType iter_type, const std::string& thread_tag = "");
+
+  void Accept(IrVisitor* v) const override;
+  IrNodeTy node_type() const override { return _node_type_; }
+
   static const IrNodeTy _node_type_ = IrNodeTy::_Range_;
 };
+
+IterVar thread_axis(Range dom, const std::string& tag) {
+  return _IterVar_::Make(dom, Var(tag), IterVarType::kThreadIndex, tag);
+}
+IterVar reduce_axis(Range dom, const std::string& name) {
+  return _IterVar_::Make(dom, Var(name), IterVarType::kCommReduce);
+}
 
 /**
  * A builder to construct any IR node.
