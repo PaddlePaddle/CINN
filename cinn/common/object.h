@@ -28,7 +28,7 @@ struct Object {
   mutable RefCount __ref_count__;
 };
 
-using object_ptr = Object*;
+using object_ptr    = Object*;
 using shared_object = Shared<Object>;
 
 }  // namespace common

@@ -47,27 +47,27 @@ PODValue::operator void *() const {
 // @{
 template <>
 void PODValue::Set<int32_t>(int32_t v) {
-  type_code_ = TypeCode<int32_t>();
+  type_code_     = TypeCode<int32_t>();
   value_.v_int64 = v;
 }
 template <>
 void PODValue::Set<int64_t>(int64_t v) {
-  type_code_ = TypeCode<int64_t>();
+  type_code_     = TypeCode<int64_t>();
   value_.v_int64 = v;
 }
 template <>
 void PODValue::Set<float>(float v) {
-  type_code_ = TypeCode<float>();
+  type_code_       = TypeCode<float>();
   value_.v_float64 = v;
 }
 template <>
 void PODValue::Set<double>(double v) {
-  type_code_ = TypeCode<double>();
+  type_code_       = TypeCode<double>();
   value_.v_float64 = v;
 }
 template <>
 void PODValue::Set<void *>(void *v) {
-  type_code_ = TypeCode<void *>();
+  type_code_      = TypeCode<void *>();
   value_.v_handle = v;
 }
 // @}

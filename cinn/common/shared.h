@@ -10,7 +10,7 @@ class RefCount {
 
  public:
   using value_type = uint32_t;
-  RefCount() = default;
+  RefCount()       = default;
 
   value_type Inc() { return ++count; }
   value_type Dec() { return --count; }

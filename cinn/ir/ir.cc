@@ -99,11 +99,11 @@ For::For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt bod
   CHECK(extent.defined());
   CHECK(body.defined());
 
-  this->min = std::move(min);
-  this->extent = std::move(extent);
-  this->for_type = std::move(for_type);
+  this->min        = std::move(min);
+  this->extent     = std::move(extent);
+  this->for_type   = std::move(for_type);
   this->device_api = device_api;
-  this->body = std::move(body);
+  this->body       = std::move(body);
 }
 
 Stmt For::Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt body) {
@@ -112,7 +112,7 @@ Stmt For::Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, St
 }
 
 Stmt Block::Make(const std::vector<Stmt> &stmts) {
-  auto node = make_shared<Block>();
+  auto node   = make_shared<Block>();
   node->stmts = stmts;
   return Stmt(node);
 }
@@ -123,20 +123,20 @@ Stmt IfThenElse::Make(Expr condition, Stmt true_case, Stmt false_case) {
 }
 
 Stmt Store::Make(Var buffer_var, Expr value, Expr index) {
-  auto node = make_shared<Store>();
+  auto node        = make_shared<Store>();
   node->buffer_var = buffer_var;
-  node->value = value;
-  node->index = index;
+  node->value      = value;
+  node->index      = index;
   return Stmt(node);
 }
 
 Stmt Alloc::Make(Var buffer_var, Type type, const std::vector<Expr> &extents, Expr condition, Stmt body) {
-  auto node = make_shared<Alloc>();
+  auto node        = make_shared<Alloc>();
   node->buffer_var = buffer_var;
-  node->type = type;
-  node->extents = extents;
-  node->condition = condition;
-  node->body = body;
+  node->type       = type;
+  node->extents    = extents;
+  node->condition  = condition;
+  node->body       = body;
   return Stmt(node);
 }
 

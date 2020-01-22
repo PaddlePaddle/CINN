@@ -28,4 +28,3 @@ auto func = Build(s, [A, B, C], target=target, name="matmul");
 
 func(a, b, c);
 ```
-

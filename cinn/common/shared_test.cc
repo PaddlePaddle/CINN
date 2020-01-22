@@ -9,8 +9,7 @@ namespace common {
 class A : public Object {};
 class B : public Object {};
 
-TEST(Shared, test) {
-}
+TEST(Shared, test) {}
 
 }  // namespace common
 }  // namespace cinn

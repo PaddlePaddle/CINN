@@ -8,8 +8,8 @@
 
 namespace cinn {
 namespace ir {
-using common::Value;
 using common::PODValue;
+using common::Value;
 
 /**
  * A single argument value to Function.
@@ -36,7 +36,7 @@ class RetValue : public PODValue {
 
   RetValue(RetValue&& other) : common::PODValue(other.value_, other.type_code_) {
     other.value_.v_handle = nullptr;
-    other.type_code_ = kNull;
+    other.type_code_      = kNull;
   }
 
   // Reuse converter from parent
@@ -67,7 +67,7 @@ class PackedFunc {
 
   template <typename... Args_>
   inline RetValue operator()(Args_&&... args) const {
-    const int kNumArgs = sizeof...(Args_);
+    const int kNumArgs   = sizeof...(Args_);
     const int kArraySize = kNumArgs > 0 ? kNumArgs : 1;
     Value values[kArraySize];
     int type_codes[kArraySize];

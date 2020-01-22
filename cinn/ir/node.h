@@ -9,9 +9,9 @@
 
 namespace cinn {
 namespace ir {
-using common::Type;
-using common::Int;
 using common::Float;
+using common::Int;
+using common::Type;
 using common::type_of;
 
 class IrVisitor;
@@ -79,7 +79,7 @@ class IRNode : public common::Object {
   virtual ~IRNode() = default;
 
   virtual void Accept(IrVisitor* v) const = 0;
-  virtual IrNodeTy node_type() const = 0;
+  virtual IrNodeTy node_type() const      = 0;
   virtual const Type& type() const { return type_; }
 
   const char* type_info() const override { return __type_info__; }
