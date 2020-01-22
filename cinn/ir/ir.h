@@ -196,6 +196,9 @@ struct Call : public ExprNode<Call> {
   static const IrNodeTy _node_type_ = IrNodeTy::Call;
 };
 
+/**
+ * Variable used as iterator value or bound definition.
+ */
 struct Variable : public ExprNode<Variable> {
   std::string name;
 
@@ -207,9 +210,9 @@ struct Variable : public ExprNode<Variable> {
 };
 
 //! A named variable.
-struct Var : public IRHandle {
+struct Var : public IRNodeRef {
   Var() = default;
-  explicit Var(IRNode* n) : IRHandle(n) {}
+  explicit Var(IRNode* n) : IRNodeRef(n) {}
   explicit Var(const std::string& name_hint, Type t = type_of<int>()) : Var(Variable::Make(name_hint, t).ptr()) {}
 
   const Variable* operator->() const { return get(); }

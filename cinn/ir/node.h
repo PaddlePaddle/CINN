@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cinn/common/object.h>
 #include <memory>
 #include <string>
 
@@ -68,7 +69,10 @@ enum class IrNodeTy { NODETY_FORALL(__m) };
 
 std::ostream& operator<<(std::ostream& os, IrNodeTy type);
 
-class IRNode {
+/**
+ * The base of all the nodes in the IR.
+ */
+class IRNode : public common::Object {
  public:
   IRNode() = default;
   IRNode(Type t) : type_(t) {}
@@ -78,20 +82,21 @@ class IRNode {
   virtual IrNodeTy node_type() const = 0;
   virtual const Type& type() const { return type_; }
 
-  mutable common::RefCount ref_count;
+  const char* type_info() const override { return __type_info__; }
 
  protected:
+  constexpr static const char* __type_info__ = "IRNode";
   Type type_;
 };
 
 /**
  * A handle to store any IRNode.
  */
-class IRHandle : public common::Shared<IRNode> {
+class IRNodeRef : public common::Shared<IRNode> {
  public:
-  IRHandle() = default;
-  IRHandle(IRHandle& other) : Shared(other.p_) {}
-  explicit IRHandle(IRNode* x) : Shared(x) {}
+  IRNodeRef() = default;
+  IRNodeRef(IRNodeRef& other) : Shared(other.p_) {}
+  explicit IRNodeRef(IRNode* x) : Shared(x) {}
 
   IrNodeTy node_type() const { return get()->node_type(); }
 
@@ -174,18 +179,18 @@ struct FloatImm : public ExprNode<FloatImm> {
 /**
  * An expression that represents some value or the result of some operations.
  */
-struct Expr : public IRHandle {
+struct Expr : public IRNodeRef {
  public:
   Expr() = default;
-  Expr(const Expr& other) : IRHandle(other.ptr()) {}
-  Expr(IRNode* p) : IRHandle(p) {}
+  Expr(const Expr& other) : IRNodeRef(other.ptr()) {}
+  Expr(IRNode* p) : IRNodeRef(p) {}
 
   //! Helper function to construct numeric constants of various types.
   // @{
-  explicit Expr(int32_t x) : IRHandle(new IntImm(Int(32), x)) {}
-  explicit Expr(int64_t x) : IRHandle(new IntImm(Int(64), x)) {}
-  explicit Expr(float x) : IRHandle(new IntImm(Float(32), x)) {}
-  explicit Expr(double x) : IRHandle(new IntImm(Float(64), x)) {}
+  explicit Expr(int32_t x) : IRNodeRef(new IntImm(Int(32), x)) {}
+  explicit Expr(int64_t x) : IRNodeRef(new IntImm(Int(64), x)) {}
+  explicit Expr(float x) : IRNodeRef(new IntImm(Float(32), x)) {}
+  explicit Expr(double x) : IRNodeRef(new IntImm(Float(64), x)) {}
   // @}
 
   const Type& type() const { return p_->type(); }
@@ -194,12 +199,12 @@ struct Expr : public IRHandle {
 /**
  * An statement that doesn't have return value.
  */
-struct Stmt : public IRHandle {
+struct Stmt : public IRNodeRef {
  public:
   Stmt() = default;
 
-  Stmt(const Stmt& other) : IRHandle(other.ptr()) {}
-  Stmt(IRNode* p) : IRHandle(p) {}
+  Stmt(const Stmt& other) : IRNodeRef(other.ptr()) {}
+  Stmt(IRNode* p) : IRNodeRef(p) {}
 };
 
 template <typename T>

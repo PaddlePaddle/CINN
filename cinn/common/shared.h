@@ -1,5 +1,6 @@
 #pragma once
 #include <atomic>
+#include <type_traits>
 
 namespace cinn {
 namespace common {
@@ -16,12 +17,14 @@ class RefCount {
   bool is_zero() const { return 0 == count; }
 };
 
+class Object;
 /**
  * The templated methods are used to unify the way to get the RefCount instance in client classes.
  */
 template <typename T>
 RefCount& ref_count(const T* t) {
-  return t->ref_count;
+  static_assert(std::is_base_of<Object, T>::value, "T is not a Object");
+  return t->__ref_count__;
 }
 template <typename T>
 void Destroy(const T* t) {
