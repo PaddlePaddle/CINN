@@ -1,4 +1,5 @@
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_visitor.h"
 
 namespace cinn {
 namespace ir {
@@ -161,5 +162,10 @@ Stmt Free::Make(Var var) {
   node->var = var;
   return Stmt(node);
 }
+
+void _Range_::Accept(IrVisitor *v) const { v->Visit(this); }
+
+Range::Range(_Range_ *n) : IrNodeRef(n) {}
+
 }  // namespace ir
 }  // namespace cinn

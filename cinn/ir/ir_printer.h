@@ -64,11 +64,15 @@ struct IrPrinter : public IrVisitor {
   void Visit(const Load *x) override;
   void Visit(const Store *x) override;
   void Visit(const Free *x) override;
+  void Visit(const _Range_ *x) override;
+  void Visit(const _IterVar_ *x) override {}
 
  private:
   std::ostream &os_;
   uint16_t indent_{};
 };
+
+std::ostream &operator<<(std::ostream &os, Expr a);
 
 }  // namespace ir
 }  // namespace cinn

@@ -119,5 +119,21 @@ void IrPrinter::DoIndent() {
   for (int i = 0; i < indent_; i++) os_ << ' ';
 }
 
+void IrPrinter::Visit(const _Range_ *x) {
+  os_ << "Range(min=";
+  Print(x->min);
+  os_ << ", "
+      << "extent=";
+  Print(x->extent);
+  os_ << ")";
+}
+
+std::ostream &operator<<(std::ostream &os, Expr a) {
+  std::stringstream ss;
+  IrPrinter printer(ss);
+  printer.Print(a);
+  os << ss.str();
+}
+
 }  // namespace ir
 }  // namespace cinn
