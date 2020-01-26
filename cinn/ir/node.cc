@@ -45,5 +45,7 @@ std::ostream &operator<<(std::ostream &os, IrNodeTy type) {
   return os;
 }
 
+Expr::Expr(const Var &var) { *static_cast<IrNodeRef *>(this) = *static_cast<const IrNodeRef *>(&var); }
+
 }  // namespace ir
 }  // namespace cinn

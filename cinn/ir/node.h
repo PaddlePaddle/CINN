@@ -115,6 +115,10 @@ class IrNodeRef : public common::Shared<IrNode> {
     return nullptr;
   }
 
+  void operator=(const IrNodeRef& other) {
+    *static_cast<Shared<IrNode>*>(this) = *static_cast<const Shared<IrNode>*>(&other);
+  }
+
   IrNode* ptr() { return get(); }
   IrNode* ptr() const { return get(); }
 
@@ -180,6 +184,7 @@ struct FloatImm : public ExprNode<FloatImm> {
   static const IrNodeTy _node_type_ = IrNodeTy::FloatImm;
 };
 
+class Var;
 /**
  * An expression that represents some value or the result of some operations.
  */
@@ -188,14 +193,20 @@ struct Expr : public IrNodeRef {
   Expr() = default;
   Expr(const Expr& other) : IrNodeRef(other.ptr()) {}
   Expr(IrNode* p) : IrNodeRef(p) {}
+  explicit Expr(const Var& var);
 
   //! Helper function to construct numeric constants of various types.
   // @{
   explicit Expr(int32_t x) : IrNodeRef(new IntImm(Int(32), x)) {}
   explicit Expr(int64_t x) : IrNodeRef(new IntImm(Int(64), x)) {}
-  explicit Expr(float x) : IrNodeRef(new IntImm(Float(32), x)) {}
-  explicit Expr(double x) : IrNodeRef(new IntImm(Float(64), x)) {}
+  explicit Expr(float x) : IrNodeRef(new FloatImm(Float(32), x)) {}
+  explicit Expr(double x) : IrNodeRef(new FloatImm(Float(64), x)) {}
   // @}
+
+  Expr& operator=(const Expr& other) {
+    *static_cast<IrNodeRef*>(this) = *static_cast<const IrNodeRef*>(&other);
+    return *this;
+  }
 
   const Type& type() const { return p_->type(); }
 };
