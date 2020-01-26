@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_map>
 #include "cinn/ir/function_base.h"
 #include "cinn/ir/ir.h"
 
@@ -14,8 +15,11 @@ class Tensor : public IrNodeRef {
  public:
   Tensor() = default;
   explicit Tensor(IrNode* n) : IrNodeRef(n) {}
+  Tensor(const std::vector<Var>& shape, Type type=Float(32));
+  Tensor(const std::vector<Expr>& shape, Type type=Float(32));
 
   inline const _Tensor_* operator->() const;
+  inline _Tensor_* operator->();
 
   //! \return The dimension of the tensor.
   inline size_t ndims() const;
@@ -96,7 +100,7 @@ class _Tensor_ : public IrNode {
   //! The shape of the tensor.
   std::vector<Expr> shape;
   //! The data type of the elements in the tensor.
-  Type dtype;
+  Type dtype{Float(32)};
   //! The source operation, can be None.
   Operation op;
   //! The output index from source operation.
@@ -108,6 +112,18 @@ class _Tensor_ : public IrNode {
   void Accept(IrVisitor* v) const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Tensor_;
+};
+
+class _Operation_ : public ir::FunctionBase {
+ public:
+  //! Optional name of the operation.
+  std::string name;
+  //! Optional tag of the operation.
+  std::string tag;
+  //! Additional attributes of the operation.
+  std::unordered_map<std::string, IrNodeRef> attrs;
+
+  const std::string& func_name() const final { return name; }
 };
 
 }  // namespace ir

@@ -5,7 +5,10 @@
 namespace cinn {
 namespace ir {
 
-class FunctionBase : public IrNode {};
+class FunctionBase : public IrNode {
+public:
+  virtual const std::string& func_name() const = 0;
+};
 
 class FunctionRef : public IrNodeRef {
  public:

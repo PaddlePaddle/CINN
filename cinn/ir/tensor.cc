@@ -4,7 +4,19 @@
 namespace cinn {
 namespace ir {
 
+Tensor::Tensor(const std::vector<Var> &shape, Type type) : IrNodeRef(common::make_shared<_Tensor_>()) {
+  std::vector<Expr> _shape;
+  std::transform(shape.begin(), shape.end(), std::back_inserter(_shape), [](const Var &var) { return Expr(var); });
+  operator->()->shape = _shape;
+  operator->()->dtype = type;
+}
+Tensor::Tensor(const std::vector<Expr> &shape, Type type) : IrNodeRef(common::make_shared<_Tensor_>()) {
+  operator->()->shape = shape;
+  operator->()->dtype = type;
+}
+
 const _Tensor_ *Tensor::operator->() const { return As<_Tensor_>(); }
+_Tensor_ *Tensor::operator->() { return As<_Tensor_>(); }
 size_t Tensor::ndims() const { return operator->()->shape.size(); }
 Expr Tensor::operator()(const std::vector<Expr> &indices) { return Expr(); }
 Expr Tensor::operator()(const std::vector<Var> &indices) { return Expr(); }
@@ -26,6 +38,9 @@ Tensor _Tensor_::Make(const std::vector<Expr> &shape, Type dtype, Operation op, 
   node->value_index = value_index;
   return Tensor(node);
 }
+
+const _Operation_ *Operation::operator->() const { return ptr()->As<_Operation_>(); }
+Tensor Operation::output(size_t i) const { return Tensor(); }
 
 }  // namespace ir
 }  // namespace cinn
