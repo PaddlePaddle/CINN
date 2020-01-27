@@ -57,6 +57,29 @@ class Args {
   std::vector<ArgValue> values_;
 };
 
+namespace detail {
+
+template <bool stop, std::size_t I, typename F>
+struct for_each_dispatcher {
+  template <typename T, typename... Args>
+  static void Run(const F& f, T&& value, Args&&... args) {
+    f(I, std::forward<T>(value));
+    for_each_dispatcher<sizeof...(Args) == 0, I + 1, F>::Run(f, std::forward<Args>(args)...);
+  }
+};
+
+template <std::size_t I, typename F>
+struct for_each_dispatcher<true, I, F> {
+  static void Run(const F& f) {}
+};
+
+template <typename F, typename... Args>
+inline void for_each(const F& f, Args&&... args) {
+  for_each_dispatcher<sizeof...(Args) == 0, 0, F>::Run(f, std::forward<Args>(args)...);
+}
+
+}  // namespace detail
+
 class PackedFunc {
  public:
   using func_t = std::function<void(Args args, RetValue*)>;
@@ -72,8 +95,13 @@ class PackedFunc {
     Value values[kArraySize];
     int type_codes[kArraySize];
 
+    for (int i = 0; i < kNumArgs; i++) {
+      values[i] = args[i];
+    }
+
     RetValue ret_value;
     body_(Args(values, type_codes, kNumArgs), &ret_value);
+    return ret_value;
   }
 
  private:
