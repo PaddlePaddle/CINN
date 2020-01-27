@@ -15,6 +15,9 @@ union Value {
   const char* v_str;
 };
 
+template <typename T>
+Value ToValue(T v);
+
 /**
  * Handler for several POD data types.
  */

@@ -48,7 +48,11 @@ class RetValue : public PODValue {
 
 class Args {
  public:
+  Args() = default;
   Args(Value* values, int* type_codes, int len);
+
+  void Append(Value v, int type_code) { values_.emplace_back(v, type_code); }
+
   size_t size() { return values_.size(); }
   //! Get i-th element.
   ArgValue operator[](int i) { return values_[i]; }
@@ -78,6 +82,18 @@ inline void for_each(const F& f, Args&&... args) {
   for_each_dispatcher<sizeof...(Args) == 0, 0, F>::Run(f, std::forward<Args>(args)...);
 }
 
+struct FuncArgsSetter {
+  FuncArgsSetter(Args* args) : args_(args) {}
+
+  template <typename T>
+  void operator()(size_t I, T v) const {
+    args_->Append(common::ToValue(v), PODValue::TypeCode<T>());
+  }
+
+ private:
+  mutable Args* args_{};
+};
+
 }  // namespace detail
 
 class PackedFunc {
@@ -90,17 +106,12 @@ class PackedFunc {
 
   template <typename... Args_>
   inline RetValue operator()(Args_&&... args) const {
-    const int kNumArgs   = sizeof...(Args_);
-    const int kArraySize = kNumArgs > 0 ? kNumArgs : 1;
-    Value values[kArraySize];
-    int type_codes[kArraySize];
-
-    for (int i = 0; i < kNumArgs; i++) {
-      values[i] = args[i];
-    }
+    Args _args;
+    detail::FuncArgsSetter setter(&_args);
+    detail::for_each(setter, std::forward<Args_>(args)...);
 
     RetValue ret_value;
-    body_(Args(values, type_codes, kNumArgs), &ret_value);
+    body_(_args, &ret_value);
     return ret_value;
   }
 

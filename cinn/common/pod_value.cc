@@ -72,5 +72,39 @@ void PODValue::Set<void *>(void *v) {
 }
 // @}
 
+//! Implement ToValue.
+// @{
+template <>
+Value ToValue<int>(int v) {
+  Value val;
+  val.v_int64 = v;
+  return val;
+}
+template <>
+Value ToValue<int64_t>(int64_t v) {
+  Value val;
+  val.v_int64 = v;
+  return val;
+}
+template <>
+Value ToValue<float>(float v) {
+  Value val;
+  val.v_float64 = v;
+  return val;
+}
+template <>
+Value ToValue<double>(double v) {
+  Value val;
+  val.v_float64 = v;
+  return val;
+}
+template <>
+Value ToValue<char *>(char *v) {
+  Value val;
+  val.v_str = v;
+  return val;
+}
+// @}
+
 }  // namespace common
 }  // namespace cinn
