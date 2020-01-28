@@ -15,6 +15,8 @@ __m(int64_t, 1);
 __m(float, 2);
 __m(double, 3);
 __m(void *, 4);
+__m(char *, 5);
+__m(char const*, 5);
 #undef __m
 //@}
 
@@ -41,6 +43,10 @@ PODValue::operator int64_t() const {
 PODValue::operator void *() const {
   CHECK_EQ(TypeCode<void *>(), type_code_);
   return value_.v_handle;
+};
+PODValue::operator char *() const {
+  CHECK_EQ(TypeCode<char *>(), type_code_);
+  return value_.v_str;
 };
 
 // Value setter for multiple types.
@@ -69,6 +75,16 @@ template <>
 void PODValue::Set<void *>(void *v) {
   type_code_      = TypeCode<void *>();
   value_.v_handle = v;
+}
+template <>
+void PODValue::Set<char *>(char *v) {
+  type_code_      = TypeCode<char *>();
+  value_.v_str = v;
+}
+template <>
+void PODValue::Set<char const*>(char const*v) {
+  type_code_      = TypeCode<char *>();
+  value_.v_str = const_cast<char*>(v);
 }
 // @}
 
@@ -102,6 +118,12 @@ template <>
 Value ToValue<char *>(char *v) {
   Value val;
   val.v_str = v;
+  return val;
+}
+template <>
+Value ToValue<char const *>(char const *v) {
+  Value val;
+  val.v_str = const_cast<char*>(v);
   return val;
 }
 // @}

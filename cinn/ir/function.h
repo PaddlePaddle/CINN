@@ -25,6 +25,7 @@ class ArgValue : public common::PODValue {
   using common::PODValue::operator float;
   using common::PODValue::operator int32_t;
   using common::PODValue::operator int64_t;
+  using common::PODValue::operator void*;
 };
 
 /**
@@ -44,6 +45,7 @@ class RetValue : public PODValue {
   using common::PODValue::operator float;
   using common::PODValue::operator int32_t;
   using common::PODValue::operator int64_t;
+  using common::PODValue::operator void*;
 };
 
 class Args {

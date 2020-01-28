@@ -16,5 +16,17 @@ TEST(Function, test) {
   LOG(INFO) << "c " << c;
 }
 
+TEST(Function, test1) {
+  PackedFunc::func_t body = [](Args args, RetValue* ret) {
+    char* msg = args[0];
+
+    ret->Set(msg);
+  };
+
+  PackedFunc func(body);
+  char* c = func("hello world");
+  LOG(INFO) << static_cast<char*>(c);
+}
+
 }  // namespace ir
 }  // namespace cinn

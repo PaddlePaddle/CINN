@@ -12,7 +12,7 @@ union Value {
   int64_t v_int64;
   double v_float64;
   void* v_handle;
-  const char* v_str;
+  char* v_str;
 };
 
 template <typename T>
@@ -35,6 +35,7 @@ class PODValue {
   operator int32_t() const;
   operator int64_t() const;
   operator void*() const;
+  operator char*() const;
   // @}
 
   //! Set the value.
