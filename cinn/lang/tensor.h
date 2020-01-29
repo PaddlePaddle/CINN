@@ -7,7 +7,6 @@ using ir::Expr;
 using ir::IrNodeRef;
 using ir::Type;
 
-
 class _Tensor_;
 
 /**
@@ -18,17 +17,14 @@ class Tensor : public ir::IrNode {
   Tensor() = default;
   explicit Tensor(IrNode* n) : n_(n) {}
 
-private:
+ private:
   ir::IrNodeRef n_;
-
 };
 
 class _Tensor_ : public ir::IrNodeRef {
-public:
+ public:
   std::vector<Expr> shape;
   Type dtype;
-
-
 };
 
 }  // namespace lang

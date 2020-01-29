@@ -84,7 +84,15 @@ void IrPrinter::Visit(const Block *x) {
   DoIndent();
   os_ << "}";
 }
-void IrPrinter::Visit(const Call *x) {}
+void IrPrinter::Visit(const Call *x) {
+  os_ << x->name << "(";
+  for (int i = 0; i < x->args.size() - 1; i++) {
+    Print(x->args[i]);
+    os_ << ", ";
+  }
+  if (x->args.size() > 1) Print(x->args.back());
+  os_ << ")";
+}
 void IrPrinter::Visit(const Cast *x) {}
 void IrPrinter::Visit(const Module *x) {}
 void IrPrinter::Visit(const Variable *x) { os_ << x->name; }
@@ -133,6 +141,7 @@ std::ostream &operator<<(std::ostream &os, Expr a) {
   IrPrinter printer(ss);
   printer.Print(a);
   os << ss.str();
+  return os;
 }
 
 }  // namespace ir

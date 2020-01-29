@@ -6,14 +6,25 @@
 #include "cinn/common/type.h"
 
 namespace cinn {
+
+namespace ir {
+
+class Expr;
+class Var;
+
+}  // namespace ir
+
 namespace common {
 
 union Value {
   int64_t v_int64;
   double v_float64;
   void* v_handle;
-  const char* v_str;
+  char* v_str;
 };
+
+template <typename T>
+Value ToValue(T v);
 
 /**
  * Handler for several POD data types.
@@ -32,6 +43,9 @@ class PODValue {
   operator int32_t() const;
   operator int64_t() const;
   operator void*() const;
+  operator char*() const;
+  operator ir::Var() const;
+  operator ir::Expr() const;
   // @}
 
   //! Set the value.

@@ -10,6 +10,7 @@
 
 #include "cinn/common/shared.h"
 #include "cinn/common/type.h"
+#include "cinn/ir/function_base.h"
 #include "cinn/ir/node.h"
 
 namespace cinn {
@@ -196,6 +197,33 @@ struct Not : public UnaryOpNode<Not> {
 
 struct Call : public ExprNode<Call> {
   Call(Type t) : ExprNode<Call>(t) {}
+
+  enum CallType : int {
+    //! Extern "C" function.
+    Extern = 0,
+    //! Halide-style call.
+    Halide,
+    //! Intrinsic functions.
+    Intrinsic,
+  };
+
+  //! The name of the function/intrinsic.
+  std::string name;
+  //! The arguments.
+  std::vector<Expr> args;
+  //! Type of calls.
+  CallType call_type;
+  //! The function to be called.
+  FunctionRef func;
+  //! The output value index if func's value is a tuple.
+  int value_index{};
+
+  static Expr Make(Type type,
+                   const std::string& name,
+                   const std::vector<Expr>& args,
+                   CallType call_type,
+                   FunctionRef func = FunctionRef(),
+                   int value_index  = 0);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Call;
 };

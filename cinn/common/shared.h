@@ -90,7 +90,7 @@ Shared<T>& Shared<T>::operator=(const Shared<T>& other) {
 }
 
 template <typename T, typename... Args>
-T* make_shared(Args... args) {
+T* make_shared(Args&&... args) {
   return new T(args...);
 }
 

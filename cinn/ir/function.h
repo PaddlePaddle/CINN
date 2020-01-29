@@ -25,6 +25,7 @@ class ArgValue : public common::PODValue {
   using common::PODValue::operator float;
   using common::PODValue::operator int32_t;
   using common::PODValue::operator int64_t;
+  using common::PODValue::operator void*;
 };
 
 /**
@@ -44,11 +45,16 @@ class RetValue : public PODValue {
   using common::PODValue::operator float;
   using common::PODValue::operator int32_t;
   using common::PODValue::operator int64_t;
+  using common::PODValue::operator void*;
 };
 
 class Args {
  public:
+  Args() = default;
   Args(Value* values, int* type_codes, int len);
+
+  void Append(Value v, int type_code) { values_.emplace_back(v, type_code); }
+
   size_t size() { return values_.size(); }
   //! Get i-th element.
   ArgValue operator[](int i) { return values_[i]; }
@@ -56,6 +62,41 @@ class Args {
  private:
   std::vector<ArgValue> values_;
 };
+
+namespace detail {
+
+template <bool stop, std::size_t I, typename F>
+struct for_each_dispatcher {
+  template <typename T, typename... Args>
+  static void Run(const F& f, T&& value, Args&&... args) {
+    f(I, std::forward<T>(value));
+    for_each_dispatcher<sizeof...(Args) == 0, I + 1, F>::Run(f, std::forward<Args>(args)...);
+  }
+};
+
+template <std::size_t I, typename F>
+struct for_each_dispatcher<true, I, F> {
+  static void Run(const F& f) {}
+};
+
+template <typename F, typename... Args>
+inline void for_each(const F& f, Args&&... args) {
+  for_each_dispatcher<sizeof...(Args) == 0, 0, F>::Run(f, std::forward<Args>(args)...);
+}
+
+struct FuncArgsSetter {
+  FuncArgsSetter(Args* args) : args_(args) {}
+
+  template <typename T>
+  void operator()(size_t I, T v) const {
+    args_->Append(common::ToValue(v), PODValue::TypeCode<T>());
+  }
+
+ private:
+  mutable Args* args_{};
+};
+
+}  // namespace detail
 
 class PackedFunc {
  public:
@@ -67,13 +108,13 @@ class PackedFunc {
 
   template <typename... Args_>
   inline RetValue operator()(Args_&&... args) const {
-    const int kNumArgs   = sizeof...(Args_);
-    const int kArraySize = kNumArgs > 0 ? kNumArgs : 1;
-    Value values[kArraySize];
-    int type_codes[kArraySize];
+    Args _args;
+    detail::FuncArgsSetter setter(&_args);
+    detail::for_each(setter, std::forward<Args_>(args)...);
 
     RetValue ret_value;
-    body_(Args(values, type_codes, kNumArgs), &ret_value);
+    body_(_args, &ret_value);
+    return ret_value;
   }
 
  private:

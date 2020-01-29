@@ -124,7 +124,7 @@ class Stage : public ir::IrNodeRef {
    * @brief Parallelize iteration.
    * @param var The axis to be parallelized.
    */
-  Stage& Parallel(ir::Var var);
+  Stage& Parallelize(ir::Var var);
 };
 
 }  // namespace schedule
