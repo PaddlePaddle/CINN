@@ -1,4 +1,5 @@
 #include "cinn/ir/node.h"
+#include "cinn/common/pod_value.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_visitor.h"

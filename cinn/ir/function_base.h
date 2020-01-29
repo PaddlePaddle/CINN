@@ -1,12 +1,12 @@
 #pragma once
 
-#include "cinn/ir/ir.h"
+#include "cinn/ir/node.h"
 
 namespace cinn {
 namespace ir {
 
 class FunctionBase : public IrNode {
-public:
+ public:
   virtual const std::string& func_name() const = 0;
 };
 

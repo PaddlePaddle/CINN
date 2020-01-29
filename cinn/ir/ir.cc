@@ -1,7 +1,24 @@
 #include "cinn/ir/ir.h"
+#include "cinn/common/pod_value.h"
 #include "cinn/ir/ir_visitor.h"
 
 namespace cinn {
+
+namespace common {
+
+PODValue::operator ir::Var() const {
+  if (type_code_ == TypeCode<std::nullptr_t>()) return ir::Var();
+  void *handle = *this;
+  return ir::Var(static_cast<ir::IrNode *>(handle));
+}
+PODValue::operator ir::Expr() const {
+  if (type_code_ == TypeCode<std::nullptr_t>()) return ir::Expr();
+  void *handle = *this;
+  return ir::Expr(static_cast<ir::IrNode *>(handle));
+}
+
+}  // namespace common
+
 namespace ir {
 using common::make_shared;
 
@@ -178,5 +195,29 @@ IterVar _IterVar_::Make(Range dom, Var var, IterVarType iter_type, const std::st
   return IterVar(IrNodeRef(node));
 }
 
+Expr Call::Make(Type type,
+                const std::string &name,
+                const std::vector<Expr> &args,
+                Call::CallType call_type,
+                FunctionRef func,
+                int value_index) {
+  for (size_t i = 0; i < args.size(); ++i) {
+    CHECK(args[i].defined());
+  }
+  if (call_type == Halide) {
+    for (size_t i = 0; i < args.size(); ++i) {
+      CHECK(args[i].type().is_int());
+    }
+  }
+
+  auto node         = common::make_shared<Call>(type);
+  node->name        = name;
+  node->args        = args;
+  node->call_type   = call_type;
+  node->func        = func;
+  node->value_index = value_index;
+  node->set_type(type);
+  return Expr(node);
+}
 }  // namespace ir
 }  // namespace cinn

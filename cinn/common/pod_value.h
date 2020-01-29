@@ -6,6 +6,14 @@
 #include "cinn/common/type.h"
 
 namespace cinn {
+
+namespace ir {
+
+class Expr;
+class Var;
+
+}  // namespace ir
+
 namespace common {
 
 union Value {
@@ -36,6 +44,8 @@ class PODValue {
   operator int64_t() const;
   operator void*() const;
   operator char*() const;
+  operator ir::Var() const;
+  operator ir::Expr() const;
   // @}
 
   //! Set the value.

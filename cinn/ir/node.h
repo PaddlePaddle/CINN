@@ -85,6 +85,7 @@ class IrNode : public common::Object {
   virtual void Accept(IrVisitor* v) const = 0;
   virtual IrNodeTy node_type() const { return IrNodeTy ::kUnk; }
   virtual const Type& type() const { return type_; }
+  void set_type(Type type) { type_ = type; }
 
   const char* type_info() const override { return __type_info__; }
 
@@ -102,7 +103,7 @@ class IrNodeRef : public common::Shared<IrNode> {
   IrNodeRef(const IrNodeRef& other) : Shared(other.p_) {}
   explicit IrNodeRef(IrNode* x) : Shared(x) {}
 
-  IrNodeTy node_type() const { return get()->node_type(); }
+  virtual IrNodeTy node_type() const { return get()->node_type(); }
 
   template <typename T>
   const T* As() const {
@@ -134,7 +135,7 @@ struct StmtNode : public IrNode {
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return dynamic_cast<const T*>(this); }
 
-  IrNodeTy node_type() const { return T::_node_type_; }
+  IrNodeTy node_type() const override { return T::_node_type_; }
 };
 
 template <typename T>
@@ -146,7 +147,7 @@ struct ExprNode : public IrNode {
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return dynamic_cast<const T*>(this); }
 
-  IrNodeTy node_type() const { return T::_node_type_; }
+  IrNodeTy node_type() const override { return T::_node_type_; }
 };
 
 struct IntImm : public ExprNode<IntImm> {
@@ -236,7 +237,7 @@ struct BinaryOpNode : public ExprNode<T> {
     CHECK(type.valid());
     CHECK(a.defined());
     CHECK(b.defined());
-    CHECK(a.type() == b.type()) << "the two arguments' type not match";
+    CHECK_EQ(a.type(), b.type()) << "the two arguments' type not match";
   }
 
   //! The two arguments.

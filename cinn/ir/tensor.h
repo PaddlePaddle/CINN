@@ -1,6 +1,7 @@
 #pragma once
 
 #include <unordered_map>
+#include "cinn/common/graph_utils.h"
 #include "cinn/ir/function_base.h"
 #include "cinn/ir/ir.h"
 
@@ -8,15 +9,20 @@ namespace cinn {
 namespace ir {
 
 class _Tensor_;
+
+namespace detail {
+constexpr bool LE(int a, int b) { return a <= b; }
+constexpr bool GE(int a, int b) { return a >= b; }
+}  // namespace detail
 /**
  * Tensor representing a possible input or intermediate computation result.
  */
-class Tensor : public IrNodeRef {
+class Tensor : public IrNodeRef, common::GraphNode {
  public:
   Tensor() = default;
   explicit Tensor(IrNode* n) : IrNodeRef(n) {}
-  Tensor(const std::vector<Var>& shape, Type type=Float(32));
-  Tensor(const std::vector<Expr>& shape, Type type=Float(32));
+  Tensor(const std::vector<Var>& shape, Type type = Float(32));
+  Tensor(const std::vector<Expr>& shape, Type type = Float(32));
 
   inline const _Tensor_* operator->() const;
   inline _Tensor_* operator->();
@@ -30,8 +36,8 @@ class Tensor : public IrNodeRef {
    * @return The result expression representing a tensor read.
    */
   template <typename... Args>
-  inline Expr operator()(Args&&... args) const {
-    std::vector<Expr> indices(std::forward<Args>(args)...);
+  inline typename std::enable_if<detail::GE(sizeof...(Args), 2), Expr>::type operator()(Args&&... args) const {
+    std::vector<Expr> indices({std::forward<Args>(args)...});
     return operator()(indices);
   }
 
@@ -40,16 +46,18 @@ class Tensor : public IrNodeRef {
    * @param indices The indices.
    * @return The result expression representing a tensor read.
    */
-  Expr operator()(const std::vector<Expr>& indices);
+  Expr operator()(const std::vector<Expr>& indices) const;
 
   /**
    * Take elements from the tensor.
    * @param indices The indices.
    * @return The result expression representing a tensor read.
    */
-  Expr operator()(const std::vector<Var>& indices);
+  Expr operator()(const std::vector<Var>& indices) const;
 
   inline bool operator==(const Tensor& other) const;
+
+  IrNodeTy node_type() const override;
 
   /**
    * Data structure to represent a slice that fixes first k coordinates.
@@ -93,14 +101,14 @@ class Operation : public FunctionRef {
 
   //! Get the i-th output of the operation.
   Tensor output(size_t i) const;
+
+  std::string name;
 };
 
 class _Tensor_ : public IrNode {
  public:
   //! The shape of the tensor.
   std::vector<Expr> shape;
-  //! The data type of the elements in the tensor.
-  Type dtype{Float(32)};
   //! The source operation, can be None.
   Operation op;
   //! The output index from source operation.

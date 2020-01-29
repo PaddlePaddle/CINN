@@ -56,7 +56,7 @@ Var i,j;
 Expr tmp = A[i][j] + 1; // i \in {0, M}; j \in {0, N}
 ```
 
-
+To simplify the implementation, we use ISL to generate code for basic snippets.
 
 ## Schedule
 
