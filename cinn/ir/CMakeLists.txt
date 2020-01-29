@@ -8,6 +8,7 @@ cc_library(ir SRCS
         buffer.cc
         tensor.cc
         function_base.cc
+        operation.cc
         DEPS common boost
         )
 
