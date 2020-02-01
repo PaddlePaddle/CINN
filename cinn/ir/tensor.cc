@@ -5,7 +5,6 @@ namespace cinn {
 namespace ir {
 
 Tensor::Tensor(const std::vector<Var> &shape, Type type) : IrNodeRef(common::make_shared<_Tensor_>()) {
-  LOG(INFO) << "tensor to set type " << type;
   operator->()->shape.clear();
   for (auto &v : shape) {
     operator->()->shape.push_back(Expr(v));

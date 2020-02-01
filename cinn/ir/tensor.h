@@ -1,6 +1,6 @@
 #pragma once
 
-#include <unordered_map>
+#include <map>
 #include "cinn/common/graph_utils.h"
 #include "cinn/ir/function_base.h"
 #include "cinn/ir/ir.h"
@@ -129,7 +129,7 @@ class _Operation_ : public ir::FunctionBase {
   //! Optional tag of the operation.
   std::string tag;
   //! Additional attributes of the operation.
-  std::unordered_map<std::string, IrNodeRef> attrs;
+  std::map<std::string, IrNodeRef> attrs;
 
   const std::string& func_name() const final { return name; }
 };

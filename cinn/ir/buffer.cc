@@ -25,6 +25,7 @@ Buffer _Buffer_::Make(Var data,
   node->scope          = scope;
   node->data_alignment = data_alignment;
   node->offset_factor  = offset_factor;
+  return Buffer(node);
 }
 
 void _Buffer_::Accept(IrVisitor *v) const { v->Visit(this); }
