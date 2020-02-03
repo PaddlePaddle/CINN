@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 
 #include "cinn/common/pod_value.h"
 #include "cinn/ir/ir.h"
