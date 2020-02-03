@@ -55,7 +55,7 @@ bool Tensor::operator==(const Tensor &other) const {
   }
 }
 
-IrNodeTy Tensor::node_type() const { return ir::IrNodeTy ::_Tensor_; }
+IrNodeTy Tensor::node_type() const { return ir::IrNodeTy::_Tensor_; }
 
 void _Tensor_::Accept(IrVisitor *v) const { v->Visit(this); }
 

@@ -83,7 +83,7 @@ class IrNode : public common::Object {
   virtual ~IrNode() = default;
 
   virtual void Accept(IrVisitor* v) const = 0;
-  virtual IrNodeTy node_type() const { return IrNodeTy ::kUnk; }
+  virtual IrNodeTy node_type() const { return IrNodeTy::kUnk; }
   virtual const Type& type() const { return type_; }
   void set_type(Type type) { type_ = type; }
 
