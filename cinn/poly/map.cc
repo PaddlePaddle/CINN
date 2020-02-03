@@ -22,7 +22,7 @@ std::string Map::__str__() const {
 
   return utils::StringFormat("{ %s[%s] -> %s[%s]: %s }",
                              id_.c_str(),
-                             range_iterators_repr.c_str(),
+                             domain_iterators_repr.c_str(),
                              range_id_.c_str(),
                              range_iterators_repr.c_str(),
                              conds_repr.c_str());
