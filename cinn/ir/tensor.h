@@ -14,9 +14,9 @@ namespace detail {
 constexpr bool LE(int a, int b) { return a <= b; }
 constexpr bool GE(int a, int b) { return a >= b; }
 }  // namespace detail
-/**
- * Tensor representing a possible input or intermediate computation result.
- */
+   /**
+    * Tensor representing a possible input or intermediate computation result.
+    */
 class Tensor : public IrNodeRef, common::GraphNode {
  public:
   Tensor() = default;
