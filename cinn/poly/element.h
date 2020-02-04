@@ -22,6 +22,11 @@ class Element {
   explicit Element(isl::set domain);
 
   /**
+   * The id of this element, should be unique across the schedule.
+   */
+  const char* id() const;
+
+  /**
    * Split the loop level of into two new loop levels.
    * @param level the level to split.
    * @param factor the extent(size) of the inner loop created after splitting.
@@ -60,6 +65,9 @@ class Element {
    * @return
    */
   Iterator Fuse(const Iterator& level0, const Iterator& level1);
+
+  const isl::set& domain() const { return domain_; }
+  const isl::map& schedule() const { return schedule_; }
 
  private:
   /**

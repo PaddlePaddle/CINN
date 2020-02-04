@@ -4,6 +4,8 @@ cc_library(poly SRCS
         map.cc
         element.cc
         isl_utils.cc
+        schedule.cc
+        ast_gen.cc
         DEPS common)
 
 cc_test(test_poly_element SRCS element_test.cc DEPS poly)

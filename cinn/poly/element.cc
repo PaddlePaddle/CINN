@@ -99,5 +99,7 @@ std::string OuterName(const std::string &name) { return name + "_outer"; }
 std::string InnerName(const Iterator &iterator) { return InnerName(iterator.id); }
 std::string OuterName(const Iterator &iterator) { return OuterName(iterator.id); }
 
+const char *Element::id() const { return isl_set_get_tuple_name(domain_.get()); }
+
 }  // namespace poly
 }  // namespace cinn
