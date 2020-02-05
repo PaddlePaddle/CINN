@@ -39,6 +39,8 @@ TEST(Graph, basic) {
   Graph::edge_order_t edge_order;
   std::tie(node_order, edge_order) = graph.topological_order();
 
+  std::vector<std::string> order({"A", "B", "C", "D", "E"});
+
   for (auto* e : edge_order) {
     LOG(INFO) << "visit edge: " << e->source()->As<GraphNodeWithName>()->name << " -> "
               << e->sink()->As<GraphNodeWithName>()->name;
@@ -46,6 +48,10 @@ TEST(Graph, basic) {
 
   for (auto* n : node_order) {
     LOG(INFO) << "visit node: " << n->As<GraphNodeWithName>()->name;
+  }
+
+  for (int i = 0; i < node_order.size(); i++) {
+    EXPECT_EQ(node_order[i]->As<GraphNodeWithName>()->name, order[i]);
   }
 }
 

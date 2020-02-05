@@ -3,8 +3,8 @@
 
 #include <glog/logging.h>
 #include <list>
+#include <map>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "cinn/common/object.h"
@@ -116,7 +116,7 @@ class Graph {
 
  protected:
   //! A lookup table that map from hash key to graph node, note that it doesn't own the graph node.
-  std::unordered_map<size_t, GraphNode*> registry_;
+  std::map<size_t, GraphNode*> registry_;
   //! A list owns the graph nodes.
   std::vector<Shared<GraphNode>> nodes_;
 };
