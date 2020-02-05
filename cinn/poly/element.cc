@@ -18,8 +18,14 @@ void Element::InitSchedule() {
   auto dims      = GetDimNames(domain_);
   auto dims_repr = utils::Join(dims, ", ");
 
-  auto repr = utils::StringFormat("{ %s[%s] -> [%s] }", id.c_str(), dims_repr.c_str(), dims_repr.c_str());
+  auto repr = utils::StringFormat("{ %s[%s] -> %s[%s] }", id.c_str(), dims_repr.c_str(), id.c_str(), dims_repr.c_str());
   schedule_ = isl::map(domain_.ctx(), repr);
+
+  // set dimension names
+  for (int i = 0; i < dims.size(); i++) {
+    schedule_ = isl::manage(isl_map_set_dim_name(schedule_.release(), isl_dim_in, i, dims[i].c_str()));
+    schedule_ = isl::manage(isl_map_set_dim_name(schedule_.release(), isl_dim_out, i, dims[i].c_str()));
+  }
 }
 
 Element::Element(isl::set domain) : domain_(domain) {

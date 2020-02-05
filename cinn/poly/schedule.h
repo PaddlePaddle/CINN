@@ -37,25 +37,29 @@ struct ScheduleGraph : public common::Graph {};
  * The range of the schedule.
  */
 struct TimeSchedule {
-  //! ISL range format, such as '[dup, t0, t1]: dup=0 and t0=0 and t1=i]'
-  std::string __str__() const;
-
-  TimeSchedule(const std::vector<std::string> &dims) {
-    domain_dims = dims;
-    for (auto &dim : domain_dims) {
-      time_dims.emplace_back(dim, 0);
-    }
-  }
+  TimeSchedule(const std::string &id, const std::vector<std::string> &dims);
 
   void ResizeTimeSpace(int size) { time_dims.resize(size); }
 
-  //! Get the isl map.
-  isl::map to_isl(isl::ctx ctx) const { return isl::map(ctx, __str__()); }
+  //! Schedule this after \p other in \p level.
+  void OrderAfter(const TimeSchedule &other, int level);
 
-  std::string id;
+  size_t space_size() const { return time_dims.size(); }
+
+  const std::string &id() const;
+
+  //! Get the isl map.
+  isl::map to_isl(isl::ctx ctx) const;
+
+  //! ISL range format, such as '[dup, t0, t1]: dup=0 and t0=0 and t1=i]'
+  std::string __str__() const;
+
   std::vector<std::string> domain_dims;
   int duplicate_id{};
   std::vector<TimeDim> time_dims;
+
+ private:
+  std::string id_;
 };
 
 /**
@@ -73,7 +77,7 @@ class Scheduler {
    *   '{ S[i,j] -> [i_outer, i_inner, j]: i_outer=floor(i/4) and i_inner=i%4 }'
    * that's OK.
    */
-  Scheduler() = default;
+  Scheduler() : ctx_(nullptr) {}
 
   /**
    * Register an Element to the scheduler.
@@ -102,7 +106,7 @@ class Scheduler {
   /**
    * Build and create schedule.
    */
-  std::unordered_map<std::string, isl::map> BuildSchedule() const;
+  std::map<std::string, isl::map> BuildSchedule() const;
 
  private:
   /**
@@ -114,12 +118,10 @@ class Scheduler {
   int space_size_{};
   //! Tell if the element registration is finalized.
   bool registration_finalized_{false};
-  //! map from Schedule id to time schedule.
-  std::unordered_map<std::string, TimeSchedule> schedule_flows_;
-  //! Reversed dependency flow.
-  std::unordered_map<std::string, TimeSchedule> rev_schedule_flows_;
 
-  ScheduleGraph schedule_graph_;
+  mutable isl::ctx ctx_;
+
+  mutable ScheduleGraph schedule_graph_;
 };
 
 }  // namespace poly
