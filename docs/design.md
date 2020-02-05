@@ -120,6 +120,8 @@ Each tensor is assign a `Stage`, which is the basic schedule element.
 
 A stage has a domain(isl.Set) and a schedule(isl.Map), all the schedule is performed on them.
 
+We use the ideas from Tiramisu project, and walk through the dependency graph.
+
 ### Stage
 The stage supports multiple operations.
 
