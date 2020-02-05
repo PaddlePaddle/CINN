@@ -59,6 +59,11 @@ class GraphNode : public Object {
     static_assert(std::is_base_of<GraphNode, Derived>::value);
     return static_cast<Derived*>(this);
   }
+  template <typename Derived>
+  const Derived* As() const {
+    static_assert(std::is_base_of<GraphNode, Derived>::value);
+    return static_cast<const Derived*>(this);
+  }
 
   //! Reset graph traversal meta info.
   void ResetVisitMeta() { visited_time_ = 0; }
