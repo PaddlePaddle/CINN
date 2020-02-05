@@ -7,6 +7,7 @@
 #include <utility>
 #include <vector>
 
+#include "cinn/common/common.h"
 #include "cinn/poly/element.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/poly/map.h"
@@ -20,6 +21,7 @@ struct TimeDim {
   //! name of this dimension.
   std::string dim;
 
+  TimeDim() = default;
   TimeDim(std::string dim, int time) : dim(std::move(dim)), time(time) {}
 };
 
@@ -27,6 +29,9 @@ struct DependFlow {
   //! Map from the depended Element.id to the level.
   std::unordered_map<std::string, int> depend_level;
 };
+
+class ScheduleGraphNode;
+struct ScheduleGraph : public common::Graph {};
 
 /**
  * The range of the schedule.
@@ -110,10 +115,11 @@ class Scheduler {
   //! Tell if the element registration is finalized.
   bool registration_finalized_{false};
   //! map from Schedule id to time schedule.
-  std::unordered_map<std::string, TimeSchedule> schedule_;
-  //! The graph constructed from the dependency and level. There should be only one element which doesn't has
-  //! dependency and that is the start point.
-  std::unordered_map<std::string, DependFlow> depend_flow_graph_;
+  std::unordered_map<std::string, TimeSchedule> schedule_flows_;
+  //! Reversed dependency flow.
+  std::unordered_map<std::string, TimeSchedule> rev_schedule_flows_;
+
+  ScheduleGraph schedule_graph_;
 };
 
 }  // namespace poly

@@ -1,10 +1,26 @@
 #include "cinn/poly/schedule.h"
-#include "cinn/utils/string.h"
-
 #include <sstream>
+#include "cinn/common/graph_utils.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace poly {
+
+/**
+ * Node in the schedule graph.
+ */
+struct ScheduleGraphNode : public common::GraphNode {
+  TimeSchedule time_schedule;
+
+  explicit ScheduleGraphNode(const std::vector<std::string> &dims) : time_schedule(dims) {}
+};
+
+struct ScheduleGraphEdge : public common::GraphEdge {
+  ScheduleGraphEdge(common::GraphNode *a, common::GraphNode *b) : common::GraphEdge(a, b) {}
+
+  //! Dependency level.
+  int level;
+};
 
 std::string TimeSchedule::__str__() const {
   CHECK(!time_dims.empty());
@@ -36,22 +52,31 @@ void Scheduler::RegisterElement(const Element &x) {
   // Use the dimensions from element's schedule's range as the new domain dimensions because in Element, the schedule is
   // like '{ S0[i,j] -> S0[i_outer, i_inner, j] }', the scheduler should schedule base on the range.
   TimeSchedule schedule(GetDimNames(x.schedule(), isl_dim_out));
-  schedule_.emplace(x.id(), std::move(schedule));
+  schedule_graph_.RegisterNode(x.id(), common::make_shared<ScheduleGraphNode>(GetDimNames(x.schedule(), isl_dim_out)));
 }
 
 void Scheduler::FinalizeRegistration() {
   CHECK_GT(space_size_, 0) << "No valid dimension is collected, use RegisterElement to collect some elements";
-  CHECK(!schedule_.empty()) << "No valid dimension is collected, use RegisterElement to collect some elements";
-  registration_finalized_ = false;
+  CHECK(!schedule_graph_.nodes().empty())
+      << "No node is registered to the graph, use RegisterElement to collect some elements";
+  registration_finalized_ = true;
 
-  for (auto &item : schedule_) {
-    item.second.ResizeTimeSpace(space_size_);
+  for (auto &item : schedule_graph_.nodes()) {
+    item->As<ScheduleGraphNode>()->time_schedule.ResizeTimeSpace(space_size_);
   }
 }
 
 Scheduler &Scheduler::After(const Element &a, const Element &b, int level) {
   CHECK_LT(level, space_size_);
-  depend_flow_graph_[b.id()].depend_level[a.id()] = level;
+  auto *a_node = schedule_graph_.RetriveNode(a.id())->As<ScheduleGraphNode>();
+  auto *b_node = schedule_graph_.RetriveNode(a.id())->As<ScheduleGraphNode>();
+  CHECK(a_node) << "no node called " << a.id() << " registered in the graph";
+  CHECK(b_node) << "no node called " << b.id() << " registered in the graph";
+
+  common::GraphEdge *a_edge, *b_edge;
+  std::tie(a_edge, b_edge) = a_node->LinkTo<ScheduleGraphEdge>(b_node);
+  a_edge->As<ScheduleGraphEdge>()->level = level;
+  b_edge->As<ScheduleGraphEdge>()->level = level;
   return *this;
 }
 

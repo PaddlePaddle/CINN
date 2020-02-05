@@ -6,3 +6,4 @@ cc_library(common
 
 cc_test(test_pod_value SRCS pod_value_test.cc DEPS common)
 cc_test(test_shared SRCS shared_test.cc DEPS common)
+cc_test(test_graph_utils SRCS graph_utils_test.cc DEPS common)
