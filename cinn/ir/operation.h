@@ -42,13 +42,7 @@ struct PlaceholderOp : public _Operation_ {
   //! The data type of the input.
   Type dtype;
 
-  static Operation Make(std::string name, std::vector<Expr> shape, Type dtype) {
-    auto n   = common::make_shared<PlaceholderOp>();
-    n->name  = name;
-    n->shape = shape;
-    n->dtype = dtype;
-    return Operation(n);
-  }
+  static Operation Make(std::string name, std::vector<Expr> shape, Type dtype);
 };
 
 /**
@@ -68,14 +62,7 @@ struct ComputeOp : public _Operation_ {
                         std::string tag,
                         std::map<std::string, IrNodeRef> attrs,
                         std::vector<Var> axis,
-                        std::vector<Expr> body) {
-    auto n   = common::make_shared<ComputeOp>();
-    n->name  = std::move(name);
-    n->tag   = std::move(tag);
-    n->attrs = std::move(attrs);
-    n->body  = std::move(body);
-    return Operation(n);
-  }
+                        std::vector<Expr> body);
 };
 
 }  // namespace ir

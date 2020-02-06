@@ -220,4 +220,32 @@ Expr Call::Make(Type type,
   return Expr(node);
 }
 }  // namespace ir
+
+namespace common {
+
+template <>
+void PODValue::Set<ir::Var>(ir::Var v) {
+  type_code_      = TypeCode<ir::Var>();
+  value_.v_handle = v.ptr();
+}
+template <>
+void PODValue::Set<ir::Expr>(ir::Expr v) {
+  type_code_      = TypeCode<ir::Expr>();
+  value_.v_handle = v.ptr();
+}
+template <>
+Value ToValue<ir::Expr>(ir::Expr v) {
+  Value val;
+  val.v_handle = v.ptr();
+  return val;
+}
+template <>
+Value ToValue<ir::Var>(ir::Var v) {
+  Value val;
+  val.v_handle = v.ptr();
+  return val;
+}
+
+}  // namespace common
+
 }  // namespace cinn

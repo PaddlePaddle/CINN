@@ -1,3 +1,4 @@
+#pragma once
 #include "cinn/common/shared.h"
 
 namespace cinn {
