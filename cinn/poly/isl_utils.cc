@@ -1,4 +1,5 @@
 #include "cinn/poly/isl_utils.h"
+#include <glog/logging.h>
 #include <isl/cpp.h>
 
 namespace cinn {
@@ -18,6 +19,24 @@ std::vector<std::string> GetDimNames(const isl::map &x, isl_dim_type dim_type) {
     res.push_back(isl_map_get_dim_name(x.get(), dim_type, i));
   }
   return res;
+}
+
+void SetDimNames(isl::map *map, isl_dim_type dim_type, const std::vector<std::string> &names) {
+  const int dim = isl_map_dim(map->get(), dim_type);
+  CHECK_EQ(dim, names.size());
+
+  for (int i = 0; i < dim; i++) {
+    *map = isl::manage(isl_map_set_dim_name(map->release(), dim_type, i, names[i].c_str()));
+  }
+}
+
+void SetDimNames(isl::set *set, const std::vector<std::string> &names) {
+  int dim = isl_set_dim(set->get(), isl_dim_set);
+  CHECK_EQ(dim, names.size());
+
+  for (int i = 0; i < dim; i++) {
+    *set = isl::manage(isl_set_set_dim_name(set->release(), isl_dim_set, i, names[i].c_str()));
+  }
 }
 
 }  // namespace poly

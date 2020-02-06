@@ -16,7 +16,9 @@ namespace poly {
 struct Iterator {
   std::string id;
 
-  explicit Iterator(std::string id) : id(std::move(id)) {}
+  explicit Iterator(const std::string& id) : id(id) {}
+  explicit Iterator(const Iterator& x) : id(x.id) {}
+  explicit Iterator(Iterator&& x) : id(std::move(x.id)) {}
 
   friend std::ostream& operator<<(std::ostream& os, const Iterator& x);
 };
@@ -25,7 +27,7 @@ struct Condition {
   Iterator iterator;
   std::string cond;
 
-  Condition(Iterator iterator, std::string cond) : iterator(std::move(iterator)), cond(std::move(cond)) {}
+  Condition(const Iterator& iterator, std::string cond) : iterator(iterator), cond(std::move(cond)) {}
 
   friend std::ostream& operator<<(std::ostream& os, const Condition& x) {
     os << x.__str__();

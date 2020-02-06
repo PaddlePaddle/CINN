@@ -1,5 +1,6 @@
 #include "cinn/poly/element.h"
 #include "cinn/poly/isl_utils.h"
+#include "cinn/utils/functional.h"
 
 namespace cinn {
 namespace poly {
@@ -38,7 +39,7 @@ Element::Element(isl::set domain) : domain_(domain) {
 std::tuple<Iterator, Iterator> Element::Split(const Iterator &level, int factor) {
   int offset = isl_set_find_dim_by_name(domain_.get(), isl_dim_set, level.id.c_str());
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
-  auto dim_names = GetDimNames(domain_);
+  auto dim_names = GetDimNames(schedule_, isl_dim_out);
 
   VLOG(2) << "domain: " << domain_;
   VLOG(2) << "schedule: " << schedule_;
@@ -65,14 +66,18 @@ std::tuple<Iterator, Iterator> Element::Split(const Iterator &level, int factor)
     }
   }
 
-  Map transform(domain_.ctx(), "", from_iters, to_iters, conds, "");
+  Map transform(domain_.ctx(), id(), from_iters, to_iters, conds, id());
   VLOG(3) << "transform: " << transform.__str__();
   schedule_ = schedule_.apply_range(transform.to_isl());
+  auto range_dims =
+      utils::Map<std::vector<Iterator>, std::vector<std::string>>(to_iters, [](const Iterator &x) { return x.id; });
+  SetDimNames(&schedule_, isl_dim_out, range_dims);
 
   VLOG(3) << "transform " << transform.to_isl();
   VLOG(3) << "schedule after transform: " << schedule_;
 
-  std::make_tuple(outer_iter, inner_iter);
+  VLOG(3) << "iterators: " << outer_iter << " " << inner_iter;
+  return std::make_tuple(outer_iter, inner_iter);
 }
 
 void Element::Reorder(const std::vector<Iterator> &order) {}
@@ -106,6 +111,10 @@ std::string InnerName(const Iterator &iterator) { return InnerName(iterator.id);
 std::string OuterName(const Iterator &iterator) { return OuterName(iterator.id); }
 
 const char *Element::id() const { return isl_set_get_tuple_name(domain_.get()); }
+
+std::tuple<Iterator, Iterator> Element::Split(const std::string &level, int factor) {
+  return std::move(Split(Iterator(level), factor));
+}
 
 }  // namespace poly
 }  // namespace cinn
