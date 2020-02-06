@@ -39,5 +39,26 @@ TEST(Element, tile) {
       "6 = 0 and -3 + i <= 4i_outer <= i and 0 <= i_inner <= 3 and -5 + j <= 6j_outer <= j and 0 <= j_inner <= 5 }");
 }
 
+TEST(Element, reorder) {
+  isl::ctx ctx(isl_ctx_alloc());
+  isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
+  Element ele(domain);
+  Iterator i("i"), j("j"), k("k");
+  ele.Reorder(std::vector<Iterator>{{i, k, j}});
+  LOG(INFO) << ele.schedule();
+}
+
+TEST(Element, split_reorder) {
+  isl::ctx ctx(isl_ctx_alloc());
+  isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
+  Element ele(domain);
+  Iterator outer, inner;
+  std::tie(outer, inner) = ele.Split(Iterator("i"), 4);
+
+  Iterator i("i"), j("j"), k("k");
+  ele.Reorder(std::vector<Iterator>{{outer, k, inner, j}});
+  LOG(INFO) << ele.schedule();
+}
+
 }  // namespace poly
 }  // namespace cinn

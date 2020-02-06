@@ -1,4 +1,6 @@
 #include "cinn/poly/map.h"
+#include "cinn/poly/isl_utils.h"
+#include "cinn/utils/functional.h"
 
 namespace cinn {
 namespace poly {
@@ -41,7 +43,16 @@ Map::Map(isl::ctx ctx,
       conds_(std::move(conds)),
       range_id_(std::move(range_id)) {}
 
-isl::map Map::to_isl() const { return isl::map(ctx_, __str__()); }
+isl::map Map::to_isl() const {
+  auto map = isl::map(ctx_, __str__());
+  // set dimension names
+  auto handler          = [](const Iterator& x) { return x.id; };
+  auto domain_dim_names = utils::Map<std::vector<Iterator>, std::string>(domain_iterators_, handler);
+  auto range_dim_names  = utils::Map<std::vector<Iterator>, std::string>(range_iterators_, handler);
+  SetDimNames(&map, isl_dim_in, domain_dim_names);
+  SetDimNames(&map, isl_dim_out, range_dim_names);
+  return map;
+}
 
 std::ostream& operator<<(std::ostream& os, const Iterator& x) {
   os << utils::StringFormat("<Iterator: %s>", x.id.c_str());

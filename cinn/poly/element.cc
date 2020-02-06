@@ -68,9 +68,8 @@ std::tuple<Iterator, Iterator> Element::Split(const Iterator &level, int factor)
 
   Map transform(domain_.ctx(), id(), from_iters, to_iters, conds, id());
   VLOG(3) << "transform: " << transform.__str__();
-  schedule_ = schedule_.apply_range(transform.to_isl());
-  auto range_dims =
-      utils::Map<std::vector<Iterator>, std::vector<std::string>>(to_iters, [](const Iterator &x) { return x.id; });
+  schedule_       = schedule_.apply_range(transform.to_isl());
+  auto range_dims = utils::Map<std::vector<Iterator>, std::string>(to_iters, [](const Iterator &x) { return x.id; });
   SetDimNames(&schedule_, isl_dim_out, range_dims);
 
   VLOG(3) << "transform " << transform.to_isl();
@@ -80,7 +79,16 @@ std::tuple<Iterator, Iterator> Element::Split(const Iterator &level, int factor)
   return std::make_tuple(outer_iter, inner_iter);
 }
 
-void Element::Reorder(const std::vector<Iterator> &order) {}
+void Element::Reorder(const std::vector<Iterator> &order) {
+  auto in_names = GetDimNames(schedule_, isl_dim_out);
+  CHECK_EQ(order.size(), in_names.size());
+  auto in_iters =
+      utils::Map<std::vector<std::string>, Iterator>(in_names, [](const std::string &x) { return Iterator(x); });
+
+  Map transform(domain().ctx(), id(), in_iters, order, {}, id());
+  VLOG(3) << "reorder transform: " << transform.__str__();
+  schedule_ = schedule_.apply_range(transform.to_isl());
+}
 
 std::tuple<Iterator, Iterator, Iterator, Iterator> Element::Tile(const Iterator &level0,
                                                                  const Iterator &level1,
