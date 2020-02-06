@@ -18,7 +18,7 @@ struct Iterator {
 
   Iterator() = default;
   explicit Iterator(const std::string& id) : id(id) {}
-  explicit Iterator(const Iterator& x) : id(x.id) {}
+  Iterator(const Iterator& x) : id(x.id) {}  // NOLINT
   explicit Iterator(Iterator&& x) : id(std::move(x.id)) {}
 
   Iterator& operator=(const Iterator& other) { id = other.id; }
