@@ -10,3 +10,4 @@ cc_library(poly SRCS
 
 cc_test(test_poly_element SRCS element_test.cc DEPS poly)
 cc_test(test_schedule SRCS schedule_test.cc DEPS poly)
+cc_test(test_ast_gen SRCS ast_gen_test.cc DEPS poly)

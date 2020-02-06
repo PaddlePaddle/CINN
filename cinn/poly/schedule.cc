@@ -150,5 +150,15 @@ std::map<std::string, isl::map> Scheduler::BuildSchedule() const {
   return res;
 }
 
+std::vector<std::string> Scheduler::WrapIteratorNames(const std::vector<std::string> &names) const {
+  CHECK_EQ(names.size(), space_size());
+  std::vector<std::string> res;
+  for (int i = 0; i < space_size(); i++) {
+    res.push_back("");        // fake name for time space.
+    res.push_back(names[i]);  // name for the corresponding iterator.
+  }
+  return res;
+}
+
 }  // namespace poly
 }  // namespace cinn
