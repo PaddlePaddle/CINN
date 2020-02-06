@@ -34,6 +34,8 @@ class Element {
    */
   std::tuple<Iterator, Iterator>  //
       Split(const Iterator& level, int factor);
+  std::tuple<Iterator, Iterator>  //
+      Split(const std::string& level, int factor);
 
   /**
    * Reorder the iterators.

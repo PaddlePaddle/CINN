@@ -80,6 +80,7 @@ void Scheduler::RegisterElement(const Element &x) {
   CHECK(!registration_finalized_) << "element registration has been finalized.";
   space_size_ = std::max(space_size_, isl_map_dim(x.schedule().get(), isl_dim_out));
   VLOG(3) << "space_size: " << space_size_;
+  VLOG(3) << "schedule: " << x.schedule();
 
   // Use the dimensions from element's schedule's range as the new domain dimensions because in Element, the schedule is
   // like '{ S0[i,j] -> S0[i_outer, i_inner, j] }', the scheduler should schedule base on the range.
