@@ -16,9 +16,12 @@ namespace poly {
 struct Iterator {
   std::string id;
 
+  Iterator() = default;
   explicit Iterator(const std::string& id) : id(id) {}
   explicit Iterator(const Iterator& x) : id(x.id) {}
   explicit Iterator(Iterator&& x) : id(std::move(x.id)) {}
+
+  Iterator& operator=(const Iterator& other) { id = other.id; }
 
   friend std::ostream& operator<<(std::ostream& os, const Iterator& x);
 };

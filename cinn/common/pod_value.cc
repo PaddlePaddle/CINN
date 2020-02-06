@@ -1,8 +1,15 @@
 #include "cinn/common/pod_value.h"
-#include "cinn/ir/ir.h"
 #include "cinn/ir/node.h"
 
 namespace cinn {
+
+namespace ir {
+
+class Expr;
+class Var;
+
+}  // namespace ir
+
 namespace common {
 
 //! Implement the type_code for all the supported types.
@@ -91,16 +98,6 @@ void PODValue::Set<char const *>(char const *v) {
   type_code_   = TypeCode<char *>();
   value_.v_str = const_cast<char *>(v);
 }
-template <>
-void PODValue::Set<ir::Var>(ir::Var v) {
-  type_code_      = TypeCode<ir::Var>();
-  value_.v_handle = v.ptr();
-}
-template <>
-void PODValue::Set<ir::Expr>(ir::Expr v) {
-  type_code_      = TypeCode<ir::Expr>();
-  value_.v_handle = v.ptr();
-}
 // @}
 
 //! Implement ToValue.
@@ -139,18 +136,6 @@ template <>
 Value ToValue<char const *>(char const *v) {
   Value val;
   val.v_str = const_cast<char *>(v);
-  return val;
-}
-template <>
-Value ToValue<ir::Expr>(ir::Expr v) {
-  Value val;
-  val.v_handle = v.ptr();
-  return val;
-}
-template <>
-Value ToValue<ir::Var>(ir::Var v) {
-  Value val;
-  val.v_handle = v.ptr();
   return val;
 }
 // @}

@@ -18,12 +18,12 @@ Tensor::Tensor(const std::vector<Expr> &shape, Type type) : IrNodeRef(common::ma
 }
 
 const _Tensor_ *Tensor::operator->() const {
-  auto *p = As<_Tensor_>();
+  auto *p = Object::As<_Tensor_>();
   CHECK(p) << "type not match";
   return p;
 }
 _Tensor_ *Tensor::operator->() {
-  auto *p = As<_Tensor_>();
+  auto *p = Object::As<_Tensor_>();
   CHECK(p) << "type not match";
   return p;
 }

@@ -86,11 +86,11 @@ std::tuple<Iterator, Iterator, Iterator, Iterator> Element::Tile(const Iterator 
                                                                  const Iterator &level1,
                                                                  int factor0,
                                                                  int factor1) {
-  Iterator level0_inner(InnerName(level0));
-  Iterator level0_outer(OuterName(level0));
-  Iterator level1_inner(InnerName(level1));
-  Iterator level1_outer(OuterName(level1));
+  Iterator level0_inner, level0_outer;
+  Iterator level1_inner, level1_outer;
 
+  std::tie(level0_outer, level0_inner) = Split(level0, factor0);
+  std::tie(level1_outer, level1_inner) = Split(level1, factor1);
   return std::make_tuple(level0_outer, level0_inner, level1_outer, level1_inner);
 }
 
