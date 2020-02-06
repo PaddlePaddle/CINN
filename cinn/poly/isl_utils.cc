@@ -39,5 +39,23 @@ void SetDimNames(isl::set *set, const std::vector<std::string> &names) {
   }
 }
 
+isl::union_map MapsToUnionMap(const std::vector<isl::map> &maps) {
+  CHECK(!maps.empty());
+  isl::union_map umap = isl::manage(isl_union_map_from_map(maps.front().copy()));
+  for (int i = 1; i < maps.size(); i++) {
+    umap = isl::manage(isl_union_map_add_map(umap.release(), maps[i].copy()));
+  }
+  return umap;
+}
+
+isl::union_set SetsToUnionSet(const std::vector<isl::set> &sets) {
+  CHECK(!sets.empty());
+  isl::union_set uset = isl::manage(isl_union_set_from_set(sets.front().copy()));
+  for (int i = 1; i < sets.size(); i++) {
+    uset = isl::manage(isl_union_set_add_set(uset.release(), sets[i].copy()));
+  }
+  return uset;
+}
+
 }  // namespace poly
 }  // namespace cinn

@@ -90,6 +90,11 @@ class Scheduler {
   void FinalizeRegistration();
 
   /**
+   * Tell whether the registration is finalized.
+   */
+  bool finalized() const { return registration_finalized_; }
+
+  /**
    * Mark this should schedule after another.
    *
    * @param b
@@ -107,6 +112,15 @@ class Scheduler {
    * Build and create schedule.
    */
   std::map<std::string, isl::map> BuildSchedule() const;
+
+  /**
+   * Wrap the iterator names with time space.
+   * @param names the original iterator names.
+   * @return the iterator names with time space included.
+   */
+  std::vector<std::string> WrapIteratorNames(const std::vector<std::string> &names) const;
+
+  int space_size() const { return space_size_; }
 
  private:
   /**
