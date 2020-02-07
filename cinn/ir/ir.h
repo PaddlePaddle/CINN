@@ -14,6 +14,15 @@
 #include "cinn/ir/node.h"
 
 namespace cinn {
+
+namespace poly {
+class Element;
+}  // namespace poly
+
+namespace lang {
+class Tensor;
+}  // namespace lang
+
 namespace ir {
 
 using common::Object;
@@ -503,6 +512,27 @@ class _IterVar_ : public IrNode {
   IrNodeTy node_type() const override { return _node_type_; }
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Range_;
+};
+
+class _Tensor_ : public IrNode {
+ public:
+  //! Shape of this tensor.
+  std::vector<Expr> shape;
+  //! Data type of this tensor.
+  Type dtype;
+  //! The expression that generate this tensor.
+  ir::Expr expr;
+  //! The iterators, we store the iterators to name the dimensions for better readability.
+  std::vector<Var> iterators;
+  //! Polyhedral element for analysis and schedule.
+  std::unique_ptr<poly::Element> poly_element;
+
+  static lang::Tensor Make(const std::vector<Expr>& shape,
+                           const std::vector<Var>& iterators,
+                           Type dtype,
+                           ir::Expr expr);
+
+  void Accept(ir::IrVisitor* v) const override;
 };
 
 static IterVar thread_axis(Range dom, const std::string& tag) {

@@ -29,7 +29,7 @@ void Element::InitSchedule() {
   }
 }
 
-Element::Element(isl::set domain) : domain_(domain) {
+Element::Element(const isl::set &domain) : domain_(domain) {
   CHECK(!domain_.is_null());
   CHECK(!domain_.is_empty());
 

@@ -19,7 +19,7 @@ namespace poly {
  */
 class Element {
  public:
-  explicit Element(isl::set domain);
+  explicit Element(const isl::set& domain);
 
   /**
    * The id of this element, should be unique across the schedule.

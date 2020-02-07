@@ -105,6 +105,7 @@ class Operation : public FunctionRef {
   std::string name;
 };
 
+/*
 class _Tensor_ : public IrNode {
  public:
   //! The shape of the tensor.
@@ -121,6 +122,7 @@ class _Tensor_ : public IrNode {
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Tensor_;
 };
+ */
 
 class _Operation_ : public ir::FunctionBase {
  public:
