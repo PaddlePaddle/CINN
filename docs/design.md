@@ -23,10 +23,10 @@ The layers are as follows
 Var i("i"), j("j"), k("k");
 Constant N("N"), M("M"), K("K");
 
-PlaceHolder<float> x("x");
-PlaceHolder<float> y("x");
+PlaceHolder<float> x("x", {M, K});
+PlaceHolder<float> y("x", {K, N});
 
-Tensor C = compute({M, N}/*dims*/, [&](Var i, Var j, Var k){
+Tensor C = compute({M, N, K}/*dims*/, [&](Var i, Var j, Var k){
     return x(i,k) * y(k,j);
 });
 

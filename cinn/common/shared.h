@@ -50,7 +50,10 @@ struct Shared {
   inline bool operator<(const Shared& other) const { return p_ < other.p_; }
   inline bool operator==(const Shared& other) const { return p_ == other.p_; }
 
-  ~Shared() { DesRef(p_); }
+  ~Shared() {
+    DesRef(p_);
+    p_ = nullptr;
+  }
 
  private:
   //! Increase the share count.
