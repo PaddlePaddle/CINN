@@ -5,5 +5,13 @@
 #include "cinn/utils/string.h"
 
 namespace cinn {
-namespace ir {}  // namespace ir
+namespace ir {
+
+TEST(Expr, basic) {
+  Expr a(1);
+  auto b = Expr(a);
+  LOG(INFO) << b.as_int32();
+}
+
+}  // namespace ir
 }  // namespace cinn

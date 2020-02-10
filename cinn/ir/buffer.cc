@@ -18,7 +18,6 @@ Buffer _Buffer_::Make(Var data,
                       int offset_factor) {
   auto *node           = common::make_shared<_Buffer_>();
   node->data           = data;
-  node->dtype          = dtype;
   node->shape          = shape;
   node->strides        = strides;
   node->elem_offset    = elem_offset;
@@ -26,6 +25,7 @@ Buffer _Buffer_::Make(Var data,
   node->scope          = scope;
   node->data_alignment = data_alignment;
   node->offset_factor  = offset_factor;
+  node->set_type(dtype);
   return Buffer(node);
 }
 

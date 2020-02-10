@@ -19,6 +19,8 @@ class Placeholder {
  public:
   Placeholder(const std::vector<Expr>& shape) {
     ir::Var buffer_ptr(Context::Global().NewName("buffer"));
+    buffer_ptr->set_type(type_of<T>());
+
     std::vector<Expr> strides(shape.size(), Expr(1));
     Expr offset(0);
     buffer_ = ir::_Buffer_::Make(buffer_ptr,
@@ -38,6 +40,13 @@ class Placeholder {
   Expr operator()(Expr a, Expr b) const { return operator()({a, b}); }
   Expr operator()(Expr a, Expr b, Expr c) const { return operator()({a, b, c}); }
   Expr operator()(Expr a, Expr b, Expr c, Expr d) const { return operator()({a, b, c, d}); }
+  /*
+  template <typename... Args>
+  Expr operator()(Args... args) {
+    return operator()(Expr(args)...);
+  }
+   */
+  Expr operator()(ir::Var a, ir::Var b) { return operator()(Expr(a), Expr(b)); }
   Expr operator()(const std::vector<Expr>& indice) const;
   // @}
 

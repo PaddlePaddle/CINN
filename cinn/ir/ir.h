@@ -240,24 +240,26 @@ struct Call : public ExprNode<Call> {
 /**
  * Variable used as iterator value or bound definition.
  */
-struct Variable : public ExprNode<Variable> {
+struct _Var_ : public ExprNode<_Var_> {
   std::string name;
 
-  Variable(const std::string& name, Type type) : ExprNode<Variable>(type), name(name) {}
+  _Var_(const std::string& name, Type type) : ExprNode<_Var_>(type), name(name) {}
 
   static Expr Make(const std::string& name, const Type& type);
 
-  static const IrNodeTy _node_type_ = IrNodeTy::Variable;
+  static const IrNodeTy _node_type_ = IrNodeTy::_Var_;
 };
 
 //! A named variable.
 struct Var : public IrNodeRef {
   Var() = default;
   explicit Var(IrNode* n) : IrNodeRef(n) {}
-  explicit Var(const std::string& name_hint, Type t = type_of<int>()) : Var(Variable::Make(name_hint, t).ptr()) {}
+  explicit Var(const std::string& name_hint, Type t = type_of<int>()) : Var(_Var_::Make(name_hint, t).ptr()) {}
 
-  const Variable* operator->() const { return get(); }
-  const Variable* get() const { return static_cast<const Variable*>(ptr()); }
+  const _Var_* operator->() const { return get(); }
+  _Var_* operator->() { return get(); }
+  const _Var_* get() const { return static_cast<const _Var_*>(ptr()); }
+  _Var_* get() { return static_cast<_Var_*>(ptr()); }
 };
 
 /**
@@ -514,25 +516,25 @@ class _IterVar_ : public IrNode {
   static const IrNodeTy _node_type_ = IrNodeTy::_Range_;
 };
 
-class _Tensor_ : public IrNode {
+class _Tensor_ : public ExprNode<_Tensor_> {
  public:
   //! Shape of this tensor.
   std::vector<Expr> shape;
-  //! Data type of this tensor.
-  Type dtype;
   //! The expression that generate this tensor.
   ir::Expr expr;
   //! The iterators, we store the iterators to name the dimensions for better readability.
   std::vector<Var> iterators;
   //! Polyhedral element for analysis and schedule.
-  std::unique_ptr<poly::Element> poly_element;
+  poly::Element* poly_element{};
 
   static lang::Tensor Make(const std::vector<Expr>& shape,
                            const std::vector<Var>& iterators,
                            Type dtype,
                            ir::Expr expr);
 
-  void Accept(ir::IrVisitor* v) const override;
+  _Tensor_() : ExprNode<_Tensor_>(Float(32)) {}
+
+  static const IrNodeTy _node_type_ = IrNodeTy::_Tensor_;
 };
 
 static IterVar thread_axis(Range dom, const std::string& tag) {

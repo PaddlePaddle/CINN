@@ -31,6 +31,7 @@ struct Type {
   bool is_scalar() const { return width_ == 1; }
   bool is_float() const { return type_ == Float; }
   bool is_int() const { return type_ == Int; }
+  bool is_int(int bits) const { return type_ == Int && bits_ == bits; }
   bool is_uint() const { return type_ == UInt; }
   // @}
 
