@@ -31,6 +31,8 @@ struct ExternOp : public _Operation_ {
                         std::vector<Buffer> input_placeholders,
                         std::vector<Buffer> output_placeholders,
                         Stmt body);
+
+  static constexpr char* buffer_get_element = "cinn_buffer_get_element";
 };
 
 /**

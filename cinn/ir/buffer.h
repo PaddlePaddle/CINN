@@ -25,9 +25,11 @@ enum class AccessMask : int {
 class Buffer : public IrNodeRef {
  public:
   Buffer() = default;
-  explicit Buffer(IrNode* n) : IrNodeRef(n) {}
+  explicit Buffer(IrNode* n) : IrNodeRef(n) {
+    LOG(INFO) << "set IrNode " << n;
+  }
 
-  inline const _Buffer_* operator->() const;
+  const _Buffer_* operator->() const;
 };
 
 class _Buffer_ : public IrNode {
@@ -68,7 +70,7 @@ class _Buffer_ : public IrNode {
   void Accept(IrVisitor* v) const override;
   IrNodeTy node_type() const override;
 
-  static const IrNodeTy _node_type_ = IrNodeTy::_Range_;
+  static const IrNodeTy _node_type_ = IrNodeTy::_Buffer_;
 };
 
 }  // namespace ir

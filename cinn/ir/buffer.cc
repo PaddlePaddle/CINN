@@ -4,7 +4,7 @@
 namespace cinn {
 namespace ir {
 
-const _Buffer_ *Buffer::operator->() const { return As<_Buffer_>(); }
+const _Buffer_* Buffer::operator->() const { return IrNodeRef::As<_Buffer_>(); }
 
 Buffer _Buffer_::Make(Var data,
                       Type dtype,
@@ -25,6 +25,8 @@ Buffer _Buffer_::Make(Var data,
   node->scope          = scope;
   node->data_alignment = data_alignment;
   node->offset_factor  = offset_factor;
+
+  LOG(INFO) << node->node_type();
   return Buffer(node);
 }
 
