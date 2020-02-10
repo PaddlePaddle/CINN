@@ -14,6 +14,7 @@
 
 INCLUDE(ExternalProject)
 
+message(STATUS "third: ${THIRD_PARTY_PATH}")
 SET(GFLAGS_SOURCES_DIR ${THIRD_PARTY_PATH}/gflags)
 SET(GFLAGS_INSTALL_DIR ${THIRD_PARTY_PATH}/install/gflags)
 SET(GFLAGS_INCLUDE_DIR "${GFLAGS_INSTALL_DIR}/include" CACHE PATH "gflags include directory." FORCE)

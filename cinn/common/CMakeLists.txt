@@ -2,6 +2,7 @@ cc_library(common
         SRCS shared.cc pod_value.cc type.cc
         object.cc
         graph_utils.cc
+        context.cc
         DEPS boost utils)
 
 cc_test(test_pod_value SRCS pod_value_test.cc DEPS common ir)

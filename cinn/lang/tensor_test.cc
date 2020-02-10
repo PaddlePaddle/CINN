@@ -1,5 +1,7 @@
 #include "cinn/lang/tensor.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/ir/ir.h"
 
 namespace cinn {
@@ -13,7 +15,9 @@ TEST(Tensor, basic) {
 
   Var i("i"), j("j");
 
-  Tensor tensor({M, N}, x, {i, j}, Float(32));
+  Tensor tensor({M, N}, {i, j}, Float(32), );
+
+  auto slice = tensor(Expr(2), Expr(1));
 }
 
 }  // namespace lang

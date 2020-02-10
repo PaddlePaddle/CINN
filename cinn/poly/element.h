@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 #include <isl/cpp.h>
+
 #include <algorithm>
 #include <string>
 #include <tuple>
@@ -33,9 +34,9 @@ class Element {
    * @return the new outer and inner iterators.
    */
   std::tuple<Iterator, Iterator>  //
-      Split(const Iterator& level, int factor);
+  Split(const Iterator& level, int factor);
   std::tuple<Iterator, Iterator>  //
-      Split(const std::string& level, int factor);
+  Split(const std::string& level, int factor);
 
   /**
    * Reorder the iterators.
@@ -52,13 +53,13 @@ class Element {
    * @return the new iterators.
    */
   std::tuple<Iterator, Iterator, Iterator, Iterator>  //
-      Tile(const Iterator& level0, const Iterator& level1, int factor0, int factor1);
+  Tile(const Iterator& level0, const Iterator& level1, int factor0, int factor1);
 
   /**
    * Apply loop skewing on the loop levels \p i and \p j with a skewing factor of \p factor.
    */
   std::tuple<Iterator, Iterator>  //
-      Skew(const Iterator& i, const Iterator& j, int factor);
+  Skew(const Iterator& i, const Iterator& j, int factor);
 
   /**
    * Fuse two levels and return the new level.

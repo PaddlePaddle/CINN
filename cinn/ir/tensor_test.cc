@@ -1,5 +1,7 @@
 #include "cinn/ir/tensor.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/ir/function.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"

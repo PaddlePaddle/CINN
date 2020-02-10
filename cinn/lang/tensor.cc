@@ -1,6 +1,8 @@
 #include "cinn/lang/tensor.h"
+
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/ir/operation.h"
 
 namespace cinn {
 namespace lang {
@@ -12,7 +14,7 @@ size_t Tensor::ndims() const { return tensor_p()->shape.size(); }
 
 Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension";
-  auto n = ir::Call::Make(tensor_p()->type().ElementOf(), "cinn_buffer_get_element", indices, ir::Call::Halide);
+  auto n = ir::Call::Make(tensor_p()->type().ElementOf(), ir::ExternOp::buffer_get_element, indices, ir::Call::Halide);
   n->set_type(tensor_p()->type());
   return n;
 }

@@ -1,20 +1,24 @@
 #pragma once
 #include <atomic>
+#include <string>
 #include <type_traits>
 
 namespace cinn {
 namespace common {
 
 class RefCount {
-  std::atomic<uint32_t> count{0};
-
  public:
-  using value_type = uint32_t;
+  using value_type = int32_t;
   RefCount()       = default;
 
-  value_type Inc() { return ++count; }
-  value_type Dec() { return --count; }
-  bool is_zero() const { return 0 == count; }
+  value_type Inc() { return ++count_; }
+  value_type Dec() { return --count_; }
+  bool is_zero() const { return 0 == count_; }
+  std::string to_string() { return std::to_string(count_.load()); }
+  int32_t val() const { return count_; }
+
+ private:
+  std::atomic<value_type> count_{0};
 };
 
 class Object;
@@ -34,8 +38,8 @@ void Destroy(const T* t) {
 template <typename T>
 struct Shared {
   Shared() = default;
-  Shared(T* p) : p_(p) {}
-  Shared(const Shared& other) : p_(other.p_) {}
+  Shared(T* p) : p_(p) { IncRef(p); }
+  Shared(const Shared& other) : p_(other.p_) { IncRef(p_); }
   Shared(Shared&& other) : p_(other.p_) { other.p_ = nullptr; }
   Shared<T>& operator=(const Shared<T>& other);
 

@@ -1,6 +1,6 @@
-#include "cinn/lang/buffer.h"
+#include "cinn/lang/placeholder.h"
 
-#include "cinn/lang/tensor.cc"
+#include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
 namespace lang {}  // namespace lang

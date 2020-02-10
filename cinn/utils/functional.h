@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <functional>
+#include <vector>
 
 namespace cinn {
 namespace utils {

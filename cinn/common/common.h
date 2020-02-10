@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cinn/common/context.h"
 #include "cinn/common/domain.h"
 #include "cinn/common/graph_utils.h"
 #include "cinn/common/pod_value.h"
@@ -9,10 +10,15 @@
 namespace cinn {
 
 // export some general concepts.
+using common::Context;
+using common::make_shared;
+using common::Object;
+using common::ref_count;
+using common::Shared;
+
+// Type related.
 using common::Float;
 using common::Int;
-using common::Object;
-using common::Shared;
-using common::make_shared;
+using common::type_of;
 
 }  // namespace cinn

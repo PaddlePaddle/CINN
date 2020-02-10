@@ -14,7 +14,7 @@ struct Target {
     Linux,
     Windows,
   };
-  OS os{Unk};
+  OS os{OS::Unk};
 
   /**
    * The architecture used by the target. Determines the instruction set to use.
@@ -24,7 +24,7 @@ struct Target {
     X86,
     ARM,
   };
-  Arch arch{Unk};
+  Arch arch{Arch::Unk};
 
   enum Bit : int {
     Unk = -1,

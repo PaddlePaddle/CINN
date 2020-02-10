@@ -1,5 +1,7 @@
 #include "cinn/poly/schedule.h"
+
 #include <sstream>
+
 #include "cinn/common/graph_utils.h"
 #include "cinn/utils/string.h"
 
@@ -115,7 +117,7 @@ Scheduler &Scheduler::After(const Element &a, const Element &b, int level) {
   CHECK(b_node) << "no node called " << b.id() << " registered in the graph";
 
   common::GraphEdge *a_edge, *b_edge;
-  std::tie(a_edge, b_edge) = a_node->LinkTo<ScheduleGraphEdge>(b_node);
+  std::tie(a_edge, b_edge)               = a_node->LinkTo<ScheduleGraphEdge>(b_node);
   a_edge->As<ScheduleGraphEdge>()->level = level;
   b_edge->As<ScheduleGraphEdge>()->level = level;
   return *this;

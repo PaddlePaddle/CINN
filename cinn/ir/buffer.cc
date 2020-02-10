@@ -1,10 +1,11 @@
 #include "cinn/ir/buffer.h"
+
 #include "cinn/ir/ir_visitor.h"
 
 namespace cinn {
 namespace ir {
 
-const _Buffer_ *Buffer::operator->() const { return As<_Buffer_>(); }
+const _Buffer_ *Buffer::operator->() const { return IrNodeRef::As<_Buffer_>(); }
 
 Buffer _Buffer_::Make(Var data,
                       Type dtype,

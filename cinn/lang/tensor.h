@@ -52,6 +52,7 @@ class Tensor : public ir::IrNodeRef {
    */
   Expr operator()(const std::vector<Expr>& indices) const;
 
+ protected:
   ir::_Tensor_* tensor_p() { return n_->As<ir::_Tensor_>(); }
   const ir::_Tensor_* tensor_p() const { return n_->As<ir::_Tensor_>(); }
 

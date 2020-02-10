@@ -1,9 +1,11 @@
 #pragma once
 
-#include <cinn/common/object.h>
+#include <glog/logging.h>
+
 #include <memory>
 #include <string>
 
+#include "cinn/common/object.h"
 #include "cinn/common/shared.h"
 #include "cinn/common/type.h"
 
@@ -71,6 +73,13 @@ enum class IrNodeTy { kUnk = -1, NODETY_FORALL(__m) };
 #undef __m
 // @}
 
+//! String representations for IrNodeTy.
+// @{
+#define __m(x__) #x__,
+const std::vector<std::string> kIrNodeTyReprs({NODETY_FORALL(__m) "None"});
+#undef __m
+// @}
+
 std::ostream& operator<<(std::ostream& os, IrNodeTy type);
 
 /**
@@ -103,10 +112,12 @@ class IrNodeRef : public common::Shared<IrNode> {
   IrNodeRef(const IrNodeRef& other) : Shared(other.p_) {}
   explicit IrNodeRef(IrNode* x) : Shared(x) {}
 
-  virtual IrNodeTy node_type() const { return get()->node_type(); }
+  virtual IrNodeTy node_type() const { return operator->()->node_type(); }
 
   template <typename T>
   const T* As() const {
+    static_assert(std::is_base_of<IrNode, T>());
+    CHECK(get()) << "IrNodeRef holds null";
     if (node_type() == T::_node_type_) return static_cast<const T*>(get());
     return nullptr;
   }
@@ -186,6 +197,7 @@ struct FloatImm : public ExprNode<FloatImm> {
 };
 
 class Var;
+class Buffer;
 /**
  * An expression that represents some value or the result of some operations.
  */
@@ -195,6 +207,7 @@ struct Expr : public IrNodeRef {
   Expr(const Expr& other) : IrNodeRef(other.ptr()) {}
   Expr(IrNode* p) : IrNodeRef(p) {}
   explicit Expr(const Var& var);
+  explicit Expr(const Buffer& buffer);
 
   //! Helper function to construct numeric constants of various types.
   // @{

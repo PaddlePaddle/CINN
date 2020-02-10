@@ -1,4 +1,5 @@
 #include "cinn/ir/node.h"
+
 #include "cinn/common/pod_value.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
@@ -47,6 +48,7 @@ std::ostream &operator<<(std::ostream &os, IrNodeTy type) {
 }
 
 Expr::Expr(const Var &var) { *static_cast<IrNodeRef *>(this) = *static_cast<const IrNodeRef *>(&var); }
+Expr::Expr(const Buffer &buffer) { *static_cast<IrNodeRef *>(this) = *static_cast<const IrNodeRef *>(&buffer); }
 
 }  // namespace ir
 }  // namespace cinn

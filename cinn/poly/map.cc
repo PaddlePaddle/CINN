@@ -1,4 +1,5 @@
 #include "cinn/poly/map.h"
+
 #include "cinn/poly/isl_utils.h"
 #include "cinn/utils/functional.h"
 
@@ -57,6 +58,11 @@ isl::map Map::to_isl() const {
 std::ostream& operator<<(std::ostream& os, const Iterator& x) {
   os << utils::StringFormat("<Iterator: %s>", x.id.c_str());
   return os;
+}
+
+Iterator& Iterator::operator=(const Iterator& other) {
+  id = other.id;
+  return *this;
 }
 
 }  // namespace poly

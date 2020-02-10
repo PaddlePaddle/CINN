@@ -1,6 +1,7 @@
 #include "cinn/poly/domain.h"
 
 #include <glog/logging.h>
+
 #include <algorithm>
 #include <functional>
 #include <numeric>
