@@ -67,8 +67,8 @@ struct IrPrinter : public IrVisitor {
   void Visit(const Free *x) override;
   void Visit(const _Range_ *x) override;
   void Visit(const _IterVar_ *x) override {}
-  void Visit(const _Buffer_ *x) override {}
-  void Visit(const _Tensor_ *x) override {}
+  void Visit(const _Buffer_ *x) override;
+  void Visit(const _Tensor_ *x) override;
 
  private:
   std::ostream &os_;

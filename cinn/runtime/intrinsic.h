@@ -1,7 +1,8 @@
 #pragma once
-#include <vector>
-#include <string>
 #include <cinn/ir/buffer.h>
+
+#include <string>
+#include <vector>
 
 namespace cinn {
 
@@ -20,7 +21,7 @@ static const char* buffer_load = "cinn_buffer_load";
  * @param indices
  * @return
  */
-ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr> &indices);
+ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices);
 
 }  // namespace runtime
 }  // namespace cinn

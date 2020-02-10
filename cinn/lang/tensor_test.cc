@@ -1,5 +1,7 @@
 #include "cinn/lang/tensor.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/ir/ir.h"
 
 namespace cinn {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+
 #include "cinn/ir/ir.h"
 
 namespace cinn {

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(CINN)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
 
 option(WITH_TESTING         "Compile with Unittests"          ON)

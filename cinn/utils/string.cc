@@ -1,6 +1,7 @@
 #include "cinn/utils/string.h"
 
 #include <stdarg.h>
+
 #include <cstring>
 
 namespace cinn {

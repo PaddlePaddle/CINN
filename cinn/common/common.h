@@ -10,10 +10,11 @@
 namespace cinn {
 
 // export some general concepts.
+using common::Context;
 using common::make_shared;
 using common::Object;
+using common::ref_count;
 using common::Shared;
-using common::Context;
 
 // Type related.
 using common::Float;

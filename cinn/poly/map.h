@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glog/logging.h>
+
 #include <algorithm>
 #include <string>
 #include <utility>
@@ -21,7 +22,7 @@ struct Iterator {
   Iterator(const Iterator& x) : id(x.id) {}  // NOLINT
   explicit Iterator(Iterator&& x) : id(std::move(x.id)) {}
 
-  Iterator& operator=(const Iterator& other) { id = other.id; }
+  Iterator& operator=(const Iterator& other);
 
   friend std::ostream& operator<<(std::ostream& os, const Iterator& x);
 };

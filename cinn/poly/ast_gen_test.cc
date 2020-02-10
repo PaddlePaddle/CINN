@@ -1,4 +1,5 @@
 #include "cinn/poly/ast_gen.h"
+
 #include <gtest/gtest.h>
 
 namespace cinn {

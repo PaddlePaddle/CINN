@@ -2,6 +2,7 @@
 #include "cinn/common/common.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
@@ -29,7 +30,6 @@ class Placeholder {
                                  "",
                                  0,
                                  0);
-    LOG(INFO) << buffer_->node_type();
   }
 
   //! Get a slice.
@@ -40,6 +40,8 @@ class Placeholder {
   Expr operator()(Expr a, Expr b, Expr c, Expr d) const { return operator()({a, b, c, d}); }
   Expr operator()(const std::vector<Expr>& indice) const;
   // @}
+
+  const ir::Buffer& buffer() const { return buffer_; }
 
  private:
   ir::Buffer buffer_;

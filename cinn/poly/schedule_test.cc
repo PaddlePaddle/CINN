@@ -1,4 +1,5 @@
 #include "cinn/poly/schedule.h"
+
 #include <gtest/gtest.h>
 
 namespace cinn {

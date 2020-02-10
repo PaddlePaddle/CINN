@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glog/logging.h>
+
 #include <memory>
 #include <string>
 
@@ -109,10 +110,7 @@ class IrNodeRef : public common::Shared<IrNode> {
  public:
   IrNodeRef() = default;
   IrNodeRef(const IrNodeRef& other) : Shared(other.p_) {}
-  explicit IrNodeRef(IrNode* x) : Shared(x) {
-    LOG(INFO) << "no " << x->node_type();
-    LOG(INFO) << "node_type: " << operator->()->node_type();
-  }
+  explicit IrNodeRef(IrNode* x) : Shared(x) {}
 
   virtual IrNodeTy node_type() const { return operator->()->node_type(); }
 

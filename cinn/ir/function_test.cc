@@ -1,4 +1,5 @@
 #include "cinn/ir/function.h"
+
 #include <gtest/gtest.h>
 
 namespace cinn {

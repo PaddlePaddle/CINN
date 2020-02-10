@@ -1,15 +1,30 @@
+#include "cinn/common/shared.h"
+
+#include <glog/logging.h>
 #include <gtest/gtest.h>
 
 #include "cinn/common/object.h"
-#include "cinn/common/shared.h"
 
 namespace cinn {
 namespace common {
 
-class A : public Object {};
+struct A : public Object {
+  const char *type_info() const override { return "A"; }
+};
 class B : public Object {};
 
-TEST(Shared, test) {}
+TEST(Shared, test) {
+  Shared<A> a_ref(make_shared<A>());
+  ASSERT_EQ(ref_count(a_ref.get()).val(), 1);
+
+  {  // local copy
+    Shared<A> b = a_ref;
+    EXPECT_EQ(ref_count(a_ref.get()).val(), 2);
+    ASSERT_EQ(ref_count(b.get()).val(), 2);
+  }
+
+  ASSERT_EQ(ref_count(a_ref.get()).val(), 1);
+}
 
 }  // namespace common
 }  // namespace cinn

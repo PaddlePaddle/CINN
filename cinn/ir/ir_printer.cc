@@ -136,6 +136,16 @@ void IrPrinter::Visit(const _Range_ *x) {
   os_ << ")";
 }
 
+void IrPrinter::Visit(const _Buffer_ *x) { os_ << "_Buffer_(" << x->name << ")"; }
+void IrPrinter::Visit(const _Tensor_ *x) {
+  os_ << "Tensor(";
+  for (auto &i : x->shape) {
+    Print(i);
+    os_ << ",";
+  }
+  os_ << ")";
+}
+
 std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);

@@ -1,7 +1,8 @@
 #include "cinn/lang/tensor.h"
+
 #include "cinn/ir/ir.h"
-#include "cinn/ir/operation.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/ir/operation.h"
 
 namespace cinn {
 namespace lang {

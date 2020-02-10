@@ -1,4 +1,5 @@
 #include "cinn/runtime/intrinsic.h"
+
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
 #include "cinn/runtime/intrinsic.h"

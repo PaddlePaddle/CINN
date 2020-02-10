@@ -25,9 +25,7 @@ enum class AccessMask : int {
 class Buffer : public IrNodeRef {
  public:
   Buffer() = default;
-  explicit Buffer(IrNode* n) : IrNodeRef(n) {
-    LOG(INFO) << "set IrNode " << n;
-  }
+  explicit Buffer(IrNode* n) : IrNodeRef(n) {}
 
   const _Buffer_* operator->() const;
 };
