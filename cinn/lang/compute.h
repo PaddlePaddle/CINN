@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
+#include "cinn/lang//placeholder.h"
 #include "cinn/lang/tensor.h"
 
 namespace cinn {

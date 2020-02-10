@@ -24,14 +24,14 @@ constexpr bool GE(int a, int b) { return a >= b; }
 class Tensor : public ir::IrNodeRef {
  public:
   Tensor() = default;
-  explicit Tensor(ir::IrNode* n) : n_(n) {}
+  explicit Tensor(ir::IrNode* n) : IrNodeRef(n) {}
   Tensor(const std::vector<Expr>& shape, const std::vector<Var>& iterators, Type dtype, ir::Expr expr);
 
   //! Get number of dimensions.
   inline size_t ndims() const;
 
-  inline const ir::_Tensor_* operator->() const { return tensor_p(); }
-  inline ir::_Tensor_* operator->() { return tensor_p(); }
+  inline const ir::_Tensor_* operator->() const { return As<ir::_Tensor_>(); }
+  inline ir::_Tensor_* operator->() { return As<ir::_Tensor_>(); }
 
   /**
    * Take elements from the tensor.
@@ -51,13 +51,6 @@ class Tensor : public ir::IrNodeRef {
    * @return The result expression representing a tensor read.
    */
   Expr operator()(const std::vector<Expr>& indices) const;
-
- protected:
-  ir::_Tensor_* tensor_p() { return n_->As<ir::_Tensor_>(); }
-  const ir::_Tensor_* tensor_p() const { return n_->As<ir::_Tensor_>(); }
-
- private:
-  ir::IrNodeRef n_;
 };
 
 }  // namespace lang

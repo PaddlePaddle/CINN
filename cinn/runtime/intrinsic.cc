@@ -15,7 +15,7 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr> &indices) {
       buffer->type().ElementOf(),  //
       runtime::buffer_load,        //
       args,                        //
-      ir::Call::Halide);
+      ir::Call::Extern);
 }
 
 }  // namespace runtime

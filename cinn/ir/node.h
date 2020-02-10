@@ -50,7 +50,7 @@ class IrVisitor;
   macro__(Call)                             \
   macro__(Cast)                             \
   macro__(Module)                           \
-  macro__(Variable)                         \
+  macro__(_Var_)                         \
   macro__(Load)                             \
   macro__(Store)                            \
   macro__(Alloc)                            \
@@ -123,6 +123,7 @@ class IrNodeRef : public common::Shared<IrNode> {
   }
   template <typename T>
   T* As() {
+    LOG(INFO) << "node_type is " << node_type();
     if (node_type() == T::_node_type_) return static_cast<T*>(get());
     return nullptr;
   }
@@ -221,6 +222,11 @@ struct Expr : public IrNodeRef {
     *static_cast<IrNodeRef*>(this) = *static_cast<const IrNodeRef*>(&other);
     return *this;
   }
+
+  // primitive types
+  // @{
+  int32_t as_int32() const;
+  // @}
 
   const Type& type() const { return p_->type(); }
 };

@@ -34,8 +34,6 @@ class _Buffer_ : public IrNode {
  public:
   //! The pointer to the head of the data.
   Var data;
-  //! data type of the element.
-  Type dtype;
   //! The shape of the buffer.
   std::vector<Expr> shape;
   //! The strides of each dimension.

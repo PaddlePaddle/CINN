@@ -109,8 +109,8 @@ Expr Not::Make(Expr v) {
   return Expr(node);
 }
 
-Expr Variable::Make(const std::string &name, const Type &type) {
-  auto node = new Variable(name, type);
+Expr _Var_::Make(const std::string &name, const Type &type) {
+  auto node = new _Var_(name, type);
   return Expr(node);
 }
 
@@ -161,7 +161,7 @@ Stmt Alloc::Make(Var buffer_var, Type type, const std::vector<Expr> &extents, Ex
 }
 
 int32_t Alloc::ConstantAllocationSize() const {
-  auto *var = buffer_var.As<Variable>();
+  auto *var = buffer_var.As<_Var_>();
   CHECK(var);
   return ConstantAllocationSize(var->name, extents);
 }
@@ -208,7 +208,7 @@ Expr Call::Make(Type type,
   }
   if (call_type == Halide) {
     for (size_t i = 0; i < args.size(); ++i) {
-      CHECK(args[i].type().is_int());
+      CHECK(args[i].type().is_int()) << "get type " << args[i].type();
     }
   }
 
@@ -222,18 +222,16 @@ Expr Call::Make(Type type,
   return Expr(node);
 }
 
-void _Tensor_::Accept(IrVisitor *v) const { v->Visit(this); }
-
 lang::Tensor _Tensor_::Make(const std::vector<Expr> &shape,
                             const std::vector<Var> &iterators,
                             Type dtype,
                             ir::Expr expr) {
   CHECK_EQ(shape.size(), iterators.size()) << "dimension of the shape and the iterators should match";
   auto n       = common::make_shared<_Tensor_>();
-  n->dtype     = dtype;
   n->shape     = shape;
   n->expr      = expr;
   n->iterators = iterators;
+  n->set_type(dtype);
   return lang::Tensor(n);
 }
 

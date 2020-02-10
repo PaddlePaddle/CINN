@@ -59,7 +59,7 @@ struct IrPrinter : public IrVisitor {
   void Visit(const Call *x) override;
   void Visit(const Cast *x) override;
   void Visit(const Module *x) override;
-  void Visit(const Variable *x) override;
+  void Visit(const _Var_ *x) override;
   void Visit(const Alloc *x) override;
   void Visit(const Select *x) override;
   void Visit(const Load *x) override;

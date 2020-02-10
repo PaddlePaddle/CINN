@@ -95,7 +95,7 @@ void IrPrinter::Visit(const Call *x) {
 }
 void IrPrinter::Visit(const Cast *x) {}
 void IrPrinter::Visit(const Module *x) {}
-void IrPrinter::Visit(const Variable *x) { os_ << x->name; }
+void IrPrinter::Visit(const _Var_ *x) { os_ << x->name; }
 void IrPrinter::Visit(const Alloc *x) {
   os_ << "alloc(" << x->buffer_var->name << ", ";
   Print(x->extents);
