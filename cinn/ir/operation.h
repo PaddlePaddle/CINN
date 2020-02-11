@@ -32,7 +32,7 @@ struct ExternOp : public _Operation_ {
                         std::vector<Buffer> output_placeholders,
                         Stmt body);
 
-  static constexpr char* buffer_get_element = "cinn_buffer_get_element";
+  static constexpr char *buffer_get_element = "cinn_buffer_get_element";
 };
 
 /**
@@ -44,7 +44,11 @@ struct PlaceholderOp : public _Operation_ {
   //! The data type of the input.
   Type dtype;
 
-  static Operation Make(std::string name, std::vector<Expr> shape, Type dtype);
+  static Operation Make(const std::string &name, const std::vector<Expr> &shape, Type dtype);
+
+  const char *func_type() const override;
+
+  static constexpr char *__func_type__ = "placeholder";
 };
 
 /**
@@ -65,6 +69,10 @@ struct ComputeOp : public _Operation_ {
                         std::map<std::string, IrNodeRef> attrs,
                         std::vector<Var> axis,
                         std::vector<Expr> body);
+
+  const char *func_type() const override;
+
+  static constexpr char *__func_type__ = "compute";
 };
 
 }  // namespace ir

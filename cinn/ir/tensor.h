@@ -9,90 +9,105 @@
 namespace cinn {
 namespace ir {
 
-class _Tensor_;
-
 namespace detail {
 constexpr bool LE(int a, int b) { return a <= b; }
 constexpr bool GE(int a, int b) { return a >= b; }
 }  // namespace detail
-   /**
-    * Tensor representing a possible input or intermediate computation result.
-    */
-class Tensor : public IrNodeRef, common::GraphNode {
+
+class _Tensor_;
+
+/**
+ * @brief Tensor representing a possible input, or intermediate computation result.
+ * Tensor is the most general type in CINN, it holds the computation, or placeholder. A tensor can `store_at` a Buffer,
+ * or just has a expression and easy to inline expanded in the consumer's computation.
+ */
+class Tensor : public ir::IrNodeRef {
  public:
   Tensor() = default;
-  explicit Tensor(IrNode* n) : IrNodeRef(n) {}
-  Tensor(const std::vector<Var>& shape, Type type = Float(32));
-  Tensor(const std::vector<Expr>& shape, Type type = Float(32));
+  explicit Tensor(ir::IrNode* n) : IrNodeRef(n) {}
+  /**
+   * Constructor.
+   * @param shape The shape of the tensor.
+   * @param axis The iterators to use.
+   * @param dtype The data type of the tensor.
+   * @param expr The expression to compute this tensor.
+   */
+  Tensor(const std::vector<Expr>& shape,
+         const std::vector<Var>& axis,
+         Type dtype,
+         Expr expr,
+         const std::string& name = "");
 
-  inline const _Tensor_* operator->() const;
-  inline _Tensor_* operator->();
-
-  //! \return The dimension of the tensor.
+  //! Get number of dimensions.
   inline size_t ndims() const;
 
-  /**
-   * Take elements from the tensor.
-   * @param args The indices.
-   * @return The result expression representing a tensor read.
-   */
-  template <typename... Args>
-  inline typename std::enable_if<detail::GE(sizeof...(Args), 2), Expr>::type operator()(Args&&... args) const {
-    std::vector<Expr> indices({std::forward<Args>(args)...});
-    return operator()(indices);
-  }
+  inline const _Tensor_* operator->() const { return As<_Tensor_>(); }
+  inline _Tensor_* operator->() { return As<_Tensor_>(); }
 
   /**
    * Take elements from the tensor.
-   * @param indices The indices.
+   * This take one or multiple expressions as indices.
+   *
+   * usage:
+   *
+   * Tensor A;
+   * A(i,j) get the [i][j] element.
+   */
+  // @{
+  Expr operator()(const Expr& a) const { return operator()({a}); }
+  template <typename... Args>
+  inline typename std::enable_if<detail::GE(sizeof...(Args), 2), Expr>::type operator()(Args... args) const {
+    return operator()({std::forward<Args>(args)...});
+  }
+  // @}
+
+  /**
+   * Take elements from the tensor.
+   * @param indices  The indices.
    * @return The result expression representing a tensor read.
    */
   Expr operator()(const std::vector<Expr>& indices) const;
+};
 
-  /**
-   * Take elements from the tensor.
-   * @param indices The indices.
-   * @return The result expression representing a tensor read.
-   */
-  Expr operator()(const std::vector<Var>& indices) const;
+/**
+ * _Tensor_ holds the content of a Tensor.
+ */
+class _Tensor_ : public ExprNode<_Tensor_> {
+ public:
+  //! Shape of this tensor.
+  std::vector<Expr> shape;
+  //! The iterators, we store the iterators to name the dimensions for better readability.
+  std::vector<Var> iterators;
+  //! The operation that generates Tensor.
+  FunctionRef operaion;
+  //! Name of this tensor.
+  std::string name;
+  //! Polyhedral element for analysis and schedule.
+  mutable poly::Element* poly_element{};
 
-  inline bool operator==(const Tensor& other) const;
+  //! Generate a tensor from a computation.
+  static Tensor Make(const std::string& name,
+                     const std::string& tag,
+                     const std::vector<Expr>& shape,
+                     const std::vector<Var>& axis,
+                     Type dtype,
+                     const std::map<std::string, IrNodeRef>& attrs,
+                     const std::vector<Expr>& body);
 
-  IrNodeTy node_type() const override;
+  //! Generate a tensor from a function.
+  static Tensor Make(const std::string& name, const std::vector<Expr>& shape, FunctionRef fn);
 
-  /**
-   * Data structure to represent a slice that fixes first k coordinates.
-   */
-  class Slice {
-   public:
-    Slice(const Tensor& tensor, const std::vector<Expr>& indices) : tensor_(tensor), indices_(indices) {}
+  _Tensor_() : ExprNode<_Tensor_>(Float(32)) {}
 
-    /**
-     * Get i-th slice from the current slice.
-     * @param i the indice of the coordinate.
-     * @return the subsequent slice.
-     */
-    inline Slice operator[](Expr i) {
-      std::vector<Expr> other = indices_;
-      other.emplace_back(i);
-      return Slice(tensor_, other);
-    }
-    /**
-     * Convert slice to expression.
-     * @return The corresponding expression of this slice.
-     */
-    inline operator Expr() const { return tensor_(indices_); }
+  static const IrNodeTy _node_type_ = IrNodeTy::_Tensor_;
 
-   private:
-    const Tensor& tensor_;
-    std::vector<Expr> indices_;
-  };
+ private:
+  //! Create the polyhedral element for analysis.
+  //! It is based on the shape.
+  void InitPolyElement();
 };
 
 class _Operation_;
-/**
- * Operation that produces tensors.
- */
 class Operation : public FunctionRef {
  public:
   Operation() = default;
@@ -106,25 +121,6 @@ class Operation : public FunctionRef {
   std::string name;
 };
 
-/*
-class _Tensor_ : public IrNode {
- public:
-  //! The shape of the tensor.
-  std::vector<Expr> shape;
-  //! The source operation, can be None.
-  Operation op;
-  //! The output index from source operation.
-  size_t value_index{};
-
-  _Tensor_() = default;
-
-  static Tensor Make(const std::vector<Expr>& shape, Type dtype, Operation op, int value_index);
-  void Accept(IrVisitor* v) const override;
-
-  static const IrNodeTy _node_type_ = IrNodeTy::_Tensor_;
-};
- */
-
 class _Operation_ : public ir::FunctionBase {
  public:
   //! Optional name of the operation.
@@ -134,7 +130,10 @@ class _Operation_ : public ir::FunctionBase {
   //! Additional attributes of the operation.
   std::map<std::string, IrNodeRef> attrs;
 
+  void Accept(IrVisitor* v) const override {}
   const std::string& func_name() const final { return name; }
+  //! The function type.
+  virtual const char* func_type() const = 0;
 };
 
 }  // namespace ir

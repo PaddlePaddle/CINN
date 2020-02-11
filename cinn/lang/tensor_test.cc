@@ -15,7 +15,7 @@ TEST(Tensor, basic) {
 
   Var i("i"), j("j");
 
-  Tensor tensor({M, N}, {i, j}, Float(32), Expr(0));
+  Tensor tensor({M, N}, {i, j}, Float(32), Expr(0), <#initializer #>);
 
   auto slice = tensor(Expr(2), Expr(1));
 }

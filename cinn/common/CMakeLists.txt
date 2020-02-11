@@ -3,6 +3,7 @@ cc_library(common
         object.cc
         graph_utils.cc
         context.cc
+        axis.cc
         DEPS boost utils)
 
 cc_test(test_pod_value SRCS pod_value_test.cc DEPS common ir)

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cinn/common/axis.h"
 #include "cinn/common/context.h"
 #include "cinn/common/domain.h"
 #include "cinn/common/graph_utils.h"

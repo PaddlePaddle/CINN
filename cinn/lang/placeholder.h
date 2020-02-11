@@ -1,4 +1,6 @@
 #pragma once
+#include <cinn/ir/operation.h>
+
 #include "cinn/common/common.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
@@ -17,22 +19,7 @@ using ir::Expr;
 template <typename T>
 class Placeholder {
  public:
-  Placeholder(const std::vector<Expr>& shape) {
-    ir::Var buffer_ptr(Context::Global().NewName("buffer"));
-    buffer_ptr->set_type(type_of<T>());
-
-    std::vector<Expr> strides(shape.size(), Expr(1));
-    Expr offset(0);
-    buffer_ = ir::_Buffer_::Make(buffer_ptr,
-                                 type_of<T>(),  // data type
-                                 shape,         //
-                                 strides,
-                                 offset,
-                                 buffer_ptr->name,
-                                 "",
-                                 0,
-                                 0);
-  }
+  Placeholder(const std::string &name, const std::vector<Expr> &shape);
 
   //! Get a slice.
   // @{
@@ -40,25 +27,34 @@ class Placeholder {
   Expr operator()(Expr a, Expr b) const { return operator()({a, b}); }
   Expr operator()(Expr a, Expr b, Expr c) const { return operator()({a, b, c}); }
   Expr operator()(Expr a, Expr b, Expr c, Expr d) const { return operator()({a, b, c, d}); }
-  /*
-  template <typename... Args>
-  Expr operator()(Args... args) {
-    return operator()(Expr(args)...);
-  }
-   */
+
   Expr operator()(ir::Var a, ir::Var b) { return operator()(Expr(a), Expr(b)); }
-  Expr operator()(const std::vector<Expr>& indice) const;
+  Expr operator()(const std::vector<Expr> &indices) const;
   // @}
 
-  const ir::Buffer& buffer() const { return buffer_; }
-
  private:
-  ir::Buffer buffer_;
+  ir::Tensor tensor_;
 };
 
 template <typename T>
-Expr Placeholder<T>::operator()(const std::vector<Expr>& indice) const {
-  return runtime::BufferLoad(buffer_, indice);
+Expr Placeholder<T>::operator()(const std::vector<Expr> &indices) const {
+  return tensor_(indices);
+}
+
+template <typename T>
+Placeholder<T>::Placeholder(const std::string &name, const std::vector<Expr> &shape) {
+  ir::Var buffer_ptr(Context::Global().NewName("buffer"));
+  buffer_ptr->set_type(type_of<T>());
+
+  std::vector<Expr> strides(shape.size(), Expr(1));
+  Expr offset(0);
+
+  std::vector<ir::Var> axis;
+  for (int i = 0; i < shape.size(); i++) axis.emplace_back(common::axis_name(i));
+
+  auto op = ir::PlaceholderOp::Make(name, shape, type_of<T>());
+
+  tensor_ = ir::_Tensor_::Make(name, shape, op);
 }
 
 }  // namespace lang

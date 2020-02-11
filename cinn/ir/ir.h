@@ -513,28 +513,7 @@ class _IterVar_ : public IrNode {
   void Accept(IrVisitor* v) const override;
   IrNodeTy node_type() const override { return _node_type_; }
 
-  static const IrNodeTy _node_type_ = IrNodeTy::_Range_;
-};
-
-class _Tensor_ : public ExprNode<_Tensor_> {
- public:
-  //! Shape of this tensor.
-  std::vector<Expr> shape;
-  //! The expression that generate this tensor.
-  ir::Expr expr;
-  //! The iterators, we store the iterators to name the dimensions for better readability.
-  std::vector<Var> iterators;
-  //! Polyhedral element for analysis and schedule.
-  poly::Element* poly_element{};
-
-  static lang::Tensor Make(const std::vector<Expr>& shape,
-                           const std::vector<Var>& iterators,
-                           Type dtype,
-                           ir::Expr expr);
-
-  _Tensor_() : ExprNode<_Tensor_>(Float(32)) {}
-
-  static const IrNodeTy _node_type_ = IrNodeTy::_Tensor_;
+  static const IrNodeTy _node_type_ = IrNodeTy::_IterVar_;
 };
 
 static IterVar thread_axis(Range dom, const std::string& tag) {
