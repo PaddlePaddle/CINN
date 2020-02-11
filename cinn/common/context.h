@@ -1,4 +1,6 @@
 #pragma once
+#include <isl/cpp.h>
+
 #include <string>
 #include <vector>
 
@@ -23,19 +25,22 @@ struct NameGenerator {
 
 class Context {
  public:
-  static Context& Global() {
-    static Context x;
-    return x;
-  }
+  static Context& Global();
   /**
    * Generate a new unique name.
    * @param name_hint The prefix.
    */
   std::string NewName(const std::string& name_hint) { return name_generator_.New(name_hint); }
 
+  /**
+   * The global isl ctx.
+   */
+  isl::ctx& isl_ctx() { return ctx_; }
+
  private:
-  Context() = default;
+  Context() : ctx_(isl_ctx_alloc()) {}
   NameGenerator name_generator_;
+  isl::ctx ctx_;
 };
 
 }  // namespace common

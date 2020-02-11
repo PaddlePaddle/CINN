@@ -3,8 +3,8 @@
 #include <gtest/gtest.h>
 
 #include "cinn/ir/ir_operators.h"
-#include "cinn/ir/tensor.h"
 #include "cinn/lang/placeholder.h"
+#include "cinn/lang/tensor.h"
 
 namespace cinn {
 namespace lang {

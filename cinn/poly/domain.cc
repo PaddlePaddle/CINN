@@ -1,5 +1,6 @@
 #include "cinn/poly/domain.h"
 
+#include <cinn/common/context.h>
 #include <glog/logging.h>
 
 #include <algorithm>
@@ -13,6 +14,7 @@ namespace cinn {
 namespace poly {
 
 std::string Domain::__str__() const {
+  CHECK(!id.empty()) << "id is empty";
   std::vector<std::string> range_fields;
   CHECK(!dims.empty());
   std::transform(
@@ -26,7 +28,11 @@ std::string Domain::__str__() const {
   return utils::StringFormat("{ %s[%s]: %s }", id.c_str(), dims_repr.c_str(), range_repr.c_str());
 }
 
-isl::set Domain::to_isl() const { return isl::set(ctx, __str__()); }
+isl::set Domain::to_isl() const {
+  VLOG(3) << "isl::set " << __str__();
+  isl::set x(common::Context::Global().isl_ctx(), __str__());
+  return x;
+}
 
 }  // namespace poly
 }  // namespace cinn

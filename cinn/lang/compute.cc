@@ -1,7 +1,8 @@
 #include "cinn/lang/compute.h"
 
 #include "cinn/poly/dim.h"
-#include "cinn/utils/functional.h"
+#include "cinn/poly/domain.h"
+#include "cinn/poly/element.h"
 
 namespace cinn {
 namespace lang {
@@ -9,7 +10,7 @@ namespace lang {
 using ir::Expr;
 
 template <>
-ir::Tensor Compute<compute_handle_1_t>(const std::vector<int>& dims, compute_handle_1_t handle) {
+ir::Tensor Compute<compute_handle_1_t>(const std::vector<int> &dims, compute_handle_1_t handle) {
   CHECK_EQ(dims.size(), 1);
   Var i(common::axis_name(0), Int(32));
   auto expr = handle(i);
@@ -22,7 +23,7 @@ ir::Tensor Compute<compute_handle_1_t>(const std::vector<int>& dims, compute_han
 }
 
 template <>
-ir::Tensor Compute<compute_handle_2_t>(const std::vector<int>& dims, compute_handle_2_t handle) {
+ir::Tensor Compute<compute_handle_2_t>(const std::vector<int> &dims, compute_handle_2_t handle) {
   CHECK_EQ(dims.size(), 2);
   poly::Dim dim("i", 0, dims[0] - 1);
   Var i(common::axis_name(0), Int(32));
@@ -38,7 +39,7 @@ ir::Tensor Compute<compute_handle_2_t>(const std::vector<int>& dims, compute_han
 }
 
 template <>
-ir::Tensor Compute<compute_handle_3_t>(const std::vector<int>& dims, compute_handle_3_t handle) {
+ir::Tensor Compute<compute_handle_3_t>(const std::vector<int> &dims, compute_handle_3_t handle) {
   CHECK_EQ(dims.size(), 3);
   Var i(common::axis_name(0), Int(32));
   Var j(common::axis_name(1), Int(32));
@@ -53,4 +54,6 @@ ir::Tensor Compute<compute_handle_3_t>(const std::vector<int>& dims, compute_han
 }
 
 }  // namespace lang
+
+namespace ir {}  // namespace ir
 }  // namespace cinn

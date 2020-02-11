@@ -2,23 +2,23 @@
 
 #include <gtest/gtest.h>
 
-#include "cinn/ir/ir.h"
+#include "cinn/ir/function.h"
+#include "cinn/ir/ir_operators.h"
+#include "cinn/ir/ir_printer.h"
 
 namespace cinn {
-namespace lang {
+namespace ir {
 
-TEST(Tensor, basic) {
-  Expr M(100);
-  Expr N(20);
-
-  Expr x(100);
-
+TEST(Tensor, test) {
+  const int M = 100;
+  const int N = 100;
   Var i("i"), j("j");
+  Tensor tensor({Expr(M), Expr(N)}, {i, j}, Float(32), Expr(1), "A");
+  CHECK_EQ(tensor->type(), Float(32));
 
-  Tensor tensor({M, N}, {i, j}, Float(32), Expr(0), <#initializer #>);
-
-  auto slice = tensor(Expr(2), Expr(1));
+  auto tmp = tensor(Expr(i), Expr(j));
+  LOG(INFO) << tmp;
 }
 
-}  // namespace lang
+}  // namespace ir
 }  // namespace cinn
