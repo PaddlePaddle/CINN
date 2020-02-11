@@ -2,7 +2,6 @@
 
 #include "cinn/common/pod_value.h"
 #include "cinn/ir/ir_visitor.h"
-#include "cinn/lang/tensor.h"
 
 namespace cinn {
 
@@ -220,19 +219,6 @@ Expr Call::Make(Type type,
   node->value_index = value_index;
   node->set_type(type);
   return Expr(node);
-}
-
-lang::Tensor _Tensor_::Make(const std::vector<Expr> &shape,
-                            const std::vector<Var> &iterators,
-                            Type dtype,
-                            ir::Expr expr) {
-  CHECK_EQ(shape.size(), iterators.size()) << "dimension of the shape and the iterators should match";
-  auto n       = common::make_shared<_Tensor_>();
-  n->shape     = shape;
-  n->expr      = expr;
-  n->iterators = iterators;
-  n->set_type(dtype);
-  return lang::Tensor(n);
 }
 
 }  // namespace ir

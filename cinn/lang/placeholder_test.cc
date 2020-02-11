@@ -11,13 +11,12 @@ TEST(placeholder, basic) {
   Expr M(100);
   Expr N(20);
 
-  Placeholder<float> x({M, N});
+  Placeholder<float> x("x", {M, N});
 
-  auto x_buffer = Expr(x.buffer());
   ir::Var i("i");
   ir::Var j("j");
 
-  auto slice = x(Expr(i), Expr(j));
+  auto slice = x(i, j);
   LOG(INFO) << "slice " << slice;
 }
 

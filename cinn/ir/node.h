@@ -123,7 +123,6 @@ class IrNodeRef : public common::Shared<IrNode> {
   }
   template <typename T>
   T* As() {
-    LOG(INFO) << "node_type is " << node_type();
     if (node_type() == T::_node_type_) return static_cast<T*>(get());
     return nullptr;
   }
