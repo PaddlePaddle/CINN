@@ -1,6 +1,10 @@
 #pragma once
 
+#include <isl/cpp.h>
+
 #include <map>
+#include <string>
+#include <vector>
 
 #include "cinn/common/graph_utils.h"
 #include "cinn/ir/function_base.h"
@@ -76,14 +80,14 @@ class _Tensor_ : public ExprNode<_Tensor_> {
  public:
   //! Shape of this tensor.
   std::vector<Expr> shape;
-  //! The iterators, we store the iterators to name the dimensions for better readability.
-  std::vector<Var> iterators;
+  //! Tensor axis.
+  std::vector<Var> axis;
   //! The operation that generates Tensor.
   FunctionRef operaion;
   //! Name of this tensor.
   std::string name;
   //! Polyhedral element for analysis and schedule.
-  mutable poly::Element* poly_element{};
+  poly::Element* poly_element{};
 
   //! Generate a tensor from a computation.
   static Tensor Make(const std::string& name,
@@ -101,10 +105,16 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Tensor_;
 
+  ~_Tensor_() {
+    if (poly_element) delete (poly_element);
+  }
+
  private:
   //! Create the polyhedral element for analysis.
   //! It is based on the shape.
   void InitPolyElement();
+
+  isl::set GenerateIslDomain();
 };
 
 class _Operation_;
