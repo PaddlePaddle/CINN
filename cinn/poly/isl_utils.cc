@@ -3,6 +3,8 @@
 #include <glog/logging.h>
 #include <isl/cpp.h>
 
+#include "cinn/utils/string.h"
+
 namespace cinn {
 namespace poly {
 
@@ -56,6 +58,17 @@ isl::union_set SetsToUnionSet(const std::vector<isl::set> &sets) {
     uset = isl::manage(isl_union_set_add_set(uset.release(), sets[i].copy()));
   }
   return uset;
+}
+
+std::string isl_map_get_statement_repr(__isl_keep isl_map *map, isl_dim_type type) {
+  CHECK(map);
+  auto tuple_name = isl_map_get_tuple_name(map, type);
+  std::vector<std::string> dims;
+
+  for (int i = 0; i < isl_map_dim(map, type); i++) {
+    dims.push_back(isl_map_get_dim_name(map, type, i));
+  }
+  return utils::StringFormat("%s[%s]", tuple_name, utils::Join(dims, ", ").c_str());
 }
 
 }  // namespace poly
