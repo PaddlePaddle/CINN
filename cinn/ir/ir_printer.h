@@ -53,6 +53,7 @@ struct IrPrinter : public IrVisitor {
   void Visit(const Not *x) override;
   void Visit(const Min *x) override;
   void Visit(const Max *x) override;
+  void Visit(const Minus *x) override;
   void Visit(const For *x) override;
   void Visit(const IfThenElse *x) override;
   void Visit(const Block *x) override;

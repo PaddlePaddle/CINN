@@ -55,5 +55,9 @@ int32_t Expr::as_int32() const {
   return As<IntImm>()->value;
 }
 
+Expr::operator Stmt() { return Stmt(ptr()); }
+
+Stmt::operator Expr() { return Expr(ptr()); }
+
 }  // namespace ir
 }  // namespace cinn

@@ -63,6 +63,11 @@ Expr Max::Make(Expr a, Expr b) {
   return Expr(node);
 }
 
+Expr Minus::Make(Expr a) {
+  auto node = make_shared<Minus>(a);
+  return Expr(node);
+}
+
 Expr EQ::Make(Expr a, Expr b) {
   auto node = make_shared<EQ>(a, b);
   return Expr(node);

@@ -179,6 +179,16 @@ struct And : public BinaryOpNode<And> {
 };
 
 /**
+ * -x
+ */
+struct Minus : public UnaryOpNode<Minus> {
+  Minus(Expr x) : UnaryOpNode<Minus>(x.type(), x) {}
+
+  static Expr Make(Expr a);
+  static const IrNodeTy _node_type_ = IrNodeTy::Minus;
+};
+
+/**
  * Logical or.
  */
 struct Or : public BinaryOpNode<Or> {

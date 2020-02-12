@@ -47,6 +47,11 @@ void IrPrinter::Visit(const Max *x) {
   Print(x->b);
   os_ << ")";
 }
+void IrPrinter::Visit(const Minus *x) {
+  os_ << "-(";
+  Print(x->v);
+  os_ << ")";
+}
 void IrPrinter::Visit(const For *x) {
   DoIndent();
   os_ << "for(";

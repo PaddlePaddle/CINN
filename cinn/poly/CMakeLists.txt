@@ -6,7 +6,7 @@ cc_library(poly SRCS
         isl_utils.cc
         schedule.cc
         ast_gen.cc
-        DEPS common)
+        DEPS common ir)
 
 cc_test(test_poly_element SRCS element_test.cc DEPS poly)
 cc_test(test_schedule SRCS schedule_test.cc DEPS poly)

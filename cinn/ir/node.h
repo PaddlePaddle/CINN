@@ -41,6 +41,7 @@ class IrVisitor;
   macro__(Not)                      \
   macro__(Min)                      \
   macro__(Max)                      \
+  macro__(Minus)                    \
 
 #define NODETY_CONTROL_OP_FOR_EACH(macro__) \
   macro__(For)                              \
@@ -198,6 +199,7 @@ struct FloatImm : public ExprNode<FloatImm> {
 
 class Var;
 class Buffer;
+class Stmt;
 /**
  * An expression that represents some value or the result of some operations.
  */
@@ -208,6 +210,9 @@ struct Expr : public IrNodeRef {
   Expr(IrNode* p) : IrNodeRef(p) {}
   explicit Expr(const Var& var);
   explicit Expr(const Buffer& buffer);
+
+  //! Cast to a statement.
+  operator Stmt();
 
   //! Helper function to construct numeric constants of various types.
   // @{
@@ -239,6 +244,8 @@ struct Stmt : public IrNodeRef {
 
   Stmt(const Stmt& other) : IrNodeRef(other.ptr()) {}
   Stmt(IrNode* p) : IrNodeRef(p) {}
+
+  operator Expr();
 };
 
 template <typename T>

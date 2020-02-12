@@ -1,3 +1,7 @@
+/**
+ * This file implements the isl AST build interface, it helps to generate isl AST given the polyhedral domain and
+ * schedule.
+ */
 #pragma once
 #include <isl/cpp.h>
 
@@ -53,6 +57,13 @@ class AstGen {
   //! tuple name -> { axis -> isl_ast }
   std::map<std::string, std::map<std::string, isl::ast_expr>> transformed_indice_map_;
 };
+
+/**
+ * Transform the isl ast_node to Expr.
+ * @param node The isl AST node generated from polyhedral schedule.
+ * @param expr The result expression.
+ */
+void IslAstNodeToCinnExpr(const isl::ast_node& node, ir::Expr* expr);
 
 namespace detail {
 
