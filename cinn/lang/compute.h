@@ -10,14 +10,20 @@
 namespace cinn {
 namespace lang {
 
-using ir::Var;
-using compute_handle_1_t = std::function<ir::Expr(Var i)>;
-using compute_handle_2_t = std::function<ir::Expr(Var i0, Var i1)>;
-using compute_handle_3_t = std::function<ir::Expr(Var i0, Var i1, Var i2)>;
-using compute_handle_4_t = std::function<ir::Expr(Var i0, Var i1, Var i2, Var i3)>;
+//! Compute methods for one to five Vars as arguments.
+// @{
+ir::Tensor Compute(const std::vector<int>& dims, std::function<Expr(Var)> fn);
+ir::Tensor Compute(const std::vector<int>& dims, std::function<Expr(Var, Var)> fn);
+ir::Tensor Compute(const std::vector<int>& dims, std::function<Expr(Var, Var, Var)> fn);
+ir::Tensor Compute(const std::vector<int>& dims, std::function<Expr(Var, Var, Var, Var)> fn);
+ir::Tensor Compute(const std::vector<int>& dims, std::function<Expr(Var, Var, Var, Var, Var)> fn);
+ir::Tensor Compute(const std::vector<int>& dims, std::function<Expr(const std::vector<Var>&)> fn);
+// @}
 
-template <typename Fn>
-ir::Tensor Compute(const std::vector<int>& dims, Fn handle);
+namespace detail {
+//! Generate `naxis` axis using the global names (i,j,k...).
+std::vector<Var> GenDefaultAxis(int naxis);
+}  // namespace detail
 
 }  // namespace lang
 }  // namespace cinn

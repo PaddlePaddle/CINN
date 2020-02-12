@@ -19,10 +19,6 @@ namespace poly {
 class Element;
 }  // namespace poly
 
-namespace lang {
-class Tensor;
-}  // namespace lang
-
 namespace ir {
 
 using common::Object;
@@ -541,4 +537,11 @@ struct Builder {
 };
 
 }  // namespace ir
+
+// Expose the following to cinn namespace for easier usage.
+// @{
+using ir::Expr;
+using ir::Var;
+// @}
+
 }  // namespace cinn
