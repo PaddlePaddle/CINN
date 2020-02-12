@@ -33,7 +33,6 @@ void Element::InitSchedule() {
 Element::Element(const isl::set &domain) : domain_(domain) {
   CHECK(!domain_.is_null());
   CHECK(!domain_.is_empty());
-
   InitSchedule();
 }
 
