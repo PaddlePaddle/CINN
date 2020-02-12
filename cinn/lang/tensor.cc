@@ -62,7 +62,7 @@ void _Tensor_::InitPolyElement() {
 isl::set _Tensor_::GenerateIslDomain() {
   std::vector<poly::Dim> dims;
   for (int i = 0; i < shape.size(); i++) {
-    dims.emplace_back(common::axis_name(i), 0, shape[i].as_int32());
+    dims.emplace_back(common::axis_name(i), 0, shape[i].as_int32() - 1);
   }
 
   poly::Domain domain(isl_ctx_alloc(), name, dims);

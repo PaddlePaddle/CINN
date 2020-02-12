@@ -256,6 +256,8 @@ struct Var : public IrNodeRef {
   explicit Var(IrNode* n) : IrNodeRef(n) {}
   explicit Var(const std::string& name_hint, Type t = type_of<int>()) : Var(_Var_::Make(name_hint, t).ptr()) {}
 
+  operator Expr() { return Expr(get()); }
+
   const _Var_* operator->() const { return get(); }
   _Var_* operator->() { return get(); }
   const _Var_* get() const { return static_cast<const _Var_*>(ptr()); }

@@ -5,6 +5,7 @@
 
 #include "cinn/ir/ir.h"
 #include "cinn/lang/placeholder.h"
+#include "cinn/poly/schedule.h"
 
 namespace cinn {
 namespace lang {
