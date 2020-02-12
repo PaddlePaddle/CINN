@@ -27,8 +27,6 @@ class Placeholder {
   Expr operator()(Expr a, Expr b) const { return operator()({a, b}); }
   Expr operator()(Expr a, Expr b, Expr c) const { return operator()({a, b, c}); }
   Expr operator()(Expr a, Expr b, Expr c, Expr d) const { return operator()({a, b, c, d}); }
-
-  Expr operator()(ir::Var a, ir::Var b) { return operator()(Expr(a), Expr(b)); }
   Expr operator()(const std::vector<Expr> &indices) const;
   // @}
 
