@@ -63,6 +63,11 @@ Expr Max::Make(Expr a, Expr b) {
   return Expr(node);
 }
 
+Expr Minus::Make(Expr a) {
+  auto node = make_shared<Minus>(a);
+  return Expr(node);
+}
+
 Expr EQ::Make(Expr a, Expr b) {
   auto node = make_shared<EQ>(a, b);
   return Expr(node);
@@ -219,6 +224,19 @@ Expr Call::Make(Type type,
   node->value_index = value_index;
   node->set_type(type);
   return Expr(node);
+}
+
+Stmt PolyFor::Make(
+    Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Stmt body) {
+  auto n        = make_shared<PolyFor>();
+  n->iterator   = iterator;
+  n->init       = init_val;
+  n->condition  = condition;
+  n->inc        = inc;
+  n->for_type   = for_type;
+  n->device_api = device_api;
+  n->body       = body;
+  return Stmt(n);
 }
 
 }  // namespace ir

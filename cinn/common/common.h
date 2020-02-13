@@ -17,6 +17,7 @@ using common::ref_count;
 using common::Shared;
 
 // Type related.
+using common::Bool;
 using common::Float;
 using common::Int;
 using common::type_of;

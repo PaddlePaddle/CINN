@@ -47,13 +47,40 @@ void IrPrinter::Visit(const Max *x) {
   Print(x->b);
   os_ << ")";
 }
+void IrPrinter::Visit(const Minus *x) {
+  os_ << "-(";
+  Print(x->v);
+  os_ << ")";
+}
 void IrPrinter::Visit(const For *x) {
-  DoIndent();
-  os_ << "for(";
+  os_ << "for (";
   Print(x->min);
   os_ << ", ";
   Print(x->extent);
-  os_ << ")";
+  os_ << ") {\n";
+
+  Print(x->body);
+
+  DoIndent();
+  os_ << "}\n";
+}
+
+void IrPrinter::Visit(const PolyFor *x) {
+  os_ << "poly_for (";
+  Print(x->init);
+  os_ << ", ";
+  Print(x->condition);
+  os_ << ", ";
+  Print(x->inc);
+  os_ << ") {\n";
+
+  IncIndent();
+  Print(x->body);
+  os_ << "\n";
+  DecIndent();
+
+  DoIndent();
+  os_ << "}";
 }
 void IrPrinter::Visit(const IfThenElse *x) {
   DoIndent();
@@ -70,19 +97,16 @@ void IrPrinter::Visit(const IfThenElse *x) {
   }
 }
 void IrPrinter::Visit(const Block *x) {
-  DoIndent();
-  os_ << "{\n";
-
-  IncIndent();
-  for (auto &s : x->stmts) {
+  os_ << "#";
+  for (int i = 0; i < x->stmts.size() - 1; i++) {
     DoIndent();
-    Print(s);
+    Print(x->stmts[i]);
     os_ << "\n";
   }
-  DescIndent();
-
-  DoIndent();
-  os_ << "}";
+  if (x->stmts.size() >= 1) {
+    DoIndent();
+    Print(x->stmts.back());
+  }
 }
 void IrPrinter::Visit(const Call *x) {
   os_ << x->name << "(";
@@ -123,8 +147,14 @@ void IrPrinter::Visit(const Store *x) {
 }
 void IrPrinter::Visit(const Free *x) { os_ << "free(" << x->var->name << ")"; }
 
-void IrPrinter::DoIndent() {
-  for (int i = 0; i < indent_; i++) os_ << ' ';
+void IrPrinter::DoIndent() { os_ << '|' << std::string(indent_, '.'); }
+void IrPrinter::IncIndent() {
+  indent_ += indent_unit;
+  os_ << ">" << indent_ << "\n";
+}
+void IrPrinter::DecIndent() {
+  indent_ -= indent_unit;
+  os_ << "<" << indent_ << "\n";
 }
 
 void IrPrinter::Visit(const _Range_ *x) {
@@ -145,7 +175,6 @@ void IrPrinter::Visit(const _Tensor_ *x) {
   }
   os_ << ")";
 }
-
 std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);

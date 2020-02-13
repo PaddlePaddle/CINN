@@ -30,9 +30,9 @@ struct IrPrinter : public IrVisitor {
   //! Prefix the current line with `indent_` spaces.
   void DoIndent();
   //! Increase the indent size.
-  void IncIndent() { ++indent_; }
+  void IncIndent();
   //! Decrease the indent size.
-  void DescIndent() { --indent_; }
+  void DecIndent();
 
   void Visit(const IntImm *x) override;
   void Visit(const UIntImm *x) override;
@@ -53,7 +53,9 @@ struct IrPrinter : public IrVisitor {
   void Visit(const Not *x) override;
   void Visit(const Min *x) override;
   void Visit(const Max *x) override;
+  void Visit(const Minus *x) override;
   void Visit(const For *x) override;
+  void Visit(const PolyFor *x) override;
   void Visit(const IfThenElse *x) override;
   void Visit(const Block *x) override;
   void Visit(const Call *x) override;
@@ -73,6 +75,7 @@ struct IrPrinter : public IrVisitor {
  private:
   std::ostream &os_;
   uint16_t indent_{};
+  const int indent_unit{2};
 };
 
 std::ostream &operator<<(std::ostream &os, Expr a);
