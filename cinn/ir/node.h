@@ -45,23 +45,24 @@ class IrVisitor;
 
 #define NODETY_CONTROL_OP_FOR_EACH(macro__) \
   macro__(For)                              \
+  macro__(PolyFor)                          \
   macro__(Select)                           \
   macro__(IfThenElse)                       \
   macro__(Block)                            \
   macro__(Call)                             \
   macro__(Cast)                             \
   macro__(Module)                           \
-  macro__(_Var_)                         \
+  macro__(_Var_)                            \
   macro__(Load)                             \
   macro__(Store)                            \
   macro__(Alloc)                            \
   macro__(Free)                             \
-  macro__(_Range_)                            \
-  macro__(_IterVar_)                            \
-  macro__(_Buffer_)                            \
-  macro__(_Tensor_)                            \
+  macro__(_Range_)                          \
+  macro__(_IterVar_)                        \
+  macro__(_Buffer_)                         \
+  macro__(_Tensor_)                         \
 
-#define NODETY_FORALL(macro__)          \
+#define NODETY_FORALL(__m)              \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \
   NODETY_OP_FOR_EACH(__m)               \
   NODETY_CONTROL_OP_FOR_EACH(__m)
@@ -159,6 +160,11 @@ struct ExprNode : public IrNode {
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return dynamic_cast<const T*>(this); }
 
+  //! Tell if this is an operator that takes one Expr as argument.
+  virtual bool is_unary_op() const { return false; }
+  //! Tell if this is an operator that takes two Exprs as arguments.
+  virtual bool is_binary_op() const { return false; }
+
   IrNodeTy node_type() const override { return T::_node_type_; }
 };
 
@@ -248,25 +254,35 @@ struct Stmt : public IrNodeRef {
   operator Expr();
 };
 
-template <typename T>
-struct UnaryOpNode : public ExprNode<T> {
-  UnaryOpNode(Type type, Expr v) : ExprNode<T>(type), v(v) { CHECK(v.defined()); }
-
+struct UnaryArguHolder {
+  explicit UnaryArguHolder(Expr v) : v(v) {}
   // The single argument.
   Expr v;
 };
 
+struct BinaryArguHolder {
+  explicit BinaryArguHolder(Expr a, Expr b) : a(a), b(b) {}
+  // The single argument.
+  Expr a, b;
+};
+
 template <typename T>
-struct BinaryOpNode : public ExprNode<T> {
-  BinaryOpNode(Type type, Expr a, Expr b) : ExprNode<T>(type), a(a), b(b) {
+struct UnaryOpNode : public ExprNode<T>, public UnaryArguHolder {
+  UnaryOpNode(Type type, Expr v) : ExprNode<T>(type), UnaryArguHolder(v) { CHECK(v.defined()); }
+
+  bool is_unary_op() const override { return true; }
+};
+
+template <typename T>
+struct BinaryOpNode : public ExprNode<T>, public BinaryArguHolder {
+  BinaryOpNode(Type type, Expr a, Expr b) : ExprNode<T>(type), BinaryArguHolder(a, b) {
     CHECK(type.valid());
     CHECK(a.defined());
     CHECK(b.defined());
     CHECK_EQ(a.type(), b.type()) << "the two arguments' type not match";
   }
 
-  //! The two arguments.
-  Expr a, b;
+  bool is_binary_op() const override { return true; }
 };
 
 enum class DeviceAPI {

@@ -143,9 +143,7 @@ std::string GetTupleName(isl_ast_node* node) {
   return name;
 }
 
-std::vector<std::string> forloop_indice_stack;
-
-void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr);
+}  // namespace detail
 
 //! Eat an isl block node.
 void EatBlock(const isl::ast_node& node, ir::Expr* expr);
@@ -247,7 +245,8 @@ void EatFor(const isl::ast_node& node, ir::Expr* expr) {
 
   ir::Var ir_iter(iter_name);
 
-  *expr = ir::For::Make(ir_initializer, ir_condition, ir::ForType::Serial, ir::DeviceAPI ::Host, ir_body);
+  *expr = ir::PolyFor::Make(
+      ir::Var(iter_name), ir_initializer, ir_condition, ir_inc, ir::ForType::Serial, ir::DeviceAPI ::Host, ir_body);
 }
 
 void EatIf(const isl::ast_node& node, ir::Expr* expr) {
@@ -360,14 +359,13 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
           *expr = ir::EQ::Make(ops[0], ops[1]);
           break;
         case isl_ast_op_call: {
-          /*
           ir::Expr caller_expr = ops.front();
           // TODO(Superjomn) make it an string
           CHECK(caller_expr.node_type() == ir::IrNodeTy::_Var_);
-          std::string caller = caller_expr.As<ir::Var>()->name;
+          std::string caller = caller_expr.As<ir::_Var_>()->name;
           ops.erase(ops.begin());
-          *expr = ir::Call::Make(caller, ops);
-           */
+          // NOTE the type here is not important.
+          *expr = ir::Call::Make(Float(32), caller, ops, ir::Call::ISL);
         } break;
         case isl_ast_op_fdiv_q:
           *expr = ir::Div::Make(ops[0], ops[1]);
@@ -380,8 +378,6 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
       break;
   }
 }
-
-}  // namespace detail
 
 }  // namespace poly
 }  // namespace cinn

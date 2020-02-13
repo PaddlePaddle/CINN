@@ -226,6 +226,19 @@ Expr Call::Make(Type type,
   return Expr(node);
 }
 
+Stmt PolyFor::Make(
+    Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Stmt body) {
+  auto n        = make_shared<PolyFor>();
+  n->iterator   = iterator;
+  n->init       = init_val;
+  n->condition  = condition;
+  n->inc        = inc;
+  n->for_type   = for_type;
+  n->device_api = device_api;
+  n->body       = body;
+  return Stmt(n);
+}
+
 }  // namespace ir
 
 namespace common {

@@ -220,6 +220,8 @@ struct Call : public ExprNode<Call> {
     Halide,
     //! Intrinsic functions.
     Intrinsic,
+    //! Generated from ISL Ast.
+    ISL,
   };
 
   //! The name of the function/intrinsic.
@@ -397,6 +399,28 @@ struct For : public StmtNode<For> {
   static Stmt Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt body);
 
   static const IrNodeTy _node_type_ = IrNodeTy::For;
+};
+
+//! Polyhedral forloop, which condition is more complex than the normal `For`.
+struct PolyFor : public StmtNode<PolyFor> {
+  //! The iterator variable.
+  Var iterator;
+  // Initial value of the iterator.
+  Expr init;
+  //! The condition to continue the loop.
+  Expr condition;
+  //! Increase the iterator.
+  Expr inc;
+  //! The forloop body.
+  Stmt body;
+
+  ForType for_type;
+  DeviceAPI device_api;
+
+  static Stmt Make(
+      Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Stmt body);
+
+  static const IrNodeTy _node_type_ = IrNodeTy::PolyFor;
 };
 
 struct Module : public ExprNode<Module> {

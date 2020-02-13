@@ -59,11 +59,10 @@ class AstGen {
 };
 
 /**
- * Transform the isl ast_node to Expr.
- * @param node The isl AST node generated from polyhedral schedule.
- * @param expr The result expression.
+ * Transform the isl ast to Expr.
  */
 void IslAstNodeToCinnExpr(const isl::ast_node& node, ir::Expr* expr);
+void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr);
 
 namespace detail {
 

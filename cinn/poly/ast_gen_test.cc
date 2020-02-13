@@ -2,6 +2,9 @@
 
 #include <gtest/gtest.h>
 
+#include "cinn/ir/ir.h"
+#include "cinn/ir/ir_printer.h"
+
 namespace cinn {
 namespace poly {
 
@@ -23,12 +26,17 @@ TEST(ast_gen, basic) {
 
   AstGen gen(isl::set(ctx, "{:}"), {A, B}, scheduler);
   gen.SetIteratorNames({"i.outer", "i.inner", "j", "k"});
-  gen.Build();
+  isl::ast_node ast = gen.Build();
 
   auto iters = gen.axis2ast("A");
   for (auto& x : iters) {
     LOG(INFO) << x.first << " " << x.second;
   }
+
+  ir::Expr e;
+  IslAstNodeToCinnExpr(ast, &e);
+
+  LOG(INFO) << "\n" << e;
 }
 
 }  // namespace poly
