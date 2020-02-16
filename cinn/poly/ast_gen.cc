@@ -162,23 +162,23 @@ void IslAstNodeToCinnExpr(const isl::ast_node& node, ir::Expr* expr) {
 
   switch (isl_ast_node_get_type(node.get())) {
     case isl_ast_node_block: {
-      VLOG(3) << "get isl block node";
+      VLOG(4) << "get isl block node";
       EatBlock(node, expr);
     } break;
     case isl_ast_node_for: {
-      VLOG(3) << "get isl for node";
+      VLOG(4) << "get isl for node";
       EatFor(node, expr);
     } break;
     case isl_ast_node_if: {
-      VLOG(3) << "get isl if node";
+      VLOG(4) << "get isl if node";
       EatIf(node, expr);
     } break;
     case isl_ast_node_user: {
-      VLOG(3) << "get isl user node";
+      VLOG(4) << "get isl user node";
       EatUser(node, expr);
     } break;
     case isl_ast_node_mark: {
-      VLOG(3) << "get isl mark";
+      VLOG(4) << "get isl mark";
       // EatMark(node, expr);
     } break;
     default:
@@ -272,16 +272,6 @@ void EatIf(const isl::ast_node& node, ir::Expr* expr) {
     *expr = ir::IfThenElse::Make(ir_condition, ir_then_body, ir::Stmt());
   }
 }
-
-/*
-void EatMark(const isl::ast_node& node, ir::Expr* expr) {
-  Expr mark = ir::Mark::make(isl_id_get_name(isl_ast_node_mark_get_id(node.get())));
-  Expr child;
-  auto child_node = isl::manage(isl_ast_node_mark_get_node(node.get()));
-  IslAstNodeToCinnExpr(child_node, &child);
-  *expr = ir::Block::make({mark, child});
-}
- */
 
 void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
   switch (isl_ast_expr_get_type(node.get())) {
@@ -377,6 +367,13 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
     default:
       break;
   }
+}
+
+void AstGen::InitIslAstConfig() {
+  isl_options_set_ast_build_detect_min_max(ctx().get(), 1);
+  isl_options_set_ast_build_exploit_nested_bounds(ctx().get(), 1);
+  isl_options_set_ast_build_scale_strides(ctx().get(), 1);
+  isl_options_set_ast_build_allow_else(ctx().get(), 1);
 }
 
 }  // namespace poly
