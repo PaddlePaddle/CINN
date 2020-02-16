@@ -2,6 +2,8 @@
  * This file implements the strategy to remove the unnecessary nested block.
  */
 #pragma once
+#include <vector>
+
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
 

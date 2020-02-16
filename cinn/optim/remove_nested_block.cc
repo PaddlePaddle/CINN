@@ -22,17 +22,17 @@ struct NestedBlockRemover : public ir::IRMutator {
       }
     }
 
-    if (detect_nested) {
-      node->stmts = new_exprs;
-    } else {
-      IRMutator::Visit(expr, op);
-    }
+    node->stmts = new_exprs;
+
+    IRMutator::Visit(expr, op);
   }
 };
 
 void RemoveNestedBlock(Expr* e) {
   NestedBlockRemover remover;
-  remover.Visit(e, e);
+  auto* p = e->As<ir::Block>();
+  CHECK(p);
+  remover.Visit(p, e);
 }
 
 }  // namespace optim
