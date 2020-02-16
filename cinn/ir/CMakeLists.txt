@@ -2,6 +2,7 @@ cc_library(ir SRCS
         node.cc ir.cc node.cc
         ir_visitor.cc
         ir_printer.cc
+        ir_mutator.cc
         function.cc
         function_definition.cc
         ir_operators.cc

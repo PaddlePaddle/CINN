@@ -1,10 +1,12 @@
 #include "cinn/ir/ir_printer.h"
 
+#include <vector>
+
 namespace cinn {
 namespace ir {
 
-void IrPrinter::Print(Expr e) { e.Accept(reinterpret_cast<IrVisitor *>(this)); }
-void IrPrinter::Print(Stmt s) { s.Accept(reinterpret_cast<IrVisitor *>(this)); }
+void IrPrinter::Print(Expr e) { e.Accept(reinterpret_cast<IRVisitor *>(this)); }
+void IrPrinter::Print(Stmt s) { s.Accept(reinterpret_cast<IRVisitor *>(this)); }
 void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitter) {
   for (int i = 0; i < exprs.size() - 1; i++) {
     Print(exprs[i]);
@@ -72,15 +74,10 @@ void IrPrinter::Visit(const PolyFor *x) {
   Print(x->condition);
   os_ << ", ";
   Print(x->inc);
-  os_ << ") {\n";
-
-  IncIndent();
-  Print(x->body);
-  os_ << "\n";
-  DecIndent();
+  os_ << ")\n";
 
   DoIndent();
-  os_ << "}";
+  Print(x->body);
 }
 void IrPrinter::Visit(const IfThenElse *x) {
   DoIndent();
@@ -97,7 +94,9 @@ void IrPrinter::Visit(const IfThenElse *x) {
   }
 }
 void IrPrinter::Visit(const Block *x) {
-  os_ << "#";
+  os_ << "{\n";
+
+  IncIndent();
   for (int i = 0; i < x->stmts.size() - 1; i++) {
     DoIndent();
     Print(x->stmts[i]);
@@ -107,6 +106,10 @@ void IrPrinter::Visit(const Block *x) {
     DoIndent();
     Print(x->stmts.back());
   }
+  DecIndent();
+  os_ << "\n";
+  DoIndent();
+  os_ << "}";
 }
 void IrPrinter::Visit(const Call *x) {
   os_ << x->name << "(";
@@ -147,15 +150,9 @@ void IrPrinter::Visit(const Store *x) {
 }
 void IrPrinter::Visit(const Free *x) { os_ << "free(" << x->var->name << ")"; }
 
-void IrPrinter::DoIndent() { os_ << '|' << std::string(indent_, '.'); }
-void IrPrinter::IncIndent() {
-  indent_ += indent_unit;
-  os_ << ">" << indent_ << "\n";
-}
-void IrPrinter::DecIndent() {
-  indent_ -= indent_unit;
-  os_ << "<" << indent_ << "\n";
-}
+void IrPrinter::DoIndent() { os_ << std::string(indent_, ' '); }
+void IrPrinter::IncIndent() { indent_ += indent_unit; }
+void IrPrinter::DecIndent() { indent_ -= indent_unit; }
 
 void IrPrinter::Visit(const _Range_ *x) {
   os_ << "Range(min=";

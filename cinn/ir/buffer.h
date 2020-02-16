@@ -63,7 +63,7 @@ class _Buffer_ : public IrNode {
                      int data_alignment,
                      int offset_factor);
 
-  void Accept(IrVisitor* v) const override;
+  void Accept(IRVisitor* v) const override;
   IrNodeTy node_type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Buffer_;

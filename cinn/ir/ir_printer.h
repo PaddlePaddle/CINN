@@ -8,7 +8,7 @@
 namespace cinn {
 namespace ir {
 
-struct IrPrinter : public IrVisitor {
+struct IrPrinter : public IRVisitor {
   explicit IrPrinter(std::ostream &os) : os_(os) {}
 
   //! Emit an expression on the output stream.

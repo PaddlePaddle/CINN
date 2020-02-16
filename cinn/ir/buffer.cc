@@ -29,7 +29,7 @@ Buffer _Buffer_::Make(Var data,
   return Buffer(node);
 }
 
-void _Buffer_::Accept(IrVisitor *v) const { v->Visit(this); }
+void _Buffer_::Accept(IRVisitor *v) const { v->Visit(this); }
 IrNodeTy _Buffer_::node_type() const { return _node_type_; }
 
 }  // namespace ir

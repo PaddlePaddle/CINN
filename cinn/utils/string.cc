@@ -41,5 +41,13 @@ std::string Join(const std::vector<std::string> &fields, const std::string &spli
   return ss.str();
 }
 
+std::string Trim(const std::string &s, const char *empty) {
+  if (s.empty()) return s;
+  auto start = s.find_first_not_of(empty);
+  if (start == std::string::npos) return "";
+  auto end = s.find_last_not_of(empty);
+  return s.substr(start, end - start + 1);
+}
+
 }  // namespace utils
 }  // namespace cinn

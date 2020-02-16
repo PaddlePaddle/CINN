@@ -31,5 +31,7 @@ std::string StringFormat(const std::string fmt_str, ...);
  */
 std::string Join(const std::vector<std::string>& fields, const std::string& splitter);
 
+std::string Trim(const std::string& s, const char* empty = " \n\r\t");
+
 }  // namespace utils
 }  // namespace cinn

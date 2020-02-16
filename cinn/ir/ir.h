@@ -458,7 +458,7 @@ class _Range_ : public IrNode {
   _Range_() = default;
   _Range_(Expr min, Expr extent) : min(min), extent(extent) {}
   IrNodeTy node_type() const override { return _node_type_; }
-  void Accept(IrVisitor* v) const override;
+  void Accept(IRVisitor* v) const override;
 
   static Range Make(Expr min, Expr extent) {
     auto node    = common::make_shared<_Range_>();
@@ -542,7 +542,7 @@ class _IterVar_ : public IrNode {
   //! Create a new instance of IterVar.
   static IterVar Make(Range dom, Var var, IterVarType iter_type, const std::string& thread_tag = "");
 
-  void Accept(IrVisitor* v) const override;
+  void Accept(IRVisitor* v) const override;
   IrNodeTy node_type() const override { return _node_type_; }
 
   static const IrNodeTy _node_type_ = IrNodeTy::_IterVar_;

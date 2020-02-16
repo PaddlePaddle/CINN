@@ -186,11 +186,11 @@ Stmt Free::Make(Var var) {
   return Stmt(node);
 }
 
-void _Range_::Accept(IrVisitor *v) const { v->Visit(this); }
+void _Range_::Accept(IRVisitor *v) const { v->Visit(this); }
 
 Range::Range(_Range_ *n) : IrNodeRef(n) {}
 
-void _IterVar_::Accept(IrVisitor *v) const { v->Visit(this); }
+void _IterVar_::Accept(IRVisitor *v) const { v->Visit(this); }
 
 IterVar _IterVar_::Make(Range dom, Var var, IterVarType iter_type, const std::string &thread_tag) {
   auto node        = common::make_shared<_IterVar_>();

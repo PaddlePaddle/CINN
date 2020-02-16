@@ -12,7 +12,7 @@ namespace ir {
 // @{
 #define __m(t__)                                             \
   template <>                                                \
-  void ExprNode<t__>::Accept(cinn::ir::IrVisitor *v) const { \
+  void ExprNode<t__>::Accept(cinn::ir::IRVisitor *v) const { \
     v->Visit(const_self());                                  \
   }
 NODETY_FORALL(__m)
@@ -23,7 +23,7 @@ NODETY_FORALL(__m)
 // @{
 #define __m(t__)                                             \
   template <>                                                \
-  void StmtNode<t__>::Accept(cinn::ir::IrVisitor *v) const { \
+  void StmtNode<t__>::Accept(cinn::ir::IRVisitor *v) const { \
     v->Visit(const_self());                                  \
   }
 NODETY_FORALL(__m)
@@ -57,7 +57,7 @@ int32_t Expr::as_int32() const {
 
 Expr::operator Stmt() { return Stmt(ptr()); }
 
-Stmt::operator Expr() { return Expr(ptr()); }
+Stmt::operator Expr() const { return Expr(ptr()); }
 
 }  // namespace ir
 }  // namespace cinn
