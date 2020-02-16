@@ -1,12 +1,17 @@
-//
-// Created by chunwei on 2020/2/13.
-//
+/**
+ * This file implements the strategy to remove the unnecessary nested block.
+ */
+#pragma once
+#include "cinn/common/common.h"
+#include "cinn/ir/ir.h"
 
-#ifndef CINN_REMOVE_NESTED_BLOCK_H
-#define CINN_REMOVE_NESTED_BLOCK_H
+namespace cinn {
+namespace optim {
 
-class remove_nested_block {
+/**
+ * Remove the unecessary nested block.
+ */
+void RemoveNestedBlock(Expr* e);
 
-};
-
-#endif //CINN_REMOVE_NESTED_BLOCK_H
+}  // namespace optim
+}  // namespace cinn

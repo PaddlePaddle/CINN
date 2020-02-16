@@ -16,7 +16,7 @@ using common::Int;
 using common::Type;
 using common::type_of;
 
-class IrVisitor;
+class IRVisitor;
 
 // clang-format off
 #define NODETY_PRIMITIVE_TYPE_FOR_EACH(macro__) \
@@ -24,7 +24,7 @@ class IrVisitor;
   macro__(UIntImm)                              \
   macro__(FloatImm)                             \
 
-#define NODETY_OP_FOR_EACH(macro__) \
+#define NODETY_BINARY_OP_FOR_EACH(macro__) \
   macro__(Add)                      \
   macro__(Sub)                      \
   macro__(Mul)                      \
@@ -38,10 +38,15 @@ class IrVisitor;
   macro__(GE)                       \
   macro__(And)                      \
   macro__(Or)                       \
-  macro__(Not)                      \
   macro__(Min)                      \
   macro__(Max)                      \
-  macro__(Minus)                    \
+
+#define NODETY_UNARY_OP_FOR_EACH(macro__) \
+  macro__(Minus)                          \
+  macro__(Not)                            \
+  macro__(Cast)                           \
+
+#define NODETY_OP_FOR_EACH(macro__) NODETY_BINARY_OP_FOR_EACH(macro__) NODETY_UNARY_OP_FOR_EACH(macro__)
 
 #define NODETY_CONTROL_OP_FOR_EACH(macro__) \
   macro__(For)                              \
@@ -50,7 +55,6 @@ class IrVisitor;
   macro__(IfThenElse)                       \
   macro__(Block)                            \
   macro__(Call)                             \
-  macro__(Cast)                             \
   macro__(Module)                           \
   macro__(_Var_)                            \
   macro__(Load)                             \
@@ -93,7 +97,7 @@ class IrNode : public common::Object {
   IrNode(Type t) : type_(t) {}
   virtual ~IrNode() = default;
 
-  virtual void Accept(IrVisitor* v) const = 0;
+  virtual void Accept(IRVisitor* v) const = 0;
   virtual IrNodeTy node_type() const { return IrNodeTy::kUnk; }
   virtual const Type& type() const { return type_; }
   void set_type(Type type) { type_ = type; }
@@ -136,14 +140,14 @@ class IrNodeRef : public common::Shared<IrNode> {
   IrNode* ptr() { return get(); }
   IrNode* ptr() const { return get(); }
 
-  void Accept(IrVisitor* v) const { get()->Accept(v); }
+  void Accept(IRVisitor* v) const { get()->Accept(v); }
 };
 
 template <typename T>
 struct StmtNode : public IrNode {
   StmtNode() = default;
 
-  void Accept(IrVisitor* v) const override;
+  void Accept(IRVisitor* v) const override;
 
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return dynamic_cast<const T*>(this); }
@@ -155,7 +159,7 @@ template <typename T>
 struct ExprNode : public IrNode {
   explicit ExprNode(Type t) : IrNode(t) {}
 
-  void Accept(IrVisitor* v) const override;
+  void Accept(IRVisitor* v) const override;
 
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return dynamic_cast<const T*>(this); }
@@ -251,7 +255,7 @@ struct Stmt : public IrNodeRef {
   Stmt(const Stmt& other) : IrNodeRef(other.ptr()) {}
   Stmt(IrNode* p) : IrNodeRef(p) {}
 
-  operator Expr();
+  operator Expr() const;
 };
 
 struct UnaryArguHolder {

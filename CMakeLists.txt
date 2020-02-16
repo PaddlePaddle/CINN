@@ -3,6 +3,7 @@ project(CINN)
 
 set(CMAKE_CXX_STANDARD 14)
 set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(WITH_TESTING         "Compile with Unittests"          ON)
 

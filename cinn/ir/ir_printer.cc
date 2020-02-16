@@ -3,8 +3,8 @@
 namespace cinn {
 namespace ir {
 
-void IrPrinter::Print(Expr e) { e.Accept(reinterpret_cast<IrVisitor *>(this)); }
-void IrPrinter::Print(Stmt s) { s.Accept(reinterpret_cast<IrVisitor *>(this)); }
+void IrPrinter::Print(Expr e) { e.Accept(reinterpret_cast<IRVisitor *>(this)); }
+void IrPrinter::Print(Stmt s) { s.Accept(reinterpret_cast<IRVisitor *>(this)); }
 void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitter) {
   for (int i = 0; i < exprs.size() - 1; i++) {
     Print(exprs[i]);
