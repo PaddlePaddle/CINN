@@ -32,6 +32,8 @@ struct Cast : public UnaryOpNode<Cast> {
 
   static Expr Make(Type t, Expr v);
 
+  void Accept(IRVisitor* v) const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Cast;
 };
 
@@ -266,6 +268,9 @@ struct Var : public IrNodeRef {
 
   operator Expr() { return Expr(get()); }
 
+  bool operator==(const Var& o) const;
+  bool operator!=(const Var& o) const;
+
   const _Var_* operator->() const { return get(); }
   _Var_* operator->() { return get(); }
   const _Var_* get() const { return static_cast<const _Var_*>(ptr()); }
@@ -313,11 +318,13 @@ struct Load : public ExprNode<Load> {
 /**
  * Store a `value` to the buffer at a given `index`.
  */
-struct Store : public StmtNode<Store> {
+struct Store : public ExprNode<Store> {
   Var buffer_var;
   Expr value, index;
 
-  static Stmt Make(Var buffer_var, Expr value, Expr index);
+  Store() : ExprNode(Type()) {}
+
+  static Expr Make(Var buffer_var, Expr value, Expr index);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Store;
 };
@@ -326,15 +333,16 @@ struct Store : public StmtNode<Store> {
  * Allocate a buffer with the given type and size. The buffer lives for at most the duration of the body statement,
  * within which it is freed.
  */
-struct Alloc : public StmtNode<Alloc> {
+struct Alloc : public ExprNode<Alloc> {
   Var buffer_var;
-  Type type;
   //! Dimensions of this buffer (as a multi-dimensional array).
   std::vector<Expr> extents;
   Expr condition;
-  Stmt body;
+  Expr body;
 
-  static Stmt Make(Var buffer_var, Type type, const std::vector<Expr>& extents, Expr condition, Stmt body);
+  Alloc() : ExprNode(Type()) {}
+
+  static Expr Make(Var buffer_var, Type type, const std::vector<Expr>& extents, Expr condition, Expr body);
 
   int32_t ConstantAllocationSize() const;
   static int32_t ConstantAllocationSize(const std::string& name, const std::vector<Expr>& extents);
@@ -345,26 +353,28 @@ struct Alloc : public StmtNode<Alloc> {
 /**
  * Free the resources associated with the given buffer.
  */
-struct Free : public StmtNode<Free> {
+struct Free : public ExprNode<Free> {
   Var var;
 
-  static Stmt Make(Var var);
+  Free() : ExprNode(Type()) {}
+
+  static Expr Make(Var var);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Free;
 };
 
-struct IfThenElse : public StmtNode<IfThenElse> {
+struct IfThenElse : public ExprNode<IfThenElse> {
   Expr condition;
-  Stmt true_case;
-  Stmt false_case;
+  Expr true_case;
+  Expr false_case;
 
-  IfThenElse(Expr condition, Stmt true_case, Stmt false_case)
-      : condition(condition), true_case(true_case), false_case(false_case) {
+  IfThenElse(Expr condition, Expr true_case, Expr false_case)
+      : ExprNode(Type()), condition(condition), true_case(true_case), false_case(false_case) {
     CHECK(condition.defined());
     CHECK(true_case.defined());
   }
 
-  static Stmt Make(Expr condition, Stmt true_case, Stmt false_case);
+  static Expr Make(Expr condition, Expr true_case, Expr false_case);
 
   static const IrNodeTy _node_type_ = IrNodeTy::IfThenElse;
 };
@@ -380,7 +390,7 @@ enum class ForType : int {
   Unrolled = 3,
 };
 
-struct For : public StmtNode<For> {
+struct For : public ExprNode<For> {
   //! The loop variable.
   Expr loop_var;
   //! The minimum value of the iteration.
@@ -390,19 +400,19 @@ struct For : public StmtNode<For> {
   //! The type of the for loop.
   ForType for_type;
 
-  Stmt body;
+  Expr body;
 
   DeviceAPI device_api;
 
-  For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt body);
+  For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
 
-  static Stmt Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt body);
+  static Expr Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
 
   static const IrNodeTy _node_type_ = IrNodeTy::For;
 };
 
 //! Polyhedral forloop, which condition is more complex than the normal `For`.
-struct PolyFor : public StmtNode<PolyFor> {
+struct PolyFor : public ExprNode<PolyFor> {
   //! The iterator variable.
   Var iterator;
   // Initial value of the iterator.
@@ -412,13 +422,15 @@ struct PolyFor : public StmtNode<PolyFor> {
   //! Increase the iterator.
   Expr inc;
   //! The forloop body.
-  Stmt body;
+  Expr body;
 
   ForType for_type;
   DeviceAPI device_api;
 
-  static Stmt Make(
-      Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Stmt body);
+  PolyFor() : ExprNode(Type()) {}
+
+  static Expr Make(
+      Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Expr body);
 
   static const IrNodeTy _node_type_ = IrNodeTy::PolyFor;
 };
@@ -429,12 +441,12 @@ struct Module : public ExprNode<Module> {
   static const IrNodeTy _node_type_ = IrNodeTy::Module;
 };
 
-struct Block : public StmtNode<Block> {
-  std::vector<Stmt> stmts;
+struct Block : public ExprNode<Block> {
+  std::vector<Expr> stmts;
 
-  Block() = default;
+  Block() : ExprNode(Type()) {}
 
-  static Stmt Make(const std::vector<Stmt>& stmts);
+  static Expr Make(const std::vector<Expr>& stmts);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Block;
 };
@@ -561,11 +573,6 @@ static IterVar reduce_axis(Range dom, const std::string& name) {
 struct Builder {
   template <typename IRType, typename... Args>
   Expr MakeExpr(Args... args) {
-    return IRType::Make(args...);
-  }
-
-  template <typename IRType, typename... Args>
-  Stmt MakeStmt(Args... args) {
     return IRType::Make(args...);
   }
 };

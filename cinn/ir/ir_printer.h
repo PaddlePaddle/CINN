@@ -13,8 +13,6 @@ struct IrPrinter : public IRVisitor {
 
   //! Emit an expression on the output stream.
   void Print(Expr e);
-  //! Emit a statement on the output stream.
-  void Print(Stmt s);
   //! Emit a expression list with , splitted.
   void Print(const std::vector<Expr> &exprs, const std::string &splitter = ", ");
   //! Emit a binary operator

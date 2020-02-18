@@ -11,6 +11,8 @@ namespace ir {
 
 class IRMutator : public IRVisitorBase<void, Expr*> {
  public:
+  void Visit(const Expr* expr, Expr* op) override;
+
 #define __(op__) void Visit(const op__* expr, Expr* op) override;
   NODETY_FORALL(__)
 #undef __

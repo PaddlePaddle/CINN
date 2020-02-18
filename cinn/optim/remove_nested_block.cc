@@ -9,7 +9,7 @@ struct NestedBlockRemover : public ir::IRMutator {
   void Visit(const ir::Block* expr, Expr* op) override {
     auto* node = op->As<ir::Block>();
 
-    std::vector<ir::Stmt> new_exprs;
+    std::vector<ir::Expr> new_exprs;
 
     bool detect_nested = false;
     for (auto it = node->stmts.begin(); it != node->stmts.end(); it++) {

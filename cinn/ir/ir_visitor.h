@@ -27,13 +27,9 @@ struct IRVisitorBase {
         LOG(FATAL) << "not supported NodeTy";
 #undef __
     }
+    return RetTy();
   }
   // @}
-
-  virtual RetTy Visit(const ir::Stmt* expr, Args... args) {
-    Expr tmp(*expr);
-    return Visit(&tmp, args...);
-  }
 
  protected:
 #define __(op__) virtual RetTy Visit(const ir::op__* op, Args... args) = 0;

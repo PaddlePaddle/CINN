@@ -16,10 +16,12 @@
 namespace cinn {
 namespace poly {
 
+/**
+ * Generate IR from polyhedral schedule.
+ */
 class AstGen {
  public:
-  AstGen(const isl::set& context, const std::vector<Element>& elements, const Scheduler& scheduler)
-      : context_(context), poly_elements_(elements), scheduler_(scheduler) {}
+  AstGen(const isl::set& context, const std::vector<Element>& elements, const Scheduler& scheduler);
 
   /**
    * Set forloop iterator names.
@@ -32,11 +34,13 @@ class AstGen {
 
   isl::ast_node Build();
 
-  const std::vector<Element>& poly_elements() const { return poly_elements_; }
-
+  //! Get the map from original CINN iterators to the transformed actual ISL ast nodes.
   const std::map<std::string, isl::ast_expr>& axis2ast(const std::string& tuple_name) const;
 
  private:
+  //! Set the ISL ast_gen configs.
+  void InitIslAstConfig();
+
   //! Return a domain composed of all the elements.
   isl::union_set domain();
 
@@ -48,6 +52,9 @@ class AstGen {
   //! e.g. with ISL transformed statement S0(c0+1, c1*2), the expr will turn to C[c0+1, c1*2]
   static std::map<std::string, isl::ast_expr> ExtractIslTransformedIndiceMap(const isl::set& iterator_domain,
                                                                              isl_ast_build* build);
+
+  //! Get the polyhedral elements.
+  const std::vector<Element>& poly_elements() const { return poly_elements_; }
 
  private:
   isl::set context_;
