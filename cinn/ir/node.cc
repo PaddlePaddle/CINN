@@ -19,17 +19,6 @@ NODETY_FORALL(__m)
 #undef __m
 // @}
 
-//! Implementations for Ir Stmt Nodes.
-// @{
-#define __m(t__)                                             \
-  template <>                                                \
-  void StmtNode<t__>::Accept(cinn::ir::IRVisitor *v) const { \
-    v->Visit(const_self());                                  \
-  }
-NODETY_FORALL(__m)
-#undef __m
-// @}
-
 std::ostream &operator<<(std::ostream &os, IrNodeTy type) {
   switch (type) {
 #define __m(t__)                    \
@@ -54,10 +43,6 @@ int32_t Expr::as_int32() const {
   CHECK(type().is_int(32));
   return As<IntImm>()->value;
 }
-
-Expr::operator Stmt() { return Stmt(ptr()); }
-
-Stmt::operator Expr() const { return Expr(ptr()); }
 
 }  // namespace ir
 }  // namespace cinn

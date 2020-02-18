@@ -16,12 +16,12 @@
 namespace cinn {
 namespace poly {
 
+/**
+ * Generate IR from polyhedral schedule.
+ */
 class AstGen {
  public:
-  AstGen(const isl::set& context, const std::vector<Element>& elements, const Scheduler& scheduler)
-      : context_(context), poly_elements_(elements), scheduler_(scheduler) {
-    InitIslAstConfig();
-  }
+  AstGen(const isl::set& context, const std::vector<Element>& elements, const Scheduler& scheduler);
 
   /**
    * Set forloop iterator names.

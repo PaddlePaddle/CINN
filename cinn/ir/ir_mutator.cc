@@ -1,7 +1,11 @@
 #include "cinn/ir/ir_mutator.h"
 
+#include "cinn/ir/ir_printer.h"
+
 namespace cinn {
 namespace ir {
+
+void IRMutator::Visit(const Expr *expr, Expr *op) { IRVisitorBase::Visit(expr, op); }
 
 #define UNARY_OP_IMPL(op__)                           \
   void IRMutator::Visit(const op__ *expr, Expr *op) { \
@@ -25,17 +29,19 @@ NODETY_BINARY_OP_FOR_EACH(BINARY_OP_IMPL)
 void IRMutator::Visit(const IntImm *expr, Expr *op) {}
 void IRMutator::Visit(const UIntImm *expr, Expr *op) {}
 void IRMutator::Visit(const FloatImm *expr, Expr *op) {}
+void IRMutator::Visit(const Cast *expr, Expr *op) {
+  auto *node = op->As<Cast>();
+  Visit(&node->v, &node->v);
+}
 void IRMutator::Visit(const For *expr, Expr *op) {
   auto *node = op->As<For>();
   IRVisitorBase::Visit(&node->min, &node->min);
   IRVisitorBase::Visit(&node->extent, &node->extent);
-  Expr tmp(node->body);
-  IRVisitorBase::Visit(&node->body, &tmp);
+  IRVisitorBase::Visit(&node->body, &node->body);
 }
 void IRMutator::Visit(const PolyFor *expr, Expr *op) {
   auto *node = op->As<PolyFor>();
-  Expr tmp(node->body);
-  IRVisitorBase::Visit(&node->body, &tmp);
+  IRVisitorBase::Visit(&node->body, &node->body);
   IRVisitorBase::Visit(&node->condition, &node->condition);
   IRVisitorBase::Visit(&node->inc, &node->inc);
 }
@@ -56,15 +62,13 @@ void IRMutator::Visit(const IfThenElse *expr, Expr *op) {
 void IRMutator::Visit(const Block *expr, Expr *op) {
   auto *node = op->As<Block>();
   for (auto &expr : node->stmts) {
-    Expr tmp(expr);
-    IRVisitorBase::Visit(&expr, &tmp);
+    IRVisitorBase::Visit(&expr, &expr);
   }
 }
 void IRMutator::Visit(const Call *expr, Expr *op) {
   auto *node = op->As<Call>();
   for (auto &expr : node->args) {
-    Expr tmp(expr);
-    IRVisitorBase::Visit(&expr, &tmp);
+    IRVisitorBase::Visit(&expr, &expr);
   }
 }
 void IRMutator::Visit(const Module *expr, Expr *op) {}

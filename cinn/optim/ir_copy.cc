@@ -1,0 +1,154 @@
+#include "cinn/optim/ir_copy.h"
+
+#include <string>
+#include <vector>
+
+#include "cinn/common/common.h"
+#include "cinn/ir/ir_mutator.h"
+
+namespace cinn {
+namespace optim {
+using namespace ir;  // NOLINT
+
+struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
+  Expr Visit(const Expr* op) override { return IRVisitorBase::Visit(op); }
+
+ protected:
+  // The methods of ir nodes follows the order defined in node.h
+
+  Expr Visit(const ir::IntImm* op) override { return Expr(make_shared<IntImm>(op->type(), op->value)); }
+  Expr Visit(const ir::UIntImm* op) override { return Expr(make_shared<UIntImm>(op->type(), op->value)); }
+  Expr Visit(const ir::FloatImm* op) override { return Expr(make_shared<FloatImm>(op->type(), op->value)); }
+
+  Expr Visit(const ir::Cast* op) override {
+    auto v = Visit(&op->v);
+    return Cast::Make(op->type(), v);
+  }
+
+  Expr Visit(const ir::PolyFor* op) override {
+    auto init      = Visit(&op->init);
+    auto condition = Visit(&op->condition);
+    auto inc       = Visit(&op->inc);
+    auto body      = Visit(&op->body);
+    return PolyFor::Make(op->iterator, init, condition, inc, op->for_type, op->device_api, body);
+  }
+
+  Expr Visit(const Select* op) override {
+    auto condition   = Visit(&op->condition);
+    auto true_value  = Visit(&op->true_value);
+    auto false_value = Visit(&op->false_value);
+    return Select::Make(condition, true_value, false_value);
+  }
+
+  Expr Visit(const IfThenElse* op) override {
+    auto condition  = Visit(&op->condition);
+    auto true_case  = Visit(&op->true_case);
+    auto false_case = Visit(&op->false_case);
+    return IfThenElse::Make(condition, true_case, false_case);
+  }
+
+  Expr Visit(const Block* op) override {
+    std::vector<Expr> stmts;
+    for (auto& s : op->stmts) {
+      stmts.push_back(Visit(&s));
+    }
+    return Block::Make(stmts);
+  }
+
+  Expr Visit(const Call* op) override {
+    auto args = Visit(op->args);
+    return Call::Make(op->type(), op->name, args, op->call_type);
+  }
+
+  Expr Visit(const _Var_* op) override { return _Var_::Make(op->name, op->type()); }
+
+  Expr Visit(const Load* op) override {
+    auto index = Visit(&op->index);
+    return Load::Make(op->buffer_var, index);
+  }
+
+  Expr Visit(const Store* op) override {
+    auto value = Visit(&op->value);
+    auto index = Visit(&op->index);
+
+    return Store::Make(op->buffer_var, value, index);
+  }
+
+  Expr Visit(const Alloc* op) override {
+    auto extents   = Visit(op->extents);
+    auto condition = Visit(&op->condition);
+    auto body      = Visit(&op->body);
+
+    return Alloc::Make(op->buffer_var, op->type(), extents, condition, body);
+  }
+
+  Expr Visit(const Free* op) override { return Free::Make(op->var); }
+
+  Expr Visit(const _Buffer_* op) override {
+    auto shape       = Visit(op->shape);
+    auto strides     = Visit(op->strides);
+    auto elem_offset = Visit(&op->elem_offset);
+    return Expr(_Buffer_::Make(
+        op->data, op->type(), shape, strides, elem_offset, op->name, op->scope, op->data_alignment, op->offset_factor));
+  }
+
+  Expr Visit(const _Tensor_* op) override {
+    auto shape  = Visit(op->shape);
+    auto axis   = op->axis;
+    auto tensor = _Tensor_::Make(op->name, "", shape, axis, op->type(), {}, {});
+    return Expr(tensor.ptr());
+  }
+
+  Expr Visit(const For* op) override {
+    LOG(FATAL) << "not implemented";
+    return Expr();
+  }
+
+  Expr Visit(const _Range_* op) override {
+    LOG(FATAL) << "not implemented";
+    return Expr();
+  }
+
+  Expr Visit(const Module* op) override {
+    LOG(FATAL) << "not implemented";
+    return Expr();
+  }
+
+  Expr Visit(const _IterVar_* op) override {
+    LOG(FATAL) << "not implemented";
+    return Expr();
+  }
+
+#define OP_BINARY_HANDLE(op__)              \
+  Expr Visit(const ir::op__* op) override { \
+    auto a = IRVisitorBase::Visit(&op->a);  \
+    auto b = IRVisitorBase::Visit(&op->b);  \
+    return op__::Make(a, b);                \
+  }
+  NODETY_BINARY_OP_FOR_EACH(OP_BINARY_HANDLE)
+#undef OP_BINARY_HANDLE
+
+#define OP_UNARY_HANDLE(op__)              \
+  Expr Visit(const op__* op) override {    \
+    auto v = IRVisitorBase::Visit(&op->v); \
+    return op__::Make(v);                  \
+  }
+  NODETY_UNARY_OP_FOR_EACH(OP_UNARY_HANDLE)
+#undef OP_UNARY_HANDLE
+
+  std::vector<Expr> Visit(const std::vector<Expr>& vs) {
+    std::vector<Expr> copied;
+    for (auto& e : vs) {
+      copied.push_back(Visit(&e));
+    }
+    return copied;
+  }
+};
+
+Expr IRCopy(Expr x) {
+  IRCopyVisitor visitor;
+  return visitor.Visit(&x);
+}
+
+}  // namespace optim
+}  // namespace cinn

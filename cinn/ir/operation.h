@@ -20,7 +20,7 @@ struct ExternOp : public _Operation_ {
   //! Symbolic placeholder representation of outputs.
   std::vector<Buffer> output_placeholders;
   //! The statement that generates the computation.
-  Stmt body;
+  Expr body;
 
   ExternOp() = default;
 
@@ -30,7 +30,7 @@ struct ExternOp : public _Operation_ {
                         std::vector<Tensor> inputs,
                         std::vector<Buffer> input_placeholders,
                         std::vector<Buffer> output_placeholders,
-                        Stmt body);
+                        Expr body);
 
   static constexpr char *buffer_get_element = "cinn_buffer_get_element";
 };

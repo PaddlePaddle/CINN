@@ -28,6 +28,8 @@ Expr Cast::Make(Type t, Expr v) {
   return Expr(node);
 }
 
+void Cast::Accept(IRVisitor *v) const { v->IRVisitorBase::Visit(&this->v); }
+
 Expr Add::Make(Expr a, Expr b) {
   auto node = make_shared<Add>(a, b);
   return Expr(node);
@@ -118,7 +120,7 @@ Expr _Var_::Make(const std::string &name, const Type &type) {
   return Expr(node);
 }
 
-For::For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt body) {
+For::For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) : ExprNode(Type()) {
   CHECK(min.defined());
   CHECK(extent.defined());
   CHECK(body.defined());
@@ -130,38 +132,38 @@ For::For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt bod
   this->body       = std::move(body);
 }
 
-Stmt For::Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Stmt body) {
+Expr For::Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) {
   auto node = make_shared<For>(min, extent, for_type, device_api, body);
-  return Stmt(node);
+  return Expr(node);
 }
 
-Stmt Block::Make(const std::vector<Stmt> &stmts) {
+Expr Block::Make(const std::vector<Expr> &stmts) {
   auto node   = make_shared<Block>();
   node->stmts = stmts;
-  return Stmt(node);
+  return Expr(node);
 }
 
-Stmt IfThenElse::Make(Expr condition, Stmt true_case, Stmt false_case) {
+Expr IfThenElse::Make(Expr condition, Expr true_case, Expr false_case) {
   auto node = make_shared<IfThenElse>(condition, true_case, false_case);
-  return Stmt(node);
+  return Expr(node);
 }
 
-Stmt Store::Make(Var buffer_var, Expr value, Expr index) {
+Expr Store::Make(Var buffer_var, Expr value, Expr index) {
   auto node        = make_shared<Store>();
   node->buffer_var = buffer_var;
   node->value      = value;
   node->index      = index;
-  return Stmt(node);
+  return Expr(node);
 }
 
-Stmt Alloc::Make(Var buffer_var, Type type, const std::vector<Expr> &extents, Expr condition, Stmt body) {
+Expr Alloc::Make(Var buffer_var, Type type, const std::vector<Expr> &extents, Expr condition, Expr body) {
   auto node        = make_shared<Alloc>();
   node->buffer_var = buffer_var;
-  node->type       = type;
   node->extents    = extents;
   node->condition  = condition;
   node->body       = body;
-  return Stmt(node);
+  node->set_type(type);
+  return Expr(node);
 }
 
 int32_t Alloc::ConstantAllocationSize() const {
@@ -180,10 +182,10 @@ int32_t Alloc::ConstantAllocationSize(const std::string &name, const std::vector
   return res;
 }
 
-Stmt Free::Make(Var var) {
+Expr Free::Make(Var var) {
   auto node = make_shared<Free>();
   node->var = var;
-  return Stmt(node);
+  return Expr(node);
 }
 
 void _Range_::Accept(IRVisitor *v) const { v->Visit(this); }
@@ -226,8 +228,8 @@ Expr Call::Make(Type type,
   return Expr(node);
 }
 
-Stmt PolyFor::Make(
-    Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Stmt body) {
+Expr PolyFor::Make(
+    Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Expr body) {
   auto n        = make_shared<PolyFor>();
   n->iterator   = iterator;
   n->init       = init_val;
@@ -236,8 +238,11 @@ Stmt PolyFor::Make(
   n->for_type   = for_type;
   n->device_api = device_api;
   n->body       = body;
-  return Stmt(n);
+  return Expr(n);
 }
+
+bool Var::operator==(const Var &o) const { return o->name == operator->()->name; }
+bool Var::operator!=(const Var &o) const { return !(*this == o); }
 
 }  // namespace ir
 

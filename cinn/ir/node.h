@@ -44,11 +44,11 @@ class IRVisitor;
 #define NODETY_UNARY_OP_FOR_EACH(macro__) \
   macro__(Minus)                          \
   macro__(Not)                            \
-  macro__(Cast)                           \
 
 #define NODETY_OP_FOR_EACH(macro__) NODETY_BINARY_OP_FOR_EACH(macro__) NODETY_UNARY_OP_FOR_EACH(macro__)
 
 #define NODETY_CONTROL_OP_FOR_EACH(macro__) \
+  macro__(Cast)                             \
   macro__(For)                              \
   macro__(PolyFor)                          \
   macro__(Select)                           \
@@ -144,18 +144,6 @@ class IrNodeRef : public common::Shared<IrNode> {
 };
 
 template <typename T>
-struct StmtNode : public IrNode {
-  StmtNode() = default;
-
-  void Accept(IRVisitor* v) const override;
-
-  T* self() { return static_cast<T*>(this); }
-  const T* const_self() const { return dynamic_cast<const T*>(this); }
-
-  IrNodeTy node_type() const override { return T::_node_type_; }
-};
-
-template <typename T>
 struct ExprNode : public IrNode {
   explicit ExprNode(Type t) : IrNode(t) {}
 
@@ -209,7 +197,6 @@ struct FloatImm : public ExprNode<FloatImm> {
 
 class Var;
 class Buffer;
-class Stmt;
 /**
  * An expression that represents some value or the result of some operations.
  */
@@ -220,9 +207,6 @@ struct Expr : public IrNodeRef {
   Expr(IrNode* p) : IrNodeRef(p) {}
   explicit Expr(const Var& var);
   explicit Expr(const Buffer& buffer);
-
-  //! Cast to a statement.
-  operator Stmt();
 
   //! Helper function to construct numeric constants of various types.
   // @{
@@ -243,19 +227,6 @@ struct Expr : public IrNodeRef {
   // @}
 
   const Type& type() const { return p_->type(); }
-};
-
-/**
- * An statement that doesn't have return value.
- */
-struct Stmt : public IrNodeRef {
- public:
-  Stmt() = default;
-
-  Stmt(const Stmt& other) : IrNodeRef(other.ptr()) {}
-  Stmt(IrNode* p) : IrNodeRef(p) {}
-
-  operator Expr() const;
 };
 
 struct UnaryArguHolder {

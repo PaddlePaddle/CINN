@@ -80,6 +80,10 @@ Expr operator>=(POD a, Expr b) {
 }
 
 //--
+Expr operator+(Expr a, Expr b) { return Add::Make(a, b); }
+Expr operator-(Expr a, Expr b) { return Sub::Make(a, b); }
+Expr operator*(Expr a, Expr b) { return Mul::Make(a, b); }
+Expr operator/(Expr a, Expr b) { return Div::Make(a, b); }
 Expr operator&&(Expr a, Expr b) { return And::Make(Expr(a), Expr(b)); }
 Expr operator||(Expr a, Expr b) { return Or::Make(Expr(a), Expr(b)); }
 

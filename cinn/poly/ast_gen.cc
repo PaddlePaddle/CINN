@@ -194,8 +194,7 @@ void EatBlock(const isl::ast_node& node, ir::Expr* expr) {
   CHECK(expr);
   CHECK_EQ(isl_ast_node_get_type(node.get()), isl_ast_node_block);
   isl::ast_node_list list = isl::manage(isl_ast_node_block_get_children(node.get()));
-  std::vector<ir::Stmt> exprs;
-  // for (int i = isl_ast_node_list_n_ast_node(list.get()) - 1; i >= 0; i--) {
+  std::vector<ir::Expr> exprs;
   for (int i = 0; i < isl_ast_node_list_n_ast_node(list.get()); i++) {
     isl::ast_node child = isl::manage(isl_ast_node_list_get_ast_node(list.get(), i));
     // visit child
@@ -269,7 +268,7 @@ void EatIf(const isl::ast_node& node, ir::Expr* expr) {
   if (ir_else_body.defined()) {
     *expr = ir::IfThenElse::Make(ir_condition, ir_then_body, ir_else_body);
   } else {
-    *expr = ir::IfThenElse::Make(ir_condition, ir_then_body, ir::Stmt());
+    *expr = ir::IfThenElse::Make(ir_condition, ir_then_body, ir::Expr());
   }
 }
 
@@ -374,6 +373,11 @@ void AstGen::InitIslAstConfig() {
   isl_options_set_ast_build_exploit_nested_bounds(ctx().get(), 1);
   isl_options_set_ast_build_scale_strides(ctx().get(), 1);
   isl_options_set_ast_build_allow_else(ctx().get(), 1);
+}
+
+AstGen::AstGen(const isl::set& context, const std::vector<Element>& elements, const Scheduler& scheduler)
+    : context_(context), poly_elements_(elements), scheduler_(scheduler) {
+  InitIslAstConfig();
 }
 
 }  // namespace poly
