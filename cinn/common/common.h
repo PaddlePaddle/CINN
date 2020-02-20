@@ -5,8 +5,8 @@
 #include "cinn/common/graph_utils.h"
 #include "cinn/common/pod_value.h"
 #include "cinn/common/shared.h"
-#include "cinn/common/type.h"
 #include "cinn/common/target.h"
+#include "cinn/common/type.h"
 #include "target.h"
 
 namespace cinn {

@@ -42,6 +42,9 @@ class Module {
   //! Compile a module to some outputs.
   void Compile(const backends::Outputs& outputs) const;
 
+  _Module_* self();
+  const _Module_* self() const;
+
  private:
   Shared<_Module_> module_;
 };
