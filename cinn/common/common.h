@@ -6,6 +6,8 @@
 #include "cinn/common/pod_value.h"
 #include "cinn/common/shared.h"
 #include "cinn/common/type.h"
+#include "cinn/common/target.h"
+#include "target.h"
 
 namespace cinn {
 
@@ -21,5 +23,7 @@ using common::Bool;
 using common::Float;
 using common::Int;
 using common::type_of;
+
+using common::Target;
 
 }  // namespace cinn

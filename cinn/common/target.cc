@@ -1,7 +1,7 @@
-#include "cinn/utils/target.h"
+#include "cinn/common/target.h"
 
 namespace cinn {
-namespace utils {
+namespace common {
 
 bool Target::operator==(const Target &other) const {
   return os == other.os &&      //
@@ -10,5 +10,5 @@ bool Target::operator==(const Target &other) const {
          features == other.features;
 }
 
-}  // namespace utils
+}  // namespace common
 }  // namespace cinn

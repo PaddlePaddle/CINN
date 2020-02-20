@@ -3,7 +3,7 @@
 #include <vector>
 
 namespace cinn {
-namespace utils {
+namespace common {
 
 struct Target {
   /**
@@ -46,5 +46,5 @@ struct Target {
   bool operator==(const Target& other) const;
   bool operator!=(const Target& other) const { return !(*this == other); }
 };
-}  // namespace utils
+}  // namespace common
 }  // namespace cinn

@@ -1,5 +1,6 @@
 cc_library(common
         SRCS shared.cc pod_value.cc type.cc
+        target.cc
         object.cc
         graph_utils.cc
         context.cc

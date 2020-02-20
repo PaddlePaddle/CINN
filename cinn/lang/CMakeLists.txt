@@ -3,6 +3,7 @@ cc_library(lang SRCS
         compute.cc
         placeholder.cc
         tensor.cc
+        module.cc
         DEPS ir poly runtime)
 
 cc_test(test_compute SRCS compute_test.cc DEPS lang)
