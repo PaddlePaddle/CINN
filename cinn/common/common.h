@@ -7,7 +7,6 @@
 #include "cinn/common/shared.h"
 #include "cinn/common/target.h"
 #include "cinn/common/type.h"
-#include "target.h"
 
 namespace cinn {
 
@@ -25,5 +24,8 @@ using common::Int;
 using common::type_of;
 
 using common::Target;
+using common::Type;
+
+#define NOT_IMPLEMENTED LOG(FATAL) << "Not Implemented";
 
 }  // namespace cinn
