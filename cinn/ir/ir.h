@@ -14,11 +14,6 @@
 #include "cinn/ir/node.h"
 
 namespace cinn {
-
-namespace poly {
-class Element;
-}  // namespace poly
-
 namespace ir {
 
 using common::Object;
