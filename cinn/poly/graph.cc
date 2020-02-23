@@ -117,5 +117,10 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
 
 }  // namespace detail
 
+std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages) {
+  std::map<std::string, Stage*> dic;
+  for (auto* x : stages) dic[x->id()] = x;
+}
+
 }  // namespace poly
 }  // namespace cinn

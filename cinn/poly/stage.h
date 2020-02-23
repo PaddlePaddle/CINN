@@ -4,11 +4,13 @@
 #include <isl/cpp.h>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include "cinn/common/common.h"
+#include "cinn/ir/ir.h"
 #include "cinn/poly/domain.h"
 #include "cinn/poly/map.h"
 
@@ -21,7 +23,7 @@ namespace poly {
  */
 class Stage : public Object {
  public:
-  explicit Stage(const isl::set& domain);
+  explicit Stage(const isl::set& domain, Expr expr = Expr());
 
   /**
    * The id of this element, should be unique across the transform.
@@ -74,6 +76,9 @@ class Stage : public Object {
   const isl::map& transform() const { return transform_; }
   isl::set transformed_domain() const { return domain_.apply(transform_); }
 
+  //! Get the statements.
+  std::vector<std::string> input_statements() const;
+
   virtual const char* type_info() const { return "Status"; }
 
   Stage() = default;
@@ -87,6 +92,7 @@ class Stage : public Object {
  private:
   isl::set domain_;
   isl::map transform_;
+  Expr expr_;
 };
 
 //! Return the corresponding inner iterator name.

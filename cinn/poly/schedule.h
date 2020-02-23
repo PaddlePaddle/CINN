@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "cinn/common/common.h"
+#include "cinn/poly/graph.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/poly/map.h"
 #include "cinn/poly/stage.h"
@@ -136,6 +137,32 @@ class Scheduler {
   mutable isl::ctx ctx_;
 
   mutable ScheduleGraph schedule_graph_;
+};
+
+/**
+ * Record the schedule information for several groups.
+ */
+class Schedule {
+ public:
+  /*
+   * Constructor.
+   * @param graph A graph consisted of DataFlowGraphNodes
+   */
+  explicit Schedule(common::Graph *graph) : graph_(graph) {}
+
+ private:
+  //! Partition the graph into several groups(sub-graph).
+  void PartitionGroups();
+
+  //! Schedule a single group.
+  void ScheduleGroup(detail::Group* group);
+
+  void ScheduleEachGroup();
+
+
+ private:
+  common::Graph *graph_{};
+  std::vector<detail::Group> groups_;
 };
 
 }  // namespace poly

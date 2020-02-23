@@ -30,7 +30,7 @@ void Stage::InitTransform() {
   }
 }
 
-Stage::Stage(const isl::set &domain) : domain_(domain) {
+Stage::Stage(const isl::set &domain, Expr expr) : domain_(domain), expr_(expr) {
   CHECK(!domain_.is_null());
   CHECK(!domain_.is_empty());
   InitTransform();
@@ -111,6 +111,9 @@ std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j,
 Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
   auto new_name = utils::StringFormat("%s_%s", level0.id.c_str(), level1.id.c_str());
   return Iterator(new_name);
+}
+
+std::vector<std::string> Stage::input_statements() const { CHECK(expr_.defined());
 }
 
 std::string InnerName(const std::string &name) { return name + "_inner"; }

@@ -1,5 +1,6 @@
 #include "cinn/poly/schedule.h"
 
+#include <set>
 #include <sstream>
 
 #include "cinn/common/graph_utils.h"
@@ -160,6 +161,43 @@ std::vector<std::string> Scheduler::WrapIteratorNames(const std::vector<std::str
     res.push_back(names[i]);  // name for the corresponding iterator.
   }
   return res;
+}
+
+void Schedule::PartitionGroups() {
+  CHECK(!graph_->nodes().empty());
+  groups_ = detail::PartitionGraphByIterationDomain(graph_);
+}
+
+void Schedule::ScheduleGroup(detail::Group *group) {
+  CHECK(group);
+  std::set<Stage *> dic;
+
+  // create scheduler for this group.
+  Scheduler scheduler;
+  for (auto &node : group->nodes) {
+    dic.insert(node->stage.get());
+    scheduler.AddStage(*node->stage);
+  }
+  scheduler.FinishStageAdd();
+
+  for (auto &node : group->nodes) {
+    // if any outlink in the dic, schedule the output node After this by the last dimension.
+    for (auto &outlink : node->outlinks()) {
+      auto *out_node = outlink->sink()->As<DataFlowGraphNode>();
+      if (dic.count(out_node->stage.get())) {
+        int node_iter_dims = isl_set_dim(node->stage->transformed_domain().get(), isl_dim_set);
+        int out_iter_dims  = isl_set_dim(out_node->stage->transformed_domain().get(), isl_dim_set);
+        int level          = std::min(node_iter_dims, out_iter_dims);
+        scheduler.After(*node->stage, *out_node->stage, level);
+      }
+    }
+  }
+}
+
+void Schedule::ScheduleEachGroup() {
+  CHECK(!groups_.empty()) << "call PartitionGroups first";
+  for (auto &group : groups_) {
+  }
 }
 
 }  // namespace poly

@@ -43,6 +43,12 @@ struct DataFlowGraph {
   common::Graph graph_;
 };
 
+/**
+ * Create a dependency graph given some stages.
+ * NOTE The stages should sorted in topological order.
+ */
+std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages);
+
 namespace detail {
 
 struct Group {

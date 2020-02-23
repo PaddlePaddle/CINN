@@ -48,5 +48,41 @@ struct IRVisitor : public IRVisitorBase<void> {
 #undef __m
 };
 
+namespace {
+
+struct IrNodesCollector : public IRVisitor {
+  using teller_t  = std::function<bool(const Expr*)>;
+  using handler_t = std::function<void(const Expr*)>;
+
+  teller_t teller;
+  handler_t handler;
+
+  IrNodesCollector(teller_t&& teller, handler_t&& handler) : teller(teller), handler(handler) {}
+
+  void Visit(const Expr* expr) override {
+    if (teller(expr)) handler(expr);
+
+    switch (expr->node_type()) {
+#define __(op__)           \
+  case ir::IrNodeTy::op__: \
+    return IRVisitor::Visit(expr->As<ir::op__>());
+
+      NODETY_FORALL(__)
+
+      default:
+        LOG(FATAL) << "not supported NodeTy";
+#undef __
+    }
+  }
+};
+
+}  // namespace
+
+std::set<Expr> CollectIRNodes(Expr expr,
+                              std::function<bool(const Expr*)> teller,
+                              std::function<void(const Expr*)> handler) {
+  IrNodesCollector collector(std::move(teller), std::move(handler));
+}
+
 }  // namespace ir
 }  // namespace cinn
