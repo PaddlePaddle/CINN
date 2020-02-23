@@ -239,6 +239,9 @@ struct Call : public ExprNode<Call> {
                    FunctionRef func = FunctionRef(),
                    int value_index  = 0);
 
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Call;
 };
 
@@ -290,6 +293,9 @@ struct Select : public ExprNode<Select> {
     return Expr(node);
   }
 
+  std::vector<Expr*> expr_fields() override { return {&condition, &true_value, &false_value}; }
+  std::vector<const Expr*> expr_fields() const override { return {&condition, &true_value, &false_value}; }
+
   static const IrNodeTy _node_type_ = IrNodeTy::Select;
 };
 
@@ -307,6 +313,9 @@ struct Load : public ExprNode<Load> {
     return Expr(node);
   }
 
+  std::vector<Expr*> expr_fields() override { return {&index}; }
+  std::vector<const Expr*> expr_fields() const override { return {&index}; }
+
   static const IrNodeTy _node_type_ = IrNodeTy::Load;
 };
 
@@ -320,6 +329,9 @@ struct Store : public ExprNode<Store> {
   Store() : ExprNode(Type()) {}
 
   static Expr Make(Var buffer_var, Expr value, Expr index);
+
+  std::vector<Expr*> expr_fields() override { return {&value, &index}; }
+  std::vector<const Expr*> expr_fields() const override { return {&value, &index}; }
 
   static const IrNodeTy _node_type_ = IrNodeTy::Store;
 };
@@ -338,6 +350,9 @@ struct Alloc : public ExprNode<Alloc> {
   Alloc() : ExprNode(Type()) {}
 
   static Expr Make(Var buffer_var, Type type, const std::vector<Expr>& extents, Expr condition, Expr body);
+
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
 
   int32_t ConstantAllocationSize() const;
   static int32_t ConstantAllocationSize(const std::string& name, const std::vector<Expr>& extents);
@@ -363,13 +378,12 @@ struct IfThenElse : public ExprNode<IfThenElse> {
   Expr true_case;
   Expr false_case;
 
-  IfThenElse(Expr condition, Expr true_case, Expr false_case)
-      : ExprNode(Type()), condition(condition), true_case(true_case), false_case(false_case) {
-    CHECK(condition.defined());
-    CHECK(true_case.defined());
-  }
+  IfThenElse(Expr condition, Expr true_case, Expr false_case);
 
   static Expr Make(Expr condition, Expr true_case, Expr false_case);
+
+  std::vector<Expr *> expr_fields() override;
+  std::vector<const Expr *> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::IfThenElse;
 };
@@ -403,6 +417,9 @@ struct For : public ExprNode<For> {
 
   static Expr Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
 
+  std::vector<Expr *> expr_fields() override;
+  std::vector<const Expr *> expr_fields() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::For;
 };
 
@@ -427,6 +444,9 @@ struct PolyFor : public ExprNode<PolyFor> {
   static Expr Make(
       Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Expr body);
 
+  std::vector<Expr *> expr_fields() override;
+  std::vector<const Expr *> expr_fields() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::PolyFor;
 };
 
@@ -442,6 +462,9 @@ struct Block : public ExprNode<Block> {
   Block() : ExprNode(Type()) {}
 
   static Expr Make(const std::vector<Expr>& stmts);
+
+  std::vector<Expr *> expr_fields() override;
+  std::vector<const Expr *> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Block;
 };
