@@ -30,20 +30,23 @@ Tensor C = compute({M, N, K}/*dims*/, [&](Var i, Var j, Var k){
     return x(i,k) * y(k,j);
 });
 
-Schedule S = ComputeSchedule({C}/*outputs*/, {A,B}/*inputs*/);
+Schedule s = ComputeSchedule({C}/*outputs*/, {A,B}/*inputs*/);
 { // schedule C's computation
 
     
     // tile i, j with factor 4
     Var i0,i1,j0,j1;
-    std::tie(i0,i1,j0,j1) = S[C].tile(S[C].axis("i"), S[C].axis("j"), 4, 4);
+    std::tie(i0,i1,j0,j1) = s[C].tile(s[C].axis("i"), s[C].axis("j"), 4, 4);
     
     // tile k with factor 4
     Var k0,k1;
-    std::tie(k0,k1) = S[C].split(k, 4);
+    std::tie(k0,k1) = s[C].split(k, 4);
     
-    S[C].reorder(i0,j0,k0,k1,i1,j1); // swap(i1,j0)
+    s[C].reorder(i0,j0,k0,k1,i1,j1); // swap(i1,j0)
 }
+
+auto module = Build(s, {A, B, C}, "llvm", "host", "func");
+void* func = module.GetFuncByName("func");
 ```
 
 **Matrix with Vectorization**
@@ -120,9 +123,22 @@ Each tensor is assign a `Stage`, which is the basic schedule element.
 
 A stage has a domain(isl.Set) and a schedule(isl.Map), all the schedule is performed on them.
 
-We use the ideas from Tiramisu project, and walk through the dependency graph.
+#### Schedule the stages
 
-### Stage
-The stage supports multiple operations.
+We use the ideas from Tiramisu project, and walk through the dependency graph, split the graph into several groups.
 
-in CodeGen, each stage(noninline or fuse_with) will generte a isl.ast.
+There are several rules to split the graph, the naive one is
+
+- For initialization, create a unique group(just id is needed) for each stage,
+- traverse the computation graph in topological order and
+- check whether the two statements with dependency relation have the same iteration space and domain, if true, gather them in the same group
+  - if two statement is marked by `compute_at`, merge to the same group too.
+  - this period is like a union find.
+- for each group, use a different `ast_build` to generate ISL IR(so that we can set iterators separately)
+
+
+#### Scheduler module
+The Scheduler take the stages as input, and do the previous mentioned graph partition, and finally output several schedule elements.
+
+Each schedule element owns an (ISL)iteration domain and a (ISL)schedule, and one can pass it to a ast_gen and generate code.
+
