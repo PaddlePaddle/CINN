@@ -14,35 +14,35 @@ std::vector<Iterator> NamesToIterators(const std::vector<std::string> &names) {
   return res;
 }
 
-void Stage::InitSchedule() {
+void Stage::InitTransform() {
   std::string id = isl_set_get_tuple_name(domain_.get());
 
   auto dims      = GetDimNames(domain_);
   auto dims_repr = utils::Join(dims, ", ");
 
   auto repr = utils::StringFormat("{ %s[%s] -> %s[%s] }", id.c_str(), dims_repr.c_str(), id.c_str(), dims_repr.c_str());
-  schedule_ = isl::map(domain_.ctx(), repr);
+  transform_ = isl::map(domain_.ctx(), repr);
 
   // set dimension names
   for (int i = 0; i < dims.size(); i++) {
-    schedule_ = isl::manage(isl_map_set_dim_name(schedule_.release(), isl_dim_in, i, dims[i].c_str()));
-    schedule_ = isl::manage(isl_map_set_dim_name(schedule_.release(), isl_dim_out, i, dims[i].c_str()));
+    transform_ = isl::manage(isl_map_set_dim_name(transform_.release(), isl_dim_in, i, dims[i].c_str()));
+    transform_ = isl::manage(isl_map_set_dim_name(transform_.release(), isl_dim_out, i, dims[i].c_str()));
   }
 }
 
 Stage::Stage(const isl::set &domain) : domain_(domain) {
   CHECK(!domain_.is_null());
   CHECK(!domain_.is_empty());
-  InitSchedule();
+  InitTransform();
 }
 
 std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
   int offset = isl_set_find_dim_by_name(domain_.get(), isl_dim_set, level.id.c_str());
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
-  auto dim_names = GetDimNames(schedule_, isl_dim_out);
+  auto dim_names = GetDimNames(transform_, isl_dim_out);
 
   VLOG(2) << "domain: " << domain_;
-  VLOG(2) << "schedule: " << schedule_;
+  VLOG(2) << "schedule: " << transform_;
 
   auto from_iters = NamesToIterators(dim_names);
   std::vector<Iterator> to_iters;
@@ -68,26 +68,26 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
 
   Map transform(domain_.ctx(), id(), from_iters, to_iters, conds, id());
   VLOG(3) << "transform: " << transform.__str__();
-  schedule_       = schedule_.apply_range(transform.to_isl());
+  transform_      = transform_.apply_range(transform.to_isl());
   auto range_dims = utils::Map<std::vector<Iterator>, std::string>(to_iters, [](const Iterator &x) { return x.id; });
-  SetDimNames(&schedule_, isl_dim_out, range_dims);
+  SetDimNames(&transform_, isl_dim_out, range_dims);
 
   VLOG(3) << "transform " << transform.to_isl();
-  VLOG(3) << "schedule after transform: " << schedule_;
+  VLOG(3) << "schedule after transform: " << transform_;
 
   VLOG(3) << "iterators: " << outer_iter << " " << inner_iter;
   return std::make_tuple(outer_iter, inner_iter);
 }
 
 void Stage::Reorder(const std::vector<Iterator> &order) {
-  auto in_names = GetDimNames(schedule_, isl_dim_out);
+  auto in_names = GetDimNames(transform_, isl_dim_out);
   CHECK_EQ(order.size(), in_names.size());
   auto in_iters =
       utils::Map<std::vector<std::string>, Iterator>(in_names, [](const std::string &x) { return Iterator(x); });
 
   Map transform(domain().ctx(), id(), in_iters, order, {}, id());
   VLOG(3) << "reorder transform: " << transform.__str__();
-  schedule_ = schedule_.apply_range(transform.to_isl());
+  transform_ = transform_.apply_range(transform.to_isl());
 }
 
 std::tuple<Iterator, Iterator, Iterator, Iterator> Stage::Tile(const Iterator &level0,

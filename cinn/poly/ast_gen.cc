@@ -7,22 +7,23 @@ namespace cinn {
 namespace poly {
 
 isl::union_set AstGen::domain() {
-  CHECK(!poly_elements_.empty());
-  auto sets = utils::Map<std::vector<Stage>, isl::set>(poly_elements_, [](const Stage& e) { return e.domain(); });
+  CHECK(!stages_.empty());
+  auto sets =
+      utils::Map<std::vector<Shared<Stage>>, isl::set>(stages_, [](const Shared<Stage>& e) { return e->domain(); });
   return SetsToUnionSet(sets);
 }
 
 isl::ctx AstGen::ctx() const {
-  CHECK(!poly_elements_.empty());
-  return poly_elements_.front().domain().ctx();
+  CHECK(!stages_.empty());
+  return stages_.front()->domain().ctx();
 }
 
 isl::ast_node AstGen::Build() {
   // Collect schedule from scheduler.
   auto schedules = scheduler_.BuildSchedule();
   std::vector<isl::map> maps;
-  for (auto& ele : poly_elements_) {
-    auto it = schedules.find(ele.id());
+  for (auto& stage : stages_) {
+    auto it = schedules.find(stage->id());
     CHECK(it != std::end(schedules));
     maps.push_back(it->second);
   }
@@ -42,10 +43,10 @@ isl::ast_node AstGen::Build() {
 
   // collect iterator map
   auto get_domain_by_name = [this](const std::string& name) -> isl::set {
-    auto ele_it = std::find_if(
-        poly_elements_.begin(), poly_elements_.end(), [&name](const Stage& ele) { return ele.id() == name; });
-    CHECK(ele_it != std::end(poly_elements_));
-    return ele_it->domain();
+    auto ele_it =
+        std::find_if(stages_.begin(), stages_.end(), [&name](const Shared<Stage>& ele) { return ele->id() == name; });
+    CHECK(ele_it != std::end(stages_));
+    return (*ele_it)->domain();
   };
 
   auto collect = [&](isl::ast_node node, isl::ast_build build) -> isl::ast_node {
@@ -60,7 +61,7 @@ isl::ast_node AstGen::Build() {
   isl::union_map transformed_schedule = transform().apply_range(schedule);
   auto schedule_domain                = transformed_schedule.intersect_domain(domain());
   VLOG(4) << "domain: " << domain();
-  VLOG(4) << "transform schedule " << poly_elements()[0].schedule();
+  VLOG(4) << "transform schedule " << stages()[0]->transform();
   VLOG(4) << "schedule: " << schedule;
   VLOG(4) << "schedule_domain: " << schedule_domain;
   auto ast = ast_build.node_from_schedule_map(schedule_domain);
@@ -128,8 +129,8 @@ isl::ast_expr CreateIslAstIndexExpression(isl_ast_build* build, const isl::map& 
 
 isl::union_map AstGen::transform() {
   std::vector<isl::map> transforms;
-  for (auto& ele : poly_elements()) {
-    transforms.push_back(ele.schedule());
+  for (auto& stage : stages()) {
+    transforms.push_back(stage->transform());
   }
   return MapsToUnionMap(transforms);
 }
@@ -375,8 +376,9 @@ void AstGen::InitIslAstConfig() {
   isl_options_set_ast_build_allow_else(ctx().get(), 1);
 }
 
-AstGen::AstGen(const isl::set& context, const std::vector<Stage>& elements, const Scheduler& scheduler)
-    : context_(context), poly_elements_(elements), scheduler_(scheduler) {
+AstGen::AstGen(const isl::set& context, const std::vector<Stage*>& stages, const Scheduler& scheduler)
+    : context_(context), scheduler_(scheduler) {
+  for (auto* x : stages) stages_.emplace_back(x);
   InitIslAstConfig();
 }
 

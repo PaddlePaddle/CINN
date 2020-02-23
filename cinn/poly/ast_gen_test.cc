@@ -10,19 +10,19 @@ namespace poly {
 
 TEST(ast_gen, basic) {
   isl::ctx ctx(isl_ctx_alloc());
-  Stage A(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
-  Stage B(isl::set(ctx, "{ B[i,j,k]: 0<i,j,k<100 }"));
+  auto* A = make_shared<Stage>(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
+  auto* B = make_shared<Stage>(isl::set(ctx, "{ B[i,j,k]: 0<i,j,k<100 }"));
 
   Iterator A_i0, A_i1;
   Iterator B_i0, B_i1;
 
-  std::tie(A_i0, A_i1) = A.Split(Iterator("i"), 4);
-  std::tie(B_i0, B_i1) = B.Split(Iterator("i"), 4);
+  std::tie(A_i0, A_i1) = A->Split(Iterator("i"), 4);
+  std::tie(B_i0, B_i1) = B->Split(Iterator("i"), 4);
 
   Scheduler scheduler;
-  scheduler.RegisterElement(A);
-  scheduler.RegisterElement(B);
-  scheduler.After(A, B, 3);
+  scheduler.AddStage(*A);
+  scheduler.AddStage(*B);
+  scheduler.After(*A, *B, 3);
 
   AstGen gen(isl::set(ctx, "{:}"), {A, B}, scheduler);
   gen.SetIteratorNames({"i.outer", "i.inner", "j", "k"});

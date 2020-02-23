@@ -74,7 +74,15 @@ std::vector<GraphNode *> Graph::dfs_order() { return std::vector<GraphNode *>();
 std::vector<const GraphNode *> Graph::start_points() const {
   std::vector<const GraphNode *> res;
   for (auto *node : nodes()) {
-    res.push_back(node);
+    if (node->inlinks().empty()) res.push_back(node);
+  }
+  return res;
+}
+
+std::vector<GraphNode *> Graph::start_points() {
+  std::vector<GraphNode *> res;
+  for (auto *node : nodes()) {
+    if (node->inlinks().empty()) res.push_back(node);
   }
   return res;
 }

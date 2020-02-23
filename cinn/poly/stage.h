@@ -8,6 +8,7 @@
 #include <tuple>
 #include <vector>
 
+#include "cinn/common/common.h"
 #include "cinn/poly/domain.h"
 #include "cinn/poly/map.h"
 
@@ -18,12 +19,12 @@ namespace poly {
  * Stage is the basic element of polyhedral which represents a stage in CINN.
  * It supports multiple transforms such as tile, split and so on.
  */
-class Stage {
+class Stage : public Object {
  public:
   explicit Stage(const isl::set& domain);
 
   /**
-   * The id of this element, should be unique across the schedule.
+   * The id of this element, should be unique across the transform.
    */
   const char* id() const;
 
@@ -70,17 +71,22 @@ class Stage {
   Iterator Fuse(const Iterator& level0, const Iterator& level1);
 
   const isl::set& domain() const { return domain_; }
-  const isl::map& schedule() const { return schedule_; }
+  const isl::map& transform() const { return transform_; }
+  isl::set transformed_domain() const { return domain_.apply(transform_); }
+
+  virtual const char* type_info() const { return "Status"; }
+
+  Stage() = default;
 
  private:
   /**
    * Initialize with an identity schedule.
    */
-  void InitSchedule();
+  void InitTransform();
 
  private:
   isl::set domain_;
-  isl::map schedule_;
+  isl::map transform_;
 };
 
 //! Return the corresponding inner iterator name.

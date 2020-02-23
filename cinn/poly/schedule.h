@@ -34,7 +34,7 @@ class ScheduleGraphNode;
 struct ScheduleGraph : public common::Graph {};
 
 /**
- * The range of the schedule.
+ * ISL schedule map with time space, used to generate the final schedule.
  */
 struct TimeSchedule {
   TimeSchedule(const std::string &id, const std::vector<std::string> &dims);
@@ -82,12 +82,12 @@ class Scheduler {
   /**
    * Register an Element to the scheduler.
    */
-  void RegisterElement(const Stage &x);
+  void AddStage(const Stage &x);
 
   /**
    * Finalize the registration.
    */
-  void FinalizeRegistration();
+  void FinishStageAdd();
 
   /**
    * Tell whether the registration is finalized.

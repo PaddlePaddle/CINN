@@ -78,18 +78,18 @@ const std::string &TimeSchedule::id() const {
   return id_;
 }
 
-void Scheduler::RegisterElement(const Stage &x) {
+void Scheduler::AddStage(const Stage &x) {
   CHECK(!registration_finalized_) << "element registration has been finalized.";
-  space_size_ = std::max(space_size_, isl_map_dim(x.schedule().get(), isl_dim_out));
+  space_size_ = std::max(space_size_, isl_map_dim(x.transform().get(), isl_dim_out));
   VLOG(3) << "space_size: " << space_size_;
-  VLOG(3) << "schedule: " << x.schedule();
+  VLOG(3) << "schedule: " << x.transform();
 
   // Use the dimensions from element's schedule's range as the new domain dimensions because in Element, the schedule is
   // like '{ S0[i,j] -> S0[i_outer, i_inner, j] }', the scheduler should schedule base on the range.
-  auto dims      = GetDimNames(x.schedule(), isl_dim_out);
-  std::string id = isl_map_get_tuple_name(x.schedule().get(), isl_dim_in);
+  auto dims      = GetDimNames(x.transform(), isl_dim_out);
+  std::string id = isl_map_get_tuple_name(x.transform().get(), isl_dim_in);
   schedule_graph_.RegisterNode(x.id(),
-                               common::make_shared<ScheduleGraphNode>(id, GetDimNames(x.schedule(), isl_dim_out)));
+                               common::make_shared<ScheduleGraphNode>(id, GetDimNames(x.transform(), isl_dim_out)));
 
   if (!ctx_.get()) {
     ctx_ = x.domain().ctx();
@@ -98,7 +98,7 @@ void Scheduler::RegisterElement(const Stage &x) {
   }
 }
 
-void Scheduler::FinalizeRegistration() {
+void Scheduler::FinishStageAdd() {
   CHECK_GT(space_size_, 0) << "No valid dimension is collected, use RegisterElement to collect some elements";
   CHECK(!schedule_graph_.nodes().empty())
       << "No node is registered to the graph, use RegisterElement to collect some elements";

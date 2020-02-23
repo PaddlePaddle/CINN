@@ -11,11 +11,11 @@ TEST(Schedule, basic) {
   Stage A(A_set);
   isl::set B_set(ctx, "[]->{ B[i,j]: 0<i,j<100 }");
   Stage B(B_set);
-  LOG(INFO) << A.schedule();
+  LOG(INFO) << A.transform();
 
   Scheduler scheduler;
-  scheduler.RegisterElement(A);
-  scheduler.RegisterElement(B);
+  scheduler.AddStage(A);
+  scheduler.AddStage(B);
 
   scheduler.After(A, B, 1);
 
@@ -34,13 +34,13 @@ TEST(Schedule, basic_with_transform) {
   Stage A(isl::set(ctx, "[]->{ A[i,j]: 0<i,j<100 }"));
   Stage B(isl::set(ctx, "[]->{ B[i,j]: 0<i,j<100 }"));
   auto x = A.Split("i", 4);
-  LOG(INFO) << A.schedule();
+  LOG(INFO) << A.transform();
   B.Split(Iterator("j"), 6);
-  LOG(INFO) << B.schedule();
+  LOG(INFO) << B.transform();
 
   Scheduler scheduler;
-  scheduler.RegisterElement(A);
-  scheduler.RegisterElement(B);
+  scheduler.AddStage(A);
+  scheduler.AddStage(B);
   scheduler.After(A, B, 1);
   auto schedule = scheduler.BuildSchedule();
   for (auto item : schedule) {

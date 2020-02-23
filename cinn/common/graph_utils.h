@@ -108,6 +108,7 @@ class Graph {
 
   //! Get the start point of the graph (the nodes those has no inlinks).
   std::vector<const GraphNode*> start_points() const;
+  std::vector<GraphNode*> start_points();
 
   //! Return the graph's nodes and edges(visited) in topological order.
   std::tuple<std::vector<GraphNode*>, std::vector<GraphEdge*>> topological_order();
