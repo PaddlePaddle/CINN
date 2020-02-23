@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <vector>
 
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
@@ -31,6 +32,8 @@ struct IrPrinter : public IRVisitor {
   void IncIndent();
   //! Decrease the indent size.
   void DecIndent();
+
+  std::ostream &os() { return os_; }
 
   void Visit(const IntImm *x) override;
   void Visit(const UIntImm *x) override;
