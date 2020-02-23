@@ -143,6 +143,8 @@ class IrNodeRef : public common::Shared<IrNode> {
   void Accept(IRVisitor* v) const { get()->Accept(v); }
 };
 
+struct Expr;
+
 template <typename T>
 struct ExprNode : public IrNode {
   explicit ExprNode(Type t) : IrNode(t) {}
@@ -156,6 +158,10 @@ struct ExprNode : public IrNode {
   virtual bool is_unary_op() const { return false; }
   //! Tell if this is an operator that takes two Exprs as arguments.
   virtual bool is_binary_op() const { return false; }
+
+  //! Gather all the expression fields in this node for easier visit and mutate.
+  virtual std::vector<Expr*> expr_fields() { return {}; }
+  virtual std::vector<const Expr*> expr_fields() const { return {}; }
 
   IrNodeTy node_type() const override { return T::_node_type_; }
 };
@@ -245,6 +251,9 @@ template <typename T>
 struct UnaryOpNode : public ExprNode<T>, public UnaryArguHolder {
   UnaryOpNode(Type type, Expr v) : ExprNode<T>(type), UnaryArguHolder(v) { CHECK(v.defined()); }
 
+  std::vector<Expr*> expr_fields() override { return {&v}; }
+  std::vector<const Expr*> expr_fields() const override { return {&v}; }
+
   bool is_unary_op() const override { return true; }
 };
 
@@ -256,6 +265,9 @@ struct BinaryOpNode : public ExprNode<T>, public BinaryArguHolder {
     CHECK(b.defined());
     CHECK_EQ(a.type(), b.type()) << "the two arguments' type not match";
   }
+
+  std::vector<Expr*> expr_fields() override { return {&a, &b}; }
+  std::vector<const Expr*> expr_fields() const override { return {&a, &b}; }
 
   bool is_binary_op() const override { return true; }
 };

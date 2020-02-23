@@ -136,17 +136,37 @@ Expr For::Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Ex
   auto node = make_shared<For>(min, extent, for_type, device_api, body);
   return Expr(node);
 }
+std::vector<Expr *> For::expr_fields() { return {&loop_var, &min, &extent, &body}; }
+std::vector<const Expr *> For::expr_fields() const { return {&loop_var, &min, &extent, &body}; }
 
 Expr Block::Make(const std::vector<Expr> &stmts) {
   auto node   = make_shared<Block>();
   node->stmts = stmts;
   return Expr(node);
 }
+std::vector<Expr *> Block::expr_fields() {
+  std::vector<Expr *> res;
+  for (auto &x : stmts) res.push_back(&x);
+  return res;
+}
+std::vector<const Expr *> Block::expr_fields() const {
+  std::vector<const Expr *> res;
+  for (auto &x : stmts) res.push_back(&x);
+  return res;
+}
 
 Expr IfThenElse::Make(Expr condition, Expr true_case, Expr false_case) {
   auto node = make_shared<IfThenElse>(condition, true_case, false_case);
   return Expr(node);
 }
+
+IfThenElse::IfThenElse(Expr condition, Expr true_case, Expr false_case)
+    : ExprNode(Type()), condition(condition), true_case(true_case), false_case(false_case) {
+  CHECK(condition.defined());
+  CHECK(true_case.defined());
+}
+std::vector<Expr *> IfThenElse::expr_fields() { return {&condition, &true_case, &false_case}; }
+std::vector<const Expr *> IfThenElse::expr_fields() const { return {&condition, &true_case, &false_case}; }
 
 Expr Store::Make(Var buffer_var, Expr value, Expr index) {
   auto node        = make_shared<Store>();
@@ -179,6 +199,20 @@ int32_t Alloc::ConstantAllocationSize(const std::string &name, const std::vector
     CHECK(p) << "extent should be IntImm";
     res *= p->value;
   }
+  return res;
+}
+std::vector<Expr *> Alloc::expr_fields() {
+  std::vector<Expr *> res;
+  for (auto &x : extents) res.push_back(&x);
+  res.push_back(&condition);
+  res.push_back(&body);
+  return res;
+}
+std::vector<const Expr *> Alloc::expr_fields() const {
+  std::vector<const Expr *> res;
+  for (auto &x : extents) res.push_back(&x);
+  res.push_back(&condition);
+  res.push_back(&body);
   return res;
 }
 
@@ -227,6 +261,16 @@ Expr Call::Make(Type type,
   node->set_type(type);
   return Expr(node);
 }
+std::vector<Expr *> Call::expr_fields() {
+  std::vector<Expr *> res;
+  for (auto &x : args) res.push_back(&x);
+  return res;
+}
+std::vector<const Expr *> Call::expr_fields() const {
+  std::vector<const Expr *> res;
+  for (auto &x : args) res.push_back(&x);
+  return res;
+}
 
 Expr PolyFor::Make(
     Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Expr body) {
@@ -240,6 +284,8 @@ Expr PolyFor::Make(
   n->body       = body;
   return Expr(n);
 }
+std::vector<Expr *> PolyFor::expr_fields() { return {&init, &condition, &inc, &body}; }
+std::vector<const Expr *> PolyFor::expr_fields() const { return {&init, &condition, &inc, &body}; }
 
 bool Var::operator==(const Var &o) const { return o->name == operator->()->name; }
 bool Var::operator!=(const Var &o) const { return !(*this == o); }
