@@ -8,9 +8,9 @@
 #include <map>
 #include <string>
 
-#include "cinn/poly/element.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/poly/schedule.h"
+#include "cinn/poly/stage.h"
 #include "cinn/utils/functional.h"
 
 namespace cinn {
@@ -21,7 +21,7 @@ namespace poly {
  */
 class AstGen {
  public:
-  AstGen(const isl::set& context, const std::vector<Element>& elements, const Scheduler& scheduler);
+  AstGen(const isl::set& context, const std::vector<Stage>& elements, const Scheduler& scheduler);
 
   /**
    * Set forloop iterator names.
@@ -54,11 +54,11 @@ class AstGen {
                                                                              isl_ast_build* build);
 
   //! Get the polyhedral elements.
-  const std::vector<Element>& poly_elements() const { return poly_elements_; }
+  const std::vector<Stage>& poly_elements() const { return poly_elements_; }
 
  private:
   isl::set context_;
-  std::vector<Element> poly_elements_;
+  std::vector<Stage> poly_elements_;
   const Scheduler& scheduler_;
   std::vector<std::string> iterator_names_;
   //! tuple name -> { axis -> isl_ast }

@@ -15,12 +15,12 @@ namespace cinn {
 namespace poly {
 
 /**
- * Element is the basic element of polyhedral which represents a stage in CINN.
+ * Stage is the basic element of polyhedral which represents a stage in CINN.
  * It supports multiple transforms such as tile, split and so on.
  */
-class Element {
+class Stage {
  public:
-  explicit Element(const isl::set& domain);
+  explicit Stage(const isl::set& domain);
 
   /**
    * The id of this element, should be unique across the schedule.

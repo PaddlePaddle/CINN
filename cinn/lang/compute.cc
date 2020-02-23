@@ -3,7 +3,7 @@
 #include "cinn/common/common.h"
 #include "cinn/poly/dim.h"
 #include "cinn/poly/domain.h"
-#include "cinn/poly/element.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace lang {

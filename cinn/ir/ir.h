@@ -16,7 +16,7 @@
 namespace cinn {
 
 namespace poly {
-class Element;
+class Stage;
 }  // namespace poly
 
 namespace ir {

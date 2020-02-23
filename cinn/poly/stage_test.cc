@@ -1,4 +1,4 @@
-#include "cinn/poly/element.h"
+#include "cinn/poly/stage.h"
 
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@ TEST(Element, split) {
   isl::ctx ctx(isl_ctx_alloc());
   isl::set domain(ctx, "{ S[i,j]: 0<=i,j<=100 }");
 
-  Element ele(domain);
+  Stage ele(domain);
   Iterator outer, inner;
   std::tie(outer, inner) = ele.Split(Iterator("i"), 4);
   LOG(INFO) << ele.schedule();
@@ -24,7 +24,7 @@ TEST(Element, split) {
 TEST(Element, tile) {
   isl::ctx ctx(isl_ctx_alloc());
   isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
-  Element ele(domain);
+  Stage ele(domain);
 
   Iterator outer0, inner0, outer1, inner1;
   std::tie(outer0, inner0, outer1, inner1) = ele.Tile(Iterator("i"), Iterator("j"), 4, 6);
@@ -42,7 +42,7 @@ TEST(Element, tile) {
 TEST(Element, reorder) {
   isl::ctx ctx(isl_ctx_alloc());
   isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
-  Element ele(domain);
+  Stage ele(domain);
   Iterator i("i"), j("j"), k("k");
   ele.Reorder(std::vector<Iterator>{{i, k, j}});
   LOG(INFO) << ele.schedule();
@@ -51,7 +51,7 @@ TEST(Element, reorder) {
 TEST(Element, split_reorder) {
   isl::ctx ctx(isl_ctx_alloc());
   isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
-  Element ele(domain);
+  Stage ele(domain);
   Iterator outer, inner;
   std::tie(outer, inner) = ele.Split(Iterator("i"), 4);
 

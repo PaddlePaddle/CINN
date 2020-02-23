@@ -10,8 +10,8 @@ namespace poly {
 
 TEST(ast_gen, basic) {
   isl::ctx ctx(isl_ctx_alloc());
-  Element A(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
-  Element B(isl::set(ctx, "{ B[i,j,k]: 0<i,j,k<100 }"));
+  Stage A(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
+  Stage B(isl::set(ctx, "{ B[i,j,k]: 0<i,j,k<100 }"));
 
   Iterator A_i0, A_i1;
   Iterator B_i0, B_i1;

@@ -8,9 +8,9 @@
 #include <vector>
 
 #include "cinn/common/common.h"
-#include "cinn/poly/element.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/poly/map.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace poly {
@@ -82,7 +82,7 @@ class Scheduler {
   /**
    * Register an Element to the scheduler.
    */
-  void RegisterElement(const Element &x);
+  void RegisterElement(const Stage &x);
 
   /**
    * Finalize the registration.
@@ -100,13 +100,13 @@ class Scheduler {
    * @param b
    * @param level
    */
-  Scheduler &After(const Element &a, const Element &b, int level);
+  Scheduler &After(const Stage &a, const Stage &b, int level);
   /**
    * Mark this should schedule before another.
    * @param b
    * @param level
    */
-  Scheduler &Before(const Element &a, const Element &b, int level);
+  Scheduler &Before(const Stage &a, const Stage &b, int level);
 
   /**
    * Build and create schedule.

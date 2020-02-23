@@ -1,4 +1,4 @@
-#include "cinn/poly/element.h"
+#include "cinn/poly/stage.h"
 
 #include "cinn/poly/isl_utils.h"
 #include "cinn/utils/functional.h"
@@ -14,7 +14,7 @@ std::vector<Iterator> NamesToIterators(const std::vector<std::string> &names) {
   return res;
 }
 
-void Element::InitSchedule() {
+void Stage::InitSchedule() {
   std::string id = isl_set_get_tuple_name(domain_.get());
 
   auto dims      = GetDimNames(domain_);
@@ -30,13 +30,13 @@ void Element::InitSchedule() {
   }
 }
 
-Element::Element(const isl::set &domain) : domain_(domain) {
+Stage::Stage(const isl::set &domain) : domain_(domain) {
   CHECK(!domain_.is_null());
   CHECK(!domain_.is_empty());
   InitSchedule();
 }
 
-std::tuple<Iterator, Iterator> Element::Split(const Iterator &level, int factor) {
+std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
   int offset = isl_set_find_dim_by_name(domain_.get(), isl_dim_set, level.id.c_str());
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
   auto dim_names = GetDimNames(schedule_, isl_dim_out);
@@ -79,7 +79,7 @@ std::tuple<Iterator, Iterator> Element::Split(const Iterator &level, int factor)
   return std::make_tuple(outer_iter, inner_iter);
 }
 
-void Element::Reorder(const std::vector<Iterator> &order) {
+void Stage::Reorder(const std::vector<Iterator> &order) {
   auto in_names = GetDimNames(schedule_, isl_dim_out);
   CHECK_EQ(order.size(), in_names.size());
   auto in_iters =
@@ -90,10 +90,10 @@ void Element::Reorder(const std::vector<Iterator> &order) {
   schedule_ = schedule_.apply_range(transform.to_isl());
 }
 
-std::tuple<Iterator, Iterator, Iterator, Iterator> Element::Tile(const Iterator &level0,
-                                                                 const Iterator &level1,
-                                                                 int factor0,
-                                                                 int factor1) {
+std::tuple<Iterator, Iterator, Iterator, Iterator> Stage::Tile(const Iterator &level0,
+                                                               const Iterator &level1,
+                                                               int factor0,
+                                                               int factor1) {
   Iterator level0_inner, level0_outer;
   Iterator level1_inner, level1_outer;
 
@@ -102,13 +102,13 @@ std::tuple<Iterator, Iterator, Iterator, Iterator> Element::Tile(const Iterator 
   return std::make_tuple(level0_outer, level0_inner, level1_outer, level1_inner);
 }
 
-std::tuple<Iterator, Iterator> Element::Skew(const Iterator &i, const Iterator &j, int factor) {
+std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
   Iterator i_new(i.id + "_skew");
   Iterator j_new(j.id + "_skew");
   return std::make_tuple(i_new, j_new);
 }
 
-Iterator Element::Fuse(const Iterator &level0, const Iterator &level1) {
+Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
   auto new_name = utils::StringFormat("%s_%s", level0.id.c_str(), level1.id.c_str());
   return Iterator(new_name);
 }
@@ -118,9 +118,9 @@ std::string OuterName(const std::string &name) { return name + "_outer"; }
 std::string InnerName(const Iterator &iterator) { return InnerName(iterator.id); }
 std::string OuterName(const Iterator &iterator) { return OuterName(iterator.id); }
 
-const char *Element::id() const { return isl_set_get_tuple_name(domain_.get()); }
+const char *Stage::id() const { return isl_set_get_tuple_name(domain_.get()); }
 
-std::tuple<Iterator, Iterator> Element::Split(const std::string &level, int factor) {
+std::tuple<Iterator, Iterator> Stage::Split(const std::string &level, int factor) {
   return std::move(Split(Iterator(level), factor));
 }
 

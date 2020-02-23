@@ -78,7 +78,7 @@ const std::string &TimeSchedule::id() const {
   return id_;
 }
 
-void Scheduler::RegisterElement(const Element &x) {
+void Scheduler::RegisterElement(const Stage &x) {
   CHECK(!registration_finalized_) << "element registration has been finalized.";
   space_size_ = std::max(space_size_, isl_map_dim(x.schedule().get(), isl_dim_out));
   VLOG(3) << "space_size: " << space_size_;
@@ -109,7 +109,7 @@ void Scheduler::FinalizeRegistration() {
   }
 }
 
-Scheduler &Scheduler::After(const Element &a, const Element &b, int level) {
+Scheduler &Scheduler::After(const Stage &a, const Stage &b, int level) {
   CHECK_LT(level, space_size_);
   auto *a_node = schedule_graph_.RetriveNode(a.id())->As<ScheduleGraphNode>();
   auto *b_node = schedule_graph_.RetriveNode(b.id())->As<ScheduleGraphNode>();
@@ -123,7 +123,7 @@ Scheduler &Scheduler::After(const Element &a, const Element &b, int level) {
   return *this;
 }
 
-Scheduler &Scheduler::Before(const Element &a, const Element &b, int level) { return After(b, a, level); }
+Scheduler &Scheduler::Before(const Stage &a, const Stage &b, int level) { return After(b, a, level); }
 
 std::map<std::string, isl::map> Scheduler::BuildSchedule() const {
   std::map<std::string, isl::map> res;

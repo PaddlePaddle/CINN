@@ -3,7 +3,7 @@
 #include "cinn/common/common.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
-#include "cinn/poly/element.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace ir {
@@ -56,7 +56,7 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
 
 void _Tensor_::InitPolyElement() {
   CHECK(!poly_element) << "Duplicate initialize the poly_element";
-  poly_element = new poly::Element(GenerateIslDomain());
+  poly_element = new poly::Stage(GenerateIslDomain());
 }
 
 isl::set _Tensor_::GenerateIslDomain() {

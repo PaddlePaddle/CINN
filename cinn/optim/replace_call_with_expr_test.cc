@@ -24,8 +24,8 @@ TEST(ReplaceCallWithExpr, basic) {
   tuple_to_expr["B"] = ir::Store::Make(A_buf, B_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
 
   isl::ctx ctx(isl_ctx_alloc());
-  Element A(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
-  Element B(isl::set(ctx, "{ B[i,j,k]: 0<i,j,k<100 }"));
+  Stage A(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
+  Stage B(isl::set(ctx, "{ B[i,j,k]: 0<i,j,k<100 }"));
 
   Iterator A_i0, A_i1;
   Iterator B_i0, B_i1;

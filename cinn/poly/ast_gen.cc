@@ -8,7 +8,7 @@ namespace poly {
 
 isl::union_set AstGen::domain() {
   CHECK(!poly_elements_.empty());
-  auto sets = utils::Map<std::vector<Element>, isl::set>(poly_elements_, [](const Element& e) { return e.domain(); });
+  auto sets = utils::Map<std::vector<Stage>, isl::set>(poly_elements_, [](const Stage& e) { return e.domain(); });
   return SetsToUnionSet(sets);
 }
 
@@ -43,7 +43,7 @@ isl::ast_node AstGen::Build() {
   // collect iterator map
   auto get_domain_by_name = [this](const std::string& name) -> isl::set {
     auto ele_it = std::find_if(
-        poly_elements_.begin(), poly_elements_.end(), [&name](const Element& ele) { return ele.id() == name; });
+        poly_elements_.begin(), poly_elements_.end(), [&name](const Stage& ele) { return ele.id() == name; });
     CHECK(ele_it != std::end(poly_elements_));
     return ele_it->domain();
   };
@@ -375,7 +375,7 @@ void AstGen::InitIslAstConfig() {
   isl_options_set_ast_build_allow_else(ctx().get(), 1);
 }
 
-AstGen::AstGen(const isl::set& context, const std::vector<Element>& elements, const Scheduler& scheduler)
+AstGen::AstGen(const isl::set& context, const std::vector<Stage>& elements, const Scheduler& scheduler)
     : context_(context), poly_elements_(elements), scheduler_(scheduler) {
   InitIslAstConfig();
 }

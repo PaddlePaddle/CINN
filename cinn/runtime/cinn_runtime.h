@@ -103,8 +103,7 @@ typedef struct cinn_buffer_t {
       flag &= ~cinn_buffer_on_device;
     }
   }
-  CINN_ALWAYS_INLINE uint8_t *begin() const {
-  }
+  CINN_ALWAYS_INLINE uint8_t* begin() const {}
 
   CINN_ALWAYS_INLINE bool get_flag(cinn_buffer_kind_t flag) const { return (this->flag & flag) != 0; }
   CINN_ALWAYS_INLINE void set_flag(cinn_buffer_kind_t flag) { this->flag |= flag; }

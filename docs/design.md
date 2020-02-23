@@ -141,4 +141,3 @@ There are several rules to split the graph, the naive one is
 The Scheduler take the stages as input, and do the previous mentioned graph partition, and finally output several schedule elements.
 
 Each schedule element owns an (ISL)iteration domain and a (ISL)schedule, and one can pass it to a ast_gen and generate code.
-
