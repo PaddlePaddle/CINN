@@ -483,15 +483,15 @@ class Range : public IrNodeRef {
   _Range_* operator->() const { return get()->As<_Range_>(); }
 };
 
-class _Range_ : public IrNode {
+class _Range_ : public ExprNode<_Range_> {
  public:
   //! Begin of the range.
   Expr min;
   //! Extent of the range.
   Expr extent;
 
-  _Range_() = default;
-  _Range_(Expr min, Expr extent) : min(min), extent(extent) {}
+  _Range_() : ExprNode(Type()) {}
+  _Range_(Expr min, Expr extent) : ExprNode(Type()), min(min), extent(extent) {}
   IrNodeTy node_type() const override { return _node_type_; }
   void Accept(IRVisitor* v) const override;
 
@@ -563,7 +563,7 @@ class IterVar : public IrNodeRef {
 /**
  * An iteration variable representing an iteration over a one-dimensional interval.
  */
-class _IterVar_ : public IrNode {
+class _IterVar_ : public ExprNode<_IterVar_> {
  public:
   //! The domain of the iteration.
   Range dom;
