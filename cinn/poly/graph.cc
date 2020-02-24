@@ -20,8 +20,14 @@ DataFlowGraphNode* DataFlowGraphNode::group_ancestor() {
 }
 
 bool DataFlowGraphNode::TransformedDomainIsSame(const DataFlowGraphNode* a, const DataFlowGraphNode* b) {
+  VLOG(3) << "a.domain " << a->stage->domain();
+  VLOG(3) << "a.transform " << a->stage->transform();
+  VLOG(3) << "b.domain " << b->stage->domain();
+  VLOG(3) << "b.transform " << b->stage->transform();
   auto a_domain = a->stage->transformed_domain();
   auto b_domain = b->stage->transformed_domain();
+  a_domain      = isl::manage(isl_set_set_tuple_name(a_domain.release(), ""));
+  b_domain      = isl::manage(isl_set_set_tuple_name(b_domain.release(), ""));
   return isl_set_is_equal(a_domain.get(), b_domain.get());
 }
 
@@ -61,6 +67,7 @@ namespace detail {
 //! Visit the nodes in topological order, if one node is valid to visit, visit it and check whether its out link
 //! children are ready to visit, merge them to the same group.
 std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
+  VLOG(3) << "graph:\n" << graph->Visualize();
   // collect indegree for topological traversal
   std::map<DataFlowGraphNode*, uint16_t> indegree;
   for (common::GraphNode* n : graph->nodes()) {
@@ -75,10 +82,13 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
   }
   while (!queue.empty()) {
     auto* node = queue.front();
+    queue.pop_front();
+
     for (auto& c : node->outlinks()) {
-      auto* child = c->As<DataFlowGraphNode>();
+      auto* child = c->sink()->As<DataFlowGraphNode>();
       --indegree[child];
 
+      VLOG(3) << node->stage->transformed_domain() << " -> " << child->stage->transformed_domain();
       if (indegree[child] == 0) {
         if (DataFlowGraphNode::TransformedDomainIsSame(node, child)) {
           DataFlowGraphNode::MergeGroup(node, child);
@@ -114,6 +124,7 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
     for (auto* c : node_groups[n]) {
       group.nodes.push_back(c);
     }
+    groups.emplace_back(group);
   }
 
   return groups;

@@ -15,6 +15,9 @@ namespace poly {
 struct ScheduleGraphNode : public common::GraphNode {
   TimeSchedule time_schedule;
 
+  //! NOTE this id is not human-readable.
+  std::string id() const override { return std::to_string(reinterpret_cast<size_t>(this)); }
+
   explicit ScheduleGraphNode(const std::string &id, const std::vector<std::string> &dims) : time_schedule(id, dims) {}
 };
 
@@ -187,7 +190,8 @@ void Schedule::ScheduleGroup(detail::Group *group) {
       if (dic.count(out_node->stage.get())) {
         int node_iter_dims = isl_set_dim(node->stage->transformed_domain().get(), isl_dim_set);
         int out_iter_dims  = isl_set_dim(out_node->stage->transformed_domain().get(), isl_dim_set);
-        int level          = std::min(node_iter_dims, out_iter_dims);
+        int level          = std::min(node_iter_dims, out_iter_dims) - 1;
+        CHECK_GE(level, 0);
         scheduler.After(*node->stage, *out_node->stage, level);
       }
     }
@@ -197,7 +201,15 @@ void Schedule::ScheduleGroup(detail::Group *group) {
 void Schedule::ScheduleEachGroup() {
   CHECK(!groups_.empty()) << "call PartitionGroups first";
   for (auto &group : groups_) {
+    ScheduleGroup(&group);
   }
+}
+
+std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages) {
+  auto graph = CreateGraph(stages);
+
+  auto *schedule = new Schedule(graph.get());
+  return std::unique_ptr<Schedule>(schedule);
 }
 
 }  // namespace poly

@@ -44,5 +44,10 @@ int32_t Expr::as_int32() const {
   return As<IntImm>()->value;
 }
 
+Expr &Expr::operator=(const Expr &other) {
+  *static_cast<IrNodeRef *>(this) = *static_cast<const IrNodeRef *>(&other);
+  return *this;
+}
+
 }  // namespace ir
 }  // namespace cinn

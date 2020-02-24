@@ -148,22 +148,35 @@ class Schedule {
    * Constructor.
    * @param graph A graph consisted of DataFlowGraphNodes
    */
-  explicit Schedule(common::Graph *graph) : graph_(graph) {}
+  explicit Schedule(common::Graph *graph) : graph_(graph) {
+    PartitionGroups();
+    ScheduleEachGroup();
+  }
+
+  //! Generated groups.
+  std::vector<detail::Group> &gened_groups() { return groups_; }
+  const std::vector<detail::Group> &gened_groups() const { return groups_; }
 
  private:
   //! Partition the graph into several groups(sub-graph).
   void PartitionGroups();
 
   //! Schedule a single group.
-  void ScheduleGroup(detail::Group* group);
+  void ScheduleGroup(detail::Group *group);
 
   void ScheduleEachGroup();
-
 
  private:
   common::Graph *graph_{};
   std::vector<detail::Group> groups_;
 };
+
+/**
+ * Get the schedule given some stages.
+ * A Schedule defines the execution order of the stages follow the IO dependency relations.
+ * This is different from the schedule from Halide or TVM, in CINN, the Transform is decoupled from Schedule.
+ */
+std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages);
 
 }  // namespace poly
 }  // namespace cinn
