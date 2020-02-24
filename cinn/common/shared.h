@@ -52,6 +52,15 @@ struct Shared {
 
   inline bool defined() const { return p_; }
   inline bool operator<(const Shared& other) const { return p_ < other.p_; }
+  inline Shared<T>& operator=(T* x) {
+    if (p_ == x) return *this;
+
+    T* tmp = x;
+    IncRef(tmp);
+    DesRef(p_);
+    p_ = tmp;
+    return *this;
+  }
   inline bool operator==(const Shared& other) const { return p_ == other.p_; }
 
   ~Shared() {
