@@ -6,6 +6,8 @@
 #include <set>
 #include <stack>
 
+#include "cinn/utils/dot.h"
+
 namespace cinn {
 namespace common {
 
@@ -99,6 +101,24 @@ GraphNode *Graph::RetriveNode(size_t key) const {
 }
 
 GraphNode *Graph::RetriveNode(const std::string &key) const { return RetriveNode(std::hash<std::string>()(key)); }
+
+std::string Graph::Visualize() const {
+  utils::Dot dot;
+
+  // 1. create nodes
+  for (auto &node : nodes_) {
+    dot.AddNode(node->id(), {});
+  }
+
+  // 2. link each other
+  for (auto &source : nodes_) {
+    for (auto &sink : source->outlinks()) {
+      dot.AddEdge(source->id(), sink->sink()->id(), {});
+    }
+  }
+
+  return dot();
+}
 
 }  // namespace common
 }  // namespace cinn

@@ -3,45 +3,12 @@
 namespace cinn {
 namespace utils {
 
-struct Attr {
-  std::string key;
-  std::string value;
-
-  Attr(const std::string& key, const std::string& value) : key(key), value(value) {}
-
-  std::string repr() const;
-};
-
-struct Node {
-  std::string name;
-  std::vector<Attr> attrs;
-
-  Node(const std::string& name, const std::vector<Attr>& attrs);
-
-  std::string id() const { return id_; }
-
-  std::string repr() const;
-
- private:
-  std::string id_;
-};
-
-struct Edge {
-  std::string source;
-  std::string target;
-  std::vector<Attr> attrs;
-
-  Edge(const std::string& source, const std::string& target, const std::vector<Attr>& attrs)
-      : source(source), target(target), attrs(attrs) {}
-
-  std::string repr() const;
-};
-
 std::string Attr::repr() const {
   std::stringstream ss;
   ss << key << "=" << '"' << value << '"';
   return ss.str();
 }
+
 Node::Node(const std::string& name, const std::vector<Attr>& attrs) : name(name), attrs(attrs) {
   std::stringstream ss;
   ss << "node_" << dot_node_counter++;

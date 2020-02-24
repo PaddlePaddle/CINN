@@ -18,6 +18,10 @@ struct DataFlowGraphNode : public common::GraphNode {
   //! Each stage belongs to a node.
   Shared<Stage> stage;
 
+  explicit DataFlowGraphNode(Stage* stage) : stage(stage) {}
+
+  std::string id() const override;
+
   //! Get the ancestor.
   const DataFlowGraphNode* group_ancestor() const;
   DataFlowGraphNode* group_ancestor();

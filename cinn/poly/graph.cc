@@ -51,6 +51,10 @@ DataFlowGraphNode* DataFlowGraphNode::MergeGroup(DataFlowGraphNode* a, DataFlowG
     return b_anc;
   }
 }
+std::string DataFlowGraphNode::id() const {
+  // NOTE the stage's id should be unique.
+  return stage->id();
+}
 
 namespace detail {
 
