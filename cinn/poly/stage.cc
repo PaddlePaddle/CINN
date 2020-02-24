@@ -1,5 +1,6 @@
 #include "cinn/poly/stage.h"
 
+#include "cinn/ir/ir_visitor.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/utils/functional.h"
 
@@ -113,7 +114,15 @@ Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
   return Iterator(new_name);
 }
 
-std::vector<std::string> Stage::input_statements() const { CHECK(expr_.defined());
+std::vector<std::string> Stage::input_statements() const {
+  CHECK(expr_.defined());
+  auto call_exprs = ir::CollectIRNodes(expr_, [](const Expr *x) { return x->As<ir::Call>(); });
+  std::set<std::string> statements;
+  for (auto &expr : call_exprs) {
+    auto call_name = expr->As<ir::Call>()->name;
+    if (call_name != id()) statements.insert(call_name);
+  }
+  return std::vector<std::string>(statements.begin(), statements.end());
 }
 
 std::string InnerName(const std::string &name) { return name + "_inner"; }

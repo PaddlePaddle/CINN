@@ -122,8 +122,20 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
 }  // namespace detail
 
 std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages) {
-  std::map<std::string, Stage*> dic;
-  for (auto* x : stages) dic[x->id()] = x;
+  std::map<std::string, Shared<DataFlowGraphNode>> id2stage;
+  for (auto* x : stages) id2stage[x->id()] = make_shared<DataFlowGraphNode>(x);
+
+  for (auto* stage : stages) {
+    auto depend_statement_names = stage->input_statements();
+    for (auto& depend_statement : depend_statement_names) {
+      auto& input_node = id2stage.at(depend_statement);
+      input_node->LinkTo(id2stage.at(stage->id()).get());
+    }
+  }
+
+  auto* graph = new common::Graph;
+  for (auto& item : id2stage) graph->RegisterNode(item.first, item.second.get());
+  return std::unique_ptr<common::Graph>(graph);
 }
 
 }  // namespace poly

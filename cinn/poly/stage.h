@@ -30,6 +30,8 @@ class Stage : public Object {
    */
   const char* id() const;
 
+  const Expr& expr() const { return expr_; }
+
   /**
    * Split the loop level of into two new loop levels.
    * @param level the level to split.
