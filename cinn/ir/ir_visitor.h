@@ -48,5 +48,7 @@ struct IRVisitor : public IRVisitorBase<void> {
 #undef __m
 };
 
+std::set<Expr> CollectIRNodes(Expr expr, std::function<bool(const Expr*)> teller);
+
 }  // namespace ir
 }  // namespace cinn

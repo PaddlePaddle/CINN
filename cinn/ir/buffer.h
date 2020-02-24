@@ -30,7 +30,7 @@ class Buffer : public IrNodeRef {
   const _Buffer_* operator->() const;
 };
 
-class _Buffer_ : public IrNode {
+class _Buffer_ : public ExprNode<_Buffer_> {
  public:
   //! The pointer to the head of the data.
   Var data;

@@ -14,6 +14,11 @@
 #include "cinn/ir/node.h"
 
 namespace cinn {
+
+namespace poly {
+class Stage;
+}  // namespace poly
+
 namespace ir {
 
 using common::Object;
@@ -382,8 +387,8 @@ struct IfThenElse : public ExprNode<IfThenElse> {
 
   static Expr Make(Expr condition, Expr true_case, Expr false_case);
 
-  std::vector<Expr *> expr_fields() override;
-  std::vector<const Expr *> expr_fields() const override;
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::IfThenElse;
 };
@@ -417,8 +422,8 @@ struct For : public ExprNode<For> {
 
   static Expr Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
 
-  std::vector<Expr *> expr_fields() override;
-  std::vector<const Expr *> expr_fields() const override;
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::For;
 };
@@ -444,8 +449,8 @@ struct PolyFor : public ExprNode<PolyFor> {
   static Expr Make(
       Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Expr body);
 
-  std::vector<Expr *> expr_fields() override;
-  std::vector<const Expr *> expr_fields() const override;
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::PolyFor;
 };
@@ -463,8 +468,8 @@ struct Block : public ExprNode<Block> {
 
   static Expr Make(const std::vector<Expr>& stmts);
 
-  std::vector<Expr *> expr_fields() override;
-  std::vector<const Expr *> expr_fields() const override;
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Block;
 };
@@ -478,15 +483,15 @@ class Range : public IrNodeRef {
   _Range_* operator->() const { return get()->As<_Range_>(); }
 };
 
-class _Range_ : public IrNode {
+class _Range_ : public ExprNode<_Range_> {
  public:
   //! Begin of the range.
   Expr min;
   //! Extent of the range.
   Expr extent;
 
-  _Range_() = default;
-  _Range_(Expr min, Expr extent) : min(min), extent(extent) {}
+  _Range_() : ExprNode(Type()) {}
+  _Range_(Expr min, Expr extent) : ExprNode(Type()), min(min), extent(extent) {}
   IrNodeTy node_type() const override { return _node_type_; }
   void Accept(IRVisitor* v) const override;
 
@@ -558,7 +563,7 @@ class IterVar : public IrNodeRef {
 /**
  * An iteration variable representing an iteration over a one-dimensional interval.
  */
-class _IterVar_ : public IrNode {
+class _IterVar_ : public ExprNode<_IterVar_> {
  public:
   //! The domain of the iteration.
   Range dom;

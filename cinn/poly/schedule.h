@@ -8,9 +8,10 @@
 #include <vector>
 
 #include "cinn/common/common.h"
-#include "cinn/poly/element.h"
+#include "cinn/poly/graph.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/poly/map.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace poly {
@@ -34,7 +35,7 @@ class ScheduleGraphNode;
 struct ScheduleGraph : public common::Graph {};
 
 /**
- * The range of the schedule.
+ * ISL schedule map with time space, used to generate the final schedule.
  */
 struct TimeSchedule {
   TimeSchedule(const std::string &id, const std::vector<std::string> &dims);
@@ -82,12 +83,12 @@ class Scheduler {
   /**
    * Register an Element to the scheduler.
    */
-  void RegisterElement(const Element &x);
+  void AddStage(const Stage &x);
 
   /**
    * Finalize the registration.
    */
-  void FinalizeRegistration();
+  void FinishStageAdd();
 
   /**
    * Tell whether the registration is finalized.
@@ -100,13 +101,13 @@ class Scheduler {
    * @param b
    * @param level
    */
-  Scheduler &After(const Element &a, const Element &b, int level);
+  Scheduler &After(const Stage &a, const Stage &b, int level);
   /**
    * Mark this should schedule before another.
    * @param b
    * @param level
    */
-  Scheduler &Before(const Element &a, const Element &b, int level);
+  Scheduler &Before(const Stage &a, const Stage &b, int level);
 
   /**
    * Build and create schedule.
@@ -137,6 +138,45 @@ class Scheduler {
 
   mutable ScheduleGraph schedule_graph_;
 };
+
+/**
+ * Record the schedule information for several groups.
+ */
+class Schedule {
+ public:
+  /*
+   * Constructor.
+   * @param graph A graph consisted of DataFlowGraphNodes
+   */
+  explicit Schedule(common::Graph *graph) : graph_(graph) {
+    PartitionGroups();
+    ScheduleEachGroup();
+  }
+
+  //! Generated groups.
+  std::vector<detail::Group> &gened_groups() { return groups_; }
+  const std::vector<detail::Group> &gened_groups() const { return groups_; }
+
+ private:
+  //! Partition the graph into several groups(sub-graph).
+  void PartitionGroups();
+
+  //! Schedule a single group.
+  void ScheduleGroup(detail::Group *group);
+
+  void ScheduleEachGroup();
+
+ private:
+  common::Graph *graph_{};
+  std::vector<detail::Group> groups_;
+};
+
+/**
+ * Get the schedule given some stages.
+ * A Schedule defines the execution order of the stages follow the IO dependency relations.
+ * This is different from the schedule from Halide or TVM, in CINN, the Transform is decoupled from Schedule.
+ */
+std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages);
 
 }  // namespace poly
 }  // namespace cinn

@@ -1,5 +1,6 @@
 #include "cinn/poly/schedule.h"
 
+#include <set>
 #include <sstream>
 
 #include "cinn/common/graph_utils.h"
@@ -13,6 +14,9 @@ namespace poly {
  */
 struct ScheduleGraphNode : public common::GraphNode {
   TimeSchedule time_schedule;
+
+  //! NOTE this id is not human-readable.
+  std::string id() const override { return std::to_string(reinterpret_cast<size_t>(this)); }
 
   explicit ScheduleGraphNode(const std::string &id, const std::vector<std::string> &dims) : time_schedule(id, dims) {}
 };
@@ -78,18 +82,18 @@ const std::string &TimeSchedule::id() const {
   return id_;
 }
 
-void Scheduler::RegisterElement(const Element &x) {
+void Scheduler::AddStage(const Stage &x) {
   CHECK(!registration_finalized_) << "element registration has been finalized.";
-  space_size_ = std::max(space_size_, isl_map_dim(x.schedule().get(), isl_dim_out));
+  space_size_ = std::max(space_size_, isl_map_dim(x.transform().get(), isl_dim_out));
   VLOG(3) << "space_size: " << space_size_;
-  VLOG(3) << "schedule: " << x.schedule();
+  VLOG(3) << "schedule: " << x.transform();
 
   // Use the dimensions from element's schedule's range as the new domain dimensions because in Element, the schedule is
   // like '{ S0[i,j] -> S0[i_outer, i_inner, j] }', the scheduler should schedule base on the range.
-  auto dims      = GetDimNames(x.schedule(), isl_dim_out);
-  std::string id = isl_map_get_tuple_name(x.schedule().get(), isl_dim_in);
+  auto dims      = GetDimNames(x.transform(), isl_dim_out);
+  std::string id = isl_map_get_tuple_name(x.transform().get(), isl_dim_in);
   schedule_graph_.RegisterNode(x.id(),
-                               common::make_shared<ScheduleGraphNode>(id, GetDimNames(x.schedule(), isl_dim_out)));
+                               common::make_shared<ScheduleGraphNode>(id, GetDimNames(x.transform(), isl_dim_out)));
 
   if (!ctx_.get()) {
     ctx_ = x.domain().ctx();
@@ -98,7 +102,7 @@ void Scheduler::RegisterElement(const Element &x) {
   }
 }
 
-void Scheduler::FinalizeRegistration() {
+void Scheduler::FinishStageAdd() {
   CHECK_GT(space_size_, 0) << "No valid dimension is collected, use RegisterElement to collect some elements";
   CHECK(!schedule_graph_.nodes().empty())
       << "No node is registered to the graph, use RegisterElement to collect some elements";
@@ -109,7 +113,7 @@ void Scheduler::FinalizeRegistration() {
   }
 }
 
-Scheduler &Scheduler::After(const Element &a, const Element &b, int level) {
+Scheduler &Scheduler::After(const Stage &a, const Stage &b, int level) {
   CHECK_LT(level, space_size_);
   auto *a_node = schedule_graph_.RetriveNode(a.id())->As<ScheduleGraphNode>();
   auto *b_node = schedule_graph_.RetriveNode(b.id())->As<ScheduleGraphNode>();
@@ -123,7 +127,7 @@ Scheduler &Scheduler::After(const Element &a, const Element &b, int level) {
   return *this;
 }
 
-Scheduler &Scheduler::Before(const Element &a, const Element &b, int level) { return After(b, a, level); }
+Scheduler &Scheduler::Before(const Stage &a, const Stage &b, int level) { return After(b, a, level); }
 
 std::map<std::string, isl::map> Scheduler::BuildSchedule() const {
   std::map<std::string, isl::map> res;
@@ -160,6 +164,52 @@ std::vector<std::string> Scheduler::WrapIteratorNames(const std::vector<std::str
     res.push_back(names[i]);  // name for the corresponding iterator.
   }
   return res;
+}
+
+void Schedule::PartitionGroups() {
+  CHECK(!graph_->nodes().empty());
+  groups_ = detail::PartitionGraphByIterationDomain(graph_);
+}
+
+void Schedule::ScheduleGroup(detail::Group *group) {
+  CHECK(group);
+  std::set<Stage *> dic;
+
+  // create scheduler for this group.
+  Scheduler scheduler;
+  for (auto &node : group->nodes) {
+    dic.insert(node->stage.get());
+    scheduler.AddStage(*node->stage);
+  }
+  scheduler.FinishStageAdd();
+
+  for (auto &node : group->nodes) {
+    // if any outlink in the dic, schedule the output node After this by the last dimension.
+    for (auto &outlink : node->outlinks()) {
+      auto *out_node = outlink->sink()->As<DataFlowGraphNode>();
+      if (dic.count(out_node->stage.get())) {
+        int node_iter_dims = isl_set_dim(node->stage->transformed_domain().get(), isl_dim_set);
+        int out_iter_dims  = isl_set_dim(out_node->stage->transformed_domain().get(), isl_dim_set);
+        int level          = std::min(node_iter_dims, out_iter_dims) - 1;
+        CHECK_GE(level, 0);
+        scheduler.After(*node->stage, *out_node->stage, level);
+      }
+    }
+  }
+}
+
+void Schedule::ScheduleEachGroup() {
+  CHECK(!groups_.empty()) << "call PartitionGroups first";
+  for (auto &group : groups_) {
+    ScheduleGroup(&group);
+  }
+}
+
+std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages) {
+  auto graph = CreateGraph(stages);
+
+  auto *schedule = new Schedule(graph.get());
+  return std::unique_ptr<Schedule>(schedule);
 }
 
 }  // namespace poly

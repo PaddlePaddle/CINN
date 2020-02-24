@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 
+#include <map>
 #include <memory>
 #include <string>
 
@@ -147,6 +148,7 @@ struct Expr;
 
 template <typename T>
 struct ExprNode : public IrNode {
+  ExprNode() : IrNode(Type()) {}
   explicit ExprNode(Type t) : IrNode(t) {}
 
   void Accept(IRVisitor* v) const override;
@@ -222,14 +224,14 @@ struct Expr : public IrNodeRef {
   explicit Expr(double x) : IrNodeRef(new FloatImm(Float(64), x)) {}
   // @}
 
-  Expr& operator=(const Expr& other) {
-    *static_cast<IrNodeRef*>(this) = *static_cast<const IrNodeRef*>(&other);
-    return *this;
-  }
+  Expr& operator=(const Expr& other);
 
   // primitive types
   // @{
   int32_t as_int32() const;
+  int64_t as_int64() const;
+  float as_float() const;
+  double as_double() const;
   // @}
 
   const Type& type() const { return p_->type(); }
@@ -292,3 +294,12 @@ enum class MemoryType {
 
 }  // namespace ir
 }  // namespace cinn
+
+namespace std {
+
+template <>
+struct hash<cinn::ir::Expr> {
+  size_t operator()(const cinn::ir::Expr& x) { return reinterpret_cast<size_t>(x.get()); }
+};
+
+}  // namespace std

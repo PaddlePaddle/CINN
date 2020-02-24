@@ -4,10 +4,13 @@
 #include <isl/cpp.h>
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <tuple>
 #include <vector>
 
+#include "cinn/common/common.h"
+#include "cinn/ir/ir.h"
 #include "cinn/poly/domain.h"
 #include "cinn/poly/map.h"
 
@@ -15,17 +18,19 @@ namespace cinn {
 namespace poly {
 
 /**
- * Element is the basic element of polyhedral which represents a stage in CINN.
+ * Stage is the basic element of polyhedral which represents a stage in CINN.
  * It supports multiple transforms such as tile, split and so on.
  */
-class Element {
+class Stage : public Object {
  public:
-  explicit Element(const isl::set& domain);
+  explicit Stage(const isl::set& domain, Expr expr = Expr());
 
   /**
-   * The id of this element, should be unique across the schedule.
+   * The id of this element, should be unique across the transform.
    */
   const char* id() const;
+
+  const Expr& expr() const { return expr_; }
 
   /**
    * Split the loop level of into two new loop levels.
@@ -70,17 +75,26 @@ class Element {
   Iterator Fuse(const Iterator& level0, const Iterator& level1);
 
   const isl::set& domain() const { return domain_; }
-  const isl::map& schedule() const { return schedule_; }
+  const isl::map& transform() const { return transform_; }
+  isl::set transformed_domain() const { return domain_.apply(transform_); }
+
+  //! Get the statements.
+  std::vector<std::string> input_statements() const;
+
+  virtual const char* type_info() const { return "Status"; }
+
+  Stage() = default;
 
  private:
   /**
    * Initialize with an identity schedule.
    */
-  void InitSchedule();
+  void InitTransform();
 
  private:
   isl::set domain_;
-  isl::map schedule_;
+  isl::map transform_;
+  Expr expr_;
 };
 
 //! Return the corresponding inner iterator name.

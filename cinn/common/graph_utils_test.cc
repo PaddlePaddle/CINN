@@ -8,18 +8,26 @@ namespace common {
 struct GraphNodeWithName : public GraphNode {
   explicit GraphNodeWithName(std::string name) : name(name) {}
 
+  std::string id() const override { return name; }
+
   std::string name;
 };
 
-TEST(Graph, basic) {
-  // Create nodes: A, B, C, D, E
-  Graph graph;
+// A simple graph.
+std::unique_ptr<Graph> CreateGraph0() {
+  std::unique_ptr<Graph> graph(new Graph);
 
   auto* A = make_shared<GraphNodeWithName>("A");
   auto* B = make_shared<GraphNodeWithName>("B");
   auto* C = make_shared<GraphNodeWithName>("C");
   auto* D = make_shared<GraphNodeWithName>("D");
   auto* E = make_shared<GraphNodeWithName>("E");
+
+  graph->RegisterNode("A", A);
+  graph->RegisterNode("B", B);
+  graph->RegisterNode("C", C);
+  graph->RegisterNode("D", D);
+  graph->RegisterNode("E", E);
 
   A->LinkTo(B);
   A->LinkTo(C);
@@ -28,17 +36,16 @@ TEST(Graph, basic) {
   C->LinkTo(D);
   C->LinkTo(E);
 
-  LOG(INFO) << "B: " << B->inlinks().size() << " -> " << B->outlinks().size();
+  return graph;
+}
 
-  graph.RegisterNode("A", A);
-  graph.RegisterNode("B", B);
-  graph.RegisterNode("C", C);
-  graph.RegisterNode("D", D);
-  graph.RegisterNode("E", E);
+TEST(Graph, basic) {
+  // Create nodes: A, B, C, D, E
+  auto graph = CreateGraph0();
 
   Graph::node_order_t node_order;
   Graph::edge_order_t edge_order;
-  std::tie(node_order, edge_order) = graph.topological_order();
+  std::tie(node_order, edge_order) = graph->topological_order();
 
   std::vector<std::string> order({"A", "B", "C", "D", "E"});
 
@@ -54,6 +61,11 @@ TEST(Graph, basic) {
   for (int i = 0; i < node_order.size(); i++) {
     EXPECT_EQ(node_order[i]->As<GraphNodeWithName>()->name, order[i]);
   }
+}
+
+TEST(Graph, Visualize) {
+  auto graph = CreateGraph0();
+  LOG(INFO) << "graph:\n" << graph->Visualize();
 }
 
 }  // namespace common

@@ -9,7 +9,7 @@
 #include "cinn/common/graph_utils.h"
 #include "cinn/ir/function_base.h"
 #include "cinn/ir/ir.h"
-#include "cinn/poly/element.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace ir {
@@ -88,7 +88,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Name of this tensor.
   std::string name;
   //! Polyhedral element for analysis and schedule.
-  poly::Element* poly_element{};
+  poly::Stage* poly_element{};
 
   //! Generate a tensor from a computation.
   static Tensor Make(const std::string& name,

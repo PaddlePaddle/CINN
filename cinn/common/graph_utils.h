@@ -40,6 +40,9 @@ class GraphEdge : public Object {
  */
 class GraphNode : public Object {
  public:
+  //! The unique identifier of the node.
+  virtual std::string id() const = 0;
+
   //! Links from this to other.
   template <typename EdgeT = GraphEdge>
   std::tuple<EdgeT*, EdgeT*> LinkTo(GraphNode* other) {
@@ -71,7 +74,7 @@ class GraphNode : public Object {
   void VisitOnce() const { visited_time_++; }
   bool visited() const { return inlinks_.empty() || visited_time_ == inlinks_.size(); }
 
-  const char* type_info() const override { return "graph_node"; }
+  const char* type_info() const override { return "GraphNode"; }
 
   GraphNode() = default;
 
@@ -108,6 +111,7 @@ class Graph {
 
   //! Get the start point of the graph (the nodes those has no inlinks).
   std::vector<const GraphNode*> start_points() const;
+  std::vector<GraphNode*> start_points();
 
   //! Return the graph's nodes and edges(visited) in topological order.
   std::tuple<std::vector<GraphNode*>, std::vector<GraphEdge*>> topological_order();
@@ -117,6 +121,9 @@ class Graph {
 
   std::vector<const GraphNode*> nodes() const;
   std::vector<GraphNode*> nodes();
+
+  //! Get a string representation to visualize a graph.
+  std::string Visualize() const;
 
   size_t num_nodes() const { return nodes_.size(); }
 
