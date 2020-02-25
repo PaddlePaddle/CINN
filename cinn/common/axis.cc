@@ -1,9 +1,24 @@
-#include "cinn/common/axis.h"
+#include "axis.h"
 
 #include <glog/logging.h>
 
+#include "cinn/common/axis.h"
+#include "cinn/common/common.h"
+#include "cinn/lang/compute.h"
+#include "cinn/poly/dim.h"
+#include "cinn/poly/domain.h"
+#include "cinn/poly/stage.h"
+
 namespace cinn {
 namespace common {
+
+std::vector<ir::Var> GenDefaultAxis(int naxis) {
+  std::vector<ir::Var> axis;
+  for (int i = 0; i < naxis; i++) {
+    axis.emplace_back(common::axis_name(i));
+  }
+  return axis;
+}
 
 const std::vector<std::string> kAxises({
     "i",  // level 0

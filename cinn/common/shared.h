@@ -38,7 +38,9 @@ void Destroy(const T* t) {
 template <typename T>
 struct Shared {
   Shared() = default;
-  Shared(T* p) : p_(p) { IncRef(p); }
+  Shared(T* p) : p_(p) {
+    if (p) IncRef(p);
+  }
   Shared(const Shared& other) : p_(other.p_) { IncRef(p_); }
   Shared(Shared&& other) : p_(other.p_) { other.p_ = nullptr; }
   Shared<T>& operator=(const Shared<T>& other);

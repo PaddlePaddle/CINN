@@ -4,6 +4,7 @@
  */
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "cinn/common/graph_utils.h"

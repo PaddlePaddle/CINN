@@ -3,6 +3,7 @@
  */
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <set>
 #include <string>
@@ -184,7 +185,7 @@ struct And : public BinaryOpNode<And> {
  * -x
  */
 struct Minus : public UnaryOpNode<Minus> {
-  Minus(Expr x) : UnaryOpNode<Minus>(x.type(), x) {}
+  explicit Minus(Expr x) : UnaryOpNode<Minus>(x.type(), x) {}
 
   static Expr Make(Expr a);
   static const IrNodeTy _node_type_ = IrNodeTy::Minus;
@@ -205,7 +206,7 @@ struct Or : public BinaryOpNode<Or> {
  * Logical not.
  */
 struct Not : public UnaryOpNode<Not> {
-  Not(Expr v) : UnaryOpNode<Not>(v.type(), v) {}
+  explicit Not(Expr v) : UnaryOpNode<Not>(v.type(), v) {}
 
   static Expr Make(Expr v);
 
@@ -236,13 +237,16 @@ struct Call : public ExprNode<Call> {
   FunctionRef func;
   //! The output value index if func's value is a tuple.
   int value_index{};
+  //! The tensor expression it called, leave undefined if the call is not related to a tensor.
+  Expr tensor;
 
   static Expr Make(Type type,
                    const std::string& name,
                    const std::vector<Expr>& args,
                    CallType call_type,
                    FunctionRef func = FunctionRef(),
-                   int value_index  = 0);
+                   int value_index  = 0,
+                   Expr tensor      = Expr());
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;

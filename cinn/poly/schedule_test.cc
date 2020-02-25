@@ -3,6 +3,9 @@
 #include <gtest/gtest.h>
 
 #include "cinn/ir/ir_operators.h"
+#include "cinn/lang/compute.h"
+#include "cinn/lang/placeholder.h"
+#include "cinn/lang/tensor.h"
 
 namespace cinn {
 namespace poly {
@@ -86,8 +89,8 @@ TEST(CreateSchedule, without_transform) {
   auto schedule = CreateSchedule({A_stage, B_stage, C_stage});
 
   // check
-  std::vector<std::vector<std::string>> group_statements({{"A", "B"}, {"C"}});
-  ASSERT_EQ(schedule->gened_groups().size(), 2L);
+  std::vector<std::vector<std::string>> group_statements({{"A", "B", "C"}});
+  ASSERT_EQ(schedule->gened_groups().size(), 1L);
 
   for (int i = 0; i < schedule->gened_groups().size(); i++) {
     auto& group = schedule->gened_groups()[i];

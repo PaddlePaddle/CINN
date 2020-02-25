@@ -12,6 +12,7 @@
 namespace cinn {
 namespace ir {
 
+/*
 struct ExternOp : public _Operation_ {
   //! The input tensors.
   std::vector<Tensor> inputs;
@@ -32,8 +33,9 @@ struct ExternOp : public _Operation_ {
                         std::vector<Buffer> output_placeholders,
                         Expr body);
 
-  static constexpr char *buffer_get_element = "cinn_buffer_get_element";
+  static constexpr char buffer_get_element[] = "cinn_buffer_get_element";
 };
+ */
 
 /**
  * @brief A placeholder op represents an input placeholder.
@@ -59,16 +61,19 @@ struct ComputeOp : public _Operation_ {
   std::vector<Var> axis;
   //! Var on each reduction axis, if the body is a Reduction.
   std::vector<Var> reduce_axis;
+  //! Shape of the output.
+  std::vector<Expr> shape;
   //! The compute expression.
   std::vector<Expr> body;
 
   ComputeOp() = default;
 
-  static Operation Make(std::string name,
-                        std::string tag,
-                        std::map<std::string, IrNodeRef> attrs,
-                        std::vector<Var> axis,
-                        std::vector<Expr> body);
+  static Operation Make(const std::string &name,
+                        const std::string &tag,
+                        const std::map<std::string, IrNodeRef> &attrs,
+                        const std::vector<Var> &axis,
+                        const std::vector<Expr> &body,
+                        const std::vector<Expr> &shape);
 
   const char *func_type() const override;
 

@@ -3,15 +3,22 @@
 #include <isl/cpp.h>
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "cinn/common/graph_utils.h"
 #include "cinn/ir/function_base.h"
 #include "cinn/ir/ir.h"
-#include "cinn/poly/stage.h"
 
 namespace cinn {
+
+namespace poly {
+
+struct Stage;
+
+}  // namespace poly
+
 namespace ir {
 
 namespace detail {
@@ -48,6 +55,8 @@ class Tensor : public ir::IrNodeRef {
 
   inline const _Tensor_* operator->() const { return As<_Tensor_>(); }
   inline _Tensor_* operator->() { return As<_Tensor_>(); }
+
+  inline operator Expr() const { return Expr(get()); }
 
   /**
    * Take elements from the tensor.
@@ -88,7 +97,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Name of this tensor.
   std::string name;
   //! Polyhedral element for analysis and schedule.
-  poly::Stage* poly_element{};
+  poly::Stage* stage{};
 
   //! Generate a tensor from a computation.
   static Tensor Make(const std::string& name,
@@ -97,23 +106,28 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      const std::vector<Var>& axis,
                      Type dtype,
                      const std::map<std::string, IrNodeRef>& attrs,
-                     const std::vector<Expr>& body);
+                     const std::vector<Expr>& body = {});
 
   //! Generate a tensor from a function.
   static Tensor Make(const std::string& name, const std::vector<Expr>& shape, FunctionRef fn);
 
-  _Tensor_() : ExprNode<_Tensor_>(Float(32)) {}
+  bool is_compute_node() const;
+  bool is_placeholder_node() const;
+  const char* operation_type() const;
+
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Tensor_;
 
-  ~_Tensor_() {
-    if (poly_element) delete (poly_element);
-  }
+  _Tensor_() : ExprNode<_Tensor_>(Float(32)), stage(nullptr) {}
+
+  ~_Tensor_();
 
  private:
   //! Create the polyhedral element for analysis.
   //! It is based on the shape.
-  void InitPolyElement();
+  void InitStage();
 
   isl::set GenerateIslDomain();
 };
@@ -127,7 +141,7 @@ class Operation : public FunctionRef {
   inline const _Operation_* operator->() const;
 
   //! Get the i-th output of the operation.
-  Tensor output(size_t i) const;
+  // Tensor output(size_t i) const;
 
   std::string name;
 };

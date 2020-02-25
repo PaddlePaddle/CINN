@@ -1,9 +1,12 @@
 #include "cinn/poly/schedule.h"
 
+#include <deque>
 #include <set>
 #include <sstream>
 
 #include "cinn/common/graph_utils.h"
+#include "cinn/ir/ir_visitor.h"
+#include "cinn/lang/tensor.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -205,7 +208,38 @@ void Schedule::ScheduleEachGroup() {
   }
 }
 
+std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor) {
+  // get the stages from a tensor.
+  std::vector<Stage *> stages;
+  std::deque<ir::Tensor> queue({tensor});
+
+  Expr tensor_expr(tensor);
+
+  std::set<Expr> visited;
+  while (!queue.empty()) {
+    auto top = queue.front();
+    queue.pop_front();
+    if (visited.count(Expr(top))) continue;
+    visited.insert(Expr(top));
+    stages.push_back(top->stage);
+
+    auto tensor_exprs = ir::CollectIRNodes(Expr(tensor), [](const Expr *expr) { return expr->As<ir::_Tensor_>(); });
+    for (auto &expr : tensor_exprs) {
+      if (!visited.count(expr)) queue.push_back(ir::Tensor(const_cast<ir::_Tensor_ *>(expr.As<ir::_Tensor_>())));
+    }
+  }
+
+  std::reverse(stages.begin(), stages.end());
+  VLOG(3) << "get stages for compute";
+  for (auto &stage : stages) {
+    VLOG(3) << "stage " << stage->id();
+  }
+
+  return CreateSchedule(stages);
+}
+
 std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages) {
+  CHECK(!stages.empty());
   auto graph = CreateGraph(stages);
 
   auto *schedule = new Schedule(graph.get());

@@ -27,4 +27,8 @@ include_directories(${ISL_HOME}/include)
 find_library(isl_lib isl PATHS "${ISL_HOME}/lib" NO_DEFAULT_PATH)
 link_directories(${ISL_HOME}/lib)
 
+set(core_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
+add_subdirectory(unittest)
+
+cc_library(core SRCS ${core_src} DEPS boost)

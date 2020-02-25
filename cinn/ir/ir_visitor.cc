@@ -1,5 +1,9 @@
 #include "cinn/ir/ir_visitor.h"
 
+#include "cinn/ir/ir_printer.h"
+#include "cinn/lang/tensor.h"
+#include "cinn/utils/string.h"
+
 namespace cinn {
 namespace ir {
 
@@ -15,6 +19,7 @@ struct IrNodesCollector : public IRVisitor {
   IrNodesCollector(teller_t&& teller, handler_t&& handler) : teller(teller), handler(handler) {}
 
   void Visit(const Expr* expr) override {
+    if (!expr->defined()) return;
     if (teller(expr)) handler(expr);
 
     switch (expr->node_type()) {
@@ -33,7 +38,7 @@ struct IrNodesCollector : public IRVisitor {
 #define __m(t__)                       \
   void Visit(const t__* x) override {  \
     for (auto* n : x->expr_fields()) { \
-      Visit(n);                        \
+      if (n->defined()) Visit(n);      \
     }                                  \
   }
 
@@ -45,14 +50,19 @@ struct IrNodesCollector : public IRVisitor {
 
 std::set<Expr> CollectIRNodes(Expr expr, std::function<bool(const Expr*)> teller) {
   std::set<Expr> exprs;
-  IrNodesCollector::handler_t handler = [&](const Expr* x) {
-    auto* call = x->As<Call>();
-    exprs.insert(*x);
-  };
+  IrNodesCollector::handler_t handler = [&](const Expr* x) { exprs.insert(*x); };
   IrNodesCollector collector(std::move(teller), std::move(handler));
   collector.Visit(&expr);
   return exprs;
 }
+
+bool operator==(Expr a, Expr b) {
+  if (a.get() == b.get()) return true;
+  // TODO(Superjomn) implement with a more accurate one
+  return utils::GetStreamCnt(a) == utils::GetStreamCnt(b);
+}
+
+bool operator!=(Expr a, Expr b) { return !(a == b); }
 
 }  // namespace ir
 }  // namespace cinn

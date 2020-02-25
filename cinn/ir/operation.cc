@@ -12,21 +12,24 @@ Operation PlaceholderOp::Make(const std::string &name, const std::vector<Expr> &
   n->set_type(dtype);
   return Operation(n);
 }
+
 const char *PlaceholderOp::func_type() const { return __func_type__; }
 
 const char *ComputeOp::func_type() const { return __func_type__; }
 
-Operation ComputeOp::Make(std::string name,
-                          std::string tag,
-                          std::map<std::string, IrNodeRef> attrs,
-                          std::vector<Var> axis,
-                          std::vector<Expr> body) {
+Operation ComputeOp::Make(const std::string &name,
+                          const std::string &tag,
+                          const std::map<std::string, IrNodeRef> &attrs,
+                          const std::vector<Var> &axis,
+                          const std::vector<Expr> &body,
+                          const std::vector<Expr> &shape) {
   auto n   = make_shared<ComputeOp>();
   n->name  = name;
   n->tag   = tag;
   n->attrs = attrs;
   n->axis  = axis;
   n->body  = body;
+  n->shape = shape;
   return Operation(n);
 }
 
