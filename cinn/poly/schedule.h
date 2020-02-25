@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -8,6 +9,7 @@
 #include <vector>
 
 #include "cinn/common/common.h"
+#include "cinn/lang/tensor.h"
 #include "cinn/poly/graph.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/poly/map.h"
@@ -170,6 +172,11 @@ class Schedule {
   common::Graph *graph_{};
   std::vector<detail::Group> groups_;
 };
+
+/**
+ * Create the schedule from a tensor, it will retrive the dependency tensors.
+ */
+std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor);
 
 /**
  * Get the schedule given some stages.

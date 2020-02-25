@@ -2,6 +2,9 @@
 
 #include <gtest/gtest.h>
 
+#include <set>
+
+#include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 

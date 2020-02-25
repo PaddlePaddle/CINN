@@ -1,10 +1,15 @@
 #pragma once
+#include <functional>
+#include <set>
+
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
 #include "cinn/lang/tensor.h"
 
 namespace cinn {
 namespace ir {
+
+struct _Tensor_;
 
 /**
  * Base class of all the methods visit the IR tree.
@@ -49,6 +54,9 @@ struct IRVisitor : public IRVisitorBase<void> {
 };
 
 std::set<Expr> CollectIRNodes(Expr expr, std::function<bool(const Expr*)> teller);
+
+bool operator==(Expr a, Expr b);
+bool operator!=(Expr a, Expr b);
 
 }  // namespace ir
 }  // namespace cinn

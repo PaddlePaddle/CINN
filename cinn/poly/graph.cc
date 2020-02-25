@@ -72,7 +72,7 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
   std::map<DataFlowGraphNode*, uint16_t> indegree;
   for (common::GraphNode* n : graph->nodes()) {
     auto* node     = n->As<DataFlowGraphNode>();
-    indegree[node] = node->outlinks().size();
+    indegree[node] = node->inlinks().size();
   }
 
   std::deque<DataFlowGraphNode*> queue;
@@ -83,14 +83,17 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
   while (!queue.empty()) {
     auto* node = queue.front();
     queue.pop_front();
+    LOG(INFO) << "to visit " << node->id();
 
     for (auto& c : node->outlinks()) {
       auto* child = c->sink()->As<DataFlowGraphNode>();
+      LOG(INFO) << "  tell child " << c->sink()->id() << " indegree " << indegree[child];
       --indegree[child];
 
       VLOG(3) << node->stage->transformed_domain() << " -> " << child->stage->transformed_domain();
       if (indegree[child] == 0) {
         if (DataFlowGraphNode::TransformedDomainIsSame(node, child)) {
+          VLOG(4) << child->id() << " ready to merge " << node->id() << " with " << child->id();
           DataFlowGraphNode::MergeGroup(node, child);
         }
         queue.push_back(child);
@@ -138,6 +141,7 @@ std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages) {
 
   for (auto* stage : stages) {
     auto depend_statement_names = stage->input_statements();
+    VLOG(3) << stage->id() << " depend " << utils::Join(depend_statement_names, ", ");
     for (auto& depend_statement : depend_statement_names) {
       auto& input_node = id2stage.at(depend_statement);
       input_node->LinkTo(id2stage.at(stage->id()).get());

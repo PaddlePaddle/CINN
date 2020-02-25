@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cinn/ir/ir_printer.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace optim {

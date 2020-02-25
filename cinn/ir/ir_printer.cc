@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "cinn/lang/tensor.h"
+
 namespace cinn {
 namespace ir {
 

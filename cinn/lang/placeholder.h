@@ -1,10 +1,13 @@
 #pragma once
-#include <cinn/ir/operation.h>
+#include <string>
+#include <vector>
 
 #include "cinn/common/common.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/operation.h"
+#include "cinn/lang/tensor.h"
 #include "cinn/runtime/intrinsic.h"
 
 namespace cinn {

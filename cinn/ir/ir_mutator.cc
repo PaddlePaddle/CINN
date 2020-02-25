@@ -1,6 +1,7 @@
 #include "cinn/ir/ir_mutator.h"
 
 #include "cinn/ir/ir_printer.h"
+#include "cinn/lang/tensor.h"
 
 namespace cinn {
 namespace ir {
