@@ -1,4 +1,4 @@
-set(srcs buffer.cc compute.cc placeholder.cc tensor.cc module.cc)
+set(srcs buffer.cc compute.cc placeholder.cc tensor.cc module.cc lower.cc)
 
 foreach(cpp ${srcs})
   set(core_src

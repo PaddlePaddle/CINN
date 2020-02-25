@@ -42,5 +42,11 @@ void Module::Append(const Module &module) { self()->submodules.push_back(module)
 
 void Module::Compile(const backends::Outputs &outputs) const {}
 
+LoweredFunc::LoweredFunc(const std::string &name, const std::vector<Argument> &args, const std::vector<Expr> &body) {
+  this->name = name;
+  this->args = args;
+  this->body = ir::Block::Make(body);
+}
+
 }  // namespace lang
 }  // namespace cinn

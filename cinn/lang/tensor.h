@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "cinn/common/graph_utils.h"
@@ -115,6 +116,9 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   bool is_placeholder_node() const;
   const char* operation_type() const;
 
+  //! The expression generate this tensor, will be empty if it is a PlaceHolder.
+  Expr body() const;
+
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
@@ -163,3 +167,15 @@ class _Operation_ : public ir::FunctionBase {
 
 }  // namespace ir
 }  // namespace cinn
+
+namespace std {
+
+template <>
+struct hash<cinn::ir::Tensor> {
+  inline size_t operator()(const cinn::ir::Tensor& x) {
+    // We treat the tensor's name as the unique identifier.
+    return std::hash<std::string>()(x->name);
+  }
+};
+
+}  // namespace std

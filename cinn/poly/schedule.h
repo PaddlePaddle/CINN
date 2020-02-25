@@ -65,81 +65,12 @@ struct TimeSchedule {
   std::string id_;
 };
 
+// TODO(Superjomn)
 /**
- * Scheduler - Perform schedule on polyhedral model.
- * It takes a normal schedule as input, and transform it into
- *
+ * The NaiveSchedule just schedule each noninlined Tensor as a unique group. Only the `compute_at` will make two tensor
+ * in the same group. It is simple and robust.
  */
-class Scheduler {
- public:
-  /**
-   * Constructor.
-   * @param schedule A normal isl schedule, such as '{ S[i,j] -> [i,j] }'
-   *
-   * The schedule input can be transformed, that's ok, such as
-   *   '{ S[i,j] -> [i_outer, i_inner, j]: i_outer=floor(i/4) and i_inner=i%4 }'
-   * that's OK.
-   */
-  Scheduler() : ctx_(Context::Global().isl_ctx()) {}
-
-  /**
-   * Register an Element to the scheduler.
-   */
-  void AddStage(const Stage &x);
-
-  /**
-   * Finalize the registration.
-   */
-  void FinishStageAdd();
-
-  /**
-   * Tell whether the registration is finalized.
-   */
-  bool finalized() const { return registration_finalized_; }
-
-  /**
-   * Mark this should schedule after another.
-   *
-   * @param b
-   * @param level
-   */
-  Scheduler &After(const Stage &a, const Stage &b, int level);
-  /**
-   * Mark this should schedule before another.
-   * @param b
-   * @param level
-   */
-  Scheduler &Before(const Stage &a, const Stage &b, int level);
-
-  /**
-   * Build and create schedule.
-   */
-  std::map<std::string, isl::map> BuildSchedule() const;
-
-  /**
-   * Wrap the iterator names with time space.
-   * @param names the original iterator names.
-   * @return the iterator names with time space included.
-   */
-  std::vector<std::string> WrapIteratorNames(const std::vector<std::string> &names) const;
-
-  int space_size() const { return space_size_; }
-
- private:
-  /**
-   * The polyhedral schedule, any schedule is performed on it.
-   * We use the time-space map to record the schedule infomation, the format is borrowed from Tiramisu project:
-   * [redundant,
-   *
-   */
-  int space_size_{};
-  //! Tell if the element registration is finalized.
-  bool registration_finalized_{false};
-
-  mutable isl::ctx ctx_;
-
-  mutable ScheduleGraph schedule_graph_;
-};
+class NaiveSchedule {};
 
 /**
  * Record the schedule information for several groups.
@@ -191,6 +122,83 @@ std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages);
  * @returns The stages in topological order follow the connection to `xs`.
  */
 std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs);
+
+/**
+ * PolyScheduler - Perform schedule on polyhedral model.
+ * It takes a normal schedule as input, and transform it into
+ *
+ */
+class PolyScheduler {
+ public:
+  /**
+   * Constructor.
+   * @param schedule A normal isl schedule, such as '{ S[i,j] -> [i,j] }'
+   *
+   * The schedule input can be transformed, that's ok, such as
+   *   '{ S[i,j] -> [i_outer, i_inner, j]: i_outer=floor(i/4) and i_inner=i%4 }'
+   * that's OK.
+   */
+  PolyScheduler() = default;
+  PolyScheduler(const std::vector<Stage *> &stages);
+
+  /**
+   * Register an Element to the scheduler.
+   */
+  void AddStage(const Stage &x);
+
+  /**
+   * Finalize the registration.
+   */
+  void FinishStageAdd();
+
+  /**
+   * Tell whether the registration is finalized.
+   */
+  bool finalized() const { return registration_finalized_; }
+
+  /**
+   * Mark this should schedule after another.
+   *
+   * @param b
+   * @param level
+   */
+  PolyScheduler &After(const Stage &a, const Stage &b, int level);
+  /**
+   * Mark this should schedule before another.
+   * @param b
+   * @param level
+   */
+  PolyScheduler &Before(const Stage &a, const Stage &b, int level);
+
+  /**
+   * Build and create schedule.
+   */
+  std::map<std::string, isl::map> BuildSchedule() const;
+
+  /**
+   * Wrap the iterator names with time space.
+   * @param names the original iterator names.
+   * @return the iterator names with time space included.
+   */
+  std::vector<std::string> WrapIteratorNames(const std::vector<std::string> &names) const;
+
+  int space_size() const { return space_size_; }
+
+ private:
+  /**
+   * The polyhedral schedule, any schedule is performed on it.
+   * We use the time-space map to record the schedule infomation, the format is borrowed from Tiramisu project:
+   * [redundant,
+   *
+   */
+  int space_size_{};
+  //! Tell if the element registration is finalized.
+  bool registration_finalized_{false};
+
+  mutable isl::ctx ctx_{Context::Global().isl_ctx()};
+
+  mutable ScheduleGraph schedule_graph_;
+};
 
 }  // namespace poly
 }  // namespace cinn

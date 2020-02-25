@@ -24,8 +24,8 @@ TEST(ReplaceCallWithExpr, basic) {
   tuple_to_expr["B"] = ir::Store::Make(A_buf, B_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
 
   isl::ctx ctx = Context::Global().isl_ctx();
-  auto *A = make_shared<Stage>(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
-  auto *B = make_shared<Stage>(isl::set(ctx, "{ B[i,j,k]: 0<i,j,k<100 }"));
+  auto *A      = make_shared<Stage>(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
+  auto *B      = make_shared<Stage>(isl::set(ctx, "{ B[i,j,k]: 0<i,j,k<100 }"));
 
   Iterator A_i0, A_i1;
   Iterator B_i0, B_i1;
@@ -33,7 +33,7 @@ TEST(ReplaceCallWithExpr, basic) {
   std::tie(A_i0, A_i1) = A->Split(Iterator("i"), 4);
   std::tie(B_i0, B_i1) = B->Split(Iterator("i"), 4);
 
-  Scheduler scheduler;
+  PolyScheduler scheduler;
   scheduler.AddStage(*A);
   scheduler.AddStage(*B);
   scheduler.After(*A, *B, 3);

@@ -90,6 +90,7 @@ struct LoweredFunc {
 
   LoweredFunc(const std::string& name, const std::vector<Argument>& args, const Expr& body)
       : name(name), args(args), body(body) {}
+  LoweredFunc(const std::string& name, const std::vector<Argument>& args, const std::vector<Expr>& body);
 };
 
 }  // namespace lang
