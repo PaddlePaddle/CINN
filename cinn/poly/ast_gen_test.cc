@@ -10,7 +10,7 @@ namespace cinn {
 namespace poly {
 
 TEST(ast_gen, basic) {
-  isl::ctx ctx(isl_ctx_alloc());
+  isl::ctx ctx = Context::Global().isl_ctx();
   auto* A = make_shared<Stage>(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
   auto* B = make_shared<Stage>(isl::set(ctx, "{ B[i,j,k]: 0<i,j,k<100 }"));
 

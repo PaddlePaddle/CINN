@@ -19,7 +19,7 @@ struct Domain {
   //! The ISL context.
   isl::ctx ctx;
 
-  Domain(isl::ctx, std::string id, std::vector<Dim> dims) : ctx(ctx), id(std::move(id)), dims(std::move(dims)) {}
+  Domain(isl::ctx ctx, std::string id, std::vector<Dim> dims) : ctx(ctx), id(std::move(id)), dims(std::move(dims)) {}
 
   //! The ISL format representation, such as '{ S[i]: 0<=i<=20 }'.
   std::string __str__() const;

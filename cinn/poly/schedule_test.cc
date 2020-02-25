@@ -11,7 +11,7 @@ namespace cinn {
 namespace poly {
 
 TEST(Scheduler, basic) {
-  isl::ctx ctx(isl_ctx_alloc());
+  isl::ctx ctx(Context::Global().isl_ctx());
   isl::set A_set(ctx, "[]->{ A[i,j]: 0<i,j<100 }");
   Stage A(A_set);
   isl::set B_set(ctx, "[]->{ B[i,j]: 0<i,j<100 }");
@@ -35,7 +35,7 @@ TEST(Scheduler, basic) {
 }
 
 TEST(Scheduler, basic_with_transform) {
-  isl::ctx ctx(isl_ctx_alloc());
+  isl::ctx ctx = Context::Global().isl_ctx();
   Stage A(isl::set(ctx, "[]->{ A[i,j]: 0<i,j<100 }"));
   Stage B(isl::set(ctx, "[]->{ B[i,j]: 0<i,j<100 }"));
   auto x = A.Split("i", 4);

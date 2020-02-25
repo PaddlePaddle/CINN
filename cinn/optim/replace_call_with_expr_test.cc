@@ -23,7 +23,7 @@ TEST(ReplaceCallWithExpr, basic) {
   tuple_to_expr["A"] = ir::Store::Make(A_buf, A_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
   tuple_to_expr["B"] = ir::Store::Make(A_buf, B_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
 
-  isl::ctx ctx(isl_ctx_alloc());
+  isl::ctx ctx = Context::Global().isl_ctx();
   auto *A = make_shared<Stage>(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
   auto *B = make_shared<Stage>(isl::set(ctx, "{ B[i,j,k]: 0<i,j,k<100 }"));
 

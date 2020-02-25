@@ -125,6 +125,7 @@ std::vector<const Expr *> _Tensor_::expr_fields() const {
 _Tensor_::~_Tensor_() {
   if (stage) {
     delete stage;
+    stage = nullptr;
   }
 }
 
