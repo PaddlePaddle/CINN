@@ -103,6 +103,7 @@ std::vector<Expr *> _Tensor_::expr_fields() {
   }
   return res;
 }
+
 std::vector<const Expr *> _Tensor_::expr_fields() const {
   std::vector<const Expr *> res;
   const char *func_type = operaion->As<ir::_Operation_>()->func_type();
@@ -125,10 +126,17 @@ std::vector<const Expr *> _Tensor_::expr_fields() const {
 _Tensor_::~_Tensor_() {
   if (stage) {
     delete stage;
+    stage = nullptr;
   }
 }
 
 const _Operation_ *Operation::operator->() const { return static_cast<_Operation_ *>(get()); }
+
+Expr _Tensor_::body() const {
+  if (is_placeholder_node()) return Expr();
+  if (is_compute_node()) return operaion->As<ir::ComputeOp>()->body.front();
+  NOT_IMPLEMENTED;
+}
 
 }  // namespace ir
 }  // namespace cinn

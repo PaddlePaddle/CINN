@@ -50,6 +50,8 @@ struct Shared {
   inline T* get() const { return p_; }
   inline T& operator*() const { return *p_; }
   inline T* operator->() const { return p_; }
+  inline T* self() { return p_; }
+  inline const T* self() const { return p_; }
   // @}
 
   inline bool defined() const { return p_; }

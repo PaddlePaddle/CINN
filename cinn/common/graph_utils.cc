@@ -52,9 +52,32 @@ std::tuple<Graph::node_order_t, Graph::edge_order_t> TopologicalSort(const std::
 
 void DFSSortUtil(const GraphNode *node, std::vector<GraphNode *> *order) {}
 
-std::vector<GraphNode *> DFSSort(const std::vector<GraphNode *> &nodes) {}
+std::vector<GraphNode *> DFSSort(const std::vector<GraphNode *> &nodes) {
+  LOG(FATAL) << "not implemented";
+  return {};
+}
 
 }  // namespace
+
+std::set<GraphNode *> Graph::dependencies(const std::vector<GraphNode *> &targets) {
+  // A naive implementation.
+  std::set<GraphNode *> _targets(targets.begin(), targets.end());
+  std::set<GraphNode *> res;
+  int targets_count = 0;
+  while (targets_count != _targets.size()) {
+    targets_count = _targets.size();
+    for (auto *node : nodes()) {
+      if (_targets.count(node)) continue;
+      for (auto &edge : node->outlinks()) {
+        if (_targets.count(edge->sink())) {
+          res.insert(edge->sink());
+          _targets.insert(edge->sink());
+        }
+      }
+    }
+  }
+  return res;
+}
 
 std::vector<const GraphNode *> Graph::nodes() const {
   std::vector<const GraphNode *> res;

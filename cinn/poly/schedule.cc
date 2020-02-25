@@ -85,7 +85,7 @@ const std::string &TimeSchedule::id() const {
   return id_;
 }
 
-void Scheduler::AddStage(const Stage &x) {
+void PolyScheduler::AddStage(const Stage &x) {
   CHECK(!registration_finalized_) << "element registration has been finalized.";
   space_size_ = std::max(space_size_, isl_map_dim(x.transform().get(), isl_dim_out));
   VLOG(3) << "space_size: " << space_size_;
@@ -105,7 +105,7 @@ void Scheduler::AddStage(const Stage &x) {
   }
 }
 
-void Scheduler::FinishStageAdd() {
+void PolyScheduler::FinishStageAdd() {
   CHECK_GT(space_size_, 0) << "No valid dimension is collected, use RegisterElement to collect some elements";
   CHECK(!schedule_graph_.nodes().empty())
       << "No node is registered to the graph, use RegisterElement to collect some elements";
@@ -116,7 +116,7 @@ void Scheduler::FinishStageAdd() {
   }
 }
 
-Scheduler &Scheduler::After(const Stage &a, const Stage &b, int level) {
+PolyScheduler &PolyScheduler::After(const Stage &a, const Stage &b, int level) {
   CHECK_LT(level, space_size_);
   auto *a_node = schedule_graph_.RetriveNode(a.id())->As<ScheduleGraphNode>();
   auto *b_node = schedule_graph_.RetriveNode(b.id())->As<ScheduleGraphNode>();
@@ -130,9 +130,9 @@ Scheduler &Scheduler::After(const Stage &a, const Stage &b, int level) {
   return *this;
 }
 
-Scheduler &Scheduler::Before(const Stage &a, const Stage &b, int level) { return After(b, a, level); }
+PolyScheduler &PolyScheduler::Before(const Stage &a, const Stage &b, int level) { return After(b, a, level); }
 
-std::map<std::string, isl::map> Scheduler::BuildSchedule() const {
+std::map<std::string, isl::map> PolyScheduler::BuildSchedule() const {
   std::map<std::string, isl::map> res;
   CHECK(ctx_.get());
 
@@ -159,7 +159,7 @@ std::map<std::string, isl::map> Scheduler::BuildSchedule() const {
   return res;
 }
 
-std::vector<std::string> Scheduler::WrapIteratorNames(const std::vector<std::string> &names) const {
+std::vector<std::string> PolyScheduler::WrapIteratorNames(const std::vector<std::string> &names) const {
   CHECK_EQ(names.size(), space_size());
   std::vector<std::string> res;
   for (int i = 0; i < space_size(); i++) {
@@ -179,7 +179,7 @@ void Schedule::ScheduleGroup(detail::Group *group) {
   std::set<Stage *> dic;
 
   // create scheduler for this group.
-  Scheduler scheduler;
+  PolyScheduler scheduler;
   for (auto &node : group->nodes) {
     dic.insert(node->stage.get());
     scheduler.AddStage(*node->stage);
@@ -209,32 +209,7 @@ void Schedule::ScheduleEachGroup() {
 }
 
 std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor) {
-  // get the stages from a tensor.
-  std::vector<Stage *> stages;
-  std::deque<ir::Tensor> queue({tensor});
-
-  Expr tensor_expr(tensor);
-
-  std::set<Expr> visited;
-  while (!queue.empty()) {
-    auto top = queue.front();
-    queue.pop_front();
-    if (visited.count(Expr(top))) continue;
-    visited.insert(Expr(top));
-    stages.push_back(top->stage);
-
-    auto tensor_exprs = ir::CollectIRNodes(Expr(tensor), [](const Expr *expr) { return expr->As<ir::_Tensor_>(); });
-    for (auto &expr : tensor_exprs) {
-      if (!visited.count(expr)) queue.push_back(ir::Tensor(const_cast<ir::_Tensor_ *>(expr.As<ir::_Tensor_>())));
-    }
-  }
-
-  std::reverse(stages.begin(), stages.end());
-  VLOG(3) << "get stages for compute";
-  for (auto &stage : stages) {
-    VLOG(3) << "stage " << stage->id();
-  }
-
+  auto stages = GatherStagesInTensors({tensor});
   return CreateSchedule(stages);
 }
 
@@ -244,6 +219,37 @@ std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages) {
 
   auto *schedule = new Schedule(graph.get());
   return std::unique_ptr<Schedule>(schedule);
+}
+
+std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs) {
+  // get the stages from a tensor.
+  std::vector<Stage *> stages;
+  std::deque<ir::Tensor> queue;
+  for (auto &x : xs) queue.push_back(x);
+
+  std::set<Expr> visited;
+  while (!queue.empty()) {
+    auto top = queue.front();
+    queue.pop_front();
+    if (visited.count(Expr(top))) continue;
+    visited.insert(Expr(top));
+    stages.push_back(top->stage);
+
+    auto tensor_exprs = ir::CollectIRNodes(Expr(top), [](const Expr *expr) { return expr->As<ir::_Tensor_>(); });
+    for (auto &expr : tensor_exprs) {
+      if (!visited.count(expr)) queue.push_back(ir::Tensor(const_cast<ir::_Tensor_ *>(expr.As<ir::_Tensor_>())));
+    }
+  }
+
+  std::reverse(stages.begin(), stages.end());
+  return stages;
+}
+
+PolyScheduler::PolyScheduler(const std::vector<Stage *> &stages) {
+  for (auto *stage : stages) {
+    AddStage(*stage);
+  }
+  FinishStageAdd();
 }
 
 }  // namespace poly

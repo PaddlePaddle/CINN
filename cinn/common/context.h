@@ -1,6 +1,7 @@
 #pragma once
 #include <isl/cpp.h>
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -35,7 +36,7 @@ class Context {
   /**
    * The global isl ctx.
    */
-  isl::ctx& isl_ctx() { return ctx_; }
+  isl::ctx isl_ctx() { return ctx_; }
 
  private:
   Context() : ctx_(isl_ctx_alloc()) {}

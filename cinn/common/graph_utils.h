@@ -3,9 +3,12 @@
 
 #include <glog/logging.h>
 
+#include <functional>
 #include <list>
 #include <map>
+#include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "cinn/common/object.h"
@@ -119,6 +122,9 @@ class Graph {
   //! Return the graph's DFS order.
   std::vector<GraphNode*> dfs_order();
 
+  //! Return the dependency nodes of a set of nodes.
+  std::set<GraphNode*> dependencies(const std::vector<GraphNode*>& nodes);
+
   std::vector<const GraphNode*> nodes() const;
   std::vector<GraphNode*> nodes();
 
@@ -136,3 +142,11 @@ class Graph {
 
 }  // namespace common
 }  // namespace cinn
+
+namespace std {
+template <>
+struct hash<cinn::common::GraphNode> {
+  size_t operator()(const cinn::common::GraphNode& x) { return reinterpret_cast<size_t>(hash<std::string>()(x.id())); }
+};
+
+}  // namespace std

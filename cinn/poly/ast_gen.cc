@@ -376,7 +376,7 @@ void AstGen::InitIslAstConfig() {
   isl_options_set_ast_build_allow_else(ctx().get(), 1);
 }
 
-AstGen::AstGen(const isl::set& context, const std::vector<Stage*>& stages, const Scheduler& scheduler)
+AstGen::AstGen(const isl::set& context, const std::vector<Stage*>& stages, const PolyScheduler& scheduler)
     : context_(context), scheduler_(scheduler) {
   for (auto* x : stages) stages_.emplace_back(x);
   InitIslAstConfig();
