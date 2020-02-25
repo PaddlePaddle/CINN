@@ -83,11 +83,11 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
   while (!queue.empty()) {
     auto* node = queue.front();
     queue.pop_front();
-    LOG(INFO) << "to visit " << node->id();
+    VLOG(4) << "to visit " << node->id();
 
     for (auto& c : node->outlinks()) {
       auto* child = c->sink()->As<DataFlowGraphNode>();
-      LOG(INFO) << "  tell child " << c->sink()->id() << " indegree " << indegree[child];
+      VLOG(2) << "  tell child " << c->sink()->id() << " indegree " << indegree[child];
       --indegree[child];
 
       VLOG(3) << node->stage->transformed_domain() << " -> " << child->stage->transformed_domain();
