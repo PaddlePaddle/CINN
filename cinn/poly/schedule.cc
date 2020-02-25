@@ -230,9 +230,9 @@ std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor) {
   }
 
   std::reverse(stages.begin(), stages.end());
-  LOG(INFO) << "get stages for compute";
+  VLOG(3) << "get stages for compute";
   for (auto &stage : stages) {
-    LOG(INFO) << "stage " << stage->id();
+    VLOG(3) << "stage " << stage->id();
   }
 
   return CreateSchedule(stages);

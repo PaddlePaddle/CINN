@@ -6,14 +6,13 @@ set(srcs
     isl_utils.cc
     schedule.cc
     ast_gen.cc
-    graph.cc
-  )
-
+    graph.cc)
 
 foreach(cpp ${srcs})
-  set (core_src "${core_src};cinn/poly/${cpp}" CACHE INTERNAL "")
+  set(core_src
+      "${core_src};cinn/poly/${cpp}"
+      CACHE INTERNAL "")
 endforeach()
-
 
 cc_test(test_graph SRCS graph_test.cc DEPS core)
 cc_test(test_schedule SRCS schedule_test.cc DEPS core)

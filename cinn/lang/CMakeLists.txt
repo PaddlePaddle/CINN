@@ -1,13 +1,9 @@
-set(srcs
-      buffer.cc
-      compute.cc
-      placeholder.cc
-      tensor.cc
-      module.cc
-  )
+set(srcs buffer.cc compute.cc placeholder.cc tensor.cc module.cc)
 
 foreach(cpp ${srcs})
-  set (core_src "${core_src};cinn/lang/${cpp}" CACHE INTERNAL "")
+  set(core_src
+      "${core_src};cinn/lang/${cpp}"
+      CACHE INTERNAL "")
 endforeach()
 
 cc_test(test_compute SRCS compute_test.cc DEPS core)
