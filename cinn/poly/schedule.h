@@ -80,7 +80,7 @@ class Scheduler {
    *   '{ S[i,j] -> [i_outer, i_inner, j]: i_outer=floor(i/4) and i_inner=i%4 }'
    * that's OK.
    */
-  Scheduler() : ctx_(nullptr) {}
+  Scheduler() : ctx_(Context::Global().isl_ctx()) {}
 
   /**
    * Register an Element to the scheduler.
@@ -184,6 +184,13 @@ std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor);
  * This is different from the schedule from Halide or TVM, in CINN, the Transform is decoupled from Schedule.
  */
 std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages);
+
+/**
+ * Gather the stages in the input tensors and their dependencies
+ * @param xs The input tensors.
+ * @returns The stages in topological order follow the connection to `xs`.
+ */
+std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs);
 
 }  // namespace poly
 }  // namespace cinn
