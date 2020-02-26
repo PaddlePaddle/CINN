@@ -22,7 +22,8 @@ TEST(lower, basic) {
 
   LOG(INFO) << "lower_size " << lower_funcs.size();
 
-#define TEST_SOUTPUT(x, out)  LOG(INFO) << "\n" << x; \
+#define TEST_SOUTPUT(x, out) \
+  LOG(INFO) << "\n" << x;    \
   EXPECT_EQ(utils::GetStreamCnt(x), utils::Trim(out));
 
   auto out = R"ROC(
@@ -38,6 +39,26 @@ TEST(lower, basic) {
 }
 )ROC";
   TEST_SOUTPUT(lower_funcs.front().body, out);
+}
+
+TEST(lower, more_complex) {
+  const int M = 100;
+  const int N = 15;
+  const int K = 200;
+
+  Placeholder<float> A("A", {Expr(M), Expr(N)});
+  Placeholder<float> B("B", {Expr(N), Expr(K)});
+
+  auto C = Compute(
+      {M, N, K}, [=](Var i, Var j, Var k) -> Expr { return A(i, j) * B(j, k); }, "C");
+
+  auto lower_funcs = Lower("cal_C", {A, B, C});
+
+  LOG(INFO) << "lower_size " << lower_funcs.size();
+
+#define TEST_SOUTPUT(x, out) \
+  LOG(INFO) << "\n" << x;    \
+  EXPECT_EQ(utils::GetStreamCnt(x), utils::Trim(out));
 }
 
 }  // namespace lang
