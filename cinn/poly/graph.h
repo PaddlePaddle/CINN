@@ -57,6 +57,9 @@ std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages);
 namespace detail {
 
 struct Group {
+  Group() = default;
+  explicit Group(const std::vector<Shared<DataFlowGraphNode>>& nodes) : nodes(nodes) {}
+
   std::vector<Shared<DataFlowGraphNode>> nodes;
 };
 

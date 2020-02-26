@@ -278,6 +278,8 @@ struct Var : public IrNodeRef {
   bool operator==(const Var& o) const;
   bool operator!=(const Var& o) const;
 
+  Var& operator=(_Var_* x);
+
   const _Var_* operator->() const { return get(); }
   _Var_* operator->() { return get(); }
   const _Var_* get() const { return static_cast<const _Var_*>(ptr()); }

@@ -33,6 +33,8 @@ class Placeholder {
   Expr operator()(const std::vector<Expr> &indices) const;
   // @}
 
+  operator ir::Tensor() { return tensor_; }
+
  private:
   ir::Tensor tensor_;
 };
