@@ -70,7 +70,17 @@ struct TimeSchedule {
  * The NaiveSchedule just schedule each noninlined Tensor as a unique group. Only the `compute_at` will make two tensor
  * in the same group. It is simple and robust.
  */
-class NaiveSchedule {};
+class NaiveSchedule {
+ public:
+  explicit NaiveSchedule(common::Graph *graph) : graph_(graph) { PartitionGroups(); }
+
+ private:
+  void PartitionGroups();
+
+ private:
+  common::Graph *graph_{};
+  std::vector<detail::Group> groups_;
+};
 
 /**
  * Record the schedule information for several groups.
@@ -83,7 +93,7 @@ class Schedule {
    */
   explicit Schedule(common::Graph *graph) : graph_(graph) {
     PartitionGroups();
-    ScheduleEachGroup();
+    // ScheduleEachGroup();
   }
 
   //! Generated groups.

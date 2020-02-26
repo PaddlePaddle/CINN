@@ -25,6 +25,11 @@ namespace ir {
 namespace detail {
 constexpr bool LE(int a, int b) { return a <= b; }
 constexpr bool GE(int a, int b) { return a >= b; }
+
+//! Expand milti-dim indices to 1-dim index.
+Expr ExpandTo1DIndice(const std::vector<int>& shape, const std::vector<Expr>& indices);
+Expr ExpandTo1DIndice(const std::vector<Expr>& shape, const std::vector<Expr>& indices);
+
 }  // namespace detail
 
 class _Tensor_;
@@ -54,11 +59,6 @@ class Tensor : public ir::IrNodeRef {
   //! Get number of dimensions.
   inline size_t ndims() const;
 
-  inline const _Tensor_* operator->() const { return As<_Tensor_>(); }
-  inline _Tensor_* operator->() { return As<_Tensor_>(); }
-
-  inline operator Expr() const { return Expr(get()); }
-
   /**
    * Take elements from the tensor.
    * This take one or multiple expressions as indices.
@@ -82,6 +82,11 @@ class Tensor : public ir::IrNodeRef {
    * @return The result expression representing a tensor read.
    */
   Expr operator()(const std::vector<Expr>& indices) const;
+
+  inline const _Tensor_* operator->() const { return As<_Tensor_>(); }
+  inline _Tensor_* operator->() { return As<_Tensor_>(); }
+
+  inline operator Expr() const { return Expr(get()); }
 };
 
 /**
@@ -99,6 +104,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   std::string name;
   //! Polyhedral element for analysis and schedule.
   poly::Stage* stage{};
+  //! The binded buffer, for each tensor if it is not inline.
+  Var buffer_var;
 
   //! Generate a tensor from a computation.
   static Tensor Make(const std::string& name,
@@ -112,12 +119,19 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Generate a tensor from a function.
   static Tensor Make(const std::string& name, const std::vector<Expr>& shape, FunctionRef fn);
 
+  //! Tell the operation type.
+  // @{
   bool is_compute_node() const;
   bool is_placeholder_node() const;
   const char* operation_type() const;
+  // @}
 
   //! The expression generate this tensor, will be empty if it is a PlaceHolder.
   Expr body() const;
+  //! Get the expression with `store(tensor)` inserted into the body.
+  Expr tensor_store_expanded_body() const;
+
+  Expr inline_expanded(const std::vector<Expr>& indices);
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
@@ -132,6 +146,13 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Create the polyhedral element for analysis.
   //! It is based on the shape.
   void InitStage();
+
+  //! Initialize the axis field after the shape field is assigned.
+  void InitAxis();
+
+  //! Bind the tensor to a buffer by default.
+  //! NOTE it should called by all the Make.
+  void SetDefaultBindedBuffer() { buffer_var = ir::_Var_::Make(name, type()).As<_Var_>(); }
 
   isl::set GenerateIslDomain();
 };

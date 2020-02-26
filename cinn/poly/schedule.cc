@@ -186,6 +186,7 @@ void Schedule::ScheduleGroup(detail::Group *group) {
   }
   scheduler.FinishStageAdd();
 
+  // NOTE this is unnecessary
   for (auto &node : group->nodes) {
     // if any outlink in the dic, schedule the output node After this by the last dimension.
     for (auto &outlink : node->outlinks()) {
@@ -215,10 +216,12 @@ std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor) {
 
 std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages) {
   CHECK(!stages.empty());
+  for (auto &stage : stages) {
+    VLOG(4) << "stage: " << stage->domain();
+  }
   auto graph = CreateGraph(stages);
 
-  auto *schedule = new Schedule(graph.get());
-  return std::unique_ptr<Schedule>(schedule);
+  return std::unique_ptr<Schedule>(new Schedule(graph.get()));
 }
 
 std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs) {
@@ -246,10 +249,22 @@ std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs) {
 }
 
 PolyScheduler::PolyScheduler(const std::vector<Stage *> &stages) {
+  CHECK_GT(stages.size(), 0) << "No stage is provided";
   for (auto *stage : stages) {
     AddStage(*stage);
   }
   FinishStageAdd();
+}
+
+void NaiveSchedule::PartitionGroups() {
+  // treat each node as a unique group, collect the groups in topological order.
+  std::vector<common::GraphNode *> nodes_in_order;
+  std::vector<common::GraphEdge *> edges_in_order;
+  std::tie(nodes_in_order, edges_in_order) = graph_->topological_order();
+  for (auto *node : nodes_in_order) {
+    detail::Group group({Shared<poly::DataFlowGraphNode>(node->As<poly::DataFlowGraphNode>())});
+    groups_.emplace_back(std::move(group));
+  }
 }
 
 }  // namespace poly

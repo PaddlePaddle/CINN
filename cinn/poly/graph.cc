@@ -105,11 +105,11 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
   std::set<DataFlowGraphNode*> groups_gathered;
   std::vector<DataFlowGraphNode*> groups_in_topo_order;
 
-  std::vector<common::GraphNode*> nodes;
-  std::vector<common::GraphEdge*> edges;
+  std::vector<common::GraphNode*> nodes_in_order;
+  std::vector<common::GraphEdge*> edges_in_order;
   std::map<DataFlowGraphNode*, std::vector<DataFlowGraphNode*>> node_groups;
-  std::tie(nodes, edges) = graph->topological_order();
-  for (auto* n : nodes) {
+  std::tie(nodes_in_order, edges_in_order) = graph->topological_order();
+  for (auto* n : nodes_in_order) {
     auto* node     = n->As<DataFlowGraphNode>();
     auto* ancestor = node->group_ancestor();
     if (!groups_gathered.count(ancestor)) {
@@ -122,13 +122,21 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
 
   std::vector<Group> groups;
   // preparing result
-  for (auto* n : groups_in_topo_order) {
+  for (auto* ancestor : groups_in_topo_order) {
     Group group;
-    for (auto* c : node_groups[n]) {
+    for (auto* c : node_groups[ancestor]) {
       group.nodes.push_back(c);
     }
     groups.emplace_back(group);
   }
+
+  // NOTE DEBUG
+  // check there are same count of nodes both in the orginal graph and the groups.
+  // @{
+  int num_node_in_groups = 0;
+  for (auto& group : groups) num_node_in_groups += group.nodes.size();
+  CHECK_EQ(num_node_in_groups, graph->num_nodes());
+  // @}
 
   return groups;
 }
@@ -148,9 +156,10 @@ std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages) {
     }
   }
 
-  auto* graph = new common::Graph;
+  std::unique_ptr<common::Graph> graph(new common::Graph);
   for (auto& item : id2stage) graph->RegisterNode(item.first, item.second.get());
-  return std::unique_ptr<common::Graph>(graph);
+  VLOG(3) << "created graph:\n" << graph->Visualize();
+  return graph;
 }
 
 }  // namespace poly

@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "cinn/common/common.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
 #include "cinn/poly/stage.h"
@@ -10,12 +11,36 @@
 namespace cinn {
 namespace ir {
 
+namespace detail {
+
+Expr ExpandTo1DIndice(const std::vector<Expr> &shape, const std::vector<Expr> &indices) {
+  CHECK_EQ(shape.size(), indices.size());
+  Expr res = indices.front() * shape[1];
+  for (int i = 1; i < shape.size() - 1; i++) {
+    res = res + indices[i] * shape[i + 1];
+  }
+  if (shape.size() > 1) res = res + indices.back();
+  return res;
+}
+
+Expr ExpandTo1DIndice(const std::vector<int> &shape, const std::vector<Expr> &indices) {
+  std::vector<Expr> shape_;
+  for (int v : shape) shape_.push_back(Expr(v));
+  return ExpandTo1DIndice(shape, indices);
+}
+
+}  // namespace detail
+
 Tensor _Tensor_::Make(const std::string &name, const std::vector<Expr> &shape, FunctionRef fn) {
+  CHECK(!shape.empty()) << "Tensor shape is set empty";
+  CHECK(!name.empty()) << "Tensor name is set empty";
   auto n      = make_shared<_Tensor_>();
   n->name     = name;
   n->shape    = shape;
   n->operaion = fn;
   n->InitStage();
+  n->InitAxis();
+  n->SetDefaultBindedBuffer();
   return Tensor(n);
 }
 
@@ -26,8 +51,13 @@ Tensor _Tensor_::Make(const std::string &name,
                       Type dtype,
                       const std::map<std::string, IrNodeRef> &attrs,
                       const std::vector<Expr> &body) {
+  CHECK(!shape.empty()) << "Tensor shape is set empty";
+  CHECK(!name.empty()) << "Tensor name is set empty";
+
   auto op          = ComputeOp::Make(name, tag, attrs, axis, body, shape);
   auto *compute_op = const_cast<ComputeOp *>(op->As<ComputeOp>());
+
+  CHECK_EQ(axis.size(), shape.size()) << "axis not match the dimension in shape";
   compute_op->axis = axis;
 
   auto n      = make_shared<_Tensor_>();
@@ -36,6 +66,7 @@ Tensor _Tensor_::Make(const std::string &name,
   n->shape    = shape;
   n->set_type(dtype);
   n->InitStage();
+  n->SetDefaultBindedBuffer();
   return Tensor(n);
 }
 
@@ -74,6 +105,12 @@ void _Tensor_::InitStage() {
   } else {
     stage = make_shared<poly::Stage>(GenerateIslDomain());
   }
+}
+
+void _Tensor_::InitAxis() {
+  CHECK(!shape.empty());
+  CHECK(axis.empty()) << "duplicate init axis";
+  axis = common::GenDefaultAxis(shape.size());
 }
 
 isl::set _Tensor_::GenerateIslDomain() {
@@ -136,6 +173,13 @@ Expr _Tensor_::body() const {
   if (is_placeholder_node()) return Expr();
   if (is_compute_node()) return operaion->As<ir::ComputeOp>()->body.front();
   NOT_IMPLEMENTED;
+}
+
+Expr _Tensor_::tensor_store_expanded_body() const {
+  CHECK(!is_placeholder_node()) << "placeholder should not expand store";
+  std::vector<Expr> axis_;
+  for (auto &a : axis) axis_.push_back(Expr(a));
+  return ir::Store::Make(buffer_var, body(), detail::ExpandTo1DIndice(shape, axis_));
 }
 
 }  // namespace ir

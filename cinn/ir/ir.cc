@@ -294,6 +294,11 @@ std::vector<const Expr *> PolyFor::expr_fields() const { return {&init, &conditi
 bool Var::operator==(const Var &o) const { return o->name == operator->()->name; }
 bool Var::operator!=(const Var &o) const { return !(*this == o); }
 
+Var &Var::operator=(_Var_ *x) {
+  *this = Var(x);
+  return *this;
+}
+
 }  // namespace ir
 
 namespace common {
