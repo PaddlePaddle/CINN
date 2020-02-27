@@ -69,8 +69,10 @@ ir::Tensor Compute(const std::vector<int> &dims,
   std::vector<Expr> shape;
   for (int v : dims) shape.emplace_back(v);
 
-  auto op = ir::ComputeOp::Make(name, "" /*tag*/, {}, axis, {expr}, shape);
-  return ir::_Tensor_::Make(name, shape, op);
+  auto unique_name = name.empty() ? Context::Global().NewName("tensor") : name;
+
+  auto op = ir::ComputeOp::Make(unique_name, "" /*tag*/, {}, axis, {expr}, shape);
+  return ir::_Tensor_::Make(unique_name, shape, op);
 }
 
 }  // namespace lang

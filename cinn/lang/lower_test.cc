@@ -61,10 +61,7 @@ TEST(lower, more_complex) {
   auto lower_funcs = Lower("cal_C", {A, B, C});
 
   LOG(INFO) << "lower_size " << lower_funcs.size();
-
-#define TEST_SOUTPUT(x, out) \
-  LOG(INFO) << "\n" << x;    \
-  EXPECT_EQ(utils::GetStreamCnt(x), utils::Trim(out));
+  LOG(INFO) << "func:\n" << Expr(lower_funcs.front()->self());
 }
 
 }  // namespace lang
