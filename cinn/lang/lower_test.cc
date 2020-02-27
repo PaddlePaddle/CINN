@@ -32,7 +32,6 @@ TEST(lower, basic) {
   {
     poly_for (0, (c3 <= 14), 1)
     {
-      A(c1, c3)
       B[((c1 * 15) + c3)] = (A(c1, c3) + 1)
     }
   }

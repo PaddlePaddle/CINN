@@ -56,8 +56,9 @@ std::vector<LoweredFunc> Lower(const std::string& name, const std::vector<Tensor
   std::map<std::string, Tensor> tensor_dic;
   for (auto& tensor : args) tensor_dic.emplace(tensor->name, tensor);
   for (auto& stage : stages) stage_dic.emplace(stage->id(), stage);
-  CHECK_EQ(tensor_dic.size(), stage_dic.size());
-  CHECK_EQ(args.size(), stage_dic.size()) << "tensor should duplicate name";
+  // The placeholder Tensors are ignored in stages.
+  CHECK_GE(tensor_dic.size(), stage_dic.size());
+  CHECK_GE(args.size(), stage_dic.size()) << "tensor should duplicate name";
 
   std::set<std::string> args_names;
   for (auto& arg : args) {
