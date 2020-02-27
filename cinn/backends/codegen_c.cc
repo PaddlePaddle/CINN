@@ -1,18 +1,20 @@
 #include "cinn/backends/codegen_c.h"
 
+#include "cinn/ir/lowered_func.h"
+
 namespace cinn {
 namespace backends {
 
 CodeGenC::CodeGenC(std::ostream &os, Target target) : ir::IrPrinter(os), target_(target) {}
 
 void CodeGenC::Compile(const lang::Module &module) {}
-void CodeGenC::Compile(const lang::LoweredFunc &function) {
-  os() << "void " << function.name;
+void CodeGenC::Compile(const ir::LoweredFunc &function) {
+  os() << "void " << function->name;
 
   // output arguments
   os() << "(";
 
-  auto print_arg = [&](const lang::Argument &arg) {
+  auto print_arg = [&](const ir::Argument &arg) {
     if (arg.is_buffer()) {
       os() << "struct cinn_buffer_t *";
     } else if (arg.is_scalar()) {
@@ -22,12 +24,12 @@ void CodeGenC::Compile(const lang::LoweredFunc &function) {
     os() << arg.name;
   };
 
-  for (int i = 0; i < function.args.size() - 1; i++) {
-    print_arg(function.args[i]);
+  for (int i = 0; i < function->args.size() - 1; i++) {
+    print_arg(function->args[i]);
     os() << ", ";
   }
-  if (function.args.size() >= 1) {
-    print_arg(function.args.back());
+  if (function->args.size() >= 1) {
+    print_arg(function->args.back());
   }
 
   os() << ")";
@@ -35,7 +37,7 @@ void CodeGenC::Compile(const lang::LoweredFunc &function) {
   DoIndent();
   os() << "{\n";
 
-  Print(function.body);
+  Print(function->body);
 
   DoIndent();
   os() << "}";

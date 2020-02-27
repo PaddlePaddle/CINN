@@ -7,6 +7,7 @@ set(srcs
     ir_mutator.cc
     function.cc
     function_definition.cc
+    lowered_func.cc
     ir_operators.cc
     buffer.cc
     function_base.cc

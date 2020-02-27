@@ -16,7 +16,7 @@ namespace cinn {
 namespace lang {
 using ir::Tensor;
 
-std::vector<LoweredFunc> Lower(const std::string& name, const std::vector<Tensor>& args);
+std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Tensor>& args);
 
 }  // namespace lang
 }  // namespace cinn

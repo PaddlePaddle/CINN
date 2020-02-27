@@ -1,0 +1,179 @@
+#+title: Design of CINN
+This document describe the design of the project CINN (Compiler Infrastructure for Neural Networks). 
+*  Multi-layer architecture
+To enable the compiler to handle the general DNN tasks, a multi-layer system is designed.
+
+The layers are as follows
+
+1. NN compatible layer
+   - Add operator wrapper for DNN platform such as PaddlePaddle or TensorFlow.
+2. Virtual graph layer
+   - Add virtual node and graph to utilize both the compiler and third-party computational library such as CUDNN or MKLDNN.
+3. DSL layer
+   - Export a friendly domain language to programming with the underlying compiler.
+4. Compiler layer
+   - A NN compiler which can optimize affine forloop.
+* DSL layer
+
+**Matrix multiplication with blocking**
+
+#+BEGIN_SRC C++
+  Var i("i"), j("j"), k("k");
+  Constant N("N"), M("M"), K("K");
+
+  PlaceHolder<float> x("x", {M, K});
+  PlaceHolder<float> y("x", {K, N});
+
+  Tensor C = compute({M, N, K} /*dims*/, [&](Var i, Var j, Var k) { return x(i, k) * y(k, j); });
+
+  Schedule s = ComputeSchedule({C} /*outputs*/, {A, B} /*inputs*/);
+  {  // schedule C's computation
+
+    // tile i, j with factor 4
+    Var i0, i1, j0, j1;
+    std::tie(i0, i1, j0, j1) = s[C].tile(s[C].axis("i"), s[C].axis("j"), 4, 4);
+
+    // tile k with factor 4
+    Var k0, k1;
+    std::tie(k0, k1) = s[C].split(k, 4);
+
+    s[C].reorder(i0, j0, k0, k1, i1, j1);  // swap(i1,j0)
+  }
+
+  auto module = Build(s, {A, B, C}, "llvm", "host", "func");
+  void* func  = module.GetFuncByName("func");
+#+END_SRC
+
+**Matrix with Vectorization**
+
+#+BEGIN_SRC C++
+  Schedule S = ComputeSchedule({C}, {A, B});
+
+  Var k0, k1;
+  std::tie(k0, k1) = S[C].split(k, 4);
+  Var x0, x1, y0, y1;
+  std::tie(x0, x1, y0, y1) = S[C].tile(x, y, 4, 4);
+
+  S[C].reorder(x0, y0, k0, k1, x1, y1);
+
+  S[C].vectorize(y1);
+#+END_SRC
+
+**Matrix with Packing**
+
+#+BEGIN_SRC C++
+  Tensor packedB = compute((N / bn, K, bn), [&](Var i, Var j, Var k) { return B(j, i * bn + k); });
+
+  Tensor C = compute({M, N}, [&](Var i, Var j, Var k) {
+    // reduce sum(need initialize)
+    return sum(A(i, k) * packedB(y / bn, k, y % bn), k);
+  });
+
+  Schedule S = compute_schedule({C}, {A, B});
+
+  Var i0, j0, i1, j1;
+  Var k0, k1;
+  std::tie(i0, i1, j0, j1) = S[C].tile(S[C].axis(0), S.axis(1), 4, 4);
+  std::tie(k0, k1)         = S[C].split(S[C].axis(k, 4));
+
+  S[C].reorder(i0, j0, k0, i1, k1, j1);
+  S[C].vectorize(j1);
+
+  {
+    Var i, j, k;
+    std::tie(i, j, k) = S[packedB].axis();
+    S[packedB].vectorize(k);
+    S[packedB].parallel(i);
+  }
+#+END_SRC
+
+* Compiler Layer
+** IR
+
+The IR is similar to Halide.
+*** Basic elements
+
+The IR has following basic elements:
+
+- Expr, the expression in the IR(which represents a value or returns a value).
+- Stmt, the statement in the IR.
+- Tensor (the input or temporary value)
+- Buffer (the memory buffer)
+** Tensor
+
+Tensor represents the input or temporary variable.
+
+Each tensor is assigned a buffer by default, but `store_in` can change the relation.
+** Polyhedral usage
+
+The polyhedral technology is used to simplify the forloop analysis and transform.
+** schedule
+
+The original tensor-based computation forms a SSA graph.
+
+Each tensor is assign a `Stage`, which is the basic schedule element.
+
+A stage has a domain(isl.Set) and a schedule(isl.Map), all the schedule is performed on them.
+*** Schedule the stages
+
+We use the ideas from Tiramisu project, and walk through the dependency graph, split the graph into several groups.
+
+There are several rules to split the graph, the naive one is
+
+- For initialization, create a unique group(just id is needed) for each stage,
+- traverse the computation graph in topological order and
+- check whether the two statements with dependency relation have the same iteration space and domain, if true, gather them in the same group
+  - if two statement is marked by `compute_at`, merge to the same group too.
+  - this period is like a union find.
+- for each group, use a different `ast_build` to generate ISL IR(so that we can set iterators separately)
+*** Scheduler module
+
+The Scheduler take the stages as input, and do the previous mentioned graph partition, and finally output several schedule elements.
+
+Each schedule element owns an (ISL)iteration domain and a (ISL)schedule, and one can pass it to a ast_gen and generate code.
+*** Lower output Tensors to LoweredFuncs
+
+First, given the output tensors, the `Lower` function will collect all the depended inputs, and lower them to a function.
+
+The lower interface is
+
+
+#+BEGIN_SRC C++
+  std::vector<LoweredFunction> Lower(vector<Tensor>& args, DeviceAPI device);
+#+END_SRC
+
+** Buffer
+
+Buffer represents the actual memory in host or devices.
+
+The `Buffer` node in IR represents a buffer, it can be used by binding to a Tensor.
+
+The Tensor will be noninlined only if it binds to some buffer.
+
+NOTE A buffer can be reused in multiple tensors(TODO the write-read correctness should be considered).
+
+
+#+BEGIN_SRC C++
+  Buffer buffer0;
+
+  Tensor x = Compute(...);
+  // x will write the result to buffer0
+  x->Bind(buffer0);
+
+  Tensor y = Compute(..., [](Var i) {
+    return x(i) * 2;  // here it will read the buffer instead, x is just a alias.
+  });
+#+END_SRC
+
+The size of the buffer will be inferenced from the shape and data type of tensor.
+It by default can be resized to proper shape by binding to multiple tensors.
+*** Buffer in CodeGen
+
+All the buffers will be maintained in global scope, and alloc or dealloc in local scopes.
+
+The benefit is buffer is easy to shared accross multiple statements.
+** Module
+Module is the container of LoweredFuncs and Buffers.
+There might be more than one module in an generated execution.
+
+The Module can compile to a backends.

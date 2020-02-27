@@ -66,6 +66,7 @@ class IRVisitor;
   macro__(_IterVar_)                        \
   macro__(_Buffer_)                         \
   macro__(_Tensor_)                         \
+  macro__(_LoweredFunc_)                    \
 
 #define NODETY_FORALL(__m)              \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \

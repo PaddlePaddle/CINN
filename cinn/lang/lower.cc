@@ -45,7 +45,7 @@ Expr LowerGroup(const poly::detail::Group& group, const std::map<std::string, Ex
   return e;
 }
 
-std::vector<LoweredFunc> Lower(const std::string& name, const std::vector<Tensor>& args) {
+std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Tensor>& args) {
   // make sure the graph's start-points in the args.
 
   auto stages = poly::GatherStagesInTensors(args);
@@ -106,12 +106,12 @@ std::vector<LoweredFunc> Lower(const std::string& name, const std::vector<Tensor
   optim::RemoveNestedBlock(&block);
 
   // prepare arguments
-  std::vector<Argument> arguments;
+  std::vector<ir::Argument> arguments;
   for (auto& arg : args) {
-    arguments.emplace_back(arg->name, Argument::Kind::kBuffer, arg->type(), arg->shape.size());
+    arguments.emplace_back(arg->name, ir::Argument::Kind::kBuffer, arg->type(), arg->shape.size());
   }
 
-  return {LoweredFunc(name, arguments, block)};
+  return {ir::_LoweredFunc_::Make(name, arguments, block)};
 }
 
 }  // namespace lang

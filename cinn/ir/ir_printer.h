@@ -7,6 +7,12 @@
 #include "cinn/ir/ir_visitor.h"
 
 namespace cinn {
+
+namespace lang {
+class Module;
+class LoweredFunc;
+}  // namespace lang
+
 namespace ir {
 
 struct IrPrinter : public IRVisitor {
@@ -72,6 +78,7 @@ struct IrPrinter : public IRVisitor {
   void Visit(const _IterVar_ *x) override {}
   void Visit(const _Buffer_ *x) override;
   void Visit(const _Tensor_ *x) override;
+  void Visit(const _LoweredFunc_ *x) override;
 
  private:
   std::ostream &os_;
@@ -80,6 +87,7 @@ struct IrPrinter : public IRVisitor {
 };
 
 std::ostream &operator<<(std::ostream &os, Expr a);
+std::ostream &operator<<(std::ostream &os, const lang::Module &m);
 
 }  // namespace ir
 }  // namespace cinn
