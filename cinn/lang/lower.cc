@@ -96,7 +96,7 @@ std::vector<LoweredFunc> Lower(const std::string& name, const std::vector<Tensor
     }
 
     Expr group_expr = LowerGroup(group, tuple_to_expr);
-    VLOG(3) << "group expr: " << group_expr;
+    VLOG(3) << "group expr:\n" << group_expr;
     exprs.push_back(group_expr);
   }
 
