@@ -2,7 +2,9 @@
 
 #include <vector>
 
+#include "cinn/lang/module.h"
 #include "cinn/lang/tensor.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace ir {
@@ -180,6 +182,19 @@ std::ostream &operator<<(std::ostream &os, Expr a) {
   os << ss.str();
   return os;
 }
+
+std::ostream &operator<<(std::ostream &os, const lang::LoweredFunc &f) {
+  os << "function " << f.name << " ";
+
+  std::vector<std::string> arg_names;
+  for (auto &arg : f.args) {
+    arg_names.push_back(arg.name);
+  }
+  os << "(" << utils::Join(arg_names, ", ");
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const lang::Module &m);
 
 }  // namespace ir
 }  // namespace cinn
