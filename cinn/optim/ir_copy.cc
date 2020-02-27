@@ -114,6 +114,11 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr();
   }
 
+  Expr Visit(const _LoweredFunc_* op) override {
+    LOG(FATAL) << "not implemented";
+    return Expr();
+  }
+
   Expr Visit(const _IterVar_* op) override {
     LOG(FATAL) << "not implemented";
     return Expr();

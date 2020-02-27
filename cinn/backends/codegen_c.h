@@ -7,6 +7,7 @@
 #include "cinn/ir/function.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/lowered_func.h"
 #include "cinn/lang/module.h"
 
 namespace cinn {
@@ -24,7 +25,7 @@ class CodeGenC : public ir::IrPrinter {
   void Compile(const lang::Module& module);
 
  protected:
-  void Compile(const lang::LoweredFunc& function);
+  void Compile(const ir::LoweredFunc& function);
   void Compile(const ir::Buffer& buffer);
 
   std::string PrintType(Type type);

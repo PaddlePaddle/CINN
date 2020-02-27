@@ -78,6 +78,7 @@ struct IrPrinter : public IRVisitor {
   void Visit(const _IterVar_ *x) override {}
   void Visit(const _Buffer_ *x) override;
   void Visit(const _Tensor_ *x) override;
+  void Visit(const _LoweredFunc_ *x) override;
 
  private:
   std::ostream &os_;
@@ -87,7 +88,6 @@ struct IrPrinter : public IRVisitor {
 
 std::ostream &operator<<(std::ostream &os, Expr a);
 std::ostream &operator<<(std::ostream &os, const lang::Module &m);
-std::ostream &operator<<(std::ostream &os, const lang::LoweredFunc &f);
 
 }  // namespace ir
 }  // namespace cinn

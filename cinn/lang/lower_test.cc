@@ -42,7 +42,7 @@ TEST(lower, basic) {
   }
 }
 )ROC";
-  TEST_SOUTPUT(lower_funcs.front().body, out);
+  TEST_SOUTPUT(lower_funcs.front()->body, out);
 }
 
 TEST(lower, more_complex) {

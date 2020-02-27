@@ -114,5 +114,10 @@ void IRMutator::Visit(const _Tensor_ *expr, Expr *op) {
   }
 }
 
+void IRMutator::Visit(const _LoweredFunc_ *expr, Expr *op) {
+  auto *node = op->As<_LoweredFunc_>();
+  IRVisitorBase::Visit(&node->body, &node->body);
+}
+
 }  // namespace ir
 }  // namespace cinn

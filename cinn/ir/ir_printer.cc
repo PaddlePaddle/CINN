@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "cinn/ir/lowered_func.h"
 #include "cinn/lang/module.h"
 #include "cinn/lang/tensor.h"
 #include "cinn/utils/string.h"
@@ -175,6 +176,27 @@ void IrPrinter::Visit(const _Tensor_ *x) {
   }
   os_ << ")";
 }
+void IrPrinter::Visit(const _LoweredFunc_ *f) {
+  os_ << "function " << f->name << " ";
+
+  std::vector<std::string> arg_names;
+  for (auto &arg : f->args) {
+    arg_names.push_back(arg.name);
+  }
+  os_ << "(" << utils::Join(arg_names, ", ");
+
+  DoIndent();
+  os_ << "{";
+
+  IncIndent();
+
+  Print(f->body);
+
+  DecIndent();
+
+  DoIndent();
+  os_ << "}";
+}
 std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);
@@ -183,16 +205,7 @@ std::ostream &operator<<(std::ostream &os, Expr a) {
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const lang::LoweredFunc &f) {
-  os << "function " << f.name << " ";
-
-  std::vector<std::string> arg_names;
-  for (auto &arg : f.args) {
-    arg_names.push_back(arg.name);
-  }
-  os << "(" << utils::Join(arg_names, ", ");
-  return os;
-}
+std::ostream &operator<<(std::ostream &os, const ir::LoweredFunc &f) {}
 
 std::ostream &operator<<(std::ostream &os, const lang::Module &m);
 
