@@ -40,7 +40,6 @@ Tensor _Tensor_::Make(const std::string &name, const std::vector<Expr> &shape, F
   n->operaion = fn;
   n->InitStage();
   n->InitAxis();
-  n->SetDefaultBindedBuffer();
   return Tensor(n);
 }
 
@@ -55,7 +54,7 @@ Tensor _Tensor_::Make(const std::string &name,
   CHECK(!name.empty()) << "Tensor name is set empty";
 
   auto op          = ComputeOp::Make(name, tag, attrs, axis, body, shape);
-  auto *compute_op = const_cast<ComputeOp *>(op->As<ComputeOp>());
+  auto *compute_op = op->As<ComputeOp>();
 
   CHECK_EQ(axis.size(), shape.size()) << "axis not match the dimension in shape";
   compute_op->axis = axis;
@@ -66,7 +65,6 @@ Tensor _Tensor_::Make(const std::string &name,
   n->shape    = shape;
   n->set_type(dtype);
   n->InitStage();
-  n->SetDefaultBindedBuffer();
   return Tensor(n);
 }
 
@@ -168,6 +166,7 @@ _Tensor_::~_Tensor_() {
 }
 
 const _Operation_ *Operation::operator->() const { return static_cast<_Operation_ *>(get()); }
+_Operation_ *Operation::operator->() { return static_cast<_Operation_ *>(get()); }
 
 Expr _Tensor_::body() const {
   if (is_placeholder_node()) return Expr();
@@ -179,7 +178,12 @@ Expr _Tensor_::tensor_store_expanded_body() const {
   CHECK(!is_placeholder_node()) << "placeholder should not expand store";
   std::vector<Expr> axis_;
   for (auto &a : axis) axis_.push_back(Expr(a));
-  return ir::Store::Make(buffer_var, body(), detail::ExpandTo1DIndice(shape, axis_));
+  return ir::Store::Make(buffer->data, body(), detail::ExpandTo1DIndice(shape, axis_));
+}
+
+void _Tensor_::Bind(lang::Buffer &buffer) {
+  buffer->BindTo(this);
+  this->buffer = buffer.buffer();
 }
 
 }  // namespace ir

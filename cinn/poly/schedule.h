@@ -129,9 +129,10 @@ std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages);
 /**
  * Gather the stages in the input tensors and their dependencies
  * @param xs The input tensors.
+ * @param with_placeholder Whether to include placeholders(default false).
  * @returns The stages in topological order follow the connection to `xs`.
  */
-std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs);
+std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bool with_placeholder = false);
 
 /**
  * PolyScheduler - Perform schedule on polyhedral model.

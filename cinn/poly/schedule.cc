@@ -224,7 +224,7 @@ std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages) {
   return std::unique_ptr<Schedule>(new Schedule(graph.get()));
 }
 
-std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs) {
+std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bool with_placeholder) {
   // get the stages from a tensor.
   std::vector<Stage *> stages;
   std::deque<ir::Tensor> queue;
@@ -236,7 +236,7 @@ std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs) {
     queue.pop_front();
     if (visited.count(Expr(top))) continue;
     visited.insert(Expr(top));
-    stages.push_back(top->stage);
+    if (!top->is_placeholder_node()) stages.push_back(top->stage);
 
     auto tensor_exprs = ir::CollectIRNodes(Expr(top), [](const Expr *expr) { return expr->As<ir::_Tensor_>(); });
     for (auto &expr : tensor_exprs) {

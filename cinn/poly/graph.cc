@@ -151,8 +151,13 @@ std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages) {
     auto depend_statement_names = stage->input_statements();
     VLOG(3) << stage->id() << " depend " << utils::Join(depend_statement_names, ", ");
     for (auto& depend_statement : depend_statement_names) {
-      auto& input_node = id2stage.at(depend_statement);
-      input_node->LinkTo(id2stage.at(stage->id()).get());
+      auto input_it = id2stage.find(depend_statement);
+      // We removed some node in the original stages(such as placeholders), so that there might be missing of some input
+      // nodes, just ignore the dependence.
+      if (input_it != std::end(id2stage)) {
+        auto& input_node = id2stage.at(depend_statement);
+        input_node->LinkTo(id2stage.at(stage->id()).get());
+      }
     }
   }
 

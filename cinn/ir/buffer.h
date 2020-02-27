@@ -10,6 +10,8 @@ namespace cinn {
 namespace ir {
 
 class _Buffer_;
+class Tensor;
+class _Tensor_;
 
 //! The memory access mode.
 enum class AccessMask : int {
@@ -18,9 +20,10 @@ enum class AccessMask : int {
 };
 
 /**
- * Buffer is a symbolic multi-dimensional data structure.
+ * Buffer is a symbolic multi-dimensional data structure, it is a node in IR.
  * It is a composition of primitive symbolic types, used to specify the memory layout of the Tensor used in the program
- * input.
+ * input. User can create a buffer and bind to multiple Tensors to specify that the tensors are not inlined and persist
+ * data to this buffer.
  */
 class Buffer : public IrNodeRef {
  public:
@@ -28,6 +31,7 @@ class Buffer : public IrNodeRef {
   explicit Buffer(IrNode* n) : IrNodeRef(n) {}
 
   const _Buffer_* operator->() const;
+  _Buffer_* operator->();
 };
 
 class _Buffer_ : public ExprNode<_Buffer_> {
@@ -63,10 +67,21 @@ class _Buffer_ : public ExprNode<_Buffer_> {
                      int data_alignment,
                      int offset_factor);
 
+  static Buffer Make(const std::string& name, const std::vector<Expr>& shape = {});
+
+  //! Make an empty buffer.
+  static Buffer Make();
+
+  void BindTo(const Tensor& tensor);
+  void BindTo(const _Tensor_* tensor);
+
   void Accept(IRVisitor* v) const override;
   IrNodeTy node_type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Buffer_;
+
+ private:
+  std::set<std::string> bound_tensors_names_;
 };
 
 }  // namespace ir
