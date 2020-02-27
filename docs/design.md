@@ -142,7 +142,7 @@ The Scheduler take the stages as input, and do the previous mentioned graph part
 
 Each schedule element owns an (ISL)iteration domain and a (ISL)schedule, and one can pass it to a ast_gen and generate code.
 
-### Lower output Tensors to LoweredFunctions
+### Lower output Tensors to LoweredFuncs
 
 First, given the output tensors, the `Lower` function will collect all the depended inputs, and lower them to a function.
 
@@ -151,3 +151,32 @@ The lower interface is
 ```c++
 std::vector<LoweredFunction> Lower(vector<Tensor>& args, DeviceAPI device);
 ```
+
+### Buffer
+Buffer represents the actual memory in host or devices.
+
+The `Buffer` node in IR represents a buffer, it can be used by binding to a Tensor.
+
+The Tensor will be noninlined only if it binds to some buffer.
+
+NOTE A buffer can be reused in multiple tensors(TODO the write-read correctness should be considered).
+
+```c++
+Buffer buffer0;
+
+Tensor x = Compute(...);
+// x will write the result to buffer0
+x->Bind(buffer0);
+
+Tensor y = Compute(..., [](Var i) {
+  return x(i) * 2; // here it will read the buffer instead, x is just a alias.
+});
+```
+
+The size of the buffer will be inferenced from the shape and data type of tensor.
+It by default can be resized to proper shape by binding to multiple tensors.
+
+#### Buffer in CodeGen
+All the buffers will be maintained in global scope, and alloc or dealloc in local scopes.
+
+The benefit is buffer is easy to shared accross multiple statements.

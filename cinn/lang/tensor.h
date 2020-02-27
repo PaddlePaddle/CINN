@@ -11,6 +11,7 @@
 #include "cinn/common/graph_utils.h"
 #include "cinn/ir/function_base.h"
 #include "cinn/ir/ir.h"
+#include "cinn/lang/buffer.h"
 
 namespace cinn {
 
@@ -104,8 +105,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   std::string name;
   //! Polyhedral element for analysis and schedule.
   poly::Stage* stage{};
-  //! The binded buffer, for each tensor if it is not inline.
-  Var buffer_var;
+  //! The bound buffer, for each tensor if it is not inline.
+  Buffer buffer;
 
   //! Generate a tensor from a computation.
   static Tensor Make(const std::string& name,
@@ -118,6 +119,12 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   //! Generate a tensor from a function.
   static Tensor Make(const std::string& name, const std::vector<Expr>& shape, FunctionRef fn);
+
+  //! Tell whether this tensor is inline.
+  bool inlined() const { return (!buffer.defined()) && (!is_placeholder_node()); }
+
+  //! Bind to a buffer, will persist data to the buffer in runtime.
+  void Bind(lang::Buffer& buffer);
 
   //! Tell the operation type.
   // @{
@@ -150,10 +157,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Initialize the axis field after the shape field is assigned.
   void InitAxis();
 
-  //! Bind the tensor to a buffer by default.
-  //! NOTE it should called by all the Make.
-  void SetDefaultBindedBuffer() { buffer_var = ir::_Var_::Make(name, type()).As<_Var_>(); }
-
   isl::set GenerateIslDomain();
 };
 
@@ -164,6 +167,7 @@ class Operation : public FunctionRef {
   explicit Operation(IrNode* n) : FunctionRef(n) {}
 
   inline const _Operation_* operator->() const;
+  inline _Operation_* operator->();
 
   //! Get the i-th output of the operation.
   // Tensor output(size_t i) const;

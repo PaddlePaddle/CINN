@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include "cinn/lang/buffer.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/utils/string.h"
@@ -15,8 +16,12 @@ TEST(lower, basic) {
 
   Placeholder<float> A("A", {Expr(M), Expr(N)});
 
+  Buffer B_buf;
+
   auto B = Compute(
       {M, N}, [=](Var i, Var j) -> Expr { return A(i, j) + 1.f; }, "B");
+
+  B->Bind(B_buf);
 
   auto lower_funcs = Lower("cal_B", {A, B});
 
@@ -48,8 +53,10 @@ TEST(lower, more_complex) {
   Placeholder<float> A("A", {Expr(M), Expr(N)});
   Placeholder<float> B("B", {Expr(N), Expr(K)});
 
+  Buffer C_buf;
   auto C = Compute(
       {M, N, K}, [=](Var i, Var j, Var k) -> Expr { return A(i, j) * B(j, k); }, "C");
+  C->Bind(C_buf);
 
   auto lower_funcs = Lower("cal_C", {A, B, C});
 
