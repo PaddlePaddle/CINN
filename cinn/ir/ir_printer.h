@@ -24,13 +24,7 @@ struct IrPrinter : public IRVisitor {
   void Print(const std::vector<Expr> &exprs, const std::string &splitter = ", ");
   //! Emit a binary operator
   template <typename IRN>
-  void PrintBinaryOp(const std::string &op, const BinaryOpNode<IRN> *x) {
-    os_ << "(";
-    Print(x->a);
-    os_ << " " + op + " ";
-    Print(x->b);
-    os_ << ")";
-  }
+  void PrintBinaryOp(const std::string &op, const BinaryOpNode<IRN> *x);
 
   //! Prefix the current line with `indent_` spaces.
   void DoIndent();
@@ -88,6 +82,15 @@ struct IrPrinter : public IRVisitor {
 
 std::ostream &operator<<(std::ostream &os, Expr a);
 std::ostream &operator<<(std::ostream &os, const lang::Module &m);
+
+template <typename IRN>
+void IrPrinter::PrintBinaryOp(const std::string &op, const BinaryOpNode<IRN> *x) {
+  os_ << "(";
+  Print(x->a);
+  os_ << " " + op + " ";
+  Print(x->b);
+  os_ << ")";
+}
 
 }  // namespace ir
 }  // namespace cinn

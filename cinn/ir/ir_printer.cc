@@ -10,7 +10,7 @@
 namespace cinn {
 namespace ir {
 
-void IrPrinter::Print(Expr e) { e.Accept(reinterpret_cast<IRVisitor *>(this)); }
+void IrPrinter::Print(Expr e) { IRVisitor::Visit(&e); }
 void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitter) {
   for (int i = 0; i < exprs.size() - 1; i++) {
     Print(exprs[i]);
@@ -183,19 +183,9 @@ void IrPrinter::Visit(const _LoweredFunc_ *f) {
   for (auto &arg : f->args) {
     arg_names.push_back(arg.name);
   }
-  os_ << "(" << utils::Join(arg_names, ", ");
-
-  DoIndent();
-  os_ << "{";
-
-  IncIndent();
+  os_ << "(" << utils::Join(arg_names, ", ") << ")\n";
 
   Print(f->body);
-
-  DecIndent();
-
-  DoIndent();
-  os_ << "}";
 }
 std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
@@ -204,8 +194,6 @@ std::ostream &operator<<(std::ostream &os, Expr a) {
   os << ss.str();
   return os;
 }
-
-std::ostream &operator<<(std::ostream &os, const ir::LoweredFunc &f) {}
 
 std::ostream &operator<<(std::ostream &os, const lang::Module &m);
 

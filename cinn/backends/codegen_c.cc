@@ -1,6 +1,7 @@
 #include "cinn/backends/codegen_c.h"
 
 #include "cinn/ir/lowered_func.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace backends {
@@ -8,42 +9,31 @@ namespace backends {
 CodeGenC::CodeGenC(std::ostream &os, Target target) : ir::IrPrinter(os), target_(target) {}
 
 void CodeGenC::Compile(const lang::Module &module) {}
-void CodeGenC::Compile(const ir::LoweredFunc &function) {
-  os() << "void " << function->name;
-
-  // output arguments
-  os() << "(";
-
-  auto print_arg = [&](const ir::Argument &arg) {
-    if (arg.is_buffer()) {
-      os() << "struct cinn_buffer_t *";
-    } else if (arg.is_scalar()) {
-      os() << PrintType(arg.type) << " ";
-      os() << arg.name;
-    }
-    os() << arg.name;
-  };
-
-  for (int i = 0; i < function->args.size() - 1; i++) {
-    print_arg(function->args[i]);
-    os() << ", ";
-  }
-  if (function->args.size() >= 1) {
-    print_arg(function->args.back());
-  }
-
-  os() << ")";
-
-  DoIndent();
-  os() << "{\n";
-
-  Print(function->body);
-
-  DoIndent();
-  os() << "}";
-}
+void CodeGenC::Compile(const ir::LoweredFunc &function) { Print(function); }
 void CodeGenC::Compile(const ir::Buffer &buffer) {}
-std::string CodeGenC::PrintType(Type type) { return std::__cxx11::string(); }
+std::string CodeGenC::PrintType(Type type) {
+  if (type == Int(8)) {
+    return "int8_t";
+  }
+  if (type == Int(32)) {
+    return "int32_t";
+  }
+  if (type == Int(64)) {
+    return "int64_t";
+  }
+  if (type == Bool()) {
+    return "bool";
+  }
+  if (type == Float(32)) {
+    return "float";
+  }
+  if (type == Float(64)) {
+    return "double";
+  }
+
+  LOG(ERROR) << type;
+  NOT_IMPLEMENTED
+}
 void CodeGenC::Visit(const ir::IntImm *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::UIntImm *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::FloatImm *op) { IrPrinter::Visit(op); }
@@ -72,10 +62,16 @@ void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v); }
 void CodeGenC::Visit(const ir::For *op) { LOG(FATAL) << "Not Implemented"; }
 void CodeGenC::Visit(const ir::PolyFor *op) {
   os() << "for (";
+  os() << PrintType(Int(32));
+  os() << " " << op->iterator->name;
+  os() << " = ";
   Print(op->init);
   os() << "; ";
   Print(op->condition);
   os() << "; ";
+
+  os() << op->iterator->name;
+  os() << " += ";
   Print(op->inc);
   os() << ")";
 
@@ -139,6 +135,43 @@ void CodeGenC::PrintCastExpr(const Type &type, Expr e) {
   os() << PrintType(type) << "(";
   Print(e);
   os() << ")";
+}
+
+void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
+  os() << "void " << op->name;
+
+  // output arguments
+  os() << "(";
+
+  auto print_arg = [&](const ir::Argument &arg) {
+    if (arg.is_buffer()) {
+      os() << "struct cinn_buffer_t *";
+    } else if (arg.is_scalar()) {
+      os() << PrintType(arg.type) << " ";
+      os() << arg.name;
+    } else {
+      NOT_IMPLEMENTED
+    }
+    os() << arg.name;
+  };
+
+  for (int i = 0; i < op->args.size() - 1; i++) {
+    print_arg(op->args[i]);
+    os() << ", ";
+  }
+  if (op->args.size() >= 1) {
+    print_arg(op->args.back());
+  }
+
+  os() << ")";
+
+  DoIndent();
+  os() << "{\n";
+
+  Print(op->body);
+
+  DoIndent();
+  os() << "}";
 }
 
 }  // namespace backends

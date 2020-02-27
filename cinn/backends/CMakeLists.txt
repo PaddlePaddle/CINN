@@ -5,3 +5,6 @@ foreach(cpp ${srcs})
       "${core_src};cinn/backends/${cpp}"
       CACHE INTERNAL "")
 endforeach()
+
+
+cc_test(test_codegen_c SRCS codegen_c_test.cc DEPS core)

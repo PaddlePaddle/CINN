@@ -22,6 +22,7 @@ using ir::Expr;
 template <typename T>
 class Placeholder {
  public:
+  Placeholder(const std::string &name, const std::vector<int> &shape);
   Placeholder(const std::string &name, const std::vector<Expr> &shape);
 
   //! Get a slice.
@@ -36,6 +37,21 @@ class Placeholder {
   operator ir::Tensor() { return tensor_; }
 
  private:
+  void Init(const std::string &name, const std::vector<Expr> &shape) {
+    ir::Var buffer_ptr(Context::Global().NewName("buffer"));
+    buffer_ptr->set_type(type_of<T>());
+
+    std::vector<Expr> strides(shape.size(), Expr(1));
+    Expr offset(0);
+
+    std::vector<ir::Var> axis;
+    for (int i = 0; i < shape.size(); i++) axis.emplace_back(common::axis_name(i));
+
+    auto op = ir::PlaceholderOp::Make(name, shape, type_of<T>());
+
+    tensor_ = ir::_Tensor_::Make(name, shape, op);
+  }
+
   ir::Tensor tensor_;
 };
 
@@ -45,19 +61,15 @@ Expr Placeholder<T>::operator()(const std::vector<Expr> &indices) const {
 }
 
 template <typename T>
+Placeholder<T>::Placeholder(const std::string &name, const std::vector<int> &shape) {
+  std::vector<Expr> _shape;
+  for (int v : shape) _shape.push_back(Expr(v));
+  Init(name, _shape);
+}
+
+template <typename T>
 Placeholder<T>::Placeholder(const std::string &name, const std::vector<Expr> &shape) {
-  ir::Var buffer_ptr(Context::Global().NewName("buffer"));
-  buffer_ptr->set_type(type_of<T>());
-
-  std::vector<Expr> strides(shape.size(), Expr(1));
-  Expr offset(0);
-
-  std::vector<ir::Var> axis;
-  for (int i = 0; i < shape.size(); i++) axis.emplace_back(common::axis_name(i));
-
-  auto op = ir::PlaceholderOp::Make(name, shape, type_of<T>());
-
-  tensor_ = ir::_Tensor_::Make(name, shape, op);
+  Init(name, shape);
 }
 
 }  // namespace lang

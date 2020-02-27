@@ -23,11 +23,10 @@ class CodeGenC : public ir::IrPrinter {
   CodeGenC(std::ostream& os, Target target);
 
   void Compile(const lang::Module& module);
-
- protected:
   void Compile(const ir::LoweredFunc& function);
   void Compile(const ir::Buffer& buffer);
 
+ protected:
   std::string PrintType(Type type);
   void PrintCastExpr(const Type& type, Expr e);
 

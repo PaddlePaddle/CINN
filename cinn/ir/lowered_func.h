@@ -39,6 +39,8 @@ class LoweredFunc : public IrNodeRef {
   LoweredFunc() = default;
   explicit LoweredFunc(IrNode* n) : IrNodeRef(n) {}
 
+  operator Expr() const { return Expr(ptr()); }
+
   const _LoweredFunc_* operator->() const;
   _LoweredFunc_* operator->();
 };
