@@ -1,5 +1,5 @@
 #+title: Design of CINN
-This document describe the design of the project CINN (**C**ompiler **I**nfrastructure for **N**eural **N**etworks). 
+This document describe the design of the project CINN (Compiler Infrastructure for Neural Networks). 
 *  Multi-layer architecture
 To enable the compiler to handle the general DNN tasks, a multi-layer system is designed.
 
@@ -173,4 +173,7 @@ All the buffers will be maintained in global scope, and alloc or dealloc in loca
 
 The benefit is buffer is easy to shared accross multiple statements.
 ** Module
+Module is the container of LoweredFuncs and Buffers.
+There might be more than one module in an generated execution.
 
+The Module can compile to a backends.
