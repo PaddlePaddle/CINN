@@ -14,17 +14,19 @@ namespace lang {
 
 //! Compute methods for one to five Vars as arguments.
 // @{
-ir::Tensor Compute(const std::vector<int> &dims, std::function<Expr(Var)> fn, const std::string &name = "");
-ir::Tensor Compute(const std::vector<int> &dims, std::function<Expr(Var, Var)> fn, const std::string &name = "");
-ir::Tensor Compute(const std::vector<int> &dims, std::function<Expr(Var, Var, Var)> fn, const std::string &name = "");
+ir::Tensor Compute(const std::vector<int> &dims, std::function<Expr(Expr)> fn, const std::string &name = "");
+ir::Tensor Compute(const std::vector<int> &dims, std::function<Expr(Expr, Expr)> fn, const std::string &name = "");
 ir::Tensor Compute(const std::vector<int> &dims,
-                   std::function<Expr(Var, Var, Var, Var)> fn,
+                   std::function<Expr(Expr, Expr, Expr)> fn,
                    const std::string &name = "");
 ir::Tensor Compute(const std::vector<int> &dims,
-                   std::function<Expr(Var, Var, Var, Var, Var)> fn,
+                   std::function<Expr(Expr, Expr, Expr, Expr)> fn,
                    const std::string &name = "");
 ir::Tensor Compute(const std::vector<int> &dims,
-                   std::function<Expr(const std::vector<Var> &)> fn,
+                   std::function<Expr(Expr, Expr, Expr, Expr, Expr)> fn,
+                   const std::string &name = "");
+ir::Tensor Compute(const std::vector<int> &dims,
+                   std::function<Expr(const std::vector<Expr> &)> fn,
                    const std::string &name = "");
 // @}
 
