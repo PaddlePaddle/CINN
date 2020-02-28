@@ -3,19 +3,6 @@
 namespace cinn {
 namespace lang {
 
-/**
- * Content of a module.
- */
-struct _Module_ : Object {
-  std::string name;
-  Target target;
-  std::vector<ir::Buffer> buffers;
-  std::vector<ir::LoweredFunc> functions;
-  std::vector<Module> submodules;
-
-  const char *type_info() const override { return "_Module_"; }
-};
-
 _Module_ *Module::self() { return module_->As<_Module_>(); }
 const _Module_ *Module::self() const { return module_->As<_Module_>(); }
 
@@ -41,6 +28,14 @@ void Module::Append(const ir::LoweredFunc &function) { self()->functions.push_ba
 void Module::Append(const Module &module) { self()->submodules.push_back(module); }
 
 void Module::Compile(const backends::Outputs &outputs) const {}
+
+std::vector<Expr> Module::buffer_creation_exprs() const {
+  std::vector<Expr> res;
+  for (auto &buffer : buffers()) {
+    res.push_back(buffer.CreateExpr());
+  }
+  return res;
+}
 
 }  // namespace lang
 }  // namespace cinn

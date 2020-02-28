@@ -12,6 +12,11 @@ class Expr;
 
 namespace runtime {
 
+//! cinn_buffer_t::new_(buffer)
+static const char* buffer_create = "cinn_buffer_t::new_";
+//! cinn_buffer_t::delete_(buffer)
+static const char* buffer_destroy = "cinn_buffer_t::delete_";
+
 static const char* buffer_load = "cinn_buffer_load";
 
 /**

@@ -1,6 +1,7 @@
 #include "cinn/backends/codegen_c.h"
 
 #include "cinn/ir/lowered_func.h"
+#include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -8,9 +9,30 @@ namespace backends {
 
 CodeGenC::CodeGenC(std::ostream &os, Target target) : ir::IrPrinter(os), target_(target) {}
 
-void CodeGenC::Compile(const lang::Module &module) {}
-void CodeGenC::Compile(const ir::LoweredFunc &function) { Print(function); }
-void CodeGenC::Compile(const ir::Buffer &buffer) {}
+void CodeGenC::Compile(const lang::Module &module) {
+  PrintFileGuardOpen(module.name());
+  PrintIncludes();
+
+  for (auto &buf : module->buffers) {
+    Compile(buf);
+  }
+
+  for (auto &func : module.functions()) {
+    Compile(func);
+  }
+
+  PrintFileGuardClose(module.name());
+}
+void CodeGenC::Compile(const ir::LoweredFunc &function) {
+  Print(function);
+  os() << "\n\n";
+}
+void CodeGenC::Compile(const ir::Buffer &buffer) {
+  Print(buffer.CreateExpr());
+  os() << "\n";
+  os() << "\n";
+}
+
 std::string CodeGenC::PrintType(Type type) {
   if (type == Int(8)) {
     return "int8_t";
@@ -119,7 +141,18 @@ void CodeGenC::Visit(const ir::Block *op) {
   DoIndent();
   os() << "}";
 }
-void CodeGenC::Visit(const ir::Call *op) { IrPrinter::Visit(op); }
+void CodeGenC::Visit(const ir::Call *op) {
+  if (op->name == runtime::buffer_create) {
+    CHECK_EQ(op->args.size(), 1UL);
+    os() << "cinn_buffer_t* " << op->args.front();
+    os() << " = " << op->name << "()";
+  } else if (op->name == runtime::buffer_destroy) {
+    CHECK_EQ(op->args.size(), 1UL);
+    os() << op->name << "(" << op->args.front() << ")";
+  } else {
+    IrPrinter::Visit(op);
+  }
+}
 void CodeGenC::Visit(const ir::Module *op) { NOT_IMPLEMENTED }
 void CodeGenC::Visit(const ir::_Var_ *op) { os() << op->name; }
 void CodeGenC::Visit(const ir::Load *op) { IrPrinter::Visit(op); }
@@ -163,15 +196,45 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
     print_arg(op->args.back());
   }
 
-  os() << ")";
+  os() << ")\n";
 
   DoIndent();
-  os() << "{\n";
+  // os() << "{\n";
 
   Print(op->body);
 
-  DoIndent();
-  os() << "}";
+  // DoIndent();
+  // os() << "}";
+}
+void CodeGenC::PrintIncludes() {
+  os() << "#include <stdio.h>\n";
+  os() << "#include <cinn_runtime.h>\n";
+  os() << "\n";
+}
+
+void CodeGenC::PrintFileGuardOpen(const std::string &name) {
+  os() << utils::StringFormat("#ifndef _%s_H_\n", name.c_str());
+  os() << utils::StringFormat("#define _%s_H_\n", name.c_str());
+  os() << "\n";
+}
+void CodeGenC::PrintFileGuardClose(const std::string &module_name) {
+  os() << utils::StringFormat("#endif  // %s\n", module_name.c_str());
+}
+
+void CodeGenC::PrintBufferCreation(const std::vector<ir::Buffer> &buffers) {
+  for (auto &buffer : buffers) {
+    DoIndent();
+    Print(buffer.CreateExpr());
+    os() << ";\n";
+  }
+}
+
+void CodeGenC::PrintBufferDestroy(const std::vector<ir::Buffer> &buffers) {
+  for (auto &buffer : buffers) {
+    DoIndent();
+    Print(buffer.DestroyExpr());
+    os() << ";\n";
+  }
 }
 
 }  // namespace backends

@@ -264,6 +264,8 @@ struct _Var_ : public ExprNode<_Var_> {
 
   static Expr Make(const std::string& name, const Type& type);
 
+  Expr Copy() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::_Var_;
 };
 
@@ -274,11 +276,16 @@ struct Var : public IrNodeRef {
   explicit Var(const std::string& name_hint, Type t = type_of<int>()) : Var(_Var_::Make(name_hint, t).ptr()) {}
 
   operator Expr() { return Expr(get()); }
+  operator Expr() const {
+    Var v = *this;
+    return Expr(v);
+  }
 
   bool operator==(const Var& o) const;
   bool operator!=(const Var& o) const;
 
   Var& operator=(_Var_* x);
+  Var& operator=(const _Var_* x);
 
   const _Var_* operator->() const { return get(); }
   _Var_* operator->() { return get(); }

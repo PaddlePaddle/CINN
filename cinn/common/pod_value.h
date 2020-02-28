@@ -1,9 +1,6 @@
 #pragma once
 #include <glog/logging.h>
 
-#include <boost/variant/get.hpp>
-#include <boost/variant/variant.hpp>
-
 #include "cinn/common/type.h"
 
 namespace cinn {

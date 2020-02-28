@@ -8,9 +8,27 @@
 #include "cinn/lang/buffer.h"
 
 namespace cinn {
+
+namespace backends {
+class CodeGenC;
+}  // namespace backends
+
 namespace lang {
 
-class _Module_;
+class Module;
+
+/**
+ * Content of a module.
+ */
+struct _Module_ : Object {
+  std::string name;
+  Target target;
+  std::vector<ir::Buffer> buffers;
+  std::vector<ir::LoweredFunc> functions;
+  std::vector<Module> submodules;
+
+  const char* type_info() const override { return "_Module_"; }
+};
 
 /**
  * Module represents IR containing lowered function definitions and buffers.
@@ -44,6 +62,14 @@ class Module {
 
   _Module_* self();
   const _Module_* self() const;
+
+  _Module_* operator->() { return self(); }
+  const _Module_* operator->() const { return self(); }
+
+ protected:
+  std::vector<Expr> buffer_creation_exprs() const;
+
+  friend class backends::CodeGenC;
 
  private:
   Shared<_Module_> module_;

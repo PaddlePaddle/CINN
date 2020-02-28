@@ -75,7 +75,8 @@ ir::Tensor Compute(const std::vector<int> &dims,
 
   auto unique_name = name.empty() ? Context::Global().NewName("tensor") : name;
 
-  auto op = ir::ComputeOp::Make(unique_name, "" /*tag*/, {}, axis, {expr}, shape);
+  // auto op = ir::ComputeOp::Make(unique_name, "" /*tag*/, {}, axis, {expr}, shape);
+  auto op = ir::ComputeOp::Make(unique_name, "" /*tag*/, {}, fn, shape);
   return ir::_Tensor_::Make(unique_name, shape, op);
 }
 

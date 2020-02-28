@@ -30,8 +30,25 @@ class Buffer : public IrNodeRef {
   Buffer() = default;
   explicit Buffer(IrNode* n) : IrNodeRef(n) {}
 
+  //! Some expressions on operating the buffer.
+  //! All the IR-wise operations are collected below.
+  // @{
+  //! Expression to create the buffer.
+  Expr CreateExpr() const;
+  //! Expression to destroy the buffer.
+  Expr DestroyExpr() const;
+  //! Expression to load a element from a buffer.
+  Expr LoadExpr(const std::vector<Expr>& indice) const;
+  //! Expression to store a value to a position in a buffer.
+  Expr StoreExpr(const std::vector<Expr>& indice, Expr value) const;
+  // @}
+
   const _Buffer_* operator->() const;
   _Buffer_* operator->();
+
+ protected:
+  //! Get a 1-dimension offset given multi-dimension indices.
+  Expr AbsOffset(const std::vector<Expr>& indice) const;
 };
 
 class _Buffer_ : public ExprNode<_Buffer_> {
