@@ -74,14 +74,14 @@ struct ComputeOp : public _Operation_ {
   static Operation Make(const std::string &name,
                         const std::string &tag,
                         const std::map<std::string, IrNodeRef> &attrs,
-                        const std::vector<Var> &axis,
-                        const std::vector<Expr> &body,
+                        handle_t handle,
                         const std::vector<Expr> &shape);
 
   static Operation Make(const std::string &name,
                         const std::string &tag,
                         const std::map<std::string, IrNodeRef> &attrs,
-                        handle_t handle,
+                        const std::vector<Var> &axis,
+                        const std::vector<Expr> &body,
                         const std::vector<Expr> &shape);
 
   const char *func_type() const override;
