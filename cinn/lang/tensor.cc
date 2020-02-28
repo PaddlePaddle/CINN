@@ -78,9 +78,18 @@ size_t Tensor::ndims() const { return operator->()->shape.size(); }
 Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension";
   auto *node = operator->();
-  auto n     = Call::Make(node->type().ElementOf(), node->name, indices, Call::Halide, node->operaion, 0, Expr(*this));
-  n->set_type(node->type());
-  return n;
+
+  if (node->inlined()) {
+    VLOG(3) << "detect an inlined tensor and expand it";
+    auto *compute_op = node->get_compute_op();
+    CHECK(compute_op) << "Inlined Tensor should be generate from a ComputeOp";
+    CHECK(compute_op->producer_fn) << "producer_fn field is unset";
+    return compute_op->producer_fn(indices);
+  } else {
+    auto n = Call::Make(node->type().ElementOf(), node->name, indices, Call::Halide, node->operaion, 0, Expr(*this));
+    n->set_type(node->type());
+    return n;
+  }
 }
 
 const char *_Tensor_::operation_type() const {
@@ -93,7 +102,34 @@ bool _Tensor_::is_placeholder_node() const {
   return std::strcmp(operation_type(), ir::PlaceholderOp::__func_type__) == 0;
 }
 
+ComputeOp *_Tensor_::get_compute_op() const {
+  if (!is_compute_node()) return nullptr;
+  return operaion->As<ComputeOp>();
+}
+
+PlaceholderOp *_Tensor_::get_placeholder_op() const {
+  if (!is_placeholder_node()) return nullptr;
+  return operaion->As<PlaceholderOp>();
+}
+
 void _Tensor_::InitStage() {
+  if (inlined()) {
+    if (stage) {
+      delete stage;
+      stage = nullptr;
+    }
+    return;
+  }
+  if (is_placeholder_node()) {
+    VLOG(2) << "Tensor " << name << " is placeholder, skip stage initialization";
+    if (stage) {
+      delete stage;
+      stage = nullptr;
+    }
+    return;
+  }
+  // Avoid duplicate init.
+  if (stage) return;
   CHECK(!stage) << "Duplicate initialize the poly_element";
   auto *op = operaion->As<_Operation_>();
   if (is_compute_node()) {
@@ -184,6 +220,11 @@ Expr _Tensor_::tensor_store_expanded_body() const {
 void _Tensor_::Bind(lang::Buffer &buffer) {
   buffer->BindTo(this);
   this->buffer = buffer.buffer();
+  CHECK(this->buffer.defined());
+  CHECK(!inlined());
+
+  // Reset stage to nullptr.
+  InitStage();
 }
 
 void Tensor::ExpandInlined() {

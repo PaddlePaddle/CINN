@@ -93,6 +93,9 @@ class Tensor : public ir::IrNodeRef {
   inline operator Expr() const { return Expr(get()); }
 };
 
+class ComputeOp;
+class PlaceholderOp;
+
 /**
  * _Tensor_ holds the content of a Tensor.
  */
@@ -124,16 +127,18 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   static Tensor Make(const std::string& name, const std::vector<Expr>& shape, FunctionRef fn);
 
   //! Tell whether this tensor is inline.
-  bool inlined() const { return (!buffer.defined()) && (!is_placeholder_node()); }
+  bool inlined() const { return (!buffer.defined()) && is_compute_node(); }
 
   //! Bind to a buffer, will persist data to the buffer in runtime.
   void Bind(lang::Buffer& buffer);
 
-  //! Tell the operation type.
+  //! Operation related.
   // @{
   bool is_compute_node() const;
   bool is_placeholder_node() const;
   const char* operation_type() const;
+  ComputeOp* get_compute_op() const;
+  PlaceholderOp* get_placeholder_op() const;
   // @}
 
   //! The expression generate this tensor, will be empty if it is a PlaceHolder.

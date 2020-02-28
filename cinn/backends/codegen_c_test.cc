@@ -31,6 +31,7 @@ TEST(CodeGenC, basic) {
   ir::Tensor A, B, C;
   lang::Buffer C_buf;
   std::tie(A, B, C, C_buf) = CreateTensor1();
+  CHECK(!C->inlined());
 
   auto funcs = lang::Lower("func_C", {A, B, C});
   ASSERT_EQ(funcs.size(), 1UL);
