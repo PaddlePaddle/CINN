@@ -17,6 +17,7 @@ struct Type {
     Int,
     UInt,
     Float,
+    Void,
   };
 
   Type() = default;
@@ -26,6 +27,7 @@ struct Type {
   // @{
   bool valid() const { return !is_unk(); }
   bool is_unk() const { return type_ == Unk; }
+  bool is_void() const { return type_ == Void; }
   bool is_bool() const { return type_ == UInt && bits_ == 1; }
   bool is_vector() const { return width_ > 1; }
   bool is_scalar() const { return width_ == 1; }
@@ -76,6 +78,7 @@ struct Type {
   int width_{1};
 };
 
+inline Type Void() { return Type(Type::Void, 0, 0); }
 inline Type Int(int bits, int width = 1) { return Type(Type::Int, bits, width); }
 inline Type UInt(int bits, int width = 1) { return Type(Type::UInt, bits, width); }
 inline Type Float(int bits, int width = 1) { return Type(Type::Float, bits, width); }

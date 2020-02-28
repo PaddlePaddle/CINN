@@ -1,6 +1,9 @@
 #include "cinn/ir/buffer.h"
 
+#include "cinn/common/common.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
 namespace ir {
@@ -51,6 +54,40 @@ void _Buffer_::BindTo(const _Tensor_ *tensor) {
   if (name.empty()) name = tensor->name;
   if (!data.defined()) data = _Var_::Make(name, tensor->type()).As<ir::_Var_>();
   bound_tensors_names_.insert(tensor->name);
+}
+
+Expr Buffer::LoadExpr(const std::vector<Expr> &indice) const {
+  auto *node = operator->();
+  return Load::Make(node->data, AbsOffset(indice));
+}
+
+Expr Buffer::StoreExpr(const std::vector<Expr> &indice, Expr value) const {
+  auto *node = operator->();
+  return Store::Make(node->data, value, AbsOffset(indice));
+}
+
+Expr Buffer::AbsOffset(const std::vector<Expr> &indice) const {
+  auto *node = operator->();
+  CHECK(!node->shape.empty());
+  CHECK_EQ(node->shape.size(), indice.size()) << "shape and indice not match";
+  Expr res = indice.front() * node->shape[1];
+  for (int i = 1; i < node->shape.size() - 1; i++) {
+    res = res + indice[i] * node->shape[i + 1];
+  }
+  if (node->shape.size() > 1) res = res + indice.back();
+  return res;
+}
+
+Expr Buffer::CreateExpr() const {
+  const auto *node = operator->();
+  std::vector<Expr> args;
+  args.push_back(node->data);
+  return ir::Call::Make(Void(), runtime::buffer_create, {node->data}, Call::CallType::Intrinsic);
+}
+
+Expr Buffer::DestroyExpr() const {
+  auto *node = operator->();
+  return ir::Call::Make(Void(), runtime::buffer_destroy, {node->data}, Call::CallType::Intrinsic);
 }
 
 }  // namespace ir

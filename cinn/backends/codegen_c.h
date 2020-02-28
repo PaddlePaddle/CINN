@@ -30,6 +30,13 @@ class CodeGenC : public ir::IrPrinter {
   std::string PrintType(Type type);
   void PrintCastExpr(const Type& type, Expr e);
 
+  void PrintIncludes();
+  void PrintFileGuardOpen(const std::string& module_name);
+  void PrintFileGuardClose(const std::string& module_name);
+  //! Create the buffers in global scope(just creation without allocating them).
+  void PrintBufferCreation(const std::vector<ir::Buffer>& buffers);
+  void PrintBufferDestroy(const std::vector<ir::Buffer>& buffers);
+
 #define __DEFINE_VISIT(op__) void Visit(const ir::op__* op) override;
   NODETY_FORALL(__DEFINE_VISIT)
 #undef __DEFINE_VISIT

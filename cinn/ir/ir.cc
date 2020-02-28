@@ -119,6 +119,10 @@ Expr _Var_::Make(const std::string &name, const Type &type) {
   auto node = new _Var_(name, type);
   return Expr(node);
 }
+Expr _Var_::Copy() const {
+  auto x = _Var_::Make(name, type());
+  return x;
+}
 
 For::For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) : ExprNode(Type()) {
   CHECK(min.defined());
@@ -296,6 +300,11 @@ bool Var::operator!=(const Var &o) const { return !(*this == o); }
 
 Var &Var::operator=(_Var_ *x) {
   *this = Var(x);
+  return *this;
+}
+
+Var &Var::operator=(const _Var_ *x) {
+  *this = x->Copy();
   return *this;
 }
 

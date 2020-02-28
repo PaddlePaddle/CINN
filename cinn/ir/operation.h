@@ -57,6 +57,7 @@ struct PlaceholderOp : public _Operation_ {
  * @brief A Compute op that compute a tensor on certain domain.
  */
 struct ComputeOp : public _Operation_ {
+  using handle_t = std::function<Expr(const std::vector<Expr> &)>;
   //! Vars on each axis.
   std::vector<Var> axis;
   //! Var on each reduction axis, if the body is a Reduction.
@@ -65,6 +66,8 @@ struct ComputeOp : public _Operation_ {
   std::vector<Expr> shape;
   //! The compute expression.
   std::vector<Expr> body;
+  //! The functor to generate the body, used to inline the expression if needed.
+  handle_t producer_fn;
 
   ComputeOp() = default;
 
@@ -73,6 +76,12 @@ struct ComputeOp : public _Operation_ {
                         const std::map<std::string, IrNodeRef> &attrs,
                         const std::vector<Var> &axis,
                         const std::vector<Expr> &body,
+                        const std::vector<Expr> &shape);
+
+  static Operation Make(const std::string &name,
+                        const std::string &tag,
+                        const std::map<std::string, IrNodeRef> &attrs,
+                        handle_t handle,
                         const std::vector<Expr> &shape);
 
   const char *func_type() const override;

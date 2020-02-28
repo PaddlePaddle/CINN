@@ -84,6 +84,9 @@ class Tensor : public ir::IrNodeRef {
    */
   Expr operator()(const std::vector<Expr>& indices) const;
 
+  //! Expand the inline expression in the body.
+  void ExpandInlined();
+
   inline const _Tensor_* operator->() const { return As<_Tensor_>(); }
   inline _Tensor_* operator->() { return As<_Tensor_>(); }
 

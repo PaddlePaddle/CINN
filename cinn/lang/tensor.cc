@@ -186,5 +186,10 @@ void _Tensor_::Bind(lang::Buffer &buffer) {
   this->buffer = buffer.buffer();
 }
 
+void Tensor::ExpandInlined() {
+  // Collect all the Calls with Tensors
+  // Expand all the uninlined tensor.
+}
+
 }  // namespace ir
 }  // namespace cinn

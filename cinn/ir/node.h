@@ -166,6 +166,8 @@ struct ExprNode : public IrNode {
   virtual std::vector<Expr*> expr_fields() { return {}; }
   virtual std::vector<const Expr*> expr_fields() const { return {}; }
 
+  virtual Expr Copy() const;
+
   IrNodeTy node_type() const override { return T::_node_type_; }
 };
 
@@ -294,6 +296,12 @@ enum class MemoryType {
   Auto,
 
 };
+
+template <typename T>
+Expr ExprNode<T>::Copy() const {
+  LOG(FATAL) << "Not Implemented";
+  return Expr();
+}
 
 }  // namespace ir
 }  // namespace cinn
