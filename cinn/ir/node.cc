@@ -49,5 +49,11 @@ Expr &Expr::operator=(const Expr &other) {
   return *this;
 }
 
+Expr::operator Var() {
+  auto *x = As<ir::_Var_>();
+  CHECK(x);
+  return ir::Var(x);
+}
+
 }  // namespace ir
 }  // namespace cinn

@@ -235,6 +235,8 @@ struct Expr : public IrNodeRef {
   double as_double() const;
   // @}
 
+  operator Var();
+
   const Type& type() const { return p_->type(); }
 };
 
