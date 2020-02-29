@@ -49,7 +49,7 @@ void func_C(struct cinn_buffer_t *A, struct cinn_buffer_t *B, struct cinn_buffer
 {
   for (int32_t c1 = 0; (c1 <= 99); c1 += 1){
     for (int32_t c3 = 0; (c3 <= 19); c3 += 1){
-      C[((c1 * 20) + c3)] = (A(c1, c3) + B(c1, c3));
+      C[((c1 * 20) + c3)] = (A[((c1 * 20) + c3)] + B[((c1 * 20) + c3)]);
     };
   };
 }

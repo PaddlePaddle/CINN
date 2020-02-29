@@ -86,9 +86,10 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
     CHECK(compute_op->producer_fn) << "producer_fn field is unset";
     return compute_op->producer_fn(indices);
   } else {
-    auto n = Call::Make(node->type().ElementOf(), node->name, indices, Call::Halide, node->operaion, 0, Expr(*this));
-    n->set_type(node->type());
-    return n;
+    CHECK(node->buffer.defined()) << utils::StringFormat("Buffer for [%s] should be defined so that it can be sliced",
+                                                         node->name.c_str());
+    ir::Buffer buffer_handle(node->buffer);
+    return buffer_handle.LoadExpr(indices);
   }
 }
 
