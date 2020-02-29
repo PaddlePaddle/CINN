@@ -15,7 +15,12 @@ struct Argument {
   //! The name of the argument.
   std::string name;
 
-  enum class Kind { kScalar = 0, kBuffer } kind{Kind::kScalar};
+  enum class Kind { kScalar = 0, kBuffer };
+  //! Input or output.
+  enum class IO { kInput = 0, kOutput = 1 };
+
+  Kind kind{Kind::kScalar};
+  IO io{IO::kInput};
 
   //! Number of the dimensions of buffer.
   uint32_t ndims{0};
@@ -26,11 +31,15 @@ struct Argument {
   bool is_buffer() const { return kind == Kind::kBuffer; }
   bool is_scalar() const { return kind == Kind::kScalar; }
 
-  Argument() {}
-  Argument(const std::string& name, Kind kind, const Type& type, int ndims)
-      : name(name), kind(kind), type(type), ndims(ndims) {}
+  bool is_input() const { return io == IO::kInput; }
+  bool is_output() const { return io == IO::kOutput; }
 
-  explicit Argument(const ir::Buffer& buffer) : name(buffer->name), type(buffer->type()), ndims(buffer->shape.size()) {}
+  Argument() {}
+  Argument(const std::string& name, Kind kind, const Type& type, int ndims, IO io = IO::kInput)
+      : name(name), kind(kind), type(type), ndims(ndims), io(io) {}
+
+  explicit Argument(const ir::Buffer& buffer, IO io = IO::kInput)
+      : name(buffer->name), type(buffer->type()), ndims(buffer->shape.size()), io(io) {}
 };
 
 //! Wrapper for _LoweredFunc_
@@ -58,6 +67,9 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   //! Body of this function.
   Expr body;
 
+  std::vector<Expr> alloc_output_buffer_exprs;
+  std::vector<Expr> alloc_tmp_buffer_exprs;
+
   static LoweredFunc Make(const std::string& name, const std::vector<Argument>& args, const Expr& body);
 
   static LoweredFunc Make(const std::string& name, const std::vector<Argument>& args, const std::vector<Expr>& body);
@@ -66,6 +78,13 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::_LoweredFunc_;
+
+ private:
+  void CheckValid() const;
+  //! Insert the allocation buffer for outputs.
+  void AllocBufferForOutputs();
+  //! Insert the allocation expr for temporary variables.
+  void AllocTempBuffer();
 };
 
 }  // namespace ir

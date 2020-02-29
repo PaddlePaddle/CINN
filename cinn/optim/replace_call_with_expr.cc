@@ -8,11 +8,11 @@
 namespace cinn {
 namespace optim {
 
-struct ReplaceCallWithExprModifier : public ir::IRMutator {
+struct ReplaceCallWithExprModifier : public ir::IRMutator<> {
   ReplaceCallWithExprModifier(const std::string &statement, const Expr &candidate)
       : statement_(statement), candidate_(candidate) {}
 
-  void operator()(Expr *e) { IRMutator::Visit(e, e); }
+  void operator()(Expr *e) { IRMutator<>::Visit(e, e); }
 
  private:
   void Visit(const ir::Call *expr, Expr *op) override {

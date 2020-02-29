@@ -1,6 +1,7 @@
 #include "cinn/backends/codegen_c.h"
 
 #include "cinn/ir/lowered_func.h"
+#include "cinn/optim/remove_nested_block.h"
 #include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"
 
@@ -13,9 +14,7 @@ void CodeGenC::Compile(const lang::Module &module) {
   PrintFileGuardOpen(module.name());
   PrintIncludes();
 
-  for (auto &buf : module->buffers) {
-    Compile(buf);
-  }
+  PrintBufferCreation(module->buffers);
 
   for (auto &func : module.functions()) {
     Compile(func);
@@ -146,9 +145,14 @@ void CodeGenC::Visit(const ir::Call *op) {
     CHECK_EQ(op->args.size(), 1UL);
     os() << "cinn_buffer_t* " << op->args.front();
     os() << " = " << op->name << "()";
-  } else if (op->name == runtime::buffer_destroy) {
-    CHECK_EQ(op->args.size(), 1UL);
-    os() << op->name << "(" << op->args.front() << ")";
+  } else if (op->call_type == ir::Call::CallType::Intrinsic) {
+    CHECK(!op->args.empty());
+    os() << op->name << "(";
+    for (int i = 0; i < op->args.size() - 1; i++) {
+      os() << op->args[i];
+    }
+    if (op->args.size() > 0) os() << op->args.back();
+    os() << ")";
   } else {
     IrPrinter::Visit(op);
   }
@@ -178,7 +182,11 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
 
   auto print_arg = [&](const ir::Argument &arg) {
     if (arg.is_buffer()) {
-      os() << "struct cinn_buffer_t *";
+      if (arg.is_input()) {
+        os() << "const struct cinn_buffer_t *";
+      } else {
+        os() << "struct cinn_buffer_t *";
+      }
     } else if (arg.is_scalar()) {
       os() << PrintType(arg.type) << " ";
       os() << arg.name;
@@ -201,14 +209,20 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
   DoIndent();
   // os() << "{\n";
 
-  Print(op->body);
+  // allocate output buffer
+  Expr allocate_output_buffer_expr = ir::Block::Make(op->alloc_output_buffer_exprs);
+  Expr func_body                   = ir::Block::Make({allocate_output_buffer_expr, op->body});
+
+  optim::RemoveNestedBlock(&func_body);
+
+  Print(func_body);
 
   // DoIndent();
   // os() << "}";
 }
 void CodeGenC::PrintIncludes() {
-  os() << "#include <stdio.h>\n";
   os() << "#include <cinn_runtime.h>\n";
+  os() << "#include <stdio.h>\n";
   os() << "\n";
 }
 

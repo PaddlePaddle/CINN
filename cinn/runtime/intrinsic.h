@@ -19,6 +19,8 @@ static const char* buffer_destroy = "cinn_buffer_t::delete_";
 
 static const char* buffer_load = "cinn_buffer_load";
 
+static const char* buffer_alloc = "cinn_buffer_t::alloc";
+
 /**
  * Load an element from a buffer.
  * @param buffer

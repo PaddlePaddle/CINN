@@ -5,7 +5,7 @@
 namespace cinn {
 namespace optim {
 
-struct NestedBlockRemover : public ir::IRMutator {
+struct NestedBlockRemover : public ir::IRMutator<Expr*> {
   void Visit(const ir::Block* expr, Expr* op) override {
     auto* node = op->As<ir::Block>();
 
