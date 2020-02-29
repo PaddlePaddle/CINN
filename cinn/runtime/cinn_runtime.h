@@ -139,6 +139,8 @@ typedef struct cinn_buffer_t {
   static struct cinn_buffer_t* new_() { return new (struct cinn_buffer_t); }
   static void delete_(struct cinn_buffer_t* x) { delete x; }
 
+  static void alloc(struct cinn_buffer_t*);
+
   CINN_ALWAYS_INLINE int num_elements() const {
     int res = 1;
     for (int i = 0; i < dimensions; i++) {

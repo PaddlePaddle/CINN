@@ -1,5 +1,7 @@
 #include "cinn/lang/lower.h"
 
+#include <cinn/ir/ir_mutator.h>
+
 #include <map>
 #include <set>
 
@@ -43,6 +45,37 @@ Expr LowerGroup(const poly::detail::Group& group, const std::map<std::string, Ex
   }
 
   return e;
+}
+
+namespace {
+
+struct WriteTeller : public ir::IRMutator<const Expr*> {
+  std::set<std::string> buffer_written;
+
+  void Visit(const Expr* expr, const Expr* op) override { IRMutator::Visit(expr, op); }
+
+  void Visit(const ir::Load* expr, const Expr* op) override {
+    buffer_written.insert(expr->buffer_var->name);
+    IRMutator::Visit(expr, op);
+  }
+};
+
+}  // namespace
+
+std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensors, const std::vector<Expr>& func_body) {
+  std::vector<ir::Argument> args;
+  WriteTeller teller;
+  for (auto& expr : func_body) teller.Visit(&expr, &expr);
+
+  for (auto& tensor : tensors) {
+    bool is_input = teller.buffer_written.count(tensor->name);
+    args.emplace_back(tensor->name,
+                      ir::Argument::Kind::kBuffer,
+                      tensor->type().ElementOf(),
+                      tensor->shape.size(),
+                      is_input ? ir::Argument::IO::kInput : ir::Argument::IO::kOutput);
+  }
+  return args;
 }
 
 std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Tensor>& args) {
@@ -106,11 +139,7 @@ std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Te
   optim::RemoveNestedBlock(&block);
 
   // prepare arguments
-  std::vector<ir::Argument> arguments;
-  for (auto& arg : args) {
-    arguments.emplace_back(arg->name, ir::Argument::Kind::kBuffer, arg->type(), arg->shape.size());
-  }
-
+  std::vector<ir::Argument> arguments = PrepareArguments(args, {block});
   return {ir::_LoweredFunc_::Make(name, arguments, block)};
 }
 
