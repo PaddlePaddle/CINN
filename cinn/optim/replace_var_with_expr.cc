@@ -8,7 +8,7 @@
 namespace cinn {
 namespace optim {
 
-struct ReplaceVarWithExprMutator : public ir::IRMutator {
+struct ReplaceVarWithExprMutator : public ir::IRMutator<> {
   ReplaceVarWithExprMutator(const Var& var, const Expr& expr) : var_(var), expr_(expr) {}
 
   void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }

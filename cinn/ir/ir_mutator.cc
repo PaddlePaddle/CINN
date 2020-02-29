@@ -6,19 +6,24 @@
 namespace cinn {
 namespace ir {
 
-void IRMutator::Visit(const Expr *expr, Expr *op) { IRVisitorBase::Visit(expr, op); }
+template <typename T>
+void IRMutator<T>::Visit(const Expr *expr, T op) {
+  IRVisitorBase<void, T>::Visit(expr, op);
+}
 
-#define UNARY_OP_IMPL(op__)                           \
-  void IRMutator::Visit(const op__ *expr, Expr *op) { \
-    auto *node = op->As<op__>();                      \
-    IRVisitorBase::Visit(&node->v, &node->v);         \
+#define UNARY_OP_IMPL(op__)                            \
+  template <typename T>                                \
+  void IRMutator<T>::Visit(const op__ *expr, T op) {   \
+    auto *node = op->template As<op__>();              \
+    IRVisitorBase<void, T>::Visit(&node->v, &node->v); \
   }
 
-#define BINARY_OP_IMPL(op__)                          \
-  void IRMutator::Visit(const op__ *expr, Expr *op) { \
-    auto *node = op->As<op__>();                      \
-    IRVisitorBase::Visit(&node->a, &node->a);         \
-    IRVisitorBase::Visit(&node->b, &node->b);         \
+#define BINARY_OP_IMPL(op__)                           \
+  template <typename T>                                \
+  void IRMutator<T>::Visit(const op__ *expr, T op) {   \
+    auto *node = op->template As<op__>();              \
+    IRVisitorBase<void, T>::Visit(&node->a, &node->a); \
+    IRVisitorBase<void, T>::Visit(&node->b, &node->b); \
   }
 
 NODETY_UNARY_OP_FOR_EACH(UNARY_OP_IMPL)
@@ -27,97 +32,122 @@ NODETY_BINARY_OP_FOR_EACH(BINARY_OP_IMPL)
 #undef UNARY_OP_IMPL
 #undef BINARY_OP_IMPL
 
-void IRMutator::Visit(const IntImm *expr, Expr *op) {}
-void IRMutator::Visit(const UIntImm *expr, Expr *op) {}
-void IRMutator::Visit(const FloatImm *expr, Expr *op) {}
-void IRMutator::Visit(const Cast *expr, Expr *op) {
-  auto *node = op->As<Cast>();
+template <typename T>
+void IRMutator<T>::Visit(const IntImm *expr, T op) {}
+template <typename T>
+void IRMutator<T>::Visit(const UIntImm *expr, T op) {}
+template <typename T>
+void IRMutator<T>::Visit(const FloatImm *expr, T op) {}
+template <typename T>
+void IRMutator<T>::Visit(const Cast *expr, T op) {
+  auto *node = op->template As<Cast>();
   Visit(&node->v, &node->v);
 }
-void IRMutator::Visit(const For *expr, Expr *op) {
-  auto *node = op->As<For>();
-  IRVisitorBase::Visit(&node->min, &node->min);
-  IRVisitorBase::Visit(&node->extent, &node->extent);
-  IRVisitorBase::Visit(&node->body, &node->body);
+template <typename T>
+void IRMutator<T>::Visit(const For *expr, T op) {
+  auto *node = op->template As<For>();
+  IRVisitorBase<void, T>::Visit(&node->min, &node->min);
+  IRVisitorBase<void, T>::Visit(&node->extent, &node->extent);
+  IRVisitorBase<void, T>::Visit(&node->body, &node->body);
 }
-void IRMutator::Visit(const PolyFor *expr, Expr *op) {
-  auto *node = op->As<PolyFor>();
-  IRVisitorBase::Visit(&node->body, &node->body);
-  IRVisitorBase::Visit(&node->condition, &node->condition);
-  IRVisitorBase::Visit(&node->inc, &node->inc);
+template <typename T>
+void IRMutator<T>::Visit(const PolyFor *expr, T op) {
+  auto *node = op->template As<PolyFor>();
+  IRVisitorBase<void, T>::Visit(&node->body, &node->body);
+  IRVisitorBase<void, T>::Visit(&node->condition, &node->condition);
+  IRVisitorBase<void, T>::Visit(&node->inc, &node->inc);
 }
-void IRMutator::Visit(const Select *expr, Expr *op) {
-  auto *node = op->As<Select>();
-  IRVisitorBase::Visit(&node->condition, &node->condition);
-  IRVisitorBase::Visit(&node->true_value, &node->true_value);
-  IRVisitorBase::Visit(&node->false_value, &node->false_value);
+template <typename T>
+void IRMutator<T>::Visit(const Select *expr, T op) {
+  auto *node = op->template As<Select>();
+  IRVisitorBase<void, T>::Visit(&node->condition, &node->condition);
+  IRVisitorBase<void, T>::Visit(&node->true_value, &node->true_value);
+  IRVisitorBase<void, T>::Visit(&node->false_value, &node->false_value);
 }
-void IRMutator::Visit(const IfThenElse *expr, Expr *op) {
-  auto *node = op->As<IfThenElse>();
-  IRVisitorBase::Visit(&node->condition, &node->condition);
+template <typename T>
+void IRMutator<T>::Visit(const IfThenElse *expr, T op) {
+  auto *node = op->template As<IfThenElse>();
+  IRVisitorBase<void, T>::Visit(&node->condition, &node->condition);
   Expr true_case(node->true_case);
   Expr false_case(node->false_case);
-  IRVisitorBase::Visit(&node->true_case, &true_case);
-  IRVisitorBase::Visit(&node->false_case, &false_case);
+  IRVisitorBase<void, T>::Visit(&node->true_case, &true_case);
+  IRVisitorBase<void, T>::Visit(&node->false_case, &false_case);
 }
-void IRMutator::Visit(const Block *expr, Expr *op) {
-  auto *node = op->As<Block>();
+template <typename T>
+void IRMutator<T>::Visit(const Block *expr, T op) {
+  auto *node = op->template As<Block>();
   for (auto &expr : node->stmts) {
-    IRVisitorBase::Visit(&expr, &expr);
+    IRVisitorBase<void, T>::Visit(&expr, &expr);
   }
 }
-void IRMutator::Visit(const Call *expr, Expr *op) {
-  auto *node = op->As<Call>();
+template <typename T>
+void IRMutator<T>::Visit(const Call *expr, T op) {
+  auto *node = op->template As<Call>();
   for (auto &expr : node->args) {
-    IRVisitorBase::Visit(&expr, &expr);
+    IRVisitorBase<void, T>::Visit(&expr, &expr);
   }
 }
-void IRMutator::Visit(const Module *expr, Expr *op) {}
-void IRMutator::Visit(const _Var_ *expr, Expr *op) {}
-void IRMutator::Visit(const Load *expr, Expr *op) {
-  auto *node = op->As<Load>();
-  IRVisitorBase::Visit(&node->index, &node->index);
+template <typename T>
+void IRMutator<T>::Visit(const Module *expr, T op) {}
+template <typename T>
+void IRMutator<T>::Visit(const _Var_ *expr, T op) {}
+template <typename T>
+void IRMutator<T>::Visit(const Load *expr, T op) {
+  auto *node = op->template As<Load>();
+  IRVisitorBase<void, T>::Visit(&node->index, &node->index);
 }
-void IRMutator::Visit(const Store *expr, Expr *op) {
-  auto *node = op->As<Store>();
-  IRVisitorBase::Visit(&node->value, &node->value);
-  IRVisitorBase::Visit(&node->index, &node->index);
+template <typename T>
+void IRMutator<T>::Visit(const Store *expr, T op) {
+  auto *node = op->template As<Store>();
+  IRVisitorBase<void, T>::Visit(&node->value, &node->value);
+  IRVisitorBase<void, T>::Visit(&node->index, &node->index);
 }
-void IRMutator::Visit(const Alloc *expr, Expr *op) {
-  auto *node = op->As<Alloc>();
+template <typename T>
+void IRMutator<T>::Visit(const Alloc *expr, T op) {
+  auto *node = op->template As<Alloc>();
   for (auto &e : node->extents) {
-    IRVisitorBase::Visit(&e, &e);
+    IRVisitorBase<void, T>::Visit(&e, &e);
   }
-  IRVisitorBase::Visit(&node->condition, &node->condition);
+  IRVisitorBase<void, T>::Visit(&node->condition, &node->condition);
   Expr body(node->body);
-  IRVisitorBase::Visit(&node->body, &body);
+  IRVisitorBase<void, T>::Visit(&node->body, &body);
 }
-void IRMutator::Visit(const Free *expr, Expr *op) {}
-void IRMutator::Visit(const _Range_ *expr, Expr *op) {}
-void IRMutator::Visit(const _IterVar_ *expr, Expr *op) {}
-void IRMutator::Visit(const _Buffer_ *expr, Expr *op) {
-  auto *node = op->As<_Buffer_>();
+template <typename T>
+void IRMutator<T>::Visit(const Free *expr, T op) {}
+template <typename T>
+void IRMutator<T>::Visit(const _Range_ *expr, T op) {}
+template <typename T>
+void IRMutator<T>::Visit(const _IterVar_ *expr, T op) {}
+template <typename T>
+void IRMutator<T>::Visit(const _Buffer_ *expr, T op) {
+  auto *node = op->template As<_Buffer_>();
 
   for (auto &e : node->shape) {
-    IRVisitorBase::Visit(&e, &e);
+    IRVisitorBase<void, T>::Visit(&e, &e);
   }
   for (auto &e : node->strides) {
-    IRVisitorBase::Visit(&e, &e);
+    IRVisitorBase<void, T>::Visit(&e, &e);
   }
-  IRVisitorBase::Visit(&node->elem_offset, &node->elem_offset);
+  IRVisitorBase<void, T>::Visit(&node->elem_offset, &node->elem_offset);
 }
-void IRMutator::Visit(const _Tensor_ *expr, Expr *op) {
-  auto *node = op->As<_Tensor_>();
+template <typename T>
+void IRMutator<T>::Visit(const _Tensor_ *expr, T op) {
+  auto *node = op->template As<_Tensor_>();
 
   for (auto &e : node->shape) {
-    IRVisitorBase::Visit(&e, &e);
+    IRVisitorBase<void, T>::Visit(&e, &e);
   }
 }
-
-void IRMutator::Visit(const _LoweredFunc_ *expr, Expr *op) {
-  auto *node = op->As<_LoweredFunc_>();
-  IRVisitorBase::Visit(&node->body, &node->body);
+template <typename T>
+void IRMutator<T>::Visit(const _LoweredFunc_ *expr, T op) {
+  auto *node = op->template As<_LoweredFunc_>();
+  IRVisitorBase<void, T>::Visit(&node->body, &node->body);
 }
+
+template <>
+class IRMutator<Expr *>;
+template <>
+class IRMutator<const Expr *>;
 
 }  // namespace ir
 }  // namespace cinn

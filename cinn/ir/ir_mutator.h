@@ -9,11 +9,13 @@
 namespace cinn {
 namespace ir {
 
-class IRMutator : public IRVisitorBase<void, Expr*> {
+//! T might be Expr* or const Expr*
+template <typename T = Expr*>
+class IRMutator : public IRVisitorBase<void, T> {
  public:
-  void Visit(const Expr* expr, Expr* op) override;
+  void Visit(const Expr* expr, T op) override;
 
-#define __(op__) void Visit(const op__* expr, Expr* op) override;
+#define __(op__) void Visit(const op__* expr, T op) override;
   NODETY_FORALL(__)
 #undef __
 };
