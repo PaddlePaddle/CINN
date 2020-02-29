@@ -50,6 +50,8 @@ class Placeholder {
     auto op = ir::PlaceholderOp::Make(name, shape, type_of<T>());
 
     tensor_ = ir::_Tensor_::Make(name, shape, op);
+    Buffer buffer;
+    tensor_->Bind(buffer);
   }
 
   ir::Tensor tensor_;
