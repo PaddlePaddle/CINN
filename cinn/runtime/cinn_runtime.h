@@ -1,8 +1,10 @@
-#ifndef CINN_RUNTIME_H_
-#define CINN_RUNTIME_H_
+#ifndef CINN_RUNTIME_CINN_RUNTIME_H_
+#define CINN_RUNTIME_CINN_RUNTIME_H_
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,6 +12,7 @@ extern "C" {
 
 #define CINN_ALWAYS_INLINE __attribute__((always_inline)) inline
 
+//! Code for the primitive types supported in CINN.
 typedef enum cinn_type_code_t {
   cinn_type_int    = 0,  //! signed int
   cinn_type_uint   = 1,  //! unsigned int
@@ -50,9 +53,26 @@ typedef struct cinn_type_t {
 
 } cinn_type_t;
 
+//! Some primitive types.
+// @{
+extern cinn_type_t cinn_int32_t();
+extern cinn_type_t cinn_int64_t();
+extern cinn_type_t cinn_uint32_t();
+extern cinn_type_t cinn_uint64_t();
+extern cinn_type_t cinn_float32_t();
+extern cinn_type_t cinn_float64_t();
+// @}
+
 //! Help to define the size of a dimension, due to polyhedral representation, we no need to record the extend or
 //! min(default to 0).
 typedef int cinn_dimension_t;
+
+//! Help to tell the kind of the device.
+typedef enum cinn_device_kind_t {
+  cinn_unk_device    = -1,  // Undefined device.
+  cinn_x86_device    = 0,   // X86 device
+  cinn_opencl_device = 1    // OpenCL device
+} cinn_device_kind_t;
 
 //! Help to tell where the buffer locates.
 typedef enum cinn_buffer_kind_t {
@@ -69,23 +89,19 @@ struct cinn_device_interface_impl_t;
 
 struct cinn_device_interface_t {
   int (*malloc)(void* context, struct cinn_buffer_t* buf, const struct cinn_device_interface_t* device_interface);
-  int (*free)(void* context, struct cinn_device_interface_t* buf);
+  int (*free)(void* context, struct cinn_buffer_t* buf);
   int (*sync)(void* context, struct cinn_buffer_t* buf);
-  void (*release)(void* context, const struct cinn_device_interface_t* device_interface);
+  int (*release)(void* context, const struct cinn_device_interface_t* device_interface);
   int (*copy_to_host)(void* context, struct cinn_buffer_t* buf);
-  int (*copy_to_device)(void* context,
-                        struct cinn_buffer_t* buf,
-                        const struct cinn_device_interface_t* device_interface);
-  int (*buffer_copy)(void* context,
-                     struct cinn_buffer_t* src,
-                     struct cinn_buffer_t* dst,
-                     const struct cinn_device_interface_t* dest_device_interface);
+  int (*copy_to_device)(void* context, struct cinn_buffer_t* buf);
+  int (*buffer_copy)(void* context, struct cinn_buffer_t* src, struct cinn_buffer_t* dst);
+  cinn_device_interface_impl_t* impl;
 };
 
 /**
  * Release all data associated with the given interface.
  */
-extern void cinn_device_release(void* context, const struct cinn_device_interface_t* device_interface);
+extern int cinn_device_release(void* context, const struct cinn_device_interface_t* device_interface);
 
 /*
  * Copy image data from device to host memory.
@@ -93,15 +109,10 @@ extern void cinn_device_release(void* context, const struct cinn_device_interfac
 extern int cinn_copy_to_host(void* context, struct cinn_buffer_t* buf);
 
 //! Copy data from host to device memory.
-extern int cinn_copy_to_device(void* context,
-                               struct cinn_buffer_t* buf,
-                               const struct cinn_device_interface_t* device_interface);
+extern int cinn_copy_to_device(void* context, struct cinn_buffer_t* buf);
 
 //! Copy data from one buffer to another.
-extern int cinn_buffer_copy(void* context,
-                            struct cinn_buffer_t* src,
-                            struct cinn_buffer_t* dst,
-                            const struct cinn_device_interface_t* dest_device_interface);
+extern int cinn_buffer_copy(void* context, struct cinn_buffer_t* src, struct cinn_buffer_t* dst);
 
 //! Wait for current device operations to complete.
 extern int cinn_device_sync(void* context, struct cinn_buffer_t* buf);
@@ -116,8 +127,8 @@ extern int cinn_device_free(void* context, struct cinn_buffer_t* buf);
 
 //! The raw representation of a buffer,used in the generated code/lib.
 typedef struct cinn_buffer_t {
-  //! A device handle.
-  uint64_t device;
+  //! Tell which kind of device this buffer locates.
+  cinn_device_kind_t device;
 
   //! The interface used to operate on device.
   const struct cinn_device_interface_t* device_interface;
@@ -136,7 +147,16 @@ typedef struct cinn_buffer_t {
   cinn_dimension_t* dims;
 
 #ifdef __cplusplus
-  static struct cinn_buffer_t* new_() { return new (struct cinn_buffer_t); }
+  cinn_buffer_t()
+      : device(cinn_unk_device),
+        device_interface(NULL),
+        host_memory(NULL),
+        flag(0UL),
+        type(cinn_type_t()),
+        dimensions(0),
+        dims(NULL) {}
+
+  static struct cinn_buffer_t* new_(cinn_device_kind_t device);
   static void delete_(struct cinn_buffer_t* x) { delete x; }
 
   static void alloc(struct cinn_buffer_t*);
@@ -176,8 +196,31 @@ typedef struct cinn_buffer_t {
 
 } cinn_buffer_t;
 
+struct cinn_device_interface_impl_t {
+  int (*malloc)(void* context, struct cinn_buffer_t* buf);
+  int (*free)(void* context, struct cinn_buffer_t* buf);
+  int (*sync)(void* context, struct cinn_buffer_t* buf);
+  int (*release)(void* context);
+  int (*copy_to_host)(void* context, struct cinn_buffer_t* buf);
+  int (*copy_to_device)(void* context, struct cinn_buffer_t* buf);
+  int (*buffer_copy)(void* context, struct cinn_buffer_t* src, struct cinn_buffer_t* dst);
+};
+
+// The device implementions
+extern cinn_device_interface_t cinn_x86_device_interface;
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // CINN_RUNTIME_H_
+#define CINN_NOT_IMPLEMENTED           \
+  fprintf(stderr, "Not Implemented!"); \
+  exit(-1);
+
+#define ASSERT_NOT_NULL(v__)          \
+  if (!v__) {                         \
+    fprintf(stderr, #v__ " is null"); \
+    return -1;                        \
+  }
+
+#endif  // CINN_RUNTIME_CINN_RUNTIME_H_
