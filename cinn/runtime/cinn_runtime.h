@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,7 +89,7 @@ struct cinn_buffer_t;
 struct cinn_device_interface_impl_t;
 
 struct cinn_device_interface_t {
-  int (*malloc)(void* context, struct cinn_buffer_t* buf, const struct cinn_device_interface_t* device_interface);
+  int (*malloc)(void* context, struct cinn_buffer_t* buf);
   int (*free)(void* context, struct cinn_buffer_t* buf);
   int (*sync)(void* context, struct cinn_buffer_t* buf);
   int (*release)(void* context, const struct cinn_device_interface_t* device_interface);
@@ -118,9 +119,7 @@ extern int cinn_buffer_copy(void* context, struct cinn_buffer_t* src, struct cin
 extern int cinn_device_sync(void* context, struct cinn_buffer_t* buf);
 
 //! Allocate device memory.
-extern int cinn_device_malloc(void* context,
-                              struct cinn_buffer_t* buf,
-                              const struct cinn_device_interface_t* device_interface);
+extern int cinn_device_malloc(void* context, struct cinn_buffer_t* buf);
 
 //! Free device memory.
 extern int cinn_device_free(void* context, struct cinn_buffer_t* buf);
@@ -146,6 +145,9 @@ typedef struct cinn_buffer_t {
   int32_t dimensions;
   cinn_dimension_t* dims;
 
+  //! The actual memory size.
+  uint64_t memory_size;
+
 #ifdef __cplusplus
   cinn_buffer_t()
       : device(cinn_unk_device),
@@ -154,12 +156,24 @@ typedef struct cinn_buffer_t {
         flag(0UL),
         type(cinn_type_t()),
         dimensions(0),
-        dims(NULL) {}
+        dims(NULL),
+        memory_size(0) {}
 
-  static struct cinn_buffer_t* new_(cinn_device_kind_t device);
+  static struct cinn_buffer_t* new_(cinn_device_kind_t device, cinn_type_t type);
   static void delete_(struct cinn_buffer_t* x) { delete x; }
 
+  // NOTE the buffer should be resized first.
   static void alloc(struct cinn_buffer_t*);
+
+  //! Set the shape of the buffer. NOTE this just record the shape, not allocate the memory.
+  CINN_ALWAYS_INLINE void resize(const cinn_dimension_t* dims, int dimensions) {
+    if (this->dimensions != dimensions) {
+      if (this->dims) free(this->dims);
+      this->dims = (cinn_dimension_t*)malloc(dimensions * sizeof(cinn_dimension_t));
+    }
+    this->dimensions = dimensions;
+    memcpy(this->dims, dims, dimensions * sizeof(cinn_dimension_t));
+  }
 
   CINN_ALWAYS_INLINE int num_elements() const {
     int res = 1;
@@ -206,7 +220,7 @@ struct cinn_device_interface_impl_t {
   int (*buffer_copy)(void* context, struct cinn_buffer_t* src, struct cinn_buffer_t* dst);
 };
 
-// The device implementions
+// The device implementations
 extern cinn_device_interface_t cinn_x86_device_interface;
 
 #ifdef __cplusplus
@@ -215,12 +229,27 @@ extern cinn_device_interface_t cinn_x86_device_interface;
 
 #define CINN_NOT_IMPLEMENTED           \
   fprintf(stderr, "Not Implemented!"); \
-  exit(-1);
+  abort();
 
 #define ASSERT_NOT_NULL(v__)          \
   if (!v__) {                         \
     fprintf(stderr, #v__ " is null"); \
     return -1;                        \
+  }
+#define CINN_LOG(fmt, ...)                                                          \
+  do {                                                                              \
+    fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
+  } while (0)
+
+#define CINN_CHECK(cond)               \
+  if (!(cond)) {                       \
+    CINN_LOG("check %s failed", #cond); \
+    abort();                           \
+  }
+#define CINN_CHECKP(cond, ...) \
+  if (!(cond)) {               \
+    CINN_LOG(__VA_ARGS__);     \
+    abort();                   \
   }
 
 #endif  // CINN_RUNTIME_CINN_RUNTIME_H_
