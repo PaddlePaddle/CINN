@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/node.h"
 
@@ -32,9 +33,8 @@ class Buffer : public IrNodeRef {
 
   //! Some expressions on operating the buffer.
   //! All the IR-wise operations are collected below.
+  // TODO(Superjom) Abandon them.
   // @{
-  //! Expression to create the buffer.
-  Expr CreateExpr() const;
   //! Expression to destroy the buffer.
   Expr DestroyExpr() const;
   //! Expression to load a element from a buffer.
@@ -71,6 +71,8 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   //! Factor of elem_offset field.
   // elem_offset is guaranteed to be multiple of offset_factor.
   int offset_factor;
+  //! The place the buffer locates.
+  Target target{UnkTarget()};
 
   _Buffer_() = default;
 
@@ -82,7 +84,8 @@ class _Buffer_ : public ExprNode<_Buffer_> {
                      const std::string& name,
                      const std::string& scope,
                      int data_alignment,
-                     int offset_factor);
+                     int offset_factor,
+                     Target target = UnkTarget());
 
   static Buffer Make(const std::string& name, const std::vector<Expr>& shape = {});
 

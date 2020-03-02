@@ -44,11 +44,19 @@ struct Target {
 
   Target(OS o, Arch a, Bit b, const std::vector<Feature>& features) : os(o), arch(a), bits(b) {}
 
+  bool defined() const { return os != OS::Unk && arch != Arch::Unk && bits != Bit::Unk; }
+
   //! Get the Runtime architecture, it is casted to integer to avoid header file depending.
   int runtime_arch() const;
 
   bool operator==(const Target& other) const;
   bool operator!=(const Target& other) const { return !(*this == other); }
 };
+
+static const Target& UnkTarget() {
+  static Target target(Target::OS::Unk, Target::Arch::Unk, Target::Bit::Unk, {});
+  return target;
+}
+
 }  // namespace common
 }  // namespace cinn

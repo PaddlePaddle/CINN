@@ -19,16 +19,24 @@ static const char* buffer_destroy = "cinn_buffer_t::delete_";
 
 static const char* buffer_load = "cinn_buffer_load";
 
-static const char* buffer_alloc = "cinn_buffer_t::alloc";
+static const char* buffer_malloc = "cinn_buffer_malloc";
 
+ir::Expr BufferCreate(ir::Buffer buffer);
 /**
- * Load an element from a buffer.
+ * Get an expression to load an element from a buffer.
  * @param buffer
  * @param shape
  * @param indices
  * @return
  */
 ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices);
+
+/**
+ * Get an expression to malloc a buffer.
+ * @param buffer
+ * @return
+ */
+ir::Expr BufferMalloc(ir::Buffer buffer);
 
 }  // namespace runtime
 }  // namespace cinn

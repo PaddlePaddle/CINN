@@ -47,7 +47,7 @@ TEST(CodeGenC, basic) {
                 R"ROC(
 void func_C(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct cinn_buffer_t *C)
 {
-  cinn_buffer_t::alloc(C);
+  cinn_buffer_malloc(C);
   for (int32_t i = 0; (i <= 99); i += 1){
     for (int32_t j = 0; (j <= 19); j += 1){
       C[((i * 20) + j)] = (A[((i * 20) + j)] + B[((i * 20) + j)]);
@@ -63,6 +63,9 @@ TEST(CodeGenC, module) {
   std::tie(A, B, C, C_buf) = CreateTensor1();
 
   Target target;
+  target.arch = Target::Arch ::X86;
+  target.bits = Target::Bit ::k32;
+  target.os   = Target::OS ::Linux;
   lang::Module module("module1", target);
 
   auto funcs = lang::Lower("add1", {A, B, C});
@@ -85,10 +88,10 @@ TEST(CodeGenC, module) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* C = cinn_buffer_t::new_();
+cinn_buffer_t* C = cinn_buffer_t::new_(0/*target*/);
 void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct cinn_buffer_t *C)
 {
-  cinn_buffer_t::alloc(C);
+  cinn_buffer_malloc(C);
   for (int32_t i = 0; (i <= 99); i += 1){
     for (int32_t j = 0; (j <= 19); j += 1){
       C[((i * 20) + j)] = (A[((i * 20) + j)] + B[((i * 20) + j)]);
