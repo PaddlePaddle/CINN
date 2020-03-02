@@ -47,7 +47,7 @@ void _LoweredFunc_::AllocBufferForOutputs() {
   for (auto& arg : args) {
     if (arg.is_output()) {
       auto data = _Var_::Make(arg.name, arg.type);
-      auto expr = Call::Make(Void(), runtime::buffer_alloc, {Expr(data)}, Call::CallType::Intrinsic);
+      auto expr = Call::Make(Void(), runtime::buffer_malloc, {Expr(data)}, Call::CallType::Intrinsic);
       alloc_output_buffer_exprs.push_back(expr);
     }
   }

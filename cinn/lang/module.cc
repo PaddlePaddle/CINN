@@ -21,21 +21,16 @@ const std::vector<ir::LoweredFunc> &Module::functions() const { return self()->f
 
 const std::vector<Module> &Module::submodules() const { return self()->submodules; }
 
-void Module::Append(const Buffer &buffer) { self()->buffers.push_back(buffer.buffer()); }
+void Module::Append(const Buffer &buffer) {
+  self()->buffers.push_back(buffer.buffer());
+  self()->buffers.back()->target = target();
+}
 
 void Module::Append(const ir::LoweredFunc &function) { self()->functions.push_back(function); }
 
 void Module::Append(const Module &module) { self()->submodules.push_back(module); }
 
 void Module::Compile(const backends::Outputs &outputs) const {}
-
-std::vector<Expr> Module::buffer_creation_exprs() const {
-  std::vector<Expr> res;
-  for (auto &buffer : buffers()) {
-    res.push_back(buffer.CreateExpr());
-  }
-  return res;
-}
 
 }  // namespace lang
 }  // namespace cinn

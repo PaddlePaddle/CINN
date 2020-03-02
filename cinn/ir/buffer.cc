@@ -19,7 +19,8 @@ Buffer _Buffer_::Make(Var data,
                       const std::string &name,
                       const std::string &scope,
                       int data_alignment,
-                      int offset_factor) {
+                      int offset_factor,
+                      Target target) {
   auto *node           = common::make_shared<_Buffer_>();
   node->data           = data;
   node->shape          = shape;
@@ -29,6 +30,7 @@ Buffer _Buffer_::Make(Var data,
   node->scope          = scope;
   node->data_alignment = data_alignment;
   node->offset_factor  = offset_factor;
+  node->target         = target;
   node->set_type(dtype);
   return Buffer(node);
 }
@@ -78,13 +80,6 @@ Expr Buffer::AbsOffset(const std::vector<Expr> &indice) const {
   }
   if (node->shape.size() > 1) res = res + indice.back();
   return res;
-}
-
-Expr Buffer::CreateExpr() const {
-  const auto *node = operator->();
-  std::vector<Expr> args;
-  args.push_back(node->data);
-  return ir::Call::Make(Void(), runtime::buffer_create, {node->data}, Call::CallType::Intrinsic);
 }
 
 Expr Buffer::DestroyExpr() const {

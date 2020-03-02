@@ -50,7 +50,8 @@ class Module {
   const std::vector<Module>& submodules() const;
   // @}
 
-  //! Add something to this module.
+  //! Add something to this module, once added to a module, the buffer, function's target will be set with the module's
+  //! target.
   // @{
   void Append(const Buffer& buffer);
   void Append(const ir::LoweredFunc& function);
@@ -67,8 +68,6 @@ class Module {
   const _Module_* operator->() const { return self(); }
 
  protected:
-  std::vector<Expr> buffer_creation_exprs() const;
-
   friend class backends::CodeGenC;
 
  private:

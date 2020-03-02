@@ -2,14 +2,14 @@
 
 extern "C" {
 
-int cinn_device_malloc(void* context, struct cinn_buffer_t* buf) {
+int cinn_buffer_malloc(void* context, struct cinn_buffer_t* buf) {
   // ASSERT_NOT_NULL(context)
   ASSERT_NOT_NULL(buf)
   ASSERT_NOT_NULL(buf->device_interface)
   return buf->device_interface->impl->malloc(context, buf);
 }
 
-int cinn_device_free(void* context, struct cinn_buffer_t* buf) {
+int cinn_buffer_free(void* context, struct cinn_buffer_t* buf) {
   // ASSERT_NOT_NULL(context)
   ASSERT_NOT_NULL(buf)
   return buf->device_interface->impl->free(context, buf);
@@ -29,14 +29,14 @@ int cinn_device_release(void* context, const struct cinn_device_interface_t* dev
   CINN_NOT_IMPLEMENTED
 }
 
-int cinn_copy_to_host(void* context, struct cinn_buffer_t* buf) {
+int cinn_buffer_copy_to_host(void* context, struct cinn_buffer_t* buf) {
   // ASSERT_NOT_NULL(context)
   ASSERT_NOT_NULL(buf)
   ASSERT_NOT_NULL(buf->device_interface)
   return buf->device_interface->impl->copy_to_host(context, buf);
 }
 
-int cinn_copy_to_device(void* context, struct cinn_buffer_t* buf) {
+int cinn_buffer_copy_to_device(void* context, struct cinn_buffer_t* buf) {
   // ASSERT_NOT_NULL(context)
   ASSERT_NOT_NULL(buf)
   ASSERT_NOT_NULL(buf->device_interface)

@@ -28,7 +28,7 @@ void CodeGenC::Compile(const ir::LoweredFunc &function) {
   os() << "\n\n";
 }
 void CodeGenC::Compile(const ir::Buffer &buffer) {
-  Print(buffer.CreateExpr());
+  Print(runtime::BufferCreate(buffer));
   os() << "\n";
   os() << "\n";
 }
@@ -143,9 +143,13 @@ void CodeGenC::Visit(const ir::Block *op) {
 }
 void CodeGenC::Visit(const ir::Call *op) {
   if (op->name == runtime::buffer_create) {
-    CHECK_EQ(op->args.size(), 1UL);
+    CHECK_EQ(op->args.size(), 2UL);
     os() << "cinn_buffer_t* " << op->args.front();
-    os() << " = " << op->name << "()";
+    os() << " = " << op->name;
+    os() << "(";
+    Print(op->args[1]);
+    os() << "/*target*/";
+    os() << ")";
   } else if (op->call_type == ir::Call::CallType::Intrinsic) {
     CHECK(!op->args.empty());
     os() << op->name << "(";
@@ -239,7 +243,8 @@ void CodeGenC::PrintFileGuardClose(const std::string &module_name) {
 void CodeGenC::PrintBufferCreation(const std::vector<ir::Buffer> &buffers) {
   for (auto &buffer : buffers) {
     DoIndent();
-    Print(buffer.CreateExpr());
+    auto expr = runtime::BufferCreate(buffer);
+    Print(expr);
     os() << ";\n";
   }
 }

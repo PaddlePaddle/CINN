@@ -108,10 +108,10 @@ extern int cinn_device_release(void* context, const struct cinn_device_interface
 /*
  * Copy image data from device to host memory.
  */
-extern int cinn_copy_to_host(void* context, struct cinn_buffer_t* buf);
+extern int cinn_buffer_copy_to_host(void* context, struct cinn_buffer_t* buf);
 
 //! Copy data from host to device memory.
-extern int cinn_copy_to_device(void* context, struct cinn_buffer_t* buf);
+extern int cinn_buffer_copy_to_device(void* context, struct cinn_buffer_t* buf);
 
 //! Copy data from one buffer to another.
 extern int cinn_buffer_copy(void* context, struct cinn_buffer_t* src, struct cinn_buffer_t* dst);
@@ -120,10 +120,10 @@ extern int cinn_buffer_copy(void* context, struct cinn_buffer_t* src, struct cin
 extern int cinn_device_sync(void* context, struct cinn_buffer_t* buf);
 
 //! Allocate device memory.
-extern int cinn_device_malloc(void* context, struct cinn_buffer_t* buf);
+extern int cinn_buffer_malloc(void* context, struct cinn_buffer_t* buf);
 
 //! Free device memory.
-extern int cinn_device_free(void* context, struct cinn_buffer_t* buf);
+extern int cinn_buffer_free(void* context, struct cinn_buffer_t* buf);
 
 //! The raw representation of a buffer,used in the generated code/lib.
 typedef struct cinn_buffer_t {
