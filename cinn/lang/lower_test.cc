@@ -27,17 +27,17 @@ TEST(lower, basic) {
 
   LOG(INFO) << "lower_size " << lower_funcs.size();
 
-#define TEST_SOUTPUT(x, out) \
-  LOG(INFO) << "\n" << x;    \
+#define TEST_SOUTPUT(x, out)           \
+  std::cout << "\n" << x << std::endl; \
   EXPECT_EQ(utils::GetStreamCnt(x), utils::Trim(out));
 
   auto out = R"ROC(
 {
-  poly_for (0, (c1 <= 99), 1)
+  poly_for (0, (i <= 99), 1)
   {
-    poly_for (0, (c3 <= 14), 1)
+    poly_for (0, (j <= 14), 1)
     {
-      B[((c1 * 15) + c3)] = (A[((c1 * 15) + c3)] + 1)
+      B[((i * 15) + j)] = (A[((i * 15) + j)] + 1)
     }
   }
 }
@@ -61,7 +61,7 @@ TEST(lower, more_complex) {
   auto lower_funcs = Lower("cal_C", {A, B, C});
 
   LOG(INFO) << "lower_size " << lower_funcs.size();
-  LOG(INFO) << "func:\n" << Expr(lower_funcs.front()->self());
+  std::cout << "func:\n" << Expr(lower_funcs.front()->self()) << std::endl;
 }
 
 }  // namespace lang

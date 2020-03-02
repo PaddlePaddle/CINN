@@ -7,6 +7,7 @@
 
 namespace cinn {
 namespace backends {
+using namespace utils;
 
 CodeGenC::CodeGenC(std::ostream &os, Target target) : ir::IrPrinter(os), target_(target) {}
 
@@ -227,12 +228,12 @@ void CodeGenC::PrintIncludes() {
 }
 
 void CodeGenC::PrintFileGuardOpen(const std::string &name) {
-  os() << utils::StringFormat("#ifndef _%s_H_\n", name.c_str());
-  os() << utils::StringFormat("#define _%s_H_\n", name.c_str());
+  os() << utils::StringFormat("#ifndef _%s_CINN_H_\n", Uppercase(name).c_str());
+  os() << utils::StringFormat("#define _%s_CINN_H_\n", Uppercase(name).c_str());
   os() << "\n";
 }
 void CodeGenC::PrintFileGuardClose(const std::string &module_name) {
-  os() << utils::StringFormat("#endif  // %s\n", module_name.c_str());
+  os() << utils::StringFormat("#endif  // _%s_CINN_H_\n", Uppercase(module_name).c_str());
 }
 
 void CodeGenC::PrintBufferCreation(const std::vector<ir::Buffer> &buffers) {

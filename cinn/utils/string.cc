@@ -49,5 +49,13 @@ std::string Trim(const std::string &s, const char *empty) {
   return s.substr(start, end - start + 1);
 }
 
+std::string Uppercase(const std::string &x) {
+  auto res = x;
+  for (auto &c : res) {
+    c = toupper(c);
+  }
+  return res;
+}
+
 }  // namespace utils
 }  // namespace cinn

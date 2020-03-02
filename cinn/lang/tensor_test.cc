@@ -28,16 +28,16 @@ TEST(Tensor, inlined) {
 
   auto funcs = lang::Lower("func_C", {A, B, D});
   ASSERT_EQ(funcs.size(), 1UL);
-  LOG(INFO) << "output: \n" << funcs.front();
+  std::cout << "output: \n" << funcs.front() << std::endl;
   auto out = GetStreamCnt(funcs.front());
   EXPECT_EQ(Trim(out), Trim(R"ROC(
 function func_C (A, B, D)
 {
-  poly_for (0, (c1 <= 99), 1)
+  poly_for (0, (i <= 99), 1)
   {
-    poly_for (0, (c3 <= 19), 1)
+    poly_for (0, (j <= 19), 1)
     {
-      D[((c1 * 20) + c3)] = (((A[((c1 * 20) + c3)] + B[((c1 * 20) + c3)]) * 2) + 1)
+      D[((i * 20) + j)] = (((A[((i * 20) + j)] + B[((i * 20) + j)]) * 2) + 1)
     }
   }
 }

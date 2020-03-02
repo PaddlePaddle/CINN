@@ -71,5 +71,14 @@ std::string isl_map_get_statement_repr(__isl_keep isl_map *map, isl_dim_type typ
   return utils::StringFormat("%s[%s]", tuple_name, utils::Join(dims, ", ").c_str());
 }
 
+std::vector<std::string> GetDimNames(isl_map *map, isl_dim_type dim_type) {
+  std::vector<std::string> res;
+  int n = isl_map_dim(map, dim_type);
+  for (int i = 0; i < n; i++) {
+    res.push_back(isl_map_get_dim_name(map, dim_type, i));
+  }
+  return res;
+}
+
 }  // namespace poly
 }  // namespace cinn

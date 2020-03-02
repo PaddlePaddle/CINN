@@ -31,15 +31,17 @@ isl::ast_node AstGen::Build() {
 
   // Build it.
   auto ast_build = isl::ast_build::from_context(context_);
-  // Set iterators.
-  if (!iterator_names_.empty()) {
-    auto iterator_names = scheduler_.WrapIteratorNames(iterator_names_);
-    isl::id_list ids    = isl::manage(isl_id_list_alloc(ctx().get(), iterator_names.size()));
-    for (int i = 0; i < iterator_names.size(); i++) {
-      ids = isl::manage(isl_id_list_add(ids.release(), isl_id_alloc(ctx().get(), iterator_names[i].c_str(), nullptr)));
-    }
-    ast_build = isl::manage(isl_ast_build_set_iterators(ast_build.release(), ids.release()));
+
+  // Set iterators names for readable code.
+  CHECK(!scheduler_.detailed_dimension_names().empty());
+  auto iterator_names = iterator_names_.empty() ? scheduler_.detailed_dimension_names() : iterator_names_;
+  iterator_names      = scheduler_.WrapIteratorNames(iterator_names);
+  LOG(INFO) << "iterator_names after wrap: " << utils::Join(iterator_names, ", ");
+  isl::id_list ids = isl::manage(isl_id_list_alloc(ctx().get(), iterator_names.size()));
+  for (int i = 0; i < iterator_names.size(); i++) {
+    ids = isl::manage(isl_id_list_add(ids.release(), isl_id_alloc(ctx().get(), iterator_names[i].c_str(), nullptr)));
   }
+  ast_build = isl::manage(isl_ast_build_set_iterators(ast_build.release(), ids.release()));
 
   // collect iterator map
   auto get_domain_by_name = [this](const std::string& name) -> isl::set {

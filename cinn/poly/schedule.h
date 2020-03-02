@@ -57,6 +57,9 @@ struct TimeSchedule {
   //! ISL range format, such as '[dup, t0, t1]: dup=0 and t0=0 and t1=i]'
   std::string __str__() const;
 
+  //! Get the axis names with the original dimension names and faked time dimensions.
+  std::vector<std::string> final_axis_names() const;
+
   std::vector<std::string> domain_dims;
   int duplicate_id{};
   std::vector<TimeDim> time_dims;
@@ -187,13 +190,15 @@ class PolyScheduler {
   std::map<std::string, isl::map> BuildSchedule() const;
 
   /**
-   * Wrap the iterator names with time space.
+   * Wrap the iterator names with time space fake names, it is used for isl AST to set iterator names.
    * @param names the original iterator names.
    * @return the iterator names with time space included.
    */
   std::vector<std::string> WrapIteratorNames(const std::vector<std::string> &names) const;
 
   int space_size() const { return space_size_; }
+
+  const std::vector<std::string> &detailed_dimension_names() const { return detailed_dimension_names_; }
 
  private:
   /**
@@ -209,6 +214,10 @@ class PolyScheduler {
   mutable isl::ctx ctx_{Context::Global().isl_ctx()};
 
   mutable ScheduleGraph schedule_graph_;
+
+  // Record the longest dimensions(of some stage) to be the final detailed dimension names. It might be used for ISL AST
+  // to set iterator names and generate readable code.
+  mutable std::vector<std::string> detailed_dimension_names_;
 };
 
 }  // namespace poly
