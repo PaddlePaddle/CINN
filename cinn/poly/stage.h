@@ -104,5 +104,7 @@ inline std::string InnerName(const Iterator& iterator);
 inline std::string OuterName(const std::string& name);
 inline std::string OuterName(const Iterator& iterator);
 
+inline Iterator DefaultIterator(int i) { return Iterator(common::axis_name(i)); }
+
 }  // namespace poly
 }  // namespace cinn
