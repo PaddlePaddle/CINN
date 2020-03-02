@@ -48,9 +48,9 @@ TEST(CodeGenC, basic) {
 void func_C(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct cinn_buffer_t *C)
 {
   cinn_buffer_t::alloc(C);
-  for (int32_t c1 = 0; (c1 <= 99); c1 += 1){
-    for (int32_t c3 = 0; (c3 <= 19); c3 += 1){
-      C[((c1 * 20) + c3)] = (A[((c1 * 20) + c3)] + B[((c1 * 20) + c3)]);
+  for (int32_t i = 0; (i <= 99); i += 1){
+    for (int32_t j = 0; (j <= 19); j += 1){
+      C[((i * 20) + j)] = (A[((i * 20) + j)] + B[((i * 20) + j)]);
     };
   };
 }
@@ -79,8 +79,8 @@ TEST(CodeGenC, module) {
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
   std::string target_str = R"ROC(
-#ifndef _module1_H_
-#define _module1_H_
+#ifndef _MODULE1_CINN_H_
+#define _MODULE1_CINN_H_
 
 #include <cinn_runtime.h>
 #include <stdio.h>
@@ -89,14 +89,14 @@ cinn_buffer_t* C = cinn_buffer_t::new_();
 void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct cinn_buffer_t *C)
 {
   cinn_buffer_t::alloc(C);
-  for (int32_t c1 = 0; (c1 <= 99); c1 += 1){
-    for (int32_t c3 = 0; (c3 <= 19); c3 += 1){
-      C[((c1 * 20) + c3)] = (A[((c1 * 20) + c3)] + B[((c1 * 20) + c3)]);
+  for (int32_t i = 0; (i <= 99); i += 1){
+    for (int32_t j = 0; (j <= 19); j += 1){
+      C[((i * 20) + j)] = (A[((i * 20) + j)] + B[((i * 20) + j)]);
     };
   };
 }
 
-#endif  // module1
+#endif  // _MODULE1_CINN_H_
 )ROC";
 
   EXPECT_EQ(utils::Trim(out), utils::Trim(target_str));

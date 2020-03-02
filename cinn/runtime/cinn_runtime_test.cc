@@ -10,4 +10,9 @@ TEST(buffer, basic) {
   std::vector<cinn_dimension_t> shape({3, 10});
   buffer->resize(shape.data(), shape.size());
   buffer->device_interface->impl->malloc(NULL, buffer);
+  auto* data = reinterpret_cast<float*>(buffer->host_memory);
+  data[0]    = 0.f;
+  data[1]    = 1.f;
+  EXPECT_EQ(data[0], 0.f);
+  EXPECT_EQ(data[1], 1.f);
 }

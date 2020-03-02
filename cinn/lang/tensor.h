@@ -100,6 +100,9 @@ class PlaceholderOp;
  * _Tensor_ holds the content of a Tensor.
  */
 class _Tensor_ : public ExprNode<_Tensor_> {
+  //! a pointer to Shared<Stage>, use void* to avoid cyclic definition dependency.
+  void* stage_shared{};
+
  public:
   //! Shape of this tensor.
   std::vector<Expr> shape;
@@ -109,10 +112,11 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   FunctionRef operaion;
   //! Name of this tensor.
   std::string name;
-  //! Polyhedral element for analysis and schedule.
-  poly::Stage* stage{};
   //! The bound buffer, for each tensor if it is not inline.
   Buffer buffer;
+
+  //! Polyhedral element for analysis and schedule.
+  poly::Stage* stage();
 
   //! Generate a tensor from a computation.
   static Tensor Make(const std::string& name,
@@ -153,7 +157,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Tensor_;
 
-  _Tensor_() : ExprNode<_Tensor_>(Float(32)), stage(nullptr) {}
+  _Tensor_() : ExprNode<_Tensor_>(Float(32)) {}
 
   ~_Tensor_();
 
@@ -161,6 +165,9 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Create the polyhedral element for analysis.
   //! It is based on the shape.
   void InitStage();
+
+  //! Free the memory for stage.
+  void DropStage();
 
   //! Initialize the axis field after the shape field is assigned.
   void InitAxis();

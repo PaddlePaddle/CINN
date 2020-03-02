@@ -20,7 +20,7 @@ include(cmake/external/glog.cmake)
 include(cmake/external/gtest.cmake)
 # include(cmake/external/protobuf.cmake)
 # include(cmake/external/mklml.cmake)
-#include(cmake/external/boost.cmake)
+#include(cmake/external/boost.cmakeg)
 find_package(Threads REQUIRED)
 
 include_directories(${ISL_HOME}/include)
@@ -29,6 +29,6 @@ link_directories(${ISL_HOME}/lib)
 
 set(core_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
-add_subdirectory(unittest)
+#add_subdirectory(unittest)
 
 cc_library(core SRCS ${core_src} DEPS glog)

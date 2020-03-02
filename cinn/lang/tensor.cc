@@ -115,31 +115,38 @@ PlaceholderOp *_Tensor_::get_placeholder_op() const {
 
 void _Tensor_::InitStage() {
   if (inlined()) {
-    if (stage) {
-      delete stage;
-      stage = nullptr;
-    }
+    DropStage();
     return;
   }
   if (is_placeholder_node()) {
     VLOG(2) << "Tensor " << name << " is placeholder, skip stage initialization";
-    if (stage) {
-      delete stage;
-      stage = nullptr;
-    }
+    DropStage();
     return;
   }
   // Avoid duplicate init.
-  if (stage) return;
-  CHECK(!stage) << "Duplicate initialize the poly_element";
-  auto *op = operaion->As<_Operation_>();
+  if (stage_shared) return;
+  stage_shared       = new Shared<poly::Stage>;
+  auto &shared_stage = *static_cast<Shared<poly::Stage> *>(stage_shared);
+  auto *op           = operaion->As<_Operation_>();
   if (is_compute_node()) {
     auto &body = op->As<ComputeOp>()->body;
     CHECK_EQ(body.size(), 1UL) << "only support functional programming";
-    stage = make_shared<poly::Stage>(GenerateIslDomain(), body.front());
+    shared_stage = make_shared<poly::Stage>(GenerateIslDomain(), body.front());
   } else {
-    stage = make_shared<poly::Stage>(GenerateIslDomain());
+    shared_stage = make_shared<poly::Stage>(GenerateIslDomain());
   }
+}
+
+void _Tensor_::DropStage() {
+  if (stage_shared) {
+    delete static_cast<Shared<poly::Stage> *>(stage_shared);
+    stage_shared = nullptr;
+  }
+}
+
+poly::Stage *_Tensor_::stage() {
+  if (!stage_shared) return nullptr;
+  return (*static_cast<Shared<poly::Stage> *>(stage_shared))->As<poly::Stage>();
 }
 
 void _Tensor_::InitAxis() {
@@ -196,9 +203,8 @@ std::vector<const Expr *> _Tensor_::expr_fields() const {
 }
 
 _Tensor_::~_Tensor_() {
-  if (stage) {
-    delete stage;
-    stage = nullptr;
+  if (stage_shared) {
+    delete static_cast<Shared<poly::Stage> *>(stage_shared);
   }
 }
 

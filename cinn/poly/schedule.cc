@@ -55,6 +55,15 @@ std::string TimeSchedule::__str__() const {
                              utils::Join(conds, " and ").c_str());
 }
 
+std::vector<std::string> TimeSchedule::final_axis_names() const {
+  std::vector<std::string> dims;
+  for (int i = 0; i < time_dims.size(); i++) {
+    dims.push_back(std::to_string(time_dims[i].time).c_str());
+    dims.push_back(time_dims[i].dim.c_str());
+  }
+  return dims;
+}
+
 TimeSchedule::TimeSchedule(const std::string &id, const std::vector<std::string> &dims) {
   id_         = id;
   domain_dims = dims;
@@ -97,6 +106,8 @@ void PolyScheduler::AddStage(const Stage &x) {
   std::string id = isl_map_get_tuple_name(x.transform().get(), isl_dim_in);
   schedule_graph_.RegisterNode(x.id(),
                                common::make_shared<ScheduleGraphNode>(id, GetDimNames(x.transform(), isl_dim_out)));
+  // record the longest dimensions.
+  if (dims.size() > detailed_dimension_names_.size()) detailed_dimension_names_ = dims;
 
   if (!ctx_.get()) {
     ctx_ = x.domain().ctx();
@@ -112,6 +123,8 @@ void PolyScheduler::FinishStageAdd() {
   registration_finalized_ = true;
 
   for (auto &item : schedule_graph_.nodes()) {
+    VLOG(2) << "original dims in time_schedule: "
+            << utils::Join(item->As<ScheduleGraphNode>()->time_schedule.domain_dims, ", ");
     item->As<ScheduleGraphNode>()->time_schedule.ResizeTimeSpace(space_size_);
   }
 }
@@ -211,6 +224,7 @@ void Schedule::ScheduleEachGroup() {
 
 std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor) {
   auto stages = GatherStagesInTensors({tensor});
+  VLOG(3) << "collected " << stages.size() << " stages";
   return CreateSchedule(stages);
 }
 
@@ -239,9 +253,9 @@ std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bo
     queue.pop_front();
     if (visited.count(Expr(top))) continue;
     visited.insert(Expr(top));
-    if (top->stage) {
-      VLOG(3) << "collect stage " << top->stage;
-      stages.push_back(top->stage);
+    if (top->stage()) {
+      VLOG(3) << "collect stage " << top->stage();
+      stages.push_back(top->stage());
     }
 
     auto tensor_exprs = ir::CollectIRNodes(Expr(top), [](const Expr *expr) { return expr->As<ir::_Tensor_>(); });

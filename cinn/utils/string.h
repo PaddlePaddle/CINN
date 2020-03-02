@@ -33,5 +33,8 @@ std::string Join(const std::vector<std::string>& fields, const std::string& spli
 
 std::string Trim(const std::string& s, const char* empty = " \n\r\t");
 
+//! Convert a string to its uppercase.
+std::string Uppercase(const std::string& x);
+
 }  // namespace utils
 }  // namespace cinn

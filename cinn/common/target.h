@@ -14,7 +14,6 @@ struct Target {
     Linux,
     Windows,
   };
-  OS os{OS::Unk};
 
   /**
    * The architecture used by the target. Determines the instruction set to use.
@@ -24,13 +23,15 @@ struct Target {
     X86,
     ARM,
   };
-  Arch arch{Arch::Unk};
 
   enum Bit : int {
     Unk = -1,
     k32,
     k64,
   };
+
+  OS os{OS::Unk};
+  Arch arch{Arch::Unk};
   Bit bits{Unk};
 
   enum class Feature : int {
@@ -42,6 +43,9 @@ struct Target {
   Target() = default;
 
   Target(OS o, Arch a, Bit b, const std::vector<Feature>& features) : os(o), arch(a), bits(b) {}
+
+  //! Get the Runtime architecture, it is casted to integer to avoid header file depending.
+  int runtime_arch() const;
 
   bool operator==(const Target& other) const;
   bool operator!=(const Target& other) const { return !(*this == other); }

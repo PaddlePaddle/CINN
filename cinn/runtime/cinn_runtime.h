@@ -72,7 +72,8 @@ typedef int cinn_dimension_t;
 typedef enum cinn_device_kind_t {
   cinn_unk_device    = -1,  // Undefined device.
   cinn_x86_device    = 0,   // X86 device
-  cinn_opencl_device = 1    // OpenCL device
+  cinn_opencl_device = 1,   // OpenCL device
+  cinn_arm_device    = 2    // ARM device
 } cinn_device_kind_t;
 
 //! Help to tell where the buffer locates.
@@ -241,10 +242,10 @@ extern cinn_device_interface_t cinn_x86_device_interface;
     fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
   } while (0)
 
-#define CINN_CHECK(cond)               \
-  if (!(cond)) {                       \
+#define CINN_CHECK(cond)                \
+  if (!(cond)) {                        \
     CINN_LOG("check %s failed", #cond); \
-    abort();                           \
+    abort();                            \
   }
 #define CINN_CHECKP(cond, ...) \
   if (!(cond)) {               \
