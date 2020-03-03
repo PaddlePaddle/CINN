@@ -26,7 +26,7 @@ std::tuple<ir::Tensor, ir::Tensor, ir::Tensor, lang::Buffer> CreateTensor1() {
 TEST(CodeGenC, basic) {
   std::stringstream ss;
   Target target;
-  CodeGenC codegen(ss, target);
+  CodeGenC codegen(ss, target, CodeGenC::OutputKind::CImpl);
 
   ir::Tensor A, B, C;
   lang::Buffer C_buf;
@@ -74,17 +74,15 @@ TEST(CodeGenC, module) {
   module.Append(funcs.front());
   module.Append(C_buf);
 
-  std::stringstream ss;
-  CodeGenC codegen(ss, target);
-  codegen.Compile(module);
+  {
+    std::stringstream ss;
+    CodeGenC codegen(ss, target, CodeGenC::OutputKind::CImpl);
+    codegen.Compile(module);
 
-  auto out = ss.str();
-  std::cout << "codegen C:" << std::endl << out << std::endl;
+    auto out = ss.str();
+    std::cout << "codegen C:" << std::endl << out << std::endl;
 
-  std::string target_str = R"ROC(
-#ifndef _MODULE1_CINN_H_
-#define _MODULE1_CINN_H_
-
+    std::string target_str = R"ROC(
 #include <cinn_runtime.h>
 #include <stdio.h>
 
@@ -98,11 +96,31 @@ void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct c
     };
   };
 }
+)ROC";
+    EXPECT_EQ(utils::Trim(out), utils::Trim(target_str));
+  }
+
+  {
+    std::stringstream ss;
+    CodeGenC header_compiler(ss, target, CodeGenC::OutputKind::CHeader);
+    header_compiler.Compile(module);
+    auto out = ss.str();
+    std::cout << "header:\n" << out << std::endl;
+    auto target_str = R"ROC(
+#ifndef _MODULE1_CINN_H_
+#define _MODULE1_CINN_H_
+
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct cinn_buffer_t *C);
+
 
 #endif  // _MODULE1_CINN_H_
 )ROC";
 
-  EXPECT_EQ(utils::Trim(out), utils::Trim(target_str));
+    EXPECT_EQ(utils::Trim(out), utils::Trim(target_str));
+  }
 }
 
 TEST(CodeGenC, module_with_transform) {
@@ -141,16 +159,13 @@ TEST(CodeGenC, module_with_transform) {
   module.Append(C_buf);
 
   std::stringstream ss;
-  CodeGenC codegen(ss, target);
+  CodeGenC codegen(ss, target, CodeGenC::OutputKind::CImpl);
   codegen.Compile(module);
 
   auto out = ss.str();
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
   auto tgt = R"ROC(
-#ifndef _MODULE1_CINN_H_
-#define _MODULE1_CINN_H_
-
 #include <cinn_runtime.h>
 #include <stdio.h>
 
@@ -175,8 +190,6 @@ void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, const st
     };
   };
 }
-
-#endif  // _MODULE1_CINN_H_
 )ROC";
 
   ASSERT_EQ(utils::Trim(out), utils::Trim(tgt));
