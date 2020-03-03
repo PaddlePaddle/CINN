@@ -1,5 +1,6 @@
 #include "cinn/backends/codegen_c.h"
 
+#include <fstream>
 #include "cinn/ir/lowered_func.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/runtime/intrinsic.h"
@@ -9,13 +10,33 @@ namespace cinn {
 namespace backends {
 using namespace utils;
 
-CodeGenC::CodeGenC(std::ostream &os, Target target, OutputKind output_kind)
-    : ir::IrPrinter(os), target_(target), output_kind_(output_kind) {}
+void CodeGenC::Compile(const lang::Module &module, const Outputs &outputs) {
+  if (!outputs.c_header_name.empty()) {
+    LOG(WARNING) << "Output C source to file " << outputs.c_header_name;
+    auto source = Compile(module, OutputKind::CHeader);
+    std::ofstream file(outputs.c_header_name);
+    CHECK(file.is_open()) << "failed to open file " << outputs.c_header_name;
+    file << source;
+    file.close();
+  }
 
-void CodeGenC::Compile(const lang::Module &module) {
-  if (output_kind_ == OutputKind::CHeader) {
+  if (!outputs.c_source_name.empty()) {
+    LOG(WARNING) << "Output C source to file " << outputs.c_source_name;
+    auto source = Compile(module, OutputKind::CImpl);
+    std::ofstream file(outputs.c_source_name);
+    CHECK(file.is_open()) << "failed to open file " << outputs.c_source_name;
+    file << source;
+    file.close();
+  }
+}
+
+CodeGenC::CodeGenC(Target target) : ir::IrPrinter(ss_) {}
+
+std::string CodeGenC::Compile(const lang::Module &module, OutputKind output_kind) {
+  ss_.str();
+  if (output_kind == OutputKind::CHeader) {
     GenerateHeaderFile(module);
-  } else if (output_kind_ == OutputKind::CImpl) {
+  } else if (output_kind == OutputKind::CImpl) {
     PrintIncludes();
 
     PrintBufferCreation(module->buffers);
@@ -26,15 +47,18 @@ void CodeGenC::Compile(const lang::Module &module) {
   } else {
     LOG(FATAL) << "Not supported OutputKind";
   }
+  return ss_.str();
 }
-void CodeGenC::Compile(const ir::LoweredFunc &function) {
+std::string CodeGenC::Compile(const ir::LoweredFunc &function) {
   Print(function);
   os() << "\n\n";
+  return ss_.str();
 }
-void CodeGenC::Compile(const ir::Buffer &buffer) {
+std::string CodeGenC::Compile(const ir::Buffer &buffer) {
   Print(runtime::BufferCreate(buffer));
   os() << "\n";
   os() << "\n";
+  return ss_.str();
 }
 
 std::string CodeGenC::PrintType(Type type) {
@@ -265,6 +289,22 @@ void CodeGenC::GenerateHeaderFile(const lang::Module &module) {
   }
 
   PrintFileGuardClose(module.name());
+}
+
+void CodeGenC::PrintFuncArg(const ir::Argument &arg) {
+  if (arg.is_buffer()) {
+    if (arg.is_input()) {
+      os() << "const struct cinn_buffer_t *";
+    } else {
+      os() << "struct cinn_buffer_t *";
+    }
+  } else if (arg.is_scalar()) {
+    os() << PrintType(arg.type) << " ";
+    os() << arg.name;
+  } else {
+    NOT_IMPLEMENTED
+  }
+  os() << arg.name;
 }
 
 }  // namespace backends

@@ -23,40 +23,6 @@ std::tuple<ir::Tensor, ir::Tensor, ir::Tensor, lang::Buffer> CreateTensor1() {
   return std::make_tuple(A, B, C, C_buf);
 }
 
-TEST(CodeGenC, basic) {
-  std::stringstream ss;
-  Target target;
-  CodeGenC codegen(ss, target, CodeGenC::OutputKind::CImpl);
-
-  ir::Tensor A, B, C;
-  lang::Buffer C_buf;
-  std::tie(A, B, C, C_buf) = CreateTensor1();
-  CHECK(!C->inlined());
-
-  auto funcs = lang::Lower("func_C", {A, B, C});
-  ASSERT_EQ(funcs.size(), 1UL);
-
-  codegen.Compile(funcs.front());
-
-  auto out = ss.str();
-
-  std::cout << "codegen C:" << std::endl << out << std::endl;
-
-  EXPECT_EQ(utils::Trim(out),
-            utils::Trim(
-                R"ROC(
-void func_C(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct cinn_buffer_t *C)
-{
-  cinn_buffer_malloc(C);
-  for (int32_t i = 0; (i <= 99); i += 1){
-    for (int32_t j = 0; (j <= 19); j += 1){
-      C[((i * 20) + j)] = (A[((i * 20) + j)] + B[((i * 20) + j)]);
-    };
-  };
-}
-)ROC"));
-}
-
 TEST(CodeGenC, module) {
   ir::Tensor A, B, C;
   lang::Buffer C_buf;
@@ -76,10 +42,8 @@ TEST(CodeGenC, module) {
 
   {
     std::stringstream ss;
-    CodeGenC codegen(ss, target, CodeGenC::OutputKind::CImpl);
-    codegen.Compile(module);
-
-    auto out = ss.str();
+    CodeGenC codegen(target);
+    auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
     std::cout << "codegen C:" << std::endl << out << std::endl;
 
     std::string target_str = R"ROC(
@@ -101,10 +65,8 @@ void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct c
   }
 
   {
-    std::stringstream ss;
-    CodeGenC header_compiler(ss, target, CodeGenC::OutputKind::CHeader);
-    header_compiler.Compile(module);
-    auto out = ss.str();
+    CodeGenC compiler(target);
+    auto out = compiler.Compile(module, CodeGenC::OutputKind::CHeader);
     std::cout << "header:\n" << out << std::endl;
     auto target_str = R"ROC(
 #ifndef _MODULE1_CINN_H_
@@ -120,6 +82,13 @@ void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct c
 )ROC";
 
     EXPECT_EQ(utils::Trim(out), utils::Trim(target_str));
+  }
+
+  {
+    CodeGenC compiler(target);
+    Outputs outputs;
+    outputs = outputs.c_header("./generated_module1.h").c_source("./generated_module1.cc");
+    compiler.Compile(module, outputs);
   }
 }
 
@@ -158,11 +127,8 @@ TEST(CodeGenC, module_with_transform) {
   module.Append(funcs.front());
   module.Append(C_buf);
 
-  std::stringstream ss;
-  CodeGenC codegen(ss, target, CodeGenC::OutputKind::CImpl);
-  codegen.Compile(module);
-
-  auto out = ss.str();
+  CodeGenC codegen(target);
+  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
   auto tgt = R"ROC(

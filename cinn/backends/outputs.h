@@ -17,23 +17,16 @@ struct Outputs {
   //! The name of the emitted C header file.
   std::string c_header_name;
 
-  Outputs object(const std::string& name) const {
-    Outputs updated     = *this;
-    updated.object_name = name;
-    return updated;
-  }
+  //! The name of the emitted C source file.
+  std::string c_source_name;
 
-  Outputs bitcode(const std::string& name) const {
-    Outputs updated      = *this;
-    updated.bitcode_name = name;
-    return updated;
-  }
+  Outputs object(const std::string& name) const;
 
-  Outputs c_header(const std::string& name) const {
-    Outputs updated       = *this;
-    updated.c_header_name = name;
-    return updated;
-  }
+  Outputs bitcode(const std::string& name) const;
+
+  Outputs c_header(const std::string& name) const;
+
+  Outputs c_source(const std::string& name) const;
 };
 
 }  // namespace backends
