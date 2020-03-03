@@ -20,13 +20,20 @@ namespace backends {
 
 class CodeGenC : public ir::IrPrinter {
  public:
-  CodeGenC(std::ostream& os, Target target);
+  enum class OutputKind {
+    CHeader,  //! output the C header file.
+    CImpl,    //! output the C implementation file.
+  };
+
+  CodeGenC(std::ostream& os, Target target, OutputKind output_kind);
 
   void Compile(const lang::Module& module);
   void Compile(const ir::LoweredFunc& function);
   void Compile(const ir::Buffer& buffer);
 
  protected:
+  void GenerateHeaderFile(const lang::Module& module);
+
   std::string PrintType(Type type);
   void PrintCastExpr(const Type& type, Expr e);
 
@@ -41,8 +48,25 @@ class CodeGenC : public ir::IrPrinter {
   NODETY_FORALL(__DEFINE_VISIT)
 #undef __DEFINE_VISIT
 
+  void PrintFuncArg(const ir::Argument& arg) {
+    if (arg.is_buffer()) {
+      if (arg.is_input()) {
+        os() << "const struct cinn_buffer_t *";
+      } else {
+        os() << "struct cinn_buffer_t *";
+      }
+    } else if (arg.is_scalar()) {
+      os() << PrintType(arg.type) << " ";
+      os() << arg.name;
+    } else {
+      NOT_IMPLEMENTED
+    }
+    os() << arg.name;
+  }
+
  private:
   Target target_;
+  OutputKind output_kind_;
 };
 
 }  // namespace backends

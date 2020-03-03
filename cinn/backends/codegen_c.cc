@@ -9,19 +9,23 @@ namespace cinn {
 namespace backends {
 using namespace utils;
 
-CodeGenC::CodeGenC(std::ostream &os, Target target) : ir::IrPrinter(os), target_(target) {}
+CodeGenC::CodeGenC(std::ostream &os, Target target, OutputKind output_kind)
+    : ir::IrPrinter(os), target_(target), output_kind_(output_kind) {}
 
 void CodeGenC::Compile(const lang::Module &module) {
-  PrintFileGuardOpen(module.name());
-  PrintIncludes();
+  if (output_kind_ == OutputKind::CHeader) {
+    GenerateHeaderFile(module);
+  } else if (output_kind_ == OutputKind::CImpl) {
+    PrintIncludes();
 
-  PrintBufferCreation(module->buffers);
+    PrintBufferCreation(module->buffers);
 
-  for (auto &func : module.functions()) {
-    Compile(func);
+    for (auto &func : module.functions()) {
+      Compile(func);
+    }
+  } else {
+    LOG(FATAL) << "Not supported OutputKind";
   }
-
-  PrintFileGuardClose(module.name());
 }
 void CodeGenC::Compile(const ir::LoweredFunc &function) {
   Print(function);
@@ -185,28 +189,12 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
   // output arguments
   os() << "(";
 
-  auto print_arg = [&](const ir::Argument &arg) {
-    if (arg.is_buffer()) {
-      if (arg.is_input()) {
-        os() << "const struct cinn_buffer_t *";
-      } else {
-        os() << "struct cinn_buffer_t *";
-      }
-    } else if (arg.is_scalar()) {
-      os() << PrintType(arg.type) << " ";
-      os() << arg.name;
-    } else {
-      NOT_IMPLEMENTED
-    }
-    os() << arg.name;
-  };
-
   for (int i = 0; i < op->args.size() - 1; i++) {
-    print_arg(op->args[i]);
+    PrintFuncArg(op->args[i]);
     os() << ", ";
   }
   if (op->args.size() >= 1) {
-    print_arg(op->args.back());
+    PrintFuncArg(op->args.back());
   }
 
   os() << ")\n";
@@ -255,6 +243,28 @@ void CodeGenC::PrintBufferDestroy(const std::vector<ir::Buffer> &buffers) {
     Print(buffer.DestroyExpr());
     os() << ";\n";
   }
+}
+
+void CodeGenC::GenerateHeaderFile(const lang::Module &module) {
+  PrintFileGuardOpen(module.name());
+  PrintIncludes();
+
+  for (auto &func : module.functions()) {
+    os() << "void " << func->name;
+    os() << "(";
+    for (int i = 0; i < func->args.size() - 1; i++) {
+      PrintFuncArg(func->args[i]);
+      os() << ", ";
+    }
+    if (func->args.size() >= 1) {
+      PrintFuncArg(func->args.back());
+    }
+
+    os() << ");\n";
+    os() << "\n\n";
+  }
+
+  PrintFileGuardClose(module.name());
 }
 
 }  // namespace backends
