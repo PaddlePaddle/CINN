@@ -25,13 +25,16 @@ class CodeGenC : public ir::IrPrinter {
     CImpl,    //! output the C implementation file.
   };
 
-  CodeGenC(std::ostream& os, Target target, OutputKind output_kind);
+  CodeGenC(Target target);
 
-  void Compile(const lang::Module& module);
-  void Compile(const ir::LoweredFunc& function);
-  void Compile(const ir::Buffer& buffer);
+  void Compile(const lang::Module& module, const Outputs& outputs);
+
+  std::string Compile(const lang::Module& module, OutputKind output_kind);
 
  protected:
+  std::string Compile(const ir::LoweredFunc& function);
+  std::string Compile(const ir::Buffer& buffer);
+
   void GenerateHeaderFile(const lang::Module& module);
 
   std::string PrintType(Type type);
@@ -48,25 +51,11 @@ class CodeGenC : public ir::IrPrinter {
   NODETY_FORALL(__DEFINE_VISIT)
 #undef __DEFINE_VISIT
 
-  void PrintFuncArg(const ir::Argument& arg) {
-    if (arg.is_buffer()) {
-      if (arg.is_input()) {
-        os() << "const struct cinn_buffer_t *";
-      } else {
-        os() << "struct cinn_buffer_t *";
-      }
-    } else if (arg.is_scalar()) {
-      os() << PrintType(arg.type) << " ";
-      os() << arg.name;
-    } else {
-      NOT_IMPLEMENTED
-    }
-    os() << arg.name;
-  }
+  void PrintFuncArg(const ir::Argument& arg);
 
  private:
   Target target_;
-  OutputKind output_kind_;
+  std::stringstream ss_;
 };
 
 }  // namespace backends
