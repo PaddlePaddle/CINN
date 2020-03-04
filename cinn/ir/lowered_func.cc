@@ -64,7 +64,7 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
   auto buffers = CollectAllBufferReference();
   VLOG(3) << "Function used " << buffers.size() << " buffers";
   for (auto& b : buffers) {
-    auto* node = b->As<ir::_Buffer_>();
+    auto* node = b.As<ir::_Buffer_>();
     CHECK(node);
     std::string buffer_name = b->name;
     std::string tensor_name = BufferGetTensorName(node);
@@ -81,15 +81,16 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
   }
 }
 
-std::vector<Buffer> _LoweredFunc_::CollectAllBufferReference() {
-  auto buffer_exprs = ir::CollectIRNodes(body, [](const Expr* expr) { return expr->As<ir::_Buffer_>(); });
+std::vector<Buffer> _LoweredFunc_::CollectAllBufferReference() const {
+  std::set<Expr> buffer_exprs = ir::CollectIRNodes(body, [](const Expr* expr) { return expr->As<ir::_Buffer_>(); });
 
   std::vector<Buffer> buffers;
   // remove the duplicate buffer by their name.
   std::set<std::string> names;
 
-  for (auto& expr : buffer_exprs) {
-    Buffer b(expr->As<_Buffer_>());
+  for (const Expr& expr : buffer_exprs) {
+    Expr& _expr = *const_cast<Expr*>(&expr);
+    Buffer b(_expr.As<_Buffer_>());
     if (names.count(b->name)) continue;
     buffers.push_back(b);
     names.insert(b->name);

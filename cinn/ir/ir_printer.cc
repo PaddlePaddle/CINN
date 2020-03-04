@@ -147,14 +147,14 @@ void IrPrinter::Visit(const Select *x) {
   os_ << ")";
 }
 void IrPrinter::Visit(const Load *x) {
-  auto *node = x->buffer->As<ir::_Buffer_>();
+  auto *node = x->buffer.As<ir::_Buffer_>();
   CHECK(node);
   os_ << node->tensor_addr << "[";
   Print(x->index);
   os_ << "]";
 }
 void IrPrinter::Visit(const Store *x) {
-  auto *buffer_node = x->buffer->As<ir::_Buffer_>();
+  auto *buffer_node = x->buffer.As<ir::_Buffer_>();
   CHECK(buffer_node->node_type() == ir::_Buffer_::_node_type_);
   CHECK(buffer_node);
   CHECK(buffer_node->tensor_addr.defined());

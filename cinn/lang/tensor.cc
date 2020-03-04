@@ -54,7 +54,7 @@ Tensor _Tensor_::Make(const std::string &name,
   CHECK(!name.empty()) << "Tensor name is set empty";
 
   auto op          = ComputeOp::Make(name, tag, attrs, axis, body, shape);
-  auto *compute_op = op->As<ComputeOp>();
+  auto *compute_op = op->as<ComputeOp>();
 
   CHECK_EQ(axis.size(), shape.size()) << "axis not match the dimension in shape";
   compute_op->axis = axis;
@@ -95,7 +95,7 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
 
 const char *_Tensor_::operation_type() const {
   if (!operaion.defined()) return "";
-  return operaion->As<ir::_Operation_>()->func_type();
+  return operaion->as<ir::_Operation_>()->func_type();
 }
 
 bool _Tensor_::is_compute_node() const { return std::strcmp(operation_type(), ir::ComputeOp::__func_type__) == 0; }
@@ -105,12 +105,12 @@ bool _Tensor_::is_placeholder_node() const {
 
 ComputeOp *_Tensor_::get_compute_op() const {
   if (!is_compute_node()) return nullptr;
-  return operaion->As<ComputeOp>();
+  return operaion->as<ComputeOp>();
 }
 
 PlaceholderOp *_Tensor_::get_placeholder_op() const {
   if (!is_placeholder_node()) return nullptr;
-  return operaion->As<PlaceholderOp>();
+  return operaion->as<PlaceholderOp>();
 }
 
 void _Tensor_::InitStage() {
@@ -127,9 +127,9 @@ void _Tensor_::InitStage() {
   if (stage_shared) return;
   stage_shared       = new Shared<poly::Stage>;
   auto &shared_stage = *static_cast<Shared<poly::Stage> *>(stage_shared);
-  auto *op           = operaion->As<_Operation_>();
+  auto *op           = operaion->as<_Operation_>();
   if (is_compute_node()) {
-    auto &body = op->As<ComputeOp>()->body;
+    auto &body = op->as<ComputeOp>()->body;
     CHECK_EQ(body.size(), 1UL) << "only support functional programming";
     shared_stage = make_shared<poly::Stage>(GenerateIslDomain(), body.front());
   } else {
@@ -146,7 +146,7 @@ void _Tensor_::DropStage() {
 
 poly::Stage *_Tensor_::stage() {
   if (!stage_shared) return nullptr;
-  return (*static_cast<Shared<poly::Stage> *>(stage_shared))->As<poly::Stage>();
+  return (*static_cast<Shared<poly::Stage> *>(stage_shared))->as<poly::Stage>();
 }
 
 void _Tensor_::InitAxis() {
@@ -167,14 +167,14 @@ isl::set _Tensor_::GenerateIslDomain() {
 }
 std::vector<Expr *> _Tensor_::expr_fields() {
   std::vector<Expr *> res;
-  const char *func_type = operaion->As<ir::_Operation_>()->func_type();
+  const char *func_type = operaion->as<ir::_Operation_>()->func_type();
   if (operaion.defined()) {
     if (func_type == ir::ComputeOp::__func_type__) {
-      auto *op = operaion->As<ir::ComputeOp>();
+      auto *op = operaion->as<ir::ComputeOp>();
       for (auto &expr : op->body) res.push_back(&expr);
       for (auto &expr : op->shape) res.push_back(&expr);
     } else if (func_type == ir::PlaceholderOp::__func_type__) {
-      auto *op = operaion->As<ir::PlaceholderOp>();
+      auto *op = operaion->as<ir::PlaceholderOp>();
       for (auto &expr : op->shape) res.push_back(&expr);
     } else {
       NOT_IMPLEMENTED
@@ -185,14 +185,14 @@ std::vector<Expr *> _Tensor_::expr_fields() {
 
 std::vector<const Expr *> _Tensor_::expr_fields() const {
   std::vector<const Expr *> res;
-  const char *func_type = operaion->As<ir::_Operation_>()->func_type();
+  const char *func_type = operaion->as<ir::_Operation_>()->func_type();
   if (operaion.defined()) {
     if (is_compute_node()) {
-      auto *op = operaion->As<ir::ComputeOp>();
+      auto *op = operaion->as<ir::ComputeOp>();
       for (auto &expr : op->body) res.push_back(&expr);
       for (auto &expr : op->shape) res.push_back(&expr);
     } else if (is_placeholder_node()) {
-      auto *op = operaion->As<ir::PlaceholderOp>();
+      auto *op = operaion->as<ir::PlaceholderOp>();
       for (auto &expr : op->shape) res.push_back(&expr);
     } else {
       LOG(ERROR) << "func_type: " << func_type;
@@ -213,7 +213,7 @@ _Operation_ *Operation::operator->() { return static_cast<_Operation_ *>(get());
 
 Expr _Tensor_::body() const {
   if (is_placeholder_node()) return Expr();
-  if (is_compute_node()) return operaion->As<ir::ComputeOp>()->body.front();
+  if (is_compute_node()) return operaion->as<ir::ComputeOp>()->body.front();
   NOT_IMPLEMENTED;
 }
 

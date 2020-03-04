@@ -138,8 +138,8 @@ PolyScheduler &PolyScheduler::After(const Stage &a, const Stage &b, int level) {
 
   common::GraphEdge *a_edge, *b_edge;
   std::tie(a_edge, b_edge)               = a_node->LinkTo<ScheduleGraphEdge>(b_node);
-  a_edge->As<ScheduleGraphEdge>()->level = level;
-  b_edge->As<ScheduleGraphEdge>()->level = level;
+  a_edge->as<ScheduleGraphEdge>()->level = level;
+  b_edge->as<ScheduleGraphEdge>()->level = level;
   return *this;
 }
 
@@ -153,7 +153,7 @@ std::map<std::string, isl::map> PolyScheduler::BuildSchedule() const {
   ScheduleGraph::edge_order_t edge_order;
   std::tie(node_order, edge_order) = schedule_graph_.topological_order();
   for (auto *edge : edge_order) {
-    auto *schedule_edge = edge->As<ScheduleGraphEdge>();
+    auto *schedule_edge = edge->as<ScheduleGraphEdge>();
     auto *a_node        = schedule_graph_.RetriveNode(edge->source()->As<ScheduleGraphNode>()->time_schedule.id())
                        ->As<ScheduleGraphNode>();
     auto *b_node =

@@ -58,9 +58,9 @@ struct WriteTeller : public ir::IRMutator<const Expr*> {
   void Visit(const Expr* expr, const Expr* op) override { IRMutator::Visit(expr, op); }
 
   void Visit(const ir::Load* expr, const Expr* op) override {
-    auto* node = expr->As<ir::Load>();
+    auto* node = op->As<ir::Load>();
     CHECK(node);
-    auto* buffer = node->buffer->As<ir::_Buffer_>();
+    auto* buffer = node->buffer.As<ir::_Buffer_>();
     CHECK(buffer);
     buffer_written.insert(buffer->name);
     IRMutator::Visit(expr, op);
@@ -76,7 +76,7 @@ std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensors, c
 
   for (auto& tensor : tensors) {
     bool is_input     = teller.buffer_written.count(tensor->name);
-    auto* tensor_node = tensor->As<ir::_Tensor_>();
+    auto* tensor_node = tensor.As<ir::_Tensor_>();
     args.emplace_back(ir::TensorGetBufferName(tensor_node),
                       ir::Argument::Kind::kBuffer,
                       tensor->type().ElementOf(),

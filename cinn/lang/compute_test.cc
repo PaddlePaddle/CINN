@@ -18,7 +18,7 @@ TEST(Compute, basic) {
 
   ir::Tensor y = Compute(
       {100, 100}, [=](Var i, Var j) -> Expr { return x(i, j) + 1.f; }, "y");
-  LOG(INFO) << "compute: " << y->operaion->As<ir::ComputeOp>()->body[0];
+  LOG(INFO) << "compute: " << y->operaion->as<ir::ComputeOp>()->body[0];
 
   ir::Tensor z = Compute(
       {100, 100}, [=](Var i, Var j) -> Expr { return y(i, j) * 2.f; }, "z");
@@ -26,7 +26,7 @@ TEST(Compute, basic) {
   lang::Buffer z_buffer(Float(32));
   z->Bind(z_buffer);
 
-  LOG(INFO) << "z: " << z->operaion->As<ir::ComputeOp>()->body[0];
+  LOG(INFO) << "z: " << z->operaion->as<ir::ComputeOp>()->body[0];
 
   auto schedule = poly::CreateSchedule(z);
   LOG(INFO) << "group: " << schedule->gened_groups().size();

@@ -12,8 +12,8 @@ class Buffer {
  public:
   explicit Buffer(Type type, const std::string& name = "");
 
-  ir::_Buffer_* operator->() { return buffer_->As<ir::_Buffer_>(); }
-  const ir::_Buffer_* operator->() const { return buffer_->As<ir::_Buffer_>(); }
+  ir::_Buffer_* operator->() { return buffer_.As<ir::_Buffer_>(); }
+  const ir::_Buffer_* operator->() const { return buffer_.As<ir::_Buffer_>(); }
 
   ir::Buffer buffer() const { return buffer_; }
 
