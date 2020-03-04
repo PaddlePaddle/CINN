@@ -73,6 +73,7 @@ struct IrPrinter : public IRVisitor {
   void Visit(const _Buffer_ *x) override;
   void Visit(const _Tensor_ *x) override;
   void Visit(const _LoweredFunc_ *x) override;
+  void Visit(const Let *x) override;
 
  private:
   std::ostream &os_;

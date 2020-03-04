@@ -1,6 +1,7 @@
 #include "cinn/backends/codegen_c.h"
 
 #include <fstream>
+
 #include "cinn/ir/lowered_func.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/runtime/intrinsic.h"
@@ -62,27 +63,28 @@ std::string CodeGenC::Compile(const ir::Buffer &buffer) {
 }
 
 std::string CodeGenC::PrintType(Type type) {
-  if (type == Int(8)) {
-    return "int8_t";
-  }
-  if (type == Int(32)) {
-    return "int32_t";
-  }
-  if (type == Int(64)) {
-    return "int64_t";
-  }
-  if (type == Bool()) {
-    return "bool";
-  }
-  if (type == Float(32)) {
-    return "float";
-  }
-  if (type == Float(64)) {
-    return "double";
+  std::string str;
+  if (type.is_int(8)) {
+    str = "int8_t";
+  } else if (type.is_int(32)) {
+    str = "int32_t";
+  } else if (type.is_int(64)) {
+    str = "int64_t";
+  } else if (type.is_bool()) {
+    str = "bool";
+  } else if (type.is_float(32)) {
+    str = "float";
+  } else if (type.is_float(64)) {
+    str = "double";
+  } else {
+    LOG(ERROR) << type;
+    NOT_IMPLEMENTED
   }
 
-  LOG(ERROR) << type;
-  NOT_IMPLEMENTED
+  if (type.is_cpp_handle()) {
+    str += "*";
+  }
+  return str;
 }
 void CodeGenC::Visit(const ir::IntImm *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::UIntImm *op) { IrPrinter::Visit(op); }
@@ -175,16 +177,25 @@ void CodeGenC::Visit(const ir::Call *op) {
     os() << "cinn_buffer_t* " << op->args.front();
     os() << " = " << op->name;
     os() << "(";
-    Print(op->args[1]);
-    os() << "/*target*/";
+    PrintCastExpr("cinn_device_kind_t", op->args[1]);
+    os() << "/*target*/, ";
+    PrintRuntimeType(runtime::ToRuntimeType(op->args.front().type().ElementOf()));
+    os() << ")";
+  } else if (op->name == runtime::buffer_malloc) {
+    CHECK_EQ(op->args.size(), 2UL);
+    os() << op->name << "(";
+    PrintCastExpr("void*", op->args[0]);
+    os() << ", ";
+    os() << op->args[1];
     os() << ")";
   } else if (op->call_type == ir::Call::CallType::Intrinsic) {
     CHECK(!op->args.empty());
     os() << op->name << "(";
     for (int i = 0; i < op->args.size() - 1; i++) {
-      os() << op->args[i];
+      Print(op->args[i]);
+      os() << ", ";
     }
-    if (op->args.size() > 0) os() << op->args.back();
+    if (op->args.size() > 0) Print(op->args.back());
     os() << ")";
   } else {
     IrPrinter::Visit(op);
@@ -192,17 +203,32 @@ void CodeGenC::Visit(const ir::Call *op) {
 }
 void CodeGenC::Visit(const ir::Module *op) { NOT_IMPLEMENTED }
 void CodeGenC::Visit(const ir::_Var_ *op) { os() << op->name; }
-void CodeGenC::Visit(const ir::Load *op) { IrPrinter::Visit(op); }
+void CodeGenC::Visit(const ir::Load *op) { return ir::IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Store *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Alloc *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Free *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_Range_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_IterVar_ *op) { IrPrinter::Visit(op); }
-void CodeGenC::Visit(const ir::_Buffer_ *op) { IrPrinter::Visit(op); }
+void CodeGenC::Visit(const ir::_Buffer_ *op) { os() << op->name; }
 void CodeGenC::Visit(const ir::_Tensor_ *op) { IrPrinter::Visit(op); }
+void CodeGenC::Visit(const ir::Let *op) {
+  CHECK(op->type().valid());
+  os() << PrintType(op->type());
+  os() << " ";
+  Print(op->value);
+  os() << " = ";
+  Print(op->body);
+}
 
 void CodeGenC::PrintCastExpr(const Type &type, Expr e) {
-  os() << PrintType(type) << "(";
+  os() << "(" << PrintType(type) << ")";
+  os() << "(";
+  Print(e);
+  os() << ")";
+}
+void CodeGenC::PrintCastExpr(const std::string &type, Expr e) {
+  os() << "(" << type << ")";
+  os() << "(";
   Print(e);
   os() << ")";
 }
@@ -228,7 +254,13 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
 
   // allocate output buffer
   Expr allocate_output_buffer_expr = ir::Block::Make(op->alloc_output_buffer_exprs);
-  Expr func_body                   = ir::Block::Make({allocate_output_buffer_expr, op->body});
+  Expr buffer_cast_expr            = ir::Block::Make(op->buffer_data_cast_exprs);
+
+  for (auto &expr : op->buffer_data_cast_exprs) {
+    VLOG(3) << "cast expr: " << expr;
+  }
+
+  Expr func_body = ir::Block::Make({allocate_output_buffer_expr, buffer_cast_expr, op->body});
 
   optim::RemoveNestedBlock(&func_body);
 
@@ -305,6 +337,20 @@ void CodeGenC::PrintFuncArg(const ir::Argument &arg) {
     NOT_IMPLEMENTED
   }
   os() << arg.name;
+}
+
+void CodeGenC::PrintRuntimeType(const cinn_type_t &type) {
+  if (type == cinn_int32_t()) {
+    os() << "cinn_int32_t()";
+  } else if (type == cinn_int64_t()) {
+    os() << "cinn_int64_t()";
+  } else if (type == cinn_float32_t()) {
+    os() << "cinn_float32_t()";
+  } else if (type == cinn_float64_t()) {
+    os() << "cinn_float64_t()";
+  } else {
+    LOG(FATAL) << "Unknown type is not supported to print";
+  }
 }
 
 }  // namespace backends

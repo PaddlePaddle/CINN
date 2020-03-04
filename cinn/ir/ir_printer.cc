@@ -124,7 +124,12 @@ void IrPrinter::Visit(const Call *x) {
   if (x->args.size() > 1) Print(x->args.back());
   os_ << ")";
 }
-void IrPrinter::Visit(const Cast *x) {}
+void IrPrinter::Visit(const Cast *x) {
+  os() << x->type();
+  os() << "(";
+  os() << x->v;
+  os() << ")";
+}
 void IrPrinter::Visit(const Module *x) {}
 void IrPrinter::Visit(const _Var_ *x) { os_ << x->name; }
 void IrPrinter::Visit(const Alloc *x) {
@@ -142,12 +147,18 @@ void IrPrinter::Visit(const Select *x) {
   os_ << ")";
 }
 void IrPrinter::Visit(const Load *x) {
-  os_ << x->buffer_var->name << "[";
+  auto *node = x->buffer->As<ir::_Buffer_>();
+  CHECK(node);
+  os_ << node->tensor_addr << "[";
   Print(x->index);
   os_ << "]";
 }
 void IrPrinter::Visit(const Store *x) {
-  os_ << x->buffer_var->name << "[";
+  auto *buffer_node = x->buffer->As<ir::_Buffer_>();
+  CHECK(buffer_node->node_type() == ir::_Buffer_::_node_type_);
+  CHECK(buffer_node);
+  CHECK(buffer_node->tensor_addr.defined());
+  os_ << buffer_node->tensor_addr << "[";
   Print(x->index);
   os_ << "] = ";
   Print(x->value);
@@ -185,6 +196,13 @@ void IrPrinter::Visit(const _LoweredFunc_ *f) {
   }
   os_ << "(" << utils::Join(arg_names, ", ") << ")\n";
 
+  Print(f->body);
+}
+void IrPrinter::Visit(const Let *f) {
+  CHECK(f->type().valid());
+  os() << f->type() << " ";
+  Print(f->value);
+  os() << " = ";
   Print(f->body);
 }
 std::ostream &operator<<(std::ostream &os, Expr a) {

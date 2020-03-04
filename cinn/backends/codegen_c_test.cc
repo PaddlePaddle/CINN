@@ -16,7 +16,7 @@ std::tuple<ir::Tensor, ir::Tensor, ir::Tensor, lang::Buffer> CreateTensor1() {
   lang::Placeholder<float> A("A", {100, 20});
   lang::Placeholder<float> B("B", {100, 20});
 
-  lang::Buffer C_buf;
+  lang::Buffer C_buf(Float(32));
   auto C = lang::Compute(
       {100, 20}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
   C->Bind(C_buf);
@@ -25,7 +25,7 @@ std::tuple<ir::Tensor, ir::Tensor, ir::Tensor, lang::Buffer> CreateTensor1() {
 
 TEST(CodeGenC, module) {
   ir::Tensor A, B, C;
-  lang::Buffer C_buf;
+  lang::Buffer C_buf(Float(32));
   std::tie(A, B, C, C_buf) = CreateTensor1();
 
   Target target;
@@ -50,10 +50,15 @@ TEST(CodeGenC, module) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* C = cinn_buffer_t::new_(0/*target*/);
-void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct cinn_buffer_t *C)
+cinn_buffer_t* C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+void add1(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
 {
-  cinn_buffer_malloc(C);
+  cinn_buffer_malloc((void*)(0), _A);
+  cinn_buffer_malloc((void*)(0), _B);
+  cinn_buffer_malloc((void*)(0), _C);
+  float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  float* B = (float*)(cinn_buffer_get_data_handle(_B));
+  float* A = (float*)(cinn_buffer_get_data_handle(_A));
   for (int32_t i = 0; (i <= 99); i += 1){
     for (int32_t j = 0; (j <= 19); j += 1){
       C[((i * 20) + j)] = (A[((i * 20) + j)] + B[((i * 20) + j)]);
@@ -61,7 +66,7 @@ void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct c
   };
 }
 )ROC";
-    EXPECT_EQ(utils::Trim(out), utils::Trim(target_str));
+    EXPECT_EQ(utils::Trim(target_str), utils::Trim(out));
   }
 
   {
@@ -75,7 +80,7 @@ void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct c
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct cinn_buffer_t *C);
+void add1(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer_t *_C);
 
 
 #endif  // _MODULE1_CINN_H_
@@ -96,7 +101,7 @@ TEST(CodeGenC, module_with_transform) {
   lang::Placeholder<float> A("A", {100, 20});
   lang::Placeholder<float> B("B", {100, 20});
 
-  lang::Buffer C_buf, D_buf;
+  lang::Buffer C_buf(Float(32)), D_buf(Float(32));
 
   // An inlined tensor, should not appear in final C code! It can be used by any times and expand its expression there.
   auto inlined0 = lang::Compute({100, 20}, [&](Var i, Var j) { return A(i, j) * 2.f + 1.f; });
@@ -135,10 +140,17 @@ TEST(CodeGenC, module_with_transform) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* C = cinn_buffer_t::new_(0/*target*/);
-void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, const struct cinn_buffer_t *C, struct cinn_buffer_t *D)
+cinn_buffer_t* C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+void add1(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer_t *_C, struct cinn_buffer_t *_D)
 {
-  cinn_buffer_malloc(D);
+  cinn_buffer_malloc((void*)(0), _A);
+  cinn_buffer_malloc((void*)(0), _B);
+  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_malloc((void*)(0), _D);
+  float* D = (float*)(cinn_buffer_get_data_handle(_D));
+  float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  float* A = (float*)(cinn_buffer_get_data_handle(_A));
+  float* B = (float*)(cinn_buffer_get_data_handle(_B));
   for (int32_t i_outer = 0; (i_outer <= 24); i_outer += 1){
     for (int32_t i_inner = 0; (i_inner <= 3); i_inner += 1){
       for (int32_t j = 0; (j <= 19); j += 1){
@@ -158,7 +170,7 @@ void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, const st
 }
 )ROC";
 
-  ASSERT_EQ(utils::Trim(out), utils::Trim(tgt));
+  ASSERT_EQ(utils::Trim(tgt), utils::Trim(out));
 }
 
 }  // namespace backends

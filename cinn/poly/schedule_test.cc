@@ -71,15 +71,15 @@ TEST(CreateSchedule, without_transform) {
   Var i("i"), j("j"), k("k");
   std::vector<Expr> args({Expr(i), Expr(j), Expr(k)});
 
-  Var A_arr("A"), B_arr("B"), C_arr("C");
+  lang::Buffer A_arr(Float(32), "A"), B_arr(Float(32), "B"), C_arr(Float(32), "C");
   Expr A_call = CreateCall("A", args);
   Expr B_call = CreateCall("B", args);
   Expr C_call = CreateCall("C", args);
 
   // A[] = B[] + 1
-  Expr A_expr = ir::Store::Make(A_arr, Expr(1.f), Expr(i));
-  Expr B_expr = ir::Store::Make(B_arr, A_call + 1.f, Expr(i));
-  Expr C_expr = ir::Store::Make(C_arr, B_call + A_call, Expr(i));
+  Expr A_expr = ir::Store::Make(Expr(A_arr.buffer()), Expr(1.f), Expr(i));
+  Expr B_expr = ir::Store::Make(Expr(B_arr.buffer()), A_call + 1.f, Expr(i));
+  Expr C_expr = ir::Store::Make(Expr(C_arr.buffer()), B_call + A_call, Expr(i));
 
   // create stages
   auto* A_stage = make_shared<Stage>(isl::set(ctx, "{ A[i,j,k]: 0<=i,j,k<100 }"), A_expr);

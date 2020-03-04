@@ -16,7 +16,7 @@ TEST(lower, basic) {
 
   Placeholder<float> A("A", {Expr(M), Expr(N)});
 
-  Buffer B_buf;
+  Buffer B_buf(Float(32));
 
   auto B = Compute(
       {M, N}, [=](Var i, Var j) -> Expr { return A(i, j) + 1.f; }, "B");
@@ -53,7 +53,7 @@ TEST(lower, more_complex) {
   Placeholder<float> A("A", {Expr(M), Expr(N)});
   Placeholder<float> B("B", {Expr(N), Expr(K)});
 
-  Buffer C_buf;
+  Buffer C_buf(Float(32));
   auto C = Compute(
       {M, N, K}, [=](Var i, Var j, Var k) -> Expr { return A(i, j) * B(j, k); }, "C");
   C->Bind(C_buf);

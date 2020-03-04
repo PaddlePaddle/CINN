@@ -68,7 +68,7 @@ template <typename T>
 void IRMutator<T>::Visit(const PolyFor *expr, T op) {
   auto *node = op->template As<PolyFor>();
   IRVisitorBase<void, T>::Visit(&node->body, &node->body);
-  IRVisitorBase<void, T>::Visit(&node->condition, &node->condition);
+
   IRVisitorBase<void, T>::Visit(&node->inc, &node->inc);
 }
 template <typename T>
@@ -155,6 +155,12 @@ void IRMutator<T>::Visit(const _Tensor_ *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const _LoweredFunc_ *expr, T op) {
   auto *node = op->template As<_LoweredFunc_>();
+  IRVisitorBase<void, T>::Visit(&node->body, &node->body);
+}
+template <typename T>
+void IRMutator<T>::Visit(const Let *expr, T op) {
+  auto *node = op->template As<Let>();
+  IRVisitorBase<void, T>::Visit(&node->value, &node->value);
   IRVisitorBase<void, T>::Visit(&node->body, &node->body);
 }
 

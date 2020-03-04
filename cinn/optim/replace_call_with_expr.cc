@@ -46,7 +46,7 @@ void ReplaceCallWithExpr(Expr *e,
   for (auto &axis : axis) {
     ReplaceVarWithExpr(&copied, Var(axis.first), axis.second);
   }
-  LOG(INFO) << "expression after replaced: " << copied;
+  // LOG(INFO) << "expression after replaced: " << copied;
   ReplaceCallWithExpr(e, statement, copied);
 }
 

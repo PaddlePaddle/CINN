@@ -11,6 +11,7 @@ namespace cinn {
 namespace ir {
 
 class _Buffer_;
+class Buffer;
 class Tensor;
 class _Tensor_;
 
@@ -19,6 +20,11 @@ enum class AccessMask : int {
   kRead = 1,
   kWrite,
 };
+
+//! Get its buffer's name given a tensor.
+std::string TensorGetBufferName(const _Tensor_* tensor);
+//! Get its tensor's name given a buffer.
+std::string BufferGetTensorName(const _Buffer_* buffer);
 
 /**
  * Buffer is a symbolic multi-dimensional data structure, it is a node in IR.
@@ -53,8 +59,8 @@ class Buffer : public IrNodeRef {
 
 class _Buffer_ : public ExprNode<_Buffer_> {
  public:
-  //! The pointer to the head of the data.
-  Var data;
+  //! The pointer to the memory of the data.
+  Var tensor_addr;
   //! The shape of the buffer.
   std::vector<Expr> shape;
   //! The strides of each dimension.
@@ -74,7 +80,7 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   //! The place the buffer locates.
   Target target{UnkTarget()};
 
-  _Buffer_() = default;
+  _Buffer_() : elem_offset(Expr(0)) {}
 
   static Buffer Make(Var data,
                      Type dtype,
@@ -89,11 +95,25 @@ class _Buffer_ : public ExprNode<_Buffer_> {
 
   static Buffer Make(const std::string& name, const std::vector<Expr>& shape = {});
 
+  static Buffer Make(const std::string& name, Type type) {
+    auto n         = make_shared<_Buffer_>();
+    n->name        = name;
+    n->tensor_addr = ir::_Var_::Make(name, type);
+    n->set_type(type);
+    return Buffer(n);
+  }
+
   //! Make an empty buffer.
   static Buffer Make();
 
   void BindTo(const Tensor& tensor);
   void BindTo(const _Tensor_* tensor);
+
+  Var buffer_addr() const {
+    auto thetype = type().ElementOf();
+    thetype.set_cpp_handle();
+    return _Var_::Make(name, thetype);
+  }
 
   void Accept(IRVisitor* v) const override;
   IrNodeTy node_type() const override;

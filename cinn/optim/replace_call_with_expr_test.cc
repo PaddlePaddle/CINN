@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/poly/ast_gen.h"
@@ -15,13 +16,13 @@ TEST(ReplaceCallWithExpr, basic) {
   // Define A and B statement.
   std::map<std::string, Expr> tuple_to_expr;
   Var i("i"), j("j"), k("k");
-  Var A_buf("A_buf");
+  ir::Buffer A_buf = ir::_Buffer_::Make("A", Float(32));
 
   auto A_value       = ir::Add::Make(ir::Call::Make(Float(32), "A", {i, j, k}, ir::Call::Halide),
                                ir::Call::Make(Float(32), "B", {i, j, k}, ir::Call::Halide));
   auto B_value       = ir::Add::Make(ir::Call::Make(Float(32), "B", {i, j, k}, ir::Call::Halide), Expr(1.f));
-  tuple_to_expr["A"] = ir::Store::Make(A_buf, A_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
-  tuple_to_expr["B"] = ir::Store::Make(A_buf, B_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
+  tuple_to_expr["A"] = ir::Store::Make(Expr(A_buf), A_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
+  tuple_to_expr["B"] = ir::Store::Make(Expr(A_buf), B_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
 
   isl::ctx ctx = Context::Global().isl_ctx();
   auto *A      = make_shared<Stage>(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
@@ -62,7 +63,7 @@ TEST(ReplaceCallWithExpr, basic) {
     std::map<std::string, Expr> axis;
     for (auto &item : axis_ast_map) {
       IslAstExprToCinnExpr(item.second, &axis[item.first]);
-      LOG(INFO) << "axis: " << item.first << " " << axis[item.first];
+      // LOG(INFO) << "axis: " << item.first << " " << axis[item.first];
     }
     ReplaceCallWithExpr(&gened_expr, statement.first, statement_candi_expr, axis);
   }
@@ -77,20 +78,21 @@ poly_for (0, (i.outer <= 24), 1)
       {
         poly_for (1, (k <= 99), 1)
         {
-          A_buf[((((((4 * i.outer) + i.inner) * 100) * 100) + (j * 100)) + k)] = (A(((4 * i.outer) + i.inner), j, k) + A_buf[((((((4 * i.outer) + i.inner) * 100) * 100) + (j * 100)) + k)] = (B(((4 * i.outer) + i.inner), j, k) + 1))
+          A[((((((4 * i.outer) + i.inner) * 100) * 100) + (j * 100)) + k)] = (A(((4 * i.outer) + i.inner), j, k) + A[((((((4 * i.outer) + i.inner) * 100) * 100) + (j * 100)) + k)] = (B(((4 * i.outer) + i.inner), j, k) + 1))
         }
         poly_for (1, (k <= 99), 1)
         {
-          A_buf[((((((4 * i.outer) + i.inner) * 100) * 100) + (j * 100)) + k)] = (B(((4 * i.outer) + i.inner), j, k) + 1)
+          A[((((((4 * i.outer) + i.inner) * 100) * 100) + (j * 100)) + k)] = (B(((4 * i.outer) + i.inner), j, k) + 1)
         }
       }
     }
   }
 }
 )ROC";
-  EXPECT_EQ(utils::GetStreamCnt(gened_expr), utils::Trim(target));
+  auto out           = utils::GetStreamCnt(gened_expr);
+  EXPECT_EQ(out, utils::Trim(target));
 
-  LOG(INFO) << "\n" << gened_expr;
+  std::cout << "output:" << std::endl << out << std::endl;
 }
 
 }  // namespace optim

@@ -5,6 +5,7 @@
 
 #include "cinn/common/common.h"
 #include "cinn/ir/ir_mutator.h"
+#include "cinn/ir/ir_printer.h"
 
 namespace cinn {
 namespace optim {
@@ -63,15 +64,17 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const _Var_* op) override { return _Var_::Make(op->name, op->type()); }
 
   Expr Visit(const Load* op) override {
-    auto index = Visit(&op->index);
-    return Load::Make(op->buffer_var, index);
+    auto index  = Visit(&op->index);
+    auto buffer = Visit(&op->buffer);
+    return Load::Make(buffer, index);
   }
 
   Expr Visit(const Store* op) override {
-    auto value = Visit(&op->value);
-    auto index = Visit(&op->index);
+    auto buffer = Visit(&op->buffer);
+    auto value  = Visit(&op->value);
+    auto index  = Visit(&op->index);
 
-    return Store::Make(op->buffer_var, value, index);
+    return Store::Make(op->buffer, value, index);
   }
 
   Expr Visit(const Alloc* op) override {
@@ -88,8 +91,15 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     auto shape       = Visit(op->shape);
     auto strides     = Visit(op->strides);
     auto elem_offset = Visit(&op->elem_offset);
-    return Expr(_Buffer_::Make(
-        op->data, op->type(), shape, strides, elem_offset, op->name, op->scope, op->data_alignment, op->offset_factor));
+    return Expr(_Buffer_::Make(op->tensor_addr,
+                               op->type(),
+                               shape,
+                               strides,
+                               elem_offset,
+                               op->name,
+                               op->scope,
+                               op->data_alignment,
+                               op->offset_factor));
   }
 
   Expr Visit(const _Tensor_* op) override {
@@ -122,6 +132,12 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const _IterVar_* op) override {
     LOG(FATAL) << "not implemented";
     return Expr();
+  }
+
+  Expr Visit(const Let* op) override {
+    auto value = Visit(&op->value);
+    auto body  = Visit(&op->body);
+    return Let::Make(value, body);
   }
 
 #define OP_BINARY_HANDLE(op__)              \

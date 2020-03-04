@@ -49,6 +49,12 @@ int cinn_buffer_copy(void* context, struct cinn_buffer_t* src, struct cinn_buffe
   return dst->device_interface->buffer_copy(context, src, dst);
 }
 
+void* cinn_buffer_get_data_handle(struct cinn_buffer_t* buf) {
+  CINN_CHECKP(buf, "%s", "buffer is null");
+  return buf->host_memory;
+}
+
+cinn_type_t cinn_unk_t() { return cinn_type_t(cinn_type_unk, 0); }
 cinn_type_t cinn_int32_t() { return cinn_type_t(cinn_type_int, 32); }
 cinn_type_t cinn_int64_t() { return cinn_type_t(cinn_type_int, 64); }
 cinn_type_t cinn_uint32_t() { return cinn_type_t(cinn_type_uint, 32); }

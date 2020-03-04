@@ -22,6 +22,7 @@ struct IRVisitorBase {
   //! Visit a expression.
   // @{
   virtual RetTy Visit(const ir::Expr* expr, Args... args) {
+    CHECK(expr->defined());
     switch (expr->node_type()) {
 #define __(op__)           \
   case ir::IrNodeTy::op__: \
