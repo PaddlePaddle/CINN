@@ -124,6 +124,12 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr();
   }
 
+  Expr Visit(const Let* op) override {
+    auto value = Visit(&op->value);
+    auto body  = Visit(&op->body);
+    return Let::Make(value, body);
+  }
+
 #define OP_BINARY_HANDLE(op__)              \
   Expr Visit(const ir::op__* op) override { \
     auto a = IRVisitorBase::Visit(&op->a);  \

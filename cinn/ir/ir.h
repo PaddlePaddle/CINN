@@ -213,6 +213,15 @@ struct Not : public UnaryOpNode<Not> {
   static const IrNodeTy _node_type_ = IrNodeTy::Not;
 };
 
+struct Let : public ExprNode<Let> {
+  Expr value;
+  Expr body;
+
+  static Expr Make(Expr value, Expr body);
+
+  static const IrNodeTy _node_type_ = IrNodeTy::Let;
+};
+
 struct Call : public ExprNode<Call> {
   Call(Type t) : ExprNode<Call>(t) {}
 

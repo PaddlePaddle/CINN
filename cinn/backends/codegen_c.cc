@@ -200,6 +200,7 @@ void CodeGenC::Visit(const ir::_Range_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_IterVar_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_Buffer_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_Tensor_ *op) { IrPrinter::Visit(op); }
+void CodeGenC::Visit(const ir::Let *op) { IrPrinter::Visit(op); }
 
 void CodeGenC::PrintCastExpr(const Type &type, Expr e) {
   os() << PrintType(type) << "(";

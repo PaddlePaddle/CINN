@@ -187,6 +187,13 @@ void IrPrinter::Visit(const _LoweredFunc_ *f) {
 
   Print(f->body);
 }
+void IrPrinter::Visit(const Let *f) {
+  CHECK(f->type().valid());
+  os() << f->type() << " ";
+  Print(f->value);
+  os() << " = ";
+  Print(f->body);
+}
 std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);

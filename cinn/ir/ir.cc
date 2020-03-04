@@ -115,6 +115,13 @@ Expr Not::Make(Expr v) {
   return Expr(node);
 }
 
+Expr Let::Make(Expr value, Expr body) {
+  auto *n  = make_shared<Let>();
+  n->value = value;
+  n->body  = body;
+  return Expr(n);
+}
+
 Expr _Var_::Make(const std::string &name, const Type &type) {
   auto node = new _Var_(name, type);
   return Expr(node);
