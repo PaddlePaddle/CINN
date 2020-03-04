@@ -36,5 +36,8 @@ std::string Trim(const std::string& s, const char* empty = " \n\r\t");
 //! Convert a string to its uppercase.
 std::string Uppercase(const std::string& x);
 
+bool Startswith(const std::string& x, const std::string& str);
+bool Endswith(const std::string& x, const std::string& str);
+
 }  // namespace utils
 }  // namespace cinn

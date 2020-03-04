@@ -57,5 +57,8 @@ std::string Uppercase(const std::string &x) {
   return res;
 }
 
+bool Startswith(const std::string &x, const std::string &str) { return x.find(str) == 0; }
+bool Endswith(const std::string &x, const std::string &str) { return x.rfind(str) == x.size() - str.size(); }
+
 }  // namespace utils
 }  // namespace cinn
