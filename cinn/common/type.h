@@ -12,12 +12,18 @@ namespace common {
  * NOTE: Front-end code other than vectorize shouldn't use vector types.
  */
 struct Type {
-  enum type_t {
+  enum class type_t {
     Unk = -1,
     Int,
     UInt,
     Float,
     Void,
+  };
+
+  //! type decorator in C.
+  enum class c_deco_type_t : uint8_t {
+    None   = 0,
+    Handle = 1,
   };
 
   Type() = default;
@@ -26,15 +32,15 @@ struct Type {
   //! Some helper functions to tell a type.
   // @{
   bool valid() const { return !is_unk(); }
-  bool is_unk() const { return type_ == Unk; }
-  bool is_void() const { return type_ == Void; }
-  bool is_bool() const { return type_ == UInt && bits_ == 1; }
+  bool is_unk() const { return type_ == type_t::Unk; }
+  bool is_void() const { return type_ == type_t::Void; }
+  bool is_bool() const { return type_ == type_t::UInt && bits_ == 1; }
   bool is_vector() const { return width_ > 1; }
   bool is_scalar() const { return width_ == 1; }
-  bool is_float() const { return type_ == Float; }
-  bool is_int() const { return type_ == Int; }
-  bool is_int(int bits) const { return type_ == Int && bits_ == bits; }
-  bool is_uint() const { return type_ == UInt; }
+  bool is_float() const { return type_ == type_t::Float; }
+  bool is_int() const { return type_ == type_t::Int; }
+  bool is_int(int bits) const { return type_ == type_t::Int && bits_ == bits; }
+  bool is_uint() const { return type_ == type_t::UInt; }
   // @}
 
   //! Getters
@@ -67,7 +73,7 @@ struct Type {
   friend std::ostream& operator<<(std::ostream& os, const Type& t);
 
  private:
-  void CheckTypeValid() const { CHECK_NE(type_, Unk); }
+  void CheckTypeValid() const { CHECK_NE(type_, type_t::Unk); }
 
   type_t type_;
 

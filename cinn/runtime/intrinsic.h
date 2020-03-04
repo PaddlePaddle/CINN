@@ -1,8 +1,9 @@
 #pragma once
-#include <cinn/ir/buffer.h>
-
 #include <string>
 #include <vector>
+
+#include "cinn/ir/buffer.h"
+#include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
 
@@ -37,6 +38,10 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices);
  * @return
  */
 ir::Expr BufferMalloc(ir::Buffer buffer);
+ir::Expr BufferMalloc(ir::Var buffer_var);
+
+//! Convert the Type in compile time to runtime type.
+cinn_type_t ToRuntimeType(Type type);
 
 }  // namespace runtime
 }  // namespace cinn

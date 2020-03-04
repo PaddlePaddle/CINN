@@ -15,10 +15,11 @@ extern "C" {
 
 //! Code for the primitive types supported in CINN.
 typedef enum cinn_type_code_t {
-  cinn_type_int    = 0,  //! signed int
-  cinn_type_uint   = 1,  //! unsigned int
-  cinn_type_float  = 2,  //! floating point
-  cinn_type_handle = 3   //! void*
+  cinn_type_unk    = -1,  //! Unknown type
+  cinn_type_int    = 0,   //! signed int
+  cinn_type_uint   = 1,   //! unsigned int
+  cinn_type_float  = 2,   //! floating point
+  cinn_type_handle = 3    //! void*
 } cinn_type_code_t;
 
 #ifndef CINN_ATTRIBUTE_ALIGN
@@ -56,6 +57,7 @@ typedef struct cinn_type_t {
 
 //! Some primitive types.
 // @{
+extern cinn_type_t cinn_unk_t();
 extern cinn_type_t cinn_int32_t();
 extern cinn_type_t cinn_int64_t();
 extern cinn_type_t cinn_uint32_t();

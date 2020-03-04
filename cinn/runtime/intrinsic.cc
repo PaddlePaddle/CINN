@@ -29,8 +29,25 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr> &indices) {
       ir::Call::Halide);
 }
 
-ir::Expr BufferMalloc(ir::Buffer buffer) {
-  return ir::Call::Make(Void(), runtime::buffer_malloc, {buffer->data}, ir::Call::Intrinsic);
+ir::Expr BufferMalloc(ir::Buffer buffer) { return BufferMalloc(buffer->data); }
+ir::Expr BufferMalloc(ir::Var buffer_var) {
+  return ir::Call::Make(Void(), runtime::buffer_malloc, {Expr(0), buffer_var}, ir::Call::Intrinsic);
+}
+
+cinn_type_t ToRuntimeType(Type type) {
+  if (type == Int(32)) {
+    return cinn_int32_t();
+  } else if (type == Int(64)) {
+    return cinn_int64_t();
+  } else if (type == UInt(32)) {
+    return cinn_uint64_t();
+  } else if (type == Float(32)) {
+    return cinn_float32_t();
+  } else if (type == Float(64)) {
+    return cinn_float64_t();
+  }
+  LOG(FATAL) << "Not supported type " << type;
+  return cinn_unk_t();
 }
 
 }  // namespace runtime

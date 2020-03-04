@@ -1,6 +1,7 @@
 #include "cinn/backends/codegen_c.h"
 
 #include <fstream>
+
 #include "cinn/ir/lowered_func.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/runtime/intrinsic.h"
@@ -175,14 +176,22 @@ void CodeGenC::Visit(const ir::Call *op) {
     os() << "cinn_buffer_t* " << op->args.front();
     os() << " = " << op->name;
     os() << "(";
-    Print(op->args[1]);
-    os() << "/*target*/";
+    PrintCastExpr("cinn_device_kind_t", op->args[1]);
+    os() << "/*target*/, ";
+    PrintRuntimeType(runtime::ToRuntimeType(op->args.front().type().ElementOf()));
+    os() << ")";
+  } else if (op->name == runtime::buffer_malloc) {
+    CHECK_EQ(op->args.size(), 2UL);
+    os() << op->name << "(";
+    PrintCastExpr("void*", op->args[0]);
+    os() << ", ";
+    os() << op->args[1];
     os() << ")";
   } else if (op->call_type == ir::Call::CallType::Intrinsic) {
     CHECK(!op->args.empty());
     os() << op->name << "(";
     for (int i = 0; i < op->args.size() - 1; i++) {
-      os() << op->args[i];
+      os() << op->args[i] << ", ";
     }
     if (op->args.size() > 0) os() << op->args.back();
     os() << ")";
@@ -203,7 +212,14 @@ void CodeGenC::Visit(const ir::_Tensor_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Let *op) { IrPrinter::Visit(op); }
 
 void CodeGenC::PrintCastExpr(const Type &type, Expr e) {
-  os() << PrintType(type) << "(";
+  os() << "(" << PrintType(type) << ")";
+  os() << "(";
+  Print(e);
+  os() << ")";
+}
+void CodeGenC::PrintCastExpr(const std::string &type, Expr e) {
+  os() << "(" << type << ")";
+  os() << "(";
   Print(e);
   os() << ")";
 }
@@ -306,6 +322,20 @@ void CodeGenC::PrintFuncArg(const ir::Argument &arg) {
     NOT_IMPLEMENTED
   }
   os() << arg.name;
+}
+
+void CodeGenC::PrintRuntimeType(const cinn_type_t &type) {
+  if (type == cinn_int32_t()) {
+    os() << "cinn_int32_t()";
+  } else if (type == cinn_int64_t()) {
+    os() << "cinn_int64_t()";
+  } else if (type == cinn_float32_t()) {
+    os() << "cinn_float32_t()";
+  } else if (type == cinn_float64_t()) {
+    os() << "cinn_float64_t()";
+  } else {
+    LOG(FATAL) << "Unknown type is not supported to print";
+  }
 }
 
 }  // namespace backends

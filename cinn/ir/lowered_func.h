@@ -69,6 +69,8 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
 
   std::vector<Expr> alloc_output_buffer_exprs;
   std::vector<Expr> alloc_tmp_buffer_exprs;
+  //! something like: float* A_data = (float*)(A->host_memory);
+  std::vector<Expr> buffer_data_cast_exprs;
 
   static LoweredFunc Make(const std::string& name, const std::vector<Argument>& args, const Expr& body);
 
@@ -85,6 +87,10 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   void AllocBufferForOutputs();
   //! Insert the allocation expr for temporary variables.
   void AllocTempBuffer();
+  void PrepareBufferCastExprs();
+  //! Get all the Buffers the function body references.
+  //! NOTE it will return the buffers with duplicates removed(by comparing their name).
+  std::vector<Buffer> CollectAllBufferReference();
 };
 
 }  // namespace ir

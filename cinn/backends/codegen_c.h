@@ -9,6 +9,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/lang/module.h"
+#include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
 
@@ -38,7 +39,11 @@ class CodeGenC : public ir::IrPrinter {
   void GenerateHeaderFile(const lang::Module& module);
 
   std::string PrintType(Type type);
+  //! type cast, print like "int(x)"
+  // @{
   void PrintCastExpr(const Type& type, Expr e);
+  void PrintCastExpr(const std::string& type, Expr e);
+  // @}
 
   void PrintIncludes();
   void PrintFileGuardOpen(const std::string& module_name);
@@ -46,6 +51,7 @@ class CodeGenC : public ir::IrPrinter {
   //! Create the buffers in global scope(just creation without allocating them).
   void PrintBufferCreation(const std::vector<ir::Buffer>& buffers);
   void PrintBufferDestroy(const std::vector<ir::Buffer>& buffers);
+  void PrintRuntimeType(const cinn_type_t& type);
 
 #define __DEFINE_VISIT(op__) void Visit(const ir::op__* op) override;
   NODETY_FORALL(__DEFINE_VISIT)

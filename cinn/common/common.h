@@ -21,6 +21,7 @@ using common::Shared;
 using common::Bool;
 using common::Float;
 using common::Int;
+using common::UInt;
 using common::Void;
 
 using common::type_of;

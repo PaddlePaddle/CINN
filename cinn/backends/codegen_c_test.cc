@@ -50,10 +50,10 @@ TEST(CodeGenC, module) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* C = cinn_buffer_t::new_(0/*target*/);
+cinn_buffer_t* C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
 void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct cinn_buffer_t *C)
 {
-  cinn_buffer_malloc(C);
+  cinn_buffer_malloc((void*)(0), C);
   for (int32_t i = 0; (i <= 99); i += 1){
     for (int32_t j = 0; (j <= 19); j += 1){
       C[((i * 20) + j)] = (A[((i * 20) + j)] + B[((i * 20) + j)]);
@@ -61,7 +61,7 @@ void add1(const struct cinn_buffer_t *A, const struct cinn_buffer_t *B, struct c
   };
 }
 )ROC";
-    EXPECT_EQ(utils::Trim(out), utils::Trim(target_str));
+    EXPECT_EQ(utils::Trim(target_str), utils::Trim(out));
   }
 
   {

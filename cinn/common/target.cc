@@ -1,5 +1,7 @@
 #include "cinn/common/target.h"
+
 #include <glog/logging.h>
+
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {

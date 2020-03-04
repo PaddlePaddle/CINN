@@ -11,6 +11,7 @@ namespace cinn {
 namespace ir {
 
 class _Buffer_;
+class Buffer;
 class Tensor;
 class _Tensor_;
 
@@ -19,6 +20,11 @@ enum class AccessMask : int {
   kRead = 1,
   kWrite,
 };
+
+//! Get its buffer's name given a tensor.
+std::string TensorGetBufferName(const Tensor& tensor);
+//! Get its tensor's name given a buffer.
+std::string BufferGetTensorName(const Buffer& buffer);
 
 /**
  * Buffer is a symbolic multi-dimensional data structure, it is a node in IR.

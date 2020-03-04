@@ -4,9 +4,21 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/runtime/intrinsic.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace ir {
+
+std::string TensorGetBufferName(const Tensor &tensor) {
+  CHECK(!tensor->name.empty());
+  CHECK(!utils::Startswith(tensor->name, "_")) << "the name with prefix _ is not allowed for tensor";
+  return "_" + tensor->name;
+}
+std::string BufferGetTensorName(const Buffer &buffer) {
+  CHECK(!buffer->name.empty());
+  CHECK(utils::Startswith(buffer->name, "_")) << "buffer's name should start with _";
+  return buffer->name.substr(1);
+}
 
 const _Buffer_ *Buffer::operator->() const { return IrNodeRef::As<_Buffer_>(); }
 _Buffer_ *Buffer::operator->() { return IrNodeRef::As<_Buffer_>(); }
