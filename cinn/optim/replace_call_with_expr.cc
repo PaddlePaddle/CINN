@@ -16,7 +16,7 @@ struct ReplaceCallWithExprModifier : public ir::IRMutator<> {
 
  private:
   void Visit(const ir::Call *expr, Expr *op) override {
-    auto *node = expr->As<ir::Call>();
+    auto *node = op->As<ir::Call>();
     CHECK(!node->name.empty()) << "Call has no name";
     VLOG(2) << "Processing Call node " << node->name;
     if (statement_ != node->name) return;

@@ -121,7 +121,7 @@ std::vector<std::string> Stage::input_statements() const {
   auto call_exprs = ir::CollectIRNodes(expr_, [](const Expr *x) { return x->As<ir::Call>(); });
   std::set<std::string> statements;
   for (auto &expr : call_exprs) {
-    auto call_name = expr->As<ir::Call>()->name;
+    auto call_name = expr.As<ir::Call>()->name;
     if (call_name != id()) statements.insert(call_name);
   }
   return std::vector<std::string>(statements.begin(), statements.end());

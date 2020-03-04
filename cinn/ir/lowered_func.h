@@ -90,7 +90,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   void PrepareBufferCastExprs();
   //! Get all the Buffers the function body references.
   //! NOTE it will return the buffers with duplicates removed(by comparing their name).
-  std::vector<Buffer> CollectAllBufferReference();
+  std::vector<Buffer> CollectAllBufferReference() const;
 };
 
 }  // namespace ir

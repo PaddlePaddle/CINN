@@ -183,7 +183,7 @@ std::vector<Expr *> IfThenElse::expr_fields() { return {&condition, &true_case, 
 std::vector<const Expr *> IfThenElse::expr_fields() const { return {&condition, &true_case, &false_case}; }
 
 Expr Store::Make(Expr buffer, Expr value, Expr index) {
-  CHECK(buffer->As<_Buffer_>()) << "buffer should be _Buffer_ type";
+  CHECK(buffer.As<_Buffer_>()) << "buffer should be _Buffer_ type";
   auto node    = make_shared<Store>();
   node->buffer = buffer;
   node->value  = value;
@@ -320,7 +320,7 @@ Var &Var::operator=(const _Var_ *x) {
 }
 
 Load::Load(Expr buffer, Expr index) : ExprNode<Load>(buffer->type().ElementOf()), buffer(buffer), index(index) {
-  CHECK(buffer->As<_Buffer_>());
+  CHECK(buffer.As<_Buffer_>());
   CHECK(index->type() == Int(32));
 }
 

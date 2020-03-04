@@ -15,13 +15,13 @@ struct Object {
 
   //! Cast to a derived type.
   template <typename T>
-  T* As() {
+  T* as() {
     return static_cast<T*>(this);
   }
 
   //! Cast to a derived type.
   template <typename T>
-  const T* As() const {
+  const T* as() const {
     return static_cast<const T*>(this);
   }
 

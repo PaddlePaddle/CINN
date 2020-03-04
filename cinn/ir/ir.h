@@ -506,7 +506,7 @@ class Range : public IrNodeRef {
   Range() = default;
   Range(IrNodeRef n) : IrNodeRef(n) {}
   Range(_Range_* n);
-  _Range_* operator->() const { return get()->As<_Range_>(); }
+  _Range_* operator->() const { return get()->as<_Range_>(); }
 };
 
 class _Range_ : public ExprNode<_Range_> {
