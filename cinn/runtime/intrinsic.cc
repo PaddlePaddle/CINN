@@ -9,27 +9,41 @@ namespace runtime {
 
 ir::Expr BufferCreate(ir::Buffer buffer) {
   std::vector<Expr> args;
-  args.push_back(buffer->data);
+  args.push_back(buffer->tensor_addr);
   CHECK(buffer->target.defined()) << "Buffer's target should be set before compile";
   return ir::Call::Make(Void(),
                         runtime::buffer_create,
-                        {buffer->data, Expr(buffer->target.runtime_arch())},
+                        {buffer->tensor_addr, Expr(buffer->target.runtime_arch())},
                         ir::Call::CallType::Intrinsic);
   return ir::Expr();
 }
 
 ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr> &indices) {
-  std::vector<ir::Expr> args({ir::Expr(buffer)});
+  std::vector<ir::Expr> args({ir::Expr(buffer->buffer_addr())});
   args.insert(std::end(args), indices.begin(), indices.end());
+
+  if (!buffer->type().is_float()) {
+    NOT_IMPLEMENTED
+  }
+
+  std::string buffer_load_method;
+  if (buffer->type().bits() == 32)
+    buffer_load_method = buffer_load_float32;
+  else if (buffer->type().bits() == 64)
+    buffer_load_method = buffer_load_float64;
+  else {
+    LOG(ERROR) << "support for type " << buffer->type() << " not implemented";
+    NOT_IMPLEMENTED
+  }
 
   return ir::Call::Make(           //
       buffer->type().ElementOf(),  //
-      runtime::buffer_load,        //
+      buffer_load_method,          //
       args,                        //
-      ir::Call::Halide);
+      ir::Call::Intrinsic);
 }
 
-ir::Expr BufferMalloc(ir::Buffer buffer) { return BufferMalloc(buffer->data); }
+ir::Expr BufferMalloc(ir::Buffer buffer) { return BufferMalloc(buffer->buffer_addr()); }
 ir::Expr BufferMalloc(ir::Var buffer_var) {
   return ir::Call::Make(Void(), runtime::buffer_malloc, {Expr(0), buffer_var}, ir::Call::Intrinsic);
 }
@@ -48,6 +62,18 @@ cinn_type_t ToRuntimeType(Type type) {
   }
   LOG(FATAL) << "Not supported type " << type;
   return cinn_unk_t();
+}
+
+ir::Expr BufferGetDataHandle(ir::Buffer buffer) {
+  CHECK(buffer->type().valid());
+  Type type = Void();
+  type.set_cpp_handle();  // a void*
+  auto call = ir::Call::Make(type, buffer_get_data_handle, {Expr(buffer)}, ir::Call::CallType::Intrinsic);
+
+  Type target_type = buffer->type().ElementOf();
+  target_type.set_cpp_handle();
+  auto cast = ir::Cast::Make(target_type, call);
+  return cast;
 }
 
 }  // namespace runtime

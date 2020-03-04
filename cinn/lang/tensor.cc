@@ -221,7 +221,7 @@ Expr _Tensor_::tensor_store_expanded_body() const {
   CHECK(!is_placeholder_node()) << "placeholder should not expand store";
   std::vector<Expr> axis_;
   for (auto &a : axis) axis_.push_back(Expr(a));
-  return ir::Store::Make(buffer->data, body(), detail::ExpandTo1DIndice(shape, axis_));
+  return ir::Store::Make(Expr(buffer), body(), detail::ExpandTo1DIndice(shape, axis_));
 }
 
 void _Tensor_::Bind(lang::Buffer &buffer) {

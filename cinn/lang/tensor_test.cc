@@ -18,7 +18,7 @@ TEST(Tensor, inlined) {
   lang::Placeholder<float> A("A", {100, 20});
   lang::Placeholder<float> B("B", {100, 20});
 
-  lang::Buffer D_buf;
+  lang::Buffer D_buf(Float(32));
   // C is inlined
   Tensor C = lang::Compute(
       {100, 20}, [=](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
@@ -31,7 +31,7 @@ TEST(Tensor, inlined) {
   std::cout << "output: \n" << funcs.front() << std::endl;
   auto out = GetStreamCnt(funcs.front());
   EXPECT_EQ(Trim(out), Trim(R"ROC(
-function func_C (A, B, D)
+function func_C (_A, _B, _D)
 {
   poly_for (0, (i <= 99), 1)
   {

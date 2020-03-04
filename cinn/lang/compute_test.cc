@@ -23,7 +23,7 @@ TEST(Compute, basic) {
   ir::Tensor z = Compute(
       {100, 100}, [=](Var i, Var j) -> Expr { return y(i, j) * 2.f; }, "z");
 
-  lang::Buffer z_buffer;
+  lang::Buffer z_buffer(Float(32));
   z->Bind(z_buffer);
 
   LOG(INFO) << "z: " << z->operaion->As<ir::ComputeOp>()->body[0];

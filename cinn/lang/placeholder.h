@@ -34,6 +34,8 @@ class Placeholder {
   Expr operator()(const std::vector<Expr> &indices) const;
   // @}
 
+  const Type &type() const { return tensor_->type(); }
+
   operator ir::Tensor() { return tensor_; }
 
  private:
@@ -50,7 +52,7 @@ class Placeholder {
     auto op = ir::PlaceholderOp::Make(name, shape, type_of<T>());
 
     tensor_ = ir::_Tensor_::Make(name, shape, op);
-    Buffer buffer;
+    Buffer buffer(tensor_->type());
     tensor_->Bind(buffer);
   }
 

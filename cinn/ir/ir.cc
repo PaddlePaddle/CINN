@@ -116,9 +116,12 @@ Expr Not::Make(Expr v) {
 }
 
 Expr Let::Make(Expr value, Expr body) {
-  auto *n  = make_shared<Let>();
+  auto *n = make_shared<Let>();
+  CHECK(value.type().valid());
+  CHECK(body.type().valid());
   n->value = value;
   n->body  = body;
+  n->set_type(n->value->type());
   return Expr(n);
 }
 
@@ -179,11 +182,12 @@ IfThenElse::IfThenElse(Expr condition, Expr true_case, Expr false_case)
 std::vector<Expr *> IfThenElse::expr_fields() { return {&condition, &true_case, &false_case}; }
 std::vector<const Expr *> IfThenElse::expr_fields() const { return {&condition, &true_case, &false_case}; }
 
-Expr Store::Make(Var buffer_var, Expr value, Expr index) {
-  auto node        = make_shared<Store>();
-  node->buffer_var = buffer_var;
-  node->value      = value;
-  node->index      = index;
+Expr Store::Make(Expr buffer, Expr value, Expr index) {
+  CHECK(buffer->As<_Buffer_>()) << "buffer should be _Buffer_ type";
+  auto node    = make_shared<Store>();
+  node->buffer = buffer;
+  node->value  = value;
+  node->index  = index;
   return Expr(node);
 }
 
@@ -313,6 +317,11 @@ Var &Var::operator=(_Var_ *x) {
 Var &Var::operator=(const _Var_ *x) {
   *this = x->Copy();
   return *this;
+}
+
+Load::Load(Expr buffer, Expr index) : ExprNode<Load>(buffer->type().ElementOf()), buffer(buffer), index(index) {
+  CHECK(buffer->As<_Buffer_>());
+  CHECK(index->type() == Int(32));
 }
 
 }  // namespace ir

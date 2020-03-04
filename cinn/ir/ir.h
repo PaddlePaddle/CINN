@@ -220,6 +220,9 @@ struct Let : public ExprNode<Let> {
   static Expr Make(Expr value, Expr body);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Let;
+
+  std::vector<Expr*> expr_fields() override { return {&value, &body}; }
+  std::vector<const Expr*> expr_fields() const override { return {&value, &body}; }
 };
 
 struct Call : public ExprNode<Call> {
@@ -330,18 +333,19 @@ struct Select : public ExprNode<Select> {
  * Load the value from a buffer (as an array).
  */
 struct Load : public ExprNode<Load> {
-  Var buffer_var;  // should be a Variable.
+  Expr buffer;  // should be a buffer.
   Expr index;
 
-  Load(Var buffer, Expr index) : ExprNode<Load>(buffer->type().ElementOf()), buffer_var(buffer), index(index) {}
+  Load(Expr buffer, Expr index);
 
-  static Expr Make(Var buffer, Expr index) {
+  static Expr Make(Expr buffer, Expr index) {
+    CHECK(buffer->type().valid());
     auto node = new Load(buffer, index);
     return Expr(node);
   }
 
-  std::vector<Expr*> expr_fields() override { return {&index}; }
-  std::vector<const Expr*> expr_fields() const override { return {&index}; }
+  std::vector<Expr*> expr_fields() override { return {&buffer, &index}; }
+  std::vector<const Expr*> expr_fields() const override { return {&buffer, &index}; }
 
   static const IrNodeTy _node_type_ = IrNodeTy::Load;
 };
@@ -350,15 +354,15 @@ struct Load : public ExprNode<Load> {
  * Store a `value` to the buffer at a given `index`.
  */
 struct Store : public ExprNode<Store> {
-  Var buffer_var;
+  Expr buffer;
   Expr value, index;
 
   Store() : ExprNode(Type()) {}
 
-  static Expr Make(Var buffer_var, Expr value, Expr index);
+  static Expr Make(Expr buffer, Expr value, Expr index);
 
-  std::vector<Expr*> expr_fields() override { return {&value, &index}; }
-  std::vector<const Expr*> expr_fields() const override { return {&value, &index}; }
+  std::vector<Expr*> expr_fields() override { return {&buffer, &value, &index}; }
+  std::vector<const Expr*> expr_fields() const override { return {&buffer, &value, &index}; }
 
   static const IrNodeTy _node_type_ = IrNodeTy::Store;
 };

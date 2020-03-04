@@ -22,13 +22,20 @@ static const char* buffer_load = "cinn_buffer_load";
 
 static const char* buffer_malloc = "cinn_buffer_malloc";
 
+static const char* buffer_get_data_handle = "cinn_buffer_get_data_handle";
+
+//! Buffer load an element of some primitive type
+// @{
+static const char* buffer_load_float32 = "buffer_load_float32";
+static const char* buffer_load_float64 = "buffer_load_float64";
+// @}
+
 ir::Expr BufferCreate(ir::Buffer buffer);
 /**
  * Get an expression to load an element from a buffer.
  * @param buffer
  * @param shape
  * @param indices
- * @return
  */
 ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices);
 
@@ -39,6 +46,8 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices);
  */
 ir::Expr BufferMalloc(ir::Buffer buffer);
 ir::Expr BufferMalloc(ir::Var buffer_var);
+
+ir::Expr BufferGetDataHandle(ir::Buffer buffer);
 
 //! Convert the Type in compile time to runtime type.
 cinn_type_t ToRuntimeType(Type type);

@@ -127,6 +127,9 @@ extern int cinn_buffer_malloc(void* context, struct cinn_buffer_t* buf);
 //! Free device memory.
 extern int cinn_buffer_free(void* context, struct cinn_buffer_t* buf);
 
+//! Get the memory address in buffer.
+extern void* cinn_buffer_get_data_handle(struct cinn_buffer_t* buf);
+
 //! The raw representation of a buffer,used in the generated code/lib.
 typedef struct cinn_buffer_t {
   //! Tell which kind of device this buffer locates.
@@ -225,6 +228,13 @@ struct cinn_device_interface_impl_t {
 
 // The device implementations
 extern cinn_device_interface_t cinn_x86_device_interface;
+
+inline float cinn_buffer_load_float32(struct cinn_buffer_t* buf, uint32_t index) {
+  return ((float*)buf->host_memory)[index];
+}
+inline double cinn_buffer_load_float64(struct cinn_buffer_t* buf, uint32_t index) {
+  return ((double*)buf->host_memory)[index];
+}
 
 #ifdef __cplusplus
 }  // extern "C"
