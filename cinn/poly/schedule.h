@@ -1,5 +1,7 @@
 #pragma once
-
+/**
+ * This file defines Schedule related concepts.
+ */
 #include <algorithm>
 #include <map>
 #include <memory>
@@ -18,6 +20,9 @@
 namespace cinn {
 namespace poly {
 
+/**
+ * The dimension with time space.
+ */
 struct TimeDim {
   //! time of this dimension.
   int time;
@@ -25,12 +30,7 @@ struct TimeDim {
   std::string dim;
 
   TimeDim() = default;
-  TimeDim(std::string dim, int time) : dim(std::move(dim)), time(time) {}
-};
-
-struct DependFlow {
-  //! Map from the depended Element.id to the level.
-  std::unordered_map<std::string, int> depend_level;
+  TimeDim(const std::string &dim, int time) : dim(dim), time(time) { CHECK(!dim.empty()); }
 };
 
 class ScheduleGraphNode;
@@ -38,16 +38,22 @@ struct ScheduleGraph : public common::Graph {};
 
 /**
  * ISL schedule map with time space, used to generate the final schedule.
+ * The map it generates is like { [x,y] -> [t0,x,t1,y] }, the t0 and t1 are time space.
  */
 struct TimeSchedule {
   TimeSchedule(const std::string &id, const std::vector<std::string> &dims);
 
-  void ResizeTimeSpace(int size) { time_dims.resize(size); }
+  void ResizeTimeSpace(int size) {
+    CHECK_LE(size, kMaxDims);
+    for (int i = time_dims_.size(); i < size; i++) {
+      time_dims_.emplace_back("0", 0);
+    }
+  }
 
   //! Schedule this after \p other in \p level.
   void OrderAfter(const TimeSchedule &other, int level);
 
-  size_t space_size() const { return time_dims.size(); }
+  size_t space_size() const { return time_dims_.size(); }
 
   const std::string &id() const;
 
@@ -62,99 +68,56 @@ struct TimeSchedule {
 
   std::vector<std::string> domain_dims;
   int duplicate_id{};
-  std::vector<TimeDim> time_dims;
+
+  constexpr static int kMaxDims = 50;
 
  private:
+  std::vector<TimeDim> time_dims_;
   std::string id_;
 };
 
-// TODO(Superjomn)
+struct ScheduleGroup;
 /**
- * The NaiveSchedule just schedule each noninlined Tensor as a unique group. Only the `compute_at` will make two tensor
- * in the same group. It is simple and robust.
+ * A container type to contain the schedule information of a graph(several groups).
  */
-class NaiveSchedule {
- public:
-  explicit NaiveSchedule(common::Graph *graph) : graph_(graph) { PartitionGroups(); }
-
- private:
-  void PartitionGroups();
-
- private:
-  common::Graph *graph_{};
-  std::vector<detail::Group> groups_;
+struct Schedule {
+  //! The groups partitioned from the dependency graph.
+  std::vector<ScheduleGroup> groups;
+  //! id to the isl schedule for each node.
+  std::map<std::string, isl::map> schedule;
 };
 
 /**
- * Record the schedule information for several groups.
+ * The base class for all the Scheduler, it helps to schedule the nodes in a group(isl space).
  */
-class Schedule {
- public:
-  /*
-   * Constructor.
-   * @param graph A graph consisted of DataFlowGraphNodes
-   */
-  explicit Schedule(common::Graph *graph) : graph_(graph) {
-    PartitionGroups();
-    // ScheduleEachGroup();
-  }
-
-  //! Generated groups.
-  std::vector<detail::Group> &gened_groups() { return groups_; }
-  const std::vector<detail::Group> &gened_groups() const { return groups_; }
-
- private:
-  //! Partition the graph into several groups(sub-graph).
-  void PartitionGroups();
-
-  //! Schedule a single group.
-  void ScheduleGroup(detail::Group *group);
-
-  void ScheduleEachGroup();
-
- private:
-  common::Graph *graph_{};
-  std::vector<detail::Group> groups_;
-};
-
-/**
- * Create the schedule from a tensor, it will retrive the dependency tensors.
- */
-std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor);
-
-/**
- * Get the schedule given some stages.
- * A Schedule defines the execution order of the stages follow the IO dependency relations.
- * This is different from the schedule from Halide or TVM, in CINN, the Transform is decoupled from Schedule.
- */
-std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages);
-
-/**
- * Gather the stages in the input tensors and their dependencies
- * @param xs The input tensors.
- * @param with_placeholder Whether to include placeholders(default false).
- * @returns The stages in topological order follow the connection to `xs`.
- */
-std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bool with_placeholder = false);
-
-/**
- * PolyScheduler - Perform schedule on polyhedral model.
- * It takes a normal schedule as input, and transform it into
- *
- */
-class PolyScheduler {
+class SchedulerBase {
  public:
   /**
-   * Constructor.
-   * @param schedule A normal isl schedule, such as '{ S[i,j] -> [i,j] }'
-   *
-   * The schedule input can be transformed, that's ok, such as
-   *   '{ S[i,j] -> [i_outer, i_inner, j]: i_outer=floor(i/4) and i_inner=i%4 }'
-   * that's OK.
+   * Wrap the iterator names with time space fake names, it is used for isl AST to set iterator names.
+   * @param names the original iterator names.
+   * @return the iterator names with time space included.
    */
-  PolyScheduler() = default;
-  PolyScheduler(const std::vector<Stage *> &stages);
+  static std::vector<std::string> WrapIteratorNames(const std::vector<std::string> &names);
 
+  /**
+   * Mark this should schedule after another.
+   *
+   * @param b
+   * @param level
+   */
+  SchedulerBase &After(const Stage &a, const Stage &b, int level);
+  /**
+   * Mark this should schedule before another.
+   * @param b
+   * @param level
+   */
+  SchedulerBase &Before(const Stage &a, const Stage &b, int level);
+
+  std::map<std::string, isl::map> schedule_map() const;
+
+  const std::vector<std::string> &detailed_dimension_names() const { return detailed_dimension_names_; }
+
+ protected:
   /**
    * Register an Element to the scheduler.
    */
@@ -169,56 +132,75 @@ class PolyScheduler {
    * Tell whether the registration is finalized.
    */
   bool finalized() const { return registration_finalized_; }
-
-  /**
-   * Mark this should schedule after another.
-   *
-   * @param b
-   * @param level
-   */
-  PolyScheduler &After(const Stage &a, const Stage &b, int level);
-  /**
-   * Mark this should schedule before another.
-   * @param b
-   * @param level
-   */
-  PolyScheduler &Before(const Stage &a, const Stage &b, int level);
-
-  /**
-   * Build and create schedule.
-   */
-  std::map<std::string, isl::map> BuildSchedule() const;
-
-  /**
-   * Wrap the iterator names with time space fake names, it is used for isl AST to set iterator names.
-   * @param names the original iterator names.
-   * @return the iterator names with time space included.
-   */
-  std::vector<std::string> WrapIteratorNames(const std::vector<std::string> &names) const;
-
   int space_size() const { return space_size_; }
 
-  const std::vector<std::string> &detailed_dimension_names() const { return detailed_dimension_names_; }
-
- private:
+ protected:
   /**
    * The polyhedral schedule, any schedule is performed on it.
-   * We use the time-space map to record the schedule infomation, the format is borrowed from Tiramisu project:
-   * [redundant,
-   *
+   * We use the time-space map to record the schedule information, the format is borrowed from Tiramisu project:
+   * [time,dim,time,dim,time,dim ...]
    */
-  int space_size_{};
-  //! Tell if the element registration is finalized.
-  bool registration_finalized_{false};
-
+  int space_size_{0};
   mutable isl::ctx ctx_{Context::Global().isl_ctx()};
-
   mutable ScheduleGraph schedule_graph_;
-
   // Record the longest dimensions(of some stage) to be the final detailed dimension names. It might be used for ISL AST
   // to set iterator names and generate readable code.
   mutable std::vector<std::string> detailed_dimension_names_;
+
+ private:
+  bool registration_finalized_{false};
 };
+
+/**
+ * Schedule Kind.
+ */
+enum class ScheduleKind {
+  //! Basic strategy, each status is scheduled seperately.
+  Naive = 0,
+  //! The strategy with iteration domain considered.
+  Poly = 1,
+};
+
+std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor, ScheduleKind schedule_kind = ScheduleKind::Poly);
+std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages,
+                                         ScheduleKind schedule_kind = ScheduleKind::Poly);
+
+/**
+ * Gather the stages in the input tensors and their dependencies
+ * @param xs The input tensors.
+ * @param with_placeholder Whether to include placeholders(default false).
+ * @returns The stages in topological order follow the connection to `xs`.
+ */
+std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bool with_placeholder = false);
+
+struct ScheduleGraphEdge : public common::GraphEdge {
+  ScheduleGraphEdge(common::GraphNode *a, common::GraphNode *b) : common::GraphEdge(a, b) {}
+
+  //! Dependency level.
+  int level;
+};
+
+/**
+ * Node in the schedule graph.
+ */
+struct ScheduleGraphNode : public common::GraphNode {
+  TimeSchedule time_schedule;
+  Stage *stage;
+
+  //! NOTE this id is not human-readable.
+  // std::string id() const override { return std::to_string(reinterpret_cast<size_t>(this)); }
+  std::string id() const override { return time_schedule.id(); }
+
+  explicit ScheduleGraphNode(const std::string &id, const std::vector<std::string> &dims, const Stage *stage)
+      : time_schedule(id, dims), stage(const_cast<Stage *>(stage)) {}
+};
+
+struct ScheduleGroup {
+  std::vector<Shared<ScheduleGraphNode>> nodes;
+  std::vector<std::string> dimension_names;
+};
+
+std::map<std::string, isl::map> CollectScheduleMapFromGroup(const ScheduleGroup &group);
 
 }  // namespace poly
 }  // namespace cinn

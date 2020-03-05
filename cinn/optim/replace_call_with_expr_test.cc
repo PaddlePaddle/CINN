@@ -20,26 +20,19 @@ TEST(ReplaceCallWithExpr, basic) {
 
   auto A_value       = ir::Add::Make(ir::Call::Make(Float(32), "A", {i, j, k}, ir::Call::Halide),
                                ir::Call::Make(Float(32), "B", {i, j, k}, ir::Call::Halide));
-  auto B_value       = ir::Add::Make(ir::Call::Make(Float(32), "B", {i, j, k}, ir::Call::Halide), Expr(1.f));
   tuple_to_expr["A"] = ir::Store::Make(Expr(A_buf), A_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
-  tuple_to_expr["B"] = ir::Store::Make(Expr(A_buf), B_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
+  // tuple_to_expr["B"] = ir::Store::Make(Expr(A_buf), B_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
 
   isl::ctx ctx = Context::Global().isl_ctx();
   auto *A      = make_shared<Stage>(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
-  auto *B      = make_shared<Stage>(isl::set(ctx, "{ B[i,j,k]: 0<i,j,k<100 }"));
 
   Iterator A_i0, A_i1;
-  Iterator B_i0, B_i1;
 
   std::tie(A_i0, A_i1) = A->Split(Iterator("i"), 4);
-  std::tie(B_i0, B_i1) = B->Split(Iterator("i"), 4);
 
-  PolyScheduler scheduler;
-  scheduler.AddStage(*A);
-  scheduler.AddStage(*B);
-  scheduler.After(*A, *B, 3);
+  auto schedule = CreateSchedule({A});
 
-  AstGen gen(isl::set(ctx, "{:}"), {A, B}, scheduler);
+  AstGen gen(isl::set(ctx, "{:}"), {A}, schedule->groups[0]);
   gen.SetIteratorNames({"i.outer", "i.inner", "j", "k"});
   isl::ast_node ast = gen.Build();
 
@@ -48,10 +41,6 @@ TEST(ReplaceCallWithExpr, basic) {
   LOG(INFO) << "gened expr " << gened_expr;
 
   LOG(INFO) << "A axis";
-  for (auto &item : gen.axis2ast("A")) {
-    LOG(INFO) << item.first << ": " << item.second;
-  }
-  LOG(INFO) << "B axis";
   for (auto &item : gen.axis2ast("A")) {
     LOG(INFO) << item.first << ": " << item.second;
   }
@@ -75,15 +64,9 @@ poly_for (0, (i.outer <= 24), 1)
   {
     poly_for (1, (j <= 99), 1)
     {
+      poly_for (1, (k <= 99), 1)
       {
-        poly_for (1, (k <= 99), 1)
-        {
-          A[((((((4 * i.outer) + i.inner) * 100) * 100) + (j * 100)) + k)] = (A(((4 * i.outer) + i.inner), j, k) + A[((((((4 * i.outer) + i.inner) * 100) * 100) + (j * 100)) + k)] = (B(((4 * i.outer) + i.inner), j, k) + 1))
-        }
-        poly_for (1, (k <= 99), 1)
-        {
-          A[((((((4 * i.outer) + i.inner) * 100) * 100) + (j * 100)) + k)] = (B(((4 * i.outer) + i.inner), j, k) + 1)
-        }
+        A[((((((4 * i.outer) + i.inner) * 100) * 100) + (j * 100)) + k)] = (A(((4 * i.outer) + i.inner), j, k) + B(((4 * i.outer) + i.inner), j, k))
       }
     }
   }

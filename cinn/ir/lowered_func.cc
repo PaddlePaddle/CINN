@@ -62,6 +62,7 @@ void _LoweredFunc_::AllocTempBuffer() {}
 
 void _LoweredFunc_::PrepareBufferCastExprs() {
   auto buffers = CollectAllBufferReference();
+  std::sort(buffers.begin(), buffers.end(), [](const Buffer& a, const Buffer& b) { return a->name < b->name; });
   VLOG(3) << "Function used " << buffers.size() << " buffers";
   for (auto& b : buffers) {
     auto* node = b.As<ir::_Buffer_>();

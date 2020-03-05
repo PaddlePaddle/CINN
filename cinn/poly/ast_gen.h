@@ -11,6 +11,7 @@
 
 #include "cinn/lang/tensor.h"
 #include "cinn/poly/isl_utils.h"
+#include "cinn/poly/poly_scheduler.h"
 #include "cinn/poly/schedule.h"
 #include "cinn/poly/stage.h"
 #include "cinn/utils/functional.h"
@@ -23,7 +24,7 @@ namespace poly {
  */
 class AstGen {
  public:
-  AstGen(const isl::set& context, const std::vector<Stage*>& stages, const PolyScheduler& scheduler);
+  AstGen(const isl::set& context, const std::vector<Stage*>& stages, const poly::ScheduleGroup& group);
 
   /**
    * Set forloop iterator names.
@@ -61,7 +62,7 @@ class AstGen {
  private:
   isl::set context_;
   std::vector<Shared<Stage>> stages_;
-  const PolyScheduler& scheduler_;
+  const poly::ScheduleGroup schedule_group_;
   std::vector<std::string> iterator_names_;
   //! tuple name -> { axis -> isl_ast }
   std::map<std::string, std::map<std::string, isl::ast_expr>> transformed_indice_map_;

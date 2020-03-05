@@ -62,88 +62,7 @@ std::string DataFlowGraphNode::id() const {
   return stage->id();
 }
 
-namespace detail {
-
-//! Visit the nodes in topological order, if one node is valid to visit, visit it and check whether its out link
-//! children are ready to visit, merge them to the same group.
-std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
-  VLOG(3) << "graph:\n" << graph->Visualize();
-  // collect indegree for topological traversal
-  std::map<DataFlowGraphNode*, uint16_t> indegree;
-  for (common::GraphNode* n : graph->nodes()) {
-    auto* node     = n->As<DataFlowGraphNode>();
-    indegree[node] = node->inlinks().size();
-  }
-
-  std::deque<DataFlowGraphNode*> queue;
-  for (auto* n : graph->start_points()) {
-    auto* node = n->As<DataFlowGraphNode>();
-    queue.push_back(node);
-  }
-  while (!queue.empty()) {
-    auto* node = queue.front();
-    queue.pop_front();
-    VLOG(4) << "to visit " << node->id();
-
-    for (auto& c : node->outlinks()) {
-      auto* child = c->sink()->As<DataFlowGraphNode>();
-      VLOG(2) << "  tell child " << c->sink()->id() << " indegree " << indegree[child];
-      --indegree[child];
-
-      VLOG(3) << node->stage->transformed_domain() << " -> " << child->stage->transformed_domain();
-      if (indegree[child] == 0) {
-        if (DataFlowGraphNode::TransformedDomainIsSame(node, child)) {
-          VLOG(4) << child->id() << " ready to merge " << node->id() << " with " << child->id();
-          DataFlowGraphNode::MergeGroup(node, child);
-        }
-        queue.push_back(child);
-      }
-    }
-  }
-
-  // gather groups
-  std::set<DataFlowGraphNode*> groups_gathered;
-  std::vector<DataFlowGraphNode*> groups_in_topo_order;
-
-  std::vector<common::GraphNode*> nodes_in_order;
-  std::vector<common::GraphEdge*> edges_in_order;
-  std::map<DataFlowGraphNode*, std::vector<DataFlowGraphNode*>> node_groups;
-  std::tie(nodes_in_order, edges_in_order) = graph->topological_order();
-  for (auto* n : nodes_in_order) {
-    auto* node     = n->As<DataFlowGraphNode>();
-    auto* ancestor = node->group_ancestor();
-    if (!groups_gathered.count(ancestor)) {
-      groups_gathered.insert(ancestor);
-      groups_in_topo_order.push_back(ancestor);
-    }
-
-    node_groups[ancestor].push_back(node);
-  }
-
-  std::vector<Group> groups;
-  // preparing result
-  for (auto* ancestor : groups_in_topo_order) {
-    Group group;
-    for (auto* c : node_groups[ancestor]) {
-      group.nodes.push_back(c);
-    }
-    groups.emplace_back(group);
-  }
-
-  // NOTE DEBUG
-  // check there are same count of nodes both in the orginal graph and the groups.
-  // @{
-  int num_node_in_groups = 0;
-  for (auto& group : groups) num_node_in_groups += group.nodes.size();
-  CHECK_EQ(num_node_in_groups, graph->num_nodes());
-  // @}
-
-  return groups;
-}
-
-}  // namespace detail
-
-std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages) {
+std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages) {
   std::map<std::string, Shared<DataFlowGraphNode>> id2stage;
   for (auto* x : stages) id2stage[x->id()] = make_shared<DataFlowGraphNode>(x);
 
@@ -161,7 +80,7 @@ std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages) {
     }
   }
 
-  std::unique_ptr<common::Graph> graph(new common::Graph);
+  std::unique_ptr<DataFlowGraph> graph(new DataFlowGraph);
   for (auto& item : id2stage) graph->RegisterNode(item.first, item.second.get());
   VLOG(3) << "created graph:\n" << graph->Visualize();
   return graph;

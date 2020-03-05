@@ -20,24 +20,22 @@ TEST(ast_gen, basic) {
   std::tie(A_i0, A_i1) = A->Split(Iterator("i"), 4);
   std::tie(B_i0, B_i1) = B->Split(Iterator("i"), 4);
 
-  PolyScheduler scheduler;
-  scheduler.AddStage(*A);
-  scheduler.AddStage(*B);
-  scheduler.After(*A, *B, 3);
+  std::vector<Stage*> stages({A, B});
 
-  AstGen gen(isl::set(ctx, "{:}"), {A, B}, scheduler);
-  gen.SetIteratorNames({"i.outer", "i.inner", "j", "k"});
-  isl::ast_node ast = gen.Build();
+  PolyScheduler scheduler(stages);
+  auto schedule = scheduler.BuildSchedule();
+  ASSERT_EQ(schedule->groups.size(), 2UL);
+  // scheduler.After(*A, *B, 3);
 
-  auto iters = gen.axis2ast("A");
-  for (auto& x : iters) {
-    LOG(INFO) << x.first << " " << x.second;
+  for (int i = 0; i < schedule->groups.size(); i++) {
+    AstGen gen(isl::set(ctx, "{:}"), {stages[i]}, schedule->groups[i]);
+    gen.SetIteratorNames({"i.outer", "i.inner", "j", "k"});
+    isl::ast_node ast = gen.Build();
+    ir::Expr e;
+    IslAstNodeToCinnExpr(ast, &e);
+
+    LOG(INFO) << "\n" << e;
   }
-
-  ir::Expr e;
-  IslAstNodeToCinnExpr(ast, &e);
-
-  LOG(INFO) << "\n" << e;
 }
 
 }  // namespace poly
