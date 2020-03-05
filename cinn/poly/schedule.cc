@@ -7,27 +7,30 @@
 #include "cinn/common/graph_utils.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/lang/tensor.h"
+#include "cinn/poly/naive_scheduler.h"
 #include "cinn/poly/poly_scheduler.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
 namespace poly {
 
+
 std::string TimeSchedule::__str__() const {
-  CHECK(!time_dims.empty());
+  CHECK(!time_dims_.empty());
+  CHECK_LE(time_dims_.size(), kMaxDims);
 
   // generate range: [dup, t0, t1...]
   std::vector<std::string> range_dims;
-  for (int i = 0; i < time_dims.size(); i++) {
+  for (int i = 0; i < time_dims_.size(); i++) {
     range_dims.push_back("t" + std::to_string(i));
     range_dims.push_back("d" + std::to_string(i));
   }
 
   // generate conditions
   std::vector<std::string> conds;
-  for (int i = 0; i < time_dims.size(); i++) {
-    conds.push_back(utils::StringFormat("%s=%s", range_dims[2 * i].c_str(), std::to_string(time_dims[i].time).c_str()));
-    conds.push_back(utils::StringFormat("%s=%s", range_dims[2 * i + 1].c_str(), time_dims[i].dim.c_str()));
+  for (int i = 0; i < time_dims_.size(); i++) {
+    conds.push_back(utils::StringFormat("%s=%s", range_dims[2 * i].c_str(), std::to_string(time_dims_[i].time).c_str()));
+    conds.push_back(utils::StringFormat("%s=%s", range_dims[2 * i + 1].c_str(), time_dims_[i].dim.c_str()));
   }
 
   return utils::StringFormat("{ %s[%s] -> [%s]: %s }",
@@ -39,31 +42,32 @@ std::string TimeSchedule::__str__() const {
 
 std::vector<std::string> TimeSchedule::final_axis_names() const {
   std::vector<std::string> dims;
-  for (int i = 0; i < time_dims.size(); i++) {
-    dims.push_back(std::to_string(time_dims[i].time).c_str());
-    dims.push_back(time_dims[i].dim.c_str());
+  for (int i = 0; i < time_dims_.size(); i++) {
+    dims.push_back(std::to_string(time_dims_[i].time).c_str());
+    dims.push_back(time_dims_[i].dim.c_str());
   }
   return dims;
 }
 
 TimeSchedule::TimeSchedule(const std::string &id, const std::vector<std::string> &dims) {
+  CHECK_LE(dims.size(), kMaxDims);
   id_         = id;
   domain_dims = dims;
   for (auto &dim : domain_dims) {
-    time_dims.emplace_back(dim, 0);
+    time_dims_.emplace_back(dim, 0);
   }
 }
 
 void TimeSchedule::OrderAfter(const TimeSchedule &other, int level) {
   CHECK_EQ(space_size(), other.space_size()) << "space not match";
   CHECK_LT(level, other.space_size());
-  CHECK(!time_dims.empty());
+  CHECK(!time_dims_.empty());
 
   for (int i = 0; i <= level; i++) {
-    this->time_dims[i].time = std::max(other.time_dims[i].time, this->time_dims[i].time);
+    this->time_dims_[i].time = std::max(other.time_dims_[i].time, this->time_dims_[i].time);
   }
 
-  this->time_dims[level].time++;
+  this->time_dims_[level].time++;
 }
 
 isl::map TimeSchedule::to_isl(isl::ctx ctx) const {
@@ -76,60 +80,30 @@ const std::string &TimeSchedule::id() const {
   return id_;
 }
 
-void Schedule::PartitionGroups() {
-  CHECK(!graph_->nodes().empty());
-  groups_ = detail::PartitionGraphByIterationDomain(graph_);
-}
-
-void Schedule::ScheduleGroup(detail::Group *group) {
-  CHECK(group);
-  std::set<Stage *> dic;
-
-  // create scheduler for this group.
-  std::vector<Stage *> stages;
-  for (auto &node : group->nodes) {
-    dic.insert(node->stage.get());
-    stages.push_back(node->stage.get());
-  }
-  PolyScheduler scheduler(stages);
-
-  // NOTE this is unnecessary
-  for (auto &node : group->nodes) {
-    // if any outlink in the dic, schedule the output node After this by the last dimension.
-    for (auto &outlink : node->outlinks()) {
-      auto *out_node = outlink->sink()->As<DataFlowGraphNode>();
-      if (dic.count(out_node->stage.get())) {
-        int node_iter_dims = isl_set_dim(node->stage->transformed_domain().get(), isl_dim_set);
-        int out_iter_dims  = isl_set_dim(out_node->stage->transformed_domain().get(), isl_dim_set);
-        int level          = std::min(node_iter_dims, out_iter_dims) - 1;
-        CHECK_GE(level, 0);
-        scheduler.After(*node->stage, *out_node->stage, level);
-      }
-    }
-  }
-}
-
-void Schedule::ScheduleEachGroup() {
-  CHECK(!groups_.empty()) << "call PartitionGroups first";
-  for (auto &group : groups_) {
-    ScheduleGroup(&group);
-  }
-}
-
-std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor) {
+std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor, ScheduleKind schedule_kind) {
   auto stages = GatherStagesInTensors({tensor});
   VLOG(3) << "collected " << stages.size() << " stages";
-  return CreateSchedule(stages);
+  return CreateSchedule(stages, schedule_kind);
 }
 
-std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages) {
+std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages, ScheduleKind schedule_kind) {
   CHECK(!stages.empty());
   for (auto &stage : stages) {
     VLOG(4) << "stage: " << stage->domain();
   }
-  auto graph = CreateGraph(stages);
-
-  return std::unique_ptr<Schedule>(new Schedule(graph.get()));
+  switch (schedule_kind) {
+    case ScheduleKind::Naive: {
+      NaiveScheduler scheduler(stages);
+      return scheduler.BuildSchedule();
+    } break;
+    case ScheduleKind::Poly: {
+      PolyScheduler scheduler(stages);
+      return scheduler.BuildSchedule();
+    } break;
+    default:
+      NOT_IMPLEMENTED
+  }
+  return nullptr;
 }
 
 std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bool with_placeholder) {
@@ -160,6 +134,15 @@ std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bo
 
   std::reverse(stages.begin(), stages.end());
   return stages;
+}
+
+std::map<std::string, isl::map> CollectSchedleMapFromGroup(const detail::Group &group) {
+  std::map<std::string, isl::map> map;
+  for (auto &node : group.nodes) {
+    auto *schedule_node      = node->As<ScheduleGraphNode>();
+    map[schedule_node->id()] = schedule_node->time_schedule.to_isl(Context::Global().isl_ctx());
+  }
+  return map;
 }
 
 void SchedulerBase::AddStage(const Stage &x) {
@@ -197,10 +180,9 @@ void SchedulerBase::FinishStageAdd() {
   }
 }
 
-std::vector<std::string> SchedulerBase::WrapIteratorNames(const std::vector<std::string> &names) const {
-  CHECK_EQ(names.size(), space_size());
+std::vector<std::string> SchedulerBase::WrapIteratorNames(const std::vector<std::string> &names) {
   std::vector<std::string> res;
-  for (int i = 0; i < space_size(); i++) {
+  for (int i = 0; i < names.size(); i++) {
     res.push_back("");        // fake name for time space.
     res.push_back(names[i]);  // name for the corresponding iterator.
   }

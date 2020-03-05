@@ -17,6 +17,7 @@ Expr CreateCall(const std::string& name, const std::vector<Expr>& args) {
   return expr;
 }
 
+/*
 TEST(CreateSchedule, without_transform) {
   // create stages
   auto ctx = Context::Global().isl_ctx();
@@ -54,6 +55,7 @@ TEST(CreateSchedule, without_transform) {
     }
   }
 }
+*/
 
 }  // namespace poly
 }  // namespace cinn

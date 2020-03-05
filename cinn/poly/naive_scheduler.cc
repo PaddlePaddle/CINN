@@ -5,26 +5,20 @@
 namespace cinn {
 namespace poly {
 
-std::map<std::string, isl::map> NaiveScheduler::BuildSchedule() const {
-  std::map<std::string, isl::map> res;
-
-  std::vector<ScheduleGraphNode *> nodes_in_order;
+std::unique_ptr<Schedule> NaiveScheduler::BuildSchedule() {
+  PartitionGroups();
   CHECK(!groups_.empty());
+
   for (auto &group : groups_) {
-    for (auto &node : group.nodes) {
-      auto *graph_node = node->As<ScheduleGraphNode>();
-      nodes_in_order.push_back(graph_node);
-    }
+    std::vector<Stage *> status;
+    CHECK_EQ(group.nodes.size(), 1UL);
+    NaiveGroupScheduler scheduler(group.nodes.front()->stage.get());
+    scheduler.Build();
   }
 
-  // order them
-  for (int i = 1; i < nodes_in_order.size(); i++) {
-    nodes_in_order[i]->time_schedule.OrderAfter(nodes_in_order[i - 1]->time_schedule, 0);
-  }
+  std::unique_ptr<Schedule> res(new Schedule);
+  res->groups = groups_;
 
-  for (auto *node : nodes_in_order) {
-    res[node->id()] = node->time_schedule.to_isl(ctx_);
-  }
   return res;
 }
 

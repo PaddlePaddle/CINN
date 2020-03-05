@@ -61,6 +61,7 @@ struct Group {
   explicit Group(const std::vector<Shared<DataFlowGraphNode>>& nodes) : nodes(nodes) {}
 
   std::vector<Shared<DataFlowGraphNode>> nodes;
+  std::vector<std::string> dimension_names;
 };
 
 /**

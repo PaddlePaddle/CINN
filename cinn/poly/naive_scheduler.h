@@ -9,6 +9,17 @@
 namespace cinn {
 namespace poly {
 
+class NaiveGroupScheduler : public SchedulerBase {
+ public:
+  //! Constructor, for naive scheduler, each group has just one node.
+  explicit NaiveGroupScheduler(Stage *x) {
+    AddStage(*x);
+    FinishStageAdd();
+  }
+  //! Just one node, need no schedule.
+  void Build() {}
+};
+
 /**
  * The NaiveScheduler just schedule each noninlined Tensor as a unique group. Only the `compute_at` will merge two
  * tensor in the same group.
@@ -17,9 +28,12 @@ namespace poly {
 class NaiveScheduler : public SchedulerBase {
  public:
   NaiveScheduler() = default;
-  explicit NaiveScheduler(const std::vector<Stage *> &stages);
+  explicit NaiveScheduler(const std::vector<Stage *> &stages) {
+    for (auto *x : stages) AddStage(*x);
+    FinishStageAdd();
+  }
 
-  std::map<std::string, isl::map> BuildSchedule() const;
+  std::unique_ptr<Schedule> BuildSchedule();
 
  private:
   void PartitionGroups();

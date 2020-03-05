@@ -19,10 +19,45 @@ namespace cinn {
 namespace poly {
 
 /**
+ * Schedule a single group with iterator domain considered.
+ */
+class PolyGroupScheduler : public SchedulerBase {
+ public:
+  //! Constructor, this will build a DAG based on the stages.
+  explicit PolyGroupScheduler(const std::vector<Stage *> &stages) {
+    CHECK_GT(stages.size(), 0) << "No stage is provided";
+    for (auto *stage : stages) {
+      AddStage(*stage);
+    }
+    FinishStageAdd();
+  }
+
+  //! Build the schedule, that is set the time schedule following each edge.
+  void Build() {
+    ScheduleGraph::node_order_t node_order;
+    ScheduleGraph::edge_order_t edge_order;
+    CHECK(!schedule_graph_.nodes().empty());
+    std::tie(node_order, edge_order) = schedule_graph_.topological_order();
+    for (auto *edge : edge_order) {
+      auto *schedule_edge = edge->as<ScheduleGraphEdge>();
+      auto *a_node        = schedule_graph_.RetriveNode(edge->source()->As<ScheduleGraphNode>()->time_schedule.id())
+                         ->As<ScheduleGraphNode>();
+      auto *b_node = schedule_graph_.RetriveNode(edge->sink()->As<ScheduleGraphNode>()->time_schedule.id())
+                         ->As<ScheduleGraphNode>();
+      CHECK(a_node);
+      CHECK(b_node);
+
+      int level = schedule_edge->level;
+      b_node->time_schedule.OrderAfter(a_node->time_schedule, level);
+    }
+  }
+};
+
+/**
  * PolyScheduler - Perform schedule on polyhedral model.
  * It takes a normal schedule as input, merge two stages automatically if they have the same domain.
  */
-class PolyScheduler : public SchedulerBase {
+class PolyScheduler {
  public:
   /**
    * Constructor.
@@ -32,15 +67,23 @@ class PolyScheduler : public SchedulerBase {
    *   '{ S[i,j] -> [i_outer, i_inner, j]: i_outer=floor(i/4) and i_inner=i%4 }'
    * that's OK.
    */
-  PolyScheduler() = default;
   explicit PolyScheduler(const std::vector<Stage *> &stages);
 
   /**
    * Build and create schedule.
    */
-  std::map<std::string, isl::map> BuildSchedule() const;
+  std::unique_ptr<Schedule> BuildSchedule();
 
-  const std::vector<std::string> &detailed_dimension_names() const { return detailed_dimension_names_; }
+ private:
+  //! Partition the graph into several groups.
+  void PartitionGroups(common::Graph *graph);
+  //! Schedule a single group.
+  void ScheduleGroup(detail::Group *group);
+  //! Schedule all the groups.
+  void ScheduleGroups();
+
+  std::vector<detail::Group> groups_;
+  std::unique_ptr<common::Graph> graph_;
 };
 
 }  // namespace poly

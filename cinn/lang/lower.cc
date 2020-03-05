@@ -23,12 +23,8 @@ Expr LowerGroup(const poly::detail::Group& group, const std::map<std::string, Ex
     stages.push_back(node->stage.get());
   }
 
-  poly::PolyScheduler scheduler(stages);
-  // TODO Schedule it.
-  scheduler.BuildSchedule();
-
   isl::set context(Context::Global().isl_ctx(), "{:}");
-  poly::AstGen gen(context, stages, scheduler);
+  poly::AstGen gen(context, stages, group);
   isl::ast_node ast = gen.Build();
 
   // set iterator names.
@@ -125,8 +121,8 @@ std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Te
 
   // generate the expressions for each group.
   std::vector<Expr> exprs;
-  CHECK_GT(schedule->gened_groups().size(), 0) << "no group is generated";
-  for (auto& group : schedule->gened_groups()) {
+  CHECK_GT(schedule->groups.size(), 0) << "no group is generated";
+  for (auto& group : schedule->groups) {
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
     std::map<std::string, Expr> tuple_to_expr;
     for (auto& node : group.nodes) {

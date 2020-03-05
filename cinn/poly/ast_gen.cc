@@ -20,11 +20,11 @@ isl::ctx AstGen::ctx() const {
 
 isl::ast_node AstGen::Build() {
   // Collect schedule from scheduler.
-  auto schedules = scheduler_.BuildSchedule();
+  auto schedule_map = CollectSchedleMapFromGroup(schedule_group_);
   std::vector<isl::map> maps;
   for (auto& stage : stages_) {
-    auto it = schedules.find(stage->id());
-    CHECK(it != std::end(schedules));
+    auto it = schedule_map.find(stage->id());
+    CHECK(it != std::end(schedule_map));
     maps.push_back(it->second);
   }
   auto schedule = MapsToUnionMap(maps);
@@ -33,9 +33,9 @@ isl::ast_node AstGen::Build() {
   auto ast_build = isl::ast_build::from_context(context_);
 
   // Set iterators names for readable code.
-  CHECK(!scheduler_.detailed_dimension_names().empty());
-  auto iterator_names = iterator_names_.empty() ? scheduler_.detailed_dimension_names() : iterator_names_;
-  iterator_names      = scheduler_.WrapIteratorNames(iterator_names);
+  CHECK(!schedule_group_.dimension_names.empty());
+  auto iterator_names = iterator_names_.empty() ? schedule_group_.dimension_names : iterator_names_;
+  iterator_names      = SchedulerBase::WrapIteratorNames(iterator_names);
   LOG(INFO) << "iterator_names after wrap: " << utils::Join(iterator_names, ", ");
   isl::id_list ids = isl::manage(isl_id_list_alloc(ctx().get(), iterator_names.size()));
   for (int i = 0; i < iterator_names.size(); i++) {
@@ -378,8 +378,8 @@ void AstGen::InitIslAstConfig() {
   isl_options_set_ast_build_allow_else(ctx().get(), 1);
 }
 
-AstGen::AstGen(const isl::set& context, const std::vector<Stage*>& stages, const PolyScheduler& scheduler)
-    : context_(context), scheduler_(scheduler) {
+AstGen::AstGen(const isl::set& context, const std::vector<Stage*>& stages, const poly::detail::Group& group)
+    : context_(context), schedule_group_(group) {
   for (auto* x : stages) stages_.emplace_back(x);
   InitIslAstConfig();
 }
