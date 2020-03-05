@@ -36,32 +36,9 @@ class PolyScheduler : public SchedulerBase {
   explicit PolyScheduler(const std::vector<Stage *> &stages);
 
   /**
-   * Mark this should schedule after another.
-   *
-   * @param b
-   * @param level
-   */
-  PolyScheduler &After(const Stage &a, const Stage &b, int level);
-  /**
-   * Mark this should schedule before another.
-   * @param b
-   * @param level
-   */
-  PolyScheduler &Before(const Stage &a, const Stage &b, int level);
-
-  /**
    * Build and create schedule.
    */
   std::map<std::string, isl::map> BuildSchedule() const;
-
-  /**
-   * Wrap the iterator names with time space fake names, it is used for isl AST to set iterator names.
-   * @param names the original iterator names.
-   * @return the iterator names with time space included.
-   */
-  std::vector<std::string> WrapIteratorNames(const std::vector<std::string> &names) const;
-
-  int space_size() const { return space_size_; }
 
   const std::vector<std::string> &detailed_dimension_names() const { return detailed_dimension_names_; }
 };

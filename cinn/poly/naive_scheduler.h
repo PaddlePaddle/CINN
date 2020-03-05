@@ -10,8 +10,9 @@ namespace cinn {
 namespace poly {
 
 /**
- * The NaiveScheduler just schedule each noninlined Tensor as a unique group. Only the `compute_at` will make two tensor
- * in the same group. It is simple and robust.
+ * The NaiveScheduler just schedule each noninlined Tensor as a unique group. Only the `compute_at` will merge two
+ * tensor in the same group.
+ * It is simple and robust.
  */
 class NaiveScheduler : public SchedulerBase {
  public:

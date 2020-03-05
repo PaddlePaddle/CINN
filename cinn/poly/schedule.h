@@ -72,6 +72,28 @@ struct TimeSchedule {
  * The base class for all the Scheduler.
  */
 class SchedulerBase {
+ public:
+  /**
+   * Wrap the iterator names with time space fake names, it is used for isl AST to set iterator names.
+   * @param names the original iterator names.
+   * @return the iterator names with time space included.
+   */
+  std::vector<std::string> WrapIteratorNames(const std::vector<std::string> &names) const;
+
+  /**
+   * Mark this should schedule after another.
+   *
+   * @param b
+   * @param level
+   */
+  SchedulerBase &After(const Stage &a, const Stage &b, int level);
+  /**
+   * Mark this should schedule before another.
+   * @param b
+   * @param level
+   */
+  SchedulerBase &Before(const Stage &a, const Stage &b, int level);
+
  protected:
   /**
    * Register an Element to the scheduler.
@@ -92,7 +114,7 @@ class SchedulerBase {
  protected:
   /**
    * The polyhedral schedule, any schedule is performed on it.
-   * We use the time-space map to record the schedule infomation, the format is borrowed from Tiramisu project:
+   * We use the time-space map to record the schedule information, the format is borrowed from Tiramisu project:
    * [time,dim,time,dim,time,dim ...]
    */
   int space_size_{0};
