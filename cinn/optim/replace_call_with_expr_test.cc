@@ -34,9 +34,7 @@ TEST(ReplaceCallWithExpr, basic) {
   std::tie(A_i0, A_i1) = A->Split(Iterator("i"), 4);
   std::tie(B_i0, B_i1) = B->Split(Iterator("i"), 4);
 
-  PolyScheduler scheduler;
-  scheduler.AddStage(*A);
-  scheduler.AddStage(*B);
+  PolyScheduler scheduler({A, B});
   scheduler.After(*A, *B, 3);
 
   AstGen gen(isl::set(ctx, "{:}"), {A, B}, scheduler);

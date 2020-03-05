@@ -90,9 +90,16 @@ class SchedulerBase {
   int space_size() const { return space_size_; }
 
  protected:
+  /**
+   * The polyhedral schedule, any schedule is performed on it.
+   * We use the time-space map to record the schedule infomation, the format is borrowed from Tiramisu project:
+   * [time,dim,time,dim,time,dim ...]
+   */
   int space_size_{0};
   mutable isl::ctx ctx_{Context::Global().isl_ctx()};
   mutable ScheduleGraph schedule_graph_;
+  // Record the longest dimensions(of some stage) to be the final detailed dimension names. It might be used for ISL AST
+  // to set iterator names and generate readable code.
   mutable std::vector<std::string> detailed_dimension_names_;
 
  private:
@@ -217,25 +224,6 @@ class PolyScheduler : public SchedulerBase {
   int space_size() const { return space_size_; }
 
   const std::vector<std::string> &detailed_dimension_names() const { return detailed_dimension_names_; }
-
- private:
-  /**
-   * The polyhedral schedule, any schedule is performed on it.
-   * We use the time-space map to record the schedule infomation, the format is borrowed from Tiramisu project:
-   * [redundant,
-   *
-   */
-  int space_size_{};
-  //! Tell if the element registration is finalized.
-  bool registration_finalized_{false};
-
-  mutable isl::ctx ctx_{Context::Global().isl_ctx()};
-
-  mutable ScheduleGraph schedule_graph_;
-
-  // Record the longest dimensions(of some stage) to be the final detailed dimension names. It might be used for ISL AST
-  // to set iterator names and generate readable code.
-  mutable std::vector<std::string> detailed_dimension_names_;
 };
 
 }  // namespace poly
