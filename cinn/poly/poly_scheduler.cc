@@ -90,9 +90,6 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
 
 std::unique_ptr<Schedule> PolyScheduler::BuildSchedule() {
   std::unique_ptr<Schedule> res(new Schedule);
-  for (auto& node : schedule_graph_.nodes()) {
-    LOG(INFO) << "graph node time_dims: " << node->As<ScheduleGraphNode>()->time_schedule.space_size();
-  }
 
   // partition the DataFlowGraph to groups.
   auto dfg_groups = PartitionGroups(dfg_.get());
@@ -121,7 +118,6 @@ std::unique_ptr<Schedule> PolyScheduler::BuildSchedule() {
 
   for (auto& group : schedule_groups_) {
     for (auto& node : group.nodes) {
-      LOG(INFO) << "node.id " << node->id();
       res->schedule[node->id()] = node->time_schedule.to_isl(Context::Global().isl_ctx());
     }
   }
