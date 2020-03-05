@@ -11,6 +11,7 @@
 
 #include "cinn/lang/tensor.h"
 #include "cinn/poly/isl_utils.h"
+#include "cinn/poly/poly_scheduler.h"
 #include "cinn/poly/schedule.h"
 #include "cinn/poly/stage.h"
 #include "cinn/utils/functional.h"

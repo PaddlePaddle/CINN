@@ -107,26 +107,6 @@ class SchedulerBase {
 };
 
 /**
- * The NaiveScheduler just schedule each noninlined Tensor as a unique group. Only the `compute_at` will make two tensor
- * in the same group. It is simple and robust.
- */
-class NaiveScheduler : public SchedulerBase {
- public:
-  NaiveScheduler() = default;
-  explicit NaiveScheduler(const std::vector<Stage *> &stages);
-
-  std::map<std::string, isl::map> BuildSchedule() const;
-
- private:
-  void PartitionGroups();
-
- private:
-  common::Graph *graph_{};
-  std::vector<detail::Group> groups_;
-  mutable std::vector<std::string> detailed_dimension_names_;
-};
-
-/**
  * Record the schedule information for several groups.
  */
 class Schedule {
@@ -178,52 +158,23 @@ std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages);
  */
 std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bool with_placeholder = false);
 
+struct ScheduleGraphEdge : public common::GraphEdge {
+  ScheduleGraphEdge(common::GraphNode *a, common::GraphNode *b) : common::GraphEdge(a, b) {}
+
+  //! Dependency level.
+  int level;
+};
+
 /**
- * PolyScheduler - Perform schedule on polyhedral model.
- * It takes a normal schedule as input, merge two stages automatically if they have the same domain.
+ * Node in the schedule graph.
  */
-class PolyScheduler : public SchedulerBase {
- public:
-  /**
-   * Constructor.
-   * @param schedule A normal isl schedule, such as '{ S[i,j] -> [i,j] }'
-   *
-   * The schedule input can be transformed, that's ok, such as
-   *   '{ S[i,j] -> [i_outer, i_inner, j]: i_outer=floor(i/4) and i_inner=i%4 }'
-   * that's OK.
-   */
-  PolyScheduler() = default;
-  PolyScheduler(const std::vector<Stage *> &stages);
+struct ScheduleGraphNode : public common::GraphNode {
+  TimeSchedule time_schedule;
 
-  /**
-   * Mark this should schedule after another.
-   *
-   * @param b
-   * @param level
-   */
-  PolyScheduler &After(const Stage &a, const Stage &b, int level);
-  /**
-   * Mark this should schedule before another.
-   * @param b
-   * @param level
-   */
-  PolyScheduler &Before(const Stage &a, const Stage &b, int level);
+  //! NOTE this id is not human-readable.
+  std::string id() const override { return std::to_string(reinterpret_cast<size_t>(this)); }
 
-  /**
-   * Build and create schedule.
-   */
-  std::map<std::string, isl::map> BuildSchedule() const;
-
-  /**
-   * Wrap the iterator names with time space fake names, it is used for isl AST to set iterator names.
-   * @param names the original iterator names.
-   * @return the iterator names with time space included.
-   */
-  std::vector<std::string> WrapIteratorNames(const std::vector<std::string> &names) const;
-
-  int space_size() const { return space_size_; }
-
-  const std::vector<std::string> &detailed_dimension_names() const { return detailed_dimension_names_; }
+  explicit ScheduleGraphNode(const std::string &id, const std::vector<std::string> &dims) : time_schedule(id, dims) {}
 };
 
 }  // namespace poly
