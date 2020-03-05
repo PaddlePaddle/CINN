@@ -13,11 +13,11 @@ TEST(Scheduler, basic) {
   Stage B(B_set);
   LOG(INFO) << A.transform();
 
-  PolyScheduler scheduler({&A, &B});
-
+  PolyGroupScheduler scheduler({&A, &B});
   scheduler.After(A, B, 1);
+  scheduler.Build();
 
-  auto schedule = scheduler.BuildSchedule();
+  auto schedule = scheduler.schedule_map();
 
   EXPECT_EQ(utils::GetStreamCnt(schedule["A"]), "{ A[i, j] -> [t0 = 0, d0 = i, t1 = 0, d1 = j] }");
   EXPECT_EQ(utils::GetStreamCnt(schedule["B"]), "{ B[i, j] -> [t0 = 0, d0 = i, t1 = 1, d1 = j] }");
@@ -36,9 +36,10 @@ TEST(Scheduler, basic_with_transform) {
   B.Split(Iterator("j"), 6);
   LOG(INFO) << B.transform();
 
-  PolyScheduler scheduler({&A, &B});
+  PolyGroupScheduler scheduler({&A, &B});
   scheduler.After(A, B, 1);
-  auto schedule = scheduler.BuildSchedule();
+  scheduler.Build();
+  auto schedule = scheduler.schedule_map();
   for (auto item : schedule) {
     LOG(INFO) << item.first << " " << item.second;
   }

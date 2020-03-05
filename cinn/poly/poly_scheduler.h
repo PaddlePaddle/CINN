@@ -57,7 +57,7 @@ class PolyGroupScheduler : public SchedulerBase {
  * PolyScheduler - Perform schedule on polyhedral model.
  * It takes a normal schedule as input, merge two stages automatically if they have the same domain.
  */
-class PolyScheduler {
+class PolyScheduler : public SchedulerBase {
  public:
   /**
    * Constructor.
@@ -76,14 +76,16 @@ class PolyScheduler {
 
  private:
   //! Partition the graph into several groups.
-  void PartitionGroups(common::Graph *graph);
+  std::vector<detail::Group> PartitionGroups(DataFlowGraph *graph);
   //! Schedule a single group.
-  void ScheduleGroup(detail::Group *group);
+  void ScheduleAGroup(ScheduleGroup *group);
   //! Schedule all the groups.
   void ScheduleGroups();
 
-  std::vector<detail::Group> groups_;
-  std::unique_ptr<common::Graph> graph_;
+  std::unique_ptr<DataFlowGraph> dfg_;
+
+  //! The groups of ScheduleNode groups.
+  std::vector<ScheduleGroup> schedule_groups_;
 };
 
 }  // namespace poly

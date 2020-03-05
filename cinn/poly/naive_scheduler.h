@@ -39,9 +39,7 @@ class NaiveScheduler : public SchedulerBase {
   void PartitionGroups();
 
  private:
-  common::Graph *graph_{};
-  std::vector<detail::Group> groups_;
-  mutable std::vector<std::string> detailed_dimension_names_;
+  std::vector<ScheduleGroup> groups_;
 };
 
 }  // namespace poly

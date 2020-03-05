@@ -24,7 +24,7 @@ namespace poly {
  */
 class AstGen {
  public:
-  AstGen(const isl::set& context, const std::vector<Stage*>& stages, const poly::detail::Group &group);
+  AstGen(const isl::set& context, const std::vector<Stage*>& stages, const poly::ScheduleGroup& group);
 
   /**
    * Set forloop iterator names.
@@ -62,7 +62,7 @@ class AstGen {
  private:
   isl::set context_;
   std::vector<Shared<Stage>> stages_;
-  const poly::detail::Group schedule_group_;
+  const poly::ScheduleGroup schedule_group_;
   std::vector<std::string> iterator_names_;
   //! tuple name -> { axis -> isl_ast }
   std::map<std::string, std::map<std::string, isl::ast_expr>> transformed_indice_map_;

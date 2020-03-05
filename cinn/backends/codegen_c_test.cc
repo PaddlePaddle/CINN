@@ -56,9 +56,9 @@ void add1(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer
   cinn_buffer_malloc((void*)(0), _A);
   cinn_buffer_malloc((void*)(0), _B);
   cinn_buffer_malloc((void*)(0), _C);
-  float* C = (float*)(cinn_buffer_get_data_handle(_C));
-  float* B = (float*)(cinn_buffer_get_data_handle(_B));
   float* A = (float*)(cinn_buffer_get_data_handle(_A));
+  float* B = (float*)(cinn_buffer_get_data_handle(_B));
+  float* C = (float*)(cinn_buffer_get_data_handle(_C));
   for (int32_t i = 0; (i <= 99); i += 1){
     for (int32_t j = 0; (j <= 19); j += 1){
       C[((i * 20) + j)] = (A[((i * 20) + j)] + B[((i * 20) + j)]);
@@ -147,10 +147,10 @@ void add1(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer
   cinn_buffer_malloc((void*)(0), _B);
   cinn_buffer_malloc((void*)(0), _C);
   cinn_buffer_malloc((void*)(0), _D);
-  float* D = (float*)(cinn_buffer_get_data_handle(_D));
-  float* C = (float*)(cinn_buffer_get_data_handle(_C));
   float* A = (float*)(cinn_buffer_get_data_handle(_A));
   float* B = (float*)(cinn_buffer_get_data_handle(_B));
+  float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  float* D = (float*)(cinn_buffer_get_data_handle(_D));
   for (int32_t i_outer = 0; (i_outer <= 24); i_outer += 1){
     for (int32_t i_inner = 0; (i_inner <= 3); i_inner += 1){
       for (int32_t j = 0; (j <= 19); j += 1){

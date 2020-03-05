@@ -17,10 +17,10 @@ namespace lang {
 using ir::Tensor;
 using poly::Stage;
 
-Expr LowerGroup(const poly::detail::Group& group, const std::map<std::string, Expr>& tuple_to_expr) {
+Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Expr>& tuple_to_expr) {
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
-    stages.push_back(node->stage.get());
+    stages.push_back(node->stage);
   }
 
   isl::set context(Context::Global().isl_ctx(), "{:}");

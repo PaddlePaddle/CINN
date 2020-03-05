@@ -30,7 +30,7 @@ struct TimeDim {
   std::string dim;
 
   TimeDim() = default;
-  TimeDim(std::string dim, int time) : dim(std::move(dim)), time(time) {}
+  TimeDim(const std::string &dim, int time) : dim(dim), time(time) { CHECK(!dim.empty()); }
 };
 
 class ScheduleGraphNode;
@@ -45,7 +45,9 @@ struct TimeSchedule {
 
   void ResizeTimeSpace(int size) {
     CHECK_LE(size, kMaxDims);
-    time_dims_.resize(size);
+    for (int i = time_dims_.size(); i < size; i++) {
+      time_dims_.emplace_back("0", 0);
+    }
   }
 
   //! Schedule this after \p other in \p level.
@@ -74,6 +76,17 @@ struct TimeSchedule {
   std::string id_;
 };
 
+struct ScheduleGroup;
+/**
+ * A container type to contain the schedule information of a graph(several groups).
+ */
+struct Schedule {
+  //! The groups partitioned from the dependency graph.
+  std::vector<ScheduleGroup> groups;
+  //! id to the isl schedule for each node.
+  std::map<std::string, isl::map> schedule;
+};
+
 /**
  * The base class for all the Scheduler, it helps to schedule the nodes in a group(isl space).
  */
@@ -99,6 +112,8 @@ class SchedulerBase {
    * @param level
    */
   SchedulerBase &Before(const Stage &a, const Stage &b, int level);
+
+  std::map<std::string, isl::map> schedule_map() const;
 
   const std::vector<std::string> &detailed_dimension_names() const { return detailed_dimension_names_; }
 
@@ -137,16 +152,6 @@ class SchedulerBase {
 };
 
 /**
- * A container type to contain the schedule information of a graph(several groups).
- */
-struct Schedule {
-  //! The groups partitioned from the dependency graph.
-  std::vector<detail::Group> groups;
-  //! id to the isl schedule for each node.
-  std::map<std::string, isl::map> schedule;
-};
-
-/**
  * Schedule Kind.
  */
 enum class ScheduleKind {
@@ -178,16 +183,24 @@ struct ScheduleGraphEdge : public common::GraphEdge {
 /**
  * Node in the schedule graph.
  */
-struct ScheduleGraphNode : public DataFlowGraphNode {
+struct ScheduleGraphNode : public common::GraphNode {
   TimeSchedule time_schedule;
+  Stage *stage;
 
   //! NOTE this id is not human-readable.
-  std::string id() const override { return std::to_string(reinterpret_cast<size_t>(this)); }
+  // std::string id() const override { return std::to_string(reinterpret_cast<size_t>(this)); }
+  std::string id() const override { return time_schedule.id(); }
 
-  explicit ScheduleGraphNode(const std::string &id, const std::vector<std::string> &dims) : time_schedule(id, dims) {}
+  explicit ScheduleGraphNode(const std::string &id, const std::vector<std::string> &dims, const Stage *stage)
+      : time_schedule(id, dims), stage(const_cast<Stage *>(stage)) {}
 };
 
-std::map<std::string, isl::map> CollectSchedleMapFromGroup(const detail::Group &group);
+struct ScheduleGroup {
+  std::vector<Shared<ScheduleGraphNode>> nodes;
+  std::vector<std::string> dimension_names;
+};
+
+std::map<std::string, isl::map> CollectScheduleMapFromGroup(const ScheduleGroup &group);
 
 }  // namespace poly
 }  // namespace cinn

@@ -20,11 +20,11 @@ isl::ctx AstGen::ctx() const {
 
 isl::ast_node AstGen::Build() {
   // Collect schedule from scheduler.
-  auto schedule_map = CollectSchedleMapFromGroup(schedule_group_);
+  auto schedule_map = CollectScheduleMapFromGroup(schedule_group_);
   std::vector<isl::map> maps;
   for (auto& stage : stages_) {
     auto it = schedule_map.find(stage->id());
-    CHECK(it != std::end(schedule_map));
+    CHECK(it != std::end(schedule_map)) << "stage " << stage->id() << " not found in the map";
     maps.push_back(it->second);
   }
   auto schedule = MapsToUnionMap(maps);
@@ -36,8 +36,7 @@ isl::ast_node AstGen::Build() {
   CHECK(!schedule_group_.dimension_names.empty());
   auto iterator_names = iterator_names_.empty() ? schedule_group_.dimension_names : iterator_names_;
   iterator_names      = SchedulerBase::WrapIteratorNames(iterator_names);
-  LOG(INFO) << "iterator_names after wrap: " << utils::Join(iterator_names, ", ");
-  isl::id_list ids = isl::manage(isl_id_list_alloc(ctx().get(), iterator_names.size()));
+  isl::id_list ids    = isl::manage(isl_id_list_alloc(ctx().get(), iterator_names.size()));
   for (int i = 0; i < iterator_names.size(); i++) {
     ids = isl::manage(isl_id_list_add(ids.release(), isl_id_alloc(ctx().get(), iterator_names[i].c_str(), nullptr)));
   }
@@ -378,7 +377,7 @@ void AstGen::InitIslAstConfig() {
   isl_options_set_ast_build_allow_else(ctx().get(), 1);
 }
 
-AstGen::AstGen(const isl::set& context, const std::vector<Stage*>& stages, const poly::detail::Group& group)
+AstGen::AstGen(const isl::set& context, const std::vector<Stage*>& stages, const poly::ScheduleGroup& group)
     : context_(context), schedule_group_(group) {
   for (auto* x : stages) stages_.emplace_back(x);
   InitIslAstConfig();

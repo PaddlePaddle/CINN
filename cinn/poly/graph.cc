@@ -62,7 +62,7 @@ std::string DataFlowGraphNode::id() const {
   return stage->id();
 }
 
-std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages) {
+std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages) {
   std::map<std::string, Shared<DataFlowGraphNode>> id2stage;
   for (auto* x : stages) id2stage[x->id()] = make_shared<DataFlowGraphNode>(x);
 
@@ -80,7 +80,7 @@ std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages) {
     }
   }
 
-  std::unique_ptr<common::Graph> graph(new common::Graph);
+  std::unique_ptr<DataFlowGraph> graph(new DataFlowGraph);
   for (auto& item : id2stage) graph->RegisterNode(item.first, item.second.get());
   VLOG(3) << "created graph:\n" << graph->Visualize();
   return graph;

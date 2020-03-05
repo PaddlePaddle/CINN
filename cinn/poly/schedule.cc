@@ -14,7 +14,6 @@
 namespace cinn {
 namespace poly {
 
-
 std::string TimeSchedule::__str__() const {
   CHECK(!time_dims_.empty());
   CHECK_LE(time_dims_.size(), kMaxDims);
@@ -29,7 +28,8 @@ std::string TimeSchedule::__str__() const {
   // generate conditions
   std::vector<std::string> conds;
   for (int i = 0; i < time_dims_.size(); i++) {
-    conds.push_back(utils::StringFormat("%s=%s", range_dims[2 * i].c_str(), std::to_string(time_dims_[i].time).c_str()));
+    conds.push_back(
+        utils::StringFormat("%s=%s", range_dims[2 * i].c_str(), std::to_string(time_dims_[i].time).c_str()));
     conds.push_back(utils::StringFormat("%s=%s", range_dims[2 * i + 1].c_str(), time_dims_[i].dim.c_str()));
   }
 
@@ -54,6 +54,7 @@ TimeSchedule::TimeSchedule(const std::string &id, const std::vector<std::string>
   id_         = id;
   domain_dims = dims;
   for (auto &dim : domain_dims) {
+    CHECK(!dim.empty());
     time_dims_.emplace_back(dim, 0);
   }
 }
@@ -136,7 +137,7 @@ std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bo
   return stages;
 }
 
-std::map<std::string, isl::map> CollectSchedleMapFromGroup(const detail::Group &group) {
+std::map<std::string, isl::map> CollectScheduleMapFromGroup(const ScheduleGroup &group) {
   std::map<std::string, isl::map> map;
   for (auto &node : group.nodes) {
     auto *schedule_node      = node->As<ScheduleGraphNode>();
@@ -156,7 +157,7 @@ void SchedulerBase::AddStage(const Stage &x) {
   auto dims      = GetDimNames(x.transform(), isl_dim_out);
   std::string id = isl_map_get_tuple_name(x.transform().get(), isl_dim_in);
   schedule_graph_.RegisterNode(x.id(),
-                               common::make_shared<ScheduleGraphNode>(id, GetDimNames(x.transform(), isl_dim_out)));
+                               common::make_shared<ScheduleGraphNode>(id, GetDimNames(x.transform(), isl_dim_out), &x));
   // record the longest dimensions.
   if (dims.size() > detailed_dimension_names_.size()) detailed_dimension_names_ = dims;
 
@@ -204,6 +205,15 @@ SchedulerBase &SchedulerBase::After(const Stage &a, const Stage &b, int level) {
 }
 
 SchedulerBase &SchedulerBase::Before(const Stage &a, const Stage &b, int level) { return After(b, a, level); }
+
+std::map<std::string, isl::map> SchedulerBase::schedule_map() const {
+  std::map<std::string, isl::map> res;
+  for (auto &node : schedule_graph_.nodes()) {
+    auto *schedule_node      = node->As<ScheduleGraphNode>();
+    res[schedule_node->id()] = schedule_node->time_schedule.to_isl(Context::Global().isl_ctx());
+  }
+  return res;
+}
 
 }  // namespace poly
 }  // namespace cinn

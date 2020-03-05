@@ -29,17 +29,17 @@ TEST(Compute, basic) {
   LOG(INFO) << "z: " << z->operaion->as<ir::ComputeOp>()->body[0];
 
   auto schedule = poly::CreateSchedule(z);
-  LOG(INFO) << "group: " << schedule->gened_groups().size();
+  LOG(INFO) << "group: " << schedule->groups.size();
 
-  for (auto& group : schedule->gened_groups()) {
+  for (auto& group : schedule->groups) {
     LOG(INFO) << "group: " << group.nodes.size();
     for (auto& node : group.nodes) {
       LOG(INFO) << "node " << node->id();
     }
   }
 
-  ASSERT_EQ(schedule->gened_groups().size(), 1UL);
-  EXPECT_EQ(schedule->gened_groups().front().nodes[0]->id(), "z");
+  ASSERT_EQ(schedule->groups.size(), 1UL);
+  EXPECT_EQ(schedule->groups.front().nodes[0]->id(), "z");
   LOG(INFO) << "Finished";
 }
 

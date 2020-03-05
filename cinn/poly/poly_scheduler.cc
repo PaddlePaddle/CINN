@@ -90,32 +90,39 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
 
 std::unique_ptr<Schedule> PolyScheduler::BuildSchedule() {
   std::unique_ptr<Schedule> res(new Schedule);
-  for (auto& node : graph_->nodes()) {
-    LOG(INFO) << "graph node time_dims: " << node->As<ScheduleGraphNode>() ->time_schedule.space_size();
+  for (auto& node : schedule_graph_.nodes()) {
+    LOG(INFO) << "graph node time_dims: " << node->As<ScheduleGraphNode>()->time_schedule.space_size();
   }
 
-  // partition the graph to groups.
-  PartitionGroups(graph_.get());
-  CHECK(!groups_.empty());
-  for (auto& node : graph_->nodes()) {
-    LOG(INFO) << "graph node time_dims: " << node->As<ScheduleGraphNode>() ->time_schedule.space_size();
-  }
-  for(auto& group : groups_) {
-    for (auto& node : group.nodes) {
-      LOG(INFO) << "time_dims " << node->id() << " " << node->As<ScheduleGraphNode>()->time_schedule.space_size();
+  // partition the DataFlowGraph to groups.
+  auto dfg_groups = PartitionGroups(dfg_.get());
+  CHECK(!dfg_groups.empty());
+
+  // transform the DFG groups to schedule groups.
+  CHECK(!schedule_graph_.nodes().empty());
+  CHECK_EQ(schedule_graph_.nodes().size(), dfg_->nodes().size()) << "DFG graph is not match schedule graph";
+  schedule_groups_.clear();
+  for (auto& dfg_group : dfg_groups) {
+    ScheduleGroup group;
+    for (auto& node : dfg_group.nodes) {
+      auto* schedule_node = schedule_graph_.RetriveNode(node->id());
+      CHECK(schedule_node) << "missing node " << node->id() << " in schedule graph";
+      group.nodes.push_back(schedule_node->As<ScheduleGraphNode>());
     }
+    schedule_groups_.emplace_back(std::move(group));
   }
+  CHECK_EQ(schedule_groups_.size(), dfg_groups.size());
 
   // Schedule each group
   ScheduleGroups();
 
   // Collect result.
-  res->groups = groups_;
+  res->groups = schedule_groups_;
 
-  for (auto& group : groups_) {
+  for (auto& group : schedule_groups_) {
     for (auto& node : group.nodes) {
       LOG(INFO) << "node.id " << node->id();
-      res->schedule[node->id()] = node->As<ScheduleGraphNode>()->time_schedule.to_isl(Context::Global().isl_ctx());
+      res->schedule[node->id()] = node->time_schedule.to_isl(Context::Global().isl_ctx());
     }
   }
 
@@ -124,23 +131,29 @@ std::unique_ptr<Schedule> PolyScheduler::BuildSchedule() {
 
 PolyScheduler::PolyScheduler(const std::vector<Stage*>& stages) {
   CHECK_GT(stages.size(), 0) << "No stage is provided";
-  graph_ = CreateGraph(stages);
+
+  dfg_ = CreateGraph(stages);
+
+  for (auto* stage : stages) {
+    AddStage(*stage);
+  }
+  FinishStageAdd();
 }
 
-void PolyScheduler::PartitionGroups(common::Graph* graph) {
+std::vector<detail::Group> PolyScheduler::PartitionGroups(DataFlowGraph* graph) {
   CHECK(graph);
   CHECK(!graph->nodes().empty());
-  groups_ = detail::PartitionGraphByIterationDomain(graph);
+  return detail::PartitionGraphByIterationDomain(graph);
 }
 
-void PolyScheduler::ScheduleGroup(detail::Group* group) {
+void PolyScheduler::ScheduleAGroup(ScheduleGroup* group) {
   CHECK(group);
   CHECK(!group->nodes.empty());
 
   // create scheduler for this group.
   std::vector<Stage*> stages;
   for (auto& node : group->nodes) {
-    stages.push_back(node->stage.get());
+    stages.push_back(const_cast<Stage*>(node->stage));
   }
 
   PolyGroupScheduler scheduler(stages);
@@ -149,9 +162,9 @@ void PolyScheduler::ScheduleGroup(detail::Group* group) {
 }
 
 void PolyScheduler::ScheduleGroups() {
-  CHECK(!groups_.empty()) << "call PartitionGroups first";
-  for (auto& group : groups_) {
-    ScheduleGroup(&group);
+  CHECK(!schedule_groups_.empty()) << "call PartitionGroups first";
+  for (auto& group : schedule_groups_) {
+    ScheduleAGroup(&group);
   }
 }
 

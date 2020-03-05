@@ -43,16 +43,13 @@ struct DataFlowGraphEdge : public common::GraphEdge {};
 /**
  * DataFlowGraph help to record the data dependencies between the Stages.
  */
-struct DataFlowGraph {
- private:
-  common::Graph graph_;
-};
+struct DataFlowGraph : public common::Graph {};
 
 /**
  * Create a dependency graph given some stages.
  * NOTE The stages should sorted in topological order.
  */
-std::unique_ptr<common::Graph> CreateGraph(const std::vector<Stage*>& stages);
+std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages);
 
 namespace detail {
 
