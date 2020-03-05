@@ -68,14 +68,47 @@ struct TimeSchedule {
   std::string id_;
 };
 
-// TODO(Superjomn)
 /**
- * The NaiveSchedule just schedule each noninlined Tensor as a unique group. Only the `compute_at` will make two tensor
+ * The base class for all the Scheduler.
+ */
+class SchedulerBase {
+ protected:
+  /**
+   * Register an Element to the scheduler.
+   */
+  void AddStage(const Stage &x);
+
+  /**
+   * Finalize the registration.
+   */
+  void FinishStageAdd();
+
+  /**
+   * Tell whether the registration is finalized.
+   */
+  bool finalized() const { return registration_finalized_; }
+  int space_size() const { return space_size_; }
+
+ protected:
+  int space_size_{0};
+  mutable isl::ctx ctx_{Context::Global().isl_ctx()};
+  mutable ScheduleGraph schedule_graph_;
+  mutable std::vector<std::string> detailed_dimension_names_;
+
+ private:
+  bool registration_finalized_{false};
+};
+
+/**
+ * The NaiveScheduler just schedule each noninlined Tensor as a unique group. Only the `compute_at` will make two tensor
  * in the same group. It is simple and robust.
  */
-class NaiveSchedule {
+class NaiveScheduler : public SchedulerBase {
  public:
-  explicit NaiveSchedule(common::Graph *graph) : graph_(graph) { PartitionGroups(); }
+  NaiveScheduler() = default;
+  explicit NaiveScheduler(const std::vector<Stage *> &stages);
+
+  std::map<std::string, isl::map> BuildSchedule() const;
 
  private:
   void PartitionGroups();
@@ -83,6 +116,7 @@ class NaiveSchedule {
  private:
   common::Graph *graph_{};
   std::vector<detail::Group> groups_;
+  mutable std::vector<std::string> detailed_dimension_names_;
 };
 
 /**
@@ -139,10 +173,9 @@ std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bo
 
 /**
  * PolyScheduler - Perform schedule on polyhedral model.
- * It takes a normal schedule as input, and transform it into
- *
+ * It takes a normal schedule as input, merge two stages automatically if they have the same domain.
  */
-class PolyScheduler {
+class PolyScheduler : public SchedulerBase {
  public:
   /**
    * Constructor.
@@ -154,21 +187,6 @@ class PolyScheduler {
    */
   PolyScheduler() = default;
   PolyScheduler(const std::vector<Stage *> &stages);
-
-  /**
-   * Register an Element to the scheduler.
-   */
-  void AddStage(const Stage &x);
-
-  /**
-   * Finalize the registration.
-   */
-  void FinishStageAdd();
-
-  /**
-   * Tell whether the registration is finalized.
-   */
-  bool finalized() const { return registration_finalized_; }
 
   /**
    * Mark this should schedule after another.

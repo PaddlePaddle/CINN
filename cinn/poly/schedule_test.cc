@@ -18,9 +18,7 @@ TEST(Scheduler, basic) {
   Stage B(B_set);
   LOG(INFO) << A.transform();
 
-  PolyScheduler scheduler;
-  scheduler.AddStage(A);
-  scheduler.AddStage(B);
+  PolyScheduler scheduler({&A, &B});
 
   scheduler.After(A, B, 1);
 
@@ -43,9 +41,7 @@ TEST(Scheduler, basic_with_transform) {
   B.Split(Iterator("j"), 6);
   LOG(INFO) << B.transform();
 
-  PolyScheduler scheduler;
-  scheduler.AddStage(A);
-  scheduler.AddStage(B);
+  PolyScheduler scheduler({&A, &B});
   scheduler.After(A, B, 1);
   auto schedule = scheduler.BuildSchedule();
   for (auto item : schedule) {
