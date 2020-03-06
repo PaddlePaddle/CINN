@@ -12,12 +12,19 @@
 namespace cinn {
 namespace backends {
 
+using lang::Compute;
+using lang::Lower;
+using lang::Module;
+using lang::Placeholder;
+using utils::StringFormat;
+using utils::Trim;
+
 std::tuple<ir::Tensor, ir::Tensor, ir::Tensor, lang::Buffer> CreateTensor1() {
-  lang::Placeholder<float> A("A", {100, 20});
-  lang::Placeholder<float> B("B", {100, 20});
+  Placeholder<float> A("A", {100, 20});
+  Placeholder<float> B("B", {100, 20});
 
   lang::Buffer C_buf(Float(32));
-  auto C = lang::Compute(
+  auto C = Compute(
       {100, 20}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
   C->Bind(C_buf);
   return std::make_tuple(A, B, C, C_buf);
@@ -32,16 +39,15 @@ TEST(CodeGenC, module) {
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
-  lang::Module module("module1", target);
+  Module module("module1", target);
 
-  auto funcs = lang::Lower("add1", {A, B, C});
+  auto funcs = Lower("add1", {A, B, C});
   ASSERT_EQ(funcs.size(), 1UL);
 
   module.Append(funcs.front());
   module.Append(C_buf);
 
   {
-    std::stringstream ss;
     CodeGenC codegen(target);
     auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
     std::cout << "codegen C:" << std::endl << out << std::endl;
@@ -98,19 +104,19 @@ void add1(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer
 }
 
 TEST(CodeGenC, module_with_transform) {
-  lang::Placeholder<float> A("A", {100, 20});
-  lang::Placeholder<float> B("B", {100, 20});
+  Placeholder<float> A("A", {100, 20});
+  Placeholder<float> B("B", {100, 20});
 
   lang::Buffer C_buf(Float(32)), D_buf(Float(32));
 
   // An inlined tensor, should not appear in final C code! It can be used by any times and expand its expression there.
-  auto inlined0 = lang::Compute({100, 20}, [&](Var i, Var j) { return A(i, j) * 2.f + 1.f; });
+  auto inlined0 = Compute({100, 20}, [&](Var i, Var j) { return A(i, j) * 2.f + 1.f; });
 
-  auto C = lang::Compute(
+  auto C = Compute(
       {100, 20}, [&](Var i, Var j) { return A(i, j) + B(i, j) + inlined0(i, j); }, "C");
   C->Bind(C_buf);
 
-  auto D = lang::Compute(
+  auto D = Compute(
       {100, 20}, [&](Var i, Var j) { return C(i, j) * 2.f * inlined0(i, j); }, "D");
   D->Bind(D_buf);
 
@@ -123,9 +129,9 @@ TEST(CodeGenC, module_with_transform) {
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
-  lang::Module module("module1", target);
+  Module module("module1", target);
 
-  auto funcs = lang::Lower("add1", {A, B, C, D});
+  auto funcs = Lower("add1", {A, B, C, D});
 
   ASSERT_EQ(funcs.size(), 1UL);
 
@@ -171,6 +177,62 @@ void add1(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer
 )ROC";
 
   ASSERT_EQ(utils::Trim(tgt), utils::Trim(out));
+}
+
+TEST(CodeGenC, mat_mul) {
+  using namespace ir;
+
+  Placeholder<float> A("A", {100, 20});
+  Placeholder<float> B("B", {20, 50});
+
+  // C = A * B
+  lang::Buffer C_buf(Float(32));
+
+  Tensor C = Compute(
+      {100, 20, 50}, [&](Var i, Var k, Var j) { return A(i, k) * B(k, j); }, "C", 1);
+  C->Bind(C_buf);
+
+  // Code gen
+  auto funcs = Lower("matmul", {A, B, C});
+  ASSERT_EQ(funcs.size(), 1UL);
+
+  Target target;
+  target.arch = Target::Arch ::X86;
+  target.bits = Target::Bit ::k32;
+  target.os   = Target::OS ::Linux;
+
+  Module module("module1", target);
+  module.Append(funcs.front());
+  module.Append(C_buf);
+
+  CodeGenC codegen(target);
+  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  std::cout << "codegen C:" << std::endl << out << std::endl;
+
+  auto tgt = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+cinn_buffer_t* C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+void matmul(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
+{
+  cinn_buffer_malloc((void*)(0), _A);
+  cinn_buffer_malloc((void*)(0), _B);
+  cinn_buffer_malloc((void*)(0), _C);
+  float* A = (float*)(cinn_buffer_get_data_handle(_A));
+  float* B = (float*)(cinn_buffer_get_data_handle(_B));
+  float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  for (int32_t i = 0; (i <= 99); i += 1){
+    for (int32_t j = 0; (j <= 19); j += 1){
+      for (int32_t k = 0; (k <= 49); k += 1){
+        C[((i * 50) + k)] = (A[((i * 20) + j)] * B[((j * 50) + k)]);
+      };
+    };
+  };
+}
+)ROC";
+
+  ASSERT_EQ(Trim(tgt), Trim(out));
 }
 
 }  // namespace backends

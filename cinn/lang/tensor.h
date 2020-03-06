@@ -106,6 +106,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
  public:
   //! Shape of this tensor.
   std::vector<Expr> shape;
+  //! The domain of each axis, TODO(Superjomn) support ISL domain.
+  std::vector<Expr> domain;
   //! Tensor axis.
   std::vector<Var> axis;
   //! The operation that generates Tensor.
@@ -114,6 +116,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   std::string name;
   //! The bound buffer, for each tensor if it is not inline.
   Buffer buffer;
+  //! The level of reduce axis.
+  int reduce_axis{-1};
 
   //! Polyhedral element for analysis and schedule.
   poly::Stage* stage();
@@ -135,6 +139,14 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   //! Bind to a buffer, will persist data to the buffer in runtime.
   void Bind(lang::Buffer& buffer);
+
+  void set_reduce_axis(int v) {
+    CHECK_EQ(reduce_axis, -1) << "duplicate set reduce_axis";
+    CHECK(!shape.empty()) << "Shape is not set";
+    CHECK_GE(v, 0);
+    CHECK_LT(v, shape.size());
+    reduce_axis = v;
+  }
 
   //! Operation related.
   // @{

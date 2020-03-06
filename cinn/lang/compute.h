@@ -16,18 +16,30 @@ using compute_handler_t = std::function<Expr(const std::vector<Expr> &)>;
 
 //! Compute methods for one to five Vars as arguments.
 // @{
-ir::Tensor Compute(const std::vector<int> &dims, std::function<Expr(Expr)> fn, const std::string &name = "");
-ir::Tensor Compute(const std::vector<int> &dims, std::function<Expr(Expr, Expr)> fn, const std::string &name = "");
+ir::Tensor Compute(const std::vector<int> &dims,
+                   std::function<Expr(Expr)> fn,
+                   const std::string &name = "",
+                   int reduce_axis         = -1);
+ir::Tensor Compute(const std::vector<int> &dims,
+                   std::function<Expr(Expr, Expr)> fn,
+                   const std::string &name = "",
+                   int reduce_axis         = -1);
 ir::Tensor Compute(const std::vector<int> &dims,
                    std::function<Expr(Expr, Expr, Expr)> fn,
-                   const std::string &name = "");
+                   const std::string &name = "",
+                   int reduce_axis         = -1);
 ir::Tensor Compute(const std::vector<int> &dims,
                    std::function<Expr(Expr, Expr, Expr, Expr)> fn,
-                   const std::string &name = "");
+                   const std::string &name = "",
+                   int reduce_axis         = -1);
 ir::Tensor Compute(const std::vector<int> &dims,
                    std::function<Expr(Expr, Expr, Expr, Expr, Expr)> fn,
-                   const std::string &name = "");
-ir::Tensor Compute(const std::vector<int> &dims, compute_handler_t fn, const std::string &name = "");
+                   const std::string &name = "",
+                   int reduce_axis         = -1);
+ir::Tensor Compute(const std::vector<int> &dims,
+                   compute_handler_t fn,
+                   const std::string &name = "",
+                   int reduce_axis         = -1);
 // @}
 
 }  // namespace lang

@@ -37,14 +37,14 @@ Operation ComputeOp::Make(const std::string &name,
                           const std::string &tag,
                           const std::map<std::string, IrNodeRef> &attrs,
                           ComputeOp::handle_t handle,
-                          const std::vector<Expr> &shape) {
+                          const std::vector<Expr> &domain) {
   auto n         = make_shared<ComputeOp>();
   n->name        = name;
   n->tag         = tag;
   n->attrs       = attrs;
   n->producer_fn = handle;
-  n->shape       = shape;
-  auto axis      = common::GenDefaultAxis(shape.size());
+  n->shape       = domain;
+  auto axis      = common::GenDefaultAxis(domain.size());
   std::vector<Expr> _axis;
   for (auto &x : axis) _axis.push_back(x);
   n->body = {handle(_axis)};
