@@ -83,7 +83,7 @@ struct ScheduleGroup;
  * A container type to contain the schedule information of a graph(several groups).
  */
 struct Schedule {
-  //! The groups partitioned from the dependency graph.
+  //! The schedule groups partitioned from the graph.
   std::vector<ScheduleGroup> groups;
   //! id to the isl schedule for each node.
   std::map<std::string, isl::map> schedule;
