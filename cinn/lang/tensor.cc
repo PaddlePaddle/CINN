@@ -156,10 +156,10 @@ void _Tensor_::InitAxis() {
 }
 
 isl::set _Tensor_::GenerateIslDomain() {
-  CHECK(!shape.empty()) << "shape should be set";
+  CHECK(!domain.empty()) << "shape should be set";
   std::vector<poly::Dim> dims;
-  for (int i = 0; i < shape.size(); i++) {
-    dims.emplace_back(common::axis_name(i), 0, shape[i].as_int32() - 1);
+  for (int i = 0; i < domain.size(); i++) {
+    dims.emplace_back(common::axis_name(i), 0, domain[i].as_int32() - 1);
   }
 
   poly::Domain domain(isl_ctx_alloc(), name, dims);
@@ -219,8 +219,17 @@ Expr _Tensor_::body() const {
 
 Expr _Tensor_::tensor_store_expanded_body() const {
   CHECK(!is_placeholder_node()) << "placeholder should not expand store";
+
+  CHECK_EQ(domain.size(), axis.size());
+  if (reduce_axis != -1) {
+    CHECK_EQ(shape.size() + 1, axis.size());
+  }
+
   std::vector<Expr> axis_;
-  for (auto &a : axis) axis_.push_back(Expr(a));
+  for (int i = 0; i < axis.size(); i++) {
+    if (i != reduce_axis) axis_.push_back(Expr(axis[i]));
+  }
+
   return ir::Store::Make(Expr(buffer), body(), detail::ExpandTo1DIndice(shape, axis_));
 }
 
