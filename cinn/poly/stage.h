@@ -4,6 +4,7 @@
 #include <isl/cpp.h>
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -17,13 +18,14 @@
 namespace cinn {
 namespace poly {
 
+struct ComputeAtRelation;
 /**
  * Stage is the basic element of polyhedral which represents a stage in CINN.
  * It supports multiple transforms such as tile, split and so on.
  */
 class Stage : public Object {
  public:
-  explicit Stage(const isl::set& domain, Expr expr = Expr());
+  static Shared<Stage> New(const isl::set& domain, Expr expr = Expr());
 
   /**
    * The id of this element, should be unique across the transform.
@@ -59,6 +61,15 @@ class Stage : public Object {
    */
   std::tuple<Iterator, Iterator, Iterator, Iterator>  //
   Tile(const Iterator& level0, const Iterator& level1, int factor0, int factor1);
+  std::tuple<Iterator, Iterator, Iterator, Iterator>  //
+  Tile(int level0, int level1, int factor0, int factor1);
+
+  /**
+   * Mark the stage compute at the level of some other stage.
+   * NOTE This can only be called after all transformations are preformed, and once called, no further transform can
+   * perform for that the iterators are changed, and the original `ComputeAt` level become invalid.
+   */
+  void ComputeAt(Stage* other, int level);
 
   /**
    * Apply loop skewing on the loop levels \p i and \p j with a skewing factor of \p factor.
@@ -78,6 +89,8 @@ class Stage : public Object {
   const isl::map& transform() const { return transform_; }
   isl::set transformed_domain() const { return domain_.apply(transform_); }
 
+  std::vector<ComputeAtRelation> compute_ats() const;
+
   //! Get the statements.
   std::vector<std::string> input_statements() const;
 
@@ -86,6 +99,8 @@ class Stage : public Object {
   Stage() = default;
 
  private:
+  explicit Stage(const isl::set& domain, Expr expr = Expr());
+
   /**
    * Initialize with an identity schedule.
    */
@@ -95,6 +110,15 @@ class Stage : public Object {
   isl::set domain_;
   isl::map transform_;
   Expr expr_;
+  std::map<std::string, ComputeAtRelation> compute_ats_;
+};
+
+struct ComputeAtRelation {
+  Shared<Stage> stage;
+  int level{-1};
+
+  //! Check whether the stage \p self is compatible with \p stage.
+  bool IsCompatible(Stage* self);
 };
 
 //! Return the corresponding inner iterator name.

@@ -24,15 +24,15 @@ TEST(ReplaceCallWithExpr, basic) {
   // tuple_to_expr["B"] = ir::Store::Make(Expr(A_buf), B_value, Expr(i) * 100 * 100 + Expr(j) * 100 + Expr(k));
 
   isl::ctx ctx = Context::Global().isl_ctx();
-  auto *A      = make_shared<Stage>(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
+  auto A       = Stage::New(isl::set(ctx, "{ A[i,j,k]: 0<i,j,k<100 }"));
 
   Iterator A_i0, A_i1;
 
   std::tie(A_i0, A_i1) = A->Split(Iterator("i"), 4);
 
-  auto schedule = CreateSchedule({A});
+  auto schedule = CreateSchedule({A.get()});
 
-  AstGen gen(isl::set(ctx, "{:}"), {A}, schedule->groups[0]);
+  AstGen gen(isl::set(ctx, "{:}"), {A.get()}, schedule->groups[0]);
   gen.SetIteratorNames({"i.outer", "i.inner", "j", "k"});
   isl::ast_node ast = gen.Build();
 

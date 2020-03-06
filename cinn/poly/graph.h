@@ -30,6 +30,9 @@ struct DataFlowGraphNode : public common::GraphNode {
   //! Get the tree height for union find.
   int group_height() const;
 
+  //! Tell whether this node is connected to another `node`, either inlink or outlink.
+  bool IsLinkedTo(const DataFlowGraphNode* node) const;
+
   //! Merge two nodes into the same group.
   //! returns: the common ancestor.
   static DataFlowGraphNode* MergeGroup(DataFlowGraphNode* a, DataFlowGraphNode* b);

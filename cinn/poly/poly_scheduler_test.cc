@@ -8,13 +8,13 @@ namespace poly {
 TEST(Scheduler, basic) {
   isl::ctx ctx(Context::Global().isl_ctx());
   isl::set A_set(ctx, "[]->{ A[i,j]: 0<i,j<100 }");
-  Stage A(A_set);
+  auto A = Stage::New(A_set);
   isl::set B_set(ctx, "[]->{ B[i,j]: 0<i,j<100 }");
-  Stage B(B_set);
-  LOG(INFO) << A.transform();
+  auto B = Stage::New(B_set);
+  LOG(INFO) << A->transform();
 
-  PolyGroupScheduler scheduler({&A, &B});
-  scheduler.After(A, B, 1);
+  PolyGroupScheduler scheduler({A.get(), B.get()});
+  scheduler.After(*A, *B, 1);
   scheduler.Build();
 
   auto schedule = scheduler.schedule_map();
@@ -29,15 +29,15 @@ TEST(Scheduler, basic) {
 
 TEST(Scheduler, basic_with_transform) {
   isl::ctx ctx = Context::Global().isl_ctx();
-  Stage A(isl::set(ctx, "[]->{ A[i,j]: 0<i,j<100 }"));
-  Stage B(isl::set(ctx, "[]->{ B[i,j]: 0<i,j<100 }"));
-  auto x = A.Split("i", 4);
-  LOG(INFO) << A.transform();
-  B.Split(Iterator("j"), 6);
-  LOG(INFO) << B.transform();
+  auto A       = Stage::New(isl::set(ctx, "[]->{ A[i,j]: 0<i,j<100 }"));
+  auto B       = Stage::New(isl::set(ctx, "[]->{ B[i,j]: 0<i,j<100 }"));
+  auto x       = A->Split("i", 4);
+  LOG(INFO) << A->transform();
+  B->Split(Iterator("j"), 6);
+  LOG(INFO) << B->transform();
 
-  PolyGroupScheduler scheduler({&A, &B});
-  scheduler.After(A, B, 1);
+  PolyGroupScheduler scheduler({A.get(), B.get()});
+  scheduler.After(*A, *B, 1);
   scheduler.Build();
   auto schedule = scheduler.schedule_map();
   for (auto item : schedule) {

@@ -16,7 +16,7 @@ Expr CreateCall(const std::string& name, const std::vector<Expr>& args) {
 
 Stage* CreateStage(const std::string& name, std::vector<Expr>& args, isl::set domain) {
   auto expr = CreateCall(name, args);
-  return make_shared<Stage>(domain, expr);
+  return Stage::New(domain, expr).get();
 }
 
 TEST(CreateGraph, basic) {
@@ -36,11 +36,11 @@ TEST(CreateGraph, basic) {
   Expr C_expr = ir::Store::Make(Expr(C_arr.buffer()), B_call + A_call, Expr(i));
 
   // create stages
-  auto* A_stage = make_shared<Stage>(isl::set(ctx, "{ A[i,j,k]: 0<=i,j,k<100 }"), A_expr);
-  auto* B_stage = make_shared<Stage>(isl::set(ctx, "{ B[i,j,k]: 0<=i,j,k<100 }"), B_expr);
-  auto* C_stage = make_shared<Stage>(isl::set(ctx, "{ C[i,j,k]: 0<=i,j,k<100 }"), C_expr);
+  auto A_stage = Stage::New(isl::set(ctx, "{ A[i,j,k]: 0<=i,j,k<100 }"), A_expr);
+  auto B_stage = Stage::New(isl::set(ctx, "{ B[i,j,k]: 0<=i,j,k<100 }"), B_expr);
+  auto C_stage = Stage::New(isl::set(ctx, "{ C[i,j,k]: 0<=i,j,k<100 }"), C_expr);
 
-  auto graph = CreateGraph({A_stage, B_stage, C_stage});
+  auto graph = CreateGraph({A_stage.get(), B_stage.get(), C_stage.get()});
   LOG(INFO) << "graph:\n" << graph->Visualize();
 }
 

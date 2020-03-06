@@ -1,5 +1,6 @@
 #include "cinn/poly/stage.h"
 
+#include "cinn/common/axis.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/poly/isl_utils.h"
@@ -92,6 +93,13 @@ void Stage::Reorder(const std::vector<Iterator> &order) {
   transform_ = transform_.apply_range(transform.to_isl());
 }
 
+std::tuple<Iterator, Iterator, Iterator, Iterator>  //
+Stage::Tile(int level0, int level1, int factor0, int factor1) {
+  Iterator i0(common::axis_name(level0));
+  Iterator i1(common::axis_name(level1));
+  return Tile(i0, i1, factor0, factor1);
+}
+
 std::tuple<Iterator, Iterator, Iterator, Iterator> Stage::Tile(const Iterator &level0,
                                                                const Iterator &level1,
                                                                int factor0,
@@ -102,6 +110,20 @@ std::tuple<Iterator, Iterator, Iterator, Iterator> Stage::Tile(const Iterator &l
   std::tie(level0_outer, level0_inner) = Split(level0, factor0);
   std::tie(level1_outer, level1_inner) = Split(level1, factor1);
   return std::make_tuple(level0_outer, level0_inner, level1_outer, level1_inner);
+}
+
+void Stage::ComputeAt(Stage *other, int level) {
+  // check duplicate
+  CHECK(!compute_ats_.count(other->id())) << "duplicate set compute_at the same stage";
+
+  // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
+
+  ComputeAtRelation relation;
+  relation.stage = other;
+  relation.level = level;
+
+  CHECK(relation.IsCompatible(this));
+  compute_ats_[other->id()] = relation;
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
@@ -136,6 +158,38 @@ const char *Stage::id() const { return isl_set_get_tuple_name(domain_.get()); }
 
 std::tuple<Iterator, Iterator> Stage::Split(const std::string &level, int factor) {
   return std::move(Split(Iterator(level), factor));
+}
+
+Shared<Stage> Stage::New(const isl::set &domain, Expr expr) { return new Stage(domain, expr); }
+
+std::vector<ComputeAtRelation> Stage::compute_ats() const {
+  std::vector<ComputeAtRelation> xs;
+  for (auto &item : compute_ats_) xs.push_back(item.second);
+  return xs;
+}
+
+bool ComputeAtRelation::IsCompatible(Stage *self) {
+  CHECK_GE(level, 0);
+  CHECK(!self->domain().is_null());
+  CHECK(!stage->domain().is_null());
+
+  CHECK_LE(level, isl_set_dim(self->domain().get(), isl_dim_set));
+  CHECK_LE(level, isl_set_dim(stage->domain().get(), isl_dim_set));
+
+  std::vector<int> selected_dims;
+  for (int i = 0; i <= level; i++) {
+    selected_dims.push_back(i);
+  }
+
+  auto stage_partial_set = SetGetDims(stage->domain(), selected_dims);
+  auto self_partial_set  = SetGetDims(self->domain(), selected_dims);
+
+  stage_partial_set = isl::manage(isl_set_set_tuple_name(stage_partial_set.release(), ""));
+  self_partial_set  = isl::manage(isl_set_set_tuple_name(self_partial_set.release(), ""));
+  VLOG(3) << "stage0.partial_set " << stage_partial_set;
+  VLOG(3) << "stage1.partial_set " << self_partial_set;
+
+  return isl_set_is_equal(stage_partial_set.get(), self_partial_set.get());
 }
 
 }  // namespace poly

@@ -13,13 +13,19 @@ namespace detail {
 //! children are ready to visit, merge them to the same group.
 std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
   VLOG(3) << "graph:\n" << graph->Visualize();
-  // collect indegree for topological traversal
+  // collect indegrees for topological traversal
   std::map<DataFlowGraphNode*, uint16_t> indegree;
   for (common::GraphNode* n : graph->nodes()) {
     auto* node     = n->As<DataFlowGraphNode>();
     indegree[node] = node->inlinks().size();
   }
 
+  std::map<std::string, DataFlowGraphNode*> name2node;
+  for (auto* n : graph->nodes()) {
+    name2node[n->id()] = n->As<DataFlowGraphNode>();
+  }
+
+  // topological sort.
   std::deque<DataFlowGraphNode*> queue;
   for (auto* n : graph->start_points()) {
     auto* node = n->As<DataFlowGraphNode>();
@@ -37,12 +43,29 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
 
       VLOG(3) << node->stage->transformed_domain() << " -> " << child->stage->transformed_domain();
       if (indegree[child] == 0) {
+        // Merge the two groups if their iteration domain is the same.
         if (DataFlowGraphNode::TransformedDomainIsSame(node, child)) {
           VLOG(4) << child->id() << " ready to merge " << node->id() << " with " << child->id();
           DataFlowGraphNode::MergeGroup(node, child);
         }
         queue.push_back(child);
       }
+    }
+  }
+
+  // process the ComputeAt relation.
+  for (auto* n : graph->nodes()) {
+    auto* node = n->As<DataFlowGraphNode>();
+    for (auto& compute_at : node->stage->compute_ats()) {
+      CHECK(compute_at.IsCompatible(node->stage.get())) << "The registered ComputeAt is not compatible";
+      // check the endpoints of compute_at has data dependency.
+      auto* node0 = node;
+      auto* node1 = name2node[compute_at.stage->id()];
+      CHECK(node0->IsLinkedTo(node1));
+
+      node0->group_parent = node1->group_parent ? node1->group_parent : node1;
+
+      // TODO(Superjomn) Consider the case node1 is a parent.
     }
   }
 
