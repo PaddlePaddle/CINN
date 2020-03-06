@@ -62,6 +62,15 @@ std::string DataFlowGraphNode::id() const {
   return stage->id();
 }
 
+bool DataFlowGraphNode::IsLinkedTo(const DataFlowGraphNode* node) const {
+  bool found = std::find_if(inlinks_.begin(), inlinks_.end(), [=](const Shared<common::GraphEdge>& x) {
+                 return x->source() == node;
+               }) != std::end(inlinks_);
+  return found || std::find_if(outlinks_.begin(), outlinks_.end(), [=](const Shared<common::GraphEdge>& x) {
+                    return x->sink() == node;
+                  }) != std::end(outlinks_);
+}
+
 std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages) {
   std::map<std::string, Shared<DataFlowGraphNode>> id2stage;
   for (auto* x : stages) id2stage[x->id()] = make_shared<DataFlowGraphNode>(x);

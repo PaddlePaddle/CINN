@@ -7,6 +7,8 @@
 
 namespace cinn {
 namespace poly {
+using utils::Join;
+using utils::StringFormat;
 
 std::vector<std::string> GetDimNames(const isl::set &x) {
   std::vector<std::string> res;
@@ -68,7 +70,7 @@ std::string isl_map_get_statement_repr(__isl_keep isl_map *map, isl_dim_type typ
   for (int i = 0; i < isl_map_dim(map, type); i++) {
     dims.push_back(isl_map_get_dim_name(map, type, i));
   }
-  return utils::StringFormat("%s[%s]", tuple_name, utils::Join(dims, ", ").c_str());
+  return StringFormat("%s[%s]", tuple_name, Join(dims, ", ").c_str());
 }
 
 std::vector<std::string> GetDimNames(isl_map *map, isl_dim_type dim_type) {
@@ -78,6 +80,21 @@ std::vector<std::string> GetDimNames(isl_map *map, isl_dim_type dim_type) {
     res.push_back(isl_map_get_dim_name(map, dim_type, i));
   }
   return res;
+}
+
+isl::set SetGetDims(isl::set set, const std::vector<int> &dims) {
+  std::string tuple_name = isl_set_get_tuple_name(set.get());
+  auto dim_names         = GetDimNames(set);
+  std::vector<std::string> selected_dim_names;
+  for (int v : dims) selected_dim_names.push_back(dim_names[v]);
+
+  std::string transform_repr = StringFormat("{ %s[%s] -> %s[%s] }",
+                                            tuple_name.c_str(),             //
+                                            Join(dim_names, ", ").c_str(),  //
+                                            tuple_name.c_str(),             //
+                                            Join(selected_dim_names, ", ").c_str());
+  isl::map transform(set.ctx(), transform_repr);
+  return set.apply(transform);
 }
 
 }  // namespace poly

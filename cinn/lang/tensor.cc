@@ -131,9 +131,9 @@ void _Tensor_::InitStage() {
   if (is_compute_node()) {
     auto &body = op->as<ComputeOp>()->body;
     CHECK_EQ(body.size(), 1UL) << "only support functional programming";
-    shared_stage = make_shared<poly::Stage>(GenerateIslDomain(), body.front());
+    shared_stage = poly::Stage::New(GenerateIslDomain(), body.front());
   } else {
-    shared_stage = make_shared<poly::Stage>(GenerateIslDomain());
+    shared_stage = poly::Stage::New(GenerateIslDomain());
   }
 }
 
