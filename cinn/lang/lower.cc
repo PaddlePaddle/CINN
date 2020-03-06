@@ -87,6 +87,7 @@ std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Te
 
   auto stages = poly::GatherStagesInTensors(args);
   auto graph  = poly::CreateGraph(stages);
+  LOG(INFO) << "Graph:\n" << graph->Visualize();
 
   // Create a dic for stages and tensors.
   std::map<std::string, Stage*> stage_dic;
@@ -117,7 +118,7 @@ std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Te
     CHECK(args_names.count(node->id())) << "The dependency tensor [" << node->id() << "] not in the inputs";
   }
 
-  auto schedule = poly::CreateSchedule(stages);
+  auto schedule = poly::CreateSchedule(stages, poly::ScheduleKind::Poly);
 
   // generate the expressions for each group.
   std::vector<Expr> exprs;
@@ -126,6 +127,7 @@ std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Te
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
     std::map<std::string, Expr> tuple_to_expr;
     for (auto& node : group.nodes) {
+      LOG(INFO) << "graph node " << node->id();
       auto& tensor = tensor_dic.at(node->id());
       // NOTE here just schedule the compute node.
       if (!tensor->is_compute_node()) continue;

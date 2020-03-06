@@ -235,5 +235,79 @@ void matmul(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buff
   ASSERT_EQ(Trim(tgt), Trim(out));
 }
 
+TEST(CodeGenC, matmul_with_packed) {
+  const int M  = 100;
+  const int K  = 20;
+  const int N  = 50;
+  const int bn = 4;
+  Placeholder<float> A("A", {M, K});
+  Placeholder<float> B("B", {K, N});
+
+  lang::Buffer packedB_buf(Float(32));
+  lang::Buffer C_buf(Float(32));
+
+  // TODO(Superjomn) Make sure the domain works.
+  auto packedB = Compute(
+      {N / bn, K, bn}, [&](Expr i, Expr j, Expr k) { return B(j, i * bn + k); }, "PackedB");
+  packedB->Bind(packedB_buf);
+  auto C = Compute(
+      {M, N, K}, [&](Expr i, Expr j, Expr k) { return A(i, k) * packedB(j / bn, k, j % bn); }, "C", 2 /*reduce axis*/);
+  C->Bind(C_buf);
+  // packedB->stage()->ComputeAt(C->stage(), 1);
+
+  // Code gen
+  auto funcs = Lower("matmul_with_packing", {A, B, packedB, C});
+  ASSERT_EQ(funcs.size(), 1UL);
+
+  Target target;
+  target.arch = Target::Arch ::X86;
+  target.bits = Target::Bit ::k32;
+  target.os   = Target::OS ::Linux;
+
+  Module module("module1", target);
+  module.Append(funcs.front());
+  module.Append(C_buf);
+  module.Append(packedB_buf);
+
+  CodeGenC codegen(target);
+  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  std::cout << "codegen C:" << std::endl << out << std::endl;
+
+  auto target_out = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+cinn_buffer_t* C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+cinn_buffer_t* PackedB = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+void matmul_with_packing(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer_t *_PackedB, struct cinn_buffer_t *_C)
+{
+  cinn_buffer_malloc((void*)(0), _A);
+  cinn_buffer_malloc((void*)(0), _B);
+  cinn_buffer_malloc((void*)(0), _PackedB);
+  cinn_buffer_malloc((void*)(0), _C);
+  float* A = (float*)(cinn_buffer_get_data_handle(_A));
+  float* B = (float*)(cinn_buffer_get_data_handle(_B));
+  float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  float* PackedB = (float*)(cinn_buffer_get_data_handle(_PackedB));
+  for (int32_t i = 0; (i <= 11); i += 1){
+    for (int32_t j = 0; (j <= 19); j += 1){
+      for (int32_t k = 0; (k <= 3); k += 1){
+        PackedB[(((i * 20) + (j * 4)) + k)] = B[((j * 50) + ((i * 4) + k))];
+      };
+    };
+  };
+  for (int32_t i = 0; (i <= 99); i += 1){
+    for (int32_t j = 0; (j <= 49); j += 1){
+      for (int32_t k = 0; (k <= 19); k += 1){
+        C[((i * 50) + j)] = (A[((i * 20) + k)] * PackedB[((((j / 4) * 20) + (k * 4)) + (j % 4))]);
+      };
+    };
+  };
+}
+)ROC";
+
+  ASSERT_EQ(utils::Trim(target_out), utils::Trim(out));
+}
+
 }  // namespace backends
 }  // namespace cinn
