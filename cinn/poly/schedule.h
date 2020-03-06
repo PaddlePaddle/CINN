@@ -53,8 +53,10 @@ struct TimeSchedule {
   //! Schedule this after \p other in \p level.
   void OrderAfter(const TimeSchedule &other, int level);
 
+  //! How many dimensions of this time schedule space.
   size_t space_size() const { return time_dims_.size(); }
 
+  //! The unique ID of the time schedule.
   const std::string &id() const;
 
   //! Get the isl map.
@@ -88,7 +90,8 @@ struct Schedule {
 };
 
 /**
- * The base class for all the Scheduler, it helps to schedule the nodes in a group(isl space).
+ * The base class for all the Scheduler, it helps to schedule the nodes in a group(isl space). All the schedule in the
+ * same group should have the same number of dimensions, and each have some dependency with others.
  */
 class SchedulerBase {
  public:
@@ -161,7 +164,10 @@ enum class ScheduleKind {
   Poly = 1,
 };
 
+//! Create a schedule from a tensor.
 std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor, ScheduleKind schedule_kind = ScheduleKind::Poly);
+//! Create a schedule from a list of stages, it will schedule the stages using the information from data dependency,
+//! iteration domains.
 std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages,
                                          ScheduleKind schedule_kind = ScheduleKind::Poly);
 
