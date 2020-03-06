@@ -13,43 +13,6 @@ namespace common {
 
 namespace {
 
-void TopologicalSortUtil(GraphNode *node,
-                         std::set<GraphNode *> *visited,
-                         std::stack<GraphNode *> *stack,
-                         std::vector<GraphNode *> *order,
-                         std::vector<GraphEdge *> *edge_order) {
-  node->VisitOnce();
-  if (!node->visited()) return;
-  CHECK(!visited->count(node)) << "duplicate visit current node";
-
-  // Mark the current node as visited.
-  visited->insert(node);
-  order->push_back(node);
-
-  for (auto &e : node->outlinks()) {
-    if (!visited->count(e->sink())) {
-      edge_order->push_back(e.get());
-      TopologicalSortUtil(e->sink(), visited, stack, order, edge_order);
-    }
-  }
-
-  stack->push(node);
-}
-
-std::tuple<Graph::node_order_t, Graph::edge_order_t> TopologicalSort(const std::vector<GraphNode *> &nodes) {
-  std::stack<GraphNode *> stack;
-  std::set<GraphNode *> visited;   // Tell whether a node is visited
-  std::vector<GraphNode *> order;  // nodes visited in order
-  std::vector<GraphEdge *> edges;  // edges visited in order
-
-  for (auto *node : nodes) {
-    if (!visited.count(node)) {
-      TopologicalSortUtil(node, &visited, &stack, &order, &edges);
-    }
-  }
-  return std::make_tuple(std::move(order), std::move(edges));
-}
-
 void DFSSortUtil(const GraphNode *node, std::vector<GraphNode *> *order) {}
 
 std::vector<GraphNode *> DFSSort(const std::vector<GraphNode *> &nodes) {
@@ -91,7 +54,37 @@ std::vector<GraphNode *> Graph::nodes() {
 }
 
 std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topological_order() {
-  return TopologicalSort(nodes());
+  std::vector<GraphNode *> node_order;
+  std::vector<GraphEdge *> edge_order;
+
+  std::deque<GraphNode *> queue;
+  // collect indegreee.
+  std::map<GraphNode *, int> indegree;
+  for (auto *n : nodes()) {
+    indegree[n] = n->inlinks().size();
+  }
+
+  // insert start points first.
+  for (auto *n : start_points()) {
+    queue.push_back(n);
+  }
+
+  // start to visit
+  while (!queue.empty()) {
+    auto *top_node = queue.front();
+    queue.pop_front();
+    node_order.push_back(top_node);
+
+    for (auto &edge : top_node->outlinks()) {
+      edge_order.push_back(edge.get());
+      auto *sink = edge->sink();
+      if (--indegree[sink] == 0) {
+        queue.push_back(sink);
+      }
+    }
+  }
+
+  return std::make_tuple(node_order, edge_order);
 }
 
 std::vector<GraphNode *> Graph::dfs_order() { return std::vector<GraphNode *>(); }

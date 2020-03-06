@@ -142,9 +142,9 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   void set_reduce_axis(int v) {
     CHECK_EQ(reduce_axis, -1) << "duplicate set reduce_axis";
-    CHECK(!shape.empty()) << "Shape is not set";
+    CHECK(!domain.empty()) << "Shape is not set";
     CHECK_GE(v, 0);
-    CHECK_LT(v, shape.size());
+    CHECK_LT(v, domain.size());
     reduce_axis = v;
   }
 

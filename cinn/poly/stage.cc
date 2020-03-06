@@ -140,11 +140,11 @@ Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
 std::vector<std::string> Stage::input_statements() const {
   if (!expr_.defined()) return {};
   VLOG(3) << "stage " << id() << " expr: " << expr_;
-  auto call_exprs = ir::CollectIRNodes(expr_, [](const Expr *x) { return x->As<ir::Call>(); });
+  auto load_exprs = ir::CollectIRNodes(expr_, [](const Expr *x) { return x->As<ir::Load>(); });
   std::set<std::string> statements;
-  for (auto &expr : call_exprs) {
-    auto call_name = expr.As<ir::Call>()->name;
-    if (call_name != id()) statements.insert(call_name);
+  for (auto &expr : load_exprs) {
+    auto tensor_name = ir::BufferGetTensorName(expr.As<ir::Load>()->buffer.As<ir::_Buffer_>());
+    if (tensor_name != id()) statements.insert(tensor_name);
   }
   return std::vector<std::string>(statements.begin(), statements.end());
 }

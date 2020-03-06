@@ -83,7 +83,7 @@ std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages) {
       // We removed some node in the original stages(such as placeholders), so that there might be missing of some input
       // nodes, just ignore the dependence.
       if (input_it != std::end(id2stage)) {
-        auto& input_node = id2stage.at(depend_statement);
+        auto& input_node = input_it->second;
         input_node->LinkTo(id2stage.at(stage->id()).get());
       }
     }

@@ -102,11 +102,11 @@ ir::Tensor Compute(const std::vector<int> &dims,
 
   auto unique_name = name.empty() ? Context::Global().NewName("tensor") : name;
 
-  auto op     = ir::ComputeOp::Make(unique_name, "" /*tag*/, {}, fn, domain);
-  auto tensor = ir::_Tensor_::Make(unique_name, shape, op);
-  if (reduce_axis >= 0) tensor->set_reduce_axis(reduce_axis);
+  auto op        = ir::ComputeOp::Make(unique_name, "" /*tag*/, {}, fn, domain);
+  auto tensor    = ir::_Tensor_::Make(unique_name, shape, op);
   tensor->axis   = axis;
   tensor->domain = domain;
+  if (reduce_axis >= 0) tensor->set_reduce_axis(reduce_axis);
   return tensor;
 }
 
