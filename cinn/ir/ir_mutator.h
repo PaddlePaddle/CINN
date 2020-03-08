@@ -114,6 +114,7 @@ template <typename T>
 void IRMutator<T>::Visit(const Store *expr, T op) {
   auto *node = op->template As<Store>();
   IRVisitorBase<void, T>::Visit(&node->value, &node->value);
+  IRVisitorBase<void, T>::Visit(&node->tensor, &node->tensor);
   IRVisitorBase<void, T>::Visit(&node->index, &node->index);
 }
 template <typename T>

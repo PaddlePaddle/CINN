@@ -50,16 +50,16 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
 namespace {
 
 struct WriteTeller : public ir::IRMutator<const Expr*> {
-  std::set<std::string> buffer_written;
+  std::set<std::string> tensor_written;
 
   void Visit(const Expr* expr, const Expr* op) override { IRMutator::Visit(expr, op); }
 
-  void Visit(const ir::Load* expr, const Expr* op) override {
-    auto* node = op->As<ir::Load>();
+  void Visit(const ir::Store* expr, const Expr* op) override {
+    auto* node = op->As<ir::Store>();
     CHECK(node);
-    auto* buffer = node->buffer.As<ir::_Buffer_>();
-    CHECK(buffer);
-    buffer_written.insert(buffer->name);
+    auto* tensor = node->tensor.As<ir::_Tensor_>();
+    CHECK(tensor);
+    tensor_written.insert(tensor->name);
     IRMutator::Visit(expr, op);
   }
 };
@@ -75,12 +75,14 @@ std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensors, c
   for (auto& tensor : tensors) {
     auto* tensor_node = tensor.As<ir::_Tensor_>();
     CHECK(!tensor_node->inlined());
-    bool is_input = teller.buffer_written.count(tensor->name);
-    if (arg_names.count(tensor_node->buffer->name)) {
-      continue;
-    }
+    bool is_output = teller.tensor_written.count(tensor->name);
+
+    // avoid duplicate
+    if (arg_names.count(tensor_node->buffer->name)) continue;
     arg_names.insert(tensor_node->buffer->name);
-    auto io = is_input ? ir::Argument::IO::kInput : ir::Argument::IO::kOutput;
+
+    auto io = is_output ? ir::Argument::IO::kOutput : ir::Argument::IO::kInput;
+    VLOG(3) << "Collect " << (is_output ? "W" : "R") << " argument " << tensor->buffer->name;
     args.emplace_back(tensor_node->buffer, io);
   }
   return args;

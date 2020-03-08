@@ -18,10 +18,12 @@ struct ReplaceCallWithExprModifier : public ir::IRMutator<> {
   void Visit(const ir::Call *expr, Expr *op) override {
     auto *node = op->As<ir::Call>();
     CHECK(!node->name.empty()) << "Call has no name";
-    VLOG(2) << "Processing Call node " << node->name;
+    VLOG(2) << "Processing Call node " << *op;
     if (statement_ != node->name) return;
 
     Expr expr_candidate = IRCopy(candidate_);
+    VLOG(2) << "Original candidate expr: " << candidate_;
+    VLOG(2) << "Copied candidate expr: " << expr_candidate;
 
     // Replace the Call node with the expression candidate.
     *op = expr_candidate;
@@ -42,7 +44,10 @@ void ReplaceCallWithExpr(Expr *e,
                          const std::string &statement,
                          const Expr &candidate,
                          const std::map<std::string, Expr> &axis) {
+  VLOG(3) << "ReplaceCallWithExpr, original expression: " << candidate;
   Expr copied = IRCopy(candidate);
+  VLOG(3) << "ReplaceCallWithExpr, copied expression: " << copied;
+  // update the axis in the copied expression.
   for (auto &axis : axis) {
     ReplaceVarWithExpr(&copied, Var(axis.first), axis.second);
   }

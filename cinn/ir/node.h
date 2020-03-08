@@ -209,7 +209,6 @@ struct FloatImm : public ExprNode<FloatImm> {
 };
 
 class Var;
-class Buffer;
 /**
  * An expression that represents some value or the result of some operations.
  */
@@ -219,7 +218,6 @@ struct Expr : public IrNodeRef {
   Expr(const Expr& other) : IrNodeRef(other.ptr()) {}
   Expr(IrNode* p) : IrNodeRef(p) {}
   explicit Expr(const Var& var);
-  explicit Expr(const Buffer& buffer);
 
   //! Helper function to construct numeric constants of various types.
   // @{

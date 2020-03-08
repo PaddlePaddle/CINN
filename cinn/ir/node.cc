@@ -38,7 +38,6 @@ std::ostream &operator<<(std::ostream &os, IrNodeTy type) {
 }
 
 Expr::Expr(const Var &var) { *static_cast<IrNodeRef *>(this) = *static_cast<const IrNodeRef *>(&var); }
-Expr::Expr(const Buffer &buffer) { *static_cast<IrNodeRef *>(this) = *static_cast<const IrNodeRef *>(&buffer); }
 
 int32_t Expr::as_int32() const {
   CHECK(type().is_int(32));

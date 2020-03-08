@@ -47,7 +47,7 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices);
 ir::Expr BufferMalloc(ir::Buffer buffer);
 ir::Expr BufferMalloc(ir::Var buffer_var);
 
-ir::Expr BufferGetDataHandle(ir::Buffer buffer);
+ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_mutable = true);
 
 //! Convert the Type in compile time to runtime type.
 cinn_type_t ToRuntimeType(Type type);

@@ -362,19 +362,13 @@ struct Select : public ExprNode<Select> {
  * Load the value from a buffer (as an array).
  */
 struct Load : public ExprNode<Load> {
-  Expr buffer;  // should be a buffer.
+  Expr tensor;  // should be a buffer.
   Expr index;
 
-  Load(Expr buffer, Expr index);
+  static Expr Make(Expr tensor, Expr index);
 
-  static Expr Make(Expr buffer, Expr index) {
-    CHECK(buffer->type().valid());
-    auto node = new Load(buffer, index);
-    return Expr(node);
-  }
-
-  std::vector<Expr*> expr_fields() override { return {&buffer, &index}; }
-  std::vector<const Expr*> expr_fields() const override { return {&buffer, &index}; }
+  std::vector<Expr*> expr_fields() override { return {&tensor, &index}; }
+  std::vector<const Expr*> expr_fields() const override { return {&tensor, &index}; }
 
   static const IrNodeTy _node_type_ = IrNodeTy::Load;
 };
@@ -383,15 +377,13 @@ struct Load : public ExprNode<Load> {
  * Store a `value` to the buffer at a given `index`.
  */
 struct Store : public ExprNode<Store> {
-  Expr buffer;
+  Expr tensor;
   Expr value, index;
 
-  Store() : ExprNode(Type()) {}
+  static Expr Make(Expr tensor, Expr value, Expr index);
 
-  static Expr Make(Expr buffer, Expr value, Expr index);
-
-  std::vector<Expr*> expr_fields() override { return {&buffer, &value, &index}; }
-  std::vector<const Expr*> expr_fields() const override { return {&buffer, &value, &index}; }
+  std::vector<Expr*> expr_fields() override { return {&tensor, &value, &index}; }
+  std::vector<const Expr*> expr_fields() const override { return {&tensor, &value, &index}; }
 
   static const IrNodeTy _node_type_ = IrNodeTy::Store;
 };

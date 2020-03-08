@@ -61,7 +61,7 @@ cinn_type_t ToRuntimeType(Type type) {
   return cinn_unk_t();
 }
 
-ir::Expr BufferGetDataHandle(ir::Buffer buffer) {
+ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_mutable) {
   CHECK(buffer->type().valid());
   Type type = Void();
   type.set_as_cpp_handle();  // a void*

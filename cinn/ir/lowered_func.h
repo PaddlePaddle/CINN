@@ -60,7 +60,7 @@ struct Argument {
       NOT_IMPLEMENTED
   }
 
-  const std::string& name() const {
+  std::string name() const {
     if (is_buffer())
       return buffer_arg()->name;
     else if (is_scalar())
@@ -125,7 +125,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   void PrepareBufferCastExprs();
   //! Get all the Buffers the function body references.
   //! NOTE it will return the buffers with duplicates removed(by comparing their name).
-  std::vector<Buffer> CollectAllBufferReference() const;
+  std::vector<Tensor> CollectAllTensorReference() const;
 };
 
 }  // namespace ir

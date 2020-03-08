@@ -147,17 +147,16 @@ void IrPrinter::Visit(const Select *x) {
   os_ << ")";
 }
 void IrPrinter::Visit(const Load *x) {
-  auto *node = x->buffer.As<ir::_Buffer_>();
+  auto *node = x->tensor.As<ir::_Tensor_>();
   CHECK(node);
   os_ << node->name << "[";
   Print(x->index);
   os_ << "]";
 }
 void IrPrinter::Visit(const Store *x) {
-  auto *buffer_node = x->buffer.As<ir::_Buffer_>();
-  CHECK(buffer_node->node_type() == ir::_Buffer_::_node_type_);
-  CHECK(buffer_node);
-  os_ << buffer_node->name << "[";
+  auto *tensor_node = x->tensor.As<ir::_Tensor_>();
+  CHECK(tensor_node);
+  os_ << tensor_node->name << "[";
   Print(x->index);
   os_ << "] = ";
   Print(x->value);
@@ -179,6 +178,7 @@ void IrPrinter::Visit(const _Range_ *x) {
 
 void IrPrinter::Visit(const _Buffer_ *x) { os_ << "_Buffer_(" << x->name << ")"; }
 void IrPrinter::Visit(const _Tensor_ *x) {
+  CHECK(!x->shape.empty());
   os_ << "Tensor(";
   for (auto &i : x->shape) {
     Print(i);

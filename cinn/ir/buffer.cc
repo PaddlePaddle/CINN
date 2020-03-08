@@ -71,7 +71,15 @@ void _Buffer_::BindTo(const _Tensor_ *tensor) {
   binded_tensors_names_.insert(tensor->name);
 }
 
+Var _Buffer_::buffer_addr() const {
+  auto thetype = type().ElementOf();
+  thetype.set_as_cpp_handle();
+  return _Var_::Make(name, thetype);
+}
+
+/*
 Expr Buffer::LoadExpr(const std::vector<Expr> &indice) const {
+  NOT_IMPLEMENTED
   auto *node = operator->();
   return Load::Make(Expr(*this), AbsOffset(indice));
 }
@@ -80,6 +88,7 @@ Expr Buffer::StoreExpr(const std::vector<Expr> &indice, Expr value) const {
   auto *node = operator->();
   return Store::Make(Expr(*this), value, AbsOffset(indice));
 }
+*/
 
 Expr Buffer::AbsOffset(const std::vector<Expr> &indice) const {
   auto *node = operator->();

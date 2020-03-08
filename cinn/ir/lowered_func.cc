@@ -54,7 +54,7 @@ void _LoweredFunc_::AllocBufferForOutputs() {
       CHECK(arg.type().valid()) << "argument's type is not defined";
       if (arg.is_buffer() && !buffer_names.count(arg.name())) {  // only buffer need allocation.
         buffer_names.insert(arg.name());                         // Avoid duplicate
-        auto data = _Var_::Make(arg.name(), arg.type());
+        auto data = _Var_::Make(arg.buffer_arg()->name, arg.type());
         auto expr = runtime::BufferMalloc(data);
         alloc_output_buffer_exprs.push_back(expr);
       }
@@ -65,43 +65,41 @@ void _LoweredFunc_::AllocBufferForOutputs() {
 void _LoweredFunc_::AllocTempBuffer() {}
 
 void _LoweredFunc_::PrepareBufferCastExprs() {
-  auto buffers = CollectAllBufferReference();
-  std::sort(buffers.begin(), buffers.end(), [](const Buffer& a, const Buffer& b) { return a->name < b->name; });
-  VLOG(3) << "Function used " << buffers.size() << " buffers";
-  for (auto& b : buffers) {
-    auto* node = b.As<ir::_Buffer_>();
+  auto tensors = CollectAllTensorReference();
+  std::sort(tensors.begin(), tensors.end(), [](const Tensor& a, const Tensor& b) { return a->name < b->name; });
+  VLOG(3) << "Function used " << tensors.size() << " buffers";
+  for (auto& tensor : tensors) {
+    auto* node = tensor.As<ir::_Tensor_>();
     CHECK(node);
-    VLOG(3) << "b.binded_tensors " << b->binded_tensor_names().size();
-    for (auto& tensor_name : b->binded_tensor_names()) {
-      Type value_type = b->type().ElementOf();
-      value_type.set_as_cpp_handle();
-      Var value = _Var_::Make(tensor_name, value_type);
 
-      Expr body = runtime::BufferGetDataHandle(b);
+    Type value_type = tensor->type().ElementOf();
+    value_type.set_as_cpp_handle();
+    Var value = _Var_::Make(tensor->name, value_type);
 
-      auto let = Let::Make(value, body);
+    Expr body = runtime::BufferGetDataHandle(tensor->buffer);
 
-      buffer_data_cast_exprs.push_back(let);
-    }
+    auto let = Let::Make(value, body);
+
+    buffer_data_cast_exprs.push_back(let);
   }
 }
 
-std::vector<Buffer> _LoweredFunc_::CollectAllBufferReference() const {
-  std::set<Expr> buffer_exprs = ir::CollectIRNodes(body, [](const Expr* expr) { return expr->As<ir::_Buffer_>(); });
+std::vector<Tensor> _LoweredFunc_::CollectAllTensorReference() const {
+  std::set<Expr> tensor_exprs = ir::CollectIRNodes(body, [](const Expr* expr) { return expr->As<ir::_Tensor_>(); });
 
-  std::vector<Buffer> buffers;
-  // remove the duplicate buffer by their name.
+  std::vector<Tensor> tensors;
+  // remove the duplicate tensor by their name.
   std::set<std::string> names;
 
-  for (const Expr& expr : buffer_exprs) {
+  for (const Expr& expr : tensor_exprs) {
     Expr& _expr = *const_cast<Expr*>(&expr);
-    Buffer b(_expr.As<_Buffer_>());
+    Tensor b(_expr.As<_Tensor_>());
     if (names.count(b->name)) continue;
-    buffers.push_back(b);
+    tensors.push_back(b);
     names.insert(b->name);
   }
 
-  return buffers;
+  return tensors;
 }
 
 ir::Buffer Argument::buffer_arg() const {
