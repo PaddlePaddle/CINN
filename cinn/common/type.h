@@ -43,7 +43,7 @@ struct Type {
   bool is_uint(int bits = -1) const { return type_ == type_t::UInt && (bits < 0 || bits == this->bits()); }
   // @}
 
-  void set_cpp_handle(bool x = true);
+  void set_as_cpp_handle(bool x = true);
   bool is_cpp_handle() const { return static_cast<uint8_t>(cpp_type_) & static_cast<uint8_t>(cpp_type_t::Handle); }
 
   //! Getters
@@ -108,19 +108,19 @@ template <> inline Type type_of<void>() { return Void(); }
 template <>
 inline Type type_of<void*>() {
   Type x = type_of<void>();
-  x.set_cpp_handle();
+  x.set_as_cpp_handle();
   return x;
 }
 template <>
 inline Type type_of<float*>() {
   Type x = type_of<float>();
-  x.set_cpp_handle();
+  x.set_as_cpp_handle();
   return x;
 }
 template <>
 inline Type type_of<double*>() {
   Type x = type_of<double>();
-  x.set_cpp_handle();
+  x.set_as_cpp_handle();
   return x;
 }
 

@@ -149,7 +149,7 @@ void IrPrinter::Visit(const Select *x) {
 void IrPrinter::Visit(const Load *x) {
   auto *node = x->buffer.As<ir::_Buffer_>();
   CHECK(node);
-  os_ << node->tensor_addr << "[";
+  os_ << node->name << "[";
   Print(x->index);
   os_ << "]";
 }
@@ -157,8 +157,7 @@ void IrPrinter::Visit(const Store *x) {
   auto *buffer_node = x->buffer.As<ir::_Buffer_>();
   CHECK(buffer_node->node_type() == ir::_Buffer_::_node_type_);
   CHECK(buffer_node);
-  CHECK(buffer_node->tensor_addr.defined());
-  os_ << buffer_node->tensor_addr << "[";
+  os_ << buffer_node->name << "[";
   Print(x->index);
   os_ << "] = ";
   Print(x->value);
@@ -192,7 +191,7 @@ void IrPrinter::Visit(const _LoweredFunc_ *f) {
 
   std::vector<std::string> arg_names;
   for (auto &arg : f->args) {
-    arg_names.push_back(arg.name);
+    arg_names.push_back(arg.name());
   }
   os_ << "(" << utils::Join(arg_names, ", ") << ")\n";
 
@@ -205,7 +204,13 @@ void IrPrinter::Visit(const Let *f) {
   os() << " = ";
   Print(f->body);
 }
-std::ostream &operator<<(std::ostream &os, Expr a) {
+
+void IrPrinter::Visit(const _IterVar_ *f) { NOT_IMPLEMENTED }
+
+void IrPrinter::Visit(const Reduce *f){NOT_IMPLEMENTED}
+
+std::ostream &
+operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);
   printer.Print(a);

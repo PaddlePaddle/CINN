@@ -9,13 +9,10 @@ namespace runtime {
 
 ir::Expr BufferCreate(ir::Buffer buffer) {
   std::vector<Expr> args;
-  args.push_back(buffer->tensor_addr);
+  args.push_back(ir::_Var_::Make(buffer->name, buffer->type()));
+  args.push_back(Expr(buffer->target.runtime_arch()));
   CHECK(buffer->target.defined()) << "Buffer's target should be set before compile";
-  return ir::Call::Make(Void(),
-                        runtime::buffer_create,
-                        {buffer->tensor_addr, Expr(buffer->target.runtime_arch())},
-                        ir::Call::CallType::Intrinsic);
-  return ir::Expr();
+  return ir::Call::Make(Void(), runtime::buffer_create, args, ir::Call::CallType::Intrinsic);
 }
 
 ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr> &indices) {
@@ -67,11 +64,11 @@ cinn_type_t ToRuntimeType(Type type) {
 ir::Expr BufferGetDataHandle(ir::Buffer buffer) {
   CHECK(buffer->type().valid());
   Type type = Void();
-  type.set_cpp_handle();  // a void*
+  type.set_as_cpp_handle();  // a void*
   auto call = ir::Call::Make(type, buffer_get_data_handle, {Expr(buffer)}, ir::Call::CallType::Intrinsic);
 
   Type target_type = buffer->type().ElementOf();
-  target_type.set_cpp_handle();
+  target_type.set_as_cpp_handle();
   auto cast = ir::Cast::Make(target_type, call);
   return cast;
 }

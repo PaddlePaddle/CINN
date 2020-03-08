@@ -12,8 +12,7 @@ Buffer::Buffer(Type type, const std::string& name) {
   buffer_->set_type(type);
   buffer_->elem_offset = Expr(0);
   if (!name.empty()) {
-    buffer_->name        = name;
-    buffer_->tensor_addr = ir::_Var_::Make(name, type);
+    buffer_->name = name;
   }
 }
 

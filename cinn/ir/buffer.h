@@ -59,8 +59,6 @@ class Buffer : public IrNodeRef {
 
 class _Buffer_ : public ExprNode<_Buffer_> {
  public:
-  //! The pointer to the memory of the data.
-  Var tensor_addr;
   //! The shape of the buffer.
   std::vector<Expr> shape;
   //! The strides of each dimension.
@@ -96,9 +94,8 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   static Buffer Make(const std::string& name, const std::vector<Expr>& shape = {});
 
   static Buffer Make(const std::string& name, Type type) {
-    auto n         = make_shared<_Buffer_>();
-    n->name        = name;
-    n->tensor_addr = ir::_Var_::Make(name, type);
+    auto n  = make_shared<_Buffer_>();
+    n->name = name;
     n->set_type(type);
     return Buffer(n);
   }
@@ -109,9 +106,11 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   void BindTo(const Tensor& tensor);
   void BindTo(const _Tensor_* tensor);
 
+  const std::set<std::string>& binded_tensor_names() const { return binded_tensors_names_; }
+
   Var buffer_addr() const {
     auto thetype = type().ElementOf();
-    thetype.set_cpp_handle();
+    thetype.set_as_cpp_handle();
     return _Var_::Make(name, thetype);
   }
 
@@ -121,7 +120,7 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   static const IrNodeTy _node_type_ = IrNodeTy::_Buffer_;
 
  private:
-  std::set<std::string> bound_tensors_names_;
+  std::set<std::string> binded_tensors_names_;
 };
 
 }  // namespace ir

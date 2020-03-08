@@ -225,6 +225,35 @@ struct Let : public ExprNode<Let> {
   std::vector<const Expr*> expr_fields() const override { return {&value, &body}; }
 };
 
+struct Reduce : public ExprNode<Reduce> {
+  enum ReduceType {
+    kSum = 0,
+    kSub,
+    kMul,
+    kDiv,
+  };
+
+  //! The initial value.
+  Expr init;
+  Expr body;
+  //! The type of the reduce operation.
+  ReduceType reduce_type;
+
+  static Expr Make(ReduceType reduce_type, Expr init, Expr body) {
+    auto n         = common::make_shared<Reduce>();
+    n->init        = init;
+    n->body        = body;
+    n->reduce_type = reduce_type;
+    CHECK(init.type().valid());
+    CHECK(body.type().valid());
+    CHECK_EQ(init.type(), body.type());
+    n->set_type(init.type());
+    return Expr(n);
+  }
+
+  static const IrNodeTy _node_type_ = IrNodeTy::Reduce;
+};
+
 struct Call : public ExprNode<Call> {
   Call(Type t) : ExprNode<Call>(t) {}
 

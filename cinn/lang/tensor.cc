@@ -235,6 +235,7 @@ Expr _Tensor_::tensor_store_expanded_body() const {
 
 void _Tensor_::Bind(lang::Buffer &buffer) {
   buffer->BindTo(this);
+  CHECK(!buffer->binded_tensor_names().empty());
   this->buffer = buffer.buffer();
   CHECK(this->buffer.defined());
   CHECK(!inlined());

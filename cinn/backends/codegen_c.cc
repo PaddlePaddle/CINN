@@ -55,12 +55,6 @@ std::string CodeGenC::Compile(const ir::LoweredFunc &function) {
   os() << "\n\n";
   return ss_.str();
 }
-std::string CodeGenC::Compile(const ir::Buffer &buffer) {
-  Print(runtime::BufferCreate(buffer));
-  os() << "\n";
-  os() << "\n";
-  return ss_.str();
-}
 
 std::string CodeGenC::PrintType(Type type) {
   std::string str;
@@ -220,6 +214,10 @@ void CodeGenC::Visit(const ir::Let *op) {
   Print(op->body);
 }
 
+void CodeGenC::Visit(const ir::Reduce *op) {
+  LOG(FATAL) << "Reduce IR is just for internal representation, should not be used for CodeGen.";
+}
+
 void CodeGenC::PrintCastExpr(const Type &type, Expr e) {
   os() << "(" << PrintType(type) << ")";
   os() << "(";
@@ -255,10 +253,6 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
   // allocate output buffer
   Expr allocate_output_buffer_expr = ir::Block::Make(op->alloc_output_buffer_exprs);
   Expr buffer_cast_expr            = ir::Block::Make(op->buffer_data_cast_exprs);
-
-  for (auto &expr : op->buffer_data_cast_exprs) {
-    VLOG(3) << "cast expr: " << expr;
-  }
 
   Expr func_body = ir::Block::Make({allocate_output_buffer_expr, buffer_cast_expr, op->body});
 
@@ -331,12 +325,12 @@ void CodeGenC::PrintFuncArg(const ir::Argument &arg) {
       os() << "struct cinn_buffer_t *";
     }
   } else if (arg.is_scalar()) {
-    os() << PrintType(arg.type) << " ";
-    os() << arg.name;
+    os() << PrintType(arg.type()) << " ";
+    os() << arg.name();
   } else {
     NOT_IMPLEMENTED
   }
-  os() << arg.name;
+  os() << arg.name();
 }
 
 void CodeGenC::PrintRuntimeType(const cinn_type_t &type) {

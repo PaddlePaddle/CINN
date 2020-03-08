@@ -48,12 +48,16 @@ std::vector<const Expr*> _LoweredFunc_::expr_fields() const { return {&body}; }
 void _LoweredFunc_::AllocBufferForOutputs() {
   CHECK(alloc_output_buffer_exprs.empty()) << "duplicate prepare the allocate buffer for outputs";
 
+  std::set<std::string> buffer_names;
   for (auto& arg : args) {
     if (arg.is_output()) {
-      CHECK(arg.type.valid()) << "argument's type is not defined";
-      auto data = _Var_::Make(arg.name, arg.type);
-      auto expr = runtime::BufferMalloc(data);
-      alloc_output_buffer_exprs.push_back(expr);
+      CHECK(arg.type().valid()) << "argument's type is not defined";
+      if (arg.is_buffer() && !buffer_names.count(arg.name())) {  // only buffer need allocation.
+        buffer_names.insert(arg.name());                         // Avoid duplicate
+        auto data = _Var_::Make(arg.name(), arg.type());
+        auto expr = runtime::BufferMalloc(data);
+        alloc_output_buffer_exprs.push_back(expr);
+      }
     }
   }
 }
@@ -67,18 +71,18 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
   for (auto& b : buffers) {
     auto* node = b.As<ir::_Buffer_>();
     CHECK(node);
-    std::string buffer_name = b->name;
-    std::string tensor_name = BufferGetTensorName(node);
+    VLOG(3) << "b.binded_tensors " << b->binded_tensor_names().size();
+    for (auto& tensor_name : b->binded_tensor_names()) {
+      Type value_type = b->type().ElementOf();
+      value_type.set_as_cpp_handle();
+      Var value = _Var_::Make(tensor_name, value_type);
 
-    Type value_type = b->type().ElementOf();
-    value_type.set_cpp_handle();
-    Var value = _Var_::Make(tensor_name, value_type);
+      Expr body = runtime::BufferGetDataHandle(b);
 
-    Expr body = runtime::BufferGetDataHandle(b);
+      auto let = Let::Make(value, body);
 
-    auto let = Let::Make(value, body);
-
-    buffer_data_cast_exprs.push_back(let);
+      buffer_data_cast_exprs.push_back(let);
+    }
   }
 }
 
@@ -98,6 +102,26 @@ std::vector<Buffer> _LoweredFunc_::CollectAllBufferReference() const {
   }
 
   return buffers;
+}
+
+ir::Buffer Argument::buffer_arg() const {
+  CHECK(is_buffer());
+  return buffer_arg_;
+}
+
+ir::Var Argument::scalar_arg() const {
+  CHECK(is_scalar());
+  return scalar_arg_;
+}
+
+void Argument::set_buffer(const ir::Buffer& x) {
+  kind        = Kind::kBuffer;
+  buffer_arg_ = x;
+}
+
+void Argument::set_scalar(const ir::Var& x) {
+  kind        = Kind::kScalar;
+  scalar_arg_ = x;
 }
 
 }  // namespace ir

@@ -35,45 +35,9 @@ struct IrPrinter : public IRVisitor {
 
   std::ostream &os() { return os_; }
 
-  void Visit(const IntImm *x) override;
-  void Visit(const UIntImm *x) override;
-  void Visit(const FloatImm *x) override;
-  void Visit(const Add *x) override;
-  void Visit(const Sub *x) override;
-  void Visit(const Mul *x) override;
-  void Visit(const Div *x) override;
-  void Visit(const Mod *x) override;
-  void Visit(const EQ *x) override;
-  void Visit(const NE *x) override;
-  void Visit(const LT *x) override;
-  void Visit(const LE *x) override;
-  void Visit(const GT *x) override;
-  void Visit(const GE *x) override;
-  void Visit(const And *x) override;
-  void Visit(const Or *x) override;
-  void Visit(const Not *x) override;
-  void Visit(const Min *x) override;
-  void Visit(const Max *x) override;
-  void Visit(const Minus *x) override;
-  void Visit(const For *x) override;
-  void Visit(const PolyFor *x) override;
-  void Visit(const IfThenElse *x) override;
-  void Visit(const Block *x) override;
-  void Visit(const Call *x) override;
-  void Visit(const Cast *x) override;
-  void Visit(const Module *x) override;
-  void Visit(const _Var_ *x) override;
-  void Visit(const Alloc *x) override;
-  void Visit(const Select *x) override;
-  void Visit(const Load *x) override;
-  void Visit(const Store *x) override;
-  void Visit(const Free *x) override;
-  void Visit(const _Range_ *x) override;
-  void Visit(const _IterVar_ *x) override {}
-  void Visit(const _Buffer_ *x) override;
-  void Visit(const _Tensor_ *x) override;
-  void Visit(const _LoweredFunc_ *x) override;
-  void Visit(const Let *x) override;
+#define __(op__) void Visit(const op__ *x) override;
+  NODETY_FORALL(__)
+#undef __
 
  private:
   std::ostream &os_;

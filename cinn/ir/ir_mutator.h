@@ -163,6 +163,12 @@ void IRMutator<T>::Visit(const Let *expr, T op) {
   IRVisitorBase<void, T>::Visit(&node->value, &node->value);
   IRVisitorBase<void, T>::Visit(&node->body, &node->body);
 }
+template <typename T>
+void IRMutator<T>::Visit(const Reduce *expr, T op) {
+  auto *node = op->template As<Reduce>();
+  IRVisitorBase<void, T>::Visit(&node->init, &node->init);
+  IRVisitorBase<void, T>::Visit(&node->body, &node->body);
+}
 
 }  // namespace ir
 }  // namespace cinn

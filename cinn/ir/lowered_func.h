@@ -12,9 +12,6 @@ class _LoweredFunc_;
  * code.
  */
 struct Argument {
-  //! The name of the argument.
-  std::string name;
-
   enum class Kind { kScalar = 0, kBuffer };
   //! Input or output.
   enum class IO { kInput = 0, kOutput = 1 };
@@ -25,8 +22,11 @@ struct Argument {
   //! Number of the dimensions of buffer.
   uint32_t ndims{0};
 
-  //! The type of the buffer or scalar.
-  Type type;
+  //! Set the buffer field.
+  void set_buffer(const ir::Buffer& x);
+
+  //! Set the scalar field.
+  void set_scalar(const ir::Var& x);
 
   bool is_buffer() const { return kind == Kind::kBuffer; }
   bool is_scalar() const { return kind == Kind::kScalar; }
@@ -34,12 +34,47 @@ struct Argument {
   bool is_input() const { return io == IO::kInput; }
   bool is_output() const { return io == IO::kOutput; }
 
-  Argument() {}
-  Argument(const std::string& name, Kind kind, const Type& type, int ndims, IO io = IO::kInput)
-      : name(name), kind(kind), type(type), ndims(ndims), io(io) {}
+  Argument() = default;
+  Argument(const ir::Buffer& buffer, IO io = IO::kInput) {
+    set_buffer(buffer);
+    this->io    = io;
+    this->ndims = buffer->shape.size();
+  }
 
-  explicit Argument(const ir::Buffer& buffer, IO io = IO::kInput)
-      : name(buffer->name), type(buffer->type()), ndims(buffer->shape.size()), io(io) {}
+  Argument(const ir::Var& var, IO io = IO::kInput) {
+    set_scalar(var);
+    this->io    = io;
+    this->ndims = 1;
+  }
+
+  ir::Buffer buffer_arg() const;
+  ir::Var scalar_arg() const;
+
+  //! The type of the buffer or scalar.
+  Type type() const {
+    if (is_scalar())
+      return scalar_arg()->type();
+    else if (is_buffer())
+      return buffer_arg()->type();
+    else
+      NOT_IMPLEMENTED
+  }
+
+  const std::string& name() const {
+    if (is_buffer())
+      return buffer_arg()->name;
+    else if (is_scalar())
+      return scalar_arg()->name;
+    else
+      NOT_IMPLEMENTED
+    return "";
+  }
+
+ private:
+  //! The buffer field.
+  ir::Buffer buffer_arg_;
+  //! The scalar field.
+  ir::Var scalar_arg_;
 };
 
 //! Wrapper for _LoweredFunc_

@@ -35,7 +35,6 @@ Buffer _Buffer_::Make(Var data,
                       Target target) {
   CHECK(dtype.valid());
   auto *node           = common::make_shared<_Buffer_>();
-  node->tensor_addr    = data;
   node->shape          = shape;
   node->strides        = strides;
   node->elem_offset    = elem_offset;
@@ -66,11 +65,10 @@ IrNodeTy _Buffer_::node_type() const { return _node_type_; }
 void _Buffer_::BindTo(const Tensor &tensor) { BindTo(tensor.As<_Tensor_>()); }
 
 void _Buffer_::BindTo(const _Tensor_ *tensor) {
-  name = TensorGetBufferName(tensor);
+  if (name.empty()) name = TensorGetBufferName(tensor);
   CHECK(!tensor->shape.empty()) << "Tensor should have shape to bind to a Buffer";
   shape = tensor->shape;
-  if (!tensor_addr.defined()) tensor_addr = _Var_::Make(tensor->name, tensor->type()).As<ir::_Var_>();
-  bound_tensors_names_.insert(tensor->name);
+  binded_tensors_names_.insert(tensor->name);
 }
 
 Expr Buffer::LoadExpr(const std::vector<Expr> &indice) const {
@@ -97,7 +95,8 @@ Expr Buffer::AbsOffset(const std::vector<Expr> &indice) const {
 
 Expr Buffer::DestroyExpr() const {
   auto *node = operator->();
-  return ir::Call::Make(Void(), runtime::buffer_destroy, {node->tensor_addr}, Call::CallType::Intrinsic);
+  return ir::Call::Make(
+      Void(), runtime::buffer_destroy, {ir::_Var_::Make(node->name, node->type())}, Call::CallType::Intrinsic);
 }
 
 }  // namespace ir
