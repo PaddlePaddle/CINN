@@ -17,48 +17,6 @@ Expr CreateCall(const std::string& name, const std::vector<Expr>& args) {
   return expr;
 }
 
-TEST(Stage, input_statements) {
-  auto ctx = Context::Global().isl_ctx();
-  // create call (for tensor);
-  Var i("i"), j("j"), k("k");
-  std::vector<Expr> args({Expr(i), Expr(j), Expr(k)});
-
-  lang::Buffer A_arr(Float(32), "A"), B_arr(Float(32), "B"), C_arr(Float(32), "C");
-  Expr A_call = CreateCall("A", args);
-  Expr B_call = CreateCall("B", args);
-  Expr C_call = CreateCall("C", args);
-
-  // A[] = B[] + 1
-  Expr A_expr = ir::Store::Make(Expr(A_arr.buffer()), Expr(1.f), Expr(i));
-  Expr B_expr = ir::Store::Make(Expr(B_arr.buffer()), A_call + 1.f, Expr(i));
-  Expr C_expr = ir::Store::Make(Expr(C_arr.buffer()), B_call + A_call, Expr(i));
-
-  // create stages
-  auto A_stage = Stage::New(isl::set(ctx, "{ A[i,j,k]: 0<=i,j,k<100 }"), A_expr);
-  auto B_stage = Stage::New(isl::set(ctx, "{ B[i,j,k]: 0<=i,j,k<100 }"), B_expr);
-  auto C_stage = Stage::New(isl::set(ctx, "{ C[i,j,k]: 0<=i,j,k<100 }"), C_expr);
-
-  LOG(INFO) << "A expr " << A_stage->expr();
-  LOG(INFO) << "B expr " << B_stage->expr();
-  LOG(INFO) << "C expr " << C_stage->expr();
-
-  auto A_deps = A_stage->input_statements();
-  auto B_deps = B_stage->input_statements();
-  auto C_deps = C_stage->input_statements();
-
-  std::set<std::string> A_target_deps;
-  std::set<std::string> B_target_deps({"A"});
-  std::set<std::string> C_target_deps({"A", "B"});
-
-  EXPECT_EQ(A_deps.size(), A_target_deps.size());
-  EXPECT_EQ(B_deps.size(), B_target_deps.size());
-  EXPECT_EQ(C_deps.size(), C_target_deps.size());
-
-  for (auto& x : A_deps) EXPECT_TRUE(A_target_deps.count(x));
-  for (auto& x : B_deps) EXPECT_TRUE(B_target_deps.count(x));
-  for (auto& x : C_deps) EXPECT_TRUE(C_target_deps.count(x));
-}
-
 TEST(Stage, split) {
   isl::ctx ctx(isl_ctx_alloc());
   isl::set domain(ctx, "{ S[i,j]: 0<=i,j<=100 }");

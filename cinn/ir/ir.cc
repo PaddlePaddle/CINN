@@ -182,10 +182,10 @@ IfThenElse::IfThenElse(Expr condition, Expr true_case, Expr false_case)
 std::vector<Expr *> IfThenElse::expr_fields() { return {&condition, &true_case, &false_case}; }
 std::vector<const Expr *> IfThenElse::expr_fields() const { return {&condition, &true_case, &false_case}; }
 
-Expr Store::Make(Expr buffer, Expr value, Expr index) {
-  CHECK(buffer.As<_Buffer_>()) << "buffer should be _Buffer_ type";
+Expr Store::Make(Expr tensor, Expr value, Expr index) {
+  CHECK(tensor.As<_Tensor_>()) << "tensor should be _Tensor_ type";
   auto node    = make_shared<Store>();
-  node->buffer = buffer;
+  node->tensor = tensor;
   node->value  = value;
   node->index  = index;
   return Expr(node);
@@ -319,9 +319,15 @@ Var &Var::operator=(const _Var_ *x) {
   return *this;
 }
 
-Load::Load(Expr buffer, Expr index) : ExprNode<Load>(buffer->type().ElementOf()), buffer(buffer), index(index) {
-  CHECK(buffer.As<_Buffer_>());
-  CHECK(index->type() == Int(32));
+Expr Load::Make(Expr tensor, Expr index) {
+  CHECK(tensor.As<ir::_Tensor_>()) << "Load's address should be a tensor";
+  CHECK(tensor->type().valid());
+  CHECK(index.type().is_int(32));
+  auto node    = make_shared<Load>();
+  node->tensor = tensor;
+  node->index  = index;
+  node->set_type(tensor->type().ElementOf());
+  return Expr(node);
 }
 
 }  // namespace ir

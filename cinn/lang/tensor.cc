@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "cinn/common/common.h"
+#include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
@@ -88,8 +89,7 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   } else {
     CHECK(node->buffer.defined()) << utils::StringFormat("Buffer for [%s] should be defined so that it can be sliced",
                                                          node->name.c_str());
-    ir::Buffer buffer_handle(node->buffer);
-    return buffer_handle.LoadExpr(indices);
+    return Load::Make(*this, node->AbsOffset(indices));
   }
 }
 
@@ -217,7 +217,7 @@ Expr _Tensor_::body() const {
   NOT_IMPLEMENTED;
 }
 
-Expr _Tensor_::tensor_store_expanded_body() const {
+Expr _Tensor_::tensor_store_expanded_body() {
   CHECK(!is_placeholder_node()) << "placeholder should not expand store";
 
   CHECK_EQ(domain.size(), axis.size());
@@ -230,17 +230,37 @@ Expr _Tensor_::tensor_store_expanded_body() const {
     if (i != reduce_axis) axis_.push_back(Expr(axis[i]));
   }
 
-  return ir::Store::Make(Expr(buffer), body(), detail::ExpandTo1DIndice(shape, axis_));
+  return ir::Store::Make(Expr(Buffer(this)), body(), detail::ExpandTo1DIndice(shape, axis_));
 }
 
 void _Tensor_::Bind(lang::Buffer &buffer) {
-  buffer->BindTo(this);
+  buffer.buffer()->BindTo(this);
+  CHECK(!buffer->binded_tensor_names().empty());
   this->buffer = buffer.buffer();
   CHECK(this->buffer.defined());
   CHECK(!inlined());
 
   // Reset stage to nullptr.
   InitStage();
+}
+
+void _Tensor_::set_reduce_axis(int v) {
+  CHECK_EQ(reduce_axis, -1) << "duplicate set reduce_axis";
+  CHECK(!domain.empty()) << "Shape is not set";
+  CHECK_GE(v, 0);
+  CHECK_LT(v, domain.size());
+  reduce_axis = v;
+}
+
+Expr _Tensor_::AbsOffset(const std::vector<Expr> &indice) const {
+  CHECK(!shape.empty());
+  CHECK_EQ(shape.size(), indice.size()) << "shape and indice not match";
+  Expr res = indice.front() * shape[1];
+  for (int i = 1; i < shape.size() - 1; i++) {
+    res = res + indice[i] * shape[i + 1];
+  }
+  if (shape.size() > 1) res = res + indice.back();
+  return res;
 }
 
 void Tensor::ExpandInlined() {

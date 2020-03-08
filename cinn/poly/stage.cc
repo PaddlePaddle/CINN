@@ -143,7 +143,11 @@ std::vector<std::string> Stage::input_statements() const {
   auto load_exprs = ir::CollectIRNodes(expr_, [](const Expr *x) { return x->As<ir::Load>(); });
   std::set<std::string> statements;
   for (auto &expr : load_exprs) {
-    auto tensor_name = ir::BufferGetTensorName(expr.As<ir::Load>()->buffer.As<ir::_Buffer_>());
+    auto *load_node = expr.As<ir::Load>();
+    CHECK(load_node);
+    auto *tensor = load_node->tensor.As<ir::_Tensor_>();
+    CHECK(tensor);
+    auto tensor_name = tensor->name;
     if (tensor_name != id()) statements.insert(tensor_name);
   }
   return std::vector<std::string>(statements.begin(), statements.end());

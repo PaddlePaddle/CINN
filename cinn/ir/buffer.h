@@ -5,13 +5,11 @@
 
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
-#include "cinn/ir/node.h"
 
 namespace cinn {
 namespace ir {
 
 class _Buffer_;
-class Buffer;
 class Tensor;
 class _Tensor_;
 
@@ -36,6 +34,7 @@ class Buffer : public IrNodeRef {
  public:
   Buffer() = default;
   explicit Buffer(IrNode* n) : IrNodeRef(n) {}
+  operator Expr() const { return Expr(get()); }
 
   //! Some expressions on operating the buffer.
   //! All the IR-wise operations are collected below.
@@ -44,9 +43,9 @@ class Buffer : public IrNodeRef {
   //! Expression to destroy the buffer.
   Expr DestroyExpr() const;
   //! Expression to load a element from a buffer.
-  Expr LoadExpr(const std::vector<Expr>& indice) const;
+  // Expr LoadExpr(const std::vector<Expr>& indice) const;
   //! Expression to store a value to a position in a buffer.
-  Expr StoreExpr(const std::vector<Expr>& indice, Expr value) const;
+  // Expr StoreExpr(const std::vector<Expr>& indice, Expr value) const;
   // @}
 
   const _Buffer_* operator->() const;
@@ -59,8 +58,6 @@ class Buffer : public IrNodeRef {
 
 class _Buffer_ : public ExprNode<_Buffer_> {
  public:
-  //! The pointer to the memory of the data.
-  Var tensor_addr;
   //! The shape of the buffer.
   std::vector<Expr> shape;
   //! The strides of each dimension.
@@ -96,9 +93,8 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   static Buffer Make(const std::string& name, const std::vector<Expr>& shape = {});
 
   static Buffer Make(const std::string& name, Type type) {
-    auto n         = make_shared<_Buffer_>();
-    n->name        = name;
-    n->tensor_addr = ir::_Var_::Make(name, type);
+    auto n  = make_shared<_Buffer_>();
+    n->name = name;
     n->set_type(type);
     return Buffer(n);
   }
@@ -109,19 +105,20 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   void BindTo(const Tensor& tensor);
   void BindTo(const _Tensor_* tensor);
 
-  Var buffer_addr() const {
-    auto thetype = type().ElementOf();
-    thetype.set_cpp_handle();
-    return _Var_::Make(name, thetype);
-  }
+  const std::set<std::string>& binded_tensor_names() const { return binded_tensors_names_; }
+
+  Var buffer_addr() const;
 
   void Accept(IRVisitor* v) const override;
   IrNodeTy node_type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Buffer_;
 
+  // Copy the meta info to other.
+  void CopyMeta(_Buffer_* other) const { other->binded_tensors_names_ = binded_tensors_names_; }
+
  private:
-  std::set<std::string> bound_tensors_names_;
+  std::set<std::string> binded_tensors_names_;
 };
 
 }  // namespace ir

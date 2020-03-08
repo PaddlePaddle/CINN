@@ -1,7 +1,5 @@
 #include "cinn/lang/lower.h"
 
-#include <cinn/ir/ir_mutator.h>
-
 #include <map>
 #include <set>
 
@@ -9,6 +7,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_call_with_expr.h"
+#include "cinn/optim/tensor_write_tell.h"
 #include "cinn/poly/ast_gen.h"
 
 namespace cinn {
@@ -40,44 +39,31 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
     for (auto& item : axis_ast_map) {
       poly::IslAstExprToCinnExpr(item.second, &axis[item.first]);
     }
+    VLOG(3) << "replacing " << statement.first << " to " << statement_candi_expr;
     optim::ReplaceCallWithExpr(&e, statement.first, statement_candi_expr, axis);
   }
 
   return e;
 }
 
-namespace {
-
-struct WriteTeller : public ir::IRMutator<const Expr*> {
-  std::set<std::string> buffer_written;
-
-  void Visit(const Expr* expr, const Expr* op) override { IRMutator::Visit(expr, op); }
-
-  void Visit(const ir::Load* expr, const Expr* op) override {
-    auto* node = op->As<ir::Load>();
-    CHECK(node);
-    auto* buffer = node->buffer.As<ir::_Buffer_>();
-    CHECK(buffer);
-    buffer_written.insert(buffer->name);
-    IRMutator::Visit(expr, op);
-  }
-};
-
-}  // namespace
-
 std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensors, const std::vector<Expr>& func_body) {
   std::vector<ir::Argument> args;
-  WriteTeller teller;
-  for (auto& expr : func_body) teller.Visit(&expr, &expr);
+  optim::TensorWriteTeller teller;
+  for (auto& expr : func_body) teller.Collect(&expr);
 
+  std::set<std::string> arg_names;
   for (auto& tensor : tensors) {
-    bool is_input     = teller.buffer_written.count(tensor->name);
     auto* tensor_node = tensor.As<ir::_Tensor_>();
-    args.emplace_back(ir::TensorGetBufferName(tensor_node),
-                      ir::Argument::Kind::kBuffer,
-                      tensor->type().ElementOf(),
-                      tensor->shape.size(),
-                      is_input ? ir::Argument::IO::kInput : ir::Argument::IO::kOutput);
+    CHECK(!tensor_node->inlined());
+    bool is_output = teller.IsWrite(tensor->name);
+
+    // avoid duplicate
+    if (arg_names.count(tensor_node->buffer->name)) continue;
+    arg_names.insert(tensor_node->buffer->name);
+
+    auto io = is_output ? ir::Argument::IO::kOutput : ir::Argument::IO::kInput;
+    VLOG(3) << "Collect " << (is_output ? "W" : "R") << " argument " << tensor->buffer->name;
+    args.emplace_back(tensor_node->buffer, io);
   }
   return args;
 }

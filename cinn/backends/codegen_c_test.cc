@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <sstream>
+#include <tuple>
 
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
@@ -35,6 +36,8 @@ TEST(CodeGenC, module) {
   lang::Buffer C_buf(Float(32));
   std::tie(A, B, C, C_buf) = CreateTensor1();
 
+  LOG(INFO) << "C.body: " << C->get_compute_op()->body.front();
+
   Target target;
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
@@ -56,14 +59,12 @@ TEST(CodeGenC, module) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
-void add1(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
 {
-  cinn_buffer_malloc((void*)(0), _A);
-  cinn_buffer_malloc((void*)(0), _B);
   cinn_buffer_malloc((void*)(0), _C);
-  float* A = (float*)(cinn_buffer_get_data_handle(_A));
-  float* B = (float*)(cinn_buffer_get_data_handle(_B));
+  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
+  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
   for (int32_t i = 0; (i <= 99); i += 1){
     for (int32_t j = 0; (j <= 19); j += 1){
@@ -86,7 +87,7 @@ void add1(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-void add1(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer_t *_C);
+void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C);
 
 
 #endif  // _MODULE1_CINN_H_
@@ -146,15 +147,13 @@ TEST(CodeGenC, module_with_transform) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
-void add1(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer_t *_C, struct cinn_buffer_t *_D)
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C, struct cinn_buffer_t *_D)
 {
-  cinn_buffer_malloc((void*)(0), _A);
-  cinn_buffer_malloc((void*)(0), _B);
   cinn_buffer_malloc((void*)(0), _C);
   cinn_buffer_malloc((void*)(0), _D);
-  float* A = (float*)(cinn_buffer_get_data_handle(_A));
-  float* B = (float*)(cinn_buffer_get_data_handle(_B));
+  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
+  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
   float* D = (float*)(cinn_buffer_get_data_handle(_D));
   for (int32_t i_outer = 0; (i_outer <= 24); i_outer += 1){
@@ -213,14 +212,12 @@ TEST(CodeGenC, mat_mul) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
-void matmul(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
 {
-  cinn_buffer_malloc((void*)(0), _A);
-  cinn_buffer_malloc((void*)(0), _B);
   cinn_buffer_malloc((void*)(0), _C);
-  float* A = (float*)(cinn_buffer_get_data_handle(_A));
-  float* B = (float*)(cinn_buffer_get_data_handle(_B));
+  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
+  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
   for (int32_t i = 0; (i <= 99); i += 1){
     for (int32_t j = 0; (j <= 19); j += 1){
@@ -277,16 +274,14 @@ TEST(CodeGenC, matmul_with_packed) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
-cinn_buffer_t* PackedB = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
-void matmul_with_packing(struct cinn_buffer_t *_A, struct cinn_buffer_t *_B, struct cinn_buffer_t *_PackedB, struct cinn_buffer_t *_C)
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+cinn_buffer_t* _PackedB = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+void matmul_with_packing(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_PackedB, struct cinn_buffer_t *_C)
 {
-  cinn_buffer_malloc((void*)(0), _A);
-  cinn_buffer_malloc((void*)(0), _B);
   cinn_buffer_malloc((void*)(0), _PackedB);
   cinn_buffer_malloc((void*)(0), _C);
-  float* A = (float*)(cinn_buffer_get_data_handle(_A));
-  float* B = (float*)(cinn_buffer_get_data_handle(_B));
+  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
+  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
   float* PackedB = (float*)(cinn_buffer_get_data_handle(_PackedB));
   for (int32_t i = 0; (i <= 11); i += 1){

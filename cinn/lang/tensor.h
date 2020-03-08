@@ -9,16 +9,14 @@
 #include <vector>
 
 #include "cinn/common/graph_utils.h"
+#include "cinn/ir/buffer.h"
 #include "cinn/ir/function_base.h"
-#include "cinn/ir/ir.h"
 #include "cinn/lang/buffer.h"
 
 namespace cinn {
 
 namespace poly {
-
 struct Stage;
-
 }  // namespace poly
 
 namespace ir {
@@ -140,13 +138,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Bind to a buffer, will persist data to the buffer in runtime.
   void Bind(lang::Buffer& buffer);
 
-  void set_reduce_axis(int v) {
-    CHECK_EQ(reduce_axis, -1) << "duplicate set reduce_axis";
-    CHECK(!domain.empty()) << "Shape is not set";
-    CHECK_GE(v, 0);
-    CHECK_LT(v, domain.size());
-    reduce_axis = v;
-  }
+  void set_reduce_axis(int v);
 
   //! Operation related.
   // @{
@@ -160,7 +152,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! The expression generate this tensor, will be empty if it is a PlaceHolder.
   Expr body() const;
   //! Get the expression with `store(tensor)` inserted into the body.
-  Expr tensor_store_expanded_body() const;
+  Expr tensor_store_expanded_body();
 
   Expr inline_expanded(const std::vector<Expr>& indices);
 
@@ -172,6 +164,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   _Tensor_() : ExprNode<_Tensor_>(Float(32)) {}
 
   ~_Tensor_();
+
+  Expr AbsOffset(const std::vector<Expr>& indice) const;
 
  private:
   //! Create the polyhedral element for analysis.

@@ -54,6 +54,11 @@ void* cinn_buffer_get_data_handle(struct cinn_buffer_t* buf) {
   return buf->host_memory;
 }
 
+void* cinn_buffer_get_data_const_handle(const struct cinn_buffer_t* buf) {
+  CINN_CHECKP(buf, "%s", "buffer is null");
+  return buf->host_memory;
+}
+
 cinn_type_t cinn_unk_t() { return cinn_type_t(cinn_type_unk, 0); }
 cinn_type_t cinn_int32_t() { return cinn_type_t(cinn_type_int, 32); }
 cinn_type_t cinn_int64_t() { return cinn_type_t(cinn_type_int, 64); }

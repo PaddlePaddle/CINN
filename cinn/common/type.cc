@@ -51,7 +51,7 @@ std::ostream &operator<<(std::ostream &os, Type::type_t t) {
   return os;
 }
 
-void Type::set_cpp_handle(bool x) {
+void Type::set_as_cpp_handle(bool x) {
   auto &v = (*reinterpret_cast<uint8_t *>(&cpp_type_));
   if (x)
     v |= static_cast<uint8_t>(cpp_type_t::Handle);
@@ -73,7 +73,7 @@ void Type::CheckTypeValid() const { CHECK_NE(type_, type_t::Unk); }
 
 Type Type::PointerOf() const {
   auto x = ElementOf();
-  x.set_cpp_handle();
+  x.set_as_cpp_handle();
   return x;
 }
 

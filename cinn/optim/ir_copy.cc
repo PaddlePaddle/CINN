@@ -65,16 +65,16 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
 
   Expr Visit(const Load* op) override {
     auto index  = Visit(&op->index);
-    auto buffer = Visit(&op->buffer);
+    auto buffer = Visit(&op->tensor);
     return Load::Make(buffer, index);
   }
 
   Expr Visit(const Store* op) override {
-    auto buffer = Visit(&op->buffer);
+    auto tensor = Visit(&op->tensor);
     auto value  = Visit(&op->value);
     auto index  = Visit(&op->index);
 
-    return Store::Make(op->buffer, value, index);
+    return Store::Make(tensor, value, index);
   }
 
   Expr Visit(const Alloc* op) override {
@@ -88,25 +88,48 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const Free* op) override { return Free::Make(op->var); }
 
   Expr Visit(const _Buffer_* op) override {
-    auto shape       = Visit(op->shape);
-    auto strides     = Visit(op->strides);
-    auto elem_offset = Visit(&op->elem_offset);
-    return Expr(_Buffer_::Make(op->tensor_addr,
-                               op->type(),
-                               shape,
-                               strides,
-                               elem_offset,
-                               op->name,
-                               op->scope,
-                               op->data_alignment,
-                               op->offset_factor));
+    auto shape         = Visit(op->shape);
+    auto strides       = Visit(op->strides);
+    auto name          = op->name;
+    auto scope         = op->scope;
+    int data_alignment = op->data_alignment;
+    auto elem_offset   = Visit(&op->elem_offset);
+    int offset_factor  = op->offset_factor;
+    Target target      = op->target;
+
+    auto new_node            = _Buffer_::Make(name);
+    new_node->shape          = shape;
+    new_node->strides        = strides;
+    new_node->name           = name;
+    new_node->scope          = scope;
+    new_node->data_alignment = data_alignment;
+    new_node->elem_offset    = elem_offset;
+    new_node->offset_factor  = offset_factor;
+    new_node->target         = target;
+    new_node->set_type(op->type());
+    op->CopyMeta(new_node.As<ir::_Buffer_>());
+    return Expr(ir::Buffer(new_node));
   }
 
   Expr Visit(const _Tensor_* op) override {
-    auto shape  = Visit(op->shape);
-    auto axis   = op->axis;
-    auto tensor = _Tensor_::Make(op->name, "", shape, axis, op->type(), {}, {});
-    return Expr(tensor.ptr());
+    auto shape       = Visit(op->shape);
+    auto domain      = Visit(op->domain);
+    auto axis        = op->axis;
+    auto buffer_expr = Expr(op->buffer);
+    // TODO(Superjomn) copy the operation.
+    auto operaion       = op->operaion;
+    auto name           = op->name;
+    auto buffer         = Visit(&buffer_expr);
+    int reduce_axis     = op->reduce_axis;
+    auto tensor         = make_shared<_Tensor_>();
+    tensor->domain      = domain;
+    tensor->shape       = shape;
+    tensor->axis        = axis;
+    tensor->operaion    = operaion;
+    tensor->name        = name;
+    tensor->buffer      = ir::Buffer(buffer.As<_Buffer_>());
+    tensor->reduce_axis = reduce_axis;
+    return tensor;
   }
 
   Expr Visit(const For* op) override {
@@ -138,6 +161,12 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     auto value = Visit(&op->value);
     auto body  = Visit(&op->body);
     return Let::Make(value, body);
+  }
+
+  Expr Visit(const Reduce* op) override {
+    auto init = Visit(&op->init);
+    auto body = Visit(&op->body);
+    return Reduce::Make(op->reduce_type, init, body);
   }
 
 #define OP_BINARY_HANDLE(op__)              \
