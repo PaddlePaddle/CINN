@@ -1,5 +1,7 @@
 set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
-         replace_var_with_expr.cc)
+  replace_var_with_expr.cc
+  tensor_write_tell.cc
+  )
 
 foreach(cpp ${srcs})
   set(core_src

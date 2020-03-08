@@ -58,18 +58,22 @@ std::string CodeGenC::Compile(const ir::LoweredFunc &function) {
 
 std::string CodeGenC::PrintType(Type type) {
   std::string str;
+  if (type.is_cpp_const()) {
+    str = "const ";
+  }
+
   if (type.is_int(8)) {
-    str = "int8_t";
+    str += "int8_t";
   } else if (type.is_int(32)) {
-    str = "int32_t";
+    str += "int32_t";
   } else if (type.is_int(64)) {
-    str = "int64_t";
+    str += "int64_t";
   } else if (type.is_bool()) {
-    str = "bool";
+    str += "bool";
   } else if (type.is_float(32)) {
-    str = "float";
+    str += "float";
   } else if (type.is_float(64)) {
-    str = "double";
+    str += "double";
   } else {
     LOG(ERROR) << type;
     NOT_IMPLEMENTED

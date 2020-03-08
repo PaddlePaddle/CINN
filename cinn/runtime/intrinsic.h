@@ -22,7 +22,8 @@ static const char* buffer_load = "cinn_buffer_load";
 
 static const char* buffer_malloc = "cinn_buffer_malloc";
 
-static const char* buffer_get_data_handle = "cinn_buffer_get_data_handle";
+static const char* buffer_get_data_handle       = "cinn_buffer_get_data_handle";
+static const char* buffer_get_data_const_handle = "cinn_buffer_get_data_const_handle";
 
 //! Buffer load an element of some primitive type
 // @{
@@ -47,7 +48,7 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices);
 ir::Expr BufferMalloc(ir::Buffer buffer);
 ir::Expr BufferMalloc(ir::Var buffer_var);
 
-ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_mutable = true);
+ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_const = true);
 
 //! Convert the Type in compile time to runtime type.
 cinn_type_t ToRuntimeType(Type type);

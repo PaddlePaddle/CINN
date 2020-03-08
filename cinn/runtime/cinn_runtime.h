@@ -129,6 +129,7 @@ extern int cinn_buffer_free(void* context, struct cinn_buffer_t* buf);
 
 //! Get the memory address in buffer.
 extern void* cinn_buffer_get_data_handle(struct cinn_buffer_t* buf);
+extern void* cinn_buffer_get_data_const_handle(const struct cinn_buffer_t* buf);
 
 //! The raw representation of a buffer,used in the generated code/lib.
 typedef struct cinn_buffer_t {

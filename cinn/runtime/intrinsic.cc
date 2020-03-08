@@ -61,14 +61,20 @@ cinn_type_t ToRuntimeType(Type type) {
   return cinn_unk_t();
 }
 
-ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_mutable) {
+ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_const) {
   CHECK(buffer->type().valid());
   Type type = Void();
   type.set_as_cpp_handle();  // a void*
-  auto call = ir::Call::Make(type, buffer_get_data_handle, {Expr(buffer)}, ir::Call::CallType::Intrinsic);
+  type.set_cpp_const(is_const);
+  Expr call;
+  if (!is_const)
+    call = ir::Call::Make(type, buffer_get_data_handle, {Expr(buffer)}, ir::Call::CallType::Intrinsic);
+  else
+    call = ir::Call::Make(type, buffer_get_data_const_handle, {Expr(buffer)}, ir::Call::CallType::Intrinsic);
 
   Type target_type = buffer->type().ElementOf();
   target_type.set_as_cpp_handle();
+  target_type.set_cpp_const(is_const);
   auto cast = ir::Cast::Make(target_type, call);
   return cast;
 }

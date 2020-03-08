@@ -46,15 +46,15 @@ struct Type {
   void set_as_cpp_handle(bool x = true);
   bool is_cpp_handle() const { return static_cast<uint8_t>(cpp_type_) & static_cast<uint8_t>(cpp_type_t::Handle); }
 
-  void set_mutable(bool is_mutable = true) {
+  void set_cpp_const(bool is_const = true) {
     uint8_t& data = *reinterpret_cast<uint8_t*>(&cpp_type_);
-    if (is_mutable) {
+    if (is_const) {
       data |= static_cast<uint8_t>(cpp_type_t::Const);
     } else {
       data &= ~(static_cast<uint8_t>(cpp_type_t::Const));
     }
   }
-  bool is_cpp_mutable() const { return static_cast<uint8_t>(cpp_type_t::Const) & static_cast<uint8_t>(cpp_type_); }
+  bool is_cpp_const() const { return static_cast<uint8_t>(cpp_type_t::Const) & static_cast<uint8_t>(cpp_type_); }
 
   //! Getters
   // @{

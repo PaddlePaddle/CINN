@@ -1,9 +1,15 @@
 #include "cinn/ir/lowered_func.h"
 
+#include <algorithm>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "cinn/common/common.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/optim/tensor_write_tell.h"
 #include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
@@ -65,6 +71,10 @@ void _LoweredFunc_::AllocBufferForOutputs() {
 void _LoweredFunc_::AllocTempBuffer() {}
 
 void _LoweredFunc_::PrepareBufferCastExprs() {
+  // collect write.
+  optim::TensorWriteTeller write_teller;
+  write_teller.Collect(&body);
+
   auto tensors = CollectAllTensorReference();
   std::sort(tensors.begin(), tensors.end(), [](const Tensor& a, const Tensor& b) { return a->name < b->name; });
   VLOG(3) << "Function used " << tensors.size() << " buffers";
@@ -73,12 +83,14 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
     CHECK(node);
 
     Type value_type = tensor->type().ElementOf();
+    bool is_const   = !write_teller.IsWrite(tensor->name);
     value_type.set_as_cpp_handle();
-    Var value = _Var_::Make(tensor->name, value_type);
+    value_type.set_cpp_const(is_const);
+    Var variable = _Var_::Make(tensor->name, value_type);
 
-    Expr body = runtime::BufferGetDataHandle(tensor->buffer);
+    Expr body = runtime::BufferGetDataHandle(tensor->buffer, is_const);
 
-    auto let = Let::Make(value, body);
+    auto let = Let::Make(variable, body);
 
     buffer_data_cast_exprs.push_back(let);
   }

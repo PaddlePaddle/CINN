@@ -1,7 +1,5 @@
 #include "cinn/lang/lower.h"
 
-#include <cinn/ir/ir_mutator.h>
-
 #include <map>
 #include <set>
 
@@ -9,6 +7,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_call_with_expr.h"
+#include "cinn/optim/tensor_write_tell.h"
 #include "cinn/poly/ast_gen.h"
 
 namespace cinn {
@@ -47,35 +46,16 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   return e;
 }
 
-namespace {
-
-struct WriteTeller : public ir::IRMutator<const Expr*> {
-  std::set<std::string> tensor_written;
-
-  void Visit(const Expr* expr, const Expr* op) override { IRMutator::Visit(expr, op); }
-
-  void Visit(const ir::Store* expr, const Expr* op) override {
-    auto* node = op->As<ir::Store>();
-    CHECK(node);
-    auto* tensor = node->tensor.As<ir::_Tensor_>();
-    CHECK(tensor);
-    tensor_written.insert(tensor->name);
-    IRMutator::Visit(expr, op);
-  }
-};
-
-}  // namespace
-
 std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensors, const std::vector<Expr>& func_body) {
   std::vector<ir::Argument> args;
-  WriteTeller teller;
-  for (auto& expr : func_body) teller.Visit(&expr, &expr);
+  optim::TensorWriteTeller teller;
+  for (auto& expr : func_body) teller.Collect(&expr);
 
   std::set<std::string> arg_names;
   for (auto& tensor : tensors) {
     auto* tensor_node = tensor.As<ir::_Tensor_>();
     CHECK(!tensor_node->inlined());
-    bool is_output = teller.tensor_written.count(tensor->name);
+    bool is_output = teller.IsWrite(tensor->name);
 
     // avoid duplicate
     if (arg_names.count(tensor_node->buffer->name)) continue;
