@@ -4,7 +4,7 @@
 namespace cinn {
 namespace lang {
 
-Expr ReduceSum(Expr body, Var axis);
+Expr Sum(Expr body, Var reduce_axis);
 
 }  // namespace lang
 }  // namespace cinn

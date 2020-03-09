@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 
+#include "cinn/common/common.h"
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
 #include "cinn/common/type.h"
@@ -222,7 +223,9 @@ struct Expr : public IrNodeRef {
   //! Helper function to construct numeric constants of various types.
   // @{
   explicit Expr(int32_t x) : IrNodeRef(new IntImm(Int(32), x)) {}
+  explicit Expr(uint32_t x) : IrNodeRef(new IntImm(UInt(32), x)) {}
   explicit Expr(int64_t x) : IrNodeRef(new IntImm(Int(64), x)) {}
+  explicit Expr(uint64_t x) : IrNodeRef(new IntImm(UInt(64), x)) {}
   explicit Expr(float x) : IrNodeRef(new FloatImm(Float(32), x)) {}
   explicit Expr(double x) : IrNodeRef(new FloatImm(Float(64), x)) {}
   // @}
@@ -278,6 +281,9 @@ struct BinaryOpNode : public ExprNode<T>, public BinaryArguHolder {
 
   bool is_binary_op() const override { return true; }
 };
+
+//! Zero in CINN type system.
+Expr Zero(const Type& type);
 
 enum class DeviceAPI {
   UNK,

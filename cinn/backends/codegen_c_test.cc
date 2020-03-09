@@ -5,6 +5,7 @@
 #include <sstream>
 #include <tuple>
 
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
 #include "cinn/lang/module.h"
@@ -189,7 +190,7 @@ TEST(CodeGenC, matmul) {
   Var k(20, "k");
 
   Tensor C = Compute(
-      {100, 50}, [&](Var i, Var j) { return A(i, k) * B(k, j); }, "C", k);
+      {100, 50}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j), k); }, "C", k);
   C->Bind(C_buf);
 
   // Code gen
@@ -223,7 +224,7 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   for (int32_t i = 0; (i <= 99); i += 1){
     for (int32_t j = 0; (j <= 49); j += 1){
       for (int32_t k = 0; (k <= 19); k += 1){
-        C[((i * 50) + j)] = (A[((i * 20) + k)] * B[((k * 50) + j)]);
+        C[((i * 50) + j)] = (C[((i * 50) + j)] + (A[((i * 20) + k)] * B[((k * 50) + j)]));
       };
     };
   };

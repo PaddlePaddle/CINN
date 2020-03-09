@@ -226,8 +226,21 @@ Expr _Tensor_::tensor_store_expanded_body() {
   for (int i = 0; i < axis.size(); i++) {
     axis_.push_back(Expr(axis[i]));
   }
+  Expr final_body = body();
 
-  return ir::Store::Make(Expr(Buffer(this)), body(), detail::ExpandTo1DIndice(shape, axis_));
+  auto *reduce_node = body().As<ir::Reduce>();
+  if (reduce_node) {
+    final_body = reduce_node->body;
+    switch (reduce_node->reduce_type) {
+      case ir::Reduce::kSum:
+        final_body = Tensor(this)(axis_) + final_body;
+        break;
+      default:
+        NOT_IMPLEMENTED
+    }
+  }
+
+  return ir::Store::Make(Expr(Buffer(this)), final_body, detail::ExpandTo1DIndice(shape, axis_));
 }
 
 void _Tensor_::Bind(lang::Buffer &buffer) {
