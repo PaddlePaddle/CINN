@@ -348,6 +348,13 @@ TEST(CodeGenC, matmul_packed) {
       {M, N}, [&](Expr i, Expr j) { return A(i, k) * packedB(j / bn, k, j % bn); }, "C", k);
   C->Bind(C_buf);
 
+  {
+    poly::Iterator i_outer, i_inner, j_outer, j_inner, k_outer, k_inner;
+    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
+    std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k"), 4);
+    C->stage()->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
+  }
+
   // Code gen
   auto funcs = Lower("matmul_with_packing", {A, B, packedB, C});
   ASSERT_EQ(funcs.size(), 1UL);
@@ -387,10 +394,16 @@ void matmul_with_packing(const struct cinn_buffer_t *_A, const struct cinn_buffe
       };
     };
   };
-  for (int32_t i = 0; (i <= 99); i += 1){
-    for (int32_t j = 0; (j <= 499); j += 1){
-      for (int32_t k = 0; (k <= 199); k += 1){
-        C[((i * 500) + j)] = (A[((i * 200) + k)] * PackedB[(((((j / 32) * 200) * 32) + (k * 32)) + (j % 32))]);
+  for (int32_t i_outer = 0; (i_outer <= 3); i_outer += 1){
+    for (int32_t j_outer = 0; (j_outer <= 15); j_outer += 1){
+      for (int32_t i_inner = 0; (i_inner <= min(31, ((-32 * i_outer) + 99))); i_inner += 1){
+        for (int32_t j_inner = 0; (j_inner <= min(31, ((-32 * j_outer) + 499))); j_inner += 1){
+          for (int32_t k_outer = 0; (k_outer <= 49); k_outer += 1){
+            for (int32_t k_inner = 0; (k_inner <= 3); k_inner += 1){
+              C[((((32 * i_outer) + i_inner) * 500) + ((32 * j_outer) + j_inner))] = (A[((((32 * i_outer) + i_inner) * 200) + ((4 * k_outer) + k_inner))] * PackedB[(((((((32 * j_outer) + j_inner) / 32) * 200) * 32) + (((4 * k_outer) + k_inner) * 32)) + (((32 * j_outer) + j_inner) % 32))]);
+            };
+          };
+        };
       };
     };
   };
