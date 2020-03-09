@@ -62,7 +62,7 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
       auto* node0 = node;
       auto* node1 = name2node[compute_at.stage->id()];
       VLOG(3) << "a -> b: " << node0->id() << " -> " << node1->id();
-      CHECK(node0->IsLinkedTo(node1)) << "ComputeAt should have data dependency";
+      // CHECK(node0->IsLinkedTo(node1)) << "ComputeAt should have data dependency";
 
       node0->group_parent = node1->group_parent ? node1->group_parent : node1;
 

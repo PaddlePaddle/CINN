@@ -189,12 +189,17 @@ TEST(CodeGenC, matmul) {
   lang::Buffer C_buf(Float(32));
   Var k(20, "k");
 
+  Tensor C_init = Compute(
+      {100, 50}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
+
   Tensor C = Compute(
       {100, 50}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j), k); }, "C", k);
   C->Bind(C_buf);
+  C_init->Bind(C_buf);
+  C_init->stage()->ComputeAt(C->stage(), 1);
 
   // Code gen
-  auto funcs = Lower("matmul", {A, B, C});
+  auto funcs = Lower("matmul", {A, B, C_init, C});
   ASSERT_EQ(funcs.size(), 1UL);
 
   Target target;
@@ -221,8 +226,10 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  float* C_init = (float*)(cinn_buffer_get_data_handle(_C));
   for (int32_t i = 0; (i <= 99); i += 1){
     for (int32_t j = 0; (j <= 49); j += 1){
+      C_init[((i * 50) + j)] = 0;
       for (int32_t k = 0; (k <= 19); k += 1){
         C[((i * 50) + j)] = (C[((i * 50) + j)] + (A[((i * 20) + k)] * B[((k * 50) + j)]));
       };
