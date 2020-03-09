@@ -220,14 +220,11 @@ Expr _Tensor_::body() const {
 Expr _Tensor_::tensor_store_expanded_body() {
   CHECK(!is_placeholder_node()) << "placeholder should not expand store";
 
-  CHECK_EQ(domain.size(), axis.size());
-  if (reduce_axis != -1) {
-    CHECK_EQ(shape.size() + 1, axis.size());
-  }
+  CHECK_EQ(shape.size(), axis.size());
 
   std::vector<Expr> axis_;
   for (int i = 0; i < axis.size(); i++) {
-    if (i != reduce_axis) axis_.push_back(Expr(axis[i]));
+    axis_.push_back(Expr(axis[i]));
   }
 
   return ir::Store::Make(Expr(Buffer(this)), body(), detail::ExpandTo1DIndice(shape, axis_));
@@ -242,14 +239,6 @@ void _Tensor_::Bind(lang::Buffer &buffer) {
 
   // Reset stage to nullptr.
   InitStage();
-}
-
-void _Tensor_::set_reduce_axis(int v) {
-  CHECK_EQ(reduce_axis, -1) << "duplicate set reduce_axis";
-  CHECK(!domain.empty()) << "Shape is not set";
-  CHECK_GE(v, 0);
-  CHECK_LT(v, domain.size());
-  reduce_axis = v;
 }
 
 Expr _Tensor_::AbsOffset(const std::vector<Expr> &indice) const {

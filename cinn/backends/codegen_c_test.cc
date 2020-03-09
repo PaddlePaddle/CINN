@@ -178,7 +178,7 @@ void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct
   ASSERT_EQ(utils::Trim(tgt), utils::Trim(out));
 }
 
-TEST(CodeGenC, mat_mul) {
+TEST(CodeGenC, matmul) {
   using namespace ir;
 
   Placeholder<float> A("A", {100, 20});
@@ -186,9 +186,10 @@ TEST(CodeGenC, mat_mul) {
 
   // C = A * B
   lang::Buffer C_buf(Float(32));
+  Var k(20, "k");
 
   Tensor C = Compute(
-      {100, 20, 50}, [&](Var i, Var k, Var j) { return A(i, k) * B(k, j); }, "C", 1);
+      {100, 50}, [&](Var i, Var j) { return A(i, k) * B(k, j); }, "C", k);
   C->Bind(C_buf);
 
   // Code gen
@@ -220,9 +221,9 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
   for (int32_t i = 0; (i <= 99); i += 1){
-    for (int32_t j = 0; (j <= 19); j += 1){
-      for (int32_t k = 0; (k <= 49); k += 1){
-        C[((i * 50) + k)] = (A[((i * 20) + j)] * B[((j * 50) + k)]);
+    for (int32_t j = 0; (j <= 49); j += 1){
+      for (int32_t k = 0; (k <= 19); k += 1){
+        C[((i * 50) + j)] = (A[((i * 20) + k)] * B[((k * 50) + j)]);
       };
     };
   };
@@ -244,13 +245,13 @@ TEST(CodeGenC, matmul_with_packed) {
   lang::Buffer C_buf(Float(32));
 
   // TODO(Superjomn) Make sure the domain works.
+  Var k(K, "k");
   auto packedB = Compute(
-      {N / bn, K, bn}, [&](Expr i, Expr j, Expr k) { return B(j, i * bn + k); }, "PackedB");
+      {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "PackedB");
   packedB->Bind(packedB_buf);
   auto C = Compute(
-      {M, N, K}, [&](Expr i, Expr j, Expr k) { return A(i, k) * packedB(j / bn, k, j % bn); }, "C", 2 /*reduce axis*/);
+      {M, N}, [&](Expr i, Expr j) { return A(i, k) * packedB(j / bn, k, j % bn); }, "C", k);
   C->Bind(C_buf);
-  // packedB->stage()->ComputeAt(C->stage(), 1);
 
   // Code gen
   auto funcs = Lower("matmul_with_packing", {A, B, packedB, C});

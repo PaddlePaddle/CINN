@@ -104,7 +104,13 @@ void IRMutator<T>::Visit(const Call *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const Module *expr, T op) {}
 template <typename T>
-void IRMutator<T>::Visit(const _Var_ *expr, T op) {}
+void IRMutator<T>::Visit(const _Var_ *expr, T op) {
+  auto *node = op->template As<ir::_Var_>();
+  if (expr->is_reduce_axis) {
+    IRVisitorBase<void, T>::Visit(&node->lower_bound, &node->lower_bound);
+    IRVisitorBase<void, T>::Visit(&node->upper_bound, &node->upper_bound);
+  }
+}
 template <typename T>
 void IRMutator<T>::Visit(const Load *expr, T op) {
   auto *node = op->template As<Load>();
