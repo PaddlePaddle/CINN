@@ -102,11 +102,13 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   void* stage_shared{};
 
  public:
-  //! Shape of this tensor.
+  //! Shape of this tensor(buffer).
   std::vector<Expr> shape;
-  //! The domain of each axis, TODO(Superjomn) support ISL domain.
+  //! The domain of each axis.
+  // TODO(Superjomn) support ISL domain.
   std::vector<Expr> domain;
   //! Tensor axis.
+  // TODO(Superjomn) seems not needed, to be discarded latter.
   std::vector<Var> axis;
   //! The operation that generates Tensor.
   FunctionRef operaion;
@@ -151,6 +153,9 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   Expr tensor_store_expanded_body();
 
   Expr inline_expanded(const std::vector<Expr>& indices);
+
+  //! Tell whether contain a reduce axis.
+  bool contains_reduce_axis() const { return shape.size() == domain.size(); }
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
