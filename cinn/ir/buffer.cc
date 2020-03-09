@@ -1,6 +1,7 @@
 #include "cinn/ir/buffer.h"
 
 #include "cinn/common/common.h"
+#include "cinn/common/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/runtime/intrinsic.h"
@@ -75,31 +76,6 @@ Var _Buffer_::buffer_addr() const {
   auto thetype = type().ElementOf();
   thetype.set_as_cpp_handle();
   return _Var_::Make(name, thetype);
-}
-
-/*
-Expr Buffer::LoadExpr(const std::vector<Expr> &indice) const {
-  NOT_IMPLEMENTED
-  auto *node = operator->();
-  return Load::Make(Expr(*this), AbsOffset(indice));
-}
-
-Expr Buffer::StoreExpr(const std::vector<Expr> &indice, Expr value) const {
-  auto *node = operator->();
-  return Store::Make(Expr(*this), value, AbsOffset(indice));
-}
-*/
-
-Expr Buffer::AbsOffset(const std::vector<Expr> &indice) const {
-  auto *node = operator->();
-  CHECK(!node->shape.empty());
-  CHECK_EQ(node->shape.size(), indice.size()) << "shape and indice not match";
-  Expr res = indice.front() * node->shape[1];
-  for (int i = 1; i < node->shape.size() - 1; i++) {
-    res = res + indice[i] * node->shape[i + 1];
-  }
-  if (node->shape.size() > 1) res = res + indice.back();
-  return res;
 }
 
 Expr Buffer::DestroyExpr() const {

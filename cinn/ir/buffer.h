@@ -50,10 +50,6 @@ class Buffer : public IrNodeRef {
 
   const _Buffer_* operator->() const;
   _Buffer_* operator->();
-
- protected:
-  //! Get a 1-dimension offset given multi-dimension indices.
-  Expr AbsOffset(const std::vector<Expr>& indice) const;
 };
 
 class _Buffer_ : public ExprNode<_Buffer_> {
