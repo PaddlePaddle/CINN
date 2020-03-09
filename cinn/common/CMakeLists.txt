@@ -6,7 +6,9 @@ set(srcs
     object.cc
     graph_utils.cc
     context.cc
-    axis.cc)
+    axis.cc
+    ir.cc
+    )
 
 foreach(cpp ${srcs})
   set(core_src

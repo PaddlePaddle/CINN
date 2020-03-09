@@ -25,10 +25,6 @@ namespace detail {
 constexpr bool LE(int a, int b) { return a <= b; }
 constexpr bool GE(int a, int b) { return a >= b; }
 
-//! Expand milti-dim indices to 1-dim index.
-Expr ExpandTo1DIndice(const std::vector<int>& shape, const std::vector<Expr>& indices);
-Expr ExpandTo1DIndice(const std::vector<Expr>& shape, const std::vector<Expr>& indices);
-
 }  // namespace detail
 
 class _Tensor_;
@@ -165,8 +161,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   _Tensor_() : ExprNode<_Tensor_>(Float(32)) {}
 
   ~_Tensor_();
-
-  Expr AbsOffset(const std::vector<Expr>& indice) const;
 
  private:
   //! Create the polyhedral element for analysis.

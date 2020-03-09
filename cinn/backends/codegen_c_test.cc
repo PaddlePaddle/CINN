@@ -328,11 +328,11 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   ASSERT_EQ(Trim(target_out), Trim(out));
 }
 
-TEST(CodeGenC, matmul_with_packed) {
+TEST(CodeGenC, matmul_packed) {
   const int M  = 100;
-  const int K  = 20;
-  const int N  = 50;
-  const int bn = 4;
+  const int K  = 200;
+  const int N  = 500;
+  const int bn = 32;
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
@@ -380,17 +380,17 @@ void matmul_with_packing(const struct cinn_buffer_t *_A, const struct cinn_buffe
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
   float* PackedB = (float*)(cinn_buffer_get_data_handle(_PackedB));
-  for (int32_t i = 0; (i <= 11); i += 1){
-    for (int32_t j = 0; (j <= 19); j += 1){
-      for (int32_t k = 0; (k <= 3); k += 1){
-        PackedB[(((i * 20) + (j * 4)) + k)] = B[((j * 50) + ((i * 4) + k))];
+  for (int32_t i = 0; (i <= 14); i += 1){
+    for (int32_t j = 0; (j <= 199); j += 1){
+      for (int32_t k = 0; (k <= 31); k += 1){
+        PackedB[((((i * 200) * 32) + (j * 32)) + k)] = B[((j * 500) + ((i * 32) + k))];
       };
     };
   };
   for (int32_t i = 0; (i <= 99); i += 1){
-    for (int32_t j = 0; (j <= 49); j += 1){
-      for (int32_t k = 0; (k <= 19); k += 1){
-        C[((i * 50) + j)] = (A[((i * 20) + k)] * PackedB[((((j / 4) * 20) + (k * 4)) + (j % 4))]);
+    for (int32_t j = 0; (j <= 499); j += 1){
+      for (int32_t k = 0; (k <= 199); k += 1){
+        C[((i * 500) + j)] = (A[((i * 200) + k)] * PackedB[(((((j / 32) * 200) * 32) + (k * 32)) + (j % 32))]);
       };
     };
   };

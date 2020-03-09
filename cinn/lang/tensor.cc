@@ -3,34 +3,16 @@
 #include <cstring>
 
 #include "cinn/common/common.h"
+#include "cinn/common/ir.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_operators.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace ir {
-
-namespace detail {
-
-Expr ExpandTo1DIndice(const std::vector<Expr> &shape, const std::vector<Expr> &indices) {
-  CHECK_EQ(shape.size(), indices.size());
-  Expr res = indices.front() * shape[1];
-  for (int i = 1; i < shape.size() - 1; i++) {
-    res = res + indices[i] * shape[i + 1];
-  }
-  if (shape.size() > 1) res = res + indices.back();
-  return res;
-}
-
-Expr ExpandTo1DIndice(const std::vector<int> &shape, const std::vector<Expr> &indices) {
-  std::vector<Expr> shape_;
-  for (int v : shape) shape_.push_back(Expr(v));
-  return ExpandTo1DIndice(shape, indices);
-}
-
-}  // namespace detail
 
 Tensor _Tensor_::Make(const std::string &name, const std::vector<Expr> &shape, FunctionRef fn) {
   CHECK(!shape.empty()) << "Tensor shape is set empty";
@@ -89,7 +71,7 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   } else {
     CHECK(node->buffer.defined()) << utils::StringFormat("Buffer for [%s] should be defined so that it can be sliced",
                                                          node->name.c_str());
-    return Load::Make(*this, node->AbsOffset(indices));
+    return Load::Make(*this, common::ExpandTo1DIndice(node->shape, indices));
   }
 }
 
@@ -240,7 +222,7 @@ Expr _Tensor_::tensor_store_expanded_body() {
     }
   }
 
-  return ir::Store::Make(Expr(Buffer(this)), final_body, detail::ExpandTo1DIndice(shape, axis_));
+  return ir::Store::Make(Expr(Buffer(this)), final_body, common::ExpandTo1DIndice(shape, axis_));
 }
 
 void _Tensor_::Bind(lang::Buffer &buffer) {
@@ -252,17 +234,6 @@ void _Tensor_::Bind(lang::Buffer &buffer) {
 
   // Reset stage to nullptr.
   InitStage();
-}
-
-Expr _Tensor_::AbsOffset(const std::vector<Expr> &indice) const {
-  CHECK(!shape.empty());
-  CHECK_EQ(shape.size(), indice.size()) << "shape and indice not match";
-  Expr res = indice.front() * shape[1];
-  for (int i = 1; i < shape.size() - 1; i++) {
-    res = res + indice[i] * shape[i + 1];
-  }
-  if (shape.size() > 1) res = res + indice.back();
-  return res;
 }
 
 void Tensor::ExpandInlined() {
