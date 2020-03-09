@@ -301,9 +301,16 @@ struct Call : public ExprNode<Call> {
 struct _Var_ : public ExprNode<_Var_> {
   std::string name;
 
+  bool is_reduce_axis{false};
+  Expr lower_bound;
+  Expr upper_bound;
+
+  _Var_() = default;
   _Var_(const std::string& name, Type type) : ExprNode<_Var_>(type), name(name) {}
 
   static Expr Make(const std::string& name, const Type& type);
+  //! Make a reduce axis.
+  static Expr Make(Expr lower_bound, Expr upper_bound, const std::string& name);
 
   Expr Copy() const override;
 
@@ -315,6 +322,8 @@ struct Var : public IrNodeRef {
   Var() = default;
   explicit Var(IrNode* n) : IrNodeRef(n) {}
   explicit Var(const std::string& name_hint, Type t = type_of<int>()) : Var(_Var_::Make(name_hint, t).ptr()) {}
+  Var(Expr lower_bound, Expr upper_bound, const std::string& name) : Var(_Var_::Make(lower_bound, upper_bound, name)) {}
+  Var(int upper_bound, const std::string& name) : Var(_Var_::Make(Expr(0), Expr(upper_bound), name)) {}
 
   operator Expr() { return Expr(get()); }
   operator Expr() const {

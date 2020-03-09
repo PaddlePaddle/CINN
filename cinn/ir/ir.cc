@@ -129,9 +129,25 @@ Expr _Var_::Make(const std::string &name, const Type &type) {
   auto node = new _Var_(name, type);
   return Expr(node);
 }
+
+Expr _Var_::Make(Expr lower_bound, Expr upper_bound, const std::string &name) {
+  auto *n           = make_shared<_Var_>();
+  n->lower_bound    = lower_bound;
+  n->upper_bound    = upper_bound;
+  n->is_reduce_axis = true;
+  n->name           = name;
+  n->set_type(lower_bound.type());
+  return Expr(n);
+}
+
 Expr _Var_::Copy() const {
-  auto x = _Var_::Make(name, type());
-  return x;
+  auto *n           = make_shared<_Var_>();
+  n->name           = name;
+  n->is_reduce_axis = is_reduce_axis;
+  n->lower_bound    = lower_bound;
+  n->upper_bound    = upper_bound;
+  n->set_type(type());
+  return Expr(n);
 }
 
 For::For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) : ExprNode(Type()) {

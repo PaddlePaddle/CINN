@@ -61,7 +61,21 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Call::Make(op->type(), op->name, args, op->call_type);
   }
 
-  Expr Visit(const _Var_* op) override { return _Var_::Make(op->name, op->type()); }
+  Expr Visit(const _Var_* op) override {
+    auto* n = make_shared<_Var_>();
+
+    n->name           = op->name;
+    n->is_reduce_axis = op->is_reduce_axis;
+    n->set_type(op->type());
+
+    if (n->is_reduce_axis) {
+      auto lower_bound = Visit(&op->lower_bound);
+      auto upper_bound = Visit(&op->upper_bound);
+      n->lower_bound   = lower_bound;
+      n->upper_bound   = upper_bound;
+    }
+    return Expr(n);
+  }
 
   Expr Visit(const Load* op) override {
     auto index  = Visit(&op->index);
@@ -117,18 +131,16 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     auto axis        = op->axis;
     auto buffer_expr = Expr(op->buffer);
     // TODO(Superjomn) copy the operation.
-    auto operaion       = op->operaion;
-    auto name           = op->name;
-    auto buffer         = Visit(&buffer_expr);
-    int reduce_axis     = op->reduce_axis;
-    auto tensor         = make_shared<_Tensor_>();
-    tensor->domain      = domain;
-    tensor->shape       = shape;
-    tensor->axis        = axis;
-    tensor->operaion    = operaion;
-    tensor->name        = name;
-    tensor->buffer      = ir::Buffer(buffer.As<_Buffer_>());
-    tensor->reduce_axis = reduce_axis;
+    auto operaion    = op->operaion;
+    auto name        = op->name;
+    auto buffer      = Visit(&buffer_expr);
+    auto tensor      = make_shared<_Tensor_>();
+    tensor->domain   = domain;
+    tensor->shape    = shape;
+    tensor->axis     = axis;
+    tensor->operaion = operaion;
+    tensor->name     = name;
+    tensor->buffer   = ir::Buffer(buffer.As<_Buffer_>());
     return tensor;
   }
 
