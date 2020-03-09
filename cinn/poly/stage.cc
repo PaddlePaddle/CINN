@@ -177,16 +177,16 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
   CHECK(!self->domain().is_null());
   CHECK(!stage->domain().is_null());
 
-  CHECK_LE(level, isl_set_dim(self->domain().get(), isl_dim_set));
-  CHECK_LE(level, isl_set_dim(stage->domain().get(), isl_dim_set));
+  CHECK_LE(level, isl_set_dim(self->transformed_domain().get(), isl_dim_set));
+  CHECK_LE(level, isl_set_dim(stage->transformed_domain().get(), isl_dim_set));
 
   std::vector<int> selected_dims;
   for (int i = 0; i <= level; i++) {
     selected_dims.push_back(i);
   }
 
-  auto stage_partial_set = SetGetDims(stage->domain(), selected_dims);
-  auto self_partial_set  = SetGetDims(self->domain(), selected_dims);
+  auto stage_partial_set = SetGetDims(stage->transformed_domain(), selected_dims);
+  auto self_partial_set  = SetGetDims(self->transformed_domain(), selected_dims);
 
   stage_partial_set = isl::manage(isl_set_set_tuple_name(stage_partial_set.release(), ""));
   self_partial_set  = isl::manage(isl_set_set_tuple_name(self_partial_set.release(), ""));
