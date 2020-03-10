@@ -4,13 +4,19 @@
 
 namespace cinn {
 
-TEST(test01_elementwise_add, basic) {
-  Placeholder<float> A("A", {100, 20});
-  Placeholder<float> B("B", {100, 20});
+TEST(test02_matmul, basic) {
+  const int M = 1000;
+  const int N = 400;
+  const int K = 500;
 
-  Buffer C_buf(Float(32));
+  Placeholder<float> A("A", {M, K});
+  Placeholder<float> B("B", {K, N});
+
+  Var k(K, "k");
+
   auto C = Compute(
-      {100, 20}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+      {M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j), k); }, "C", k);
+  Buffer C_buf(C->type());
   C->Bind(C_buf);
 
   Target target;
@@ -19,7 +25,7 @@ TEST(test01_elementwise_add, basic) {
   target.os   = Target::OS ::Linux;
   Module module("module1", target);
 
-  auto funcs = Lower("add1", {A, B, C});
+  auto funcs = Lower("matmul", {A, B, C});
   ASSERT_EQ(funcs.size(), 1UL);
 
   module.Append(funcs.front());
@@ -27,7 +33,7 @@ TEST(test01_elementwise_add, basic) {
 
   CodeGenC compiler(target);
   Outputs outputs;
-  outputs = outputs.c_header("./test01_elementwise_add.h").c_source("./test01_elementwise_add.cc");
+  outputs = outputs.c_header("./test02_matmul.h").c_source("./test02_matmul.cc");
   compiler.Compile(module, outputs);
 }
 
