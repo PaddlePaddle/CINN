@@ -7,6 +7,8 @@ cc_test(test01_elementwise_add_case
 add_dependencies(test01_elementwise_add_case test01_elementwise_add_main)
 
 cc_test(test02_matmul_main SRCS test02_matmul_main.cc DEPS core)
-cc_test(test02_matmul_case SRCS test02_matmul_case.cc ${CMAKE_BINARY_DIR}/tests/test02_matmul.cc
-add_dependencies(test02_matmul_case  test02_matmul_main)
+cc_test(test02_matmul_case SRCS test02_matmul_case.cc
+  ${CMAKE_BINARY_DIR}/tests/test02_matmul.cc
+  ${CMAKE_BINARY_DIR}/tests/test02_matmul_tile.cc
   DEPS core)
+add_dependencies(test02_matmul_case  test02_matmul_main)
