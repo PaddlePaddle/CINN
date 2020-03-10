@@ -9,7 +9,7 @@ namespace runtime {
 
 ir::Expr BufferCreate(ir::Buffer buffer) {
   std::vector<Expr> args;
-  args.push_back(ir::_Var_::Make(buffer->name, buffer->type()));
+  args.push_back(Expr(buffer));
   args.push_back(Expr(buffer->target.runtime_arch()));
   CHECK(buffer->target.defined()) << "Buffer's target should be set before compile";
   return ir::Call::Make(Void(), runtime::buffer_create, args, ir::Call::CallType::Intrinsic);

@@ -45,6 +45,8 @@ class CodeGenC : public ir::IrPrinter {
   void PrintCastExpr(const std::string& type, Expr e);
   // @}
 
+  void PrintShape(const std::vector<Expr>& shape);
+
   void PrintIncludes();
   void PrintFileGuardOpen(const std::string& module_name);
   void PrintFileGuardClose(const std::string& module_name);
