@@ -4,3 +4,4 @@ cc_test(test01_elementwise_add_main SRCS test01_elementwise_add_main.cc DEPS cor
 cc_test(test01_elementwise_add_case
   SRCS test01_elementwise_add_case.cc ${CMAKE_BINARY_DIR}/tests/test01_matmul_gen.cc
   DEPS core)
+add_dependencies(test01_elementwise_add_case test01_elementwise_add_main)
