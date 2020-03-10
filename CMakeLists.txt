@@ -29,6 +29,6 @@ link_directories(${ISL_HOME}/lib)
 
 set(core_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
-#add_subdirectory(unittest)
+add_subdirectory(tests)
 
 cc_library(core SRCS ${core_src} DEPS glog)

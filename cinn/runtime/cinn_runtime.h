@@ -170,7 +170,6 @@ typedef struct cinn_buffer_t {
         dims(NULL),
         memory_size(0) {}
 
-  static struct cinn_buffer_t* new_(cinn_device_kind_t device, cinn_type_t type);
   static struct cinn_buffer_t* new_(cinn_device_kind_t device, cinn_type_t type, const std::vector<int>& shape);
   static void delete_(struct cinn_buffer_t* x) { delete x; }
 

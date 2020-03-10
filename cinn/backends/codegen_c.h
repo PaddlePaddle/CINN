@@ -50,6 +50,7 @@ class CodeGenC : public ir::IrPrinter {
   void PrintIncludes();
   void PrintFileGuardOpen(const std::string& module_name);
   void PrintFileGuardClose(const std::string& module_name);
+
   //! Create the buffers in global scope(just creation without allocating them).
   void PrintBufferCreation(const std::vector<ir::Buffer>& buffers);
   void PrintBufferDestroy(const std::vector<ir::Buffer>& buffers);

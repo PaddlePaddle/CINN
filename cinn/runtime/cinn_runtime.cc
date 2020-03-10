@@ -69,30 +69,11 @@ cinn_type_t cinn_float64_t() { return cinn_type_t(cinn_type_float, 64); }
 
 }  // extern "C"
 
-struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device, cinn_type_t type) {
-  struct cinn_buffer_t* x = new (struct cinn_buffer_t);
-  x->type                 = type;
-  x->device               = device;
-  // NOTE set device_interface for each buffer.
-  switch (x->device) {
-    case cinn_x86_device:
-      x->device_interface = &cinn_x86_device_interface;
-      break;
-    case cinn_unk_device:
-      fprintf(stderr, "Device type of buffer should be set, found Unk");
-      abort();
-      break;
-    default:
-      fprintf(stderr, "Not supported device type");
-      abort();
-  }
-
-  return x;
-}
-
 struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device, cinn_type_t type, const std::vector<int>& shape) {
-  int32_t dimensions      = shape.size();
-  cinn_dimension_t* dims  = new cinn_dimension_t[dimensions];
+  int32_t dimensions     = shape.size();
+  cinn_dimension_t* dims = new cinn_dimension_t[dimensions];
+  memcpy(dims, shape.data(), shape.size() * sizeof(int));
+
   struct cinn_buffer_t* x = new (struct cinn_buffer_t);
   x->type                 = type;
   x->device               = device;
