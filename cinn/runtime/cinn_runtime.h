@@ -8,6 +8,10 @@
 #include <string.h>
 
 #ifdef __cplusplus
+#include <vector>
+#endif
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -167,7 +171,13 @@ typedef struct cinn_buffer_t {
         memory_size(0) {}
 
   static struct cinn_buffer_t* new_(cinn_device_kind_t device, cinn_type_t type);
+  static struct cinn_buffer_t* new_(cinn_device_kind_t device, cinn_type_t type, const std::vector<int>& shape);
   static void delete_(struct cinn_buffer_t* x) { delete x; }
+
+  ~cinn_buffer_t() {
+    delete host_memory;
+    delete dims;
+  }
 
   // NOTE the buffer should be resized first.
   static void alloc(struct cinn_buffer_t*);

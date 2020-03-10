@@ -172,12 +172,17 @@ void CodeGenC::Visit(const ir::Block *op) {
 void CodeGenC::Visit(const ir::Call *op) {
   if (op->name == runtime::buffer_create) {
     CHECK_EQ(op->args.size(), 2UL);
-    os() << "cinn_buffer_t* " << op->args.front();
+    const ir::_Buffer_ *buffer_arg = op->args.front().As<ir::_Buffer_>();
+    CHECK(buffer_arg);
+
+    os() << "cinn_buffer_t* " << buffer_arg->name;
     os() << " = " << op->name;
     os() << "(";
     PrintCastExpr("cinn_device_kind_t", op->args[1]);
     os() << "/*target*/, ";
     PrintRuntimeType(runtime::ToRuntimeType(op->args.front().type().ElementOf()));
+    os() << ", ";
+    PrintShape(op->args[0].As<ir::_Buffer_>()->shape);
     os() << ")";
   } else if (op->name == runtime::buffer_malloc) {
     CHECK_EQ(op->args.size(), 2UL);
@@ -233,6 +238,17 @@ void CodeGenC::PrintCastExpr(const std::string &type, Expr e) {
   os() << "(";
   Print(e);
   os() << ")";
+}
+void CodeGenC::PrintShape(const std::vector<Expr> &shape) {
+  os() << "{ ";
+
+  for (int i = 0; i < shape.size() - 1; i++) {
+    Print(shape[i]);
+    os() << ", ";
+  }
+  if (shape.size() > 1) Print(shape.back());
+
+  os() << " }";
 }
 
 void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {

@@ -60,7 +60,7 @@ TEST(CodeGenC, module) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 });
 void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
 {
   cinn_buffer_malloc((void*)(0), _C);
@@ -148,7 +148,7 @@ TEST(CodeGenC, module_with_transform) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 });
 void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C, struct cinn_buffer_t *_D)
 {
   cinn_buffer_malloc((void*)(0), _C);
@@ -219,7 +219,7 @@ TEST(CodeGenC, matmul) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 50 });
 void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
 {
   cinn_buffer_malloc((void*)(0), _C);
@@ -300,7 +300,7 @@ TEST(CodeGenC, matmul_tile) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 });
 void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
 {
   cinn_buffer_malloc((void*)(0), _C);
@@ -377,8 +377,8 @@ TEST(CodeGenC, matmul_packed) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
-cinn_buffer_t* _PackedB = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t());
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 });
+cinn_buffer_t* _PackedB = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 15, 200, 32 });
 void matmul_with_packing(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_PackedB, struct cinn_buffer_t *_C)
 {
   cinn_buffer_malloc((void*)(0), _PackedB);
