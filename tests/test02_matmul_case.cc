@@ -2,6 +2,7 @@
 
 #include "cinn/runtime/cinn_runtime.h"
 #include "tests/test02_matmul.h"
+#include "tests/test02_matmul_tile.h"
 
 TEST(test02, basic) {
   const int M = 1000;
@@ -11,16 +12,19 @@ TEST(test02, basic) {
   auto* A        = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {M, K});
   auto* B        = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {K, N});
   auto* C        = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {M, N});
+  auto* C1       = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {M, N});
   auto* C_target = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {M, N});
   cinn_buffer_malloc(nullptr, A);
   cinn_buffer_malloc(nullptr, B);
   cinn_buffer_malloc(nullptr, C_target);
   cinn_buffer_malloc(nullptr, C);
+  cinn_buffer_malloc(nullptr, C1);
 
   float* Ad        = reinterpret_cast<float*>(A->host_memory);
   float* Bd        = reinterpret_cast<float*>(B->host_memory);
   float* Cd_target = reinterpret_cast<float*>(C_target->host_memory);
   float* Cd        = reinterpret_cast<float*>(C->host_memory);
+  float* Cd1       = reinterpret_cast<float*>(C1->host_memory);
 
   for (int i = 0; i < M; i++) {
     for (int k = 0; k < K; k++) {
@@ -34,7 +38,7 @@ TEST(test02, basic) {
     }
   }
 
-  // manulally set zero
+  // manually set zero
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < N; j++) {
       Cd_target[i * N + j] = 0.f;
@@ -43,6 +47,7 @@ TEST(test02, basic) {
   }
 
   matmul(A, B, C);
+  matmul_tile(A, B, C1);
 
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < N; j++) {
@@ -51,6 +56,7 @@ TEST(test02, basic) {
       }
 
       EXPECT_NEAR(Cd[i * N + j], Cd_target[i * N + j], 1e-5);
+      EXPECT_NEAR(Cd1[i * N + j], Cd_target[i * N + j], 1e-5);
     }
   }
 }
