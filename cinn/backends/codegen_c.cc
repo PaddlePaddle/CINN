@@ -34,7 +34,7 @@ void CodeGenC::Compile(const lang::Module &module, const Outputs &outputs) {
 CodeGenC::CodeGenC(Target target) : ir::IrPrinter(ss_) {}
 
 std::string CodeGenC::Compile(const lang::Module &module, OutputKind output_kind) {
-  ss_.str();
+  ss_.str("");
   if (output_kind == OutputKind::CHeader) {
     GenerateHeaderFile(module);
   } else if (output_kind == OutputKind::CImpl) {
