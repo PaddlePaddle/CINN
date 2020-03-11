@@ -646,16 +646,6 @@ static IterVar reduce_axis(Range dom, const std::string& name) {
   return _IterVar_::Make(dom, Var(name), IterVarType::kCommReduce);
 }
 
-/**
- * A builder to construct any IR node.
- */
-struct Builder {
-  template <typename IRType, typename... Args>
-  Expr MakeExpr(Args... args) {
-    return IRType::Make(args...);
-  }
-};
-
 }  // namespace ir
 
 // Expose the following to cinn namespace for easier usage.
