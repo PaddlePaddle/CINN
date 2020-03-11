@@ -16,4 +16,3 @@ set -e
 
 make -j6
 ctest -V
-
