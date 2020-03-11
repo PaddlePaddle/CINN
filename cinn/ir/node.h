@@ -201,7 +201,7 @@ struct UIntImm : public ExprNode<UIntImm> {
 };
 
 struct FloatImm : public ExprNode<FloatImm> {
-  int value;
+  double value;
 
   FloatImm(Type t, float v) : ExprNode<FloatImm>(t), value(v) {
     CHECK(t.is_float());
