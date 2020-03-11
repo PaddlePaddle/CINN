@@ -24,7 +24,7 @@ std::ostream &operator<<(std::ostream &os, const Type &t) {
       LOG(FATAL) << "Unknown data type found";
   }
 
-  if (t.width() > 1) os << "<" << t.width() << ">";
+  if (t.lanes() > 1) os << "<" << t.lanes() << ">";
   if (t.is_cpp_handle()) os << "*";
 
   return os;

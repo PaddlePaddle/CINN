@@ -8,7 +8,7 @@ namespace common {
 
 /**
  * Types in the CINN type system. They can be ints, unsigned ints, or floats of various bit-widths.
- * They can also be vectors of the same (by setting the `width` field to something larger than one).
+ * They can also be vectors of the same (by setting the `lanes` field to something larger than one).
  * NOTE: Front-end code other than vectorize shouldn't use vector types.
  */
 struct Type {
@@ -28,7 +28,7 @@ struct Type {
   };
 
   Type() = default;
-  Type(type_t t, int b, int w) : type_(t), bits_(b), width_(w) {}
+  Type(type_t t, int b, int w) : type_(t), bits_(b), lanes_(w) {}
 
   //! Some helper functions to tell a type.
   // @{
@@ -36,8 +36,8 @@ struct Type {
   bool is_unk() const { return type_ == type_t::Unk; }
   bool is_void() const { return type_ == type_t::Void; }
   bool is_bool() const { return type_ == type_t::UInt && bits_ == 1; }
-  bool is_vector() const { return width_ > 1; }
-  bool is_scalar() const { return width_ == 1; }
+  bool is_vector() const { return lanes_ > 1; }
+  bool is_scalar() const { return lanes_ == 1; }
   bool is_float(int bits = -1) const { return type_ == type_t::Float && (bits < 0 || bits == this->bits()); }
   bool is_int(int bits = -1) const { return type_ == type_t::Int && (bits < 0 || bits == this->bits()); }
   bool is_uint(int bits = -1) const { return type_ == type_t::UInt && (bits < 0 || bits == this->bits()); }
@@ -60,13 +60,13 @@ struct Type {
   // @{
   type_t type() const { return type_; }
   int bits() const { return bits_; }
-  int width() const { return width_; }
+  int lanes() const { return lanes_; }
   cpp_type_t cpp_type() const { return cpp_type_; }
   // @}
 
   //! Compare two types for equality.
   bool operator==(const Type& other) const {
-    return type_ == other.type_ && bits_ == other.bits_ && width_ == other.width_ && cpp_type_ == other.cpp_type_;
+    return type_ == other.type_ && bits_ == other.bits_ && lanes_ == other.lanes_ && cpp_type_ == other.cpp_type_;
   }
 
   //! Compare two types for inequality.
@@ -91,14 +91,14 @@ struct Type {
   int bits_{};
 
   //! How many elements(if a vector type), for scalar types, it should be 1.
-  int width_{1};
+  int lanes_{1};
 };
 
 inline Type Void() { return Type(Type::type_t ::Void, 0, 0); }
-inline Type Int(int bits, int width = 1) { return Type(Type::type_t ::Int, bits, width); }
-inline Type UInt(int bits, int width = 1) { return Type(Type::type_t ::UInt, bits, width); }
-inline Type Float(int bits, int width = 1) { return Type(Type::type_t ::Float, bits, width); }
-inline Type Bool(int width = 1) { return Type(Type::type_t ::UInt, 1, width); }
+inline Type Int(int bits, int lanes = 1) { return Type(Type::type_t ::Int, bits, lanes); }
+inline Type UInt(int bits, int lanes = 1) { return Type(Type::type_t ::UInt, bits, lanes); }
+inline Type Float(int bits, int lanes = 1) { return Type(Type::type_t ::Float, bits, lanes); }
+inline Type Bool(int lanes = 1) { return Type(Type::type_t ::UInt, 1, lanes); }
 
 template <typename T>
 Type type_of();
