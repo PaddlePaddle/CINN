@@ -27,6 +27,11 @@ include_directories(${ISL_HOME}/include)
 find_library(isl_lib isl PATHS "${ISL_HOME}/lib" NO_DEFAULT_PATH)
 link_directories(${ISL_HOME}/lib)
 
+include_directories("/usr/include")
+find_library(ginac_lib ginac PATHS "/usr/lib" NO_DEFAULT_PATH)
+message(STATUS "ginac: ${ginac_lib}")
+link_directories("/usr/lib")
+
 set(core_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
 add_subdirectory(tests)

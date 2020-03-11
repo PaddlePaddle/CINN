@@ -60,5 +60,21 @@ std::string Uppercase(const std::string &x) {
 bool Startswith(const std::string &x, const std::string &str) { return x.find(str) == 0; }
 bool Endswith(const std::string &x, const std::string &str) { return x.rfind(str) == x.size() - str.size(); }
 
+std::vector<std::string> Split(const std::string &str, const std::string &splitter) {
+  std::vector<std::string> results;
+  std::string::size_type pos1, pos2;
+  pos2 = str.find(splitter);
+  pos1 = 0;
+  while (std::string::npos != pos2) {
+    results.push_back(str.substr(pos1, pos2 - pos1));
+    pos1 = pos2 + splitter.size();
+    pos2 = str.find(splitter, pos1);
+  }
+  if (pos1 != str.length()) {
+    results.push_back(str.substr(pos1));
+  }
+  return results;
+}
+
 }  // namespace utils
 }  // namespace cinn
