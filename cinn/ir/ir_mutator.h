@@ -177,5 +177,18 @@ void IRMutator<T>::Visit(const Reduce *expr, T op) {
   IRVisitorBase<void, T>::Visit(&node->body, &node->body);
 }
 
+template <typename T>
+void IRMutator<T>::Visit(const Ramp *expr, T op) {
+  auto *node = op->template As<Ramp>();
+  IRVisitorBase<void, T>::Visit(&node->base, &node->base);
+  IRVisitorBase<void, T>::Visit(&node->stride, &node->stride);
+}
+
+template <typename T>
+void IRMutator<T>::Visit(const Broadcast *expr, T op) {
+  auto *node = op->template As<Broadcast>();
+  IRVisitorBase<void, T>::Visit(&node->value, &node->value);
+}
+
 }  // namespace ir
 }  // namespace cinn

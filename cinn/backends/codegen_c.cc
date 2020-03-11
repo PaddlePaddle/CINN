@@ -227,6 +227,10 @@ void CodeGenC::Visit(const ir::Reduce *op) {
   LOG(FATAL) << "Reduce IR is just for internal representation, should not be used for CodeGen.";
 }
 
+void CodeGenC::Visit(const ir::Ramp *op) { NOT_IMPLEMENTED }
+
+void CodeGenC::Visit(const ir::Broadcast *op) { NOT_IMPLEMENTED }
+
 void CodeGenC::PrintCastExpr(const Type &type, Expr e) {
   os() << "(" << PrintType(type) << ")";
   os() << "(";

@@ -346,6 +346,37 @@ Expr Load::Make(Expr tensor, Expr index) {
   return Expr(node);
 }
 
+Expr Ramp::Make(Expr base, Expr stride, int lanes) {
+  CHECK(base.defined());
+  CHECK(stride.defined());
+  CHECK(base.type().valid());
+  CHECK(stride.type().valid());
+  CHECK_EQ(stride.type(), Int(32));
+  CHECK_GT(lanes, 0);
+
+  auto *n   = make_shared<Ramp>();
+  n->base   = base;
+  n->stride = stride;
+  n->lanes  = lanes;
+  Type type(base.type().type(), base.type().bits(), lanes);
+  n->set_type(type);
+  return Expr(n);
+}
+
+Expr Broadcast::Make(Expr value, int lanes) {
+  CHECK(value.defined());
+  CHECK(value.type().valid());
+
+  auto *n  = make_shared<Broadcast>();
+  n->value = value;
+  n->lanes = lanes;
+
+  Type type(value.type().type(), value.type().bits(), lanes);
+  n->set_type(type);
+
+  return Expr(n);
+}
+
 }  // namespace ir
 
 namespace common {
