@@ -511,6 +511,26 @@ struct PolyFor : public ExprNode<PolyFor> {
   static const IrNodeTy _node_type_ = IrNodeTy::PolyFor;
 };
 
+//! A linear ramp node.
+struct Ramp : public ExprNode<Ramp> {
+  Expr base, stride;
+  int lanes;
+
+  static Expr Make(Expr base, Expr stride, int lanes);
+
+  static const IrNodeTy _node_type_ = IrNodeTy::Ramp;
+};
+
+//! A vector with `lanes` elements and all of them are `value`.
+struct Broadcast : public ExprNode<Broadcast> {
+  Expr value;
+  int lanes;
+
+  static Expr Make(Expr value, int lanes);
+
+  static const IrNodeTy _node_type_ = IrNodeTy::Broadcast;
+};
+
 struct Module : public ExprNode<Module> {
   Module(Type t) : ExprNode<Module>(t) {}
 
@@ -645,16 +665,6 @@ static IterVar thread_axis(Range dom, const std::string& tag) {
 static IterVar reduce_axis(Range dom, const std::string& name) {
   return _IterVar_::Make(dom, Var(name), IterVarType::kCommReduce);
 }
-
-/**
- * A builder to construct any IR node.
- */
-struct Builder {
-  template <typename IRType, typename... Args>
-  Expr MakeExpr(Args... args) {
-    return IRType::Make(args...);
-  }
-};
 
 }  // namespace ir
 

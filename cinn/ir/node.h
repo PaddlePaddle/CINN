@@ -70,6 +70,8 @@ class IRVisitor;
   macro__(_LoweredFunc_)                    \
   macro__(Let)                              \
   macro__(Reduce)                           \
+  macro__(Ramp)                             \
+  macro__(Broadcast)                        \
 
 #define NODETY_FORALL(__m)              \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \

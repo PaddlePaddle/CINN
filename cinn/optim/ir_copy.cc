@@ -181,6 +181,25 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Reduce::Make(op->reduce_type, init, body);
   }
 
+  Expr Visit(const Ramp* op) override {
+    auto base   = Visit(&op->base);
+    auto stride = Visit(&op->stride);
+    int lanes   = op->lanes;
+    return Ramp::Make(base, stride, lanes);
+  }
+
+  Expr Visit(const Broadcast* op) override {
+    auto value = Visit(&op->value);
+    int lanes  = op->lanes;
+    CHECK(value.defined());
+    CHECK(value.type().valid());
+
+    auto* n  = make_shared<Broadcast>();
+    n->value = value;
+    n->lanes = lanes;
+    return Expr(n);
+  }
+
 #define OP_BINARY_HANDLE(op__)              \
   Expr Visit(const ir::op__* op) override { \
     auto a = IRVisitorBase::Visit(&op->a);  \

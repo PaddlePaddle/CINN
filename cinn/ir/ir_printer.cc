@@ -207,10 +207,27 @@ void IrPrinter::Visit(const Let *f) {
 
 void IrPrinter::Visit(const _IterVar_ *f) { NOT_IMPLEMENTED }
 
-void IrPrinter::Visit(const Reduce *f){NOT_IMPLEMENTED}
+void IrPrinter::Visit(const Reduce *f) { NOT_IMPLEMENTED }
 
-std::ostream &
-operator<<(std::ostream &os, Expr a) {
+void IrPrinter::Visit(const Ramp *x) {
+  os() << "Ramp(";
+  Print(x->base);
+  os() << ",";
+  Print(x->stride);
+  os() << ",";
+  os() << x->lanes;
+  os() << ")";
+}
+
+void IrPrinter::Visit(const Broadcast *x) {
+  os() << "Broadcast(";
+  Print(x->value);
+  os() << ",";
+  os() << x->lanes;
+  os() << ")";
+}
+
+std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);
   printer.Print(a);
