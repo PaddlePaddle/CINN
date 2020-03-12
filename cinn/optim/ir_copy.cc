@@ -1,5 +1,6 @@
 #include "cinn/optim/ir_copy.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -160,8 +161,11 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 
   Expr Visit(const _LoweredFunc_* op) override {
-    LOG(FATAL) << "not implemented";
-    return Expr();
+    auto name = op->name;
+    auto args = op->args;
+    auto body = Visit(&op->body);
+
+    return _LoweredFunc_::Make(name, args, body);
   }
 
   Expr Visit(const _IterVar_* op) override {

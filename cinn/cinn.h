@@ -5,6 +5,7 @@
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
 #include "cinn/lang/placeholder.h"
+#include "cinn/optim/optimize.h"
 
 namespace cinn {
 
@@ -17,5 +18,6 @@ using lang::Lower;
 using lang::Module;
 using lang::Placeholder;
 using lang::Sum;
+using optim::Optimize;
 
 }  // namespace cinn
