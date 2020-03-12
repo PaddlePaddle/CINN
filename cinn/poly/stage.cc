@@ -40,7 +40,7 @@ Stage::Stage(const isl::set &domain, Expr expr) : domain_(domain), expr_(expr) {
 }
 
 std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
-  int offset = isl_set_find_dim_by_name(domain_.get(), isl_dim_set, level.id.c_str());
+  int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level.id.c_str());
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
   auto dim_names = GetDimNames(transform_, isl_dim_out);
 
@@ -194,6 +194,18 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
   VLOG(3) << "stage1.partial_set " << self_partial_set;
 
   return isl_set_is_equal(stage_partial_set.get(), self_partial_set.get());
+}
+
+void Stage::Vectorize(int level, int factor) {
+  CHECK_LT(factor, 0);
+  auto dim_name = ith_dim_name(level);
+  Split(dim_name, factor);
+}
+
+std::string Stage::ith_dim_name(int level) {
+  auto dims = GetDimNames(transformed_domain());
+  CHECK_LT(level, dims.size());
+  return dims[level];
 }
 
 }  // namespace poly

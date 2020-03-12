@@ -26,8 +26,6 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   poly::AstGen gen(context, stages, group);
   isl::ast_node ast = gen.Build();
 
-  // set iterator names.
-
   ir::Expr e;
   poly::IslAstNodeToCinnExpr(ast, &e);
 

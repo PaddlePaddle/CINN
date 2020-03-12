@@ -502,6 +502,8 @@ struct PolyFor : public ExprNode<PolyFor> {
 
   PolyFor() : ExprNode(Type()) {}
 
+  Expr extent() const;
+
   static Expr Make(
       Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Expr body);
 

@@ -322,6 +322,36 @@ Expr PolyFor::Make(
 std::vector<Expr *> PolyFor::expr_fields() { return {&init, &condition, &inc, &body}; }
 std::vector<const Expr *> PolyFor::expr_fields() const { return {&init, &condition, &inc, &body}; }
 
+Expr PolyFor::extent() const {
+  auto nodes = CollectIRNodes(condition, [&](const Expr *e) {
+    return e->As<NE>() ||   //
+           e->As<EQ>() ||   //
+           e->As<Min>() ||  //
+           e->As<Max>();
+  });
+
+  if (nodes.empty()) {
+    return Expr();
+  }
+
+  auto *le_n = condition.As<LE>();
+  auto *lt_n = condition.As<LT>();
+  if (!(le_n || lt_n)) return Expr();
+
+  if (le_n) {
+    if (le_n->a != Expr(iterator)) return Expr();
+    auto *le_b_int = le_n->b.As<IntImm>();
+    if (le_b_int) return Expr(make_shared<IntImm>(Int(32), le_b_int->value + 1));
+    return Add::Make(le_n->b, Expr(1));
+  }
+
+  if (lt_n) {
+    if (lt_n->a != Expr(iterator)) return Expr();
+    return lt_n->b;
+  }
+  return Expr();
+}
+
 bool Var::operator==(const Var &o) const { return o->name == operator->()->name; }
 bool Var::operator!=(const Var &o) const { return !(*this == o); }
 

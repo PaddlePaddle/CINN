@@ -65,6 +65,12 @@ class Stage : public Object {
   Tile(int level0, int level1, int factor0, int factor1);
 
   /**
+   * Vectorize the \p level.
+   * @param level
+   */
+  void Vectorize(int level, int factor);
+
+  /**
    * Mark the stage compute at the level of some other stage.
    * NOTE This can only be called after all transformations are preformed, and once called, no further transform can
    * perform for that the iterators are changed, and the original `ComputeAt` level become invalid.
@@ -90,6 +96,9 @@ class Stage : public Object {
   isl::set transformed_domain() const { return domain_.apply(transform_); }
 
   std::vector<ComputeAtRelation> compute_ats() const;
+
+  //! Get the level-th dimensional name.
+  std::string ith_dim_name(int level);
 
   //! Get the statements.
   std::vector<std::string> input_statements() const;
