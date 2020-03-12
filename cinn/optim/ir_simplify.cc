@@ -120,7 +120,6 @@ GiNaC::ex ExprToGinacConerter::operator()(Expr expr) {
            n->As<Or>() ||          //
            n->As<Not>() ||         //
            n->As<Let>() ||         //
-           n->As<Reduce>() ||      //
            n->As<Call>() ||        //
            n->As<Select>() ||      //
            n->As<Store>() ||       //
@@ -129,8 +128,12 @@ GiNaC::ex ExprToGinacConerter::operator()(Expr expr) {
            n->As<IfThenElse>() ||  //
            n->As<Broadcast>();
   });
+
+  for (auto& node : complex_nodes) {
+    LOG(INFO) << "complex nodes: " << node;
+  }
   CHECK(complex_nodes.empty())
-      << "Ginac converter can only deal with simple math expression, but get some complex nodes";
+      << "Ginac converter can only deal with simple math expression, but get some complex nodes" << expr;
 
   return BuildHelper(expr);
 }

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "cinn/cinn.h"
+#include "cinn/optim/optimize.h"
 
 namespace cinn {
 
@@ -22,7 +23,8 @@ TEST(test01_elementwise_add, basic) {
   auto funcs = Lower("add1", {A, B, C});
   ASSERT_EQ(funcs.size(), 1UL);
 
-  module.Append(funcs.front());
+  auto func = Optimize(funcs.front());
+  module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
   module.Append(C_buf);
 
   CodeGenC compiler(target);
