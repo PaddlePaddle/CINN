@@ -1,5 +1,7 @@
 #include "cinn/optim/ir_simplify.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
 

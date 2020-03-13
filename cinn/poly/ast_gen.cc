@@ -32,6 +32,9 @@ isl::ast_node AstGen::Build() {
   // Build it.
   auto ast_build = isl::ast_build::from_context(context_);
 
+  if (!build_options_.is_null())
+    ast_build = isl::manage(isl_ast_build_set_options(ast_build.release(), build_options_.release()));
+
   // Set iterators names for readable code.
   CHECK(!schedule_group_.dimension_names.empty());
   auto iterator_names = iterator_names_.empty() ? schedule_group_.dimension_names : iterator_names_;

@@ -19,6 +19,15 @@ namespace cinn {
 namespace poly {
 
 struct ComputeAtRelation;
+
+//! The strategy to deal with the rest domain of a split.
+enum class SplitRestStrategy {
+  //! Leave it unchanged.
+  kAuto,
+  //! Separate the rest.
+  kSeparate,
+};
+
 /**
  * Stage is the basic element of polyhedral which represents a stage in CINN.
  * It supports multiple transforms such as tile, split and so on.
@@ -41,9 +50,9 @@ class Stage : public Object {
    * @return the new outer and inner iterators.
    */
   std::tuple<Iterator, Iterator>  //
-  Split(const Iterator& level, int factor);
+  Split(const Iterator& level, int factor, SplitRestStrategy strategy = SplitRestStrategy::kAuto);
   std::tuple<Iterator, Iterator>  //
-  Split(const std::string& level, int factor);
+  Split(const std::string& level, int factor, SplitRestStrategy strategy = SplitRestStrategy::kAuto);
 
   /**
    * Reorder the iterators.
@@ -65,7 +74,7 @@ class Stage : public Object {
   Tile(int level0, int level1, int factor0, int factor1);
 
   /**
-   * Vectorize the \p level.
+   * Vectorize the stage in \p level.
    * @param level
    */
   void Vectorize(int level, int factor);
@@ -105,7 +114,13 @@ class Stage : public Object {
 
   virtual const char* type_info() const { return "Status"; }
 
+  inline const ir::VectorizeInfo& vectorize_info() const { return vectorize_info_; }
+
   Stage() = default;
+
+  inline const std::map<std::string /*iterator name*/, SplitRestStrategy>& split_strageties() const {
+    return split_strageties_;
+  }
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr());
@@ -120,6 +135,8 @@ class Stage : public Object {
   isl::map transform_;
   Expr expr_;
   std::map<std::string, ComputeAtRelation> compute_ats_;
+  ir::VectorizeInfo vectorize_info_;
+  std::map<std::string /*iterator name*/, SplitRestStrategy> split_strageties_;
 };
 
 struct ComputeAtRelation {

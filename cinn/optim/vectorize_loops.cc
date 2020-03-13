@@ -1,11 +1,14 @@
 #include "cinn/optim/vectorize_loops.h"
+
 #include <algorithm>
+#include <string>
+
 #include "cinn/ir/ir_printer.h"
 #include "cinn/utils/functional.h"
 
 namespace cinn {
 namespace optim {
-using namespace ir;
+using namespace ir;  // NOLINT
 
 //! Substitutes a vector for a scalar var in a Stmt.
 struct VectorSubs : public IRMutator<Expr*> {
@@ -135,7 +138,7 @@ struct VectorSubs : public IRMutator<Expr*> {
 struct VectorizeLoops_ : public IRMutator<Expr*> {
   const Target& target;
 
-  VectorizeLoops_(const Target& t) : target(t) {}
+  explicit VectorizeLoops_(const Target& t) : target(t) {}
 
   void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
 

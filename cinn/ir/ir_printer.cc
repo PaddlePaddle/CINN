@@ -207,7 +207,26 @@ void IrPrinter::Visit(const Let *f) {
 
 void IrPrinter::Visit(const _IterVar_ *f) { NOT_IMPLEMENTED }
 
-void IrPrinter::Visit(const Reduce *f) { NOT_IMPLEMENTED }
+void IrPrinter::Visit(const Reduce *f) {
+  os() << "Reduce(";
+  switch (f->reduce_type) {
+    case Reduce::ReduceType::kSum:
+      os() << "sum";
+      break;
+    case Reduce::ReduceType::kSub:
+      os() << "sub";
+      break;
+    case Reduce::ReduceType::kDiv:
+      os() << "Div";
+      break;
+    case Reduce::ReduceType::kMul:
+      os() << "Mul";
+      break;
+  }
+  os() << ", ";
+  Print(f->body);
+  os() << ")";
+}
 
 void IrPrinter::Visit(const Ramp *x) {
   os() << "Ramp(";

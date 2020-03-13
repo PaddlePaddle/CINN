@@ -1,8 +1,11 @@
 #include "cinn/optim/ir_simplify.h"
+
 #include <ginac/ginac.h>
 #include <glog/logging.h>
+
 #include <map>
 #include <string>
+
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
