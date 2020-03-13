@@ -56,6 +56,13 @@ struct Type {
   }
   bool is_cpp_const() const { return static_cast<uint8_t>(cpp_type_t::Const) & static_cast<uint8_t>(cpp_type_); }
 
+  // Get a new type with bits set to `x`.
+  Type with_bits(int x) const;
+  // Get a new type with type set to `x`.
+  Type with_type(type_t x) const;
+  // Get a new type with lanes set to `x`.
+  Type with_lanes(int x) const;
+
   //! Getters
   // @{
   type_t type() const { return type_; }

@@ -77,5 +77,23 @@ Type Type::PointerOf() const {
   return x;
 }
 
+Type Type::with_bits(int x) const {
+  Type type  = *this;
+  type.bits_ = x;
+  return type;
+}
+
+Type Type::with_type(Type::type_t x) const {
+  Type type  = *this;
+  type.type_ = x;
+  return type;
+}
+
+Type Type::with_lanes(int x) const {
+  Type type   = *this;
+  type.lanes_ = x;
+  return type;
+}
+
 }  // namespace common
 }  // namespace cinn

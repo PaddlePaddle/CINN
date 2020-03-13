@@ -40,6 +40,8 @@ class AstGen {
   //! Get the map from original CINN iterators to the transformed actual ISL ast nodes.
   const std::map<std::string, isl::ast_expr>& axis2ast(const std::string& tuple_name) const;
 
+  void SetBuildOptions(const isl::union_map& options) { build_options_ = options; }
+
  private:
   //! Set the ISL ast_gen configs.
   void InitIslAstConfig();
@@ -66,6 +68,7 @@ class AstGen {
   std::vector<std::string> iterator_names_;
   //! tuple name -> { axis -> isl_ast }
   std::map<std::string, std::map<std::string, isl::ast_expr>> transformed_indice_map_;
+  isl::union_map build_options_;
 };
 
 /**
