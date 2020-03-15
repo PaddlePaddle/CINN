@@ -462,7 +462,7 @@ enum class ForType : int {
 
 struct For : public ExprNode<For> {
   //! The loop variable.
-  Expr loop_var;
+  Var iterator;
   //! The minimum value of the iteration.
   Expr min;
   //! The extent of the iteration.
@@ -474,9 +474,9 @@ struct For : public ExprNode<For> {
 
   DeviceAPI device_api;
 
-  For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
+  For() = default;
 
-  static Expr Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
+  static Expr Make(Var iterator, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
@@ -495,7 +495,8 @@ struct VectorizeInfo {
   inline bool valid() const { return level > 0 && factor > 0; }
 };
 
-//! Polyhedral forloop, which condition is more complex than the normal `For`.
+//! Polyhedral forloop, which condition is more complex than the normal `For`, some PolyFor can cast to For if the
+//! condition is simple.
 struct PolyFor : public ExprNode<PolyFor> {
   //! The iterator variable.
   Var iterator;

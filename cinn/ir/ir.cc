@@ -162,12 +162,23 @@ For::For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr bod
   this->body       = std::move(body);
 }
 
-Expr For::Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) {
-  auto node = make_shared<For>(min, extent, for_type, device_api, body);
+Expr For::Make(Var iterator, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) {
+  auto node = make_shared<For>();
+  CHECK(min.defined());
+  CHECK(extent.defined());
+  CHECK(body.defined());
+
+  node->iterator   = iterator;
+  node->min        = min;
+  node->extent     = extent;
+  node->for_type   = for_type;
+  node->device_api = device_api;
+  node->body       = body;
+
   return Expr(node);
 }
-std::vector<Expr *> For::expr_fields() { return {&loop_var, &min, &extent, &body}; }
-std::vector<const Expr *> For::expr_fields() const { return {&loop_var, &min, &extent, &body}; }
+std::vector<Expr *> For::expr_fields() { return {&min, &extent, &body}; }
+std::vector<const Expr *> For::expr_fields() const { return {&min, &extent, &body}; }
 
 Expr Block::Make(const std::vector<Expr> &stmts) {
   auto node   = make_shared<Block>();

@@ -3,80 +3,124 @@
 #include <algorithm>
 #include <string>
 
+#include "cinn/common/ir.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/utils/functional.h"
 
 namespace cinn {
 namespace optim {
 using namespace ir;  // NOLINT
+using common::make_const;
+using common::make_one;
+using common::make_zero;
+
+//! Widen an expression to the given number of lanes.
+Expr Widen(Expr e, int lanes) {
+  if (e.type().lanes() == lanes) return e;
+  if (const ir::Broadcast* op = e.As<ir::Broadcast>()) {
+    if (lanes % op->lanes == 0) {
+      return ir::Broadcast::Make(op->value, lanes);
+    }
+  }
+
+  CHECK_EQ(e.type().lanes(), 1) << "Cannot broadcast lanes from " << e.type().lanes() << " to " << lanes;
+  return ir::Broadcast::Make(e, lanes);
+}
 
 //! Substitutes a vector for a scalar var in a Stmt.
-struct VectorSubs : public IRMutator<Expr*> {
+class Vectorizer : public IRMutator<Expr*> {
   //! The name of the variable to be vectorized.
-  std::string var;
+  Var var;
 
-  //! The expression to replace with, usually a ramp.
-  Expr replacement;
+  int lanes_{-1};
 
-  const Target& target;
+  bool need_scalarize_{false};
+
+  Expr ramp_;
 
   //! A suffix to attach to widened variables.
   std::string widen_suffix;
 
-  VectorSubs(const std::string& v, Expr r, const Target& t) : var(v), replacement(r), target(t) {
-    widen_suffix = ".x" + std::to_string(replacement.type().lanes());
+ public:
+  Vectorizer(const Var& var, int lanes) : var(var), lanes_(lanes) {
+    // the identity ramp.
+    ramp_ = Ramp::Make(make_zero(), make_one(), lanes_);
   }
 
-  //! Widen an expression to the given number of lanes.
-  Expr Widen(Expr e, int lanes) {
-    if (e.type().lanes() == lanes) {
-      return e;
-    } else if (e.type().lanes() == 1) {
-      return Broadcast::Make(e, lanes);
-    } else {
-      LOG(FATAL) << "Mismatched vector lanes";
+  void Visit(Expr* expr) {
+    CHECK(!need_scalarize_);
+    IRMutator<Expr*>::Visit(expr, expr);
+
+    if (need_scalarize_) {
+      need_scalarize_ = false;
+      Scalarize(expr);
     }
-    return Expr();
   }
-  void Visit(Expr* expr) { IRMutator<Expr*>::Visit(expr, expr); }
 
   void Visit(const Cast* op, Expr* expr) override {
     auto* node = expr->As<Cast>();
+    auto v0    = node->v;
     Visit(&node->v);
+    if (v0.same_as(node->v)) return;
 
     Type t = op->type().with_lanes(node->v.type().lanes());
     node->set_type(t);
   }
 
   void Visit(const _Var_* op, Expr* expr) override {
-    auto* node               = expr->As<_Var_>();
-    std::string widened_name = op->name + widen_suffix;
-    if (op->name == var) {
-      *expr = replacement;
+    if (op->name == var->name) {
+      *expr = Expr(var);
+      return;
+    }
+    return;
+  }
+
+  void Visit(const Add* op, Expr* expr) override { MutateAddSubOperator(op, expr); }
+  void Visit(const Sub* op, Expr* expr) override { MutateAddSubOperator(op, expr); }
+  void Visit(const Mul* op, Expr* expr) override { MutateMulDivOperator(op, expr); }
+  void Visit(const Div* op, Expr* expr) override { MutateMulDivOperator(op, expr); }
+  void Visit(const Mod* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const Min* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const Max* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const EQ* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const NE* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const LT* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const LE* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const GT* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const GE* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const And* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const Or* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+
+  void Visit(const Ramp* op, Expr* expr) override {
+    auto* node   = expr->As<Ramp>();
+    Expr base0   = op->base;
+    Expr stride0 = op->stride;
+    Visit(&node->base);
+    Visit(&node->stride);
+    if (base0.same_as(node->base) && stride0.same_as(node->stride)) return;
+
+    int lanes    = std::max(node->base.type().lanes(), node->stride.type().lanes());
+    node->base   = Widen(node->base, lanes);
+    node->stride = Widen(node->stride, lanes);
+    std::vector<Expr> elems;
+    for (int i = 0; i < lanes; i++) {
+      elems.push_back(Ramp::Make())
     }
   }
 
-  void Visit(const Add* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const Sub* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const Mul* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const Div* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const Mod* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const Min* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const Max* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const EQ* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const NE* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const LT* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const LE* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const GT* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const GE* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const And* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-  void Visit(const Or* op, Expr* expr) override { MutateBinaryOperator(op, expr); }
-
   void Visit(const Select* op, Expr* expr) override {
-    auto* node = expr->As<Select>();
+    auto* node        = expr->As<Select>();
+    auto condition0   = node->condition;
+    auto true_value0  = node->true_value;
+    auto false_value0 = node->false_value;
+
     Visit(&node->condition);
     Visit(&node->true_value);
     Visit(&node->false_value);
+
+    if (condition0.same_as(node->condition) && true_value0.same_as(node->true_value) &&
+        false_value0.same_as(node->false_value))
+      return;
 
     int lanes =
         utils::Max(node->condition.type().lanes(), node->true_value.type().lanes(), node->false_value.type().lanes());
@@ -85,9 +129,11 @@ struct VectorSubs : public IRMutator<Expr*> {
   }
 
   void Visit(const Load* op, Expr* expr) override {
-    auto* node = expr->As<Load>();
+    auto* node  = expr->As<Load>();
+    auto index0 = node->index;
     // We ignore the predicate here.
     Visit(&node->index);
+    if (index0.same_as(node->index)) return;
 
     int width = node->index.type().lanes();
     node->set_type(node->type().with_lanes(width));
@@ -124,14 +170,90 @@ struct VectorSubs : public IRMutator<Expr*> {
     ForType for_type = op->for_type;
   }
 
+  void Scalarize(Expr* expr) {
+    Var idx(var->name + "_s", Int(32));
+    std::map<const ir::_Var_*, Expr> var_map;
+    var_map[var.As<ir::_Var_>()] = idx;
+
+    common::Substitute(expr, var_map);
+    *expr =
+        ir::For::Make(idx, common::make_const(0), common::make_const(lanes_), ForType::Serial, DeviceAPI::Host, *expr);
+  }
+
   template <typename T>
-  void MutateBinaryOperator(const T* op, Expr* expr) {
+  void MutateAddSubOperator(const T* op, Expr* expr) {
     auto* node = expr->As<T>();
+    Expr a0    = node->a;
+    Expr b0    = node->b;
     Visit(&node->a);
     Visit(&node->b);
 
-    int width = std::max(node->a.type().lanes(), node->b.type().lanes());
-    *expr     = T::Make(Widen(node->a, width), Widen(node->b, width));
+    if (a0.same_as(node->a) && b0.same_as(node->b)) return;
+
+    int lanes = std::max(node->a.type().lanes(), node->b.type().lanes());
+    if (lanes != 1) {
+      const Ramp* a_ramp_n = node->a.template As<Ramp>();
+      const Ramp* b_ramp_n = node->b.template As<Ramp>();
+      if (node->a.type().lanes() == 1 && b_ramp_n) {
+        // a + Ramp(base,stride,lanes) = Ramp(base+a, stride,lanes)
+        *expr = Ramp::Make(T::Make(node->a, b_ramp_n->base),  // base
+                           b_ramp_n->stride,                  // stride
+                           b_ramp_n->lanes);
+        return;
+      }
+      if (node->b.type().lanes() == 1 && a_ramp_n) {
+        *expr = Ramp::Make(T::Make(node->b, a_ramp_n->base),  // base
+                           a_ramp_n->stride,                  // stride
+                           a_ramp_n->lanes);
+        return;
+      }
+    }
+
+    *expr = T::Make(Widen(node->a, lanes), Widen(node->b, lanes));
+  }
+
+  template <typename T>
+  void MutateMulDivOperator(const T* op, Expr* expr) {
+    Expr a0    = op->a;
+    Expr b0    = op->b;
+    auto* node = expr->As<T>();
+    Visit(&node->a);
+    Visit(&node->b);
+    if (a0.same_as(node->a) && b0.same_as(node->b)) return;
+
+    int lanes = std::max(node->a.type().lanes(), node->b.type().lanes());
+    if (lanes != 1) {
+      const Ramp* a_ramp_n = node->a.template As<Ramp>();
+      const Ramp* b_ramp_n = node->b.template As<Ramp>();
+      if (node->a.type().lanes() == 1 && b_ramp_n) {
+        // a * Ramp(base,stride,lanes) = Ramp(base*a, stride*a,lanes)
+        *expr = Ramp::Make(T::Make(node->a, b_ramp_n->base),    // base
+                           T::Make(node->a, b_ramp_n->stride),  // stride
+                           b_ramp_n->lanes);
+        return;
+      }
+      // Ramp(base,stride,lanes) * b  = Ramp(base*b, stride*b,lanes)
+      if (node->b.type().lanes() == 1 && a_ramp_n) {
+        *expr = Ramp::Make(T::Make(a_ramp_n->base, node->b),    // base
+                           T::Make(a_ramp_n->stride, node->b),  // stride
+                           a_ramp_n->lanes);
+        return;
+      }
+    }
+
+    *expr = T::Make(Widen(node->a, lanes), Widen(node->b, lanes));
+  }
+
+  template <typename T>
+  Expr BinaryOperatorVec(T* op, Expr* expr) {
+    Expr a0 = op->a;
+    Expr b0 = op->b;
+    Visit(&op->a);
+    Visit(&op->b);
+    if (a0.same_as(op->a) && b0.same_as(op->b)) return *expr;
+
+    int lanes = std::max(op->a.type().lanes(), op->b.type().lanes());
+    return T::Make(Widen(op->a, lanes), Widen(op->b, lanes));
   }
 };
 

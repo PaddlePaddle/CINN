@@ -188,3 +188,13 @@ usage:
 Mark the stage as vectorize, when lowering, mark the corresponding forloop in isl ast as vectorize,
 then replace call with the statement.
 
+There are several steps to vectorize a forloop:
+
+- the foorloop will first been split with a small factor(better to be times of the SIMD width
+- convert the PolyFor to For
+- Substitute the iterator variable of the forloop to a Ramp node
+- Transform all the operations related to the Ramp
+- Special convert the Load and Store nodes
+
+There is a `Vec` runtime container to codegen the Ramp.
+

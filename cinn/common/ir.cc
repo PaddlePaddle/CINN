@@ -1,5 +1,6 @@
 #include "cinn/common/ir.h"
 
+#include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 
 namespace cinn {
@@ -28,6 +29,35 @@ Expr ExpandTo1DIndice(const std::vector<int> &shape, const std::vector<Expr> &in
   for (int v : shape) shape_.push_back(Expr(v));
   return ExpandTo1DIndice(shape, indices);
 }
+
+namespace {
+
+class SubstituteMutator : ir::IRMutator<ir::Expr *> {
+ public:
+  SubstituteMutator(const std::map<const ir::_Var_ *, Expr> &var_map) {
+    for (auto &item : var_map) {
+      var_map_[item.first->name] = item.second;
+    }
+  }
+
+  void operator()(ir::Expr *expr) { Visit(expr); }
+
+ private:
+  void Visit(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+  void Visit(const ir::_Var_ *op, ir::Expr *expr) override {
+    auto it = var_map_.find(op->name);
+    if (it == var_map_.end()) return;
+    *expr = it->second;
+  }
+
+  Expr *expr_{};
+  std::map<std::string, Expr> var_map_;
+};
+
+}  // namespace
+
+void Substitute(Expr *expr, const std::map<const ir::_Var_ *, Expr> &var_map) { SubstituteMutator(var_map)(expr); }
 
 }  // namespace common
 }  // namespace cinn
