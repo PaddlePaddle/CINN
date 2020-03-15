@@ -69,10 +69,9 @@ class Vectorizer : public IRMutator<Expr*> {
 
   void Visit(const _Var_* op, Expr* expr) override {
     if (op->name == var->name) {
-      *expr = Expr(var);
+      *expr = Expr(ramp_);
       return;
     }
-    return;
   }
 
   void Visit(const Add* op, Expr* expr) override { MutateAddSubOperator(op, expr); }
@@ -91,22 +90,7 @@ class Vectorizer : public IRMutator<Expr*> {
   void Visit(const And* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
   void Visit(const Or* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
 
-  void Visit(const Ramp* op, Expr* expr) override {
-    auto* node   = expr->As<Ramp>();
-    Expr base0   = op->base;
-    Expr stride0 = op->stride;
-    Visit(&node->base);
-    Visit(&node->stride);
-    if (base0.same_as(node->base) && stride0.same_as(node->stride)) return;
-
-    int lanes    = std::max(node->base.type().lanes(), node->stride.type().lanes());
-    node->base   = Widen(node->base, lanes);
-    node->stride = Widen(node->stride, lanes);
-    std::vector<Expr> elems;
-    for (int i = 0; i < lanes; i++) {
-      elems.push_back(Ramp::Make())
-    }
-  }
+  void Visit(const Ramp* op, Expr* expr) override {}
 
   void Visit(const Select* op, Expr* expr) override {
     auto* node        = expr->As<Select>();
@@ -136,7 +120,8 @@ class Vectorizer : public IRMutator<Expr*> {
     if (index0.same_as(node->index)) return;
 
     int width = node->index.type().lanes();
-    node->set_type(node->type().with_lanes(width));
+
+    *expr = Load::Make(node->tensor, node->index);
   }
 
   void Visit(const Call* op, Expr* expr) override { LOG(ERROR) << "Ignore widen Call node"; }
@@ -144,16 +129,22 @@ class Vectorizer : public IRMutator<Expr*> {
   void Visit(const Let* op, Expr* expr) override {
     auto* node = expr->As<Let>();
     Visit(&node->value);
+    LOG(ERROR) << "Let not supported";
   }
 
   void Visit(const Store* op, Expr* expr) override {
-    auto* node = expr->As<Store>();
+    auto* node  = expr->As<Store>();
+    auto value0 = node->value;
+    auto index0 = node->index;
     Visit(&node->value);
     Visit(&node->index);
-    int lanes = std::max(node->value.type().lanes(), node->index.type().lanes());
+    if (value0.same_as(node->value) && index0.same_as(node->index)) return;
 
+    int lanes   = std::max(node->value.type().lanes(), node->index.type().lanes());
     node->value = Widen(node->value, lanes);
     node->index = Widen(node->index, lanes);
+
+    *expr = Store::Make(node->tensor, node->value, node->index);
   }
 
   void Visit(const IfThenElse* op, Expr* expr) override {
@@ -168,6 +159,7 @@ class Vectorizer : public IRMutator<Expr*> {
   void Visit(const For* op, Expr* expr) override {
     auto* node       = expr->As<PolyFor>();
     ForType for_type = op->for_type;
+    NOT_IMPLEMENTED
   }
 
   void Scalarize(Expr* expr) {
@@ -219,6 +211,7 @@ class Vectorizer : public IRMutator<Expr*> {
     auto* node = expr->As<T>();
     Visit(&node->a);
     Visit(&node->b);
+
     if (a0.same_as(node->a) && b0.same_as(node->b)) return;
 
     int lanes = std::max(node->a.type().lanes(), node->b.type().lanes());
@@ -245,15 +238,16 @@ class Vectorizer : public IRMutator<Expr*> {
   }
 
   template <typename T>
-  Expr BinaryOperatorVec(T* op, Expr* expr) {
-    Expr a0 = op->a;
-    Expr b0 = op->b;
-    Visit(&op->a);
-    Visit(&op->b);
-    if (a0.same_as(op->a) && b0.same_as(op->b)) return *expr;
+  Expr BinaryOperatorVec(const T* op, Expr* expr) {
+    auto* node = expr->As<T>();
+    Expr a0    = node->a;
+    Expr b0    = node->b;
+    Visit(&node->a);
+    Visit(&node->b);
+    if (a0.same_as(node->a) && b0.same_as(node->b)) return *expr;
 
-    int lanes = std::max(op->a.type().lanes(), op->b.type().lanes());
-    return T::Make(Widen(op->a, lanes), Widen(op->b, lanes));
+    int lanes = std::max(node->a.type().lanes(), node->b.type().lanes());
+    return T::Make(Widen(node->a, lanes), Widen(node->b, lanes));
   }
 };
 
@@ -280,9 +274,7 @@ struct VectorizeLoops_ : public IRMutator<Expr*> {
       CHECK_GT(extent, 0) << "Loop over " << Expr(forloop->iterator) << " has extent " << forloop->extent()
                           << ". Can only vectorize loops over a constant extent > 1";
 
-      Expr for_var     = _Var_::Make(forloop->iterator->name, Int(32));
-      Expr replacement = Ramp::Make(forloop->init, Expr(1), extent);
-      VectorSubs(forloop->iterator->name, replacement, target).Visit(&node->body);
+      Vectorizer(forloop->iterator, extent).Visit(&node->body);
     } else {
       IRMutator::Visit(forloop, expr);
     }
@@ -290,6 +282,15 @@ struct VectorizeLoops_ : public IRMutator<Expr*> {
 };
 
 void VectorizeLoops(Expr* expr, const Target& target) { return VectorizeLoops_(target)(expr); }
+
+namespace detail {
+
+void Vectorize(Var var, int lanes, Expr* expr) {
+  Vectorizer vectorizer(var, lanes);
+  vectorizer.Visit(expr);
+}
+
+}  // namespace detail
 
 }  // namespace optim
 }  // namespace cinn

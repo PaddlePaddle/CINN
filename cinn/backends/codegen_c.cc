@@ -243,9 +243,22 @@ void CodeGenC::Visit(const ir::Reduce *op) {
   LOG(FATAL) << "Reduce IR is just for internal representation, should not be used for CodeGen.";
 }
 
-void CodeGenC::Visit(const ir::Ramp *op) { NOT_IMPLEMENTED }
+void CodeGenC::Visit(const ir::Ramp *op) {
+  os() << "StackVec<" << op->lanes << "," << PrintType(op->type().ElementOf()) << ">::Ramp(";
+  Print(op->base);
+  os() << ", ";
+  Print(op->stride);
+  os() << ", ";
+  os() << op->lanes;
+  os() << ")";
+}
 
-void CodeGenC::Visit(const ir::Broadcast *op) { NOT_IMPLEMENTED }
+void CodeGenC::Visit(const ir::Broadcast *op) {
+  os() << "StackVec<" << op->lanes << "," << PrintType(op->type().ElementOf()) << ">::Broadcast(";
+  Print(op->value);
+  os() << ", ";
+  os() << op->lanes << ")";
+}
 
 void CodeGenC::PrintCastExpr(const Type &type, Expr e) {
   os() << "(" << PrintType(type) << ")";

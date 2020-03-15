@@ -155,7 +155,7 @@ struct Expr;
 template <typename T>
 struct ExprNode : public IrNode {
   ExprNode() : IrNode(Type()) {}
-  explicit ExprNode(Type t) : IrNode(t) {}
+  explicit ExprNode(Type t) : IrNode(t) { set_type(t); }
 
   void Accept(IRVisitor* v) const override;
 

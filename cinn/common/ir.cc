@@ -57,7 +57,10 @@ class SubstituteMutator : ir::IRMutator<ir::Expr *> {
 
 }  // namespace
 
-void Substitute(Expr *expr, const std::map<const ir::_Var_ *, Expr> &var_map) { SubstituteMutator(var_map)(expr); }
+void Substitute(Expr *expr, const std::map<const ir::_Var_ *, Expr> &var_map) {
+  SubstituteMutator mutator(var_map);
+  mutator(expr);
+}
 
 }  // namespace common
 }  // namespace cinn

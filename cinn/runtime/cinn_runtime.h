@@ -250,6 +250,95 @@ inline double cinn_buffer_load_float64(struct cinn_buffer_t* buf, uint32_t index
 }  // extern "C"
 #endif
 
+#ifdef __cplusplus
+//! Vector in stack, this can only used in generated .cc file.
+template <typename T, size_t Num>
+struct StackVec {
+  typedef T value_type;
+  typedef StackVec<T, Num> self_type;
+
+  self_type& operator=(const StackVec& src) {
+    if (this != &src) {
+      memcpy(data_, src.data_, num_bytes());
+    }
+    return *this;
+  }
+
+  StackVec() { memset(data_, 0, num_bytes()); }
+
+  static self_type Broadcast(const value_type& v) {
+    self_type res;
+    for (size_t i = 0; i < Num; i++) res.data_[i] = v;
+    return res;
+  }
+
+  static self_type Ramp(const value_type& base, const value_type& stride) {
+    self_type res;
+    for (size_t i = 0; i < Num; i++) {
+      res.data_[i] = base + stride * i;
+    }
+  }
+
+  static self_type Load(const void* base, int32_t offset) {
+    self_type res;
+    memcpy(&res.data_[0], (const value_type*)base + offset, num_bytes());
+  }
+
+  static self_type Load(const void* base, const StackVec<int32_t, Num>& offset) {
+    self_type res;
+    for (size_t i = 0; i < Num; i++) {
+      res.data_[i] = ((const value_type*)base)[offset[i]];
+    }
+  }
+
+  void Store(void* base, int32_t offset) const { mempcpy((value_type*)base + offset, &data_[0], num_bytes()); }
+
+  inline value_type& operator[](size_t i) { return data_[i]; }
+  inline value_type operator[](size_t i) const { return data_[i]; }
+
+  // binary operator between two vectors
+  // @{
+#define __(op__)                                                           \
+  friend self_type operator op__(const self_type& a, const self_type& b) { \
+    self_type res;                                                         \
+    for (size_t i = 0; i < Num; i++) {                                     \
+      res.data_[i] = a[i] op__ b[i];                                       \
+    }                                                                      \
+    return res;                                                            \
+  }
+  __(+)
+  __(-)
+  __(*)
+  __(/)
+  __(%)
+  // @}
+#undef __
+
+  // binary operator between a vector and a scalar
+  // @{
+#define __(op__)                                                            \
+  friend self_type operator op__(const self_type& a, const value_type& b) { \
+    self_type res;                                                          \
+    for (size_t i = 0; i < Num; i++) {                                      \
+      res.data_[i] = a[i] op__ b;                                           \
+    }                                                                       \
+    return res;                                                             \
+  }
+  __(+)
+  __(-)
+  __(*)
+  __(/)
+  __(%)
+#undef __
+  // @}
+
+  static constexpr size_t num_bytes() { return sizeof(data_); }
+
+ private:
+  T data_[Num];
+};
+#endif  // __cplusplus
+
 #define CINN_NOT_IMPLEMENTED           \
   fprintf(stderr, "Not Implemented!"); \
   abort();

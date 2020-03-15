@@ -8,7 +8,7 @@
 namespace cinn {
 namespace optim {
 
-TEST(VectorizeLoops, Split_separate) {
+ir::LoweredFunc CreateFunc() {
   using namespace ir;  // NOLINT
 
   const int M  = 100;
@@ -36,18 +36,22 @@ TEST(VectorizeLoops, Split_separate) {
 
   // Code gen
   auto funcs = Lower("matmul", {A, B, C});
-  ASSERT_EQ(funcs.size(), 1UL);
+  CHECK_EQ(funcs.size(), 1UL);
+  return funcs.front();
+}
+
+TEST(VectorizeLoops, Split_separate) {
+  using namespace ir;  // NOLINT
+
+  ir::LoweredFunc func = CreateFunc();
 
   Target target;
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
 
-  optim::VectorizeLoops(&funcs[0]->body, target);
-
   lang::Module module("module1", target);
-  module.Append(funcs.front());
-  module.Append(C_buf);
+  module.Append(func);
 
   CodeGenC codegen(target);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
@@ -57,7 +61,6 @@ TEST(VectorizeLoops, Split_separate) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 });
 void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
 {
   cinn_buffer_malloc((void*)(0), _C);
@@ -89,6 +92,44 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   )ROC";
 
   EXPECT_EQ(utils::Trim(target_out), utils::Trim(out));
+}
+
+TEST(Vectorize, var) {
+  using namespace ir;  // NOLINT
+
+  const int M  = 100;
+  const int K  = 200;
+  const int N  = 500;
+  const int bn = 32;
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  // C = A * B
+  lang::Buffer C_buf(Float(32));
+  Var k(K, "k");
+
+  Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  C->Bind(C_buf);
+
+  C->stage()->Vectorize(1, 16);
+
+  auto funcs = Lower("matmul", {A, B, C});
+  CHECK_EQ(funcs.size(), 1UL);
+
+  detail::Vectorize(ir::_Var_::Make("j_inner", Int(32)), 16, &funcs.front()->body);
+
+  Target target;
+  target.arch = Target::Arch ::X86;
+  target.bits = Target::Bit ::k32;
+  target.os   = Target::OS ::Linux;
+
+  lang::Module module("module1", target);
+  module.Append(funcs.front());
+
+  CodeGenC codegen(target);
+  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  std::cout << "out:\n" << out;
 }
 
 }  // namespace optim

@@ -1,6 +1,7 @@
 #include "cinn/ir/ir.h"
 
 #include "cinn/common/pod_value.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 
 namespace cinn {
@@ -148,18 +149,6 @@ Expr _Var_::Copy() const {
   n->upper_bound    = upper_bound;
   n->set_type(type());
   return Expr(n);
-}
-
-For::For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) : ExprNode(Type()) {
-  CHECK(min.defined());
-  CHECK(extent.defined());
-  CHECK(body.defined());
-
-  this->min        = std::move(min);
-  this->extent     = std::move(extent);
-  this->for_type   = std::move(for_type);
-  this->device_api = device_api;
-  this->body       = std::move(body);
 }
 
 Expr For::Make(Var iterator, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) {
@@ -383,7 +372,7 @@ Expr Load::Make(Expr tensor, Expr index) {
   auto node    = make_shared<Load>();
   node->tensor = tensor;
   node->index  = index;
-  node->set_type(tensor->type().ElementOf());
+  node->set_type(tensor->type().ElementOf().with_lanes(index.type().lanes()));
   return Expr(node);
 }
 
