@@ -266,6 +266,8 @@ struct StackVec {
 
   StackVec() { memset(data_, 0, num_bytes()); }
 
+  StackVec(const T* externl) : external_data_(externl) {}
+
   static self_type Broadcast(const value_type& v) {
     self_type res;
     for (size_t i = 0; i < Num; i++) res.data_[i] = v;
@@ -336,6 +338,35 @@ struct StackVec {
 
  private:
   T data_[Num];
+  T* external_data_{nullptr};
+};
+
+/**
+ * The vector with external data.
+ */
+template <typename T, size_t Num>
+struct ExternalVec {
+  typedef T value_type;
+  typedef ExternalVec<T, Num> self_type;
+
+  ExternalVec(T* data) : data_(data) {}
+
+  self_type& operator=(const self_type& src) {
+    if (data_ != src.data_) {
+      memcpy(data_, src.data_, num_bytes());
+    }
+    return *this;
+  }
+
+  static self_type Load(const void* base, int32_t offset) {
+    self_type res((T*)base + offset);
+    return res;
+  }
+
+  static constexpr size_t num_bytes() { return sizeof(value_type) * Num; }
+
+ private:
+  T* data_{nullptr};
 };
 #endif  // __cplusplus
 

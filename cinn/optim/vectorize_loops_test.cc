@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "cinn/cinn.h"
+#include "cinn/utils/string.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/optim/ir_simplify.h"
 
@@ -95,7 +96,7 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   EXPECT_EQ(utils::Trim(target_out), utils::Trim(out));
 }
 
-TEST(Vectorize, var) {
+TEST(Vectorize, replace_var) {
   using namespace ir;  // NOLINT
 
   const int M  = 100;
@@ -107,7 +108,6 @@ TEST(Vectorize, var) {
 
   // C = A * B
   lang::Buffer C_buf(Float(32));
-  Var k(K, "k");
 
   Tensor C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
@@ -120,13 +120,40 @@ TEST(Vectorize, var) {
 
   detail::Vectorize(ir::_Var_::Make("j_inner", Int(32)), 16, &funcs.front()->body);
 
+  std::cout << "\n" << funcs.front()->body << std::endl;
+
+  auto target_out = R"ROC(
+{
+  poly_for (0, (i <= 99), 1)
+  {
+    poly_for (0, (j_outer <= 31), 1)
+    {
+      if ((15 <= ((-16 * j_outer) + 499))) {
+        poly_for (0, (j_inner <= 15), 1)
+        {
+          C[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)] = (A[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)] * B[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)])
+        }
+      } else {
+        poly_for (0, (j_inner <= ((-16 * j_outer) + 499)), 1)
+        {
+          C[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)] = (A[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)] * B[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)])
+        }
+      }
+    }
+  }
+}
+)ROC";
+
+  EXPECT_EQ(utils::Trim(target_out), utils::Trim(utils::GetStreamCnt(funcs.front()->body)));
+
+
   Target target;
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
 
   lang::Module module("module1", target);
-  module.Append(funcs.front());
+  module.Append(funcs[0]);
 
   CodeGenC codegen(target);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);

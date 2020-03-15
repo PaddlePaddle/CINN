@@ -62,6 +62,8 @@ class CodeGenC : public ir::IrPrinter {
 
   void PrintFuncArg(const ir::Argument& arg);
 
+  void PrintStackVecType(Type type, int lanes);
+
  private:
   Target target_;
   std::stringstream ss_;
