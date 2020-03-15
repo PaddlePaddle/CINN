@@ -8,7 +8,7 @@
 namespace cinn {
 namespace optim {
 
-TEST(VectorizeLoops, Split_sperate) {
+TEST(VectorizeLoops, Split_separate) {
   using namespace ir;  // NOLINT
 
   const int M  = 100;
