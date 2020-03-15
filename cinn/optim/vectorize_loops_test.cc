@@ -4,6 +4,7 @@
 
 #include "cinn/cinn.h"
 #include "cinn/ir/ir_operators.h"
+#include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
 namespace optim {

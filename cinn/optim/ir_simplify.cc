@@ -63,6 +63,7 @@ std::string ExprToGinacConerter::Repr(const Expr& expr) {
   } else if (var_n) {
     return utils::GetStreamCnt(expr);
   }
+  return "";
 }
 
 void ExprToGinacConerter::RecordExpr(const ir::Expr& expr) {
@@ -136,7 +137,7 @@ GiNaC::ex ExprToGinacConerter::operator()(Expr expr) {
     LOG(INFO) << "complex nodes: " << node;
   }
   CHECK(complex_nodes.empty())
-      << "Ginac converter can only deal with simple math expression, but get some complex nodes" << expr;
+      << "Ginac converter can only deal with simple math expression, but get some complex nodes " << expr;
 
   return BuildHelper(expr);
 }
@@ -287,6 +288,12 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
     VLOG(4) << "origin: " << *op;
     PartialSimplify(op);
     VLOG(4) << "simplified: " << *op;
+  }
+
+  void Visit(const Ramp* op, Expr* expr) override {
+    auto* node = expr->As<Ramp>();
+    PartialSimplify(&node->base);
+    PartialSimplify(&node->stride);
   }
 
 #undef __
