@@ -4,9 +4,11 @@
 #pragma once
 
 #include <ginac/ginac.h>
+#include <limits>
 #include <map>
 #include <set>
 #include <string>
+#include <tuple>
 #include "cinn/ir/ir.h"
 
 #ifdef As
@@ -26,6 +28,9 @@ bool IsPureMath(Expr expr);
 //! `i+1`.
 bool MathContainsSymbol(Expr expr, Var symbol);
 
+//! Solve the equation \p lhs == \p rhs on symbol \p symbol.
+std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var symbol);
+
 /**
  * Helper to convert cinn::Expr to GiNaC::expr for some symbolic math analysis.
  */
@@ -35,6 +40,8 @@ struct ExprToGinacConerter {
 
   //! Convert GiNaC ex back to CINN expression, should call operator() first.
   Expr GinacToExpr(const GiNaC::ex& ex);
+
+  const ginac::symbol& GetSymbol(const std::string& name) const { return repr_to_ginac_.at(name); }
 
  private:
   std::string Repr(const Expr& expr);

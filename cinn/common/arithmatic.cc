@@ -86,6 +86,7 @@ GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
 }
 
 GiNaC::ex ExprToGinacConerter::operator()(Expr expr) {
+  // TODO(Superjomn) Replace this with common::IsPureMath(
   auto complex_nodes = CollectIRNodes(expr, [](const Expr* n) {
     return n->As<Block>() ||       //
            n->As<PolyFor>() ||     //
@@ -229,6 +230,47 @@ bool MathContainsSymbol(Expr expr, Var symbol) {
   auto expr_ex = expr_converter(expr);
   ginac::symbol x(symbol->name);
   return !ginac::diff(expr_ex, x).is_zero();
+}
+
+// lhs >= rhs.
+std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
+  ExprToGinacConerter converter;
+  auto lhs_ex = converter(lhs);
+  auto rhs_ex = converter(rhs);
+  LOG(INFO) << "lhs_ex " << lhs_ex;
+  LOG(INFO) << "rhs_ex " << rhs_ex;
+  ginac::lst eqs{lhs_ex == rhs_ex};
+  const auto& symbol = converter.GetSymbol(var->name);
+  ginac::lst vars{symbol};
+  ginac::ex res = ginac::lsolve(eqs, vars);
+
+  CHECK_EQ(res.nops(), 1);
+  auto item = res.op(0);
+  CHECK_EQ(item.nops(), 2);
+  Expr value = converter.GinacToExpr(item.op(1));
+
+  // tell the symbol
+  auto diff     = lhs_ex - rhs_ex;
+  auto diff_res = ginac::diff(diff, symbol);
+  CHECK(!diff_res.is_zero());
+
+  struct Visitor : public ginac::visitor, public GiNaC::numeric::visitor {
+    int v = std::numeric_limits<int>::min();
+
+    void operator()(GiNaC::ex ex) { ex.accept(*this); }
+    void visit(const GiNaC::numeric& node) override {
+      if (node.is_integer()) {
+        v = node.to_int();
+      }
+    }
+  };
+  Visitor visitor;
+  visitor(diff_res);
+
+  CHECK_NE(visitor.v, std::numeric_limits<int>::min()) << "the diff result should be a integer";
+  CHECK_NE(visitor.v, 0) << "the diff result should not be zero";
+
+  return std::make_tuple(value, diff_res > 0);
 }
 
 }  // namespace common

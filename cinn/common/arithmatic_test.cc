@@ -1,6 +1,10 @@
+#include "cinn/common/arithmatic.h"
 #include <ginac/ginac.h>
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include "cinn/ir/ir.h"
+#include "cinn/ir/ir_operators.h"
+#include "cinn/ir/ir_printer.h"
 
 namespace cinn {
 namespace common {
@@ -35,6 +39,31 @@ TEST(GiNaC, solve) {
 
   LOG(INFO) << "solve: " << lsolve(eqns, vars);
   LOG(INFO) << diff(2 * x + 3, x);
+}
+
+TEST(Solve, basic) {
+  Var i("i", Int(32));
+  Expr lhs = Expr(i) * 2;
+  Expr rhs = Expr(2) * Expr(200);
+  Expr res;
+  bool is_positive;
+  std::tie(res, is_positive) = Solve(lhs, rhs, i);
+  LOG(INFO) << "res: " << res;
+  EXPECT_TRUE(is_positive);
+  EXPECT_EQ(res, Expr(200));
+}
+
+TEST(Solve, basic1) {
+  Var i("i", Int(32));
+  Expr lhs = Expr(i) * 2;
+  Expr rhs = Expr(2) * Expr(200) + 3 * Expr(i);
+
+  Expr res;
+  bool is_positive;
+  std::tie(res, is_positive) = Solve(lhs, rhs, i);
+  LOG(INFO) << "res " << res;
+  EXPECT_EQ(res, Expr(-400));
+  EXPECT_FALSE(is_positive);
 }
 
 }  // namespace common
