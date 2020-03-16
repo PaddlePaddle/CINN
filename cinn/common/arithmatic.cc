@@ -213,6 +213,8 @@ Expr ExprToGinacConerter::GinacToExpr(const GiNaC::ex& ex) {
 bool IsPureMath(Expr expr) {
   std::set<IrNodeTy> valid_node_tys({
       IrNodeTy ::_Var_,
+      IrNodeTy ::IntImm,
+      IrNodeTy ::FloatImm,
       IrNodeTy ::Add,
       IrNodeTy ::Sub,
       IrNodeTy ::Div,
@@ -271,6 +273,14 @@ std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
   CHECK_NE(visitor.v, 0) << "the diff result should not be zero";
 
   return std::make_tuple(value, diff_res > 0);
+}
+
+bool MathIsZero(Expr expr) {
+  if (!IsPureMath(expr)) return false;
+  ExprToGinacConerter converter;
+
+  auto ex = converter(expr);
+  return ex.is_zero();
 }
 
 }  // namespace common

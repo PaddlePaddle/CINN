@@ -50,7 +50,7 @@ TEST(Solve, basic) {
   std::tie(res, is_positive) = Solve(lhs, rhs, i);
   LOG(INFO) << "res: " << res;
   EXPECT_TRUE(is_positive);
-  EXPECT_EQ(res, Expr(200));
+  EXPECT_TRUE(res == Expr(200));
 }
 
 TEST(Solve, basic1) {
@@ -62,7 +62,7 @@ TEST(Solve, basic1) {
   bool is_positive;
   std::tie(res, is_positive) = Solve(lhs, rhs, i);
   LOG(INFO) << "res " << res;
-  EXPECT_EQ(res, Expr(-400));
+  EXPECT_TRUE(res == Expr(-400));
   EXPECT_FALSE(is_positive);
 }
 

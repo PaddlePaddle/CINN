@@ -31,6 +31,9 @@ bool MathContainsSymbol(Expr expr, Var symbol);
 //! Solve the equation \p lhs == \p rhs on symbol \p symbol.
 std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var symbol);
 
+//! Determine whether this expression \p expr calculates to be a zero.
+bool MathIsZero(Expr expr);
+
 /**
  * Helper to convert cinn::Expr to GiNaC::expr for some symbolic math analysis.
  */
