@@ -8,5 +8,7 @@ Expr ExpandTo1DIndice(const std::vector<Expr> &shape, const std::vector<Expr> &i
 
 Expr ExpandTo1DIndice(const std::vector<int> &shape, const std::vector<Expr> &indices);
 
+bool is_zero(Expr v);
+
 }  // namespace common
 }  // namespace cinn
