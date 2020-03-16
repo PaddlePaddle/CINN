@@ -1,4 +1,6 @@
-set(srcs outputs.cc codegen_c.cc)
+set(srcs outputs.cc codegen_c.cc
+  codegen_c_x86.cc
+  )
 
 foreach(cpp ${srcs})
   set(core_src
