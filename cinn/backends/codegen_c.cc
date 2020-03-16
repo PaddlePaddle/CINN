@@ -140,7 +140,7 @@ void CodeGenC::Visit(const ir::PolyFor *op) {
   os() << op->iterator->name;
   os() << " += ";
   Print(op->inc);
-  os() << "/*poly*/) ";
+  os() << ") ";
 
   Print(op->body);
 }

@@ -6,7 +6,7 @@ namespace optim {
 
 //! Transform the PolyFor node to For node. This will also separate the PolyFor with Min or Max conditions into two For
 //! nodes.
-void TransformPolyforToFor(Expr* expr);
+void TransformPolyForToFor(Expr* expr, bool auto_separate = true);
 
 namespace detail {
 

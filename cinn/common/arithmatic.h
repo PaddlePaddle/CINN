@@ -44,6 +44,7 @@ struct ExprToGinacConerter {
   //! Convert GiNaC ex back to CINN expression, should call operator() first.
   Expr GinacToExpr(const GiNaC::ex& ex);
 
+  bool HasSymbol(const std::string& name) const { return repr_to_ginac_.count(name); }
   const ginac::symbol& GetSymbol(const std::string& name) const { return repr_to_ginac_.at(name); }
 
  private:

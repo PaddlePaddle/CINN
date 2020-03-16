@@ -228,10 +228,10 @@ bool IsPureMath(Expr expr) {
 
 bool MathContainsSymbol(Expr expr, Var symbol) {
   // Use diff(expr, x) and check the result is not zero.
-  ExprToGinacConerter expr_converter, symbol_converter;
+  ExprToGinacConerter expr_converter;
   auto expr_ex = expr_converter(expr);
-  ginac::symbol x(symbol->name);
-  return !ginac::diff(expr_ex, x).is_zero();
+  if (!expr_converter.HasSymbol(symbol->name)) return false;
+  return !ginac::diff(expr_ex, expr_converter.GetSymbol(symbol->name)).is_zero();
 }
 
 // lhs >= rhs.
@@ -239,8 +239,6 @@ std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
   ExprToGinacConerter converter;
   auto lhs_ex = converter(lhs);
   auto rhs_ex = converter(rhs);
-  LOG(INFO) << "lhs_ex " << lhs_ex;
-  LOG(INFO) << "rhs_ex " << rhs_ex;
   ginac::lst eqs{lhs_ex == rhs_ex};
   const auto& symbol = converter.GetSymbol(var->name);
   ginac::lst vars{symbol};
@@ -256,14 +254,14 @@ std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
   auto diff_res = ginac::diff(diff, symbol);
   CHECK(!diff_res.is_zero());
 
+  /*
   struct Visitor : public ginac::visitor, public GiNaC::numeric::visitor {
     int v = std::numeric_limits<int>::min();
 
     void operator()(GiNaC::ex ex) { ex.accept(*this); }
     void visit(const GiNaC::numeric& node) override {
-      if (node.is_integer()) {
-        v = node.to_int();
-      }
+      if (node.is_positive()) v = 1;
+      else v = -1;
     }
   };
   Visitor visitor;
@@ -271,6 +269,7 @@ std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
 
   CHECK_NE(visitor.v, std::numeric_limits<int>::min()) << "the diff result should be a integer";
   CHECK_NE(visitor.v, 0) << "the diff result should not be zero";
+   */
 
   return std::make_tuple(value, diff_res > 0);
 }
