@@ -60,15 +60,13 @@ void IrPrinter::Visit(const Minus *x) {
 }
 void IrPrinter::Visit(const For *x) {
   os_ << "for (";
-  Print(x->min);
+  Print(x->loop_var);
   os_ << ", ";
   Print(x->extent);
-  os_ << ") {\n";
-
-  Print(x->body);
+  os_ << ")\n";
 
   DoIndent();
-  os_ << "}\n";
+  Print(x->body);
 }
 
 void IrPrinter::Visit(const PolyFor *x) {

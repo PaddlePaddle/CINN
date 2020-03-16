@@ -462,7 +462,7 @@ enum class ForType : int {
 
 struct For : public ExprNode<For> {
   //! The loop variable.
-  Expr loop_var;
+  Var loop_var;
   //! The minimum value of the iteration.
   Expr min;
   //! The extent of the iteration.
@@ -474,9 +474,7 @@ struct For : public ExprNode<For> {
 
   DeviceAPI device_api;
 
-  For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
-
-  static Expr Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
+  static Expr Make(Var loop_var, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;

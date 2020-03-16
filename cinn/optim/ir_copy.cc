@@ -146,8 +146,11 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 
   Expr Visit(const For* op) override {
-    LOG(FATAL) << "not implemented";
-    return Expr();
+    auto extent = Visit(&op->extent);
+    auto min    = Visit(&op->min);
+    auto body   = Visit(&op->body);
+
+    return ir::For::Make(op->loop_var, min, extent, op->for_type, op->device_api, body);
   }
 
   Expr Visit(const _Range_* op) override {

@@ -109,7 +109,24 @@ void CodeGenC::Visit(const ir::Not *op) {
   os() << ")";
 }
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v); }
-void CodeGenC::Visit(const ir::For *op) { LOG(FATAL) << "Not Implemented"; }
+void CodeGenC::Visit(const ir::For *op) {
+  os() << "for (";
+  os() << PrintType(Int(32));
+  os() << " " << op->loop_var->name;
+  os() << " = ";
+  Print(op->min);
+  os() << "; ";
+  os() << op->loop_var->name;
+  os() << " < ";
+  Print(op->extent);
+  os() << "; ";
+
+  os() << op->loop_var->name;
+  os() << " += 1";
+  os() << ") ";
+
+  Print(op->body);
+}
 void CodeGenC::Visit(const ir::PolyFor *op) {
   os() << "for (";
   os() << PrintType(Int(32));
