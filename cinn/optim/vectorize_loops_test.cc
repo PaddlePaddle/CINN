@@ -4,6 +4,7 @@
 
 #include "cinn/cinn.h"
 #include "cinn/ir/ir_operators.h"
+#include "cinn/optim/transform_polyfor_to_for.h"
 
 namespace cinn {
 namespace optim {
@@ -113,33 +114,11 @@ TEST(Vectorize, replace_var) {
   auto funcs = Lower("matmul", {A, B, C});
   CHECK_EQ(funcs.size(), 1UL);
 
+  optim::TransformPolyForToFor(&funcs[0]->body);
+
   detail::Vectorize(ir::_Var_::Make("j_inner", Int(32)), 16, &funcs.front()->body);
 
   std::cout << "\n" << funcs.front()->body << std::endl;
-
-  auto target_out = R"ROC(
-{
-  poly_for (0, (i <= 99), 1)
-  {
-    poly_for (0, (j_outer <= 31), 1)
-    {
-      if ((15 <= ((-16 * j_outer) + 499))) {
-        poly_for (0, (j_inner <= 15), 1)
-        {
-          C[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)] = (A[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)] * B[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)])
-        }
-      } else {
-        poly_for (0, (j_inner <= ((-16 * j_outer) + 499)), 1)
-        {
-          C[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)] = (A[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)] * B[Ramp(((i * 500) + ((16 * j_outer) + 0)),1,16)])
-        }
-      }
-    }
-  }
-}
-)ROC";
-
-  EXPECT_EQ(utils::Trim(target_out), utils::Trim(utils::GetStreamCnt(funcs.front()->body)));
 
   Target target;
   target.arch = Target::Arch ::X86;

@@ -203,7 +203,7 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
 }
 
 void Stage::Vectorize(int level, int factor) {
-  CHECK_LT(factor, 0);
+  CHECK_GT(factor, 0);
   auto dim_name = ith_dim_name(level);
   Split(dim_name, factor);
   vectorize_info_.set(level, factor);

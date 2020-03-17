@@ -6,6 +6,7 @@
 
 #include "cinn/common/ir.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/utils/functional.h"
 
 namespace cinn {
@@ -157,11 +158,7 @@ class Vectorizer : public IRMutator<Expr*> {
     LOG(ERROR) << "Ignore Width IfThenElse";
   }
 
-  void Visit(const For* op, Expr* expr) override {
-    auto* node       = expr->As<PolyFor>();
-    ForType for_type = op->for_type;
-    NOT_IMPLEMENTED
-  }
+  void Visit(const For* op, Expr* expr) override { ir::IRMutator<>::Visit(op, expr); }
 
   void Scalarize(Expr* expr) {
     Var idx(var->name + "_s", Int(32));
@@ -282,7 +279,11 @@ struct VectorizeLoops_ : public IRMutator<Expr*> {
   }
 };
 
-void VectorizeLoops(Expr* expr, const Target& target) { return VectorizeLoops_(target)(expr); }
+void VectorizeLoops(Expr* expr, const Target& target) {
+  optim::TransformPolyForToFor(expr);
+
+  return VectorizeLoops_(target)(expr);
+}
 
 namespace detail {
 
