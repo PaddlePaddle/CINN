@@ -11,7 +11,7 @@ int cinn_x86_malloc(void* context, cinn_buffer_t* buf) {
     }
     buf->host_memory = (unsigned char*)malloc(buf->type.bytes() * buf->num_elements());
     buf->memory_size = memory_size;
-    CINN_LOG("buf.memory size is %d\n", buf->memory_size);
+    CINN_LOG("buf.memory size is %ld\n", buf->memory_size);
   }
   ASSERT_NOT_NULL(buf->host_memory);
   return 0;
@@ -42,9 +42,7 @@ cinn_device_interface_impl_t cinn_x86_device_impl{&cinn_x86_malloc,
                                                   &cinn_x86_release,
                                                   &cinn_x86_copy_to_host,
                                                   &cinn_x86_copy_to_device,
-                                                  &cinn_x86_buffer_copy
-
-};
+                                                  &cinn_x86_buffer_copy};
 
 cinn_device_interface_t cinn_x86_device_interface{&cinn_buffer_malloc,
                                                   &cinn_buffer_free,

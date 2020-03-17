@@ -4,13 +4,11 @@
 
 #include "cinn/cinn.h"
 #include "cinn/ir/ir_operators.h"
-#include "cinn/optim/ir_simplify.h"
-#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace optim {
 
-ir::LoweredFunc CreateFunc() {
+TEST(VectorizeLoops, Split_sperate) {
   using namespace ir;  // NOLINT
 
   const int M  = 100;
@@ -38,22 +36,18 @@ ir::LoweredFunc CreateFunc() {
 
   // Code gen
   auto funcs = Lower("matmul", {A, B, C});
-  CHECK_EQ(funcs.size(), 1UL);
-  return funcs.front();
-}
-
-TEST(VectorizeLoops, Split_separate) {
-  using namespace ir;  // NOLINT
-
-  ir::LoweredFunc func = CreateFunc();
+  ASSERT_EQ(funcs.size(), 1UL);
 
   Target target;
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
 
+  optim::VectorizeLoops(&funcs[0]->body, target);
+
   lang::Module module("module1", target);
-  module.Append(func);
+  module.Append(funcs.front());
+  module.Append(C_buf);
 
   CodeGenC codegen(target);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
@@ -63,6 +57,7 @@ TEST(VectorizeLoops, Split_separate) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 });
 void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
 {
   cinn_buffer_malloc((void*)(0), _C);

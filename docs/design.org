@@ -197,4 +197,3 @@ There are several steps to vectorize a forloop:
 - Special convert the Load and Store nodes
 
 There is a `Vec` runtime container to codegen the Ramp.
-

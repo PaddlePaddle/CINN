@@ -51,7 +51,7 @@ inline Expr make_one() {
 }
 // @}
 
-namespace detail {}  // namespace detail
+bool is_zero(Expr v);
 
 }  // namespace common
 }  // namespace cinn

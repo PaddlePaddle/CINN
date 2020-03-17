@@ -1,5 +1,8 @@
 #include "cinn/ir/ir.h"
 
+#include <map>
+#include <string>
+#include <vector>
 #include "cinn/common/pod_value.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
@@ -151,21 +154,20 @@ Expr _Var_::Copy() const {
   return Expr(n);
 }
 
-Expr For::Make(Var iterator, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) {
+Expr For::Make(Var loop_var, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) {
   auto node = make_shared<For>();
+  CHECK(loop_var.defined());
   CHECK(min.defined());
   CHECK(extent.defined());
-  CHECK(body.defined());
-
-  node->iterator   = iterator;
+  node->loop_var   = loop_var;
   node->min        = min;
   node->extent     = extent;
   node->for_type   = for_type;
   node->device_api = device_api;
   node->body       = body;
-
   return Expr(node);
 }
+
 std::vector<Expr *> For::expr_fields() { return {&min, &extent, &body}; }
 std::vector<const Expr *> For::expr_fields() const { return {&min, &extent, &body}; }
 

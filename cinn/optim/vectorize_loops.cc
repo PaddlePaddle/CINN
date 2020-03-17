@@ -1,6 +1,7 @@
 #include "cinn/optim/vectorize_loops.h"
 
 #include <algorithm>
+#include <map>
 #include <string>
 
 #include "cinn/common/ir.h"
@@ -262,8 +263,8 @@ struct VectorizeLoops_ : public IRMutator<Expr*> {
     auto* node = expr->As<PolyFor>();
 
     if (forloop->for_type == ForType::Vectorized) {
-      // The forloop generated from polyhedral analysis might have a complex condition that is not something like "i<20"
-      // or "i<=20", those cases is not possible to extract the extent.
+      // The forloop generated from polyhedral analysis might have a complex condition that is not something like
+      // "i<20" or "i<=20", those cases is not possible to extract the extent.
       auto* extent_int = forloop->extent().As<IntImm>();
       if (!extent_int) {
         VLOG(2) << "Ignore the forloop because the condition is not based on a int extent";
