@@ -5,7 +5,16 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/debug_manager.h"
+#include "cinn/common/info_registry.h"
+#include "cinn/utils/any.h"
+
 namespace cinn {
+
+namespace ir {
+class Expr;
+}  // namespace ir
+
 namespace common {
 
 struct ID {
@@ -27,11 +36,16 @@ struct NameGenerator {
 class Context {
  public:
   static Context& Global();
+
   /**
    * Generate a new unique name.
    * @param name_hint The prefix.
    */
   std::string NewName(const std::string& name_hint) { return name_generator_.New(name_hint); }
+
+  InfoRegistry& info_rgt() { return info_rgt_; }
+
+  DebugManager& debug_mgr() { return debug_mgr_; }
 
   /**
    * The global isl ctx.
@@ -42,6 +56,8 @@ class Context {
   Context() : ctx_(isl_ctx_alloc()) {}
   NameGenerator name_generator_;
   isl::ctx ctx_;
+  DebugManager debug_mgr_;
+  InfoRegistry info_rgt_;
 };
 
 }  // namespace common
