@@ -255,7 +255,7 @@ struct Reduce : public ExprNode<Reduce> {
 };
 
 struct Call : public ExprNode<Call> {
-  Call(Type t) : ExprNode<Call>(t) {}
+  explicit Call(Type t) : ExprNode<Call>(t) {}
 
   enum CallType : int {
     //! Extern "C" function.
@@ -462,7 +462,7 @@ enum class ForType : int {
 
 struct For : public ExprNode<For> {
   //! The loop variable.
-  Expr loop_var;
+  Var loop_var;
   //! The minimum value of the iteration.
   Expr min;
   //! The extent of the iteration.
@@ -474,14 +474,23 @@ struct For : public ExprNode<For> {
 
   DeviceAPI device_api;
 
-  For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
-
-  static Expr Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
+  static Expr Make(Var loop_var, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::For;
+};
+
+struct VectorizeInfo {
+  int level{-1};
+  int factor{-1};
+
+  inline void set(int l, int f) {
+    level = l;
+    f     = factor;
+  }
+  inline bool valid() const { return level > 0 && factor > 0; }
 };
 
 //! Polyhedral forloop, which condition is more complex than the normal `For`.
@@ -500,7 +509,11 @@ struct PolyFor : public ExprNode<PolyFor> {
   ForType for_type;
   DeviceAPI device_api;
 
+  VectorizeInfo vectorize_info;
+
   PolyFor() : ExprNode(Type()) {}
+
+  Expr extent() const;
 
   static Expr Make(
       Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Expr body);
@@ -532,7 +545,7 @@ struct Broadcast : public ExprNode<Broadcast> {
 };
 
 struct Module : public ExprNode<Module> {
-  Module(Type t) : ExprNode<Module>(t) {}
+  explicit Module(Type t) : ExprNode<Module>(t) {}
 
   static const IrNodeTy _node_type_ = IrNodeTy::Module;
 };
@@ -554,7 +567,7 @@ class _Range_;
 class Range : public IrNodeRef {
  public:
   Range() = default;
-  Range(IrNodeRef n) : IrNodeRef(n) {}
+  explicit Range(IrNodeRef n) : IrNodeRef(n) {}
   Range(_Range_* n);
   _Range_* operator->() const { return get()->as<_Range_>(); }
 };

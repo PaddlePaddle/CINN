@@ -67,8 +67,8 @@ void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct
   const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
-  for (int32_t i = 0; (i <= 99); i += 1){
-    for (int32_t j = 0; (j <= 19); j += 1){
+  for (int32_t i = 0; (i <= 99); i += 1) {
+    for (int32_t j = 0; (j <= 19); j += 1) {
       C[((i * 20) + j)] = (A[((i * 20) + j)] + B[((i * 20) + j)]);
     };
   };
@@ -157,17 +157,17 @@ void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
   float* D = (float*)(cinn_buffer_get_data_handle(_D));
-  for (int32_t i_outer = 0; (i_outer <= 24); i_outer += 1){
-    for (int32_t i_inner = 0; (i_inner <= 3); i_inner += 1){
-      for (int32_t j = 0; (j <= 19); j += 1){
+  for (int32_t i_outer = 0; (i_outer <= 24); i_outer += 1) {
+    for (int32_t i_inner = 0; (i_inner <= 3); i_inner += 1) {
+      for (int32_t j = 0; (j <= 19); j += 1) {
         C[((((4 * i_outer) + i_inner) * 20) + j)] = ((A[((((4 * i_outer) + i_inner) * 20) + j)] + B[((((4 * i_outer) + i_inner) * 20) + j)]) + ((A[((((4 * i_outer) + i_inner) * 20) + j)] * 2) + 1));
       };
     };
   };
-  for (int32_t i_outer = 0; (i_outer <= 24); i_outer += 1){
-    for (int32_t i_inner = 0; (i_inner <= 3); i_inner += 1){
-      for (int32_t j_outer = 0; (j_outer <= 1); j_outer += 1){
-        for (int32_t j_inner = 0; (j_inner <= min(15, ((-16 * j_outer) + 19))); j_inner += 1){
+  for (int32_t i_outer = 0; (i_outer <= 24); i_outer += 1) {
+    for (int32_t i_inner = 0; (i_inner <= 3); i_inner += 1) {
+      for (int32_t j_outer = 0; (j_outer <= 1); j_outer += 1) {
+        for (int32_t j_inner = 0; (j_inner <= min(15, ((-16 * j_outer) + 19))); j_inner += 1) {
           D[((((4 * i_outer) + i_inner) * 20) + ((16 * j_outer) + j_inner))] = ((C[((((4 * i_outer) + i_inner) * 20) + ((16 * j_outer) + j_inner))] * 2) * ((A[((((4 * i_outer) + i_inner) * 20) + ((16 * j_outer) + j_inner))] * 2) + 1));
         };
       };
@@ -227,10 +227,10 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
   float* C_init = (float*)(cinn_buffer_get_data_handle(_C));
-  for (int32_t i = 0; (i <= 99); i += 1){
-    for (int32_t j = 0; (j <= 49); j += 1){
+  for (int32_t i = 0; (i <= 99); i += 1) {
+    for (int32_t j = 0; (j <= 49); j += 1) {
       C_init[((i * 50) + j)] = 0;
-      for (int32_t k = 0; (k <= 19); k += 1){
+      for (int32_t k = 0; (k <= 19); k += 1) {
         C[((i * 50) + j)] = (C[((i * 50) + j)] + (A[((i * 20) + k)] * B[((k * 50) + j)]));
       };
     };
@@ -308,13 +308,13 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
   float* C_init = (float*)(cinn_buffer_get_data_handle(_C));
-  for (int32_t i_outer = 0; (i_outer <= 3); i_outer += 1){
-    for (int32_t j_outer = 0; (j_outer <= 15); j_outer += 1){
-      for (int32_t i_inner = 0; (i_inner <= min(31, ((-32 * i_outer) + 99))); i_inner += 1){
-        for (int32_t j_inner = 0; (j_inner <= min(31, ((-32 * j_outer) + 499))); j_inner += 1){
+  for (int32_t i_outer = 0; (i_outer <= 3); i_outer += 1) {
+    for (int32_t j_outer = 0; (j_outer <= 15); j_outer += 1) {
+      for (int32_t i_inner = 0; (i_inner <= min(31, ((-32 * i_outer) + 99))); i_inner += 1) {
+        for (int32_t j_inner = 0; (j_inner <= min(31, ((-32 * j_outer) + 499))); j_inner += 1) {
           C_init[((((32 * i_outer) + i_inner) * 500) + ((32 * j_outer) + j_inner))] = 0;
-          for (int32_t k_outer = 0; (k_outer <= 49); k_outer += 1){
-            for (int32_t k_inner = 0; (k_inner <= 3); k_inner += 1){
+          for (int32_t k_outer = 0; (k_outer <= 49); k_outer += 1) {
+            for (int32_t k_inner = 0; (k_inner <= 3); k_inner += 1) {
               C[((((32 * i_outer) + i_inner) * 500) + ((32 * j_outer) + j_inner))] = (C[((((32 * i_outer) + i_inner) * 500) + ((32 * j_outer) + j_inner))] + (A[((((32 * i_outer) + i_inner) * 200) + ((4 * k_outer) + k_inner))] * B[((((4 * k_outer) + k_inner) * 500) + ((32 * j_outer) + j_inner))]));
             };
           };
@@ -387,19 +387,19 @@ void matmul_with_packing(const struct cinn_buffer_t *_A, const struct cinn_buffe
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
   float* PackedB = (float*)(cinn_buffer_get_data_handle(_PackedB));
-  for (int32_t i = 0; (i <= 14); i += 1){
-    for (int32_t j = 0; (j <= 199); j += 1){
-      for (int32_t k = 0; (k <= 31); k += 1){
+  for (int32_t i = 0; (i <= 14); i += 1) {
+    for (int32_t j = 0; (j <= 199); j += 1) {
+      for (int32_t k = 0; (k <= 31); k += 1) {
         PackedB[((((i * 200) * 32) + (j * 32)) + k)] = B[((j * 500) + ((i * 32) + k))];
       };
     };
   };
-  for (int32_t i_outer = 0; (i_outer <= 3); i_outer += 1){
-    for (int32_t j_outer = 0; (j_outer <= 15); j_outer += 1){
-      for (int32_t i_inner = 0; (i_inner <= min(31, ((-32 * i_outer) + 99))); i_inner += 1){
-        for (int32_t j_inner = 0; (j_inner <= min(31, ((-32 * j_outer) + 499))); j_inner += 1){
-          for (int32_t k_outer = 0; (k_outer <= 49); k_outer += 1){
-            for (int32_t k_inner = 0; (k_inner <= 3); k_inner += 1){
+  for (int32_t i_outer = 0; (i_outer <= 3); i_outer += 1) {
+    for (int32_t j_outer = 0; (j_outer <= 15); j_outer += 1) {
+      for (int32_t i_inner = 0; (i_inner <= min(31, ((-32 * i_outer) + 99))); i_inner += 1) {
+        for (int32_t j_inner = 0; (j_inner <= min(31, ((-32 * j_outer) + 499))); j_inner += 1) {
+          for (int32_t k_outer = 0; (k_outer <= 49); k_outer += 1) {
+            for (int32_t k_inner = 0; (k_inner <= 3); k_inner += 1) {
               C[((((32 * i_outer) + i_inner) * 500) + ((32 * j_outer) + j_inner))] = (A[((((32 * i_outer) + i_inner) * 200) + ((4 * k_outer) + k_inner))] * PackedB[(((((((32 * j_outer) + j_inner) / 32) * 200) * 32) + (((4 * k_outer) + k_inner) * 32)) + (((32 * j_outer) + j_inner) % 32))]);
             };
           };

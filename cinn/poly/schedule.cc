@@ -123,7 +123,6 @@ std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bo
     if (visited.count(Expr(top))) continue;
     visited.insert(Expr(top));
     if (top->stage()) {
-      VLOG(3) << "collect stage " << top->stage();
       stages.push_back(top->stage());
     }
 

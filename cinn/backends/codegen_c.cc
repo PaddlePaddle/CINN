@@ -109,7 +109,24 @@ void CodeGenC::Visit(const ir::Not *op) {
   os() << ")";
 }
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v); }
-void CodeGenC::Visit(const ir::For *op) { LOG(FATAL) << "Not Implemented"; }
+void CodeGenC::Visit(const ir::For *op) {
+  os() << "for (";
+  os() << PrintType(Int(32));
+  os() << " " << op->loop_var->name;
+  os() << " = ";
+  Print(op->min);
+  os() << "; ";
+  os() << op->loop_var->name;
+  os() << " < ";
+  Print(op->extent);
+  os() << "; ";
+
+  os() << op->loop_var->name;
+  os() << " += 1";
+  os() << ") ";
+
+  Print(op->body);
+}
 void CodeGenC::Visit(const ir::PolyFor *op) {
   os() << "for (";
   os() << PrintType(Int(32));
@@ -123,7 +140,7 @@ void CodeGenC::Visit(const ir::PolyFor *op) {
   os() << op->iterator->name;
   os() << " += ";
   Print(op->inc);
-  os() << ")";
+  os() << ") ";
 
   Print(op->body);
 }
@@ -140,12 +157,28 @@ void CodeGenC::Visit(const ir::Select *op) {
 void CodeGenC::Visit(const ir::IfThenElse *op) {
   os() << "if (";
   Print(op->condition);
-  os() << ")";
+  os() << ") {\n";
+
+  if (!op->true_case.As<ir::Block>()) IncIndent();
+  DoIndent();
   Print(op->true_case);
+  os() << "\n";
+  if (!op->true_case.As<ir::Block>()) DecIndent();
+
+  DoIndent();
+  os() << "}";
 
   if (op->false_case.defined()) {
-    os() << "else\n";
+    os() << " else {\n";
+
+    if (!op->true_case.As<ir::Block>()) IncIndent();
+    DoIndent();
     Print(op->false_case);
+    os() << "\n";
+    if (!op->true_case.As<ir::Block>()) DecIndent();
+
+    DoIndent();
+    os() << "}";
   }
 }
 void CodeGenC::Visit(const ir::Block *op) {

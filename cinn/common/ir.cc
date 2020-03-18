@@ -29,5 +29,14 @@ Expr ExpandTo1DIndice(const std::vector<int> &shape, const std::vector<Expr> &in
   return ExpandTo1DIndice(shape, indices);
 }
 
+bool is_zero(Expr v) {
+  auto *int_n   = v.As<ir::IntImm>();
+  auto *float_n = v.As<ir::FloatImm>();
+
+  if (int_n) return int_n->value == 0;
+  if (float_n) return float_n->value = 0.f;
+  return false;
+}
+
 }  // namespace common
 }  // namespace cinn

@@ -55,6 +55,18 @@ int32_t Expr::as_int32() const {
   CHECK(type().is_int(32));
   return As<IntImm>()->value;
 }
+int64_t Expr::as_int64() const {
+  CHECK(type().is_int(64));
+  return As<IntImm>()->value;
+}
+float Expr::as_float() const {
+  CHECK(type().is_float(32));
+  return As<FloatImm>()->value;
+}
+double Expr::as_double() const {
+  CHECK(type().is_float(64));
+  return As<FloatImm>()->value;
+}
 
 Expr &Expr::operator=(const Expr &other) {
   *static_cast<IrNodeRef *>(this) = *static_cast<const IrNodeRef *>(&other);

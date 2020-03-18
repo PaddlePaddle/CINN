@@ -150,24 +150,22 @@ Expr _Var_::Copy() const {
   return Expr(n);
 }
 
-For::For(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) : ExprNode(Type()) {
+Expr For::Make(Var loop_var, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) {
+  auto node = make_shared<For>();
+  CHECK(loop_var.defined());
   CHECK(min.defined());
   CHECK(extent.defined());
-  CHECK(body.defined());
-
-  this->min        = std::move(min);
-  this->extent     = std::move(extent);
-  this->for_type   = std::move(for_type);
-  this->device_api = device_api;
-  this->body       = std::move(body);
-}
-
-Expr For::Make(Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) {
-  auto node = make_shared<For>(min, extent, for_type, device_api, body);
+  node->loop_var   = loop_var;
+  node->min        = min;
+  node->extent     = extent;
+  node->for_type   = for_type;
+  node->device_api = device_api;
+  node->body       = body;
   return Expr(node);
 }
-std::vector<Expr *> For::expr_fields() { return {&loop_var, &min, &extent, &body}; }
-std::vector<const Expr *> For::expr_fields() const { return {&loop_var, &min, &extent, &body}; }
+
+std::vector<Expr *> For::expr_fields() { return {&min, &extent, &body}; }
+std::vector<const Expr *> For::expr_fields() const { return {&min, &extent, &body}; }
 
 Expr Block::Make(const std::vector<Expr> &stmts) {
   auto node   = make_shared<Block>();
@@ -321,6 +319,36 @@ Expr PolyFor::Make(
 }
 std::vector<Expr *> PolyFor::expr_fields() { return {&init, &condition, &inc, &body}; }
 std::vector<const Expr *> PolyFor::expr_fields() const { return {&init, &condition, &inc, &body}; }
+
+Expr PolyFor::extent() const {
+  auto nodes = CollectIRNodes(condition, [&](const Expr *e) {
+    return e->As<NE>() ||   //
+           e->As<EQ>() ||   //
+           e->As<Min>() ||  //
+           e->As<Max>();
+  });
+
+  if (nodes.empty()) {
+    return Expr();
+  }
+
+  auto *le_n = condition.As<LE>();
+  auto *lt_n = condition.As<LT>();
+  if (!(le_n || lt_n)) return Expr();
+
+  if (le_n) {
+    if (le_n->a != Expr(iterator)) return Expr();
+    auto *le_b_int = le_n->b.As<IntImm>();
+    if (le_b_int) return Expr(make_shared<IntImm>(Int(32), le_b_int->value + 1));
+    return Add::Make(le_n->b, Expr(1));
+  }
+
+  if (lt_n) {
+    if (lt_n->a != Expr(iterator)) return Expr();
+    return lt_n->b;
+  }
+  return Expr();
+}
 
 bool Var::operator==(const Var &o) const { return o->name == operator->()->name; }
 bool Var::operator!=(const Var &o) const { return !(*this == o); }

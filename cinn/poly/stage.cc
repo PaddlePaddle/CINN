@@ -1,5 +1,7 @@
 #include "cinn/poly/stage.h"
 
+#include <set>
+
 #include "cinn/common/axis.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
@@ -39,8 +41,8 @@ Stage::Stage(const isl::set &domain, Expr expr) : domain_(domain), expr_(expr) {
   InitTransform();
 }
 
-std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
-  int offset = isl_set_find_dim_by_name(domain_.get(), isl_dim_set, level.id.c_str());
+std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor, SplitRestStrategy strategy) {
+  int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level.id.c_str());
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
   auto dim_names = GetDimNames(transform_, isl_dim_out);
 
@@ -79,6 +81,9 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
   VLOG(3) << "schedule after transform: " << transform_;
 
   VLOG(3) << "iterators: " << outer_iter << " " << inner_iter;
+
+  split_strageties_[inner_iter.id] = strategy;
+
   return std::make_tuple(outer_iter, inner_iter);
 }
 
@@ -160,8 +165,8 @@ std::string OuterName(const Iterator &iterator) { return OuterName(iterator.id);
 
 const char *Stage::id() const { return isl_set_get_tuple_name(domain_.get()); }
 
-std::tuple<Iterator, Iterator> Stage::Split(const std::string &level, int factor) {
-  return std::move(Split(Iterator(level), factor));
+std::tuple<Iterator, Iterator> Stage::Split(const std::string &level, int factor, SplitRestStrategy strategy) {
+  return std::move(Split(Iterator(level), factor, strategy));
 }
 
 Shared<Stage> Stage::New(const isl::set &domain, Expr expr) { return new Stage(domain, expr); }
@@ -194,6 +199,19 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
   VLOG(3) << "stage1.partial_set " << self_partial_set;
 
   return isl_set_is_equal(stage_partial_set.get(), self_partial_set.get());
+}
+
+void Stage::Vectorize(int level, int factor) {
+  CHECK_LT(factor, 0);
+  auto dim_name = ith_dim_name(level);
+  Split(dim_name, factor);
+  vectorize_info_.set(level, factor);
+}
+
+std::string Stage::ith_dim_name(int level) {
+  auto dims = GetDimNames(transformed_domain());
+  CHECK_LT(level, dims.size());
+  return dims[level];
 }
 
 }  // namespace poly

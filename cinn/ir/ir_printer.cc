@@ -60,15 +60,13 @@ void IrPrinter::Visit(const Minus *x) {
 }
 void IrPrinter::Visit(const For *x) {
   os_ << "for (";
-  Print(x->min);
+  Print(x->loop_var);
   os_ << ", ";
   Print(x->extent);
-  os_ << ") {\n";
-
-  Print(x->body);
+  os_ << ")\n";
 
   DoIndent();
-  os_ << "}\n";
+  Print(x->body);
 }
 
 void IrPrinter::Visit(const PolyFor *x) {
@@ -207,7 +205,26 @@ void IrPrinter::Visit(const Let *f) {
 
 void IrPrinter::Visit(const _IterVar_ *f) { NOT_IMPLEMENTED }
 
-void IrPrinter::Visit(const Reduce *f) { NOT_IMPLEMENTED }
+void IrPrinter::Visit(const Reduce *f) {
+  os() << "Reduce(";
+  switch (f->reduce_type) {
+    case Reduce::ReduceType::kSum:
+      os() << "sum";
+      break;
+    case Reduce::ReduceType::kSub:
+      os() << "sub";
+      break;
+    case Reduce::ReduceType::kDiv:
+      os() << "Div";
+      break;
+    case Reduce::ReduceType::kMul:
+      os() << "Mul";
+      break;
+  }
+  os() << ", ";
+  Print(f->body);
+  os() << ")";
+}
 
 void IrPrinter::Visit(const Ramp *x) {
   os() << "Ramp(";

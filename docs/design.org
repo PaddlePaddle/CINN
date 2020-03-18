@@ -177,3 +177,14 @@ Module is the container of LoweredFuncs and Buffers.
 There might be more than one module in an generated execution.
 
 The Module can compile to a backends.
+** Transform
+*** Vectorize
+usage:
+
+#+BEGIN_SRC C++
+  C->stage()->Vectorize(2, 8);
+#+END_SRC
+
+Mark the stage as vectorize, when lowering, mark the corresponding forloop in isl ast as vectorize,
+then replace call with the statement.
+

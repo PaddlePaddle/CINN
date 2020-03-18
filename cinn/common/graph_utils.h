@@ -17,6 +17,10 @@
 namespace cinn {
 namespace common {
 
+#ifdef As
+#undef As
+#endif
+
 class GraphNode;
 
 /**
