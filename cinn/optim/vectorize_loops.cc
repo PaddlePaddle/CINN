@@ -258,13 +258,13 @@ struct VectorizeLoops_ : public IRMutator<Expr*> {
 
   void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
 
-  void Visit(const PolyFor* forloop, Expr* expr) {
-    auto* node = expr->As<PolyFor>();
+  void Visit(const For* forloop, Expr* expr) {
+    auto* node = expr->As<For>();
 
     if (forloop->for_type == ForType::Vectorized) {
       // The forloop generated from polyhedral analysis might have a complex condition that is not something like "i<20"
       // or "i<=20", those cases is not possible to extract the extent.
-      auto* extent_int = forloop->extent().As<IntImm>();
+      auto* extent_int = forloop->extent.As<IntImm>();
       if (!extent_int) {
         VLOG(2) << "Ignore the forloop because the condition is not based on a int extent";
         return;

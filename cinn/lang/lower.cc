@@ -20,10 +20,12 @@ using poly::Stage;
 struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
   const std::map<std::string, ir::VectorizeInfo>& vectorizes;
 
-  MarkVectorizeMutator(const std::map<std::string, ir::VectorizeInfo>& vectorizes) : vectorizes(vectorizes) {}
+  MarkVectorizeMutator(const std::map<std::string /*tensor name*/, ir::VectorizeInfo>& vectorizes)
+      : vectorizes(vectorizes) {}
 
   void operator()(Expr* expr) { ir::IRMutator<Expr*>::Visit(expr, expr); }
 
+  // NOTE This mutator takes PolyFor as input, not For.
   void Visit(const ir::PolyFor* op, Expr* expr) override {
     auto* node   = expr->As<ir::PolyFor>();
     last_polyfor = node;

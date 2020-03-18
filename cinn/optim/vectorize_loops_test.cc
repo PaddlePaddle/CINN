@@ -3,9 +3,9 @@
 #include <gtest/gtest.h>
 
 #include "cinn/cinn.h"
-#include "cinn/utils/string.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/optim/ir_simplify.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace optim {
@@ -145,7 +145,6 @@ TEST(Vectorize, replace_var) {
 )ROC";
 
   EXPECT_EQ(utils::Trim(target_out), utils::Trim(utils::GetStreamCnt(funcs.front()->body)));
-
 
   Target target;
   target.arch = Target::Arch ::X86;

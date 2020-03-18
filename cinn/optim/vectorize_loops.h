@@ -5,6 +5,11 @@
 namespace cinn {
 namespace optim {
 
+/**
+ * Vectorize the forloops(For) if its for_type is marked as kVectorize.
+ * @param expr
+ * @param target
+ */
 void VectorizeLoops(Expr* expr, const Target& target);
 
 namespace detail {
