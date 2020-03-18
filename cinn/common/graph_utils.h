@@ -6,8 +6,10 @@
 #include <functional>
 #include <list>
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -16,6 +18,10 @@
 
 namespace cinn {
 namespace common {
+
+#ifdef As
+#undef As
+#endif
 
 class GraphNode;
 

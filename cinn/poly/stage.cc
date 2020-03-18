@@ -1,6 +1,7 @@
 #include "cinn/poly/stage.h"
 
 #include <set>
+#include <utility>
 
 #include "cinn/common/axis.h"
 #include "cinn/ir/ir_printer.h"
@@ -204,7 +205,7 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
 void Stage::Vectorize(int level, int factor) {
   CHECK_GT(factor, 0);
   auto dim_name = ith_dim_name(level);
-  Split(dim_name, factor, SplitRestStrategy::kSeparate);
+  Split(dim_name, factor);
   vectorize_info_.set(level, factor);
 }
 

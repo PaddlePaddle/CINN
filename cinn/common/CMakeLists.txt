@@ -8,6 +8,7 @@ set(srcs
     context.cc
     axis.cc
     ir.cc
+    arithmatic.cc
     )
 
 foreach(cpp ${srcs})
@@ -19,3 +20,4 @@ endforeach()
 cc_test(test_pod_value SRCS pod_value_test.cc DEPS core)
 cc_test(test_shared SRCS shared_test.cc DEPS core)
 cc_test(test_graph_utils SRCS graph_utils_test.cc DEPS core)
+cc_test(test_arithmatic SRCS arithmatic_test.cc DEPS core)

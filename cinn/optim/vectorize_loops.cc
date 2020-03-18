@@ -1,10 +1,12 @@
 #include "cinn/optim/vectorize_loops.h"
 
 #include <algorithm>
+#include <map>
 #include <string>
 
 #include "cinn/common/ir.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/utils/functional.h"
 
 namespace cinn {
@@ -156,11 +158,7 @@ class Vectorizer : public IRMutator<Expr*> {
     LOG(ERROR) << "Ignore Width IfThenElse";
   }
 
-  void Visit(const For* op, Expr* expr) override {
-    auto* node       = expr->As<PolyFor>();
-    ForType for_type = op->for_type;
-    NOT_IMPLEMENTED
-  }
+  void Visit(const For* op, Expr* expr) override { ir::IRMutator<>::Visit(op, expr); }
 
   void Scalarize(Expr* expr) {
     Var idx(var->name + "_s", Int(32));
@@ -262,8 +260,8 @@ struct VectorizeLoops_ : public IRMutator<Expr*> {
     auto* node = expr->As<For>();
 
     if (forloop->for_type == ForType::Vectorized) {
-      // The forloop generated from polyhedral analysis might have a complex condition that is not something like "i<20"
-      // or "i<=20", those cases is not possible to extract the extent.
+      // The forloop generated from polyhedral analysis might have a complex condition that is not something like
+      // "i<20" or "i<=20", those cases is not possible to extract the extent.
       auto* extent_int = forloop->extent.As<IntImm>();
       if (!extent_int) {
         VLOG(2) << "Ignore the forloop because the condition is not based on a int extent";
@@ -271,7 +269,7 @@ struct VectorizeLoops_ : public IRMutator<Expr*> {
       }
 
       int extent = extent_int->value;
-      CHECK_GT(extent, 0) << "Loop over " << Expr(forloop->iterator) << " has extent " << forloop->extent()
+      CHECK_GT(extent, 0) << "Loop over " << Expr(forloop->iterator) << " has extent " << forloop->extent
                           << ". Can only vectorize loops over a constant extent > 1";
 
       Vectorizer(forloop->iterator, extent).Visit(&node->body);
@@ -281,7 +279,11 @@ struct VectorizeLoops_ : public IRMutator<Expr*> {
   }
 };
 
-void VectorizeLoops(Expr* expr, const Target& target) { return VectorizeLoops_(target)(expr); }
+void VectorizeLoops(Expr* expr, const Target& target) {
+  optim::TransformPolyForToFor(expr);
+
+  return VectorizeLoops_(target)(expr);
+}
 
 namespace detail {
 
