@@ -137,6 +137,7 @@ TEST(Vectorize, replace_var) {
 
 TEST(Vectorize, TestMarkVectorize) {
   // create two forloops, check only one forloop is marked Vectorize.
+  Context::Global().info_rgt().Clear();
 
   using namespace ir;  // NOLINT
 
@@ -170,13 +171,11 @@ TEST(Vectorize, TestMarkVectorize) {
   auto funcs = Lower("matmul", {A, B, C, D});
   CHECK_EQ(funcs.size(), 1UL);
 
+  std::cout << "before optim\n" << funcs.front()->body << std::endl;
+
   optim::TransformPolyForToFor(&funcs[0]->body);
-
   optim::VectorizeLoops(&funcs[0]->body, target);
-
-  detail::Vectorize(ir::_Var_::Make("j_inner", Int(32)), 16, &funcs.front()->body);
-
-  std::cout << "\n" << funcs.front()->body << std::endl;
+  optim::Simplify(&funcs[0]->body);
 
   lang::Module module("module1", target);
   module.Append(funcs[0]);
@@ -184,6 +183,8 @@ TEST(Vectorize, TestMarkVectorize) {
   CodeGenC codegen(target);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "out:\n" << out;
+
+  EXPECT_EQ(Context::Global().info_rgt().Get<int>("vectorized_forloop_count"), 1);
 }
 
 }  // namespace optim

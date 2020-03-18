@@ -32,14 +32,42 @@ void PartialSimplify(Expr* expr) {
   VLOG(4) << "ex to expr: " << *expr;
 }
 
-struct SimplifyStoreMutator : public ir::IRMutator<ir::Expr*> {
+//! Simplify the expression but Load.
+struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
   void operator()(Expr* x) { ir::IRMutator<ir::Expr*>::Visit(x, x); }
 
-  void Visit(const Store* expr, Expr* op) override {
-    auto* node = op->As<Store>();
-    VLOG(4) << "to simplify Load: " << *op;
-    PartialSimplify(&node->index);
-    VLOG(4) << "get: " << *op;
+  using ir::IRMutator<>::Visit;
+
+#define __(op__)                                    \
+  void Visit(const op__* op, Expr* expr) override { \
+    auto* node = expr->As<op__>();                  \
+    bool ap    = common::IsPureMath(node->a);       \
+    bool bp    = common::IsPureMath(node->b);       \
+    if (ap && bp) {                                 \
+      PartialSimplify(expr);                        \
+    } else if (ap) {                                \
+      PartialSimplify(&node->a);                    \
+      Visit(&node->b, &node->b);                    \
+    } else if (bp) {                                \
+      PartialSimplify(&node->b);                    \
+      Visit(&node->a, &node->a);                    \
+    } else {                                        \
+      Visit(&node->a, &node->a);                    \
+      Visit(&node->b, &node->b);                    \
+    }                                               \
+  }
+  __(Add)
+  __(Mul)
+  __(Sub)
+  __(Div)
+#undef __
+
+  void Visit(const Ramp* op, Expr* expr) override {
+    auto* node = expr->As<Ramp>();
+    CHECK(common::IsPureMath(node->base));
+    CHECK(common::IsPureMath(node->stride));
+    PartialSimplify(&node->base);
+    PartialSimplify(&node->stride);
   }
 };
 
@@ -48,44 +76,28 @@ struct SimplifyLoadMutator : public ir::IRMutator<ir::Expr*> {
 
   void Visit(const Load* expr, Expr* op) override {
     auto* node = op->As<Load>();
-    VLOG(4) << "to simplify Load: " << *op;
-    PartialSimplify(&node->index);
-    VLOG(4) << "get: " << *op;
+    if (common::IsPureMath(node->index))
+      PartialSimplify(&node->index);
+    else {
+      SimplifyButStoreLoadMutator mutator;
+      mutator(&node->index);
+    }
   }
 };
 
-//! Simplify the expression but Load.
-struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
+struct SimplifyStoreMutator : public ir::IRMutator<ir::Expr*> {
   void operator()(Expr* x) { ir::IRMutator<ir::Expr*>::Visit(x, x); }
 
-  void Visit(const Add* expr, Expr* op) override {
-    VLOG(4) << "origin: " << *op;
-    PartialSimplify(op);
-    VLOG(4) << "simplified: " << *op;
-  }
-  void Visit(const Sub* expr, Expr* op) override {
-    VLOG(4) << "origin: " << *op;
-    PartialSimplify(op);
-    VLOG(4) << "simplified: " << *op;
-  }
-  void Visit(const Mul* expr, Expr* op) override {
-    VLOG(4) << "origin: " << *op;
-    PartialSimplify(op);
-    VLOG(4) << "simplified: " << *op;
-  }
-  void Visit(const Div* expr, Expr* op) override {
-    VLOG(4) << "origin: " << *op;
-    PartialSimplify(op);
-    VLOG(4) << "simplified: " << *op;
-  }
+  void Visit(const Store* expr, Expr* op) override {
+    auto* node = op->As<Store>();
 
-  void Visit(const Ramp* op, Expr* expr) override {
-    auto* node = expr->As<Ramp>();
-    PartialSimplify(&node->base);
-    PartialSimplify(&node->stride);
+    if (common::IsPureMath(node->index)) {
+      PartialSimplify(&node->index);
+    } else {
+      SimplifyButStoreLoadMutator mutator;
+      mutator(&node->index);
+    }
   }
-
-#undef __
 };
 
 }  // namespace

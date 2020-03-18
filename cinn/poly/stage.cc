@@ -206,7 +206,7 @@ void Stage::Vectorize(int level, int factor) {
   CHECK_GT(factor, 0);
   auto dim_name = ith_dim_name(level);
   Split(dim_name, factor);
-  vectorize_info_.set(level, factor);
+  vectorize_info_.set(level + 1 /*inner*/, factor);
 }
 
 std::string Stage::ith_dim_name(int level) {

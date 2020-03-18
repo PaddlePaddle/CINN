@@ -486,11 +486,11 @@ struct VectorizeInfo {
   int level{-1};
   int factor{-1};
 
-  inline void set(int l, int f) {
-    level = l;
-    f     = factor;
+  inline void set(int level, int factor) {
+    this->level  = level;
+    this->factor = factor;
   }
-  inline bool valid() const { return level > 0 && factor > 0; }
+  inline bool valid() const { return level >= 0 && factor > 0; }
 };
 
 //! Polyhedral forloop, which condition is more complex than the normal `For`.

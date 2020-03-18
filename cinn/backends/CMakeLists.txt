@@ -8,6 +8,7 @@ foreach(cpp ${srcs})
       CACHE INTERNAL "")
 endforeach()
 
+cc_library(__x86_source_fake_lib SRCS _x86_builtin_source.hpp)
 
 cc_test(test_codegen_c SRCS codegen_c_test.cc DEPS core)
 cc_test(test_generated1 SRCS ${CMAKE_BINARY_DIR}/cinn/backends/generated_module1.cc DEPS cinn_runtime)

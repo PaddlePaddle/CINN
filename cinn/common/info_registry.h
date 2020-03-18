@@ -29,7 +29,7 @@ T& InfoRegistry::Get(const std::string& key) {
   if (it == data_.end()) {
     data_[key] = T();
   }
-  return data_[key];
+  return utils::get<T>(data_[key]);
 }
 
 }  // namespace common

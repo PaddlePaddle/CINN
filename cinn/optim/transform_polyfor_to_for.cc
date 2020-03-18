@@ -241,6 +241,7 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
 
  private:
   void Visit(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
   void Visit(const ir::PolyFor* op, Expr* expr) override {
     auto* lt_n = op->condition.As<ir::LT>();
     auto* le_n = op->condition.As<ir::LE>();

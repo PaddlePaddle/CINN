@@ -19,7 +19,7 @@ using common::make_zero;
 //! Widen an expression to the given number of lanes.
 Expr Widen(Expr e, int lanes) {
   if (e.type().lanes() == lanes) return e;
-  if (const ir::Broadcast* op = e.As<ir::Broadcast>()) {
+  if (const ir::Broadcast *op = e.As<ir::Broadcast>()) {
     if (lanes % op->lanes == 0) {
       return ir::Broadcast::Make(op->value, lanes);
     }
@@ -30,7 +30,7 @@ Expr Widen(Expr e, int lanes) {
 }
 
 //! Substitutes a vector for a scalar var in a Stmt.
-class Vectorizer : public IRMutator<Expr*> {
+class Vectorizer : public IRMutator<Expr *> {
   //! The name of the variable to be vectorized.
   Var var;
 
@@ -38,20 +38,22 @@ class Vectorizer : public IRMutator<Expr*> {
 
   bool need_scalarize_{false};
 
+  bool to_vectorize_{false};
+
   Expr ramp_;
 
   //! A suffix to attach to widened variables.
   std::string widen_suffix;
 
  public:
-  Vectorizer(const Var& var, int lanes) : var(var), lanes_(lanes) {
+  Vectorizer(const Var &var, int lanes) : var(var), lanes_(lanes) {
     // the identity ramp.
     ramp_ = Ramp::Make(make_zero(), make_one(), lanes_);
   }
 
-  void Visit(Expr* expr) {
+  void Visit(Expr *expr) {
     CHECK(!need_scalarize_);
-    IRMutator<Expr*>::Visit(expr, expr);
+    IRMutator<Expr *>::Visit(expr, expr);
 
     if (need_scalarize_) {
       need_scalarize_ = false;
@@ -59,8 +61,8 @@ class Vectorizer : public IRMutator<Expr*> {
     }
   }
 
-  void Visit(const Cast* op, Expr* expr) override {
-    auto* node = expr->As<Cast>();
+  void Visit(const Cast *op, Expr *expr) override {
+    auto *node = expr->As<Cast>();
     auto v0    = node->v;
     Visit(&node->v);
     if (v0.same_as(node->v)) return;
@@ -69,33 +71,33 @@ class Vectorizer : public IRMutator<Expr*> {
     node->set_type(t);
   }
 
-  void Visit(const _Var_* op, Expr* expr) override {
+  void Visit(const _Var_ *op, Expr *expr) override {
     if (op->name == var->name) {
       *expr = Expr(ramp_);
       return;
     }
   }
 
-  void Visit(const Add* op, Expr* expr) override { MutateAddSubOperator(op, expr); }
-  void Visit(const Sub* op, Expr* expr) override { MutateAddSubOperator(op, expr); }
-  void Visit(const Mul* op, Expr* expr) override { MutateMulDivOperator(op, expr); }
-  void Visit(const Div* op, Expr* expr) override { MutateMulDivOperator(op, expr); }
-  void Visit(const Mod* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
-  void Visit(const Min* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
-  void Visit(const Max* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
-  void Visit(const EQ* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
-  void Visit(const NE* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
-  void Visit(const LT* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
-  void Visit(const LE* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
-  void Visit(const GT* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
-  void Visit(const GE* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
-  void Visit(const And* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
-  void Visit(const Or* op, Expr* expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const Add *op, Expr *expr) override { MutateAddSubOperator(op, expr); }
+  void Visit(const Sub *op, Expr *expr) override { MutateAddSubOperator(op, expr); }
+  void Visit(const Mul *op, Expr *expr) override { MutateMulDivOperator(op, expr); }
+  void Visit(const Div *op, Expr *expr) override { MutateMulDivOperator(op, expr); }
+  void Visit(const Mod *op, Expr *expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const Min *op, Expr *expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const Max *op, Expr *expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const EQ *op, Expr *expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const NE *op, Expr *expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const LT *op, Expr *expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const LE *op, Expr *expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const GT *op, Expr *expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const GE *op, Expr *expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const And *op, Expr *expr) override { BinaryOperatorVec(op, expr); }
+  void Visit(const Or *op, Expr *expr) override { BinaryOperatorVec(op, expr); }
 
-  void Visit(const Ramp* op, Expr* expr) override {}
+  void Visit(const Ramp *op, Expr *expr) override {}
 
-  void Visit(const Select* op, Expr* expr) override {
-    auto* node        = expr->As<Select>();
+  void Visit(const Select *op, Expr *expr) override {
+    auto *node        = expr->As<Select>();
     auto condition0   = node->condition;
     auto true_value0  = node->true_value;
     auto false_value0 = node->false_value;
@@ -114,8 +116,8 @@ class Vectorizer : public IRMutator<Expr*> {
     node->false_value = Widen(node->false_value, lanes);
   }
 
-  void Visit(const Load* op, Expr* expr) override {
-    auto* node  = expr->As<Load>();
+  void Visit(const Load *op, Expr *expr) override {
+    auto *node  = expr->As<Load>();
     auto index0 = node->index;
     // We ignore the predicate here.
     Visit(&node->index);
@@ -126,16 +128,16 @@ class Vectorizer : public IRMutator<Expr*> {
     *expr = Load::Make(node->tensor, node->index);
   }
 
-  void Visit(const Call* op, Expr* expr) override { LOG(ERROR) << "Ignore widen Call node"; }
+  void Visit(const Call *op, Expr *expr) override { LOG(ERROR) << "Ignore widen Call node"; }
 
-  void Visit(const Let* op, Expr* expr) override {
-    auto* node = expr->As<Let>();
+  void Visit(const Let *op, Expr *expr) override {
+    auto *node = expr->As<Let>();
     Visit(&node->value);
     LOG(ERROR) << "Let not supported";
   }
 
-  void Visit(const Store* op, Expr* expr) override {
-    auto* node  = expr->As<Store>();
+  void Visit(const Store *op, Expr *expr) override {
+    auto *node  = expr->As<Store>();
     auto value0 = node->value;
     auto index0 = node->index;
     Visit(&node->value);
@@ -149,8 +151,8 @@ class Vectorizer : public IRMutator<Expr*> {
     *expr = Store::Make(node->tensor, node->value, node->index);
   }
 
-  void Visit(const IfThenElse* op, Expr* expr) override {
-    auto* node = expr->As<IfThenElse>();
+  void Visit(const IfThenElse *op, Expr *expr) override {
+    auto *node = expr->As<IfThenElse>();
     Visit(&node->condition);
     int lanes = node->condition.type().lanes();
     Visit(&node->true_case);
@@ -158,11 +160,11 @@ class Vectorizer : public IRMutator<Expr*> {
     LOG(ERROR) << "Ignore Width IfThenElse";
   }
 
-  void Visit(const For* op, Expr* expr) override { ir::IRMutator<>::Visit(op, expr); }
+  void Visit(const For *op, Expr *expr) override { ir::IRMutator<>::Visit(op, expr); }
 
-  void Scalarize(Expr* expr) {
+  void Scalarize(Expr *expr) {
     Var idx(var->name + "_s", Int(32));
-    std::map<const ir::_Var_*, Expr> var_map;
+    std::map<const ir::_Var_ *, Expr> var_map;
     var_map[var.As<ir::_Var_>()] = idx;
 
     common::Substitute(expr, var_map);
@@ -171,8 +173,8 @@ class Vectorizer : public IRMutator<Expr*> {
   }
 
   template <typename T>
-  void MutateAddSubOperator(const T* op, Expr* expr) {
-    auto* node = expr->As<T>();
+  void MutateAddSubOperator(const T *op, Expr *expr) {
+    auto *node = expr->As<T>();
     Expr a0    = node->a;
     Expr b0    = node->b;
     Visit(&node->a);
@@ -182,8 +184,8 @@ class Vectorizer : public IRMutator<Expr*> {
 
     int lanes = std::max(node->a.type().lanes(), node->b.type().lanes());
     if (lanes != 1) {
-      const Ramp* a_ramp_n = node->a.template As<Ramp>();
-      const Ramp* b_ramp_n = node->b.template As<Ramp>();
+      const Ramp *a_ramp_n = node->a.template As<Ramp>();
+      const Ramp *b_ramp_n = node->b.template As<Ramp>();
       if (node->a.type().lanes() == 1 && b_ramp_n) {
         // a + Ramp(base,stride,lanes) = Ramp(base+a, stride,lanes)
         *expr = Ramp::Make(T::Make(node->a, b_ramp_n->base),  // base
@@ -203,10 +205,10 @@ class Vectorizer : public IRMutator<Expr*> {
   }
 
   template <typename T>
-  void MutateMulDivOperator(const T* op, Expr* expr) {
+  void MutateMulDivOperator(const T *op, Expr *expr) {
     Expr a0    = op->a;
     Expr b0    = op->b;
-    auto* node = expr->As<T>();
+    auto *node = expr->As<T>();
     Visit(&node->a);
     Visit(&node->b);
 
@@ -214,8 +216,8 @@ class Vectorizer : public IRMutator<Expr*> {
 
     int lanes = std::max(node->a.type().lanes(), node->b.type().lanes());
     if (lanes != 1) {
-      const Ramp* a_ramp_n = node->a.template As<Ramp>();
-      const Ramp* b_ramp_n = node->b.template As<Ramp>();
+      const Ramp *a_ramp_n = node->a.template As<Ramp>();
+      const Ramp *b_ramp_n = node->b.template As<Ramp>();
       if (node->a.type().lanes() == 1 && b_ramp_n) {
         // a * Ramp(base,stride,lanes) = Ramp(base*a, stride*a,lanes)
         *expr = Ramp::Make(T::Make(node->a, b_ramp_n->base),    // base
@@ -236,8 +238,8 @@ class Vectorizer : public IRMutator<Expr*> {
   }
 
   template <typename T>
-  Expr BinaryOperatorVec(const T* op, Expr* expr) {
-    auto* node = expr->As<T>();
+  Expr BinaryOperatorVec(const T *op, Expr *expr) {
+    auto *node = expr->As<T>();
     Expr a0    = node->a;
     Expr b0    = node->b;
     Visit(&node->a);
@@ -247,22 +249,24 @@ class Vectorizer : public IRMutator<Expr*> {
     int lanes = std::max(node->a.type().lanes(), node->b.type().lanes());
     return T::Make(Widen(node->a, lanes), Widen(node->b, lanes));
   }
-};
+};  // namespace optim
 
-struct VectorizeLoops_ : public IRMutator<Expr*> {
-  const Target& target;
+struct VectorizeLoops_ : public IRMutator<Expr *> {
+  const Target &target;
 
-  explicit VectorizeLoops_(const Target& t) : target(t) {}
+  explicit VectorizeLoops_(const Target &t) : target(t) {}
 
-  void operator()(Expr* expr) { IRMutator::Visit(expr, expr); }
+  void operator()(Expr *expr) { IRMutator::Visit(expr, expr); }
 
-  void Visit(const For* forloop, Expr* expr) {
-    auto* node = expr->As<For>();
+  void Visit(const For *forloop, Expr *expr) {
+    auto *node = expr->As<For>();
 
-    if (forloop->for_type == ForType::Vectorized) {
+    // the extent the forloops marked as Vectorized should be int constant
+    if (forloop->for_type == ForType::Vectorized && forloop->extent.As<IntImm>()) {
+      Context::Global().info_rgt().Get<int>("vectorized_forloop_count")++;
       // The forloop generated from polyhedral analysis might have a complex condition that is not something like
       // "i<20" or "i<=20", those cases is not possible to extract the extent.
-      auto* extent_int = forloop->extent.As<IntImm>();
+      auto *extent_int = forloop->extent.As<IntImm>();
       if (!extent_int) {
         VLOG(2) << "Ignore the forloop because the condition is not based on a int extent";
         return;
@@ -273,13 +277,16 @@ struct VectorizeLoops_ : public IRMutator<Expr*> {
                           << ". Can only vectorize loops over a constant extent > 1";
 
       Vectorizer(forloop->loop_var, extent).Visit(&node->body);
+
+      // Remove the forloop.
+      *expr = node->body;
     } else {
       IRMutator::Visit(forloop, expr);
     }
   }
 };
 
-void VectorizeLoops(Expr* expr, const Target& target) {
+void VectorizeLoops(Expr *expr, const Target &target) {
   optim::TransformPolyForToFor(expr);
 
   return VectorizeLoops_(target)(expr);
@@ -287,7 +294,7 @@ void VectorizeLoops(Expr* expr, const Target& target) {
 
 namespace detail {
 
-void Vectorize(Var var, int lanes, Expr* expr) {
+void Vectorize(Var var, int lanes, Expr *expr) {
   Vectorizer vectorizer(var, lanes);
   vectorizer.Visit(expr);
 }

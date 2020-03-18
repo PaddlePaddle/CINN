@@ -69,5 +69,11 @@ class CodeGenC : public ir::IrPrinter {
   std::stringstream ss_;
 };
 
+namespace detail {
+
+Expr StridedRampBase(Expr e, int stride);
+
+}  // namespace detail
+
 }  // namespace backends
 }  // namespace cinn
