@@ -1,7 +1,9 @@
 #include "cinn/optim/transform_polyfor_to_for.h"
+
 #include <cmath>
 #include <stack>
 #include <vector>
+
 #include "cinn/common/arithmatic.h"
 #include "cinn/common/ir.h"
 #include "cinn/ir/ir_mutator.h"

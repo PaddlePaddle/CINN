@@ -1,5 +1,7 @@
 #include "cinn/optim/transform_polyfor_to_for.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/cinn.h"
 
 namespace cinn {
