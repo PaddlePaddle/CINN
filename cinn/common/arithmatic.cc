@@ -1,7 +1,9 @@
 #include "cinn/common/arithmatic.h"
+
 #include <map>
 #include <set>
 #include <string>
+
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"

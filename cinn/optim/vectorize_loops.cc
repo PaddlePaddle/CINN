@@ -269,10 +269,10 @@ struct VectorizeLoops_ : public IRMutator<Expr*> {
       }
 
       int extent = extent_int->value;
-      CHECK_GT(extent, 0) << "Loop over " << Expr(forloop->iterator) << " has extent " << forloop->extent
+      CHECK_GT(extent, 0) << "Loop over " << Expr(forloop->loop_var) << " has extent " << forloop->extent
                           << ". Can only vectorize loops over a constant extent > 1";
 
-      Vectorizer(forloop->iterator, extent).Visit(&node->body);
+      Vectorizer(forloop->loop_var, extent).Visit(&node->body);
     } else {
       IRMutator::Visit(forloop, expr);
     }

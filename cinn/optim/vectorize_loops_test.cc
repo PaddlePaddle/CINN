@@ -4,12 +4,9 @@
 
 #include "cinn/cinn.h"
 #include "cinn/ir/ir_operators.h"
-<<<<<<< HEAD
 #include "cinn/optim/ir_simplify.h"
-#include "cinn/utils/string.h"
-=======
 #include "cinn/optim/transform_polyfor_to_for.h"
->>>>>>> 48b6daee5f6770575877ab175f21a6ed24465831
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace optim {
@@ -129,6 +126,57 @@ TEST(Vectorize, replace_var) {
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
+
+  lang::Module module("module1", target);
+  module.Append(funcs[0]);
+
+  CodeGenC codegen(target);
+  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  std::cout << "out:\n" << out;
+}
+
+TEST(Vectorize, TestMarkVectorize) {
+  // create two forloops, check only one forloop is marked Vectorize.
+
+  using namespace ir;  // NOLINT
+
+  const int M  = 100;
+  const int K  = 200;
+  const int N  = 500;
+  const int bn = 32;
+
+  Target target;
+  target.arch = Target::Arch ::X86;
+  target.bits = Target::Bit ::k32;
+  target.os   = Target::OS ::Linux;
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  // C = A * B
+  lang::Buffer C_buf(Float(32));
+
+  Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  C->Bind(C_buf);
+
+  Tensor D = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "D");
+  D->Bind(C_buf);
+
+  // vectorize C, not D
+  C->stage()->Vectorize(1, 16);
+
+  auto funcs = Lower("matmul", {A, B, C, D});
+  CHECK_EQ(funcs.size(), 1UL);
+
+  optim::TransformPolyForToFor(&funcs[0]->body);
+
+  optim::VectorizeLoops(&funcs[0]->body, target);
+
+  detail::Vectorize(ir::_Var_::Make("j_inner", Int(32)), 16, &funcs.front()->body);
+
+  std::cout << "\n" << funcs.front()->body << std::endl;
 
   lang::Module module("module1", target);
   module.Append(funcs[0]);

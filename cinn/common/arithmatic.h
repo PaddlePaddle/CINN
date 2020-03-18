@@ -4,11 +4,13 @@
 #pragma once
 
 #include <ginac/ginac.h>
+
 #include <limits>
 #include <map>
 #include <set>
 #include <string>
 #include <tuple>
+
 #include "cinn/ir/ir.h"
 
 #ifdef As
