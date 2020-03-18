@@ -4,6 +4,8 @@ set(srcs
     type.cc
     target.cc
     object.cc
+    debug_manager.cc
+    info_registry.cc
     graph_utils.cc
     context.cc
     axis.cc
