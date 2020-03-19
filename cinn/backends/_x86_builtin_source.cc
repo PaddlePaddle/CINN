@@ -1,3 +1,7 @@
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///                     Predefined utilities in CINN BEGIN(
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #include <immintrin.h>
 #include <stdint.h>
 
@@ -18,7 +22,7 @@ struct StackVec {
 
   StackVec() { memset(data_, 0, num_bytes()); }
 
-  StackVec(const T* externl) : external_data_(externl) {}
+  explicit StackVec(const T* externl) : external_data_(externl) {}
 
   static self_type Broadcast(const value_type& v) {
     self_type res;
@@ -45,7 +49,9 @@ struct StackVec {
     }
   }
 
-  void Store(void* base, int32_t offset) const { mempcpy((value_type*)base + offset, &data_[0], num_bytes()); }
+  void Store(void* base, int32_t offset) const {
+    mempcpy((value_type*)base + offset, &data_[0], num_bytes());  // NOLINT
+  }
 
   inline value_type& operator[](size_t i) { return data_[i]; }
   inline value_type operator[](size_t i) const { return data_[i]; }
@@ -101,7 +107,7 @@ struct ExternalVec {
   typedef T value_type;
   typedef ExternalVec<T, Num> self_type;
 
-  ExternalVec(T* data) : data_(data) {}
+  explicit ExternalVec(T* data) : data_(data) {}
 
   self_type& operator=(const self_type& src) {
     if (data_ != src.data_) {
@@ -111,7 +117,7 @@ struct ExternalVec {
   }
 
   static self_type Load(const void* base, int32_t offset) {
-    self_type res((T*)base + offset);
+    self_type res((T*)base + offset);  // NOLINT
     return res;
   }
 
@@ -124,12 +130,12 @@ struct ExternalVec {
 // AVX256 load
 //@{
 inline __m256 cinn_avx256_load(float* dst) { return _mm256_load_ps(dst); }
-inline __m256 cinn_avx256_load(double* dst) { return _mm256_load_pd(dst); }
+inline __m256d cinn_avx256_load(double* dst) { return _mm256_load_pd(dst); }
 //@}
 // AVX512 load
 //@{
 inline __m512 cinn_avx512_load(float* dst) { return _mm512_load_ps(dst); }
-inline __m512 cinn_avx512_load(double* dst) { return _mm512_load_pd(dst); }
+inline __m512d cinn_avx512_load(double* dst) { return _mm512_load_pd(dst); }
 //@}
 
 // FP32x8 * FP32x8
@@ -291,3 +297,22 @@ inline void cinn_avx512_div(double* dst, double* a, double* b) {
   _mm512_store_pd(dst, _mm512_div_pd(_mm512_load_pd(a), _mm512_load_pd(b)));
 }
 // @}
+
+inline __m512 cinn_avx512_add(const __m512& a, const __m512& b);
+
+inline __m256 cinn_avx256_add_float(const __m256& a, const __m256& b) { return _mm256_add_ps(a, b); }
+inline __m256d cinn_avx256_add_double(const __m256d& a, const __m256d& b) { return _mm256_add_pd(a, b); }
+inline __m512 cinn_avx512_add_float(const __m512& a, const __m512& b) { return _mm512_add_ps(a, b); }
+inline __m512d cinn_avx512_add_double(const __m512d& a, const __m512d& b) { return _mm512_add_pd(a, b); }
+
+//! set1
+// @{
+inline __m256 cinn_avx256_set1(float value) { return _mm256_set1_ps(value); }
+inline __m256d cinn_avx256_set1(double value) { return _mm256_set1_pd(value); }
+inline __m512 cinn_avx512_set1(float value) { return _mm512_set1_ps(value); }
+inline __m512d cinn_avx512_set1(double value) { return _mm512_set1_pd(value); }
+// @}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///                     )END Predefined utilities in CINN
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

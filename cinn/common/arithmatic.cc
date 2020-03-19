@@ -34,6 +34,7 @@ std::string ExprToGinacConerter::Repr(const ir::Expr& expr) {
     Replace(&repr, ")", "_rb");
     Replace(&repr, "+", "_add_");
     Replace(&repr, "-", "_sub_");
+    Replace(&repr, ":", "_ref_");
     Replace(&repr, "*", "_mul_");
     Replace(&repr, "/", "_div_");
     // remove the spaces
@@ -92,7 +93,6 @@ GiNaC::ex ExprToGinacConerter::operator()(Expr expr) {
   auto complex_nodes = CollectIRNodes(expr, [](const Expr* n) {
     return n->As<Block>() ||       //
            n->As<PolyFor>() ||     //
-           n->As<Ramp>() ||        //
            n->As<Min>() ||         //
            n->As<Max>() ||         //
            n->As<EQ>() ||          //

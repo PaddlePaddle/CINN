@@ -207,6 +207,7 @@ Expr Store::Make(Expr tensor, Expr value, Expr index) {
   node->tensor = tensor;
   node->value  = value;
   node->index  = index;
+  node->set_type(tensor->type().ElementOf().with_lanes(index->type().lanes()));
   return Expr(node);
 }
 

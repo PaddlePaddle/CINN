@@ -1,5 +1,6 @@
 set(srcs outputs.cc codegen_c.cc
   codegen_c_x86.cc
+  codegen_c_x86_test.cc
   )
 
 foreach(cpp ${srcs})
@@ -8,9 +9,10 @@ foreach(cpp ${srcs})
       CACHE INTERNAL "")
 endforeach()
 
-cc_library(__x86_source_fake_lib SRCS _x86_builtin_source.hpp)
+cc_library(__x86_source_fake_lib SRCS _x86_builtin_source.cc)
 
-cc_test(test_codegen_c SRCS codegen_c_test.cc DEPS core)
+cc_test(test_codegen_c SRCS codegen_c_test.cc DEPS core ARGS ${global_test_args})
+cc_test(test_codegen_c_x86 SRCS codegen_c_x86_test.cc DEPS core ARGS ${global_test_args})
 cc_test(test_generated1 SRCS ${CMAKE_BINARY_DIR}/cinn/backends/generated_module1.cc DEPS cinn_runtime)
 include_directories(${CMAKE_SOURCE_DIR}/cinn/runtime)
 add_dependencies(test_generated1 test_codegen_c)

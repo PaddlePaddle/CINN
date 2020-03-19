@@ -34,7 +34,7 @@ TEST(VectorizeLoops, Split_sperate) {
     std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
     std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k"), 8);
     C->stage()->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
-    C->stage()->Split(j_inner, 8, poly::SplitRestStrategy::kSeparate);
+    C->stage()->Split(j_inner, 8, poly::SplitRestStrategy::kAuto);
   }
 
   // Code gen
@@ -53,6 +53,7 @@ TEST(VectorizeLoops, Split_sperate) {
   module.Append(C_buf);
 
   CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "out:\n" << out;
 
@@ -67,20 +68,57 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
-  for (int32_t i_outer = 0; (i_outer <= 3); i_outer += 1) {
-    for (int32_t j_outer = 0; (j_outer <= 15); j_outer += 1) {
-      for (int32_t k_outer = 0; (k_outer <= 24); k_outer += 1) {
-        for (int32_t k_inner = 0; (k_inner <= 7); k_inner += 1) {
-          for (int32_t i_inner = 0; (i_inner <= min(31, ((-32 * i_outer) + 99))); i_inner += 1) {
-            for (int32_t j_inner_outer = 0; (j_inner_outer <= min(3, ((-4 * j_outer) + 62))); j_inner_outer += 1) {
-              if ((7 <= (((-32 * j_outer) - (8 * j_inner_outer)) + 499))) {
-                for (int32_t j_inner_inner = 0; (j_inner_inner <= 7); j_inner_inner += 1) {
+  {
+    for (int32_t i_outer = 0; i_outer < 3; i_outer += 1) {
+      for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
+        for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
+          for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
+            for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
+              for (int32_t j_inner_outer = 0; j_inner_outer < 4; j_inner_outer += 1) {
+                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (((j_inner_outer * -8) + (j_outer * -32)) + 500)); j_inner_inner += 1) {
                   C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] = (C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] + (A[((((32 * i_outer) + i_inner) * 200) + ((8 * k_outer) + k_inner))] * B[((((8 * k_outer) + k_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))]));
-                }
-              } else {
-                for (int32_t j_inner_inner = 0; (j_inner_inner <= (((-32 * j_outer) - (8 * j_inner_outer)) + 499)); j_inner_inner += 1) {
+                };
+              };
+            };
+          };
+        };
+      };
+      for (int32_t j_outer = 15; j_outer < 16; j_outer += 1) {
+        for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
+          for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
+            for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
+              for (int32_t j_inner_outer = 0; j_inner_outer < ((j_outer * -4) + 63); j_inner_outer += 1) {
+                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (((j_inner_outer * -8) + (j_outer * -32)) + 500)); j_inner_inner += 1) {
                   C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] = (C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] + (A[((((32 * i_outer) + i_inner) * 200) + ((8 * k_outer) + k_inner))] * B[((((8 * k_outer) + k_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))]));
-                }
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+    for (int32_t i_outer = 3; i_outer < 4; i_outer += 1) {
+      for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
+        for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
+          for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
+            for (int32_t i_inner = 0; i_inner < ((i_outer * -32) + 100); i_inner += 1) {
+              for (int32_t j_inner_outer = 0; j_inner_outer < 4; j_inner_outer += 1) {
+                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (((j_inner_outer * -8) + (j_outer * -32)) + 500)); j_inner_inner += 1) {
+                  C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] = (C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] + (A[((((32 * i_outer) + i_inner) * 200) + ((8 * k_outer) + k_inner))] * B[((((8 * k_outer) + k_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))]));
+                };
+              };
+            };
+          };
+        };
+      };
+      for (int32_t j_outer = 15; j_outer < 16; j_outer += 1) {
+        for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
+          for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
+            for (int32_t i_inner = 0; i_inner < ((i_outer * -32) + 100); i_inner += 1) {
+              for (int32_t j_inner_outer = 0; j_inner_outer < ((j_outer * -4) + 63); j_inner_outer += 1) {
+                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (((j_inner_outer * -8) + (j_outer * -32)) + 500)); j_inner_inner += 1) {
+                  C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] = (C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] + (A[((((32 * i_outer) + i_inner) * 200) + ((8 * k_outer) + k_inner))] * B[((((8 * k_outer) + k_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))]));
+                };
               };
             };
           };
@@ -131,6 +169,7 @@ TEST(Vectorize, replace_var) {
   module.Append(funcs[0]);
 
   CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "out:\n" << out;
 }
@@ -181,6 +220,7 @@ TEST(Vectorize, TestMarkVectorize) {
   module.Append(funcs[0]);
 
   CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "out:\n" << out;
 

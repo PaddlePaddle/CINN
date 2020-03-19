@@ -56,6 +56,7 @@ TEST(Expr, basic) {
     module.Append(C_buf);
 
     CodeGenC codegen(target);
+    codegen.SetInlineBuiltinCodes(false);
     auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
     std::cout << "out:\n" << out;
 

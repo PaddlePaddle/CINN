@@ -40,22 +40,26 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
 
 #define __(op__)                                    \
   void Visit(const op__* op, Expr* expr) override { \
-    auto* node = expr->As<op__>();                  \
-    bool ap    = common::IsPureMath(node->a);       \
-    bool bp    = common::IsPureMath(node->b);       \
-    if (ap && bp) {                                 \
+    auto* node   = expr->As<op__>();                \
+    auto* a_ramp = node->a.As<ir::Ramp>();          \
+    auto* b_ramp = node->b.As<ir::Ramp>();          \
+    if (a_ramp) {                                   \
+      PartialSimplify(&a_ramp->base);               \
+      PartialSimplify(&a_ramp->stride);             \
+    }                                               \
+    if (b_ramp) {                                   \
+      PartialSimplify(&b_ramp->base);               \
+      PartialSimplify(&b_ramp->stride);             \
+    }                                               \
+    if (!(a_ramp || b_ramp)) {                      \
       PartialSimplify(expr);                        \
-    } else if (ap) {                                \
+    } else if (!a_ramp) {                           \
       PartialSimplify(&node->a);                    \
-      Visit(&node->b, &node->b);                    \
-    } else if (bp) {                                \
+    } else if (!b_ramp) {                           \
       PartialSimplify(&node->b);                    \
-      Visit(&node->a, &node->a);                    \
-    } else {                                        \
-      Visit(&node->a, &node->a);                    \
-      Visit(&node->b, &node->b);                    \
     }                                               \
   }
+
   __(Add)
   __(Mul)
   __(Sub)
@@ -69,7 +73,7 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
     PartialSimplify(&node->base);
     PartialSimplify(&node->stride);
   }
-};
+};  // namespace
 
 struct SimplifyLoadMutator : public ir::IRMutator<ir::Expr*> {
   void operator()(Expr* x) { ir::IRMutator<ir::Expr*>::Visit(x, x); }

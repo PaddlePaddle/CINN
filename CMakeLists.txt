@@ -33,6 +33,8 @@ message(STATUS "ginac: ${ginac_lib}")
 link_directories("/usr/lib")
 
 set(core_src CACHE INTERNAL "" FORCE)
+set(global_test_args "--cinn_x86_builtin_code_root=${CMAKE_SOURCE_DIR}/cinn/backends")
+
 add_subdirectory(cinn)
 add_subdirectory(tests)
 

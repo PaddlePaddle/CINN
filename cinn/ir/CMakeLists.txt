@@ -26,4 +26,6 @@ cc_test(test_ir_printer SRCS ir_printer_test.cc DEPS core)
 cc_test(test_ir_operators SRCS ir_operators_test.cc DEPS core)
 # cc_test(test_tensor SRCS tensor_test.cc DEPS core)
 cc_test(test_function SRCS function_test.cc DEPS core)
-cc_test(test_buffer SRCS buffer_test.cc DEPS core)
+cc_test(test_buffer SRCS buffer_test.cc DEPS core
+  ARGS ${global_test_args}
+  )

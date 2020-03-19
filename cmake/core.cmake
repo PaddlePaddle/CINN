@@ -49,6 +49,8 @@ function(cc_library TARGET_NAME)
 endfunction(cc_library)
 
 
+list(APPEND CMAKE_CTEST_ARGUMENTS )
+
 function(cc_test TARGET_NAME)
   if(WITH_TESTING)
     set(options SERIAL)
@@ -59,8 +61,9 @@ function(cc_test TARGET_NAME)
     get_property(os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
     target_link_libraries(${TARGET_NAME} ${cc_test_DEPS} ${os_dependency_modules} cinn_gtest_main gtest gflags glog)
     add_dependencies(${TARGET_NAME} ${cc_test_DEPS} gtest_main gtest gflags glog)
+
     add_test(NAME ${TARGET_NAME}
-            COMMAND ${TARGET_NAME} ${cc_test_ARGS}
+      COMMAND ${TARGET_NAME} "${cc_test_ARGS}"
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     if (${cc_test_SERIAL})
       set_property(TEST ${TARGET_NAME} PROPERTY RUN_SERIAL 1)
