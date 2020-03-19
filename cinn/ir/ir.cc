@@ -34,7 +34,7 @@ Expr Cast::Make(Type t, Expr v) {
   CHECK(v.defined());
 
   auto node = make_shared<Cast>();
-  node->v = v;
+  node->v   = v;
   node->set_type(t);
   return Expr(node);
 }

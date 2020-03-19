@@ -1,5 +1,7 @@
 #include "cinn/backends/codegen_c_x86.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/cinn.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"

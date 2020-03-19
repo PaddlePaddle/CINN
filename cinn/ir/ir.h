@@ -257,9 +257,7 @@ struct Reduce : public ExprNode<Reduce> {
     return Expr(n);
   }
 
-  Type type() const override {
-    return body.type().ElementOf();
-  }
+  Type type() const override { return body.type().ElementOf(); }
 
   static const IrNodeTy _node_type_ = IrNodeTy::Reduce;
 };
