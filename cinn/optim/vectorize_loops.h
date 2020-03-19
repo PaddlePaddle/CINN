@@ -17,6 +17,9 @@ namespace detail {
 //! Vecorize the \p expr by making the \p var has \p lanes lanes.
 void Vectorize(Var var, int lanes, Expr* expr);
 
+//! Fit the vector's lanes in IR with the device SIMD size.
+void FitVectorLanesWithDevice(int bits, Expr *expr);
+
 }  // namespace detail
 
 }  // namespace optim

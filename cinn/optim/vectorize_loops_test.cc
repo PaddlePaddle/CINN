@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "cinn/cinn.h"
+#include "cinn/backends/codegen_c_x86.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
@@ -158,12 +159,18 @@ TEST(Vectorize, replace_var) {
 
   detail::Vectorize(ir::_Var_::Make("j_inner", Int(32)), 16, &funcs.front()->body);
 
+
   std::cout << "\n" << funcs.front()->body << std::endl;
 
   Target target;
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
+
+  optim::TransformPolyForToFor(&funcs[0]->body);
+  optim::VectorizeLoops(&funcs[0]->body, target);
+  optim::Simplify(&funcs[0]->body);
+
 
   lang::Module module("module1", target);
   module.Append(funcs[0]);
@@ -212,14 +219,13 @@ TEST(Vectorize, TestMarkVectorize) {
 
   std::cout << "before optim\n" << funcs.front()->body << std::endl;
 
-  optim::TransformPolyForToFor(&funcs[0]->body);
   optim::VectorizeLoops(&funcs[0]->body, target);
-  optim::Simplify(&funcs[0]->body);
+  optim::detail::FitVectorLanesWithDevice(256, &funcs[0]->body);
 
   lang::Module module("module1", target);
   module.Append(funcs[0]);
 
-  CodeGenC codegen(target);
+  backends::CodeGenCX86 codegen(target, backends::CodeGenCX86::Feature::AVX256);
   codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "out:\n" << out;

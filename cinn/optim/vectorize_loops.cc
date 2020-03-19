@@ -5,6 +5,7 @@
 #include <string>
 
 #include "cinn/common/ir.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/utils/functional.h"
@@ -289,7 +290,8 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
 void VectorizeLoops(Expr *expr, const Target &target) {
   optim::TransformPolyForToFor(expr);
 
-  return VectorizeLoops_(target)(expr);
+  VectorizeLoops_ x0(target);
+  x0(expr);
 }
 
 namespace detail {
@@ -297,6 +299,101 @@ namespace detail {
 void Vectorize(Var var, int lanes, Expr *expr) {
   Vectorizer vectorizer(var, lanes);
   vectorizer.Visit(expr);
+}
+
+struct FitVectorLanesWithDeviceMutator : public ir::IRMutator<Expr *> {
+  FitVectorLanesWithDeviceMutator(int bits) : bits_(bits) { CHECK_GT(bits_, 0); }
+
+  void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+ private:
+  void Visit(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+  // A statement always ends with a Load node.
+  void Visit(const Store *op, Expr *expr) override {
+    int bits = op->type().bits() * op->type().lanes();
+    if (bits >= bits_) {
+      CHECK_EQ(bits % bits_, 0) << "operation bits should be times of device bits";
+
+      int times = bits / bits_;
+      LOG(INFO) << "times " << times;
+
+      if (times > 0) {
+        Var i = _Var_::Make(Context::Global().NewName("i"), Int(32));
+        auto forloop =
+            For::Make(i, make_zero(), make_const(times), ir::ForType::Vectorized, ir::DeviceAPI::Host, *expr);
+        RebaseExpr(i, bits_, bits, &forloop.As<ir::For>()->body);
+        *expr = forloop;
+
+        LOG(INFO) << "rebase:\n" << forloop;
+      }
+    }
+  }
+
+  void RebaseExpr(Var iterator, int simd_bits, int opr_bits, Expr *expr) {
+    struct Mutator : public ir::IRMutator<Expr *> {
+      int simd_bits;
+      int opr_bits;
+      int stride{};
+      Var iterator;
+
+      Mutator(int simd_bits, int opr_bits, Var iterator)
+          : simd_bits(simd_bits), opr_bits(opr_bits), iterator(iterator) {}
+
+      void Visit(const ir::Load *op, Expr *expr) override {
+        int bits = op->type().lanes() * op->type().bits();
+        CHECK_EQ(bits, opr_bits) << "the Load node's bits not match other nodes'";
+        int stride = simd_bits / (op->type().bits());
+
+        auto *node = expr->As<ir::Load>();
+        node->set_type(node->type().ElementOf().with_lanes(stride));
+
+        auto* ramp_n = node->index.As<ir::Ramp>();
+        if (ramp_n) {
+          ramp_n->lanes = ramp_n->lanes / stride;
+        }
+
+        LOG(INFO) << "new bits " << *expr;
+      }
+
+      void Visit(const ir::Add *op, Expr *expr) override {
+        auto *node = expr->As<ir::Add>();
+        CHECK_EQ(op->a.type(), op->b.type());
+        node->set_type(op->a.type());
+      }
+      void Visit(const ir::Sub *op, Expr *expr) override {
+        auto *node = expr->As<ir::Sub>();
+        CHECK_EQ(op->a.type(), op->b.type());
+        node->set_type(op->a.type());
+      }
+      void Visit(const ir::Mul *op, Expr *expr) override {
+        auto *node = expr->As<ir::Mul>();
+        CHECK_EQ(op->a.type(), op->b.type());
+        node->set_type(op->a.type());
+      }
+      void Visit(const ir::Div *op, Expr *expr) override {
+        auto *node = expr->As<ir::Div>();
+        CHECK_EQ(op->a.type(), op->b.type());
+        node->set_type(op->a.type());
+      }
+
+      void Visit(const ir::Store *op, Expr *expr) override {
+        int bits = op->type().lanes() * op->type().bits();
+        CHECK_EQ(bits, opr_bits) << "the Load node's bits not match other nodes'";
+        int stride = simd_bits / (op->type().bits());
+        auto *node = expr->As<ir::Load>();
+        node->set_type(node->type().ElementOf().with_lanes(stride));
+        node->index = node->index + Expr(iterator);
+      }
+    };
+  }
+
+  int bits_{};
+};
+
+void FitVectorLanesWithDevice(int bits, Expr *expr) {
+  FitVectorLanesWithDeviceMutator x(bits);
+  x(expr);
 }
 
 }  // namespace detail

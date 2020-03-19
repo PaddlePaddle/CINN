@@ -62,6 +62,7 @@ class CodeGenCX86 : public CodeGenC {
   //! The output argument, such as the destination for Load.
   void PrintVecOutputArgument(const Expr *op);
   void PrintAbsAddr(const ir::Load *op);
+  void PrintAbsAddr(const ir::Store *op);
   template <typename Op>
   void VisitBinaryOp(const Op *op, Expr a, Expr b, const std::string &op_repr);
 };

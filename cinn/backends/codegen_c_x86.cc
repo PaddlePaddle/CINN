@@ -34,7 +34,6 @@ void CodeGenCX86::Visit(const ir::Load *op) {
 
 void CodeGenCX86::Visit(const ir::Store *op) {
   if (op->type().lanes() == 1) {
-    LOG(INFO) << "store lanes 1 " << op->index;
     CodeGenC::Visit(op);
     return;
   }
@@ -42,7 +41,11 @@ void CodeGenCX86::Visit(const ir::Store *op) {
   int bits = op->type().bits() * op->type().lanes();
   if (SupportsAVX512()) {
     CHECK_EQ(bits, 512);
-    os() << "cinn_avx512_store(" << op->tensor.As<ir::_Tensor_>()->name << ", " << op->value << ")";
+    os() << "cinn_avx512_store(";
+    PrintAbsAddr(op);
+    os() << ", ";
+    PrintVecInputArgument(&op->value);
+    os() << ")";
   } else if (SupportsAVX256()) {
     CHECK_EQ(bits, 256);
     os() << "cinn_avx256_store(" << op->tensor.As<ir::_Tensor_>()->name << ", " << op->value << ")";
@@ -63,11 +66,24 @@ void CodeGenCX86::PrintAbsAddr(const ir::Load *op) {
   }
 }
 
+void CodeGenCX86::PrintAbsAddr(const ir::Store *op) {
+  os() << op->tensor.As<ir::_Tensor_>()->name << " + ";
+
+  auto *ramp_n = op->index.As<ir::Ramp>();
+  if (ramp_n) {
+    CHECK(!ramp_n->base.As<ir::Ramp>()) << "base of a Ramp node should not be Ramp type";
+    Print(ramp_n->base);
+  } else {
+    Print(op->index);
+  }
+}
+
 void CodeGenCX86::PrintVecInputArgument(const Expr *op) {
   int bits          = op->type().bits() * op->type().lanes();
   auto *broadcast_n = op->As<ir::Broadcast>();
 
   if (op->type().lanes() == 1 || broadcast_n) {
+    LOG(INFO) << "Get lanes1 " << *op;
     Expr value = op->type().lanes() == 1 ? *op : broadcast_n->value;
 
     if (SupportsAVX512()) {
@@ -82,14 +98,7 @@ void CodeGenCX86::PrintVecInputArgument(const Expr *op) {
       NOT_IMPLEMENTED
     }
   } else {
-    auto *load_n = op->As<ir::Load>();
-
-    if (load_n) {
-      Visit(load_n);
-      return;
-    }
-
-    NOT_IMPLEMENTED
+    Print(*op);
   }
 }
 
