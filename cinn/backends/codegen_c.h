@@ -1,5 +1,6 @@
 #pragma once
 
+#include <gflags/gflags.h>
 #include <string>
 #include <vector>
 
@@ -12,6 +13,9 @@
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
+
+//! Root of the builtin code.
+DECLARE_string(cinn_x86_builtin_code_root);
 
 namespace lang {
 class Module;
@@ -32,6 +36,9 @@ class CodeGenC : public ir::IrPrinter {
 
   std::string Compile(const lang::Module& module, OutputKind output_kind);
 
+  //! Disable inline the builtin codes(too large) for simpler string comparation.
+  bool SetInlineBuiltinCodes(bool x = true) { inline_builtin_codes_ = x; }
+
  protected:
   std::string Compile(const ir::LoweredFunc& function);
   std::string Compile(const ir::Buffer& buffer);
@@ -48,6 +55,7 @@ class CodeGenC : public ir::IrPrinter {
   void PrintShape(const std::vector<Expr>& shape);
 
   void PrintIncludes();
+  void PrintBuiltinCodes();
   void PrintFileGuardOpen(const std::string& module_name);
   void PrintFileGuardClose(const std::string& module_name);
 
@@ -62,10 +70,19 @@ class CodeGenC : public ir::IrPrinter {
 
   void PrintFuncArg(const ir::Argument& arg);
 
- private:
+  void PrintStackVecType(Type type, int lanes);
+
+ protected:
   Target target_;
   std::stringstream ss_;
+  bool inline_builtin_codes_{true};
 };
+
+namespace detail {
+
+Expr StridedRampBase(Expr e, int stride);
+
+}  // namespace detail
 
 }  // namespace backends
 }  // namespace cinn

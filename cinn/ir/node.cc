@@ -39,7 +39,7 @@ std::ostream &operator<<(std::ostream &os, IrNodeTy type) {
 
 Expr Zero(const Type &type) {
   if (type.is_float(32)) return Expr(0.f);
-  if (type.is_float(64)) return Expr(double(0.));
+  if (type.is_float(64)) return Expr(double(0.));  // NOLINT
   if (type.is_bool()) return Expr(false);
   if (type.is_int(32)) return Expr(int32_t(0));
   if (type.is_int(64)) return Expr(int64_t(0));

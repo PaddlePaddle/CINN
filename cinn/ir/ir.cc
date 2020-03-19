@@ -1,6 +1,11 @@
 #include "cinn/ir/ir.h"
 
+#include <map>
+#include <string>
+#include <vector>
+
 #include "cinn/common/pod_value.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 
 namespace cinn {
@@ -202,6 +207,7 @@ Expr Store::Make(Expr tensor, Expr value, Expr index) {
   node->tensor = tensor;
   node->value  = value;
   node->index  = index;
+  node->set_type(tensor->type().ElementOf().with_lanes(index->type().lanes()));
   return Expr(node);
 }
 
@@ -370,7 +376,7 @@ Expr Load::Make(Expr tensor, Expr index) {
   auto node    = make_shared<Load>();
   node->tensor = tensor;
   node->index  = index;
-  node->set_type(tensor->type().ElementOf());
+  node->set_type(tensor->type().ElementOf().with_lanes(index.type().lanes()));
   return Expr(node);
 }
 

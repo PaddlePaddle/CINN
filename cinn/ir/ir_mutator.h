@@ -15,7 +15,7 @@ class IRMutator : public IRVisitorBase<void, T> {
  public:
   void Visit(const Expr *expr, T op) override;
 
-#define __(op__) void Visit(const op__ *expr, T op) override;
+#define __(op__) void Visit(const op__ *op, T expr) override;
   NODETY_FORALL(__)
 #undef __
 };

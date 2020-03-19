@@ -40,6 +40,8 @@ std::string CodeGenC::Compile(const lang::Module &module, OutputKind output_kind
   } else if (output_kind == OutputKind::CImpl) {
     PrintIncludes();
 
+    if (inline_builtin_codes_) PrintBuiltinCodes();
+
     PrintBufferCreation(module->buffers);
 
     for (auto &func : module.functions()) {
@@ -239,7 +241,33 @@ void CodeGenC::Visit(const ir::Call *op) {
 }
 void CodeGenC::Visit(const ir::Module *op) { NOT_IMPLEMENTED }
 void CodeGenC::Visit(const ir::_Var_ *op) { os() << op->name; }
-void CodeGenC::Visit(const ir::Load *op) { return ir::IrPrinter::Visit(op); }
+
+void CodeGenC::Visit(const ir::Load *op) {
+  Expr dense_strided_ramp = detail::StridedRampBase(op->index, 1);
+  if (dense_strided_ramp.defined()) {  // Loading a continuous Ramp address.
+    CHECK(op->type().is_vector());
+    PrintStackVecType(op->type().ElementOf(), op->index.type().lanes());
+    os() << "::"
+         << "Load(";
+    os() << op->tensor.As<ir::_Tensor_>()->name;
+    os() << ",";
+    Print(dense_strided_ramp);
+    os() << ")";
+  } else if (op->index.type().is_vector()) {
+    // gather
+    CHECK(op->type().is_vector());
+    PrintStackVecType(op->type().ElementOf(), op->index.type().lanes());
+    os() << "::Load(";
+    os() << op->tensor.As<ir::_Tensor_>()->name;
+    os() << ",";
+    Print(op->index);
+    os() << ")";
+  } else {
+    // load scalar
+    ir::IrPrinter::Visit(op);
+  }
+}
+
 void CodeGenC::Visit(const ir::Store *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Alloc *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Free *op) { IrPrinter::Visit(op); }
@@ -260,9 +288,22 @@ void CodeGenC::Visit(const ir::Reduce *op) {
   LOG(FATAL) << "Reduce IR is just for internal representation, should not be used for CodeGen.";
 }
 
-void CodeGenC::Visit(const ir::Ramp *op) { NOT_IMPLEMENTED }
+void CodeGenC::Visit(const ir::Ramp *op) {
+  os() << "StackVec<" << op->lanes << "," << PrintType(op->type().ElementOf()) << ">::Ramp(";
+  Print(op->base);
+  os() << ", ";
+  Print(op->stride);
+  os() << ", ";
+  os() << op->lanes;
+  os() << ")";
+}
 
-void CodeGenC::Visit(const ir::Broadcast *op) { NOT_IMPLEMENTED }
+void CodeGenC::Visit(const ir::Broadcast *op) {
+  os() << "StackVec<" << op->lanes << "," << PrintType(op->type().ElementOf()) << ">::Broadcast(";
+  Print(op->value);
+  os() << ", ";
+  os() << op->lanes << ")";
+}
 
 void CodeGenC::PrintCastExpr(const Type &type, Expr e) {
   os() << "(" << PrintType(type) << ")";
@@ -404,5 +445,44 @@ void CodeGenC::PrintRuntimeType(const cinn_type_t &type) {
   }
 }
 
+void CodeGenC::PrintStackVecType(Type type, int lanes) {
+  os() << "StackedVec<" << PrintType(type) << "," << lanes << ">";
+}
+
+std::string ReadWholeFile(const std::string &path) {
+  CHECK(!path.empty());
+  std::ifstream file(path);
+  CHECK(file.is_open()) << "Failed to open file: " << path;
+  std::stringstream ss;
+  ss << file.rdbuf();
+  return ss.str();
+}
+
+void CodeGenC::PrintBuiltinCodes() {
+  CHECK(!FLAGS_cinn_x86_builtin_code_root.empty()) << "The flag cinn_x86_builtin_code_root should be set first";
+
+  const std::string x86_code_file = "_x86_builtin_source.cc";
+
+  auto source = ReadWholeFile(FLAGS_cinn_x86_builtin_code_root + "/" + x86_code_file);
+
+  os() << source << "\n";
+}
+
+namespace detail {
+
+Expr StridedRampBase(Expr e, int stride) {
+  auto *ramp_n = e.As<ir::Ramp>();
+  if (ramp_n) {
+    auto *iv = ramp_n->stride.As<ir::IntImm>();
+    if (iv && iv->value == stride) return ramp_n->base;
+  }
+  return Expr();
+}
+
+}  // namespace detail
+
 }  // namespace backends
+
+DEFINE_string(cinn_x86_builtin_code_root, "", "");
+
 }  // namespace cinn

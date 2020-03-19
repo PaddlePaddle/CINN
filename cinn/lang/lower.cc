@@ -20,28 +20,36 @@ using poly::Stage;
 struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
   const std::map<std::string, ir::VectorizeInfo>& vectorizes;
 
-  MarkVectorizeMutator(const std::map<std::string, ir::VectorizeInfo>& vectorizes) : vectorizes(vectorizes) {}
+  MarkVectorizeMutator(const std::map<std::string /*tensor name*/, ir::VectorizeInfo>& vectorizes)
+      : vectorizes(vectorizes) {}
 
   void operator()(Expr* expr) { ir::IRMutator<Expr*>::Visit(expr, expr); }
 
+  // NOTE This mutator takes PolyFor as input, not For.
   void Visit(const ir::PolyFor* op, Expr* expr) override {
-    auto* node   = expr->As<ir::PolyFor>();
+    auto* node = expr->As<ir::PolyFor>();
+    stack.push_back(node);
     last_polyfor = node;
     ir::IRMutator<ir::Expr*>::Visit(op, expr);
+    stack.pop_back();
   }
 
   // each statement in ISL is bound to a Store node.
   void Visit(const ir::Store* op, Expr* expr) override {
     auto* tensor_n = op->tensor.As<ir::_Tensor_>();
     CHECK(tensor_n);
+    LOG(INFO) << "tensor name: " << tensor_n->name;
     auto it = vectorizes.find(tensor_n->name);
     if (it != vectorizes.end()) {
-      CHECK(last_polyfor);
-      last_polyfor->vectorize_info = it->second;
+      LOG(INFO) << "mark vectorize: " << tensor_n->name;
+      CHECK_LT(it->second.level, stack.size());
+      stack[it->second.level]->for_type       = ir::ForType::Vectorized;
+      stack[it->second.level]->vectorize_info = it->second;
     }
   }
 
   ir::PolyFor* last_polyfor{};
+  std::vector<ir::PolyFor*> stack;
 };
 
 /**

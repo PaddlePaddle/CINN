@@ -53,6 +53,7 @@ TEST(CodeGenC, module) {
 
   {
     CodeGenC codegen(target);
+    codegen.SetInlineBuiltinCodes(false);
     auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
     std::cout << "codegen C:" << std::endl << out << std::endl;
 
@@ -141,6 +142,7 @@ TEST(CodeGenC, module_with_transform) {
   module.Append(C_buf);
 
   CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
@@ -212,6 +214,7 @@ TEST(CodeGenC, matmul) {
   module.Append(C_buf);
 
   CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
@@ -293,6 +296,7 @@ TEST(CodeGenC, matmul_tile) {
   module.Append(C_buf);
 
   CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
@@ -370,6 +374,7 @@ TEST(CodeGenC, matmul_packed) {
   module.Append(packedB_buf);
 
   CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 

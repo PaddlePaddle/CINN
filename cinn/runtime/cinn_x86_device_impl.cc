@@ -42,9 +42,7 @@ cinn_device_interface_impl_t cinn_x86_device_impl{&cinn_x86_malloc,
                                                   &cinn_x86_release,
                                                   &cinn_x86_copy_to_host,
                                                   &cinn_x86_copy_to_device,
-                                                  &cinn_x86_buffer_copy
-
-};
+                                                  &cinn_x86_buffer_copy};
 
 cinn_device_interface_t cinn_x86_device_interface{&cinn_buffer_malloc,
                                                   &cinn_buffer_free,
