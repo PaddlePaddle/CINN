@@ -89,6 +89,8 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   static Buffer Make(const std::string& name, const std::vector<Expr>& shape = {});
 
   static Buffer Make(const std::string& name, Type type) {
+    CHECK(!type.is_void());
+    CHECK(!type.is_unk());
     auto n  = make_shared<_Buffer_>();
     n->name = name;
     n->set_type(type);

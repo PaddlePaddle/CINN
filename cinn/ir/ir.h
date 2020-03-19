@@ -28,8 +28,8 @@ using common::Shared;
 /**
  * Cast a node to another type, can't change the width.
  */
-struct Cast : public UnaryOpNode<Cast> {
-  Cast(Type t, Expr v) : UnaryOpNode<Cast>(t, v) {}
+struct Cast : public ExprNode<Cast> {
+  Expr v;
 
   static Expr Make(Type t, Expr v);
 
@@ -195,9 +195,11 @@ struct Minus : public UnaryOpNode<Minus> {
  * Logical or.
  */
 struct Or : public BinaryOpNode<Or> {
-  Or(Expr a, Expr b) : BinaryOpNode<Or>(a.type(), a, b) {}
+  Or(Expr a, Expr b) : BinaryOpNode<Or>(Bool(), a, b) {}
 
   static Expr Make(Expr a, Expr b);
+
+  Type type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Or;
 };
@@ -206,9 +208,11 @@ struct Or : public BinaryOpNode<Or> {
  * Logical not.
  */
 struct Not : public UnaryOpNode<Not> {
-  explicit Not(Expr v) : UnaryOpNode<Not>(v.type(), v) {}
+  explicit Not(Expr v) : UnaryOpNode<Not>(Bool(), v) {}
 
   static Expr Make(Expr v);
+
+  Type type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Not;
 };
@@ -218,6 +222,8 @@ struct Let : public ExprNode<Let> {
   Expr body;
 
   static Expr Make(Expr value, Expr body);
+
+  Type type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Let;
 
@@ -249,6 +255,10 @@ struct Reduce : public ExprNode<Reduce> {
     CHECK_EQ(init.type(), body.type());
     n->set_type(init.type());
     return Expr(n);
+  }
+
+  Type type() const override {
+    return body.type().ElementOf();
   }
 
   static const IrNodeTy _node_type_ = IrNodeTy::Reduce;
@@ -361,6 +371,12 @@ struct Select : public ExprNode<Select> {
     return Expr(node);
   }
 
+  Type type() const override {
+    CHECK(condition.type().is_bool());
+    CHECK_EQ(true_value.type(), false_value.type());
+    return true_value.type();
+  }
+
   std::vector<Expr*> expr_fields() override { return {&condition, &true_value, &false_value}; }
   std::vector<const Expr*> expr_fields() const override { return {&condition, &true_value, &false_value}; }
 
@@ -379,6 +395,8 @@ struct Load : public ExprNode<Load> {
   std::vector<Expr*> expr_fields() override { return {&tensor, &index}; }
   std::vector<const Expr*> expr_fields() const override { return {&tensor, &index}; }
 
+  Type type() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Load;
 };
 
@@ -393,6 +411,8 @@ struct Store : public ExprNode<Store> {
 
   std::vector<Expr*> expr_fields() override { return {&tensor, &value, &index}; }
   std::vector<const Expr*> expr_fields() const override { return {&tensor, &value, &index}; }
+
+  Type type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Store;
 };
@@ -540,6 +560,8 @@ struct Broadcast : public ExprNode<Broadcast> {
   int lanes;
 
   static Expr Make(Expr value, int lanes);
+
+  Type type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Broadcast;
 };
