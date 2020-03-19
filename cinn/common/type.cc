@@ -20,6 +20,9 @@ std::ostream &operator<<(std::ostream &os, const Type &t) {
     case Type::type_t::Float:
       os << "float" << t.bits();
       break;
+    case Type::type_t::Void:
+      os << "void";
+      break;
     default:
       LOG(FATAL) << "Unknown data type found";
   }

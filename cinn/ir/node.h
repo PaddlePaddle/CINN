@@ -106,7 +106,7 @@ class IrNode : public common::Object {
 
   virtual void Accept(IRVisitor* v) const = 0;
   virtual IrNodeTy node_type() const { return IrNodeTy::kUnk; }
-  virtual const Type& type() const { return type_; }
+  virtual Type type() const { return type_; }
   void set_type(Type type) { type_ = type; }
 
   const char* type_info() const override { return __type_info__; }
@@ -244,7 +244,7 @@ struct Expr : public IrNodeRef {
 
   operator Var();
 
-  const Type& type() const { return p_->type(); }
+  Type type() const { return p_->type(); }
 };
 
 struct UnaryArguHolder {
@@ -263,6 +263,11 @@ template <typename T>
 struct UnaryOpNode : public ExprNode<T>, public UnaryArguHolder {
   UnaryOpNode(Type type, Expr v) : ExprNode<T>(type), UnaryArguHolder(v) { CHECK(v.defined()); }
 
+  Type type() const override {
+    CHECK(v.defined());
+    return v.type();
+  }
+
   std::vector<Expr*> expr_fields() override { return {&v}; }
   std::vector<const Expr*> expr_fields() const override { return {&v}; }
 
@@ -276,6 +281,11 @@ struct BinaryOpNode : public ExprNode<T>, public BinaryArguHolder {
     CHECK(a.defined());
     CHECK(b.defined());
     CHECK_EQ(a.type(), b.type()) << "the two arguments' type not match";
+  }
+
+  Type type() const override {
+    CHECK_EQ(a.type(), b.type());
+    return a.type();
   }
 
   std::vector<Expr*> expr_fields() override { return {&a, &b}; }

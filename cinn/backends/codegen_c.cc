@@ -76,6 +76,8 @@ std::string CodeGenC::PrintType(Type type) {
     str += "float";
   } else if (type.is_float(64)) {
     str += "double";
+  } else if (type.is_void()) {
+    str += "void";
   } else {
     LOG(ERROR) << type;
     NOT_IMPLEMENTED

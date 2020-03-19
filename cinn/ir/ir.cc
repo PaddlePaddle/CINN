@@ -29,7 +29,13 @@ namespace ir {
 using common::make_shared;
 
 Expr Cast::Make(Type t, Expr v) {
-  auto node = make_shared<Cast>(t, v);
+  CHECK(!t.is_unk());
+  CHECK(!t.is_void());
+  CHECK(v.defined());
+
+  auto node = make_shared<Cast>();
+  node->v   = v;
+  node->set_type(t);
   return Expr(node);
 }
 
@@ -46,6 +52,9 @@ Expr Sub::Make(Expr a, Expr b) {
 }
 
 Expr Mul::Make(Expr a, Expr b) {
+  CHECK(a.defined());
+  CHECK(b.defined());
+  CHECK_EQ(a.type(), b.type());
   auto node = make_shared<Mul>(a, b);
   return Expr(node);
 }
@@ -115,10 +124,14 @@ Expr Or::Make(Expr a, Expr b) {
   return Expr(node);
 }
 
+Type Or::type() const { return type_; }
+
 Expr Not::Make(Expr v) {
   auto node = make_shared<Not>(v);
   return Expr(node);
 }
+
+Type Not::type() const { return type_; }
 
 Expr Let::Make(Expr value, Expr body) {
   auto *n = make_shared<Let>();
@@ -129,6 +142,8 @@ Expr Let::Make(Expr value, Expr body) {
   n->set_type(n->value->type());
   return Expr(n);
 }
+
+Type Let::type() const { return value.type(); }
 
 Expr _Var_::Make(const std::string &name, const Type &type) {
   auto node = new _Var_(name, type);
@@ -210,6 +225,8 @@ Expr Store::Make(Expr tensor, Expr value, Expr index) {
   node->set_type(tensor->type().ElementOf().with_lanes(index->type().lanes()));
   return Expr(node);
 }
+
+Type Store::type() const { return value.type(); }
 
 Expr Alloc::Make(Var buffer_var, Type type, const std::vector<Expr> &extents, Expr condition, Expr body) {
   auto node        = make_shared<Alloc>();
@@ -376,8 +393,12 @@ Expr Load::Make(Expr tensor, Expr index) {
   auto node    = make_shared<Load>();
   node->tensor = tensor;
   node->index  = index;
-  node->set_type(tensor->type().ElementOf().with_lanes(index.type().lanes()));
+  // node->set_type(tensor->type().ElementOf().with_lanes(index.type().lanes()));
   return Expr(node);
+}
+Type Load::type() const {
+  CHECK(index.type().is_int(32));
+  return tensor.type().ElementOf().with_lanes(index.type().lanes());
 }
 
 Expr Ramp::Make(Expr base, Expr stride, int lanes) {
@@ -410,6 +431,8 @@ Expr Broadcast::Make(Expr value, int lanes) {
 
   return Expr(n);
 }
+
+Type Broadcast::type() const { return value.type().ElementOf().with_lanes(lanes); }
 
 }  // namespace ir
 
