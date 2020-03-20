@@ -17,6 +17,9 @@ namespace lang {
 using ir::Tensor;
 using poly::Stage;
 
+/**
+ * Mark the PolyFor as Vectorized if it is called Vectorize in Stage.
+ */
 struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
   const std::map<std::string, ir::VectorizeInfo>& vectorizes;
 
@@ -38,10 +41,8 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
   void Visit(const ir::Store* op, Expr* expr) override {
     auto* tensor_n = op->tensor.As<ir::_Tensor_>();
     CHECK(tensor_n);
-    LOG(INFO) << "tensor name: " << tensor_n->name;
     auto it = vectorizes.find(tensor_n->name);
     if (it != vectorizes.end()) {
-      LOG(INFO) << "mark vectorize: " << tensor_n->name;
       CHECK_LT(it->second.level, stack.size());
       stack[it->second.level]->for_type       = ir::ForType::Vectorized;
       stack[it->second.level]->vectorize_info = it->second;
@@ -56,6 +57,8 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
  * Expand the split transforms.
  * This should takes the expression generated from isl ast as input(without relacing the statement with the real
  * computation), it takes each Call to identify the statement. Each time it can only deal with one statement.
+ *
+ * NOTE this is discarded, to be clean up latter.
  */
 struct SplitExpandMutator : public ir::IRMutator<Expr*> {
   SplitExpandMutator(const std::string& statement, const std::map<std::string, poly::SplitRestStrategy>& strategies)
@@ -163,6 +166,7 @@ struct SplitExpandMutator : public ir::IRMutator<Expr*> {
   std::string cur_statement_;
 };  // namespace lang
 
+//! Lower a single group. A LoweredFunc is composed of several group.
 Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Expr>& tuple_to_expr) {
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
@@ -207,6 +211,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   return e;
 }
 
+//! Prepare the arguments of LoweredFunc.
 std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensors, const std::vector<Expr>& func_body) {
   std::vector<ir::Argument> args;
   optim::TensorWriteTeller teller;
@@ -229,6 +234,7 @@ std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensors, c
   return args;
 }
 
+//! Lower the stages and get a LoweredFunc.
 std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Tensor>& args) {
   // make sure the graph's start-points in the args.
 
