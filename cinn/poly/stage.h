@@ -121,6 +121,8 @@ class Stage : public Object {
   inline const std::map<std::string /*iterator name*/, SplitRestStrategy>& split_strageties() const {
     return split_strageties_;
   }
+  const std::set<std::string>& extra_depend_stages() const { return extra_depend_stages_; }
+  void set_extra_depend_stages(const std::set<std::string>& x) { extra_depend_stages_ = x; }
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr());
@@ -137,6 +139,8 @@ class Stage : public Object {
   std::map<std::string, ComputeAtRelation> compute_ats_;
   ir::VectorizeInfo vectorize_info_;
   std::map<std::string /*iterator name*/, SplitRestStrategy> split_strageties_;
+  //! The other stages it depends.
+  std::set<std::string> extra_depend_stages_;
 };
 
 struct ComputeAtRelation {

@@ -51,8 +51,12 @@ struct DataFlowGraph : public common::Graph {};
 /**
  * Create a dependency graph given some stages.
  * NOTE The stages should sorted in topological order.
+ *
+ * @param stages The stages.
+ * @param extra_links The extra links, each element is a pair of (a ->  b)
  */
-std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages);
+std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages,
+                                           const std::vector<std::pair<std::string, std::string>>& extra_links = {});
 
 namespace detail {
 

@@ -71,7 +71,8 @@ bool DataFlowGraphNode::IsLinkedTo(const DataFlowGraphNode* node) const {
                   }) != std::end(outlinks_);
 }
 
-std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages) {
+std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages,
+                                           const std::vector<std::pair<std::string, std::string>>& extra_links) {
   std::map<std::string, Shared<DataFlowGraphNode>> id2stage;
   for (auto* x : stages) id2stage[x->id()] = make_shared<DataFlowGraphNode>(x);
 
@@ -87,6 +88,13 @@ std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages) {
         input_node->LinkTo(id2stage.at(stage->id()).get());
       }
     }
+  }
+
+  // Add extra links
+  for (auto& item : extra_links) {
+    auto& a = id2stage.at(item.first);
+    auto& b = id2stage.at(item.second);
+    a->LinkTo(b.get());
   }
 
   std::unique_ptr<DataFlowGraph> graph(new DataFlowGraph);
