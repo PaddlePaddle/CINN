@@ -156,6 +156,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
+  const std::set<std::string>& buffer_depended_tensor_names() const { return buffer_depended_tensor_names_; }
+
   static const IrNodeTy _node_type_ = IrNodeTy::_Tensor_;
 
   _Tensor_() : ExprNode<_Tensor_>(Float(32)) {}
@@ -173,7 +175,14 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Initialize the axis field after the shape field is assigned.
   void InitAxis();
 
+  //! Extract the tensors of the buffer this writes to. We should schedule this tensor after those tensors, or there
+  //! will be read-write conflicts.
+  void ExtractBufferDependedTensors();
+
   isl::set GenerateIslDomain();
+
+  //! The names of the tensors depend the same buffer and should schedule before this.
+  std::set<std::string> buffer_depended_tensor_names_;
 };
 
 class _Operation_;
@@ -202,6 +211,7 @@ class _Operation_ : public ir::FunctionBase {
 
   void Accept(IRVisitor* v) const override {}
   const std::string& func_name() const final { return name; }
+
   //! The function type.
   virtual const char* func_type() const = 0;
 };

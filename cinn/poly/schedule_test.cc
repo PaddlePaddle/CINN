@@ -27,7 +27,81 @@ TEST(CreateSchedule, compute_at) {
 
   B->stage()->ComputeAt(C->stage(), 1);
 
-  lang::Lower("func", {B, C});
+  auto funcs = lang::Lower("func", {B, C});
+  CHECK_EQ(funcs.size(), 1UL);
+
+  std::cout << funcs[0]->body << std::endl;
+
+  auto target_out = R"ROC(
+{
+  poly_for (0, (i <= 99), 1)
+  {
+    poly_for (0, (j <= 99), 1)
+    {
+      B[((i * 100) + j)] = (A[((i * 100) + j)] + 1)
+      poly_for (0, (k <= 99), 1)
+      {
+        C[((((i * 100) * 100) + (j * 100)) + k)] = (B[((i * 100) + j)] * B[((j * 100) + k)])
+      }
+    }
+  }
+}
+)ROC";
+
+  EXPECT_EQ(utils::GetStreamCnt(funcs[0]->body), utils::Trim(target_out));
+}
+
+TEST(CreateSchedule, buffer_bind_to_multiple_tensors_schedule) {
+  lang::Placeholder<float> A("A", {100, 100});
+  /*
+   * We create three tensors all binded to the same buffer, but has no depend in computation.
+   */
+
+  auto B = lang::Compute(
+      {100, 100}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "B");
+  lang::Buffer B_buf(B->type());
+  B->Bind(B_buf);
+
+  auto C = lang::Compute(
+      {100, 100}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "C");
+  C->Bind(B_buf);
+
+  auto D = lang::Compute(
+      {100, 100}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "D");
+  D->Bind(B_buf);
+
+  auto funcs = lang::Lower("func", {B, C, D});
+  CHECK_EQ(funcs.size(), 1UL);
+
+  std::cout << funcs[0]->body << std::endl;
+
+  auto target_out = R"ROC(
+{
+  poly_for (0, (i <= 99), 1)
+  {
+    poly_for (0, (j <= 99), 1)
+    {
+      B[((i * 100) + j)] = (A[((i * 100) + j)] + 1)
+    }
+  }
+  poly_for (0, (i <= 99), 1)
+  {
+    poly_for (0, (j <= 99), 1)
+    {
+      C[((i * 100) + j)] = (A[((i * 100) + j)] + 1)
+    }
+  }
+  poly_for (0, (i <= 99), 1)
+  {
+    poly_for (0, (j <= 99), 1)
+    {
+      D[((i * 100) + j)] = (A[((i * 100) + j)] + 1)
+    }
+  }
+}
+)ROC";
+
+  EXPECT_EQ(utils::GetStreamCnt(funcs[0]->body), utils::Trim(target_out));
 }
 
 }  // namespace poly

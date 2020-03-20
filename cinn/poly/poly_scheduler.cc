@@ -111,7 +111,10 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
 //! Check whether a group partition is valid. The ComputeAt and some other transform may broke data dependency, use this
 //! to check validity.
 // TODO(Superjomn) Implement this and integrate it into ComputeAt transform for checking transform validity.
-bool CheckGroupValid(const std::vector<Group>& groups) {}
+bool CheckGroupValid(const std::vector<Group>& groups) {
+  NOT_IMPLEMENTED
+  return false;
+}
 
 /**
  * Naive idea to split a graph.

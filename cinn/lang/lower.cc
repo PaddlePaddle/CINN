@@ -280,7 +280,6 @@ std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Te
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
     std::map<std::string, Expr> tuple_to_expr;
     for (auto& node : group.nodes) {
-      LOG(INFO) << "graph node " << node->id();
       auto& tensor = tensor_dic.at(node->id());
       // NOTE here just schedule the compute node.
       if (!tensor->is_compute_node()) continue;

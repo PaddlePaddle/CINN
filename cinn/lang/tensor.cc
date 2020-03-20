@@ -23,6 +23,7 @@ Tensor _Tensor_::Make(const std::string &name, const std::vector<Expr> &shape, F
   n->operaion = fn;
   n->InitStage();
   n->InitAxis();
+
   return Tensor(n);
 }
 
@@ -48,6 +49,7 @@ Tensor _Tensor_::Make(const std::string &name,
   n->shape    = shape;
   n->set_type(dtype);
   n->InitStage();
+
   return Tensor(n);
 }
 
@@ -106,7 +108,12 @@ void _Tensor_::InitStage() {
     return;
   }
   // Avoid duplicate init.
-  if (stage_shared) return;
+  if (stage_shared) {
+    auto &shared_stage = *static_cast<Shared<poly::Stage> *>(stage_shared);
+    shared_stage->set_extra_depend_stages(buffer_depended_tensor_names_);
+    return;
+  }
+
   stage_shared       = new Shared<poly::Stage>;
   auto &shared_stage = *static_cast<Shared<poly::Stage> *>(stage_shared);
   auto *op           = operaion->as<_Operation_>();
@@ -117,6 +124,8 @@ void _Tensor_::InitStage() {
   } else {
     shared_stage = poly::Stage::New(GenerateIslDomain());
   }
+
+  shared_stage->set_extra_depend_stages(buffer_depended_tensor_names_);
 }
 
 void _Tensor_::DropStage() {
@@ -232,7 +241,10 @@ void _Tensor_::Bind(lang::Buffer &buffer) {
   CHECK(this->buffer.defined());
   CHECK(!inlined());
 
-  // Reset stage to nullptr.
+  // Extract the tensors thouse has binded to this buffer.
+  buffer_depended_tensor_names_ = this->buffer->binded_tensor_names();
+
+  // Reset stage to nullptr to tell others this tensor should be inlined.
   InitStage();
 }
 
