@@ -12,31 +12,6 @@
 namespace cinn {
 namespace ir {
 
-/*
-struct ExternOp : public _Operation_ {
-  //! The input tensors.
-  std::vector<Tensor> inputs;
-  //! Symbolic placeholder representation of inputs.
-  std::vector<Buffer> input_placeholders;
-  //! Symbolic placeholder representation of outputs.
-  std::vector<Buffer> output_placeholders;
-  //! The statement that generates the computation.
-  Expr body;
-
-  ExternOp() = default;
-
-  static Operation Make(std::string name,
-                        std::string tag,
-                        std::map<std::string, IrNodeRef> attrs,
-                        std::vector<Tensor> inputs,
-                        std::vector<Buffer> input_placeholders,
-                        std::vector<Buffer> output_placeholders,
-                        Expr body);
-
-  static constexpr char buffer_get_element[] = "cinn_buffer_get_element";
-};
- */
-
 /**
  * @brief A placeholder op represents an input placeholder.
  */
