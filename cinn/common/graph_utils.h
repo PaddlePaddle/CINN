@@ -13,6 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include <algorithm>
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
 
@@ -43,6 +44,23 @@ class GraphEdge : public Object {
   GraphNode* sink_{};
 };
 
+}  // namespace common
+}  // namespace cinn
+
+namespace std {
+
+template <>
+struct hash<cinn::common::Shared<cinn::common::GraphEdge>> {
+  size_t operator()(const cinn::common::Shared<cinn::common::GraphEdge>& key) {
+    return reinterpret_cast<size_t>(key->source()) ^ reinterpret_cast<size_t>(key->sink());
+  }
+};
+
+}  // namespace std
+
+namespace cinn {
+namespace common {
+
 /**
  * @brief The base class of all node of graph.
  * This is used to normalize and share the graph operations.
@@ -55,17 +73,34 @@ class GraphNode : public Object {
   //! Links from this to other.
   template <typename EdgeT = GraphEdge>
   std::tuple<EdgeT*, EdgeT*> LinkTo(GraphNode* other) {
+    EdgeT *a, *b;
+    CHECK(other);
     CHECK_NE(other, this) << "cannot link to itself";
-    other->inlinks_.push_back(make_shared<GraphEdge>(other, this));
-    outlinks_.push_back(make_shared<GraphEdge>(this, other));
-    return std::make_tuple(static_cast<EdgeT*>(outlinks_.back().get()),
-                           static_cast<EdgeT*>(other->inlinks().back().get()));
+    auto source_edge = make_shared<GraphEdge>(this, other);
+    auto sink_edge   = make_shared<GraphEdge>(this, other);
+
+    outlinks_.insert(source_edge);
+    other->inlinks_.insert(sink_edge);
+
+    for (auto& item : outlinks_) {
+      if (item->sink()->id() == other->id()) {
+        a = static_cast<EdgeT*>(item.get());
+        break;
+      }
+    }
+    for (auto& item : other->inlinks_) {
+      if (item->sink()->id() == other->id()) {
+        b = static_cast<EdgeT*>(item.get());
+        break;
+      }
+    }
+    return std::make_tuple(a, b);
   }
 
   //! Get the input links of the node.
-  virtual std::list<Shared<GraphEdge>> inlinks() const { return inlinks_; }
+  virtual std::set<Shared<GraphEdge>> inlinks() const { return inlinks_; }
   //! Get the output links of the node.
-  virtual std::list<Shared<GraphEdge>> outlinks() const { return outlinks_; }
+  virtual std::set<Shared<GraphEdge>> outlinks() const { return outlinks_; }
   //! Get a derived pointer.
   template <typename Derived>
   Derived* As() {
@@ -90,10 +125,10 @@ class GraphNode : public Object {
  protected:
   //! The input links of the node.
   //! \note We record the raw pointer rather than the shared pointer to avoid cycle reference.
-  std::list<common::Shared<GraphEdge>> inlinks_;
+  std::set<common::Shared<GraphEdge>> inlinks_;
   //! The output links of the node.
   //! \note We record the raw pointer rather than the shared pointer to avoid cycle reference.
-  std::list<common::Shared<GraphEdge>> outlinks_;
+  std::set<common::Shared<GraphEdge>> outlinks_;
 
   mutable int visited_time_{};
 };

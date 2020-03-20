@@ -159,6 +159,8 @@ typedef struct cinn_buffer_t {
   //! The actual memory size.
   uint64_t memory_size;
 
+  uint16_t align;
+
 #ifdef __cplusplus
   cinn_buffer_t()
       : device(cinn_unk_device),
@@ -168,9 +170,13 @@ typedef struct cinn_buffer_t {
         type(cinn_type_t()),
         dimensions(0),
         dims(NULL),
-        memory_size(0) {}
+        memory_size(0),
+        align(0) {}
 
-  static struct cinn_buffer_t* new_(cinn_device_kind_t device, cinn_type_t type, const std::vector<int>& shape);
+  static struct cinn_buffer_t* new_(cinn_device_kind_t device,
+                                    cinn_type_t type,
+                                    const std::vector<int>& shape,
+                                    int align = 0);
   static void delete_(struct cinn_buffer_t* x) { delete x; }
 
   ~cinn_buffer_t() {

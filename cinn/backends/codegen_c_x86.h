@@ -61,7 +61,20 @@ class CodeGenCX86 : public CodeGenC {
   void PrintVecInputArgument(const Expr *op);
   //! The output argument, such as the destination for Load.
   void PrintVecOutputArgument(const Expr *op);
-  void PrintAbsAddr(const ir::Load *op);
+
+  template <typename Op>
+  void PrintAbsAddr(const Op *op) {
+    os() << op->tensor.template As<ir::_Tensor_>()->name << " + ";
+
+    auto *ramp_n = op->index.template As<ir::Ramp>();
+    if (ramp_n) {
+      CHECK(!ramp_n->base.template As<ir::Ramp>()) << "base of a Ramp node should not be Ramp type";
+      Print(ramp_n->base);
+    } else {
+      Print(op->index);
+    }
+  }
+
   template <typename Op>
   void VisitBinaryOp(const Op *op, Expr a, Expr b, const std::string &op_repr);
 };

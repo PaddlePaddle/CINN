@@ -276,7 +276,10 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
       CHECK_GT(extent, 0) << "Loop over " << Expr(forloop->loop_var) << " has extent " << forloop->extent
                           << ". Can only vectorize loops over a constant extent > 1";
 
+      VLOG(2) << "Vectorizing " << forloop->loop_var << " extent " << extent;
+      VLOG(2) << "body:\n" << node->body;
       Vectorizer(forloop->loop_var, extent).Visit(&node->body);
+      VLOG(2) << "after vectorize body:\n" << node->body;
 
       // Remove the forloop.
       *expr = node->body;

@@ -1,5 +1,6 @@
 #pragma once
 #include "cinn/backends/codegen_c.h"
+#include "cinn/backends/codegen_c_x86.h"
 #include "cinn/common/common.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
@@ -10,6 +11,7 @@
 namespace cinn {
 
 using backends::CodeGenC;
+using backends::CodeGenCX86;
 using backends::Outputs;
 using ir::Var;
 using lang::Buffer;

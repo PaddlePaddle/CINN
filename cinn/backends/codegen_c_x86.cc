@@ -9,6 +9,8 @@ void CodeGenCX86::Visit(const ir::Mul *op) { VisitBinaryOp(op, op->a, op->b, "mu
 void CodeGenCX86::Visit(const ir::Div *op) { VisitBinaryOp(op, op->a, op->b, "div"); }
 
 void CodeGenCX86::Visit(const ir::Load *op) {
+  LOG(INFO) << "visit load arguemnt";
+
   Expr dense_strided_ramp = detail::StridedRampBase(op->index, 1);
   if (dense_strided_ramp.defined()) {  // Loading a continuous Ramp address.
     CHECK(op->type().is_vector());
@@ -42,24 +44,20 @@ void CodeGenCX86::Visit(const ir::Store *op) {
   int bits = op->type().bits() * op->type().lanes();
   if (SupportsAVX512()) {
     CHECK_EQ(bits, 512);
-    os() << "cinn_avx512_store(" << op->tensor.As<ir::_Tensor_>()->name << ", " << op->value << ")";
+    os() << "cinn_avx512_store(";
+    PrintAbsAddr(op);
+    os() << ", ";
+    Print(op->value);
+    os() << ")";
   } else if (SupportsAVX256()) {
     CHECK_EQ(bits, 256);
-    os() << "cinn_avx256_store(" << op->tensor.As<ir::_Tensor_>()->name << ", " << op->value << ")";
+    os() << "cinn_avx256_store(";
+    PrintAbsAddr(op);
+    os() << ", ";
+    Print(op->value);
+    os() << ")";
   } else {
     CodeGenC::Visit(op);
-  }
-}
-
-void CodeGenCX86::PrintAbsAddr(const ir::Load *op) {
-  os() << op->tensor.As<ir::_Tensor_>()->name << " + ";
-
-  auto *ramp_n = op->index.As<ir::Ramp>();
-  if (ramp_n) {
-    CHECK(!ramp_n->base.As<ir::Ramp>()) << "base of a Ramp node should not be Ramp type";
-    Print(ramp_n->base);
-  } else {
-    Print(op->index);
   }
 }
 
