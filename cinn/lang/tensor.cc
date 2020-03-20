@@ -235,14 +235,14 @@ Expr _Tensor_::tensor_store_expanded_body() {
 }
 
 void _Tensor_::Bind(lang::Buffer &buffer) {
+  // Extract the tensors thouse has binded to this buffer.
+  buffer_depended_tensor_names_ = buffer.buffer()->binded_tensor_names();
+
   buffer.buffer()->BindTo(this);
   CHECK(!buffer->binded_tensor_names().empty());
   this->buffer = buffer.buffer();
   CHECK(this->buffer.defined());
   CHECK(!inlined());
-
-  // Extract the tensors thouse has binded to this buffer.
-  buffer_depended_tensor_names_ = this->buffer->binded_tensor_names();
 
   // Reset stage to nullptr to tell others this tensor should be inlined.
   InitStage();

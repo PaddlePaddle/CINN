@@ -53,6 +53,8 @@ class Stage : public Object {
   Split(const Iterator& level, int factor, SplitRestStrategy strategy = SplitRestStrategy::kAuto);
   std::tuple<Iterator, Iterator>  //
   Split(const std::string& level, int factor, SplitRestStrategy strategy = SplitRestStrategy::kAuto);
+  std::tuple<Iterator, Iterator>  //
+  Split(int level, int factor, SplitRestStrategy strategy = SplitRestStrategy::kAuto);
 
   /**
    * Reorder the iterators.
@@ -108,6 +110,8 @@ class Stage : public Object {
 
   //! Get the level-th dimensional name.
   std::string ith_dim_name(int level);
+  //! Get the i-th iterator.
+  Iterator ith_iterator(int level);
 
   //! Get the statements.
   std::vector<std::string> input_statements() const;
@@ -142,6 +146,8 @@ class Stage : public Object {
   //! The other stages it depends.
   std::set<std::string> extra_depend_stages_;
 };
+
+std::vector<std::pair<std::string, std::string>> ExtractExtraDependencyFromStages(const std::vector<Stage*>& stages);
 
 struct ComputeAtRelation {
   Shared<Stage> stage;

@@ -352,6 +352,9 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
         case isl_ast_op_eq:
           *expr = ir::EQ::Make(ops[0], ops[1]);
           break;
+        case isl_ast_op_pdiv_q:
+          *expr = ir::Div::Make(ops[0], ops[1]);
+          break;
         case isl_ast_op_call: {
           ir::Expr caller_expr = ops.front();
           // TODO(Superjomn) make it an string

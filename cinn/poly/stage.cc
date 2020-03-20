@@ -42,6 +42,12 @@ Stage::Stage(const isl::set &domain, Expr expr) : domain_(domain), expr_(expr) {
   InitTransform();
 }
 
+std::tuple<Iterator, Iterator> Stage::Split(int level, int factor, SplitRestStrategy strategy) {
+  auto dim_names = GetDimNames(transform_, isl_dim_out);
+  auto axis_name = dim_names.at(level);
+  return Split(axis_name, factor, strategy);
+}
+
 std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor, SplitRestStrategy strategy) {
   int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level.id.c_str());
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
@@ -213,6 +219,20 @@ std::string Stage::ith_dim_name(int level) {
   auto dims = GetDimNames(transformed_domain());
   CHECK_LT(level, dims.size());
   return dims[level];
+}
+
+Iterator Stage::ith_iterator(int level) { return Iterator(ith_dim_name(level)); }
+
+std::vector<std::pair<std::string, std::string>> ExtractExtraDependencyFromStages(const std::vector<Stage *> &stages) {
+  std::vector<std::pair<std::string, std::string>> extra_links;
+  for (auto &stage : stages) {
+    for (auto &tensor_name : stage->extra_depend_stages()) {
+      LOG(INFO) << "extra link " << tensor_name << " -> " << stage->id();
+      extra_links.emplace_back(tensor_name, stage->id());
+    }
+  }
+
+  return extra_links;
 }
 
 }  // namespace poly
