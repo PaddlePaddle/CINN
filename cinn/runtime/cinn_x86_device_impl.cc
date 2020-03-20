@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include "cinn/runtime/cinn_runtime.h"
 
 int cinn_x86_malloc(void* context, cinn_buffer_t* buf) {
@@ -9,7 +10,12 @@ int cinn_x86_malloc(void* context, cinn_buffer_t* buf) {
     if (buf->host_memory) {
       free(buf->host_memory);
     }
-    buf->host_memory = (unsigned char*)malloc(buf->type.bytes() * buf->num_elements());
+    int bytes = buf->type.bytes() * buf->num_elements();
+    if (buf->align == 0) {
+      buf->host_memory = (unsigned char*)malloc(bytes);
+    } else {
+      buf->host_memory = (uint8_t*)aligned_alloc(buf->align, bytes);
+    }
     buf->memory_size = memory_size;
     CINN_LOG("buf.memory size is %ld\n", buf->memory_size);
   }

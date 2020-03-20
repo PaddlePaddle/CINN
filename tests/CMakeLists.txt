@@ -5,7 +5,9 @@ cc_test(test01_elementwise_add_main SRCS test01_elementwise_add_main.cc DEPS cor
   ARGS ${global_test_args}
   )
 cc_test(test01_elementwise_add_case
-  SRCS test01_elementwise_add_case.cc ${CMAKE_BINARY_DIR}/tests/test01_elementwise_add.cc
+  SRCS test01_elementwise_add_case.cc
+  ${CMAKE_BINARY_DIR}/tests/test01_elementwise_add.cc
+  ${CMAKE_BINARY_DIR}/tests/test01_elementwise_add_vectorize.cc
   DEPS core)
 add_dependencies(test01_elementwise_add_case test01_elementwise_add_main)
 

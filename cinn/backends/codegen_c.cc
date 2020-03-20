@@ -13,21 +13,21 @@ using namespace utils;
 
 void CodeGenC::Compile(const lang::Module &module, const Outputs &outputs) {
   if (!outputs.c_header_name.empty()) {
-    LOG(WARNING) << "Output C source to file " << outputs.c_header_name;
     auto source = Compile(module, OutputKind::CHeader);
     std::ofstream file(outputs.c_header_name);
     CHECK(file.is_open()) << "failed to open file " << outputs.c_header_name;
     file << source;
     file.close();
+    LOG(WARNING) << "Output C header to file " << outputs.c_header_name;
   }
 
   if (!outputs.c_source_name.empty()) {
-    LOG(WARNING) << "Output C source to file " << outputs.c_source_name;
     auto source = Compile(module, OutputKind::CImpl);
     std::ofstream file(outputs.c_source_name);
     CHECK(file.is_open()) << "failed to open file " << outputs.c_source_name;
     file << source;
     file.close();
+    LOG(WARNING) << "Output C source to file " << outputs.c_source_name;
   }
 }
 

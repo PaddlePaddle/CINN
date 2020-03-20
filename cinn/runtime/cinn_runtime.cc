@@ -69,7 +69,10 @@ cinn_type_t cinn_float64_t() { return cinn_type_t(cinn_type_float, 64); }
 
 }  // extern "C"
 
-struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device, cinn_type_t type, const std::vector<int>& shape) {
+struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device,
+                                          cinn_type_t type,
+                                          const std::vector<int>& shape,
+                                          int align) {
   int32_t dimensions     = shape.size();
   cinn_dimension_t* dims = new cinn_dimension_t[dimensions];
   memcpy(dims, shape.data(), shape.size() * sizeof(int));
@@ -93,5 +96,6 @@ struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device, cinn_type_t
 
   x->dims       = dims;
   x->dimensions = dimensions;
+  x->align      = align;
   return x;
 }

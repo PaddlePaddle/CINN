@@ -129,13 +129,13 @@ struct ExternalVec {
 
 // AVX256 load
 //@{
-inline __m256 cinn_avx256_load(float* dst) { return _mm256_load_ps(dst); }
-inline __m256d cinn_avx256_load(double* dst) { return _mm256_load_pd(dst); }
+inline __m256 cinn_avx256_load(const float* dst) { return _mm256_load_ps(dst); }
+inline __m256d cinn_avx256_load(const double* dst) { return _mm256_load_pd(dst); }
 //@}
 // AVX512 load
 //@{
-inline __m512 cinn_avx512_load(float* dst) { return _mm512_load_ps(dst); }
-inline __m512d cinn_avx512_load(double* dst) { return _mm512_load_pd(dst); }
+inline __m512 cinn_avx512_load(const float* dst) { return _mm512_load_ps(dst); }
+inline __m512d cinn_avx512_load(const double* dst) { return _mm512_load_pd(dst); }
 //@}
 
 // FP32x8 * FP32x8
@@ -311,6 +311,22 @@ inline __m256 cinn_avx256_set1(float value) { return _mm256_set1_ps(value); }
 inline __m256d cinn_avx256_set1(double value) { return _mm256_set1_pd(value); }
 inline __m512 cinn_avx512_set1(float value) { return _mm512_set1_ps(value); }
 inline __m512d cinn_avx512_set1(double value) { return _mm512_set1_pd(value); }
+// @}
+
+//! store
+// @{
+inline void cinn_avx512_store(float* dst, const __m512& x) { _mm512_store_ps(dst, x); }
+inline void cinn_avx512_store(double* dst, const __m512d& x) { _mm512_store_pd(dst, x); }
+inline void cinn_avx256_store(float* dst, const __m256& x) { _mm256_store_ps(dst, x); }
+inline void cinn_avx256_store(double* dst, const __m256d& x) { _mm256_store_pd(dst, x); }
+// @}
+
+//! add
+// @{
+inline __m256 cinn_avx256_add(const __m256& a, const __m256& b) { return _mm256_add_ps(a, b); }
+inline __m256d cinn_avx256_add(const __m256d& a, const __m256d& b) { return _mm256_add_pd(a, b); }
+inline __m512 cinn_avx512_add(const __m512& a, const __m512& b) { return _mm512_add_ps(a, b); }
+inline __m512d cinn_avx512_add(const __m512d& a, const __m512d& b) { return _mm512_add_pd(a, b); }
 // @}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
