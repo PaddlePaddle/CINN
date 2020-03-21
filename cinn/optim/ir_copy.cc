@@ -43,9 +43,10 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 
   Expr Visit(const IfThenElse* op) override {
-    auto condition  = Visit(&op->condition);
-    auto true_case  = Visit(&op->true_case);
-    auto false_case = Visit(&op->false_case);
+    auto condition = Visit(&op->condition);
+    auto true_case = Visit(&op->true_case);
+    Expr false_case;
+    if (op->false_case.defined()) Visit(&op->false_case);
     return IfThenElse::Make(condition, true_case, false_case);
   }
 

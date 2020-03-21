@@ -27,7 +27,7 @@ class AstGen {
   AstGen(const isl::set& context, const std::vector<Stage*>& stages, const poly::ScheduleGroup& group);
 
   /**
-   * Set forloop iterator names.
+   * Set for-loop iterator names.
    * @param names
    * @return AstGen itself.
    */

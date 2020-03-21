@@ -2,26 +2,26 @@
 #include <gtest/gtest.h>
 
 #include "cinn/runtime/cinn_runtime.h"
+#include "cinn/utils/timer.h"
 #include "tests/test02_matmul.h"
+#include "tests/test02_matmul_block.h"
 #include "tests/test02_matmul_split.h"
 #include "tests/test02_matmul_tile.h"
+#include "tests/test02_matmul_vectorize.h"
 
 TEST(test02, basic) {
-  const int M = 1000;
-  const int N = 400;
-  const int K = 500;
+  const int M = 1024;
+  const int N = 1024;
+  const int K = 1024;
 
-  auto* A        = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {M, K});
-  auto* B        = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {K, N});
-  auto* C        = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {M, N});
-  auto* C1       = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {M, N});
-  auto* C2       = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {M, N});
+  auto* A        = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {M, K}, 32);
+  auto* B        = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {K, N}, 32);
+  auto* C        = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {M, N}, 32);
   auto* C_target = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {M, N});
   cinn_buffer_malloc(nullptr, A);
   cinn_buffer_malloc(nullptr, B);
   cinn_buffer_malloc(nullptr, C_target);
   cinn_buffer_malloc(nullptr, C);
-  cinn_buffer_malloc(nullptr, C1);
 
   float* Ad        = reinterpret_cast<float*>(A->host_memory);
   float* Bd        = reinterpret_cast<float*>(B->host_memory);
@@ -64,15 +64,37 @@ TEST(test02, basic) {
     }
   }
 
+  cinn::utils::Timer timer;
+
+  const int repeat = 1;
+
   LOG(INFO) << "Testing matmul_basic";
-  matmul(A, B, C);
+  timer.Start();
+  for (int i = 0; i < repeat; i++) matmul(A, B, C);
+  LOG(INFO) << timer.Stop() / repeat;
   compare();
 
   LOG(INFO) << "Testing matmul_tile";
-  matmul_tile(A, B, C);
+  timer.Start();
+  for (int i = 0; i < repeat; i++) matmul_tile(A, B, C);
+  LOG(INFO) << timer.Stop() / repeat;
   compare();
 
   LOG(INFO) << "Testing matmul_split";
-  matmul_split(A, B, C);
+  timer.Start();
+  for (int i = 0; i < repeat; i++) matmul_split(A, B, C);
+  LOG(INFO) << timer.Stop() / repeat;
+  compare();
+
+  LOG(INFO) << "Testing matmul_block";
+  timer.Start();
+  for (int i = 0; i < repeat; i++) matmul_block(A, B, C);
+  LOG(INFO) << timer.Stop() / repeat;
+  compare();
+
+  LOG(INFO) << "Testing matmul_vectorize";
+  timer.Start();
+  for (int i = 0; i < repeat; i++) matmul_vectorize(A, B, C);
+  LOG(INFO) << timer.Stop() / repeat;
   compare();
 }

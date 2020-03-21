@@ -37,6 +37,8 @@ struct ReplaceCallWithExprModifier : public ir::IRMutator<> {
 
 void ReplaceCallWithExpr(Expr *e, const std::string &statement, const Expr &candidate) {
   ReplaceCallWithExprModifier modifier(statement, candidate);
+  LOG(INFO) << "statement " << statement;
+  LOG(INFO) << "candidate " << candidate;
   modifier(e);
 }
 

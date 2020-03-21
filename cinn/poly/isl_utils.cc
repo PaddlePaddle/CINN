@@ -3,6 +3,8 @@
 #include <glog/logging.h>
 #include <isl/cpp.h>
 
+#include <algorithm>
+
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -95,6 +97,52 @@ isl::set SetGetDims(isl::set set, const std::vector<int> &dims) {
                                             Join(selected_dim_names, ", ").c_str());
   isl::map transform(set.ctx(), transform_repr);
   return set.apply(transform);
+}
+
+isl_set *isl_get_precending_aixs(isl_set *set, int level) {
+  int n = isl_set_dim(set, isl_dim_set);
+  CHECK_LT(level, n);
+
+  std::vector<std::string> domain_iterators;
+  std::vector<std::string> range_iterators;
+
+  for (int i = 0; i < n; i++) {
+    domain_iterators.push_back("i" + std::to_string(i));
+  }
+
+  for (int i = 0; i < level; i++) {
+    range_iterators.push_back("i" + std::to_string(i));
+  }
+
+  const char *statement = isl_set_get_tuple_name(set);
+
+  std::string repr = utils::StringFormat("{ %s[%s] -> %s[%s] }",
+                                         statement,
+                                         utils::Join(domain_iterators, ", ").c_str(),
+                                         statement,
+                                         utils::Join(range_iterators, ", ").c_str());
+  auto transform   = isl::manage(isl_map_read_from_str(isl_set_get_ctx(set), repr.c_str()));
+
+  return isl_set_apply(set, transform.release());
+}
+
+int isl_max_level_compatible(isl_set *a, isl_set *b) {
+  int an = isl_set_dim(a, isl_dim_set);
+  int bn = isl_set_dim(b, isl_dim_set);
+  CHECK_GT(an, 0);
+  CHECK_GT(bn, 0);
+
+  int compatible_level = -1;
+  for (int i = 0; i < std::min(an, bn); i++) {
+    isl::set a_prefix = isl::manage(isl_get_precending_aixs(isl_set_copy(a), i));
+    isl::set b_prefix = isl::manage(isl_get_precending_aixs(isl_set_copy(b), i));
+    if (isl_set_is_equal(a_prefix.get(), b_prefix.get()))
+      compatible_level = i;
+    else
+      break;
+  }
+
+  return compatible_level;
 }
 
 }  // namespace poly

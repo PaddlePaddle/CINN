@@ -18,5 +18,7 @@ cc_test(test02_matmul_case SRCS test02_matmul_case.cc
   ${CMAKE_BINARY_DIR}/tests/test02_matmul.cc
   ${CMAKE_BINARY_DIR}/tests/test02_matmul_tile.cc
   ${CMAKE_BINARY_DIR}/tests/test02_matmul_split.cc
+  ${CMAKE_BINARY_DIR}/tests/test02_matmul_block.cc
+  ${CMAKE_BINARY_DIR}/tests/test02_matmul_vectorize.cc
   DEPS core)
 add_dependencies(test02_matmul_case  test02_matmul_main)

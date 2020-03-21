@@ -6,8 +6,10 @@
 #include <algorithm>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "cinn/common/common.h"
@@ -80,6 +82,8 @@ class Stage : public Object {
    * @param level
    */
   void Vectorize(int level, int factor);
+  void Vectorize(const std::string& axis, int factor);
+  void Vectorize(const Iterator& axis, int factor);
 
   /**
    * Mark the stage compute at the level of some other stage.
@@ -104,7 +108,13 @@ class Stage : public Object {
 
   const isl::set& domain() const { return domain_; }
   const isl::map& transform() const { return transform_; }
-  isl::set transformed_domain() const { return domain_.apply(transform_); }
+  isl::set transformed_domain() const {
+    CHECK(!domain_.is_null());
+    CHECK(!transform_.is_null());
+    LOG(INFO) << "domain: " << domain_;
+    LOG(INFO) << "transform: " << transform_;
+    return domain_.apply(transform_);
+  }
 
   std::vector<ComputeAtRelation> compute_ats() const;
 

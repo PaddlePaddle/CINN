@@ -138,11 +138,20 @@ std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bo
 
 std::map<std::string, isl::map> CollectScheduleMapFromGroup(const ScheduleGroup &group) {
   std::map<std::string, isl::map> map;
+
+  std::vector<Stage *> stages;
+  LOG(INFO) << "Group to schedule as:";
   for (auto &node : group.nodes) {
-    auto *schedule_node      = node->As<ScheduleGraphNode>();
-    map[schedule_node->id()] = schedule_node->time_schedule.to_isl(Context::Global().isl_ctx());
+    LOG(INFO) << node->stage->id();
+    auto *schedule_node = node->As<ScheduleGraphNode>();
+    CHECK(node->stage);
+    stages.push_back(node->stage);
   }
-  return map;
+
+  PolyGroupScheduler group_scheduler(stages);
+  group_scheduler.Build();
+
+  return group_scheduler.schedule_map();
 }
 
 void SchedulerBase::AddStage(const Stage &x) {

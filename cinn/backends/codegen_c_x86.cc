@@ -80,14 +80,7 @@ void CodeGenCX86::PrintVecInputArgument(const Expr *op) {
       NOT_IMPLEMENTED
     }
   } else {
-    auto *load_n = op->As<ir::Load>();
-
-    if (load_n) {
-      Visit(load_n);
-      return;
-    }
-
-    NOT_IMPLEMENTED
+    Print(*op);
   }
 }
 

@@ -191,7 +191,7 @@ struct ScheduleGraphEdge : public common::GraphEdge {
  */
 struct ScheduleGraphNode : public common::GraphNode {
   TimeSchedule time_schedule;
-  Stage *stage;
+  Stage *stage{};
 
   //! NOTE this id is not human-readable.
   // std::string id() const override { return std::to_string(reinterpret_cast<size_t>(this)); }

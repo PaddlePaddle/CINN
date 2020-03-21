@@ -3,6 +3,11 @@
 #include <glog/logging.h>
 
 #include <deque>
+#include <limits>
+#include <map>
+#include <set>
+
+#include "cinn/poly/isl_utils.h"
 
 namespace cinn {
 namespace poly {
@@ -273,6 +278,27 @@ void PolyScheduler::ScheduleGroups() {
   for (auto& group : schedule_groups_) {
     ScheduleAGroup(&group);
   }
+}
+
+void PolyGroupScheduler::Build() {
+  for (int i = 0; i < stages_.size() - 1; i++) {
+    Stage* a = stages_[i];
+    Stage* b = stages_[i + 1];
+
+    auto a_set = a->transformed_domain();
+    auto b_set = b->transformed_domain();
+
+    int max_precending_level = std::max(isl_max_level_compatible(a_set.get(), b_set.get()), 0);
+    After(*a, *b, max_precending_level);
+  }
+}
+
+PolyGroupScheduler::PolyGroupScheduler(const std::vector<Stage*>& stages) : stages_(stages) {
+  CHECK_GT(stages.size(), 0) << "No stage is provided";
+  for (auto* stage : stages) {
+    AddStage(*stage);
+  }
+  FinishStageAdd();
 }
 
 }  // namespace poly
