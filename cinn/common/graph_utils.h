@@ -3,6 +3,7 @@
 
 #include <glog/logging.h>
 
+#include <algorithm>
 #include <functional>
 #include <list>
 #include <map>
@@ -13,7 +14,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include <algorithm>
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
 

@@ -23,7 +23,7 @@ using poly::Stage;
 struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
   const std::map<std::string, ir::VectorizeInfo>& vectorizes;
 
-  MarkVectorizeMutator(const std::map<std::string /*tensor name*/, ir::VectorizeInfo>& vectorizes)
+  explicit MarkVectorizeMutator(const std::map<std::string /*tensor name*/, ir::VectorizeInfo>& vectorizes)
       : vectorizes(vectorizes) {}
 
   void operator()(Expr* expr) { ir::IRMutator<Expr*>::Visit(expr, expr); }
@@ -180,10 +180,12 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   ir::Expr e;
   poly::IslAstNodeToCinnExpr(ast, &e);
 
+  /*
   for (auto& stage : stages) {
     VLOG(3) << "run Split separation on " << stage->id() << " " << stage->split_strageties().size() << " strategies";
     SplitExpandMutator(stage->id(), stage->split_strageties())(&e);
   }
+   */
 
   // replace call to the corresponding statement
   for (auto& statement : tuple_to_expr) {

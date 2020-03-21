@@ -215,6 +215,15 @@ void Stage::Vectorize(int level, int factor) {
   vectorize_info_.set(level + 1 /*inner*/, factor);
 }
 
+void Stage::Vectorize(const std::string &axis, int factor) {
+  auto dims = GetDimNames(transformed_domain());
+  auto it   = std::find(dims.begin(), dims.end(), axis);
+  CHECK(it != dims.end()) << "No dimension called " << axis;
+  Vectorize(std::distance(dims.begin(), it), factor);
+}
+
+void Stage::Vectorize(const Iterator &axis, int factor) { return Vectorize(axis.id, factor); }
+
 std::string Stage::ith_dim_name(int level) {
   auto dims = GetDimNames(transformed_domain());
   CHECK_LT(level, dims.size());

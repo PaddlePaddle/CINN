@@ -18,38 +18,18 @@ namespace cinn {
 namespace poly {
 
 /**
- * Schedule a single group with iterator domain considered.
+ * Schedule a single group with iterator domain considered and follow the stage order.
  */
 class PolyGroupScheduler : public SchedulerBase {
  public:
   //! Constructor, this will build a DAG based on the stages.
-  explicit PolyGroupScheduler(const std::vector<Stage *> &stages) {
-    CHECK_GT(stages.size(), 0) << "No stage is provided";
-    for (auto *stage : stages) {
-      AddStage(*stage);
-    }
-    FinishStageAdd();
-  }
+  explicit PolyGroupScheduler(const std::vector<Stage *> &stages);
 
   //! Build the schedule, that is set the time schedule following each edge.
-  void Build() {
-    ScheduleGraph::node_order_t node_order;
-    ScheduleGraph::edge_order_t edge_order;
-    CHECK(!schedule_graph_.nodes().empty());
-    std::tie(node_order, edge_order) = schedule_graph_.topological_order();
-    for (auto *edge : edge_order) {
-      auto *schedule_edge = edge->as<ScheduleGraphEdge>();
-      auto *a_node        = schedule_graph_.RetriveNode(edge->source()->As<ScheduleGraphNode>()->time_schedule.id())
-                         ->As<ScheduleGraphNode>();
-      auto *b_node = schedule_graph_.RetriveNode(edge->sink()->As<ScheduleGraphNode>()->time_schedule.id())
-                         ->As<ScheduleGraphNode>();
-      CHECK(a_node);
-      CHECK(b_node);
+  void Build();
 
-      int level = schedule_edge->level;
-      b_node->time_schedule.OrderAfter(a_node->time_schedule, level);
-    }
-  }
+ private:
+  const std::vector<Stage *> &stages_;
 };
 
 /**

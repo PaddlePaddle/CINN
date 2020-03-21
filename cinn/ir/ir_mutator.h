@@ -83,7 +83,7 @@ void IRMutator<T>::Visit(const IfThenElse *expr, T op) {
   auto *node = op->template As<IfThenElse>();
   IRVisitorBase<void, T>::Visit(&node->condition, &node->condition);
   IRVisitorBase<void, T>::Visit(&node->true_case, &node->true_case);
-  IRVisitorBase<void, T>::Visit(&node->false_case, &node->false_case);
+  if (node->false_case.defined()) IRVisitorBase<void, T>::Visit(&node->false_case, &node->false_case);
 }
 template <typename T>
 void IRMutator<T>::Visit(const Block *expr, T op) {

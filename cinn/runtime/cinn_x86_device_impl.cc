@@ -1,4 +1,5 @@
 #include <stdlib.h>
+
 #include "cinn/runtime/cinn_runtime.h"
 
 int cinn_x86_malloc(void* context, cinn_buffer_t* buf) {

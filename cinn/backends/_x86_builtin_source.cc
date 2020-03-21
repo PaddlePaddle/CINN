@@ -329,6 +329,14 @@ inline __m512 cinn_avx512_add(const __m512& a, const __m512& b) { return _mm512_
 inline __m512d cinn_avx512_add(const __m512d& a, const __m512d& b) { return _mm512_add_pd(a, b); }
 // @}
 
+//! mul
+// @{
+inline __m256 cinn_avx256_mul(const __m256& a, const __m256& b) { return _mm256_mul_ps(a, b); }
+inline __m256d cinn_avx256_mul(const __m256d& a, const __m256d& b) { return _mm256_mul_pd(a, b); }
+inline __m512 cinn_avx512_mul(const __m512& a, const __m512& b) { return _mm512_mul_ps(a, b); }
+inline __m512d cinn_avx512_mul(const __m512d& a, const __m512d& b) { return _mm512_mul_pd(a, b); }
+// @}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                     )END Predefined utilities in CINN
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
