@@ -224,7 +224,7 @@ struct Expr : public IrNodeRef {
  public:
   Expr() = default;
   Expr(const Expr& other) : IrNodeRef(other.ptr()) {}
-  explicit Expr(IrNode* p) : IrNodeRef(p) {}
+  Expr(IrNode* p) : IrNodeRef(p) {}  // NOLINT
   explicit Expr(const Var& var);
 
   //! Helper function to construct numeric constants of various types.
