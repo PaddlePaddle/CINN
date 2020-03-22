@@ -224,6 +224,8 @@ void Stage::Vectorize(const std::string &axis, int factor) {
 
 void Stage::Vectorize(const Iterator &axis, int factor) { return Vectorize(axis.id, factor); }
 
+void Stage::Unroll(int level) { unroll_info_.insert(level); }
+
 std::string Stage::ith_dim_name(int level) {
   auto dims = GetDimNames(transformed_domain());
   CHECK_LT(level, dims.size());
@@ -236,7 +238,6 @@ std::vector<std::pair<std::string, std::string>> ExtractExtraDependencyFromStage
   std::vector<std::pair<std::string, std::string>> extra_links;
   for (auto &stage : stages) {
     for (auto &tensor_name : stage->extra_depend_stages()) {
-      LOG(INFO) << "extra link " << tensor_name << " -> " << stage->id();
       extra_links.emplace_back(tensor_name, stage->id());
     }
   }

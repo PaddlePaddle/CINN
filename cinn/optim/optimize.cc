@@ -2,6 +2,8 @@
 
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_simplify.h"
+#include "cinn/optim/remove_nested_block.h"
+#include "cinn/optim/unroll_loops.h"
 #include "cinn/optim/vectorize_loops.h"
 
 namespace cinn {
@@ -11,6 +13,8 @@ Expr Optimize(Expr e) {
   auto copied = IRCopy(e);
   Simplify(&copied);
   VectorizeLoops(&copied, Target());
+  UnrollLoop(&copied);
+  RemoveNestedBlock(&copied);
   Simplify(&copied);
 
   return copied;

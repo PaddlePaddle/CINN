@@ -6,6 +6,11 @@ namespace cinn {
 namespace optim {
 
 struct NestedBlockRemover : public ir::IRMutator<Expr*> {
+  void operator()(ir::Expr* expr) { Visit(expr); }
+
+ private:
+  void Visit(ir::Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
   void Visit(const ir::Block* expr, Expr* op) override {
     auto* node = op->As<ir::Block>();
 
@@ -28,12 +33,7 @@ struct NestedBlockRemover : public ir::IRMutator<Expr*> {
   }
 };
 
-void RemoveNestedBlock(Expr* e) {
-  NestedBlockRemover remover;
-  auto* p = e->As<ir::Block>();
-  CHECK(p);
-  remover.Visit(p, e);
-}
+void RemoveNestedBlock(Expr* e) { NestedBlockRemover()(e); }
 
 }  // namespace optim
 }  // namespace cinn

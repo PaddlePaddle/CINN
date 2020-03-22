@@ -51,7 +51,6 @@ std::string ExprToGinacConerter::Repr(const ir::Expr& expr) {
 void ExprToGinacConerter::RecordExpr(const ir::Expr& expr) { repr_to_expr_[Repr(expr)] = expr; }
 
 GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
-  LOG(INFO) << "converting " << expr;
   auto* load_n      = expr.As<Load>();
   auto* var_n       = expr.As<_Var_>();
   auto* int_n       = expr.As<IntImm>();
