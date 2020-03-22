@@ -163,11 +163,11 @@ struct SplitExpandMutator : public ir::IRMutator<Expr*> {
       return;
     }
 
-    ir::Min* min_n = lt ? lt->b.As<ir::Min>() : le->b.As<ir::Min>();
+    ir::Min* min_n = lt ? lt->b().As<ir::Min>() : le->b().As<ir::Min>();
 
     if (min_n) {
-      auto upper_bound0 = min_n->a;
-      auto upper_bound1 = min_n->b;
+      auto upper_bound0 = min_n->a();
+      auto upper_bound1 = min_n->b();
 
       Expr forloop0, forloop1;
       if (lt) {

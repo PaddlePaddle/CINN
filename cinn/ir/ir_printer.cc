@@ -37,25 +37,25 @@ void IrPrinter::Visit(const And *x) { PrintBinaryOp("and", x); }
 void IrPrinter::Visit(const Or *x) { PrintBinaryOp("or", x); }
 void IrPrinter::Visit(const Not *x) {
   os_ << "!";
-  Print(x->v);
+  Print(x->v());
 }
 void IrPrinter::Visit(const Min *x) {
   os_ << "min(";
-  Print(x->a);
+  Print(x->a());
   os_ << ", ";
-  Print(x->b);
+  Print(x->b());
   os_ << ")";
 }
 void IrPrinter::Visit(const Max *x) {
   os_ << "max(";
-  Print(x->a);
+  Print(x->a());
   os_ << ", ";
-  Print(x->b);
+  Print(x->b());
   os_ << ")";
 }
 void IrPrinter::Visit(const Minus *x) {
   os_ << "-(";
-  Print(x->v);
+  Print(x->v());
   os_ << ")";
 }
 void IrPrinter::Visit(const For *x) {
@@ -136,7 +136,7 @@ void IrPrinter::Visit(const Call *x) {
 void IrPrinter::Visit(const Cast *x) {
   os() << x->type();
   os() << "(";
-  os() << x->v;
+  os() << x->v();
   os() << ")";
 }
 void IrPrinter::Visit(const Module *x) {}

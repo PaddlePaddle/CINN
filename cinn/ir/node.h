@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "cinn/common/common.h"
 #include "cinn/common/object.h"
@@ -101,7 +102,7 @@ std::ostream& operator<<(std::ostream& os, IrNodeTy type);
 class IrNode : public common::Object {
  public:
   IrNode() = default;
-  IrNode(Type t) : type_(t) {}
+  explicit IrNode(Type t) : type_(t) {}
   virtual ~IrNode() = default;
 
   virtual void Accept(IRVisitor* v) const = 0;
@@ -154,8 +155,12 @@ struct Expr;
 
 template <typename T>
 struct ExprNode : public IrNode {
+  //! The operands of this operator.
+  std::vector<Expr> operands;
+
   ExprNode() : IrNode(Type()) {}
   explicit ExprNode(Type t) : IrNode(t) { set_type(t); }
+  explicit ExprNode(int num_operands) { operands.resize(num_operands); }
 
   void Accept(IRVisitor* v) const override;
 
@@ -163,9 +168,9 @@ struct ExprNode : public IrNode {
   const T* const_self() const { return dynamic_cast<const T*>(this); }
 
   //! Tell if this is an operator that takes one Expr as argument.
-  virtual bool is_unary_op() const { return false; }
+  bool is_unary_op() const { return operands.size() == 1; }
   //! Tell if this is an operator that takes two Exprs as arguments.
-  virtual bool is_binary_op() const { return false; }
+  bool is_binary_op() const { return operands.size() == 2; }
 
   //! Gather all the expression fields in this node for easier visit and mutate.
   virtual std::vector<Expr*> expr_fields() { return {}; }
@@ -219,7 +224,7 @@ struct Expr : public IrNodeRef {
  public:
   Expr() = default;
   Expr(const Expr& other) : IrNodeRef(other.ptr()) {}
-  Expr(IrNode* p) : IrNodeRef(p) {}
+  Expr(IrNode* p) : IrNodeRef(p) {}  // NOLINT
   explicit Expr(const Var& var);
 
   //! Helper function to construct numeric constants of various types.
@@ -247,51 +252,56 @@ struct Expr : public IrNodeRef {
   Type type() const { return p_->type(); }
 };
 
-struct UnaryArguHolder {
-  explicit UnaryArguHolder(Expr v) : v(v) {}
-  // The single argument.
-  Expr v;
-};
-
-struct BinaryArguHolder {
-  explicit BinaryArguHolder(Expr a, Expr b) : a(a), b(b) {}
-  // The single argument.
-  Expr a, b;
-};
-
 template <typename T>
-struct UnaryOpNode : public ExprNode<T>, public UnaryArguHolder {
-  UnaryOpNode(Type type, Expr v) : ExprNode<T>(type), UnaryArguHolder(v) { CHECK(v.defined()); }
-
-  Type type() const override {
+struct UnaryOpNode : public ExprNode<T> {
+  UnaryOpNode() { operands.resize(1); }
+  UnaryOpNode(Type type, Expr v) : ExprNode<T>(type) {
     CHECK(v.defined());
-    return v.type();
+    ExprNode<T>::operands.resize(1);
+    this->v() = v;
   }
 
-  std::vector<Expr*> expr_fields() override { return {&v}; }
-  std::vector<const Expr*> expr_fields() const override { return {&v}; }
+  Type type() const override {
+    CHECK(v().defined());
+    return v().type();
+  }
 
-  bool is_unary_op() const override { return true; }
+  Expr& v() { return operands.front(); }
+  const Expr& v() const { return operands.front(); }
+
+  std::vector<Expr*> expr_fields() override { return {&v()}; }
+  std::vector<const Expr*> expr_fields() const override { return {&v()}; }
+
+  using ExprNode<T>::operands;
 };
 
 template <typename T>
-struct BinaryOpNode : public ExprNode<T>, public BinaryArguHolder {
-  BinaryOpNode(Type type, Expr a, Expr b) : ExprNode<T>(type), BinaryArguHolder(a, b) {
+struct BinaryOpNode : public ExprNode<T> {
+  BinaryOpNode() { operands.resize(2); }
+  BinaryOpNode(Type type, Expr a, Expr b) : ExprNode<T>(type) {
     CHECK(type.valid());
     CHECK(a.defined());
     CHECK(b.defined());
+    operands.resize(2);
+    this->a() = a;
+    this->b() = b;
     CHECK_EQ(a.type(), b.type()) << "the two arguments' type not match";
   }
 
+  Expr& a() { return operands[0]; }
+  Expr& b() { return operands[1]; }
+  const Expr& a() const { return operands[0]; }
+  const Expr& b() const { return operands[1]; }
+
   Type type() const override {
-    CHECK_EQ(a.type(), b.type());
-    return a.type();
+    CHECK_EQ(a().type(), b().type());
+    return a().type();
   }
 
-  std::vector<Expr*> expr_fields() override { return {&a, &b}; }
-  std::vector<const Expr*> expr_fields() const override { return {&a, &b}; }
+  std::vector<Expr*> expr_fields() override { return {&a(), &b()}; }
+  std::vector<const Expr*> expr_fields() const override { return {&a(), &b()}; }
 
-  bool is_binary_op() const override { return true; }
+  using ExprNode<T>::operands;
 };
 
 //! Zero in CINN type system.
@@ -312,7 +322,6 @@ const DeviceAPI all_device_apis[] = {
  */
 enum class MemoryType {
   Auto,
-
 };
 
 template <typename T>

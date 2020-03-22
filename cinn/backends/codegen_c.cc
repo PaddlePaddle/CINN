@@ -9,7 +9,7 @@
 
 namespace cinn {
 namespace backends {
-using namespace utils;
+using namespace utils;  // NOLINT
 
 void CodeGenC::Compile(const lang::Module &module, const Outputs &outputs) {
   if (!outputs.c_header_name.empty()) {
@@ -109,10 +109,10 @@ void CodeGenC::Visit(const ir::Max *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Minus *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Not *op) {
   os() << "(!";
-  IrPrinter::Print(op->v);
+  IrPrinter::Print(op->v());
   os() << ")";
 }
-void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v); }
+void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
   os() << "for (";
   os() << PrintType(Int(32));

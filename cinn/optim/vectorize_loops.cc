@@ -63,11 +63,11 @@ class Vectorizer : public IRMutator<Expr *> {
 
   void Visit(const Cast *op, Expr *expr) override {
     auto *node = expr->As<Cast>();
-    auto v0    = node->v;
-    Visit(&node->v);
-    if (v0.same_as(node->v)) return;
+    auto v0    = node->v();
+    Visit(&node->v());
+    if (v0.same_as(node->v())) return;
 
-    Type t = op->type().with_lanes(node->v.type().lanes());
+    Type t = op->type().with_lanes(node->v().type().lanes());
     node->set_type(t);
   }
 
@@ -175,79 +175,79 @@ class Vectorizer : public IRMutator<Expr *> {
   template <typename T>
   void MutateAddSubOperator(const T *op, Expr *expr) {
     auto *node = expr->As<T>();
-    Expr a0    = node->a;
-    Expr b0    = node->b;
-    Visit(&node->a);
-    Visit(&node->b);
+    Expr a0    = node->a();
+    Expr b0    = node->b();
+    Visit(&node->a());
+    Visit(&node->b());
 
-    if (a0.same_as(node->a) && b0.same_as(node->b)) return;
+    if (a0.same_as(node->a()) && b0.same_as(node->b())) return;
 
-    int lanes = std::max(node->a.type().lanes(), node->b.type().lanes());
+    int lanes = std::max(node->a().type().lanes(), node->b().type().lanes());
     if (lanes != 1) {
-      const Ramp *a_ramp_n = node->a.template As<Ramp>();
-      const Ramp *b_ramp_n = node->b.template As<Ramp>();
-      if (node->a.type().lanes() == 1 && b_ramp_n) {
+      const Ramp *a_ramp_n = node->a().template As<Ramp>();
+      const Ramp *b_ramp_n = node->b().template As<Ramp>();
+      if (node->a().type().lanes() == 1 && b_ramp_n) {
         // a + Ramp(base,stride,lanes) = Ramp(base+a, stride,lanes)
-        *expr = Ramp::Make(T::Make(node->a, b_ramp_n->base),  // base
-                           b_ramp_n->stride,                  // stride
+        *expr = Ramp::Make(T::Make(node->a(), b_ramp_n->base),  // base
+                           b_ramp_n->stride,                    // stride
                            b_ramp_n->lanes);
         return;
       }
-      if (node->b.type().lanes() == 1 && a_ramp_n) {
-        *expr = Ramp::Make(T::Make(node->b, a_ramp_n->base),  // base
-                           a_ramp_n->stride,                  // stride
+      if (node->b().type().lanes() == 1 && a_ramp_n) {
+        *expr = Ramp::Make(T::Make(node->b(), a_ramp_n->base),  // base
+                           a_ramp_n->stride,                    // stride
                            a_ramp_n->lanes);
         return;
       }
     }
 
-    *expr = T::Make(Widen(node->a, lanes), Widen(node->b, lanes));
+    *expr = T::Make(Widen(node->a(), lanes), Widen(node->b(), lanes));
   }
 
   template <typename T>
   void MutateMulDivOperator(const T *op, Expr *expr) {
-    Expr a0    = op->a;
-    Expr b0    = op->b;
+    Expr a0    = op->a();
+    Expr b0    = op->b();
     auto *node = expr->As<T>();
-    Visit(&node->a);
-    Visit(&node->b);
+    Visit(&node->a());
+    Visit(&node->b());
 
-    if (a0.same_as(node->a) && b0.same_as(node->b)) return;
+    if (a0.same_as(node->a()) && b0.same_as(node->b())) return;
 
-    int lanes = std::max(node->a.type().lanes(), node->b.type().lanes());
+    int lanes = std::max(node->a().type().lanes(), node->b().type().lanes());
     if (lanes != 1) {
-      const Ramp *a_ramp_n = node->a.template As<Ramp>();
-      const Ramp *b_ramp_n = node->b.template As<Ramp>();
-      if (node->a.type().lanes() == 1 && b_ramp_n) {
+      const Ramp *a_ramp_n = node->a().template As<Ramp>();
+      const Ramp *b_ramp_n = node->b().template As<Ramp>();
+      if (node->a().type().lanes() == 1 && b_ramp_n) {
         // a * Ramp(base,stride,lanes) = Ramp(base*a, stride*a,lanes)
-        *expr = Ramp::Make(T::Make(node->a, b_ramp_n->base),    // base
-                           T::Make(node->a, b_ramp_n->stride),  // stride
+        *expr = Ramp::Make(T::Make(node->a(), b_ramp_n->base),    // base
+                           T::Make(node->a(), b_ramp_n->stride),  // stride
                            b_ramp_n->lanes);
         return;
       }
       // Ramp(base,stride,lanes) * b  = Ramp(base*b, stride*b,lanes)
-      if (node->b.type().lanes() == 1 && a_ramp_n) {
-        *expr = Ramp::Make(T::Make(a_ramp_n->base, node->b),    // base
-                           T::Make(a_ramp_n->stride, node->b),  // stride
+      if (node->b().type().lanes() == 1 && a_ramp_n) {
+        *expr = Ramp::Make(T::Make(a_ramp_n->base, node->b()),    // base
+                           T::Make(a_ramp_n->stride, node->b()),  // stride
                            a_ramp_n->lanes);
         return;
       }
     }
 
-    *expr = T::Make(Widen(node->a, lanes), Widen(node->b, lanes));
+    *expr = T::Make(Widen(node->a(), lanes), Widen(node->b(), lanes));
   }
 
   template <typename T>
   Expr BinaryOperatorVec(const T *op, Expr *expr) {
     auto *node = expr->As<T>();
-    Expr a0    = node->a;
-    Expr b0    = node->b;
-    Visit(&node->a);
-    Visit(&node->b);
-    if (a0.same_as(node->a) && b0.same_as(node->b)) return *expr;
+    Expr a0    = node->a();
+    Expr b0    = node->b();
+    Visit(&node->a());
+    Visit(&node->b());
+    if (a0.same_as(node->a()) && b0.same_as(node->b())) return *expr;
 
-    int lanes = std::max(node->a.type().lanes(), node->b.type().lanes());
-    return T::Make(Widen(node->a, lanes), Widen(node->b, lanes));
+    int lanes = std::max(node->a().type().lanes(), node->b().type().lanes());
+    return T::Make(Widen(node->a(), lanes), Widen(node->b(), lanes));
   }
 };  // namespace optim
 

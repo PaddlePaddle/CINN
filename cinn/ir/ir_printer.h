@@ -51,9 +51,9 @@ std::ostream &operator<<(std::ostream &os, const lang::Module &m);
 template <typename IRN>
 void IrPrinter::PrintBinaryOp(const std::string &op, const BinaryOpNode<IRN> *x) {
   os_ << "(";
-  Print(x->a);
+  Print(x->a());
   os_ << " " + op + " ";
-  Print(x->b);
+  Print(x->b());
   os_ << ")";
 }
 

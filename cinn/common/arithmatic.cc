@@ -72,17 +72,17 @@ GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
   } else if (float_n) {
     return float_n->value;
   } else if (add_n) {
-    auto a = BuildHelper(add_n->a);
-    auto b = BuildHelper(add_n->b);
+    auto a = BuildHelper(add_n->a());
+    auto b = BuildHelper(add_n->b());
     return (a + b) * 1;
   } else if (sub_n) {
-    return (BuildHelper(sub_n->a) - BuildHelper(sub_n->b));
+    return (BuildHelper(sub_n->a()) - BuildHelper(sub_n->b()));
   } else if (mul_n) {
-    return (BuildHelper(mul_n->a) * BuildHelper(mul_n->b));
+    return (BuildHelper(mul_n->a()) * BuildHelper(mul_n->b()));
   } else if (div_n) {
-    return (BuildHelper(div_n->a) / BuildHelper(div_n->b));
+    return (BuildHelper(div_n->a()) / BuildHelper(div_n->b()));
   } else if (minus_n) {
-    return -BuildHelper(minus_n->v);
+    return -BuildHelper(minus_n->v());
   } else {
     NOT_IMPLEMENTED
   }

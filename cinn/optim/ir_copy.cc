@@ -23,7 +23,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const ir::FloatImm* op) override { return Expr(make_shared<FloatImm>(op->type(), op->value)); }
 
   Expr Visit(const ir::Cast* op) override {
-    auto v = Visit(&op->v);
+    auto v = Visit(&op->v());
     return Cast::Make(op->type(), v);
   }
 
@@ -208,19 +208,19 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr(n);
   }
 
-#define OP_BINARY_HANDLE(op__)              \
-  Expr Visit(const ir::op__* op) override { \
-    auto a = IRVisitorBase::Visit(&op->a);  \
-    auto b = IRVisitorBase::Visit(&op->b);  \
-    return op__::Make(a, b);                \
+#define OP_BINARY_HANDLE(op__)               \
+  Expr Visit(const ir::op__* op) override {  \
+    auto a = IRVisitorBase::Visit(&op->a()); \
+    auto b = IRVisitorBase::Visit(&op->b()); \
+    return op__::Make(a, b);                 \
   }
   NODETY_BINARY_OP_FOR_EACH(OP_BINARY_HANDLE)
 #undef OP_BINARY_HANDLE
 
-#define OP_UNARY_HANDLE(op__)              \
-  Expr Visit(const op__* op) override {    \
-    auto v = IRVisitorBase::Visit(&op->v); \
-    return op__::Make(v);                  \
+#define OP_UNARY_HANDLE(op__)                \
+  Expr Visit(const op__* op) override {      \
+    auto v = IRVisitorBase::Visit(&op->v()); \
+    return op__::Make(v);                    \
   }
   NODETY_UNARY_OP_FOR_EACH(OP_UNARY_HANDLE)
 #undef OP_UNARY_HANDLE
