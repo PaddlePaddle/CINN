@@ -29,9 +29,12 @@ using common::Shared;
  * Cast a node to another type, can't change the width.
  */
 struct Cast : public ExprNode<Cast> {
-  Expr v;
+  Cast() : ExprNode(1) {}
 
   static Expr Make(Type t, Expr v);
+
+  Expr& v() { return operands.front(); }
+  const Expr& v() const { return operands.front(); }
 
   void Accept(IRVisitor* v) const override;
 
@@ -588,7 +591,7 @@ class Range : public IrNodeRef {
  public:
   Range() = default;
   explicit Range(IrNodeRef n) : IrNodeRef(n) {}
-  Range(_Range_* n);
+  explicit Range(_Range_* n);
   _Range_* operator->() const { return get()->as<_Range_>(); }
 };
 
@@ -661,7 +664,7 @@ class _IterVar_;
 class IterVar : public IrNodeRef {
  public:
   IterVar() = default;
-  IterVar(IrNodeRef n) : n_(n) {}
+  explicit IterVar(IrNodeRef n) : n_(n) {}
   _IterVar_* operator->() { return n_.As<_IterVar_>(); }
   const _IterVar_* operator->() const { return n_.As<_IterVar_>(); }
 

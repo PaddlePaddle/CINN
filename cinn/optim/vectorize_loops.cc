@@ -63,11 +63,11 @@ class Vectorizer : public IRMutator<Expr *> {
 
   void Visit(const Cast *op, Expr *expr) override {
     auto *node = expr->As<Cast>();
-    auto v0    = node->v;
-    Visit(&node->v);
-    if (v0.same_as(node->v)) return;
+    auto v0    = node->v();
+    Visit(&node->v());
+    if (v0.same_as(node->v())) return;
 
-    Type t = op->type().with_lanes(node->v.type().lanes());
+    Type t = op->type().with_lanes(node->v().type().lanes());
     node->set_type(t);
   }
 

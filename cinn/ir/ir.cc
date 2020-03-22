@@ -34,12 +34,12 @@ Expr Cast::Make(Type t, Expr v) {
   CHECK(v.defined());
 
   auto node = make_shared<Cast>();
-  node->v   = v;
+  node->v() = v;
   node->set_type(t);
   return Expr(node);
 }
 
-void Cast::Accept(IRVisitor *v) const { v->IRVisitorBase::Visit(&this->v); }
+void Cast::Accept(IRVisitor *v) const { v->IRVisitorBase::Visit(&this->v()); }
 
 Expr Add::Make(Expr a, Expr b) {
   auto node = make_shared<Add>(a, b);

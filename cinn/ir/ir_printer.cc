@@ -136,7 +136,7 @@ void IrPrinter::Visit(const Call *x) {
 void IrPrinter::Visit(const Cast *x) {
   os() << x->type();
   os() << "(";
-  os() << x->v;
+  os() << x->v();
   os() << ")";
 }
 void IrPrinter::Visit(const Module *x) {}

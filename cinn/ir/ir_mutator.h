@@ -55,7 +55,7 @@ void IRMutator<T>::Visit(const FloatImm *expr, T op) {}
 template <typename T>
 void IRMutator<T>::Visit(const Cast *expr, T op) {
   auto *node = op->template As<Cast>();
-  Visit(&node->v, &node->v);
+  Visit(&node->v(), &node->v());
 }
 template <typename T>
 void IRMutator<T>::Visit(const For *expr, T op) {

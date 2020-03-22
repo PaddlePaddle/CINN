@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "cinn/common/common.h"
 #include "cinn/common/object.h"
@@ -101,7 +102,7 @@ std::ostream& operator<<(std::ostream& os, IrNodeTy type);
 class IrNode : public common::Object {
  public:
   IrNode() = default;
-  IrNode(Type t) : type_(t) {}
+  explicit IrNode(Type t) : type_(t) {}
   virtual ~IrNode() = default;
 
   virtual void Accept(IRVisitor* v) const = 0;
@@ -159,6 +160,7 @@ struct ExprNode : public IrNode {
 
   ExprNode() : IrNode(Type()) {}
   explicit ExprNode(Type t) : IrNode(t) { set_type(t); }
+  explicit ExprNode(int num_operands) { operands.resize(num_operands); }
 
   void Accept(IRVisitor* v) const override;
 
@@ -222,7 +224,7 @@ struct Expr : public IrNodeRef {
  public:
   Expr() = default;
   Expr(const Expr& other) : IrNodeRef(other.ptr()) {}
-  Expr(IrNode* p) : IrNodeRef(p) {}
+  explicit Expr(IrNode* p) : IrNodeRef(p) {}
   explicit Expr(const Var& var);
 
   //! Helper function to construct numeric constants of various types.
@@ -320,7 +322,6 @@ const DeviceAPI all_device_apis[] = {
  */
 enum class MemoryType {
   Auto,
-
 };
 
 template <typename T>
