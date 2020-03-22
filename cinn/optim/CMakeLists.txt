@@ -1,9 +1,11 @@
 set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
+  ir_replace.cc
   replace_var_with_expr.cc
   tensor_write_tell.cc
   ir_simplify.cc
   optimize.cc
   vectorize_loops.cc
+  unroll_loops.cc
   transform_polyfor_to_for.cc
   )
 

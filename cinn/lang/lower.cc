@@ -53,6 +53,38 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
   std::vector<ir::PolyFor*> stack;
 };
 
+struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
+  std::map<std::string, std::set<int> /*level*/> unrolls;
+
+  explicit MarkUnrollMutator(const std::map<std::string, std::set<int>>& unrolls) : unrolls(unrolls) {}
+
+  void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+  void Visit(const ir::PolyFor* op, Expr* expr) override {
+    auto* node = expr->As<ir::PolyFor>();
+    stack.push_back(node);
+    last_polyfor = node;
+    ir::IRMutator<>::Visit(op, expr);
+    stack.pop_back();
+  }
+
+  // each statement in ISL is bound to a Store node.
+  void Visit(const ir::Store* op, Expr* expr) override {
+    auto* tensor_n = op->tensor.As<ir::_Tensor_>();
+    CHECK(tensor_n);
+    auto it = unrolls.find(tensor_n->name);
+    if (it != unrolls.end()) {
+      for (int level : it->second) {
+        CHECK_LT(level, stack.size());
+        stack[level]->for_type = ir::ForType::Unrolled;
+      }
+    }
+  }
+
+  ir::PolyFor* last_polyfor{};
+  std::vector<ir::PolyFor*> stack;
+};
+
 /**
  * Expand the split transforms.
  * This should takes the expression generated from isl ast as input(without relacing the statement with the real
@@ -201,14 +233,28 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   }
 
   // mark vectorize.
-  std::map<std::string, ir::VectorizeInfo> vectorizes;
-  for (auto& node : group.nodes) {
-    if (node->stage->vectorize_info().valid()) {
-      vectorizes[node->stage->id()] = node->stage->vectorize_info();
+  {
+    std::map<std::string, ir::VectorizeInfo> vectorizes;
+    for (auto& node : group.nodes) {
+      if (node->stage->vectorize_info().valid()) {
+        vectorizes[node->stage->id()] = node->stage->vectorize_info();
+      }
     }
+    MarkVectorizeMutator mutator(vectorizes);
+    mutator(&e);
   }
-  MarkVectorizeMutator mutator(vectorizes);
-  mutator(&e);
+
+  // mark unroll.
+  {
+    std::map<std::string, std::set<int>> unrolls;
+    for (auto& node : group.nodes) {
+      if (!node->stage->unroll_info().empty()) {
+        unrolls[node->stage->id()] = node->stage->unroll_info();
+      }
+    }
+    MarkUnrollMutator mutator(unrolls);
+    mutator(&e);
+  }
 
   return e;
 }

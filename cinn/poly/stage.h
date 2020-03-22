@@ -86,6 +86,11 @@ class Stage : public Object {
   void Vectorize(const Iterator& axis, int factor);
 
   /**
+   * Unroll a for-loop.
+   */
+  void Unroll(int level);
+
+  /**
    * Mark the stage compute at the level of some other stage.
    * NOTE This can only be called after all transformations are preformed, and once called, no further transform can
    * perform for that the iterators are changed, and the original `ComputeAt` level become invalid.
@@ -129,6 +134,7 @@ class Stage : public Object {
   virtual const char* type_info() const { return "Status"; }
 
   inline const ir::VectorizeInfo& vectorize_info() const { return vectorize_info_; }
+  inline const std::set<int>& unroll_info() const { return unroll_info_; }
 
   Stage() = default;
 
@@ -152,7 +158,12 @@ class Stage : public Object {
   Expr expr_;
   std::map<std::string, ComputeAtRelation> compute_ats_;
   ir::VectorizeInfo vectorize_info_;
+  //! The for-loop levels to unroll.
+  std::set<int> unroll_info_;
+
+  // TODO(Superjomn) Remove this.
   std::map<std::string /*iterator name*/, SplitRestStrategy> split_strageties_;
+
   //! The other stages it depends.
   std::set<std::string> extra_depend_stages_;
 };

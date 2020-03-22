@@ -47,21 +47,20 @@ TEST(CodeGenCX86, basic) {
 
   // vectorize C, not D
   C->stage()->Vectorize(1, 16);
+  C->stage()->Unroll(1);
 
   auto funcs = Lower("matmul", {A, B, C, D});
   CHECK_EQ(funcs.size(), 1UL);
 
   std::cout << "before optim\n" << funcs.front()->body << std::endl;
 
-  optim::TransformPolyForToFor(&funcs[0]->body);
-  optim::VectorizeLoops(&funcs[0]->body, target);
-  optim::Simplify(&funcs[0]->body);
+  funcs.front()->body = Optimize(funcs.front()->body);
 
   lang::Module module("module1", target);
   module.Append(funcs[0]);
 
   CodeGenCX86 codegen(target, CodeGenCX86::Feature::AVX512);
-  codegen.SetInlineBuiltinCodes();
+  codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "out:\n" << out;
 
