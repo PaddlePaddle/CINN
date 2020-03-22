@@ -11,6 +11,7 @@ Expr Optimize(Expr e) {
   auto copied = IRCopy(e);
   Simplify(&copied);
   VectorizeLoops(&copied, Target());
+  Simplify(&copied);
 
   return copied;
 }

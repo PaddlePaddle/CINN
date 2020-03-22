@@ -23,10 +23,11 @@ using namespace ir;  // NOLINT
 #endif
 
 std::string ExprToGinacConerter::Repr(const ir::Expr& expr) {
-  auto* load_n = expr.As<Load>();
-  auto* var_n  = expr.As<_Var_>();
-  CHECK(load_n || var_n);
-  if (load_n) {
+  auto* load_n      = expr.As<Load>();
+  auto* var_n       = expr.As<_Var_>();
+  auto* broadcast_n = expr.As<Broadcast>();
+  auto* mod_n       = expr.As<Mod>();
+  if (load_n || broadcast_n || mod_n) {
     std::string repr = GetStreamCnt(expr);
     Replace(&repr, "[", "lsq_");
     Replace(&repr, "]", "_rsq");
@@ -47,23 +48,23 @@ std::string ExprToGinacConerter::Repr(const ir::Expr& expr) {
   return "";
 }
 
-void ExprToGinacConerter::RecordExpr(const ir::Expr& expr) {
-  CHECK(expr.As<Load>() || expr.As<_Var_>());
-  repr_to_expr_[Repr(expr)] = expr;
-}
+void ExprToGinacConerter::RecordExpr(const ir::Expr& expr) { repr_to_expr_[Repr(expr)] = expr; }
 
 GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
-  auto* load_n  = expr.As<Load>();
-  auto* var_n   = expr.As<_Var_>();
-  auto* int_n   = expr.As<IntImm>();
-  auto* float_n = expr.As<FloatImm>();
-  auto* add_n   = expr.As<Add>();
-  auto* sub_n   = expr.As<Sub>();
-  auto* mul_n   = expr.As<Mul>();
-  auto* div_n   = expr.As<Div>();
-  auto* minus_n = expr.As<Minus>();
+  LOG(INFO) << "converting " << expr;
+  auto* load_n      = expr.As<Load>();
+  auto* var_n       = expr.As<_Var_>();
+  auto* int_n       = expr.As<IntImm>();
+  auto* float_n     = expr.As<FloatImm>();
+  auto* add_n       = expr.As<Add>();
+  auto* sub_n       = expr.As<Sub>();
+  auto* mul_n       = expr.As<Mul>();
+  auto* div_n       = expr.As<Div>();
+  auto* minus_n     = expr.As<Minus>();
+  auto* broadcast_n = expr.As<Broadcast>();
+  auto* mod_n       = expr.As<Mod>();
 
-  if (load_n || var_n) {
+  if (load_n || var_n || broadcast_n || mod_n) {
     RecordExpr(expr);
     std::string repr = Repr(expr);
     return CreateGinacSymbol(repr);
@@ -91,27 +92,26 @@ GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
 GiNaC::ex ExprToGinacConerter::operator()(Expr expr) {
   // TODO(Superjomn) Replace this with common::IsPureMath(
   auto complex_nodes = CollectIRNodes(expr, [](const Expr* n) {
-    return n->As<Block>() ||       //
-           n->As<PolyFor>() ||     //
-           n->As<Min>() ||         //
-           n->As<Max>() ||         //
-           n->As<EQ>() ||          //
-           n->As<NE>() ||          //
-           n->As<LT>() ||          //
-           n->As<LE>() ||          //
-           n->As<GT>() ||          //
-           n->As<GE>() ||          //
-           n->As<And>() ||         //
-           n->As<Or>() ||          //
-           n->As<Not>() ||         //
-           n->As<Let>() ||         //
-           n->As<Call>() ||        //
-           n->As<Select>() ||      //
-           n->As<Store>() ||       //
-           n->As<Alloc>() ||       //
-           n->As<Free>() ||        //
-           n->As<IfThenElse>() ||  //
-           n->As<Broadcast>();
+    return n->As<Block>() ||    //
+           n->As<PolyFor>() ||  //
+           n->As<Min>() ||      //
+           n->As<Max>() ||      //
+           n->As<EQ>() ||       //
+           n->As<NE>() ||       //
+           n->As<LT>() ||       //
+           n->As<LE>() ||       //
+           n->As<GT>() ||       //
+           n->As<GE>() ||       //
+           n->As<And>() ||      //
+           n->As<Or>() ||       //
+           n->As<Not>() ||      //
+           n->As<Let>() ||      //
+           n->As<Call>() ||     //
+           n->As<Select>() ||   //
+           n->As<Store>() ||    //
+           n->As<Alloc>() ||    //
+           n->As<Free>() ||     //
+           n->As<IfThenElse>();
   });
 
   for (auto& node : complex_nodes) {
