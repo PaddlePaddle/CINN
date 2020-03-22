@@ -360,15 +360,15 @@ Expr PolyFor::extent() const {
   if (!(le_n || lt_n)) return Expr();
 
   if (le_n) {
-    if (le_n->a != Expr(iterator)) return Expr();
-    auto *le_b_int = le_n->b.As<IntImm>();
+    if (le_n->a() != Expr(iterator)) return Expr();
+    auto *le_b_int = le_n->b().As<IntImm>();
     if (le_b_int) return Expr(make_shared<IntImm>(Int(32), le_b_int->value + 1));
-    return Add::Make(le_n->b, Expr(1));
+    return Add::Make(le_n->b(), Expr(1));
   }
 
   if (lt_n) {
-    if (lt_n->a != Expr(iterator)) return Expr();
-    return lt_n->b;
+    if (lt_n->a() != Expr(iterator)) return Expr();
+    return lt_n->b();
   }
   return Expr();
 }

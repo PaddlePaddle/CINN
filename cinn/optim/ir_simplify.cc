@@ -41,8 +41,8 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
 #define __(op__)                                    \
   void Visit(const op__* op, Expr* expr) override { \
     auto* node   = expr->As<op__>();                \
-    auto* a_ramp = node->a.As<ir::Ramp>();          \
-    auto* b_ramp = node->b.As<ir::Ramp>();          \
+    auto* a_ramp = node->a().As<ir::Ramp>();        \
+    auto* b_ramp = node->b().As<ir::Ramp>();        \
     if (a_ramp) {                                   \
       PartialSimplify(&a_ramp->base);               \
       PartialSimplify(&a_ramp->stride);             \
@@ -54,9 +54,9 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
     if (!(a_ramp || b_ramp)) {                      \
       PartialSimplify(expr);                        \
     } else if (!a_ramp) {                           \
-      PartialSimplify(&node->a);                    \
+      PartialSimplify(&node->a());                  \
     } else if (!b_ramp) {                           \
-      PartialSimplify(&node->b);                    \
+      PartialSimplify(&node->b());                  \
     }                                               \
   }
 

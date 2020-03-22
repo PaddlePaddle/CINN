@@ -25,19 +25,19 @@ void IRMutator<T>::Visit(const Expr *expr, T op) {
   IRVisitorBase<void, T>::Visit(expr, op);
 }
 
-#define UNARY_OP_IMPL(op__)                            \
-  template <typename T>                                \
-  void IRMutator<T>::Visit(const op__ *expr, T op) {   \
-    auto *node = op->template As<op__>();              \
-    IRVisitorBase<void, T>::Visit(&node->v, &node->v); \
+#define UNARY_OP_IMPL(op__)                                \
+  template <typename T>                                    \
+  void IRMutator<T>::Visit(const op__ *expr, T op) {       \
+    auto *node = op->template As<op__>();                  \
+    IRVisitorBase<void, T>::Visit(&node->v(), &node->v()); \
   }
 
-#define BINARY_OP_IMPL(op__)                           \
-  template <typename T>                                \
-  void IRMutator<T>::Visit(const op__ *expr, T op) {   \
-    auto *node = op->template As<op__>();              \
-    IRVisitorBase<void, T>::Visit(&node->a, &node->a); \
-    IRVisitorBase<void, T>::Visit(&node->b, &node->b); \
+#define BINARY_OP_IMPL(op__)                               \
+  template <typename T>                                    \
+  void IRMutator<T>::Visit(const op__ *expr, T op) {       \
+    auto *node = op->template As<op__>();                  \
+    IRVisitorBase<void, T>::Visit(&node->a(), &node->a()); \
+    IRVisitorBase<void, T>::Visit(&node->b(), &node->b()); \
   }
 
 NODETY_UNARY_OP_FOR_EACH(UNARY_OP_IMPL)

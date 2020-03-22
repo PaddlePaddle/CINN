@@ -109,7 +109,7 @@ void CodeGenC::Visit(const ir::Max *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Minus *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Not *op) {
   os() << "(!";
-  IrPrinter::Print(op->v);
+  IrPrinter::Print(op->v());
   os() << ")";
 }
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v); }
