@@ -188,5 +188,35 @@ void IRMutator<T>::Visit(const Broadcast *expr, T op) {
   IRVisitorBase<void, T>::Visit(&node->value, &node->value);
 }
 
+template <typename T>
+void IRMutator<T>::Visit(const FracOp *expr, T op) {
+  auto *node = op->template As<FracOp>();
+  IRVisitorBase<void, T>::Visit(&node->a(), &node->a());
+  IRVisitorBase<void, T>::Visit(&node->b(), &node->b());
+}
+
+template <typename T>
+void IRMutator<T>::Visit(const Power *expr, T op) {
+  auto *node = op->template As<Power>();
+  IRVisitorBase<void, T>::Visit(&node->a(), &node->a());
+  IRVisitorBase<void, T>::Visit(&node->b(), &node->b());
+}
+
+template <typename T>
+void IRMutator<T>::Visit(const Product *expr, T op) {
+  auto *node = op->template As<Product>();
+  for (auto &x : node->operands()) {
+    IRVisitorBase<void, T>::Visit(&x, &x);
+  }
+}
+
+template <typename T>
+void IRMutator<T>::Visit(const Sum *expr, T op) {
+  auto *node = op->template As<Sum>();
+  for (auto &x : node->operands()) {
+    IRVisitorBase<void, T>::Visit(&x, &x);
+  }
+}
+
 }  // namespace ir
 }  // namespace cinn

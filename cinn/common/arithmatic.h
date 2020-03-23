@@ -36,6 +36,8 @@ std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var symbol);
 //! Determine whether this expression \p expr calculates to be a zero.
 bool MathIsZero(Expr expr);
 
+int gcd(int a, int b);
+
 /**
  * Helper to convert cinn::Expr to GiNaC::expr for some symbolic math analysis.
  */
@@ -62,6 +64,31 @@ struct ExprToGinacConerter {
   std::map<std::string, ir::Expr> repr_to_expr_;
   std::map<std::string, ginac::symbol> repr_to_ginac_;
 };
+
+Expr SimplifyRNE(Expr u);
+
+namespace detail {
+
+struct ExprPosCmp {
+  bool operator()(const Expr& a, const Expr& b);
+};
+
+/**
+ * Add(Add(w,x), Add(y,z)) => Sum(w,x,y,z)
+ */
+Expr TransformMulToProduct(Expr u);
+/**
+ * Mul(Mul(w,x), Mul(y,z)) => Product(w,x,y,z)
+ */
+Expr TransformAddToSum(Expr u);
+
+Expr SimplifyRationalNumber(Expr u);
+Expr SimplifyPower(Expr u);
+Expr SimplifyProduct(Expr a);
+Expr EvaluateSum(Expr v, Expr w);
+Expr EvaluateProd(Expr v, Expr w);
+
+}  // namespace detail
 
 }  // namespace common
 }  // namespace cinn
