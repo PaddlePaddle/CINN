@@ -84,9 +84,11 @@ Expr TransformAddToSum(Expr u);
 
 Expr SimplifyRationalNumber(Expr u);
 Expr SimplifyPower(Expr u);
+Expr SimplifySum(Expr u);
 Expr SimplifyProduct(Expr a);
 Expr EvaluateSum(Expr v, Expr w);
 Expr EvaluateProd(Expr v, Expr w);
+std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& operands);
 
 }  // namespace detail
 

@@ -301,6 +301,34 @@ bool MathIsZero(Expr expr) {
 //////// All the following symbolic computation methods are implemented referencing to the book <Computer Algegra and
 /// Symbolic Computation - Joel S. Cohen>
 
+template <typename T>
+std::vector<T> Rest(const std::vector<T>& vs) {
+  return std::vector<T>(vs.begin() + 1, vs.end());
+}
+
+template <typename T>
+std::vector<T> Concat(const std::vector<T>& as, const std::vector<T>& bs) {
+  auto res = as;
+  res.insert(std::end(res), bs.begin(), bs.end());
+  return res;
+}
+
+Expr Base(Expr v) {
+  auto* power_n = v.As<Power>();
+  if (power_n) {
+    return power_n->a();
+  }
+  return v;
+}
+
+Expr Exponent(Expr v) {
+  auto* power_n = v.As<Power>();
+  if (power_n) {
+    return power_n->b();
+  }
+  return Expr(1);
+}
+
 void SimplifyRNE(Expr* u) {
   // get integer.
   if (u->As<IntImm>()) {
@@ -338,6 +366,23 @@ void SimplifyRNE(Expr* u) {
 }
 
 namespace detail {
+
+Expr MathSimplify(Expr u) {
+  auto* power_n   = u.As<Power>();
+  auto* product_n = u.As<Product>();
+  auto* sum_n     = u.As<Sum>();
+
+  if (power_n) {
+    return SimplifyPower(u);
+  }
+  if (product_n) {
+    return SimplifyProduct(u);
+  }
+  if (sum_n) {
+    return SimplifySum(u);
+  }
+  return u;
+}
 
 inline int Iquot(int n, int d) { return n / d; }
 
@@ -502,46 +547,141 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   return false;
 }
 
-std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& oprands) {
-  CHECK_GE(oprands.size(), 2);
+std::vector<Expr> MergeProduct(const std::vector<Expr>& p, const std::vector<Expr>& q) {
+  // MPRD-1,2
+  if (p.empty()) return q;
+  if (q.empty()) return p;
 
-  if (oprands.size() == 2) {
-    auto* ai = oprands[0].As<IntImm>();
-    auto* af = oprands[0].As<FloatImm>();
-    auto* bi = oprands[1].As<IntImm>();
-    auto* bf = oprands[1].As<FloatImm>();
+  // MPRD-3
+  auto& p1 = p[0];
+  auto& q1 = p[0];
+  auto h   = SimplifyProductRec({p1, q1});
 
-    // both are constants
-    if (ai || af) {
-      float av = ai ? ai->value : af->value;
+  // case 1
+  if (h.empty()) {
+    return MergeProduct(Rest(p), Rest(q));
+  }
 
-      if (bi || bf) {
-        float bv = bi ? bi->value : bf->value;
+  // case 2
+  if (h.size() == 1) {
+    auto rest = MergeProduct(Rest(p), Rest(q));
+    rest.insert(std::begin(rest), h[0]);
+    return rest;
+  }
 
-        float mul = av * bv;
-        if (mul == 1) return {};
-        return {make_const(oprands[0].type(), av * bv)};
+  // case 3
+  if (h.size() == 2 && h[0] == p1 && h[1] == q1) {
+    auto rest = MergeProduct(Rest(p), q);
+    rest.insert(std::begin(rest), p1);
+    return rest;
+  }
+
+  // case 4
+  if (h.size() == 2 && h[0] == q1 && h[1] == p1) {
+    auto rest = MergeProduct(p, Rest(q));
+    rest.insert(std::begin(rest), q1);
+    return rest;
+  }
+
+  // rest
+  auto res = p;
+  res.insert(std::end(res), q.begin(), q.end());
+  return res;
+}
+
+std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& operands) {
+  CHECK_GE(operands.size(), 2);
+
+  // SPRDREC-1
+  if (operands.size() == 2 && !operands[0].As<Product>() && !operands[1].As<Product>()) {
+    auto& a = operands[0];
+    auto& b = operands[1];
+
+    auto* ai = a.As<IntImm>();
+    auto* af = a.As<FloatImm>();
+    auto* bi = b.As<IntImm>();
+    auto* bf = b.As<FloatImm>();
+
+    // case 1, both are constants
+    if (a.is_constant() && b.is_constant()) {
+      if (ai) return {make_const(a.type(), ai->value * bi->value)};
+      if (af) return {make_const(a.type(), af->value * bf->value)};
+    }
+
+    // case 2
+    // x*1 -> a
+    if (ai && ai->value == 1) return {b};
+    if (af && af->value == 1.f) return {b};
+    // 1*x -> x
+    if (bi && bi->value == 1) return {a};
+    if (bf && bf->value == 1.f) return {a};
+
+    // case 3
+    {
+      Expr s = SimplifySum(Sum::Make({Exponent(a), Exponent(b)}));
+      Expr p = SimplifyPower(Power::Make(Base(a), s));
+      if (p.is_constant() && p.get_constant() == 1)
+        return {};
+      else
+        return {p};
+    }
+
+    // case 4, b <| a
+    {
+      if (ExprPosCmp()(b, a)) {
+        return {b, a};
       }
     }
 
-    // x*1 -> a
-    if (ai && ai->value == 1) return {oprands[1]};
-    if (af && af->value == 1.f) return {oprands[1]};
-    // 1*x -> x
-    if (bi && bi->value == 1) return {oprands[0]};
-    if (bf && bf->value == 1.f) return {oprands[0]};
-
-    // Skip the exponent way
+    // case 5
+    return operands;
   }
+
+  // SPRDREC-2, Page 101
+  if (operands.size() == 2 && (operands[0].As<Product>() || operands[1].As<Product>())) {
+    auto& a = operands[0];
+    auto& b = operands[1];
+
+    auto* a_product = a.As<Product>();
+    auto* b_product = b.As<Product>();
+
+    // case 1
+    if (a_product && b_product) {
+      return MergeProduct(a_product->operands(), b_product->operands());
+    }
+
+    // case 2
+    if (a_product) {
+      return MergeProduct(a_product->operands(), {b});
+    }
+
+    // case 3
+    if (b_product) {
+      return MergeProduct({a}, b_product->operands());
+    }
+  }
+
+  // SPRDREC-3
+  if (operands.size() > 2) {
+    auto& p0 = operands[0];
+    auto w   = SimplifyProductRec(Rest(operands));
+    if (p0.As<Product>()) {
+      return MergeProduct(p0->operands, w);
+    } else {
+      return MergeProduct({p0}, w);
+    }
+  }
+
+  return operands;
 }
 
 Expr SimplifyProduct(Expr a) {
-  return a;
   // We reuse the Mul node for production.
   auto* prod = a.As<Product>();
   CHECK(prod);
   const auto& operands = prod->operands();
 
+  // SPRD-2
   // 0*x... = 0
   for (auto& opr : operands) {
     auto* opri = opr.As<IntImm>();
@@ -550,10 +690,14 @@ Expr SimplifyProduct(Expr a) {
     if (oprf && oprf->value == 0) return make_const(a.type(), 0);
   }
 
+  // SPRD-3
   // prod(x) = x, single number.
   if (operands.size() == 1) {
     return operands[0];
   }
+
+  // SPRD-4
+  return Product::Make(SimplifyProductRec(operands));
 }
 
 Expr EvaluateSum(Expr v, Expr w) { return Expr(); }
