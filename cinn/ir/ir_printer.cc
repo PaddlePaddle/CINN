@@ -255,6 +255,42 @@ void IrPrinter::Visit(const Broadcast *x) {
   os() << ")";
 }
 
+void IrPrinter::Visit(const FracOp *x) {
+  os() << "(";
+  Print(x->a());
+  os() << "/";
+  Print(x->b());
+  os() << ")";
+}
+
+void IrPrinter::Visit(const Power *x) {
+  os() << "(";
+  Print(x->a());
+  os() << "^";
+  Print(x->b());
+  os() << ")";
+}
+
+void IrPrinter::Visit(const Product *x) {
+  os() << "(";
+  for (int i = 0; i < x->operands().size() - 1; i++) {
+    Print(x->operand(i));
+    os() << " * ";
+  }
+  if (!x->operands().empty()) Print(x->operands().back());
+  os() << ")";
+}
+
+void IrPrinter::Visit(const Sum *x) {
+  os() << "(";
+  for (int i = 0; i < x->operands().size() - 1; i++) {
+    Print(x->operand(i));
+    os() << " + ";
+  }
+  if (!x->operands().empty()) Print(x->operands().back());
+  os() << ")";
+}
+
 std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);

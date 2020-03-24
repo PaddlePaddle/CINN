@@ -33,8 +33,8 @@ struct Cast : public ExprNode<Cast> {
 
   static Expr Make(Type t, Expr v);
 
-  Expr& v() { return operands.front(); }
-  const Expr& v() const { return operands.front(); }
+  Expr& v() { return operand(0); }
+  const Expr& v() const { return operand(0); }
 
   void Accept(IRVisitor* v) const override;
 
@@ -565,6 +565,76 @@ struct Broadcast : public ExprNode<Broadcast> {
   Type type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Broadcast;
+};
+
+struct FracOp : public BinaryOpNode<FracOp> {
+  FracOp() { operands().resize(2); }
+
+  static Expr Make(Expr n, Expr d) {
+    auto* node = make_shared<FracOp>();
+    node->a()  = n;
+    node->b()  = d;
+    return Expr(node);
+  }
+
+  bool is_constant() const { return a().is_constant() && b().is_constant(); }
+
+  double get_constant() const {
+    CHECK(is_constant());
+    CHECK_NE(b().get_constant(), 0.f);
+    return a().get_constant() / b().get_constant();
+  }
+
+  static const IrNodeTy _node_type_ = IrNodeTy::FracOp;
+
+  using ExprNode<FracOp>::operands;
+};
+
+struct Power : public ExprNode<Power> {
+  Power() { operands().resize(2); }
+  static Expr Make(Expr n, Expr d) {
+    auto* node          = make_shared<Power>();
+    node->operands()[0] = n;
+    node->operands()[1] = d;
+
+    node->set_type(n->type());
+
+    return Expr(node);
+  }
+
+  Type type() const override {
+    CHECK(a().defined());
+    return a()->type();
+  }
+
+  Expr& a() { return operands()[0]; }
+  Expr& b() { return operands()[1]; }
+  const Expr& a() const { return operands()[0]; }
+  const Expr& b() const { return operands()[1]; }
+
+  static const IrNodeTy _node_type_ = IrNodeTy::Power;
+
+  using ExprNode<Power>::operands;
+};
+
+struct Product : public ExprNode<Product> {
+  static Expr Make(const std::vector<Expr>& vs);
+
+  using ExprNode<Product>::operand;
+
+  Type type() const override { return operands().front().type(); }
+
+  static const IrNodeTy _node_type_ = IrNodeTy::Product;
+};
+
+struct Sum : public ExprNode<Sum> {
+  static Expr Make(const std::vector<Expr>& vs);
+
+  using ExprNode<Sum>::operand;
+
+  Type type() const override { return operands().front().type(); }
+
+  static const IrNodeTy _node_type_ = IrNodeTy::Sum;
 };
 
 struct Module : public ExprNode<Module> {

@@ -208,6 +208,46 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr(n);
   }
 
+  Expr Visit(const FracOp* op) override {
+    auto a = Visit(&op->a());
+    auto b = Visit(&op->b());
+    CHECK(a.defined());
+    CHECK(b.defined());
+
+    auto* n = make_shared<FracOp>();
+    n->a()  = a;
+    n->b()  = b;
+    return Expr(n);
+  }
+
+  Expr Visit(const Power* op) override {
+    auto a = Visit(&op->a());
+    auto b = Visit(&op->b());
+    CHECK(a.defined());
+    CHECK(b.defined());
+
+    auto* n = make_shared<Power>();
+    n->a()  = a;
+    n->b()  = b;
+    return Expr(n);
+  }
+
+  Expr Visit(const Product* op) override {
+    std::vector<Expr> operands;
+    for (auto& v : op->operands()) {
+      operands.push_back(Visit(&v));
+    }
+    return Product::Make(operands);
+  }
+
+  Expr Visit(const Sum* op) override {
+    std::vector<Expr> operands;
+    for (auto& v : op->operands()) {
+      operands.push_back(Visit(&v));
+    }
+    return Sum::Make(operands);
+  }
+
 #define OP_BINARY_HANDLE(op__)               \
   Expr Visit(const ir::op__* op) override {  \
     auto a = IRVisitorBase::Visit(&op->a()); \

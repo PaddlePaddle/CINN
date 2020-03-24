@@ -73,6 +73,10 @@ class IRVisitor;
   macro__(Reduce)                           \
   macro__(Ramp)                             \
   macro__(Broadcast)                        \
+  macro__(FracOp)                           \
+  macro__(Power)                            \
+  macro__(Product)                          \
+  macro__(Sum)                              \
 
 #define NODETY_FORALL(__m)              \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \
@@ -96,11 +100,16 @@ const std::vector<std::string> kIrNodeTyReprs({NODETY_FORALL(__m) "None"});
 
 std::ostream& operator<<(std::ostream& os, IrNodeTy type);
 
+struct Expr;
+
 /**
  * The base of all the nodes in the IR.
  */
 class IrNode : public common::Object {
  public:
+  //! The operands of this operator.
+  std::vector<Expr> operands;
+
   IrNode() = default;
   explicit IrNode(Type t) : type_(t) {}
   virtual ~IrNode() = default;
@@ -151,30 +160,32 @@ class IrNodeRef : public common::Shared<IrNode> {
   void Accept(IRVisitor* v) const { get()->Accept(v); }
 };
 
-struct Expr;
-
 template <typename T>
 struct ExprNode : public IrNode {
-  //! The operands of this operator.
-  std::vector<Expr> operands;
-
   ExprNode() : IrNode(Type()) {}
   explicit ExprNode(Type t) : IrNode(t) { set_type(t); }
-  explicit ExprNode(int num_operands) { operands.resize(num_operands); }
+  explicit ExprNode(int num_operands) { operands().resize(num_operands); }
 
   void Accept(IRVisitor* v) const override;
 
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return dynamic_cast<const T*>(this); }
 
-  //! Tell if this is an operator that takes one Expr as argument.
-  bool is_unary_op() const { return operands.size() == 1; }
-  //! Tell if this is an operator that takes two Exprs as arguments.
-  bool is_binary_op() const { return operands.size() == 2; }
-
   //! Gather all the expression fields in this node for easier visit and mutate.
   virtual std::vector<Expr*> expr_fields() { return {}; }
   virtual std::vector<const Expr*> expr_fields() const { return {}; }
+
+  const std::vector<Expr>& operands() const { return IrNode::operands; }
+  std::vector<Expr>& operands() { return IrNode::operands; }
+
+  Expr& operand(int i) {
+    CHECK_LT(i, operands().size());
+    return operands()[i];
+  }
+  const Expr& operand(int i) const {
+    CHECK_LT(i, operands().size());
+    return operands()[i];
+  }
 
   virtual Expr Copy() const;
 
@@ -247,6 +258,9 @@ struct Expr : public IrNodeRef {
   double as_double() const;
   // @}
 
+  bool is_constant() const;
+  double get_constant() const;
+
   operator Var();
 
   Type type() const { return p_->type(); }
@@ -257,7 +271,7 @@ struct UnaryOpNode : public ExprNode<T> {
   UnaryOpNode() { operands.resize(1); }
   UnaryOpNode(Type type, Expr v) : ExprNode<T>(type) {
     CHECK(v.defined());
-    ExprNode<T>::operands.resize(1);
+    operands().resize(1);
     this->v() = v;
   }
 
@@ -266,8 +280,8 @@ struct UnaryOpNode : public ExprNode<T> {
     return v().type();
   }
 
-  Expr& v() { return operands.front(); }
-  const Expr& v() const { return operands.front(); }
+  Expr& v() { return operands().front(); }
+  const Expr& v() const { return operands().front(); }
 
   std::vector<Expr*> expr_fields() override { return {&v()}; }
   std::vector<const Expr*> expr_fields() const override { return {&v()}; }
@@ -277,21 +291,21 @@ struct UnaryOpNode : public ExprNode<T> {
 
 template <typename T>
 struct BinaryOpNode : public ExprNode<T> {
-  BinaryOpNode() { operands.resize(2); }
+  BinaryOpNode() { operands().resize(2); }
   BinaryOpNode(Type type, Expr a, Expr b) : ExprNode<T>(type) {
     CHECK(type.valid());
     CHECK(a.defined());
     CHECK(b.defined());
-    operands.resize(2);
+    operands().resize(2);
     this->a() = a;
     this->b() = b;
     CHECK_EQ(a.type(), b.type()) << "the two arguments' type not match";
   }
 
-  Expr& a() { return operands[0]; }
-  Expr& b() { return operands[1]; }
-  const Expr& a() const { return operands[0]; }
-  const Expr& b() const { return operands[1]; }
+  Expr& a() { return ExprNode<T>::operand(0); }
+  Expr& b() { return ExprNode<T>::operand(1); }
+  const Expr& a() const { return ExprNode<T>::operand(0); }
+  const Expr& b() const { return ExprNode<T>::operand(1); }
 
   Type type() const override {
     CHECK_EQ(a().type(), b().type());

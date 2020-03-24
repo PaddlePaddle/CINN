@@ -36,6 +36,8 @@ std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var symbol);
 //! Determine whether this expression \p expr calculates to be a zero.
 bool MathIsZero(Expr expr);
 
+int gcd(int a, int b);
+
 /**
  * Helper to convert cinn::Expr to GiNaC::expr for some symbolic math analysis.
  */

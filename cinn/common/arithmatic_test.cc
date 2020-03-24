@@ -4,12 +4,18 @@
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 
+#include "cinn/common/ir.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace common {
+using utils::GetStreamCnt;
+using utils::Join;
+using utils::Trim;
+using namespace ir;  // NOLINT
 
 TEST(GiNaC, simplify) {
   using namespace GiNaC;  // NOLINT
