@@ -70,6 +70,13 @@ TEST(CAS, SimplifyPower_0) {
   }
 }
 
+TEST(CAS, number_cal) {
+  // 1 * 100 * -1 + 0 + 1001
+  auto u1 = Sum::Make({Product::Make({Expr(1), Expr(100), Expr(-1)}), Expr(0), Expr(1001)});
+  LOG(INFO) << u1;
+
+}
+
 TEST(CAS, SimplifyPower) {
   Var x   = ir::_Var_::Make("x", Float(32));
   auto p0 = ir::Power::Make(x, Expr(2));
@@ -135,7 +142,7 @@ TEST(CAS, SimplifySum) {
   EXPECT_EQ(GetStreamCnt(AutoSimplify(u2)), "(x + y + z)");
   EXPECT_EQ(GetStreamCnt(u3), "(1 + x + y + z + (x * z))");
   EXPECT_EQ(GetStreamCnt(u4), "(4 + x + y + z + (x * z))");
-  EXPECT_EQ(GetStreamCnt(u5), "(1)");
+  EXPECT_EQ(GetStreamCnt(u5), "1");
 }
 
 TEST(CAS, SimplifyProduct) {
@@ -149,11 +156,35 @@ TEST(CAS, SimplifyProduct) {
   auto u2 = AutoSimplify(Product::Make({z, y, x, Expr(-1)}));
   // x^2*y*z*x*x*x^-5
   auto u3 = AutoSimplify(Product::Make({Power::Make(x, Expr(2)), y, z, x, x, Power::Make(x, Expr(-5))}));
+  // x^(4/2) * x^3
+  auto u4 = AutoSimplify(Product::Make({Power::Make(x, FracOp::Make(Expr(4), Expr(2))), Power::Make(x, Expr(3))}));
 
-  EXPECT_EQ(GetStreamCnt(u1), "(1)");
+  EXPECT_EQ(GetStreamCnt(u1), "1");
   EXPECT_EQ(GetStreamCnt(u2), "(-1 * x * y * z)");
   EXPECT_EQ(GetStreamCnt(u3), "((x^-1) * y * z)");
-  LOG(INFO) << u3;
+  EXPECT_EQ(GetStreamCnt(u4), "(x^5)");
+  LOG(INFO) << u4;
+}
+
+TEST(CAS, SimplifyMod) {
+  Var x = ir::_Var_::Make("x", Int(32));
+  Var y = ir::_Var_::Make("y", Int(32));
+  Var z = ir::_Var_::Make("z", Int(32));
+
+  // 2*x % 2 = 0
+  auto u1 = AutoSimplify(Mod::Make(Product::Make({x, Expr(2)}), Expr(2)));
+  // (x+y+z) % 2 = x%2 + y%2 + z%2
+  auto u2 = AutoSimplify(Mod::Make(Sum::Make({x, y, z}), Expr(2)));
+  // x%2 + 1%2 + x%2
+  auto u3 = AutoSimplify(Sum::Make({Mod::Make(x, Expr(2)), Mod::Make(Expr(1), Expr(2)), Mod::Make(x, Expr(2))}));
+  // x^3 + x % 5 + y + 1 + (4*x)%5
+  auto u4 = AutoSimplify(Sum::Make(
+      {Power::Make(x, Expr(3)), Mod::Make(x, Expr(5)), y, Expr(1), Mod::Make(Product::Make({x, Expr(4)}), Expr(5))}));
+
+  EXPECT_EQ(GetStreamCnt(u1), "0");
+  EXPECT_EQ(GetStreamCnt(u2), "((x % 2) + (y % 2) + (z % 2))");
+  EXPECT_EQ(GetStreamCnt(u3), "1");
+  EXPECT_EQ(GetStreamCnt(u4), "(1 + (x^3) + y)");
 }
 
 }  // namespace common

@@ -434,6 +434,41 @@ Expr Broadcast::Make(Expr value, int lanes) {
 
 Type Broadcast::type() const { return value.type().ElementOf().with_lanes(lanes); }
 
+Expr Sum::Make(Expr v) {
+  CHECK(v.defined());
+  auto *n       = make_shared<Sum>();
+  n->operands() = {v};
+  return Expr(n);
+}
+
+Expr Sum::Make(const std::vector<Expr> &vs) {
+  CHECK_GT(vs.size(), 1);
+
+  auto *n   = make_shared<Sum>();
+  auto type = vs.front().type();
+  for (auto &v : vs) CHECK_EQ(v.type(), type);
+
+  n->operands() = vs;
+
+  n->set_type(vs.front()->type());
+
+  return Expr(n);
+}
+
+Expr Product::Make(const std::vector<Expr> &vs) {
+  CHECK_GE(vs.size(), 1);
+
+  auto *n   = make_shared<Product>();
+  auto type = vs.front().type();
+  for (auto &v : vs) CHECK_EQ(v.type(), type);
+
+  n->operands() = vs;
+
+  n->set_type(vs.front()->type());
+
+  return Expr(n);
+}
+
 }  // namespace ir
 
 namespace common {

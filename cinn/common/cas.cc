@@ -38,6 +38,7 @@ std::vector<T> Concat(const std::vector<T>& as, const std::vector<T>& bs) {
   return res;
 }
 
+
 // 3*x => 3
 // x => 1
 Expr ProductGetConstantPart(Expr u) {
@@ -57,6 +58,7 @@ Expr ProductGetNonConstantPart(Expr u) {
   auto* product = u.As<Product>();
   if (product) {
     if (product->operand(0).is_constant()) {
+      if (product->operands().size() == 2) return product->operands()[1];
       return Product::Make(Rest(product->operands()));
     }
   }
@@ -80,6 +82,7 @@ Expr Exponent(Expr v) {
 }
 
 void SimplifyRNE(Expr* u) {
+  NOT_IMPLEMENTED
   // get integer.
   if (u->As<IntImm>()) {
     return;
@@ -117,23 +120,6 @@ void SimplifyRNE(Expr* u) {
 
 namespace detail {
 
-Expr MathSimplify(Expr u) {
-  auto* power_n   = u.As<Power>();
-  auto* product_n = u.As<Product>();
-  auto* sum_n     = u.As<Sum>();
-
-  if (power_n) {
-    return SimplifyPower(u);
-  }
-  if (product_n) {
-    return SimplifyProduct(u);
-  }
-  if (sum_n) {
-    return SimplifySum(u);
-  }
-  return u;
-}
-
 inline int Iquot(int n, int d) { return n / d; }
 
 inline int Irem(int n, int d) {
@@ -153,7 +139,7 @@ Expr SimplifyRationalNumber(Expr u) {
 
     CHECK(ni && di);
     int nv = ni->value;
-    int dv = ni->value;
+    int dv = di->value;
 
     if (Irem(nv, dv) == 0) {
       return Expr(make_const(u.type(), Iquot(nv, dv)));
@@ -226,6 +212,19 @@ Expr SimplifyPower(Expr u) {
   return u;
 }
 
+Expr SumOrProductGetSingleElementsRec(Expr u) {
+  auto * product = u.As<Product>();
+  auto* sum = u.As<Sum>();
+  if (product && product->operands().size() == 1) {
+    return SumOrProductGetSingleElementsRec(u->operands.front());
+  }
+  if (sum && sum->operands().size() == 1) {
+    return SumOrProductGetSingleElementsRec(u->operands.front());
+  }
+  return u;
+}
+
+
 // Order, reference to Page 85.
 bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   // O-1, 1 <| 2
@@ -268,6 +267,18 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
     }
   }
 
+  // customized case, if both are mod
+  {
+    auto* am = a.As<Mod>();
+    auto* bm = b.As<Mod>();
+    if (am && bm) {
+      if (am->b() != bm->b()) {
+        return operator()(am->b(), bm->b());
+      }
+      return operator()(am->a(), bm->a());
+    }
+  }
+
   // O-7, if a is an integer or fraction and v is any other type, 1 < x
   if (a.As<IntImm>() || a.As<FloatImm>() || a.As<FracOp>()) {
     if (!(b.As<IntImm>() || b.As<FloatImm>() || b.As<FracOp>())) return true;
@@ -277,7 +288,7 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   {
     auto* ap = a.As<Product>();
 
-    if (ap && (b.As<Power>() || b.As<Sum>() || b.As<Call>() || b.As<_Var_>())) {
+    if (ap && (b.As<Power>() || b.As<Sum>() || b.As<Call>() || b.As<_Var_>() || b.As<Mod>())) {
       return operator()(a, Product::Make({b}));
     }
   }
@@ -285,8 +296,16 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   // O-9, if a is a power, b is a sum, function or symbol
   {
     if (a.As<Power>()) {
-      if (b.As<Add>() || b.As<Call>() || b.As<_Var_>()) {
+      if (b.As<Add>() || b.As<Call>() || b.As<_Var_>() || b.As<Mod>() || b.As<Call>()) {
         return operator()(a, Power::Make(b, make_const(1)));
+      }
+    }
+  }
+
+  {
+    if (a.As<Mod>()) {
+      if (!b.As<Mod>()) {
+        return operator()(a, Mod::Make(b, Sum::Make({b, Expr(1)})));
       }
     }
   }
@@ -299,6 +318,7 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
       }
     }
   }
+
   return false;
 }
 
@@ -432,9 +452,10 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
 }
 
 Expr SimplifyProduct(Expr a) {
+  a = SumOrProductGetSingleElementsRec(a);
   // We reuse the Mul node for production.
   auto* prod = a.As<Product>();
-  CHECK(prod);
+  if (!prod) return a;
 
   const auto& _operands = prod->operands();
   std::vector<Expr> operands;
@@ -461,6 +482,8 @@ Expr SimplifyProduct(Expr a) {
   // SPRD-3
   // prod(x) = x, single number.
   if (operands.size() == 1) {
+    auto* first_s = operands.front().As<Sum>();
+    auto* first_p = operands.front().As<Product>();
     return operands[0];
   }
 
@@ -469,15 +492,20 @@ Expr SimplifyProduct(Expr a) {
 }
 
 Expr SimplifySum(Expr u) {
+  u = SumOrProductGetSingleElementsRec(u);
+
   auto* sum = u.As<Sum>();
   CHECK(sum);
 
+
   auto& operands = sum->operands();
   if (operands.size() == 1) {
-    return operands[0];
+    return SimplifySum(operands[0]);
   }
-
-  return Sum::Make(SimplifySumRec(operands));
+  auto args = SimplifySumRec(operands);
+  if (args.empty()) return make_const(u.type(), 0);
+  if (args.size() == 1) return args[0];
+  return Sum::Make(args);
 }
 
 // This implementation is similar to MergeProduct
@@ -520,6 +548,7 @@ std::vector<Expr> MergeSum(const std::vector<Expr>& _p, const std::vector<Expr>&
   // case 2
   if (h.size() == 1) {
     auto rest = MergeSum(Rest(p), Rest(q));
+    if (h[0].is_constant() && h[0].get_constant() == 0) return rest;
     rest.insert(std::begin(rest), h[0]);
     return rest;
   }
@@ -550,9 +579,12 @@ std::vector<Expr> SimplifySumRec(const std::vector<Expr>& _operands) {
   for (auto& e : _operands) operands.push_back(AutoSimplify(e));
 
 #ifdef CINN_DEBUG
-  VLOG(3) << "SimplifySumRec operands";
-  for (auto& o : operands) {
-    VLOG(3) << o;
+  {
+    std::stringstream ss;
+    for (auto& o : operands) {
+      ss << o.node_type() << " " << o << " ";
+    }
+    VLOG(3) << "SimplifySumRec operands: " << ss.str();
   }
 #endif
 
@@ -580,17 +612,25 @@ std::vector<Expr> SimplifySumRec(const std::vector<Expr>& _operands) {
     if (bi && bi->value == 0) return {a};
     if (bf && bf->value == 0.f) return {a};
 
+    // customied case for Mod
+    {
+      auto* am = a.As<Mod>();
+      auto* bm = b.As<Mod>();
+      if (am && bm) {
+        if (am->b() == bm->b() && ProductGetNonConstantPart(am->a()) == ProductGetNonConstantPart(bm->a())) {
+          return {AutoSimplify(Mod::Make(Sum::Make({am->a(), bm->a()}), am->b()))};
+        }
+      }
+    }
+
     // case 3
     // Here is different from SimplifySumRec, to deal with cases like 3x + (-2x) = 2x
     if (ProductGetNonConstantPart(a) == ProductGetNonConstantPart(b)) {
       VLOG(3) << "a " << a;
       VLOG(3) << "b " << b;
       Expr s = SimplifySum(Sum::Make({ProductGetConstantPart(a), ProductGetConstantPart(b)}));
-      Expr p = SimplifyProduct(Product::Make({s, ProductGetNonConstantPart(a)}));
-      if (p.is_constant() && p.get_constant() == 0)
-        return {};
-      else
-        return {p};
+      Expr p = Product::Make({s, ProductGetNonConstantPart(a)});
+      return {AutoSimplify(p)};
     }
 
     // case 4, b <| a
@@ -642,12 +682,50 @@ std::vector<Expr> SimplifySumRec(const std::vector<Expr>& _operands) {
   return operands;
 }
 
-Expr EvaluateSum(Expr v, Expr w) { return Expr(); }
-Expr EvaluateProd(Expr v, Expr w) { return Expr(); }
+Expr SimplifyMod(Expr u) {
+  auto* node = u.As<Mod>();
+  CHECK(node);
+
+  auto a = AutoSimplify(node->a());
+  auto b = AutoSimplify(node->b());
+
+  auto* ai = a.As<IntImm>();
+  auto* bi = b.As<IntImm>();
+  // 7 % 3
+  if (ai && bi) {
+    return make_const(ai->type(), ai->value % bi->value);
+  }
+
+  // x % 1 = 0
+  if (bi && bi->value == 1) return make_const(bi->type(), 0);
+
+  // 2x % 2 = 0
+  if (bi) {
+    auto* ap = a.As<Product>();
+    if (ap && ap->operand(0).As<IntImm>()) {
+      if (ap->operand(0).As<IntImm>()->value % bi->value == 0) return make_const(ap->type(), 0);
+    }
+  }
+
+  if (ai && (ai->value == 0 || ai->value == 1)) return a;
+
+  // (x+y) % 2 = x%2 + y%2
+  if (a.As<Sum>()) {
+    std::vector<Expr> sum_args;
+    for (auto& v : a->operands) {
+      sum_args.push_back(Mod::Make(v, b));
+    }
+    return AutoSimplify(Sum::Make(sum_args));
+  }
+
+  return Mod::Make(a, b);
+}
 
 }  // namespace detail
 
 Expr AutoSimplify(Expr u) {
+  u = detail::SumOrProductGetSingleElementsRec(u);
+
   if (u.is_constant() || u.As<_Var_>()) return u;
 
   if (u.As<FracOp>()) {
@@ -655,11 +733,15 @@ Expr AutoSimplify(Expr u) {
   }
 
   if (u.As<Product>()) {
-    return detail::SimplifyProduct(u);
+    return detail::SumOrProductGetSingleElementsRec(detail::SimplifyProduct(u));
   }
 
   if (u.As<Sum>()) {
-    return detail::SimplifySum(u);
+    return detail::SumOrProductGetSingleElementsRec(detail::SimplifySum(u));
+  }
+
+  if (u.As<Mod>()) {
+    return detail::SumOrProductGetSingleElementsRec(detail::SimplifyMod(u));
   }
 
   return u;

@@ -596,6 +596,9 @@ struct Power : public ExprNode<Power> {
     auto* node          = make_shared<Power>();
     node->operands()[0] = n;
     node->operands()[1] = d;
+
+    node->set_type(n->type());
+
     return Expr(node);
   }
 
@@ -615,16 +618,7 @@ struct Power : public ExprNode<Power> {
 };
 
 struct Product : public ExprNode<Product> {
-  static Expr Make(const std::vector<Expr>& vs) {
-    CHECK(!vs.empty());
-    auto* n   = make_shared<Product>();
-    auto type = vs.front().type();
-    for (auto& v : vs) CHECK_EQ(v.type(), type);
-
-    n->operands() = vs;
-
-    return Expr(n);
-  }
+  static Expr Make(const std::vector<Expr>& vs);
 
   using ExprNode<Product>::operand;
 
@@ -634,16 +628,9 @@ struct Product : public ExprNode<Product> {
 };
 
 struct Sum : public ExprNode<Sum> {
-  static Expr Make(const std::vector<Expr>& vs) {
-    CHECK(!vs.empty());
-    auto* n   = make_shared<Sum>();
-    auto type = vs.front().type();
-    for (auto& v : vs) CHECK_EQ(v.type(), type);
+  static Expr Make(Expr v);
 
-    n->operands() = vs;
-
-    return Expr(n);
-  }
+  static Expr Make(const std::vector<Expr>& vs);
 
   using ExprNode<Sum>::operand;
 
