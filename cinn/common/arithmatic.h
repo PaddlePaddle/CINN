@@ -65,32 +65,5 @@ struct ExprToGinacConerter {
   std::map<std::string, ginac::symbol> repr_to_ginac_;
 };
 
-Expr SimplifyRNE(Expr u);
-
-namespace detail {
-
-struct ExprPosCmp {
-  bool operator()(const Expr& a, const Expr& b);
-};
-
-/**
- * Add(Add(w,x), Add(y,z)) => Sum(w,x,y,z)
- */
-Expr TransformMulToProduct(Expr u);
-/**
- * Mul(Mul(w,x), Mul(y,z)) => Product(w,x,y,z)
- */
-Expr TransformAddToSum(Expr u);
-
-Expr SimplifyRationalNumber(Expr u);
-Expr SimplifyPower(Expr u);
-Expr SimplifySum(Expr u);
-Expr SimplifyProduct(Expr a);
-Expr EvaluateSum(Expr v, Expr w);
-Expr EvaluateProd(Expr v, Expr w);
-std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& operands);
-
-}  // namespace detail
-
 }  // namespace common
 }  // namespace cinn
