@@ -434,13 +434,6 @@ Expr Broadcast::Make(Expr value, int lanes) {
 
 Type Broadcast::type() const { return value.type().ElementOf().with_lanes(lanes); }
 
-Expr Sum::Make(Expr v) {
-  CHECK(v.defined());
-  auto *n       = make_shared<Sum>();
-  n->operands() = {v};
-  return Expr(n);
-}
-
 Expr Sum::Make(const std::vector<Expr> &vs) {
   CHECK_GT(vs.size(), 1);
 

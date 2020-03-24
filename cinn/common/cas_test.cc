@@ -74,7 +74,6 @@ TEST(CAS, number_cal) {
   // 1 * 100 * -1 + 0 + 1001
   auto u1 = Sum::Make({Product::Make({Expr(1), Expr(100), Expr(-1)}), Expr(0), Expr(1001)});
   LOG(INFO) << u1;
-
 }
 
 TEST(CAS, SimplifyPower) {

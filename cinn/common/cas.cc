@@ -38,7 +38,6 @@ std::vector<T> Concat(const std::vector<T>& as, const std::vector<T>& bs) {
   return res;
 }
 
-
 // 3*x => 3
 // x => 1
 Expr ProductGetConstantPart(Expr u) {
@@ -213,8 +212,8 @@ Expr SimplifyPower(Expr u) {
 }
 
 Expr SumOrProductGetSingleElementsRec(Expr u) {
-  auto * product = u.As<Product>();
-  auto* sum = u.As<Sum>();
+  auto* product = u.As<Product>();
+  auto* sum     = u.As<Sum>();
   if (product && product->operands().size() == 1) {
     return SumOrProductGetSingleElementsRec(u->operands.front());
   }
@@ -223,7 +222,6 @@ Expr SumOrProductGetSingleElementsRec(Expr u) {
   }
   return u;
 }
-
 
 // Order, reference to Page 85.
 bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
@@ -496,7 +494,6 @@ Expr SimplifySum(Expr u) {
 
   auto* sum = u.As<Sum>();
   CHECK(sum);
-
 
   auto& operands = sum->operands();
   if (operands.size() == 1) {

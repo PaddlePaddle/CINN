@@ -628,8 +628,6 @@ struct Product : public ExprNode<Product> {
 };
 
 struct Sum : public ExprNode<Sum> {
-  static Expr Make(Expr v);
-
   static Expr Make(const std::vector<Expr>& vs);
 
   using ExprNode<Sum>::operand;
