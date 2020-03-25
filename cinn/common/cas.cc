@@ -14,6 +14,13 @@ namespace cinn {
 namespace common {
 using namespace ir;  // NOLINT
 
+Expr AutoSimplify(Expr u) {
+  u = detail::ConvertCinnToCAS(u);
+  u = CasSimplify(u);
+  u = detail::ConvertCasToCinn(u);
+  return u;
+}
+
 int gcd(int a, int b) {
   // Everything divides 0
   if (a == 0) return b;
@@ -193,8 +200,8 @@ Expr SimplifyIntegerPower(Expr u) {
 Expr SimplifyPower(Expr u) {
   auto* node = u.As<Power>();
   CHECK(node);
-  Expr a = AutoSimplify(node->a());
-  Expr b = AutoSimplify(node->b());
+  Expr a = CasSimplify(node->a());
+  Expr b = CasSimplify(node->b());
 
   auto* int_v   = a.As<IntImm>();
   auto* float_v = a.As<FloatImm>();
@@ -326,8 +333,8 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
 
 std::vector<Expr> MergeProduct(const std::vector<Expr>& _p, const std::vector<Expr>& _q) {
   std::vector<Expr> p, q;
-  for (auto& e : _p) p.push_back(AutoSimplify(e));
-  for (auto& e : _q) q.push_back(AutoSimplify(e));
+  for (auto& e : _p) p.push_back(CasSimplify(e));
+  for (auto& e : _q) q.push_back(CasSimplify(e));
 
   // MPRD-1,2
   if (p.empty()) return q;
@@ -371,7 +378,7 @@ std::vector<Expr> MergeProduct(const std::vector<Expr>& _p, const std::vector<Ex
 std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
   CHECK_GE(_operands.size(), 2);
   std::vector<Expr> operands;
-  for (auto& e : _operands) operands.push_back(AutoSimplify(e));
+  for (auto& e : _operands) operands.push_back(CasSimplify(e));
 
   // SPRDREC-1
   if (operands.size() == 2 && !operands[0].As<Product>() && !operands[1].As<Product>()) {
@@ -417,8 +424,8 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
 
   // SPRDREC-2, Page 101
   if (operands.size() == 2 && (operands[0].As<Product>() || operands[1].As<Product>())) {
-    auto a = AutoSimplify(operands[0]);
-    auto b = AutoSimplify(operands[1]);
+    auto a = CasSimplify(operands[0]);
+    auto b = CasSimplify(operands[1]);
 
     auto* a_product = a.As<Product>();
     auto* b_product = b.As<Product>();
@@ -441,7 +448,7 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
 
   // SPRDREC-3
   if (operands.size() > 2) {
-    auto p0 = AutoSimplify(operands[0]);
+    auto p0 = CasSimplify(operands[0]);
     auto w  = SimplifyProductRec(Rest(operands));
     if (p0.As<Product>()) {
       return MergeProduct(p0->operands, w);
@@ -461,7 +468,7 @@ Expr SimplifyProduct(Expr a) {
 
   const auto& _operands = prod->operands();
   std::vector<Expr> operands;
-  for (auto& e : _operands) operands.push_back(AutoSimplify(e));
+  for (auto& e : _operands) operands.push_back(CasSimplify(e));
 #ifdef CINN_DEBUG
   {
     std::stringstream ss;
@@ -513,10 +520,10 @@ Expr SimplifySum(Expr u) {
 std::vector<Expr> MergeSum(const std::vector<Expr>& _p, const std::vector<Expr>& _q) {
   std::vector<Expr> p, q;
   for (auto& e : _p) {
-    p.push_back(AutoSimplify(e));
+    p.push_back(CasSimplify(e));
   }
   for (auto& e : _q) {
-    q.push_back(AutoSimplify(e));
+    q.push_back(CasSimplify(e));
   }
 
 #ifdef CINN_DEBUG
@@ -577,7 +584,7 @@ std::vector<Expr> SimplifySumRec(const std::vector<Expr>& _operands) {
   CHECK_GE(_operands.size(), 2UL);
 
   std::vector<Expr> operands;
-  for (auto& e : _operands) operands.push_back(AutoSimplify(e));
+  for (auto& e : _operands) operands.push_back(CasSimplify(e));
 
 #ifdef CINN_DEBUG
   {
@@ -619,7 +626,7 @@ std::vector<Expr> SimplifySumRec(const std::vector<Expr>& _operands) {
       auto* bm = b.As<Mod>();
       if (am && bm) {
         if (am->b() == bm->b() && ProductGetNonConstantPart(am->a()) == ProductGetNonConstantPart(bm->a())) {
-          return {AutoSimplify(Mod::Make(Sum::Make({am->a(), bm->a()}), am->b()))};
+          return {CasSimplify(Mod::Make(Sum::Make({am->a(), bm->a()}), am->b()))};
         }
       }
     }
@@ -631,7 +638,7 @@ std::vector<Expr> SimplifySumRec(const std::vector<Expr>& _operands) {
       VLOG(3) << "b " << b;
       Expr s = SimplifySum(Sum::Make({ProductGetConstantPart(a), ProductGetConstantPart(b)}));
       Expr p = Product::Make({s, ProductGetNonConstantPart(a)});
-      return {AutoSimplify(p)};
+      return {CasSimplify(p)};
     }
 
     // case 4, b <| a
@@ -687,8 +694,8 @@ Expr SimplifyMod(Expr u) {
   auto* node = u.As<Mod>();
   CHECK(node);
 
-  auto a = AutoSimplify(node->a());
-  auto b = AutoSimplify(node->b());
+  auto a = CasSimplify(node->a());
+  auto b = CasSimplify(node->b());
 
   auto* ai = a.As<IntImm>();
   auto* bi = b.As<IntImm>();
@@ -716,7 +723,7 @@ Expr SimplifyMod(Expr u) {
     for (auto& v : a->operands) {
       sum_args.push_back(Mod::Make(v, b));
     }
-    return AutoSimplify(Sum::Make(sum_args));
+    return CasSimplify(Sum::Make(sum_args));
   }
 
   return Mod::Make(a, b);
@@ -873,7 +880,7 @@ Expr ConvertCasToCinn(Expr expr) {
 
 }  // namespace detail
 
-Expr AutoSimplify(Expr u) {
+Expr CasSimplify(Expr u) {
   u = detail::SumOrProductGetSingleElementsRec(u);
 
   if (u.is_constant() || u.As<_Var_>()) return u;
