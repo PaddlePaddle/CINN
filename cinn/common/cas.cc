@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include <cmath>
 #include "cinn/common/ir.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
@@ -58,7 +59,7 @@ Expr ProductGetConstantPart(Expr u) {
       return product->operand(0);
     }
   }
-  return Expr(1);
+  return make_const(u->type(), 1);
 }
 
 // 3*x => x
@@ -170,8 +171,19 @@ Expr SimplifyIntegerPower(Expr u) {
   CHECK(node);
   Expr v = node->a();
   Expr n = node->b();
+  CHECK(n.type().is_int());
 
+  auto* vi = v.As<IntImm>();
+  auto* vf = v.As<FloatImm>();
   auto* ni = n.As<IntImm>();
+  if (vi) {
+    if (vi->value == 0) return make_const(0);
+    if (vi->value == 1) return make_const(1);
+  }
+  if (vf) {
+    if (vf->value == 0.f) return make_const(vf->type(), 0.f);
+    if (vf->value == 1.f) return make_const(vf->type(), 1.f);
+  }
   if (ni) {
     // x^0 = 1
     if (ni->value == 0) {
@@ -182,6 +194,15 @@ Expr SimplifyIntegerPower(Expr u) {
     }
   }
 
+  // 3 ^ k, k > 0, evaluate it.
+  if (v.is_constant() && n.is_constant() && n.get_constant() > 0) {
+    auto* vi = v.As<IntImm>();
+    auto* ni = n.As<IntImm>();
+    CHECK(vi && ni);
+    return make_const(vi->type().ElementOf(), std::pow(vi->value, ni->value));
+  }
+
+  // x^a^b) -> x^(ab)
   auto* vp = v.As<Power>();
   if (vp) {
     Expr r = vp->a();
@@ -197,11 +218,36 @@ Expr SimplifyIntegerPower(Expr u) {
   return u;
 }
 
+Expr EvaluateConstantPower(Expr u) {
+  auto* op = u.As<Power>();
+  CHECK(op->b().type().is_int());
+
+  auto* ai = op->a().As<IntImm>();
+  auto* af = op->a().As<FloatImm>();
+  auto* bi = op->b().As<IntImm>();
+
+  if (ai && bi && bi->value < 0) return Expr();
+
+  if (ai && bi) {
+    return make_const(ai->type(), std::pow(ai->value, bi->value));
+  }
+  if (af && bi) {
+    return make_const(af->type(), std::pow(af->value, bi->value));
+  }
+
+  return Expr();
+}
+
 Expr SimplifyPower(Expr u) {
   auto* node = u.As<Power>();
   CHECK(node);
   Expr a = CasSimplify(node->a());
   Expr b = CasSimplify(node->b());
+
+  {  // Evaluate
+    auto tmp = EvaluateConstantPower(u);
+    if (tmp.defined()) return tmp;
+  }
 
   auto* int_v   = a.As<IntImm>();
   auto* float_v = a.As<FloatImm>();
@@ -234,11 +280,31 @@ Expr SumOrProductGetSingleElementsRec(Expr u) {
   return u;
 }
 
+double EvaluatePower(Expr u) {
+  auto* power = u.As<Power>();
+  auto a      = power->a();
+  auto b      = power->b();
+
+  auto bi = b.As<IntImm>();
+  CHECK(bi);
+
+  return std::pow(power->a().get_constant(), bi->value);
+}
+
 // Order, reference to Page 85.
 bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   // O-1, 1 <| 2
   if (a.is_constant() && b.is_constant()) {
     return a.get_constant() < b.get_constant();
+  }
+  if (a.As<Power>() && a.As<Power>()->is_constant() && b.is_constant()) {
+    return EvaluatePower(a) < b.get_constant();
+  }
+  if (a.As<Power>() && a.As<Power>()->is_constant() && b.As<Power>() && b.As<Power>()->is_constant()) {
+    return EvaluatePower(a) < EvaluatePower(b);
+  }
+  if (b.As<Power>() && b.As<Power>()->is_constant() && a.is_constant()) {
+    return a.get_constant() < EvaluatePower(b);
   }
 
   // O-2, both are symbols, compare by the lexicographical order.
@@ -375,10 +441,56 @@ std::vector<Expr> MergeProduct(const std::vector<Expr>& _p, const std::vector<Ex
   return Concat(p, q);
 }
 
+template <typename IntT>
+Expr SimplifyPowerRelatedMul(IntT a_base, int a_exponent, IntT b) {
+  CHECK_LT(a_exponent, 0);
+  if (a_exponent == 0) return Expr(b);
+  if (a_exponent != -1) {
+    a_base     = std::pow(a_base, std::abs(a_exponent));
+    a_exponent = -1;
+  }
+
+  int g = gcd(a_base, b);
+  a_base /= g;
+  b /= g;
+
+  // b / a_base
+  if (a_base == 1) return Expr(b);
+  return CasSimplify(Product::Make({Power::Make(Expr(a_base), Expr(-1)), Expr(b)}));
+}
+
+Expr SimplifyPowerRelatedMul(Expr a_power, Expr b) {
+  auto* ap = a_power.As<Power>();
+  auto* bp = b.As<Power>();
+  CHECK(ap);
+  CHECK(ap->is_constant());
+
+  if (bp) {
+    auto tmp = EvaluateConstantPower(b);
+    if (tmp.defined()) {
+      return SimplifyPowerRelatedMul(a_power, tmp);
+    }
+  }
+
+  if (ap->b().get_constant() > 0 || ap->a().As<FloatImm>()) {
+    return CasSimplify(Product::Make({EvaluateConstantPower(a_power), b}));
+  }
+
+  // 3^-2 => 9^-1
+  if (ap->b().get_constant() < 0) {
+    int base = ap->a().As<IntImm>()->value;
+    int n    = ap->b().As<IntImm>()->value;
+  }
+}
+
 std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
   CHECK_GE(_operands.size(), 2);
   std::vector<Expr> operands;
   for (auto& e : _operands) operands.push_back(CasSimplify(e));
+
+  std::stringstream ss;
+  std::sort(operands.begin(), operands.end(), ExprPosCmp());
+  for (auto& o : operands) ss << o << " " << o.node_type() << " ";
 
   // SPRDREC-1
   if (operands.size() == 2 && !operands[0].As<Product>() && !operands[1].As<Product>()) {
@@ -396,6 +508,21 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
       if (af) return {make_const(a.type(), af->value * bf->value)};
     }
 
+    {  // FracOp related constants.
+      auto* af = a.As<FracOp>();
+      auto* bf = b.As<FracOp>();
+      // 1/2 * 2/3
+      if (af && bf) {
+        return {CasSimplify(FracOp::Make(Product::Make({af->a(), bf->a()}), Product::Make({af->b(), bf->b()})))};
+      }
+      if (af && !bf) {
+        return {CasSimplify(FracOp::Make(Product::Make({af->a(), b}), af->b()))};
+      }
+      if (!af && bf) {
+        return {CasSimplify(FracOp::Make(Product::Make({bf->a(), a}), bf->b()))};
+      }
+    }
+
     // case 2
     // x*1 -> a
     if (ai && ai->value == 1) return {b};
@@ -409,6 +536,63 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
       Expr s = SimplifySum(Sum::Make({Exponent(a), Exponent(b)}));
       Expr p = SimplifyPower(Power::Make(Base(a), s));
       return {p};
+    }
+
+    {  // power related constants
+      auto* ap = a.As<Power>();
+      auto* bp = b.As<Power>();
+
+      auto one_is_power = [](Expr _a, Expr _b) -> std::vector<Expr> {
+        auto* ap = _a.As<Power>();
+        auto* bp = _b.As<Power>();
+        auto* bi = _b.As<IntImm>();
+
+        CHECK(ap);
+        CHECK(!bp);
+        auto* ap_base_i = ap->a().As<IntImm>();
+        CHECK(ap_base_i);  // if is float, it should be evaluated to a number.
+        auto* ap_exponent_i = ap->b().As<IntImm>();
+        CHECK(ap_exponent_i) << "exponent of a power should be an integer";
+        CHECK_EQ(ap_exponent_i->value, -1);  // or it should be evaluated to a constant.
+        if (bi) {
+          int g       = gcd(ap_base_i->value, bi->value);
+          int base    = ap_base_i->value / g;
+          int b_value = bi->value / g;
+          auto a_new  = Power::Make(make_const(ap->a().type(), base), make_const(-1));
+          auto b_new  = make_const(_b.type(), b_value);
+          return {CasSimplify(Product::Make({a_new, b_new}))};
+        }
+        return {_a, _b};
+      };
+
+      if (ap && ap->is_constant() && !bp && b.is_constant()) {
+        return one_is_power(a, b);
+      } else if (!ap && a.is_constant() && bp && bp->is_constant()) {
+        return one_is_power(b, a);
+      }
+    }
+
+    if (operands.size() == 2) {  // as sum
+      auto a      = CasSimplify(operands[0]);
+      auto b      = CasSimplify(operands[1]);
+      auto* a_sum = a.As<Sum>();
+      auto* b_sum = b.As<Sum>();
+
+      if (b_sum) {
+        std::vector<Expr> args;
+        for (auto& v : b_sum->operands()) {
+          args.push_back(Product::Make({a, v}));
+        }
+        return {SimplifySum(Sum::Make(args))};
+      }
+
+      if (a_sum) {
+        std::vector<Expr> args;
+        for (auto& v : a_sum->operands()) {
+          args.push_back(Product::Make({b, v}));
+        }
+        return {SimplifySum(Sum::Make(args))};
+      }
     }
 
     // case 4, b <| a
@@ -429,7 +613,6 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
 
     auto* a_product = a.As<Product>();
     auto* b_product = b.As<Product>();
-
     // case 1
     if (a_product && b_product) {
       return MergeProduct(a_product->operands(), b_product->operands());
@@ -592,7 +775,7 @@ std::vector<Expr> SimplifySumRec(const std::vector<Expr>& _operands) {
     for (auto& o : operands) {
       ss << o.node_type() << " " << o << " ";
     }
-    VLOG(3) << "SimplifySumRec operands: " << ss.str();
+    VLOG(6) << "SimplifySumRec operands: " << ss.str();
   }
 #endif
 
@@ -771,8 +954,8 @@ Expr ConvertCinnToCAS(Expr expr) {
       Visit(&a);
       Visit(&b);
 
-      b      = Product::Make({make_const(b->type(), -1), b});
-      *expr  = Sum::Make({a, b});
+      b     = Product::Make({make_const(b->type(), -1), b});
+      *expr = Sum::Make({a, b});
     }
 
     void Visit(const Div* op, Expr* expr) override {
@@ -782,8 +965,8 @@ Expr ConvertCinnToCAS(Expr expr) {
       Visit(&a);
       Visit(&b);
 
-      b      = Power::Make(b, make_const(b->type(), -1));
-      *expr  = Product::Make({a, b});
+      b     = Power::Make(b, make_const(Int(32), -1));
+      *expr = Product::Make({a, b});
     }
   };
 
@@ -899,6 +1082,10 @@ Expr CasSimplify(Expr u) {
   u = detail::SumOrProductGetSingleElementsRec(u);
 
   if (u.is_constant() || u.As<_Var_>()) return u;
+
+  if (u.As<Power>()) {
+    return detail::SimplifyPower(u);
+  }
 
   if (u.As<FracOp>()) {
     return detail::SimplifyRationalNumber(u);

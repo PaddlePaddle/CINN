@@ -181,7 +181,7 @@ void SchedulerBase::FinishStageAdd() {
   registration_finalized_ = true;
 
   for (auto &item : schedule_graph_.nodes()) {
-    VLOG(2) << "original dims in time_schedule: "
+    VLOG(6) << "original dims in time_schedule: "
             << utils::Join(item->As<ScheduleGraphNode>()->time_schedule.domain_dims, ", ");
     item->As<ScheduleGraphNode>()->time_schedule.ResizeTimeSpace(space_size_);
   }

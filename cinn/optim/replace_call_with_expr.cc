@@ -18,16 +18,16 @@ struct ReplaceCallWithExprModifier : public ir::IRMutator<> {
   void Visit(const ir::Call *expr, Expr *op) override {
     auto *node = op->As<ir::Call>();
     CHECK(!node->name.empty()) << "Call has no name";
-    VLOG(2) << "Processing Call node " << *op;
+    VLOG(3) << "Processing Call node " << *op;
     if (statement_ != node->name) return;
 
     Expr expr_candidate = IRCopy(candidate_);
-    VLOG(2) << "Original candidate expr: " << candidate_;
-    VLOG(2) << "Copied candidate expr: " << expr_candidate;
+    VLOG(3) << "Original candidate expr: " << candidate_;
+    VLOG(3) << "Copied candidate expr: " << expr_candidate;
 
     // Replace the Call node with the expression candidate.
     *op = expr_candidate;
-    VLOG(2) << "expr " << *op;
+    VLOG(3) << "expr " << *op;
   }
 
  private:

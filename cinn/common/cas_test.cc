@@ -208,5 +208,24 @@ TEST(CAS, ConvertCinnToCAS) {
   EXPECT_EQ(GetStreamCnt(body), "(1 + (A[((i * 10) + j)] + (2 * B[((i * 10) + j)])))");
 }
 
+TEST(CAS, FracOp) {
+  Var x = ir::_Var_::Make("x", Int(32));
+  Var y = ir::_Var_::Make("y", Int(32));
+  Var z = ir::_Var_::Make("z", Int(32));
+
+  auto u1 = AutoSimplify(Div::Make(Expr(1), x) * x);
+  EXPECT_EQ(GetStreamCnt(u1), "1");
+  // 64x/32 + y + 64/32
+  auto u2 = AutoSimplify(Expr(64) * x / Expr(32) + y + Expr(64) / Expr(32));
+  EXPECT_EQ(GetStreamCnt(u2), "(2 + ((2 * x) + y))");
+  // 1/32 * y * z * 32768 * 2
+  auto u3 = AutoSimplify(Expr(1) / Expr(32) * y * z * 32768 * 2);
+  EXPECT_EQ(GetStreamCnt(u3), "(2048 * (y * z))");
+  // 32768 * (32x + y) + y
+  auto u4 = AutoSimplify(Expr(32768) * (((Expr(32) * x) + y) / 32));
+  LOG(INFO) << u4;
+  EXPECT_EQ(GetStreamCnt(u4), "((32768 * x) + (1024 * y))");
+}
+
 }  // namespace common
 }  // namespace cinn
