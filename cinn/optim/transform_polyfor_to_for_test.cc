@@ -81,7 +81,7 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
         };
       };
       for (int32_t j_outer = 62; j_outer < 63; j_outer += 1) {
-        for (int32_t j_inner = 0; j_inner < ((j_outer * -8) + 500); j_inner += 1) {
+        for (int32_t j_inner = 0; j_inner < (500 + (-8 * j_outer)); j_inner += 1) {
           for (int32_t k = 0; k < 200; k += 1) {
             C[((((8 * i_outer) + i_inner) * 500) + ((8 * j_outer) + j_inner))] = (C[((((8 * i_outer) + i_inner) * 500) + ((8 * j_outer) + j_inner))] + (A[((((8 * i_outer) + i_inner) * 200) + k)] * B[((k * 500) + ((8 * j_outer) + j_inner))]));
           };

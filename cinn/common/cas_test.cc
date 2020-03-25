@@ -130,18 +130,18 @@ TEST(CAS, SimplifySum) {
   // x*1 + y + z + 0
   auto u2 = Sum::Make({Product::Make({x, Expr(1)}), y, z, make_const(0)});
   // z + 1 + y + x + zx
-  auto u3 = AutoSimplify(Sum::Make({z, Expr(1), y, x, Product::Make({z, x})}));
+  auto u3 = CasSimplify(Sum::Make({z, Expr(1), y, x, Product::Make({z, x})}));
   // z + 1 + y + 3 + x + 0 + zx
-  auto u4 = AutoSimplify(Sum::Make({z, Expr(1), y, Expr(3), x, Expr(0), Product::Make({z, x})}));
+  auto u4 = CasSimplify(Sum::Make({z, Expr(1), y, Expr(3), x, Expr(0), Product::Make({z, x})}));
   // x2 + 3zy + -3*yz + -2x + 1
-  auto u5 = AutoSimplify(Sum::Make({Product::Make({x, Expr(2)}),
-                                    Product::Make({z, y, Expr(3)}),
-                                    Product::Make({Expr(-3), y, z}),
-                                    Product::Make({Expr(-2), x}),
-                                    Expr(1)}));
+  auto u5 = CasSimplify(Sum::Make({Product::Make({x, Expr(2)}),
+                                   Product::Make({z, y, Expr(3)}),
+                                   Product::Make({Expr(-3), y, z}),
+                                   Product::Make({Expr(-2), x}),
+                                   Expr(1)}));
 
-  EXPECT_EQ(GetStreamCnt(AutoSimplify(u1)), "(x + y + z)");
-  EXPECT_EQ(GetStreamCnt(AutoSimplify(u2)), "(x + y + z)");
+  EXPECT_EQ(GetStreamCnt(CasSimplify(u1)), "(x + y + z)");
+  EXPECT_EQ(GetStreamCnt(CasSimplify(u2)), "(x + y + z)");
   EXPECT_EQ(GetStreamCnt(u3), "(1 + x + y + z + (x * z))");
   EXPECT_EQ(GetStreamCnt(u4), "(4 + x + y + z + (x * z))");
   EXPECT_EQ(GetStreamCnt(u5), "1");
@@ -153,13 +153,13 @@ TEST(CAS, SimplifyProduct) {
   Var z = ir::_Var_::Make("z", Int(32));
 
   // x * x^-1
-  auto u1 = AutoSimplify(Product::Make({x, Power::Make(x, Expr(-1))}));
+  auto u1 = CasSimplify(Product::Make({x, Power::Make(x, Expr(-1))}));
   // zyx*(-1)
-  auto u2 = AutoSimplify(Product::Make({z, y, x, Expr(-1)}));
+  auto u2 = CasSimplify(Product::Make({z, y, x, Expr(-1)}));
   // x^2*y*z*x*x*x^-5
-  auto u3 = AutoSimplify(Product::Make({Power::Make(x, Expr(2)), y, z, x, x, Power::Make(x, Expr(-5))}));
+  auto u3 = CasSimplify(Product::Make({Power::Make(x, Expr(2)), y, z, x, x, Power::Make(x, Expr(-5))}));
   // x^(4/2) * x^3
-  auto u4 = AutoSimplify(Product::Make({Power::Make(x, FracOp::Make(Expr(4), Expr(2))), Power::Make(x, Expr(3))}));
+  auto u4 = CasSimplify(Product::Make({Power::Make(x, FracOp::Make(Expr(4), Expr(2))), Power::Make(x, Expr(3))}));
 
   EXPECT_EQ(GetStreamCnt(u1), "1");
   EXPECT_EQ(GetStreamCnt(u2), "(-1 * x * y * z)");
@@ -174,13 +174,13 @@ TEST(CAS, SimplifyMod) {
   Var z = ir::_Var_::Make("z", Int(32));
 
   // 2*x % 2 = 0
-  auto u1 = AutoSimplify(Mod::Make(Product::Make({x, Expr(2)}), Expr(2)));
+  auto u1 = CasSimplify(Mod::Make(Product::Make({x, Expr(2)}), Expr(2)));
   // (x+y+z) % 2 = x%2 + y%2 + z%2
-  auto u2 = AutoSimplify(Mod::Make(Sum::Make({x, y, z}), Expr(2)));
+  auto u2 = CasSimplify(Mod::Make(Sum::Make({x, y, z}), Expr(2)));
   // x%2 + 1%2 + x%2
-  auto u3 = AutoSimplify(Sum::Make({Mod::Make(x, Expr(2)), Mod::Make(Expr(1), Expr(2)), Mod::Make(x, Expr(2))}));
+  auto u3 = CasSimplify(Sum::Make({Mod::Make(x, Expr(2)), Mod::Make(Expr(1), Expr(2)), Mod::Make(x, Expr(2))}));
   // x^3 + x % 5 + y + 1 + (4*x)%5
-  auto u4 = AutoSimplify(Sum::Make(
+  auto u4 = CasSimplify(Sum::Make(
       {Power::Make(x, Expr(3)), Mod::Make(x, Expr(5)), y, Expr(1), Mod::Make(Product::Make({x, Expr(4)}), Expr(5))}));
 
   EXPECT_EQ(GetStreamCnt(u1), "0");
@@ -201,7 +201,7 @@ TEST(CAS, ConvertCinnToCAS) {
   LOG(INFO) << "body " << body;
 
   body = detail::ConvertCinnToCAS(body);
-  body = AutoSimplify(body);
+  body = CasSimplify(body);
   EXPECT_EQ(GetStreamCnt(body), "(1 + A[((i * 10) + j)] + (2 * B[((i * 10) + j)]))");
   body = detail::ConvertCasToCinn(body);
   LOG(INFO) << "convert back " << body;

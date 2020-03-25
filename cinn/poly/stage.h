@@ -116,8 +116,6 @@ class Stage : public Object {
   isl::set transformed_domain() const {
     CHECK(!domain_.is_null());
     CHECK(!transform_.is_null());
-    LOG(INFO) << "domain: " << domain_;
-    LOG(INFO) << "transform: " << transform_;
     return domain_.apply(transform_);
   }
 

@@ -8,6 +8,9 @@ namespace common {
 
 Expr AutoSimplify(Expr u);
 
+//! Simplify a CAS expression.
+Expr CasSimplify(Expr u);
+
 namespace detail {
 
 //! Whether to treat this expression as a symbol. e.g. Load, Min, Max are treated as symbol to avoid confusing the CAS.
