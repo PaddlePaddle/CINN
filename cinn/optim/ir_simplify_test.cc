@@ -7,8 +7,10 @@
 
 namespace cinn {
 namespace optim {
+using utils::GetStreamCnt;
+using utils::Trim;
 
-TEST(IrSimplify, ExprToGinacConverter) {
+TEST(IrSimplify, basic) {
   auto A = Compute(
       {100, 20}, [&](Var i, Var j) { return Expr(1.f); }, "C");
   Buffer A_buf(A->type());
@@ -25,7 +27,7 @@ TEST(IrSimplify, ExprToGinacConverter) {
     // get (((C[(i * 20)] + 0) + 100) + 24.5)
     Simplify(&B);
     LOG(INFO) << "simplified: " << B;
-    auto out = "(C[(i * 20)] + 124.5)";
+    auto out = "(124.5 + C[(20 * i)])";
     EXPECT_EQ(out, utils::GetStreamCnt(B));
   }
 
@@ -48,7 +50,17 @@ TEST(IrSimplify, ExprToGinacConverter) {
 
     LOG(INFO) << "original body:\n" << body;
     Simplify(&body);
-    LOG(INFO) << "simplified body:\n" << body;
+    auto target_out = R"ROC(
+{
+  poly_for (0, (i <= 99), 1)
+  {
+    poly_for (0, (j <= 19), 1)
+    {
+      B[((20 * i) + j)] = (125 + (X[((20 * i) + j)] + y[(20 * i)]))
+    }
+  }
+})ROC";
+    EXPECT_EQ(Trim(GetStreamCnt(body)), Trim(target_out));
   }
 
   {
@@ -58,7 +70,7 @@ TEST(IrSimplify, ExprToGinacConverter) {
     auto B = Compute(
         {100, 20},
         [&](Expr i, Expr j) {
-          return x(i + 0, j + 0) + y(i, j * 0) / (1.f + 2.f) + 0.f * x(i, j) + 25.f + 100.f - 0.f +
+          return x(i + 0, j * 0) + y(i, j * 0) / (1.f + 2.f) + 0.f * x(i, j) + 25.f + 100.f - 0.f +
                  9.f * 10000.f * 1.f * 1.f * 0.f;
         },
         "B");
@@ -70,7 +82,19 @@ TEST(IrSimplify, ExprToGinacConverter) {
 
     LOG(INFO) << "original body:\n" << body;
     Simplify(&body);
-    LOG(INFO) << "simplified body:\n" << body;
+
+    auto target_out = R"ROC(
+{
+  poly_for (0, (i <= 99), 1)
+  {
+    poly_for (0, (j <= 19), 1)
+    {
+      B[((20 * i) + j)] = (125 + (X[(20 * i)] + (y[(20 * i)] / 3)))
+    }
+  }
+}
+)ROC";
+    EXPECT_EQ(Trim(GetStreamCnt(body)), Trim(target_out));
   }
 }
 

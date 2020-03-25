@@ -767,6 +767,10 @@ Expr ConvertCinnToCAS(Expr expr) {
     void Visit(const Sub* op, Expr* expr) override {
       auto a = op->a();
       auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
       b      = Product::Make({make_const(b->type(), -1), b});
       *expr  = Sum::Make({a, b});
     }
@@ -774,6 +778,10 @@ Expr ConvertCinnToCAS(Expr expr) {
     void Visit(const Div* op, Expr* expr) override {
       auto a = op->a();
       auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
       b      = Power::Make(b, make_const(b->type(), -1));
       *expr  = Product::Make({a, b});
     }
@@ -876,6 +884,13 @@ Expr ConvertCasToCinn(Expr expr) {
 
   Mutator()(&copied);
   return copied;
+}
+
+bool IsExprCasCompatible(Expr expr) {
+  auto teller = [](const Expr* expr) {
+    return expr->As<Add>() || expr->As<Sub>() || expr->As<Mul>() || expr->As<Div>();
+  };
+  return ir::CollectIRNodes(expr, teller).empty();
 }
 
 }  // namespace detail

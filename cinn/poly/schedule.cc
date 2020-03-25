@@ -140,9 +140,7 @@ std::map<std::string, isl::map> CollectScheduleMapFromGroup(const ScheduleGroup 
   std::map<std::string, isl::map> map;
 
   std::vector<Stage *> stages;
-  LOG(INFO) << "Group to schedule as:";
   for (auto &node : group.nodes) {
-    LOG(INFO) << node->stage->id();
     auto *schedule_node = node->As<ScheduleGraphNode>();
     CHECK(node->stage);
     stages.push_back(node->stage);

@@ -10,10 +10,11 @@
 
 namespace cinn {
 namespace optim {
+using namespace ir;  // NOLINT
+using utils::GetStreamCnt;
+using utils::Trim;
 
 TEST(VectorizeLoops, Split_sperate) {
-  using namespace ir;  // NOLINT
-
   const int M  = 100;
   const int K  = 200;
   const int N  = 500;
@@ -55,7 +56,6 @@ TEST(VectorizeLoops, Split_sperate) {
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
-  std::cout << "out:\n" << out;
 
   auto target_out = R"ROC(
 #include <cinn_runtime.h>
@@ -75,7 +75,7 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
           for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
             for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
               for (int32_t j_inner_outer = 0; j_inner_outer < 4; j_inner_outer += 1) {
-                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (((j_inner_outer * -8) + (j_outer * -32)) + 500)); j_inner_inner += 1) {
+                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (500 + ((-8 * j_inner_outer) + (-32 * j_outer)))); j_inner_inner += 1) {
                   C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] = (C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] + (A[((((32 * i_outer) + i_inner) * 200) + ((8 * k_outer) + k_inner))] * B[((((8 * k_outer) + k_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))]));
                 };
               };
@@ -87,8 +87,8 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
         for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
           for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
             for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
-              for (int32_t j_inner_outer = 0; j_inner_outer < ((j_outer * -4) + 63); j_inner_outer += 1) {
-                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (((j_inner_outer * -8) + (j_outer * -32)) + 500)); j_inner_inner += 1) {
+              for (int32_t j_inner_outer = 0; j_inner_outer < (63 + (-4 * j_outer)); j_inner_outer += 1) {
+                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (500 + ((-8 * j_inner_outer) + (-32 * j_outer)))); j_inner_inner += 1) {
                   C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] = (C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] + (A[((((32 * i_outer) + i_inner) * 200) + ((8 * k_outer) + k_inner))] * B[((((8 * k_outer) + k_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))]));
                 };
               };
@@ -101,9 +101,9 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
       for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
         for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
           for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
-            for (int32_t i_inner = 0; i_inner < ((i_outer * -32) + 100); i_inner += 1) {
+            for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
               for (int32_t j_inner_outer = 0; j_inner_outer < 4; j_inner_outer += 1) {
-                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (((j_inner_outer * -8) + (j_outer * -32)) + 500)); j_inner_inner += 1) {
+                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (500 + ((-8 * j_inner_outer) + (-32 * j_outer)))); j_inner_inner += 1) {
                   C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] = (C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] + (A[((((32 * i_outer) + i_inner) * 200) + ((8 * k_outer) + k_inner))] * B[((((8 * k_outer) + k_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))]));
                 };
               };
@@ -114,9 +114,9 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
       for (int32_t j_outer = 15; j_outer < 16; j_outer += 1) {
         for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
           for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
-            for (int32_t i_inner = 0; i_inner < ((i_outer * -32) + 100); i_inner += 1) {
-              for (int32_t j_inner_outer = 0; j_inner_outer < ((j_outer * -4) + 63); j_inner_outer += 1) {
-                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (((j_inner_outer * -8) + (j_outer * -32)) + 500)); j_inner_inner += 1) {
+            for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
+              for (int32_t j_inner_outer = 0; j_inner_outer < (63 + (-4 * j_outer)); j_inner_outer += 1) {
+                for (int32_t j_inner_inner = 0; j_inner_inner < min(8, (500 + ((-8 * j_inner_outer) + (-32 * j_outer)))); j_inner_inner += 1) {
                   C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] = (C[((((32 * i_outer) + i_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))] + (A[((((32 * i_outer) + i_inner) * 200) + ((8 * k_outer) + k_inner))] * B[((((8 * k_outer) + k_inner) * 500) + (((32 * j_outer) + (8 * j_inner_outer)) + j_inner_inner))]));
                 };
               };
@@ -127,7 +127,7 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
     };
   };
 }
-  )ROC";
+)ROC";
 
   EXPECT_EQ(utils::Trim(target_out), utils::Trim(out));
 }
@@ -158,8 +158,6 @@ TEST(Vectorize, replace_var) {
 
   detail::Vectorize(ir::_Var_::Make("j_inner", Int(32)), 16, &funcs.front()->body);
 
-  std::cout << "\n" << funcs.front()->body << std::endl;
-
   Target target;
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
@@ -170,8 +168,32 @@ TEST(Vectorize, replace_var) {
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
-  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
-  std::cout << "out:\n" << out;
+  auto out        = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  auto target_out = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
+{
+  cinn_buffer_malloc((void*)(0), _C);
+  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
+  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
+  float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  for (int32_t i = 0; i < 100; i += 1) {
+    for (int32_t j_outer = 0; j_outer < 31; j_outer += 1) {
+      for (int32_t j_inner = 0; j_inner < 16; j_inner += 1) {
+        C[StackVec<16,int32_t>::Ramp(((i * 500) + ((16 * j_outer) + 0)), 1, 16)] = (StackedVec<float,16>::Load(A,((i * 500) + ((16 * j_outer) + 0))) * StackedVec<float,16>::Load(B,((i * 500) + ((16 * j_outer) + 0))));
+      };
+    };
+    for (int32_t j_outer = 31; j_outer < 32; j_outer += 1) {
+      for (int32_t j_inner = 0; j_inner < (500 + (-16 * j_outer)); j_inner += 1) {
+        C[StackVec<16,int32_t>::Ramp(((i * 500) + ((16 * j_outer) + 0)), 1, 16)] = (StackedVec<float,16>::Load(A,((i * 500) + ((16 * j_outer) + 0))) * StackedVec<float,16>::Load(B,((i * 500) + ((16 * j_outer) + 0))));
+      };
+    };
+  };
+}
+)ROC";
+  EXPECT_EQ(Trim(out), Trim(target_out));
 }
 
 TEST(Vectorize, TestMarkVectorize) {
@@ -224,6 +246,36 @@ TEST(Vectorize, TestMarkVectorize) {
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "out:\n" << out;
 
+  auto target_out = R"ROC(
+#include <cinn_runtime.h>
+#include <stdio.h>
+
+void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
+{
+  cinn_buffer_malloc((void*)(0), _C);
+  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
+  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
+  float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  float* D = (float*)(cinn_buffer_get_data_handle(_C));
+  for (int32_t i = 0; i < 100; i += 1) {
+    for (int32_t j_outer = 0; j_outer < 31; j_outer += 1) {
+      C[StackVec<16,int32_t>::Ramp(((500 * i) + (16 * j_outer)), 1, 16)] = (StackedVec<float,16>::Load(A,((500 * i) + (16 * j_outer))) * StackedVec<float,16>::Load(B,((500 * i) + (16 * j_outer))));
+    };
+    for (int32_t j_outer = 31; j_outer < 32; j_outer += 1) {
+      for (int32_t j_inner = 0; j_inner < (500 + (-16 * j_outer)); j_inner += 1) {
+        C[((500 * i) + ((16 * j_outer) + j_inner))] = (A[((500 * i) + ((16 * j_outer) + j_inner))] * B[((500 * i) + ((16 * j_outer) + j_inner))]);
+      };
+    };
+  };
+  for (int32_t i = 0; i < 100; i += 1) {
+    for (int32_t j = 0; j < 500; j += 1) {
+      D[((500 * i) + j)] = (A[((500 * i) + j)] * B[((500 * i) + j)]);
+    };
+  };
+}
+)ROC";
+
+  EXPECT_EQ(Trim(out), Trim(target_out));
   EXPECT_EQ(Context::Global().info_rgt().Get<int>("vectorized_forloop_count"), 1);
 }
 

@@ -7,6 +7,7 @@
 #include <string>
 
 #include "cinn/common/arithmatic.h"
+#include "cinn/common/cas.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
@@ -24,13 +25,7 @@ namespace {
 
 //! Simplify some sub-expression in the `expr`. Due to the simplify strategy just fit several kinds of IR noedes, we
 //! partition the original expression to several sub-expression those supported by simplify, and process each of them.
-void PartialSimplify(Expr* expr) {
-  ExprToGinacConerter converter;
-  auto ex = converter(*expr);
-  VLOG(4) << "get ex:" << ex;
-  *expr = converter.GinacToExpr(ex);
-  VLOG(4) << "ex to expr: " << *expr;
-}
+void PartialSimplify(Expr* expr) { *expr = common::AutoSimplify(*expr); }
 
 //! Simplify the expression but Load.
 struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
@@ -38,27 +33,8 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
 
   using ir::IRMutator<>::Visit;
 
-#define __(op__)                                    \
-  void Visit(const op__* op, Expr* expr) override { \
-    auto* node   = expr->As<op__>();                \
-    auto* a_ramp = node->a().As<ir::Ramp>();        \
-    auto* b_ramp = node->b().As<ir::Ramp>();        \
-    if (a_ramp) {                                   \
-      PartialSimplify(&a_ramp->base);               \
-      PartialSimplify(&a_ramp->stride);             \
-    }                                               \
-    if (b_ramp) {                                   \
-      PartialSimplify(&b_ramp->base);               \
-      PartialSimplify(&b_ramp->stride);             \
-    }                                               \
-    if (!(a_ramp || b_ramp)) {                      \
-      PartialSimplify(expr);                        \
-    } else if (!a_ramp) {                           \
-      PartialSimplify(&node->a());                  \
-    } else if (!b_ramp) {                           \
-      PartialSimplify(&node->b());                  \
-    }                                               \
-  }
+#define __(op__) \
+  void Visit(const op__* op, Expr* expr) override { PartialSimplify(expr); }
 
   __(Add)
   __(Mul)
@@ -80,9 +56,9 @@ struct SimplifyLoadMutator : public ir::IRMutator<ir::Expr*> {
 
   void Visit(const Load* expr, Expr* op) override {
     auto* node = op->As<Load>();
-    if (common::IsPureMath(node->index))
+    if (common::IsPureMath(node->index)) {
       PartialSimplify(&node->index);
-    else {
+    } else {
       SimplifyButStoreLoadMutator mutator;
       mutator(&node->index);
     }
@@ -104,9 +80,23 @@ struct SimplifyStoreMutator : public ir::IRMutator<ir::Expr*> {
   }
 };
 
+struct SimplifyRampMutator : public ir::IRMutator<Expr*> {
+  void operator()(Expr* x) { ir::IRMutator<ir::Expr*>::Visit(x, x); }
+
+  void Visit(const Ramp* op, Expr* expr) override {
+    auto* node = expr->As<ir::Ramp>();
+
+    CHECK(common::IsPureMath(node->base));
+    CHECK(common::IsPureMath(node->stride));
+    Simplify(&node->base);
+    Simplify(&node->stride);
+  }
+};
+
 }  // namespace
 
 void Simplify(Expr* expr) {
+  SimplifyRampMutator()(expr);
   SimplifyLoadMutator()(expr);
   SimplifyStoreMutator()(expr);
   SimplifyButStoreLoadMutator()(expr);
