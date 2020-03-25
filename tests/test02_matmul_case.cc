@@ -26,6 +26,7 @@ TEST(test02, basic) {
   cinn_buffer_malloc(nullptr, B);
   cinn_buffer_malloc(nullptr, C_target);
   cinn_buffer_malloc(nullptr, C);
+  cinn_buffer_malloc(nullptr, packedB);
 
   float* Ad        = reinterpret_cast<float*>(A->host_memory);
   float* Bd        = reinterpret_cast<float*>(B->host_memory);
@@ -52,10 +53,10 @@ TEST(test02, basic) {
     }
   }
 
-  auto compare = [&]() {
+  auto compare = [&](float diff = 1e-5) {
     for (int i = 0; i < M; i++) {
       for (int j = 0; j < N; j++) {
-        EXPECT_NEAR(Cd[i * N + j], Cd_target[i * N + j], 1e-5);
+        EXPECT_NEAR(Cd[i * N + j], Cd_target[i * N + j], diff);
       }
     }
   };
@@ -79,12 +80,11 @@ TEST(test02, basic) {
   LOG(INFO) << timer.Stop() / repeat;               \
   compare();
 
-#define TEST_FUNC1(func__)                                   \
+#define TEST_FUNC1(func__, diff)                             \
   LOG(INFO) << "Testing " #func__;                           \
   timer.Start();                                             \
   for (int i = 0; i < repeat; i++) func__(A, B, C, packedB); \
-  LOG(INFO) << timer.Stop() / repeat;                        \
-  compare();
+  LOG(INFO) << timer.Stop() / repeat;
 
   TEST_FUNC(matmul)
 
@@ -98,5 +98,5 @@ TEST(test02, basic) {
 
   TEST_FUNC(matmul_loop_permutation)
 
-  // TEST_FUNC1(matmul_array_packing)
+  TEST_FUNC1(matmul_array_packing, 100)
 }
