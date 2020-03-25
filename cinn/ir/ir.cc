@@ -439,7 +439,7 @@ Expr Sum::Make(const std::vector<Expr> &vs) {
 
   auto *n   = make_shared<Sum>();
   auto type = vs.front().type();
-  for (auto &v : vs) CHECK_EQ(v.type(), type);
+  for (auto &v : vs) CHECK_EQ(v.type(), type) << vs.front() << " " << v;
 
   n->operands() = vs;
 
@@ -460,6 +460,24 @@ Expr Product::Make(const std::vector<Expr> &vs) {
   n->set_type(vs.front()->type());
 
   return Expr(n);
+}
+
+Expr FracOp::Make(Expr n, Expr d) {
+  auto *node = make_shared<FracOp>();
+  node->a()  = n;
+  node->b()  = d;
+  return Expr(node);
+}
+
+Expr Power::Make(Expr n, Expr d) {
+  auto *node          = make_shared<Power>();
+  node->operands()[0] = n;
+  node->operands()[1] = d;
+  CHECK(d.type().is_int());
+
+  node->set_type(n->type());
+
+  return Expr(node);
 }
 
 }  // namespace ir

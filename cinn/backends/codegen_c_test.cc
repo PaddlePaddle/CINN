@@ -10,6 +10,7 @@
 #include "cinn/lang/lower.h"
 #include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
+#include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
 namespace backends {
@@ -138,7 +139,10 @@ TEST(CodeGenC, module_with_transform) {
 
   ASSERT_EQ(funcs.size(), 1UL);
 
-  module.Append(funcs.front());
+  Expr func(funcs.front());
+  optim::Simplify(&func);
+
+  module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
   module.Append(C_buf);
 
   CodeGenC codegen(target);
@@ -162,7 +166,7 @@ void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct
   for (int32_t i_outer = 0; (i_outer <= 24); i_outer += 1) {
     for (int32_t i_inner = 0; (i_inner <= 3); i_inner += 1) {
       for (int32_t j = 0; (j <= 19); j += 1) {
-        C[((((4 * i_outer) + i_inner) * 20) + j)] = ((A[((((4 * i_outer) + i_inner) * 20) + j)] + B[((((4 * i_outer) + i_inner) * 20) + j)]) + ((A[((((4 * i_outer) + i_inner) * 20) + j)] * 2) + 1));
+        C[((20 * i_inner) + ((80 * i_outer) + j))] = (1 + ((3 * A[((20 * i_inner) + ((80 * i_outer) + j))]) + B[((20 * i_inner) + ((80 * i_outer) + j))]));
       };
     };
   };
@@ -170,7 +174,7 @@ void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct
     for (int32_t i_inner = 0; (i_inner <= 3); i_inner += 1) {
       for (int32_t j_outer = 0; (j_outer <= 1); j_outer += 1) {
         for (int32_t j_inner = 0; (j_inner <= min(15, ((-16 * j_outer) + 19))); j_inner += 1) {
-          D[((((4 * i_outer) + i_inner) * 20) + ((16 * j_outer) + j_inner))] = ((C[((((4 * i_outer) + i_inner) * 20) + ((16 * j_outer) + j_inner))] * 2) * ((A[((((4 * i_outer) + i_inner) * 20) + ((16 * j_outer) + j_inner))] * 2) + 1));
+          D[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] = ((2 + (4 * A[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))])) * C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]);
         };
       };
     };

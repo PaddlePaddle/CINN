@@ -570,12 +570,7 @@ struct Broadcast : public ExprNode<Broadcast> {
 struct FracOp : public BinaryOpNode<FracOp> {
   FracOp() { operands().resize(2); }
 
-  static Expr Make(Expr n, Expr d) {
-    auto* node = make_shared<FracOp>();
-    node->a()  = n;
-    node->b()  = d;
-    return Expr(node);
-  }
+  static Expr Make(Expr n, Expr d);
 
   bool is_constant() const { return a().is_constant() && b().is_constant(); }
 
@@ -592,15 +587,7 @@ struct FracOp : public BinaryOpNode<FracOp> {
 
 struct Power : public ExprNode<Power> {
   Power() { operands().resize(2); }
-  static Expr Make(Expr n, Expr d) {
-    auto* node          = make_shared<Power>();
-    node->operands()[0] = n;
-    node->operands()[1] = d;
-
-    node->set_type(n->type());
-
-    return Expr(node);
-  }
+  static Expr Make(Expr n, Expr d);
 
   Type type() const override {
     CHECK(a().defined());
@@ -611,6 +598,8 @@ struct Power : public ExprNode<Power> {
   Expr& b() { return operands()[1]; }
   const Expr& a() const { return operands()[0]; }
   const Expr& b() const { return operands()[1]; }
+
+  bool is_constant() const { return a().is_constant() && b().is_constant(); }
 
   static const IrNodeTy _node_type_ = IrNodeTy::Power;
 

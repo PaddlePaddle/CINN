@@ -70,7 +70,7 @@ TEST(IrSimplify, basic) {
     auto B = Compute(
         {100, 20},
         [&](Expr i, Expr j) {
-          return x(i + 0, j * 0) + y(i, j * 0) / (1.f + 2.f) + 0.f * x(i, j) + 25.f + 100.f - 0.f +
+          return x(100 * 10 * 1 * i + 0, j * 0) + y(i, j * 0) / (1.f + 2.f) + 0.f * x(i, j) + 25.f + 100.f - 0.f +
                  9.f * 10000.f * 1.f * 1.f * 0.f;
         },
         "B");
@@ -89,7 +89,7 @@ TEST(IrSimplify, basic) {
   {
     poly_for (0, (j <= 19), 1)
     {
-      B[((20 * i) + j)] = (125 + (X[(20 * i)] + (y[(20 * i)] / 3)))
+      B[((20 * i) + j)] = (125 + (X[(20000 * i)] + (0.333333 * y[(20 * i)])))
     }
   }
 }
