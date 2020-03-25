@@ -1,5 +1,6 @@
 #include "cinn/optim/ir_eliminate_mod.h"
 #include "cinn/ir/ir_mutator.h"
+#include "cinn/ir/ir_printer.h"
 
 namespace cinn {
 namespace optim {
@@ -10,6 +11,7 @@ void IrEliminateMod(Expr* expr) {
 
     void Visit(const ir::Mod* op, Expr* expr) {
       LOG(ERROR) << "Not Implemented";
+      LOG(INFO) << "elimiate " << *expr << " to " << op->a();
       *expr = op->a();
     }
   };

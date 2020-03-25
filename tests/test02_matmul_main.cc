@@ -261,6 +261,7 @@ TEST(matmul, ArrayPacking) {
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
   Buffer packedB_buf(packedB->type());
   packedB->Bind(packedB_buf);
+  packedB->stage()->Vectorize(2, 8);
 
   auto C = Compute(
       {M, N}, [&](Expr i, Expr j) { return Sum(A(i, k) * packedB(j / bn, k, j % bn), k); }, "C", k);
@@ -281,7 +282,6 @@ TEST(matmul, ArrayPacking) {
     std::tie(k_outer, k_inner)                   = C->stage()->Split("k", 4);
 
     C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
-    C->stage()->Vectorize(j_inner, 8);
   }
 
   Module module("module_array_packing", target);
