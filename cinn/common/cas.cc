@@ -804,6 +804,66 @@ Expr ConvertCasToCinn(Expr expr) {
         Mutator()(&b);
         *expr = Mul::Make(a, b);
       }
+
+      // process the Mul
+      Visit(expr);
+    }
+
+    void Visit(const Sum* op, Expr* expr) override {
+      std::vector<Expr> operands;
+      auto* node = expr->As<Sum>();
+      for (auto& v : node->operands()) {
+        auto c = v;
+        Mutator()(&c);
+        operands.push_back(c);
+      }
+
+      CHECK(!operands.empty());
+      if (operands.size() == 1) {
+        *expr = operands[0];
+      } else if (operands.size() == 2) {
+        *expr = Add::Make(operands[0], operands[1]);
+      } else {
+        auto a = operands[0];
+        auto b = Sum::Make(Rest(operands));
+        Mutator()(&b);
+        *expr = Add::Make(a, b);
+      }
+
+      // process the sum
+      Visit(expr);
+    }
+
+    // a * b^-1 -> a/b
+    void Visit(const Mul* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
+      auto* bp = b.As<ir::Power>();
+      if (bp && bp->b().is_constant() && bp->b().get_constant() == -1.f) {
+        *expr = Div::Make(a, bp->a());
+      } else {
+        *expr = Mul::Make(a, b);
+      }
+    }
+
+    // a + -1*b -> a-b
+    void Visit(const Add* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
+      auto* bp = b.As<ir::Mul>();
+      if (bp && bp->a().is_constant() && bp->a().get_constant() == -1.f) {
+        *expr = Sub::Make(a, bp->b());
+      } else {
+        *expr = Add::Make(a, b);
+      }
     }
   };
 
