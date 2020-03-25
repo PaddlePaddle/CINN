@@ -1,9 +1,13 @@
 #include "cinn/common/cas.h"
+
 #include <algorithm>
+
 #include "cinn/common/ir.h"
+#include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/optim/ir_copy.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -716,6 +720,155 @@ Expr SimplifyMod(Expr u) {
   }
 
   return Mod::Make(a, b);
+}
+
+bool CASasSymbol(Expr expr) {
+  auto* load_n      = expr.As<Load>();
+  auto* var_n       = expr.As<_Var_>();
+  auto* broadcast_n = expr.As<Broadcast>();
+
+  return load_n || var_n || broadcast_n;
+}
+
+Expr ConvertCinnToCAS(Expr expr) {
+  Expr copied = optim::IRCopy(expr);
+
+  struct Mutator : public ir::IRMutator<ir::Expr*> {
+    void operator()(Expr* expr) { Visit(expr); }
+    void Visit(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+   private:
+    void Visit(const Add* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
+      *expr = Sum::Make({a, b});
+    }
+    void Visit(const Mul* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
+      *expr = Product::Make({a, b});
+    }
+
+    void Visit(const Sub* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+      b      = Product::Make({make_const(b->type(), -1), b});
+      *expr  = Sum::Make({a, b});
+    }
+
+    void Visit(const Div* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+      b      = Power::Make(b, make_const(b->type(), -1));
+      *expr  = Product::Make({a, b});
+    }
+  };
+
+  Mutator()(&copied);
+  return copied;
+}
+
+Expr ConvertCasToCinn(Expr expr) {
+  Expr copied = optim::IRCopy(expr);
+
+  struct Mutator : ir::IRMutator<Expr*> {
+    void operator()(Expr* expr) { Visit(expr); }
+    void Visit(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+   private:
+    void Visit(const Product* op, Expr* expr) override {
+      std::vector<Expr> operands;
+      auto* node = expr->As<Product>();
+      for (auto& v : node->operands()) {
+        auto c = v;
+        Mutator()(&c);
+        operands.push_back(c);
+      }
+
+      CHECK(!operands.empty());
+      if (operands.size() == 1) {
+        *expr = operands[0];
+      } else if (operands.size() == 2) {
+        *expr = Mul::Make(operands[0], operands[1]);
+      } else {
+        auto a = operands[0];
+        auto b = Product::Make(Rest(operands));
+        Mutator()(&b);
+        *expr = Mul::Make(a, b);
+      }
+
+      // process the Mul
+      Visit(expr);
+    }
+
+    void Visit(const Sum* op, Expr* expr) override {
+      std::vector<Expr> operands;
+      auto* node = expr->As<Sum>();
+      for (auto& v : node->operands()) {
+        auto c = v;
+        Mutator()(&c);
+        operands.push_back(c);
+      }
+
+      CHECK(!operands.empty());
+      if (operands.size() == 1) {
+        *expr = operands[0];
+      } else if (operands.size() == 2) {
+        *expr = Add::Make(operands[0], operands[1]);
+      } else {
+        auto a = operands[0];
+        auto b = Sum::Make(Rest(operands));
+        Mutator()(&b);
+        *expr = Add::Make(a, b);
+      }
+
+      // process the sum
+      Visit(expr);
+    }
+
+    // a * b^-1 -> a/b
+    void Visit(const Mul* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
+      auto* bp = b.As<ir::Power>();
+      if (bp && bp->b().is_constant() && bp->b().get_constant() == -1.f) {
+        *expr = Div::Make(a, bp->a());
+      } else {
+        *expr = Mul::Make(a, b);
+      }
+    }
+
+    // a + -1*b -> a-b
+    void Visit(const Add* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
+      auto* bp = b.As<ir::Mul>();
+      if (bp && bp->a().is_constant() && bp->a().get_constant() == -1.f) {
+        *expr = Sub::Make(a, bp->b());
+      } else {
+        *expr = Add::Make(a, b);
+      }
+    }
+  };
+
+  Mutator()(&copied);
+  return copied;
 }
 
 }  // namespace detail

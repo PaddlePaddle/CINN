@@ -1,5 +1,8 @@
 #include "cinn/common/cas.h"
+
 #include <gtest/gtest.h>
+
+#include "cinn/cinn.h"
 #include "cinn/common/common.h"
 #include "cinn/common/ir.h"
 #include "cinn/ir/ir_operators.h"
@@ -184,6 +187,25 @@ TEST(CAS, SimplifyMod) {
   EXPECT_EQ(GetStreamCnt(u2), "((x % 2) + (y % 2) + (z % 2))");
   EXPECT_EQ(GetStreamCnt(u3), "1");
   EXPECT_EQ(GetStreamCnt(u4), "(1 + (x^3) + y)");
+}
+
+TEST(CAS, ConvertCinnToCAS) {
+  Placeholder<float> A("A", {10, 10});
+  Placeholder<float> B("B", {10, 10});
+
+  auto C =
+      // A(i,j) + 0 + 1 + 2 B(i,j) + 0 B(i,j) A(i,j)
+      Compute({10, 10}, [&](Expr i, Expr j) { return A(i, j) + 0.f + 1.f + 2.f * B(i, j) + 0.f * B(i, j) * A(i, j); });
+
+  Expr body = C->body();
+  LOG(INFO) << "body " << body;
+
+  body = detail::ConvertCinnToCAS(body);
+  body = AutoSimplify(body);
+  EXPECT_EQ(GetStreamCnt(body), "(1 + A[((i * 10) + j)] + (2 * B[((i * 10) + j)]))");
+  body = detail::ConvertCasToCinn(body);
+  LOG(INFO) << "convert back " << body;
+  EXPECT_EQ(GetStreamCnt(body), "(1 + (A[((i * 10) + j)] + (2 * B[((i * 10) + j)])))");
 }
 
 }  // namespace common
