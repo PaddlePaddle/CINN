@@ -1,5 +1,7 @@
 #include "cinn/common/cas.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/common/common.h"
 #include "cinn/common/ir.h"
 #include "cinn/ir/ir_operators.h"
