@@ -290,6 +290,7 @@ TEST(matmul, ArrayPacking) {
 
   auto func = Optimize(funcs.front());
   module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
+  // module.Append(funcs.front());
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
   Outputs outputs;

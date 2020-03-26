@@ -84,7 +84,8 @@ TEST(test02, basic) {
   LOG(INFO) << "Testing " #func__;                           \
   timer.Start();                                             \
   for (int i = 0; i < repeat; i++) func__(A, B, C, packedB); \
-  LOG(INFO) << timer.Stop() / repeat;
+  LOG(INFO) << timer.Stop() / repeat;                        \
+  compare();
 
   TEST_FUNC(matmul)
 
@@ -98,5 +99,5 @@ TEST(test02, basic) {
 
   TEST_FUNC(matmul_loop_permutation)
 
-  TEST_FUNC1(matmul_array_packing, 100)
+  TEST_FUNC1(matmul_array_packing, 1e-5)
 }
