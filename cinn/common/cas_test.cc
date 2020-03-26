@@ -30,18 +30,14 @@ TEST(CAS, SimplifyPower_0) {
   {  // x^1 = x
     Var x   = ir::_Var_::Make("x", Float(32));
     auto p0 = ir::Power::Make(x, Expr(1));
-    LOG(INFO) << "p0 " << p0;
     auto p2 = detail::SimplifyPower(p0);
-    LOG(INFO) << "simplified " << p2;
     EXPECT_EQ(GetStreamCnt(p2), "x");
   }
 
   {  // 1^x = 1
     Var x   = ir::_Var_::Make("x", Int(32));
     auto p0 = ir::Power::Make(make_const(1), x);
-    LOG(INFO) << "p0 " << p0;
     auto p2 = detail::SimplifyPower(p0);
-    LOG(INFO) << "simplified " << p2;
     EXPECT_EQ(GetStreamCnt(p2), "1");
   }
 
@@ -204,7 +200,6 @@ TEST(CAS, ConvertCinnToCAS) {
   body = CasSimplify(body);
   EXPECT_EQ(GetStreamCnt(body), "(1 + A[((i * 10) + j)] + (2 * B[((i * 10) + j)]))");
   body = detail::ConvertCasToCinn(body);
-  LOG(INFO) << "convert back " << body;
   EXPECT_EQ(GetStreamCnt(body), "(1 + (A[((i * 10) + j)] + (2 * B[((i * 10) + j)])))");
 }
 
@@ -214,17 +209,33 @@ TEST(CAS, FracOp) {
   Var z = ir::_Var_::Make("z", Int(32));
 
   auto u1 = AutoSimplify(Div::Make(Expr(1), x) * x);
-  EXPECT_EQ(GetStreamCnt(u1), "1");
+  EXPECT_EQ(GetStreamCnt(u1), "((1/x) * x)");
   // 64x/32 + y + 64/32
   auto u2 = AutoSimplify(Expr(64) * x / Expr(32) + y + Expr(64) / Expr(32));
-  EXPECT_EQ(GetStreamCnt(u2), "(2 + ((2 * x) + y))");
+  ASSERT_EQ(GetStreamCnt(u2), "(2 + ((2 * x) + y))");
   // 1/32 * y * z * 32768 * 2
   auto u3 = AutoSimplify(Expr(1) / Expr(32) * y * z * 32768 * 2);
-  EXPECT_EQ(GetStreamCnt(u3), "(2048 * (y * z))");
+  EXPECT_EQ(GetStreamCnt(u3), "((1/32) * (65536 * (y * z)))");
   // 32768 * (32x + y) + y
   auto u4 = AutoSimplify(Expr(32768) * (((Expr(32) * x) + y) / 32));
   LOG(INFO) << u4;
-  EXPECT_EQ(GetStreamCnt(u4), "((32768 * x) + (1024 * y))");
+  EXPECT_EQ(GetStreamCnt(u4), "((32768 * (y/32)) + (32768 * x))");
+}
+
+TEST(CAS, IntConnerCase) {
+  Var x = ir::_Var_::Make("x", Int(32));
+  Var y = ir::_Var_::Make("y", Int(32));
+  Var z = ir::_Var_::Make("z", Int(32));
+
+  auto u1 = AutoSimplify(Expr(1) / 32);
+  EXPECT_EQ(GetStreamCnt(u1), "(1/32)");
+  auto u2 = AutoSimplify(x / 32 + (x * 32 + 64) / 32);
+  EXPECT_EQ(GetStreamCnt(u2), "((x/32) + (2 + x))");
+  // (32x+y)/32 * 1024 * 32
+  auto u3 = AutoSimplify((((((32 * x) + y) / 32) * 1024) * 32));
+  EXPECT_EQ(GetStreamCnt(u3), "((32768 * (y/32)) + (32768 * x))");
+
+  LOG(INFO) << u3;
 }
 
 }  // namespace common

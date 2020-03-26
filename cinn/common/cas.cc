@@ -1,8 +1,8 @@
 #include "cinn/common/cas.h"
 
 #include <algorithm>
-
 #include <cmath>
+
 #include "cinn/common/ir.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
@@ -441,56 +441,10 @@ std::vector<Expr> MergeProduct(const std::vector<Expr>& _p, const std::vector<Ex
   return Concat(p, q);
 }
 
-template <typename IntT>
-Expr SimplifyPowerRelatedMul(IntT a_base, int a_exponent, IntT b) {
-  CHECK_LT(a_exponent, 0);
-  if (a_exponent == 0) return Expr(b);
-  if (a_exponent != -1) {
-    a_base     = std::pow(a_base, std::abs(a_exponent));
-    a_exponent = -1;
-  }
-
-  int g = gcd(a_base, b);
-  a_base /= g;
-  b /= g;
-
-  // b / a_base
-  if (a_base == 1) return Expr(b);
-  return CasSimplify(Product::Make({Power::Make(Expr(a_base), Expr(-1)), Expr(b)}));
-}
-
-Expr SimplifyPowerRelatedMul(Expr a_power, Expr b) {
-  auto* ap = a_power.As<Power>();
-  auto* bp = b.As<Power>();
-  CHECK(ap);
-  CHECK(ap->is_constant());
-
-  if (bp) {
-    auto tmp = EvaluateConstantPower(b);
-    if (tmp.defined()) {
-      return SimplifyPowerRelatedMul(a_power, tmp);
-    }
-  }
-
-  if (ap->b().get_constant() > 0 || ap->a().As<FloatImm>()) {
-    return CasSimplify(Product::Make({EvaluateConstantPower(a_power), b}));
-  }
-
-  // 3^-2 => 9^-1
-  if (ap->b().get_constant() < 0) {
-    int base = ap->a().As<IntImm>()->value;
-    int n    = ap->b().As<IntImm>()->value;
-  }
-}
-
 std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
   CHECK_GE(_operands.size(), 2);
   std::vector<Expr> operands;
   for (auto& e : _operands) operands.push_back(CasSimplify(e));
-
-  std::stringstream ss;
-  std::sort(operands.begin(), operands.end(), ExprPosCmp());
-  for (auto& o : operands) ss << o << " " << o.node_type() << " ";
 
   // SPRDREC-1
   if (operands.size() == 2 && !operands[0].As<Product>() && !operands[1].As<Product>()) {
@@ -509,16 +463,17 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
     }
 
     {  // FracOp related constants.
+      // NOTE the integer division is weried in C language, 1/2 = 0, that is huge different from a real CAS.
       auto* af = a.As<FracOp>();
       auto* bf = b.As<FracOp>();
       // 1/2 * 2/3
-      if (af && bf) {
+      if (af && bf && a->type().is_float()) {
         return {CasSimplify(FracOp::Make(Product::Make({af->a(), bf->a()}), Product::Make({af->b(), bf->b()})))};
       }
-      if (af && !bf) {
+      if (af && !bf && a->type().is_float()) {
         return {CasSimplify(FracOp::Make(Product::Make({af->a(), b}), af->b()))};
       }
-      if (!af && bf) {
+      if (!af && bf && a->type().is_float()) {
         return {CasSimplify(FracOp::Make(Product::Make({bf->a(), a}), bf->b()))};
       }
     }
@@ -965,8 +920,12 @@ Expr ConvertCinnToCAS(Expr expr) {
       Visit(&a);
       Visit(&b);
 
-      b     = Power::Make(b, make_const(Int(32), -1));
-      *expr = Product::Make({a, b});
+      if (a.type().is_float()) {
+        b     = Power::Make(b, make_const(Int(32), -1));
+        *expr = Product::Make({a, b});
+      } else {  // int division, NOTE that 3/2 = 1, 3./2 = 1.5
+        *expr = FracOp::Make(a, b);
+      }
     }
   };
 
@@ -1076,6 +1035,193 @@ bool IsExprCasCompatible(Expr expr) {
   return ir::CollectIRNodes(expr, teller).empty();
 }
 
+bool IsDivisible(int64_t a, int64_t b) {
+  CHECK_NE(b, 0);
+  return a % b == 0;
+}
+
+bool IsDivisible(const Sum* a, int b);
+
+bool IsDivisible(const Product* a, int b) {
+  for (auto& item : a->operands()) {
+    if (item.As<IntImm>() && IsDivisible(item.As<IntImm>()->value, b)) return true;
+    if (item.As<Sum>() && IsDivisible(item.As<Sum>(), b)) return true;
+  }
+  return false;
+}
+
+bool IsDivisible(const Sum* a, int b) {
+  for (auto& item : a->operands()) {
+    auto* vi = item.As<IntImm>();
+    auto* vp = item.As<Product>();
+    if (vi && IsDivisible(vi->value, b)) continue;
+    if (vp && IsDivisible(vp, b)) continue;
+    return false;
+  }
+  return true;
+}
+
+//! Divide a by b, NOTE that a should be divisible by b.
+// @{
+Expr Divide(const Product* a, int b);
+Expr Divide(const Sum* a, int b) {
+  std::vector<Expr> args;
+  for (auto& item : a->operands()) {
+    if (item.As<IntImm>())
+      args.push_back(make_const(item.type(), item.As<IntImm>()->value / b));
+    else if (item.As<Product>())
+      args.push_back(Divide(item.As<Product>(), b));
+    else
+      NOT_IMPLEMENTED
+  }
+  return Sum::Make(args);
+}
+Expr Divide(const Product* a, int b) {
+  auto* a_first_i = a->operand(0).As<IntImm>();
+  CHECK(a_first_i);
+  int times = a_first_i->value / b;
+  if (times == 1) {
+    return Product::Make(Rest(a->operands()));
+  } else {
+    auto args = Rest(a->operands());
+    args.insert(std::begin(args), make_const(a->type(), times));
+    return Product::Make(args);
+  }
+}
+// @}
+
+// Partially divide a by b. e.g. (2x+y)/2 => x + y/2
+Expr DividePartially(Sum* a, int b) {
+  std::vector<Expr> external_sum_args, sum_args;
+
+  for (auto& item : a->operands()) {
+    if (item.As<Product>() && IsDivisible(item.As<Product>(), b))
+      external_sum_args.push_back(Divide(item.As<Product>(), b));
+    else if (item.As<IntImm>() && IsDivisible(item.As<IntImm>()->value, b))
+      external_sum_args.push_back(make_const(item.type(), item.As<IntImm>()->value / b));
+    else {
+      sum_args.push_back(item);
+    }
+  }
+
+  if (!external_sum_args.empty()) {
+    if (sum_args.empty()) return Sum::Make(external_sum_args);
+    Expr internal_sum = sum_args.size() == 1 ? sum_args[0] : Sum::Make(sum_args);
+    Expr new_frac     = FracOp::Make(internal_sum, make_const(a->type(), b));
+    return Sum::Make(Concat(external_sum_args, {new_frac}));
+  }
+  return Expr(a);
+}
+
+Expr SimplifyFracOp(Expr expr) {
+  auto* node = expr.As<FracOp>();
+  auto a     = CasSimplify(node->a());
+  auto b     = CasSimplify(node->b());
+
+  auto* ap = a.As<Product>();
+  auto* bp = b.As<Product>();
+  auto* bi = b.As<IntImm>();
+  auto* av = a.As<_Var_>();
+  auto* bv = b.As<_Var_>();
+
+  // case 1
+  // integer constant division: 64/3
+  if (node->is_constant()) {
+    return detail::SimplifyRationalNumber(expr);
+  }
+
+  // case 2
+  // sum/x or product/x is divisiable
+  if (bi) {
+    auto* a_sum     = a.As<Sum>();
+    auto* a_product = a.As<Product>();
+    // disiviable
+    if (a_sum && IsDivisible(a_sum, bi->value)) return Divide(a_sum, bi->value);
+    if (a_product && IsDivisible(a_product, bi->value)) return Divide(a_product, bi->value);
+    // not divisiable
+    if (a_sum) {
+      auto expr = DividePartially(a_sum, bi->value);
+      return expr;
+    }
+  }
+
+  // solve the case: 2abc / b
+  // Both avs and bvs should be sorted first.
+  auto reduce_product_div_product = [](const std::vector<Expr>& avs, const std::vector<Expr>& bvs) {
+    std::vector<Expr> avs1, bvs1;
+    int i = 0;
+    int j = 0;
+
+    ExprPosCmp cmp;
+
+    while (i < avs.size() && j < bvs.size()) {
+      auto& a = avs[i];
+      auto& b = bvs[j];
+      if (a.is_constant() && b.is_constant()) {
+        auto* ai = a.As<IntImm>();
+        auto* bi = b.As<IntImm>();
+        auto* af = a.As<FloatImm>();
+        auto* bf = b.As<FloatImm>();
+        if (ai) {
+          CHECK(bi);
+          int g   = gcd(ai->value, bi->value);
+          int a_d = ai->value / g;
+          int b_d = bi->value / g;
+
+          avs1.push_back(make_const(a.type(), a_d));
+          if (b_d != 1) bvs1.push_back(make_const(b.type(), b_d));
+        }
+
+        CHECK(!af);
+        i++;
+        j++;
+      } else if (avs[i] == bvs[j]) {
+        i++;
+        j++;
+      } else {
+        // <
+        if (cmp(avs[i], bvs[j])) {
+          avs1.push_back(avs[i++]);
+        } else {
+          bvs1.push_back(bvs[j++]);
+        }
+      }
+    }
+    while (i < avs.size()) {
+      avs1.push_back(avs[i++]);
+    }
+    while (j < bvs.size()) {
+      bvs1.push_back(bvs[j++]);
+    }
+    if (avs1.empty()) return make_const(avs[0].type(), 1);
+    if (bvs1.empty()) return Product::Make(avs1);
+
+    return FracOp::Make(Product::Make(avs1), Product::Make(bvs1));
+  };
+
+  {
+    std::vector<Expr> a_args, b_args;
+    if (ap)
+      a_args = ap->operands();
+    else
+      a_args.push_back(a);
+    if (bp)
+      b_args = bp->operands();
+    else
+      b_args.push_back(b);
+
+    return reduce_product_div_product(a_args, b_args);
+  }
+
+  // x / x
+  if (a.type().is_int() && b.type().is_int() && av && bv) {
+    if (a == b) return make_const(a.type(), 1);
+  }
+
+  if (node->a().same_as(a) && node->b().same_as(b)) return expr;
+  return FracOp::Make(a, b);
+}
+
 }  // namespace detail
 
 Expr CasSimplify(Expr u) {
@@ -1084,11 +1230,13 @@ Expr CasSimplify(Expr u) {
   if (u.is_constant() || u.As<_Var_>()) return u;
 
   if (u.As<Power>()) {
-    return detail::SimplifyPower(u);
+    auto expr = detail::SimplifyPower(u);
+    return expr;
   }
 
   if (u.As<FracOp>()) {
-    return detail::SimplifyRationalNumber(u);
+    u = detail::SimplifyFracOp(u);
+    return u;
   }
 
   if (u.As<Product>()) {
