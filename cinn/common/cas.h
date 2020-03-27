@@ -6,10 +6,23 @@
 namespace cinn {
 namespace common {
 
-Expr AutoSimplify(Expr u);
+/**
+ * Interval of a _Var_.
+ */
+struct CasInterval {
+  CasInterval(int l, int r) : l(l), r(r) {}
+  int l, r;
+
+  friend std::ostream& operator<<(std::ostream& os, const CasInterval& i) {
+    os << "Interval[" << i.l << ", " << i.r << "]";
+    return os;
+  }
+};
+
+Expr AutoSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var_intervals = {});
 
 //! Simplify a CAS expression.
-Expr CasSimplify(Expr u);
+Expr CasSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var_intervals = {});
 
 namespace detail {
 
@@ -26,14 +39,29 @@ struct ExprPosCmp {
   bool operator()(const Expr& a, const Expr& b);
 };
 
-Expr SimplifyRationalNumber(Expr u);
-Expr SimplifyPower(Expr u);
-Expr SimplifySum(Expr u);
-Expr SimplifyProduct(Expr a);
-std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& operands);
-std::vector<Expr> SimplifySumRec(const std::vector<Expr>& operands);
-Expr SimplifyMod(Expr u);
-Expr EvaluateSum(Expr v, Expr w);
+struct CasSimplifyMutator {
+  CasSimplifyMutator(const std::unordered_map<std::string, CasInterval> var_intervals) : var_intervals(var_intervals) {}
+
+  Expr operator()(Expr u);
+
+  Expr SimplifyRationalNumber(Expr u);
+  Expr SimplifyPower(Expr u);
+  Expr SimplifySum(Expr u);
+  Expr SimplifyProduct(Expr a);
+  std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& operands);
+  std::vector<Expr> SimplifySumRec(const std::vector<Expr>& operands);
+  Expr SimplifyMod(Expr u);
+  Expr SimplifyFracOp(Expr expr);
+  Expr FurtherSimplifyFracWithInterval(Expr expr, const std::unordered_map<std::string, CasInterval>& var_intervals);
+  Expr SimplifyIntegerPower(Expr u);
+
+ private:
+  std::vector<Expr> MergeProduct(const std::vector<Expr>& _p, const std::vector<Expr>& _q);
+
+  std::vector<Expr> MergeSum(const std::vector<Expr>& _p, const std::vector<Expr>& _q);
+
+  const std::unordered_map<std::string, CasInterval> var_intervals;
+};
 
 }  // namespace detail
 

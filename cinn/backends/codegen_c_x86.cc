@@ -32,6 +32,25 @@ void CodeGenCX86::Visit(const ir::Load *op) {
   }
 }
 
+void CodeGenCX86::Visit(const ir::Broadcast *op) {
+  CHECK_GT(op->type().lanes(), 1);
+  int bits = op->type().bits() * op->type().lanes();
+
+  if (SupportsAVX512()) {
+    CHECK_EQ(bits, 512);
+    os() << "cinn_avx512_set1(";
+    PrintCastExpr(op->value.type().ElementOf(), op->value);
+    os() << ")";
+  } else if (SupportsAVX256()) {
+    CHECK_EQ(bits, 256);
+    os() << "cinn_avx256_set1(";
+    PrintCastExpr(op->value.type().ElementOf(), op->value);
+    os() << ")";
+  } else {
+    CodeGenC::Visit(op);
+  }
+}
+
 void CodeGenCX86::Visit(const ir::Store *op) {
   if (op->type().lanes() == 1) {
     CodeGenC::Visit(op);

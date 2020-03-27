@@ -20,10 +20,11 @@ struct UnrollMutator : public ir::IRMutator<Expr*> {
   void Visit(const ir::For* op, Expr* expr) override {
     if (is_unrollable(op)) {
       Unroll(op, expr);
+      IRMutator<>::Visit(expr, expr);
+    } else {
+      auto* node = expr->As<ir::For>();
+      ir::IRMutator<>::Visit(&node->body, &node->body);
     }
-
-    auto* node = expr->As<ir::For>();
-    ir::IRMutator<>::Visit(&node->body, &node->body);
   }
 
   bool is_unrollable(const ir::For* op) const {
@@ -44,8 +45,7 @@ struct UnrollMutator : public ir::IRMutator<Expr*> {
       optim::IrReplace(&body.back(), op->loop_var, start);
     }
 
-    auto* node = expr->As<ir::For>();
-    node->body = ir::Block::Make(body);
+    *expr = ir::Block::Make(body);
   }
 };
 
