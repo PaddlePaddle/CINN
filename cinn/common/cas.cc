@@ -15,9 +15,9 @@ namespace cinn {
 namespace common {
 using namespace ir;  // NOLINT
 
-Expr AutoSimplify(Expr u) {
+Expr AutoSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var_intervals) {
   u = detail::ConvertCinnToCAS(u);
-  u = CasSimplify(u);
+  u = CasSimplify(u, var_intervals);
   u = detail::ConvertCasToCinn(u);
   return u;
 }
@@ -92,43 +92,6 @@ Expr Exponent(Expr v) {
   return Expr(1);
 }
 
-void SimplifyRNE(Expr* u) {
-  NOT_IMPLEMENTED
-  // get integer.
-  if (u->As<IntImm>()) {
-    return;
-  }
-
-  if (auto* frac_op = u->As<ir::Div>()) {
-    if (frac_op->b().As<IntImm>() && frac_op->b().As<IntImm>()->value == 0) {
-      LOG(FATAL) << "Get zero denominator";
-    } else {
-      return;
-    }
-  } else if ((*u)->operands.size() == 1) {
-    SimplifyRNE(&(*u)->operands[0]);
-    if (u->As<Add>()) return;
-  } else if ((*u)->operands.size() == 2) {
-    auto* add_n = u->As<Add>();
-    auto* mul_n = u->As<Mul>();
-    if (add_n || mul_n) {
-      Expr& opr0 = add_n ? add_n->operand(0) : mul_n->operand(0);
-      Expr& opr1 = add_n ? add_n->operand(1) : mul_n->operand(1);
-      SimplifyRNE(&opr0);
-      SimplifyRNE(&opr1);
-
-      if (add_n) {
-        detail::EvaluateSum(opr0, opr1);
-        return;
-      }
-      if (mul_n) {
-        detail::EvaluateSum(opr0, opr1);
-        return;
-      }
-    }
-  }
-}
-
 namespace detail {
 
 inline int Iquot(int n, int d) { return n / d; }
@@ -138,8 +101,7 @@ inline int Irem(int n, int d) {
   return n - d * k;
 }
 
-Expr SimplifyRationalNumber(Expr u) {
-  if (u.As<IntImm>()) return u;
+Expr CasSimplifyMutator::SimplifyRationalNumber(Expr u) {
   auto* frac_n = u.As<FracOp>();
   if (frac_n) {
     Expr n = frac_n->a();
@@ -166,7 +128,7 @@ Expr SimplifyRationalNumber(Expr u) {
   return u;
 }
 
-Expr SimplifyIntegerPower(Expr u) {
+Expr CasSimplifyMutator::SimplifyIntegerPower(Expr u) {
   auto* node = u.As<Power>();
   CHECK(node);
   Expr v = node->a();
@@ -238,11 +200,11 @@ Expr EvaluateConstantPower(Expr u) {
   return Expr();
 }
 
-Expr SimplifyPower(Expr u) {
+Expr CasSimplifyMutator::SimplifyPower(Expr u) {
   auto* node = u.As<Power>();
   CHECK(node);
-  Expr a = CasSimplify(node->a());
-  Expr b = CasSimplify(node->b());
+  Expr a = CasSimplify(node->a(), var_intervals);
+  Expr b = CasSimplify(node->b(), var_intervals);
 
   {  // Evaluate
     auto tmp = EvaluateConstantPower(u);
@@ -397,10 +359,10 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   return false;
 }
 
-std::vector<Expr> MergeProduct(const std::vector<Expr>& _p, const std::vector<Expr>& _q) {
+std::vector<Expr> CasSimplifyMutator::MergeProduct(const std::vector<Expr>& _p, const std::vector<Expr>& _q) {
   std::vector<Expr> p, q;
-  for (auto& e : _p) p.push_back(CasSimplify(e));
-  for (auto& e : _q) q.push_back(CasSimplify(e));
+  for (auto& e : _p) p.push_back(CasSimplify(e, var_intervals));
+  for (auto& e : _q) q.push_back(CasSimplify(e, var_intervals));
 
   // MPRD-1,2
   if (p.empty()) return q;
@@ -441,10 +403,10 @@ std::vector<Expr> MergeProduct(const std::vector<Expr>& _p, const std::vector<Ex
   return Concat(p, q);
 }
 
-std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
+std::vector<Expr> CasSimplifyMutator::CasSimplifyMutator::SimplifyProductRec(const std::vector<Expr>& _operands) {
   CHECK_GE(_operands.size(), 2);
   std::vector<Expr> operands;
-  for (auto& e : _operands) operands.push_back(CasSimplify(e));
+  for (auto& e : _operands) operands.push_back(CasSimplify(e, var_intervals));
 
   // SPRDREC-1
   if (operands.size() == 2 && !operands[0].As<Product>() && !operands[1].As<Product>()) {
@@ -468,13 +430,14 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
       auto* bf = b.As<FracOp>();
       // 1/2 * 2/3
       if (af && bf && a->type().is_float()) {
-        return {CasSimplify(FracOp::Make(Product::Make({af->a(), bf->a()}), Product::Make({af->b(), bf->b()})))};
+        return {CasSimplify(FracOp::Make(Product::Make({af->a(), bf->a()}), Product::Make({af->b(), bf->b()})),
+                            var_intervals)};
       }
       if (af && !bf && a->type().is_float()) {
-        return {CasSimplify(FracOp::Make(Product::Make({af->a(), b}), af->b()))};
+        return {CasSimplify(FracOp::Make(Product::Make({af->a(), b}), af->b()), var_intervals)};
       }
       if (!af && bf && a->type().is_float()) {
-        return {CasSimplify(FracOp::Make(Product::Make({bf->a(), a}), bf->b()))};
+        return {CasSimplify(FracOp::Make(Product::Make({bf->a(), a}), bf->b()), var_intervals)};
       }
     }
 
@@ -497,7 +460,7 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
       auto* ap = a.As<Power>();
       auto* bp = b.As<Power>();
 
-      auto one_is_power = [](Expr _a, Expr _b) -> std::vector<Expr> {
+      auto one_is_power = [this](Expr _a, Expr _b) -> std::vector<Expr> {
         auto* ap = _a.As<Power>();
         auto* bp = _b.As<Power>();
         auto* bi = _b.As<IntImm>();
@@ -515,7 +478,7 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
           int b_value = bi->value / g;
           auto a_new  = Power::Make(make_const(ap->a().type(), base), make_const(-1));
           auto b_new  = make_const(_b.type(), b_value);
-          return {CasSimplify(Product::Make({a_new, b_new}))};
+          return {CasSimplify(Product::Make({a_new, b_new}), var_intervals)};
         }
         return {_a, _b};
       };
@@ -528,8 +491,8 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
     }
 
     if (operands.size() == 2) {  // as sum
-      auto a      = CasSimplify(operands[0]);
-      auto b      = CasSimplify(operands[1]);
+      auto a      = CasSimplify(operands[0], var_intervals);
+      auto b      = CasSimplify(operands[1], var_intervals);
       auto* a_sum = a.As<Sum>();
       auto* b_sum = b.As<Sum>();
 
@@ -563,8 +526,8 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
 
   // SPRDREC-2, Page 101
   if (operands.size() == 2 && (operands[0].As<Product>() || operands[1].As<Product>())) {
-    auto a = CasSimplify(operands[0]);
-    auto b = CasSimplify(operands[1]);
+    auto a = CasSimplify(operands[0], var_intervals);
+    auto b = CasSimplify(operands[1], var_intervals);
 
     auto* a_product = a.As<Product>();
     auto* b_product = b.As<Product>();
@@ -586,7 +549,7 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
 
   // SPRDREC-3
   if (operands.size() > 2) {
-    auto p0 = CasSimplify(operands[0]);
+    auto p0 = CasSimplify(operands[0], var_intervals);
     auto w  = SimplifyProductRec(Rest(operands));
     if (p0.As<Product>()) {
       return MergeProduct(p0->operands, w);
@@ -598,7 +561,7 @@ std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& _operands) {
   return operands;
 }
 
-Expr SimplifyProduct(Expr a) {
+Expr CasSimplifyMutator::SimplifyProduct(Expr a) {
   a = SumOrProductGetSingleElementsRec(a);
   // We reuse the Mul node for production.
   auto* prod = a.As<Product>();
@@ -606,7 +569,7 @@ Expr SimplifyProduct(Expr a) {
 
   const auto& _operands = prod->operands();
   std::vector<Expr> operands;
-  for (auto& e : _operands) operands.push_back(CasSimplify(e));
+  for (auto& e : _operands) operands.push_back(CasSimplify(e, var_intervals));
 #ifdef CINN_DEBUG
   {
     std::stringstream ss;
@@ -638,7 +601,7 @@ Expr SimplifyProduct(Expr a) {
   return Product::Make(SimplifyProductRec(operands));
 }
 
-Expr SimplifySum(Expr u) {
+Expr CasSimplifyMutator::SimplifySum(Expr u) {
   u = SumOrProductGetSingleElementsRec(u);
 
   auto* sum = u.As<Sum>();
@@ -655,13 +618,13 @@ Expr SimplifySum(Expr u) {
 }
 
 // This implementation is similar to MergeProduct
-std::vector<Expr> MergeSum(const std::vector<Expr>& _p, const std::vector<Expr>& _q) {
+std::vector<Expr> CasSimplifyMutator::MergeSum(const std::vector<Expr>& _p, const std::vector<Expr>& _q) {
   std::vector<Expr> p, q;
   for (auto& e : _p) {
-    p.push_back(CasSimplify(e));
+    p.push_back(CasSimplify(e, var_intervals));
   }
   for (auto& e : _q) {
-    q.push_back(CasSimplify(e));
+    q.push_back(CasSimplify(e, var_intervals));
   }
 
 #ifdef CINN_DEBUG
@@ -718,11 +681,11 @@ std::vector<Expr> MergeSum(const std::vector<Expr>& _p, const std::vector<Expr>&
 }
 
 // The implementation is similar to SimpifyProductRec
-std::vector<Expr> SimplifySumRec(const std::vector<Expr>& _operands) {
+std::vector<Expr> CasSimplifyMutator::SimplifySumRec(const std::vector<Expr>& _operands) {
   CHECK_GE(_operands.size(), 2UL);
 
   std::vector<Expr> operands;
-  for (auto& e : _operands) operands.push_back(CasSimplify(e));
+  for (auto& e : _operands) operands.push_back(CasSimplify(e, var_intervals));
 
 #ifdef CINN_DEBUG
   {
@@ -764,7 +727,7 @@ std::vector<Expr> SimplifySumRec(const std::vector<Expr>& _operands) {
       auto* bm = b.As<Mod>();
       if (am && bm) {
         if (am->b() == bm->b() && ProductGetNonConstantPart(am->a()) == ProductGetNonConstantPart(bm->a())) {
-          return {CasSimplify(Mod::Make(Sum::Make({am->a(), bm->a()}), am->b()))};
+          return {CasSimplify(Mod::Make(Sum::Make({am->a(), bm->a()}), am->b()), var_intervals)};
         }
       }
     }
@@ -776,7 +739,7 @@ std::vector<Expr> SimplifySumRec(const std::vector<Expr>& _operands) {
       VLOG(3) << "b " << b;
       Expr s = SimplifySum(Sum::Make({ProductGetConstantPart(a), ProductGetConstantPart(b)}));
       Expr p = Product::Make({s, ProductGetNonConstantPart(a)});
-      return {CasSimplify(p)};
+      return {CasSimplify(p, var_intervals)};
     }
 
     // case 4, b <| a
@@ -828,12 +791,12 @@ std::vector<Expr> SimplifySumRec(const std::vector<Expr>& _operands) {
   return operands;
 }
 
-Expr SimplifyMod(Expr u) {
+Expr CasSimplifyMutator::SimplifyMod(Expr u) {
   auto* node = u.As<Mod>();
   CHECK(node);
 
-  auto a = CasSimplify(node->a());
-  auto b = CasSimplify(node->b());
+  auto a = CasSimplify(node->a(), var_intervals);
+  auto b = CasSimplify(node->b(), var_intervals);
 
   auto* ai = a.As<IntImm>();
   auto* bi = b.As<IntImm>();
@@ -861,10 +824,43 @@ Expr SimplifyMod(Expr u) {
     for (auto& v : a->operands) {
       sum_args.push_back(Mod::Make(v, b));
     }
-    return CasSimplify(Sum::Make(sum_args));
+    return CasSimplify(Sum::Make(sum_args), var_intervals);
   }
 
   return Mod::Make(a, b);
+}
+
+Expr CasSimplifyMutator::operator()(Expr u) {
+  u = detail::SumOrProductGetSingleElementsRec(u);
+
+  if (u.is_constant() || u.As<_Var_>()) return u;
+
+  if (u.As<Power>()) {
+    auto expr = SimplifyPower(u);
+    return expr;
+  }
+
+  if (u.As<FracOp>()) {
+    u        = SimplifyFracOp(u);
+    auto tmp = FurtherSimplifyFracWithInterval(u, var_intervals);
+    LOG(INFO) << "futher simplify result " << tmp;
+    if (!tmp.same_as(u)) return operator()(tmp);
+    return u;
+  }
+
+  if (u.As<Product>()) {
+    return detail::SumOrProductGetSingleElementsRec(SimplifyProduct(u));
+  }
+
+  if (u.As<Sum>()) {
+    return detail::SumOrProductGetSingleElementsRec(SimplifySum(u));
+  }
+
+  if (u.As<Mod>()) {
+    return detail::SumOrProductGetSingleElementsRec(SimplifyMod(u));
+  }
+
+  return u;
 }
 
 bool CASasSymbol(Expr expr) {
@@ -1113,10 +1109,68 @@ Expr DividePartially(Sum* a, int b) {
   return Expr(a);
 }
 
-Expr SimplifyFracOp(Expr expr) {
+bool IsMonotonical(Expr u, Var v) {
+  auto* up = u.As<Product>();
+  auto* uv = u.As<_Var_>();
+
+  if (uv && uv->name == v->name) return true;
+  if (up) {
+    for (auto& item : up->operands()) {
+      if (IsMonotonical(item, v)) return true;
+    }
+  }
+  return false;
+}
+
+// Should be called after SimplifyFracOp. If y is integer and $y\in \[0, 3\]$, then y/4=0
+Expr CasSimplifyMutator::FurtherSimplifyFracWithInterval(
+    Expr expr, const std::unordered_map<std::string, CasInterval>& var_intervals) {
+  LOG(INFO) << "futher simplify frac " << expr << " " << expr.node_type();
   auto* node = expr.As<FracOp>();
-  auto a     = CasSimplify(node->a());
-  auto b     = CasSimplify(node->b());
+  if (!node) return expr;
+  auto a = CasSimplify(node->a(), var_intervals);
+  auto b = CasSimplify(node->b(), var_intervals);
+
+  LOG(INFO) << "a " << a << " " << a.node_type();
+  LOG(INFO) << "b " << b << " " << b.node_type();
+
+  auto* ai = a.As<IntImm>();
+  auto* bi = b.As<IntImm>();
+  auto* av = a.As<_Var_>();
+  auto* bv = b.As<_Var_>();
+  auto* ap = a.As<Product>();
+  LOG(INFO) << "var_intervals.size " << var_intervals.size();
+  // case: y / 4, y\in[0,3]
+  if (bi) {
+    if (av) {
+      auto it = var_intervals.find(av->name);
+      if (it != var_intervals.end()) LOG(INFO) << "found " << av->name;
+      if (it != var_intervals.end() && std::abs(it->second.r) < std::abs(bi->value) &&
+          std::abs(it->second.l) < std::abs(bi->value))
+        return make_const(a.type(), 0);
+    }
+  }
+  // case: 1/y, y\in(2, 100)
+  if (ai) {
+    if (bv) {
+      auto it     = var_intervals.find(bv->name);
+      auto ai_abs = std::abs(ai->value);
+      if (it != var_intervals.end()) {
+        LOG(INFO) << "found " << bv->name << " " << it->second << " "
+                  << " ai " << ai_abs;
+      }
+      if (it != var_intervals.end() && std::abs(it->second.r) > ai_abs && std::abs(it->second.l) > ai_abs) {
+        return make_const(a.type(), 0);
+      }
+    }
+  }
+  return expr;
+}
+
+Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
+  auto* node = expr.As<FracOp>();
+  auto a     = CasSimplify(node->a(), var_intervals);
+  auto b     = CasSimplify(node->b(), var_intervals);
 
   auto* ap = a.As<Product>();
   auto* bp = b.As<Product>();
@@ -1127,7 +1181,7 @@ Expr SimplifyFracOp(Expr expr) {
   // case 1
   // integer constant division: 64/3
   if (node->is_constant()) {
-    return detail::SimplifyRationalNumber(expr);
+    return SimplifyRationalNumber(expr);
   }
 
   // case 2
@@ -1224,34 +1278,8 @@ Expr SimplifyFracOp(Expr expr) {
 
 }  // namespace detail
 
-Expr CasSimplify(Expr u) {
-  u = detail::SumOrProductGetSingleElementsRec(u);
-
-  if (u.is_constant() || u.As<_Var_>()) return u;
-
-  if (u.As<Power>()) {
-    auto expr = detail::SimplifyPower(u);
-    return expr;
-  }
-
-  if (u.As<FracOp>()) {
-    u = detail::SimplifyFracOp(u);
-    return u;
-  }
-
-  if (u.As<Product>()) {
-    return detail::SumOrProductGetSingleElementsRec(detail::SimplifyProduct(u));
-  }
-
-  if (u.As<Sum>()) {
-    return detail::SumOrProductGetSingleElementsRec(detail::SimplifySum(u));
-  }
-
-  if (u.As<Mod>()) {
-    return detail::SumOrProductGetSingleElementsRec(detail::SimplifyMod(u));
-  }
-
-  return u;
+Expr CasSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var_intervals) {
+  return detail::CasSimplifyMutator(var_intervals)(u);
 }
 
 }  // namespace common

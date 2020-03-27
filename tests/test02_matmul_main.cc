@@ -227,9 +227,13 @@ TEST(matmul, LoopPermutation) {
     std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
     std::tie(k_outer, k_inner)                   = C->stage()->Split("k", 4);
 
+    C_init->stage()->Vectorize(1, 8);
+    C_init->stage()->Unroll(1);
+
     C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
 
     C->stage()->Vectorize(j_inner, 8);
+    C->stage()->Unroll(5);
   }
 
   Module module("module_loop_permutation", target);

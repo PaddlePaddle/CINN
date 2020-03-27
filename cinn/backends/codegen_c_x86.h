@@ -46,6 +46,7 @@ class CodeGenCX86 : public CodeGenC {
 
   void Visit(const ir::Load *op) override;
   void Visit(const ir::Store *op) override;
+  void Visit(const ir::Broadcast *op) override;
 
   //! Check the features.
   // @{
