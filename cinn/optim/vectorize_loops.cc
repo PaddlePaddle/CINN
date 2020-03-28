@@ -120,13 +120,9 @@ class Vectorizer : public IRMutator<Expr *> {
     auto *node                = expr->As<Load>();
     std::vector<Expr> indices = node->indices;
     // We ignore the predicate here.
-    for (auto &idx : node->indices) {
-      Visit(&idx);
-      LOG(INFO) << "idx " << idx;
-    }
-
     bool need_visit = false;
     for (int i = 0; i < indices.size(); i++) {
+      Visit(&node->indices[i]);
       if (!node->indices[i].same_as(indices[i])) {
         need_visit = true;
         break;
@@ -137,7 +133,6 @@ class Vectorizer : public IRMutator<Expr *> {
     int width = node->indices.front().type().lanes();
 
     *expr = Load::Make(node->tensor, node->indices);
-    LOG(INFO) << "Vecorized Load " << *expr;
   }
 
   void Visit(const Store *op, Expr *expr) override {
@@ -171,7 +166,6 @@ class Vectorizer : public IRMutator<Expr *> {
 
     LOG(INFO) << "Vectorized Store " << *expr;
   }
-
 
   void Visit(const Call *op, Expr *expr) override { LOG(ERROR) << "Ignore widen Call node"; }
 

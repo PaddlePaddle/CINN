@@ -67,7 +67,7 @@ class CodeGenCX86 : public CodeGenC {
   void PrintAbsAddr(const Op *op) {
     os() << op->tensor.template As<ir::_Tensor_>()->name << " + ";
 
-    auto index = op->index();
+    auto index   = op->index();
     auto *ramp_n = index.template As<ir::Ramp>();
     if (ramp_n) {
       CHECK(!ramp_n->base.template As<ir::Ramp>()) << "base of a Ramp node should not be Ramp type";

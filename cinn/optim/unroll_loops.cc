@@ -42,7 +42,9 @@ struct UnrollMutator : public ir::IRMutator<Expr*> {
     for (int i = min->value; i < extent->value; i++) {
       Expr start = op->min + i;
       body.push_back(optim::IRCopy(op->body));
+      LOG(INFO) << "replae " << op->loop_var;
       optim::IrReplace(&body.back(), op->loop_var, start);
+      LOG(INFO) << "after " << body.back();
     }
 
     *expr = ir::Block::Make(body);

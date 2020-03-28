@@ -282,11 +282,11 @@ TEST(matmul, ArrayPacking) {
     Iterator i_outer, i_inner, j_outer, j_inner;
     Iterator k_outer, k_inner;
 
-    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
-    std::tie(k_outer, k_inner)                   = C->stage()->Split("k", 4);
+    // std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
+    // std::tie(k_outer, k_inner)                   = C->stage()->Split("k", 4);
 
-    C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
-    //C->stage()->Split(j_inner, 8);
+    // C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
+    // C->stage()->Split(j_inner, 8);
   }
 
   Module module("module_array_packing", target);

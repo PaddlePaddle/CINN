@@ -217,6 +217,10 @@ bool IsPureMath(Expr expr) {
   std::set<IrNodeTy> valid_node_tys({
       IrNodeTy ::_Var_,
       IrNodeTy ::IntImm,
+      IrNodeTy ::Sum,
+      IrNodeTy ::Product,
+      IrNodeTy ::FracOp,
+      IrNodeTy ::Power,
       IrNodeTy ::FloatImm,
       IrNodeTy ::Add,
       IrNodeTy ::Sub,
@@ -226,6 +230,9 @@ bool IsPureMath(Expr expr) {
   });
 
   auto complex_nodes = ir::CollectIRNodes(expr, [&](const Expr* n) { return !valid_node_tys.count(n->node_type()); });
+  for (auto& node : complex_nodes) {
+    LOG(ERROR) << "Found " << node->node_type() << " " << Expr(node);
+  }
   return complex_nodes.empty();
 }
 

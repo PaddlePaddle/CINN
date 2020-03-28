@@ -38,10 +38,10 @@ TEST(CreateSchedule, compute_at) {
   {
     poly_for (0, (j <= 99), 1)
     {
-      B[((i * 100) + j)] = (A[((i * 100) + j)] + 1)
+      B[i, j] = (A[i, j] + 1)
       poly_for (0, (k <= 99), 1)
       {
-        C[((((i * 100) * 100) + (j * 100)) + k)] = (B[((i * 100) + j)] * B[((j * 100) + k)])
+        C[i, j, k] = (B[i, j] * B[j, k])
       }
     }
   }
@@ -81,21 +81,21 @@ TEST(CreateSchedule, buffer_bind_to_multiple_tensors_schedule) {
   {
     poly_for (0, (j <= 99), 1)
     {
-      B[((i * 100) + j)] = (A[((i * 100) + j)] + 1)
+      B[i, j] = (A[i, j] + 1)
     }
   }
   poly_for (0, (i <= 99), 1)
   {
     poly_for (0, (j <= 99), 1)
     {
-      C[((i * 100) + j)] = (A[((i * 100) + j)] + 1)
+      C[i, j] = (A[i, j] + 1)
     }
   }
   poly_for (0, (i <= 99), 1)
   {
     poly_for (0, (j <= 99), 1)
     {
-      D[((i * 100) + j)] = (A[((i * 100) + j)] + 1)
+      D[i, j] = (A[i, j] + 1)
     }
   }
 }

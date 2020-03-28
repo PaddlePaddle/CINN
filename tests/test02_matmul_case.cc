@@ -99,5 +99,5 @@ TEST(test02, basic) {
 
   TEST_FUNC(matmul_loop_permutation)
 
-  //TEST_FUNC1(matmul_array_packing, 1e-5)
+  TEST_FUNC1(matmul_array_packing, 1e-5)
 }

@@ -9,6 +9,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/lang/tensor.h"
+#include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
 
@@ -225,7 +226,7 @@ Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
   node->value   = value;
   node->indices = indices;
 
-  for (auto& indice : indices) {
+  for (auto &indice : indices) {
     if (indice.As<Add>()) {
       if (indice.As<Add>()->b().As<Ramp>() || indice.As<Add>()->a().As<Ramp>()) {
         LOG(FATAL) << "found";
@@ -239,7 +240,9 @@ Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
 Expr Store::index() const {
   auto *tensor_n = tensor.As<ir::_Tensor_>();
   CHECK(tensor_n);
-  return common::ExpandTo1DIndice(tensor_n->shape, indices);
+  Expr res = common::ExpandTo1DIndice(tensor_n->shape, indices);
+  optim::Simplify(&res);
+  return res;
 }
 
 Type Store::type() const { return value.type(); }
@@ -440,7 +443,9 @@ std::vector<const Expr *> Load::expr_fields() const {
 Expr Load::index() const {
   auto *tensor_n = tensor.As<_Tensor_>();
   CHECK(tensor_n);
-  return common::ExpandTo1DIndice(tensor_n->shape, indices);
+  Expr res = common::ExpandTo1DIndice(tensor_n->shape, indices);
+  optim::Simplify(&res);
+  return res;
 }
 
 Expr Ramp::Make(Expr base, Expr stride, int lanes) {
