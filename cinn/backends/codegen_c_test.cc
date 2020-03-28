@@ -71,7 +71,7 @@ void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct
   float* C = (float*)(cinn_buffer_get_data_handle(_C));
   for (int32_t i = 0; (i <= 99); i += 1) {
     for (int32_t j = 0; (j <= 19); j += 1) {
-      C[((i * 20) + j)] = (A[((i * 20) + j)] + B[((i * 20) + j)]);
+      C[((20 * i) + j)] = (A[((20 * i) + j)] + B[((20 * i) + j)]);
     };
   };
 }
@@ -236,9 +236,9 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   float* C_init = (float*)(cinn_buffer_get_data_handle(_C));
   for (int32_t i = 0; (i <= 99); i += 1) {
     for (int32_t j = 0; (j <= 49); j += 1) {
-      C_init[((i * 50) + j)] = 0;
+      C_init[((50 * i) + j)] = 0;
       for (int32_t k = 0; (k <= 19); k += 1) {
-        C[((i * 50) + j)] = (C[((i * 50) + j)] + (A[((i * 20) + k)] * B[((k * 50) + j)]));
+        C[((50 * i) + j)] = (C[((50 * i) + j)] + (A[((20 * i) + k)] * B[((50 * k) + j)]));
       };
     };
   };
@@ -320,10 +320,10 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
     for (int32_t j_outer = 0; (j_outer <= 15); j_outer += 1) {
       for (int32_t i_inner = 0; (i_inner <= min(31, ((-32 * i_outer) + 99))); i_inner += 1) {
         for (int32_t j_inner = 0; (j_inner <= min(31, ((-32 * j_outer) + 499))); j_inner += 1) {
-          C_init[((((32 * i_outer) + i_inner) * 500) + ((32 * j_outer) + j_inner))] = 0;
+          C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0;
           for (int32_t k_outer = 0; (k_outer <= 49); k_outer += 1) {
             for (int32_t k_inner = 0; (k_inner <= 3); k_inner += 1) {
-              C[((((32 * i_outer) + i_inner) * 500) + ((32 * j_outer) + j_inner))] = (C[((((32 * i_outer) + i_inner) * 500) + ((32 * j_outer) + j_inner))] + (A[((((32 * i_outer) + i_inner) * 200) + ((4 * k_outer) + k_inner))] * B[((((4 * k_outer) + k_inner) * 500) + ((32 * j_outer) + j_inner))]));
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k_outer) + k_inner)))] * B[((32 * j_outer) + ((500 * k_inner) + ((2000 * k_outer) + j_inner)))]));
             };
           };
         };
@@ -399,7 +399,7 @@ void matmul_with_packing(const struct cinn_buffer_t *_A, const struct cinn_buffe
   for (int32_t i = 0; (i <= 14); i += 1) {
     for (int32_t j = 0; (j <= 199); j += 1) {
       for (int32_t k = 0; (k <= 31); k += 1) {
-        PackedB[((((i * 200) * 32) + (j * 32)) + k)] = B[((j * 500) + ((i * 32) + k))];
+        PackedB[((6400 * i) + ((32 * j) + k))] = B[((32 * i) + ((500 * j) + k))];
       };
     };
   };
@@ -409,7 +409,7 @@ void matmul_with_packing(const struct cinn_buffer_t *_A, const struct cinn_buffe
         for (int32_t j_inner = 0; (j_inner <= min(31, ((-32 * j_outer) + 499))); j_inner += 1) {
           for (int32_t k_outer = 0; (k_outer <= 49); k_outer += 1) {
             for (int32_t k_inner = 0; (k_inner <= 3); k_inner += 1) {
-              C[((((32 * i_outer) + i_inner) * 500) + ((32 * j_outer) + j_inner))] = (A[((((32 * i_outer) + i_inner) * 200) + ((4 * k_outer) + k_inner))] * PackedB[(((((((32 * j_outer) + j_inner) / 32) * 200) * 32) + (((4 * k_outer) + k_inner) * 32)) + (((32 * j_outer) + j_inner) % 32))]);
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k_outer) + k_inner)))] * PackedB[((j_inner % 32) + ((6400 * (j_inner/32)) + ((6400 * j_outer) + ((32 * k_inner) + (128 * k_outer)))))]);
             };
           };
         };

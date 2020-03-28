@@ -37,7 +37,7 @@ TEST(lower, basic) {
   {
     poly_for (0, (j <= 14), 1)
     {
-      B[((i * 15) + j)] = (A[((i * 15) + j)] + 1)
+      B[i, j] = (A[i, j] + 1)
     }
   }
 }

@@ -27,7 +27,7 @@ TEST(IrSimplify, basic) {
     // get (((C[(i * 20)] + 0) + 100) + 24.5)
     Simplify(&B);
     LOG(INFO) << "simplified: " << B;
-    auto out = "(124.5 + C[(20 * i)])";
+    auto out = "(124.5 + C[i, 0])";
     EXPECT_EQ(out, utils::GetStreamCnt(B));
   }
 
@@ -56,11 +56,11 @@ TEST(IrSimplify, basic) {
   {
     poly_for (0, (j <= 19), 1)
     {
-      B[((20 * i) + j)] = (125 + (X[((20 * i) + j)] + y[(20 * i)]))
+      B[i, j] = (125 + (X[i, j] + y[i, 0]))
     }
   }
 })ROC";
-    EXPECT_EQ(Trim(GetStreamCnt(body)), Trim(target_out));
+    EXPECT_EQ(Trim(target_out), Trim(GetStreamCnt(body)));
   }
 
   {
@@ -89,12 +89,12 @@ TEST(IrSimplify, basic) {
   {
     poly_for (0, (j <= 19), 1)
     {
-      B[((20 * i) + j)] = (125 + (X[(20000 * i)] + (0.333333 * y[(20 * i)])))
+      B[i, j] = (125 + (X[(1000 * i), 0] + (0.333333 * y[i, 0])))
     }
   }
 }
 )ROC";
-    EXPECT_EQ(Trim(GetStreamCnt(body)), Trim(target_out));
+    EXPECT_EQ(Trim(target_out), Trim(GetStreamCnt(body)));
   }
 }
 

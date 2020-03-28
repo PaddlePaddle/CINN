@@ -80,17 +80,21 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 
   Expr Visit(const Load* op) override {
-    auto index  = Visit(&op->index);
-    auto buffer = Visit(&op->tensor);
-    return Load::Make(buffer, index);
+    auto tensor = Visit(&op->tensor);
+    std::vector<Expr> indices;
+    for (auto& idx : op->indices) {
+      indices.push_back(Visit(&idx));
+    }
+    return Load::Make(tensor, indices);
   }
 
   Expr Visit(const Store* op) override {
     auto tensor = Visit(&op->tensor);
     auto value  = Visit(&op->value);
-    auto index  = Visit(&op->index);
+    std::vector<Expr> indices;
+    for (auto& idx : op->indices) indices.push_back(Visit(&idx));
 
-    return Store::Make(tensor, value, index);
+    return Store::Make(tensor, value, indices);
   }
 
   Expr Visit(const Alloc* op) override {

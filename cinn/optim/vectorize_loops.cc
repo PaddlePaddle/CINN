@@ -117,15 +117,52 @@ class Vectorizer : public IRMutator<Expr *> {
   }
 
   void Visit(const Load *op, Expr *expr) override {
-    auto *node  = expr->As<Load>();
-    auto index0 = node->index;
+    auto *node                = expr->As<Load>();
+    std::vector<Expr> indices = node->indices;
     // We ignore the predicate here.
-    Visit(&node->index);
-    if (index0.same_as(node->index)) return;
+    bool need_visit = false;
+    for (int i = 0; i < indices.size(); i++) {
+      Visit(&node->indices[i]);
+      if (!node->indices[i].same_as(indices[i])) {
+        need_visit = true;
+        break;
+      }
+    }
+    if (!need_visit) return;
 
-    int width = node->index.type().lanes();
+    int width = node->indices.front().type().lanes();
 
-    *expr = Load::Make(node->tensor, node->index);
+    *expr = Load::Make(node->tensor, node->indices);
+  }
+
+  void Visit(const Store *op, Expr *expr) override {
+    auto *node  = expr->As<Store>();
+    auto value0 = node->value;
+    Visit(&node->value);
+
+    std::vector<Expr> indices = node->indices;
+    // We ignore the predicate here.
+    for (auto &idx : node->indices) {
+      Visit(&idx);
+    }
+
+    bool need_visit = false;
+    for (int i = 0; i < indices.size(); i++) {
+      if (!node->indices[i].same_as(indices[i])) {
+        need_visit = true;
+        break;
+      }
+    }
+    if (!need_visit) return;
+
+    int lanes   = std::max(node->value.type().lanes(), node->index().type().lanes());
+    node->value = Widen(node->value, lanes);
+
+    std::vector<Expr> new_indices;
+    for (auto &idx : node->indices) {
+      new_indices.push_back(Widen(idx, lanes));
+    }
+    *expr = Store::Make(node->tensor, node->value, new_indices);
   }
 
   void Visit(const Call *op, Expr *expr) override { LOG(ERROR) << "Ignore widen Call node"; }
@@ -134,21 +171,6 @@ class Vectorizer : public IRMutator<Expr *> {
     auto *node = expr->As<Let>();
     Visit(&node->value);
     LOG(ERROR) << "Let not supported";
-  }
-
-  void Visit(const Store *op, Expr *expr) override {
-    auto *node  = expr->As<Store>();
-    auto value0 = node->value;
-    auto index0 = node->index;
-    Visit(&node->value);
-    Visit(&node->index);
-    if (value0.same_as(node->value) && index0.same_as(node->index)) return;
-
-    int lanes   = std::max(node->value.type().lanes(), node->index.type().lanes());
-    node->value = Widen(node->value, lanes);
-    node->index = Widen(node->index, lanes);
-
-    *expr = Store::Make(node->tensor, node->value, node->index);
   }
 
   void Visit(const IfThenElse *op, Expr *expr) override {
@@ -223,6 +245,7 @@ class Vectorizer : public IRMutator<Expr *> {
         *expr = Ramp::Make(T::Make(node->a(), b_ramp_n->base),    // base
                            T::Make(node->a(), b_ramp_n->stride),  // stride
                            b_ramp_n->lanes);
+
         return;
       }
       // Ramp(base,stride,lanes) * b  = Ramp(base*b, stride*b,lanes)

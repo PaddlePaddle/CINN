@@ -73,7 +73,7 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   } else {
     CHECK(node->buffer.defined()) << utils::StringFormat("Buffer for [%s] should be defined so that it can be sliced",
                                                          node->name.c_str());
-    return Load::Make(*this, common::ExpandTo1DIndice(node->shape, indices));
+    return Load::Make(*this, indices);
   }
 }
 
@@ -231,7 +231,7 @@ Expr _Tensor_::tensor_store_expanded_body() {
     }
   }
 
-  return ir::Store::Make(Expr(Buffer(this)), final_body, common::ExpandTo1DIndice(shape, axis_));
+  return ir::Store::Make(Expr(Buffer(this)), final_body, axis_);
 }
 
 void _Tensor_::Bind(lang::Buffer &buffer) {

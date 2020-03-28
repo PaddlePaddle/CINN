@@ -4,9 +4,12 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/ir.h"
 #include "cinn/common/pod_value.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/lang/tensor.h"
+#include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
 
@@ -216,17 +219,44 @@ IfThenElse::IfThenElse(Expr condition, Expr true_case, Expr false_case)
 std::vector<Expr *> IfThenElse::expr_fields() { return {&condition, &true_case, &false_case}; }
 std::vector<const Expr *> IfThenElse::expr_fields() const { return {&condition, &true_case, &false_case}; }
 
-Expr Store::Make(Expr tensor, Expr value, Expr index) {
+Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
   CHECK(tensor.As<_Tensor_>()) << "tensor should be _Tensor_ type";
-  auto node    = make_shared<Store>();
-  node->tensor = tensor;
-  node->value  = value;
-  node->index  = index;
-  node->set_type(tensor->type().ElementOf().with_lanes(index->type().lanes()));
+  auto node     = make_shared<Store>();
+  node->tensor  = tensor;
+  node->value   = value;
+  node->indices = indices;
+
+  for (auto &indice : indices) {
+    if (indice.As<Add>()) {
+      if (indice.As<Add>()->b().As<Ramp>() || indice.As<Add>()->a().As<Ramp>()) {
+        LOG(FATAL) << "found";
+      }
+    }
+  }
+  node->set_type(tensor->type().ElementOf().with_lanes(node->index().type().lanes()));
   return Expr(node);
 }
 
+Expr Store::index() const {
+  auto *tensor_n = tensor.As<ir::_Tensor_>();
+  CHECK(tensor_n);
+  Expr res = common::ExpandTo1DIndice(tensor_n->shape, indices);
+  optim::Simplify(&res);
+  return res;
+}
+
 Type Store::type() const { return value.type(); }
+std::vector<Expr *> Store::expr_fields() {
+  std::vector<Expr *> exprs({&tensor, &value});
+  for (auto &idx : indices) exprs.push_back(&idx);
+  return exprs;
+}
+
+std::vector<const Expr *> Store::expr_fields() const {
+  std::vector<const Expr *> exprs({&tensor, &value});
+  for (auto &idx : indices) exprs.push_back(&idx);
+  return exprs;
+}
 
 Expr Alloc::Make(Var buffer_var, Type type, const std::vector<Expr> &extents, Expr condition, Expr body) {
   auto node        = make_shared<Alloc>();
@@ -386,19 +416,36 @@ Var &Var::operator=(const _Var_ *x) {
   return *this;
 }
 
-Expr Load::Make(Expr tensor, Expr index) {
+Expr Load::Make(Expr tensor, const std::vector<Expr> &indices) {
   CHECK(tensor.As<ir::_Tensor_>()) << "Load's address should be a tensor";
   CHECK(tensor->type().valid());
-  CHECK(index.type().is_int(32));
-  auto node    = make_shared<Load>();
-  node->tensor = tensor;
-  node->index  = index;
-  // node->set_type(tensor->type().ElementOf().with_lanes(index.type().lanes()));
+  CHECK(!indices.empty());
+  for (auto &idx : indices) CHECK_EQ(idx.type().ElementOf(), Int(32));
+  auto node     = make_shared<Load>();
+  node->tensor  = tensor;
+  node->indices = indices;
   return Expr(node);
 }
-Type Load::type() const {
-  CHECK(index.type().is_int(32));
-  return tensor.type().ElementOf().with_lanes(index.type().lanes());
+Type Load::type() const { return tensor.type().ElementOf().with_lanes(index().type().lanes()); }
+
+std::vector<Expr *> Load::expr_fields() {
+  std::vector<Expr *> exprs({&tensor});
+  for (auto &idx : indices) exprs.push_back(&idx);
+  return exprs;
+}
+
+std::vector<const Expr *> Load::expr_fields() const {
+  std::vector<const Expr *> exprs({&tensor});
+  for (auto &idx : indices) exprs.push_back(&idx);
+  return exprs;
+}
+
+Expr Load::index() const {
+  auto *tensor_n = tensor.As<_Tensor_>();
+  CHECK(tensor_n);
+  Expr res = common::ExpandTo1DIndice(tensor_n->shape, indices);
+  optim::Simplify(&res);
+  return res;
 }
 
 Expr Ramp::Make(Expr base, Expr stride, int lanes) {

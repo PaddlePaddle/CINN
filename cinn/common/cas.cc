@@ -843,7 +843,6 @@ Expr CasSimplifyMutator::operator()(Expr u) {
   if (u.As<FracOp>()) {
     u        = SimplifyFracOp(u);
     auto tmp = FurtherSimplifyFracWithInterval(u, var_intervals);
-    LOG(INFO) << "futher simplify result " << tmp;
     if (!tmp.same_as(u)) return operator()(tmp);
     return u;
   }
@@ -1125,21 +1124,16 @@ bool IsMonotonical(Expr u, Var v) {
 // Should be called after SimplifyFracOp. If y is integer and $y\in \[0, 3\]$, then y/4=0
 Expr CasSimplifyMutator::FurtherSimplifyFracWithInterval(
     Expr expr, const std::unordered_map<std::string, CasInterval>& var_intervals) {
-  LOG(INFO) << "futher simplify frac " << expr << " " << expr.node_type();
   auto* node = expr.As<FracOp>();
   if (!node) return expr;
   auto a = CasSimplify(node->a(), var_intervals);
   auto b = CasSimplify(node->b(), var_intervals);
-
-  LOG(INFO) << "a " << a << " " << a.node_type();
-  LOG(INFO) << "b " << b << " " << b.node_type();
 
   auto* ai = a.As<IntImm>();
   auto* bi = b.As<IntImm>();
   auto* av = a.As<_Var_>();
   auto* bv = b.As<_Var_>();
   auto* ap = a.As<Product>();
-  LOG(INFO) << "var_intervals.size " << var_intervals.size();
   // case: y / 4, y\in[0,3]
   if (bi) {
     if (av) {

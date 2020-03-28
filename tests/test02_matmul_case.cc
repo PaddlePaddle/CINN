@@ -56,7 +56,7 @@ TEST(test02, basic) {
   auto compare = [&](float diff = 1e-5) {
     for (int i = 0; i < M; i++) {
       for (int j = 0; j < N; j++) {
-        EXPECT_NEAR(Cd[i * N + j], Cd_target[i * N + j], diff);
+        ASSERT_NEAR(Cd[i * N + j], Cd_target[i * N + j], diff);
       }
     }
   };

@@ -67,12 +67,13 @@ class CodeGenCX86 : public CodeGenC {
   void PrintAbsAddr(const Op *op) {
     os() << op->tensor.template As<ir::_Tensor_>()->name << " + ";
 
-    auto *ramp_n = op->index.template As<ir::Ramp>();
+    auto index   = op->index();
+    auto *ramp_n = index.template As<ir::Ramp>();
     if (ramp_n) {
       CHECK(!ramp_n->base.template As<ir::Ramp>()) << "base of a Ramp node should not be Ramp type";
       Print(ramp_n->base);
     } else {
-      Print(op->index);
+      Print(op->index());
     }
   }
 
