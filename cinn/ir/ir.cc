@@ -444,7 +444,7 @@ Expr Load::index() const {
   auto *tensor_n = tensor.As<_Tensor_>();
   CHECK(tensor_n);
   Expr res = common::ExpandTo1DIndice(tensor_n->shape, indices);
-  // optim::Simplify(&res);
+  optim::Simplify(&res);
   return res;
 }
 

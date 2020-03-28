@@ -163,8 +163,6 @@ class Vectorizer : public IRMutator<Expr *> {
       new_indices.push_back(Widen(idx, lanes));
     }
     *expr = Store::Make(node->tensor, node->value, new_indices);
-
-    LOG(INFO) << "Vectorized Store " << *expr;
   }
 
   void Visit(const Call *op, Expr *expr) override { LOG(ERROR) << "Ignore widen Call node"; }
@@ -215,14 +213,12 @@ class Vectorizer : public IRMutator<Expr *> {
         *expr = Ramp::Make(T::Make(node->a(), b_ramp_n->base),  // base
                            b_ramp_n->stride,                    // stride
                            b_ramp_n->lanes);
-        LOG(INFO) << "Mutate Vector " << *expr;
         return;
       }
       if (node->b().type().lanes() == 1 && a_ramp_n) {
         *expr = Ramp::Make(T::Make(node->b(), a_ramp_n->base),  // base
                            a_ramp_n->stride,                    // stride
                            a_ramp_n->lanes);
-        LOG(INFO) << "Mutate Vector " << *expr;
         return;
       }
     }
@@ -250,7 +246,6 @@ class Vectorizer : public IRMutator<Expr *> {
                            T::Make(node->a(), b_ramp_n->stride),  // stride
                            b_ramp_n->lanes);
 
-        LOG(INFO) << "Mutate Vector " << *expr;
         return;
       }
       // Ramp(base,stride,lanes) * b  = Ramp(base*b, stride*b,lanes)
@@ -258,7 +253,6 @@ class Vectorizer : public IRMutator<Expr *> {
         *expr = Ramp::Make(T::Make(a_ramp_n->base, node->b()),    // base
                            T::Make(a_ramp_n->stride, node->b()),  // stride
                            a_ramp_n->lanes);
-        LOG(INFO) << "Mutate Vector " << *expr;
         return;
       }
     }
