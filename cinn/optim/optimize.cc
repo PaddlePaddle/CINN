@@ -13,7 +13,7 @@ namespace optim {
 Expr Optimize(Expr e) {
   auto copied = IRCopy(e);
   Simplify(&copied);
-  IrEliminateMod(&copied);
+  // IrEliminateMod(&copied);
   VectorizeLoops(&copied, Target());
   UnrollLoop(&copied);
   RemoveNestedBlock(&copied);

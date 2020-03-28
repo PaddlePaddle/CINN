@@ -245,6 +245,7 @@ void CodeGenC::Visit(const ir::Module *op) { NOT_IMPLEMENTED }
 void CodeGenC::Visit(const ir::_Var_ *op) { os() << op->name; }
 
 void CodeGenC::Visit(const ir::Load *op) {
+  LOG(INFO) << "Load " << Expr(const_cast<ir::Load *>(op));
   Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
   if (dense_strided_ramp.defined()) {  // Loading a continuous Ramp address.
     CHECK(op->type().is_vector());
