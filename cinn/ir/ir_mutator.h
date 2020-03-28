@@ -112,14 +112,14 @@ void IRMutator<T>::Visit(const _Var_ *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const Load *expr, T op) {
   auto *node = op->template As<Load>();
-  IRVisitorBase<void, T>::Visit(&node->index, &node->index);
+  for (auto &idx : node->indices) IRVisitorBase<void, T>::Visit(&idx, &idx);
 }
 template <typename T>
 void IRMutator<T>::Visit(const Store *expr, T op) {
   auto *node = op->template As<Store>();
   IRVisitorBase<void, T>::Visit(&node->value, &node->value);
   IRVisitorBase<void, T>::Visit(&node->tensor, &node->tensor);
-  IRVisitorBase<void, T>::Visit(&node->index, &node->index);
+  for (auto &idx : node->indices) IRVisitorBase<void, T>::Visit(&idx, &idx);
 }
 template <typename T>
 void IRMutator<T>::Visit(const Alloc *expr, T op) {

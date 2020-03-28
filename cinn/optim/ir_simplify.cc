@@ -56,11 +56,13 @@ struct SimplifyLoadMutator : public ir::IRMutator<ir::Expr*> {
 
   void Visit(const Load* expr, Expr* op) override {
     auto* node = op->As<Load>();
-    if (common::IsPureMath(node->index)) {
-      PartialSimplify(&node->index);
-    } else {
-      SimplifyButStoreLoadMutator mutator;
-      mutator(&node->index);
+    for (auto& idx : node->indices) {
+      if (common::IsPureMath(node->index())) {
+        PartialSimplify(&idx);
+      } else {
+        SimplifyButStoreLoadMutator mutator;
+        mutator(&idx);
+      }
     }
   }
 };
@@ -71,11 +73,13 @@ struct SimplifyStoreMutator : public ir::IRMutator<ir::Expr*> {
   void Visit(const Store* expr, Expr* op) override {
     auto* node = op->As<Store>();
 
-    if (common::IsPureMath(node->index)) {
-      PartialSimplify(&node->index);
-    } else {
-      SimplifyButStoreLoadMutator mutator;
-      mutator(&node->index);
+    for (auto& idx : node->indices) {
+      if (common::IsPureMath(node->index())) {
+        PartialSimplify(&idx);
+      } else {
+        SimplifyButStoreLoadMutator mutator;
+        mutator(&idx);
+      }
     }
   }
 };

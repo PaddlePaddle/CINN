@@ -156,17 +156,25 @@ void IrPrinter::Visit(const Select *x) {
   os_ << ")";
 }
 void IrPrinter::Visit(const Load *x) {
-  auto *node = x->tensor.As<ir::_Tensor_>();
-  CHECK(node);
-  os_ << node->name << "[";
-  Print(x->index);
+  auto *tensor = x->tensor.As<ir::_Tensor_>();
+  CHECK(tensor);
+  os_ << tensor->name << "[";
+  for (int i = 0; i < x->indices.size() - 1; i++) {
+    Print(x->indices[i]);
+    os() << ", ";
+  }
+  if (!x->indices.empty()) Print(x->indices.back());
   os_ << "]";
 }
 void IrPrinter::Visit(const Store *x) {
   auto *tensor_node = x->tensor.As<ir::_Tensor_>();
   CHECK(tensor_node);
   os_ << tensor_node->name << "[";
-  Print(x->index);
+  for (int i = 0; i < x->indices.size() - 1; i++) {
+    Print(x->indices[i]);
+    os() << ", ";
+  }
+  if (!x->indices.empty()) Print(x->indices.back());
   os_ << "] = ";
   Print(x->value);
 }

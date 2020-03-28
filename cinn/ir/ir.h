@@ -389,12 +389,14 @@ struct Select : public ExprNode<Select> {
  */
 struct Load : public ExprNode<Load> {
   Expr tensor;  // should be a buffer.
-  Expr index;
+  std::vector<Expr> indices;
+  //! The abstract offset.
+  Expr index() const;
 
-  static Expr Make(Expr tensor, Expr index);
+  static Expr Make(Expr tensor, const std::vector<Expr>& indices);
 
-  std::vector<Expr*> expr_fields() override { return {&tensor, &index}; }
-  std::vector<const Expr*> expr_fields() const override { return {&tensor, &index}; }
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
 
   Type type() const override;
 
@@ -406,14 +408,16 @@ struct Load : public ExprNode<Load> {
  */
 struct Store : public ExprNode<Store> {
   Expr tensor;
-  Expr value, index;
+  Expr value;
+  std::vector<Expr> indices;
 
-  static Expr Make(Expr tensor, Expr value, Expr index);
+  static Expr Make(Expr tensor, Expr value, const std::vector<Expr>& indices);
 
-  std::vector<Expr*> expr_fields() override { return {&tensor, &value, &index}; }
-  std::vector<const Expr*> expr_fields() const override { return {&tensor, &value, &index}; }
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
 
   Type type() const override;
+  Expr index() const;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Store;
 };

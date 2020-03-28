@@ -9,7 +9,7 @@ void CodeGenCX86::Visit(const ir::Mul *op) { VisitBinaryOp(op, op->a(), op->b(),
 void CodeGenCX86::Visit(const ir::Div *op) { VisitBinaryOp(op, op->a(), op->b(), "div"); }
 
 void CodeGenCX86::Visit(const ir::Load *op) {
-  Expr dense_strided_ramp = detail::StridedRampBase(op->index, 1);
+  Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
   if (dense_strided_ramp.defined()) {  // Loading a continuous Ramp address.
     CHECK(op->type().is_vector());
 
