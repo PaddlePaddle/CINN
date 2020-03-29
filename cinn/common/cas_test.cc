@@ -222,6 +222,38 @@ TEST(CAS, FracOp) {
   EXPECT_EQ(GetStreamCnt(u4), "((32768 * (y/32)) + (32768 * x))");
 }
 
+#define OUTPUT_EQUAL(s__) EXPECT_EQ(GetStreamCnt(u), s__);
+
+TEST(CAS, Mod) {
+  Var x = ir::_Var_::Make("x", Int(32));
+  Var y = ir::_Var_::Make("y", Int(32));
+  Var z = ir::_Var_::Make("z", Int(32));
+
+  std::unordered_map<std::string, CasInterval> var_intervals0, var_intervals1;
+  var_intervals0.emplace("x", CasInterval{0, 3});
+  var_intervals0.emplace("y", CasInterval{0, 3});
+
+  Expr u;
+  u = AutoSimplify(x % 5);
+  EXPECT_EQ(GetStreamCnt(u), "(x % 5)");
+  OUTPUT_EQUAL("(x % 5)")
+
+  u = AutoSimplify((5 + x) % 5);
+  OUTPUT_EQUAL("(x % 5)")
+
+  u = AutoSimplify((x + 5 * y + 1 + 1 + 3 - z * 3) % 5);
+  OUTPUT_EQUAL("((x + (-3 * z)) % 5)")
+
+  u = AutoSimplify((x + 5) % 5, var_intervals0);
+  OUTPUT_EQUAL("x")
+
+  u = AutoSimplify((x + y + 5) % 5, var_intervals0);
+  OUTPUT_EQUAL("((x + y) % 5)")
+
+  u = AutoSimplify((x + 20 * y + 5) % 5, var_intervals0);
+  OUTPUT_EQUAL("x")
+}
+
 TEST(CAS, IntConnerCase) {
   Var x = ir::_Var_::Make("x", Int(32));
   Var y = ir::_Var_::Make("y", Int(32));
