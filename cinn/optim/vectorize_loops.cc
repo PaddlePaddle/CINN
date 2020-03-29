@@ -54,6 +54,7 @@ class Vectorizer : public IRMutator<Expr *> {
 
   void Visit(Expr *expr) {
     CHECK(!need_scalarize_);
+    LOG(INFO) << "vectorizing " << *expr;
     IRMutator<Expr *>::Visit(expr, expr);
 
     if (need_scalarize_) {
@@ -273,7 +274,7 @@ class Vectorizer : public IRMutator<Expr *> {
     int lanes = std::max(node->a().type().lanes(), node->b().type().lanes());
     return T::Make(Widen(node->a(), lanes), Widen(node->b(), lanes));
   }
-};  // namespace optim
+};
 
 struct VectorizeLoops_ : public IRMutator<Expr *> {
   const Target &target;
@@ -285,31 +286,38 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
   void Visit(const For *forloop, Expr *expr) {
     auto *node = expr->As<For>();
 
+    LOG(INFO) << "testing\n" << *expr;
+
     // the extent the forloops marked as Vectorized should be int constant
-    if (forloop->for_type == ForType::Vectorized && forloop->extent.As<IntImm>()) {
+    if (forloop->for_type == ForType::Vectorized) {
       Context::Global().info_rgt().Get<int>("vectorized_forloop_count")++;
 
-      auto new_forloop = SplitForLoop(node, forloop->extent.As<IntImm>()->value);
-      if (!new_forloop.defined()) {
+      CHECK(forloop->vectorize_info.valid());
+      auto _new_forloop = SplitForLoop(node, forloop->vectorize_info.factor);
+      LOG(INFO) << "*** new_forloop " << _new_forloop;
+      if (!_new_forloop.defined()) {
         IRMutator<>::Visit(&node->body, &node->body);
         return;
       }
+      auto *new_forloop = _new_forloop.As<ir::For>();
 
       // The forloop generated from polyhedral analysis might have a complex condition that is not something like
       // "i<20" or "i<=20", those cases is not possible to extract the extent.
-      auto *extent_int = forloop->extent.As<IntImm>();
+      auto *extent_int = new_forloop->extent.As<IntImm>();
       if (!extent_int) {
         VLOG(2) << "Ignore the forloop because the condition is not based on a int extent";
         return;
       }
 
       int extent = extent_int->value;
-      CHECK_GT(extent, 0) << "Loop over " << Expr(forloop->loop_var) << " has extent " << forloop->extent
+      CHECK_GT(extent, 0) << "Loop over " << Expr(new_forloop->loop_var) << " has extent " << new_forloop->extent
                           << ". Can only vectorize loops over a constant extent > 1";
 
-      VLOG(2) << "Vectorizing " << forloop->loop_var << " extent " << extent;
+      VLOG(2) << "Vectorizing " << new_forloop->loop_var << " extent " << extent;
       VLOG(2) << "body:\n" << node->body;
-      Vectorizer(forloop->loop_var, extent).Visit(&node->body);
+
+      Vectorizer(new_forloop->loop_var, new_forloop->extent.As<IntImm>()->value).Visit(&new_forloop->body);
+
       VLOG(2) << "after vectorize body:\n" << node->body;
 
       // Remove the forloop.
@@ -323,28 +331,26 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
   //! @return The new forloop.
   Expr SplitForLoop(For *forloop, int factor) {
     CHECK_GT(factor, 1);
-    auto *for_min_i    = forloop->min.As<IntImm>();
-    auto *for_extent_i = forloop->extent.As<IntImm>();
+    auto *for_min_i = forloop->min.As<IntImm>();
     CHECK(forloop);
-    if (!for_min_i || !for_extent_i) return Expr();
-    CHECK_GT(for_extent_i->value, 0);
-    if (for_min_i->value != 0 || for_extent_i->value % factor != 0) return Expr();
+    if (!for_min_i) return Expr();
+    if (for_min_i->value != 0) return Expr();
 
-    int times = for_extent_i->value / factor;
+    Expr times = Div::Make(forloop->extent, make_const(factor));
     // update the current forloop
-    forloop->extent   = make_const(times);
+    forloop->extent   = times;
     forloop->for_type = ForType ::Serial;
 
     // create the new forloop
-    Var new_iterator(Context::Global().NewName("vi"));
-    Expr new_index = Expr(forloop->loop_var) * factor + Expr(new_iterator);
-    optim::IrReplace(&forloop->body, forloop->loop_var, new_index);
-    auto new_forloop =
-        For::Make(new_iterator, forloop->min, make_const(factor), ForType::Vectorized, DeviceAPI::UNK, forloop->body);
-
-    forloop->body = Block::Make({new_forloop});
-
-    return new_forloop;
+    {
+      Var new_iterator(Context::Global().NewName("vi"));
+      Expr new_index = Expr(forloop->loop_var) * factor + Expr(new_iterator);
+      optim::IrReplace(&forloop->body, forloop->loop_var, new_index);
+      auto new_forloop =
+          For::Make(new_iterator, forloop->min, make_const(factor), ForType::Vectorized, DeviceAPI::UNK, forloop->body);
+      forloop->body = Block::Make({new_forloop});
+      return new_forloop;
+    }
   }
 };
 

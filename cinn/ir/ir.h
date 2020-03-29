@@ -487,6 +487,17 @@ enum class ForType : int {
   Unrolled = 3,
 };
 
+struct VectorizeInfo {
+  int level{-1};
+  int factor{-1};
+
+  inline void set(int level, int factor) {
+    this->level  = level;
+    this->factor = factor;
+  }
+  inline bool valid() const { return level >= 0 && factor > 0; }
+};
+
 struct For : public ExprNode<For> {
   //! The loop variable.
   Var loop_var;
@@ -501,23 +512,14 @@ struct For : public ExprNode<For> {
 
   DeviceAPI device_api;
 
+  VectorizeInfo vectorize_info;
+
   static Expr Make(Var loop_var, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::For;
-};
-
-struct VectorizeInfo {
-  int level{-1};
-  int factor{-1};
-
-  inline void set(int level, int factor) {
-    this->level  = level;
-    this->factor = factor;
-  }
-  inline bool valid() const { return level >= 0 && factor > 0; }
 };
 
 //! Polyhedral forloop, which condition is more complex than the normal `For`.

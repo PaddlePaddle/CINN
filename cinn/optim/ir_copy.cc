@@ -32,7 +32,9 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     auto condition = Visit(&op->condition);
     auto inc       = Visit(&op->inc);
     auto body      = Visit(&op->body);
-    return PolyFor::Make(op->iterator, init, condition, inc, op->for_type, op->device_api, body);
+    auto expr = PolyFor::Make(op->iterator, init, condition, inc, op->for_type, op->device_api, body);
+    expr.As<ir::PolyFor>()->vectorize_info = op->vectorize_info;
+    return expr;
   }
 
   Expr Visit(const Select* op) override {

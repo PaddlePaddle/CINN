@@ -32,7 +32,6 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
   void Visit(const ir::PolyFor* op, Expr* expr) override {
     auto* node = expr->As<ir::PolyFor>();
     stack.push_back(node);
-    last_polyfor = node;
     ir::IRMutator<ir::Expr*>::Visit(op, expr);
     stack.pop_back();
   }
@@ -43,13 +42,13 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
     CHECK(tensor_n);
     auto it = vectorizes.find(tensor_n->name);
     if (it != vectorizes.end()) {
-      CHECK_LT(it->second.level, stack.size());
       stack[it->second.level]->for_type       = ir::ForType::Vectorized;
       stack[it->second.level]->vectorize_info = it->second;
+      CHECK(it->second.valid());
+      LOG(INFO) << "mark tensor " << tensor_n->name <<  " as vector";
     }
   }
 
-  ir::PolyFor* last_polyfor{};
   std::vector<ir::PolyFor*> stack;
 };
 
@@ -63,7 +62,6 @@ struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
   void Visit(const ir::PolyFor* op, Expr* expr) override {
     auto* node = expr->As<ir::PolyFor>();
     stack.push_back(node);
-    last_polyfor = node;
     ir::IRMutator<>::Visit(op, expr);
     stack.pop_back();
   }
@@ -81,7 +79,6 @@ struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
     }
   }
 
-  ir::PolyFor* last_polyfor{};
   std::vector<ir::PolyFor*> stack;
 };
 

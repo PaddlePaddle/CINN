@@ -5,6 +5,7 @@
 #include "cinn/cinn.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/optim/ir_simplify.h"
+#include "cinn/optim/optimize.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/utils/string.h"
 
@@ -48,7 +49,6 @@ TEST(VectorizeLoops, Split_sperate) {
   target.os   = Target::OS ::Linux;
 
   Expr body = optim::Optimize(Expr(funcs[0]));
-  LOG(INFO) << "body:\n" << body;
 
   lang::Module module("module1", target);
   module.Append(ir::LoweredFunc(body.As<ir::_LoweredFunc_>()));
@@ -154,9 +154,7 @@ TEST(Vectorize, replace_var) {
   auto funcs = Lower("matmul", {A, B, C});
   CHECK_EQ(funcs.size(), 1UL);
 
-  optim::TransformPolyForToFor(&funcs[0]->body);
-
-  detail::Vectorize(ir::_Var_::Make("j_inner", Int(32)), 16, &funcs.front()->body);
+  Expr func = optim::Optimize(funcs.front());
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -164,7 +162,7 @@ TEST(Vectorize, replace_var) {
   target.os   = Target::OS ::Linux;
 
   lang::Module module("module1", target);
-  module.Append(funcs[0]);
+  module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
@@ -193,7 +191,7 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   };
 }
 )ROC";
-  EXPECT_EQ(Trim(out), Trim(target_out));
+  EXPECT_EQ( Trim(target_out), Trim(out));
 }
 
 TEST(Vectorize, TestMarkVectorize) {
