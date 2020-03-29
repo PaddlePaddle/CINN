@@ -6,7 +6,6 @@
 
 #include "cinn/common/ir.h"
 #include "cinn/ir/ir_printer.h"
-#include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/utils/functional.h"
 
 namespace cinn {
@@ -312,11 +311,7 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
   }
 };
 
-void VectorizeLoops(Expr *expr, const Target &target) {
-  optim::TransformPolyForToFor(expr);
-
-  return VectorizeLoops_(target)(expr);
-}
+void VectorizeLoops(Expr *expr, const Target &target) { return VectorizeLoops_(target)(expr); }
 
 namespace detail {
 

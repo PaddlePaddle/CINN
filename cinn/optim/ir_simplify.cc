@@ -25,16 +25,21 @@ namespace {
 
 //! Simplify some sub-expression in the `expr`. Due to the simplify strategy just fit several kinds of IR noedes, we
 //! partition the original expression to several sub-expression those supported by simplify, and process each of them.
-void PartialSimplify(Expr* expr) { *expr = common::AutoSimplify(*expr); }
+void PartialSimplify(Expr* expr, const std::unordered_map<std::string, common::CasInterval>& var_intervals = {}) {
+  *expr = common::AutoSimplify(*expr, var_intervals);
+}
 
 //! Simplify the expression but Load.
 struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
+  const common::cas_intervals_t& var_intervals;
+  explicit SimplifyButStoreLoadMutator(const common::cas_intervals_t& var_intervals) : var_intervals(var_intervals) {}
+
   void operator()(Expr* x) { ir::IRMutator<ir::Expr*>::Visit(x, x); }
 
   using ir::IRMutator<>::Visit;
 
 #define __(op__) \
-  void Visit(const op__* op, Expr* expr) override { PartialSimplify(expr); }
+  void Visit(const op__* op, Expr* expr) override { PartialSimplify(expr, var_intervals); }
 
   __(Add)
   __(Mul)
@@ -46,10 +51,10 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
     auto* node = expr->As<Ramp>();
     CHECK(common::IsPureMath(node->base));
     CHECK(common::IsPureMath(node->stride));
-    PartialSimplify(&node->base);
-    PartialSimplify(&node->stride);
+    PartialSimplify(&node->base, var_intervals);
+    PartialSimplify(&node->stride, var_intervals);
   }
-};  // namespace
+};
 
 struct SimplifyLoadMutator : public ir::IRMutator<ir::Expr*> {
   void operator()(Expr* x) { ir::IRMutator<ir::Expr*>::Visit(x, x); }
@@ -57,14 +62,33 @@ struct SimplifyLoadMutator : public ir::IRMutator<ir::Expr*> {
   void Visit(const Load* expr, Expr* op) override {
     auto* node = op->As<Load>();
     for (auto& idx : node->indices) {
-      if (common::IsPureMath(node->index())) {
-        PartialSimplify(&idx);
+      if (common::IsPureMath(idx)) {
+        PartialSimplify(&idx, var_intervals_);
       } else {
-        SimplifyButStoreLoadMutator mutator;
+        SimplifyButStoreLoadMutator mutator(var_intervals_);
         mutator(&idx);
       }
     }
   }
+
+  void Visit(const For* op, Expr* expr) override {
+    auto* min_i    = op->min.As<IntImm>();
+    auto* extent_i = op->extent.As<IntImm>();
+    if (min_i && extent_i) {
+      var_intervals_.emplace(op->loop_var->name, common::CasInterval{min_i->value, extent_i->value - 1});
+    }
+
+    auto* node = expr->As<For>();
+
+    operator()(&node->body);
+    operator()(&node->extent);
+
+    if (min_i && extent_i) {
+      var_intervals_.erase(op->loop_var->name);
+    }
+  }
+
+  common::cas_intervals_t var_intervals_;
 };
 
 struct SimplifyStoreMutator : public ir::IRMutator<ir::Expr*> {
@@ -74,14 +98,33 @@ struct SimplifyStoreMutator : public ir::IRMutator<ir::Expr*> {
     auto* node = op->As<Store>();
 
     for (auto& idx : node->indices) {
-      if (common::IsPureMath(node->index())) {
-        PartialSimplify(&idx);
+      if (common::IsPureMath(idx)) {
+        PartialSimplify(&idx, var_intervals_);
       } else {
-        SimplifyButStoreLoadMutator mutator;
+        SimplifyButStoreLoadMutator mutator(var_intervals_);
         mutator(&idx);
       }
     }
   }
+
+  void Visit(const For* op, Expr* expr) override {
+    auto* min_i    = op->min.As<IntImm>();
+    auto* extent_i = op->extent.As<IntImm>();
+    if (min_i && extent_i) {
+      var_intervals_.emplace(op->loop_var->name, common::CasInterval{min_i->value, extent_i->value - 1});
+    }
+
+    auto* node = expr->As<For>();
+
+    operator()(&node->body);
+    operator()(&node->extent);
+
+    if (min_i && extent_i) {
+      var_intervals_.erase(op->loop_var->name);
+    }
+  }
+
+  common::cas_intervals_t var_intervals_;
 };
 
 struct SimplifyRampMutator : public ir::IRMutator<Expr*> {
@@ -103,8 +146,10 @@ void Simplify(Expr* expr) {
   SimplifyRampMutator()(expr);
   SimplifyLoadMutator()(expr);
   SimplifyStoreMutator()(expr);
-  SimplifyButStoreLoadMutator()(expr);
-}
 
+  common::cas_intervals_t var_intervals;
+  SimplifyButStoreLoadMutator mutator(var_intervals);
+  mutator(expr);
+}
 }  // namespace optim
 }  // namespace cinn

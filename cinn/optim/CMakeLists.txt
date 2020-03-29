@@ -7,7 +7,6 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   vectorize_loops.cc
   unroll_loops.cc
   transform_polyfor_to_for.cc
-  ir_eliminate_mod.cc
   )
 
 foreach(cpp ${srcs})

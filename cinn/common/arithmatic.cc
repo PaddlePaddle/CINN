@@ -226,13 +226,16 @@ bool IsPureMath(Expr expr) {
       IrNodeTy ::Sub,
       IrNodeTy ::Div,
       IrNodeTy ::Mul,
+      IrNodeTy::Mod,
       IrNodeTy ::Minus,
   });
 
   auto complex_nodes = ir::CollectIRNodes(expr, [&](const Expr* n) { return !valid_node_tys.count(n->node_type()); });
+#ifdef CINN_DEBUG
   for (auto& node : complex_nodes) {
     VLOG(3) << "Found " << node->node_type() << " " << Expr(node);
   }
+#endif
   return complex_nodes.empty();
 }
 

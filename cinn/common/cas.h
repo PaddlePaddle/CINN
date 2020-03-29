@@ -10,7 +10,7 @@ namespace common {
  * Interval of a _Var_.
  */
 struct CasInterval {
-  CasInterval(int l, int r) : l(l), r(r) {}
+  CasInterval(int64_t l, int64_t r) : l(l), r(r) {}
   int l, r;
 
   friend std::ostream& operator<<(std::ostream& os, const CasInterval& i) {
@@ -18,6 +18,8 @@ struct CasInterval {
     return os;
   }
 };
+
+using cas_intervals_t = std::unordered_map<std::string, CasInterval>;
 
 Expr AutoSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var_intervals = {});
 

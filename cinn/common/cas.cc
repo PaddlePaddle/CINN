@@ -1174,7 +1174,6 @@ Expr CasSimplifyMutator::FurtherSimplifyFracWithInterval(
   if (bi) {
     if (av) {
       auto it = var_intervals.find(av->name);
-      if (it != var_intervals.end()) LOG(INFO) << "found " << av->name;
       if (it != var_intervals.end() && std::abs(it->second.r) < std::abs(bi->value) &&
           std::abs(it->second.l) < std::abs(bi->value))
         return make_const(a.type(), 0);
