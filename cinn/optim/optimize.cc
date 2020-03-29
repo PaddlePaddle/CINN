@@ -11,6 +11,7 @@ namespace cinn {
 namespace optim {
 
 Expr Optimize(Expr e) {
+  CHECK(e.defined());
   auto copied = IRCopy(e);
 
   TransformPolyForToFor(&copied);
