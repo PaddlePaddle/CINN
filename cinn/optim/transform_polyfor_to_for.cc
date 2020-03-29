@@ -191,8 +191,7 @@ struct ForAutoSeparateMutator : ir::IRMutator<Expr*> {
 
 Expr* PolyForAutoSeparateHelper(Expr* expr) {
   ForAutoSeparateMutator mutator;
-  auto* res = mutator(expr);
-  if (res) return res;
+  return mutator(expr);
 }
 
 struct ForAutoSeparateMutatorMain : public ir::IRMutator<Expr*> {
@@ -214,7 +213,10 @@ struct ForAutoSeparateMutatorMain : public ir::IRMutator<Expr*> {
     if (res) Visit(res);
   }
 
-  void Visit(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+  void Visit(Expr* expr) {
+    CHECK(expr);
+    ir::IRMutator<>::Visit(expr, expr);
+  }
 };
 
 Expr PlusOneWithMinMax(Expr expr) {
