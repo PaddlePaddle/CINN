@@ -398,6 +398,8 @@ struct Load : public ExprNode<Load> {
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
+  const std::string& name() const;
+
   Type type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Load;

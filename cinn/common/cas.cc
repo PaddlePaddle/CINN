@@ -94,6 +94,71 @@ Expr Exponent(Expr v) {
 
 namespace detail {
 
+// Is a Divisiable to b.
+// @{
+bool IsDivisible(int64_t a, int64_t b) {
+  CHECK_NE(b, 0);
+  return a % b == 0;
+}
+bool IsDivisible(const Sum* a, int b);
+bool IsDivisible(const Product* a, int b) {
+  for (auto& item : a->operands()) {
+    if (item.As<IntImm>() && IsDivisible(item.As<IntImm>()->value, b)) return true;
+    if (item.As<Sum>() && IsDivisible(item.As<Sum>(), b)) return true;
+  }
+  return false;
+}
+bool IsDivisible(const Sum* a, int b) {
+  for (auto& item : a->operands()) {
+    auto* vi = item.As<IntImm>();
+    auto* vp = item.As<Product>();
+    if (vi && IsDivisible(vi->value, b)) continue;
+    if (vp && IsDivisible(vp, b)) continue;
+    return false;
+  }
+  return true;
+}
+bool IsDivisible(Expr a, int b) {
+  auto* ai = a.As<IntImm>();
+  auto* as = a.As<Sum>();
+  auto* ap = a.As<Product>();
+
+  if (ai) return IsDivisible(ai->value, b);
+  if (as) return IsDivisible(as, b);
+  if (ap) return IsDivisible(ap, b);
+  return false;
+}
+// @}
+
+//! Divide a by b, NOTE that a should be divisible by b.
+// @{
+Expr Divide(const Product* a, int b);
+Expr Divide(const Sum* a, int b) {
+  std::vector<Expr> args;
+  for (auto& item : a->operands()) {
+    if (item.As<IntImm>())
+      args.push_back(make_const(item.type(), item.As<IntImm>()->value / b));
+    else if (item.As<Product>())
+      args.push_back(Divide(item.As<Product>(), b));
+    else
+      NOT_IMPLEMENTED
+  }
+  return Sum::Make(args);
+}
+Expr Divide(const Product* a, int b) {
+  auto* a_first_i = a->operand(0).As<IntImm>();
+  CHECK(a_first_i);
+  int times = a_first_i->value / b;
+  if (times == 1) {
+    return Product::Make(Rest(a->operands()));
+  } else {
+    auto args = Rest(a->operands());
+    args.insert(std::begin(args), make_const(a->type(), times));
+    return Product::Make(args);
+  }
+}
+// @}
+
 inline int Iquot(int n, int d) { return n / d; }
 
 inline int Irem(int n, int d) {
@@ -798,33 +863,59 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
   auto a = CasSimplify(node->a(), var_intervals);
   auto b = CasSimplify(node->b(), var_intervals);
 
-  auto* ai = a.As<IntImm>();
-  auto* bi = b.As<IntImm>();
+  auto* a_i       = a.As<IntImm>();
+  auto* a_product = a.As<Product>();
+  auto* a_sum     = a.As<Sum>();
+  auto* a_var     = a.As<_Var_>();
+  auto* a_mod     = a.As<Mod>();
+
+  auto* b_i = b.As<IntImm>();
+
   // 7 % 3
-  if (ai && bi) {
-    return make_const(ai->type(), ai->value % bi->value);
+  if (a_i && b_i) {
+    return make_const(a_i->type(), a_i->value % b_i->value);
   }
 
   // x % 1 = 0
-  if (bi && bi->value == 1) return make_const(bi->type(), 0);
+  if (b_i && b_i->value == 1) return make_const(b_i->type(), 0);
 
   // 2x % 2 = 0
-  if (bi) {
-    auto* ap = a.As<Product>();
-    if (ap && ap->operand(0).As<IntImm>()) {
-      if (ap->operand(0).As<IntImm>()->value % bi->value == 0) return make_const(ap->type(), 0);
+  if (b_i && a_product && a_product->operand(0).As<IntImm>()) {
+    if (a_product->operand(0).As<IntImm>()->value % b_i->value == 0) return make_const(a_product->type(), 0);
+  }
+
+  // 0 % x = 1, 1 % x = 1
+  if (a_i && (a_i->value == 0 || a_i->value == 1)) return a;
+
+  if (b_i && a_var && var_intervals.count(a_var->name)) {
+    auto& interval = var_intervals.at(a_var->name);
+    int b_abs      = std::abs(b_i->value);
+    // x\in[1, 3] % 4 = x
+    if (std::abs(interval.l) < b_abs && std::abs(interval.r) < b_abs) return a;
+    // [3,3] % 3 = 0
+    if (interval.l == interval.r && interval.l % b_abs == 0) return make_const(b_i->type(), 0);
+  }
+
+  if (a_product && b_i) {
+    if (IsDivisible(a_product, b_i->value)) {
+      return make_const(Int(32), 0);
     }
   }
 
-  if (ai && (ai->value == 0 || ai->value == 1)) return a;
-
-  // (x+y) % 2 = x%2 + y%2
-  if (a.As<Sum>()) {
+  // (2x+y+z) % 2 = (y+z) % 2
+  if (a_sum && b_i) {
     std::vector<Expr> sum_args;
-    for (auto& v : a->operands) {
-      sum_args.push_back(Mod::Make(v, b));
+    for (auto& v : a_sum->operands()) {
+      if (!IsDivisible(v, b_i->value)) {
+        sum_args.push_back(v);
+      }
     }
-    return CasSimplify(Sum::Make(sum_args), var_intervals);
+    if (sum_args.size() == a_sum->operands().size()) return Mod::Make(a, b);
+    if (sum_args.empty()) return make_const(b_i->type(), 0);
+    if (sum_args.size() == 1) {
+      return SimplifyMod(Mod::Make(sum_args.front(), b));
+    }
+    return SimplifyMod(Mod::Make(Sum::Make(sum_args), b));
   }
 
   return Mod::Make(a, b);
@@ -1030,61 +1121,6 @@ bool IsExprCasCompatible(Expr expr) {
   return ir::CollectIRNodes(expr, teller).empty();
 }
 
-bool IsDivisible(int64_t a, int64_t b) {
-  CHECK_NE(b, 0);
-  return a % b == 0;
-}
-
-bool IsDivisible(const Sum* a, int b);
-
-bool IsDivisible(const Product* a, int b) {
-  for (auto& item : a->operands()) {
-    if (item.As<IntImm>() && IsDivisible(item.As<IntImm>()->value, b)) return true;
-    if (item.As<Sum>() && IsDivisible(item.As<Sum>(), b)) return true;
-  }
-  return false;
-}
-
-bool IsDivisible(const Sum* a, int b) {
-  for (auto& item : a->operands()) {
-    auto* vi = item.As<IntImm>();
-    auto* vp = item.As<Product>();
-    if (vi && IsDivisible(vi->value, b)) continue;
-    if (vp && IsDivisible(vp, b)) continue;
-    return false;
-  }
-  return true;
-}
-
-//! Divide a by b, NOTE that a should be divisible by b.
-// @{
-Expr Divide(const Product* a, int b);
-Expr Divide(const Sum* a, int b) {
-  std::vector<Expr> args;
-  for (auto& item : a->operands()) {
-    if (item.As<IntImm>())
-      args.push_back(make_const(item.type(), item.As<IntImm>()->value / b));
-    else if (item.As<Product>())
-      args.push_back(Divide(item.As<Product>(), b));
-    else
-      NOT_IMPLEMENTED
-  }
-  return Sum::Make(args);
-}
-Expr Divide(const Product* a, int b) {
-  auto* a_first_i = a->operand(0).As<IntImm>();
-  CHECK(a_first_i);
-  int times = a_first_i->value / b;
-  if (times == 1) {
-    return Product::Make(Rest(a->operands()));
-  } else {
-    auto args = Rest(a->operands());
-    args.insert(std::begin(args), make_const(a->type(), times));
-    return Product::Make(args);
-  }
-}
-// @}
-
 // Partially divide a by b. e.g. (2x+y)/2 => x + y/2
 Expr DividePartially(Sum* a, int b) {
   std::vector<Expr> external_sum_args, sum_args;
@@ -1138,7 +1174,6 @@ Expr CasSimplifyMutator::FurtherSimplifyFracWithInterval(
   if (bi) {
     if (av) {
       auto it = var_intervals.find(av->name);
-      if (it != var_intervals.end()) LOG(INFO) << "found " << av->name;
       if (it != var_intervals.end() && std::abs(it->second.r) < std::abs(bi->value) &&
           std::abs(it->second.l) < std::abs(bi->value))
         return make_const(a.type(), 0);

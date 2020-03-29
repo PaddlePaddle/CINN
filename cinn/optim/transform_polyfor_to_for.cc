@@ -191,7 +191,8 @@ struct ForAutoSeparateMutator : ir::IRMutator<Expr*> {
 
 Expr* PolyForAutoSeparateHelper(Expr* expr) {
   ForAutoSeparateMutator mutator;
-  return mutator(expr);
+  auto* res = mutator(expr);
+  if (res) return res;
 }
 
 struct ForAutoSeparateMutatorMain : public ir::IRMutator<Expr*> {

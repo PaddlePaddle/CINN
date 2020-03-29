@@ -448,6 +448,12 @@ Expr Load::index() const {
   return res;
 }
 
+const std::string &Load::name() const {
+  auto *t = tensor.As<ir::_Tensor_>();
+  CHECK(t);
+  return t->name;
+}
+
 Expr Ramp::Make(Expr base, Expr stride, int lanes) {
   CHECK(base.defined());
   CHECK(stride.defined());

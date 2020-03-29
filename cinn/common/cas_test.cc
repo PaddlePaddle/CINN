@@ -180,7 +180,7 @@ TEST(CAS, SimplifyMod) {
       {Power::Make(x, Expr(3)), Mod::Make(x, Expr(5)), y, Expr(1), Mod::Make(Product::Make({x, Expr(4)}), Expr(5))}));
 
   EXPECT_EQ(GetStreamCnt(u1), "0");
-  EXPECT_EQ(GetStreamCnt(u2), "((x % 2) + (y % 2) + (z % 2))");
+  EXPECT_EQ(GetStreamCnt(u2), "((x + y + z) % 2)");
   EXPECT_EQ(GetStreamCnt(u3), "1");
   EXPECT_EQ(GetStreamCnt(u4), "(1 + (x^3) + y)");
 }
@@ -220,6 +220,48 @@ TEST(CAS, FracOp) {
   auto u4 = AutoSimplify(Expr(32768) * (((Expr(32) * x) + y) / 32));
   LOG(INFO) << u4;
   EXPECT_EQ(GetStreamCnt(u4), "((32768 * (y/32)) + (32768 * x))");
+}
+
+#define OUTPUT_EQUAL(s__) EXPECT_EQ(GetStreamCnt(u), s__);
+
+TEST(CAS, Mod) {
+  Var x = ir::_Var_::Make("x", Int(32));
+  Var y = ir::_Var_::Make("y", Int(32));
+  Var z = ir::_Var_::Make("z", Int(32));
+  Var k = ir::_Var_::Make("k", Int(32));
+
+  std::unordered_map<std::string, CasInterval> var_intervals0, var_intervals1;
+  var_intervals0.emplace("x", CasInterval{0, 3});
+  var_intervals0.emplace("y", CasInterval{0, 3});
+  var_intervals0.emplace("z", CasInterval{0, 3});
+  var_intervals0.emplace("k", CasInterval{0, 3});
+
+  Expr u;
+  u = AutoSimplify(x % 5);
+  EXPECT_EQ(GetStreamCnt(u), "(x % 5)");
+  OUTPUT_EQUAL("(x % 5)")
+
+  u = AutoSimplify((5 + x) % 5);
+  OUTPUT_EQUAL("(x % 5)")
+
+  u = AutoSimplify((x + 5 * y + 1 + 1 + 3 - z * 3) % 5);
+  OUTPUT_EQUAL("((x + (-3 * z)) % 5)")
+
+  u = AutoSimplify((x + 5) % 5, var_intervals0);
+  OUTPUT_EQUAL("x")
+
+  u = AutoSimplify((x + y + 5) % 5, var_intervals0);
+  OUTPUT_EQUAL("((x + y) % 5)")
+
+  u = AutoSimplify((x + 20 * y + 5) % 5, var_intervals0);
+  OUTPUT_EQUAL("x")
+
+  u = AutoSimplify((x % 32) + ((32768 * (x / 32)) + ((32768 * y) + ((32 * z) + (128 * k)))));
+  OUTPUT_EQUAL("((32768 * (x/32)) + ((x % 32) + ((128 * k) + ((32768 * y) + (32 * z)))))");
+
+  u = AutoSimplify((x % 32) + ((32768 * (x / 32)) + ((32768 * y) + ((32 * z) + (128 * k)))), var_intervals0);
+  OUTPUT_EQUAL("((128 * k) + (x + ((32768 * y) + (32 * z))))")
+  LOG(INFO) << u;
 }
 
 TEST(CAS, IntConnerCase) {

@@ -53,6 +53,7 @@ std::string CodeGenC::Compile(const lang::Module &module, OutputKind output_kind
   return ss_.str();
 }
 std::string CodeGenC::Compile(const ir::LoweredFunc &function) {
+  CHECK(function.defined());
   Print(function);
   os() << "\n\n";
   return ss_.str();
