@@ -5,7 +5,9 @@
 #include <string>
 
 #include "cinn/common/ir.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/ir_replace.h"
 #include "cinn/utils/functional.h"
 
 namespace cinn {
@@ -286,6 +288,13 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     // the extent the forloops marked as Vectorized should be int constant
     if (forloop->for_type == ForType::Vectorized && forloop->extent.As<IntImm>()) {
       Context::Global().info_rgt().Get<int>("vectorized_forloop_count")++;
+
+      auto new_forloop = SplitForLoop(node, forloop->extent.As<IntImm>()->value);
+      if (!new_forloop.defined()) {
+        IRMutator<>::Visit(&node->body, &node->body);
+        return;
+      }
+
       // The forloop generated from polyhedral analysis might have a complex condition that is not something like
       // "i<20" or "i<=20", those cases is not possible to extract the extent.
       auto *extent_int = forloop->extent.As<IntImm>();
@@ -308,6 +317,34 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     } else {
       IRMutator::Visit(forloop, expr);
     }
+  }
+
+  //! Split the forloop with size \p factor.
+  //! @return The new forloop.
+  Expr SplitForLoop(For *forloop, int factor) {
+    CHECK_GT(factor, 1);
+    auto *for_min_i    = forloop->min.As<IntImm>();
+    auto *for_extent_i = forloop->extent.As<IntImm>();
+    CHECK(forloop);
+    if (!for_min_i || !for_extent_i) return Expr();
+    CHECK_GT(for_extent_i->value, 0);
+    if (for_min_i->value != 0 || for_extent_i->value % factor != 0) return Expr();
+
+    int times = for_extent_i->value / factor;
+    // update the current forloop
+    forloop->extent   = make_const(times);
+    forloop->for_type = ForType ::Serial;
+
+    // create the new forloop
+    Var new_iterator(Context::Global().NewName("vi"));
+    Expr new_index = Expr(forloop->loop_var) * factor + Expr(new_iterator);
+    optim::IrReplace(&forloop->body, forloop->loop_var, new_index);
+    auto new_forloop =
+        For::Make(new_iterator, forloop->min, make_const(factor), ForType::Vectorized, DeviceAPI::UNK, forloop->body);
+
+    forloop->body = Block::Make({new_forloop});
+
+    return new_forloop;
   }
 };
 
