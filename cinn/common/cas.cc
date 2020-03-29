@@ -1123,6 +1123,7 @@ bool IsExprCasCompatible(Expr expr) {
 
 // Partially divide a by b. e.g. (2x+y)/2 => x + y/2
 Expr DividePartially(Sum* a, int b) {
+  LOG(INFO) << "Divide partially";
   std::vector<Expr> external_sum_args, sum_args;
 
   for (auto& item : a->operands()) {
@@ -1203,6 +1204,7 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
 
   auto* ap = a.As<Product>();
   auto* bp = b.As<Product>();
+  auto* as = a.As<Sum>();
   auto* bi = b.As<IntImm>();
   auto* av = a.As<_Var_>();
   auto* bv = b.As<_Var_>();
@@ -1222,10 +1224,54 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
     if (a_sum && IsDivisible(a_sum, bi->value)) return Divide(a_sum, bi->value);
     if (a_product && IsDivisible(a_product, bi->value)) return Divide(a_product, bi->value);
     // not divisiable
+    /*
     if (a_sum) {
       auto expr = DividePartially(a_sum, bi->value);
       return expr;
     }
+     */
+  }
+
+  if (av && bi) {
+    if (var_intervals.count(av->name)) {
+      auto& interval = var_intervals.at(av->name);
+      int b_abs      = std::abs(bi->value);
+      if (std::abs(interval.l) < b_abs && std::abs(interval.r) < b_abs) return make_const(bi->type(), 0);
+      return FracOp::Make(a, b);
+    }
+  }
+
+  // (32x+y)/32 = x + y/32
+  if (as && bi) {
+    std::vector<Expr> external_sum_args;
+    std::vector<Expr> internal_sum_args;
+    for (auto& e : as->operands()) {
+      if (IsDivisible(e, bi->value)) {
+        if (e.As<Sum>()) external_sum_args.push_back(Divide(e.As<Sum>(), bi->value));
+        if (e.As<IntImm>()) external_sum_args.push_back(make_const(bi->type(), e.As<IntImm>()->value / bi->value));
+        if (e.As<Product>()) external_sum_args.push_back(Divide(e.As<Product>(), bi->value));
+      } else {
+        internal_sum_args.push_back(e);
+      }
+    }
+
+    Expr external_sum, internal_sum;
+    if (!external_sum_args.empty()) {
+      if (external_sum_args.size() == 1)
+        external_sum = external_sum_args.front();
+      else
+        external_sum = Sum::Make(external_sum_args);
+    }
+
+    if (!internal_sum_args.empty()) {
+      internal_sum = FracOp::Make(Sum::Make(internal_sum_args), b);
+    }
+
+    if (external_sum.defined() && internal_sum.defined()) {
+      return CasSimplify(Sum::Make({external_sum, internal_sum}), var_intervals);
+    }
+    if (external_sum.defined()) return CasSimplify(external_sum, var_intervals);
+    return internal_sum;
   }
 
   // solve the case: 2abc / b

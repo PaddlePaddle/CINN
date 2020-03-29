@@ -27,14 +27,6 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Cast::Make(op->type(), v);
   }
 
-  Expr Visit(const ir::PolyFor* op) override {
-    auto init      = Visit(&op->init);
-    auto condition = Visit(&op->condition);
-    auto inc       = Visit(&op->inc);
-    auto body      = Visit(&op->body);
-    return PolyFor::Make(op->iterator, init, condition, inc, op->for_type, op->device_api, body);
-  }
-
   Expr Visit(const Select* op) override {
     auto condition   = Visit(&op->condition);
     auto true_value  = Visit(&op->true_value);
@@ -155,7 +147,17 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     auto min    = Visit(&op->min);
     auto body   = Visit(&op->body);
 
-    return ir::For::Make(op->loop_var, min, extent, op->for_type, op->device_api, body);
+    return ir::For::Make(op->loop_var, min, extent, op->for_type, op->device_api, body, op->vectorize_info);
+  }
+
+  Expr Visit(const ir::PolyFor* op) override {
+    auto init      = Visit(&op->init);
+    auto condition = Visit(&op->condition);
+    auto inc       = Visit(&op->inc);
+    auto body      = Visit(&op->body);
+    auto expr =
+        PolyFor::Make(op->iterator, init, condition, inc, op->for_type, op->device_api, body, op->vectorize_info);
+    return expr;
   }
 
   Expr Visit(const _Range_* op) override {

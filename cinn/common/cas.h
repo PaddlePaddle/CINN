@@ -10,7 +10,8 @@ namespace common {
  * Interval of a _Var_.
  */
 struct CasInterval {
-  CasInterval(int64_t l, int64_t r) : l(l), r(r) {}
+  template <typename T>
+  CasInterval(T l, T r) : l(l), r(r) {}
   int l, r;
 
   friend std::ostream& operator<<(std::ostream& os, const CasInterval& i) {

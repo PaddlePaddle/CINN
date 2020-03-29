@@ -211,8 +211,7 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
 void Stage::Vectorize(int level, int factor) {
   CHECK_GT(factor, 0);
   auto dim_name = ith_dim_name(level);
-  Split(dim_name, factor);
-  vectorize_info_.set(level + 1 /*inner*/, factor);
+  vectorize_info_.set(level /*inner*/, factor);
 }
 
 void Stage::Vectorize(const std::string &axis, int factor) {

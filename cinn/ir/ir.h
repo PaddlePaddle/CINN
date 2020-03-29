@@ -45,7 +45,7 @@ struct Cast : public ExprNode<Cast> {
  * The sum of two expressions.
  */
 struct Add : public BinaryOpNode<Add> {
-  Add(Expr a, Expr b) : BinaryOpNode<Add>(a.type(), a, b) {}
+  Add(Expr a, Expr b);
 
   static Expr Make(Expr a, Expr b);
 
@@ -487,6 +487,20 @@ enum class ForType : int {
   Unrolled = 3,
 };
 
+struct VectorizeInfo {
+  VectorizeInfo() = default;
+  VectorizeInfo(int level, int factor) : level(level), factor(factor) {}
+
+  int level{-1};
+  int factor{-1};
+
+  inline void set(int level, int factor) {
+    this->level  = level;
+    this->factor = factor;
+  }
+  inline bool valid() const { return level >= 0 && factor > 0; }
+};
+
 struct For : public ExprNode<For> {
   //! The loop variable.
   Var loop_var;
@@ -499,25 +513,28 @@ struct For : public ExprNode<For> {
 
   Expr body;
 
+  void reset_vectorize_info() {
+    for_type              = ForType::Serial;
+    vectorize_info.factor = -1;
+    vectorize_info.level  = -1;
+  }
+
   DeviceAPI device_api;
 
-  static Expr Make(Var loop_var, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body);
+  VectorizeInfo vectorize_info;
+
+  static Expr Make(Var loop_var,
+                   Expr min,
+                   Expr extent,
+                   ForType for_type,
+                   DeviceAPI device_api,
+                   Expr body,
+                   VectorizeInfo vector_info = VectorizeInfo());
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::For;
-};
-
-struct VectorizeInfo {
-  int level{-1};
-  int factor{-1};
-
-  inline void set(int level, int factor) {
-    this->level  = level;
-    this->factor = factor;
-  }
-  inline bool valid() const { return level >= 0 && factor > 0; }
 };
 
 //! Polyhedral forloop, which condition is more complex than the normal `For`.
@@ -533,6 +550,12 @@ struct PolyFor : public ExprNode<PolyFor> {
   //! The forloop body.
   Expr body;
 
+  void reset_vectorize_info() {
+    for_type              = ForType::Serial;
+    vectorize_info.factor = -1;
+    vectorize_info.level  = -1;
+  }
+
   ForType for_type;
   DeviceAPI device_api;
 
@@ -542,8 +565,14 @@ struct PolyFor : public ExprNode<PolyFor> {
 
   Expr extent() const;
 
-  static Expr Make(
-      Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Expr body);
+  static Expr Make(Var iterator,
+                   Expr init_val,
+                   Expr condition,
+                   Expr inc,
+                   ForType for_type,
+                   DeviceAPI device_api,
+                   Expr body,
+                   VectorizeInfo vector_info = VectorizeInfo());
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;

@@ -69,7 +69,6 @@ isl::ast_node AstGen::Build() {
   VLOG(4) << "schedule: " << schedule;
   VLOG(4) << "schedule_domain: " << schedule_domain;
   auto ast = ast_build.node_from_schedule_map(schedule_domain);
-  LOG(INFO) << "\n" << isl_ast_node_to_C_str(ast.get());
   VLOG(2) << "\n" << isl_ast_node_to_C_str(ast.get());
   return ast;
 }

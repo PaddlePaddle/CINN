@@ -50,13 +50,20 @@ struct ForSeparater : ir::IRMutator<Expr*> {
     if (expr == forloop_) {  // find the forloop to split
       is_separated_ = true;
 
-      auto forloop_branch0 =
-          ir::For::Make(op->loop_var, op->min, separator_, op->for_type, op->device_api, optim::IRCopy(op->body));
+      auto forloop_branch0 = ir::For::Make(
+          op->loop_var, op->min, separator_, op->for_type, op->device_api, optim::IRCopy(op->body), op->vectorize_info);
+
       is_left_branch_ = true;
       Visit(&forloop_branch0.As<ir::For>()->body);
 
-      auto forloop_branch1 =
-          ir::For::Make(op->loop_var, separator_, op->extent, op->for_type, op->device_api, optim::IRCopy(op->body));
+      auto forloop_branch1 = ir::For::Make(op->loop_var,
+                                           separator_,
+                                           op->extent,
+                                           op->for_type,
+                                           op->device_api,
+                                           optim::IRCopy(op->body),
+                                           op->vectorize_info);
+
       is_left_branch_ = false;
       Visit(&forloop_branch1.As<ir::For>()->body);
 
@@ -258,8 +265,11 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
     CHECK(lhs == Expr(op->iterator));
     CHECK(op->inc == Expr(1));
 
-    Expr new_for = ir::For::Make(op->iterator, op->init, rhs, op->for_type, op->device_api, op->body);
-    *expr        = new_for;
+    if (op->for_type == ir::ForType::Vectorized) CHECK(op->vectorize_info.valid());
+
+    Expr new_for =
+        ir::For::Make(op->iterator, op->init, rhs, op->for_type, op->device_api, op->body, op->vectorize_info);
+    *expr = new_for;
 
     Visit(&new_for.As<ir::For>()->body);
   }

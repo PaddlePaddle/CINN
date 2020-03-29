@@ -98,6 +98,7 @@ Expr RampRelatedMul(Expr a, Expr b) {
     CHECK_EQ(a_broadcast->lanes, b_broadcast->lanes);
     return ir::Broadcast::Make(a_broadcast->value * b_broadcast->value, a_broadcast->lanes);
   } else {
+    LOG(INFO) << "a,b: " << a << " " << b;
     NOT_IMPLEMENTED
   }
 }
@@ -116,8 +117,9 @@ Expr ExpandTo1DIndice(const std::vector<Expr> &shape, const std::vector<Expr> &i
 
     if (res.defined()) {
       res = RampRelatedAdd(res, indice_prod);
-    } else
+    } else {
       res = indice_prod;
+    }
   }
 
   return res;
