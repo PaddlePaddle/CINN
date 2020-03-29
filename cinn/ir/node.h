@@ -307,10 +307,7 @@ struct BinaryOpNode : public ExprNode<T> {
   const Expr& a() const { return ExprNode<T>::operand(0); }
   const Expr& b() const { return ExprNode<T>::operand(1); }
 
-  Type type() const override {
-    CHECK_EQ(a().type(), b().type());
-    return a().type();
-  }
+  Type type() const override { return a().type(); }
 
   std::vector<Expr*> expr_fields() override { return {&a(), &b()}; }
   std::vector<const Expr*> expr_fields() const override { return {&a(), &b()}; }

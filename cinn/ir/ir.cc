@@ -49,6 +49,8 @@ Expr Add::Make(Expr a, Expr b) {
   return Expr(node);
 }
 
+Add::Add(Expr a, Expr b) : BinaryOpNode<Add>(a.type(), a, b) {}
+
 Expr Sub::Make(Expr a, Expr b) {
   auto node = make_shared<Sub>(a, b);
   return Expr(node);
@@ -173,17 +175,21 @@ Expr _Var_::Copy() const {
   return Expr(n);
 }
 
-Expr For::Make(Var loop_var, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body) {
+Expr For::Make(
+    Var loop_var, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body, VectorizeInfo vector_info) {
   auto node = make_shared<For>();
   CHECK(loop_var.defined());
   CHECK(min.defined());
   CHECK(extent.defined());
-  node->loop_var   = loop_var;
-  node->min        = min;
-  node->extent     = extent;
-  node->for_type   = for_type;
-  node->device_api = device_api;
-  node->body       = body;
+  node->loop_var       = loop_var;
+  node->min            = min;
+  node->extent         = extent;
+  node->for_type       = for_type;
+  node->device_api     = device_api;
+  node->body           = body;
+  node->vectorize_info = vector_info;
+
+  if (node->for_type == ForType::Vectorized) CHECK(node->vectorize_info.valid());
   return Expr(node);
 }
 
@@ -358,16 +364,26 @@ std::vector<const Expr *> Call::expr_fields() const {
   return res;
 }
 
-Expr PolyFor::Make(
-    Var iterator, Expr init_val, Expr condition, Expr inc, ForType for_type, DeviceAPI device_api, Expr body) {
-  auto n        = make_shared<PolyFor>();
-  n->iterator   = iterator;
-  n->init       = init_val;
-  n->condition  = condition;
-  n->inc        = inc;
-  n->for_type   = for_type;
-  n->device_api = device_api;
-  n->body       = body;
+Expr PolyFor::Make(Var iterator,
+                   Expr init_val,
+                   Expr condition,
+                   Expr inc,
+                   ForType for_type,
+                   DeviceAPI device_api,
+                   Expr body,
+                   VectorizeInfo vectorize_info) {
+  auto n            = make_shared<PolyFor>();
+  n->iterator       = iterator;
+  n->init           = init_val;
+  n->condition      = condition;
+  n->inc            = inc;
+  n->for_type       = for_type;
+  n->device_api     = device_api;
+  n->body           = body;
+  n->vectorize_info = vectorize_info;
+
+  if (n->for_type == ForType::Vectorized) CHECK(n->vectorize_info.valid());
+
   return Expr(n);
 }
 std::vector<Expr *> PolyFor::expr_fields() { return {&init, &condition, &inc, &body}; }
@@ -426,7 +442,11 @@ Expr Load::Make(Expr tensor, const std::vector<Expr> &indices) {
   node->indices = indices;
   return Expr(node);
 }
-Type Load::type() const { return tensor.type().ElementOf().with_lanes(index().type().lanes()); }
+Type Load::type() const {
+  int lanes = 0;
+  for (auto &idx : indices) lanes = std::max(lanes, idx.type().lanes());
+  return tensor.type().ElementOf().with_lanes(lanes);
+}
 
 std::vector<Expr *> Load::expr_fields() {
   std::vector<Expr *> exprs({&tensor});
@@ -488,7 +508,8 @@ Expr Broadcast::Make(Expr value, int lanes) {
 Type Broadcast::type() const { return value.type().ElementOf().with_lanes(lanes); }
 
 Expr Sum::Make(const std::vector<Expr> &vs) {
-  CHECK_GT(vs.size(), 1);
+  CHECK(!vs.empty());
+  if (vs.size() == 1) return vs.front();
 
   auto *n   = make_shared<Sum>();
   auto type = vs.front().type();

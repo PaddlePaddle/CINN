@@ -233,7 +233,7 @@ TEST(matmul, LoopPermutation) {
     C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
 
     C->stage()->Vectorize(j_inner, 8);
-    C->stage()->Unroll(5);
+    // C->stage()->Unroll(5);
   }
 
   Module module("module_loop_permutation", target);
@@ -286,7 +286,7 @@ TEST(matmul, ArrayPacking) {
     std::tie(k_outer, k_inner)                   = C->stage()->Split("k", 4);
 
     C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
-    // C->stage()->Split(j_inner, 8);
+    C->stage()->Vectorize(j_inner, 8);
   }
 
   Module module("module_array_packing", target);

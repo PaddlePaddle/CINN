@@ -8,6 +8,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/ir_replace.h"
+#include "cinn/optim/ir_simplify.h"
 #include "cinn/utils/functional.h"
 
 namespace cinn {
@@ -54,7 +55,6 @@ class Vectorizer : public IRMutator<Expr *> {
 
   void Visit(Expr *expr) {
     CHECK(!need_scalarize_);
-    LOG(INFO) << "vectorizing " << *expr;
     IRMutator<Expr *>::Visit(expr, expr);
 
     if (need_scalarize_) {
@@ -127,12 +127,9 @@ class Vectorizer : public IRMutator<Expr *> {
       Visit(&node->indices[i]);
       if (!node->indices[i].same_as(indices[i])) {
         need_visit = true;
-        break;
       }
     }
     if (!need_visit) return;
-
-    int width = node->indices.front().type().lanes();
 
     *expr = Load::Make(node->tensor, node->indices);
   }
@@ -152,12 +149,14 @@ class Vectorizer : public IRMutator<Expr *> {
     for (int i = 0; i < indices.size(); i++) {
       if (!node->indices[i].same_as(indices[i])) {
         need_visit = true;
-        break;
       }
     }
     if (!need_visit) return;
 
-    int lanes   = std::max(node->value.type().lanes(), node->index().type().lanes());
+    int lanes = 0;
+    for (auto &idx : node->indices) lanes = std::max(idx.type().lanes(), lanes);
+    lanes = std::max(lanes, node->value.type().lanes());
+
     node->value = Widen(node->value, lanes);
 
     std::vector<Expr> new_indices;
@@ -201,10 +200,11 @@ class Vectorizer : public IRMutator<Expr *> {
     auto *node = expr->As<T>();
     Expr a0    = node->a();
     Expr b0    = node->b();
+
     Visit(&node->a());
     Visit(&node->b());
 
-    if (a0.same_as(node->a()) && b0.same_as(node->b())) return;
+    // if (a0.same_as(node->a()) && b0.same_as(node->b())) return;
 
     int lanes = std::max(node->a().type().lanes(), node->b().type().lanes());
     if (lanes != 1) {
@@ -236,8 +236,7 @@ class Vectorizer : public IRMutator<Expr *> {
     Visit(&node->a());
     Visit(&node->b());
 
-    if (a0.same_as(node->a()) && b0.same_as(node->b())) return;
-
+    // if (a0.same_as(node->a()) && b0.same_as(node->b())) return;
     int lanes = std::max(node->a().type().lanes(), node->b().type().lanes());
     if (lanes != 1) {
       const Ramp *a_ramp_n = node->a().template As<Ramp>();
@@ -269,7 +268,7 @@ class Vectorizer : public IRMutator<Expr *> {
     Expr b0    = node->b();
     Visit(&node->a());
     Visit(&node->b());
-    if (a0.same_as(node->a()) && b0.same_as(node->b())) return *expr;
+    // if (a0.same_as(node->a()) && b0.same_as(node->b())) return *expr;
 
     int lanes = std::max(node->a().type().lanes(), node->b().type().lanes());
     return T::Make(Widen(node->a(), lanes), Widen(node->b(), lanes));
@@ -286,28 +285,24 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
   void Visit(const For *forloop, Expr *expr) {
     auto *node = expr->As<For>();
 
-    LOG(INFO) << "testing\n" << *expr;
-
     // the extent the forloops marked as Vectorized should be int constant
     if (forloop->for_type == ForType::Vectorized) {
       Context::Global().info_rgt().Get<int>("vectorized_forloop_count")++;
 
       CHECK(forloop->vectorize_info.valid());
       auto _new_forloop = SplitForLoop(node, forloop->vectorize_info.factor);
-      LOG(INFO) << "*** new_forloop " << _new_forloop;
       if (!_new_forloop.defined()) {
         IRMutator<>::Visit(&node->body, &node->body);
         return;
       }
+
+      node->reset_vectorize_info();
+
       auto *new_forloop = _new_forloop.As<ir::For>();
 
       // The forloop generated from polyhedral analysis might have a complex condition that is not something like
       // "i<20" or "i<=20", those cases is not possible to extract the extent.
       auto *extent_int = new_forloop->extent.As<IntImm>();
-      if (!extent_int) {
-        VLOG(2) << "Ignore the forloop because the condition is not based on a int extent";
-        return;
-      }
 
       int extent = extent_int->value;
       CHECK_GT(extent, 0) << "Loop over " << Expr(new_forloop->loop_var) << " has extent " << new_forloop->extent
@@ -316,12 +311,12 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
       VLOG(2) << "Vectorizing " << new_forloop->loop_var << " extent " << extent;
       VLOG(2) << "body:\n" << node->body;
 
-      Vectorizer(new_forloop->loop_var, new_forloop->extent.As<IntImm>()->value).Visit(&new_forloop->body);
+      Vectorizer(new_forloop->loop_var, extent).Visit(&new_forloop->body);
 
       VLOG(2) << "after vectorize body:\n" << node->body;
 
-      // Remove the forloop.
-      *expr = node->body;
+      // Remove the forloop, the new_forloop's body is vectorized to Ramp, so no forloop is needed.
+      node->body = new_forloop->body;
     } else {
       IRMutator::Visit(forloop, expr);
     }
@@ -337,6 +332,8 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     if (for_min_i->value != 0) return Expr();
 
     Expr times = Div::Make(forloop->extent, make_const(factor));
+    Simplify(&times);
+
     // update the current forloop
     forloop->extent   = times;
     forloop->for_type = ForType ::Serial;
@@ -346,9 +343,14 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
       Var new_iterator(Context::Global().NewName("vi"));
       Expr new_index = Expr(forloop->loop_var) * factor + Expr(new_iterator);
       optim::IrReplace(&forloop->body, forloop->loop_var, new_index);
-      auto new_forloop =
-          For::Make(new_iterator, forloop->min, make_const(factor), ForType::Vectorized, DeviceAPI::UNK, forloop->body);
-      forloop->body = Block::Make({new_forloop});
+      auto new_forloop = For::Make(new_iterator,
+                                   forloop->min,
+                                   make_const(factor),
+                                   ForType::Vectorized,
+                                   DeviceAPI::UNK,
+                                   forloop->body,
+                                   forloop->vectorize_info);
+      forloop->body    = Block::Make({new_forloop});
       return new_forloop;
     }
   }

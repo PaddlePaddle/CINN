@@ -63,8 +63,6 @@ TEST(CodeGenCX86, basic) {
   codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
   std::cout << "out:\n" << out;
-
-  EXPECT_EQ(Context::Global().info_rgt().Get<int>("vectorized_forloop_count"), 1);
 }
 
 }  // namespace backends

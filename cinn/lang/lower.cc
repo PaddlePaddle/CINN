@@ -45,7 +45,6 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
       stack[it->second.level]->for_type       = ir::ForType::Vectorized;
       stack[it->second.level]->vectorize_info = it->second;
       CHECK(it->second.valid());
-      LOG(INFO) << "mark tensor " << tensor_n->name <<  " as vector";
     }
   }
 
