@@ -6,6 +6,7 @@
 
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/optimize.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_call_with_expr.h"
 #include "cinn/optim/tensor_write_tell.h"
@@ -218,12 +219,13 @@ ir::LoweredFunc Lower(const std::string& name, const std::vector<Tensor>& args) 
   }
 
   Expr block = ir::Block::Make(exprs);
-  // call passes
-  optim::RemoveNestedBlock(&block);
 
   // prepare arguments
   std::vector<ir::Argument> arguments = PrepareArguments(args, {block});
-  return ir::_LoweredFunc_::Make(name, arguments, block);
+
+  auto func = ir::_LoweredFunc_::Make(name, arguments, block);
+  auto res  = optim::Optimize(func);
+  return ir::LoweredFunc(res.get());
 }
 
 }  // namespace lang
