@@ -25,7 +25,7 @@ TEST(lower, basic) {
 
   auto lower_funcs = Lower("cal_B", {A, B});
 
-  LOG(INFO) << "lower_size " << lower_funcs.size();
+  LOG(INFO) << "lower_size " << lower_funcs;
 
 #define TEST_SOUTPUT(x, out)           \
   std::cout << "\n" << x << std::endl; \
@@ -42,7 +42,7 @@ TEST(lower, basic) {
   }
 }
 )ROC";
-  TEST_SOUTPUT(lower_funcs.front()->body, out);
+  TEST_SOUTPUT(lower_funcs->body, out);
 }
 
 TEST(lower, more_complex) {
@@ -60,8 +60,7 @@ TEST(lower, more_complex) {
 
   auto lower_funcs = Lower("cal_C", {A, B, C});
 
-  LOG(INFO) << "lower_size " << lower_funcs.size();
-  std::cout << "func:\n" << Expr(lower_funcs.front()->self()) << std::endl;
+  std::cout << "func:\n" << Expr(lower_funcs->self()) << std::endl;
 }
 
 }  // namespace lang

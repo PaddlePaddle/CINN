@@ -49,15 +49,14 @@ TEST(CodeGenCX86, basic) {
   C->stage()->Vectorize(1, 16);
   C->stage()->Unroll(1);
 
-  auto funcs = Lower("matmul", {A, B, C, D});
-  CHECK_EQ(funcs.size(), 1UL);
+  auto func = Lower("matmul", {A, B, C, D});
 
-  std::cout << "before optim\n" << funcs.front()->body << std::endl;
+  std::cout << "before optim\n" << func->body << std::endl;
 
-  funcs.front()->body = Optimize(funcs.front()->body);
+  func->body = Optimize(func->body);
 
   lang::Module module("module1", target);
-  module.Append(funcs[0]);
+  module.Append(func);
 
   CodeGenCX86 codegen(target, CodeGenCX86::Feature::AVX512);
   codegen.SetInlineBuiltinCodes(false);

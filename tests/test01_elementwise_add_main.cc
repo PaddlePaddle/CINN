@@ -21,9 +21,8 @@ TEST(test01_elementwise_add, basic) {
   Module module("module1", target);
 
   auto funcs = Lower("add1", {A, B, C});
-  ASSERT_EQ(funcs.size(), 1UL);
 
-  auto func = Optimize(funcs.front());
+  auto func = Optimize(funcs);
   module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
   // module.Append(C_buf);
 
@@ -50,9 +49,8 @@ TEST(test01_elementwise_add, vectorize) {
   Module module("module2", target);
 
   auto funcs = Lower("add1_vectorize", {A, B, C});
-  ASSERT_EQ(funcs.size(), 1UL);
 
-  auto func = Optimize(funcs.front());
+  auto func = Optimize(funcs);
   LOG(INFO) << "after optim:\n" << func;
   module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
   // module.Append(C_buf);

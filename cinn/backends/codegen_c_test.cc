@@ -47,9 +47,8 @@ TEST(CodeGenC, module) {
   Module module("module1", target);
 
   auto funcs = Lower("add1", {A, B, C});
-  ASSERT_EQ(funcs.size(), 1UL);
 
-  module.Append(funcs.front());
+  module.Append(funcs);
   module.Append(C_buf);
 
   {
@@ -137,9 +136,7 @@ TEST(CodeGenC, module_with_transform) {
 
   auto funcs = Lower("add1", {A, B, C, D});
 
-  ASSERT_EQ(funcs.size(), 1UL);
-
-  Expr func(funcs.front());
+  Expr func(funcs);
   optim::Simplify(&func);
 
   module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
@@ -206,7 +203,6 @@ TEST(CodeGenC, matmul) {
 
   // Code gen
   auto funcs = Lower("matmul", {A, B, C_init, C});
-  ASSERT_EQ(funcs.size(), 1UL);
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -214,7 +210,7 @@ TEST(CodeGenC, matmul) {
   target.os   = Target::OS ::Linux;
 
   Module module("module1", target);
-  module.Append(funcs.front());
+  module.Append(funcs);
   module.Append(C_buf);
 
   CodeGenC codegen(target);
@@ -288,7 +284,6 @@ TEST(CodeGenC, matmul_tile) {
 
   // Code gen
   auto funcs = Lower("matmul", {A, B, C_init, C});
-  ASSERT_EQ(funcs.size(), 1UL);
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -296,7 +291,7 @@ TEST(CodeGenC, matmul_tile) {
   target.os   = Target::OS ::Linux;
 
   Module module("module1", target);
-  module.Append(funcs.front());
+  module.Append(funcs);
   module.Append(C_buf);
 
   CodeGenC codegen(target);
@@ -365,7 +360,6 @@ TEST(CodeGenC, matmul_packed) {
 
   // Code gen
   auto funcs = Lower("matmul_with_packing", {A, B, packedB, C});
-  ASSERT_EQ(funcs.size(), 1UL);
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -373,7 +367,7 @@ TEST(CodeGenC, matmul_packed) {
   target.os   = Target::OS ::Linux;
 
   Module module("module1", target);
-  module.Append(funcs.front());
+  module.Append(funcs);
   module.Append(C_buf);
   module.Append(packedB_buf);
 

@@ -33,9 +33,8 @@ TEST(test02_matmul, basic) {
   {
     Module module("module1", target);
     auto funcs = Lower("matmul", {A, B, C, C_init});
-    ASSERT_EQ(funcs.size(), 1UL);
 
-    auto func = Optimize(funcs.front());
+    auto func = Optimize(funcs);
     module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
     // module.Append(C_buf);
 
@@ -51,9 +50,8 @@ TEST(test02_matmul, basic) {
 
     Module module("module2", target);
     auto funcs = Lower("matmul_tile", {A, B, C, C_init});
-    ASSERT_EQ(funcs.size(), 1UL);
 
-    auto func = Optimize(funcs.front());
+    auto func = Optimize(funcs);
     module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
     // module.Append(C_buf);
 
@@ -94,9 +92,8 @@ TEST(matmul, Split) {
 
   Module module("module3", target);
   auto funcs = Lower("matmul_split", {A, B, C, C_init});
-  ASSERT_EQ(funcs.size(), 1UL);
 
-  auto func = Optimize(funcs.front());
+  auto func = Optimize(funcs);
   module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX512);
@@ -139,9 +136,8 @@ TEST(matmul, Blocking) {
 
   Module module("module_block", target);
   auto funcs = Lower("matmul_block", {A, B, C, C_init});
-  ASSERT_EQ(funcs.size(), 1UL);
 
-  auto func = Optimize(funcs.front());
+  auto func = Optimize(funcs);
   module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX512);
@@ -186,9 +182,8 @@ TEST(matmul, Vectorization) {
 
   Module module("module_vectorize", target);
   auto funcs = Lower("matmul_vectorize", {A, B, C, C_init});
-  ASSERT_EQ(funcs.size(), 1UL);
 
-  auto func = Optimize(funcs.front());
+  auto func = Optimize(funcs);
   module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
@@ -238,9 +233,8 @@ TEST(matmul, LoopPermutation) {
 
   Module module("module_loop_permutation", target);
   auto funcs = Lower("matmul_loop_permutation", {A, B, C, C_init});
-  ASSERT_EQ(funcs.size(), 1UL);
 
-  auto func = Optimize(funcs.front());
+  auto func = Optimize(funcs);
   module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
@@ -291,9 +285,8 @@ TEST(matmul, ArrayPacking) {
 
   Module module("module_array_packing", target);
   auto funcs = Lower("matmul_array_packing", {A, B, C, C_init, packedB});
-  ASSERT_EQ(funcs.size(), 1UL);
 
-  auto func = Optimize(funcs.front());
+  auto func = Optimize(funcs);
   module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);

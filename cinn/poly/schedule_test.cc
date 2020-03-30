@@ -7,7 +7,6 @@
 #include "cinn/lang/lower.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/lang/tensor.h"
-#include "cinn/poly/poly_scheduler.h"
 
 namespace cinn {
 namespace poly {
@@ -28,9 +27,8 @@ TEST(CreateSchedule, compute_at) {
   B->stage()->ComputeAt(C->stage(), 1);
 
   auto funcs = lang::Lower("func", {B, C});
-  CHECK_EQ(funcs.size(), 1UL);
 
-  std::cout << funcs[0]->body << std::endl;
+  std::cout << funcs->body << std::endl;
 
   auto target_out = R"ROC(
 {
@@ -48,7 +46,7 @@ TEST(CreateSchedule, compute_at) {
 }
 )ROC";
 
-  EXPECT_EQ(utils::GetStreamCnt(funcs[0]->body), utils::Trim(target_out));
+  EXPECT_EQ(utils::GetStreamCnt(funcs->body), utils::Trim(target_out));
 }
 
 TEST(CreateSchedule, buffer_bind_to_multiple_tensors_schedule) {
@@ -71,9 +69,8 @@ TEST(CreateSchedule, buffer_bind_to_multiple_tensors_schedule) {
   D->Bind(B_buf);
 
   auto funcs = lang::Lower("func", {B, C, D});
-  CHECK_EQ(funcs.size(), 1UL);
 
-  std::cout << funcs[0]->body << std::endl;
+  std::cout << funcs->body << std::endl;
 
   auto target_out = R"ROC(
 {
@@ -101,7 +98,7 @@ TEST(CreateSchedule, buffer_bind_to_multiple_tensors_schedule) {
 }
 )ROC";
 
-  EXPECT_EQ(utils::GetStreamCnt(funcs[0]->body), utils::Trim(target_out));
+  EXPECT_EQ(utils::GetStreamCnt(funcs->body), utils::Trim(target_out));
 }
 
 }  // namespace poly

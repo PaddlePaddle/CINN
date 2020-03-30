@@ -43,14 +43,13 @@ TEST(VectorizeLoops, Split_sperate) {
 
   // Code gen
   auto funcs = Lower("matmul", {A, B, C});
-  ASSERT_EQ(funcs.size(), 1UL);
 
   Target target;
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
 
-  Expr body = optim::Optimize(Expr(funcs[0]));
+  Expr body = optim::Optimize(Expr(funcs));
 
   lang::Module module("module1", target);
   module.Append(ir::LoweredFunc(body.As<ir::_LoweredFunc_>()));
@@ -154,9 +153,8 @@ TEST(Vectorize, replace_var) {
   C->stage()->Vectorize(1, 16);
 
   auto funcs = Lower("matmul", {A, B, C});
-  CHECK_EQ(funcs.size(), 1UL);
 
-  Expr func = optim::Optimize(funcs.front());
+  Expr func = optim::Optimize(funcs);
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -223,16 +221,15 @@ TEST(Vectorize, TestMarkVectorize) {
   C->stage()->Vectorize(1, 16);
 
   auto funcs = Lower("matmul", {A, B, C, D});
-  CHECK_EQ(funcs.size(), 1UL);
 
-  std::cout << "before optim\n" << funcs.front()->body << std::endl;
+  std::cout << "before optim\n" << funcs->body << std::endl;
 
-  optim::TransformPolyForToFor(&funcs[0]->body);
-  optim::VectorizeLoops(&funcs[0]->body, target);
-  optim::Simplify(&funcs[0]->body);
+  optim::TransformPolyForToFor(&funcs->body);
+  optim::VectorizeLoops(&funcs->body, target);
+  optim::Simplify(&funcs->body);
 
   lang::Module module("module1", target);
-  module.Append(funcs[0]);
+  module.Append(funcs);
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);

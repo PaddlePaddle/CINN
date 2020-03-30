@@ -159,7 +159,7 @@ std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensors, c
 }
 
 //! Lower the stages and get a LoweredFunc.
-std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Tensor>& args) {
+ir::LoweredFunc Lower(const std::string& name, const std::vector<Tensor>& args) {
   // make sure the graph's start-points in the args.
 
   auto stages             = poly::GatherStagesInTensors(args);
@@ -223,7 +223,7 @@ std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Te
 
   // prepare arguments
   std::vector<ir::Argument> arguments = PrepareArguments(args, {block});
-  return {ir::_LoweredFunc_::Make(name, arguments, block)};
+  return ir::_LoweredFunc_::Make(name, arguments, block);
 }
 
 }  // namespace lang

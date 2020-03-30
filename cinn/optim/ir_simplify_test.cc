@@ -46,7 +46,7 @@ TEST(IrSimplify, basic) {
     B->Bind(B_buf);
 
     auto func = Lower("func", {B});
-    auto body = func.front()->body;
+    auto body = func->body;
 
     LOG(INFO) << "original body:\n" << body;
     Simplify(&body);
@@ -78,7 +78,7 @@ TEST(IrSimplify, basic) {
     B->Bind(B_buf);
 
     auto func = Lower("func", {B});
-    auto body = func.front()->body;
+    auto body = func->body;
 
     LOG(INFO) << "original body:\n" << body;
     Simplify(&body);

@@ -27,9 +27,8 @@ TEST(Tensor, inlined) {
   D->Bind(D_buf);
 
   auto funcs = lang::Lower("func_C", {A, B, D});
-  ASSERT_EQ(funcs.size(), 1UL);
-  std::cout << "output: \n" << funcs.front() << std::endl;
-  auto out = GetStreamCnt(funcs.front());
+  std::cout << "output: \n" << funcs << std::endl;
+  auto out = GetStreamCnt(funcs);
   EXPECT_EQ(Trim(out), Trim(R"ROC(
 function func_C (_A, _B, _D)
 {

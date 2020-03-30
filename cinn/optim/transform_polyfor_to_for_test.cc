@@ -31,7 +31,6 @@ TEST(Expr, basic) {
 
   // Code gen
   auto funcs = Lower("matmul", {A, B, C});
-  ASSERT_EQ(funcs.size(), 1UL);
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -40,7 +39,7 @@ TEST(Expr, basic) {
 
   {
     lang::Module module("module1", target);
-    module.Append(funcs.front());
+    module.Append(funcs);
     module.Append(C_buf);
 
     CodeGenC codegen(target);
@@ -48,11 +47,11 @@ TEST(Expr, basic) {
     std::cout << "out:\n" << out;
   }
 
-  optim::TransformPolyForToFor(&funcs.front()->body);
+  optim::TransformPolyForToFor(&funcs->body);
 
   {
     lang::Module module("module1", target);
-    module.Append(funcs.front());
+    module.Append(funcs);
     module.Append(C_buf);
 
     CodeGenC codegen(target);
