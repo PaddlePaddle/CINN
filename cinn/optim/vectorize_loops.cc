@@ -286,11 +286,11 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     auto *node = expr->As<For>();
 
     // the extent the forloops marked as Vectorized should be int constant
-    if (forloop->for_type == ForType::Vectorized) {
+    if (forloop->is_vectorized()) {
       Context::Global().info_rgt().Get<int>("vectorized_forloop_count")++;
 
-      CHECK(forloop->vectorize_info.valid());
-      auto _new_forloop = SplitForLoop(node, forloop->vectorize_info.factor);
+      CHECK(forloop->vectorize_info().valid());
+      auto _new_forloop = SplitForLoop(node, forloop->vectorize_info().factor);
       if (!_new_forloop.defined()) {
         IRMutator<>::Visit(&node->body, &node->body);
         return;
@@ -335,8 +335,8 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     Simplify(&times);
 
     // update the current forloop
-    forloop->extent   = times;
-    forloop->for_type = ForType ::Serial;
+    forloop->extent = times;
+    forloop->set_vectorized(false);
 
     // create the new forloop
     {
@@ -349,7 +349,7 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
                                    ForType::Vectorized,
                                    DeviceAPI::UNK,
                                    forloop->body,
-                                   forloop->vectorize_info);
+                                   forloop->vectorize_info());
       forloop->body    = Block::Make({new_forloop});
       return new_forloop;
     }

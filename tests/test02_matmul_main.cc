@@ -222,7 +222,7 @@ TEST(matmul, LoopPermutation) {
     C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
 
     C->stage()->Vectorize(j_inner, 8);
-    // C->stage()->Unroll(5);
+    C->stage()->Unroll(5);
   }
 
   Module module("module_loop_permutation", target);
