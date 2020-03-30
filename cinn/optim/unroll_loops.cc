@@ -28,7 +28,7 @@ struct UnrollMutator : public ir::IRMutator<Expr*> {
   }
 
   bool is_unrollable(const ir::For* op) const {
-    return op->for_type == ir::ForType::Unrolled && op->extent.as_int32() < 50;
+    return op->is_unrolled() && op->extent.is_constant() && op->extent.as_int32() < 50;
   }
 
   //! Unroll a forloop.

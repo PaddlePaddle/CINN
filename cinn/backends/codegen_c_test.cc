@@ -46,9 +46,9 @@ TEST(CodeGenC, module) {
   target.os   = Target::OS ::Linux;
   Module module("module1", target);
 
-  auto funcs = Lower("add1", {A, B, C});
+  auto func = Lower("add1", {A, B, C});
 
-  module.Append(funcs);
+  module.Append(func);
   module.Append(C_buf);
 
   {
@@ -188,7 +188,7 @@ void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct
 }
 
 TEST(CodeGenC, matmul) {
-  using namespace ir;
+  using namespace ir;  // NOLINT
 
   Placeholder<float> A("A", {100, 20});
   Placeholder<float> B("B", {20, 50});
@@ -207,7 +207,7 @@ TEST(CodeGenC, matmul) {
   C_init->stage()->ComputeAt(C->stage(), 1);
 
   // Code gen
-  auto funcs = Lower("matmul", {A, B, C_init, C});
+  auto func = Lower("matmul", {A, B, C_init, C});
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -215,7 +215,7 @@ TEST(CodeGenC, matmul) {
   target.os   = Target::OS ::Linux;
 
   Module module("module1", target);
-  module.Append(funcs);
+  module.Append(func);
   module.Append(C_buf);
 
   CodeGenC codegen(target);
@@ -251,7 +251,7 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
 
 // This matches output of competitor.
 TEST(CodeGenC, matmul_tile) {
-  using namespace ir;
+  using namespace ir;  // NOLINT
   const int M  = 100;
   const int K  = 200;
   const int N  = 500;
@@ -288,7 +288,7 @@ TEST(CodeGenC, matmul_tile) {
   C_init->stage()->ComputeAt(C->stage(), 3);
 
   // Code gen
-  auto funcs = Lower("matmul", {A, B, C_init, C});
+  auto func = Lower("matmul", {A, B, C_init, C});
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -296,7 +296,7 @@ TEST(CodeGenC, matmul_tile) {
   target.os   = Target::OS ::Linux;
 
   Module module("module1", target);
-  module.Append(funcs);
+  module.Append(func);
   module.Append(C_buf);
 
   CodeGenC codegen(target);
@@ -402,7 +402,7 @@ TEST(CodeGenC, matmul_packed) {
   }
 
   // Code gen
-  auto funcs = Lower("matmul_with_packing", {A, B, packedB, C});
+  auto func = Lower("matmul_with_packing", {A, B, packedB, C});
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -410,7 +410,7 @@ TEST(CodeGenC, matmul_packed) {
   target.os   = Target::OS ::Linux;
 
   Module module("module1", target);
-  module.Append(funcs);
+  module.Append(func);
   module.Append(C_buf);
   module.Append(packedB_buf);
 

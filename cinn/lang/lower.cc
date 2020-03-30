@@ -43,8 +43,7 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
     CHECK(tensor_n);
     auto it = vectorizes.find(tensor_n->name);
     if (it != vectorizes.end()) {
-      stack[it->second.level]->for_type       = ir::ForType::Vectorized;
-      stack[it->second.level]->vectorize_info = it->second;
+      stack[it->second.level]->set_vectorize_info(it->second);
       CHECK(it->second.valid());
     }
   }
@@ -73,8 +72,9 @@ struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
     auto it = unrolls.find(tensor_n->name);
     if (it != unrolls.end()) {
       for (int level : it->second) {
+        VLOG(1) << "Mark " << level << " Unrolled";
         CHECK_LT(level, stack.size());
-        stack[level]->for_type = ir::ForType::Unrolled;
+        stack[level]->set_unrolled();
       }
     }
   }

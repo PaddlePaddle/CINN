@@ -482,9 +482,9 @@ enum class ForType : int {
   //! Parallel execution.
   Parallel = 1,
   //! Vector SIMD loop annotation.
-  Vectorized = 2,
+  Vectorized = 1 << 1,
   //! Unroll annotation.
-  Unrolled = 3,
+  Unrolled = 1 << 2,
 };
 
 struct VectorizeInfo {
@@ -501,27 +501,68 @@ struct VectorizeInfo {
   inline bool valid() const { return level >= 0 && factor > 0; }
 };
 
-struct For : public ExprNode<For> {
+struct ForBase {
+  ForType for_type() const { return for_type_; }
+  void set_for_type(ForType x) { for_type_ = x; }
+
+  void set_vectorize_info(const VectorizeInfo& x) {
+    if (x.valid()) set_vectorized();
+    vectorize_info_ = x;
+  }
+  const VectorizeInfo& vectorize_info() const { return vectorize_info_; }
+
+  void reset_vectorize_info() {
+    set_vectorized(false);
+    vectorize_info_.factor = -1;
+    vectorize_info_.level  = -1;
+  }
+
+  void set_seral() { for_type_ = ForType::Serial; }
+
+  void set_unrolled(bool x = true) {
+    if (x)
+      set_for_type_flag(ForType::Unrolled);
+    else
+      unset_for_type_flag(ForType::Unrolled);
+  }
+  void set_vectorized(bool x = true) {
+    if (x)
+      set_for_type_flag(ForType::Vectorized);
+    else
+      unset_for_type_flag(ForType::Vectorized);
+  }
+  void set_parallel(bool x = true) {
+    if (x)
+      set_for_type_flag(ForType::Parallel);
+    else
+      unset_for_type_flag(ForType::Parallel);
+  }
+
+  inline bool is_serial() const { return for_type_ == ForType::Serial; }
+  inline bool is_unrolled() const { return tell_for_type_flag(ForType::Unrolled); }
+  inline bool is_vectorized() const { return tell_for_type_flag(ForType::Vectorized); }
+  inline bool is_parallel() const { return tell_for_type_flag(ForType::Parallel); }
+
+ private:
+  inline void set_for_type_flag(ForType type) { *reinterpret_cast<int*>(&for_type_) |= static_cast<int>(type); }
+  inline void unset_for_type_flag(ForType type) { *reinterpret_cast<int*>(&for_type_) &= ~static_cast<int>(type); }
+  inline bool tell_for_type_flag(ForType type) const { return static_cast<int>(for_type_) & static_cast<int>(type); }
+
+  ForType for_type_{ForType::Serial};
+  VectorizeInfo vectorize_info_;
+};
+
+struct For : public ExprNode<For>, public ForBase {
   //! The loop variable.
   Var loop_var;
   //! The minimum value of the iteration.
   Expr min;
   //! The extent of the iteration.
   Expr extent;
-  //! The type of the for loop.
-  ForType for_type;
 
   Expr body;
 
-  void reset_vectorize_info() {
-    for_type              = ForType::Serial;
-    vectorize_info.factor = -1;
-    vectorize_info.level  = -1;
-  }
-
   DeviceAPI device_api;
-
-  VectorizeInfo vectorize_info;
 
   static Expr Make(Var loop_var,
                    Expr min,
@@ -538,7 +579,7 @@ struct For : public ExprNode<For> {
 };
 
 //! Polyhedral forloop, which condition is more complex than the normal `For`.
-struct PolyFor : public ExprNode<PolyFor> {
+struct PolyFor : public ExprNode<PolyFor>, public ForBase {
   //! The iterator variable.
   Var iterator;
   // Initial value of the iterator.
@@ -550,16 +591,7 @@ struct PolyFor : public ExprNode<PolyFor> {
   //! The forloop body.
   Expr body;
 
-  void reset_vectorize_info() {
-    for_type              = ForType::Serial;
-    vectorize_info.factor = -1;
-    vectorize_info.level  = -1;
-  }
-
-  ForType for_type;
   DeviceAPI device_api;
-
-  VectorizeInfo vectorize_info;
 
   PolyFor() : ExprNode(Type()) {}
 

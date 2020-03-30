@@ -181,15 +181,15 @@ Expr For::Make(
   CHECK(loop_var.defined());
   CHECK(min.defined());
   CHECK(extent.defined());
-  node->loop_var       = loop_var;
-  node->min            = min;
-  node->extent         = extent;
-  node->for_type       = for_type;
-  node->device_api     = device_api;
-  node->body           = body;
-  node->vectorize_info = vector_info;
+  node->loop_var   = loop_var;
+  node->min        = min;
+  node->extent     = extent;
+  node->device_api = device_api;
+  node->body       = body;
+  node->set_for_type(for_type);
+  node->set_vectorize_info(vector_info);
 
-  if (node->for_type == ForType::Vectorized) CHECK(node->vectorize_info.valid());
+  if (node->is_vectorized()) CHECK(node->vectorize_info().valid());
   return Expr(node);
 }
 
@@ -372,17 +372,17 @@ Expr PolyFor::Make(Var iterator,
                    DeviceAPI device_api,
                    Expr body,
                    VectorizeInfo vectorize_info) {
-  auto n            = make_shared<PolyFor>();
-  n->iterator       = iterator;
-  n->init           = init_val;
-  n->condition      = condition;
-  n->inc            = inc;
-  n->for_type       = for_type;
-  n->device_api     = device_api;
-  n->body           = body;
-  n->vectorize_info = vectorize_info;
+  auto n        = make_shared<PolyFor>();
+  n->iterator   = iterator;
+  n->init       = init_val;
+  n->condition  = condition;
+  n->inc        = inc;
+  n->device_api = device_api;
+  n->body       = body;
+  n->set_for_type(for_type);
+  n->set_vectorize_info(vectorize_info);
 
-  if (n->for_type == ForType::Vectorized) CHECK(n->vectorize_info.valid());
+  if (n->is_vectorized()) CHECK(n->vectorize_info().valid());
 
   return Expr(n);
 }
