@@ -25,7 +25,7 @@ TEST(lower, basic) {
 
   auto lower_funcs = Lower("cal_B", {A, B});
 
-  LOG(INFO) << "lower_size " << lower_funcs.size();
+  LOG(INFO) << "lower_size " << lower_funcs;
 
 #define TEST_SOUTPUT(x, out)           \
   std::cout << "\n" << x << std::endl; \
@@ -33,16 +33,16 @@ TEST(lower, basic) {
 
   auto out = R"ROC(
 {
-  poly_for (0, (i <= 99), 1)
+  for (i, 100)
   {
-    poly_for (0, (j <= 14), 1)
+    for (j, 15)
     {
-      B[i, j] = (A[i, j] + 1)
+      B[i, j] = (1 + A[i, j])
     }
   }
 }
 )ROC";
-  TEST_SOUTPUT(lower_funcs.front()->body, out);
+  TEST_SOUTPUT(lower_funcs->body, out);
 }
 
 TEST(lower, more_complex) {
@@ -60,8 +60,7 @@ TEST(lower, more_complex) {
 
   auto lower_funcs = Lower("cal_C", {A, B, C});
 
-  LOG(INFO) << "lower_size " << lower_funcs.size();
-  std::cout << "func:\n" << Expr(lower_funcs.front()->self()) << std::endl;
+  std::cout << "func:\n" << Expr(lower_funcs->self()) << std::endl;
 }
 
 }  // namespace lang

@@ -6,6 +6,7 @@
 
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/optimize.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_call_with_expr.h"
 #include "cinn/optim/tensor_write_tell.h"
@@ -159,13 +160,12 @@ std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensors, c
 }
 
 //! Lower the stages and get a LoweredFunc.
-std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Tensor>& args) {
+ir::LoweredFunc Lower(const std::string& name, const std::vector<Tensor>& args) {
   // make sure the graph's start-points in the args.
 
   auto stages             = poly::GatherStagesInTensors(args);
   auto extra_dependencies = poly::ExtractExtraDependencyFromStages(stages);
   auto graph              = poly::CreateGraph(stages, extra_dependencies);
-  LOG(INFO) << "Graph:\n" << graph->Visualize();
 
   // Create a dic for stages and tensors.
   std::map<std::string, Stage*> stage_dic;
@@ -218,12 +218,13 @@ std::vector<ir::LoweredFunc> Lower(const std::string& name, const std::vector<Te
   }
 
   Expr block = ir::Block::Make(exprs);
-  // call passes
-  optim::RemoveNestedBlock(&block);
 
   // prepare arguments
   std::vector<ir::Argument> arguments = PrepareArguments(args, {block});
-  return {ir::_LoweredFunc_::Make(name, arguments, block)};
+
+  auto func = ir::_LoweredFunc_::Make(name, arguments, block);
+  auto res  = optim::Optimize(func);
+  return ir::LoweredFunc(res.get());
 }
 
 }  // namespace lang

@@ -27,17 +27,16 @@ TEST(Tensor, inlined) {
   D->Bind(D_buf);
 
   auto funcs = lang::Lower("func_C", {A, B, D});
-  ASSERT_EQ(funcs.size(), 1UL);
-  std::cout << "output: \n" << funcs.front() << std::endl;
-  auto out = GetStreamCnt(funcs.front());
+  std::cout << "output: \n" << funcs << std::endl;
+  auto out = GetStreamCnt(funcs);
   EXPECT_EQ(Trim(out), Trim(R"ROC(
 function func_C (_A, _B, _D)
 {
-  poly_for (0, (i <= 99), 1)
+  for (i, 100)
   {
-    poly_for (0, (j <= 19), 1)
+    for (j, 20)
     {
-      D[i, j] = (((A[i, j] + B[i, j]) * 2) + 1)
+      D[i, j] = (1 + ((2 * A[i, j]) + (2 * B[i, j])))
     }
   }
 }

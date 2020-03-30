@@ -46,20 +46,21 @@ TEST(IrSimplify, basic) {
     B->Bind(B_buf);
 
     auto func = Lower("func", {B});
-    auto body = func.front()->body;
+    auto body = func->body;
 
     LOG(INFO) << "original body:\n" << body;
     Simplify(&body);
     auto target_out = R"ROC(
 {
-  poly_for (0, (i <= 99), 1)
+  for (i, 100)
   {
-    poly_for (0, (j <= 19), 1)
+    for (j, 20)
     {
       B[i, j] = (125 + (X[i, j] + y[i, 0]))
     }
   }
-})ROC";
+}
+)ROC";
     EXPECT_EQ(Trim(target_out), Trim(GetStreamCnt(body)));
   }
 
@@ -78,16 +79,16 @@ TEST(IrSimplify, basic) {
     B->Bind(B_buf);
 
     auto func = Lower("func", {B});
-    auto body = func.front()->body;
+    auto body = func->body;
 
     LOG(INFO) << "original body:\n" << body;
     Simplify(&body);
 
     auto target_out = R"ROC(
 {
-  poly_for (0, (i <= 99), 1)
+  for (i, 100)
   {
-    poly_for (0, (j <= 19), 1)
+    for (j, 20)
     {
       B[i, j] = (125 + (X[(1000 * i), 0] + (0.333333 * y[i, 0])))
     }

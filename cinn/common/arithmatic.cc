@@ -267,23 +267,6 @@ std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
   auto diff_res = ginac::diff(diff, symbol);
   CHECK(!diff_res.is_zero());
 
-  /*
-  struct Visitor : public ginac::visitor, public GiNaC::numeric::visitor {
-    int v = std::numeric_limits<int>::min();
-
-    void operator()(GiNaC::ex ex) { ex.accept(*this); }
-    void visit(const GiNaC::numeric& node) override {
-      if (node.is_positive()) v = 1;
-      else v = -1;
-    }
-  };
-  Visitor visitor;
-  visitor(diff_res);
-
-  CHECK_NE(visitor.v, std::numeric_limits<int>::min()) << "the diff result should be a integer";
-  CHECK_NE(visitor.v, 0) << "the diff result should not be zero";
-   */
-
   return std::make_tuple(value, diff_res > 0);
 }
 

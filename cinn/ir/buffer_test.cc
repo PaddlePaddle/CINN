@@ -47,15 +47,13 @@ TEST(Buffer, bind_to_multiple_tensors) {
 
   auto funcs = lang::Lower("func1", {A, B});
 
-  ASSERT_EQ(funcs.size(), 1UL);
-
   Target target;
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
 
   lang::Module module("module1", target);
-  module.Append(funcs.front());
+  module.Append(funcs);
   module.Append(buf0);
 
   backends::CodeGenC codegen(target);

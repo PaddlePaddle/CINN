@@ -7,7 +7,6 @@
 #include "cinn/lang/lower.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/lang/tensor.h"
-#include "cinn/poly/poly_scheduler.h"
 
 namespace cinn {
 namespace poly {
@@ -28,18 +27,17 @@ TEST(CreateSchedule, compute_at) {
   B->stage()->ComputeAt(C->stage(), 1);
 
   auto funcs = lang::Lower("func", {B, C});
-  CHECK_EQ(funcs.size(), 1UL);
 
-  std::cout << funcs[0]->body << std::endl;
+  std::cout << funcs->body << std::endl;
 
   auto target_out = R"ROC(
 {
-  poly_for (0, (i <= 99), 1)
+  for (i, 100)
   {
-    poly_for (0, (j <= 99), 1)
+    for (j, 100)
     {
-      B[i, j] = (A[i, j] + 1)
-      poly_for (0, (k <= 99), 1)
+      B[i, j] = (1 + A[i, j])
+      for (k, 100)
       {
         C[i, j, k] = (B[i, j] * B[j, k])
       }
@@ -48,7 +46,7 @@ TEST(CreateSchedule, compute_at) {
 }
 )ROC";
 
-  EXPECT_EQ(utils::GetStreamCnt(funcs[0]->body), utils::Trim(target_out));
+  EXPECT_EQ(utils::GetStreamCnt(funcs->body), utils::Trim(target_out));
 }
 
 TEST(CreateSchedule, buffer_bind_to_multiple_tensors_schedule) {
@@ -71,37 +69,36 @@ TEST(CreateSchedule, buffer_bind_to_multiple_tensors_schedule) {
   D->Bind(B_buf);
 
   auto funcs = lang::Lower("func", {B, C, D});
-  CHECK_EQ(funcs.size(), 1UL);
 
-  std::cout << funcs[0]->body << std::endl;
+  std::cout << funcs->body << std::endl;
 
   auto target_out = R"ROC(
 {
-  poly_for (0, (i <= 99), 1)
+  for (i, 100)
   {
-    poly_for (0, (j <= 99), 1)
+    for (j, 100)
     {
-      B[i, j] = (A[i, j] + 1)
+      B[i, j] = (1 + A[i, j])
     }
   }
-  poly_for (0, (i <= 99), 1)
+  for (i, 100)
   {
-    poly_for (0, (j <= 99), 1)
+    for (j, 100)
     {
-      C[i, j] = (A[i, j] + 1)
+      C[i, j] = (1 + A[i, j])
     }
   }
-  poly_for (0, (i <= 99), 1)
+  for (i, 100)
   {
-    poly_for (0, (j <= 99), 1)
+    for (j, 100)
     {
-      D[i, j] = (A[i, j] + 1)
+      D[i, j] = (1 + A[i, j])
     }
   }
 }
 )ROC";
 
-  EXPECT_EQ(utils::GetStreamCnt(funcs[0]->body), utils::Trim(target_out));
+  EXPECT_EQ(utils::GetStreamCnt(funcs->body), utils::Trim(target_out));
 }
 
 }  // namespace poly

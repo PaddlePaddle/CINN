@@ -599,6 +599,9 @@ struct Broadcast : public ExprNode<Broadcast> {
 
   Type type() const override;
 
+  std::vector<Expr*> expr_fields() override { return {&value}; }
+  std::vector<const Expr*> expr_fields() const override { return {&value}; }
+
   static const IrNodeTy _node_type_ = IrNodeTy::Broadcast;
 };
 
