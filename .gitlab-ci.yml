@@ -1,0 +1,46 @@
+before_script:
+  - env
+
+image: cinn-dev:0.1
+
+stages:
+  - ci
+  - build_server
+
+check:prebuilt:
+    tags:
+        - cinn
+    stage: ci
+    script:
+        #- rm -rf ~/.pip
+        - pre-commit install
+
+        - git reset --hard HEAD
+        # merge the latest code
+        - git remote -v
+        - git config --global user.email "you@example.com"
+        - git config --global user.name "Your Name"
+
+        - ./build.sh check_style
+    cache:
+        key: check_style
+        paths:
+            - $CI_USER_DIR/.cache
+
+build:server:
+    tags:
+        - cinn
+    stage: build_server
+    cache:
+        key: server_thirdparty
+        paths:
+            - ~/.ccache
+            - build/thirds
+    script:
+        # merge the latest code
+        - git config --global user.email "you@example.com"
+        - git config --global user.name "Your Name"
+        - ./build.sh ci
+
+    dependencies:
+        - check:prebuilt
