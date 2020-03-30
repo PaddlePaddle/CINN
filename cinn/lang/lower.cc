@@ -166,7 +166,6 @@ ir::LoweredFunc Lower(const std::string& name, const std::vector<Tensor>& args) 
   auto stages             = poly::GatherStagesInTensors(args);
   auto extra_dependencies = poly::ExtractExtraDependencyFromStages(stages);
   auto graph              = poly::CreateGraph(stages, extra_dependencies);
-  LOG(INFO) << "Graph:\n" << graph->Visualize();
 
   // Create a dic for stages and tensors.
   std::map<std::string, Stage*> stage_dic;

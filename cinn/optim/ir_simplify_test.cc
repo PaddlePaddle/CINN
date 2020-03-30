@@ -52,14 +52,15 @@ TEST(IrSimplify, basic) {
     Simplify(&body);
     auto target_out = R"ROC(
 {
-  poly_for (0, (i <= 99), 1)
+  for (i, 100)
   {
-    poly_for (0, (j <= 19), 1)
+    for (j, 20)
     {
       B[i, j] = (125 + (X[i, j] + y[i, 0]))
     }
   }
-})ROC";
+}
+)ROC";
     EXPECT_EQ(Trim(target_out), Trim(GetStreamCnt(body)));
   }
 
@@ -85,9 +86,9 @@ TEST(IrSimplify, basic) {
 
     auto target_out = R"ROC(
 {
-  poly_for (0, (i <= 99), 1)
+  for (i, 100)
   {
-    poly_for (0, (j <= 19), 1)
+    for (j, 20)
     {
       B[i, j] = (125 + (X[(1000 * i), 0] + (0.333333 * y[i, 0])))
     }

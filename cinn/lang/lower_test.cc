@@ -33,11 +33,11 @@ TEST(lower, basic) {
 
   auto out = R"ROC(
 {
-  poly_for (0, (i <= 99), 1)
+  for (i, 100)
   {
-    poly_for (0, (j <= 14), 1)
+    for (j, 15)
     {
-      B[i, j] = (A[i, j] + 1)
+      B[i, j] = (1 + A[i, j])
     }
   }
 }

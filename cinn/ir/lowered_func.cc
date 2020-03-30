@@ -74,13 +74,11 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
   // collect write.
   optim::TensorWriteTeller write_teller;
   write_teller.Collect(&body);
-  LOG(INFO) << "body \n" << body;
 
   auto tensors = CollectAllTensorReference();
   std::sort(tensors.begin(), tensors.end(), [](const Tensor& a, const Tensor& b) { return a->name < b->name; });
   VLOG(3) << "Function used " << tensors.size() << " buffers";
   for (auto& tensor : tensors) {
-    LOG(INFO) << "preparing cast " << tensor->name;
     auto* node = tensor.As<ir::_Tensor_>();
     CHECK(node);
 
