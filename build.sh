@@ -34,6 +34,7 @@ function prepare {
     touch tests/test02_matmul_split.cc
     touch tests/test01_elementwise_add_vectorize.cc
     touch cinn/backends/generated_module1.cc
+    touch tests/test03_convolution.cc
 }
 
 function cmake_ {
@@ -49,9 +50,12 @@ function build {
     cd $build_dir
     make test01_elementwise_add_main -j $JOBS
     make test02_matmul_main -j $JOBS
+    make test03_conv_main -j $JOBS
 
     ctest -R test01_elementwise_add_main
     ctest -R test02_matmul_main
+    ctest -R test03_conv_main
+
     make -j $JOBS
 }
 

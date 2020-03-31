@@ -11,7 +11,7 @@ namespace lang {
 ir::Tensor Compute(const std::vector<int> &dims,
                    std::function<Expr(Expr)> fn,
                    const std::string &name,
-                   Var reduce_axis) {
+                   const std::vector<Var> &reduce_axis) {
   return Compute(
       dims,
       [fn](const std::vector<Expr> &axis) -> Expr {
@@ -25,7 +25,7 @@ ir::Tensor Compute(const std::vector<int> &dims,
 ir::Tensor Compute(const std::vector<int> &dims,
                    std::function<Expr(Expr, Expr)> fn,
                    const std::string &name,
-                   Var reduce_axis) {
+                   const std::vector<Var> &reduce_axis) {
   return Compute(
       dims,
       [fn](const std::vector<Expr> &axis) -> Expr {
@@ -39,7 +39,7 @@ ir::Tensor Compute(const std::vector<int> &dims,
 ir::Tensor Compute(const std::vector<int> &dims,
                    std::function<Expr(Expr, Expr, Expr)> fn,
                    const std::string &name,
-                   Var reduce_axis) {
+                   const std::vector<Var> &reduce_axis) {
   return Compute(
       dims,
       [fn](const std::vector<Expr> &axis) -> Expr {
@@ -53,7 +53,7 @@ ir::Tensor Compute(const std::vector<int> &dims,
 ir::Tensor Compute(const std::vector<int> &dims,
                    std::function<Expr(Expr, Expr, Expr, Expr)> fn,
                    const std::string &name,
-                   Var reduce_axis) {
+                   const std::vector<Var> &reduce_axis) {
   return Compute(
       dims,
       [fn](const std::vector<Expr> &axis) -> Expr {
@@ -67,7 +67,7 @@ ir::Tensor Compute(const std::vector<int> &dims,
 ir::Tensor Compute(const std::vector<int> &dims,
                    std::function<Expr(Expr, Expr, Expr, Expr, Expr)> fn,
                    const std::string &name,
-                   Var reduce_axis) {
+                   const std::vector<Var> &reduce_axis) {
   return Compute(
       dims,
       [fn](const std::vector<Expr> &axis) -> Expr {
@@ -81,10 +81,10 @@ ir::Tensor Compute(const std::vector<int> &dims,
 ir::Tensor Compute(const std::vector<int> &dims,
                    std::function<Expr(const std::vector<Expr> &)> fn,
                    const std::string &name,
-                   Var reduce_axis) {
-  auto axis = common::GenDefaultAxis(dims.size());
+                   const std::vector<Var> &reduce_axis) {
+  auto axises = common::GenDefaultAxis(dims.size());
   std::vector<Expr> _axis;
-  for (auto &x : axis) _axis.push_back(x);
+  for (auto &x : axises) _axis.push_back(x);
   Expr expr = fn(_axis);
 
   std::vector<Expr> shape;
@@ -92,10 +92,14 @@ ir::Tensor Compute(const std::vector<int> &dims,
   for (int i = 0; i < dims.size(); i++) {
     domain.emplace_back(dims[i]);
   }
-  if (reduce_axis.defined()) {
-    // We ignore the lower bound.
-    CHECK_EQ(reduce_axis->lower_bound.as_int32(), 0);
-    domain.emplace_back(reduce_axis->upper_bound);
+
+  if (!reduce_axis.empty()) {
+    // We ignore the lower bound temporarily.
+    for (auto &axis : reduce_axis) {
+      CHECK_EQ(axis->lower_bound.as_int32(), 0);
+      domain.emplace_back(axis->upper_bound);
+      axises.push_back(axis);
+    }
   }
 
   for (int i = 0; i < dims.size(); i++) {
@@ -106,7 +110,7 @@ ir::Tensor Compute(const std::vector<int> &dims,
 
   auto op        = ir::ComputeOp::Make(unique_name, "" /*tag*/, {}, fn, shape, domain);
   auto tensor    = ir::_Tensor_::Make(unique_name, shape, op);
-  tensor->axis   = axis;
+  tensor->axis   = axises;
   tensor->domain = domain;
   return tensor;
 }

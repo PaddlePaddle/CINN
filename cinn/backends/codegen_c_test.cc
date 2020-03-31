@@ -200,8 +200,7 @@ TEST(CodeGenC, matmul) {
   Tensor C_init = Compute(
       {100, 50}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
 
-  Tensor C = Compute(
-      {100, 50}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j), k); }, "C", k);
+  Tensor C = Compute({100, 50}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
   C_init->Bind(C_buf);
   C_init->stage()->ComputeAt(C->stage(), 1);
@@ -266,8 +265,7 @@ TEST(CodeGenC, matmul_tile) {
   Tensor C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
 
-  Tensor C = Compute(
-      {M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j), k); }, "C", k);
+  Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
   C_init->Bind(C_buf);
   // C_init->stage()->ComputeAt(C->stage(), 1);
@@ -390,8 +388,7 @@ TEST(CodeGenC, matmul_packed) {
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "PackedB");
   packedB->Bind(packedB_buf);
-  auto C = Compute(
-      {M, N}, [&](Expr i, Expr j) { return A(i, k) * packedB(j / bn, k, j % bn); }, "C", k);
+  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, k) * packedB(j / bn, k, j % bn); }, "C", {k});
   C->Bind(C_buf);
 
   {

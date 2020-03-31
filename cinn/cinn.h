@@ -1,7 +1,11 @@
+/**
+ * This file exposes some internal APIs to global cinn namespace to make usage more friendly.
+ */
 #pragma once
 #include "cinn/backends/codegen_c.h"
 #include "cinn/backends/codegen_c_x86.h"
 #include "cinn/common/common.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
@@ -21,5 +25,10 @@ using lang::Module;
 using lang::Placeholder;
 using lang::Sum;
 using optim::Optimize;
+
+using ir::logic_and;
+using ir::logic_or;
+
+using common::Target;
 
 }  // namespace cinn
