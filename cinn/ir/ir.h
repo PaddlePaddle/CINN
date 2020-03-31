@@ -120,6 +120,8 @@ struct Max : public BinaryOpNode<Max> {
 struct EQ : public BinaryOpNode<EQ> {
   EQ(Expr a, Expr b) : BinaryOpNode<EQ>(a.type(), a, b) {}
 
+  Type type() const { return Bool(a()->type().lanes()); }
+
   static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::EQ;
 };
@@ -129,6 +131,8 @@ struct EQ : public BinaryOpNode<EQ> {
  */
 struct NE : public BinaryOpNode<NE> {
   NE(Expr a, Expr b) : BinaryOpNode<NE>(a.type(), a, b) {}
+
+  Type type() const { return Bool(a()->type().lanes()); }
 
   static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::NE;
@@ -140,6 +144,8 @@ struct NE : public BinaryOpNode<NE> {
 struct LT : public BinaryOpNode<LT> {
   LT(Expr a, Expr b) : BinaryOpNode<LT>(a.type(), a, b) {}
 
+  Type type() const { return Bool(a()->type().lanes()); }
+
   static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::LT;
 };
@@ -149,6 +155,8 @@ struct LT : public BinaryOpNode<LT> {
  */
 struct LE : public BinaryOpNode<LE> {
   LE(Expr a, Expr b) : BinaryOpNode<LE>(a.type(), a, b) {}
+
+  Type type() const { return Bool(a()->type().lanes()); }
 
   static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::LE;
@@ -160,6 +168,8 @@ struct LE : public BinaryOpNode<LE> {
 struct GT : public BinaryOpNode<GT> {
   GT(Expr a, Expr b) : BinaryOpNode<GT>(a.type(), a, b) {}
 
+  Type type() const { return Bool(a()->type().lanes()); }
+
   static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::GT;
 };
@@ -170,6 +180,8 @@ struct GT : public BinaryOpNode<GT> {
 struct GE : public BinaryOpNode<GE> {
   GE(Expr a, Expr b) : BinaryOpNode<GE>(a.type(), a, b) {}
 
+  Type type() const { return Bool(a()->type().lanes()); }
+
   static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::GE;
 };
@@ -178,7 +190,12 @@ struct GE : public BinaryOpNode<GE> {
  * Logical and.
  */
 struct And : public BinaryOpNode<And> {
-  And(Expr a, Expr b) : BinaryOpNode<And>(a.type(), a, b) {}
+  And(Expr a, Expr b) : BinaryOpNode<And>(a.type(), a, b) {
+    CHECK(a->type().is_bool());
+    CHECK(b->type().is_bool());
+  }
+
+  Type type() const { return Bool(a()->type().lanes()); }
 
   static Expr Make(Expr a, Expr b);
   static const IrNodeTy _node_type_ = IrNodeTy::And;
@@ -198,7 +215,10 @@ struct Minus : public UnaryOpNode<Minus> {
  * Logical or.
  */
 struct Or : public BinaryOpNode<Or> {
-  Or(Expr a, Expr b) : BinaryOpNode<Or>(Bool(), a, b) {}
+  Or(Expr a, Expr b) : BinaryOpNode<Or>(Bool(), a, b) {
+    CHECK(a->type().is_bool());
+    CHECK(b->type().is_bool());
+  }
 
   static Expr Make(Expr a, Expr b);
 
@@ -365,15 +385,15 @@ struct Select : public ExprNode<Select> {
   Select(Expr condition, Expr true_value, Expr false_value)
       : ExprNode<Select>(true_value.type()), condition(condition), true_value(true_value), false_value(false_value) {
     CHECK_EQ(true_value.type(), false_value.type());
+    CHECK(condition.type().is_bool());
   }
 
   static Expr Make(Expr condition, Expr true_value, Expr false_value) {
-    auto node = new Select(condition, true_value, false_value);
+    auto node = make_shared<Select>(condition, true_value, false_value);
     return Expr(node);
   }
 
   Type type() const override {
-    CHECK(condition.type().is_bool());
     CHECK_EQ(true_value.type(), false_value.type());
     return true_value.type();
   }

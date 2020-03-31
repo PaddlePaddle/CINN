@@ -40,9 +40,8 @@ struct Target {
   };
   std::vector<Feature> features;
 
-  Target() = default;
-
-  Target(OS o, Arch a, Bit b, const std::vector<Feature>& features) : os(o), arch(a), bits(b) {}
+  Target(OS o = OS::Linux, Arch a = Arch::Unk, Bit b = Bit::Unk, const std::vector<Feature>& features = {})
+      : os(o), arch(a), bits(b), features(features) {}
 
   bool defined() const { return os != OS::Unk && arch != Arch::Unk && bits != Bit::Unk; }
 

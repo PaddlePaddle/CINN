@@ -1,5 +1,7 @@
 #include "cinn/optim/optimize.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/cinn.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/utils/string.h"

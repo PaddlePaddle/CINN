@@ -88,5 +88,9 @@ inline Expr operator/(Expr a, Expr b) { return Div::Make(a, b); }
 inline Expr operator&&(Expr a, Expr b) { return And::Make(Expr(a), Expr(b)); }
 inline Expr operator||(Expr a, Expr b) { return Or::Make(Expr(a), Expr(b)); }
 
+//! Get the ALL of the conditions.
+Expr logic_and(const std::vector<Expr>& conds);
+Expr logic_or(const std::vector<Expr>& conds);
+
 }  // namespace ir
 }  // namespace cinn

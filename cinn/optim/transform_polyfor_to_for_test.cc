@@ -20,8 +20,7 @@ TEST(Expr, basic) {
   lang::Buffer C_buf(Float(32));
   Var k(K, "k");
 
-  Tensor C = Compute(
-      {M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j), k); }, "C", k);
+  Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
 
   {

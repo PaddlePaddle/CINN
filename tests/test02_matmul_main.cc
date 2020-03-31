@@ -20,8 +20,7 @@ TEST(test02_matmul, basic) {
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   C_init->Bind(C_buf);
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j), k); }, "C", k);
+  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
@@ -69,8 +68,7 @@ TEST(matmul, Split) {
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   C_init->Bind(C_buf);
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j), k); }, "C", k);
+  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
@@ -110,9 +108,9 @@ TEST(matmul, Blocking) {
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   C_init->Bind(C_buf);
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j), k); }, "C", k);
+  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
+
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
@@ -153,8 +151,7 @@ TEST(matmul, Vectorization) {
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   C_init->Bind(C_buf);
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j), k); }, "C", k);
+  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
   // ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
@@ -198,8 +195,7 @@ TEST(matmul, LoopPermutation) {
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   C_init->Bind(C_buf);
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j), k); }, "C", k);
+  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
@@ -254,8 +250,7 @@ TEST(matmul, ArrayPacking) {
   packedB->Bind(packedB_buf);
   packedB->stage()->Vectorize(2, 8);
 
-  auto C = Compute(
-      {M, N}, [&](Expr i, Expr j) { return Sum(A(i, k) * packedB(j / bn, k, j % bn), k); }, "C", k);
+  auto C = Compute({M, N}, [&](Expr i, Expr j) { return Sum(A(i, k) * packedB(j / bn, k, j % bn)); }, "C", {k});
   C->Bind(C_buf);
 
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
