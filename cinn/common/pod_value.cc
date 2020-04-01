@@ -1,6 +1,7 @@
 #include "cinn/common/pod_value.h"
 
 #include "cinn/ir/node.h"
+#include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
 
@@ -27,15 +28,13 @@ __m(float, 2);
 __m(double, 3);
 __m(void *, 4);
 __m(char *, 5);
-__m(char const *, 5);
-__m(ir::Expr, 4);
-__m(ir::Var, 4);
+__m(char const *, 6);
+__m(ir::Expr, 7);
+__m(ir::Var, 8);
+__m(cinn_buffer_t *, 9);
+__m(const cinn_buffer_t *, 10);
 #undef __m
 //@}
-
-//! Implement setters.
-// @{
-// @}
 
 PODValue::operator double() const {
   CHECK_EQ(TypeCode<double>(), type_code_);
@@ -60,6 +59,14 @@ PODValue::operator void *() const {
 PODValue::operator char *() const {
   CHECK_EQ(TypeCode<char *>(), type_code_);
   return value_.v_str;
+}
+PODValue::operator const char *() const {
+  CHECK_EQ(TypeCode<const char *>(), type_code_);
+  return value_.v_str;
+}
+PODValue::operator cinn_buffer_t *() const {
+  CHECK_EQ(TypeCode<cinn_buffer_t *>(), type_code_);
+  return static_cast<cinn_buffer_t *>(value_.v_handle);
 }
 
 // Value setter for multiple types.
@@ -98,6 +105,11 @@ template <>
 void PODValue::Set<char const *>(char const *v) {
   type_code_   = TypeCode<char *>();
   value_.v_str = const_cast<char *>(v);
+}
+template <>
+void PODValue::Set<cinn_buffer_t *>(cinn_buffer_t *v) {
+  type_code_      = TypeCode<cinn_buffer_t *>();
+  value_.v_handle = v;
 }
 // @}
 
