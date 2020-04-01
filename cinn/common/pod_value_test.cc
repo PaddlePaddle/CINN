@@ -18,5 +18,12 @@ TEST(PODValue, test) {
   }
 }
 
+TEST(PODValue, buffer) {
+  PODValue value;
+  cinn_buffer_t* v = nullptr;
+  value.Set(v);
+  ASSERT_EQ((cinn_buffer_t*)value, nullptr);
+}
+
 }  // namespace common
 }  // namespace cinn

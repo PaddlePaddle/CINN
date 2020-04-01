@@ -2,6 +2,7 @@
 #include <glog/logging.h>
 
 #include "cinn/common/type.h"
+#include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
 
@@ -42,8 +43,10 @@ class PODValue {
   operator int64_t() const;
   operator void*() const;
   operator char*() const;
+  operator const char*() const;
   operator ir::Var() const;
   operator ir::Expr() const;
+  operator cinn_buffer_t*() const;
   // @}
 
   //! Set the value.

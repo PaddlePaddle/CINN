@@ -19,13 +19,14 @@ TEST(Function, test) {
 
 TEST(Function, test1) {
   PackedFunc::func_t body = [](Args args, RetValue* ret) {
-    char* msg = args[0];
+    auto* msg = static_cast<const char*>(args[0]);
 
     ret->Set(msg);
   };
 
   PackedFunc func(body);
-  char* c = func("hello world");
+  const char* msg = "hello world";
+  char* c         = func(msg);
   LOG(INFO) << static_cast<char*>(c);
 }
 

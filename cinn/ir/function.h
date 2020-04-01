@@ -27,6 +27,7 @@ class ArgValue : public common::PODValue {
   using common::PODValue::operator int32_t;
   using common::PODValue::operator int64_t;
   using common::PODValue::operator void*;
+  using common::PODValue::operator cinn_buffer_t*;
 };
 
 /**
@@ -47,16 +48,23 @@ class RetValue : public PODValue {
   using common::PODValue::operator int32_t;
   using common::PODValue::operator int64_t;
   using common::PODValue::operator void*;
+  using common::PODValue::operator cinn_buffer_t*;
 };
 
+/**
+ * Arguments of the PackedFunc.
+ */
 class Args {
  public:
   Args() = default;
   Args(Value* values, int* type_codes, int len);
 
+  //! Append a \p value of type code \p type_code.
   void Append(Value v, int type_code) { values_.emplace_back(v, type_code); }
 
-  size_t size() { return values_.size(); }
+  //! Count of the arguments.
+  size_t size() const { return values_.size(); }
+
   //! Get i-th element.
   ArgValue operator[](int i) { return values_[i]; }
 
@@ -99,6 +107,9 @@ struct FuncArgsSetter {
 
 }  // namespace detail
 
+/**
+ * A function defininer with the arguments packed, all the PackedFuncs have the same signature.
+ */
 class PackedFunc {
  public:
   using func_t = std::function<void(Args args, RetValue*)>;
