@@ -404,11 +404,18 @@ struct Select : public ExprNode<Select> {
   static const IrNodeTy _node_type_ = IrNodeTy::Select;
 };
 
+struct LoadStoreAddrMnger {
+  Expr tensor;  // Should be a tensor or a scalar.
+  //! Tell whether the address is a tensor.
+  bool is_addr_tensor() const;
+  //! Tell whether the address is a scalar.
+  bool is_addr_scalar() const;
+};
+
 /**
  * Load the value from a buffer (as an array).
  */
-struct Load : public ExprNode<Load> {
-  Expr tensor;  // should be a buffer.
+struct Load : public ExprNode<Load>, public LoadStoreAddrMnger {
   std::vector<Expr> indices;
   //! The abstract offset.
   Expr index() const;
@@ -428,8 +435,7 @@ struct Load : public ExprNode<Load> {
 /**
  * Store a `value` to the buffer at a given `index`.
  */
-struct Store : public ExprNode<Store> {
-  Expr tensor;
+struct Store : public ExprNode<Store>, public LoadStoreAddrMnger {
   Expr value;
   std::vector<Expr> indices;
 

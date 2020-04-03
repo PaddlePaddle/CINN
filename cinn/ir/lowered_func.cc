@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cinn/common/common.h"
+#include "cinn/common/ir.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
@@ -27,6 +28,7 @@ LoweredFunc _LoweredFunc_::Make(const std::string& name, const std::vector<Argum
   n->AllocBufferForOutputs();
   n->AllocTempBuffer();
   n->PrepareBufferCastExprs();
+  n->PrepareArgumentExprs();
   return LoweredFunc(n);
 }
 
@@ -93,6 +95,54 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
     auto let = Let::Make(variable, body);
 
     buffer_data_cast_exprs.push_back(let);
+  }
+}
+
+void _LoweredFunc_::PrepareArgumentExprs() {
+  // type of cinn_buffer_t**
+  Type buffer_array_type;
+  buffer_array_type.set_customized_type(common::customized_type::kbuffer_t);
+  buffer_array_type.set_as_cpp_handle_handle();
+
+  Var args_passed_in("_args", type_of<void*>());
+
+  // get something like: cinn_buffer_t** args = (cinn_buffer_t**)(_args)
+  Var array("args", buffer_array_type);
+  {
+    Expr body = Cast::Make(buffer_array_type, args_passed_in);
+    argument_prepare_exprs.push_back(Let::Make(array, body));
+  }
+
+  /*
+   * Get something like:
+   *
+   * const cinn_buffer_t* _A = args[0];
+   * cinn_buffer_t* _B = args[1];
+   */
+
+  // Type of cinn_buffer_t*
+  Type buffer_ptr_type;
+  buffer_ptr_type.set_customized_type(common::customized_type::kbuffer_t);
+  buffer_ptr_type.set_as_cpp_handle();
+
+  // Type of const cinn_buffer_t*
+  Type const_buffer_ptr_type = buffer_ptr_type.with_cpp_const();
+
+  // We just has two kinds of argument types, first is `cinn_buffer_t*`, second is `const cinn_buffer_t*`, do not need a
+  // `any` type support currently.
+  for (int i = 0; i < args.size(); i++) {
+    auto& arg = args[i];
+    Var _arg;
+    if (arg.is_input())
+      _arg = Var(arg.name(), const_buffer_ptr_type);
+    else if (arg.is_output())
+      _arg = Var(arg.name(), buffer_ptr_type);
+    else
+      NOT_IMPLEMENTED
+    // currently we only support one type, cinn_buffer_t*
+    Expr load_expr = Load::Make(array, {common::make_const(i)});
+    Expr let_expr  = Let::Make(_arg, load_expr);
+    argument_prepare_exprs.push_back(let_expr);
   }
 }
 

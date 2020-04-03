@@ -156,9 +156,17 @@ void IrPrinter::Visit(const Select *x) {
   os_ << ")";
 }
 void IrPrinter::Visit(const Load *x) {
-  auto *tensor = x->tensor.As<ir::_Tensor_>();
-  CHECK(tensor);
-  os_ << tensor->name << "[";
+  if (x->is_addr_tensor()) {
+    auto *tensor = x->tensor.As<ir::_Tensor_>();
+    CHECK(tensor);
+    os_ << tensor->name;
+  } else if (x->is_addr_scalar()) {
+    Print(x->tensor);
+  } else {
+    NOT_IMPLEMENTED
+  }
+
+  os_ << "[";
   for (int i = 0; i < x->indices.size() - 1; i++) {
     Print(x->indices[i]);
     os() << ", ";
@@ -167,9 +175,17 @@ void IrPrinter::Visit(const Load *x) {
   os_ << "]";
 }
 void IrPrinter::Visit(const Store *x) {
-  auto *tensor_node = x->tensor.As<ir::_Tensor_>();
-  CHECK(tensor_node);
-  os_ << tensor_node->name << "[";
+  if (x->is_addr_tensor()) {
+    auto *tensor_node = x->tensor.As<ir::_Tensor_>();
+    CHECK(tensor_node);
+    os_ << tensor_node->name;
+  } else if (x->is_addr_scalar()) {
+    Print(x->tensor);
+  } else {
+    NOT_IMPLEMENTED
+  }
+
+  os_ << "[";
   for (int i = 0; i < x->indices.size() - 1; i++) {
     Print(x->indices[i]);
     os() << ", ";

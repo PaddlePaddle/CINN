@@ -63,8 +63,12 @@ TEST(Expr, basic) {
 #include <stdio.h>
 
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 512, 500 });
-void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
+void matmul(void* _args, int32_t num_args)
 {
+  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
+  const cinn_buffer_t* _A = args[0];
+  const cinn_buffer_t* _B = args[1];
+  cinn_buffer_t* _C = args[2];
   cinn_buffer_malloc((void*)(0), _C);
   const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));

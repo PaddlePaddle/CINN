@@ -30,11 +30,13 @@ TEST(test01, basic) {
     }
   };
 
+  cinn_buffer_t* args[] = {A, B, C};
+
   LOG(INFO) << "test1 basic";
-  add1(A, B, C);
+  add1(args, 3);
   check();
 
   LOG(INFO) << "test1 vectorize";
-  add1_vectorize(A, B, C);
+  add1_vectorize(args, 3);
   check();
 }

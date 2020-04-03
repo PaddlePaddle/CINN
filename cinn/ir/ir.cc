@@ -433,7 +433,6 @@ Var &Var::operator=(const _Var_ *x) {
 }
 
 Expr Load::Make(Expr tensor, const std::vector<Expr> &indices) {
-  CHECK(tensor.As<ir::_Tensor_>()) << "Load's address should be a tensor";
   CHECK(tensor->type().valid());
   CHECK(!indices.empty());
   for (auto &idx : indices) CHECK_EQ(idx.type().ElementOf(), Int(32));
@@ -461,11 +460,16 @@ std::vector<const Expr *> Load::expr_fields() const {
 }
 
 Expr Load::index() const {
-  auto *tensor_n = tensor.As<_Tensor_>();
-  CHECK(tensor_n);
-  Expr res = common::ExpandTo1DIndice(tensor_n->shape, indices);
-  optim::Simplify(&res);
-  return res;
+  if (is_addr_tensor()) {
+    auto *tensor_n = tensor.As<_Tensor_>();
+    CHECK(tensor_n);
+    Expr res = common::ExpandTo1DIndice(tensor_n->shape, indices);
+    optim::Simplify(&res);
+    return res;
+  } else {
+    CHECK_EQ(indices.size(), 1UL);
+    return indices[0];
+  }
 }
 
 const std::string &Load::name() const {
@@ -473,6 +477,9 @@ const std::string &Load::name() const {
   CHECK(t);
   return t->name;
 }
+
+bool LoadStoreAddrMnger::is_addr_tensor() const { return tensor.As<_Tensor_>(); }
+bool LoadStoreAddrMnger::is_addr_scalar() const { return !is_addr_tensor(); }
 
 Expr Ramp::Make(Expr base, Expr stride, int lanes) {
   CHECK(base.defined());

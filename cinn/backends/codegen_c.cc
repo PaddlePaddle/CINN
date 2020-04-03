@@ -79,6 +79,9 @@ std::string CodeGenC::PrintType(Type type) {
     str += "double";
   } else if (type.is_void()) {
     str += "void";
+  } else if (type.is_customized_type()) {
+    CHECK(!type.customized_type().empty());
+    str += type.customized_type();
   } else {
     LOG(ERROR) << type;
     NOT_IMPLEMENTED
@@ -86,6 +89,8 @@ std::string CodeGenC::PrintType(Type type) {
 
   if (type.is_cpp_handle()) {
     str += "*";
+  } else if (type.is_cpp_handle_handle()) {
+    str += "**";
   }
   return str;
 }
@@ -265,22 +270,22 @@ void CodeGenC::Visit(const ir::Load *op) {
     os() << ",";
     Print(op->index());
     os() << ")";
-  } else {
-    // load scalar
+  } else if (op->is_addr_tensor()) {
     auto *tensor = op->tensor.As<ir::_Tensor_>();
-    CHECK(tensor);
-    os() << tensor->name << "[";
-    Print(op->index());
-    os() << "]";
+    os() << tensor->name << "[" << op->index() << "]";
+  } else {
+    IrPrinter::Visit(op);
   }
 }
 
 void CodeGenC::Visit(const ir::Store *op) {
-  auto *tensor_node = op->tensor.As<ir::_Tensor_>();
-  CHECK(tensor_node);
-  os() << tensor_node->name << "[";
+  CHECK(op->is_addr_tensor());
+  auto *tensor = op->tensor.As<ir::_Tensor_>();
+  CHECK(tensor);
+  os() << tensor->name << "[";
   Print(op->index());
-  os() << "] = ";
+  os() << "]";
+  os() << " = ";
   Print(op->value);
 }
 void CodeGenC::Visit(const ir::Alloc *op) { IrPrinter::Visit(op); }
@@ -336,6 +341,7 @@ void CodeGenC::PrintCastExpr(const std::string &type, Expr e) {
   Print(e);
   os() << ")";
 }
+
 void CodeGenC::PrintShape(const std::vector<Expr> &shape) {
   os() << "{ ";
 
@@ -349,29 +355,17 @@ void CodeGenC::PrintShape(const std::vector<Expr> &shape) {
 }
 
 void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
-  os() << "void " << op->name;
-
-  // output arguments
-  os() << "(";
-
-  for (int i = 0; i < op->args.size() - 1; i++) {
-    PrintFuncArg(op->args[i]);
-    os() << ", ";
-  }
-  if (op->args.size() >= 1) {
-    PrintFuncArg(op->args.back());
-  }
-
-  os() << ")\n";
+  PrintFunctionDefinition(op);
+  os() << "\n";
 
   DoIndent();
   // os() << "{\n";
 
-  // allocate output buffer
   Expr allocate_output_buffer_expr = ir::Block::Make(op->alloc_output_buffer_exprs);
   Expr buffer_cast_expr            = ir::Block::Make(op->buffer_data_cast_exprs);
+  Expr prepare_arguments_expr      = ir::Block::Make(op->argument_prepare_exprs);
 
-  Expr func_body = ir::Block::Make({allocate_output_buffer_expr, buffer_cast_expr, op->body});
+  Expr func_body = ir::Block::Make({prepare_arguments_expr, allocate_output_buffer_expr, buffer_cast_expr, op->body});
 
   optim::RemoveNestedBlock(&func_body);
 
@@ -417,17 +411,8 @@ void CodeGenC::GenerateHeaderFile(const lang::Module &module) {
   PrintIncludes();
 
   for (auto &func : module.functions()) {
-    os() << "void " << func->name;
-    os() << "(";
-    for (int i = 0; i < func->args.size() - 1; i++) {
-      PrintFuncArg(func->args[i]);
-      os() << ", ";
-    }
-    if (func->args.size() >= 1) {
-      PrintFuncArg(func->args.back());
-    }
-
-    os() << ");\n";
+    PrintFunctionDefinition(func.As<ir::_LoweredFunc_>());
+    os() << ";\n";
     os() << "\n\n";
   }
 

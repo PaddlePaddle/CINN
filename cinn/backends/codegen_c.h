@@ -53,6 +53,12 @@ class CodeGenC : public ir::IrPrinter {
   void PrintCastExpr(const std::string& type, Expr e);
   // @}
 
+  void PrintFunctionDefinition(const ir::_LoweredFunc_* op) {
+    os() << "void " << op->name << "(";
+    os() << "void* _args, int32_t num_args";
+    os() << ")";
+  }
+
   void PrintShape(const std::vector<Expr>& shape);
 
   void PrintIncludes();
