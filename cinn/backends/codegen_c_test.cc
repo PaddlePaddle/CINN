@@ -62,8 +62,12 @@ TEST(CodeGenC, module) {
 #include <stdio.h>
 
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 });
-void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
+void add1(void* _args, int32_t num_args)
 {
+  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
+  const cinn_buffer_t* _A = args[0];
+  const cinn_buffer_t* _B = args[1];
+  cinn_buffer_t* _C = args[2];
   cinn_buffer_malloc((void*)(0), _C);
   const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
@@ -89,7 +93,7 @@ void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C);
+void add1(void* _args, int32_t num_args);
 
 
 #endif  // _MODULE1_CINN_H_
@@ -152,8 +156,13 @@ TEST(CodeGenC, module_with_transform) {
 #include <stdio.h>
 
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 });
-void add1(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C, struct cinn_buffer_t *_D)
+void add1(void* _args, int32_t num_args)
 {
+  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
+  const cinn_buffer_t* _A = args[0];
+  const cinn_buffer_t* _B = args[1];
+  cinn_buffer_t* _C = args[2];
+  cinn_buffer_t* _D = args[3];
   cinn_buffer_malloc((void*)(0), _C);
   cinn_buffer_malloc((void*)(0), _D);
   const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
@@ -227,8 +236,12 @@ TEST(CodeGenC, matmul) {
 #include <stdio.h>
 
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 50 });
-void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
+void matmul(void* _args, int32_t num_args)
 {
+  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
+  const cinn_buffer_t* _A = args[0];
+  const cinn_buffer_t* _B = args[1];
+  cinn_buffer_t* _C = args[2];
   cinn_buffer_malloc((void*)(0), _C);
   const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
@@ -307,8 +320,12 @@ TEST(CodeGenC, matmul_tile) {
 #include <stdio.h>
 
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 });
-void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
+void matmul(void* _args, int32_t num_args)
 {
+  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
+  const cinn_buffer_t* _A = args[0];
+  const cinn_buffer_t* _B = args[1];
+  cinn_buffer_t* _C = args[2];
   cinn_buffer_malloc((void*)(0), _C);
   const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
   const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
@@ -422,8 +439,13 @@ TEST(CodeGenC, matmul_packed) {
 
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 });
 cinn_buffer_t* _PackedB = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 15, 200, 32 });
-void matmul_with_packing(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_PackedB, struct cinn_buffer_t *_C)
+void matmul_with_packing(void* _args, int32_t num_args)
 {
+  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
+  const cinn_buffer_t* _A = args[0];
+  const cinn_buffer_t* _B = args[1];
+  cinn_buffer_t* _PackedB = args[2];
+  cinn_buffer_t* _C = args[3];
   cinn_buffer_malloc((void*)(0), _PackedB);
   cinn_buffer_malloc((void*)(0), _C);
   const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));

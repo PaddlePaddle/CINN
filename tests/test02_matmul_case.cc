@@ -73,18 +73,21 @@ TEST(test02, basic) {
 
   const int repeat = 1;
 
+  cinn_buffer_t* args[]  = {A, B, C};
+  cinn_buffer_t* args1[] = {A, B, C, packedB};
+
 #define TEST_FUNC(func__)                           \
   LOG(INFO) << "Testing " #func__;                  \
   timer.Start();                                    \
-  for (int i = 0; i < repeat; i++) func__(A, B, C); \
+  for (int i = 0; i < repeat; i++) func__(args, 3); \
   LOG(INFO) << timer.Stop() / repeat;               \
   compare();
 
-#define TEST_FUNC1(func__, diff)                             \
-  LOG(INFO) << "Testing " #func__;                           \
-  timer.Start();                                             \
-  for (int i = 0; i < repeat; i++) func__(A, B, C, packedB); \
-  LOG(INFO) << timer.Stop() / repeat;                        \
+#define TEST_FUNC1(func__, diff)                     \
+  LOG(INFO) << "Testing " #func__;                   \
+  timer.Start();                                     \
+  for (int i = 0; i < repeat; i++) func__(args1, 4); \
+  LOG(INFO) << timer.Stop() / repeat;                \
   compare();
 
   TEST_FUNC(matmul)

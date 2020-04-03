@@ -18,13 +18,15 @@ struct Type {
     UInt,
     Float,
     Void,
+    Customized,  // Customized type
   };
 
   //! type decorators in C++.
   enum class cpp_type_t : uint8_t {
-    None   = 0,       // None information.
-    Handle = 1,       // pointer type.
-    Const  = 1 << 2,  // const
+    None         = 0,       // None information.
+    Const        = 1,       // const.
+    Handle       = 1 << 1,  // pointer type.
+    HandleHandle = 1 << 2,  // pointer of pointer, like cinn_buffer_t**.
   };
 
   Type() = default;
@@ -46,22 +48,29 @@ struct Type {
   void set_as_cpp_handle(bool x = true);
   bool is_cpp_handle() const { return static_cast<uint8_t>(cpp_type_) & static_cast<uint8_t>(cpp_type_t::Handle); }
 
-  void set_cpp_const(bool is_const = true) {
-    uint8_t& data = *reinterpret_cast<uint8_t*>(&cpp_type_);
-    if (is_const) {
-      data |= static_cast<uint8_t>(cpp_type_t::Const);
-    } else {
-      data &= ~(static_cast<uint8_t>(cpp_type_t::Const));
-    }
+  void set_as_cpp_handle_handle(bool x = true);
+  bool is_cpp_handle_handle() const {
+    return static_cast<uint8_t>(cpp_type_) & static_cast<uint8_t>(cpp_type_t::HandleHandle);
   }
+
+  void set_cpp_const(bool is_const = true);
   bool is_cpp_const() const { return static_cast<uint8_t>(cpp_type_t::Const) & static_cast<uint8_t>(cpp_type_); }
 
-  // Get a new type with bits set to `x`.
+  void set_customized_type(const std::string& t) {
+    type_            = type_t ::Customized;
+    customized_type_ = t;
+  }
+  const std::string& customized_type() const { return customized_type_; }
+  bool is_customized_type() const { return !customized_type_.empty(); }
+
+  // Get a new type with bits set to \p x.
   Type with_bits(int x) const;
-  // Get a new type with type set to `x`.
+  // Get a new type with type set to \p x.
   Type with_type(type_t x) const;
-  // Get a new type with lanes set to `x`.
+  // Get a new type with lanes set to \p x.
   Type with_lanes(int x) const;
+  // Get a new type with cpp_const set to \p x.
+  Type with_cpp_const(bool x = true) const;
 
   //! Getters
   // @{
@@ -99,6 +108,8 @@ struct Type {
 
   //! How many elements(if a vector type), for scalar types, it should be 1.
   int lanes_{1};
+
+  std::string customized_type_;
 };
 
 inline Type Void() { return Type(Type::type_t ::Void, 0, 0); }
@@ -142,6 +153,14 @@ inline Type type_of<double*>() {
 }
 
 std::ostream& operator<<(std::ostream& os, Type::type_t t);
+
+namespace customized_type {
+
+const std::string kArgs_type_repr     = "Args";
+const std::string kArgValue_type_repr = "ArgValue";
+const std::string kbuffer_t           = "cinn_buffer_t";
+
+}  // namespace customized_type
 
 }  // namespace common
 }  // namespace cinn
