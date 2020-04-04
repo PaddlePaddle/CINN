@@ -45,6 +45,9 @@ struct Shared {
   Shared(Shared&& other) : p_(other.p_) { other.p_ = nullptr; }
   Shared<T>& operator=(const Shared<T>& other);
 
+  //! Reset to another pointer \p x.
+  void Reset(T* x = nullptr);
+
   //! Access the pointer in various ways.
   // @{
   inline T* get() const { return p_; }
@@ -57,28 +60,17 @@ struct Shared {
   inline bool same_as(const Shared& other) { return p_ == other.p_; }
   inline bool defined() const { return p_; }
   inline bool operator<(const Shared& other) const { return p_ < other.p_; }
-  inline Shared<T>& operator=(T* x) {
-    if (p_ == x) return *this;
-
-    T* tmp = x;
-    IncRef(tmp);
-    DesRef(p_);
-    p_ = tmp;
-    return *this;
-  }
+  inline Shared<T>& operator=(T* x);
   inline bool operator==(const Shared& other) const { return p_ == other.p_; }
 
-  ~Shared() {
-    DesRef(p_);
-    p_ = nullptr;
-  }
+  ~Shared();
 
  private:
   //! Increase the share count.
   void IncRef(T* p);
 
   //! Decrease the share count.
-  void DesRef(T* p);
+  void DecRef(T* p);
 
  protected:
   T* p_{};
@@ -91,7 +83,7 @@ void Shared<T>::IncRef(T* p) {
   }
 }
 template <typename T>
-void Shared<T>::DesRef(T* p) {
+void Shared<T>::DecRef(T* p) {
   if (p) {
     if (ref_count(p).Dec() == 0) {
       Destroy(p);
@@ -105,7 +97,7 @@ Shared<T>& Shared<T>::operator=(const Shared<T>& other) {
   // ourselves.
   T* tmp = other.p_;
   IncRef(tmp);
-  DesRef(p_);
+  DecRef(p_);
   p_ = tmp;
   return *this;
 }
@@ -113,6 +105,30 @@ Shared<T>& Shared<T>::operator=(const Shared<T>& other) {
 template <typename T, typename... Args>
 T* make_shared(Args&&... args) {
   return new T(args...);
+}
+
+template <typename T>
+Shared<T>& Shared<T>::operator=(T* x) {
+  if (p_ == x) return *this;
+
+  T* tmp = x;
+  IncRef(tmp);
+  DecRef(p_);
+  p_ = tmp;
+  return *this;
+}
+
+template <typename T>
+Shared<T>::~Shared() {
+  DecRef(p_);
+  p_ = nullptr;
+}
+
+template <typename T>
+void Shared<T>::Reset(T* x) {
+  if (x) IncRef(x);
+  DecRef(p_);
+  p_ = x;
 }
 
 }  // namespace common

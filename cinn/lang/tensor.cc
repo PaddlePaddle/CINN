@@ -250,9 +250,19 @@ void _Tensor_::Bind(lang::Buffer &buffer) {
   InitStage();
 }
 
+void _Tensor_::Bind(const Buffer &buffer) {
+  lang::Buffer buf(buffer);
+  Bind(buf);
+}
+
 void Tensor::ExpandInlined() {
   // Collect all the Calls with Tensors
   // Expand all the uninlined tensor.
+}
+
+void _Tensor_::WithBuffer() {
+  lang::Buffer buf(type_);
+  Bind(buf);
 }
 
 }  // namespace ir

@@ -51,6 +51,7 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
   std::vector<ir::PolyFor*> stack;
 };
 
+//! Mark the PolyFor as Unroll if is called Unroll in Stage.
 struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
   std::map<std::string, std::set<int> /*level*/> unrolls;
 
@@ -82,7 +83,12 @@ struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
   std::vector<ir::PolyFor*> stack;
 };
 
-//! Lower a single group. A LoweredFunc is composed of several group.
+/**
+ * Lower a single group of nodes.
+ *
+ * It first union all the domains of the stages into a UnionSet, and all the transforms into a UnionMap.
+ *
+ */
 Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Expr>& tuple_to_expr) {
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
