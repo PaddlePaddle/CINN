@@ -131,8 +131,12 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Tell whether this tensor is inline.
   bool inlined() const { return (!buffer.defined()) && is_compute_node(); }
 
+  //! Create a buffer belong to this tensor.
+  void WithBuffer();
   //! Bind to a buffer, will persist data to the buffer in runtime.
   void Bind(lang::Buffer& buffer);
+  void Bind(const Buffer& buffer);
+  void UnBind(lang::Buffer& buffer);
 
   //! Operation related.
   // @{

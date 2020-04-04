@@ -11,6 +11,7 @@ namespace lang {
 class Buffer {
  public:
   explicit Buffer(Type type, const std::string& name = "");
+  explicit Buffer(const ir::Buffer& x) : buffer_(x) {}
 
   ir::_Buffer_* operator->() { return buffer_.As<ir::_Buffer_>(); }
   const ir::_Buffer_* operator->() const { return buffer_.As<ir::_Buffer_>(); }

@@ -51,7 +51,8 @@ struct ComputeOp : public _Operation_ {
                         const std::map<std::string, IrNodeRef> &attrs,
                         ComputeOp::handle_t handle,
                         const std::vector<Expr> &shape,
-                        const std::vector<Expr> &domain);
+                        const std::vector<Expr> &domain,
+                        const std::vector<Var> &reduce_axis);
 
   static Operation Make(const std::string &name,
                         const std::string &tag,

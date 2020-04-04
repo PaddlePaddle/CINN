@@ -19,9 +19,9 @@ TEST(test02_matmul, basic) {
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->Bind(C_buf);
+  C_init->WithBuffer();
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
-  C->Bind(C_buf);
+  C->Bind(C_init->buffer);
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
@@ -63,13 +63,12 @@ TEST(matmul, Split) {
   Placeholder<float> B("B", {K, N});
 
   Var k(K, "k");
-  Buffer C_buf(Float(32));
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->Bind(C_buf);
+  C_init->WithBuffer();
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
-  C->Bind(C_buf);
+  C->Bind(C_init->buffer);
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
@@ -101,15 +100,14 @@ TEST(matmul, Blocking) {
   Placeholder<float> B("B", {K, N});
 
   Var k(K, "k");
-  Buffer C_buf(Float(32));
 
   int bn = 32;
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->Bind(C_buf);
+  C_init->WithBuffer();
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
-  C->Bind(C_buf);
+  C->Bind(C_init->buffer);
 
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
@@ -144,15 +142,14 @@ TEST(matmul, Vectorization) {
   Placeholder<float> B("B", {K, N});
 
   Var k(K, "k");
-  Buffer C_buf(Float(32));
 
   int bn = 32;
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->Bind(C_buf);
+  C_init->WithBuffer();
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
-  C->Bind(C_buf);
+  C->Bind(C_init->buffer);
   // ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
@@ -188,15 +185,14 @@ TEST(matmul, LoopPermutation) {
   Placeholder<float> B("B", {K, N});
 
   Var k(K, "k");
-  Buffer C_buf(Float(32));
 
   int bn = 32;
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->Bind(C_buf);
+  C_init->WithBuffer();
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
-  C->Bind(C_buf);
+  C->Bind(C_init->buffer);
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
@@ -237,21 +233,19 @@ TEST(matmul, ArrayPacking) {
   Placeholder<float> B("B", {K, N});
 
   Var k(K, "k");
-  Buffer C_buf(Float(32));
 
   int bn = 32;
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->Bind(C_buf);
+  C_init->WithBuffer();
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
-  Buffer packedB_buf(packedB->type());
-  packedB->Bind(packedB_buf);
+  packedB->WithBuffer();
   packedB->stage()->Vectorize(2, 8);
 
   auto C = Compute({M, N}, [&](Expr i, Expr j) { return Sum(A(i, k) * packedB(j / bn, k, j % bn)); }, "C", {k});
-  C->Bind(C_buf);
+  C->Bind(C_init->buffer);
 
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 

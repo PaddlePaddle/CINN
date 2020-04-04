@@ -87,14 +87,17 @@ ir::Tensor Compute(const std::vector<int> &dims,
   for (auto &x : axises) _axis.push_back(x);
   Expr expr = fn(_axis);
 
+  // shape is the buffer's shape.
   std::vector<Expr> shape;
+  // domain is the domain of all the loop axis.
   std::vector<Expr> domain;
   for (int i = 0; i < dims.size(); i++) {
     domain.emplace_back(dims[i]);
   }
 
+  // append the reduce aixs to the domain, make the domain contain the range of all the forloop variables.
   if (!reduce_axis.empty()) {
-    // We ignore the lower bound temporarily.
+    // We ignore the lower bound currently.
     for (auto &axis : reduce_axis) {
       CHECK_EQ(axis->lower_bound.as_int32(), 0);
       domain.emplace_back(axis->upper_bound);
@@ -102,13 +105,14 @@ ir::Tensor Compute(const std::vector<int> &dims,
     }
   }
 
+  // construct the shape.
   for (int i = 0; i < dims.size(); i++) {
     shape.emplace_back(dims[i]);
   }
 
   auto unique_name = name.empty() ? Context::Global().NewName("tensor") : name;
 
-  auto op        = ir::ComputeOp::Make(unique_name, "" /*tag*/, {}, fn, shape, domain);
+  auto op        = ir::ComputeOp::Make(unique_name, "" /*tag*/, {}, fn, shape, domain, reduce_axis);
   auto tensor    = ir::_Tensor_::Make(unique_name, shape, op);
   tensor->axis   = axises;
   tensor->domain = domain;
