@@ -70,9 +70,9 @@ void matmul(void* _args, int32_t num_args)
   const cinn_buffer_t* _B = args[1];
   cinn_buffer_t* _C = args[2];
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
-  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
-  float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  const float* A = (const float*)(_A->host_memory);
+  const float* B = (const float*)(_B->host_memory);
+  float* C = (float*)(_C->host_memory);
   for (int32_t i_outer = 0; i_outer < 3; i_outer += 1) {
     for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
       for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
@@ -181,9 +181,9 @@ void matmul(void* _args, int32_t num_args)
   const cinn_buffer_t* _B = args[1];
   cinn_buffer_t* _C = args[2];
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
-  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
-  float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  const float* A = (const float*)(_A->host_memory);
+  const float* B = (const float*)(_B->host_memory);
+  float* C = (float*)(_C->host_memory);
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < (125/4); j += 1) {
       C[StackVec<16,int32_t>::Ramp(((500 * i) + (16 * j)), 1, 16)] = (StackedVec<float,16>::Load(A,((500 * i) + (16 * j))) * StackedVec<float,16>::Load(B,((500 * i) + (16 * j))));
@@ -250,10 +250,10 @@ TEST(Vectorize, TestMarkVectorize) {
 void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, struct cinn_buffer_t *_C)
 {
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
-  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
-  float* C = (float*)(cinn_buffer_get_data_handle(_C));
-  float* D = (float*)(cinn_buffer_get_data_handle(_C));
+  const float* A = (const float*)(_A->host_memory);
+  const float* B = (const float*)(_B->host_memory);
+  float* C = (float*)(_C->host_memory);
+  float* D = (float*)(_C->host_memory);
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j_outer = 0; j_outer < 31; j_outer += 1) {
       C[StackVec<16,int32_t>::Ramp(((500 * i) + (16 * j_outer)), 1, 16)] = (StackedVec<float,16>::Load(A,((500 * i) + (16 * j_outer))) * StackedVec<float,16>::Load(B,((500 * i) + (16 * j_outer))));

@@ -335,7 +335,7 @@ Expr Call::Make(Type type,
   for (size_t i = 0; i < args.size(); ++i) {
     CHECK(args[i].defined());
   }
-  if (call_type == Halide) {
+  if (call_type == CINN) {
     for (size_t i = 0; i < args.size(); ++i) {
       CHECK(args[i].type().is_int()) << "get type " << args[i].type();
     }

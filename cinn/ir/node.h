@@ -321,18 +321,19 @@ Expr Zero(const Type& type);
 enum class DeviceAPI {
   UNK,
   Host,
-};
-
-const DeviceAPI all_device_apis[] = {
-    DeviceAPI::UNK,   //
-    DeviceAPI::Host,  //
+  GPU,
+  CUDA,
+  OpenCL,
 };
 
 /**
  * An enum describing different address spaces to be used with Func::store_in.
  */
 enum class MemoryType {
-  Auto,
+  Auto,       //!< Let CINN determine the memory position.
+  Heap,       //!< Put the memory on the heap.
+  Stack,      //!< Put the memory on the stack.
+  GPUShared,  //!< Allocate on the GPU shared memory.
 };
 
 template <typename T>

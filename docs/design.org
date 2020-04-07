@@ -10,7 +10,7 @@ The layers are as follows
 2. Virtual graph layer
    - Add virtual node and graph to utilize both the compiler and third-party computational library such as CUDNN or MKLDNN.
 3. DSL layer
-   - Export a friendly domain language to programming with the underlying compiler.
+   - Export a friendly domain language or IR for programming with the underlying compiler.
 4. Compiler layer
    - A NN compiler which can optimize affine forloop.
 ** HLIR(High Level IR)

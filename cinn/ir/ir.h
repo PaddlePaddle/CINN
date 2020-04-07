@@ -291,8 +291,8 @@ struct Call : public ExprNode<Call> {
   enum CallType : int {
     //! Extern "C" function.
     Extern = 0,
-    //! Halide-style call.
-    Halide,
+    //! CINN-style call, call a CINN function.
+    CINN,
     //! Intrinsic functions.
     Intrinsic,
     //! Generated from ISL Ast.
@@ -333,8 +333,14 @@ struct _Var_ : public ExprNode<_Var_> {
   std::string name;
 
   bool is_reduce_axis{false};
+  //! Lower bound and upper bound of a reduce axis.
+  // @{
   Expr lower_bound;
   Expr upper_bound;
+  // @}
+
+  // ! Extra tag of this variable/axis.
+  std::string tag;
 
   _Var_() = default;
   _Var_(const std::string& name, Type type) : ExprNode<_Var_>(type), name(name) {}
@@ -503,14 +509,13 @@ struct IfThenElse : public ExprNode<IfThenElse> {
 };
 
 enum class ForType : int {
-  //! Serial execution.
-  Serial = 0,
-  //! Parallel execution.
-  Parallel = 1,
-  //! Vector SIMD loop annotation.
-  Vectorized = 1 << 1,
-  //! Unroll annotation.
-  Unrolled = 1 << 2,
+  Serial     = 0,       //! Serial execution.
+  Parallel   = 1,       //! Parallel execution.
+  Vectorized = 1 << 1,  //! Vector SIMD loop annotation.
+  Unrolled   = 1 << 2,  //! Unroll annotation.
+  GPUThread  = 1 << 3,  //! GPU Thread.
+  GPUBlock   = 1 << 4,  //! GPU Block.
+  GPULane    = 1 << 5,  //! GPU Lane.
 };
 
 struct VectorizeInfo {
@@ -543,7 +548,7 @@ struct ForBase {
     vectorize_info_.level  = -1;
   }
 
-  void set_seral() { for_type_ = ForType::Serial; }
+  void set_serial() { for_type_ = ForType::Serial; }
 
   void set_unrolled(bool x = true) {
     if (x)

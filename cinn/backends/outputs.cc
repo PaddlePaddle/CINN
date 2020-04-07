@@ -27,4 +27,10 @@ backends::Outputs backends::Outputs::c_source(const std::string &name) const {
   return updated;
 }
 
+backends::Outputs backends::Outputs::cuda_source(const std::string &name) const {
+  Outputs updated          = *this;
+  updated.cuda_source_name = name;
+  return updated;
+}
+
 }  // namespace cinn

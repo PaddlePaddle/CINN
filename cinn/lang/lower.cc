@@ -10,6 +10,8 @@
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_call_with_expr.h"
 #include "cinn/optim/tensor_write_tell.h"
+#include "cinn/optim/transform_gpu_forloop.h"
+#include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/poly/ast_gen.h"
 
 namespace cinn {
@@ -137,6 +139,15 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
     }
     MarkUnrollMutator mutator(unrolls);
     mutator(&e);
+  }
+
+  // mark gpu
+  {
+    optim::forloop_infos_t forloop_infos;
+    for (auto* stage : stages) {
+      forloop_infos[stage->id()] = stage->forloop_infos();
+    }
+    optim::TransformGpuForloop(forloop_infos, &e);
   }
 
   return e;

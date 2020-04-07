@@ -13,7 +13,7 @@ namespace poly {
 
 // Create a call.
 Expr CreateCall(const std::string& name, const std::vector<Expr>& args) {
-  auto expr = ir::Call::Make(Float(32), name, args, ir::Call::CallType::Halide);
+  auto expr = ir::Call::Make(Float(32), name, args, ir::Call::CallType::CINN);
   return expr;
 }
 

@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(CINN)
 
+
 set(CMAKE_CXX_STANDARD 14)
 set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -9,6 +10,10 @@ option(WITH_TESTING         "Compile with Unittests"          ON)
 
 # include the customized configures
 include(${CMAKE_BINARY_DIR}/config.cmake)
+
+if (WITH_CUDA)
+  enable_language(CUDA)
+endif()
 
 include(cmake/core.cmake)
 include_directories(${CMAKE_SOURCE_DIR})

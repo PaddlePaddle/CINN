@@ -35,15 +35,13 @@ TEST(CodeGenCX86, basic) {
   Placeholder<float> B("B", {M, N});
 
   // C = A * B
-  lang::Buffer C_buf(Float(32));
-
   Tensor C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
-  C->Bind(C_buf);
+  C->WithBuffer();
 
   Tensor D = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "D");
-  D->Bind(C_buf);
+  D->WithBuffer();
 
   // vectorize C, not D
   C->stage()->Vectorize(1, 16);
@@ -52,8 +50,6 @@ TEST(CodeGenCX86, basic) {
   auto func = Lower("matmul", {A, B, C, D});
 
   std::cout << "before optim\n" << func->body << std::endl;
-
-  func->body = Optimize(func->body);
 
   lang::Module module("module1", target);
   module.Append(func);
