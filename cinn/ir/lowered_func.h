@@ -109,7 +109,18 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   std::vector<int> gpu_block_dims;
   std::vector<int> gpu_thread_dims;
 
+  /**
+   * The output buffer will be resized to the size required, we leave all the expression here.
+   * The allocation and deallocation expressions will insert into the head and tail of the function's body. It supports
+   * lazy allocation/deallocation if the corresponding intristic methods support.
+   *
+   * Currently, we assume that all the input and output buffers should locate in heap, no other memory type is allowed.
+   */
+  // @{
   std::vector<Expr> alloc_output_buffer_exprs;
+  std::vector<Expr> dealloc_output_buffer_exprs;
+  // @}
+
   std::vector<Expr> alloc_tmp_buffer_exprs;
   //! something like: float* A_data = (float*)(A->host_memory);
   std::vector<Expr> buffer_data_cast_exprs;
@@ -127,8 +138,10 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
 
  private:
   void CheckValid() const;
-  //! Insert the allocation buffer for outputs.
-  void AllocBufferForOutputs();
+  //! Prepare the expressions for `alloc_output_buffer_exprs`.
+  void PrepareAllocOutputBufferExprs();
+  //! Prepare the expressions for `dealloc_output_buffer_exprs`.
+  void PrepareDeallocOutputBufferExprs();
   //! Insert the allocation expr for temporary variables.
   void AllocTempBuffer();
   void PrepareBufferCastExprs();

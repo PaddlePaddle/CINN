@@ -92,6 +92,7 @@ void matmul(void* _args, int32_t num_args)
       };
     };
   };
+  cinn_buffer_free((void*)(0), _C);
 }
 )ROC";
     EXPECT_EQ(utils::Trim(target_out), utils::Trim(out));

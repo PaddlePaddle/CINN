@@ -21,6 +21,7 @@ static const char* buffer_destroy = "cinn_buffer_t::delete_";
 static const char* buffer_load = "cinn_buffer_load";
 
 static const char* buffer_malloc = "cinn_buffer_malloc";
+static const char* buffer_free   = "cinn_buffer_free";
 
 static const char* buffer_get_data_handle       = "cinn_buffer_get_data_handle";
 static const char* buffer_get_data_const_handle = "cinn_buffer_get_data_const_handle";

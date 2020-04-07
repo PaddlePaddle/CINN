@@ -129,6 +129,7 @@ void matmul(void* _args, int32_t num_args)
       };
     };
   };
+  cinn_buffer_free((void*)(0), _C);
 }
 )ROC";
 
@@ -189,6 +190,7 @@ void matmul(void* _args, int32_t num_args)
       C[StackVec<16,int32_t>::Ramp(((500 * i) + (16 * j)), 1, 16)] = (StackedVec<float,16>::Load(A,((500 * i) + (16 * j))) * StackedVec<float,16>::Load(B,((500 * i) + (16 * j))));
     };
   };
+  cinn_buffer_free((void*)(0), _C);
 }
 )ROC";
   EXPECT_EQ(Trim(target_out), Trim(out));

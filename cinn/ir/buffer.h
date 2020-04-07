@@ -72,6 +72,8 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   int offset_factor;
   //! The place the buffer locates.
   Target target{UnkTarget()};
+  //! The memory type of the buffer.
+  MemoryType memory_type{MemoryType::Heap};
 
   _Buffer_() : elem_offset(Expr(0)) {}
 

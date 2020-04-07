@@ -12,6 +12,8 @@ int cinn_buffer_malloc(void* context, struct cinn_buffer_t* buf) {
 int cinn_buffer_free(void* context, struct cinn_buffer_t* buf) {
   // ASSERT_NOT_NULL(context)
   ASSERT_NOT_NULL(buf)
+  // If buffer is lazy, then we will not free this buffer, that will greatly improve performance.
+  if (buf->lazy) return 0;
   return buf->device_interface->impl->free(context, buf);
 }
 

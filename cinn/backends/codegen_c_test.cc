@@ -77,6 +77,7 @@ void add1(void* _args, int32_t num_args)
       C[((20 * i) + j)] = (A[((20 * i) + j)] + B[((20 * i) + j)]);
     };
   };
+  cinn_buffer_free((void*)(0), _C);
 }
 )ROC";
     EXPECT_EQ(utils::Trim(target_str), utils::Trim(out));
@@ -190,6 +191,8 @@ void add1(void* _args, int32_t num_args)
       };
     };
   };
+  cinn_buffer_free((void*)(0), _C);
+  cinn_buffer_free((void*)(0), _D);
 }
 )ROC";
 
@@ -255,6 +258,7 @@ void matmul(void* _args, int32_t num_args)
       };
     };
   };
+  cinn_buffer_free((void*)(0), _C);
 }
 )ROC";
 
@@ -383,6 +387,7 @@ void matmul(void* _args, int32_t num_args)
       };
     };
   };
+  cinn_buffer_free((void*)(0), _C);
 }
 )ROC";
 
@@ -507,6 +512,8 @@ void matmul_with_packing(void* _args, int32_t num_args)
       };
     };
   };
+  cinn_buffer_free((void*)(0), _PackedB);
+  cinn_buffer_free((void*)(0), _C);
 }
 )ROC";
 
