@@ -264,23 +264,20 @@ std::vector<const Expr *> Store::expr_fields() const {
   return exprs;
 }
 
-Expr Alloc::Make(Var buffer_var, Type type, const std::vector<Expr> &extents, Expr condition, Expr body) {
-  auto node        = make_shared<Alloc>();
-  node->buffer_var = buffer_var;
-  node->extents    = extents;
-  node->condition  = condition;
-  node->body       = body;
+Expr Alloc::Make(Expr dest, Type type, const std::vector<Expr> &extents, Expr condition, Expr body) {
+  auto node = make_shared<Alloc>();
+  CHECK(dest.As<_Buffer_>()) << "Alloc destination only supports Buffer";
+  node->destination = dest;
+  node->extents     = extents;
+  node->condition   = condition;
+  node->body        = body;
   node->set_type(type);
   return Expr(node);
 }
 
-int32_t Alloc::ConstantAllocationSize() const {
-  auto *var = buffer_var.As<_Var_>();
-  CHECK(var);
-  return ConstantAllocationSize(var->name, extents);
-}
+int32_t Alloc::ConstantAllocationSize() const { return ConstantAllocationSize(extents); }
 
-int32_t Alloc::ConstantAllocationSize(const std::string &name, const std::vector<Expr> &extents) {
+int32_t Alloc::ConstantAllocationSize(const std::vector<Expr> &extents) {
   int32_t res{1};
   for (auto &e : extents) {
     auto *p = e.As<IntImm>();
@@ -304,9 +301,10 @@ std::vector<const Expr *> Alloc::expr_fields() const {
   return res;
 }
 
-Expr Free::Make(Var var) {
+Expr Free::Make(Expr dest) {
   auto node = make_shared<Free>();
-  node->var = var;
+  CHECK(dest.As<_Buffer_>()) << "Free destination only supports Buffer";
+  node->destination = dest;
   return Expr(node);
 }
 

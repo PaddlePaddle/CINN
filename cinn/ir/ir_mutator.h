@@ -127,9 +127,12 @@ void IRMutator<T>::Visit(const Alloc *expr, T op) {
   for (auto &e : node->extents) {
     IRVisitorBase<void, T>::Visit(&e, &e);
   }
-  IRVisitorBase<void, T>::Visit(&node->condition, &node->condition);
-  Expr body(node->body);
-  IRVisitorBase<void, T>::Visit(&node->body, &body);
+
+  if (node->condition.defined()) IRVisitorBase<void, T>::Visit(&node->condition, &node->condition);
+  if (node->body.defined()) {
+    Expr body(node->body);
+    IRVisitorBase<void, T>::Visit(&node->body, &body);
+  }
 }
 template <typename T>
 void IRMutator<T>::Visit(const Free *expr, T op) {}

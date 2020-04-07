@@ -294,8 +294,26 @@ void CodeGenC::Visit(const ir::Store *op) {
   os() << " = ";
   Print(op->value);
 }
-void CodeGenC::Visit(const ir::Alloc *op) { IrPrinter::Visit(op); }
-void CodeGenC::Visit(const ir::Free *op) { IrPrinter::Visit(op); }
+void CodeGenC::Visit(const ir::Alloc *op) {
+  os() << runtime::buffer_malloc;
+  os() << "(";
+  os() << "(void*)(0), ";
+
+  auto *buffer = op->destination.As<ir::_Buffer_>();
+  os() << buffer->name;
+  os() << ")";
+}
+
+void CodeGenC::Visit(const ir::Free *op) {
+  os() << runtime::buffer_free;
+  os() << "(";
+  os() << "(void*)(0), ";
+
+  auto *buffer = op->destination.As<ir::_Buffer_>();
+  os() << buffer->name;
+  os() << ")";
+}
+
 void CodeGenC::Visit(const ir::_Range_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_IterVar_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_Buffer_ *op) { os() << op->name; }
@@ -366,11 +384,20 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
 
   DoIndent();
 
-  Expr allocate_output_buffer_expr = ir::Block::Make(op->alloc_output_buffer_exprs);
-  Expr buffer_cast_expr            = ir::Block::Make(op->buffer_data_cast_exprs);
-  Expr prepare_arguments_expr      = ir::Block::Make(op->argument_prepare_exprs);
+  CHECK_EQ(op->alloc_output_buffer_exprs.size(), op->dealloc_output_buffer_exprs.size())
+      << "the count of allocation and deallocaton expressions is not match";
 
-  Expr func_body = ir::Block::Make({prepare_arguments_expr, allocate_output_buffer_expr, buffer_cast_expr, op->body});
+  std::vector<Expr> new_body;
+#define APPEND_TO_NEW_BODY(field__) new_body.insert(std::end(new_body), std::begin(op->field__), std::end(op->field__));
+  APPEND_TO_NEW_BODY(argument_prepare_exprs)
+  APPEND_TO_NEW_BODY(alloc_output_buffer_exprs)
+  APPEND_TO_NEW_BODY(buffer_data_cast_exprs)
+  new_body.push_back(op->body);
+  APPEND_TO_NEW_BODY(dealloc_output_buffer_exprs)
+
+  Expr func_body = ir::Block::Make(new_body);
+
+  LOG(INFO) << "new functoin body:\n" << func_body;
 
   optim::RemoveNestedBlock(&func_body);
 

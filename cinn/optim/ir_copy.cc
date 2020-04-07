@@ -94,10 +94,10 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     auto condition = Visit(&op->condition);
     auto body      = Visit(&op->body);
 
-    return Alloc::Make(op->buffer_var, op->type(), extents, condition, body);
+    return Alloc::Make(op->destination, op->type(), extents, condition, body);
   }
 
-  Expr Visit(const Free* op) override { return Free::Make(op->var); }
+  Expr Visit(const Free* op) override { return Free::Make(op->destination); }
 
   Expr Visit(const _Buffer_* op) override {
     auto shape         = Visit(op->shape);

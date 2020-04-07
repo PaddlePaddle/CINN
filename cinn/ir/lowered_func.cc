@@ -25,10 +25,11 @@ LoweredFunc _LoweredFunc_::Make(const std::string& name, const std::vector<Argum
   n->args = args;
   n->body = body;
   n->CheckValid();
-  n->AllocBufferForOutputs();
+  n->PrepareAllocOutputBufferExprs();
   n->AllocTempBuffer();
   n->PrepareBufferCastExprs();
   n->PrepareArgumentExprs();
+  n->PrepareDeallocOutputBufferExprs();
   return LoweredFunc(n);
 }
 
@@ -53,18 +54,32 @@ void _LoweredFunc_ ::CheckValid() const {
 std::vector<Expr*> _LoweredFunc_::expr_fields() { return {&body}; }
 std::vector<const Expr*> _LoweredFunc_::expr_fields() const { return {&body}; }
 
-void _LoweredFunc_::AllocBufferForOutputs() {
+void _LoweredFunc_::PrepareAllocOutputBufferExprs() {
   CHECK(alloc_output_buffer_exprs.empty()) << "duplicate prepare the allocate buffer for outputs";
 
   std::set<std::string> buffer_names;
   for (auto& arg : args) {
     if (arg.is_output()) {
-      CHECK(arg.type().valid()) << "argument's type is not defined";
+      CHECK(arg.type().valid()) << "argument [" << arg.name() << "]'s type should be set";
       if (arg.is_buffer() && !buffer_names.count(arg.name())) {  // only buffer need allocation.
         buffer_names.insert(arg.name());                         // Avoid duplicate
-        auto data = _Var_::Make(arg.buffer_arg()->name, arg.type());
-        auto expr = runtime::BufferMalloc(data);
-        alloc_output_buffer_exprs.push_back(expr);
+        alloc_output_buffer_exprs.push_back(
+            Alloc::Make(arg.buffer_arg(), arg.buffer_arg()->type(), arg.buffer_arg()->shape, Expr(), Expr()));
+      }
+    }
+  }
+}
+
+void _LoweredFunc_::PrepareDeallocOutputBufferExprs() {
+  CHECK(dealloc_output_buffer_exprs.empty()) << "duplicate prepare the allocate buffer for outputs";
+
+  std::set<std::string> buffer_names;
+  for (auto& arg : args) {
+    if (arg.is_output()) {
+      CHECK(arg.type().valid()) << "argument [" << arg.name() << "]'s type should be set";
+      if (arg.is_buffer() && !buffer_names.count(arg.name())) {  // only buffer need allocation.
+        buffer_names.insert(arg.name());                         // Avoid duplicate
+        dealloc_output_buffer_exprs.push_back(Free::Make(arg.buffer_arg()));
       }
     }
   }

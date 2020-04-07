@@ -461,21 +461,24 @@ struct Store : public ExprNode<Store>, public LoadStoreAddrMnger {
  * within which it is freed.
  */
 struct Alloc : public ExprNode<Alloc> {
-  Var buffer_var;
+  //! The destination of the allocation, this might be a buffer or a variable.
+  Expr destination;
   //! Dimensions of this buffer (as a multi-dimensional array).
   std::vector<Expr> extents;
+  // NOTE the condition might be undefined, that means always true.
   Expr condition;
+  // NOTE the body might be undefined, that means no specific logic other than default.
   Expr body;
 
   Alloc() : ExprNode(Type()) {}
 
-  static Expr Make(Var buffer_var, Type type, const std::vector<Expr>& extents, Expr condition, Expr body);
+  static Expr Make(Expr dest, Type type, const std::vector<Expr>& extents, Expr condition, Expr body);
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
   int32_t ConstantAllocationSize() const;
-  static int32_t ConstantAllocationSize(const std::string& name, const std::vector<Expr>& extents);
+  static int32_t ConstantAllocationSize(const std::vector<Expr>& extents);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Alloc;
 };
@@ -484,11 +487,11 @@ struct Alloc : public ExprNode<Alloc> {
  * Free the resources associated with the given buffer.
  */
 struct Free : public ExprNode<Free> {
-  Var var;
+  Expr destination;
 
   Free() : ExprNode(Type()) {}
 
-  static Expr Make(Var var);
+  static Expr Make(Expr dest);
 
   static const IrNodeTy _node_type_ = IrNodeTy::Free;
 };

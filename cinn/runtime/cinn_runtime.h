@@ -156,6 +156,9 @@ typedef struct cinn_buffer_t {
   int32_t dimensions;
   cinn_dimension_t* dims;
 
+  //! Allocate and deallocate lazily, default true.
+  bool lazy;
+
   //! The actual memory size.
   uint64_t memory_size;
 
@@ -171,7 +174,8 @@ typedef struct cinn_buffer_t {
         dimensions(0),
         dims(NULL),
         memory_size(0),
-        align(0) {}
+        align(0),
+        lazy(true) {}
 
   static struct cinn_buffer_t* new_(cinn_device_kind_t device,
                                     cinn_type_t type,

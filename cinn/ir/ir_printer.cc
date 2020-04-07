@@ -142,7 +142,9 @@ void IrPrinter::Visit(const Cast *x) {
 void IrPrinter::Visit(const Module *x) {}
 void IrPrinter::Visit(const _Var_ *x) { os_ << x->name; }
 void IrPrinter::Visit(const Alloc *x) {
-  os_ << "alloc(" << x->buffer_var->name << ", ";
+  auto *buffer = x->destination.As<ir::_Buffer_>();
+  CHECK(buffer);
+  os_ << "alloc(" << buffer->name << ", ";
   Print(x->extents);
   os_ << ")";
 }
@@ -194,7 +196,11 @@ void IrPrinter::Visit(const Store *x) {
   os_ << "] = ";
   Print(x->value);
 }
-void IrPrinter::Visit(const Free *x) { os_ << "free(" << x->var->name << ")"; }
+void IrPrinter::Visit(const Free *x) {
+  auto *buffer = x->destination.As<ir::_Buffer_>();
+  CHECK(buffer);
+  os_ << "free(" << buffer->name << ")";
+}
 
 void IrPrinter::DoIndent() { os_ << std::string(indent_, ' '); }
 void IrPrinter::IncIndent() { indent_ += indent_unit; }
