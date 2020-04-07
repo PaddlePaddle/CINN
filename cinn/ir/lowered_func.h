@@ -1,4 +1,8 @@
 #pragma once
+#include <map>
+#include <string>
+#include <vector>
+
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/node.h"
 
@@ -101,6 +105,9 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
 
   //! Body of this function.
   Expr body;
+
+  std::vector<int> gpu_block_dims;
+  std::vector<int> gpu_thread_dims;
 
   std::vector<Expr> alloc_output_buffer_exprs;
   std::vector<Expr> alloc_tmp_buffer_exprs;

@@ -42,6 +42,7 @@ TEST(Expr, basic) {
     module.Append(C_buf);
 
     CodeGenC codegen(target);
+    codegen.SetInlineBuiltinCodes(false);
     auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
     std::cout << "out:\n" << out;
   }
@@ -70,9 +71,9 @@ void matmul(void* _args, int32_t num_args)
   const cinn_buffer_t* _B = args[1];
   cinn_buffer_t* _C = args[2];
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
-  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
-  float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  const float* A = (const float*)(_A->host_memory);
+  const float* B = (const float*)(_B->host_memory);
+  float* C = (float*)(_C->host_memory);
   for (int32_t i_outer = 0; i_outer < 64; i_outer += 1) {
     for (int32_t i_inner = 0; i_inner < 8; i_inner += 1) {
       for (int32_t j_outer = 0; j_outer < 62; j_outer += 1) {

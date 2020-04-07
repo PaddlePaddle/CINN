@@ -34,6 +34,7 @@ function prepare {
     touch tests/test02_matmul_split.cc
     touch tests/test01_elementwise_add_vectorize.cc
     touch cinn/backends/generated_module1.cc
+    touch cinn/backends/generated1.cu
     touch tests/test03_convolution.cc
 }
 
@@ -42,6 +43,7 @@ function cmake_ {
     mkdir -p $build_dir
     cp $workspace/cmake/config.cmake $build_dir
     echo "set(ISL_HOME /usr/local)" >> $build_dir/config.cmake
+    echo "set(WITH_CUDA OFF)" >> $build_dir/config.cmake
     cd $build_dir
     cmake ..
 }

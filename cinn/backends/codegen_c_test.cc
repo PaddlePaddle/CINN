@@ -69,9 +69,9 @@ void add1(void* _args, int32_t num_args)
   const cinn_buffer_t* _B = args[1];
   cinn_buffer_t* _C = args[2];
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
-  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
-  float* C = (float*)(cinn_buffer_get_data_handle(_C));
+  const float* A = (const float*)(_A->host_memory);
+  const float* B = (const float*)(_B->host_memory);
+  float* C = (float*)(_C->host_memory);
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 20; j += 1) {
       C[((20 * i) + j)] = (A[((20 * i) + j)] + B[((20 * i) + j)]);
@@ -165,10 +165,10 @@ void add1(void* _args, int32_t num_args)
   cinn_buffer_t* _D = args[3];
   cinn_buffer_malloc((void*)(0), _C);
   cinn_buffer_malloc((void*)(0), _D);
-  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
-  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
-  float* C = (float*)(cinn_buffer_get_data_handle(_C));
-  float* D = (float*)(cinn_buffer_get_data_handle(_D));
+  const float* A = (const float*)(_A->host_memory);
+  const float* B = (const float*)(_B->host_memory);
+  float* C = (float*)(_C->host_memory);
+  float* D = (float*)(_D->host_memory);
   for (int32_t i_outer = 0; i_outer < 25; i_outer += 1) {
     for (int32_t i_inner = 0; i_inner < 4; i_inner += 1) {
       for (int32_t j = 0; j < 20; j += 1) {
@@ -243,10 +243,10 @@ void matmul(void* _args, int32_t num_args)
   const cinn_buffer_t* _B = args[1];
   cinn_buffer_t* _C = args[2];
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
-  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
-  float* C = (float*)(cinn_buffer_get_data_handle(_C));
-  float* C_init = (float*)(cinn_buffer_get_data_handle(_C));
+  const float* A = (const float*)(_A->host_memory);
+  const float* B = (const float*)(_B->host_memory);
+  float* C = (float*)(_C->host_memory);
+  float* C_init = (float*)(_C->host_memory);
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 50; j += 1) {
       C_init[((50 * i) + j)] = 0;
@@ -327,10 +327,10 @@ void matmul(void* _args, int32_t num_args)
   const cinn_buffer_t* _B = args[1];
   cinn_buffer_t* _C = args[2];
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
-  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
-  float* C = (float*)(cinn_buffer_get_data_handle(_C));
-  float* C_init = (float*)(cinn_buffer_get_data_handle(_C));
+  const float* A = (const float*)(_A->host_memory);
+  const float* B = (const float*)(_B->host_memory);
+  float* C = (float*)(_C->host_memory);
+  float* C_init = (float*)(_C->host_memory);
   for (int32_t i_outer = 0; i_outer < 3; i_outer += 1) {
     for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
       for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
@@ -448,10 +448,10 @@ void matmul_with_packing(void* _args, int32_t num_args)
   cinn_buffer_t* _C = args[3];
   cinn_buffer_malloc((void*)(0), _PackedB);
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(cinn_buffer_get_data_const_handle(_A));
-  const float* B = (const float*)(cinn_buffer_get_data_const_handle(_B));
-  float* C = (float*)(cinn_buffer_get_data_handle(_C));
-  float* PackedB = (float*)(cinn_buffer_get_data_handle(_PackedB));
+  const float* A = (const float*)(_A->host_memory);
+  const float* B = (const float*)(_B->host_memory);
+  float* C = (float*)(_C->host_memory);
+  float* PackedB = (float*)(_PackedB->host_memory);
   for (int32_t i = 0; i < 15; i += 1) {
     for (int32_t j = 0; j < 200; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {

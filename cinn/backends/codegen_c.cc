@@ -234,6 +234,12 @@ void CodeGenC::Visit(const ir::Call *op) {
     os() << ", ";
     os() << op->args[1];
     os() << ")";
+  } else if (op->name == runtime::buffer_get_data_handle || op->name == runtime::buffer_get_data_const_handle) {
+    CHECK_EQ(op->args.size(), 1UL);
+    auto *buffer = op->args[0].As<ir::_Buffer_>();
+    os() << buffer->name;
+    os() << "->";
+    os() << "host_memory";
   } else if (op->call_type == ir::Call::CallType::Intrinsic) {
     CHECK(!op->args.empty());
     os() << op->name << "(";
@@ -355,11 +361,10 @@ void CodeGenC::PrintShape(const std::vector<Expr> &shape) {
 }
 
 void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
-  PrintFunctionDefinition(op);
+  PrintFunctionDeclaration(op);
   os() << "\n";
 
   DoIndent();
-  // os() << "{\n";
 
   Expr allocate_output_buffer_expr = ir::Block::Make(op->alloc_output_buffer_exprs);
   Expr buffer_cast_expr            = ir::Block::Make(op->buffer_data_cast_exprs);
@@ -370,9 +375,6 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
   optim::RemoveNestedBlock(&func_body);
 
   Print(func_body);
-
-  // DoIndent();
-  // os() << "}";
 }
 void CodeGenC::PrintIncludes() {
   os() << "#include <cinn_runtime.h>\n";
@@ -411,7 +413,7 @@ void CodeGenC::GenerateHeaderFile(const lang::Module &module) {
   PrintIncludes();
 
   for (auto &func : module.functions()) {
-    PrintFunctionDefinition(func.As<ir::_LoweredFunc_>());
+    PrintFunctionDeclaration(func.As<ir::_LoweredFunc_>());
     os() << ";\n";
     os() << "\n\n";
   }

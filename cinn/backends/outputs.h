@@ -20,6 +20,9 @@ struct Outputs {
   //! The name of the emitted C source file.
   std::string c_source_name;
 
+  //! The name of the emitted CUDA source file.
+  std::string cuda_source_name;
+
   Outputs object(const std::string& name) const;
 
   Outputs bitcode(const std::string& name) const;
@@ -27,6 +30,8 @@ struct Outputs {
   Outputs c_header(const std::string& name) const;
 
   Outputs c_source(const std::string& name) const;
+
+  Outputs cuda_source(const std::string& name) const;
 };
 
 }  // namespace backends

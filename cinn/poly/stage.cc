@@ -233,6 +233,12 @@ std::string Stage::ith_dim_name(int level) {
 
 Iterator Stage::ith_iterator(int level) { return Iterator(ith_dim_name(level)); }
 
+isl::set Stage::transformed_domain() const {
+  CHECK(!domain_.is_null());
+  CHECK(!transform_.is_null());
+  return domain_.apply(transform_);
+}
+
 std::vector<std::pair<std::string, std::string>> ExtractExtraDependencyFromStages(const std::vector<Stage *> &stages) {
   std::vector<std::pair<std::string, std::string>> extra_links;
   for (auto &stage : stages) {
@@ -242,6 +248,71 @@ std::vector<std::pair<std::string, std::string>> ExtractExtraDependencyFromStage
   }
 
   return extra_links;
+}
+
+void Stage::Unroll(const std::string &level) {
+  auto dim_names = axis_names();
+  auto it        = std::find(dim_names.begin(), dim_names.end(), level);
+  int l          = std::distance(dim_names.begin(), it);
+  unroll_info_.insert(l);
+}
+
+void Stage::Unroll(const Iterator &level) {
+  auto dim_names = axis_names();
+  auto it        = std::find(dim_names.begin(), dim_names.end(), level.id);
+  int l          = std::distance(dim_names.begin(), it);
+  unroll_info_.insert(l);
+}
+
+void Stage::GpuThreads(const Iterator &thread_x, DeviceAPI device) {
+  GpuThreads(std::vector<Iterator>({thread_x}), device);
+}
+
+void Stage::GpuThreads(const Iterator &thread_x, const Iterator &thread_y, DeviceAPI device) {
+  GpuThreads({thread_x, thread_y}, device);
+}
+
+void Stage::GpuThreads(const Iterator &thread_x, const Iterator &thread_y, const Iterator &thread_z, DeviceAPI device) {
+  GpuThreads({thread_x, thread_y, thread_z}, device);
+}
+
+std::vector<std::string> Stage::axis_names() const { return GetDimNames(transformed_domain()); }
+
+void Stage::GpuThreads(const std::vector<Iterator> &iters, DeviceAPI device) {
+  auto dim_names = axis_names();
+  for (auto &iter : iters) {
+    CHECK(std::find(dim_names.begin(), dim_names.end(), iter.id) != dim_names.end());
+    forloop_infos_.emplace(iter.id, StageForloopInfo{ir::ForType::GPUThread, device});
+  }
+}
+
+void Stage::GpuBlocks(const Iterator &block_x, DeviceAPI device) {
+  GpuBlocks(std::vector<Iterator>({block_x}), device);
+}
+void Stage::GpuBlocks(const Iterator &block_x, const Iterator &block_y, DeviceAPI device) {
+  GpuBlocks({block_x, block_y}, device);
+}
+void Stage::GpuBlocks(const Iterator &block_x, const Iterator &block_y, const Iterator &block_z, DeviceAPI device) {
+  GpuBlocks({block_x, block_y, block_z}, device);
+}
+void Stage::GpuBlocks(const std::vector<Iterator> &iters, DeviceAPI device) {
+  auto dim_names = axis_names();
+  for (auto &iter : iters) {
+    CHECK(std::find(dim_names.begin(), dim_names.end(), iter.id) != dim_names.end());
+    forloop_infos_.emplace(iter.id, StageForloopInfo{ir::ForType ::GPUBlock, device});
+  }
+}
+
+Iterator Stage::axis(int i) const {
+  auto names = axis_names();
+  CHECK_LT(i, names.size());
+  return Iterator(names[i]);
+}
+Iterator Stage::axis(const std::string &i) const {
+  auto names = axis_names();
+  auto it    = std::find(names.begin(), names.end(), i);
+  CHECK(it != names.end());
+  return Iterator(*it);
 }
 
 }  // namespace poly
