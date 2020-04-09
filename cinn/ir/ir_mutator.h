@@ -168,7 +168,7 @@ void IRMutator<T>::Visit(const _LoweredFunc_ *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const Let *expr, T op) {
   auto *node = op->template As<Let>();
-  IRVisitorBase<void, T>::Visit(&node->value, &node->value);
+  IRVisitorBase<void, T>::Visit(&node->symbol, &node->symbol);
   IRVisitorBase<void, T>::Visit(&node->body, &node->body);
 }
 template <typename T>
