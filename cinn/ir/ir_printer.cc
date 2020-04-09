@@ -239,7 +239,7 @@ void IrPrinter::Visit(const _LoweredFunc_ *f) {
 void IrPrinter::Visit(const Let *f) {
   CHECK(f->type().valid());
   os() << f->type() << " ";
-  Print(f->value);
+  Print(f->symbol);
   os() << " = ";
   Print(f->body);
 }

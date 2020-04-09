@@ -1,6 +1,7 @@
 #include "cinn/optim/optimize.h"
 
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/eliminate_broadcast_in_forloop.h"
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/remove_nested_block.h"
@@ -19,9 +20,11 @@ Expr Optimize(Expr e) {
   TransformPolyForToFor(&copied);
   Simplify(&copied);
   VectorizeLoops(&copied, Target());
+  EliminateBroadcastInForloop(&copied);
   UnrollLoop(&copied);
   RemoveGpuForloopsAxis(&copied);
   RemoveNestedBlock(&copied);
+
   Simplify(&copied);
 
   return copied;

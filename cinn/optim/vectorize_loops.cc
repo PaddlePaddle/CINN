@@ -170,7 +170,7 @@ class Vectorizer : public IRMutator<Expr *> {
 
   void Visit(const Let *op, Expr *expr) override {
     auto *node = expr->As<Let>();
-    Visit(&node->value);
+    Visit(&node->symbol);
     LOG(ERROR) << "Let not supported";
   }
 

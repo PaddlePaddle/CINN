@@ -320,9 +320,12 @@ void CodeGenC::Visit(const ir::_Buffer_ *op) { os() << op->name; }
 void CodeGenC::Visit(const ir::_Tensor_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Let *op) {
   CHECK(op->type().valid());
-  os() << PrintType(op->type());
+  if (op->body.As<ir::Broadcast>())  // broadcast's type is hard to print, so use c++11 auto instead.
+    os() << "auto";
+  else
+    os() << PrintType(op->type());
   os() << " ";
-  Print(op->value);
+  Print(op->symbol);
   os() << " = ";
   Print(op->body);
 }
@@ -396,8 +399,6 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
   APPEND_TO_NEW_BODY(dealloc_output_buffer_exprs)
 
   Expr func_body = ir::Block::Make(new_body);
-
-  LOG(INFO) << "new functoin body:\n" << func_body;
 
   optim::RemoveNestedBlock(&func_body);
 

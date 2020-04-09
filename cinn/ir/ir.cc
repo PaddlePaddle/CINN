@@ -138,17 +138,17 @@ Expr Not::Make(Expr v) {
 
 Type Not::type() const { return type_; }
 
-Expr Let::Make(Expr value, Expr body) {
+Expr Let::Make(Expr symbol, Expr body) {
   auto *n = make_shared<Let>();
-  CHECK(value.type().valid());
+  CHECK(symbol.type().valid());
   CHECK(body.type().valid());
-  n->value = value;
-  n->body  = body;
-  n->set_type(n->value->type());
+  n->symbol = symbol;
+  n->body   = body;
+  n->set_type(n->symbol->type());
   return Expr(n);
 }
 
-Type Let::type() const { return value.type(); }
+Type Let::type() const { return symbol.type(); }
 
 Expr _Var_::Make(const std::string &name, const Type &type) {
   auto node = new _Var_(name, type);

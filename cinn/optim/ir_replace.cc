@@ -31,9 +31,6 @@ struct IrReplaceMutator : ir::IRMutator<Expr*> {
     if (op->node_type() == from_->node_type() && from_repr_ == GetStreamCnt(*expr)) {
       *expr = optim::IRCopy(to_);
     }
-
-    auto* node = expr->As<ir::Broadcast>();
-    ir::IRMutator<>::Visit(&node->value, &node->value);
   }
 
   std::string from_repr_;
@@ -45,8 +42,6 @@ struct IrReplaceMutator : ir::IRMutator<Expr*> {
 
 void IrReplace(ir::Expr* expr, ir::Expr from, ir::Expr to) {
   CHECK(expr);
-  LOG(INFO) << "replace "
-            << " from " << from << " to " << to;
   IrReplaceMutator(from, to)(expr);
 }
 

@@ -241,17 +241,17 @@ struct Not : public UnaryOpNode<Not> {
 };
 
 struct Let : public ExprNode<Let> {
-  Expr value;
+  Expr symbol;
   Expr body;
 
-  static Expr Make(Expr value, Expr body);
+  static Expr Make(Expr symbol, Expr body);
 
   Type type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Let;
 
-  std::vector<Expr*> expr_fields() override { return {&value, &body}; }
-  std::vector<const Expr*> expr_fields() const override { return {&value, &body}; }
+  std::vector<Expr*> expr_fields() override { return {&symbol, &body}; }
+  std::vector<const Expr*> expr_fields() const override { return {&symbol, &body}; }
 };
 
 struct Reduce : public ExprNode<Reduce> {
