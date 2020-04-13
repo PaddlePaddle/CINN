@@ -11,8 +11,8 @@ namespace cinn {
 namespace lang {
 
 TEST(lower, basic) {
-  const int M = 100;
-  const int N = 15;
+  auto M = Expr(100);
+  auto N = Expr(15);
 
   Placeholder<float> A("A", {Expr(M), Expr(N)});
 
@@ -46,9 +46,9 @@ TEST(lower, basic) {
 }
 
 TEST(lower, more_complex) {
-  const int M = 100;
-  const int N = 15;
-  const int K = 200;
+  Expr M(100);
+  Expr N(15);
+  Expr K(200);
 
   Placeholder<float> A("A", {Expr(M), Expr(N)});
   Placeholder<float> B("B", {Expr(N), Expr(K)});
@@ -59,6 +59,25 @@ TEST(lower, more_complex) {
   C->Bind(C_buf);
 
   auto lower_funcs = Lower("cal_C", {A, B, C});
+
+  std::cout << "func:\n" << Expr(lower_funcs->self()) << std::endl;
+}
+
+//! To support training, the dynamic shape support is vital. We test the corresponding lower ability here.
+TEST(lower, dynamic_shape) {
+  Var B("B");  // B is like shape here.
+  Expr N(15);
+  Expr K(200);
+
+  // Input is B * N, B is like batch.
+  Placeholder<float> X("X", {Expr(B), Expr(N)});
+  Placeholder<float> W("W", {Expr(N), Expr(K)});
+
+  auto C = Compute(
+      {B, N, K}, [=](Var i, Var j, Var k) -> Expr { return X(i, j) * W(j, k); }, "C");
+  C->WithBuffer();
+
+  auto lower_funcs = Lower("cal_C", {X, W, C});
 
   std::cout << "func:\n" << Expr(lower_funcs->self()) << std::endl;
 }

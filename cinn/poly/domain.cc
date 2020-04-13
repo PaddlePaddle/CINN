@@ -1,7 +1,9 @@
 #include "cinn/poly/domain.h"
 
-#include <cinn/common/context.h>
 #include <glog/logging.h>
+#include <unordered_set>
+#include "cinn/common/context.h"
+#include "cinn/ir/ir_visitor.h"
 
 #include <algorithm>
 #include <functional>
@@ -14,9 +16,9 @@ namespace cinn {
 namespace poly {
 
 std::string Domain::__str__() const {
-  CHECK(!id.empty()) << "id is empty";
-  std::vector<std::string> range_fields;
+  CHECK(!id.empty()) << "domain's id is empty";
   CHECK(!dims.empty());
+  std::vector<std::string> range_fields;
   std::transform(
       dims.begin(), dims.end(), std::back_inserter(range_fields), [](const Dim& x) { return x.range_repr(); });
   std::string range_repr = utils::Join(range_fields, " and ");
@@ -25,13 +27,36 @@ std::string Domain::__str__() const {
   std::transform(dims.begin(), dims.end(), std::back_inserter(dim_fields), [](const Dim& x) { return x.id; });
   std::string dims_repr = utils::Join(dim_fields, ", ");
 
-  return utils::StringFormat("{ %s[%s]: %s }", id.c_str(), dims_repr.c_str(), range_repr.c_str());
+  // parameters
+  std::vector<std::string> param_reprs;
+  std::transform(params.begin(), params.end(), std::back_inserter(param_reprs), [](const Dim& x) { return x.id; });
+  std::string params_repr = utils::Join(param_reprs, ", ");
+
+  return utils::StringFormat(
+      "[%s]->{ %s[%s]: %s }", params_repr.c_str(), id.c_str(), dims_repr.c_str(), range_repr.c_str());
 }
 
 isl::set Domain::to_isl() const {
   VLOG(3) << "isl::set " << __str__();
   isl::set x(common::Context::Global().isl_ctx(), __str__());
   return x;
+}
+
+void Domain::ExtractParams() {
+  std::unordered_set<std::string> var_names;
+  auto collect_param_fn = [&](Expr& e) {
+    if (!e.is_constant()) {
+      auto vars = ir::CollectIRNodes(e, [](const Expr* e) { return e->is_var(); });
+      for (auto& var : vars) var_names.insert(var.As<ir::_Var_>()->name);
+    }
+  };
+
+  for (auto& dim : dims) {
+    collect_param_fn(dim.lower_bound);
+    collect_param_fn(dim.upper_bound);
+  }
+
+  for (auto& id : var_names) params.emplace_back(id);
 }
 
 }  // namespace poly

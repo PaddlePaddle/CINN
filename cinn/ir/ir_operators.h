@@ -85,8 +85,14 @@ inline Expr operator+(Expr a, Expr b) { return Add::Make(a, b); }
 inline Expr operator-(Expr a, Expr b) { return Sub::Make(a, b); }
 inline Expr operator*(Expr a, Expr b) { return Mul::Make(a, b); }
 inline Expr operator/(Expr a, Expr b) { return Div::Make(a, b); }
+inline Expr operator%(Expr a, Expr b) { return Mod::Make(a, b); }
+
 inline Expr operator&&(Expr a, Expr b) { return And::Make(Expr(a), Expr(b)); }
 inline Expr operator||(Expr a, Expr b) { return Or::Make(Expr(a), Expr(b)); }
+inline Expr operator>=(Expr a, Expr b) { return GE::Make(Expr(a), Expr(b)); }
+inline Expr operator<=(Expr a, Expr b) { return LE::Make(Expr(a), Expr(b)); }
+inline Expr operator>(Expr a, Expr b) { return GT::Make(Expr(a), Expr(b)); }
+inline Expr operator<(Expr a, Expr b) { return LT::Make(Expr(a), Expr(b)); }
 
 //! Get the ALL of the conditions.
 Expr logic_and(const std::vector<Expr>& conds);

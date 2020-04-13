@@ -10,15 +10,15 @@ namespace optim {
 TEST(Expr, basic) {
   using namespace ir;  // NOLINT
 
-  const int M = 512;
-  const int K = 200;
-  const int N = 500;
+  Expr M(512);
+  Expr K(200);
+  Expr N(500);
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
   // C = A * B
   lang::Buffer C_buf(Float(32));
-  Var k(K, "k");
+  Var k(K.as_int32(), "k");
 
   Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);

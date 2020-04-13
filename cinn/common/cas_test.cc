@@ -189,9 +189,8 @@ TEST(CAS, ConvertCinnToCAS) {
   Placeholder<float> A("A", {10, 10});
   Placeholder<float> B("B", {10, 10});
 
-  auto C =
-      // A(i,j) + 0 + 1 + 2 B(i,j) + 0 B(i,j) A(i,j)
-      Compute({10, 10}, [&](Expr i, Expr j) { return A(i, j) + 0.f + 1.f + 2.f * B(i, j) + 0.f * B(i, j) * A(i, j); });
+  auto C = Compute({Expr(10), Expr(10)},
+                   [&](Expr i, Expr j) { return A(i, j) + 0.f + 1.f + 2.f * B(i, j) + 0.f * B(i, j) * A(i, j); });
 
   Expr body = C->body();
   LOG(INFO) << "body " << body;
@@ -215,7 +214,7 @@ TEST(CAS, FracOp) {
   ASSERT_EQ(GetStreamCnt(u2), "(2 + ((2 * x) + y))");
   // 1/32 * y * z * 32768 * 2
   auto u3 = AutoSimplify(Expr(1) / Expr(32) * y * z * 32768 * 2);
-  EXPECT_EQ(GetStreamCnt(u3), "((1/32) * (65536 * (y * z)))");
+  EXPECT_EQ(GetStreamCnt(u3), "0");
   // 32768 * (32x + y) + y
   auto u4 = AutoSimplify(Expr(32768) * (((Expr(32) * x) + y) / 32));
   EXPECT_EQ(GetStreamCnt(u4), "((32768 * (y/32)) + (32768 * x))");
@@ -227,6 +226,9 @@ TEST(CAS, FracOp) {
 
   u = AutoSimplify((Expr(x) * 33 + y) / 32, var_intervals);
   EXPECT_EQ(GetStreamCnt(u), "(((33 * x) + y)/32)");
+
+  u = AutoSimplify(Expr(125) / 8 - 1);
+  EXPECT_EQ(GetStreamCnt(u), "14");
 }
 
 #define OUTPUT_EQUAL(s__) EXPECT_EQ(GetStreamCnt(u), s__);
@@ -277,7 +279,7 @@ TEST(CAS, IntConnerCase) {
   Var z = ir::_Var_::Make("z", Int(32));
 
   auto u1 = AutoSimplify(Expr(1) / 32);
-  EXPECT_EQ(GetStreamCnt(u1), "(1/32)");
+  EXPECT_EQ(GetStreamCnt(u1), "0");
   auto u2 = AutoSimplify(x / 32 + (x * 32 + 64) / 32);
   EXPECT_EQ(GetStreamCnt(u2), "((x/32) + (2 + x))");
   // (32x+y)/32 * 1024 * 32
@@ -285,7 +287,7 @@ TEST(CAS, IntConnerCase) {
   EXPECT_EQ(GetStreamCnt(u3), "((32768 * (y/32)) + (32768 * x))");
 
   auto u4 = AutoSimplify(Expr(1) / 3);
-  EXPECT_EQ(GetStreamCnt(u4), "(1/3)");
+  EXPECT_EQ(GetStreamCnt(u4), "0");
 
   std::unordered_map<std::string, CasInterval> var_intervals0, var_intervals1;
   var_intervals0.emplace("y", CasInterval{2, 3});

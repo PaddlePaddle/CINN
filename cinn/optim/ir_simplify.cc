@@ -12,6 +12,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/lang/tensor.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -53,6 +54,17 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
     CHECK(common::IsPureMath(node->stride));
     PartialSimplify(&node->base, var_intervals);
     PartialSimplify(&node->stride, var_intervals);
+  }
+
+  void Visit(const _Tensor_* op, Expr* expr) override {
+    auto* node = expr->As<ir::_Tensor_>();
+
+    for (auto& e : node->shape) {
+      PartialSimplify(&e, var_intervals);
+    }
+    for (auto& e : node->domain) {
+      PartialSimplify(&e, var_intervals);
+    }
   }
 };
 

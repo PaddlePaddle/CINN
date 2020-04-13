@@ -12,7 +12,7 @@ using utils::Trim;
 
 TEST(IrSimplify, basic) {
   auto A = Compute(
-      {100, 20}, [&](Var i, Var j) { return Expr(1.f); }, "C");
+      {Expr(100), Expr(20)}, [&](Var i, Var j) { return Expr(1.f); }, "C");
   Buffer A_buf(A->type());
   A->Bind(A_buf);
 
@@ -36,7 +36,7 @@ TEST(IrSimplify, basic) {
     Placeholder<float> y("y", {100, 20});
 
     auto B = Compute(
-        {100, 20},
+        {Expr(100), Expr(20)},
         [&](Expr i, Expr j) {
           return x(i + 0, j + 0) + y(i, j * 0) * 1.f + 0.f * x(i, j) + 25.f + 100.f - 0.f +
                  9.f * 10000.f * 1.f * 1.f * 0.f;
@@ -69,7 +69,7 @@ TEST(IrSimplify, basic) {
     Placeholder<float> y("y", {100, 20});
 
     auto B = Compute(
-        {100, 20},
+        {Expr(100), Expr(20)},
         [&](Expr i, Expr j) {
           return x(100 * 10 * 1 * i + 0, j * 0) + y(i, j * 0) / (1.f + 2.f) + 0.f * x(i, j) + 25.f + 100.f - 0.f +
                  9.f * 10000.f * 1.f * 1.f * 0.f;

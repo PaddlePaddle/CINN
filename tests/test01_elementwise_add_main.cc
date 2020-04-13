@@ -6,12 +6,14 @@
 namespace cinn {
 
 TEST(test01_elementwise_add, basic) {
-  Placeholder<float> A("A", {100, 32});
-  Placeholder<float> B("B", {100, 32});
+  Expr M(100), N(32);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
 
   Buffer C_buf(Float(32));
   auto C = Compute(
-      {100, 32}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
   C->Bind(C_buf);
 
   Target target;
@@ -33,12 +35,15 @@ TEST(test01_elementwise_add, basic) {
 }
 
 TEST(test01_elementwise_add, vectorize) {
-  Placeholder<float> A("A", {100, 32});
-  Placeholder<float> B("B", {100, 32});
+  Expr M(100);
+  Expr N(32);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
 
   Buffer C_buf(Float(32));
   auto C = Compute(
-      {100, 32}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
   C->Bind(C_buf);
   C->stage()->Vectorize(1, 8);
 

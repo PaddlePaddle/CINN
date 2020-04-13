@@ -23,12 +23,14 @@ using utils::StringFormat;
 using utils::Trim;
 
 std::tuple<ir::Tensor, ir::Tensor, ir::Tensor, lang::Buffer> CreateTensor1() {
-  Placeholder<float> A("A", {100, 20});
-  Placeholder<float> B("B", {100, 20});
+  Expr M(100);
+  Expr N(20);
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
 
   lang::Buffer C_buf(Float(32));
   auto C = Compute(
-      {100, 20}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
   C->Bind(C_buf);
   return std::make_tuple(A, B, C, C_buf);
 }
@@ -112,20 +114,23 @@ void add1(void* _args, int32_t num_args);
 }
 
 TEST(CodeGenC, module_with_transform) {
-  Placeholder<float> A("A", {100, 20});
-  Placeholder<float> B("B", {100, 20});
+  Expr M(100);
+  Expr N(20);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
 
   lang::Buffer C_buf(Float(32)), D_buf(Float(32));
 
   // An inlined tensor, should not appear in final C code! It can be used by any times and expand its expression there.
-  auto inlined0 = Compute({100, 20}, [&](Var i, Var j) { return A(i, j) * 2.f + 1.f; });
+  auto inlined0 = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * 2.f + 1.f; });
 
   auto C = Compute(
-      {100, 20}, [&](Var i, Var j) { return A(i, j) + B(i, j) + inlined0(i, j); }, "C");
+      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j) + inlined0(i, j); }, "C");
   C->Bind(C_buf);
 
   auto D = Compute(
-      {100, 20}, [&](Var i, Var j) { return C(i, j) * 2.f * inlined0(i, j); }, "D");
+      {M, N}, [&](Var i, Var j) { return C(i, j) * 2.f * inlined0(i, j); }, "D");
   D->Bind(D_buf);
 
   poly::Iterator i_outer, i_inner;
@@ -202,17 +207,17 @@ void add1(void* _args, int32_t num_args)
 TEST(CodeGenC, matmul) {
   using namespace ir;  // NOLINT
 
-  Placeholder<float> A("A", {100, 20});
-  Placeholder<float> B("B", {20, 50});
+  Placeholder<float> A("A", {Expr(100), Expr(20)});
+  Placeholder<float> B("B", {Expr(20), Expr(50)});
 
   // C = A * B
   lang::Buffer C_buf(Float(32));
   Var k(20, "k");
 
   Tensor C_init = Compute(
-      {100, 50}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
+      {Expr(100), Expr(50)}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
 
-  Tensor C = Compute({100, 50}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
+  Tensor C = Compute({Expr(100), Expr(50)}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
   C_init->Bind(C_buf);
   C_init->stage()->ComputeAt(C->stage(), 1);
@@ -268,16 +273,16 @@ void matmul(void* _args, int32_t num_args)
 // This matches output of competitor.
 TEST(CodeGenC, matmul_tile) {
   using namespace ir;  // NOLINT
-  const int M  = 100;
-  const int K  = 200;
-  const int N  = 500;
-  const int bn = 32;
+  Expr M(100);
+  Expr K(200);
+  Expr N(500);
+  Expr bn(32);
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
   // C = A * B
   lang::Buffer C_buf(Float(32));
-  Var k(K, "k");
+  Var k(K.as_int32(), "k");
 
   Tensor C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
@@ -289,13 +294,13 @@ TEST(CodeGenC, matmul_tile) {
 
   {
     poly::Iterator i_outer, i_inner, j_outer, j_inner;
-    std::tie(i_outer, i_inner, j_outer, j_inner) = C_init->stage()->Tile(0, 1, bn, bn);
+    std::tie(i_outer, i_inner, j_outer, j_inner) = C_init->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
     C_init->stage()->Reorder({i_outer, j_outer, i_inner, j_inner});
   }
 
   {
     poly::Iterator i_outer, i_inner, j_outer, j_inner, k_outer, k_inner;
-    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
+    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
     std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k"), 4);
     C->stage()->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
   }
@@ -395,10 +400,10 @@ void matmul(void* _args, int32_t num_args)
 }
 
 TEST(CodeGenC, matmul_packed) {
-  const int M  = 100;
-  const int K  = 200;
-  const int N  = 500;
-  const int bn = 32;
+  Expr M(100);
+  Expr K(200);
+  Expr N(500);
+  Expr bn(32);
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
@@ -406,7 +411,7 @@ TEST(CodeGenC, matmul_packed) {
   lang::Buffer C_buf(Float(32));
 
   // TODO(Superjomn) Make sure the domain works.
-  Var k(K, "k");
+  Var k(K.as_int32(), "k");
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "PackedB");
   packedB->Bind(packedB_buf);
@@ -415,7 +420,7 @@ TEST(CodeGenC, matmul_packed) {
 
   {
     poly::Iterator i_outer, i_inner, j_outer, j_inner, k_outer, k_inner;
-    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
+    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
     std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k"), 4);
     C->stage()->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
   }

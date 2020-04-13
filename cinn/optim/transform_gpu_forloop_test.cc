@@ -7,8 +7,8 @@ namespace cinn {
 namespace optim {
 
 TEST(TransformGpuForloop, basic) {
-  const int M = 100;
-  const int N = 200;
+  Expr M(100);
+  Expr N(200);
 
   Target target;
 

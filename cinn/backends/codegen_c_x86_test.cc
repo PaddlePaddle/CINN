@@ -36,11 +36,11 @@ TEST(CodeGenCX86, basic) {
 
   // C = A * B
   Tensor C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+      {Expr(M), Expr(N)}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
   C->WithBuffer();
 
   Tensor D = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "D");
+      {Expr(M), Expr(N)}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "D");
   D->WithBuffer();
 
   // vectorize C, not D

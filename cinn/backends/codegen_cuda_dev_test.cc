@@ -8,8 +8,8 @@ namespace cinn {
 namespace backends {
 
 TEST(CodeGenCUDA, basic) {
-  const int M = 100;
-  const int N = 200;
+  Expr M(100);
+  Expr N(200);
 
   Target target;
 
@@ -33,8 +33,8 @@ TEST(CodeGenCUDA, basic) {
 }
 
 TEST(CodeGenCUDA, Module) {
-  const int M = 100;
-  const int N = 200;
+  Expr M(100);
+  Expr N(200);
 
   Target target;
 

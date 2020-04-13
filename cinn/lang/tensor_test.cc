@@ -15,15 +15,17 @@ using utils::GetStreamCnt;
 using utils::Trim;
 
 TEST(Tensor, inlined) {
-  lang::Placeholder<float> A("A", {100, 20});
-  lang::Placeholder<float> B("B", {100, 20});
+  Expr M(100), N(20);
+
+  lang::Placeholder<float> A("A", {M, N});
+  lang::Placeholder<float> B("B", {M, N});
 
   lang::Buffer D_buf(Float(32));
   // C is inlined
   Tensor C = lang::Compute(
-      {100, 20}, [=](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+      {M, N}, [=](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
   Tensor D = lang::Compute(
-      {100, 20}, [=](Var i, Var j) -> Expr { return C(i, j) * 2.f + 1.f; }, "D");
+      {M, N}, [=](Var i, Var j) -> Expr { return C(i, j) * 2.f + 1.f; }, "D");
   D->Bind(D_buf);
 
   auto funcs = lang::Lower("func_C", {A, B, D});

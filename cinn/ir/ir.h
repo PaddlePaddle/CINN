@@ -361,6 +361,7 @@ struct Var : public IrNodeRef {
   explicit Var(const std::string& name_hint, Type t = type_of<int>()) : Var(_Var_::Make(name_hint, t).ptr()) {}
   Var(Expr lower_bound, Expr upper_bound, const std::string& name) : Var(_Var_::Make(lower_bound, upper_bound, name)) {}
   Var(int upper_bound, const std::string& name) : Var(_Var_::Make(Expr(0), Expr(upper_bound), name)) {}
+  Var(Expr upper_bound, const std::string& name) : Var(_Var_::Make(Expr(0), upper_bound, name)) {}
 
   operator Expr() { return Expr(get()); }
   operator Expr() const {

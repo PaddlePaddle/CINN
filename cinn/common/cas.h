@@ -64,6 +64,10 @@ struct CasSimplifyMutator {
   std::vector<Expr> MergeSum(const std::vector<Expr>& _p, const std::vector<Expr>& _q);
 
   const std::unordered_map<std::string, CasInterval> var_intervals;
+
+  // Computation based on integer if set true(1/2 get 0), false if treat as rational number in mathematics(1/2 is still
+  // 1/2), currently it only works with true.
+  bool int_compute_{true};
 };
 
 }  // namespace detail
