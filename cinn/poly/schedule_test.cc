@@ -12,15 +12,16 @@ namespace cinn {
 namespace poly {
 
 TEST(CreateSchedule, compute_at) {
-  lang::Placeholder<float> A("A", {100, 100});
+  Expr N(100);
+  lang::Placeholder<float> A("A", {N, N});
 
   auto B = lang::Compute(
-      {100, 100}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "B");
+      {N, N}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "B");
   lang::Buffer B_buf(B->type());
   B->Bind(B_buf);
 
   auto C = lang::Compute(
-      {100, 100, 100}, [&](Var i, Var j, Var k) { return B(i, j) * B(j, k); }, "C");
+      {N, N, N}, [&](Var i, Var j, Var k) { return B(i, j) * B(j, k); }, "C");
   lang::Buffer C_buf(C->type());
   C->Bind(C_buf);
 
@@ -50,22 +51,23 @@ TEST(CreateSchedule, compute_at) {
 }
 
 TEST(CreateSchedule, buffer_bind_to_multiple_tensors_schedule) {
-  lang::Placeholder<float> A("A", {100, 100});
+  Expr N(100);
+  lang::Placeholder<float> A("A", {N, N});
   /*
    * We create three tensors all binded to the same buffer, but has no depend in computation.
    */
 
   auto B = lang::Compute(
-      {100, 100}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "B");
+      {N, N}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "B");
   lang::Buffer B_buf(B->type());
   B->Bind(B_buf);
 
   auto C = lang::Compute(
-      {100, 100}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "C");
+      {N, N}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "C");
   C->Bind(B_buf);
 
   auto D = lang::Compute(
-      {100, 100}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "D");
+      {N, N}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "D");
   D->Bind(B_buf);
 
   auto funcs = lang::Lower("func", {B, C, D});

@@ -18,23 +18,23 @@ using utils::GetStreamCnt;
 using utils::Trim;
 
 TEST(VectorizeLoops, Split_sperate) {
-  const int M  = 100;
-  const int K  = 200;
-  const int N  = 500;
-  const int bn = 32;
+  Expr M(100);
+  Expr K(200);
+  Expr N(500);
+  Expr bn(32);
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
   // C = A * B
   lang::Buffer C_buf(Float(32));
-  Var k(K, "k");
+  Var k(K.as_int32(), "k");
 
   Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
 
   {
     poly::Iterator i_outer, i_inner, j_outer, j_inner, k_outer, k_inner;
-    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
+    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
     std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k"), 8);
     C->stage()->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
     C->stage()->Split(j_inner, 8);
@@ -140,10 +140,8 @@ void matmul(void* _args, int32_t num_args)
 TEST(Vectorize, replace_var) {
   using namespace ir;  // NOLINT
 
-  const int M  = 100;
-  const int K  = 200;
-  const int N  = 500;
-  const int bn = 32;
+  Expr M(100);
+  Expr N(500);
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
@@ -186,7 +184,7 @@ void matmul(void* _args, int32_t num_args)
   const float* B = (const float*)(_B->host_memory);
   float* C = (float*)(_C->host_memory);
   for (int32_t i = 0; i < 100; i += 1) {
-    for (int32_t j = 0; j < (125/4); j += 1) {
+    for (int32_t j = 0; j < 31; j += 1) {
       C[StackVec<16,int32_t>::Ramp(((500 * i) + (16 * j)), 1, 16)] = (StackedVec<float,16>::Load(A,((500 * i) + (16 * j))) * StackedVec<float,16>::Load(B,((500 * i) + (16 * j))));
     };
   };
@@ -202,10 +200,8 @@ TEST(Vectorize, TestMarkVectorize) {
 
   using namespace ir;  // NOLINT
 
-  const int M  = 100;
-  const int K  = 200;
-  const int N  = 500;
-  const int bn = 32;
+  Expr M(100);
+  Expr N(500);
 
   Target target;
   target.arch = Target::Arch ::X86;

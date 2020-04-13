@@ -36,10 +36,12 @@ TEST(Buffer, basic) {
 }
 
 TEST(Buffer, bind_to_multiple_tensors) {
+  Expr M(100);
+  Expr N(20);
   Tensor A = lang::Compute(
-      {100, 20}, [=](Var i, Var j) { return Expr(0.f); }, "A");
+      {M, N}, [=](Var i, Var j) { return Expr(0.f); }, "A");
   Tensor B = lang::Compute(
-      {100, 20}, [=](Var i, Var j) { return Expr(1.f); }, "B");
+      {M, N}, [=](Var i, Var j) { return Expr(1.f); }, "B");
   lang::Buffer buf0(A->type(), "buf0");
 
   A->Bind(buf0);

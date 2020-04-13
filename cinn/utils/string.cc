@@ -34,7 +34,7 @@ std::string Join(const std::vector<std::string> &fields, const std::string &spli
     ss << splitter;
   }
 
-  if (fields.size() > 1) {
+  if (fields.size() > 0) {
     ss << fields.back();
   }
 

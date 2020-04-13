@@ -13,7 +13,7 @@ TEST(Optimize, Unroll) {
   Placeholder<float> A("A", {100, 20});
   lang::Buffer buf(Float(32));
 
-  auto C = Compute({100, 20}, [&](Var i, Var j) { return A(i, j) + 1.f; });
+  auto C = Compute({Expr(100), Expr(20)}, [&](Var i, Var j) { return A(i, j) + 1.f; });
   C->Bind(buf);
 
   C->stage()->Split(1, 5);

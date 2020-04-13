@@ -79,7 +79,7 @@ Expr::operator Var() {
   return ir::Var(x);
 }
 
-bool Expr::is_constant() const { return As<IntImm>() || As<FloatImm>(); }
+bool Expr::is_constant() const { return As<IntImm>() || As<UIntImm>() || As<FloatImm>(); }
 
 double Expr::get_constant() const {
   CHECK(is_constant());
@@ -88,6 +88,8 @@ double Expr::get_constant() const {
   if (vi) return vi->value;
   return vf->value;
 }
+
+bool Expr::is_var() const { return As<_Var_>(); }
 
 }  // namespace ir
 }  // namespace cinn

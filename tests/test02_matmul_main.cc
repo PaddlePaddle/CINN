@@ -6,15 +6,15 @@
 namespace cinn {
 using poly::Iterator;
 
-const int M = 1024;
-const int N = 1024;
-const int K = 1024;
+Expr M(1024);
+Expr N(1024);
+Expr K(1024);
 
 TEST(test02_matmul, basic) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K, "k");
+  Var k(K.as_int32(), "k");
   Buffer C_buf(Float(32));
 
   auto C_init = Compute(
@@ -62,7 +62,7 @@ TEST(matmul, Split) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K, "k");
+  Var k(K.as_int32(), "k");
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
@@ -99,7 +99,7 @@ TEST(matmul, Blocking) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K, "k");
+  Var k(K.as_int32(), "k");
 
   int bn = 32;
 
@@ -141,7 +141,7 @@ TEST(matmul, Vectorization) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K, "k");
+  Var k(K.as_int32(), "k");
 
   int bn = 32;
 
@@ -184,7 +184,7 @@ TEST(matmul, LoopPermutation) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K, "k");
+  Var k(K.as_int32(), "k");
 
   int bn = 32;
 
@@ -232,9 +232,9 @@ TEST(matmul, ArrayPacking) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K, "k");
+  Var k(K.as_int32(), "k");
 
-  int bn = 32;
+  Expr bn(32);
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
@@ -242,6 +242,7 @@ TEST(matmul, ArrayPacking) {
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
   packedB->WithBuffer();
+  LOG(INFO) << "stage: " << packedB->stage()->transformed_domain();
   packedB->stage()->Vectorize(2, 8);
 
   auto C = Compute({M, N}, [&](Expr i, Expr j) { return Sum(A(i, k) * packedB(j / bn, k, j % bn)); }, "C", {k});
@@ -258,7 +259,7 @@ TEST(matmul, ArrayPacking) {
     Iterator i_outer, i_inner, j_outer, j_inner;
     Iterator k_outer, k_inner;
 
-    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
+    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
     std::tie(k_outer, k_inner)                   = C->stage()->Split("k", 4);
 
     C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});

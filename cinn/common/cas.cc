@@ -68,9 +68,17 @@ Expr ProductGetConstantPart(Expr u) {
 Expr ProductGetNonConstantPart(Expr u) {
   auto* product = u.As<Product>();
   if (product) {
+    if (product->operands().size() == 1) {
+      auto a = product->operands().front();
+      if (a.is_constant()) return Expr();
+      return a;
+    }
+
     if (product->operand(0).is_constant()) {
       if (product->operands().size() == 2) return product->operands()[1];
-      return Product::Make(Rest(product->operands()));
+      auto rest = Rest(product->operands());
+      if (rest.size() > 1) return Product::Make(Rest(product->operands()));
+      return rest.front();
     }
   }
   return u;
@@ -799,7 +807,9 @@ std::vector<Expr> CasSimplifyMutator::SimplifySumRec(const std::vector<Expr>& _o
 
     // case 3
     // Here is different from SimplifySumRec, to deal with cases like 3x + (-2x) = 2x
-    if (ProductGetNonConstantPart(a) == ProductGetNonConstantPart(b)) {
+    auto a_non_constant = ProductGetNonConstantPart(a);
+    auto b_non_constant = ProductGetNonConstantPart(b);
+    if (a_non_constant.defined() && b_non_constant.defined() && a_non_constant == b_non_constant) {
       VLOG(3) << "a " << a;
       VLOG(3) << "b " << b;
       Expr s = SimplifySum(Sum::Make({ProductGetConstantPart(a), ProductGetConstantPart(b)}));
@@ -1197,7 +1207,33 @@ Expr CasSimplifyMutator::FurtherSimplifyFracWithInterval(
   return expr;
 }
 
+Expr SimplifyConstantFrac(FracOp* node) {
+  auto* ai = node->a().As<ir::IntImm>();
+  auto* au = node->a().As<ir::UIntImm>();
+  auto* af = node->a().As<ir::FloatImm>();
+
+  if (ai) {
+    auto* bi = node->b().As<ir::IntImm>();
+    CHECK(bi);
+    return make_const(ai->type(), ai->value / bi->value);
+  }
+
+  if (au) {
+    auto* bu = node->b().As<ir::UIntImm>();
+    CHECK(bu);
+    return make_const(au->type(), au->value / bu->value);
+  }
+
+  if (af) {
+    auto* bf = node->b().As<ir::FloatImm>();
+    CHECK(af);
+    return make_const(af->type(), af->value / bf->value);
+  }
+  NOT_IMPLEMENTED
+}
+
 Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
+  VLOG(3) << "CAS simplify Frac " << expr;
   auto* node = expr.As<FracOp>();
   auto a     = CasSimplify(node->a(), var_intervals);
   auto b     = CasSimplify(node->b(), var_intervals);
@@ -1206,13 +1242,19 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
   auto* bp = b.As<Product>();
   auto* as = a.As<Sum>();
   auto* bi = b.As<IntImm>();
+  auto* ai = a.As<IntImm>();
+  auto* af = a.As<FloatImm>();
   auto* av = a.As<_Var_>();
   auto* bv = b.As<_Var_>();
 
   // case 1
   // integer constant division: 64/3
   if (node->is_constant()) {
-    return SimplifyRationalNumber(expr);
+    if (int_compute_) {
+      return SimplifyConstantFrac(node);
+    } else {
+      return SimplifyRationalNumber(expr);
+    }
   }
 
   // case 2

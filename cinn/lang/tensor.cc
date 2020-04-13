@@ -102,6 +102,7 @@ void _Tensor_::InitStage() {
     DropStage();
     return;
   }
+
   if (is_placeholder_node()) {
     VLOG(2) << "Tensor " << name << " is placeholder, skip stage initialization";
     DropStage();
@@ -151,12 +152,18 @@ isl::set _Tensor_::GenerateIslDomain() {
   std::vector<poly::Dim> dims;
   CHECK_EQ(axis.size(), domain.size());
   for (int i = 0; i < domain.size(); i++) {
-    dims.emplace_back(axis[i]->name, 0, domain[i].as_int32() - 1);
+    auto &dim = domain[i];
+    if (dim.is_constant()) {
+      dims.emplace_back(axis[i]->name, 0, dim.as_int32() - 1);
+    } else {
+      dims.emplace_back(axis[i]->name, Expr(0), Sub::Make(dim, common::make_const(1)));
+    }
   }
 
-  poly::Domain domain(isl_ctx_alloc(), name, dims);
+  poly::Domain domain(Context::Global().isl_ctx(), name, dims);
   return domain.to_isl();
 }
+
 std::vector<Expr *> _Tensor_::expr_fields() {
   std::vector<Expr *> res;
   const char *func_type = operaion->as<ir::_Operation_>()->func_type();
@@ -171,6 +178,13 @@ std::vector<Expr *> _Tensor_::expr_fields() {
     } else {
       NOT_IMPLEMENTED
     }
+  }
+
+  for (auto &e : shape) {
+    res.push_back(&e);
+  }
+  for (auto &e : domain) {
+    res.push_back(&e);
   }
   return res;
 }
@@ -191,6 +205,14 @@ std::vector<const Expr *> _Tensor_::expr_fields() const {
       NOT_IMPLEMENTED
     }
   }
+
+  for (auto &e : shape) {
+    res.push_back(&e);
+  }
+  for (auto &e : domain) {
+    res.push_back(&e);
+  }
+
   return res;
 }
 

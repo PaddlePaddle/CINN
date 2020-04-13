@@ -20,5 +20,15 @@ TEST(placeholder, basic) {
   LOG(INFO) << "slice " << slice;
 }
 
+TEST(placeholder, dynamic_shape) {
+  Var B("B", Int(32));
+  Expr N(20);
+
+  Placeholder<float> x("x", {B, N});
+
+  Var i("i"), j("j");
+  auto slice = x(i, j);
+}
+
 }  // namespace lang
 }  // namespace cinn

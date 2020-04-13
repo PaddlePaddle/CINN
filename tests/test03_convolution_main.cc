@@ -4,18 +4,18 @@
 
 namespace cinn {
 
-const int batch       = 256;
-const int in_channel  = 256;
-const int out_channel = 512;
-const int in_size     = 14;
-const int kernel      = 3;
-const int pad         = 1;
-const int stride      = 1;
+Expr batch(256);
+Expr in_channel(256);
+Expr out_channel(512);
+Expr in_size(14);
+Expr kernel(3);
+Expr pad(1);
+Expr stride(1);
 
 TEST(test03_conv, basic) {
   Placeholder<float> A("A", {in_size, in_size, in_channel, batch});
   Placeholder<float> W("W", {kernel, kernel, in_channel, out_channel});
-  int out_size = (in_size - kernel + 2 * pad) / stride + 1;
+  Expr out_size = (in_size - kernel + 2 * pad) / stride + 1;
 
   auto Apad = Compute(
       {in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},

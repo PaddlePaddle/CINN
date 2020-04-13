@@ -12,16 +12,15 @@ namespace lang {
 
 TEST(Compute, basic) {
   Expr M(100);
-  Expr N(100);
 
-  Placeholder<float> x("x", {M, N});
+  Placeholder<float> x("x", {M, M});
 
   ir::Tensor y = Compute(
-      {100, 100}, [=](Var i, Var j) -> Expr { return x(i, j) + 1.f; }, "y");
+      {M, M}, [=](Var i, Var j) -> Expr { return x(i, j) + 1.f; }, "y");
   LOG(INFO) << "compute: " << y->operaion->as<ir::ComputeOp>()->body[0];
 
   ir::Tensor z = Compute(
-      {100, 100}, [=](Var i, Var j) -> Expr { return y(i, j) * 2.f; }, "z");
+      {M, M}, [=](Var i, Var j) -> Expr { return y(i, j) * 2.f; }, "z");
 
   lang::Buffer z_buffer(Float(32));
   z->Bind(z_buffer);
