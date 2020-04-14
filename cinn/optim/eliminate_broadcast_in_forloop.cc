@@ -1,6 +1,8 @@
 #include "cinn/optim/eliminate_broadcast_in_forloop.h"
+
 #include <tuple>
 #include <vector>
+
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
@@ -57,7 +59,7 @@ struct EliminateBroadcastInForloop : public ir::IRMutator<Expr*> {
 
   bool ContainsLoopVar(Expr expr, Var loop_var) {
     return !ir::CollectIRNodes(expr, [&](const Expr* e) -> bool {
-              e->As<ir::_Var_>() && e->As<ir::_Var_>()->name == loop_var->name;
+              return e->As<ir::_Var_>() && e->As<ir::_Var_>()->name == loop_var->name;
             }).empty();
   }
 

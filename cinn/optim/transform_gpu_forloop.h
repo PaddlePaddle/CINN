@@ -1,5 +1,6 @@
 #pragma once
 #include <cinn/poly/stage.h>
+
 #include "cinn/ir/ir.h"
 
 namespace cinn {

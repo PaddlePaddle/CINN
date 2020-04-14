@@ -1,15 +1,15 @@
 #include "cinn/poly/domain.h"
 
 #include <glog/logging.h>
-#include <unordered_set>
-#include "cinn/common/context.h"
-#include "cinn/ir/ir_visitor.h"
 
 #include <algorithm>
 #include <functional>
 #include <numeric>
 #include <sstream>
+#include <unordered_set>
 
+#include "cinn/common/context.h"
+#include "cinn/ir/ir_visitor.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
