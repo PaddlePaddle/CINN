@@ -1,7 +1,8 @@
 #include "cinn/backends/codegen_cuda_dev.h"
-#include <fstream>
-#include "cinn/optim/remove_nested_block.h"
 
+#include <fstream>
+
+#include "cinn/optim/remove_nested_block.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {

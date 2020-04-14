@@ -1,14 +1,13 @@
-set(srcs outputs.cc codegen_c.cc
-  codegen_c_x86.cc
-  codegen_c_x86_test.cc
+set(srcs outputs.cc
+        codegen_c.cc
+        codegen_c_x86.cc
+        codegen_c_x86_test.cc
         codegen_cuda_dev.cc
   )
 
-foreach(cpp ${srcs})
-  set(core_src
-      "${core_src};cinn/backends/${cpp}"
-      CACHE INTERNAL "")
-endforeach()
+if (WITH_CUDA)
+    set(srcs ${srcs} cuda_util.cc nvrtc_util.cc)
+endif()
 
 cc_library(__x86_source_fake_lib SRCS _x86_builtin_source.cc)
 
@@ -21,6 +20,14 @@ add_dependencies(test_generated1 test_codegen_c)
 cc_test(test_codegen_cuda SRCS codegen_cuda_dev_test.cc DEPS core)
 
 if(WITH_CUDA)
+  nv_test(test_nvrtc_util SRCS nvrtc_util_test.cc DEPS core)
+
   cc_library(generated1_cuda SRCS ${CMAKE_BINARY_DIR}/cinn/backends/generated1.cu)
   add_dependencies(generated1_cuda test_codegen_cuda)
 endif()
+
+foreach(cpp ${srcs})
+  set(core_src
+          "${core_src};cinn/backends/${cpp}"
+          CACHE INTERNAL "")
+endforeach()

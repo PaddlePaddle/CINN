@@ -1,5 +1,7 @@
 #include "cinn/optim/transform_gpu_forloop.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/cinn.h"
 #include "cinn/optim/remove_nested_block.h"
 
