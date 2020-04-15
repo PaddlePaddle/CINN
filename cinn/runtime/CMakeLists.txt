@@ -1,4 +1,4 @@
-set(srcs intrinsic.cc cinn_runtime.cc cinn_x86_device_impl.cc)
+set(srcs intrinsic.cc cinn_runtime.cc cinn_x86_device_impl.cc intrinsic_types.cc)
 
 cc_library(cinn_runtime SRCS cinn_runtime.cc buffer.cc cinn_x86_device_impl.cc)
 

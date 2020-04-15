@@ -25,7 +25,7 @@ struct PlaceholderOp : public _Operation_ {
 
   const char *func_type() const override;
 
-  static char constexpr *__func_type__ = "placeholder";
+  static char const *__func_type__;
 };
 
 /**
@@ -63,7 +63,7 @@ struct ComputeOp : public _Operation_ {
 
   const char *func_type() const override;
 
-  static char constexpr *__func_type__ = "compute";
+  static const char *__func_type__;
 };
 
 }  // namespace ir

@@ -101,7 +101,7 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
 
     Type value_type = tensor->type().ElementOf();
     bool is_const   = !write_teller.IsWrite(tensor->name);
-    value_type.set_as_cpp_handle();
+    value_type.set_cpp_handle();
     value_type.set_cpp_const(is_const);
     Var variable = _Var_::Make(tensor->name, value_type);
 
@@ -116,8 +116,7 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
 void _LoweredFunc_::PrepareArgumentExprs() {
   // type of cinn_buffer_t**
   Type buffer_array_type;
-  buffer_array_type.set_customized_type(common::customized_type::kbuffer_t);
-  buffer_array_type.set_as_cpp_handle_handle();
+  buffer_array_type.set_customized_type(common::customized_type::kbuffer_t).set_cpp_handle_handle();
 
   Var args_passed_in("_args", type_of<void*>());
 
@@ -137,8 +136,7 @@ void _LoweredFunc_::PrepareArgumentExprs() {
 
   // Type of cinn_buffer_t*
   Type buffer_ptr_type;
-  buffer_ptr_type.set_customized_type(common::customized_type::kbuffer_t);
-  buffer_ptr_type.set_as_cpp_handle();
+  buffer_ptr_type.set_customized_type(common::customized_type::kbuffer_t).set_cpp_handle();
 
   // Type of const cinn_buffer_t*
   Type const_buffer_ptr_type = buffer_ptr_type.with_cpp_const();
@@ -154,9 +152,13 @@ void _LoweredFunc_::PrepareArgumentExprs() {
       _arg = Var(arg.name(), buffer_ptr_type);
     else
       NOT_IMPLEMENTED
+
+    CHECK(_arg->type().valid());
     // currently we only support one type, cinn_buffer_t*
     Expr load_expr = Load::Make(array, {common::make_const(i)});
-    Expr let_expr  = Let::Make(_arg, load_expr);
+    CHECK(load_expr.type().valid());
+    Expr let_expr = Let::Make(_arg, load_expr);
+    CHECK(let_expr.type().valid());
     argument_prepare_exprs.push_back(let_expr);
   }
 }
@@ -184,19 +186,48 @@ ir::Buffer Argument::buffer_arg() const {
   return buffer_arg_;
 }
 
-ir::Var Argument::scalar_arg() const {
-  CHECK(is_scalar());
-  return scalar_arg_;
+ir::Var Argument::var_arg() const {
+  CHECK(is_var());
+  return var_arg_;
 }
 
 void Argument::set_buffer(const ir::Buffer& x) {
-  kind        = Kind::kBuffer;
+  CHECK(!is_var()) << "the buffer is already a var";
   buffer_arg_ = x;
 }
 
-void Argument::set_scalar(const ir::Var& x) {
-  kind        = Kind::kScalar;
-  scalar_arg_ = x;
+void Argument::set_var(const ir::Var& x) {
+  CHECK(!is_buffer()) << "the buffer is already a buffer";
+  var_arg_ = x;
+}
+
+Argument::Argument(const ir::Buffer& buffer, Argument::IO io) {
+  set_buffer(buffer);
+  this->io = io;
+}
+
+Type Argument::type() const {
+  if (is_var())
+    return var_arg()->type();
+  else if (is_buffer())
+    return buffer_arg()->type();
+  else
+    NOT_IMPLEMENTED
+}
+
+std::string Argument::name() const {
+  if (is_buffer())
+    return buffer_arg()->name;
+  else if (is_var())
+    return var_arg()->name;
+  else
+    NOT_IMPLEMENTED
+  return "";
+}
+
+Argument::Argument(const ir::Var& var, Argument::IO io) {
+  set_var(var);
+  this->io = io;
 }
 
 }  // namespace ir

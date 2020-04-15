@@ -11,6 +11,8 @@ namespace cinn {
 namespace backends {
 using namespace utils;  // NOLINT
 
+const char *kCKeywordRestrict = "__restrict__";
+
 void CodeGenC::Compile(const lang::Module &module, const Outputs &outputs) {
   if (!outputs.c_header_name.empty()) {
     auto source = Compile(module, OutputKind::CHeader);
@@ -456,7 +458,7 @@ void CodeGenC::PrintFuncArg(const ir::Argument &arg) {
     } else {
       os() << "struct cinn_buffer_t *";
     }
-  } else if (arg.is_scalar()) {
+  } else if (arg.is_var()) {
     os() << PrintType(arg.type()) << " ";
     os() << arg.name();
   } else {

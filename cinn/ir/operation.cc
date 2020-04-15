@@ -54,5 +54,8 @@ Operation ComputeOp::Make(const std::string &name,
   return Operation(n);
 }
 
+const char *ComputeOp::__func_type__     = "compute";
+const char *PlaceholderOp::__func_type__ = "placeholder";
+
 }  // namespace ir
 }  // namespace cinn

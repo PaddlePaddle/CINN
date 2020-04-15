@@ -440,6 +440,9 @@ Expr Load::Make(Expr tensor, const std::vector<Expr> &indices) {
   return Expr(node);
 }
 Type Load::type() const {
+  CHECK(tensor.defined());
+  CHECK(tensor.type().valid());
+
   int lanes = 0;
   for (auto &idx : indices) lanes = std::max(lanes, idx.type().lanes());
   return tensor.type().ElementOf().with_lanes(lanes);

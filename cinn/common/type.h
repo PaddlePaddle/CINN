@@ -1,6 +1,8 @@
 #pragma once
 #include <glog/logging.h>
 
+#include <string>
+
 //! Much of the concepts are borrowed from Halide project.
 
 namespace cinn {
@@ -18,23 +20,27 @@ struct Type {
     UInt,
     Float,
     Void,
+    // stupid idea to mix the Customized with other primitive types, large refactor needs here.
     Customized,  // Customized type
   };
 
-  //! type decorators in C++.
+  //! type decorators in C++, the different code can used together.
   enum class cpp_type_t : uint8_t {
     None         = 0,       // None information.
     Const        = 1,       // const.
-    Handle       = 1 << 1,  // pointer type.
-    HandleHandle = 1 << 2,  // pointer of pointer, like cinn_buffer_t**.
+    Handle       = 1 << 1,  // pointer type, such as `cinn_buffer_t*`.
+    HandleHandle = 1 << 2,  // pointer of pointer, such as `cinn_buffer_t**`.
   };
 
   Type() = default;
   Type(type_t t, int b, int w) : type_(t), bits_(b), lanes_(w) {}
 
-  //! Some helper functions to tell a type.
+  inline bool is_primitive() const { return !is_unk() && type_ != type_t::Customized; }
+  inline bool is_customized() const { return !is_unk() && type_ == type_t::Customized; }
+  bool valid() const;
+
+  //! Some helper functions to check a type.
   // @{
-  bool valid() const { return !is_unk(); }
   bool is_unk() const { return type_ == type_t::Unk; }
   bool is_void() const { return type_ == type_t::Void; }
   bool is_bool() const { return type_ == type_t::UInt && bits_ == 1; }
@@ -45,21 +51,18 @@ struct Type {
   bool is_uint(int bits = -1) const { return type_ == type_t::UInt && (bits < 0 || bits == this->bits()); }
   // @}
 
-  void set_as_cpp_handle(bool x = true);
+  Type& set_cpp_handle(bool x = true);
   bool is_cpp_handle() const { return static_cast<uint8_t>(cpp_type_) & static_cast<uint8_t>(cpp_type_t::Handle); }
 
-  void set_as_cpp_handle_handle(bool x = true);
+  Type& set_cpp_handle_handle(bool x = true);
   bool is_cpp_handle_handle() const {
     return static_cast<uint8_t>(cpp_type_) & static_cast<uint8_t>(cpp_type_t::HandleHandle);
   }
 
-  void set_cpp_const(bool is_const = true);
+  Type& set_cpp_const(bool is_const = true);
   bool is_cpp_const() const { return static_cast<uint8_t>(cpp_type_t::Const) & static_cast<uint8_t>(cpp_type_); }
 
-  void set_customized_type(const std::string& t) {
-    type_            = type_t ::Customized;
-    customized_type_ = t;
-  }
+  Type& set_customized_type(const std::string& t);
   const std::string& customized_type() const { return customized_type_; }
   bool is_customized_type() const { return !customized_type_.empty(); }
 
@@ -82,7 +85,8 @@ struct Type {
 
   //! Compare two types for equality.
   bool operator==(const Type& other) const {
-    return type_ == other.type_ && bits_ == other.bits_ && lanes_ == other.lanes_ && cpp_type_ == other.cpp_type_;
+    return type_ == other.type_ && bits_ == other.bits_ && lanes_ == other.lanes_ && cpp_type_ == other.cpp_type_ &&
+           customized_type() == other.customized_type();
   }
 
   //! Compare two types for inequality.
@@ -110,7 +114,7 @@ struct Type {
   int lanes_{1};
 
   std::string customized_type_;
-};
+};  // namespace common
 
 inline Type Void() { return Type(Type::type_t ::Void, 0, 0); }
 inline Type Int(int bits, int lanes = 1) { return Type(Type::type_t ::Int, bits, lanes); }
@@ -136,19 +140,19 @@ template <> inline Type type_of<void>() { return Void(); }
 template <>
 inline Type type_of<void*>() {
   Type x = type_of<void>();
-  x.set_as_cpp_handle();
+  x.set_cpp_handle();
   return x;
 }
 template <>
 inline Type type_of<float*>() {
   Type x = type_of<float>();
-  x.set_as_cpp_handle();
+  x.set_cpp_handle();
   return x;
 }
 template <>
 inline Type type_of<double*>() {
   Type x = type_of<double>();
-  x.set_as_cpp_handle();
+  x.set_cpp_handle();
   return x;
 }
 
@@ -156,9 +160,9 @@ std::ostream& operator<<(std::ostream& os, Type::type_t t);
 
 namespace customized_type {
 
-const std::string kArgs_type_repr     = "Args";
-const std::string kArgValue_type_repr = "ArgValue";
-const std::string kbuffer_t           = "cinn_buffer_t";
+static const char* kArgs_type_repr     = "Args";
+static const char* kArgValue_type_repr = "ArgValue";
+static const char* kbuffer_t           = "cinn_buffer_t";
 
 }  // namespace customized_type
 
