@@ -47,14 +47,48 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   // the allocate_output_buffer_expr is not allowed in cuda device function, so we re-implement func codegen without it
   // here.
 
-  Expr buffer_cast_expr       = ir::Block::Make(op->buffer_data_cast_exprs);
-  Expr prepare_arguments_expr = ir::Block::Make(op->argument_prepare_exprs);
+  // Expr buffer_cast_expr       = ir::Block::Make(op->buffer_data_cast_exprs);
+  // Expr prepare_arguments_expr = ir::Block::Make(op->argument_prepare_exprs);
 
-  Expr func_body = ir::Block::Make({prepare_arguments_expr, buffer_cast_expr, op->body});
+  Expr func_body = op->body;
 
   optim::RemoveNestedBlock(&func_body);
 
   Print(func_body);
+}
+
+void CodeGenCUDA_Dev::PrintFunctionDeclaration(const ir::_LoweredFunc_ *op) {
+  os() << "void " << GenKernelName(op->name) << "(";
+  for (int i = 0; i < op->args.size() - 1; i++) {
+    auto &arg = op->args[i];
+    PrintFuncArg(arg);
+    os() << ", ";
+  }
+  if (!op->args.empty()) {
+    PrintFuncArg(op->args.back());
+  }
+  os() << ")";
+}
+
+void CodeGenCUDA_Dev::PrintFuncArg(const ir::Argument &arg) {
+  if (arg.is_buffer()) {
+    // In CUDA kernel, only primitive type is supported, so we replace the buffer with T*j
+    if (arg.is_input()) os() << "const ";
+    os() << PrintType(arg.type());
+    if (!arg.type().is_cpp_handle()) {
+      os() << "* ";
+    }
+    os() << kCKeywordRestrict << " ";
+    os() << ir::BufferGetTensorName(arg.buffer_arg().As<ir::_Buffer_>());
+  } else if (arg.is_var()) {
+    if (arg.var_arg()->type().is_cpp_handle()) {
+      os() << kCKeywordRestrict;
+    }
+    os() << PrintType(arg.type()) << " ";
+    os() << arg.name();
+  } else {
+    NOT_IMPLEMENTED
+  }
 }
 
 }  // namespace backends

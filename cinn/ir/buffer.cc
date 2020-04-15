@@ -74,7 +74,7 @@ void _Buffer_::BindTo(const _Tensor_ *tensor) {
 
 Var _Buffer_::buffer_addr() const {
   auto thetype = type().ElementOf();
-  thetype.set_as_cpp_handle();
+  thetype.set_cpp_handle();
   return _Var_::Make(name, thetype);
 }
 

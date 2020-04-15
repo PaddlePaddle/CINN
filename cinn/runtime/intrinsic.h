@@ -4,7 +4,11 @@
 
 #include "cinn/ir/buffer.h"
 #include "cinn/runtime/cinn_runtime.h"
+#include "cinn/runtime/intrinsic_types.h"
 
+/**
+ * \file This file implements some runtime concepts used in analysis and codegen.
+ */
 namespace cinn {
 
 namespace ir {

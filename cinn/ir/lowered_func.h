@@ -16,69 +16,41 @@ class _LoweredFunc_;
  * code.
  */
 struct Argument {
-  enum class Kind { kScalar = 0, kBuffer };
   //! Input or output.
   enum class IO { kInput = 0, kOutput = 1 };
 
-  Kind kind{Kind::kScalar};
   IO io{IO::kInput};
 
-  //! Number of the dimensions of buffer.
-  uint32_t ndims{0};
+  Argument() = default;
+  explicit Argument(const ir::Buffer& buffer, IO io = IO::kInput);
+  explicit Argument(const ir::Var& var, IO io = IO::kInput);
 
-  //! Set the buffer field.
+  //! Set the buffer argument, all the buffer information are stored in ir::Buffer.
   void set_buffer(const ir::Buffer& x);
 
-  //! Set the scalar field.
-  void set_scalar(const ir::Var& x);
-
-  bool is_buffer() const { return kind == Kind::kBuffer; }
-  bool is_scalar() const { return kind == Kind::kScalar; }
+  //! Set the var argument.
+  void set_var(const ir::Var& x);
 
   bool is_input() const { return io == IO::kInput; }
   bool is_output() const { return io == IO::kOutput; }
 
-  Argument() = default;
-  Argument(const ir::Buffer& buffer, IO io = IO::kInput) {
-    set_buffer(buffer);
-    this->io    = io;
-    this->ndims = buffer->shape.size();
-  }
-
-  Argument(const ir::Var& var, IO io = IO::kInput) {
-    set_scalar(var);
-    this->io    = io;
-    this->ndims = 1;
-  }
+  bool is_var() const { return var_arg_.defined(); }
+  bool is_buffer() const { return buffer_arg_.defined(); }
+  bool defined() const { return is_var() || is_buffer(); }
 
   ir::Buffer buffer_arg() const;
-  ir::Var scalar_arg() const;
+  ir::Var var_arg() const;
 
   //! The type of the buffer or scalar.
-  Type type() const {
-    if (is_scalar())
-      return scalar_arg()->type();
-    else if (is_buffer())
-      return buffer_arg()->type();
-    else
-      NOT_IMPLEMENTED
-  }
+  Type type() const;
 
-  std::string name() const {
-    if (is_buffer())
-      return buffer_arg()->name;
-    else if (is_scalar())
-      return scalar_arg()->name;
-    else
-      NOT_IMPLEMENTED
-    return "";
-  }
+  std::string name() const;
 
  private:
   //! The buffer field.
   ir::Buffer buffer_arg_;
   //! The scalar field.
-  ir::Var scalar_arg_;
+  ir::Var var_arg_;
 };
 
 //! Wrapper for _LoweredFunc_

@@ -24,6 +24,9 @@ class Module;
 
 namespace backends {
 
+//! keyword of __restrict__.
+extern const char* kCKeywordRestrict;
+
 class CodeGenC : public ir::IrPrinter {
  public:
   enum class OutputKind {

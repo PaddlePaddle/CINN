@@ -2,7 +2,7 @@
 set -ex
 
 workspace=$PWD
-build_dir=$workspace/cmake-build-debug
+build_dir=$workspace/build
 
 JOBS=8
 
