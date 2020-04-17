@@ -1,5 +1,6 @@
 #include "cinn/backends/llvm/simple_orc_jit.h"
 
+#include <llvm/AsmParser/Parser.h>
 #include <llvm/ExecutionEngine/Orc/Core.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/PassManager.h>
@@ -16,6 +17,7 @@
 
 #include <utility>
 
+#include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/runtime/intrinsic.h"
 
@@ -66,15 +68,9 @@ void SimpleOrcJit::AddModule(std::unique_ptr<llvm::Module> module, bool optimize
 }
 
 void SimpleOrcJit::Link(const lang::Module &module, bool optimize) {
-  std::unique_ptr<llvm::Module> m;
-
+  std::string runtime_ir(backends::kRuntimeLlvmIr);
   llvm::SMDiagnostic error;
-  if (ir_file_.empty()) {
-    std::make_unique<llvm::Module>(module->name, context());
-  } else {
-    m = llvm::parseIRFile(ir_file_, error, context());
-  }
-
+  auto m = llvm::parseAssemblyString(runtime_ir, error, context());
   auto b = std::make_unique<llvm::IRBuilder<>>(context());
 
   auto ir_emitter = std::make_unique<CodeGenLLVM>(m.get(), b.get());

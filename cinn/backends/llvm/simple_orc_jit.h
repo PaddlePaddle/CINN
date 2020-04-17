@@ -41,8 +41,6 @@ class SimpleOrcJit {
 
   llvm::LLVMContext &context() { return *context_.getContext(); }
 
-  void set_ir_file(const std::string &filename) { ir_file_ = filename; }
-
  protected:
   SimpleOrcJit(llvm::orc::JITTargetMachineBuilder jtmb, llvm::DataLayout data_layout);
 
@@ -60,8 +58,6 @@ class SimpleOrcJit {
 
   llvm::orc::IRCompileLayer compile_layer_;
   llvm::orc::JITDylib &main_jd_;
-
-  std::string ir_file_;
 };
 
 }  // namespace backends
