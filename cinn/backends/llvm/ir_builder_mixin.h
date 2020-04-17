@@ -1,0 +1,124 @@
+#pragma once
+
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Value.h>
+
+#include <utility>
+
+namespace cinn {
+namespace backends {
+template <typename Derived>
+class IrBuilderMixin {
+ protected:
+#define __IR_BUILDER_MIXIN_METHOD(__method_name, __return_type)                 \
+  template <typename... Args>                                                   \
+  decltype(auto) __method_name(Args &&... args) {                               \
+    return mixin_builder()->Create##__method_name(std::forward<Args>(args)...); \
+  }
+
+#define __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(__method_name) __IR_BUILDER_MIXIN_METHOD(__method_name, llvm::Value)
+
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(BinOp)
+
+  /// \brief +
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Add)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FAdd)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(NSWAdd)
+
+  /// \brief -
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Sub)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FSub)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(NSWSub)
+
+  /// \brief *
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Mul)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FMul)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(NSWMul)
+
+  /// \brief /
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(SDiv)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(UDiv)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FDiv)
+
+  /// \brief %
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(SRem)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(URem)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FRem)
+
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(And)  ///< &
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Or)   ///< |
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Not)  ///< !
+
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Neg)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FNeg)
+
+  /// ==
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpEQ)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpOEQ)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpUEQ)
+
+  /// !=
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpNE)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpONE)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpUNE)
+
+  /// <
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpULE)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpOLE)
+
+  /// <=
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpULT)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpSLT)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpOLT)
+
+  /// >=
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpUGE)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpSGE)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpOGE)
+
+  /// >
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpUGT)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpSGT)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpOGT)
+
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(BitCast)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(IntCast)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FPCast)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(PointerCast)
+
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FPToSI)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FPToUI)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(SIToFP)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(UIToFP)
+
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Select)
+
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Br)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(CondBr)
+
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(RetVoid)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(GEP)
+
+#undef __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE
+
+#define __IR_BUILDER_MIXIN_CREATE_LLVM_INST(__method_name) __IR_BUILDER_MIXIN_METHOD(__method_name, __method_name)
+
+  __IR_BUILDER_MIXIN_CREATE_LLVM_INST(Alloca)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_INST(Load)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_INST(Store)
+  __IR_BUILDER_MIXIN_CREATE_LLVM_INST(Call)
+
+#undef __IR_BUILDER_MIXIN_CREATE_LLVM_INST
+
+#undef __IR_BUILDER_MIXIN_METHOD
+
+  template <typename... Args>
+  decltype(auto) PHI(Args &&... args) {
+    return mixin_builder()->CreatePHI(std::forward<Args>(args)...);
+  }
+
+ private:
+  llvm::IRBuilder<> *mixin_builder() { return static_cast<Derived *>(this)->b(); }
+};
+}  // namespace backends
+}  // namespace cinn

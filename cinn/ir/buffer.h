@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -64,12 +66,12 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   //! The storage scope of the buffer, empty if global.
   std::string scope;
   //! Aignment requirement of data pointer in bytes.
-  int data_alignment;
+  int data_alignment{0};
   //! The offset in terms of number of dtype elements (including lanes).
   Expr elem_offset;
   //! Factor of elem_offset field.
   // elem_offset is guaranteed to be multiple of offset_factor.
-  int offset_factor;
+  int offset_factor{0};
   //! The place the buffer locates.
   Target target{UnkTarget()};
   //! The memory type of the buffer.

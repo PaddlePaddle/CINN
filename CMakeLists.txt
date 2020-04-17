@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.0)
 project(CINN)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
+
 set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -29,6 +30,7 @@ include(cmake/external/gflags.cmake)
 include(cmake/external/glog.cmake)
 include(cmake/external/gtest.cmake)
 include(cmake/nvrtc.cmake)
+include(cmake/llvm.cmake)
 # include(cmake/external/protobuf.cmake)
 # include(cmake/external/mklml.cmake)
 #include(cmake/external/boost.cmakeg)
