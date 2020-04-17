@@ -31,3 +31,4 @@ foreach(cpp ${srcs})
           "${core_src};cinn/backends/${cpp}"
           CACHE INTERNAL "")
 endforeach()
+add_subdirectory(llvm)

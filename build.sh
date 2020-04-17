@@ -38,6 +38,14 @@ function prepare {
     touch tests/test03_convolution.cc
 }
 
+function prepare_llvm {
+    cd $workspace
+    clang++ -mavx2 -masm=intel -S -emit-llvm cinn/runtime/cinn_runtime.cc -I$PWD
+    cd -
+
+    export runtime_llvm_ir_file=$workspace/cinn_runtime.ll
+}
+
 function cmake_ {
     prepare
     mkdir -p $build_dir
@@ -69,6 +77,8 @@ function run_test {
 function CI {
     mkdir -p $build_dir
     cd $build_dir
+
+    prepare_llvm
     cmake_
     build
     run_test
@@ -98,6 +108,9 @@ function main {
             ci)
                 CI
                 shift
+                ;;
+            prepare_llvm)
+                prepare_llvm
                 ;;
         esac
     done

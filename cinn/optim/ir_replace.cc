@@ -1,6 +1,6 @@
 #include "cinn/optim/ir_replace.h"
 
-#include <unordered_set>
+#include <set>
 
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
@@ -14,7 +14,7 @@ using utils::GetStreamCnt;
 namespace {
 
 struct IrReplaceMutator : ir::IRMutator<Expr*> {
-  std::unordered_set<ir::IrNodeTy> valid_nodetys{{ir::IrNodeTy::Broadcast, ir::IrNodeTy::_Var_}};
+  std::set<ir::IrNodeTy> valid_nodetys{{ir::IrNodeTy::Broadcast, ir::IrNodeTy::_Var_}};
 
   IrReplaceMutator(ir::Expr from, Expr to) : from_(from), to_(to), from_repr_(GetStreamCnt(from)) {
     CHECK(valid_nodetys.count(from->node_type())) << "Not valid node type got " << from->node_type();
