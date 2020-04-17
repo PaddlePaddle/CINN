@@ -359,10 +359,10 @@ void CodeGenC::Visit(const ir::Sum *op) { ir::IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Product *op) { ir::IrPrinter::Visit(op); }
 
 void CodeGenC::PrintCastExpr(const Type &type, Expr e) {
-  os() << "(" << PrintType(type) << ")";
+  os() << "((" << PrintType(type) << ")";
   os() << "(";
   Print(e);
-  os() << ")";
+  os() << "))";
 }
 void CodeGenC::PrintCastExpr(const std::string &type, Expr e) {
   os() << "(" << type << ")";

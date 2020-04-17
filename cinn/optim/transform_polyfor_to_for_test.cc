@@ -66,14 +66,13 @@ TEST(Expr, basic) {
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 512, 500 });
 void matmul(void* _args, int32_t num_args)
 {
-  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
-  const cinn_buffer_t* _A = args[0];
-  const cinn_buffer_t* _B = args[1];
-  cinn_buffer_t* _C = args[2];
+  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
+  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(_A->host_memory);
-  const float* B = (const float*)(_B->host_memory);
-  float* C = (float*)(_C->host_memory);
+  const float* A = ((const float*)(_A->host_memory));
+  const float* B = ((const float*)(_B->host_memory));
+  float* C = ((float*)(_C->host_memory));
   for (int32_t i_outer = 0; i_outer < 64; i_outer += 1) {
     for (int32_t i_inner = 0; i_inner < 8; i_inner += 1) {
       for (int32_t j_outer = 0; j_outer < 62; j_outer += 1) {

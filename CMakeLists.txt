@@ -52,3 +52,6 @@ add_subdirectory(cinn)
 add_subdirectory(tests)
 
 cc_library(core SRCS ${core_src} DEPS glog)
+if (WITH_CUDA)
+  target_link_libraries(core ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES})
+endif()

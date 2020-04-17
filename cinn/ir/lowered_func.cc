@@ -1,6 +1,7 @@
 #include "cinn/ir/lowered_func.h"
 
 #include <algorithm>
+#include <iostream>
 #include <set>
 #include <string>
 #include <vector>
@@ -114,50 +115,50 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
 }
 
 void _LoweredFunc_::PrepareArgumentExprs() {
-  // type of cinn_buffer_t**
-  Type buffer_array_type;
-  buffer_array_type.set_customized_type(common::customized_type::kbuffer_t).set_cpp_handle_handle();
+  // type of `void*`
+  auto void_ptr_array_type = Type().with_type(Type::type_t::Void).set_cpp_handle();
+  // type of `cinn_buffer_t*`
+  auto buffer_ptr_type = Type().set_customized_type(common::customized_type::kbuffer_t).set_cpp_handle();
+  // type of `const cinn_buffer_t*`
+  auto const_buffer_ptr_type = buffer_ptr_type.with_cpp_const();
+  CHECK(!buffer_ptr_type.is_cpp_const());
 
   Var args_passed_in("_args", type_of<void*>());
-
-  // get something like: cinn_buffer_t** args = (cinn_buffer_t**)(_args)
-  Var array("args", buffer_array_type);
-  {
-    Expr body = Cast::Make(buffer_array_type, args_passed_in);
-    argument_prepare_exprs.push_back(Let::Make(array, body));
-  }
+  auto pod_value_ptr = common::CastIfNeeded(args_passed_in, type_of<cinn_pod_value_t*>());
 
   /*
    * Get something like:
    *
    * const cinn_buffer_t* _A = args[0];
-   * cinn_buffer_t* _B = args[1];
+   * cinn_buffer_t* _B = (cinn_buffer_t*)args[1];
+   * int M = (int)arg[2];
    */
-
-  // Type of cinn_buffer_t*
-  Type buffer_ptr_type;
-  buffer_ptr_type.set_customized_type(common::customized_type::kbuffer_t).set_cpp_handle();
-
-  // Type of const cinn_buffer_t*
-  Type const_buffer_ptr_type = buffer_ptr_type.with_cpp_const();
 
   // We just has two kinds of argument types, first is `cinn_buffer_t*`, second is `const cinn_buffer_t*`, do not need a
   // `any` type support currently.
   for (int i = 0; i < args.size(); i++) {
     auto& arg = args[i];
+    // cast arg to cinn_pod_value_t*
+
+    // something like `_args[0]`
+    Expr load_expr = Load::Make(pod_value_ptr, {common::make_const(i)});
+
     Var _arg;
-    if (arg.is_input())
-      _arg = Var(arg.name(), const_buffer_ptr_type);
-    else if (arg.is_output())
-      _arg = Var(arg.name(), buffer_ptr_type);
-    else
+    bool is_const = arg.is_input();
+
+    if (arg.is_buffer()) {
+      auto buffer_type = is_const ? const_buffer_ptr_type : buffer_ptr_type;
+      _arg             = Var(arg.name(), buffer_type);
+    } else if (arg.is_var()) {
+      _arg = Var(arg.name(), arg.var_arg()->type());
+    } else {
       NOT_IMPLEMENTED
+    }
 
     CHECK(_arg->type().valid());
-    // currently we only support one type, cinn_buffer_t*
-    Expr load_expr = Load::Make(array, {common::make_const(i)});
-    CHECK(load_expr.type().valid());
-    Expr let_expr = Let::Make(_arg, load_expr);
+
+    Expr let_expr = Let::Make(_arg, common::CastIfNeeded(load_expr, _arg->type()));
+
     CHECK(let_expr.type().valid());
     argument_prepare_exprs.push_back(let_expr);
   }
@@ -228,6 +229,14 @@ std::string Argument::name() const {
 Argument::Argument(const ir::Var& var, Argument::IO io) {
   set_var(var);
   this->io = io;
+}
+
+std::string Argument::human_readable() const {
+  std::stringstream os;
+  os << "<Argument: " << name() << " ";
+  os << (is_input() ? "R" : "W");
+  os << ">";
+  return os.str();
 }
 
 }  // namespace ir

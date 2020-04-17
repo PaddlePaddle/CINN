@@ -46,6 +46,8 @@ struct Argument {
 
   std::string name() const;
 
+  std::string human_readable() const;
+
  private:
   //! The buffer field.
   ir::Buffer buffer_arg_;

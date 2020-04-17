@@ -2,7 +2,8 @@
 #include <glog/logging.h>
 
 #include "cinn/common/type.h"
-#include "cinn/runtime/cinn_runtime.h"
+
+struct cinn_buffer_t;
 
 namespace cinn {
 

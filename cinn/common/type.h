@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "cinn/runtime/cinn_runtime.h"
+
 //! Much of the concepts are borrowed from Halide project.
 
 namespace cinn {
@@ -116,7 +118,7 @@ struct Type {
   std::string customized_type_;
 };  // namespace common
 
-inline Type Void() { return Type(Type::type_t ::Void, 0, 0); }
+inline Type Void() { return Type(Type::type_t ::Void, 1, 0); }
 inline Type Int(int bits, int lanes = 1) { return Type(Type::type_t ::Int, bits, lanes); }
 inline Type UInt(int bits, int lanes = 1) { return Type(Type::type_t ::UInt, bits, lanes); }
 inline Type Float(int bits, int lanes = 1) { return Type(Type::type_t ::Float, bits, lanes); }
@@ -144,6 +146,12 @@ inline Type type_of<void*>() {
   return x;
 }
 template <>
+inline Type type_of<void**>() {
+  Type x = type_of<void>();
+  x.set_cpp_handle_handle();
+  return x;
+}
+template <>
 inline Type type_of<float*>() {
   Type x = type_of<float>();
   x.set_cpp_handle();
@@ -163,8 +171,30 @@ namespace customized_type {
 static const char* kArgs_type_repr     = "Args";
 static const char* kArgValue_type_repr = "ArgValue";
 static const char* kbuffer_t           = "cinn_buffer_t";
+static const char* kpod_value_t        = "cinn_pod_value_t";
 
 }  // namespace customized_type
+
+template <>
+inline Type type_of<cinn_buffer_t>() {
+  return Type().set_customized_type(customized_type::kbuffer_t);
+}
+template <>
+inline Type type_of<cinn_buffer_t*>() {
+  return Type().set_customized_type(customized_type::kbuffer_t).set_cpp_handle();
+}
+template <>
+inline Type type_of<const cinn_buffer_t*>() {
+  return Type().set_customized_type(customized_type::kbuffer_t).set_cpp_handle().set_cpp_const();
+}
+template <>
+inline Type type_of<cinn_pod_value_t>() {
+  return Type().set_customized_type(customized_type::kpod_value_t);
+}
+template <>
+inline Type type_of<cinn_pod_value_t*>() {
+  return Type().set_customized_type(customized_type::kpod_value_t).set_cpp_handle();
+}
 
 }  // namespace common
 }  // namespace cinn

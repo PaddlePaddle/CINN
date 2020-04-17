@@ -22,7 +22,7 @@ cc_test(test_codegen_cuda SRCS codegen_cuda_dev_test.cc DEPS core)
 if(WITH_CUDA)
   nv_test(test_nvrtc_util SRCS nvrtc_util_test.cc DEPS core)
 
-  cc_library(generated1_cuda SRCS ${CMAKE_BINARY_DIR}/cinn/backends/generated1.cu)
+  cc_library(generated1_cuda SRCS ${CMAKE_BINARY_DIR}/cinn/backends/generated1.cu DEPS core)
   add_dependencies(generated1_cuda test_codegen_cuda)
 endif()
 

@@ -172,5 +172,10 @@ bool is_zero(Expr v) {
   return false;
 }
 
+Expr CastIfNeeded(Expr body, Type type) {
+  if (body.type() == type) return body;
+  return ir::Cast::Make(type, body);
+}
+
 }  // namespace common
 }  // namespace cinn

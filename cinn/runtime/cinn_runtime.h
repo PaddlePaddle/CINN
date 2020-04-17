@@ -1,5 +1,8 @@
 #ifndef CINN_RUNTIME_CINN_RUNTIME_H_
 #define CINN_RUNTIME_CINN_RUNTIME_H_
+#ifdef __cplusplus
+#pragma once
+#endif
 
 #include <stddef.h>
 #include <stdint.h>
@@ -56,7 +59,6 @@ typedef struct cinn_type_t {
   CINN_ALWAYS_INLINE bool operator!=(const cinn_type_t& other) const { return !(*this == other); }
   CINN_ALWAYS_INLINE uint16_t bytes() const { return (bits + 7) / 8; }
 #endif  // __cplusplus
-
 } cinn_type_t;
 
 //! Some primitive types.
@@ -195,7 +197,7 @@ typedef struct cinn_buffer_t {
   CINN_ALWAYS_INLINE void resize(const cinn_dimension_t* dims, int dimensions) {
     if (this->dimensions != dimensions) {
       if (this->dims) free(this->dims);
-      this->dims = (cinn_dimension_t*)malloc(dimensions * sizeof(cinn_dimension_t));
+      this->dims = (cinn_dimension_t*)malloc(dimensions * sizeof(cinn_dimension_t));  // NOLINT
     }
     this->dimensions = dimensions;
     memcpy(this->dims, dims, dimensions * sizeof(cinn_dimension_t));
@@ -233,7 +235,6 @@ typedef struct cinn_buffer_t {
   }
 
 #endif  // __cplusplus
-
 } cinn_buffer_t;
 
 struct cinn_device_interface_impl_t {
@@ -250,11 +251,14 @@ struct cinn_device_interface_impl_t {
 extern cinn_device_interface_t cinn_x86_device_interface;
 
 inline float cinn_buffer_load_float32(struct cinn_buffer_t* buf, uint32_t index) {
-  return ((float*)buf->host_memory)[index];
+  return ((float*)buf->host_memory)[index];  // NOLINT
 }
 inline double cinn_buffer_load_float64(struct cinn_buffer_t* buf, uint32_t index) {
-  return ((double*)buf->host_memory)[index];
+  return ((double*)buf->host_memory)[index];  // NOLINT
 }
+
+static inline int32_t cinn_min(int32_t a, int32_t b) { return a < b ? a : b; }
+static inline int32_t cinn_max(int32_t a, int32_t b) { return a > b ? a : b; }
 
 #ifdef __cplusplus
 }  // extern "C"
@@ -284,5 +288,58 @@ inline double cinn_buffer_load_float64(struct cinn_buffer_t* buf, uint32_t index
     CINN_LOG(__VA_ARGS__);     \
     abort();                   \
   }
+#define CINN_CHECK_EQ(a, b)                                        \
+  {                                                                \
+    if ((a) != (b)) {                                              \
+      CINN_LOG("check %s == %s failed, %d != %d", #a, #b, (a), b); \
+    }                                                              \
+  }                                                                \
+  while (false)                                                    \
+    ;  // NOLINT
 
 #endif  // CINN_RUNTIME_CINN_RUNTIME_H_
+
+#ifdef __cplusplus
+// @{ PodValue
+
+union cinn_value_t {
+  int64_t v_int64;
+  double v_float64;
+  void* v_handle;
+  char* v_str;
+};
+
+struct cinn_pod_value_t {
+  cinn_pod_value_t(cinn_value_t value, int type_code);
+  explicit cinn_pod_value_t(cinn_buffer_t* value);
+  explicit cinn_pod_value_t(int32_t value);
+
+  //! The value getters for the supported types.
+  //@{
+  operator double() const;
+  operator float() const;
+  operator int32_t() const;
+  operator int64_t() const;
+  operator void*() const;
+  operator cinn_buffer_t*() const;
+  //@}
+
+  template <typename T>
+  static int type_code();
+
+ private:
+  int type_code_;
+  cinn_value_t value_;
+};
+
+extern "C" {
+float cinn_pod_value_to_float(cinn_pod_value_t value);
+double cinn_pod_value_to_double(cinn_pod_value_t value);
+int64_t cinn_pod_value_to_int64(cinn_pod_value_t value);
+int32_t cinn_pod_value_to_int32(cinn_pod_value_t value);
+void* cinn_pod_value_to_void_p(cinn_pod_value_t value);
+cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t value);
+}
+
+// @}
+#endif

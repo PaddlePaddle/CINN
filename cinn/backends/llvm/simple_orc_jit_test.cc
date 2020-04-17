@@ -78,7 +78,8 @@ TEST(llvm_test01, elementwise_add) {
 
   auto elementwise_add_addr = jit->Lookup("elementwise_add");
   auto elementwise_add      = reinterpret_cast<void (*)(void *, int32_t)>(elementwise_add_addr);
-  cinn_buffer_t *args[3]    = {a, b, c};
+  cinn_pod_value_t a_arg(a), b_arg(b), c_arg(c);
+  cinn_pod_value_t args[3] = {a_arg, b_arg, c_arg};
   elementwise_add(args, 3);
 
   float *ad = reinterpret_cast<float *>(a->host_memory);

@@ -13,7 +13,7 @@ CodeGenCUDA_Dev::CodeGenCUDA_Dev(Target target) : CodeGenC(target) {}
 void CodeGenCUDA_Dev::Compile(const lang::Module &module, const Outputs &outputs) {
   CodeGenC::inline_builtin_codes_ = false;
   if (!outputs.c_header_name.empty()) {
-    auto source = CodeGenC::Compile(module, OutputKind::CHeader);
+    auto source = Compile(module, OutputKind::CHeader);
     std::ofstream file(outputs.c_header_name);
     CHECK(file.is_open()) << "failed to open file " << outputs.c_header_name;
     file << source;
@@ -22,7 +22,7 @@ void CodeGenCUDA_Dev::Compile(const lang::Module &module, const Outputs &outputs
   }
 
   if (!outputs.cuda_source_name.empty()) {
-    auto source = CodeGenC::Compile(module, OutputKind::CImpl);
+    auto source = Compile(module, OutputKind::CImpl);
     std::ofstream file(outputs.cuda_source_name);
     CHECK(file.is_open()) << "failed to open file " << outputs.cuda_source_name;
     file << source;
@@ -89,6 +89,31 @@ void CodeGenCUDA_Dev::PrintFuncArg(const ir::Argument &arg) {
   } else {
     NOT_IMPLEMENTED
   }
+}
+
+void CodeGenCUDA_Dev::PrintBuiltinCodes() {
+  os() << R"ROC(
+)ROC";
+}
+
+std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, CodeGenC::OutputKind output_kind) {
+  ss_.str("");
+  if (output_kind == OutputKind::CHeader) {
+    GenerateHeaderFile(module);
+  } else if (output_kind == OutputKind::CImpl) {
+    PrintIncludes();
+
+    PrintBuiltinCodes();
+
+    PrintBufferCreation(module->buffers);
+
+    for (auto &func : module.functions()) {
+      Compile(func);
+    }
+  } else {
+    LOG(FATAL) << "Not supported OutputKind";
+  }
+  return ss_.str();
 }
 
 }  // namespace backends

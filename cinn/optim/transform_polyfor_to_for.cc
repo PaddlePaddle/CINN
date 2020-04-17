@@ -8,6 +8,7 @@
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/ir_visitor.h"
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_simplify.h"
 
@@ -128,6 +129,9 @@ struct ForAutoSeparateMutator : ir::IRMutator<Expr*> {
     auto* node = expr->As<ir::For>();
     forloop_stack.push_back(expr);
 
+    // the iterators are not treated as constant.
+    std::set<std::string> iterators;
+
     do {  // We use a do-while here to break in any position and continue the post-procession after the while block.
       auto* min_n = op->extent.As<ir::Min>();
       if (!min_n) break;
@@ -144,12 +148,26 @@ struct ForAutoSeparateMutator : ir::IRMutator<Expr*> {
       int level = 0;
       for (auto& _forloop : forloop_stack) {
         auto* forloop = _forloop->As<ir::For>();
+        iterators.insert(forloop->loop_var->name);
+
         bool contains =
             common::MathContainsSymbol(left, forloop->loop_var) || common::MathContainsSymbol(right, forloop->loop_var);
         if (contains) separate_levels.push_back(level);
+        bool forloop_extent_is_var = !ir::CollectIRNodes(forloop->extent, [&](const Expr* n) {
+                                        return n->is_var() && !iterators.count(n->As<ir::_Var_>()->name);
+                                      }).empty();
+        if (forloop_extent_is_var && !separate_levels.empty()) {
+          VLOG(3) << "forloop_extent is a var, " << forloop->extent << " quit separation";
+          separate_levels.clear();
+          break;
+        }
         level++;
       }
       //! ignore the complex cases.
+      if (separate_levels.empty()) {
+        VLOG(3) << "separate_levels is empty, quit separation";
+        return;
+      }
       if (separate_levels.size() > 1) break;
       CHECK_EQ(separate_levels.size(), 1UL);
 
