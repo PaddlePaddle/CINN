@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <llvm/AsmParser/Parser.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
@@ -13,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/ir/ir.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
@@ -437,11 +439,11 @@ TEST(CodeGenLLVM, LowerFunc) {
 
   do {
     auto context = std::make_unique<llvm::LLVMContext>();
-    auto m       = std::make_unique<llvm::Module>("cinn_runtime.cc", *context);
-
+    // auto src_name = m->getSourceFileName();
     llvm::SMDiagnostic error;
-    // NOTE: read ir file before IRBuilder create
-    m      = llvm::parseIRFile(Context::Global().runtime_llvm_ir_file(), error, *context);
+    std::string runtime_ir(backends::kRuntimeLlvmIr);
+    // NOTE: read ir string before IRBuilder create
+    auto m = llvm::parseAssemblyString(runtime_ir, error, *context);
     auto b = std::make_unique<llvm::IRBuilder<>>(*context);
 
     auto emitter = std::make_unique<CodeGenLLVM>(m.get(), b.get());

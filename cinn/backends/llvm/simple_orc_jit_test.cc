@@ -73,7 +73,6 @@ TEST(llvm_test01, elementwise_add) {
 
   auto module = CreateTestCinnModule();
 
-  jit->set_ir_file(Context::Global().runtime_llvm_ir_file());
   jit->Link(module, /*optimize=*/true);
 
   auto elementwise_add_addr = jit->Lookup("elementwise_add");
