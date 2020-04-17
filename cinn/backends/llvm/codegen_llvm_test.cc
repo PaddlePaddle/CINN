@@ -423,20 +423,11 @@ TEST(CodeGenLLVM, Statement) {
       outs.clear();
     };
 
-    // log_inst(call_inst);
     log_inst(alloc_inst);
     log_inst(store_inst);
     log_inst(load_inst);
 
-    // m->print(ss, nullptr);
     ASSERT_EQ(module_str, ss.str());
-    // LOG(INFO) << "LLVM IR: " << ss.str();
-
-    // llvm::Function *fn =
-    // m->getFunction("codegen_llvm_test.Alloc_Store_Load_Free");
-    // outs.clear();
-    // fn->print(ss, nullptr);
-    // LOG(INFO) << "function: " << ss.str();
   } while (false);
 }
 
@@ -445,10 +436,9 @@ TEST(CodeGenLLVM, LowerFunc) {
   llvm::raw_string_ostream ss(outs);
 
   do {
-    // auto[m, b, context, emitter] = CreateCodeGenLLVMTestLLVM();
     auto context = std::make_unique<llvm::LLVMContext>();
     auto m       = std::make_unique<llvm::Module>("cinn_runtime.cc", *context);
-    // auto src_name = m->getSourceFileName();
+
     llvm::SMDiagnostic error;
     // NOTE: read ir file before IRBuilder create
     m      = llvm::parseIRFile(Context::Global().runtime_llvm_ir_file(), error, *context);
@@ -461,15 +451,11 @@ TEST(CodeGenLLVM, LowerFunc) {
 
     z->Bind(z_buf);
 
-    // LOG(INFO) << "z.body: " << z->get_compute_op()->body.front();
-
     auto function = lang::Lower("add1", {x, y, z});
     ir::Expr func_expr(function);
 
     auto ir_function = emitter->Visit(&func_expr);
     LOG(INFO) << "ir function: " << func_expr;
-    // m->print(ss, nullptr);
-    // LOG(INFO) << "llvm module: " << ss.str();
 
     auto func = m->getFunction("add1");
   } while (false);

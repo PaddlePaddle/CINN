@@ -30,7 +30,10 @@ TEST(test01, basic) {
     }
   };
 
-  cinn_buffer_t* args[] = {A, B, C};
+  cinn_pod_value_t A_arg(A);
+  cinn_pod_value_t B_arg(B);
+  cinn_pod_value_t C_arg(C);
+  cinn_pod_value_t args[] = {A_arg, B_arg, C_arg};
 
   LOG(INFO) << "test1 basic";
   add1(args, 3);

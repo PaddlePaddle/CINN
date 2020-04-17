@@ -199,6 +199,31 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
   llvm::Value *value = Visit(&op->v());
   CHECK(value) << "value is null";
 
+  // pod_value_t cast to a value.
+  if (op->v().type().is_customized_type() &&
+      op->v().type().customized_type() == common::customized_type::kpod_value_t) {  // pod_value_t operator
+    llvm::Function *callee{};
+    if (op->type().is_int(32)) {
+      callee = m_->getFunction("cinn_pod_value_to_int32");
+    } else if (op->type().is_int(64)) {
+      callee = m_->getFunction("cinn_pod_value_to_int32");
+    } else if (op->type().is_float(32)) {
+      callee = m_->getFunction("cinn_pod_value_to_float");
+    } else if (op->type().is_float(64)) {
+      callee = m_->getFunction("cinn_pod_value_to_double");
+    } else if (op->type() == type_of<void *>()) {
+      callee = m_->getFunction("cinn_pod_value_to_void_p");
+    } else if (op->type() == type_of<cinn_buffer_t *>() || op->type() == type_of<const cinn_buffer_t *>()) {
+      callee = m_->getFunction("cinn_pod_value_to_buffer_p");
+    } else {
+      LOG(ERROR) << "can't cast cinn_pod_value_t to " << op->type();
+      NOT_IMPLEMENTED
+    }
+    CHECK(callee);
+
+    return Call(callee, std::vector<llvm::Value *>({value}), "pod_value_cast");
+  }
+
   do {
     if (value->getType() == target) break;
 
@@ -406,7 +431,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   }
 
   llvm::Function *callee = m_->getFunction(op->name);
-  CHECK(callee != nullptr) << "Unknown function referenced";
+  CHECK(callee) << "Unknown function referenced";
 
   std::vector<llvm::Value *> args;
   for (const auto &e : op->args) {
@@ -432,8 +457,10 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
     array = named_vars_[tensor_op->name];
   } else if (auto *var_op = op->tensor.As<ir::_Var_>()) {
     array = named_vars_[var_op->name];
+  } else {
+    array = Visit(&op->tensor);
   }
-  CHECK(array);
+  CHECK(array) << "fail to Visit Load node: " << Expr(const_cast<ir::Load *>(op));
 
   ir::Expr index = op->index();
   std::vector<llvm::Value *> indices;

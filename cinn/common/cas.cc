@@ -705,11 +705,11 @@ std::vector<Expr> CasSimplifyMutator::MergeSum(const std::vector<Expr>& _p, cons
     std::stringstream ss;
     for (auto& x : p) ss << x << " ";
 
-    VLOG(3) << "MergeSum p(" << ss.str() << ")";
+    VLOG(6) << "MergeSum p(" << ss.str() << ")";
     ss.str("");
 
     for (auto& x : q) ss << x << " ";
-    VLOG(3) << "MergeSum q(" << ss.str() << ")";
+    VLOG(6) << "MergeSum q(" << ss.str() << ")";
     ss.str("");
   }
 #endif

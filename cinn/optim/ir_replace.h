@@ -1,4 +1,6 @@
 #pragma once
+#include <string>
+
 #include "cinn/ir/ir.h"
 
 namespace cinn {

@@ -32,6 +32,9 @@ function prepare {
     touch tests/test02_matmul_loop_permutation.cc
     touch tests/test02_matmul_array_packing.cc
     touch tests/test02_matmul_split.cc
+    touch tests/test02_matmul_varient_shape.cc
+    touch tests/test02_matmul_varient_shape_tile.cc
+    touch tests/test02_matmul_array_packing_dynamic_shape.cc
     touch tests/test01_elementwise_add_vectorize.cc
     touch cinn/backends/generated_module1.cc
     touch cinn/backends/generated1.cu

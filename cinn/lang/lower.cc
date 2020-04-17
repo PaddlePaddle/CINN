@@ -154,50 +154,64 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
 }
 
 //! Prepare the arguments of LoweredFunc.
-std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensors, const std::vector<Expr>& func_body) {
+std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensor_args,
+                                           const std::vector<Var>& scalar_args,
+                                           const std::vector<Expr>& func_body) {
   std::vector<ir::Argument> args;
   optim::TensorWriteTeller teller;
   for (auto& expr : func_body) teller.Collect(&expr);
 
   std::set<std::string> arg_names;
-  for (auto& tensor : tensors) {
+  for (auto& tensor : tensor_args) {
     auto* tensor_node = tensor.As<ir::_Tensor_>();
     CHECK(!tensor_node->inlined());
     bool is_output = teller.IsWrite(tensor->name);
 
     // avoid duplicate
     if (arg_names.count(tensor_node->buffer->name)) continue;
+
     arg_names.insert(tensor_node->buffer->name);
 
     auto io = is_output ? ir::Argument::IO::kOutput : ir::Argument::IO::kInput;
     VLOG(3) << "Collect " << (is_output ? "W" : "R") << " argument " << tensor->buffer->name;
     args.emplace_back(tensor_node->buffer, io);
   }
+
+  for (auto& scalar : scalar_args) {
+    if (arg_names.count(scalar->name)) continue;
+    auto* scalar_node = scalar.As<ir::_Var_>();
+    CHECK(scalar_node->type().valid());
+    arg_names.insert(scalar->name);
+
+    args.emplace_back(scalar, ir::Argument::IO::kInput);
+  }
   return args;
 }
 
 //! Lower the stages and get a LoweredFunc.
-ir::LoweredFunc Lower(const std::string& name, const std::vector<Tensor>& args) {
+ir::LoweredFunc Lower(const std::string& name,
+                      const std::vector<Tensor>& tensor_args,
+                      const std::vector<Var>& scalar_args) {
   // make sure the graph's start-points in the args.
 
-  auto stages             = poly::GatherStagesInTensors(args);
-  auto extra_dependencies = poly::ExtractExtraDependencyFromStages(stages);
+  auto stages             = poly::GatherStagesInTensors(tensor_args);
+  auto extra_dependencies = poly::ExtractExtraDependencyFromStages(stages);  // deal with the `compute_at` dependencies.
   auto graph              = poly::CreateGraph(stages, extra_dependencies);
 
   // Create a dic for stages and tensors.
   std::map<std::string, Stage*> stage_dic;
   std::map<std::string, Tensor> tensor_dic;
-  for (auto& tensor : args) tensor_dic.emplace(tensor->name, tensor);
+  for (auto& tensor : tensor_args) tensor_dic.emplace(tensor->name, tensor);
   for (auto& stage : stages) stage_dic.emplace(stage->id(), stage);
   // The placeholder Tensors are ignored in stages.
   CHECK_GE(tensor_dic.size(), stage_dic.size());
-  CHECK_GE(args.size(), stage_dic.size()) << "tensor should duplicate name";
+  CHECK_GE(tensor_args.size(), stage_dic.size()) << "tensor should duplicate name";
 
   std::set<std::string> args_names;
-  for (auto& arg : args) {
+  for (auto& arg : tensor_args) {
     args_names.insert(arg->name);
   }
-  CHECK_EQ(args.size(), args_names.size()) << "Tensor should have unique name";
+  CHECK_EQ(tensor_args.size(), args_names.size()) << "Tensor should have unique name";
 
   // collect the graph nodes of `args`
   std::vector<common::GraphNode*> input_graph_nodes;
@@ -237,7 +251,7 @@ ir::LoweredFunc Lower(const std::string& name, const std::vector<Tensor>& args) 
   Expr block = ir::Block::Make(exprs);
 
   // prepare arguments
-  std::vector<ir::Argument> arguments = PrepareArguments(args, {block});
+  std::vector<ir::Argument> arguments = PrepareArguments(tensor_args, scalar_args, {block});
 
   auto func = ir::_LoweredFunc_::Make(name, arguments, block);
   auto res  = optim::Optimize(func);

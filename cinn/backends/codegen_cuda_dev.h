@@ -50,8 +50,12 @@ class CodeGenCUDA_Dev : public CodeGenC {
    */
   void PrintFuncArg(const ir::Argument& arg);
 
+  std::string Compile(const lang::Module& module, OutputKind output_kind);
+
  protected:
   void Visit(const ir::_LoweredFunc_* op) override;
+
+  void PrintBuiltinCodes();
 
   /**
    * Print the function declaration, this is different from C, we expand the arguments and get something like

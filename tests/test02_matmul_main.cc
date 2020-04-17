@@ -277,4 +277,105 @@ TEST(matmul, ArrayPacking) {
   compiler.Compile(module, outputs);
 }
 
+TEST(matmul, varient_shape) {
+  Var M("M");  // M is a symbol.
+  Placeholder<float> A("A", {M, K});
+  Placeholder<float> B("B", {K, N});
+
+  Var k(K.as_int32(), "k");
+
+  auto C_init = Compute(
+      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
+  C_init->WithBuffer();
+  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
+  C->Bind(C_init->buffer);
+  ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
+
+  Target target;
+  target.arch = Target::Arch ::X86;
+  target.bits = Target::Bit ::k32;
+  target.os   = Target::OS ::Linux;
+
+  {
+    Module module("matmul_dynamic_shape", target);
+    auto func = Lower("matmul_dynamic_shape", {A, B, C, C_init}, {M});
+
+    module.Append(func);
+
+    CodeGenC compiler(target);
+    Outputs outputs;
+    outputs = outputs.c_header("./test02_matmul_varient_shape.h").c_source("./test02_matmul_varient_shape.cc");
+    compiler.Compile(module, outputs);
+  }
+
+  {
+    int bn                                    = 32;
+    auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn, bn);
+
+    Module module("matmul_dynamic_shape_tile", target);
+    auto func = Lower("matmul_dynamic_shape_tile", {A, B, C, C_init} /*tensors*/, {M} /*scalars*/);
+    LOG(INFO) << "func " << Expr(func);
+
+    module.Append(func);
+
+    CodeGenC compiler(target);
+    Outputs outputs;
+
+    outputs =
+        outputs.c_header("./test02_matmul_varient_shape_tile.h").c_source("./test02_matmul_varient_shape_tile.cc");
+    compiler.Compile(module, outputs);
+  }
+}
+
+TEST(matmul, ArrayPacking_dynamic_shape) {
+  Var M("M");
+  Placeholder<float> A("A", {M, K});
+  Placeholder<float> B("B", {K, N});
+
+  Var k(K.as_int32(), "k");
+
+  Expr bn(32);
+
+  auto C_init = Compute(
+      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
+  C_init->WithBuffer();
+  auto packedB = Compute(
+      {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
+  packedB->WithBuffer();
+  LOG(INFO) << "stage: " << packedB->stage()->transformed_domain();
+  packedB->stage()->Vectorize(2, 8);
+
+  auto C = Compute({M, N}, [&](Expr i, Expr j) { return Sum(A(i, k) * packedB(j / bn, k, j % bn)); }, "C", {k});
+  C->Bind(C_init->buffer);
+
+  ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
+
+  Target target;
+  target.arch = Target::Arch ::X86;
+  target.bits = Target::Bit ::k32;
+  target.os   = Target::OS ::Linux;
+
+  {
+    Iterator i_outer, i_inner, j_outer, j_inner;
+    Iterator k_outer, k_inner;
+
+    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
+    std::tie(k_outer, k_inner)                   = C->stage()->Split("k", 4);
+
+    C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
+    C->stage()->Vectorize(j_inner, 8);
+  }
+
+  Module module("module_array_packing_dynamic_shape", target);
+  auto func = Lower("matmul_array_packing_dynamic_shape", {A, B, C, C_init, packedB}, {M});
+
+  module.Append(func);
+
+  CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
+  Outputs outputs;
+  outputs = outputs.c_header("./test02_matmul_array_packing_dynamic_shape.h")
+                .c_source("./test02_matmul_array_packing_dynamic_shape.cc");
+  compiler.Compile(module, outputs);
+}
+
 }  // namespace cinn

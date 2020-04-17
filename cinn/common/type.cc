@@ -112,7 +112,6 @@ Type Type::with_bits(int x) const {
 }
 
 Type Type::with_type(Type::type_t x) const {
-  CHECK(is_primitive());
   Type type  = *this;
   type.type_ = x;
   return type;

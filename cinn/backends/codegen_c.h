@@ -38,7 +38,7 @@ class CodeGenC : public ir::IrPrinter {
 
   void Compile(const lang::Module& module, const Outputs& outputs);
 
-  std::string Compile(const lang::Module& module, OutputKind output_kind);
+  virtual std::string Compile(const lang::Module& module, OutputKind output_kind);
 
   //! Disable inline the builtin codes(too large) for simpler string comparation.
   void SetInlineBuiltinCodes(bool x = true) { inline_builtin_codes_ = x; }

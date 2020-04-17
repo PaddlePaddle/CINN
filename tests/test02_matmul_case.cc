@@ -5,10 +5,13 @@
 #include "cinn/utils/timer.h"
 #include "tests/test02_matmul.h"
 #include "tests/test02_matmul_array_packing.h"
+#include "tests/test02_matmul_array_packing_dynamic_shape.h"
 #include "tests/test02_matmul_block.h"
 #include "tests/test02_matmul_loop_permutation.h"
 #include "tests/test02_matmul_split.h"
 #include "tests/test02_matmul_tile.h"
+#include "tests/test02_matmul_varient_shape.h"
+#include "tests/test02_matmul_varient_shape_tile.h"
 #include "tests/test02_matmul_vectorize.h"
 
 TEST(test02, basic) {
@@ -73,21 +76,43 @@ TEST(test02, basic) {
 
   const int repeat = 1;
 
-  cinn_buffer_t* args[]  = {A, B, C};
-  cinn_buffer_t* args1[] = {A, B, C, packedB};
+  cinn_pod_value_t A_arg(A);
+  cinn_pod_value_t B_arg(B);
+  cinn_pod_value_t C_arg(C);
+  cinn_pod_value_t packedB_arg(packedB);
+  cinn_pod_value_t M_arg(M);
 
-#define TEST_FUNC(func__)                           \
-  LOG(INFO) << "Testing " #func__;                  \
-  timer.Start();                                    \
-  for (int i = 0; i < repeat; i++) func__(args, 3); \
-  LOG(INFO) << timer.Stop() / repeat;               \
+  cinn_pod_value_t args[]  = {A_arg, B_arg, C_arg};
+  cinn_pod_value_t args1[] = {A_arg, B_arg, C_arg, packedB_arg};
+  cinn_pod_value_t args2[] = {A_arg, B_arg, C_arg, M_arg};
+  cinn_pod_value_t args3[] = {A_arg, B_arg, C_arg, packedB_arg, M_arg};
+
+#define TEST_FUNC(func__)                                                     \
+  LOG(INFO) << "Testing " #func__;                                            \
+  timer.Start();                                                              \
+  for (int i = 0; i < repeat; i++) func__(reinterpret_cast<void**>(args), 3); \
+  LOG(INFO) << timer.Stop() / repeat;                                         \
   compare();
 
-#define TEST_FUNC1(func__, diff)                     \
-  LOG(INFO) << "Testing " #func__;                   \
-  timer.Start();                                     \
-  for (int i = 0; i < repeat; i++) func__(args1, 4); \
-  LOG(INFO) << timer.Stop() / repeat;                \
+#define TEST_FUNC1(func__, diff)                                               \
+  LOG(INFO) << "Testing " #func__;                                             \
+  timer.Start();                                                               \
+  for (int i = 0; i < repeat; i++) func__(reinterpret_cast<void**>(args1), 4); \
+  LOG(INFO) << timer.Stop() / repeat;                                          \
+  compare();
+
+#define TEST_FUNC2(func__, diff)                                               \
+  LOG(INFO) << "Testing " #func__;                                             \
+  timer.Start();                                                               \
+  for (int i = 0; i < repeat; i++) func__(reinterpret_cast<void**>(args2), 4); \
+  LOG(INFO) << timer.Stop() / repeat;                                          \
+  compare();
+
+#define TEST_FUNC3(func__, diff)                                               \
+  LOG(INFO) << "Testing " #func__;                                             \
+  timer.Start();                                                               \
+  for (int i = 0; i < repeat; i++) func__(reinterpret_cast<void**>(args3), 4); \
+  LOG(INFO) << timer.Stop() / repeat;                                          \
   compare();
 
   TEST_FUNC(matmul)
@@ -103,4 +128,10 @@ TEST(test02, basic) {
   TEST_FUNC(matmul_loop_permutation)
 
   TEST_FUNC1(matmul_array_packing, 1e-5)
+
+  TEST_FUNC2(matmul_dynamic_shape, 1e-5);
+
+  TEST_FUNC2(matmul_dynamic_shape_tile, 1e-5);
+
+  TEST_FUNC3(matmul_array_packing_dynamic_shape, 1e-5);
 }

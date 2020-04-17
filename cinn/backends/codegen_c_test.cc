@@ -66,14 +66,13 @@ TEST(CodeGenC, module) {
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 });
 void add1(void* _args, int32_t num_args)
 {
-  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
-  const cinn_buffer_t* _A = args[0];
-  const cinn_buffer_t* _B = args[1];
-  cinn_buffer_t* _C = args[2];
+  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
+  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(_A->host_memory);
-  const float* B = (const float*)(_B->host_memory);
-  float* C = (float*)(_C->host_memory);
+  const float* A = ((const float*)(_A->host_memory));
+  const float* B = ((const float*)(_B->host_memory));
+  float* C = ((float*)(_C->host_memory));
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 20; j += 1) {
       C[((20 * i) + j)] = (A[((20 * i) + j)] + B[((20 * i) + j)]);
@@ -164,17 +163,16 @@ TEST(CodeGenC, module_with_transform) {
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 });
 void add1(void* _args, int32_t num_args)
 {
-  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
-  const cinn_buffer_t* _A = args[0];
-  const cinn_buffer_t* _B = args[1];
-  cinn_buffer_t* _C = args[2];
-  cinn_buffer_t* _D = args[3];
+  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
+  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
+  cinn_buffer_t* _D = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[3]));
   cinn_buffer_malloc((void*)(0), _C);
   cinn_buffer_malloc((void*)(0), _D);
-  const float* A = (const float*)(_A->host_memory);
-  const float* B = (const float*)(_B->host_memory);
-  float* C = (float*)(_C->host_memory);
-  float* D = (float*)(_D->host_memory);
+  const float* A = ((const float*)(_A->host_memory));
+  const float* B = ((const float*)(_B->host_memory));
+  float* C = ((float*)(_C->host_memory));
+  float* D = ((float*)(_D->host_memory));
   for (int32_t i_outer = 0; i_outer < 25; i_outer += 1) {
     for (int32_t i_inner = 0; i_inner < 4; i_inner += 1) {
       for (int32_t j = 0; j < 20; j += 1) {
@@ -246,15 +244,14 @@ TEST(CodeGenC, matmul) {
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 50 });
 void matmul(void* _args, int32_t num_args)
 {
-  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
-  const cinn_buffer_t* _A = args[0];
-  const cinn_buffer_t* _B = args[1];
-  cinn_buffer_t* _C = args[2];
+  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
+  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(_A->host_memory);
-  const float* B = (const float*)(_B->host_memory);
-  float* C = (float*)(_C->host_memory);
-  float* C_init = (float*)(_C->host_memory);
+  const float* A = ((const float*)(_A->host_memory));
+  const float* B = ((const float*)(_B->host_memory));
+  float* C = ((float*)(_C->host_memory));
+  float* C_init = ((float*)(_C->host_memory));
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 50; j += 1) {
       C_init[((50 * i) + j)] = 0;
@@ -331,15 +328,14 @@ TEST(CodeGenC, matmul_tile) {
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 });
 void matmul(void* _args, int32_t num_args)
 {
-  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
-  const cinn_buffer_t* _A = args[0];
-  const cinn_buffer_t* _B = args[1];
-  cinn_buffer_t* _C = args[2];
+  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
+  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(_A->host_memory);
-  const float* B = (const float*)(_B->host_memory);
-  float* C = (float*)(_C->host_memory);
-  float* C_init = (float*)(_C->host_memory);
+  const float* A = ((const float*)(_A->host_memory));
+  const float* B = ((const float*)(_B->host_memory));
+  float* C = ((float*)(_C->host_memory));
+  float* C_init = ((float*)(_C->host_memory));
   for (int32_t i_outer = 0; i_outer < 3; i_outer += 1) {
     for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
       for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
@@ -451,17 +447,16 @@ cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_
 cinn_buffer_t* _PackedB = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 15, 200, 32 });
 void matmul_with_packing(void* _args, int32_t num_args)
 {
-  cinn_buffer_t** args = (cinn_buffer_t**)(_args);
-  const cinn_buffer_t* _A = args[0];
-  const cinn_buffer_t* _B = args[1];
-  cinn_buffer_t* _PackedB = args[2];
-  cinn_buffer_t* _C = args[3];
+  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
+  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _PackedB = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
+  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[3]));
   cinn_buffer_malloc((void*)(0), _PackedB);
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = (const float*)(_A->host_memory);
-  const float* B = (const float*)(_B->host_memory);
-  float* C = (float*)(_C->host_memory);
-  float* PackedB = (float*)(_PackedB->host_memory);
+  const float* A = ((const float*)(_A->host_memory));
+  const float* B = ((const float*)(_B->host_memory));
+  float* C = ((float*)(_C->host_memory));
+  float* PackedB = ((float*)(_PackedB->host_memory));
   for (int32_t i = 0; i < 15; i += 1) {
     for (int32_t j = 0; j < 200; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {

@@ -8,6 +8,7 @@
 
 namespace cinn {
 namespace backends {
+
 llvm::Type *CinnTypeToIrType(common::Type type, llvm::Module *m) {
   llvm::Type *ir_type = nullptr;
   if (type.is_cpp_const()) {
@@ -40,10 +41,11 @@ llvm::Type *CinnTypeToIrType(common::Type type, llvm::Module *m) {
     CHECK(!type.customized_type().empty());
     ir_type = m->getTypeByName("struct." + type.customized_type());
   } else {
-    LOG(ERROR) << type;
+    LOG(ERROR) << "Cannot convert type " << type << " to LLVM";
   }
 
   if (type.is_cpp_handle()) {
+    CHECK(ir_type);
     ir_type = llvm::PointerType::getUnqual(ir_type);
   }
 

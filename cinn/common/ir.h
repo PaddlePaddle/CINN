@@ -8,6 +8,8 @@ Expr ExpandTo1DIndice(const std::vector<Expr> &shape, const std::vector<Expr> &i
 
 Expr ExpandTo1DIndice(const std::vector<int> &shape, const std::vector<Expr> &indices);
 
+Expr CastIfNeeded(Expr body, Type type);
+
 //! Substitute vars to other expressions.
 //! @param expr The expression to do modification.
 //! @param var_map The map from variables to the target expressions.

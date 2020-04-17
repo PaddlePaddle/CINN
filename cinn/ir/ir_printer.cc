@@ -40,14 +40,14 @@ void IrPrinter::Visit(const Not *x) {
   Print(x->v());
 }
 void IrPrinter::Visit(const Min *x) {
-  os_ << "min(";
+  os_ << "cinn_min(";
   Print(x->a());
   os_ << ", ";
   Print(x->b());
   os_ << ")";
 }
 void IrPrinter::Visit(const Max *x) {
-  os_ << "max(";
+  os_ << "cinn_max(";
   Print(x->a());
   os_ << ", ";
   Print(x->b());
