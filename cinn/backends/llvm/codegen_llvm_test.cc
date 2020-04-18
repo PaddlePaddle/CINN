@@ -397,8 +397,6 @@ TEST(CodeGenLLVM, Statement) {
     auto call_op  = std::make_unique<ir::Call>(common::Int(32));
     call_op->name = "codegen_llvm_test.Alloc_Store_Load_Free";
 
-    // llvm::dyn_cast<llvm::AllocaInst>(buffer)->removeFromParent();
-
     // Emit llvm ir
     auto *alloc_inst = llvm::dyn_cast<llvm::AllocaInst>(emitter->Visit(alloc_op.get()));
     module_str += "\n  %0 = alloca [6 x i32]";
@@ -408,14 +406,9 @@ TEST(CodeGenLLVM, Statement) {
     auto *load_inst = llvm::dyn_cast<llvm::LoadInst>(emitter->Visit(load_op.get()));
     module_str += "\n  %2 = getelementptr [6 x i32], [6 x i32]* %0, i32 1";
     module_str += "\n  %3 = load [6 x i32], [6 x i32]* %2";
-    // emitter->Visit(free_op.get());
-
-    // auto *call_inst =
-    // llvm::dyn_cast<llvm::CallInst>(emitter->Visit(call_op.get()));
 
     b->CreateRet(llvm::ConstantInt::get(i32, 1));
 
-    // module_str += "\n  ret [6 x i32] %3";
     module_str += "\n  ret i32 1";
     module_str += "\n}\n";
 
@@ -444,6 +437,8 @@ TEST(CodeGenLLVM, LowerFunc) {
     std::string runtime_ir(backends::kRuntimeLlvmIr);
     // NOTE: read ir string before IRBuilder create
     auto m = llvm::parseAssemblyString(runtime_ir, error, *context);
+    error.print("error:", ss, false);
+    CHECK(m) << ss.str();
     auto b = std::make_unique<llvm::IRBuilder<>>(*context);
 
     auto emitter = std::make_unique<CodeGenLLVM>(m.get(), b.get());

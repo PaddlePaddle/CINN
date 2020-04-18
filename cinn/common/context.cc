@@ -11,5 +11,15 @@ Context& Context::Global() {
   return x;
 }
 
+const std::string& Context::runtime_include_dir() const {
+  if (runtime_include_dir_.empty()) {
+    runtime_include_dir_ = std::getenv(kRuntimeIncludeDirEnvironKey);
+  }
+  return runtime_include_dir_;
+}
+
+const char* kRuntimeLlvmIrFileEnvironKey = "runtime_llvm_ir_file";
+const char* kRuntimeIncludeDirEnvironKey = "runtime_include_dir";
+
 }  // namespace common
 }  // namespace cinn

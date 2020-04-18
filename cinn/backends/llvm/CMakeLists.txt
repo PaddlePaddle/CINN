@@ -3,13 +3,13 @@ add_definitions(${LLVM_DEFINITIONS})
 # generate cinn_runtime.ll file
 execute_process(
     COMMAND clang++ -mavx2 -masm=intel -S -emit-llvm -O3 ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc -I${PROJECT_SOURCE_DIR}
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/cinn/backends/llvm
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
 execute_process(
-    COMMAND cat cinn_runtime.ll
+    COMMAND cat ${CMAKE_BINARY_DIR}/cinn_runtime.ll
     COMMAND python3 generate_runtime_llvm_ir.py
-    OUTPUT_FILE cinn_runtime_llvm_ir.h
+    OUTPUT_FILE ${CMAKE_BINARY_DIR}/cinn/backends/llvm/cinn_runtime_llvm_ir.h
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/cinn/backends/llvm
 )
 

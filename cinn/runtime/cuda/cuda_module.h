@@ -35,17 +35,16 @@ class CUDAModule {
     cuCtxCreate(&context_, 0, device_);
   }
 
-  //! Get a function.
-  CUfunction GetFunction(int device_id, const std::string& func_name) {
-    if (!module_per_card_[device_id]) {
-      std::lock_guard<std::mutex> lock(mutex_);
-      CUDA_DRIVER_CALL(cuModuleLoadData(&module_per_card_[device_id], data_.c_str()));
-    }
+  void LaunchKernel(int device_id,
+                    const std::string& func_name,
+                    dim3 gridDim,
+                    dim3 blockDim,
+                    void** args,
+                    size_t share_memory_size = 0,
+                    CUstream stream          = nullptr);
 
-    CUfunction func;
-    CUDA_DRIVER_CALL(cuModuleGetFunction(&func, module_per_card_[device_id], func_name.c_str()));
-    return func;
-  }
+  //! Get a function.
+  CUfunction GetFunction(int device_id, const std::string& func_name);
 
   //! Get a global variable.
   CUdeviceptr GetGlobal(int device_id, const std::string& name, size_t nbytes) {

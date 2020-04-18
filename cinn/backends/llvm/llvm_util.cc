@@ -57,16 +57,5 @@ llvm::Type *CinnTypeToIrType(common::Type type, llvm::Module *m) {
   return ir_type;
 }
 
-// void SetAlignmentMetadataForLoad(llvm::LoadInst *load, uint64_t alignment) {
-//  auto &context = load->getContext();
-//  llvm::Type *int64_ty = llvm::Type::getInt64Ty(context);
-//  llvm::Constant *alignment_constant =
-//      llvm::ConstantInt::get(int64_ty, alignment);
-//  llvm::MDBuilder metadata_builder(context);
-//  auto *alignment_metadata =
-//      metadata_builder.createConstant(alignment_constant);
-//  load->setMetadata(llvm::LLVMContext::MD_align, llvm
-//                    : MDNode::get(context, alignment_metadata));
-//}
 }  // namespace backends
 }  // namespace cinn
