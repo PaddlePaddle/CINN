@@ -1,6 +1,9 @@
 #include "cinn/backends/nvrtc_util.h"
-
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <nvrtc.h>
 #include "cinn/backends/cuda_util.h"
+#include "cinn/common/common.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -34,9 +37,7 @@ std::vector<std::string> NVRTC_Compiler::FindCUDAIncludePaths() {
 }
 
 std::vector<std::string> NVRTC_Compiler::FindCINNRuntimeIncludePaths() {
-  const char* path = std::getenv("CINN_RUNTIME_DIR");
-  if (!path) return {};
-  return {path};
+  return {Context::Global().runtime_include_dir()};
 }
 
 std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_headers) {
@@ -68,23 +69,25 @@ std::string NVRTC_Compiler::CompilePTX(const std::string& code, bool include_hea
       include_paths.push_back("--include-path=" + header);
     }
 
-    std::string include_option = utils::Join(include_paths, " ");
-
-    compile_options.push_back(include_option);
+    compile_options.insert(std::end(compile_options), include_paths.begin(), include_paths.end());
   }
 
-  for (const auto& string : compile_options) {
-    param_cstrings.push_back(string.c_str());
+  for (const auto& option : compile_options) {
+    param_cstrings.push_back(option.c_str());
   }
+  LOG(INFO) << "compile options: " << utils::Join(compile_options, " ");
   NVRTC_CALL(nvrtcCreateProgram(&prog, code.c_str(), nullptr, 0, nullptr, nullptr));
   nvrtcResult compile_res = nvrtcCompileProgram(prog, param_cstrings.size(), param_cstrings.data());
 
-  size_t log_size;
-  NVRTC_CALL(nvrtcGetProgramLogSize(prog, &log_size));
-  std::string log;
-  log.resize(log_size);
-  NVRTC_CALL(nvrtcGetProgramLog(prog, &log[0]));
-  CHECK_EQ(compile_res, NVRTC_SUCCESS) << log;
+  {  // get log
+    size_t log_size;
+    NVRTC_CALL(nvrtcGetProgramLogSize(prog, &log_size));
+    std::string log;
+    log.resize(log_size);
+    NVRTC_CALL(nvrtcGetProgramLog(prog, &log[0]));
+    CHECK_EQ(compile_res, NVRTC_SUCCESS) << log;
+  }
+
   size_t ptx_size;
   NVRTC_CALL(nvrtcGetPTXSize(prog, &ptx_size));
 

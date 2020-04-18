@@ -64,7 +64,7 @@ class CodeGenC : public ir::IrPrinter {
 
   void PrintShape(const std::vector<Expr>& shape);
 
-  void PrintIncludes();
+  virtual void PrintIncludes();
   void PrintBuiltinCodes();
   void PrintFileGuardOpen(const std::string& module_name);
   void PrintFileGuardClose(const std::string& module_name);

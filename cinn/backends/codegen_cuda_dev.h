@@ -34,6 +34,9 @@ class CodeGenCUDA_Dev : public CodeGenC {
    */
   void Compile(const lang::Module& module, const Outputs& outputs);
 
+  //! Compile on NVRTC.
+  std::string Compile(const lang::Module& module, bool for_nvrtc = true);
+
   std::string Compile(const ir::LoweredFunc& func);
 
   /**
@@ -57,6 +60,8 @@ class CodeGenCUDA_Dev : public CodeGenC {
 
   void PrintBuiltinCodes();
 
+  void PrintIncludes() override;
+
   /**
    * Print the function declaration, this is different from C, we expand the arguments and get something like
    * `__global__ void myadd(float* __restrict__ A, float* __restrict__ B, int n);`
@@ -65,6 +70,8 @@ class CodeGenCUDA_Dev : public CodeGenC {
 
  private:
   Target target_;
+
+  bool for_nvrtc_ = false;
 };
 
 }  // namespace backends

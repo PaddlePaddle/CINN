@@ -3,11 +3,7 @@
 #if defined(__linux__)
 #include <sys/stat.h>
 #endif
-#include <cuda.h>
-#include <cuda_runtime.h>
 #include <glog/logging.h>
-#include <nvrtc.h>
-
 #include <string>
 #include <vector>
 

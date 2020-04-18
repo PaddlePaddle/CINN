@@ -3,12 +3,18 @@
 #include <fstream>
 
 #include "cinn/optim/remove_nested_block.h"
-#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace backends {
 
 CodeGenCUDA_Dev::CodeGenCUDA_Dev(Target target) : CodeGenC(target) {}
+
+std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, bool for_nvrtc) {
+  for_nvrtc_  = for_nvrtc;
+  auto source = Compile(module, OutputKind::CImpl);
+
+  return source;
+}
 
 void CodeGenCUDA_Dev::Compile(const lang::Module &module, const Outputs &outputs) {
   CodeGenC::inline_builtin_codes_ = false;
@@ -43,12 +49,6 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   os() << "\n";
 
   DoIndent();
-
-  // the allocate_output_buffer_expr is not allowed in cuda device function, so we re-implement func codegen without it
-  // here.
-
-  // Expr buffer_cast_expr       = ir::Block::Make(op->buffer_data_cast_exprs);
-  // Expr prepare_arguments_expr = ir::Block::Make(op->argument_prepare_exprs);
 
   Expr func_body = op->body;
 
@@ -98,6 +98,11 @@ void CodeGenCUDA_Dev::PrintBuiltinCodes() {
 
 std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, CodeGenC::OutputKind output_kind) {
   ss_.str("");
+
+  if (for_nvrtc_) {
+    os() << "extern \"C\" {\n\n";
+  }
+
   if (output_kind == OutputKind::CHeader) {
     GenerateHeaderFile(module);
   } else if (output_kind == OutputKind::CImpl) {
@@ -113,7 +118,17 @@ std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, CodeGenC::Outpu
   } else {
     LOG(FATAL) << "Not supported OutputKind";
   }
+
+  if (for_nvrtc_) {
+    os() << "\n\n}";
+  }
+
   return ss_.str();
+}
+
+void CodeGenCUDA_Dev::PrintIncludes() {
+  // os() << "#include <cinn_runtime.h>\n";
+  // os() << "\n";
 }
 
 }  // namespace backends

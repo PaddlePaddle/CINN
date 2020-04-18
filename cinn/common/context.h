@@ -26,6 +26,8 @@ struct ID {
   size_t cur_;
 };
 
+extern const char* kRuntimeIncludeDirEnvironKey;
+
 struct NameGenerator {
   std::string New(const std::string& name_hint) { return name_hint + "_" + std::to_string(id_.New()); }
 
@@ -47,6 +49,8 @@ class Context {
 
   DebugManager& debug_mgr() { return debug_mgr_; }
 
+  const std::string& runtime_include_dir() const;
+
   /**
    * The global isl ctx.
    */
@@ -58,6 +62,8 @@ class Context {
   isl::ctx ctx_;
   DebugManager debug_mgr_;
   InfoRegistry info_rgt_;
+
+  mutable std::string runtime_include_dir_;
 };
 
 }  // namespace common
