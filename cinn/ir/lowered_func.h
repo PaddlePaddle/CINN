@@ -80,8 +80,8 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   //! Body of this function.
   Expr body;
 
+  std::vector<int> gpu_grid_dims;
   std::vector<int> gpu_block_dims;
-  std::vector<int> gpu_thread_dims;
 
   /**
    * The output buffer will be resized to the size required, we leave all the expression here.

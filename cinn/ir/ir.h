@@ -504,7 +504,7 @@ struct IfThenElse : public ExprNode<IfThenElse> {
 
   IfThenElse(Expr condition, Expr true_case, Expr false_case);
 
-  static Expr Make(Expr condition, Expr true_case, Expr false_case);
+  static Expr Make(Expr condition, Expr true_case, Expr false_case = Expr());
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;

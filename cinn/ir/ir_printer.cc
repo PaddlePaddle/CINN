@@ -71,6 +71,8 @@ void IrPrinter::Visit(const For *x) {
 
 void IrPrinter::Visit(const PolyFor *x) {
   os_ << "poly_for (";
+  Print(x->iterator);
+  os_ << ", ";
   Print(x->init);
   os_ << ", ";
   Print(x->condition);

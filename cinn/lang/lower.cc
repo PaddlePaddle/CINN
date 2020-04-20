@@ -254,7 +254,8 @@ ir::LoweredFunc Lower(const std::string& name,
   std::vector<ir::Argument> arguments = PrepareArguments(tensor_args, scalar_args, {block});
 
   auto func = ir::_LoweredFunc_::Make(name, arguments, block);
-  auto res  = optim::Optimize(func);
+
+  auto res = optim::Optimize(func);
   return ir::LoweredFunc(res.get());
 }
 
