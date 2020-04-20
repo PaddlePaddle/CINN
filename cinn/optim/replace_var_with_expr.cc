@@ -20,6 +20,27 @@ struct ReplaceVarWithExprMutator : public ir::IRMutator<> {
     *op         = copied;
   }
 
+  void Visit(const ir::For* op, Expr* expr) override {
+    auto* node = expr->As<ir::For>();
+    ir::IRMutator<>::Visit(&node->min, &node->min);
+    ir::IRMutator<>::Visit(&node->extent, &node->extent);
+    ir::IRMutator<>::Visit(&node->body, &node->body);
+    if (node->loop_var->name == var_->name && expr_.As<ir::_Var_>()) {
+      node->loop_var = expr_.As<ir::_Var_>();
+    }
+  }
+
+  void Visit(const ir::PolyFor* op, Expr* expr) override {
+    auto* node = expr->As<ir::PolyFor>();
+    ir::IRMutator<>::Visit(&node->init, &node->init);
+    ir::IRMutator<>::Visit(&node->condition, &node->condition);
+    ir::IRMutator<>::Visit(&node->inc, &node->inc);
+    ir::IRMutator<>::Visit(&node->body, &node->body);
+    if (node->iterator->name == var_->name && expr_.As<ir::_Var_>()) {
+      node->iterator = expr_.As<ir::_Var_>();
+    }
+  }
+
  private:
   const Var& var_;
   const Expr& expr_;

@@ -57,6 +57,14 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   Print(func_body);
 }
 
+void CodeGenCUDA_Dev::Visit(const ir::Min *op) {
+  os() << "min(";
+  Print(op->a());
+  os() << ", ";
+  Print(op->b());
+  os() << ")";
+}
+
 void CodeGenCUDA_Dev::PrintFunctionDeclaration(const ir::_LoweredFunc_ *op) {
   os() << "void " << GenKernelName(op->name) << "(";
   for (int i = 0; i < op->args.size() - 1; i++) {
@@ -127,8 +135,9 @@ std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, CodeGenC::Outpu
 }
 
 void CodeGenCUDA_Dev::PrintIncludes() {
-  // os() << "#include <cinn_runtime.h>\n";
-  // os() << "\n";
+  os() << "typedef int int32_t;";
+  os() << "typedef char int8_t;";
+  os() << "\n";
 }
 
 }  // namespace backends

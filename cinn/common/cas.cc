@@ -649,7 +649,7 @@ Expr CasSimplifyMutator::SimplifyProduct(Expr a) {
     for (auto& v : operands) {
       ss << v << " ";
     }
-    VLOG(4) << "operands: " << ss.str();
+    VLOG(6) << "operands: " << ss.str();
   };
 #endif
 
