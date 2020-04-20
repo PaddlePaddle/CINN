@@ -45,10 +45,12 @@ find_library(ginac_lib ginac PATHS "/usr/lib" NO_DEFAULT_PATH)
 message(STATUS "ginac: ${ginac_lib}")
 link_directories("/usr/lib")
 
-set(core_src CACHE INTERNAL "" FORCE)
 set(global_test_args "--cinn_x86_builtin_code_root=${CMAKE_SOURCE_DIR}/cinn/backends")
 
+set(core_src CACHE INTERNAL "" FORCE)
+set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
+add_subdirectory(hlir)
 add_subdirectory(tests)
 
 cc_library(core SRCS ${core_src} DEPS glog)

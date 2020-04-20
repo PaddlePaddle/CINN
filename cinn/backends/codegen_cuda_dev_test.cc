@@ -113,8 +113,8 @@ TEST(CodeGenCUDA, compile_run_jit) {
   std::vector<float> host_data1(num_elements, 0);
   std::vector<float> host_data2(num_elements, 0);
   std::vector<float> host_data3(num_elements, 0);
-  for (float& v : host_data1) v = static_cast<float>(rand_r(nullptr)) / INT_MAX;
-  for (float& v : host_data2) v = static_cast<float>(rand_r(nullptr)) / INT_MAX;
+  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
 
   CUDA_CALL(
       cudaMemcpy(reinterpret_cast<void*>(Ad), host_data1.data(), num_elements * sizeof(float), cudaMemcpyHostToDevice));
