@@ -135,8 +135,11 @@ std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, CodeGenC::Outpu
 }
 
 void CodeGenCUDA_Dev::PrintIncludes() {
-  os() << "typedef int int32_t;";
-  os() << "typedef char int8_t;";
+  os() << "#ifdef __CUDACC_RTC__\n";
+  os() << "typedef int int32_t;\n";
+  os() << "typedef char int8_t;\n";
+  os() << "#endif\n";
+  os() << "\n";
   os() << "\n";
 }
 

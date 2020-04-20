@@ -13,12 +13,13 @@ Context& Context::Global() {
 
 const std::string& Context::runtime_include_dir() const {
   if (runtime_include_dir_.empty()) {
-    runtime_include_dir_ = std::getenv(kRuntimeIncludeDirEnvironKey);
+    char* env = std::getenv(kRuntimeIncludeDirEnvironKey);
+    CHECK(env) << "No environment variable called " << kRuntimeIncludeDirEnvironKey;
+    runtime_include_dir_ = env;
   }
   return runtime_include_dir_;
 }
 
-const char* kRuntimeLlvmIrFileEnvironKey = "runtime_llvm_ir_file";
 const char* kRuntimeIncludeDirEnvironKey = "runtime_include_dir";
 
 }  // namespace common

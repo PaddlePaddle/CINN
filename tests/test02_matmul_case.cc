@@ -74,7 +74,7 @@ TEST(test02, basic) {
 
   cinn::utils::Timer timer;
 
-  const int repeat = 1;
+  const int repeat = 2;
 
   cinn_pod_value_t A_arg(A);
   cinn_pod_value_t B_arg(B);

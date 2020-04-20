@@ -121,6 +121,116 @@ The CL get the sub-graphs(where the nodes are all compiler representable) and co
   }
 #+END_SRC
 
+* HLIR
+** Instruction layer
+The Instruction layer is a higher abstraction of the underlying compiler IRs. A model (or part of it) can lower to several computations of Instructions.
+
+Instruction does not have basic blocks or "branch" instructions, we currently haven't consider the condition operations such as while or switch yet. 
+
+This layer helps to 
+
+1. give a higher view of the underlying IR, make it more developer-friendly with more utilities,
+2. supports the computation fusion automatically
+3. supports different lowering mode, the codegen mode or handcraft mode(with manually developed operations),
+
+*** Higher view
+
+#+BEGIN_SRC C++
+  a = create_input;
+  b = create_input;
+  w = crate_parameter;
+
+  c = add(a, b);
+  d = dot(w, c);
+#+END_SRC
+
+The coarse granularity of IR makes it easier to develop or optimize in a high view.
+
+*** Automatic computation fusion
+
+#+BEGIN_SRC C++
+  c = add(a, b);
+  d = tanh(c);
+
+  // can be fused to
+
+  d = fused_instruction({add(a, b), tanh});
+#+END_SRC
+
+*** Different lowering mode support
+The instruction layer supports different lowering mode to tradeoff the performance of codegen and existing math library powered computations.
+
+
+The computation snippet
+
+
+#+BEGIN_SRC C++
+  c = add(a, b);
+  d = dot(c, w);
+#+END_SRC
+
+**** base class
+#+BEGIN_SRC C++
+  //! The function declaration.
+  class FnDecl {
+   public:
+    enum class Kind {
+      CINN,      // the CINN generated function.
+      External,  // the external function.
+    };
+
+    FnDecl(const std::string& name, const std::vector<Type>& in_arg_types, const std::vector<Type>& out_arg_types);
+
+    static std::unique_ptr<FnDecl> Build(const std::string& name,
+                                         const std::vector<Type>& in_arg_types,
+                                         const std::vector<Type>& out_arg_types);
+
+    std::unique_ptr<Caller> Call(const std::vector<Instruction*>& in_args, const std::vector<Var>& out_args);
+
+    struct Caller {
+      //! Function declaration of this caller.
+      FnDecl* decl{};
+
+      void Build(const FnDecl* decl, const std::vector<Instruction*>& in_args, const std::vector<Instruction*>& out_args);
+    };
+  };
+
+  class InstructionEmitBase {
+   public:
+    enum class Kind {
+      CINN  = 0,  // the CINN Codegen mode
+      MKL   = 1,
+      CUDNN = 2,
+    };
+  };
+#+END_SRC
+
+**** Handcraft mode
+Let's take BLAS as an example
+#+BEGIN_SRC C++
+  class DotCpuEmiter : public InstructionEmitBase {
+   public:
+    DotCpuEmiter();
+
+   private:
+    void EmitMkl();
+    void EmitMkldnn();
+  };
+
+  // pass optimize =>
+  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, alpha, A, k, B, n, beta, C, n);
+#+END_SRC
+
+**** codegen code
+#+BEGIN_SRC C++
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N; j++) {
+      // ...
+    }
+  }
+#+END_SRC
+
+** Operator layer
 * Compiler Layer
 ** IR
 
