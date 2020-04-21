@@ -4,31 +4,16 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/cinn_value.h"
 #include "cinn/common/ir.h"
-#include "cinn/common/pod_value.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/lang/tensor.h"
 #include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
-
-namespace common {
-
-PODValue::operator ir::Var() const {
-  if (type_code_ == TypeCode<std::nullptr_t>()) return ir::Var();
-  void *handle = *this;
-  return ir::Var(static_cast<ir::IrNode *>(handle));
-}
-PODValue::operator ir::Expr() const {
-  if (type_code_ == TypeCode<std::nullptr_t>()) return ir::Expr();
-  void *handle = *this;
-  return ir::Expr(static_cast<ir::IrNode *>(handle));
-}
-
-}  // namespace common
-
 namespace ir {
+
 using common::make_shared;
 
 Expr Cast::Make(Type t, Expr v) {
@@ -564,30 +549,5 @@ Expr Power::Make(Expr n, Expr d) {
 
 }  // namespace ir
 
-namespace common {
-
-template <>
-void PODValue::Set<ir::Var>(ir::Var v) {
-  type_code_      = TypeCode<ir::Var>();
-  value_.v_handle = v.ptr();
-}
-template <>
-void PODValue::Set<ir::Expr>(ir::Expr v) {
-  type_code_      = TypeCode<ir::Expr>();
-  value_.v_handle = v.ptr();
-}
-template <>
-Value ToValue<ir::Expr>(ir::Expr v) {
-  Value val;
-  val.v_handle = v.ptr();
-  return val;
-}
-template <>
-Value ToValue<ir::Var>(ir::Var v) {
-  Value val;
-  val.v_handle = v.ptr();
-  return val;
-}
-
-}  // namespace common
+namespace common {}  // namespace common
 }  // namespace cinn

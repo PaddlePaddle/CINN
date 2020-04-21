@@ -292,6 +292,7 @@ static inline int32_t cinn_max(int32_t a, int32_t b) { return a > b ? a : b; }
   {                                                                \
     if ((a) != (b)) {                                              \
       CINN_LOG("check %s == %s failed, %d != %d", #a, #b, (a), b); \
+      abort();                                                     \
     }                                                              \
   }                                                                \
   while (false)                                                    \
@@ -313,6 +314,11 @@ struct cinn_pod_value_t {
   cinn_pod_value_t(cinn_value_t value, int type_code);
   explicit cinn_pod_value_t(cinn_buffer_t* value);
   explicit cinn_pod_value_t(int32_t value);
+  explicit cinn_pod_value_t(int64_t value);
+  explicit cinn_pod_value_t(float value);
+  explicit cinn_pod_value_t(double value);
+  explicit cinn_pod_value_t(void* value);
+  explicit cinn_pod_value_t(const char* value);
 
   //! The value getters for the supported types.
   //@{
@@ -322,13 +328,16 @@ struct cinn_pod_value_t {
   operator int64_t() const;
   operator void*() const;
   operator cinn_buffer_t*() const;
+  operator char*() const;
   //@}
+
+  int type_code() const { return type_code_; }
 
   template <typename T>
   static int type_code();
 
- private:
-  int type_code_;
+ protected:
+  int type_code_{};
   cinn_value_t value_;
 };
 

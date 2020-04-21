@@ -2,9 +2,9 @@
 
 #include <gtest/gtest.h>
 
-#include "cinn/ir/function.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/packed_func.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
 #include "cinn/lang/placeholder.h"

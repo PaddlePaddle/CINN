@@ -3,10 +3,10 @@
 
 #include "cinn/backends/codegen_c.h"
 #include "cinn/common/common.h"
-#include "cinn/ir/function.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/lowered_func.h"
+#include "cinn/ir/packed_func.h"
 #include "cinn/lang/module.h"
 #include "cinn/runtime/cinn_runtime.h"
 
