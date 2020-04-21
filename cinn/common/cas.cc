@@ -1230,6 +1230,7 @@ Expr SimplifyConstantFrac(FracOp* node) {
     return make_const(af->type(), af->value / bf->value);
   }
   NOT_IMPLEMENTED
+  return Expr();
 }
 
 Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {

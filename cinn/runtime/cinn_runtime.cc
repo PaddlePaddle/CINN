@@ -109,7 +109,7 @@ struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device,
   int cinn_pod_value_t::type_code<T>() { \
     return code__;                       \
   }
-__m(int, 0);
+__m(int32_t, 0);
 __m(int64_t, 1);
 __m(float, 2);
 __m(double, 3);
@@ -144,11 +144,23 @@ cinn_pod_value_t::operator cinn_buffer_t*() const {
   CINN_CHECK_EQ(type_code<cinn_buffer_t*>(), type_code_);
   return static_cast<cinn_buffer_t*>(value_.v_handle);
 }
+cinn_pod_value_t::operator char*() const {
+  CINN_CHECK_EQ(type_code<char*>(), type_code_);
+  return static_cast<char*>(value_.v_handle);
+}
+
 cinn_pod_value_t::cinn_pod_value_t(cinn_value_t value, int type_code) : value_(value), type_code_(type_code) {}
 cinn_pod_value_t::cinn_pod_value_t(cinn_buffer_t* value) : type_code_(type_code<cinn_buffer_t*>()) {
   value_.v_handle = value;
 }
 cinn_pod_value_t::cinn_pod_value_t(int32_t value) : type_code_(type_code<int32_t>()) { value_.v_int64 = value; }
+cinn_pod_value_t::cinn_pod_value_t(int64_t value) : type_code_(type_code<int64_t>()) { value_.v_int64 = value; }
+cinn_pod_value_t::cinn_pod_value_t(float value) : type_code_(type_code<float>()) { value_.v_float64 = value; }
+cinn_pod_value_t::cinn_pod_value_t(double value) : type_code_(type_code<double>()) { value_.v_float64 = value; }
+cinn_pod_value_t::cinn_pod_value_t(void* value) : type_code_(type_code<void*>()) { value_.v_handle = value; }
+cinn_pod_value_t::cinn_pod_value_t(const char* value) : type_code_(type_code<char*>()) {
+  value_.v_handle = const_cast<char*>(value);
+}
 
 // @{
 float cinn_pod_value_to_float(cinn_pod_value_t value) { return value; }
