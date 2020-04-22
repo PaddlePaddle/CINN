@@ -31,6 +31,4 @@ using common::Target;
 using common::Type;
 using common::UnkTarget;
 
-#define NOT_IMPLEMENTED LOG(FATAL) << "Not Implemented";
-
 }  // namespace cinn

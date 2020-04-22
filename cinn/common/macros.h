@@ -7,3 +7,5 @@
 #define CINN_DISALLOW_COPY_AND_ASSIGN(TypeName) \
   TypeName(const TypeName&) = delete;           \
   void operator=(const TypeName&) = delete
+
+#define NOT_IMPLEMENTED LOG(FATAL) << "Not Implemented";

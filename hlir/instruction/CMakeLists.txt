@@ -7,9 +7,12 @@ set(srcs
         computation.cc
         module.cc
         shape.cc
+        context.cc
         )
 
-cc_test(test_instruction SRCS instruction_test.cc DEPS core)
+cc_test(test_instruction SRCS instruction_test.cc DEPS core hlir)
+cc_test(test_computation SRCS computation_test.cc DEPS core hlir)
+cc_test(test_module SRCS module_test.cc DEPS core hlir)
 
 
 foreach(cpp ${srcs})

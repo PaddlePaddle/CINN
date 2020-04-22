@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include <string>
 #include "cinn/common/debug_manager.h"
 #include "cinn/common/info_registry.h"
 #include "cinn/utils/any.h"

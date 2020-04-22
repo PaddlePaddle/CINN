@@ -13,18 +13,23 @@ namespace instruction {
  * The static dimension stores as the positive integers, and the dynamic shape is stored as -1.
  */
 struct Shape {
+  static constexpr int kDynamicDimValue = -1;
+
+  Shape() = default;
+
+  Shape(std::initializer_list<int> list);
+
   //! Add a new dimension to the shape.
   inline void AddDim(int dim) { dims_.push_back(dim); }
+
+  std::string to_debug_string() const;
 
   //! number of dimensions.
   inline size_t num_dims() const { return dims_.size(); }
 
-  //! Get the \p offset -th dimension.
   int operator[](int offset) const;
   int& operator[](int offset);
-
   bool operator==(const Shape& other) const;
-
   bool operator!=(const Shape& other);
 
  private:
