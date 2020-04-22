@@ -8,11 +8,18 @@ namespace instruction {
 
 class ParameterInstruction : public Instruction {
  public:
-  ParameterInstruction(const std::string& name, const Shape& shape)
-      : name_(name), Instruction(InstrCode::Parameter, shape) {}
+  ParameterInstruction(int param_offset, const std::string& name, const Shape& shape)
+      : name_(name), Instruction(InstrCode::Parameter, shape), param_offset_(param_offset) {}
+
+  std::string to_debug_string() override;
+
+  std::string id() const override;
+
+  int param_offset() const { return param_offset_; }
 
  private:
   std::string name_;
+  int param_offset_{-1};
 };
 
 class CompareInstruction : public Instruction {
@@ -64,6 +71,43 @@ class TransposeInstruction : public Instruction {
 
  private:
   std::vector<int> dimensions_;
+};
+
+class ConstantInstruction : public Instruction {
+ public:
+  ConstantInstruction(const Shape& shape, const std::vector<char>& data)
+      : Instruction(InstrCode::Constant, shape), data_(data) {}
+
+ private:
+  std::vector<char> data_;
+};
+
+class CallInstruction : public Instruction {
+ public:
+  CallInstruction(const Shape& shape, Computation* computation, const std::vector<Instruction*>& args)
+      : Instruction(InstrCode::Call, shape), computation_(computation) {
+    for (auto* arg : args) {
+      AppendOperand(arg);
+    }
+  }
+
+  std::string to_debug_string() override;
+
+ private:
+  Computation* computation_{};
+};
+
+class CustomCallInstruction : public Instruction {
+ public:
+  CustomCallInstruction(const Shape& shape,
+                        const std::vector<Instruction*>& args,
+                        const std::string& call_target,
+                        const std::string& tag)
+      : Instruction(InstrCode::CustomCall, shape), call_target_(call_target), args_(args) {}
+
+ private:
+  std::string call_target_;
+  std::vector<Instruction*> args_;
 };
 
 }  // namespace instruction

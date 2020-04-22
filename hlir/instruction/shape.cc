@@ -23,5 +23,23 @@ int &Shape::operator[](int offset) {
   return dims_[offset];
 }
 
+Shape::Shape(std::initializer_list<int> list) {
+  for (int x : list) AddDim(x);
+}
+
+std::string Shape::to_debug_string() const {
+  std::stringstream ss;
+
+  ss << "[";
+  if (!dims_.empty()) {
+    for (int i = 0; i < dims_.size() - 1; i++) {
+      ss << dims_[i] << ", ";
+    }
+    ss << dims_.back();
+  }
+  ss << "]";
+  return ss.str();
+}
+
 }  // namespace instruction
 }  // namespace hlir

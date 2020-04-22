@@ -4,6 +4,7 @@
 #include <utility>
 #include <vector>
 
+#include "hlir/instruction/context.h"
 #include "hlir/instruction/instruction.h"
 
 namespace hlir {
@@ -18,31 +19,54 @@ class Computation {
  public:
   class Builder {
    public:
-    explicit Builder(const std::string& name) : name_(name) {}
+    Builder(Context* context, const std::string& name) : context_(*context), name_(context->new_computation_id(name)) {}
 
-    //! Build and return a Computation.
+    /*
+     * Build and return a Computation.
+     */
     std::unique_ptr<Computation> Build();
 
-    Instruction* AddInstruction(std::unique_ptr<Instruction> instruction) {
-      instructions_.push_back(std::move(instruction));
-      last_added_instruction_ = instructions_.back().get();
-      return last_added_instruction_;
-    }
+    /**
+     * Add an instruction to th computation.
+     * @param instruction The instruction to add.
+     * @param comment The optional comment of this instruction.
+     * @return The added instruction.
+     */
+    Instruction* AddInstruction(std::unique_ptr<Instruction>&& instruction, const std::string& comment = "");
+
+    /**
+     * Shape of the return value.
+     */
+    inline const Shape& shape() const;
+
+    /**
+     * Type of the return value.
+     */
+    inline const type_t& type() const;
 
    private:
+    Context& context_;
     std::string name_;
+    bool is_built_{false};
     std::vector<std::unique_ptr<Instruction>> instructions_;
     Instruction* last_added_instruction_{};
   };
-
-  //! Add an instruction to the computation.
-  Instruction* AddInstruction(std::unique_ptr<Instruction> instruction);
 
   //! Remove an instruction from the computation. The instruction must have no users, the instruction will be
   //! deallocated.
   bool RemoveInstruction(Instruction* instruction);
 
+  std::string to_debug_string() const;
+
+  const std::string& name() const { return name_; }
+
  private:
+  Computation(std::vector<std::unique_ptr<Instruction>>&& instructions, const std::string& name)
+      : instructions_(std::move(instructions)), name_(name) {}
+
+  std::vector<std::unique_ptr<Instruction>> instructions_;
+
+  std::string name_;
   //! Module containing this computation.
   Module* module_{};
 };

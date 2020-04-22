@@ -5,12 +5,19 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "cinn/ir/ir.h"
+#include "cinn/common/common.h"
+#include "cinn/common/type.h"
 #include "hlir/instruction/instr_code.h"
 #include "hlir/instruction/shape.h"
 
 namespace hlir {
 namespace instruction {
+using type_t = cinn::common::Type;
+using cinn::common::Bool;
+using cinn::common::Float;
+using cinn::common::Int;
+using cinn::common::UInt;
+using cinn::common::Void;
 
 struct InstructionKind {
   using item_t = unsigned int;
@@ -20,10 +27,7 @@ struct InstructionKind {
 
   bool is_elementwise() const { return TellFlag(KindAsInt(Kind::Elementwise)); }
 
-  InstructionKind& set_elementwise(bool x) {
-    SetFlag(KindAsInt(Kind::Elementwise), x);
-    return *this;
-  }
+  InstructionKind& set_elementwise(bool x);
 
   static inline item_t KindAsInt(Kind kind) { return static_cast<item_t>(kind); }
 
@@ -40,6 +44,14 @@ enum class CompareDirection { LT = 0, LE, GT, GE, EQ };
 
 class Computation;
 
+struct ParameterConfig {
+  type_t type;
+};
+
+struct ConstantConfig {
+  type_t type;
+};
+
 /**
  * The Instruction is a higher level of compiler's IR, it is a atomic unit lower than operators in DNN platforms.
  * Instructions lives on the instruction layer, the upper operator layer lowers to this layer. It does not have basic
@@ -48,7 +60,10 @@ class Computation;
 class Instruction {
  public:
   //! Creates a parameter-retrieving instruction.
-  static std::unique_ptr<Instruction> CreateParameter(const Shape& shape, const std::string& name);
+  static std::unique_ptr<Instruction> CreateParameter(int param_offset,
+                                                      const Shape& shape,
+                                                      const std::string& name,
+                                                      const ParameterConfig& config);
 
   //! Create an unary instruction.
   static std::unique_ptr<Instruction> CreateUnary(const Shape& shape, InstrCode instr_code, Instruction* arg0);
@@ -84,9 +99,18 @@ class Instruction {
                                                  const std::vector<Instruction*>& args,
                                                  Computation* computation);
 
+  static std::unique_ptr<Instruction> CreateCustomCall(const Shape& shape,
+                                                       const std::vector<Instruction*>& args,
+                                                       const std::string& target,
+                                                       const std::string& tag);
+
   static std::unique_ptr<Instruction> CreateNary(const Shape& shape,
                                                  const std::vector<Instruction*>& args,
                                                  InstrCode instr_code);
+
+  static std::unique_ptr<Instruction> CreateConstant(const Shape& shape,
+                                                     const std::vector<char>& buf,
+                                                     const ConstantConfig& config);
 
   //! Add an operand.
   void AppendOperand(Instruction* operand);
@@ -95,14 +119,37 @@ class Instruction {
   const Instruction* operand(int i) const;
 
   //! Get the number of operands of the instruction.
-  size_t operand_count() const { return operands_.size(); }
+  inline size_t operand_count() const { return operands_.size(); }
 
   //! Adds a control dependency form this instruction to the given one.
   void AddControlDependencyTo(Instruction* instruction) { inlinks_.insert(instruction); }
   void RemoveControlDependency(Instruction* instruction) { inlinks_.erase(instruction); }
 
+  virtual std::string id() const { return std::to_string(id_); }
+
+  virtual std::string to_debug_string();
+
+  inline const Shape& shape() const { return shape_; }
+  inline const type_t& type() const { return type_; }
+  inline std::string comment() const { return comment_.value_or(""); }
+
+  inline void set_comment(const std::string& comment) { comment_ = comment; }
+  inline void set_type(const type_t& type);
+
+  //! Add usage relation.
+  void AddUser(Instruction* user);
+  //! Remove usage relation.
+  void RemoveUser(Instruction* user);
+
  protected:
   Instruction(InstrCode code, const Shape& shape) : instr_code_(code), shape_(shape) {}
+
+  void set_id(int id) { id_ = id; }
+
+  friend class Computation;
+
+ protected:
+  int id_{-1};
 
  private:
   InstrCode instr_code_;
@@ -111,6 +158,8 @@ class Instruction {
   std::set<Instruction*> inlinks_;
   std::set<Instruction*> outlinks_;
   std::vector<Computation*> called_computations_;
+  std::optional<std::string> comment_;
+  type_t type_{Void()};
 };
 
 }  // namespace instruction
