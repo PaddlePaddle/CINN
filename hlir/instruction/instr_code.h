@@ -1,4 +1,5 @@
 #pragma once
+#include <ostream>
 
 const int kHlirVarientArgusCode = -1;
 // clang-format off
@@ -49,4 +50,9 @@ static const char* InstrCodeToString(InstrCode code) {
       break;
   }
   return "";
+}
+
+static std::ostream& operator<<(std::ostream& os, InstrCode code) {
+  os << InstrCodeToString(code);
+  return os;
 }

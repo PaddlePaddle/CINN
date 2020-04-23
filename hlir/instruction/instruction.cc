@@ -39,6 +39,16 @@ std::unique_ptr<Instruction> Instruction::CreateBinary(const Shape &shape,
                                                        InstrCode instr_code,
                                                        Instruction *arg0,
                                                        Instruction *arg1) {
+  switch (instr_code) {
+    case InstrCode::Add:
+    case InstrCode::Mul:
+    case InstrCode::Div:
+    case InstrCode::Sub:
+      break;
+    default:
+      LOG(FATAL) << "Not supported binary instruction type: " << InstrCodeToString(instr_code);
+  }
+
   auto instr = std::unique_ptr<Instruction>(new Instruction(instr_code, shape));
   instr->AppendOperand(arg0);
   instr->AppendOperand(arg1);

@@ -33,7 +33,7 @@ struct _Module_ : Object {
 /**
  * Module represents IR containing lowered function definitions and buffers.
  */
-class Module {
+class Module : Shared<_Module_> {
  public:
   Module(const std::string& name, const Target& target);
 
@@ -69,9 +69,6 @@ class Module {
 
  protected:
   friend class backends::CodeGenC;
-
- private:
-  Shared<_Module_> module_;
 };
 
 }  // namespace lang

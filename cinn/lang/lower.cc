@@ -201,6 +201,12 @@ ir::LoweredFunc Lower(const std::string& name,
   // Create a dic for stages and tensors.
   std::map<std::string, Stage*> stage_dic;
   std::map<std::string, Tensor> tensor_dic;
+  auto tensor_dic_retrive = [&](const std::string& key) -> Tensor& {
+    auto it = tensor_dic.find(key);
+    CHECK(it != tensor_dic.end()) << "Key [" << key << "] not found";
+    return it->second;
+  };
+
   for (auto& tensor : tensor_args) tensor_dic.emplace(tensor->name, tensor);
   for (auto& stage : stages) stage_dic.emplace(stage->id(), stage);
   // The placeholder Tensors are ignored in stages.
@@ -236,7 +242,7 @@ ir::LoweredFunc Lower(const std::string& name,
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
     std::map<std::string, Expr> tuple_to_expr;
     for (auto& node : group.nodes) {
-      auto& tensor = tensor_dic.at(node->id());
+      auto& tensor = tensor_dic_retrive(node->id());
       // NOTE here just schedule the compute node.
       if (!tensor->is_compute_node()) continue;
 

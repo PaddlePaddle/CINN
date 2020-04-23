@@ -41,5 +41,54 @@ const type_t &Computation::Builder::type() const {
   return last_added_instruction_->type();
 }
 
+bool Computation::RemoveInstruction(Instruction *instruction) { return false; }
+
+std::vector<Instruction *> Computation::GetParameters() const {
+  std::vector<Instruction *> params;
+  for (auto &instr : instructions_) {
+    if (instr->instr_code() == InstrCode::Parameter) {
+      params.push_back(instr.get());
+    }
+  }
+  return params;
+}
+
+std::vector<Instruction *> Computation::GetConstants() const {
+  std::vector<Instruction *> params;
+  for (auto &instr : instructions_) {
+    if (instr->instr_code() == InstrCode::Constant) {
+      params.push_back(instr.get());
+    }
+  }
+  return params;
+}
+
+std::vector<Instruction *> Computation::GetIntermediates() const {
+  std::vector<Instruction *> params;
+  if (!instructions_.empty()) {
+    for (int i = 0; i < instructions_.size() - 1; i++) {
+      if (instructions_[i]->instr_code() != InstrCode::Parameter &&
+          instructions_[i]->instr_code() != InstrCode::Constant)
+        params.push_back(instructions_[i].get());
+    }
+  }
+
+  return params;
+}
+
+std::vector<cinn::Var> Computation::GetVars() const {
+  std::unordered_set<std::string> var_names;
+  std::vector<cinn::Var> vars;
+  for (auto &instr : instructions_) {
+    for (auto &var : instr->shape().CollectDynamicDims()) {
+      if (!var_names.count(var->name)) {
+        var_names.insert(var->name);
+        vars.push_back(var);
+      }
+    }
+  }
+  return vars;
+}
+
 }  // namespace instruction
 }  // namespace hlir

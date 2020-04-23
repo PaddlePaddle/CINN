@@ -112,6 +112,17 @@ class Instruction {
                                                      const std::vector<char>& buf,
                                                      const ConstantConfig& config);
 
+  template <typename T>
+  T* As() {
+    static_assert(std::is_base_of<Instruction, T>());
+    return static_cast<T*>(this);
+  }
+  template <typename T>
+  const T* As() const {
+    static_assert(std::is_base_of<Instruction, T>());
+    return static_cast<const T*>(this);
+  }
+
   //! Add an operand.
   void AppendOperand(Instruction* operand);
 
@@ -126,15 +137,35 @@ class Instruction {
   void RemoveControlDependency(Instruction* instruction) { inlinks_.erase(instruction); }
 
   virtual std::string id() const { return std::to_string(id_); }
+  virtual std::string programable_id() const {
+    std::string copied = id();
+    for (auto& c : copied) {
+      switch (c) {
+        case '%':
+          c = '_';
+          break;
+        case '.':
+          c = 'p';
+          break;
+        default:
+          break;
+      }
+    }
+    return "v" + copied;
+  }
 
   virtual std::string to_debug_string();
 
   inline const Shape& shape() const { return shape_; }
   inline const type_t& type() const { return type_; }
   inline std::string comment() const { return comment_.value_or(""); }
+  inline InstrCode instr_code() const { return instr_code_; }
 
   inline void set_comment(const std::string& comment) { comment_ = comment; }
   inline void set_type(const type_t& type);
+
+  bool inlined() const { return inlined_; }
+  void set_inlined(bool x = true) { inlined_ = x; }
 
   //! Add usage relation.
   void AddUser(Instruction* user);
@@ -159,6 +190,7 @@ class Instruction {
   std::set<Instruction*> outlinks_;
   std::vector<Computation*> called_computations_;
   std::optional<std::string> comment_;
+  bool inlined_{false};
   type_t type_{Void()};
 };
 

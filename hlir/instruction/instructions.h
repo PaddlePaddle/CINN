@@ -13,6 +13,8 @@ class ParameterInstruction : public Instruction {
 
   std::string to_debug_string() override;
 
+  const std::string& name() const { return name_; }
+
   std::string id() const override;
 
   int param_offset() const { return param_offset_; }
