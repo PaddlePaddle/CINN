@@ -7,10 +7,10 @@ namespace instruction {
 
 TEST(Computation, basic) {
   Context context;
-  Computation::Builder builder(&context, "default_module");
+  cinn::Var N("N");
+  Computation::Builder builder(&context, "default_computation");
   ParameterConfig parameter_config = {Float(32)};
-  auto x                           = builder.AddInstruction(
-      Instruction::CreateParameter(0, Shape({Shape::kDynamicDimValue, 30, 40}), "x", parameter_config));
+  auto x = builder.AddInstruction(Instruction::CreateParameter(0, Shape({N, 30, 40}), "x", parameter_config));
   auto w = builder.AddInstruction(Instruction::CreateParameter(1, Shape({40, 50}), "w", parameter_config));
 
   auto dot0     = builder.AddInstruction(Instruction::CreateDot(Shape({30, 50}), x, w), "DOT");
@@ -19,7 +19,7 @@ TEST(Computation, basic) {
 
   auto computation = builder.Build();
 
-  std::cout << "computation:\n" << computation->to_debug_string() << std::endl;
+  std::cout << "computation:\n\n" << computation->to_debug_string() << std::endl;
 }
 
 }  // namespace instruction

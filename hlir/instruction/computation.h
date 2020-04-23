@@ -52,6 +52,22 @@ class Computation {
     Instruction* last_added_instruction_{};
   };
 
+  //! Get the parameters of the computation(all are tensors).
+  std::vector<Instruction*> GetParameters() const;
+  //! Get the constant instructions, those are also tensors.
+  std::vector<Instruction*> GetConstants() const;
+  //! Get the intermediate instructions, thery are not parameter, constant or root.
+  std::vector<Instruction*> GetIntermediates() const;
+  //! Get the variables (usually represents the dynamic dimension in shape).
+  std::vector<cinn::Var> GetVars() const;
+
+  const std::vector<std::unique_ptr<Instruction>>& instructions() const { return instructions_; }
+
+  const Instruction* root_instruction() const {
+    CHECK(!instructions_.empty());
+    return instructions_.back().get();
+  }
+
   //! Remove an instruction from the computation. The instruction must have no users, the instruction will be
   //! deallocated.
   bool RemoveInstruction(Instruction* instruction);

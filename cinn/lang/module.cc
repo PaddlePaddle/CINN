@@ -3,10 +3,10 @@
 namespace cinn {
 namespace lang {
 
-_Module_ *Module::self() { return module_->as<_Module_>(); }
-const _Module_ *Module::self() const { return module_->as<_Module_>(); }
+_Module_ *Module::self() { return p_->as<_Module_>(); }
+const _Module_ *Module::self() const { return p_->as<_Module_>(); }
 
-Module::Module(const std::string &name, const Target &target) : module_(make_shared<_Module_>()) {
+Module::Module(const std::string &name, const Target &target) : Shared<_Module_>(make_shared<_Module_>()) {
   self()->name   = name;
   self()->target = target;
 }

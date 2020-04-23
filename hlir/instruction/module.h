@@ -20,6 +20,10 @@ class Module {
    */
   Computation* AddEntryComputation(std::unique_ptr<Computation>&& computation);
 
+  const std::string& name() const { return name_; }
+
+  const std::map<std::string, std::unique_ptr<Computation>>& computations() const { return computations_; }
+
   std::string to_debug_string() const;
 
  private:
