@@ -1,11 +1,11 @@
 #include "cinn/lang/lower.h"
-
+#include <iostream>
 #include <map>
 #include <set>
 #include <stack>
-
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/fold_call_arguments.h"
 #include "cinn/optim/optimize.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_call_with_expr.h"
@@ -85,6 +85,18 @@ struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
   std::vector<ir::PolyFor*> stack;
 };
 
+void CheckNoIslCallRemains(const Expr* expr) {
+  auto isl_calls = ir::CollectIRNodes(*expr, [](const Expr* expr) {
+    return expr->As<ir::Call>() && expr->As<ir::Call>()->call_type == ir::Call::CallType ::ISL;
+  });
+#ifdef CINN_DEBUG
+  for (auto& item : isl_calls) {
+    LOG(ERROR) << "ISL call: " << item;
+  }
+#endif
+  CHECK(isl_calls.empty()) << "Some ISL call nodes remained";
+}
+
 /**
  * Lower a single group of nodes.
  *
@@ -95,8 +107,6 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
     stages.push_back(node->stage);
-
-    LOG(INFO) << "lower group stage: " << node->stage->domain();
   }
 
   // get isl generated expression
@@ -106,9 +116,11 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   ir::Expr e;
   poly::IslAstNodeToCinnExpr(ast, &e);
 
+  std::cout << "ast to expr: \n" << e << std::endl;
+
   // replace call to the corresponding statement
   for (auto& statement : tuple_to_expr) {
-    LOG(INFO) << "tuple to expr " << statement.first << " " << statement.second;
+    if (!gen.ContainsStatement(statement.first)) continue;
     auto axis_ast_map         = gen.axis2ast(statement.first);
     Expr statement_candi_expr = tuple_to_expr.at(statement.first);
 
@@ -119,6 +131,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
     VLOG(3) << "replacing " << statement.first << " to " << statement_candi_expr;
     optim::ReplaceCallWithExpr(&e, statement.first, statement_candi_expr, axis);
   }
+  CheckNoIslCallRemains(&e);
 
   // mark vectorize.
   {
@@ -195,6 +208,10 @@ std::vector<ir::Argument> PrepareArguments(const std::vector<Tensor>& tensor_arg
 ir::LoweredFunc Lower(const std::string& name,
                       const std::vector<Tensor>& tensor_args,
                       const std::vector<Var>& scalar_args) {
+  VLOG(1) << "tensor_args: " << tensor_args.size();
+  for (auto& arg : tensor_args) {
+    if (!arg->is_placeholder_node()) VLOG(1) << "arg " << arg->name << " " << arg->body();
+  }
   // make sure the graph's start-points in the args.
 
   auto stages             = poly::GatherStagesInTensors(tensor_args);
@@ -203,12 +220,8 @@ ir::LoweredFunc Lower(const std::string& name,
 
   extra_dependencies.insert(std::end(extra_dependencies), call_dependencies.begin(), call_dependencies.end());
 
-  for (auto& dep : extra_dependencies) {
-    LOG(INFO) << "dep: " << dep.first << " -> " << dep.second;
-  }
-
   auto graph = poly::CreateGraph(stages, extra_dependencies);
-  LOG(INFO) << "DOT:\n" << graph->Visualize();
+  LOG(WARNING) << "DOT:\n" << graph->Visualize();
 
   // Create a dic for stages and tensors.
   std::map<std::string, Stage*> stage_dic;
@@ -245,14 +258,18 @@ ir::LoweredFunc Lower(const std::string& name,
     CHECK(args_names.count(node->id())) << "The dependency tensor [" << node->id() << "] not in the inputs";
   }
 
+  VLOG(3) << "stages:";
+  for (auto& stage : stages) {
+    VLOG(3) << stage->id() << " " << stage->domain();
+  }
   auto schedule = poly::CreateSchedule(stages, poly::ScheduleKind::Poly, extra_dependencies);
 
   // generate the expressions for each group.
   std::vector<Expr> exprs;
+  std::map<std::string, Expr> tuple_to_expr;
   CHECK_GT(schedule->groups.size(), 0) << "no group is generated";
   for (auto& group : schedule->groups) {
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
-    std::map<std::string, Expr> tuple_to_expr;
     for (auto& node : group.nodes) {
       auto& tensor = tensor_dic_retrive(node->id());
       // NOTE here just schedule the compute node.

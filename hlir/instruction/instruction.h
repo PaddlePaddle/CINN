@@ -95,14 +95,37 @@ class Instruction {
                                                       Instruction* arg0,
                                                       const std::vector<int>& dimensions);
 
-  static std::unique_ptr<Instruction> CreateCall(const Shape& shape,
-                                                 const std::vector<Instruction*>& args,
+  // Call with single return tensor.
+  static std::unique_ptr<Instruction> CreateCall(const std::vector<Instruction*>& args,
+                                                 const std::string& ret_name,
+                                                 const Shape& shape,
+                                                 const cinn::common::Type& type,
+                                                 Computation* computation);
+  /**
+   * Get a call with multiple return values.
+   * @param args The call arguments.
+   * @param ret_names The return names.
+   * @param ret_types The return types.
+   * @param ret_shapes The return shapes.
+   * @param computation The computation to call.
+   * @return The call instruction.
+   */
+  static std::unique_ptr<Instruction> CreateCall(const std::vector<Instruction*>& args,
+                                                 const std::vector<Shape>& ret_names,
+                                                 const std::vector<cinn::common::Type>& ret_types,
+                                                 const std::vector<Shape>& ret_shapes,
                                                  Computation* computation);
 
+  // Get a call instruction.
   static std::unique_ptr<Instruction> CreateCustomCall(const Shape& shape,
                                                        const std::vector<Instruction*>& args,
                                                        const std::string& target,
                                                        const std::string& tag);
+
+  static std::unique_ptr<Instruction> CreateTupleGet(const Instruction* tuple, int offset);
+
+  static std::unique_ptr<Instruction> CreateTuple(const Instruction* call);
+  static std::unique_ptr<Instruction> CreateTuple(const std::vector<const Instruction*>& items);
 
   static std::unique_ptr<Instruction> CreateNary(const Shape& shape,
                                                  const std::vector<Instruction*>& args,
@@ -182,7 +205,7 @@ class Instruction {
  protected:
   int id_{-1};
 
- private:
+ protected:
   InstrCode instr_code_;
   Shape shape_;
   std::vector<Instruction*> operands_;

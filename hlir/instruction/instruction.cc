@@ -1,6 +1,7 @@
 #include "hlir/instruction/instruction.h"
 #include <sstream>
 #include "cinn/common/macros.h"
+#include "hlir/instruction/computation.h"
 #include "hlir/instruction/instructions.h"
 
 namespace hlir {
@@ -101,10 +102,12 @@ std::unique_ptr<Instruction> Instruction::CreateTranspose(const Shape &shape,
   return instr;
 }
 
-std::unique_ptr<Instruction> Instruction::CreateCall(const Shape &shape,
-                                                     const std::vector<Instruction *> &args,
+std::unique_ptr<Instruction> Instruction::CreateCall(const std::vector<Instruction *> &args,
+                                                     const std::string &ret_name,
+                                                     const Shape &shape,
+                                                     const cinn::common::Type &type,
                                                      Computation *computation) {
-  auto instr = std::unique_ptr<Instruction>(new CallInstruction(shape, computation, args));
+  auto instr = std::unique_ptr<Instruction>(new CallInstruction(computation, args, {shape}, {ret_name}, {type}));
   instr->called_computations_.push_back(computation);
   return instr;
 }
@@ -146,6 +149,18 @@ std::unique_ptr<Instruction> Instruction::CreateCustomCall(const Shape &shape,
                                                            const std::string &target,
                                                            const std::string &tag) {
   return std::unique_ptr<Instruction>(new CustomCallInstruction(shape, args, target, tag));
+}
+
+std::unique_ptr<Instruction> Instruction::CreateTuple(const Instruction *call) {
+  return std::unique_ptr<Instruction>(new Tuple(call));
+}
+
+std::unique_ptr<Instruction> Instruction::CreateTuple(const std::vector<const Instruction *> &items) {
+  return std::unique_ptr<Instruction>(new Tuple(items));
+}
+
+std::unique_ptr<Instruction> Instruction::CreateTupleGet(const Instruction *tuple, int offset) {
+  return std::unique_ptr<Instruction>(new TupleGet(tuple, offset));
 }
 
 const Instruction *Instruction::operand(int i) const {

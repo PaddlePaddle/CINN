@@ -187,14 +187,19 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
 
 #ifdef CINN_DEBUG
   VLOG(2) << "Group Partition result:";
+  int graph_node_count = 0;
   for (auto& group : groups) {
     std::stringstream ss;
     for (auto& node : group.nodes) {
       ss << node->id() << " ";
     }
     VLOG(2) << "group: { " << ss.str() << " }";
+    graph_node_count += group.nodes.size();
   }
+  // check the groups contains all the nodes in graph.
+  CHECK_EQ(graph_node_count, graph->nodes().size()) << "the groups should contain all the nodes in the graph";
 #endif
+
   return groups;
 }
 
@@ -248,6 +253,7 @@ PolyScheduler::PolyScheduler(const std::vector<Stage*>& stages,
   }
 
   dfg_ = CreateGraph(stages, _extra_links);
+  LOG(INFO) << "DOT in PolySchedule:\n" << dfg_->Visualize();
 
   for (auto* stage : stages) {
     AddStage(*stage);

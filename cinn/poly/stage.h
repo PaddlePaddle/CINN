@@ -162,6 +162,7 @@ class Stage : public Object {
   const isl::map& transform() const { return transform_; }
   isl::set transformed_domain() const;
 
+  // Dealing with the `ComputateAt` transform.
   std::vector<ComputeAtRelation> compute_ats() const;
 
   //! Get the level-th dimensional name.

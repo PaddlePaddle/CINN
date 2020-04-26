@@ -1,7 +1,7 @@
 #pragma once
-#include <cinn/ir/node.h>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
@@ -65,7 +65,12 @@ class ComputationLower {
 
   void LowerParameter(const Instruction* instr);
 
+  void LowerTuple(const Instruction* instr);
+
+  void LowerTupleGet(const Instruction* instr);
+
  private:
+  std::unordered_map<const Instruction*, std::vector<cinn::Expr>> call_to_ret_vals_;
   Scope scope_;
 };
 
