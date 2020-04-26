@@ -137,10 +137,7 @@ TEST(CodeGenC, module_with_transform) {
 
   D->stage()->Tile(poly::DefaultIterator(0), poly::DefaultIterator(1), 4, 16);
 
-  Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  Target target = common::DefaultHostTarget();
   Module module("module1", target);
 
   auto funcs = Lower("add1", {A, B, C, D});
@@ -208,29 +205,40 @@ TEST(CodeGenC, matmul) {
   Placeholder<float> A("A", {Expr(100), Expr(20)});
   Placeholder<float> B("B", {Expr(20), Expr(50)});
 
+  Target target{};
+
+  Module module("module1", target);
+
   // C = A * B
-  lang::Buffer C_buf(Float(32));
   Var k(20, "k");
 
   Tensor C_init = Compute(
       {Expr(100), Expr(50)}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
 
   Tensor C = Compute({Expr(100), Expr(50)}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
-  C->Bind(C_buf);
-  C_init->Bind(C_buf);
+  C->WithBuffer();
+  C_init->Bind(C->buffer);
   C_init->stage()->ComputeAt(C->stage(), 1);
 
   // Code gen
   auto func = Lower("matmul", {A, B, C_init, C});
-
-  Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
-
-  Module module("module1", target);
   module.Append(func);
-  module.Append(C_buf);
+  module.Append(lang::Buffer(C->buffer));
+
+  {  // main
+    std::vector<lang::ReturnType> returns({lang::ReturnType{Float(32), C->shape, C->name}});
+
+    auto tensors = lang::Call("matmul", {A, B}, returns);
+
+    auto C = tensors[0];
+    C->WithBuffer();
+
+    LOG(INFO) << "C.body: " << C->body();
+
+    auto f = Lower("main", {A, B, C}, {});
+    std::cout << "f\n" << Expr(f) << std::endl;
+    module.Append(f);
+  }
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
@@ -262,6 +270,19 @@ void matmul(void* _args, int32_t num_args)
   };
   cinn_buffer_free((void*)(0), _C);
 }
+
+void main(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
+  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
+  cinn_buffer_malloc((void*)(0), _C);
+  const float* A = ((const float*)(_A->host_memory));
+  const float* B = ((const float*)(_B->host_memory));
+  float* C = ((float*)(_C->host_memory));
+  matmul(_A, _B, _C);
+  cinn_buffer_free((void*)(0), _C);
+}
 )ROC";
 
   ASSERT_EQ(Trim(tgt), Trim(out));
@@ -279,6 +300,7 @@ TEST(CodeGenC, matmul_tile) {
 
   // C = A * B
   lang::Buffer C_buf(Float(32));
+
   Var k(K.as_int32(), "k");
 
   Tensor C_init = Compute(
@@ -307,10 +329,7 @@ TEST(CodeGenC, matmul_tile) {
   // Code gen
   auto func = Lower("matmul", {A, B, C_init, C});
 
-  Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  Target target = common::DefaultHostTarget();
 
   Module module("module1", target);
   module.Append(func);
@@ -424,10 +443,7 @@ TEST(CodeGenC, matmul_packed) {
   // Code gen
   auto func = Lower("matmul_with_packing", {A, B, packedB, C});
 
-  Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  Target target = common::DefaultHostTarget();
 
   Module module("module1", target);
   module.Append(func);

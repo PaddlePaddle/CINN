@@ -22,7 +22,7 @@ TEST(ast_gen, basic) {
 
   std::vector<Stage*> stages({A.get(), B.get()});
 
-  PolyScheduler scheduler(stages);
+  PolyScheduler scheduler(stages, {});
   auto schedule = scheduler.BuildSchedule();
   ASSERT_EQ(schedule->groups.size(), 2UL);
   // scheduler.After(*A, *B, 3);

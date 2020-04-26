@@ -13,6 +13,10 @@
 #include "cinn/common/type.h"
 
 namespace cinn {
+namespace lang {
+class Module;
+}  // namespace lang
+
 namespace ir {
 using common::Float;
 using common::Int;
@@ -20,6 +24,13 @@ using common::Type;
 using common::type_of;
 
 class IRVisitor;
+class _Buffer_;
+class Buffer;
+class _Module_;
+class _LoweredFunc_;
+class LoweredFunc;
+class _Tensor_;
+class Tensor;
 
 // clang-format off
 #define NODETY_PRIMITIVE_TYPE_FOR_EACH(macro__) \
@@ -58,7 +69,6 @@ class IRVisitor;
   macro__(IfThenElse)                       \
   macro__(Block)                            \
   macro__(Call)                             \
-  macro__(Module)                           \
   macro__(_Var_)                            \
   macro__(Load)                             \
   macro__(Store)                            \
@@ -69,6 +79,7 @@ class IRVisitor;
   macro__(_Buffer_)                         \
   macro__(_Tensor_)                         \
   macro__(_LoweredFunc_)                    \
+  macro__(_Module_)                         \
   macro__(Let)                              \
   macro__(Reduce)                           \
   macro__(Ramp)                             \
@@ -256,6 +267,25 @@ struct Expr : public IrNodeRef {
   int64_t as_int64() const;
   float as_float() const;
   double as_double() const;
+  // @}
+
+  // @{ Other nodes caster.
+  _Buffer_* as_buffer();
+  const _Buffer_* as_buffer() const;
+  Buffer as_buffer_ref() const;
+
+  _LoweredFunc_* as_lowered_func();
+  const _LoweredFunc_* as_lowered_func() const;
+  LoweredFunc as_lowered_func_ref() const;
+
+  _Module_* as_module();
+  const _Module_* as_module() const;
+  lang::Module as_module_ref() const;
+
+  _Tensor_* as_tensor();
+  const _Tensor_* as_tensor() const;
+  ir::Tensor as_tensor_ref() const;
+
   // @}
 
   bool is_constant() const;

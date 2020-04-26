@@ -17,10 +17,10 @@ namespace ir {
 Tensor _Tensor_::Make(const std::string &name, const std::vector<Expr> &shape, FunctionRef fn) {
   CHECK(!shape.empty()) << "Tensor shape is set empty";
   CHECK(!name.empty()) << "Tensor name is set empty";
-  auto n      = make_shared<_Tensor_>();
-  n->name     = name;
-  n->shape    = shape;
-  n->operaion = fn;
+  auto n       = make_shared<_Tensor_>();
+  n->name      = name;
+  n->shape     = shape;
+  n->operation = fn;
   n->InitStage();
   n->InitAxis();
 
@@ -43,10 +43,10 @@ Tensor _Tensor_::Make(const std::string &name,
   CHECK_EQ(axis.size(), shape.size()) << "axis not match the dimension in shape";
   compute_op->axis = axis;
 
-  auto n      = make_shared<_Tensor_>();
-  n->name     = name;
-  n->operaion = op;
-  n->shape    = shape;
+  auto n       = make_shared<_Tensor_>();
+  n->name      = name;
+  n->operation = op;
+  n->shape     = shape;
   n->set_type(dtype);
   n->InitStage();
 
@@ -78,23 +78,24 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
 }
 
 const char *_Tensor_::operation_type() const {
-  if (!operaion.defined()) return "";
-  return operaion->as<ir::_Operation_>()->func_type();
+  if (!operation.defined()) return "";
+  return operation->as<ir::_Operation_>()->func_type();
 }
 
 bool _Tensor_::is_compute_node() const { return std::strcmp(operation_type(), ir::ComputeOp::__func_type__) == 0; }
 bool _Tensor_::is_placeholder_node() const {
   return std::strcmp(operation_type(), ir::PlaceholderOp::__func_type__) == 0;
 }
+bool _Tensor_::is_call_node() const { return std::strcmp(operation_type(), ir::CallOp::__func_type__) == 0; }
 
 ComputeOp *_Tensor_::get_compute_op() const {
   if (!is_compute_node()) return nullptr;
-  return operaion->as<ComputeOp>();
+  return operation->as<ComputeOp>();
 }
 
 PlaceholderOp *_Tensor_::get_placeholder_op() const {
   if (!is_placeholder_node()) return nullptr;
-  return operaion->as<PlaceholderOp>();
+  return operation->as<PlaceholderOp>();
 }
 
 void _Tensor_::InitStage() {
@@ -108,6 +109,7 @@ void _Tensor_::InitStage() {
     DropStage();
     return;
   }
+
   // Avoid duplicate init.
   if (stage_shared) {
     auto &shared_stage = *static_cast<Shared<poly::Stage> *>(stage_shared);
@@ -117,11 +119,13 @@ void _Tensor_::InitStage() {
 
   stage_shared       = new Shared<poly::Stage>;
   auto &shared_stage = *static_cast<Shared<poly::Stage> *>(stage_shared);
-  auto *op           = operaion->as<_Operation_>();
+  auto *op           = operation->as<_Operation_>();
   if (is_compute_node()) {
     auto &body = op->as<ComputeOp>()->body;
     CHECK_EQ(body.size(), 1UL) << "only support functional programming";
     shared_stage = poly::Stage::New(GenerateIslDomain(), body.front());
+  } else if (is_call_node()) {
+    shared_stage = poly::Stage::New(GenerateIslDomain(), body());
   } else {
     shared_stage = poly::Stage::New(GenerateIslDomain());
   }
@@ -148,7 +152,6 @@ void _Tensor_::InitAxis() {
 }
 
 isl::set _Tensor_::GenerateIslDomain() {
-  CHECK(!domain.empty()) << "shape should be set";
   std::vector<poly::Dim> dims;
   CHECK_EQ(axis.size(), domain.size());
   for (int i = 0; i < domain.size(); i++) {
@@ -166,15 +169,18 @@ isl::set _Tensor_::GenerateIslDomain() {
 
 std::vector<Expr *> _Tensor_::expr_fields() {
   std::vector<Expr *> res;
-  const char *func_type = operaion->as<ir::_Operation_>()->func_type();
-  if (operaion.defined()) {
+  const char *func_type = operation->as<ir::_Operation_>()->func_type();
+  if (operation.defined()) {
     if (func_type == ir::ComputeOp::__func_type__) {
-      auto *op = operaion->as<ir::ComputeOp>();
+      auto *op = operation->as<ir::ComputeOp>();
       for (auto &expr : op->body) res.push_back(&expr);
       for (auto &expr : op->shape) res.push_back(&expr);
     } else if (func_type == ir::PlaceholderOp::__func_type__) {
-      auto *op = operaion->as<ir::PlaceholderOp>();
+      auto *op = operation->as<ir::PlaceholderOp>();
       for (auto &expr : op->shape) res.push_back(&expr);
+    } else if (is_call_node()) {
+      auto *op = operation->as<ir::CallOp>();
+      for (auto &expr : op->arg_list) res.push_back(&expr);
     } else {
       NOT_IMPLEMENTED
     }
@@ -191,15 +197,18 @@ std::vector<Expr *> _Tensor_::expr_fields() {
 
 std::vector<const Expr *> _Tensor_::expr_fields() const {
   std::vector<const Expr *> res;
-  const char *func_type = operaion->as<ir::_Operation_>()->func_type();
-  if (operaion.defined()) {
+  const char *func_type = operation->as<ir::_Operation_>()->func_type();
+  if (operation.defined()) {
     if (is_compute_node()) {
-      auto *op = operaion->as<ir::ComputeOp>();
+      auto *op = operation->as<ir::ComputeOp>();
       for (auto &expr : op->body) res.push_back(&expr);
       for (auto &expr : op->shape) res.push_back(&expr);
     } else if (is_placeholder_node()) {
-      auto *op = operaion->as<ir::PlaceholderOp>();
+      auto *op = operation->as<ir::PlaceholderOp>();
       for (auto &expr : op->shape) res.push_back(&expr);
+    } else if (is_call_node()) {
+      auto *op = operation->as<ir::CallOp>();
+      for (auto &expr : op->arg_list) res.push_back(&expr);
     } else {
       LOG(ERROR) << "func_type: " << func_type;
       NOT_IMPLEMENTED
@@ -227,7 +236,8 @@ _Operation_ *Operation::operator->() { return static_cast<_Operation_ *>(get());
 
 Expr _Tensor_::body() const {
   if (is_placeholder_node()) return Expr();
-  if (is_compute_node()) return operaion->as<ir::ComputeOp>()->body.front();
+  if (is_compute_node()) return operation->as<ir::ComputeOp>()->body.front();
+  if (is_call_node()) return operation->as<ir::CallOp>()->call_expr;
   NOT_IMPLEMENTED;
 }
 
@@ -284,6 +294,7 @@ void Tensor::ExpandInlined() {
 
 void _Tensor_::WithBuffer() {
   lang::Buffer buf(type_);
+  buf->target = common::DefaultHostTarget();
   Bind(buf);
 }
 

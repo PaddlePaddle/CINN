@@ -44,7 +44,12 @@ std::string CodeGenC::Compile(const lang::Module &module, OutputKind output_kind
 
     if (inline_builtin_codes_) PrintBuiltinCodes();
 
-    PrintBufferCreation(module->buffers);
+    std::vector<ir::Buffer> buffers;
+    for (auto &buffer : module->buffers) {
+      buffers.emplace_back(buffer.as_buffer_ref());
+    }
+
+    PrintBufferCreation(buffers);
 
     for (auto &func : module.functions()) {
       Compile(func);
@@ -216,46 +221,64 @@ void CodeGenC::Visit(const ir::Block *op) {
 }
 void CodeGenC::Visit(const ir::Call *op) {
   if (op->name == runtime::buffer_create) {
-    CHECK_EQ(op->args.size(), 2UL);
-    const ir::_Buffer_ *buffer_arg = op->args.front().As<ir::_Buffer_>();
+    CHECK_EQ(op->read_args.size(), 2UL);
+    const ir::_Buffer_ *buffer_arg = op->read_args.front().As<ir::_Buffer_>();
     CHECK(buffer_arg);
 
     os() << "cinn_buffer_t* " << buffer_arg->name;
     os() << " = " << op->name;
     os() << "(";
-    PrintCastExpr("cinn_device_kind_t", op->args[1]);
+    PrintCastExpr("cinn_device_kind_t", op->read_args[1]);
     os() << "/*target*/, ";
-    PrintRuntimeType(runtime::ToRuntimeType(op->args.front().type().ElementOf()));
+    PrintRuntimeType(runtime::ToRuntimeType(op->read_args.front().type().ElementOf()));
     os() << ", ";
-    PrintShape(op->args[0].As<ir::_Buffer_>()->shape);
+    PrintShape(op->read_args[0].As<ir::_Buffer_>()->shape);
     os() << ")";
   } else if (op->name == runtime::buffer_malloc) {
-    CHECK_EQ(op->args.size(), 2UL);
+    CHECK_EQ(op->read_args.size(), 2UL);
     os() << op->name << "(";
-    PrintCastExpr("void*", op->args[0]);
+    PrintCastExpr("void*", op->read_args[0]);
     os() << ", ";
-    os() << op->args[1];
+    os() << op->read_args[1];
     os() << ")";
   } else if (op->name == runtime::buffer_get_data_handle || op->name == runtime::buffer_get_data_const_handle) {
-    CHECK_EQ(op->args.size(), 1UL);
-    auto *buffer = op->args[0].As<ir::_Buffer_>();
+    CHECK_EQ(op->read_args.size(), 1UL);
+    auto *buffer = op->read_args[0].As<ir::_Buffer_>();
     os() << buffer->name;
     os() << "->";
     os() << "host_memory";
   } else if (op->call_type == ir::Call::CallType::Intrinsic) {
-    CHECK(!op->args.empty());
+    CHECK(!op->read_args.empty());
     os() << op->name << "(";
-    for (int i = 0; i < op->args.size() - 1; i++) {
-      Print(op->args[i]);
-      os() << ", ";
-    }
-    if (op->args.size() > 0) Print(op->args.back());
+    PrintCallArgs(op);
+    os() << ")";
+  } else if (op->call_type == ir::Call::CallType::CINN) {  // call CINN LoweredFunc
+    os() << op->name << "(";
+    PrintCallArgs(op);
     os() << ")";
   } else {
     IrPrinter::Visit(op);
   }
 }
-void CodeGenC::Visit(const ir::Module *op) { NOT_IMPLEMENTED }
+void CodeGenC::PrintCallArgs(const ir::Call *op) {
+  if (!op->read_args.empty()) {
+    for (int i = 0; i < op->read_args.size() - 1; i++) {
+      Print(op->read_args[i]);
+      os() << ", ";
+    }
+    Print(op->read_args.back());
+  }
+  if (!op->write_args.empty()) {
+    if (!op->read_args.empty()) os() << ", ";
+
+    for (int i = 0; i < op->write_args.size() - 1; i++) {
+      Print(op->write_args[i]);
+      os() << ", ";
+    }
+    Print(op->write_args.back());
+  }
+}
+void CodeGenC::Visit(const ir::_Module_ *op) { NOT_IMPLEMENTED }
 void CodeGenC::Visit(const ir::_Var_ *op) { os() << op->name; }
 
 void CodeGenC::Visit(const ir::Load *op) {

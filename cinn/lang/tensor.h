@@ -107,7 +107,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   // TODO(Superjomn) seems not needed, to be discarded latter.
   std::vector<Var> axis;
   //! The operation that generates Tensor.
-  FunctionRef operaion;
+  FunctionRef operation;
   //! Name of this tensor.
   std::string name;
   //! The bound buffer, for each tensor if it is not inline.
@@ -142,6 +142,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   // @{
   bool is_compute_node() const;
   bool is_placeholder_node() const;
+  bool is_call_node() const;
+
   const char* operation_type() const;
   ComputeOp* get_compute_op() const;
   PlaceholderOp* get_placeholder_op() const;

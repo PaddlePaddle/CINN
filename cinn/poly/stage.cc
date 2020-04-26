@@ -6,6 +6,7 @@
 #include "cinn/common/axis.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/ir/operation.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/utils/functional.h"
 
@@ -239,7 +240,7 @@ isl::set Stage::transformed_domain() const {
   return domain_.apply(transform_);
 }
 
-std::vector<std::pair<std::string, std::string>> ExtractExtraDependencyFromStages(const std::vector<Stage *> &stages) {
+std::vector<std::pair<std::string, std::string>> ExtractExtraDepLinksFromStages(const std::vector<Stage *> &stages) {
   std::vector<std::pair<std::string, std::string>> extra_links;
   for (auto &stage : stages) {
     for (auto &tensor_name : stage->extra_depend_stages()) {
@@ -248,6 +249,24 @@ std::vector<std::pair<std::string, std::string>> ExtractExtraDependencyFromStage
   }
 
   return extra_links;
+}
+
+std::vector<std::pair<std::string, std::string>> ExtractLinksFromCalls(const std::vector<ir::Tensor> &tensors,
+                                                                       bool with_placeholder) {
+  std::vector<std::pair<std::string, std::string>> links;
+
+  for (auto &tensor : tensors) {
+    if (tensor->is_call_node()) {
+      auto &args = tensor->operation->as<ir::CallOp>()->arg_list;
+      for (auto &arg : args) {
+        auto *arg_tensor = arg.As<ir::_Tensor_>();
+        if (arg_tensor->is_placeholder_node() && !with_placeholder) continue;
+        links.emplace_back(arg_tensor->name, tensor->name);
+      }
+    }
+  }
+
+  return links;
 }
 
 void Stage::Unroll(const std::string &level) {

@@ -51,8 +51,9 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 
   Expr Visit(const Call* op) override {
-    auto args = Visit(op->args);
-    return Call::Make(op->type(), op->name, args, op->call_type);
+    auto read_args  = Visit(op->read_args);
+    auto write_args = Visit(op->write_args);
+    return Call::Make(op->type(), op->name, read_args, write_args, op->call_type, FunctionRef(), 0, Expr());
   }
 
   Expr Visit(const _Var_* op) override {
@@ -129,16 +130,16 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     auto axis        = op->axis;
     auto buffer_expr = Expr(op->buffer);
     // TODO(Superjomn) copy the operation.
-    auto operaion    = op->operaion;
-    auto name        = op->name;
-    auto buffer      = Visit(&buffer_expr);
-    auto tensor      = make_shared<_Tensor_>();
-    tensor->domain   = domain;
-    tensor->shape    = shape;
-    tensor->axis     = axis;
-    tensor->operaion = operaion;
-    tensor->name     = name;
-    tensor->buffer   = ir::Buffer(buffer.As<_Buffer_>());
+    auto operaion     = op->operation;
+    auto name         = op->name;
+    auto buffer       = Visit(&buffer_expr);
+    auto tensor       = make_shared<_Tensor_>();
+    tensor->domain    = domain;
+    tensor->shape     = shape;
+    tensor->axis      = axis;
+    tensor->operation = operaion;
+    tensor->name      = name;
+    tensor->buffer    = ir::Buffer(buffer.As<_Buffer_>());
     return tensor;
   }
 
@@ -165,7 +166,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr();
   }
 
-  Expr Visit(const Module* op) override {
+  Expr Visit(const ir::_Module_* op) override {
     LOG(FATAL) << "not implemented";
     return Expr();
   }

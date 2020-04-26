@@ -237,13 +237,17 @@ std::unique_ptr<Schedule> PolyScheduler::BuildSchedule() {
   return res;
 }
 
-PolyScheduler::PolyScheduler(const std::vector<Stage*>& stages) {
+PolyScheduler::PolyScheduler(const std::vector<Stage*>& stages,
+                             const std::vector<std::pair<std::string, std::string>>& extra_links) {
   CHECK_GT(stages.size(), 0) << "No stage is provided";
 
   // collect extra links
-  auto extra_links = ExtractExtraDependencyFromStages(stages);
+  auto _extra_links = extra_links;
+  if (extra_links.empty()) {
+    _extra_links = ExtractExtraDepLinksFromStages(stages);
+  }
 
-  dfg_ = CreateGraph(stages, extra_links);
+  dfg_ = CreateGraph(stages, _extra_links);
 
   for (auto* stage : stages) {
     AddStage(*stage);

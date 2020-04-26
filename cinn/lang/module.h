@@ -18,23 +18,11 @@ namespace lang {
 class Module;
 
 /**
- * Content of a module.
- */
-struct _Module_ : Object {
-  std::string name;
-  Target target;
-  std::vector<ir::Buffer> buffers;
-  std::vector<ir::LoweredFunc> functions;
-  std::vector<Module> submodules;
-
-  const char* type_info() const override { return "_Module_"; }
-};
-
-/**
  * Module represents IR containing lowered function definitions and buffers.
  */
-class Module : Shared<_Module_> {
+class Module : ir::IrNodeRef {
  public:
+  explicit Module(ir::IrNode* n) : ir::IrNodeRef(n) {}
   Module(const std::string& name, const Target& target);
 
   //! Get the target of this module.
@@ -45,9 +33,9 @@ class Module : Shared<_Module_> {
 
   //! The members in the module.
   // @{
-  const std::vector<ir::Buffer>& buffers() const;
-  const std::vector<ir::LoweredFunc>& functions() const;
-  const std::vector<Module>& submodules() const;
+  std::vector<ir::Buffer> buffers() const;
+  std::vector<ir::LoweredFunc> functions() const;
+  std::vector<Module> submodules() const;
   // @}
 
   //! Add something to this module, once added to a module, the buffer, function's target will be set with the module's
@@ -61,11 +49,11 @@ class Module : Shared<_Module_> {
   //! Compile a module to some outputs.
   void Compile(const backends::Outputs& outputs) const;
 
-  _Module_* self();
-  const _Module_* self() const;
+  ir::_Module_* self();
+  const ir::_Module_* self() const;
 
-  _Module_* operator->() { return self(); }
-  const _Module_* operator->() const { return self(); }
+  ir::_Module_* operator->() { return self(); }
+  const ir::_Module_* operator->() const { return self(); }
 
  protected:
   friend class backends::CodeGenC;

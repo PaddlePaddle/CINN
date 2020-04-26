@@ -34,7 +34,7 @@ class CodeGenC : public ir::IrPrinter {
     CImpl,    //! output the C implementation file.
   };
 
-  CodeGenC(Target target);
+  explicit CodeGenC(Target target);
 
   void Compile(const lang::Module& module, const Outputs& outputs);
 
@@ -73,6 +73,8 @@ class CodeGenC : public ir::IrPrinter {
   void PrintBufferCreation(const std::vector<ir::Buffer>& buffers);
   void PrintBufferDestroy(const std::vector<ir::Buffer>& buffers);
   void PrintRuntimeType(const cinn_type_t& type);
+
+  void PrintCallArgs(const ir::Call* call);
 
 #define __DEFINE_VISIT(op__) void Visit(const ir::op__* op) override;
   NODETY_FORALL(__DEFINE_VISIT)

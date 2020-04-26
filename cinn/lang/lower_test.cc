@@ -82,5 +82,26 @@ TEST(lower, dynamic_shape) {
   std::cout << "func:\n" << Expr(lower_funcs->self()) << std::endl;
 }
 
+TEST(lower, lowered_call) {
+  Var B("B");  // B is like shape here.
+  Expr N(15);
+
+  // Input is B * N, B is like batch.
+  Placeholder<float> X("X", {Expr(B), Expr(N)});
+  Placeholder<float> Y("Y", {Expr(B), Expr(N)});
+
+  auto Z = Compute(
+      {B, N}, [&](Var i, Var j) { return X(i, j) + Y(i, j); }, "Z");
+  Z->WithBuffer();
+
+  std::vector<ReturnType> return_types({{Float(32), std::vector<Expr>{{B, N}}, "C"}});
+  auto tensors = Call("lowered_fun0", {X, Y, Z}, return_types);
+  auto C       = tensors[0];
+
+  LOG(INFO) << "call_op: " << C->operation->as<ir::CallOp>()->call_expr;
+
+  auto lower_func = Lower("some", {X, Y, Z, C});
+}
+
 }  // namespace lang
 }  // namespace cinn

@@ -37,6 +37,7 @@ class Placeholder {
   const Type &type() const { return tensor_->type(); }
 
   operator ir::Tensor() { return tensor_; }
+  operator ir::Expr() { return Expr(tensor_); }
 
  private:
   void Init(const std::string &name, const std::vector<Expr> &shape) {

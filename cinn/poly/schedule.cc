@@ -15,7 +15,6 @@ namespace cinn {
 namespace poly {
 
 std::string TimeSchedule::__str__() const {
-  CHECK(!time_dims_.empty());
   CHECK_LE(time_dims_.size(), kMaxDims);
 
   // generate range: [dup, t0, t1...]
@@ -87,7 +86,9 @@ std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor, ScheduleKind 
   return CreateSchedule(stages, schedule_kind);
 }
 
-std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages, ScheduleKind schedule_kind) {
+std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages,
+                                         ScheduleKind schedule_kind,
+                                         const std::vector<std::pair<std::string, std::string>> &extra_links) {
   CHECK(!stages.empty());
   for (auto &stage : stages) {
     VLOG(4) << "stage: " << stage->domain();
@@ -98,7 +99,7 @@ std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages, Sch
       return scheduler.BuildSchedule();
     } break;
     case ScheduleKind::Poly: {
-      PolyScheduler scheduler(stages);
+      PolyScheduler scheduler(stages, extra_links);
       return scheduler.BuildSchedule();
     } break;
     default:
@@ -175,7 +176,7 @@ void SchedulerBase::AddStage(const Stage &x) {
 }
 
 void SchedulerBase::FinishStageAdd() {
-  CHECK_GT(space_size_, 0) << "No valid dimension is collected, use RegisterElement to collect some elements";
+  // CHECK_GT(space_size_, 0) << "No valid dimension is collected, use RegisterElement to collect some elements";
   CHECK(!schedule_graph_.nodes().empty())
       << "No node is registered to the graph, use RegisterElement to collect some elements";
   registration_finalized_ = true;

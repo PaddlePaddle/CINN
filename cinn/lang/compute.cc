@@ -1,6 +1,7 @@
 #include "cinn/lang/compute.h"
 
 #include "cinn/common/common.h"
+#include "cinn/ir/operation.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/poly/dim.h"
 #include "cinn/poly/domain.h"
@@ -124,6 +125,38 @@ ir::Tensor Compute(const std::vector<Expr> &dims,
   tensor->axis   = axises;
   tensor->domain = domain;
   return tensor;
+}
+
+ir::Tensor Call(const std::string &target,
+                Type type,
+                const std::vector<Expr> &dims,
+                const std::vector<Expr> &args,
+                const std::string &name) {
+  auto call       = ir::Call::Make(type, target, args, {}, ir::Call::CallType::CINN, ir::FunctionRef(), 0, Expr());
+  auto call_op    = ir::CallOp::Make(target, args, 0, call);
+  auto new_tensor = ir::_Tensor_::Make(name, dims, call_op);
+  new_tensor->WithBuffer();
+  // Append write tensors in the tail.
+  call.As<ir::Call>()->write_args.push_back(new_tensor);
+  return new_tensor;
+}
+
+std::vector<ir::Tensor> Call(const std::string &target,
+                             const std::vector<Expr> &args,
+                             const std::vector<ReturnType> &return_types) {
+  auto call = ir::Call::Make(Void(), target, args, {}, ir::Call::CallType::CINN, ir::FunctionRef(), 0, Expr());
+  std::vector<ir::Tensor> new_tensors;
+  for (int i = 0; i < return_types.size(); i++) {
+    auto &return_type = return_types[i];
+    auto call_op      = ir::CallOp::Make(target, args, i, call);
+    auto new_tensor   = ir::_Tensor_::Make(return_type.name, return_type.dims, call_op);
+    // Append write tensors in the tail.
+    call.As<ir::Call>()->write_args.push_back(new_tensor);
+    new_tensor->WithBuffer();
+    new_tensors.push_back(new_tensor);
+  }
+
+  return new_tensors;
 }
 
 }  // namespace lang

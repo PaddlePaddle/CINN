@@ -3,6 +3,7 @@
 #include <deque>
 #include <map>
 #include <set>
+#include <utility>
 
 namespace cinn {
 namespace poly {
@@ -94,7 +95,9 @@ std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages,
   for (auto& item : extra_links) {
     auto& a = id2stage.at(item.first);
     auto& b = id2stage.at(item.second);
-    a->LinkTo(b.get());
+    if (a.get() != b.get()) {
+      a->LinkTo(b.get());
+    }
   }
 
   std::unique_ptr<DataFlowGraph> graph(new DataFlowGraph);

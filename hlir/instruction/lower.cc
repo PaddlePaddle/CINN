@@ -17,7 +17,8 @@ using cinn::lang::Compute;
 
 std::unique_ptr<cinn::lang::Module> Lower(const Module& module) { return std::unique_ptr<cinn::lang::Module>(); }
 
-Tensor Add(const Tensor& a, const Tensor& b, const std::string& name, bool is_inline) {
+Tensor BinaryImpl(
+    const Tensor& a, const Tensor& b, const std::string& name, bool is_inline, std::function<Expr(Expr, Expr)> op) {
   CHECK(a.defined());
   CHECK(b.defined());
 
@@ -29,19 +30,19 @@ Tensor Add(const Tensor& a, const Tensor& b, const std::string& name, bool is_in
   switch (ndims) {
     case 1:
       out_tensor = Compute(
-          a->shape, [a, b](Var i) -> Expr { return a(i) + b(i); }, name);
+          a->shape, [a, b, op](Var i) -> Expr { return op(a(i), b(i)); }, name);
       break;
     case 2:
       out_tensor = Compute(
-          a->shape, [a, b](Var i, Var j) -> Expr { return a(i, j) + b(i, j); }, name);
+          a->shape, [a, b, op](Var i, Var j) -> Expr { return op(a(i, j), b(i, j)); }, name);
       break;
     case 3:
       out_tensor = Compute(
-          a->shape, [a, b](Var i, Var j, Var k) -> Expr { return a(i, j, k) + b(i, j, k); }, name);
+          a->shape, [a, b, op](Var i, Var j, Var k) -> Expr { return op(a(i, j, k), b(i, j, k)); }, name);
       break;
     case 4:
       out_tensor = Compute(
-          a->shape, [a, b](Var i, Var j, Var k, Var m) -> Expr { return a(i, j, k, m) + b(i, j, k, m); }, name);
+          a->shape, [a, b, op](Var i, Var j, Var k, Var m) -> Expr { return op(a(i, j, k, m), b(i, j, k, m)); }, name);
       break;
     default:
       NOT_IMPLEMENTED
@@ -51,6 +52,8 @@ Tensor Add(const Tensor& a, const Tensor& b, const std::string& name, bool is_in
 
   return out_tensor;
 }
+
+Expr CallImpl(const std::string& fn_name, const std::vector<Expr>& args) {}
 
 void ComputationLower::LowerBinary(const Instruction* instr) {
   auto* a_instr = instr->operand(0);
@@ -71,8 +74,29 @@ void ComputationLower::LowerBinary(const Instruction* instr) {
   Tensor C;
   switch (instr->instr_code()) {
     case InstrCode::Add:
-      C = Add(Tensor(a_expr_tensor), Tensor(b_expr_tensor), instr->programable_id(), instr->inlined());
+      C = BinaryImpl(
+          Tensor(a_expr_tensor), Tensor(b_expr_tensor), instr->programable_id(), instr->inlined(), [](Expr a, Expr b) {
+            return a + b;
+          });
       break;
+    case InstrCode::Sub:
+      C = BinaryImpl(
+          Tensor(a_expr_tensor), Tensor(b_expr_tensor), instr->programable_id(), instr->inlined(), [](Expr a, Expr b) {
+            return a - b;
+          });
+    case InstrCode::Mul:
+      C = BinaryImpl(
+          Tensor(a_expr_tensor), Tensor(b_expr_tensor), instr->programable_id(), instr->inlined(), [](Expr a, Expr b) {
+            return a * b;
+          });
+    case InstrCode::Div:
+      C = BinaryImpl(
+          Tensor(a_expr_tensor), Tensor(b_expr_tensor), instr->programable_id(), instr->inlined(), [](Expr a, Expr b) {
+            return a / b;
+          });
+    case InstrCode::Call:
+      break;
+
     default:
       NOT_IMPLEMENTED
   }

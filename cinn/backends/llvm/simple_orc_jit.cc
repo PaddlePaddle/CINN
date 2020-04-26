@@ -75,7 +75,7 @@ void SimpleOrcJit::Link(const lang::Module &module, bool optimize) {
 
   auto ir_emitter = std::make_unique<CodeGenLLVM>(m.get(), b.get());
   for (auto &buffer : module->buffers) {
-    auto expr = runtime::BufferCreate(buffer);
+    auto expr = runtime::BufferCreate(buffer.as_buffer_ref());
     ir_emitter->Visit(&expr);
   }
 

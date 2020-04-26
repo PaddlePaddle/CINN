@@ -30,7 +30,7 @@ TEST(Lower, computation) {
 
   auto comp0 = create_elementwise_add(&context, N, "elementwise_add");
 
-  LOG(INFO) << "HLIR:\n" << comp0->to_debug_string();
+  std::cout << "HLIR:\n" << comp0->to_debug_string() << std::endl;
 
   ComputationLower lower(nullptr);
   Expr fn = lower(comp0.get());
@@ -51,7 +51,7 @@ TEST(Lower, module) {
   module.AddComputation(std::move(comp1));
   module.AddEntryComputation(std::move(comp2));
 
-  LOG(INFO) << "HLIR:\n" << module.to_debug_string();
+  std::cout << "HLIR:\n" << module.to_debug_string() << std::endl;
 
   ModuleLower lower;
   auto cinn_module = lower(&module);

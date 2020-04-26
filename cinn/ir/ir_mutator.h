@@ -95,12 +95,24 @@ void IRMutator<T>::Visit(const Block *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const Call *expr, T op) {
   auto *node = op->template As<Call>();
-  for (auto &expr : node->args) {
+  for (auto &expr : node->read_args) {
+    IRVisitorBase<void, T>::Visit(&expr, &expr);
+  }
+  for (auto &expr : node->write_args) {
     IRVisitorBase<void, T>::Visit(&expr, &expr);
   }
 }
 template <typename T>
-void IRMutator<T>::Visit(const Module *expr, T op) {}
+void IRMutator<T>::Visit(const _Module_ *expr, T op) {
+  auto *node = op->template As<_Module_>();
+  for (auto &func : node->functions) {
+    IRVisitorBase<void, T>::Visit(&func, &func);
+  }
+  for (auto &func : node->buffers) {
+    IRVisitorBase<void, T>::Visit(&func, &func);
+  }
+  // TODO(Superjomn) Consider submodules.
+}
 template <typename T>
 void IRMutator<T>::Visit(const _Var_ *expr, T op) {
   auto *node = op->template As<ir::_Var_>();

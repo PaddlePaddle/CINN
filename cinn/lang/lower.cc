@@ -95,6 +95,8 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
     stages.push_back(node->stage);
+
+    LOG(INFO) << "lower group stage: " << node->stage->domain();
   }
 
   // get isl generated expression
@@ -106,6 +108,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
 
   // replace call to the corresponding statement
   for (auto& statement : tuple_to_expr) {
+    LOG(INFO) << "tuple to expr " << statement.first << " " << statement.second;
     auto axis_ast_map         = gen.axis2ast(statement.first);
     Expr statement_candi_expr = tuple_to_expr.at(statement.first);
 
@@ -195,8 +198,17 @@ ir::LoweredFunc Lower(const std::string& name,
   // make sure the graph's start-points in the args.
 
   auto stages             = poly::GatherStagesInTensors(tensor_args);
-  auto extra_dependencies = poly::ExtractExtraDependencyFromStages(stages);  // deal with the `compute_at` dependencies.
-  auto graph              = poly::CreateGraph(stages, extra_dependencies);
+  auto call_dependencies  = poly::ExtractLinksFromCalls(tensor_args, false);
+  auto extra_dependencies = poly::ExtractExtraDepLinksFromStages(stages);  // deal with the `compute_at` dependencies.
+
+  extra_dependencies.insert(std::end(extra_dependencies), call_dependencies.begin(), call_dependencies.end());
+
+  for (auto& dep : extra_dependencies) {
+    LOG(INFO) << "dep: " << dep.first << " -> " << dep.second;
+  }
+
+  auto graph = poly::CreateGraph(stages, extra_dependencies);
+  LOG(INFO) << "DOT:\n" << graph->Visualize();
 
   // Create a dic for stages and tensors.
   std::map<std::string, Stage*> stage_dic;
@@ -233,7 +245,7 @@ ir::LoweredFunc Lower(const std::string& name,
     CHECK(args_names.count(node->id())) << "The dependency tensor [" << node->id() << "] not in the inputs";
   }
 
-  auto schedule = poly::CreateSchedule(stages, poly::ScheduleKind::Poly);
+  auto schedule = poly::CreateSchedule(stages, poly::ScheduleKind::Poly, extra_dependencies);
 
   // generate the expressions for each group.
   std::vector<Expr> exprs;
@@ -244,7 +256,7 @@ ir::LoweredFunc Lower(const std::string& name,
     for (auto& node : group.nodes) {
       auto& tensor = tensor_dic_retrive(node->id());
       // NOTE here just schedule the compute node.
-      if (!tensor->is_compute_node()) continue;
+      if (!tensor->is_compute_node() && !tensor->is_call_node()) continue;
 
       tuple_to_expr[tensor->name] = tensor->tensor_store_expanded_body();
     }

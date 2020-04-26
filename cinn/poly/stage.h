@@ -18,6 +18,10 @@
 #include "cinn/poly/map.h"
 
 namespace cinn {
+namespace ir {
+class Tensor;
+}  // namespace ir
+
 namespace poly {
 using ir::DeviceAPI;
 
@@ -180,6 +184,7 @@ class Stage : public Object {
   }
   const std::set<std::string>& extra_depend_stages() const { return extra_depend_stages_; }
   void set_extra_depend_stages(const std::set<std::string>& x) { extra_depend_stages_ = x; }
+  void add_extra_depend_stage(const std::string& statement) { extra_depend_stages_.insert(statement); }
 
   const std::map<std::string, StageForloopInfo>& forloop_infos() const { return forloop_infos_; }
 
@@ -207,7 +212,9 @@ class Stage : public Object {
   std::map<std::string, StageForloopInfo> forloop_infos_;
 };
 
-std::vector<std::pair<std::string, std::string>> ExtractExtraDependencyFromStages(const std::vector<Stage*>& stages);
+std::vector<std::pair<std::string, std::string>> ExtractExtraDepLinksFromStages(const std::vector<Stage*>& stages);
+std::vector<std::pair<std::string, std::string>> ExtractLinksFromCalls(const std::vector<ir::Tensor>& tensors,
+                                                                       bool with_placeholder = false);
 
 struct ComputeAtRelation {
   Shared<Stage> stage;
