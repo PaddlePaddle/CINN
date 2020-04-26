@@ -25,7 +25,8 @@ TEST(Module, basic) {
   Computation::Builder builder1(&context, "main");
   auto arg0   = builder1.AddInstruction(Instruction::CreateParameter(0, Shape({N, 30, 40}), "x", parameter_config));
   auto arg1   = builder1.AddInstruction(Instruction::CreateParameter(1, Shape({40, 50}), "w", parameter_config));
-  auto* call0 = builder1.AddInstruction(Instruction::CreateCall({}, {arg0, arg1}, comp0), "call something");
+  auto* call0 = builder1.AddInstruction(
+      Instruction::CreateCall({arg0, arg1}, "call0_ret", Shape({N, 30, 50}), Float(32), comp0), "call");
   auto* call1 = builder1.AddInstruction(Instruction::CreateCustomCall({}, {arg0, arg1}, "mkl_gemm", ""));
   auto* comp1 = module.AddEntryComputation(builder1.Build());
 

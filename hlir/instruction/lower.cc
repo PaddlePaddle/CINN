@@ -2,6 +2,7 @@
 #include <glog/logging.h>
 #include "cinn/cinn.h"
 #include "cinn/common/common.h"
+#include "cinn/lang/compute.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/lang/tensor.h"
 #include "hlir/instruction/instructions.h"
@@ -53,7 +54,29 @@ Tensor BinaryImpl(
   return out_tensor;
 }
 
-Expr CallImpl(const std::string& fn_name, const std::vector<Expr>& args) {}
+/**
+ * Implement the Call.
+ * @param fn_name The call target.
+ * @param args The readonly arguments.
+ * @param shapes The shapes of the return tensors.
+ * @param tensor_names The names of the return tensors.
+ * @return The expression of the call.
+ */
+std::vector<Tensor> CallImpl(const std::string& fn_name,
+                             const std::vector<Expr>& args,
+                             const std::vector<Shape>& shapes,
+                             const std::vector<std::string>& tensor_names,
+                             const std::vector<cinn::common::Type>& types) {
+  CHECK_EQ(shapes.size(), tensor_names.size());
+  std::vector<cinn::lang::ReturnType> return_types(shapes.size());
+  for (int i = 0; i < shapes.size(); i++) {
+    return_types[i].name = tensor_names[i];
+    return_types[i].dims = shapes[i].ToCinnShape();
+    return_types[i].type = types[i];
+  }
+
+  return cinn::lang::Call(fn_name, args, return_types);
+}
 
 void ComputationLower::LowerBinary(const Instruction* instr) {
   auto* a_instr = instr->operand(0);
@@ -94,8 +117,6 @@ void ComputationLower::LowerBinary(const Instruction* instr) {
           Tensor(a_expr_tensor), Tensor(b_expr_tensor), instr->programable_id(), instr->inlined(), [](Expr a, Expr b) {
             return a / b;
           });
-    case InstrCode::Call:
-      break;
 
     default:
       NOT_IMPLEMENTED
@@ -114,18 +135,30 @@ void ComputationLower::LowerParameter(const Instruction* instr) {
 }
 
 void ComputationLower::LowerInstruction(const Instruction* instr) {
+  if (scope_.Lookup(instr).defined()) return;
+
   switch (instr->instr_code()) {
     case InstrCode::Add:
-    case InstrCode ::Sub:
-    case InstrCode ::Mul:
-    case InstrCode ::Div:
+    case InstrCode::Sub:
+    case InstrCode::Mul:
+    case InstrCode::Div:
       LowerBinary(instr);
       break;
-    case InstrCode ::Dot:
+    case InstrCode::Dot:
       LowerDot(instr);
       break;
     case InstrCode::Parameter:
       LowerParameter(instr);
+      break;
+    case InstrCode::Call:
+      LowerCall(instr);
+      break;
+
+    case InstrCode::Tuple:
+      LowerTuple(instr);
+      break;
+    case InstrCode::TupleGet:
+      LowerTupleGet(instr);
       break;
 
     default:
@@ -134,6 +167,24 @@ void ComputationLower::LowerInstruction(const Instruction* instr) {
 }
 
 void ComputationLower::LowerDot(const Instruction* instr) {}
+
+void ComputationLower::LowerTuple(const Instruction* instr) {}
+
+void ComputationLower::LowerTupleGet(const Instruction* instr) {
+  auto* tuple_get = instr->As<TupleGet>();
+  if (tuple_get->tuple()->call()) {
+    auto it = call_to_ret_vals_.find(tuple_get->tuple()->call());
+    CHECK(it != call_to_ret_vals_.end());
+    scope_.Insert(instr, it->second[tuple_get->offset()]);
+  } else if (!tuple_get->tuple()->items().empty()) {
+    auto* key = tuple_get->tuple()->items()[tuple_get->offset()];
+    auto expr = scope_.Lookup(key);
+    CHECK(expr.defined());
+    scope_.Insert(instr, expr);
+  } else {
+    NOT_IMPLEMENTED
+  }
+}
 
 Expr ComputationLower::operator()(const Computation* computation) {
   for (auto& instr : computation->instructions()) {
@@ -144,6 +195,7 @@ Expr ComputationLower::operator()(const Computation* computation) {
   std::vector<Var> vars = computation->GetVars();
 
   std::vector<Tensor> tensors;
+  std::unordered_set<std::string> tensor_names;
 
   /*
    * Both the parameters and constants are tensor parameters of the lowered function. The constants will be extracted
@@ -151,18 +203,53 @@ Expr ComputationLower::operator()(const Computation* computation) {
    * lowered functions.
    */
 
+  auto tensor_add = [&](_Tensor_* tensor) {
+    if (!tensor_names.count(tensor->name)) {
+      tensors.push_back(Tensor(tensor));
+      tensor_names.insert(tensor->name);
+    }
+  };
+
   for (auto& instr : computation->instructions()) {
     auto expr = scope_.Lookup(instr.get());
-    CHECK(expr.defined());
+    if (!expr.defined()) continue;
     auto* expr_tensor = expr.As<_Tensor_>();
 
     if (expr_tensor && !expr_tensor->inlined()) {
-      tensors.push_back(Tensor(expr_tensor));
+      tensor_add(expr_tensor);
+    }
+
+    if (instr->As<CallInstruction>()) {
+      auto it = call_to_ret_vals_.find(instr.get());
+      if (it != call_to_ret_vals_.end()) {
+        for (auto& tensor : it->second) {
+          if (tensor.as_tensor()) {
+            tensor_add(tensor.as_tensor());
+          }
+        }
+      }
     }
   }
 
   auto fn = cinn::Lower(computation->name(), tensors, vars);
   return fn;
+}
+
+void ComputationLower::LowerCall(const Instruction* instr) {
+  auto* call = instr->As<CallInstruction>();
+  std::vector<Expr> args;
+  for (int i = 0; i < instr->operand_count(); i++) {
+    LowerInstruction(instr->operand(i));
+    auto instr_expr = scope_.Lookup(instr->operand(i));
+    CHECK(instr_expr.defined());
+    args.push_back(instr_expr);
+  }
+
+  auto tensors =
+      CallImpl(call->computation()->name(), args, call->ret_shapes(), call->ret_tensor_names(), call->ret_types());
+  std::vector<Expr> arg_exprs;
+  for (auto& tensor : tensors) arg_exprs.emplace_back(tensor);
+  call_to_ret_vals_[call] = arg_exprs;
 }
 
 cinn::Module ModuleLower::operator()(const Module* module) {

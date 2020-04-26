@@ -44,12 +44,33 @@ TEST(Lower, module) {
 
   auto comp0 = create_elementwise_add(&context, N, "elementwise_add");
   auto comp1 = create_elementwise_add(&context, N, "elementwise_add1");
-  auto comp2 = create_elementwise_add(&context, N, "elementwise_add2");
 
   Module module("module1");
+
+  Computation::Builder main_builder(&context, "main");
+  {
+    ParameterConfig parameter_config = {Float(32)};
+    auto x  = main_builder.AddInstruction(Instruction::CreateParameter(0, Shape({N, 30, 40}), "x11", parameter_config));
+    auto w  = main_builder.AddInstruction(Instruction::CreateParameter(1, Shape({N, 30, 40}), "w11", parameter_config));
+    auto w1 = main_builder.AddInstruction(Instruction::CreateParameter(2, Shape({N, 30, 40}), "w21", parameter_config));
+
+    std::vector<const Instruction*> res;
+
+    auto call =
+        main_builder.AddInstruction(Instruction::CreateCall({x, w, w1}, {"x0"}, x->shape(), x->type(), comp0.get()));
+    {
+      auto tuple0 = main_builder.AddInstruction(Instruction::CreateTuple(call));
+      auto arg0   = main_builder.AddInstruction(Instruction::CreateTupleGet(tuple0, 0));
+
+      auto out2 = main_builder.AddInstruction(Instruction::CreateBinary(arg0->shape(), InstrCode::Add, arg0, w));
+    }
+
+    auto tuple = main_builder.AddInstruction(Instruction::CreateTuple(res));
+  }
+
   module.AddComputation(std::move(comp0));
   module.AddComputation(std::move(comp1));
-  module.AddEntryComputation(std::move(comp2));
+  module.AddEntryComputation(main_builder.Build());
 
   std::cout << "HLIR:\n" << module.to_debug_string() << std::endl;
 

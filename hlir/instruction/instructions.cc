@@ -38,5 +38,8 @@ std::string CallInstruction::to_debug_string() {
 
   return ss.str();
 }
+
+std::unique_ptr<Instruction> Tuple::Get(int i) { return Instruction::CreateTupleGet(this, i); }
+
 }  // namespace instruction
 }  // namespace hlir

@@ -1,11 +1,9 @@
 #include "cinn/common/graph_utils.h"
-
 #include <glog/logging.h>
-
+#include <deque>
 #include <functional>
 #include <set>
 #include <stack>
-
 #include "cinn/utils/dot.h"
 
 namespace cinn {
@@ -83,6 +81,8 @@ std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topologica
       }
     }
   }
+
+  CHECK_EQ(node_order.size(), nodes().size());
 
   return std::make_tuple(node_order, edge_order);
 }

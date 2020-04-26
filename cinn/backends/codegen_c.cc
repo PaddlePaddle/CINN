@@ -257,7 +257,7 @@ void CodeGenC::Visit(const ir::Call *op) {
     PrintCallArgs(op);
     os() << ")";
   } else {
-    IrPrinter::Visit(op);
+    NOT_IMPLEMENTED
   }
 }
 void CodeGenC::PrintCallArgs(const ir::Call *op) {

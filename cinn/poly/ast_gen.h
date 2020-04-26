@@ -40,6 +40,8 @@ class AstGen {
   //! Get the map from original CINN iterators to the transformed actual ISL ast nodes.
   const std::map<std::string, isl::ast_expr>& axis2ast(const std::string& tuple_name) const;
 
+  bool ContainsStatement(const std::string& name) const { return transformed_indice_map_.count(name); }
+
   void SetBuildOptions(const isl::union_map& options) { build_options_ = options; }
 
  private:
