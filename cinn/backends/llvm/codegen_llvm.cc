@@ -413,8 +413,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   if (op->name == runtime::buffer_get_data_handle || op->name == runtime::buffer_get_data_const_handle) {
-    CHECK_EQ(op->args.size(), 1UL);
-    auto *buffer_op     = op->args.front().As<ir::_Buffer_>();
+    CHECK_EQ(op->read_args.size(), 1UL);
+    auto *buffer_op     = op->read_args.front().As<ir::_Buffer_>();
     llvm::Value *buffer = named_vars_[buffer_op->name];
     // llvm::Value *buffer = Visit(&op->args.front());
     CHECK(buffer) << "buffer is null";
@@ -434,14 +434,14 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   CHECK(callee) << "Unknown function referenced";
 
   std::vector<llvm::Value *> args;
-  for (const auto &e : op->args) {
+  for (const auto &e : op->read_args) {
     args.push_back(Visit(&e));
   }
 
   return Call(callee, std::move(args), "calltmp");
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::Module *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
+llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Var_ *op) {
   llvm::Value *value = named_vars_[op->name];

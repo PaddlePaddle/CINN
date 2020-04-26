@@ -14,6 +14,7 @@ Buffer::Buffer(Type type, const std::string& name) {
   if (!name.empty()) {
     buffer_->name = name;
   }
+  buffer_->target = common::DefaultHostTarget();
 }
 
 }  // namespace lang

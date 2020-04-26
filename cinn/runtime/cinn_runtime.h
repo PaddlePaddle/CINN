@@ -351,4 +351,4 @@ cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t value);
 }
 
 // @}
-#endif
+#endif  // __cplusplus

@@ -40,12 +40,10 @@ TEST(Buffer, bind_to_multiple_tensors) {
   Expr N(20);
   Tensor A = lang::Compute(
       {M, N}, [=](Var i, Var j) { return Expr(0.f); }, "A");
+  A->WithBuffer();
   Tensor B = lang::Compute(
       {M, N}, [=](Var i, Var j) { return Expr(1.f); }, "B");
-  lang::Buffer buf0(A->type(), "buf0");
-
-  A->Bind(buf0);
-  B->Bind(buf0);
+  B->Bind(A->buffer);
 
   auto funcs = lang::Lower("func1", {A, B});
 
@@ -56,7 +54,7 @@ TEST(Buffer, bind_to_multiple_tensors) {
 
   lang::Module module("module1", target);
   module.Append(funcs);
-  module.Append(buf0);
+  module.Append(lang::Buffer(A->buffer));
 
   backends::CodeGenC codegen(target);
   auto out = codegen.Compile(module, backends::CodeGenC::OutputKind::CImpl);

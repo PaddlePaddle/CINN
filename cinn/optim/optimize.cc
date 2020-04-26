@@ -2,6 +2,7 @@
 
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/eliminate_broadcast_in_forloop.h"
+#include "cinn/optim/fold_call_arguments.h"
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/remove_nested_block.h"
@@ -17,6 +18,7 @@ Expr Optimize(Expr e) {
   CHECK(e.defined());
   auto copied = IRCopy(e);
 
+  FoldCallArguments(&copied);
   TransformPolyForToFor(&copied);
   Simplify(&copied);
   VectorizeLoops(&copied, Target());

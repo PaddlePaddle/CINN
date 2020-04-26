@@ -5,6 +5,8 @@
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/lang/module.h"
+#include "cinn/lang/tensor.h"
 
 namespace cinn {
 namespace ir {
@@ -90,6 +92,32 @@ double Expr::get_constant() const {
 }
 
 bool Expr::is_var() const { return As<_Var_>(); }
+
+_Buffer_ *Expr::as_buffer() { return As<_Buffer_>(); }
+const _Buffer_ *Expr::as_buffer() const { return As<_Buffer_>(); }
+Buffer Expr::as_buffer_ref() const { return Buffer(&Reference(as_buffer())); }
+
+_LoweredFunc_ *Expr::as_lowered_func() { return As<_LoweredFunc_>(); }
+const _LoweredFunc_ *Expr::as_lowered_func() const { return As<_LoweredFunc_>(); }
+
+_Module_ *Expr::as_module() { return As<_Module_>(); }
+const _Module_ *Expr::as_module() const { return As<_Module_>(); }
+lang::Module Expr::as_module_ref() const {
+  auto *module = as_module();
+  CHECK(module);  // Need check here?
+  // TODO(Superjomn) remove the Reference here.
+  return lang::Module(&Reference(module));
+}
+
+LoweredFunc Expr::as_lowered_func_ref() const {
+  auto *function = as_lowered_func();
+  CHECK(function);
+  return LoweredFunc(&Reference(function));
+}
+
+_Tensor_ *Expr::as_tensor() { return As<_Tensor_>(); }
+const _Tensor_ *Expr::as_tensor() const { return As<_Tensor_>(); }
+ir::Tensor Expr::as_tensor_ref() const { return ir::Tensor(&Reference(as_tensor())); }
 
 }  // namespace ir
 }  // namespace cinn

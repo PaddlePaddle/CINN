@@ -1,5 +1,5 @@
 #include "cinn/poly/ast_gen.h"
-
+#include <utility>
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
 
@@ -36,7 +36,7 @@ isl::ast_node AstGen::Build() {
     ast_build = isl::manage(isl_ast_build_set_options(ast_build.release(), build_options_.release()));
 
   // Set iterators names for readable code.
-  CHECK(!schedule_group_.dimension_names.empty());
+  // CHECK(!schedule_group_.dimension_names.empty());
   auto iterator_names = iterator_names_.empty() ? schedule_group_.dimension_names : iterator_names_;
   iterator_names      = SchedulerBase::WrapIteratorNames(iterator_names);
   isl::id_list ids    = isl::manage(isl_id_list_alloc(ctx().get(), iterator_names.size()));
@@ -362,7 +362,7 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
           std::string caller = caller_expr.As<ir::_Var_>()->name;
           ops.erase(ops.begin());
           // NOTE the type here is not important.
-          *expr = ir::Call::Make(Float(32), caller, ops, ir::Call::ISL);
+          *expr = ir::Call::Make(Float(32), caller, ops, {}, ir::Call::ISL, ir::FunctionRef(), 0, Expr());
         } break;
         case isl_ast_op_fdiv_q:
           *expr = ir::Div::Make(ops[0], ops[1]);

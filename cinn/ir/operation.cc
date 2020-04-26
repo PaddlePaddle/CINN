@@ -1,5 +1,5 @@
 #include "cinn/ir/operation.h"
-
+#include <memory>
 #include "cinn/common/common.h"
 
 namespace cinn {
@@ -13,9 +13,9 @@ Operation PlaceholderOp::Make(const std::string &name, const std::vector<Expr> &
   return Operation(n);
 }
 
-const char *PlaceholderOp::func_type() const { return __func_type__; }
+const char *PlaceholderOp::func_type() const { return "placeholder_op"; }
 
-const char *ComputeOp::func_type() const { return __func_type__; }
+const char *ComputeOp::func_type() const { return "compute_op"; }
 
 Operation ComputeOp::Make(const std::string &name,
                           const std::string &tag,
@@ -54,8 +54,23 @@ Operation ComputeOp::Make(const std::string &name,
   return Operation(n);
 }
 
-const char *ComputeOp::__func_type__     = "compute";
-const char *PlaceholderOp::__func_type__ = "placeholder";
+Operation CallOp::Make(const std::string &call_target,
+                       const std::vector<Expr> &arg_list,
+                       int value_slot,
+                       Expr call_op) {
+  auto n         = make_shared<CallOp>();
+  n->arg_list    = arg_list;
+  n->call_target = call_target;
+  n->arg_slot    = value_slot;
+  n->call_expr   = call_op;
+  return Operation(n);
+}
+
+const char *ComputeOp::__func_type__     = "compute_op";
+const char *PlaceholderOp::__func_type__ = "placeholder_op";
+const char *CallOp::__func_type__        = "call_op";
+
+const char *CallOp::func_type() const { return __func_type__; }
 
 }  // namespace ir
 }  // namespace cinn

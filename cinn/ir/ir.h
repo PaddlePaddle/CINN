@@ -19,8 +19,13 @@ namespace cinn {
 namespace poly {
 class Stage;
 }  // namespace poly
+namespace lang {
+class Module;
+}  // namespace lang
 
 namespace ir {
+struct Buffer;
+struct LoweredFunc;
 
 using common::Object;
 using common::Shared;
@@ -302,7 +307,9 @@ struct Call : public ExprNode<Call> {
   //! The name of the function/intrinsic.
   std::string name;
   //! The arguments.
-  std::vector<Expr> args;
+  std::vector<Expr> read_args;
+  std::vector<Expr> write_args;
+
   //! Type of calls.
   CallType call_type;
   //! The function to be called.
@@ -314,7 +321,8 @@ struct Call : public ExprNode<Call> {
 
   static Expr Make(Type type,
                    const std::string& name,
-                   const std::vector<Expr>& args,
+                   const std::vector<Expr>& read_args,
+                   const std::vector<Expr>& write_args,
                    CallType call_type,
                    FunctionRef func = FunctionRef(),
                    int value_index  = 0,
@@ -731,12 +739,6 @@ struct Sum : public ExprNode<Sum> {
   static const IrNodeTy _node_type_ = IrNodeTy::Sum;
 };
 
-struct Module : public ExprNode<Module> {
-  explicit Module(Type t) : ExprNode<Module>(t) {}
-
-  static const IrNodeTy _node_type_ = IrNodeTy::Module;
-};
-
 struct Block : public ExprNode<Block> {
   std::vector<Expr> stmts;
 
@@ -748,6 +750,21 @@ struct Block : public ExprNode<Block> {
   std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Block;
+};
+
+/**
+ * Content of a module.
+ */
+struct _Module_ : public ExprNode<_Module_> {
+  std::string name;
+  Target target;
+  std::vector<Expr> buffers;
+  std::vector<Expr> functions;
+  std::vector<Expr> submodules;
+
+  static lang::Module Make(const std::string& name, Target target);
+
+  static const IrNodeTy _node_type_ = IrNodeTy::_Module_;
 };
 
 class _Range_;

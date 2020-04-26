@@ -31,4 +31,9 @@ using common::Target;
 using common::Type;
 using common::UnkTarget;
 
+template <typename T>
+T& Reference(const T* x) {
+  return *const_cast<T*>(x);
+}
+
 }  // namespace cinn

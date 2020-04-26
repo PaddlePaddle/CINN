@@ -44,5 +44,22 @@ ir::Tensor Compute(const std::vector<Expr> &dims,
                    const std::vector<Var> &reduce_axis = {});
 // @}
 
+//! Call an internal function.
+ir::Tensor Call(const std::string &target,
+                Type type,
+                const std::vector<Expr> &dims,
+                const std::vector<Expr> &args,
+                const std::string &name);
+
+struct ReturnType {
+  Type type;
+  std::vector<Expr> dims;
+  std::string name;
+};
+
+std::vector<ir::Tensor> Call(const std::string &target,
+                             const std::vector<Expr> &args,
+                             const std::vector<ReturnType> &return_types);
+
 }  // namespace lang
 }  // namespace cinn

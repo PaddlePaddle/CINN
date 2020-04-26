@@ -2,10 +2,10 @@
 
 #include <algorithm>
 #include <iostream>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
-
 #include "cinn/common/common.h"
 #include "cinn/common/ir.h"
 #include "cinn/ir/buffer.h"

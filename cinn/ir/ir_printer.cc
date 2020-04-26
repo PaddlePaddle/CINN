@@ -128,11 +128,24 @@ void IrPrinter::Visit(const Block *x) {
 }
 void IrPrinter::Visit(const Call *x) {
   os_ << x->name << "(";
-  for (int i = 0; i < x->args.size() - 1; i++) {
-    Print(x->args[i]);
-    os_ << ", ";
+  if (!x->read_args.empty()) {
+    for (int i = 0; i < x->read_args.size() - 1; i++) {
+      Print(x->read_args[i]);
+      os_ << ", ";
+    }
+    Print(x->read_args.back());
   }
-  if (x->args.size() > 1) Print(x->args.back());
+
+  if (!x->write_args.empty()) {
+    if (!x->read_args.empty()) os() << ", ";
+
+    for (int i = 0; i < x->write_args.size() - 1; i++) {
+      Print(x->write_args[i]);
+      os_ << ", ";
+    }
+    Print(x->write_args.back());
+  }
+
   os_ << ")";
 }
 void IrPrinter::Visit(const Cast *x) {
@@ -141,7 +154,7 @@ void IrPrinter::Visit(const Cast *x) {
   os() << x->v();
   os() << ")";
 }
-void IrPrinter::Visit(const Module *x) {}
+void IrPrinter::Visit(const _Module_ *x) {}
 void IrPrinter::Visit(const _Var_ *x) { os_ << x->name; }
 void IrPrinter::Visit(const Alloc *x) {
   auto *buffer = x->destination.As<ir::_Buffer_>();
@@ -221,11 +234,16 @@ void IrPrinter::Visit(const _Buffer_ *x) { os_ << "_Buffer_(" << x->name << ")";
 void IrPrinter::Visit(const _Tensor_ *x) {
   CHECK(!x->shape.empty());
   os_ << "Tensor(";
-  for (auto &i : x->shape) {
-    Print(i);
-    os_ << ",";
+  os() << x->name << ", ";
+  os() << "[";
+  if (!x->shape.empty()) {
+    for (int i = 0; i < x->shape.size() - 1; i++) {
+      Print(x->shape[i]);
+      os() << ",";
+    }
+    Print(x->shape.back());
   }
-  os_ << ")";
+  os_ << "])";
 }
 void IrPrinter::Visit(const _LoweredFunc_ *f) {
   os_ << "function " << f->name << " ";

@@ -46,7 +46,8 @@ class PolyScheduler : public SchedulerBase {
    *   '{ S[i,j] -> [i_outer, i_inner, j]: i_outer=floor(i/4) and i_inner=i%4 }'
    * that's OK.
    */
-  explicit PolyScheduler(const std::vector<Stage *> &stages);
+  explicit PolyScheduler(const std::vector<Stage *> &stages,
+                         const std::vector<std::pair<std::string, std::string>> &extra_links = {});
 
   /**
    * Build and create schedule.

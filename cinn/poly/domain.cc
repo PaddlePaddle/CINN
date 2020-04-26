@@ -17,7 +17,6 @@ namespace poly {
 
 std::string Domain::__str__() const {
   CHECK(!id.empty()) << "domain's id is empty";
-  CHECK(!dims.empty());
   std::vector<std::string> range_fields;
   std::transform(
       dims.begin(), dims.end(), std::back_inserter(range_fields), [](const Dim& x) { return x.range_repr(); });

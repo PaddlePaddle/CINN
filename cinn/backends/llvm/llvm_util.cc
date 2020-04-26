@@ -40,12 +40,11 @@ llvm::Type *CinnTypeToIrType(common::Type type, llvm::Module *m) {
   } else if (type.is_customized_type()) {
     CHECK(!type.customized_type().empty());
     ir_type = m->getTypeByName("struct." + type.customized_type());
-  } else {
-    LOG(ERROR) << "Cannot convert type " << type << " to LLVM";
   }
 
+  CHECK(ir_type) << "LLVM can't convert type: " << type;
+
   if (type.is_cpp_handle()) {
-    CHECK(ir_type);
     ir_type = llvm::PointerType::getUnqual(ir_type);
   }
 

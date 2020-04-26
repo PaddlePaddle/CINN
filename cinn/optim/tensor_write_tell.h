@@ -27,6 +27,13 @@ struct TensorWriteTeller : public ir::IRMutator<const Expr*> {
     tensor_written.insert(tensor->name);
     IRMutator::Visit(expr, op);
   }
+
+  void Visit(const ir::_Tensor_* op, const Expr* expr) override {
+    auto* node = expr->As<ir::_Tensor_>();
+    if (node->is_call_node()) {
+      tensor_written.insert(node->name);
+    }
+  }
 };
 
 }  // namespace optim

@@ -118,7 +118,7 @@ std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, CodeGenC::Outpu
 
     PrintBuiltinCodes();
 
-    PrintBufferCreation(module->buffers);
+    PrintBufferCreation(module.buffers());
 
     for (auto &func : module.functions()) {
       Compile(func);

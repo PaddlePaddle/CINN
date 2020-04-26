@@ -8,6 +8,7 @@
 #include "cinn/common/ir.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/lang/module.h"
 #include "cinn/lang/tensor.h"
 #include "cinn/optim/ir_simplify.h"
 
@@ -310,23 +311,20 @@ IterVar _IterVar_::Make(Range dom, Var var, IterVarType iter_type, const std::st
 
 Expr Call::Make(Type type,
                 const std::string &name,
-                const std::vector<Expr> &args,
-                Call::CallType call_type,
+                const std::vector<Expr> &read_args,
+                const std::vector<Expr> &write_args,
+                CallType call_type,
                 FunctionRef func,
                 int value_index,
                 Expr tensor) {
-  for (size_t i = 0; i < args.size(); ++i) {
-    CHECK(args[i].defined());
-  }
-  if (call_type == CINN) {
-    for (size_t i = 0; i < args.size(); ++i) {
-      CHECK(args[i].type().is_int()) << "get type " << args[i].type();
-    }
+  for (size_t i = 0; i < read_args.size(); ++i) {
+    CHECK(read_args[i].defined());
   }
 
   auto node         = common::make_shared<Call>(type);
   node->name        = name;
-  node->args        = args;
+  node->read_args   = read_args;
+  node->write_args  = write_args;
   node->call_type   = call_type;
   node->func        = func;
   node->value_index = value_index;
@@ -336,13 +334,13 @@ Expr Call::Make(Type type,
 }
 std::vector<Expr *> Call::expr_fields() {
   std::vector<Expr *> res;
-  for (auto &x : args) res.push_back(&x);
+  for (auto &x : read_args) res.push_back(&x);
   res.push_back(&tensor);
   return res;
 }
 std::vector<const Expr *> Call::expr_fields() const {
   std::vector<const Expr *> res;
-  for (auto &x : args) res.push_back(&x);
+  for (auto &x : read_args) res.push_back(&x);
   res.push_back(&tensor);
   return res;
 }
@@ -547,6 +545,12 @@ Expr Power::Make(Expr n, Expr d) {
   return Expr(node);
 }
 
+lang::Module _Module_::Make(const std::string &name, Target target) {
+  auto n    = make_shared<_Module_>();
+  n->name   = name;
+  n->target = target;
+  return lang::Module(n);
+}
 }  // namespace ir
 
 namespace common {}  // namespace common

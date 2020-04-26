@@ -169,7 +169,8 @@ std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor, ScheduleKind 
 //! Create a schedule from a list of stages, it will schedule the stages using the information from data dependency,
 //! iteration domains.
 std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages,
-                                         ScheduleKind schedule_kind = ScheduleKind::Poly);
+                                         ScheduleKind schedule_kind = ScheduleKind::Poly,
+                                         const std::vector<std::pair<std::string, std::string>> &extra_links = {});
 
 /**
  * Gather the stages in the input tensors and their dependencies

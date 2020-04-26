@@ -28,6 +28,28 @@ struct PlaceholderOp : public _Operation_ {
   static char const *__func_type__;
 };
 
+struct CallOp : public _Operation_ {
+  std::string call_target;
+
+  Expr call_expr;
+
+  std::vector<Expr> arg_list;
+
+  // the offset int the tuple of return values.
+  int arg_slot{-1};
+
+  CallOp() = default;
+
+  static Operation Make(const std::string &call_target,
+                        const std::vector<Expr> &arg_list,
+                        int value_slot,
+                        Expr call_op);
+
+  const char *func_type() const override;
+
+  static char const *__func_type__;
+};
+
 /**
  * @brief A Compute op that compute a tensor on certain domain.
  */

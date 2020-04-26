@@ -2,7 +2,7 @@ add_definitions(${LLVM_DEFINITIONS})
 
 # generate cinn_runtime.ll file
 execute_process(
-    COMMAND clang++ -mavx2 -masm=intel -S -emit-llvm -O3 ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc -I${PROJECT_SOURCE_DIR}
+    COMMAND clang++ -mavx2 -std=c++11 -masm=intel -S -emit-llvm -O3 ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc -I${PROJECT_SOURCE_DIR}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
