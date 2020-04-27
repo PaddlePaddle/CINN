@@ -437,6 +437,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   for (const auto &e : op->read_args) {
     args.push_back(Visit(&e));
   }
+  for (const auto &e : op->write_args) {
+    args.push_back(Visit(&e));
+  }
 
   return Call(callee, std::move(args), "calltmp");
 }
@@ -647,6 +650,13 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Sum *op) {
 }
 
 #undef __IR_EMITTER_NOT_IMPLEMENTED
+
+void CodeGenLLVM::Compile(const lang::Module &module) {
+  for (auto &fn : module.functions()) {
+    Expr fn_expr(fn);
+    Visit(&fn_expr);
+  }
+}
 
 }  // namespace backends
 }  // namespace cinn
