@@ -116,7 +116,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   ir::Expr e;
   poly::IslAstNodeToCinnExpr(ast, &e);
 
-  std::cout << "ast to expr: \n" << e << std::endl;
+  VLOG(3) << "ast to expr: \n" << e << std::endl;
 
   // replace call to the corresponding statement
   for (auto& statement : tuple_to_expr) {

@@ -1,5 +1,6 @@
 #include "cinn/common/ir.h"
 
+#include "cinn/common/cas.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
@@ -176,6 +177,8 @@ Expr CastIfNeeded(Expr body, Type type) {
   if (body.type() == type) return body;
   return ir::Cast::Make(type, body);
 }
+
+bool MathEqual(const Expr &a, const Expr &b) { return AutoSimplify(a) == AutoSimplify(b); }
 
 }  // namespace common
 }  // namespace cinn

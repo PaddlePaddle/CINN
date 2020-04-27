@@ -1,11 +1,13 @@
 #include "hlir/instruction/lower.h"
 #include <glog/logging.h>
+#include <unordered_set>
 #include "cinn/cinn.h"
 #include "cinn/common/common.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/lang/tensor.h"
 #include "hlir/instruction/instructions.h"
+#include "hlir/instruction/primitive/dot.h"
 #include "hlir/instruction/shape.h"
 
 namespace hlir {
@@ -166,7 +168,20 @@ void ComputationLower::LowerInstruction(const Instruction* instr) {
   }
 }
 
-void ComputationLower::LowerDot(const Instruction* instr) {}
+void ComputationLower::LowerDot(const Instruction* instr) {
+  auto* ai = instr->operand(0);
+  auto* bi = instr->operand(1);
+  Expr av  = scope_.Lookup(ai);
+  Expr bv  = scope_.Lookup(bi);
+  CHECK(av.defined());
+  CHECK(bv.defined());
+  CHECK(av.as_tensor());
+  CHECK(bv.as_tensor());
+
+  primitive::DotImpl dot_impl(ctx_);
+  auto out = dot_impl(av.as_tensor_ref(), bv.as_tensor_ref(), instr->programable_id());
+  scope_.Insert(instr, out);
+}
 
 void ComputationLower::LowerTuple(const Instruction* instr) {}
 
@@ -263,7 +278,8 @@ cinn::Module ModuleLower::operator()(const Module* module) {
 }
 
 cinn::Expr ModuleLower::LowerComputation(const Computation* computation) {
-  ComputationLower lower(&scope_);
+  Context context;
+  ComputationLower lower(&scope_, &context);
   return lower(computation);
 }
 

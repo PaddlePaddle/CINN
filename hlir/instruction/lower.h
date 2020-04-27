@@ -43,7 +43,7 @@ class ModuleLower {
  */
 class ComputationLower {
  public:
-  explicit ComputationLower(Scope* parent_scope) : scope_(parent_scope) {}
+  explicit ComputationLower(Scope* parent_scope, Context* ctx) : scope_(parent_scope), ctx_(ctx) {}
 
   /**
    * Lower a HLIR computation and get a CINN LoweredFunc expression.
@@ -72,6 +72,7 @@ class ComputationLower {
  private:
   std::unordered_map<const Instruction*, std::vector<cinn::Expr>> call_to_ret_vals_;
   Scope scope_;
+  Context* ctx_{};
 };
 
 }  // namespace instruction

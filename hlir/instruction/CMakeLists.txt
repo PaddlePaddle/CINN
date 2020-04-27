@@ -12,6 +12,8 @@ set(srcs
         scope.cc
         )
 
+add_subdirectory(primitive)
+
 cc_test(test_instruction SRCS instruction_test.cc DEPS core hlir)
 cc_test(test_computation SRCS computation_test.cc DEPS core hlir)
 cc_test(test_module SRCS module_test.cc DEPS core hlir)
