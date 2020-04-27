@@ -32,7 +32,7 @@ TEST(Lower, computation) {
 
   std::cout << "HLIR:\n" << comp0->to_debug_string() << std::endl;
 
-  ComputationLower lower(nullptr);
+  ComputationLower lower(nullptr, &context);
   Expr fn = lower(comp0.get());
 
   LOG(INFO) << "\n" << fn;
@@ -80,7 +80,7 @@ TEST(Lower, module) {
   cinn::backends::CodeGenC codegen{cinn::Target()};
   codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(cinn_module, cinn::backends::CodeGenC::OutputKind::CImpl);
-  LOG(INFO) << "C code: \n" << out;
+  std::cerr << "C code: \n" << out << std::endl;
 }
 
 }  // namespace instruction

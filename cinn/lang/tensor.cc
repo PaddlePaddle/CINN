@@ -2,6 +2,7 @@
 
 #include <cstring>
 
+#include "cinn/common/cas.h"
 #include "cinn/common/common.h"
 #include "cinn/common/ir.h"
 #include "cinn/ir/buffer.h"
@@ -296,6 +297,18 @@ void _Tensor_::WithBuffer() {
   lang::Buffer buf(type_);
   buf->target = common::DefaultHostTarget();
   Bind(buf);
+}
+
+bool _Tensor_::SameShapeWith(const Tensor &other) const {
+  if (shape.size() != other->shape.size()) return false;
+
+  for (int i = 0; i < shape.size(); i++) {
+    Expr dim0 = common::AutoSimplify(shape[i]);
+    Expr dim1 = common::AutoSimplify(other->shape[i]);
+
+    if (dim0 != dim1) return false;
+  }
+  return true;
 }
 
 }  // namespace ir

@@ -56,5 +56,7 @@ inline Expr make_one() {
 
 bool is_zero(Expr v);
 
+bool MathEqual(const Expr &a, const Expr &b);
+
 }  // namespace common
 }  // namespace cinn

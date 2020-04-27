@@ -18,6 +18,10 @@ using compute_handler_t = std::function<Expr(const std::vector<Expr> &)>;
 // @{
 // The shape are constant integers.
 ir::Tensor Compute(const std::vector<Expr> &dims,
+                   std::function<Expr()> fn,
+                   const std::string &name             = "",
+                   const std::vector<Var> &reduce_axis = {});
+ir::Tensor Compute(const std::vector<Expr> &dims,
                    std::function<Expr(Expr)> fn,
                    const std::string &name             = "",
                    const std::vector<Var> &reduce_axis = {});

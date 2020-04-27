@@ -19,11 +19,14 @@ struct Context {
     return "computation" + std::to_string(computation_counter_++);
   }
 
+  inline std::string new_var_name(const std::string& hint = "_v") { return hint + std::to_string(var_count_++); }
+
  private:
   int ssa_count_{0};
   std::unordered_map<std::string, size_t> key_;
   std::unordered_set<std::string> computation_names_;
   int computation_counter_{0};
+  size_t var_count_{0};
 };
 
 }  // namespace instruction

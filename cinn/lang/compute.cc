@@ -11,12 +11,25 @@ namespace cinn {
 namespace lang {
 
 ir::Tensor Compute(const std::vector<Expr> &dims,
+                   std::function<Expr()> fn,
+                   const std::string &name,
+                   const std::vector<Var> &reduce_axis) {
+  return Compute(
+      dims,
+      [fn](const std::vector<Expr> &axis) -> Expr {
+        // CHECK_EQ(axis.size(), 0);
+        return fn();
+      },
+      name,
+      reduce_axis);
+}
+
+ir::Tensor Compute(const std::vector<Expr> &dims,
                    std::function<Expr(Expr)> fn,
                    const std::string &name,
                    const std::vector<Var> &reduce_axis) {
-  std::vector<Expr> dim_exprs(dims.begin(), dims.end());
   return Compute(
-      dim_exprs,
+      dims,
       [fn](const std::vector<Expr> &axis) -> Expr {
         CHECK_EQ(axis.size(), 1);
         return fn(axis[0]);
@@ -29,9 +42,8 @@ ir::Tensor Compute(const std::vector<Expr> &dims,
                    std::function<Expr(Expr, Expr)> fn,
                    const std::string &name,
                    const std::vector<Var> &reduce_axis) {
-  std::vector<Expr> dim_exprs(dims.begin(), dims.end());
   return Compute(
-      dim_exprs,
+      dims,
       [fn](const std::vector<Expr> &axis) -> Expr {
         CHECK_EQ(axis.size(), 2);
         return fn(axis[0], axis[1]);
@@ -44,9 +56,8 @@ ir::Tensor Compute(const std::vector<Expr> &dims,
                    std::function<Expr(Expr, Expr, Expr)> fn,
                    const std::string &name,
                    const std::vector<Var> &reduce_axis) {
-  std::vector<Expr> dim_exprs(dims.begin(), dims.end());
   return Compute(
-      dim_exprs,
+      dims,
       [fn](const std::vector<Expr> &axis) -> Expr {
         CHECK_EQ(axis.size(), 3);
         return fn(axis[0], axis[1], axis[2]);
@@ -59,9 +70,8 @@ ir::Tensor Compute(const std::vector<Expr> &dims,
                    std::function<Expr(Expr, Expr, Expr, Expr)> fn,
                    const std::string &name,
                    const std::vector<Var> &reduce_axis) {
-  std::vector<Expr> dim_exprs(dims.begin(), dims.end());
   return Compute(
-      dim_exprs,
+      dims,
       [fn](const std::vector<Expr> &axis) -> Expr {
         CHECK_EQ(axis.size(), 4);
         return fn(axis[0], axis[1], axis[2], axis[3]);
@@ -74,9 +84,8 @@ ir::Tensor Compute(const std::vector<Expr> &dims,
                    std::function<Expr(Expr, Expr, Expr, Expr, Expr)> fn,
                    const std::string &name,
                    const std::vector<Var> &reduce_axis) {
-  std::vector<Expr> dim_exprs(dims.begin(), dims.end());
   return Compute(
-      dim_exprs,
+      dims,
       [fn](const std::vector<Expr> &axis) -> Expr {
         CHECK_EQ(axis.size(), 5);
         return fn(axis[0], axis[1], axis[2], axis[3], axis[4]);

@@ -64,7 +64,7 @@ class Tensor : public ir::IrNodeRef {
    * A(i,j) get the [i][j] element.
    */
   // @{
-  Expr operator()(const Expr& a) const { return operator()({a}); }
+  Expr operator()(const Expr& a) const { return operator()(std::vector<Expr>({a})); }
   template <typename... Args>
   inline typename std::enable_if<detail::GE(sizeof...(Args), 2), Expr>::type operator()(Args... args) const {
     return operator()({std::forward<Args>(args)...});
@@ -137,6 +137,11 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   void Bind(lang::Buffer& buffer);
   void Bind(const Buffer& buffer);
   void UnBind(lang::Buffer& buffer);
+
+  /**
+   * Tell whether this tensor has same shape with \p other.
+   */
+  bool SameShapeWith(const Tensor& other) const;
 
   //! Operation related.
   // @{
