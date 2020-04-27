@@ -1,14 +1,21 @@
 #include "cinn/backends/llvm/simple_orc_jit.h"
-
+#include <glog/logging.h>
 #include <gtest/gtest.h>
+#include <llvm/AsmParser/Parser.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
-
+#include <algorithm>
+#include <iomanip>
+#include <memory>
 #include <tuple>
-
+#include <utility>
+#include <vector>
+#include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
+#include "cinn/backends/llvm/codegen_llvm.h"
+#include "cinn/ir/ir.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
 #include "cinn/lang/module.h"
@@ -18,11 +25,14 @@
 namespace cinn {
 namespace backends {
 
+const int kM = 100;
+const int kN = 32;
+
 namespace {
 auto CreateTestBuffer() {
-  auto *A = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {100, 32}, 32);
-  auto *B = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {100, 32}, 32);
-  auto *C = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {100, 32}, 32);
+  auto *A = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {kM, kN}, 32);
+  auto *B = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {kM, kN}, 32);
+  auto *C = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {kM, kN}, 32);
   cinn_buffer_malloc(nullptr, A);
   cinn_buffer_malloc(nullptr, B);
   cinn_buffer_malloc(nullptr, C);
@@ -41,8 +51,8 @@ auto CreateTestBuffer() {
 }
 
 auto CreateTestCinnModule() {
-  ir::Expr M(100);
-  ir::Expr N(32);
+  ir::Expr M(kM);
+  ir::Expr N(kN);
   lang::Placeholder<float> A("A", {M, N});
   lang::Placeholder<float> B("B", {M, N});
 
@@ -87,6 +97,58 @@ TEST(llvm_test01, elementwise_add) {
 
   for (int i = 0; i < c->num_elements(); i++) {
     EXPECT_EQ(ad[i] + bd[i], cd[i]);
+  }
+}
+
+TEST(llvm, module_call_lowered_func) {
+  lang::Module module("some_module", common::DefaultHostTarget());
+  ir::Expr M(kM);
+  ir::Expr N(kN);
+  {  // define fn
+    lang::Placeholder<float> a("a", {M, N});
+    lang::Placeholder<float> b("b", {M, N});
+    auto c = lang::Compute(
+        {M, N}, [&](auto i, auto j) { return a(i, j) + b(i, j); }, "c");
+    c->WithBuffer();
+
+    auto fn = lang::Lower("elementwise_add", {a, b, c}, {});
+    module.Append(fn);
+  }
+
+  {  // call fn
+    lang::Placeholder<float> a("a", {M, N});
+    lang::Placeholder<float> b("b", {M, N});
+
+    std::vector<lang::ReturnType> ret_types({lang::ReturnType{Float(32), {M, N}, "c_out"}});
+
+    auto call_outs = lang::Call("elementwise_add", {a, b}, ret_types);
+    auto c         = call_outs[0];
+
+    // here we must call the output, so that it cal output something.
+
+    auto main_fn = lang::Lower("main", {a, b, c}, {});
+    module.Append(main_fn);
+  }
+
+  auto [ab, bb, cb] = CreateTestBuffer();  // NOLINT
+  {                                        // call the function
+    auto jit = backends::SimpleOrcJit::Create();
+
+    jit->Link(module, /*optimize=*/true);
+    auto elementwise_add_addr = jit->Lookup("elementwise_add");
+    auto elementwise_add      = reinterpret_cast<void (*)(void *, int32_t)>(elementwise_add_addr);
+
+    cinn_pod_value_t a_arg(ab), b_arg(bb), c_arg(cb);
+    cinn_pod_value_t args[3] = {a_arg, b_arg, c_arg};
+
+    elementwise_add(args, 3);
+
+    for (int i = 0; i < kM; i++) {
+      for (int j = 0; j < kN; j++) {
+        auto *data = reinterpret_cast<float *>(cb->host_memory);
+        ASSERT_NEAR(data[i * kN + j], 2 * (i * kN + j), 1e-5);
+      }
+    }
   }
 }
 

@@ -2,9 +2,10 @@
 
 import sys
 
+print("#pragma once\n")
 print("#include <string_view>\n")
 print("namespace cinn::backends {")
-print("std::string_view kRuntimeLlvmIr(")
+print("static std::string_view kRuntimeLlvmIr(")
 
 print("R\"ROC(")
 for i, line in enumerate(sys.stdin):

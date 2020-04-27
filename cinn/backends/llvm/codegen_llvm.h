@@ -37,6 +37,8 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   llvm::IRBuilder<> *b() { return b_; }
   llvm::Module *m() { return m_; }
 
+  void Compile(const lang::Module &module);
+
   using LLVMIRVisitor::Visit;
 
 #define __LLVM_IR_EMITTER_OVERRIDE_VISIT(__op) llvm::Value *Visit(const ::cinn::ir::__op *) override

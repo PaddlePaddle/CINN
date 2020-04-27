@@ -1,5 +1,4 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
-
 #include <glog/logging.h>
 #include <gtest/gtest.h>
 #include <llvm/AsmParser/Parser.h>
@@ -7,13 +6,11 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
-
 #include <algorithm>
 #include <iomanip>
 #include <memory>
 #include <utility>
 #include <vector>
-
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/ir/ir.h"
 #include "cinn/lang/compute.h"
