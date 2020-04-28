@@ -1,9 +1,11 @@
 #include "cinn/lang/lower.h"
+
 #include <iostream>
 #include <map>
 #include <set>
 #include <stack>
 #include <unordered_set>
+
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/fold_call_arguments.h"
@@ -189,10 +191,11 @@ struct LowerImpl {
 
     CheckAllTensorUsageInComputationContainsInArgs(graph.get());
 
-    auto func_body = GenFnBody(schedule.get());
-    auto func_args = GenFnArgs(func_body);
+    auto func_body      = GenFnBody(schedule.get());
+    auto func_args      = GenFnArgs(func_body);
+    auto func_temp_bufs = GenTempBuffers();
 
-    auto func = ir::_LoweredFunc_::Make(std::string(name_), func_args, func_body);
+    auto func = ir::_LoweredFunc_::Make(std::string(name_), func_args, func_body, func_temp_bufs);
     auto res  = optim::Optimize(func);
     return ir::LoweredFunc(res.get());
   }
@@ -229,6 +232,15 @@ struct LowerImpl {
     }
 
     return args;
+  }
+
+  inline std::vector<ir::Buffer> GenTempBuffers() {
+    std::vector<ir::Buffer> res;
+    for (auto& x : temp_tensors_) {
+      CHECK(!x->inlined());
+      res.push_back(x->buffer);
+    }
+    return res;
   }
 
   inline Expr GenFnBody(const poly::Schedule* schedule) {
@@ -313,7 +325,7 @@ struct LowerImpl {
   inline void InitStages() { stages_ = poly::GatherStagesInTensors(all_tensor_args()); }
 
   inline void InitTensorDic() {
-    for (auto& tensor : tensor_args_) tensor_dic_.emplace(tensor->name, tensor);
+    for (auto& tensor : all_tensor_args()) tensor_dic_.emplace(tensor->name, tensor);
   }
 
   inline void InitStageDic() {
@@ -341,8 +353,23 @@ struct LowerImpl {
 ir::LoweredFunc Lower(const std::string& name,
                       const std::vector<Tensor>& tensor_args,
                       const std::vector<Var>& scalar_args,
-                      const std::vector<Tensor>& temp_tensors) {
-  return LowerImpl(name, tensor_args, scalar_args, temp_tensors)();
+                      const std::vector<Tensor>& temp_tensors,
+                      lang::Module* m) {
+  if (!temp_tensors.empty()) {
+    CHECK(m) << "Module should be set to hold the temporary buffers";
+
+    for (auto& temp_tensor : temp_tensors) {
+      CHECK(!temp_tensor->inlined()) << "The tensor arguments of function should bind to buffers";
+      m->Append(lang::Buffer(temp_tensor->buffer));
+    }
+  }
+
+  auto res = LowerImpl(name, tensor_args, scalar_args, temp_tensors)();
+
+  if (m) {
+    m->Append(res);
+  }
+  return res;
 }
 
 }  // namespace lang

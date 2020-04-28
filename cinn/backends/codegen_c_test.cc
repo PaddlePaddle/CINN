@@ -63,7 +63,7 @@ TEST(CodeGenC, module) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 });
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 }, 32/*align*/);
 void add1(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
@@ -157,7 +157,7 @@ TEST(CodeGenC, module_with_transform) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 });
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 }, 32/*align*/);
 void add1(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
@@ -344,7 +344,7 @@ TEST(CodeGenC, matmul_tile) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 });
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 }, 32/*align*/);
 void matmul(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
@@ -459,8 +459,8 @@ TEST(CodeGenC, matmul_packed) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 });
-cinn_buffer_t* _PackedB = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 15, 200, 32 });
+cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 }, 32/*align*/);
+cinn_buffer_t* _PackedB = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 15, 200, 32 }, 32/*align*/);
 void matmul_with_packing(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));

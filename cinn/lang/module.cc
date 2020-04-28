@@ -1,4 +1,5 @@
 #include "cinn/lang/module.h"
+
 #include <memory>
 
 namespace cinn {
@@ -41,8 +42,15 @@ std::vector<Module> Module::submodules() const {
 }
 
 void Module::Append(const Buffer &buffer) {
-  CHECK(buffer->target.defined()) << "buffer [" << buffer->name << "] not set";
-  self()->buffers.push_back(buffer.buffer());
+  CHECK(buffer->target.defined()) << "buffer [" << buffer->name << "]'s target is undefined";
+  if (std::find_if(self()->buffers.begin(), self()->buffers.end(), [&](const Expr &x) {
+        return x.as_buffer()->name == buffer->name;
+      }) == std::end(self()->buffers)) {
+    self()->buffers.push_back(buffer.buffer());
+    if (target().arch == Target::Arch::X86) {
+      self()->buffers.back().as_buffer()->data_alignment = 32;
+    }
+  }
 }
 
 void Module::Append(const ir::LoweredFunc &function) { self()->functions.push_back(function); }

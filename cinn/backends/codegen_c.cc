@@ -222,7 +222,7 @@ void CodeGenC::Visit(const ir::Block *op) {
 void CodeGenC::Visit(const ir::Call *op) {
   if (op->name == runtime::buffer_create) {
     CHECK_EQ(op->read_args.size(), 2UL);
-    const ir::_Buffer_ *buffer_arg = op->read_args.front().As<ir::_Buffer_>();
+    const ir::_Buffer_ *buffer_arg = op->read_args.front().as_buffer();
     CHECK(buffer_arg);
 
     os() << "cinn_buffer_t* " << buffer_arg->name;
@@ -233,6 +233,9 @@ void CodeGenC::Visit(const ir::Call *op) {
     PrintRuntimeType(runtime::ToRuntimeType(op->read_args.front().type().ElementOf()));
     os() << ", ";
     PrintShape(op->read_args[0].As<ir::_Buffer_>()->shape);
+    if (buffer_arg->data_alignment > 0) {
+      os() << ", " << buffer_arg->data_alignment << "/*align*/";
+    }
     os() << ")";
   } else if (op->name == runtime::buffer_malloc) {
     CHECK_EQ(op->read_args.size(), 2UL);
@@ -419,6 +422,7 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
 #define APPEND_TO_NEW_BODY(field__) new_body.insert(std::end(new_body), std::begin(op->field__), std::end(op->field__));
   APPEND_TO_NEW_BODY(argument_prepare_exprs)
   APPEND_TO_NEW_BODY(alloc_output_buffer_exprs)
+  APPEND_TO_NEW_BODY(alloc_tmp_buffer_exprs)
   APPEND_TO_NEW_BODY(buffer_data_cast_exprs)
   new_body.push_back(op->body);
   APPEND_TO_NEW_BODY(dealloc_output_buffer_exprs)

@@ -81,6 +81,10 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   //! The Arguments used in the body of the function.
   std::vector<Argument> args;
 
+  //! Temporary buffers(as output), these buffers will not appear in the function's argument list, but will be used in
+  //! the body.
+  std::vector<Buffer> temp_bufs;
+
   //! Body of this function.
   Expr body;
 
@@ -105,9 +109,10 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
 
   std::vector<Expr> argument_prepare_exprs;
 
-  static LoweredFunc Make(const std::string& name, const std::vector<Argument>& args, const Expr& body);
-
-  static LoweredFunc Make(const std::string& name, const std::vector<Argument>& args, const std::vector<Expr>& body);
+  static LoweredFunc Make(const std::string& name,
+                          const std::vector<Argument>& args,
+                          const Expr& body,
+                          const std::vector<ir::Buffer>& temp_bufs);
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
@@ -118,6 +123,8 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   void CheckValid() const;
   //! Prepare the expressions for `alloc_output_buffer_exprs`.
   void PrepareAllocOutputBufferExprs();
+  //! Prepare the expressions for `alloc_tmp_buffer_exprs`.
+  void PrepareAllocTempBufferExprs();
   //! Prepare the expressions for `dealloc_output_buffer_exprs`.
   void PrepareDeallocOutputBufferExprs();
   //! Insert the allocation expr for temporary variables.

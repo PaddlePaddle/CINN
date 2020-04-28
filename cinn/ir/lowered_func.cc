@@ -6,6 +6,7 @@
 #include <set>
 #include <string>
 #include <vector>
+
 #include "cinn/common/common.h"
 #include "cinn/common/ir.h"
 #include "cinn/ir/buffer.h"
@@ -20,25 +21,24 @@ namespace ir {
 const _LoweredFunc_* LoweredFunc::operator->() const { return As<_LoweredFunc_>(); }
 _LoweredFunc_* LoweredFunc::operator->() { return As<_LoweredFunc_>(); }
 
-LoweredFunc _LoweredFunc_::Make(const std::string& name, const std::vector<Argument>& args, const Expr& body) {
-  auto* n = make_shared<_LoweredFunc_>();
-  n->name = name;
-  n->args = args;
-  n->body = body;
+LoweredFunc _LoweredFunc_::Make(const std::string& name,
+                                const std::vector<Argument>& args,
+                                const Expr& body,
+                                const std::vector<ir::Buffer>& temp_bufs) {
+  auto* n      = make_shared<_LoweredFunc_>();
+  n->name      = name;
+  n->args      = args;
+  n->body      = body;
+  n->temp_bufs = temp_bufs;
+
   n->CheckValid();
   n->PrepareAllocOutputBufferExprs();
+  n->PrepareAllocTempBufferExprs();
   n->AllocTempBuffer();
   n->PrepareBufferCastExprs();
   n->PrepareArgumentExprs();
   n->PrepareDeallocOutputBufferExprs();
   return LoweredFunc(n);
-}
-
-LoweredFunc _LoweredFunc_::Make(const std::string& name,
-                                const std::vector<Argument>& args,
-                                const std::vector<Expr>& body) {
-  CHECK_EQ(body.size(), 1);
-  return Make(name, args, body.front());
 }
 
 void _LoweredFunc_ ::CheckValid() const {
@@ -68,6 +68,12 @@ void _LoweredFunc_::PrepareAllocOutputBufferExprs() {
             Alloc::Make(arg.buffer_arg(), arg.buffer_arg()->type(), arg.buffer_arg()->shape, Expr(), Expr()));
       }
     }
+  }
+}
+
+void _LoweredFunc_::PrepareAllocTempBufferExprs() {
+  for (auto& temp_buf : temp_bufs) {
+    alloc_tmp_buffer_exprs.push_back(Alloc::Make(temp_buf, temp_buf->type(), temp_buf->shape, Expr(), Expr()));
   }
 }
 

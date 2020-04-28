@@ -91,9 +91,11 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 
   Expr Visit(const Alloc* op) override {
-    auto extents   = Visit(op->extents);
-    auto condition = Visit(&op->condition);
-    auto body      = Visit(&op->body);
+    auto extents = Visit(op->extents);
+    Expr condition;
+    Expr body;
+    if (op->condition.defined()) condition = Visit(&op->condition);
+    if (op->body.defined()) body = Visit(&op->body);
 
     return Alloc::Make(op->destination, op->type(), extents, condition, body);
   }
@@ -172,11 +174,35 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 
   Expr Visit(const _LoweredFunc_* op) override {
-    auto name = op->name;
-    auto args = op->args;
-    auto body = Visit(&op->body);
+    auto func = make_shared<_LoweredFunc_>();
 
-    return _LoweredFunc_::Make(name, args, body);
+    func->name      = op->name;
+    func->args      = op->args;
+    func->body      = Visit(&op->body);
+    func->temp_bufs = op->temp_bufs;
+
+    func->gpu_block_dims = op->gpu_block_dims;
+    func->gpu_grid_dims  = op->gpu_grid_dims;
+
+    std::vector<Expr> alloc_output_buffer_exprs;
+    std::vector<Expr> dealloc_output_buffer_exprs;
+    std::vector<Expr> alloc_tmp_buffer_exprs;
+    std::vector<Expr> buffer_data_cast_exprs;
+    std::vector<Expr> argument_prepare_exprs;
+
+#define COPY_ADD_FIELD(field__)      \
+  for (auto& expr : op->field__) {   \
+    field__.push_back(Visit(&expr)); \
+  }                                  \
+  func->field__ = std::move(field__);
+
+    COPY_ADD_FIELD(alloc_output_buffer_exprs);
+    COPY_ADD_FIELD(dealloc_output_buffer_exprs);
+    COPY_ADD_FIELD(alloc_tmp_buffer_exprs);
+    COPY_ADD_FIELD(buffer_data_cast_exprs);
+    COPY_ADD_FIELD(argument_prepare_exprs);
+
+    return func;
   }
 
   Expr Visit(const _IterVar_* op) override {

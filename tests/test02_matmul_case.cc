@@ -85,7 +85,7 @@ TEST(test02, basic) {
   cinn_pod_value_t args[]  = {A_arg, B_arg, C_arg};
   cinn_pod_value_t args1[] = {A_arg, B_arg, C_arg, packedB_arg};
   cinn_pod_value_t args2[] = {M_arg, A_arg, B_arg, C_arg};
-  cinn_pod_value_t args3[] = {M_arg, A_arg, B_arg, C_arg, packedB_arg};
+  cinn_pod_value_t args3[] = {M_arg, A_arg, B_arg, C_arg};
 
 #define TEST_FUNC(func__)                                                     \
   LOG(INFO) << "Testing " #func__;                                            \

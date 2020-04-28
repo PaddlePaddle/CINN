@@ -367,9 +367,7 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
   }
 
   Module module("module_array_packing_dynamic_shape", target);
-  auto func = Lower("matmul_array_packing_dynamic_shape", {A, B, C, C_init, packedB}, {M});
-
-  module.Append(func);
+  auto func = Lower("matmul_array_packing_dynamic_shape", {A, B, C, C_init}, {M}, {packedB}, &module);
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
   Outputs outputs;

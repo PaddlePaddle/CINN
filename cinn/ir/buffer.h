@@ -65,8 +65,6 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   std::string name;
   //! The storage scope of the buffer, empty if global.
   std::string scope;
-  //! Aignment requirement of data pointer in bytes.
-  int data_alignment{0};
   //! The offset in terms of number of dtype elements (including lanes).
   Expr elem_offset;
   //! Factor of elem_offset field.
@@ -74,6 +72,8 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   int offset_factor{0};
   //! The place the buffer locates.
   Target target{UnkTarget()};
+  //! Aignment requirement of data pointer in bytes.
+  mutable int data_alignment{0};
   //! The memory type of the buffer.
   MemoryType memory_type{MemoryType::Heap};
 
