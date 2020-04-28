@@ -17,11 +17,11 @@ struct Attr;
 /*
  * A Dot template that helps to build a DOT graph definition.
  */
-class Dot {
+class DotLang {
  public:
-  Dot() = default;
+  DotLang() = default;
 
-  explicit Dot(const std::vector<Attr>& attrs) : attrs_(attrs) {}
+  explicit DotLang(const std::vector<Attr>& attrs) : attrs_(attrs) {}
   /**
    * Add a node ot DOT graph.
    * @param id Unique ID for this node.
