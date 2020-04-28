@@ -39,7 +39,6 @@ TEST(Expr, basic) {
   {
     lang::Module module("module1", target);
     module.Append(funcs);
-    module.Append(C_buf);
 
     CodeGenC codegen(target);
     codegen.SetInlineBuiltinCodes(false);
@@ -52,7 +51,6 @@ TEST(Expr, basic) {
   {
     lang::Module module("module1", target);
     module.Append(funcs);
-    module.Append(C_buf);
 
     CodeGenC codegen(target);
     codegen.SetInlineBuiltinCodes(false);
@@ -63,7 +61,6 @@ TEST(Expr, basic) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 512, 500 });
 void matmul(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
