@@ -1,4 +1,4 @@
-#include "cinn/utils/dot.h"
+#include "cinn/utils/dot_lang.h"
 
 namespace cinn {
 namespace utils {
@@ -45,19 +45,19 @@ std::string Edge::repr() const {
   }
   return ss.str();
 }
-void Dot::AddNode(const std::string& id, const std::vector<Attr>& attrs, std::string label) {
+void DotLang::AddNode(const std::string& id, const std::vector<Attr>& attrs, std::string label) {
   CHECK(!nodes_.count(id)) << "duplicate Node '" << id << "'";
   if (label.empty()) label = id;
   nodes_.emplace(id, Node{label, attrs});
 }
-void Dot::AddEdge(const std::string& source, const std::string& target, const std::vector<Attr>& attrs) {
+void DotLang::AddEdge(const std::string& source, const std::string& target, const std::vector<Attr>& attrs) {
   CHECK(!source.empty());
   CHECK(!target.empty());
   auto sid = nodes_.at(source).id();
   auto tid = nodes_.at(target).id();
   edges_.emplace_back(sid, tid, attrs);
 }
-std::string Dot::Build() const {
+std::string DotLang::Build() const {
   std::stringstream ss;
   const std::string indent = "   ";
   ss << "digraph G {" << '\n';

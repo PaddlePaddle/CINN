@@ -4,7 +4,7 @@
 #include <functional>
 #include <set>
 #include <stack>
-#include "cinn/utils/dot.h"
+#include "cinn/utils/dot_lang.h"
 
 namespace cinn {
 namespace common {
@@ -119,7 +119,7 @@ GraphNode *Graph::RetriveNode(size_t key) const {
 GraphNode *Graph::RetriveNode(const std::string &key) const { return RetriveNode(std::hash<std::string>()(key)); }
 
 std::string Graph::Visualize() const {
-  utils::Dot dot;
+  utils::DotLang dot;
 
   // 1. create nodes
   for (auto &node : nodes_) {

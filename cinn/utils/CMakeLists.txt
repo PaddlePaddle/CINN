@@ -1,4 +1,4 @@
-set(srcs string.cc functional.cc dot.cc timer.cc)
+set(srcs string.cc functional.cc dot_lang.cc timer.cc)
 
 foreach(cpp ${srcs})
   set(core_src
