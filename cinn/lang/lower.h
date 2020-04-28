@@ -17,16 +17,18 @@ namespace lang {
 using ir::Tensor;
 
 /**
- * Lower the computation of \p tensor_args and \p scalar_args to a LoweredFunc.
+ * \brief Lower the computation of \p tensor_args and \p scalar_args to a LoweredFunc.
  * @param name The name of the function.
  * @param tensor_args The tensor arguments, where the computation logic locates.
  * @param scalar_args The scalar arguments, indicate some dimensions.
+ * @param temp_tensors The temporary tensors(buffers) used in the body.
  * @return A LoweredFunc, whose name is \p name, the argument list is the concatenation of \p tensor_args and \p
  * scalar_args.
  */
 ir::LoweredFunc Lower(const std::string &name,
                       const std::vector<Tensor> &tensor_args,
-                      const std::vector<Var> &scalar_args = {});
+                      const std::vector<Var> &scalar_args     = {},
+                      const std::vector<Tensor> &temp_tensors = {});
 
 }  // namespace lang
 }  // namespace cinn

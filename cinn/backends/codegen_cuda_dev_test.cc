@@ -209,7 +209,7 @@ TEST(CodeGenCUDA, jit_dynamic_shape) {
   CUDA_CALL(
       cudaMemcpy(reinterpret_cast<void*>(Bd), host_data2.data(), num_elements * sizeof(float), cudaMemcpyHostToDevice));
 
-  void* args[] = {&Ad, &Bd, &Cd, const_cast<int*>(&m)};
+  void* args[] = {const_cast<int*>(&m), &Ad, &Bd, &Cd};
 
   dim3 grid(32, 1, 1);
   dim3 block(N.as_int32(), 1, 1);
