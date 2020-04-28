@@ -69,6 +69,10 @@ class LoweredFunc : public IrNodeRef {
 
 /**
  * Definition of a lowered function. Note that, it should be functional.
+ *
+ * Arguments of the function:
+ *
+ * both the input and output arguments, the output arguments are in the tail.
  */
 struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   //! The name of this function.
