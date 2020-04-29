@@ -76,7 +76,7 @@ std::vector<Instruction *> Computation::GetIntermediates() const {
   return params;
 }
 
-std::vector<cinn::Var> Computation::GetVars() const {
+std::vector<cinn::Var> Computation::CollectParameters() const {
   std::unordered_set<std::string> var_names;
   std::vector<cinn::Var> vars;
   for (auto &instr : instructions_) {
@@ -87,6 +87,7 @@ std::vector<cinn::Var> Computation::GetVars() const {
       }
     }
   }
+  // TODO(Superjomn) check the parameter offset is sorted.
   return vars;
 }
 

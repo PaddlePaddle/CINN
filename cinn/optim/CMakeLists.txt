@@ -10,6 +10,7 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   transform_gpu_forloop.cc
   eliminate_broadcast_in_forloop.cc
   fold_call_arguments.cc
+  call_arg_list_to_pod_value.cc
   )
 
 foreach(cpp ${srcs})

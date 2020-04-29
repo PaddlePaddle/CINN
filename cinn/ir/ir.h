@@ -255,8 +255,14 @@ struct Let : public ExprNode<Let> {
 
   static const IrNodeTy _node_type_ = IrNodeTy::Let;
 
-  std::vector<Expr*> expr_fields() override { return {&symbol, &body}; }
-  std::vector<const Expr*> expr_fields() const override { return {&symbol, &body}; }
+  std::vector<Expr*> expr_fields() override {
+    if (!body.defined()) return {&symbol};
+    return {&symbol, &body};
+  }
+  std::vector<const Expr*> expr_fields() const override {
+    if (!body.defined()) return {&symbol};
+    return {&symbol, &body};
+  }
 };
 
 struct Reduce : public ExprNode<Reduce> {

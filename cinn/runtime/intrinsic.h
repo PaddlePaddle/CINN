@@ -36,6 +36,16 @@ static const char* buffer_load_float32 = "buffer_load_float32";
 static const char* buffer_load_float64 = "buffer_load_float64";
 // @}
 
+static const char* pod_value_ty                    = "cinn_pod_value_t";
+static const char* float_to_cinn_pod_value_repr    = "float_to_cinn_pod_value";
+static const char* buffer_p_to_cinn_pod_value_repr = "buffer_p_to_cinn_pod_value";
+
+static const char* pod_values_to_array_repr = "pod_values_to_array";
+
+static const char* get_address_repr = "get_address";
+
+class pod_values_to_array;
+
 ir::Expr BufferCreate(ir::Buffer buffer);
 /**
  * Get an expression to load an element from a buffer.

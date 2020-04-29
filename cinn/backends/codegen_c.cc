@@ -221,37 +221,17 @@ void CodeGenC::Visit(const ir::Block *op) {
 }
 void CodeGenC::Visit(const ir::Call *op) {
   if (op->name == runtime::buffer_create) {
-    CHECK_EQ(op->read_args.size(), 2UL);
-    const ir::_Buffer_ *buffer_arg = op->read_args.front().as_buffer();
-    CHECK(buffer_arg);
-
-    os() << "cinn_buffer_t* " << buffer_arg->name;
-    os() << " = " << op->name;
-    os() << "(";
-    PrintCastExpr("cinn_device_kind_t", op->read_args[1]);
-    os() << "/*target*/, ";
-    PrintRuntimeType(runtime::ToRuntimeType(op->read_args.front().type().ElementOf()));
-    os() << ", ";
-    PrintShape(op->read_args[0].As<ir::_Buffer_>()->shape);
-    if (buffer_arg->data_alignment > 0) {
-      os() << ", " << buffer_arg->data_alignment << "/*align*/";
-    }
-    os() << ")";
+    PrintCall_buffer_create(op);
   } else if (op->name == runtime::buffer_malloc) {
-    CHECK_EQ(op->read_args.size(), 2UL);
-    os() << op->name << "(";
-    PrintCastExpr("void*", op->read_args[0]);
-    os() << ", ";
-    os() << op->read_args[1];
-    os() << ")";
+    PrintCall_buffer_malloc(op);
   } else if (op->name == runtime::buffer_get_data_handle || op->name == runtime::buffer_get_data_const_handle) {
-    CHECK_EQ(op->read_args.size(), 1UL);
-    auto *buffer = op->read_args[0].As<ir::_Buffer_>();
-    os() << buffer->name;
-    os() << "->";
-    os() << "host_memory";
+    PrintCall_buffer_get_data_handle(op);
+  } else if (op->name == runtime::get_address_repr) {
+    PrintCall_get_address(op);
+  } else if (op->name == runtime::pod_values_to_array_repr) {
+    PrintCall_pod_values_to_array(op);
   } else if (op->call_type == ir::Call::CallType::Intrinsic) {
-    CHECK(!op->read_args.empty());
+    CHECK(!op->read_args.empty() || !op->write_args.empty());
     os() << op->name << "(";
     PrintCallArgs(op);
     os() << ")";
@@ -281,6 +261,79 @@ void CodeGenC::PrintCallArgs(const ir::Call *op) {
     Print(op->write_args.back());
   }
 }
+
+void CodeGenC::PrintCall_buffer_create(const ir::Call *op) {
+  CHECK_EQ(op->read_args.size(), 2UL);
+  const ir::_Buffer_ *buffer_arg = op->read_args.front().as_buffer();
+  CHECK(buffer_arg);
+
+  os() << "cinn_buffer_t* " << buffer_arg->name;
+  os() << " = " << op->name;
+  os() << "(";
+  PrintCastExpr("cinn_device_kind_t", op->read_args[1]);
+  os() << "/*target*/, ";
+  PrintRuntimeType(runtime::ToRuntimeType(op->read_args.front().type().ElementOf()));
+  os() << ", ";
+  PrintShape(op->read_args[0].As<ir::_Buffer_>()->shape);
+  if (buffer_arg->data_alignment > 0) {
+    os() << ", " << buffer_arg->data_alignment << "/*align*/";
+  }
+  os() << ")";
+}
+
+void CodeGenC::PrintCall_buffer_malloc(const ir::Call *op) {
+  CHECK_EQ(op->read_args.size(), 2UL);
+  os() << op->name << "(";
+  PrintCastExpr("void*", op->read_args[0]);
+  os() << ", ";
+  os() << op->read_args[1];
+  os() << ")";
+}
+
+void CodeGenC::PrintCall_buffer_get_data_handle(const ir::Call *op) {
+  CHECK_EQ(op->read_args.size(), 1UL);
+  auto *buffer = op->read_args[0].As<ir::_Buffer_>();
+  os() << buffer->name;
+  os() << "->";
+  os() << "host_memory";
+}
+
+void CodeGenC::PrintCall_get_address(const ir::Call *op) {
+  CHECK_EQ(op->read_args.size(), 1UL);
+  CHECK(op->write_args.empty());
+  auto *read_var = op->read_args.front().as_var();
+  auto *read_buf = op->read_args.front().as_buffer();
+  CHECK(read_var || read_buf) << "Only Var or Buffer can get address";
+  if (read_var) {
+    os() << "&" << read_var->name;
+  } else if (read_buf) {
+    os() << "&" << read_buf->name;
+  } else {
+    NOT_IMPLEMENTED
+  }
+}
+
+void CodeGenC::PrintCall_pod_values_to_array(const ir::Call *op) {
+  CHECK(!op->read_args.empty());
+  CHECK_EQ(op->write_args.size(), 1UL);
+  auto output_var = op->write_args.front().as_var_ref();
+  CHECK(output_var.defined());
+
+  std::vector<std::string> arg_names;
+  for (auto &arg : op->read_args) {
+    auto arg_var = arg.as_var();
+    CHECK(arg_var);
+    arg_names.push_back(arg_var->name);
+  }
+
+  os() << "cinn_pod_value_t " << output_var->name << "[] = ";
+  os() << "{ ";
+
+  os() << utils::Join(arg_names, ", ");
+
+  os() << " }";
+}
+
 void CodeGenC::Visit(const ir::_Module_ *op) { NOT_IMPLEMENTED }
 void CodeGenC::Visit(const ir::_Var_ *op) { os() << op->name; }
 
@@ -348,14 +401,18 @@ void CodeGenC::Visit(const ir::_Buffer_ *op) { os() << op->name; }
 void CodeGenC::Visit(const ir::_Tensor_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Let *op) {
   CHECK(op->type().valid());
-  if (op->body.As<ir::Broadcast>())  // broadcast's type is hard to print, so use c++11 auto instead.
+  if (op->body.defined() &&
+      op->body.As<ir::Broadcast>())  // broadcast's type is hard to print, so use c++11 auto instead.
     os() << "auto";
   else
     os() << PrintType(op->type());
   os() << " ";
   Print(op->symbol);
-  os() << " = ";
-  Print(op->body);
+
+  if (op->body.defined()) {
+    os() << " = ";
+    Print(op->body);
+  }
 }
 
 void CodeGenC::Visit(const ir::Reduce *op) {

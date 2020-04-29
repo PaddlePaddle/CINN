@@ -31,6 +31,8 @@ class _LoweredFunc_;
 class LoweredFunc;
 class _Tensor_;
 class Tensor;
+class _Var_;
+class Var;
 
 // clang-format off
 #define NODETY_PRIMITIVE_TYPE_FOR_EACH(macro__) \
@@ -268,6 +270,10 @@ struct Expr : public IrNodeRef {
   float as_float() const;
   double as_double() const;
   // @}
+
+  _Var_* as_var();
+  const _Var_* as_var() const;
+  Var as_var_ref() const;
 
   // @{ Other nodes caster.
   _Buffer_* as_buffer();

@@ -1,5 +1,6 @@
 #include "hlir/instruction/lower.h"
 #include <glog/logging.h>
+#include <iostream>
 #include <unordered_set>
 #include "cinn/cinn.h"
 #include "cinn/common/common.h"
@@ -7,6 +8,7 @@
 #include "cinn/lang/placeholder.h"
 #include "cinn/lang/tensor.h"
 #include "hlir/instruction/instructions.h"
+#include "hlir/instruction/primitive/binary.h"
 #include "hlir/instruction/primitive/dot.h"
 #include "hlir/instruction/shape.h"
 
@@ -17,44 +19,6 @@ using cinn::ir::Expr;
 using cinn::ir::Tensor;
 using cinn::ir::Var;
 using cinn::lang::Compute;
-
-std::unique_ptr<cinn::lang::Module> Lower(const Module& module) { return std::unique_ptr<cinn::lang::Module>(); }
-
-Tensor BinaryImpl(
-    const Tensor& a, const Tensor& b, const std::string& name, bool is_inline, std::function<Expr(Expr, Expr)> op) {
-  CHECK(a.defined());
-  CHECK(b.defined());
-
-  int ndims = a->shape.size();
-  auto axis = cinn::common::GenDefaultAxis(ndims);
-
-  std::vector<Expr> shape;
-  Tensor out_tensor;
-  switch (ndims) {
-    case 1:
-      out_tensor = Compute(
-          a->shape, [a, b, op](Var i) -> Expr { return op(a(i), b(i)); }, name);
-      break;
-    case 2:
-      out_tensor = Compute(
-          a->shape, [a, b, op](Var i, Var j) -> Expr { return op(a(i, j), b(i, j)); }, name);
-      break;
-    case 3:
-      out_tensor = Compute(
-          a->shape, [a, b, op](Var i, Var j, Var k) -> Expr { return op(a(i, j, k), b(i, j, k)); }, name);
-      break;
-    case 4:
-      out_tensor = Compute(
-          a->shape, [a, b, op](Var i, Var j, Var k, Var m) -> Expr { return op(a(i, j, k, m), b(i, j, k, m)); }, name);
-      break;
-    default:
-      NOT_IMPLEMENTED
-  }
-
-  if (!is_inline) out_tensor->WithBuffer();
-
-  return out_tensor;
-}
 
 /**
  * Implement the Call.
@@ -98,27 +62,17 @@ void ComputationLower::LowerBinary(const Instruction* instr) {
 
   Tensor C;
   switch (instr->instr_code()) {
-    case InstrCode::Add:
-      C = BinaryImpl(
-          Tensor(a_expr_tensor), Tensor(b_expr_tensor), instr->programable_id(), instr->inlined(), [](Expr a, Expr b) {
-            return a + b;
-          });
-      break;
-    case InstrCode::Sub:
-      C = BinaryImpl(
-          Tensor(a_expr_tensor), Tensor(b_expr_tensor), instr->programable_id(), instr->inlined(), [](Expr a, Expr b) {
-            return a - b;
-          });
-    case InstrCode::Mul:
-      C = BinaryImpl(
-          Tensor(a_expr_tensor), Tensor(b_expr_tensor), instr->programable_id(), instr->inlined(), [](Expr a, Expr b) {
-            return a * b;
-          });
-    case InstrCode::Div:
-      C = BinaryImpl(
-          Tensor(a_expr_tensor), Tensor(b_expr_tensor), instr->programable_id(), instr->inlined(), [](Expr a, Expr b) {
-            return a / b;
-          });
+#define BINARY_OPR(key__, op__)                                                 \
+  case InstrCode::key__:                                                        \
+    C = primitive::BinaryImpl(                                                  \
+        ctx_, [](Expr a, Expr b) { return a op__ b; }, instr->inlined())(       \
+        Tensor(a_expr_tensor), Tensor(b_expr_tensor), instr->programable_id()); \
+    break;
+
+    BINARY_OPR(Add, +);
+    BINARY_OPR(Sub, -);
+    BINARY_OPR(Mul, *);
+    BINARY_OPR(Div, /);
 
     default:
       NOT_IMPLEMENTED
@@ -183,7 +137,9 @@ void ComputationLower::LowerDot(const Instruction* instr) {
   scope_.Insert(instr, out);
 }
 
-void ComputationLower::LowerTuple(const Instruction* instr) {}
+void ComputationLower::LowerTuple(const Instruction* instr) {
+  // Tuple is just a placeholder for CINN, nothing need to do now.
+}
 
 void ComputationLower::LowerTupleGet(const Instruction* instr) {
   auto* tuple_get = instr->As<TupleGet>();
@@ -207,7 +163,7 @@ Expr ComputationLower::operator()(const Computation* computation) {
   }
 
   // collect parameters
-  std::vector<Var> vars = computation->GetVars();
+  std::vector<Var> parameters = computation->CollectParameters();
 
   std::vector<Tensor> tensors;
   std::unordered_set<std::string> tensor_names;
@@ -246,7 +202,7 @@ Expr ComputationLower::operator()(const Computation* computation) {
     }
   }
 
-  auto fn = cinn::Lower(computation->name(), tensors, vars);
+  auto fn = cinn::Lower(computation->name(), tensors, parameters);
   return fn;
 }
 
@@ -267,13 +223,24 @@ void ComputationLower::LowerCall(const Instruction* instr) {
   call_to_ret_vals_[call] = arg_exprs;
 }
 
-cinn::Module ModuleLower::operator()(const Module* module) {
+cinn::Module ModuleLower::operator()(const Module* module, bool display_c_code) {
+  std::cerr << "Lower get HLIR module:\n" << module->to_debug_string() << std::endl;
+
   // TODO(Superjomn) Refine the target.
   cinn::Module cinn_module(module->name(), cinn::Target());
   for (auto& item : module->computations()) {
     Expr expr = LowerComputation(item.second.get());
+    VLOG(2) << "HLIR lower get CINN function:\n" << expr;
     cinn_module.Append(cinn::ir::LoweredFunc(expr.As<cinn::ir::_LoweredFunc_>()));
   }
+
+  if (display_c_code) {
+    cinn::backends::CodeGenC codegen_c(cinn::common::DefaultHostTarget());
+    codegen_c.SetInlineBuiltinCodes(false);
+    std::cerr << "C sample code:\n"
+              << codegen_c.Compile(cinn_module, cinn::backends::CodeGenC::OutputKind::CImpl) << std::endl;
+  }
+
   return cinn_module;
 }
 
@@ -282,6 +249,8 @@ cinn::Expr ModuleLower::LowerComputation(const Computation* computation) {
   ComputationLower lower(&scope_, &context);
   return lower(computation);
 }
+
+cinn::lang::Module Lower(const Module& module, bool display_c_code) { return ModuleLower()(&module, display_c_code); }
 
 }  // namespace instruction
 }  // namespace hlir

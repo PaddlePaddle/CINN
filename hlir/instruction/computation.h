@@ -59,7 +59,7 @@ class Computation {
   //! Get the intermediate instructions, thery are not parameter, constant or root.
   std::vector<Instruction*> GetIntermediates() const;
   //! Get the variables (usually represents the dynamic dimension in shape).
-  std::vector<cinn::Var> GetVars() const;
+  std::vector<cinn::Var> CollectParameters() const;
 
   const std::vector<std::unique_ptr<Instruction>>& instructions() const { return instructions_; }
 

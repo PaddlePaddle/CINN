@@ -119,5 +119,9 @@ _Tensor_ *Expr::as_tensor() { return As<_Tensor_>(); }
 const _Tensor_ *Expr::as_tensor() const { return As<_Tensor_>(); }
 ir::Tensor Expr::as_tensor_ref() const { return ir::Tensor(&Reference(as_tensor())); }
 
+_Var_ *Expr::as_var() { return As<_Var_>(); }
+const _Var_ *Expr::as_var() const { return As<_Var_>(); }
+Var Expr::as_var_ref() const { return Var(&Reference(as_var())); }
+
 }  // namespace ir
 }  // namespace cinn

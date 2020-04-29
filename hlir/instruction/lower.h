@@ -17,7 +17,7 @@ namespace instruction {
 /**
  * Lower the HLIR module to CINN module.
  */
-std::unique_ptr<cinn::lang::Module> Lower(const Module& module);
+cinn::lang::Module Lower(const Module& module, bool display_c_code = false);
 
 /**
  * Lower an HLIR Module to CINN Module.
@@ -27,7 +27,7 @@ class ModuleLower {
   ModuleLower() = default;
 
   //! Lower a module.
-  cinn::Module operator()(const Module* module);
+  cinn::Module operator()(const Module* module, bool display_C_code = false);
 
  private:
   //! Lower a computation.

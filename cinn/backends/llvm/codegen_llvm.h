@@ -92,6 +92,16 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
 #undef __LLVM_IR_EMITTER_OVERRIDE_VISIT
 
+ private:
+  //! Visit different kinds of Calls, the following methods are analogous to those in CodeGenC.
+  // @{
+  llvm::Value *PrintCall_buffer_create(const ir::Call *op);
+  llvm::Value *PrintCall_buffer_malloc(const ir::Call *op);
+  llvm::Value *PrintCall_buffer_get_data_handle(const ir::Call *op);
+  llvm::Value *PrintCall_get_address(const ir::Call *op);
+  llvm::Value *PrintCall_pod_values_to_array(const ir::Call *op);
+  // @}
+
  protected:
   llvm::Value *EmitBinaryOp(llvm::Value *lhs, llvm::Value *rhs, char opcode, bool is_integral, bool is_signed = true);
 

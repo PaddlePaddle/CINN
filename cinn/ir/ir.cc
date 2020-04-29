@@ -127,7 +127,9 @@ Type Not::type() const { return type_; }
 Expr Let::Make(Expr symbol, Expr body) {
   auto *n = make_shared<Let>();
   CHECK(symbol.type().valid());
-  CHECK(body.type().valid());
+  if (body.defined()) {
+    CHECK(body.type().valid());
+  }
   n->symbol = symbol;
   n->body   = body;
   n->set_type(n->symbol->type());

@@ -185,7 +185,9 @@ struct LowerImpl {
   }
 
   ir::LoweredFunc operator()() {
-    auto deps     = extra_deps(stages_);
+    CHECK(!stages_.empty()) << "At least one stage is needed";
+
+    auto deps     = collect_extra_dependencis(stages_);
     auto graph    = poly::CreateGraph(stages_, deps);
     auto schedule = poly::CreateSchedule(stages_, poly::ScheduleKind::Poly, deps);
 
@@ -314,7 +316,7 @@ struct LowerImpl {
   }
 
   //! Get all the extra dependencies.
-  inline std::vector<std::pair<std::string, std::string>> extra_deps(const std::vector<Stage*>& stages) {
+  inline std::vector<std::pair<std::string, std::string>> collect_extra_dependencis(const std::vector<Stage*>& stages) {
     auto call_dependencies  = poly::ExtractLinksFromCalls(tensor_args_, false);
     auto extra_dependencies = poly::ExtractExtraDepLinksFromStages(stages);  // deal with the `compute_at` dependencies.
 
