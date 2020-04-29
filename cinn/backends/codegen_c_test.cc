@@ -280,7 +280,16 @@ void main(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->host_memory));
   const float* B = ((const float*)(_B->host_memory));
   float* C = ((float*)(_C->host_memory));
-  matmul(_A, _B, _C);
+  {
+    cinn_pod_value_t _pod_val__8;
+    float_to_cinn_pod_value(_A, &_pod_val__8);
+    cinn_pod_value_t _pod_val__9;
+    float_to_cinn_pod_value(_B, &_pod_val__9);
+    cinn_pod_value_t _pod_val__10;
+    float_to_cinn_pod_value(_C, &_pod_val__10);
+    cinn_pod_value_t _pod_arr_11[] = { _pod_val__8, _pod_val__9, _pod_val__10 };
+    matmul(_pod_arr_11, 3);
+  };
   cinn_buffer_free((void*)(0), _C);
 }
 )ROC";

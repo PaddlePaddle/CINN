@@ -10,6 +10,7 @@ set(srcs
         context.cc
         lower.cc
         scope.cc
+        compiler.cc
         )
 
 add_subdirectory(primitive)
@@ -18,7 +19,7 @@ cc_test(test_instruction SRCS instruction_test.cc DEPS core hlir)
 cc_test(test_computation SRCS computation_test.cc DEPS core hlir)
 cc_test(test_module SRCS module_test.cc DEPS core hlir)
 cc_test(test_hlir_lower SRCS lower_test.cc DEPS core hlir)
-
+cc_test(test_compiler SRCS compiler_test.cc DEPS core hlir simple_orc_jit)
 
 foreach(cpp ${srcs})
     set(hlir_src

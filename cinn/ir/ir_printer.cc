@@ -260,8 +260,10 @@ void IrPrinter::Visit(const Let *f) {
   CHECK(f->type().valid());
   os() << f->type() << " ";
   Print(f->symbol);
-  os() << " = ";
-  Print(f->body);
+  if (f->body.defined()) {
+    os() << " = ";
+    Print(f->body);
+  }
 }
 
 void IrPrinter::Visit(const _IterVar_ *f) { NOT_IMPLEMENTED }

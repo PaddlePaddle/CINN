@@ -206,7 +206,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
     if (op->type().is_int(32)) {
       callee = m_->getFunction("cinn_pod_value_to_int32");
     } else if (op->type().is_int(64)) {
-      callee = m_->getFunction("cinn_pod_value_to_int32");
+      callee = m_->getFunction("cinn_pod_value_to_int64");
     } else if (op->type().is_float(32)) {
       callee = m_->getFunction("cinn_pod_value_to_float");
     } else if (op->type().is_float(64)) {
@@ -412,22 +412,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
-  if (op->name == runtime::buffer_get_data_handle || op->name == runtime::buffer_get_data_const_handle) {
-    CHECK_EQ(op->read_args.size(), 1UL);
-    auto *buffer_op     = op->read_args.front().As<ir::_Buffer_>();
-    llvm::Value *buffer = named_vars_[buffer_op->name];
-    // llvm::Value *buffer = Visit(&op->args.front());
-    CHECK(buffer) << "buffer is null";
-
-    std::vector<llvm::Value *> indices;
-    for (int i : {0, 3}) {
-      indices.push_back(llvm::ConstantInt::get(b_->getInt32Ty(), std::move(i)));
-    }
-
-    llvm::Value *host_memory_ptr = GEP(buffer, std::move(indices));
-    llvm::Type *op_type          = llvm::PointerType::getUnqual(CinnTypeToIrType(buffer_op->type(), m_));
-    auto inst                    = BitCast(Load(host_memory_ptr), op_type);
-    return inst;
+  if (op->name == runtime::buffer_create) {
+  } else if (op->name == runtime::buffer_get_data_handle || op->name == runtime::buffer_get_data_const_handle) {
+    return PrintCall_buffer_get_data_handle(op);
   }
 
   llvm::Function *callee = m_->getFunction(op->name);
@@ -657,6 +644,36 @@ void CodeGenLLVM::Compile(const lang::Module &module) {
     Visit(&fn_expr);
   }
 }
+
+llvm::Value *CodeGenLLVM::PrintCall_buffer_create(const ir::Call *op) {
+  CHECK_EQ(op->read_args.size(), 2UL);
+  const ir::_Buffer_ *buffer_arg = op->read_args.front().as_buffer();
+  CHECK(buffer_arg);
+}
+
+llvm::Value *CodeGenLLVM::PrintCall_buffer_malloc(const ir::Call *op) {}
+
+llvm::Value *CodeGenLLVM::PrintCall_buffer_get_data_handle(const ir::Call *op) {
+  CHECK_EQ(op->read_args.size(), 1UL);
+  auto *buffer_op     = op->read_args.front().As<ir::_Buffer_>();
+  llvm::Value *buffer = named_vars_[buffer_op->name];
+  // llvm::Value *buffer = Visit(&op->args.front());
+  CHECK(buffer) << "buffer is null";
+
+  std::vector<llvm::Value *> indices;
+  for (int i : {0, 3}) {
+    indices.push_back(llvm::ConstantInt::get(b_->getInt32Ty(), std::move(i)));
+  }
+
+  llvm::Value *host_memory_ptr = GEP(buffer, std::move(indices));
+  llvm::Type *op_type          = llvm::PointerType::getUnqual(CinnTypeToIrType(buffer_op->type(), m_));
+  auto inst                    = BitCast(Load(host_memory_ptr), op_type);
+  return inst;
+}
+
+llvm::Value *CodeGenLLVM::PrintCall_get_address(const ir::Call *op) {}
+
+llvm::Value *CodeGenLLVM::PrintCall_pod_values_to_array(const ir::Call *op) {}
 
 }  // namespace backends
 }  // namespace cinn

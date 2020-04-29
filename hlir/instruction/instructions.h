@@ -86,7 +86,7 @@ class ConstantInstruction : public Instruction {
 
 class CallInstruction : public Instruction {
  public:
-  CallInstruction(Computation* computation,
+  CallInstruction(const Computation* computation,
                   const std::vector<Instruction*>& args,
                   const std::vector<Shape>& shapes,
                   const std::vector<std::string>& tensor_names,
@@ -117,7 +117,7 @@ class CallInstruction : public Instruction {
   std::vector<cinn::common::Type> ret_types_;
   std::vector<Shape> ret_shapes_;
 
-  Computation* computation_{};
+  const Computation* computation_;
 };
 
 class CustomCallInstruction : public Instruction {

@@ -39,5 +39,16 @@ std::string Module::to_debug_string() const {
   return ss.str();
 }
 
+const Computation *Module::entry_computation() const {
+  CHECK(entry_computation_) << "No entry computation is set";
+  return entry_computation_;
+}
+
+const Computation *Module::LookupComputation(const std::string &name) const {
+  auto it = computations_.find(name);
+  if (it == computations_.end()) return nullptr;
+  return it->second.get();
+}
+
 }  // namespace instruction
 }  // namespace hlir

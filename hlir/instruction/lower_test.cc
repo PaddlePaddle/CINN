@@ -74,8 +74,7 @@ TEST(Lower, module) {
 
   std::cout << "HLIR:\n" << module.to_debug_string() << std::endl;
 
-  ModuleLower lower;
-  auto cinn_module = lower(&module);
+  auto cinn_module = Lower(module);
 
   cinn::backends::CodeGenC codegen{cinn::Target()};
   codegen.SetInlineBuiltinCodes(false);

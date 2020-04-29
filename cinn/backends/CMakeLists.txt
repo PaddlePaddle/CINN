@@ -3,7 +3,7 @@ set(srcs outputs.cc
         codegen_c_x86.cc
         codegen_c_x86_test.cc
         codegen_cuda_dev.cc
-  )
+)
 
 if (WITH_CUDA)
     set(srcs ${srcs} cuda_util.cc nvrtc_util.cc)

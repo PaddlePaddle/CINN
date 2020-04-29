@@ -100,7 +100,7 @@ class Instruction {
                                                  const std::string& ret_name,
                                                  const Shape& shape,
                                                  const cinn::common::Type& type,
-                                                 Computation* computation);
+                                                 const Computation* computation);
   /**
    * Get a call with multiple return values.
    * @param args The call arguments.
@@ -211,7 +211,7 @@ class Instruction {
   std::vector<Instruction*> operands_;
   std::set<Instruction*> inlinks_;
   std::set<Instruction*> outlinks_;
-  std::vector<Computation*> called_computations_;
+  std::vector<const Computation*> called_computations_;
   std::optional<std::string> comment_;
   bool inlined_{false};
   type_t type_{Void()};

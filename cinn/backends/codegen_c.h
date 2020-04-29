@@ -74,7 +74,15 @@ class CodeGenC : public ir::IrPrinter {
   void PrintBufferDestroy(const std::vector<ir::Buffer>& buffers);
   void PrintRuntimeType(const cinn_type_t& type);
 
+  //! Print different kinds of Calls.
+  // @{
   void PrintCallArgs(const ir::Call* call);
+  void PrintCall_buffer_create(const ir::Call* op);
+  void PrintCall_buffer_malloc(const ir::Call* op);
+  void PrintCall_buffer_get_data_handle(const ir::Call* op);
+  void PrintCall_get_address(const ir::Call* op);
+  void PrintCall_pod_values_to_array(const ir::Call* op);
+  // @}
 
 #define __DEFINE_VISIT(op__) void Visit(const ir::op__* op) override;
   NODETY_FORALL(__DEFINE_VISIT)

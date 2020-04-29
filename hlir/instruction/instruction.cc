@@ -106,7 +106,7 @@ std::unique_ptr<Instruction> Instruction::CreateCall(const std::vector<Instructi
                                                      const std::string &ret_name,
                                                      const Shape &shape,
                                                      const cinn::common::Type &type,
-                                                     Computation *computation) {
+                                                     const Computation *computation) {
   auto instr = std::unique_ptr<Instruction>(new CallInstruction(computation, args, {shape}, {ret_name}, {type}));
   instr->called_computations_.push_back(computation);
   return instr;

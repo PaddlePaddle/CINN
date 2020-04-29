@@ -237,6 +237,12 @@ typedef struct cinn_buffer_t {
 #endif  // __cplusplus
 } cinn_buffer_t;
 
+//! Create a new cinn_buffer.
+cinn_buffer_t* cinn_buffer_new(cinn_device_kind_t device,
+                               cinn_type_t type,
+                               const std::vector<int>& shape,
+                               int align = 0);
+
 struct cinn_device_interface_impl_t {
   int (*malloc)(void* context, struct cinn_buffer_t* buf);
   int (*free)(void* context, struct cinn_buffer_t* buf);
@@ -342,12 +348,21 @@ struct cinn_pod_value_t {
 };
 
 extern "C" {
+//! cinn_pod_value to specific types.
+// @{
 float cinn_pod_value_to_float(cinn_pod_value_t value);
 double cinn_pod_value_to_double(cinn_pod_value_t value);
 int64_t cinn_pod_value_to_int64(cinn_pod_value_t value);
 int32_t cinn_pod_value_to_int32(cinn_pod_value_t value);
 void* cinn_pod_value_to_void_p(cinn_pod_value_t value);
 cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t value);
+// @}
+
+//! other specific types to cinn_pod_value
+// @{
+void float_to_cinn_pod_value(float v, cinn_pod_value_t* out);
+void buffer_p_to_cinn_pod_value(cinn_buffer_t* v, cinn_pod_value_t* out);
+// @}
 }
 
 // @}

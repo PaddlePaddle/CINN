@@ -102,6 +102,10 @@ struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device,
   return x;
 }
 
+cinn_buffer_t* cinn_buffer_new(cinn_device_kind_t device, cinn_type_t type, const std::vector<int>& shape, int align) {
+  return cinn_buffer_t::new_(device, type, shape, align);
+}
+
 //! Implement the type_code for all the supported types.
 // @{
 #define __m(T, code__)                   \
@@ -121,31 +125,31 @@ __m(cinn_buffer_t*, 7);
 //@}
 
 cinn_pod_value_t::operator double() const {
-  CINN_CHECK_EQ(type_code<double>(), type_code_);
+  CINN_CHECK_EQ(type_code_, type_code<double>());
   return value_.v_float64;
 }
 cinn_pod_value_t::operator float() const {
-  CINN_CHECK_EQ(type_code<float>(), type_code_);
+  CINN_CHECK_EQ(type_code_, type_code<float>());
   return value_.v_float64;
 }
 cinn_pod_value_t::operator int32_t() const {
-  CINN_CHECK_EQ(type_code<int32_t>(), type_code_);
+  CINN_CHECK_EQ(type_code_, type_code<int32_t>());
   return value_.v_int64;
 }
 cinn_pod_value_t::operator int64_t() const {
-  CINN_CHECK_EQ(type_code<int64_t>(), type_code_);
+  CINN_CHECK_EQ(type_code_, type_code<int64_t>());
   return value_.v_int64;
 }
 cinn_pod_value_t::operator void*() const {
-  CINN_CHECK_EQ(type_code<void*>(), type_code_);
+  CINN_CHECK_EQ(type_code_, type_code<void*>());
   return value_.v_handle;
 }
 cinn_pod_value_t::operator cinn_buffer_t*() const {
-  CINN_CHECK_EQ(type_code<cinn_buffer_t*>(), type_code_);
+  CINN_CHECK_EQ(type_code_, type_code<cinn_buffer_t*>());
   return static_cast<cinn_buffer_t*>(value_.v_handle);
 }
 cinn_pod_value_t::operator char*() const {
-  CINN_CHECK_EQ(type_code<char*>(), type_code_);
+  CINN_CHECK_EQ(type_code_, type_code<char*>());
   return static_cast<char*>(value_.v_handle);
 }
 
@@ -169,4 +173,9 @@ int64_t cinn_pod_value_to_int64(cinn_pod_value_t value) { return value; }
 int32_t cinn_pod_value_to_int32(cinn_pod_value_t value) { return value; }
 void* cinn_pod_value_to_void_p(cinn_pod_value_t value) { return value; }
 cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t value) { return value; }
+// @}
+
+// @{
+void float_to_cinn_pod_value(float v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
+void buffer_p_to_cinn_pod_value(cinn_buffer_t* v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
 // @}

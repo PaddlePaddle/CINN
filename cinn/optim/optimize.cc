@@ -1,6 +1,7 @@
 #include "cinn/optim/optimize.h"
 
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/call_arg_list_to_pod_value.h"
 #include "cinn/optim/eliminate_broadcast_in_forloop.h"
 #include "cinn/optim/fold_call_arguments.h"
 #include "cinn/optim/ir_copy.h"
@@ -26,6 +27,7 @@ Expr Optimize(Expr e) {
   UnrollLoop(&copied);
   RemoveGpuForloopsAxis(&copied);
   RemoveNestedBlock(&copied);
+  CallArgListToPodValue(&copied);
 
   Simplify(&copied);
 

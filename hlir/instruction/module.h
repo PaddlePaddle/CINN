@@ -22,7 +22,16 @@ class Module {
 
   const std::string& name() const { return name_; }
 
+  /**
+   * Look up a computation in the module, returns null if not exist.
+   * @param name Name of the target computation.
+   * @return pointer of the computation if exists or null.
+   */
+  const Computation* LookupComputation(const std::string& name) const;
+
   const std::map<std::string, std::unique_ptr<Computation>>& computations() const { return computations_; }
+
+  const Computation* entry_computation() const;
 
   std::string to_debug_string() const;
 
