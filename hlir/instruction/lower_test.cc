@@ -1,4 +1,5 @@
 #include "hlir/instruction/lower.h"
+#include <glog/raw_logging.h>
 #include <gtest/gtest.h>
 #include <utility>
 #include "cinn/backends/codegen_c.h"
@@ -72,7 +73,7 @@ TEST(Lower, module) {
   module.AddComputation(std::move(comp1));
   module.AddEntryComputation(main_builder.Build());
 
-  std::cout << "HLIR:\n" << module.to_debug_string() << std::endl;
+  RAW_LOG(INFO, module.to_debug_string().c_str());
 
   auto cinn_module = Lower(module);
 
