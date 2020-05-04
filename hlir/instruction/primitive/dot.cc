@@ -1,4 +1,5 @@
 #include "hlir/instruction/primitive/dot.h"
+
 #include "cinn/common/ir.h"
 
 namespace hlir {

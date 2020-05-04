@@ -334,6 +334,8 @@ struct Call : public ExprNode<Call> {
                    int value_index  = 0,
                    Expr tensor      = Expr());
 
+  inline size_t total_args_count() const { return read_args.size() + write_args.size(); }
+
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 

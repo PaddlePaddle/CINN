@@ -23,4 +23,6 @@ const std::string& Context::runtime_include_dir() const {
 const char* kRuntimeIncludeDirEnvironKey = "runtime_include_dir";
 
 }  // namespace common
+
+DEFINE_bool(cinn_runtime_display_debug_info, false, "Whether to display debug information in runtime");
 }  // namespace cinn

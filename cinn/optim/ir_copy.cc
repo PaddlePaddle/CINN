@@ -21,6 +21,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const ir::IntImm* op) override { return Expr(make_shared<IntImm>(op->type(), op->value)); }
   Expr Visit(const ir::UIntImm* op) override { return Expr(make_shared<UIntImm>(op->type(), op->value)); }
   Expr Visit(const ir::FloatImm* op) override { return Expr(make_shared<FloatImm>(op->type(), op->value)); }
+  Expr Visit(const ir::StringImm* op) override { return Expr(common::make_shared<StringImm>(op->value)); }
 
   Expr Visit(const ir::Cast* op) override {
     auto v = Visit(&op->v());

@@ -5,6 +5,7 @@
 #include <llvm/IR/Instruction.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <sstream>
@@ -13,6 +14,7 @@
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/common/type.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
@@ -35,8 +37,10 @@ bool is_integral_type(common::Type t) { return t.is_int() || t.is_uint(); }
 
 bool is_floating_type(common::Type t) { return t.is_float(); }
 
-llvm::Value *EmitComparison(
-    llvm::CmpInst::Predicate predicate, llvm::Value *lhs, llvm::Value *rhs, llvm::Module *m, llvm::IRBuilder<> *b) {
+llvm::Value *EmitComparison(llvm::CmpInst::Predicate predicate,
+                            llvm::Value *lhs,
+                            llvm::Value *rhs,
+                            llvm::IRBuilder<> *b) {
   llvm::Value *comparison_result{nullptr};
   if (lhs->getType()->isIntegerTy()) {
     comparison_result = b->CreateICmp(predicate, lhs, rhs);
@@ -44,7 +48,9 @@ llvm::Value *EmitComparison(
     comparison_result = b->CreateFCmp(predicate, lhs, rhs);
   }
 
-  return b->CreateZExt(comparison_result, llvm::Type::getInt8Ty(m->getContext()));
+  return b->CreateZExt(comparison_result, b->getInt8Ty());
+  // return b->CreateZExt(comparison_result,
+  // llvm::Type::getInt8Ty(m->getContext()));
 }
 
 #define __IR_EMITTER_NOT_IMPLEMENTED(__op)                                  \
@@ -96,6 +102,10 @@ llvm::Value *CodeGenLLVM::Visit(const ir::UIntImm *op) {
 
 llvm::Value *CodeGenLLVM::Visit(const ir::FloatImm *op) { return llvm::ConstantFP::get(b_->getFloatTy(), op->value); }
 
+llvm::Value *CodeGenLLVM::LLVMGenGlobalStringVar(const std::string &data) { return b_->CreateGlobalStringPtr(data); }
+
+llvm::Value *CodeGenLLVM::Visit(const ir::StringImm *op) { return LLVMGenGlobalStringVar(op->value); }
+
 llvm::Value *CodeGenLLVM::Visit(const ir::Add *op) {
   return EmitBinaryOp(Visit(&op->a()), Visit(&op->b()), '+', is_integral_type(op->type()));
 }
@@ -128,7 +138,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Mod *op) {
   } else /*float*/ {                                         \
     predicate = llvm::CmpInst::FCMP_##__fop;                 \
   }                                                          \
-  return EmitComparison(predicate, lhs, rhs, m_, b_)
+  return EmitComparison(predicate, lhs, rhs, b_)
 
 llvm::Value *CodeGenLLVM::Visit(const ir::EQ *op) { __IR_EMITTER_DEFINE_CMP_VISITOR(EQ, EQ, OEQ); }
 
@@ -413,12 +423,14 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   if (op->name == runtime::buffer_create) {
-  } else if (op->name == runtime::buffer_get_data_handle || op->name == runtime::buffer_get_data_const_handle) {
-    return PrintCall_buffer_get_data_handle(op);
+  } else if (op->name == runtime::get_address_repr) {
+    return EmitCall_get_address(op);
+  } else if (op->name == runtime::debug_log_repr) {
+    return EmitCall_debug_info(op);
   }
 
   llvm::Function *callee = m_->getFunction(op->name);
-  CHECK(callee) << "Unknown function referenced";
+  CHECK(callee) << "Unknown function referenced. [" << op->name << "], [" << runtime::get_address_repr << "]";
 
   std::vector<llvm::Value *> args;
   for (const auto &e : op->read_args) {
@@ -487,8 +499,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Free *op) {
   auto *buffer_op = op->destination.As<ir::_Buffer_>();
   CHECK(named_vars_.count(buffer_op->name));
   named_vars_.erase(buffer_op->name);
-  // auto *buffer = named_vars_[buffer_op->name];
-  // llvm::dyn_cast<llvm::AllocaInst>(buffer)->removeFromParent();
   return nullptr;
 }
 
@@ -497,6 +507,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Range_ *op) { __IR_EMITTER_NOT_IMPLEM
 llvm::Value *CodeGenLLVM::Visit(const ir::_IterVar_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Buffer_ *op) {
+  return GetVar(op->name);
   int numel = 1;
   for (const auto &e : op->shape) {
     numel *= e.As<ir::IntImm>()->value;
@@ -551,7 +562,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
       /*Result=*/b_->getVoidTy(),
       /*Params=*/std::move(arg_types),
       /*isVarArg=*/false);
-  CHECK(m_);
   CHECK(m_->getFunction(op->name) == nullptr) << "function[" << op->name << "] exists";
 
   llvm::Function *function = llvm::Function::Create(
@@ -563,10 +573,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
   // function->addFnAttr("no-frame-pointer-elim", "false");
   function->setHasUWTable();  // GDB
 
-  std::vector<llvm::Value *> args;
-  for (auto &arg : function->args()) {
-    args.push_back(&arg);
-  }
+  std::vector<llvm::Value *> args(function->arg_size());
+  std::transform(
+      function->arg_begin(), function->arg_end(), args.begin(), [](auto &arg) { return std::addressof(arg); });
 
   llvm::BasicBlock *entry = llvm::BasicBlock::Create(
       /*Context=*/b_->getContext(),
@@ -584,12 +593,19 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
     named_vars_.erase("_args");
   }
   RetVoid();
-
   return nullptr;
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Let *op) {
-  return named_vars_[op->symbol.As<ir::_Var_>()->name] = Visit(&op->body);
+  CHECK(op->type().valid());
+  auto name = op->symbol.As<ir::_Var_>()->name;
+  if (op->body.defined()) {
+    named_vars_[name] = Visit(&op->body);
+  } else {
+    named_vars_[name] = Alloca(CinnTypeToIrType(op->type(), m_));
+  }
+  return named_vars_[name];
+  // return named_vars_[op->symbol.As<ir::_Var_>()->name] = Visit(&op->body);
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Reduce *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
@@ -645,35 +661,43 @@ void CodeGenLLVM::Compile(const lang::Module &module) {
   }
 }
 
-llvm::Value *CodeGenLLVM::PrintCall_buffer_create(const ir::Call *op) {
+llvm::Value *CodeGenLLVM::EmitCall_buffer_create(const ir::Call *op) {
   CHECK_EQ(op->read_args.size(), 2UL);
   const ir::_Buffer_ *buffer_arg = op->read_args.front().as_buffer();
   CHECK(buffer_arg);
 }
 
-llvm::Value *CodeGenLLVM::PrintCall_buffer_malloc(const ir::Call *op) {}
+llvm::Value *CodeGenLLVM::EmitCall_buffer_malloc(const ir::Call *op) {}
 
-llvm::Value *CodeGenLLVM::PrintCall_buffer_get_data_handle(const ir::Call *op) {
-  CHECK_EQ(op->read_args.size(), 1UL);
-  auto *buffer_op     = op->read_args.front().As<ir::_Buffer_>();
-  llvm::Value *buffer = named_vars_[buffer_op->name];
-  // llvm::Value *buffer = Visit(&op->args.front());
-  CHECK(buffer) << "buffer is null";
-
-  std::vector<llvm::Value *> indices;
-  for (int i : {0, 3}) {
-    indices.push_back(llvm::ConstantInt::get(b_->getInt32Ty(), std::move(i)));
+llvm::Value *CodeGenLLVM::EmitCall_get_address(const ir::Call *op) {
+  if (auto *read_var = op->read_args.front().as_var()) {
+    return named_vars_[read_var->name];
   }
 
-  llvm::Value *host_memory_ptr = GEP(buffer, std::move(indices));
-  llvm::Type *op_type          = llvm::PointerType::getUnqual(CinnTypeToIrType(buffer_op->type(), m_));
-  auto inst                    = BitCast(Load(host_memory_ptr), op_type);
-  return inst;
+  if (auto *read_buf = op->read_args.front().as_buffer()) {
+    return named_vars_[read_buf->name];
+  }
+  return nullptr;
 }
 
-llvm::Value *CodeGenLLVM::PrintCall_get_address(const ir::Call *op) {}
+llvm::Value *CodeGenLLVM::EmitCall_debug_info(const ir::Call *op) {
+  auto callee = m_->getFunction(runtime::debug_log_repr);
+  CHECK_EQ(op->read_args.size(), 1UL);
+  llvm::Value *msg = Visit(&op->read_args.front());
 
-llvm::Value *CodeGenLLVM::PrintCall_pod_values_to_array(const ir::Call *op) {}
+  return Call(callee, std::vector<llvm::Value *>({msg}), "call debug_info");
+}
+
+llvm::Value *CodeGenLLVM::GetVar(const std::string &name) {
+  auto it = named_vars_.find(name);
+  CHECK(it != named_vars_.end());
+  return it->second;
+}
+
+void CodeGenLLVM::SetVar(const std::string &name, llvm::Value *val) {
+  CHECK(!named_vars_.count(name));
+  named_vars_[name] = val;
+}
 
 }  // namespace backends
 }  // namespace cinn

@@ -1,9 +1,12 @@
 #include "cinn/runtime/intrinsic.h"
+
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
 
 namespace cinn {
 namespace runtime {
+
+Expr GetAddr(Type type, Expr arg) { return IntrinsicCall(type, runtime::get_address_repr, {arg}); }
 
 ir::Expr BufferCreate(ir::Buffer buffer) {
   std::vector<Expr> args;
@@ -14,7 +17,7 @@ ir::Expr BufferCreate(ir::Buffer buffer) {
       Void(), runtime::buffer_create, args, {}, ir::Call::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
 }
 
-ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr> &indices) {
+ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices) {
   std::vector<ir::Expr> args({ir::Expr(buffer->buffer_addr())});
   args.insert(std::end(args), indices.begin(), indices.end());
 
@@ -89,6 +92,13 @@ ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_const) {
   target_type.set_cpp_const(is_const);
   auto cast = ir::Cast::Make(target_type, call);
   return cast;
+}
+
+Expr IntrinsicCall(Type type,
+                   const std::string& fn_name,
+                   const std::vector<Expr>& args,
+                   const std::vector<Expr>& write_args) {
+  return ir::Call::Make(type, fn_name, args, write_args, ir::Call::CallType::Intrinsic);
 }
 
 }  // namespace runtime

@@ -1,5 +1,7 @@
 #include "cinn/common/cinn_value.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/common/common.h"
 #include "cinn/common/ir.h"
 #include "cinn/ir/ir.h"
@@ -30,12 +32,12 @@ TEST(CINNValue, Expr) {
 
   {
     CINNValue value(a);
-    ASSERT_EQ(a, Expr(value));
+    ASSERT_TRUE(a == value);
   }
 
   {
     CINNValue copied = CINNValue(a);
-    ASSERT_EQ(Expr(copied), common::make_const(1));
+    ASSERT_TRUE(copied == common::make_const(1));
   }
 }
 

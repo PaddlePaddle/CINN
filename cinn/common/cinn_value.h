@@ -1,6 +1,8 @@
 #pragma once
 #include <glog/logging.h>
+
 #include <vector>
+
 #include "cinn/common/common.h"
 #include "cinn/common/macros.h"
 #include "cinn/common/object.h"
@@ -88,8 +90,8 @@ class CINNValue : public cinn_pod_value_t {
   explicit CINNValue(cinn_buffer_t* value) : cinn_pod_value_t(value) {}
   explicit CINNValue(void* value) : cinn_pod_value_t(value) {}
   explicit CINNValue(const char* value) : cinn_pod_value_t(value) {}
-  explicit CINNValue(ir::Var value);
-  explicit CINNValue(ir::Expr value);
+  explicit CINNValue(const ir::Var& value);
+  explicit CINNValue(const ir::Expr& value);
   explicit CINNValue(const CINNValuePackShared& value);
 
   bool defined() const { return type_code_ != kNull; }

@@ -1,5 +1,8 @@
 #include "cinn/runtime/cinn_runtime.h"
 
+#include <stdarg.h>
+#include <stdio.h>
+
 extern "C" {
 
 int cinn_buffer_malloc(void* context, struct cinn_buffer_t* buf) {
@@ -108,10 +111,10 @@ cinn_buffer_t* cinn_buffer_new(cinn_device_kind_t device, cinn_type_t type, cons
 
 //! Implement the type_code for all the supported types.
 // @{
-#define __m(T, code__)                   \
-  template <>                            \
-  int cinn_pod_value_t::type_code<T>() { \
-    return code__;                       \
+#define __m(T, code__)                             \
+  template <>                                      \
+  constexpr int cinn_pod_value_t::type_code<T>() { \
+    return code__;                                 \
   }
 __m(int32_t, 0);
 __m(int64_t, 1);
@@ -179,3 +182,65 @@ cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t value) { return value
 void float_to_cinn_pod_value(float v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
 void buffer_p_to_cinn_pod_value(cinn_buffer_t* v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
 // @}
+
+void cinn_print_debug_string(const char* s, ...) {
+  va_list args;
+  va_start(args, s);
+  vfprintf(stderr, s, args);
+  va_end(args);
+
+  fprintf(stderr, "\n");
+}
+
+void debug_pod_value(cinn_pod_value_t v, int i) {
+  switch (v.type_code()) {
+    case cinn_pod_value_t::type_code<cinn_buffer_t*>(): {
+      cinn_buffer_t* node = v;
+      if (node->host_memory) {
+        cinn_print_debug_string("arg[%d].host_memory: %p\n", i, node->host_memory);
+      } else {
+        cinn_print_debug_string("arg[%d].host_memory: %p\n", i, NULL);
+      }
+    } break;
+    case cinn_pod_value_t::type_code<int32_t>(): {
+      int node = v;
+      cinn_print_debug_string("arg[%d] : %d\n", i, node);
+    } break;
+    case cinn_pod_value_t::type_code<float>(): {
+      float node = v;
+      cinn_print_debug_string("arg[%f] : %d\n", i, node);
+    } break;
+    default:
+      cinn_print_debug_string("pod type not supported");
+      break;
+  }
+}
+
+void cinn_print_debug_args(cinn_pod_value_t* args, int count) {
+  cinn_print_debug_string("start debug ==");
+  cinn_print_debug_string("args: %p\n", (void*)args);
+  cinn_print_debug_string("with %d arguments", count);
+  if (!args) {
+    cinn_print_debug_string("args is null!!");
+    return;
+  }
+
+  for (int i = 0; i < count; i++) {
+    cinn_print_debug_string("arg[%d]: %p\n", i, (void*)(&args[i]));
+    debug_pod_value(args[i], i);
+  }
+}
+
+void cinn_args_construct(cinn_pod_value_t* arr, int count, ...) {
+  CINN_CHECK(count < 1000);
+  CINN_CHECK_LT(count, 0);
+
+  va_list args;
+  va_start(args, count);
+  for (int i = 0; i < count; i++) {
+    cinn_pod_value_t* elem_addr = va_arg(args, cinn_pod_value_t*);
+    arr[i]                      = *elem_addr;
+    // debug_pod_value(*elem_addr, i);
+  }
+  va_end(args);
+}

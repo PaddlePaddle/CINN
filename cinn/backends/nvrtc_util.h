@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 #endif
 #include <glog/logging.h>
+
 #include <string>
 #include <vector>
 

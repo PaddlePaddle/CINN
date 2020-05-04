@@ -4,6 +4,7 @@
 #include "cinn/optim/call_arg_list_to_pod_value.h"
 #include "cinn/optim/eliminate_broadcast_in_forloop.h"
 #include "cinn/optim/fold_call_arguments.h"
+#include "cinn/optim/insert_debug_log_callee.h"
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/remove_nested_block.h"
@@ -15,7 +16,7 @@
 namespace cinn {
 namespace optim {
 
-Expr Optimize(Expr e) {
+Expr Optimize(Expr e, bool runtime_debug_info) {
   CHECK(e.defined());
   auto copied = IRCopy(e);
 
@@ -30,6 +31,11 @@ Expr Optimize(Expr e) {
   CallArgListToPodValue(&copied);
 
   Simplify(&copied);
+
+  if (runtime_debug_info) {
+    LOG(WARNING) << "Turn on runtime debug information output";
+    InsertDebugLogCallee(&copied);
+  }
 
   return copied;
 }

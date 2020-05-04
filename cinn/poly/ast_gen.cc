@@ -1,5 +1,7 @@
 #include "cinn/poly/ast_gen.h"
+
 #include <utility>
+
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
 

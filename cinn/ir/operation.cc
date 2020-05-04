@@ -1,5 +1,7 @@
 #include "cinn/ir/operation.h"
+
 #include <memory>
+
 #include "cinn/common/common.h"
 
 namespace cinn {

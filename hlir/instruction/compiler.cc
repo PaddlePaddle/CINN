@@ -9,19 +9,28 @@ namespace instruction {
 
 Compiler::Compiler() { jit_ = cinn::backends::SimpleOrcJit::Create(); }
 
-void Compiler::Eval(const Module *module, cinn_pod_value_t *args, int args_num) {
+void Compiler::Eval(const Module *module, cinn_pod_value_t *args, int args_num, const std::string &fn_name) {
   // TODO(Superjomn) make a cache here.
 
-  lowered_func_p main_fn = Compile(module);
-  CHECK(main_fn);
+  lowered_func_p fn{};
 
-  main_fn(args, args_num);
+  auto main_fn = Compile(module);
+
+  if (fn_name.empty()) {
+    fn = main_fn;
+  } else {
+    auto addr = jit_->Lookup(fn_name);
+    fn        = reinterpret_cast<void (*)(void *, int32_t)>(addr);
+  }
+
+  CHECK(fn);
+  fn(args, args_num);
 }
 
 lowered_func_p Compiler::Compile(const Module *module) {
   auto cinn_module = Lower(*module, true);
 
-  jit_->Link(cinn_module, /*optimize=*/true);
+  jit_->Link(cinn_module, /*optimize=*/false);
 
   auto entry_fn_name = module->entry_computation()->name();
 

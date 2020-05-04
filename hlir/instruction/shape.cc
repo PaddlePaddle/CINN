@@ -1,5 +1,7 @@
 #include "hlir/instruction/shape.h"
+
 #include <unordered_set>
+
 #include "cinn/ir/ir_printer.h"
 
 namespace hlir {

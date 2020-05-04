@@ -41,8 +41,12 @@ llvm::Type *CinnTypeToIrType(common::Type type, llvm::Module *m) {
     CHECK(!type.customized_type().empty());
     ir_type = m->getTypeByName("struct." + type.customized_type());
   }
-
   CHECK(ir_type) << "LLVM can't convert type: " << type;
+
+  // C array.
+  if (type.lanes() > 1) {
+    ir_type = llvm::ArrayType::get(ir_type, type.lanes());
+  }
 
   if (type.is_cpp_handle()) {
     ir_type = llvm::PointerType::getUnqual(ir_type);
@@ -55,6 +59,23 @@ llvm::Type *CinnTypeToIrType(common::Type type, llvm::Module *m) {
 
   return ir_type;
 }
+
+#define __(ty__)                                         \
+  template <>                                            \
+  llvm::Type *llvm_type_of<ty__>(llvm::Module * m) {     \
+    return CinnTypeToIrType(common::type_of<ty__>(), m); \
+  }
+
+__(int32_t)
+__(int64_t)
+__(float)
+__(double)
+__(cinn_buffer_t)
+__(cinn_buffer_t *)
+__(cinn_pod_value_t *)
+__(cinn_pod_value_t)
+
+#undef __
 
 }  // namespace backends
 }  // namespace cinn

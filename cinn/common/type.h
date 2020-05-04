@@ -21,6 +21,7 @@ struct Type {
     Int,
     UInt,
     Float,
+    String,
     Void,
     // stupid idea to mix the Customized with other primitive types, large refactor needs here.
     Customized,  // Customized type
@@ -51,6 +52,7 @@ struct Type {
   bool is_float(int bits = -1) const { return type_ == type_t::Float && (bits < 0 || bits == this->bits()); }
   bool is_int(int bits = -1) const { return type_ == type_t::Int && (bits < 0 || bits == this->bits()); }
   bool is_uint(int bits = -1) const { return type_ == type_t::UInt && (bits < 0 || bits == this->bits()); }
+  bool is_string() const { return type_ == type_t::String; }
   // @}
 
   Type& set_cpp_handle(bool x = true);
@@ -123,6 +125,7 @@ inline Type Int(int bits, int lanes = 1) { return Type(Type::type_t ::Int, bits,
 inline Type UInt(int bits, int lanes = 1) { return Type(Type::type_t ::UInt, bits, lanes); }
 inline Type Float(int bits, int lanes = 1) { return Type(Type::type_t ::Float, bits, lanes); }
 inline Type Bool(int lanes = 1) { return Type(Type::type_t ::UInt, 1, lanes); }
+inline Type String() { return Type(Type::type_t::String, 1, 1); }
 
 template <typename T>
 Type type_of();
@@ -135,7 +138,8 @@ template <> inline Type type_of<int16_t>() { return UInt(16); }
 template <> inline Type type_of<unsigned int>() { return UInt(32); }
 template <> inline Type type_of<bool>() { return Bool(); }
 template <> inline Type type_of<char>() { return Int(8); }
-template <> inline Type type_of<int>() { return Int(32); }
+template <> inline Type type_of<int32_t>() { return Int(32); }
+template <> inline Type type_of<int64_t>() { return Int(64); }
 template <> inline Type type_of<signed char>() { return Int(8); }
 template <> inline Type type_of<void>() { return Void(); }
 // clang-format on

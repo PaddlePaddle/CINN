@@ -85,11 +85,11 @@ CINNValue::operator CINNValuePackShared() const {
 }
 CINNValue::CINNValue(char *value) : cinn_pod_value_t(ToValue(value), TypeCode<char *>()) {}
 
-CINNValue::CINNValue(Var value) : cinn_pod_value_t(cinn_value_t(), TypeCode<Var>()) {
+CINNValue::CINNValue(const Var &value) : cinn_pod_value_t(cinn_value_t(), TypeCode<Var>()) {
   CHECK(value.defined());
   shared_ = value;
 }
-CINNValue::CINNValue(Expr value) : cinn_pod_value_t(cinn_value_t(), TypeCode<Expr>()) {
+CINNValue::CINNValue(const Expr &value) : cinn_pod_value_t(cinn_value_t(), TypeCode<Expr>()) {
   CHECK(value.defined());
   shared_ = value;
 }

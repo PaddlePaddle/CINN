@@ -1,7 +1,10 @@
 #include "cinn/backends/codegen_cuda_dev.h"
+
 #include <gtest/gtest.h>
 #include <stdlib.h>
+
 #include <vector>
+
 #include "cinn/backends/nvrtc_util.h"
 #include "cinn/cinn.h"
 #include "cinn/runtime/cuda/cuda_module.h"

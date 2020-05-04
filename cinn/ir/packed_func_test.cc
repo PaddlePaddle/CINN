@@ -1,5 +1,7 @@
 #include "cinn/ir/packed_func.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/utils/string.h"

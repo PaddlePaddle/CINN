@@ -1,5 +1,7 @@
 #include "hlir/instruction/computation.h"
+
 #include <gtest/gtest.h>
+
 #include <iostream>
 
 namespace hlir {

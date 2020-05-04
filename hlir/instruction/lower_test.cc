@@ -1,7 +1,10 @@
 #include "hlir/instruction/lower.h"
+
 #include <glog/raw_logging.h>
 #include <gtest/gtest.h>
+
 #include <utility>
+
 #include "cinn/backends/codegen_c.h"
 
 namespace hlir {

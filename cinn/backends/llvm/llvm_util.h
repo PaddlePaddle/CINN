@@ -29,5 +29,8 @@ std::string DumpToString(const T &entity) {
 
 llvm::Type *CinnTypeToIrType(common::Type t, llvm::Module *m);
 
+template <typename T>
+llvm::Type *llvm_type_of(llvm::Module *m);
+
 }  // namespace backends
 }  // namespace cinn
