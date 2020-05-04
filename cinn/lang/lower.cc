@@ -5,6 +5,7 @@
 #include <set>
 #include <stack>
 #include <unordered_set>
+#include <utility>
 
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_printer.h"
@@ -198,7 +199,7 @@ struct LowerImpl {
     auto func_temp_bufs = GenTempBuffers();
 
     auto func = ir::_LoweredFunc_::Make(std::string(name_), func_args, func_body, func_temp_bufs);
-    auto res  = optim::Optimize(func);
+    auto res  = optim::Optimize(func, FLAGS_cinn_runtime_display_debug_info);
     return ir::LoweredFunc(res.get());
   }
 

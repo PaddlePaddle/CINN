@@ -1,19 +1,23 @@
 add_definitions(${LLVM_DEFINITIONS})
 
 # generate cinn_runtime.ll file
-execute_process(
+
+add_custom_target(GEN_LLVM_RUNTIME_IR
+    ALL
     COMMAND clang++ -mavx2 -std=c++11 -masm=intel -S -emit-llvm -O3 ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc -I${PROJECT_SOURCE_DIR}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-execute_process(
-    COMMAND cat ${CMAKE_BINARY_DIR}/cinn_runtime.ll
-    COMMAND python3 generate_runtime_llvm_ir.py
-    OUTPUT_FILE ${CMAKE_BINARY_DIR}/cinn/backends/llvm/cinn_runtime_llvm_ir.h
-    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/cinn/backends/llvm
-)
+add_custom_target(GEN_LLVM_RUNTIME_IR_HEADER
+        ALL
+        COMMAND python3 generate_runtime_llvm_ir.py ${CMAKE_BINARY_DIR}/cinn_runtime.ll
+            ${CMAKE_BINARY_DIR}/cinn/backends/llvm/cinn_runtime_llvm_ir.h
+        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/cinn/backends/llvm
+        )
+add_dependencies(GEN_LLVM_RUNTIME_IR_HEADER GEN_LLVM_RUNTIME_IR)
 
 cc_library(llvm_util SRCS llvm_util.cc DEPS core LLVM)
+add_dependencies(llvm_util GEN_LLVM_RUNTIME_IR_HEADER)
 
 cc_library(codegen_llvm SRCS codegen_llvm.cc DEPS llvm_util)
 

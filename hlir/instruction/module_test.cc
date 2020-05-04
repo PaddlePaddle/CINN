@@ -1,4 +1,5 @@
 #include "hlir/instruction/module.h"
+
 #include <gtest/gtest.h>
 
 namespace hlir {

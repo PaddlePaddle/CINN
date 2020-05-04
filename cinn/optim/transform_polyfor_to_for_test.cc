@@ -63,9 +63,9 @@ TEST(Expr, basic) {
 
 void matmul(void* _args, int32_t num_args)
 {
-  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
-  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[0]);
+  const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[1]);
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[2]);
   cinn_buffer_malloc((void*)(0), _C);
   const float* A = ((const float*)(_A->host_memory));
   const float* B = ((const float*)(_B->host_memory));

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "cinn/backends/codegen_c.h"
+#include "cinn/runtime/cinn_runtime.h"
 #include "hlir/instruction/module.h"
 
 namespace hlir {
@@ -67,25 +68,46 @@ std::unique_ptr<Module> CreateModule(const std::string& name) {
   return module;
 }
 
-TEST(Compiler, basic) {
+TEST(Compiler, call_kernel_directly) {
   Compiler compiler;
 
   auto module = CreateModule("module0");
 
   auto [a, b, c] = CreateTestBuffer(100, 200);  // NOLINT
 
-  std::vector<cinn_pod_value_t> args({
-      cinn_pod_value_t(a),
-      cinn_pod_value_t(b),
-      cinn_pod_value_t(c),
-  });
+  cinn_pod_value_t a_arg(a), b_arg(b), c_arg(c);
+  cinn_pod_value_t args[] = {a_arg, b_arg, c_arg};
 
-  cinn_pod_value_to_buffer_p(args[0]);
-  cinn_pod_value_to_buffer_p(args[1]);
-  cinn_pod_value_to_buffer_p(args[2]);
+  compiler.Eval(module.get(), args, 3, "elementwise_add0");
 
-  // TODO(fc) fix this
-  // compiler.Eval(module.get(), args.data(), args.size());
+  const float* c_data = reinterpret_cast<float*>(c->host_memory);
+
+  for (int i = 0; i < c->num_elements(); i++) {
+    ASSERT_EQ(c_data[i], i * 2);
+  }
+}
+
+TEST(Compiler, call_main) {
+  Compiler compiler;
+
+  auto module = CreateModule("module0");
+
+  auto [a, b, c] = CreateTestBuffer(100, 200);  // NOLINT
+
+  cinn_print_debug_string("a.host_memory: %p", a->host_memory);
+  cinn_print_debug_string("b.host_memory: %p", b->host_memory);
+  cinn_print_debug_string("c.host_memory: %p", c->host_memory);
+
+  cinn_pod_value_t a_arg(a), b_arg(b), c_arg(c);
+  cinn_pod_value_t args[] = {a_arg, b_arg, c_arg};
+
+  compiler.Eval(module.get(), args, 3, "");
+
+  const float* c_data = reinterpret_cast<float*>(c->host_memory);
+
+  for (int i = 0; i < c->num_elements(); i++) {
+    ASSERT_EQ(c_data[i], i * 2);
+  }
 }
 
 }  // namespace instruction

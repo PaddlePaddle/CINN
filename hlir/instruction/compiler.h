@@ -18,7 +18,7 @@ class Compiler {
   /**
    * Evaluate a module.
    */
-  void Eval(const Module* module, cinn_pod_value_t* args, int args_num);
+  void Eval(const Module* module, cinn_pod_value_t* args, int args_num, const std::string& fn_name = "");
 
  private:
   /**

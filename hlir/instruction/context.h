@@ -1,5 +1,6 @@
 #pragma once
 #include <glog/logging.h>
+
 #include <string>
 #include <unordered_map>
 #include <unordered_set>

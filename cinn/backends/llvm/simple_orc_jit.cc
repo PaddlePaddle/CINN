@@ -60,7 +60,6 @@ void SimpleOrcJit::AddModule(std::unique_ptr<llvm::Module> module, bool optimize
 
     for (auto &fn : *module) {
       fpm->run(fn);
-      fn.print(llvm::outs(), {});
     }
   }
 

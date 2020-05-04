@@ -1,7 +1,10 @@
 #include "hlir/instruction/lower.h"
+
 #include <glog/logging.h>
+
 #include <iostream>
 #include <unordered_set>
+
 #include "cinn/cinn.h"
 #include "cinn/common/common.h"
 #include "cinn/lang/compute.h"

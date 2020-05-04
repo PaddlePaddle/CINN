@@ -1,5 +1,7 @@
 #include "cinn/backends/llvm/simple_orc_jit.h"
+
 #include <glog/logging.h>
+#include <glog/raw_logging.h>
 #include <gtest/gtest.h>
 #include <llvm/AsmParser/Parser.h>
 #include <llvm/IR/Function.h>
@@ -7,15 +9,18 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
+
 #include <algorithm>
 #include <iomanip>
 #include <memory>
 #include <tuple>
 #include <utility>
 #include <vector>
+
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
 #include "cinn/lang/module.h"
@@ -77,7 +82,8 @@ auto CreateTestCinnModule() {
 }  // namespace
 
 TEST(llvm_test01, elementwise_add) {
-  auto jit = backends::SimpleOrcJit::Create();
+  FLAGS_cinn_runtime_display_debug_info = true;
+  auto jit                              = backends::SimpleOrcJit::Create();
 
   auto [a, b, c] = CreateTestBuffer();  // NOLINT
 
@@ -130,15 +136,15 @@ TEST(llvm, module_call_lowered_func) {
     module.Append(main_fn);
   }
 
-  // TODO(fc) fix this.
-  return;
   auto [ab, bb, cb] = CreateTestBuffer();  // NOLINT
-  {                                        // call the function
+  do {                                     // call the function
     auto jit = backends::SimpleOrcJit::Create();
 
-    jit->Link(module, /*optimize=*/true);
+    LOG(INFO) << "JIT Link the module";
+    jit->Link(module, /*optimize=*/false);
     auto elementwise_add_addr = jit->Lookup("elementwise_add");
     auto elementwise_add      = reinterpret_cast<void (*)(void *, int32_t)>(elementwise_add_addr);
+    LOG(INFO) << "JIT get elementwise_add_addr";
 
     cinn_pod_value_t a_arg(ab), b_arg(bb), c_arg(cb);
     cinn_pod_value_t args[3] = {a_arg, b_arg, c_arg};
@@ -151,7 +157,7 @@ TEST(llvm, module_call_lowered_func) {
         ASSERT_NEAR(data[i * kN + j], 2 * (i * kN + j), 1e-5);
       }
     }
-  }
+  } while (false);
 }
 
 }  // namespace backends

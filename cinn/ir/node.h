@@ -39,6 +39,7 @@ class Var;
   macro__(IntImm)                               \
   macro__(UIntImm)                              \
   macro__(FloatImm)                             \
+  macro__(StringImm)                            \
 
 #define NODETY_BINARY_OP_FOR_EACH(macro__) \
   macro__(Add)                      \
@@ -240,6 +241,14 @@ struct FloatImm : public ExprNode<FloatImm> {
   static const IrNodeTy _node_type_ = IrNodeTy::FloatImm;
 };
 
+struct StringImm : public ExprNode<StringImm> {
+  std::string value;
+
+  StringImm(const std::string& value) : value(value) {}
+
+  static const IrNodeTy _node_type_ = IrNodeTy::StringImm;
+};
+
 class Var;
 /**
  * An expression that represents some value or the result of some operations.
@@ -259,6 +268,7 @@ struct Expr : public IrNodeRef {
   explicit Expr(uint64_t x) : IrNodeRef(new UIntImm(UInt(64), x)) {}
   explicit Expr(float x) : IrNodeRef(new FloatImm(Float(32), x)) {}
   explicit Expr(double x) : IrNodeRef(new FloatImm(Float(64), x)) {}
+  explicit Expr(const std::string& x) : IrNodeRef(new StringImm(x)) {}
   // @}
 
   Expr& operator=(const Expr& other);

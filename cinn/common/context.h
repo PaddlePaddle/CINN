@@ -5,12 +5,13 @@
 #include <string>
 #include <vector>
 
-#include <string>
 #include "cinn/common/debug_manager.h"
 #include "cinn/common/info_registry.h"
 #include "cinn/utils/any.h"
 
 namespace cinn {
+
+DECLARE_bool(cinn_runtime_display_debug_info);
 
 namespace ir {
 class Expr;

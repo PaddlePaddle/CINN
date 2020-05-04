@@ -27,8 +27,12 @@ std::ostream &operator<<(std::ostream &os, const Type &t) {
     case Type::type_t::Customized:
       os << t.customized_type();
       break;
-    default:
-      LOG(FATAL) << "Unknown data type found";
+    case Type::type_t::String:
+      os << "string";
+      break;
+    case Type::type_t::Unk:
+      os << "unk";
+      break;
   }
 
   if (t.lanes() > 1) os << "<" << t.lanes() << ">";
@@ -118,9 +122,6 @@ Type Type::with_type(Type::type_t x) const {
 }
 
 Type Type::with_lanes(int x) const {
-  if (x > 1) {
-    CHECK(is_primitive()) << "Only primitive type support lanes";
-  }
   CHECK(valid());
   Type type   = *this;
   type.lanes_ = x;

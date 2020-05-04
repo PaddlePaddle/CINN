@@ -1,8 +1,10 @@
 #pragma once
 #include <glog/logging.h>
 #include <stddef.h>
+
 #include <variant>
 #include <vector>
+
 #include "cinn/ir/ir.h"
 
 namespace hlir {

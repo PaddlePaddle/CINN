@@ -80,14 +80,7 @@ Var _Buffer_::buffer_addr() const {
 
 Expr Buffer::DestroyExpr() const {
   auto *node = operator->();
-  return ir::Call::Make(Void(),
-                        runtime::buffer_destroy,
-                        {ir::_Var_::Make(node->name, node->type())},
-                        {},
-                        Call::CallType::Intrinsic,
-                        FunctionRef(),
-                        0,
-                        Expr());
+  return runtime::IntrinsicCall(Void(), runtime::buffer_destroy, {ir::_Var_::Make(node->name, node->type())});
 }
 
 }  // namespace ir

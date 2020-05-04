@@ -1,6 +1,8 @@
 #include "cinn/optim/fold_call_arguments.h"
+
 #include <unordered_set>
 #include <vector>
+
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/utils/string.h"

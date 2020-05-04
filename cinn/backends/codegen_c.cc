@@ -104,6 +104,7 @@ std::string CodeGenC::PrintType(Type type) {
 void CodeGenC::Visit(const ir::IntImm *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::UIntImm *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::FloatImm *op) { IrPrinter::Visit(op); }
+void CodeGenC::Visit(const ir::StringImm *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Add *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Sub *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Mul *op) { IrPrinter::Visit(op); }
@@ -304,10 +305,13 @@ void CodeGenC::PrintCall_get_address(const ir::Call *op) {
   auto *read_var = op->read_args.front().as_var();
   auto *read_buf = op->read_args.front().as_buffer();
   CHECK(read_var || read_buf) << "Only Var or Buffer can get address";
+
   if (read_var) {
-    os() << "&" << read_var->name;
+    if (read_var->type().lanes() <= 1) os() << "&";
+    os() << read_var->name;
   } else if (read_buf) {
-    os() << "&" << read_buf->name;
+    if (read_buf->type().lanes() <= 1) os() << "&";
+    os() << read_buf->name;
   } else {
     NOT_IMPLEMENTED
   }
@@ -400,14 +404,23 @@ void CodeGenC::Visit(const ir::_IterVar_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_Buffer_ *op) { os() << op->name; }
 void CodeGenC::Visit(const ir::_Tensor_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Let *op) {
+  bool is_vec = false;
   CHECK(op->type().valid());
   if (op->body.defined() &&
       op->body.As<ir::Broadcast>())  // broadcast's type is hard to print, so use c++11 auto instead.
+  {
     os() << "auto";
-  else
+    is_vec = true;
+  } else {
     os() << PrintType(op->type());
+  }
   os() << " ";
   Print(op->symbol);
+
+  // native C array.
+  if (op->type().lanes() > 1 && !is_vec) {
+    os() << "[" << op->type().lanes() << "]";
+  }
 
   if (op->body.defined()) {
     os() << " = ";

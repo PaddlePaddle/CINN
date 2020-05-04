@@ -1,7 +1,9 @@
 #include "cinn/backends/nvrtc_util.h"
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <nvrtc.h>
+
 #include "cinn/backends/cuda_util.h"
 #include "cinn/common/common.h"
 #include "cinn/utils/string.h"

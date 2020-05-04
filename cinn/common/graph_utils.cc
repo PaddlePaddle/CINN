@@ -1,9 +1,12 @@
 #include "cinn/common/graph_utils.h"
+
 #include <glog/logging.h>
+
 #include <deque>
 #include <functional>
 #include <set>
 #include <stack>
+
 #include "cinn/utils/dot_lang.h"
 
 namespace cinn {

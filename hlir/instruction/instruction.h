@@ -1,10 +1,12 @@
 #pragma once
 #include <glog/logging.h>
+
 #include <memory>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
+
 #include "cinn/common/common.h"
 #include "cinn/common/type.h"
 #include "hlir/instruction/instr_code.h"

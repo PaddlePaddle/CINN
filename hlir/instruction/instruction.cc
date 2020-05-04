@@ -1,5 +1,7 @@
 #include "hlir/instruction/instruction.h"
+
 #include <sstream>
+
 #include "cinn/common/macros.h"
 #include "hlir/instruction/computation.h"
 #include "hlir/instruction/instructions.h"

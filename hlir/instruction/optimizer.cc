@@ -1,4 +1,5 @@
 #include "hlir/instruction/optimizer.h"
+
 #include "hlir/instruction/pass/display_program.h"
 
 namespace hlir {

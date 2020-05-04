@@ -66,9 +66,9 @@ TEST(CodeGenC, module) {
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 }, 32/*align*/);
 void add1(void* _args, int32_t num_args)
 {
-  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
-  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[0]);
+  const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[1]);
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[2]);
   cinn_buffer_malloc((void*)(0), _C);
   const float* A = ((const float*)(_A->host_memory));
   const float* B = ((const float*)(_B->host_memory));
@@ -160,10 +160,10 @@ TEST(CodeGenC, module_with_transform) {
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 }, 32/*align*/);
 void add1(void* _args, int32_t num_args)
 {
-  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
-  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
-  cinn_buffer_t* _D = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[3]));
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[0]);
+  const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[1]);
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[2]);
+  cinn_buffer_t* _D = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[3]);
   cinn_buffer_malloc((void*)(0), _C);
   cinn_buffer_malloc((void*)(0), _D);
   const float* A = ((const float*)(_A->host_memory));
@@ -252,9 +252,9 @@ TEST(CodeGenC, matmul) {
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 50 });
 void matmul(void* _args, int32_t num_args)
 {
-  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
-  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[0]);
+  const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[1]);
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[2]);
   cinn_buffer_malloc((void*)(0), _C);
   const float* A = ((const float*)(_A->host_memory));
   const float* B = ((const float*)(_B->host_memory));
@@ -273,22 +273,23 @@ void matmul(void* _args, int32_t num_args)
 
 void main(void* _args, int32_t num_args)
 {
-  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
-  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[0]);
+  const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[1]);
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[2]);
   cinn_buffer_malloc((void*)(0), _C);
   const float* A = ((const float*)(_A->host_memory));
   const float* B = ((const float*)(_B->host_memory));
   float* C = ((float*)(_C->host_memory));
   {
     cinn_pod_value_t _pod_val__8;
-    float_to_cinn_pod_value(_A, &_pod_val__8);
+    buffer_p_to_cinn_pod_value(_A, &_pod_val__8);
     cinn_pod_value_t _pod_val__9;
-    float_to_cinn_pod_value(_B, &_pod_val__9);
+    buffer_p_to_cinn_pod_value(_B, &_pod_val__9);
     cinn_pod_value_t _pod_val__10;
-    float_to_cinn_pod_value(_C, &_pod_val__10);
-    cinn_pod_value_t _pod_arr_11[] = { _pod_val__8, _pod_val__9, _pod_val__10 };
-    matmul(_pod_arr_11, 3);
+    buffer_p_to_cinn_pod_value(_C, &_pod_val__10);
+    cinn_pod_value_t _pod_arr_11[3];
+    cinn_args_construct(_pod_arr_11, 3, &_pod_val__8, &_pod_val__9, &_pod_val__10);
+    matmul(_pod_arr_11, 5);
   };
   cinn_buffer_free((void*)(0), _C);
 }
@@ -356,9 +357,9 @@ TEST(CodeGenC, matmul_tile) {
 cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 }, 32/*align*/);
 void matmul(void* _args, int32_t num_args)
 {
-  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
-  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[0]);
+  const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[1]);
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[2]);
   cinn_buffer_malloc((void*)(0), _C);
   const float* A = ((const float*)(_A->host_memory));
   const float* B = ((const float*)(_B->host_memory));
@@ -472,10 +473,10 @@ cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_
 cinn_buffer_t* _PackedB = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 15, 200, 32 }, 32/*align*/);
 void matmul_with_packing(void* _args, int32_t num_args)
 {
-  const cinn_buffer_t* _A = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[0]));
-  const cinn_buffer_t* _B = ((const cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _PackedB = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[2]));
-  cinn_buffer_t* _C = ((cinn_buffer_t*)(((cinn_pod_value_t*)(_args))[3]));
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[0]);
+  const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[1]);
+  cinn_buffer_t* _PackedB = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[2]);
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(((cinn_pod_value_t*)(_args))[3]);
   cinn_buffer_malloc((void*)(0), _PackedB);
   cinn_buffer_malloc((void*)(0), _C);
   const float* A = ((const float*)(_A->host_memory));

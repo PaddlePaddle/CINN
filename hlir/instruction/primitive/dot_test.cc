@@ -1,5 +1,7 @@
 #include "hlir/instruction/primitive/dot.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/cinn.h"
 
 namespace hlir {

@@ -34,75 +34,32 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   explicit CodeGenLLVM(llvm::Module *m, llvm::IRBuilder<> *b);
   virtual ~CodeGenLLVM();
 
-  llvm::IRBuilder<> *b() { return b_; }
   llvm::Module *m() { return m_; }
+  llvm::IRBuilder<> *b() { return b_; }
 
   void Compile(const lang::Module &module);
 
   using LLVMIRVisitor::Visit;
 
-#define __LLVM_IR_EMITTER_OVERRIDE_VISIT(__op) llvm::Value *Visit(const ::cinn::ir::__op *) override
-
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(IntImm);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(UIntImm);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(FloatImm);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Add);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Sub);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Mul);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Div);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Mod);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(EQ);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(NE);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(LT);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(LE);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(GT);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(GE);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(And);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Or);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Min);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Max);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Minus);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Not);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Cast);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(For);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(PolyFor);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Select);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(IfThenElse);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Block);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Call);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(_Module_);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(_Var_);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Load);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Store);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Alloc);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Free);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(_Range_);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(_IterVar_);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(_Buffer_);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(_Tensor_);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(_LoweredFunc_);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Let);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Reduce);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Ramp);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Broadcast);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(FracOp);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Power);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Product);
-  __LLVM_IR_EMITTER_OVERRIDE_VISIT(Sum);
-
-#undef __LLVM_IR_EMITTER_OVERRIDE_VISIT
-
- private:
-  //! Visit different kinds of Calls, the following methods are analogous to those in CodeGenC.
-  // @{
-  llvm::Value *PrintCall_buffer_create(const ir::Call *op);
-  llvm::Value *PrintCall_buffer_malloc(const ir::Call *op);
-  llvm::Value *PrintCall_buffer_get_data_handle(const ir::Call *op);
-  llvm::Value *PrintCall_get_address(const ir::Call *op);
-  llvm::Value *PrintCall_pod_values_to_array(const ir::Call *op);
-  // @}
+#define __(op__) llvm::Value *Visit(const ir::op__ *) override;
+  NODETY_FORALL(__)
+#undef __
 
  protected:
+  llvm::Value *GetVar(const std::string &name);
+
+  // TODO(Superjomn) When to clear the existing local variables when switch to another function?
+  void SetVar(const std::string &name, llvm::Value *val);
+
+  //! Visit different kinds of Calls, the following methods are analogous to
+  //! those in CodeGenC.
+  // @{
+  llvm::Value *EmitCall_buffer_create(const ir::Call *op);
+  llvm::Value *EmitCall_buffer_malloc(const ir::Call *op);
+  llvm::Value *EmitCall_get_address(const ir::Call *op);
+  llvm::Value *EmitCall_debug_info(const ir::Call *op);
+  // @}
+
   llvm::Value *EmitBinaryOp(llvm::Value *lhs, llvm::Value *rhs, char opcode, bool is_integral, bool is_signed = true);
 
   llvm::Value *EmitIntegerUnaryOp(llvm::Value *);
@@ -110,6 +67,8 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   llvm::Value *EmitIntegerBinaryOp(llvm::Value *);
   llvm::Value *EmitFloatBinaryOp(llvm::Value *, llvm::Value *);
+
+  llvm::Value *LLVMGenGlobalStringVar(const std::string &data);
 
   llvm::Module *m_;
   llvm::IRBuilder<> *b_;

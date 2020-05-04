@@ -39,12 +39,39 @@ static const char* buffer_load_float64 = "buffer_load_float64";
 static const char* pod_value_ty                    = "cinn_pod_value_t";
 static const char* float_to_cinn_pod_value_repr    = "float_to_cinn_pod_value";
 static const char* buffer_p_to_cinn_pod_value_repr = "buffer_p_to_cinn_pod_value";
+static const char* pod_value_to_buffer_p           = "cinn_pod_value_to_buffer_p";
+static const char* pod_value_to_int32              = "cinn_pod_value_to_int32";
+static const char* pod_value_to_int64              = "cinn_pod_value_to_int64";
+static const char* pod_value_to_float              = "cinn_pod_value_to_float";
+static const char* pod_value_to_double             = "cinn_pod_value_to_double";
+static const char* print_debug_args_repr           = "cinn_print_debug_args";
 
 static const char* pod_values_to_array_repr = "pod_values_to_array";
 
 static const char* get_address_repr = "get_address";
 
-class pod_values_to_array;
+// static const char* args_create  = "cinn_args_create";
+// static const char* args_set     = "cinn_args_set";
+// static const char* args_destroy = "cinn_args_destroy";
+
+static const char* args_construct_repr = "cinn_args_construct";
+
+//! Name of the helper intrinsic used to display debug string.
+static const char* debug_log_repr = "cinn_print_debug_string";
+
+/**
+ * Call an intrnsic function.
+ * @param type Return type of the function.
+ * @param fn_name Name of the function.
+ * @param args The arguments for the function.
+ * @return The Call node.
+ */
+Expr IntrinsicCall(Type type,
+                   const std::string& fn_name,
+                   const std::vector<Expr>& args,
+                   const std::vector<Expr>& write_args = {});
+
+Expr GetAddr(Type type, Expr arg);
 
 ir::Expr BufferCreate(ir::Buffer buffer);
 /**

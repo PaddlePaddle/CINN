@@ -11,6 +11,7 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   eliminate_broadcast_in_forloop.cc
   fold_call_arguments.cc
   call_arg_list_to_pod_value.cc
+  insert_debug_log_callee.cc
   )
 
 foreach(cpp ${srcs})

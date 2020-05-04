@@ -22,6 +22,7 @@ void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitte
 void IrPrinter::Visit(const IntImm *x) { os_ << x->value; }
 void IrPrinter::Visit(const UIntImm *x) { os_ << x->value; }
 void IrPrinter::Visit(const FloatImm *x) { os_ << x->value; }
+void IrPrinter::Visit(const StringImm *x) { os_ << "\"" << x->value << "\""; }
 void IrPrinter::Visit(const Add *x) { PrintBinaryOp("+", x); }
 void IrPrinter::Visit(const Sub *x) { PrintBinaryOp("-", x); }
 void IrPrinter::Visit(const Mul *x) { PrintBinaryOp("*", x); }

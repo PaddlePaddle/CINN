@@ -105,7 +105,7 @@ struct cinn_device_interface_t {
   int (*copy_to_host)(void* context, struct cinn_buffer_t* buf);
   int (*copy_to_device)(void* context, struct cinn_buffer_t* buf);
   int (*buffer_copy)(void* context, struct cinn_buffer_t* src, struct cinn_buffer_t* dst);
-  cinn_device_interface_impl_t* impl;
+  struct cinn_device_interface_impl_t* impl;
 };
 
 /**
@@ -159,7 +159,7 @@ typedef struct cinn_buffer_t {
   cinn_dimension_t* dims;
 
   //! Allocate and deallocate lazily, default true.
-  bool lazy;
+  char lazy;
 
   //! The actual memory size.
   uint64_t memory_size;
@@ -237,6 +237,7 @@ typedef struct cinn_buffer_t {
 #endif  // __cplusplus
 } cinn_buffer_t;
 
+#ifdef __cplusplus
 //! Create a new cinn_buffer.
 cinn_buffer_t* cinn_buffer_new(cinn_device_kind_t device,
                                cinn_type_t type,
@@ -254,7 +255,7 @@ struct cinn_device_interface_impl_t {
 };
 
 // The device implementations
-extern cinn_device_interface_t cinn_x86_device_interface;
+extern struct cinn_device_interface_t cinn_x86_device_interface;
 
 inline float cinn_buffer_load_float32(struct cinn_buffer_t* buf, uint32_t index) {
   return ((float*)buf->host_memory)[index];  // NOLINT
@@ -262,6 +263,7 @@ inline float cinn_buffer_load_float32(struct cinn_buffer_t* buf, uint32_t index)
 inline double cinn_buffer_load_float64(struct cinn_buffer_t* buf, uint32_t index) {
   return ((double*)buf->host_memory)[index];  // NOLINT
 }
+#endif  // __cplusplus
 
 static inline int32_t cinn_min(int32_t a, int32_t b) { return a < b ? a : b; }
 static inline int32_t cinn_max(int32_t a, int32_t b) { return a > b ? a : b; }
@@ -289,6 +291,11 @@ static inline int32_t cinn_max(int32_t a, int32_t b) { return a > b ? a : b; }
     CINN_LOG("check %s failed", #cond); \
     abort();                            \
   }
+#define CINN_CHECK_LT(a, b)                                \
+  if (!(a > b)) {                                          \
+    cinn_print_debug_string("check %d > %d failed", a, b); \
+    abort();                                               \
+  }
 #define CINN_CHECKP(cond, ...) \
   if (!(cond)) {               \
     CINN_LOG(__VA_ARGS__);     \
@@ -306,9 +313,6 @@ static inline int32_t cinn_max(int32_t a, int32_t b) { return a > b ? a : b; }
 
 #endif  // CINN_RUNTIME_CINN_RUNTIME_H_
 
-#ifdef __cplusplus
-// @{ PodValue
-
 union cinn_value_t {
   int64_t v_int64;
   double v_float64;
@@ -317,6 +321,11 @@ union cinn_value_t {
 };
 
 struct cinn_pod_value_t {
+#ifdef __cplusplus
+  // @{ PodValue
+
+  cinn_pod_value_t() = default;
+
   cinn_pod_value_t(cinn_value_t value, int type_code);
   explicit cinn_pod_value_t(cinn_buffer_t* value);
   explicit cinn_pod_value_t(int32_t value);
@@ -343,11 +352,17 @@ struct cinn_pod_value_t {
   static int type_code();
 
  protected:
-  int type_code_{};
-  cinn_value_t value_;
+  // @}
+#endif  // __cplusplus
+  int type_code_;
+  union cinn_value_t value_;
 };
 
+typedef struct cinn_pod_value_t cinn_pod_value_t;
+
+#ifdef __cplusplus
 extern "C" {
+#endif
 //! cinn_pod_value to specific types.
 // @{
 float cinn_pod_value_to_float(cinn_pod_value_t value);
@@ -361,9 +376,21 @@ cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t value);
 //! other specific types to cinn_pod_value
 // @{
 void float_to_cinn_pod_value(float v, cinn_pod_value_t* out);
-void buffer_p_to_cinn_pod_value(cinn_buffer_t* v, cinn_pod_value_t* out);
+void buffer_p_to_cinn_pod_value(struct cinn_buffer_t* v, cinn_pod_value_t* out);
 // @}
-}
 
-// @}
-#endif  // __cplusplus
+void cinn_print_debug_string(const char* s, ...);
+
+void cinn_print_debug_args(cinn_pod_value_t* args, int count);
+
+/**
+ * Construct a Args for LoweredFunc with a list of `cinn_pod_value_t*`
+ * @param arr An array of `cinn_pod_value_t`
+ * @param count Count of elements in the arg list.
+ * @param ... variadic args of `cinn_pod_value_t*`
+ */
+void cinn_args_construct(cinn_pod_value_t* arr, int count, ...);
+
+#ifdef __cplusplus
+}
+#endif

@@ -10,111 +10,257 @@ namespace backends {
 template <typename Derived>
 class IrBuilderMixin {
  protected:
-#define __IR_BUILDER_MIXIN_METHOD(__method_name, __return_type)                 \
-  template <typename... Args>                                                   \
-  decltype(auto) __method_name(Args &&... args) {                               \
-    return mixin_builder()->Create##__method_name(std::forward<Args>(args)...); \
+  template <typename... Args>
+  decltype(auto) BinOp(Args &&... args) {
+    return mixin_builder()->CreateBinOp(std::forward<Args>(args)...);
   }
 
-#define __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(__method_name) __IR_BUILDER_MIXIN_METHOD(__method_name, llvm::Value)
-
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(BinOp)
-
   /// \brief +
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Add)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FAdd)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(NSWAdd)
+  template <typename... Args>
+  decltype(auto) Add(Args &&... args) {
+    return mixin_builder()->CreateAdd(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FAdd(Args &&... args) {
+    return mixin_builder()->CreateFAdd(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) NSWAdd(Args &&... args) {
+    return mixin_builder()->CreateNSWAdd(std::forward<Args>(args)...);
+  }
 
   /// \brief -
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Sub)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FSub)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(NSWSub)
+  template <typename... Args>
+  decltype(auto) Sub(Args &&... args) {
+    return mixin_builder()->CreateSub(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FSub(Args &&... args) {
+    return mixin_builder()->CreateFSub(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) NSWSub(Args &&... args) {
+    return mixin_builder()->CreateNSWSub(std::forward<Args>(args)...);
+  }
 
   /// \brief *
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Mul)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FMul)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(NSWMul)
+  template <typename... Args>
+  decltype(auto) Mul(Args &&... args) {
+    return mixin_builder()->CreateMul(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FMul(Args &&... args) {
+    return mixin_builder()->CreateFMul(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) NSWMul(Args &&... args) {
+    return mixin_builder()->CreateNSWMul(std::forward<Args>(args)...);
+  }
 
   /// \brief /
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(SDiv)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(UDiv)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FDiv)
+  template <typename... Args>
+  decltype(auto) SDiv(Args &&... args) {
+    return mixin_builder()->CreateSDiv(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) UDiv(Args &&... args) {
+    return mixin_builder()->CreateUDiv(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FDiv(Args &&... args) {
+    return mixin_builder()->CreateFDiv(std::forward<Args>(args)...);
+  }
 
   /// \brief %
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(SRem)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(URem)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FRem)
+  template <typename... Args>
+  decltype(auto) SRem(Args &&... args) {
+    return mixin_builder()->CreateSRem(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) URem(Args &&... args) {
+    return mixin_builder()->CreateURem(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FRem(Args &&... args) {
+    return mixin_builder()->CreateFRem(std::forward<Args>(args)...);
+  }
 
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(And)  ///< &
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Or)   ///< |
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Not)  ///< !
+  template <typename... Args>
+  decltype(auto) And(Args &&... args) {
+    return mixin_builder()->CreateAnd(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) Or(Args &&... args) {
+    return mixin_builder()->CreateOr(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) Not(Args &&... args) {
+    return mixin_builder()->CreateNot(std::forward<Args>(args)...);
+  }
 
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Neg)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FNeg)
+  template <typename... Args>
+  decltype(auto) Neg(Args &&... args) {
+    return mixin_builder()->CreateNeg(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FNeg(Args &&... args) {
+    return mixin_builder()->CreateFNeg(std::forward<Args>(args)...);
+  }
 
-  /// ==
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpEQ)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpOEQ)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpUEQ)
+  template <typename... Args>
+  decltype(auto) ICmpEQ(Args &&... args) {
+    return mixin_builder()->CreateICmpEQ(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FCmpOEQ(Args &&... args) {
+    return mixin_builder()->CreateFCmpOEQ(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FCmpUEQ(Args &&... args) {
+    return mixin_builder()->CreateFCmpUEQ(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) ICmpNE(Args &&... args) {
+    return mixin_builder()->CreateICmpNE(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FCmpONE(Args &&... args) {
+    return mixin_builder()->CreateFCmpONE(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FCmpUNE(Args &&... args) {
+    return mixin_builder()->CreateFCmpUNE(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) ICmpULE(Args &&... args) {
+    return mixin_builder()->CreateICmpULE(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FCmpOLE(Args &&... args) {
+    return mixin_builder()->CreateFCmpOLE(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) ICmpULT(Args &&... args) {
+    return mixin_builder()->CreateICmpULT(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) ICmpSLT(Args &&... args) {
+    return mixin_builder()->CreateICmpSLT(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FCmpOLT(Args &&... args) {
+    return mixin_builder()->CreateFCmpOLT(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) ICmpUGE(Args &&... args) {
+    return mixin_builder()->CreateICmpUGE(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) ICmpSGE(Args &&... args) {
+    return mixin_builder()->CreateICmpSGE(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FCmpOGE(Args &&... args) {
+    return mixin_builder()->CreateFCmpOGE(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) ICmpUGT(Args &&... args) {
+    return mixin_builder()->CreateICmpUGT(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) ICmpSGT(Args &&... args) {
+    return mixin_builder()->CreateICmpSGT(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FCmpOGT(Args &&... args) {
+    return mixin_builder()->CreateFCmpOGT(std::forward<Args>(args)...);
+  }
 
-  /// !=
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpNE)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpONE)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpUNE)
+  template <typename... Args>
+  decltype(auto) BitCast(Args &&... args) {
+    return mixin_builder()->CreateBitCast(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) IntCast(Args &&... args) {
+    return mixin_builder()->CreateIntCast(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FPCast(Args &&... args) {
+    return mixin_builder()->CreateFPCast(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) PointerCast(Args &&... args) {
+    return mixin_builder()->CreatePointerCast(std::forward<Args>(args)...);
+  }
 
-  /// <
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpULE)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpOLE)
+  template <typename... Args>
+  decltype(auto) FPToSI(Args &&... args) {
+    return mixin_builder()->CreateFPToSI(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) FPToUI(Args &&... args) {
+    return mixin_builder()->CreateFPToUI(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) SIToFP(Args &&... args) {
+    return mixin_builder()->CreateSIToFP(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) UIToFP(Args &&... args) {
+    return mixin_builder()->CreateUIToFP(std::forward<Args>(args)...);
+  }
 
-  /// <=
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpULT)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpSLT)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpOLT)
+  template <typename... Args>
+  decltype(auto) Select(Args &&... args) {
+    return mixin_builder()->CreateSelect(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) Br(Args &&... args) {
+    return mixin_builder()->CreateBr(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) CondBr(Args &&... args) {
+    return mixin_builder()->CreateCondBr(std::forward<Args>(args)...);
+  }
 
-  /// >=
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpUGE)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpSGE)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpOGE)
+  template <typename... Args>
+  decltype(auto) Alloca(Args &&... args) {
+    return mixin_builder()->CreateAlloca(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) Load(Args &&... args) {
+    return mixin_builder()->CreateLoad(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) Store(Args &&... args) {
+    return mixin_builder()->CreateStore(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) Call(Args &&... args) {
+    return mixin_builder()->CreateCall(std::forward<Args>(args)...);
+  }
 
-  /// >
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpUGT)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(ICmpSGT)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FCmpOGT)
-
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(BitCast)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(IntCast)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FPCast)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(PointerCast)
-
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FPToSI)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(FPToUI)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(SIToFP)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(UIToFP)
-
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Select)
-
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(Br)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(CondBr)
-
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(RetVoid)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE(GEP)
-
-#undef __IR_BUILDER_MIXIN_CREATE_LLVM_VALUE
-
-#define __IR_BUILDER_MIXIN_CREATE_LLVM_INST(__method_name) __IR_BUILDER_MIXIN_METHOD(__method_name, __method_name)
-
-  __IR_BUILDER_MIXIN_CREATE_LLVM_INST(Alloca)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_INST(Load)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_INST(Store)
-  __IR_BUILDER_MIXIN_CREATE_LLVM_INST(Call)
-
-#undef __IR_BUILDER_MIXIN_CREATE_LLVM_INST
-
-#undef __IR_BUILDER_MIXIN_METHOD
-
+  template <typename... Args>
+  decltype(auto) RetVoid(Args &&... args) {
+    return mixin_builder()->CreateRetVoid(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) GEP(Args &&... args) {
+    return mixin_builder()->CreateGEP(std::forward<Args>(args)...);
+  }
   template <typename... Args>
   decltype(auto) PHI(Args &&... args) {
     return mixin_builder()->CreatePHI(std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  decltype(auto) InsertValue(Args &&... args) {
+    return mixin_builder()->CreateInsertValue(std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  decltype(auto) ExtractValue(Args &&... args) {
+    return mixin_builder()->CreateExtractValue(std::forward<Args>(args)...);
   }
 
  private:
