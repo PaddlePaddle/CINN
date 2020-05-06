@@ -19,9 +19,11 @@ add_dependencies(GEN_LLVM_RUNTIME_IR_HEADER GEN_LLVM_RUNTIME_IR)
 cc_library(llvm_util SRCS llvm_util.cc DEPS core LLVM)
 add_dependencies(llvm_util GEN_LLVM_RUNTIME_IR_HEADER)
 
+cc_library(runtime_registry SRCS runtime_registry.cc)
+
 cc_library(codegen_llvm SRCS codegen_llvm.cc DEPS llvm_util)
 
-cc_library(simple_orc_jit SRCS simple_orc_jit.cc DEPS codegen_llvm)
+cc_library(simple_orc_jit SRCS simple_orc_jit.cc DEPS codegen_llvm runtime_registry)
 
 cc_test(test_codegen_llvm SRCS codegen_llvm_test.cc DEPS codegen_llvm core)
 
