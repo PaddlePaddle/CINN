@@ -28,7 +28,6 @@ Expr Optimize(Expr e, bool runtime_debug_info) {
   UnrollLoop(&copied);
   RemoveGpuForloopsAxis(&copied);
   RemoveNestedBlock(&copied);
-  CallArgListToPodValue(&copied);
 
   Simplify(&copied);
 
@@ -38,6 +37,14 @@ Expr Optimize(Expr e, bool runtime_debug_info) {
   }
 
   return copied;
+}
+
+lang::Module Optimize(const lang::Module& module) {
+  auto copied = IRCopy(Expr(module));
+
+  CallArgListToPodValue(&copied);
+
+  return copied.as_module_ref();
 }
 
 }  // namespace optim

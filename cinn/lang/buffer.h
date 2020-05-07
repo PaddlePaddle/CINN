@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "cinn/ir/buffer.h"
 
 namespace cinn {

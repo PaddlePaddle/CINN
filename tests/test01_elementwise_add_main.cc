@@ -20,18 +20,16 @@ TEST(test01_elementwise_add, basic) {
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
-  Module module("module1", target);
+  Module::Builder builder("module1", target);
 
-  auto funcs = Lower("add1", {A, B, C});
+  auto func = Lower("add1", {A, B, C});
 
-  auto func = Optimize(funcs);
-  module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
-  // module.Append(C_buf);
+  builder.AddFunction(func);
 
   CodeGenC compiler(target);
   Outputs outputs;
   outputs = outputs.c_header("./test01_elementwise_add.h").c_source("./test01_elementwise_add.cc");
-  compiler.Compile(module, outputs);
+  compiler.Compile(builder.Build(), outputs);
 }
 
 TEST(test01_elementwise_add, vectorize) {
@@ -51,19 +49,19 @@ TEST(test01_elementwise_add, vectorize) {
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
-  Module module("module2", target);
+  Module::Builder builder("module2", target);
 
   auto funcs = Lower("add1_vectorize", {A, B, C});
 
   auto func = Optimize(funcs);
   LOG(INFO) << "after optim:\n" << func;
-  module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
+  builder.AddFunction(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
   // module.Append(C_buf);
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
   Outputs outputs;
   outputs = outputs.c_header("./test01_elementwise_add_vectorize.h").c_source("./test01_elementwise_add_vectorize.cc");
-  compiler.Compile(module, outputs);
+  compiler.Compile(builder.Build(), outputs);
 }
 
 }  // namespace cinn

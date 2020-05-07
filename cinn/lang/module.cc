@@ -1,17 +1,37 @@
 #include "cinn/lang/module.h"
 
 #include <memory>
+#include "cinn/optim/optimize.h"
 
 namespace cinn {
 namespace lang {
 
+void Module::Builder::AddFunction(ir::LoweredFunc func) { module_->functions.push_back(func); }
+
+void Module::Builder::AddBuffer(ir::Buffer buffer) {
+  CHECK(buffer->target.defined()) << "buffer [" << buffer->name << "]'s target is undefined";
+  if (std::find_if(module_->buffers.begin(), module_->buffers.end(), [&](const Expr &x) {
+        return x.as_buffer()->name == buffer->name;
+      }) == std::end(module_->buffers)) {
+    module_->buffers.push_back(buffer);
+    if (module_->target.arch == Target::Arch::X86) {
+      module_->buffers.back().as_buffer()->data_alignment = 32;
+    }
+  }
+}
+
+Module Module::Builder::Build() {
+  if (module_->functions.empty()) {
+    LOG(ERROR) << "Module has no functions";
+  }
+
+  auto res = Module(module_.get());
+
+  return optim::Optimize(res);
+}
+
 ir::_Module_ *Module::self() { return p_->as<ir::_Module_>(); }
 const ir::_Module_ *Module::self() const { return p_->as<ir::_Module_>(); }
-
-Module::Module(const std::string &name, const Target &target) : IrNodeRef(make_shared<ir::_Module_>()) {
-  self()->name   = name;
-  self()->target = target;
-}
 
 const Target &Module::target() const { return self()->target; }
 
@@ -41,23 +61,9 @@ std::vector<Module> Module::submodules() const {
   return modules;
 }
 
-void Module::Append(const Buffer &buffer) {
-  CHECK(buffer->target.defined()) << "buffer [" << buffer->name << "]'s target is undefined";
-  if (std::find_if(self()->buffers.begin(), self()->buffers.end(), [&](const Expr &x) {
-        return x.as_buffer()->name == buffer->name;
-      }) == std::end(self()->buffers)) {
-    self()->buffers.push_back(buffer.buffer());
-    if (target().arch == Target::Arch::X86) {
-      self()->buffers.back().as_buffer()->data_alignment = 32;
-    }
-  }
-}
-
-void Module::Append(const ir::LoweredFunc &function) { self()->functions.push_back(function); }
-
-void Module::Append(const Module &module) { self()->submodules.emplace_back(module.get()); }
-
 void Module::Compile(const backends::Outputs &outputs) const {}
+
+Module::operator Expr() const { return Expr(ptr()); }
 
 }  // namespace lang
 }  // namespace cinn

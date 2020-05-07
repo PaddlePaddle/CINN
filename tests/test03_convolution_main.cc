@@ -42,15 +42,15 @@ TEST(test03_conv, basic) {
 
   Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64);
 
-  Module module("conv", target);
+  Module::Builder builder("conv", target);
   auto func = Lower("conv", {A, W, Apad, B});
 
-  module.Append(func);
+  builder.AddFunction(func);
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
   Outputs outputs;
   outputs = outputs.c_header("./test03_convolution.h").c_source("./test03_convolution.cc");
-  compiler.Compile(module, outputs);
+  compiler.Compile(builder.Build(), outputs);
 }
 
 }  // namespace cinn

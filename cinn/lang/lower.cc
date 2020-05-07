@@ -357,20 +357,20 @@ ir::LoweredFunc Lower(const std::string& name,
                       const std::vector<Tensor>& tensor_args,
                       const std::vector<Var>& scalar_args,
                       const std::vector<Tensor>& temp_tensors,
-                      lang::Module* m) {
+                      Module::Builder* b) {
   if (!temp_tensors.empty()) {
-    CHECK(m) << "Module should be set to hold the temporary buffers";
+    CHECK(b) << "Module should be set to hold the temporary buffers";
 
     for (auto& temp_tensor : temp_tensors) {
       CHECK(!temp_tensor->inlined()) << "The tensor arguments of function should bind to buffers";
-      m->Append(lang::Buffer(temp_tensor->buffer));
+      b->AddBuffer(temp_tensor->buffer);
     }
   }
 
   auto res = LowerImpl(name, tensor_args, scalar_args, temp_tensors)();
 
-  if (m) {
-    m->Append(res);
+  if (b) {
+    b->AddFunction(res);
   }
   return res;
 }

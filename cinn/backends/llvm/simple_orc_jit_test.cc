@@ -70,14 +70,14 @@ auto CreateTestCinnModule() {
   target.arch = common::Target::Arch ::X86;
   target.bits = common::Target::Bit ::k32;
   target.os   = common::Target::OS ::Linux;
-  lang::Module module("module1", target);
+  lang::Module::Builder builder("module1", target);
 
   auto funcs = lang::Lower("elementwise_add", {A, B, C});
 
   // auto func = optim::Optimize(funcs);
 
-  module.Append(ir::LoweredFunc(funcs.As<ir::_LoweredFunc_>()));
-  return module;
+  builder.AddFunction(ir::LoweredFunc(funcs.As<ir::_LoweredFunc_>()));
+  return builder.Build();
 }
 }  // namespace
 
@@ -107,7 +107,7 @@ TEST(llvm_test01, elementwise_add) {
 }
 
 TEST(llvm, module_call_lowered_func) {
-  lang::Module module("some_module", common::DefaultHostTarget());
+  lang::Module::Builder builder("some_module", common::DefaultHostTarget());
   ir::Expr M(kM);
   ir::Expr N(kN);
   {  // define fn
@@ -118,7 +118,7 @@ TEST(llvm, module_call_lowered_func) {
     c->WithBuffer();
 
     auto fn = lang::Lower("elementwise_add", {a, b, c}, {});
-    module.Append(fn);
+    builder.AddFunction(fn);
   }
 
   {  // call fn
@@ -133,7 +133,7 @@ TEST(llvm, module_call_lowered_func) {
     // here we must call the output, so that it cal output something.
 
     auto main_fn = lang::Lower("main", {a, b, c}, {});
-    module.Append(main_fn);
+    builder.AddFunction(main_fn);
   }
 
   auto [ab, bb, cb] = CreateTestBuffer();  // NOLINT
@@ -141,7 +141,7 @@ TEST(llvm, module_call_lowered_func) {
     auto jit = backends::SimpleOrcJit::Create();
 
     LOG(INFO) << "JIT Link the module";
-    jit->Link(module, /*optimize=*/false);
+    jit->Link(builder.Build(), /*optimize=*/false);
     auto elementwise_add_addr = jit->Lookup("elementwise_add");
     auto elementwise_add      = reinterpret_cast<void (*)(void *, int32_t)>(elementwise_add_addr);
     LOG(INFO) << "JIT get elementwise_add_addr";

@@ -1,3 +1,5 @@
+#include "cinn/lang/builtin.h"
+
 #include "cinn/ir/ir.h"
 #include "cinn/lang/buffer.h"
 

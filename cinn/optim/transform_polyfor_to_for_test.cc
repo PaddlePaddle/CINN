@@ -29,7 +29,7 @@ TEST(Expr, basic) {
   }
 
   // Code gen
-  auto funcs = Lower("matmul", {A, B, C});
+  auto func = Lower("matmul", {A, B, C});
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -37,24 +37,24 @@ TEST(Expr, basic) {
   target.os   = Target::OS ::Linux;
 
   {
-    lang::Module module("module1", target);
-    module.Append(funcs);
+    lang::Module::Builder builder("module1", target);
+    builder.AddFunction(func);
 
     CodeGenC codegen(target);
     codegen.SetInlineBuiltinCodes(false);
-    auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+    auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
     std::cout << "out:\n" << out;
   }
 
-  optim::TransformPolyForToFor(&funcs->body);
+  optim::TransformPolyForToFor(&func->body);
 
   {
-    lang::Module module("module1", target);
-    module.Append(funcs);
+    lang::Module::Builder builder("module1", target);
+    builder.AddFunction(func);
 
     CodeGenC codegen(target);
     codegen.SetInlineBuiltinCodes(false);
-    auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+    auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
     std::cout << "out:\n" << out;
 
     auto target_out = R"ROC(

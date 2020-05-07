@@ -4,8 +4,10 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "cinn/common/graph_utils.h"
@@ -134,9 +136,9 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Create a buffer belong to this tensor.
   void WithBuffer();
   //! Bind to a buffer, will persist data to the buffer in runtime.
-  void Bind(lang::Buffer& buffer);
+  void Bind(lang::Buffer& buffer);  // NOLINT
   void Bind(const Buffer& buffer);
-  void UnBind(lang::Buffer& buffer);
+  void UnBind(lang::Buffer& buffer);  // NOLINT
 
   /**
    * Tell whether this tensor has same shape with \p other.

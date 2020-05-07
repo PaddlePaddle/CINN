@@ -7,6 +7,7 @@
 #include "cinn/common/common.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/lang/module.h"
 
 namespace cinn {
 namespace optim {
@@ -170,8 +171,28 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 
   Expr Visit(const ir::_Module_* op) override {
-    LOG(FATAL) << "not implemented";
-    return Expr();
+    std::vector<Expr> buffers;
+    std::vector<Expr> functions;
+    std::vector<Expr> submodules;
+
+    for (auto& expr : op->buffers) {
+      buffers.push_back(Visit(&expr));
+    }
+
+    for (auto& expr : op->functions) {
+      functions.push_back(Visit(&expr));
+    }
+
+    for (auto& expr : op->submodules) {
+      submodules.push_back(Visit(&expr));
+    }
+
+    auto res        = ir::_Module_::Make(op->name, op->target);
+    res->buffers    = buffers;
+    res->functions  = functions;
+    res->submodules = submodules;
+
+    return Expr(res);
   }
 
   Expr Visit(const _LoweredFunc_* op) override {

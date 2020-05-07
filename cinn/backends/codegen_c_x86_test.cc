@@ -51,12 +51,12 @@ TEST(CodeGenCX86, basic) {
 
   std::cout << "before optim\n" << func->body << std::endl;
 
-  lang::Module module("module1", target);
-  module.Append(func);
+  lang::Module::Builder builder("module1", target);
+  builder.AddFunction(func);
 
   CodeGenCX86 codegen(target, CodeGenCX86::Feature::AVX512);
   codegen.SetInlineBuiltinCodes(false);
-  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
   std::cout << "out:\n" << out;
 }
 
