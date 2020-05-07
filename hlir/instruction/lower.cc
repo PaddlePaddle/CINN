@@ -230,12 +230,13 @@ cinn::Module ModuleLower::operator()(const Module* module, bool display_c_code) 
   std::cerr << "Lower get HLIR module:\n" << module->to_debug_string() << std::endl;
 
   // TODO(Superjomn) Refine the target.
-  cinn::Module cinn_module(module->name(), cinn::Target());
+  cinn::Module::Builder builder(module->name(), cinn::Target());
   for (auto& item : module->computations()) {
     Expr expr = LowerComputation(item.second.get());
     VLOG(2) << "HLIR lower get CINN function:\n" << expr;
-    cinn_module.Append(cinn::ir::LoweredFunc(expr.As<cinn::ir::_LoweredFunc_>()));
+    builder.AddFunction(cinn::ir::LoweredFunc(expr.As<cinn::ir::_LoweredFunc_>()));
   }
+  cinn::Module cinn_module = builder.Build();
 
   if (display_c_code) {
     cinn::backends::CodeGenC codegen_c(cinn::common::DefaultHostTarget());

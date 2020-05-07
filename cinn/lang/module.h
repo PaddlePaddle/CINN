@@ -20,10 +20,22 @@ class Module;
 /**
  * Module represents IR containing lowered function definitions and buffers.
  */
-class Module : ir::IrNodeRef {
+class Module : public ir::IrNodeRef {
  public:
-  explicit Module(ir::IrNode* n) : ir::IrNodeRef(n) {}
-  Module(const std::string& name, const Target& target);
+  struct Builder {
+    Builder(const std::string& name, const Target& target) : module_(common::make_shared<ir::_Module_>()) {
+      module_->name   = name;
+      module_->target = target;
+    }
+
+    void AddFunction(ir::LoweredFunc func);
+    void AddBuffer(ir::Buffer buffer);
+
+    Module Build();
+
+   private:
+    Shared<ir::_Module_> module_;
+  };
 
   //! Get the target of this module.
   const Target& target() const;
@@ -38,14 +50,6 @@ class Module : ir::IrNodeRef {
   std::vector<Module> submodules() const;
   // @}
 
-  //! Add something to this module, once added to a module, the buffer, function's target will be set with the module's
-  //! target.
-  // @{
-  void Append(const Buffer& buffer);
-  void Append(const ir::LoweredFunc& function);
-  void Append(const Module& module);
-  // @}
-
   //! Compile a module to some outputs.
   void Compile(const backends::Outputs& outputs) const;
 
@@ -55,8 +59,17 @@ class Module : ir::IrNodeRef {
   ir::_Module_* operator->() { return self(); }
   const ir::_Module_* operator->() const { return self(); }
 
+  operator Expr() const;
+
  protected:
+  Module(const std::string& name, const Target& target);
+
+  explicit Module(ir::IrNode* n) : ir::IrNodeRef(n) {}
+
+  friend class Module::Builder;
   friend class backends::CodeGenC;
+  friend class ::cinn::ir::Expr;
+  friend class ::cinn::ir::_Module_;
 };
 
 }  // namespace lang

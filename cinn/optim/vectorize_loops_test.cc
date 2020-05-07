@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include "cinn/cinn.h"
 #include "cinn/common/common.h"
 #include "cinn/common/ir.h"
@@ -50,12 +52,12 @@ TEST(VectorizeLoops, Split_sperate) {
 
   Expr body = optim::Optimize(Expr(funcs));
 
-  lang::Module module("module1", target);
-  module.Append(ir::LoweredFunc(body.As<ir::_LoweredFunc_>()));
+  lang::Module::Builder builder("module1", target);
+  builder.AddFunction(ir::LoweredFunc(body.As<ir::_LoweredFunc_>()));
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
-  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
 
   auto target_out = R"ROC(
 #include <cinn_runtime.h>
@@ -160,12 +162,12 @@ TEST(Vectorize, replace_var) {
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
 
-  lang::Module module("module1", target);
-  module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
+  lang::Module::Builder builder("module1", target);
+  builder.AddFunction(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
-  auto out        = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  auto out        = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
   auto target_out = R"ROC(
 #include <cinn_runtime.h>
 #include <stdio.h>
@@ -221,20 +223,20 @@ TEST(Vectorize, TestMarkVectorize) {
   // vectorize C, not D
   C->stage()->Vectorize(1, 16);
 
-  auto funcs = Lower("matmul", {A, B, C, D});
+  auto func = Lower("matmul", {A, B, C, D});
 
-  std::cout << "before optim\n" << funcs->body << std::endl;
+  std::cout << "before optim\n" << func->body << std::endl;
 
-  optim::TransformPolyForToFor(&funcs->body);
-  optim::VectorizeLoops(&funcs->body, target);
-  optim::Simplify(&funcs->body);
+  optim::TransformPolyForToFor(&func->body);
+  optim::VectorizeLoops(&func->body, target);
+  optim::Simplify(&func->body);
 
-  lang::Module module("module1", target);
-  module.Append(funcs);
+  lang::Module::Builder builder("module1", target);
+  builder.AddFunction(func);
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
-  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
   std::cout << "out:\n" << out;
 
   auto target_out = R"ROC(

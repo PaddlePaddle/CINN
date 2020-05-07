@@ -30,31 +30,31 @@ TEST(test02_matmul, basic) {
   target.os   = Target::OS ::Linux;
 
   {
-    Module module("module1", target);
+    Module::Builder builder("module1", target);
     auto func = Lower("matmul", {A, B, C, C_init});
 
-    module.Append(func);
+    builder.AddFunction(func);
 
     CodeGenC compiler(target);
     Outputs outputs;
     outputs = outputs.c_header("./test02_matmul.h").c_source("./test02_matmul.cc");
-    compiler.Compile(module, outputs);
+    compiler.Compile(builder.Build(), outputs);
   }
 
   // Tile
   {
     C->stage()->Tile(0, 1, 4, 4);
 
-    Module module("module2", target);
+    Module::Builder builder("module2", target);
     auto func = Lower("matmul_tile", {A, B, C, C_init});
 
-    module.Append(func);
+    builder.AddFunction(func);
     // module.Append(C_buf);
 
     CodeGenC compiler(target);
     Outputs outputs;
     outputs = outputs.c_header("./test02_matmul_tile.h").c_source("./test02_matmul_tile.cc");
-    compiler.Compile(module, outputs);
+    compiler.Compile(builder.Build(), outputs);
   }
 }
 
@@ -84,15 +84,15 @@ TEST(matmul, Split) {
                                    C->stage()->ith_iterator(3)});
   C->stage()->Reorder(iterators);
 
-  Module module("module3", target);
+  Module::Builder builder("module3", target);
   auto func = Lower("matmul_split", {A, B, C, C_init});
 
-  module.Append(func);
+  builder.AddFunction(func);
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX512);
   Outputs outputs;
   outputs = outputs.c_header("./test02_matmul_split.h").c_source("./test02_matmul_split.cc");
-  compiler.Compile(module, outputs);
+  compiler.Compile(builder.Build(), outputs);
 }
 
 TEST(matmul, Blocking) {
@@ -126,15 +126,15 @@ TEST(matmul, Blocking) {
     C->stage()->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
   }
 
-  Module module("module_block", target);
+  Module::Builder builder("module_block", target);
   auto func = Lower("matmul_block", {A, B, C, C_init});
 
-  module.Append(func);
+  builder.AddFunction(func);
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX512);
   Outputs outputs;
   outputs = outputs.c_header("./test02_matmul_block.h").c_source("./test02_matmul_block.cc");
-  compiler.Compile(module, outputs);
+  compiler.Compile(builder.Build(), outputs);
 }
 
 TEST(matmul, Vectorization) {
@@ -169,15 +169,15 @@ TEST(matmul, Vectorization) {
     C->stage()->Vectorize(j_inner, 8);
   }
 
-  Module module("module_vectorize", target);
+  Module::Builder builder("module_vectorize", target);
   auto func = Lower("matmul_vectorize", {A, B, C, C_init});
 
-  module.Append(func);
+  builder.AddFunction(func);
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
   Outputs outputs;
   outputs = outputs.c_header("./test02_matmul_vectorize.h").c_source("./test02_matmul_vectorize.cc");
-  compiler.Compile(module, outputs);
+  compiler.Compile(builder.Build(), outputs);
 }
 
 TEST(matmul, LoopPermutation) {
@@ -217,15 +217,15 @@ TEST(matmul, LoopPermutation) {
     C->stage()->Unroll(5);
   }
 
-  Module module("module_loop_permutation", target);
+  Module::Builder builder("module_loop_permutation", target);
   auto func = Lower("matmul_loop_permutation", {A, B, C, C_init});
 
-  module.Append(func);
+  builder.AddFunction(func);
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
   Outputs outputs;
   outputs = outputs.c_header("./test02_matmul_loop_permutation.h").c_source("./test02_matmul_loop_permutation.cc");
-  compiler.Compile(module, outputs);
+  compiler.Compile(builder.Build(), outputs);
 }
 
 TEST(matmul, ArrayPacking) {
@@ -266,15 +266,15 @@ TEST(matmul, ArrayPacking) {
     C->stage()->Vectorize(j_inner, 8);
   }
 
-  Module module("module_array_packing", target);
+  Module::Builder builder("module_array_packing", target);
   auto func = Lower("matmul_array_packing", {A, B, C, C_init, packedB});
 
-  module.Append(func);
+  builder.AddFunction(func);
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
   Outputs outputs;
   outputs = outputs.c_header("./test02_matmul_array_packing.h").c_source("./test02_matmul_array_packing.cc");
-  compiler.Compile(module, outputs);
+  compiler.Compile(builder.Build(), outputs);
 }
 
 TEST(matmul, varient_shape) {
@@ -297,33 +297,33 @@ TEST(matmul, varient_shape) {
   target.os   = Target::OS ::Linux;
 
   {
-    Module module("matmul_dynamic_shape", target);
+    Module::Builder builder("matmul_dynamic_shape", target);
     auto func = Lower("matmul_dynamic_shape", {A, B, C, C_init}, {M});
 
-    module.Append(func);
+    builder.AddFunction(func);
 
     CodeGenC compiler(target);
     Outputs outputs;
     outputs = outputs.c_header("./test02_matmul_varient_shape.h").c_source("./test02_matmul_varient_shape.cc");
-    compiler.Compile(module, outputs);
+    compiler.Compile(builder.Build(), outputs);
   }
 
   {
     int bn                                    = 32;
-    auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn, bn);
+    auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn, bn);  // NOLINT
 
-    Module module("matmul_dynamic_shape_tile", target);
+    Module::Builder builder("matmul_dynamic_shape_tile", target);
     auto func = Lower("matmul_dynamic_shape_tile", {A, B, C, C_init} /*tensors*/, {M} /*scalars*/);
     LOG(INFO) << "func " << Expr(func);
 
-    module.Append(func);
+    builder.AddFunction(func);
 
     CodeGenC compiler(target);
     Outputs outputs;
 
     outputs =
         outputs.c_header("./test02_matmul_varient_shape_tile.h").c_source("./test02_matmul_varient_shape_tile.cc");
-    compiler.Compile(module, outputs);
+    compiler.Compile(builder.Build(), outputs);
   }
 }
 
@@ -366,14 +366,14 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
     C->stage()->Vectorize(j_inner, 8);
   }
 
-  Module module("module_array_packing_dynamic_shape", target);
-  auto func = Lower("matmul_array_packing_dynamic_shape", {A, B, C, C_init}, {M}, {packedB}, &module);
+  Module::Builder builder("module_array_packing_dynamic_shape", target);
+  auto func = Lower("matmul_array_packing_dynamic_shape", {A, B, C, C_init}, {M}, {packedB}, &builder);
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
   Outputs outputs;
   outputs = outputs.c_header("./test02_matmul_array_packing_dynamic_shape.h")
                 .c_source("./test02_matmul_array_packing_dynamic_shape.cc");
-  compiler.Compile(module, outputs);
+  compiler.Compile(builder.Build(), outputs);
 }
 
 }  // namespace cinn

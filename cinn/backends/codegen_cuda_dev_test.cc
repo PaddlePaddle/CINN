@@ -57,12 +57,12 @@ TEST(CodeGenCUDA, Module_output) {
 
   auto func = Lower("elementwise_add", {A, B, C});
 
-  Module module("module", target);
-  module.Append(func);
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
 
   Outputs outputs;
   outputs = outputs.cuda_source("generated1.cu");
-  codegen.Compile(module, outputs);
+  codegen.Compile(builder.Build(), outputs);
 }
 
 TEST(CodeGenCUDA, compile_run_jit) {
@@ -85,12 +85,12 @@ TEST(CodeGenCUDA, compile_run_jit) {
 
   auto func = Lower("elementwise_add", {A, B, C});
 
-  Module module("module", target);
-  module.Append(func);
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
 
   Outputs outputs;
   outputs          = outputs.cuda_source("generated1.cu");
-  auto source_code = codegen.Compile(module);
+  auto source_code = codegen.Compile(builder.Build());
 
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 
@@ -154,7 +154,7 @@ TEST(CodeGenCUDA, jit_dynamic_shape) {
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
   C->WithBuffer();
 
-  auto [M_outer, M_inner] = C->stage()->Split(0, 32);  // M/32, 32
+  auto [M_outer, M_inner] = C->stage()->Split(0, 32);  // M/32, 32 NOLINT
   C->stage()->Reorder({
       M_inner,
       C->stage()->axis(2),
@@ -169,12 +169,12 @@ TEST(CodeGenCUDA, jit_dynamic_shape) {
 
   CodeGenCUDA_Dev codegen(target);
 
-  Module module("module", target);
-  module.Append(func);
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
 
   Outputs outputs;
   outputs          = outputs.cuda_source("generated1.cu");
-  auto source_code = codegen.Compile(module);
+  auto source_code = codegen.Compile(builder.Build());
 
   LOG(INFO) << "compiled code:\n\n\n" << source_code;
 

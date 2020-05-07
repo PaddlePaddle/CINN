@@ -113,7 +113,9 @@ void IRMutator<T>::Visit(const _Module_ *expr, T op) {
   for (auto &func : node->buffers) {
     IRVisitorBase<void, T>::Visit(&func, &func);
   }
-  // TODO(Superjomn) Consider submodules.
+  for (auto &expr : node->submodules) {
+    IRVisitorBase<void, T>::Visit(&expr, &expr);
+  }
 }
 template <typename T>
 void IRMutator<T>::Visit(const _Var_ *expr, T op) {

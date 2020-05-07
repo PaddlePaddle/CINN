@@ -46,17 +46,17 @@ TEST(CodeGenC, module) {
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
-  Module module("module1", target);
+  Module::Builder builder("module1", target);
 
   auto func = Lower("add1", {A, B, C});
 
-  module.Append(func);
-  module.Append(C_buf);
+  builder.AddFunction(func);
+  builder.AddBuffer(C_buf.buffer());
 
   {
     CodeGenC codegen(target);
     codegen.SetInlineBuiltinCodes(false);
-    auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+    auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
     std::cout << "codegen C:" << std::endl << out << std::endl;
 
     std::string target_str = R"ROC(
@@ -86,7 +86,7 @@ void add1(void* _args, int32_t num_args)
 
   {
     CodeGenC compiler(target);
-    auto out = compiler.Compile(module, CodeGenC::OutputKind::CHeader);
+    auto out = compiler.Compile(builder.Build(), CodeGenC::OutputKind::CHeader);
     std::cout << "header:\n" << out << std::endl;
     auto target_str = R"ROC(
 #ifndef _MODULE1_CINN_H_
@@ -108,7 +108,7 @@ void add1(void* _args, int32_t num_args);
     CodeGenC compiler(target);
     Outputs outputs;
     outputs = outputs.c_header("./generated_module1.h").c_source("./generated_module1.cc");
-    compiler.Compile(module, outputs);
+    compiler.Compile(builder.Build(), outputs);
   }
 }
 
@@ -138,19 +138,19 @@ TEST(CodeGenC, module_with_transform) {
   D->stage()->Tile(poly::DefaultIterator(0), poly::DefaultIterator(1), 4, 16);
 
   Target target = common::DefaultHostTarget();
-  Module module("module1", target);
+  Module::Builder builder("module1", target);
 
   auto funcs = Lower("add1", {A, B, C, D});
 
   Expr func(funcs);
   optim::Simplify(&func);
 
-  module.Append(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
-  module.Append(C_buf);
+  builder.AddFunction(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
+  builder.AddBuffer(C_buf.buffer());
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
-  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
   auto tgt = R"ROC(
@@ -207,7 +207,7 @@ TEST(CodeGenC, matmul) {
 
   Target target{};
 
-  Module module("module1", target);
+  Module::Builder builder("module1", target);
 
   // C = A * B
   Var k(20, "k");
@@ -222,8 +222,8 @@ TEST(CodeGenC, matmul) {
 
   // Code gen
   auto func = Lower("matmul", {A, B, C_init, C});
-  module.Append(func);
-  module.Append(lang::Buffer(C->buffer));
+  builder.AddFunction(func);
+  builder.AddBuffer(C->buffer);
 
   {  // main
     std::vector<lang::ReturnType> returns({lang::ReturnType{Float(32), C->shape, C->name}});
@@ -237,12 +237,12 @@ TEST(CodeGenC, matmul) {
 
     auto f = Lower("main", {A, B, C}, {});
     std::cout << "f\n" << Expr(f) << std::endl;
-    module.Append(f);
+    builder.AddFunction(f);
   }
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
-  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
   auto tgt = R"ROC(
@@ -341,13 +341,13 @@ TEST(CodeGenC, matmul_tile) {
 
   Target target = common::DefaultHostTarget();
 
-  Module module("module1", target);
-  module.Append(func);
-  module.Append(C_buf);
+  Module::Builder builder("module1", target);
+  builder.AddFunction(func);
+  builder.AddBuffer(C_buf.buffer());
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
-  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
   auto target_out = R"ROC(
@@ -455,14 +455,14 @@ TEST(CodeGenC, matmul_packed) {
 
   Target target = common::DefaultHostTarget();
 
-  Module module("module1", target);
-  module.Append(func);
-  module.Append(C_buf);
-  module.Append(packedB_buf);
+  Module::Builder builder("module1", target);
+  builder.AddFunction(func);
+  builder.AddBuffer(C_buf.buffer());
+  builder.AddBuffer(packedB_buf.buffer());
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
-  auto out = codegen.Compile(module, CodeGenC::OutputKind::CImpl);
+  auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 
   auto target_out = R"ROC(

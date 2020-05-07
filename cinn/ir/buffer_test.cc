@@ -52,12 +52,12 @@ TEST(Buffer, bind_to_multiple_tensors) {
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
 
-  lang::Module module("module1", target);
-  module.Append(funcs);
-  module.Append(lang::Buffer(A->buffer));
+  lang::Module::Builder builder("module1", target);
+  builder.AddFunction(funcs);
+  builder.AddBuffer(A->buffer);
 
   backends::CodeGenC codegen(target);
-  auto out = codegen.Compile(module, backends::CodeGenC::OutputKind::CImpl);
+  auto out = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 }
 
