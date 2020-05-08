@@ -430,7 +430,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   }
 
   llvm::Function *callee = m_->getFunction(op->name);
-  CHECK(callee) << "Unknown function referenced. [" << op->name << "], [" << runtime::get_address_repr << "]";
+  CHECK(callee) << "Unknown function referenced. [" << op->name << "]";
 
   std::vector<llvm::Value *> args;
   for (const auto &e : op->read_args) {
@@ -446,11 +446,14 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
 llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Var_ *op) {
-  llvm::Value *value = named_vars_[op->name];
+  llvm::Value *value = GetVar(op->name);
   CHECK(value) << "ir::_Var_[" << op->name << "]: value is null";
   // TODO(fc500110) hard coding
   if (op->name == "_args") return value;
-  return Load(value);
+  if (value->getType()->isPointerTy()) {
+    return Load(value);
+  }
+  return value;
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
@@ -468,7 +471,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
   std::vector<llvm::Value *> indices;
   indices.push_back(Visit(&index));
 
-  return Load(GEP(array, std::move(indices)));
+  auto res = Load(GEP(array, std::move(indices)));
+  return res;
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
@@ -593,7 +597,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
     named_vars_.erase("_args");
   }
   RetVoid();
-  return nullptr;
+  return function;
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Let *op) {
@@ -682,10 +686,12 @@ llvm::Value *CodeGenLLVM::EmitCall_get_address(const ir::Call *op) {
 
 llvm::Value *CodeGenLLVM::EmitCall_debug_info(const ir::Call *op) {
   auto callee = m_->getFunction(runtime::debug_log_repr);
-  CHECK_EQ(op->read_args.size(), 1UL);
-  llvm::Value *msg = Visit(&op->read_args.front());
-
-  return Call(callee, std::vector<llvm::Value *>({msg}), "call debug_info");
+  CHECK_GE(op->read_args.size(), 1UL);
+  std::vector<llvm::Value *> args;
+  for (auto &arg : op->read_args) {
+    args.push_back(Visit(&arg));
+  }
+  return Call(callee, args, "call debug_info");
 }
 
 llvm::Value *CodeGenLLVM::GetVar(const std::string &name) {

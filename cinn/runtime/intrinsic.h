@@ -38,13 +38,15 @@ static const char* buffer_load_float64 = "buffer_load_float64";
 
 static const char* pod_value_ty                    = "cinn_pod_value_t";
 static const char* float_to_cinn_pod_value_repr    = "float_to_cinn_pod_value";
+static const char* int32_to_cinn_pod_value_repr    = "int32_to_cinn_pod_value";
 static const char* buffer_p_to_cinn_pod_value_repr = "buffer_p_to_cinn_pod_value";
-static const char* pod_value_to_buffer_p           = "cinn_pod_value_to_buffer_p";
-static const char* pod_value_to_int32              = "cinn_pod_value_to_int32";
-static const char* pod_value_to_int64              = "cinn_pod_value_to_int64";
-static const char* pod_value_to_float              = "cinn_pod_value_to_float";
-static const char* pod_value_to_double             = "cinn_pod_value_to_double";
-static const char* print_debug_args_repr           = "cinn_print_debug_args";
+
+static const char* pod_value_to_buffer_p = "cinn_pod_value_to_buffer_p";
+static const char* pod_value_to_int32    = "cinn_pod_value_to_int32";
+static const char* pod_value_to_int64    = "cinn_pod_value_to_int64";
+static const char* pod_value_to_float    = "cinn_pod_value_to_float";
+static const char* pod_value_to_double   = "cinn_pod_value_to_double";
+static const char* print_debug_args_repr = "cinn_print_debug_args";
 
 static const char* pod_values_to_array_repr = "pod_values_to_array";
 

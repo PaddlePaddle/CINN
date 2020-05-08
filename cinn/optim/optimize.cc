@@ -7,6 +7,7 @@
 #include "cinn/optim/insert_debug_log_callee.h"
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_simplify.h"
+#include "cinn/optim/lower_function_call_bind_vars.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
@@ -42,6 +43,7 @@ Expr Optimize(Expr e, bool runtime_debug_info) {
 lang::Module Optimize(const lang::Module& module) {
   auto copied = IRCopy(Expr(module));
 
+  LowerFunctionCallBindVars(&copied);
   CallArgListToPodValue(&copied);
 
   return copied.as_module_ref();

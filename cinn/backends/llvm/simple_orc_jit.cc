@@ -1,6 +1,7 @@
 #include "cinn/backends/llvm/simple_orc_jit.h"
 
 #include <llvm/AsmParser/Parser.h>
+#include <llvm/ExecutionEngine/JITSymbol.h>
 #include <llvm/ExecutionEngine/Orc/Core.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/PassManager.h>
@@ -18,8 +19,6 @@
 #include <cmath>
 #include <utility>
 
-#include <llvm/ExecutionEngine/JITSymbol.h>
-#include <llvm/ExecutionEngine/Orc/Core.h>
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/llvm_util.h"
@@ -85,8 +84,12 @@ void SimpleOrcJit::Link(const lang::Module &module, bool optimize) {
   }
 
   for (auto &fn : module.functions()) {
+    LOG(WARNING) << "JIT Linking function [" << fn->name << "]";
     ir::Expr fn_expr(fn);
-    ir_emitter->Visit(&fn_expr);
+
+    auto *fn_ = ir_emitter->Visit(&fn_expr);
+
+    VLOG(1) << DumpToString(*fn_);
   }
 
   AddModule(std::move(m), optimize);

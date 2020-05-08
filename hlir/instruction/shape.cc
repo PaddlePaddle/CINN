@@ -15,17 +15,17 @@ bool Shape::operator==(const Shape &other) const {
   return true;
 }
 
-int Shape::operator[](int offset) const {
+const Shape::dim_t &Shape::operator[](int offset) const {
   CHECK_LT(offset, dims_.size());
-  return std::get<int>(dims_[offset]);
+  return dims_[offset];
+}
+
+Shape::dim_t &Shape::operator[](int offset) {
+  CHECK_LT(offset, dims_.size());
+  return dims_[offset];
 }
 
 bool Shape::operator!=(const Shape &other) { return !(*this == other); }
-
-int &Shape::operator[](int offset) {
-  CHECK_LT(offset, num_dims());
-  return std::get<int>(dims_[offset]);
-}
 
 Shape::Shape(std::initializer_list<dim_t> list) {
   for (auto &x : list) AddDim(x);

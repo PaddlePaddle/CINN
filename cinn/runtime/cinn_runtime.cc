@@ -180,6 +180,7 @@ cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t value) { return value
 
 // @{
 void float_to_cinn_pod_value(float v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
+void int32_to_cinn_pod_value(int32_t v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
 void buffer_p_to_cinn_pod_value(cinn_buffer_t* v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
 // @}
 

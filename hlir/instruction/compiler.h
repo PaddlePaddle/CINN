@@ -20,13 +20,17 @@ class Compiler {
    */
   void Eval(const Module* module, cinn_pod_value_t* args, int args_num, const std::string& fn_name = "");
 
- private:
+  void Eval(const std::string& name, cinn_pod_value_t* args, int args_num);
+
   /**
    * Compile the module.
    * @param module
    */
   lowered_func_p Compile(const Module* module);
 
+  lowered_func_p Lookup(const std::string& name) const;
+
+ private:
   std::unique_ptr<cinn::backends::SimpleOrcJit> jit_;
 };
 
