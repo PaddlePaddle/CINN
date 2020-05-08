@@ -19,9 +19,12 @@
 
 #include <functional>
 #include <memory>
+#include <mutex>  // NOLINT
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/lang/module.h"
 
 namespace cinn {
@@ -34,19 +37,18 @@ class SimpleOrcJit {
   void AddModule(std::unique_ptr<llvm::Module> module, bool optimize = false);
   void Link(const lang::Module &module, bool optimize = false);
 
-  auto Lookup(const std::string &name) {
-    auto symbol = execution_session_.lookup({&main_jd_}, mangle_(name));
-    return symbol->getAddress();
-  }
+  void *Lookup(std::string_view name);
 
   llvm::LLVMContext &context() { return *context_.getContext(); }
 
  protected:
   SimpleOrcJit(llvm::orc::JITTargetMachineBuilder jtmb, llvm::DataLayout data_layout);
+  void RegisterRuntimeSymbols();
 
  private:
   SimpleOrcJit() = delete;
 
+  mutable std::mutex mu_;
   llvm::orc::ThreadSafeContext context_;
 
   std::vector<llvm::orc::VModuleKey> module_keys_;

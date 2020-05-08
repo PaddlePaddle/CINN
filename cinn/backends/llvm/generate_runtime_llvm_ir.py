@@ -1,22 +1,25 @@
 #!/usr/bin/env python3
 
 import sys
-path = sys.argv[1]
-out_path = sys.argv[2]
 
-sys.stdout = open(out_path, 'w')
+def main():
+    path = sys.argv[1]
+    out_path = sys.argv[2]
 
-print("#pragma once\n")
-print("#include <string_view>\n")
-print("namespace cinn::backends {")
-print("static std::string_view kRuntimeLlvmIr(")
+    srcs = []
+    srcs.append('#include <string_view>')
+    #srcs.append('#include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"\n')
+    srcs.append('namespace cinn::backends {')
+    srcs.append("static std::string_view kRuntimeLlvmIr(")
+    srcs.append('R"ROC(')
+    with open(path, 'r') as fr:
+        srcs.append(fr.read())
 
-print("R\"ROC(")
+    srcs.append(')ROC"')
+    srcs.append(');')
+    srcs.append('}  // namespace cinn::backends')
+    with open(out_path, 'w') as fw:
+        fw.write("\n".join(srcs))
 
-with open(path) as f:
-    for i, line in enumerate(f):
-        print(line.strip())
-print(")ROC\"")
-
-print(");")
-print("}  // namespace cinn::backends")
+if __name__ == "__main__":
+    main()

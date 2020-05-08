@@ -11,6 +11,7 @@
 #include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
+#include <cmath>
 #include <iomanip>
 #include <memory>
 #include <tuple>
@@ -26,6 +27,9 @@
 #include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/optim/optimize.h"
+#include "llvm/IR/Argument.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/Support/FileSystem.h"
 
 namespace cinn {
 namespace backends {
@@ -160,5 +164,52 @@ TEST(llvm, module_call_lowered_func) {
   } while (false);
 }
 
+TEST(jit, cpu_runtime) {
+  auto context = std::make_unique<llvm::LLVMContext>();
+  auto module  = std::make_unique<llvm::Module>("test_llvm_cpu_runtime", *context);
+  auto builder = std::make_unique<llvm::IRBuilder<>>(*context);
+
+  auto call_custom_target = [&](std::string name, llvm::Type *ty) {
+    llvm::FunctionType *fn_type = llvm::FunctionType::get(ty, {ty}, false);
+    llvm::Function *function =
+        llvm::Function::Create(fn_type, llvm::Function::ExternalLinkage, "_call_custom_" + name, module.get());
+    function->setCallingConv(llvm::CallingConv::C);
+    llvm::BasicBlock *entry = llvm::BasicBlock::Create(module->getContext(), "entry", function);
+    builder->SetInsertPoint(entry);
+    llvm::Argument *arg = &*function->args().begin();
+    llvm::Function *custom_function =
+        llvm::dyn_cast<llvm::Function>(module->getOrInsertFunction(name, fn_type).getCallee());
+    custom_function->setCallingConv(llvm::CallingConv::C);
+    llvm::Value *ret = builder->CreateCall(custom_function, {arg});
+    builder->CreateRet(ret);
+  };
+
+  llvm::Type *f32 = builder->getFloatTy();
+  llvm::Type *f64 = builder->getDoubleTy();
+  call_custom_target("cosf", f32);
+  call_custom_target("cos", f64);
+  call_custom_target("sinf", f32);
+  call_custom_target("sin", f64);
+
+  auto jit = cinn::backends::SimpleOrcJit::Create();
+  jit->AddModule(std::move(module), false);
+
+  double pi = std::acos(-1);
+
+  auto *call_cosf = reinterpret_cast<float (*)(float)>(jit->Lookup("_call_custom_cosf"));
+  auto *call_cos  = reinterpret_cast<double (*)(double)>(jit->Lookup("_call_custom_cos"));
+  auto *call_sinf = reinterpret_cast<float (*)(float)>(jit->Lookup("_call_custom_sinf"));
+  auto *call_sin  = reinterpret_cast<double (*)(double)>(jit->Lookup("_call_custom_sin"));
+
+  ASSERT_TRUE(call_cosf && call_cos && call_sinf && call_sin);
+
+  for (auto theta : {0., pi / 6., pi / 4., pi / 3., pi / 2., pi}) {
+    float theta_f = static_cast<float>(theta);
+    ASSERT_NEAR(call_cosf(theta_f), cosf(theta_f), 1e-6);
+    ASSERT_NEAR(call_cos(theta), cos(theta), 1e-6);
+    ASSERT_NEAR(call_sinf(theta_f), sinf(theta_f), 1e-6);
+    ASSERT_NEAR(call_sin(theta), sin(theta), 1e-6);
+  }
+}
 }  // namespace backends
 }  // namespace cinn

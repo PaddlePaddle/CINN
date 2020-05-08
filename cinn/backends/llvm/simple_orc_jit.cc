@@ -15,10 +15,15 @@
 #include <llvm/Transforms/Scalar/Reassociate.h>
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
 
+#include <cmath>
 #include <utility>
 
+#include <llvm/ExecutionEngine/JITSymbol.h>
+#include <llvm/ExecutionEngine/Orc/Core.h>
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
+#include "cinn/backends/llvm/llvm_util.h"
+#include "cinn/backends/llvm/runtime_registry.h"
 #include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
@@ -34,6 +39,7 @@ SimpleOrcJit::SimpleOrcJit(llvm::orc::JITTargetMachineBuilder jtmb, llvm::DataLa
       main_jd_(execution_session_.createJITDylib("<main>")) {
   main_jd_.addGenerator(
       llvm::cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(data_layout_.getGlobalPrefix())));
+  RegisterRuntimeSymbols();
 }
 
 /*static*/ std::unique_ptr<SimpleOrcJit> SimpleOrcJit::Create() {
@@ -85,6 +91,40 @@ void SimpleOrcJit::Link(const lang::Module &module, bool optimize) {
 
   AddModule(std::move(m), optimize);
 }
+
+void *SimpleOrcJit::Lookup(std::string_view name) {
+  std::lock_guard<std::mutex> lock(mu_);
+  if (auto symbol = execution_session_.lookup({&main_jd_}, mangle_(AsStringRef(name)))) {
+    return reinterpret_cast<void *>(symbol->getAddress());
+  }
+
+  return nullptr;
+}
+
+void SimpleOrcJit::RegisterRuntimeSymbols() {
+  llvm::orc::SymbolMap symbols;
+  auto *registry = RuntimeRegistry::Global();
+  for (const auto &[k, v] : registry->All()) {
+    symbols.insert({mangle_(k), {llvm::pointerToJITTargetAddress(v), llvm::JITSymbolFlags::None}});
+  }
+
+  [[maybe_unused]] auto unused = main_jd_.define(llvm::orc::absoluteSymbols(std::move(symbols)));
+}
+
+namespace {
+bool RegisterKnownSymbols() {
+  auto *registry = RuntimeRegistry::Global();
+
+  registry->Register("sinf", &sinf);
+  registry->Register("sin", static_cast<double (*)(double)>(&sin));
+
+  registry->Register("cosf", &cosf);
+  registry->Register("cos", static_cast<double (*)(double)>(&cos));
+  return true;
+}
+
+[[maybe_unused]] bool unused = RegisterKnownSymbols();
+}  // namespace
 
 }  // namespace backends
 }  // namespace cinn

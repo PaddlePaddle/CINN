@@ -11,6 +11,7 @@
 #include <llvm/IR/Value.h>
 
 #include <string>
+#include <string_view>
 
 #include "cinn/common/type.h"
 
@@ -26,6 +27,8 @@ std::string DumpToString(const T &entity) {
   return buffer;
   // return "\033[33m" + buffer + "\033[0m"; // Green
 }
+
+inline llvm::StringRef AsStringRef(std::string_view str) { return llvm::StringRef(str.data(), str.size()); }
 
 llvm::Type *CinnTypeToIrType(common::Type t, llvm::Module *m);
 
