@@ -16,6 +16,12 @@ struct BinaryImpl {
 
   cinn::ir::Tensor operator()(const cinn::ir::Tensor& a, const cinn::ir::Tensor& b, const std::string& name);
 
+  cinn::ir::Tensor RunWithArgb1Dim(const cinn::ir::Tensor& a, const cinn::ir::Tensor& b);
+  cinn::ir::Tensor RunWithArgb2Dim(const cinn::ir::Tensor& a, const cinn::ir::Tensor& b);
+  cinn::ir::Tensor RunWithArgb3Dim(const cinn::ir::Tensor& a, const cinn::ir::Tensor& b);
+  cinn::ir::Tensor RunWithArgb4Dim(const cinn::ir::Tensor& a, const cinn::ir::Tensor& b);
+  cinn::ir::Tensor RunWithArgb5Dim(const cinn::ir::Tensor& a, const cinn::ir::Tensor& b);
+
  private:
   Context* ctx_{};
   opr_t opr_;

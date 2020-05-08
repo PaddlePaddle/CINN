@@ -21,6 +21,7 @@ TEST(cinn_print_debug_string, basic) {
   int a = 1;
   cinn_print_debug_string("should be pointer, %p", &a);
   cinn_print_debug_string("should be 1, %d", a);
+  cinn_print_debug_string("v3[%d %d %d], ", 1, 2, 3);
 }
 
 TEST(cinn_args_construct, basic) {

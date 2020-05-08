@@ -40,7 +40,7 @@ std::string Module::to_debug_string() const {
 }
 
 const Computation *Module::entry_computation() const {
-  CHECK(entry_computation_) << "No entry computation is set";
+  // CHECK(entry_computation_) << "No entry computation is set";
   return entry_computation_;
 }
 

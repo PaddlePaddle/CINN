@@ -77,7 +77,7 @@ std::vector<Instruction *> Computation::GetIntermediates() const {
   return params;
 }
 
-std::vector<cinn::Var> Computation::CollectParameters() const {
+std::vector<cinn::Var> Computation::CollecVars() const {
   std::unordered_set<std::string> var_names;
   std::vector<cinn::Var> vars;
   for (auto &instr : instructions_) {

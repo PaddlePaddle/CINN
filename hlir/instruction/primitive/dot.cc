@@ -19,17 +19,34 @@ Tensor DotImpl::VecDotVec(const Tensor &a, const Tensor &b, const std::string &n
 }
 
 Tensor DotImpl::MatDotMat(const Tensor &a, const Tensor &b, const std::string &name) {
-  CHECK_EQ(a->shape.size(), 2UL) << "Matrix DOT, the first input tensor should have 2 dimensions";
+  CHECK_GE(a->shape.size(), 2UL) << "Matrix DOT, the first input tensor should have 2 dimensions";
   CHECK_EQ(b->shape.size(), 2UL) << "Matrix DOT, the second input tensor should have 2 dimensions";
-  CHECK(cinn::common::MathEqual(a->shape[1], b->shape[0]))
+  CHECK(cinn::common::MathEqual(a->shape.back(), b->shape[0]))
       << "1th-input's shape[1] should equal to 2th-input's shape[0], but get " << a->shape[1] << " vs " << b->shape[0];
-  Var k(a->shape[1], ctx_->new_var_name("_rv"));
+  Var k(a->shape.back(), ctx_->new_var_name("_rv"));
 
-  auto fn = [=](Var i, Var j) -> Expr { return cinn::Sum(a(i, k) * b(k, j)); };
+  Tensor out_tensor;
+  switch (a->shape.size()) {
+    case 2: {
+      auto fn = [=](Var i, Var j) -> Expr { return cinn::Sum(a(i, k) * b(k, j)); };
+      std::vector<Expr> shape({a->shape[0], b->shape[1]});
+      out_tensor = Compute(shape, fn, name, {k});
+    } break;
+    case 3: {
+      auto fn = [=](Var i0, Var i1, Var j) -> Expr { return cinn::Sum(a(i0, i1, k) * b(k, j)); };
+      std::vector<Expr> shape({a->shape[0], a->shape[1], b->shape[1]});
+      out_tensor = Compute(shape, fn, name, {k});
+    } break;
+    case 4: {
+      auto fn = [=](Var i0, Var i1, Var i2, Var j) -> Expr { return cinn::Sum(a(i0, i1, i2, k) * b(k, j)); };
+      std::vector<Expr> shape({a->shape[0], a->shape[1], a->shape[2], b->shape[1]});
+      out_tensor = Compute(shape, fn, name, {k});
+    } break;
 
-  std::vector<Expr> shape({a->shape[0], b->shape[1]});
-
-  return Compute(shape, fn, name, {k});
+    default:
+      NOT_IMPLEMENTED
+  }
+  return out_tensor;
 }
 
 Tensor DotImpl::MatDotVec(const Tensor &a, const Tensor &b, const std::string &name) {
@@ -51,7 +68,7 @@ Tensor DotImpl::operator()(const Tensor &a, const Tensor &b, const std::string &
   size_t b_dims = b->shape.size();
 
   Tensor res;
-  if (a_dims == 2 && b_dims == 2) {
+  if (a_dims >= 2 && b_dims == 2) {
     res = MatDotMat(a, b, name);
   } else if (a_dims == 2 && b_dims == 1) {
     res = MatDotVec(a, b, name);

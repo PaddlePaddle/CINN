@@ -35,6 +35,9 @@ struct CallOp : public _Operation_ {
 
   std::vector<Expr> arg_list;
 
+  //! A reference to the target LoweredFunc if this CallOp calls an generated LoweredFunc.
+  Expr func;
+
   // the offset int the tuple of return values.
   int arg_slot{-1};
 

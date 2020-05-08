@@ -36,8 +36,8 @@ struct Shape {
   //! number of dimensions.
   inline size_t num_dims() const { return dims_.size(); }
 
-  int operator[](int offset) const;
-  int& operator[](int offset);
+  const dim_t& operator[](int offset) const;
+  dim_t& operator[](int offset);
   bool operator==(const Shape& other) const;
   bool operator!=(const Shape& other);
 

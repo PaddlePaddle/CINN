@@ -16,12 +16,110 @@ using cinn::utils::StringFormat;
 
 namespace {
 
-struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
-  void operator()(Expr* e) { ir::IRMutator<>::Visit(e, e); }
+struct StoreDebugInfoBuilder : public ir::IRVisitor {
+  std::tuple<std::string, std::vector<Expr>> operator()(const Expr *e) {
+    ir::IRVisitor::Visit(e);
+    return std::make_tuple(format_.str(), args_);
+  }
 
-  void Visit(const ir::_LoweredFunc_* op, Expr* expr) {
-    auto* node       = expr->As<ir::_LoweredFunc_>();
-    auto* body_block = node->body.As<ir::Block>();
+ private:
+#define _BINARY_OP(Op__, repr__)           \
+  void Visit(const ir::Op__ *x) override { \
+    format_ << "(";                        \
+    ir::IRVisitor::Visit(&x->a());         \
+    format_ << " " << #repr__ << " ";      \
+    ir::IRVisitor::Visit(&x->b());         \
+    format_ << ")";                        \
+  }
+  _BINARY_OP(Add, +);
+  _BINARY_OP(Mul, *);
+  _BINARY_OP(Div, /);
+  _BINARY_OP(Sub, -);
+  _BINARY_OP(Mod, %);
+  _BINARY_OP(LT, <);
+  _BINARY_OP(LE, <=);
+  _BINARY_OP(GT, >);
+  _BINARY_OP(GE, >=);
+#undef _BINARY_OP
+
+  void Visit(const ir::Load *x) override {
+    format_ << type_specifier(x->type());
+    args_.push_back(Expr(&Reference(x)));
+  }
+
+ public:
+  void Visit(const Expr *x) override { IRVisitor::Visit(x); }
+  void Visit(const ir::IntImm *x) override {
+    format_ << type_specifier(x->type());
+    args_.push_back(&Reference(x));
+  }
+  void Visit(const ir::UIntImm *x) override {
+    format_ << type_specifier(x->type());
+    args_.push_back(&Reference(x));
+  }
+  void Visit(const ir::FloatImm *x) override {
+    format_ << type_specifier(x->type());
+    args_.push_back(&Reference(x));
+  }
+  void Visit(const ir::StringImm *x) override {}
+  void Visit(const ir::EQ *x) override {}
+  void Visit(const ir::_Var_ *x) override {}
+  void Visit(const ir::NE *x) override {}
+  void Visit(const ir::And *x) override {}
+  void Visit(const ir::Or *x) override {}
+  void Visit(const ir::Min *x) override {}
+  void Visit(const ir::Max *x) override {}
+  void Visit(const ir::Minus *x) override {}
+  void Visit(const ir::Not *x) override {}
+  void Visit(const ir::Cast *x) override {}
+  void Visit(const ir::For *x) override {}
+  void Visit(const ir::PolyFor *x) override {}
+  void Visit(const ir::Select *x) override {}
+  void Visit(const ir::IfThenElse *x) override {}
+  void Visit(const ir::Block *x) override {}
+  void Visit(const ir::Call *x) override {}
+  void Visit(const ir::Store *x) override {
+    format_ << x->tensor.as_tensor()->name << "[] = ";
+    Visit(&x->value);
+    LOG(INFO) << "store value " << x->value;
+  }
+  void Visit(const ir::Alloc *x) override {}
+  void Visit(const ir::Free *x) override {}
+  void Visit(const ir::_Range_ *x) override {}
+  void Visit(const ir::_IterVar_ *x) override {}
+  void Visit(const ir::_Buffer_ *x) override {}
+  void Visit(const ir::_Tensor_ *x) override {}
+  void Visit(const ir::_LoweredFunc_ *x) override {}
+  void Visit(const ir::_Module_ *x) override {}
+  void Visit(const ir::Let *x) override {}
+  void Visit(const ir::Reduce *x) override {}
+  void Visit(const ir::Ramp *x) override {}
+  void Visit(const ir::Broadcast *x) override {}
+  void Visit(const ir::FracOp *x) override {}
+  void Visit(const ir::Power *x) override {}
+  void Visit(const ir::Product *x) override {}
+  void Visit(const ir::Sum *x) override {}
+
+ private:
+  std::string type_specifier(const Type &type) {
+    if (type.is_float()) return "%f";
+    if (type.is_int()) return "%d";
+    NOT_IMPLEMENTED
+    return "";
+  }
+
+ private:
+  std::stringstream format_;
+  std::vector<Expr> args_;
+  bool in_load_{false};
+};
+
+struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
+  void operator()(Expr *e) { ir::IRMutator<>::Visit(e, e); }
+
+  void Visit(const ir::_LoweredFunc_ *op, Expr *expr) {
+    auto *node       = expr->As<ir::_LoweredFunc_>();
+    auto *body_block = node->body.As<ir::Block>();
     CHECK(body_block);
 
     auto msg        = StringFormat("running : %s", GetDebugString(*expr).c_str());
@@ -29,9 +127,9 @@ struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
 
     ir::IRMutator<>::Visit(&node->body, &node->body);
 
-    auto deal_with_exprs = [&](std::vector<Expr>* exprs) {  // deal with op->argument_preapre_exprs
+    auto deal_with_exprs = [&](std::vector<Expr> *exprs) {  // deal with op->argument_preapre_exprs
       std::vector<Expr> new_stmts;
-      for (auto& expr : *exprs) {
+      for (auto &expr : *exprs) {
         auto msg = StringFormat("running : %s", GetDebugString(expr).c_str());
         new_stmts.push_back(CreateDebugStatement(msg));
         new_stmts.push_back(expr);
@@ -47,51 +145,66 @@ struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
     body_block->stmts.insert(body_block->stmts.begin(), debug_node);
   }
 
-  void Visit(const ir::Block* op, Expr* expr) {
-    auto* node = expr->As<ir::Block>();
+  void Visit(const ir::Block *op, Expr *expr) {
+    auto *node = expr->As<ir::Block>();
     std::vector<Expr> new_stmts;
-    for (auto& e : op->stmts) {
+    for (auto &e : op->stmts) {
       if (!IsDebugInfoNode(e)) {
-        auto msg             = StringFormat("running: %s", GetDebugString(e).c_str());
-        auto debug_info_node = CreateDebugStatement(msg);
-        new_stmts.push_back(debug_info_node);
+        std::string msg;
+        if (!e.As<ir::Store>()) {
+          msg                  = StringFormat("running: %s", GetDebugString(e).c_str());
+          auto debug_info_node = CreateDebugStatement(msg);
+          new_stmts.push_back(debug_info_node);
+        } else {
+          auto [msg, args]     = StoreDebugInfo(e);
+          auto debug_info_node = CreateDebugStatement("running: " + msg, std::move(args));
+          new_stmts.push_back(debug_info_node);
+        }
       }
 
       ir::IRMutator<>::Visit(&e, &Reference(&e));
+
       new_stmts.push_back(e);
+
+      if (!IsDebugInfoNode(e) && e.As<ir::Store>()) {
+        auto [msg, args]     = StoreDebugInfo(e);
+        auto debug_info_node = CreateDebugStatement(msg, std::move(args));
+        new_stmts.push_back(debug_info_node);
+
+        {  // detailed debug
+          auto [format, args] = StoreDebugInfoBuilder()(&e);
+          new_stmts.push_back(CreateDebugStatement(format, std::move(args)));
+        }
+      }
     }
 
     node->stmts = new_stmts;
   }
 
-  std::string GetDebugString(const Expr& e) {
+  std::string GetDebugString(const Expr &e) {
     std::stringstream ss;
     switch (e.node_type()) {
       case ir::IrNodeTy::Block:
         ss << "<block>";
         break;
       case ir::IrNodeTy::For: {
-        auto* node = e.As<ir::For>();
+        auto *node = e.As<ir::For>();
         ss << "<For " << node->loop_var << " in [" << node->min << ", " << node->extent << ")>";
         break;
       }
       case ir::IrNodeTy::PolyFor: {
-        auto* node = e.As<ir::PolyFor>();
+        auto *node = e.As<ir::PolyFor>();
         ss << "<PolyFor " << node->iterator << " in [" << node->init << ", " << node->extent() << ")"
            << " with condition: " << node->condition << ">";
         break;
       }
       case ir::IrNodeTy::_LoweredFunc_: {
-        auto* node = e.As<ir::_LoweredFunc_>();
+        auto *node = e.As<ir::_LoweredFunc_>();
         ss << "<LoweredFunc " << node->name << ">";
         break;
       }
-      case ir::IrNodeTy::Store: {
-        ss << e;
-        break;
-      }
       case ir::IrNodeTy::Call: {
-        auto* node = e.As<ir::Call>();
+        auto *node = e.As<ir::Call>();
         if (node->name == runtime::debug_log_repr) {
           return "";
         }
@@ -106,18 +219,39 @@ struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
     return ss.str();
   }
 
-  inline bool IsDebugInfoNode(const Expr& e) {
+  std::tuple<std::string, std::vector<Expr>> StoreDebugInfo(const Expr &e) {
+    const auto *node = e.As<ir::Store>();
+
+    std::stringstream format_ss;
+
+    {  // destination
+      format_ss << node->tensor.as_tensor()->name << "[";
+      for (auto &index : node->indices) format_ss << "%d ";
+      format_ss << "] = %f";
+    }
+
+    format_ss << ", ";
+
+    std::vector<Expr> val_reprs;
+    for (auto &index : node->indices) val_reprs.push_back(index);
+    val_reprs.push_back(ir::Load::Make(node->tensor, node->indices));
+
+    return std::make_tuple(format_ss.str(), val_reprs);
+  }
+
+  inline bool IsDebugInfoNode(const Expr &e) {
     return e.As<ir::Call>() && e.As<ir::Call>()->name == runtime::debug_log_repr;
   }
 
-  Expr CreateDebugStatement(const std::string& msg) {
-    return ir::Call::Make(Void(), runtime::debug_log_repr, {Expr(msg)}, {}, ir::Call::CallType ::Intrinsic);
+  Expr CreateDebugStatement(const std::string &msg, std::vector<Expr> &&args = {}) {
+    args.insert(args.begin(), Expr(msg));
+    return ir::Call::Make(Void(), runtime::debug_log_repr, args, {}, ir::Call::CallType ::Intrinsic);
   }
 };
 
 }  // namespace
 
-void InsertDebugLogCallee(Expr* e) { InsertDebugLogCalleeMutator()(e); }
+void InsertDebugLogCallee(Expr *e) { InsertDebugLogCalleeMutator()(e); }
 
 }  // namespace optim
 }  // namespace cinn

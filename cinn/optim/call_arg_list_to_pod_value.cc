@@ -65,6 +65,8 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
 
       } else if (arg.type() == type_of<float>()) {
         cast = runtime::IntrinsicCall(Void(), runtime::float_to_cinn_pod_value_repr, {arg}, {pod_val_addr_expr});
+      } else if (arg.type() == type_of<int32_t>()) {
+        cast = runtime::IntrinsicCall(Void(), runtime::int32_to_cinn_pod_value_repr, {arg}, {pod_val_addr_expr});
       } else {
         NOT_IMPLEMENTED
       }

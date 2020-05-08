@@ -1,6 +1,7 @@
 #include "hlir/instruction/lower.h"
 
 #include <glog/logging.h>
+#include <glog/raw_logging.h>
 
 #include <iostream>
 #include <unordered_set>
@@ -10,6 +11,7 @@
 #include "cinn/lang/compute.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/lang/tensor.h"
+#include "cinn/utils/string.h"
 #include "hlir/instruction/instructions.h"
 #include "hlir/instruction/primitive/binary.h"
 #include "hlir/instruction/primitive/dot.h"
@@ -50,7 +52,7 @@ std::vector<Tensor> CallImpl(const std::string& fn_name,
 void ComputationLower::LowerBinary(const Instruction* instr) {
   auto* a_instr = instr->operand(0);
   auto* b_instr = instr->operand(1);
-  CHECK_EQ(a_instr->shape(), b_instr->shape());
+  CHECK_GE(a_instr->shape().num_dims(), b_instr->shape().num_dims());
 
   auto a_expr = scope_.Lookup(a_instr);
   auto b_expr = scope_.Lookup(b_instr);
@@ -166,7 +168,7 @@ Expr ComputationLower::operator()(const Computation* computation) {
   }
 
   // collect parameters
-  std::vector<Var> parameters = computation->CollectParameters();
+  std::vector<Var> params = computation->CollecVars();
 
   std::vector<Tensor> tensors;
   std::unordered_set<std::string> tensor_names;
@@ -205,7 +207,7 @@ Expr ComputationLower::operator()(const Computation* computation) {
     }
   }
 
-  auto fn = cinn::Lower(computation->name(), tensors, parameters);
+  auto fn = cinn::Lower(computation->name(), tensors, params);
   return fn;
 }
 
@@ -231,18 +233,27 @@ cinn::Module ModuleLower::operator()(const Module* module, bool display_c_code) 
 
   // TODO(Superjomn) Refine the target.
   cinn::Module::Builder builder(module->name(), cinn::Target());
+
+  // lower functions but main
   for (auto& item : module->computations()) {
+    if (item.second.get() == module->entry_computation()) continue;
     Expr expr = LowerComputation(item.second.get());
     VLOG(2) << "HLIR lower get CINN function:\n" << expr;
     builder.AddFunction(cinn::ir::LoweredFunc(expr.As<cinn::ir::_LoweredFunc_>()));
   }
+  // lower main function
+  if (module->entry_computation()) {
+    Expr expr = LowerComputation(module->entry_computation());
+    builder.AddFunction(cinn::ir::LoweredFunc(expr.As<cinn::ir::_LoweredFunc_>()));
+  }
+
   cinn::Module cinn_module = builder.Build();
 
   if (display_c_code) {
     cinn::backends::CodeGenC codegen_c(cinn::common::DefaultHostTarget());
     codegen_c.SetInlineBuiltinCodes(false);
-    std::cerr << "C sample code:\n"
-              << codegen_c.Compile(cinn_module, cinn::backends::CodeGenC::OutputKind::CImpl) << std::endl;
+    RAW_LOG(INFO, "C sample code:");
+    std::cerr << codegen_c.Compile(cinn_module, cinn::backends::CodeGenC::OutputKind::CImpl) << std::endl;
   }
 
   return cinn_module;
