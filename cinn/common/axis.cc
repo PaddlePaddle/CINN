@@ -21,6 +21,15 @@ std::vector<ir::Var> GenDefaultAxis(int naxis) {
   return axis;
 }
 
+std::vector<ir::Expr> GenDefaultAxisAsExpr(int naxis) {
+  auto vars = GenDefaultAxis(naxis);
+  std::vector<Expr> res;
+  for (auto& v : vars) {
+    res.push_back(Expr(v));
+  }
+  return res;
+}
+
 const std::vector<std::string> kAxises({
     "i",  // level 0
     "j",  // level 1
@@ -35,7 +44,7 @@ const std::vector<std::string> kAxises({
     "h"   // level 10
 });
 
-const std::string &axis_name(int level) {
+const std::string& axis_name(int level) {
   CHECK_LT(level, kAxises.size());
   return kAxises[level];
 }

@@ -92,6 +92,8 @@ class CodeGenC : public ir::IrPrinter {
 
   void PrintStackVecType(Type type, int lanes);
 
+  friend class ExternFuncEmitter;
+
  protected:
   Target target_;
   std::stringstream ss_;

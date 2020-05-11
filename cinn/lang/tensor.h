@@ -36,6 +36,11 @@ class _Tensor_;
  * Tensor is the most general type in CINN, it holds the computation, or placeholder. A tensor can `store_at` a Buffer,
  * or just has a expression and easy to inline expanded in the consumer's computation.
  */
+enum class ViewKind {
+  kPrecending = 0,
+  kCollapse   = 1,
+};
+
 class Tensor : public ir::IrNodeRef {
  public:
   Tensor() = default;
@@ -55,6 +60,12 @@ class Tensor : public ir::IrNodeRef {
 
   //! Get number of dimensions.
   inline size_t ndims() const;
+
+  /**
+   * Collapse the precending \p preceding_n_axis axis and get a new Tensor View.
+   * @param preceding_n_axis
+   */
+  Tensor PrecedingView(int preceding_n_axis) const;
 
   /**
    * Take elements from the tensor.
@@ -82,6 +93,9 @@ class Tensor : public ir::IrNodeRef {
 
   //! Expand the inline expression in the body.
   void ExpandInlined();
+
+  _Tensor_* self() { return operator->(); }
+  const _Tensor_* self() const { return operator->(); }
 
   inline const _Tensor_* operator->() const { return As<_Tensor_>(); }
   inline _Tensor_* operator->() { return As<_Tensor_>(); }
@@ -150,6 +164,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   bool is_compute_node() const;
   bool is_placeholder_node() const;
   bool is_call_node() const;
+  bool is_extern_call_node() const;
+  bool is_preceding_view_node() const;
 
   const char* operation_type() const;
   ComputeOp* get_compute_op() const;

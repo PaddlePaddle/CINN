@@ -392,6 +392,14 @@ void cinn_print_debug_args(cinn_pod_value_t* args, int count);
  */
 void cinn_args_construct(cinn_pod_value_t* arr, int count, ...);
 
+//! math extern functions
+//@{
+
+//! Elementwise tanh
+float __cinn_host_tanh(float x);
+
+//@}
+
 #ifdef __cplusplus
 }
 #endif

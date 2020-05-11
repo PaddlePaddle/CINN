@@ -22,7 +22,7 @@
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/llvm_util.h"
-#include "cinn/backends/llvm/runtime_registry.h"
+#include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
@@ -106,8 +106,8 @@ void *SimpleOrcJit::Lookup(std::string_view name) {
 
 void SimpleOrcJit::RegisterRuntimeSymbols() {
   llvm::orc::SymbolMap symbols;
-  auto *registry = RuntimeRegistry::Global();
-  for (const auto &[k, v] : registry->All()) {
+  auto &registry = RuntimeSymbolRegistry::Global();
+  for (const auto &[k, v] : registry.All()) {
     symbols.insert({mangle_(k), {llvm::pointerToJITTargetAddress(v), llvm::JITSymbolFlags::None}});
   }
 
@@ -116,13 +116,13 @@ void SimpleOrcJit::RegisterRuntimeSymbols() {
 
 namespace {
 bool RegisterKnownSymbols() {
-  auto *registry = RuntimeRegistry::Global();
+  auto &registry = RuntimeSymbolRegistry::Global();
 
-  registry->Register("sinf", &sinf);
-  registry->Register("sin", static_cast<double (*)(double)>(&sin));
+  registry.Register("sinf", reinterpret_cast<void *>(&sinf));
+  registry.Register("sin", reinterpret_cast<void *>(static_cast<double (*)(double)>(&sin)));
 
-  registry->Register("cosf", &cosf);
-  registry->Register("cos", static_cast<double (*)(double)>(&cos));
+  registry.Register("cosf", reinterpret_cast<void *>(&cosf));
+  registry.Register("cos", reinterpret_cast<void *>(static_cast<double (*)(double)>(&cos)));
   return true;
 }
 

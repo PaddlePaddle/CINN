@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "cinn/common/cinn_value.h"
-#include "cinn/common/ir.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/lang/module.h"
@@ -234,7 +234,7 @@ Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
 Expr Store::index() const {
   auto *tensor_n = tensor.As<ir::_Tensor_>();
   CHECK(tensor_n);
-  Expr res = common::ExpandTo1DIndice(tensor_n->shape, indices);
+  Expr res = common::IndiceToAbsOffset(tensor_n->shape, indices);
   optim::Simplify(&res);
   return res;
 }
@@ -449,7 +449,7 @@ Expr Load::index() const {
   if (is_addr_tensor()) {
     auto *tensor_n = tensor.As<_Tensor_>();
     CHECK(tensor_n);
-    Expr res = common::ExpandTo1DIndice(tensor_n->shape, indices);
+    Expr res = common::IndiceToAbsOffset(tensor_n->shape, indices);
     optim::Simplify(&res);
     return res;
   } else {
@@ -553,7 +553,6 @@ lang::Module _Module_::Make(const std::string &name, Target target) {
   n->target = target;
   return lang::Module(n);
 }
-}  // namespace ir
 
-namespace common {}  // namespace common
+}  // namespace ir
 }  // namespace cinn

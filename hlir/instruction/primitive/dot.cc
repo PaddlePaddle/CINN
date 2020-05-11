@@ -1,6 +1,6 @@
 #include "hlir/instruction/primitive/dot.h"
 
-#include "cinn/common/ir.h"
+#include "cinn/common/ir_util.h"
 
 namespace hlir {
 namespace instruction {

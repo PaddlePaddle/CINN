@@ -8,6 +8,7 @@ namespace cinn {
 namespace ir {
 
 struct Var;
+struct Expr;
 
 }  // namespace ir
 }  // namespace cinn
@@ -20,6 +21,7 @@ const std::string& axis_name(int level);
 
 //! Generate `naxis` axis using the global names (i,j,k...).
 std::vector<ir::Var> GenDefaultAxis(int naxis);
+std::vector<ir::Expr> GenDefaultAxisAsExpr(int naxis);
 
 }  // namespace common
 }  // namespace cinn

@@ -2,6 +2,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <cmath>
 
 extern "C" {
 
@@ -245,3 +246,5 @@ void cinn_args_construct(cinn_pod_value_t* arr, int count, ...) {
   }
   va_end(args);
 }
+
+float __cinn_host_tanh(float x) { return std::tanh(x); }

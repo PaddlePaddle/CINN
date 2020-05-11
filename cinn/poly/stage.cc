@@ -257,7 +257,7 @@ std::vector<std::pair<std::string, std::string>> ExtractLinksFromCalls(const std
 
   for (auto &tensor : tensors) {
     if (tensor->is_call_node()) {
-      auto &args = tensor->operation->as<ir::CallOp>()->arg_list;
+      const auto &args = tensor->operation->as<ir::CallOp>()->read_args();
       for (auto &arg : args) {
         auto *arg_tensor = arg.As<ir::_Tensor_>();
         if (arg_tensor->is_placeholder_node() && !with_placeholder) continue;

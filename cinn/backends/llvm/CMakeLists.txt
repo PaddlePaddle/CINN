@@ -6,6 +6,7 @@ add_custom_target(GEN_LLVM_RUNTIME_IR
     ALL
     COMMAND clang++ -mavx2 -std=c++11 -masm=intel -S -emit-llvm -O3 ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc -I${PROJECT_SOURCE_DIR}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    DEPENDS ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.h
 )
 
 add_custom_target(GEN_LLVM_RUNTIME_IR_HEADER
@@ -16,15 +17,22 @@ add_custom_target(GEN_LLVM_RUNTIME_IR_HEADER
         )
 add_dependencies(GEN_LLVM_RUNTIME_IR_HEADER GEN_LLVM_RUNTIME_IR)
 
-cc_library(llvm_util SRCS llvm_util.cc DEPS core LLVM)
-add_dependencies(llvm_util GEN_LLVM_RUNTIME_IR_HEADER)
+set(srcs
+  llvm_util.cc
+  runtime_symbol_registry.cc
+  codegen_llvm.cc
+  simple_orc_jit.cc
+  )
 
-cc_library(runtime_registry SRCS runtime_registry.cc)
+add_dependencies(cinn_runtime GEN_LLVM_RUNTIME_IR_HEADER)
 
-cc_library(codegen_llvm SRCS codegen_llvm.cc DEPS llvm_util)
+cc_test(test_codegen_llvm SRCS codegen_llvm_test.cc DEPS core)
 
-cc_library(simple_orc_jit SRCS simple_orc_jit.cc DEPS codegen_llvm runtime_registry)
+cc_test(test_simple_orc_jit SRCS simple_orc_jit_test.cc DEPS core)
 
-cc_test(test_codegen_llvm SRCS codegen_llvm_test.cc DEPS codegen_llvm core)
 
-cc_test(test_simple_orc_jit SRCS simple_orc_jit_test.cc DEPS simple_orc_jit core)
+foreach(cpp ${srcs})
+  set(core_src
+    "${core_src};cinn/backends/llvm/${cpp}"
+    CACHE INTERNAL "")
+endforeach()

@@ -2,6 +2,7 @@
 
 #include <fstream>
 
+#include "cinn/backends/extern_func_emitter.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/runtime/intrinsic.h"
@@ -236,10 +237,15 @@ void CodeGenC::Visit(const ir::Call *op) {
     os() << op->name << "(";
     PrintCallArgs(op);
     os() << ")";
-  } else if (op->call_type == ir::Call::CallType::CINN) {  // call CINN LoweredFunc
+  } else if (op->is_cinn_call()) {  // call CINN LoweredFunc
     os() << op->name << "(";
     PrintCallArgs(op);
     os() << ")";
+  } else if (op->is_extern_call()) {
+    auto *emitter = ExternFunctionEmitterRegistry::Global().Lookup(ExternFuncID{backend_C, op->name.c_str()});
+    emitter->BindCodeGen(this);
+    CHECK(emitter) << "No extern function emitter for call " << op->name;
+    emitter->Emit(op);
   } else {
     NOT_IMPLEMENTED
   }
@@ -371,6 +377,7 @@ void CodeGenC::Visit(const ir::Load *op) {
 
 void CodeGenC::Visit(const ir::Store *op) {
   CHECK(op->is_addr_tensor());
+
   auto *tensor = op->tensor.As<ir::_Tensor_>();
   CHECK(tensor);
   os() << tensor->name << "[";

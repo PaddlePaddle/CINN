@@ -4,7 +4,7 @@
 #include <tuple>
 #include <vector>
 
-#include "cinn/common/ir.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/runtime/intrinsic.h"
 

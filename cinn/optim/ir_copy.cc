@@ -1,5 +1,7 @@
 #include "cinn/optim/ir_copy.h"
 
+#include <z3.h>
+
 #include <memory>
 #include <string>
 #include <vector>

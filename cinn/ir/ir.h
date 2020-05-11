@@ -336,6 +336,11 @@ struct Call : public ExprNode<Call> {
 
   inline size_t total_args_count() const { return read_args.size() + write_args.size(); }
 
+  inline bool is_extern_call() const { return call_type == CallType::Extern; }
+  inline bool is_cinn_call() const { return call_type == CallType::CINN; }
+  inline bool is_intrinsic_call() const { return call_type == CallType::Intrinsic; }
+  inline bool is_isl_call() const { return call_type == CallType::ISL; }
+
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 

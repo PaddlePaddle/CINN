@@ -4,7 +4,7 @@
 
 #include "cinn/common/cas.h"
 #include "cinn/common/common.h"
-#include "cinn/common/ir.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
@@ -88,6 +88,20 @@ bool _Tensor_::is_placeholder_node() const {
   return std::strcmp(operation_type(), ir::PlaceholderOp::__func_type__) == 0;
 }
 bool _Tensor_::is_call_node() const { return std::strcmp(operation_type(), ir::CallOp::__func_type__) == 0; }
+bool _Tensor_::is_extern_call_node() const {
+  if (std::strcmp(operation_type(), ir::CallOp::__func_type__) == 0) {
+    auto *op   = operation->as<ir::CallOp>();
+    auto *call = op->call_expr.As<ir::Call>();
+    if (call) {
+      return call->call_type == ir::Call::CallType::Extern;
+    }
+  }
+  return false;
+}
+
+bool _Tensor_::is_preceding_view_node() const {
+  return std::strcmp(operation_type(), ir::PrecedingViewOp::__func_type__) == 0;
+}
 
 ComputeOp *_Tensor_::get_compute_op() const {
   if (!is_compute_node()) return nullptr;
@@ -126,7 +140,11 @@ void _Tensor_::InitStage() {
     CHECK_EQ(body.size(), 1UL) << "only support functional programming";
     shared_stage = poly::Stage::New(GenerateIslDomain(), body.front());
   } else if (is_call_node()) {
-    shared_stage = poly::Stage::New(GenerateIslDomain(), body());
+    if (!is_extern_call_node()) {
+      shared_stage = poly::Stage::New(GenerateIslDomain(), body());
+    } else {
+      shared_stage = poly::Stage::New(GenerateIslDomain(), body());
+    }
   } else {
     shared_stage = poly::Stage::New(GenerateIslDomain());
   }
@@ -181,7 +199,7 @@ std::vector<Expr *> _Tensor_::expr_fields() {
       for (auto &expr : op->shape) res.push_back(&expr);
     } else if (is_call_node()) {
       auto *op = operation->as<ir::CallOp>();
-      for (auto &expr : op->arg_list) res.push_back(&expr);
+      for (auto &expr : op->read_args()) res.push_back(&expr);
     } else {
       NOT_IMPLEMENTED
     }
@@ -209,7 +227,7 @@ std::vector<const Expr *> _Tensor_::expr_fields() const {
       for (auto &expr : op->shape) res.push_back(&expr);
     } else if (is_call_node()) {
       auto *op = operation->as<ir::CallOp>();
-      for (auto &expr : op->arg_list) res.push_back(&expr);
+      for (auto &expr : op->read_args()) res.push_back(&expr);
     } else {
       LOG(ERROR) << "func_type: " << func_type;
       NOT_IMPLEMENTED
@@ -291,6 +309,7 @@ void _Tensor_::Bind(const Buffer &buffer) {
 void Tensor::ExpandInlined() {
   // Collect all the Calls with Tensors
   // Expand all the uninlined tensor.
+  NOT_IMPLEMENTED
 }
 
 void _Tensor_::WithBuffer() {
@@ -309,6 +328,24 @@ bool _Tensor_::SameShapeWith(const Tensor &other) const {
     if (dim0 != dim1) return false;
   }
   return true;
+}
+
+Tensor Tensor::PrecedingView(int preceding_n_axis) const {
+  CHECK(!self()->inlined()) << "Only tensor with buffers can have view";
+  auto op          = PrecedingViewOp::Make(*this, preceding_n_axis);
+  std::string name = Context::Global().NewName(self()->name + "_view");
+
+  CHECK_LE(preceding_n_axis, self()->shape.size());
+  CHECK_GT(preceding_n_axis, 0);
+
+  Expr preceding_dim = self()->shape[0];
+  for (int i = 1; i < preceding_n_axis; i++) preceding_dim = ir::Mul::Make(preceding_dim, self()->shape[i]);
+  std::vector<Expr> shape({preceding_dim});
+  for (int i = preceding_n_axis; i < self()->shape.size(); i++) shape.push_back(self()->shape[i]);
+
+  auto res = _Tensor_::Make(name, shape, op);
+  res->Bind(self()->buffer);
+  return res;
 }
 
 }  // namespace ir

@@ -60,19 +60,56 @@ Operation CallOp::Make(const std::string &call_target,
                        const std::vector<Expr> &arg_list,
                        int value_slot,
                        Expr call_op) {
-  auto n         = make_shared<CallOp>();
-  n->arg_list    = arg_list;
-  n->call_target = call_target;
-  n->arg_slot    = value_slot;
-  n->call_expr   = call_op;
+  auto n       = make_shared<CallOp>();
+  n->arg_slot  = value_slot;
+  n->call_expr = call_op;
   return Operation(n);
 }
+
+Operation PrecedingViewOp::Make(const Tensor &tensor, int preceding_axis) { return Operation(); }
+
+const char *PrecedingViewOp::func_type() const { return PrecedingViewOp::__func_type__; }
+
+const char *CallOp::func_type() const { return __func_type__; }
 
 const char *ComputeOp::__func_type__     = "compute_op";
 const char *PlaceholderOp::__func_type__ = "placeholder_op";
 const char *CallOp::__func_type__        = "call_op";
 
-const char *CallOp::func_type() const { return __func_type__; }
+const std::string &CallOp::target() const {
+  auto *call = call_expr.As<ir::Call>();
+  CHECK(call);
+  return call->name;
+}
+std::vector<Expr> &CallOp::write_args() {
+  auto *call = call_expr.As<ir::Call>();
+  CHECK(call);
+  return call->write_args;
+}
+std::vector<Expr> &CallOp::read_args() {
+  auto *call = call_expr.As<ir::Call>();
+  CHECK(call);
+  return call->read_args;
+}
+const std::vector<Expr> &CallOp::write_args() const {
+  auto *call = call_expr.As<ir::Call>();
+  CHECK(call);
+  return call->write_args;
+}
+const std::vector<Expr> &CallOp::read_args() const {
+  auto *call = call_expr.As<ir::Call>();
+  CHECK(call);
+  return call->read_args;
+}
+std::vector<Expr> CallOp::args() const {
+  std::vector<Expr> args;
+  auto &rargs = read_args();
+  auto &wargs = write_args();
+  args.insert(std::end(args), rargs.begin(), rargs.end());
+  args.insert(std::end(args), wargs.begin(), wargs.end());
+  return args;
+}
+const char *PrecedingViewOp::__func_type__ = "preceding_view_op";
 
 }  // namespace ir
 }  // namespace cinn
