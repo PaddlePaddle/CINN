@@ -45,6 +45,9 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   NODETY_FORALL(__)
 #undef __
 
+  //! Used for the ExternFuncEmitter to store temporary result.
+  mutable llvm::Value *extern_func_emit_res_{};
+
  protected:
   llvm::Value *GetVar(const std::string &name);
 

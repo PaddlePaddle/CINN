@@ -27,11 +27,10 @@ class Placeholder {
 
   //! Get a slice.
   // @{
-  Expr operator()(Expr a) const { return operator()({a}); }
-  Expr operator()(Expr a, Expr b) const { return operator()({a, b}); }
-  Expr operator()(Expr a, Expr b, Expr c) const { return operator()({a, b, c}); }
-  Expr operator()(Expr a, Expr b, Expr c, Expr d) const { return operator()({a, b, c, d}); }
-  Expr operator()(const std::vector<Expr> &indices) const;
+  Expr operator()(Expr a) const { return Call({a}); }
+  Expr operator()(Expr a, Expr b) const { return Call({a, b}); }
+  Expr operator()(Expr a, Expr b, Expr c) const { return Call({a, b, c}); }
+  Expr operator()(Expr a, Expr b, Expr c, Expr d) const { return Call({a, b, c, d}); }
   // @}
 
   const Type &type() const { return tensor_->type(); }
@@ -40,6 +39,10 @@ class Placeholder {
   operator ir::Expr() { return Expr(tensor_); }
 
  private:
+  Expr operator()(const std::vector<Expr> &indices) const;
+
+  Expr Call(const std::vector<Expr> &indices) const;
+
   void Init(const std::string &name, const std::vector<Expr> &shape) {
     ir::Var buffer_ptr(Context::Global().NewName("buffer"));
     buffer_ptr->set_type(type_of<T>());
@@ -62,6 +65,11 @@ class Placeholder {
 
 template <typename T>
 Expr Placeholder<T>::operator()(const std::vector<Expr> &indices) const {
+  return tensor_(indices);
+}
+
+template <typename T>
+Expr Placeholder<T>::Call(const std::vector<Expr> &indices) const {
   return tensor_(indices);
 }
 

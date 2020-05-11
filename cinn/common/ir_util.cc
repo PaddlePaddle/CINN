@@ -1,4 +1,4 @@
-#include "cinn/common/ir.h"
+#include "cinn/common/ir_util.h"
 
 #include "cinn/common/cas.h"
 #include "cinn/ir/ir_mutator.h"
@@ -106,8 +106,8 @@ Expr RampRelatedMul(Expr a, Expr b) {
 
 }  // namespace
 
-Expr ExpandTo1DIndice(const std::vector<Expr> &shape, const std::vector<Expr> &indices) {
-  CHECK_EQ(shape.size(), indices.size());
+Expr IndiceToAbsOffset(const std::vector<Expr> &shape, const std::vector<Expr> &indices) {
+  CHECK_GE(shape.size(), indices.size());
   Expr res;
   for (int i = 0; i < shape.size(); i++) {
     CHECK_EQ(shape[i].type(), Int(32));
@@ -126,10 +126,16 @@ Expr ExpandTo1DIndice(const std::vector<Expr> &shape, const std::vector<Expr> &i
   return res;
 }
 
-Expr ExpandTo1DIndice(const std::vector<int> &shape, const std::vector<Expr> &indices) {
+Expr IndiceToAbsOffset(const std::vector<int> &shape, const std::vector<Expr> &indices) {
   std::vector<Expr> shape_;
   for (int v : shape) shape_.push_back(Expr(v));
-  return ExpandTo1DIndice(shape, indices);
+  return IndiceToAbsOffset(shape, indices);
+}
+
+Expr PrecedingAxisToAbsOffset(const std::vector<Expr> &shape, int preceding_n_axis) {
+  std::vector<Expr> indices;
+  for (int i = 0; i < preceding_n_axis; i++) indices.push_back(shape[i]);
+  return IndiceToAbsOffset(shape, indices);
 }
 
 namespace {

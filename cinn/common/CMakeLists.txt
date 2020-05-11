@@ -9,7 +9,7 @@ set(srcs
     graph_utils.cc
     context.cc
     axis.cc
-    ir.cc
+        ir_util.cc
     arithmatic.cc
     cas.cc
     )

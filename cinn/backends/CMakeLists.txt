@@ -3,6 +3,10 @@ set(srcs outputs.cc
         codegen_c_x86.cc
         codegen_c_x86_test.cc
         codegen_cuda_dev.cc
+        extern_func_emitter.cc
+        extern_func_emitter_builtin.cc
+        function_prototype.cc
+        extern_func_protos.cc
 )
 
 if (WITH_CUDA)
@@ -10,12 +14,15 @@ if (WITH_CUDA)
 endif()
 
 cc_library(__x86_source_fake_lib SRCS _x86_builtin_source.cc)
+add_subdirectory(llvm)
+
 
 cc_test(test_codegen_c SRCS codegen_c_test.cc DEPS core ARGS ${global_test_args})
 cc_test(test_codegen_c_x86 SRCS codegen_c_x86_test.cc DEPS core ARGS ${global_test_args})
 cc_test(test_generated1 SRCS ${CMAKE_BINARY_DIR}/cinn/backends/generated_module1.cc DEPS cinn_runtime)
 include_directories(${CMAKE_SOURCE_DIR}/cinn/runtime)
 add_dependencies(test_generated1 test_codegen_c)
+
 
 if (WITH_CUDA)
   nv_test(test_codegen_cuda_dev SRCS codegen_cuda_dev_test.cc DEPS core)
@@ -25,9 +32,9 @@ if (WITH_CUDA)
   add_dependencies(generated1_cuda test_codegen_cuda_dev)
 endif()
 
+
 foreach(cpp ${srcs})
   set(core_src
           "${core_src};cinn/backends/${cpp}"
           CACHE INTERNAL "")
 endforeach()
-add_subdirectory(llvm)

@@ -1,5 +1,6 @@
 #include "cinn/lang/compute.h"
 
+#include "cinn/backends/extern_func_protos.h"
 #include "cinn/common/common.h"
 #include "cinn/ir/operation.h"
 #include "cinn/optim/ir_simplify.h"
@@ -166,6 +167,13 @@ std::vector<ir::Tensor> Call(const std::string &target,
   }
 
   return new_tensors;
+}
+
+Expr CallExtern(const std::string &target, const std::vector<Expr> &args) {
+  auto *proto = backends::ExternFunctionProtoRegistry::Global().Lookup(target);
+  CHECK(proto) << "No extern function " << target << " found";
+  auto call = ir::Call::Make(proto->ret_type, target, args, {}, ir::Call::CallType::Extern);
+  return call;
 }
 
 }  // namespace lang

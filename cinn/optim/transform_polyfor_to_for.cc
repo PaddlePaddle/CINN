@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "cinn/common/arithmatic.h"
-#include "cinn/common/ir.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"

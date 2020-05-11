@@ -4,7 +4,7 @@
 #include <stack>
 #include <string>
 
-#include "cinn/common/ir.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/replace_var_with_expr.h"

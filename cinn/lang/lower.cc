@@ -9,7 +9,7 @@
 
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_printer.h"
-#include "cinn/optim/fold_call_arguments.h"
+#include "cinn/optim/fold_cinn_call_arguments.h"
 #include "cinn/optim/optimize.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_call_with_expr.h"

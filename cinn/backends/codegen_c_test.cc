@@ -546,5 +546,25 @@ void matmul_with_packing(void* _args, int32_t num_args)
   ASSERT_EQ(utils::Trim(target_out), utils::Trim(out));
 }
 
+TEST(CodeGenC, call_extern) {
+  Expr M(100);
+
+  Placeholder<float> x("x", {M});
+
+  ir::Tensor y = Compute(
+      {M}, [=](Var i) -> Expr { return lang::CallExtern("tanh", {x(i)}); }, "y");
+  y->WithBuffer();
+
+  auto yexpr = Lower("yy", {y});
+
+  Module::Builder builder("module0", common::DefaultHostTarget());
+  builder.AddFunction(yexpr);
+
+  CodeGenC codegen(common::DefaultHostTarget());
+  codegen.SetInlineBuiltinCodes(false);
+  auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
+  std::cout << "codegen C:" << std::endl << out << std::endl;
+}
+
 }  // namespace backends
 }  // namespace cinn

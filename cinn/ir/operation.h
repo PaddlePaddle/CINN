@@ -29,11 +29,15 @@ struct PlaceholderOp : public _Operation_ {
 };
 
 struct CallOp : public _Operation_ {
-  std::string call_target;
+  const std::string &target() const;
 
   Expr call_expr;
 
-  std::vector<Expr> arg_list;
+  std::vector<Expr> &read_args();
+  std::vector<Expr> &write_args();
+  const std::vector<Expr> &read_args() const;
+  const std::vector<Expr> &write_args() const;
+  std::vector<Expr> args() const;
 
   //! A reference to the target LoweredFunc if this CallOp calls an generated LoweredFunc.
   Expr func;
@@ -47,6 +51,21 @@ struct CallOp : public _Operation_ {
                         const std::vector<Expr> &arg_list,
                         int value_slot,
                         Expr call_op);
+
+  const char *func_type() const override;
+
+  static char const *__func_type__;
+};
+
+/**
+ * The operation of the preceding view of a tensor.
+ */
+struct PrecedingViewOp : public _Operation_ {
+  Expr tensor;
+
+  int preceding_axis{-1};
+
+  static Operation Make(const Tensor &tensor, int preceding_axis);
 
   const char *func_type() const override;
 

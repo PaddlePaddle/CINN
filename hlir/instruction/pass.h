@@ -34,7 +34,7 @@ class ModulePass : public PassInterface {
  */
 class ModuleGroupPass : public PassInterface {
  public:
-  bool Run(Module* module) override {}
+  bool Run(Module* module) override { NOT_IMPLEMENTED }
 };
 
 }  // namespace instruction

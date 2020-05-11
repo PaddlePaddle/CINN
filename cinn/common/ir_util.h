@@ -4,9 +4,10 @@
 namespace cinn {
 namespace common {
 
-Expr ExpandTo1DIndice(const std::vector<Expr> &shape, const std::vector<Expr> &indices);
+Expr IndiceToAbsOffset(const std::vector<Expr> &shape, const std::vector<Expr> &indices);
+Expr IndiceToAbsOffset(const std::vector<int> &shape, const std::vector<Expr> &indices);
 
-Expr ExpandTo1DIndice(const std::vector<int> &shape, const std::vector<Expr> &indices);
+Expr PrecedingAxisToAbsOffset(const std::vector<Expr> &shape, int preceding_n_axis);
 
 Expr CastIfNeeded(Expr body, Type type);
 

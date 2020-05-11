@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "cinn/common/common.h"
-#include "cinn/common/ir.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"

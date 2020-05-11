@@ -6,7 +6,7 @@
 
 #include "cinn/cinn.h"
 #include "cinn/common/common.h"
-#include "cinn/common/ir.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/optimize.h"

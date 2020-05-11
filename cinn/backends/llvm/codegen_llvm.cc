@@ -11,6 +11,7 @@
 #include <sstream>
 #include <type_traits>
 
+#include "cinn/backends/extern_func_emitter.h"
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/common/type.h"
 #include "cinn/ir/ir_printer.h"
@@ -427,6 +428,13 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
     return EmitCall_get_address(op);
   } else if (op->name == runtime::debug_log_repr) {
     return EmitCall_debug_info(op);
+  } else if (op->is_extern_call()) {
+    auto emitter_id = ExternFuncID{backend_llvm_host, op->name.c_str()};
+    auto *emitter   = ExternFunctionEmitterRegistry::Global().Lookup(emitter_id);
+    CHECK(emitter) << "No extern function emitter called " << emitter_id;
+    emitter->BindCodeGen(this);
+    emitter->Emit(op);
+    return extern_func_emit_res_;
   }
 
   llvm::Function *callee = m_->getFunction(op->name);
@@ -696,7 +704,7 @@ llvm::Value *CodeGenLLVM::EmitCall_debug_info(const ir::Call *op) {
 
 llvm::Value *CodeGenLLVM::GetVar(const std::string &name) {
   auto it = named_vars_.find(name);
-  CHECK(it != named_vars_.end());
+  CHECK(it != named_vars_.end()) << "No var [" << name << "] found";
   return it->second;
 }
 

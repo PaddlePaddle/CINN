@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "cinn/common/common.h"
-#include "cinn/common/ir.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
 

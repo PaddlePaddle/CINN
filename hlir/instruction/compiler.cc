@@ -51,7 +51,9 @@ lowered_func_p Compiler::Compile(const Module *module) {
     return nullptr;
   }
 }
-lowered_func_p Compiler::Lookup(const std::string &name) const { reinterpret_cast<lowered_func_p>(jit_->Lookup(name)); }
+lowered_func_p Compiler::Lookup(const std::string &name) const {
+  return reinterpret_cast<lowered_func_p>(jit_->Lookup(name));
+}
 
 }  // namespace instruction
 }  // namespace hlir

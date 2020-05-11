@@ -20,6 +20,7 @@
 
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
+#include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/lang/compute.h"
@@ -49,8 +50,8 @@ auto CreateTestBuffer() {
   float *Bd = reinterpret_cast<float *>(B->host_memory);
 
   for (int i = 0; i < A->num_elements(); i++) {
-    Ad[i] = i;
-    Bd[i] = i;
+    Ad[i] = static_cast<float>(rand()) / RAND_MAX;
+    Bd[i] = static_cast<float>(rand()) / RAND_MAX;
   }
 
   float *Cd = reinterpret_cast<float *>(C->host_memory);
@@ -86,8 +87,7 @@ auto CreateTestCinnModule() {
 }  // namespace
 
 TEST(llvm_test01, elementwise_add) {
-  FLAGS_cinn_runtime_display_debug_info = true;
-  auto jit                              = backends::SimpleOrcJit::Create();
+  auto jit = backends::SimpleOrcJit::Create();
 
   auto [a, b, c] = CreateTestBuffer();  // NOLINT
 
@@ -155,10 +155,12 @@ TEST(llvm, module_call_lowered_func) {
 
     elementwise_add(args, 3);
 
+    auto *ad = reinterpret_cast<float *>(ab->host_memory);
+    auto *bd = reinterpret_cast<float *>(bb->host_memory);
     for (int i = 0; i < kM; i++) {
       for (int j = 0; j < kN; j++) {
         auto *data = reinterpret_cast<float *>(cb->host_memory);
-        ASSERT_NEAR(data[i * kN + j], 2 * (i * kN + j), 1e-5);
+        ASSERT_NEAR(data[i * kN + j], ad[i * kN + j] + bd[i * kN + j], 1e-5);
       }
     }
   } while (false);
@@ -211,5 +213,49 @@ TEST(jit, cpu_runtime) {
     ASSERT_NEAR(call_sin(theta), sin(theta), 1e-6);
   }
 }
+
+TEST(SimpleOrcJit, call_extern) {
+  ir::Expr M(kM);
+  ir::Expr N(kN);
+
+  Placeholder<float> x("x", {M, N});
+  Placeholder<float> y("y", {M, N});
+
+  auto add_out = Compute(
+      {M, N}, [=](Var i, Var j) { return x(i, j) + y(i, j); }, "add_out");
+  ir::Tensor res = Compute(
+      {M, N}, [&](Var i, Var j) -> Expr { return lang::CallExtern("tanh", {add_out(i, j)}); }, "res");
+  res->WithBuffer();
+
+  auto func = Lower("comp", {x, y, res});
+
+  Module::Builder builder("module0", common::DefaultHostTarget());
+  builder.AddFunction(func);
+
+  auto jit = backends::SimpleOrcJit::Create();
+
+  LOG(INFO) << "JIT Link the module";
+  jit->Link(builder.Build(), /*optimize=*/false);
+
+  auto [ab, bb, cb] = CreateTestBuffer();  // NOLINT
+
+  auto comp_addr = jit->Lookup("comp");
+  auto comp      = reinterpret_cast<void (*)(void *, int32_t)>(comp_addr);
+
+  cinn_pod_value_t a_arg(ab), b_arg(bb), c_arg(cb);
+  cinn_pod_value_t args[3] = {a_arg, b_arg, c_arg};
+
+  comp(args, 3);
+
+  auto *ad = reinterpret_cast<float *>(ab->host_memory);
+  auto *bd = reinterpret_cast<float *>(bb->host_memory);
+  auto *cd = reinterpret_cast<float *>(cb->host_memory);
+  for (int m = 0; m < kM; m++) {
+    for (int n = 0; n < kN; n++) {
+      ASSERT_NEAR(cd[m * kN + n], __cinn_host_tanh(ad[m * kN + n] + bd[m * kN + n]), 1e-5);
+    }
+  }
+}
+
 }  // namespace backends
 }  // namespace cinn

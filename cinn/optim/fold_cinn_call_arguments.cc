@@ -1,4 +1,4 @@
-#include "cinn/optim/fold_call_arguments.h"
+#include "cinn/optim/fold_cinn_call_arguments.h"
 
 #include <unordered_set>
 #include <vector>
@@ -12,7 +12,10 @@ namespace optim {
 
 namespace {
 
-struct FoldCallArgumentsMutator : public ir::IRMutator<> {
+/**
+ * Fold the arguments of the Call nodes marked as CINN(calls an LoweredFunc).
+ */
+struct FoldCINNCallArgumentsMutator : public ir::IRMutator<> {
   void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
  private:
@@ -50,6 +53,8 @@ struct FoldCallArgumentsMutator : public ir::IRMutator<> {
           break;
         case ir::Call::CallType::Intrinsic:
           break;
+        case ir::Call::CallType::Extern:
+          break;
         default:
           NOT_IMPLEMENTED
       }
@@ -57,6 +62,8 @@ struct FoldCallArgumentsMutator : public ir::IRMutator<> {
   }
 
   void MutateCall(ir::Call* call) {
+    if (call->call_type == ir::Call::CallType::Extern) return;
+
     std::vector<Expr> read_args;
     std::vector<Expr> write_args;
     for (auto& arg : call->read_args) {
@@ -86,7 +93,7 @@ struct FoldCallArgumentsMutator : public ir::IRMutator<> {
 
 }  // namespace
 
-void FoldCallArguments(Expr* expr) { FoldCallArgumentsMutator()(expr); }
+void FoldCINNCallArguments(Expr* expr) { FoldCINNCallArgumentsMutator()(expr); }
 
 }  // namespace optim
 }  // namespace cinn
