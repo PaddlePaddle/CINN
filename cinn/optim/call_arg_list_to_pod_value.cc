@@ -18,7 +18,7 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
 
  private:
   void Visit(const ir::Call* op, Expr* expr) override {
-    if (op->call_type == ir::Call::CallType::CINN) {
+    if (op->is_cinn_call()) {
       auto [oprs, args] = pack_arg_exprs(op);  // NOLINT
 
       Var pod_array_var(Context::Global().NewName("_pod_arr"),
@@ -36,7 +36,7 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
           op->name,
           {runtime::GetAddr(type_of<cinn_pod_value_t*>(), pod_array_var), common::make_const(Int(32), args.size())},
           {},
-          ir::Call::CallType::CINN,
+          ir::CallType::CINN,
           op->func,
           op->value_index,
           op->tensor);

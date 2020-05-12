@@ -93,15 +93,7 @@ std::vector<ir::Tensor> Call(const std::string &target,
  *
  * @param target The name of the function to call.
  * @param args The readonly arguments(while there should be only one tensor as result).
- * @param preceding_axis The preceeding axis.
- * @param ret_type The type of the return value.
- * @return The only one result.
  */
-ir::Tensor CallExtern0(const std::string &target,
-                       const std::vector<Expr> &args,
-                       ReturnType ret_type,
-                       int preceding_axis = -1);
-
 Expr CallExtern(const std::string &target, const std::vector<Expr> &args);
 
 }  // namespace lang

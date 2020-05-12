@@ -296,19 +296,18 @@ struct Reduce : public ExprNode<Reduce> {
   static const IrNodeTy _node_type_ = IrNodeTy::Reduce;
 };
 
+enum CallType : int {
+  //! Extern "C" function.
+  Extern = 0,
+  //! CINN-style call, call a CINN function.
+  CINN,
+  //! Intrinsic functions.
+  Intrinsic,
+  //! Generated from ISL Ast.
+  ISL,
+};
 struct Call : public ExprNode<Call> {
   explicit Call(Type t) : ExprNode<Call>(t) {}
-
-  enum CallType : int {
-    //! Extern "C" function.
-    Extern = 0,
-    //! CINN-style call, call a CINN function.
-    CINN,
-    //! Intrinsic functions.
-    Intrinsic,
-    //! Generated from ISL Ast.
-    ISL,
-  };
 
   //! The name of the function/intrinsic.
   std::string name;

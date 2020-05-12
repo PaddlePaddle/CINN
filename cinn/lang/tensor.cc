@@ -93,7 +93,7 @@ bool _Tensor_::is_extern_call_node() const {
     auto *op   = operation->as<ir::CallOp>();
     auto *call = op->call_expr.As<ir::Call>();
     if (call) {
-      return call->call_type == ir::Call::CallType::Extern;
+      return call->is_extern_call();
     }
   }
   return false;

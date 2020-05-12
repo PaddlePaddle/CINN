@@ -232,7 +232,7 @@ void CodeGenC::Visit(const ir::Call *op) {
     PrintCall_get_address(op);
   } else if (op->name == runtime::pod_values_to_array_repr) {
     PrintCall_pod_values_to_array(op);
-  } else if (op->call_type == ir::Call::CallType::Intrinsic) {
+  } else if (op->is_intrinsic_call()) {
     CHECK(!op->read_args.empty() || !op->write_args.empty());
     os() << op->name << "(";
     PrintCallArgs(op);

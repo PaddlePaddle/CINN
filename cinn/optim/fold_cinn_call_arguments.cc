@@ -24,7 +24,7 @@ struct FoldCINNCallArgumentsMutator : public ir::IRMutator<> {
     for (auto it = node->stmts.begin(); it != node->stmts.end();) {
       if (it->As<ir::Store>()) {
         auto* call = it->As<ir::Store>()->value.As<ir::Call>();
-        if (call && call->call_type == ir::Call::CallType::CINN) {
+        if (call && call->is_cinn_call()) {
           // remove the duplicate calls.
           std::string key = utils::GetStreamCnt(Expr(call));
           if (visited_call_.count(utils::GetStreamCnt(Expr(call)))) {
@@ -47,13 +47,13 @@ struct FoldCINNCallArgumentsMutator : public ir::IRMutator<> {
     if (node->value.As<ir::Call>()) {
       auto* call = node->value.As<ir::Call>();
       switch (call->call_type) {
-        case ir::Call::CallType::CINN:
+        case ir::CallType::CINN:
           MutateCall(call);
           *expr = node->value;
           break;
-        case ir::Call::CallType::Intrinsic:
+        case ir::CallType::Intrinsic:
           break;
-        case ir::Call::CallType::Extern:
+        case ir::CallType::Extern:
           break;
         default:
           NOT_IMPLEMENTED
@@ -62,7 +62,7 @@ struct FoldCINNCallArgumentsMutator : public ir::IRMutator<> {
   }
 
   void MutateCall(ir::Call* call) {
-    if (call->call_type == ir::Call::CallType::Extern) return;
+    if (call->call_type == ir::CallType::Extern) return;
 
     std::vector<Expr> read_args;
     std::vector<Expr> write_args;
