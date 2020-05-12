@@ -14,7 +14,7 @@ ir::Expr BufferCreate(ir::Buffer buffer) {
   args.push_back(Expr(buffer->target.runtime_arch()));
   CHECK(buffer->target.defined()) << "Buffer [" << buffer->name << "] target not set, get " << buffer->target;
   return ir::Call::Make(
-      Void(), runtime::buffer_create, args, {}, ir::Call::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
+      Void(), runtime::buffer_create, args, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
 }
 
 ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices) {
@@ -40,7 +40,7 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices) {
       buffer_load_method,          //
       args,
       {},
-      ir::Call::Intrinsic,
+      ir::CallType::Intrinsic,
       ir::FunctionRef(),
       0,
       Expr());
@@ -49,7 +49,7 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices) {
 ir::Expr BufferMalloc(ir::Buffer buffer) { return BufferMalloc(buffer->buffer_addr()); }
 ir::Expr BufferMalloc(ir::Var buffer_var) {
   return ir::Call::Make(
-      Void(), runtime::buffer_malloc, {Expr(0), buffer_var}, {}, ir::Call::Intrinsic, ir::FunctionRef(), 0, Expr());
+      Void(), runtime::buffer_malloc, {Expr(0), buffer_var}, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
 }
 
 cinn_type_t ToRuntimeType(Type type) {
@@ -76,16 +76,10 @@ ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_const) {
   Expr call;
   if (!is_const)
     call = ir::Call::Make(
-        type, buffer_get_data_handle, {Expr(buffer)}, {}, ir::Call::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
+        type, buffer_get_data_handle, {Expr(buffer)}, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
   else
-    call = ir::Call::Make(type,
-                          buffer_get_data_const_handle,
-                          {Expr(buffer)},
-                          {},
-                          ir::Call::CallType::Intrinsic,
-                          ir::FunctionRef(),
-                          0,
-                          Expr());
+    call = ir::Call::Make(
+        type, buffer_get_data_const_handle, {Expr(buffer)}, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
 
   Type target_type = buffer->type().ElementOf();
   target_type.set_cpp_handle();
@@ -98,7 +92,7 @@ Expr IntrinsicCall(Type type,
                    const std::string& fn_name,
                    const std::vector<Expr>& args,
                    const std::vector<Expr>& write_args) {
-  return ir::Call::Make(type, fn_name, args, write_args, ir::Call::CallType::Intrinsic);
+  return ir::Call::Make(type, fn_name, args, write_args, ir::CallType::Intrinsic);
 }
 
 }  // namespace runtime

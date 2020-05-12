@@ -90,9 +90,8 @@ struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
 };
 
 void CheckNoIslCallRemains(const Expr* expr) {
-  auto isl_calls = ir::CollectIRNodes(*expr, [](const Expr* expr) {
-    return expr->As<ir::Call>() && expr->As<ir::Call>()->call_type == ir::Call::CallType ::ISL;
-  });
+  auto isl_calls = ir::CollectIRNodes(
+      *expr, [](const Expr* expr) { return expr->As<ir::Call>() && expr->As<ir::Call>()->is_isl_call(); });
 #ifdef CINN_DEBUG
   for (auto& item : isl_calls) {
     LOG(ERROR) << "ISL call: " << item;

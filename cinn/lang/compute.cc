@@ -142,7 +142,7 @@ ir::Tensor Call(const std::string &target,
                 const std::vector<Expr> &dims,
                 const std::vector<Expr> &args,
                 const std::string &name) {
-  auto call       = ir::Call::Make(type, target, args, {}, ir::Call::CallType::CINN, ir::FunctionRef(), 0, Expr());
+  auto call       = ir::Call::Make(type, target, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0, Expr());
   auto call_op    = ir::CallOp::Make(target, args, 0, call);
   auto new_tensor = ir::_Tensor_::Make(name, dims, call_op);
   new_tensor->WithBuffer();
@@ -154,7 +154,7 @@ ir::Tensor Call(const std::string &target,
 std::vector<ir::Tensor> Call(const std::string &target,
                              const std::vector<Expr> &args,
                              const std::vector<ReturnType> &return_types) {
-  auto call = ir::Call::Make(Void(), target, args, {}, ir::Call::CallType::CINN, ir::FunctionRef(), 0, Expr());
+  auto call = ir::Call::Make(Void(), target, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0, Expr());
   std::vector<ir::Tensor> new_tensors;
   for (int i = 0; i < return_types.size(); i++) {
     auto &return_type = return_types[i];
@@ -172,7 +172,7 @@ std::vector<ir::Tensor> Call(const std::string &target,
 Expr CallExtern(const std::string &target, const std::vector<Expr> &args) {
   auto *proto = backends::ExternFunctionProtoRegistry::Global().Lookup(target);
   CHECK(proto) << "No extern function " << target << " found";
-  auto call = ir::Call::Make(proto->ret_type, target, args, {}, ir::Call::CallType::Extern);
+  auto call = ir::Call::Make(proto->ret_type, target, args, {}, ir::CallType::Extern);
   return call;
 }
 

@@ -22,7 +22,7 @@ struct LowerFunctionCallBindVarsMutator : public ir::IRMutator<> {
  private:
   void Visit(const ir::Call* op, Expr* expr) {
     auto* node = expr->As<ir::Call>();
-    if (op->call_type == ir::Call::CallType::CINN) {
+    if (op->is_cinn_call()) {
       const std::string& target = op->name;
       auto it                   = std::find_if(m_->functions.begin(), m_->functions.end(), [&](const Expr& x) {
         return x.as_lowered_func()->name == target;
