@@ -224,6 +224,7 @@ struct LowerImpl {
       bool is_output = teller.IsWrite(tensor->name);
 
       // avoid duplicate
+      if (!tensor_node->buffer.defined()) continue;
       if (arg_names.count(tensor_node->buffer->name)) continue;
 
       arg_names.insert(tensor_node->buffer->name);
@@ -249,7 +250,7 @@ struct LowerImpl {
     // generate the expressions for each group.
     std::vector<Expr> exprs;
     std::map<std::string, Expr> tuple_to_expr;
-    CHECK_GT(schedule->groups.size(), 0) << "no group is generated";
+    CHECK(!schedule->groups.empty()) << "no group is generated";
     for (auto& group : schedule->groups) {
       CHECK_GT(group.nodes.size(), 0) << "group is empty";
       for (auto& node : group.nodes) {

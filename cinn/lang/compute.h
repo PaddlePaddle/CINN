@@ -81,14 +81,21 @@ std::vector<ir::Tensor> Call(const std::string &target,
                              const std::vector<ReturnType> &return_types);
 
 /**
- * \brief Call an extern function and get a tensor as result.
+ * \brief Call an extern function and get tensors as result.
  *
+ * There are two kinds of extern functions distinguish by the return type.
+ *
+ * 1. Void, there are one or more mutable tensors in the argument list.
  * \code
- * auto tanh_out = CallIntrinsic("tanh", {X}, ReturnType{x.type(), X.shape, "x.tanh");
+ * Tensor tuple = Compute({M}, []() { return CallExtern("mkl_gemm", {X, W}); });
  * \endcode
  *
+ * To support returning multiple value one time, we include the tuple concept, it is a Tensor with CallOp marked with
+ * value_offset(from 0 to num_returns-1).
+ *
+ * 2. POD value, return an expression directlly, and it can be inline expand in following computations.
  * \code
- * auto gemm_out = CallIntrinsic("gemm_mkl", {X.view(i), W}, {i}, ReturnType{x.type(), {}, "gemm.out");
+ * Tensor tanh_out = Compute({M}, [](Var i) { return CallExtern("tanh", X(i)); });
  * \endcode
  *
  * Will generate something like
@@ -103,6 +110,8 @@ std::vector<ir::Tensor> Call(const std::string &target,
  * @param args The readonly arguments(while there should be only one tensor as result).
  */
 Expr CallExtern(const std::string &target, const std::vector<Expr> &args);
+
+Expr CallExtern(const std::string &target, const std::vector<Expr> &args, ir::Tensor &mutable_tensor);  // NOLINT
 
 }  // namespace lang
 }  // namespace cinn

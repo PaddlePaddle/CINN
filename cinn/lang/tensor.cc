@@ -39,6 +39,7 @@ Tensor _Tensor_::Make(const std::string &name,
 size_t Tensor::ndims() const { return operator->()->shape.size(); }
 
 Expr Tensor::operator()(const std::vector<Expr> &indices) const {
+  CHECK(!self()->is_tuple()) << "should extract a specific value from the tuple and operate on that instead";
   CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension";
   auto *node = operator->();
 
@@ -226,9 +227,6 @@ _Tensor_::~_Tensor_() {
   }
 }
 
-const _Operation_ *Operation::operator->() const { return static_cast<_Operation_ *>(get()); }
-_Operation_ *Operation::operator->() { return static_cast<_Operation_ *>(get()); }
-
 Expr _Tensor_::body() const {
   if (is_placeholder_node()) return Expr();
   if (is_compute_node()) return operation->as<ir::ComputeOp>()->body.front();
@@ -254,6 +252,8 @@ Expr _Tensor_::tensor_store_expanded_body() {
         NOT_IMPLEMENTED
     }
   }
+
+  if (is_tuple()) return final_body;
 
   return ir::Store::Make(Expr(Buffer(this)), final_body, g_axis);
 }
@@ -302,6 +302,20 @@ bool _Tensor_::SameShapeWith(const Tensor &other) const {
   return true;
 }
 
+Tensor _Tensor_::TupleGet(int offset) const {
+  CHECK(is_tuple());
+  auto *call = body().As<ir::Call>();
+  CHECK_LT(offset, call->write_args.size());
+  return call->write_args[offset].as_tensor_ref();
+}
+
+bool _Tensor_::is_tuple() const {
+  if (is_placeholder_node()) return false;
+  auto *call = body().As<ir::Call>();
+  if (call && call->is_extern_call() && !call->write_args.empty()) return true;
+  return false;
+}
+
 std::vector<Expr> _Tensor_::domain_with_reduce_axis() const {
   if (reduce_axis.empty()) return domain;
   auto res = domain;
@@ -328,6 +342,12 @@ Tensor Tensor::PrecedingView(int preceding_n_axis) const {
   auto res = _Tensor_::Make(name, self()->type(), shape, shape, op, self()->reduce_axis);
   res->Bind(self()->buffer);
   return res;
+}
+
+bool _Tensor_::is_tuple_get() const {
+  return is_call_node() && operation.defined() &&
+         operation->as<ir::_Operation_>()->func_type() == ir::CallOp::__func_type__ &&
+         operation->as<ir::CallOp>()->is_tuple_get;
 }
 
 }  // namespace ir

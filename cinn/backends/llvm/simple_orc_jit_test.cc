@@ -257,5 +257,28 @@ TEST(SimpleOrcJit, call_extern) {
   }
 }
 
+TEST(SimpleOrcJit, call_extern_v) {
+  ir::Expr M(kM);
+  ir::Expr N(kN);
+
+  Placeholder<float> x("x", {M});
+
+  auto y = Compute(
+      {Expr(1)}, [&]() -> Expr { return lang::CallExtern("tanh_v", {x}); }, "out");
+
+  auto y1 = Compute(
+      {M}, [&](Var i) -> Expr { return lang::CallExtern("tanh_v", {x}); }, "out1");
+
+  auto yy = y->TupleGet(0);
+  yy->WithBuffer();
+
+  auto yy1 = y1->TupleGet(0);
+  yy1->WithBuffer();
+
+  auto func = Lower("comp", {x, y, y1, yy, yy1});
+
+  LOG(INFO) << "func: " << func;
+}
+
 }  // namespace backends
 }  // namespace cinn

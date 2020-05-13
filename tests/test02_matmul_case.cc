@@ -7,6 +7,7 @@
 #include "tests/test02_matmul_array_packing.h"
 #include "tests/test02_matmul_array_packing_dynamic_shape.h"
 #include "tests/test02_matmul_block.h"
+#include "tests/test02_matmul_call.h"
 #include "tests/test02_matmul_loop_permutation.h"
 #include "tests/test02_matmul_split.h"
 #include "tests/test02_matmul_tile.h"
@@ -134,4 +135,6 @@ TEST(test02, basic) {
   TEST_FUNC2(matmul_dynamic_shape_tile, 1e-5);
 
   TEST_FUNC3(matmul_array_packing_dynamic_shape, 1e-5);
+
+  TEST_FUNC(matmul_main);
 }

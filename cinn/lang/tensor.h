@@ -131,7 +131,13 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      const std::vector<Var>& reduce_axis = {});
 
   //! Tell whether this tensor is inline.
-  bool inlined() const { return (!buffer.defined()) && is_compute_node(); }
+  bool inlined() const { return (!buffer.defined()) && is_compute_node() && !is_tuple(); }
+
+  //! Tell whether this tensor represents a tuple (consists of one or multiple tensors as output of a extern Call).
+  bool is_tuple() const;
+  bool is_tuple_get() const;
+
+  Tensor TupleGet(int offset) const;
 
   //! Create a buffer belong to this tensor.
   void WithBuffer();
@@ -220,8 +226,8 @@ class Operation : public FunctionRef {
   Operation() = default;
   explicit Operation(IrNode* n) : FunctionRef(n) {}
 
-  inline const _Operation_* operator->() const;
-  inline _Operation_* operator->();
+  inline const _Operation_* operator->() const { return reinterpret_cast<_Operation_*>(get()); }
+  inline _Operation_* operator->() { return reinterpret_cast<_Operation_*>(get()); }
 
   //! Get the i-th output of the operation.
   // Tensor output(size_t i) const;

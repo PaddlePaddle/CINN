@@ -55,5 +55,29 @@ bool ExternFuncEmitter_LLVM_tanh::RetValuePacked() const { return false; }
 const char* ExternFuncEmitter_LLVM_tanh::backend_kind() const { return backend_llvm_host; }
 // @}
 
+// @{
+void ExternFuncEmitter_C_tanh_v::BindCodeGen(void* codegen) { codegen_ = reinterpret_cast<CodeGenC*>(codegen); }
+const char* ExternFuncEmitter_C_tanh_v::func_name() const { return extern_func__tanh_v; }
+void ExternFuncEmitter_C_tanh_v::EmitImpl(const ir::Call* op) {
+  auto& os = codegen_->os();
+  os << extern_tanh_v_host_repr;
+  os << "(";
+  codegen_->Print(op->read_args[0]);
+  os << ", ";
+  codegen_->Print(op->write_args[0]);
+  os << ")";
+}
+bool ExternFuncEmitter_C_tanh_v::RetValuePacked() const { return true; }
+const char* ExternFuncEmitter_C_tanh_v::backend_kind() const { return backend_C; }
+// @}
+
+// @{
+void ExternFuncEmitter_LLVM_tanh_v::BindCodeGen(void* codegen) { codegen_ = reinterpret_cast<CodeGenLLVM*>(codegen); }
+const char* ExternFuncEmitter_LLVM_tanh_v::func_name() const { return extern_func__tanh_v; }
+void ExternFuncEmitter_LLVM_tanh_v::EmitImpl(const ir::Call* op) { NOT_IMPLEMENTED }
+bool ExternFuncEmitter_LLVM_tanh_v::RetValuePacked() const { return true; }
+const char* ExternFuncEmitter_LLVM_tanh_v::backend_kind() const { return backend_llvm_host; }
+// @}
+
 }  // namespace backends
 }  // namespace cinn
