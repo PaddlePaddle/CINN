@@ -15,49 +15,26 @@
 namespace cinn {
 namespace ir {
 
-Tensor _Tensor_::Make(const std::string &name, const std::vector<Expr> &shape, FunctionRef fn) {
+Tensor _Tensor_::Make(const std::string &name,
+                      Type dtype,
+                      const std::vector<Expr> &shape,
+                      const std::vector<Expr> &domain,
+                      FunctionRef fn,
+                      const std::vector<Var> &reduce_axis) {
   CHECK(!shape.empty()) << "Tensor shape is set empty";
   CHECK(!name.empty()) << "Tensor name is set empty";
-  auto n       = make_shared<_Tensor_>();
-  n->name      = name;
-  n->shape     = shape;
+  auto n         = make_shared<_Tensor_>();
+  n->name        = name;
+  n->shape       = shape;
+  n->domain      = domain;
+  n->reduce_axis = reduce_axis;
+  n->set_type(dtype);
   n->operation = fn;
   n->InitStage();
   n->InitAxis();
 
   return Tensor(n);
 }
-
-Tensor _Tensor_::Make(const std::string &name,
-                      const std::string &tag,
-                      const std::vector<Expr> &shape,
-                      const std::vector<Var> &axis,
-                      Type dtype,
-                      const std::map<std::string, IrNodeRef> &attrs,
-                      const std::vector<Expr> &body) {
-  CHECK(!shape.empty()) << "Tensor shape is set empty";
-  CHECK(!name.empty()) << "Tensor name is set empty";
-
-  auto op          = ComputeOp::Make(name, tag, attrs, axis, body, shape);
-  auto *compute_op = op->as<ComputeOp>();
-
-  CHECK_EQ(axis.size(), shape.size()) << "axis not match the dimension in shape";
-  compute_op->axis = axis;
-
-  auto n       = make_shared<_Tensor_>();
-  n->name      = name;
-  n->operation = op;
-  n->shape     = shape;
-  n->set_type(dtype);
-  n->InitStage();
-
-  return Tensor(n);
-}
-
-Tensor::Tensor(
-    const std::vector<Expr> &shape, const std::vector<Var> &axis, Type dtype, Expr expr, const std::string &name)
-    : IrNodeRef(_Tensor_::Make(
-          name.empty() ? Context::Global().NewName("tensor") : name, "", shape, axis, dtype, {}, {expr})) {}
 
 size_t Tensor::ndims() const { return operator->()->shape.size(); }
 
@@ -165,38 +142,39 @@ poly::Stage *_Tensor_::stage() {
 }
 
 void _Tensor_::InitAxis() {
-  CHECK(!shape.empty());
-  CHECK(axis.empty()) << "duplicate init axis";
-  axis = common::GenDefaultAxis(shape.size());
+  CHECK(!domain_without_reduce_axis().empty());
+  axis_ = common::GenDefaultAxis(domain_without_reduce_axis().size());
 }
 
 isl::set _Tensor_::GenerateIslDomain() {
+  // include the reduce axis.
   std::vector<poly::Dim> dims;
-  CHECK_EQ(axis.size(), domain.size());
+  if (axis_.empty()) InitAxis();
+  auto domain = domain_with_reduce_axis();
+  CHECK_EQ(axis_with_reduce().size(), domain.size());
+  auto _axis_with_reduce = axis_with_reduce();
   for (int i = 0; i < domain.size(); i++) {
-    auto &dim = domain[i];
+    auto dim = domain[i];
     if (dim.is_constant()) {
-      dims.emplace_back(axis[i]->name, 0, dim.as_int32() - 1);
+      dims.emplace_back(_axis_with_reduce[i]->name, 0, dim.as_int32() - 1);
     } else {
-      dims.emplace_back(axis[i]->name, Expr(0), Sub::Make(dim, common::make_const(1)));
+      dims.emplace_back(_axis_with_reduce[i]->name, Expr(0), Sub::Make(dim, common::make_const(1)));
     }
   }
 
-  poly::Domain domain(Context::Global().isl_ctx(), name, dims);
-  return domain.to_isl();
+  poly::Domain isl_domain(Context::Global().isl_ctx(), name, dims);
+  return isl_domain.to_isl();
 }
 
 std::vector<Expr *> _Tensor_::expr_fields() {
   std::vector<Expr *> res;
   const char *func_type = operation->as<ir::_Operation_>()->func_type();
   if (operation.defined()) {
-    if (func_type == ir::ComputeOp::__func_type__) {
+    if (is_compute_node()) {
       auto *op = operation->as<ir::ComputeOp>();
       for (auto &expr : op->body) res.push_back(&expr);
-      for (auto &expr : op->shape) res.push_back(&expr);
-    } else if (func_type == ir::PlaceholderOp::__func_type__) {
+    } else if (is_placeholder_node()) {
       auto *op = operation->as<ir::PlaceholderOp>();
-      for (auto &expr : op->shape) res.push_back(&expr);
     } else if (is_call_node()) {
       auto *op = operation->as<ir::CallOp>();
       for (auto &expr : op->read_args()) res.push_back(&expr);
@@ -221,10 +199,8 @@ std::vector<const Expr *> _Tensor_::expr_fields() const {
     if (is_compute_node()) {
       auto *op = operation->as<ir::ComputeOp>();
       for (auto &expr : op->body) res.push_back(&expr);
-      for (auto &expr : op->shape) res.push_back(&expr);
     } else if (is_placeholder_node()) {
       auto *op = operation->as<ir::PlaceholderOp>();
-      for (auto &expr : op->shape) res.push_back(&expr);
     } else if (is_call_node()) {
       auto *op = operation->as<ir::CallOp>();
       for (auto &expr : op->read_args()) res.push_back(&expr);
@@ -263,31 +239,27 @@ Expr _Tensor_::body() const {
 Expr _Tensor_::tensor_store_expanded_body() {
   CHECK(!is_placeholder_node()) << "placeholder should not expand store";
 
-  CHECK_LE(shape.size(), axis.size());
-
-  std::vector<Expr> axis_;
-  for (int i = 0; i < shape.size(); i++) {
-    axis_.push_back(Expr(axis[i]));
-  }
-
   Expr final_body = body();
+
+  std::vector<Expr> g_axis = common::GenDefaultAxisAsExpr(shape.size());
 
   auto *reduce_node = body().As<ir::Reduce>();
   if (reduce_node) {
     final_body = reduce_node->body;
     switch (reduce_node->reduce_type) {
       case ir::Reduce::kSum:
-        final_body = Tensor(this)(axis_) + final_body;
+        final_body = Tensor(this)(g_axis) + final_body;
         break;
       default:
         NOT_IMPLEMENTED
     }
   }
 
-  return ir::Store::Make(Expr(Buffer(this)), final_body, axis_);
+  return ir::Store::Make(Expr(Buffer(this)), final_body, g_axis);
 }
 
 void _Tensor_::Bind(lang::Buffer &buffer) {
+  CHECK(!buffer->type().is_void());
   // Extract the tensors thouse has binded to this buffer.
   buffer_depended_tensor_names_ = buffer.buffer()->binded_tensor_names();
 
@@ -330,6 +302,16 @@ bool _Tensor_::SameShapeWith(const Tensor &other) const {
   return true;
 }
 
+std::vector<Expr> _Tensor_::domain_with_reduce_axis() const {
+  if (reduce_axis.empty()) return domain;
+  auto res = domain;
+  for (const Var &axis : reduce_axis) {
+    CHECK(axis->upper_bound.type().is_int(32)) << axis->upper_bound;
+    res.push_back(axis->upper_bound);
+  }
+  return res;
+}
+
 Tensor Tensor::PrecedingView(int preceding_n_axis) const {
   CHECK(!self()->inlined()) << "Only tensor with buffers can have view";
   auto op          = PrecedingViewOp::Make(*this, preceding_n_axis);
@@ -343,7 +325,7 @@ Tensor Tensor::PrecedingView(int preceding_n_axis) const {
   std::vector<Expr> shape({preceding_dim});
   for (int i = preceding_n_axis; i < self()->shape.size(); i++) shape.push_back(self()->shape[i]);
 
-  auto res = _Tensor_::Make(name, shape, op);
+  auto res = _Tensor_::Make(name, self()->type(), shape, shape, op, self()->reduce_axis);
   res->Bind(self()->buffer);
   return res;
 }

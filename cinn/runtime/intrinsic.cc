@@ -70,8 +70,8 @@ cinn_type_t ToRuntimeType(Type type) {
 
 ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_const) {
   CHECK(buffer->type().valid());
-  Type type = Void();
-  type.set_cpp_handle();  // a void*
+  Type type = buffer->type();
+  type.set_cpp_handle();
   type.set_cpp_const(is_const);
   Expr call;
   if (!is_const)

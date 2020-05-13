@@ -1,10 +1,10 @@
 #include "cinn/backends/extern_func_emitter.h"
-#include "cinn/backends/llvm/runtime_symbol_registry.h"
 
 #include <functional>
 #include <string>
 
 #include "cinn/backends/extern_func_emitter_builtin.h"
+#include "cinn/backends/llvm/runtime_symbol_registry.h"
 
 namespace cinn {
 namespace backends {

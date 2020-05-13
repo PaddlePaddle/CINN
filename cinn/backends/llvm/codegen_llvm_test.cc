@@ -92,7 +92,7 @@ auto CreateIrTensor(std::string name, std::vector<int> shape) {
     shape_expr.emplace_back(pi.release());
   }
 
-  auto tensor    = ir::_Tensor_::Make(std::move(name), std::move(shape_expr), {});
+  auto tensor    = ir::_Tensor_::Make(std::move(name), Float(32), shape_expr, shape_expr, {}, {});
   tensor->domain = tensor->shape;
   return tensor;
 }

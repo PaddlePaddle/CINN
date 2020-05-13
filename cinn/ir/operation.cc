@@ -20,39 +20,24 @@ const char *PlaceholderOp::func_type() const { return "placeholder_op"; }
 const char *ComputeOp::func_type() const { return "compute_op"; }
 
 Operation ComputeOp::Make(const std::string &name,
-                          const std::string &tag,
-                          const std::map<std::string, IrNodeRef> &attrs,
-                          const std::vector<Var> &axis,
-                          const std::vector<Expr> &body,
-                          const std::vector<Expr> &shape) {
-  auto n   = make_shared<ComputeOp>();
-  n->name  = name;
-  n->tag   = tag;
-  n->attrs = attrs;
-  n->axis  = axis;
-  n->body  = body;
-  n->shape = shape;
-  return Operation(n);
-}
-
-Operation ComputeOp::Make(const std::string &name,
-                          const std::string &tag,
-                          const std::map<std::string, IrNodeRef> &attrs,
                           ComputeOp::handle_t handle,
                           const std::vector<Expr> &shape,
                           const std::vector<Expr> &domain,
-                          const std::vector<Var> &reduce_axis) {
+                          const std::vector<Var> &reduce_axis,
+                          const std::map<std::string, IrNodeRef> &attrs,
+                          const std::string &tag) {
   auto n         = make_shared<ComputeOp>();
   n->name        = name;
-  n->tag         = tag;
-  n->attrs       = attrs;
   n->producer_fn = handle;
   n->shape       = domain;
   n->reduce_axis = reduce_axis;
+  n->tag         = tag;
+  n->attrs       = attrs;
   auto axis      = common::GenDefaultAxis(shape.size());
   std::vector<Expr> _axis;
   for (auto &x : axis) _axis.push_back(x);
-  n->body = {handle(_axis)};
+  n->body        = {handle(_axis)};
+  n->reduce_axis = reduce_axis;
   return Operation(n);
 }
 
