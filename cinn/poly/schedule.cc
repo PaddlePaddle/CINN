@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "cinn/common/graph_utils.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/lang/tensor.h"
 #include "cinn/poly/naive_scheduler.h"

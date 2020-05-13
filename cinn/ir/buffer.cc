@@ -35,6 +35,8 @@ Buffer _Buffer_::Make(Var data,
                       int offset_factor,
                       Target target) {
   CHECK(dtype.valid());
+  CHECK(!dtype.is_unk());
+  CHECK(!dtype.is_void());
   auto *node           = common::make_shared<_Buffer_>();
   node->shape          = shape;
   node->strides        = strides;
@@ -67,6 +69,7 @@ void _Buffer_::BindTo(const Tensor &tensor) { BindTo(tensor.As<_Tensor_>()); }
 
 void _Buffer_::BindTo(const _Tensor_ *tensor) {
   if (name.empty()) name = TensorGetBufferName(tensor);
+  if (type().is_unk()) set_type(tensor->type());
   CHECK(!tensor->shape.empty()) << "Tensor should have shape to bind to a Buffer";
   shape = tensor->shape;
   binded_tensors_names_.insert(tensor->name);

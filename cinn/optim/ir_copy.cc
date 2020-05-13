@@ -116,8 +116,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     int offset_factor  = op->offset_factor;
     Target target      = op->target;
 
-    auto new_node            = _Buffer_::Make(name);
-    new_node->shape          = shape;
+    auto new_node            = _Buffer_::Make(name, shape);
     new_node->strides        = strides;
     new_node->name           = name;
     new_node->scope          = scope;
@@ -133,19 +132,18 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const _Tensor_* op) override {
     auto shape       = Visit(op->shape);
     auto domain      = Visit(op->domain);
-    auto axis        = op->axis;
     auto buffer_expr = Expr(op->buffer);
     // TODO(Superjomn) copy the operation.
-    auto operaion     = op->operation;
-    auto name         = op->name;
-    auto buffer       = Visit(&buffer_expr);
-    auto tensor       = make_shared<_Tensor_>();
-    tensor->domain    = domain;
-    tensor->shape     = shape;
-    tensor->axis      = axis;
-    tensor->operation = operaion;
-    tensor->name      = name;
-    tensor->buffer    = ir::Buffer(buffer.As<_Buffer_>());
+    auto operaion       = op->operation;
+    auto name           = op->name;
+    auto buffer         = Visit(&buffer_expr);
+    auto tensor         = make_shared<_Tensor_>();
+    tensor->domain      = domain;
+    tensor->shape       = shape;
+    tensor->reduce_axis = op->reduce_axis;
+    tensor->operation   = operaion;
+    tensor->name        = name;
+    tensor->buffer      = ir::Buffer(buffer.As<_Buffer_>());
     return tensor;
   }
 

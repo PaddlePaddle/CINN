@@ -1,10 +1,12 @@
 #pragma once
 
 #include <glog/logging.h>
+
 #include <map>
 #include <mutex>  // NOLINT
 #include <string>
 #include <string_view>
+
 #include "cinn/common/macros.h"
 
 namespace cinn::backends {

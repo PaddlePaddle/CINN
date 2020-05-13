@@ -77,8 +77,6 @@ struct PrecedingViewOp : public _Operation_ {
  */
 struct ComputeOp : public _Operation_ {
   using handle_t = std::function<Expr(const std::vector<Expr> &)>;
-  //! Vars on each axis.
-  std::vector<Var> axis;
   //! Var on each reduction axis, if the body is a Reduction.
   std::vector<Var> reduce_axis;
   //! Shape of the output.
@@ -91,19 +89,12 @@ struct ComputeOp : public _Operation_ {
   ComputeOp() = default;
 
   static Operation Make(const std::string &name,
-                        const std::string &tag,
-                        const std::map<std::string, IrNodeRef> &attrs,
                         ComputeOp::handle_t handle,
                         const std::vector<Expr> &shape,
                         const std::vector<Expr> &domain,
-                        const std::vector<Var> &reduce_axis);
-
-  static Operation Make(const std::string &name,
-                        const std::string &tag,
-                        const std::map<std::string, IrNodeRef> &attrs,
-                        const std::vector<Var> &axis,
-                        const std::vector<Expr> &body,
-                        const std::vector<Expr> &shape);
+                        const std::vector<Var> &reduce_axis           = {},
+                        const std::map<std::string, IrNodeRef> &attrs = {},
+                        const std::string &tag                        = "");
 
   const char *func_type() const override;
 

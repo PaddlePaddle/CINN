@@ -677,9 +677,10 @@ llvm::Value *CodeGenLLVM::EmitCall_buffer_create(const ir::Call *op) {
   CHECK_EQ(op->read_args.size(), 2UL);
   const ir::_Buffer_ *buffer_arg = op->read_args.front().as_buffer();
   CHECK(buffer_arg);
+  return nullptr;
 }
 
-llvm::Value *CodeGenLLVM::EmitCall_buffer_malloc(const ir::Call *op) {}
+llvm::Value *CodeGenLLVM::EmitCall_buffer_malloc(const ir::Call *op) { return nullptr; }
 
 llvm::Value *CodeGenLLVM::EmitCall_get_address(const ir::Call *op) {
   if (auto *read_var = op->read_args.front().as_var()) {

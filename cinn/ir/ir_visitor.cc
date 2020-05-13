@@ -1,5 +1,7 @@
 #include "cinn/ir/ir_visitor.h"
 
+#include <unordered_set>
+
 #include "cinn/ir/ir_printer.h"
 #include "cinn/lang/tensor.h"
 #include "cinn/utils/string.h"
@@ -20,7 +22,9 @@ struct IrNodesCollector : public IRVisitor {
 
   void Visit(const Expr* expr) override {
     if (!expr->defined()) return;
+    if (visited_.count(expr->get())) return;
     if (teller(expr)) handler(expr);
+    visited_.insert(expr->get());
 
     switch (expr->node_type()) {
 #define __(op__)           \
@@ -44,6 +48,7 @@ struct IrNodesCollector : public IRVisitor {
 
   NODETY_FORALL(__m)
 #undef __m
+  std::unordered_set<void*> visited_;
 };
 
 }  // namespace

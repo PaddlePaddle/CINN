@@ -1,6 +1,8 @@
 #include "cinn/runtime/cpu/host_intrinsics.h"
+
 #include <glog/logging.h>
 #include <math.h>
+
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 
 namespace cinn {

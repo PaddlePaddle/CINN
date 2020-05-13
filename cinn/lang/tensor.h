@@ -45,18 +45,6 @@ class Tensor : public ir::IrNodeRef {
  public:
   Tensor() = default;
   explicit Tensor(ir::IrNode* n) : IrNodeRef(n) {}
-  /**
-   * Constructor.
-   * @param shape The shape of the tensor.
-   * @param axis The iterators to use.
-   * @param dtype The data type of the tensor.
-   * @param expr The expression to compute this tensor.
-   */
-  Tensor(const std::vector<Expr>& shape,
-         const std::vector<Var>& axis,
-         Type dtype,
-         Expr expr,
-         const std::string& name = "");
 
   //! Get number of dimensions.
   inline size_t ndims() const;
@@ -116,12 +104,11 @@ class _Tensor_ : public ExprNode<_Tensor_> {
  public:
   //! Shape of this tensor(buffer).
   std::vector<Expr> shape;
-  //! The domain of each axis.
+  //! The domain of each axis(without reduce_axis)
   // TODO(Superjomn) support ISL domain.
   std::vector<Expr> domain;
-  //! Tensor axis.
-  // TODO(Superjomn) seems not needed, to be discarded latter.
-  std::vector<Var> axis;
+
+  std::vector<Var> reduce_axis;
   //! The operation that generates Tensor.
   FunctionRef operation;
   //! Name of this tensor.
@@ -132,17 +119,16 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Polyhedral element for analysis and schedule.
   poly::Stage* stage();
 
-  //! Generate a tensor from a computation.
-  static Tensor Make(const std::string& name,
-                     const std::string& tag,
-                     const std::vector<Expr>& shape,
-                     const std::vector<Var>& axis,
-                     Type dtype,
-                     const std::map<std::string, IrNodeRef>& attrs,
-                     const std::vector<Expr>& body = {});
+  std::vector<Expr> domain_with_reduce_axis() const;
+  const std::vector<Expr>& domain_without_reduce_axis() const { return domain; }
 
   //! Generate a tensor from a function.
-  static Tensor Make(const std::string& name, const std::vector<Expr>& shape, FunctionRef fn);
+  static Tensor Make(const std::string& name,
+                     Type dtype,
+                     const std::vector<Expr>& shape,
+                     const std::vector<Expr>& domain,
+                     FunctionRef fn,
+                     const std::vector<Var>& reduce_axis = {});
 
   //! Tell whether this tensor is inline.
   bool inlined() const { return (!buffer.defined()) && is_compute_node(); }
@@ -180,10 +166,21 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   Expr inline_expanded(const std::vector<Expr>& indices);
 
   //! Tell whether contain a reduce axis.
-  bool contains_reduce_axis() const { return shape.size() == domain.size(); }
+  bool contains_reduce_axis() const { return !reduce_axis.empty(); }
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
+
+  const std::vector<Var>& axis() const {
+    CHECK_EQ(axis_.size(), domain_without_reduce_axis().size());
+    return axis_;
+  }
+
+  std::vector<Var> axis_with_reduce() const {
+    auto axis = axis_;
+    axis.insert(axis.end(), reduce_axis.begin(), reduce_axis.end());
+    return axis;
+  }
 
   const std::set<std::string>& buffer_depended_tensor_names() const { return buffer_depended_tensor_names_; }
 
@@ -212,6 +209,9 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   //! The names of the tensors depend the same buffer and should schedule before this.
   std::set<std::string> buffer_depended_tensor_names_;
+
+  //! Normal axis.
+  std::vector<Var> axis_;
 };
 
 class _Operation_;
