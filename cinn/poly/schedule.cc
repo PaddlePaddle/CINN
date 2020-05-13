@@ -109,12 +109,14 @@ std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages,
   return nullptr;
 }
 
+// TODO(Superjomn) Consider the dependencies between TupleGet and extern Call.
 std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bool with_placeholder) {
   // get the stages from a tensor.
   std::vector<Stage *> stages;
   std::deque<ir::Tensor> queue;
   for (auto &x : xs) {
     CHECK(!x->inlined()) << "Inlined tensor should not be output of a function";
+    if (x->is_tuple_get()) continue;
     queue.push_back(x);
   }
 
@@ -177,7 +179,6 @@ void SchedulerBase::AddStage(const Stage &x) {
 }
 
 void SchedulerBase::FinishStageAdd() {
-  // CHECK_GT(space_size_, 0) << "No valid dimension is collected, use RegisterElement to collect some elements";
   CHECK(!schedule_graph_.nodes().empty())
       << "No node is registered to the graph, use RegisterElement to collect some elements";
   registration_finalized_ = true;

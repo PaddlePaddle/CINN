@@ -320,7 +320,7 @@ struct Call : public ExprNode<Call> {
   //! The function to be called.
   FunctionRef func;
   //! The output value index if func's value is a tuple.
-  int value_index{};
+  int value_index{-1};
   //! The tensor expression it called, leave undefined if the call is not related to a tensor.
   Expr tensor;
 

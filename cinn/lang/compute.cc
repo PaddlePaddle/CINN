@@ -117,6 +117,11 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
   for (auto &x : axises) _axis.push_back(x);
   Expr fn_body = fn(_axis);
 
+  // When the fn_body is a CallExtern, a tensor will return directly.
+  if (fn_body.as_tensor()) {
+    return fn_body.as_tensor_ref();
+  }
+
   // shape is the buffer's shape.
   std::vector<Expr> domain_without_reduce_axis;
 
@@ -142,7 +147,7 @@ ir::Tensor Call(const std::string &target,
                 const std::vector<Expr> &args,
                 const std::string &name) {
   auto call       = ir::Call::Make(type, target, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0, Expr());
-  auto call_op    = ir::CallOp::Make(target, args, 0, call);
+  auto call_op    = ir::CallOp::Make(target, call);
   auto new_tensor = ir::_Tensor_::Make(name, type, dims, {Expr(1)}, call_op, {});
   new_tensor->WithBuffer();
   // Append write tensors in the tail.
@@ -157,8 +162,8 @@ std::vector<ir::Tensor> Call(const std::string &target,
   std::vector<ir::Tensor> new_tensors;
   for (int i = 0; i < return_types.size(); i++) {
     auto &return_type = return_types[i];
-    auto call_op      = ir::CallOp::Make(target, args, i, call);
-    auto new_tensor   = ir::_Tensor_::Make(return_type.name, Void(), return_type.dims, {Expr(1)}, call_op, {});
+    auto call_op      = ir::CallOp::Make(target, call);
+    auto new_tensor   = ir::_Tensor_::Make(return_type.name, return_type.type, return_type.dims, {Expr(1)}, call_op);
     // Append write tensors in the tail.
     call.As<ir::Call>()->write_args.push_back(new_tensor);
     new_tensor->set_type(return_type.type);
@@ -172,7 +177,22 @@ std::vector<ir::Tensor> Call(const std::string &target,
 Expr CallExtern(const std::string &target, const std::vector<Expr> &args) {
   auto *proto = backends::ExternFunctionProtoRegistry::Global().Lookup(target);
   CHECK(proto) << "No extern function " << target << " found";
+
   auto call = ir::Call::Make(proto->ret_type, target, args, {}, ir::CallType::Extern);
+  std::vector<Expr> mutable_args;
+  // Call a function with multiple outputs.
+  if (proto->ret_type.is_void()) {
+    for (int i = 0; i < proto->mutable_arg_types.size(); i++) {
+      auto shape                         = proto->shape_inference(args, i);
+      auto op                            = ir::CallOp::Make(target, call);
+      op->as<ir::CallOp>()->value_slot   = i;
+      op->as<ir::CallOp>()->is_tuple_get = true;
+      auto name = Context::Global().NewName("tuple_" + target + "_out" + std::to_string(i) + "_");
+      auto ret  = ir::_Tensor_::Make(name, proto->mutable_arg_types[i], shape, shape, op, {});
+      mutable_args.push_back(ret);
+    }
+    call.As<ir::Call>()->write_args = mutable_args;
+  }
   return call;
 }
 

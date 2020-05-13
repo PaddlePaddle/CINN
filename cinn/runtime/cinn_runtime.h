@@ -377,7 +377,7 @@ cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t value);
 // @{
 void float_to_cinn_pod_value(float v, cinn_pod_value_t* out);
 void int32_to_cinn_pod_value(int32_t v, cinn_pod_value_t* out);
-void buffer_p_to_cinn_pod_value(struct cinn_buffer_t* v, cinn_pod_value_t* out);
+void buffer_p_to_cinn_pod_value(const struct cinn_buffer_t* v, cinn_pod_value_t* out);
 // @}
 
 void cinn_print_debug_string(const char* s, ...);
@@ -397,6 +397,7 @@ void cinn_args_construct(cinn_pod_value_t* arr, int count, ...);
 
 //! Elementwise tanh
 float __cinn_host_tanh(float x);
+void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out);
 
 //@}
 

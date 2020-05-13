@@ -25,6 +25,7 @@ cc_test(test02_matmul_case SRCS test02_matmul_case.cc
   ${CMAKE_BINARY_DIR}/tests/test02_matmul_varient_shape.cc
   ${CMAKE_BINARY_DIR}/tests/test02_matmul_varient_shape_tile.cc
   ${CMAKE_BINARY_DIR}/tests/test02_matmul_array_packing_dynamic_shape.cc
+  ${CMAKE_BINARY_DIR}/tests/test02_matmul_call.cc
   DEPS core)
 target_compile_options(test02_matmul_case PRIVATE "-O3")
 add_dependencies(test02_matmul_case  test02_matmul_main)

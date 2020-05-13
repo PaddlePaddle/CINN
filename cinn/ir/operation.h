@@ -43,14 +43,16 @@ struct CallOp : public _Operation_ {
   Expr func;
 
   // the offset int the tuple of return values.
-  int arg_slot{-1};
+  int value_slot{-1};
+
+  bool is_tuple_get{false};
+
+  //! Number of the value slots.
+  int num_value_slots{0};
 
   CallOp() = default;
 
-  static Operation Make(const std::string &call_target,
-                        const std::vector<Expr> &arg_list,
-                        int value_slot,
-                        Expr call_op);
+  static Operation Make(const std::string &call_target, Expr call_op);
 
   const char *func_type() const override;
 

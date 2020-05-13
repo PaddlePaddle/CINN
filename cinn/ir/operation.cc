@@ -41,12 +41,8 @@ Operation ComputeOp::Make(const std::string &name,
   return Operation(n);
 }
 
-Operation CallOp::Make(const std::string &call_target,
-                       const std::vector<Expr> &arg_list,
-                       int value_slot,
-                       Expr call_op) {
+Operation CallOp::Make(const std::string &call_target, Expr call_op) {
   auto n       = make_shared<CallOp>();
-  n->arg_slot  = value_slot;
   n->call_expr = call_op;
   return Operation(n);
 }

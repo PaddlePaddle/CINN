@@ -12,16 +12,22 @@ namespace cinn {
 namespace backends {
 
 struct FunctionProto {
+  using shape_inference_t =
+      std::function<std::vector<Expr> /*shape*/ (const std::vector<Expr>& /*arguments*/, int /*value_offset*/)>;
+
   FunctionProto(const std::string& name,
                 const std::vector<Type>& readonly_arg_types,
                 const std::vector<Type>& mutable_arg_types,
-                Type ret_type = Void())
-      : name(name), readonly_arg_types(readonly_arg_types), mutable_arg_types(mutable_arg_types), ret_type(ret_type) {}
+                Type ret_type                     = Void(),
+                shape_inference_t shape_inference = shape_inference_t());
 
   std::string name;
   std::vector<Type> readonly_arg_types;
   std::vector<Type> mutable_arg_types;
   Type ret_type;
+
+  // Inference the output's shape.
+  shape_inference_t shape_inference;
 
   /**
    * Tell whether the Call \p op matches the function prototype.
@@ -32,22 +38,21 @@ struct FunctionProto {
    * Assert the call should match the function prototype.
    */
   void AssertMatch(const ir::Call* op) const;
+
+  /**
+   * All the outputs use the n-th argument's shape.
+   */
+  static shape_inference_t ShapeFollowNthArgument(int n);
+
+ protected:
+  void CheckValid();
 };
 
 class FunctionProtoRegistry {
  public:
-  FunctionProto* Register(std::string_view name, FunctionProto* x) {
-    data_.emplace(name, std::unique_ptr<FunctionProto>(x));
-    return x;
-  }
+  FunctionProto* Register(std::string_view name, FunctionProto* x);
 
-  FunctionProto* Lookup(std::string_view name) {
-    auto it = data_.find(name);
-    if (it != data_.end()) {
-      return it->second.get();
-    }
-    return nullptr;
-  }
+  FunctionProto* Lookup(std::string_view name);
 
  private:
   std::unordered_map<std::string_view, std::unique_ptr<FunctionProto>> data_;

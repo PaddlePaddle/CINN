@@ -13,7 +13,8 @@ namespace backends {
 
 //! Function names
 
-static const char* extern_tanh_host_repr = "__cinn_host_tanh";
+static const char* extern_tanh_host_repr   = "__cinn_host_tanh";
+static const char* extern_tanh_v_host_repr = "__cinn_host_tanh_v";
 
 /**
  * A bridge for the Emitters to access CodeGenLLVM's internal members.
@@ -43,6 +44,30 @@ class ExternFuncEmitter_C_tanh : public ExternFuncEmitter {
 };
 
 class ExternFuncEmitter_LLVM_tanh : public ExternFuncEmitter {
+ public:
+  void BindCodeGen(void* codegen) override;
+  const char* func_name() const override;
+  void EmitImpl(const ir::Call* op) override;
+  bool RetValuePacked() const override;
+  const char* backend_kind() const override;
+
+ private:
+  CodeGenLLVM* codegen_{};
+};
+
+class ExternFuncEmitter_C_tanh_v : public ExternFuncEmitter {
+ public:
+  void BindCodeGen(void* codegen) override;
+  const char* func_name() const override;
+  void EmitImpl(const ir::Call* op) override;
+  bool RetValuePacked() const override;
+  const char* backend_kind() const override;
+
+ private:
+  CodeGenC* codegen_{};
+};
+
+class ExternFuncEmitter_LLVM_tanh_v : public ExternFuncEmitter {
  public:
   void BindCodeGen(void* codegen) override;
   const char* func_name() const override;

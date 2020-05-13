@@ -13,6 +13,7 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   call_arg_list_to_pod_value.cc
   insert_debug_log_callee.cc
   lower_function_call_bind_vars.cc
+  extern_call_process.cc
   )
 
 foreach(cpp ${srcs})

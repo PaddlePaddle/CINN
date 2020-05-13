@@ -183,7 +183,9 @@ cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t value) { return value
 // @{
 void float_to_cinn_pod_value(float v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
 void int32_to_cinn_pod_value(int32_t v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
-void buffer_p_to_cinn_pod_value(cinn_buffer_t* v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
+void buffer_p_to_cinn_pod_value(const cinn_buffer_t* v, cinn_pod_value_t* out) {
+  *out = cinn_pod_value_t(const_cast<cinn_buffer_t*>(v));
+}
 // @}
 
 void cinn_print_debug_string(const char* s, ...) {
@@ -249,3 +251,12 @@ void cinn_args_construct(cinn_pod_value_t* arr, int count, ...) {
 }
 
 float __cinn_host_tanh(float x) { return std::tanh(x); }
+void __cinn_host_tanh_v(cinn_buffer_t* x, cinn_buffer_t* out) {
+  CINN_CHECK_EQ(x->num_elements(), out->num_elements());
+  int xn         = x->num_elements();
+  auto* x_data   = (float*)(x->host_memory);
+  auto* out_data = (float*)(out->host_memory);
+  for (int i = 0; i < x->num_elements(); i++) {
+    out_data[i] = __cinn_host_tanh(x_data[i]);
+  }
+}
