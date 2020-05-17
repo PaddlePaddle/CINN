@@ -14,8 +14,8 @@ add_custom_target(GEN_LLVM_RUNTIME_IR_HEADER
         COMMAND python3 generate_runtime_llvm_ir.py ${CMAKE_BINARY_DIR}/cinn_runtime.ll
             ${CMAKE_BINARY_DIR}/cinn/backends/llvm/cinn_runtime_llvm_ir.h
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/cinn/backends/llvm
+        DEPENDS GEN_LLVM_RUNTIME_IR
         )
-add_dependencies(GEN_LLVM_RUNTIME_IR_HEADER GEN_LLVM_RUNTIME_IR)
 
 set(srcs
   llvm_util.cc

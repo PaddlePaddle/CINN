@@ -25,7 +25,7 @@ include(cmake/core.cmake)
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_BINARY_DIR})
 
-#include(cmake/external/pybind11.cmake)
+include(cmake/external/pybind11.cmake)
 include(cmake/external/gflags.cmake)
 include(cmake/external/glog.cmake)
 include(cmake/external/gtest.cmake)
@@ -50,7 +50,6 @@ set(global_test_args "--cinn_x86_builtin_code_root=${CMAKE_SOURCE_DIR}/cinn/back
 set(core_src CACHE INTERNAL "" FORCE)
 set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
-add_subdirectory(hlir)
 add_subdirectory(tests)
 
 cc_library(core SRCS ${core_src} DEPS glog LLVM)
