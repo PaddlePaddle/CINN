@@ -14,7 +14,7 @@ void BindHlirApi(pybind11::module *m) {
   pybind11::class_<py_shape>(*m, "Shape")          //
       .def(pybind11::init<>())                     //
       .def("add_int_dim", &py_shape::add_int_dim)  //
-      .def("add_var_dim", &py_shape::add_int_dim);
+      .def("add_var_dim", &py_shape::add_var_dim);
 
   pybind11::class_<py_context, std::shared_ptr<py_context>>(*m, "Context")  //
       .def(pybind11::init<>());
