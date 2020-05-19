@@ -14,7 +14,7 @@ TEST(Instruction, basic) {
   auto param0 = Instruction::CreateParameter(0, x_shape, "x", {Float(32)});
   auto param1 = Instruction::CreateParameter(1, w_shape, "w0", {Float(32)});
 
-  auto add = Instruction::CreateDot(Shape({N, 30, 50}), param0.get(), param1.get());
+  auto add = Instruction::CreateDot(param0.get(), param1.get(), Shape({N, 30, 50}));
   LOG(INFO) << add->to_debug_string();
   ASSERT_TRUE(add);
 }

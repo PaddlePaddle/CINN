@@ -9,13 +9,13 @@ int cinn_x86_malloc(void* context, cinn_buffer_t* buf) {
   CINN_CHECK(memory_size > 0);
   if (buf->memory_size < memory_size) {
     if (buf->host_memory) {
-      free(buf->host_memory);
+      std::free(buf->host_memory);
     }
     int bytes = buf->type.bytes() * buf->num_elements();
     if (buf->align == 0) {
       buf->host_memory = (unsigned char*)malloc(bytes);
     } else {
-      buf->host_memory = (uint8_t*)aligned_alloc(buf->align, bytes);
+      buf->host_memory = (unsigned char*)aligned_alloc(buf->align, bytes);
     }
     buf->memory_size = memory_size;
     CINN_LOG("buf.memory size is %ld\n", buf->memory_size);
@@ -51,11 +51,15 @@ cinn_device_interface_impl_t cinn_x86_device_impl{&cinn_x86_malloc,
                                                   &cinn_x86_copy_to_device,
                                                   &cinn_x86_buffer_copy};
 
-cinn_device_interface_t cinn_x86_device_interface{&cinn_buffer_malloc,
-                                                  &cinn_buffer_free,
-                                                  &cinn_device_sync,
-                                                  &cinn_device_release,
-                                                  &cinn_buffer_copy_to_host,
-                                                  &cinn_buffer_copy_to_device,
-                                                  &cinn_buffer_copy,
-                                                  &cinn_x86_device_impl};
+cinn_device_interface_t cinn_x86_device_interface_interface{&cinn_buffer_malloc,
+                                                            &cinn_buffer_free,
+                                                            &cinn_device_sync,
+                                                            &cinn_device_release,
+                                                            &cinn_buffer_copy_to_host,
+                                                            &cinn_buffer_copy_to_device,
+                                                            &cinn_buffer_copy,
+                                                            &cinn_x86_device_impl};
+
+struct cinn_device_interface_t* cinn_x86_device_interface() {
+  return &cinn_x86_device_interface_interface;
+}

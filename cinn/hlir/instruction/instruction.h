@@ -69,26 +69,28 @@ class Instruction {
                                                       const ParameterConfig& config);
 
   //! Create an unary instruction.
-  static std::unique_ptr<Instruction> CreateUnary(const Shape& shape, InstrCode instr_code, Instruction* arg0);
+  static std::unique_ptr<Instruction> CreateUnary(InstrCode instr_code,
+                                                  Instruction* arg0,
+                                                  const Shape& shape = Shape());
 
   //! Create an binary instruction.
-  static std::unique_ptr<Instruction> CreateBinary(const Shape& shape,
-                                                   InstrCode instr_code,
+  static std::unique_ptr<Instruction> CreateBinary(InstrCode instr_code,
                                                    Instruction* arg0,
-                                                   Instruction* arg1);
+                                                   Instruction* arg1,
+                                                   const Shape& shape = Shape());
 
-  static std::unique_ptr<Instruction> CreateCompare(const Shape& shape,
-                                                    Instruction* arg0,
+  static std::unique_ptr<Instruction> CreateCompare(Instruction* arg0,
                                                     Instruction* arg1,
-                                                    CompareDirection dire);
+                                                    CompareDirection dire,
+                                                    const Shape& shape = Shape());
 
-  static std::unique_ptr<Instruction> CreateDot(const Shape& shape, Instruction* arg0, Instruction* arg1);
+  static std::unique_ptr<Instruction> CreateDot(Instruction* arg0, Instruction* arg1, const Shape& shape = Shape());
 
-  static std::unique_ptr<Instruction> CreateReduce(const Shape& shape,
-                                                   Instruction* operand,
+  static std::unique_ptr<Instruction> CreateReduce(Instruction* operand,
                                                    Instruction* init_value,
                                                    const std::vector<int>& reduce_dimensions,
-                                                   Computation* reduce_computation);
+                                                   Computation* reduce_computation,
+                                                   const Shape& shape = Shape());
 
   static std::unique_ptr<Instruction> CreateBroadcast(const Shape& shape,
                                                       Instruction* arg0,

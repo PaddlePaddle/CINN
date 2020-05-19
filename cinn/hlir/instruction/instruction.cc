@@ -5,6 +5,7 @@
 #include "cinn/common/macros.h"
 #include "cinn/hlir/instruction/computation.h"
 #include "cinn/hlir/instruction/instructions.h"
+#include "cinn/hlir/instruction/shape_inference.h"
 
 namespace cinn {
 namespace hlir {
@@ -32,17 +33,17 @@ std::unique_ptr<Instruction> Instruction::CreateParameter(int param_offset,
   return res;
 }
 
-std::unique_ptr<Instruction> Instruction::CreateUnary(const Shape &shape, InstrCode instr_code, Instruction *arg0) {
+std::unique_ptr<Instruction> Instruction::CreateUnary(InstrCode instr_code, Instruction *arg0, const Shape &shape) {
   auto instr = std::unique_ptr<Instruction>(new Instruction(instr_code, shape));
   instr->AppendOperand(arg0);
   instr->set_type(arg0->type());
   return instr;
 }
 
-std::unique_ptr<Instruction> Instruction::CreateBinary(const Shape &shape,
-                                                       InstrCode instr_code,
+std::unique_ptr<Instruction> Instruction::CreateBinary(InstrCode instr_code,
                                                        Instruction *arg0,
-                                                       Instruction *arg1) {
+                                                       Instruction *arg1,
+                                                       const Shape &shape) {
   switch (instr_code) {
     case InstrCode::Add:
     case InstrCode::Mul:
@@ -53,7 +54,9 @@ std::unique_ptr<Instruction> Instruction::CreateBinary(const Shape &shape,
       LOG(FATAL) << "Not supported binary instruction type: " << InstrCodeToString(instr_code);
   }
 
-  auto instr = std::unique_ptr<Instruction>(new Instruction(instr_code, shape));
+  auto _shape = shape.empty() ? BinaryInferenceShape(arg0, arg1) : shape;
+
+  auto instr = std::unique_ptr<Instruction>(new Instruction(instr_code, _shape));
   instr->AppendOperand(arg0);
   instr->AppendOperand(arg1);
   CHECK_EQ(arg0->type(), arg1->type());
@@ -63,15 +66,17 @@ std::unique_ptr<Instruction> Instruction::CreateBinary(const Shape &shape,
 
 void Instruction::AppendOperand(Instruction *operand) { operands_.push_back(operand); }
 
-std::unique_ptr<Instruction> Instruction::CreateCompare(const Shape &shape,
-                                                        Instruction *arg0,
+std::unique_ptr<Instruction> Instruction::CreateCompare(Instruction *arg0,
                                                         Instruction *arg1,
-                                                        CompareDirection dire) {
+                                                        CompareDirection dire,
+                                                        const Shape &shape) {
   return std::unique_ptr<Instruction>(new CompareInstruction(shape, arg0, arg1, dire));
 }
 
-std::unique_ptr<Instruction> Instruction::CreateDot(const Shape &shape, Instruction *arg0, Instruction *arg1) {
-  auto instr = std::unique_ptr<Instruction>(new Instruction(InstrCode ::Dot, shape));
+std::unique_ptr<Instruction> Instruction::CreateDot(Instruction *arg0, Instruction *arg1, const Shape &shape) {
+  auto _shape = shape.empty() ? DotInferenceShape(arg0, arg1) : shape;
+
+  auto instr = std::unique_ptr<Instruction>(new Instruction(InstrCode ::Dot, _shape));
   CHECK_EQ(arg0->type(), arg1->type());
   instr->AppendOperand(arg0);
   instr->AppendOperand(arg1);
@@ -79,11 +84,11 @@ std::unique_ptr<Instruction> Instruction::CreateDot(const Shape &shape, Instruct
   return instr;
 }
 
-std::unique_ptr<Instruction> Instruction::CreateReduce(const Shape &shape,
-                                                       Instruction *operand,
+std::unique_ptr<Instruction> Instruction::CreateReduce(Instruction *operand,
                                                        Instruction *init_value,
                                                        const std::vector<int> &reduce_dimensions,
-                                                       Computation *reduce_computation) {
+                                                       Computation *reduce_computation,
+                                                       const Shape &shape) {
   auto instr = std::unique_ptr<Instruction>(
       new ReduceInstruction(shape, operand, init_value, reduce_dimensions, reduce_computation));
   return instr;

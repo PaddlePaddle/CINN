@@ -17,7 +17,7 @@ TEST(Optimizer, display) {
   auto x = builder.AddInstruction(Instruction::CreateParameter(0, Shape({20, 40}), "X", parameter_config));
   auto y = builder.AddInstruction(Instruction::CreateParameter(0, Shape({20, 40}), "y", parameter_config));
 
-  auto add = builder.AddInstruction(Instruction::CreateBinary(x->shape(), InstrCode::Add, x, y));
+  auto add = builder.AddInstruction(Instruction::CreateBinary(InstrCode::Add, x, y, x->shape()));
 
   Module module("module0");
   module.AddComputation(builder.Build());

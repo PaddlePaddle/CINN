@@ -20,8 +20,8 @@ std::unique_ptr<Computation> create_elementwise_add(Context* context, cinn::Var 
     auto w  = builder.AddInstruction(Instruction::CreateParameter(1, Shape({N, 30, 40}), "w", parameter_config));
     auto w1 = builder.AddInstruction(Instruction::CreateParameter(1, Shape({N, 30, 40}), "w1", parameter_config));
 
-    auto add  = builder.AddInstruction(Instruction::CreateBinary(x->shape(), InstrCode::Add, x, w));
-    auto add1 = builder.AddInstruction(Instruction::CreateBinary(x->shape(), InstrCode::Add, add, w1));
+    auto add  = builder.AddInstruction(Instruction::CreateBinary(InstrCode::Add, x, w, x->shape()));
+    auto add1 = builder.AddInstruction(Instruction::CreateBinary(InstrCode::Add, add, w1, x->shape()));
 
     add->set_inlined();
   }
@@ -67,7 +67,7 @@ TEST(Lower, module) {
       auto tuple0 = main_builder.AddInstruction(Instruction::CreateTuple(call));
       auto arg0   = main_builder.AddInstruction(Instruction::CreateTupleGet(tuple0, 0));
 
-      auto out2 = main_builder.AddInstruction(Instruction::CreateBinary(arg0->shape(), InstrCode::Add, arg0, w));
+      auto out2 = main_builder.AddInstruction(Instruction::CreateBinary(InstrCode::Add, arg0, w, arg0->shape()));
     }
 
     auto tuple = main_builder.AddInstruction(Instruction::CreateTuple(res));

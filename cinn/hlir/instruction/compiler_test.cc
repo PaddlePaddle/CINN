@@ -45,7 +45,7 @@ std::unique_ptr<Module> CreateModule(const std::string& name) {
     Computation::Builder builder(&context, fn_name);
     auto* x   = builder.AddInstruction(Instruction::CreateParameter(0, Shape({100, 200}), "X", {Float(32)}));
     auto* y   = builder.AddInstruction(Instruction::CreateParameter(1, Shape({100, 200}), "Y", {Float(32)}));
-    auto* out = builder.AddInstruction(Instruction::CreateBinary(Shape({100, 200}), InstrCode::Add, x, y));
+    auto* out = builder.AddInstruction(Instruction::CreateBinary(InstrCode::Add, x, y, Shape({100, 200})));
     out->set_inlined(false);  // the output should not be inlined
 
     module->AddComputation(builder.Build());
@@ -86,6 +86,10 @@ TEST(Compiler, call_kernel_directly) {
   for (int i = 0; i < c->num_elements(); i++) {
     ASSERT_EQ(c_data[i], i * 2);
   }
+
+  delete a->host_memory;
+  delete b->host_memory;
+  delete c->host_memory;
 }
 
 TEST(Compiler, call_main) {
@@ -109,6 +113,10 @@ TEST(Compiler, call_main) {
   for (int i = 0; i < c->num_elements(); i++) {
     ASSERT_EQ(c_data[i], i * 2);
   }
+
+  delete a->host_memory;
+  delete b->host_memory;
+  delete c->host_memory;
 }
 
 TEST(Compiler, call_main1) {
@@ -132,6 +140,10 @@ TEST(Compiler, call_main1) {
   for (int i = 0; i < c->num_elements(); i++) {
     ASSERT_EQ(c_data[i], i * 2);
   }
+
+  cinn_buffer_free(nullptr, a);
+  cinn_buffer_free(nullptr, b);
+  cinn_buffer_free(nullptr, c);
 }
 
 // W dot W + bias
@@ -141,9 +153,9 @@ Instruction* CreateDenseComputation(Computation::Builder* builder, Instruction* 
 
   Shape out_shape({X->shape()[0], X->shape()[1], W->shape()[1]});
 
-  auto* out_instr = builder->AddInstruction(Instruction::CreateDot(out_shape, X, W));
+  auto* out_instr = builder->AddInstruction(Instruction::CreateDot(X, W, out_shape));
   if (bias) {
-    out_instr = builder->AddInstruction(Instruction::CreateBinary(out_shape, InstrCode::Add, out_instr, bias));
+    out_instr = builder->AddInstruction(Instruction::CreateBinary(InstrCode::Add, out_instr, bias, out_shape));
   }
   return out_instr;
 }
@@ -279,6 +291,12 @@ TEST(Compiler, call_main_dense_model) {
       }
     }
   }
+
+  delete Xb;
+  delete Wb;
+  delete Biasb;
+  delete Outb;
+  delete Outb_target;
 }
 
 }  // namespace instruction
