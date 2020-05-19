@@ -81,16 +81,19 @@ struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device,
                                           const std::vector<int>& shape,
                                           int align) {
   int32_t dimensions     = shape.size();
-  cinn_dimension_t* dims = new cinn_dimension_t[dimensions];
+  cinn_dimension_t* dims = (cinn_dimension_t*)malloc(sizeof(cinn_dimension_t) * dimensions);
   memcpy(dims, shape.data(), shape.size() * sizeof(int));
 
-  struct cinn_buffer_t* x = new (struct cinn_buffer_t);
+  struct cinn_buffer_t* x = (struct cinn_buffer_t*)malloc(sizeof(struct cinn_buffer_t));
   x->type                 = type;
   x->device               = device;
+  x->host_memory          = nullptr;
+  x->memory_size          = 0;
+  x->lazy                 = true;
   // NOTE set device_interface for each buffer.
   switch (x->device) {
     case cinn_x86_device:
-      x->device_interface = &cinn_x86_device_interface;
+      x->device_interface = cinn_x86_device_interface();
       break;
     case cinn_unk_device:
       fprintf(stderr, "Device type of buffer should be set, found Unk");
@@ -260,3 +263,5 @@ void __cinn_host_tanh_v(cinn_buffer_t* x, cinn_buffer_t* out) {
     out_data[i] = __cinn_host_tanh(x_data[i]);
   }
 }
+
+#include "cinn/runtime/cinn_x86_device_impl.cc"

@@ -255,7 +255,7 @@ struct cinn_device_interface_impl_t {
 };
 
 // The device implementations
-extern struct cinn_device_interface_t cinn_x86_device_interface;
+extern struct cinn_device_interface_t* cinn_x86_device_interface();
 
 inline float cinn_buffer_load_float32(struct cinn_buffer_t* buf, uint32_t index) {
   return ((float*)buf->host_memory)[index];  // NOLINT

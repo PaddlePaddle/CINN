@@ -13,6 +13,7 @@ set(srcs
         lower.cc
         scope.cc
         compiler.cc
+        shape_inference.cc
         )
 
 add_subdirectory(primitive)

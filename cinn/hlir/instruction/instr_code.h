@@ -32,6 +32,10 @@ const int kHlirVarientArgusCode = -1;
 
 // clang-format on
 
+namespace cinn {
+namespace hlir {
+namespace instruction {
+
 //! Code of all the operation supports in instructions.
 #define __(a__, b__, c__) a__,
 enum class InstrCode { Unknown = -1, INSTR_CODE_FOR_ALL(__) };
@@ -58,3 +62,7 @@ static std::ostream& operator<<(std::ostream& os, InstrCode code) {
   os << InstrCodeToString(code);
   return os;
 }
+
+}  // namespace instruction
+}  // namespace hlir
+}  // namespace cinn

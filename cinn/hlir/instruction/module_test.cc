@@ -17,9 +17,9 @@ TEST(Module, basic) {
   auto x = builder.AddInstruction(Instruction::CreateParameter(0, Shape({N, 30, 40}), "x", parameter_config));
   auto w = builder.AddInstruction(Instruction::CreateParameter(1, Shape({40, 50}), "w", parameter_config));
 
-  auto dot0     = builder.AddInstruction(Instruction::CreateDot(Shape({30, 50}), x, w), "DOT");
+  auto dot0     = builder.AddInstruction(Instruction::CreateDot(x, w, Shape({30, 50})), "DOT");
   auto constant = builder.AddInstruction(Instruction::CreateConstant(Shape({1}), {1}, {Float(32)}), "constant 1");
-  auto add      = builder.AddInstruction(Instruction::CreateBinary(Shape({30, 50}), InstrCode::Add, dot0, constant));
+  auto add      = builder.AddInstruction(Instruction::CreateBinary(InstrCode::Add, dot0, constant, Shape({30, 50})));
 
   auto* comp0 = module.AddComputation(builder.Build());
 

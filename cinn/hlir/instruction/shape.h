@@ -37,6 +37,8 @@ struct Shape {
 
   //! number of dimensions.
   inline size_t num_dims() const { return dims_.size(); }
+  bool empty() const { return dims_.empty(); }
+  bool is_identity() const { return dims_.size() == 1UL && std::get<int>(dims_.front()) == 1; }
 
   const dim_t& operator[](int offset) const;
   dim_t& operator[](int offset);
