@@ -22,6 +22,13 @@ int cinn_buffer_free(void* context, struct cinn_buffer_t* buf) {
   return buf->device_interface->impl->free(context, buf);
 }
 
+void* cinn_buffer_slice(struct cinn_buffer_t* buf, uint32_t offset) {
+  CINN_CHECK(buf);
+  uint64_t offset_byte = offset * buf->type.bytes();
+  CINN_CHECK_LT(offset_byte, buf->memory_size);
+  return buf->host_memory + offset_byte;
+}
+
 int cinn_device_sync(void* context, struct cinn_buffer_t* buf) {
   ASSERT_NOT_NULL(buf)
   ASSERT_NOT_NULL(buf->device_interface)
@@ -241,7 +248,6 @@ void cinn_print_debug_args(cinn_pod_value_t* args, int count) {
 
 void cinn_args_construct(cinn_pod_value_t* arr, int count, ...) {
   CINN_CHECK(count < 1000);
-  CINN_CHECK_LT(count, 0);
 
   va_list args;
   va_start(args, count);
@@ -254,7 +260,7 @@ void cinn_args_construct(cinn_pod_value_t* arr, int count, ...) {
 }
 
 float __cinn_host_tanh(float x) { return std::tanh(x); }
-void __cinn_host_tanh_v(cinn_buffer_t* x, cinn_buffer_t* out) {
+void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
   CINN_CHECK_EQ(x->num_elements(), out->num_elements());
   int xn         = x->num_elements();
   auto* x_data   = (float*)(x->host_memory);

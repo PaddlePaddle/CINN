@@ -7,6 +7,7 @@ set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(WITH_TESTING         "Compile with Unittests"          ON)
+option(WITH_TESTS           "Compile with tests"              ON)
 
 # include the customized configures
 include(${CMAKE_BINARY_DIR}/config.cmake)

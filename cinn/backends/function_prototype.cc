@@ -26,11 +26,18 @@ void FunctionProto::AssertMatch(const ir::Call *op) const {
   CHECK_EQ(op->read_args.size(), readonly_arg_types.size());
   CHECK_EQ(op->write_args.size(), mutable_arg_types.size());
 
+  auto get_type = [](Expr u) {
+    if (u.as_tensor() || u.as_buffer()) {
+      Type t = u.type();
+      return t.set_cpp_handle();
+    }
+    return u.type();
+  };
   for (int i = 0; i < op->read_args.size(); i++) {
-    CHECK_EQ(op->read_args[i].type(), readonly_arg_types[i]);
+    CHECK_EQ(get_type(op->read_args[i]), readonly_arg_types[i]);
   }
   for (int i = 0; i < op->write_args.size(); i++) {
-    CHECK_EQ(op->write_args[i].type(), mutable_arg_types[i]);
+    CHECK_EQ(get_type(op->write_args[i]), mutable_arg_types[i]);
   }
 }
 

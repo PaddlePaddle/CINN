@@ -161,7 +161,7 @@ typedef struct cinn_buffer_t {
   //! Allocate and deallocate lazily, default true.
   char lazy;
 
-  //! The actual memory size.
+  //! The actual memory size(in bytes).
   uint64_t memory_size;
 
   uint16_t align;
@@ -265,6 +265,16 @@ inline double cinn_buffer_load_float64(struct cinn_buffer_t* buf, uint32_t index
 }
 #endif  // __cplusplus
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+CINN_ALWAYS_INLINE void* cinn_buffer_slice(struct cinn_buffer_t* buf, uint32_t offset);
+
+#ifdef __cplusplus
+}
+#endif
+
 static inline int32_t cinn_min(int32_t a, int32_t b) { return a < b ? a : b; }
 static inline int32_t cinn_max(int32_t a, int32_t b) { return a > b ? a : b; }
 
@@ -292,7 +302,7 @@ static inline int32_t cinn_max(int32_t a, int32_t b) { return a > b ? a : b; }
     abort();                            \
   }
 #define CINN_CHECK_LT(a, b)                                \
-  if (!(a > b)) {                                          \
+  if (!(a < b)) {                                          \
     cinn_print_debug_string("check %d > %d failed", a, b); \
     abort();                                               \
   }

@@ -9,6 +9,7 @@
 #include <llvm/Passes/PassBuilder.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
+#include <llvm/Support/TargetRegistry.h>
 #include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/GVN.h>
@@ -17,6 +18,7 @@
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
 
 #include <cmath>
+#include <memory>
 #include <utility>
 
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
@@ -24,19 +26,36 @@
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/runtime/intrinsic.h"
+#include "llvm/ADT/Triple.h"
+#include "llvm/ExecutionEngine/ExecutionEngine.h"
+#include "llvm/ExecutionEngine/Orc/CompileUtils.h"
+#include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
+#include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
+#include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
+#include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
+#include "llvm/ExecutionEngine/SectionMemoryManager.h"
+#include "llvm/Support/Error.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetMachine.h"
 
 namespace cinn {
 namespace backends {
 
 SimpleOrcJit::SimpleOrcJit(llvm::orc::JITTargetMachineBuilder jtmb, llvm::DataLayout data_layout)
     : object_layer_(execution_session_, std::bind(std::make_unique<llvm::SectionMemoryManager>)),
-      compile_layer_(
-          execution_session_, object_layer_, std::make_unique<llvm::orc::ConcurrentIRCompiler>(std::move(jtmb))),
       data_layout_(std::move(data_layout)),
       mangle_(execution_session_, data_layout_),
-      context_(std::make_unique<llvm::LLVMContext>()),
-      main_jd_(execution_session_.createJITDylib("<main>")) {
-  main_jd_.addGenerator(
+      compile_layer_(
+          execution_session_, object_layer_, std::make_unique<llvm::orc::ConcurrentIRCompiler>(std::move(jtmb))),
+      context_(std::make_unique<llvm::LLVMContext>()) {
+  // main_jd_(&execution_session_.createJITDylib("<main>")) {
+  main_jd_ = execution_session_.getJITDylibByName("<main>");
+  if (!main_jd_) {
+    main_jd_ = &execution_session_.createJITDylib("<main>");
+  }
+  main_jd_->addGenerator(
       llvm::cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(data_layout_.getGlobalPrefix())));
   RegisterRuntimeSymbols();
 }
@@ -48,9 +67,48 @@ SimpleOrcJit::SimpleOrcJit(llvm::orc::JITTargetMachineBuilder jtmb, llvm::DataLa
   auto jtmb        = llvm::orc::JITTargetMachineBuilder::detectHost();
   auto data_layout = jtmb->getDefaultDataLayoutForTarget();
 
-  return std::unique_ptr<SimpleOrcJit>(new SimpleOrcJit(std::move(*jtmb), std::move(*data_layout)));
-  // return std::make_unique<SimpleOrcJit>(std::move(*jtmb),
-  //                                      std::move(*data_layout));
+  // return std::unique_ptr<SimpleOrcJit>(new SimpleOrcJit(std::move(*jtmb), std::move(*data_layout)));
+  std::unique_ptr<SimpleOrcJit> compiler(new SimpleOrcJit(std::move(*jtmb), std::move(*data_layout)));
+
+  auto compile_function_creator = [&](llvm::orc::JITTargetMachineBuilder jtmb)
+      -> llvm::Expected<std::unique_ptr<llvm::orc::IRCompileLayer::IRCompiler>> {
+    auto tm = jtmb.createTargetMachine();
+    if (!tm) return tm.takeError();
+    return std::make_unique<llvm::orc::TMOwningSimpleCompiler>(std::move(*tm));
+  };
+
+  auto object_layer_creator = [&](llvm::orc::ExecutionSession &session, const llvm::Triple &triple) {
+    auto object_layer = std::make_unique<llvm::orc::RTDyldObjectLinkingLayer>(
+        session, []() { return std::make_unique<llvm::SectionMemoryManager>(); });
+    llvm::orc::JITDylib *main_jd = session.getJITDylibByName("<main>");
+    if (!main_jd) {
+      main_jd = &session.createJITDylib("<main>");
+    }
+    main_jd->addGenerator(
+        llvm::cantFail(llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(data_layout->getGlobalPrefix())));
+    return object_layer;
+  };
+  compiler->jit_ = llvm::cantFail(llvm::orc::LLJITBuilder()
+                                      .setCompileFunctionCreator(compile_function_creator)
+                                      .setObjectLinkingLayerCreator(object_layer_creator)
+                                      .create());
+
+  return compiler;
+}
+
+bool SimpleOrcJit::SetupTargetTriple(llvm::Module *module) {
+  auto target_triple = llvm::sys::getDefaultTargetTriple();
+  std::string error_msg;
+  auto target = llvm::TargetRegistry::lookupTarget(target_triple, error_msg);
+  if (!target) {
+    LOG(ERROR) << "no target: " << error_msg;
+    return true;
+  }
+
+  std::unique_ptr<llvm::TargetMachine> machine(target->createTargetMachine(target_triple, "generic", "", {}, {}));
+  module->setDataLayout(machine->createDataLayout());
+  module->setTargetTriple(target_triple);
+  return false;
 }
 
 void SimpleOrcJit::AddModule(std::unique_ptr<llvm::Module> module, bool optimize) {
@@ -68,7 +126,17 @@ void SimpleOrcJit::AddModule(std::unique_ptr<llvm::Module> module, bool optimize
     }
   }
 
-  auto unused = compile_layer_.add(main_jd_, llvm::orc::ThreadSafeModule(std::move(module), context_));
+  /*
+  for (auto &fn : *module) {
+    LOG(INFO) << "LLVM module has fn: " << std::string(fn.getName());
+  }
+   */
+
+  //[[maybe_unused]] auto error = compile_layer_.add(*main_jd_, llvm::orc::ThreadSafeModule(std::move(module),
+  // context_));
+  llvm::orc::ThreadSafeModule tsm(std::move(module), context_);
+  [[maybe_unused]] auto error = jit_->addIRModule(std::move(tsm));
+  CHECK(!error) << "LLVM link module failed";
 }
 
 void SimpleOrcJit::Link(const lang::Module &module, bool optimize) {
@@ -83,6 +151,7 @@ void SimpleOrcJit::Link(const lang::Module &module, bool optimize) {
     ir_emitter->Visit(&expr);
   }
 
+  bool dump_jit = false;
   for (auto &fn : module.functions()) {
     LOG(WARNING) << "JIT Linking function [" << fn->name << "]";
     ir::Expr fn_expr(fn);
@@ -92,14 +161,34 @@ void SimpleOrcJit::Link(const lang::Module &module, bool optimize) {
     VLOG(1) << DumpToString(*fn_);
   }
 
+  if (dump_jit) {
+    LOG(INFO) << "======= dump jit lib[begin] ==========";
+    std::string buffer;
+    llvm::raw_string_ostream os(buffer);
+    main_jd_->dump(os);
+    os.flush();
+    LOG(INFO) << buffer;
+  };
   AddModule(std::move(m), optimize);
+  if (dump_jit) {
+    LOG(INFO) << "======= dump jit lib[end] ==========";
+    std::string buffer;
+    llvm::raw_string_ostream os(buffer);
+    main_jd_->dump(os);
+    os.flush();
+    LOG(INFO) << buffer;
+  };
 }
 
 void *SimpleOrcJit::Lookup(std::string_view name) {
   std::lock_guard<std::mutex> lock(mu_);
-  if (auto symbol = execution_session_.lookup({&main_jd_}, mangle_(AsStringRef(name)))) {
+
+  if (auto symbol = jit_->lookup(AsStringRef(name))) {
     return reinterpret_cast<void *>(symbol->getAddress());
   }
+  // if (auto symbol = execution_session_.lookup({main_jd_}, mangle_(AsStringRef(name)))) {
+  //  return reinterpret_cast<void *>(symbol->getAddress());
+  //}
 
   return nullptr;
 }
@@ -107,11 +196,15 @@ void *SimpleOrcJit::Lookup(std::string_view name) {
 void SimpleOrcJit::RegisterRuntimeSymbols() {
   llvm::orc::SymbolMap symbols;
   auto &registry = RuntimeSymbolRegistry::Global();
+
+  // auto flag = llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable;
   for (const auto &[k, v] : registry.All()) {
+    VLOG(2) << "Insert " << k << " to JIT system";
     symbols.insert({mangle_(k), {llvm::pointerToJITTargetAddress(v), llvm::JITSymbolFlags::None}});
+    // symbols.insert({mangle_(k), {llvm::pointerToJITTargetAddress(v), flag}});
   }
 
-  [[maybe_unused]] auto unused = main_jd_.define(llvm::orc::absoluteSymbols(std::move(symbols)));
+  [[maybe_unused]] auto unused = main_jd_->define(llvm::orc::absoluteSymbols(std::move(symbols)));
 }
 
 namespace {

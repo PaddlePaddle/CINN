@@ -5,6 +5,7 @@
 #include <llvm/ExecutionEngine/Orc/CompileUtils.h>
 #include <llvm/ExecutionEngine/Orc/ExecutionUtils.h>
 #include <llvm/ExecutionEngine/Orc/IRCompileLayer.h>
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/ExecutionEngine/Orc/LambdaResolver.h>
 #include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #include <llvm/ExecutionEngine/Orc/ThreadSafeModule.h>
@@ -33,6 +34,7 @@ namespace backends {
 class SimpleOrcJit {
  public:
   static std::unique_ptr<SimpleOrcJit> Create();
+  // static std::unique_ptr<SimpleOrcJit> Create();
 
   void AddModule(std::unique_ptr<llvm::Module> module, bool optimize = false);
   void Link(const lang::Module &module, bool optimize = false);
@@ -44,22 +46,23 @@ class SimpleOrcJit {
  protected:
   SimpleOrcJit(llvm::orc::JITTargetMachineBuilder jtmb, llvm::DataLayout data_layout);
   void RegisterRuntimeSymbols();
+  bool SetupTargetTriple(llvm::Module *module);
+  bool Finish();
 
  private:
-  SimpleOrcJit() = delete;
-
   mutable std::mutex mu_;
-  llvm::orc::ThreadSafeContext context_;
 
   std::vector<llvm::orc::VModuleKey> module_keys_;
 
-  llvm::DataLayout data_layout_;
   llvm::orc::ExecutionSession execution_session_;
   llvm::orc::RTDyldObjectLinkingLayer object_layer_;
+  llvm::DataLayout data_layout_;
   llvm::orc::MangleAndInterner mangle_;
-
   llvm::orc::IRCompileLayer compile_layer_;
-  llvm::orc::JITDylib &main_jd_;
+  llvm::orc::ThreadSafeContext context_;
+  llvm::orc::JITDylib *main_jd_;
+
+  std::unique_ptr<llvm::orc::LLJIT> jit_;
 };
 
 }  // namespace backends

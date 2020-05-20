@@ -1,5 +1,9 @@
 include_directories(${CMAKE_SOURCE_DIR}/cinn/runtime)
 
+if (NOT WITH_TESTS)
+  return()
+endif()
+
 
 cc_test(test01_elementwise_add_main SRCS test01_elementwise_add_main.cc DEPS core
   ARGS ${global_test_args}

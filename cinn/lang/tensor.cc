@@ -284,8 +284,9 @@ void Tensor::ExpandInlined() {
   NOT_IMPLEMENTED
 }
 
-void _Tensor_::WithBuffer() {
-  lang::Buffer buf(type_);
+void _Tensor_::WithBuffer(const Type &type) {
+  Type buf_type = type.is_void() ? type_ : type;
+  lang::Buffer buf(buf_type);
   buf->target = common::DefaultHostTarget();
   Bind(buf);
 }

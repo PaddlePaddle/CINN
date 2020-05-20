@@ -243,6 +243,7 @@ void CodeGenC::Visit(const ir::Call *op) {
     os() << ")";
   } else if (op->is_extern_call()) {
     auto *emitter = ExternFunctionEmitterRegistry::Global().Lookup(ExternFuncID{backend_C, op->name.c_str()});
+    CHECK(emitter) << "No extern func [" << op->name << "]";
     emitter->BindCodeGen(this);
     CHECK(emitter) << "No extern function emitter for call " << op->name;
     emitter->Emit(op);
@@ -409,7 +410,10 @@ void CodeGenC::Visit(const ir::Free *op) {
 void CodeGenC::Visit(const ir::_Range_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_IterVar_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_Buffer_ *op) { os() << op->name; }
-void CodeGenC::Visit(const ir::_Tensor_ *op) { IrPrinter::Visit(op); }
+void CodeGenC::Visit(const ir::_Tensor_ *op) {
+  CHECK(!op->inlined());
+  os() << op->buffer->name;
+}
 void CodeGenC::Visit(const ir::Let *op) {
   bool is_vec = false;
   CHECK(op->type().valid());

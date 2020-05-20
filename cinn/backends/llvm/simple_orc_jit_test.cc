@@ -97,6 +97,7 @@ TEST(llvm_test01, elementwise_add) {
 
   auto elementwise_add_addr = jit->Lookup("elementwise_add");
   auto elementwise_add      = reinterpret_cast<void (*)(void *, int32_t)>(elementwise_add_addr);
+  CHECK(elementwise_add);
   cinn_pod_value_t a_arg(a), b_arg(b), c_arg(c);
   cinn_pod_value_t args[3] = {a_arg, b_arg, c_arg};
   elementwise_add(args, 3);
@@ -257,7 +258,7 @@ TEST(SimpleOrcJit, call_extern) {
   }
 }
 
-TEST(SimpleOrcJit, call_extern_v) {
+TEST(SimpleOrcJit, call_extern_v_generate) {
   ir::Expr M(kM);
   ir::Expr N(kN);
 
@@ -278,6 +279,101 @@ TEST(SimpleOrcJit, call_extern_v) {
   auto func = Lower("comp", {x, y, y1, yy, yy1});
 
   LOG(INFO) << "func: " << func;
+}
+
+TEST(SimpleOrcJit, call_extern_tanh_v) {
+  ir::Expr M(kM);
+  ir::Expr N(kN);
+
+  Placeholder<float> x("x", {M, N});
+  Placeholder<float> y("y", {M, N});
+
+  auto add_out = Compute(
+      {M, N}, [=](Var i, Var j) { return x(i, j) + y(i, j); }, "add_out");
+
+  auto tanh_out = Compute({M, N}, [=](Var i, Var j) { return lang::CallExtern("tanh", {add_out(i, j)}); });
+  tanh_out->WithBuffer();
+
+  auto func = Lower("tanh_main", {x, y, tanh_out});
+
+  Module::Builder builder("module0", common::DefaultHostTarget());
+  builder.AddFunction(func);
+
+  auto jit = backends::SimpleOrcJit::Create();
+
+  LOG(INFO) << "JIT Link the module";
+  jit->Link(builder.Build(), /*optimize=*/false);
+
+  auto [ab, bb, cb] = CreateTestBuffer();  // NOLINT
+
+  auto comp_addr = jit->Lookup("tanh_main");
+  auto comp      = reinterpret_cast<void (*)(void *, int32_t)>(comp_addr);
+
+  cinn_pod_value_t a_arg(ab), b_arg(bb), c_arg(cb);
+  cinn_pod_value_t args[3] = {a_arg, b_arg, c_arg};
+
+  comp(args, 3);
+
+  auto *ad = reinterpret_cast<float *>(ab->host_memory);
+  auto *bd = reinterpret_cast<float *>(bb->host_memory);
+  auto *cd = reinterpret_cast<float *>(cb->host_memory);
+  for (int m = 0; m < kM; m++) {
+    for (int n = 0; n < kN; n++) {
+      ASSERT_NEAR(cd[m * kN + n], __cinn_host_tanh(ad[m * kN + n] + bd[m * kN + n]), 1e-5);
+    }
+  }
+}
+
+TEST(SimpleOrcJit, call_extern_v) {
+  ir::Expr M(kM);
+  ir::Expr N(kN);
+
+  char *fn_name = "main";
+
+  Placeholder<float> x("x", {M, N});
+
+  auto y = Compute(
+      {Expr(1)}, [&]() -> Expr { return lang::CallExtern("tanh_v", {x}); }, "out");
+
+  auto yy = y->TupleGet(0);
+  yy->WithBuffer(Float(32));
+
+  lang::Module::Builder builder("module0", common::DefaultHostTarget());
+
+  auto func = Lower(fn_name,
+                    {
+                        x,
+                        y,
+                        yy,
+                    });
+
+  builder.AddFunction(func);
+
+  CodeGenC codegen(common::DefaultHostTarget());
+  codegen.SetInlineBuiltinCodes(false);
+  LOG(INFO) << "codegen C:\n" << codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
+
+  auto jit = backends::SimpleOrcJit::Create();
+
+  LOG(INFO) << "JIT Link the module";
+  jit->Link(builder.Build(), /*optimize=*/false);
+
+  auto [ab, bb, cb] = CreateTestBuffer();  // NOLINT
+
+  auto comp_addr = jit->Lookup(fn_name);
+  auto comp      = reinterpret_cast<void (*)(void *, int32_t)>(comp_addr);
+  CHECK(comp);
+
+  cinn_pod_value_t a_arg(ab), b_arg(bb);
+  cinn_pod_value_t args[3] = {a_arg, b_arg};
+
+  comp(args, 2);
+
+  auto *ad = reinterpret_cast<float *>(ab->host_memory);
+  auto *bd = reinterpret_cast<float *>(bb->host_memory);
+  for (int i = 0; i < bb->num_elements(); i++) {
+    ASSERT_NEAR(bd[i], __cinn_host_tanh(ad[i]), 1e-5);
+  }
 }
 
 }  // namespace backends

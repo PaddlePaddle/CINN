@@ -5,6 +5,7 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
 
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -31,7 +32,9 @@ class LLVMIRVisitor : public ir::IRVisitorBase<llvm::Value *> {
 
 class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
  public:
-  explicit CodeGenLLVM(llvm::Module *m, llvm::IRBuilder<> *b);
+  explicit CodeGenLLVM(llvm::Module *m,
+                       llvm::IRBuilder<> *b,
+                       std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> vars = nullptr);
   virtual ~CodeGenLLVM();
 
   llvm::Module *m() { return m_; }
@@ -48,11 +51,13 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   //! Used for the ExternFuncEmitter to store temporary result.
   mutable llvm::Value *extern_func_emit_res_{};
 
+  std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> named_vars() { return named_vars_; }
+
  protected:
-  llvm::Value *GetVar(const std::string &name);
+  llvm::Value *GetVar(const std::string &name, bool lazy = true);
 
   // TODO(Superjomn) When to clear the existing local variables when switch to another function?
-  void SetVar(const std::string &name, llvm::Value *val);
+  llvm::Value *SetVar(const std::string &name, llvm::Value *val);
 
   //! Visit different kinds of Calls, the following methods are analogous to
   //! those in CodeGenC.
@@ -76,7 +81,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   llvm::Module *m_;
   llvm::IRBuilder<> *b_;
 
-  std::unordered_map<std::string, llvm::Value *> named_vars_;
+  std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> named_vars_;
 };
 
 }  // namespace backends
