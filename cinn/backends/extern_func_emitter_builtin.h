@@ -21,10 +21,11 @@ static const char* extern_tanh_v_host_repr = "__cinn_host_tanh_v";
  */
 class CodeGenLLVMforEmitter : public CodeGenLLVM {
  public:
-  explicit CodeGenLLVMforEmitter(CodeGenLLVM* x) : CodeGenLLVM(x->m(), x->b()) {}
+  explicit CodeGenLLVMforEmitter(CodeGenLLVM* x) : CodeGenLLVM(x->m(), x->b(), x->named_vars()) {}
 
   using IrBuilderMixin<CodeGenLLVM>::Call;
   using CodeGenLLVM::b;
+  using CodeGenLLVM::GetVar;
   using CodeGenLLVM::m;
 };
 

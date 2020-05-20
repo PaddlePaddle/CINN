@@ -34,11 +34,16 @@ std::ostream& operator<<(std::ostream& os, const ExternFuncID& x) {
 }
 
 ExternFunctionEmitterRegistry::ExternFunctionEmitterRegistry() {
-  Register(ExternFuncID(backend_C, extern_func__tanh), new ExternFuncEmitter_C_tanh);
-  Register(ExternFuncID(backend_llvm_host, extern_func__tanh), new ExternFuncEmitter_LLVM_tanh);
-
   // Register the runtime functions.
   RuntimeSymbolRegistry::Global().Register(extern_tanh_host_repr, reinterpret_cast<void*>(__cinn_host_tanh));
+  RuntimeSymbolRegistry::Global().Register(extern_tanh_v_host_repr, reinterpret_cast<void*>(__cinn_host_tanh_v));
+
+  // tanh
+  Register(ExternFuncID(backend_C, extern_func__tanh), new ExternFuncEmitter_C_tanh);
+  Register(ExternFuncID(backend_llvm_host, extern_func__tanh), new ExternFuncEmitter_LLVM_tanh);
+  // tanh_v
+  Register(ExternFuncID(backend_C, extern_func__tanh_v), new ExternFuncEmitter_C_tanh_v);
+  Register(ExternFuncID(backend_llvm_host, extern_func__tanh_v), new ExternFuncEmitter_LLVM_tanh_v);
 }
 
 const FunctionProto& ExternFuncEmitter::func_proto() const {

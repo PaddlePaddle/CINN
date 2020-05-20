@@ -20,6 +20,7 @@ void *RuntimeSymbolRegistry::Lookup(std::string_view name) const {
 }
 
 void RuntimeSymbolRegistry::Register(const std::string &name, void *address) {
+  LOG(INFO) << "JIT Register function " << name;
   std::lock_guard<std::mutex> lock(mu_);
   CHECK(address) << "Register a NULL symbol";
   auto it = symbols_.find(name);

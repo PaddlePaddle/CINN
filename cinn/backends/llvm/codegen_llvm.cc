@@ -60,7 +60,14 @@ llvm::Value *EmitComparison(llvm::CmpInst::Predicate predicate,
 
 }  // namespace
 
-CodeGenLLVM::CodeGenLLVM(llvm::Module *m, llvm::IRBuilder<> *b) : m_(m), b_(b) {}
+CodeGenLLVM::CodeGenLLVM(llvm::Module *m,
+                         llvm::IRBuilder<> *b,
+                         std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> vars)
+    : m_(m), b_(b), named_vars_(vars) {
+  if (!named_vars_.get()) {
+    named_vars_ = std::make_shared<std::unordered_map<std::string, llvm::Value *>>();
+  }
+}
 
 CodeGenLLVM::~CodeGenLLVM() {}
 
@@ -312,10 +319,10 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
   llvm::Function *func = preheader_bb->getParent();
   b_->SetInsertPoint(&func->getEntryBlock(), func->getEntryBlock().getFirstInsertionPt());
 
-  llvm::Value *old_var = named_vars_[op->loop_var->name];
+  llvm::Value *old_var = GetVar(op->loop_var->name);
   // loop iterator
-  llvm::AllocaInst *loop_var      = Alloca(b_->getInt32Ty(), nullptr, op->loop_var->name);
-  named_vars_[op->loop_var->name] = loop_var;
+  llvm::AllocaInst *loop_var = Alloca(b_->getInt32Ty(), nullptr, op->loop_var->name);
+  SetVar(op->loop_var->name, loop_var);
 
   b_->SetInsertPoint(preheader_bb);
   llvm::Value *start_index = Visit(&op->min);
@@ -347,9 +354,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
   Br(header_bb);
 
   if (old_var) {
-    named_vars_[op->loop_var->name] = old_var;
+    SetVar(op->loop_var->name, old_var);
   } else {
-    named_vars_.erase(op->loop_var->name);
+    named_vars_->erase(op->loop_var->name);
   }
 
   b_->SetInsertPoint(exit_bb);
@@ -454,7 +461,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
 llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Var_ *op) {
-  llvm::Value *value = GetVar(op->name);
+  llvm::Value *value = GetVar(op->name, false);
   CHECK(value) << "ir::_Var_[" << op->name << "]: value is null";
   // TODO(fc500110) hard coding
   if (op->name == "_args") return value;
@@ -467,9 +474,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Var_ *op) {
 llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
   llvm::Value *array{nullptr};
   if (auto *tensor_op = op->tensor.As<ir::_Tensor_>()) {
-    array = named_vars_[tensor_op->name];
+    array = GetVar(tensor_op->name);
   } else if (auto *var_op = op->tensor.As<ir::_Var_>()) {
-    array = named_vars_[var_op->name];
+    array = GetVar(var_op->name);
   } else {
     array = Visit(&op->tensor);
   }
@@ -486,9 +493,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
 llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
   llvm::Value *array{nullptr};
   if (auto *tensor_op = op->tensor.As<ir::_Tensor_>()) {
-    array = named_vars_[tensor_op->name];
+    array = GetVar(tensor_op->name);
   } else if (auto *var_op = op->tensor.As<ir::_Var_>()) {
-    array = named_vars_[var_op->name];
+    array = GetVar(var_op->name);
   }
   CHECK(array) << "array is null";
 
@@ -501,7 +508,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Alloc *op) {
   auto *buffer_op = op->destination.As<ir::_Buffer_>();
-  auto *buffer    = named_vars_[buffer_op->name];
+  auto *buffer    = GetVar(buffer_op->name);
   CHECK(buffer);
 
   return buffer;
@@ -509,8 +516,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Alloc *op) {
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Free *op) {
   auto *buffer_op = op->destination.As<ir::_Buffer_>();
-  CHECK(named_vars_.count(buffer_op->name));
-  named_vars_.erase(buffer_op->name);
+  CHECK(named_vars_->count(buffer_op->name));
+  named_vars_->erase(buffer_op->name);
   return nullptr;
 }
 
@@ -518,26 +525,12 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Range_ *op) { __IR_EMITTER_NOT_IMPLEM
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_IterVar_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::_Buffer_ *op) {
-  return GetVar(op->name);
-  int numel = 1;
-  for (const auto &e : op->shape) {
-    numel *= e.As<ir::IntImm>()->value;
-  }
-  llvm::ArrayType *array_type = llvm::ArrayType::get(CinnTypeToIrType(op->type(), m_), numel);
-
-  llvm::AllocaInst *alloca = Alloca(array_type, nullptr, op->name);
-  if (op->data_alignment) {
-    // TODO(fc500110) set data alignment
-    alloca->setAlignment(llvm::Align(op->data_alignment));
-  }
-  return alloca;
-}
+llvm::Value *CodeGenLLVM::Visit(const ir::_Buffer_ *op) { return GetVar(op->name); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Tensor_ *op) {
   auto *buffer_op = op->buffer.As<ir::_Buffer_>();
-  CHECK(!named_vars_.count(buffer_op->name));
-  return named_vars_[buffer_op->name] = Visit(buffer_op);
+  CHECK(!named_vars_->count(buffer_op->name));
+  return SetVar(buffer_op->name, Visit(buffer_op));
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
@@ -595,14 +588,14 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
       /*Parent=*/function,
       /*InsertBefore=*/nullptr);
 
-  llvm::Value *old_args = named_vars_["_args"];  // store _args
-  named_vars_["_args"]  = args[0];
+  llvm::Value *old_args = GetVar("_args");  // store _args
+  SetVar("_args", args[0]);
   b_->SetInsertPoint(entry);
   Visit(&function_body);
   if (old_args) {
-    named_vars_["_args"] = old_args;  // restore _args
+    SetVar("_args", old_args);  // restore _args
   } else {
-    named_vars_.erase("_args");
+    named_vars_->erase("_args");
   }
   RetVoid();
   return function;
@@ -612,12 +605,11 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Let *op) {
   CHECK(op->type().valid());
   auto name = op->symbol.As<ir::_Var_>()->name;
   if (op->body.defined()) {
-    named_vars_[name] = Visit(&op->body);
+    SetVar(name, Visit(&op->body));
   } else {
-    named_vars_[name] = Alloca(CinnTypeToIrType(op->type(), m_));
+    SetVar(name, Alloca(CinnTypeToIrType(op->type(), m_)));
   }
-  return named_vars_[name];
-  // return named_vars_[op->symbol.As<ir::_Var_>()->name] = Visit(&op->body);
+  return GetVar(name);
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Reduce *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
@@ -684,11 +676,11 @@ llvm::Value *CodeGenLLVM::EmitCall_buffer_malloc(const ir::Call *op) { return nu
 
 llvm::Value *CodeGenLLVM::EmitCall_get_address(const ir::Call *op) {
   if (auto *read_var = op->read_args.front().as_var()) {
-    return named_vars_[read_var->name];
+    return GetVar(read_var->name);
   }
 
   if (auto *read_buf = op->read_args.front().as_buffer()) {
-    return named_vars_[read_buf->name];
+    return GetVar(read_buf->name);
   }
   return nullptr;
 }
@@ -703,15 +695,19 @@ llvm::Value *CodeGenLLVM::EmitCall_debug_info(const ir::Call *op) {
   return Call(callee, args, "call debug_info");
 }
 
-llvm::Value *CodeGenLLVM::GetVar(const std::string &name) {
-  auto it = named_vars_.find(name);
-  CHECK(it != named_vars_.end()) << "No var [" << name << "] found";
-  return it->second;
+llvm::Value *CodeGenLLVM::GetVar(const std::string &name, bool lazy) {
+  auto it = named_vars_->find(name);
+  if (!lazy) {
+    CHECK(it != named_vars_->end()) << "No var [" << name << "] found";
+    return it->second;
+  }
+  return (*named_vars_)[name];
 }
 
-void CodeGenLLVM::SetVar(const std::string &name, llvm::Value *val) {
-  CHECK(!named_vars_.count(name));
-  named_vars_[name] = val;
+llvm::Value *CodeGenLLVM::SetVar(const std::string &name, llvm::Value *val) {
+  (*named_vars_)[name] = val;
+  CHECK(GetVar(name));
+  return val;
 }
 
 }  // namespace backends

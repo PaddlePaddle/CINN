@@ -56,6 +56,18 @@ class Tensor : public ir::IrNodeRef {
   Tensor PrecedingView(int preceding_n_axis) const;
 
   /**
+   * Slice the preceding n axis and get a new tensor that share the same buffer.
+   *
+   * \code
+   * Tensor A; // shape {M, N, K}
+   * Tensor A_slice = A.slice(1);
+   * \endcode
+   * @param naxis The count of preceding axis to slice.
+   * @return a Tensor with its computation inlined.
+   */
+  Tensor Slice(int naxis);
+
+  /**
    * Take elements from the tensor.
    * This take one or multiple expressions as indices.
    *
@@ -140,7 +152,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   Tensor TupleGet(int offset) const;
 
   //! Create a buffer belong to this tensor.
-  void WithBuffer();
+  void WithBuffer(const Type& type = Void());
   //! Bind to a buffer, will persist data to the buffer in runtime.
   void Bind(lang::Buffer& buffer);  // NOLINT
   void Bind(const Buffer& buffer);

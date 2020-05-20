@@ -19,7 +19,7 @@ namespace detail {
 FunctionProto* CreateTanhProto() { return new FunctionProto(extern_func__tanh, {Float(32)}, {}, Float(32)); }
 FunctionProto* CreateTanhVProto() {
   return new FunctionProto(
-      extern_func__tanh_v, {Float(32)}, {type_of<float*>()}, Void(), FunctionProto::ShapeFollowNthArgument(0));
+      extern_func__tanh_v, {type_of<float*>()}, {type_of<float*>()}, Void(), FunctionProto::ShapeFollowNthArgument(0));
 }
 
 }  // namespace detail
