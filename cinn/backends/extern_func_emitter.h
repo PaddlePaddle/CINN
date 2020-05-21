@@ -37,9 +37,9 @@ static const char* backend_llvm_x86  = "llvm_x86";
  * \brief Base class of the emitter of all the extern functions able to trigger inside CINN CodeGen system.
  * There are some common attributes and interfaces.
  */
-class ExternFuncEmitter {
+class ExternFunctionEmitter {
  public:
-  ExternFuncEmitter() = default;
+  ExternFunctionEmitter() = default;
 
   virtual void BindCodeGen(void* codegen) = 0;
   /**
@@ -85,8 +85,8 @@ class ExternFuncEmitter {
 };
 
 struct ExternFuncID {
-  std::string_view name;
-  std::string_view backend_id;
+  std::string name;
+  std::string backend_id;
 
   ExternFuncID(const char* name, const char* backend_id) : name(name), backend_id(backend_id) {}
 
@@ -100,12 +100,12 @@ class ExternFunctionEmitterRegistry {
  public:
   static ExternFunctionEmitterRegistry& Global();
 
-  void Register(const ExternFuncID& name, ExternFuncEmitter* x);
+  void Register(const ExternFuncID& name, ExternFunctionEmitter* x);
 
-  ExternFuncEmitter* Lookup(const ExternFuncID& name) const;
+  ExternFunctionEmitter* Lookup(const ExternFuncID& name) const;
 
  private:
-  std::unordered_map<ExternFuncID, std::unique_ptr<ExternFuncEmitter>> data_;
+  std::unordered_map<ExternFuncID, std::unique_ptr<ExternFunctionEmitter>> data_;
 
   ExternFunctionEmitterRegistry();
   CINN_DISALLOW_COPY_AND_ASSIGN(ExternFunctionEmitterRegistry);

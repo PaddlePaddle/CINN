@@ -34,10 +34,18 @@ void FunctionProto::AssertMatch(const ir::Call *op) const {
     return u.type();
   };
   for (int i = 0; i < op->read_args.size(); i++) {
-    CHECK_EQ(get_type(op->read_args[i]), readonly_arg_types[i]);
+    if (readonly_arg_types[i] == type_of<cinn_buffer_t *>()) {
+      if (!op->read_args[i].as_tensor()) continue;
+    } else {
+      CHECK_EQ(get_type(op->read_args[i]), readonly_arg_types[i]);
+    }
   }
   for (int i = 0; i < op->write_args.size(); i++) {
-    CHECK_EQ(get_type(op->write_args[i]), mutable_arg_types[i]);
+    if (mutable_arg_types[i] == type_of<cinn_buffer_t *>()) {
+      if (!op->write_args[i].as_tensor()) continue;
+    } else {
+      CHECK_EQ(get_type(op->write_args[i]), mutable_arg_types[i]);
+    }
   }
 }
 
@@ -72,7 +80,7 @@ FunctionProto::FunctionProto(const std::string &name,
   CheckValid();
 }
 
-FunctionProto *FunctionProtoRegistry::Lookup(std::string_view name) {
+FunctionProto *FunctionProtoRegistry::Lookup(const std::string &name) {
   auto it = data_.find(name);
   if (it != data_.end()) {
     return it->second.get();
@@ -81,6 +89,8 @@ FunctionProto *FunctionProtoRegistry::Lookup(std::string_view name) {
 }
 
 FunctionProto *FunctionProtoRegistry::Register(std::string_view name, FunctionProto *x) {
+  LOG(INFO) << "Register function prototype "
+            << "[" << name << "]";
   data_.emplace(name, std::unique_ptr<FunctionProto>(x));
   return x;
 }

@@ -34,7 +34,6 @@ namespace backends {
 class SimpleOrcJit {
  public:
   static std::unique_ptr<SimpleOrcJit> Create();
-  // static std::unique_ptr<SimpleOrcJit> Create();
 
   void AddModule(std::unique_ptr<llvm::Module> module, bool optimize = false);
   void Link(const lang::Module &module, bool optimize = false);

@@ -39,6 +39,37 @@ struct FunctionProto {
    */
   void AssertMatch(const ir::Call* op) const;
 
+  struct Builder {
+    explicit Builder(const std::string& name) {
+      data_.reset(new FunctionProto);
+      data_->name = name;
+    }
+    template <typename T>
+    Builder& SetRetType() {
+      data_->ret_type = type_of<T>();
+      return *this;
+    }
+    template <typename T>
+    Builder& AddInputType() {
+      data_->readonly_arg_types.push_back(type_of<T>());
+      return *this;
+    }
+    template <typename T>
+    Builder& AddOutputType() {
+      data_->mutable_arg_types.push_back(type_of<T>());
+      return *this;
+    }
+    Builder& SetShapeInference(shape_inference_t fn) {
+      data_->shape_inference = fn;
+      return *this;
+    }
+
+    std::unique_ptr<FunctionProto> Build() { return std::move(data_); }
+
+   private:
+    std::unique_ptr<FunctionProto> data_;
+  };
+
   /**
    * All the outputs use the n-th argument's shape.
    */
@@ -46,16 +77,18 @@ struct FunctionProto {
 
  protected:
   void CheckValid();
+
+  FunctionProto() = default;
 };
 
 class FunctionProtoRegistry {
  public:
   FunctionProto* Register(std::string_view name, FunctionProto* x);
 
-  FunctionProto* Lookup(std::string_view name);
+  FunctionProto* Lookup(const std::string& name);
 
  private:
-  std::unordered_map<std::string_view, std::unique_ptr<FunctionProto>> data_;
+  std::unordered_map<std::string, std::unique_ptr<FunctionProto>> data_;
 };
 
 }  // namespace backends

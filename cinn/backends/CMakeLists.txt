@@ -7,6 +7,7 @@ set(srcs outputs.cc
         extern_func_emitter_builtin.cc
         function_prototype.cc
         extern_func_protos.cc
+        extern_func_jit_register.cc
 )
 
 if (WITH_CUDA)

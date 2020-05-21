@@ -209,8 +209,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
   auto from = op->v().type();
   auto to   = op->type();
 
-  llvm::Type *source = CinnTypeToIrType(from, m_);
-  llvm::Type *target = CinnTypeToIrType(to, m_);
+  llvm::Type *source = CinnTypeToLLVMType(from, m_);
+  llvm::Type *target = CinnTypeToLLVMType(to, m_);
   CHECK(source) << "source ir type is null";
   CHECK(target) << "target ir type is null";
 
@@ -607,7 +607,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Let *op) {
   if (op->body.defined()) {
     SetVar(name, Visit(&op->body));
   } else {
-    SetVar(name, Alloca(CinnTypeToIrType(op->type(), m_)));
+    SetVar(name, Alloca(CinnTypeToLLVMType(op->type(), m_)));
   }
   return GetVar(name);
 }

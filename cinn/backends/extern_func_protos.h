@@ -29,5 +29,6 @@ FunctionProto* CreateTanhProto();
 FunctionProto* CreateTanhVProto();
 
 }  // namespace detail
+
 }  // namespace backends
 }  // namespace cinn

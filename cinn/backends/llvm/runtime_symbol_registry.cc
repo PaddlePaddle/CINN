@@ -2,7 +2,8 @@
 
 #include <string_view>
 
-namespace cinn::backends {
+namespace cinn {
+namespace backends {
 
 RuntimeSymbolRegistry &RuntimeSymbolRegistry::Global() {
   static RuntimeSymbolRegistry registry;
@@ -31,4 +32,6 @@ void RuntimeSymbolRegistry::Register(const std::string &name, void *address) {
 
   symbols_.insert({name, reinterpret_cast<void *>(address)});
 }
-}  // namespace cinn::backends
+
+}  // namespace backends
+}  // namespace cinn
