@@ -36,7 +36,7 @@ ExternalProject_Add(
 )
 
 if(${CMAKE_VERSION} VERSION_LESS "3.3.0")
-    set(dummyfile ${CMAKE_CURRENT_BINARY_DIR}/pybind_dummy.c)
+    set(dummyfile ${CMAKE_CURRENT_BINARY_DIR}/pybind_dummy.c ../../cinn/hlir/instruction/x86/mkl_math.cc ../../cinn/hlir/instruction/x86/mkl_math.h ../../cinn/hlir/instruction/x86/mkl_math_registors.cc ../../cinn/hlir/instruction/x86/mkl_math_registors.h ../../cinn/hlir/instruction/x86/mkl_math_test.cc ../../cinn/backends/extern_func_jit_register.cc ../../cinn/backends/extern_func_jit_register.h)
     file(WRITE ${dummyfile} "const char * dummy_pybind = \"${dummyfile}\";")
     add_library(pybind STATIC ${dummyfile})
 else()

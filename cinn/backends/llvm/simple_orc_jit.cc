@@ -50,7 +50,6 @@ SimpleOrcJit::SimpleOrcJit(llvm::orc::JITTargetMachineBuilder jtmb, llvm::DataLa
       compile_layer_(
           execution_session_, object_layer_, std::make_unique<llvm::orc::ConcurrentIRCompiler>(std::move(jtmb))),
       context_(std::make_unique<llvm::LLVMContext>()) {
-  // main_jd_(&execution_session_.createJITDylib("<main>")) {
   main_jd_ = execution_session_.getJITDylibByName("<main>");
   if (!main_jd_) {
     main_jd_ = &execution_session_.createJITDylib("<main>");
@@ -67,7 +66,6 @@ SimpleOrcJit::SimpleOrcJit(llvm::orc::JITTargetMachineBuilder jtmb, llvm::DataLa
   auto jtmb        = llvm::orc::JITTargetMachineBuilder::detectHost();
   auto data_layout = jtmb->getDefaultDataLayoutForTarget();
 
-  // return std::unique_ptr<SimpleOrcJit>(new SimpleOrcJit(std::move(*jtmb), std::move(*data_layout)));
   std::unique_ptr<SimpleOrcJit> compiler(new SimpleOrcJit(std::move(*jtmb), std::move(*data_layout)));
 
   auto compile_function_creator = [&](llvm::orc::JITTargetMachineBuilder jtmb)
@@ -126,14 +124,6 @@ void SimpleOrcJit::AddModule(std::unique_ptr<llvm::Module> module, bool optimize
     }
   }
 
-  /*
-  for (auto &fn : *module) {
-    LOG(INFO) << "LLVM module has fn: " << std::string(fn.getName());
-  }
-   */
-
-  //[[maybe_unused]] auto error = compile_layer_.add(*main_jd_, llvm::orc::ThreadSafeModule(std::move(module),
-  // context_));
   llvm::orc::ThreadSafeModule tsm(std::move(module), context_);
   [[maybe_unused]] auto error = jit_->addIRModule(std::move(tsm));
   CHECK(!error) << "LLVM link module failed";
@@ -186,9 +176,6 @@ void *SimpleOrcJit::Lookup(std::string_view name) {
   if (auto symbol = jit_->lookup(AsStringRef(name))) {
     return reinterpret_cast<void *>(symbol->getAddress());
   }
-  // if (auto symbol = execution_session_.lookup({main_jd_}, mangle_(AsStringRef(name)))) {
-  //  return reinterpret_cast<void *>(symbol->getAddress());
-  //}
 
   return nullptr;
 }
@@ -197,11 +184,9 @@ void SimpleOrcJit::RegisterRuntimeSymbols() {
   llvm::orc::SymbolMap symbols;
   auto &registry = RuntimeSymbolRegistry::Global();
 
-  // auto flag = llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable;
   for (const auto &[k, v] : registry.All()) {
-    VLOG(2) << "Insert " << k << " to JIT system";
+    LOG(INFO) << "Insert runtime symbol " << k << " to JIT system";
     symbols.insert({mangle_(k), {llvm::pointerToJITTargetAddress(v), llvm::JITSymbolFlags::None}});
-    // symbols.insert({mangle_(k), {llvm::pointerToJITTargetAddress(v), flag}});
   }
 
   [[maybe_unused]] auto unused = main_jd_->define(llvm::orc::absoluteSymbols(std::move(symbols)));

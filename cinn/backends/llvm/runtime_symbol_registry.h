@@ -9,7 +9,8 @@
 
 #include "cinn/common/macros.h"
 
-namespace cinn::backends {
+namespace cinn {
+namespace backends {
 
 class RuntimeSymbolRegistry {
  public:
@@ -27,4 +28,6 @@ class RuntimeSymbolRegistry {
   mutable std::mutex mu_;
   std::map<std::string, void *> symbols_;
 };
-}  // namespace cinn::backends
+
+}  // namespace backends
+}  // namespace cinn

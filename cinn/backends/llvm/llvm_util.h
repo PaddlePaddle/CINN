@@ -30,7 +30,7 @@ std::string DumpToString(const T &entity) {
 
 inline llvm::StringRef AsStringRef(std::string_view str) { return llvm::StringRef(str.data(), str.size()); }
 
-llvm::Type *CinnTypeToIrType(common::Type t, llvm::Module *m);
+llvm::Type *CinnTypeToLLVMType(common::Type t, llvm::Module *m);
 
 template <typename T>
 llvm::Type *llvm_type_of(llvm::Module *m);

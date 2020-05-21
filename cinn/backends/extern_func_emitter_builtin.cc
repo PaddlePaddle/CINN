@@ -101,5 +101,56 @@ bool ExternFuncEmitter_LLVM_tanh_v::RetValuePacked() const { return true; }
 const char* ExternFuncEmitter_LLVM_tanh_v::backend_kind() const { return backend_llvm_host; }
 // @}
 
+void ExternFunctionLLVMEmitter::BindCodeGen(void* codegen) { codegen_ = reinterpret_cast<CodeGenLLVM*>(codegen); }
+
+const char* ExternFunctionLLVMEmitter::func_name() const { return fn_name_.c_str(); }
+
+bool ExternFunctionLLVMEmitter::RetValuePacked() const { return fn_proto().ret_type.is_void(); }
+
+FunctionProto& ExternFunctionLLVMEmitter::fn_proto() const {
+  auto* proto = ExternFunctionProtoRegistry::Global().Lookup(fn_name_);
+  CHECK(proto) << "No function prototype found for " << fn_name_;
+  return *proto;
+}
+llvm::Type* ExternFunctionLLVMEmitter::llvm_fn_type() const {
+  auto* proto = ExternFunctionProtoRegistry::Global().Lookup(fn_name_);
+  CHECK(proto) << "No function prototype found for " << fn_name_;
+
+  auto* llvm_ret_type = CinnTypeToLLVMType(proto->ret_type, codegen_->m());
+  std::vector<llvm::Type*> arg_types;
+  for (auto& t : proto->readonly_arg_types) {
+    arg_types.push_back(CinnTypeToLLVMType(t, codegen_->m()));
+  }
+  for (auto& t : proto->mutable_arg_types) {
+    arg_types.push_back(CinnTypeToLLVMType(t, codegen_->m()));
+  }
+  return llvm_ret_type;
+}
+const char* ExternFunctionLLVMEmitter::backend_kind() const { return nullptr; }
+
+void ExternFunctionLLVMEmitter::EmitImpl(const ir::Call* op) {
+  CHECK(codegen_);
+  CodeGenLLVMforEmitter codegen_for_emitter(codegen_);
+  llvm::Function* custom_function = llvm::dyn_cast<llvm::Function>(
+      codegen_for_emitter.m()->getOrInsertFunction(fn_name_, llvm_fn_type()).getCallee());
+  CHECK(custom_function) << "No function registered in JIT called " << fn_name_;
+  custom_function->setCallingConv(llvm::CallingConv::C);
+
+  std::vector<llvm::Value*> args;
+  for (auto& v : op->read_args) {
+    if (v.as_tensor()) {
+      args.push_back(codegen_for_emitter.GetVar(v.as_tensor()->buffer->name, false));
+    }
+  }
+  for (auto& v : op->write_args) {
+    if (v.as_tensor()) {
+      args.push_back(codegen_for_emitter.GetVar(v.as_tensor()->buffer->name, false));
+    }
+  }
+
+  auto* command                   = codegen_for_emitter.b()->CreateCall(custom_function, args);
+  codegen_->extern_func_emit_res_ = command;
+}
+
 }  // namespace backends
 }  // namespace cinn

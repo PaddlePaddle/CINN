@@ -29,10 +29,28 @@ class CodeGenLLVMforEmitter : public CodeGenLLVM {
   using CodeGenLLVM::m;
 };
 
+class ExternFunctionLLVMEmitter : public ExternFunctionEmitter {
+ public:
+  explicit ExternFunctionLLVMEmitter(const std::string& fn_name) : fn_name_(fn_name) {}
+
+  void BindCodeGen(void* codegen) override;
+  const char* func_name() const override;
+  bool RetValuePacked() const override;
+  const char* backend_kind() const override;
+
+ protected:
+  void EmitImpl(const ir::Call* op) override;
+  FunctionProto& fn_proto() const;
+  llvm::Type* llvm_fn_type() const;
+
+  CodeGenLLVM* codegen_{};
+  std::string fn_name_;
+};
+
 /**
  * Emitter for tanh in CodeGenC.
  */
-class ExternFuncEmitter_C_tanh : public ExternFuncEmitter {
+class ExternFuncEmitter_C_tanh : public ExternFunctionEmitter {
  public:
   void BindCodeGen(void* codegen) override;
   const char* func_name() const override;
@@ -44,7 +62,7 @@ class ExternFuncEmitter_C_tanh : public ExternFuncEmitter {
   CodeGenC* codegen_{};
 };
 
-class ExternFuncEmitter_LLVM_tanh : public ExternFuncEmitter {
+class ExternFuncEmitter_LLVM_tanh : public ExternFunctionEmitter {
  public:
   void BindCodeGen(void* codegen) override;
   const char* func_name() const override;
@@ -56,7 +74,7 @@ class ExternFuncEmitter_LLVM_tanh : public ExternFuncEmitter {
   CodeGenLLVM* codegen_{};
 };
 
-class ExternFuncEmitter_C_tanh_v : public ExternFuncEmitter {
+class ExternFuncEmitter_C_tanh_v : public ExternFunctionEmitter {
  public:
   void BindCodeGen(void* codegen) override;
   const char* func_name() const override;
@@ -68,7 +86,7 @@ class ExternFuncEmitter_C_tanh_v : public ExternFuncEmitter {
   CodeGenC* codegen_{};
 };
 
-class ExternFuncEmitter_LLVM_tanh_v : public ExternFuncEmitter {
+class ExternFuncEmitter_LLVM_tanh_v : public ExternFunctionEmitter {
  public:
   void BindCodeGen(void* codegen) override;
   const char* func_name() const override;

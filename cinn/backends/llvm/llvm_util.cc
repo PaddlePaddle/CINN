@@ -9,7 +9,7 @@
 namespace cinn {
 namespace backends {
 
-llvm::Type *CinnTypeToIrType(common::Type type, llvm::Module *m) {
+llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
   llvm::Type *ir_type = nullptr;
   if (type.is_cpp_const()) {
     // TODO(fc500110) support it latter.
@@ -60,10 +60,10 @@ llvm::Type *CinnTypeToIrType(common::Type type, llvm::Module *m) {
   return ir_type;
 }
 
-#define __(ty__)                                         \
-  template <>                                            \
-  llvm::Type *llvm_type_of<ty__>(llvm::Module * m) {     \
-    return CinnTypeToIrType(common::type_of<ty__>(), m); \
+#define __(ty__)                                           \
+  template <>                                              \
+  llvm::Type *llvm_type_of<ty__>(llvm::Module * m) {       \
+    return CinnTypeToLLVMType(common::type_of<ty__>(), m); \
   }
 
 __(int32_t)

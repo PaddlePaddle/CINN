@@ -176,7 +176,7 @@ std::vector<ir::Tensor> Call(const std::string &target,
 
 Expr CallExtern(const std::string &target, const std::vector<Expr> &args) {
   auto *proto = backends::ExternFunctionProtoRegistry::Global().Lookup(target);
-  CHECK(proto) << "No extern function " << target << " found";
+  CHECK(proto) << "No extern function prototype " << target << " found";
 
   auto call = ir::Call::Make(proto->ret_type, target, args, {}, ir::CallType::Extern);
   std::vector<Expr> mutable_args;

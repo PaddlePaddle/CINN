@@ -349,10 +349,6 @@ TEST(SimpleOrcJit, call_extern_v) {
 
   builder.AddFunction(func);
 
-  CodeGenC codegen(common::DefaultHostTarget());
-  codegen.SetInlineBuiltinCodes(false);
-  LOG(INFO) << "codegen C:\n" << codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
-
   auto jit = backends::SimpleOrcJit::Create();
 
   LOG(INFO) << "JIT Link the module";

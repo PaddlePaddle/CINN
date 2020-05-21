@@ -14,13 +14,13 @@ ExternFunctionEmitterRegistry& ExternFunctionEmitterRegistry::Global() {
   return x;
 }
 
-void ExternFunctionEmitterRegistry::Register(const ExternFuncID& name, ExternFuncEmitter* x) {
+void ExternFunctionEmitterRegistry::Register(const ExternFuncID& name, ExternFunctionEmitter* x) {
   LOG(WARNING) << "Register extern function emitter [" << name << "]";
   CHECK(x);
-  data_[name] = std::unique_ptr<ExternFuncEmitter>(x);
+  data_[name] = std::unique_ptr<ExternFunctionEmitter>(x);
 }
 
-ExternFuncEmitter* ExternFunctionEmitterRegistry::Lookup(const ExternFuncID& name) const {
+ExternFunctionEmitter* ExternFunctionEmitterRegistry::Lookup(const ExternFuncID& name) const {
   auto it = data_.find(name);
   if (it != data_.end()) {
     return it->second.get();
@@ -46,7 +46,7 @@ ExternFunctionEmitterRegistry::ExternFunctionEmitterRegistry() {
   Register(ExternFuncID(backend_llvm_host, extern_func__tanh_v), new ExternFuncEmitter_LLVM_tanh_v);
 }
 
-const FunctionProto& ExternFuncEmitter::func_proto() const {
+const FunctionProto& ExternFunctionEmitter::func_proto() const {
   auto* proto = ExternFunctionProtoRegistry::Global().Lookup(func_name());
   CHECK(proto) << "No prototype of function [" << func_name() << "]";
   return *proto;

@@ -18,6 +18,7 @@ set(srcs
 
 add_subdirectory(primitive)
 add_subdirectory(pass)
+add_subdirectory(x86)
 
 cc_test(test_instruction SRCS instruction_test.cc DEPS core)
 cc_test(test_computation SRCS computation_test.cc DEPS core)

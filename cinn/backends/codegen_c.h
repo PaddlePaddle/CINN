@@ -92,7 +92,7 @@ class CodeGenC : public ir::IrPrinter {
 
   void PrintStackVecType(Type type, int lanes);
 
-  friend class ExternFuncEmitter;
+  friend class ExternFunctionEmitter;
 
  protected:
   Target target_;
