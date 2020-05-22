@@ -40,8 +40,9 @@ size_t Tensor::ndims() const { return operator->()->shape.size(); }
 
 Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   CHECK(!self()->is_tuple()) << "should extract a specific value from the tuple and operate on that instead";
-  CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension";
   auto *node = operator->();
+
+  CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension";
 
   if (node->inlined()) {
     VLOG(3) << "detect an inlined tensor and expand it";
@@ -75,6 +76,9 @@ bool _Tensor_::is_extern_call_node() const {
     }
   }
   return false;
+}
+bool _Tensor_::is_buffer_shared_node() const {
+  return std::strcmp(operation_type(), ir::BufferShareOp::__func_type__) == 0;
 }
 
 bool _Tensor_::is_preceding_view_node() const {
@@ -138,7 +142,9 @@ void _Tensor_::InitAxis() {
   axis_ = common::GenDefaultAxis(domain_without_reduce_axis().size());
 }
 
-bool _Tensor_::has_expression() const { return (!is_placeholder_node()) && (!is_tuple_get()); }
+bool _Tensor_::has_expression() const {
+  return (!is_placeholder_node()) && (!is_tuple_get()) && (!is_buffer_shared_node());
+}
 
 isl::set _Tensor_::GenerateIslDomain() {
   // include the reduce axis.
@@ -174,6 +180,7 @@ std::vector<Expr *> _Tensor_::expr_fields() {
     } else if (is_call_node()) {
       auto *op = operation->as<ir::CallOp>();
       for (auto &expr : op->read_args()) res.push_back(&expr);
+    } else if (is_buffer_shared_node()) {
     } else {
       NOT_IMPLEMENTED
     }
@@ -200,6 +207,7 @@ std::vector<const Expr *> _Tensor_::expr_fields() const {
     } else if (is_call_node()) {
       auto *op = operation->as<ir::CallOp>();
       for (auto &expr : op->read_args()) res.push_back(&expr);
+    } else if (is_buffer_shared_node()) {
     } else {
       LOG(ERROR) << "func_type: " << func_type;
       NOT_IMPLEMENTED
@@ -224,6 +232,7 @@ _Tensor_::~_Tensor_() {
 
 Expr _Tensor_::body() const {
   if (is_placeholder_node()) return Expr();
+  if (is_buffer_shared_node()) return Expr();
   if (is_compute_node()) return operation->as<ir::ComputeOp>()->body.front();
   if (is_call_node()) return operation->as<ir::CallOp>()->call_expr;
   NOT_IMPLEMENTED;
@@ -306,7 +315,7 @@ Tensor _Tensor_::TupleGet(int offset) const {
 }
 
 bool _Tensor_::is_tuple() const {
-  if (is_placeholder_node()) return false;
+  if (!has_expression()) return false;
   auto *call = body().As<ir::Call>();
   if (call && call->is_extern_call() && !call->write_args.empty()) return true;
   return false;
@@ -320,6 +329,12 @@ std::vector<Expr> _Tensor_::domain_with_reduce_axis() const {
     res.push_back(axis->upper_bound);
   }
   return res;
+}
+
+Tensor Tensor::Reshape(const std::vector<Expr> &shape) {
+  // TODO(Superjomn) Check both the shapes have same number of elements.
+  auto name = Context::Global().NewName(self()->name + "_reshape");
+  return self()->BufferShared(name, shape);
 }
 
 Tensor Tensor::PrecedingView(int preceding_n_axis) const {
@@ -344,6 +359,21 @@ bool _Tensor_::is_tuple_get() const {
   return is_call_node() && operation.defined() &&
          operation->as<ir::_Operation_>()->func_type() == ir::CallOp::__func_type__ &&
          operation->as<ir::CallOp>()->is_tuple_get;
+}
+
+Tensor _Tensor_::BufferShared(const std::string &name, const std::vector<Expr> &shape) const {
+  CHECK(!inlined());
+  auto op   = BufferShareOp::Make();
+  auto n    = make_shared<_Tensor_>();
+  n->name   = name;
+  n->shape  = shape;
+  n->domain = shape;
+  n->set_type(type());
+  n->operation = op;
+  n->InitStage();
+  n->InitAxis();
+  n->Bind(this->buffer);
+  return Tensor(n);
 }
 
 }  // namespace ir

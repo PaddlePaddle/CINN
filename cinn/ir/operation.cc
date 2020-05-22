@@ -92,5 +92,8 @@ std::vector<Expr> CallOp::args() const {
 }
 const char *PrecedingViewOp::__func_type__ = "preceding_view_op";
 
+const char *BufferShareOp::__func_type__ = "buffer_share_op";
+const char *BufferShareOp::func_type() const { return __func_type__; }
+
 }  // namespace ir
 }  // namespace cinn
