@@ -102,26 +102,17 @@ class GraphNode : public Object {
   virtual std::set<Shared<GraphEdge>> inlinks() const { return inlinks_; }
   //! Get the output links of the node.
   virtual std::set<Shared<GraphEdge>> outlinks() const { return outlinks_; }
-  //! Get a derived pointer.
-  template <typename Derived>
-  Derived* As() {
-    static_assert(std::is_base_of<GraphNode, Derived>::value);
-    return static_cast<Derived*>(this);
-  }
-  template <typename Derived>
-  const Derived* As() const {
-    static_assert(std::is_base_of<GraphNode, Derived>::value);
-    return static_cast<const Derived*>(this);
-  }
 
   //! Reset graph traversal meta info.
   void ResetVisitMeta() { visited_time_ = 0; }
   void VisitOnce() const { visited_time_++; }
   bool visited() const { return inlinks_.empty() || visited_time_ == inlinks_.size(); }
 
-  const char* type_info() const override { return "GraphNode"; }
+  const char* type_info() const override { return __type_info__; }
 
   GraphNode() = default;
+
+  static const char* __type_info__;
 
  protected:
   //! The input links of the node.

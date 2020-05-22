@@ -145,7 +145,7 @@ std::map<std::string, isl::map> CollectScheduleMapFromGroup(const ScheduleGroup 
 
   std::vector<Stage *> stages;
   for (auto &node : group.nodes) {
-    auto *schedule_node = node->As<ScheduleGraphNode>();
+    auto *schedule_node = node->safe_as<ScheduleGraphNode>();
     CHECK(node->stage);
     stages.push_back(node->stage);
   }
@@ -185,8 +185,8 @@ void SchedulerBase::FinishStageAdd() {
 
   for (auto &item : schedule_graph_.nodes()) {
     VLOG(6) << "original dims in time_schedule: "
-            << utils::Join(item->As<ScheduleGraphNode>()->time_schedule.domain_dims, ", ");
-    item->As<ScheduleGraphNode>()->time_schedule.ResizeTimeSpace(space_size_);
+            << utils::Join(item->safe_as<ScheduleGraphNode>()->time_schedule.domain_dims, ", ");
+    item->safe_as<ScheduleGraphNode>()->time_schedule.ResizeTimeSpace(space_size_);
   }
 }
 
@@ -201,8 +201,8 @@ std::vector<std::string> SchedulerBase::WrapIteratorNames(const std::vector<std:
 
 SchedulerBase &SchedulerBase::After(const Stage &a, const Stage &b, int level) {
   CHECK_LT(level, space_size_);
-  auto *a_node = schedule_graph_.RetriveNode(a.id())->As<ScheduleGraphNode>();
-  auto *b_node = schedule_graph_.RetriveNode(b.id())->As<ScheduleGraphNode>();
+  auto *a_node = schedule_graph_.RetriveNode(a.id())->safe_as<ScheduleGraphNode>();
+  auto *b_node = schedule_graph_.RetriveNode(b.id())->safe_as<ScheduleGraphNode>();
   CHECK(a_node) << "no node called " << a.id() << " registered in the graph";
   CHECK(b_node) << "no node called " << b.id() << " registered in the graph";
 
@@ -218,11 +218,13 @@ SchedulerBase &SchedulerBase::Before(const Stage &a, const Stage &b, int level) 
 std::map<std::string, isl::map> SchedulerBase::schedule_map() const {
   std::map<std::string, isl::map> res;
   for (auto &node : schedule_graph_.nodes()) {
-    auto *schedule_node      = node->As<ScheduleGraphNode>();
+    auto *schedule_node      = node->safe_as<ScheduleGraphNode>();
     res[schedule_node->id()] = schedule_node->time_schedule.to_isl(Context::Global().isl_ctx());
   }
   return res;
 }
+
+const char *ScheduleGraphNode::__type_info__ = "ScheduleGraphNode";
 
 }  // namespace poly
 }  // namespace cinn

@@ -139,5 +139,7 @@ std::string Graph::Visualize() const {
   return dot();
 }
 
+const char *GraphNode::__type_info__ = "GraphNode";
+
 }  // namespace common
 }  // namespace cinn

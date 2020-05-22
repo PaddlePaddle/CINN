@@ -29,7 +29,7 @@ void NaiveScheduler::PartitionGroups() {
   std::tie(nodes_in_order, edges_in_order) = schedule_graph_.topological_order();
   for (auto *node : nodes_in_order) {
     ScheduleGroup group;
-    group.nodes.push_back(node->As<ScheduleGraphNode>());
+    group.nodes.push_back(node->safe_as<ScheduleGraphNode>());
     groups_.emplace_back(std::move(group));
   }
 }
