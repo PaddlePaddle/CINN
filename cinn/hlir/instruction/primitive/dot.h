@@ -38,6 +38,11 @@ struct DotImpl {
   Tensor MatDotMat(const Tensor& a, const Tensor& b, const std::string& name);
 
   /**
+   * Matrix dot a matrix in packed optimization.
+   */
+  Tensor MatDotMat_Packed(const Tensor& a, const Tensor& b, std::string_view name);
+
+  /**
    * \brief Matrix dot vector.
    * @param a Matrix [m x k]
    * @param b Vector [k]

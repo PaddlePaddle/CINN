@@ -19,7 +19,7 @@
 
 namespace cinn {
 namespace ir {
-class Tensor;
+class _Tensor_;
 }  // namespace ir
 
 namespace poly {
@@ -47,7 +47,7 @@ struct StageForloopInfo {
  */
 class Stage : public Object {
  public:
-  static Shared<Stage> New(const isl::set& domain, Expr expr = Expr());
+  static Shared<Stage> New(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
 
   /**
    * The id of this element, should be unique across the transform.
@@ -189,8 +189,10 @@ class Stage : public Object {
 
   const std::map<std::string, StageForloopInfo>& forloop_infos() const { return forloop_infos_; }
 
+  bool has_expression() const;
+
  private:
-  explicit Stage(const isl::set& domain, Expr expr = Expr());
+  explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
 
   /**
    * Initialize with an identity schedule.
@@ -211,6 +213,8 @@ class Stage : public Object {
   std::set<std::string> extra_depend_stages_;
   //! Record some forloop levels' information.
   std::map<std::string, StageForloopInfo> forloop_infos_;
+  //! A weak reference to the tensor.
+  ir::_Tensor_* tensor_{};
 };
 
 std::vector<std::pair<std::string, std::string>> ExtractExtraDepLinksFromStages(const std::vector<Stage*>& stages);

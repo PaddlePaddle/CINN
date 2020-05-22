@@ -37,7 +37,7 @@ void Stage::InitTransform() {
   }
 }
 
-Stage::Stage(const isl::set &domain, Expr expr) : domain_(domain), expr_(expr) {
+Stage::Stage(const isl::set &domain, Expr expr, ir::_Tensor_ *tensor) : domain_(domain), expr_(expr), tensor_(tensor) {
   CHECK(!domain_.is_null());
   CHECK(!domain_.is_empty());
   InitTransform();
@@ -177,7 +177,9 @@ std::tuple<Iterator, Iterator> Stage::Split(const std::string &level, int factor
   return std::move(Split(Iterator(level), factor, strategy));
 }
 
-Shared<Stage> Stage::New(const isl::set &domain, Expr expr) { return new Stage(domain, expr); }
+Shared<Stage> Stage::New(const isl::set &domain, Expr expr, ir::_Tensor_ *tensor) {
+  return new Stage(domain, expr, tensor);
+}
 
 std::vector<ComputeAtRelation> Stage::compute_ats() const {
   std::vector<ComputeAtRelation> xs;
@@ -332,6 +334,11 @@ Iterator Stage::axis(const std::string &i) const {
   auto it    = std::find(names.begin(), names.end(), i);
   CHECK(it != names.end());
   return Iterator(*it);
+}
+
+bool Stage::has_expression() const {
+  CHECK(tensor_);
+  return tensor_->has_expression();
 }
 
 }  // namespace poly

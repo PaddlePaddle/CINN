@@ -92,17 +92,6 @@ PlaceholderOp *_Tensor_::get_placeholder_op() const {
 }
 
 void _Tensor_::InitStage() {
-  if (inlined()) {
-    DropStage();
-    return;
-  }
-
-  if (is_placeholder_node()) {
-    VLOG(2) << "Tensor " << name << " is placeholder, skip stage initialization";
-    DropStage();
-    return;
-  }
-
   // Avoid duplicate init.
   if (stage_shared) {
     auto &shared_stage = *static_cast<Shared<poly::Stage> *>(stage_shared);
@@ -116,15 +105,15 @@ void _Tensor_::InitStage() {
   if (is_compute_node()) {
     auto &body = op->as<ComputeOp>()->body;
     CHECK_EQ(body.size(), 1UL) << "only support functional programming";
-    shared_stage = poly::Stage::New(GenerateIslDomain(), body.front());
+    shared_stage = poly::Stage::New(GenerateIslDomain(), body.front(), this);
   } else if (is_call_node()) {
     if (!is_extern_call_node()) {
-      shared_stage = poly::Stage::New(GenerateIslDomain(), body());
+      shared_stage = poly::Stage::New(GenerateIslDomain(), body(), this);
     } else {
-      shared_stage = poly::Stage::New(GenerateIslDomain(), body());
+      shared_stage = poly::Stage::New(GenerateIslDomain(), body(), this);
     }
   } else {
-    shared_stage = poly::Stage::New(GenerateIslDomain());
+    shared_stage = poly::Stage::New(GenerateIslDomain(), body(), this);
   }
 
   shared_stage->set_extra_depend_stages(buffer_depended_tensor_names_);
@@ -137,6 +126,8 @@ void _Tensor_::DropStage() {
   }
 }
 
+bool _Tensor_::is_faked() const {}
+
 poly::Stage *_Tensor_::stage() {
   if (!stage_shared) return nullptr;
   return (*static_cast<Shared<poly::Stage> *>(stage_shared))->as<poly::Stage>();
@@ -147,22 +138,26 @@ void _Tensor_::InitAxis() {
   axis_ = common::GenDefaultAxis(domain_without_reduce_axis().size());
 }
 
+bool _Tensor_::has_expression() const { return (!is_placeholder_node()) && (!is_tuple_get()); }
+
 isl::set _Tensor_::GenerateIslDomain() {
   // include the reduce axis.
   std::vector<poly::Dim> dims;
-  if (axis_.empty()) InitAxis();
-  auto domain = domain_with_reduce_axis();
-  CHECK_EQ(axis_with_reduce().size(), domain.size());
-  auto _axis_with_reduce = axis_with_reduce();
-  for (int i = 0; i < domain.size(); i++) {
-    auto dim = domain[i];
-    if (dim.is_constant()) {
-      dims.emplace_back(_axis_with_reduce[i]->name, 0, dim.as_int32() - 1);
-    } else {
-      dims.emplace_back(_axis_with_reduce[i]->name, Expr(0), Sub::Make(dim, common::make_const(1)));
+
+  if (has_expression()) {
+    if (axis_.empty()) InitAxis();
+    auto domain = domain_with_reduce_axis();
+    CHECK_EQ(axis_with_reduce().size(), domain.size());
+    auto _axis_with_reduce = axis_with_reduce();
+    for (int i = 0; i < domain.size(); i++) {
+      auto dim = domain[i];
+      if (dim.is_constant()) {
+        dims.emplace_back(_axis_with_reduce[i]->name, 0, dim.as_int32() - 1);
+      } else {
+        dims.emplace_back(_axis_with_reduce[i]->name, Expr(0), Sub::Make(dim, common::make_const(1)));
+      }
     }
   }
-
   poly::Domain isl_domain(Context::Global().isl_ctx(), name, dims);
   return isl_domain.to_isl();
 }

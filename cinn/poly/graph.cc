@@ -93,6 +93,8 @@ std::unique_ptr<DataFlowGraph> CreateGraph(const std::vector<Stage*>& stages,
 
   // Add extra links
   for (auto& item : extra_links) {
+    // the placeholder not exists in id2stage.
+    if (!id2stage.count(item.first)) continue;
     auto& a = id2stage.at(item.first);
     auto& b = id2stage.at(item.second);
     if (a.get() != b.get()) {

@@ -52,7 +52,8 @@ namespace std {
 template <>
 struct hash<cinn::common::Shared<cinn::common::GraphEdge>> {
   size_t operator()(const cinn::common::Shared<cinn::common::GraphEdge>& key) {
-    return reinterpret_cast<size_t>(key->source()) ^ reinterpret_cast<size_t>(key->sink());
+    return std::hash<std::string>()(std::to_string(reinterpret_cast<size_t>(key->source())) +
+                                    std::to_string(reinterpret_cast<size_t>(key->sink())));
   }
 };
 
