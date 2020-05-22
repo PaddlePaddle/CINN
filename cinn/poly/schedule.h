@@ -200,6 +200,10 @@ struct ScheduleGraphNode : public common::GraphNode {
 
   explicit ScheduleGraphNode(const std::string &id, const std::vector<std::string> &dims, const Stage *stage)
       : time_schedule(id, dims), stage(const_cast<Stage *>(stage)) {}
+
+  const char *type_info() const override { return __type_info__; }
+
+  static const char *__type_info__;
 };
 
 struct ScheduleGroup {

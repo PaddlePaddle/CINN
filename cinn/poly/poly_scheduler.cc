@@ -22,19 +22,19 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
   // collect indegrees for naive topological traversal.
   std::map<DataFlowGraphNode*, uint16_t> indegree;
   for (common::GraphNode* n : graph->nodes()) {
-    auto* node     = n->As<DataFlowGraphNode>();
+    auto* node     = n->safe_as<DataFlowGraphNode>();
     indegree[node] = node->inlinks().size();
   }
 
   std::map<std::string, DataFlowGraphNode*> name2node;
   for (auto* n : graph->nodes()) {
-    name2node[n->id()] = n->As<DataFlowGraphNode>();
+    name2node[n->id()] = n->safe_as<DataFlowGraphNode>();
   }
 
   // topological sort.
   std::deque<DataFlowGraphNode*> queue;
   for (auto* n : graph->start_points()) {
-    auto* node = n->As<DataFlowGraphNode>();
+    auto* node = n->safe_as<DataFlowGraphNode>();
     queue.push_back(node);
   }
   while (!queue.empty()) {
@@ -43,7 +43,7 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
     VLOG(4) << "to visit " << node->id();
 
     for (auto& c : node->outlinks()) {
-      auto* child = c->sink()->As<DataFlowGraphNode>();
+      auto* child = c->sink()->safe_as<DataFlowGraphNode>();
       --indegree[child];
 
       VLOG(3) << node->stage->transformed_domain() << " -> " << child->stage->transformed_domain();
@@ -60,7 +60,7 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
 
   // process the ComputeAt relation.
   for (auto* n : graph->nodes()) {
-    auto* node = n->As<DataFlowGraphNode>();
+    auto* node = n->safe_as<DataFlowGraphNode>();
     for (auto& compute_at : node->stage->compute_ats()) {
       CHECK(compute_at.IsCompatible(node->stage.get())) << "The registered ComputeAt is not compatible";
       // check the endpoints of compute_at has data dependency.
@@ -82,7 +82,7 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
   std::map<DataFlowGraphNode*, std::vector<DataFlowGraphNode*>> node_groups;
   std::tie(nodes_in_order, edges_in_order) = graph->topological_order();
   for (auto* n : nodes_in_order) {
-    auto* node     = n->As<DataFlowGraphNode>();
+    auto* node     = n->safe_as<DataFlowGraphNode>();
     auto* ancestor = node->group_ancestor();
     if (!groups_gathered.count(ancestor)) {
       groups_gathered.insert(ancestor);
@@ -136,14 +136,14 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
 
   std::map<std::string, DataFlowGraphNode*> name2node;
   for (auto* n : graph->nodes()) {
-    name2node[n->id()] = n->As<DataFlowGraphNode>();
+    name2node[n->id()] = n->safe_as<DataFlowGraphNode>();
   }
 
   // process compute_at
   std::unordered_map<const common::GraphNode*, uint32_t> node2score;  // record each node's score for sorting.
   int score = 0;
   for (auto* n : nodes_in_order) {
-    auto* node       = n->As<DataFlowGraphNode>();
+    auto* node       = n->safe_as<DataFlowGraphNode>();
     node2score[node] = score++;
     for (auto& compute_at : node->stage->compute_ats()) {
       CHECK(compute_at.IsCompatible(node->stage.get())) << "The registered ComputeAt is not compatible";
@@ -159,7 +159,7 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
   // generate final groups.
   std::unordered_map<DataFlowGraphNode* /*ancestor*/, std::vector<DataFlowGraphNode*>> clusters;
   for (auto* n : nodes_in_order) {
-    auto* node = n->As<DataFlowGraphNode>();
+    auto* node = n->safe_as<DataFlowGraphNode>();
     clusters[node->group_ancestor()].push_back(node);
   }
 
@@ -221,7 +221,7 @@ std::unique_ptr<Schedule> PolyScheduler::BuildSchedule() {
     for (auto& node : dfg_group.nodes) {
       auto* schedule_node = schedule_graph_.RetriveNode(node->id());
       CHECK(schedule_node) << "missing node " << node->id() << " in schedule graph";
-      group.nodes.push_back(schedule_node->As<ScheduleGraphNode>());
+      group.nodes.push_back(schedule_node->safe_as<ScheduleGraphNode>());
     }
     schedule_groups_.emplace_back(std::move(group));
   }

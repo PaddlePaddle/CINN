@@ -64,16 +64,16 @@ TEST(Graph, basic) {
   std::vector<std::string> order({"A", "B", "C", "D", "E"});
 
   for (auto* e : edge_order) {
-    LOG(INFO) << "visit edge: " << e->source()->As<GraphNodeWithName>()->name << " -> "
-              << e->sink()->As<GraphNodeWithName>()->name;
+    LOG(INFO) << "visit edge: " << e->source()->safe_as<GraphNodeWithName>()->name << " -> "
+              << e->sink()->safe_as<GraphNodeWithName>()->name;
   }
 
   for (auto* n : node_order) {
-    LOG(INFO) << "visit node: " << n->As<GraphNodeWithName>()->name;
+    LOG(INFO) << "visit node: " << n->safe_as<GraphNodeWithName>()->name;
   }
 
   for (int i = 0; i < node_order.size(); i++) {
-    EXPECT_EQ(node_order[i]->As<GraphNodeWithName>()->name, order[i]);
+    EXPECT_EQ(node_order[i]->safe_as<GraphNodeWithName>()->name, order[i]);
   }
 }
 
