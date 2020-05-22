@@ -337,24 +337,6 @@ Tensor Tensor::Reshape(const std::vector<Expr> &shape) {
   return self()->BufferShared(name, shape);
 }
 
-Tensor Tensor::PrecedingView(int preceding_n_axis) const {
-  CHECK(!self()->inlined()) << "Only tensor with buffers can have view";
-  auto op          = PrecedingViewOp::Make(*this, preceding_n_axis);
-  std::string name = Context::Global().NewName(self()->name + "_view");
-
-  CHECK_LE(preceding_n_axis, self()->shape.size());
-  CHECK_GT(preceding_n_axis, 0);
-
-  Expr preceding_dim = self()->shape[0];
-  for (int i = 1; i < preceding_n_axis; i++) preceding_dim = ir::Mul::Make(preceding_dim, self()->shape[i]);
-  std::vector<Expr> shape({preceding_dim});
-  for (int i = preceding_n_axis; i < self()->shape.size(); i++) shape.push_back(self()->shape[i]);
-
-  auto res = _Tensor_::Make(name, self()->type(), shape, shape, op, self()->reduce_axis);
-  res->Bind(self()->buffer);
-  return res;
-}
-
 bool _Tensor_::is_tuple_get() const {
   return is_call_node() && operation.defined() &&
          operation->as<ir::_Operation_>()->func_type() == ir::CallOp::__func_type__ &&
