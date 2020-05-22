@@ -1118,6 +1118,34 @@ Expr ConvertCasToCinn(Expr expr) {
         *expr = Add::Make(a, b);
       }
     }
+
+    void Visit(const Power* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
+      auto* node = expr->As<ir::Power>();
+      if (b.is_constant()) {
+        if (b.get_constant() == 1) {
+          *expr = a;
+        } else if (b.get_constant() == 0) {
+          *expr = make_const(a.type(), 1);
+        } else if (b.get_constant() > 0) {
+          auto init = a;
+          for (int i = 0; i < b.get_constant() - 1; i++) {
+            init = init * a;
+          }
+          *expr = init;
+        } else {
+          // some case like a^-2
+          NOT_IMPLEMENTED
+        }
+      } else {
+        NOT_IMPLEMENTED
+      }
+    }
   };
 
   Mutator()(&copied);

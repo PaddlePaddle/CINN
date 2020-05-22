@@ -75,6 +75,15 @@ struct PrecedingViewOp : public _Operation_ {
 };
 
 /**
+ * Share the same buffer.
+ */
+struct BufferShareOp : public _Operation_ {
+  const char *func_type() const override;
+  static Operation Make() { return Operation(new BufferShareOp); }
+  static char const *__func_type__;
+};
+
+/**
  * @brief A Compute op that compute a tensor on certain domain.
  */
 struct ComputeOp : public _Operation_ {

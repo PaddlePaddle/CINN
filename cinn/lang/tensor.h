@@ -33,8 +33,15 @@ class _Tensor_;
 
 /**
  * @brief Tensor representing a possible input, or intermediate computation result.
- * Tensor is the most general type in CINN, it holds the computation, or placeholder. A tensor can `store_at` a Buffer,
- * or just has a expression and easy to inline expanded in the consumer's computation.
+ *
+ * Tensor is the a general type in CINN, it holds a computation(analygous to a node in SSA graph) or placeholder. A
+ * tensor can `Bind` a Buffer, or just has a expression and easy to inline expanded in the consumer's computation.
+ *
+ * # Reshape
+ * An existing tensor can be reshaped with underlying buffer shared.
+ * \code
+ * auto C1 = C.Reshape({...});
+ * \endcode
  */
 enum class ViewKind {
   kPrecending = 0,
@@ -48,6 +55,11 @@ class Tensor : public ir::IrNodeRef {
 
   //! Get number of dimensions.
   inline size_t ndims() const;
+
+  /**
+   * Get a tensor with a new shape but underlying buffer shared.
+   */
+  Tensor Reshape(const std::vector<Expr>& shape);
 
   /**
    * Collapse the precending \p preceding_n_axis axis and get a new Tensor View.
@@ -142,6 +154,9 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      FunctionRef fn,
                      const std::vector<Var>& reduce_axis = {});
 
+  //! Reshape a tensor.
+  Tensor BufferShared(const std::string& name, const std::vector<Expr>& shape) const;
+
   //! Tell whether this tensor is inline.
   bool inlined() const { return (!buffer.defined()) && is_compute_node() && !is_tuple(); }
 
@@ -170,6 +185,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   bool is_call_node() const;
   bool is_extern_call_node() const;
   bool is_preceding_view_node() const;
+  bool is_buffer_shared_node() const;
 
   const char* operation_type() const;
   ComputeOp* get_compute_op() const;
