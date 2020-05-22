@@ -62,12 +62,6 @@ class Tensor : public ir::IrNodeRef {
   Tensor Reshape(const std::vector<Expr>& shape);
 
   /**
-   * Collapse the precending \p preceding_n_axis axis and get a new Tensor View.
-   * @param preceding_n_axis
-   */
-  Tensor PrecedingView(int preceding_n_axis) const;
-
-  /**
    * Slice the preceding n axis and get a new tensor that share the same buffer.
    *
    * \code
