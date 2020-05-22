@@ -22,6 +22,7 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
@@ -79,7 +80,7 @@ auto CreateTestCinnModule() {
 
   auto funcs = lang::Lower("elementwise_add", {A, B, C});
 
-  // auto func = optim::Optimize(funcs);
+  LOG(INFO) << "funcs:\n" << Expr(funcs);
 
   builder.AddFunction(ir::LoweredFunc(funcs.As<ir::_LoweredFunc_>()));
   return builder.Build();
@@ -370,6 +371,26 @@ TEST(SimpleOrcJit, call_extern_v) {
   for (int i = 0; i < bb->num_elements(); i++) {
     ASSERT_NEAR(bd[i], __cinn_host_tanh(ad[i]), 1e-5);
   }
+}
+
+// Change the shape
+TEST(SimpleOrcJit, shape_view) {
+  ir::Expr M0(10);
+  ir::Expr M1(20);
+  ir::Expr M2(30);
+
+  std::vector<Expr> shape({M0, M1, M2});
+  Placeholder<float> x("x", shape);
+
+  auto y = Compute({M0 * M1, M2}, [&](Var i, Var j) -> Expr { return x(i / M1, i % M1, j); }, "y", {});
+  y->Bind(ir::Tensor(x)->buffer);
+
+  auto z = Compute(
+      {M0 * M1, M2}, [&](Var i, Var j) { return y(i, j) + 1.f; }, "z");
+  z->Bind(y->buffer);
+
+  auto func = Lower("fn", {x, y, z});
+  LOG(INFO) << "func:\n" << func;
 }
 
 }  // namespace backends

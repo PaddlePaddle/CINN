@@ -109,8 +109,15 @@ void CheckNoIslCallRemains(const Expr* expr) {
 Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Expr>& tuple_to_expr) {
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
-    stages.push_back(node->stage);
+    if (node->stage->has_expression()) {
+      stages.push_back(node->stage);
+      LOG(INFO) << "stage expr " << node->stage->expr();
+    } else {
+      LOG(INFO) << "stage expression is null: " << node->stage->domain();
+    }
   }
+
+  if (stages.empty()) return Expr();
 
   // get isl generated expression
   isl::set context(Context::Global().isl_ctx(), "{:}");
@@ -225,7 +232,17 @@ struct LowerImpl {
 
       // avoid duplicate
       if (!tensor_node->buffer.defined()) continue;
-      if (arg_names.count(tensor_node->buffer->name)) continue;
+      // if a argument is already marked as kInput, mark it as kOutput and move it to the back.
+      if (arg_names.count(tensor_node->buffer->name)) {
+        auto it = std::find_if(
+            args.begin(), args.end(), [&](const ir::Argument& x) { return x.name() == tensor_node->buffer->name; });
+        CHECK(it != args.end());
+        if (it->is_input()) {
+          args.erase(it);
+        } else if (it->is_output()) {
+          continue;
+        }
+      }
 
       arg_names.insert(tensor_node->buffer->name);
 
@@ -254,16 +271,17 @@ struct LowerImpl {
     for (auto& group : schedule->groups) {
       CHECK_GT(group.nodes.size(), 0) << "group is empty";
       for (auto& node : group.nodes) {
+        if (!tensor_dic_.count(node->id())) continue;
         auto& tensor = TensorDicGet(node->id());
-        // NOTE here just schedule the compute node.
-        if (!tensor->is_compute_node() && !tensor->is_call_node()) continue;
-
+        if (!tensor->has_expression()) continue;
         tuple_to_expr[tensor->name] = tensor->tensor_store_expanded_body();
       }
 
       Expr group_expr = LowerGroup(group, tuple_to_expr);
-      VLOG(3) << "group expr:\n" << group_expr;
-      exprs.push_back(group_expr);
+      if (group_expr.defined()) {
+        LOG(INFO) << "group expr:\n" << group_expr;
+        exprs.push_back(group_expr);
+      }
     }
 
     Expr body = ir::Block::Make(exprs);

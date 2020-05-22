@@ -24,8 +24,6 @@ set(srcs
   simple_orc_jit.cc
   )
 
-add_dependencies(cinn_runtime GEN_LLVM_RUNTIME_IR_HEADER)
-
 cc_test(test_codegen_llvm SRCS codegen_llvm_test.cc DEPS core)
 
 cc_test(test_simple_orc_jit SRCS simple_orc_jit_test.cc DEPS core)

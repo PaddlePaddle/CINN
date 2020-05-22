@@ -37,8 +37,7 @@ TEST(Compute, basic) {
     }
   }
 
-  ASSERT_EQ(schedule->groups.size(), 1UL);
-  EXPECT_EQ(schedule->groups.front().nodes[0]->id(), "z");
+  ASSERT_EQ(schedule->groups.size(), 2UL);
   LOG(INFO) << "Finished";
 }
 

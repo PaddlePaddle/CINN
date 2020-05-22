@@ -55,6 +55,7 @@ add_subdirectory(tests)
 
 cc_library(core SRCS ${core_src} DEPS glog LLVM mklml)
 add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER)
+
 if (WITH_CUDA)
   target_link_libraries(core ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES})
 endif()

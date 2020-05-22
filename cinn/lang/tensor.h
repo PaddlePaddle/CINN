@@ -206,6 +206,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   _Tensor_() : ExprNode<_Tensor_>(Float(32)) {}
 
+  bool has_expression() const;
+
   ~_Tensor_();
 
  private:
@@ -215,6 +217,9 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   //! Free the memory for stage.
   void DropStage();
+
+  void FakeStage();
+  bool is_faked() const;
 
   //! Initialize the axis field after the shape field is assigned.
   void InitAxis();
