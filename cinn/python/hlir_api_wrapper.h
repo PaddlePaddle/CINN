@@ -19,7 +19,7 @@ namespace python {
 namespace hlir_instr = hlir::instruction;
 
 struct py_instruction {
-  explicit py_instruction(hlir::instruction::Instruction* data) : data(data) {}
+  py_instruction(hlir::instruction::Instruction* data) : data(data) {}  // NOLINT
 
   hlir::instruction::Instruction* data{};
 };

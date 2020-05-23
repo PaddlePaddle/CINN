@@ -34,7 +34,7 @@ std::unique_ptr<Instruction> Instruction::CreateParameter(int param_offset,
 }
 
 std::unique_ptr<Instruction> Instruction::CreateUnary(InstrCode instr_code, Instruction *arg0, const Shape &shape) {
-  auto instr = std::unique_ptr<Instruction>(new Instruction(instr_code, shape));
+  auto instr = std::unique_ptr<Instruction>(new Instruction(instr_code, arg0->shape()));
   instr->AppendOperand(arg0);
   instr->set_type(arg0->type());
   return instr;

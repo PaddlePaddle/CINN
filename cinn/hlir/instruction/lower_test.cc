@@ -6,6 +6,7 @@
 #include <utility>
 
 #include "cinn/backends/codegen_c.h"
+#include "cinn/hlir/instruction/instruction_util.h"
 
 namespace cinn {
 namespace hlir {
@@ -20,10 +21,24 @@ std::unique_ptr<Computation> create_elementwise_add(Context* context, cinn::Var 
     auto w  = builder.AddInstruction(Instruction::CreateParameter(1, Shape({N, 30, 40}), "w", parameter_config));
     auto w1 = builder.AddInstruction(Instruction::CreateParameter(1, Shape({N, 30, 40}), "w1", parameter_config));
 
-    auto add  = builder.AddInstruction(Instruction::CreateBinary(InstrCode::Add, x, w, x->shape()));
-    auto add1 = builder.AddInstruction(Instruction::CreateBinary(InstrCode::Add, add, w1, x->shape()));
+    auto add  = Add(x, w);
+    auto add1 = Add(add, w1);
 
     add->set_inlined();
+  }
+
+  return builder.Build();
+}
+
+std::unique_ptr<Computation> create_activation(Context* context,
+                                               cinn::Var N,
+                                               const std::string& name,
+                                               InstrCode instr_code) {
+  Computation::Builder builder(context, name);
+  {
+    ParameterConfig parameter_config = {Float(32)};
+    auto x    = builder.AddInstruction(Instruction::CreateParameter(0, Shape({N, 30, 40}), "x", parameter_config));
+    auto acti = builder.AddInstruction(Instruction::CreateUnary(instr_code, x));
   }
 
   return builder.Build();
@@ -41,6 +56,18 @@ TEST(Lower, computation) {
   Expr fn = lower(comp0.get());
 
   LOG(INFO) << "\n" << fn;
+}
+
+TEST(Lower, tanh) {
+  Context context;
+  cinn::Var N("N");
+
+  auto comp0 = create_activation(&context, N, "elementwise_add", InstrCode::Tanh);
+
+  std::cout << "HLIR:\n" << comp0->to_debug_string() << std::endl;
+
+  ComputationLower lower(nullptr, &context);
+  Expr fn = lower(comp0.get());
 }
 
 TEST(Lower, module) {

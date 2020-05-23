@@ -20,6 +20,7 @@ std::string Computation::to_debug_string() const {
 
 Instruction *Computation::Builder::AddInstruction(std::unique_ptr<Instruction> &&instruction,
                                                   const std::string &comment) {
+  InstructionSetComputationBuilder(instruction.get(), this);
   instructions_.push_back(std::move(instruction));
   last_added_instruction_ = instructions_.back().get();
   last_added_instruction_->set_id(context_.new_ssa_id());
