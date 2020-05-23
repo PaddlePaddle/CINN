@@ -26,7 +26,9 @@ void BindHlirApi(pybind11::module* m) {
       .def("add_binary", &py_computation_builder::add_binary)                                           //
       .def("add_dot", &py_computation_builder::add_dot)
       .def("dot",
-           [](py_instruction a, py_instruction b) -> py_instruction { return hlir::instruction::Dot(a.data, b.data); })
+           [](py_computation_builder& self, py_instruction a, py_instruction b) -> py_instruction {
+             return hlir::instruction::Dot(a.data, b.data);
+           })
 #define __BINARY_OP(str__, code__)                                                                        \
   .def(str__, [](py_computation_builder& builder, py_instruction a, py_instruction b) -> py_instruction { \
     return hlir::instruction::code__(a.data, b.data);                                                     \
@@ -61,7 +63,7 @@ void BindHlirApi(pybind11::module* m) {
 
   pybind11::class_<py_buffer, std::shared_ptr<py_buffer>>(*m, "Buffer")    //
       .def(pybind11::init(&py_buffer::from_numpy), pybind11::arg("data"))  //
-      .def("to_numpy", &py_buffer::to_numpy);
+      .def("numpy", &py_buffer::numpy);
 
   pybind11::class_<py_compiler, std::shared_ptr<py_compiler>>(*m, "Compiler")  //
       .def(pybind11::init<>())                                                 //

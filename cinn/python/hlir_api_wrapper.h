@@ -84,7 +84,7 @@ struct py_buffer {
   py_buffer(const std::vector<int>& shape, const std::string& dtype, const std::string& device, int data_align);
 
   static std::shared_ptr<py_buffer> from_numpy(pybind11::array array);
-  pybind11::array to_numpy();
+  pybind11::array numpy();
 
   ~py_buffer() {
     if (data_) {
