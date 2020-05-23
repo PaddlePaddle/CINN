@@ -88,7 +88,7 @@ std::shared_ptr<py_buffer> py_buffer::from_numpy(pybind11::array array) {
   return buffer;
 }
 
-pybind11::array py_buffer::to_numpy() {
+pybind11::array py_buffer::numpy() {
   pybind11::dtype t;
   if (data_->type == cinn_float32_t()) {
     t = pybind11::dtype::of<float>();

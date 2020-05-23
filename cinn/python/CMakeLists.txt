@@ -8,7 +8,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${pybind_includes}")
 
 
 add_test(NAME test_python_api
-  COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/cinn/python:$ENV{PYTHONPATH}
+  COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/cinn/python:${CMAKE_SOURCE_DIR}/cinn/python:$ENV{PYTHONPATH}
   python ${CMAKE_CURRENT_SOURCE_DIR}/cinn/test_python_api.py)
 
 SET_TARGET_PROPERTIES(cinn_core PROPERTIES PREFIX "")
