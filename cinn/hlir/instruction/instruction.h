@@ -182,6 +182,10 @@ class Instruction {
     return "v" + copied;
   }
 
+  const void* belonged_computation_builder() const { return belonged_computation_builder_; }
+  void* belonged_computation_builder() { return belonged_computation_builder_; }
+  void set_belonged_computation_builder(void* x) { belonged_computation_builder_ = x; }
+
   virtual std::string to_debug_string();
 
   inline const Shape& shape() const { return shape_; }
@@ -220,6 +224,7 @@ class Instruction {
   std::optional<std::string> comment_;
   bool inlined_{false};
   type_t type_{Void()};
+  void* belonged_computation_builder_{};
 };
 
 }  // namespace instruction

@@ -11,6 +11,7 @@
 #include "cinn/hlir/instruction/instructions.h"
 #include "cinn/hlir/instruction/primitive/binary.h"
 #include "cinn/hlir/instruction/primitive/dot.h"
+#include "cinn/hlir/instruction/primitive/elementwise.h"
 #include "cinn/hlir/instruction/shape.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/placeholder.h"
@@ -105,6 +106,11 @@ void ComputationLower::LowerInstruction(const Instruction* instr) {
     case InstrCode::Mul:
     case InstrCode::Div:
       LowerBinary(instr);
+      break;
+    case InstrCode::Tanh:
+    case InstrCode::Abs:
+    case InstrCode::Ceil:
+      LowerUnary(instr);
       break;
     case InstrCode::Dot:
       LowerDot(instr);
@@ -267,6 +273,27 @@ cinn::Expr ModuleLower::LowerComputation(const Computation* computation) {
 }
 
 cinn::lang::Module Lower(const Module& module, bool display_c_code) { return ModuleLower()(&module, display_c_code); }
+
+void ComputationLower::LowerUnary(const Instruction* instr) {
+  auto expr   = scope_.Lookup(instr->operand(0));
+  auto tensor = expr.as_tensor_ref();
+
+  Expr t;
+  switch (instr->instr_code()) {
+    case InstrCode::Abs:
+      t = primitive::Abs(tensor, ctx_->new_var_name(instr->id() + "_abs"));
+      break;
+    case InstrCode::Ceil:
+      t = primitive::Ceil(tensor, ctx_->new_var_name(instr->id() + "_ceil"));
+      break;
+    case InstrCode::Tanh:
+      t = primitive::Tanh(tensor, ctx_->new_var_name(instr->id() + "_ceil"));
+      break;
+    default:
+      NOT_IMPLEMENTED
+  }
+  scope_.Insert(instr, Expr(t));
+}
 
 }  // namespace instruction
 }  // namespace hlir

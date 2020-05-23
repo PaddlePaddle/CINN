@@ -88,6 +88,13 @@ class Computation {
   Module* module_{};
 };
 
+inline Computation::Builder* InstructionGetComputationBuilder(Instruction* x) {
+  return reinterpret_cast<Computation::Builder*>(x->belonged_computation_builder());
+}
+inline void InstructionSetComputationBuilder(Instruction* x, Computation::Builder* builder) {
+  x->set_belonged_computation_builder(static_cast<void*>(builder));
+}
+
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn

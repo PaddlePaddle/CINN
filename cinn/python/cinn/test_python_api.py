@@ -19,7 +19,7 @@ class TestElementwiseAdd(unittest.TestCase):
         p0 = comp.add_parameter(0, p0_shape, "p0", "float32")
         p1 = comp.add_parameter(1, p0_shape, "p1", "float32")
 
-        add_out = comp.add_binary("add", p0, p1)
+        add_out = comp.add(p0, p1)
 
         module = cinn.Module("module0")
         module.add_entry_computation(comp)

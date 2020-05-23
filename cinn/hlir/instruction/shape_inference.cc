@@ -1,4 +1,5 @@
 #include "cinn/hlir/instruction/shape_inference.h"
+
 #include "cinn/hlir/instruction/instruction.h"
 
 namespace cinn {
