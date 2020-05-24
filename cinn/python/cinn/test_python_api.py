@@ -98,6 +98,11 @@ class TestElementwise(unittest.TestCase):
         self.create_div_comp()
         self.create_mul_comp()
 
+        self.create_elementwise_comp("tanh0", lambda x: x.tanh)
+        # self.create_elementwise_comp("ceil0", lambda x: x.ceil)
+        # self.create_elementwise_comp("abs0", lambda x: x.abs)
+        # self.create_elementwise_comp("floor0", lambda x : x.floor)
+
         self.compiler = cinn.Compiler()
         self.compiler.compile(self.module)
 
@@ -142,6 +147,23 @@ class TestElementwise(unittest.TestCase):
 
         self.module.add_computation(comp)
 
+    def create_tanh_comp(self):
+        comp = cinn.Computation(self.context, "tanh0")
+
+        x = comp.add_parameter(0, self.shape, "x", "float32")
+        out = comp.tanh(x)
+
+        self.module.add_computation(comp)
+
+    def create_elementwise_comp(self, repr, fn):
+        ''' fn: lambda comp: comp.tanh '''
+        comp = cinn.Computation(self.context, repr)
+
+        x = comp.add_parameter(0, self.shape, "x", "float32")
+        out = fn(comp)(x)
+
+        self.module.add_computation(comp)
+
     def test_add(self):
         args = cinn.Args([self.batch_size, self.py_data0, self.py_data1, self.py_out])
         self.compiler.eval("add0", args)
@@ -166,6 +188,16 @@ class TestElementwise(unittest.TestCase):
         self.compiler.eval("div0", args)
 
         self.assertTrue(np.isclose(self.py_data0.numpy() * self.py_data1.numpy(), self.py_out.numpy()).all())
+
+    def test_elementwise(self):
+        args = cinn.Args([self.batch_size, self.py_data0, self.py_out])
+
+        for fn_name, np_fn in [("tanh0", np.tanh),
+                               # ("ceil0", np.ceil),
+                               # ("abs0", np.abs),
+                               ]:
+            self.compiler.eval(fn_name, args)
+            self.assertTrue(np.isclose(np_fn(self.py_data0.numpy()), self.py_out.numpy()).all())
 
 
 if __name__ == '__main__':
