@@ -292,6 +292,10 @@ void ComputationLower::LowerUnary(const Instruction* instr) {
     default:
       NOT_IMPLEMENTED
   }
+
+  if (!instr->inlined()) {
+    t.as_tensor_ref()->WithBuffer();
+  }
   scope_.Insert(instr, Expr(t));
 }
 

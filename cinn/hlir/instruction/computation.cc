@@ -2,6 +2,8 @@
 
 #include <sstream>
 
+#include "cinn/hlir/instruction/optimizer.h"
+
 namespace cinn {
 namespace hlir {
 namespace instruction {
@@ -31,6 +33,7 @@ Instruction *Computation::Builder::AddInstruction(std::unique_ptr<Instruction> &
 std::unique_ptr<Computation> Computation::Builder::Build() {
   CHECK(!is_built_);
   is_built_ = true;
+
   return std::unique_ptr<Computation>(new Computation(std::move(instructions_), name_));
 }
 

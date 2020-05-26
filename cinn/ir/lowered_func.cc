@@ -49,7 +49,7 @@ void _LoweredFunc_ ::CheckValid() const {
     in_count += arg.is_input();
     out_count += arg.is_output();
   }
-  CHECK_GT(out_count, 0) << "At least one output argument is needed for a function";
+  CHECK_GT(out_count, 0) << "At least one output argument is needed for a function\n" << body;
 }
 
 std::vector<Expr*> _LoweredFunc_::expr_fields() { return {&body}; }

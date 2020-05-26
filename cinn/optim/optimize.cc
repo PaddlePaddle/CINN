@@ -1,6 +1,7 @@
 #include "cinn/optim/optimize.h"
 
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/activate_to_extern_call.h"
 #include "cinn/optim/call_arg_list_to_pod_value.h"
 #include "cinn/optim/eliminate_broadcast_in_forloop.h"
 #include "cinn/optim/extern_call_process.h"
@@ -30,6 +31,8 @@ Expr Optimize(Expr e, bool runtime_debug_info) {
   UnrollLoop(&copied);
   RemoveGpuForloopsAxis(&copied);
   RemoveNestedBlock(&copied);
+
+  ActivateToExternCall(&copied);
   ExternCallMultiOutputShallowStore(&copied);
 
   Simplify(&copied);

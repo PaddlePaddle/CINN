@@ -127,10 +127,10 @@ class Instruction {
                                                        const std::string& target,
                                                        const std::string& tag);
 
-  static std::unique_ptr<Instruction> CreateTupleGet(const Instruction* tuple, int offset);
+  static std::unique_ptr<Instruction> CreateTupleGet(Instruction* tuple, int offset);
 
-  static std::unique_ptr<Instruction> CreateTuple(const Instruction* call);
-  static std::unique_ptr<Instruction> CreateTuple(const std::vector<const Instruction*>& items);
+  static std::unique_ptr<Instruction> CreateTuple(Instruction* call);
+  static std::unique_ptr<Instruction> CreateTuple(const std::vector<Instruction*>& items);
 
   static std::unique_ptr<Instruction> CreateNary(const Shape& shape,
                                                  const std::vector<Instruction*>& args,
@@ -165,22 +165,7 @@ class Instruction {
   void RemoveControlDependency(Instruction* instruction) { inlinks_.erase(instruction); }
 
   virtual std::string id() const { return std::to_string(id_); }
-  virtual std::string programable_id() const {
-    std::string copied = id();
-    for (auto& c : copied) {
-      switch (c) {
-        case '%':
-          c = '_';
-          break;
-        case '.':
-          c = 'p';
-          break;
-        default:
-          break;
-      }
-    }
-    return "v" + copied;
-  }
+  virtual std::string programable_id() const;
 
   const void* belonged_computation_builder() const { return belonged_computation_builder_; }
   void* belonged_computation_builder() { return belonged_computation_builder_; }

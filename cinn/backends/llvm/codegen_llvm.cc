@@ -118,6 +118,10 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Add *op) {
   return EmitBinaryOp(Visit(&op->a()), Visit(&op->b()), '+', is_integral_type(op->type()));
 }
 
+llvm::Value *CodeGenLLVM::Visit(const ir::Activate *) {  // Should be replaced by a extern call.
+  NOT_IMPLEMENTED;
+}
+
 llvm::Value *CodeGenLLVM::Visit(const ir::Sub *op) {
   return EmitBinaryOp(Visit(&op->a()), Visit(&op->b()), '-', is_integral_type(op->type()));
 }

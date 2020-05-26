@@ -303,6 +303,14 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Sum::Make(operands);
   }
 
+  Expr Visit(const ir::Activate* op) override {
+    auto arg = Visit(&op->operand(0));
+
+    auto n  = common::make_shared<ir::Activate>(arg);
+    n->kind = op->kind;
+    return n;
+  }
+
 #define OP_BINARY_HANDLE(op__)               \
   Expr Visit(const ir::op__* op) override {  \
     auto a = IRVisitorBase::Visit(&op->a()); \

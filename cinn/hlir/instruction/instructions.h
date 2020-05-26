@@ -110,6 +110,8 @@ class CallInstruction : public Instruction {
   const std::vector<cinn::common::Type>& ret_types() const { return ret_types_; }
   const std::vector<Shape>& ret_shapes() const { return ret_shapes_; }
 
+  bool can_inlined() const { return ret_tensor_names().size() == 1UL; }
+
   const Computation* computation() const { return computation_; }
 
   std::string to_debug_string() override;
@@ -140,23 +142,27 @@ class CustomCallInstruction : public Instruction {
  */
 class Tuple : public Instruction {
  public:
-  explicit Tuple(const Instruction* call) : Instruction(InstrCode::Tuple, Shape{}), call_(call) {}
-  explicit Tuple(const std::vector<const Instruction*>& items)
-      : Instruction(InstrCode::Tuple, Shape{}), call_(nullptr), items_(items) {}
+  explicit Tuple(Instruction* call) : Instruction(InstrCode::Tuple, Shape{}), call_(call) { operands_.push_back(call); }
+  explicit Tuple(const std::vector<Instruction*>& items)
+      : Instruction(InstrCode::Tuple, Shape{}), call_(nullptr), items_(items) {
+    CHECK(!items.empty());
+    operands_.insert(operands_.end(), items.begin(), items.end());
+  }
 
   std::unique_ptr<Instruction> Get(int i);
 
   const Instruction* call() const { return call_; }
-  const std::vector<const Instruction*>& items() const { return items_; }
+  const std::vector<Instruction*>& items() const { return items_; }
+  std::string to_debug_string() override;
 
  private:
   const Instruction* call_;
-  std::vector<const Instruction*> items_;
+  std::vector<Instruction*> items_;
 };
 
 class TupleGet : public Instruction {
  public:
-  explicit TupleGet(const Instruction* tuple, int offset)
+  explicit TupleGet(Instruction* tuple, int offset)
       : Instruction(InstrCode::TupleGet, Shape{}), tuple_(tuple), offset_(offset) {
     CHECK_LE(offset, 0);
 
@@ -171,6 +177,8 @@ class TupleGet : public Instruction {
     } else {
       NOT_IMPLEMENTED
     }
+
+    operands_.push_back(tuple);
   }
 
   const Tuple* tuple() const { return tuple_->As<Tuple>(); }

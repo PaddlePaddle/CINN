@@ -53,6 +53,8 @@ class Computation {
     Instruction* last_added_instruction_{};
   };
 
+  Instruction* output() { return instructions_.back().get(); }
+
   //! Get the parameters of the computation(all are tensors).
   std::vector<Instruction*> GetParameters() const;
   //! Get the constant instructions, those are also tensors.

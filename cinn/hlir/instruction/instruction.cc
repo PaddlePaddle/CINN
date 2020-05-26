@@ -159,15 +159,15 @@ std::unique_ptr<Instruction> Instruction::CreateCustomCall(const Shape &shape,
   return std::unique_ptr<Instruction>(new CustomCallInstruction(shape, args, target, tag));
 }
 
-std::unique_ptr<Instruction> Instruction::CreateTuple(const Instruction *call) {
+std::unique_ptr<Instruction> Instruction::CreateTuple(Instruction *call) {
   return std::unique_ptr<Instruction>(new Tuple(call));
 }
 
-std::unique_ptr<Instruction> Instruction::CreateTuple(const std::vector<const Instruction *> &items) {
+std::unique_ptr<Instruction> Instruction::CreateTuple(const std::vector<Instruction *> &items) {
   return std::unique_ptr<Instruction>(new Tuple(items));
 }
 
-std::unique_ptr<Instruction> Instruction::CreateTupleGet(const Instruction *tuple, int offset) {
+std::unique_ptr<Instruction> Instruction::CreateTupleGet(Instruction *tuple, int offset) {
   return std::unique_ptr<Instruction>(new TupleGet(tuple, offset));
 }
 
@@ -214,6 +214,23 @@ void Instruction::AddUser(Instruction *user) {
 void Instruction::RemoveUser(Instruction *user) {
   outlinks_.erase(user);
   user->inlinks_.erase(this);
+}
+
+std::string Instruction::programable_id() const {
+  std::string copied = id();
+  for (auto &c : copied) {
+    switch (c) {
+      case '%':
+        c = '_';
+        break;
+      case '.':
+        c = 'p';
+        break;
+      default:
+        break;
+    }
+  }
+  return "v" + copied;
 }
 
 }  // namespace instruction

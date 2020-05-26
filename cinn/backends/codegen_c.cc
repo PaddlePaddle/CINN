@@ -127,6 +127,10 @@ void CodeGenC::Visit(const ir::Not *op) {
   IrPrinter::Print(op->v());
   os() << ")";
 }
+void CodeGenC::Visit(const ir::Activate *op) {
+  // Should be replaced by a tanh function call.
+  NOT_IMPLEMENTED
+}
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
   os() << "for (";

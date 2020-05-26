@@ -358,5 +358,17 @@ Tensor _Tensor_::BufferShared(const std::string &name, const std::vector<Expr> &
   return Tensor(n);
 }
 
+bool _Tensor_::inlined() const {
+  if (is_call_node()) {
+    auto *call_op = operation->as<CallOp>();
+    if (!call_op->call_expr.type().is_void()) {
+      CHECK_EQ(call_op->call_expr.As<Call>()->write_args.size(), 1UL);
+      return true;
+    }
+    return false;
+  }
+  return (!buffer.defined()) && is_compute_node() && !is_tuple();
+}
+
 }  // namespace ir
 }  // namespace cinn
