@@ -152,7 +152,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   Tensor BufferShared(const std::string& name, const std::vector<Expr>& shape) const;
 
   //! Tell whether this tensor is inline.
-  bool inlined() const { return (!buffer.defined()) && is_compute_node() && !is_tuple(); }
+  bool inlined() const;
 
   //! Tell whether this tensor represents a tuple (consists of one or multiple tensors as output of a extern Call).
   bool is_tuple() const;

@@ -12,6 +12,7 @@
 #include "cinn/hlir/instruction/computation.h"
 #include "cinn/hlir/instruction/instruction.h"
 #include "cinn/hlir/instruction/module.h"
+#include "cinn/hlir/instruction/optimizer.h"
 
 namespace cinn {
 namespace python {
@@ -113,7 +114,10 @@ struct py_args {
 };
 
 struct py_compiler {
-  void compile(py_module& module) { data_.Compile(&module.data); }
+  void compile(py_module& module) {
+    hlir_instr::Optimizer().Run(&module.data);
+    data_.Compile(&module.data);
+  }
 
   void eval(const std::string& fn_name, py_args& args) { data_.Eval(fn_name, args.raw(), args.size()); }
   void eval_main(py_module& module, py_args& args) { data_.Eval(&module.data, args.raw(), args.size()); }

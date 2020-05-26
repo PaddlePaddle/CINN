@@ -26,16 +26,16 @@ std::string ParameterInstruction::id() const { return name_ + std::to_string(id_
 
 std::string CallInstruction::to_debug_string() {
   std::stringstream ss;
-  ss << "%" << id() << " " << type() << shape().to_debug_string();
+  ss << "%" << id() << ": " << type() << shape().to_debug_string();
   ss << " = ";
   ss << computation_->name() << "(";
 
-  if (operand_count() > 0) {
-    for (int i = 0; i < operand_count() - 1; i++) {
-      ss << operand(i)->id() << ", ";
-    }
-    ss << operand(operand_count() - 1)->id();
+  std::vector<std::string> vs;
+  for (int i = 0; i < operand_count() - 1; i++) {
+    vs.push_back("%" + operand(i)->id());
   }
+
+  ss << utils::Join(vs, ", ");
 
   ss << ")";
 
@@ -43,6 +43,16 @@ std::string CallInstruction::to_debug_string() {
 }
 
 std::unique_ptr<Instruction> Tuple::Get(int i) { return Instruction::CreateTupleGet(this, i); }
+std::string Tuple::to_debug_string() {
+  std::stringstream ss;
+  std::vector<std::string> vs;
+  for (int i = 0; i < operand_count(); i++) vs.push_back("%" + operand(i)->id());
+
+  ss << "%" << id() << ":tuple = make_tuple(";
+  ss << utils::Join(vs, ", ");
+  ss << ")";
+  return ss.str();
+}
 
 }  // namespace instruction
 }  // namespace hlir

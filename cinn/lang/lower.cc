@@ -194,8 +194,9 @@ struct LowerImpl {
   ir::LoweredFunc operator()() {
     CHECK(!stages_.empty()) << "At least one stage is needed";
 
-    auto deps     = collect_extra_dependencis(stages_);
-    auto graph    = poly::CreateGraph(stages_, deps);
+    auto deps  = collect_extra_dependencis(stages_);
+    auto graph = poly::CreateGraph(stages_, deps);
+    LOG(INFO) << "graph:\n" << graph->Visualize();
     auto schedule = poly::CreateSchedule(stages_, poly::ScheduleKind::Poly, deps);
 
     CheckAllTensorUsageInComputationContainsInArgs(graph.get());

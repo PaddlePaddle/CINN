@@ -3,14 +3,13 @@ add_definitions(${LLVM_DEFINITIONS})
 # generate cinn_runtime.ll file
 
 add_custom_target(GEN_LLVM_RUNTIME_IR
-    ALL
     COMMAND clang++ -mavx2 -std=c++11 -masm=intel -S -emit-llvm -O3 ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc -I${PROJECT_SOURCE_DIR}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    DEPENDS ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.h
+    SOURCES ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.h
 )
 
 add_custom_target(GEN_LLVM_RUNTIME_IR_HEADER
-        ALL
+        COMMAND clang++ -mavx2 -std=c++11 -masm=intel -S -emit-llvm -O3 ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc -I${PROJECT_SOURCE_DIR}
         COMMAND python3 generate_runtime_llvm_ir.py ${CMAKE_BINARY_DIR}/cinn_runtime.ll
             ${CMAKE_BINARY_DIR}/cinn/backends/llvm/cinn_runtime_llvm_ir.h
         WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/cinn/backends/llvm

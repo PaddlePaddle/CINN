@@ -44,23 +44,9 @@ class GraphEdge : public Object {
   GraphNode* sink_{};
 };
 
-}  // namespace common
-}  // namespace cinn
-
-namespace std {
-
-template <>
-struct hash<cinn::common::Shared<cinn::common::GraphEdge>> {
-  size_t operator()(const cinn::common::Shared<cinn::common::GraphEdge>& key) {
-    return std::hash<std::string>()(std::to_string(reinterpret_cast<size_t>(key->source())) +
-                                    std::to_string(reinterpret_cast<size_t>(key->sink())));
-  }
+struct GraphEdgeCompare {
+  bool operator()(const common::Shared<GraphEdge>& a, const common::Shared<GraphEdge>& b);
 };
-
-}  // namespace std
-
-namespace cinn {
-namespace common {
 
 /**
  * @brief The base class of all node of graph.
@@ -77,11 +63,11 @@ class GraphNode : public Object {
     EdgeT *a, *b;
     CHECK(other);
     CHECK_NE(other, this) << "cannot link to itself";
-    auto source_edge = make_shared<GraphEdge>(this, other);
-    auto sink_edge   = make_shared<GraphEdge>(this, other);
+    auto edge  = make_shared<GraphEdge>(this, other);
+    auto edge1 = make_shared<GraphEdge>(this, other);
 
-    outlinks_.insert(source_edge);
-    other->inlinks_.insert(sink_edge);
+    outlinks_.insert(edge);
+    other->inlinks_.insert(edge1);
 
     for (auto& item : outlinks_) {
       if (item->sink()->id() == other->id()) {
@@ -99,9 +85,9 @@ class GraphNode : public Object {
   }
 
   //! Get the input links of the node.
-  virtual std::set<Shared<GraphEdge>> inlinks() const { return inlinks_; }
+  virtual const std::set<Shared<GraphEdge>, GraphEdgeCompare>& inlinks() const { return inlinks_; }
   //! Get the output links of the node.
-  virtual std::set<Shared<GraphEdge>> outlinks() const { return outlinks_; }
+  virtual const std::set<Shared<GraphEdge>, GraphEdgeCompare>& outlinks() const { return outlinks_; }
 
   //! Reset graph traversal meta info.
   void ResetVisitMeta() { visited_time_ = 0; }
@@ -117,10 +103,10 @@ class GraphNode : public Object {
  protected:
   //! The input links of the node.
   //! \note We record the raw pointer rather than the shared pointer to avoid cycle reference.
-  std::set<common::Shared<GraphEdge>> inlinks_;
+  std::set<common::Shared<GraphEdge>, GraphEdgeCompare> inlinks_;
   //! The output links of the node.
   //! \note We record the raw pointer rather than the shared pointer to avoid cycle reference.
-  std::set<common::Shared<GraphEdge>> outlinks_;
+  std::set<common::Shared<GraphEdge>, GraphEdgeCompare> outlinks_;
 
   mutable int visited_time_{};
 };
@@ -135,8 +121,8 @@ class Graph {
 
   //! Add a node to the graph.
   //! @{
-  void RegisterNode(size_t key, GraphNode* node);
-  void RegisterNode(const std::string& key, GraphNode* node);
+  GraphNode* RegisterNode(size_t key, GraphNode* node);
+  GraphNode* RegisterNode(const std::string& key, GraphNode* node);
   //! @}
 
   //! Retrive a node.

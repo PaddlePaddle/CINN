@@ -1,5 +1,7 @@
 set(srcs
-        display_program.cc)
+        display_program.cc
+        buffer_assign_pass.cc
+        )
 
 foreach(cpp ${srcs})
   set(core_src

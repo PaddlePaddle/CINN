@@ -59,10 +59,11 @@ std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topologica
   std::vector<GraphEdge *> edge_order;
 
   std::deque<GraphNode *> queue;
+
   // collect indegreee.
-  std::map<GraphNode *, int> indegree;
+  std::map<std::string, int> indegree;
   for (auto *n : nodes()) {
-    indegree[n] = n->inlinks().size();
+    indegree[n->id()] = n->inlinks().size();
   }
 
   // insert start points first.
@@ -73,13 +74,15 @@ std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topologica
   // start to visit
   while (!queue.empty()) {
     auto *top_node = queue.front();
-    queue.pop_front();
     node_order.push_back(top_node);
 
+    queue.pop_front();
+
     for (auto &edge : top_node->outlinks()) {
+      CHECK_EQ(edge->source(), top_node);
       edge_order.push_back(edge.get());
       auto *sink = edge->sink();
-      if (--indegree[sink] == 0) {
+      if ((--indegree[sink->id()]) == 0) {
         queue.push_back(sink);
       }
     }
@@ -108,11 +111,15 @@ std::vector<GraphNode *> Graph::start_points() {
   return res;
 }
 
-void Graph::RegisterNode(size_t key, GraphNode *node) {
+GraphNode *Graph::RegisterNode(size_t key, GraphNode *node) {
   registry_.emplace(key, node);
   nodes_.emplace_back(node);
+  return node;
 }
-void Graph::RegisterNode(const std::string &key, GraphNode *node) { RegisterNode(std::hash<std::string>{}(key), node); }
+
+GraphNode *Graph::RegisterNode(const std::string &key, GraphNode *node) {
+  return RegisterNode(std::hash<std::string>{}(key), node);
+}
 
 GraphNode *Graph::RetriveNode(size_t key) const {
   auto it = registry_.find(key);
@@ -140,6 +147,13 @@ std::string Graph::Visualize() const {
 }
 
 const char *GraphNode::__type_info__ = "GraphNode";
+
+bool GraphEdgeCompare::operator()(const Shared<GraphEdge> &a, const Shared<GraphEdge> &b) {
+  if (a->source()->id() == b->source()->id()) {
+    return a->sink()->id() > b->sink()->id();
+  }
+  return a->source()->id() < b->source()->id();
+}
 
 }  // namespace common
 }  // namespace cinn

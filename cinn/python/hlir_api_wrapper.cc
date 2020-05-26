@@ -74,7 +74,6 @@ std::string NumpyDtypeToCinn(pybind11::dtype type) {
 std::shared_ptr<py_buffer> py_buffer::from_numpy(pybind11::array array) {
   std::vector<int> shape;
   for (int i = 0; i < array.ndim(); i++) {
-    LOG(INFO) << "shape " << i << " " << array.shape(i);
     shape.push_back(array.shape(i));
   }
 

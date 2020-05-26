@@ -1,7 +1,6 @@
 set(srcs
         instruction.cc
         instructions.cc
-        graph.cc
         pass.cc
         pass_pipeline.cc
         optimizer.cc
@@ -15,6 +14,7 @@ set(srcs
         compiler.cc
         shape_inference.cc
         instruction_util.cc
+        graph.cc
         )
 
 add_subdirectory(primitive)

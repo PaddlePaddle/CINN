@@ -103,6 +103,8 @@ class TestElementwise(unittest.TestCase):
         # self.create_elementwise_comp("abs0", lambda x: x.abs)
         # self.create_elementwise_comp("floor0", lambda x : x.floor)
 
+        self.create_complex_inline_comp()
+
         self.compiler = cinn.Compiler()
         self.compiler.compile(self.module)
 
@@ -164,6 +166,21 @@ class TestElementwise(unittest.TestCase):
 
         self.module.add_computation(comp)
 
+    def create_complex_inline_comp(self):
+        comp = cinn.Computation(self.context, "complex_inlined_")
+
+        x = comp.add_parameter(0, self.shape, "x", "float32")
+        y = comp.add_parameter(1, self.shape, "y", "float32")
+
+        add_out = comp.add(x, y)
+        tanh_out = comp.tanh(add_out)
+        add1_out = comp.add(tanh_out, x)
+        add2_out = comp.add(tanh_out, y)
+        final_out = comp.mul(add1_out, add2_out)
+
+        self.module.add_computation(comp)
+
+
     def test_add(self):
         args = cinn.Args([self.batch_size, self.py_data0, self.py_data1, self.py_out])
         self.compiler.eval("add0", args)
@@ -198,6 +215,21 @@ class TestElementwise(unittest.TestCase):
                                ]:
             self.compiler.eval(fn_name, args)
             self.assertTrue(np.isclose(np_fn(self.py_data0.numpy()), self.py_out.numpy()).all())
+
+    def test_complex_inline(self):
+        args = cinn.Args([self.batch_size, self.py_data0, self.py_data1, self.py_out])
+        self.compiler.eval("complex_inlined_", args)
+
+        x = self.py_data0.numpy();
+        y = self.py_data1.numpy();
+
+        tanh_out = np.tanh(x+y)
+        add1_out = x + tanh_out
+        add2_out = y + tanh_out
+        final_out = add1_out * add2_out
+
+        self.assertTrue(np.allclose(self.py_out.numpy(), final_out))
+
 
 
 if __name__ == '__main__':

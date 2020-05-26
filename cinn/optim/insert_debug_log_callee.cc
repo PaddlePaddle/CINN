@@ -78,6 +78,7 @@ struct StoreDebugInfoBuilder : public ir::IRVisitor {
   void Visit(const ir::IfThenElse *x) override {}
   void Visit(const ir::Block *x) override {}
   void Visit(const ir::Call *x) override {}
+  void Visit(const ir::Activate *x) override {}
   void Visit(const ir::Store *x) override {
     format_ << x->tensor.as_tensor()->name << "[] = ";
     Visit(&x->value);

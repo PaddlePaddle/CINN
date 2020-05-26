@@ -54,8 +54,9 @@ ir::Tensor Sign(const ir::Tensor& a, const std::string& name) {
 }
 
 ir::Tensor Tanh(const ir::Tensor& a, const std::string& name) {
-  ElementwiseLower lower(a->type(), [=](Expr x) { return lang::CallExtern("tanh", {x}); });
-  return lower(a);
+  return Compute(a->shape, [a](const std::vector<Expr>& indice) -> Expr {
+    return ir::Activate::Make(ir::Activate::Kind::kTanh, a(indice));
+  });
 }
 
 }  // namespace primitive

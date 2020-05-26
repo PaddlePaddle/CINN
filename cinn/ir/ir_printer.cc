@@ -36,6 +36,22 @@ void IrPrinter::Visit(const GT *x) { PrintBinaryOp(">", x); }
 void IrPrinter::Visit(const GE *x) { PrintBinaryOp("<=", x); }
 void IrPrinter::Visit(const And *x) { PrintBinaryOp("and", x); }
 void IrPrinter::Visit(const Or *x) { PrintBinaryOp("or", x); }
+void IrPrinter::Visit(const Activate *x) {
+  switch (x->kind) {
+    case Activate::Kind::kTanh:
+      os() << "tanh";
+      break;
+    case Activate::Kind::kSigmoid:
+      os() << "sigmoid";
+      break;
+    default:
+      NOT_IMPLEMENTED
+  }
+
+  os() << "(";
+  Print(x->operand(0));
+  os() << ")";
+}
 void IrPrinter::Visit(const Not *x) {
   os_ << "!";
   Print(x->v());

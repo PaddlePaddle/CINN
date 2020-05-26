@@ -53,30 +53,6 @@ std::unique_ptr<Graph> CreateGraph1() {
   return graph;
 }
 
-TEST(Graph, basic) {
-  // Create nodes: A, B, C, D, E
-  auto graph = CreateGraph0();
-
-  Graph::node_order_t node_order;
-  Graph::edge_order_t edge_order;
-  std::tie(node_order, edge_order) = graph->topological_order();
-
-  std::vector<std::string> order({"A", "B", "C", "D", "E"});
-
-  for (auto* e : edge_order) {
-    LOG(INFO) << "visit edge: " << e->source()->safe_as<GraphNodeWithName>()->name << " -> "
-              << e->sink()->safe_as<GraphNodeWithName>()->name;
-  }
-
-  for (auto* n : node_order) {
-    LOG(INFO) << "visit node: " << n->safe_as<GraphNodeWithName>()->name;
-  }
-
-  for (int i = 0; i < node_order.size(); i++) {
-    EXPECT_EQ(node_order[i]->safe_as<GraphNodeWithName>()->name, order[i]);
-  }
-}
-
 TEST(Graph, Visualize) {
   auto graph = CreateGraph0();
   LOG(INFO) << "graph:\n" << graph->Visualize();

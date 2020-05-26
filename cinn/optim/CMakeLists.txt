@@ -14,6 +14,7 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   insert_debug_log_callee.cc
   lower_function_call_bind_vars.cc
   extern_call_process.cc
+  activate_to_extern_call.cc
   )
 
 foreach(cpp ${srcs})
