@@ -171,6 +171,7 @@ void Substitute(Expr *expr, const std::map<const ir::_Var_ *, Expr> &var_map) {
 }
 
 bool is_zero(Expr v) {
+  v             = AutoSimplify(v);
   auto *int_n   = v.As<ir::IntImm>();
   auto *float_n = v.As<ir::FloatImm>();
 
@@ -184,7 +185,11 @@ Expr CastIfNeeded(Expr body, Type type) {
   return ir::Cast::Make(type, body);
 }
 
-bool MathEqual(const Expr &a, const Expr &b) { return AutoSimplify(a) == AutoSimplify(b); }
+bool MathEqual(const Expr &a, const Expr &b) {
+  auto c = a - b;
+  c      = AutoSimplify(c);
+  return is_zero(c);
+}
 
 }  // namespace common
 }  // namespace cinn

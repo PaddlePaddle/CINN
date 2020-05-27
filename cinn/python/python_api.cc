@@ -46,9 +46,20 @@ void BindHlirApi(pybind11::module* m) {
            [](py_computation_builder& builder, py_instruction a) -> py_instruction {
              return hlir::instruction::Ceil(a.data);
            })
-      .def("abs", [](py_computation_builder& builder, py_instruction a) -> py_instruction {
-        return hlir::instruction::Abs(a.data);
-      });
+      .def("abs",
+           [](py_computation_builder& builder, py_instruction a) -> py_instruction {
+             return hlir::instruction::Abs(a.data);
+           })
+      .def("conv",
+           [](py_computation_builder& self,
+              py_instruction I,
+              py_instruction W,
+              int pad_h,
+              int pad_w,
+              int stride_h,
+              int stride_w) -> py_instruction {
+             return hlir::instruction::Conv(I.data, W.data, pad_h, pad_w, stride_h, stride_w);
+           });
 
   pybind11::class_<py_module, std::shared_ptr<py_module>>(*m, "Module")  //
       .def(pybind11::init<const std::string&>())                         //

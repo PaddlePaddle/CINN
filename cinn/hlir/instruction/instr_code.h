@@ -28,6 +28,7 @@ const int kHlirVarientArgusCode = -1;
     op__(Tuple, "tuple", kHlirVarientArgusCode)            \
     op__(TupleGet, "tuple_get", 1)                         \
     op__(Call, "call", kHlirVarientArgusCode)              \
+    op__(Conv, "conv", 2)                                  \
     op__(CustomCall, "custom_call", kHlirVarientArgusCode)
 
 // clang-format on

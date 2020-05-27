@@ -29,7 +29,7 @@ TEST(VectorizeLoops, Split_sperate) {
 
   // C = A * B
   lang::Buffer C_buf(Float(32));
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
 
   Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
@@ -37,7 +37,7 @@ TEST(VectorizeLoops, Split_sperate) {
   {
     poly::Iterator i_outer, i_inner, j_outer, j_inner, k_outer, k_inner;
     std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
-    std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k"), 8);
+    std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k0"), 8);
     C->stage()->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
     C->stage()->Split(j_inner, 8);
   }
@@ -74,12 +74,12 @@ void matmul(void* _args, int32_t num_args)
   float* C = ((float*)(_C->host_memory));
   for (int32_t i_outer = 0; i_outer < 3; i_outer += 1) {
     for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
-      for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
-        for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
+      for (int32_t k0_outer = 0; k0_outer < 25; k0_outer += 1) {
+        for (int32_t k0_inner = 0; k0_inner < 8; k0_inner += 1) {
           for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
             for (int32_t j_inner_outer = 0; j_inner_outer < 4; j_inner_outer += 1) {
               for (int32_t j_inner_inner = 0; j_inner_inner < cinn_min(8, (500 + ((-8 * j_inner_outer) + (-32 * j_outer)))); j_inner_inner += 1) {
-                C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((8 * k_outer) + k_inner)))] * B[((8 * j_inner_outer) + ((32 * j_outer) + ((500 * k_inner) + ((4000 * k_outer) + j_inner_inner))))]));
+                C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((8 * k0_outer) + k0_inner)))] * B[((8 * j_inner_outer) + ((32 * j_outer) + ((500 * k0_inner) + ((4000 * k0_outer) + j_inner_inner))))]));
               };
             };
           };
@@ -87,12 +87,12 @@ void matmul(void* _args, int32_t num_args)
       };
     };
     for (int32_t j_outer = 15; j_outer < 16; j_outer += 1) {
-      for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
-        for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
+      for (int32_t k0_outer = 0; k0_outer < 25; k0_outer += 1) {
+        for (int32_t k0_inner = 0; k0_inner < 8; k0_inner += 1) {
           for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
             for (int32_t j_inner_outer = 0; j_inner_outer < (63 + (-4 * j_outer)); j_inner_outer += 1) {
               for (int32_t j_inner_inner = 0; j_inner_inner < cinn_min(8, (500 + ((-8 * j_inner_outer) + (-32 * j_outer)))); j_inner_inner += 1) {
-                C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((8 * k_outer) + k_inner)))] * B[((8 * j_inner_outer) + ((32 * j_outer) + ((500 * k_inner) + ((4000 * k_outer) + j_inner_inner))))]));
+                C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((8 * k0_outer) + k0_inner)))] * B[((8 * j_inner_outer) + ((32 * j_outer) + ((500 * k0_inner) + ((4000 * k0_outer) + j_inner_inner))))]));
               };
             };
           };
@@ -102,12 +102,12 @@ void matmul(void* _args, int32_t num_args)
   };
   for (int32_t i_outer = 3; i_outer < 4; i_outer += 1) {
     for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
-      for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
-        for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
+      for (int32_t k0_outer = 0; k0_outer < 25; k0_outer += 1) {
+        for (int32_t k0_inner = 0; k0_inner < 8; k0_inner += 1) {
           for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
             for (int32_t j_inner_outer = 0; j_inner_outer < 4; j_inner_outer += 1) {
               for (int32_t j_inner_inner = 0; j_inner_inner < cinn_min(8, (500 + ((-8 * j_inner_outer) + (-32 * j_outer)))); j_inner_inner += 1) {
-                C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((8 * k_outer) + k_inner)))] * B[((8 * j_inner_outer) + ((32 * j_outer) + ((500 * k_inner) + ((4000 * k_outer) + j_inner_inner))))]));
+                C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((8 * k0_outer) + k0_inner)))] * B[((8 * j_inner_outer) + ((32 * j_outer) + ((500 * k0_inner) + ((4000 * k0_outer) + j_inner_inner))))]));
               };
             };
           };
@@ -115,12 +115,12 @@ void matmul(void* _args, int32_t num_args)
       };
     };
     for (int32_t j_outer = 15; j_outer < 16; j_outer += 1) {
-      for (int32_t k_outer = 0; k_outer < 25; k_outer += 1) {
-        for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
+      for (int32_t k0_outer = 0; k0_outer < 25; k0_outer += 1) {
+        for (int32_t k0_inner = 0; k0_inner < 8; k0_inner += 1) {
           for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
             for (int32_t j_inner_outer = 0; j_inner_outer < (63 + (-4 * j_outer)); j_inner_outer += 1) {
               for (int32_t j_inner_inner = 0; j_inner_inner < cinn_min(8, (500 + ((-8 * j_inner_outer) + (-32 * j_outer)))); j_inner_inner += 1) {
-                C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((8 * k_outer) + k_inner)))] * B[((8 * j_inner_outer) + ((32 * j_outer) + ((500 * k_inner) + ((4000 * k_outer) + j_inner_inner))))]));
+                C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((8 * j_inner_outer) + ((32 * j_outer) + j_inner_inner))))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((8 * k0_outer) + k0_inner)))] * B[((8 * j_inner_outer) + ((32 * j_outer) + ((500 * k0_inner) + ((4000 * k0_outer) + j_inner_inner))))]));
               };
             };
           };
@@ -268,7 +268,6 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
 }
 )ROC";
 
-  // EXPECT_EQ(Trim(out), Trim(target_out));
   EXPECT_EQ(Context::Global().info_rgt().Get<int>("vectorized_forloop_count"), 1);
 }
 
@@ -310,7 +309,7 @@ TEST(Vectorize, single_for) {
   Placeholder<float> B("B", std::vector<int>{{10}});
   Placeholder<float> C("C", std::vector<int>{{10}});
 
-  Var loop_var("k");
+  Var loop_var("k0");
 
   Expr body = Store::Make(ir::Tensor(C),
                           ir::Add::Make(  //

@@ -18,7 +18,7 @@ TEST(Expr, basic) {
 
   // C = A * B
   lang::Buffer C_buf(Float(32));
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
 
   Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
   C->Bind(C_buf);
@@ -74,15 +74,15 @@ void matmul(void* _args, int32_t num_args)
     for (int32_t i_inner = 0; i_inner < 8; i_inner += 1) {
       for (int32_t j_outer = 0; j_outer < 62; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 8; j_inner += 1) {
-          for (int32_t k = 0; k < 200; k += 1) {
-            C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((1600 * i_outer) + k))] * B[((8 * j_outer) + ((500 * k) + j_inner))]));
+          for (int32_t k0 = 0; k0 < 200; k0 += 1) {
+            C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((1600 * i_outer) + k0))] * B[((8 * j_outer) + ((500 * k0) + j_inner))]));
           };
         };
       };
       for (int32_t j_outer = 62; j_outer < 63; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < (500 + (-8 * j_outer)); j_inner += 1) {
-          for (int32_t k = 0; k < 200; k += 1) {
-            C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((1600 * i_outer) + k))] * B[((8 * j_outer) + ((500 * k) + j_inner))]));
+          for (int32_t k0 = 0; k0 < 200; k0 += 1) {
+            C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((1600 * i_outer) + k0))] * B[((8 * j_outer) + ((500 * k0) + j_inner))]));
           };
         };
       };

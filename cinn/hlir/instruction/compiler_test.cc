@@ -299,6 +299,27 @@ TEST(Compiler, call_main_dense_model) {
   delete Outb_target;
 }
 
+TEST(Compiler, conv) {
+  Module module("module0");
+  Context context;
+
+  const char* fn_name = "conv0";
+
+  {
+    Computation::Builder builder(&context, fn_name);
+
+    auto* I   = builder.AddInstruction(Instruction::CreateParameter(0, Shape({1, 200, 200, 3}), "X", {Float(32)}));
+    auto* W   = builder.AddInstruction(Instruction::CreateParameter(1, Shape({4, 4, 3, 3}), "Y", {Float(32)}));
+    auto* out = builder.AddInstruction(Instruction::CreateConv(I, W, 2, 2, 1, 1));
+    out->set_inlined(false);
+
+    module.AddComputation(builder.Build());
+  }
+
+  Compiler compiler;
+  compiler.Compile(&module);
+}
+
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn

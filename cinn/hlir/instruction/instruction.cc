@@ -233,6 +233,12 @@ std::string Instruction::programable_id() const {
   return "v" + copied;
 }
 
+std::unique_ptr<Instruction> Instruction::CreateConv(
+    Instruction *I, Instruction *W, int pad_h, int pad_w, int stride_h, int stride_w) {
+  std::unique_ptr<Instruction> n(new Conv(I, W, pad_h, pad_w, stride_h, stride_w));
+  return n;
+}
+
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn

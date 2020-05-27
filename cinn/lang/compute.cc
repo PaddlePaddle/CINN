@@ -136,6 +136,11 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
 
   auto unique_name = name.empty() ? Context::Global().NewName("tensor") : name;
 
+  // check reduce_axis not include the reserved axis name
+  for (auto &ra : reduce_axis) {
+    CHECK(!common::IsAxisNameReserved(ra->name)) << "reduce axis [" << ra->name << "]'s name is reserved";
+  }
+
   auto op     = ir::ComputeOp::Make(unique_name, fn, real_shape, domain, reduce_axis);
   auto tensor = ir::_Tensor_::Make(unique_name, fn_body.type(), real_shape, domain, op, reduce_axis);
   return tensor;

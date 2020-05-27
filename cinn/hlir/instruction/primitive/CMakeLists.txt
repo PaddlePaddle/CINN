@@ -2,6 +2,7 @@ set(srcs
         dot.cc
         binary.cc
         elementwise.cc
+        conv.cc
         )
 
 cc_test(test_hlir_primitive_dot SRCS dot_test.cc DEPS core)

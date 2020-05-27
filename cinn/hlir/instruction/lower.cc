@@ -10,6 +10,7 @@
 #include "cinn/common/common.h"
 #include "cinn/hlir/instruction/instructions.h"
 #include "cinn/hlir/instruction/primitive/binary.h"
+#include "cinn/hlir/instruction/primitive/conv.h"
 #include "cinn/hlir/instruction/primitive/dot.h"
 #include "cinn/hlir/instruction/primitive/elementwise.h"
 #include "cinn/hlir/instruction/shape.h"
@@ -129,6 +130,10 @@ void ComputationLower::LowerInstruction(const Instruction* instr) {
       LowerTupleGet(instr);
       break;
 
+    case InstrCode::Conv:
+      LowerConv(instr);
+      break;
+
     default:
       NOT_IMPLEMENTED
   }
@@ -233,6 +238,22 @@ void ComputationLower::LowerCall(const Instruction* instr) {
   std::vector<Expr> arg_exprs;
   for (auto& tensor : tensors) arg_exprs.emplace_back(tensor);
   call_to_ret_vals_[call] = arg_exprs;
+}
+
+void ComputationLower::LowerConv(const Instruction* instr) {
+  auto* op = instr->As<Conv>();
+
+  auto I_expr = scope_.Lookup(instr->operand(0));
+  auto W_expr = scope_.Lookup(instr->operand(1));
+  CHECK(I_expr.defined());
+  CHECK(W_expr.defined());
+
+  auto tensor = primitive::Conv2dNCHW(
+      I_expr.as_tensor_ref(), W_expr.as_tensor_ref(), op->pad_h(), op->pad_w(), op->stride_h(), op->stride_w());
+  if (!instr->inlined()) {
+    tensor->WithBuffer();
+  }
+  scope_.Insert(instr, tensor);
 }
 
 cinn::Module ModuleLower::operator()(const Module* module, bool display_c_code) {

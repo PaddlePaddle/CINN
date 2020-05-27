@@ -44,6 +44,13 @@ const std::vector<std::string> kAxises({
     "h"   // level 10
 });
 
+static std::set<std::string> axis_set() {
+  static std::set<std::string> x(kAxises.begin(), kAxises.end());
+  return x;
+}
+
+bool IsAxisNameReserved(const std::string& x) { return axis_set().count(x); }
+
 const std::string& axis_name(int level) {
   CHECK_LT(level, kAxises.size());
   return kAxises[level];

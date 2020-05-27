@@ -23,5 +23,7 @@ const std::string& axis_name(int level);
 std::vector<ir::Var> GenDefaultAxis(int naxis);
 std::vector<ir::Expr> GenDefaultAxisAsExpr(int naxis);
 
+bool IsAxisNameReserved(const std::string& x);
+
 }  // namespace common
 }  // namespace cinn

@@ -210,7 +210,7 @@ TEST(CodeGenC, matmul) {
   Module::Builder builder("module1", target);
 
   // C = A * B
-  Var k(20, "k");
+  Var k(20, "k0");
 
   Tensor C_init = Compute(
       {Expr(100), Expr(50)}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
@@ -263,8 +263,8 @@ void matmul(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 50; j += 1) {
       C_init[((50 * i) + j)] = 0;
-      for (int32_t k = 0; k < 20; k += 1) {
-        C[((50 * i) + j)] = (C[((50 * i) + j)] + (A[((20 * i) + k)] * B[((50 * k) + j)]));
+      for (int32_t k0 = 0; k0 < 20; k0 += 1) {
+        C[((50 * i) + j)] = (C[((50 * i) + j)] + (A[((20 * i) + k0)] * B[((50 * k0) + j)]));
       };
     };
   };
@@ -311,7 +311,7 @@ TEST(CodeGenC, matmul_tile) {
   // C = A * B
   lang::Buffer C_buf(Float(32));
 
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
 
   Tensor C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
@@ -330,7 +330,7 @@ TEST(CodeGenC, matmul_tile) {
   {
     poly::Iterator i_outer, i_inner, j_outer, j_inner, k_outer, k_inner;
     std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
-    std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k"), 4);
+    std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k0"), 4);
     C->stage()->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
   }
 
@@ -370,9 +370,9 @@ void matmul(void* _args, int32_t num_args)
       for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
         for (int32_t j_inner = 0; j_inner < 32; j_inner += 1) {
           C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0;
-          for (int32_t k_outer = 0; k_outer < 50; k_outer += 1) {
-            for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k_outer) + k_inner)))] * B[((32 * j_outer) + ((500 * k_inner) + ((2000 * k_outer) + j_inner)))]));
+          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
+            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * B[((32 * j_outer) + ((500 * k0_inner) + ((2000 * k0_outer) + j_inner)))]));
             };
           };
         };
@@ -382,9 +382,9 @@ void matmul(void* _args, int32_t num_args)
       for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
         for (int32_t j_inner = 0; j_inner < (500 + (-32 * j_outer)); j_inner += 1) {
           C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0;
-          for (int32_t k_outer = 0; k_outer < 50; k_outer += 1) {
-            for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k_outer) + k_inner)))] * B[((32 * j_outer) + ((500 * k_inner) + ((2000 * k_outer) + j_inner)))]));
+          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
+            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * B[((32 * j_outer) + ((500 * k0_inner) + ((2000 * k0_outer) + j_inner)))]));
             };
           };
         };
@@ -396,9 +396,9 @@ void matmul(void* _args, int32_t num_args)
       for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
         for (int32_t j_inner = 0; j_inner < 32; j_inner += 1) {
           C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0;
-          for (int32_t k_outer = 0; k_outer < 50; k_outer += 1) {
-            for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k_outer) + k_inner)))] * B[((32 * j_outer) + ((500 * k_inner) + ((2000 * k_outer) + j_inner)))]));
+          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
+            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * B[((32 * j_outer) + ((500 * k0_inner) + ((2000 * k0_outer) + j_inner)))]));
             };
           };
         };
@@ -408,9 +408,9 @@ void matmul(void* _args, int32_t num_args)
       for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
         for (int32_t j_inner = 0; j_inner < (500 + (-32 * j_outer)); j_inner += 1) {
           C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0;
-          for (int32_t k_outer = 0; k_outer < 50; k_outer += 1) {
-            for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k_outer) + k_inner)))] * B[((32 * j_outer) + ((500 * k_inner) + ((2000 * k_outer) + j_inner)))]));
+          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
+            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * B[((32 * j_outer) + ((500 * k0_inner) + ((2000 * k0_outer) + j_inner)))]));
             };
           };
         };
@@ -436,7 +436,7 @@ TEST(CodeGenC, matmul_packed) {
   lang::Buffer C_buf(Float(32));
 
   // TODO(Superjomn) Make sure the domain works.
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "PackedB");
   packedB->Bind(packedB_buf);
@@ -446,7 +446,7 @@ TEST(CodeGenC, matmul_packed) {
   {
     poly::Iterator i_outer, i_inner, j_outer, j_inner, k_outer, k_inner;
     std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
-    std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k"), 4);
+    std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k0"), 4);
     C->stage()->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
   }
 
@@ -494,9 +494,9 @@ void matmul_with_packing(void* _args, int32_t num_args)
     for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
       for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
         for (int32_t j_inner = 0; j_inner < 32; j_inner += 1) {
-          for (int32_t k_outer = 0; k_outer < 50; k_outer += 1) {
-            for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k_outer) + k_inner)))] * PackedB[((6400 * j_outer) + ((32 * k_inner) + ((128 * k_outer) + j_inner)))]);
+          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
+            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * PackedB[((6400 * j_outer) + ((32 * k0_inner) + ((128 * k0_outer) + j_inner)))]);
             };
           };
         };
@@ -505,9 +505,9 @@ void matmul_with_packing(void* _args, int32_t num_args)
     for (int32_t j_outer = 15; j_outer < 16; j_outer += 1) {
       for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
         for (int32_t j_inner = 0; j_inner < (500 + (-32 * j_outer)); j_inner += 1) {
-          for (int32_t k_outer = 0; k_outer < 50; k_outer += 1) {
-            for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k_outer) + k_inner)))] * PackedB[((j_inner % 32) + ((6400 * (j_inner/32)) + ((6400 * j_outer) + ((32 * k_inner) + (128 * k_outer)))))]);
+          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
+            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * PackedB[((j_inner % 32) + ((6400 * (j_inner/32)) + ((6400 * j_outer) + ((32 * k0_inner) + (128 * k0_outer)))))]);
             };
           };
         };
@@ -518,9 +518,9 @@ void matmul_with_packing(void* _args, int32_t num_args)
     for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
       for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
         for (int32_t j_inner = 0; j_inner < 32; j_inner += 1) {
-          for (int32_t k_outer = 0; k_outer < 50; k_outer += 1) {
-            for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k_outer) + k_inner)))] * PackedB[((6400 * j_outer) + ((32 * k_inner) + ((128 * k_outer) + j_inner)))]);
+          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
+            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * PackedB[((6400 * j_outer) + ((32 * k0_inner) + ((128 * k0_outer) + j_inner)))]);
             };
           };
         };
@@ -529,9 +529,9 @@ void matmul_with_packing(void* _args, int32_t num_args)
     for (int32_t j_outer = 15; j_outer < 16; j_outer += 1) {
       for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
         for (int32_t j_inner = 0; j_inner < (500 + (-32 * j_outer)); j_inner += 1) {
-          for (int32_t k_outer = 0; k_outer < 50; k_outer += 1) {
-            for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k_outer) + k_inner)))] * PackedB[((j_inner % 32) + ((6400 * (j_inner/32)) + ((6400 * j_outer) + ((32 * k_inner) + (128 * k_outer)))))]);
+          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
+            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * PackedB[((j_inner % 32) + ((6400 * (j_inner/32)) + ((6400 * j_outer) + ((32 * k0_inner) + (128 * k0_outer)))))]);
             };
           };
         };
@@ -543,7 +543,7 @@ void matmul_with_packing(void* _args, int32_t num_args)
 }
 )ROC";
 
-  ASSERT_EQ(utils::Trim(target_out), utils::Trim(out));
+  ASSERT_EQ(utils::Trim(out), utils::Trim(target_out));
 }
 
 TEST(CodeGenC, call_extern) {
