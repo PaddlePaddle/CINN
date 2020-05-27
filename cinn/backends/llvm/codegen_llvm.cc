@@ -49,9 +49,7 @@ llvm::Value *EmitComparison(llvm::CmpInst::Predicate predicate,
     comparison_result = b->CreateFCmp(predicate, lhs, rhs);
   }
 
-  return b->CreateZExt(comparison_result, b->getInt8Ty());
-  // return b->CreateZExt(comparison_result,
-  // llvm::Type::getInt8Ty(m->getContext()));
+  return comparison_result;
 }
 
 #define __IR_EMITTER_NOT_IMPLEMENTED(__op)                                  \
