@@ -73,6 +73,8 @@ class ComputationLower {
 
   void LowerUnary(const Instruction* instr);
 
+  void LowerConv(const Instruction* instr);
+
  private:
   std::unordered_map<const Instruction*, std::vector<cinn::Expr>> call_to_ret_vals_;
   Scope scope_;

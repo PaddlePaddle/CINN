@@ -52,6 +52,11 @@ Instruction* Dot(Instruction* a, Instruction* b) {
   return builder->AddInstruction(Instruction::CreateDot(a, b));
 }
 
+Instruction* Conv(Instruction* I, Instruction* W, int pad_h, int pad_w, int stride_h, int stride_w) {
+  auto* builder = BinaryOpParamBuilderCheck(I, W);
+  return builder->AddInstruction(Instruction::CreateConv(I, W, pad_h, pad_w, stride_h, stride_w));
+}
+
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn

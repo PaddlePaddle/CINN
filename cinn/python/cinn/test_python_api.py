@@ -180,6 +180,24 @@ class TestElementwise(unittest.TestCase):
 
         self.module.add_computation(comp)
 
+    def create_conv(self):
+        comp = cinn.Computation(self.context, "conv0")
+        self.conv_shape_I_raw = [1, 200, 200, 3]
+        self.conv_shape_W_raw = [4, 4, 3, 3]
+
+        self.conv_shape_I = cinn.Shape(self.conv_shape_I_raw)
+        self.conv_shape_W = cinn.Shape(self.conv_shape_W_raw)
+        I = comp.add_parameter(0, self.conv_shape_I, "I", "float32")
+        W = comp.add_parameter(1, self.conv_shape_W, "W", "float32")
+
+        conv_out = comp.conv(I, W, 2, 2, 1, 1)
+
+        self.conv_out_shape = [self.conv_shape_I_raw[0], self.conv_shape_W_raw[0],
+                               (self.conv_shape_I_raw[2] - self.conv_shape_W_raw[2] + 2 * 2) / 1 + 1,
+                               (self.conv_shape_I_raw[3] - self.conv_shape_W_raw[3] + 2 * 2) / 1 + 1]
+
+        self.module.add_computation(comp)
+
 
     def test_add(self):
         args = cinn.Args([self.batch_size, self.py_data0, self.py_data1, self.py_out])
@@ -229,6 +247,13 @@ class TestElementwise(unittest.TestCase):
         final_out = add1_out * add2_out
 
         self.assertTrue(np.allclose(self.py_out.numpy(), final_out))
+
+    def test_conv(self):
+        return
+        I_data = cinn.Buffer(np.float32(np.random.random(self.conv_shape_I_raw)))
+        W_data = cinn.Buffer(np.float32(np.random.random(self.conv_shape_W_raw)))
+        py_out = cinn.Buffer(np.zeros((100, 20), dtype='float32'))
+
 
 
 

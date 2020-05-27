@@ -20,6 +20,8 @@ Instruction* Abs(Instruction* x);
 
 Instruction* Dot(Instruction* a, Instruction* b);
 
+Instruction* Conv(Instruction* I, Instruction* W, int pad_h, int pad_w, int stride_h, int stride_w);
+
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn

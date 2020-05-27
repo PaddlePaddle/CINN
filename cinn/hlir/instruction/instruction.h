@@ -140,6 +140,9 @@ class Instruction {
                                                      const std::vector<char>& buf,
                                                      const ConstantConfig& config);
 
+  static std::unique_ptr<Instruction> CreateConv(
+      Instruction* I, Instruction* W, int pad_h, int pad_w, int stride_h, int stridd_w);
+
   template <typename T>
   T* As() {
     static_assert(std::is_base_of<Instruction, T>());

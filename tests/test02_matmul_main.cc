@@ -14,7 +14,7 @@ TEST(test02_matmul, basic) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
   Buffer C_buf(Float(32));
 
   auto C_init = Compute(
@@ -62,7 +62,7 @@ TEST(matmul, Split) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
@@ -99,7 +99,7 @@ TEST(matmul, Blocking) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
 
   int bn = 32;
 
@@ -121,7 +121,7 @@ TEST(matmul, Blocking) {
     Iterator i_outer, i_inner, j_outer, j_inner;
     std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
     Iterator k_outer, k_inner;
-    std::tie(k_outer, k_inner) = C->stage()->Split("k", 4);
+    std::tie(k_outer, k_inner) = C->stage()->Split("k0", 4);
 
     C->stage()->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
   }
@@ -141,7 +141,7 @@ TEST(matmul, Vectorization) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
 
   int bn = 32;
 
@@ -162,7 +162,7 @@ TEST(matmul, Vectorization) {
     Iterator i_outer, i_inner, j_outer, j_inner;
     std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
     Iterator k_outer, k_inner;
-    std::tie(k_outer, k_inner) = C->stage()->Split("k", 4);
+    std::tie(k_outer, k_inner) = C->stage()->Split("k0", 4);
 
     C->stage()->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
 
@@ -184,7 +184,7 @@ TEST(matmul, LoopPermutation) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
 
   int bn = 32;
 
@@ -206,7 +206,7 @@ TEST(matmul, LoopPermutation) {
     Iterator k_outer, k_inner;
 
     std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn, bn);
-    std::tie(k_outer, k_inner)                   = C->stage()->Split("k", 4);
+    std::tie(k_outer, k_inner)                   = C->stage()->Split("k0", 4);
 
     C_init->stage()->Vectorize(1, 8);
     C_init->stage()->Unroll(1);
@@ -232,7 +232,7 @@ TEST(matmul, ArrayPacking) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
 
   Expr bn(32);
 
@@ -260,7 +260,7 @@ TEST(matmul, ArrayPacking) {
     Iterator k_outer, k_inner;
 
     std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
-    std::tie(k_outer, k_inner)                   = C->stage()->Split("k", 4);
+    std::tie(k_outer, k_inner)                   = C->stage()->Split("k0", 4);
 
     C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
     C->stage()->Vectorize(j_inner, 8);
@@ -282,7 +282,7 @@ TEST(matmul, varient_shape) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
@@ -332,7 +332,7 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
 
   Expr bn(32);
 
@@ -360,7 +360,7 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
     Iterator k_outer, k_inner;
 
     std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
-    std::tie(k_outer, k_inner)                   = C->stage()->Split("k", 4);
+    std::tie(k_outer, k_inner)                   = C->stage()->Split("k0", 4);
 
     C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
     C->stage()->Vectorize(j_inner, 8);
@@ -380,7 +380,7 @@ TEST(matmul, call) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  Var k(K.as_int32(), "k");
+  Var k(K.as_int32(), "k0");
   Buffer C_buf(Float(32));
 
   auto C_init = Compute(

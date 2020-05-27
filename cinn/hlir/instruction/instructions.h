@@ -189,6 +189,26 @@ class TupleGet : public Instruction {
   int offset_{-1};
 };
 
+class Conv : public Instruction {
+ public:
+  Conv(Instruction* I, Instruction* W, int pad_h, int pad_w, int stride_h, int stride_w)
+      : Instruction(InstrCode::Conv, Shape()), pad_h_(pad_h), pad_w_(pad_w), stride_h_(stride_h), stride_w_(stride_w) {
+    AppendOperand(I);
+    AppendOperand(W);
+  }
+
+  int pad_h() const { return pad_h_; }
+  int pad_w() const { return pad_w_; }
+  int stride_h() const { return stride_h_; }
+  int stride_w() const { return stride_w_; }
+
+ private:
+  int pad_h_{};
+  int pad_w_{};
+  int stride_h_{};
+  int stride_w_{};
+};
+
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn
