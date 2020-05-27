@@ -34,6 +34,13 @@ bool RegisterMklMath() {
       .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
       .End();
 
+  REGISTER_EXTERN_FUNC(__cinn_host_ceil_fp32, host_target)
+      .SetRetType<float>()
+      .AddInputType<float>()
+      .AddOutputType<float>()
+      .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
+      .End();
+
   return true;
 }
 

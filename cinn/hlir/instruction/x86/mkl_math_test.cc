@@ -55,7 +55,7 @@ TEST(mkl_math, tanh_v_fp32) {
   auto *ad = reinterpret_cast<float *>(A_buf->host_memory);
   auto *bd = reinterpret_cast<float *>(B_buf->host_memory);
   for (int i = 0; i < A_buf->num_elements(); i++) {
-    ASSERT_NEAR(bd[i], __cinn_host_tanh(ad[i]), 1e-5);
+    ASSERT_NEAR(bd[i], __cinn_host_tanh_fp32(ad[i]), 1e-5);
   }
 }
 

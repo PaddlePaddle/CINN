@@ -13,7 +13,7 @@ namespace backends {
 
 //! Function names
 
-static const char* extern_tanh_host_repr   = "__cinn_host_tanh";
+static const char* extern_tanh_host_repr   = "__cinn_host_tanh_fp32";
 static const char* extern_tanh_v_host_repr = "__cinn_host_tanh_v";
 
 /**

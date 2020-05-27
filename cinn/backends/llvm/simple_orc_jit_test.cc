@@ -254,7 +254,7 @@ TEST(SimpleOrcJit, call_extern) {
   auto *cd = reinterpret_cast<float *>(cb->host_memory);
   for (int m = 0; m < kM; m++) {
     for (int n = 0; n < kN; n++) {
-      ASSERT_NEAR(cd[m * kN + n], __cinn_host_tanh(ad[m * kN + n] + bd[m * kN + n]), 1e-5);
+      ASSERT_NEAR(cd[m * kN + n], __cinn_host_tanh_fp32(ad[m * kN + n] + bd[m * kN + n]), 1e-5);
     }
   }
 }
@@ -320,7 +320,7 @@ TEST(SimpleOrcJit, call_extern_tanh_v) {
   auto *cd = reinterpret_cast<float *>(cb->host_memory);
   for (int m = 0; m < kM; m++) {
     for (int n = 0; n < kN; n++) {
-      ASSERT_NEAR(cd[m * kN + n], __cinn_host_tanh(ad[m * kN + n] + bd[m * kN + n]), 1e-5);
+      ASSERT_NEAR(cd[m * kN + n], __cinn_host_tanh_fp32(ad[m * kN + n] + bd[m * kN + n]), 1e-5);
     }
   }
 }
@@ -369,7 +369,7 @@ TEST(SimpleOrcJit, call_extern_v) {
   auto *ad = reinterpret_cast<float *>(ab->host_memory);
   auto *bd = reinterpret_cast<float *>(bb->host_memory);
   for (int i = 0; i < bb->num_elements(); i++) {
-    ASSERT_NEAR(bd[i], __cinn_host_tanh(ad[i]), 1e-5);
+    ASSERT_NEAR(bd[i], __cinn_host_tanh_fp32(ad[i]), 1e-5);
   }
 }
 

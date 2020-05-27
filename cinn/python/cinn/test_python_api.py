@@ -100,7 +100,7 @@ class TestElementwise(unittest.TestCase):
 
         self.create_elementwise_comp("tanh0", lambda x: x.tanh)
         # self.create_elementwise_comp("ceil0", lambda x: x.ceil)
-        # self.create_elementwise_comp("abs0", lambda x: x.abs)
+        self.create_elementwise_comp("abs0", lambda x: x.abs)
         # self.create_elementwise_comp("floor0", lambda x : x.floor)
 
         self.create_complex_inline_comp()
@@ -211,7 +211,7 @@ class TestElementwise(unittest.TestCase):
 
         for fn_name, np_fn in [("tanh0", np.tanh),
                                # ("ceil0", np.ceil),
-                               # ("abs0", np.abs),
+                               ("abs0", np.abs),
                                ]:
             self.compiler.eval(fn_name, args)
             self.assertTrue(np.isclose(np_fn(self.py_data0.numpy()), self.py_out.numpy()).all())

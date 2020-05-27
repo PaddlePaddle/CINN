@@ -406,7 +406,9 @@ void cinn_args_construct(cinn_pod_value_t* arr, int count, ...);
 //@{
 
 //! Elementwise tanh
-float __cinn_host_tanh(float x);
+float __cinn_host_tanh_fp32(float x);
+float __cinn_host_ceil_fp32(float x);
+
 void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out);
 
 //@}
