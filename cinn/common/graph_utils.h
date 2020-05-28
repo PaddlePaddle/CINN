@@ -45,7 +45,7 @@ class GraphEdge : public Object {
 };
 
 struct GraphEdgeCompare {
-  bool operator()(const common::Shared<GraphEdge>& a, const common::Shared<GraphEdge>& b);
+  bool operator()(const common::Shared<GraphEdge>& a, const common::Shared<GraphEdge>& b) const;
 };
 
 /**
