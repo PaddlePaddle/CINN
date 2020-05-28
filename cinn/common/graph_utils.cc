@@ -148,7 +148,7 @@ std::string Graph::Visualize() const {
 
 const char *GraphNode::__type_info__ = "GraphNode";
 
-bool GraphEdgeCompare::operator()(const Shared<GraphEdge> &a, const Shared<GraphEdge> &b) {
+bool GraphEdgeCompare::operator()(const Shared<GraphEdge> &a, const Shared<GraphEdge> &b) const {
   if (a->source()->id() == b->source()->id()) {
     return a->sink()->id() > b->sink()->id();
   }
