@@ -410,7 +410,6 @@ float __cinn_host_tanh_fp32(float x);
 float __cinn_host_ceil_fp32(float x);
 
 void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out);
-
 //@}
 
 #ifdef __cplusplus
