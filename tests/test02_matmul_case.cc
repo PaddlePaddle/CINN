@@ -3,6 +3,7 @@
 
 #include "cinn/runtime/cinn_runtime.h"
 #include "cinn/utils/timer.h"
+#include "tests/test02_helper.h"
 #include "tests/test02_matmul.h"
 #include "tests/test02_matmul_array_packing.h"
 #include "tests/test02_matmul_array_packing_dynamic_shape.h"
@@ -137,4 +138,11 @@ TEST(test02, basic) {
   TEST_FUNC3(matmul_array_packing_dynamic_shape, 1e-5);
 
   TEST_FUNC(matmul_main);
+
+  {
+    auto module    = cinn::tests::CreateModule("module", 1024, 1024, 1024);
+    auto jit       = cinn::tests::CreateSimpleOrcJit(module);
+    auto matmul_fn = reinterpret_cast<void (*)(void**, int32_t)>(jit->Lookup("matmul"));
+    TEST_FUNC(matmul_fn);
+  }
 }
