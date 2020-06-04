@@ -40,9 +40,15 @@ ir::Tensor Abs(const ir::Tensor& a, const std::string& name) {
 }
 
 ir::Tensor Ceil(const ir::Tensor& a, const std::string& name) {
-  auto zero = make_const(a->type(), 0);
-  ElementwiseLower lower(a->type(), [=](Expr x) { return ir::Select::Make(x > zero, x, zero); });
-  return lower(a);
+  return Compute(a->shape, [a](const std::vector<Expr>& indice) -> Expr {
+    return ir::Activate::Make(ir::Activate::Kind::kCeil, a(indice));
+  });
+}
+
+ir::Tensor Floor(const ir::Tensor& a, const std::string& name) {
+  return Compute(a->shape, [a](const std::vector<Expr>& indice) -> Expr {
+    return ir::Activate::Make(ir::Activate::Kind::kFloor, a(indice));
+  });
 }
 
 ir::Tensor Sign(const ir::Tensor& a, const std::string& name) {
@@ -56,6 +62,20 @@ ir::Tensor Sign(const ir::Tensor& a, const std::string& name) {
 ir::Tensor Tanh(const ir::Tensor& a, const std::string& name) {
   return Compute(a->shape, [a](const std::vector<Expr>& indice) -> Expr {
     return ir::Activate::Make(ir::Activate::Kind::kTanh, a(indice));
+  });
+}
+
+ir::Tensor Exp(const ir::Tensor& a, const std::string& name) {
+  return Compute(a->shape, [a](const std::vector<Expr>& indice) -> Expr {
+    return ir::Activate::Make(ir::Activate::Kind::kExp, a(indice));
+  });
+}
+
+ir::Tensor Sigmoid(const ir::Tensor& a, const std::string& name) {
+  // 1 / exp(-x)
+  return Compute(a->shape, [a](const std::vector<Expr>& indice) -> Expr {
+    return make_const(a->type(), 1.f) /
+           ir::Activate::Make(ir::Activate::Kind::kExp, make_const(a->type(), -1.f) * a(indice));
   });
 }
 

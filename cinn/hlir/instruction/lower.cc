@@ -111,6 +111,8 @@ void ComputationLower::LowerInstruction(const Instruction* instr) {
     case InstrCode::Tanh:
     case InstrCode::Abs:
     case InstrCode::Ceil:
+    case InstrCode::Sigmoid:
+    case InstrCode::Exp:
       LowerUnary(instr);
       break;
     case InstrCode::Dot:
@@ -307,8 +309,17 @@ void ComputationLower::LowerUnary(const Instruction* instr) {
     case InstrCode::Ceil:
       t = primitive::Ceil(tensor, ctx_->new_var_name(instr->id() + "_ceil"));
       break;
+    case InstrCode::Floor:
+      t = primitive::Floor(tensor, ctx_->new_var_name(instr->id() + "_floor"));
+      break;
     case InstrCode::Tanh:
-      t = primitive::Tanh(tensor, ctx_->new_var_name(instr->id() + "_ceil"));
+      t = primitive::Tanh(tensor, ctx_->new_var_name(instr->id() + "_tanh"));
+      break;
+    case InstrCode::Sigmoid:
+      t = primitive::Sigmoid(tensor, ctx_->new_var_name(instr->id() + "_sigmoid"));
+      break;
+    case InstrCode::Exp:
+      t = primitive::Exp(tensor, ctx_->new_var_name(instr->id() + "_exp"));
       break;
     default:
       NOT_IMPLEMENTED

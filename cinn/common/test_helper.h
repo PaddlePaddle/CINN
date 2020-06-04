@@ -10,6 +10,13 @@
 namespace cinn {
 namespace common {
 
+/**
+ * Create buffer for test.
+ *
+ * usage:
+ *
+ * auto* buf = BufferBuilder(Float(32), {20, 20}).set_random().Build();
+ */
 struct BufferBuilder {
   explicit BufferBuilder(Type type, const std::vector<int>& shape) : type_(type), shape_(shape) {}
 
@@ -30,11 +37,12 @@ struct BufferBuilder {
 
   cinn_buffer_t* Build();
 
+ private:
   template <typename T>
   void RandomFloat(void* arr, int len) {
     auto* data = static_cast<T*>(arr);
     for (int i = 0; i < len; i++) {
-      data[i] = static_cast<T>(rand() / RAND_MAX);  // NOLINT
+      data[i] = static_cast<T>(rand()) / RAND_MAX;  // NOLINT
     }
   }
 

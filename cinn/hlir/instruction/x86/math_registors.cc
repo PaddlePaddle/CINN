@@ -1,7 +1,8 @@
-#include "cinn/hlir/instruction/x86/mkl_math_registors.h"
+#include "cinn/hlir/instruction/x86/math_registors.h"
 
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/function_prototype.h"
+#include "cinn/hlir/instruction/x86/cpu_intrisics.h"
 #include "cinn/hlir/instruction/x86/mkl_math.h"
 
 namespace cinn {
@@ -38,6 +39,27 @@ bool RegisterMklMath() {
       .SetRetType<float>()
       .AddInputType<float>()
       .AddOutputType<float>()
+      .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
+      .End();
+
+  REGISTER_EXTERN_FUNC(cinn_cpu_exp_fp32, host_target)
+      .SetRetType<float>()
+      .AddInputType<float>()
+      .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
+      .End();
+  REGISTER_EXTERN_FUNC(cinn_cpu_tanh_fp32, host_target)
+      .SetRetType<float>()
+      .AddInputType<float>()
+      .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
+      .End();
+  REGISTER_EXTERN_FUNC(cinn_cpu_ceil_fp32, host_target)
+      .SetRetType<float>()
+      .AddInputType<float>()
+      .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
+      .End();
+  REGISTER_EXTERN_FUNC(cinn_cpu_floor_fp32, host_target)
+      .SetRetType<float>()
+      .AddInputType<float>()
       .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
       .End();
 

@@ -1,4 +1,5 @@
 #include "cinn/backends/llvm/simple_orc_jit.h"
+#include "cinn/hlir/instruction/x86/cpu_intrisics.h"
 
 #include <glog/logging.h>
 #include <glog/raw_logging.h>
@@ -21,6 +22,7 @@
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/cinn.h"
+#include "cinn/common/test_helper.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
@@ -41,23 +43,9 @@ const int kN = 32;
 
 namespace {
 auto CreateTestBuffer() {
-  auto *A = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {kM, kN}, 32);
-  auto *B = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {kM, kN}, 32);
-  auto *C = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {kM, kN}, 32);
-  cinn_buffer_malloc(nullptr, A);
-  cinn_buffer_malloc(nullptr, B);
-  cinn_buffer_malloc(nullptr, C);
-  float *Ad = reinterpret_cast<float *>(A->host_memory);
-  float *Bd = reinterpret_cast<float *>(B->host_memory);
-
-  for (int i = 0; i < A->num_elements(); i++) {
-    Ad[i] = static_cast<float>(rand()) / RAND_MAX;
-    Bd[i] = static_cast<float>(rand()) / RAND_MAX;
-  }
-
-  float *Cd = reinterpret_cast<float *>(C->host_memory);
-  CHECK_EQ(C->num_elements(), A->num_elements());
-
+  auto *A = common::BufferBuilder(Float(32), {kM, kN}).set_random().Build();
+  auto *B = common::BufferBuilder(Float(32), {kM, kN}).set_random().Build();
+  auto *C = common::BufferBuilder(Float(32), {kM, kN}).set_zero().Build();
   return std::make_tuple(A, B, C);
 }
 

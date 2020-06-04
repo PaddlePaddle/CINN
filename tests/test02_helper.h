@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 #include <string_view>
+#include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/backends/llvm/simple_orc_jit.h"
 #include "cinn/cinn.h"
 #include "cinn/optim/optimize.h"
@@ -42,6 +43,13 @@ auto CreateModule(std::string_view name, int m, int n, int k) -> lang::Module {
 
 auto CreateSimpleOrcJit(const cinn::lang::Module &module) {
   auto jit = cinn::backends::SimpleOrcJit::Create();
+  jit->Link(module, true);
+
+  return jit;
+}
+
+auto CreateSimpleJit(const cinn::lang::Module &module) {
+  auto jit = cinn::backends::SimpleJIT::Create();
   jit->Link(module, true);
 
   return jit;

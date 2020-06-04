@@ -228,6 +228,8 @@ void CodeGenC::Visit(const ir::Block *op) {
 void CodeGenC::Visit(const ir::Call *op) {
   if (op->name == runtime::buffer_create) {
     PrintCall_buffer_create(op);
+  } else if (op->is_intrinsic_call() && utils::Startswith(op->name, "cinn_pod_value_to_")) {
+    PrintCall_cinn_pod_value_to_(op);
   } else if (op->name == runtime::buffer_malloc) {
     PrintCall_buffer_malloc(op);
   } else if (op->name == runtime::buffer_get_data_handle || op->name == runtime::buffer_get_data_const_handle) {
@@ -247,10 +249,17 @@ void CodeGenC::Visit(const ir::Call *op) {
     os() << ")";
   } else if (op->is_extern_call()) {
     auto *emitter = ExternFunctionEmitterRegistry::Global().Lookup(ExternFuncID{backend_C, op->name.c_str()});
-    CHECK(emitter) << "No extern func [" << op->name << "]";
-    emitter->BindCodeGen(this);
-    CHECK(emitter) << "No extern function emitter for call " << op->name;
-    emitter->Emit(op);
+    if (emitter) {
+      emitter->BindCodeGen(this);
+      CHECK(emitter) << "No extern function emitter for call " << op->name;
+      emitter->Emit(op);
+    } else {
+      CHECK(!op->read_args.empty() || !op->write_args.empty());
+      os() << op->name << "(";
+      PrintCallArgs(op);
+      os() << ")";
+    }
+
   } else {
     NOT_IMPLEMENTED
   }
@@ -299,6 +308,15 @@ void CodeGenC::PrintCall_buffer_malloc(const ir::Call *op) {
   PrintCastExpr("void*", op->read_args[0]);
   os() << ", ";
   os() << op->read_args[1];
+  os() << ")";
+}
+
+void CodeGenC::PrintCall_cinn_pod_value_to_(const ir::Call *op) {
+  CHECK_EQ(op->read_args.size(), 1UL);
+  os() << op->name << "(";
+  os() << "&(";
+  Print(op->read_args[0]);
+  os() << ")";
   os() << ")";
 }
 

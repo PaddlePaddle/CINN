@@ -375,12 +375,12 @@ extern "C" {
 #endif
 //! cinn_pod_value to specific types.
 // @{
-float cinn_pod_value_to_float(cinn_pod_value_t value);
-double cinn_pod_value_to_double(cinn_pod_value_t value);
-int64_t cinn_pod_value_to_int64(cinn_pod_value_t value);
-int32_t cinn_pod_value_to_int32(cinn_pod_value_t value);
-void* cinn_pod_value_to_void_p(cinn_pod_value_t value);
-cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t value);
+float cinn_pod_value_to_float(cinn_pod_value_t* value);
+double cinn_pod_value_to_double(cinn_pod_value_t* value);
+int64_t cinn_pod_value_to_int64(cinn_pod_value_t* value);
+int32_t cinn_pod_value_to_int32(cinn_pod_value_t* value);
+void* cinn_pod_value_to_void_p(cinn_pod_value_t* value);
+cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value);
 // @}
 
 //! other specific types to cinn_pod_value
@@ -401,16 +401,6 @@ void cinn_print_debug_args(cinn_pod_value_t* args, int count);
  * @param ... variadic args of `cinn_pod_value_t*`
  */
 void cinn_args_construct(cinn_pod_value_t* arr, int count, ...);
-
-//! math extern functions
-//@{
-
-//! Elementwise tanh
-float __cinn_host_tanh_fp32(float x);
-float __cinn_host_ceil_fp32(float x);
-
-void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out);
-//@}
 
 #ifdef __cplusplus
 }

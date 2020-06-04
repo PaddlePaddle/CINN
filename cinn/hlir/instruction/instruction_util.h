@@ -14,9 +14,14 @@ Instruction* Sub(Instruction* a, Instruction* b);
 Instruction* Mul(Instruction* a, Instruction* b);
 Instruction* Div(Instruction* a, Instruction* b);
 
+//! Elementwise instructions
+// @{
 Instruction* Tanh(Instruction* x);
 Instruction* Ceil(Instruction* x);
 Instruction* Abs(Instruction* x);
+Instruction* Sigmoid(Instruction* x);
+Instruction* Exp(Instruction* x);
+// @}
 
 Instruction* Dot(Instruction* a, Instruction* b);
 

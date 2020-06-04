@@ -36,7 +36,7 @@ ExternalProject_Add(
 )
 
 if(${CMAKE_VERSION} VERSION_LESS "3.3.0")
-    set(dummyfile ${CMAKE_CURRENT_BINARY_DIR}/pybind_dummy.c ../../cinn/common/test_helper.cc ../../cinn/common/test_helper.h ../../cinn/hlir/instruction/primitive/elementwise.cc ../../cinn/hlir/instruction/primitive/elementwise.h ../../cinn/optim/activate_to_extern_call.cc ../../cinn/optim/activate_to_extern_call.h ../../cinn/hlir/instruction/primitive/conv.cc ../../cinn/hlir/instruction/primitive/conv.h)
+    set(dummyfile ${CMAKE_CURRENT_BINARY_DIR}/pybind_dummy.c ../../cinn/common/test_helper.cc ../../cinn/common/test_helper.h ../../cinn/hlir/instruction/primitive/elementwise.cc ../../cinn/hlir/instruction/primitive/elementwise.h ../../cinn/optim/activate_to_extern_call.cc ../../cinn/optim/activate_to_extern_call.h ../../cinn/hlir/instruction/primitive/conv.cc ../../cinn/hlir/instruction/primitive/conv.h ../../cinn/hlir/instruction/x86/cpu_intrisics.cc ../../cinn/hlir/instruction/x86/cpu_intrisics.h)
     file(WRITE ${dummyfile} "const char * dummy_pybind = \"${dummyfile}\";")
     add_library(pybind STATIC ${dummyfile})
 else()

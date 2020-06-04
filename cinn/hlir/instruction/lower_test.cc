@@ -8,6 +8,7 @@
 #include "cinn/backends/codegen_c.h"
 #include "cinn/hlir/instruction/instruction_util.h"
 #include "cinn/hlir/instruction/optimizer.h"
+#include "cinn/hlir/instruction/x86/math_registors.h"
 
 namespace cinn {
 namespace hlir {
@@ -60,6 +61,7 @@ TEST(Lower, computation) {
 }
 
 TEST(Lower, tanh) {
+  hlir::instruction::x86::RegisterMklMath();
   Context context;
   cinn::Var N("N");
 

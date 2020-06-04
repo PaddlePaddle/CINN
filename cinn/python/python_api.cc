@@ -50,6 +50,14 @@ void BindHlirApi(pybind11::module* m) {
            [](py_computation_builder& builder, py_instruction a) -> py_instruction {
              return hlir::instruction::Abs(a.data);
            })
+      .def("sigmoid",
+           [](py_computation_builder& builder, py_instruction a) -> py_instruction {
+             return hlir::instruction::Sigmoid(a.data);
+           })
+      .def("exp",
+           [](py_computation_builder& builder, py_instruction a) -> py_instruction {
+             return hlir::instruction::Exp(a.data);
+           })
       .def("conv",
            [](py_computation_builder& self,
               py_instruction I,

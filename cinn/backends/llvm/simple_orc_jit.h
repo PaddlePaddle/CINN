@@ -36,7 +36,7 @@ class SimpleOrcJit {
   static std::unique_ptr<SimpleOrcJit> Create();
 
   void AddModule(std::unique_ptr<llvm::Module> module, bool optimize = false);
-  void Link(const lang::Module &module, bool optimize = false);
+  void Link(const lang::Module &module, bool optimize = false, bool dump = false);
 
   void *Lookup(std::string_view name);
 

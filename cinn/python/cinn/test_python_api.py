@@ -99,7 +99,7 @@ class TestElementwise(unittest.TestCase):
         self.create_mul_comp()
 
         self.create_elementwise_comp("tanh0", lambda x: x.tanh)
-        # self.create_elementwise_comp("ceil0", lambda x: x.ceil)
+        self.create_elementwise_comp("ceil0", lambda x: x.ceil)
         self.create_elementwise_comp("abs0", lambda x: x.abs)
         # self.create_elementwise_comp("floor0", lambda x : x.floor)
 
@@ -228,7 +228,7 @@ class TestElementwise(unittest.TestCase):
         args = cinn.Args([self.batch_size, self.py_data0, self.py_out])
 
         for fn_name, np_fn in [("tanh0", np.tanh),
-                               # ("ceil0", np.ceil),
+                               ("ceil0", np.ceil),
                                ("abs0", np.abs),
                                ]:
             self.compiler.eval(fn_name, args)
@@ -236,7 +236,9 @@ class TestElementwise(unittest.TestCase):
 
     def test_complex_inline(self):
         args = cinn.Args([self.batch_size, self.py_data0, self.py_data1, self.py_out])
+
         self.compiler.eval("complex_inlined_", args)
+
 
         x = self.py_data0.numpy();
         y = self.py_data1.numpy();
