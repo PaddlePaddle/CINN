@@ -16,7 +16,6 @@
 #include <llvm/Transforms/Scalar/NewGVN.h>
 #include <llvm/Transforms/Scalar/Reassociate.h>
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
-#include "cinn/hlir/instruction/x86/math_registors.h"
 
 #include <cmath>
 #include <memory>
@@ -26,6 +25,7 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
+#include "cinn/runtime/cpu/math_registors.h"
 #include "cinn/runtime/intrinsic.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"

@@ -4,17 +4,17 @@
  */
 #include "cinn/runtime/cinn_runtime.h"
 
-namespace cinn {
-namespace runtime {
-namespace cpu {
+extern "C" {
 
-/**
- * \brief Do Tanh on a single float value.
- * @param args (float x, float* out)
- * @param nargs should be 2
- */
-void __cpu_tanh(cinn_pod_value_t* args, int nargs);
+float cinn_cpu_tanh_fp32(float a);
+float cinn_cpu_exp_fp32(float a);
+float cinn_cpu_ceil_fp32(float a);
+float cinn_cpu_floor_fp32(float a);
 
-}  // namespace cpu
-}  // namespace runtime
-}  // namespace cinn
+//! math extern functions
+//@{
+float __cinn_host_tanh_fp32(float x);
+float __cinn_host_ceil_fp32(float x);
+void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out);
+//@}
+}

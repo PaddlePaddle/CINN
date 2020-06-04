@@ -1,4 +1,11 @@
-set(srcs host_intrinsics.cc)
+set(srcs
+        host_intrinsics.cc
+        math_registors.cc
+        mkl_math.cc
+        )
+
+cc_test(test_mkl_math SRCS mkl_math_test.cc DEPS core)
+
 
 foreach(cpp ${srcs})
     set(core_src

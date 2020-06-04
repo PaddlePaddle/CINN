@@ -1,4 +1,4 @@
-#include "cinn/hlir/instruction/x86/mkl_math.h"
+#include "mkl_math.h"
 
 #include <glog/logging.h>
 #include <mkl.h>
