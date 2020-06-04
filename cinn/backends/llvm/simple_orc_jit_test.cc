@@ -1,6 +1,4 @@
 #include "cinn/backends/llvm/simple_orc_jit.h"
-#include "cinn/hlir/instruction/x86/cpu_intrisics.h"
-
 #include <glog/logging.h>
 #include <glog/raw_logging.h>
 #include <gtest/gtest.h>
@@ -10,6 +8,7 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
+#include "cinn/runtime/cpu/host_intrinsics.h"
 
 #include <algorithm>
 #include <cmath>

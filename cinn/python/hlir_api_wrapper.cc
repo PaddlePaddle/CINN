@@ -1,6 +1,6 @@
 #include "cinn/python/hlir_api_wrapper.h"
 
-#include "cinn/hlir/instruction/x86/math_registors.h"
+#include "cinn/runtime/cpu/math_registors.h"
 
 namespace cinn {
 namespace python {

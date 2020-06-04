@@ -5,7 +5,7 @@
 
 #include "cinn/backends/extern_func_emitter_builtin.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
-#include "cinn/hlir/instruction/x86/cpu_intrisics.h"
+#include "cinn/runtime/cpu/host_intrinsics.h"
 
 namespace cinn {
 namespace backends {

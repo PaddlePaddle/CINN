@@ -8,7 +8,7 @@
 #include "cinn/backends/codegen_c.h"
 #include "cinn/hlir/instruction/instruction_util.h"
 #include "cinn/hlir/instruction/optimizer.h"
-#include "cinn/hlir/instruction/x86/math_registors.h"
+#include "cinn/runtime/cpu/math_registors.h"
 
 namespace cinn {
 namespace hlir {

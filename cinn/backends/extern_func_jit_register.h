@@ -20,6 +20,9 @@
 #define REGISTER_EXTERN_FUNC(fn__, target__) \
   ::cinn::backends::RegisterExternFunction(#fn__, target__, reinterpret_cast<void*>(fn__))
 
+#define REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(fn__, target__, in_type__, out_type__) \
+  REGISTER_EXTERN_FUNC(fn__, target__).SetRetType<out_type__>().AddInputType<in_type__>().End()
+
 namespace cinn {
 namespace backends {
 

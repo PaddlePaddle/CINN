@@ -3,13 +3,12 @@
 #include "cinn/backends/llvm/simple_orc_jit.h"
 #include "cinn/cinn.h"
 #include "cinn/common/test_helper.h"
-#include "cinn/hlir/instruction/x86/cpu_intrisics.h"
-#include "cinn/hlir/instruction/x86/math_registors.h"
+#include "cinn/runtime/cpu/host_intrinsics.h"
+#include "math_registors.h"
 
 namespace cinn {
-namespace hlir {
-namespace instruction {
-namespace x86 {
+namespace runtime {
+namespace cpu {
 
 cinn_buffer_t *CreateBuffer(const std::vector<int> shape, bool random = true) {
   if (random) {
@@ -19,8 +18,6 @@ cinn_buffer_t *CreateBuffer(const std::vector<int> shape, bool random = true) {
 }
 
 void TestCallElementwise(const std::string &fn_name, float (*fn_runtime)(float), bool is_elementwise) {
-  RegisterMklMath();
-
   Expr M(10);
   Expr N(10);
   Placeholder<float> x("x", {M, N});
@@ -77,7 +74,6 @@ TEST(mkl_math, floor_fp32) { TestCallElementwise("cinn_cpu_floor_fp32", cinn_cpu
 TEST(mkl_math, exp_fp32) { TestCallElementwise("cinn_cpu_exp_fp32", cinn_cpu_exp_fp32, true); }
 TEST(mkl_math, tanh_v_fp32) { TestCallElementwise("cinn_mkl_tanh_v_fp32", cinn_cpu_tanh_fp32, false); }
 
-}  // namespace x86
-}  // namespace instruction
-}  // namespace hlir
+}  // namespace cpu
+}  // namespace runtime
 }  // namespace cinn

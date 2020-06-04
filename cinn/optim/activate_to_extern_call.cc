@@ -1,8 +1,8 @@
 #include "cinn/optim/activate_to_extern_call.h"
 
 #include "cinn/cinn.h"
-#include "cinn/hlir/instruction/x86/cpu_intrisics.h"
 #include "cinn/ir/ir_mutator.h"
+#include "cinn/runtime/cpu/host_intrinsics.h"
 
 namespace cinn {
 namespace optim {
