@@ -66,6 +66,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
     return CinnTypeToLLVMType(common::type_of<ty__>(), m); \
   }
 
+__(int8_t *)
 __(int32_t)
 __(int64_t)
 __(float)
@@ -74,6 +75,7 @@ __(cinn_buffer_t)
 __(cinn_buffer_t *)
 __(cinn_pod_value_t *)
 __(cinn_pod_value_t)
+__(void *)
 
 #undef __
 

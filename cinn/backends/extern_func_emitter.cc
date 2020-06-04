@@ -5,6 +5,7 @@
 
 #include "cinn/backends/extern_func_emitter_builtin.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
+#include "cinn/hlir/instruction/x86/cpu_intrisics.h"
 
 namespace cinn {
 namespace backends {
@@ -15,7 +16,7 @@ ExternFunctionEmitterRegistry& ExternFunctionEmitterRegistry::Global() {
 }
 
 void ExternFunctionEmitterRegistry::Register(const ExternFuncID& name, ExternFunctionEmitter* x) {
-  LOG(WARNING) << "Register extern function emitter [" << name << "]";
+  VLOG(1) << "Register extern function emitter [" << name << "]";
   CHECK(x);
   data_[name] = std::unique_ptr<ExternFunctionEmitter>(x);
 }

@@ -182,12 +182,12 @@ cinn_pod_value_t::cinn_pod_value_t(const char* value) : type_code_(type_code<cha
 }
 
 // @{
-float cinn_pod_value_to_float(cinn_pod_value_t value) { return value; }
-double cinn_pod_value_to_double(cinn_pod_value_t value) { return value; }
-int64_t cinn_pod_value_to_int64(cinn_pod_value_t value) { return value; }
-int32_t cinn_pod_value_to_int32(cinn_pod_value_t value) { return value; }
-void* cinn_pod_value_to_void_p(cinn_pod_value_t value) { return value; }
-cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t value) { return value; }
+float cinn_pod_value_to_float(cinn_pod_value_t* value) { return *value; }
+double cinn_pod_value_to_double(cinn_pod_value_t* value) { return *value; }
+int64_t cinn_pod_value_to_int64(cinn_pod_value_t* value) { return *value; }
+int32_t cinn_pod_value_to_int32(cinn_pod_value_t* value) { return *value; }
+void* cinn_pod_value_to_void_p(cinn_pod_value_t* value) { return *value; }
+cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value) { return *value; }
 // @}
 
 // @{
@@ -258,18 +258,5 @@ void cinn_args_construct(cinn_pod_value_t* arr, int count, ...) {
   }
   va_end(args);
 }
-
-float __cinn_host_tanh_fp32(float x) { return std::tanh(x); }
-void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
-  CINN_CHECK_EQ(x->num_elements(), out->num_elements());
-  int xn         = x->num_elements();
-  auto* x_data   = (float*)(x->host_memory);
-  auto* out_data = (float*)(out->host_memory);
-  for (int i = 0; i < x->num_elements(); i++) {
-    out_data[i] = __cinn_host_tanh_fp32(x_data[i]);
-  }
-}
-
-float __cinn_host_ceil_fp32(float x) { return std::ceil(x); }
 
 #include "cinn/runtime/cinn_x86_device_impl.cc"

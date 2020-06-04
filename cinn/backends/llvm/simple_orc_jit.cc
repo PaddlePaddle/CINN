@@ -16,6 +16,7 @@
 #include <llvm/Transforms/Scalar/NewGVN.h>
 #include <llvm/Transforms/Scalar/Reassociate.h>
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
+#include "cinn/hlir/instruction/x86/math_registors.h"
 
 #include <cmath>
 #include <memory>
@@ -125,11 +126,11 @@ void SimpleOrcJit::AddModule(std::unique_ptr<llvm::Module> module, bool optimize
   }
 
   llvm::orc::ThreadSafeModule tsm(std::move(module), context_);
-  [[maybe_unused]] auto error = jit_->addIRModule(std::move(tsm));
-  CHECK(!error) << "LLVM link module failed";
+  // llvm::cantFail(jit_->addIRModule(*main_jd_, std::move(tsm)));
+  llvm::cantFail(jit_->addIRModule(std::move(tsm)));
 }
 
-void SimpleOrcJit::Link(const lang::Module &module, bool optimize) {
+void SimpleOrcJit::Link(const lang::Module &module, bool optimize, bool dump) {
   std::string runtime_ir(backends::kRuntimeLlvmIr);
   llvm::SMDiagnostic error;
   auto m = llvm::parseAssemblyString(runtime_ir, error, context());
@@ -141,55 +142,73 @@ void SimpleOrcJit::Link(const lang::Module &module, bool optimize) {
     ir_emitter->Visit(&expr);
   }
 
-  bool dump_jit = false;
   for (auto &fn : module.functions()) {
-    LOG(WARNING) << "JIT Linking function [" << fn->name << "]";
+    VLOG(1) << "JIT Linking function [" << fn->name << "]";
     ir::Expr fn_expr(fn);
 
     auto *fn_ = ir_emitter->Visit(&fn_expr);
 
-    VLOG(1) << DumpToString(*fn_);
+    if (dump) LOG(INFO) << DumpToString(*fn_);
   }
 
-  if (dump_jit) {
+  if (dump) {
     LOG(INFO) << "======= dump jit lib[begin] ==========";
     std::string buffer;
     llvm::raw_string_ostream os(buffer);
     main_jd_->dump(os);
     os.flush();
     LOG(INFO) << buffer;
-  };
+  }
+
   AddModule(std::move(m), optimize);
-  if (dump_jit) {
+
+  if (dump) {
     LOG(INFO) << "======= dump jit lib[end] ==========";
     std::string buffer;
     llvm::raw_string_ostream os(buffer);
     main_jd_->dump(os);
     os.flush();
     LOG(INFO) << buffer;
-  };
+  }
+
+  for (auto &fn : module.functions()) {
+    CHECK(Lookup(fn->name)) << "CINN fn " << fn->name << " not found after link";
+  }
 }
 
 void *SimpleOrcJit::Lookup(std::string_view name) {
   std::lock_guard<std::mutex> lock(mu_);
+  LOG(INFO) << "to lookup fn " << name;
+
+  LOG(INFO) << "dump main_";
+  std::string buffer;
+  llvm::raw_string_ostream os(buffer);
+  main_jd_->dump(os);
+  os.flush();
+  LOG(INFO) << buffer;
 
   if (auto symbol = jit_->lookup(AsStringRef(name))) {
     return reinterpret_cast<void *>(symbol->getAddress());
   }
 
+  LOG(INFO) << "done lookup fn " << name;
+
   return nullptr;
 }
 
 void SimpleOrcJit::RegisterRuntimeSymbols() {
+  hlir::instruction::x86::RegisterMklMath();
+
   llvm::orc::SymbolMap symbols;
   auto &registry = RuntimeSymbolRegistry::Global();
 
   for (const auto &[k, v] : registry.All()) {
-    LOG(INFO) << "Insert runtime symbol " << k << " to JIT system";
+    VLOG(1) << "Insert runtime symbol " << k << " to JIT system";
     symbols.insert({mangle_(k), {llvm::pointerToJITTargetAddress(v), llvm::JITSymbolFlags::None}});
   }
 
-  [[maybe_unused]] auto unused = main_jd_->define(llvm::orc::absoluteSymbols(std::move(symbols)));
+  auto error = main_jd_->define(llvm::orc::absoluteSymbols(std::move(symbols)));
+  CHECK(!error) << "JIT add runtime symbols failed!";
 }
 
 namespace {

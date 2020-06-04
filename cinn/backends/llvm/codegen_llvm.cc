@@ -17,6 +17,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/intrinsic.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace backends {
@@ -239,8 +240,10 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
       LOG(ERROR) << "can't cast cinn_pod_value_t to " << op->type();
       NOT_IMPLEMENTED
     }
-    CHECK(callee);
 
+    CHECK(callee);
+    CHECK(op->v().as_var()) << "argument to the intrinsic function cinn_pod_value_to_x should be a Var";
+    value = GetVar(op->v().as_var()->name);
     return Call(callee, std::vector<llvm::Value *>({value}), "pod_value_cast");
   }
 
@@ -457,7 +460,33 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
     args.push_back(Visit(&e));
   }
 
-  return Call(callee, std::move(args), "calltmp");
+  if (op->is_cinn_call()) {
+    args[0] = BitCast(args[0], llvm_type_of<int8_t *>(m_));
+  }
+  if (op->is_intrinsic_call() && op->name == runtime::args_construct_repr) {
+    args[0] = BitCast(args[0], llvm_type_of<cinn_pod_value_t *>(m_));
+  }
+
+  // Type cast statements in the head section of a CINN function.
+  if (utils::Startswith(op->name, "cinn_pod_value_to_")) {
+    CHECK_EQ(op->read_args.size(), 1UL);
+    CHECK_EQ(op->write_args.size(), 0UL);
+
+    // prepare the argument
+    auto arg_load = op->read_args.front().As<ir::Load>();
+    CHECK(arg_load->tensor.As<ir::Cast>()) << "get " << arg_load->tensor;
+    auto _array_ptr       = arg_load->tensor.As<ir::Cast>()->v();
+    auto array_ptr        = GetVar(_array_ptr.as_var()->name);
+    auto cast_to_pod_arr  = BitCast(array_ptr, llvm_type_of<cinn_pod_value_t *>(m_));
+    auto indice           = arg_load->index();
+    auto *get_element_ptr = b_->CreateGEP(llvm_type_of<cinn_pod_value_t>(m_), cast_to_pod_arr, Visit(&indice), "");
+    args.clear();
+    args.push_back(get_element_ptr);
+
+    return Call(callee, std::move(args), "cinn_pod_value_to_");
+  }
+
+  return Call(callee, std::move(args));
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }

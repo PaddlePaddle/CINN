@@ -1,7 +1,9 @@
 set(srcs
         mkl_math.cc
-        mkl_math_registors.cc
+        math_registors.cc
+        cpu_intrisics.cc
         )
+cc_library(cpu_math SHARED SRCS mkl_math.cc DEPS mklml)
 
 cc_test(test_mkl_math SRCS mkl_math_test.cc DEPS core)
 

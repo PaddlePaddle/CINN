@@ -111,9 +111,9 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   for (auto& node : group.nodes) {
     if (node->stage->has_expression()) {
       stages.push_back(node->stage);
-      LOG(INFO) << "stage expr " << node->stage->expr();
+      VLOG(1) << "stage expr " << node->stage->expr();
     } else {
-      LOG(INFO) << "stage expression is null: " << node->stage->domain();
+      VLOG(1) << "stage expression is null: " << node->stage->domain();
     }
   }
 
@@ -280,7 +280,7 @@ struct LowerImpl {
 
       Expr group_expr = LowerGroup(group, tuple_to_expr);
       if (group_expr.defined()) {
-        LOG(INFO) << "group expr:\n" << group_expr;
+        VLOG(1) << "group expr:\n" << group_expr;
         exprs.push_back(group_expr);
       }
     }

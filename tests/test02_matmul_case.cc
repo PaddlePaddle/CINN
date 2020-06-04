@@ -145,4 +145,11 @@ TEST(test02, basic) {
     auto matmul_fn = reinterpret_cast<void (*)(void**, int32_t)>(jit->Lookup("matmul"));
     TEST_FUNC(matmul_fn);
   }
+
+  {
+    auto module    = cinn::tests::CreateModule("module", 1024, 1024, 1024);
+    auto jit       = cinn::tests::CreateSimpleJit(module);
+    auto matmul_fn = reinterpret_cast<void (*)(void**, int32_t)>(jit->Lookup("matmul"));
+    TEST_FUNC(matmul_fn);
+  }
 }

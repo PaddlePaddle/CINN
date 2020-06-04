@@ -9,12 +9,12 @@ namespace cinn {
 namespace hlir {
 namespace instruction {
 
-Compiler::Compiler() { jit_ = cinn::backends::SimpleOrcJit::Create(); }
+Compiler::Compiler() { jit_ = cinn::backends::SimpleJIT::Create(); }
 
 void Compiler::Eval(const std::string &name, cinn_pod_value_t *args, int args_num) {
   auto addr = jit_->Lookup(name);
   auto *fn  = reinterpret_cast<void (*)(void *, int32_t)>(addr);
-  CHECK(fn);
+  CHECK(fn) << "No function called [" << name << "] in JIT engine.";
 
   fn(args, args_num);
 }
@@ -40,7 +40,7 @@ void Compiler::Eval(const Module *module, cinn_pod_value_t *args, int args_num, 
 lowered_func_p Compiler::Compile(const Module *module) {
   auto cinn_module = Lower(*module, true);
 
-  jit_->Link(cinn_module, /*optimize=*/false);
+  jit_->Link(cinn_module, /*optimize=*/true);
 
   if (module->entry_computation()) {
     auto entry_fn_name = module->entry_computation()->name();

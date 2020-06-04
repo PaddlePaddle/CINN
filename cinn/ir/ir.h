@@ -351,6 +351,9 @@ struct Activate : public UnaryOpNode<Activate> {
   enum class Kind {
     kTanh,
     kSigmoid,
+    kExp,
+    kCeil,
+    kFloor,
   };
   Kind kind;
 

@@ -41,7 +41,7 @@ class ExternFunctionLLVMEmitter : public ExternFunctionEmitter {
  protected:
   void EmitImpl(const ir::Call* op) override;
   FunctionProto& fn_proto() const;
-  llvm::Type* llvm_fn_type() const;
+  llvm::FunctionType* llvm_fn_type() const;
 
   CodeGenLLVM* codegen_{};
   std::string fn_name_;

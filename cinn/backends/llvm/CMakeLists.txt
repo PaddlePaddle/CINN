@@ -4,8 +4,8 @@ add_definitions(${LLVM_DEFINITIONS})
 
 add_custom_command(
   OUTPUT ${CMAKE_BINARY_DIR}/cinn/backends/llvm/cinn_runtime_llvm_ir.h
-  COMMAND clang++ -mavx2 -std=c++11 -masm=intel -S -emit-llvm -O3 ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc -I${PROJECT_SOURCE_DIR}
-  COMMAND python3 generate_runtime_llvm_ir.py ${PROJECT_SOURCE_DIR}/cinn/backends/llvm/cinn_runtime.ll ${CMAKE_BINARY_DIR}/cinn/backends/llvm/cinn_runtime_llvm_ir.h
+  COMMAND clang++ -mavx2 -std=c++11 -masm=intel -S -emit-llvm -O3 ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc -I${PROJECT_SOURCE_DIR} -o ${CMAKE_BINARY_DIR}/cinn/runtime/cinn_runtime.ll
+  COMMAND python3 generate_runtime_llvm_ir.py ${CMAKE_BINARY_DIR}/cinn/runtime/cinn_runtime.ll ${CMAKE_BINARY_DIR}/cinn/backends/llvm/cinn_runtime_llvm_ir.h
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/cinn/backends/llvm
   DEPENDS ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.h
   )
@@ -19,6 +19,7 @@ set(srcs
   runtime_symbol_registry.cc
   codegen_llvm.cc
   simple_orc_jit.cc
+  simple_jit.cc
   )
 
 cc_test(test_codegen_llvm SRCS codegen_llvm_test.cc DEPS core)

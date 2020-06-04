@@ -46,6 +46,16 @@ Instruction* Ceil(Instruction* x) {
   CHECK(builder);
   return builder->AddInstruction(Instruction::CreateUnary(InstrCode::Ceil, x));
 }
+Instruction* Sigmoid(Instruction* x) {
+  auto* builder = InstructionGetComputationBuilder(x);
+  CHECK(builder);
+  return builder->AddInstruction(Instruction::CreateUnary(InstrCode::Sigmoid, x));
+}
+Instruction* Exp(Instruction* x) {
+  auto* builder = InstructionGetComputationBuilder(x);
+  CHECK(builder);
+  return builder->AddInstruction(Instruction::CreateUnary(InstrCode::Exp, x));
+}
 
 Instruction* Dot(Instruction* a, Instruction* b) {
   auto* builder = BinaryOpParamBuilderCheck(a, b);

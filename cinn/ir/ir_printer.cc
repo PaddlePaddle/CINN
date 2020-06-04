@@ -44,6 +44,15 @@ void IrPrinter::Visit(const Activate *x) {
     case Activate::Kind::kSigmoid:
       os() << "sigmoid";
       break;
+    case Activate::Kind::kCeil:
+      os() << "ceil";
+      break;
+    case Activate::Kind::kFloor:
+      os() << "floor";
+      break;
+    case Activate::Kind::kExp:
+      os() << "exp";
+      break;
     default:
       NOT_IMPLEMENTED
   }

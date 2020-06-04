@@ -165,7 +165,7 @@ isl::set _Tensor_::GenerateIslDomain() {
     }
   }
   poly::Domain isl_domain(Context::Global().isl_ctx(), name, dims);
-  LOG(INFO) << "domain: " << isl_domain.__str__();
+  VLOG(1) << "domain: " << isl_domain.__str__();
   return isl_domain.to_isl();
 }
 

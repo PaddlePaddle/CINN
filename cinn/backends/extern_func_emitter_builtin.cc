@@ -112,7 +112,7 @@ FunctionProto& ExternFunctionLLVMEmitter::fn_proto() const {
   CHECK(proto) << "No function prototype found for " << fn_name_;
   return *proto;
 }
-llvm::Type* ExternFunctionLLVMEmitter::llvm_fn_type() const {
+llvm::FunctionType* ExternFunctionLLVMEmitter::llvm_fn_type() const {
   auto* proto = ExternFunctionProtoRegistry::Global().Lookup(fn_name_);
   CHECK(proto) << "No function prototype found for " << fn_name_;
 
@@ -124,7 +124,8 @@ llvm::Type* ExternFunctionLLVMEmitter::llvm_fn_type() const {
   for (auto& t : proto->mutable_arg_types) {
     arg_types.push_back(CinnTypeToLLVMType(t, codegen_->m()));
   }
-  return llvm_ret_type;
+  auto* fn_type = llvm::FunctionType::get(llvm_ret_type, arg_types, false);
+  return fn_type;
 }
 const char* ExternFunctionLLVMEmitter::backend_kind() const { return nullptr; }
 
@@ -140,11 +141,17 @@ void ExternFunctionLLVMEmitter::EmitImpl(const ir::Call* op) {
   for (auto& v : op->read_args) {
     if (v.as_tensor()) {
       args.push_back(codegen_for_emitter.GetVar(v.as_tensor()->buffer->name, false));
+    } else {
+      auto* arg = codegen_->Visit(&v);
+      args.push_back(arg);
     }
   }
   for (auto& v : op->write_args) {
     if (v.as_tensor()) {
       args.push_back(codegen_for_emitter.GetVar(v.as_tensor()->buffer->name, false));
+    } else {
+      auto* arg = codegen_->Visit(&v);
+      args.push_back(arg);
     }
   }
 

@@ -17,6 +17,7 @@ const int kHlirVarientArgusCode = -1;
     op__(Sigmoid, "sigmoid", 1)                            \
     op__(Floor, "floor", 1)                                \
     op__(Ceil, "ceil", 1)                                  \
+    op__(Exp, "exp", 1)                                    \
     op__(Compare, "compare", 2)                            \
     op__(Parameter, "parameter", 0)                        \
     op__(Input, "input", 0)                                \

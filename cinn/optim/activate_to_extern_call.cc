@@ -1,6 +1,7 @@
 #include "cinn/optim/activate_to_extern_call.h"
 
 #include "cinn/cinn.h"
+#include "cinn/hlir/instruction/x86/cpu_intrisics.h"
 #include "cinn/ir/ir_mutator.h"
 
 namespace cinn {
@@ -15,9 +16,15 @@ void ActivateToExternCall(Expr *e) {
       operator()(&node->operand(0));
 
       switch (node->kind) {
-        case ir::Activate::Kind::kTanh:
-          *expr = lang::CallExtern("tanh", {node->operand(0)});
-          break;
+#define __(code__, func__)                                 \
+  case ir::Activate::Kind::code__:                         \
+    *expr = lang::CallExtern(#func__, {node->operand(0)}); \
+    break;
+        __(kTanh, cinn_cpu_tanh_fp32)
+        __(kCeil, cinn_cpu_ceil_fp32)
+        __(kFloor, cinn_cpu_floor_fp32)
+        __(kExp, cinn_cpu_exp_fp32)
+#undef __
         default:
           NOT_IMPLEMENTED
       }

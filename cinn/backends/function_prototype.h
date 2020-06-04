@@ -87,6 +87,8 @@ class FunctionProtoRegistry {
 
   FunctionProto* Lookup(const std::string& name);
 
+  std::string debug_string() const;
+
  private:
   std::unordered_map<std::string, std::unique_ptr<FunctionProto>> data_;
 };

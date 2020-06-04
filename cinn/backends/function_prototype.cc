@@ -22,9 +22,9 @@ bool FunctionProto::Match(const ir::Call *op) const {
 
 void FunctionProto::AssertMatch(const ir::Call *op) const {
   CHECK_EQ(name, op->name);
-  CHECK_EQ(ret_type, op->type());
-  CHECK_EQ(op->read_args.size(), readonly_arg_types.size());
-  CHECK_EQ(op->write_args.size(), mutable_arg_types.size());
+  CHECK_EQ(ret_type, op->type()) << "function proto " << name << " check failed";
+  CHECK_EQ(op->read_args.size(), readonly_arg_types.size()) << "function proto " << name << " check failed";
+  CHECK_EQ(op->write_args.size(), mutable_arg_types.size()) << "function proto " << name << " check failed";
 
   auto get_type = [](Expr u) {
     if (u.as_tensor() || u.as_buffer()) {
@@ -89,10 +89,18 @@ FunctionProto *FunctionProtoRegistry::Lookup(const std::string &name) {
 }
 
 FunctionProto *FunctionProtoRegistry::Register(std::string_view name, FunctionProto *x) {
-  LOG(INFO) << "Register function prototype "
-            << "[" << name << "]";
+  VLOG(1) << "Register function prototype "
+          << "[" << name << "]";
   data_.emplace(name, std::unique_ptr<FunctionProto>(x));
   return x;
+}
+
+std::string FunctionProtoRegistry::debug_string() const {
+  std::stringstream ss;
+  for (auto &item : data_) {
+    ss << item.first << "\n";
+  }
+  return ss.str();
 }
 }  // namespace backends
 }  // namespace cinn

@@ -144,6 +144,12 @@ template <> inline Type type_of<signed char>() { return Int(8); }
 template <> inline Type type_of<void>() { return Void(); }
 // clang-format on
 template <>
+inline Type type_of<int8_t*>() {
+  Type x = Int(8);
+  x.set_cpp_handle();
+  return x;
+}
+template <>
 inline Type type_of<void*>() {
   Type x = type_of<void>();
   x.set_cpp_handle();
