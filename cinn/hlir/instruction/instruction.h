@@ -174,7 +174,7 @@ class Instruction {
   void* belonged_computation_builder() { return belonged_computation_builder_; }
   void set_belonged_computation_builder(void* x) { belonged_computation_builder_ = x; }
 
-  virtual std::string to_debug_string();
+  virtual std::string to_debug_string() const;
 
   inline const Shape& shape() const { return shape_; }
   inline const type_t& type() const { return type_; }
@@ -191,6 +191,9 @@ class Instruction {
   void AddUser(Instruction* user);
   //! Remove usage relation.
   void RemoveUser(Instruction* user);
+
+  void set_lower_kind(const std::string& x) { lower_kind_ = x; }
+  const std::string& kind() const { return lower_kind_; }
 
  protected:
   Instruction(InstrCode code, const Shape& shape) : instr_code_(code), shape_(shape) {}
@@ -213,6 +216,8 @@ class Instruction {
   bool inlined_{false};
   type_t type_{Void()};
   void* belonged_computation_builder_{};
+  //! Control which kind of the LowerImpl this instruction will use, this field can set by some analysis pass.
+  std::string lower_kind_{"base"};
 };
 
 }  // namespace instruction

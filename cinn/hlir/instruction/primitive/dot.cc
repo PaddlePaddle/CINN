@@ -1,6 +1,8 @@
 #include "cinn/hlir/instruction/primitive/dot.h"
 
 #include "cinn/common/ir_util.h"
+#include "cinn/hlir/instruction/lower.h"
+#include "cinn/hlir/instruction/lower_impl.h"
 
 namespace cinn {
 namespace hlir {
@@ -83,6 +85,24 @@ Tensor DotImpl::operator()(const Tensor &a, const Tensor &b, const std::string &
 
   return res;
 }
+
+class DotLowerImpl : public LowerImplBase {
+ public:
+  DotLowerImpl(InstrCode code) : LowerImplBase(code) {}
+
+  void Run(Instruction *instr, Context *context, ModuleLower *module_lower) override {
+    CHECK_EQ(instr->operand_count(), 2UL) << "Dot should take two arguments";
+    Expr x = module_lower->scope().Lookup(instr->operand(0));
+    Expr y = module_lower->scope().Lookup(instr->operand(1));
+    CHECK(x.defined());
+    CHECK(y.defined());
+
+    auto out = DotImpl(context)(x.as_tensor_ref(), y.as_tensor_ref(), context->new_var_name("dot_out"));
+    module_lower->scope().Insert(instr, out);
+  }
+};
+
+static LowerImplRegistrar<DotLowerImpl> x("base", InstrCode::Dot);
 
 }  // namespace primitive
 }  // namespace instruction

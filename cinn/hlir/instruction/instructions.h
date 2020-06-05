@@ -13,7 +13,7 @@ class ParameterInstruction : public Instruction {
   ParameterInstruction(int param_offset, const std::string& name, const Shape& shape)
       : name_(name), Instruction(InstrCode::Parameter, shape), param_offset_(param_offset) {}
 
-  std::string to_debug_string() override;
+  std::string to_debug_string() const override;
 
   const std::string& name() const { return name_; }
 
@@ -114,7 +114,7 @@ class CallInstruction : public Instruction {
 
   const Computation* computation() const { return computation_; }
 
-  std::string to_debug_string() override;
+  std::string to_debug_string() const override;
 
  private:
   std::vector<std::string> ret_tensor_names_;
@@ -153,7 +153,7 @@ class Tuple : public Instruction {
 
   const Instruction* call() const { return call_; }
   const std::vector<Instruction*>& items() const { return items_; }
-  std::string to_debug_string() override;
+  std::string to_debug_string() const override;
 
  private:
   const Instruction* call_;

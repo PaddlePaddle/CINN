@@ -1,5 +1,8 @@
 #include "cinn/hlir/instruction/primitive/elementwise.h"
 
+#include "cinn/hlir/instruction/lower.h"
+#include "cinn/hlir/instruction/lower_impl.h"
+
 namespace cinn {
 namespace hlir {
 namespace instruction {
@@ -65,19 +68,50 @@ ir::Tensor Tanh(const ir::Tensor& a, const std::string& name) {
   });
 }
 
+ir::Tensor Sigmoid(const ir::Tensor& a, const std::string& name) {
+  return Compute(a->shape, [a](const std::vector<Expr>& indice) -> Expr {
+    return ir::Activate::Make(ir::Activate::Kind::kSigmoid, a(indice));
+  });
+}
+
 ir::Tensor Exp(const ir::Tensor& a, const std::string& name) {
   return Compute(a->shape, [a](const std::vector<Expr>& indice) -> Expr {
     return ir::Activate::Make(ir::Activate::Kind::kExp, a(indice));
   });
 }
 
-ir::Tensor Sigmoid(const ir::Tensor& a, const std::string& name) {
-  // 1 / exp(-x)
-  return Compute(a->shape, [a](const std::vector<Expr>& indice) -> Expr {
-    return make_const(a->type(), 1.f) /
-           ir::Activate::Make(ir::Activate::Kind::kExp, make_const(a->type(), -1.f) * a(indice));
-  });
-}
+struct ElementwiseLowerImpl : public LowerImplBase {
+  ElementwiseLowerImpl(InstrCode code) : LowerImplBase(code) {}
+
+  void Run(Instruction* instr, Context* context, ModuleLower* module_lower) override {
+    CHECK_EQ(instr->operand_count(), 1UL) << "Elementwise instruction should take only one argument";
+    Expr x = module_lower->scope().Lookup(instr->operand(0));
+    CHECK(x.defined()) << "Tensor not found for instruction: " << instr->operand(0)->to_debug_string();
+    switch (code_) {
+#define __(code__)                                                                                                     \
+  case InstrCode::code__:                                                                                              \
+    module_lower->scope().Insert(instr->operand(0), code__(x.as_tensor_ref(), context->new_var_name(#code__ "_out"))); \
+    break;
+
+      __(Tanh)
+      __(Ceil)
+      __(Abs)
+      __(Sign)
+
+      default:
+        LOG(FATAL) << "ElementwiseLowerImpl not support op " << code_;
+
+#undef __
+    }
+  }
+
+ private:
+  InstrCode code_;
+};
+
+static instruction::LowerImplRegistrar<ElementwiseLowerImpl> registrar0("base", InstrCode::Tanh);
+static instruction::LowerImplRegistrar<ElementwiseLowerImpl> registrar1("base", InstrCode::Ceil);
+static instruction::LowerImplRegistrar<ElementwiseLowerImpl> registrar2("base", InstrCode::Abs);
 
 }  // namespace primitive
 }  // namespace instruction

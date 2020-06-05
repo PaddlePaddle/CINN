@@ -15,6 +15,8 @@ set(srcs
         shape_inference.cc
         instruction_util.cc
         graph.cc
+        lower_impl.cc
+        schedule_impl.cc
         )
 
 add_subdirectory(primitive)

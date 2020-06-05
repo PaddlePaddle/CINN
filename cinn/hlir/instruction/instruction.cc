@@ -176,7 +176,7 @@ const Instruction *Instruction::operand(int i) const {
   return operands_[i];
 }
 
-std::string Instruction::to_debug_string() {
+std::string Instruction::to_debug_string() const {
   std::stringstream ss;
 
   ss << "%" << id() << " :" << type() << " " << shape().to_debug_string();
