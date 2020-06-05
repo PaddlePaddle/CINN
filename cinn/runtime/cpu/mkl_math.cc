@@ -3,8 +3,10 @@
 #include <glog/logging.h>
 #include <mkl.h>
 #include <mkl_vml_functions.h>
-
 #include <cmath>
+#include "cinn/backends/extern_func_jit_register.h"
+#include "cinn/backends/function_prototype.h"
+#include "cinn/runtime/cpu/host_intrinsics.h"
 
 void cinn_mkl_tanh_v_fp32(cinn_buffer_t *x, cinn_buffer_t *out) {
   CHECK_EQ(x->num_elements(), out->num_elements());
@@ -29,3 +31,47 @@ void cinn_mkl_cos_v_fp64(cinn_buffer_t *x, cinn_buffer_t *out) {
   vdCosh(x->num_elements(), reinterpret_cast<double *>(x->host_memory), reinterpret_cast<double *>(out->host_memory));
 }
 */
+
+namespace cinn {
+namespace hlir {
+namespace instruction {
+namespace x86 {
+using backends::FunctionProto;
+
+namespace {
+
+struct RegisterMklMath {
+  RegisterMklMath() {
+    auto host_target = common::DefaultHostTarget();
+
+    REGISTER_EXTERN_FUNC(cinn_mkl_tanh_v_fp32, host_target)
+        .SetRetType<void>()
+        .AddInputType<cinn_buffer_t *>()
+        .AddOutputType<cinn_buffer_t *>()
+        .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
+        .End();
+
+    REGISTER_EXTERN_FUNC(cinn_mkl_tanh_v_fp64, host_target)
+        .SetRetType<void>()
+        .AddInputType<cinn_buffer_t *>()
+        .AddOutputType<cinn_buffer_t *>()
+        .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
+        .End();
+
+    REGISTER_EXTERN_FUNC(cinn_mkl_exp_v_fp32, host_target)
+        .SetRetType<void>()
+        .AddInputType<cinn_buffer_t *>()
+        .AddOutputType<cinn_buffer_t *>()
+        .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
+        .End();
+  }
+};
+
+[[maybe_unused]] static RegisterMklMath x;
+
+}  // namespace
+
+}  // namespace x86
+}  // namespace instruction
+}  // namespace hlir
+}  // namespace cinn

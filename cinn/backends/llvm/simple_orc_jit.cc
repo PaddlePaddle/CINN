@@ -25,7 +25,6 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
-#include "cinn/runtime/cpu/math_registors.h"
 #include "cinn/runtime/intrinsic.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
@@ -178,27 +177,15 @@ void SimpleOrcJit::Link(const lang::Module &module, bool optimize, bool dump) {
 
 void *SimpleOrcJit::Lookup(std::string_view name) {
   std::lock_guard<std::mutex> lock(mu_);
-  LOG(INFO) << "to lookup fn " << name;
-
-  LOG(INFO) << "dump main_";
-  std::string buffer;
-  llvm::raw_string_ostream os(buffer);
-  main_jd_->dump(os);
-  os.flush();
-  LOG(INFO) << buffer;
 
   if (auto symbol = jit_->lookup(AsStringRef(name))) {
     return reinterpret_cast<void *>(symbol->getAddress());
   }
 
-  LOG(INFO) << "done lookup fn " << name;
-
   return nullptr;
 }
 
 void SimpleOrcJit::RegisterRuntimeSymbols() {
-  hlir::instruction::x86::RegisterMklMath();
-
   llvm::orc::SymbolMap symbols;
   auto &registry = RuntimeSymbolRegistry::Global();
 

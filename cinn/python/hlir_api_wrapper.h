@@ -13,7 +13,6 @@
 #include "cinn/hlir/instruction/instruction.h"
 #include "cinn/hlir/instruction/module.h"
 #include "cinn/hlir/instruction/optimizer.h"
-#include "cinn/runtime/cpu/math_registors.h"
 
 namespace cinn {
 namespace python {
