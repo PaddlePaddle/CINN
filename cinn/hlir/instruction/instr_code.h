@@ -14,6 +14,7 @@ const int kHlirVarientArgusCode = -1;
     op__(And, "and", 2)                                    \
     op__(Or, "or", 2)                                      \
     op__(Tanh, "tanh", 1)                                  \
+    op__(Sign, "sign", 1)                                  \
     op__(Sigmoid, "sigmoid", 1)                            \
     op__(Floor, "floor", 1)                                \
     op__(Ceil, "ceil", 1)                                  \

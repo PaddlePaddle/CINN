@@ -9,7 +9,6 @@ add_custom_command(
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/cinn/backends/llvm
   DEPENDS ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.cc ${PROJECT_SOURCE_DIR}/cinn/runtime/cinn_runtime.h
   )
-
 add_custom_target(GEN_LLVM_RUNTIME_IR_HEADER ALL
   DEPENDS ${CMAKE_BINARY_DIR}/cinn/backends/llvm/cinn_runtime_llvm_ir.h
   )

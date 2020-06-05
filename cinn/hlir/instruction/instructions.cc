@@ -11,7 +11,7 @@ namespace instruction {
 using cinn::utils::GetStreamCnt;
 using cinn::utils::StringFormat;
 
-std::string ParameterInstruction::to_debug_string() {
+std::string ParameterInstruction::to_debug_string() const {
   std::stringstream ss;
   ss << "%";
   ss << StringFormat("%s :%s%s = parameter(%s)",
@@ -24,7 +24,7 @@ std::string ParameterInstruction::to_debug_string() {
 
 std::string ParameterInstruction::id() const { return name_ + std::to_string(id_); }
 
-std::string CallInstruction::to_debug_string() {
+std::string CallInstruction::to_debug_string() const {
   std::stringstream ss;
   ss << "%" << id() << ": " << type() << shape().to_debug_string();
   ss << " = ";
@@ -43,7 +43,7 @@ std::string CallInstruction::to_debug_string() {
 }
 
 std::unique_ptr<Instruction> Tuple::Get(int i) { return Instruction::CreateTupleGet(this, i); }
-std::string Tuple::to_debug_string() {
+std::string Tuple::to_debug_string() const {
   std::stringstream ss;
   std::vector<std::string> vs;
   for (int i = 0; i < operand_count(); i++) vs.push_back("%" + operand(i)->id());

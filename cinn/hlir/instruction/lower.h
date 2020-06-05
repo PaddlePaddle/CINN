@@ -31,6 +31,8 @@ class ModuleLower {
   //! Lower a module.
   cinn::Module operator()(const Module* module, bool display_C_code = false);
 
+  Scope scope() { return scope_; }
+
  private:
   //! Lower a computation.
   cinn::Expr LowerComputation(const Computation* computation);
