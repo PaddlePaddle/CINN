@@ -1,5 +1,6 @@
 #include "cinn/backends/function_prototype.h"
 
+#include <iostream>
 #include "cinn/lang/tensor.h"
 
 namespace cinn {
@@ -89,8 +90,8 @@ FunctionProto *FunctionProtoRegistry::Lookup(const std::string &name) {
 }
 
 FunctionProto *FunctionProtoRegistry::Register(std::string_view name, FunctionProto *x) {
-  VLOG(1) << "Register function prototype "
-          << "[" << name << "]";
+  std::cerr << "Register function prototype "
+            << "[" << name << "]" << std::endl;
   data_.emplace(name, std::unique_ptr<FunctionProto>(x));
   return x;
 }

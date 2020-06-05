@@ -4,7 +4,6 @@
 #include "cinn/cinn.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
-#include "math_registors.h"
 
 namespace cinn {
 namespace runtime {

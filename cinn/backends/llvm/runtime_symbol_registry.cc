@@ -1,5 +1,6 @@
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 
+#include <iostream>
 #include <string_view>
 
 namespace cinn {
@@ -21,7 +22,7 @@ void *RuntimeSymbolRegistry::Lookup(std::string_view name) const {
 }
 
 void RuntimeSymbolRegistry::Register(const std::string &name, void *address) {
-  VLOG(1) << "JIT Register function " << name;
+  std::cerr << "JIT Register function " << name << std::endl;
   std::lock_guard<std::mutex> lock(mu_);
   CHECK(address) << "Register a NULL symbol";
   auto it = symbols_.find(name);

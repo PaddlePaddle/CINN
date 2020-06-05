@@ -1,7 +1,5 @@
 #include "cinn/python/hlir_api_wrapper.h"
 
-#include "cinn/runtime/cpu/math_registors.h"
-
 namespace cinn {
 namespace python {
 
@@ -139,10 +137,7 @@ py_buffer::py_buffer(const std::vector<int>& shape,
   data_ = cinn_buffer_t::new_(d, t, shape, data_align);
 }
 
-py_compiler::py_compiler() {
-  hlir::instruction::x86::RegisterMklMath();
-  data_.reset(new hlir_instr::Compiler);
-}
+py_compiler::py_compiler() { data_.reset(new hlir_instr::Compiler); }
 
 }  // namespace python
 }  // namespace cinn

@@ -1,6 +1,7 @@
 #include "cinn/backends/extern_func_emitter.h"
 
 #include <functional>
+#include <iostream>
 #include <string>
 
 #include "cinn/backends/extern_func_emitter_builtin.h"
@@ -16,7 +17,7 @@ ExternFunctionEmitterRegistry& ExternFunctionEmitterRegistry::Global() {
 }
 
 void ExternFunctionEmitterRegistry::Register(const ExternFuncID& name, ExternFunctionEmitter* x) {
-  VLOG(1) << "Register extern function emitter [" << name << "]";
+  std::cerr << "Register extern function emitter [" << name << "]" << std::endl;
   CHECK(x);
   data_[name] = std::unique_ptr<ExternFunctionEmitter>(x);
 }
