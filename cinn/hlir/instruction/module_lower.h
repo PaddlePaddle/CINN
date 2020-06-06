@@ -56,9 +56,18 @@ class ComputationLower {
    */
   cinn::Expr operator()(const Computation* computation);
 
- private:
   void LowerInstruction(const Instruction* instr);
 
+  void AddCallRets(const Instruction* instr, const std::vector<cinn::Expr>& res) { call_to_ret_vals_[instr] = res; }
+  const std::vector<cinn::Expr>& get_call_ret(const Instruction* instr) const {
+    auto it = call_to_ret_vals_.find(instr);
+    CHECK(it != call_to_ret_vals_.end());
+    return it->second;
+  }
+
+  Scope& scope() { return scope_; }
+
+ private:
   void LowerDot(const Instruction* instr);
 
   void LowerCall(const Instruction* instr);

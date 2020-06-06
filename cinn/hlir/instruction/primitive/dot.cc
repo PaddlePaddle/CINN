@@ -1,8 +1,8 @@
 #include "cinn/hlir/instruction/primitive/dot.h"
 
 #include "cinn/common/ir_util.h"
-#include "cinn/hlir/instruction/lower.h"
 #include "cinn/hlir/instruction/lower_impl.h"
+#include "cinn/hlir/instruction/module_lower.h"
 
 namespace cinn {
 namespace hlir {
@@ -13,7 +13,7 @@ using cinn::Compute;
 using cinn::Expr;
 using cinn::Var;
 
-Tensor DotImpl::VecDotVec(const Tensor &a, const Tensor &b, const std::string &name) {
+Tensor DotBasicImpl::VecDotVec(const Tensor &a, const Tensor &b, const std::string &name) {
   CHECK(a->SameShapeWith(b)) << "Tensor " << a->name << " and " << b->name << " shape not match for DOT primitive";
   CHECK_EQ(a->shape.size(), 1UL) << "Vector DOT should input one-dimentional tensors";
 
@@ -21,7 +21,7 @@ Tensor DotImpl::VecDotVec(const Tensor &a, const Tensor &b, const std::string &n
   return cinn::Compute({Expr(1)}, [=]() -> Expr { return cinn::Sum(a(k) * b(k)); }, name, {k});
 }
 
-Tensor DotImpl::MatDotMat(const Tensor &a, const Tensor &b, const std::string &name) {
+Tensor DotBasicImpl::MatDotMat(const Tensor &a, const Tensor &b, const std::string &name) {
   CHECK_GE(a->shape.size(), 2UL) << "Matrix DOT, the first input tensor should have 2 dimensions";
   CHECK_EQ(b->shape.size(), 2UL) << "Matrix DOT, the second input tensor should have 2 dimensions";
   CHECK(cinn::common::MathEqual(a->shape.back(), b->shape[0]))
@@ -52,7 +52,7 @@ Tensor DotImpl::MatDotMat(const Tensor &a, const Tensor &b, const std::string &n
   return out_tensor;
 }
 
-Tensor DotImpl::MatDotVec(const Tensor &a, const Tensor &b, const std::string &name) {
+Tensor DotBasicImpl::MatDotVec(const Tensor &a, const Tensor &b, const std::string &name) {
   CHECK_EQ(a->shape.size(), 2UL);
   CHECK_EQ(b->shape.size(), 1UL);
   CHECK(cinn::common::MathEqual(a->shape[1], b->shape[0]))
@@ -66,7 +66,7 @@ Tensor DotImpl::MatDotVec(const Tensor &a, const Tensor &b, const std::string &n
   return Compute(shape, fn, name, {k});
 }
 
-Tensor DotImpl::operator()(const Tensor &a, const Tensor &b, const std::string &name) {
+Tensor DotBasicImpl::operator()(const Tensor &a, const Tensor &b, const std::string &name) {
   size_t a_dims = a->shape.size();
   size_t b_dims = b->shape.size();
 
@@ -90,21 +90,21 @@ class DotLowerImpl : public LowerImplBase {
  public:
   DotLowerImpl(InstrCode code) : LowerImplBase(code) {}
 
-  void Run(Instruction *instr, Context *context, ModuleLower *module_lower) override {
+  void Run(const Instruction *instr, Context *context, Scope *scope, ComputationLower *lower) override {
     CHECK_EQ(instr->operand_count(), 2UL) << "Dot should take two arguments";
-    Expr x = module_lower->scope().Lookup(instr->operand(0));
-    Expr y = module_lower->scope().Lookup(instr->operand(1));
+    Expr x = scope->Lookup(instr->operand(0));
+    Expr y = scope->Lookup(instr->operand(1));
     CHECK(x.defined());
     CHECK(y.defined());
 
-    auto out = DotImpl(context)(x.as_tensor_ref(), y.as_tensor_ref(), context->new_var_name("dot_out"));
-    module_lower->scope().Insert(instr, out);
+    auto out = DotBasicImpl(context)(x.as_tensor_ref(), y.as_tensor_ref(), context->new_var_name("dot_out"));
+    scope->Insert(instr, out);
   }
 };
-
-static LowerImplRegistrar<DotLowerImpl> x("base", InstrCode::Dot);
 
 }  // namespace primitive
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn
+
+REGISTER_INSTRUCTION_LOWER(base, Dot, DotLowerImpl)

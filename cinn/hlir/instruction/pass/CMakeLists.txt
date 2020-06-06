@@ -1,6 +1,7 @@
 set(srcs
         display_program.cc
         buffer_assign_pass.cc
+        lower_kind_determine_pass.cc
         )
 
 foreach(cpp ${srcs})

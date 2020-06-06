@@ -257,7 +257,5 @@ class TestElementwise(unittest.TestCase):
         py_out = cinn.Buffer(np.zeros((100, 20), dtype='float32'))
 
 
-
-
 if __name__ == '__main__':
     unittest.main()

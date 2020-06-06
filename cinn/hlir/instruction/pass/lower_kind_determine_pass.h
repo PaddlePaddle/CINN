@@ -11,11 +11,11 @@ namespace instruction {
 namespace pass {
 
 /**
- * This pass helps determine the `inline` or not for each instruction.
+ * This pass set the default lower kind of all the instructions.
  */
-class BufferAssign : public PassInterface {
+class LowerKindDetermine : public PassInterface {
  public:
-  explicit BufferAssign(const std::string &name) : name_(name) {}
+  explicit LowerKindDetermine(const std::string &name) : name_(name) {}
   std::string_view name() const override;
 
   bool Run(Module *module) override;
@@ -30,14 +30,6 @@ class BufferAssign : public PassInterface {
   bool ShouldInline(Instruction *instr, Computation *comp) const;
 
  private:
-  std::unordered_set<InstrCode> unary_codes_{{
-      InstrCode::Tanh,
-      InstrCode::Sigmoid,
-      InstrCode::Ceil,
-      InstrCode::Floor,
-      InstrCode::Abs,
-      InstrCode::Not,
-  }};
   std::string name_;
 };
 

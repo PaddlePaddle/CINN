@@ -1,7 +1,7 @@
 #include "compiler.h"
 
 #include "cinn/backends/llvm/simple_orc_jit.h"
-#include "cinn/hlir/instruction/lower.h"
+#include "cinn/hlir/instruction/module_lower.h"
 #include "cinn/hlir/instruction/optimizer.h"
 #include "cinn/runtime/cinn_runtime.h"
 

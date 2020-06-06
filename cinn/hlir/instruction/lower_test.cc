@@ -1,12 +1,10 @@
-#include "cinn/hlir/instruction/lower.h"
-
-#include <glog/raw_logging.h>
 #include <gtest/gtest.h>
 
 #include <utility>
 
 #include "cinn/backends/codegen_c.h"
 #include "cinn/hlir/instruction/instruction_util.h"
+#include "cinn/hlir/instruction/module_lower.h"
 #include "cinn/hlir/instruction/optimizer.h"
 
 namespace cinn {
@@ -51,6 +49,10 @@ TEST(Lower, computation) {
 
   auto comp0 = create_elementwise_add(&context, N, "elementwise_add");
 
+  for (auto& instr : comp0->instructions()) {
+    instr->set_lower_kind("base");
+  }
+
   std::cout << "HLIR:\n" << comp0->to_debug_string() << std::endl;
 
   ComputationLower lower(nullptr, &context);
@@ -64,6 +66,10 @@ TEST(Lower, tanh) {
   cinn::Var N("N");
 
   auto comp0 = create_activation(&context, N, "elementwise_add", InstrCode::Tanh);
+
+  for (auto& instr : comp0->instructions()) {
+    instr->set_lower_kind("base");
+  }
 
   std::cout << "HLIR:\n" << comp0->to_debug_string() << std::endl;
 
@@ -104,8 +110,6 @@ TEST(Lower, module) {
   module.AddComputation(std::move(comp0));
   module.AddComputation(std::move(comp1));
   module.AddEntryComputation(main_builder.Build());
-
-  RAW_LOG(INFO, module.to_debug_string().c_str());
 
   Optimizer().Run(&module);
 

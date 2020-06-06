@@ -29,6 +29,11 @@ class PassPipeline : public PassInterface {
     return *static_cast<T*>(passes_.back().get());
   }
 
+  PassInterface& AddPass(std::unique_ptr<PassInterface>&& pass) {
+    passes_.push_back(std::move(pass));
+    return *passes_.back();
+  }
+
   bool Run(Module* module) override;
 
   bool RunOnModuleGroup(ModuleGroup* module_group) override;

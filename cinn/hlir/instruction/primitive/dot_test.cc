@@ -20,7 +20,7 @@ TEST(Dot, matrix_dot_matrix) {
   cinn::Placeholder<float> B("B", B_shape);
 
   Context context;
-  DotImpl dotter(&context);
+  DotBasicImpl dotter(&context);
   auto C = dotter(A, B, "C");
 
   LOG(INFO) << C->body();
@@ -28,7 +28,7 @@ TEST(Dot, matrix_dot_matrix) {
   CHECK_EQ(C->shape[0], A_shape[0]);
   CHECK_EQ(C->shape[1], B_shape[1]);
 
-  std::cerr << "Lowered:\n" << Lower("func", {A, B, C}, {}) << std::endl;
+  std::cerr << "Lowered:\n" << lang::Lower("func", {A, B, C}, {}) << std::endl;
 }
 
 TEST(Dot, matrix_dot_vector) {
@@ -41,14 +41,14 @@ TEST(Dot, matrix_dot_vector) {
   cinn::Placeholder<float> B("B", B_shape);
 
   Context context;
-  DotImpl dotter(&context);
+  DotBasicImpl dotter(&context);
   auto C = dotter(A, B, "C");
 
   LOG(INFO) << C->body();
 
   CHECK_EQ(C->shape[0], A_shape[0]);
   CHECK_EQ(C->shape.size(), 1UL);
-  std::cerr << "Lowered:\n" << Lower("func", {A, B, C}, {}) << std::endl;
+  std::cerr << "Lowered:\n" << lang::Lower("func", {A, B, C}, {}) << std::endl;
 }
 
 TEST(Dot, vector_dot_vector) {
@@ -61,13 +61,13 @@ TEST(Dot, vector_dot_vector) {
   cinn::Placeholder<float> B("B", B_shape);
 
   Context context;
-  DotImpl dotter(&context);
+  DotBasicImpl dotter(&context);
   auto C = dotter(A, B, "C");
 
   LOG(INFO) << C->body();
 
   CHECK_EQ(C->shape[0], Expr(1));
-  std::cerr << "Lowered:\n" << Lower("func", {A, B, C}, {}) << std::endl;
+  std::cerr << "Lowered:\n" << lang::Lower("func", {A, B, C}, {}) << std::endl;
 }
 
 }  // namespace primitive

@@ -6,6 +6,7 @@
 #include "cinn/cinn.h"
 #include "cinn/hlir/instruction/context.h"
 #include "cinn/hlir/instruction/instruction.h"
+#include "cinn/hlir/instruction/lower_impl.h"
 
 namespace cinn {
 namespace hlir {
@@ -14,11 +15,13 @@ namespace primitive {
 
 using cinn::ir::Tensor;
 
-struct DotImpl {
-  explicit DotImpl(Context* ctx) : ctx_(ctx) {}
+//! Basic implemention without optimization.
+struct DotBasicImpl {
+  explicit DotBasicImpl(Context* ctx) : ctx_(ctx) {}
 
   Tensor operator()(const Tensor& a, const Tensor& b, const std::string& name);
 
+ private:
   /**
    * \brief Vector dot vector.
    * @param a vector [n]
@@ -36,11 +39,6 @@ struct DotImpl {
    * @return Result tensor.
    */
   Tensor MatDotMat(const Tensor& a, const Tensor& b, const std::string& name);
-
-  /**
-   * Matrix dot a matrix in packed optimization.
-   */
-  Tensor MatDotMat_Packed(const Tensor& a, const Tensor& b, std::string_view name);
 
   /**
    * \brief Matrix dot vector.

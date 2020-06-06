@@ -1,6 +1,7 @@
 #include "cinn/backends/function_prototype.h"
 
 #include <iostream>
+
 #include "cinn/lang/tensor.h"
 
 namespace cinn {

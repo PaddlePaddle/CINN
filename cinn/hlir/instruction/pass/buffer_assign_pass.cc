@@ -9,20 +9,20 @@ namespace hlir {
 namespace instruction {
 namespace pass {
 
-std::string_view BufferAssignPass::name() const { return name_; }
+std::string_view BufferAssign::name() const { return name_; }
 
-bool BufferAssignPass::Run(Module* module) {
+bool BufferAssign::Run(Module* module) {
   for (auto& item : module->computations()) {
     RunOnComputation(item.second.get());
   }
   return true;
 }
 
-bool BufferAssignPass::RunOnModuleGroup(ModuleGroup* module_group) { return false; }
+bool BufferAssign::RunOnModuleGroup(ModuleGroup* module_group) { return false; }
 
-bool BufferAssignPass::is_pass_pipeline() const { return PassInterface::is_pass_pipeline(); }
+bool BufferAssign::is_pass_pipeline() const { return PassInterface::is_pass_pipeline(); }
 
-void BufferAssignPass::RunOnComputation(Computation* comp) {
+void BufferAssign::RunOnComputation(Computation* comp) {
   auto graph = CreateComputationGraph(comp);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
@@ -44,7 +44,7 @@ void BufferAssignPass::RunOnComputation(Computation* comp) {
   }
 }
 
-bool BufferAssignPass::ShouldInline(Instruction* instr, Computation* comp) const {
+bool BufferAssign::ShouldInline(Instruction* instr, Computation* comp) const {
   /*
    *    Unary -> Unary -> Unary -> Binary
    *       ^       ^        ^
@@ -78,3 +78,5 @@ bool BufferAssignPass::ShouldInline(Instruction* instr, Computation* comp) const
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn
+
+REGISTER_PASS(buffer_assign, BufferAssign)

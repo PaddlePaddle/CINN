@@ -1,15 +1,15 @@
 #include "cinn/hlir/instruction/optimizer.h"
 
-#include "cinn/hlir/instruction/pass/buffer_assign_pass.h"
-#include "cinn/hlir/instruction/pass/display_program.h"
+#include "cinn/hlir/instruction/pass/use_passes.h"
 
 namespace cinn {
 namespace hlir {
 namespace instruction {
 
 Optimizer::Optimizer() : pass_pipeline_("optimizer-pass-pipeline") {
-  pass_pipeline_.AddPass<pass::DisplayProgram>("display-program");
-  pass_pipeline_.AddPass<pass::BufferAssignPass>("buffer-assign");
+  pass_pipeline_.AddPass(PassRegistry::Global().CreatePromised("display_program"));
+  pass_pipeline_.AddPass(PassRegistry::Global().CreatePromised("buffer_assign"));
+  pass_pipeline_.AddPass(PassRegistry::Global().CreatePromised("lower_kind_determine"));
 }
 
 }  // namespace instruction

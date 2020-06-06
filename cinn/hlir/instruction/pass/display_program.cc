@@ -28,3 +28,5 @@ std::string_view DisplayProgram::name() const { return name_; }
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn
+
+REGISTER_PASS(display_program, DisplayProgram);

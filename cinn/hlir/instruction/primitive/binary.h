@@ -11,9 +11,9 @@ namespace hlir {
 namespace instruction {
 namespace primitive {
 
-struct BinaryImpl {
+struct BinaryBasicImpl {
   using opr_t = std::function<cinn::Expr(cinn::Expr, cinn::Expr)>;
-  BinaryImpl(Context* ctx, opr_t opr, bool inlined) : ctx_(ctx), opr_(opr), inlined_(inlined) {}
+  BinaryBasicImpl(Context* ctx, opr_t opr, bool inlined) : ctx_(ctx), opr_(opr), inlined_(inlined) {}
 
   cinn::ir::Tensor operator()(const cinn::ir::Tensor& a, const cinn::ir::Tensor& b, const std::string& name);
 

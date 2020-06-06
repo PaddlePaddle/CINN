@@ -192,8 +192,8 @@ class Instruction {
   //! Remove usage relation.
   void RemoveUser(Instruction* user);
 
-  void set_lower_kind(const std::string& x) { lower_kind_ = x; }
-  const std::string& kind() const { return lower_kind_; }
+  void set_lower_kind(const std::string& x);
+  const std::string& lower_kind() const { return lower_kind_; }
 
  protected:
   Instruction(InstrCode code, const Shape& shape) : instr_code_(code), shape_(shape) {}
@@ -217,7 +217,7 @@ class Instruction {
   type_t type_{Void()};
   void* belonged_computation_builder_{};
   //! Control which kind of the LowerImpl this instruction will use, this field can set by some analysis pass.
-  std::string lower_kind_{"base"};
+  std::string lower_kind_{"none"};
 };
 
 }  // namespace instruction

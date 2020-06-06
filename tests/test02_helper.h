@@ -2,7 +2,9 @@
 #pragma once
 
 #include <gtest/gtest.h>
+
 #include <string_view>
+
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/backends/llvm/simple_orc_jit.h"
 #include "cinn/cinn.h"

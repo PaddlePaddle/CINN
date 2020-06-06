@@ -2,7 +2,8 @@
 
 #include <gtest/gtest.h>
 
-#include "cinn/hlir/instruction/lower.h"
+#include "cinn/hlir/instruction/module_lower.h"
+#include "cinn/hlir/instruction/primitive/use_primitives.h"
 
 namespace cinn {
 namespace hlir {
