@@ -7,8 +7,12 @@
 #include <vector>
 
 #include "cinn/backends/codegen_c.h"
+#include "cinn/common/test_helper.h"
+#include "cinn/hlir/instruction/instruction_util.h"
 #include "cinn/hlir/instruction/module.h"
+#include "cinn/hlir/instruction/optimizer.h"
 #include "cinn/runtime/cinn_runtime.h"
+#include "cinn/runtime/cpu/host_intrinsics.h"
 
 namespace cinn {
 namespace hlir {
@@ -65,6 +69,9 @@ std::unique_ptr<Module> CreateModule(const std::string& name) {
 
     module->AddEntryComputation(builder.Build());
   }
+
+  Optimizer optimizer;
+  optimizer.Run(module.get());
 
   return module;
 }
@@ -210,6 +217,8 @@ TEST(Compiler, call_main_dense_model) {
     auto* output = builder.AddInstruction(Instruction::CreateTupleGet(tuple, 0));
     module->AddEntryComputation(builder.Build());
   }
+  Optimizer optimizer;
+  optimizer.Run(module.get());
 
   cinn_buffer_t *Xb, *Wb, *Biasb, *Outb, *Outb_target;
   const int batch_size_runtime = 20;
@@ -316,9 +325,76 @@ TEST(Compiler, conv) {
     module.AddComputation(builder.Build());
   }
 
+  Optimizer().Run(&module);
+
   Compiler compiler;
   compiler.Compile(&module);
 }
+
+template <InstrCode code>
+void TestElementwise() {
+  Module module("module0");
+  Context context;
+
+  const char* fn_name = "tanh0";
+
+  float (*fp)(float);
+  {
+    Computation::Builder builder(&context, fn_name);
+
+    auto* I = builder.AddInstruction(Instruction::CreateParameter(0, Shape({1, 200, 200, 3}), "X", {Float(32)}));
+    Instruction* out{};
+    switch (code) {
+      case InstrCode::Tanh:
+        out = Tanh(I);
+        fp  = cinn_cpu_tanh_fp32;
+        break;
+      case InstrCode::Ceil:
+        out = Ceil(I);
+        fp  = cinn_cpu_ceil_fp32;
+        break;
+      case InstrCode::Abs:
+        out = Abs(I);
+        fp  = std::abs;
+        break;
+      case InstrCode::Exp:
+        out = Exp(I);
+        fp  = cinn_cpu_exp_fp32;
+        break;
+      default:
+        NOT_IMPLEMENTED
+    }
+    out->set_inlined(false);
+
+    module.AddComputation(builder.Build());
+  }
+
+  Optimizer().Run(&module);
+
+  Compiler compiler;
+  compiler.Compile(&module);
+
+  {  // test precision
+    cinn_buffer_t* x_buf   = common::BufferBuilder(Float(32), {1, 200, 200, 3}).set_random().Build();
+    cinn_buffer_t* out_buf = common::BufferBuilder(Float(32), {1, 200, 200, 3}).set_zero().Build();
+    auto args              = common::ArgsBuilder().Add(x_buf).Add(out_buf).Build();
+    compiler.Eval("tanh0", args.data(), 2);
+
+    auto* x_data   = reinterpret_cast<float*>(x_buf->host_memory);
+    auto* out_data = reinterpret_cast<float*>(out_buf->host_memory);
+
+    for (int i = 0; i < out_buf->num_elements(); i++) {
+      ASSERT_NEAR(fp(x_data[i]), out_data[i], 1e-5);
+    }
+
+    cinn_buffer_free(nullptr, x_buf);
+    cinn_buffer_free(nullptr, out_buf);
+  }
+};
+
+TEST(Compiler, Tanh) { TestElementwise<InstrCode::Tanh>(); }
+TEST(Compiler, Ceil) { TestElementwise<InstrCode::Ceil>(); }
+TEST(Compiler, Exp) { TestElementwise<InstrCode::Exp>(); }
 
 }  // namespace instruction
 }  // namespace hlir

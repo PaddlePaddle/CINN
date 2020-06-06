@@ -3,8 +3,8 @@
 #include "cinn/cinn.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/hlir/instruction/instructions.h"
-#include "cinn/hlir/instruction/lower.h"
 #include "cinn/hlir/instruction/lower_impl.h"
+#include "cinn/hlir/instruction/module_lower.h"
 #include "cinn/ir/ir_operators.h"
 
 namespace cinn {
@@ -119,10 +119,12 @@ ir::Tensor Conv2dNCHW(
 struct Conv2dNCHWLowerImpl : public LowerImplBase {
   explicit Conv2dNCHWLowerImpl(InstrCode code) : LowerImplBase(code) {}
 
-  void Run(Instruction* instr, Context* context, ModuleLower* module_lower) override {
+  void Run(const Instruction* instr, Context* context, Scope* scope, ComputationLower* lower) override {
+    CHECK(lower);
+    CHECK(scope);
     CHECK_EQ(instr->operand_count(), 2UL) << "Conv2dNCHW should take two arguments";
-    Expr I = module_lower->scope().Lookup(instr->operand(0));
-    Expr W = module_lower->scope().Lookup(instr->operand(1));
+    Expr I = scope->Lookup(instr->operand(0));
+    Expr W = scope->Lookup(instr->operand(1));
     CHECK(I.defined());
     CHECK(W.defined());
     auto* conv_instr = instr->As<Conv>();
@@ -132,7 +134,10 @@ struct Conv2dNCHWLowerImpl : public LowerImplBase {
                           conv_instr->pad_w(),
                           conv_instr->stride_h(),
                           conv_instr->stride_w());
-    module_lower->scope().Insert(instr, out);
+    if (!instr->inlined()) {
+      out->WithBuffer();
+    }
+    scope->Insert(instr, out);
   }
 };
 
@@ -140,3 +145,5 @@ struct Conv2dNCHWLowerImpl : public LowerImplBase {
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn
+
+REGISTER_INSTRUCTION_LOWER(base, Conv, Conv2dNCHWLowerImpl)

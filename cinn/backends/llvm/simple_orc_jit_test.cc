@@ -1,4 +1,5 @@
 #include "cinn/backends/llvm/simple_orc_jit.h"
+
 #include <glog/logging.h>
 #include <glog/raw_logging.h>
 #include <gtest/gtest.h>
@@ -8,7 +9,6 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
-#include "cinn/runtime/cpu/host_intrinsics.h"
 
 #include <algorithm>
 #include <cmath>
@@ -30,6 +30,7 @@
 #include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/optim/optimize.h"
+#include "cinn/runtime/cpu/host_intrinsics.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/Support/FileSystem.h"

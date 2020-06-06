@@ -2,6 +2,7 @@
 
 #include "cinn/hlir/instruction/context.h"
 #include "cinn/hlir/instruction/instruction.h"
+#include "cinn/hlir/instruction/lower_impl.h"
 
 namespace cinn {
 namespace hlir {
@@ -13,7 +14,9 @@ using cinn::ir::Tensor;
 using cinn::ir::Var;
 using cinn::lang::Compute;
 
-cinn::ir::Tensor BinaryImpl::operator()(const cinn::ir::Tensor& a, const cinn::ir::Tensor& b, const std::string& name) {
+cinn::ir::Tensor BinaryBasicImpl::operator()(const cinn::ir::Tensor& a,
+                                             const cinn::ir::Tensor& b,
+                                             const std::string& name) {
   CHECK(a.defined());
   CHECK(b.defined());
 
@@ -45,7 +48,7 @@ cinn::ir::Tensor BinaryImpl::operator()(const cinn::ir::Tensor& a, const cinn::i
   return out_tensor;
 }
 
-cinn::ir::Tensor BinaryImpl::RunWithArgb1Dim(const Tensor& a, const Tensor& b) {
+cinn::ir::Tensor BinaryBasicImpl::RunWithArgb1Dim(const Tensor& a, const Tensor& b) {
   CHECK_EQ(b->shape.size(), 1UL);
 
   Tensor out_tensor;
@@ -74,7 +77,7 @@ cinn::ir::Tensor BinaryImpl::RunWithArgb1Dim(const Tensor& a, const Tensor& b) {
   return out_tensor;
 }
 
-cinn::ir::Tensor BinaryImpl::RunWithArgb2Dim(const Tensor& a, const Tensor& b) {
+cinn::ir::Tensor BinaryBasicImpl::RunWithArgb2Dim(const Tensor& a, const Tensor& b) {
   CHECK_EQ(b->shape.size(), 2UL);
   auto opr_copied = opr_;
   ir::Tensor out_tensor;
@@ -102,7 +105,7 @@ cinn::ir::Tensor BinaryImpl::RunWithArgb2Dim(const Tensor& a, const Tensor& b) {
   return out_tensor;
 }
 
-cinn::ir::Tensor BinaryImpl::RunWithArgb3Dim(const Tensor& a, const Tensor& b) {
+cinn::ir::Tensor BinaryBasicImpl::RunWithArgb3Dim(const Tensor& a, const Tensor& b) {
   CHECK_EQ(b->shape.size(), 3UL);
   Tensor out_tensor;
   auto opr_copied = opr_;
@@ -128,7 +131,7 @@ cinn::ir::Tensor BinaryImpl::RunWithArgb3Dim(const Tensor& a, const Tensor& b) {
   return out_tensor;
 }
 
-cinn::ir::Tensor BinaryImpl::RunWithArgb4Dim(const Tensor& a, const Tensor& b) {
+cinn::ir::Tensor BinaryBasicImpl::RunWithArgb4Dim(const Tensor& a, const Tensor& b) {
   CHECK_EQ(b->shape.size(), 4UL);
   Tensor out_tensor;
   auto opr_copied = opr_;
@@ -149,7 +152,7 @@ cinn::ir::Tensor BinaryImpl::RunWithArgb4Dim(const Tensor& a, const Tensor& b) {
   return out_tensor;
 }
 
-cinn::ir::Tensor BinaryImpl::RunWithArgb5Dim(const Tensor& a, const Tensor& b) {
+cinn::ir::Tensor BinaryBasicImpl::RunWithArgb5Dim(const Tensor& a, const Tensor& b) {
   CHECK_EQ(b->shape.size(), 5UL);
   Tensor out_tensor;
   auto opr_copied = opr_;
@@ -165,7 +168,49 @@ cinn::ir::Tensor BinaryImpl::RunWithArgb5Dim(const Tensor& a, const Tensor& b) {
   return out_tensor;
 }
 
+class BinaryLowerImpl : public LowerImplBase {
+ public:
+  explicit BinaryLowerImpl(InstrCode code) : LowerImplBase(code) {}
+
+  void Run(const Instruction* instr, Context* context, Scope* scope, ComputationLower* lower) override {
+    auto a = scope->Lookup(instr->operand(0));
+    auto b = scope->Lookup(instr->operand(1));
+    CHECK(a.defined());
+    CHECK(b.defined());
+    auto at = a.as_tensor_ref();
+    auto bt = b.as_tensor_ref();
+    Expr out;
+    switch (instr->instr_code()) {
+      case InstrCode::Add:
+        out = BinaryBasicImpl(
+            context, [](Expr a, Expr b) { return a + b; }, instr->inlined())(at, bt, context->new_ssa_id("add"));
+        break;
+      case InstrCode::Sub:
+        out = BinaryBasicImpl(
+            context, [](Expr a, Expr b) { return a - b; }, instr->inlined())(at, bt, context->new_ssa_id("add"));
+        break;
+      case InstrCode::Mul:
+        out = BinaryBasicImpl(
+            context, [](Expr a, Expr b) { return a * b; }, instr->inlined())(at, bt, context->new_ssa_id("add"));
+        break;
+      case InstrCode::Div:
+        out = BinaryBasicImpl(
+            context, [](Expr a, Expr b) { return a / b; }, instr->inlined())(at, bt, context->new_ssa_id("add"));
+        break;
+      default:
+        NOT_IMPLEMENTED
+    }
+
+    scope->Insert(instr, out);
+  }
+};
+
 }  // namespace primitive
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn
+
+REGISTER_INSTRUCTION_LOWER(base, Add, BinaryLowerImpl);
+REGISTER_INSTRUCTION_LOWER(base, Sub, BinaryLowerImpl);
+REGISTER_INSTRUCTION_LOWER(base, Mul, BinaryLowerImpl);
+REGISTER_INSTRUCTION_LOWER(base, Div, BinaryLowerImpl);

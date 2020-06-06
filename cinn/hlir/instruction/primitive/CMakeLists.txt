@@ -3,6 +3,10 @@ set(srcs
         binary.cc
         elementwise.cc
         conv.cc
+        parameter.cc
+        call.cc
+        tuple.cc
+        tuple_get.cc
         )
 
 cc_test(test_hlir_primitive_dot SRCS dot_test.cc DEPS core)
