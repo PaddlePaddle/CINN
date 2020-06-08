@@ -34,4 +34,4 @@ struct CallLowerImpl : public LowerImplBase {
 }  // namespace hlir
 }  // namespace cinn
 
-REGISTER_INSTRUCTION_LOWER(base, Call, CallLowerImpl)
+REGISTER_INSTRUCTION_LOWER(base, Call, cinn::hlir::instruction::primitive::CallLowerImpl)

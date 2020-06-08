@@ -146,4 +146,4 @@ struct Conv2dNCHWLowerImpl : public LowerImplBase {
 }  // namespace hlir
 }  // namespace cinn
 
-REGISTER_INSTRUCTION_LOWER(base, Conv, Conv2dNCHWLowerImpl)
+REGISTER_INSTRUCTION_LOWER(base, Conv, cinn::hlir::instruction::primitive::Conv2dNCHWLowerImpl)

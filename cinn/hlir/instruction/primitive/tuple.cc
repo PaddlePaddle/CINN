@@ -21,4 +21,4 @@ struct TupleLowerImpl : public LowerImplBase {
 }  // namespace hlir
 }  // namespace cinn
 
-REGISTER_INSTRUCTION_LOWER(base, Tuple, TupleLowerImpl)
+REGISTER_INSTRUCTION_LOWER(base, Tuple, cinn::hlir::instruction::primitive::TupleLowerImpl)

@@ -65,9 +65,9 @@ struct LowerImplRegistrar {
 }  // namespace hlir
 }  // namespace cinn
 
-#define REGISTER_INSTRUCTION_LOWER(name__, code__, T)                                                               \
-  ::cinn::hlir::instruction::LowerImplRegistrar<::cinn::hlir::instruction::primitive::T> name__##code__##registrar( \
-      #name__, ::cinn::hlir::instruction::InstrCode::code__);                                                       \
+#define REGISTER_INSTRUCTION_LOWER(name__, code__, T)                         \
+  ::cinn::hlir::instruction::LowerImplRegistrar<T> name__##code__##registrar( \
+      #name__, ::cinn::hlir::instruction::InstrCode::code__);                 \
   bool __cinn__TouchInstructionLowerRegistrar_##code__##name__() { return name__##code__##registrar.Touch(); }
 #define USE_INSTRUCTION_LOWER(name__, code__)                                     \
   extern bool __cinn__TouchInstructionLowerRegistrar_##code__##name__();          \

@@ -53,6 +53,7 @@ template <typename T = int32_t>
 inline Expr make_one() {
   return make_const(static_cast<T>(1));
 }
+inline Expr make_bool(bool x) { return common::make_shared<ir::UIntImm>(Bool(), x); }
 // @}
 
 bool is_zero(Expr v);

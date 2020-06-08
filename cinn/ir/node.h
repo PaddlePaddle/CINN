@@ -225,7 +225,7 @@ struct UIntImm : public ExprNode<UIntImm> {
   UIntImm(Type t, int64_t v) : ExprNode<UIntImm>(t), value(v) {
     CHECK(t.is_uint());
     CHECK(t.is_scalar());
-    CHECK(t.bits() == 8 || t.bits() == 16 || t.bits() == 32 || t.bits() == 64);
+    CHECK(t.bits() == 1 /*bool*/ || t.bits() == 8 || t.bits() == 16 || t.bits() == 32 || t.bits() == 64);
   }
 
   static const IrNodeTy _node_type_ = IrNodeTy::UIntImm;

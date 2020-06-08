@@ -1,5 +1,6 @@
 #pragma once
 #include <glog/logging.h>
+#include <any>
 
 #include <memory>
 #include <set>
@@ -216,6 +217,7 @@ class Instruction {
   bool inlined_{false};
   type_t type_{Void()};
   void* belonged_computation_builder_{};
+
   //! Control which kind of the LowerImpl this instruction will use, this field can set by some analysis pass.
   std::string lower_kind_{"none"};
 };

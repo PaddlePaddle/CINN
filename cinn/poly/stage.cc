@@ -262,6 +262,7 @@ std::vector<std::pair<std::string, std::string>> ExtractLinksFromCalls(const std
       const auto &args = tensor->operation->as<ir::CallOp>()->read_args();
       for (auto &arg : args) {
         auto *arg_tensor = arg.As<ir::_Tensor_>();
+        if (!arg_tensor) continue;  // Get something like POD values.
         if (arg_tensor->is_placeholder_node() && !with_placeholder) continue;
         links.emplace_back(arg_tensor->name, tensor->name);
       }

@@ -396,6 +396,58 @@ TEST(Compiler, Tanh) { TestElementwise<InstrCode::Tanh>(); }
 TEST(Compiler, Ceil) { TestElementwise<InstrCode::Ceil>(); }
 TEST(Compiler, Exp) { TestElementwise<InstrCode::Exp>(); }
 
+TEST(Compiler, dot_cgemm) {
+  Module module("module0");
+  Context context;
+
+  const char* fn_name = "dot_";
+
+  const int M = 100;
+  const int N = 200;
+  const int K = 150;
+
+  Computation::Builder builder(&context, fn_name);
+  auto* x    = builder.AddInstruction(Instruction::CreateParameter(0, Shape({M, K}), "X", {Float(32)}));
+  auto* y    = builder.AddInstruction(Instruction::CreateParameter(1, Shape({K, N}), "Y", {Float(32)}));
+  auto* out  = Dot(x, y);
+  auto* out1 = Dot(x, y);
+
+  out->set_lower_kind("cblas");
+  out1->set_lower_kind("base");
+
+  module.AddComputation(builder.Build());
+
+  Optimizer().Run(&module);
+
+  Compiler compiler;
+  compiler.Compile(&module);
+
+  {
+    cinn_buffer_t* x_buf    = common::BufferBuilder(Float(32), {M, K}).set_random().Build();
+    cinn_buffer_t* y_buf    = common::BufferBuilder(Float(32), {K, N}).set_random().Build();
+    cinn_buffer_t* out_buf  = common::BufferBuilder(Float(32), {M, N}).set_zero().Build();
+    cinn_buffer_t* out1_buf = common::BufferBuilder(Float(32), {M, N}).set_zero().Build();
+
+    auto args = common::ArgsBuilder().Add(x_buf).Add(y_buf).Add(out_buf).Add(out1_buf).Build();
+
+    compiler.Eval(fn_name, args.data(), args.size());
+
+    auto* out_data  = reinterpret_cast<float*>(out_buf->host_memory);
+    auto* out_data1 = reinterpret_cast<float*>(out1_buf->host_memory);
+    for (int i = 0; i < out_buf->num_elements(); i++) {
+      if (i < 4) {
+        LOG(INFO) << "Dot result: " << out_data[i];
+      }
+      ASSERT_NEAR(out_data[i], out_data1[i], 1e-5);
+    }
+
+    cinn_buffer_free(nullptr, x_buf);
+    cinn_buffer_free(nullptr, y_buf);
+    cinn_buffer_free(nullptr, out_buf);
+    cinn_buffer_free(nullptr, out1_buf);
+  }
+}
+
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn
