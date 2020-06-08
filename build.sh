@@ -56,6 +56,7 @@ function cmake_ {
     cp $workspace/cmake/config.cmake $build_dir
     echo "set(ISL_HOME /usr/local)" >> $build_dir/config.cmake
     echo "set(WITH_CUDA OFF)" >> $build_dir/config.cmake
+    echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
     cmake ..
 }

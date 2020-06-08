@@ -126,7 +126,7 @@ struct ElementwiseLowerImpl : public LowerImplBase {
 }  // namespace hlir
 }  // namespace cinn
 
-REGISTER_INSTRUCTION_LOWER(base, Tanh, ElementwiseLowerImpl)
-REGISTER_INSTRUCTION_LOWER(base, Ceil, ElementwiseLowerImpl)
-REGISTER_INSTRUCTION_LOWER(base, Abs, ElementwiseLowerImpl)
-REGISTER_INSTRUCTION_LOWER(base, Exp, ElementwiseLowerImpl)
+REGISTER_INSTRUCTION_LOWER(base, Tanh, cinn::hlir::instruction::primitive::ElementwiseLowerImpl)
+REGISTER_INSTRUCTION_LOWER(base, Ceil, cinn::hlir::instruction::primitive::ElementwiseLowerImpl)
+REGISTER_INSTRUCTION_LOWER(base, Abs, cinn::hlir::instruction::primitive::ElementwiseLowerImpl)
+REGISTER_INSTRUCTION_LOWER(base, Exp, cinn::hlir::instruction::primitive::ElementwiseLowerImpl)

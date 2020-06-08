@@ -17,11 +17,16 @@
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 
-#define REGISTER_EXTERN_FUNC(fn__, target__) \
+#define REGISTER_EXTERN_FUNC_HELPER(fn__, target__) \
   ::cinn::backends::RegisterExternFunction(#fn__, target__, reinterpret_cast<void*>(fn__))
 
 #define REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(fn__, target__, in_type__, out_type__) \
-  REGISTER_EXTERN_FUNC(fn__, target__).SetRetType<out_type__>().AddInputType<in_type__>().End()
+  REGISTER_EXTERN_FUNC_HELPER(fn__, target__).SetRetType<out_type__>().AddInputType<in_type__>().End()
+
+#define REGISTER_EXTERN_FUNC(symbol__) bool __cinn__##symbol__##__registrar()
+#define USE_EXTERN_FUNC(symbol__)                \
+  extern bool __cinn__##symbol__##__registrar(); \
+  [[maybe_unused]] static bool __cinn_extern_registrar_##symbol__ = __cinn__##symbol__##__registrar();
 
 namespace cinn {
 namespace backends {

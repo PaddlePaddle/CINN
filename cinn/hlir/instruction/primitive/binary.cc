@@ -210,7 +210,7 @@ class BinaryLowerImpl : public LowerImplBase {
 }  // namespace hlir
 }  // namespace cinn
 
-REGISTER_INSTRUCTION_LOWER(base, Add, BinaryLowerImpl);
-REGISTER_INSTRUCTION_LOWER(base, Sub, BinaryLowerImpl);
-REGISTER_INSTRUCTION_LOWER(base, Mul, BinaryLowerImpl);
-REGISTER_INSTRUCTION_LOWER(base, Div, BinaryLowerImpl);
+REGISTER_INSTRUCTION_LOWER(base, Add, cinn::hlir::instruction::primitive::BinaryLowerImpl);
+REGISTER_INSTRUCTION_LOWER(base, Sub, cinn::hlir::instruction::primitive::BinaryLowerImpl);
+REGISTER_INSTRUCTION_LOWER(base, Mul, cinn::hlir::instruction::primitive::BinaryLowerImpl);
+REGISTER_INSTRUCTION_LOWER(base, Div, cinn::hlir::instruction::primitive::BinaryLowerImpl);

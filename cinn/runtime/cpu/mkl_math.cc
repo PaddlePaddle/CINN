@@ -46,21 +46,21 @@ struct RegisterMklMath {
   RegisterMklMath() {
     auto host_target = common::DefaultHostTarget();
 
-    REGISTER_EXTERN_FUNC(cinn_mkl_tanh_v_fp32, host_target)
+    REGISTER_EXTERN_FUNC_HELPER(cinn_mkl_tanh_v_fp32, host_target)
         .SetRetType<void>()
         .AddInputType<cinn_buffer_t *>()
         .AddOutputType<cinn_buffer_t *>()
         .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
         .End();
 
-    REGISTER_EXTERN_FUNC(cinn_mkl_tanh_v_fp64, host_target)
+    REGISTER_EXTERN_FUNC_HELPER(cinn_mkl_tanh_v_fp64, host_target)
         .SetRetType<void>()
         .AddInputType<cinn_buffer_t *>()
         .AddOutputType<cinn_buffer_t *>()
         .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
         .End();
 
-    REGISTER_EXTERN_FUNC(cinn_mkl_exp_v_fp32, host_target)
+    REGISTER_EXTERN_FUNC_HELPER(cinn_mkl_exp_v_fp32, host_target)
         .SetRetType<void>()
         .AddInputType<cinn_buffer_t *>()
         .AddOutputType<cinn_buffer_t *>()

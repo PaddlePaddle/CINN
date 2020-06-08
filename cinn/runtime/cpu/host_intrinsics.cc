@@ -44,14 +44,14 @@ bool RegisterRuntimeSymbols() {
   REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(cinn_cpu_floor_fp32, host_target, float, float);
   REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(cinn_cpu_exp_fp32, host_target, float, float);
 
-  REGISTER_EXTERN_FUNC(__cinn_host_ceil_fp32, host_target)
+  REGISTER_EXTERN_FUNC_HELPER(__cinn_host_ceil_fp32, host_target)
       .SetRetType<float>()
       .AddInputType<float>()
       .AddOutputType<float>()
       .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
       .End();
 
-  REGISTER_EXTERN_FUNC(cinn_cpu_exp_fp32, host_target)
+  REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_exp_fp32, host_target)
       .SetRetType<float>()
       .AddInputType<float>()
       .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))

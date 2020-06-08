@@ -102,9 +102,64 @@ class DotLowerImpl : public LowerImplBase {
   }
 };
 
+class DotCblasLowerImpl : public LowerImplBase {
+ public:
+  DotCblasLowerImpl(InstrCode code) : LowerImplBase(code) {}
+
+  void Run(const Instruction *instr, Context *context, Scope *scope, ComputationLower *lower) override {
+    CHECK_EQ(instr->operand_count(), 2UL) << "Dot should take two arguments";
+    Expr x = scope->Lookup(instr->operand(0));
+    Expr y = scope->Lookup(instr->operand(1));
+    CHECK(x.defined());
+    CHECK(y.defined());
+
+    auto *xt = x.as_tensor();
+    auto *yt = y.as_tensor();
+    CHECK(xt);
+    CHECK(yt);
+    CHECK(!xt->inlined()) << "x should bind to a buffer";
+    CHECK(!yt->inlined()) << "y should bind to a buffer";
+
+    CHECK_GE(xt->shape.size(), 2UL);
+    CHECK_EQ(yt->shape.size(), 2UL);
+    CHECK(cinn::common::MathEqual(xt->shape.back(), yt->shape[0]));
+
+    Expr K = yt->shape[0];
+    Expr N = yt->shape[1];
+    Expr M = xt->shape[0];
+    for (int i = 1; i < xt->shape.size() - 1; i++) M = M * xt->shape[i];
+
+    auto call = Compute(
+        {Expr(1)},
+        [=]() -> Expr {
+          return lang::CallExtern("cinn_cpu_mkl_gemm_fp32",
+                                  {
+                                      common::make_one<float>(),   // alpha
+                                      M,                           // M
+                                      N,                           // N
+                                      K,                           // K
+                                      common::make_bool(false),    // ta
+                                      common::make_bool(false),    // tb
+                                      M,                           // lda
+                                      K,                           // ldb
+                                      M,                           // ldc
+                                      common::make_zero<float>(),  // beta
+                                      x,                           // A
+                                      y,                           // B
+                                  });
+        },
+        context->new_ssa_id("cinn_cpu_mkl_gemm_fp32_call"));
+    auto out = call->TupleGet(0);
+    out->WithBuffer();
+
+    scope->Insert(instr, out);
+  }
+};
+
 }  // namespace primitive
 }  // namespace instruction
 }  // namespace hlir
 }  // namespace cinn
 
-REGISTER_INSTRUCTION_LOWER(base, Dot, DotLowerImpl)
+REGISTER_INSTRUCTION_LOWER(base, Dot, cinn::hlir::instruction::primitive::DotLowerImpl)
+REGISTER_INSTRUCTION_LOWER(cblas, Dot, cinn::hlir::instruction::primitive::DotLowerImpl)

@@ -17,6 +17,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
 
   llvm::Type *v   = llvm::Type::getVoidTy(m->getContext());
   llvm::Type *i8  = llvm::Type::getInt8Ty(m->getContext());
+  llvm::Type *u8  = llvm::Type::getInt8Ty(m->getContext());
   llvm::Type *i32 = llvm::Type::getInt32Ty(m->getContext());
   llvm::Type *i64 = llvm::Type::getInt64Ty(m->getContext());
   llvm::Type *u32 = llvm::Type::getInt32Ty(m->getContext());

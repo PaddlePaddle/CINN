@@ -103,6 +103,10 @@ llvm::Value *CodeGenLLVM::Visit(const ir::IntImm *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::UIntImm *op) {
+  if (op->type().is_bool()) {
+    auto *type = b_->getInt8Ty();
+    return llvm::ConstantInt::get(type, op->value, false);
+  }
   auto *type = b_->getIntNTy(op->type().bits());
   return llvm::ConstantInt::get(type, op->value, false);
 }

@@ -20,7 +20,9 @@ bool LowerKindDetermine::is_pass_pipeline() const { return PassInterface::is_pas
 
 void LowerKindDetermine::RunOnComputation(Computation *comp) {
   for (auto &instr : comp->instructions()) {
-    instr->set_lower_kind("base");
+    if (instr->lower_kind() == "none") {
+      instr->set_lower_kind("base");
+    }
   }
 }
 

@@ -19,6 +19,10 @@ if (WITH_CUDA)
   set(CUDA_SEPARABLE_COMPILATION ON)
 endif()
 
+if (WITH_MKL_CBLAS)
+    add_definitions(-DCINN_WITH_MKL_CBLAS)
+endif()
+
 find_package(Threads REQUIRED)
 
 
