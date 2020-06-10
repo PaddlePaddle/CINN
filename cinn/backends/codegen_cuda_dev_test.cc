@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 #include <stdlib.h>
 
+#include <tuple>
 #include <vector>
 
 #include "cinn/backends/nvrtc_util.h"
@@ -141,18 +142,126 @@ TEST(CodeGenCUDA, compile_run_jit) {
   }
 }
 
-TEST(CodeGenCUDA, jit_dynamic_shape) {
-  Var M("M");
-  Expr N(200);
+class ElementwiseTester {
+ public:
+  Expr N{212};
+  Var M{"M"};
 
-  Target target;
+  explicit ElementwiseTester(const std::string& fn_name) : fn_name_(fn_name) {}
 
-  Placeholder<float> A("A", {M, N});
-  Placeholder<float> B("B", {M, N});
+  std::tuple<Placeholder<float>, Placeholder<float>, ir::Tensor> BuildNet() {
+    Target target;
 
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
-  C->WithBuffer();
+    Placeholder<float> A("A", {M, N});
+    Placeholder<float> B("B", {M, N});
+
+    auto C = Compute(
+        {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+    C->WithBuffer();
+
+    return std::make_tuple(A, B, C);
+  }
+
+  void Test(Placeholder<float>& A,  // NOLINT
+            Placeholder<float>& B,  // NOLINT
+            ir::Tensor& C,          // NOLINT
+            std::vector<int> grid_sizes,
+            std::vector<int> block_sizes) {
+    Var M("M");
+    auto func = Lower(fn_name_, {A, B, C}, {M});
+    LOG(INFO) << "func:\n" << func;
+
+    Target target;
+    Module::Builder builder("module", target);
+    builder.AddFunction(func);
+
+    CodeGenCUDA_Dev codegen(target);
+    Outputs outputs;
+    outputs          = outputs.cuda_source("generated1.cu");
+    auto source_code = codegen.Compile(builder.Build());
+
+    LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+    // compile the code
+    using runtime::cuda::CUDAModule;
+
+    backends::NVRTC_Compiler compiler;
+
+    auto ptx = compiler(source_code);
+    CHECK(!ptx.empty());
+
+    CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+
+    // launch the kernel
+
+    const int m            = N.as_int32();
+    const int num_elements = m * N.as_int32();
+    const int bytes        = num_elements * sizeof(float);
+
+    CUdeviceptr Ad, Bd, Cd;
+    cuMemAlloc(&Ad, bytes);
+    cuMemAlloc(&Bd, bytes);
+    cuMemAlloc(&Cd, bytes);
+
+    std::vector<float> host_data1(num_elements, 0);
+    std::vector<float> host_data2(num_elements, 0);
+    std::vector<float> host_data3(num_elements, 0);
+    for (int i = 0; i < num_elements; i++) {
+      host_data1[i] = (rand() * 1.f) / INT_MAX;  // NOLINT
+      host_data2[i] = (rand() * 1.f) / INT_MAX;  // NOLINT
+    }
+
+    CUDA_CALL(cudaMemcpy(
+        reinterpret_cast<void*>(Ad), host_data1.data(), num_elements * sizeof(float), cudaMemcpyHostToDevice));
+    CUDA_CALL(cudaMemcpy(
+        reinterpret_cast<void*>(Bd), host_data2.data(), num_elements * sizeof(float), cudaMemcpyHostToDevice));
+
+    void* args[] = {const_cast<int*>(&m), &Ad, &Bd, &Cd};
+
+    dim3 grid(1, 1, 1);
+    dim3 block(1, 1, 1);
+    if (grid_sizes.size() >= 1) {
+      grid.x = grid_sizes[0];
+    }
+    if (grid_sizes.size() >= 2) {
+      grid.y = grid_sizes[1];
+    }
+    if (grid_sizes.size() >= 3) {
+      grid.z = grid_sizes[2];
+    }
+    if (block_sizes.size() >= 1) {
+      block.x = block_sizes[0];
+    }
+    if (block_sizes.size() >= 2) {
+      block.x = block_sizes[1];
+    }
+    if (block_sizes.size() >= 3) {
+      block.x = block_sizes[2];
+    }
+
+    cuda_module.LaunchKernel(0, fn_name_ + "_kernel", grid, block, args);
+
+    CUDA_CALL(cudaMemcpy(
+        host_data3.data(), reinterpret_cast<void*>(Cd), num_elements * sizeof(float), cudaMemcpyDeviceToHost));
+
+    for (int i = 0; i < m; i++) {
+      for (int j = 0; j < N.as_int32(); j++) {
+        int offset = i * N.as_int32() + j;
+        if (i == 0 && j < 2) {
+          LOG(INFO) << host_data3[offset];
+        }
+        EXPECT_NEAR(host_data3[offset], host_data1[offset] * host_data2[offset], 1e-5);
+      }
+    }
+  }
+
+ private:
+  std::string fn_name_;
+};
+
+TEST(CodeGenCUDA, jit_dynamic_shape0) {
+  ElementwiseTester tester("elementwise_base");
+  auto [A, B, C] = tester.BuildNet();  // NOLINT
 
   auto [M_outer, M_inner] = C->stage()->Split(0, 32);  // M/32, 32 NOLINT
   C->stage()->Reorder({
@@ -164,69 +273,45 @@ TEST(CodeGenCUDA, jit_dynamic_shape) {
   C->stage()->GpuBlocks({C->stage()->axis(0)});
   C->stage()->GpuThreads({C->stage()->axis(1)});
 
-  auto func = Lower("elementwise_add", {A, B, C}, {M});
-  LOG(INFO) << "func:\n" << func;
+  tester.Test(A, B, C, {32}, {tester.N.as_int32()});
+}
 
-  CodeGenCUDA_Dev codegen(target);
+TEST(CodeGenCUDA, jit_dynamic_shape1) {
+  ElementwiseTester tester("elementwise1");
+  auto [A, B, C] = tester.BuildNet();  // NOLINT
 
-  Module::Builder builder("module", target);
-  builder.AddFunction(func);
+  auto [M_outer, M_inner] = C->stage()->Split(0, 32);  // M/32, 32 NOLINT
+  auto [N_outer, N_inner] = C->stage()->Split(2, 32);  // M/32, 32 NOLINT
+  C->stage()->Reorder({
+      M_inner,
+      N_inner,
+      M_outer,
+      N_outer,
+  });
 
-  Outputs outputs;
-  outputs          = outputs.cuda_source("generated1.cu");
-  auto source_code = codegen.Compile(builder.Build());
+  C->stage()->GpuBlocks({C->stage()->axis(0)});
+  C->stage()->GpuThreads({C->stage()->axis(1)});
 
-  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+  tester.Test(A, B, C, {32}, {32});
+}
 
-  // compile the code
-  using runtime::cuda::CUDAModule;
+TEST(CodeGenCUDA, jit_dynamic_shape2) {
+  ElementwiseTester tester("elementwise2");
+  auto [A, B, C] = tester.BuildNet();  // NOLINT
 
-  backends::NVRTC_Compiler compiler;
+  auto [M_outer, M_inner] = C->stage()->Split(0, 32);  // M/32, 32 NOLINT
+  auto [N_outer, N_inner] = C->stage()->Split(2, 3);   // M/32, 32 NOLINT
+  C->stage()->Reorder({
+      M_inner,
+      N_inner,
+      M_outer,
+      N_outer,
+  });
 
-  auto ptx = compiler(source_code);
-  CHECK(!ptx.empty());
+  C->stage()->GpuBlocks({C->stage()->axis(0)});
+  C->stage()->GpuThreads({C->stage()->axis(1)});
 
-  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
-
-  // launch the kernel
-
-  const int m            = 200;
-  const int num_elements = m * N.as_int32();
-  const int bytes        = num_elements * sizeof(float);
-
-  CUdeviceptr Ad, Bd, Cd;
-  cuMemAlloc(&Ad, bytes);
-  cuMemAlloc(&Bd, bytes);
-  cuMemAlloc(&Cd, bytes);
-
-  std::vector<float> host_data1(num_elements, 0);
-  std::vector<float> host_data2(num_elements, 0);
-  std::vector<float> host_data3(num_elements, 0);
-  for (int i = 0; i < num_elements; i++) {
-    host_data1[i] = rand() / INT_MAX;  // NOLINT
-    host_data2[i] = rand() / INT_MAX;  // NOLINT
-  }
-
-  CUDA_CALL(
-      cudaMemcpy(reinterpret_cast<void*>(Ad), host_data1.data(), num_elements * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(
-      cudaMemcpy(reinterpret_cast<void*>(Bd), host_data2.data(), num_elements * sizeof(float), cudaMemcpyHostToDevice));
-
-  void* args[] = {const_cast<int*>(&m), &Ad, &Bd, &Cd};
-
-  dim3 grid(32, 1, 1);
-  dim3 block(N.as_int32(), 1, 1);
-  cuda_module.LaunchKernel(0, "elementwise_add_kernel", grid, block, args);
-
-  CUDA_CALL(
-      cudaMemcpy(host_data3.data(), reinterpret_cast<void*>(Cd), num_elements * sizeof(float), cudaMemcpyDeviceToHost));
-
-  for (int i = 0; i < m; i++) {
-    for (int j = 0; j < N.as_int32(); j++) {
-      int offset = i * N.as_int32() + j;
-      EXPECT_NEAR(host_data3[offset], host_data1[offset] * host_data2[offset], 1e-5);
-    }
-  }
+  tester.Test(A, B, C, {32}, {3});
 }
 
 }  // namespace backends

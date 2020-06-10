@@ -13,6 +13,7 @@ option(WITH_TESTS           "Compile with tests"              ON)
 include(${CMAKE_BINARY_DIR}/config.cmake)
 
 if (WITH_CUDA)
+  message(STATUS "Enable CUDA")
   enable_language(CUDA)
   find_package(CUDA REQUIRED)
   include_directories(${CUDA_INCLUDE_DIRS})
