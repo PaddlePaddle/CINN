@@ -13,9 +13,8 @@ Context& Context::Global() {
 
 const std::string& Context::runtime_include_dir() const {
   if (runtime_include_dir_.empty()) {
-    char* env = std::getenv(kRuntimeIncludeDirEnvironKey);
-    CHECK(env) << "No environment variable called " << kRuntimeIncludeDirEnvironKey;
-    runtime_include_dir_ = env;
+    char* env            = std::getenv(kRuntimeIncludeDirEnvironKey);
+    runtime_include_dir_ = env ? env : "";  // Leave empty if no env found.
   }
   return runtime_include_dir_;
 }

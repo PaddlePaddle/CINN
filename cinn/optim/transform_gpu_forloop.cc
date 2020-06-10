@@ -3,6 +3,7 @@
 #include <map>
 #include <stack>
 #include <string>
+#include <vector>
 
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
@@ -200,7 +201,6 @@ void MarkGpuForloop(const std::string &statement,
             Expr var_expr(cuda_var);
             VLOG(3) << "gpu replacing var " << axis_var << " to " << var_expr;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
-            LOG(INFO) << "get\n" << *expr;
           } else if (it->second.for_type == ir::ForType::GPUBlock) {
             Var cuda_var(cuda_block_axis_name(block_level++));
             Expr var_expr(cuda_var);
