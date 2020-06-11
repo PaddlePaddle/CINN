@@ -25,9 +25,9 @@ TEST(test02_matmul, basic) {
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   {
     Module::Builder builder("module1", target);
@@ -72,9 +72,9 @@ TEST(matmul, Split) {
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   Iterator i0, i1;
   std::tie(i0, i1) = C->stage()->Split(2, 16);
@@ -112,9 +112,9 @@ TEST(matmul, Blocking) {
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   // Blocking by loop tiling.
   {
@@ -153,9 +153,9 @@ TEST(matmul, Vectorization) {
   // ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   // Blocking by loop tiling.
   {
@@ -196,9 +196,9 @@ TEST(matmul, LoopPermutation) {
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   // Blocking by loop tiling.
   {
@@ -251,9 +251,9 @@ TEST(matmul, ArrayPacking) {
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   {
     Iterator i_outer, i_inner, j_outer, j_inner;
@@ -292,9 +292,9 @@ TEST(matmul, varient_shape) {
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   {
     Module::Builder builder("matmul_dynamic_shape", target);
@@ -351,9 +351,9 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   {
     Iterator i_outer, i_inner, j_outer, j_inner;
@@ -391,9 +391,9 @@ TEST(matmul, call) {
   ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   Module::Builder builder("module_call", target);
   {

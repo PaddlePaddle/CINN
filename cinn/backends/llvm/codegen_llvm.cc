@@ -3,6 +3,9 @@
 #include <glog/logging.h>
 #include <glog/stl_logging.h>
 #include <llvm/IR/Instruction.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Metadata.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
@@ -66,6 +69,7 @@ CodeGenLLVM::CodeGenLLVM(llvm::Module *m,
   if (!named_vars_.get()) {
     named_vars_ = std::make_shared<std::unordered_map<std::string, llvm::Value *>>();
   }
+  md_builder_ = std::make_unique<llvm::MDBuilder>(b_->getContext());
 }
 
 CodeGenLLVM::~CodeGenLLVM() {}
@@ -246,7 +250,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
     }
 
     CHECK(callee);
-    CHECK(op->v().as_var()) << "argument to the intrinsic function cinn_pod_value_to_x should be a Var";
+    CHECK(op->v().as_var()) << "argument to the intrinsic function "
+                               "cinn_pod_value_to_x should be a Var";
     value = GetVar(op->v().as_var()->name);
     return Call(callee, std::vector<llvm::Value *>({value}), "pod_value_cast");
   }
@@ -360,7 +365,36 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
                                 /*HasNUW=*/true,
                                 /*HasNSW=*/true);
   Store(indvar_inc, loop_var);
-  Br(header_bb);
+  llvm::BranchInst *back_branch = Br(header_bb);
+
+  // Add loop metadata
+  decltype(auto) ctx = b_->getContext();
+  std::vector<llvm::Metadata *> loop_metadata;
+  auto temp_node = llvm::MDNode::getTemporary(ctx, llvm::None);
+  loop_metadata.push_back(temp_node.get());
+
+  // TODO(fc500110): Loop vectorize
+  // auto *vectorization = op->metadata.vectorization ? b_->getTrue() : b_->getFalse();
+  // loop_metadata.push_back(llvm::MDNode::get(
+  //    ctx, {llvm::MDString::get(ctx, "llvm.loop.vectorize.enable"), llvm::ConstantAsMetadata::get(vectorization)}));
+
+  // Loop unroll
+  std::string llvm_unroll_metadata{"llvm.loop.unroll."};
+  switch (op->metadata.unroll_mode) {
+    case ir::LLVMForLoopMeta::FullyUnroll:
+      llvm_unroll_metadata += "full";
+      break;
+    case ir::LLVMForLoopMeta::NoUnroll:
+      llvm_unroll_metadata += "disable";
+      break;
+    default:
+      llvm_unroll_metadata += "enable";
+  }
+
+  loop_metadata.push_back(llvm::MDNode::get(ctx, {llvm::MDString::get(ctx, llvm_unroll_metadata)}));
+  auto loop_id = llvm::MDNode::get(ctx, loop_metadata);
+  loop_id->replaceOperandWith(0, loop_id);
+  back_branch->setMetadata(llvm::LLVMContext::MD_loop, loop_id);
 
   if (old_var) {
     SetVar(op->loop_var->name, old_var);
@@ -483,7 +517,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
     auto array_ptr        = GetVar(_array_ptr.as_var()->name);
     auto cast_to_pod_arr  = BitCast(array_ptr, llvm_type_of<cinn_pod_value_t *>(m_));
     auto indice           = arg_load->index();
-    auto *get_element_ptr = b_->CreateGEP(llvm_type_of<cinn_pod_value_t>(m_), cast_to_pod_arr, Visit(&indice), "");
+    auto *get_element_ptr = InBoundsGEP(llvm_type_of<cinn_pod_value_t>(m_), cast_to_pod_arr, Visit(&indice), "");
     args.clear();
     args.push_back(get_element_ptr);
 
@@ -521,8 +555,14 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
   std::vector<llvm::Value *> indices;
   indices.push_back(Visit(&index));
 
-  auto res = Load(GEP(array, std::move(indices)));
-  return res;
+  auto load_inst = Load(InBoundsGEP(array, std::move(indices)));
+
+  // TODO(fc500110): tbaa AliasAnalysis
+  // auto md_tbaa_root      = md_builder_->createTBAARoot("cinn-tbaa");
+  // auto md_tbaa_alias_set = md_builder_->createTBAANode("cinn-alias", md_tbaa_root);
+  // llvm::MDNode *meta     = md_tbaa_alias_set;
+  // load_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
+  return load_inst;
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
@@ -538,7 +578,13 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
   std::vector<llvm::Value *> indices;
   indices.push_back(Visit(&index));
 
-  return Store(Visit(&op->value), GEP(array, std::move(indices)));
+  auto *store_inst = Store(Visit(&op->value), InBoundsGEP(array, std::move(indices)));
+  // TODO(fc500110): tbaa AliasAnalysis
+  // auto md_tbaa_root      = md_builder_->createTBAARoot("cinn-tbaa");
+  // auto md_tbaa_alias_set = md_builder_->createTBAANode("cinn-alias", md_tbaa_root);
+  // llvm::MDNode *meta     = md_tbaa_alias_set;
+  // store_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
+  return store_inst;
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Alloc *op) {
@@ -613,9 +659,11 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
   // function->addFnAttr("no-frame-pointer-elim", "false");
   function->setHasUWTable();  // GDB
 
-  std::vector<llvm::Value *> args(function->arg_size());
-  std::transform(
-      function->arg_begin(), function->arg_end(), args.begin(), [](auto &arg) { return std::addressof(arg); });
+  std::vector<llvm::Value *> args;
+  args.reserve(function->arg_size());
+  std::transform(function->arg_begin(), function->arg_end(), std::back_inserter(args), [](auto &arg) {
+    return std::addressof(arg);
+  });
 
   llvm::BasicBlock *entry = llvm::BasicBlock::Create(
       /*Context=*/b_->getContext(),

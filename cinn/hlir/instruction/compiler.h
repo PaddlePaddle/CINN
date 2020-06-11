@@ -3,8 +3,8 @@
 #include <memory>
 #include <string>
 
+#include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/simple_jit.h"
-#include "cinn/backends/llvm/simple_orc_jit.h"
 #include "cinn/hlir/instruction/instruction.h"
 #include "cinn/hlir/instruction/module.h"
 
@@ -34,7 +34,7 @@ class Compiler {
   lowered_func_p Lookup(const std::string& name) const;
 
  private:
-  std::unique_ptr<cinn::backends::SimpleJIT> jit_;
+  std::unique_ptr<cinn::backends::ExecutionEngine> jit_;
 };
 
 }  // namespace instruction

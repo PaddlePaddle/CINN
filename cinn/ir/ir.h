@@ -627,6 +627,14 @@ struct ForBase {
   VectorizeInfo vectorize_info_;
 };
 
+/// LLVM loop unroll metadata infomation
+struct LLVMForLoopMeta {
+  enum UnrollMode { DefaultUnroll, FullyUnroll, NoUnroll };
+
+  UnrollMode unroll_mode{DefaultUnroll};
+  bool vectorization{true};
+};
+
 struct For : public ExprNode<For>, public ForBase {
   //! The loop variable.
   Var loop_var;
@@ -638,6 +646,8 @@ struct For : public ExprNode<For>, public ForBase {
   Expr body;
 
   DeviceAPI device_api;
+
+  LLVMForLoopMeta metadata;
 
   static Expr Make(Var loop_var,
                    Expr min,

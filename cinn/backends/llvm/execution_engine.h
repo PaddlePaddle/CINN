@@ -1,8 +1,11 @@
 #pragma once
 
+#include <llvm/ADT/StringMap.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/JITSymbol.h>
+#include <llvm/ExecutionEngine/ObjectCache.h>
 #include <llvm/ExecutionEngine/Orc/CompileUtils.h>
+#include <llvm/ExecutionEngine/Orc/Core.h>
 #include <llvm/ExecutionEngine/Orc/ExecutionUtils.h>
 #include <llvm/ExecutionEngine/Orc/IRCompileLayer.h>
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
@@ -11,6 +14,7 @@
 #include <llvm/ExecutionEngine/Orc/ThreadSafeModule.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Support/MemoryBuffer.h>
@@ -28,41 +32,48 @@
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/lang/module.h"
 
-namespace cinn {
-namespace backends {
+namespace cinn::backends {
 
-class SimpleOrcJit {
+class NaiveObjectCache : public llvm::ObjectCache {
  public:
-  static std::unique_ptr<SimpleOrcJit> Create();
+  void notifyObjectCompiled(const llvm::Module *, llvm::MemoryBufferRef) override;
+  std::unique_ptr<llvm::MemoryBuffer> getObject(const llvm::Module *) override;
 
-  void AddModule(std::unique_ptr<llvm::Module> module, bool optimize = false);
-  void Link(const lang::Module &module, bool optimize = false, bool dump = false);
+ private:
+  llvm::StringMap<std::unique_ptr<llvm::MemoryBuffer>> cached_objects_;
+};
+
+struct ExecutionOptions {
+  int opt_level{3};
+  bool enable_debug_info{false};
+  // TODO(fc500110)
+  // int num_compile_threads{1};
+  // bool enable_fast_math;
+};
+
+class ExecutionEngine {
+ public:
+  friend std::unique_ptr<ExecutionEngine> std::make_unique<ExecutionEngine>(bool &&);
+
+  static std::unique_ptr<ExecutionEngine> Create(const ExecutionOptions &config);
 
   void *Lookup(std::string_view name);
 
-  llvm::LLVMContext &context() { return *context_.getContext(); }
+  void Link(const lang::Module &module);
+
+  bool AddModule(std::unique_ptr<llvm::Module> module, std::unique_ptr<llvm::LLVMContext> context);
 
  protected:
-  SimpleOrcJit(llvm::orc::JITTargetMachineBuilder jtmb, llvm::DataLayout data_layout);
+  explicit ExecutionEngine(bool enable_object_cache) : cache_(std::make_unique<NaiveObjectCache>()) {}
+
   void RegisterRuntimeSymbols();
+
   bool SetupTargetTriple(llvm::Module *module);
-  bool Finish();
 
  private:
   mutable std::mutex mu_;
-
-  std::vector<llvm::orc::VModuleKey> module_keys_;
-
-  llvm::orc::ExecutionSession execution_session_;
-  llvm::orc::RTDyldObjectLinkingLayer object_layer_;
-  llvm::DataLayout data_layout_;
-  llvm::orc::MangleAndInterner mangle_;
-  llvm::orc::IRCompileLayer compile_layer_;
-  llvm::orc::ThreadSafeContext context_;
-  llvm::orc::JITDylib *main_jd_;
-
   std::unique_ptr<llvm::orc::LLJIT> jit_;
+  std::unique_ptr<NaiveObjectCache> cache_;
 };
 
-}  // namespace backends
-}  // namespace cinn
+}  // namespace cinn::backends
