@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 
 #include "cinn/backends/codegen_c.h"
-#include "cinn/backends/llvm/simple_orc_jit.h"
+#include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
@@ -69,7 +69,7 @@ TEST(Tensor, Collapse) {
   lang::Module::Builder builder("module0", common::DefaultHostTarget());
   builder.AddFunction(func);
 
-  auto jit = backends::SimpleOrcJit::Create();
+  auto jit = backends::ExecutionEngine::Create({});
   jit->Link(builder.Build());
 
   auto fn_addr = jit->Lookup("func");

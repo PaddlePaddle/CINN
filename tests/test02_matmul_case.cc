@@ -140,16 +140,16 @@ TEST(test02, basic) {
   TEST_FUNC(matmul_main);
 
   {
-    auto module    = cinn::tests::CreateModule("module", 1024, 1024, 1024);
-    auto jit       = cinn::tests::CreateSimpleOrcJit(module);
-    auto matmul_fn = reinterpret_cast<void (*)(void**, int32_t)>(jit->Lookup("matmul"));
+    auto module    = cinn::tests::CreateMatmulBasicModule("module_basic", 1024, 1024, 1024);
+    auto engine    = cinn::tests::CreateExecutionEngine(module);
+    auto matmul_fn = reinterpret_cast<void (*)(void**, int32_t)>(engine->Lookup("matmul_basic"));
     TEST_FUNC(matmul_fn);
   }
 
   {
-    auto module    = cinn::tests::CreateModule("module", 1024, 1024, 1024);
+    auto module    = cinn::tests::CreateMatmulBasicModule("module", 1024, 1024, 1024);
     auto jit       = cinn::tests::CreateSimpleJit(module);
-    auto matmul_fn = reinterpret_cast<void (*)(void**, int32_t)>(jit->Lookup("matmul"));
+    auto matmul_fn = reinterpret_cast<void (*)(void**, int32_t)>(jit->Lookup("matmul_basic"));
     TEST_FUNC(matmul_fn);
   }
 }

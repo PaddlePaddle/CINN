@@ -3,6 +3,7 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/MDBuilder.h>
 #include <llvm/IR/Module.h>
 
 #include <memory>
@@ -54,6 +55,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> named_vars() { return named_vars_; }
 
  protected:
+  // void AddAliasInfo(llvm::Instruction *inst,);
   llvm::Value *GetVar(const std::string &name, bool lazy = true);
 
   // TODO(Superjomn) When to clear the existing local variables when switch to another function?
@@ -80,6 +82,8 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   llvm::Module *m_;
   llvm::IRBuilder<> *b_;
+
+  std::unique_ptr<llvm::MDBuilder> md_builder_;
 
   std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> named_vars_;
 };

@@ -17,13 +17,14 @@ set(srcs
   llvm_util.cc
   runtime_symbol_registry.cc
   codegen_llvm.cc
-  simple_orc_jit.cc
   simple_jit.cc
-  )
+  execution_engine.cc
+  llvm_optimizer.cc
+)
 
 cc_test(test_codegen_llvm SRCS codegen_llvm_test.cc DEPS core)
 
-cc_test(test_simple_orc_jit SRCS simple_orc_jit_test.cc DEPS core)
+cc_test(test_execution_engine SRCS execution_engine_test.cc DEPS core)
 
 
 foreach(cpp ${srcs})

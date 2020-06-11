@@ -249,6 +249,10 @@ class IrBuilderMixin {
     return mixin_builder()->CreateGEP(std::forward<Args>(args)...);
   }
   template <typename... Args>
+  decltype(auto) InBoundsGEP(Args &&... args) {
+    return mixin_builder()->CreateInBoundsGEP(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
   decltype(auto) PHI(Args &&... args) {
     return mixin_builder()->CreatePHI(std::forward<Args>(args)...);
   }

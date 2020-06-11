@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/simple_jit.h"
-#include "cinn/backends/llvm/simple_orc_jit.h"
 #include "cinn/cinn.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/common/test_helper.h"
@@ -48,10 +48,10 @@ void TestCallElementwise(const std::string &fn_name, float (*fn_runtime)(float),
 
   LOG(INFO) << "func:\n" << func;
 
-  auto jit    = backends::SimpleOrcJit::Create();
+  auto jit    = backends::ExecutionEngine::Create({});
   auto module = builder.Build();
 
-  jit->Link(module, /*optimize=*/true, false);
+  jit->Link(module);
   auto fn = jit->Lookup("fn");
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);

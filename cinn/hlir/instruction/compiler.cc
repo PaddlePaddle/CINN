@@ -1,6 +1,6 @@
 #include "compiler.h"
 
-#include "cinn/backends/llvm/simple_orc_jit.h"
+#include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/hlir/instruction/module_lower.h"
 #include "cinn/hlir/instruction/optimizer.h"
 #include "cinn/runtime/cinn_runtime.h"
@@ -9,7 +9,7 @@ namespace cinn {
 namespace hlir {
 namespace instruction {
 
-Compiler::Compiler() { jit_ = cinn::backends::SimpleJIT::Create(); }
+Compiler::Compiler() { jit_ = cinn::backends::ExecutionEngine::Create({}); }
 
 void Compiler::Eval(const std::string &name, cinn_pod_value_t *args, int args_num) {
   auto addr = jit_->Lookup(name);
@@ -40,7 +40,7 @@ void Compiler::Eval(const Module *module, cinn_pod_value_t *args, int args_num, 
 lowered_func_p Compiler::Compile(const Module *module) {
   auto cinn_module = Lower(*module, true);
 
-  jit_->Link(cinn_module, /*optimize=*/true);
+  jit_->Link(cinn_module);
 
   if (module->entry_computation()) {
     auto entry_fn_name = module->entry_computation()->name();
