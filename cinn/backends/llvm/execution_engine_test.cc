@@ -14,12 +14,17 @@
 #include <cmath>
 #include <iomanip>
 #include <memory>
+#include <random>
 #include <tuple>
 #include <utility>
 #include <vector>
 
+#include <llvm/IR/Argument.h>
+#include <llvm/IR/BasicBlock.h>
+#include <llvm/Support/FileSystem.h>
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
+#include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
@@ -28,17 +33,27 @@
 #include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/optim/optimize.h"
-#include "llvm/IR/Argument.h"
-#include "llvm/IR/BasicBlock.h"
-#include "llvm/Support/FileSystem.h"
 
 namespace cinn {
 namespace backends {
 
-const int kM = 100;
-const int kN = 32;
-
 namespace {
+bool RegisterKnownSymbols() {
+  decltype(auto) registry = RuntimeSymbolRegistry::Global();
+
+  registry.Register("sinf", reinterpret_cast<void *>(&sinf));
+  registry.Register("sin", reinterpret_cast<void *>(static_cast<double (*)(double)>(&sin)));
+
+  registry.Register("cosf", reinterpret_cast<void *>(&cosf));
+  registry.Register("cos", reinterpret_cast<void *>(static_cast<double (*)(double)>(&cos)));
+  return true;
+}
+
+[[maybe_unused]] bool unused = RegisterKnownSymbols();
+
+constexpr int kM = 100;
+constexpr int kN = 32;
+
 auto CreateTestBuffer() {
   auto *A = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {kM, kN}, 32);
   auto *B = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_float32_t(), {kM, kN}, 32);
@@ -171,7 +186,7 @@ TEST(llvm, module_call_lowered_func) {
   } while (false);
 }
 
-TEST(jit, cpu_runtime) {
+TEST(ExecutionEngine, custom_runtime_symbols) {
   auto context = std::make_unique<llvm::LLVMContext>();
   auto module  = std::make_unique<llvm::Module>("test_llvm_cpu_runtime", *context);
   auto builder = std::make_unique<llvm::IRBuilder<>>(*context);
@@ -198,10 +213,47 @@ TEST(jit, cpu_runtime) {
   call_custom_target("sinf", f32);
   call_custom_target("sin", f64);
 
+  double pi = std::acos(-1);
+
+  std::vector<double> angle = {0., pi / 6., pi / 4., pi / 3., pi / 2., pi};
+
+  std::random_device rd;
+  std::mt19937 mt(rd());
+  std::uniform_int_distribution<int> dis(-100, 100);
+  int random_x = dis(mt);
+  int random_y = dis(mt);
+
+  decltype(auto) registry = RuntimeSymbolRegistry::Global();
+  // registry.Register("dereference_f64_ptr", (void *)+[](double *x) { return *x; });
+
+  for (size_t i = 0; i < angle.size(); i++) {
+    registry.Register("theta_" + std::to_string(i), (void *)&angle[i]);
+  }
+
+  registry.Register("random_x_ptr", (void *)&random_x);
+  registry.Register("random_y_ptr", (void *)&random_y);
+  {
+    llvm::Type *i32_ty        = builder->getInt32Ty();
+    llvm::FunctionType *fn_ty = llvm::FunctionType::get(i32_ty, {}, false);
+    llvm::Function *fn =
+        llvm::Function::Create(fn_ty, llvm::Function::ExternalLinkage, "_add_random_x_y", module.get());
+    fn->setCallingConv(llvm::CallingConv::C);
+    llvm::BasicBlock *entry = llvm::BasicBlock::Create(module->getContext(), "entry", fn);
+    builder->SetInsertPoint(entry);
+    llvm::Type *i32_ptr_ty = llvm::Type::getInt32PtrTy(*context);
+    auto *random_x_ptr     = module->getOrInsertGlobal("random_x_ptr", i32_ptr_ty);
+    auto *random_y_ptr     = module->getOrInsertGlobal("random_y_ptr", i32_ptr_ty);
+    auto *random_x_value   = builder->CreateLoad(random_x_ptr);
+    auto *random_y_value   = builder->CreateLoad(random_y_ptr);
+    auto ret               = builder->CreateAdd(random_x_value, random_y_value);
+    builder->CreateRet(ret);
+  }
+
   auto engine = cinn::backends::ExecutionEngine::Create({1});
   engine->AddModule(std::move(module), std::move(context));
 
-  double pi = std::acos(-1);
+  auto *add_random_x_y = reinterpret_cast<int (*)()>(engine->Lookup("_add_random_x_y"));
+  ASSERT_EQ(random_x + random_y, add_random_x_y());
 
   auto *call_cosf = reinterpret_cast<float (*)(float)>(engine->Lookup("_call_custom_cosf"));
   auto *call_cos  = reinterpret_cast<double (*)(double)>(engine->Lookup("_call_custom_cos"));
@@ -210,7 +262,7 @@ TEST(jit, cpu_runtime) {
 
   ASSERT_TRUE(call_cosf && call_cos && call_sinf && call_sin);
 
-  for (auto theta : {0., pi / 6., pi / 4., pi / 3., pi / 2., pi}) {
+  for (auto theta : angle) {
     float theta_f = static_cast<float>(theta);
     ASSERT_NEAR(call_cosf(theta_f), cosf(theta_f), 1e-6);
     ASSERT_NEAR(call_cos(theta), cos(theta), 1e-6);
