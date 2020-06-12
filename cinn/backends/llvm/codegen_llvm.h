@@ -55,7 +55,6 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> named_vars() { return named_vars_; }
 
  protected:
-  // void AddAliasInfo(llvm::Instruction *inst,);
   llvm::Value *GetVar(const std::string &name, bool lazy = true);
 
   // TODO(Superjomn) When to clear the existing local variables when switch to another function?

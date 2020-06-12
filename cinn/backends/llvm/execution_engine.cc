@@ -205,18 +205,4 @@ void ExecutionEngine::RegisterRuntimeSymbols() {
   }
 }
 
-namespace {
-bool RegisterKnownSymbols() {
-  auto &registry = RuntimeSymbolRegistry::Global();
-
-  registry.Register("sinf", reinterpret_cast<void *>(&sinf));
-  registry.Register("sin", reinterpret_cast<void *>(static_cast<double (*)(double)>(&sin)));
-
-  registry.Register("cosf", reinterpret_cast<void *>(&cosf));
-  registry.Register("cos", reinterpret_cast<void *>(static_cast<double (*)(double)>(&cos)));
-  return true;
-}
-
-[[maybe_unused]] bool unused = RegisterKnownSymbols();
-}  // namespace
 }  // namespace cinn::backends
