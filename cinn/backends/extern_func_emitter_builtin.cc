@@ -142,7 +142,7 @@ void ExternFunctionLLVMEmitter::EmitImpl(const ir::Call* op) {
     if (v.as_tensor()) {
       args.push_back(codegen_for_emitter.GetVar(v.as_tensor()->buffer->name, false));
     } else {
-      auto* arg = codegen_->Visit(&v);
+      auto* arg = codegen_for_emitter.Visit(&v);
       args.push_back(arg);
     }
   }
@@ -155,8 +155,11 @@ void ExternFunctionLLVMEmitter::EmitImpl(const ir::Call* op) {
     }
   }
 
+  LOG(INFO) << "function type " << op->name << ": " << DumpToString(*custom_function);
+
   auto* command                   = codegen_for_emitter.b()->CreateCall(custom_function, args);
   codegen_->extern_func_emit_res_ = command;
+  LOG(INFO) << "call: " << DumpToString(*command);
 }
 
 }  // namespace backends

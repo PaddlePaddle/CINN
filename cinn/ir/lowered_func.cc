@@ -121,6 +121,9 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
 }
 
 void _LoweredFunc_::PrepareArgumentExprs() {
+  // Seems a CINN func.
+  if (args.front().is_var() && args.front().var_arg()->type() == type_of<cinn_pod_value_t*>()) return;
+
   // type of `void*`
   auto void_ptr_array_type = Type().with_type(Type::type_t::Void).set_cpp_handle();
   // type of `cinn_buffer_t*`
@@ -180,7 +183,10 @@ void _LoweredFunc_::PrepareArgumentExprs() {
       pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::pod_value_to_float, {load_expr});
     } else if (arg.type() == type_of<double>()) {
       pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::pod_value_to_double, {load_expr});
+    } else if (arg.type() == type_of<cinn_pod_value_t*>()) {
+      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::pod_value_to_buffer_p, {load_expr});
     } else {
+      LOG(ERROR) << "Not supported type [" << arg.type() << "]";
       NOT_IMPLEMENTED
     }
 

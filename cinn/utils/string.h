@@ -48,7 +48,7 @@ static void Replace(std::string* s, const std::string& from, const std::string& 
 }
 
 bool Startswith(const std::string& x, const std::string& str);
-bool Endswith(const std::string& x, const std::string& str);
+bool Endswith(const std::string& full_string, const std::string& ending);
 
 }  // namespace utils
 }  // namespace cinn

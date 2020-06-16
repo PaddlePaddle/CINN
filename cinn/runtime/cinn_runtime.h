@@ -358,6 +358,8 @@ struct cinn_pod_value_t {
 
   int type_code() const { return type_code_; }
 
+  void* data_addr() const;
+
   template <typename T>
   static int type_code();
 
@@ -387,6 +389,7 @@ cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value);
 // @{
 void float_to_cinn_pod_value(float v, cinn_pod_value_t* out);
 void int32_to_cinn_pod_value(int32_t v, cinn_pod_value_t* out);
+void handle_to_cinn_pod_value(void* v, cinn_pod_value_t* out);
 void buffer_p_to_cinn_pod_value(const struct cinn_buffer_t* v, cinn_pod_value_t* out);
 // @}
 
@@ -403,5 +406,5 @@ void cinn_print_debug_args(cinn_pod_value_t* args, int count);
 void cinn_args_construct(cinn_pod_value_t* arr, int count, ...);
 
 #ifdef __cplusplus
-}
+}  // extern "C"
 #endif

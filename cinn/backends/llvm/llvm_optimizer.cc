@@ -1,3 +1,5 @@
+#include "cinn/backends/llvm/llvm_optimizer.h"
+
 #include <glog/logging.h>
 #include <llvm/ADT/Triple.h>
 #include <llvm/Analysis/CGSCCPassManager.h>
@@ -35,13 +37,12 @@
 #include <llvm/Transforms/Scalar/NewGVN.h>
 #include <llvm/Transforms/Scalar/Reassociate.h>
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
+
 #include <algorithm>
 #include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
-
-#include "cinn/backends/llvm/llvm_optimizer.h"
 
 namespace cinn::backends {
 
@@ -102,7 +103,7 @@ void LLVMModuleOptimizer::operator()(llvm::Module *m) {
     fpm->run(fn);
   }
   fpm->doFinalization();
-  mpm->run(*m);
+  // mpm->run(*m);
 }
 
 }  // namespace cinn::backends

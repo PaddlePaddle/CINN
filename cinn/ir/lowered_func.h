@@ -88,6 +88,8 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   //! Body of this function.
   Expr body;
 
+  DeviceAPI device_api{DeviceAPI::UNK};
+
   std::vector<int> gpu_grid_dims;
   std::vector<int> gpu_block_dims;
 
@@ -113,6 +115,8 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
                           const std::vector<Argument>& args,
                           const Expr& body,
                           const std::vector<ir::Buffer>& temp_bufs);
+
+  bool is_gpu_host() const { return !gpu_block_dims.empty() && !gpu_grid_dims.empty(); }
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;

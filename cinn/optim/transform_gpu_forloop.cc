@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/backends/cuda_util.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
@@ -46,6 +47,7 @@ void RemoveGpuForloopsAxis(Expr *expr) {
         case ir::ForType::GPUBlock:
           dim = GpuAxisGetExtent(op->extent);
           CHECK_GT(dim, 0) << "Invalid dimension found " << dim;
+          // TODO(Superjomn) Support multiple block dimensions
           cur_func_->gpu_grid_dims.push_back(dim);
           if (NeedToReplaceForloopWithIfThenElse(op)) {
             ReplaceForloopWithIfThenElse(expr);
@@ -53,10 +55,12 @@ void RemoveGpuForloopsAxis(Expr *expr) {
             *expr = op->body;
           }
           IRMutator<>::Visit(expr, expr);
+          cur_func_->gpu_grid_dims.resize(3, 1);
           break;
         case ir::ForType::GPUThread:
           dim = GpuAxisGetExtent(op->extent);
           CHECK_GT(dim, 0) << "Invalid dimension found " << dim;
+          // TODO(Superjomn) Support multiple block dimensions
           cur_func_->gpu_block_dims.push_back(dim);
           if (NeedToReplaceForloopWithIfThenElse(op)) {
             ReplaceForloopWithIfThenElse(expr);
@@ -64,6 +68,7 @@ void RemoveGpuForloopsAxis(Expr *expr) {
             *expr = op->body;
           }
           IRMutator<>::Visit(expr, expr);
+          cur_func_->gpu_block_dims.resize(3, 1);
           break;
         default:
           auto *node = expr->As<ir::For>();
@@ -177,6 +182,11 @@ void MarkGpuForloop(const std::string &statement,
         MarkForloop();
       }
     }
+    void Visit(const ir::_LoweredFunc_ *op, Expr *expr) override {
+      auto *node = expr->as_lowered_func();
+
+      ir::IRMutator<>::Visit(op, expr);
+    }
 
     void MarkForloop() {
       // start from 0, threadIdx.x
@@ -197,12 +207,12 @@ void MarkGpuForloop(const std::string &statement,
           }
 
           if (it->second.for_type == ir::ForType::GPUThread) {
-            Var cuda_var(cuda_thread_axis_name(thread_level++));
+            Var cuda_var(backends::cuda_thread_axis_name(thread_level++));
             Expr var_expr(cuda_var);
             VLOG(3) << "gpu replacing var " << axis_var << " to " << var_expr;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
           } else if (it->second.for_type == ir::ForType::GPUBlock) {
-            Var cuda_var(cuda_block_axis_name(block_level++));
+            Var cuda_var(backends::cuda_block_axis_name(block_level++));
             Expr var_expr(cuda_var);
             VLOG(3) << "gpu replacing var " << axis_var << " to " << var_expr;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
@@ -211,36 +221,6 @@ void MarkGpuForloop(const std::string &statement,
           }
         }
       }
-    }
-
-    std::string cuda_thread_axis_name(int level) {
-      switch (level) {
-        case 0:
-          return "threadIdx.x";
-          break;
-        case 1:
-          return "threadIdx.y";
-          break;
-        case 2:
-          return "threadIdx.z";
-          break;
-      }
-      return "";
-    }
-
-    std::string cuda_block_axis_name(int level) {
-      switch (level) {
-        case 0:
-          return "blockIdx.x";
-          break;
-        case 1:
-          return "blockIdx.y";
-          break;
-        case 2:
-          return "blockIdx.z";
-          break;
-      }
-      return "";
     }
 
     std::vector<Expr *> forloops;

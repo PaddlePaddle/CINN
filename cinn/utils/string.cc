@@ -58,7 +58,12 @@ std::string Uppercase(const std::string &x) {
 }
 
 bool Startswith(const std::string &x, const std::string &str) { return x.find(str) == 0; }
-bool Endswith(const std::string &x, const std::string &str) { return x.rfind(str) == x.size() - str.size(); }
+bool Endswith(const std::string &full_string, const std::string &ending) {
+  if (full_string.length() >= ending.length()) {
+    return std::equal(ending.rbegin(), ending.rend(), full_string.rbegin());
+  }
+  return false;
+}
 
 std::vector<std::string> Split(const std::string &str, const std::string &splitter) {
   std::vector<std::string> results;

@@ -48,6 +48,8 @@ static const char* pod_value_to_float    = "cinn_pod_value_to_float";
 static const char* pod_value_to_double   = "cinn_pod_value_to_double";
 static const char* print_debug_args_repr = "cinn_print_debug_args";
 
+static const char* call_cuda_kernel = "cinn_call_cuda_kernel";
+
 static const char* pod_values_to_array_repr = "pod_values_to_array";
 
 static const char* get_address_repr = "get_address";

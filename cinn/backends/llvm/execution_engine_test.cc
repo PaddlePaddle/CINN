@@ -4,8 +4,11 @@
 #include <glog/raw_logging.h>
 #include <gtest/gtest.h>
 #include <llvm/AsmParser/Parser.h>
+#include <llvm/IR/Argument.h>
+#include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IRReader/IRReader.h>
+#include <llvm/Support/FileSystem.h>
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
@@ -19,9 +22,6 @@
 #include <utility>
 #include <vector>
 
-#include <llvm/IR/Argument.h>
-#include <llvm/IR/BasicBlock.h>
-#include <llvm/Support/FileSystem.h>
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
@@ -33,6 +33,7 @@
 #include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/optim/optimize.h"
+#include "cinn/runtime/cpu/host_intrinsics.h"
 
 namespace cinn {
 namespace backends {
@@ -227,11 +228,11 @@ TEST(ExecutionEngine, custom_runtime_symbols) {
   // registry.Register("dereference_f64_ptr", (void *)+[](double *x) { return *x; });
 
   for (size_t i = 0; i < angle.size(); i++) {
-    registry.Register("theta_" + std::to_string(i), (void *)&angle[i]);
+    registry.Register("theta_" + std::to_string(i), reinterpret_cast<void *>(&angle[i]));
   }
 
-  registry.Register("random_x_ptr", (void *)&random_x);
-  registry.Register("random_y_ptr", (void *)&random_y);
+  registry.Register("random_x_ptr", reinterpret_cast<void *>(&random_x));
+  registry.Register("random_y_ptr", reinterpret_cast<void *>(&random_y));
   {
     llvm::Type *i32_ty        = builder->getInt32Ty();
     llvm::FunctionType *fn_ty = llvm::FunctionType::get(i32_ty, {}, false);
@@ -308,7 +309,7 @@ TEST(ExecutionEngine, call_extern) {
   auto *cd = reinterpret_cast<float *>(cb->host_memory);
   for (int m = 0; m < kM; m++) {
     for (int n = 0; n < kN; n++) {
-      // ASSERT_NEAR(cd[m * kN + n], __cinn_host_tanh_fp32(ad[m * kN + n] + bd[m * kN + n]), 1e-5);
+      ASSERT_NEAR(cd[m * kN + n], cinn_cpu_tanh_fp32(ad[m * kN + n] + bd[m * kN + n]), 1e-5);
     }
   }
 }

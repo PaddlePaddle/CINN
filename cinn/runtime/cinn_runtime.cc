@@ -88,7 +88,7 @@ struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device,
                                           const std::vector<int>& shape,
                                           int align) {
   int32_t dimensions     = shape.size();
-  cinn_dimension_t* dims = (cinn_dimension_t*)malloc(sizeof(cinn_dimension_t) * dimensions);
+  cinn_dimension_t* dims = (cinn_dimension_t*)malloc(sizeof(cinn_dimension_t) * dimensions);  // NOLINT
   memcpy(dims, shape.data(), shape.size() * sizeof(int));
 
   struct cinn_buffer_t* x = (struct cinn_buffer_t*)malloc(sizeof(struct cinn_buffer_t));
@@ -193,6 +193,8 @@ cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value) { return *val
 // @{
 void float_to_cinn_pod_value(float v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
 void int32_to_cinn_pod_value(int32_t v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
+
+void handle_to_cinn_pod_value(void* v, cinn_pod_value_t* out) { *out = cinn_pod_value_t(v); }
 void buffer_p_to_cinn_pod_value(const cinn_buffer_t* v, cinn_pod_value_t* out) {
   *out = cinn_pod_value_t(const_cast<cinn_buffer_t*>(v));
 }
@@ -233,7 +235,7 @@ void debug_pod_value(cinn_pod_value_t v, int i) {
 
 void cinn_print_debug_args(cinn_pod_value_t* args, int count) {
   cinn_print_debug_string("start debug ==");
-  cinn_print_debug_string("args: %p\n", (void*)args);
+  cinn_print_debug_string("args: %p\n", (void*)args);  // NOLINT
   cinn_print_debug_string("with %d arguments", count);
   if (!args) {
     cinn_print_debug_string("args is null!!");
@@ -241,7 +243,7 @@ void cinn_print_debug_args(cinn_pod_value_t* args, int count) {
   }
 
   for (int i = 0; i < count; i++) {
-    cinn_print_debug_string("arg[%d]: %p\n", i, (void*)(&args[i]));
+    cinn_print_debug_string("arg[%d]: %p\n", i, (void*)(&args[i]));  // NOLINT
     debug_pod_value(args[i], i);
   }
 }
@@ -257,6 +259,24 @@ void cinn_args_construct(cinn_pod_value_t* arr, int count, ...) {
     // debug_pod_value(*elem_addr, i);
   }
   va_end(args);
+}
+
+void* cinn_pod_value_t::data_addr() const {
+  switch (type_code()) {
+    case cinn_pod_value_t::type_code<int32_t>():
+    case cinn_pod_value_t::type_code<int64_t>():
+      return (void*)&value_.v_int64;  // NOLINT
+    case cinn_pod_value_t::type_code<float>():
+      return (void*)&value_.v_float64;  // NOLINT
+    case cinn_pod_value_t::type_code<void*>():
+      return (void*)&value_.v_handle;  // NOLINT
+    case cinn_pod_value_t::type_code<cinn_buffer_t*>():
+      return (void*)&value_.v_handle;  // NOLINT
+    default:
+      cinn_print_debug_string("POD value type [%d] not supported", type_code());
+      CINN_NOT_IMPLEMENTED
+  }
+  return nullptr;
 }
 
 #include "cinn/runtime/cinn_x86_device_impl.cc"

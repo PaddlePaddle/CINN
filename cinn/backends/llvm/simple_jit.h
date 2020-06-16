@@ -1,5 +1,6 @@
 #pragma once
 
+#include <llvm/AsmParser/Parser.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/JITSymbol.h>
 #include <llvm/ExecutionEngine/Orc/CompileUtils.h>
@@ -25,9 +26,11 @@
 #include <string>
 #include <vector>
 
+#include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/lang/module.h"
+#include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
 namespace backends {
@@ -36,38 +39,25 @@ class SimpleJIT {
  public:
   static std::unique_ptr<SimpleJIT> Create() { return std::unique_ptr<SimpleJIT>(new SimpleJIT); }
 
+  /**
+   * Runtime link to a module.
+   * @tparam CodeGenT a CodeGenLLVM implementation.
+   * @param module a CINN module.
+   * @param optimize whether to optimize.
+   */
+  template <typename CodeGenT = CodeGenLLVM>
   void Link(lang::Module module, bool optimize = true);
 
   void Link(llvm::orc::ThreadSafeModule m, bool optimize = true) { llvm::cantFail(jit_->addIRModule(std::move(m))); }
 
-  llvm::JITTargetAddress Lookup(const std::string& name) { return llvm::cantFail(jit_->lookup(name)).getAddress(); }
+  llvm::JITTargetAddress Lookup(const std::string &name) { return llvm::cantFail(jit_->lookup(name)).getAddress(); }
 
  private:
   void AddModule(std::unique_ptr<llvm::Module> module, bool optimize);
 
-  llvm::LLVMContext& context() { return *context_.getContext(); }
+  llvm::LLVMContext &context() { return *context_.getContext(); }
 
-  SimpleJIT() : context_(std::make_unique<llvm::LLVMContext>()) {
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-    llvm::InitializeAllAsmPrinters();
-
-    jit_ = llvm::cantFail(llvm::orc::LLJITBuilder().create());
-    CHECK(jit_) << "JIT create failed";
-
-    auto proc_symbols_generator = llvm::cantFail(
-        llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(jit_->getDataLayout().getGlobalPrefix()));
-    jit_->getMainJITDylib().addGenerator(std::move(proc_symbols_generator));
-
-    llvm::orc::MangleAndInterner mangle(jit_->getExecutionSession(), jit_->getDataLayout());
-
-    for (auto& item : RuntimeSymbolRegistry::Global().All()) {
-      LOG(INFO) << "Insert [" << item.first << "] to SimpleJIT";
-      llvm::cantFail(jit_->defineAbsolute(*mangle(item.first), {llvm::pointerToJITTargetAddress(item.second), {}}));
-    }
-  }
+  SimpleJIT();
 
   std::unique_ptr<llvm::orc::LLJIT> jit_;
   llvm::orc::ThreadSafeContext context_;
