@@ -56,6 +56,8 @@ bool RegisterRuntimeSymbols() {
       .AddInputType<float>()
       .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
       .End();
+
+  return true;
 }
 
 [[maybe_unused]] bool x = RegisterRuntimeSymbols();

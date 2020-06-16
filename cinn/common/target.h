@@ -23,6 +23,7 @@ struct Target {
     Unk = -1,
     X86,
     ARM,
+    NVGPU,
   };
 
   enum Bit : int {
@@ -61,6 +62,11 @@ static const Target& UnkTarget() {
 
 static const Target& DefaultHostTarget() {
   static Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64, {});
+  return target;
+}
+
+static const Target& DefaultNVGPUTarget() {
+  static Target target(Target::OS::Linux, Target::Arch::NVGPU, Target::Bit::k64, {});
   return target;
 }
 

@@ -29,7 +29,9 @@ Expr Optimize(Expr e, bool runtime_debug_info) {
   VectorizeLoops(&copied, Target());
   EliminateBroadcastInForloop(&copied);
   UnrollLoop(&copied);
+#ifdef CINN_WITH_CUDA
   RemoveGpuForloopsAxis(&copied);
+#endif
   RemoveNestedBlock(&copied);
 
   ActivateToExternCall(&copied);

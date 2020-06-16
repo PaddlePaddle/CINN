@@ -11,6 +11,7 @@
 #include "cinn/hlir/instruction/instruction_util.h"
 #include "cinn/hlir/instruction/module.h"
 #include "cinn/hlir/instruction/optimizer.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
 
@@ -280,7 +281,6 @@ TEST(Compiler, call_main_dense_model) {
                                cinn_pod_value_t(Biasb),
                                cinn_pod_value_t(Outb)};
     auto fn                 = compiler.Compile(module.get());
-    // fn = compiler.Lookup(fn_name);
     ASSERT_TRUE(fn);
 
     fn(args, 5);
@@ -390,7 +390,7 @@ void TestElementwise() {
     cinn_buffer_free(nullptr, x_buf);
     cinn_buffer_free(nullptr, out_buf);
   }
-};
+}
 
 TEST(Compiler, Tanh) { TestElementwise<InstrCode::Tanh>(); }
 TEST(Compiler, Ceil) { TestElementwise<InstrCode::Ceil>(); }

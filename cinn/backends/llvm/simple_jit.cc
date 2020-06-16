@@ -8,16 +8,14 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/IRReader/IRReader.h>
 #include <llvm/Passes/PassBuilder.h>
-#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/TargetRegistry.h>
-#include <llvm/Transforms/InstCombine/InstCombine.h>
 #include <llvm/Transforms/Scalar.h>
 #include <llvm/Transforms/Scalar/GVN.h>
-#include <llvm/Transforms/Scalar/NewGVN.h>
 #include <llvm/Transforms/Scalar/Reassociate.h>
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
 
+#include "cinn/backends/codegen_cuda_host.h"
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/llvm_util.h"
@@ -26,29 +24,6 @@
 
 namespace cinn {
 namespace backends {
-
-void SimpleJIT::Link(lang::Module module, bool optimize) {
-  std::string runtime_ir(backends::kRuntimeLlvmIr);
-  llvm::SMDiagnostic error;
-  auto m = llvm::parseAssemblyString(runtime_ir, error, context());
-  auto b = std::make_unique<llvm::IRBuilder<>>(context());
-
-  auto ir_emitter = std::make_unique<CodeGenLLVM>(m.get(), b.get());
-  for (auto &buffer : module->buffers) {
-    auto expr = runtime::BufferCreate(buffer.as_buffer_ref());
-    ir_emitter->Visit(&expr);
-  }
-
-  for (auto &fn : module.functions()) {
-    LOG(WARNING) << "JIT Linking function [" << fn->name << "]";
-    ir::Expr fn_expr(fn);
-
-    auto *fn_ = ir_emitter->Visit(&fn_expr);
-    VLOG(1) << DumpToString(*fn_);
-  }
-
-  AddModule(std::move(m), optimize);
-}
 
 void SimpleJIT::AddModule(std::unique_ptr<llvm::Module> module, bool optimize) {
   CHECK(!llvm::verifyModule(*module, &llvm::errs())) << "Transformation resulted in an invalid module";
@@ -84,6 +59,55 @@ void SimpleJIT::AddModule(std::unique_ptr<llvm::Module> module, bool optimize) {
     LOG(INFO) << "compiled jit:\n" << buffer;
   }
 }
+
+SimpleJIT::SimpleJIT() : context_(std::make_unique<llvm::LLVMContext>()) {
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmParsers();
+  llvm::InitializeAllAsmPrinters();
+
+  jit_ = llvm::cantFail(llvm::orc::LLJITBuilder().create());
+  CHECK(jit_) << "JIT create failed";
+
+  auto proc_symbols_generator = llvm::cantFail(
+      llvm::orc::DynamicLibrarySearchGenerator::GetForCurrentProcess(jit_->getDataLayout().getGlobalPrefix()));
+  jit_->getMainJITDylib().addGenerator(std::move(proc_symbols_generator));
+
+  llvm::orc::MangleAndInterner mangle(jit_->getExecutionSession(), jit_->getDataLayout());
+
+  for (auto &item : RuntimeSymbolRegistry::Global().All()) {
+    LOG(INFO) << "Insert [" << item.first << "] to SimpleJIT";
+    llvm::cantFail(jit_->defineAbsolute(*mangle(item.first), {llvm::pointerToJITTargetAddress(item.second), {}}));
+  }
+}
+
+template <typename CodeGenT>
+void SimpleJIT::Link(lang::Module module, bool optimize) {
+  std::string runtime_ir(backends::kRuntimeLlvmIr);
+  llvm::SMDiagnostic error;
+  auto m = llvm::parseAssemblyString(runtime_ir, error, context());
+  auto b = std::make_unique<llvm::IRBuilder<>>(context());
+
+  auto ir_emitter = std::make_unique<CodeGenT>(m.get(), b.get());
+  for (auto &buffer : module->buffers) {
+    auto expr = runtime::BufferCreate(buffer.as_buffer_ref());
+    ir_emitter->Visit(&expr);
+  }
+
+  for (auto &fn : module.functions()) {
+    LOG(WARNING) << "JIT Linking function [" << fn->name << "]";
+    ir::Expr fn_expr(fn);
+
+    auto *fn_ = ir_emitter->Visit(&fn_expr);
+    LOG(INFO) << DumpToString(*fn_);
+  }
+
+  AddModule(std::move(m), optimize);
+}
+
+template void SimpleJIT::Link<CodeGenLLVM>(lang::Module module, bool optimize);
+template void SimpleJIT::Link<CodeGenCUDA_Host>(lang::Module module, bool optimize);
 
 }  // namespace backends
 }  // namespace cinn

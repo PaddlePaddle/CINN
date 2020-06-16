@@ -50,7 +50,8 @@ class ExternFunctionEmitter {
    * Emit a store node, if the call node's RetValuePacked is true, otherwise Emit a Call node.
    */
 
-  void Emit(const ir::Call* op) {
+  void Emit(const ir::Call* op, bool insert_global_if_missing = false) {
+    insert_global_if_missing_ = insert_global_if_missing;
     func_proto().AssertMatch(op);
     EmitImpl(op);
   }
@@ -82,6 +83,8 @@ class ExternFunctionEmitter {
 
  protected:
   virtual void EmitImpl(const ir::Call* op) = 0;
+
+  bool insert_global_if_missing_ = false;
 };
 
 struct ExternFuncID {

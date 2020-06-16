@@ -2,6 +2,12 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <string>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
+
+#include "cinn/runtime/cinn_runtime.h"
 
 #define CUDA_DRIVER_CALL(x)                                             \
   {                                                                     \
@@ -26,3 +32,15 @@
       LOG(FATAL) << "NVRTC error: " #x " failed with error: " << nvrtcGetErrorString(result); \
     }                                                                                         \
   }
+
+namespace cinn {
+namespace backends {
+
+// CUDA syntax for thread axis.
+std::string cuda_thread_axis_name(int level);
+
+// CUDA syntax for block axis.
+std::string cuda_block_axis_name(int level);
+
+}  // namespace backends
+}  // namespace cinn

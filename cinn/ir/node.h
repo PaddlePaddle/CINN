@@ -367,13 +367,32 @@ struct BinaryOpNode : public ExprNode<T> {
 //! Zero in CINN type system.
 Expr Zero(const Type& type);
 
-enum class DeviceAPI {
-  UNK,
-  Host,
-  GPU,
-  CUDA,
-  OpenCL,
-};
+#define DEVICE_API_FOR_ALL(__) \
+  __(UNK)                      \
+  __(Host)                     \
+  __(GPU)                      \
+  __(CUDA)                     \
+  __(OpenCL)
+
+#define __decl__(x) x,
+enum class DeviceAPI { DEVICE_API_FOR_ALL(__decl__) };
+#undef __decl__
+
+static std::ostream& operator<<(std::ostream& os, DeviceAPI x) {
+  switch (x) {
+#define __decl__(x)  \
+  case DeviceAPI::x: \
+    os << #x;        \
+    break;
+
+    DEVICE_API_FOR_ALL(__decl__)
+#undef __decl__
+
+    default:
+      break;
+  }
+  return os;
+}
 
 /**
  * An enum describing different address spaces to be used with Func::store_in.

@@ -45,6 +45,7 @@
 #include "cinn/backends/llvm/llvm_optimizer.h"
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/runtime/intrinsic.h"
 
 namespace cinn::backends {
@@ -117,7 +118,6 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
 
   LOG(INFO) << "create jit execution engine";
   engine->jit_ = llvm::cantFail(llvm::orc::LLJITBuilder()
-                                    //.setNumCompileThreads(config.num_compile_threads)
                                     .setCompileFunctionCreator(compile_layer_creator)
                                     .setObjectLinkingLayerCreator(object_layer_creator)
                                     .create());
@@ -146,12 +146,17 @@ void ExecutionEngine::Link(const lang::Module &module) {
 
   for (auto &function : module.functions()) {
     ir::Expr expr(function);
+    LOG(INFO) << "cinn:\n" << expr;
     auto *f = emitter->Visit(&expr);
+    LOG(INFO) << "fn:\n" << DumpToString(*f);
+    CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module detected";
   }
+
+  CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module found";
 
   LLVMModuleOptimizer optimize(nullptr, 3, {});
   optimize(m.get());
-  CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid optimized module";
+  CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid optimized module detected";
 
   CHECK(AddModule(std::move(m), std::move(ctx)));
 

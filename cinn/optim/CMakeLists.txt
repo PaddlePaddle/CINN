@@ -7,7 +7,6 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   vectorize_loops.cc
   unroll_loops.cc
   transform_polyfor_to_for.cc
-  transform_gpu_forloop.cc
   eliminate_broadcast_in_forloop.cc
   fold_cinn_call_arguments.cc
   call_arg_list_to_pod_value.cc
@@ -16,6 +15,9 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   extern_call_process.cc
   activate_to_extern_call.cc
   )
+if (WITH_CUDA)
+  list(APPEND srcs transform_gpu_forloop.cc)
+endif()
 
 foreach(cpp ${srcs})
   set(core_src
@@ -30,4 +32,6 @@ cc_test(test_replace_call_with_expr SRCS replace_call_with_expr_test.cc DEPS cor
 cc_test(test_vectorize_loops SRCS vectorize_loops_test.cc DEPS core ARGS ${global_test_args})
 cc_test(test_transform_polyfor_to_for SRCS transform_polyfor_to_for_test.cc DEPS core ARGS ${global_test_args})
 cc_test(test_optimize SRCS optimize_test.cc DEPS core)
-cc_test(test_transform_gpu_forloop SRCS transform_gpu_forloop_test.cc DEPS core)
+if (WITH_CUDA)
+  cc_test(test_transform_gpu_forloop SRCS transform_gpu_forloop_test.cc DEPS core)
+endif()

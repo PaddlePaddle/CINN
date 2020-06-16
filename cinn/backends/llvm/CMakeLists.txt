@@ -26,7 +26,6 @@ cc_test(test_codegen_llvm SRCS codegen_llvm_test.cc DEPS core)
 
 cc_test(test_execution_engine SRCS execution_engine_test.cc DEPS core)
 
-
 foreach(cpp ${srcs})
   set(core_src
     "${core_src};cinn/backends/llvm/${cpp}"

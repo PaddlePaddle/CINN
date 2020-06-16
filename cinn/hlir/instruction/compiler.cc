@@ -1,4 +1,4 @@
-#include "compiler.h"
+#include "cinn/hlir/instruction/compiler.h"
 
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/hlir/instruction/module_lower.h"
@@ -39,6 +39,8 @@ void Compiler::Eval(const Module *module, cinn_pod_value_t *args, int args_num, 
 
 lowered_func_p Compiler::Compile(const Module *module) {
   auto cinn_module = Lower(*module, true);
+
+  LOG(INFO) << "cinn:\n" << Expr(cinn_module);
 
   jit_->Link(cinn_module);
 

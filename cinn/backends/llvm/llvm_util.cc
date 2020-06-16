@@ -23,6 +23,12 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
   llvm::Type *u32 = llvm::Type::getInt32Ty(m->getContext());
   llvm::Type *f32 = llvm::Type::getFloatTy(m->getContext());
   llvm::Type *f64 = llvm::Type::getDoubleTy(m->getContext());
+  if (type.is_void() && type.is_cpp_handle()) {
+    return llvm::PointerType::getUnqual(i8);
+  }
+  if (type.is_void() && type.is_cpp_handle_handle()) {
+    return llvm::PointerType::getUnqual(llvm::PointerType::getUnqual(i8));
+  }
 
   if (type.is_int(8)) {
     ir_type = i8;
@@ -67,7 +73,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
     return CinnTypeToLLVMType(common::type_of<ty__>(), m); \
   }
 
-__(int8_t *)
+__(int8_t)
 __(int32_t)
 __(int64_t)
 __(float)
@@ -77,6 +83,7 @@ __(cinn_buffer_t *)
 __(cinn_pod_value_t *)
 __(cinn_pod_value_t)
 __(void *)
+__(void **)
 
 #undef __
 

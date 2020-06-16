@@ -1,7 +1,7 @@
 #pragma once
 #include <glog/logging.h>
-#include <any>
 
+#include <any>
 #include <memory>
 #include <set>
 #include <string>

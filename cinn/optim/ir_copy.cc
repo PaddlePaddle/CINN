@@ -203,6 +203,8 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     func->body      = Visit(&op->body);
     func->temp_bufs = op->temp_bufs;
 
+    func->device_api = op->device_api;
+
     func->gpu_block_dims = op->gpu_block_dims;
     func->gpu_grid_dims  = op->gpu_grid_dims;
 

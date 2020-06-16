@@ -7,6 +7,7 @@
 #include "cinn/backends/extern_func_emitter.h"
 #include "cinn/backends/extern_func_protos.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
+#include "cinn/backends/llvm/llvm_util.h"
 
 namespace cinn {
 namespace backends {
@@ -22,11 +23,6 @@ static const char* extern_tanh_v_host_repr = "__cinn_host_tanh_v";
 class CodeGenLLVMforEmitter : public CodeGenLLVM {
  public:
   explicit CodeGenLLVMforEmitter(CodeGenLLVM* x) : CodeGenLLVM(x->m(), x->b(), x->named_vars()) {}
-
-  using IrBuilderMixin<CodeGenLLVM>::Call;
-  using CodeGenLLVM::b;
-  using CodeGenLLVM::GetVar;
-  using CodeGenLLVM::m;
 };
 
 class ExternFunctionLLVMEmitter : public ExternFunctionEmitter {

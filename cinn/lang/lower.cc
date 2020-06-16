@@ -168,6 +168,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   }
 
   // mark gpu
+#ifdef CINN_WITH_CUDA
   {
     optim::forloop_infos_t forloop_infos;
     for (auto* stage : stages) {
@@ -175,6 +176,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
     }
     optim::TransformGpuForloop(forloop_infos, &e);
   }
+#endif
 
   return e;
 }
@@ -372,6 +374,18 @@ struct LowerImpl {
   std::map<std::string, Tensor> tensor_dic_;
 };
 
+bool TensorContainsGPUInfo(ir::Tensor t) {
+  if (t->inlined()) return false;
+  if (t->stage()) {
+    for (auto& info : t->stage()->forloop_infos()) {
+      if (info.second.device == ir::DeviceAPI::GPU) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 ir::LoweredFunc Lower(const std::string& name,
                       const std::vector<Tensor>& tensor_args,
                       const std::vector<Var>& scalar_args,
@@ -386,7 +400,16 @@ ir::LoweredFunc Lower(const std::string& name,
     }
   }
 
+  bool contains_gpu = false;
+  for (auto& t : tensor_args) {
+    if (contains_gpu = TensorContainsGPUInfo(t)) break;
+  }
+
   auto res = LowerImpl(name, tensor_args, scalar_args, temp_tensors)();
+
+  if (contains_gpu) {
+    res->device_api = ir::DeviceAPI::GPU;
+  }
 
   if (b) {
     b->AddFunction(res);

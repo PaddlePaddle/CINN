@@ -77,6 +77,7 @@ CodeGenLLVM::~CodeGenLLVM() {}
 llvm::Value *CodeGenLLVM::EmitBinaryOp(
     llvm::Value *lhs, llvm::Value *rhs, char opcode, bool is_integral, bool is_signed) {
   llvm::Instruction::BinaryOps ops;
+  CHECK_EQ(lhs->getType(), rhs->getType()) << "the types of operands of binary operation are mismatch";
   switch (opcode) {
     case '+':
       ops = is_integral ? llvm::Instruction::BinaryOps::Add : llvm::Instruction::BinaryOps::FAdd;
@@ -499,10 +500,10 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   }
 
   if (op->is_cinn_call()) {
-    args[0] = BitCast(args[0], llvm_type_of<int8_t *>(m_));
+    args[0] = BitCast(args[0], void_p_ty());
   }
   if (op->is_intrinsic_call() && op->name == runtime::args_construct_repr) {
-    args[0] = BitCast(args[0], llvm_type_of<cinn_pod_value_t *>(m_));
+    args[0] = BitCast(args[0], cinn_pod_p_ty());
   }
 
   // Type cast statements in the head section of a CINN function.
@@ -515,9 +516,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
     CHECK(arg_load->tensor.As<ir::Cast>()) << "get " << arg_load->tensor;
     auto _array_ptr       = arg_load->tensor.As<ir::Cast>()->v();
     auto array_ptr        = GetVar(_array_ptr.as_var()->name);
-    auto cast_to_pod_arr  = BitCast(array_ptr, llvm_type_of<cinn_pod_value_t *>(m_));
+    auto cast_to_pod_arr  = BitCast(array_ptr, cinn_pod_p_ty());
     auto indice           = arg_load->index();
-    auto *get_element_ptr = InBoundsGEP(llvm_type_of<cinn_pod_value_t>(m_), cast_to_pod_arr, Visit(&indice), "");
+    auto *get_element_ptr = InBoundsGEP(cinn_pod_ty(), cast_to_pod_arr, Visit(&indice), "");
     args.clear();
     args.push_back(get_element_ptr);
 
@@ -531,13 +532,18 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) { __IR_EMITTER_NOT_IMPLE
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Var_ *op) {
   llvm::Value *value = GetVar(op->name, false);
+  llvm::Value *result{};
   CHECK(value) << "ir::_Var_[" << op->name << "]: value is null";
   // TODO(fc500110) hard coding
-  if (op->name == "_args") return value;
-  if (value->getType()->isPointerTy()) {
-    return Load(value);
+  if (LLVM_WillVarLowerAsPointer(op->name)) {
+    result = value;
+  } else if (value->getType()->isPointerTy()) {
+    result = Load(value, op->name + "_load");
+  } else {
+    result = value;
   }
-  return value;
+
+  return result;
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
@@ -690,8 +696,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Let *op) {
   if (op->body.defined()) {
     SetVar(name, Visit(&op->body));
   } else {
-    SetVar(name, Alloca(CinnTypeToLLVMType(op->type(), m_)));
+    SetVar(name, Alloca(CinnTypeToLLVMType(op->type(), m_), nullptr, name));
   }
+
   return GetVar(name);
 }
 
@@ -791,6 +798,31 @@ llvm::Value *CodeGenLLVM::SetVar(const std::string &name, llvm::Value *val) {
   (*named_vars_)[name] = val;
   CHECK(GetVar(name));
   return val;
+}
+
+llvm::FunctionType *CodeGenLLVM::GenFunctionTypeFromCinnFunction(const ir::_LoweredFunc_ *func, bool with_buffer_type) {
+  auto func_ret_type = CinnTypeToLLVMType(Void(), m_);
+  std::vector<llvm::Type *> arg_types;
+  for (auto &arg : func->args) {
+    if (arg.is_var()) {
+      arg_types.push_back(CinnTypeToLLVMType(arg.var_arg()->type(), m_));
+    } else if (arg.is_buffer()) {
+      if (with_buffer_type) {
+        arg_types.push_back(cinn_buffer_p_ty());
+      } else {
+        arg_types.push_back(CinnTypeToLLVMType(arg.buffer_arg()->type(), m_));
+      }
+    }
+  }
+
+  return llvm::FunctionType::get(func_ret_type, arg_types, false);
+}
+
+bool LLVM_WillVarLowerAsPointer(const std::string &var_name) {
+  if (var_name == "_args" ||  //
+      utils::Endswith(var_name, "__ptr"))
+    return true;
+  return false;
 }
 
 }  // namespace backends

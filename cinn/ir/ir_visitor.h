@@ -51,7 +51,8 @@ struct IRVisitor : public IRVisitorBase<void> {
   IRVisitor() = default;
 
   void Visit(const Expr* x) { IRVisitorBase::Visit(x); }
-#define __m(t__) virtual void Visit(const t__* x) = 0;
+#define __m(t__) \
+  virtual void Visit(const t__* x) {}
   NODETY_FORALL(__m)
 #undef __m
 };

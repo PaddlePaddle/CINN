@@ -24,7 +24,6 @@ void *RuntimeSymbolRegistry::Lookup(std::string_view name) const {
 void RuntimeSymbolRegistry::Register(const std::string &name, void *address) {
   std::cerr << "JIT Register function " << name << std::endl;
   std::lock_guard<std::mutex> lock(mu_);
-  CHECK(address) << "Register a NULL symbol";
   auto it = symbols_.find(name);
   if (it != symbols_.end()) {
     CHECK_EQ(it->second, address) << "Duplicate register symbol [" << name << "]";

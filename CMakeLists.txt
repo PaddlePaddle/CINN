@@ -14,6 +14,7 @@ include(${CMAKE_BINARY_DIR}/config.cmake)
 
 if (WITH_CUDA)
   message(STATUS "Enable CUDA")
+  add_definitions(-DCINN_WITH_CUDA)
   enable_language(CUDA)
   find_package(CUDA REQUIRED)
   include_directories(${CUDA_INCLUDE_DIRS})
