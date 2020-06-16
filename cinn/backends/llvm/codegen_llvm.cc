@@ -234,17 +234,17 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
       op->v().type().customized_type() == common::customized_type::kpod_value_t) {  // pod_value_t operator
     llvm::Function *callee{};
     if (op->type().is_int(32)) {
-      callee = m_->getFunction("cinn_pod_value_to_int32");
+      callee = m_->getFunction(runtime::intrisic::pod_value_to_int32);
     } else if (op->type().is_int(64)) {
-      callee = m_->getFunction("cinn_pod_value_to_int64");
+      callee = m_->getFunction(runtime::intrisic::pod_value_to_int64);
     } else if (op->type().is_float(32)) {
-      callee = m_->getFunction("cinn_pod_value_to_float");
+      callee = m_->getFunction(runtime::intrisic::pod_value_to_float);
     } else if (op->type().is_float(64)) {
-      callee = m_->getFunction("cinn_pod_value_to_double");
+      callee = m_->getFunction(runtime::intrisic::pod_value_to_double);
     } else if (op->type() == type_of<void *>()) {
-      callee = m_->getFunction("cinn_pod_value_to_void_p");
+      callee = m_->getFunction(runtime::intrisic::pod_value_to_void_p);
     } else if (op->type() == type_of<cinn_buffer_t *>() || op->type() == type_of<const cinn_buffer_t *>()) {
-      callee = m_->getFunction("cinn_pod_value_to_buffer_p");
+      callee = m_->getFunction(runtime::intrisic::pod_value_to_buffer_p);
     } else {
       LOG(ERROR) << "can't cast cinn_pod_value_t to " << op->type();
       NOT_IMPLEMENTED
@@ -474,10 +474,10 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
-  if (op->name == runtime::buffer_create) {
-  } else if (op->name == runtime::get_address_repr) {
+  if (op->name == runtime::intrisic::buffer_create) {
+  } else if (op->name == runtime::intrisic::get_address_repr) {
     return EmitCall_get_address(op);
-  } else if (op->name == runtime::debug_log_repr) {
+  } else if (op->name == runtime::intrisic::debug_log_repr) {
     return EmitCall_debug_info(op);
   } else if (op->is_extern_call()) {
     auto emitter_id = ExternFuncID{backend_llvm_host, op->name.c_str()};
@@ -502,7 +502,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   if (op->is_cinn_call()) {
     args[0] = BitCast(args[0], void_p_ty());
   }
-  if (op->is_intrinsic_call() && op->name == runtime::args_construct_repr) {
+  if (op->is_intrinsic_call() && op->name == runtime::intrisic::args_construct_repr) {
     args[0] = BitCast(args[0], cinn_pod_p_ty());
   }
 
@@ -776,7 +776,7 @@ llvm::Value *CodeGenLLVM::EmitCall_get_address(const ir::Call *op) {
 }
 
 llvm::Value *CodeGenLLVM::EmitCall_debug_info(const ir::Call *op) {
-  auto callee = m_->getFunction(runtime::debug_log_repr);
+  auto callee = m_->getFunction(runtime::intrisic::debug_log_repr);
   CHECK_GE(op->read_args.size(), 1UL);
   std::vector<llvm::Value *> args;
   for (auto &arg : op->read_args) {

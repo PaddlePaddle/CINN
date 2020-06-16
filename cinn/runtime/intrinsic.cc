@@ -6,7 +6,7 @@
 namespace cinn {
 namespace runtime {
 
-Expr GetAddr(Type type, Expr arg) { return IntrinsicCall(type, runtime::get_address_repr, {arg}); }
+Expr GetAddr(Type type, Expr arg) { return IntrinsicCall(type, intrisic::get_address_repr, {arg}); }
 
 ir::Expr BufferCreate(ir::Buffer buffer) {
   std::vector<Expr> args;
@@ -14,7 +14,7 @@ ir::Expr BufferCreate(ir::Buffer buffer) {
   args.push_back(Expr(buffer->target.runtime_arch()));
   CHECK(buffer->target.defined()) << "Buffer [" << buffer->name << "] target not set, get " << buffer->target;
   return ir::Call::Make(
-      Void(), runtime::buffer_create, args, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
+      Void(), intrisic::buffer_create, args, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
 }
 
 ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices) {
@@ -27,9 +27,9 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices) {
 
   std::string buffer_load_method;
   if (buffer->type().bits() == 32) {
-    buffer_load_method = buffer_load_float32;
+    buffer_load_method = intrisic::buffer_load_float32;
   } else if (buffer->type().bits() == 64) {
-    buffer_load_method = buffer_load_float64;
+    buffer_load_method = intrisic::buffer_load_float64;
   } else {
     LOG(ERROR) << "support for type " << buffer->type() << " not implemented";
     NOT_IMPLEMENTED
@@ -48,8 +48,14 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices) {
 
 ir::Expr BufferMalloc(ir::Buffer buffer) { return BufferMalloc(buffer->buffer_addr()); }
 ir::Expr BufferMalloc(ir::Var buffer_var) {
-  return ir::Call::Make(
-      Void(), runtime::buffer_malloc, {Expr(0), buffer_var}, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
+  return ir::Call::Make(Void(),
+                        intrisic::buffer_malloc,
+                        {Expr(0), buffer_var},
+                        {},
+                        ir::CallType::Intrinsic,
+                        ir::FunctionRef(),
+                        0,
+                        Expr());
 }
 
 cinn_type_t ToRuntimeType(Type type) {
@@ -75,11 +81,23 @@ ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_const) {
   type.set_cpp_const(is_const);
   Expr call;
   if (!is_const)
-    call = ir::Call::Make(
-        type, buffer_get_data_handle, {Expr(buffer)}, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
+    call = ir::Call::Make(type,
+                          intrisic::buffer_get_data_handle,
+                          {Expr(buffer)},
+                          {},
+                          ir::CallType::Intrinsic,
+                          ir::FunctionRef(),
+                          0,
+                          Expr());
   else
-    call = ir::Call::Make(
-        type, buffer_get_data_const_handle, {Expr(buffer)}, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0, Expr());
+    call = ir::Call::Make(type,
+                          intrisic::buffer_get_data_const_handle,
+                          {Expr(buffer)},
+                          {},
+                          ir::CallType::Intrinsic,
+                          ir::FunctionRef(),
+                          0,
+                          Expr());
 
   Type target_type = buffer->type().ElementOf();
   target_type.set_cpp_handle();

@@ -206,7 +206,7 @@ struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
       }
       case ir::IrNodeTy::Call: {
         auto *node = e.As<ir::Call>();
-        if (node->name == runtime::debug_log_repr) {
+        if (node->name == runtime::intrisic::debug_log_repr) {
           return "";
         }
         ss << e;
@@ -241,12 +241,12 @@ struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
   }
 
   inline bool IsDebugInfoNode(const Expr &e) {
-    return e.As<ir::Call>() && e.As<ir::Call>()->name == runtime::debug_log_repr;
+    return e.As<ir::Call>() && e.As<ir::Call>()->name == runtime::intrisic::debug_log_repr;
   }
 
   Expr CreateDebugStatement(const std::string &msg, std::vector<Expr> &&args = {}) {
     args.insert(args.begin(), Expr(msg));
-    return ir::Call::Make(Void(), runtime::debug_log_repr, args, {}, ir::CallType ::Intrinsic);
+    return ir::Call::Make(Void(), runtime::intrisic::debug_log_repr, args, {}, ir::CallType ::Intrinsic);
   }
 };
 

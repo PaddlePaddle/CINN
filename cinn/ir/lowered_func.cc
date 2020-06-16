@@ -137,7 +137,7 @@ void _LoweredFunc_::PrepareArgumentExprs() {
 
   if (FLAGS_cinn_runtime_display_debug_info) {
     argument_prepare_exprs.push_back(runtime::IntrinsicCall(
-        Void(), runtime::print_debug_args_repr, {pod_value_ptr, common::make_const(Int(32), args.size())}));
+        Void(), runtime::intrisic::print_debug_args_repr, {pod_value_ptr, common::make_const(Int(32), args.size())}));
   }
 
   /*
@@ -174,17 +174,17 @@ void _LoweredFunc_::PrepareArgumentExprs() {
     Expr pod_cast_expr;
 
     if (arg.is_buffer()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::pod_value_to_buffer_p, {load_expr});
+      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_buffer_p, {load_expr});
     } else if (arg.type() == type_of<int32_t>()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::pod_value_to_int32, {load_expr});
+      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_int32, {load_expr});
     } else if (arg.type() == type_of<int64_t>()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::pod_value_to_int64, {load_expr});
+      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_int64, {load_expr});
     } else if (arg.type() == type_of<float>()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::pod_value_to_float, {load_expr});
+      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_float, {load_expr});
     } else if (arg.type() == type_of<double>()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::pod_value_to_double, {load_expr});
+      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_double, {load_expr});
     } else if (arg.type() == type_of<cinn_pod_value_t*>()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::pod_value_to_buffer_p, {load_expr});
+      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_buffer_p, {load_expr});
     } else {
       LOG(ERROR) << "Not supported type [" << arg.type() << "]";
       NOT_IMPLEMENTED
