@@ -34,19 +34,36 @@ class LLVMIRVisitor : public ir::IRVisitorBase<llvm::Value *> {
 
 /**
  * Tell whether a variable called \p \var_name will lowered to a pointer type in LLVM.
- * @param var_name
- * @return
+ * @param var_name name of the variable.
+ * @return a boolean.
  */
 bool LLVM_WillVarLowerAsPointer(const std::string &var_name);
 
+/**
+ * Base class of all the LLVM-based codegen.
+ */
 class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
  public:
   explicit CodeGenLLVM(llvm::Module *m,
                        llvm::IRBuilder<> *b,
                        std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> vars = nullptr);
-  virtual ~CodeGenLLVM();
 
+  // Common llvm types
+  // @{
+  inline llvm::Type *ll_void_p_ty() { return llvm_type_of<void *>(m_); }
+  inline llvm::Type *ll_void_pp_ty() { return llvm_type_of<void **>(m_); }
+  inline llvm::Type *ll_int8_ty() { return llvm_type_of<int8_t>(m_); }
+  inline llvm::Type *ll_int32_ty() { return llvm_type_of<int32_t>(m_); }
+  inline llvm::Type *ll_fp32_ty() { return llvm_type_of<float>(m_); }
+  inline llvm::Type *ll_fp64_ty() { return llvm_type_of<double>(m_); }
+  inline llvm::Type *ll_cinn_buffer_p_ty() { return llvm_type_of<cinn_buffer_t *>(m_); }
+  inline llvm::Type *ll_cinn_pod_ty() { return llvm_type_of<cinn_pod_value_t>(m_); }
+  inline llvm::Type *ll_cinn_pod_p_ty() { return llvm_type_of<cinn_pod_value_t *>(m_); }
+  // @}
+
+  //! Get the bound LLVM module.
   llvm::Module *m() { return m_; }
+  //! Get the bound LLVM ir builder.
   llvm::IRBuilder<> *b() { return b_; }
 
   void Compile(const lang::Module &module);
@@ -66,23 +83,12 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   virtual llvm::Value *GetVar(const std::string &name, bool lazy = true);
 
-  // Common llvm types
-  // @{
-  inline llvm::Type *void_p_ty() { return llvm_type_of<void *>(m_); }
-  inline llvm::Type *void_pp_ty() { return llvm_type_of<void **>(m_); }
-  inline llvm::Type *i8_ty() { return llvm_type_of<int8_t>(m_); }
-  inline llvm::Type *i32_ty() { return llvm_type_of<int32_t>(m_); }
-  inline llvm::Type *fp32_ty() { return llvm_type_of<float>(m_); }
-  inline llvm::Type *fp64_ty() { return llvm_type_of<double>(m_); }
-  inline llvm::Type *cinn_buffer_p_ty() { return llvm_type_of<cinn_buffer_t *>(m_); }
-  inline llvm::Type *cinn_pod_ty() { return llvm_type_of<cinn_pod_value_t>(m_); }
-  inline llvm::Type *cinn_pod_p_ty() { return llvm_type_of<cinn_pod_value_t *>(m_); }
-  // @}
-
   // Constants
   // @{
-  inline llvm::Value *llvm_i32_constant(int v) { return llvm::ConstantInt::get(i32_ty(), v); }
+  inline llvm::Value *llvm_int32_constant(int v) { return llvm::ConstantInt::get(ll_int32_ty(), v); }
   // @}
+
+  virtual ~CodeGenLLVM();
 
  protected:
   // TODO(Superjomn) When to clear the existing local variables when switch to another function?

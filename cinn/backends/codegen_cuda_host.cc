@@ -64,10 +64,10 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
   // @{
   auto* ll_args       = ll_function_args[0];
   auto* ll_args_count = ll_function_args[1];
-  CHECK_EQ(ll_args->getType(), cinn_pod_p_ty());  // cinn_pod_value_t* args
-  CHECK_EQ(ll_args_count->getType(), i32_ty());   // int32
+  CHECK_EQ(ll_args->getType(), ll_cinn_pod_p_ty());   // cinn_pod_value_t* args
+  CHECK_EQ(ll_args_count->getType(), ll_int32_ty());  // int32
 
-  auto* ll_num_args_copied = b_->CreateAlloca(i32_ty(), nullptr, "num_args_copied");
+  auto* ll_num_args_copied = b_->CreateAlloca(ll_int32_ty(), nullptr, "num_args_copied");
   Store(ll_args_count, ll_num_args_copied);
   SetVar(ll_num_args_copied->getName(), ll_num_args_copied);
 
@@ -80,8 +80,8 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
   const std::string kernel_ptr_global_var_name    = GenKernelPtrVarName(func->name);
   const std::string kernel_stream_global_var_name = GenKernelStreamVarName(func->name);
   // set global variables to reference the [kernel_ptr] and [kernel_stream] for this kernel
-  SetVar(kernel_ptr_global_var_name, m_->getOrInsertGlobal(kernel_ptr_global_var_name, void_p_ty()));
-  SetVar(kernel_stream_global_var_name, m_->getOrInsertGlobal(kernel_stream_global_var_name, void_p_ty()));
+  SetVar(kernel_ptr_global_var_name, m_->getOrInsertGlobal(kernel_ptr_global_var_name, ll_void_p_ty()));
+  SetVar(kernel_stream_global_var_name, m_->getOrInsertGlobal(kernel_stream_global_var_name, ll_void_p_ty()));
 
   {  // create a new Call node for the ExternFunctionEmitter
     Var args_var(func->args[0].var_arg()->name, type_of<cinn_pod_value_t*>());  // pass *args directly to kernel

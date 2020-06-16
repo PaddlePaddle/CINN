@@ -500,10 +500,10 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   }
 
   if (op->is_cinn_call()) {
-    args[0] = BitCast(args[0], void_p_ty());
+    args[0] = BitCast(args[0], ll_void_p_ty());
   }
   if (op->is_intrinsic_call() && op->name == runtime::intrisic::args_construct_repr) {
-    args[0] = BitCast(args[0], cinn_pod_p_ty());
+    args[0] = BitCast(args[0], ll_cinn_pod_p_ty());
   }
 
   // Type cast statements in the head section of a CINN function.
@@ -516,9 +516,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
     CHECK(arg_load->tensor.As<ir::Cast>()) << "get " << arg_load->tensor;
     auto _array_ptr       = arg_load->tensor.As<ir::Cast>()->v();
     auto array_ptr        = GetVar(_array_ptr.as_var()->name);
-    auto cast_to_pod_arr  = BitCast(array_ptr, cinn_pod_p_ty());
+    auto cast_to_pod_arr  = BitCast(array_ptr, ll_cinn_pod_p_ty());
     auto indice           = arg_load->index();
-    auto *get_element_ptr = InBoundsGEP(cinn_pod_ty(), cast_to_pod_arr, Visit(&indice), "");
+    auto *get_element_ptr = InBoundsGEP(ll_cinn_pod_ty(), cast_to_pod_arr, Visit(&indice), "");
     args.clear();
     args.push_back(get_element_ptr);
 
@@ -808,7 +808,7 @@ llvm::FunctionType *CodeGenLLVM::GenFunctionTypeFromCinnFunction(const ir::_Lowe
       arg_types.push_back(CinnTypeToLLVMType(arg.var_arg()->type(), m_));
     } else if (arg.is_buffer()) {
       if (with_buffer_type) {
-        arg_types.push_back(cinn_buffer_p_ty());
+        arg_types.push_back(ll_cinn_buffer_p_ty());
       } else {
         arg_types.push_back(CinnTypeToLLVMType(arg.buffer_arg()->type(), m_));
       }
