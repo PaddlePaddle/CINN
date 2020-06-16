@@ -226,17 +226,18 @@ void CodeGenC::Visit(const ir::Block *op) {
   os() << "}";
 }
 void CodeGenC::Visit(const ir::Call *op) {
-  if (op->name == runtime::buffer_create) {
+  if (op->name == runtime::intrisic::buffer_create) {
     PrintCall_buffer_create(op);
   } else if (op->is_intrinsic_call() && utils::Startswith(op->name, "cinn_pod_value_to_")) {
     PrintCall_cinn_pod_value_to_(op);
-  } else if (op->name == runtime::buffer_malloc) {
+  } else if (op->name == runtime::intrisic::buffer_malloc) {
     PrintCall_buffer_malloc(op);
-  } else if (op->name == runtime::buffer_get_data_handle || op->name == runtime::buffer_get_data_const_handle) {
+  } else if (op->name == runtime::intrisic::buffer_get_data_handle ||
+             op->name == runtime::intrisic::buffer_get_data_const_handle) {
     PrintCall_buffer_get_data_handle(op);
-  } else if (op->name == runtime::get_address_repr) {
+  } else if (op->name == runtime::intrisic::get_address_repr) {
     PrintCall_get_address(op);
-  } else if (op->name == runtime::pod_values_to_array_repr) {
+  } else if (op->name == runtime::intrisic::pod_values_to_array_repr) {
     PrintCall_pod_values_to_array(op);
   } else if (op->is_intrinsic_call()) {
     CHECK(!op->read_args.empty() || !op->write_args.empty());
@@ -410,7 +411,7 @@ void CodeGenC::Visit(const ir::Store *op) {
   Print(op->value);
 }
 void CodeGenC::Visit(const ir::Alloc *op) {
-  os() << runtime::buffer_malloc;
+  os() << runtime::intrisic::buffer_malloc;
   os() << "(";
   os() << "(void*)(0), ";
 
@@ -420,7 +421,7 @@ void CodeGenC::Visit(const ir::Alloc *op) {
 }
 
 void CodeGenC::Visit(const ir::Free *op) {
-  os() << runtime::buffer_free;
+  os() << runtime::intrisic::buffer_free;
   os() << "(";
   os() << "(void*)(0), ";
 

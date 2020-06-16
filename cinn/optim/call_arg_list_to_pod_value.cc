@@ -29,7 +29,7 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
 
       args.insert(args.begin(), common::make_const(Int(32), op->total_args_count()));
       args.insert(args.begin(), runtime::GetAddr(type_of<cinn_pod_value_t*>(), pod_array_var));
-      oprs.push_back(runtime::IntrinsicCall(Void(), runtime::args_construct_repr, args));
+      oprs.push_back(runtime::IntrinsicCall(Void(), runtime::intrisic::args_construct_repr, args));
 
       auto new_call = ir::Call::Make(
           Void(),
@@ -61,12 +61,15 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
 
       Expr cast;
       if (arg.As<ir::_Buffer_>()) {
-        cast = runtime::IntrinsicCall(Void(), runtime::buffer_p_to_cinn_pod_value_repr, {arg}, {pod_val_addr_expr});
+        cast = runtime::IntrinsicCall(
+            Void(), runtime::intrisic::buffer_p_to_cinn_pod_value_repr, {arg}, {pod_val_addr_expr});
 
       } else if (arg.type() == type_of<float>()) {
-        cast = runtime::IntrinsicCall(Void(), runtime::float_to_cinn_pod_value_repr, {arg}, {pod_val_addr_expr});
+        cast =
+            runtime::IntrinsicCall(Void(), runtime::intrisic::float_to_cinn_pod_value_repr, {arg}, {pod_val_addr_expr});
       } else if (arg.type() == type_of<int32_t>()) {
-        cast = runtime::IntrinsicCall(Void(), runtime::int32_to_cinn_pod_value_repr, {arg}, {pod_val_addr_expr});
+        cast =
+            runtime::IntrinsicCall(Void(), runtime::intrisic::int32_to_cinn_pod_value_repr, {arg}, {pod_val_addr_expr});
       } else {
         NOT_IMPLEMENTED
       }

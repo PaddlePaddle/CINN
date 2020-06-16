@@ -89,7 +89,7 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
     Var kernel_stream_var(kernel_stream_global_var_name, type_of<void*>());
 
     auto new_call_node = ir::Call::Make(Void(),
-                                        runtime::call_cuda_kernel,
+                                        runtime::intrisic::call_cuda_kernel,
                                         {
                                             kernel_fn_ptr_var,  // kernel_fn
                                             args_var,           // args
@@ -105,7 +105,7 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
                                         {},
                                         ir::CallType::Extern);
 
-    auto emitter_id = ExternFuncID{backend_llvm_host, runtime::call_cuda_kernel};
+    auto emitter_id = ExternFuncID{backend_llvm_host, runtime::intrisic::call_cuda_kernel};
     auto* emitter   = ExternFunctionEmitterRegistry::Global().Lookup(emitter_id);
     CHECK(emitter) << "No extern function emitter called " << emitter_id;
     emitter->BindCodeGen(this);

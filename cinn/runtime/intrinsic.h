@@ -17,6 +17,8 @@ class Expr;
 
 namespace runtime {
 
+namespace intrisic {
+
 //! cinn_buffer_t::new_(buffer)
 static const char* buffer_create = "cinn_buffer_t::new_";
 //! cinn_buffer_t::delete_(buffer)
@@ -46,6 +48,8 @@ static const char* pod_value_to_int32    = "cinn_pod_value_to_int32";
 static const char* pod_value_to_int64    = "cinn_pod_value_to_int64";
 static const char* pod_value_to_float    = "cinn_pod_value_to_float";
 static const char* pod_value_to_double   = "cinn_pod_value_to_double";
+static const char* pod_value_to_void_p   = "cinn_pod_value_to_void_p";
+
 static const char* print_debug_args_repr = "cinn_print_debug_args";
 
 static const char* call_cuda_kernel = "cinn_call_cuda_kernel";
@@ -62,6 +66,8 @@ static const char* args_construct_repr = "cinn_args_construct";
 
 //! Name of the helper intrinsic used to display debug string.
 static const char* debug_log_repr = "cinn_print_debug_string";
+
+}  // namespace intrisic
 
 /**
  * Call an intrnsic function.
