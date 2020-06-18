@@ -5,6 +5,7 @@
 #include <sstream>
 #include <tuple>
 
+#include "cinn/ir/ir.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
@@ -106,6 +107,7 @@ void add1(void* _args, int32_t num_args);
 
   {
     CodeGenC compiler(target);
+    compiler.SetInlineBuiltinCodes(false);
     Outputs outputs;
     outputs = outputs.c_header("./generated_module1.h").c_source("./generated_module1.cc");
     compiler.Compile(builder.Build(), outputs);
@@ -214,11 +216,12 @@ TEST(CodeGenC, matmul) {
 
   Tensor C_init = Compute(
       {Expr(100), Expr(50)}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
+  C_init->WithBuffer();
 
   Tensor C = Compute({Expr(100), Expr(50)}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
-  C->WithBuffer();
-  C_init->Bind(C->buffer);
-  C_init->stage()->ComputeAt(C->stage(), 1);
+  C->Bind(C_init->buffer);
+
+  C_init->stage()->ComputeAt(C->stage(), 1, poly::Stage::kComputeAtBefore);
 
   // Code gen
   auto func = Lower("matmul", {A, B, C_init, C});
@@ -249,17 +252,17 @@ TEST(CodeGenC, matmul) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 50 });
+cinn_buffer_t* _C_init = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 50 });
 void matmul(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
   const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
-  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_t* _C_init = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
+  cinn_buffer_malloc((void*)(0), _C_init);
   const float* A = ((const float*)(_A->host_memory));
   const float* B = ((const float*)(_B->host_memory));
-  float* C = ((float*)(_C->host_memory));
-  float* C_init = ((float*)(_C->host_memory));
+  float* C = ((float*)(_C_init->host_memory));
+  float* C_init = ((float*)(_C_init->host_memory));
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 50; j += 1) {
       C_init[((50 * i) + j)] = 0;
@@ -268,7 +271,7 @@ void matmul(void* _args, int32_t num_args)
       };
     };
   };
-  cinn_buffer_free((void*)(0), _C);
+  cinn_buffer_free((void*)(0), _C_init);
 }
 
 void main(void* _args, int32_t num_args)
@@ -315,26 +318,24 @@ TEST(CodeGenC, matmul_tile) {
 
   Tensor C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
+  C_init->WithBuffer();
 
   Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
-  C->Bind(C_buf);
-  C_init->Bind(C_buf);
-  // C_init->stage()->ComputeAt(C->stage(), 1);
+  C->Bind(C_init->buffer);
+  // C_init->stage()->ComputeAt(C->stage(), 1, poly::Stage::kComputeAtBefore);
 
   {
-    poly::Iterator i_outer, i_inner, j_outer, j_inner;
-    std::tie(i_outer, i_inner, j_outer, j_inner) = C_init->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
+    auto [i_outer, i_inner, j_outer, j_inner] = C_init->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
     C_init->stage()->Reorder({i_outer, j_outer, i_inner, j_inner});
   }
 
   {
-    poly::Iterator i_outer, i_inner, j_outer, j_inner, k_outer, k_inner;
-    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
-    std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k0"), 4);
+    auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
+    auto [k_outer, k_inner]                   = C->stage()->Split(poly::Iterator("k0"), 4);            // NOLINT
     C->stage()->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
   }
 
-  C_init->stage()->ComputeAt(C->stage(), 3);
+  C_init->stage()->ComputeAt(C->stage(), 3, poly::Stage::kComputeAtBefore);
 
   // Code gen
   auto func = Lower("matmul", {A, B, C_init, C});
@@ -343,7 +344,7 @@ TEST(CodeGenC, matmul_tile) {
 
   Module::Builder builder("module1", target);
   builder.AddFunction(func);
-  builder.AddBuffer(C_buf.buffer());
+  builder.AddBuffer(C_init->buffer);
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
@@ -354,17 +355,17 @@ TEST(CodeGenC, matmul_tile) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 }, 32/*align*/);
+cinn_buffer_t* _C_init = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 }, 32/*align*/);
 void matmul(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
   const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
-  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_t* _C_init = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
+  cinn_buffer_malloc((void*)(0), _C_init);
   const float* A = ((const float*)(_A->host_memory));
   const float* B = ((const float*)(_B->host_memory));
-  float* C = ((float*)(_C->host_memory));
-  float* C_init = ((float*)(_C->host_memory));
+  float* C = ((float*)(_C_init->host_memory));
+  float* C_init = ((float*)(_C_init->host_memory));
   for (int32_t i_outer = 0; i_outer < 3; i_outer += 1) {
     for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
       for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
@@ -417,7 +418,7 @@ void matmul(void* _args, int32_t num_args)
       };
     };
   };
-  cinn_buffer_free((void*)(0), _C);
+  cinn_buffer_free((void*)(0), _C_init);
 }
 )ROC";
 
@@ -564,6 +565,53 @@ TEST(CodeGenC, call_extern) {
   codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
+}
+
+TEST(CodeGenC, cache_read) {
+  Expr M(100), N(200);
+
+  Placeholder<float> A("A", {M, N});
+
+  // 1. original compute way
+  auto original_compute = Compute(
+      {M, N}, [&](Var i, Var j) { return ir::Select::Make(j > 1, A(i, j) + A(i, j - 1), A(i, j)); }, "origin");
+  original_compute->WithBuffer();
+
+  // 2. cached compute way
+  auto cache_prepare = Compute({M, N} /*domain*/, [&](Var i, Var j) { return A(i, j); }, "cache", {}, {N} /*shape*/);
+  cache_prepare->WithBuffer();
+
+  auto transformed_compute = Compute(
+      {M, N}, [&](Var i, Var j) { return cache_prepare(j); }, "transformed");
+  transformed_compute->WithBuffer();
+
+  cache_prepare->stage()->ComputeAt(transformed_compute->stage(), 1);
+
+  // codegen and compare
+  auto fn = Lower("fn", {A, original_compute, cache_prepare, transformed_compute});
+
+  LOG(INFO) << "fn:\n" << fn;
+
+  ASSERT_EQ(utils::Trim(utils::GetStreamCnt(fn)), utils::Trim(R"ROC(
+function fn (_A, _origin, _cache, _transformed)
+{
+  for (i, 100)
+  {
+    for (j, 200)
+    {
+      origin[i, j] = select((j > 1), (A[i, j] + A[i, (-1 + j)]), A[i, j])
+    }
+  }
+  for (i, 100)
+  {
+    for (j, 200)
+    {
+      cache[i] = A[i, j]
+      transformed[i, j] = cache[j]
+    }
+  }
+}
+)ROC"));
 }
 
 }  // namespace backends

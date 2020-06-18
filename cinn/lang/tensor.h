@@ -168,6 +168,13 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   void UnBind(lang::Buffer& buffer);  // NOLINT
 
   /**
+   * \brief Tell whether this tensor's computation relays on a specific statement.
+   * @param statement The name of a statement(equivalent to the id of tensor).
+   * @return A boolean.
+   */
+  bool IsDependOnStatement(const std::string& statement);
+
+  /**
    * Tell whether this tensor has same shape with \p other.
    */
   bool SameShapeWith(const Tensor& other) const;
@@ -180,7 +187,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   bool is_extern_call_node() const;
   bool is_preceding_view_node() const;
   bool is_buffer_shared_node() const;
-
   const char* operation_type() const;
   ComputeOp* get_compute_op() const;
   PlaceholderOp* get_placeholder_op() const;

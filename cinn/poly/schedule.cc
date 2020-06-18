@@ -19,18 +19,24 @@ std::string TimeSchedule::__str__() const {
   CHECK_LE(time_dims_.size(), kMaxDims);
 
   // generate range: [dup, t0, t1...]
-  std::vector<std::string> range_dims;
+  std::vector<std::string> range_dims, cond_dims;
+  range_dims.push_back("r");  // root level
   for (int i = 0; i < time_dims_.size(); i++) {
     range_dims.push_back("t" + std::to_string(i));
     range_dims.push_back("d" + std::to_string(i));
   }
 
+  for (int i = 0; i < time_dims_.size(); i++) {
+    cond_dims.push_back("d" + std::to_string(i));
+    cond_dims.push_back("t" + std::to_string(i));
+  }
+
   // generate conditions
   std::vector<std::string> conds;
+  conds.push_back(utils::StringFormat("r=%d", root_time_));
   for (int i = 0; i < time_dims_.size(); i++) {
-    conds.push_back(
-        utils::StringFormat("%s=%s", range_dims[2 * i].c_str(), std::to_string(time_dims_[i].time).c_str()));
-    conds.push_back(utils::StringFormat("%s=%s", range_dims[2 * i + 1].c_str(), time_dims_[i].dim.c_str()));
+    conds.push_back(utils::StringFormat("%s=%s", cond_dims[2 * i].c_str(), std::to_string(time_dims_[i].time).c_str()));
+    conds.push_back(utils::StringFormat("%s=%s", cond_dims[2 * i + 1].c_str(), time_dims_[i].dim.c_str()));
   }
 
   return utils::StringFormat("{ %s[%s] -> [%s]: %s }",
@@ -64,11 +70,17 @@ void TimeSchedule::OrderAfter(const TimeSchedule &other, int level) {
   CHECK_LT(level, other.space_size());
   CHECK(!time_dims_.empty());
 
-  for (int i = 0; i <= level; i++) {
+  root_time_ = std::max(root_time_, other.root_time_);
+
+  if (level == -1) {
+    root_time_ = std::max(root_time_, other.root_time_ + 1);
+  }
+
+  for (int i = 0; i < level; i++) {
     this->time_dims_[i].time = std::max(other.time_dims_[i].time, this->time_dims_[i].time);
   }
 
-  this->time_dims_[level].time++;
+  this->time_dims_[level].time = std::max(this->time_dims_[level].time, other.time_dims_[level].time + 1);
 }
 
 isl::map TimeSchedule::to_isl(isl::ctx ctx) const {
@@ -79,6 +91,13 @@ isl::map TimeSchedule::to_isl(isl::ctx ctx) const {
 const std::string &TimeSchedule::id() const {
   CHECK(!id_.empty());
   return id_;
+}
+
+void TimeSchedule::ResizeTimeSpace(int size) {
+  CHECK_LE(size, kMaxDims);
+  for (int i = time_dims_.size(); i < size; i++) {
+    time_dims_.emplace_back("0", 0);
+  }
 }
 
 std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor, ScheduleKind schedule_kind) {
@@ -166,8 +185,9 @@ void SchedulerBase::AddStage(const Stage &x) {
   // like '{ S0[i,j] -> S0[i_outer, i_inner, j] }', the scheduler should schedule base on the range.
   auto dims      = GetDimNames(x.transform(), isl_dim_out);
   std::string id = isl_map_get_tuple_name(x.transform().get(), isl_dim_in);
-  schedule_graph_.RegisterNode(x.id(),
-                               common::make_shared<ScheduleGraphNode>(id, GetDimNames(x.transform(), isl_dim_out), &x));
+  auto *node     = schedule_graph_.RegisterNode(
+      x.id(), common::make_shared<ScheduleGraphNode>(id, GetDimNames(x.transform(), isl_dim_out), &x));
+
   // record the longest dimensions.
   if (dims.size() > detailed_dimension_names_.size()) detailed_dimension_names_ = dims;
 
@@ -179,6 +199,16 @@ void SchedulerBase::AddStage(const Stage &x) {
 }
 
 void SchedulerBase::FinishStageAdd() {
+  for (auto *node : schedule_graph_.nodes()) {
+    auto *schedule_node = node->safe_as<ScheduleGraphNode>();
+    for (auto &depend : schedule_node->stage->extra_depend_stages()) {
+      auto *depend_node = schedule_graph_.RetriveNode(depend);
+      if (depend_node) {            // some dependencies might be in another graph.
+        depend_node->LinkTo(node);  // Add link from extra depend statment to current node.
+      }
+    }
+  }
+
   CHECK(!schedule_graph_.nodes().empty())
       << "No node is registered to the graph, use RegisterElement to collect some elements";
   registration_finalized_ = true;
@@ -206,8 +236,7 @@ SchedulerBase &SchedulerBase::After(const Stage &a, const Stage &b, int level) {
   CHECK(a_node) << "no node called " << a.id() << " registered in the graph";
   CHECK(b_node) << "no node called " << b.id() << " registered in the graph";
 
-  common::GraphEdge *a_edge, *b_edge;
-  std::tie(a_edge, b_edge)               = a_node->LinkTo<ScheduleGraphEdge>(b_node);
+  auto [a_edge, b_edge]                  = a_node->LinkTo<ScheduleGraphEdge>(b_node);  // NOLINT
   a_edge->as<ScheduleGraphEdge>()->level = level;
   b_edge->as<ScheduleGraphEdge>()->level = level;
   return *this;

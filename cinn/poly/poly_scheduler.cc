@@ -77,10 +77,8 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
   std::set<DataFlowGraphNode*> groups_gathered;
   std::vector<DataFlowGraphNode*> groups_in_topo_order;
 
-  std::vector<common::GraphNode*> nodes_in_order;
-  std::vector<common::GraphEdge*> edges_in_order;
   std::map<DataFlowGraphNode*, std::vector<DataFlowGraphNode*>> node_groups;
-  std::tie(nodes_in_order, edges_in_order) = graph->topological_order();
+  auto [nodes_in_order, edges_in_order] = graph->topological_order();
   for (auto* n : nodes_in_order) {
     auto* node     = n->safe_as<DataFlowGraphNode>();
     auto* ancestor = node->group_ancestor();
@@ -129,10 +127,8 @@ bool CheckGroupValid(const std::vector<Group>& groups) {
  * relative order.
  */
 std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
-  std::vector<common::GraphNode*> nodes_in_order;
-  std::vector<common::GraphEdge*> edges_in_order;
   std::map<DataFlowGraphNode*, std::vector<DataFlowGraphNode*>> node_groups;
-  std::tie(nodes_in_order, edges_in_order) = graph->topological_order();
+  auto [nodes_in_order, edges_in_order] = graph->topological_order();  // NOLINT
 
   std::map<std::string, DataFlowGraphNode*> name2node;
   for (auto* n : graph->nodes()) {
@@ -145,7 +141,7 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
   for (auto* n : nodes_in_order) {
     auto* node       = n->safe_as<DataFlowGraphNode>();
     node2score[node] = score++;
-    for (auto& compute_at : node->stage->compute_ats()) {
+    for (ComputeAtRelation& compute_at : node->stage->compute_ats()) {
       CHECK(compute_at.IsCompatible(node->stage.get())) << "The registered ComputeAt is not compatible";
       // check the endpoints of compute_at has data dependency.
       auto* node0 = node;
@@ -264,7 +260,6 @@ PolyScheduler::PolyScheduler(const std::vector<Stage*>& stages,
 std::vector<detail::Group> PolyScheduler::PartitionGroups(DataFlowGraph* graph) {
   CHECK(graph);
   CHECK(!graph->nodes().empty());
-  // return detail::PartitionGraphByIterationDomain(graph);
   return detail::NaivePartitionGraph(graph);
 }
 
@@ -279,7 +274,7 @@ void PolyScheduler::ScheduleAGroup(ScheduleGroup* group) {
   }
 
   PolyGroupScheduler scheduler(stages);
-  scheduler.Build();
+  group->nodes           = scheduler.Build();
   group->dimension_names = scheduler.detailed_dimension_names();
 }
 
@@ -290,7 +285,7 @@ void PolyScheduler::ScheduleGroups() {
   }
 }
 
-void PolyGroupScheduler::Build() {
+std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
   for (int i = 0; i < stages_.size() - 1; i++) {
     Stage* a = stages_[i];
     Stage* b = stages_[i + 1];
@@ -301,6 +296,23 @@ void PolyGroupScheduler::Build() {
     int max_precending_level = std::max(isl_max_level_compatible(a_set.get(), b_set.get()), 0);
     After(*a, *b, max_precending_level);
   }
+
+  auto [nodes_in_order, edges_in_order] = schedule_graph_.topological_order();
+  std::vector<Shared<ScheduleGraphNode>> res;
+
+  // update the time schedule info.
+  for (auto& edge : edges_in_order) {
+    auto* node0 = edge->source()->safe_as<ScheduleGraphNode>();
+    auto* node1 = edge->sink()->safe_as<ScheduleGraphNode>();
+    int level   = edge->as<ScheduleGraphEdge>()->level;
+    VLOG(2) << "schedule " << node0->id() << " -> " << node1->id() << " level " << level;
+    node1->time_schedule.OrderAfter(node0->time_schedule, level);
+  }
+
+  for (auto& node : nodes_in_order) {
+    res.emplace_back(node->safe_as<ScheduleGraphNode>());
+  }
+  return res;
 }
 
 PolyGroupScheduler::PolyGroupScheduler(const std::vector<Stage*>& stages) : stages_(stages) {

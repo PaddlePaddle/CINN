@@ -91,5 +91,15 @@ TEST(Tensor, Collapse) {
   }
 }
 
+TEST(Tensor, IsDependOnStatement) {
+  Expr N(100);
+
+  Placeholder<float> X("X", {N});
+  auto t = Compute({N}, [&](Var i) -> Expr { return X(i); });
+
+  ASSERT_TRUE(t->IsDependOnStatement("X"));
+  ASSERT_FALSE(t->IsDependOnStatement("XXX"));
+}
+
 }  // namespace ir
 }  // namespace cinn

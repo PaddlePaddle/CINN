@@ -30,7 +30,7 @@ isl::set SetGetDims(isl::set set, const std::vector<int>& dims);
 //! Get a representation of the tuple in the map.
 std::string isl_map_get_statement_repr(__isl_keep isl_map* map, isl_dim_type type);
 
-isl_set* __isl_give isl_get_precending_aixs(isl_set* __isl_take set, int level);
+isl_set* __isl_give isl_get_precending_aixs(isl_set* set, int level, bool with_tuple_name);
 
 //! Get the maximum level of axis that is has the same domain.
 int isl_max_level_compatible(isl_set* __isl_keep a, isl_set* __isl_keep b);

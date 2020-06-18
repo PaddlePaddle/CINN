@@ -99,7 +99,9 @@ void _Tensor_::InitStage() {
   // Avoid duplicate init.
   if (stage_shared) {
     auto &shared_stage = *static_cast<Shared<poly::Stage> *>(stage_shared);
-    shared_stage->set_extra_depend_stages(buffer_depended_tensor_names_);
+    for (auto &depend : buffer_depended_tensor_names()) {
+      shared_stage->add_extra_depend_stage(depend);
+    }
     return;
   }
 
@@ -369,6 +371,18 @@ bool _Tensor_::inlined() const {
     return false;
   }
   return (!buffer.defined()) && is_compute_node() && !is_tuple();
+}
+
+bool _Tensor_::IsDependOnStatement(const std::string &statement) {
+  if (!is_compute_node()) {
+    return false;
+  }
+
+  auto depend_tensors = ir::CollectIRNodes(body(), [](const Expr *x) -> bool { return x->as_tensor(); });
+  for (const Expr &x : depend_tensors) {
+    if (x.As<ir::_Tensor_>()->name == statement) return true;
+  }
+  return false;
 }
 
 }  // namespace ir

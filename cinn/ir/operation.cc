@@ -33,7 +33,7 @@ Operation ComputeOp::Make(const std::string &name,
   n->reduce_axis = reduce_axis;
   n->tag         = tag;
   n->attrs       = attrs;
-  auto axis      = common::GenDefaultAxis(shape.size());
+  auto axis      = common::GenDefaultAxis(domain.size());
   std::vector<Expr> _axis;
   for (auto &x : axis) _axis.push_back(x);
   n->body        = {handle(_axis)};
