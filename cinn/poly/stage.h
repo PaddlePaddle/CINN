@@ -20,6 +20,7 @@
 namespace cinn {
 namespace ir {
 class _Tensor_;
+class Tensor;
 }  // namespace ir
 
 namespace poly {
@@ -113,13 +114,22 @@ class Stage : public Object {
   void Unroll(const std::string& level);
   void Unroll(const Iterator& level);
 
+  enum ComputeAtKind {
+    kComputeAtUnk,
+    kComputeAtBefore,
+    kComputeAtAfter,
+  };
   /**
-   * Mark the stage compute at the level of some other stage.
+   * \brief Mark the stage compute at the level of some other stage.
+   *
    * NOTE This can only be called after all transformations are preformed, and once called, no further transform can
-   * perform for that the iterators are changed, and the original `ComputeAt` level become invalid.
-   * TODO(Superjomn) Refine this transform.
+   * perform for that if the iterators are changed, the original `ComputeAt` level will become invalid.
+   *
+   * @param other the target stage to compute at.
+   * @param level the level of \p other's forloop to compute at
+   * @param kind the position compared to other, can be Before, After or Unknown.
    */
-  void ComputeAt(Stage* other, int level);
+  void ComputeAt(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
 
   /**
    * Apply loop skewing on the loop levels \p i and \p j with a skewing factor of \p factor.

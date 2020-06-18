@@ -43,12 +43,7 @@ struct ScheduleGraph : public common::Graph {};
 struct TimeSchedule {
   TimeSchedule(const std::string &id, const std::vector<std::string> &dims);
 
-  void ResizeTimeSpace(int size) {
-    CHECK_LE(size, kMaxDims);
-    for (int i = time_dims_.size(); i < size; i++) {
-      time_dims_.emplace_back("0", 0);
-    }
-  }
+  void ResizeTimeSpace(int size);
 
   //! Schedule this after \p other in \p level.
   void OrderAfter(const TimeSchedule &other, int level);
@@ -74,6 +69,7 @@ struct TimeSchedule {
   constexpr static int kMaxDims = 50;
 
  private:
+  int root_time_{0};
   std::vector<TimeDim> time_dims_;
   std::string id_;
 };

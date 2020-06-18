@@ -99,7 +99,7 @@ isl::set SetGetDims(isl::set set, const std::vector<int> &dims) {
   return set.apply(transform);
 }
 
-isl_set *isl_get_precending_aixs(isl_set *set, int level) {
+isl_set *isl_get_precending_aixs(isl_set *set, int level, bool with_tuple_name) {
   int n = isl_set_dim(set, isl_dim_set);
   CHECK_LT(level, n);
 
@@ -134,8 +134,11 @@ int isl_max_level_compatible(isl_set *a, isl_set *b) {
 
   int compatible_level = -1;
   for (int i = 0; i < std::min(an, bn); i++) {
-    isl::set a_prefix = isl::manage(isl_get_precending_aixs(isl_set_copy(a), i));
-    isl::set b_prefix = isl::manage(isl_get_precending_aixs(isl_set_copy(b), i));
+    isl::set a_prefix = isl::manage(isl_get_precending_aixs(isl_set_copy(a), i, false));
+    isl::set b_prefix = isl::manage(isl_get_precending_aixs(isl_set_copy(b), i, false));
+
+    a_prefix = isl::manage(isl_set_set_tuple_name(a_prefix.release(), "s"));
+    b_prefix = isl::manage(isl_set_set_tuple_name(b_prefix.release(), "s"));
     if (isl_set_is_equal(a_prefix.get(), b_prefix.get()))
       compatible_level = i;
     else

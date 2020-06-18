@@ -4,6 +4,7 @@
 
 #include <set>
 
+#include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
@@ -21,9 +22,8 @@ TEST(Stage, split) {
   isl::ctx ctx(isl_ctx_alloc());
   isl::set domain(ctx, "{ S[i,j]: 0<=i,j<=100 }");
 
-  auto ele = Stage::New(domain);
-  Iterator outer, inner;
-  std::tie(outer, inner) = ele->Split(Iterator("i"), 4);
+  auto ele            = Stage::New(domain);
+  auto [outer, inner] = ele->Split(Iterator("i"), 4);  // NOLINT
   LOG(INFO) << ele->transform();
   EXPECT_EQ(utils::GetStreamCnt(ele->transform()),
             "{ S[i, j] -> S[i_outer, i_inner, j' = j] : (-i + i_inner) mod 4 = 0 and -3 + i <= 4i_outer <= i and 0 <= "
@@ -38,8 +38,7 @@ TEST(Stage, tile) {
   isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
   auto ele = Stage::New(domain);
 
-  Iterator outer0, inner0, outer1, inner1;
-  std::tie(outer0, inner0, outer1, inner1) = ele->Tile(Iterator("i"), Iterator("j"), 4, 6);
+  auto [outer0, inner0, outer1, inner1] = ele->Tile(Iterator("i"), Iterator("j"), 4, 6);  // NOLINT
   LOG(INFO) << ele->transform();
   EXPECT_EQ(outer0.id, "i_outer");
   EXPECT_EQ(outer1.id, "j_outer");
@@ -63,9 +62,8 @@ TEST(Stage, reorder) {
 TEST(Stage, split_reorder) {
   isl::ctx ctx(isl_ctx_alloc());
   isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
-  auto ele = Stage::New(domain);
-  Iterator outer, inner;
-  std::tie(outer, inner) = ele->Split(Iterator("i"), 4);
+  auto ele            = Stage::New(domain);
+  auto [outer, inner] = ele->Split(Iterator("i"), 4);  // NOLINT
 
   Iterator i("i"), j("j"), k("k");
   ele->Reorder(std::vector<Iterator>{{outer, k, inner, j}});
@@ -84,6 +82,120 @@ TEST(ComputeAtRelation, basic) {
   relation.stage = stage1;
   relation.level = 2;
   ASSERT_TRUE(relation.IsCompatible(stage0.get()));
+}
+
+/*
+TEST(Stage, Fuse) {
+  isl::ctx ctx(isl_ctx_alloc());
+  isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
+  auto ele            = Stage::New(domain);
+  auto [outer, inner] = ele->Split(Iterator("i"), 4);  // NOLINT
+  LOG(INFO) << "split: " << ele->transform();
+  ele->Fuse(outer, inner);
+  LOG(INFO) << "fused: " << ele->transform();
+}
+ */
+
+TEST(ComputeAt, Before) {
+  Expr M(100), N(200);
+
+  Placeholder<float> A("A", {M, N});
+
+  auto create_module = [&] {
+    // cached compute way
+    auto cache_prepare = Compute({M, N} /*domain*/, [&](Var i, Var j) { return A(i, j); }, "cache", {}, {N} /*shape*/);
+    cache_prepare->WithBuffer();
+
+    auto transformed_compute = Compute(
+        {M, N}, [&](Var i, Var j) { return Expr(1.f); }, "transformed");
+    transformed_compute->WithBuffer();
+
+    return std::make_tuple(cache_prepare, transformed_compute);
+  };
+
+  {  // C_init Before C
+    auto [cache_prepare, transformed_compute] = create_module();
+
+    cache_prepare->stage()->ComputeAt(transformed_compute->stage(), 1, Stage::kComputeAtBefore);
+
+    // codegen and compare
+    auto fn = Lower("fn", {A, cache_prepare, transformed_compute});
+
+    auto target = utils::Trim(R"ROC(
+function fn (_A, _cache, _transformed)
+{
+  for (i, 100)
+  {
+    for (j, 200)
+    {
+      cache[i] = A[i, j]
+      transformed[i, j] = 1
+    }
+  }
+}
+)ROC");
+
+    ASSERT_EQ(utils::Trim(utils::GetStreamCnt(fn)), target);
+  }
+  {  // C_init After C
+    auto [cache_prepare, transformed_compute] = create_module();
+
+    cache_prepare->stage()->ComputeAt(transformed_compute->stage(), 1, Stage::kComputeAtAfter);
+
+    // codegen and compare
+    auto fn = Lower("fn", {A, cache_prepare, transformed_compute});
+
+    auto target = utils::Trim(R"ROC(
+function fn (_A, _cache, _transformed)
+{
+  for (i, 100)
+  {
+    for (j, 200)
+    {
+      transformed[i, j] = 1
+      cache[i] = A[i, j]
+    }
+  }
+}
+)ROC");
+
+    ASSERT_EQ(utils::Trim(utils::GetStreamCnt(fn)), target);
+  }
+}
+
+TEST(ComputeAt, After) {
+  Expr M(100), N(200);
+
+  Placeholder<float> A("A", {M, N});
+
+  // cached compute way
+  auto cache_prepare = Compute({M, N} /*domain*/, [&](Var i, Var j) { return A(i, j); }, "cache", {}, {N} /*shape*/);
+  cache_prepare->WithBuffer();
+
+  auto transformed_compute = Compute(
+      {M, N}, [&](Var i, Var j) { return cache_prepare(j); }, "transformed");
+  transformed_compute->WithBuffer();
+
+  cache_prepare->stage()->ComputeAt(transformed_compute->stage(), 1);
+
+  // codegen and compare
+  auto fn = Lower("fn", {A, cache_prepare, transformed_compute});
+
+  auto target = utils::Trim(R"ROC(
+function fn (_A, _cache, _transformed)
+{
+  for (i, 100)
+  {
+    for (j, 200)
+    {
+      cache[i] = A[i, j]
+      transformed[i, j] = cache[j]
+    }
+  }
+}
+)ROC");
+
+  ASSERT_EQ(utils::Trim(utils::GetStreamCnt(fn)), target);
 }
 
 }  // namespace poly

@@ -57,7 +57,6 @@ std::vector<GraphNode *> Graph::nodes() {
 std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topological_order() {
   std::vector<GraphNode *> node_order;
   std::vector<GraphEdge *> edge_order;
-
   std::deque<GraphNode *> queue;
 
   // collect indegreee.
@@ -88,7 +87,7 @@ std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topologica
     }
   }
 
-  CHECK_EQ(node_order.size(), nodes().size());
+  CHECK_EQ(node_order.size(), nodes().size()) << "circle detected in the schedule graph:\n\n" << Visualize();
 
   return std::make_tuple(node_order, edge_order);
 }

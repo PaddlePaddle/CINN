@@ -28,10 +28,9 @@ struct Iterator {
 };
 
 struct Condition {
-  Iterator iterator;
   std::string cond;
 
-  Condition(const Iterator& iterator, std::string cond) : iterator(iterator), cond(std::move(cond)) {}
+  explicit Condition(std::string cond) : cond(std::move(cond)) {}
 
   friend std::ostream& operator<<(std::ostream& os, const Condition& x) {
     os << x.__str__();

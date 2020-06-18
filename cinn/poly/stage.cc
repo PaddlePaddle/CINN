@@ -67,11 +67,9 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor, S
       to_iters.push_back(outer_iter);
       to_iters.push_back(inner_iter);
 
-      conds.emplace_back(outer_iter,
-                         utils::StringFormat("%s=floor(%s/%d)", outer_iter.id.c_str(), level.id.c_str(), factor));
+      conds.emplace_back(utils::StringFormat("%s=floor(%s/%d)", outer_iter.id.c_str(), level.id.c_str(), factor));
       VLOG(3) << "outer cond: " << conds.back();
-      conds.emplace_back(inner_iter,
-                         utils::StringFormat("%s=%s %s %d", inner_iter.id.c_str(), level.id.c_str(), "%", factor));
+      conds.emplace_back(utils::StringFormat("%s=%s %s %d", inner_iter.id.c_str(), level.id.c_str(), "%", factor));
 
       VLOG(3) << "inner cond: " << conds.back();
     } else {
@@ -87,7 +85,6 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor, S
 
   VLOG(3) << "transform " << transform.to_isl();
   VLOG(3) << "schedule after transform: " << transform_;
-
   VLOG(3) << "iterators: " << outer_iter << " " << inner_iter;
 
   split_strageties_[inner_iter.id] = strategy;
@@ -117,26 +114,34 @@ std::tuple<Iterator, Iterator, Iterator, Iterator> Stage::Tile(const Iterator &l
                                                                const Iterator &level1,
                                                                int factor0,
                                                                int factor1) {
-  Iterator level0_inner, level0_outer;
-  Iterator level1_inner, level1_outer;
-
-  std::tie(level0_outer, level0_inner) = Split(level0, factor0);
-  std::tie(level1_outer, level1_inner) = Split(level1, factor1);
+  auto [level0_outer, level0_inner] = Split(level0, factor0);  // NOLINT
+  auto [level1_outer, level1_inner] = Split(level1, factor1);  // NOLINT
   return std::make_tuple(level0_outer, level0_inner, level1_outer, level1_inner);
 }
 
-void Stage::ComputeAt(Stage *other, int level) {
-  // check duplicate
-  CHECK(!compute_ats_.count(other->id())) << "duplicate set compute_at the same stage";
-
+void Stage::ComputeAt(Stage *other, int level, ComputeAtKind kind) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
 
+  CHECK(tensor_);
   ComputeAtRelation relation;
   relation.stage = other;
   relation.level = level;
 
   CHECK(relation.IsCompatible(this));
   compute_ats_[other->id()] = relation;
+
+  // Consider the order if provide.
+  switch (kind) {
+    case kComputeAtBefore:
+      other->add_extra_depend_stage(id());
+      break;
+    case kComputeAtAfter:
+      add_extra_depend_stage(other->id());
+      break;
+    case kComputeAtUnk:
+      // Do nothing.
+      break;
+  }
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
@@ -147,6 +152,35 @@ std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j,
 
 Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
   auto new_name = utils::StringFormat("%s_%s", level0.id.c_str(), level1.id.c_str());
+  int offset0   = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level0.id.c_str());
+  int offset1   = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level1.id.c_str());
+  CHECK_EQ(offset1, offset0 + 1) << "level [" << level0.id << "] and level [" << level1.id << "] should be adjancent";
+
+  // to apply something like { S[i,j] -> S[k]: k = i+j }
+  auto from_dim_names = GetDimNames(transform_, isl_dim_out);
+  auto from_iters     = NamesToIterators(from_dim_names);
+
+  // create to_iters
+  // @{
+  std::vector<Iterator> to_iters;
+  for (auto &name : from_dim_names) {
+    if (name == level0.id) {
+    } else if (name == level1.id) {
+      to_iters.emplace_back(new_name);
+    } else {
+      to_iters.emplace_back(name);
+    }
+  }
+  // @}
+  std::vector<Condition> conds(
+      {Condition(utils::StringFormat("%s=%s+%s", new_name.c_str(), level0.id.c_str(), level1.id.c_str()))});
+
+  Map transform(domain_.ctx(), id(), from_iters, to_iters, conds, id());
+  transform_      = transform_.apply_range(transform.to_isl());
+  auto range_dims = utils::Map<std::vector<Iterator>, std::string>(to_iters, [](const Iterator &x) { return x.id; });
+  SetDimNames(&transform_, isl_dim_out, range_dims);
+  NOT_IMPLEMENTED
+
   return Iterator(new_name);
 }
 
@@ -246,6 +280,7 @@ std::vector<std::pair<std::string, std::string>> ExtractExtraDepLinksFromStages(
   std::vector<std::pair<std::string, std::string>> extra_links;
   for (auto &stage : stages) {
     for (auto &tensor_name : stage->extra_depend_stages()) {
+      VLOG(1) << "get extra stage: " << tensor_name << " -> " << stage->id();
       extra_links.emplace_back(tensor_name, stage->id());
     }
   }

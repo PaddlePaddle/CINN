@@ -16,7 +16,9 @@ const DataFlowGraphNode* DataFlowGraphNode::group_ancestor() const {
 
 DataFlowGraphNode* DataFlowGraphNode::group_ancestor() {
   auto* p = this;
-  while (p->group_parent) p = p->group_parent;
+  while (p->group_parent && p != p->group_parent) {
+    p = p->group_parent;
+  }
   return p;
 }
 

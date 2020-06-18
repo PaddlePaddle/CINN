@@ -26,7 +26,7 @@ class PolyGroupScheduler : public SchedulerBase {
   explicit PolyGroupScheduler(const std::vector<Stage *> &stages);
 
   //! Build the schedule, that is set the time schedule following each edge.
-  void Build();
+  std::vector<Shared<ScheduleGraphNode>> Build();
 
  private:
   const std::vector<Stage *> &stages_;
