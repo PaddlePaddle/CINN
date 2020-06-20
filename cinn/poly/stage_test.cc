@@ -84,7 +84,6 @@ TEST(ComputeAtRelation, basic) {
   ASSERT_TRUE(relation.IsCompatible(stage0.get()));
 }
 
-/*
 TEST(Stage, Fuse) {
   isl::ctx ctx(isl_ctx_alloc());
   isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
@@ -94,7 +93,16 @@ TEST(Stage, Fuse) {
   ele->Fuse(outer, inner);
   LOG(INFO) << "fused: " << ele->transform();
 }
- */
+
+TEST(Stage, Fuse1) {
+  isl::ctx ctx(isl_ctx_alloc());
+  isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
+  auto ele = Stage::New(domain);
+  Iterator i("i");
+  Iterator j("j");
+  auto n = ele->Fuse(i, j);
+  LOG(INFO) << "fused: " << ele->transform();
+}
 
 TEST(ComputeAt, Before) {
   Expr M(100), N(200);

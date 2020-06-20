@@ -23,6 +23,8 @@ struct Iterator {
   explicit Iterator(Iterator&& x) : id(std::move(x.id)) {}
 
   Iterator& operator=(const Iterator& other);
+  friend bool operator==(const Iterator& a, const Iterator& b) { return a.id == b.id; }
+  friend bool operator!=(const Iterator& a, const Iterator& b) { return !(a.id == b.id); }
 
   friend std::ostream& operator<<(std::ostream& os, const Iterator& x);
 };
@@ -58,7 +60,7 @@ class Map {
   //! Get the ISL style map representation, such as '{ S[i,j] -> [i,j]: }'.
   std::string __str__() const;
 
- private:
+ protected:
   isl::ctx ctx_;
   std::string id_;
   std::vector<Iterator> domain_iterators_;
@@ -66,6 +68,26 @@ class Map {
   std::vector<Condition> conds_;
   std::string range_id_;
 };
+
+class Aff : public Map {
+ public:
+  Aff(isl::ctx ctx,
+      std::string id,
+      std::vector<Iterator> domain_iterators,
+      std::vector<Iterator> range_iterators,
+      std::vector<Condition> conds)
+      : Map(std::move(ctx),
+            std::move(id),
+            std::move(domain_iterators),
+            std::move(range_iterators),
+            std::move(conds),
+            "") {}
+
+  isl::aff to_isl() const { return isl::aff(ctx_, __str__()); }
+};
+
+std::ostream& operator<<(std::ostream& os, const Map& x);
+std::ostream& operator<<(std::ostream& os, const Aff& x);
 
 }  // namespace poly
 }  // namespace cinn

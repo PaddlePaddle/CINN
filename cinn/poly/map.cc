@@ -23,12 +23,20 @@ std::string Map::__str__() const {
       conds_.begin(), conds_.end(), std::back_inserter(conds_fields), [](const Condition& x) { return x.__str__(); });
   auto conds_repr = utils::Join(conds_fields, " and ");
 
-  return utils::StringFormat("{ %s[%s] -> %s[%s]: %s }",
+  if (!conds_.empty()) {
+    return utils::StringFormat("{ %s[%s] -> %s[%s]: %s }",
+                               id_.c_str(),
+                               domain_iterators_repr.c_str(),
+                               range_id_.c_str(),
+                               range_iterators_repr.c_str(),
+                               conds_repr.c_str());
+  }
+
+  return utils::StringFormat("{ %s[%s] -> %s[%s] }",
                              id_.c_str(),
                              domain_iterators_repr.c_str(),
                              range_id_.c_str(),
-                             range_iterators_repr.c_str(),
-                             conds_repr.c_str());
+                             range_iterators_repr.c_str());
 }
 
 Map::Map(isl::ctx ctx,
@@ -57,6 +65,16 @@ isl::map Map::to_isl() const {
 
 std::ostream& operator<<(std::ostream& os, const Iterator& x) {
   os << utils::StringFormat("<Iterator: %s>", x.id.c_str());
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Map& x) {
+  os << x.__str__();
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const Aff& x) {
+  os << x.__str__();
   return os;
 }
 
