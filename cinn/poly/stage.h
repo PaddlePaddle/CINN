@@ -161,10 +161,10 @@ class Stage : public Object {
   // @}
 
   /**
-   * Fuse two levels and return the new level.
-   * @param level0
-   * @param level1
-   * @return
+   * \brief Fuse two forloop levels and return the new level.
+   * @param level0 the first level.
+   * @param level1 the second level.
+   * @return the new level.
    */
   Iterator Fuse(const Iterator& level0, const Iterator& level1);
 

@@ -145,43 +145,60 @@ void Stage::ComputeAt(Stage *other, int level, ComputeAtKind kind) {
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
+  NOT_IMPLEMENTED
   Iterator i_new(i.id + "_skew");
   Iterator j_new(j.id + "_skew");
+
   return std::make_tuple(i_new, j_new);
 }
 
+/*
+ * Fuse use a polyhedral transform.
+ */
 Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
-  auto new_name = utils::StringFormat("%s_%s", level0.id.c_str(), level1.id.c_str());
-  int offset0   = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level0.id.c_str());
-  int offset1   = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level1.id.c_str());
+  int offset0 = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level0.id.c_str());
+  int offset1 = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level1.id.c_str());
   CHECK_EQ(offset1, offset0 + 1) << "level [" << level0.id << "] and level [" << level1.id << "] should be adjancent";
+  auto new_iter_name = utils::StringFormat("%s_%s_fused", level0.id.c_str(), level1.id.c_str());
 
+  // Aff { s[i,j,k] -> [j] } and get the j's max value
   // to apply something like { S[i,j] -> S[k]: k = i+j }
   auto from_dim_names = GetDimNames(transform_, isl_dim_out);
   auto from_iters     = NamesToIterators(from_dim_names);
 
-  // create to_iters
-  // @{
+  Aff aff(domain_.ctx(), id(), from_iters, std::vector<Iterator>({Iterator(level1.id)}), {});
+
+  int level1_max_val = transformed_domain().max_val(aff.to_isl()).get_num_si();
+
+  // Map { s[i,j,k] -> s[n,k] : n = i * max_val + j }
   std::vector<Iterator> to_iters;
-  for (auto &name : from_dim_names) {
-    if (name == level0.id) {
-    } else if (name == level1.id) {
-      to_iters.emplace_back(new_name);
-    } else {
-      to_iters.emplace_back(name);
+  {
+    Iterator new_iter(new_iter_name);
+    for (auto &iter : from_iters) {
+      if (iter == level0) {
+      } else if (iter == level1) {
+        to_iters.push_back(new_iter);
+      } else {
+        to_iters.push_back(iter);
+      }
     }
   }
-  // @}
-  std::vector<Condition> conds(
-      {Condition(utils::StringFormat("%s=%s+%s", new_name.c_str(), level0.id.c_str(), level1.id.c_str()))});
 
-  Map transform(domain_.ctx(), id(), from_iters, to_iters, conds, id());
-  transform_      = transform_.apply_range(transform.to_isl());
-  auto range_dims = utils::Map<std::vector<Iterator>, std::string>(to_iters, [](const Iterator &x) { return x.id; });
-  SetDimNames(&transform_, isl_dim_out, range_dims);
-  NOT_IMPLEMENTED
+  std::vector<Condition> conds;
+  conds.emplace_back(utils::StringFormat(
+      "%s = %s * %d + %s", new_iter_name.c_str(), level0.id.c_str(), level1_max_val, level1.id.c_str()));
 
-  return Iterator(new_name);
+  Map trans(domain_.ctx(), id(), from_iters, to_iters, conds, id());
+
+  transform_ = transform_.apply_range(trans.to_isl());
+  {
+    std::vector<std::string> iter_names;
+    for (auto &iter : to_iters) iter_names.push_back(iter.id);
+
+    SetDimNames(&transform_, isl_dim_out, iter_names);
+  }
+
+  return Iterator(new_iter_name);
 }
 
 std::vector<std::string> Stage::input_statements() const {
