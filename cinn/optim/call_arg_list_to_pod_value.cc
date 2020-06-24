@@ -38,8 +38,7 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
           {},
           ir::CallType::CINN,
           op->func,
-          op->value_index,
-          op->tensor);
+          op->value_index);
 
       oprs.push_back(new_call);
 

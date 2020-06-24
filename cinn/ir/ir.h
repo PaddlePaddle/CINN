@@ -321,8 +321,6 @@ struct Call : public ExprNode<Call> {
   FunctionRef func;
   //! The output value index if func's value is a tuple.
   int value_index{-1};
-  //! The tensor expression it called, leave undefined if the call is not related to a tensor.
-  Expr tensor;
 
   static Expr Make(Type type,
                    const std::string& name,
@@ -330,8 +328,7 @@ struct Call : public ExprNode<Call> {
                    const std::vector<Expr>& write_args,
                    CallType call_type,
                    FunctionRef func = FunctionRef(),
-                   int value_index  = 0,
-                   Expr tensor      = Expr());
+                   int value_index  = 0);
 
   inline size_t total_args_count() const { return read_args.size() + write_args.size(); }
 

@@ -317,8 +317,7 @@ Expr Call::Make(Type type,
                 const std::vector<Expr> &write_args,
                 CallType call_type,
                 FunctionRef func,
-                int value_index,
-                Expr tensor) {
+                int value_index) {
   for (size_t i = 0; i < read_args.size(); ++i) {
     CHECK(read_args[i].defined());
   }
@@ -330,20 +329,19 @@ Expr Call::Make(Type type,
   node->call_type   = call_type;
   node->func        = func;
   node->value_index = value_index;
-  node->tensor      = tensor;
   node->set_type(type);
   return Expr(node);
 }
 std::vector<Expr *> Call::expr_fields() {
   std::vector<Expr *> res;
   for (auto &x : read_args) res.push_back(&x);
-  res.push_back(&tensor);
+  for (auto &x : write_args) res.push_back(&x);
   return res;
 }
 std::vector<const Expr *> Call::expr_fields() const {
   std::vector<const Expr *> res;
   for (auto &x : read_args) res.push_back(&x);
-  res.push_back(&tensor);
+  for (auto &x : write_args) res.push_back(&x);
   return res;
 }
 

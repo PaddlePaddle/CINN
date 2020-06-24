@@ -103,7 +103,9 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
                                             kernel_stream_var               // stream
                                         },
                                         {},
-                                        ir::CallType::Extern);
+                                        ir::CallType::Extern,
+                                        ir::FunctionRef(),
+                                        0);
 
     auto emitter_id = ExternFuncID{backend_llvm_host, runtime::intrisic::call_cuda_kernel};
     auto* emitter   = ExternFunctionEmitterRegistry::Global().Lookup(emitter_id);

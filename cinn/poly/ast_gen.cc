@@ -364,7 +364,7 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
           std::string caller = caller_expr.As<ir::_Var_>()->name;
           ops.erase(ops.begin());
           // NOTE the type here is not important.
-          *expr = ir::Call::Make(Float(32), caller, ops, {}, ir::CallType::ISL, ir::FunctionRef(), 0, Expr());
+          *expr = ir::Call::Make(Float(32), caller, ops, {}, ir::CallType::ISL, ir::FunctionRef(), 0);
         } break;
         case isl_ast_op_fdiv_q:
           *expr = ir::Div::Make(ops[0], ops[1]);

@@ -74,7 +74,8 @@ struct CollectHostFunctionVisitor : public ir::IRMutator<> {
     args.push_back(Var("args__ptr", type_of<cinn_pod_value_t*>()));
     args.push_back(Var("num_args", type_of<int32_t>()));
 
-    auto call = ir::Call::Make(Void(), GenDeviceKernelName(func->name), args, {}, ir::CallType::Extern);
+    auto call =
+        ir::Call::Make(Void(), GenDeviceKernelName(func->name), args, {}, ir::CallType::Extern, ir::FunctionRef(), 0);
     Expr body = ir::Block::Make({call});
 
     std::vector<ir::Argument> host_func_args;
