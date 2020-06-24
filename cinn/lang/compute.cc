@@ -151,7 +151,7 @@ ir::Tensor Call(const std::string &target,
                 const std::vector<Expr> &dims,
                 const std::vector<Expr> &args,
                 const std::string &name) {
-  auto call       = ir::Call::Make(type, target, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0, Expr());
+  auto call       = ir::Call::Make(type, target, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0);
   auto call_op    = ir::CallOp::Make(target, call);
   auto new_tensor = ir::_Tensor_::Make(name, type, dims, {Expr(1)}, call_op, {});
   new_tensor->WithBuffer();
@@ -163,7 +163,7 @@ ir::Tensor Call(const std::string &target,
 std::vector<ir::Tensor> Call(const std::string &target,
                              const std::vector<Expr> &args,
                              const std::vector<ReturnType> &return_types) {
-  auto call = ir::Call::Make(Void(), target, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0, Expr());
+  auto call = ir::Call::Make(Void(), target, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0);
   std::vector<ir::Tensor> new_tensors;
   for (int i = 0; i < return_types.size(); i++) {
     auto &return_type = return_types[i];
@@ -185,7 +185,7 @@ Expr CallExtern(const std::string &target, const std::vector<Expr> &args) {
                << "existing records are:\n"
                << backends::ExternFunctionProtoRegistry::Global().debug_string();
 
-  auto call = ir::Call::Make(proto->ret_type, target, args, {}, ir::CallType::Extern);
+  auto call = ir::Call::Make(proto->ret_type, target, args, {}, ir::CallType::Extern, ir::FunctionRef(), 0);
   std::vector<Expr> mutable_args;
   // Call a function with multiple outputs.
   if (proto->ret_type.is_void()) {

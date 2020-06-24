@@ -57,7 +57,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const Call* op) override {
     auto read_args  = Visit(op->read_args);
     auto write_args = Visit(op->write_args);
-    return Call::Make(op->type(), op->name, read_args, write_args, op->call_type, FunctionRef(), 0, Expr());
+    return Call::Make(op->type(), op->name, read_args, write_args, op->call_type, FunctionRef(), 0);
   }
 
   Expr Visit(const _Var_* op) override {
