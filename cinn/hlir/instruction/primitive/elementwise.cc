@@ -19,12 +19,12 @@ struct ElementwiseLower {
   ir::Tensor operator()(const ir::Tensor& a, const std::string& name) {
     auto t = Compute(
         a->shape, [=](const std::vector<Expr>& args) -> Expr { return opr_(a(args)); }, name);
-    if (inlined_) {
+    if (!inlined_) {
       if (buffer_.defined()) {
         t->Bind(buffer_);
-      } else {
-        t->WithBuffer();
       }
+    } else {
+      t->stage()->ComputeInline();
     }
     return t;
   }
@@ -101,8 +101,8 @@ struct ElementwiseLowerImpl : public LowerImplBase {
 #define __(code__)                                                             \
   case InstrCode::code__: {                                                    \
     auto out = code__(x.as_tensor_ref(), context->new_ssa_id(#code__ "_out")); \
-    if (!instr->inlined()) {                                                   \
-      out->WithBuffer();                                                       \
+    if (instr->inlined()) {                                                    \
+      out->stage()->ComputeInline();                                           \
     }                                                                          \
     scope->Insert(instr, out);                                                 \
   } break;

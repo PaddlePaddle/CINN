@@ -44,7 +44,7 @@ cinn::ir::Tensor BinaryBasicImpl::operator()(const cinn::ir::Tensor& a,
       NOT_IMPLEMENTED
   }
 
-  if (!inlined_) out_tensor->WithBuffer();
+  if (inlined_) out_tensor->stage()->ComputeInline();
   return out_tensor;
 }
 

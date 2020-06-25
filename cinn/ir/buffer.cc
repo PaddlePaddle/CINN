@@ -66,7 +66,6 @@ void _Buffer_::Accept(IRVisitor *v) const { v->Visit(this); }
 IrNodeTy _Buffer_::node_type() const { return _node_type_; }
 
 void _Buffer_::BindTo(const Tensor &tensor) { BindTo(tensor.As<_Tensor_>()); }
-
 void _Buffer_::BindTo(const _Tensor_ *tensor) {
   if (name.empty()) name = TensorGetBufferName(tensor);
   if (type().is_unk()) set_type(tensor->type());
@@ -74,6 +73,7 @@ void _Buffer_::BindTo(const _Tensor_ *tensor) {
   shape = tensor->shape;
   binded_tensors_names_.insert(tensor->name);
 }
+void _Buffer_::Unbind(const _Tensor_ *tensor) { binded_tensors_names_.erase(tensor->name); }
 
 Var _Buffer_::buffer_addr() const {
   auto thetype = type().ElementOf();

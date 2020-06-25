@@ -107,7 +107,9 @@ ir::Tensor Conv2dNCHW(
   Var i(common::make_zero(), I->shape[1], "i0");
   Var kh(common::make_zero(), I->shape[2], "kh");
   Var kw(common::make_zero(), I->shape[3], "kw");
-  auto T = (pad_h == 0 && pad_w == 0) ? I : Pad(I, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
+  auto pad_comp = Pad(I, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
+  pad_comp->stage()->ComputeInline();
+  auto T = (pad_h == 0 && pad_w == 0) ? I : pad_comp;
 
   auto l = [=](Var b, Var o, Var h, Var w) -> Expr {
     return Sum(T(b, i, stride_h * h + kh, stride_w * w + kw) * W(o, i, kh, kw));
@@ -134,8 +136,8 @@ struct Conv2dNCHWLowerImpl : public LowerImplBase {
                           conv_instr->pad_w(),
                           conv_instr->stride_h(),
                           conv_instr->stride_w());
-    if (!instr->inlined()) {
-      out->WithBuffer();
+    if (instr->inlined()) {
+      out->stage()->ComputeInline();
     }
     scope->Insert(instr, out);
   }

@@ -260,7 +260,6 @@ void CodeGenC::Visit(const ir::Call *op) {
       PrintCallArgs(op);
       os() << ")";
     }
-
   } else {
     NOT_IMPLEMENTED
   }

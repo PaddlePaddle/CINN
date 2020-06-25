@@ -14,6 +14,8 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   lower_function_call_bind_vars.cc
   extern_call_process.cc
   activate_to_extern_call.cc
+  compute_inline_expand.cc
+  buffer_assign.cc
   )
 if (WITH_CUDA)
   list(APPEND srcs transform_gpu_forloop.cc)

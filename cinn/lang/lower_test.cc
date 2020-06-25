@@ -92,7 +92,6 @@ TEST(lower, lowered_call) {
 
   auto Z = Compute(
       {B, N}, [&](Var i, Var j) { return X(i, j) + Y(i, j); }, "Z");
-  Z->WithBuffer();
 
   std::vector<ReturnType> return_types({{Float(32), std::vector<Expr>{{B, N}}, "C"}});
   auto tensors = Call("lowered_fun0", {X, Y, Z}, return_types);
@@ -100,7 +99,7 @@ TEST(lower, lowered_call) {
 
   LOG(INFO) << "call_op: " << C->operation->as<ir::CallOp>()->call_expr;
 
-  auto lower_func = Lower("some", {X, Y, Z, C});
+  auto lower_func = Lower("fn", {X, Y, Z, C});
 }
 
 }  // namespace lang

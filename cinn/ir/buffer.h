@@ -106,6 +106,7 @@ class _Buffer_ : public ExprNode<_Buffer_> {
 
   void BindTo(const Tensor& tensor);
   void BindTo(const _Tensor_* tensor);
+  void Unbind(const _Tensor_* tensor);
 
   const std::set<std::string>& binded_tensor_names() const { return binded_tensors_names_; }
 

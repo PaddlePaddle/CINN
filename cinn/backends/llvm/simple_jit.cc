@@ -20,6 +20,7 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
@@ -96,11 +97,11 @@ void SimpleJIT::Link(lang::Module module, bool optimize) {
   }
 
   for (auto &fn : module.functions()) {
-    LOG(WARNING) << "JIT Linking function [" << fn->name << "]";
+    VLOG(1) << "JIT Linking function [" << fn->name << "]";
     ir::Expr fn_expr(fn);
+    LOG(INFO) << "fn:\n" << fn_expr;
 
     auto *fn_ = ir_emitter->Visit(&fn_expr);
-    LOG(INFO) << DumpToString(*fn_);
   }
 
   AddModule(std::move(m), optimize);

@@ -42,7 +42,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     auto condition = Visit(&op->condition);
     auto true_case = Visit(&op->true_case);
     Expr false_case;
-    if (op->false_case.defined()) Visit(&op->false_case);
+    if (op->false_case.defined()) false_case = Visit(&op->false_case);
     return IfThenElse::Make(condition, true_case, false_case);
   }
 
@@ -134,16 +134,21 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     auto domain      = Visit(op->domain);
     auto buffer_expr = Expr(op->buffer);
     // TODO(Superjomn) copy the operation.
-    auto operaion       = op->operation;
-    auto name           = op->name;
-    auto buffer         = Visit(&buffer_expr);
-    auto tensor         = make_shared<_Tensor_>();
-    tensor->domain      = domain;
-    tensor->shape       = shape;
-    tensor->reduce_axis = op->reduce_axis;
-    tensor->operation   = operaion;
-    tensor->name        = name;
-    tensor->buffer      = ir::Buffer(buffer.As<_Buffer_>());
+    auto operaion = op->operation;
+    auto name     = op->name;
+    auto tensor   = make_shared<_Tensor_>();
+
+    if (buffer_expr.defined()) {
+      auto buffer    = Visit(&buffer_expr);
+      tensor->buffer = buffer.as_buffer_ref();
+    }
+    tensor->domain                       = domain;
+    tensor->shape                        = shape;
+    tensor->reduce_axis                  = op->reduce_axis;
+    tensor->operation                    = operaion;
+    tensor->name                         = name;
+    tensor->compute_inline               = op->compute_inline;
+    tensor->tensors_to_share_buffer_with = op->tensors_to_share_buffer_with;
     return tensor;
   }
 

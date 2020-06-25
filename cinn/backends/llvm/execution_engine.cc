@@ -146,9 +146,7 @@ void ExecutionEngine::Link(const lang::Module &module) {
 
   for (auto &function : module.functions()) {
     ir::Expr expr(function);
-    LOG(INFO) << "cinn:\n" << expr;
     auto *f = emitter->Visit(&expr);
-    LOG(INFO) << "fn:\n" << DumpToString(*f);
     CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module detected";
   }
 
@@ -172,7 +170,7 @@ void ExecutionEngine::Link(const lang::Module &module) {
 }
 
 bool ExecutionEngine::AddModule(std::unique_ptr<llvm::Module> module, std::unique_ptr<llvm::LLVMContext> context) {
-  {
+  if (false) {
     LOG(INFO) << "======= dump jit lib ==========";
     std::string buffer;
     llvm::raw_string_ostream os(buffer);
@@ -184,7 +182,7 @@ bool ExecutionEngine::AddModule(std::unique_ptr<llvm::Module> module, std::uniqu
   llvm::orc::ThreadSafeContext tsc(std::move(context));
   llvm::orc::ThreadSafeModule tsm(std::move(module), std::move(tsc));
   if (auto error = jit_->addIRModule(std::move(tsm))) {
-    LOG(INFO) << "LLVM link module error!";
+    LOG(ERROR) << "LLVM link module error!";
     return false;
   }
   return true;
@@ -192,8 +190,6 @@ bool ExecutionEngine::AddModule(std::unique_ptr<llvm::Module> module, std::uniqu
 
 void *ExecutionEngine::Lookup(std::string_view name) {
   std::lock_guard<std::mutex> lock(mu_);
-  LOG(INFO) << "======= Lookup symbol[" << std::string(AsStringRef(name)) << "]";
-
   if (auto symbol = jit_->lookup(AsStringRef(name))) {
     return reinterpret_cast<void *>(symbol->getAddress());
   }

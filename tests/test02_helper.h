@@ -24,16 +24,16 @@ auto CreateMatmulBasicModule(Target target, int m, int n, int k) {
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->WithBuffer();
-  auto C_buf = Buffer(Float(32));
-  auto k1    = Var(K.as_int32(), "k1");
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
-  C->Bind(C_init->buffer);
+  auto k1 = Var(K.as_int32(), "k1");
+  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+
+  C_init->stage()->ShareBufferWith(C);
+  C->stage()->CtrlDepend(C_init);
 
   Module::Builder builder("module_basic", target);
 
-  auto func = Lower("matmul_basic", {A, B, C, C_init});
+  auto func = Lower("matmul_basic", {A, B, C_init, C});
 
   builder.AddFunction(func);
   return builder.Build();
@@ -47,12 +47,12 @@ auto CreateMatmulTileModule(Target target, int m, int n, int k) {
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->WithBuffer();
-  auto C_buf = Buffer(Float(32));
-  auto k1    = Var(K.as_int32(), "k1");
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
-  C->Bind(C_init->buffer);
+  auto k1 = Var(K.as_int32(), "k1");
+  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+
+  C->stage()->ShareBufferWith(C_init);
+  C->stage()->CtrlDepend(C_init);
 
   C->stage()->Tile(0, 1, 4, 4);
 
@@ -72,12 +72,12 @@ auto CreateMatmulSplitModule(Target target, int m, int n, int k) {
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->WithBuffer();
-  auto C_buf = Buffer(Float(32));
-  auto k1    = Var(K.as_int32(), "k1");
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
-  C->Bind(C_init->buffer);
+  auto k1 = Var(K.as_int32(), "k1");
+  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+
+  C->stage()->ShareBufferWith(C_init);
+  C->stage()->CtrlDepend(C_init);
 
   auto c_poly_iterators = [&C](auto &&... args) {
     std::vector<poly::Iterator> iters;
@@ -103,12 +103,13 @@ auto CreateMatmulBlockModule(Target target, int m, int n, int k) {
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->WithBuffer();
-  auto C_buf = Buffer(Float(32));
-  auto k1    = Var(K.as_int32(), "k1");
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
-  C->Bind(C_init->buffer);
+  auto k1 = Var(K.as_int32(), "k1");
+  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+
+  C->stage()->ShareBufferWith(C_init);
+  C->stage()->CtrlDepend(C_init);
+
   constexpr int bn                          = 32;
   auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn, bn);
   auto [k_outer, k_inner]                   = C->stage()->Split(k1->name, 4);
@@ -131,6 +132,8 @@ auto CreateCinnMatmulModule(const std::string &name, Target target, int m, int n
     return CreateMatmulSplitModule(target, m, n, k);
   } else if (name == "block") {
     return CreateMatmulBlockModule(target, m, n, k);
+  } else {
+    NOT_IMPLEMENTED
   }
 }
 

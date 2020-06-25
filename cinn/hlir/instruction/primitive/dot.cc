@@ -81,8 +81,6 @@ Tensor DotBasicImpl::operator()(const Tensor &a, const Tensor &b, const std::str
     NOT_IMPLEMENTED
   }
 
-  res->WithBuffer();
-
   return res;
 }
 
@@ -150,7 +148,6 @@ class DotCblasLowerImpl : public LowerImplBase {
         },
         context->new_ssa_id("cinn_cpu_mkl_gemm_fp32_call"));
     auto out = call->TupleGet(0);
-    out->WithBuffer();
 
     scope->Insert(instr, out);
   }
