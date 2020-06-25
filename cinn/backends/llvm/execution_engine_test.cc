@@ -281,9 +281,10 @@ TEST(ExecutionEngine, call_extern) {
 
   auto add_out = Compute(
       {M, N}, [=](Var i, Var j) { return x(i, j) + y(i, j); }, "add_out");
+  add_out->stage()->ComputeInline();
+
   ir::Tensor res = Compute(
       {M, N}, [&](Var i, Var j) -> Expr { return lang::CallExtern("tanh", {add_out(i, j)}); }, "res");
-  res->WithBuffer();
 
   auto func = Lower("comp", {x, y, res});
 

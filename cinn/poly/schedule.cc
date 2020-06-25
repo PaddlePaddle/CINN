@@ -144,6 +144,7 @@ std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bo
     auto top = queue.front();
     queue.pop_front();
     if (visited.count(Expr(top))) continue;
+    if (top->compute_inline) continue;
     visited.insert(Expr(top));
     if (top->stage()) {
       stages.push_back(top->stage());

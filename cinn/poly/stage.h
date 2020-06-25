@@ -66,6 +66,16 @@ class Stage : public Object {
   std::vector<std::string> axis_names() const;
 
   /**
+   * Mark this stage to expand inplace in all the usages.
+   */
+  void ComputeInline();
+
+  /**
+   * Mark this buffer should share buffer with \p other.
+   */
+  void ShareBufferWith(ir::Tensor other);
+
+  /**
    * Split the loop level of into two new loop levels.
    * @param level the level to split.
    * @param factor the extent(size) of the inner loop created after splitting.
@@ -159,6 +169,9 @@ class Stage : public Object {
                  DeviceAPI device = DeviceAPI::GPU);
   void GpuBlocks(const std::vector<Iterator>& iters, DeviceAPI device);
   // @}
+
+  // Add a control dependency link to \p t.
+  void CtrlDepend(const ir::Tensor& t);
 
   /**
    * \brief Fuse two forloop levels and return the new level.

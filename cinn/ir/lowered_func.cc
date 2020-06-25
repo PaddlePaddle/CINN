@@ -41,7 +41,7 @@ LoweredFunc _LoweredFunc_::Make(const std::string& name,
   return LoweredFunc(n);
 }
 
-void _LoweredFunc_ ::CheckValid() const {
+void _LoweredFunc_::CheckValid() const {
   // check there is at least one output
   int out_count = 0;
   int in_count  = 0;
@@ -105,6 +105,7 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
   for (auto& tensor : tensors) {
     auto* node = tensor.As<ir::_Tensor_>();
     CHECK(node);
+    if (!tensor->buffer.defined()) continue;
 
     Type value_type = tensor->type().ElementOf();
     bool is_const   = !write_teller.IsWrite(tensor->name);

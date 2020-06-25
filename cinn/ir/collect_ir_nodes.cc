@@ -1,15 +1,11 @@
-#include "cinn/ir/ir_visitor.h"
+#include "cinn/ir/collect_ir_nodes.h"
 
-#include <unordered_set>
-
+#include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
-#include "cinn/lang/tensor.h"
-#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace ir {
 
-/*
 namespace {
 
 struct IrNodesCollector : public IRVisitor {
@@ -24,15 +20,17 @@ struct IrNodesCollector : public IRVisitor {
   void Visit(const Expr* expr) override {
     if (!expr->defined()) return;
     if (visited_.count(expr->get())) return;
+
     if (teller(expr)) {
       handler(expr);
     }
     visited_.insert(expr->get());
 
     switch (expr->node_type()) {
-#define __(op__)           \
-  case ir::IrNodeTy::op__: \
-    return Visit(expr->As<ir::op__>());
+#define __(op__)                 \
+  case ir::IrNodeTy::op__:       \
+    Visit(expr->As<ir::op__>()); \
+    break;
 
       NODETY_FORALL(__)
 
@@ -51,27 +49,18 @@ struct IrNodesCollector : public IRVisitor {
 
   NODETY_FORALL(__m)
 #undef __m
-  std::unordered_set<void*> visited_;
+  std::set<void*> visited_;
 };
 
 }  // namespace
 
-std::set<Expr> CollectIRNodes(Expr expr, std::function<bool(const Expr*)> teller) {
+std::set<Expr> CollectIRNodes(Expr expr, std::function<bool(const Expr*)>&& teller) {
   std::set<Expr> exprs;
   IrNodesCollector::handler_t handler = [&](const Expr* x) { exprs.insert(*x); };
   IrNodesCollector collector(std::move(teller), std::move(handler));
   collector.Visit(&expr);
   return exprs;
 }
- */
-
-bool operator==(Expr a, Expr b) {
-  if (a.get() == b.get()) return true;
-  // TODO(Superjomn) implement with a more accurate one
-  return utils::GetStreamCnt(a) == utils::GetStreamCnt(b);
-}
-
-bool operator!=(Expr a, Expr b) { return !(a == b); }
 
 }  // namespace ir
 }  // namespace cinn

@@ -3,6 +3,7 @@
 #include <set>
 
 #include "cinn/ir/buffer.h"
+#include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/lang/tensor.h"
@@ -57,7 +58,7 @@ struct IRVisitor : public IRVisitorBase<void> {
 #undef __m
 };
 
-std::set<Expr> CollectIRNodes(Expr expr, std::function<bool(const Expr*)> teller);
+// std::set<Expr> CollectIRNodes(Expr expr, std::function<bool(const Expr*)> teller);
 
 bool operator==(Expr a, Expr b);
 bool operator!=(Expr a, Expr b);

@@ -112,11 +112,9 @@ TEST(ComputeAt, Before) {
   auto create_module = [&] {
     // cached compute way
     auto cache_prepare = Compute({M, N} /*domain*/, [&](Var i, Var j) { return A(i, j); }, "cache", {}, {N} /*shape*/);
-    cache_prepare->WithBuffer();
 
     auto transformed_compute = Compute(
         {M, N}, [&](Var i, Var j) { return Expr(1.f); }, "transformed");
-    transformed_compute->WithBuffer();
 
     return std::make_tuple(cache_prepare, transformed_compute);
   };
@@ -178,11 +176,9 @@ TEST(ComputeAt, After) {
 
   // cached compute way
   auto cache_prepare = Compute({M, N} /*domain*/, [&](Var i, Var j) { return A(i, j); }, "cache", {}, {N} /*shape*/);
-  cache_prepare->WithBuffer();
 
   auto transformed_compute = Compute(
       {M, N}, [&](Var i, Var j) { return cache_prepare(j); }, "transformed");
-  transformed_compute->WithBuffer();
 
   cache_prepare->stage()->ComputeAt(transformed_compute->stage(), 1);
 
@@ -204,6 +200,127 @@ function fn (_A, _cache, _transformed)
 )ROC");
 
   ASSERT_EQ(utils::Trim(utils::GetStreamCnt(fn)), target);
+}
+
+TEST(ComputeInline, basic) {
+  Expr M(100), N(200);
+  Placeholder<float> A("A", {M, N});
+
+  auto B = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return A(i, j) + 1.f; }, "B");
+  auto B1 = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return B(i, j) + 1.f; }, "B1");
+  auto B2 = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return B1(i, j) + 1.f; }, "B2");
+
+  auto C = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return B2(i, j) * 2.f; }, "C");
+
+  B->stage()->ComputeInline();
+  B1->stage()->ComputeInline();
+  B2->stage()->ComputeInline();
+
+  auto inlined_B = B->inline_expanded({Expr(2), Expr(1)});
+  ASSERT_EQ("(A[2, 1] + 1)", utils::GetStreamCnt(inlined_B));
+
+  auto fn = Lower("fn", {A, C});
+
+  LOG(INFO) << "fn:\n" << fn;
+
+  auto target = R"ROC(
+function fn (_A, _C)
+{
+  for (i, 100)
+  {
+    for (j, 200)
+    {
+      C[i, j] = (6 + (2 * A[i, j]))
+    }
+  }
+}
+  )ROC";
+
+  ASSERT_EQ(utils::Trim(target), utils::Trim(utils::GetStreamCnt(fn)));
+}
+
+TEST(ComputeInline, complex_graph) {
+  Expr M(100), N(200);
+  Placeholder<float> A("A", {M, N});
+
+  auto B = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return A(i, j) + 1.f; }, "B");
+  auto B1 = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return B(i, j) + 1.f; }, "B1");
+  auto B2 = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return B1(i, j) + 1.f; }, "B2");
+
+  auto C = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return B(i, j) * 2.f; }, "C");
+  auto C1 = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return B1(i, j) * 2.f; }, "C1");
+  auto C2 = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return B2(i, j) * 2.f; }, "C2");
+
+  B->stage()->ComputeInline();
+  B1->stage()->ComputeInline();
+  B2->stage()->ComputeInline();
+
+  auto fn = Lower("fn", {A, C, C1, C2});
+
+  LOG(INFO) << "fn:\n" << fn;
+
+  auto target = R"ROC(
+function fn (_A, _C, _C1, _C2)
+{
+  for (i, 100)
+  {
+    for (j, 200)
+    {
+      C2[i, j] = (6 + (2 * A[i, j]))
+    }
+  }
+  for (i, 100)
+  {
+    for (j, 200)
+    {
+      C1[i, j] = (4 + (2 * A[i, j]))
+    }
+  }
+  for (i, 100)
+  {
+    for (j, 200)
+    {
+      C[i, j] = (2 + (2 * A[i, j]))
+    }
+  }
+}
+  )ROC";
+
+  ASSERT_EQ(utils::Trim(target), utils::Trim(utils::GetStreamCnt(fn)));
+}
+
+TEST(ShareBufferWith, basic) {
+  Expr M(100), N(200);
+  Placeholder<float> A("A", {M, N});
+
+  auto B = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return A(i, j) + 1.f; }, "B");
+  auto B1 = Compute(
+      {M, N}, [=](Expr i, Expr j) -> Expr { return B(i, j) + 1.f; }, "B1");
+
+  B1->stage()->ShareBufferWith(B);
+
+  auto fn = Lower("fn", {A, B, B1});
+
+  LOG(INFO) << "fn:\n" << fn;
+
+  Module::Builder builder("some_module", common::DefaultHostTarget());
+  builder.AddFunction(fn);
+
+  CodeGenC codegen(common::DefaultHostTarget());
+  codegen.SetInlineBuiltinCodes(false);
+
+  LOG(INFO) << "\n" << codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
 }
 
 }  // namespace poly

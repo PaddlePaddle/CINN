@@ -38,6 +38,32 @@ Tensor _Tensor_::Make(const std::string &name,
 
 size_t Tensor::ndims() const { return operator->()->shape.size(); }
 
+std::set<std::string> _Tensor_::GetDependTensorNames() const {
+  std::set<std::string> names;
+
+  auto add_depend_tensors_from_expr = [&](Expr expr) {
+    auto tensors =
+        CollectIRNodes(expr, [&](const Expr *x) { return x->as_tensor() && x->as_tensor()->name != this->name; });
+    for (auto &e : tensors) {
+      names.insert(e.as_tensor()->name);
+    }
+  };
+
+  if (is_compute_node()) {
+    add_depend_tensors_from_expr(body());
+  } else if (is_call_node()) {
+    add_depend_tensors_from_expr(body());
+  } else if (is_extern_call_node()) {
+    add_depend_tensors_from_expr(body());
+  } else if (is_placeholder_node()) {
+    return names;
+  } else {
+    NOT_IMPLEMENTED
+  }
+
+  return names;
+}
+
 Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   CHECK(!self()->is_tuple()) << "should extract a specific value from the tuple and operate on that instead";
   auto *node = operator->();
@@ -51,10 +77,16 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
     CHECK(compute_op->producer_fn) << "producer_fn field is unset";
     return compute_op->producer_fn(indices);
   } else {
-    CHECK(node->buffer.defined()) << utils::StringFormat("Buffer for [%s] should be defined so that it can be sliced",
-                                                         node->name.c_str());
+    // CHECK(node->buffer.defined()) << utils::StringFormat("Buffer for [%s] should be defined so that it can be
+    // sliced", node->name.c_str());
     return Load::Make(*this, indices);
   }
+}
+
+Expr _Tensor_::inline_expanded(const std::vector<Expr> &indices) {
+  CHECK(compute_inline) << "tensor is should be marked as compute_inline";
+  CHECK(is_compute_node());
+  return get_compute_op()->producer_fn(indices);
 }
 
 const char *_Tensor_::operation_type() const {
@@ -266,7 +298,13 @@ Expr _Tensor_::tensor_store_expanded_body() {
 }
 
 void _Tensor_::Bind(lang::Buffer &buffer) {
+  CHECK(!inlined()) << "Inlined tensor should bing buffer";
   CHECK(!buffer->type().is_void());
+  if (this->buffer.defined()) {
+    // remove the old buffer
+    if (this->buffer == buffer.buffer()) return;
+    this->buffer->Unbind(this);
+  }
   // Extract the tensors thouse has binded to this buffer.
   buffer_depended_tensor_names_ = buffer.buffer()->binded_tensor_names();
 
@@ -274,7 +312,6 @@ void _Tensor_::Bind(lang::Buffer &buffer) {
   CHECK(!buffer->binded_tensor_names().empty());
   this->buffer = buffer.buffer();
   CHECK(this->buffer.defined());
-  CHECK(!inlined());
 
   // Reset stage to nullptr to tell others this tensor should be inlined.
   InitStage();
@@ -314,7 +351,9 @@ Tensor _Tensor_::TupleGet(int offset) const {
   CHECK(is_tuple());
   auto *call = body().As<ir::Call>();
   CHECK_LT(offset, call->write_args.size());
-  return call->write_args[offset].as_tensor_ref();
+  auto tensor = call->write_args[offset].as_tensor_ref();
+  tensor->WithBuffer();
+  return tensor;
 }
 
 bool _Tensor_::is_tuple() const {
@@ -361,17 +400,7 @@ Tensor _Tensor_::BufferShared(const std::string &name, const std::vector<Expr> &
   return Tensor(n);
 }
 
-bool _Tensor_::inlined() const {
-  if (is_call_node()) {
-    auto *call_op = operation->as<CallOp>();
-    if (!call_op->call_expr.type().is_void()) {
-      CHECK_EQ(call_op->call_expr.As<Call>()->write_args.size(), 1UL);
-      return true;
-    }
-    return false;
-  }
-  return (!buffer.defined()) && is_compute_node() && !is_tuple();
-}
+bool _Tensor_::inlined() const { return compute_inline; }
 
 bool _Tensor_::IsDependOnStatement(const std::string &statement) {
   if (!is_compute_node()) {

@@ -13,6 +13,7 @@ set(srcs
     test_helper.cc
     arithmatic.cc
     cas.cc
+    union_find.cc
     )
 
 foreach(cpp ${srcs})

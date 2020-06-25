@@ -18,12 +18,10 @@ TEST(Compute, basic) {
   ir::Tensor y = Compute(
       {M, M}, [=](Var i, Var j) -> Expr { return x(i, j) + 1.f; }, "y");
   LOG(INFO) << "compute: " << y->operation->as<ir::ComputeOp>()->body[0];
+  y->stage()->ComputeInline();
 
   ir::Tensor z = Compute(
       {M, M}, [=](Var i, Var j) -> Expr { return y(i, j) * 2.f; }, "z");
-
-  lang::Buffer z_buffer(Float(32));
-  z->Bind(z_buffer);
 
   LOG(INFO) << "z: " << z->operation->as<ir::ComputeOp>()->body[0];
 

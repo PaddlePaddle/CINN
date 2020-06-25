@@ -9,6 +9,8 @@
 
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/buffer_assign.h"
+#include "cinn/optim/compute_inline_expand.h"
 #include "cinn/optim/fold_cinn_call_arguments.h"
 #include "cinn/optim/optimize.h"
 #include "cinn/optim/remove_nested_block.h"
@@ -97,7 +99,10 @@ void CheckNoIslCallRemains(const Expr* expr) {
     LOG(ERROR) << "ISL call: " << item;
   }
 #endif
-  CHECK(isl_calls.empty()) << "Some ISL call nodes remained";
+  if (!isl_calls.empty()) {
+    LOG(WARNING) << "Some ISL call nodes remained, get " << isl_calls.size() << " isl_calls, the first one is "
+                 << *isl_calls.begin();
+  }
 }
 
 /**
@@ -187,6 +192,16 @@ struct LowerImpl {
             const std::vector<Var>& scalar_args,
             const std::vector<Tensor>& temp_tensors)
       : name_(name), tensor_args_(tensor_args), scalar_args_(scalar_args), temp_tensors_(temp_tensors) {
+    // Inline expand
+    for (auto& t : tensor_args_) {
+      Expr tt(t);
+      optim::ComputeInlineExpand(&tt);
+    }
+    for (auto& t : temp_tensors_) {
+      Expr tt(t);
+      optim::ComputeInlineExpand(&tt);
+    }
+
     InitStages();
     InitStageDic();
     InitTensorDic();
@@ -203,12 +218,28 @@ struct LowerImpl {
 
     CheckAllTensorUsageInComputationContainsInArgs(graph.get());
 
-    auto func_body      = GenFnBody(schedule.get());
+    auto func_body = GenFnBody(schedule.get());
+
+    auto tensor_map = optim::InitialAssignBuffer(&func_body);
+    // copy the tensor(with buffer assigned) back to func's args.
+    {
+      for (auto& arg : tensor_args_) {
+        if (arg->is_placeholder_node()) continue;
+        if (arg->buffer.defined()) continue;
+        if (arg->body().As<ir::Call>() && arg->body().type().is_void()) continue;  // extern call
+        Reference(&arg)->buffer = tensor_map.at(arg->name)->buffer;
+      }
+    }
+
     auto func_args      = GenFnArgs(func_body);
     auto func_temp_bufs = GenTempBuffers();
 
     auto func = ir::_LoweredFunc_::Make(std::string(name_), func_args, func_body, func_temp_bufs);
-    auto res  = optim::Optimize(func, FLAGS_cinn_runtime_display_debug_info);
+
+    // some necessary modification.
+    optim::ComputeInlineExpand(&func->body);
+
+    auto res = optim::Optimize(func, FLAGS_cinn_runtime_display_debug_info);
     return ir::LoweredFunc(res.get());
   }
 
@@ -230,8 +261,8 @@ struct LowerImpl {
 
     for (auto& tensor : tensor_args_) {
       auto* tensor_node = tensor.As<ir::_Tensor_>();
-      CHECK(!tensor_node->inlined());
-      bool is_output = teller.IsWrite(tensor->name);
+      bool is_output    = teller.IsWrite(tensor->name);
+      VLOG(5) << "tensor argument " << tensor->name << " buffer " << tensor->buffer->name;
 
       // avoid duplicate
       if (!tensor_node->buffer.defined()) continue;

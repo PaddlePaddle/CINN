@@ -23,13 +23,13 @@ TEST(Tensor, inlined) {
   lang::Placeholder<float> A("A", {M, N});
   lang::Placeholder<float> B("B", {M, N});
 
-  lang::Buffer D_buf(Float(32));
   // C is inlined
   Tensor C = lang::Compute(
       {M, N}, [=](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+  C->stage()->ComputeInline();
+
   Tensor D = lang::Compute(
       {M, N}, [=](Var i, Var j) -> Expr { return C(i, j) * 2.f + 1.f; }, "D");
-  D->Bind(D_buf);
 
   auto funcs = lang::Lower("func_C", {A, B, D});
   std::cout << "output: \n" << funcs << std::endl;
@@ -58,10 +58,10 @@ TEST(Tensor, Collapse) {
 
   // inlined
   auto C0 = lang::Compute({M0 * M1, M2, M3}, [&](Var i, Var j, Var k) { return A1(i, j, k) * A1(i, j, k); });
+  C0->stage()->ComputeInline();
 
   auto C = lang::Compute(
       {M0 * M1, M2, M3}, [&](Var i, Var j, Var k) { return C0(i, j, k) + 1.f; }, "C");
-  C->WithBuffer();
 
   auto func = lang::Lower("func", {A, C});
   LOG(INFO) << "func:\n" << func;

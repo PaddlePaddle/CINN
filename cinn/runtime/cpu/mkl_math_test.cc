@@ -35,10 +35,10 @@ void TestCallElementwise(const std::string &fn_name, float (*fn_runtime)(float),
     auto comp_out = Compute(
         {Expr(1)}, [&]() -> Expr { return lang::CallExtern(fn_name, {x}); }, fn_name + "_out");
     out = comp_out->TupleGet(0);
+    out->WithBuffer(Float(32));
     lower_args.push_back(out);
     lower_args.push_back(comp_out);
   }
-  out->WithBuffer(Float(32));
 
   auto target = common::DefaultHostTarget();
   target.arch = Target::Arch::X86;

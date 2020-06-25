@@ -21,8 +21,12 @@ namespace poly {
 struct Stage;
 }  // namespace poly
 
-namespace ir {
+namespace lang {
+template <typename T>
+struct Placeholder;
+}  // namespace lang
 
+namespace ir {
 namespace detail {
 constexpr bool LE(int a, int b) { return a <= b; }
 constexpr bool GE(int a, int b) { return a >= b; }
@@ -148,6 +152,11 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      FunctionRef fn,
                      const std::vector<Var>& reduce_axis = {});
 
+  bool compute_inline{false};
+
+  //! Name of the tensors thouse share buffer with `this` tensor.
+  std::set<std::string> tensors_to_share_buffer_with;
+
   //! Reshape a tensor.
   Tensor BufferShared(const std::string& name, const std::vector<Expr>& shape) const;
 
@@ -160,12 +169,11 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   Tensor TupleGet(int offset) const;
 
-  //! Create a buffer belong to this tensor.
-  void WithBuffer(const Type& type = Void());
-  //! Bind to a buffer, will persist data to the buffer in runtime.
-  void Bind(lang::Buffer& buffer);  // NOLINT
-  void Bind(const Buffer& buffer);
-  void UnBind(lang::Buffer& buffer);  // NOLINT
+  /**
+   * Get the names of the dependency(read or write) tensors.
+   * e.g. A[i] = C[i]*2 + D[i], A's dependency tensors are {C,D}
+   */
+  std::set<std::string> GetDependTensorNames() const;
 
   /**
    * \brief Tell whether this tensor's computation relays on a specific statement.
@@ -205,11 +213,13 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
+  //! Get the normal axis without reduce ones.
   const std::vector<Var>& axis() const {
     CHECK_EQ(axis_.size(), domain_without_reduce_axis().size());
     return axis_;
   }
 
+  //! Get the normal axis with reduce ones.
   std::vector<Var> axis_with_reduce() const {
     auto axis = axis_;
     axis.insert(axis.end(), reduce_axis.begin(), reduce_axis.end());
@@ -226,7 +236,13 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   ~_Tensor_();
 
- private:
+  //! Create a buffer belong to this tensor.
+  void WithBuffer(const Type& type = Void());
+  //! Bind to a buffer, will persist data to the buffer in runtime.
+  void Bind(lang::Buffer& buffer);  // NOLINT
+  void Bind(const Buffer& buffer);
+  void UnBind(lang::Buffer& buffer);  // NOLINT
+
   //! Create the polyhedral element for analysis.
   //! It is based on the shape.
   void InitStage();

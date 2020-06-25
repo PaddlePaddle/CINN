@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "cinn/common/axis.h"
+#include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
@@ -315,6 +316,7 @@ std::vector<std::pair<std::string, std::string>> ExtractLinksFromCalls(const std
       for (auto &arg : args) {
         auto *arg_tensor = arg.As<ir::_Tensor_>();
         if (!arg_tensor) continue;  // Get something like POD values.
+        if (arg_tensor->compute_inline) continue;
         if (arg_tensor->is_placeholder_node() && !with_placeholder) continue;
         links.emplace_back(arg_tensor->name, tensor->name);
       }
@@ -393,6 +395,21 @@ bool Stage::has_expression() const {
   CHECK(tensor_);
   return tensor_->has_expression();
 }
+
+void Stage::ComputeInline() {
+  CHECK(tensor_);
+  tensor_->compute_inline = true;
+}
+
+void Stage::ShareBufferWith(ir::Tensor other) {
+  CHECK(tensor_);
+  CHECK(!other->compute_inline);
+  CHECK(!this->tensor_->compute_inline);
+  tensor_->tensors_to_share_buffer_with.insert(other->name);
+  other->tensors_to_share_buffer_with.insert(tensor_->name);
+}
+
+void Stage::CtrlDepend(const ir::Tensor &t) { add_extra_depend_stage(t->name); }
 
 }  // namespace poly
 }  // namespace cinn
