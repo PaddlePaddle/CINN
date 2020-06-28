@@ -134,6 +134,10 @@ class IrNode : public common::Object {
   virtual Type type() const { return type_; }
   void set_type(Type type) { type_ = type; }
 
+  //! Gather all the expression fields in this node for easier visit and mutate.
+  virtual std::vector<Expr*> expr_fields() { return {}; }
+  virtual std::vector<const Expr*> expr_fields() const { return {}; }
+
   const char* type_info() const override { return __type_info__; }
 
  protected:
@@ -185,10 +189,6 @@ struct ExprNode : public IrNode {
 
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return dynamic_cast<const T*>(this); }
-
-  //! Gather all the expression fields in this node for easier visit and mutate.
-  virtual std::vector<Expr*> expr_fields() { return {}; }
-  virtual std::vector<const Expr*> expr_fields() const { return {}; }
 
   const std::vector<Expr>& operands() const { return IrNode::operands; }
   std::vector<Expr>& operands() { return IrNode::operands; }
