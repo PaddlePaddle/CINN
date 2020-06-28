@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include "cinn/common/graph_utils.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/buffer_assign.h"
@@ -31,7 +32,7 @@ namespace lang {
 namespace detail {
 
 /**
- * Mark the PolyFor as Vectorized if it is called Vectorize in Stage.
+ * Mark the PolyFor as Vectorized if it is scheduled Vectorize in Stage.
  */
 struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
   const std::map<std::string, ir::VectorizeInfo>& vectorizes;
@@ -63,7 +64,9 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
   std::vector<ir::PolyFor*> stack;
 };
 
-//! Mark the PolyFor as Unroll if is called Unroll in Stage.
+/**
+ * Mark the PolyFor as Unroll if is called Unroll in Stage.
+ */
 struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
   std::map<std::string, std::set<int> /*level*/> unrolls;
 
@@ -111,6 +114,30 @@ void CheckNoIslCallRemains(const Expr* expr);
  * @param tuple_to_expr A map from isl set tuple name to CINN expressions.
  */
 Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Expr>& tuple_to_expr);
+
+/**
+ * A Computation graph node.
+ */
+struct CompuGraphNode : public common::GraphNode {
+  explicit CompuGraphNode(ir::Tensor tensor) : tensor(tensor) {}
+
+  ir::Tensor tensor;
+
+  std::string id() const override;
+  const char* type_info() const override;
+  static const char* __type_info__;
+};
+
+/**
+ * \brief Create a computation graph using a tensor set.
+ * It will deduce the temporary tensors not in the \p tensors.
+ *
+ * @param tensors the input/output tensors of a computation.
+ * @param hide_inline hide inline tensor nodes.
+ * @return a graph.
+ *
+ */
+std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& tensors, bool hide_inline = false);
 
 /**
  * \brief The implementation of Lower, transform the computation into a CINN function.

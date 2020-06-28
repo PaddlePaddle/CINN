@@ -84,6 +84,13 @@ class GraphNode : public Object {
     return std::make_tuple(a, b);
   }
 
+  bool IsLinkedTo(GraphNode* other) const {
+    for (auto& e : outlinks_) {
+      if (e->sink()->id() == other->id()) return true;
+    }
+    return false;
+  }
+
   //! Get the input links of the node.
   virtual const std::set<Shared<GraphEdge>, GraphEdgeCompare>& inlinks() const { return inlinks_; }
   //! Get the output links of the node.

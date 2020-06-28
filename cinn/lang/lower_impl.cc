@@ -1,5 +1,8 @@
 #include "cinn/lang/lower_impl.h"
 
+#include <queue>
+#include <unordered_set>
+
 namespace cinn {
 namespace lang {
 namespace detail {
@@ -291,6 +294,53 @@ std::vector<Tensor> LowerImpl::all_tensor_args() {
   res.insert(res.end(), temp_tensors_.begin(), temp_tensors_.end());
   return res;
 }
+
+const char* CompuGraphNode::__type_info__ = "ComputeGraphNode";
+const char* CompuGraphNode::type_info() const { return __type_info__; }
+std::string CompuGraphNode::id() const {
+  CHECK(tensor.defined());
+  return tensor->name;
+}
+
+void CreateCompGraphHelper(common::Graph* graph, ir::Tensor& t, Expr e, bool hide_inline) {
+  bool hide_t               = hide_inline && t->inlined();
+  common::GraphNode* t_node = graph->RetriveNode(t->name);
+  if (!t_node && !hide_t) {
+    t_node = graph->RegisterNode(t->name, new CompuGraphNode(t));
+  }
+
+  auto e_tensor = e.as_tensor_ref();
+  if (e_tensor.defined()) {
+    auto* e_node = graph->RetriveNode(e_tensor->name);
+    if (!e_node && !(hide_inline && e_tensor->inlined())) {
+      e_node = graph->RegisterNode(e_tensor->name, new CompuGraphNode(e_tensor));
+    }
+    if (!hide_t && t_node && e_node) e_node->LinkTo(t_node);
+  }
+
+  for (auto* e_dep : e->expr_fields()) {
+    if (e_tensor.defined()) {
+      CreateCompGraphHelper(graph, e_tensor, *e_dep, hide_inline);
+    } else {
+      CreateCompGraphHelper(graph, t, *e_dep, hide_inline);
+    }
+  }
+}
+
+std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& tensors, bool hide_inline) {
+  auto graph = std::make_unique<common::Graph>();
+
+  for (auto& t : tensors) {
+    auto tc = t;
+    if (hide_inline && tc->inlined()) continue;
+    for (auto& e : tc->expr_fields()) {
+      CreateCompGraphHelper(graph.get(), tc, *e, hide_inline);
+    }
+  }
+
+  return graph;
+}
+
 }  // namespace detail
 }  // namespace lang
 }  // namespace cinn
