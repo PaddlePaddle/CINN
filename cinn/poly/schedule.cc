@@ -165,7 +165,6 @@ std::map<std::string, isl::map> CollectScheduleMapFromGroup(const ScheduleGroup 
 
   std::vector<Stage *> stages;
   for (auto &node : group.nodes) {
-    auto *schedule_node = node->safe_as<ScheduleGraphNode>();
     CHECK(node->stage);
     stages.push_back(node->stage);
   }
@@ -186,8 +185,8 @@ void SchedulerBase::AddStage(const Stage &x) {
   // like '{ S0[i,j] -> S0[i_outer, i_inner, j] }', the scheduler should schedule base on the range.
   auto dims      = GetDimNames(x.transform(), isl_dim_out);
   std::string id = isl_map_get_tuple_name(x.transform().get(), isl_dim_in);
-  auto *node     = schedule_graph_.RegisterNode(
-      x.id(), common::make_shared<ScheduleGraphNode>(id, GetDimNames(x.transform(), isl_dim_out), &x));
+  schedule_graph_.RegisterNode(x.id(),
+                               common::make_shared<ScheduleGraphNode>(id, GetDimNames(x.transform(), isl_dim_out), &x));
 
   // record the longest dimensions.
   if (dims.size() > detailed_dimension_names_.size()) detailed_dimension_names_ = dims;
