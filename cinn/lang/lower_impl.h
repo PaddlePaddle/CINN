@@ -1,9 +1,11 @@
 #pragma once
 #include <iostream>
 #include <map>
+#include <memory>
 #include <set>
 #include <stack>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -131,101 +133,102 @@ struct CompuGraphNode : public common::GraphNode {
 /**
  * \brief Create a computation graph using a tensor set.
  * It will deduce the temporary tensors not in the \p tensors.
+ * It consider the `extra_depend_stages` stored in tensor.stage.
  *
  * @param tensors the input/output tensors of a computation.
  * @param hide_inline hide inline tensor nodes.
  * @return a graph.
- *
  */
 std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& tensors, bool hide_inline = false);
 
 /**
- * \brief The implementation of Lower, transform the computation into a CINN function.
+ * Clone a CompGraph to a DataFlowGraph
+ * @param comp_graph a computation graph.
+ * @param dfg a data flow graph.
  */
-struct LowerImpl {
+void CloneCompGraph(const common::Graph& comp_graph, poly::DataFlowGraph* dfg);
+
+class LowerImpl {
+ public:
   /**
-   * \brief construct a LowerImpl.
+   * @param fn_name the name of the final output function.
+   * @param tensor_args the tensor arguments for the function
+   * @param scalar_args the scalar arguments for the function
+   * @param temp_tensor_args the extra temporary tensor arguments
    *
-   * @param name The name of the generated LoweredFunc
-   * @param tensor_args The argument list, with both the related placeholders and outputs
-   * @param scalar_args The scalar arguments
-   * @param temp_tensors
-   * @return A CINN LoweredFunc
-   *
-   * A function is consist of two parts of information, one is the argument list which contains the input and
-   * output, the other is a computation which read the inputs and write result to the outputs.
-   *
-   * The computation can be think as a SSA graph, the inputs and outputs of the graph should be contained in the union
-   * set of \p tensor_args and \p scalar_args, but not all the variables used in the computation should in the union
-   * set, those missing should be marked as temporary variables first.
+   * The \p tensor_args contains both input and output tensors.
    */
-  LowerImpl(const std::string& name,
+  LowerImpl(const std::string& fn_name,
             const std::vector<Tensor>& tensor_args,
             const std::vector<Var>& scalar_args,
-            const std::vector<Tensor>& temp_tensors);
+            const std::vector<Tensor>& temp_tensor_args = {})
+      : fn_name_(fn_name), tensor_args_(tensor_args), scalar_args_(scalar_args), temp_tensor_args_(temp_tensor_args) {
+    std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
+    tensors.insert(std::end(tensors), temp_tensor_args.begin(), temp_tensor_args.end());
+    compu_graph_ = CreateCompGraph(tensors, true /*hide_inlined*/);
+  }
 
   ir::LoweredFunc operator()();
 
   /**
-   * \brief Generate the argument list of the final function.
-   *
-   * The argument list contains both the buffers(such as `cinn_buffer_t* X`) and necessary scalars (such as `int
-   * batch_size`), all the scalar arguments will be in front of the tensor arguments in the function's argument list.
-   *
-   * @param func_body The body expression of the function.
+   * \brief generate the argument list of the final output function.
+   * We put the scalar_args in front of tensor_args, e.g. get tensor_args{A,B}, scalar_args{m}, the final argument list
+   * is {m, A, B}, the input and output tensor can be mixed in the tensor_args, the kInput and kOutput token will deduce
+   * from their usage in the computation.
    */
-  inline std::vector<ir::Argument> GenerateFunctionArgumentList(Expr func_body);
-
-  inline std::vector<ir::Buffer> CollectTemporaryBuffers();
-
-  inline Expr GenerateFunctionBody(const poly::Schedule* schedule);
-
-  inline void CheckAllTensorUsageInComputationContainsInArgs(poly::DataFlowGraph* graph);
-
-  inline void CheckArgsUnique();
-
-  //! All the tensor args including input, output and temporary tensors.
-  inline std::vector<Tensor> all_tensor_args();
+  std::vector<ir::Argument> GenerateFunctionArgumentList(Expr fn_body);
 
   /**
-   * Collect the extra IO/control dependencies between stages.
-   * @param stages the stages
-   * @return the dependencies.
+   * \brief generate the body expression of the final output function.
    */
-  inline std::vector<std::pair<std::string, std::string>> CollectExtraDependencies(
-      const std::vector<poly::Stage*>& stages);
-
-  inline void InitStages() { stages_ = poly::GatherStagesInTensors(all_tensor_args()); }
-
-  inline void InitTensorDic() {
-    for (auto& tensor : all_tensor_args()) tensor_dic_.emplace(tensor->name, tensor);
-  }
-
-  inline void InitStageDic() {
-    for (auto& stage : stages_) stage_dic_.emplace(stage->id(), stage);
-  }
-
-  /**
-   * Safely get a tensor by \p name, check error if not found.
-   * @param name the name of the target tensor.
-   * @return the found tensor.
-   */
-  inline Tensor& TensorDicGet(const std::string& name) {
-    auto it = tensor_dic_.find(name);
-    CHECK(it != tensor_dic_.end()) << "Tensor [" << name << "] not found";
-    return it->second;
-  }
+  Expr GenerateFunctionBody(const poly::Schedule* schedule);
 
  private:
-  std::string_view name_;
+  /**
+   * \brief Collect the temporary tensors.
+   * A temporary tensor is one that is in the computation graph, not inlined and not in the tensor_args(similar to a
+   * temporary variable inside function).
+   */
+  std::vector<Tensor> CollectTemporaryTensors();
+
+  /**
+   * \brief Check both the tensor_args and sclar_args not contain duplication (different arguemnt with the same name).
+   */
+  void CheckArgsUnique();
+
+  /**
+   * \brief Get a map, for each tensor in the tensor_args, map from name to itself.
+   */
+  inline std::unordered_map<std::string, Tensor> GenTensorArgMap();
+
+  /**
+   * \brief Get a map, for each tensor in the computation graph, map from name to itself.
+   */
+  inline std::unordered_map<std::string, Tensor> GenAllTensorMap();
+
+  /**
+   * \brief Get all the tensors, including the input, output and temporary ones.
+   */
+  std::vector<Tensor> CollectAllTensors();
+
+  /**
+   * \brief Collect the extra dependencies between tensors.
+   *
+   * The extra dependencies include
+   * 1. the control deps in Stage.
+   *
+   * TODO(Superjomn) remove the field `extra_depend_stages`
+   */
+  std::set<std::pair<std::string, std::string>> CollectExtraDependencies() const;
+
+ private:
+  const std::string& fn_name_;
   const std::vector<Tensor>& tensor_args_;
   const std::vector<Var>& scalar_args_;
-  const std::vector<Tensor>& temp_tensors_;
+  const std::vector<Tensor>& temp_tensor_args_;
 
-  std::vector<poly::Stage*> stages_;
-
-  std::map<std::string, poly::Stage*> stage_dic_;
-  std::map<std::string, Tensor> tensor_dic_;
+  //! A computation graph generated from the tensor_args and scalar_args.
+  std::unique_ptr<common::Graph> compu_graph_;
 };
 
 /**

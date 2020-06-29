@@ -10,6 +10,7 @@ namespace lang {
 namespace detail {
 
 #define CREATE_GNODE(k__) auto* n##k__ = graph->RetriveNode(#k__);
+#define ASSERT_LINKED(a__, b__) ASSERT_TRUE(n##a__->IsLinkedTo(n##b__));
 
 TEST(CreateCompGraph, single_layer) {
   Expr M(100);
@@ -102,16 +103,82 @@ TEST(CreateCompGraph, multi_layers) {
 
   ASSERT_EQ(graph->num_nodes(), 5);
 
-  ASSERT_TRUE(nA->IsLinkedTo(nC));
-  ASSERT_TRUE(nB->IsLinkedTo(nC));
+  ASSERT_LINKED(A, C)
+  ASSERT_LINKED(B, C)
 
-  ASSERT_TRUE(nC->IsLinkedTo(nD));
-  ASSERT_TRUE(nB->IsLinkedTo(nD));
+  ASSERT_LINKED(C, D)
+  ASSERT_LINKED(B, D)
 
-  ASSERT_TRUE(nA->IsLinkedTo(nE));
-  ASSERT_TRUE(nB->IsLinkedTo(nE));
-  ASSERT_TRUE(nC->IsLinkedTo(nE));
-  ASSERT_TRUE(nD->IsLinkedTo(nE));
+  ASSERT_LINKED(A, E)
+  ASSERT_LINKED(B, E)
+  ASSERT_LINKED(C, E)
+  ASSERT_LINKED(D, E)
+}
+
+TEST(CreateCompGraph, multi_layers_with_extra_deps) {
+  Expr M(100);
+  Expr N(200);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  // A->C
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) + 1.f; }, "C");
+
+  // B->D
+  auto D = Compute(
+      {M, N}, [&](Expr i, Expr j) { return B(i, j) + 1.f; }, "D");
+
+  // A->E
+  auto E = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) + 1.f; }, "E");
+
+  auto F = Compute(
+      {M, N}, [&](Expr i, Expr j) { return C(i, j) + D(i, j) + E(i, j); }, "F");
+
+  // C->D
+  D->stage()->CtrlDepend(C);
+  // C->E
+  E->stage()->CtrlDepend(C);
+
+  auto graph = CreateCompGraph({A, B, F});
+
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  /*
+   digraph G {
+      node_0[label="A"]
+      node_1[label="B"]
+      node_3[label="C"]
+      node_4[label="D"]
+      node_5[label="E"]
+      node_2[label="F"]
+      node_0->node_5
+      node_0->node_3
+      node_1->node_4
+      node_3->node_2
+      node_3->node_5
+      node_3->node_4
+      node_4->node_2
+      node_5->node_2
+   } // end G
+   */
+
+  CREATE_GNODE(A)
+  CREATE_GNODE(B)
+  CREATE_GNODE(C)
+  CREATE_GNODE(D)
+  CREATE_GNODE(E)
+  CREATE_GNODE(F)
+
+  ASSERT_LINKED(B, D)
+  ASSERT_LINKED(A, C)
+  ASSERT_LINKED(A, E)
+  ASSERT_LINKED(C, E)
+  ASSERT_LINKED(C, F)
+  ASSERT_LINKED(C, D)
+  ASSERT_LINKED(D, F)
 }
 
 TEST(CreateCompGraph, inline_compatible) {

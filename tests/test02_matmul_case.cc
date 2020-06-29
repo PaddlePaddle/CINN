@@ -74,6 +74,14 @@ TEST(test02, basic) {
     }
   }
 
+  auto reset = [&]() {
+    for (int i = 0; i < M; i++) {
+      for (int j = 0; j < N; j++) {
+        Cd[i * N + j] = 0.f;
+      }
+    }
+  };
+
   cinn::utils::Timer timer;
 
   const int repeat = 2;
@@ -94,28 +102,32 @@ TEST(test02, basic) {
   timer.Start();                                                              \
   for (int i = 0; i < repeat; i++) func__(reinterpret_cast<void**>(args), 3); \
   LOG(INFO) << timer.Stop() / repeat;                                         \
-  compare();
+  compare();                                                                  \
+  reset();
 
 #define TEST_FUNC1(func__, diff)                                               \
   LOG(INFO) << "Testing " #func__;                                             \
   timer.Start();                                                               \
   for (int i = 0; i < repeat; i++) func__(reinterpret_cast<void**>(args1), 4); \
   LOG(INFO) << timer.Stop() / repeat;                                          \
-  compare();
+  compare();                                                                   \
+  reset();
 
 #define TEST_FUNC2(func__, diff)                                               \
   LOG(INFO) << "Testing " #func__;                                             \
   timer.Start();                                                               \
   for (int i = 0; i < repeat; i++) func__(reinterpret_cast<void**>(args2), 4); \
   LOG(INFO) << timer.Stop() / repeat;                                          \
-  compare();
+  compare();                                                                   \
+  reset();
 
 #define TEST_FUNC3(func__, diff)                                               \
   LOG(INFO) << "Testing " #func__;                                             \
   timer.Start();                                                               \
   for (int i = 0; i < repeat; i++) func__(reinterpret_cast<void**>(args3), 4); \
   LOG(INFO) << timer.Stop() / repeat;                                          \
-  compare();
+  compare();                                                                   \
+  reset();
 
   TEST_FUNC(matmul)
 
