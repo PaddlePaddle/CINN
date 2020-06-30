@@ -336,7 +336,7 @@ void IrPrinter::Visit(const Broadcast *x) {
 void IrPrinter::Visit(const FracOp *x) {
   os() << "(";
   Print(x->a());
-  os() << "/";
+  os() << " / ";
   Print(x->b());
   os() << ")";
 }

@@ -152,6 +152,18 @@ struct SimplifyRampMutator : public ir::IRMutator<Expr*> {
   }
 };
 
+struct ReplaceFracWithDivMutator : public ir::IRMutator<> {
+  void operator()(Expr* x) { ir::IRMutator<>::Visit(x, x); }
+
+  void Visit(const FracOp* op, Expr* expr) override {
+    auto* node = expr->As<ir::FracOp>();
+
+    ir::IRMutator<>::Visit(&node->operand(0), &node->operand(0));
+    ir::IRMutator<>::Visit(&node->operand(1), &node->operand(1));
+
+    *expr = ir::Div::Make(node->operand(0), node->operand(1));
+  }
+};
 }  // namespace
 
 void Simplify(Expr* expr) {
@@ -162,6 +174,8 @@ void Simplify(Expr* expr) {
   common::cas_intervals_t var_intervals;
   SimplifyButStoreLoadMutator mutator(var_intervals);
   mutator(expr);
+
+  ReplaceFracWithDivMutator()(expr);
 }
 }  // namespace optim
 }  // namespace cinn

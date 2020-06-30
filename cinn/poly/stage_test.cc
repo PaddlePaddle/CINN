@@ -4,7 +4,10 @@
 
 #include <set>
 
+#include "cinn/backends/llvm/codegen_llvm.h"
+#include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/cinn.h"
+#include "cinn/common/test_helper.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
@@ -200,6 +203,87 @@ function fn (_A, _cache, _transformed)
 )ROC");
 
   ASSERT_EQ(utils::Trim(utils::GetStreamCnt(fn)), target);
+}
+
+void TestElementwiseAddJitPrecession(std::function<void(ir::Tensor*)>&& scheduler) {
+  Expr M(30);
+  Expr N(40);
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) -> Expr { return A(i, j) + B(i, j); }, "C");
+  C->WithBuffer();
+
+  scheduler(&C);
+
+  auto fn = Lower("fn", {A, B, C});
+  LOG(INFO) << "fn:\n" << fn;
+
+  Module::Builder module_builder("some_module", common::DefaultHostTarget());
+  module_builder.AddFunction(fn);
+
+  auto jit = backends::SimpleJIT::Create();
+  jit->Link(module_builder.Build(), false);
+  auto _fn_handler = jit->Lookup("fn");
+  auto* fn_handler = reinterpret_cast<void (*)(void*, int)>(_fn_handler);
+
+  // create buffer and args
+  auto A_buf    = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto B_buf    = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto C_buf    = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
+  auto arg_pack = common::ArgsBuilder().Add(A_buf).Add(B_buf).Add(C_buf).Build();
+
+  fn_handler(arg_pack.data(), arg_pack.size());
+
+  auto* A_data = reinterpret_cast<float*>(A_buf->host_memory);
+  auto* B_data = reinterpret_cast<float*>(B_buf->host_memory);
+  auto* C_data = reinterpret_cast<float*>(C_buf->host_memory);
+  for (int i = 0; i < A_buf->num_elements(); i++) {
+    if (i < 4) LOG(INFO) << C_data[i];
+    ASSERT_NEAR(A_data[i] + B_data[i], C_data[i], 1e-5);
+  }
+
+  cinn_buffer_free(nullptr, A_buf);
+  cinn_buffer_free(nullptr, B_buf);
+}
+
+// use an elementwise_add to test fuse precision
+TEST(Fuse, jit_precision_test) {
+  TestElementwiseAddJitPrecession([](ir::Tensor* C) { (*C)->stage()->Fuse(0, 1); });
+}
+
+// split test fuse precision
+TEST(Fuse, jit_precision_test2) {
+  TestElementwiseAddJitPrecession([](ir::Tensor* C) {
+    auto [i_outer, i_inner] = (*C)->stage()->Split(0, 4);
+    (*C)->stage()->Fuse(i_outer, i_inner);
+  });
+}
+
+TEST(Tile, jit_precision_test) {
+  TestElementwiseAddJitPrecession([](ir::Tensor* C) { (*C)->stage()->Tile(0, 1, 4, 4); });
+}
+
+TEST(Reorder, jit_precision_test) {
+  TestElementwiseAddJitPrecession([](ir::Tensor* C) {
+    auto* stage = (*C)->stage();
+    stage->Reorder({stage->axis(1), stage->axis(0)});
+  });
+}
+
+TEST(Unroll, jit_precision_test) {
+  TestElementwiseAddJitPrecession([](ir::Tensor* C) {
+    auto* stage = (*C)->stage();
+    stage->Unroll(1);
+  });
+}
+
+TEST(Unroll, jit_precision_test1) {
+  TestElementwiseAddJitPrecession([](ir::Tensor* C) {
+    auto* stage = (*C)->stage();
+    stage->Unroll(0);
+  });
 }
 
 TEST(ComputeInline, basic) {

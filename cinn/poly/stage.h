@@ -174,12 +174,30 @@ class Stage : public Object {
   void CtrlDepend(const ir::Tensor& t);
 
   /**
+   * Create a cache Tensor and load the \p source into this buffer, replace all the reading in the readers with the
+   * cache.
+   * @param tensor the source memory to cache.
+   * @param memory_type the memory type, "share" for CUDA share memory, "local" for CUDA local memory.
+   * @param readers the readers of the \p tensor
+   */
+  ir::Tensor CacheRead(const std::string& memory_type, const std::vector<ir::Tensor>& readers);
+
+  /**
+   * Create a cache for write to the original tensor.
+   * @param tensor the tensor to create the cache for.
+   * @param memory_type "share" for CUDA share memory, "local" for CUDA local memory.
+   */
+  ir::Tensor CacheWrite(const std::string& memory_type);
+
+  /**
    * \brief Fuse two forloop levels and return the new level.
    * @param level0 the first level.
    * @param level1 the second level.
    * @return the new level.
    */
   Iterator Fuse(const Iterator& level0, const Iterator& level1);
+  Iterator Fuse(int level0, int level1);
+  Iterator Fuse(const std::string& level0, const std::string& level1);
 
   const isl::set& domain() const { return domain_; }
   const isl::map& transform() const { return transform_; }
@@ -201,11 +219,6 @@ class Stage : public Object {
   inline const ir::VectorizeInfo& vectorize_info() const { return vectorize_info_; }
   inline const std::set<int>& unroll_info() const { return unroll_info_; }
 
-  Stage() = default;
-
-  inline const std::map<std::string /*iterator name*/, SplitRestStrategy>& split_strageties() const {
-    return split_strageties_;
-  }
   const std::set<std::string>& extra_depend_stages() const { return extra_depend_stages_; }
   void set_extra_depend_stages(const std::set<std::string>& x) { extra_depend_stages_ = x; }
   void add_extra_depend_stage(const std::string& statement) { extra_depend_stages_.insert(statement); }
@@ -213,6 +226,8 @@ class Stage : public Object {
   const std::map<std::string, StageForloopInfo>& forloop_infos() const { return forloop_infos_; }
 
   bool has_expression() const;
+
+  Stage() = default;
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);

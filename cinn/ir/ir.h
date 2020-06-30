@@ -293,6 +293,26 @@ struct Reduce : public ExprNode<Reduce> {
 
   Type type() const override { return body.type().ElementOf(); }
 
+  std::vector<Expr*> expr_fields() override {
+    std::vector<Expr*> res;
+    if (init.defined()) {
+      res.push_back(&init);
+    }
+    CHECK(body.defined());
+    res.push_back(&body);
+    return res;
+  }
+
+  std::vector<const Expr*> expr_fields() const override {
+    std::vector<const Expr*> res;
+    if (init.defined()) {
+      res.push_back(&init);
+    }
+    CHECK(body.defined());
+    res.push_back(&body);
+    return res;
+  }
+
   static const IrNodeTy _node_type_ = IrNodeTy::Reduce;
 };
 

@@ -8,6 +8,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
+#include "cinn/lang/compute.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/utils/functional.h"
 
@@ -153,6 +154,21 @@ std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j,
   return std::make_tuple(i_new, j_new);
 }
 
+Iterator Stage::Fuse(int level0, int level1) {
+  auto dims = GetDimNames(transformed_domain());
+  CHECK_LT(level0, dims.size());
+  CHECK_LT(level1, dims.size());
+
+  Iterator iter0(dims[level0]);
+  Iterator iter1(dims[level1]);
+
+  return Fuse(iter0, iter1);
+}
+
+Iterator Stage::Fuse(const std::string &level0, const std::string &level1) {
+  return Fuse(Iterator(level0), Iterator(level1));
+}
+
 /*
  * Fuse use a polyhedral transform.
  */
@@ -190,6 +206,8 @@ Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
       "%s = %s * %d + %s", new_iter_name.c_str(), level0.id.c_str(), level1_max_val, level1.id.c_str()));
 
   Map trans(domain_.ctx(), id(), from_iters, to_iters, conds, id());
+
+  LOG(INFO) << "fuse trans: " << trans;
 
   transform_ = transform_.apply_range(trans.to_isl());
   {
@@ -260,6 +278,7 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
   VLOG(3) << "stage0.partial_set " << stage_partial_set;
   VLOG(3) << "stage1.partial_set " << self_partial_set;
 
+  LOG(INFO) << "compatible:\n" << stage_partial_set << "\n" << self_partial_set;
   return isl_set_is_equal(stage_partial_set.get(), self_partial_set.get());
 }
 
@@ -394,6 +413,58 @@ Iterator Stage::axis(const std::string &i) const {
 bool Stage::has_expression() const {
   CHECK(tensor_);
   return tensor_->has_expression();
+}
+
+/*
+ * To create a read cache:
+ * 1. create a cache write stage for cache assign.
+ * 2. add extra deps between cache and tensor to keep SSA order
+ * 3. register the readers of the cache to the \p tensor, replace latter in Lower
+ */
+ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir::Tensor> &readers) {
+  CHECK(tensor_);
+  auto my_tensor         = ir::Tensor(tensor_);
+  std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
+  LOG(INFO) << "cache_name " << cache_name;
+  auto cache_stage = lang::Compute(
+      tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
+  cache_stage->WithBuffer(memory_type);
+
+  for (auto &reader : readers) {
+    Reference(&reader)->stage()->CtrlDepend(cache_stage);
+  }
+
+  std::vector<std::string> reader_names;
+  std::transform(
+      readers.begin(), readers.end(), std::back_inserter(reader_names), [](const ir::Tensor &x) { return x->name; });
+
+  CHECK(!tensor_->read_cache_relation) << "Duplicate read cache found, just one is allowed";
+  tensor_->read_cache_relation.reset(new ir::ReadCacheRelation{cache_name, reader_names});
+
+  return cache_stage;
+}
+
+/*
+ * Replace the tensor's name to cache_name, and create a cache_stage to copy content from cache to original tensor.
+ */
+ir::Tensor Stage::CacheWrite(const std::string &memory_type) {
+  CHECK(tensor_);
+  CHECK(!tensor_->buffer.defined()) << "This tensor is already binded to a buffer, cannot cache write";
+  CHECK(!tensor_->inlined()) << "Cannot create a write cache on an inlined tensor";
+  auto my_tensor         = ir::Tensor(tensor_);
+  std::string cache_name = Context::Global().NewName(tensor_->name + "_cache_write_out");
+  // make my_tensor a cache
+  my_tensor->WithBuffer(memory_type);
+
+  auto write_stage = lang::Compute(
+      tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
+
+  write_stage->stage()->CtrlDepend(my_tensor);
+
+  CHECK(!tensor_->write_cache_relation) << "Duplicate write cache found, just one is allowed";
+  tensor_->write_cache_relation.reset(new ir::WriteCacheRelaton{cache_name});
+
+  return write_stage;
 }
 
 void Stage::ComputeInline() {

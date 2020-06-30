@@ -88,7 +88,10 @@ isl::set SetGetDims(isl::set set, const std::vector<int> &dims) {
   std::string tuple_name = isl_set_get_tuple_name(set.get());
   auto dim_names         = GetDimNames(set);
   std::vector<std::string> selected_dim_names;
-  for (int v : dims) selected_dim_names.push_back(dim_names[v]);
+  for (int v : dims) {
+    CHECK_LT(v, dim_names.size());
+    selected_dim_names.push_back(dim_names[v]);
+  }
 
   std::string transform_repr = StringFormat("{ %s[%s] -> %s[%s] }",
                                             tuple_name.c_str(),             //

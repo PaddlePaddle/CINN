@@ -191,5 +191,25 @@ bool MathEqual(const Expr &a, const Expr &b) {
   return is_zero(c);
 }
 
+Expr select(Expr cond, Expr true_value, Expr false_value) { return ir::Select::Make(cond, true_value, false_value); }
+
+Expr and_all(const std::vector<Expr> &conds) {
+  CHECK(!conds.empty());
+  Expr res = conds.front();
+  for (int i = 1; i < conds.size(); i++) {
+    res = ir::And::Make(res, conds[i]);
+  }
+  return res;
+}
+
+Expr or_all(const std::vector<Expr> &conds) {
+  CHECK(!conds.empty());
+  Expr res = conds.front();
+  for (int i = 1; i < conds.size(); i++) {
+    res = ir::Or::Make(res, conds[i]);
+  }
+  return res;
+}
+
 }  // namespace common
 }  // namespace cinn

@@ -367,6 +367,7 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
           *expr = ir::Call::Make(Float(32), caller, ops, {}, ir::CallType::ISL, ir::FunctionRef(), 0);
         } break;
         case isl_ast_op_fdiv_q:
+        case isl_ast_op_pdiv_r:
           *expr = ir::Div::Make(ops[0], ops[1]);
           break;
         default:

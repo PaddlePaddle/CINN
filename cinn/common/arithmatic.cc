@@ -64,6 +64,7 @@ GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
   auto* minus_n     = expr.As<Minus>();
   auto* broadcast_n = expr.As<Broadcast>();
   auto* mod_n       = expr.As<Mod>();
+  auto* frac_n      = expr.As<FracOp>();
 
   if (load_n || var_n || broadcast_n || mod_n) {
     RecordExpr(expr);
@@ -83,6 +84,8 @@ GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
     return (BuildHelper(mul_n->a()) * BuildHelper(mul_n->b()));
   } else if (div_n) {
     return (BuildHelper(div_n->a()) / BuildHelper(div_n->b()));
+  } else if (frac_n) {
+    return (BuildHelper(frac_n->a()) / BuildHelper(frac_n->b()));
   } else if (minus_n) {
     return -BuildHelper(minus_n->v());
   } else {

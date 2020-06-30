@@ -23,21 +23,20 @@ ir::LoweredFunc Lower(const std::string& name,
                       const std::vector<Var>& scalar_args,
                       const std::vector<Tensor>& temp_tensors,
                       Module::Builder* b) {
-  if (!temp_tensors.empty()) {
-    CHECK(b) << "Module should be set to hold the temporary buffers";
-
-    for (auto& temp_tensor : temp_tensors) {
-      CHECK(!temp_tensor->inlined()) << "The tensor arguments of function should bind to buffers";
-      b->AddBuffer(temp_tensor->buffer);
-    }
-  }
-
   bool contains_gpu = false;
   for (auto& t : tensor_args) {
     if (contains_gpu = detail::TensorContainsGPUInfo(t)) break;
   }
 
   auto res = detail::LowerImpl(name, tensor_args, scalar_args, temp_tensors)();
+
+  if (b) {
+    for (auto& temp : temp_tensors) {
+      if (temp->buffer.defined()) {
+        b->AddBuffer(temp->buffer);
+      }
+    }
+  }
 
   if (contains_gpu) {
     res->device_api = ir::DeviceAPI::GPU;
