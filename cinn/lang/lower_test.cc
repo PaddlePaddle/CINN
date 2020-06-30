@@ -102,5 +102,35 @@ TEST(lower, lowered_call) {
   auto lower_func = Lower("fn", {X, Y, Z, C});
 }
 
+// test the temp_buffers are all collected.
+TEST(lower, temp_buffer_collects) {
+  Expr M(10);
+
+  Placeholder<float> A("A", {M});
+
+  auto B = Compute(
+      {M}, [&](Expr i) -> Expr { return A(i); }, "B");  // temp
+  auto C = Compute(
+      {M}, [&](Expr i) -> Expr { return B(i); }, "C");  // temp
+  auto D = Compute(
+      {M}, [&](Expr i) -> Expr { return C(i); }, "D");  // temp
+  auto output = Compute(
+      {M}, [&](Expr i) -> Expr { return D(i); }, "output");
+
+  lang::Module::Builder b("somemodule", common::DefaultHostTarget());
+
+  auto fn = Lower("fn", {A, output}, {}, {}, &b);
+
+  auto module = b.Build();
+
+  ASSERT_EQ(module.buffers().size(), 3UL);
+
+  std::set<std::string> detected_buffer_names({"_B", "_C", "_D"});
+
+  for (auto& buffer : module.buffers()) {
+    ASSERT_TRUE(detected_buffer_names.count(buffer->name));
+  }
+}
+
 }  // namespace lang
 }  // namespace cinn

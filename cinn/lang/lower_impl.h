@@ -173,6 +173,11 @@ class LowerImpl {
   ir::LoweredFunc operator()();
 
   /**
+   * Get the computational graph.
+   */
+  const common::Graph* comp_graph() const { return compu_graph_.get(); }
+
+  /**
    * \brief generate the argument list of the final output function.
    * We put the scalar_args in front of tensor_args, e.g. get tensor_args{A,B}, scalar_args{m}, the final argument list
    * is {m, A, B}, the input and output tensor can be mixed in the tensor_args, the kInput and kOutput token will deduce
