@@ -49,6 +49,7 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
     auto* t = x->as_tensor();
     return t && (!t->compute_inline) && !t->buffer.defined();
   });
+
   if (tensor_exprs.empty()) return tensor_map;
 
   // union-find to cluster the tensors with the same buffer.
