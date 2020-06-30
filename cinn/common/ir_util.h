@@ -60,5 +60,14 @@ bool is_zero(Expr v);
 
 bool MathEqual(const Expr &a, const Expr &b);
 
+//! helper function to get a ir::Select node.
+Expr select(Expr cond, Expr true_value, Expr false_value);
+
+//! helper function to get the And of all the conditions.
+Expr and_all(const std::vector<Expr> &conds);
+
+//! helper function to get the Or of all the conditions.
+Expr or_any(const std::vector<Expr> &conds);
+
 }  // namespace common
 }  // namespace cinn

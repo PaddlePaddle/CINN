@@ -13,6 +13,7 @@
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/backends/nvrtc_util.h"
 #include "cinn/cinn.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/use_extern_funcs.h"
@@ -332,7 +333,7 @@ TEST(CodeGenCUDA, jit_dynamic_shape2) {
   tester.Test(A, B, C, {32}, {3});
 }
 
-TEST(CodeGenCUDA, host) {
+TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
   auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(100, 200);
 
   ElementwiseTester tester("elementwise_host_test");
@@ -448,6 +449,212 @@ TEST(CodeGenCUDA, host) {
       }
     }
   }
+}
+
+TEST(depthwise_conv, test) {
+  const int batch       = 4;
+  const int in_channel  = 3;
+  const int in_height   = 40;
+  const int in_width    = 40;
+  const int filter_size = 4;
+
+  const int pad_left   = 3;
+  const int pad_right  = 3;
+  const int pad_top    = 3;
+  const int pad_bottom = 3;
+  const int stride     = 1;
+
+  const int height_padded = in_height + pad_top + pad_bottom;
+  const int width_padded  = in_width + pad_left + pad_right;
+
+  const int out_channel = in_channel;
+  const int out_height  = height_padded - filter_size;
+  const int out_width   = width_padded - filter_size;
+
+  Placeholder<float> input("input", {Expr(batch), Expr(in_channel), Expr(in_height), Expr(in_width)});
+  Placeholder<float> filter("filter", {Expr(in_channel), Expr(in_channel), Expr(filter_size), Expr(filter_size)});
+
+  auto padded_input = Compute(
+      {Expr(batch), Expr(in_channel), Expr(height_padded), Expr(width_padded)},
+      [=](Expr b, Expr c, Expr i, Expr j) {
+        return common::select(common::and_all({
+                                  i >= pad_top,
+                                  i - pad_top < in_height,
+                                  j >= pad_left,
+                                  j - pad_left < in_width,
+                              }),
+                              input(b, c, i, j),  // true value
+                              Expr(0.f)           // false value
+        );
+      },
+      "padded_input");
+
+  Var di(Expr(filter_size), "di");
+  Var dj(Expr(filter_size), "dj");
+
+  // cache
+  auto IS = Compute(
+      padded_input->shape,
+      [=](Expr b, Expr c, Expr i, Expr j) -> Expr { return padded_input(b, c, i, j); },
+      "cache_paded_input");
+  IS->WithBuffer();
+  auto FS = Compute(
+      ir::Tensor(filter)->shape,
+      [=](Expr c0, Expr c1, Expr w, Expr h) -> Expr { return filter(c0, c1, w, h); },
+      "cache_filter");
+  FS->WithBuffer();
+
+  auto output = Compute({Expr(batch), Expr(in_channel), Expr(out_height), Expr(out_width)},
+                        [=](Var b, Var c, Var i, Var j) -> Expr {
+                          auto expr = IS(b, c, i * stride + di, j * stride + dj) * FS(c, c, di, dj);
+                          return Sum(expr);
+                        },
+                        "output",
+                        {di, dj});
+  output->WithBuffer();
+
+  output->stage()->Fuse(0, 1);
+  output->stage()->Fuse(0, 1);
+  output->stage()->Split(0, 20);
+
+  // similar to
+  // s[Output].bind(Output.op.axis[0], block_y)
+  // s[Output].bind(Output.op.axis[1], block_x)
+  // output->stage()->GpuThreads(output->stage()->ith_iterator(1), output->stage()->ith_iterator(0));
+  // IS->stage()->GpuThreads(IS->stage()->ith_iterator(1), IS->stage()->ith_iterator(0));
+  // FS->stage()->GpuThreads(FS->stage()->ith_iterator(1), FS->stage()->ith_iterator(0));
+  // IS->stage()->ComputeAt(output->stage(), 1, poly::Stage::kComputeAtBefore);
+
+  // const int block_size = 32;
+
+  // // schedule
+  // // bx1, _ = s[Output].split(Output.op.axis[2], factor=blocking_h)
+  // auto [bx1, _bx1] = output->stage()->Split(2, block_size);  // NOLINT
+  // // x2, _ = s[Output].split(Output.op.axis[3], factor=blocking_w)
+  // auto [bx2, _bx2] = output->stage()->Split(3, block_size);
+
+  // // assign one 32x32 block to one cuda block.
+  // auto by = output->stage()->Fuse(0, 1);
+  // auto bx = output->stage()->Fuse(bx1, bx2);
+  // output->stage()->GpuBlocks(bx, by);
+
+  auto fn = Lower("fn", {input, filter, IS, FS, output});
+
+  LOG(INFO) << "fn:\n" << fn;
+}
+
+TEST(Conv, basic) {
+  Expr batch(256);
+  Expr in_channel(256);
+  Expr out_channel(512);
+  Expr in_size(14);
+  Expr pad(1);
+  Expr kernel(3);
+  Expr stride(1);
+  Expr out_size = (in_size - kernel + 2 * pad) / stride + 1;
+
+  Placeholder<float> A("A", {in_size, in_size, in_channel, batch});
+  Placeholder<float> W("W", {kernel, kernel, in_channel, out_channel});
+
+  auto Apad = Compute(
+      {in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
+      [=](Expr yy, Expr xx, Expr cc, Expr nn) -> Expr {
+        return common::select(common::and_all({yy >= pad, yy - pad < in_size, xx >= pad, xx - pad < in_size}),
+                              A(yy - pad, xx - pad, cc, nn),
+                              common::make_const(Float(32), 0));
+      },
+      "Apad");
+
+  Var rc(in_channel, "rc");
+  Var ry(kernel, "ry");
+  Var rx(kernel, "rx");
+
+  auto B = Compute({out_size, out_size, out_channel, batch},
+                   [=](Expr yy, Expr xx, Expr ff, Expr nn) -> Expr {
+                     return Sum(Apad(yy * stride + ry, xx * stride + rx, rc, nn) * W(ry, rx, rc, ff));
+                   },
+                   "B",
+                   {rc, ry, rx});
+  B->WithBuffer();
+
+  B->stage()->CacheRead("share", {B});
+
+  auto fn = Lower("fn", {A, W, B});
+
+  LOG(INFO) << "fn:\n" << fn;
+}
+
+TEST(Conv, basic_add_cache) {
+  Expr batch(256);
+  Expr in_channel(256);
+  Expr out_channel(512);
+  Expr in_size(14);
+  Expr pad(1);
+  Expr kernel(3);
+  Expr stride(1);
+  Expr out_size = (in_size - kernel + 2 * pad) / stride + 1;
+
+  Placeholder<float> A("A", {in_size, in_size, in_channel, batch});
+  Placeholder<float> W("W", {kernel, kernel, in_channel, out_channel});
+
+  auto Apad = Compute(
+      {in_size + 2 * pad, in_size + 2 * pad, in_channel, batch}, [=](Expr yy, Expr xx, Expr cc, Expr nn) -> Expr {
+        return common::select(common::and_all({yy >= pad, yy - pad < in_size, xx >= pad, xx - pad < in_size}),
+                              A(yy - pad, xx - pad, cc, nn),
+                              common::make_const(Float(32), 0));
+      });
+
+  auto AA = Compute(
+      Apad->shape, [=](const std::vector<Expr>& dims) -> Expr { return Apad(dims); }, "AA");
+  auto WW = Compute(
+      W->shape, [=](const std::vector<Expr>& dims) { return W(dims); }, "WW");
+  AA->WithBuffer("share");
+  WW->WithBuffer("share");
+
+  auto AL = Compute(
+      AA->shape, [=](const std::vector<Expr>& dims) -> Expr { return AA(dims); }, "AL");
+  auto WL = Compute(
+      WW->shape, [=](const std::vector<Expr>& dims) -> Expr { return WW(dims); }, "WL");
+
+  AL->WithBuffer("local");
+  WL->WithBuffer("local");
+
+  Var rc(in_channel, "rc");
+  Var ry(kernel, "ry");
+  Var rx(kernel, "rx");
+
+  auto BL = Compute({out_size, out_size, out_channel, batch},
+                    [=](Expr yy, Expr xx, Expr ff, Expr nn) -> Expr {
+                      return Sum(AA(yy * stride + ry, xx * stride + rx, rc, nn) * WW(ry, rx, rc, ff));
+                    },
+                    "BL",
+                    {rc, ry, rx});
+  BL->WithBuffer("local");
+
+  auto B = Compute(
+      BL->shape, [=](const std::vector<Expr>& dims) -> Expr { return BL(dims); }, "B");
+  B->WithBuffer();
+
+  int tile         = 8;
+  int num_thread   = 8;
+  int block_factor = tile * num_thread;
+  int step         = 8;
+  int vthread      = 2;
+
+  auto hi = BL->stage()->ith_dim_name(0);
+  auto wi = BL->stage()->ith_dim_name(1);
+  auto fi = BL->stage()->ith_dim_name(2);
+  auto ni = BL->stage()->ith_dim_name(3);
+
+  auto bz        = BL->stage()->Fuse(hi, wi);
+  auto [by, fi1] = BL->stage()->Split(fi, block_factor);
+  auto [bx, ni1] = BL->stage()->Split(ni, block_factor);
+
+  BL->stage()->GpuBlocks(BL->stage()->axis(2), BL->stage()->axis(1), BL->stage()->axis(0));
+
+  auto fn = Lower("fn", {A, W, AA, WW, AL, WL, BL, B});
+
+  LOG(INFO) << "fn:\n" << fn;
 }
 
 }  // namespace backends

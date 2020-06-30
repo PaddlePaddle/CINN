@@ -284,8 +284,6 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
     Expr rhs = lt_n ? lt_n->b() : PlusOneWithMinMax(le_n->b());
     if (common::IsPureMath(rhs)) Simplify(&rhs);
 
-    CHECK(op->inc == Expr(1));
-
     if (op->is_vectorized()) CHECK(op->vectorize_info().valid());
 
     Expr new_for =

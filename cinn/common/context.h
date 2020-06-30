@@ -33,6 +33,9 @@ extern const char* kRuntimeIncludeDirEnvironKey;
 struct NameGenerator {
   std::string New(const std::string& name_hint) { return name_hint + "_" + std::to_string(id_.New()); }
 
+  // Reset id to initial.
+  void ResetID() { id_.Reset(); }
+
  private:
   ID id_;
 };
@@ -46,6 +49,7 @@ class Context {
    * @param name_hint The prefix.
    */
   std::string NewName(const std::string& name_hint) { return name_generator_.New(name_hint); }
+  void ResetNameId() { name_generator_.ResetID(); }
 
   InfoRegistry& info_rgt() { return info_rgt_; }
 

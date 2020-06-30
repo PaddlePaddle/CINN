@@ -155,6 +155,8 @@ void _Tensor_::InitStage() {
   }
 
   shared_stage->set_extra_depend_stages(buffer_depended_tensor_names_);
+  auto depend_tensor_names = DependingTensorNames();
+  for (auto &x : depend_tensor_names) shared_stage->add_extra_depend_stage(x);
 }
 
 void _Tensor_::DropStage() {
@@ -335,6 +337,21 @@ void _Tensor_::WithBuffer(const Type &type) {
   Bind(buf);
 }
 
+void _Tensor_::WithBuffer(const std::string &memory_type, const Type &type) {
+  Type buf_type = type.is_void() ? type_ : type;
+  lang::Buffer buf(buf_type);
+  buf->target = common::DefaultHostTarget();
+  Bind(buf);
+
+  if (memory_type == "share") {
+    buf->memory_type = MemoryType::GPUShared;
+  } else if (memory_type == "local") {
+    buf->memory_type = MemoryType::Stack;
+  } else {
+    NOT_IMPLEMENTED
+  }
+}
+
 bool _Tensor_::SameShapeWith(const Tensor &other) const {
   if (shape.size() != other->shape.size()) return false;
 
@@ -379,6 +396,8 @@ Tensor Tensor::Reshape(const std::vector<Expr> &shape) {
   return self()->BufferShared(name, shape);
 }
 
+bool operator<(const Tensor &a, const Tensor &b) { return a->name < b->name; }
+
 bool _Tensor_::is_tuple_get() const {
   return is_call_node() && operation.defined() &&
          operation->as<ir::_Operation_>()->func_type() == ir::CallOp::__func_type__ &&
@@ -407,11 +426,24 @@ bool _Tensor_::IsDependOnStatement(const std::string &statement) {
     return false;
   }
 
-  auto depend_tensors = ir::CollectIRNodes(body(), [](const Expr *x) -> bool { return x->as_tensor(); });
-  for (const Expr &x : depend_tensors) {
-    if (x.As<ir::_Tensor_>()->name == statement) return true;
+  auto depend_tensors = DependingTensorNames();
+  for (const auto &x : depend_tensors) {
+    if (x == statement) return true;
   }
   return false;
+}
+
+std::set<std::string> _Tensor_::DependingTensorNames() {
+  std::set<std::string> res;
+  if (body().defined()) {
+    auto depend_tensors = ir::CollectIRNodes(body(), [](const Expr *x) -> bool { return x->as_tensor(); });
+    for (const auto &x : depend_tensors) {
+      if (x.get() != this) {
+        res.insert(x.as_tensor()->name);
+      }
+    }
+  }
+  return res;
 }
 
 }  // namespace ir

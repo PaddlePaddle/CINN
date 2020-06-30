@@ -278,7 +278,6 @@ ir::LoweredFunc LowerImpl::operator()() {
 
   std::vector<poly::Stage*> stages = poly::GatherStagesInTensors(CollectAllTensors());
 
-  LOG(INFO) << "graph:\n" << compu_graph_->Visualize();
   auto deps     = CollectExtraDependencies();
   auto schedule = poly::CreateSchedule(
       stages, poly::ScheduleKind::Poly, std::vector<std::pair<std::string, std::string>>(deps.begin(), deps.end()));
@@ -300,8 +299,9 @@ ir::LoweredFunc LowerImpl::operator()() {
   auto func_temp_tensors = CollectTemporaryTensors();
   std::vector<ir::Buffer> temp_buffers;
   std::unordered_set<std::string> buffer_name_set;
+  // TODO write buffer latter.
   for (auto& t : func_temp_tensors) {
-    if (!buffer_name_set.count(t->buffer->name)) {
+    if (t->buffer.defined() && !buffer_name_set.count(t->buffer->name)) {
       temp_buffers.push_back(t->buffer);
       buffer_name_set.insert(t->buffer->name);
     }

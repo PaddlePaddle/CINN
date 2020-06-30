@@ -166,6 +166,8 @@ class LowerImpl {
     std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
     tensors.insert(std::end(tensors), temp_tensor_args.begin(), temp_tensor_args.end());
     compu_graph_ = CreateCompGraph(tensors, true /*hide_inlined*/);
+
+    LOG(INFO) << "Computation Graph:\n" << compu_graph_->Visualize();
   }
 
   ir::LoweredFunc operator()();

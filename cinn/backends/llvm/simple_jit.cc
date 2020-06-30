@@ -99,9 +99,7 @@ void SimpleJIT::Link(lang::Module module, bool optimize) {
   for (auto &fn : module.functions()) {
     VLOG(1) << "JIT Linking function [" << fn->name << "]";
     ir::Expr fn_expr(fn);
-    LOG(INFO) << "fn:\n" << fn_expr;
-
-    auto *fn_ = ir_emitter->Visit(&fn_expr);
+    ir_emitter->Visit(&fn_expr);
   }
 
   AddModule(std::move(m), optimize);

@@ -101,6 +101,8 @@ class Tensor : public ir::IrNodeRef {
    */
   Expr operator()(const std::vector<Expr>& indices) const;
 
+  friend bool operator<(const Tensor& a, const Tensor& b);
+
   //! Expand the inline expression in the body.
   void ExpandInlined();
 
@@ -115,9 +117,16 @@ class Tensor : public ir::IrNodeRef {
 
 class ComputeOp;
 class PlaceholderOp;
+struct ReadCacheRelation;
+struct WriteCacheRelaton;
 
 /**
  * _Tensor_ holds the content of a Tensor.
+ *
+ * NOTE(All) Some rules:
+ *
+ * 1. a _Tensor_ is a node in SSA, so every tensor's name should be unique,
+ * 2. never try to change a tensor's name, that will cause chaos.
  */
 class _Tensor_ : public ExprNode<_Tensor_> {
   //! a pointer to Shared<Stage>, use void* to avoid cyclic definition dependency.
@@ -137,6 +146,11 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   std::string name;
   //! The bound buffer, for each tensor if it is not inline.
   Buffer buffer;
+
+  //! read cache relation if has one.
+  std::unique_ptr<ReadCacheRelation> read_cache_relation;
+  //! write cache relation if has one.
+  std::unique_ptr<WriteCacheRelaton> write_cache_relation;
 
   //! Polyhedral element for analysis and schedule.
   poly::Stage* stage();
@@ -183,6 +197,11 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   bool IsDependOnStatement(const std::string& statement);
 
   /**
+   * Get the names of the tensors thouse this tensor depends on.
+   */
+  std::set<std::string> DependingTensorNames();
+
+  /**
    * Tell whether this tensor has same shape with \p other.
    */
   bool SameShapeWith(const Tensor& other) const;
@@ -213,19 +232,26 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
-  //! Get the normal axis without reduce ones.
+  /**
+   * The normal axis without reducing ones.
+   */
   const std::vector<Var>& axis() const {
     CHECK_EQ(axis_.size(), domain_without_reduce_axis().size());
     return axis_;
   }
 
-  //! Get the normal axis with reduce ones.
+  /**
+   * The axis with the reduce ones.
+   */
   std::vector<Var> axis_with_reduce() const {
     auto axis = axis_;
     axis.insert(axis.end(), reduce_axis.begin(), reduce_axis.end());
     return axis;
   }
 
+  /**
+   * Get the tensors thouse depend on the same buffer belong to this tensor.
+   */
   const std::set<std::string>& buffer_depended_tensor_names() const { return buffer_depended_tensor_names_; }
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Tensor_;
@@ -238,6 +264,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   //! Create a buffer belong to this tensor.
   void WithBuffer(const Type& type = Void());
+  void WithBuffer(const std::string& memory_type, const Type& type = Void());
   //! Bind to a buffer, will persist data to the buffer in runtime.
   void Bind(lang::Buffer& buffer);  // NOLINT
   void Bind(const Buffer& buffer);
@@ -267,6 +294,18 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   //! Normal axis.
   std::vector<Var> axis_;
+};
+
+struct ReadCacheRelation {
+  //! Name of the cache tensor.
+  std::string cache_name;
+  //! Names of the reading tensors.
+  std::vector<std::string> readers;
+};
+
+struct WriteCacheRelaton {
+  //! Name of the cache tensor.
+  std::string cache_name;
 };
 
 class _Operation_;

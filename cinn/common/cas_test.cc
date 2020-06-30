@@ -208,7 +208,7 @@ TEST(CAS, FracOp) {
   Var z = ir::_Var_::Make("z", Int(32));
 
   auto u1 = AutoSimplify(Div::Make(Expr(1), x) * x);
-  EXPECT_EQ(GetStreamCnt(u1), "((1/x) * x)");
+  EXPECT_EQ(GetStreamCnt(u1), "((1 / x) * x)");
   // 64x/32 + y + 64/32
   auto u2 = AutoSimplify(Expr(64) * x / Expr(32) + y + Expr(64) / Expr(32));
   ASSERT_EQ(GetStreamCnt(u2), "(2 + ((2 * x) + y))");
@@ -217,7 +217,7 @@ TEST(CAS, FracOp) {
   EXPECT_EQ(GetStreamCnt(u3), "0");
   // 32768 * (32x + y) + y
   auto u4 = AutoSimplify(Expr(32768) * (((Expr(32) * x) + y) / 32));
-  EXPECT_EQ(GetStreamCnt(u4), "((32768 * (y/32)) + (32768 * x))");
+  EXPECT_EQ(GetStreamCnt(u4), "((32768 * (y / 32)) + (32768 * x))");
 
   common::cas_intervals_t var_intervals;
   var_intervals.emplace("y", common::CasInterval(0, 31));
@@ -225,7 +225,7 @@ TEST(CAS, FracOp) {
   EXPECT_EQ(GetStreamCnt(u), "x");
 
   u = AutoSimplify((Expr(x) * 33 + y) / 32, var_intervals);
-  EXPECT_EQ(GetStreamCnt(u), "(((33 * x) + y)/32)");
+  EXPECT_EQ(GetStreamCnt(u), "(((33 * x) + y) / 32)");
 
   u = AutoSimplify(Expr(125) / 8 - 1);
   EXPECT_EQ(GetStreamCnt(u), "14");
@@ -266,7 +266,7 @@ TEST(CAS, Mod) {
   OUTPUT_EQUAL("x")
 
   u = AutoSimplify((x % 32) + ((32768 * (x / 32)) + ((32768 * y) + ((32 * z) + (128 * k)))));
-  OUTPUT_EQUAL("((32768 * (x/32)) + ((x % 32) + ((128 * k) + ((32768 * y) + (32 * z)))))");
+  OUTPUT_EQUAL("((32768 * (x / 32)) + ((x % 32) + ((128 * k) + ((32768 * y) + (32 * z)))))");
 
   u = AutoSimplify((x % 32) + ((32768 * (x / 32)) + ((32768 * y) + ((32 * z) + (128 * k)))), var_intervals0);
   OUTPUT_EQUAL("((128 * k) + (x + ((32768 * y) + (32 * z))))")
@@ -281,10 +281,10 @@ TEST(CAS, IntConnerCase) {
   auto u1 = AutoSimplify(Expr(1) / 32);
   EXPECT_EQ(GetStreamCnt(u1), "0");
   auto u2 = AutoSimplify(x / 32 + (x * 32 + 64) / 32);
-  EXPECT_EQ(GetStreamCnt(u2), "((x/32) + (2 + x))");
+  EXPECT_EQ(GetStreamCnt(u2), "((x / 32) + (2 + x))");
   // (32x+y)/32 * 1024 * 32
   auto u3 = AutoSimplify((((((32 * x) + y) / 32) * 1024) * 32));
-  EXPECT_EQ(GetStreamCnt(u3), "((32768 * (y/32)) + (32768 * x))");
+  EXPECT_EQ(GetStreamCnt(u3), "((32768 * (y / 32)) + (32768 * x))");
 
   auto u4 = AutoSimplify(Expr(1) / 3);
   EXPECT_EQ(GetStreamCnt(u4), "0");
@@ -299,9 +299,9 @@ TEST(CAS, IntConnerCase) {
   EXPECT_EQ(GetStreamCnt(u6), "0");
 
   auto u7 = AutoSimplify(1 / y, var_intervals1);
-  EXPECT_EQ(GetStreamCnt(u7), "(1/y)");
+  EXPECT_EQ(GetStreamCnt(u7), "(1 / y)");
   auto u8 = AutoSimplify(-1 / y, var_intervals1);
-  EXPECT_EQ(GetStreamCnt(u8), "(-1/y)");
+  EXPECT_EQ(GetStreamCnt(u8), "(-1 / y)");
 }
 
 }  // namespace common

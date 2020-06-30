@@ -249,7 +249,6 @@ PolyScheduler::PolyScheduler(const std::vector<Stage*>& stages,
   }
 
   dfg_ = CreateGraph(stages, _extra_links);
-  LOG(INFO) << "DOT in PolySchedule:\n" << dfg_->Visualize();
 
   for (auto* stage : stages) {
     AddStage(*stage);
