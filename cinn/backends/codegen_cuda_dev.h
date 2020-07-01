@@ -58,10 +58,17 @@ class CodeGenCUDA_Dev : public CodeGenC {
  protected:
   void Visit(const ir::_LoweredFunc_* op) override;
   void Visit(const ir::Min* op) override;
+  void Visit(const ir::Alloc* op) override;
 
   void PrintBuiltinCodes();
 
   void PrintIncludes() override;
+
+  void PrintTempBufferCreation(const ir::Buffer& buffer);
+
+  void PrintTempBufferAliasDefinition(const ir::Buffer& buffer);
+
+  std::vector<Expr> GenerateBufferAliasExprs(const ir::_LoweredFunc_* op, const std::vector<ir::Buffer>& temp_buffers);
 
   /**
    * Print the function declaration, this is different from C, we expand the arguments and get something like

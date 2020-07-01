@@ -359,6 +359,17 @@ void Stage::Unroll(const Iterator &level) {
   unroll_info_.insert(l);
 }
 
+void Stage::GpuThreads(const std::vector<int> &levels, DeviceAPI device) {
+  std::vector<Iterator> iterators;
+  auto transform = transformed_domain();
+  auto dim_names = GetDimNames(transform.get());
+
+  std::vector<Iterator> iters;
+  std::transform(
+      levels.begin(), levels.end(), std::back_inserter(iters), [&](int i) { return Iterator(dim_names[i]); });
+  GpuThreads(iters, device);
+}
+
 void Stage::GpuThreads(const Iterator &thread_x, DeviceAPI device) {
   GpuThreads(std::vector<Iterator>({thread_x}), device);
 }
@@ -381,6 +392,16 @@ void Stage::GpuThreads(const std::vector<Iterator> &iters, DeviceAPI device) {
   }
 }
 
+void Stage::GpuBlocks(const std::vector<int> &levels, DeviceAPI device) {
+  std::vector<Iterator> iterators;
+  auto transform = transformed_domain();
+  auto dim_names = GetDimNames(transform.get());
+  std::vector<Iterator> iters;
+  std::transform(
+      levels.begin(), levels.end(), std::back_inserter(iters), [&](int i) { return Iterator(dim_names[i]); });
+  GpuBlocks(iters, device);
+}
+
 void Stage::GpuBlocks(const Iterator &block_x, DeviceAPI device) {
   GpuBlocks(std::vector<Iterator>({block_x}), device);
 }
@@ -394,7 +415,7 @@ void Stage::GpuBlocks(const std::vector<Iterator> &iters, DeviceAPI device) {
   auto dim_names = axis_names();
   for (auto &iter : iters) {
     CHECK(std::find(dim_names.begin(), dim_names.end(), iter.id) != dim_names.end());
-    forloop_infos_.emplace(iter.id, StageForloopInfo{ir::ForType ::GPUBlock, device});
+    forloop_infos_.emplace(iter.id, StageForloopInfo{ir::ForType::GPUBlock, device});
   }
 }
 

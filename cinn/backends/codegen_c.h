@@ -49,7 +49,7 @@ class CodeGenC : public ir::IrPrinter {
 
   void GenerateHeaderFile(const lang::Module& module);
 
-  std::string PrintType(Type type);
+  std::string GetTypeRepr(Type type);
   //! type cast, print like "int(x)"
   // @{
   void PrintCastExpr(const Type& type, Expr e);
@@ -62,7 +62,7 @@ class CodeGenC : public ir::IrPrinter {
     os() << ")";
   }
 
-  void PrintShape(const std::vector<Expr>& shape);
+  void PrintShape(const std::vector<Expr>& shape, char leftb = '{', char rightb = '}');
 
   virtual void PrintIncludes();
   void PrintBuiltinCodes();

@@ -28,8 +28,9 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args, E
 
   std::unordered_set<std::string> temp_buffer_names;  // used to avoid duplication.
   std::vector<ir::Buffer> temp_buffers;
-  auto all_tensors = ir::CollectIRNodes(
-      body, [&](const Expr* x) { return x->as_tensor() && !tensor_arg_names.count(x->as_tensor()->name); });
+  auto all_tensors = ir::CollectIRNodes(body, [&](const Expr* x) {
+    return x->as_tensor() && !x->as_tensor()->inlined() && !tensor_arg_names.count(x->as_tensor()->name);
+  });
   for (auto& e : all_tensors) {
     if (!temp_buffer_names.count(e.as_tensor()->buffer->name)) {
       temp_buffers.push_back(e.as_tensor()->buffer);
@@ -53,8 +54,9 @@ ir::LoweredFunc Lower(const std::string& name,
 
   auto res = lower_impl_instance();
 
+  auto temp_buffers = GetTempBuffers(tensor_args, res->body);
   if (b) {
-    for (auto& temp_buffer : GetTempBuffers(tensor_args, res->body)) {
+    for (auto& temp_buffer : temp_buffers) {
       b->AddBuffer(temp_buffer);
     }
   }
@@ -66,6 +68,9 @@ ir::LoweredFunc Lower(const std::string& name,
   if (b) {
     b->AddFunction(res);
   }
+
+  res->temp_bufs = temp_buffers;
+
   return res;
 }
 

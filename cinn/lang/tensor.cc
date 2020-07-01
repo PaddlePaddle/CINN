@@ -346,7 +346,7 @@ void _Tensor_::WithBuffer(const std::string &memory_type, const Type &type) {
   if (memory_type == "share") {
     buf->memory_type = MemoryType::GPUShared;
   } else if (memory_type == "local") {
-    buf->memory_type = MemoryType::Stack;
+    buf->memory_type = MemoryType::GPULocal;
   } else {
     NOT_IMPLEMENTED
   }
