@@ -14,6 +14,7 @@
 #include "cinn/backends/nvrtc_util.h"
 #include "cinn/cinn.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/common/test_helper.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/use_extern_funcs.h"
@@ -423,14 +424,10 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
 
     // call the kernel
     auto comp = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_ptr);
-    cinn_pod_value_t args[10];
-    cinn_pod_value_t M_arg(M.as_int32());
-    cinn_pod_value_t A_arg(A_buf);
-    cinn_pod_value_t B_arg(B_buf);
-    cinn_pod_value_t C_arg(C_buf);
-    cinn_args_construct(args, 4, &M_arg, &A_arg, &B_arg, &C_arg);
 
-    comp(args, 4);
+    auto args = common::ArgsBuilder().Add(M.as_int32()).Add(A_buf).Add(B_buf).Add(C_buf).Build();
+
+    comp(args.data(), args.size());
 
     CUDA_CALL(cudaThreadSynchronize());
 
@@ -645,6 +642,11 @@ TEST(elementwise_add, share_local_cache) {
   auto fn_kernel = cuda_module.GetFunction(0, "elementwise_add_kernel");
   CHECK(fn_kernel);
 
+  // Register to JIT
+  void* stream = nullptr;
+  RuntimeSymbolRegistry::Global().Register("elementwise_add_kernel_ptr_", reinterpret_cast<void*>(&fn_kernel));
+  RuntimeSymbolRegistry::Global().Register("elementwise_add_kernel_stream_ptr_", reinterpret_cast<void*>(&stream));
+
   // launch the kernel
 
   const int m            = N.as_int32();
@@ -669,24 +671,61 @@ TEST(elementwise_add, share_local_cache) {
   CUDA_CALL(
       cudaMemcpy(reinterpret_cast<void*>(Bd), host_data2.data(), num_elements * sizeof(float), cudaMemcpyHostToDevice));
 
-  void* args[] = {&Ad, &Bd, &Cd};
+  auto test_precision = [&] {
+    CUDA_CALL(cudaMemcpy(
+        host_data3.data(), reinterpret_cast<void*>(Cd), num_elements * sizeof(float), cudaMemcpyDeviceToHost));
 
-  dim3 grid(M.as_int32(), 1, 1);
-  dim3 block(N.as_int32(), 1, 1);
-
-  cuda_module.LaunchKernel(0, "elementwise_add_kernel", grid, block, args);
-
-  CUDA_CALL(
-      cudaMemcpy(host_data3.data(), reinterpret_cast<void*>(Cd), num_elements * sizeof(float), cudaMemcpyDeviceToHost));
-
-  for (int i = 0; i < m; i++) {
-    for (int j = 0; j < N.as_int32(); j++) {
-      int offset = i * N.as_int32() + j;
-      if (i == 0 && j < 2) {
-        LOG(INFO) << host_data3[offset];
+    for (int i = 0; i < m; i++) {
+      for (int j = 0; j < N.as_int32(); j++) {
+        int offset = i * N.as_int32() + j;
+        if (i == 0 && j < 2) {
+          LOG(INFO) << host_data3[offset];
+        }
+        ASSERT_NEAR(host_data3[offset], host_data1[offset] + host_data2[offset], 1e-5);
       }
-      ASSERT_NEAR(host_data3[offset], host_data1[offset] + host_data2[offset], 1e-5);
     }
+  };
+
+  {  // test by call the compiled kernel directly
+
+    void* args[] = {&Ad, &Bd, &Cd};
+
+    dim3 grid(M.as_int32(), 1, 1);
+    dim3 block(N.as_int32(), 1, 1);
+
+    cuda_module.LaunchKernel(0, "elementwise_add_kernel", grid, block, args);
+
+    test_precision();
+  }
+
+  {  // test by trigger the host jit
+    auto jit = SimpleJIT::Create();
+    jit->Link<CodeGenCUDA_Host>(host_module, false);
+
+    auto fn_ptr = jit->Lookup("elementwise_add");
+    CHECK(fn_ptr);
+
+    cinn_buffer_t* A_buf =
+        cinn_buffer_new(cinn_x86_device, cinn_float32_t(), std::vector<int>{{M.as_int32(), N.as_int32()}});
+    cinn_buffer_t* B_buf =
+        cinn_buffer_new(cinn_x86_device, cinn_float32_t(), std::vector<int>{{M.as_int32(), N.as_int32()}});
+    cinn_buffer_t* C_buf =
+        cinn_buffer_new(cinn_x86_device, cinn_float32_t(), std::vector<int>{{M.as_int32(), N.as_int32()}});
+
+    A_buf->host_memory = reinterpret_cast<uint8_t*>(Ad);
+    B_buf->host_memory = reinterpret_cast<uint8_t*>(Bd);
+    C_buf->host_memory = reinterpret_cast<uint8_t*>(Cd);
+
+    CUDA_CALL(cudaThreadSynchronize());
+
+    // call the kernel
+    auto comp = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_ptr);
+
+    auto args = common::ArgsBuilder().Add(A_buf).Add(B_buf).Add(C_buf).Build();
+
+    comp(args.data(), args.size());
+
+    CUDA_CALL(cudaThreadSynchronize());
   }
 
   CUDA_CALL(cudaFree(reinterpret_cast<void*>(Ad)))
