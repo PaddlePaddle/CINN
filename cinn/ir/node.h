@@ -245,7 +245,7 @@ struct FloatImm : public ExprNode<FloatImm> {
 struct StringImm : public ExprNode<StringImm> {
   std::string value;
 
-  StringImm(const std::string& value) : value(value) {}
+  explicit StringImm(const std::string& value) : value(value) {}
 
   static const IrNodeTy _node_type_ = IrNodeTy::StringImm;
 };
@@ -394,15 +394,35 @@ static std::ostream& operator<<(std::ostream& os, DeviceAPI x) {
   return os;
 }
 
-/**
- * An enum describing different address spaces to be used with Func::store_in.
+#define MEMORY_TYPE_FOR_ALL(__)                                                \
+  __(Auto, "Auto")                                                             \
+  __(Heap, "Heap")                                                             \
+  __(Stack, "Stack")                                                           \
+  __(GPUShared, "GPUShared")                                                   \
+  __(GPULocal, "GPULocal")                                                     \
+/**                                                                            \
+ * An enum describing different address spaces to be used with Func::store_in. \
  */
 enum class MemoryType {
-  Auto,       //!< Let CINN determine the memory position.
-  Heap,       //!< Put the memory on the heap.
-  Stack,      //!< Put the memory on the stack.
-  GPUShared,  //!< Allocate on the GPU shared memory.
+#define __(token__, token_repr__) token__,
+  MEMORY_TYPE_FOR_ALL(__)
+#undef __
 };
+
+static std::ostream& operator<<(std::ostream& os, MemoryType t) {
+  switch (t) {
+#define __(token__, token_repr__) \
+  case MemoryType::token__:       \
+    os << token_repr__;           \
+    break;
+
+    MEMORY_TYPE_FOR_ALL(__)
+
+    default:
+      LOG(FATAL) << "Not supported memory type";
+#undef __
+  }
+}
 
 template <typename T>
 Expr ExprNode<T>::Copy() const {

@@ -150,6 +150,7 @@ class Stage : public Object {
 
   //! Set GPU thread axis.
   // @{
+  void GpuThreads(const std::vector<int>& levels, DeviceAPI device = DeviceAPI::GPU);
   void GpuThreads(const Iterator& thread_x, DeviceAPI device = DeviceAPI::GPU);
   void GpuThreads(const Iterator& thread_x, const Iterator& thread_y, DeviceAPI device = DeviceAPI::GPU);
   void GpuThreads(const Iterator& thread_x,
@@ -161,6 +162,7 @@ class Stage : public Object {
 
   //! Set GPU block axis.
   // @{
+  void GpuBlocks(const std::vector<int>& levels, DeviceAPI device = DeviceAPI::GPU);
   void GpuBlocks(const Iterator& block_x, DeviceAPI device = DeviceAPI::GPU);
   void GpuBlocks(const Iterator& block_x, const Iterator& block_y, DeviceAPI device = DeviceAPI::GPU);
   void GpuBlocks(const Iterator& block_x,

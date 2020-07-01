@@ -124,6 +124,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     new_node->elem_offset    = elem_offset;
     new_node->offset_factor  = offset_factor;
     new_node->target         = target;
+    new_node->memory_type    = op->memory_type;
     new_node->set_type(op->type());
     op->CopyMeta(new_node.As<ir::_Buffer_>());
     return Expr(ir::Buffer(new_node));

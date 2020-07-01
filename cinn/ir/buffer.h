@@ -104,6 +104,9 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   //! Make an empty buffer.
   static Buffer Make();
 
+  bool is_on_gpu() const { return memory_type == MemoryType::GPULocal || memory_type == MemoryType::GPUShared; }
+  bool is_on_host() const { return !is_on_gpu(); }
+
   void BindTo(const Tensor& tensor);
   void BindTo(const _Tensor_* tensor);
   void Unbind(const _Tensor_* tensor);
@@ -123,6 +126,8 @@ class _Buffer_ : public ExprNode<_Buffer_> {
  private:
   std::set<std::string> binded_tensors_names_;
 };
+
+static bool operator<(const ir::Buffer& a, const ir::Buffer& b) { return a->name < b->name; }
 
 }  // namespace ir
 }  // namespace cinn

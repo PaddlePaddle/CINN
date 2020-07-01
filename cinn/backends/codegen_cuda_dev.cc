@@ -1,6 +1,8 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 
 #include <fstream>
+#include <set>
+#include <unordered_set>
 
 #include "cinn/optim/remove_nested_block.h"
 
@@ -42,6 +44,33 @@ std::string CodeGenCUDA_Dev::Compile(const ir::LoweredFunc &func) {
   return ss_.str();
 }
 
+std::vector<Expr> CodeGenCUDA_Dev::GenerateBufferAliasExprs(const ir::_LoweredFunc_ *op,
+                                                            const std::vector<ir::Buffer> &temp_buffers) {
+  std::set<ir::Buffer> temp_buffer_set(temp_buffers.begin(), temp_buffers.end());
+  // prepare temp buffer alias
+  std::vector<Expr> buffer_alias;
+  auto tensors = ir::CollectIRNodes(
+      op->body, [&](const Expr *x) { return x->as_tensor() && temp_buffer_set.count(x->as_tensor()->buffer); });
+
+  // unique tensors
+  std::set<ir::Tensor> unique_tensors;
+  for (auto &e : tensors) {
+    unique_tensors.insert(e.as_tensor_ref());
+  }
+
+  for (auto &t : unique_tensors) {
+    auto data_type     = t->type();
+    auto data_ptr_type = data_type;
+    data_ptr_type.set_cpp_handle();
+
+    Var t_var(t->name, data_ptr_type);
+    Var buf_var(t->buffer->name, data_ptr_type);
+    buffer_alias.push_back(ir::Let::Make(t_var, buf_var));
+  }
+
+  return buffer_alias;
+}
+
 void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   os() << "__global__\n";
 
@@ -50,11 +79,20 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
 
   DoIndent();
 
-  Expr func_body = op->body;
+  Expr temp_buffer_alloc = ir::Block::Make(op->alloc_tmp_buffer_exprs);
+  Expr func_body         = op->body;
+  Expr temp_buffer_alias = ir::Block::Make(GenerateBufferAliasExprs(op, op->temp_bufs));
 
-  optim::RemoveNestedBlock(&func_body);
+  Expr new_body = ir::Block::Make({temp_buffer_alloc, temp_buffer_alias, func_body});
 
-  Print(func_body);
+  optim::RemoveNestedBlock(&new_body);
+
+  Print(new_body);
+}
+
+void CodeGenCUDA_Dev::Visit(const ir::Alloc *op) {
+  CHECK(op->destination.as_buffer());
+  PrintTempBufferCreation(op->destination.as_buffer_ref());
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Min *op) {
@@ -82,7 +120,7 @@ void CodeGenCUDA_Dev::PrintFuncArg(const ir::Argument &arg) {
   if (arg.is_buffer()) {
     // In CUDA kernel, only primitive type is supported, so we replace the buffer with T*j
     if (arg.is_input()) os() << "const ";
-    os() << PrintType(arg.type());
+    os() << GetTypeRepr(arg.type());
     if (!arg.type().is_cpp_handle()) {
       os() << "* ";
     }
@@ -92,7 +130,7 @@ void CodeGenCUDA_Dev::PrintFuncArg(const ir::Argument &arg) {
     if (arg.var_arg()->type().is_cpp_handle()) {
       os() << kCKeywordRestrict;
     }
-    os() << PrintType(arg.type()) << " ";
+    os() << GetTypeRepr(arg.type()) << " ";
     os() << arg.name();
   } else {
     NOT_IMPLEMENTED
@@ -118,8 +156,6 @@ std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, CodeGenC::Outpu
 
     PrintBuiltinCodes();
 
-    PrintBufferCreation(module.buffers());
-
     for (auto &func : module.functions()) {
       Compile(func);
     }
@@ -141,6 +177,34 @@ void CodeGenCUDA_Dev::PrintIncludes() {
   os() << "#endif\n";
   os() << "\n";
   os() << "\n";
+}
+
+void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {
+  auto print_gpu_memory = [&](const std::string &mark) {
+    os() << mark << GetTypeRepr(buffer->type()) << " " << buffer->name << " ";
+
+    os() << "[ ";
+    for (int i = 0; i < buffer->shape.size() - 1; i++) {
+      Print(buffer->shape[i]);
+      os() << " * ";
+    }
+    if (!buffer->shape.empty()) {
+      Print(buffer->shape.back());
+    }
+    os() << " ]";
+  };
+  switch (buffer->memory_type) {
+    case ir::MemoryType::GPUShared:
+      print_gpu_memory("__shared__ ");
+      break;
+
+    case ir::MemoryType::GPULocal:
+      print_gpu_memory("");
+      break;
+
+    default:
+      LOG(FATAL) << "CUDA device codegen not support memory type " << buffer->memory_type;
+  }
 }
 
 }  // namespace backends

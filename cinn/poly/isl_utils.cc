@@ -28,6 +28,14 @@ std::vector<std::string> GetDimNames(const isl::map &x, isl_dim_type dim_type) {
   return res;
 }
 
+std::vector<std::string> GetDimNames(isl_set *set) {
+  std::vector<std::string> res;
+  for (int i = 0; i < isl_set_dim(set, isl_dim_set); i++) {
+    res.push_back(isl_set_get_dim_name(set, isl_dim_set, i));
+  }
+  return res;
+}
+
 void SetDimNames(isl::map *map, isl_dim_type dim_type, const std::vector<std::string> &names) {
   const int dim = isl_map_dim(map->get(), dim_type);
   CHECK_EQ(dim, names.size());

@@ -485,7 +485,7 @@ TEST(depthwise_conv, test) {
                               }),
                               input(b, c, i, j),  // true value
                               Expr(0.f)           // false value
-        );
+        );                                        // NOLINT
       },
       "padded_input");
 
@@ -582,6 +582,116 @@ TEST(Conv, basic) {
   auto fn = Lower("fn", {A, W, B});
 
   LOG(INFO) << "fn:\n" << fn;
+}
+
+// Test the basic elementwise_add kernel with share cache set.
+// A JIT is created to test JIT call GPU.
+TEST(elementwise_add, share_local_cache) {
+  Expr M(100);
+  Expr N(20);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+
+  auto AA = A->stage()->CacheRead("share", {C});
+  // NOTE here, the CC replace the C as the output the function.
+  auto CC = C->stage()->CacheWrite("local");
+
+  C->stage()->GpuBlocks(std::vector<int>({0}));
+  C->stage()->GpuThreads(std::vector<int>({1}));
+
+  AA->stage()->GpuBlocks(std::vector<int>({0}));
+  AA->stage()->GpuThreads(std::vector<int>({1}));
+
+  CC->stage()->GpuBlocks(std::vector<int>({0}));
+  CC->stage()->GpuThreads(std::vector<int>({1}));
+
+  Target target;
+  Module::Builder builder("gpu_module", target);
+
+  auto fn = Lower("elementwise_add", {A, B, CC}, {}, {AA, C}, &builder);
+
+  ASSERT_EQ(fn->temp_bufs.size(), 2UL);
+
+  auto module = builder.Build();
+
+  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+  for (auto& func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+
+  for (auto& func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  // compile with device code
+  CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "device source code:\n" << source_code;
+
+  using runtime::cuda::CUDAModule;
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  LOG(INFO) << "PTX:\n" << ptx;
+  CHECK(!ptx.empty());
+
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+  auto fn_kernel = cuda_module.GetFunction(0, "elementwise_add_kernel");
+  CHECK(fn_kernel);
+
+  // launch the kernel
+
+  const int m            = N.as_int32();
+  const int num_elements = m * N.as_int32();
+  const int bytes        = num_elements * sizeof(float);
+
+  CUdeviceptr Ad, Bd, Cd;
+  cuMemAlloc(&Ad, bytes);
+  cuMemAlloc(&Bd, bytes);
+  cuMemAlloc(&Cd, bytes);
+
+  std::vector<float> host_data1(num_elements, 0);
+  std::vector<float> host_data2(num_elements, 0);
+  std::vector<float> host_data3(num_elements, 0);
+  for (int i = 0; i < num_elements; i++) {
+    host_data1[i] = (rand() * 1.f) / INT_MAX;  // NOLINT
+    host_data2[i] = (rand() * 1.f) / INT_MAX;  // NOLINT
+  }
+
+  CUDA_CALL(
+      cudaMemcpy(reinterpret_cast<void*>(Ad), host_data1.data(), num_elements * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(
+      cudaMemcpy(reinterpret_cast<void*>(Bd), host_data2.data(), num_elements * sizeof(float), cudaMemcpyHostToDevice));
+
+  void* args[] = {&Ad, &Bd, &Cd};
+
+  dim3 grid(M.as_int32(), 1, 1);
+  dim3 block(N.as_int32(), 1, 1);
+
+  cuda_module.LaunchKernel(0, "elementwise_add_kernel", grid, block, args);
+
+  CUDA_CALL(
+      cudaMemcpy(host_data3.data(), reinterpret_cast<void*>(Cd), num_elements * sizeof(float), cudaMemcpyDeviceToHost));
+
+  for (int i = 0; i < m; i++) {
+    for (int j = 0; j < N.as_int32(); j++) {
+      int offset = i * N.as_int32() + j;
+      if (i == 0 && j < 2) {
+        LOG(INFO) << host_data3[offset];
+      }
+      ASSERT_NEAR(host_data3[offset], host_data1[offset] + host_data2[offset], 1e-5);
+    }
+  }
+
+  CUDA_CALL(cudaFree(reinterpret_cast<void*>(Ad)))
+  CUDA_CALL(cudaFree(reinterpret_cast<void*>(Bd)))
+  CUDA_CALL(cudaFree(reinterpret_cast<void*>(Cd)))
 }
 
 TEST(Conv, basic_add_cache) {

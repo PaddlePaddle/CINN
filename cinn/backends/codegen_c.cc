@@ -67,7 +67,7 @@ std::string CodeGenC::Compile(const ir::LoweredFunc &function) {
   return ss_.str();
 }
 
-std::string CodeGenC::PrintType(Type type) {
+std::string CodeGenC::GetTypeRepr(Type type) {
   std::string str;
   if (type.is_cpp_const()) {
     str = "const ";
@@ -134,7 +134,7 @@ void CodeGenC::Visit(const ir::Activate *op) {
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
   os() << "for (";
-  os() << PrintType(Int(32));
+  os() << GetTypeRepr(Int(32));
   os() << " " << op->loop_var->name;
   os() << " = ";
   Print(op->min);
@@ -152,7 +152,7 @@ void CodeGenC::Visit(const ir::For *op) {
 }
 void CodeGenC::Visit(const ir::PolyFor *op) {
   os() << "for (";
-  os() << PrintType(Int(32));
+  os() << GetTypeRepr(Int(32));
   os() << " " << op->iterator->name;
   os() << " = ";
   Print(op->init);
@@ -439,13 +439,12 @@ void CodeGenC::Visit(const ir::_Tensor_ *op) {
 void CodeGenC::Visit(const ir::Let *op) {
   bool is_vec = false;
   CHECK(op->type().valid());
-  if (op->body.defined() &&
-      op->body.As<ir::Broadcast>())  // broadcast's type is hard to print, so use c++11 auto instead.
-  {
+  if (op->body.defined() && op->body.As<ir::Broadcast>()) {
+    // broadcast's type is hard to print, so use c++11 auto instead.
     os() << "auto";
     is_vec = true;
   } else {
-    os() << PrintType(op->type());
+    os() << GetTypeRepr(op->type());
   }
   os() << " ";
   Print(op->symbol);
@@ -466,7 +465,7 @@ void CodeGenC::Visit(const ir::Reduce *op) {
 }
 
 void CodeGenC::Visit(const ir::Ramp *op) {
-  os() << "StackVec<" << op->lanes << "," << PrintType(op->type().ElementOf()) << ">::Ramp(";
+  os() << "StackVec<" << op->lanes << "," << GetTypeRepr(op->type().ElementOf()) << ">::Ramp(";
   Print(op->base);
   os() << ", ";
   Print(op->stride);
@@ -476,7 +475,7 @@ void CodeGenC::Visit(const ir::Ramp *op) {
 }
 
 void CodeGenC::Visit(const ir::Broadcast *op) {
-  os() << "StackVec<" << op->lanes << "," << PrintType(op->type().ElementOf()) << ">::Broadcast(";
+  os() << "StackVec<" << op->lanes << "," << GetTypeRepr(op->type().ElementOf()) << ">::Broadcast(";
   Print(op->value);
   os() << ", ";
   os() << op->lanes << ")";
@@ -488,7 +487,7 @@ void CodeGenC::Visit(const ir::Sum *op) { ir::IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Product *op) { ir::IrPrinter::Visit(op); }
 
 void CodeGenC::PrintCastExpr(const Type &type, Expr e) {
-  os() << "((" << PrintType(type) << ")";
+  os() << "((" << GetTypeRepr(type) << ")";
   os() << "(";
   Print(e);
   os() << "))";
@@ -500,8 +499,8 @@ void CodeGenC::PrintCastExpr(const std::string &type, Expr e) {
   os() << ")";
 }
 
-void CodeGenC::PrintShape(const std::vector<Expr> &shape) {
-  os() << "{ ";
+void CodeGenC::PrintShape(const std::vector<Expr> &shape, char leftb, char rightb) {
+  os() << leftb << " ";
 
   for (int i = 0; i < shape.size() - 1; i++) {
     Print(shape[i]);
@@ -509,7 +508,7 @@ void CodeGenC::PrintShape(const std::vector<Expr> &shape) {
   }
   if (shape.size() > 1) Print(shape.back());
 
-  os() << " }";
+  os() << " " << rightb;
 }
 
 void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
@@ -553,6 +552,8 @@ void CodeGenC::PrintFileGuardClose(const std::string &module_name) {
 
 void CodeGenC::PrintBufferCreation(const std::vector<ir::Buffer> &buffers) {
   for (auto &buffer : buffers) {
+    // Ignore the buffer in other devices.
+    if (!buffer->is_on_host()) continue;
     DoIndent();
     auto expr = runtime::BufferCreate(buffer);
     Print(expr);
@@ -589,7 +590,7 @@ void CodeGenC::PrintFuncArg(const ir::Argument &arg) {
       os() << "struct cinn_buffer_t *";
     }
   } else if (arg.is_var()) {
-    os() << PrintType(arg.type()) << " ";
+    os() << GetTypeRepr(arg.type()) << " ";
     os() << arg.name();
   } else {
     NOT_IMPLEMENTED
@@ -612,7 +613,7 @@ void CodeGenC::PrintRuntimeType(const cinn_type_t &type) {
 }
 
 void CodeGenC::PrintStackVecType(Type type, int lanes) {
-  os() << "StackedVec<" << PrintType(type) << "," << lanes << ">";
+  os() << "StackedVec<" << GetTypeRepr(type) << "," << lanes << ">";
 }
 
 std::string ReadWholeFile(const std::string &path) {
