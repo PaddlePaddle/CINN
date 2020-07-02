@@ -65,13 +65,14 @@ isl::ast_node AstGen::Build() {
   ast_build = ast_build.set_at_each_domain(collect);
 
   isl::union_map transformed_schedule = transform().apply_range(schedule);
-  auto schedule_domain                = transformed_schedule.intersect_domain(domain());
+  VLOG(4) << "transformed_schedule: " << transformed_schedule;
+  auto schedule_domain = transformed_schedule.intersect_domain(domain());
   VLOG(4) << "domain: " << domain();
   VLOG(4) << "transform schedule " << stages()[0]->transform();
   VLOG(4) << "schedule: " << schedule;
   VLOG(4) << "schedule_domain: " << schedule_domain;
   auto ast = ast_build.node_from_schedule_map(schedule_domain);
-  VLOG(2) << "\n" << isl_ast_node_to_C_str(ast.get());
+  VLOG(2) << "AST:\n" << isl_ast_node_to_C_str(ast.get());
   return ast;
 }
 
@@ -357,6 +358,9 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
         case isl_ast_op_pdiv_q:
           *expr = ir::Div::Make(ops[0], ops[1]);
           break;
+        case isl_ast_op_pdiv_r:
+          *expr = ir::Mod::Make(ops[0], ops[1]);
+          break;
         case isl_ast_op_call: {
           ir::Expr caller_expr = ops.front();
           // TODO(Superjomn) make it an string
@@ -367,7 +371,6 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
           *expr = ir::Call::Make(Float(32), caller, ops, {}, ir::CallType::ISL, ir::FunctionRef(), 0);
         } break;
         case isl_ast_op_fdiv_q:
-        case isl_ast_op_pdiv_r:
           *expr = ir::Div::Make(ops[0], ops[1]);
           break;
         default:

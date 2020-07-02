@@ -42,7 +42,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   ir::Expr e;
   poly::IslAstNodeToCinnExpr(ast, &e);
 
-  VLOG(3) << "ast to expr: \n" << e << std::endl;
+  VLOG(1) << "ast to expr: \n" << e << std::endl;
 
   // replace call to the corresponding statement
   for (auto& statement : tuple_to_expr) {
@@ -299,7 +299,7 @@ ir::LoweredFunc LowerImpl::operator()() {
   auto func_temp_tensors = CollectTemporaryTensors();
   std::vector<ir::Buffer> temp_buffers;
   std::unordered_set<std::string> buffer_name_set;
-  // TODO write buffer latter.
+  // TODO(Superjomn) write buffer latter.
   for (auto& t : func_temp_tensors) {
     if (t->buffer.defined() && !buffer_name_set.count(t->buffer->name)) {
       temp_buffers.push_back(t->buffer);
@@ -356,7 +356,7 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
 
     Expr group_expr = LowerGroup(group, tuple_to_expr);
     if (group_expr.defined()) {
-      VLOG(1) << "group expr:\n" << group_expr;
+      VLOG(3) << "group expr:\n" << group_expr;
       exprs.push_back(group_expr);
     }
   }
