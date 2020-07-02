@@ -88,6 +88,7 @@ class Aff : public Map {
 
 std::ostream& operator<<(std::ostream& os, const Map& x);
 std::ostream& operator<<(std::ostream& os, const Aff& x);
+static bool operator<(const Iterator& a, const Iterator& b) { return a.id < b.id; }
 
 }  // namespace poly
 }  // namespace cinn

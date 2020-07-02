@@ -806,5 +806,81 @@ TEST(Conv, basic_add_cache) {
   LOG(INFO) << "fn:\n" << fn;
 }
 
+TEST(Conv, optimize) {
+  // basic implementation
+  Expr batch(256);
+  Expr in_channel(256);
+  Expr out_channel(512);
+  Expr in_size(14);
+  Expr kernel(3);
+  Expr pad(1);
+  Expr stride(1);
+
+  auto A = Placeholder<float>("A", {in_size, in_size, in_channel, batch});
+  auto W = Placeholder<float>("W", {kernel, kernel, in_channel, out_channel});
+
+  Expr out_size((in_size.as_int32() - kernel.as_int32() + 2 * pad.as_int32()) / stride.as_int32() + 1);
+
+  auto Apad = Compute(
+      {in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
+      [&](Expr yy, Expr xx, Expr cc, Expr nn) {
+        auto condition = common::and_all({yy >= pad, xx - pad < in_size, xx >= pad, xx - pad < in_size});
+        return common::select(condition, A(yy - pad, xx - pad, cc, nn), common::make_const(0.f));
+      },
+      "Apad");
+
+  auto rc = Var(in_channel, "rc");
+  auto ry = Var(kernel, "ry");
+  auto rx = Var(kernel, "rx");
+
+  auto B = Compute({out_size, out_size, out_channel, batch},
+                   [=](Expr yy, Expr xx, Expr ff, Expr nn) {
+                     return Sum(Apad(yy * stride + ry, xx * stride + rx, rc, nn) * W(ry, rx, rc, ff));
+                   },
+                   "B",
+                   {rc, ry, rx} /*reduce axis*/);
+
+  // auto fn = Lower("conv", {A, W, B});
+  // LOG(INFO) << fn;
+
+  // blocking
+
+  Apad->stage()->ComputeInline();
+
+  auto AA = Apad->stage()->CacheRead("share", {B});
+  auto WW = W->stage()->CacheRead("share", {B});
+  auto AL = AA->stage()->CacheRead("local", {B});
+  auto WL = WW->stage()->CacheRead("local", {B});
+  auto BL = B->stage()->CacheWrite("local");
+
+  // tile consts
+  const int tile         = 8;
+  const int num_thread   = 8;
+  const int block_factor = tile * num_thread;
+  const int step         = 8;
+  const int vthread      = 2;
+
+  auto hi = B->stage()->axis(0);
+  auto wi = B->stage()->axis(1);
+  auto fi = B->stage()->axis(2);
+  auto ni = B->stage()->axis(3);
+  auto bz = B->stage()->Fuse(hi, wi);
+
+  poly::Iterator by, bx, ty, tx;
+  std::tie(by, fi) = B->stage()->Split(fi, block_factor);  // NOLINT
+  std::tie(bx, ni) = B->stage()->Split(ni, block_factor);  // NOLINT
+
+  poly::Iterator tyz, txz;
+  std::tie(tyz, fi) = B->stage()->Split(fi, vthread);
+  std::tie(txz, ni) = B->stage()->Split(ni, vthread);
+  std::tie(ty, fi)  = B->stage()->Split(fi, num_thread);
+  std::tie(tx, ni)  = B->stage()->Split(ni, num_thread);
+  B->stage()->Reorder({bz, by, bx, tyz, txz, ty, tx, fi, ni});
+
+  // B->stage()->GpuBlocks({0, 1, 2});
+
+  LOG(INFO) << Lower("conv", {A, W, BL}, {}, {AA, WW, AL, WL, B});
+}
+
 }  // namespace backends
 }  // namespace cinn

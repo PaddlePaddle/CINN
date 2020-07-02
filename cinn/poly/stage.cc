@@ -1,6 +1,7 @@
 #include "cinn/poly/stage.h"
 
 #include <set>
+#include <unordered_set>
 #include <utility>
 
 #include "cinn/common/axis.h"
@@ -96,11 +97,31 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor, S
 
 void Stage::Reorder(const std::vector<Iterator> &order) {
   auto in_names = GetDimNames(transform_, isl_dim_out);
-  CHECK_EQ(order.size(), in_names.size());
-  auto in_iters =
-      utils::Map<std::vector<std::string>, Iterator>(in_names, [](const std::string &x) { return Iterator(x); });
+  // assert all the iterators in the isl::set.
+  std::unordered_set<std::string> in_name_set(in_names.begin(), in_names.end());
+  std::set<Iterator> order_set(order.begin(), order.end());
 
-  Map transform(domain().ctx(), id(), in_iters, order, {}, id());
+  std::vector<Iterator> range_iters, domain_iters;
+  for (auto &o : order) {
+    CHECK(in_name_set.count(o.id)) << "Iterator " << o.id << " not int the exsting axis";
+  }
+
+  int order_offset = 0;
+  for (auto &iter_name : in_names) {
+    Iterator iter(iter_name);
+
+    domain_iters.push_back(iter);
+
+    if (order_set.count(iter)) {
+      range_iters.push_back(order[order_offset++]);
+    } else {
+      range_iters.push_back(iter);
+    }
+  }
+
+  CHECK_EQ(range_iters.size(), in_names.size());
+
+  Map transform(domain().ctx(), id(), domain_iters, range_iters, {}, id());
   VLOG(3) << "reorder transform: " << transform.__str__();
   transform_ = transform_.apply_range(transform.to_isl());
 }

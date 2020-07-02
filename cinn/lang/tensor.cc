@@ -348,7 +348,7 @@ void _Tensor_::WithBuffer(const std::string &memory_type, const Type &type) {
   } else if (memory_type == "local") {
     buf->memory_type = MemoryType::GPULocal;
   } else {
-    NOT_IMPLEMENTED
+    LOG(FATAL) << "Not supported memory type " << memory_type;
   }
 }
 
