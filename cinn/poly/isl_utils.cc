@@ -159,5 +159,27 @@ int isl_max_level_compatible(isl_set *a, isl_set *b) {
   return compatible_level;
 }
 
+isl_set *isl_remove_axis_by_name(isl_set *set, const char *axis_name) {
+  std::string tuple_name = isl_set_get_tuple_name(set);
+  int offset             = isl_set_find_dim_by_name(set, isl_dim_set, axis_name);
+  set                    = isl_set_remove_dims(set, isl_dim_set, offset, 1);
+  set                    = isl_set_set_tuple_name(set, tuple_name.c_str());
+  return set;
+}
+
+isl_map *isl_remove_axis_by_name(isl_map *map, isl_dim_type dim_type, const char *axis_name) {
+  int offset             = isl_map_find_dim_by_name(map, dim_type, axis_name);
+  std::string tuple_name = isl_map_get_tuple_name(map, dim_type);
+  map                    = isl_map_remove_dims(map, dim_type, offset, 1);
+  map                    = isl_map_set_tuple_name(map, dim_type, tuple_name.c_str());
+  return map;
+}
+isl_set *isl_rename_axis(isl_set *set, int offset, const char *name) {
+  return isl_set_set_dim_name(set, isl_dim_set, offset, name);
+}
+isl_map *isl_rename_axis(isl_map *map, isl_dim_type dim_type, int offset, const char *name) {
+  return isl_map_set_dim_name(map, dim_type, offset, name);
+}
+
 }  // namespace poly
 }  // namespace cinn

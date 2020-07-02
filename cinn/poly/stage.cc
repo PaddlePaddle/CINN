@@ -206,7 +206,7 @@ Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
 
   Aff aff(domain_.ctx(), id(), from_iters, std::vector<Iterator>({Iterator(level1.id)}), {});
 
-  int level1_max_val = transformed_domain().max_val(aff.to_isl()).get_num_si();
+  int level1_max_val = transformed_domain().max_val(aff.to_isl()).get_num_si() + 1;
 
   // Map { s[i,j,k] -> s[n,k] : n = i * max_val + j }
   std::vector<Iterator> to_iters;

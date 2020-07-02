@@ -36,5 +36,10 @@ isl_set* __isl_give isl_get_precending_aixs(isl_set* set, int level, bool with_t
 //! Get the maximum level of axis that is has the same domain.
 int isl_max_level_compatible(isl_set* __isl_keep a, isl_set* __isl_keep b);
 
+isl_set* __isl_give isl_remove_axis_by_name(isl_set* __isl_take set, const char* axis_name);
+isl_map* __isl_give isl_remove_axis_by_name(isl_map* __isl_take map, isl_dim_type dim_type, const char* axis_name);
+isl_set* __isl_give isl_rename_axis(isl_set* __isl_take set, int offset, const char* name);
+isl_map* __isl_give isl_rename_axis(isl_map* __isl_take map, isl_dim_type dim_type, int offset, const char* name);
+
 }  // namespace poly
 }  // namespace cinn
