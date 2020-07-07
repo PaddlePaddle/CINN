@@ -9,7 +9,7 @@ int cinn_x86_malloc(void* context, cinn_buffer_t* buf) {
   CINN_CHECK(memory_size > 0);
   if (buf->memory_size < memory_size) {
     if (buf->host_memory) {
-      std::free(buf->host_memory);
+      free(buf->host_memory);
     }
     int bytes = buf->type.bytes() * buf->num_elements();
     if (buf->align == 0) {

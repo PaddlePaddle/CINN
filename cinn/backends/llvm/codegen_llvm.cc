@@ -11,16 +11,23 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include <numeric>
 #include <sstream>
 #include <type_traits>
 
 #include "cinn/backends/extern_func_emitter.h"
 #include "cinn/backends/llvm/llvm_util.h"
+#include "cinn/common/cas.h"
 #include "cinn/common/type.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"
+#include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/Support/Alignment.h"
 
 namespace cinn {
 namespace backends {
@@ -32,9 +39,9 @@ namespace {
 template <typename T>
 auto NodeToExpr(const T *node) {
   std::ostringstream oss;
-  oss << "\033[32m";
+  // oss << "\033[32m";
   oss << ir::Expr(const_cast<T *>(node));
-  oss << "\033[0m";
+  // oss << "\033[0m";
   return oss.str();
 }
 
@@ -56,9 +63,7 @@ llvm::Value *EmitComparison(llvm::CmpInst::Predicate predicate,
   return comparison_result;
 }
 
-#define __IR_EMITTER_NOT_IMPLEMENTED(__op)                                  \
-  LOG(INFO) << "Error: file[" << __FILE__ << "], line[" << __LINE__ << "]"; \
-  throw std::logic_error("Not implemented error!")
+#define __IR_EMITTER_NOT_IMPLEMENTED(__op) NOT_IMPLEMENTED
 
 }  // namespace
 
@@ -69,15 +74,91 @@ CodeGenLLVM::CodeGenLLVM(llvm::Module *m,
   if (!named_vars_.get()) {
     named_vars_ = std::make_shared<std::unordered_map<std::string, llvm::Value *>>();
   }
-  md_builder_ = std::make_unique<llvm::MDBuilder>(b_->getContext());
+  md_builder_        = std::make_unique<llvm::MDBuilder>(b_->getContext());
+  md_tbaa_root_      = md_builder_->createTBAARoot("cinn-tbaa");
+  md_tbaa_alias_set_ = md_builder_->createTBAANode("cinn-alias", md_tbaa_root_);
+
+  InitTarget(common::DefaultHostTarget());
 }
 
 CodeGenLLVM::~CodeGenLLVM() {}
 
+llvm::Value *CodeGenLLVM::EmitVectorSlice(llvm::Value *vec, int begin, int extent) {
+  int numel = static_cast<int>(vec->getType()->getVectorNumElements());
+  if (extent == numel && begin == 0) return vec;
+
+  CHECK(begin >= 0 && extent <= numel) << "Slicing out of bound!";
+
+  std::vector<llvm::Constant *> indices(extent);
+  for (int i = 0; i < extent; i++) {
+    llvm::Constant **v = &indices[i];
+    if (begin + i >= 0 && begin + i < numel) {
+      *v = llvm::ConstantInt::get(b_->getInt32Ty(), begin + i);
+    } else {
+      *v = llvm::UndefValue::get(b_->getInt32Ty());
+    }
+  }
+  return ShuffleVector(vec, vec, llvm::ConstantVector::get(std::move(indices)));
+}
+
+llvm::Value *CodeGenLLVM::EmitVectorPad(llvm::Value *vec, int lanes) {
+  llvm::Value *mask = llvm::UndefValue::get(llvm::VectorType::get(b_->getInt32Ty(), lanes));
+  int numel         = static_cast<int>(vec->getType()->getVectorNumElements());
+  CHECK(numel <= lanes);
+  if (numel == lanes) return vec;
+  for (int i = 0; i < numel; i++) {
+    mask =
+        InsertElement(mask, llvm::ConstantInt::get(b_->getInt32Ty(), i), llvm::ConstantInt::get(b_->getInt32Ty(), i));
+  }
+
+  return ShuffleVector(vec, vec, mask);
+}
+
+llvm::Value *CodeGenLLVM::EmitVectorConcat(std::vector<llvm::Value *> vecs) {
+  // int lanes = static_cast<int>(std::accumulate(vecs.begin(), vecs.end(), 0,
+  //                                             [](llvm::Value *x, llvm::Value *y) { return
+  //                                             x->getType()->getVectorNumElements() +
+  //                                             y->getType()->getVectorNumElements(); }));
+  int lanes = 0;
+  for (auto *v : vecs) {
+    lanes += static_cast<int>(v->getType()->getVectorNumElements());
+  }
+  while (vecs.size() > 1) {
+    std::vector<llvm::Value *> new_vecs;
+    for (size_t i = 0; i < vecs.size() - 1; i += 2) {
+      auto *lhs            = vecs[i];
+      auto *rhs            = vecs[i + 1];
+      const auto lhs_lanes = lhs->getType()->getVectorNumElements();
+      const auto rhs_lanes = rhs->getType()->getVectorNumElements();
+      if (lhs_lanes < rhs_lanes) {
+        lhs = EmitVectorPad(lhs, rhs_lanes);
+      } else if (lhs_lanes > rhs_lanes) {
+        rhs = EmitVectorPad(rhs, lhs_lanes);
+      }
+
+      const auto shared_lanes = std::max(lhs_lanes, rhs_lanes);
+      std::vector<unsigned> mask(lhs_lanes + rhs_lanes);
+      std::iota(mask.begin(), std::next(mask.begin(), lhs_lanes), 0);
+      std::iota(std::next(mask.begin(), lhs_lanes), mask.end(), shared_lanes);
+      new_vecs.push_back(ShuffleVector(lhs, rhs, mask));
+    }
+    if (vecs.size() % 2) {
+      new_vecs.push_back(vecs.back());
+    }
+
+    vecs = std::move(new_vecs);
+  }
+
+  return EmitVectorSlice(vecs[0], 0, lanes);
+}
+
 llvm::Value *CodeGenLLVM::EmitBinaryOp(
     llvm::Value *lhs, llvm::Value *rhs, char opcode, bool is_integral, bool is_signed) {
   llvm::Instruction::BinaryOps ops;
-  CHECK_EQ(lhs->getType(), rhs->getType()) << "the types of operands of binary operation are mismatch";
+  CHECK_EQ(lhs->getType(), rhs->getType())
+      << "the types of operands of binary operation are mismatch"
+      << ", lhs[" << DumpToString(*lhs) << "] " << opcode << " rhs[" << DumpToString(*rhs) << "]"
+      << ", lhs_type[" << DumpToString(*lhs->getType()) << "], rhs_type[" << DumpToString(*rhs->getType()) << "]";
   switch (opcode) {
     case '+':
       ops = is_integral ? llvm::Instruction::BinaryOps::Add : llvm::Instruction::BinaryOps::FAdd;
@@ -135,7 +216,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Sub *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Mul *op) {
-  return EmitBinaryOp(Visit(&op->a()), Visit(&op->b()), '*', is_integral_type(op->type()));
+  auto *lhs = Visit(&op->a());
+  auto *rhs = Visit(&op->b());
+  return EmitBinaryOp(lhs, rhs, '*', is_integral_type(op->type()));
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Div *op) {
@@ -312,6 +395,46 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
+  do {
+    break;
+    llvm::BasicBlock *preheader_bb = b_->GetInsertBlock();
+    auto *for_begin = llvm::BasicBlock::Create(b_->getContext(), "for_begin", b_->GetInsertBlock()->getParent());
+    auto *for_body  = llvm::BasicBlock::Create(b_->getContext(), "for_body", b_->GetInsertBlock()->getParent());
+    auto *for_end   = llvm::BasicBlock::Create(b_->getContext(), "for_end", b_->GetInsertBlock()->getParent());
+
+    Br(for_begin);
+    b_->SetInsertPoint(for_begin);
+
+    auto *begin      = Visit(&op->min);
+    auto *loop_value = PHI(begin->getType(), 2);
+    loop_value->addIncoming(begin, preheader_bb);
+
+    llvm::Value *old_var = GetVar(op->loop_var->name);
+    SetVar(op->loop_var->name, loop_value);
+    auto *end = Visit(&op->extent);
+    CondBr(ICmpSGE(loop_value, end), for_body, for_end);
+    b_->SetInsertPoint(for_body);
+    Visit(&op->body);
+
+    if (old_var) {
+      SetVar(op->loop_var->name, old_var);
+    } else {
+      named_vars_->erase(op->loop_var->name);
+    }
+
+    auto loop_next = Add(loop_value, llvm::ConstantInt::get(b_->getInt32Ty(), 1), "indvar.inc", true, true);
+    loop_value->addIncoming(loop_next, b_->GetInsertBlock());
+
+    Br(for_begin);
+    b_->SetInsertPoint(for_end);
+
+    return nullptr;
+    // llvm::AllocaInst *loop_var = Alloca(b_->getInt32Ty(), nullptr, op->loop_var->name);
+    // loop_var->setAlignment(llvm::Align(4));
+    // SetVar(op->loop_var->name, loop_var);
+  } while (false);
+
+  ////////////////////////////////////
   llvm::BasicBlock *preheader_bb = b_->GetInsertBlock();
   llvm::BasicBlock *exit_bb      = nullptr;
 
@@ -337,6 +460,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
   llvm::Value *old_var = GetVar(op->loop_var->name);
   // loop iterator
   llvm::AllocaInst *loop_var = Alloca(b_->getInt32Ty(), nullptr, op->loop_var->name);
+  loop_var->setAlignment(llvm::Align(4));
   SetVar(op->loop_var->name, loop_var);
 
   b_->SetInsertPoint(preheader_bb);
@@ -377,7 +501,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
   // TODO(fc500110): Loop vectorize
   // auto *vectorization = op->metadata.vectorization ? b_->getTrue() : b_->getFalse();
   // loop_metadata.push_back(llvm::MDNode::get(
-  //    ctx, {llvm::MDString::get(ctx, "llvm.loop.vectorize.enable"), llvm::ConstantAsMetadata::get(vectorization)}));
+  //        ctx, {llvm::MDString::get(ctx, "llvm.loop.vectorize.enable"),
+  //        llvm::ConstantAsMetadata::get(b_->getFalse())}));
 
   // Loop unroll
   std::string llvm_unroll_metadata{"llvm.loop.unroll."};
@@ -548,49 +673,121 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Var_ *op) {
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
   llvm::Value *array{nullptr};
+  bool is_alias{false};
   if (auto *tensor_op = op->tensor.As<ir::_Tensor_>()) {
     array = GetVar(tensor_op->name);
   } else if (auto *var_op = op->tensor.As<ir::_Var_>()) {
-    array = GetVar(var_op->name);
+    array    = GetVar(var_op->name);
+    is_alias = alias_vars_.count(const_cast<ir::_Var_ *>(var_op));
   } else {
     array = Visit(&op->tensor);
   }
   CHECK(array) << "fail to Visit Load node: " << Expr(const_cast<ir::Load *>(op));
 
   ir::Expr index = op->index();
-  std::vector<llvm::Value *> indices;
-  indices.push_back(Visit(&index));
+  if (index.type().lanes() <= 1) {
+    std::vector<llvm::Value *> indices;
+    indices.push_back(Visit(&index));
 
-  auto load_inst = Load(InBoundsGEP(array, std::move(indices)));
+    // auto load_inst = Load(InBoundsGEP(array, std::move(indices)));
+    auto *load_inst = AlignedLoad(InBoundsGEP(array, std::move(indices)), llvm::MaybeAlign());
+    if (is_alias) {
+      llvm::MDNode *meta = md_builder_->createTBAANode("cinn-alias", md_tbaa_root_);
+      load_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
+    }
 
-  // TODO(fc500110): tbaa AliasAnalysis
-  // auto md_tbaa_root      = md_builder_->createTBAARoot("cinn-tbaa");
-  // auto md_tbaa_alias_set = md_builder_->createTBAANode("cinn-alias", md_tbaa_root);
-  // llvm::MDNode *meta     = md_tbaa_alias_set;
-  // load_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
-  return load_inst;
+    {
+      int alignment = op->type().bits();
+      alignment     = 8;
+      // CHECK(alignment > 0);
+      // load_inst->setAlignment(llvm::Align(std::min(alignment, 8)));
+    }
+
+    // TODO(fc500110): tbaa AliasAnalysis
+    // auto md_tbaa_root      = md_builder_->createTBAARoot("cinn-tbaa");
+    // auto md_tbaa_alias_set = md_builder_->createTBAANode("cinn-alias", md_tbaa_root);
+    // llvm::MDNode *meta     = md_tbaa_alias_set;
+    // load_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
+    return load_inst;
+  } else {  // vector load
+    Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
+    if (dense_strided_ramp.defined()) {
+      CHECK(op->type().is_vector());
+
+      llvm::Value *buffer = Visit(&op->tensor);
+      return DenseVectorLoad(op);
+    } else {
+      LOG(FATAL) << "unsupported Ramp index " << op->index();
+    }
+  }
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
   llvm::Value *array{nullptr};
+  bool is_alias{false};
   if (auto *tensor_op = op->tensor.As<ir::_Tensor_>()) {
     array = GetVar(tensor_op->name);
   } else if (auto *var_op = op->tensor.As<ir::_Var_>()) {
-    array = GetVar(var_op->name);
+    array    = GetVar(var_op->name);
+    is_alias = alias_vars_.count(const_cast<ir::_Var_ *>(var_op));
   }
   CHECK(array) << "array is null";
 
   ir::Expr index = op->index();
-  std::vector<llvm::Value *> indices;
-  indices.push_back(Visit(&index));
 
-  auto *store_inst = Store(Visit(&op->value), InBoundsGEP(array, std::move(indices)));
-  // TODO(fc500110): tbaa AliasAnalysis
-  // auto md_tbaa_root      = md_builder_->createTBAARoot("cinn-tbaa");
-  // auto md_tbaa_alias_set = md_builder_->createTBAANode("cinn-alias", md_tbaa_root);
-  // llvm::MDNode *meta     = md_tbaa_alias_set;
-  // store_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
-  return store_inst;
+  if (op->type().is_scalar()) {
+    std::vector<llvm::Value *> indices;
+    indices.push_back(Visit(&index));
+
+    // auto *store_inst = Store(Visit(&op->value), InBoundsGEP(array, std::move(indices)));
+    auto *store_inst = AlignedStore(Visit(&op->value), InBoundsGEP(array, std::move(indices)), llvm::MaybeAlign());
+    if (is_alias) {
+      llvm::MDNode *meta = md_builder_->createTBAANode("cinn-alias", md_tbaa_root_);
+      store_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
+    }
+    {
+      int alignment = op->type().bits();
+      alignment     = 8;
+      CHECK_GT(alignment, 0);
+      // store_inst->setAlignment(llvm::Align(std::min(alignment, 8)));
+    }
+    // TODO(fc500110): tbaa AliasAnalysis
+    // auto md_tbaa_root      = md_builder_->createTBAARoot("cinn-tbaa");
+    // auto md_tbaa_alias_set = md_builder_->createTBAANode("cinn-alias", md_tbaa_root);
+    // llvm::MDNode *meta     = md_tbaa_alias_set;
+    // store_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
+    return store_inst;
+  } else {  // vector store
+    Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
+    auto ramp_expr          = op->index();
+    auto *ramp              = index.As<ir::Ramp>();
+    if (dense_strided_ramp.defined()) {  // stride 1
+      int alignment = op->type().ElementOf().bits();
+
+      int native_bits  = 512;
+      int native_bytes = native_bits / 8;
+
+      alignment = 64;
+
+      int total_lanes = op->type().lanes();
+      int step        = native_bits / op->type().ElementOf().bits();
+
+      auto *buffer = Visit(&op->tensor);
+      auto *value  = Visit(&op->value);
+
+      // fit the total_lanes in native_lanes(split into multiple native steps)
+      for (int offset = 0; offset < total_lanes; offset += step) {
+        int lanes   = std::min(step, total_lanes - offset);
+        Expr base   = common::AutoSimplify(ramp->base + offset);
+        auto *ptr   = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&base));
+        auto *vtype = llvm::VectorType::get(ll_type_of(op->type().ElementOf()), lanes)->getPointerTo();
+        llvm::StoreInst *inst =
+            b_->CreateAlignedStore(CreateVecSlice(value, offset, lanes), b_->CreatePointerCast(ptr, vtype), alignment);
+        return inst;
+      }
+    }
+  }
+  return nullptr;
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Alloc *op) {
@@ -615,12 +812,23 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_IterVar_ *op) { __IR_EMITTER_NOT_IMPL
 llvm::Value *CodeGenLLVM::Visit(const ir::_Buffer_ *op) { return GetVar(op->name); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Tensor_ *op) {
+  CHECK(!op->inlined());
+  return GetVar(op->name);
   auto *buffer_op = op->buffer.As<ir::_Buffer_>();
-  CHECK(!named_vars_->count(buffer_op->name));
+  // return (*named_vars_)[buffer_op->name] = Visit(buffer_op);
+  if (named_vars_->count(buffer_op->name)) {
+    return Visit(buffer_op);
+  }
+
   return SetVar(buffer_op->name, Visit(buffer_op));
+  // CHECK(!named_vars_->count(buffer_op->name)) << "[" << NodeToExpr(buffer_op) << "], " << buffer_op->name << "
+  // already exists"; return SetVar(buffer_op->name, Visit(buffer_op));
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
+  auto init_function_state = [this]() { alias_vars_.clear(); };
+  init_function_state();
+
   CHECK_EQ(op->alloc_output_buffer_exprs.size(), op->dealloc_output_buffer_exprs.size())
       << "the count of allocation and deallocaton expressions is not match";
 
@@ -693,10 +901,26 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
 llvm::Value *CodeGenLLVM::Visit(const ir::Let *op) {
   CHECK(op->type().valid());
   auto name = op->symbol.As<ir::_Var_>()->name;
+  if (op->symbol.As<ir::_Var_>()->type().is_cpp_handle()) {
+    alias_vars_.insert(const_cast<ir::_Var_ *>(op->symbol.As<ir::_Var_>()));
+  }
   if (op->body.defined()) {
     SetVar(name, Visit(&op->body));
   } else {
-    SetVar(name, Alloca(CinnTypeToLLVMType(op->type(), m_), nullptr, name));
+    llvm::AllocaInst *inst = Alloca(CinnTypeToLLVMType(op->type(), m_), nullptr, name);
+    auto get_align         = [](int n) {
+      int i{0}, r{1};
+      while (n > r) {
+        r *= 2;
+        ++i;
+      }
+      return r / 8;
+    };
+    int align_bits = std::max<int>(op->type().bits(), 8);
+    int align      = get_align(align_bits);
+    inst->setAlignment(llvm::Align(align));
+    SetVar(name, inst);
+    // SetVar(name, Alloca(CinnTypeToLLVMType(op->type(), m_), nullptr, name));
   }
 
   return GetVar(name);
@@ -706,7 +930,19 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Reduce *op) { __IR_EMITTER_NOT_IMPLEME
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Ramp *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::Broadcast *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
+llvm::Value *CodeGenLLVM::Visit(const ir::Broadcast *op) {
+  llvm::Value *value    = Visit(&op->value);
+  llvm::Constant *undef = llvm::UndefValue::get(llvm::VectorType::get(value->getType(), op->lanes));
+  llvm::Constant *zero  = llvm::ConstantInt::get(ll_int32_ty(), 0);
+  value                 = b_->CreateInsertElement(undef, value, zero, "broadcast");
+#if LLVM_VERSION >= 110
+  const llvm::ElementCount elem_count(op->lanes, /*scalable*/ false);
+#else
+  const int elem_count = op->lanes;
+#endif
+  llvm::Constant *zeros = llvm::ConstantVector::getSplat(elem_count, zero);
+  return b_->CreateShuffleVector(value, undef, zeros, "broadcast_shuffle");
+}
 
 llvm::Value *CodeGenLLVM::Visit(const ir::FracOp *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
 
@@ -804,6 +1040,9 @@ llvm::FunctionType *CodeGenLLVM::GenFunctionTypeFromCinnFunction(const ir::_Lowe
   auto func_ret_type = CinnTypeToLLVMType(Void(), m_);
   std::vector<llvm::Type *> arg_types;
   for (auto &arg : func->args) {
+    if (arg.is_buffer() && arg.is_var()) {
+      alias_vars_.insert(arg.var_arg().get());
+    }
     if (arg.is_var()) {
       arg_types.push_back(CinnTypeToLLVMType(arg.var_arg()->type(), m_));
     } else if (arg.is_buffer()) {
@@ -818,11 +1057,86 @@ llvm::FunctionType *CodeGenLLVM::GenFunctionTypeFromCinnFunction(const ir::_Lowe
   return llvm::FunctionType::get(func_ret_type, arg_types, false);
 }
 
+llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
+  auto index = op->index();
+  auto *ramp = index.As<ir::Ramp>();
+  CHECK(ramp);
+
+  int alignment = op->type().bits();
+
+  // for x86_64
+  // TODO(Superjomn) replae this with arch.
+  int native_bits  = 512;
+  int native_bytes = native_bits / 8;
+
+  alignment = 64;
+
+  int load_lanes   = op->type().lanes();
+  int native_lanes = native_bits / op->type().bits();
+
+  std::vector<llvm::Value *> slices;
+
+  llvm::Value *buffer = Visit(&op->tensor);
+  buffer->setName("buffer");
+
+  for (int i = 0; i < load_lanes; i += native_lanes) {
+    int slice_lanes   = std::min(native_lanes, load_lanes - i);
+    auto slice_base   = common::AutoSimplify(ramp->base + i);
+    auto slide_stride = Expr(1);
+    auto slide_index  = slice_base;
+
+    llvm::Type *slice_type = llvm::VectorType::get(CinnTypeToLLVMType(op->type().ElementOf(), m_), slice_lanes);
+
+    llvm::Value *elt_ptr = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&slice_base));
+    llvm::Value *vec_ptr = b_->CreatePointerCast(elt_ptr, slice_type->getPointerTo(), "get_vec_ptr");
+
+    llvm::Instruction *load_inst = b_->CreateAlignedLoad(vec_ptr, llvm::Align(alignment), "load_vec");
+
+    slices.push_back(load_inst);
+  }
+
+  CHECK_EQ(slices.size(), 1UL);
+
+  return slices[0];
+}
+
+llvm::Value *CodeGenLLVM::CreateBufferVecPtr(Type t, llvm::Value *buffer, llvm::Value *index) {
+  CHECK_GT(t.lanes(), 1) << "type is not a vector type: " << t;
+  llvm::PointerType *btype = llvm::dyn_cast<llvm::PointerType>(buffer->getType());
+  CHECK(btype);
+  llvm::PointerType *ptype = CinnTypeToLLVMType(t, m_)->getPointerTo(btype->getAddressSpace());
+  if (btype != ptype) {
+    buffer = b_->CreatePointerCast(buffer, ptype);
+  }
+  return b_->CreateInBoundsGEP(buffer, index);
+}
+
+llvm::Value *CodeGenLLVM::CreateBufferPtr(Type t, llvm::Value *buffer, llvm::Value *index) {
+  CHECK_EQ(t.lanes(), 1);
+  auto *btype = llvm::dyn_cast<llvm::PointerType>(buffer->getType());
+  CHECK(btype);
+  auto *ptype = CinnTypeToLLVMType(t, m_)->getPointerTo(btype->getAddressSpace());
+  CHECK(ptype);
+  if (btype != ptype) {
+    buffer = b_->CreatePointerCast(buffer, ptype, "pointer_cast");
+  }
+  return b_->CreateInBoundsGEP(buffer, index, "buffer_ptr");
+}
+
+llvm::Value *CodeGenLLVM::CreateVecSlice(llvm::Value *vec, int begin, int lanes) {
+  int total_lanes = static_cast<int>(vec->getType()->getVectorNumElements());
+  CHECK_LE(begin + lanes, total_lanes);
+  if (lanes == total_lanes && begin == 0) return vec;  // full slice
+  std::vector<llvm::Constant *> indices;
+  for (int i = 0; i < lanes; ++i) {
+    indices.push_back(ll_const_int32(begin + i));
+  }
+  llvm::Constant *undef = llvm::UndefValue::get(vec->getType());
+  return b_->CreateShuffleVector(vec, undef, llvm::ConstantVector::get(indices));
+}
+
 bool LLVM_WillVarLowerAsPointer(const std::string &var_name) {
-  if (var_name == "_args" ||  //
-      utils::Endswith(var_name, "__ptr"))
-    return true;
-  return false;
+  return var_name == "_args" || utils::Endswith(var_name, "__ptr");
 }
 
 }  // namespace backends
