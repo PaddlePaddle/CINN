@@ -232,8 +232,16 @@ class IrBuilderMixin {
     return mixin_builder()->CreateLoad(std::forward<Args>(args)...);
   }
   template <typename... Args>
+  decltype(auto) AlignedLoad(Args &&... args) {
+    return mixin_builder()->CreateAlignedLoad(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
   decltype(auto) Store(Args &&... args) {
     return mixin_builder()->CreateStore(std::forward<Args>(args)...);
+  }
+  template <typename... Args>
+  decltype(auto) AlignedStore(Args &&... args) {
+    return mixin_builder()->CreateAlignedStore(std::forward<Args>(args)...);
   }
   template <typename... Args>
   decltype(auto) Call(Args &&... args) {
@@ -265,6 +273,16 @@ class IrBuilderMixin {
   template <typename... Args>
   decltype(auto) ExtractValue(Args &&... args) {
     return mixin_builder()->CreateExtractValue(std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  decltype(auto) InsertElement(Args &&... args) {
+    return mixin_builder()->CreateInsertElement(std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  decltype(auto) ShuffleVector(Args &&... args) {
+    return mixin_builder()->CreateShuffleVector(std::forward<Args>(args)...);
   }
 
  private:

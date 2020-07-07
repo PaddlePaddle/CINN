@@ -129,6 +129,7 @@ TEST(test02, basic) {
   compare();                                                                   \
   reset();
 
+  /*
   TEST_FUNC(matmul)
 
   TEST_FUNC(matmul_tile)
@@ -150,6 +151,7 @@ TEST(test02, basic) {
   TEST_FUNC3(matmul_array_packing_dynamic_shape, 1e-5);
 
   TEST_FUNC(matmul_main);
+   */
 
 #define TEST_LLVM_MATMUL(test_name, TARGET)                                                                      \
   do {                                                                                                           \
@@ -157,6 +159,14 @@ TEST(test02, basic) {
     auto engine             = cinn::tests::CreateExecutionEngine(module);                                        \
     auto matmul_##test_name = reinterpret_cast<void (*)(void**, int32_t)>(engine->Lookup("matmul_" #test_name)); \
     TEST_FUNC(matmul_##test_name);                                                                               \
+  } while (false)
+
+#define TEST_LLVM_MATMUL1(test_name, TARGET)                                                                     \
+  do {                                                                                                           \
+    auto module             = cinn::tests::CreateCinnMatmulModule(#test_name, TARGET, 1024, 1024, 1024);         \
+    auto engine             = cinn::tests::CreateExecutionEngine(module);                                        \
+    auto matmul_##test_name = reinterpret_cast<void (*)(void**, int32_t)>(engine->Lookup("matmul_" #test_name)); \
+    TEST_FUNC1(matmul_##test_name, 1e-5);                                                                        \
   } while (false)
 
   cinn::Target target;
@@ -167,7 +177,9 @@ TEST(test02, basic) {
   TEST_LLVM_MATMUL(basic, target);
   TEST_LLVM_MATMUL(tile, target);
   TEST_LLVM_MATMUL(block, target);
-  // TEST_LLVM_MATMUL(vectorize);
+  TEST_LLVM_MATMUL(vectorize, target);
+  TEST_LLVM_MATMUL(loop_permutation, target);
+  TEST_LLVM_MATMUL1(array_packing, target);
 
   {
     auto module    = cinn::tests::CreateMatmulBasicModule(target, 1024, 1024, 1024);

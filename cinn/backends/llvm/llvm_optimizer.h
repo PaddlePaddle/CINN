@@ -13,7 +13,7 @@ namespace cinn::backends {
 // TODO(fc500110): define class OptimizeOptions
 
 // llvm module optimizer
-class LLVMModuleOptimizer {
+class LLVMModuleOptimizer final {
  public:
   explicit LLVMModuleOptimizer(llvm::TargetMachine *machine,
                                int opt_level,

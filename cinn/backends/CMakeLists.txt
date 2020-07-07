@@ -9,6 +9,7 @@ set(srcs outputs.cc
         function_prototype.cc
         extern_func_protos.cc
         extern_func_jit_register.cc
+        modular.cc
         # cuda_util.cc
         # nvrtc_util.cc
 )

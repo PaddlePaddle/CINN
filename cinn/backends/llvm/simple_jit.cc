@@ -15,6 +15,8 @@
 #include <llvm/Transforms/Scalar/Reassociate.h>
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
 
+#include <utility>
+
 #include "cinn/backends/codegen_cuda_host.h"
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
@@ -27,7 +29,7 @@ namespace cinn {
 namespace backends {
 
 void SimpleJIT::AddModule(std::unique_ptr<llvm::Module> module, bool optimize) {
-  CHECK(!llvm::verifyModule(*module, &llvm::errs())) << "Transformation resulted in an invalid module";
+  CHECK(!llvm::verifyModule(*module, &llvm::errs())) << "Transformation resulted in an invalid module\n\nmodule:\n";
 
   bool debug = false;
   if (optimize) {
@@ -78,7 +80,7 @@ SimpleJIT::SimpleJIT() : context_(std::make_unique<llvm::LLVMContext>()) {
   llvm::orc::MangleAndInterner mangle(jit_->getExecutionSession(), jit_->getDataLayout());
 
   for (auto &item : RuntimeSymbolRegistry::Global().All()) {
-    LOG(INFO) << "Insert [" << item.first << "] to SimpleJIT";
+    VLOG(2) << "Insert [" << item.first << "] to SimpleJIT";
     llvm::cantFail(jit_->defineAbsolute(*mangle(item.first), {llvm::pointerToJITTargetAddress(item.second), {}}));
   }
 }
@@ -99,7 +101,9 @@ void SimpleJIT::Link(lang::Module module, bool optimize) {
   for (auto &fn : module.functions()) {
     VLOG(1) << "JIT Linking function [" << fn->name << "]";
     ir::Expr fn_expr(fn);
-    ir_emitter->Visit(&fn_expr);
+    auto fnll = ir_emitter->Visit(&fn_expr);
+
+    VLOG(5) << "fn llvm:\n" << DumpToString(*fnll);
   }
 
   AddModule(std::move(m), optimize);
@@ -109,4 +113,5 @@ template void SimpleJIT::Link<CodeGenLLVM>(lang::Module module, bool optimize);
 template void SimpleJIT::Link<CodeGenCUDA_Host>(lang::Module module, bool optimize);
 
 }  // namespace backends
+
 }  // namespace cinn
