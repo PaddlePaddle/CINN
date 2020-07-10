@@ -181,5 +181,38 @@ isl_map *isl_rename_axis(isl_map *map, isl_dim_type dim_type, int offset, const 
   return isl_map_set_dim_name(map, dim_type, offset, name);
 }
 
+isl_set *isl_simplify(isl_set *set) {
+  set = isl_set_coalesce(set);
+  set = isl_set_remove_redundancies(set);
+  return set;
+}
+
+std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
+  CHECK(isl_set_dim_is_bounded(set, isl_dim_set, pos)) << "an unbound cannot get range, " << isl_set_to_str(set);
+
+  std::vector<std::string> from_iters;
+  std::string target_axis_name;
+  for (int i = 0; i < isl_set_dim(set, isl_dim_set); i++) {
+    auto *name = isl_set_get_dim_name(set, isl_dim_set, i);
+    if (name) {
+      from_iters.push_back(name);
+    } else {
+      from_iters.push_back("__emp__" + std::to_string(i));
+    }
+    if (pos == i) target_axis_name = from_iters.back();
+  }
+
+  isl::aff aff(isl_set_get_ctx(set),
+               utils::StringFormat("{ %s[%s] -> [%s] }",
+                                   isl_set_get_tuple_name(set),           // tuple
+                                   utils::Join(from_iters, ",").c_str(),  // [...]
+                                   target_axis_name.c_str()));
+
+  isl::val max_val = isl::manage(isl_set_max_val(set, aff.get()));
+  isl::val min_val = isl::manage(isl_set_min_val(set, aff.get()));
+
+  return std::make_tuple(min_val, max_val);
+}
+
 }  // namespace poly
 }  // namespace cinn

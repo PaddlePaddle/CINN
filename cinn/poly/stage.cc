@@ -6,12 +6,17 @@
 
 #include "cinn/common/axis.h"
 #include "cinn/ir/collect_ir_nodes.h"
+#include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
 #include "cinn/lang/compute.h"
+#include "cinn/lang/tensor.h"
+#include "cinn/optim/ir_replace.h"
+#include "cinn/poly/compute_at_transform.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/utils/functional.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace poly {
@@ -167,6 +172,24 @@ void Stage::ComputeAt(Stage *other, int level, ComputeAtKind kind) {
   }
 }
 
+void Stage::ComputeAt2(Stage *other, int level, Stage::ComputeAtKind kind) {
+  auto accesses = GatherAccesses(other, tensor_->name);
+
+  ComputeAtTransform transform(domain_, other->transformed_domain(), accesses, transform_, level);
+
+  domain_    = transform.adjusted_pdomain();
+  transform_ = transform.adjusted_ptransform();
+
+  ir::ComputeAtInfo info;
+  info.consumer_tensor_name = tensor_->name;
+  info.level                = level;
+  info.offsets              = transform.offsets();
+  info.ranges               = transform.ranges;
+  other->tensor_->compute_at_infos.push_back(info);
+
+  ComputeAt(other, level, kind);
+}
+
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
   NOT_IMPLEMENTED
   Iterator i_new(i.id + "_skew");
@@ -298,8 +321,6 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
   self_partial_set  = isl::manage(isl_set_set_tuple_name(self_partial_set.release(), ""));
   VLOG(3) << "stage0.partial_set " << stage_partial_set;
   VLOG(3) << "stage1.partial_set " << self_partial_set;
-
-  LOG(INFO) << "compatible:\n" << stage_partial_set << "\n" << self_partial_set;
   return isl_set_is_equal(stage_partial_set.get(), self_partial_set.get());
 }
 
@@ -523,6 +544,33 @@ void Stage::ShareBufferWith(ir::Tensor other) {
 }
 
 void Stage::CtrlDepend(const ir::Tensor &t) { add_extra_depend_stage(t->name); }
+
+std::vector<isl::map> GatherAccesses(Stage *stage, const std::string &tensor_name) {
+  CHECK(stage->tensor_);
+  auto loads = ir::CollectIRNodes(stage->tensor_->body(), [&](const Expr *x) {
+    return x->As<ir::Load>() && x->As<ir::Load>()->tensor.as_tensor()->name == tensor_name;
+  });
+
+  auto vars = stage->tensor_->axis_with_reduce();
+
+  std::string in_tuple_name  = stage->tensor_->name;
+  std::string out_tuple_name = tensor_name;
+  std::vector<std::string> in_dim_names, out_loads;
+  std::transform(vars.begin(), vars.end(), std::back_inserter(in_dim_names), [](const Var &x) { return x->name; });
+  std::transform(
+      loads.begin(), loads.end(), std::back_inserter(out_loads), [](const Expr &x) { return utils::GetStreamCnt(x); });
+
+  std::vector<isl::map> res;
+
+  for (auto &load : out_loads) {
+    std::string repr = utils::StringFormat(
+        "{ %s[%s] -> %s }", in_tuple_name.c_str(), utils::Join(in_dim_names, ",").c_str(), load.c_str());
+    LOG(INFO) << "repr: " << repr;
+    res.push_back(isl::map(stage->domain().ctx(), repr));
+  }
+
+  return res;
+}
 
 }  // namespace poly
 }  // namespace cinn

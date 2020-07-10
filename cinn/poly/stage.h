@@ -141,6 +141,8 @@ class Stage : public Object {
    */
   void ComputeAt(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
 
+  void ComputeAt2(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
+
   /**
    * Apply loop skewing on the loop levels \p i and \p j with a skewing factor of \p factor.
    * TODO(Superjomn) Refine this transform.
@@ -255,6 +257,8 @@ class Stage : public Object {
   std::map<std::string, StageForloopInfo> forloop_infos_;
   //! A weak reference to the tensor.
   ir::_Tensor_* tensor_{};
+
+  friend std::vector<isl::map> GatherAccesses(Stage* stage, const std::string& tensor_name);
 };
 
 std::vector<std::pair<std::string, std::string>> ExtractExtraDepLinksFromStages(const std::vector<Stage*>& stages);
@@ -277,6 +281,11 @@ inline std::string OuterName(const std::string& name);
 inline std::string OuterName(const Iterator& iterator);
 
 inline Iterator DefaultIterator(int i) { return Iterator(common::axis_name(i)); }
+
+/**
+ * Collect the access to a tensor named \p tensor_name in \p stage.
+ */
+std::vector<isl::map> GatherAccesses(const Stage* stage, const std::string& tensor_name);
 
 }  // namespace poly
 }  // namespace cinn

@@ -275,6 +275,14 @@ Expr _Tensor_::body() const {
   NOT_IMPLEMENTED;
 }
 
+Expr *_Tensor_::mutable_body() {
+  if (is_placeholder_node()) return nullptr;
+  if (is_buffer_shared_node()) return nullptr;
+  if (is_compute_node()) return &operation->as<ir::ComputeOp>()->body.front();
+  if (is_call_node()) return &operation->as<ir::CallOp>()->call_expr;
+  NOT_IMPLEMENTED
+}
+
 Expr _Tensor_::tensor_store_expanded_body() {
   CHECK(!is_placeholder_node()) << "placeholder should not expand store";
 

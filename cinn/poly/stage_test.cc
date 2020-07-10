@@ -7,6 +7,7 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/cinn.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
@@ -105,6 +106,125 @@ TEST(Stage, Fuse1) {
   Iterator j("j");
   auto n = ele->Fuse(i, j);
   LOG(INFO) << "fused: " << ele->transform();
+}
+
+TEST(ComputeAt2, Before) {
+  Expr M(100), N(200);
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto A_cache = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "cache");
+  auto C = Compute(
+      {Expr(10), Expr(10)}, [&](Expr i, Expr j) { return A_cache(i, j) + B(i, j); }, "C");
+
+  A_cache->stage()->ComputeAt2(C->stage(), 1);
+
+  auto fn = Lower("fn", {A, B, A_cache, C});
+  LOG(INFO) << "fn:\n" << fn;
+
+  auto target = R"ROC(
+function fn (_A, _B, _cache, _C)
+{
+  for (_p0, 10)
+  {
+    for (_p1, 10)
+    {
+      cache[0, 0] = A[0, 0]
+      C[_p0, _p1] = (cache[0, 0] + B[_p0, _p1])
+    }
+  }
+}
+)ROC";
+
+  ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
+}
+
+TEST(ComputeAt2, level0) {
+  Expr M(100), N(200);
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto A_cache = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "cache");
+  auto C = Compute(
+      {Expr(10), Expr(10)},
+      [&](Expr i, Expr j) {
+        return common::select(i > 0, A_cache(i - 1, j) + A_cache(i, j) + A_cache(i + 1, j) + B(i, j), Expr(0.f));
+      },
+      "C");
+
+  A_cache->stage()->ComputeAt2(C->stage(), 0);
+
+  auto fn = Lower("fn", {A, B, A_cache, C});
+  LOG(INFO) << "fn:\n" << fn;
+
+  auto target = R"ROC(
+function fn (_A, _B, _cache, _C)
+{
+  for (_p0, 10)
+  {
+    for (i, 10)
+    {
+      if ((i <= 2)) {
+        for (j, 10)
+        {
+          cache[i, j] = A[i, j]
+        }
+      }
+      C[_p0, i] = select((_p0 > 0), (cache[0, i] + (cache[1, i] + (cache[2, i] + B[_p0, i]))), 0)
+    }
+  }
+}
+)ROC";
+
+  ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
+}
+
+TEST(ComputeAt2, level1) {
+  Expr M(100), N(200);
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto A_cache = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "cache");
+  auto C = Compute(
+      {Expr(10), Expr(10)},
+      [&](Expr i, Expr j) {
+        return common::select(i > 0, A_cache(i - 1, j) + A_cache(i, j) + A_cache(i + 1, j) + B(i, j), Expr(0.f));
+      },
+      "C");
+
+  A_cache->stage()->ComputeAt2(C->stage(), 1);
+
+  auto fn = Lower("fn", {A, B, A_cache, C});
+  LOG(INFO) << "fn:\n" << fn;
+
+  auto target = R"ROC(
+function fn (_A, _B, _cache, _C)
+{
+  for (_p0, 10)
+  {
+    for (_p1, 10)
+    {
+      for (i, 3)
+      {
+        cache[i, 0] = A[i, 0]
+      }
+      C[_p0, _p1] = select((_p0 > 0), (cache[0, 0] + (cache[1, 0] + (cache[2, 0] + B[_p0, _p1]))), 0)
+    }
+  }
+}
+)ROC";
+
+  Module::Builder builder("module", common::DefaultHostTarget());
+  builder.AddFunction(fn);
+
+  CodeGenC codegen(common::DefaultHostTarget());
+  codegen.SetInlineBuiltinCodes(false);
+  LOG(INFO) << "source:\n" << codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
+
+  ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
 }
 
 TEST(ComputeAt, Before) {
