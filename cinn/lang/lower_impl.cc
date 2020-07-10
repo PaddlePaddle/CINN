@@ -1,4 +1,6 @@
 #include "cinn/lang/lower_impl.h"
+#include "cinn/common/ir_util.h"
+#include "cinn/optim/ir_replace.h"
 
 #include <algorithm>
 #include <queue>
@@ -58,6 +60,9 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
     optim::ReplaceCallWithExpr(&e, statement.first, statement_candi_expr, axis);
   }
   CheckNoIslCallRemains(&e);
+
+  // deal with the compute_at relations
+  ProcessComputeAtInfo(&e);
 
   // mark vectorize.
   {
@@ -364,6 +369,92 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
   Expr body = ir::Block::Make(exprs);
   return body;
 }
+
+struct ProcessComputeAtInfoMutator : public ir::IRMutator<> {
+  std::string tensor_name;
+
+  ProcessComputeAtInfoMutator(const std::string& tensor_name) : tensor_name(tensor_name) {}
+
+  void operator()(Expr* e) { return ir::IRMutator<>::Visit(e, e); }
+
+  void Visit(const ir::PolyFor* op, Expr* expr) override {
+    forloop_stack.push_back(expr);
+    ir::IRMutator<>::Visit(op, expr);
+    forloop_stack.pop_back();
+  }
+
+  void Visit(const ir::For* op, Expr* expr) override {
+    forloop_stack.push_back(expr);
+    ir::IRMutator<>::Visit(op, expr);
+    forloop_stack.pop_back();
+  }
+
+  void Visit(const ir::Store* op, Expr* expr) override {
+    auto* node = expr->As<ir::Store>();
+
+    if (op->tensor.as_tensor()->name != tensor_name) {
+      ir::IRMutator<>::Visit(op, expr);
+      return;
+    }
+
+    auto& compute_at_infos = op->tensor.as_tensor()->compute_at_infos;
+    CHECK(!compute_at_infos.empty());
+
+    std::vector<Var> levels;
+    for (Expr* forloop : forloop_stack) {
+      auto* for_n      = forloop->As<ir::For>();
+      auto* poly_for_n = forloop->As<ir::PolyFor>();
+      if (for_n)
+        levels.push_back(for_n->loop_var);
+      else if (poly_for_n)
+        levels.push_back(poly_for_n->iterator);
+      else
+        NOT_IMPLEMENTED
+    }
+
+    for (auto& compute_at_info : compute_at_infos) {
+      LOG(INFO) << "compute_at: " << compute_at_info.consumer_tensor_name;
+      for (int i = 0; i <= compute_at_info.level; i++) {
+        auto var = levels[i];
+        // replace var in producer indice with zero
+        auto loads = ir::CollectIRNodes(node->value, [&](const Expr* x) {
+          return x->As<ir::Load>() &&
+                 x->As<ir::Load>()->tensor.as_tensor()->name == compute_at_info.consumer_tensor_name;
+        });
+
+        for (auto& load : loads) {
+          LOG(INFO) << "load " << load;
+          optim::IrReplace(&Reference(&load), Expr(var), Expr(0));
+        }
+
+        for (auto& load : loads) {
+          if (load.As<ir::Load>()->tensor.as_tensor()->inlined()) continue;
+          Reference(&load.As<ir::Load>()->indices[i]) = load.As<ir::Load>()->indices[i] + compute_at_info.offsets[i];
+          auto& tensor                                = Reference(&load).As<ir::Load>()->tensor;
+          auto& range                                 = compute_at_info.ranges[i];
+          tensor.as_tensor()->shape[i]                = Expr(range.second - range.first + 1);
+        }
+      }
+    }
+  }
+
+  std::vector<Expr*> forloop_stack;
+};
+
+void ProcessComputeAtInfo(Expr* expr) {
+  // 1. collect all the consumer tensors thouse have compute_at_infos.
+  // 2. for each producer tensor, reset the producer tensor loads indice.
+
+  auto tensor_with_compute_at_infos = ir::CollectIRNodes(
+      *expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->compute_at_infos.empty(); });
+
+  for (auto& tensor : tensor_with_compute_at_infos) {
+    LOG(INFO) << "consumer: " << tensor;
+    ProcessComputeAtInfoMutator(tensor.as_tensor()->name)(expr);
+  }
+}
+
+void ResizeComputeAtBuffer(Expr* expr) {}
 
 }  // namespace detail
 }  // namespace lang

@@ -149,6 +149,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     tensor->operation                    = operaion;
     tensor->name                         = name;
     tensor->compute_inline               = op->compute_inline;
+    tensor->compute_at_infos             = op->compute_at_infos;
     tensor->tensors_to_share_buffer_with = op->tensors_to_share_buffer_with;
     return tensor;
   }

@@ -41,5 +41,20 @@ isl_map* __isl_give isl_remove_axis_by_name(isl_map* __isl_take map, isl_dim_typ
 isl_set* __isl_give isl_rename_axis(isl_set* __isl_take set, int offset, const char* name);
 isl_map* __isl_give isl_rename_axis(isl_map* __isl_take map, isl_dim_type dim_type, int offset, const char* name);
 
+isl_set* __isl_give isl_simplify(isl_set* __isl_take set);
+
+//! get a minimum and maximum range of a set, if the bound not exists, return a INT_MAX instead.
+//! NOTE the set should be bound.
+//! returns: a tuple of (min, max)
+std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set* __isl_keep set, int pos);
+
+//! Port the set from \p from to \p to with the \p poses dims constraints remained.
+//! @param from The set to port.
+//! @param to The set to be.
+//! @param poses The dimensions to remained.
+isl_set* __isl_give isl_set_port_to_other(isl_set* __isl_give from,
+                                          isl_set* __isl_give to,
+                                          const std::vector<int>& poses);
+
 }  // namespace poly
 }  // namespace cinn
