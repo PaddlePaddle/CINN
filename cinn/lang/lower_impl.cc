@@ -470,21 +470,45 @@ void ResizeComputeAtBuffer(Expr* expr) {
   auto tensor_map = ir::CollectTensorMap(*expr, [&](const Expr* x) { return !x->as_tensor()->inlined(); });
 
   std::unordered_map<std::string, ir::ComputeAtInfo*> buffer_to_compute_at_info;
+  for (auto& item : tensor_map) {
+    auto& compute_at_infos = item.second.as_tensor()->compute_at_infos;
+    if (compute_at_infos.empty()) continue;
+    for (auto& compute_at : compute_at_infos) {
+      auto& producer_tensor = tensor_map.at(compute_at.producer_tensor_name);
+      buffer_to_compute_at_info[producer_tensor.as_tensor()->buffer->name] = &compute_at_infos.front();
+    }
+  }
 
   auto process_buffer = [&](ir::Buffer& buffer, const ir::ComputeAtInfo& compute_at_info) {
-    for (int i = 0; i < compute_at_info.level + 1; i++) {
+    for (int i = 0; i < compute_at_info.ranges.size(); i++) {
       buffer->shape[i] = Expr(compute_at_info.ranges[i].second - compute_at_info.ranges[i].first + 1);
     }
   };
 
-  for (auto& e : tensor_with_compute_at_infos) {
-    auto* t = e.as_tensor();
-    for (auto& compute_at_info : t->compute_at_infos) {
-      auto* ptensor = tensor_map.at(compute_at_info.producer_tensor_name).as_tensor();
-      // resize the buffer
-      LOG(INFO) << "resizing " << ptensor->buffer;
-      process_buffer(ptensor->buffer, compute_at_info);
+  // NOTE this not works on reduce axis.
+  auto process_tensor = [&](ir::_Tensor_* tensor, const ir::ComputeAtInfo& compute_at_info) {
+    for (int i = 0; i < compute_at_info.ranges.size(); i++) {
+      tensor->shape[i] = Expr(compute_at_info.ranges[i].second - compute_at_info.ranges[i].first + 1);
     }
+  };
+
+  auto tensors = ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->inlined(); });
+  for (auto& t : tensors) {
+    if (!buffer_to_compute_at_info.count(t.as_tensor()->buffer->name)) continue;
+    auto& buffer       = t.as_tensor()->buffer;
+    auto compute_at_it = buffer_to_compute_at_info.find(buffer->name);
+    if (compute_at_it != buffer_to_compute_at_info.end()) {
+      process_tensor(&Reference(t.as_tensor()), *compute_at_it->second);
+      process_buffer(Reference(t.as_tensor()).buffer, *compute_at_it->second);
+      LOG(INFO) << "*resizing buffer " << t;
+      LOG(INFO) << "*resizing tensor " << t.as_tensor()->buffer;
+    }
+  }
+
+  auto loads = ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->As<ir::Load>(); });
+  for (auto& item : loads) {
+    LOG(INFO) << "load: " << item << " index: " << item.As<ir::Load>()->index()
+              << " buffer: " << item.As<ir::Load>()->tensor.as_tensor()->buffer;
   }
 }
 

@@ -141,44 +141,86 @@ function fn (_A, _B, _cache, _C)
 }
 
 TEST(ComputeAt2, level0) {
-  Expr M(100), N(200);
-  Placeholder<float> A("A", {M, N});
-  Placeholder<float> B("B", {M, N});
+  Expr M(30), N(25);
+  Var bs("bs", Int(32));
+  Placeholder<float> A("A", {bs, M, N});
+  Placeholder<float> B("B", {bs, M, N});
 
   auto A_cache = Compute(
-      {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "cache");
+      {bs, M, N}, [&](Expr k, Expr i, Expr j) { return A(k, i, j); }, "cache");
   auto C = Compute(
-      {Expr(10), Expr(10)},
-      [&](Expr i, Expr j) {
-        return common::select(i > 0, A_cache(i - 1, j) + A_cache(i, j) + A_cache(i + 1, j) + B(i, j), Expr(0.f));
+      {bs, Expr(10), Expr(10)},
+      [&](Expr k, Expr i, Expr j) {
+        return common::select(
+            i > 0, A_cache(k, i - 1, j) + A_cache(k, i, j) + A_cache(k, i + 1, j) + B(k, i, j), Expr(0.f));
       },
       "C");
 
   A_cache->stage()->ComputeAt2(C->stage(), 0);
 
-  auto fn = Lower("fn", {A, B, A_cache, C});
+  auto fn = Lower("fn", {A, B, A_cache, C}, {Expr(bs)}, {});
   LOG(INFO) << "fn:\n" << fn;
 
   auto target = R"ROC(
-function fn (_A, _B, _cache, _C)
+function fn (bs, _A, _B, _cache, _C)
 {
-  for (_p0, 10)
+  for (_p0, bs)
   {
+    for (j, 11)
+    {
+      for (k, 10)
+      {
+        cache[0, j, k] = A[0, j, k]
+      }
+    }
     for (i, 10)
     {
-      if ((i <= 2)) {
-        for (j, 10)
-        {
-          cache[i, j] = A[i, j]
-        }
+      for (j, 10)
+      {
+        C[_p0, i, j] = select((i > 0), (cache[0, (-1 + i), j] + (cache[0, i, j] + (cache[0, (1 + i), j] + B[_p0, i, j]))), 0)
       }
-      C[_p0, i] = select((_p0 > 0), (cache[0, i] + (cache[1, i] + (cache[2, i] + B[_p0, i]))), 0)
     }
   }
 }
 )ROC";
-
   ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
+
+  Module::Builder builder("module", common::DefaultHostTarget());
+  builder.AddFunction(fn);
+
+  CodeGenC codegen(common::DefaultHostTarget());
+  codegen.SetInlineBuiltinCodes(false);
+  LOG(INFO) << "C code:\n" << codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
+
+  auto jit = backends::SimpleJIT::Create();
+  jit->Link(builder.Build(), false);
+
+  auto _fn_handler = jit->Lookup("fn");
+  auto* fn_handler = reinterpret_cast<lower_func_ptr_t>(_fn_handler);
+
+  // create buffer and args
+  auto A_buf     = common::BufferBuilder(Float(32), {10, M.as_int32(), N.as_int32()}).set_random().Build();
+  auto B_buf     = common::BufferBuilder(Float(32), {10, M.as_int32(), N.as_int32()}).set_random().Build();
+  auto C_buf     = common::BufferBuilder(Float(32), {10, M.as_int32(), N.as_int32()}).set_zero().Build();
+  auto Cache_buf = common::BufferBuilder(Float(32), {1, 11, 10}).set_zero().Build();
+  auto arg_pack  = common::ArgsBuilder().Add(10).Add(A_buf).Add(B_buf).Add(Cache_buf).Add(C_buf).Build();
+
+  fn_handler(arg_pack.data(), arg_pack.size());
+
+  auto* C_data = reinterpret_cast<float*>(C_buf->host_memory);
+  auto* A_data = reinterpret_cast<float*>(A_buf->host_memory);
+  auto* B_data = reinterpret_cast<float*>(B_buf->host_memory);
+
+  for (int k = 0; k < 10; k++) {
+    for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 10; j++) {
+        float val = i > 0 ? A_data[k * 100 + (i - 1) * 10 + j] + A_data[k * 100 + i * 10 + j] +
+                                A_data[k * 100 + (i + 1) * 10 + j] + B_data[k * 100 + i * 10 + j]
+                          : 0.f;
+        ASSERT_NEAR(val, C_data[i], 1e-5);
+      }
+    }
+  }
 }
 
 TEST(ComputeAt2, level1) {
@@ -346,7 +388,7 @@ void TestElementwiseAddJitPrecession(std::function<void(ir::Tensor*)>&& schedule
   auto jit = backends::SimpleJIT::Create();
   jit->Link(module_builder.Build(), false);
   auto _fn_handler = jit->Lookup("fn");
-  auto* fn_handler = reinterpret_cast<void (*)(void*, int)>(_fn_handler);
+  auto* fn_handler = reinterpret_cast<lower_func_ptr_t>(_fn_handler);
 
   // create buffer and args
   auto A_buf    = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();

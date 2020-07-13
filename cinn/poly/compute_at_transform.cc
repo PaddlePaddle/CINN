@@ -41,6 +41,7 @@ void ComputeAtTransform::ComputeAdjustedProducerDomain() {
         "{ %s[%s]: %s }", tuple, utils::Join(dim_names, ",").c_str(), utils::Join(conds, " and ").c_str());
     zero_limit = isl::manage(isl_set_read_from_str(pdomain.ctx().get(), repr.c_str()));
   }
+  VLOG(3) << "zero_limit: " << zero_limit;
   zero_limit = zero_limit.apply(access_union);
   /*
   for (i = 0; i < 100; i++) {
@@ -54,6 +55,9 @@ void ComputeAtTransform::ComputeAdjustedProducerDomain() {
   */
 
   offsets_.clear();
+
+  VLOG(3) << "zero_limit: " << zero_limit;
+  // TODO(Superjomn) Support dynamic dimensions to inference the range.
   for (int i = 0; i < level_ + 1; i++) {
     auto [min_v, max_v] = isl_set_get_axis_range(zero_limit.get(), i);
     int offset          = -min_v.num_si();
@@ -100,6 +104,19 @@ void ComputeAtTransform::ComputeAdjustedProducerDomain() {
     VLOG(3) << "consume domain: " << consume_domain;
     adjusted_pdomain_ = adjusted_pdomain().intersect(consume_domain);
     VLOG(3) << "*adjusted pdomain: " << adjusted_pdomain_;
+  }
+
+  {
+    ranges.clear();
+    offsets_.clear();
+    for (int i = 0; i < isl_set_dim(adjusted_pdomain_.get(), isl_dim_set); i++) {
+      auto [min_v, max_v] = isl_set_get_axis_range(adjusted_pdomain_.get(), i);
+      int offset          = -min_v.num_si();
+      ranges.emplace_back(min_v.num_si(), max_v.num_si());
+      offsets_.push_back(offset);
+      VLOG(3) << "axis " << i << ": offset " << offset << " range: " << ranges.back().first << " "
+              << ranges.back().second;
+    }
   }
 }
 

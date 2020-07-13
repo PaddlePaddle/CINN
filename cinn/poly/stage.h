@@ -245,6 +245,7 @@ class Stage : public Object {
   isl::set domain_;
   isl::map transform_;
   Expr expr_;
+  // this compute_at some other stages.
   std::map<std::string, ComputeAtRelation> compute_ats_;
   ir::VectorizeInfo vectorize_info_;
   //! The for-loop levels to unroll.
@@ -259,13 +260,16 @@ class Stage : public Object {
   ir::_Tensor_* tensor_{};
 
   friend std::vector<isl::map> GatherAccesses(Stage* stage, const std::string& tensor_name);
+  friend class PolyGroupScheduler;
 };
 
 std::vector<std::pair<std::string, std::string>> ExtractExtraDepLinksFromStages(const std::vector<Stage*>& stages);
 std::vector<std::pair<std::string, std::string>> ExtractLinksFromCalls(const std::vector<ir::Tensor>& tensors,
                                                                        bool with_placeholder = false);
 
+//! This stage compute_at some other stage.
 struct ComputeAtRelation {
+  //! the other stage.
   Shared<Stage> stage;
   int level{-1};
 
