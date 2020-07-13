@@ -256,7 +256,14 @@ void IrPrinter::Visit(const _Range_ *x) {
   os_ << ")";
 }
 
-void IrPrinter::Visit(const _Buffer_ *x) { os_ << "_Buffer_(" << x->name << ")"; }
+void IrPrinter::Visit(const _Buffer_ *x) {
+  std::vector<std::string> dim_names;
+  std::transform(x->shape.begin(), x->shape.end(), std::back_inserter(dim_names), [&](const Expr &x) {
+    return utils::GetStreamCnt(x);
+  });
+
+  os_ << "_Buffer_<" << utils::Join(dim_names, ",") << ">(" << x->name << ")";
+}
 void IrPrinter::Visit(const _Tensor_ *x) {
   CHECK(!x->shape.empty());
   os_ << "Tensor(";

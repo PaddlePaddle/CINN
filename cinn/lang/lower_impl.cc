@@ -1,10 +1,11 @@
 #include "cinn/lang/lower_impl.h"
-#include "cinn/common/ir_util.h"
-#include "cinn/optim/ir_replace.h"
 
 #include <algorithm>
 #include <queue>
 #include <unordered_set>
+
+#include "cinn/common/ir_util.h"
+#include "cinn/optim/ir_replace.h"
 
 namespace cinn {
 namespace lang {
@@ -318,6 +319,13 @@ ir::LoweredFunc LowerImpl::operator()() {
   optim::ComputeInlineExpand(&func->body);
 
   auto res = optim::Optimize(func, FLAGS_cinn_runtime_display_debug_info);
+
+  common::UnifyAllTensorsInExpr(&res);
+  common::UnifyAllBuffersInExpr(&res);
+
+  // The resize buffer
+  ResizeComputeAtBuffer(&res);
+
   return ir::LoweredFunc(res.get());
 }
 
@@ -413,13 +421,13 @@ struct ProcessComputeAtInfoMutator : public ir::IRMutator<> {
     }
 
     for (auto& compute_at_info : compute_at_infos) {
-      LOG(INFO) << "compute_at: " << compute_at_info.consumer_tensor_name;
+      LOG(INFO) << "compute_at: " << compute_at_info.producer_tensor_name;
       for (int i = 0; i <= compute_at_info.level; i++) {
         auto var = levels[i];
         // replace var in producer indice with zero
         auto loads = ir::CollectIRNodes(node->value, [&](const Expr* x) {
           return x->As<ir::Load>() &&
-                 x->As<ir::Load>()->tensor.as_tensor()->name == compute_at_info.consumer_tensor_name;
+                 x->As<ir::Load>()->tensor.as_tensor()->name == compute_at_info.producer_tensor_name;
         });
 
         for (auto& load : loads) {
@@ -454,7 +462,31 @@ void ProcessComputeAtInfo(Expr* expr) {
   }
 }
 
-void ResizeComputeAtBuffer(Expr* expr) {}
+void ResizeComputeAtBuffer(Expr* expr) {
+  auto tensor_with_compute_at_infos = ir::CollectIRNodes(*expr, [&](const Expr* x) {
+    return x->as_tensor() && !x->as_tensor()->inlined() && !x->as_tensor()->compute_at_infos.empty();
+  });
+
+  auto tensor_map = ir::CollectTensorMap(*expr, [&](const Expr* x) { return !x->as_tensor()->inlined(); });
+
+  std::unordered_map<std::string, ir::ComputeAtInfo*> buffer_to_compute_at_info;
+
+  auto process_buffer = [&](ir::Buffer& buffer, const ir::ComputeAtInfo& compute_at_info) {
+    for (int i = 0; i < compute_at_info.level + 1; i++) {
+      buffer->shape[i] = Expr(compute_at_info.ranges[i].second - compute_at_info.ranges[i].first + 1);
+    }
+  };
+
+  for (auto& e : tensor_with_compute_at_infos) {
+    auto* t = e.as_tensor();
+    for (auto& compute_at_info : t->compute_at_infos) {
+      auto* ptensor = tensor_map.at(compute_at_info.producer_tensor_name).as_tensor();
+      // resize the buffer
+      LOG(INFO) << "resizing " << ptensor->buffer;
+      process_buffer(ptensor->buffer, compute_at_info);
+    }
+  }
+}
 
 }  // namespace detail
 }  // namespace lang

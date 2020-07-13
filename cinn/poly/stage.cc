@@ -181,7 +181,7 @@ void Stage::ComputeAt2(Stage *other, int level, Stage::ComputeAtKind kind) {
   transform_ = transform.adjusted_ptransform();
 
   ir::ComputeAtInfo info;
-  info.consumer_tensor_name = tensor_->name;
+  info.producer_tensor_name = tensor_->name;
   info.level                = level;
   info.offsets              = transform.offsets();
   info.ranges               = transform.ranges;

@@ -10,5 +10,8 @@ namespace ir {
  */
 std::set<Expr> CollectIRNodes(Expr x, std::function<bool(const Expr*)>&& teller);
 
+std::map<std::string, Expr> CollectTensorMap(
+    Expr x, std::function<bool(const Expr*)>&& extra_teller = [](const Expr* x) { return true; });
+
 }  // namespace ir
 }  // namespace cinn
