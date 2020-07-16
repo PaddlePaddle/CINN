@@ -85,6 +85,7 @@ isl::ast_expr CreateIslAstIndexExpression(isl_ast_build* build, const isl::map& 
 
 std::map<std::string, isl::ast_expr> AstGen::ExtractIslTransformedIndiceMap(const isl::set& iterator_domain,
                                                                             isl_ast_build* build) {
+  LOG(INFO) << "testing " << iterator_domain;
   std::map<std::string, isl::ast_expr> iterator_map;
   isl::map identity = isl::manage(isl_set_identity(iterator_domain.copy()));
   isl::map schedule = identity;
@@ -97,7 +98,9 @@ std::map<std::string, isl::ast_expr> AstGen::ExtractIslTransformedIndiceMap(cons
     if (isl_space_has_dim_name(domain_space.get(), isl_dim_set, i - 1)) {
       std::string original_idx_name   = isl_space_get_dim_name(domain_space.get(), isl_dim_set, i - 1);
       isl::ast_expr transformed_index = isl::manage(isl_ast_expr_get_op_arg(idx_expr.get(), i));
+      LOG(INFO) << "axis-"<< i-1 << " is " << isl_ast_expr_to_C_str(transformed_index.get());
       iterator_map.emplace(original_idx_name, transformed_index);
+      iterator_map.emplace(std::to_string(i-1), transformed_index);
     }
   }
 
@@ -108,6 +111,17 @@ const std::map<std::string, isl::ast_expr>& AstGen::axis2ast(const std::string& 
   auto it = transformed_indice_map_.find(tuple_name);
   CHECK(it != transformed_indice_map_.end()) << "no id " << tuple_name;
   return it->second;
+}
+
+const std::map<std::string, Expr> AstGen::axis2expr(const std::string& tuple_name) const {
+  const auto& axis_to_ast = axis2ast(tuple_name);
+  std::map<std::string, Expr> res;
+  for (auto item : axis_to_ast) {
+    Expr expr;
+    IslAstExprToCinnExpr(item.second, &expr);
+    res[item.first] = expr;
+  }
+  return res;
 }
 
 isl::ast_expr CreateIslAstIndexExpression(isl_ast_build* build, const isl::map& access) {

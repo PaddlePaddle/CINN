@@ -44,26 +44,31 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   isl::ast_node ast = gen.Build();
   ir::Expr e;
   poly::IslAstNodeToCinnExpr(ast, &e);
+  // now we get a workable expression, but the statement are something like `B(((16 * po0) + po1), po2)`, we need to
+  // transform this to some realworld statement in CINN.
 
   VLOG(1) << "ast to expr: \n" << e << std::endl;
 
-  // replace call to the corresponding statement
+  // replace isl call to the corresponding CINN statement, we need to replace the axis at the same time.
   for (auto& statement : tuple_to_expr) {
+    LOG(INFO) << "working on statement: " << statement.first;
     if (!gen.ContainsStatement(statement.first)) continue;
-    auto axis_ast_map         = gen.axis2ast(statement.first);
+    // the axis_ast_map contains the axis from the original (like `i`) to the transformed (like `i+3`).
+    auto axis_expr_map = gen.axis2expr(statement.first);
+    for (auto& item : axis_expr_map) {
+      LOG(INFO) << "axis: " << item.first << " " << item.second;
+    }
+
+    // the original CINN statements.
     Expr statement_candi_expr = tuple_to_expr.at(statement.first);
 
-    std::map<std::string, Expr> axis;
-    for (auto& item : axis_ast_map) {
-      poly::IslAstExprToCinnExpr(item.second, &axis[item.first]);
-    }
     VLOG(3) << "replacing " << statement.first << " to " << statement_candi_expr;
-    optim::ReplaceCallWithExpr(&e, statement.first, statement_candi_expr, axis);
+    optim::ReplaceCallWithExpr(&e, statement.first, statement_candi_expr, axis_expr_map);
   }
   CheckNoIslCallRemains(&e);
 
   // deal with the compute_at relations
-  ProcessComputeAtInfo(&e);
+  // ProcessComputeAtInfo(&e);
 
   // mark vectorize.
   {
@@ -322,9 +327,6 @@ ir::LoweredFunc LowerImpl::operator()() {
 
   common::UnifyAllTensorsInExpr(&res);
   common::UnifyAllBuffersInExpr(&res);
-
-  // The resize buffer
-  ResizeComputeAtBuffer(&res);
 
   return ir::LoweredFunc(res.get());
 }

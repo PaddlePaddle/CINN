@@ -33,7 +33,7 @@ void IrPrinter::Visit(const NE *x) { PrintBinaryOp("!=", x); }
 void IrPrinter::Visit(const LT *x) { PrintBinaryOp("<", x); }
 void IrPrinter::Visit(const LE *x) { PrintBinaryOp("<=", x); }
 void IrPrinter::Visit(const GT *x) { PrintBinaryOp(">", x); }
-void IrPrinter::Visit(const GE *x) { PrintBinaryOp("<=", x); }
+void IrPrinter::Visit(const GE *x) { PrintBinaryOp(">=", x); }
 void IrPrinter::Visit(const And *x) { PrintBinaryOp("and", x); }
 void IrPrinter::Visit(const Or *x) { PrintBinaryOp("or", x); }
 void IrPrinter::Visit(const Activate *x) {

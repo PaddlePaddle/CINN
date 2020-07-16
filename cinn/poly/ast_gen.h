@@ -40,6 +40,8 @@ class AstGen {
   //! Get the map from original CINN iterators to the transformed actual ISL ast nodes.
   const std::map<std::string, isl::ast_expr>& axis2ast(const std::string& tuple_name) const;
 
+  const std::map<std::string, Expr> axis2expr(const std::string& tuple_name) const;
+
   bool ContainsStatement(const std::string& name) const { return transformed_indice_map_.count(name); }
 
   void SetBuildOptions(const isl::union_map& options) { build_options_ = options; }
@@ -54,9 +56,11 @@ class AstGen {
   //! Return a map composed of all the transforms.
   isl::union_map transform();
 
-  //! Replace the Expr with the transformed indices.
-  //! e.g. Stage's expr is C[i,j] ...
-  //! e.g. with ISL transformed statement S0(c0+1, c1*2), the expr will turn to C[c0+1, c1*2]
+  /**
+   * Help to collect the map from the axis(and the pos) in statement to the transformed indice.
+   * e.g. If s[i,j] will be generated to something like s[a+2, b] in the final AST, this will return
+   * - a map { i->a+2, j->b, 0->a+2, 1->b }.
+   */
   static std::map<std::string, isl::ast_expr> ExtractIslTransformedIndiceMap(const isl::set& iterator_domain,
                                                                              isl_ast_build* build);
 

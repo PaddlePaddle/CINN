@@ -190,6 +190,27 @@ void Stage::ComputeAt2(Stage *other, int level, Stage::ComputeAtKind kind) {
   ComputeAt(other, level, kind);
 }
 
+void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
+  auto accesses = GatherAccesses(other, tensor_->name);
+  auto access   = accesses[0];
+  for (int i = 1; i < accesses.size(); i++) {
+    access = isl::manage(isl_map_union(access.release(), accesses[i].copy()));
+  }
+
+  ComputeAtTransform2 transform(domain_, other->domain(), access, transform_, other->transform(), level);
+  transform();
+
+  domain_    = transform.adjusted_pdomain();
+  transform_ = transform.adjusted_ptransform();
+
+  domain_ = SetDimNameIfNull(domain_.release(), [](isl_dim_type dim_type, int i) { return "pp" + std::to_string(i); });
+  transform_ = SetDimNameIfNull(transform_.release(), [](isl_dim_type dim_type, int i) {
+    return (dim_type == isl_dim_in ? "pi" : "po") + std::to_string(i);
+  });
+
+  ComputeAt(other, level, kind);
+}
+
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
   NOT_IMPLEMENTED
   Iterator i_new(i.id + "_skew");
@@ -319,6 +340,18 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
 
   stage_partial_set = isl::manage(isl_set_set_tuple_name(stage_partial_set.release(), ""));
   self_partial_set  = isl::manage(isl_set_set_tuple_name(self_partial_set.release(), ""));
+
+  // remove parameters, we don't consider them yet
+  auto remove_params = [](isl::set &set) {
+    int nparams = isl_set_dim(set.get(), isl_dim_param);
+    if (nparams > 0) {
+      set = isl::manage(isl_set_remove_dims(set.release(), isl_dim_param, 0, nparams));
+    }
+  };
+
+  remove_params(stage_partial_set);
+  remove_params(self_partial_set);
+
   VLOG(3) << "stage0.partial_set " << stage_partial_set;
   VLOG(3) << "stage1.partial_set " << self_partial_set;
   return isl_set_is_equal(stage_partial_set.get(), self_partial_set.get());
