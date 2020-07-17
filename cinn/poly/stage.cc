@@ -525,7 +525,7 @@ ir::Tensor Stage::CacheWrite(const std::string &memory_type) {
   write_stage->stage()->CtrlDepend(my_tensor);
 
   CHECK(!tensor_->write_cache_relation) << "Duplicate write cache found, just one is allowed";
-  tensor_->write_cache_relation.reset(new ir::WriteCacheRelaton{cache_name});
+  tensor_->write_cache_relation.reset(new ir::WriteCacheRelation{cache_name});
 
   return write_stage;
 }
