@@ -178,8 +178,6 @@ std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& te
   return graph;
 }
 
-void CloneCompGraph(const common::Graph& comp_graph, poly::DataFlowGraph* dfg) { CHECK(dfg); }
-
 void LowerImpl::CheckArgsUnique() {
   std::unordered_set<std::string> arg_names;
   for (auto& tensor : tensor_args_) {

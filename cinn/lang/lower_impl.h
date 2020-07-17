@@ -74,13 +74,6 @@ struct CompuGraphNode : public common::GraphNode {
  */
 std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& tensors, bool hide_inline = false);
 
-/**
- * Clone a CompGraph to a DataFlowGraph
- * @param comp_graph a computation graph.
- * @param dfg a data flow graph.
- */
-void CloneCompGraph(const common::Graph& comp_graph, poly::DataFlowGraph* dfg);
-
 class LowerImpl {
  public:
   /**

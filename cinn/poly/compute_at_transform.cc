@@ -135,7 +135,8 @@ isl_map* ComputeAtTransform2::AddParamsTo(isl_map* map) {
 
   // set name
   for (int i = 0; i < level_ + 1; i++) {
-    std::string pname = utils::StringFormat("_%s_%d", ctuple(), i);
+    // here the prefix "_cp_" is the shorthand of "consumer parameter"
+    std::string pname = utils::StringFormat("_cp_%s_%d", ctuple(), i);
     map               = isl_map_set_dim_name(map, isl_dim_param, existing_params + i, pname.c_str());
   }
   return map;
