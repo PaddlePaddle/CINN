@@ -422,6 +422,7 @@ static std::ostream& operator<<(std::ostream& os, MemoryType t) {
       LOG(FATAL) << "Not supported memory type";
 #undef __
   }
+  return os;
 }
 
 template <typename T>

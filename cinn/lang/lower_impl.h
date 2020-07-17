@@ -34,73 +34,6 @@ namespace lang {
 namespace detail {
 
 /**
- * Mark the PolyFor as Vectorized if it is scheduled Vectorize in Stage.
- */
-struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
-  const std::map<std::string, ir::VectorizeInfo>& vectorizes;
-
-  explicit MarkVectorizeMutator(const std::map<std::string /*tensor name*/, ir::VectorizeInfo>& vectorizes)
-      : vectorizes(vectorizes) {}
-
-  void operator()(Expr* expr) { ir::IRMutator<Expr*>::Visit(expr, expr); }
-
-  // NOTE This mutator takes PolyFor as input, not For.
-  void Visit(const ir::PolyFor* op, Expr* expr) override {
-    auto* node = expr->As<ir::PolyFor>();
-    stack.push_back(node);
-    ir::IRMutator<ir::Expr*>::Visit(op, expr);
-    stack.pop_back();
-  }
-
-  // each statement in ISL is bound to a Store node.
-  void Visit(const ir::Store* op, Expr* expr) override {
-    auto* tensor_n = op->tensor.As<ir::_Tensor_>();
-    CHECK(tensor_n);
-    auto it = vectorizes.find(tensor_n->name);
-    if (it != vectorizes.end()) {
-      stack[it->second.level]->set_vectorize_info(it->second);
-      CHECK(it->second.valid());
-    }
-  }
-
-  std::vector<ir::PolyFor*> stack;
-};
-
-/**
- * Mark the PolyFor as Unroll if is called Unroll in Stage.
- */
-struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
-  std::map<std::string, std::set<int> /*level*/> unrolls;
-
-  explicit MarkUnrollMutator(const std::map<std::string, std::set<int>>& unrolls) : unrolls(unrolls) {}
-
-  void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
-
-  void Visit(const ir::PolyFor* op, Expr* expr) override {
-    auto* node = expr->As<ir::PolyFor>();
-    stack.push_back(node);
-    ir::IRMutator<>::Visit(op, expr);
-    stack.pop_back();
-  }
-
-  // each statement in ISL is bound to a Store node.
-  void Visit(const ir::Store* op, Expr* expr) override {
-    auto* tensor_n = op->tensor.As<ir::_Tensor_>();
-    CHECK(tensor_n);
-    auto it = unrolls.find(tensor_n->name);
-    if (it != unrolls.end()) {
-      for (int level : it->second) {
-        VLOG(1) << "Mark " << level << " Unrolled";
-        CHECK_LT(level, stack.size());
-        stack[level]->set_unrolled();
-      }
-    }
-  }
-
-  std::vector<ir::PolyFor*> stack;
-};
-
-/**
  * After the AstGen build the forloop from isl exprs, all the ISL Call nodes should be mapped to the corresponding CINN
  * expressions, there should be no remaining.
  */
@@ -285,6 +218,73 @@ void ProcessComputeAtInfo(Expr* expr);
  * Resize the compute_at consumer buffer size.
  */
 void ResizeComputeAtBuffer(Expr* expr);
+
+/**
+ * Mark the PolyFor as Vectorized if it is scheduled Vectorize in Stage.
+ */
+struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
+  const std::map<std::string, ir::VectorizeInfo>& vectorizes;
+
+  explicit MarkVectorizeMutator(const std::map<std::string /*tensor name*/, ir::VectorizeInfo>& vectorizes)
+      : vectorizes(vectorizes) {}
+
+  void operator()(Expr* expr) { ir::IRMutator<Expr*>::Visit(expr, expr); }
+
+  // NOTE This mutator takes PolyFor as input, not For.
+  void Visit(const ir::PolyFor* op, Expr* expr) override {
+    auto* node = expr->As<ir::PolyFor>();
+    stack.push_back(node);
+    ir::IRMutator<ir::Expr*>::Visit(op, expr);
+    stack.pop_back();
+  }
+
+  // each statement in ISL is bound to a Store node.
+  void Visit(const ir::Store* op, Expr* expr) override {
+    auto* tensor_n = op->tensor.As<ir::_Tensor_>();
+    CHECK(tensor_n);
+    auto it = vectorizes.find(tensor_n->name);
+    if (it != vectorizes.end()) {
+      stack[it->second.level]->set_vectorize_info(it->second);
+      CHECK(it->second.valid());
+    }
+  }
+
+  std::vector<ir::PolyFor*> stack;
+};
+
+/**
+ * Mark the PolyFor as Unroll if is called Unroll in Stage.
+ */
+struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
+  std::map<std::string, std::set<int> /*level*/> unrolls;
+
+  explicit MarkUnrollMutator(const std::map<std::string, std::set<int>>& unrolls) : unrolls(unrolls) {}
+
+  void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+  void Visit(const ir::PolyFor* op, Expr* expr) override {
+    auto* node = expr->As<ir::PolyFor>();
+    stack.push_back(node);
+    ir::IRMutator<>::Visit(op, expr);
+    stack.pop_back();
+  }
+
+  // each statement in ISL is bound to a Store node.
+  void Visit(const ir::Store* op, Expr* expr) override {
+    auto* tensor_n = op->tensor.As<ir::_Tensor_>();
+    CHECK(tensor_n);
+    auto it = unrolls.find(tensor_n->name);
+    if (it != unrolls.end()) {
+      for (int level : it->second) {
+        VLOG(1) << "Mark " << level << " Unrolled";
+        CHECK_LT(level, stack.size());
+        stack[level]->set_unrolled();
+      }
+    }
+  }
+
+  std::vector<ir::PolyFor*> stack;
+};
 
 }  // namespace detail
 }  // namespace lang

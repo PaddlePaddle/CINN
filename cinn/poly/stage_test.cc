@@ -119,7 +119,7 @@ TEST(ComputeAt2, Before) {
   auto C = Compute(
       {Expr(10), Expr(10)}, [&](Expr i, Expr j) { return A_cache(i, j) + B(i, j); }, "C");
 
-  A_cache->stage()->ComputeAt2(C->stage(), 1);
+  A_cache->stage()->ComputeAt3(C->stage(), 1);
 
   auto fn = Lower("fn", {A, B, A_cache, C});
   LOG(INFO) << "fn:\n" << fn;
@@ -155,7 +155,7 @@ TEST(ComputeAt2, level0) {
       },
       "C");
 
-  A_cache->stage()->ComputeAt2(C->stage(), 0);
+  A_cache->stage()->ComputeAt3(C->stage(), 0);
 
   auto fn = Lower("fn", {A, A_cache, C}, {Expr(bs)}, {});
   LOG(INFO) << "fn:\n" << fn;

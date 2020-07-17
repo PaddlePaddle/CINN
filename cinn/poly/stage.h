@@ -141,8 +141,6 @@ class Stage : public Object {
    */
   void ComputeAt(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
 
-  void ComputeAt2(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
-
   void ComputeAt3(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
 
   /**

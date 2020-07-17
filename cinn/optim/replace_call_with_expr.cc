@@ -52,12 +52,12 @@ void ReplaceCallWithExpr(Expr *e,
   // we treat the Store node as the normal statement, the others like Call node has no axis.
   std::map<std::string, Expr> local_axis;
   if (copied.As<ir::Store>()) {
-    auto* store = copied.As<ir::Store>();
+    auto *store = copied.As<ir::Store>();
     for (int i = 0; i < store->indices.size(); i++) {
       auto indice = store->indices[i];
       CHECK(indice.is_var() || indice.is_constant());
       if (!indice.is_constant()) {
-        local_axis[indice.as_var()->name] =  axis.at(std::to_string(i));
+        local_axis[indice.as_var()->name] = axis.at(std::to_string(i));
       }
     }
   }

@@ -172,24 +172,6 @@ void Stage::ComputeAt(Stage *other, int level, ComputeAtKind kind) {
   }
 }
 
-void Stage::ComputeAt2(Stage *other, int level, Stage::ComputeAtKind kind) {
-  auto accesses = GatherAccesses(other, tensor_->name);
-
-  ComputeAtTransform transform(domain_, other->transformed_domain(), accesses, transform_, level);
-
-  domain_    = transform.adjusted_pdomain();
-  transform_ = transform.adjusted_ptransform();
-
-  ir::ComputeAtInfo info;
-  info.producer_tensor_name = tensor_->name;
-  info.level                = level;
-  info.offsets              = transform.offsets();
-  info.ranges               = transform.ranges;
-  other->tensor_->compute_at_infos.push_back(info);
-
-  ComputeAt(other, level, kind);
-}
-
 void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
   auto accesses = GatherAccesses(other, tensor_->name);
   auto access   = accesses[0];
@@ -209,6 +191,12 @@ void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
   });
 
   ComputeAt(other, level, kind);
+
+  ir::ComputeAtInfo info;
+  info.producer_tensor_name = tensor_->name;
+  info.consumer_tensor_name = this->tensor_->name;
+  info.level                = level;
+  other->tensor_->compute_at_infos.push_back(info);
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {

@@ -122,10 +122,9 @@ struct WriteCacheRelaton;
 
 //! Store the infomations about some other tensor `compute_at` this tensor.
 struct ComputeAtInfo {
+  std::string consumer_tensor_name;
   std::string producer_tensor_name;
-  int level;                                // NOTE this should be the level of the transformed tensor.
-  std::vector<std::pair<int, int>> ranges;  // dimension ranges.
-  std::vector<int> offsets;                 // the offsets to make each axis start from zero.
+  int level;  // NOTE this should be the level of the transformed tensor.
 };
 
 /**

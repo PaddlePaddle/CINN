@@ -439,10 +439,9 @@ struct ProcessComputeAtInfoMutator : public ir::IRMutator<> {
 
         for (auto& load : loads) {
           if (load.As<ir::Load>()->tensor.as_tensor()->inlined()) continue;
-          Reference(&load.As<ir::Load>()->indices[i]) = load.As<ir::Load>()->indices[i] + compute_at_info.offsets[i];
-          auto& tensor                                = Reference(&load).As<ir::Load>()->tensor;
-          auto& range                                 = compute_at_info.ranges[i];
-          tensor.as_tensor()->shape[i]                = Expr(range.second - range.first + 1);
+          // Reference(&load.As<ir::Load>()->indices[i]) = load.As<ir::Load>()->indices[i] + compute_at_info.offsets[i];
+          auto& tensor = Reference(&load).As<ir::Load>()->tensor;
+          // tensor.as_tensor()->shape[i]                = Expr(range.second - range.first + 1);
         }
       }
     }
@@ -454,6 +453,12 @@ struct ProcessComputeAtInfoMutator : public ir::IRMutator<> {
 void ProcessComputeAtInfo(Expr* expr) {
   // 1. collect all the consumer tensors thouse have compute_at_infos.
   // 2. for each producer tensor, reset the producer tensor loads indice.
+
+  // first, visit the consumer tensor with compute_at info.
+  // second, in the forloop stack, find the producer tensor
+  //    - set the presending axis to zero in producer's Store node and Load node
+  //    - replace the ISL parameter to the precending axis
+  // in consumer, reset presending axis in producer's Load to zero.
 
   auto tensor_with_compute_at_infos = ir::CollectIRNodes(
       *expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->compute_at_infos.empty(); });
@@ -481,27 +486,14 @@ void ResizeComputeAtBuffer(Expr* expr) {
     }
   }
 
-  auto process_buffer = [&](ir::Buffer& buffer, const ir::ComputeAtInfo& compute_at_info) {
-    for (int i = 0; i < compute_at_info.ranges.size(); i++) {
-      buffer->shape[i] = Expr(compute_at_info.ranges[i].second - compute_at_info.ranges[i].first + 1);
-    }
-  };
-
-  // NOTE this not works on reduce axis.
-  auto process_tensor = [&](ir::_Tensor_* tensor, const ir::ComputeAtInfo& compute_at_info) {
-    for (int i = 0; i < compute_at_info.ranges.size(); i++) {
-      tensor->shape[i] = Expr(compute_at_info.ranges[i].second - compute_at_info.ranges[i].first + 1);
-    }
-  };
-
   auto tensors = ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->inlined(); });
   for (auto& t : tensors) {
     if (!buffer_to_compute_at_info.count(t.as_tensor()->buffer->name)) continue;
     auto& buffer       = t.as_tensor()->buffer;
     auto compute_at_it = buffer_to_compute_at_info.find(buffer->name);
     if (compute_at_it != buffer_to_compute_at_info.end()) {
-      process_tensor(&Reference(t.as_tensor()), *compute_at_it->second);
-      process_buffer(Reference(t.as_tensor()).buffer, *compute_at_it->second);
+      // process_tensor(&Reference(t.as_tensor()), *compute_at_it->second);
+      // process_buffer(Reference(t.as_tensor()).buffer, *compute_at_it->second);
       LOG(INFO) << "*resizing buffer " << t;
       LOG(INFO) << "*resizing tensor " << t.as_tensor()->buffer;
     }
