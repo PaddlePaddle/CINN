@@ -317,7 +317,7 @@ struct Expr : public IrNodeRef {
 
 template <typename T>
 struct UnaryOpNode : public ExprNode<T> {
-  UnaryOpNode() { operands.resize(1); }
+  UnaryOpNode() { operands().resize(1); }
   UnaryOpNode(Type type, Expr v) : ExprNode<T>(type) {
     CHECK(v.defined());
     operands().resize(1);
