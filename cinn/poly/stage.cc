@@ -194,7 +194,7 @@ void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
 
   ir::ComputeAtInfo info;
   info.producer_tensor_name = tensor_->name;
-  info.consumer_tensor_name = this->tensor_->name;
+  info.consumer_tensor_name = other->tensor_->name;
   info.level                = level;
   other->tensor_->compute_at_infos.push_back(info);
 }

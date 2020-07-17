@@ -5,11 +5,15 @@
 #include <unordered_set>
 
 #include "cinn/common/ir_util.h"
+#include "cinn/lang/tensor.h"
 #include "cinn/optim/ir_replace.h"
+#include "cinn/poly/compute_at_transform.h"
 
 namespace cinn {
 namespace lang {
 namespace detail {
+
+using ir::ComputeAtInfo;
 
 void CheckNoIslCallRemains(Expr* expr) {
   auto isl_calls = ir::CollectIRNodes(
@@ -68,7 +72,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   CheckNoIslCallRemains(&e);
 
   // deal with the compute_at relations
-  // ProcessComputeAtInfo(&e);
+  ProcessComputeAtInfo(&e);
 
   // mark vectorize.
   {
@@ -378,10 +382,22 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
   return body;
 }
 
-struct ProcessComputeAtInfoMutator : public ir::IRMutator<> {
+void ModifyProducerStatementIndices(const std::vector<Var>& consumer_forloop_iters,
+                                    Expr* consumer_forloop_root,
+                                    ir::ComputeAtInfo info);
+
+/**
+ * Lets define the consumer tensor as C and the producer tensor as P for short.
+ * First, find the forloop generating C, keep the forloop levels in a stack.
+ * We need to modify the following
+ * 1. P's Store indice(change the parameters to zero)
+ * 2. P's Store value, change the parameters in Load to consumer's precending axis
+ * 3. replace the precending axis of the P's Load to zero in C
+ */
+struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   std::string tensor_name;
 
-  ProcessComputeAtInfoMutator(const std::string& tensor_name) : tensor_name(tensor_name) {}
+  CorrectComputeAtRelatedIndiceMutator(const std::string& tensor_name) : tensor_name(tensor_name) {}
 
   void operator()(Expr* e) { return ir::IRMutator<>::Visit(e, e); }
 
@@ -397,6 +413,141 @@ struct ProcessComputeAtInfoMutator : public ir::IRMutator<> {
     forloop_stack.pop_back();
   }
 
+  void ReplaceParamWithConsumerAxis(const ComputeAtInfo& info,
+                                    const std::vector<Var>& axis,
+                                    Expr* consumer_forloop_root) {
+    CHECK_LE(info.level + 1, axis.size());
+    // replace the params to consumer's precending level+1 axis.
+    for (int i = 0; i < info.level + 1; i++) {
+      Var var(poly::GenConsumerParamName(info.consumer_tensor_name.c_str(), i));
+      LOG(INFO) << "replacing " << var << " to " << axis[i];
+      optim::IrReplace(consumer_forloop_root, Expr(var), axis[i]);
+    }
+  }
+
+  /**
+   * Normalize the producer's domain, make it start from zero. This is essential for shink the buffer and inference the
+   * buffer size.
+   *
+   * e.g.
+   * for (i=p0; i<3+p0; i++) {
+   *   p[i]
+   * }
+   * will be transformed to
+   * for (i=0; i<3; i++) {
+   *   p[i+p0]
+   * }
+   *
+   * @param producer_forloop_root The root of the producer's own axis, not the axis of consumer.
+   *
+   * About the \p producer_forloop_root, after compute_at schedule,
+   * // consumer iter ci
+   * for (ci) {
+   *   // producer iter pi
+   *   for (pi) {
+   *   }
+   * }
+   * The pi should be the \p producer_forloop_root
+   */
+  void NormalizeProducerDomain(Expr* producer_forloop_root,
+                               const std::string& producer_tuple,
+                               const std::vector<Var>& consumer_axis) {
+    struct Mutator : public ir::IRMutator<> {
+      std::map<Var, Expr> offsets;
+      std::vector<Var> consumer_axis;
+      std::string producer_tuple;
+
+      Mutator(const std::string& producer_tuple, const std::vector<Var>& consumer_axis)
+          : producer_tuple(producer_tuple), consumer_axis(consumer_axis) {}
+
+      void operator()(Expr* forloop) { ir::IRMutator<>::Visit(forloop, forloop); }
+
+      //! Add offsets to store, e.g. offset is i->3, the original store expr is a[i,j] = b[i*2,j], the result expression
+      //! will be a[i+3,j] = b[(i+3)*2,j]
+      void AddOffsetsToStoreExpr(Expr* expr) {
+        CHECK(expr->As<ir::Store>());
+        for (auto& offset : offsets) {
+          optim::IrReplace(expr, offset.first, Expr(offset.first) + offset.second);
+        }
+      }
+
+      //! Set the producer axis to zero in Store node, e.g. a store node, a[c0,c1] = ... will be a[0,0]
+      void SetProducerAxisToZeroInStore(Expr* expr) {
+        auto* node = expr->As<ir::Store>();
+        CHECK(node);
+
+        for (auto& indice : node->indices) {
+          for (auto& consumer_axis : consumer_axis) {
+            optim::IrReplace(&indice, consumer_axis, common::make_const(0));
+          }
+        }
+      }
+
+      //! NOTE the axis here should be producer's axis, `i` in the root function comment.
+      void AddOffsetToAxisInStoreValue(Expr* expr) {
+        auto* node = expr->As<ir::Store>();
+
+        auto loads_but_producer = ir::CollectIRNodes(node->value, [&](const Expr* x) {
+          return x->As<ir::Load>() && x->As<ir::Load>()->tensor.as_tensor()->name != node->tensor.as_tensor()->name;
+        });
+
+        for (auto& item : loads_but_producer) {
+          auto* load = item.As<ir::Load>();
+          for (auto& indice : load->indices) {
+            for (auto& offset : offsets) {
+              optim::IrReplace(&Reference(&indice), offset.first, Expr(offset.first) + offset.second);
+            }
+          }
+        }
+      }
+
+      void Visit(const ir::Store* op, Expr* expr) override {
+        auto* node = expr->As<ir::Store>();
+
+        if (op->tensor.as_tensor()->name == producer_tuple) {
+          AddOffsetsToStoreExpr(expr);
+
+          // replace the producer axis in store indice to zero.
+          SetProducerAxisToZeroInStore(expr);
+
+          // replace the consumer axis in value(not producer) to offset.
+          AddOffsetToAxisInStoreValue(expr);
+        } else {
+          ir::IRMutator<>::Visit(op, expr);
+        }
+      }
+
+      void Visit(const ir::For* op, Expr* expr) override {
+        auto* node = expr->As<ir::For>();
+        if (!common::is_zero(op->min)) {
+          auto offset             = op->min;
+          node->min               = common::make_const(0);
+          node->extent            = node->extent - offset;
+          offsets[node->loop_var] = offset;
+        } else {
+          ir::IRMutator<>::Visit(&node->body, &node->body);
+        }
+      }
+
+      void Visit(const ir::PolyFor* op, Expr* expr) override {
+        auto* node = expr->As<ir::PolyFor>();
+        if (!common::is_zero(op->init)) {
+          auto offset = op->init;
+          node->init  = common::make_const(0);
+          UpdatePolyForConditionWithOffset(&node->condition, node->iterator, offset);
+        } else {
+          ir::IRMutator<>::Visit(&node->body, &node->body);
+        }
+      }
+
+      void UpdatePolyForConditionWithOffset(Expr* cond, Var iter, Expr offset) {
+        optim::IrReplace(cond, iter, Expr(iter) + offset);
+      }
+    };
+
+    Mutator(producer_tuple, consumer_axis)(producer_forloop_root);
+  }
+
   void Visit(const ir::Store* op, Expr* expr) override {
     auto* node = expr->As<ir::Store>();
 
@@ -405,6 +556,7 @@ struct ProcessComputeAtInfoMutator : public ir::IRMutator<> {
       return;
     }
 
+    // get the target consumer
     auto& compute_at_infos = op->tensor.as_tensor()->compute_at_infos;
     CHECK(!compute_at_infos.empty());
 
@@ -422,27 +574,34 @@ struct ProcessComputeAtInfoMutator : public ir::IRMutator<> {
 
     for (auto& compute_at_info : compute_at_infos) {
       LOG(INFO) << "compute_at: " << compute_at_info.producer_tensor_name;
-      for (int i = 0; i <= compute_at_info.level; i++) {
-        auto var = levels[i];
-        // replace var in producer indice with zero
-        auto loads = ir::CollectIRNodes(node->value, [&](const Expr* x) {
-          return x->As<ir::Load>() &&
-                 x->As<ir::Load>()->tensor.as_tensor()->name == compute_at_info.producer_tensor_name;
-        });
+      ReplaceParamWithConsumerAxis(compute_at_info, levels, forloop_stack.front());
+    }
+  }
 
-        for (auto& load : loads) {
-          LOG(INFO) << "load " << load;
-          optim::IrReplace(&Reference(&load), Expr(var), Expr(0));
-        }
+  /**
+   * Modify the producer statement indice.
+   * @param consumer_forloop_iters The iters of the forloop tree.
+   * @param consumer_forloop_root The root of the forloop tree.
+   */
+  void ModifyProducerStatementIndices(const std::vector<Var>& consumer_forloop_iters,
+                                      Expr* consumer_forloop_root,
+                                      ir::ComputeAtInfo info) {
+    CHECK(consumer_forloop_root->As<ir::For>());
 
-        for (auto& load : loads) {
-          if (load.As<ir::Load>()->tensor.as_tensor()->inlined()) continue;
-          // Reference(&load.As<ir::Load>()->indices[i]) = load.As<ir::Load>()->indices[i] + compute_at_info.offsets[i];
-          auto& tensor = Reference(&load).As<ir::Load>()->tensor;
-          // tensor.as_tensor()->shape[i]                = Expr(range.second - range.first + 1);
+    struct Mutator : public ir::IRMutator<> {
+      ir::ComputeAtInfo info;
+      Mutator(ir::ComputeAtInfo info) : info(info) {}
+
+      void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+      void Visit(const ir::Store* op, Expr* expr) {
+        auto* node = expr->As<ir::Store>();
+        if (op->tensor.as_tensor()->name == info.producer_tensor_name) {
+        } else {
+          ir::IRMutator<>::Visit(op, expr);
         }
       }
-    }
+    };
   }
 
   std::vector<Expr*> forloop_stack;
@@ -463,7 +622,7 @@ void ProcessComputeAtInfo(Expr* expr) {
 
   for (auto& tensor : tensor_with_compute_at_infos) {
     LOG(INFO) << "consumer: " << tensor;
-    ProcessComputeAtInfoMutator(tensor.as_tensor()->name)(expr);
+    CorrectComputeAtRelatedIndiceMutator(tensor.as_tensor()->name)(expr);
   }
 }
 

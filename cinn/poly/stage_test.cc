@@ -289,7 +289,7 @@ TEST(ComputeAt2, simple) {
     auto A1 = Compute(
         {n, n}, [&](Expr i, Expr j) { return A(i, j); }, "A1");
     auto B = Compute(
-        {n / 2, n / 2}, [&](Expr i, Expr j) { return A1(i, j) + A1(i - 1, j) + A1(i + 1, j); }, "B");
+        {n / 2, n / 2}, [&](Expr i, Expr j) { return A1(i, j) + A1(i + 1, j) + A1(i + 2, j); }, "B");
 
     B->stage()->Split(0, 16);
     A1->stage()->ComputeAt3(B->stage(), 1);
