@@ -8,6 +8,7 @@
 
 #include "cinn/common/arithmatic.h"
 #include "cinn/common/cas.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
@@ -164,6 +165,31 @@ struct ReplaceFracWithDivMutator : public ir::IRMutator<> {
     *expr = ir::Div::Make(node->operand(0), node->operand(1));
   }
 };
+
+struct SimplifyCompareMutator : public ir::IRMutator<> {
+  void operator()(Expr* x) { ir::IRMutator<>::Visit(x, x); }
+
+#define __(opr__)                                          \
+  void Visit(const ir::opr__* op, Expr* expr) override {   \
+    auto* node = expr->As<ir::opr__>();                    \
+    ir::IRMutator<>::Visit(&node->a(), &node->a());        \
+    ir::IRMutator<>::Visit(&node->b(), &node->b());        \
+                                                           \
+    if (!common::is_zero(node->b())) {                     \
+      node->a() = node->a() - node->b();                   \
+      node->b() = common::make_const(node->a().type(), 0); \
+    }                                                      \
+  }
+
+  __(LE)
+
+  __(LT)
+
+  __(GT)
+
+  __(GE)
+};
+
 }  // namespace
 
 void Simplify(Expr* expr) {
@@ -174,6 +200,8 @@ void Simplify(Expr* expr) {
   common::cas_intervals_t var_intervals;
   SimplifyButStoreLoadMutator mutator(var_intervals);
   mutator(expr);
+
+  SimplifyCompareMutator()(expr);
 
   ReplaceFracWithDivMutator()(expr);
 }

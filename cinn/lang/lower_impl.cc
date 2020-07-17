@@ -5,6 +5,7 @@
 #include <unordered_set>
 
 #include "cinn/common/ir_util.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/lang/tensor.h"
 #include "cinn/optim/ir_replace.h"
 #include "cinn/poly/compute_at_transform.h"
@@ -425,6 +426,41 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
     }
   }
 
+  //! Get a stack of forloops to a Store node target to \p tensor_name
+  std::vector<Expr*> GetForloopStackToStore(Expr* expr, const std::string& tensor_name) {
+    struct Mutator : public ir::IRMutator<> {
+      std::vector<Expr*> forloop_stack;
+      bool found{false};
+
+      std::string tensor_name;
+
+      Mutator(const std::string& tensor_name) : tensor_name(tensor_name) {}
+
+      std::vector<Expr*> operator()(Expr* expr) {
+        ir::IRMutator<>::Visit(expr, expr);
+        return forloop_stack;
+      }
+
+      void Visit(const ir::For* op, Expr* expr) {
+        auto* node = expr->As<ir::For>();
+        forloop_stack.push_back(expr);
+        ir::IRMutator<>::Visit(&node->body, &node->body);
+        if (!found) forloop_stack.pop_back();
+      }
+
+      void Visit(const ir::PolyFor* op, Expr* expr) {
+        auto* node = expr->As<ir::PolyFor>();
+        forloop_stack.push_back(expr);
+        ir::IRMutator<>::Visit(&node->body, &node->body);
+        if (!found) forloop_stack.pop_back();
+      }
+
+      void Visit(const ir::Store* op, Expr* expr) { found = op->tensor.as_tensor()->name == tensor_name; }
+    };
+
+    return Mutator(tensor_name)(expr);
+  }
+
   /**
    * Normalize the producer's domain, make it start from zero. This is essential for shink the buffer and inference the
    * buffer size.
@@ -452,6 +488,13 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   void NormalizeProducerDomain(Expr* producer_forloop_root,
                                const std::string& producer_tuple,
                                const std::vector<Var>& consumer_axis) {
+    LOG(INFO) << "Normalize producer domain: " << producer_tuple;
+    LOG(INFO) << "producer_forloop_root:\n" << *producer_forloop_root;
+    LOG(INFO) << "consumer_axis:";
+    for (auto& var : consumer_axis) {
+      LOG(INFO) << "iter: " << var;
+    }
+
     struct Mutator : public ir::IRMutator<> {
       std::map<Var, Expr> offsets;
       std::vector<Var> consumer_axis;
@@ -524,9 +567,8 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
           node->min               = common::make_const(0);
           node->extent            = node->extent - offset;
           offsets[node->loop_var] = offset;
-        } else {
-          ir::IRMutator<>::Visit(&node->body, &node->body);
         }
+        ir::IRMutator<>::Visit(&node->body, &node->body);
       }
 
       void Visit(const ir::PolyFor* op, Expr* expr) override {
@@ -535,9 +577,8 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
           auto offset = op->init;
           node->init  = common::make_const(0);
           UpdatePolyForConditionWithOffset(&node->condition, node->iterator, offset);
-        } else {
-          ir::IRMutator<>::Visit(&node->body, &node->body);
         }
+        ir::IRMutator<>::Visit(&node->body, &node->body);
       }
 
       void UpdatePolyForConditionWithOffset(Expr* cond, Var iter, Expr offset) {
@@ -546,6 +587,36 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
     };
 
     Mutator(producer_tuple, consumer_axis)(producer_forloop_root);
+  }
+
+  //! Reset the indice of the producer Load in Consumer.
+  // Here we just set the consumer axis to zero.
+  void ResetConsumerLoadIndice(const std::vector<Var>& consumer_axis,
+                               Expr* consumer_store_expr,
+                               const std::string& producer_tensor_name) {
+    struct Mutator : public ir::IRMutator<> {
+      const std::string& producer_tensor_name;
+      const std::vector<Var>& consumer_axis;
+
+      Mutator(const std::string& producer_tensor_name, const std::vector<Var>& consumer_axis)
+          : producer_tensor_name(producer_tensor_name), consumer_axis(consumer_axis) {}
+
+      void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+      void Visit(const ir::Load* op, Expr* expr) override {
+        auto* node = expr->As<ir::Load>();
+        if (op->tensor.as_tensor()->name == producer_tensor_name) {
+          for (auto axis : consumer_axis) {
+            for (auto& indice : node->indices) {
+              optim::IrReplace(&indice, axis, common::make_const(0));
+            }
+          }
+        }
+        // Load not recursive, no need to visit it's items.
+      }
+    };
+
+    Mutator(producer_tensor_name, consumer_axis)(consumer_store_expr);
   }
 
   void Visit(const ir::Store* op, Expr* expr) override {
@@ -575,6 +646,30 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
     for (auto& compute_at_info : compute_at_infos) {
       LOG(INFO) << "compute_at: " << compute_at_info.producer_tensor_name;
       ReplaceParamWithConsumerAxis(compute_at_info, levels, forloop_stack.front());
+    }
+
+    LOG(INFO) << "forloop_stack: =====================";
+    for (auto& e : forloop_stack) {
+      LOG(INFO) << "--------------------------------";
+      LOG(INFO) << *e;
+    }
+
+    for (auto& compute_at_info : compute_at_infos) {
+      int level = compute_at_info.level;
+      std::vector<Var> consumer_aixs(levels.begin(), levels.begin() + level + 1);
+      Expr* producer_forloop_root;
+      if (forloop_stack[level]->As<ir::For>()) {
+        producer_forloop_root = &forloop_stack[level]->As<ir::For>()->body;
+      } else {
+        producer_forloop_root = &forloop_stack[level]->As<ir::PolyFor>()->body;
+      }
+
+      auto forloop_stack_to_store = GetForloopStackToStore(producer_forloop_root, compute_at_info.producer_tensor_name);
+      CHECK(!forloop_stack_to_store.empty());
+      producer_forloop_root = forloop_stack_to_store.front();
+
+      NormalizeProducerDomain(producer_forloop_root, compute_at_info.producer_tensor_name, consumer_aixs);
+      ResetConsumerLoadIndice(consumer_aixs, forloop_stack[level + 1], compute_at_info.producer_tensor_name);
     }
   }
 

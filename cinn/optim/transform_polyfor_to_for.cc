@@ -280,17 +280,22 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
 
     if (!(lt_n || le_n)) return;
 
-    Expr lhs = lt_n ? lt_n->a() : le_n->a();
-    Expr rhs = lt_n ? lt_n->b() : PlusOneWithMinMax(le_n->b());
-    if (common::IsPureMath(rhs)) Simplify(&rhs);
+    // check the lhs is the iterator
+    if (lt_n && lt_n->a().as_var() && lt_n->a().as_var()->name == op->iterator->name) {
+      if (le_n && le_n->a().as_var() && le_n->a().as_var()->name == op->iterator->name) {
+        Expr lhs = lt_n ? lt_n->a() : le_n->a();
+        Expr rhs = lt_n ? lt_n->b() : PlusOneWithMinMax(le_n->b());
+        if (common::IsPureMath(rhs)) Simplify(&rhs);
 
-    if (op->is_vectorized()) CHECK(op->vectorize_info().valid());
+        if (op->is_vectorized()) CHECK(op->vectorize_info().valid());
 
-    Expr new_for =
-        ir::For::Make(op->iterator, op->init, rhs, op->for_type(), op->device_api, op->body, op->vectorize_info());
-    *expr = new_for;
+        Expr new_for =
+            ir::For::Make(op->iterator, op->init, rhs, op->for_type(), op->device_api, op->body, op->vectorize_info());
+        *expr = new_for;
 
-    Visit(&new_for.As<ir::For>()->body);
+        Visit(&new_for.As<ir::For>()->body);
+      }
+    }
   }
 };
 
