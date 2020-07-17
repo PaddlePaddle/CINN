@@ -3,7 +3,7 @@
 namespace cinn {
 namespace poly {
 
-void ComputeAtTransform2::AdjustPdomain() {
+void ComputeAtTransform::AdjustPdomain() {
   isl::map ct_with_params = ctransform_with_params();
   isl::set ct_domain      = ct_with_params.domain();
 
@@ -27,7 +27,7 @@ void ComputeAtTransform2::AdjustPdomain() {
   LOG(INFO) << "adjusted pdomain: " << adjusted_pdomain_;
 }
 
-void ComputeAtTransform2::AdjustPtransform() {
+void ComputeAtTransform::AdjustPtransform() {
   // insert level+1 dims from ctransform's range into ptransform's range
 
   {
@@ -59,13 +59,13 @@ void ComputeAtTransform2::AdjustPtransform() {
   }
 }
 
-isl::set ComputeAtTransform2::cdomain_with_params() {
+isl::set ComputeAtTransform::cdomain_with_params() {
   // add level+1 param to consumer transform
   isl::set cd_with_params = isl::manage(isl_set_add_dims(cdomain_.copy(), isl_dim_param, level_ + 1));
   return cd_with_params;
 }
 
-isl::map ComputeAtTransform2::ctransform_with_params() {
+isl::map ComputeAtTransform::ctransform_with_params() {
   // add level+1 param to consumer transform
   int num_existing_param  = isl_map_dim(ctransform_.get(), isl_dim_param);
   isl::map ct_with_params = isl::manage(AddParamsTo(ctransform_.copy()));
@@ -83,7 +83,7 @@ isl::map ComputeAtTransform2::ctransform_with_params() {
   return ct_with_params;
 }
 
-void ComputeAtTransform2::DisplayC(isl_map* pschedule, isl_map* cschedule) {
+void ComputeAtTransform::DisplayC(isl_map* pschedule, isl_map* cschedule) {
   LOG(INFO) << "adjusted cdomain: " << adjusted_cdomain_;
   LOG(INFO) << "adjusted ctransform: " << adjusted_ctransform_;
 
@@ -117,7 +117,7 @@ void ComputeAtTransform2::DisplayC(isl_map* pschedule, isl_map* cschedule) {
   isl_ast_node_free(node);
 }
 
-isl_set* ComputeAtTransform2::AddParamsTo(isl_set* set) {
+isl_set* ComputeAtTransform::AddParamsTo(isl_set* set) {
   int existing_params = isl_set_dim(set, isl_dim_param);
   set                 = isl_set_add_dims(set, isl_dim_param, level_ + 1);
 
@@ -129,20 +129,19 @@ isl_set* ComputeAtTransform2::AddParamsTo(isl_set* set) {
   return set;
 }
 
-isl_map* ComputeAtTransform2::AddParamsTo(isl_map* map) {
+isl_map* ComputeAtTransform::AddParamsTo(isl_map* map) {
   int existing_params = isl_map_dim(map, isl_dim_param);
   map                 = isl_map_add_dims(map, isl_dim_param, level_ + 1);
 
   // set name
   for (int i = 0; i < level_ + 1; i++) {
-    // here the prefix "_cp_" is the shorthand of "consumer parameter"
-    std::string pname = utils::StringFormat("_cp_%s_%d", ctuple(), i);
+    std::string pname = utils::StringFormat("%s%s_%d", kConsumerParamPrefix, ctuple(), i);
     map               = isl_map_set_dim_name(map, isl_dim_param, existing_params + i, pname.c_str());
   }
   return map;
 }
 
-ComputeAtTransform2::ComputeAtTransform2(
+ComputeAtTransform::ComputeAtTransform(
     isl::set pdomain, isl::set cdomain, isl::map access, isl::map ptransform, isl::map ctransform, int level)
     : pdomain_(pdomain),
       cdomain_(cdomain),
@@ -157,6 +156,10 @@ ComputeAtTransform2::ComputeAtTransform2(
 
   adjusted_ctransform_ = isl::manage(AddParamsTo(ctransform_.copy()));
   adjusted_cdomain_    = isl::manage(AddParamsTo(cdomain_.copy()));
+}
+
+std::string GenConsumerParamName(const char* tuple, int id) {
+  return utils::StringFormat("%s%s_%d", kConsumerParamPrefix, tuple, id);
 }
 
 }  // namespace poly

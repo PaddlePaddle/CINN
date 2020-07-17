@@ -16,9 +16,20 @@
 namespace cinn {
 namespace poly {
 
-class ComputeAtTransform2 {
+//! Help to mark the consumer parameters in the generated AST.
+static const char* kConsumerParamPrefix = "_cp_";
+
+/**
+ * Generate a consumer parameter name.
+ * @param tuple The tuple name of the consumer set.
+ * @param id The id of the parameter.
+ * @return the name.
+ */
+std::string GenConsumerParamName(const char* tuple, int id);
+
+class ComputeAtTransform {
  public:
-  ComputeAtTransform2(
+  ComputeAtTransform(
       isl::set pdomain, isl::set cdomain, isl::map access, isl::map ptransform, isl::map ctransform, int level);
 
   void operator()() {

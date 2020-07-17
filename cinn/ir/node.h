@@ -302,7 +302,6 @@ struct Expr : public IrNodeRef {
   _Tensor_* as_tensor();
   const _Tensor_* as_tensor() const;
   ir::Tensor as_tensor_ref() const;
-
   // @}
 
   bool is_constant() const;

@@ -179,7 +179,7 @@ void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
     access = isl::manage(isl_map_union(access.release(), accesses[i].copy()));
   }
 
-  ComputeAtTransform2 transform(domain_, other->domain(), access, transform_, other->transform(), level);
+  ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
   transform();
 
   domain_    = transform.adjusted_pdomain();

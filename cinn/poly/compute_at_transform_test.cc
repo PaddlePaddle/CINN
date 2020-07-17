@@ -14,7 +14,7 @@ TEST(ComputeAtTransform2, basic) {
 
   isl::map access(ctx, "{ c[i,j,k]->p[i,j]; c[i,j,k]->p[i+1,j]; c[i,j,k]->p[i-1,j] }");
 
-  poly::ComputeAtTransform2 t(pdomain, cdomain, access, ptransform, ctransform, 1);
+  poly::ComputeAtTransform t(pdomain, cdomain, access, ptransform, ctransform, 1);
   t();
 
   t.DisplayC();
