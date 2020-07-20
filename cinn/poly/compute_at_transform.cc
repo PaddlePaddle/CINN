@@ -162,5 +162,30 @@ std::string GenConsumerParamName(const char* tuple, int id) {
   return utils::StringFormat("%s%s_%d", kConsumerParamPrefix, tuple, id);
 }
 
+std::vector<int> ComputeAtTransform::GetProducerShape() const {
+  LOG(INFO) << "domain: " << adjusted_pdomain();
+  isl::set param_limit = isl::manage(isl_set_universe(adjusted_pdomain().space().release()));
+  // set all the params to 0
+  isl_local_space* local_space = isl_local_space_from_space(param_limit.space().release());
+  for (int i = 0; i < isl_set_dim(param_limit.get(), isl_dim_param); i++) {
+    isl_constraint* cst = isl_constraint_alloc_equality(isl_local_space_copy(local_space));
+    cst = isl_constraint_set_coefficient_val(cst, isl_dim_param, i, isl_val_int_from_si(ctransform_.ctx().get(), 1));
+    param_limit = isl::manage(isl_set_add_constraint(param_limit.release(), cst));
+  }
+
+  LOG(INFO) << "param_limit: " << param_limit;
+  isl::set domain = adjusted_pdomain().intersect(param_limit);
+  LOG(INFO) << "domain: " << domain;
+
+  std::vector<int> shape;
+  // collect the min and max and get the num elements for each axis.
+  for (int i = 0; i < isl_set_dim(domain.get(), isl_dim_set); i++) {
+    auto [minv, maxv] = isl_set_get_axis_range(domain.get(), i);
+    int num_elements  = maxv.num_si() - minv.num_si() + 1;
+    shape.push_back(num_elements);
+  }
+  return shape;
+}
+
 }  // namespace poly
 }  // namespace cinn

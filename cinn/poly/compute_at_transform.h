@@ -43,6 +43,9 @@ class ComputeAtTransform {
   //! Display C code
   void DisplayC(isl_map* __isl_give pschedule = nullptr, isl_map* __isl_give cschedule = nullptr);
 
+  //! Calculate the producer buffer shape.
+  std::vector<int> GetProducerShape() const;
+
  protected:
   isl_set* __isl_give AddParamsTo(isl_set* __isl_take set);
   isl_map* __isl_give AddParamsTo(isl_map* __isl_take map);

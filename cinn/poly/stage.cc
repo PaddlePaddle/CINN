@@ -182,6 +182,10 @@ void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
   ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
   transform();
 
+  auto shape = transform.GetProducerShape();
+  LOG(INFO) << "shape:";
+  for (int v : shape) LOG(INFO) << v;
+
   domain_    = transform.adjusted_pdomain();
   transform_ = transform.adjusted_ptransform();
 

@@ -12,7 +12,6 @@
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
-#include "cinn/poly/compute_at_transform.h"
 
 namespace cinn {
 namespace poly {

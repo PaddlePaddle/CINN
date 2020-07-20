@@ -27,6 +27,12 @@ TEST(ComputeAtTransform2, basic) {
                      "and t4=0 and t5=0 and t1t=1 }");
 
   t.DisplayC(pschedule.release(), cschedule.release());
+
+  LOG(INFO) << "shape:";
+  auto shape = t.GetProducerShape();
+  for (int i = 0; i < shape.size(); i++) {
+    LOG(INFO) << shape[i];
+  }
 }
 
 }  // namespace poly
