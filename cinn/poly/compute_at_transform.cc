@@ -123,7 +123,7 @@ isl_set* ComputeAtTransform::AddParamsTo(isl_set* set) {
 
   // set name
   for (int i = 0; i < level_ + 1; i++) {
-    std::string pname = utils::StringFormat("_%s_%d", ctuple(), i);
+    std::string pname = GenConsumerParamName(ctuple(), i);
     set               = isl_set_set_dim_name(set, isl_dim_param, existing_params + i, pname.c_str());
   }
   return set;
@@ -135,7 +135,7 @@ isl_map* ComputeAtTransform::AddParamsTo(isl_map* map) {
 
   // set name
   for (int i = 0; i < level_ + 1; i++) {
-    std::string pname = utils::StringFormat("%s%s_%d", kConsumerParamPrefix, ctuple(), i);
+    std::string pname = GenConsumerParamName(ctuple(), i);
     map               = isl_map_set_dim_name(map, isl_dim_param, existing_params + i, pname.c_str());
   }
   return map;

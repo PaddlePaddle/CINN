@@ -648,12 +648,6 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       ReplaceParamWithConsumerAxis(compute_at_info, levels, forloop_stack.front());
     }
 
-    LOG(INFO) << "forloop_stack: =====================";
-    for (auto& e : forloop_stack) {
-      LOG(INFO) << "--------------------------------";
-      LOG(INFO) << *e;
-    }
-
     for (auto& compute_at_info : compute_at_infos) {
       int level = compute_at_info.level;
       std::vector<Var> consumer_aixs(levels.begin(), levels.begin() + level + 1);

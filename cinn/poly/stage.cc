@@ -182,13 +182,10 @@ void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
   ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
   transform();
 
-  auto shape = transform.GetProducerShape();
-  LOG(INFO) << "shape:";
-  for (int v : shape) LOG(INFO) << v;
-
   domain_    = transform.adjusted_pdomain();
   transform_ = transform.adjusted_ptransform();
 
+  // set name of the dimensions if not exists, or it will go wrong in the following process.
   domain_ = SetDimNameIfNull(domain_.release(), [](isl_dim_type dim_type, int i) { return "pp" + std::to_string(i); });
   transform_ = SetDimNameIfNull(transform_.release(), [](isl_dim_type dim_type, int i) {
     return (dim_type == isl_dim_in ? "pi" : "po") + std::to_string(i);
@@ -196,11 +193,11 @@ void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
 
   ComputeAt(other, level, kind);
 
-  ir::ComputeAtInfo info;
-  info.producer_tensor_name = tensor_->name;
-  info.consumer_tensor_name = other->tensor_->name;
-  info.level                = level;
-  other->tensor_->compute_at_infos.push_back(info);
+  other->tensor_->compute_at_infos.emplace_back(other->tensor_->name,          // consumer_tensor_name,
+                                                tensor_->name,                 // producer_tensor_name
+                                                transform.GetProducerShape(),  // adjusted_producer_shape,
+                                                level                          // level
+  );
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {

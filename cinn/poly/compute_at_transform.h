@@ -20,13 +20,32 @@ namespace poly {
 static const char* kConsumerParamPrefix = "_cp_";
 
 /**
- * Generate a consumer parameter name.
+ * Generate a consumer parameter name in isl sets and maps.
+ * e.g the _cp_A_0 in `[_cp_A_0] -> {...}`
+ *
  * @param tuple The tuple name of the consumer set.
  * @param id The id of the parameter.
  * @return the name.
  */
 std::string GenConsumerParamName(const char* tuple, int id);
 
+/**
+ * \brief The ComputeAt transform implemented in polyhedral way.
+ *
+ * The current implementation for `ComputeAt` schedule primitive is quite complex, it contains the polyhedral transform
+ * before the AST generation, and the several passes after AST generation. This class only contains the polyhedral
+ * transform:
+ * 1. Adjust the producer's domain by the consume accesses.
+ * 2. Adjust the producer's transform by
+ *   a. Insert the preceding level+1 consumer axis to the head of the original producer transform's domain, to make it
+ * compute in the level of consumer forloops. b.
+ *   b. Adjust the range of the producer's transform by fixing the preceding axis(from the previous step).
+ *
+ * The latter process after the execution of this class remains, including
+ * 1. Get the adjusted shape of the producer after compute_at
+ * 2. Update the adjusted buffer's shape
+ * 3. Normalize the accesses of the consumers(by making the leftmost access start from zero).
+ */
 class ComputeAtTransform {
  public:
   ComputeAtTransform(

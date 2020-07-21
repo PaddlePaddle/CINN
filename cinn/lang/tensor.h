@@ -122,9 +122,21 @@ struct WriteCacheRelation;
 
 //! Store the infomations about some other tensor `compute_at` this tensor.
 struct ComputeAtInfo {
+  ComputeAtInfo(const std::string& consumer_tensor_name,
+                const std::string& producer_tensor_name,
+                const std::vector<int>& adjusted_producer_shape,
+                int level)
+      : consumer_tensor_name(consumer_tensor_name),
+        producer_tensor_name(producer_tensor_name),
+        adjusted_producer_shape(adjusted_producer_shape),
+        level(level) {}
+
   std::string consumer_tensor_name;
   std::string producer_tensor_name;
-  int level;  // NOTE this should be the level of the transformed tensor.
+  //! The shape of the buffer belong to the producer tensor after compute_at.
+  //! NOTE this doesn't support dynamic dimension yet.
+  std::vector<int> adjusted_producer_shape;
+  int level;  // NOTE this should be the level of the consumer tensor's transformed range.
 };
 
 /**
