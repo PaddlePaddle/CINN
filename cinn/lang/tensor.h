@@ -118,7 +118,7 @@ class Tensor : public ir::IrNodeRef {
 class ComputeOp;
 class PlaceholderOp;
 struct ReadCacheRelation;
-struct WriteCacheRelaton;
+struct WriteCacheRelation;
 
 //! Store the infomations about some other tensor `compute_at` this tensor.
 struct ComputeAtInfo {
@@ -157,7 +157,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! read cache relation if has one.
   std::unique_ptr<ReadCacheRelation> read_cache_relation;
   //! write cache relation if has one.
-  std::unique_ptr<WriteCacheRelaton> write_cache_relation;
+  std::unique_ptr<WriteCacheRelation> write_cache_relation;
 
   //! Store the information of all the other producer tensors `compute_at` this tensor.
   std::vector<ComputeAtInfo> compute_at_infos;
@@ -314,7 +314,7 @@ struct ReadCacheRelation {
   std::vector<std::string> readers;
 };
 
-struct WriteCacheRelaton {
+struct WriteCacheRelation {
   //! Name of the cache tensor.
   std::string cache_name;
 };
