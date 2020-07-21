@@ -62,8 +62,12 @@ class ComputeAtTransform {
   //! Display C code
   void DisplayC(isl_map* __isl_give pschedule = nullptr, isl_map* __isl_give cschedule = nullptr);
 
-  //! Calculate the producer buffer shape.
-  std::vector<int> GetProducerShape() const;
+  //! Re-calculate the producer buffer shape after compute_at transform.
+  std::vector<int> GetProducerAdjustedShape() const;
+
+  //! Get the the minimum of the preceding level+1 axis in accesses by assuming all the isl param is zero(for the
+  //! consumer, the preceding level+1 axis is fixed in producer computation).
+  std::vector<int> GetPreceAccessesPrecedingIndicesMinAssumingParamsZero() const;
 
  protected:
   isl_set* __isl_give AddParamsTo(isl_set* __isl_take set);

@@ -56,12 +56,12 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
 
   // replace isl call to the corresponding CINN statement, we need to replace the axis at the same time.
   for (auto& statement : tuple_to_expr) {
-    LOG(INFO) << "working on statement: " << statement.first;
+    VLOG(2) << "LowerGroup working on statement: " << statement.first;
     if (!gen.ContainsStatement(statement.first)) continue;
     // the axis_ast_map contains the axis from the original (like `i`) to the transformed (like `i+3`).
     auto axis_expr_map = gen.axis2expr(statement.first);
     for (auto& item : axis_expr_map) {
-      LOG(INFO) << "axis: " << item.first << " " << item.second;
+      VLOG(4) << "statement ast map axis: " << item.first << " " << item.second;
     }
 
     // the original CINN statements.
@@ -414,6 +414,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
     forloop_stack.pop_back();
   }
 
+  // Replace the isl params with the real axis like `p0` in consumer.
   void ReplaceParamWithConsumerAxis(const ComputeAtInfo& info,
                                     const std::vector<Var>& axis,
                                     Expr* consumer_forloop_root) {
@@ -462,7 +463,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   }
 
   /**
-   * Normalize the producer's domain, make it start from zero. This is essential for shink the buffer and inference the
+   * Normalize the producer's domain, make it start from zero. This is essential for shrink the buffer and inference the
    * buffer size.
    *
    * e.g.
@@ -590,7 +591,11 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   }
 
   //! Reset the indice of the producer Load in Consumer.
-  // Here we just set the consumer axis to zero.
+  // Here we just set the minimum consumer axis to zero. e.g., for consumer statement such as
+  // `C[i] = A[i-1]+A[i]+A[i+1]` and level set to 0, the result statement will be `C[i] = A[0]+A[1]+A[2]`, this includes
+  // the following steps:
+  // 1. make the preceding level+1 axis to zero in producer load, we get `C[i] = A[-1]+A[0]+A[1]`.
+  // 2. for each adjusted axis, add an offset to make the minimum indice zero, then we get `C[i] = A[0]+A[1]+A[2]`.
   void ResetConsumerLoadIndice(const std::vector<Var>& consumer_axis,
                                Expr* consumer_store_expr,
                                const std::string& producer_tensor_name) {

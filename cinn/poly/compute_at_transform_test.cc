@@ -29,7 +29,7 @@ TEST(ComputeAtTransform2, basic) {
   t.DisplayC(pschedule.release(), cschedule.release());
 
   LOG(INFO) << "shape:";
-  auto shape = t.GetProducerShape();
+  auto shape = t.GetProducerAdjustedShape();
   for (int i = 0; i < shape.size(); i++) {
     LOG(INFO) << shape[i];
   }

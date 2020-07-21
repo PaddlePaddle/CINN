@@ -162,7 +162,7 @@ std::string GenConsumerParamName(const char* tuple, int id) {
   return utils::StringFormat("%s%s_%d", kConsumerParamPrefix, tuple, id);
 }
 
-std::vector<int> ComputeAtTransform::GetProducerShape() const {
+std::vector<int> ComputeAtTransform::GetProducerAdjustedShape() const {
   LOG(INFO) << "domain: " << adjusted_pdomain();
   isl::set param_limit = isl::manage(isl_set_universe(adjusted_pdomain().space().release()));
   // set all the params to 0
@@ -185,6 +185,10 @@ std::vector<int> ComputeAtTransform::GetProducerShape() const {
     shape.push_back(num_elements);
   }
   return shape;
+}
+
+std::vector<int> ComputeAtTransform::GetPreceAccessesPrecedingIndicesMinAssumingParamsZero() const {
+  return std::vector<int>();
 }
 
 }  // namespace poly

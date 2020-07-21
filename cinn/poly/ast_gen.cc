@@ -98,7 +98,7 @@ std::map<std::string, isl::ast_expr> AstGen::ExtractIslTransformedIndiceMap(cons
     if (isl_space_has_dim_name(domain_space.get(), isl_dim_set, i - 1)) {
       std::string original_idx_name   = isl_space_get_dim_name(domain_space.get(), isl_dim_set, i - 1);
       isl::ast_expr transformed_index = isl::manage(isl_ast_expr_get_op_arg(idx_expr.get(), i));
-      LOG(INFO) << "axis-" << i - 1 << " is " << isl_ast_expr_to_C_str(transformed_index.get());
+      VLOG(4) << "axis-" << i - 1 << " is " << isl_ast_expr_to_C_str(transformed_index.get());
       iterator_map.emplace(original_idx_name, transformed_index);
       iterator_map.emplace(std::to_string(i - 1), transformed_index);
     }

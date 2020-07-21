@@ -193,10 +193,11 @@ void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
 
   ComputeAt(other, level, kind);
 
-  other->tensor_->compute_at_infos.emplace_back(other->tensor_->name,          // consumer_tensor_name,
-                                                tensor_->name,                 // producer_tensor_name
-                                                transform.GetProducerShape(),  // adjusted_producer_shape,
-                                                level                          // level
+  transform.GetPreceAccessesPrecedingIndicesMinAssumingParamsZero();
+  other->tensor_->compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
+                                                tensor_->name,                         // producer_tensor_name
+                                                transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
+                                                level                                  // level
   );
 }
 

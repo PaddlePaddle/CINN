@@ -136,6 +136,8 @@ struct ComputeAtInfo {
   //! The shape of the buffer belong to the producer tensor after compute_at.
   //! NOTE this doesn't support dynamic dimension yet.
   std::vector<int> adjusted_producer_shape;
+  //! The preceding offsets for loading the producer, size of this should equal to level+1.
+  std::vector<int> preceding_offset_for_producer_load;
   int level;  // NOTE this should be the level of the consumer tensor's transformed range.
 };
 
