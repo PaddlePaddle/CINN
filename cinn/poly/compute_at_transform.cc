@@ -173,9 +173,8 @@ std::vector<int> ComputeAtTransform::GetProducerAdjustedShape() const {
     param_limit = isl::manage(isl_set_add_constraint(param_limit.release(), cst));
   }
 
-  LOG(INFO) << "param_limit: " << param_limit;
+  VLOG(3) << "param_limit: " << param_limit;
   isl::set domain = adjusted_pdomain().intersect(param_limit);
-  LOG(INFO) << "domain: " << domain;
 
   std::vector<int> shape;
   // collect the min and max and get the num elements for each axis.
@@ -187,8 +186,37 @@ std::vector<int> ComputeAtTransform::GetProducerAdjustedShape() const {
   return shape;
 }
 
-std::vector<int> ComputeAtTransform::GetPreceAccessesPrecedingIndicesMinAssumingParamsZero() const {
-  return std::vector<int>();
+std::vector<int> ComputeAtTransform::GetAccessesPrecedingIndicesMinAssumingParamsZero() {
+  std::vector<int> res;
+
+  isl::set cdomain_with_param = isl::manage(AddParamsTo(cdomain_.copy()));
+  LOG(INFO) << "cdomain_with_param: " << cdomain_with_param;
+  isl::map access_with_param = isl::manage(AddParamsTo(access_.copy()));
+
+  LOG(INFO) << "*** applied: " << cdomain_with_param.apply(access_with_param);
+  isl::set param_limited_cdomain = ctransform_with_params().domain();
+  LOG(INFO) << "ctransform.domain: " << param_limited_cdomain;
+  isl::set access_domain = param_limited_cdomain.apply(access_with_param);
+
+  // set all the params to 0
+  isl_local_space* local_space = isl_local_space_from_space(access_domain.space().release());
+  for (int i = 0; i < isl_set_dim(access_domain.get(), isl_dim_param); i++) {
+    isl_constraint* cst = isl_constraint_alloc_equality(isl_local_space_copy(local_space));
+    cst = isl_constraint_set_coefficient_val(cst, isl_dim_param, i, isl_val_int_from_si(ctransform_.ctx().get(), 1));
+    access_domain = isl::manage(isl_set_add_constraint(access_domain.release(), cst));
+  }
+  isl_local_space_free(local_space);
+
+  access_domain = access_domain.intersect(adjusted_pdomain());
+
+  LOG(INFO) << "access_with_param: " << access_domain;
+
+  for (int i = 0; i < level_ + 1; i++) {
+    auto [minv, maxv] = isl_set_get_axis_range(access_domain.get(), i);
+    res.push_back(minv.get_num_si());
+  }
+
+  return res;
 }
 
 }  // namespace poly

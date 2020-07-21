@@ -193,11 +193,15 @@ void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
 
   ComputeAt(other, level, kind);
 
-  transform.GetPreceAccessesPrecedingIndicesMinAssumingParamsZero();
+  auto indice_mins = transform.GetAccessesPrecedingIndicesMinAssumingParamsZero();
+  std::vector<int> offsets;
+  std::transform(indice_mins.begin(), indice_mins.end(), std::back_inserter(offsets), [&](int x) { return -x; });
+
   other->tensor_->compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
                                                 tensor_->name,                         // producer_tensor_name
                                                 transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
-                                                level                                  // level
+                                                indice_mins,  // preceding_offset_for_producer_load
+                                                level         // level
   );
 }
 
@@ -588,7 +592,6 @@ std::vector<isl::map> GatherAccesses(Stage *stage, const std::string &tensor_nam
   for (auto &load : out_loads) {
     std::string repr = utils::StringFormat(
         "{ %s[%s] -> %s }", in_tuple_name.c_str(), utils::Join(in_dim_names, ",").c_str(), load.c_str());
-    LOG(INFO) << "repr: " << repr;
     res.push_back(isl::map(stage->domain().ctx(), repr));
   }
 

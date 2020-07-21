@@ -67,7 +67,7 @@ class ComputeAtTransform {
 
   //! Get the the minimum of the preceding level+1 axis in accesses by assuming all the isl param is zero(for the
   //! consumer, the preceding level+1 axis is fixed in producer computation).
-  std::vector<int> GetPreceAccessesPrecedingIndicesMinAssumingParamsZero() const;
+  std::vector<int> GetAccessesPrecedingIndicesMinAssumingParamsZero();
 
  protected:
   isl_set* __isl_give AddParamsTo(isl_set* __isl_take set);
