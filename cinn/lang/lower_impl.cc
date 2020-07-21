@@ -331,6 +331,8 @@ ir::LoweredFunc LowerImpl::operator()() {
   common::UnifyAllTensorsInExpr(&res);
   common::UnifyAllBuffersInExpr(&res);
 
+  UpdateComputeAtBufferShape(&res);
+
   return ir::LoweredFunc(res.get());
 }
 
@@ -595,33 +597,45 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   // `C[i] = A[i-1]+A[i]+A[i+1]` and level set to 0, the result statement will be `C[i] = A[0]+A[1]+A[2]`, this includes
   // the following steps:
   // 1. make the preceding level+1 axis to zero in producer load, we get `C[i] = A[-1]+A[0]+A[1]`.
-  // 2. for each adjusted axis, add an offset to make the minimum indice zero, then we get `C[i] = A[0]+A[1]+A[2]`.
+  // 2. for each adjusted axis, add an offset stored in ComputeAtInfo to make the minimum indice zero, then we get `C[i]
+  // = A[0]+A[1]+A[2]`.
   void ResetConsumerLoadIndice(const std::vector<Var>& consumer_axis,
                                Expr* consumer_store_expr,
-                               const std::string& producer_tensor_name) {
+                               const std::string& producer_tensor_name,
+                               const ComputeAtInfo& compute_at_info) {
     struct Mutator : public ir::IRMutator<> {
       const std::string& producer_tensor_name;
       const std::vector<Var>& consumer_axis;
+      const ComputeAtInfo& compute_at_info;
 
-      Mutator(const std::string& producer_tensor_name, const std::vector<Var>& consumer_axis)
-          : producer_tensor_name(producer_tensor_name), consumer_axis(consumer_axis) {}
+      Mutator(const std::string& producer_tensor_name,
+              const std::vector<Var>& consumer_axis,
+              const ComputeAtInfo& compute_at_info)
+          : producer_tensor_name(producer_tensor_name),
+            consumer_axis(consumer_axis),
+            compute_at_info(compute_at_info) {}
 
       void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
       void Visit(const ir::Load* op, Expr* expr) override {
         auto* node = expr->As<ir::Load>();
         if (op->tensor.as_tensor()->name == producer_tensor_name) {
+          CHECK_LE(compute_at_info.preceding_offset_for_producer_load.size(), node->indices.size());
           for (auto axis : consumer_axis) {
             for (auto& indice : node->indices) {
               optim::IrReplace(&indice, axis, common::make_const(0));
             }
+          }
+
+          for (int i = 0; i < compute_at_info.preceding_offset_for_producer_load.size(); i++) {
+            node->indices[i] = node->indices[i] + compute_at_info.preceding_offset_for_producer_load[i];
           }
         }
         // Load not recursive, no need to visit it's items.
       }
     };
 
-    Mutator(producer_tensor_name, consumer_axis)(consumer_store_expr);
+    Mutator(producer_tensor_name, consumer_axis, compute_at_info)(consumer_store_expr);
   }
 
   void Visit(const ir::Store* op, Expr* expr) override {
@@ -668,7 +682,8 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       producer_forloop_root = forloop_stack_to_store.front();
 
       NormalizeProducerDomain(producer_forloop_root, compute_at_info.producer_tensor_name, consumer_aixs);
-      ResetConsumerLoadIndice(consumer_aixs, forloop_stack[level + 1], compute_at_info.producer_tensor_name);
+      ResetConsumerLoadIndice(
+          consumer_aixs, forloop_stack[level + 1], compute_at_info.producer_tensor_name, compute_at_info);
     }
   }
 
@@ -720,12 +735,13 @@ void ProcessComputeAtInfo(Expr* expr) {
   }
 }
 
-void ResizeComputeAtBuffer(Expr* expr) {
+void UpdateComputeAtBufferShape(Expr* expr) {
   auto tensor_with_compute_at_infos = ir::CollectIRNodes(*expr, [&](const Expr* x) {
     return x->as_tensor() && !x->as_tensor()->inlined() && !x->as_tensor()->compute_at_infos.empty();
   });
 
-  auto tensor_map = ir::CollectTensorMap(*expr, [&](const Expr* x) { return !x->as_tensor()->inlined(); });
+  auto tensor_map = ir::CollectTensorMap(
+      *expr, [&](const Expr* x) { return !x->as_tensor()->inlined() && x->as_tensor()->buffer.defined(); });
 
   std::unordered_map<std::string, ir::ComputeAtInfo*> buffer_to_compute_at_info;
   for (auto& item : tensor_map) {
@@ -737,23 +753,31 @@ void ResizeComputeAtBuffer(Expr* expr) {
     }
   }
 
+  auto process_tensor = [&](ir::_Tensor_* tensor, const ComputeAtInfo& compute_at_info) {
+    tensor->shape.clear();
+    for (int v : compute_at_info.adjusted_producer_shape) {
+      tensor->shape.push_back(Expr(v));
+    }
+  };
+
+  auto process_buffer = [&](ir::_Buffer_* buffer, const ComputeAtInfo& compute_at_info) {
+    buffer->shape.clear();
+    for (int v : compute_at_info.adjusted_producer_shape) {
+      buffer->shape.push_back(Expr(v));
+    }
+  };
+
   auto tensors = ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->inlined(); });
   for (auto& t : tensors) {
-    if (!buffer_to_compute_at_info.count(t.as_tensor()->buffer->name)) continue;
+    if (!t.as_tensor()->buffer.defined() || !buffer_to_compute_at_info.count(t.as_tensor()->buffer->name)) continue;
     auto& buffer       = t.as_tensor()->buffer;
     auto compute_at_it = buffer_to_compute_at_info.find(buffer->name);
     if (compute_at_it != buffer_to_compute_at_info.end()) {
-      // process_tensor(&Reference(t.as_tensor()), *compute_at_it->second);
-      // process_buffer(Reference(t.as_tensor()).buffer, *compute_at_it->second);
+      process_tensor(&Reference(t.as_tensor()), *compute_at_it->second);
+      process_buffer(Reference(t.as_tensor()).buffer->self(), *compute_at_it->second);
       LOG(INFO) << "*resizing buffer " << t;
       LOG(INFO) << "*resizing tensor " << t.as_tensor()->buffer;
     }
-  }
-
-  auto loads = ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->As<ir::Load>(); });
-  for (auto& item : loads) {
-    LOG(INFO) << "load: " << item << " index: " << item.As<ir::Load>()->index()
-              << " buffer: " << item.As<ir::Load>()->tensor.as_tensor()->buffer;
   }
 }
 

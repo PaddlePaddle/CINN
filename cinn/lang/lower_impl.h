@@ -210,7 +210,7 @@ void ProcessComputeAtInfo(Expr* expr);
 /**
  * Resize the compute_at consumer buffer size.
  */
-void ResizeComputeAtBuffer(Expr* expr);
+void UpdateComputeAtBufferShape(Expr* expr);
 
 /**
  * Mark the PolyFor as Vectorized if it is scheduled Vectorize in Stage.
