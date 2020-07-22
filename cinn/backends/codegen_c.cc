@@ -534,8 +534,6 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
 
   Expr func_body = ir::Block::Make(new_body);
 
-  LOG(INFO) << "cinn IR in CodegenC:\n" << func_body;
-
   optim::RemoveNestedBlock(&func_body);
 
   Print(func_body);

@@ -177,7 +177,6 @@ std::map<std::string, isl::map> CollectScheduleMapFromGroup(const ScheduleGroup 
 
 void SchedulerBase::AddStage(const Stage &x) {
   CHECK(!registration_finalized_) << "element registration has been finalized.";
-  LOG(INFO) << "transform: " << x.transform();
   space_size_ = std::max(space_size_, isl_map_dim(x.transform().get(), isl_dim_out));
   VLOG(3) << "space_size: " << space_size_;
   VLOG(3) << "schedule: " << x.transform();

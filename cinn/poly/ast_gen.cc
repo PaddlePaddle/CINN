@@ -85,7 +85,6 @@ isl::ast_expr CreateIslAstIndexExpression(isl_ast_build* build, const isl::map& 
 
 std::map<std::string, isl::ast_expr> AstGen::ExtractIslTransformedIndiceMap(const isl::set& iterator_domain,
                                                                             isl_ast_build* build) {
-  LOG(INFO) << "testing " << iterator_domain;
   std::map<std::string, isl::ast_expr> iterator_map;
   isl::map identity = isl::manage(isl_set_identity(iterator_domain.copy()));
   isl::map schedule = identity;

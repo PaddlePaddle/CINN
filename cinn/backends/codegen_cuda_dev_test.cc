@@ -263,7 +263,7 @@ class ElementwiseTester {
     for (int i = 0; i < m; i++) {
       for (int j = 0; j < N.as_int32(); j++) {
         int offset = i * N.as_int32() + j;
-        if (i == 0 && j < 100) {
+        if (i == 0 && j < 10) {
           LOG(INFO) << host_data3[offset];
         }
         EXPECT_NEAR(host_data3[offset], host_data1[offset] * host_data2[offset], 1e-5);

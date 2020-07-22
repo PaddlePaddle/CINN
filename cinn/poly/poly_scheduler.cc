@@ -300,7 +300,6 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
     auto* a = stage_map.at(link.first);
     auto* b = stage_map.at(link.second.stage->tensor_->name);
     After(*a, *b, link.second.level);
-    LOG(INFO) << "compute at " << a->tensor_->name << "->" << b->tensor_->name << " level " << link.second.level;
   }
 
   for (int i = 0; i < stages_.size() - 1; i++) {

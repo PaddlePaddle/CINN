@@ -66,7 +66,7 @@ void ReplaceIslCallWithExpr(Expr *e,
   }
 
   for (auto &laxis : local_axis) {
-    LOG(INFO) << "replacing axis: " << laxis.first << " " << laxis.second;
+    VLOG(4) << "replacing axis: " << laxis.first << " " << laxis.second;
     ReplaceVarWithExpr(&copied, Var(laxis.first), laxis.second);
   }
   // replace the remaining axis(in the transform's range)
@@ -76,7 +76,6 @@ void ReplaceIslCallWithExpr(Expr *e,
     }
   }
 
-  // LOG(INFO) << "expression after replaced: " << copied;
   ReplaceCallWithExpr(e, statement, copied);
 }
 

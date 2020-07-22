@@ -26,6 +26,7 @@ function prepare {
 
     touch tests/test01_elementwise_add.cc
     touch tests/test01_elementwise_add_compute_at.cc
+    touch tests/test01_elementwise_add_compute_at_level1.cc
     touch tests/test02_matmul.cc
     touch tests/test02_matmul_tile.cc
     touch tests/test02_matmul_block.cc
