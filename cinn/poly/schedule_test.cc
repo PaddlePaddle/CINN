@@ -25,7 +25,7 @@ TEST(CreateSchedule, compute_at) {
   lang::Buffer C_buf(C->type());
   C->Bind(C_buf);
 
-  B->stage()->ComputeAt(C->stage(), 1);
+  B->stage()->ComputeAtSchedule(C->stage(), 1);
 
   auto funcs = lang::Lower("func", {B, C});
 

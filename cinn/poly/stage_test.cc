@@ -118,7 +118,7 @@ TEST(ComputeAt2, Before) {
   auto C = Compute(
       {Expr(10), Expr(10)}, [&](Expr i, Expr j) { return A_cache(i, j) + B(i, j); }, "C");
 
-  A_cache->stage()->ComputeAt3(C->stage(), 1);
+  A_cache->stage()->ComputeAt(C->stage(), 1);
 
   auto fn = Lower("fn", {A, B, A_cache, C});
   LOG(INFO) << "fn:\n" << fn;
@@ -156,7 +156,7 @@ TEST(ComputeAt2, level0) {
       },
       "C");
 
-  A_cache->stage()->ComputeAt3(C->stage(), 0);
+  A_cache->stage()->ComputeAt(C->stage(), 0);
 
   auto fn = Lower("fn", {A, A_cache, C}, {Expr(bs)}, {});
   LOG(INFO) << "fn:\n" << fn;
@@ -235,7 +235,7 @@ TEST(ComputeAt2, level1) {
       },
       "C");
 
-  A_cache->stage()->ComputeAt3(C->stage(), 1);
+  A_cache->stage()->ComputeAt(C->stage(), 1);
 
   auto fn = Lower("fn", {A, B, A_cache, C});
   LOG(INFO) << "fn:\n" << fn;
@@ -297,7 +297,7 @@ TEST(ComputeAt2, simple) {
         {n / 2, n / 2}, [&](Expr i, Expr j) { return A1(i, j) + A1(i + 1, j) + A1(i + 2, j); }, "B");
 
     B->stage()->Split(0, 16);
-    A1->stage()->ComputeAt3(B->stage(), 1);
+    A1->stage()->ComputeAt(B->stage(), 1);
 
     auto fn = Lower("fn", {A, A1, B});
     LOG(INFO) << "fn:\n" << fn;
@@ -329,7 +329,7 @@ TEST(ComputeAt, Before) {
   {  // C_init Before C
     auto [cache_prepare, transformed_compute] = create_module();
 
-    cache_prepare->stage()->ComputeAt3(transformed_compute->stage(), 1, Stage::kComputeAtBefore);
+    cache_prepare->stage()->ComputeAt(transformed_compute->stage(), 1, Stage::kComputeAtBefore);
 
     // codegen and compare
     auto fn = Lower("fn", {A, cache_prepare, transformed_compute});
@@ -360,7 +360,7 @@ function fn (_A, _cache, _transformed)
   {  // C_init After C
     auto [cache_prepare, transformed_compute] = create_module();
 
-    cache_prepare->stage()->ComputeAt3(transformed_compute->stage(), 1, Stage::kComputeAtAfter);
+    cache_prepare->stage()->ComputeAt(transformed_compute->stage(), 1, Stage::kComputeAtAfter);
 
     // codegen and compare
     auto fn = Lower("fn", {A, cache_prepare, transformed_compute});

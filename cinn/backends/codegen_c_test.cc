@@ -218,7 +218,7 @@ TEST(CodeGenC, matmul) {
   Tensor C = Compute({Expr(100), Expr(50)}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
 
   C->stage()->ShareBufferWith(C_init);
-  C_init->stage()->ComputeAt(C->stage(), 1, poly::Stage::kComputeAtBefore);
+  C_init->stage()->ComputeAtSchedule(C->stage(), 1, poly::Stage::kComputeAtBefore);
 
   // Code gen
   auto func = Lower("matmul", {A, B, C_init, C});
@@ -329,7 +329,7 @@ TEST(CodeGenC, matmul_tile) {
     C->stage()->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
   }
 
-  C_init->stage()->ComputeAt(C->stage(), 3, poly::Stage::kComputeAtBefore);
+  C_init->stage()->ComputeAtSchedule(C->stage(), 3, poly::Stage::kComputeAtBefore);
 
   // Code gen
   auto func = Lower("matmul", {A, B, C_init, C});

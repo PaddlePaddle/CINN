@@ -147,7 +147,7 @@ std::tuple<Iterator, Iterator, Iterator, Iterator> Stage::Tile(const Iterator &l
   return std::make_tuple(level0_outer, level0_inner, level1_outer, level1_inner);
 }
 
-void Stage::ComputeAt(Stage *other, int level, ComputeAtKind kind) {
+void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
 
   CHECK(tensor_);
@@ -172,7 +172,7 @@ void Stage::ComputeAt(Stage *other, int level, ComputeAtKind kind) {
   }
 }
 
-void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
+void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind) {
   auto accesses = GatherAccesses(other, tensor_->name);
   if (accesses.empty()) return;
   auto access = accesses[0];
@@ -192,7 +192,7 @@ void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
     return (dim_type == isl_dim_in ? "pi" : "po") + std::to_string(i);
   });
 
-  ComputeAt(other, level, kind);
+  ComputeAtSchedule(other, level, kind);
 
   auto indice_mins = transform.GetAccessesPrecedingIndicesMinAssumingParamsZero();
   std::vector<int> offsets;

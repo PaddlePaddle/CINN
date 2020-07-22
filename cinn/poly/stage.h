@@ -129,6 +129,7 @@ class Stage : public Object {
     kComputeAtBefore,
     kComputeAtAfter,
   };
+
   /**
    * \brief Mark the stage compute at the level of some other stage.
    *
@@ -141,7 +142,7 @@ class Stage : public Object {
    */
   void ComputeAt(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
 
-  void ComputeAt3(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
+  void ComputeAtSchedule(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
 
   /**
    * Apply loop skewing on the loop levels \p i and \p j with a skewing factor of \p factor.
