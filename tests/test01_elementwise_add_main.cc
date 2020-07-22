@@ -12,8 +12,9 @@ TEST(test01_elementwise_add, basic) {
   Placeholder<float> B("B", {M, N});
 
   Buffer C_buf(Float(32));
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+  // auto C = Compute(
+  //    {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+  auto C = primitive::add(A, B, "C");
   C->Bind(C_buf);
 
   Target target;
