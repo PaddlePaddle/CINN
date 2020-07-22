@@ -27,6 +27,16 @@ Expr AutoSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& va
 //! Simplify a CAS expression.
 Expr CasSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var_intervals = {});
 
+/**
+ * \brief Solve an equality.
+ * Currently this is an naive implementation using the GiNaC.
+ *
+ * @param inequality The inequality expression containing an LE or LT or GT or GE, such as 2x-1<3
+ * @param val The target variable.
+ * @return an copied expression looks like x < 100.
+ */
+Expr SolveInequality(Expr inequality, Var val);
+
 namespace detail {
 
 //! Whether to treat this expression as a symbol. e.g. Load, Min, Max are treated as symbol to avoid confusing the CAS.

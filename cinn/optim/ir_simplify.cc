@@ -57,6 +57,13 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
     PartialSimplify(&node->stride, var_intervals);
   }
 
+  void Visit(const PolyFor* op, Expr* expr) override {
+    auto* node      = expr->As<ir::PolyFor>();
+    node->condition = common::SolveInequality(op->condition, op->iterator);
+
+    Visit(&node->body, &node->body);
+  }
+
   void Visit(const _Tensor_* op, Expr* expr) override {
     auto* node = expr->As<ir::_Tensor_>();
 

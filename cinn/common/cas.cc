@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "cinn/common/arithmatic.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir_mutator.h"
@@ -1427,6 +1428,53 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
 
 Expr CasSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var_intervals) {
   return detail::CasSimplifyMutator(var_intervals)(u);
+}
+
+Expr SolveInequality(Expr inequality, Var val) {
+  auto copied = AutoSimplify(inequality);
+
+  auto* le_n = copied.As<ir::LE>();
+  auto* lt_n = copied.As<ir::LT>();
+  auto* gt_n = copied.As<ir::GT>();
+  auto* ge_n = copied.As<ir::GE>();
+
+  Expr a, b;
+
+#define __(x__)   \
+  if (x__) {      \
+    a = x__->a(); \
+    b = x__->b(); \
+  }
+  __(le_n)
+  __(lt_n)
+  __(gt_n)
+  __(ge_n)
+#undef __
+
+  Expr all = AutoSimplify(a - b);
+
+  auto [res, positive] = common::Solve(a, b, val);  // NOLINT
+
+  // Simplify it with CAS to avoid random result from GiNac.
+  res = AutoSimplify(res);
+  res = common::cast(res, val->type());
+
+  if (le_n) {
+    if (positive) return ir::LE::Make(val, res);
+    return ir::GE::Make(val, res);
+  }
+  if (lt_n) {
+    if (positive) return ir::LT::Make(val, res);
+    return ir::GT::Make(val, res);
+  }
+  if (ge_n) {
+    if (positive) return ir::GE::Make(val, res);
+    return ir::LE::Make(val, res);
+  }
+  if (gt_n) {
+    if (positive) return ir::GT::Make(val, res);
+    return ir::LT::Make(val, res);
+  }
 }
 
 }  // namespace common
