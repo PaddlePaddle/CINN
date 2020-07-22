@@ -266,7 +266,7 @@ class ElementwiseTester {
         if (i == 0 && j < 2) {
           LOG(INFO) << host_data3[offset];
         }
-        EXPECT_NEAR(host_data3[offset], host_data1[offset] * host_data2[offset], 1e-5);
+        ASSERT_NEAR(host_data3[offset], host_data1[offset] * host_data2[offset], 1e-5);
       }
     }
 
