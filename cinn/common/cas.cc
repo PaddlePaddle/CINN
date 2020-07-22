@@ -1453,27 +1453,30 @@ Expr SolveInequality(Expr inequality, Var val) {
 
   Expr all = AutoSimplify(a - b);
 
-  auto [res, positive] = common::Solve(a, b, val);  // NOLINT
+  if (common::IsPureMath(a) && common::IsPureMath(b)) {
+    auto [res, positive] = common::Solve(a, b, val);  // NOLINT
+    // Simplify it with CAS to avoid random result from GiNac.
+    res = AutoSimplify(res);
+    res = common::cast(res, val->type());
 
-  // Simplify it with CAS to avoid random result from GiNac.
-  res = AutoSimplify(res);
-  res = common::cast(res, val->type());
-
-  if (le_n) {
-    if (positive) return ir::LE::Make(val, res);
-    return ir::GE::Make(val, res);
-  }
-  if (lt_n) {
-    if (positive) return ir::LT::Make(val, res);
-    return ir::GT::Make(val, res);
-  }
-  if (ge_n) {
-    if (positive) return ir::GE::Make(val, res);
-    return ir::LE::Make(val, res);
-  }
-  if (gt_n) {
-    if (positive) return ir::GT::Make(val, res);
-    return ir::LT::Make(val, res);
+    if (le_n) {
+      if (positive) return ir::LE::Make(val, res);
+      return ir::GE::Make(val, res);
+    }
+    if (lt_n) {
+      if (positive) return ir::LT::Make(val, res);
+      return ir::GT::Make(val, res);
+    }
+    if (ge_n) {
+      if (positive) return ir::GE::Make(val, res);
+      return ir::LE::Make(val, res);
+    }
+    if (gt_n) {
+      if (positive) return ir::GT::Make(val, res);
+      return ir::LT::Make(val, res);
+    }
+  } else {
+    return AutoSimplify(inequality);
   }
 }
 

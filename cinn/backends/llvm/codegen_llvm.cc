@@ -556,7 +556,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::IfThenElse *op) {
   }
 
   llvm::BasicBlock *after_block = nullptr;
-  if (if_block->getTerminator() == nullptr) {
+  if (!if_block->getTerminator()) {
     b_->SetInsertPoint(if_block);
     after_block = llvm::BasicBlock::Create(b_->getContext(), "if-after", b_->GetInsertBlock()->getParent(), nullptr);
     Br(after_block);

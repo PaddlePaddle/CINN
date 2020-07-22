@@ -22,8 +22,10 @@ void ComputeAtTransform::AdjustPdomain() {
 
   // intect with the original producer domain
   auto pdomain_params = isl::manage(AddParamsTo(pdomain_.copy()));
-  adjusted_pdomain_   = isl::manage(isl_set_intersect(pdomain.release(), pdomain_params.release()));
-  adjusted_pdomain_   = isl::manage(isl_simplify(adjusted_pdomain_.release()));
+  LOG(INFO) << "pdomain: " << pdomain;
+  LOG(INFO) << "pdomain_params: " << pdomain_params;
+  adjusted_pdomain_ = isl::manage(isl_set_intersect(pdomain.release(), pdomain_params.release()));
+  adjusted_pdomain_ = isl::manage(isl_simplify(adjusted_pdomain_.release()));
   LOG(INFO) << "adjusted pdomain: " << adjusted_pdomain_;
 }
 

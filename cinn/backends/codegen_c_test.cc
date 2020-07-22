@@ -561,52 +561,5 @@ TEST(CodeGenC, call_extern) {
   std::cout << "codegen C:" << std::endl << out << std::endl;
 }
 
-TEST(CodeGenC, cache_read) {
-  Expr M(100), N(200);
-
-  Placeholder<float> A("A", {M, N});
-
-  // 1. original compute way
-  auto original_compute = Compute(
-      {M, N}, [&](Var i, Var j) { return ir::Select::Make(j > 1, A(i, j) + A(i, j - 1), A(i, j)); }, "origin");
-  original_compute->WithBuffer();
-
-  // 2. cached compute way
-  auto cache_prepare = Compute({M, N} /*domain*/, [&](Var i, Var j) { return A(i, j); }, "cache", {}, {N} /*shape*/);
-  cache_prepare->WithBuffer();
-
-  auto transformed_compute = Compute(
-      {M, N}, [&](Var i, Var j) { return cache_prepare(j); }, "transformed");
-  transformed_compute->WithBuffer();
-
-  cache_prepare->stage()->ComputeAt(transformed_compute->stage(), 1);
-
-  // codegen and compare
-  auto fn = Lower("fn", {A, original_compute, cache_prepare, transformed_compute});
-
-  LOG(INFO) << "fn:\n" << fn;
-
-  ASSERT_EQ(utils::Trim(utils::GetStreamCnt(fn)), utils::Trim(R"ROC(
-function fn (_A, _origin, _cache, _transformed)
-{
-  for (i, 100)
-  {
-    for (j, 200)
-    {
-      origin[i, j] = select((j > 1), (A[i, j] + A[i, (-1 + j)]), A[i, j])
-    }
-  }
-  for (i, 100)
-  {
-    for (j, 200)
-    {
-      cache[i] = A[i, j]
-      transformed[i, j] = cache[j]
-    }
-  }
-}
-)ROC"));
-}
-
 }  // namespace backends
 }  // namespace cinn

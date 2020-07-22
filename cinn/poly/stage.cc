@@ -174,7 +174,8 @@ void Stage::ComputeAt(Stage *other, int level, ComputeAtKind kind) {
 
 void Stage::ComputeAt3(Stage *other, int level, Stage::ComputeAtKind kind) {
   auto accesses = GatherAccesses(other, tensor_->name);
-  auto access   = accesses[0];
+  if (accesses.empty()) return;
+  auto access = accesses[0];
   for (int i = 1; i < accesses.size(); i++) {
     access = isl::manage(isl_map_union(access.release(), accesses[i].copy()));
   }

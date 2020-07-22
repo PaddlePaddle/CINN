@@ -61,14 +61,15 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
     // the axis_ast_map contains the axis from the original (like `i`) to the transformed (like `i+3`).
     auto axis_expr_map = gen.axis2expr(statement.first);
     for (auto& item : axis_expr_map) {
-      VLOG(4) << "statement ast map axis: " << item.first << " " << item.second;
+      VLOG(4) << "statement ast map axis [" << item.first << "] to "
+              << "[" << item.second << "]";
     }
 
     // the original CINN statements.
     Expr statement_candi_expr = tuple_to_expr.at(statement.first);
 
     VLOG(3) << "replacing " << statement.first << " to " << statement_candi_expr;
-    optim::ReplaceCallWithExpr(&e, statement.first, statement_candi_expr, axis_expr_map);
+    optim::ReplaceIslCallWithExpr(&e, statement.first, statement_candi_expr, axis_expr_map);
   }
   CheckNoIslCallRemains(&e);
 
@@ -315,9 +316,11 @@ ir::LoweredFunc LowerImpl::operator()() {
   std::unordered_set<std::string> buffer_name_set;
   // TODO(Superjomn) write buffer latter.
   for (auto& t : func_temp_tensors) {
-    if (t->buffer.defined() && !buffer_name_set.count(t->buffer->name)) {
-      temp_buffers.push_back(t->buffer);
-      buffer_name_set.insert(t->buffer->name);
+    if (!tensor_map.count(t->name)) continue;
+    auto& tt = tensor_map.at(t->name);
+    if (tt->buffer.defined() && !buffer_name_set.count(tt->buffer->name)) {
+      temp_buffers.push_back(tt->buffer);
+      buffer_name_set.insert(tt->buffer->name);
     }
   }
 
@@ -330,7 +333,6 @@ ir::LoweredFunc LowerImpl::operator()() {
 
   common::UnifyAllTensorsInExpr(&res);
   common::UnifyAllBuffersInExpr(&res);
-
   UpdateComputeAtBufferShape(&res);
 
   return ir::LoweredFunc(res.get());
@@ -385,10 +387,6 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
   return body;
 }
 
-void ModifyProducerStatementIndices(const std::vector<Var>& consumer_forloop_iters,
-                                    Expr* consumer_forloop_root,
-                                    ir::ComputeAtInfo info);
-
 /**
  * Lets define the consumer tensor as C and the producer tensor as P for short.
  * First, find the forloop generating C, keep the forloop levels in a stack.
@@ -431,6 +429,8 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
 
   //! Get a stack of forloops to a Store node target to \p tensor_name
   std::vector<Expr*> GetForloopStackToStore(Expr* expr, const std::string& tensor_name) {
+    LOG(INFO) << "search store " << tensor_name << " in expr:\n";
+    LOG(INFO) << *expr;
     struct Mutator : public ir::IRMutator<> {
       std::vector<Expr*> forloop_stack;
       bool found{false};
@@ -599,10 +599,10 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   // 1. make the preceding level+1 axis to zero in producer load, we get `C[i] = A[-1]+A[0]+A[1]`.
   // 2. for each adjusted axis, add an offset stored in ComputeAtInfo to make the minimum indice zero, then we get `C[i]
   // = A[0]+A[1]+A[2]`.
-  void ResetConsumerLoadIndice(const std::vector<Var>& consumer_axis,
-                               Expr* consumer_store_expr,
-                               const std::string& producer_tensor_name,
-                               const ComputeAtInfo& compute_at_info) {
+  void ResetProducerLoadIndiceInConsumer(const std::vector<Var>& consumer_axis,
+                                         Expr* consumer_store_expr,
+                                         const std::string& producer_tensor_name,
+                                         const ComputeAtInfo& compute_at_info) {
     struct Mutator : public ir::IRMutator<> {
       const std::string& producer_tensor_name;
       const std::vector<Var>& consumer_axis;
@@ -678,39 +678,11 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       }
 
       auto forloop_stack_to_store = GetForloopStackToStore(producer_forloop_root, compute_at_info.producer_tensor_name);
-      CHECK(!forloop_stack_to_store.empty());
-      producer_forloop_root = forloop_stack_to_store.front();
-
+      producer_forloop_root = forloop_stack_to_store.empty() ? forloop_stack[level] : forloop_stack_to_store.back();
       NormalizeProducerDomain(producer_forloop_root, compute_at_info.producer_tensor_name, consumer_aixs);
-      ResetConsumerLoadIndice(
-          consumer_aixs, forloop_stack[level + 1], compute_at_info.producer_tensor_name, compute_at_info);
+      ResetProducerLoadIndiceInConsumer(
+          consumer_aixs, forloop_stack[level], compute_at_info.producer_tensor_name, compute_at_info);
     }
-  }
-
-  /**
-   * Modify the producer statement indice.
-   * @param consumer_forloop_iters The iters of the forloop tree.
-   * @param consumer_forloop_root The root of the forloop tree.
-   */
-  void ModifyProducerStatementIndices(const std::vector<Var>& consumer_forloop_iters,
-                                      Expr* consumer_forloop_root,
-                                      ir::ComputeAtInfo info) {
-    CHECK(consumer_forloop_root->As<ir::For>());
-
-    struct Mutator : public ir::IRMutator<> {
-      ir::ComputeAtInfo info;
-      Mutator(ir::ComputeAtInfo info) : info(info) {}
-
-      void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
-
-      void Visit(const ir::Store* op, Expr* expr) {
-        auto* node = expr->As<ir::Store>();
-        if (op->tensor.as_tensor()->name == info.producer_tensor_name) {
-        } else {
-          ir::IRMutator<>::Visit(op, expr);
-        }
-      }
-    };
   }
 
   std::vector<Expr*> forloop_stack;
@@ -758,6 +730,7 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     for (int v : compute_at_info.adjusted_producer_shape) {
       tensor->shape.push_back(Expr(v));
     }
+    LOG(INFO) << "**Updated tensor: " << ir::Tensor(tensor);
   };
 
   auto process_buffer = [&](ir::_Buffer_* buffer, const ComputeAtInfo& compute_at_info) {
@@ -765,6 +738,15 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     for (int v : compute_at_info.adjusted_producer_shape) {
       buffer->shape.push_back(Expr(v));
     }
+    LOG(INFO) << "**Updated buffer: " << ir::Buffer(buffer);
+  };
+
+  auto process_alloca = [&](ir::Alloc* alloca, const ComputeAtInfo& compute_at_info) {
+    alloca->extents.clear();
+    for (int v : compute_at_info.adjusted_producer_shape) {
+      alloca->extents.push_back(Expr(v));
+    }
+    LOG(INFO) << "**Updated alloca: " << Expr(alloca);
   };
 
   auto tensors = ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->inlined(); });
@@ -777,6 +759,25 @@ void UpdateComputeAtBufferShape(Expr* expr) {
       process_buffer(Reference(t.as_tensor()).buffer->self(), *compute_at_it->second);
       LOG(INFO) << "*resizing buffer " << t;
       LOG(INFO) << "*resizing tensor " << t.as_tensor()->buffer;
+    }
+  }
+
+  // update lowered func temporay buffers
+  auto lowered_fns = ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->as_lowered_func(); });
+  for (auto& lowered_fn : lowered_fns) {
+    auto* node = lowered_fn.as_lowered_func();
+    for (auto& buf : node->temp_bufs) {
+      auto compute_at_it = buffer_to_compute_at_info.find(buf->name);
+      if (compute_at_it != buffer_to_compute_at_info.end()) {
+        process_buffer(Reference(&buf).operator->(), *compute_at_it->second);
+      }
+    }
+
+    for (auto& expr : node->alloc_tmp_buffer_exprs) {
+      auto compute_at_it = buffer_to_compute_at_info.find(expr.As<ir::Alloc>()->destination.as_buffer()->name);
+      if (compute_at_it != buffer_to_compute_at_info.end()) {
+        process_alloca(Reference(&expr).As<ir::Alloc>(), *compute_at_it->second);
+      }
     }
   }
 }

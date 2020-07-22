@@ -185,7 +185,9 @@ void CodeGenC::Visit(const ir::IfThenElse *op) {
   if (!op->true_case.As<ir::Block>()) IncIndent();
   DoIndent();
   Print(op->true_case);
+  if (!op->true_case.As<ir::Block>()) os() << ";";
   os() << "\n";
+
   if (!op->true_case.As<ir::Block>()) DecIndent();
 
   DoIndent();
@@ -197,6 +199,7 @@ void CodeGenC::Visit(const ir::IfThenElse *op) {
     if (!op->true_case.As<ir::Block>()) IncIndent();
     DoIndent();
     Print(op->false_case);
+    if (!op->false_case.As<ir::Block>()) os() << ";";
     os() << "\n";
     if (!op->true_case.As<ir::Block>()) DecIndent();
 
@@ -530,6 +533,8 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
   APPEND_TO_NEW_BODY(dealloc_output_buffer_exprs)
 
   Expr func_body = ir::Block::Make(new_body);
+
+  LOG(INFO) << "cinn IR in CodegenC:\n" << func_body;
 
   optim::RemoveNestedBlock(&func_body);
 
