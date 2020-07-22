@@ -89,5 +89,8 @@ Expr and_all(const std::vector<Expr> &conds);
 //! helper function to get the Or of all the conditions.
 Expr or_any(const std::vector<Expr> &conds);
 
+//! Cast the expression \p e to type \type.
+Expr cast(Expr e, Type type);
+
 }  // namespace common
 }  // namespace cinn

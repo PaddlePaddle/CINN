@@ -319,5 +319,23 @@ void UnifyAllTensorsInExpr(Expr *expr) { AllTensorsUnifier()(expr); }
 
 void UnifyAllBuffersInExpr(Expr *expr) { AllBuffersUnifier()(expr); }
 
+Expr cast(Expr e, Type type) {
+  if (e.is_constant()) {
+    if (type.is_int(32)) {
+      return common::make_const(static_cast<int32_t>(e.get_constant()));
+    } else if (type.is_int(64)) {
+      return common::make_const(static_cast<int64_t>(e.get_constant()));
+    } else if (type.is_float(32)) {
+      return common::make_const(static_cast<float>(e.get_constant()));
+    } else if (type.is_float(64)) {
+      return common::make_const(static_cast<double>(e.get_constant()));
+    } else {
+      NOT_IMPLEMENTED
+    }
+  }
+
+  return ir::Cast::Make(type, e);
+}
+
 }  // namespace common
 }  // namespace cinn
