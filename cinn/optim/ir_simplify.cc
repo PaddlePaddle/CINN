@@ -173,30 +173,6 @@ struct ReplaceFracWithDivMutator : public ir::IRMutator<> {
   }
 };
 
-struct SimplifyCompareMutator : public ir::IRMutator<> {
-  void operator()(Expr* x) { ir::IRMutator<>::Visit(x, x); }
-
-#define __(opr__)                                          \
-  void Visit(const ir::opr__* op, Expr* expr) override {   \
-    auto* node = expr->As<ir::opr__>();                    \
-    ir::IRMutator<>::Visit(&node->a(), &node->a());        \
-    ir::IRMutator<>::Visit(&node->b(), &node->b());        \
-                                                           \
-    if (!common::is_zero(node->b())) {                     \
-      node->a() = node->a() - node->b();                   \
-      node->b() = common::make_const(node->a().type(), 0); \
-    }                                                      \
-  }
-
-  __(LE)
-
-  __(LT)
-
-  __(GT)
-
-  __(GE)
-};
-
 }  // namespace
 
 void Simplify(Expr* expr) {
@@ -207,8 +183,6 @@ void Simplify(Expr* expr) {
   common::cas_intervals_t var_intervals;
   SimplifyButStoreLoadMutator mutator(var_intervals);
   mutator(expr);
-
-  SimplifyCompareMutator()(expr);
 
   ReplaceFracWithDivMutator()(expr);
 }

@@ -29,9 +29,11 @@ namespace cinn {
 namespace backends {
 
 void SimpleJIT::AddModule(std::unique_ptr<llvm::Module> module, bool optimize) {
+  /*
   for (auto &fn : module->functions()) {
     LOG(INFO) << "fn:\n" << DumpToString(fn);
   }
+   */
   CHECK(!llvm::verifyModule(*module, &llvm::errs())) << "Transformation resulted in an invalid module\n\nmodule:\n";
 
   bool debug = false;
