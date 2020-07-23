@@ -60,7 +60,7 @@ function(cc_test TARGET_NAME)
     add_executable(${TARGET_NAME} ${cc_test_SRCS})
     get_property(os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
     target_link_libraries(${TARGET_NAME} ${cc_test_DEPS} ${os_dependency_modules} cinn_gtest_main gtest gflags glog)
-    add_dependencies(${TARGET_NAME} ${cc_test_DEPS} gtest_main gtest gflags glog)
+    add_dependencies(${TARGET_NAME} ${cc_test_DEPS} gtest_main gtest gflags glog extern_gtest)
 
     add_test(NAME ${TARGET_NAME}
       COMMAND ${TARGET_NAME} "${cc_test_ARGS}"
