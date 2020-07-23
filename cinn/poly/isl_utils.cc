@@ -214,5 +214,31 @@ std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
   return std::make_tuple(min_val, max_val);
 }
 
+isl::map SetDimNameIfNull(isl_map *map, std::function<std::string(isl_dim_type, int)> namer) {
+  int in_dims   = isl_map_dim(map, isl_dim_in);
+  int out_dims  = isl_map_dim(map, isl_dim_out);
+  auto set_name = [&](isl_dim_type dim_type) {
+    for (int i = 0; i < isl_map_dim(map, dim_type); i++) {
+      if (!isl_map_get_dim_name(map, dim_type, i)) {
+        map = isl_map_set_dim_name(map, dim_type, i, namer(dim_type, i).c_str());
+      }
+    }
+  };
+
+  set_name(isl_dim_in);
+  set_name(isl_dim_out);
+
+  return isl::manage(map);
+}
+
+isl::set SetDimNameIfNull(isl_set *set, std::function<std::string(isl_dim_type, int)> namer) {
+  for (int i = 0; i < isl_set_dim(set, isl_dim_set); i++) {
+    if (!isl_set_get_dim_name(set, isl_dim_set, i)) {
+      set = isl_set_set_dim_name(set, isl_dim_set, i, namer(isl_dim_set, i).c_str());
+    }
+  }
+  return isl::manage(set);
+}
+
 }  // namespace poly
 }  // namespace cinn

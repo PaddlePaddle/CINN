@@ -20,12 +20,12 @@ void ReplaceCallWithExpr(Expr *e, const std::string &statement, const Expr &cand
  * @param e The expression to modify.
  * @param statement The map from tuple_name to the expression candidate.
  * @param candidate Var of each axis in the expression candidate.
- * @param axis The map from a variable to expression.
+ * @param axis_map The map from a variable to expression.
  */
-void ReplaceCallWithExpr(Expr *e,
-                         const std::string &statement,
-                         const Expr &candidate,
-                         const std::map<std::string, Expr> &axis);
+void ReplaceIslCallWithExpr(Expr *e,
+                            const std::string &statement,
+                            const Expr &candidate,
+                            const std::map<std::string, Expr> &axis_map);
 
 }  // namespace optim
 }  // namespace cinn

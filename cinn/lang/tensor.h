@@ -122,10 +122,27 @@ struct WriteCacheRelation;
 
 //! Store the infomations about some other tensor `compute_at` this tensor.
 struct ComputeAtInfo {
+  ComputeAtInfo(const std::string& consumer_tensor_name,
+                const std::string& producer_tensor_name,
+                const std::vector<int>& adjusted_producer_shape,
+                const std::vector<int>& preceding_offset_for_producer_load,
+                int level)
+      : consumer_tensor_name(consumer_tensor_name),
+        producer_tensor_name(producer_tensor_name),
+        adjusted_producer_shape(adjusted_producer_shape),
+        preceding_offset_for_producer_load(preceding_offset_for_producer_load),
+        level(level) {}
+
   std::string consumer_tensor_name;
-  int level;                                // NOTE this should be the level of the transformed tensor.
-  std::vector<std::pair<int, int>> ranges;  // dimension ranges.
-  std::vector<int> offsets;                 // the offsets to make each axis start from zero.
+  std::string producer_tensor_name;
+  //! The shape of the buffer belong to the producer tensor after compute_at.
+  //! NOTE this doesn't support dynamic dimension yet.
+  std::vector<int> adjusted_producer_shape;
+  //! The preceding offsets for the indice in the Loads for the producers, the offset will make the minimum indice to be
+  //! 0, size of this should equal to level+1.
+  std::vector<int> preceding_offset_for_producer_load;
+  //! the level of the consumer tensor's transformed range.
+  int level{-1};
 };
 
 /**
@@ -160,7 +177,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! write cache relation if has one.
   std::unique_ptr<WriteCacheRelation> write_cache_relation;
 
-  //! Store the information of all the other tensors `compute_at` this tensor.
+  //! Store the information of all the other producer tensors `compute_at` this tensor.
   std::vector<ComputeAtInfo> compute_at_infos;
 
   //! Polyhedral element for analysis and schedule.

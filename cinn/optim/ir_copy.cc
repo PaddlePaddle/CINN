@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "cinn/common/common.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/lang/module.h"
@@ -348,7 +349,15 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
 
 Expr IRCopy(Expr x) {
   IRCopyVisitor visitor;
-  return visitor.Visit(&x);
+
+  auto copied = visitor.Visit(&x);
+  common::UnifyAllTensorsInExpr(&copied);
+  common::UnifyAllBuffersInExpr(&copied);
+
+  // common::CheckTensorUniqueInExpr(copied);
+  // common::CheckBufferUniqueInExpr(copied);
+
+  return copied;
 }
 
 }  // namespace optim

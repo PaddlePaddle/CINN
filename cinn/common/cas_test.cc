@@ -304,5 +304,15 @@ TEST(CAS, IntConnerCase) {
   EXPECT_EQ(GetStreamCnt(u8), "(-1 / y)");
 }
 
+TEST(SolveInequality, basic) {
+  Var x("x", Int(32));
+
+#define TEST_SOLVE(expr__, str__) EXPECT_EQ(GetStreamCnt(SolveInequality(expr__, x)), str__);
+  TEST_SOLVE(x * -1 + 20 < 0, "(x > 20)");
+  TEST_SOLVE(x * 2 + 3 < x * 10 - 20, "(x > 2)");
+  TEST_SOLVE(x * -1 < -1, "(x > 1)");
+  TEST_SOLVE(Expr(2) * x * -1 - x < x + 200, "(x > -50)");
+}
+
 }  // namespace common
 }  // namespace cinn

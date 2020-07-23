@@ -373,7 +373,7 @@ struct cinn_pod_value_t {
 typedef struct cinn_pod_value_t cinn_pod_value_t;
 
 // the LoweredFunc pointer type for JIT usage.
-typedef void (*lower_func_ptr_t)(void**, int32_t);
+typedef void (*lower_func_ptr_t)(void*, int32_t);
 
 #ifdef __cplusplus
 extern "C" {

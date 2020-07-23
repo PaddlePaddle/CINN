@@ -56,6 +56,26 @@ inline Expr make_one() {
 inline Expr make_bool(bool x) { return common::make_shared<ir::UIntImm>(Bool(), x); }
 // @}
 
+/**
+ * \brief Check all the tensors are unique in an expression.
+ */
+void CheckTensorUniqueInExpr(Expr expr);
+
+/**
+ * \brief Check all the buffers are uniuqe in an expression.
+ */
+void CheckBufferUniqueInExpr(Expr expr);
+
+/**
+ * Unify all the tensors to be the same in the expression.
+ */
+void UnifyAllTensorsInExpr(Expr *expr);
+
+/**
+ * Unify all the buffers to be the same in the expression.
+ */
+void UnifyAllBuffersInExpr(Expr *Expr);
+
 bool is_zero(Expr v);
 
 bool MathEqual(const Expr &a, const Expr &b);
@@ -68,6 +88,9 @@ Expr and_all(const std::vector<Expr> &conds);
 
 //! helper function to get the Or of all the conditions.
 Expr or_any(const std::vector<Expr> &conds);
+
+//! Cast the expression \p e to type \type.
+Expr cast(Expr e, Type type);
 
 }  // namespace common
 }  // namespace cinn

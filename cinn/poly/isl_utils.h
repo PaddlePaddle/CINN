@@ -20,6 +20,10 @@ void SetDimNames(isl::map* map, isl_dim_type dim_type, const std::vector<std::st
 std::vector<std::string> GetDimNames(isl_map* map, isl_dim_type dim_type);
 std::vector<std::string> GetDimNames(isl_set* set);
 
+isl::map SetDimNameIfNull(isl_map* __isl_take map, std::function<std::string(isl_dim_type, int)> namer);
+
+isl::set SetDimNameIfNull(isl_set* __isl_take set, std::function<std::string(isl_dim_type, int)> namer);
+
 //! Convert a list of isl::map to isl::union_map
 isl::union_map MapsToUnionMap(const std::vector<isl::map>& maps);
 isl::union_set SetsToUnionSet(const std::vector<isl::set>& sets);

@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "cinn/common/arithmatic.h"
+#include "cinn/common/cas.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
@@ -280,17 +281,22 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
 
     if (!(lt_n || le_n)) return;
 
-    Expr lhs = lt_n ? lt_n->a() : le_n->a();
-    Expr rhs = lt_n ? lt_n->b() : PlusOneWithMinMax(le_n->b());
-    if (common::IsPureMath(rhs)) Simplify(&rhs);
+    // check the lhs is the iterator
+    bool can_extract_extent = (lt_n && lt_n->a().as_var() && lt_n->a().as_var()->name == op->iterator->name) ||
+                              (le_n && le_n->a().as_var() && le_n->a().as_var()->name == op->iterator->name);
+    if (can_extract_extent) {
+      Expr lhs = lt_n ? lt_n->a() : le_n->a();
+      Expr rhs = lt_n ? lt_n->b() : PlusOneWithMinMax(le_n->b());
+      rhs      = common::AutoSimplify(rhs);
 
-    if (op->is_vectorized()) CHECK(op->vectorize_info().valid());
+      if (op->is_vectorized()) CHECK(op->vectorize_info().valid());
 
-    Expr new_for =
-        ir::For::Make(op->iterator, op->init, rhs, op->for_type(), op->device_api, op->body, op->vectorize_info());
-    *expr = new_for;
+      Expr new_for =
+          ir::For::Make(op->iterator, op->init, rhs, op->for_type(), op->device_api, op->body, op->vectorize_info());
+      *expr = new_for;
 
-    Visit(&new_for.As<ir::For>()->body);
+      Visit(&new_for.As<ir::For>()->body);
+    }
   }
 };
 
