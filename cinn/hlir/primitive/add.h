@@ -31,25 +31,8 @@ Tensor add(const Placeholder<T> &A, const Placeholder<T> &B, const std::string &
   CHECK_LE(output_shape.size(), 4) << "The input shape of primitive::add function is " << output_shape.size()
                                    << " and it should be <= 4.";
 
-  Tensor output;
-  switch (output_shape.size()) {
-    case 1:
-      output = Compute(
-          output_shape, [&](Var i) { return A(i) + B(i); }, output_name);
-      return output;
-    case 2:
-      output = Compute(
-          output_shape, [&](Var i, Var j) { return A(i, j) + B(i, j); }, output_name);
-      return output;
-    case 3:
-      output = Compute(
-          output_shape, [&](Var i, Var j, Var k) { return A(i, j, k) + B(i, j, k); }, output_name);
-      return output;
-    case 4:
-      output = Compute(
-          output_shape, [&](Var i, Var j, Var k, Var p) { return A(i, j, k, p) + B(i, j, k, p); }, output_name);
-      return output;
-  }
+  Tensor output = Compute(
+      output_shape, [&](const std::vector<Expr> &indice) { return A(indice) + B(indice); }, output_name);
   return output;
 }
 
