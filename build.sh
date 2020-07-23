@@ -21,6 +21,9 @@ function check_style {
 function prepare {
     mkdir -p $build_dir
     cd $build_dir
+    # build gtest first, it tends to broke the CI
+    make extern_gtest
+
     mkdir -p tests
     mkdir -p cinn/backends
 
