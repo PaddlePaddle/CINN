@@ -422,15 +422,15 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
     // replace the params to consumer's precending level+1 axis.
     for (int i = 0; i < info.level + 1; i++) {
       Var var(poly::GenConsumerParamName(info.consumer_tensor_name.c_str(), i));
-      LOG(INFO) << "replacing " << var << " to " << axis[i];
+      VLOG(4) << "replacing " << var << " to " << axis[i];
       optim::IrReplace(consumer_forloop_root, Expr(var), axis[i]);
     }
   }
 
   //! Get a stack of forloops to a Store node target to \p tensor_name
   std::vector<Expr*> GetForloopStackToStore(Expr* expr, const std::string& tensor_name) {
-    LOG(INFO) << "search store " << tensor_name << " in expr:\n";
-    LOG(INFO) << *expr;
+    VLOG(4) << "search store " << tensor_name << " in expr:\n";
+    VLOG(4) << *expr;
     struct Mutator : public ir::IRMutator<> {
       std::vector<Expr*> forloop_stack;
       bool found{false};
@@ -491,11 +491,11 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   void NormalizeProducerDomain(Expr* producer_forloop_root,
                                const std::string& producer_tuple,
                                const std::vector<Var>& consumer_axis) {
-    LOG(INFO) << "Normalize producer domain: " << producer_tuple;
-    LOG(INFO) << "producer_forloop_root:\n" << *producer_forloop_root;
-    LOG(INFO) << "consumer_axis:";
+    VLOG(4) << "Normalize producer domain: " << producer_tuple;
+    VLOG(4) << "producer_forloop_root:\n" << *producer_forloop_root;
+    VLOG(4) << "consumer_axis:";
     for (auto& var : consumer_axis) {
-      LOG(INFO) << "iter: " << var;
+      VLOG(4) << "iter: " << var;
     }
 
     struct Mutator : public ir::IRMutator<> {
@@ -663,7 +663,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
     }
 
     for (auto& compute_at_info : compute_at_infos) {
-      LOG(INFO) << "compute_at: " << compute_at_info.producer_tensor_name;
+      VLOG(4) << "compute_at: " << compute_at_info.producer_tensor_name;
       ReplaceParamWithConsumerAxis(compute_at_info, levels, forloop_stack.front());
     }
 
@@ -702,7 +702,7 @@ void ProcessComputeAtInfo(Expr* expr) {
       *expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->compute_at_infos.empty(); });
 
   for (auto& tensor : tensor_with_compute_at_infos) {
-    LOG(INFO) << "consumer: " << tensor;
+    VLOG(4) << "consumer: " << tensor;
     CorrectComputeAtRelatedIndiceMutator(tensor.as_tensor()->name)(expr);
   }
 }
@@ -730,7 +730,7 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     for (int v : compute_at_info.adjusted_producer_shape) {
       tensor->shape.push_back(Expr(v));
     }
-    LOG(INFO) << "**Updated tensor: " << ir::Tensor(tensor);
+    VLOG(4) << "Updated tensor: " << ir::Tensor(tensor);
   };
 
   auto process_buffer = [&](ir::_Buffer_* buffer, const ComputeAtInfo& compute_at_info) {
@@ -738,7 +738,7 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     for (int v : compute_at_info.adjusted_producer_shape) {
       buffer->shape.push_back(Expr(v));
     }
-    LOG(INFO) << "**Updated buffer: " << ir::Buffer(buffer);
+    VLOG(4) << "Updated buffer: " << ir::Buffer(buffer);
   };
 
   auto process_alloca = [&](ir::Alloc* alloca, const ComputeAtInfo& compute_at_info) {
@@ -746,7 +746,7 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     for (int v : compute_at_info.adjusted_producer_shape) {
       alloca->extents.push_back(Expr(v));
     }
-    LOG(INFO) << "**Updated alloca: " << Expr(alloca);
+    VLOG(4) << "Updated alloca: " << Expr(alloca);
   };
 
   auto tensors = ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->inlined(); });
@@ -757,8 +757,8 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     if (compute_at_it != buffer_to_compute_at_info.end()) {
       process_tensor(&Reference(t.as_tensor()), *compute_at_it->second);
       process_buffer(Reference(t.as_tensor()).buffer->self(), *compute_at_it->second);
-      LOG(INFO) << "*resizing buffer " << t;
-      LOG(INFO) << "*resizing tensor " << t.as_tensor()->buffer;
+      VLOG(4) << "resizing buffer " << t;
+      VLOG(4) << "resizing tensor " << t.as_tensor()->buffer;
     }
   }
 
