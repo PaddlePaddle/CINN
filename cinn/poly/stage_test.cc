@@ -162,11 +162,11 @@ TEST(ComputeAt, level0) {
   LOG(INFO) << "fn:\n" << fn;
 
   auto target = R"ROC(
-function fn (bs, _A, _cache, _C)
+function fn (_A, _cache, _C)
 {
-  for (po0, bs)
+  for (po0, 10)
   {
-    if (((bs >= (1 + po0)) and (po0 >= 0))) {
+    if (((po0 >= 0) and (po0 <= 9))) {
       for (j, 11)
       {
         for (k, 10)
@@ -185,7 +185,7 @@ function fn (bs, _A, _cache, _C)
   }
 }
 )ROC";
-  // ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
+  ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
 
   Module::Builder builder("module", common::DefaultHostTarget());
   builder.AddFunction(fn);
@@ -211,7 +211,6 @@ function fn (bs, _A, _cache, _C)
 
   auto* C_data = reinterpret_cast<float*>(C_buf->host_memory);
   auto* A_data = reinterpret_cast<float*>(A_buf->host_memory);
-  // auto* B_data = reinterpret_cast<float*>(B_buf->host_memory);
 
   for (int k = 0; k < 10; k++) {
     for (int i = 0; i < 10; i++) {
