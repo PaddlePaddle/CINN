@@ -81,7 +81,7 @@ auto BuildComputeAtExpr() {
 
 TEST(elementwise_add, compute_at) {
   auto [A, B, A_cache, C] = BuildComputeAtExpr();
-  A_cache->stage()->ComputeAt3(C->stage(), 0);
+  A_cache->stage()->ComputeAt(C->stage(), 0);
 
   Module::Builder builder("module3", common::DefaultHostTarget());
 
@@ -96,7 +96,7 @@ TEST(elementwise_add, compute_at) {
 
 TEST(elementwise_add, compute_at1) {
   auto [A, B, A_cache, C] = BuildComputeAtExpr();
-  A_cache->stage()->ComputeAt3(C->stage(), 1);
+  A_cache->stage()->ComputeAt(C->stage(), 1);
 
   Module::Builder builder("module4", common::DefaultHostTarget());
 
