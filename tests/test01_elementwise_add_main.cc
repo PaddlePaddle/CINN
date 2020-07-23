@@ -15,7 +15,7 @@ TEST(test01_elementwise_add, basic) {
   Buffer C_buf(Float(32));
   // auto C = Compute(
   //    {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
-  auto C = primitive::add(A, B, "C");
+  auto C = hlir::opfunction::add(A, B, "C");
   C->Bind(C_buf);
 
   Target target;
@@ -41,8 +41,9 @@ TEST(test01_elementwise_add, vectorize) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+  auto C = hlir::opfunction::add(A, B, "C");
+  /* auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C"); */
   C->stage()->Vectorize(1, 8);
 
   Target target;

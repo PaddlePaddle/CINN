@@ -18,7 +18,8 @@ using cinn::lang::Compute;
 using cinn::lang::Placeholder;
 
 namespace cinn {
-namespace primitive {
+namespace hlir {
+namespace opfunction {
 
 template <typename T>
 Tensor add(const Placeholder<T> &A, const Placeholder<T> &B, const std::string &output_name) {
@@ -36,5 +37,6 @@ Tensor add(const Placeholder<T> &A, const Placeholder<T> &B, const std::string &
   return output;
 }
 
-}  // namespace primitive
+}  // namespace opfunction
+}  // namespace hlir
 }  // namespace cinn
