@@ -544,40 +544,33 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Select *op) {
 llvm::Value *CodeGenLLVM::Visit(const ir::IfThenElse *op) {
   bool emit_else = op->false_case.defined();
 
-  llvm::BasicBlock *if_block   = b_->GetInsertBlock();
-  llvm::BasicBlock *true_block = llvm::BasicBlock::Create(
-      /*Context=*/b_->getContext(),
-      /*Name=*/"if-true",
-      /*Parent=*/b_->GetInsertBlock()->getParent(),
-      /*InsertBefore=*/nullptr);
-  llvm::BasicBlock *false_block = nullptr;
-  if (emit_else) {
-    false_block = llvm::BasicBlock::Create(b_->getContext(), "if-false", b_->GetInsertBlock()->getParent(), nullptr);
-  }
+  auto &ll_ctx      = b_->getContext();
+  auto *ll_function = b_->GetInsertBlock()->getParent();
 
-  llvm::BasicBlock *after_block = nullptr;
-  if (!if_block->getTerminator()) {
-    b_->SetInsertPoint(if_block);
-    after_block = llvm::BasicBlock::Create(b_->getContext(), "if-after", b_->GetInsertBlock()->getParent(), nullptr);
-    Br(after_block);
-  } else {
-    after_block = if_block->splitBasicBlock(b_->GetInsertPoint(), "if-after");
-  }
+  llvm::Value *cond            = Visit(&op->condition);
+  llvm::BasicBlock *then_block = llvm::BasicBlock::Create(ll_ctx, "if-then", ll_function);
+  llvm::BasicBlock *end_block  = llvm::BasicBlock::Create(ll_ctx, "if-end", ll_function);
 
-  b_->SetInsertPoint(if_block);
-  Visit(&op->true_case);
-  CondBr(Visit(&op->condition), true_block, emit_else ? false_block : after_block);
+  if (op->false_case.defined()) {
+    llvm::BasicBlock *else_block = llvm::BasicBlock::Create(ll_ctx, "if-else", ll_function);
+    CondBr(cond, then_block, else_block);
 
-  b_->SetInsertPoint(true_block);
-  Br(after_block);
+    // true case
+    b_->SetInsertPoint(then_block);
+    Visit(&op->true_case);
+    Br(end_block);
 
-  if (emit_else) {
-    b_->SetInsertPoint(false_block);
+    // false case
+    b_->SetInsertPoint(else_block);
     Visit(&op->false_case);
-    Br(after_block);
+    Br(end_block);
+  } else {
+    CondBr(cond, then_block, end_block);
+    b_->SetInsertPoint(then_block);
+    Visit(&op->true_case);
+    Br(end_block);
   }
-
-  b_->SetInsertPoint(after_block, after_block->getFirstInsertionPt());
+  b_->SetInsertPoint(end_block);
 
   return nullptr;
 }
