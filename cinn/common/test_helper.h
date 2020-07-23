@@ -18,15 +18,26 @@ namespace common {
  * auto* buf = BufferBuilder(Float(32), {20, 20}).set_random().Build();
  */
 struct BufferBuilder {
+  enum class InitType {
+    kRandom   = 0,
+    kZero     = 1,
+    kSetValue = 2,
+  };
   explicit BufferBuilder(Type type, const std::vector<int>& shape) : type_(type), shape_(shape) {}
 
   BufferBuilder& set_random() {
-    init_type_ = 1;
+    init_type_ = InitType::kRandom;
     return *this;
   }
 
   BufferBuilder& set_zero() {
-    init_type_ = 0;
+    init_type_ = InitType::kZero;
+    return *this;
+  }
+
+  BufferBuilder& set_val(float x) {
+    init_type_ = InitType::kSetValue;
+    init_val_  = x;
     return *this;
   }
 
@@ -54,9 +65,18 @@ struct BufferBuilder {
     }
   }
 
+  template <typename T>
+  void SetVal(void* arr, int len, T x) {
+    auto* data = static_cast<T*>(arr);
+    for (int i = 0; i < len; i++) {
+      data[i] = x;
+    }
+  }
+
  private:
   std::vector<int> shape_;
-  int init_type_ = 0;  // 0 for zero, 1 for random
+  InitType init_type_{InitType::kZero};
+  float init_val_{};
   int align_{};
   Type type_;
 };

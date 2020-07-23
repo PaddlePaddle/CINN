@@ -108,7 +108,7 @@ TEST(Stage, Fuse1) {
   LOG(INFO) << "fused: " << ele->transform();
 }
 
-TEST(ComputeAt2, Before) {
+TEST(ComputeAt, Before) {
   Expr M(100), N(200);
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
@@ -142,9 +142,9 @@ function fn (_A, _B, _cache, _C)
   ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
 }
 
-TEST(ComputeAt2, level0) {
+TEST(ComputeAt, level0) {
   Expr M(30), N(25);
-  Var bs("bs", Int(32));
+  Expr bs(10);
   Placeholder<float> A("A", {bs, M, N});
 
   auto A_cache = Compute(
@@ -158,26 +158,28 @@ TEST(ComputeAt2, level0) {
 
   A_cache->stage()->ComputeAt(C->stage(), 0);
 
-  auto fn = Lower("fn", {A, A_cache, C}, {Expr(bs)}, {});
+  auto fn = Lower("fn", {A, A_cache, C});
   LOG(INFO) << "fn:\n" << fn;
 
   auto target = R"ROC(
-function fn (bs, _A, _B, _cache, _C)
+function fn (bs, _A, _cache, _C)
 {
-  for (_p0, bs)
+  for (po0, bs)
   {
-    for (j, 11)
-    {
-      for (k, 10)
+    if (((bs >= (1 + po0)) and (po0 >= 0))) {
+      for (j, 11)
       {
-        cache[0, j, k] = A[0, j, k]
+        for (k, 10)
+        {
+          cache[0, j, k] = A[po0, j, k]
+        }
       }
     }
     for (i, 10)
     {
       for (j, 10)
       {
-        C[_p0, i, j] = select((i > 0), (cache[0, (-1 + i), j] + (cache[0, i, j] + (cache[0, (1 + i), j] + B[_p0, i, j]))), 0)
+        C[po0, i, j] = select((i < 9), (cache[0, i, j] + cache[0, (1 + i), j]), 0)
       }
     }
   }
@@ -192,36 +194,38 @@ function fn (bs, _A, _B, _cache, _C)
   codegen.SetInlineBuiltinCodes(false);
   LOG(INFO) << "C code:\n" << codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
 
-  // auto jit = backends::SimpleJIT::Create();
-  // jit->Link(builder.Build(), false);
+  auto jit = backends::SimpleJIT::Create();
+  jit->Link(builder.Build(), false);
 
-  // auto _fn_handler = jit->Lookup("fn");
-  // auto* fn_handler = reinterpret_cast<lower_func_ptr_t>(_fn_handler);
+  auto _fn_handler = jit->Lookup("fn");
+  auto* fn_handler = reinterpret_cast<lower_func_ptr_t>(_fn_handler);
 
-  // // create buffer and args
-  // auto A_buf = common::BufferBuilder(Float(32), {10, M.as_int32(), N.as_int32()}).set_random().Build();
-  // // auto B_buf     = common::BufferBuilder(Float(32), {10, M.as_int32(), N.as_int32()}).set_random().Build();
-  // auto C_buf     = common::BufferBuilder(Float(32), {10, 10, 10}).set_zero().Build();
-  // auto Cache_buf = common::BufferBuilder(Float(32), {1, 11, 10}).set_zero().Build();
-  // auto arg_pack  = common::ArgsBuilder().Add(10).Add(A_buf).Add(Cache_buf).Add(C_buf).Build();
+  // create buffer and args
+  auto A_buf = common::BufferBuilder(Float(32), {10, M.as_int32(), N.as_int32()}).set_random().Build();
+  // auto B_buf     = common::BufferBuilder(Float(32), {10, M.as_int32(), N.as_int32()}).set_random().Build();
+  auto C_buf     = common::BufferBuilder(Float(32), {10, 10, 10}).set_zero().Build();
+  auto Cache_buf = common::BufferBuilder(Float(32), {1, 11, 10}).set_zero().Build();
+  auto arg_pack  = common::ArgsBuilder().Add(A_buf).Add(Cache_buf).Add(C_buf).Build();
 
-  // fn_handler(arg_pack.data(), arg_pack.size());
+  fn_handler(arg_pack.data(), arg_pack.size());
 
-  // auto* C_data = reinterpret_cast<float*>(C_buf->host_memory);
-  // auto* A_data = reinterpret_cast<float*>(A_buf->host_memory);
-  // // auto* B_data = reinterpret_cast<float*>(B_buf->host_memory);
+  auto* C_data = reinterpret_cast<float*>(C_buf->host_memory);
+  auto* A_data = reinterpret_cast<float*>(A_buf->host_memory);
+  // auto* B_data = reinterpret_cast<float*>(B_buf->host_memory);
 
-  // for (int k = 0; k < 10; k++) {
-  //   for (int i = 0; i < 10; i++) {
-  //     for (int j = 0; j < 10; j++) {
-  //       float val = i > 0 ? A_data[k * 100 + (i - 1) * 10 + j] + A_data[k * 100 + i * 10 + j] : 0.f;
-  //       ASSERT_NEAR(val, C_data[i], 1e-5);
-  //     }
-  //   }
-  // }
+  for (int k = 0; k < 10; k++) {
+    for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 10; j++) {
+        float val = i < 9 ? A_data[k * (M.as_int32() * N.as_int32()) + i * N.as_int32() + j] +
+                                A_data[k * (M.as_int32() * N.as_int32()) + (i + 1) * N.as_int32() + j]
+                          : 0.f;
+        ASSERT_NEAR(val, C_data[k * 100 + i * 10 + j], 1e-5);
+      }
+    }
+  }
 }
 
-TEST(ComputeAt2, level1) {
+TEST(ComputeAt, level1) {
   Expr M(100), N(200);
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
@@ -271,7 +275,7 @@ function fn (_A, _B, _cache, _C)
   ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
 }
 
-TEST(ComputeAt2, simple) {
+TEST(ComputeAt, simple) {
   {
     Expr n(64);
     auto A = Placeholder<float>("A", {n, n});
@@ -311,7 +315,7 @@ TEST(ComputeAt2, simple) {
   }
 }
 
-TEST(ComputeAt, Before) {
+TEST(ComputeAt, Before1) {
   Expr M(100), N(200);
 
   Placeholder<float> A("A", {M, N});
