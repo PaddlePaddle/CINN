@@ -21,6 +21,7 @@ function check_style {
 function prepare {
     mkdir -p $build_dir
     cd $build_dir
+
     mkdir -p tests
     mkdir -p cinn/backends
 
@@ -65,6 +66,10 @@ function cmake_ {
 
 function build {
     cd $build_dir
+
+    # build gtest first, it tends to broke the CI
+    make extern_gtest
+
     make test01_elementwise_add_main -j $JOBS
     make test02_matmul_main -j $JOBS
     make test03_conv_main -j $JOBS
