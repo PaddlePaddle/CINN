@@ -147,7 +147,7 @@ std::tuple<Iterator, Iterator, Iterator, Iterator> Stage::Tile(const Iterator &l
   return std::make_tuple(level0_outer, level0_inner, level1_outer, level1_inner);
 }
 
-void Stage::ComputeAt(Stage *other, int level, ComputeAtKind kind) {
+void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
 
   CHECK(tensor_);
@@ -172,22 +172,38 @@ void Stage::ComputeAt(Stage *other, int level, ComputeAtKind kind) {
   }
 }
 
-void Stage::ComputeAt2(Stage *other, int level, Stage::ComputeAtKind kind) {
+void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind) {
   auto accesses = GatherAccesses(other, tensor_->name);
+  if (accesses.empty()) return;
+  auto access = accesses[0];
+  for (int i = 1; i < accesses.size(); i++) {
+    access = isl::manage(isl_map_union(access.release(), accesses[i].copy()));
+  }
 
-  ComputeAtTransform transform(domain_, other->transformed_domain(), accesses, transform_, level);
+  ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
+  transform();
 
   domain_    = transform.adjusted_pdomain();
   transform_ = transform.adjusted_ptransform();
 
-  ir::ComputeAtInfo info;
-  info.consumer_tensor_name = tensor_->name;
-  info.level                = level;
-  info.offsets              = transform.offsets();
-  info.ranges               = transform.ranges;
-  other->tensor_->compute_at_infos.push_back(info);
+  // set name of the dimensions if not exists, or it will go wrong in the following process.
+  domain_ = SetDimNameIfNull(domain_.release(), [](isl_dim_type dim_type, int i) { return "pp" + std::to_string(i); });
+  transform_ = SetDimNameIfNull(transform_.release(), [](isl_dim_type dim_type, int i) {
+    return (dim_type == isl_dim_in ? "pi" : "po") + std::to_string(i);
+  });
 
-  ComputeAt(other, level, kind);
+  ComputeAtSchedule(other, level, kind);
+
+  auto indice_mins = transform.GetAccessesPrecedingIndicesMinAssumingParamsZero();
+  std::vector<int> offsets;
+  std::transform(indice_mins.begin(), indice_mins.end(), std::back_inserter(offsets), [&](int x) { return -x; });
+
+  other->tensor_->compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
+                                                tensor_->name,                         // producer_tensor_name
+                                                transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
+                                                indice_mins,  // preceding_offset_for_producer_load
+                                                level         // level
+  );
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
@@ -319,6 +335,18 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
 
   stage_partial_set = isl::manage(isl_set_set_tuple_name(stage_partial_set.release(), ""));
   self_partial_set  = isl::manage(isl_set_set_tuple_name(self_partial_set.release(), ""));
+
+  // remove parameters, we don't consider them yet
+  auto remove_params = [](isl::set &set) {
+    int nparams = isl_set_dim(set.get(), isl_dim_param);
+    if (nparams > 0) {
+      set = isl::manage(isl_set_remove_dims(set.release(), isl_dim_param, 0, nparams));
+    }
+  };
+
+  remove_params(stage_partial_set);
+  remove_params(self_partial_set);
+
   VLOG(3) << "stage0.partial_set " << stage_partial_set;
   VLOG(3) << "stage1.partial_set " << self_partial_set;
   return isl_set_is_equal(stage_partial_set.get(), self_partial_set.get());
@@ -565,7 +593,6 @@ std::vector<isl::map> GatherAccesses(Stage *stage, const std::string &tensor_nam
   for (auto &load : out_loads) {
     std::string repr = utils::StringFormat(
         "{ %s[%s] -> %s }", in_tuple_name.c_str(), utils::Join(in_dim_names, ",").c_str(), load.c_str());
-    LOG(INFO) << "repr: " << repr;
     res.push_back(isl::map(stage->domain().ctx(), repr));
   }
 

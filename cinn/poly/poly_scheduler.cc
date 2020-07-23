@@ -285,6 +285,23 @@ void PolyScheduler::ScheduleGroups() {
 }
 
 std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
+  // consider compute_at
+  std::map<std::string, Stage*> stage_map;
+  std::map<std::string, ComputeAtRelation> compute_at_links;
+  for (int i = 0; i < stages_.size(); i++) {
+    auto& stage                     = stages_[i];
+    stage_map[stage->tensor_->name] = stage;
+    for (auto& item : stage->compute_ats()) {
+      compute_at_links[stage->tensor_->name] = item;
+    }
+  }
+
+  for (auto& link : compute_at_links) {
+    auto* a = stage_map.at(link.first);
+    auto* b = stage_map.at(link.second.stage->tensor_->name);
+    After(*a, *b, link.second.level);
+  }
+
   for (int i = 0; i < stages_.size() - 1; i++) {
     Stage* a = stages_[i];
     Stage* b = stages_[i + 1];
@@ -292,8 +309,12 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
     auto a_set = a->transformed_domain();
     auto b_set = b->transformed_domain();
 
-    int max_precending_level = std::max(isl_max_level_compatible(a_set.get(), b_set.get()), 0);
-    After(*a, *b, max_precending_level);
+    // a -> b not in the compute_at_links
+    if (!compute_at_links.count(a->tensor_->name) ||
+        compute_at_links[a->tensor_->name].stage->tensor_->name != b->tensor_->name) {
+      int max_precending_level = std::max(isl_max_level_compatible(a_set.get(), b_set.get()), 0);
+      After(*a, *b, max_precending_level);
+    }
   }
 
   auto [nodes_in_order, edges_in_order] = schedule_graph_.topological_order();

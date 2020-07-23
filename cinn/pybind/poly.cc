@@ -82,7 +82,7 @@ void BindStage(py::module *m) {
       .def("unroll", py::overload_cast<int>(&Stage::Unroll))
       .def("unroll", py::overload_cast<const std::string &>(&Stage::Unroll))
       .def("unroll", py::overload_cast<const Iterator &>(&Stage::Unroll))
-      .def("compute_at", &Stage::ComputeAt, arg("other"), arg("level"), arg("kind") = Stage::kComputeAtUnk)
+      .def("compute_at", &Stage::ComputeAtSchedule, arg("other"), arg("level"), arg("kind") = Stage::kComputeAtUnk)
       .def("skew", &Stage::Skew)
       // TODO(fuchang01): GpuThreads
       // TODO(fuchang01): GpuBlocks

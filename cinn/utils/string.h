@@ -9,11 +9,7 @@ namespace utils {
 
 //! Get the content of a stream.
 template <typename T>
-std::string GetStreamCnt(const T& x) {
-  std::stringstream os;
-  os << x;
-  return os.str();
-}
+std::string GetStreamCnt(const T& x);
 
 /**
  * Construct a formatted string with arguments.
@@ -21,13 +17,10 @@ std::string GetStreamCnt(const T& x) {
  * @param ... The parameters of the format.
  * @return The formated string.
  */
-std::string StringFormat(const std::string fmt_str, ...);
+std::string StringFormat(const std::string& fmt_str, ...);
 
 /**
  * Join multiple fields to a single string. Similar to Python's str.join method.
- * @param fields
- * @param splitter
- * @return
  */
 std::string Join(const std::vector<std::string>& fields, const std::string& splitter);
 
@@ -39,16 +32,20 @@ std::string Trim(const std::string& s, const char* empty = " \n\r\t");
 std::string Uppercase(const std::string& x);
 
 //! Replace a substr 'from' to 'to' in string s.
-static void Replace(std::string* s, const std::string& from, const std::string& to) {
-  size_t pos = 0;
-  while ((pos = s->find(from, pos)) != std::string::npos) {
-    s->replace(pos, from.size(), to);
-    pos += to.length();
-  }
-}
+void Replace(std::string* s, const std::string& from, const std::string& to);
 
+//! Tell if a string \p x start with \p str.
 bool Startswith(const std::string& x, const std::string& str);
-bool Endswith(const std::string& full_string, const std::string& ending);
+
+//! Tell if a string \p x ends with \p str.
+bool Endswith(const std::string& x, const std::string& str);
+
+template <typename T>
+std::string GetStreamCnt(const T& x) {
+  std::stringstream os;
+  os << x;
+  return os.str();
+}
 
 }  // namespace utils
 }  // namespace cinn

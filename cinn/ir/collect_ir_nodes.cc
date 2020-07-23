@@ -62,5 +62,16 @@ std::set<Expr> CollectIRNodes(Expr expr, std::function<bool(const Expr*)>&& tell
   return exprs;
 }
 
+std::map<std::string, Expr> CollectTensorMap(Expr x, std::function<bool(const Expr*)>&& extra_teller) {
+  std::map<std::string, Expr> tensor_map;
+
+  auto tensors = CollectIRNodes(x, [&](const Expr* x) { return x->as_tensor() && extra_teller(x); });
+  for (auto& e : tensors) {
+    auto* t             = e.as_tensor();
+    tensor_map[t->name] = e;
+  }
+  return tensor_map;
+}
+
 }  // namespace ir
 }  // namespace cinn

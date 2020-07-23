@@ -302,7 +302,6 @@ struct Expr : public IrNodeRef {
   _Tensor_* as_tensor();
   const _Tensor_* as_tensor() const;
   ir::Tensor as_tensor_ref() const;
-
   // @}
 
   bool is_constant() const;
@@ -422,6 +421,7 @@ static std::ostream& operator<<(std::ostream& os, MemoryType t) {
       LOG(FATAL) << "Not supported memory type";
 #undef __
   }
+  return os;
 }
 
 template <typename T>

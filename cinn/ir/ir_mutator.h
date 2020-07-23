@@ -69,9 +69,11 @@ void IRMutator<T>::Visit(const For *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const PolyFor *expr, T op) {
   auto *node = op->template As<PolyFor>();
-  IRVisitorBase<void, T>::Visit(&node->body, &node->body);
-
+  // IRVisitorBase<void,T>::Visit(&node->iterator, &node->iterator);
+  IRVisitorBase<void, T>::Visit(&node->init, &node->init);
+  IRVisitorBase<void, T>::Visit(&node->condition, &node->condition);
   IRVisitorBase<void, T>::Visit(&node->inc, &node->inc);
+  IRVisitorBase<void, T>::Visit(&node->body, &node->body);
 }
 template <typename T>
 void IRMutator<T>::Visit(const Select *expr, T op) {

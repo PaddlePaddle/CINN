@@ -7,7 +7,7 @@
 namespace cinn {
 namespace utils {
 
-std::string StringFormat(const std::string fmt_str, ...) {
+std::string StringFormat(const std::string &fmt_str, ...) {
   /* Reserve two times as much as the length of the fmt_str */
   int final_n, n = (static_cast<int>(fmt_str.size())) * 2;
   std::unique_ptr<char[]> formatted;
@@ -58,9 +58,9 @@ std::string Uppercase(const std::string &x) {
 }
 
 bool Startswith(const std::string &x, const std::string &str) { return x.find(str) == 0; }
-bool Endswith(const std::string &full_string, const std::string &ending) {
-  if (full_string.length() >= ending.length()) {
-    return std::equal(ending.rbegin(), ending.rend(), full_string.rbegin());
+bool Endswith(const std::string &x, const std::string &str) {
+  if (x.length() >= str.length()) {
+    return std::equal(str.rbegin(), str.rend(), x.rbegin());
   }
   return false;
 }
@@ -79,6 +79,14 @@ std::vector<std::string> Split(const std::string &str, const std::string &splitt
     results.push_back(str.substr(pos1));
   }
   return results;
+}
+
+void Replace(std::string *s, const std::string &from, const std::string &to) {
+  size_t pos = 0;
+  while ((pos = s->find(from, pos)) != std::string::npos) {
+    s->replace(pos, from.size(), to);
+    pos += to.length();
+  }
 }
 
 }  // namespace utils

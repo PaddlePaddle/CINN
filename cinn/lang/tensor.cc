@@ -166,7 +166,7 @@ void _Tensor_::DropStage() {
   }
 }
 
-bool _Tensor_::is_faked() const {}
+bool _Tensor_::is_faked() const { return false; }
 
 poly::Stage *_Tensor_::stage() {
   if (!stage_shared) return nullptr;

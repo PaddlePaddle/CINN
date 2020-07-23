@@ -120,7 +120,7 @@ class _Buffer_ : public ExprNode<_Buffer_> {
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Buffer_;
 
-  // Copy the meta info to other.
+  // Copy the meta infos to other.
   void CopyMeta(_Buffer_* other) const { other->binded_tensors_names_ = binded_tensors_names_; }
 
  private:

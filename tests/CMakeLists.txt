@@ -11,6 +11,8 @@ cc_test(test01_elementwise_add_main SRCS test01_elementwise_add_main.cc DEPS cor
 cc_test(test01_elementwise_add_case
   SRCS test01_elementwise_add_case.cc
   ${CMAKE_BINARY_DIR}/tests/test01_elementwise_add.cc
+  ${CMAKE_BINARY_DIR}/tests/test01_elementwise_add_compute_at.cc
+  ${CMAKE_BINARY_DIR}/tests/test01_elementwise_add_compute_at_level1.cc
   ${CMAKE_BINARY_DIR}/tests/test01_elementwise_add_vectorize.cc
   DEPS core)
 add_dependencies(test01_elementwise_add_case test01_elementwise_add_main)

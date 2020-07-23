@@ -1,5 +1,7 @@
 #include "cinn/common/ir_util.h"
 
+#include <unordered_set>
+
 #include "cinn/common/cas.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
@@ -209,6 +211,130 @@ Expr or_all(const std::vector<Expr> &conds) {
     res = ir::Or::Make(res, conds[i]);
   }
   return res;
+}
+
+void CheckTensorUniqueInExpr(Expr expr) {
+  auto tensor_uniq = ir::CollectIRNodes(expr, [](const Expr *x) { return x->as_tensor(); });
+  for (auto &t : tensor_uniq) LOG(INFO) << "found tensor: " << t << " " << t.as_tensor();
+  std::unordered_map<std::string, const ir::_Tensor_ *> tensor_names;
+  for (auto &t : tensor_uniq) {
+    auto *tp = t.as_tensor();
+    if (!tensor_names.count(tp->name)) {
+      tensor_names[tp->name] = tp;
+    } else {
+      CHECK_EQ(tensor_names[tp->name], tp)
+          << "Found tensor not unique [" << tp->name << "]\nThe original expression is \n"
+          << expr;
+    }
+  }
+}
+
+void CheckBufferUniqueInExpr(Expr expr) {
+  // the buffers exists in tensor and lowered functions.
+  CheckTensorUniqueInExpr(expr);
+
+  auto tensors = ir::CollectIRNodes(expr, [](const Expr *x) { return x->as_tensor(); });
+  auto funcs   = ir::CollectIRNodes(expr, [](const Expr *x) { return x->as_lowered_func(); });
+
+  std::unordered_map<std::string, const ir::_Buffer_ *> buffer_name;
+  auto check_buffer_uniq = [&](const ir::_Buffer_ *b) {
+    if (buffer_name.count(b->name)) {
+      CHECK_EQ(buffer_name[b->name], b);
+    } else {
+      buffer_name[b->name] = b->const_self();
+    }
+  };
+  for (auto &e : tensors) {
+    auto *t = e.as_tensor();
+    if (t->buffer.defined()) {
+      check_buffer_uniq(t->buffer->const_self());
+    }
+  }
+
+  for (auto &e : funcs) {
+    auto *f = e.as_lowered_func();
+    for (auto &b : f->temp_bufs) {
+      if (b.defined()) {
+        check_buffer_uniq(b->const_self());
+      }
+    }
+  }
+}
+
+namespace {
+
+struct AllTensorsUnifier : public ir::IRMutator<> {
+  std::unordered_map<std::string, ir::_Tensor_ *> tensors;
+
+  void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+  void Visit(const ir::_Tensor_ *op, Expr *expr) override {
+    auto *node = expr->as_tensor();
+    if (tensors.count(node->name)) {
+      if (tensors[node->name] != op) {
+        expr->Reset(tensors[node->name]);
+      }
+    } else {
+      tensors.emplace(node->name, node);
+    }
+  }
+};
+
+struct AllBuffersUnifier : public ir::IRMutator<> {
+  std::unordered_map<std::string, ir::_Buffer_ *> buffers;
+
+  void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+  // We assume the buffer only exists in Tensor and LoweredFunc.
+
+  void UpdateBufferIfNeeded(ir::Buffer &buffer) {
+    if (buffer.defined()) {
+      auto &name = buffer->name;
+      if (buffers.count(name)) {
+        if (buffers[name] != buffer->const_self()) {
+          buffer.Reset(buffers[name]);
+        }
+      } else {
+        buffers[name] = buffer->self();
+      }
+    }
+  }
+
+  void Visit(const ir::_Tensor_ *op, Expr *expr) {
+    auto *node = expr->As<ir::_Tensor_>();
+    UpdateBufferIfNeeded(node->buffer);
+  }
+
+  void Visit(const ir::_LoweredFunc_ *op, Expr *expr) {
+    auto *node = expr->As<ir::_LoweredFunc_>();
+    for (auto &buffer : node->temp_bufs) {
+      UpdateBufferIfNeeded(buffer);
+    }
+  }
+};
+
+}  // namespace
+
+void UnifyAllTensorsInExpr(Expr *expr) { AllTensorsUnifier()(expr); }
+
+void UnifyAllBuffersInExpr(Expr *expr) { AllBuffersUnifier()(expr); }
+
+Expr cast(Expr e, Type type) {
+  if (e.is_constant()) {
+    if (type.is_int(32)) {
+      return common::make_const(static_cast<int32_t>(e.get_constant()));
+    } else if (type.is_int(64)) {
+      return common::make_const(static_cast<int64_t>(e.get_constant()));
+    } else if (type.is_float(32)) {
+      return common::make_const(static_cast<float>(e.get_constant()));
+    } else if (type.is_float(64)) {
+      return common::make_const(static_cast<double>(e.get_constant()));
+    } else {
+      NOT_IMPLEMENTED
+    }
+  }
+
+  return ir::Cast::Make(type, e);
 }
 
 }  // namespace common

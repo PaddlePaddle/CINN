@@ -33,7 +33,7 @@ void IrPrinter::Visit(const NE *x) { PrintBinaryOp("!=", x); }
 void IrPrinter::Visit(const LT *x) { PrintBinaryOp("<", x); }
 void IrPrinter::Visit(const LE *x) { PrintBinaryOp("<=", x); }
 void IrPrinter::Visit(const GT *x) { PrintBinaryOp(">", x); }
-void IrPrinter::Visit(const GE *x) { PrintBinaryOp("<=", x); }
+void IrPrinter::Visit(const GE *x) { PrintBinaryOp(">=", x); }
 void IrPrinter::Visit(const And *x) { PrintBinaryOp("and", x); }
 void IrPrinter::Visit(const Or *x) { PrintBinaryOp("or", x); }
 void IrPrinter::Visit(const Activate *x) {
@@ -256,7 +256,14 @@ void IrPrinter::Visit(const _Range_ *x) {
   os_ << ")";
 }
 
-void IrPrinter::Visit(const _Buffer_ *x) { os_ << "_Buffer_(" << x->name << ")"; }
+void IrPrinter::Visit(const _Buffer_ *x) {
+  std::vector<std::string> dim_names;
+  std::transform(x->shape.begin(), x->shape.end(), std::back_inserter(dim_names), [&](const Expr &x) {
+    return utils::GetStreamCnt(x);
+  });
+
+  os_ << "_Buffer_<" << utils::Join(dim_names, ",") << ">(" << x->name << ")";
+}
 void IrPrinter::Visit(const _Tensor_ *x) {
   CHECK(!x->shape.empty());
   os_ << "Tensor(";

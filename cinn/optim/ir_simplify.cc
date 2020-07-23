@@ -8,6 +8,7 @@
 
 #include "cinn/common/arithmatic.h"
 #include "cinn/common/cas.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
@@ -54,6 +55,13 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
     CHECK(common::IsPureMath(node->stride));
     PartialSimplify(&node->base, var_intervals);
     PartialSimplify(&node->stride, var_intervals);
+  }
+
+  void Visit(const PolyFor* op, Expr* expr) override {
+    auto* node      = expr->As<ir::PolyFor>();
+    node->condition = common::SolveInequality(op->condition, op->iterator);
+
+    Visit(&node->body, &node->body);
   }
 
   void Visit(const _Tensor_* op, Expr* expr) override {
@@ -164,6 +172,7 @@ struct ReplaceFracWithDivMutator : public ir::IRMutator<> {
     *expr = ir::Div::Make(node->operand(0), node->operand(1));
   }
 };
+
 }  // namespace
 
 void Simplify(Expr* expr) {
