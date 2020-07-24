@@ -5,7 +5,7 @@
 #include "cinn/backends/codegen_c.h"
 #include "cinn/backends/codegen_c_x86.h"
 #include "cinn/common/common.h"
-#include "cinn/hlir/pe/add.h"
+
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
