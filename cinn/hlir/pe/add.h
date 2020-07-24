@@ -19,7 +19,7 @@ using cinn::lang::Placeholder;
 
 namespace cinn {
 namespace hlir {
-namespace opfunction {
+namespace pe {
 
 template <typename T>
 Tensor add(const Placeholder<T> &A, const Placeholder<T> &B, const std::string &output_name) {
@@ -27,9 +27,9 @@ Tensor add(const Placeholder<T> &A, const Placeholder<T> &B, const std::string &
   CHECK(input_A->SameShapeWith(B.tensor())) << "The 2 inputs have different shapes with each other. "
                                                "The add fucntion needs two inputs to have identical shape.";
   const std::vector<Expr> output_shape = input_A->shape;
-  CHECK_GE(output_shape.size(), 1) << "The input shape of primitive::add function is " << output_shape.size()
+  CHECK_GE(output_shape.size(), 1) << "The input shape of pe::add function is " << output_shape.size()
                                    << " and it should be >= 1.";
-  CHECK_LE(output_shape.size(), 4) << "The input shape of primitive::add function is " << output_shape.size()
+  CHECK_LE(output_shape.size(), 4) << "The input shape of pe::add function is " << output_shape.size()
                                    << " and it should be <= 4.";
 
   Tensor output = Compute(
@@ -37,6 +37,6 @@ Tensor add(const Placeholder<T> &A, const Placeholder<T> &B, const std::string &
   return output;
 }
 
-}  // namespace opfunction
+}  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
