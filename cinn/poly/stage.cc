@@ -172,12 +172,21 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
   }
 }
 
-void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind) {
-  auto accesses = GatherAccesses(other, tensor_->name);
+void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cache_reader) {
+  std::vector<isl::map> accesses;
+  if (cache_reader.empty())
+    accesses = GatherAccesses(other, tensor_->name);
+  else
+    accesses = GatherAccesses(other, cache_reader);
+
+  LOG(ERROR) << "ComputeAt: " << other->tensor_->name << " has no access to " << tensor_->name << ", skipped it";
   if (accesses.empty()) return;
   auto access = accesses[0];
   for (int i = 1; i < accesses.size(); i++) {
     access = isl::manage(isl_map_union(access.release(), accesses[i].copy()));
+  }
+  if (!cache_reader.empty()) {
+    access = isl::manage(isl_map_set_tuple_name(access.release(), isl_dim_out, cache_reader.c_str()));
   }
 
   ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
@@ -471,7 +480,6 @@ void Stage::GpuBlocks(const std::vector<int> &levels, DeviceAPI device) {
       levels.begin(), levels.end(), std::back_inserter(iters), [&](int i) { return Iterator(dim_names[i]); });
   GpuBlocks(iters, device);
 }
-
 void Stage::GpuBlocks(const Iterator &block_x, DeviceAPI device) {
   GpuBlocks(std::vector<Iterator>({block_x}), device);
 }
@@ -486,6 +494,20 @@ void Stage::GpuBlocks(const std::vector<Iterator> &iters, DeviceAPI device) {
   for (auto &iter : iters) {
     CHECK(std::find(dim_names.begin(), dim_names.end(), iter.id) != dim_names.end());
     forloop_infos_.emplace(iter.id, StageForloopInfo{ir::ForType::GPUBlock, device});
+  }
+}
+
+void Stage::Bind(int level, const std::string &axis) {
+  auto dim_names = GetDimNames(transformed_domain().get());
+  CHECK_LT(level, dim_names.size());
+  std::string dim_name = dim_names[level];
+
+  if (axis == "threadIdx.x" || axis == "threadIdx.y" || axis == "threadIdx.z") {
+    forloop_infos_.emplace(dim_name, StageForloopInfo{ir::ForType::GPUThread, DeviceAPI::GPU});
+  } else if (axis == "blockIdx.x" || axis == "blockIdx.y" || axis == "blockIdx.z") {
+    forloop_infos_.emplace(dim_name, StageForloopInfo{ir::ForType::GPUBlock, DeviceAPI::GPU});
+  } else {
+    NOT_IMPLEMENTED
   }
 }
 

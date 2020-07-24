@@ -883,5 +883,60 @@ TEST(Conv, optimize) {
   LOG(INFO) << Lower("conv", {A, W, BL}, {}, {AA, WW, AL, WL, B});
 }
 
+TEST(ElementwiseAdd, cache_read) {
+  Expr M(100);
+  Expr N(200);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+  C->stage()->Split(1, 10);
+
+  C->stage()->Bind(0, "threadIdx.x");
+  C->stage()->Bind(1, "blockIdx.x");
+
+  auto AL = A->stage()->CacheRead("local", {C});
+  AL->stage()->Split(1, 10);
+  AL->stage()->Bind(0, "threadIdx.x");
+  AL->stage()->Bind(1, "blockIdx.x");
+
+  AL->stage()->ComputeAt(C->stage(), 2);
+
+  Target target;
+  CodeGenCUDA_Dev codegen(target);
+
+  auto fn = Lower("fn", {A, B, C}, {}, {AL});
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(fn);
+
+  auto source = codegen.Compile(builder.Build());
+  LOG(INFO) << "source:\n" << source;
+
+  std::string source_target = R"ROC(
+extern "C" {
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+{
+  {
+    C[((200 * threadIdx.x) + blockIdx.x)] = (A[((200 * threadIdx.x) + blockIdx.x)] + B[((200 * threadIdx.x) + blockIdx.x)]);
+  };
+}
+
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(source_target), source);
+}
+
 }  // namespace backends
 }  // namespace cinn

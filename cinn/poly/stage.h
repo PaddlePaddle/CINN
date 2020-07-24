@@ -124,6 +124,8 @@ class Stage : public Object {
   void Unroll(const std::string& level);
   void Unroll(const Iterator& level);
 
+  void Bind(int level, const std::string& axis);
+
   enum ComputeAtKind {
     kComputeAtUnk,
     kComputeAtBefore,
@@ -140,9 +142,7 @@ class Stage : public Object {
    * @param level the level of \p other's forloop to compute at
    * @param kind the position compared to other, can be Before, After or Unknown.
    */
-  void ComputeAt(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
-
-  void ComputeAtSchedule(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
+  void ComputeAt(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk, const std::string& cache_reader = "");
 
   /**
    * Apply loop skewing on the loop levels \p i and \p j with a skewing factor of \p factor.
@@ -233,6 +233,8 @@ class Stage : public Object {
   bool has_expression() const;
 
   Stage() = default;
+
+  void ComputeAtSchedule(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
