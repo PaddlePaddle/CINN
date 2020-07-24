@@ -21,23 +21,34 @@ cinn_buffer_t* BufferBuilder::Build() {
 
   cinn_buffer_malloc(nullptr, buffer);
 
-  if (init_type_ == 0) {
-    memset(buffer->host_memory, 0, buffer->memory_size);
-  } else if (init_type_ == 1) {
-    if (type_ == type_of<float>()) {
-      RandomFloat<float>(buffer->host_memory, buffer->num_elements());
-    } else if (type_ == type_of<double>()) {
-      RandomFloat<double>(buffer->host_memory, buffer->num_elements());
-    } else if (type_ == type_of<int32_t>()) {
-      RandomInt<int32_t>(buffer->host_memory, buffer->num_elements());
-    } else if (type_ == type_of<int64_t>()) {
-      RandomInt<int64_t>(buffer->host_memory, buffer->num_elements());
-    } else {
-      NOT_IMPLEMENTED
-    }
-  } else {
-    NOT_IMPLEMENTED
+  switch (init_type_) {
+    case InitType::kZero:
+      memset(buffer->host_memory, 0, buffer->memory_size);
+      break;
+
+    case InitType::kRandom:
+      if (type_ == type_of<float>()) {
+        RandomFloat<float>(buffer->host_memory, buffer->num_elements());
+      } else if (type_ == type_of<double>()) {
+        RandomFloat<double>(buffer->host_memory, buffer->num_elements());
+      } else if (type_ == type_of<int32_t>()) {
+        RandomInt<int32_t>(buffer->host_memory, buffer->num_elements());
+      } else if (type_ == type_of<int64_t>()) {
+        RandomInt<int64_t>(buffer->host_memory, buffer->num_elements());
+      }
+      break;
+
+    case InitType::kSetValue:
+      if (type_ == type_of<int>()) {
+        SetVal<int>(buffer->host_memory, buffer->num_elements(), init_val_);
+      } else if (type_ == type_of<float>()) {
+        SetVal<float>(buffer->host_memory, buffer->num_elements(), init_val_);
+      } else {
+        NOT_IMPLEMENTED
+      }
+      break;
   }
+
   return buffer;
 }
 
