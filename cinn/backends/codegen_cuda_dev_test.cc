@@ -909,8 +909,8 @@ TEST(ElementwiseAdd, cache_read) {
   Module::Builder builder("module", target);
   builder.AddFunction(fn);
 
-  auto source = codegen.Compile(builder.Build());
-  LOG(INFO) << "source:\n" << source;
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "source:\n" << source_code;
 
   std::string source_target = R"ROC(
 extern "C" {
@@ -925,14 +925,28 @@ typedef char int8_t;
 __global__
 void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
+  float _A_read_cache_3 [ 1 * 10 ];
+  float* A_read_cache_3 = _A_read_cache_3;
   {
-    C[((200 * threadIdx.x) + blockIdx.x)] = (A[((200 * threadIdx.x) + blockIdx.x)] + B[((200 * threadIdx.x) + blockIdx.x)]);
+    if (((((threadIdx.x >= 0) && (threadIdx.x <= 99)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
+      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+        A_read_cache_3[j_inner] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))];
+      };
+    };
+    for (int32_t i = 0; i < 10; i += 1) {
+      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[((10 * blockIdx.x) + ((10 * threadIdx.x) + i))] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
+    };
   };
 }
 
 }
 )ROC";
   // ASSERT_EQ(utils::Trim(source_target), source);
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty()) << "Compile error!";
 }
 
 }  // namespace backends

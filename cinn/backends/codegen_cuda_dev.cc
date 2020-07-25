@@ -79,7 +79,7 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
 
   DoIndent();
 
-  Expr temp_buffer_alloc = ir::Block::Make(op->alloc_tmp_buffer_exprs);
+  Expr temp_buffer_alloc = ir::Block::Make(op->PrepareAllocTempBufferExprs());
   Expr func_body         = op->body;
   Expr temp_buffer_alias = ir::Block::Make(GenerateBufferAliasExprs(op, op->temp_bufs));
 

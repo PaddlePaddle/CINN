@@ -780,13 +780,6 @@ void UpdateComputeAtBufferShape(Expr* expr) {
         process_buffer(Reference(&buf).operator->(), *compute_at_it->second);
       }
     }
-
-    for (auto& expr : node->alloc_tmp_buffer_exprs) {
-      auto compute_at_it = buffer_to_compute_at_info.find(expr.As<ir::Alloc>()->destination.as_buffer()->name);
-      if (compute_at_it != buffer_to_compute_at_info.end()) {
-        process_alloca(Reference(&expr).As<ir::Alloc>(), *compute_at_it->second);
-      }
-    }
   }
 }
 

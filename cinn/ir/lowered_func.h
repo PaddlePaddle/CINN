@@ -105,7 +105,6 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   std::vector<Expr> dealloc_output_buffer_exprs;
   // @}
 
-  std::vector<Expr> alloc_tmp_buffer_exprs;
   //! something like: float* A_data = (float*)(A->host_memory);
   std::vector<Expr> buffer_data_cast_exprs;
 
@@ -123,12 +122,13 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
 
   static const IrNodeTy _node_type_ = IrNodeTy::_LoweredFunc_;
 
+  //! Prepare the expressions for `alloc_tmp_buffer_exprs`.
+  std::vector<Expr> PrepareAllocTempBufferExprs() const;
+
  private:
   void CheckValid() const;
   //! Prepare the expressions for `alloc_output_buffer_exprs`.
   void PrepareAllocOutputBufferExprs();
-  //! Prepare the expressions for `alloc_tmp_buffer_exprs`.
-  void PrepareAllocTempBufferExprs();
   //! Prepare the expressions for `dealloc_output_buffer_exprs`.
   void PrepareDeallocOutputBufferExprs();
   //! Insert the allocation expr for temporary variables.
