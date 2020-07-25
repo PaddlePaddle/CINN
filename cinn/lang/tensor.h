@@ -171,10 +171,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   std::string name;
   //! The bound buffer, for each tensor if it is not inline.
   Buffer buffer;
-  //! The tensor that makes a cache read as this, empty if this tensor is not a cache.
-  std::string cache_read_target;
-  //! The tensor name that is a read cache of this.
-  std::string read_cache;
 
   //! read cache relation if has one.
   std::unique_ptr<ReadCacheRelation> read_cache_relation;

@@ -1478,6 +1478,7 @@ Expr SolveInequality(Expr inequality, Var val) {
   } else {
     return AutoSimplify(inequality);
   }
+  return Expr();
 }
 
 }  // namespace common

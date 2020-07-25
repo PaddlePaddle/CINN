@@ -546,8 +546,6 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
   auto cache_tensor = lang::Compute(
       tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
   cache_tensor->WithBuffer(memory_type);
-  cache_tensor->cache_read_target = tensor_->name;
-  tensor_->read_cache             = cache_tensor->name;
 
   for (auto &reader : readers) {
     Reference(&reader)->stage()->CtrlDepend(cache_tensor);
