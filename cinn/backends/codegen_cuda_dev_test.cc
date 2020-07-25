@@ -883,6 +883,8 @@ TEST(Conv, optimize) {
 }
 
 TEST(ElementwiseAdd, cache_read) {
+  Context::Global().ResetNameId();
+
   Expr M(100);
   Expr N(200);
 
@@ -975,7 +977,7 @@ TEST(ElementwiseAdd, cache_read1) {
   builder.AddFunction(fn);
 
   auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "source:\n" << source_code;
+  std::cout << "source:\n" << source_code << std::endl;
 
   std::string source_target = R"ROC(
 extern "C" {
@@ -990,18 +992,18 @@ typedef char int8_t;
 __global__
 void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _A_read_cache_3 [ 3 * 10 ];
-  float* A_read_cache_3 = _A_read_cache_3;
+  float _A_read_cache_6 [ 3 * 10 ];
+  float* A_read_cache_6 = _A_read_cache_6;
   {
     if (((((threadIdx.x >= 0) && (threadIdx.x <= 97)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
       for (int32_t i = threadIdx.x; i < (3 + threadIdx.x); i += 1) {
         for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-          A_read_cache_3[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + j_inner))];
+          A_read_cache_6[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + j_inner))];
         };
       };
     };
     for (int32_t i = 0; i < 10; i += 1) {
-      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[i] + (A_read_cache_3[(10 + i)] + (A_read_cache_3[(20 + i)] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))])));
+      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_6[i] + (A_read_cache_6[(10 + i)] + (A_read_cache_6[(20 + i)] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))])));
     };
   };
 }
