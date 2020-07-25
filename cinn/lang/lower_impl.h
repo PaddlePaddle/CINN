@@ -48,7 +48,9 @@ void CheckNoIslCallRemains(const Expr* expr);
  * @param group A single schedule group containing several Stages and the scheduling order.
  * @param tuple_to_expr A map from isl set tuple name to CINN expressions.
  */
-Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Expr>& tuple_to_expr);
+Expr LowerGroup(const poly::ScheduleGroup& group,
+                const std::map<std::string, Expr>& tuple_to_expr,
+                std::map<std::string, Tensor>* global_tensor_map);
 
 /**
  * A Computation graph node.

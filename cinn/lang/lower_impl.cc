@@ -31,7 +31,9 @@ void CheckNoIslCallRemains(Expr* expr) {
   }
 }
 
-Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Expr>& tuple_to_expr) {
+Expr LowerGroup(const poly::ScheduleGroup& group,
+                const std::map<std::string, Expr>& tuple_to_expr,
+                std::map<std::string, ir::Tensor>* global_tensor_map) {
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
     if (node->stage->has_expression()) {
@@ -74,7 +76,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   }
   CheckNoIslCallRemains(&e);
 
-  optim::CacheReadWriteReplace(&e);
+  optim::CacheReadWriteReplace(&e, global_tensor_map);
 
   // deal with the compute_at relations
   ProcessComputeAtInfo(&e);
@@ -378,6 +380,8 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
   auto tensor_map = GenAllTensorMap();
   std::map<std::string, Expr> tuple_to_expr;
   CHECK(!schedule->groups.empty()) << "no group is generated";
+
+  std::map<std::string, ir::Tensor> global_tensor_map;
   for (auto& group : schedule->groups) {
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
     for (auto& node : group.nodes) {
@@ -387,7 +391,7 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
       tuple_to_expr[tensor->name] = tensor->tensor_store_expanded_body();
     }
 
-    Expr group_expr = LowerGroup(group, tuple_to_expr);
+    Expr group_expr = LowerGroup(group, tuple_to_expr, &global_tensor_map);
     if (group_expr.defined()) {
       VLOG(3) << "group expr:\n" << group_expr;
       exprs.push_back(group_expr);
