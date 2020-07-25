@@ -76,6 +76,8 @@ void UnifyAllTensorsInExpr(Expr *expr);
  */
 void UnifyAllBuffersInExpr(Expr *Expr);
 
+std::vector<std::string> GatherItersToTensorProducer(const std::string &target_tensor_name, Expr *expr);
+
 bool is_zero(Expr v);
 
 bool MathEqual(const Expr &a, const Expr &b);

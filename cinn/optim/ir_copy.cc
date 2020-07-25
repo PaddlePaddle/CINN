@@ -218,7 +218,6 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
 
     std::vector<Expr> alloc_output_buffer_exprs;
     std::vector<Expr> dealloc_output_buffer_exprs;
-    std::vector<Expr> alloc_tmp_buffer_exprs;
     std::vector<Expr> buffer_data_cast_exprs;
     std::vector<Expr> argument_prepare_exprs;
 
@@ -230,7 +229,6 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
 
     COPY_ADD_FIELD(alloc_output_buffer_exprs);
     COPY_ADD_FIELD(dealloc_output_buffer_exprs);
-    COPY_ADD_FIELD(alloc_tmp_buffer_exprs);
     COPY_ADD_FIELD(buffer_data_cast_exprs);
     COPY_ADD_FIELD(argument_prepare_exprs);
 

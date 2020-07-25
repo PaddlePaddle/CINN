@@ -105,7 +105,15 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   {
     optim::forloop_infos_t forloop_infos;
     for (auto* stage : stages) {
-      forloop_infos[stage->id()] = stage->forloop_infos();
+      // transform the level identified for infors to iter name identified.
+      auto iters = common::GatherItersToTensorProducer(stage->id(), &e);
+      std::map<std::string, poly::StageForloopInfo> for_infos;
+      for (auto& item : stage->forloop_infos()) {
+        CHECK_LT(item.first, iters.size());
+        for_infos[iters[item.first]] = item.second;
+      }
+
+      forloop_infos[stage->id()] = for_infos;
     }
     optim::TransformGpuForloop(forloop_infos, &e);
   }
@@ -770,13 +778,6 @@ void UpdateComputeAtBufferShape(Expr* expr) {
       auto compute_at_it = buffer_to_compute_at_info.find(buf->name);
       if (compute_at_it != buffer_to_compute_at_info.end()) {
         process_buffer(Reference(&buf).operator->(), *compute_at_it->second);
-      }
-    }
-
-    for (auto& expr : node->alloc_tmp_buffer_exprs) {
-      auto compute_at_it = buffer_to_compute_at_info.find(expr.As<ir::Alloc>()->destination.as_buffer()->name);
-      if (compute_at_it != buffer_to_compute_at_info.end()) {
-        process_alloca(Reference(&expr).As<ir::Alloc>(), *compute_at_it->second);
       }
     }
   }

@@ -524,10 +524,12 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
       << "the count of allocation and deallocaton expressions is not match";
 
   std::vector<Expr> new_body;
+
+  auto alloca_temp_buffers = op->PrepareAllocTempBufferExprs();
 #define APPEND_TO_NEW_BODY(field__) new_body.insert(std::end(new_body), std::begin(op->field__), std::end(op->field__));
   APPEND_TO_NEW_BODY(argument_prepare_exprs)
   APPEND_TO_NEW_BODY(alloc_output_buffer_exprs)
-  APPEND_TO_NEW_BODY(alloc_tmp_buffer_exprs)
+  new_body.insert(std::end(new_body), std::begin(alloca_temp_buffers), std::end(alloca_temp_buffers));
   APPEND_TO_NEW_BODY(buffer_data_cast_exprs)
   new_body.push_back(op->body);
   APPEND_TO_NEW_BODY(dealloc_output_buffer_exprs)

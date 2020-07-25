@@ -71,10 +71,12 @@ void _LoweredFunc_::PrepareAllocOutputBufferExprs() {
   }
 }
 
-void _LoweredFunc_::PrepareAllocTempBufferExprs() {
+std::vector<Expr> _LoweredFunc_::PrepareAllocTempBufferExprs() const {
+  std::vector<Expr> alloc_output_buffer_exprs;
   for (auto& temp_buf : temp_bufs) {
-    alloc_tmp_buffer_exprs.push_back(Alloc::Make(temp_buf, temp_buf->type(), temp_buf->shape, Expr(), Expr()));
+    alloc_output_buffer_exprs.push_back(Alloc::Make(temp_buf, temp_buf->type(), temp_buf->shape, Expr(), Expr()));
   }
+  return alloc_output_buffer_exprs;
 }
 
 void _LoweredFunc_::PrepareDeallocOutputBufferExprs() {

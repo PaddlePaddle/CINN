@@ -58,10 +58,9 @@ TEST(CodeGenCUDA, basic) {
 
   auto C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
-  C->WithBuffer();
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -881,6 +880,72 @@ TEST(Conv, optimize) {
   // B->stage()->GpuBlocks({0, 1, 2});
 
   LOG(INFO) << Lower("conv", {A, W, BL}, {}, {AA, WW, AL, WL, B});
+}
+
+TEST(ElementwiseAdd, cache_read) {
+  Expr M(100);
+  Expr N(200);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+  C->stage()->Split(1, 10);
+
+  auto AL = A->stage()->CacheRead("local", {C});
+  AL->stage()->Split(1, 10);
+
+  AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtUnk, A->name);
+  C->stage()->Bind(0, "threadIdx.x");
+  C->stage()->Bind(1, "blockIdx.x");
+
+  Target target;
+  CodeGenCUDA_Dev codegen(target);
+
+  auto fn = Lower("fn", {A, B, C}, {}, {AL});
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(fn);
+
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "source:\n" << source_code;
+
+  std::string source_target = R"ROC(
+extern "C" {
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+{
+  float _A_read_cache_3 [ 1 * 10 ];
+  float* A_read_cache_3 = _A_read_cache_3;
+  {
+    if (((((threadIdx.x >= 0) && (threadIdx.x <= 99)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
+      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+        A_read_cache_3[j_inner] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))];
+      };
+    };
+    for (int32_t i = 0; i < 10; i += 1) {
+      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[((10 * blockIdx.x) + ((10 * threadIdx.x) + i))] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
+    };
+  };
+}
+
+}
+)ROC";
+  // ASSERT_EQ(utils::Trim(source_target), source);
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty()) << "Compile error!";
 }
 
 }  // namespace backends
