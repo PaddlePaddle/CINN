@@ -172,22 +172,28 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
   }
 }
 
-void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cache_reader) {
-  std::vector<isl::map> accesses;
-  if (cache_reader.empty())
-    accesses = GatherAccesses(other, tensor_->name);
+void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
+  isl::map access;
+  isl_map *access_raw{};
+  // For cache_read schedule, it will replace the producer tensor with cache in consumer, so replace the tuple name to
+  // cache's in access.
+  if (cached_tensor_name.empty())
+    access_raw = GatherAccesses(other, tensor_->name);
   else
-    accesses = GatherAccesses(other, cache_reader);
+    access_raw = GatherAccesses(other, cached_tensor_name);
 
-  LOG(ERROR) << "ComputeAt: " << other->tensor_->name << " has no access to " << tensor_->name << ", skipped it";
-  if (accesses.empty()) return;
-  auto access = accesses[0];
-  for (int i = 1; i < accesses.size(); i++) {
-    access = isl::manage(isl_map_union(access.release(), accesses[i].copy()));
+  if (!access_raw) {
+    LOG(ERROR) << "ComputeAt: " << other->tensor_->name << " has no access to " << tensor_->name << ", skipped it";
+    return;
   }
-  if (!cache_reader.empty()) {
-    access = isl::manage(isl_map_set_tuple_name(access.release(), isl_dim_out, cache_reader.c_str()));
+
+  if (!cached_tensor_name.empty()) {
+    access_raw = isl_map_set_tuple_name(access_raw, isl_dim_out, tensor_->name.c_str());
   }
+  access     = isl::manage(access_raw);
+  access_raw = nullptr;
+
+  LOG(INFO) << "access: " << access;
 
   ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
   transform();
@@ -466,8 +472,9 @@ std::vector<std::string> Stage::axis_names() const { return GetDimNames(transfor
 void Stage::GpuThreads(const std::vector<Iterator> &iters, DeviceAPI device) {
   auto dim_names = axis_names();
   for (auto &iter : iters) {
-    CHECK(std::find(dim_names.begin(), dim_names.end(), iter.id) != dim_names.end());
-    forloop_infos_.emplace(iter.id, StageForloopInfo{ir::ForType::GPUThread, device});
+    auto it = std::find(dim_names.begin(), dim_names.end(), iter.id);
+    CHECK(it != dim_names.end());
+    forloop_infos_.emplace(std::distance(axis_names().begin(), it), StageForloopInfo{ir::ForType::GPUThread, device});
   }
 }
 
@@ -492,20 +499,20 @@ void Stage::GpuBlocks(const Iterator &block_x, const Iterator &block_y, const It
 void Stage::GpuBlocks(const std::vector<Iterator> &iters, DeviceAPI device) {
   auto dim_names = axis_names();
   for (auto &iter : iters) {
-    CHECK(std::find(dim_names.begin(), dim_names.end(), iter.id) != dim_names.end());
-    forloop_infos_.emplace(iter.id, StageForloopInfo{ir::ForType::GPUBlock, device});
+    auto it = std::find(dim_names.begin(), dim_names.end(), iter.id);
+    CHECK(it != dim_names.end());
+    forloop_infos_.emplace(std::distance(dim_names.begin(), it), StageForloopInfo{ir::ForType::GPUBlock, device});
   }
 }
 
 void Stage::Bind(int level, const std::string &axis) {
   auto dim_names = GetDimNames(transformed_domain().get());
   CHECK_LT(level, dim_names.size());
-  std::string dim_name = dim_names[level];
 
   if (axis == "threadIdx.x" || axis == "threadIdx.y" || axis == "threadIdx.z") {
-    forloop_infos_.emplace(dim_name, StageForloopInfo{ir::ForType::GPUThread, DeviceAPI::GPU});
+    forloop_infos_.emplace(level, StageForloopInfo{ir::ForType::GPUThread, DeviceAPI::GPU});
   } else if (axis == "blockIdx.x" || axis == "blockIdx.y" || axis == "blockIdx.z") {
-    forloop_infos_.emplace(dim_name, StageForloopInfo{ir::ForType::GPUBlock, DeviceAPI::GPU});
+    forloop_infos_.emplace(level, StageForloopInfo{ir::ForType::GPUBlock, DeviceAPI::GPU});
   } else {
     NOT_IMPLEMENTED
   }
@@ -595,7 +602,7 @@ void Stage::ShareBufferWith(ir::Tensor other) {
 
 void Stage::CtrlDepend(const ir::Tensor &t) { add_extra_depend_stage(t->name); }
 
-std::vector<isl::map> GatherAccesses(Stage *stage, const std::string &tensor_name) {
+isl_map *__isl_give GatherAccesses(Stage *stage, const std::string &tensor_name) {
   CHECK(stage->tensor_);
   auto loads = ir::CollectIRNodes(stage->tensor_->body(), [&](const Expr *x) {
     return x->As<ir::Load>() && x->As<ir::Load>()->tensor.as_tensor()->name == tensor_name;
@@ -610,12 +617,16 @@ std::vector<isl::map> GatherAccesses(Stage *stage, const std::string &tensor_nam
   std::transform(
       loads.begin(), loads.end(), std::back_inserter(out_loads), [](const Expr &x) { return utils::GetStreamCnt(x); });
 
-  std::vector<isl::map> res;
-
+  isl_map *res = nullptr;
   for (auto &load : out_loads) {
     std::string repr = utils::StringFormat(
         "{ %s[%s] -> %s }", in_tuple_name.c_str(), utils::Join(in_dim_names, ",").c_str(), load.c_str());
-    res.push_back(isl::map(stage->domain().ctx(), repr));
+    isl_map *access = isl_map_read_from_str(stage->domain().ctx().get(), repr.c_str());
+    if (res) {
+      res = isl_map_union(res, access);
+    } else {
+      res = access;
+    }
   }
 
   return res;

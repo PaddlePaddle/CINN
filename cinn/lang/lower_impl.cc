@@ -105,7 +105,15 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
   {
     optim::forloop_infos_t forloop_infos;
     for (auto* stage : stages) {
-      forloop_infos[stage->id()] = stage->forloop_infos();
+      // transform the level identified for infors to iter name identified.
+      auto iters = common::GatherItersToTensorProducer(stage->id(), &e);
+      std::map<std::string, poly::StageForloopInfo> for_infos;
+      for (auto& item : stage->forloop_infos()) {
+        CHECK_LT(item.first, iters.size());
+        for_infos[iters[item.first]] = item.second;
+      }
+
+      forloop_infos[stage->id()] = for_infos;
     }
     optim::TransformGpuForloop(forloop_infos, &e);
   }

@@ -337,5 +337,50 @@ Expr cast(Expr e, Type type) {
   return ir::Cast::Make(type, e);
 }
 
+std::vector<std::string> GatherItersToTensorProducer(const std::string &target_tensor_name, Expr *expr) {
+  struct Visitor : public ir::IRMutator<> {
+    std::vector<std::string> iters;
+    const std::string &target_tensor_name;
+
+    Visitor(const std::string &target_tensor_name) : target_tensor_name(target_tensor_name) {}
+
+    std::vector<std::string> operator()(Expr *expr) {
+      ir::IRMutator<>::Visit(expr, expr);
+      return iters;
+    }
+
+    void Visit(const ir::Store *op, Expr *expr) {
+      if (op->tensor.as_tensor()->name == target_tensor_name) {
+        CHECK(iters.empty());
+        CHECK(!for_stack.empty());
+        for (auto &e : for_stack) {
+          auto *for_n     = e->As<ir::For>();
+          auto *polyfor_n = e->As<ir::PolyFor>();
+          if (for_n) {
+            iters.push_back(for_n->loop_var->name);
+          } else {
+            iters.push_back(polyfor_n->iterator->name);
+          }
+        }
+      }
+    }
+
+    void Visit(const ir::For *op, Expr *expr) {
+      for_stack.push_back(expr);
+      ir::IRMutator<>::Visit(op, expr);
+      for_stack.pop_back();
+    }
+    void Visit(const ir::PolyFor *op, Expr *expr) {
+      for_stack.push_back(expr);
+      ir::IRMutator<>::Visit(op, expr);
+      for_stack.pop_back();
+    }
+
+    std::vector<Expr *> for_stack;
+  };
+
+  return Visitor(target_tensor_name)(expr);
+}
+
 }  // namespace common
 }  // namespace cinn
