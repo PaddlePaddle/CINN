@@ -13,6 +13,7 @@
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/backends/nvrtc_util.h"
 #include "cinn/cinn.h"
+#include "cinn/common/cuda_test_helper.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/ir/ir_printer.h"
@@ -906,7 +907,7 @@ TEST(ElementwiseAdd, cache_read) {
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
-  auto fn = Lower("fn", {A, B, C}, {}, {AL});
+  auto fn = Lower("fn0", {A, B, C}, {}, {AL});
 
   Module::Builder builder("module", target);
   builder.AddFunction(fn);
@@ -926,7 +927,7 @@ typedef char int8_t;
 
 
 __global__
-void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+void fn0_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
   float _A_read_cache_3 [ 1 * 10 ];
   float* A_read_cache_3 = _A_read_cache_3;
@@ -970,7 +971,7 @@ void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* 
   auto args                = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
-  tester("fn", args.data(), args.size());
+  tester("fn0", args.data(), args.size());
   CUDA_CALL(cudaDeviceSynchronize());
 
   CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->host_memory),
@@ -1009,7 +1010,7 @@ TEST(ElementwiseAdd, cache_read1) {
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
-  auto fn = Lower("fn", {A, B, C}, {}, {AL});
+  auto fn = Lower("fn1", {A, B, C}, {}, {AL});
 
   Module::Builder builder("module", target);
   builder.AddFunction(fn);
@@ -1028,7 +1029,7 @@ typedef char int8_t;
 
 
 __global__
-void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
   float _A_read_cache_3 [ 3 * 10 ];
   float* A_read_cache_3 = _A_read_cache_3;
