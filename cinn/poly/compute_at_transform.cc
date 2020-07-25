@@ -151,11 +151,11 @@ ComputeAtTransform::ComputeAtTransform(
       ptransform_(ptransform),
       ctransform_(ctransform),
       level_(level) {
-  LOG(INFO) << "pdomain: " << pdomain;
-  LOG(INFO) << "ptransform: " << ptransform;
-  LOG(INFO) << "cdomain: " << cdomain;
-  LOG(INFO) << "ctransform: " << ctransform;
-  LOG(INFO) << "access: " << access;
+  VLOG(2) << "pdomain: " << pdomain;
+  VLOG(2) << "ptransform: " << ptransform;
+  VLOG(2) << "cdomain: " << cdomain;
+  VLOG(2) << "ctransform: " << ctransform;
+  VLOG(2) << "access: " << access;
 
   adjusted_ctransform_ = isl::manage(AddParamsTo(ctransform_.copy()));
   adjusted_cdomain_    = isl::manage(AddParamsTo(cdomain_.copy()));

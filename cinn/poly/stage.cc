@@ -193,8 +193,6 @@ void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const 
   access     = isl::manage(access_raw);
   access_raw = nullptr;
 
-  LOG(INFO) << "access: " << access;
-
   ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
   transform();
 
