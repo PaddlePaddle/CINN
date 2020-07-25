@@ -2,8 +2,8 @@
 
 #include "cinn/cinn.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/hlir/pe/add.h"
 #include "cinn/optim/optimize.h"
-
 namespace cinn {
 
 TEST(test01_elementwise_add, basic) {
@@ -12,8 +12,9 @@ TEST(test01_elementwise_add, basic) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+  Buffer C_buf(Float(32));
+  auto C = hlir::pe::Add(A, B, "C");
+  C->Bind(C_buf);
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -38,8 +39,7 @@ TEST(test01_elementwise_add, vectorize) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+  auto C = hlir::pe::Add(A, B, "C");
   C->stage()->Vectorize(1, 8);
 
   Target target;
