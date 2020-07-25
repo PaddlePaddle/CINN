@@ -248,6 +248,8 @@ class Stage : public Object {
    */
   void InitTransform();
 
+  void AddForloopInfo(int level, const StageForloopInfo& info);
+
  private:
   isl::set domain_;
   isl::map transform_;

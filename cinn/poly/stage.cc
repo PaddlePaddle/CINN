@@ -474,7 +474,7 @@ void Stage::GpuThreads(const std::vector<Iterator> &iters, DeviceAPI device) {
   for (auto &iter : iters) {
     auto it = std::find(dim_names.begin(), dim_names.end(), iter.id);
     CHECK(it != dim_names.end());
-    forloop_infos_.emplace(std::distance(axis_names().begin(), it), StageForloopInfo{ir::ForType::GPUThread, device});
+    AddForloopInfo(it - dim_names.begin(), StageForloopInfo{ir::ForType::GPUThread, device});
   }
 }
 
@@ -501,18 +501,17 @@ void Stage::GpuBlocks(const std::vector<Iterator> &iters, DeviceAPI device) {
   for (auto &iter : iters) {
     auto it = std::find(dim_names.begin(), dim_names.end(), iter.id);
     CHECK(it != dim_names.end());
-    forloop_infos_.emplace(std::distance(dim_names.begin(), it), StageForloopInfo{ir::ForType::GPUBlock, device});
+    AddForloopInfo(it - dim_names.begin(), StageForloopInfo{ir::ForType::GPUBlock, device});
   }
 }
-
 void Stage::Bind(int level, const std::string &axis) {
   auto dim_names = GetDimNames(transformed_domain().get());
   CHECK_LT(level, dim_names.size());
 
   if (axis == "threadIdx.x" || axis == "threadIdx.y" || axis == "threadIdx.z") {
-    forloop_infos_.emplace(level, StageForloopInfo{ir::ForType::GPUThread, DeviceAPI::GPU});
+    AddForloopInfo(level, StageForloopInfo{ir::ForType::GPUThread, DeviceAPI::GPU});
   } else if (axis == "blockIdx.x" || axis == "blockIdx.y" || axis == "blockIdx.z") {
-    forloop_infos_.emplace(level, StageForloopInfo{ir::ForType::GPUBlock, DeviceAPI::GPU});
+    AddForloopInfo(level, StageForloopInfo{ir::ForType::GPUBlock, DeviceAPI::GPU});
   } else {
     NOT_IMPLEMENTED
   }
@@ -630,6 +629,12 @@ isl_map *__isl_give GatherAccesses(Stage *stage, const std::string &tensor_name)
   }
 
   return res;
+}
+
+void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
+  int num_levels = isl_map_dim(transform_.get(), isl_dim_out);
+  CHECK_LT(level, num_levels);
+  forloop_infos_[level] = info;
 }
 
 }  // namespace poly

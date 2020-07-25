@@ -58,10 +58,9 @@ TEST(CodeGenCUDA, basic) {
 
   auto C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
-  C->WithBuffer();
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
