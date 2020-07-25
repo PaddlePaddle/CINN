@@ -1,3 +1,8 @@
+#include <pybind11/functional.h>
+
+#include <memory>
+#include <variant>
+
 #include "cinn/common/target.h"
 #include "cinn/lang/buffer.h"
 #include "cinn/lang/builtin.h"
@@ -8,10 +13,6 @@
 #include "cinn/lang/tensor.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
-
-#include <pybind11/functional.h>
-#include <memory>
-#include <variant>
 
 namespace py = pybind11;
 

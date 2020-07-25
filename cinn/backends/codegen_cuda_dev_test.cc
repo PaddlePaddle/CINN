@@ -24,7 +24,7 @@ namespace backends {
 
 std::tuple<CUdeviceptr, CUdeviceptr, CUdeviceptr, std::vector<float>, std::vector<float>, std::vector<float>>
 CreateNVMemory(int M, int N) {
-  CUDA_CALL(cudaThreadSynchronize());
+  CUDA_CALL(cudaDeviceSynchronize());
 
   CUdeviceptr Ad, Bd, Cd;
   cuMemAlloc(&Ad, M * N * sizeof(float));
@@ -419,7 +419,7 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
     B_buf->host_memory = reinterpret_cast<uint8_t*>(Bd);
     C_buf->host_memory = reinterpret_cast<uint8_t*>(Cd);
 
-    CUDA_CALL(cudaThreadSynchronize());
+    CUDA_CALL(cudaDeviceSynchronize());
 
     // call the kernel
     auto comp = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_ptr);
@@ -428,7 +428,7 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
 
     comp(args.data(), args.size());
 
-    CUDA_CALL(cudaThreadSynchronize());
+    CUDA_CALL(cudaDeviceSynchronize());
 
     CUDA_CALL(cudaMemcpy(host_data3.data(),
                          reinterpret_cast<void*>(Cd),
@@ -716,7 +716,7 @@ TEST(elementwise_add, share_local_cache) {
     B_buf->host_memory = reinterpret_cast<uint8_t*>(Bd);
     C_buf->host_memory = reinterpret_cast<uint8_t*>(Cd);
 
-    CUDA_CALL(cudaThreadSynchronize());
+    CUDA_CALL(cudaDeviceSynchronize());
 
     // call the kernel
     auto comp = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_ptr);
@@ -725,7 +725,7 @@ TEST(elementwise_add, share_local_cache) {
 
     comp(args.data(), args.size());
 
-    CUDA_CALL(cudaThreadSynchronize());
+    CUDA_CALL(cudaDeviceSynchronize());
   }
 
   CUDA_CALL(cudaFree(reinterpret_cast<void*>(Ad)))

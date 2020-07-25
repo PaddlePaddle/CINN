@@ -9,11 +9,11 @@ void ComputeAtTransform::AdjustPdomain() {
 
   isl::set cdomain1 = isl::manage(AddParamsTo(cdomain_.copy()));
 
-  LOG(INFO) << "ct_domain: " << ct_domain.space();
-  LOG(INFO) << "cdomain1: " << cdomain1.space();
+  VLOG(3) << "ct_domain: " << ct_domain.space();
+  VLOG(3) << "cdomain1: " << cdomain1.space();
 
   ct_domain = ct_domain.intersect(cdomain1);
-  LOG(INFO) << "ct_domain: " << ct_domain;
+  VLOG(3) << "ct_domain: " << ct_domain;
 
   // get producer domain from access
   isl::map access_with_params = isl::manage(AddParamsTo(access_.copy()));
@@ -22,11 +22,11 @@ void ComputeAtTransform::AdjustPdomain() {
 
   // intect with the original producer domain
   auto pdomain_params = isl::manage(AddParamsTo(pdomain_.copy()));
-  LOG(INFO) << "pdomain: " << pdomain;
-  LOG(INFO) << "pdomain_params: " << pdomain_params;
+  VLOG(4) << "pdomain: " << pdomain;
+  VLOG(4) << "pdomain_params: " << pdomain_params;
   adjusted_pdomain_ = isl::manage(isl_set_intersect(pdomain.release(), pdomain_params.release()));
   adjusted_pdomain_ = isl::manage(isl_simplify(adjusted_pdomain_.release()));
-  LOG(INFO) << "adjusted pdomain: " << adjusted_pdomain_;
+  VLOG(4) << "adjusted pdomain: " << adjusted_pdomain_;
 }
 
 void ComputeAtTransform::AdjustPtransform() {
@@ -53,7 +53,7 @@ void ComputeAtTransform::AdjustPtransform() {
     ct_range1 = isl::manage(isl_set_set_tuple_name(ct_range1.release(), ptuple()));
 
     adjusted_ptransform_ = adjusted_ptransform_.intersect_range(ct_range1);
-    LOG(INFO) << "adjusted_ptransform: " << adjusted_ptransform_;
+    VLOG(4) << "adjusted_ptransform: " << adjusted_ptransform_;
   }
 
   {  // add params
@@ -86,8 +86,8 @@ isl::map ComputeAtTransform::ctransform_with_params() {
 }
 
 void ComputeAtTransform::DisplayC(isl_map* pschedule, isl_map* cschedule) {
-  LOG(INFO) << "adjusted cdomain: " << adjusted_cdomain_;
-  LOG(INFO) << "adjusted ctransform: " << adjusted_ctransform_;
+  VLOG(3) << "adjusted cdomain: " << adjusted_cdomain_;
+  VLOG(3) << "adjusted ctransform: " << adjusted_ctransform_;
 
   auto adjusted_ctransform = adjusted_ctransform_;
   auto adjusted_ptransform = adjusted_ptransform_;
@@ -101,11 +101,11 @@ void ComputeAtTransform::DisplayC(isl_map* pschedule, isl_map* cschedule) {
 
   auto whole_domain = isl::manage(isl_union_set_from_set(adjusted_pdomain_.copy()));
   whole_domain      = isl::manage(isl_union_set_add_set(whole_domain.release(), adjusted_cdomain_.copy()));
-  LOG(INFO) << "whole domain: " << whole_domain;
+  VLOG(3) << "whole domain: " << whole_domain;
 
   auto whole_schedule = isl::manage(isl_union_map_from_map(adjusted_ptransform.copy()));
   whole_schedule      = isl::manage(isl_union_map_add_map(whole_schedule.release(), adjusted_ctransform.copy()));
-  LOG(INFO) << "whole_schedule: " << whole_schedule;
+  VLOG(3) << "whole_schedule: " << whole_schedule;
 
   isl::set context(whole_domain.ctx(), "{:}");
 
@@ -193,12 +193,12 @@ std::vector<int> ComputeAtTransform::GetAccessesPrecedingIndicesMinAssumingParam
   std::vector<int> res;
 
   isl::set cdomain_with_param = isl::manage(AddParamsTo(cdomain_.copy()));
-  LOG(INFO) << "cdomain_with_param: " << cdomain_with_param;
+  VLOG(4) << "cdomain_with_param: " << cdomain_with_param;
   isl::map access_with_param = isl::manage(AddParamsTo(access_.copy()));
 
-  LOG(INFO) << "*** applied: " << cdomain_with_param.apply(access_with_param);
+  VLOG(4) << "applied: " << cdomain_with_param.apply(access_with_param);
   isl::set param_limited_cdomain = ctransform_with_params().domain();
-  LOG(INFO) << "ctransform.domain: " << param_limited_cdomain;
+  VLOG(4) << "ctransform.domain: " << param_limited_cdomain;
   isl::set access_domain = param_limited_cdomain.apply(access_with_param);
 
   // set all the params to 0
@@ -212,7 +212,7 @@ std::vector<int> ComputeAtTransform::GetAccessesPrecedingIndicesMinAssumingParam
 
   access_domain = access_domain.intersect(adjusted_pdomain());
 
-  LOG(INFO) << "access_with_param: " << access_domain;
+  VLOG(3) << "access_with_param: " << access_domain;
 
   for (int i = 0; i < level_ + 1; i++) {
     auto [minv, maxv] = isl_set_get_axis_range(access_domain.get(), i);
