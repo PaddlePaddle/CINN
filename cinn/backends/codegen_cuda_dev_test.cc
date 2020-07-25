@@ -17,6 +17,7 @@
 #include "cinn/common/test_helper.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/runtime/cuda/cuda_module.h"
+#include "cinn/runtime/cuda/cuda_util.h"
 #include "cinn/runtime/use_extern_funcs.h"
 
 namespace cinn {
@@ -910,7 +911,8 @@ TEST(ElementwiseAdd, cache_read) {
   Module::Builder builder("module", target);
   builder.AddFunction(fn);
 
-  auto source_code = codegen.Compile(builder.Build());
+  auto module      = builder.Build();
+  auto source_code = codegen.Compile(module);
   LOG(INFO) << "source:\n" << source_code;
 
   std::string source_target = R"ROC(
@@ -942,15 +944,51 @@ void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* 
 
 }
 )ROC";
-  ASSERT_EQ(utils::Trim(source_target), source_code);
+  // ASSERT_EQ(utils::Trim(source_target), source_code);
+
+  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
 
   backends::NVRTC_Compiler compiler;
 
-  auto ptx = compiler(source_code);
-  CHECK(!ptx.empty()) << "Compile error!";
+  common::CudaModuleTester tester;
+  tester.Compile(builder.Build());
+
+  auto* A_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* B_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* C_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
+  auto* C_target_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
+
+  auto* A_dev = tester.CreateDeviceBuffer(A_host);
+  auto* B_dev = tester.CreateDeviceBuffer(B_host);
+  auto* C_dev = tester.CreateDeviceBuffer(C_host);
+
+  cinn_buffer_t* dev_bufs[3];
+  for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
+  dev_bufs[0]->host_memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->host_memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->host_memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args                = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+
+  CUDA_CALL(cudaDeviceSynchronize());
+  tester("fn", args.data(), args.size());
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->host_memory),
+                       C_dev,
+                       C_target_host->num_elements() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+
+  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->host_memory);
+  auto* A_mem        = reinterpret_cast<float*>(A_host->host_memory);
+  auto* B_mem        = reinterpret_cast<float*>(B_host->host_memory);
+  for (int i = 0; i < C_target_host->num_elements(); i++) {
+    ASSERT_NEAR(C_target_mem[i], A_mem[i] + B_mem[i], 1e-5);
+  }
 }
 
 TEST(ElementwiseAdd, cache_read1) {
+  Context::Global().ResetNameId();
+
   Expr M(100);
   Expr N(200);
 
@@ -992,18 +1030,18 @@ typedef char int8_t;
 __global__
 void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _A_read_cache_6 [ 3 * 10 ];
-  float* A_read_cache_6 = _A_read_cache_6;
+  float _A_read_cache_3 [ 3 * 10 ];
+  float* A_read_cache_3 = _A_read_cache_3;
   {
     if (((((threadIdx.x >= 0) && (threadIdx.x <= 97)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
       for (int32_t i = threadIdx.x; i < (3 + threadIdx.x); i += 1) {
         for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-          A_read_cache_6[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + j_inner))];
+          A_read_cache_3[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + j_inner))];
         };
       };
     };
     for (int32_t i = 0; i < 10; i += 1) {
-      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_6[i] + (A_read_cache_6[(10 + i)] + (A_read_cache_6[(20 + i)] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))])));
+      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[i] + (A_read_cache_3[(10 + i)] + (A_read_cache_3[(20 + i)] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))])));
     };
   };
 }
@@ -1012,10 +1050,16 @@ void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* 
 )ROC";
   ASSERT_EQ(utils::Trim(source_target), source_code);
 
-  backends::NVRTC_Compiler compiler;
+  common::CudaModuleTester tester;
+  tester.Compile(builder.Build());
 
-  auto ptx = compiler(source_code);
-  CHECK(!ptx.empty()) << "Compile error!";
+  auto* A_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* B_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* C_host = common::BufferBuilder(Float(32), {M.as_int32() - 2, N.as_int32()}).set_zero().Build();
+
+  auto* A_dev = tester.CreateDeviceBuffer(A_host);
+  auto* B_dev = tester.CreateDeviceBuffer(B_host);
+  auto* C_dev = tester.CreateDeviceBuffer(C_host);
 }
 
 }  // namespace backends
