@@ -543,12 +543,12 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
   auto my_tensor         = ir::Tensor(tensor_);
   std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
   LOG(INFO) << "cache_name " << cache_name;
-  auto cache_stage = lang::Compute(
+  auto cache_tensor = lang::Compute(
       tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
-  cache_stage->WithBuffer(memory_type);
+  cache_tensor->WithBuffer(memory_type);
 
   for (auto &reader : readers) {
-    Reference(&reader)->stage()->CtrlDepend(cache_stage);
+    Reference(&reader)->stage()->CtrlDepend(cache_tensor);
   }
 
   std::vector<std::string> reader_names;
@@ -558,7 +558,7 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
   CHECK(!tensor_->read_cache_relation) << "Duplicate read cache found, just one is allowed";
   tensor_->read_cache_relation.reset(new ir::ReadCacheRelation{cache_name, reader_names});
 
-  return cache_stage;
+  return cache_tensor;
 }
 
 /*

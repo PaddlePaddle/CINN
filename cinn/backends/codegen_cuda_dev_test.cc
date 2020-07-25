@@ -24,7 +24,7 @@ namespace backends {
 
 std::tuple<CUdeviceptr, CUdeviceptr, CUdeviceptr, std::vector<float>, std::vector<float>, std::vector<float>>
 CreateNVMemory(int M, int N) {
-  CUDA_CALL(cudaThreadSynchronize());
+  CUDA_CALL(cudaDeviceSynchronize());
 
   CUdeviceptr Ad, Bd, Cd;
   cuMemAlloc(&Ad, M * N * sizeof(float));
@@ -419,7 +419,7 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
     B_buf->host_memory = reinterpret_cast<uint8_t*>(Bd);
     C_buf->host_memory = reinterpret_cast<uint8_t*>(Cd);
 
-    CUDA_CALL(cudaThreadSynchronize());
+    CUDA_CALL(cudaDeviceSynchronize());
 
     // call the kernel
     auto comp = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_ptr);
@@ -428,7 +428,7 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
 
     comp(args.data(), args.size());
 
-    CUDA_CALL(cudaThreadSynchronize());
+    CUDA_CALL(cudaDeviceSynchronize());
 
     CUDA_CALL(cudaMemcpy(host_data3.data(),
                          reinterpret_cast<void*>(Cd),
@@ -716,7 +716,7 @@ TEST(elementwise_add, share_local_cache) {
     B_buf->host_memory = reinterpret_cast<uint8_t*>(Bd);
     C_buf->host_memory = reinterpret_cast<uint8_t*>(Cd);
 
-    CUDA_CALL(cudaThreadSynchronize());
+    CUDA_CALL(cudaDeviceSynchronize());
 
     // call the kernel
     auto comp = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_ptr);
@@ -725,7 +725,7 @@ TEST(elementwise_add, share_local_cache) {
 
     comp(args.data(), args.size());
 
-    CUDA_CALL(cudaThreadSynchronize());
+    CUDA_CALL(cudaDeviceSynchronize());
   }
 
   CUDA_CALL(cudaFree(reinterpret_cast<void*>(Ad)))
@@ -883,6 +883,8 @@ TEST(Conv, optimize) {
 }
 
 TEST(ElementwiseAdd, cache_read) {
+  Context::Global().ResetNameId();
+
   Expr M(100);
   Expr N(200);
 
@@ -933,14 +935,82 @@ void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* 
       };
     };
     for (int32_t i = 0; i < 10; i += 1) {
-      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[((10 * blockIdx.x) + ((10 * threadIdx.x) + i))] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
+      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[i] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
     };
   };
 }
 
 }
 )ROC";
-  // ASSERT_EQ(utils::Trim(source_target), source);
+  ASSERT_EQ(utils::Trim(source_target), source_code);
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty()) << "Compile error!";
+}
+
+TEST(ElementwiseAdd, cache_read1) {
+  Expr M(100);
+  Expr N(200);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto C = Compute(
+      {M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
+  C->stage()->Split(1, 10);
+
+  auto AL = A->stage()->CacheRead("local", {C});
+  AL->stage()->Split(1, 10);
+
+  AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtUnk, A->name);
+  C->stage()->Bind(0, "threadIdx.x");
+  C->stage()->Bind(1, "blockIdx.x");
+
+  Target target;
+  CodeGenCUDA_Dev codegen(target);
+
+  auto fn = Lower("fn", {A, B, C}, {}, {AL});
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(fn);
+
+  auto source_code = codegen.Compile(builder.Build());
+  std::cout << "source:\n" << source_code << std::endl;
+
+  std::string source_target = R"ROC(
+extern "C" {
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void fn_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+{
+  float _A_read_cache_6 [ 3 * 10 ];
+  float* A_read_cache_6 = _A_read_cache_6;
+  {
+    if (((((threadIdx.x >= 0) && (threadIdx.x <= 97)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
+      for (int32_t i = threadIdx.x; i < (3 + threadIdx.x); i += 1) {
+        for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+          A_read_cache_6[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + j_inner))];
+        };
+      };
+    };
+    for (int32_t i = 0; i < 10; i += 1) {
+      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_6[i] + (A_read_cache_6[(10 + i)] + (A_read_cache_6[(20 + i)] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))])));
+    };
+  };
+}
+
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(source_target), source_code);
 
   backends::NVRTC_Compiler compiler;
 

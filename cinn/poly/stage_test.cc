@@ -305,6 +305,32 @@ TEST(ComputeAt, simple) {
     auto fn = Lower("fn", {A, A1, B});
     LOG(INFO) << "fn:\n" << fn;
 
+    auto target = R"ROC(
+function fn (_A, _A1, _B)
+{
+  for (po0, 2)
+  {
+    for (po1, 16)
+    {
+      if (((((po1 >= 0) and (((16 * po0) + po1) >= 0)) and (po1 <= 15)) and (((16 * po0) + po1) <= 31))) {
+        for (i, (3 + ((16 * po0) + po1)))
+        {
+          for (j, 32)
+          {
+            A1[i, j] = A[i, j]
+          }
+        }
+      }
+      for (i, 32)
+      {
+        B[((16 * po0) + po1), i] = (A1[0, i] + (A1[1, i] + A1[2, i]))
+      }
+    }
+  }
+}
+)ROC";
+    ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
+
     Module::Builder builder("module", common::DefaultHostTarget());
     builder.AddFunction(fn);
 

@@ -1,9 +1,11 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+
 #include <string>
 #include <string_view>
 #include <variant>
+
 #include "cinn/common/shared.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_visitor.h"
@@ -24,7 +26,7 @@ struct Visitor : Ts... {
 };
 
 template <class... Ts>
-Visitor(Ts...)->Visitor<Ts...>;
+Visitor(Ts...) -> Visitor<Ts...>;
 
 using ExprOp   = std::variant<ir::IntImm,
                             ir::UIntImm,

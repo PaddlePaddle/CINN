@@ -1,4 +1,10 @@
 #include "cinn/ir/ir.h"
+
+#include <pybind11/operators.h>
+
+#include <string>
+#include <type_traits>
+
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/lowered_func.h"
@@ -8,10 +14,6 @@
 #include "cinn/poly/stage.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
-
-#include <pybind11/operators.h>
-#include <string>
-#include <type_traits>
 
 namespace py = pybind11;
 

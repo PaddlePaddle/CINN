@@ -7,6 +7,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/lang/tensor.h"
+#include "cinn/optim/cache_read_write_replace.h"
 #include "cinn/optim/ir_replace.h"
 #include "cinn/poly/compute_at_transform.h"
 
@@ -30,7 +31,9 @@ void CheckNoIslCallRemains(Expr* expr) {
   }
 }
 
-Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Expr>& tuple_to_expr) {
+Expr LowerGroup(const poly::ScheduleGroup& group,
+                const std::map<std::string, Expr>& tuple_to_expr,
+                std::map<std::string, ir::Tensor>* global_tensor_map) {
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
     if (node->stage->has_expression()) {
@@ -72,6 +75,8 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
     optim::ReplaceIslCallWithExpr(&e, statement.first, statement_candi_expr, axis_expr_map);
   }
   CheckNoIslCallRemains(&e);
+
+  optim::CacheReadWriteReplace(&e, global_tensor_map);
 
   // deal with the compute_at relations
   ProcessComputeAtInfo(&e);
@@ -375,6 +380,8 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
   auto tensor_map = GenAllTensorMap();
   std::map<std::string, Expr> tuple_to_expr;
   CHECK(!schedule->groups.empty()) << "no group is generated";
+
+  std::map<std::string, ir::Tensor> global_tensor_map;
   for (auto& group : schedule->groups) {
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
     for (auto& node : group.nodes) {
@@ -384,7 +391,7 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
       tuple_to_expr[tensor->name] = tensor->tensor_store_expanded_body();
     }
 
-    Expr group_expr = LowerGroup(group, tuple_to_expr);
+    Expr group_expr = LowerGroup(group, tuple_to_expr, &global_tensor_map);
     if (group_expr.defined()) {
       VLOG(3) << "group expr:\n" << group_expr;
       exprs.push_back(group_expr);
@@ -530,8 +537,10 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
         auto* node = expr->As<ir::Store>();
         CHECK(node);
 
+        VLOG(3) << "SetProducerAxisToZeroInStore: " << *expr;
         for (auto& indice : node->indices) {
           for (auto& consumer_axis : consumer_axis) {
+            VLOG(3) << indice << " set producer axis [" << consumer_axis << "] to 0";
             optim::IrReplace(&indice, consumer_axis, common::make_const(0));
           }
         }
@@ -626,11 +635,13 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
       void Visit(const ir::Load* op, Expr* expr) override {
+        VLOG(3) << "Consumer modify Load " << *expr << "'s axis for producer [" << producer_tensor_name << "]";
         auto* node = expr->As<ir::Load>();
         if (op->tensor.as_tensor()->name == producer_tensor_name) {
           CHECK_LE(compute_at_info.preceding_offset_for_producer_load.size(), node->indices.size());
           for (auto axis : consumer_axis) {
             for (auto& indice : node->indices) {
+              VLOG(3) << "Consumer Load " << indice << " set axis [" << axis << "] to 0";
               optim::IrReplace(&indice, axis, common::make_const(0));
             }
           }
