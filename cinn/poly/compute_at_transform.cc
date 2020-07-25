@@ -166,7 +166,7 @@ std::string GenConsumerParamName(const char* tuple, int id) {
 }
 
 std::vector<int> ComputeAtTransform::GetProducerAdjustedShape() const {
-  LOG(INFO) << "domain: " << adjusted_pdomain();
+  VLOG(3) << "domain: " << adjusted_pdomain();
   isl::set param_limit = isl::manage(isl_set_universe(adjusted_pdomain().space().release()));
   // set all the params to 0
   isl_local_space* local_space = isl_local_space_from_space(param_limit.space().release());

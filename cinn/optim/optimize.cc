@@ -33,7 +33,7 @@ Expr Optimize(Expr e, bool runtime_debug_info) {
 #ifdef CINN_WITH_CUDA
   RemoveGpuForloopsAxis(&copied);
 #endif
-  CacheReadWriteReplace(&copied);
+  // CacheReadWriteReplace(&copied);
 
   RemoveNestedBlock(&copied);
 

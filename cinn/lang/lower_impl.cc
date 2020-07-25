@@ -7,6 +7,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/lang/tensor.h"
+#include "cinn/optim/cache_read_write_replace.h"
 #include "cinn/optim/ir_replace.h"
 #include "cinn/poly/compute_at_transform.h"
 
@@ -72,6 +73,8 @@ Expr LowerGroup(const poly::ScheduleGroup& group, const std::map<std::string, Ex
     optim::ReplaceIslCallWithExpr(&e, statement.first, statement_candi_expr, axis_expr_map);
   }
   CheckNoIslCallRemains(&e);
+
+  optim::CacheReadWriteReplace(&e);
 
   // deal with the compute_at relations
   ProcessComputeAtInfo(&e);
@@ -530,8 +533,10 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
         auto* node = expr->As<ir::Store>();
         CHECK(node);
 
+        LOG(INFO) << "SetProducerAxisToZeroInStore: " << *expr;
         for (auto& indice : node->indices) {
           for (auto& consumer_axis : consumer_axis) {
+            LOG(INFO) << indice << " set producer axis [" << consumer_axis << "] to 0";
             optim::IrReplace(&indice, consumer_axis, common::make_const(0));
           }
         }
@@ -626,11 +631,13 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
       void Visit(const ir::Load* op, Expr* expr) override {
+        LOG(INFO) << "Consumer modify Load " << *expr << "'s axis for producer [" << producer_tensor_name << "]";
         auto* node = expr->As<ir::Load>();
         if (op->tensor.as_tensor()->name == producer_tensor_name) {
           CHECK_LE(compute_at_info.preceding_offset_for_producer_load.size(), node->indices.size());
           for (auto axis : consumer_axis) {
             for (auto& indice : node->indices) {
+              LOG(INFO) << "Consumer Load " << indice << " set axis [" << axis << "] to 0";
               optim::IrReplace(&indice, axis, common::make_const(0));
             }
           }
