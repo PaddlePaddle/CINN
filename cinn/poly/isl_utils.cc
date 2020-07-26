@@ -202,6 +202,8 @@ std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
     if (pos == i) target_axis_name = from_iters.back();
   }
 
+  VLOG(4) << "isl_set_get_axis_range input set: " << isl_set_to_str(set);
+
   isl::aff aff(isl_set_get_ctx(set),
                utils::StringFormat("{ %s[%s] -> [%s] }",
                                    isl_set_get_tuple_name(set),           // tuple

@@ -505,7 +505,8 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
    */
   void NormalizeProducerDomain(Expr* producer_forloop_root,
                                const std::string& producer_tuple,
-                               const std::vector<Var>& consumer_axis) {
+                               const std::vector<Var>& consumer_axis,
+                               const std::vector<Expr*>& forloop_stack) {
     VLOG(4) << "Normalize producer domain: " << producer_tuple;
     VLOG(4) << "producer_forloop_root:\n" << *producer_forloop_root;
     VLOG(4) << "consumer_axis:";
@@ -517,9 +518,10 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       std::map<Var, Expr> offsets;
       std::vector<Var> consumer_axis;
       std::string producer_tuple;
+      const std::vector<Expr*>& forloop_stack;
 
-      Mutator(const std::string& producer_tuple, const std::vector<Var>& consumer_axis)
-          : producer_tuple(producer_tuple), consumer_axis(consumer_axis) {}
+      Mutator(const std::string& producer_tuple, const std::vector<Var>& consumer_axis, const std::vector<Expr*>& forloop_stack)
+          : producer_tuple(producer_tuple), consumer_axis(consumer_axis), forloop_stack(forloop_stack) {}
 
       void operator()(Expr* forloop) { ir::IRMutator<>::Visit(forloop, forloop); }
 
@@ -533,7 +535,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       }
 
       //! Set the producer axis to zero in Store node, e.g. a store node, a[c0,c1] = ... will be a[0,0]
-      void SetProducerAxisToZeroInStore(Expr* expr) {
+      void SetProducerAxisToZeroInStore(Expr* expr, const std::vector<Expr*> & forloop_stack) {
         auto* node = expr->As<ir::Store>();
         CHECK(node);
 
@@ -571,7 +573,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
           AddOffsetsToStoreExpr(expr);
 
           // replace the producer axis in store indice to zero.
-          SetProducerAxisToZeroInStore(expr);
+          SetProducerAxisToZeroInStore(expr, forloop_stack);
 
           // replace the consumer axis in value(not producer) to offset.
           AddOffsetToAxisInStoreValue(expr);
@@ -606,7 +608,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       }
     };
 
-    Mutator(producer_tuple, consumer_axis)(producer_forloop_root);
+    Mutator(producer_tuple, consumer_axis, forloop_stack)(producer_forloop_root);
   }
 
   //! Reset the indice of the producer Load in Consumer.

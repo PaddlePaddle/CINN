@@ -214,7 +214,7 @@ std::vector<int> ComputeAtTransform::GetAccessesPrecedingIndicesMinAssumingParam
 
   VLOG(3) << "access_with_param: " << access_domain;
 
-  for (int i = 0; i < level_ + 1; i++) {
+  for (int i = 0; i < isl_set_dim(access_domain.get(), isl_dim_set); i++) {
     auto [minv, maxv] = isl_set_get_axis_range(access_domain.get(), i);
     res.push_back(minv.get_num_si());
   }

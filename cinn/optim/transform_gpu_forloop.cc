@@ -25,23 +25,30 @@ namespace optim {
  *   1. if the extent is an IntImm, just remove this forloop.
  *   2. if the extent is a Min, replace the forloop with an IfThenElse, with forloop's condition, new check will add (if
  * the min of forloop is not zero).
+ *   3. if the same gpu axis exists in multiple forloop, remain the condition of each forloop.
  *
  * @param expr The expression to mutate.
  */
 void RemoveGpuForloopsAxis(Expr *expr) {
   struct Mutator : public ir::IRMutator<Expr *> {
+    std::map<std::string, int> gpu_axis_num_forloops;
+
     void operator()(Expr *expr) {
       if (!expr->As<ir::_LoweredFunc_>()) {
         LOG(ERROR) << "The outermost should be a _LoweredFunc_ node, so that we can register "
                       "the GPU kernal dimension information there.";
         return;
       }
+
+      CountGpuAxisForloops(expr);
+
       cur_func_ = expr->As<ir::_LoweredFunc_>();
       ir::IRMutator<>::Visit(expr, expr);
     }
 
    private:
     void Visit(const ir::For *op, Expr *expr) override {
+      LOG(INFO) << "processing: \n" << *expr;
       int dim = 0;
       switch (op->for_type()) {
         case ir::ForType::GPUBlock:
@@ -77,6 +84,17 @@ void RemoveGpuForloopsAxis(Expr *expr) {
       }
     }
 
+    void CountGpuAxisForloops(Expr *expr) {
+      auto fors = ir::CollectIRNodes(*expr, [](const Expr *x) {
+        auto *for_n = x->As<ir::For>();
+        return for_n && (for_n->for_type() == ir::ForType::GPUBlock || for_n->for_type() == ir::ForType::GPUThread);
+      });
+
+      for (auto &forn : fors) {
+        gpu_axis_num_forloops[forn.As<ir::For>()->loop_var->name]++;
+      }
+    }
+
     bool NeedToReplaceForloopWithIfThenElse(const ir::For *n) const {
       // We need something like: `threadIdx.x > j condition`.
       if (n->min != common::make_const(0)) {
@@ -84,7 +102,10 @@ void RemoveGpuForloopsAxis(Expr *expr) {
       }
 
       if (n->extent.As<ir::Min>()) return true;
-      return false;
+
+      // if a gpu axis exists in multiple forloops, the condition should remain.
+      auto it = gpu_axis_num_forloops.find(n->loop_var->name);
+      return it != gpu_axis_num_forloops.end() && it->second > 1;
     }
 
     void ReplaceForloopWithIfThenElse(Expr *expr) {
@@ -109,10 +130,7 @@ void RemoveGpuForloopsAxis(Expr *expr) {
 
       // for(i, 2, min(M/2, 20)
       //            ^
-      auto *extent_min_n = for_n->extent.As<ir::Min>();
-      if (extent_min_n) {
-        condition_append(ir::LT::Make(for_n->loop_var, for_n->extent));
-      }
+      condition_append(ir::LT::Make(for_n->loop_var, for_n->extent));
 
       CHECK(condition.defined());
 
@@ -127,7 +145,8 @@ void RemoveGpuForloopsAxis(Expr *expr) {
       auto *v_int = v.As<ir::IntImm>();
       auto *v_min = v.As<ir::Min>();
       CHECK(v_int || v_min) << "We deduce the GPU block or grid dimensions from the domain of GPU Axis, can only "
-                               "accept IntImm or Min node with a IntImm nodes";
+                               "accept IntImm or Min node with a IntImm nodes, but get "
+                            << v;
       if (v_int) return v_int->value;
 
       // min
@@ -153,6 +172,14 @@ void RemoveGpuForloopsAxis(Expr *expr) {
   mutator(expr);
 }
 
+/**
+ * This replace the axis and vars in for if its iterators equals \p iterator.
+ * @param for_expr
+ * @param iterator
+ * @param to
+ */
+void ReplaceForAxis(Expr *for_expr, Var iterator, Var to);
+
 void MarkGpuForloop(const std::string &statement,
                     const std::map<std::string, poly::StageForloopInfo> &forloop_infos,
                     Expr *expr) {
@@ -166,44 +193,30 @@ void MarkGpuForloop(const std::string &statement,
     void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
    private:
-    void Visit(const ir::For *op, Expr *expr) override {
-      forloops.push_back(expr);
-      IRMutator::Visit(op, expr);
-      forloops.pop_back();
-    }
-    void Visit(const ir::PolyFor *op, Expr *expr) override {
-      forloops.push_back(expr);
-      IRMutator::Visit(op, expr);
-      forloops.pop_back();
-    }
     void Visit(const ir::Store *op, Expr *expr) override {
       auto *tensor = op->tensor.As<ir::_Tensor_>();
       if (tensor->name == statement) {
         MarkForloop();
       }
     }
-    void Visit(const ir::_LoweredFunc_ *op, Expr *expr) override {
-      auto *node = expr->as_lowered_func();
-
-      ir::IRMutator<>::Visit(op, expr);
-    }
+    void Visit(const ir::_LoweredFunc_ *op, Expr *expr) override { ir::IRMutator<>::Visit(op, expr); }
 
     void MarkForloop() {
       // start from 0, threadIdx.x
       int thread_level = 0;
       int block_level  = 0;
       for (auto *expr : forloops) {
-        auto *for_     = expr->As<ir::For>();
-        auto *poly_for = expr->As<ir::PolyFor>();
-        Var axis_var   = for_ ? for_->loop_var : poly_for->iterator;
-        auto it        = forloop_infos.find(axis_var->name);
+        auto *for_n      = expr->As<ir::For>();
+        auto *poly_for_n = expr->As<ir::PolyFor>();
+        Var axis_var     = for_n ? for_n->loop_var : poly_for_n->iterator;
+        auto it          = forloop_infos.find(axis_var->name);
         if (it != forloop_infos.end()) {
-          if (for_) {
-            for_->set_for_type(it->second.for_type);
-            for_->device_api = it->second.device;
+          if (for_n) {
+            for_n->set_for_type(it->second.for_type);
+            for_n->device_api = it->second.device;
           } else {
-            poly_for->set_for_type(it->second.for_type);
-            poly_for->device_api = it->second.device;
+            poly_for_n->set_for_type(it->second.for_type);
+            poly_for_n->device_api = it->second.device;
           }
 
           if (it->second.for_type == ir::ForType::GPUThread) {
@@ -221,6 +234,17 @@ void MarkGpuForloop(const std::string &statement,
           }
         }
       }
+    }
+
+    void Visit(const ir::For *op, Expr *expr) override {
+      forloops.push_back(expr);
+      IRMutator::Visit(op, expr);
+      forloops.pop_back();
+    }
+    void Visit(const ir::PolyFor *op, Expr *expr) override {
+      forloops.push_back(expr);
+      IRMutator::Visit(op, expr);
+      forloops.pop_back();
     }
 
     std::vector<Expr *> forloops;

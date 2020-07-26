@@ -900,7 +900,8 @@ TEST(ElementwiseAdd, cache_read) {
   auto AL = A->stage()->CacheRead("local", {C});
   AL->stage()->Split(1, 10);
 
-  AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtUnk, A->name);
+  AL->stage()->ComputeAt(C->stage(), 2, poly::Stage::ComputeAtKind::kComputeAtUnk, A->name);
+
   C->stage()->Bind(0, "threadIdx.x");
   C->stage()->Bind(1, "blockIdx.x");
 
@@ -929,23 +930,21 @@ typedef char int8_t;
 __global__
 void fn0_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _A_read_cache_3 [ 1 * 10 ];
+  float _A_read_cache_3 [ 1 * 1 ];
   float* A_read_cache_3 = _A_read_cache_3;
   {
-    if (((((threadIdx.x >= 0) && (threadIdx.x <= 99)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
-      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        A_read_cache_3[j_inner] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))];
+    for (int32_t po2 = 0; po2 < 10; po2 += 1) {
+      if (((((((threadIdx.x >= 0) && (threadIdx.x <= 99)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19)) && (po2 >= 0)) && (po2 <= 9))) {
+        A_read_cache_3[0] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + po2))];
       };
-    };
-    for (int32_t i = 0; i < 10; i += 1) {
-      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[i] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
+      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + po2))] = (A_read_cache_3[0] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + po2))]);
     };
   };
 }
 
 }
 )ROC";
-  // ASSERT_EQ(utils::Trim(source_target), source_code);
+  ASSERT_EQ(utils::Trim(source_target), source_code);
 
   auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
 
@@ -1000,22 +999,27 @@ TEST(ElementwiseAdd, cache_read1) {
       {M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
   C->stage()->Split(1, 10);
 
-  auto AL = A->stage()->CacheRead("local", {C});
+  auto AL = A->stage()->CacheRead("share", {C});
   AL->stage()->Split(1, 10);
 
   AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtUnk, A->name);
-  C->stage()->Bind(0, "threadIdx.x");
-  C->stage()->Bind(1, "blockIdx.x");
+  // AL->stage()->Bind(0, "threadIdx.x");
+  // AL->stage()->Bind(1, "blockIdx.x");
+  //C->stage()->Bind(0, "threadIdx.x");
+  //C->stage()->Bind(1, "blockIdx.x");
 
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
   auto fn = Lower("fn1", {A, B, C}, {}, {AL});
+  // auto fn = Lower("fn1", {A, B, C}, {}, {});
 
   Module::Builder builder("module", target);
   builder.AddFunction(fn);
 
   auto source_code = codegen.Compile(builder.Build());
+
+  auto module = builder.Build();
   std::cout << "source:\n" << source_code << std::endl;
 
   std::string source_target = R"ROC(
@@ -1049,18 +1053,52 @@ void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
 
 }
 )ROC";
-  ASSERT_EQ(utils::Trim(source_target), source_code);
+  // ASSERT_EQ(utils::Trim(source_target), source_code);
+
+  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+
+  backends::NVRTC_Compiler compiler;
 
   common::CudaModuleTester tester;
   tester.Compile(builder.Build());
 
-  auto* A_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
-  auto* B_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
-  auto* C_host = common::BufferBuilder(Float(32), {M.as_int32() - 2, N.as_int32()}).set_zero().Build();
+  auto* A_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* B_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* C_host        = common::BufferBuilder(Float(32), {M.as_int32() - 2, N.as_int32()}).set_zero().Build();
+  auto* C_target_host = common::BufferBuilder(Float(32), {M.as_int32() - 2, N.as_int32()}).set_zero().Build();
 
   auto* A_dev = tester.CreateDeviceBuffer(A_host);
   auto* B_dev = tester.CreateDeviceBuffer(B_host);
   auto* C_dev = tester.CreateDeviceBuffer(C_host);
+
+  cinn_buffer_t* dev_bufs[3];
+  for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
+  dev_bufs[0]->host_memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->host_memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->host_memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args                = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+
+  CUDA_CALL(cudaDeviceSynchronize());
+  tester("fn1", args.data(), args.size());
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->host_memory),
+                       C_dev,
+                       C_target_host->num_elements() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+
+  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->host_memory);
+  auto* A_mem        = reinterpret_cast<float*>(A_host->host_memory);
+  auto* B_mem        = reinterpret_cast<float*>(B_host->host_memory);
+
+  for (int i = 0; i < M.as_int32() - 2; i++) {
+    for (int j = 0; j < N.as_int32(); j++) {
+      ASSERT_NEAR(C_target_mem[i * N.as_int32() + j],
+                  A_mem[i * N.as_int32() + j] + A_mem[(i + 1) * N.as_int32() + j] + A_mem[(i + 2) * N.as_int32() + j] +
+                      B_mem[i * N.as_int32() + j],
+                  1e-5);
+    }
+  }
 }
 
 }  // namespace backends
