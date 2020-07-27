@@ -552,5 +552,12 @@ lang::Module _Module_::Make(const std::string &name, Target target) {
   return lang::Module(n);
 }
 
+Expr PrimitiveNode::Make(const std::string &name, const std::map<std::string, attr_t> &attrs) {
+  auto *n  = make_shared<PrimitiveNode>();
+  n->name  = name;
+  n->attrs = attrs;
+  return Expr(n);
+}
+
 }  // namespace ir
 }  // namespace cinn

@@ -92,6 +92,7 @@ class Var;
   macro__(Product)                          \
   macro__(Sum)                              \
   macro__(Activate)                         \
+  macro__(PrimitiveNode)                    \
 
 #define NODETY_FORALL(__m)              \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \

@@ -319,6 +319,19 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return n;
   }
 
+  Expr Visit(const ir::PrimitiveNode* op) override {
+    std::vector<std::vector<Expr>> arguments;
+    for (auto& args : op->arguments) {
+      arguments.push_back(Visit(args));
+    }
+
+    auto n       = common::make_shared<ir::PrimitiveNode>();
+    n->name      = op->name;
+    n->attrs     = op->attrs;  // attrs are PODs
+    n->arguments = arguments;
+    return Expr(n);
+  }
+
 #define OP_BINARY_HANDLE(op__)               \
   Expr Visit(const ir::op__* op) override {  \
     auto a = IRVisitorBase::Visit(&op->a()); \

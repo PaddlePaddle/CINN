@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include <variant>
 #include "cinn/common/shared.h"
 #include "cinn/common/type.h"
 #include "cinn/ir/function_base.h"
@@ -824,6 +825,27 @@ struct _Module_ : public ExprNode<_Module_> {
   static lang::Module Make(const std::string& name, Target target);
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Module_;
+};
+
+/**
+ * \brief PrimitiveNode holds the contept of Primitive in CINN.
+ * A Primitive is a basic Call to some Expr function, it is introduced to create several level of coarsed-grained IR
+ * nodes for better IR optimization and hardware adaption.
+ */
+struct PrimitiveNode : public ExprNode<PrimitiveNode> {
+  // NOTE attr_t only support POD, can not contain Expr or other IR nodes, or the IRVisitor or IRCopy on PrimitiveNode
+  // will result in undefined behavior.
+  using attr_t = std::variant<int, float, bool, std::string>;
+
+  std::string name;
+  //! the inputs of the PrimitiveNode, the vector<vector<Expr>> can hold variadic arguments.
+  std::vector<std::vector<Expr>> arguments;
+  //! the attribute of this PrimitiveNode.
+  std::map<std::string, attr_t> attrs;
+
+  static Expr Make(const std::string& name, const std::map<std::string, attr_t>& attrs);
+
+  static const IrNodeTy _node_type_ = IrNodeTy::PrimitiveNode;
 };
 
 class _Range_;

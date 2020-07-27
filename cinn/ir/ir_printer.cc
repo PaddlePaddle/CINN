@@ -376,6 +376,21 @@ void IrPrinter::Visit(const Sum *x) {
   os() << ")";
 }
 
+void IrPrinter::Visit(const PrimitiveNode *x) {
+  os() << x->name << "(";
+  std::vector<std::string> args_repr;
+  for (auto &args : x->arguments) {
+    std::vector<std::string> arg_repr;
+    for (auto &arg : args) {
+      arg_repr.push_back(utils::GetStreamCnt(arg));
+    }
+    args_repr.push_back(utils::Join(arg_repr, ","));
+  }
+
+  os() << utils::Join(args_repr, ",");
+  os() << ")";
+}
+
 std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);
