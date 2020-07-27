@@ -9,6 +9,7 @@
 #include "cinn/lang/tensor.h"
 #include "cinn/optim/cache_read_write_replace.h"
 #include "cinn/optim/ir_replace.h"
+#include "cinn/optim/ir_simplify.h"
 #include "cinn/poly/compute_at_transform.h"
 
 namespace cinn {
@@ -524,8 +525,10 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       //! Add offsets to store, e.g. offset is i->3, the original store expr is a[i,j] = b[i*2,j], the result expression
       //! will be a[i+3,j] = b[(i+3)*2,j]
       void AddOffsetsToStoreExpr(Expr* expr) {
+        LOG(INFO) << "*AddOffsetsToStoreExpr: " << *expr;
         CHECK(expr->As<ir::Store>());
         for (auto& offset : offsets) {
+          LOG(INFO) << "Add to axis " << offset.first << " with offset " << offset.first << " => +" << offset.second;
           optim::IrReplace(expr, offset.first, Expr(offset.first) + offset.second);
         }
       }
@@ -546,6 +549,9 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
 
       //! NOTE the axis here should be producer's axis, `i` in the root function comment.
       void AddOffsetToAxisInStoreValue(Expr* expr) {
+        optim::Simplify(expr);
+        LOG(INFO) << "AddOffsetToAxisInStoreValue to:\n" << *expr;
+
         auto* node = expr->As<ir::Store>();
 
         auto loads_but_producer = ir::CollectIRNodes(node->value, [&](const Expr* x) {
@@ -556,7 +562,10 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
           auto* load = item.As<ir::Load>();
           for (auto& indice : load->indices) {
             for (auto& offset : offsets) {
+              LOG(INFO) << "*Add indice to [" << indice << "] => [" << offset.first << "] with offset ["
+                        << offset.second << "]";
               optim::IrReplace(&Reference(&indice), offset.first, Expr(offset.first) + offset.second);
+              LOG(INFO) << "get: " << indice;
             }
           }
         }
@@ -566,7 +575,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
         auto* node = expr->As<ir::Store>();
 
         if (op->tensor.as_tensor()->name == producer_tuple) {
-          AddOffsetsToStoreExpr(expr);
+          // AddOffsetsToStoreExpr(expr);
 
           // replace the producer axis in store indice to zero.
           SetProducerAxisToZeroInStore(expr);
@@ -592,8 +601,9 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       void Visit(const ir::PolyFor* op, Expr* expr) override {
         auto* node = expr->As<ir::PolyFor>();
         if (!common::is_zero(op->init)) {
-          auto offset = op->init;
-          node->init  = common::make_const(0);
+          auto offset             = op->init;
+          offsets[node->iterator] = offset;
+          node->init              = common::make_const(0);
           UpdatePolyForConditionWithOffset(&node->condition, node->iterator, offset);
         }
         ir::IRMutator<>::Visit(&node->body, &node->body);
@@ -695,7 +705,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       }
 
       auto forloop_stack_to_store = GetForloopStackToStore(producer_forloop_root, compute_at_info.producer_tensor_name);
-      producer_forloop_root = forloop_stack_to_store.empty() ? forloop_stack[level] : forloop_stack_to_store.back();
+      producer_forloop_root = forloop_stack_to_store.empty() ? forloop_stack[level] : forloop_stack_to_store.front();
       NormalizeProducerDomain(producer_forloop_root, compute_at_info.producer_tensor_name, consumer_aixs);
       ResetProducerLoadIndiceInConsumer(
           consumer_aixs, forloop_stack[level], compute_at_info.producer_tensor_name, compute_at_info);
