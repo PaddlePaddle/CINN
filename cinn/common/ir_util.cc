@@ -261,64 +261,6 @@ void CheckBufferUniqueInExpr(Expr expr) {
   }
 }
 
-namespace {
-
-struct AllTensorsUnifier : public ir::IRMutator<> {
-  std::unordered_map<std::string, ir::_Tensor_ *> tensors;
-
-  void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
-
-  void Visit(const ir::_Tensor_ *op, Expr *expr) override {
-    auto *node = expr->as_tensor();
-    if (tensors.count(node->name)) {
-      if (tensors[node->name] != op) {
-        expr->Reset(tensors[node->name]);
-      }
-    } else {
-      tensors.emplace(node->name, node);
-    }
-  }
-};
-
-struct AllBuffersUnifier : public ir::IRMutator<> {
-  std::unordered_map<std::string, ir::_Buffer_ *> buffers;
-
-  void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
-
-  // We assume the buffer only exists in Tensor and LoweredFunc.
-
-  void UpdateBufferIfNeeded(ir::Buffer &buffer) {
-    if (buffer.defined()) {
-      auto &name = buffer->name;
-      if (buffers.count(name)) {
-        if (buffers[name] != buffer->const_self()) {
-          buffer.Reset(buffers[name]);
-        }
-      } else {
-        buffers[name] = buffer->self();
-      }
-    }
-  }
-
-  void Visit(const ir::_Tensor_ *op, Expr *expr) {
-    auto *node = expr->As<ir::_Tensor_>();
-    UpdateBufferIfNeeded(node->buffer);
-  }
-
-  void Visit(const ir::_LoweredFunc_ *op, Expr *expr) {
-    auto *node = expr->As<ir::_LoweredFunc_>();
-    for (auto &buffer : node->temp_bufs) {
-      UpdateBufferIfNeeded(buffer);
-    }
-  }
-};
-
-}  // namespace
-
-void UnifyAllTensorsInExpr(Expr *expr) { AllTensorsUnifier()(expr); }
-
-void UnifyAllBuffersInExpr(Expr *expr) { AllBuffersUnifier()(expr); }
-
 Expr cast(Expr e, Type type) {
   if (e.is_constant()) {
     if (type.is_int(32)) {
