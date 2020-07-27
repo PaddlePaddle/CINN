@@ -253,11 +253,6 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return func;
   }
 
-  Expr Visit(const _IterVar_* op) override {
-    LOG(FATAL) << "not implemented";
-    return Expr();
-  }
-
   Expr Visit(const Let* op) override {
     auto value = Visit(&op->symbol);
     auto body  = Visit(&op->body);
