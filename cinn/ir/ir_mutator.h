@@ -247,6 +247,15 @@ void IRMutator<T>::Visit(const Sum *expr, T op) {
     IRVisitorBase<void, T>::Visit(&x, &x);
   }
 }
+template <typename T>
+void IRMutator<T>::Visit(const PrimitiveNode *expr, T op) {
+  auto *node = op->template As<PrimitiveNode>();
+  for (auto &args : node->arguments) {
+    for (auto &arg : args) {
+      IRVisitorBase<void, T>::Visit(&arg, &arg);
+    }
+  }
+}
 
 }  // namespace ir
 }  // namespace cinn
