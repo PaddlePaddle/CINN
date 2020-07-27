@@ -17,6 +17,10 @@ namespace optim {
 using namespace ir;  // NOLINT
 
 struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
+  // Use maps to unify all the copied tensors and buffers.
+  std::map<std::string, ir::_Tensor_*> tensor_map;
+  std::map<std::string, ir::_Buffer_*> buffer_map;
+
   Expr Visit(const Expr* op) override { return IRVisitorBase::Visit(op); }
 
  protected:
@@ -108,6 +112,10 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const Free* op) override { return Free::Make(op->destination); }
 
   Expr Visit(const _Buffer_* op) override {
+    if (buffer_map.count(op->name)) {
+      return buffer_map[op->name];
+    }
+
     auto shape         = Visit(op->shape);
     auto strides       = Visit(op->strides);
     auto name          = op->name;
@@ -128,10 +136,17 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     new_node->memory_type    = op->memory_type;
     new_node->set_type(op->type());
     op->CopyMeta(new_node.As<ir::_Buffer_>());
+
+    buffer_map[op->name] = new_node->self();
+
     return Expr(ir::Buffer(new_node));
   }
 
   Expr Visit(const _Tensor_* op) override {
+    if (tensor_map.count(op->name)) {
+      return tensor_map[op->name];
+    }
+
     auto shape       = Visit(op->shape);
     auto domain      = Visit(op->domain);
     auto buffer_expr = Expr(op->buffer);
@@ -152,6 +167,9 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     tensor->compute_inline               = op->compute_inline;
     tensor->compute_at_infos             = op->compute_at_infos;
     tensor->tensors_to_share_buffer_with = op->tensors_to_share_buffer_with;
+
+    tensor_map[tensor->name] = tensor;
+
     return tensor;
   }
 
@@ -362,8 +380,6 @@ Expr IRCopy(Expr x) {
   IRCopyVisitor visitor;
 
   auto copied = visitor.Visit(&x);
-  common::UnifyAllTensorsInExpr(&copied);
-  common::UnifyAllBuffersInExpr(&copied);
 
   // common::CheckTensorUniqueInExpr(copied);
   // common::CheckBufferUniqueInExpr(copied);

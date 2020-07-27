@@ -344,8 +344,6 @@ ir::LoweredFunc LowerImpl::operator()() {
 
   auto res = optim::Optimize(func, FLAGS_cinn_runtime_display_debug_info);
 
-  common::UnifyAllTensorsInExpr(&res);
-  common::UnifyAllBuffersInExpr(&res);
   UpdateComputeAtBufferShape(&res);
 
   return ir::LoweredFunc(res.get());
