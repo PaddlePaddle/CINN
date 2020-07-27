@@ -351,7 +351,7 @@ void _Tensor_::WithBuffer(const std::string &memory_type, const Type &type) {
   buf->target = common::DefaultHostTarget();
   Bind(buf);
 
-  if (memory_type == "share") {
+  if (memory_type == "shared") {
     buf->memory_type = MemoryType::GPUShared;
   } else if (memory_type == "local") {
     buf->memory_type = MemoryType::GPULocal;

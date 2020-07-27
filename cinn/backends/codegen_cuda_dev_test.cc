@@ -884,7 +884,7 @@ TEST(Conv, optimize) {
   LOG(INFO) << Lower("conv", {A, W, BL}, {}, {AA, WW, AL, WL, B});
 }
 
-TEST(ElementwiseAdd, cache_read) {
+TEST(ElementwiseAdd, cache_read_local) {
   Context::Global().ResetNameId();
 
   Expr M(100);
@@ -945,7 +945,7 @@ void fn0_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
 
 }
 )ROC";
-  // ASSERT_EQ(utils::Trim(source_target), source_code);
+  ASSERT_EQ(utils::Trim(source_target), source_code);
 
   auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
 
@@ -1054,13 +1054,37 @@ void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
   common::CudaModuleTester tester;
   tester.Compile(builder.Build());
 
-  auto* A_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
-  auto* B_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
-  auto* C_host = common::BufferBuilder(Float(32), {M.as_int32() - 2, N.as_int32()}).set_zero().Build();
+  auto* A_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* B_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* C_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
+  auto* C_target_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
 
   auto* A_dev = tester.CreateDeviceBuffer(A_host);
   auto* B_dev = tester.CreateDeviceBuffer(B_host);
   auto* C_dev = tester.CreateDeviceBuffer(C_host);
+
+  cinn_buffer_t* dev_bufs[3];
+  for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
+  dev_bufs[0]->host_memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->host_memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->host_memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args                = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+
+  CUDA_CALL(cudaDeviceSynchronize());
+  tester("fn1", args.data(), args.size());
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->host_memory),
+                       C_dev,
+                       C_target_host->num_elements() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+
+  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->host_memory);
+  auto* A_mem        = reinterpret_cast<float*>(A_host->host_memory);
+  auto* B_mem        = reinterpret_cast<float*>(B_host->host_memory);
+  for (int i = 0; i < C_target_host->num_elements(); i++) {
+    ASSERT_NEAR(C_target_mem[i], A_mem[i] + B_mem[i], 1e-5);
+  }
 }
 
 }  // namespace backends
