@@ -166,8 +166,6 @@ void IRMutator<T>::Visit(const Activate *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const _Range_ *expr, T op) {}
 template <typename T>
-void IRMutator<T>::Visit(const _IterVar_ *expr, T op) {}
-template <typename T>
 void IRMutator<T>::Visit(const _Buffer_ *expr, T op) {
   auto *node = op->template As<_Buffer_>();
 

@@ -299,8 +299,6 @@ void IrPrinter::Visit(const Let *f) {
   }
 }
 
-void IrPrinter::Visit(const _IterVar_ *f) { NOT_IMPLEMENTED }
-
 void IrPrinter::Visit(const Reduce *f) {
   os() << "Reduce(";
   switch (f->reduce_type) {

@@ -7,9 +7,9 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <variant>
 #include <vector>
 
-#include <variant>
 #include "cinn/common/shared.h"
 #include "cinn/common/type.h"
 #include "cinn/ir/function_base.h"
@@ -878,91 +878,6 @@ class _Range_ : public ExprNode<_Range_> {
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Range_;
 };
-
-enum class IterVarType : int {
-  /**
-   * \brief Data parallel iteration.
-   * This normally corresponds to axis of Tensor.
-   * Allow all IterVar manipulations.
-   *
-   * \note This does't mean the loop have to be executed in parallel fashion.
-   */
-  kDataPar = 0,
-  /**
-   * \brief The IterVar itself is a thread-index of a fixed thread launching group.
-   * \note This is already assumed to be parallized.
-   *
-   * Disallow: split/fuse/vectorize/parallel
-   */
-  kThreadIndex = 1,
-  /**
-   * \brief Communicative reduction.
-   * \note Cannot be directly parallelized.
-   *
-   * Disallow: parallel/vectorize
-   */
-  kCommReduce = 2,
-  /**
-   * \brief Serial loops with loop carry dependency, the iteration must execute in order. Cannot be re-ordered.
-   *
-   * Disallow: reorder/parallel/vectorize.
-   */
-  kOrdered = 3,
-  /**
-   * \brief The loop is unrolled.
-   */
-  kUnrolled = 5,
-  /**
-   * \brief The loop is vectorized.
-   */
-  kVectorized = 6,
-  /**
-   * \brief The loop is parallelized.
-   */
-  kParallelized = 7,
-};
-
-class _IterVar_;
-class IterVar : public IrNodeRef {
- public:
-  IterVar() = default;
-  explicit IterVar(IrNodeRef n) : n_(n) {}
-  _IterVar_* operator->() { return n_.As<_IterVar_>(); }
-  const _IterVar_* operator->() const { return n_.As<_IterVar_>(); }
-
- private:
-  IrNodeRef n_;
-};
-
-/**
- * An iteration variable representing an iteration over a one-dimensional interval.
- */
-class _IterVar_ : public ExprNode<_IterVar_> {
- public:
-  //! The domain of the iteration.
-  Range dom;
-  //! The looping variable.
-  Var var;
-  //! The type of the IterVar.
-  IterVarType iter_type;
-  //! Additional tag on the iteration variable.
-  std::string thread_tag;
-
-  //! Create a new instance of IterVar.
-  static IterVar Make(Range dom, Var var, IterVarType iter_type, const std::string& thread_tag = "");
-
-  void Accept(IRVisitor* v) const override;
-  IrNodeTy node_type() const override { return _node_type_; }
-
-  static const IrNodeTy _node_type_ = IrNodeTy::_IterVar_;
-};
-
-static IterVar thread_axis(Range dom, const std::string& tag) {
-  return _IterVar_::Make(dom, Var(tag), IterVarType::kThreadIndex, tag);
-}
-static IterVar reduce_axis(Range dom, const std::string& name) {
-  return _IterVar_::Make(dom, Var(name), IterVarType::kCommReduce);
-}
 
 }  // namespace ir
 
