@@ -82,7 +82,6 @@ void CacheReadWriteReplace(Expr* expr, std::map<std::string, ir::Tensor>* global
     return t && (t->read_cache_relation || t->write_cache_relation);
   });
 
-  LOG(INFO) << "expr: " << *expr;
   auto tensors = ir::CollectIRNodes(*expr, [](const Expr* x) { return x->as_tensor(); });
 
   std::set<ir::Tensor> uniq_cached_tensors;
