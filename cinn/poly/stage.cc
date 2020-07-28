@@ -487,10 +487,11 @@ std::vector<std::string> Stage::axis_names() const { return GetDimNames(transfor
 
 void Stage::GpuThreads(const std::vector<Iterator> &iters, DeviceAPI device) {
   auto dim_names = axis_names();
+  uint8_t offset = 0;
   for (auto &iter : iters) {
     auto it = std::find(dim_names.begin(), dim_names.end(), iter.id);
     CHECK(it != dim_names.end());
-    AddForloopInfo(it - dim_names.begin(), StageForloopInfo{ir::ForType::GPUThread, device});
+    AddForloopInfo(it - dim_names.begin(), StageForloopInfo{ir::ForType::GPUThread, device, offset++});
   }
 }
 
@@ -514,10 +515,11 @@ void Stage::GpuBlocks(const Iterator &block_x, const Iterator &block_y, const It
 }
 void Stage::GpuBlocks(const std::vector<Iterator> &iters, DeviceAPI device) {
   auto dim_names = axis_names();
+  uint8_t offset{};
   for (auto &iter : iters) {
     auto it = std::find(dim_names.begin(), dim_names.end(), iter.id);
     CHECK(it != dim_names.end());
-    AddForloopInfo(it - dim_names.begin(), StageForloopInfo{ir::ForType::GPUBlock, device});
+    AddForloopInfo(it - dim_names.begin(), StageForloopInfo{ir::ForType::GPUBlock, device, offset++});
   }
 }
 void Stage::Bind(int level, const std::string &axis) {
@@ -525,9 +527,11 @@ void Stage::Bind(int level, const std::string &axis) {
   LockAxis(level);
 
   if (axis == "threadIdx.x" || axis == "threadIdx.y" || axis == "threadIdx.z") {
-    AddForloopInfo(level, StageForloopInfo{ir::ForType::GPUThread, DeviceAPI::GPU});
+    uint8_t offset = axis.back() - 'x';
+    AddForloopInfo(level, StageForloopInfo{ir::ForType::GPUThread, DeviceAPI::GPU, offset});
   } else if (axis == "blockIdx.x" || axis == "blockIdx.y" || axis == "blockIdx.z") {
-    AddForloopInfo(level, StageForloopInfo{ir::ForType::GPUBlock, DeviceAPI::GPU});
+    uint8_t offset = axis.back() - 'x';
+    AddForloopInfo(level, StageForloopInfo{ir::ForType::GPUBlock, DeviceAPI::GPU, offset});
   } else {
     NOT_IMPLEMENTED
   }

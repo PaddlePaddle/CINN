@@ -120,7 +120,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
 
       forloop_infos[stage->id()] = for_infos;
     }
-    optim::TransformGpuForloop(forloop_infos, &e);
+    optim::TransformGpuForloops(forloop_infos, &e);
   }
 #endif
 

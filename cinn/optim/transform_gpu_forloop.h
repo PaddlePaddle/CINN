@@ -31,10 +31,11 @@ using forloop_infos_t = std::map<std::string, std::map<std::string, poly::StageF
  * @param statement The target statement.
  * @param forloop_infos A map of forloop to their infomation.
  */
-void TransformGpuForloop(const forloop_infos_t& forloop_infos, Expr* expr);
+void TransformGpuForloops(const forloop_infos_t& forloop_infos, Expr* expr);
 
 /**
- * Remove the forloops of block and thread axis, add the kernel dimension information to the outermost LoweredFunc.
+ * Remove the forloops of block and thread axis, add the kernel launch thread dimension information to the outermost
+ * LoweredFunc.
  *
  * For example, input the code:
  * \code

@@ -38,8 +38,12 @@ enum class SplitRestStrategy {
 
 struct StageForloopInfo {
   StageForloopInfo() = default;
-  StageForloopInfo(ir::ForType for_type, ir::DeviceAPI device) : for_type(for_type), device(device) {}
+  StageForloopInfo(ir::ForType for_type, ir::DeviceAPI device, uint8_t offset)
+      : for_type(for_type), device(device), offset(offset) {}
+
   ir::ForType for_type;
+  //! The offset in the \p for_type. e.g. for GPUBlock, 0 represents blockIdx.x, 1 is blockIdx.y, 2 is blockIdx.z.
+  uint8_t offset;
   ir::DeviceAPI device;
 };
 
