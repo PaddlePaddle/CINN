@@ -250,6 +250,20 @@ class Stage : public Object {
 
   void AddForloopInfo(int level, const StageForloopInfo& info);
 
+  //! Lock the \p level-th axis and disallow the futher schedules on this axis.
+  void LockAxis(uint32_t level);
+  //! Unlock the \p level-th axis.
+  void UnlockAxis(uint32_t level);
+  //! Tell if the \p level -th axis is locked.
+  bool is_axis_locked(uint32_t level) const;
+  //! Assert that the axis is not locked, abort if fail.
+  void AssertAxisIsNotLocked(uint32_t level);
+
+  //! Get number of transform output dimensions, this equals to the number of forloops in generated code.
+  inline int n_in_dims() const { return isl_map_dim(transform_.get(), isl_dim_in); }
+  //! Get number of transform output dimensions, this equals to the number of dimensions of corresponding tensor.
+  inline int n_out_dims() const { return isl_map_dim(transform_.get(), isl_dim_out); }
+
  private:
   isl::set domain_;
   isl::map transform_;
@@ -267,6 +281,8 @@ class Stage : public Object {
   std::map<int /*level*/, StageForloopInfo> forloop_infos_;
   //! A weak reference to the tensor.
   ir::_Tensor_* tensor_{};
+
+  std::set<int> locked_axis_;
 
   friend isl_map* __isl_give GatherAccesses(Stage* stage, const std::string& tensor_name);
   friend class PolyGroupScheduler;

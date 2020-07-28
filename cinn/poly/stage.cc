@@ -52,6 +52,7 @@ Stage::Stage(const isl::set &domain, Expr expr, ir::_Tensor_ *tensor) : domain_(
 }
 
 std::tuple<Iterator, Iterator> Stage::Split(int level, int factor, SplitRestStrategy strategy) {
+  AssertAxisIsNotLocked(level);
   auto dim_names = GetDimNames(transform_, isl_dim_out);
   auto axis_name = dim_names.at(level);
   return Split(axis_name, factor, strategy);
@@ -60,6 +61,8 @@ std::tuple<Iterator, Iterator> Stage::Split(int level, int factor, SplitRestStra
 std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor, SplitRestStrategy strategy) {
   int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level.id.c_str());
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
+  AssertAxisIsNotLocked(offset);
+
   auto dim_names = GetDimNames(transform_, isl_dim_out);
 
   VLOG(2) << "domain: " << domain_;
@@ -133,6 +136,8 @@ void Stage::Reorder(const std::vector<Iterator> &order) {
 
 std::tuple<Iterator, Iterator, Iterator, Iterator>  //
 Stage::Tile(int level0, int level1, int factor0, int factor1) {
+  AssertAxisIsNotLocked(level0);
+  AssertAxisIsNotLocked(level1);
   Iterator i0(common::axis_name(level0));
   Iterator i1(common::axis_name(level1));
   return Tile(i0, i1, factor0, factor1);
@@ -173,6 +178,7 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
 }
 
 void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
+  AssertAxisIsNotLocked(level);
   isl::map access;
   isl_map *access_raw{};
   // For cache_read schedule, it will replace the producer tensor with cache in consumer, so replace the tuple name to
@@ -228,6 +234,8 @@ std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j,
 }
 
 Iterator Stage::Fuse(int level0, int level1) {
+  AssertAxisIsNotLocked(level0);
+  AssertAxisIsNotLocked(level1);
   auto dims = GetDimNames(transformed_domain());
   CHECK_LT(level0, dims.size());
   CHECK_LT(level1, dims.size());
@@ -249,6 +257,9 @@ Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
   int offset0 = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level0.id.c_str());
   int offset1 = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level1.id.c_str());
   CHECK_EQ(offset1, offset0 + 1) << "level [" << level0.id << "] and level [" << level1.id << "] should be adjancent";
+  AssertAxisIsNotLocked(offset0);
+  AssertAxisIsNotLocked(offset1);
+
   auto new_iter_name = utils::StringFormat("%s_%s_fused", level0.id.c_str(), level1.id.c_str());
 
   // Aff { s[i,j,k] -> [j] } and get the j's max value
@@ -366,6 +377,8 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
 }
 
 void Stage::Vectorize(int level, int factor) {
+  AssertAxisIsNotLocked(level);
+  CHECK_LT(level, n_out_dims());
   CHECK_GT(factor, 0);
   auto dim_name = ith_dim_name(level);
   vectorize_info_.set(level /*inner*/, factor);
@@ -380,7 +393,10 @@ void Stage::Vectorize(const std::string &axis, int factor) {
 
 void Stage::Vectorize(const Iterator &axis, int factor) { return Vectorize(axis.id, factor); }
 
-void Stage::Unroll(int level) { unroll_info_.insert(level); }
+void Stage::Unroll(int level) {
+  AssertAxisIsNotLocked(level);
+  unroll_info_.insert(level);
+}
 
 std::string Stage::ith_dim_name(int level) {
   auto dims = GetDimNames(transformed_domain());
@@ -432,14 +448,16 @@ void Stage::Unroll(const std::string &level) {
   auto dim_names = axis_names();
   auto it        = std::find(dim_names.begin(), dim_names.end(), level);
   int l          = std::distance(dim_names.begin(), it);
-  unroll_info_.insert(l);
+  AssertAxisIsNotLocked(l);
+  Unroll(l);
 }
 
 void Stage::Unroll(const Iterator &level) {
   auto dim_names = axis_names();
   auto it        = std::find(dim_names.begin(), dim_names.end(), level.id);
   int l          = std::distance(dim_names.begin(), it);
-  unroll_info_.insert(l);
+  AssertAxisIsNotLocked(l);
+  Unroll(l);
 }
 
 void Stage::GpuThreads(const std::vector<int> &levels, DeviceAPI device) {
@@ -503,8 +521,8 @@ void Stage::GpuBlocks(const std::vector<Iterator> &iters, DeviceAPI device) {
   }
 }
 void Stage::Bind(int level, const std::string &axis) {
-  auto dim_names = GetDimNames(transformed_domain().get());
-  CHECK_LT(level, dim_names.size());
+  CHECK_LT(level, n_out_dims());
+  LockAxis(level);
 
   if (axis == "threadIdx.x" || axis == "threadIdx.y" || axis == "threadIdx.z") {
     AddForloopInfo(level, StageForloopInfo{ir::ForType::GPUThread, DeviceAPI::GPU});
@@ -633,6 +651,25 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
   int num_levels = isl_map_dim(transform_.get(), isl_dim_out);
   CHECK_LT(level, num_levels);
   forloop_infos_[level] = info;
+}
+
+void Stage::LockAxis(uint32_t level) {
+  CHECK_LT(level, n_out_dims()) << "axis level out of range";
+  locked_axis_.insert(level);
+}
+
+void Stage::UnlockAxis(uint32_t level) {
+  CHECK_LT(level, n_out_dims()) << "axis level out of range";
+  locked_axis_.erase(level);
+}
+
+bool Stage::is_axis_locked(uint32_t level) const {
+  CHECK_LT(level, n_out_dims()) << "axis level out of range";
+  return locked_axis_.count(level);
+}
+
+void Stage::AssertAxisIsNotLocked(uint32_t level) {
+  CHECK(!is_axis_locked(level)) << "The " << level << "-th axis is locked, cannot perform schedule";
 }
 
 }  // namespace poly
