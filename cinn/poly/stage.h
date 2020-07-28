@@ -37,6 +37,7 @@ enum class SplitRestStrategy {
 };
 
 struct StageForloopInfo {
+  StageForloopInfo() = default;
   StageForloopInfo(ir::ForType for_type, ir::DeviceAPI device) : for_type(for_type), device(device) {}
   ir::ForType for_type;
   ir::DeviceAPI device;
@@ -124,6 +125,8 @@ class Stage : public Object {
   void Unroll(const std::string& level);
   void Unroll(const Iterator& level);
 
+  void Bind(int level, const std::string& axis);
+
   enum ComputeAtKind {
     kComputeAtUnk,
     kComputeAtBefore,
@@ -140,9 +143,10 @@ class Stage : public Object {
    * @param level the level of \p other's forloop to compute at
    * @param kind the position compared to other, can be Before, After or Unknown.
    */
-  void ComputeAt(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
-
-  void ComputeAtSchedule(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
+  void ComputeAt(Stage* other,
+                 int level,
+                 ComputeAtKind kind                    = kComputeAtUnk,
+                 const std::string& cached_tensor_name = "");
 
   /**
    * Apply loop skewing on the loop levels \p i and \p j with a skewing factor of \p factor.
@@ -228,11 +232,13 @@ class Stage : public Object {
   void set_extra_depend_stages(const std::set<std::string>& x) { extra_depend_stages_ = x; }
   void add_extra_depend_stage(const std::string& statement) { extra_depend_stages_.insert(statement); }
 
-  const std::map<std::string, StageForloopInfo>& forloop_infos() const { return forloop_infos_; }
+  const std::map<int /*level*/, StageForloopInfo>& forloop_infos() const { return forloop_infos_; }
 
   bool has_expression() const;
 
   Stage() = default;
+
+  void ComputeAtSchedule(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
@@ -241,6 +247,8 @@ class Stage : public Object {
    * Initialize with an identity schedule.
    */
   void InitTransform();
+
+  void AddForloopInfo(int level, const StageForloopInfo& info);
 
  private:
   isl::set domain_;
@@ -256,11 +264,11 @@ class Stage : public Object {
   //! The other stages it depends.
   std::set<std::string> extra_depend_stages_;
   //! Record some forloop levels' information.
-  std::map<std::string, StageForloopInfo> forloop_infos_;
+  std::map<int /*level*/, StageForloopInfo> forloop_infos_;
   //! A weak reference to the tensor.
   ir::_Tensor_* tensor_{};
 
-  friend std::vector<isl::map> GatherAccesses(Stage* stage, const std::string& tensor_name);
+  friend isl_map* __isl_give GatherAccesses(Stage* stage, const std::string& tensor_name);
   friend class PolyGroupScheduler;
 };
 

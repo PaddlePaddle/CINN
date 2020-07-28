@@ -1,9 +1,11 @@
 #pragma once
 
 #include <pybind11/pybind11.h>
+
 #include <string>
 #include <string_view>
 #include <variant>
+
 #include "cinn/common/shared.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_visitor.h"
@@ -50,8 +52,7 @@ using ExprOp   = std::variant<ir::IntImm,
                             ir::Sum,
                             ir::Block,
                             ir::_Module_,
-                            ir::_Range_,
-                            ir::_IterVar_>;
+                            ir::_Range_>;
 using BinaryOp = std::variant<>;
 using UnaryOp  = std::variant<>;
 

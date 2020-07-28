@@ -300,17 +300,6 @@ void _Range_::Accept(IRVisitor *v) const { v->Visit(this); }
 
 Range::Range(_Range_ *n) : IrNodeRef(n) {}
 
-void _IterVar_::Accept(IRVisitor *v) const { v->Visit(this); }
-
-IterVar _IterVar_::Make(Range dom, Var var, IterVarType iter_type, const std::string &thread_tag) {
-  auto node        = common::make_shared<_IterVar_>();
-  node->dom        = dom;
-  node->var        = var;
-  node->iter_type  = iter_type;
-  node->thread_tag = thread_tag;
-  return IterVar(IrNodeRef(node));
-}
-
 Expr Call::Make(Type type,
                 const std::string &name,
                 const std::vector<Expr> &read_args,
@@ -550,6 +539,13 @@ lang::Module _Module_::Make(const std::string &name, Target target) {
   n->name   = name;
   n->target = target;
   return lang::Module(n);
+}
+
+Expr PrimitiveNode::Make(const std::string &name, const std::map<std::string, attr_t> &attrs) {
+  auto *n  = make_shared<PrimitiveNode>();
+  n->name  = name;
+  n->attrs = attrs;
+  return Expr(n);
 }
 
 }  // namespace ir

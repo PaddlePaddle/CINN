@@ -13,6 +13,9 @@ void CUDAModule::LaunchKernel(int device_id,
                               CUstream stream) {
   auto function = GetFunction(device_id, func_name);
   CHECK(function);
+  LOG(INFO) << "kernel: " << function;
+  LOG(INFO) << "gridDim: " << gridDim.x << " " << gridDim.y << " " << gridDim.z;
+  LOG(INFO) << "blockDim: " << blockDim.x << " " << blockDim.y << " " << blockDim.z;
   CUDA_DRIVER_CALL(cuLaunchKernel(function,
                                   gridDim.x,
                                   gridDim.y,

@@ -78,7 +78,6 @@ class Var;
   macro__(Alloc)                            \
   macro__(Free)                             \
   macro__(_Range_)                          \
-  macro__(_IterVar_)                        \
   macro__(_Buffer_)                         \
   macro__(_Tensor_)                         \
   macro__(_LoweredFunc_)                    \
@@ -92,6 +91,7 @@ class Var;
   macro__(Product)                          \
   macro__(Sum)                              \
   macro__(Activate)                         \
+  macro__(PrimitiveNode)                    \
 
 #define NODETY_FORALL(__m)              \
   NODETY_PRIMITIVE_TYPE_FOR_EACH(__m)   \

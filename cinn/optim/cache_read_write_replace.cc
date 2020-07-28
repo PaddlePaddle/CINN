@@ -76,7 +76,7 @@ struct CacheReplaceMutator : public ir::IRMutator<> {
 
 }  // namespace
 
-void CacheReadWriteReplace(Expr* expr) {
+void CacheReadWriteReplace(Expr* expr, std::map<std::string, ir::Tensor>* global_tensor_map) {
   auto cached_tensors = ir::CollectIRNodes(*expr, [](const Expr* x) {
     auto* t = x->as_tensor();
     return t && (t->read_cache_relation || t->write_cache_relation);
@@ -95,9 +95,16 @@ void CacheReadWriteReplace(Expr* expr) {
     tensor_map[t->name] = t;
   }
 
+  // update global_tensor_map
+  for (auto& item : tensor_map) {
+    if (!global_tensor_map->count(item.first)) {
+      (*global_tensor_map)[item.first] = item.second;
+    }
+  }
+
   for (auto& t : uniq_cached_tensors) {
     if (t->read_cache_relation) {
-      auto cache = tensor_map.at(t->read_cache_relation->cache_name);
+      auto cache = global_tensor_map->at(t->read_cache_relation->cache_name);
       CacheReplaceMutator(t->name, cache, t->read_cache_relation->readers, true /*read*/)(expr);
     }
     if (t->write_cache_relation) {

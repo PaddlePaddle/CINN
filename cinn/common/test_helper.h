@@ -4,8 +4,8 @@
 #include <vector>
 
 #include "cinn/backends/llvm/codegen_llvm.h"
+#include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/cinn.h"
-#include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
 namespace common {

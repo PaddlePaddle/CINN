@@ -172,13 +172,26 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
   }
 }
 
-void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind) {
-  auto accesses = GatherAccesses(other, tensor_->name);
-  if (accesses.empty()) return;
-  auto access = accesses[0];
-  for (int i = 1; i < accesses.size(); i++) {
-    access = isl::manage(isl_map_union(access.release(), accesses[i].copy()));
+void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
+  isl::map access;
+  isl_map *access_raw{};
+  // For cache_read schedule, it will replace the producer tensor with cache in consumer, so replace the tuple name to
+  // cache's in access.
+  if (cached_tensor_name.empty())
+    access_raw = GatherAccesses(other, tensor_->name);
+  else
+    access_raw = GatherAccesses(other, cached_tensor_name);
+
+  if (!access_raw) {
+    LOG(ERROR) << "ComputeAt: " << other->tensor_->name << " has no access to " << tensor_->name << ", skipped it";
+    return;
   }
+
+  if (!cached_tensor_name.empty()) {
+    access_raw = isl_map_set_tuple_name(access_raw, isl_dim_out, tensor_->name.c_str());
+  }
+  access     = isl::manage(access_raw);
+  access_raw = nullptr;
 
   ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
   transform();
@@ -457,8 +470,9 @@ std::vector<std::string> Stage::axis_names() const { return GetDimNames(transfor
 void Stage::GpuThreads(const std::vector<Iterator> &iters, DeviceAPI device) {
   auto dim_names = axis_names();
   for (auto &iter : iters) {
-    CHECK(std::find(dim_names.begin(), dim_names.end(), iter.id) != dim_names.end());
-    forloop_infos_.emplace(iter.id, StageForloopInfo{ir::ForType::GPUThread, device});
+    auto it = std::find(dim_names.begin(), dim_names.end(), iter.id);
+    CHECK(it != dim_names.end());
+    AddForloopInfo(it - dim_names.begin(), StageForloopInfo{ir::ForType::GPUThread, device});
   }
 }
 
@@ -471,7 +485,6 @@ void Stage::GpuBlocks(const std::vector<int> &levels, DeviceAPI device) {
       levels.begin(), levels.end(), std::back_inserter(iters), [&](int i) { return Iterator(dim_names[i]); });
   GpuBlocks(iters, device);
 }
-
 void Stage::GpuBlocks(const Iterator &block_x, DeviceAPI device) {
   GpuBlocks(std::vector<Iterator>({block_x}), device);
 }
@@ -484,8 +497,21 @@ void Stage::GpuBlocks(const Iterator &block_x, const Iterator &block_y, const It
 void Stage::GpuBlocks(const std::vector<Iterator> &iters, DeviceAPI device) {
   auto dim_names = axis_names();
   for (auto &iter : iters) {
-    CHECK(std::find(dim_names.begin(), dim_names.end(), iter.id) != dim_names.end());
-    forloop_infos_.emplace(iter.id, StageForloopInfo{ir::ForType::GPUBlock, device});
+    auto it = std::find(dim_names.begin(), dim_names.end(), iter.id);
+    CHECK(it != dim_names.end());
+    AddForloopInfo(it - dim_names.begin(), StageForloopInfo{ir::ForType::GPUBlock, device});
+  }
+}
+void Stage::Bind(int level, const std::string &axis) {
+  auto dim_names = GetDimNames(transformed_domain().get());
+  CHECK_LT(level, dim_names.size());
+
+  if (axis == "threadIdx.x" || axis == "threadIdx.y" || axis == "threadIdx.z") {
+    AddForloopInfo(level, StageForloopInfo{ir::ForType::GPUThread, DeviceAPI::GPU});
+  } else if (axis == "blockIdx.x" || axis == "blockIdx.y" || axis == "blockIdx.z") {
+    AddForloopInfo(level, StageForloopInfo{ir::ForType::GPUBlock, DeviceAPI::GPU});
+  } else {
+    NOT_IMPLEMENTED
   }
 }
 
@@ -517,12 +543,12 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
   auto my_tensor         = ir::Tensor(tensor_);
   std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
   LOG(INFO) << "cache_name " << cache_name;
-  auto cache_stage = lang::Compute(
+  auto cache_tensor = lang::Compute(
       tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
-  cache_stage->WithBuffer(memory_type);
+  cache_tensor->WithBuffer(memory_type);
 
   for (auto &reader : readers) {
-    Reference(&reader)->stage()->CtrlDepend(cache_stage);
+    Reference(&reader)->stage()->CtrlDepend(cache_tensor);
   }
 
   std::vector<std::string> reader_names;
@@ -532,7 +558,7 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
   CHECK(!tensor_->read_cache_relation) << "Duplicate read cache found, just one is allowed";
   tensor_->read_cache_relation.reset(new ir::ReadCacheRelation{cache_name, reader_names});
 
-  return cache_stage;
+  return cache_tensor;
 }
 
 /*
@@ -573,7 +599,7 @@ void Stage::ShareBufferWith(ir::Tensor other) {
 
 void Stage::CtrlDepend(const ir::Tensor &t) { add_extra_depend_stage(t->name); }
 
-std::vector<isl::map> GatherAccesses(Stage *stage, const std::string &tensor_name) {
+isl_map *__isl_give GatherAccesses(Stage *stage, const std::string &tensor_name) {
   CHECK(stage->tensor_);
   auto loads = ir::CollectIRNodes(stage->tensor_->body(), [&](const Expr *x) {
     return x->As<ir::Load>() && x->As<ir::Load>()->tensor.as_tensor()->name == tensor_name;
@@ -588,15 +614,25 @@ std::vector<isl::map> GatherAccesses(Stage *stage, const std::string &tensor_nam
   std::transform(
       loads.begin(), loads.end(), std::back_inserter(out_loads), [](const Expr &x) { return utils::GetStreamCnt(x); });
 
-  std::vector<isl::map> res;
-
+  isl_map *res = nullptr;
   for (auto &load : out_loads) {
     std::string repr = utils::StringFormat(
         "{ %s[%s] -> %s }", in_tuple_name.c_str(), utils::Join(in_dim_names, ",").c_str(), load.c_str());
-    res.push_back(isl::map(stage->domain().ctx(), repr));
+    isl_map *access = isl_map_read_from_str(stage->domain().ctx().get(), repr.c_str());
+    if (res) {
+      res = isl_map_union(res, access);
+    } else {
+      res = access;
+    }
   }
 
   return res;
+}
+
+void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
+  int num_levels = isl_map_dim(transform_.get(), isl_dim_out);
+  CHECK_LT(level, num_levels);
+  forloop_infos_[level] = info;
 }
 
 }  // namespace poly

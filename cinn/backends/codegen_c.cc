@@ -433,7 +433,6 @@ void CodeGenC::Visit(const ir::Free *op) {
 }
 
 void CodeGenC::Visit(const ir::_Range_ *op) { IrPrinter::Visit(op); }
-void CodeGenC::Visit(const ir::_IterVar_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_Buffer_ *op) { os() << op->name; }
 void CodeGenC::Visit(const ir::_Tensor_ *op) {
   CHECK(!op->inlined());
@@ -524,10 +523,12 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
       << "the count of allocation and deallocaton expressions is not match";
 
   std::vector<Expr> new_body;
+
+  auto alloca_temp_buffers = op->PrepareAllocTempBufferExprs();
 #define APPEND_TO_NEW_BODY(field__) new_body.insert(std::end(new_body), std::begin(op->field__), std::end(op->field__));
   APPEND_TO_NEW_BODY(argument_prepare_exprs)
   APPEND_TO_NEW_BODY(alloc_output_buffer_exprs)
-  APPEND_TO_NEW_BODY(alloc_tmp_buffer_exprs)
+  new_body.insert(std::end(new_body), std::begin(alloca_temp_buffers), std::end(alloca_temp_buffers));
   APPEND_TO_NEW_BODY(buffer_data_cast_exprs)
   new_body.push_back(op->body);
   APPEND_TO_NEW_BODY(dealloc_output_buffer_exprs)
@@ -618,6 +619,8 @@ void CodeGenC::PrintRuntimeType(const cinn_type_t &type) {
 void CodeGenC::PrintStackVecType(Type type, int lanes) {
   os() << "StackedVec<" << GetTypeRepr(type) << "," << lanes << ">";
 }
+
+void CodeGenC::Visit(const ir::PrimitiveNode *op){NOT_IMPLEMENTED}
 
 std::string ReadWholeFile(const std::string &path) {
   CHECK(!path.empty());

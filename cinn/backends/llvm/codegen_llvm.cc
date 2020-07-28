@@ -591,6 +591,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
   return ret;
 }
 
+llvm::Value *CodeGenLLVM::Visit(const ir::PrimitiveNode *) { NOT_IMPLEMENTED return nullptr; }
+
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   if (op->name == runtime::intrisic::buffer_create) {
   } else if (op->name == runtime::intrisic::get_address_repr) {
@@ -799,8 +801,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Free *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Range_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
-
-llvm::Value *CodeGenLLVM::Visit(const ir::_IterVar_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Buffer_ *op) { return GetVar(op->name); }
 

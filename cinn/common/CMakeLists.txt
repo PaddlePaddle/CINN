@@ -11,6 +11,7 @@ set(srcs
     axis.cc
     ir_util.cc
     test_helper.cc
+    # cuda_test_helper.cc
     arithmatic.cc
     cas.cc
     union_find.cc

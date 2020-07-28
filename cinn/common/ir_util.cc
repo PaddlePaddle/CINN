@@ -261,64 +261,6 @@ void CheckBufferUniqueInExpr(Expr expr) {
   }
 }
 
-namespace {
-
-struct AllTensorsUnifier : public ir::IRMutator<> {
-  std::unordered_map<std::string, ir::_Tensor_ *> tensors;
-
-  void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
-
-  void Visit(const ir::_Tensor_ *op, Expr *expr) override {
-    auto *node = expr->as_tensor();
-    if (tensors.count(node->name)) {
-      if (tensors[node->name] != op) {
-        expr->Reset(tensors[node->name]);
-      }
-    } else {
-      tensors.emplace(node->name, node);
-    }
-  }
-};
-
-struct AllBuffersUnifier : public ir::IRMutator<> {
-  std::unordered_map<std::string, ir::_Buffer_ *> buffers;
-
-  void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
-
-  // We assume the buffer only exists in Tensor and LoweredFunc.
-
-  void UpdateBufferIfNeeded(ir::Buffer &buffer) {
-    if (buffer.defined()) {
-      auto &name = buffer->name;
-      if (buffers.count(name)) {
-        if (buffers[name] != buffer->const_self()) {
-          buffer.Reset(buffers[name]);
-        }
-      } else {
-        buffers[name] = buffer->self();
-      }
-    }
-  }
-
-  void Visit(const ir::_Tensor_ *op, Expr *expr) {
-    auto *node = expr->As<ir::_Tensor_>();
-    UpdateBufferIfNeeded(node->buffer);
-  }
-
-  void Visit(const ir::_LoweredFunc_ *op, Expr *expr) {
-    auto *node = expr->As<ir::_LoweredFunc_>();
-    for (auto &buffer : node->temp_bufs) {
-      UpdateBufferIfNeeded(buffer);
-    }
-  }
-};
-
-}  // namespace
-
-void UnifyAllTensorsInExpr(Expr *expr) { AllTensorsUnifier()(expr); }
-
-void UnifyAllBuffersInExpr(Expr *expr) { AllBuffersUnifier()(expr); }
-
 Expr cast(Expr e, Type type) {
   if (e.is_constant()) {
     if (type.is_int(32)) {
@@ -335,6 +277,50 @@ Expr cast(Expr e, Type type) {
   }
 
   return ir::Cast::Make(type, e);
+}
+
+std::vector<std::string> GatherItersToTensorProducer(const std::string &target_tensor_name, Expr *expr) {
+  struct Visitor : public ir::IRMutator<> {
+    std::vector<std::string> iters;
+    const std::string &target_tensor_name;
+
+    Visitor(const std::string &target_tensor_name) : target_tensor_name(target_tensor_name) {}
+
+    std::vector<std::string> operator()(Expr *expr) {
+      ir::IRMutator<>::Visit(expr, expr);
+      return iters;
+    }
+
+    void Visit(const ir::Store *op, Expr *expr) {
+      if (op->tensor.as_tensor()->name == target_tensor_name) {
+        CHECK(iters.empty());
+        for (auto &e : for_stack) {
+          auto *for_n     = e->As<ir::For>();
+          auto *polyfor_n = e->As<ir::PolyFor>();
+          if (for_n) {
+            iters.push_back(for_n->loop_var->name);
+          } else {
+            iters.push_back(polyfor_n->iterator->name);
+          }
+        }
+      }
+    }
+
+    void Visit(const ir::For *op, Expr *expr) {
+      for_stack.push_back(expr);
+      ir::IRMutator<>::Visit(op, expr);
+      for_stack.pop_back();
+    }
+    void Visit(const ir::PolyFor *op, Expr *expr) {
+      for_stack.push_back(expr);
+      ir::IRMutator<>::Visit(op, expr);
+      for_stack.pop_back();
+    }
+
+    std::vector<Expr *> for_stack;
+  };
+
+  return Visitor(target_tensor_name)(expr);
 }
 
 }  // namespace common

@@ -20,6 +20,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                            int block_y,
                            int block_z,
                            void *stream) {
+  LOG(INFO) << "cinn_call_cuda_kernel kernel: " << kernel_fn;
   // prepare void**
   void *arr[20];
   CHECK_LT(num_args, 20);
@@ -43,7 +44,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                                   reinterpret_cast<void **>(arr),
                                   nullptr))
 
-  CUDA_CALL(cudaThreadSynchronize());
+  CUDA_CALL(cudaDeviceSynchronize());
 }
 
 }  // namespace cuda

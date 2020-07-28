@@ -166,8 +166,6 @@ void IRMutator<T>::Visit(const Activate *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const _Range_ *expr, T op) {}
 template <typename T>
-void IRMutator<T>::Visit(const _IterVar_ *expr, T op) {}
-template <typename T>
 void IRMutator<T>::Visit(const _Buffer_ *expr, T op) {
   auto *node = op->template As<_Buffer_>();
 
@@ -245,6 +243,15 @@ void IRMutator<T>::Visit(const Sum *expr, T op) {
   auto *node = op->template As<Sum>();
   for (auto &x : node->operands()) {
     IRVisitorBase<void, T>::Visit(&x, &x);
+  }
+}
+template <typename T>
+void IRMutator<T>::Visit(const PrimitiveNode *expr, T op) {
+  auto *node = op->template As<PrimitiveNode>();
+  for (auto &args : node->arguments) {
+    for (auto &arg : args) {
+      IRVisitorBase<void, T>::Visit(&arg, &arg);
+    }
   }
 }
 

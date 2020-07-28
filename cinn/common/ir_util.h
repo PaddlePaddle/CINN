@@ -66,15 +66,7 @@ void CheckTensorUniqueInExpr(Expr expr);
  */
 void CheckBufferUniqueInExpr(Expr expr);
 
-/**
- * Unify all the tensors to be the same in the expression.
- */
-void UnifyAllTensorsInExpr(Expr *expr);
-
-/**
- * Unify all the buffers to be the same in the expression.
- */
-void UnifyAllBuffersInExpr(Expr *Expr);
+std::vector<std::string> GatherItersToTensorProducer(const std::string &target_tensor_name, Expr *expr);
 
 bool is_zero(Expr v);
 

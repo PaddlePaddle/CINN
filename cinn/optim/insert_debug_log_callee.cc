@@ -87,7 +87,6 @@ struct StoreDebugInfoBuilder : public ir::IRVisitor {
   void Visit(const ir::Alloc *x) override {}
   void Visit(const ir::Free *x) override {}
   void Visit(const ir::_Range_ *x) override {}
-  void Visit(const ir::_IterVar_ *x) override {}
   void Visit(const ir::_Buffer_ *x) override {}
   void Visit(const ir::_Tensor_ *x) override {}
   void Visit(const ir::_LoweredFunc_ *x) override {}

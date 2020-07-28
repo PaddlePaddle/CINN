@@ -299,8 +299,6 @@ void IrPrinter::Visit(const Let *f) {
   }
 }
 
-void IrPrinter::Visit(const _IterVar_ *f) { NOT_IMPLEMENTED }
-
 void IrPrinter::Visit(const Reduce *f) {
   os() << "Reduce(";
   switch (f->reduce_type) {
@@ -373,6 +371,21 @@ void IrPrinter::Visit(const Sum *x) {
     os() << " + ";
   }
   if (!x->operands().empty()) Print(x->operands().back());
+  os() << ")";
+}
+
+void IrPrinter::Visit(const PrimitiveNode *x) {
+  os() << x->name << "(";
+  std::vector<std::string> args_repr;
+  for (auto &args : x->arguments) {
+    std::vector<std::string> arg_repr;
+    for (auto &arg : args) {
+      arg_repr.push_back(utils::GetStreamCnt(arg));
+    }
+    args_repr.push_back(utils::Join(arg_repr, ","));
+  }
+
+  os() << utils::Join(args_repr, ",");
   os() << ")";
 }
 
