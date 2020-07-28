@@ -82,10 +82,10 @@ class CINNValue : public cinn_pod_value_t {
   CINNValue() : cinn_pod_value_t(cinn_value_t(), kNull) {}
   CINNValue(cinn_value_t value, int type_code) : cinn_pod_value_t(value, type_code) {}
 
-  explicit CINNValue(int32_t value) : cinn_pod_value_t(value) {}
-  explicit CINNValue(int64_t value) : cinn_pod_value_t(value) {}
-  explicit CINNValue(float value) : cinn_pod_value_t(value) {}
-  explicit CINNValue(double value) : cinn_pod_value_t(value) {}
+  explicit CINNValue(int32_t value) : cinn_pod_value_t(value) { type_code_ = type_code<int32_t>(); }
+  explicit CINNValue(int64_t value) : cinn_pod_value_t(value) { type_code_ = type_code<int64_t>(); }
+  explicit CINNValue(float value) : cinn_pod_value_t(value) { type_code_ = type_code<float>(); }
+  explicit CINNValue(double value) : cinn_pod_value_t(value) { type_code_ = type_code<double>(); }
   explicit CINNValue(char* value);
   explicit CINNValue(cinn_buffer_t* value) : cinn_pod_value_t(value) {}
   explicit CINNValue(void* value) : cinn_pod_value_t(value) {}
@@ -128,20 +128,7 @@ class CINNValue : public cinn_pod_value_t {
   //! Set the value.
   template <typename T>
   void Set(T v) {
-#define SET_TYPE_CODE(__type, __type_fn) \
-  if constexpr (std::is_same_v<std::decay_t<T>, __type>) type_code_ = __type_fn<__type>()
-
-    SET_TYPE_CODE(int32_t, type_code);
-    SET_TYPE_CODE(int64_t, type_code);
-    SET_TYPE_CODE(float, type_code);
-    SET_TYPE_CODE(double, type_code);
-    SET_TYPE_CODE(char*, TypeCode);
-    SET_TYPE_CODE(ir::Var, TypeCode);
-    SET_TYPE_CODE(ir::Expr, TypeCode);
-    SET_TYPE_CODE(CINNValuePackShared, TypeCode);
-    SET_TYPE_CODE(const char*, TypeCode);
-
-#undef SET_TYPE_CODE
+    *this = CINNValue(v);
   }
 
   /**

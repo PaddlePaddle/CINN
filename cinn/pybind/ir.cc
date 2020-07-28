@@ -555,10 +555,8 @@ auto PackedFuncCall(ir::PackedFunc &self, py::args args) {  // NOLINT
   auto type_code = ret_value.type_code();
   if (type_code == CINNValue::type_code<int32_t>()) {
     var = static_cast<int32_t>(ret_value);
-    LOG(INFO) << "var: " << int(ret_value);
   } else if (type_code == CINNValue::type_code<int64_t>()) {
     var = static_cast<int64_t>(ret_value);
-    LOG(INFO) << "var: " << int64_t(ret_value);
   } else if (type_code == CINNValue::type_code<float>()) {
     var = static_cast<float>(ret_value);
   } else if (type_code == CINNValue::TypeCode<ir::Var>()) {

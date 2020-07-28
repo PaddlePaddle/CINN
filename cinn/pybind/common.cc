@@ -153,6 +153,7 @@ void BindCinnValue(py::module *m) {
       .def("add_value", &CINNValuePack::AddValue)
       .def("clear", &CINNValuePack::Clear)
       .def("size", &CINNValuePack::size)
+      .def("__len__", &CINNValuePack::size)
       .def("type_info", &CINNValuePack::type_info);
 
   py::class_<CINNValuePackShared, common::Shared<CINNValuePack>> cinn_value_pack_shared(*m, "CINNValuePackShared");
@@ -180,7 +181,6 @@ void BindCinnValue(py::module *m) {
       .def("to_int32", [](CINNValue &self) { return static_cast<int32_t>(self); })
       .def("to_int64", [](CINNValue &self) { return static_cast<int64_t>(self); })
       .def("to_void_p", [](CINNValue &self) { return static_cast<void *>(self); })
-      .def("to_double", [](CINNValue &self) { return static_cast<double>(self); })
       .def("to_cinn_buffer_p", [](CINNValue &self) { return static_cast<cinn_buffer_t *>(self); })
       .def("to_str", [](CINNValue &self) { return static_cast<char *>(self); })
       .def("to_var", [](CINNValue &self) { return ir::Var(self); })
