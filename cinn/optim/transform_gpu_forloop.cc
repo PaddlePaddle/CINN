@@ -42,33 +42,22 @@ void RemoveGpuForloopsAxis(Expr *expr) {
 
    private:
     void Visit(const ir::For *op, Expr *expr) override {
-      int dim = 0;
       switch (op->for_type()) {
         case ir::ForType::GPUBlock:
-          dim = GpuAxisGetExtent(op->extent);
-          CHECK_GT(dim, 0) << "Invalid dimension found " << dim;
-          // TODO(Superjomn) Support multiple block dimensions
-          cur_func_->gpu_grid_dims.push_back(dim);
           if (NeedToReplaceForloopWithIfThenElse(op)) {
             ReplaceForloopWithIfThenElse(expr);
           } else {
             *expr = op->body;
           }
           IRMutator<>::Visit(expr, expr);
-          cur_func_->gpu_grid_dims.resize(3, 1);
           break;
         case ir::ForType::GPUThread:
-          dim = GpuAxisGetExtent(op->extent);
-          CHECK_GT(dim, 0) << "Invalid dimension found " << dim;
-          // TODO(Superjomn) Support multiple block dimensions
-          cur_func_->gpu_block_dims.push_back(dim);
           if (NeedToReplaceForloopWithIfThenElse(op)) {
             ReplaceForloopWithIfThenElse(expr);
           } else {
             *expr = op->body;
           }
           IRMutator<>::Visit(expr, expr);
-          cur_func_->gpu_block_dims.resize(3, 1);
           break;
         default:
           auto *node = expr->As<ir::For>();
@@ -119,22 +108,6 @@ void RemoveGpuForloopsAxis(Expr *expr) {
       auto if_n = ir::IfThenElse::Make(condition, for_n->body);
       VLOG(3) << if_n;
       *expr = if_n;
-    }
-
-    int GpuAxisGetExtent(Expr v) {
-      auto *v_int = v.As<ir::IntImm>();
-      auto *v_min = v.As<ir::Min>();
-      CHECK(v_int || v_min) << "We deduce the GPU block or grid dimensions from the domain of GPU Axis, can only "
-                               "accept IntImm or Min node with a IntImm nodes";
-      if (v_int) return v_int->value;
-
-      // min
-      auto *min_a_int = v_min->a().As<ir::IntImm>();
-      auto *min_b_int = v_min->b().As<ir::IntImm>();
-      CHECK(min_a_int || min_b_int) << "At least one operand of Min should be IntImm so that we can deduce the "
-                                       "dimension";
-      if (min_a_int) return min_a_int->value;
-      return min_b_int->value;
     }
 
     void Visit(const ir::PolyFor *op, Expr *expr) override {
@@ -237,5 +210,71 @@ void TransformGpuForloops(const forloop_infos_t &forloop_infos, Expr *expr) {
   }
 }
 
+CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stage_group) {
+  std::map<std::pair<ir::ForType, uint8_t>, int> gpu_axis_range;
+  for (auto *stage : stage_group) {
+    for (auto &item : stage->forloop_infos()) {
+      auto [min_val, max_val] = poly::isl_set_get_axis_range(stage->transformed_domain().get(), item.first);
+      auto key                = std::make_pair(item.second.for_type, item.second.offset);
+      gpu_axis_range[key]     = std::max(max_val.get_num_si() + 1, static_cast<long>(gpu_axis_range[key]));
+    }
+  }
+
+  CudaAxisInfo info;
+  for (auto &item : gpu_axis_range) {
+    switch (item.first.first) {
+      case ir::ForType::GPUBlock:
+        info.set_grid_dim(item.first.second, item.second);
+        break;
+      case ir::ForType::GPUThread:
+        info.set_block_dim(item.first.second, item.second);
+        break;
+      default:
+        NOT_IMPLEMENTED
+    }
+  }
+
+  return info;
+}
+
+std::ostream &operator<<(std::ostream &os, const CudaAxisInfo &x) {
+  os << "<grid:" << x.grid_dim(0) << ", " << x.grid_dim(1) << ", " << x.grid_dim(2) << ">";
+  os << "<block:" << x.block_dim(0) << ", " << x.block_dim(1) << ", " << x.block_dim(2) << ">";
+  return os;
+}
+
+void CudaAxisInfo::set_grid_dim(int offset, int x) {
+  valid_ = true;
+  CHECK_LT(offset, 3);
+  grid_dims_[offset] = x;
+}
+void CudaAxisInfo::set_block_dim(int offset, int x) {
+  valid_ = true;
+  CHECK_LT(offset, 3);
+  block_dims_[offset] = x;
+}
+int CudaAxisInfo::grid_dim(int offset) const {
+  CHECK(valid_);
+  CHECK_LT(offset, 3);
+  return grid_dims_[offset];
+}
+int CudaAxisInfo::block_dim(int offset) const {
+  CHECK(valid_);
+  CHECK_LT(offset, 3);
+  return block_dims_[offset];
+}
+void CudaAxisInfo::ExtendWith(const CudaAxisInfo &other) {
+  set_valid(true);
+  for (int i = 0; i < 3; i++) {
+    grid_dims_[i]  = std::max(grid_dims_[i], other.grid_dims_[i]);
+    block_dims_[i] = std::max(block_dims_[i], other.block_dims_[i]);
+  }
+}
+void CudaAxisInfo::CopyGridDimsTo(std::vector<int> *dest) const {
+  dest->insert(dest->begin(), grid_dims_.begin(), grid_dims_.end());
+}
+void CudaAxisInfo::CopyBlockDimsTo(std::vector<int> *dest) const {
+  dest->insert(dest->begin(), block_dims_.begin(), block_dims_.end());
+}
 }  // namespace optim
 }  // namespace cinn

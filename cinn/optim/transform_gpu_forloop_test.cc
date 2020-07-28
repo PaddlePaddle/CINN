@@ -30,6 +30,15 @@ TEST(TransformGpuForloops, basic) {
 
   std::cout << "\n" << func << std::endl;
 
+  ASSERT_EQ(func->gpu_grid_dims.size(), 3);
+  ASSERT_EQ(func->gpu_block_dims.size(), 3);
+  EXPECT_EQ(func->gpu_grid_dims[0], 10);
+  EXPECT_EQ(func->gpu_grid_dims[1], 1);
+  EXPECT_EQ(func->gpu_grid_dims[2], 1);
+  EXPECT_EQ(func->gpu_block_dims[0], 10);
+  EXPECT_EQ(func->gpu_block_dims[1], 200);
+  EXPECT_EQ(func->gpu_block_dims[2], 1);
+
   auto target_out = R"ROC(
 function elementwise_add (_A, _B, _C)
 {

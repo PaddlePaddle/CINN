@@ -35,11 +35,12 @@ void BindStage(py::module *m) {
   py::enum_<SplitRestStrategy> split_rest_strategy(*m, "SplitRestStrategy");
   split_rest_strategy.value("kAuto", SplitRestStrategy::kAuto).value("kSeparate", SplitRestStrategy::kSeparate);
 
-  // struct StageForloopInfo
-  py::class_<StageForloopInfo> stage_forloop_info(*m, "StageForloopInfo");
-  stage_forloop_info.def(py::init<ir::ForType, ir::DeviceAPI>())
-      .def_readwrite("for_type", &StageForloopInfo::for_type)
-      .def_readwrite("device", &StageForloopInfo::device);
+  // // struct StageForloopInfo
+  // py::class_<StageForloopInfo> stage_forloop_info(*m, "StageForloopInfo");
+  // stage_forloop_info.def(py::init<ir::ForType, uint8_t, ir::DeviceAPI>())
+  //     .def_readwrite("for_type", &StageForloopInfo::for_type)
+  //     .def_readwrite("device", &StageForloopInfo::device)
+  //     .def_readwrite("offset", &StageForloopInfo::offset);
 
   py::class_<Stage, common::Object> stage(*m, "Stage");
   // enum Stage::ComputeAtKind

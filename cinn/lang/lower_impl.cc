@@ -33,7 +33,8 @@ void CheckNoIslCallRemains(Expr* expr) {
 
 Expr LowerGroup(const poly::ScheduleGroup& group,
                 const std::map<std::string, Expr>& tuple_to_expr,
-                std::map<std::string, ir::Tensor>* global_tensor_map) {
+                std::map<std::string, ir::Tensor>* global_tensor_map,
+                optim::CudaAxisInfo* cuda_axis_info) {
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
     if (node->stage->has_expression()) {
@@ -121,7 +122,9 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
       forloop_infos[stage->id()] = for_infos;
     }
     optim::TransformGpuForloops(forloop_infos, &e);
+    cuda_axis_info->ExtendWith(optim::GatherAxisInfoFromStages(stages));
   }
+
 #endif
 
   return e;
@@ -346,6 +349,14 @@ ir::LoweredFunc LowerImpl::operator()() {
 
   UpdateComputeAtBufferShape(&res);
 
+  if (cuda_axis_info_.valid()) {
+    auto* func = res.as_lowered_func();
+    func->gpu_grid_dims.clear();
+    func->gpu_block_dims.clear();
+    cuda_axis_info_.CopyBlockDimsTo(&func->gpu_block_dims);
+    cuda_axis_info_.CopyGridDimsTo(&func->gpu_grid_dims);
+  }
+
   return ir::LoweredFunc(res.get());
 }
 
@@ -389,7 +400,7 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
       tuple_to_expr[tensor->name] = tensor->tensor_store_expanded_body();
     }
 
-    Expr group_expr = LowerGroup(group, tuple_to_expr, &global_tensor_map);
+    Expr group_expr = LowerGroup(group, tuple_to_expr, &global_tensor_map, &cuda_axis_info_);
     if (group_expr.defined()) {
       VLOG(3) << "group expr:\n" << group_expr;
       exprs.push_back(group_expr);
@@ -791,6 +802,8 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     }
   }
 }
+
+void LowerImpl::AddAxisInfoToFunc(ir::_LoweredFunc_* func) {}
 
 }  // namespace detail
 }  // namespace lang
