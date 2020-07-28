@@ -127,7 +127,22 @@ class CINNValue : public cinn_pod_value_t {
 
   //! Set the value.
   template <typename T>
-  void Set(T v);
+  void Set(T v) {
+#define SET_TYPE_CODE(__type, __type_fn) \
+  if constexpr (std::is_same_v<std::decay_t<T>, __type>) type_code_ = __type_fn<__type>()
+
+    SET_TYPE_CODE(int32_t, type_code);
+    SET_TYPE_CODE(int64_t, type_code);
+    SET_TYPE_CODE(float, type_code);
+    SET_TYPE_CODE(double, type_code);
+    SET_TYPE_CODE(char*, TypeCode);
+    SET_TYPE_CODE(ir::Var, TypeCode);
+    SET_TYPE_CODE(ir::Expr, TypeCode);
+    SET_TYPE_CODE(CINNValuePackShared, TypeCode);
+    SET_TYPE_CODE(const char*, TypeCode);
+
+#undef SET_TYPE_CODE
+  }
 
   /**
    * Get the type code for a specific POD type.

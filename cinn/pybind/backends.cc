@@ -25,7 +25,7 @@ void BindExecutionEngine(py::module *m) {
   auto lookup = [](ExecutionEngine &self, std::string_view name) {
     auto *function_ptr    = reinterpret_cast<void (*)(void **, int32_t)>(self.Lookup(name));
     auto function_wrapper = [function_ptr](std::vector<cinn_pod_value_t> &args) {
-      function_ptr(reinterpret_cast<void **>(&args.front()), args.size());
+      function_ptr(reinterpret_cast<void **>(args.data()), args.size());
     };
     return std::function(function_wrapper);
   };

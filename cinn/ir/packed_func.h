@@ -98,6 +98,8 @@ class PackedFunc {
     return ret_value;
   }
 
+  inline body_t body() const { return body_; }
+
  private:
   std::string name_;
   body_t body_;
