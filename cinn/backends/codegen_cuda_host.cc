@@ -12,8 +12,7 @@ namespace backends {
 const int kArgsArrayMaxLen = 20;
 
 llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* func) {
-  CHECK(!func->gpu_grid_dims.empty());
-  CHECK(!func->gpu_block_dims.empty());
+  CHECK(func->cuda_axis_info.valid());
 
   /* The current function definiton is
    * void fn(cinn_pod_value_t* args, int num_args) {
@@ -94,13 +93,13 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
                                             kernel_fn_ptr_var,  // kernel_fn
                                             args_var,           // args
                                             Var(ll_num_args_copied->getName(), type_of<int32_t>()),
-                                            Expr(func->gpu_grid_dims[0]),   // grid_x
-                                            Expr(func->gpu_grid_dims[1]),   // grid_y
-                                            Expr(func->gpu_grid_dims[2]),   // grid_z
-                                            Expr(func->gpu_block_dims[0]),  // block_x
-                                            Expr(func->gpu_block_dims[1]),  // block_y
-                                            Expr(func->gpu_block_dims[2]),  // block_z
-                                            kernel_stream_var               // stream
+                                            Expr(func->cuda_axis_info.grid_dim(0)),   // grid_x
+                                            Expr(func->cuda_axis_info.grid_dim(1)),   // grid_y
+                                            Expr(func->cuda_axis_info.grid_dim(2)),   // grid_z
+                                            Expr(func->cuda_axis_info.block_dim(0)),  // block_x
+                                            Expr(func->cuda_axis_info.block_dim(1)),  // block_y
+                                            Expr(func->cuda_axis_info.block_dim(2)),  // block_z
+                                            kernel_stream_var                         // stream
                                         },
                                         {},
                                         ir::CallType::Extern,

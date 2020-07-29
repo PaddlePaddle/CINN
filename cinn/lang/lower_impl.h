@@ -50,7 +50,8 @@ void CheckNoIslCallRemains(const Expr* expr);
  */
 Expr LowerGroup(const poly::ScheduleGroup& group,
                 const std::map<std::string, Expr>& tuple_to_expr,
-                std::map<std::string, Tensor>* global_tensor_map);
+                std::map<std::string, Tensor>* global_tensor_map,
+                ir::CudaAxisInfo* cuda_axis_info = nullptr);
 
 /**
  * A Computation graph node.
@@ -95,7 +96,7 @@ class LowerImpl {
     tensors.insert(std::end(tensors), temp_tensor_args.begin(), temp_tensor_args.end());
     compu_graph_ = CreateCompGraph(tensors, true /*hide_inlined*/);
 
-    LOG(INFO) << "Computation Graph:\n" << compu_graph_->Visualize();
+    VLOG(1) << "Computation Graph:\n" << compu_graph_->Visualize();
   }
 
   ir::LoweredFunc operator()();
@@ -117,6 +118,8 @@ class LowerImpl {
    * \brief generate the body expression of the final output function.
    */
   Expr GenerateFunctionBody(const poly::Schedule* schedule);
+
+  void AddAxisInfoToFunc(ir::_LoweredFunc_* func);
 
  private:
   /**
@@ -164,6 +167,9 @@ class LowerImpl {
 
   //! A computation graph generated from the tensor_args and scalar_args.
   std::unique_ptr<common::Graph> compu_graph_;
+
+  //! CUDA axis info for this function.
+  ir::CudaAxisInfo cuda_axis_info_;
 };
 
 /**
@@ -228,9 +234,9 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
   // NOTE This mutator takes PolyFor as input, not For.
   void Visit(const ir::PolyFor* op, Expr* expr) override {
     auto* node = expr->As<ir::PolyFor>();
-    stack.push_back(node);
+    forloop_stack.push_back(node);
     ir::IRMutator<ir::Expr*>::Visit(op, expr);
-    stack.pop_back();
+    forloop_stack.pop_back();
   }
 
   // each statement in ISL is bound to a Store node.
@@ -239,12 +245,12 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
     CHECK(tensor_n);
     auto it = vectorizes.find(tensor_n->name);
     if (it != vectorizes.end()) {
-      stack[it->second.level]->set_vectorize_info(it->second);
+      forloop_stack[it->second.level]->set_vectorize_info(it->second);
       CHECK(it->second.valid());
     }
   }
 
-  std::vector<ir::PolyFor*> stack;
+  std::vector<ir::PolyFor*> forloop_stack;
 };
 
 /**

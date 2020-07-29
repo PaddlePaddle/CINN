@@ -231,8 +231,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
 
     func->device_api = op->device_api;
 
-    func->gpu_block_dims = op->gpu_block_dims;
-    func->gpu_grid_dims  = op->gpu_grid_dims;
+    func->cuda_axis_info = op->cuda_axis_info;
 
     std::vector<Expr> alloc_output_buffer_exprs;
     std::vector<Expr> dealloc_output_buffer_exprs;

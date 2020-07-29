@@ -2,11 +2,19 @@
 #include <cinn/poly/stage.h>
 
 #include "cinn/ir/ir.h"
+#include "cinn/ir/lowered_func.h"
+#include "cinn/poly/isl_utils.h"
 
 namespace cinn {
 namespace optim {
 
 using forloop_infos_t = std::map<std::string, std::map<std::string, poly::StageForloopInfo>>;
+
+/**
+ * Collect the grid and block dims from a group of stages.
+ * The dims is the maximum extent of each GPU related forloops.
+ */
+ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage*>& stage_group);
 
 /**
  * Mark the fortype and device of forloops if is GPU related, replace the loop iterators to GPU related axis(threadIdx.x
@@ -31,10 +39,11 @@ using forloop_infos_t = std::map<std::string, std::map<std::string, poly::StageF
  * @param statement The target statement.
  * @param forloop_infos A map of forloop to their infomation.
  */
-void TransformGpuForloop(const forloop_infos_t& forloop_infos, Expr* expr);
+void TransformGpuForloops(const forloop_infos_t& forloop_infos, Expr* expr);
 
 /**
- * Remove the forloops of block and thread axis, add the kernel dimension information to the outermost LoweredFunc.
+ * Remove the forloops of block and thread axis, add the kernel launch thread dimension information to the outermost
+ * LoweredFunc.
  *
  * For example, input the code:
  * \code
