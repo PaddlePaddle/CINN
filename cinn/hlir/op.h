@@ -11,11 +11,12 @@
 #include "cinn/utils/base.h"
 #include "cinn/utils/registry.h"
 
-using dmlc::any;
+using cinn::utils::any;
+using cinn::utils::get;
 
 namespace cinn {
 namespace hlir {
-class Op;
+class Operator;
 
 struct OpRegistry {
   std::recursive_mutex mutex;
@@ -30,14 +31,14 @@ struct OpRegistry {
 template <typename ValueType>
 class OpValueType {
  public:
-  inline const ValueType& operator[](const Op* op) const {
+  inline const ValueType& operator[](const Operator* op) const {
     CHECK(op != nullptr) << "The input op is nullptr and it is invalid! Please check again.";
     const uint32_t idx = op->index;
     CHECK(idx < data.size()) << "Attribute " << attr_name << " has not been registered for Operator " << op->name;
     return data[idx];
   }
 
-  inline const ValueType& get(const Op* op, const ValueType& def_value) const {
+  inline const ValueType& get(const Operator* op, const ValueType& def_value) const {
     if (op == nullptr) return def_value;
     const uint32_t idx = op->index;
     if (idx < data.size()) {
@@ -47,20 +48,20 @@ class OpValueType {
     }
   }
 
-  inline bool find(const Op* op) const {
+  inline bool find(const Operator* op) const {
     if (op == nullptr) return false;
     const uint32_t idx = op->index;
     return idx < data.size();
   }
 
  private:
-  friend class Op;
+  friend class Operator;
   std::string attr_name;
   std::vector<ValueType> data;
   OpValueType() = default;
 };
 
-class Op {
+class Operator {
  public:
   std::string name;
   std::string description;
@@ -68,22 +69,22 @@ class Op {
   uint32_t num_outputs   = 1;
   uint32_t support_level = 10;
 
-  inline Op& describe(const std::string description) {
+  inline Operator& describe(const std::string description) {
     this->description = description;
     return *this;
   }
 
-  inline Op& set_num_inputs(uint32_t n) {
+  inline Operator& set_num_inputs(uint32_t n) {
     this->num_inputs = n;
     return *this;
   }
 
-  inline Op& set_num_outputs(uint32_t n) {
+  inline Operator& set_num_outputs(uint32_t n) {
     this->num_outputs = n;
     return *this;
   }
 
-  inline Op& set_support_level(uint32_t n) {
+  inline Operator& set_support_level(uint32_t n) {
     this->support_level = n;
     return *this;
   }
@@ -93,21 +94,21 @@ class Op {
    * \param op_name Name of the operator.
    * \return Pointer to a Op, valid throughout program lifetime.
    */
-  static const Op* Get(const std::string& op_name) {
-    const Op* op = dmlc::Registry<Op>::Find(op_name);
+  static const Operator* Get(const std::string& op_name) {
+    const Operator* op = cinn::Registry<Operator>::Find(op_name);
     CHECK(op != nullptr) << "Operator " << op_name << " is not registered";
     return op;
   }
 
   template <typename ValueType>
-  inline Op& set_attr(const std::string& attr_name, const ValueType& value) {
+  inline Operator& set_attr(const std::string& attr_name, const ValueType& value) {
     UpdateAttrMap(attr_name, [this, attr_name, value](any* pmap) {
       if (pmap->empty()) {
         OpValueType<ValueType> pm;
         pm.attr_name = attr_name;
         *pmap        = std::move(pm);
       }
-      std::vector<ValueType>& vec = dmlc::get<OpValueType<ValueType>>(*pmap).data;
+      std::vector<ValueType>& vec = get<OpValueType<ValueType>>(*pmap).data;
       // resize the value type.
       if (vec.size() <= index) {
         vec.resize(index + 1, ValueType());
@@ -130,15 +131,15 @@ class Op {
       });
       ref = GetAttrMap(attr_name);
     }
-    return dmlc::get<OpValueType<ValueType>>(*ref);
+    return get<OpValueType<ValueType>>(*ref);
   }
 
  private:
   template <typename ValueType>
   friend class OpValueType;
-  friend class dmlc::Registry<Op>;
+  friend class cinn::Registry<Operator>;
   uint32_t index{0};
-  Op() {
+  Operator() {
     OpRegistry* reg = OpRegistry::Global();
     index           = reg->op_counter++;
   }
@@ -162,25 +163,25 @@ class Op {
 };
 
 // internal macros to make
-#define HLIR_REGISTER_VAR_DEF(OpName) static DMLC_ATTRIBUTE_UNUSED ::cinn::hlir::Op& __make_##HlirOp##_##OpName
+#define CINN_REGISTER_VAR_DEF(OpName) static ::cinn::hlir::Operator& __make_##HlirOp##_##OpName
 
 /*!
- * \def HLIR_REGISTER_OP
+ * \def CINNR_REGISTER_OP
  * \brief Register a new operator, or set attribute of the corresponding op.
  *
  * \param OpName The name of registry
  *
  * \code
  *
- *  HLIR_REGISTER_OP(add)
+ *  CINN_REGISTER_OP(add)
  *  .describe("add two inputs together")
  *  .set_num_inputs(2)
  *  .set_attr<OpKernel>("gpu_kernel", AddKernel);
  *
  * \endcode
  */
-#define HLIR_REGISTER_OP(OpName)                                \
-  DMLC_STR_CONCAT(HLIR_REGISTER_VAR_DEF(OpName), __COUNTER__) = \
-      ::dmlc::Registry<::cinn::hlir::Op>::Get()->__REGISTER_OR_GET__(#OpName)
+#define CINN_REGISTER_OP(OpName)                                \
+  CINN_STR_CONCAT(CINN_REGISTER_VAR_DEF(OpName), __COUNTER__) = \
+      ::cinn::Registry<::cinn::hlir::Operator>::Get()->__REGISTER_OR_GET__(#OpName)
 }  // namespace hlir
 }  // namespace cinn

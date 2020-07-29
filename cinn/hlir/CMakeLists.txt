@@ -1,3 +1,4 @@
+add_subdirectory(instruction)
 set(srcs op.h
         )
 
@@ -7,4 +8,4 @@ foreach(cpp ${srcs})
       CACHE INTERNAL "")
 endforeach()
 
-cc_test(test_op SRCS test_op.cc DEPS core)
+cc_test(test_op SRCS op_test.cc DEPS core)
