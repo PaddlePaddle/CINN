@@ -6,6 +6,7 @@
 #include <string_view>
 #include <variant>
 
+#include "cinn/common/cinn_value.h"
 #include "cinn/common/shared.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_visitor.h"
@@ -15,6 +16,7 @@
 namespace py = pybind11;
 
 namespace cinn::pybind {
+using common::CINNValue;
 using common::Shared;
 using common::Type;
 using ir::Expr;
@@ -55,6 +57,29 @@ using ExprOp   = std::variant<ir::IntImm,
                             ir::_Range_>;
 using BinaryOp = std::variant<>;
 using UnaryOp  = std::variant<>;
+
+// hold CINNValue
+using ValueVar = std::variant<int32_t, int64_t, float, ir::Var, ir::Expr, std::nullptr_t>;
+
+inline ValueVar ConvertToVar(const CINNValue &value) {
+  auto type_code = value.type_code();
+  ValueVar var;
+  if (type_code == CINNValue::type_code<int32_t>()) {
+    var = static_cast<int32_t>(value);
+  } else if (type_code == CINNValue::type_code<int64_t>()) {
+    var = static_cast<int64_t>(value);
+  } else if (type_code == CINNValue::type_code<float>()) {
+    var = static_cast<float>(value);
+  } else if (type_code == CINNValue::TypeCode<ir::Var>()) {
+    var = ir::Var(value);
+  } else if (type_code == CINNValue::TypeCode<ir::Expr>()) {
+    var = ir::Expr(value);
+  } else {
+    var = nullptr;
+  }
+
+  return var;
+}
 
 template <typename T>
 void DefineShared(py::module *m, std::string_view obj_name) {

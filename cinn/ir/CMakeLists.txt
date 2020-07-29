@@ -13,6 +13,7 @@ set(srcs
     function_base.cc
     operation.cc
     collect_ir_nodes.cc
+    registry.cc
     )
 
 foreach(cpp ${srcs})
