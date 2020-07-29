@@ -226,9 +226,9 @@ void BindCinnValue(py::module *m) {
   })
 
   DEFINE_BINARY_OP(__add__, [](auto x, auto y) { return x + y; });
-  DEFINE_BINARY_OP(__sub__, [](auto x, auto y) { return x + y; });
-  DEFINE_BINARY_OP(__mul__, [](auto x, auto y) { return x + y; });
-  DEFINE_BINARY_OP(__div__, [](auto x, auto y) { return x + y; });
+  DEFINE_BINARY_OP(__sub__, [](auto x, auto y) { return x - y; });
+  DEFINE_BINARY_OP(__mul__, [](auto x, auto y) { return x * y; });
+  DEFINE_BINARY_OP(__truediv__, [](auto x, auto y) { return x / y; });
 
 #undef DEFINE_BINARY_OP
 }
