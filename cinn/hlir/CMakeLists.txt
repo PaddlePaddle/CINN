@@ -1,6 +1,4 @@
 add_subdirectory(instruction)
-set(srcs op.h
-        )
 
 foreach(cpp ${srcs})
   set(core_src
