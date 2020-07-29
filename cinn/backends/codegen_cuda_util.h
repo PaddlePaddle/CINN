@@ -39,8 +39,7 @@ struct CollectHostFunctionVisitor : public ir::IRMutator<> {
  private:
   void Visit(const ir::_LoweredFunc_* op, Expr* expr) override {
     if (IsCudaFunction(op)) {
-      CHECK(!op->gpu_block_dims.empty());
-      CHECK(!op->gpu_grid_dims.empty());
+      CHECK(op->cuda_axis_info.valid());
 
       auto host_func = CreateHostFunctionGivenDeviceKernel(op);
       host_module_builder.AddFunction(host_func.as_lowered_func_ref());
@@ -82,8 +81,7 @@ struct CollectHostFunctionVisitor : public ir::IRMutator<> {
     host_func_args.emplace_back(args[0], ir::Argument::IO::kOutput);
     host_func_args.emplace_back(args[1], ir::Argument::IO::kOutput);
     auto host_func            = ir::_LoweredFunc_::Make(func->name, host_func_args, body, {});
-    host_func->gpu_grid_dims  = func->gpu_grid_dims;
-    host_func->gpu_block_dims = func->gpu_block_dims;
+    host_func->cuda_axis_info = func->cuda_axis_info;
     return host_func;
   }
 

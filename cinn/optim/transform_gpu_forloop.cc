@@ -42,33 +42,22 @@ void RemoveGpuForloopsAxis(Expr *expr) {
 
    private:
     void Visit(const ir::For *op, Expr *expr) override {
-      int dim = 0;
       switch (op->for_type()) {
         case ir::ForType::GPUBlock:
-          dim = GpuAxisGetExtent(op->extent);
-          CHECK_GT(dim, 0) << "Invalid dimension found " << dim;
-          // TODO(Superjomn) Support multiple block dimensions
-          cur_func_->gpu_grid_dims.push_back(dim);
           if (NeedToReplaceForloopWithIfThenElse(op)) {
             ReplaceForloopWithIfThenElse(expr);
           } else {
             *expr = op->body;
           }
           IRMutator<>::Visit(expr, expr);
-          cur_func_->gpu_grid_dims.resize(3, 1);
           break;
         case ir::ForType::GPUThread:
-          dim = GpuAxisGetExtent(op->extent);
-          CHECK_GT(dim, 0) << "Invalid dimension found " << dim;
-          // TODO(Superjomn) Support multiple block dimensions
-          cur_func_->gpu_block_dims.push_back(dim);
           if (NeedToReplaceForloopWithIfThenElse(op)) {
             ReplaceForloopWithIfThenElse(expr);
           } else {
             *expr = op->body;
           }
           IRMutator<>::Visit(expr, expr);
-          cur_func_->gpu_block_dims.resize(3, 1);
           break;
         default:
           auto *node = expr->As<ir::For>();
@@ -77,19 +66,12 @@ void RemoveGpuForloopsAxis(Expr *expr) {
       }
     }
 
-    bool NeedToReplaceForloopWithIfThenElse(const ir::For *n) const {
-      // We need something like: `threadIdx.x > j condition`.
-      if (n->min != common::make_const(0)) {
-        return true;
-      }
-
-      if (n->extent.As<ir::Min>()) return true;
-      return false;
-    }
+    bool NeedToReplaceForloopWithIfThenElse(const ir::For *n) const { return true; }
 
     void ReplaceForloopWithIfThenElse(Expr *expr) {
-      auto *for_n = expr->As<ir::For>();
-      CHECK(for_n);
+      auto *for_n      = expr->As<ir::For>();
+      auto *poly_for_n = expr->As<ir::PolyFor>();
+      CHECK(for_n || poly_for_n);
 
       Expr condition;
 
@@ -101,17 +83,22 @@ void RemoveGpuForloopsAxis(Expr *expr) {
         }
       };
 
-      // for(i, 2, 100);
-      //        ^
-      if (for_n->min != common::make_const(0)) {
-        condition_append(ir::GE::Make(for_n->loop_var, for_n->min));
-      }
+      if (for_n) {
+        // for(i, 2, 100);
+        //        ^
+        if (for_n->min != common::make_const(0)) {
+          condition_append(ir::GE::Make(for_n->loop_var, for_n->min));
+        }
 
-      // for(i, 2, min(M/2, 20)
-      //            ^
-      auto *extent_min_n = for_n->extent.As<ir::Min>();
-      if (extent_min_n) {
+        // for(i, 2, min(M/2, 20)
+        //            ^
         condition_append(ir::LT::Make(for_n->loop_var, for_n->extent));
+      } else {
+        if (poly_for_n->init != common::make_const(0)) {
+          condition_append(ir::GE::Make(poly_for_n->iterator, poly_for_n->init));
+        }
+
+        condition_append(poly_for_n->condition);
       }
 
       CHECK(condition.defined());
@@ -121,22 +108,6 @@ void RemoveGpuForloopsAxis(Expr *expr) {
       auto if_n = ir::IfThenElse::Make(condition, for_n->body);
       VLOG(3) << if_n;
       *expr = if_n;
-    }
-
-    int GpuAxisGetExtent(Expr v) {
-      auto *v_int = v.As<ir::IntImm>();
-      auto *v_min = v.As<ir::Min>();
-      CHECK(v_int || v_min) << "We deduce the GPU block or grid dimensions from the domain of GPU Axis, can only "
-                               "accept IntImm or Min node with a IntImm nodes";
-      if (v_int) return v_int->value;
-
-      // min
-      auto *min_a_int = v_min->a().As<ir::IntImm>();
-      auto *min_b_int = v_min->b().As<ir::IntImm>();
-      CHECK(min_a_int || min_b_int) << "At least one operand of Min should be IntImm so that we can deduce the "
-                                       "dimension";
-      if (min_a_int) return min_a_int->value;
-      return min_b_int->value;
     }
 
     void Visit(const ir::PolyFor *op, Expr *expr) override {
@@ -160,80 +131,110 @@ void MarkGpuForloop(const std::string &statement,
     const std::string &statement;
     const std::map<std::string, poly::StageForloopInfo> forloop_infos;
 
+    /**
+     * @param statement the tuple name.
+     * @param forloop_infos the axis.
+     */
     Mutator(const std::string &statement, const std::map<std::string, poly::StageForloopInfo> &forloop_infos)
         : statement(statement), forloop_infos(forloop_infos) {}
 
     void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
    private:
-    void Visit(const ir::For *op, Expr *expr) override {
-      forloops.push_back(expr);
-      IRMutator::Visit(op, expr);
-      forloops.pop_back();
-    }
-    void Visit(const ir::PolyFor *op, Expr *expr) override {
-      forloops.push_back(expr);
-      IRMutator::Visit(op, expr);
-      forloops.pop_back();
-    }
+    // Mark the specific store.
     void Visit(const ir::Store *op, Expr *expr) override {
       auto *tensor = op->tensor.As<ir::_Tensor_>();
       if (tensor->name == statement) {
         MarkForloop();
       }
     }
-    void Visit(const ir::_LoweredFunc_ *op, Expr *expr) override {
-      auto *node = expr->as_lowered_func();
-
-      ir::IRMutator<>::Visit(op, expr);
-    }
 
     void MarkForloop() {
       // start from 0, threadIdx.x
-      int thread_level = 0;
-      int block_level  = 0;
-      for (auto *expr : forloops) {
+      for (auto *expr : forloop_stack) {
         auto *for_     = expr->As<ir::For>();
         auto *poly_for = expr->As<ir::PolyFor>();
         Var axis_var   = for_ ? for_->loop_var : poly_for->iterator;
         auto it        = forloop_infos.find(axis_var->name);
+        std::string iterator_name;
         if (it != forloop_infos.end()) {
           if (for_) {
             for_->set_for_type(it->second.for_type);
             for_->device_api = it->second.device;
+            iterator_name    = for_->loop_var->name;
           } else {
             poly_for->set_for_type(it->second.for_type);
             poly_for->device_api = it->second.device;
+            iterator_name        = poly_for->iterator->name;
           }
 
+          auto &forloop_info = forloop_infos.at(iterator_name);
           if (it->second.for_type == ir::ForType::GPUThread) {
-            Var cuda_var(backends::cuda_thread_axis_name(thread_level++));
+            Var cuda_var(backends::cuda_thread_axis_name(forloop_info.offset));
             Expr var_expr(cuda_var);
             VLOG(3) << "gpu replacing var " << axis_var << " to " << var_expr;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
           } else if (it->second.for_type == ir::ForType::GPUBlock) {
-            Var cuda_var(backends::cuda_block_axis_name(block_level++));
+            Var cuda_var(backends::cuda_block_axis_name(forloop_info.offset));
             Expr var_expr(cuda_var);
             VLOG(3) << "gpu replacing var " << axis_var << " to " << var_expr;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
-          } else if (it->second.for_type == ir::ForType::GPULane) {
+          } else {
             NOT_IMPLEMENTED
           }
         }
       }
     }
 
-    std::vector<Expr *> forloops;
+    void Visit(const ir::For *op, Expr *expr) override {
+      forloop_stack.push_back(expr);
+      IRMutator::Visit(op, expr);
+      forloop_stack.pop_back();
+    }
+    void Visit(const ir::PolyFor *op, Expr *expr) override {
+      forloop_stack.push_back(expr);
+      IRMutator::Visit(op, expr);
+      forloop_stack.pop_back();
+    }
+
+    std::vector<Expr *> forloop_stack;
   };
 
   Mutator mutator(statement, forloop_infos);
   mutator(expr);
 }
 
-void TransformGpuForloop(const forloop_infos_t &forloop_infos, Expr *expr) {
+void TransformGpuForloops(const forloop_infos_t &forloop_infos, Expr *expr) {
   for (auto &item : forloop_infos) {
     MarkGpuForloop(item.first, item.second, expr);
   }
+}
+
+ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stage_group) {
+  std::map<std::pair<ir::ForType, uint8_t>, int> gpu_axis_range;
+  for (auto *stage : stage_group) {
+    for (auto &item : stage->forloop_infos()) {
+      auto [min_val, max_val] = poly::isl_set_get_axis_range(stage->transformed_domain().get(), item.first);
+      auto key                = std::make_pair(item.second.for_type, item.second.offset);
+      gpu_axis_range[key]     = std::max(max_val.get_num_si() + 1, static_cast<long>(gpu_axis_range[key]));
+    }
+  }
+
+  ir::CudaAxisInfo info;
+  for (auto &item : gpu_axis_range) {
+    switch (item.first.first) {
+      case ir::ForType::GPUBlock:
+        info.set_grid_dim(item.first.second, item.second);
+        break;
+      case ir::ForType::GPUThread:
+        info.set_block_dim(item.first.second, item.second);
+        break;
+      default:
+        NOT_IMPLEMENTED
+    }
+  }
+
+  return info;
 }
 
 }  // namespace optim
