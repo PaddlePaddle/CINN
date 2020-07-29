@@ -67,6 +67,39 @@ class LoweredFunc : public IrNodeRef {
   _LoweredFunc_* operator->();
 };
 
+using dim3_t = std::array<int, 3>;
+struct CudaAxisInfo {
+  CudaAxisInfo() {
+    for (int& v : grid_dims_) v = 1;
+    for (int& v : block_dims_) v = 1;
+    set_valid(false);
+  }
+
+  void set_grid_dim(int offset, int x);
+  void set_block_dim(int offset, int x);
+
+  int grid_dim(int offset) const;
+  int block_dim(int offset) const;
+
+  void CopyGridDimsTo(std::vector<int>* dest) const;
+  void CopyBlockDimsTo(std::vector<int>* dest) const;
+
+  inline void set_valid(bool x = false) { valid_ = x; }
+  inline bool valid() const { return valid_; }
+
+  //! Extend the axis dims and keep the larger dims.
+  void ExtendWith(const CudaAxisInfo& other);
+
+ private:
+  // the three dimensions represents x, y, z
+  dim3_t grid_dims_;
+  // the three dimensions represents x, y, z
+  dim3_t block_dims_;
+  bool valid_{false};
+};
+
+std::ostream& operator<<(std::ostream& os, const CudaAxisInfo& x);
+
 /**
  * Definition of a lowered function. Note that, it should be functional.
  *
@@ -90,8 +123,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
 
   DeviceAPI device_api{DeviceAPI::UNK};
 
-  std::vector<int> gpu_grid_dims;
-  std::vector<int> gpu_block_dims;
+  CudaAxisInfo cuda_axis_info;
 
   /**
    * The output buffer will be resized to the size required, we leave all the expression here.
@@ -115,7 +147,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
                           const Expr& body,
                           const std::vector<ir::Buffer>& temp_bufs);
 
-  bool is_gpu_host() const { return !gpu_block_dims.empty() && !gpu_grid_dims.empty(); }
+  bool is_gpu_host() const { return cuda_axis_info.valid(); }
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;

@@ -274,5 +274,45 @@ std::string Argument::human_readable() const {
   return os.str();
 }
 
+std::ostream& operator<<(std::ostream& os, const CudaAxisInfo& x) {
+  os << "<grid:" << x.grid_dim(0) << ", " << x.grid_dim(1) << ", " << x.grid_dim(2) << ">";
+  os << "<block:" << x.block_dim(0) << ", " << x.block_dim(1) << ", " << x.block_dim(2) << ">";
+  return os;
+}
+
+void CudaAxisInfo::set_grid_dim(int offset, int x) {
+  valid_ = true;
+  CHECK_LT(offset, 3);
+  grid_dims_[offset] = x;
+}
+void CudaAxisInfo::set_block_dim(int offset, int x) {
+  valid_ = true;
+  CHECK_LT(offset, 3);
+  block_dims_[offset] = x;
+}
+int CudaAxisInfo::grid_dim(int offset) const {
+  CHECK(valid_);
+  CHECK_LT(offset, 3);
+  return grid_dims_[offset];
+}
+int CudaAxisInfo::block_dim(int offset) const {
+  CHECK(valid_);
+  CHECK_LT(offset, 3);
+  return block_dims_[offset];
+}
+void CudaAxisInfo::ExtendWith(const CudaAxisInfo& other) {
+  set_valid(true);
+  for (int i = 0; i < 3; i++) {
+    grid_dims_[i]  = std::max(grid_dims_[i], other.grid_dims_[i]);
+    block_dims_[i] = std::max(block_dims_[i], other.block_dims_[i]);
+  }
+}
+void CudaAxisInfo::CopyGridDimsTo(std::vector<int>* dest) const {
+  dest->insert(dest->begin(), grid_dims_.begin(), grid_dims_.end());
+}
+void CudaAxisInfo::CopyBlockDimsTo(std::vector<int>* dest) const {
+  dest->insert(dest->begin(), block_dims_.begin(), block_dims_.end());
+}
+
 }  // namespace ir
 }  // namespace cinn
