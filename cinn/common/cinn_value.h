@@ -128,7 +128,11 @@ class CINNValue : public cinn_pod_value_t {
   //! Set the value.
   template <typename T>
   void Set(T v) {
-    *this = CINNValue(v);
+    if constexpr (std::is_same_v<std::decay_t<T>, CINNValue>) {
+      *this = v;
+    } else {
+      *this = CINNValue(v);
+    }
   }
 
   /**

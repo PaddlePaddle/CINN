@@ -551,22 +551,7 @@ auto PackedFuncCall(ir::PackedFunc &self, py::args args) {  // NOLINT
   }
   ir::RetValue ret_value;
   self.body()(cinn_args, &ret_value);
-  std::variant<int32_t, int64_t, float, ir::Var, ir::Expr> var;
-  auto type_code = ret_value.type_code();
-  if (type_code == CINNValue::type_code<int32_t>()) {
-    var = static_cast<int32_t>(ret_value);
-  } else if (type_code == CINNValue::type_code<int64_t>()) {
-    var = static_cast<int64_t>(ret_value);
-  } else if (type_code == CINNValue::type_code<float>()) {
-    var = static_cast<float>(ret_value);
-  } else if (type_code == CINNValue::TypeCode<ir::Var>()) {
-    var = ir::Var(ret_value);
-  } else if (type_code == CINNValue::TypeCode<ir::Expr>()) {
-    var = ir::Expr(ret_value);
-  } else {
-    LOG(FATAL) << "unsupported type code: [" << type_code << "]";
-  }
-  return var;
+  return ConvertToVar(ret_value);
 }
 
 void BindPackedFunc(py::module *m) {

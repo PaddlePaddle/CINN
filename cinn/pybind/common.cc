@@ -2,6 +2,7 @@
 #include "cinn/common/shared.h"
 #include "cinn/common/target.h"
 #include "cinn/common/type.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
 
@@ -9,6 +10,7 @@ namespace py = pybind11;
 
 namespace cinn::pybind {
 
+using common::CINNValue;
 using common::Object;
 using common::Target;
 using common::Type;
@@ -140,7 +142,6 @@ void BindShared(py::module *m) {
 }
 
 void BindCinnValue(py::module *m) {
-  using common::CINNValue;
   using common::CINNValuePack;
   using common::CINNValuePackShared;
 
@@ -194,7 +195,42 @@ void BindCinnValue(py::module *m) {
       .def("set", &CINNValue::Set<const ir::Expr &>)
       .def("set", &CINNValue::Set<cinn_buffer_t *>)
       .def("set", &CINNValue::Set<const CINNValuePackShared &>)
-      .def("set", &CINNValue::Set<const char *>);
+      .def("set", &CINNValue::Set<const char *>)
+      .def("set", &CINNValue::Set<const CINNValue &>);
+
+  auto binary_op_visitor = [](CINNValue &v, auto lhs, auto rhs, auto fn) {
+    using lhs_t = decltype(lhs);
+    using rhs_t = decltype(rhs);
+    if constexpr (std::is_same_v<lhs_t, std::nullptr_t> || std::is_same_v<rhs_t, std::nullptr_t> ||
+                  !std::is_same_v<lhs_t, rhs_t>) {
+      v = CINNValue();
+    } else {
+      v.Set(fn(lhs, rhs));
+    }
+  };
+
+#define DEFINE_BINARY_OP(__op, __fn)                                                         \
+  auto __op##_fn = [&](auto x, auto y) {                                                     \
+    constexpr auto is_var_x = std::is_same_v<std::decay_t<decltype(x)>, ir::Var>;            \
+    constexpr auto is_var_y = std::is_same_v<std::decay_t<decltype(y)>, ir::Var>;            \
+    if constexpr (is_var_x && is_var_y) {                                                    \
+      return __fn(ir::Expr(x), ir::Expr(y)).as_var_ref();                                    \
+    } else {                                                                                 \
+      return __fn(x, y);                                                                     \
+    }                                                                                        \
+  };                                                                                         \
+  cinn_value.def(#__op, [&](CINNValue &self, CINNValue &other) {                             \
+    auto visitor = [&](auto x, auto y) { return binary_op_visitor(self, x, y, __op##_fn); }; \
+    std::visit(visitor, ConvertToVar(self), ConvertToVar(other));                            \
+    return self;                                                                             \
+  })
+
+  DEFINE_BINARY_OP(__add__, [](auto x, auto y) { return x + y; });
+  DEFINE_BINARY_OP(__sub__, [](auto x, auto y) { return x + y; });
+  DEFINE_BINARY_OP(__mul__, [](auto x, auto y) { return x + y; });
+  DEFINE_BINARY_OP(__div__, [](auto x, auto y) { return x + y; });
+
+#undef DEFINE_BINARY_OP
 }
 }  // namespace
 
