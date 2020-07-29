@@ -47,15 +47,45 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
   void Visit(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
   void Visit(const ir::PolyFor* op, Expr* expr) override {
-    auto* lt_n = op->condition.As<ir::LT>();
-    auto* le_n = op->condition.As<ir::LE>();
+    LOG(INFO) << "**processing for:\n" << *expr;
+    auto* node = expr->As<ir::PolyFor>();
+    auto* ge_n = node->condition.As<ir::GE>();
+    auto* gt_n = node->condition.As<ir::GT>();
+    if (ge_n) {
+      node->condition = (ge_n->a() * -1) <= (ge_n->b() * -1);
+    }
+    if (gt_n) {
+      node->condition = (ge_n->a() * -1) < (ge_n->b() * -1);
+    }
 
+    auto* lt_n = node->condition.As<ir::LT>();
+    auto* le_n = node->condition.As<ir::LE>();
+
+    if (lt_n) {
+      if (lt_n->b() != common::make_const(0)) {
+        node->condition = lt_n->a() - lt_n->b() < 0;
+      }
+    }
+    if (le_n) {
+      if (le_n->b() != common::make_const(0)) {
+        node->condition = le_n->a() - le_n->b() <= 0;
+      }
+    }
+
+    lt_n = node->condition.As<ir::LT>();
+    le_n = node->condition.As<ir::LE>();
     if (!(lt_n || le_n)) return;
 
     // check the lhs is the iterator
     bool can_extract_extent = (lt_n && lt_n->a().as_var() && lt_n->a().as_var()->name == op->iterator->name) ||
                               (le_n && le_n->a().as_var() && le_n->a().as_var()->name == op->iterator->name);
-    if (can_extract_extent) {
+
+    if (!can_extract_extent) {
+      node->condition = common::SolveInequality(node->condition, op->iterator);
+      lt_n            = node->condition.As<ir::LT>();
+      le_n            = node->condition.As<ir::LE>();
+      if (!(lt_n || le_n)) return;
+    } else {
       Expr lhs = lt_n ? lt_n->a() : le_n->a();
       Expr rhs = lt_n ? lt_n->b() : PlusOneWithMinMax(le_n->b());
       rhs      = common::AutoSimplify(rhs);
@@ -67,30 +97,15 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
       *expr = new_for;
 
       Visit(&new_for.As<ir::For>()->body);
+
+      LOG(INFO) << "**=>\n" << *expr;
     }
   }
 };
 
 }  // namespace
 
-namespace detail {
-
-void PolyForWithSimpleConditionToFor(Expr* expr) {
-  PolyForWithSimpleConditionToForMutator mutator;
-  mutator(expr);
-}
-
-void PolyForAutoSeparate(Expr* expr) {
-  ForAutoSeparateMutatorMain main;
-  main(expr);
-}
-
-}  // namespace detail
-
-void TransformPolyForToFor(Expr* expr, bool auto_separate) {
-  detail::PolyForWithSimpleConditionToFor(expr);
-  if (auto_separate) detail::PolyForAutoSeparate(expr);
-}
+void TransformPolyForToFor(Expr* expr, bool auto_separate) { PolyForWithSimpleConditionToForMutator()(expr); }
 
 }  // namespace optim
 }  // namespace cinn
