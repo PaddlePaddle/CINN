@@ -253,7 +253,7 @@ function fn (_A, _B, _cache, _C)
       if (((((po0 >= 0) and (po0 <= 9)) and (po1 >= 0)) and (po1 <= 9))) {
         poly_for (i, 0, ((i + cinn_max(0, (po0 - 1))) <= (po0 + 1)), 1)
         {
-          cache[i, 0] = A[i, po1]
+          cache[i, 0] = A[(i + cinn_max(0, (po0 - 1))), po1]
         }
       }
       C[po0, po1] = select((po0 < 10), (cache[-1, 0] + (cache[0, 0] + (cache[1, 0] + B[po0, po1]))), 0)

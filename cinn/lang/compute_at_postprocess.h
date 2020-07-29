@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
+#include "cinn/lang/tensor.h"
 
 namespace cinn {
 namespace lang {
@@ -52,6 +53,20 @@ void ProcessComputeAtInfo(Expr* expr);
  * Resize the compute_at consumer buffer size.
  */
 void UpdateComputeAtBufferShape(Expr* expr);
+
+namespace detail {
+
+/**
+ * Replace isl parameters with consumer iterators.
+ * @param info ComputeAt schedule related information.
+ * @param axis The consumer axis.
+ * @param consumer_forloop_root The first forloop level of consumer expression.
+ */
+void ReplaceParamWithConsumerAxis(const ir::ComputeAtInfo& info,
+                                  const std::vector<Var>& axis,
+                                  Expr* consumer_forloop_root);
+
+}  // namespace detail
 
 }  // namespace lang
 }  // namespace cinn

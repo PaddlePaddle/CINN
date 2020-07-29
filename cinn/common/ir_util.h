@@ -17,22 +17,10 @@ Expr CastIfNeeded(Expr body, Type type);
 void Substitute(Expr *expr, const std::map<const ir::_Var_ *, Expr> &var_map);
 
 template <typename T>
-Expr make_const(Type t, T v) {
-  if (t.is_vector()) {
-    if (t.type() == Type::type_t::Int) {
-      return ir::Broadcast::Make(make_shared<ir::IntImm>(t.ElementOf(), v), t.lanes());
-    } else {
-      return ir::Broadcast::Make(make_shared<ir::FloatImm>(t.ElementOf(), v), t.lanes());
-    }
-  } else {
-    if (t.type() == Type::type_t::Int) {
-      return make_shared<ir::IntImm>(t, v);
-    } else {
-      return make_shared<ir::FloatImm>(t, v);
-    }
-  }
-  return Expr();
-}
+Expr make_const(Type t, T v);
+
+//! Get a stack of forloops(For and PolyFor nodes) to a Store node target to \p tensor_name
+std::vector<Expr *> GetForloopStackToStore(Expr *expr, const std::string &tensor_name);
 
 // make const
 // @{
@@ -83,6 +71,24 @@ Expr or_any(const std::vector<Expr> &conds);
 
 //! Cast the expression \p e to type \type.
 Expr cast(Expr e, Type type);
+
+template <typename T>
+Expr make_const(Type t, T v) {
+  if (t.is_vector()) {
+    if (t.type() == Type::type_t::Int) {
+      return ir::Broadcast::Make(make_shared<ir::IntImm>(t.ElementOf(), v), t.lanes());
+    } else {
+      return ir::Broadcast::Make(make_shared<ir::FloatImm>(t.ElementOf(), v), t.lanes());
+    }
+  } else {
+    if (t.type() == Type::type_t::Int) {
+      return make_shared<ir::IntImm>(t, v);
+    } else {
+      return make_shared<ir::FloatImm>(t, v);
+    }
+  }
+  return Expr();
+}
 
 }  // namespace common
 }  // namespace cinn
