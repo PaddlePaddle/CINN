@@ -163,6 +163,5 @@ CINNValue &CINNValue::operator=(const ir::Expr &value) {
   *this = CINNValue(value);
   return *this;
 }
-
 }  // namespace common
 }  // namespace cinn
