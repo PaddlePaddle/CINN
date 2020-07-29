@@ -32,13 +32,13 @@ template <typename ValueType>
 class OpValueType {
  public:
   inline const ValueType& operator[](const Operator* op) const {
-    CHECK(op != nullptr) << "The input op is nullptr and it is invalid! Please check again.";
+    CHECK(op) << "The input op is nullptr and it is invalid! Please check again.";
     const uint32_t idx = op->index;
-    CHECK(idx < data.size()) << "Attribute " << attr_name << " has not been registered for Operator " << op->name;
+    CHECK_LT(idx, data.size()) << "Attribute " << attr_name << " has not been registered for Operator " << op->name;
     return data[idx];
   }
 
-  inline const ValueType& get(const Operator* op, const ValueType& def_value) const {
+  inline const ValueType& Get(const Operator* op, const ValueType& def_value) const {
     if (op == nullptr) return def_value;
     const uint32_t idx = op->index;
     if (idx < data.size()) {
@@ -48,7 +48,7 @@ class OpValueType {
     }
   }
 
-  inline bool find(const Operator* op) const {
+  inline bool Find(const Operator* op) const {
     if (op == nullptr) return false;
     const uint32_t idx = op->index;
     return idx < data.size();
