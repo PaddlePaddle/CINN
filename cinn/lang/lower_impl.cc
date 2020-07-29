@@ -34,7 +34,7 @@ void CheckNoIslCallRemains(Expr* expr) {
 Expr LowerGroup(const poly::ScheduleGroup& group,
                 const std::map<std::string, Expr>& tuple_to_expr,
                 std::map<std::string, ir::Tensor>* global_tensor_map,
-                optim::CudaAxisInfo* cuda_axis_info) {
+                ir::CudaAxisInfo* cuda_axis_info) {
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
     if (node->stage->has_expression()) {
@@ -350,11 +350,8 @@ ir::LoweredFunc LowerImpl::operator()() {
   UpdateComputeAtBufferShape(&res);
 
   if (cuda_axis_info_.valid()) {
-    auto* func = res.as_lowered_func();
-    func->gpu_grid_dims.clear();
-    func->gpu_block_dims.clear();
-    cuda_axis_info_.CopyBlockDimsTo(&func->gpu_block_dims);
-    cuda_axis_info_.CopyGridDimsTo(&func->gpu_grid_dims);
+    auto* func           = res.as_lowered_func();
+    func->cuda_axis_info = cuda_axis_info_;
   }
 
   return ir::LoweredFunc(res.get());

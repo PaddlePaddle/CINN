@@ -30,14 +30,13 @@ TEST(TransformGpuForloops, basic) {
 
   std::cout << "\n" << func << std::endl;
 
-  ASSERT_EQ(func->gpu_grid_dims.size(), 3);
-  ASSERT_EQ(func->gpu_block_dims.size(), 3);
-  EXPECT_EQ(func->gpu_grid_dims[0], 10);
-  EXPECT_EQ(func->gpu_grid_dims[1], 1);
-  EXPECT_EQ(func->gpu_grid_dims[2], 1);
-  EXPECT_EQ(func->gpu_block_dims[0], 10);
-  EXPECT_EQ(func->gpu_block_dims[1], 200);
-  EXPECT_EQ(func->gpu_block_dims[2], 1);
+  ASSERT_TRUE(func->cuda_axis_info.valid());
+  EXPECT_EQ(func->cuda_axis_info.grid_dim(0), 10);
+  EXPECT_EQ(func->cuda_axis_info.grid_dim(1), 1);
+  EXPECT_EQ(func->cuda_axis_info.grid_dim(2), 1);
+  EXPECT_EQ(func->cuda_axis_info.block_dim(0), 10);
+  EXPECT_EQ(func->cuda_axis_info.block_dim(1), 200);
+  EXPECT_EQ(func->cuda_axis_info.block_dim(2), 1);
 
   auto target_out = R"ROC(
 function elementwise_add (_A, _B, _C)
@@ -114,6 +113,16 @@ function elementwise_add (_A, _B, _C, _D)
   }
 }
 )ROC";
+
+  LOG(INFO) << "cuda axis info: " << func->cuda_axis_info;
+  ASSERT_TRUE(func->cuda_axis_info.valid());
+  EXPECT_EQ(func->cuda_axis_info.grid_dim(0), 100);   // x
+  EXPECT_EQ(func->cuda_axis_info.grid_dim(1), 1);     // y
+  EXPECT_EQ(func->cuda_axis_info.grid_dim(2), 1);     // z
+  EXPECT_EQ(func->cuda_axis_info.block_dim(0), 200);  // x
+  EXPECT_EQ(func->cuda_axis_info.block_dim(1), 200);  // y
+  EXPECT_EQ(func->cuda_axis_info.block_dim(2), 1);    // z
+
   ASSERT_EQ(utils::Trim(target_source), utils::GetStreamCnt(func));
 }
 

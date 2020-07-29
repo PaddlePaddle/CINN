@@ -51,7 +51,7 @@ void CheckNoIslCallRemains(const Expr* expr);
 Expr LowerGroup(const poly::ScheduleGroup& group,
                 const std::map<std::string, Expr>& tuple_to_expr,
                 std::map<std::string, Tensor>* global_tensor_map,
-                optim::CudaAxisInfo* cuda_axis_info = nullptr);
+                ir::CudaAxisInfo* cuda_axis_info = nullptr);
 
 /**
  * A Computation graph node.
@@ -95,9 +95,6 @@ class LowerImpl {
     std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
     tensors.insert(std::end(tensors), temp_tensor_args.begin(), temp_tensor_args.end());
     compu_graph_ = CreateCompGraph(tensors, true /*hide_inlined*/);
-
-    // set invalid at first, will be valid after updated.
-    cuda_axis_info_.set_valid(false);
 
     VLOG(1) << "Computation Graph:\n" << compu_graph_->Visualize();
   }
@@ -172,7 +169,7 @@ class LowerImpl {
   std::unique_ptr<common::Graph> compu_graph_;
 
   //! CUDA axis info for this function.
-  optim::CudaAxisInfo cuda_axis_info_;
+  ir::CudaAxisInfo cuda_axis_info_;
 };
 
 /**
