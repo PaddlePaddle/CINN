@@ -9,6 +9,10 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(WITH_TESTING         "Compile with Unittests"          ON)
 option(WITH_TESTS           "Compile with tests"              ON)
 
+if (WITH_TESTING)
+  add_definitions(-DCINN_WITH_TEST)
+endif()
+
 # include the customized configures
 include(${CMAKE_BINARY_DIR}/config.cmake)
 

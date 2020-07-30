@@ -592,7 +592,9 @@ void BindRegistry(py::module *m) {
   //.def("set_body",
   //     py::overload_cast<ir::PackedFunc::body_t>(&ir::Registry::SetBody),
   //     py::return_value_policy::reference);
-  ir::Registry::Register("test_add").SetBody([](ir::Args args, ir::RetValue *rv) {
+
+#ifdef CINN_WITH_TEST
+  ir::Registry::Register("test_add_int64").SetBody([](ir::Args args, ir::RetValue *rv) {
     int64_t x = args[0];
     int64_t y = args[1];
     *rv       = x + y;
@@ -604,10 +606,12 @@ void BindRegistry(py::module *m) {
     *rv        = x + y;
   });
 
-  // ir::Registry::Register("test_callback").SetBody([](ir::Args args, ir::RetValue *rv) {
-  //                                                ir::PackedFunc f = args[0];
-  //                                                f("hello, cinn");
-  //                                                });
+  ir::Registry::Register("test_mul_float").SetBody([](ir::Args args, ir::RetValue *rv) {
+    float x = args[0];
+    float y = args[1];
+    *rv     = x * y;
+  });
+#endif
 }
 }  // namespace
 
