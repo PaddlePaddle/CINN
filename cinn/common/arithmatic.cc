@@ -74,7 +74,6 @@ GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
 
   bool is_integer_math = expr.type().is_int();
 
-  LOG(INFO) << "*build expr: " << expr << " " << expr.type();
   bool is_invalid_arith = load_n || var_n || broadcast_n || mod_n || min_n || max_n;
   if (is_integer_math)
     is_invalid_arith = is_invalid_arith || div_n || frac_n;  // GiNac can't deal with integer division.
@@ -129,9 +128,6 @@ GiNaC::ex ExprToGinacConerter::operator()(Expr expr) {
            n->As<IfThenElse>();
   });
 
-  for (auto& node : complex_nodes) {
-    LOG(INFO) << "complex nodes: " << node;
-  }
   CHECK(complex_nodes.empty())
       << "Ginac converter can only deal with simple math expression, but get some complex nodes" << expr;
 
@@ -263,12 +259,12 @@ bool MathContainsSymbol(Expr expr, Var symbol) {
 
 // lhs >= rhs.
 std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
-  LOG(INFO) << "Solve: " << lhs << "=" << rhs << " in " << var;
+  VLOG(4) << "Solve: " << lhs << "=" << rhs << " in " << var;
   ExprToGinacConerter converter;
   auto lhs_ex = converter(lhs);
   auto rhs_ex = converter(rhs);
   ginac::lst eqs{lhs_ex == rhs_ex};
-  LOG(INFO) << "eqs: " << eqs;
+  VLOG(4) << "eqs: " << eqs;
   const auto& symbol = converter.GetSymbol(var->name);
   ginac::lst vars{symbol};
   ginac::ex res = ginac::lsolve(eqs, vars);

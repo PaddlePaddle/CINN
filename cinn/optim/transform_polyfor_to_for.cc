@@ -45,7 +45,6 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
   void Visit(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
   void Visit(const ir::PolyFor* op, Expr* expr) override {
-    LOG(INFO) << "**processing for:\n" << *expr;
     auto* node = expr->As<ir::PolyFor>();
     auto* ge_n = node->condition.As<ir::GE>();
     auto* gt_n = node->condition.As<ir::GT>();
@@ -97,8 +96,6 @@ struct PolyForWithSimpleConditionToForMutator : public ir::IRMutator<Expr*> {
     *expr = new_for;
 
     Visit(&new_for.As<ir::For>()->body);
-
-    LOG(INFO) << "**=>\n" << *expr;
   }
 };
 
