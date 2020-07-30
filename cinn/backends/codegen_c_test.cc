@@ -179,13 +179,8 @@ void add1(void* _args, int32_t num_args)
   };
   for (int32_t i_outer = 0; i_outer < 25; i_outer += 1) {
     for (int32_t i_inner = 0; i_inner < 4; i_inner += 1) {
-      for (int32_t j_outer = 0; j_outer < 1; j_outer += 1) {
-        for (int32_t j_inner = 0; j_inner < 16; j_inner += 1) {
-          D[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] = ((2 * C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]) + (4 * (C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] * A[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))])));
-        };
-      };
-      for (int32_t j_outer = 1; j_outer < 2; j_outer += 1) {
-        for (int32_t j_inner = 0; j_inner < (20 + (-16 * j_outer)); j_inner += 1) {
+      for (int32_t j_outer = 0; j_outer < 2; j_outer += 1) {
+        for (int32_t j_inner = 0; j_inner < (1 + ((int32_t)(cinn_min(15, (19 + (-16 * j_outer)))))); j_inner += 1) {
           D[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] = ((2 * C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]) + (4 * (C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] * A[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))])));
         };
       };
@@ -360,48 +355,10 @@ void matmul(void* _args, int32_t num_args)
   const float* B = ((const float*)(_B->host_memory));
   float* C = ((float*)(_C->host_memory));
   float* C_init = ((float*)(_C->host_memory));
-  for (int32_t i_outer = 0; i_outer < 3; i_outer += 1) {
-    for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
-        for (int32_t j_inner = 0; j_inner < 32; j_inner += 1) {
-          C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0;
-          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
-            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * B[((32 * j_outer) + ((500 * k0_inner) + ((2000 * k0_outer) + j_inner)))]));
-            };
-          };
-        };
-      };
-    };
-    for (int32_t j_outer = 15; j_outer < 16; j_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
-        for (int32_t j_inner = 0; j_inner < (500 + (-32 * j_outer)); j_inner += 1) {
-          C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0;
-          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
-            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * B[((32 * j_outer) + ((500 * k0_inner) + ((2000 * k0_outer) + j_inner)))]));
-            };
-          };
-        };
-      };
-    };
-  };
-  for (int32_t i_outer = 3; i_outer < 4; i_outer += 1) {
-    for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
-        for (int32_t j_inner = 0; j_inner < 32; j_inner += 1) {
-          C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0;
-          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
-            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * B[((32 * j_outer) + ((500 * k0_inner) + ((2000 * k0_outer) + j_inner)))]));
-            };
-          };
-        };
-      };
-    };
-    for (int32_t j_outer = 15; j_outer < 16; j_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
-        for (int32_t j_inner = 0; j_inner < (500 + (-32 * j_outer)); j_inner += 1) {
+  for (int32_t i_outer = 0; i_outer < 4; i_outer += 1) {
+    for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
+      for (int32_t i_inner = 0; i_inner < (1 + ((int32_t)(cinn_min(31, (99 + (-32 * i_outer)))))); i_inner += 1) {
+        for (int32_t j_inner = 0; j_inner < (1 + ((int32_t)(cinn_min(31, (499 + (-32 * j_outer)))))); j_inner += 1) {
           C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0;
           for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
             for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
@@ -485,45 +442,10 @@ void matmul_with_packing(void* _args, int32_t num_args)
       };
     };
   };
-  for (int32_t i_outer = 0; i_outer < 3; i_outer += 1) {
-    for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
-        for (int32_t j_inner = 0; j_inner < 32; j_inner += 1) {
-          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
-            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * PackedB[((6400 * j_outer) + ((32 * k0_inner) + ((128 * k0_outer) + j_inner)))]);
-            };
-          };
-        };
-      };
-    };
-    for (int32_t j_outer = 15; j_outer < 16; j_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
-        for (int32_t j_inner = 0; j_inner < (500 + (-32 * j_outer)); j_inner += 1) {
-          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
-            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * PackedB[((j_inner % 32) + ((6400 * (j_inner / 32)) + ((6400 * j_outer) + ((32 * k0_inner) + (128 * k0_outer)))))]);
-            };
-          };
-        };
-      };
-    };
-  };
-  for (int32_t i_outer = 3; i_outer < 4; i_outer += 1) {
-    for (int32_t j_outer = 0; j_outer < 15; j_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
-        for (int32_t j_inner = 0; j_inner < 32; j_inner += 1) {
-          for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
-            for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * PackedB[((6400 * j_outer) + ((32 * k0_inner) + ((128 * k0_outer) + j_inner)))]);
-            };
-          };
-        };
-      };
-    };
-    for (int32_t j_outer = 15; j_outer < 16; j_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < (100 + (-32 * i_outer)); i_inner += 1) {
-        for (int32_t j_inner = 0; j_inner < (500 + (-32 * j_outer)); j_inner += 1) {
+  for (int32_t i_outer = 0; i_outer < 4; i_outer += 1) {
+    for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
+      for (int32_t i_inner = 0; i_inner < (1 + ((int32_t)(cinn_min(31, (99 + (-32 * i_outer)))))); i_inner += 1) {
+        for (int32_t j_inner = 0; j_inner < (1 + ((int32_t)(cinn_min(31, (499 + (-32 * j_outer)))))); j_inner += 1) {
           for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
             for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
               C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * PackedB[((j_inner % 32) + ((6400 * (j_inner / 32)) + ((6400 * j_outer) + ((32 * k0_inner) + (128 * k0_outer)))))]);

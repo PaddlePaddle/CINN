@@ -20,7 +20,7 @@ TEST(CacheReadWriteReplace, basic) {
       {M, N}, [&](Expr i, Expr j) -> Expr { return A(i, j) + B(i, j); }, "C");
 
   // AA cache
-  auto AA = A->stage()->CacheRead("share", {C});
+  auto AA = A->stage()->CacheRead("shared", {C});
   auto CC = C->stage()->CacheWrite("local");
 
   auto fn = Lower("fn", {A, B, C}, {}, {AA, CC});

@@ -36,6 +36,7 @@ Expr CasSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var
  * @return an copied expression looks like x < 100.
  */
 Expr SolveInequality(Expr inequality, Var val);
+Expr SolveInequalityInt(Expr inequality, Var val);
 
 namespace detail {
 

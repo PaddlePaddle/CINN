@@ -1453,7 +1453,8 @@ Expr SolveInequality(Expr inequality, Var val) {
 
   Expr all = AutoSimplify(a - b);
 
-  if (common::IsPureMath(a) && common::IsPureMath(b)) {
+  // if (common::IsPureMath(a) && common::IsPureMath(b)) {
+  if (true) {
     auto [res, positive] = common::Solve(a, b, val);  // NOLINT
     // Simplify it with CAS to avoid random result from GiNac.
     res = AutoSimplify(res);

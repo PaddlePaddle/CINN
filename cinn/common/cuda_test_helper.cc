@@ -11,14 +11,20 @@ namespace cinn {
 namespace common {
 
 #ifdef CINN_WITH_CUDA
-void CudaModuleTester::Compile(const lang::Module& m) {
+void CudaModuleTester::Compile(const lang::Module& m, const std::string& rewrite_cuda_code) {
   auto [host_module, device_module] = backends::SplitCudaAndHostModule(m);  // NOLINT
   backends::CodeGenCUDA_Dev codegen(DefaultHostTarget());
   auto source_code = codegen.Compile(m);
 
   // compile CUDA kernel.
   backends::NVRTC_Compiler compiler;
-  auto ptx     = compiler(source_code);
+
+  std::string ptx;
+  if (rewrite_cuda_code.empty())
+    ptx = compiler(source_code);
+  else
+    ptx = compiler(rewrite_cuda_code);
+
   cuda_module_ = new runtime::cuda::CUDAModule(ptx, runtime::cuda::CUDAModule::Kind::PTX);
 
   for (auto& fn : device_module.functions()) {
