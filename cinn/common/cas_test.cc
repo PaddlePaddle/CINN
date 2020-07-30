@@ -306,12 +306,15 @@ TEST(CAS, IntConnerCase) {
 
 TEST(SolveInequality, basic) {
   Var x("x", Int(32));
+  Var y("y", Int(32));
 
 #define TEST_SOLVE(expr__, str__) EXPECT_EQ(GetStreamCnt(SolveInequality(expr__, x)), str__);
   TEST_SOLVE(x * -1 + 20 < 0, "(x > 20)");
   TEST_SOLVE(x * 2 + 3 < x * 10 - 20, "(x > 2)");
   TEST_SOLVE(x * -1 < -1, "(x > 1)");
   TEST_SOLVE(Expr(2) * x * -1 - x < x + 200, "(x > -50)");
+  TEST_SOLVE(Expr(2) * x + 30 - x * 3 + y * 23 < 2, "(x > int32((28 + (23 * y))))");
+  TEST_SOLVE(x + ir::Min::Make(Expr(2), Expr(3) * y) < 100, "(x < int32((100 - cinn_min(2, (3 * y)))))");
 }
 
 }  // namespace common

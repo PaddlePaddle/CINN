@@ -29,7 +29,11 @@ std::string ExprToGinacConerter::Repr(const ir::Expr& expr) {
   auto* var_n       = expr.As<_Var_>();
   auto* broadcast_n = expr.As<Broadcast>();
   auto* mod_n       = expr.As<Mod>();
-  if (load_n || broadcast_n || mod_n) {
+  auto* min_n       = expr.As<Min>();
+  auto* max_n       = expr.As<Max>();
+  auto* div_n       = expr.As<Div>();
+  auto* frac_n      = expr.As<FracOp>();
+  if (load_n || broadcast_n || mod_n || min_n || max_n || div_n || frac_n) {
     std::string repr = GetStreamCnt(expr);
     Replace(&repr, "[", "lsq_");
     Replace(&repr, "]", "_rsq");
@@ -65,8 +69,17 @@ GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
   auto* broadcast_n = expr.As<Broadcast>();
   auto* mod_n       = expr.As<Mod>();
   auto* frac_n      = expr.As<FracOp>();
+  auto* min_n       = expr.As<Min>();
+  auto* max_n       = expr.As<Max>();
 
-  if (load_n || var_n || broadcast_n || mod_n) {
+  bool is_integer_math = expr.type().is_int();
+
+  LOG(INFO) << "*build expr: " << expr << " " << expr.type();
+  bool is_invalid_arith = load_n || var_n || broadcast_n || mod_n || min_n || max_n;
+  if (is_integer_math)
+    is_invalid_arith = is_invalid_arith || div_n || frac_n;  // GiNac can't deal with integer division.
+
+  if (is_invalid_arith) {
     RecordExpr(expr);
     std::string repr = Repr(expr);
     return CreateGinacSymbol(repr);
@@ -98,8 +111,6 @@ GiNaC::ex ExprToGinacConerter::operator()(Expr expr) {
   auto complex_nodes = CollectIRNodes(expr, [](const Expr* n) {
     return n->As<Block>() ||    //
            n->As<PolyFor>() ||  //
-           n->As<Min>() ||      //
-           n->As<Max>() ||      //
            n->As<EQ>() ||       //
            n->As<NE>() ||       //
            n->As<LT>() ||       //
@@ -252,10 +263,12 @@ bool MathContainsSymbol(Expr expr, Var symbol) {
 
 // lhs >= rhs.
 std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
+  LOG(INFO) << "Solve: " << lhs << "=" << rhs << " in " << var;
   ExprToGinacConerter converter;
   auto lhs_ex = converter(lhs);
   auto rhs_ex = converter(rhs);
   ginac::lst eqs{lhs_ex == rhs_ex};
+  LOG(INFO) << "eqs: " << eqs;
   const auto& symbol = converter.GetSymbol(var->name);
   ginac::lst vars{symbol};
   ginac::ex res = ginac::lsolve(eqs, vars);
