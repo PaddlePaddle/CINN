@@ -225,6 +225,8 @@ function fn (_A, _cache, _C)
 }
 
 TEST(ComputeAt, level1) {
+  Context::Global().ResetNameId();
+
   Expr M(100), N(200);
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
@@ -251,9 +253,9 @@ function fn (_A, _B, _cache, _C)
     for (po1, 10)
     {
       if (((((po0 >= 0) and (po0 <= 9)) and (po1 >= 0)) and (po1 <= 9))) {
-        poly_for (i, 0, ((i + cinn_max(0, (po0 - 1))) <= (po0 + 1)), 1)
+        for (i, (1 + int32((1 + (po0 - cinn_max(0, (po0 - 1)))))))
         {
-          cache[i, 0] = A[i, po1]
+          cache[i, 0] = A[(i + cinn_max(0, (po0 - 1))), po1]
         }
       }
       C[po0, po1] = select((po0 < 10), (cache[-1, 0] + (cache[0, 0] + (cache[1, 0] + B[po0, po1]))), 0)
@@ -275,6 +277,7 @@ function fn (_A, _B, _cache, _C)
 }
 
 TEST(ComputeAt, simple) {
+  /*
   {
     Expr n(64);
     auto A = Placeholder<float>("A", {n, n});
@@ -289,6 +292,7 @@ TEST(ComputeAt, simple) {
     auto fn = Lower("fn", {A, A1, B});
     LOG(INFO) << "fn:\n" << fn;
   }
+   */
 
   {
     Expr n(64);
@@ -313,11 +317,11 @@ function fn (_A, _A1, _B)
     for (po1, 16)
     {
       if (((((po1 >= 0) and (((16 * po0) + po1) >= 0)) and (po1 <= 15)) and (((16 * po0) + po1) <= 31))) {
-        for (i, (3 + ((16 * po0) + po1)))
+        for (i, 3)
         {
           for (j, 32)
           {
-            A1[i, j] = A[i, j]
+            A1[i, j] = A[(i + ((16 * po0) + po1)), j]
           }
         }
       }
