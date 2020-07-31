@@ -40,6 +40,20 @@ class TestPackedFunc(unittest.TestCase):
         accumulate = ir.register_packed_func("accumulate_float")(Accumulator(1.0))
         self.assertTrue(isclose(accumulate(1., 2., 3., 4.), 11.))
 
+    def test_cxx_register(self):
+        add_int = ir.Registry.get("test_add_int64")
+        self.assertEqual(add_int(2, 3), 5)
+
+        add_expr = ir.Registry.get("test_add_expr")
+        x = ir.Expr(1)
+        y = ir.Expr(2)
+        z = x + y
+        r = add_expr(x, y)
+        self.assertEqual(r.node_type(), z.node_type())
+
+        mul_float = ir.Registry.get("test_mul_float")
+        self.assertTrue(isclose(mul_float(2.4, 2.5), 6.0, abs_tol=1e-5))
+
 
 if __name__ == "__main__":
     unittest.main()
