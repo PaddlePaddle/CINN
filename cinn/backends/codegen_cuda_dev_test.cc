@@ -86,8 +86,8 @@ TEST(CodeGenCUDA, Module_output) {
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
   C->WithBuffer();
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -114,8 +114,8 @@ TEST(CodeGenCUDA, compile_run_jit) {
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
   C->WithBuffer();
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -291,8 +291,8 @@ TEST(CodeGenCUDA, jit_dynamic_shape0) {
       M_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {tester.N.as_int32()});
 }
@@ -310,8 +310,8 @@ TEST(CodeGenCUDA, jit_dynamic_shape1) {
       N_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {32});
 }
@@ -329,8 +329,8 @@ TEST(CodeGenCUDA, jit_dynamic_shape2) {
       N_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {3});
 }
@@ -350,8 +350,8 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
       N_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   Var M("M");
   auto func = Lower("fn", {A, B, C}, {M});
@@ -600,14 +600,14 @@ TEST(elementwise_add, share_local_cache) {
   // NOTE here, the CC replace the C as the output the function.
   auto CC = C->stage()->CacheWrite("local");
 
-  C->stage()->GpuBlocks(std::vector<int>({0}));
-  C->stage()->GpuThreads(std::vector<int>({1}));
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
-  AA->stage()->GpuBlocks(std::vector<int>({0}));
-  AA->stage()->GpuThreads(std::vector<int>({1}));
+  A->stage()->Bind(0, "blockIdx.x");
+  AA->stage()->Bind(1, "threadIdx.x");
 
-  CC->stage()->GpuBlocks(std::vector<int>({0}));
-  CC->stage()->GpuThreads(std::vector<int>({1}));
+  CC->stage()->Bind(0, "blockIdx.x");
+  CC->stage()->Bind(1, "threadIdx.x");
 
   Target target;
   Module::Builder builder("gpu_module", target);
@@ -801,7 +801,9 @@ TEST(Conv, basic_add_cache) {
   auto [by, fi1] = BL->stage()->Split(fi, block_factor);
   auto [bx, ni1] = BL->stage()->Split(ni, block_factor);
 
-  BL->stage()->GpuBlocks(BL->stage()->axis(2), BL->stage()->axis(1), BL->stage()->axis(0));
+  BL->stage()->Bind(2, "blockIdx.x");
+  BL->stage()->Bind(1, "blockIdx.y");
+  BL->stage()->Bind(0, "blockIdx.z");
 
   auto fn = Lower("fn", {A, W, AA, WW, AL, WL, BL, B});
 
@@ -879,8 +881,6 @@ TEST(Conv, optimize) {
   std::tie(tx, ni)  = B->stage()->Split(ni, num_thread);
   B->stage()->Reorder({bz, by, bx, tyz, txz, ty, tx, fi, ni});
 
-  // B->stage()->GpuBlocks({0, 1, 2});
-
   LOG(INFO) << Lower("conv", {A, W, BL}, {}, {AA, WW, AL, WL, B});
 }
 
@@ -900,7 +900,7 @@ TEST(ElementwiseAdd, cache_read_local) {
   auto AL = A->stage()->CacheRead("local", {C});
   AL->stage()->Split(1, 10);
 
-  AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtUnk, A->name);
+  AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
   C->stage()->Bind(0, "threadIdx.x");
   C->stage()->Bind(1, "blockIdx.x");
 
@@ -1010,7 +1010,7 @@ TEST(ElementwiseAdd, cache_read1) {
     auto AL = A->stage()->CacheRead("local", {C});
     AL->stage()->Split(1, 10);
 
-    AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtUnk, A->name);
+    AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
 
     return std::make_tuple(A, B, C, AL);
   };
@@ -1061,9 +1061,9 @@ void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
     if ((blockIdx.x < 20)) {
     {
       if (((((threadIdx.x >= 0) && (threadIdx.x <= 97)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
-        for (int32_t i = threadIdx.x; i < (3 + threadIdx.x); i += 1) {
+        for (int32_t i = 0; i < 3; i += 1) {
           for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-            A_read_cache_3[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + j_inner))];
+            A_read_cache_3[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + ((200 * threadIdx.x) + j_inner)))];
           };
         };
       };
@@ -1079,42 +1079,9 @@ void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
 }
 )ROC";
 
-  std::string source_target1 = R"ROC(
-extern "C" {
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
-
-__global__
-void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
-{
-  float _A_read_cache_3 [ 3 * 10 ];
-  float* A_read_cache_3 = _A_read_cache_3;
-  {
-    if (((((threadIdx.x >= 0) && (threadIdx.x <= 97)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
-      for (int32_t i = 0; i < 3; i += 1) {
-        for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-          A_read_cache_3[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * (i+threadIdx.x)) + j_inner))];
-        };
-      };
-    };
-    for (int32_t i = 0; i < 10; i += 1) {
-      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[i] + (A_read_cache_3[(10 + i)] + (A_read_cache_3[(20 + i)] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))])));
-    };
-  };
-}
-
-}
-)ROC";
-
-  // ASSERT_EQ(utils::Trim(source_target), source_code);
+  ASSERT_EQ(utils::Trim(source_target), source_code);
 
   common::CudaModuleTester tester;
-  // tester.Compile(builder.Build(), source_target1);
   tester.Compile(builder.Build());
 
   auto* A_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
@@ -1151,6 +1118,134 @@ void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
                   A_mem[i * N.as_int32() + j] + A_mem[(i + 1) * N.as_int32() + j] + A_mem[(i + 2) * N.as_int32() + j] +
                       B_mem[i * N.as_int32() + j],
                   1e-5);
+    }
+  }
+}
+
+TEST(ElementwiseAdd, cache_read_shared) {
+  Expr M(100);
+  Expr N(200);
+
+  auto create_module = [&] {
+    Context::Global().ResetNameId();
+
+    Placeholder<float> A("A", {M, N});
+    Placeholder<float> B("B", {M, N});
+
+    auto C = Compute(
+        {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
+    C->stage()->Split(1, 10);
+
+    auto AL = A->stage()->CacheRead("local", {C});
+    auto sync_threads =
+        Compute({Expr(1)},
+                [](const std::vector<Expr>& axis) { return runtime::IntrinsicCall(Void(), "__syncthreads", {}, {}); },
+                "",
+                {},
+                {});
+    CHECK_EQ(sync_threads->type(), Void());
+    sync_threads->stage()->CtrlDepend(AL);
+
+    // AL->stage()->Split(1, 10);
+    AL->stage()->ComputeAt(C->stage(), 0, poly::Stage::kComputeAtAuto, A->name);
+    C->stage()->Bind(0, "blockIdx.x");
+    C->stage()->Bind(1, "threadIdx.x");
+    AL->stage()->Bind(1, "threadIdx.x");
+
+    return std::make_tuple(A, B, C, AL, sync_threads);
+  };
+
+  auto [A, B, C, AL, sync_threads] = create_module();  // NOLINT
+  Target target;
+  CodeGenCUDA_Dev codegen(target);
+
+  auto fn = Lower("fn1", {A, B, C}, {}, {AL, sync_threads});
+  fn->cuda_axis_info.set_grid_dim(0, 200);
+  fn->cuda_axis_info.set_block_dim(0, 200);
+
+  Module::Builder builder("module", common::DefaultHostTarget());
+  builder.AddFunction(fn);
+
+  auto source_code = codegen.Compile(builder.Build());
+  std::cout << "CUDA source:\n" << source_code << std::endl;
+
+  LOG(INFO) << "GPU thread config: " << fn->cuda_axis_info;
+
+  auto my_target_source = R"ROC(
+extern "C" {
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+{
+  __shared__ float _A_read_cache_3 [ 1 * 200 ];
+  float* A_read_cache_3 = _A_read_cache_3;
+  if ((blockIdx.x < 100)) {
+  {
+    if (((blockIdx.x >= 0) && (blockIdx.x <= 99))) {
+      if ((threadIdx.x < 200)) {
+      {
+        A_read_cache_3[threadIdx.x] = A[((200 * blockIdx.x) + threadIdx.x)];
+      }
+      };
+    };
+    __syncthreads();
+    if ((threadIdx.x < 20)) {
+    {
+      for (int32_t j = 0; j < 10; j += 1) {
+        C[((200 * blockIdx.x) + ((10 * threadIdx.x) + j))] = A_read_cache_3[((10 * threadIdx.x) + j)];
+      };
+    }
+    };
+  }
+  };
+}
+
+}
+)ROC";
+
+  // ASSERT_EQ(utils::Trim(source_target), source_code);
+
+  common::CudaModuleTester tester;
+  tester.Compile(builder.Build(), my_target_source);
+
+  auto* A_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* B_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* C_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
+  auto* C_target_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
+
+  auto* A_dev = tester.CreateDeviceBuffer(A_host);
+  auto* B_dev = tester.CreateDeviceBuffer(B_host);
+  auto* C_dev = tester.CreateDeviceBuffer(C_host);
+
+  cinn_buffer_t* dev_bufs[3];
+  for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
+  dev_bufs[0]->host_memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->host_memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->host_memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args                = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+
+  CUDA_CALL(cudaDeviceSynchronize());
+  tester("fn1", args.data(), args.size());
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->host_memory),
+                       C_dev,
+                       C_target_host->num_elements() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+
+  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->host_memory);
+  auto* A_mem        = reinterpret_cast<float*>(A_host->host_memory);
+  auto* B_mem        = reinterpret_cast<float*>(B_host->host_memory);
+  for (int i = 0; i < M.as_int32() - 2; i++) {
+    for (int j = 0; j < N.as_int32(); j++) {
+      ASSERT_NEAR(C_target_mem[i * N.as_int32() + j], A_mem[i * N.as_int32() + j], 1e-5);
     }
   }
 }

@@ -97,10 +97,10 @@ struct NormalizeProducerDomainMutator : public ir::IRMutator<> {
       auto* load = item.As<ir::Load>();
       for (auto& indice : load->indices) {
         for (auto& offset : offsets) {
-          LOG(INFO) << "*Add indice to [" << indice << "] => [" << offset.first << "] with offset [" << offset.second
-                    << "]";
+          VLOG(3) << "*Add indice to [" << indice << "] => [" << offset.first << "] with offset [" << offset.second
+                  << "]";
           optim::IrReplace(&Reference(&indice), offset.first, Expr(offset.first) + offset.second);
-          LOG(INFO) << "get: " << indice;
+          VLOG(3) << "get: " << indice;
         }
       }
     }

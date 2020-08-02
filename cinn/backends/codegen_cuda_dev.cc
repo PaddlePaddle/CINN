@@ -180,6 +180,8 @@ void CodeGenCUDA_Dev::PrintIncludes() {
 }
 
 void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {
+  LOG(INFO) << "buffer: " << buffer;
+  CHECK_NE(buffer->type(), Void());
   auto print_gpu_memory = [&](const std::string &mark) {
     os() << mark << GetTypeRepr(buffer->type()) << " " << buffer->name << " ";
 

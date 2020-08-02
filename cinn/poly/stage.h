@@ -28,17 +28,9 @@ using ir::DeviceAPI;
 
 struct ComputeAtRelation;
 
-//! The strategy to deal with the rest domain of a split.
-enum class SplitRestStrategy {
-  //! Leave it unchanged.
-  kAuto,
-  //! Separate the rest.
-  kSeparate,
-};
-
 enum class ScopeKind {
-  kLocal,
-  kShared,
+  kLocal  = 0,
+  kShared = 1,
 };
 
 struct StageForloopInfo {
@@ -93,11 +85,11 @@ class Stage : public Object {
    */
   // @{
   std::tuple<Iterator, Iterator>  //
-  Split(const Iterator& level, int factor, SplitRestStrategy strategy = SplitRestStrategy::kAuto);
+  Split(const Iterator& level, int factor);
   std::tuple<Iterator, Iterator>  //
-  Split(const std::string& level, int factor, SplitRestStrategy strategy = SplitRestStrategy::kAuto);
+  Split(const std::string& level, int factor);
   std::tuple<Iterator, Iterator>  //
-  Split(int level, int factor, SplitRestStrategy strategy = SplitRestStrategy::kAuto);
+  Split(int level, int factor);
   // @}
 
   /**
@@ -137,7 +129,7 @@ class Stage : public Object {
   void Bind(int level, const std::string& axis);
 
   enum ComputeAtKind {
-    kComputeAtUnk,
+    kComputeAtAuto,
     kComputeAtBefore,
     kComputeAtAfter,
   };
@@ -154,7 +146,7 @@ class Stage : public Object {
    */
   void ComputeAt(Stage* other,
                  int level,
-                 ComputeAtKind kind                    = kComputeAtUnk,
+                 ComputeAtKind kind                    = kComputeAtAuto,
                  const std::string& cached_tensor_name = "");
 
   /**
@@ -163,30 +155,6 @@ class Stage : public Object {
    */
   std::tuple<Iterator, Iterator>  //
   Skew(const Iterator& i, const Iterator& j, int factor);
-
-  //! Set GPU thread axis.
-  // @{
-  void GpuThreads(const std::vector<int>& levels, DeviceAPI device = DeviceAPI::GPU);
-  void GpuThreads(const Iterator& thread_x, DeviceAPI device = DeviceAPI::GPU);
-  void GpuThreads(const Iterator& thread_x, const Iterator& thread_y, DeviceAPI device = DeviceAPI::GPU);
-  void GpuThreads(const Iterator& thread_x,
-                  const Iterator& thread_y,
-                  const Iterator& thread_z,
-                  DeviceAPI device = DeviceAPI::GPU);
-  void GpuThreads(const std::vector<Iterator>& iters, DeviceAPI device);
-  // @}
-
-  //! Set GPU block axis.
-  // @{
-  void GpuBlocks(const std::vector<int>& levels, DeviceAPI device = DeviceAPI::GPU);
-  void GpuBlocks(const Iterator& block_x, DeviceAPI device = DeviceAPI::GPU);
-  void GpuBlocks(const Iterator& block_x, const Iterator& block_y, DeviceAPI device = DeviceAPI::GPU);
-  void GpuBlocks(const Iterator& block_x,
-                 const Iterator& block_y,
-                 const Iterator& block_z,
-                 DeviceAPI device = DeviceAPI::GPU);
-  void GpuBlocks(const std::vector<Iterator>& iters, DeviceAPI device);
-  // @}
 
   // Add a control dependency link to \p t.
   void CtrlDepend(const ir::Tensor& t);
@@ -210,7 +178,12 @@ class Stage : public Object {
   /**
    * Set thread scope.
    */
-  void SetScope(ScopeKind scope);
+  void SetScope(ScopeKind scope) { scope_ = scope; }
+
+  /**
+   * Get thread scope.
+   */
+  ScopeKind scope() const { return scope_; }
 
   /**
    * \brief Fuse two forloop levels and return the new level.
@@ -252,7 +225,7 @@ class Stage : public Object {
 
   Stage() = default;
 
-  void ComputeAtSchedule(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
+  void ComputeAtSchedule(Stage* other, int level, ComputeAtKind kind = kComputeAtAuto);
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
@@ -287,14 +260,14 @@ class Stage : public Object {
   ir::VectorizeInfo vectorize_info_;
   //! The for-loop levels to unroll.
   std::set<int> unroll_info_;
-  // TODO(Superjomn) Remove this.
-  std::map<std::string /*iterator name*/, SplitRestStrategy> split_strageties_;
   //! The other stages it depends.
   std::set<std::string> extra_depend_stages_;
   //! Record some forloop levels' information.
   std::map<int /*level*/, StageForloopInfo> forloop_infos_;
   //! A weak reference to the tensor.
   ir::_Tensor_* tensor_{};
+  //! Thread scope.
+  ScopeKind scope_{ScopeKind::kLocal};
 
   std::set<int> locked_axis_;
 

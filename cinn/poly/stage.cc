@@ -51,14 +51,14 @@ Stage::Stage(const isl::set &domain, Expr expr, ir::_Tensor_ *tensor) : domain_(
   InitTransform();
 }
 
-std::tuple<Iterator, Iterator> Stage::Split(int level, int factor, SplitRestStrategy strategy) {
+std::tuple<Iterator, Iterator> Stage::Split(int level, int factor) {
   AssertAxisIsNotLocked(level);
   auto dim_names = GetDimNames(transform_, isl_dim_out);
   auto axis_name = dim_names.at(level);
-  return Split(axis_name, factor, strategy);
+  return Split(axis_name, factor);
 }
 
-std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor, SplitRestStrategy strategy) {
+std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
   int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level.id.c_str());
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
   AssertAxisIsNotLocked(offset);
@@ -97,8 +97,6 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor, S
   VLOG(3) << "transform " << transform.to_isl();
   VLOG(3) << "schedule after transform: " << transform_;
   VLOG(3) << "iterators: " << outer_iter << " " << inner_iter;
-
-  split_strageties_[inner_iter.id] = strategy;
 
   return std::make_tuple(outer_iter, inner_iter);
 }
@@ -171,7 +169,7 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
     case kComputeAtAfter:
       add_extra_depend_stage(other->id());
       break;
-    case kComputeAtUnk:
+    case kComputeAtAuto:
       // Do nothing.
       break;
   }
@@ -199,30 +197,33 @@ void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const 
   access     = isl::manage(access_raw);
   access_raw = nullptr;
 
-  ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
-  transform();
+  if (scope_ == ScopeKind::kLocal) {
+    ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
+    transform();
 
-  domain_    = transform.adjusted_pdomain();
-  transform_ = transform.adjusted_ptransform();
+    domain_    = transform.adjusted_pdomain();
+    transform_ = transform.adjusted_ptransform();
 
-  // set name of the dimensions if not exists, or it will go wrong in the following process.
-  domain_ = SetDimNameIfNull(domain_.release(), [](isl_dim_type dim_type, int i) { return "pp" + std::to_string(i); });
-  transform_ = SetDimNameIfNull(transform_.release(), [](isl_dim_type dim_type, int i) {
-    return (dim_type == isl_dim_in ? "pi" : "po") + std::to_string(i);
-  });
+    // set name of the dimensions if not exists, or it will go wrong in the following process.
+    domain_ =
+        SetDimNameIfNull(domain_.release(), [](isl_dim_type dim_type, int i) { return "pp" + std::to_string(i); });
+    transform_ = SetDimNameIfNull(transform_.release(), [](isl_dim_type dim_type, int i) {
+      return (dim_type == isl_dim_in ? "pi" : "po") + std::to_string(i);
+    });
+
+    auto indice_mins = transform.GetAccessesPrecedingIndicesMinAssumingParamsZero();
+    std::vector<int> offsets;
+    std::transform(indice_mins.begin(), indice_mins.end(), std::back_inserter(offsets), [&](int x) { return -x; });
+
+    other->tensor_->compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
+                                                  tensor_->name,                         // producer_tensor_name
+                                                  transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
+                                                  indice_mins,  // preceding_offset_for_producer_load
+                                                  level         // level
+    );
+  }
 
   ComputeAtSchedule(other, level, kind);
-
-  auto indice_mins = transform.GetAccessesPrecedingIndicesMinAssumingParamsZero();
-  std::vector<int> offsets;
-  std::transform(indice_mins.begin(), indice_mins.end(), std::back_inserter(offsets), [&](int x) { return -x; });
-
-  other->tensor_->compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
-                                                tensor_->name,                         // producer_tensor_name
-                                                transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
-                                                indice_mins,  // preceding_offset_for_producer_load
-                                                level         // level
-  );
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
@@ -327,8 +328,8 @@ std::string OuterName(const Iterator &iterator) { return OuterName(iterator.id);
 
 const char *Stage::id() const { return isl_set_get_tuple_name(domain_.get()); }
 
-std::tuple<Iterator, Iterator> Stage::Split(const std::string &level, int factor, SplitRestStrategy strategy) {
-  return std::move(Split(Iterator(level), factor, strategy));
+std::tuple<Iterator, Iterator> Stage::Split(const std::string &level, int factor) {
+  return std::move(Split(Iterator(level), factor));
 }
 
 Shared<Stage> Stage::New(const isl::set &domain, Expr expr, ir::_Tensor_ *tensor) {
@@ -460,68 +461,8 @@ void Stage::Unroll(const Iterator &level) {
   Unroll(l);
 }
 
-void Stage::GpuThreads(const std::vector<int> &levels, DeviceAPI device) {
-  std::vector<Iterator> iterators;
-  auto transform = transformed_domain();
-  auto dim_names = GetDimNames(transform.get());
-
-  std::vector<Iterator> iters;
-  std::transform(
-      levels.begin(), levels.end(), std::back_inserter(iters), [&](int i) { return Iterator(dim_names[i]); });
-  GpuThreads(iters, device);
-}
-
-void Stage::GpuThreads(const Iterator &thread_x, DeviceAPI device) {
-  GpuThreads(std::vector<Iterator>({thread_x}), device);
-}
-
-void Stage::GpuThreads(const Iterator &thread_x, const Iterator &thread_y, DeviceAPI device) {
-  GpuThreads({thread_x, thread_y}, device);
-}
-
-void Stage::GpuThreads(const Iterator &thread_x, const Iterator &thread_y, const Iterator &thread_z, DeviceAPI device) {
-  GpuThreads({thread_x, thread_y, thread_z}, device);
-}
-
 std::vector<std::string> Stage::axis_names() const { return GetDimNames(transformed_domain()); }
 
-void Stage::GpuThreads(const std::vector<Iterator> &iters, DeviceAPI device) {
-  auto dim_names = axis_names();
-  uint8_t offset = 0;
-  for (auto &iter : iters) {
-    auto it = std::find(dim_names.begin(), dim_names.end(), iter.id);
-    CHECK(it != dim_names.end());
-    AddForloopInfo(it - dim_names.begin(), StageForloopInfo{ir::ForType::GPUThread, device, offset++});
-  }
-}
-
-void Stage::GpuBlocks(const std::vector<int> &levels, DeviceAPI device) {
-  std::vector<Iterator> iterators;
-  auto transform = transformed_domain();
-  auto dim_names = GetDimNames(transform.get());
-  std::vector<Iterator> iters;
-  std::transform(
-      levels.begin(), levels.end(), std::back_inserter(iters), [&](int i) { return Iterator(dim_names[i]); });
-  GpuBlocks(iters, device);
-}
-void Stage::GpuBlocks(const Iterator &block_x, DeviceAPI device) {
-  GpuBlocks(std::vector<Iterator>({block_x}), device);
-}
-void Stage::GpuBlocks(const Iterator &block_x, const Iterator &block_y, DeviceAPI device) {
-  GpuBlocks({block_x, block_y}, device);
-}
-void Stage::GpuBlocks(const Iterator &block_x, const Iterator &block_y, const Iterator &block_z, DeviceAPI device) {
-  GpuBlocks({block_x, block_y, block_z}, device);
-}
-void Stage::GpuBlocks(const std::vector<Iterator> &iters, DeviceAPI device) {
-  auto dim_names = axis_names();
-  uint8_t offset{};
-  for (auto &iter : iters) {
-    auto it = std::find(dim_names.begin(), dim_names.end(), iter.id);
-    CHECK(it != dim_names.end());
-    AddForloopInfo(it - dim_names.begin(), StageForloopInfo{ir::ForType::GPUBlock, device, offset++});
-  }
-}
 void Stage::Bind(int level, const std::string &axis) {
   CHECK_LT(level, n_out_dims());
   LockAxis(level);
@@ -564,7 +505,7 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
   CHECK(tensor_);
   auto my_tensor         = ir::Tensor(tensor_);
   std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
-  LOG(INFO) << "cache_name " << cache_name;
+  VLOG(4) << "cache_name " << cache_name;
   auto cache_tensor = lang::Compute(
       tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
   cache_tensor->WithBuffer(memory_type);
@@ -579,6 +520,14 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
 
   CHECK(!tensor_->read_cache_relation) << "Duplicate read cache found, just one is allowed";
   tensor_->read_cache_relation.reset(new ir::ReadCacheRelation{cache_name, reader_names});
+
+  if (memory_type == "shared") {
+    cache_tensor->stage()->SetScope(ScopeKind::kShared);
+  } else if (memory_type == "local") {
+    cache_tensor->stage()->SetScope(ScopeKind::kLocal);
+  } else {
+    NOT_IMPLEMENTED
+  }
 
   return cache_tensor;
 }
@@ -623,6 +572,7 @@ void Stage::CtrlDepend(const ir::Tensor &t) { add_extra_depend_stage(t->name); }
 
 isl_map *__isl_give GatherAccesses(Stage *stage, const std::string &tensor_name) {
   CHECK(stage->tensor_);
+  LOG(INFO) << "tensor->body: " << stage->tensor_->body();
   auto loads = ir::CollectIRNodes(stage->tensor_->body(), [&](const Expr *x) {
     return x->As<ir::Load>() && x->As<ir::Load>()->tensor.as_tensor()->name == tensor_name;
   });

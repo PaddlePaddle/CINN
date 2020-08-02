@@ -11,6 +11,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/replace_var_with_expr.h"
 #include "cinn/poly/stage.h"
+#include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
 namespace optim {
@@ -235,6 +236,40 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
   }
 
   return info;
+}
+
+void SharedMemoryProducerAddThreadSync(Expr *expr) {
+  struct Mutator : public ir::IRMutator<> {
+    void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+#define BLOCK_VISIT(op__)                               \
+  void Visit(const ir::op__ *op, Expr *expr) override { \
+    blocked_statement_stack.push_back(expr);            \
+    ir::IRMutator<>::Visit(op, expr);                   \
+    blocked_statement_stack.pop_back();                 \
+  }
+    BLOCK_VISIT(For)
+    BLOCK_VISIT(PolyFor)
+    BLOCK_VISIT(IfThenElse)
+    BLOCK_VISIT(Block)
+
+    void Visit(const ir::Store *op, Expr *expr) override {
+      auto *node = expr->As<ir::Store>();
+      if (node->tensor.as_tensor()->stage()->scope() == poly::ScopeKind::kShared) {
+        Expr sync_call = runtime::IntrinsicCall(Void(), "__syncthreads", {});
+        if (blocked_statement_stack.empty()) {
+          Expr new_block = ir::Block::Make({*expr, sync_call});
+          *expr          = new_block;
+        } else {
+          Expr *latest_block = blocked_statement_stack.back();
+          latest_block->As<ir::Block>()->stmts.push_back(sync_call);
+        }
+      }
+    }
+
+    // Collect all the statements with Block(include Block) to the statement.
+    std::vector<ir::Expr *> blocked_statement_stack;
+  };
 }
 
 }  // namespace optim

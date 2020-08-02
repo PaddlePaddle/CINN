@@ -1,9 +1,10 @@
+#include "cinn/hlir/op.h"
+
 #include <gtest/gtest.h>
+
 #include <string>
 
 #include "cinn/cinn.h"
-
-#include "cinn/hlir/op.h"
 
 namespace cinn {
 CINN_REGISTRY_ENABLE(cinn::hlir::Operator);

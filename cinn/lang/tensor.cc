@@ -21,7 +21,6 @@ Tensor _Tensor_::Make(const std::string &name,
                       const std::vector<Expr> &domain,
                       FunctionRef fn,
                       const std::vector<Var> &reduce_axis) {
-  CHECK(!shape.empty()) << "Tensor shape is set empty";
   CHECK(!name.empty()) << "Tensor name is set empty";
   auto n         = make_shared<_Tensor_>();
   n->name        = name;

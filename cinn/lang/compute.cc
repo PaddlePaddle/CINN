@@ -154,7 +154,6 @@ ir::Tensor Call(const std::string &target,
   auto call       = ir::Call::Make(type, target, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0);
   auto call_op    = ir::CallOp::Make(target, call);
   auto new_tensor = ir::_Tensor_::Make(name, type, dims, {Expr(1)}, call_op, {});
-  new_tensor->WithBuffer();
   // Append write tensors in the tail.
   call.As<ir::Call>()->write_args.push_back(new_tensor);
   return new_tensor;
