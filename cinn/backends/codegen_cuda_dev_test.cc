@@ -86,8 +86,8 @@ TEST(CodeGenCUDA, Module_output) {
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
   C->WithBuffer();
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -114,8 +114,8 @@ TEST(CodeGenCUDA, compile_run_jit) {
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
   C->WithBuffer();
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -291,8 +291,8 @@ TEST(CodeGenCUDA, jit_dynamic_shape0) {
       M_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {tester.N.as_int32()});
 }
@@ -310,8 +310,8 @@ TEST(CodeGenCUDA, jit_dynamic_shape1) {
       N_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {32});
 }
@@ -329,8 +329,8 @@ TEST(CodeGenCUDA, jit_dynamic_shape2) {
       N_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {3});
 }
@@ -350,8 +350,8 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
       N_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   Var M("M");
   auto func = Lower("fn", {A, B, C}, {M});
@@ -600,14 +600,14 @@ TEST(elementwise_add, share_local_cache) {
   // NOTE here, the CC replace the C as the output the function.
   auto CC = C->stage()->CacheWrite("local");
 
-  C->stage()->GpuBlocks(std::vector<int>({0}));
-  C->stage()->GpuThreads(std::vector<int>({1}));
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
-  AA->stage()->GpuBlocks(std::vector<int>({0}));
-  AA->stage()->GpuThreads(std::vector<int>({1}));
+  A->stage()->Bind(0, "blockIdx.x");
+  AA->stage()->Bind(1, "threadIdx.x");
 
-  CC->stage()->GpuBlocks(std::vector<int>({0}));
-  CC->stage()->GpuThreads(std::vector<int>({1}));
+  CC->stage()->Bind(0, "blockIdx.x");
+  CC->stage()->Bind(1, "threadIdx.x");
 
   Target target;
   Module::Builder builder("gpu_module", target);
@@ -801,7 +801,9 @@ TEST(Conv, basic_add_cache) {
   auto [by, fi1] = BL->stage()->Split(fi, block_factor);
   auto [bx, ni1] = BL->stage()->Split(ni, block_factor);
 
-  BL->stage()->GpuBlocks(BL->stage()->axis(2), BL->stage()->axis(1), BL->stage()->axis(0));
+  BL->stage()->Bind(2, "blockIdx.x");
+  BL->stage()->Bind(1, "blockIdx.y");
+  BL->stage()->Bind(0, "blockIdx.z");
 
   auto fn = Lower("fn", {A, W, AA, WW, AL, WL, BL, B});
 
@@ -878,8 +880,6 @@ TEST(Conv, optimize) {
   std::tie(ty, fi)  = B->stage()->Split(fi, num_thread);
   std::tie(tx, ni)  = B->stage()->Split(ni, num_thread);
   B->stage()->Reorder({bz, by, bx, tyz, txz, ty, tx, fi, ni});
-
-  // B->stage()->GpuBlocks({0, 1, 2});
 
   LOG(INFO) << Lower("conv", {A, W, BL}, {}, {AA, WW, AL, WL, B});
 }

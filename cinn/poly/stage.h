@@ -159,30 +159,6 @@ class Stage : public Object {
   std::tuple<Iterator, Iterator>  //
   Skew(const Iterator& i, const Iterator& j, int factor);
 
-  //! Set GPU thread axis.
-  // @{
-  void GpuThreads(const std::vector<int>& levels, DeviceAPI device = DeviceAPI::GPU);
-  void GpuThreads(const Iterator& thread_x, DeviceAPI device = DeviceAPI::GPU);
-  void GpuThreads(const Iterator& thread_x, const Iterator& thread_y, DeviceAPI device = DeviceAPI::GPU);
-  void GpuThreads(const Iterator& thread_x,
-                  const Iterator& thread_y,
-                  const Iterator& thread_z,
-                  DeviceAPI device = DeviceAPI::GPU);
-  void GpuThreads(const std::vector<Iterator>& iters, DeviceAPI device);
-  // @}
-
-  //! Set GPU block axis.
-  // @{
-  void GpuBlocks(const std::vector<int>& levels, DeviceAPI device = DeviceAPI::GPU);
-  void GpuBlocks(const Iterator& block_x, DeviceAPI device = DeviceAPI::GPU);
-  void GpuBlocks(const Iterator& block_x, const Iterator& block_y, DeviceAPI device = DeviceAPI::GPU);
-  void GpuBlocks(const Iterator& block_x,
-                 const Iterator& block_y,
-                 const Iterator& block_z,
-                 DeviceAPI device = DeviceAPI::GPU);
-  void GpuBlocks(const std::vector<Iterator>& iters, DeviceAPI device);
-  // @}
-
   // Add a control dependency link to \p t.
   void CtrlDepend(const ir::Tensor& t);
 
