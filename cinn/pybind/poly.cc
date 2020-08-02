@@ -59,21 +59,9 @@ void BindStage(py::module *m) {
       .def("axis_names", &Stage::axis_names)
       .def("compute_inline", &Stage::ComputeInline)
       .def("share_buffer_with", &Stage::ShareBufferWith)
-      .def("split",
-           py::overload_cast<const Iterator &, int, SplitRestStrategy>(&Stage::Split),
-           arg("level"),
-           arg("factor"),
-           arg("strategy") = SplitRestStrategy::kAuto)
-      .def("split",
-           py::overload_cast<const std::string &, int, SplitRestStrategy>(&Stage::Split),
-           arg("level"),
-           arg("factor"),
-           arg("strategy") = SplitRestStrategy::kAuto)
-      .def("split",
-           py::overload_cast<int, int, SplitRestStrategy>(&Stage::Split),
-           arg("level"),
-           arg("factor"),
-           arg("strategy") = SplitRestStrategy::kAuto)
+      .def("split", py::overload_cast<const Iterator &, int>(&Stage::Split), arg("level"), arg("factor"))
+      .def("split", py::overload_cast<const std::string &, int>(&Stage::Split), arg("level"), arg("factor"))
+      .def("split", py::overload_cast<int, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("reorder", &Stage::Reorder)
       .def("tile", py::overload_cast<const Iterator &, const Iterator &, int, int>(&Stage::Tile))
       .def("tile", py::overload_cast<int, int, int, int>(&Stage::Tile))

@@ -51,14 +51,14 @@ Stage::Stage(const isl::set &domain, Expr expr, ir::_Tensor_ *tensor) : domain_(
   InitTransform();
 }
 
-std::tuple<Iterator, Iterator> Stage::Split(int level, int factor, SplitRestStrategy strategy) {
+std::tuple<Iterator, Iterator> Stage::Split(int level, int factor) {
   AssertAxisIsNotLocked(level);
   auto dim_names = GetDimNames(transform_, isl_dim_out);
   auto axis_name = dim_names.at(level);
-  return Split(axis_name, factor, strategy);
+  return Split(axis_name, factor);
 }
 
-std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor, SplitRestStrategy strategy) {
+std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
   int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level.id.c_str());
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
   AssertAxisIsNotLocked(offset);
@@ -97,8 +97,6 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor, S
   VLOG(3) << "transform " << transform.to_isl();
   VLOG(3) << "schedule after transform: " << transform_;
   VLOG(3) << "iterators: " << outer_iter << " " << inner_iter;
-
-  split_strageties_[inner_iter.id] = strategy;
 
   return std::make_tuple(outer_iter, inner_iter);
 }
@@ -327,8 +325,8 @@ std::string OuterName(const Iterator &iterator) { return OuterName(iterator.id);
 
 const char *Stage::id() const { return isl_set_get_tuple_name(domain_.get()); }
 
-std::tuple<Iterator, Iterator> Stage::Split(const std::string &level, int factor, SplitRestStrategy strategy) {
-  return std::move(Split(Iterator(level), factor, strategy));
+std::tuple<Iterator, Iterator> Stage::Split(const std::string &level, int factor) {
+  return std::move(Split(Iterator(level), factor));
 }
 
 Shared<Stage> Stage::New(const isl::set &domain, Expr expr, ir::_Tensor_ *tensor) {

@@ -88,11 +88,11 @@ class Stage : public Object {
    */
   // @{
   std::tuple<Iterator, Iterator>  //
-  Split(const Iterator& level, int factor, SplitRestStrategy strategy = SplitRestStrategy::kAuto);
+  Split(const Iterator& level, int factor);
   std::tuple<Iterator, Iterator>  //
-  Split(const std::string& level, int factor, SplitRestStrategy strategy = SplitRestStrategy::kAuto);
+  Split(const std::string& level, int factor);
   std::tuple<Iterator, Iterator>  //
-  Split(int level, int factor, SplitRestStrategy strategy = SplitRestStrategy::kAuto);
+  Split(int level, int factor);
   // @}
 
   /**
@@ -253,8 +253,6 @@ class Stage : public Object {
   ir::VectorizeInfo vectorize_info_;
   //! The for-loop levels to unroll.
   std::set<int> unroll_info_;
-  // TODO(Superjomn) Remove this.
-  std::map<std::string /*iterator name*/, SplitRestStrategy> split_strageties_;
   //! The other stages it depends.
   std::set<std::string> extra_depend_stages_;
   //! Record some forloop levels' information.

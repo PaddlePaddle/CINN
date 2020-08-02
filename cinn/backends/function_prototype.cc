@@ -1,5 +1,7 @@
 #include "cinn/backends/function_prototype.h"
 
+#include <glog/raw_logging.h>
+
 #include <iostream>
 
 #include "cinn/lang/tensor.h"
@@ -91,8 +93,7 @@ FunctionProto *FunctionProtoRegistry::Lookup(const std::string &name) {
 }
 
 FunctionProto *FunctionProtoRegistry::Register(std::string_view name, FunctionProto *x) {
-  std::cerr << "Register function prototype "
-            << "[" << name << "]" << std::endl;
+  RAW_LOG_INFO("Register function prototype  [%s]", name.data());
   data_.emplace(name, std::unique_ptr<FunctionProto>(x));
   return x;
 }
