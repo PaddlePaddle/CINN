@@ -36,6 +36,11 @@ enum class SplitRestStrategy {
   kSeparate,
 };
 
+enum class ScopeKind {
+  kLocal,
+  kShared,
+};
+
 struct StageForloopInfo {
   StageForloopInfo() = default;
   StageForloopInfo(ir::ForType for_type, ir::DeviceAPI device, uint8_t offset)
@@ -201,6 +206,11 @@ class Stage : public Object {
    * @param memory_type "share" for CUDA share memory, "local" for CUDA local memory.
    */
   ir::Tensor CacheWrite(const std::string& memory_type);
+
+  /**
+   * Set thread scope.
+   */
+  void SetScope(ScopeKind scope);
 
   /**
    * \brief Fuse two forloop levels and return the new level.
