@@ -8,7 +8,6 @@ namespace cinn::pybind {
 
 using poly::Condition;
 using poly::Iterator;
-using poly::SplitRestStrategy;
 using poly::Stage;
 using poly::StageForloopInfo;
 using py::arg;
@@ -31,10 +30,6 @@ void BindMap(py::module *m) {
 }
 
 void BindStage(py::module *m) {
-  // enum class SplitRestStrategy
-  py::enum_<SplitRestStrategy> split_rest_strategy(*m, "SplitRestStrategy");
-  split_rest_strategy.value("kAuto", SplitRestStrategy::kAuto).value("kSeparate", SplitRestStrategy::kSeparate);
-
   // // struct StageForloopInfo
   // py::class_<StageForloopInfo> stage_forloop_info(*m, "StageForloopInfo");
   // stage_forloop_info.def(py::init<ir::ForType, uint8_t, ir::DeviceAPI>())

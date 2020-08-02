@@ -28,14 +28,6 @@ using ir::DeviceAPI;
 
 struct ComputeAtRelation;
 
-//! The strategy to deal with the rest domain of a split.
-enum class SplitRestStrategy {
-  //! Leave it unchanged.
-  kAuto,
-  //! Separate the rest.
-  kSeparate,
-};
-
 struct StageForloopInfo {
   StageForloopInfo() = default;
   StageForloopInfo(ir::ForType for_type, ir::DeviceAPI device, uint8_t offset)
