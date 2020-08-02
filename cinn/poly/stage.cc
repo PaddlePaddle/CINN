@@ -171,7 +171,7 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
     case kComputeAtAfter:
       add_extra_depend_stage(other->id());
       break;
-    case kComputeAtUnk:
+    case kComputeAtAuto:
       // Do nothing.
       break;
   }

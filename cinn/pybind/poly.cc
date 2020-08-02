@@ -45,7 +45,7 @@ void BindStage(py::module *m) {
   py::class_<Stage, common::Object> stage(*m, "Stage");
   // enum Stage::ComputeAtKind
   py::enum_<Stage::ComputeAtKind> compute_at_kind(stage, "ComputeAtKind");
-  compute_at_kind.value("kComputeAtUnk", Stage::ComputeAtKind::kComputeAtUnk)
+  compute_at_kind.value("kComputeAtUnk", Stage::ComputeAtKind::kComputeAtAuto)
       .value("kComputeAtBefore", Stage::ComputeAtKind::kComputeAtBefore)
       .value("kComputeAtAfter", Stage::ComputeAtKind::kComputeAtAfter);
 
@@ -83,7 +83,7 @@ void BindStage(py::module *m) {
       .def("unroll", py::overload_cast<int>(&Stage::Unroll))
       .def("unroll", py::overload_cast<const std::string &>(&Stage::Unroll))
       .def("unroll", py::overload_cast<const Iterator &>(&Stage::Unroll))
-      .def("compute_at", &Stage::ComputeAtSchedule, arg("other"), arg("level"), arg("kind") = Stage::kComputeAtUnk)
+      .def("compute_at", &Stage::ComputeAtSchedule, arg("other"), arg("level"), arg("kind") = Stage::kComputeAtAuto)
       .def("skew", &Stage::Skew)
       // TODO(fuchang01): GpuThreads
       // TODO(fuchang01): GpuBlocks

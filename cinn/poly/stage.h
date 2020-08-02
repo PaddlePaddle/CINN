@@ -132,7 +132,7 @@ class Stage : public Object {
   void Bind(int level, const std::string& axis);
 
   enum ComputeAtKind {
-    kComputeAtUnk,
+    kComputeAtAuto,
     kComputeAtBefore,
     kComputeAtAfter,
   };
@@ -149,7 +149,7 @@ class Stage : public Object {
    */
   void ComputeAt(Stage* other,
                  int level,
-                 ComputeAtKind kind                    = kComputeAtUnk,
+                 ComputeAtKind kind                    = kComputeAtAuto,
                  const std::string& cached_tensor_name = "");
 
   /**
@@ -242,7 +242,7 @@ class Stage : public Object {
 
   Stage() = default;
 
-  void ComputeAtSchedule(Stage* other, int level, ComputeAtKind kind = kComputeAtUnk);
+  void ComputeAtSchedule(Stage* other, int level, ComputeAtKind kind = kComputeAtAuto);
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);

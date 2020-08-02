@@ -900,7 +900,7 @@ TEST(ElementwiseAdd, cache_read_local) {
   auto AL = A->stage()->CacheRead("local", {C});
   AL->stage()->Split(1, 10);
 
-  AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtUnk, A->name);
+  AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
   C->stage()->Bind(0, "threadIdx.x");
   C->stage()->Bind(1, "blockIdx.x");
 
@@ -1010,7 +1010,7 @@ TEST(ElementwiseAdd, cache_read1) {
     auto AL = A->stage()->CacheRead("local", {C});
     AL->stage()->Split(1, 10);
 
-    AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtUnk, A->name);
+    AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
 
     return std::make_tuple(A, B, C, AL);
   };
