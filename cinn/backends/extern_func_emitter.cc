@@ -1,6 +1,7 @@
 #include "cinn/backends/extern_func_emitter.h"
 
 #include <glog/raw_logging.h>
+
 #include <functional>
 #include <iostream>
 #include <string>

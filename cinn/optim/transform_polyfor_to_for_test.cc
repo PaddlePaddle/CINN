@@ -24,8 +24,8 @@ TEST(Expr, basic) {
   C->Bind(C_buf);
 
   {
-    C->stage()->Split("i", 8, poly::SplitRestStrategy::kAuto);
-    C->stage()->Split("j", 8, poly::SplitRestStrategy::kAuto);
+    C->stage()->Split("i", 8);
+    C->stage()->Split("j", 8);
   }
 
   // Code gen

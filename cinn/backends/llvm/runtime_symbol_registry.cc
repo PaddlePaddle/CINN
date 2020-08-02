@@ -1,5 +1,7 @@
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 
+#include <glog/raw_logging.h>
+
 #include <iostream>
 #include <string_view>
 
@@ -22,7 +24,7 @@ void *RuntimeSymbolRegistry::Lookup(std::string_view name) const {
 }
 
 void RuntimeSymbolRegistry::Register(const std::string &name, void *address) {
-  std::cerr << "JIT Register function " << name << std::endl;
+  RAW_LOG_INFO("JIT Register function [%s]: %p", name.c_str(), address);
   std::lock_guard<std::mutex> lock(mu_);
   auto it = symbols_.find(name);
   if (it != symbols_.end()) {
