@@ -80,7 +80,7 @@ static const char* cuda_sync_threads = "__syncthreads";
  */
 Expr IntrinsicCall(Type type,
                    const std::string& fn_name,
-                   const std::vector<Expr>& args       = {},
+                   const std::vector<Expr>& args,
                    const std::vector<Expr>& write_args = {});
 
 Expr GetAddr(Type type, Expr arg);

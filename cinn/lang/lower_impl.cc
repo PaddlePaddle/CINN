@@ -444,7 +444,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
         stage->tensor()->buffer->memory_type == ir::MemoryType::GPUShared) {
       auto sync_threads = Compute(
           {},
-          [](const std::vector<Expr>& axis) { return runtime::IntrinsicCall(Void(), "__syncthreads"); },
+          [](const std::vector<Expr>& axis) { return runtime::IntrinsicCall(Void(), "__syncthreads", {}); },
           Context::Global().NewName("syncthreads"));
       CHECK_EQ(sync_threads->type(), Void());
       sync_threads->stage()->CtrlDepend(ir::Tensor(stage->tensor()));

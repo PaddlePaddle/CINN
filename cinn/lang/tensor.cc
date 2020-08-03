@@ -286,6 +286,7 @@ Expr _Tensor_::tensor_store_expanded_body() {
   CHECK(!is_placeholder_node()) << "placeholder should not expand store";
 
   Expr final_body = body();
+  if (shape.empty()) return final_body;
 
   std::vector<Expr> g_axis = common::GenDefaultAxisAsExpr(shape.size());
 

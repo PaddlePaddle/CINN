@@ -214,7 +214,6 @@ std::vector<Expr *> IfThenElse::expr_fields() { return {&condition, &true_case, 
 std::vector<const Expr *> IfThenElse::expr_fields() const { return {&condition, &true_case, &false_case}; }
 
 Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
-  if (value.type().is_void()) return value;
   CHECK(tensor.As<_Tensor_>()) << "tensor should be _Tensor_ type";
   auto node     = make_shared<Store>();
   node->tensor  = tensor;
