@@ -35,6 +35,7 @@ class Graph : public cinn::common::Graph {
     CHECK_NE(it, attrs.end()) << "Cannot find attribute " << attr_name << " in the graph";
     return get<T>(*it->second);
   }
+
   /*!
    * \brief Check whether has a specific attribute.
    * \param attr_name the name of the attribute

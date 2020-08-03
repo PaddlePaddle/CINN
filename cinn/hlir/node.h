@@ -23,10 +23,12 @@ struct NodeAttr {
    * \brief The operator this node uses.
    */
   const Operator *op{nullptr};
+
   /*!
    * \brief The name of this node.
    */
   std::string node_name;
+
   /*!
    * \brief The attributes stored as string in dictionary.
    */
@@ -59,10 +61,12 @@ class NodeData : public cinn::common::GraphNode {
    * \brief Get the unique id of this NodeData.
    */
   std::string id() { return node_id; }
+
   /*!
    * \brief Source_node represents the operator this NodeData comes from.
    */
   NodePtr source_node;
+
   /*!
    * \brief Output_index represents the index of this output data
    *  among all the outputs of the operator.
@@ -70,12 +74,14 @@ class NodeData : public cinn::common::GraphNode {
    *  the 2 NodeData should be 0 and 1.
    */
   uint32_t output_index;
+
   /*!
    * \brief The version of input Variable.
    *  This field can only be nonzero when this->node is a Variable node.
    *  version is increased by one each time a Variable get composed to a mutation Op.
    */
   uint32_t version;
+
   /*!
    * \brief The unique id of this NodeData.
    */
@@ -98,19 +104,25 @@ class Node : public cinn::common::GraphNode {
    * \brief Get the unique id of this NodeData.
    */
   std::string id() { return node_id; }
+
   /*!
    * \brief The attributes in the node.
    */
   NodeAttr attrs;
+
   /*!
    * \brief The unique id of the node.
    */
   std::string node_id;
 
   inline const Operator *op() const { return this->attrs.op; }
+
   inline bool is_variable() { return (this->attrs.op == nullptr); }
+
   inline uint32_t num_outputs() { return is_variable() ? 1 : this->op()->num_outputs; }
+
   inline uint32_t num_inputs() { return is_variable() ? 1 : this->op()->num_inputs; }
+
   template <class... Args>
   static NodePtr Create(Args &&... args) {
     return std::make_shared<Node>(std::forward<Args>(args)...);
