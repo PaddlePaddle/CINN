@@ -9,8 +9,8 @@
 
 namespace cinn {
 namespace hlir {
-
 class Node;
+
 using NodePtr = std::shared_ptr<Node>;
 
 /*!
