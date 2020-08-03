@@ -7,6 +7,8 @@
 #include <map>
 #include <set>
 
+#include <stack>
+#include <unordered_set>
 #include "cinn/poly/isl_utils.h"
 
 namespace cinn {
@@ -119,6 +121,36 @@ bool CheckGroupValid(const std::vector<Group>& groups) {
   return false;
 }
 
+//! Tell if \param a links to \param b.
+bool IsLinkTo(const common::GraphNode* a, const common::GraphNode* b) {
+  // dfs
+  std::stack<const common::GraphNode*> stack({a});
+  std::unordered_set<const common::GraphNode*> visited;
+  while (!stack.empty()) {
+    auto* top = stack.top();
+    stack.pop();
+    if (visited.count(top)) continue;
+
+    if (top == b) return true;
+
+    for (auto& out : a->outlinks()) {
+      auto* x = out->sink();
+      if (!visited.count(x)) {
+        if (x == b) return true;
+        stack.push(x);
+      }
+    }
+  }
+
+  return false;
+}
+
+bool IsBetween(const common::GraphNode* x, const common::GraphNode* a, const common::GraphNode* b) {
+  if (IsLinkTo(a, x) && IsLinkTo(x, b)) return true;
+  if (IsLinkTo(x, a) && IsLinkTo(b, x)) return true;
+  return false;
+}
+
 /**
  * Naive idea to split a graph.
  *
@@ -149,6 +181,14 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
       VLOG(3) << "a -> b: " << node0->id() << " -> " << node1->id();
 
       DataFlowGraphNode::MergeGroup(node0, node1);
+
+      // process single level of outlinks
+      for (auto& outlink : node0->outlinks()) {
+        if (IsBetween(outlink->sink(), node0, node1)) {
+          DataFlowGraphNode::MergeGroup(node0, outlink->sink()->safe_as<DataFlowGraphNode>());
+        }
+      }
+
       // TODO(Superjomn) Consider the case node1 is a parent.
     }
   }
@@ -240,7 +280,7 @@ std::unique_ptr<Schedule> PolyScheduler::BuildSchedule() {
 
 PolyScheduler::PolyScheduler(const std::vector<Stage*>& stages,
                              const std::vector<std::pair<std::string, std::string>>& extra_links) {
-  CHECK_GT(stages.size(), 0) << "No stage is provided";
+  CHECK(!stages.empty()) << "No stage is provided";
 
   // collect extra links
   auto _extra_links = extra_links;

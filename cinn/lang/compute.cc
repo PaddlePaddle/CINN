@@ -134,6 +134,9 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
 
   auto real_shape = shape.empty() ? domain_without_reduce_axis : shape;
 
+  // The body returns void, that means no buffer is needed.
+  if (fn_body.type() == Void()) real_shape.clear();
+
   auto unique_name = name.empty() ? Context::Global().NewName("tensor") : name;
 
   // check reduce_axis not include the reserved axis name

@@ -457,7 +457,7 @@ void ReplaceParamWithConsumerAxis(const ComputeAtInfo& info,
     optim::IrReplace(consumer_forloop_root, Expr(var), axis[i]);
   }
 
-  LOG(INFO) << "After ReplaceParamWithConsumerAxis:\n" << *consumer_forloop_root;
+  VLOG(4) << "After ReplaceParamWithConsumerAxis:\n" << *consumer_forloop_root;
 }
 
 }  // namespace detail

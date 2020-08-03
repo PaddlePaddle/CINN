@@ -173,7 +173,7 @@ poly::Stage *_Tensor_::stage() {
 }
 
 void _Tensor_::InitAxis() {
-  CHECK(!domain_without_reduce_axis().empty());
+  // CHECK(!domain_without_reduce_axis().empty());
   axis_ = common::GenDefaultAxis(domain_without_reduce_axis().size());
 }
 

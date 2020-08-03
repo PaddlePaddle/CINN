@@ -32,6 +32,7 @@ Expr Optimize(Expr e, bool runtime_debug_info) {
   UnrollLoop(&copied);
 #ifdef CINN_WITH_CUDA
   RemoveGpuForloopsAxis(&copied);
+  CudaSyncThreadsDropIfThenElse(&copied);
 #endif
   // CacheReadWriteReplace(&copied);
 

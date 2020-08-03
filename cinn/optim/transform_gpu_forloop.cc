@@ -238,7 +238,11 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
   return info;
 }
 
-void SharedMemoryProducerAddThreadSync(Expr *expr) {
+/**
+ * The generated __syncthreads call will be wrapped with a `if (xxxx == 0) { }`, this is the problem of isl AST output,
+ * drop it to make it run in all the threads.
+ */
+void CudaSyncThreadsDropIfThenElse(Expr *expr) {
   struct Mutator : public ir::IRMutator<> {
     void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
@@ -248,21 +252,17 @@ void SharedMemoryProducerAddThreadSync(Expr *expr) {
     ir::IRMutator<>::Visit(op, expr);                   \
     blocked_statement_stack.pop_back();                 \
   }
-    BLOCK_VISIT(For)
-    BLOCK_VISIT(PolyFor)
     BLOCK_VISIT(IfThenElse)
-    BLOCK_VISIT(Block)
 
-    void Visit(const ir::Store *op, Expr *expr) override {
-      auto *node = expr->As<ir::Store>();
-      if (node->tensor.as_tensor()->stage()->scope() == poly::ScopeKind::kShared) {
-        Expr sync_call = runtime::IntrinsicCall(Void(), "__syncthreads", {});
-        if (blocked_statement_stack.empty()) {
-          Expr new_block = ir::Block::Make({*expr, sync_call});
-          *expr          = new_block;
-        } else {
-          Expr *latest_block = blocked_statement_stack.back();
-          latest_block->As<ir::Block>()->stmts.push_back(sync_call);
+    void Visit(const ir::Call *op, Expr *expr) override {
+      if (op->name == runtime::intrisic::cuda_sync_threads) {
+        if (!blocked_statement_stack.empty()) {
+          auto *last_for = blocked_statement_stack.back()->As<ir::IfThenElse>();
+          if (auto *eq_n = last_for->condition.As<ir::EQ>()) {
+            if (eq_n->b() == common::make_const(0)) {
+              *blocked_statement_stack.back() = *expr;
+            }
+          }
         }
       }
     }
@@ -270,6 +270,8 @@ void SharedMemoryProducerAddThreadSync(Expr *expr) {
     // Collect all the statements with Block(include Block) to the statement.
     std::vector<ir::Expr *> blocked_statement_stack;
   };
+
+  Mutator()(expr);
 }
 
 }  // namespace optim

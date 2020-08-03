@@ -176,7 +176,6 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
 }
 
 void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
-  AssertAxisIsNotLocked(level);
   isl::map access;
   isl_map *access_raw{};
   // For cache_read schedule, it will replace the producer tensor with cache in consumer, so replace the tuple name to
@@ -197,31 +196,28 @@ void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const 
   access     = isl::manage(access_raw);
   access_raw = nullptr;
 
-  if (scope_ == ScopeKind::kLocal) {
-    ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
-    transform();
+  ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
+  transform();
 
-    domain_    = transform.adjusted_pdomain();
-    transform_ = transform.adjusted_ptransform();
+  domain_    = transform.adjusted_pdomain();
+  transform_ = transform.adjusted_ptransform();
 
-    // set name of the dimensions if not exists, or it will go wrong in the following process.
-    domain_ =
-        SetDimNameIfNull(domain_.release(), [](isl_dim_type dim_type, int i) { return "pp" + std::to_string(i); });
-    transform_ = SetDimNameIfNull(transform_.release(), [](isl_dim_type dim_type, int i) {
-      return (dim_type == isl_dim_in ? "pi" : "po") + std::to_string(i);
-    });
+  // set name of the dimensions if not exists, or it will go wrong in the following process.
+  domain_ = SetDimNameIfNull(domain_.release(), [](isl_dim_type dim_type, int i) { return "pp" + std::to_string(i); });
+  transform_ = SetDimNameIfNull(transform_.release(), [](isl_dim_type dim_type, int i) {
+    return (dim_type == isl_dim_in ? "pi" : "po") + std::to_string(i);
+  });
 
-    auto indice_mins = transform.GetAccessesPrecedingIndicesMinAssumingParamsZero();
-    std::vector<int> offsets;
-    std::transform(indice_mins.begin(), indice_mins.end(), std::back_inserter(offsets), [&](int x) { return -x; });
+  auto indice_mins = transform.GetAccessesPrecedingIndicesMinAssumingParamsZero();
+  std::vector<int> offsets;
+  std::transform(indice_mins.begin(), indice_mins.end(), std::back_inserter(offsets), [&](int x) { return -x; });
 
-    other->tensor_->compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
-                                                  tensor_->name,                         // producer_tensor_name
-                                                  transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
-                                                  indice_mins,  // preceding_offset_for_producer_load
-                                                  level         // level
-    );
-  }
+  other->tensor_->compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
+                                                tensor_->name,                         // producer_tensor_name
+                                                transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
+                                                indice_mins,  // preceding_offset_for_producer_load
+                                                level         // level
+  );
 
   ComputeAtSchedule(other, level, kind);
 }
@@ -572,7 +568,6 @@ void Stage::CtrlDepend(const ir::Tensor &t) { add_extra_depend_stage(t->name); }
 
 isl_map *__isl_give GatherAccesses(Stage *stage, const std::string &tensor_name) {
   CHECK(stage->tensor_);
-  LOG(INFO) << "tensor->body: " << stage->tensor_->body();
   auto loads = ir::CollectIRNodes(stage->tensor_->body(), [&](const Expr *x) {
     return x->As<ir::Load>() && x->As<ir::Load>()->tensor.as_tensor()->name == tensor_name;
   });

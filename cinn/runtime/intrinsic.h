@@ -67,6 +67,8 @@ static const char* args_construct_repr = "cinn_args_construct";
 //! Name of the helper intrinsic used to display debug string.
 static const char* debug_log_repr = "cinn_print_debug_string";
 
+static const char* cuda_sync_threads = "__syncthreads";
+
 }  // namespace intrisic
 
 /**
@@ -78,7 +80,7 @@ static const char* debug_log_repr = "cinn_print_debug_string";
  */
 Expr IntrinsicCall(Type type,
                    const std::string& fn_name,
-                   const std::vector<Expr>& args,
+                   const std::vector<Expr>& args       = {},
                    const std::vector<Expr>& write_args = {});
 
 Expr GetAddr(Type type, Expr arg);

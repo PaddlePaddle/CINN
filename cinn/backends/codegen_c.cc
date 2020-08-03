@@ -243,7 +243,7 @@ void CodeGenC::Visit(const ir::Call *op) {
   } else if (op->name == runtime::intrisic::pod_values_to_array_repr) {
     PrintCall_pod_values_to_array(op);
   } else if (op->is_intrinsic_call()) {
-    CHECK(!op->read_args.empty() || !op->write_args.empty());
+    // CHECK(!op->read_args.empty() || !op->write_args.empty());
     os() << op->name << "(";
     PrintCallArgs(op);
     os() << ")";

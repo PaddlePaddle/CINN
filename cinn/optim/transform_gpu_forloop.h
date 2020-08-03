@@ -68,7 +68,7 @@ void RemoveGpuForloopsAxis(Expr* expr);
 /**
  * Add __syncthreads() to shared memory producer.
  */
-void SharedMemoryProducerAddThreadSync(Expr* expr);
+void CudaSyncThreadsDropIfThenElse(Expr* expr);
 
 }  // namespace optim
 }  // namespace cinn
