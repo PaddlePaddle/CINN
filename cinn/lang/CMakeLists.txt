@@ -1,5 +1,6 @@
 set(srcs buffer.cc compute.cc placeholder.cc tensor.cc module.cc lower.cc builtin.cc
         lower_impl.cc
+        compute_at_postprocess.cc
         )
 
 foreach(cpp ${srcs})

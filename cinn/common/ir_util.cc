@@ -323,5 +323,41 @@ std::vector<std::string> GatherItersToTensorProducer(const std::string &target_t
   return Visitor(target_tensor_name)(expr);
 }
 
+std::vector<Expr *> GetForloopStackToStore(Expr *expr, const std::string &tensor_name) {
+  VLOG(4) << "search store " << tensor_name << " in expr:\n";
+  VLOG(4) << *expr;
+  struct Mutator : public ir::IRMutator<> {
+    std::vector<Expr *> forloop_stack;
+    bool found{false};
+
+    std::string tensor_name;
+
+    explicit Mutator(const std::string &tensor_name) : tensor_name(tensor_name) {}
+
+    std::vector<Expr *> operator()(Expr *expr) {
+      ir::IRMutator<>::Visit(expr, expr);
+      return forloop_stack;
+    }
+
+    void Visit(const ir::For *op, Expr *expr) {
+      auto *node = expr->As<ir::For>();
+      forloop_stack.push_back(expr);
+      ir::IRMutator<>::Visit(&node->body, &node->body);
+      if (!found) forloop_stack.pop_back();
+    }
+
+    void Visit(const ir::PolyFor *op, Expr *expr) {
+      auto *node = expr->As<ir::PolyFor>();
+      forloop_stack.push_back(expr);
+      ir::IRMutator<>::Visit(&node->body, &node->body);
+      if (!found) forloop_stack.pop_back();
+    }
+
+    void Visit(const ir::Store *op, Expr *expr) { found = op->tensor.as_tensor()->name == tensor_name; }
+  };
+
+  return Mutator(tensor_name)(expr);
+}
+
 }  // namespace common
 }  // namespace cinn

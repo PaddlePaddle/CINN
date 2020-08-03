@@ -8,7 +8,6 @@ namespace cinn::pybind {
 
 using poly::Condition;
 using poly::Iterator;
-using poly::SplitRestStrategy;
 using poly::Stage;
 using poly::StageForloopInfo;
 using py::arg;
@@ -31,10 +30,6 @@ void BindMap(py::module *m) {
 }
 
 void BindStage(py::module *m) {
-  // enum class SplitRestStrategy
-  py::enum_<SplitRestStrategy> split_rest_strategy(*m, "SplitRestStrategy");
-  split_rest_strategy.value("kAuto", SplitRestStrategy::kAuto).value("kSeparate", SplitRestStrategy::kSeparate);
-
   // // struct StageForloopInfo
   // py::class_<StageForloopInfo> stage_forloop_info(*m, "StageForloopInfo");
   // stage_forloop_info.def(py::init<ir::ForType, uint8_t, ir::DeviceAPI>())
@@ -45,7 +40,7 @@ void BindStage(py::module *m) {
   py::class_<Stage, common::Object> stage(*m, "Stage");
   // enum Stage::ComputeAtKind
   py::enum_<Stage::ComputeAtKind> compute_at_kind(stage, "ComputeAtKind");
-  compute_at_kind.value("kComputeAtUnk", Stage::ComputeAtKind::kComputeAtUnk)
+  compute_at_kind.value("kComputeAtUnk", Stage::ComputeAtKind::kComputeAtAuto)
       .value("kComputeAtBefore", Stage::ComputeAtKind::kComputeAtBefore)
       .value("kComputeAtAfter", Stage::ComputeAtKind::kComputeAtAfter);
 
@@ -59,21 +54,9 @@ void BindStage(py::module *m) {
       .def("axis_names", &Stage::axis_names)
       .def("compute_inline", &Stage::ComputeInline)
       .def("share_buffer_with", &Stage::ShareBufferWith)
-      .def("split",
-           py::overload_cast<const Iterator &, int, SplitRestStrategy>(&Stage::Split),
-           arg("level"),
-           arg("factor"),
-           arg("strategy") = SplitRestStrategy::kAuto)
-      .def("split",
-           py::overload_cast<const std::string &, int, SplitRestStrategy>(&Stage::Split),
-           arg("level"),
-           arg("factor"),
-           arg("strategy") = SplitRestStrategy::kAuto)
-      .def("split",
-           py::overload_cast<int, int, SplitRestStrategy>(&Stage::Split),
-           arg("level"),
-           arg("factor"),
-           arg("strategy") = SplitRestStrategy::kAuto)
+      .def("split", py::overload_cast<const Iterator &, int>(&Stage::Split), arg("level"), arg("factor"))
+      .def("split", py::overload_cast<const std::string &, int>(&Stage::Split), arg("level"), arg("factor"))
+      .def("split", py::overload_cast<int, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("reorder", &Stage::Reorder)
       .def("tile", py::overload_cast<const Iterator &, const Iterator &, int, int>(&Stage::Tile))
       .def("tile", py::overload_cast<int, int, int, int>(&Stage::Tile))
@@ -83,7 +66,7 @@ void BindStage(py::module *m) {
       .def("unroll", py::overload_cast<int>(&Stage::Unroll))
       .def("unroll", py::overload_cast<const std::string &>(&Stage::Unroll))
       .def("unroll", py::overload_cast<const Iterator &>(&Stage::Unroll))
-      .def("compute_at", &Stage::ComputeAtSchedule, arg("other"), arg("level"), arg("kind") = Stage::kComputeAtUnk)
+      .def("compute_at", &Stage::ComputeAtSchedule, arg("other"), arg("level"), arg("kind") = Stage::kComputeAtAuto)
       .def("skew", &Stage::Skew)
       // TODO(fuchang01): GpuThreads
       // TODO(fuchang01): GpuBlocks

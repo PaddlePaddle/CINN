@@ -1,5 +1,7 @@
 #include "cinn/backends/extern_func_emitter.h"
 
+#include <glog/raw_logging.h>
+
 #include <functional>
 #include <iostream>
 #include <string>
@@ -7,6 +9,7 @@
 #include "cinn/backends/extern_func_emitter_builtin.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace backends {
@@ -17,7 +20,7 @@ ExternFunctionEmitterRegistry& ExternFunctionEmitterRegistry::Global() {
 }
 
 void ExternFunctionEmitterRegistry::Register(const ExternFuncID& name, ExternFunctionEmitter* x) {
-  std::cerr << "Register extern function emitter [" << name << "]" << std::endl;
+  RAW_LOG_INFO("Register extern function emitter [%s]", utils::GetStreamCnt(name).c_str());
   CHECK(x);
   data_[name] = std::unique_ptr<ExternFunctionEmitter>(x);
 }

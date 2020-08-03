@@ -82,10 +82,10 @@ class CINNValue : public cinn_pod_value_t {
   CINNValue() : cinn_pod_value_t(cinn_value_t(), kNull) {}
   CINNValue(cinn_value_t value, int type_code) : cinn_pod_value_t(value, type_code) {}
 
-  explicit CINNValue(int32_t value) : cinn_pod_value_t(value) {}
-  explicit CINNValue(int64_t value) : cinn_pod_value_t(value) {}
-  explicit CINNValue(float value) : cinn_pod_value_t(value) {}
-  explicit CINNValue(double value) : cinn_pod_value_t(value) {}
+  explicit CINNValue(int32_t value) : cinn_pod_value_t(value) { type_code_ = type_code<int32_t>(); }
+  explicit CINNValue(int64_t value) : cinn_pod_value_t(value) { type_code_ = type_code<int64_t>(); }
+  explicit CINNValue(float value) : cinn_pod_value_t(value) { type_code_ = type_code<float>(); }
+  explicit CINNValue(double value) : cinn_pod_value_t(value) { type_code_ = type_code<double>(); }
   explicit CINNValue(char* value);
   explicit CINNValue(cinn_buffer_t* value) : cinn_pod_value_t(value) {}
   explicit CINNValue(void* value) : cinn_pod_value_t(value) {}
@@ -127,7 +127,13 @@ class CINNValue : public cinn_pod_value_t {
 
   //! Set the value.
   template <typename T>
-  void Set(T v);
+  void Set(T v) {
+    if constexpr (std::is_same_v<std::decay_t<T>, CINNValue>) {
+      *this = v;
+    } else {
+      *this = CINNValue(v);
+    }
+  }
 
   /**
    * Get the type code for a specific POD type.

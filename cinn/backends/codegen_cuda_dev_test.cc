@@ -86,8 +86,8 @@ TEST(CodeGenCUDA, Module_output) {
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
   C->WithBuffer();
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -114,8 +114,8 @@ TEST(CodeGenCUDA, compile_run_jit) {
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
   C->WithBuffer();
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -291,8 +291,8 @@ TEST(CodeGenCUDA, jit_dynamic_shape0) {
       M_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {tester.N.as_int32()});
 }
@@ -310,8 +310,8 @@ TEST(CodeGenCUDA, jit_dynamic_shape1) {
       N_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {32});
 }
@@ -329,8 +329,8 @@ TEST(CodeGenCUDA, jit_dynamic_shape2) {
       N_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {3});
 }
@@ -350,8 +350,8 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
       N_outer,
   });
 
-  C->stage()->GpuBlocks({C->stage()->axis(0)});
-  C->stage()->GpuThreads({C->stage()->axis(1)});
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
   Var M("M");
   auto func = Lower("fn", {A, B, C}, {M});
@@ -575,7 +575,7 @@ TEST(Conv, basic) {
                    {rc, ry, rx});
   B->WithBuffer();
 
-  B->stage()->CacheRead("share", {B});
+  B->stage()->CacheRead("shared", {B});
 
   auto fn = Lower("fn", {A, W, B});
 
@@ -596,18 +596,18 @@ TEST(elementwise_add, share_local_cache) {
   auto C = Compute(
       {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
-  auto AA = A->stage()->CacheRead("share", {C});
+  auto AA = A->stage()->CacheRead("shared", {C});
   // NOTE here, the CC replace the C as the output the function.
   auto CC = C->stage()->CacheWrite("local");
 
-  C->stage()->GpuBlocks(std::vector<int>({0}));
-  C->stage()->GpuThreads(std::vector<int>({1}));
+  C->stage()->Bind(0, "blockIdx.x");
+  C->stage()->Bind(1, "threadIdx.x");
 
-  AA->stage()->GpuBlocks(std::vector<int>({0}));
-  AA->stage()->GpuThreads(std::vector<int>({1}));
+  A->stage()->Bind(0, "blockIdx.x");
+  AA->stage()->Bind(1, "threadIdx.x");
 
-  CC->stage()->GpuBlocks(std::vector<int>({0}));
-  CC->stage()->GpuThreads(std::vector<int>({1}));
+  CC->stage()->Bind(0, "blockIdx.x");
+  CC->stage()->Bind(1, "threadIdx.x");
 
   Target target;
   Module::Builder builder("gpu_module", target);
@@ -759,8 +759,8 @@ TEST(Conv, basic_add_cache) {
       Apad->shape, [=](const std::vector<Expr>& dims) -> Expr { return Apad(dims); }, "AA");
   auto WW = Compute(
       W->shape, [=](const std::vector<Expr>& dims) { return W(dims); }, "WW");
-  AA->WithBuffer("share");
-  WW->WithBuffer("share");
+  AA->WithBuffer("shared");
+  WW->WithBuffer("shared");
 
   auto AL = Compute(
       AA->shape, [=](const std::vector<Expr>& dims) -> Expr { return AA(dims); }, "AL");
@@ -801,7 +801,9 @@ TEST(Conv, basic_add_cache) {
   auto [by, fi1] = BL->stage()->Split(fi, block_factor);
   auto [bx, ni1] = BL->stage()->Split(ni, block_factor);
 
-  BL->stage()->GpuBlocks(BL->stage()->axis(2), BL->stage()->axis(1), BL->stage()->axis(0));
+  BL->stage()->Bind(2, "blockIdx.x");
+  BL->stage()->Bind(1, "blockIdx.y");
+  BL->stage()->Bind(0, "blockIdx.z");
 
   auto fn = Lower("fn", {A, W, AA, WW, AL, WL, BL, B});
 
@@ -849,8 +851,8 @@ TEST(Conv, optimize) {
 
   Apad->stage()->ComputeInline();
 
-  auto AA = Apad->stage()->CacheRead("share", {B});
-  auto WW = W->stage()->CacheRead("share", {B});
+  auto AA = Apad->stage()->CacheRead("shared", {B});
+  auto WW = W->stage()->CacheRead("shared", {B});
   auto AL = AA->stage()->CacheRead("local", {B});
   auto WL = WW->stage()->CacheRead("local", {B});
   auto BL = B->stage()->CacheWrite("local");
@@ -879,12 +881,10 @@ TEST(Conv, optimize) {
   std::tie(tx, ni)  = B->stage()->Split(ni, num_thread);
   B->stage()->Reorder({bz, by, bx, tyz, txz, ty, tx, fi, ni});
 
-  // B->stage()->GpuBlocks({0, 1, 2});
-
   LOG(INFO) << Lower("conv", {A, W, BL}, {}, {AA, WW, AL, WL, B});
 }
 
-TEST(ElementwiseAdd, cache_read) {
+TEST(ElementwiseAdd, cache_read_local) {
   Context::Global().ResetNameId();
 
   Expr M(100);
@@ -900,7 +900,7 @@ TEST(ElementwiseAdd, cache_read) {
   auto AL = A->stage()->CacheRead("local", {C});
   AL->stage()->Split(1, 10);
 
-  AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtUnk, A->name);
+  AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
   C->stage()->Bind(0, "threadIdx.x");
   C->stage()->Bind(1, "blockIdx.x");
 
@@ -931,21 +931,27 @@ void fn0_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
 {
   float _A_read_cache_3 [ 1 * 10 ];
   float* A_read_cache_3 = _A_read_cache_3;
+  if ((threadIdx.x < 100)) {
   {
-    if (((((threadIdx.x >= 0) && (threadIdx.x <= 99)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
-      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        A_read_cache_3[j_inner] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))];
+    if ((blockIdx.x < 20)) {
+    {
+      if (((((threadIdx.x >= 0) && (threadIdx.x <= 99)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
+        for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+          A_read_cache_3[j_inner] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))];
+        };
       };
+      for (int32_t i = 0; i < 10; i += 1) {
+        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[i] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
+      };
+    }
     };
-    for (int32_t i = 0; i < 10; i += 1) {
-      C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[i] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
-    };
+  }
   };
 }
 
 }
 )ROC";
-  // ASSERT_EQ(utils::Trim(source_target), source_code);
+  ASSERT_EQ(utils::Trim(source_target), source_code);
 
   auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
 
@@ -988,22 +994,40 @@ void fn0_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
 }
 
 TEST(ElementwiseAdd, cache_read1) {
-  Context::Global().ResetNameId();
-
   Expr M(100);
   Expr N(200);
 
-  Placeholder<float> A("A", {M, N});
-  Placeholder<float> B("B", {M, N});
+  auto create_module = [&] {
+    Context::Global().ResetNameId();
 
-  auto C = Compute(
-      {M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
-  C->stage()->Split(1, 10);
+    Placeholder<float> A("A", {M, N});
+    Placeholder<float> B("B", {M, N});
 
-  auto AL = A->stage()->CacheRead("local", {C});
-  AL->stage()->Split(1, 10);
+    auto C = Compute(
+        {M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
+    C->stage()->Split(1, 10);
 
-  AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtUnk, A->name);
+    auto AL = A->stage()->CacheRead("local", {C});
+    AL->stage()->Split(1, 10);
+
+    AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
+
+    return std::make_tuple(A, B, C, AL);
+  };
+  {
+    auto [A, B, C, AL] = create_module();  // NOLINT
+    auto fn            = Lower("fn1", {A, B, C}, {}, {AL});
+    CodeGenC codegen_c(common::DefaultHostTarget());
+    codegen_c.SetInlineBuiltinCodes(false);
+
+    Module::Builder builder("module", common::DefaultHostTarget());
+    builder.AddFunction(fn);
+
+    auto c_source_code = codegen_c.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
+    std::cout << "C source code:\n" << c_source_code << std::endl;
+  }
+
+  auto [A, B, C, AL] = create_module();  // NOLINT
   C->stage()->Bind(0, "threadIdx.x");
   C->stage()->Bind(1, "blockIdx.x");
 
@@ -1011,12 +1035,11 @@ TEST(ElementwiseAdd, cache_read1) {
   CodeGenCUDA_Dev codegen(target);
 
   auto fn = Lower("fn1", {A, B, C}, {}, {AL});
-
-  Module::Builder builder("module", target);
+  Module::Builder builder("module", common::DefaultHostTarget());
   builder.AddFunction(fn);
 
   auto source_code = codegen.Compile(builder.Build());
-  std::cout << "source:\n" << source_code << std::endl;
+  std::cout << "CUDA source:\n" << source_code << std::endl;
 
   std::string source_target = R"ROC(
 extern "C" {
@@ -1038,9 +1061,9 @@ void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
     if ((blockIdx.x < 20)) {
     {
       if (((((threadIdx.x >= 0) && (threadIdx.x <= 97)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
-        for (int32_t i = threadIdx.x; i < (3 + threadIdx.x); i += 1) {
+        for (int32_t i = 0; i < 3; i += 1) {
           for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-            A_read_cache_3[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + j_inner))];
+            A_read_cache_3[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + ((200 * threadIdx.x) + j_inner)))];
           };
         };
       };
@@ -1055,18 +1078,48 @@ void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
 
 }
 )ROC";
+
   ASSERT_EQ(utils::Trim(source_target), source_code);
 
   common::CudaModuleTester tester;
   tester.Compile(builder.Build());
 
-  auto* A_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
-  auto* B_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
-  auto* C_host = common::BufferBuilder(Float(32), {M.as_int32() - 2, N.as_int32()}).set_zero().Build();
+  auto* A_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* B_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+  auto* C_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
+  auto* C_target_host = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
 
   auto* A_dev = tester.CreateDeviceBuffer(A_host);
   auto* B_dev = tester.CreateDeviceBuffer(B_host);
   auto* C_dev = tester.CreateDeviceBuffer(C_host);
+
+  cinn_buffer_t* dev_bufs[3];
+  for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
+  dev_bufs[0]->host_memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->host_memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->host_memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args                = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+
+  CUDA_CALL(cudaDeviceSynchronize());
+  tester("fn1", args.data(), args.size());
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->host_memory),
+                       C_dev,
+                       C_target_host->num_elements() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+
+  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->host_memory);
+  auto* A_mem        = reinterpret_cast<float*>(A_host->host_memory);
+  auto* B_mem        = reinterpret_cast<float*>(B_host->host_memory);
+  for (int i = 0; i < M.as_int32() - 2; i++) {
+    for (int j = 0; j < N.as_int32(); j++) {
+      ASSERT_NEAR(C_target_mem[i * N.as_int32() + j],
+                  A_mem[i * N.as_int32() + j] + A_mem[(i + 1) * N.as_int32() + j] + A_mem[(i + 2) * N.as_int32() + j] +
+                      B_mem[i * N.as_int32() + j],
+                  1e-5);
+    }
+  }
 }
 
 }  // namespace backends
