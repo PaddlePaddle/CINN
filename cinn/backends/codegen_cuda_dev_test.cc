@@ -1138,20 +1138,13 @@ TEST(ElementwiseAdd, cache_read_shared) {
         {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
     C->stage()->Split(1, 10);
 
-    auto AL           = A->stage()->CacheRead("shared", {C});
-    auto sync_threads = Compute(
-        {}, [](const std::vector<Expr>& axis) { return runtime::IntrinsicCall(Void(), "__syncthreads"); }, "sync");
-    CHECK_EQ(sync_threads->type(), Void());
-    // sync_threads->stage()->CtrlDepend(AL);
-    C->stage()->CtrlDepend(sync_threads);
+    auto AL = A->stage()->CacheRead("shared", {C});
 
     AL->stage()->ComputeAt(C->stage(), 0, poly::Stage::kComputeAtAuto, A->name);
-    // sync_threads->stage()->ComputeAt(C->stage(), 0);
     C->stage()->Bind(0, "blockIdx.x");
     C->stage()->Bind(1, "threadIdx.x");
     AL->stage()->Bind(1, "threadIdx.x");
 
-    // return std::make_tuple(A, B, C, AL, sync_threads);
     return std::make_tuple(A, B, C, AL);
   };
 
@@ -1159,7 +1152,6 @@ TEST(ElementwiseAdd, cache_read_shared) {
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
-  // auto fn = Lower("fn2", {A, B, C}, {}, {AL, sync_threads});
   auto fn = Lower("fn2", {A, B, C}, {}, {AL});
   fn->cuda_axis_info.set_grid_dim(0, 200);
   fn->cuda_axis_info.set_block_dim(0, 200);
@@ -1211,10 +1203,9 @@ void fn2_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
 
   LOG(INFO) << "GPU thread config: " << fn->cuda_axis_info;
 
-  // ASSERT_EQ(utils::Trim(target_source), source_code);
+  ASSERT_EQ(utils::Trim(target_source), source_code);
 
   common::CudaModuleTester tester;
-  // tester.Compile(builder.Build(), my_target);
   tester.Compile(builder.Build());
 
   auto* A_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
