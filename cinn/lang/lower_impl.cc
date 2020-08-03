@@ -412,6 +412,69 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
 
 void LowerImpl::AddAxisInfoToFunc(ir::_LoweredFunc_* func) {}
 
+LowerImpl::LowerImpl(const std::string& fn_name,
+                     const std::vector<Tensor>& tensor_args,
+                     const std::vector<Var>& scalar_args,
+                     const std::vector<Tensor>& temp_tensor_args)
+    : fn_name_(fn_name), tensor_args_(tensor_args), scalar_args_(scalar_args), temp_tensor_args_(temp_tensor_args) {
+  {  // Initialize the graph
+    std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
+    tensors.insert(std::end(tensors), temp_tensor_args.begin(), temp_tensor_args.end());
+    compu_graph_ = CreateCompGraph(tensors, true /*hide_inlined*/);
+  }
+
+  auto stages = poly::GatherStagesInTensors(CollectAllTensors());
+  std::map<std::string, poly::Stage*> named_stages, read_caches, write_caches, read_caches_rev, write_caches_rev;
+  for (auto* stage : stages) {
+    named_stages[stage->id()] = stage;
+  }
+  for (auto* stage : stages) {
+    if (stage->tensor()->read_cache_relation) {
+      read_caches[stage->id()] = named_stages[stage->tensor()->read_cache_relation->cache_name];
+      read_caches_rev[stage->tensor()->read_cache_relation->cache_name] = stage;
+    }
+    if (stage->tensor()->write_cache_relation) {
+      write_caches[stage->id()] = named_stages[stage->tensor()->write_cache_relation->cache_name];
+      write_caches_rev[stage->tensor()->write_cache_relation->cache_name] = stage;
+    }
+  }
+
+  for (auto* stage : stages) {
+    if (stage->tensor()->buffer.get() && (read_caches_rev.count(stage->id()) || write_caches_rev.count(stage->id())) &&
+        stage->tensor()->buffer->memory_type == ir::MemoryType::GPUShared) {
+      auto sync_threads = Compute(
+          {},
+          [](const std::vector<Expr>& axis) { return runtime::IntrinsicCall(Void(), "__syncthreads"); },
+          Context::Global().NewName("syncthreads"));
+      CHECK_EQ(sync_threads->type(), Void());
+      sync_threads->stage()->CtrlDepend(ir::Tensor(stage->tensor()));
+
+      for (auto& compute_at : stage->compute_ats()) {
+        sync_threads->stage()->ComputeAt(compute_at.stage.get(), compute_at.level);
+      }
+
+      temp_tensor_args_.push_back(sync_threads);
+
+      ir::Tensor this_tensor(read_caches_rev.count(stage->id()) ? read_caches_rev.at(stage->id())->tensor()
+                                                                : write_caches_rev.at(stage->id())->tensor());
+
+      for (auto* other : stages) {
+        if (other->id() != stage->id() && other->tensor()->Uses(this_tensor)) {
+          other->CtrlDepend(sync_threads);
+        }
+      }
+    }
+  }
+
+  {  // update schedule.
+    std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
+    tensors.insert(std::end(tensors), temp_tensor_args_.begin(), temp_tensor_args_.end());
+    compu_graph_ = CreateCompGraph(tensors, true /*hide_inlined*/);
+
+    VLOG(1) << "Computation Graph:\n" << compu_graph_->Visualize();
+  }
+}
+
 }  // namespace detail
 }  // namespace lang
 }  // namespace cinn

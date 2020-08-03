@@ -453,5 +453,25 @@ std::set<std::string> _Tensor_::DependingTensorNames() {
   return res;
 }
 
+const std::vector<Var> &_Tensor_::axis() const {
+  CHECK_EQ(axis_.size(), domain_without_reduce_axis().size());
+  return axis_;
+}
+
+std::vector<Var> _Tensor_::axis_with_reduce() const {
+  auto axis = axis_;
+  axis.insert(axis.end(), reduce_axis.begin(), reduce_axis.end());
+  return axis;
+}
+
+bool _Tensor_::Uses(const Tensor &other) {
+  auto loads = ir::CollectIRNodes(body(), [&](const Expr *x) {
+    auto *loadn = x->As<ir::Load>();
+    if (!loadn) return false;
+    return loadn->tensor.as_tensor()->name == other->name;
+  });
+  return !loads.empty();
+}
+
 }  // namespace ir
 }  // namespace cinn

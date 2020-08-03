@@ -85,7 +85,6 @@ struct NormalizeProducerDomainMutator : public ir::IRMutator<> {
    */
   void AddOffsetToAxisInStoreValue(Expr* expr) {
     optim::Simplify(expr);
-    LOG(INFO) << "AddOffsetToAxisInStoreValue to:\n" << *expr;
 
     auto* node = expr->As<ir::Store>();
 

@@ -67,6 +67,8 @@ class Stage : public Object {
 
   std::vector<std::string> axis_names() const;
 
+  ir::_Tensor_* tensor() { return tensor_; }
+
   /**
    * Mark this stage to expand inplace in all the usages.
    */
