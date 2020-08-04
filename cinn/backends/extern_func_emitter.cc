@@ -20,7 +20,9 @@ ExternFunctionEmitterRegistry& ExternFunctionEmitterRegistry::Global() {
 }
 
 void ExternFunctionEmitterRegistry::Register(const ExternFuncID& name, ExternFunctionEmitter* x) {
+#ifdef CINN_WITH_DEBUG
   RAW_LOG_INFO("Register extern function emitter [%s]", utils::GetStreamCnt(name).c_str());
+#endif  // CINN_WITH_DEBUG
   CHECK(x);
   data_[name] = std::unique_ptr<ExternFunctionEmitter>(x);
 }

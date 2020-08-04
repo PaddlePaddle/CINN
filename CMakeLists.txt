@@ -8,9 +8,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 option(WITH_TESTING         "Compile with Unittests"          ON)
 option(WITH_TESTS           "Compile with tests"              ON)
+option(WITH_DEBUG           "Compile with debug information"  OFF)
 
 if (WITH_TESTING)
   add_definitions(-DCINN_WITH_TEST)
+endif()
+if (WITH_DEBUG)
+  add_definitions(-DCINN_WITH_DEBUG)
 endif()
 
 # include the customized configures

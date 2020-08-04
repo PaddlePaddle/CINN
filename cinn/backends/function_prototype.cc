@@ -93,7 +93,9 @@ FunctionProto *FunctionProtoRegistry::Lookup(const std::string &name) {
 }
 
 FunctionProto *FunctionProtoRegistry::Register(std::string_view name, FunctionProto *x) {
+#ifdef CINN_WITH_DEBUG
   RAW_LOG_INFO("Register function prototype  [%s]", name.data());
+#endif  // CINN_WITH_DEBUG
   data_.emplace(name, std::unique_ptr<FunctionProto>(x));
   return x;
 }
