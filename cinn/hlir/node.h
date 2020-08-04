@@ -39,17 +39,19 @@ struct NodeAttr {
  * \brief NodeData represents the output data from an operator.
  */
 class NodeData : public cinn::common::GraphNode {
-  NodeData(NodePtr node, uint32_t index, uint32_t version)
-      : source_node(std::move(node)), output_index(index), version(version) {}
+  NodeData(NodePtr node, uint32_t index, uint32_t version, std::string id)
+      : source_node(std::move(node)), output_index(index), version(version), id_(std::move(id)) {}
 
-  NodeData() : source_node(), output_index(), version() {}
+  NodeData() : source_node(), output_index(), version(), id_() {}
 
   static std::shared_ptr<NodeData> Create(
       const char *op_name,
       std::string node_name,
       std::vector<NodeData> inputs,
+      std::string id                                     = nullptr,
       std::unordered_map<std::string, std::string> attrs = std::unordered_map<std::string, std::string>()) {
     auto res                           = std::make_shared<NodeData>();
+    res->id_                           = std::move(id);
     res->source_node                   = Node::Create();
     res->source_node->attrs.op         = Operator::Get(op_name);
     res->source_node->attrs.node_name  = std::move(node_name);
@@ -60,7 +62,7 @@ class NodeData : public cinn::common::GraphNode {
   /*!
    * \brief Get the unique id of this NodeData.
    */
-  std::string id() { return node_id; }
+  std::string id() { return id_; }
 
   /*!
    * \brief Source_node represents the operator this NodeData comes from.
@@ -85,7 +87,8 @@ class NodeData : public cinn::common::GraphNode {
   /*!
    * \brief The unique id of this NodeData.
    */
-  std::string node_id;
+ private:
+  std::string id_;
 };
 
 /*!
@@ -94,26 +97,21 @@ class NodeData : public cinn::common::GraphNode {
 class Node : public cinn::common::GraphNode {
  public:
   Node() = default;
-  Node(const Operator *op, const std::string &name) {
+  Node(const Operator *op, const std::string &name, std::string id = nullptr) {
     this->attrs.op        = op;
     this->attrs.node_name = name;
+    this->id_             = std::move(id);
   }
-  ~Node();
 
   /*!
    * \brief Get the unique id of this NodeData.
    */
-  std::string id() { return node_id; }
+  std::string id() { return id_; }
 
   /*!
    * \brief The attributes in the node.
    */
   NodeAttr attrs;
-
-  /*!
-   * \brief The unique id of the node.
-   */
-  std::string node_id;
 
   inline const Operator *op() const { return this->attrs.op; }
 
@@ -127,6 +125,12 @@ class Node : public cinn::common::GraphNode {
   static NodePtr Create(Args &&... args) {
     return std::make_shared<Node>(std::forward<Args>(args)...);
   }
+
+ private:
+  /*!
+   * \brief The unique id of the node.
+   */
+  std::string id_;
 };
 
 }  // namespace hlir

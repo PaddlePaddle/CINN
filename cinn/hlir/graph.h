@@ -25,9 +25,9 @@ class Graph : public cinn::common::Graph {
 
   /*!
    * \brief Get the immutable attribute from attrs.
-   * \param attr_name the name of the attribute
-   * \return the reference to corresponding attribute
-   * \tparam T the type of the attribute.
+   * @param attr_name the name of the attribute
+   * @return the reference to corresponding attribute
+   * @tparam T the type of the attribute.
    */
   template <typename T>
   inline const T& GetAttr(const std::string& attr_name) const {
@@ -38,8 +38,8 @@ class Graph : public cinn::common::Graph {
 
   /*!
    * \brief Check whether has a specific attribute.
-   * \param attr_name the name of the attribute
-   * \return a boolean result
+   * @param attr_name the name of the attribute
+   * @return a boolean result
    */
   inline bool HasAttr(const std::string& attr_name) const {
     auto it = attrs.find(attr_name);
