@@ -13,29 +13,29 @@ class Node;
 
 using NodePtr = std::shared_ptr<Node>;
 
-/*!
+/**
  * \brief Attributes of each node in graph.
  *  The attributes include the node's name, the corresponding operator
  *  and other parameters like axis.
  */
 struct NodeAttr {
-  /*!
+  /**
    * \brief The operator this node uses.
    */
   const Operator *op{nullptr};
 
-  /*!
+  /**
    * \brief The name of this node.
    */
   std::string node_name;
 
-  /*!
+  /**
    * \brief The attributes stored as string in dictionary.
    */
   std::unordered_map<std::string, std::string> attr_store;
 };
 
-/*!
+/**
  * \brief NodeData represents the output data from an operator.
  */
 class NodeData : public cinn::common::GraphNode {
@@ -59,17 +59,17 @@ class NodeData : public cinn::common::GraphNode {
     return res;
   }
 
-  /*!
+  /**
    * \brief Get the unique id of this NodeData.
    */
   std::string id() { return id_; }
 
-  /*!
+  /**
    * \brief Source_node represents the operator this NodeData comes from.
    */
   NodePtr source_node;
 
-  /*!
+  /**
    * \brief Output_index represents the index of this output data
    *  among all the outputs of the operator.
    *  For example, if an operator has 2 outputs, the index of
@@ -77,21 +77,21 @@ class NodeData : public cinn::common::GraphNode {
    */
   uint32_t output_index;
 
-  /*!
+  /**
    * \brief The version of input Variable.
    *  This field can only be nonzero when this->node is a Variable node.
    *  version is increased by one each time a Variable get composed to a mutation Op.
    */
   uint32_t version;
 
-  /*!
+  /**
    * \brief The unique id of this NodeData.
    */
  private:
   std::string id_;
 };
 
-/*!
+/**
  * \brief Node represents an operation in a computation graph.
  */
 class Node : public cinn::common::GraphNode {
@@ -103,12 +103,12 @@ class Node : public cinn::common::GraphNode {
     this->id_             = std::move(id);
   }
 
-  /*!
+  /**
    * \brief Get the unique id of this NodeData.
    */
   std::string id() { return id_; }
 
-  /*!
+  /**
    * \brief The attributes in the node.
    */
   NodeAttr attrs;
@@ -127,7 +127,7 @@ class Node : public cinn::common::GraphNode {
   }
 
  private:
-  /*!
+  /**
    * \brief The unique id of the node.
    */
   std::string id_;

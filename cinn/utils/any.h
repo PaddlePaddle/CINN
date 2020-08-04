@@ -1,4 +1,4 @@
-/*!
+/**
  * This file is copied from dmlc-core project, all the rights are resolved by original project. Following are the
  * original header comment.
  *
@@ -22,59 +22,59 @@ namespace dmlc {
 // forward declare any;
 class any;
 
-/*!
+/**
  * Get a reference to content stored in the any as type T.
  * This will cause an error if
  * T does not match the type stored.
  * This function is not part of std::any standard.
  *
- * \param src The source source any container.
- * \return The reference of content
- * \tparam T The type of the value to be fetched.
+ * @param src The source source any container.
+ * @return The reference of content
+ * @tparam T The type of the value to be fetched.
  */
 template <typename T>
 inline T& get(any& src);  // NOLINT(*)
 
-/*!
+/**
  * Get the const reference content stored in the any as type T.
  * This will cause an error if
  * T does not match the type stored.
  * This function is not part of std::any standard.
  *
- * \param src The source source any container.
- * \return The reference of content
- * \tparam T The type of the value to be fetched.
+ * @param src The source source any container.
+ * @return The reference of content
+ * @tparam T The type of the value to be fetched.
  */
 template <typename T>
 inline const T& get(const any& src);
 
-/*!
+/**
  * The "unsafe" versions of get. It is required when where we know
  * what type is stored in the any and can't use typeid() comparison,
  * e.g., when our types may travel across different shared libraries.
  * This function is not part of std::any standard.
  *
- * \param src The source source any container.
- * \return The reference of content
- * \tparam T The type of the value to be fetched.
+ * @param src The source source any container.
+ * @return The reference of content
+ * @tparam T The type of the value to be fetched.
  */
 template <typename T>
 inline const T& unsafe_get(const any& src);
 
-/*!
+/**
  * The "unsafe" versions of get. It is required when where we know
  * what type is stored in the any and can't use typeid() comparison,
  * e.g., when our types may travel across different shared libraries.
  * This function is not part of std::any standard.
  *
- * \param src The source source any container.
- * \return The reference of content
- * \tparam T The type of the value to be fetched.
+ * @param src The source source any container.
+ * @return The reference of content
+ * @tparam T The type of the value to be fetched.
  */
 template <typename T>
 inline T& unsafe_get(any& src);  // NOLINT(*)
 
-/*!
+/**
  * \brief An any class that is compatible to std::any in c++17.
  *
  * \code
@@ -87,74 +87,74 @@ inline T& unsafe_get(any& src);  // NOLINT(*)
  *   a = std::move(b);
  *   LOG(INFO) << dmlc::get<int>(a);
  * \endcode
- * \sa get
+ * @sa get
  */
 class any {
  public:
-  /*! \brief default constructor */
+  /** \brief default constructor */
   inline any() = default;
-  /*!
+  /**
    * \brief move constructor from another any
-   * \param other The other any to be moved
+   * @param other The other any to be moved
    */
   inline any(any&& other);  // NOLINT(*)
-  /*!
+  /**
    * \brief copy constructor
-   * \param other The other any to be copied
+   * @param other The other any to be copied
    */
   inline any(const any& other);  // NOLINT(*)
-  /*!
+  /**
    * \brief constructor from any types
-   * \param other The other types to be constructed into any.
-   * \tparam T The value type of other.
+   * @param other The other types to be constructed into any.
+   * @tparam T The value type of other.
    */
   template <typename T>
   inline any(T&& other);  // NOLINT(*)
-  /*! \brief destructor */
+  /** \brief destructor */
   inline ~any();
-  /*!
+  /**
    * \brief assign operator from other
-   * \param other The other any to be copy or moved.
-   * \return self
+   * @param other The other any to be copy or moved.
+   * @return self
    */
   inline any& operator=(any&& other);
-  /*!
+  /**
    * \brief assign operator from other
-   * \param other The other any to be copy or moved.
-   * \return self
+   * @param other The other any to be copy or moved.
+   * @return self
    */
   inline any& operator=(const any& other);
-  /*!
+  /**
    * \brief assign operator from any type.
-   * \param other The other any to be copy or moved.
-   * \tparam T The value type of other.
-   * \return self
+   * @param other The other any to be copy or moved.
+   * @tparam T The value type of other.
+   * @return self
    */
   template <typename T>
   inline any& operator=(T&& other);
-  /*!
-   * \return whether the container is empty.
+  /**
+   * @return whether the container is empty.
    */
   inline bool empty() const;
-  /*!
+  /**
    * \brief clear the content of container
    */
   inline void clear();
-  /*!
+  /**
    * swap current content with other
-   * \param other The other data to be swapped.
+   * @param other The other data to be swapped.
    */
   inline void swap(any& other);  // NOLINT(*)
-  /*!
-   * \return The type_info about the stored type.
+  /**
+   * @return The type_info about the stored type.
    */
   inline const std::type_info& type() const;
-  /*! \brief Construct value of type T inplace */
+  /** \brief Construct value of type T inplace */
   template <typename T, typename... Args>
   inline void construct(Args&&... args);
 
  private:
-  //! \cond Doxygen_Suppress
+  //! @cond Doxygen_Suppress
   // declare of helper class
   template <typename T>
   class TypeOnHeap;

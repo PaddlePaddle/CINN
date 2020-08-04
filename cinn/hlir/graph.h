@@ -11,19 +11,19 @@ using cinn::utils::get;
 namespace cinn {
 namespace hlir {
 
-/*!
+/**
  * \brief Symbolic computation graph.
  *  This is the intermediate representation for optimization pass.
  */
 class Graph : public cinn::common::Graph {
  public:
-  /*! \brief outputs of the computation graph. */
+  /** \brief outputs of the computation graph. */
   std::vector<NodeData*> outputs;
 
-  /*! \brief attributes of a graph */
+  /** \brief attributes of a graph */
   std::unordered_map<std::string, std::shared_ptr<any>> attrs;
 
-  /*!
+  /**
    * \brief Get the immutable attribute from attrs.
    * @param attr_name the name of the attribute
    * @return the reference to corresponding attribute
@@ -36,7 +36,7 @@ class Graph : public cinn::common::Graph {
     return get<T>(*it->second);
   }
 
-  /*!
+  /**
    * \brief Check whether has a specific attribute.
    * @param attr_name the name of the attribute
    * @return a boolean result
