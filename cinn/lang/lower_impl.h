@@ -112,8 +112,6 @@ class LowerImpl {
    */
   Expr GenerateFunctionBody(const poly::Schedule* schedule);
 
-  void AddAxisInfoToFunc(ir::_LoweredFunc_* func);
-
  private:
   /**
    * \brief Collect the temporary tensors.

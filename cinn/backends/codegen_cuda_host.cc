@@ -34,6 +34,9 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
   auto body   = func->body;
   auto* block = body.As<ir::Block>();
   CHECK(block);
+  for (auto& stmt : block->stmts) {
+    LOG(INFO) << "stmt: " << stmt;
+  }
   CHECK_EQ(block->stmts.size(), 1UL);
   auto* call = block->stmts[0].As<ir::Call>();
   CHECK(call);
