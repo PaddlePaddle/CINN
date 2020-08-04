@@ -183,23 +183,23 @@ void IslAstNodeToCinnExpr(const isl::ast_node& node, ir::Expr* expr) {
 
   switch (isl_ast_node_get_type(node.get())) {
     case isl_ast_node_block: {
-      VLOG(4) << "get isl block node";
+      VLOG(6) << "get isl block node";
       EatBlock(node, expr);
     } break;
     case isl_ast_node_for: {
-      VLOG(4) << "get isl for node";
+      VLOG(6) << "get isl for node";
       EatFor(node, expr);
     } break;
     case isl_ast_node_if: {
-      VLOG(4) << "get isl if node";
+      VLOG(6) << "get isl if node";
       EatIf(node, expr);
     } break;
     case isl_ast_node_user: {
-      VLOG(4) << "get isl user node";
+      VLOG(6) << "get isl user node";
       EatUser(node, expr);
     } break;
     case isl_ast_node_mark: {
-      VLOG(4) << "get isl mark";
+      VLOG(6) << "get isl mark";
       // EatMark(node, expr);
     } break;
     default:

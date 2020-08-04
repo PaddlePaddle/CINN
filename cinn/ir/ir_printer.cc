@@ -262,7 +262,7 @@ void IrPrinter::Visit(const _Buffer_ *x) {
     return utils::GetStreamCnt(x);
   });
 
-  os_ << "_Buffer_<" << utils::Join(dim_names, ",") << ">(" << x->name << ")";
+  os_ << "_Buffer_<" << x->type() << ": " << utils::Join(dim_names, ",") << ">(" << x->name << ")";
 }
 void IrPrinter::Visit(const _Tensor_ *x) {
   CHECK(!x->shape.empty());

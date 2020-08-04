@@ -90,14 +90,7 @@ class LowerImpl {
   LowerImpl(const std::string& fn_name,
             const std::vector<Tensor>& tensor_args,
             const std::vector<Var>& scalar_args,
-            const std::vector<Tensor>& temp_tensor_args = {})
-      : fn_name_(fn_name), tensor_args_(tensor_args), scalar_args_(scalar_args), temp_tensor_args_(temp_tensor_args) {
-    std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
-    tensors.insert(std::end(tensors), temp_tensor_args.begin(), temp_tensor_args.end());
-    compu_graph_ = CreateCompGraph(tensors, true /*hide_inlined*/);
-
-    VLOG(1) << "Computation Graph:\n" << compu_graph_->Visualize();
-  }
+            const std::vector<Tensor>& temp_tensor_args = {});
 
   ir::LoweredFunc operator()();
 
@@ -118,8 +111,6 @@ class LowerImpl {
    * \brief generate the body expression of the final output function.
    */
   Expr GenerateFunctionBody(const poly::Schedule* schedule);
-
-  void AddAxisInfoToFunc(ir::_LoweredFunc_* func);
 
  private:
   /**
@@ -163,7 +154,7 @@ class LowerImpl {
   const std::string& fn_name_;
   const std::vector<Tensor>& tensor_args_;
   const std::vector<Var>& scalar_args_;
-  const std::vector<Tensor>& temp_tensor_args_;
+  std::vector<Tensor> temp_tensor_args_;
 
   //! A computation graph generated from the tensor_args and scalar_args.
   std::unique_ptr<common::Graph> compu_graph_;

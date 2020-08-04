@@ -65,5 +65,10 @@ void TransformGpuForloops(const forloop_infos_t& forloop_infos, Expr* expr);
  */
 void RemoveGpuForloopsAxis(Expr* expr);
 
+/**
+ * Add __syncthreads() to shared memory producer.
+ */
+void CudaSyncThreadsDropIfThenElse(Expr* expr);
+
 }  // namespace optim
 }  // namespace cinn

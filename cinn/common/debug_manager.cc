@@ -3,8 +3,8 @@
 namespace cinn {
 namespace common {
 
-inline std::vector<std::pair<std::string, utils::any>> &GetVec(utils::any &data) {  // NOLINT
-  return utils::get<std::vector<std::pair<std::string, utils::any>>>(data);
+inline std::vector<std::pair<std::string, std::any>> &GetVec(std::any &data) {  // NOLINT
+  return std::any_cast<std::vector<std::pair<std::string, std::any>> &>(data);
 }
 
 //! AppendTypeSuffix for multiple types.
@@ -35,7 +35,7 @@ inline std::string DebugManager::AppendTypeSuffix<std::string>(const std::string
 }
 // @}
 
-void DebugManager::Append(const std::string &key, utils::any value) {
+void DebugManager::Append(const std::string &key, std::any value) {
   GetVec(data_).push_back(std::make_pair(key, value));
 }
 void DebugManager::Append(const std::string &key, int32_t value) {

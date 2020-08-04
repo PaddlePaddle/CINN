@@ -21,7 +21,6 @@ Tensor _Tensor_::Make(const std::string &name,
                       const std::vector<Expr> &domain,
                       FunctionRef fn,
                       const std::vector<Var> &reduce_axis) {
-  CHECK(!shape.empty()) << "Tensor shape is set empty";
   CHECK(!name.empty()) << "Tensor name is set empty";
   auto n         = make_shared<_Tensor_>();
   n->name        = name;
@@ -174,7 +173,7 @@ poly::Stage *_Tensor_::stage() {
 }
 
 void _Tensor_::InitAxis() {
-  CHECK(!domain_without_reduce_axis().empty());
+  // CHECK(!domain_without_reduce_axis().empty());
   axis_ = common::GenDefaultAxis(domain_without_reduce_axis().size());
 }
 
@@ -287,6 +286,7 @@ Expr _Tensor_::tensor_store_expanded_body() {
   CHECK(!is_placeholder_node()) << "placeholder should not expand store";
 
   Expr final_body = body();
+  if (shape.empty()) return final_body;
 
   std::vector<Expr> g_axis = common::GenDefaultAxisAsExpr(shape.size());
 
@@ -452,6 +452,26 @@ std::set<std::string> _Tensor_::DependingTensorNames() {
     }
   }
   return res;
+}
+
+const std::vector<Var> &_Tensor_::axis() const {
+  CHECK_EQ(axis_.size(), domain_without_reduce_axis().size());
+  return axis_;
+}
+
+std::vector<Var> _Tensor_::axis_with_reduce() const {
+  auto axis = axis_;
+  axis.insert(axis.end(), reduce_axis.begin(), reduce_axis.end());
+  return axis;
+}
+
+bool _Tensor_::Uses(const Tensor &other) {
+  auto loads = ir::CollectIRNodes(body(), [&](const Expr *x) {
+    auto *loadn = x->As<ir::Load>();
+    if (!loadn) return false;
+    return loadn->tensor.as_tensor()->name == other->name;
+  });
+  return !loads.empty();
 }
 
 }  // namespace ir

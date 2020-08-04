@@ -98,7 +98,7 @@ void ComputeInlineExpand(Expr *expr) {
     auto *node = n->safe_as<SSANode>();
     auto t     = tensor_map.at(node->id());
     if (t->compute_inline) {
-      LOG(INFO) << "inlining " << t->name;
+      VLOG(2) << "inlining " << t->name;
       TensorInlineExpandMutator(t->name)(expr);
     }
   }

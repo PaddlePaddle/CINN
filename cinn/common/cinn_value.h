@@ -3,12 +3,12 @@
 
 #include <vector>
 
+#include <any>
 #include "cinn/common/common.h"
 #include "cinn/common/macros.h"
 #include "cinn/common/object.h"
 #include "cinn/common/type.h"
 #include "cinn/runtime/cinn_runtime.h"
-#include "cinn/utils/any.h"
 
 struct cinn_buffer_t;
 
@@ -144,7 +144,7 @@ class CINNValue : public cinn_pod_value_t {
   static int TypeCode();
 
  protected:
-  utils::any shared_;
+  std::any shared_;
 };
 
 }  // namespace common

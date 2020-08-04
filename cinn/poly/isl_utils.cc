@@ -140,8 +140,8 @@ isl_set *isl_get_precending_aixs(isl_set *set, int level, bool with_tuple_name) 
 int isl_max_level_compatible(isl_set *a, isl_set *b) {
   int an = isl_set_dim(a, isl_dim_set);
   int bn = isl_set_dim(b, isl_dim_set);
-  CHECK_GT(an, 0);
-  CHECK_GT(bn, 0);
+  CHECK_GE(an, 0);
+  CHECK_GE(bn, 0);
 
   int compatible_level = -1;
   for (int i = 0; i < std::min(an, bn); i++) {

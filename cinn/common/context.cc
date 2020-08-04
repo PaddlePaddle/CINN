@@ -4,7 +4,6 @@
 
 namespace cinn {
 namespace common {
-using utils::any;
 
 Context& Context::Global() {
   static Context x;

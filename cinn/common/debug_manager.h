@@ -1,9 +1,8 @@
 #pragma once
+#include <any>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include "cinn/utils/any.h"
 
 namespace cinn {
 namespace common {
@@ -20,7 +19,7 @@ class DebugManager {
   void Clear();
 
  protected:
-  void Append(const std::string& key, utils::any value);
+  void Append(const std::string& key, std::any value);
 
   template <typename T>
   inline std::string AppendTypeSuffix(const std::string& key) {
@@ -29,7 +28,7 @@ class DebugManager {
 
  private:
   //! hide the type of vector<pair<string, any>>
-  utils::any data_;
+  std::any data_;
 };
 
 }  // namespace common

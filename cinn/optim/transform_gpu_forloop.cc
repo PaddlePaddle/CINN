@@ -11,6 +11,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/replace_var_with_expr.h"
 #include "cinn/poly/stage.h"
+#include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
 namespace optim {
@@ -214,7 +215,8 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
   std::map<std::pair<ir::ForType, uint8_t>, int> gpu_axis_range;
   for (auto *stage : stage_group) {
     for (auto &item : stage->forloop_infos()) {
-      auto [min_val, max_val] = poly::isl_set_get_axis_range(stage->transformed_domain().get(), item.first);
+      int level               = stage->GetTransformedLevel(item.first);
+      auto [min_val, max_val] = poly::isl_set_get_axis_range(stage->transformed_domain().get(), level);
       auto key                = std::make_pair(item.second.for_type, item.second.offset);
       gpu_axis_range[key]     = std::max(max_val.get_num_si() + 1, static_cast<long>(gpu_axis_range[key]));
     }
@@ -235,6 +237,42 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
   }
 
   return info;
+}
+
+/**
+ * The generated __syncthreads call will be wrapped with a `if (xxxx == 0) { }`, this is the problem of isl AST output,
+ * drop it to make it run in all the threads.
+ */
+void CudaSyncThreadsDropIfThenElse(Expr *expr) {
+  struct Mutator : public ir::IRMutator<> {
+    void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+#define BLOCK_VISIT(op__)                               \
+  void Visit(const ir::op__ *op, Expr *expr) override { \
+    blocked_statement_stack.push_back(expr);            \
+    ir::IRMutator<>::Visit(op, expr);                   \
+    blocked_statement_stack.pop_back();                 \
+  }
+    BLOCK_VISIT(IfThenElse)
+
+    void Visit(const ir::Call *op, Expr *expr) override {
+      if (op->name == runtime::intrisic::cuda_sync_threads) {
+        if (!blocked_statement_stack.empty()) {
+          auto *last_for = blocked_statement_stack.back()->As<ir::IfThenElse>();
+          if (auto *eq_n = last_for->condition.As<ir::EQ>()) {
+            if (eq_n->b() == common::make_const(0)) {
+              *blocked_statement_stack.back() = *expr;
+            }
+          }
+        }
+      }
+    }
+
+    // Collect all the statements with Block(include Block) to the statement.
+    std::vector<ir::Expr *> blocked_statement_stack;
+  };
+
+  Mutator()(expr);
 }
 
 }  // namespace optim

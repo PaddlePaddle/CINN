@@ -45,11 +45,6 @@ ir::LoweredFunc Lower(const std::string& name,
                       const std::vector<Var>& scalar_args,
                       const std::vector<Tensor>& temp_tensors,
                       Module::Builder* b) {
-  bool contains_gpu = false;
-  for (auto& t : tensor_args) {
-    if (contains_gpu = detail::TensorContainsGPUInfo(t)) break;
-  }
-
   auto lower_impl_instance = detail::LowerImpl(name, tensor_args, scalar_args, temp_tensors);
 
   auto res = lower_impl_instance();
@@ -61,8 +56,20 @@ ir::LoweredFunc Lower(const std::string& name,
     }
   }
 
-  if (contains_gpu) {
-    res->device_api = ir::DeviceAPI::GPU;
+  {  // set function device_api
+    bool contains_gpu = false;
+    for (auto& t : tensor_args) {
+      if (contains_gpu = detail::TensorContainsGPUInfo(t)) break;
+    }
+    if (!contains_gpu) {
+      for (auto& t : temp_tensors) {
+        if (contains_gpu = detail::TensorContainsGPUInfo(t)) break;
+      }
+    }
+
+    if (contains_gpu) {
+      res->device_api = ir::DeviceAPI::GPU;
+    }
   }
 
   if (b) {
