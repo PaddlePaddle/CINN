@@ -410,8 +410,6 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
   return body;
 }
 
-void LowerImpl::AddAxisInfoToFunc(ir::_LoweredFunc_* func) {}
-
 LowerImpl::LowerImpl(const std::string& fn_name,
                      const std::vector<Tensor>& tensor_args,
                      const std::vector<Var>& scalar_args,

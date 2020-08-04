@@ -24,7 +24,9 @@ void *RuntimeSymbolRegistry::Lookup(std::string_view name) const {
 }
 
 void RuntimeSymbolRegistry::Register(const std::string &name, void *address) {
+#ifdef CINN_WITH_DEBUG
   RAW_LOG_INFO("JIT Register function [%s]: %p", name.c_str(), address);
+#endif  // CINN_WITH_DEBUG
   std::lock_guard<std::mutex> lock(mu_);
   auto it = symbols_.find(name);
   if (it != symbols_.end()) {

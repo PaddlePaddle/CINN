@@ -991,6 +991,10 @@ void fn0_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
   for (int i = 0; i < C_target_host->num_elements(); i++) {
     ASSERT_NEAR(C_target_mem[i], A_mem[i] + B_mem[i], 1e-5);
   }
+
+  cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
 TEST(ElementwiseAdd, cache_read1) {
@@ -1120,6 +1124,26 @@ void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
                   1e-5);
     }
   }
+
+  cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
+}
+
+TEST(GetTransformedLevel, basic) {
+  Expr M(10), N(10);
+
+  Placeholder<float> A("A", {M, N});
+  Placeholder<float> B("B", {M, N});
+
+  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j); });
+
+  // No ComputeAt, the GetTransformedLevel just returns the level without change.
+  ASSERT_EQ(C->stage()->GetTransformedLevel(0), 0);
+
+  auto D = Compute({M, N}, [&](Expr i, Expr j) { return C(i, j); });
+  C->stage()->ComputeAt(D->stage(), 1);
+  ASSERT_EQ(C->stage()->GetTransformedLevel(0), 0 + 1 + 1);
 }
 
 // JIT test precision for the basic elementwise add
@@ -1160,6 +1184,10 @@ void TestElementwiseAddPrecisionBasic(const lang::Module& module, const std::str
       ASSERT_NEAR(C_target_mem[i * N.as_int32() + j], A_mem[i * N.as_int32() + j], 1e-5);
     }
   }
+
+  cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
 TEST(ElementwiseAdd, cache_read_shared) {
@@ -1284,8 +1312,6 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
   CodeGenCUDA_Dev codegen(target);
 
   auto fn = Lower("fn3", {A, B, C}, {}, {AL});
-  fn->cuda_axis_info.set_grid_dim(0, 40);
-  fn->cuda_axis_info.set_block_dim(0, 40);
 
   Module::Builder builder("module", common::DefaultHostTarget());
   builder.AddFunction(fn);
@@ -1343,20 +1369,84 @@ void fn3_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
   TestElementwiseAddPrecisionBasic(builder.Build(), "fn3", M, N);
 }
 
-TEST(GetTransformedLevel, basic) {
-  Expr M(10), N(10);
+TEST(ElementwiseAdd, cache_write_local) {
+  // Make a small shape, because the shared memory is small.
+  Expr M(40);
+  Expr N(40);
 
-  Placeholder<float> A("A", {M, N});
-  Placeholder<float> B("B", {M, N});
+  auto create_module = [&] {
+    Context::Global().ResetNameId();
 
-  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j); });
+    Placeholder<float> A("A", {M, N});
+    Placeholder<float> B("B", {M, N});
 
-  // No ComputeAt, the GetTransformedLevel just returns the level without change.
-  ASSERT_EQ(C->stage()->GetTransformedLevel(0), 0);
+    auto C = Compute(
+        {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
+    C->stage()->Split(1, 10);
 
-  auto D = Compute({M, N}, [&](Expr i, Expr j) { return C(i, j); });
-  C->stage()->ComputeAt(D->stage(), 1);
-  ASSERT_EQ(C->stage()->GetTransformedLevel(0), 0 + 1 + 1);
+    auto Co = C->stage()->CacheWrite("local");
+
+    // Cache write local, the local memory can just share in a single thread, so it must ComputeAt(inside) the innermost
+    // thread.
+    C->stage()->ComputeAt(Co->stage(), 1);
+
+    C->stage()->Bind(0, "blockIdx.x");
+    C->stage()->Bind(1, "threadIdx.x");
+    Co->stage()->Bind(0, "blockIdx.x");
+    Co->stage()->Bind(1, "threadIdx.x");
+
+    return std::make_tuple(A, B, C, Co);
+  };
+
+  auto [A, B, C, Co] = create_module();  // NOLINT
+  Target target;
+  CodeGenCUDA_Dev codegen(target);
+
+  auto fn = Lower("fn4", {A, B, Co}, {}, {C});
+
+  Module::Builder builder("module", common::DefaultHostTarget());
+  builder.AddFunction(fn);
+
+  auto source_code = codegen.Compile(builder.Build());
+  std::cout << "CUDA source:\n" << source_code << std::endl;
+
+  auto target_source = R"ROC(
+extern "C" {
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void fn4_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C_cache_write_out_3)
+{
+  float _C [ 1 * 1 ];
+  float* C = _C;
+  if ((blockIdx.x < 40)) {
+  {
+    if ((threadIdx.x < 40)) {
+    {
+      if (((((blockIdx.x >= 0) && (blockIdx.x <= 39)) && (threadIdx.x >= 0)) && (threadIdx.x <= 39))) {
+        C[0] = A[((40 * blockIdx.x) + threadIdx.x)];
+      };
+      C_cache_write_out_3[((40 * blockIdx.x) + threadIdx.x)] = C[0];
+    }
+    };
+  }
+  };
+}
+
+}
+)ROC";
+
+  LOG(INFO) << "GPU thread config: " << fn->cuda_axis_info;
+
+  ASSERT_EQ(utils::Trim(target_source), source_code);
+
+  TestElementwiseAddPrecisionBasic(builder.Build(), "fn4", M, N);
 }
 
 }  // namespace backends
