@@ -62,7 +62,7 @@ class NodeData : public cinn::common::GraphNode {
   /**
    * \brief Get the unique id of this NodeData.
    */
-  std::string id() { return id_; }
+  std::string id() const override { return id_; }
 
   /**
    * \brief Source_node represents the operator this NodeData comes from.
@@ -106,7 +106,7 @@ class Node : public cinn::common::GraphNode {
   /**
    * \brief Get the unique id of this NodeData.
    */
-  std::string id() { return id_; }
+  std::string id() const override { return id_; }
 
   /**
    * \brief The attributes in the node.
