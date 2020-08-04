@@ -1,5 +1,6 @@
 #pragma once
 #include <glog/logging.h>
+
 #include <any>
 #include <atomic>
 #include <functional>
@@ -92,11 +93,11 @@ class Operator {
     this->support_level = n;
     return *this;
   }
-  /*!
+  /**
    * \brief Get an Op for a given operator name.
    *  Will raise an error if the op has not been registered.
-   * \param op_name Name of the operator.
-   * \return Pointer to a Op, valid throughout program lifetime.
+   * @param op_name Name of the operator.
+   * @return Pointer to a Op, valid throughout program lifetime.
    */
   static const Operator* Get(const std::string& op_name) {
     const Operator* op = cinn::Registry<Operator>::Find(op_name);
@@ -166,11 +167,11 @@ class Operator {
 // internal macros to make
 #define CINN_REGISTER_VAR_DEF(OpName) static ::cinn::hlir::Operator& __make_##HlirOp##_##OpName
 
-/*!
- * \def CINNR_REGISTER_OP
+/**
+ * @def CINNR_REGISTER_OP
  * \brief Register a new operator, or set attribute of the corresponding op.
  *
- * \param OpName The name of registry
+ * @param OpName The name of registry
  *
  * \code
  *  CINN_REGISTER_OP(add)

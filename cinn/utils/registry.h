@@ -1,8 +1,8 @@
-/*!
+/**
  * This file is copied from dmlc-core project, all the rights are resolved by original project. Following are the
  * original header comment.
  *  Copyright (c) 2015 by Contributors
- * \file registry.h
+ * @file registry.h
  * \brief Registry utility that helps to build registry singletons.
  */
 #pragma once
@@ -11,20 +11,20 @@
 #include <vector>
 
 namespace cinn {
-/*!
+/**
  * \brief Registry class.
  *  Registry can be used to register global singletons.
  *  The most commonly use case are factory functions.
  *
- * \tparam EntryType Type of Registry entries,
+ * @tparam EntryType Type of Registry entries,
  *     EntryType need to name a name field.
  */
 template <typename EntryType>
 class Registry {
  public:
-  /*! \return list of entries in the registry(excluding alias) */
+  /** @return list of entries in the registry(excluding alias) */
   inline static const std::vector<const EntryType *> &List() { return Get()->const_list_; }
-  /*! \return list all names registered in the registry, including alias */
+  /** @return list all names registered in the registry, including alias */
   inline static std::vector<std::string> ListAllNames() {
     const std::map<std::string, EntryType *> &fmap = Get()->fmap_;
     typename std::map<std::string, EntryType *>::const_iterator p;
@@ -34,10 +34,10 @@ class Registry {
     }
     return names;
   }
-  /*!
+  /**
    * \brief Find the entry with corresponding name.
-   * \param name name of the function
-   * \return the corresponding function, can be NULL
+   * @param name name of the function
+   * @return the corresponding function, can be NULL
    */
   inline static const EntryType *Find(const std::string &name) {
     const std::map<std::string, EntryType *> &fmap                = Get()->fmap_;
@@ -48,10 +48,10 @@ class Registry {
       return NULL;
     }
   }
-  /*!
+  /**
    * \brief Add alias to the key_name
-   * \param key_name The original entry key
-   * \param alias The alias key.
+   * @param key_name The original entry key
+   * @param alias The alias key.
    */
   /*   inline void AddAlias(const std::string &key_name, const std::string &alias) {
       EntryType *e = fmap_.at(key_name);
@@ -62,10 +62,10 @@ class Registry {
         fmap_[alias] = e;
       }
     } */
-  /*!
+  /**
    * \brief Internal function to register a name function under name.
-   * \param name name of the function
-   * \return ref to the registered entry, used to set properties
+   * @param name name of the function
+   * @return ref to the registered entry, used to set properties
    */
   inline EntryType &__REGISTER__(const std::string &name) {
     std::lock_guard<std::mutex> guard(registering_mutex);
@@ -79,10 +79,10 @@ class Registry {
     entry_list_.push_back(e);
     return *e;
   }
-  /*!
+  /**
    * \brief Internal function to either register or get registered entry
-   * \param name name of the function
-   * \return ref to the registered entry, used to set properties
+   * @param name name of the function
+   * @return ref to the registered entry, used to set properties
    */
   inline EntryType &__REGISTER_OR_GET__(const std::string &name) {
     if (fmap_.count(name) == 0) {
@@ -91,25 +91,25 @@ class Registry {
       return *fmap_.at(name);
     }
   }
-  /*!
+  /**
    * \brief get a singleton of the Registry.
    *  This function can be defined by CINN_REGISTRY_ENABLE.
-   * \return get a singleton
+   * @return get a singleton
    */
   static Registry *Get();
 
  private:
-  /*! \brief list of entry types */
+  /** \brief list of entry types */
   std::vector<EntryType *> entry_list_;
-  /*! \brief list of entry types */
+  /** \brief list of entry types */
   std::vector<const EntryType *> const_list_;
-  /*! \brief map of name->function */
+  /** \brief map of name->function */
   std::map<std::string, EntryType *> fmap_;
-  /*! \brief lock guarding the registering*/
+  /** \brief lock guarding the registering*/
   std::mutex registering_mutex;
-  /*! \brief constructor */
+  /** \brief constructor */
   Registry() {}
-  /*! \brief destructor */
+  /** \brief destructor */
   ~Registry() {
     for (size_t i = 0; i < entry_list_.size(); ++i) {
       delete entry_list_[i];
@@ -117,7 +117,7 @@ class Registry {
   }
 };
 
-/*!
+/**
  * \brief Common base class for function registry.
  *
  * \code
@@ -136,45 +136,45 @@ class Registry {
  *      .set_body([]() { return new BinaryTree(); });
  * \endcode
  *
- * \tparam EntryType The type of subclass that inheritate the base.
- * \tparam FunctionType The function type this registry is registerd.
+ * @tparam EntryType The type of subclass that inheritate the base.
+ * @tparam FunctionType The function type this registry is registerd.
  */
 template <typename EntryType, typename FunctionType>
 class FunctionRegEntryBase {
  public:
-  /*! \brief name of the entry */
+  /** \brief name of the entry */
   std::string name;
-  /*! \brief description of the entry */
+  /** \brief description of the entry */
   std::string description;
-  /*! \brief additional arguments to the factory function */
+  /** \brief additional arguments to the factory function */
   // std::vector<ParamFieldInfo> arguments;
-  /*! \brief Function body to create ProductType */
+  /** \brief Function body to create ProductType */
   FunctionType body;
-  /*! \brief Return type of the function */
+  /** \brief Return type of the function */
   std::string return_type;
 
-  /*!
+  /**
    * \brief Set the function body.
-   * \param body Function body to set.
-   * \return reference to self.
+   * @param body Function body to set.
+   * @return reference to self.
    */
   inline EntryType &set_body(FunctionType body) {
     this->body = body;
     return this->self();
   }
-  /*!
+  /**
    * \brief Describe the function.
-   * \param description The description of the factory function.
-   * \return reference to self.
+   * @param description The description of the factory function.
+   * @return reference to self.
    */
   inline EntryType &describe(const std::string &description) {
     this->description = description;
     return this->self();
   }
-  /*!
+  /**
    * \brief Set the return type.
-   * \param type Return type of the function, could be Symbol or Symbol[]
-   * \return reference to self.
+   * @param type Return type of the function, could be Symbol or Symbol[]
+   * @return reference to self.
    */
   inline EntryType &set_return_type(const std::string &type) {
     return_type = type;
@@ -182,17 +182,17 @@ class FunctionRegEntryBase {
   }
 
  protected:
-  /*!
-   * \return reference of self as derived type
+  /**
+   * @return reference of self as derived type
    */
   inline EntryType &self() { return *(static_cast<EntryType *>(this)); }
 };
 
-/*!
- * \def CINN_REGISTRY_ENABLE
+/**
+ * @def CINN_REGISTRY_ENABLE
  * \brief Macro to enable the registry of EntryType.
  * This macro must be used under namespace cinn, and only used once in cc file.
- * \param EntryType Type of registry entry
+ * @param EntryType Type of registry entry
  */
 #define CINN_REGISTRY_ENABLE(EntryType)             \
   template <>                                       \
@@ -201,14 +201,14 @@ class FunctionRegEntryBase {
     return &inst;                                   \
   }
 
-/*!
+/**
  * \brief Generic macro to register an EntryType
  *  There is a complete example in FactoryRegistryEntryBase.
  *
- * \param EntryType The type of registry entry.
- * \param EntryTypeName The typename of EntryType, must do not contain namespace :: .
- * \param Name The name to be registered.
- * \sa FactoryRegistryEntryBase
+ * @param EntryType The type of registry entry.
+ * @param EntryTypeName The typename of EntryType, must do not contain namespace :: .
+ * @param Name The name to be registered.
+ * @sa FactoryRegistryEntryBase
  */
 #define CINN_REGISTRY_REGISTER(EntryType, EntryTypeName, Name) \
   static EntryType &__make_##EntryTypeName##_##Name##__ = ::cinn::Registry<EntryType>::Get()->__REGISTER__(#Name)
