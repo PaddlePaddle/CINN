@@ -991,6 +991,10 @@ void fn0_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
   for (int i = 0; i < C_target_host->num_elements(); i++) {
     ASSERT_NEAR(C_target_mem[i], A_mem[i] + B_mem[i], 1e-5);
   }
+
+  cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
 TEST(ElementwiseAdd, cache_read1) {
@@ -1120,6 +1124,10 @@ void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
                   1e-5);
     }
   }
+
+  cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
 // JIT test precision for the basic elementwise add
@@ -1160,6 +1168,10 @@ void TestElementwiseAddPrecisionBasic(const lang::Module& module, const std::str
       ASSERT_NEAR(C_target_mem[i * N.as_int32() + j], A_mem[i * N.as_int32() + j], 1e-5);
     }
   }
+
+  cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(B_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
 TEST(ElementwiseAdd, cache_read_shared) {
