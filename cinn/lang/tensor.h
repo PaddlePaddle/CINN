@@ -264,19 +264,12 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   /**
    * The normal axis without reducing ones.
    */
-  const std::vector<Var>& axis() const {
-    CHECK_EQ(axis_.size(), domain_without_reduce_axis().size());
-    return axis_;
-  }
+  const std::vector<Var>& axis() const;
 
   /**
    * The axis with the reduce ones.
    */
-  std::vector<Var> axis_with_reduce() const {
-    auto axis = axis_;
-    axis.insert(axis.end(), reduce_axis.begin(), reduce_axis.end());
-    return axis;
-  }
+  std::vector<Var> axis_with_reduce() const;
 
   /**
    * Get the tensors thouse depend on the same buffer belong to this tensor.
@@ -290,6 +283,11 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   bool has_expression() const;
 
   ~_Tensor_();
+
+  /**
+   * Tell if this tensor uses other tensors in the body.
+   */
+  bool Uses(const ir::Tensor& other);
 
   //! Create a buffer belong to this tensor.
   void WithBuffer(const Type& type = Void());
