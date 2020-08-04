@@ -5,6 +5,7 @@
 
 #include <map>
 #include <string>
+#include <unordered_map>
 
 #include "cinn/common/arithmatic.h"
 #include "cinn/common/cas.h"
@@ -57,10 +58,21 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
     PartialSimplify(&node->stride, var_intervals);
   }
 
+  void Visit(const Cast* op, Expr* expr) override {
+    auto* node = expr->As<Cast>();
+    Visit(&node->v(), &node->v());
+  }
+
   void Visit(const PolyFor* op, Expr* expr) override {
     auto* node      = expr->As<ir::PolyFor>();
     node->condition = common::SolveInequality(op->condition, op->iterator);
 
+    Visit(&node->body, &node->body);
+  }
+
+  void Visit(const For* op, Expr* expr) override {
+    auto* node = expr->As<ir::For>();
+    Visit(&node->extent, &node->extent);
     Visit(&node->body, &node->body);
   }
 
