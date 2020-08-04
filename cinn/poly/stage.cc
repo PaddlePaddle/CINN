@@ -173,6 +173,11 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
       // Do nothing.
       break;
   }
+
+  // Lock all the axis.
+  for (int i = 0; i < isl_map_dim(transform_.get(), isl_dim_out); i++) {
+    LockAxis(i);
+  }
 }
 
 void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
@@ -619,6 +624,19 @@ bool Stage::is_axis_locked(uint32_t level) const {
 
 void Stage::AssertAxisIsNotLocked(uint32_t level) {
   CHECK(!is_axis_locked(level)) << "The " << level << "-th axis is locked, cannot perform schedule";
+}
+
+int Stage::GetTransformedLevel(int level) {
+  if (!compute_ats().empty()) {
+    // The ComputeAt schedule will insert some consumer axis in the preceding of this, so the raw before ComputeAt
+    // should add the numbers of axis inserted.
+    CHECK_EQ(compute_ats().size(), 1UL);
+    auto &compute_at = compute_ats().front();
+    return compute_at.level + level + 1;
+  }
+
+  // or just return the original.
+  return level;
 }
 
 }  // namespace poly

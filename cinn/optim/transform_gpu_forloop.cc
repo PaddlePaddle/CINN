@@ -215,7 +215,8 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
   std::map<std::pair<ir::ForType, uint8_t>, int> gpu_axis_range;
   for (auto *stage : stage_group) {
     for (auto &item : stage->forloop_infos()) {
-      auto [min_val, max_val] = poly::isl_set_get_axis_range(stage->transformed_domain().get(), item.first);
+      int level               = stage->GetTransformedLevel(item.first);
+      auto [min_val, max_val] = poly::isl_set_get_axis_range(stage->transformed_domain().get(), level);
       auto key                = std::make_pair(item.second.for_type, item.second.offset);
       gpu_axis_range[key]     = std::max(max_val.get_num_si() + 1, static_cast<long>(gpu_axis_range[key]));
     }

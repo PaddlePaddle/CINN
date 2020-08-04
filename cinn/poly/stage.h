@@ -209,6 +209,13 @@ class Stage : public Object {
   //! Get the i-th iterator.
   Iterator ith_iterator(int level);
 
+  /** Get the final level after all the transforms.
+   * The level will be affected by some schedule like ComputeAt, this will return the right level.
+   *
+   * @param level the level in schedule.
+   */
+  int GetTransformedLevel(int level);
+
   //! Get the statements.
   std::vector<std::string> input_statements() const;
 
