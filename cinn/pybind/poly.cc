@@ -52,11 +52,13 @@ void BindStage(py::module *m) {
       .def("axis", py::overload_cast<int>(&Stage::axis, py::const_))
       .def("axis", py::overload_cast<const std::string &>(&Stage::axis, py::const_))
       .def("axis_names", &Stage::axis_names)
+      .def("bind", &Stage::Bind)
       .def("compute_inline", &Stage::ComputeInline)
       .def("share_buffer_with", &Stage::ShareBufferWith)
       .def("split", py::overload_cast<const Iterator &, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("split", py::overload_cast<const std::string &, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("split", py::overload_cast<int, int>(&Stage::Split), arg("level"), arg("factor"))
+      .def("fuse", py::overload_cast<int, int>(&Stage::Fuse), arg("level0"), arg("level1"))
       .def("reorder", &Stage::Reorder)
       .def("tile", py::overload_cast<const Iterator &, const Iterator &, int, int>(&Stage::Tile))
       .def("tile", py::overload_cast<int, int, int, int>(&Stage::Tile))
@@ -68,9 +70,9 @@ void BindStage(py::module *m) {
       .def("unroll", py::overload_cast<const Iterator &>(&Stage::Unroll))
       .def("compute_at", &Stage::ComputeAtSchedule, arg("other"), arg("level"), arg("kind") = Stage::kComputeAtAuto)
       .def("skew", &Stage::Skew)
-      // TODO(fuchang01): GpuThreads
-      // TODO(fuchang01): GpuBlocks
-      .def("ctrl_depend", &Stage::CtrlDepend);
+      .def("ctrl_depend", &Stage::CtrlDepend)
+      .def("cache_read", &Stage::CacheRead)
+      .def("cache_write", &Stage::CacheRead);
 }
 }  // namespace
 
