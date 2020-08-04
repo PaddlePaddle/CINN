@@ -67,6 +67,8 @@ static const char* args_construct_repr = "cinn_args_construct";
 //! Name of the helper intrinsic used to display debug string.
 static const char* debug_log_repr = "cinn_print_debug_string";
 
+static const char* cuda_sync_threads = "__syncthreads";
+
 }  // namespace intrisic
 
 /**

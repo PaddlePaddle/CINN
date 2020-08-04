@@ -28,6 +28,11 @@ using ir::DeviceAPI;
 
 struct ComputeAtRelation;
 
+enum class ScopeKind {
+  kLocal  = 0,
+  kShared = 1,
+};
+
 struct StageForloopInfo {
   StageForloopInfo() = default;
   StageForloopInfo(ir::ForType for_type, ir::DeviceAPI device, uint8_t offset)
@@ -61,6 +66,8 @@ class Stage : public Object {
   Iterator axis(const std::string& i) const;
 
   std::vector<std::string> axis_names() const;
+
+  ir::_Tensor_* tensor() { return tensor_; }
 
   /**
    * Mark this stage to expand inplace in all the usages.
@@ -171,6 +178,16 @@ class Stage : public Object {
   ir::Tensor CacheWrite(const std::string& memory_type);
 
   /**
+   * Set thread scope.
+   */
+  void SetScope(ScopeKind scope) { scope_ = scope; }
+
+  /**
+   * Get thread scope.
+   */
+  ScopeKind scope() const { return scope_; }
+
+  /**
    * \brief Fuse two forloop levels and return the new level.
    * @param level0 the first level.
    * @param level1 the second level.
@@ -251,6 +268,8 @@ class Stage : public Object {
   std::map<int /*level*/, StageForloopInfo> forloop_infos_;
   //! A weak reference to the tensor.
   ir::_Tensor_* tensor_{};
+  //! Thread scope.
+  ScopeKind scope_{ScopeKind::kLocal};
 
   std::set<int> locked_axis_;
 

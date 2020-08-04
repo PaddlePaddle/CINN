@@ -11,6 +11,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/replace_var_with_expr.h"
 #include "cinn/poly/stage.h"
+#include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
 namespace optim {
@@ -235,6 +236,42 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
   }
 
   return info;
+}
+
+/**
+ * The generated __syncthreads call will be wrapped with a `if (xxxx == 0) { }`, this is the problem of isl AST output,
+ * drop it to make it run in all the threads.
+ */
+void CudaSyncThreadsDropIfThenElse(Expr *expr) {
+  struct Mutator : public ir::IRMutator<> {
+    void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+#define BLOCK_VISIT(op__)                               \
+  void Visit(const ir::op__ *op, Expr *expr) override { \
+    blocked_statement_stack.push_back(expr);            \
+    ir::IRMutator<>::Visit(op, expr);                   \
+    blocked_statement_stack.pop_back();                 \
+  }
+    BLOCK_VISIT(IfThenElse)
+
+    void Visit(const ir::Call *op, Expr *expr) override {
+      if (op->name == runtime::intrisic::cuda_sync_threads) {
+        if (!blocked_statement_stack.empty()) {
+          auto *last_for = blocked_statement_stack.back()->As<ir::IfThenElse>();
+          if (auto *eq_n = last_for->condition.As<ir::EQ>()) {
+            if (eq_n->b() == common::make_const(0)) {
+              *blocked_statement_stack.back() = *expr;
+            }
+          }
+        }
+      }
+    }
+
+    // Collect all the statements with Block(include Block) to the statement.
+    std::vector<ir::Expr *> blocked_statement_stack;
+  };
+
+  Mutator()(expr);
 }
 
 }  // namespace optim

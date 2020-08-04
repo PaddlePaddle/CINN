@@ -156,6 +156,10 @@ TEST(llvm, module_call_lowered_func) {
 
     auto main_fn = lang::Lower("main", {a, b, c}, {});
     builder.AddFunction(main_fn);
+
+    CodeGenC codegen(common::DefaultHostTarget());
+    codegen.SetInlineBuiltinCodes(false);
+    LOG(INFO) << "module:\n" << codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
   }
 
   auto [ab, bb, cb] = CreateTestBuffer();  // NOLINT

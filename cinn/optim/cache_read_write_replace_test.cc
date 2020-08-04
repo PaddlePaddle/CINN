@@ -37,6 +37,7 @@ function fn (_A, _B, _C)
       A_read_cache_3[i, j] = A[i, j]
     }
   }
+  __syncthreads()
   for (i, 100)
   {
     for (j, 20)

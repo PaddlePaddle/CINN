@@ -159,7 +159,7 @@ void ExternFunctionLLVMEmitter::EmitImpl(const ir::Call* op) {
 
   auto* command                   = codegen_for_emitter.b()->CreateCall(custom_function, args);
   codegen_->extern_func_emit_res_ = command;
-  LOG(INFO) << "call: " << DumpToString(*command);
+  VLOG(3) << "call: " << DumpToString(*command);
 }
 
 }  // namespace backends

@@ -176,7 +176,6 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
 }
 
 void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
-  AssertAxisIsNotLocked(level);
   isl::map access;
   isl_map *access_raw{};
   // For cache_read schedule, it will replace the producer tensor with cache in consumer, so replace the tuple name to
@@ -209,8 +208,6 @@ void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const 
     return (dim_type == isl_dim_in ? "pi" : "po") + std::to_string(i);
   });
 
-  ComputeAtSchedule(other, level, kind);
-
   auto indice_mins = transform.GetAccessesPrecedingIndicesMinAssumingParamsZero();
   std::vector<int> offsets;
   std::transform(indice_mins.begin(), indice_mins.end(), std::back_inserter(offsets), [&](int x) { return -x; });
@@ -221,6 +218,8 @@ void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const 
                                                 indice_mins,  // preceding_offset_for_producer_load
                                                 level         // level
   );
+
+  ComputeAtSchedule(other, level, kind);
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
@@ -502,7 +501,7 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
   CHECK(tensor_);
   auto my_tensor         = ir::Tensor(tensor_);
   std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
-  LOG(INFO) << "cache_name " << cache_name;
+  VLOG(4) << "cache_name " << cache_name;
   auto cache_tensor = lang::Compute(
       tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
   cache_tensor->WithBuffer(memory_type);
@@ -517,6 +516,14 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
 
   CHECK(!tensor_->read_cache_relation) << "Duplicate read cache found, just one is allowed";
   tensor_->read_cache_relation.reset(new ir::ReadCacheRelation{cache_name, reader_names});
+
+  if (memory_type == "shared") {
+    cache_tensor->stage()->SetScope(ScopeKind::kShared);
+  } else if (memory_type == "local") {
+    cache_tensor->stage()->SetScope(ScopeKind::kLocal);
+  } else {
+    NOT_IMPLEMENTED
+  }
 
   return cache_tensor;
 }
