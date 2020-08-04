@@ -1,8 +1,7 @@
 #pragma once
+#include <any>
 #include <string>
 #include <unordered_map>
-
-#include "cinn/utils/any.h"
 
 namespace cinn {
 namespace common {
@@ -20,7 +19,7 @@ class InfoRegistry {
   void Clear() { data_.clear(); }
 
  private:
-  std::unordered_map<std::string, utils::any> data_;
+  std::unordered_map<std::string, std::any> data_;
 };
 
 template <typename T>
@@ -29,7 +28,7 @@ T& InfoRegistry::Get(const std::string& key) {
   if (it == data_.end()) {
     data_[key] = T();
   }
-  return utils::get<T>(data_[key]);
+  return std::any_cast<T&>(data_[key]);
 }
 
 }  // namespace common

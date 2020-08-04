@@ -1,4 +1,6 @@
 #pragma once
+#include <glog/logging.h>
+#include <any>
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -8,12 +10,9 @@
 #include <utility>
 #include <vector>
 
-#include "cinn/utils/any.h"
+#include "cinn/common/macros.h"
 #include "cinn/utils/base.h"
 #include "cinn/utils/registry.h"
-
-using cinn::utils::any;
-using cinn::utils::get;
 
 namespace cinn {
 namespace hlir {
@@ -22,11 +21,15 @@ class Operator;
 struct OpRegistry {
   std::recursive_mutex mutex;
   std::atomic<int> op_counter{0};
-  std::unordered_map<std::string, std::unique_ptr<any>> attr;
+  std::unordered_map<std::string, std::unique_ptr<std::any>> attr;
   static OpRegistry* Global() {
     static OpRegistry inst;
     return &inst;
   }
+
+ private:
+  OpRegistry() = default;
+  CINN_DISALLOW_COPY_AND_ASSIGN(OpRegistry);
 };
 
 template <typename ValueType>
@@ -66,9 +69,9 @@ class Operator {
  public:
   std::string name;
   std::string description;
-  uint32_t num_inputs    = 1;
-  uint32_t num_outputs   = 1;
-  uint32_t support_level = 10;
+  uint32_t num_inputs{1};
+  uint32_t num_outputs{1};
+  uint32_t support_level{10};
 
   inline Operator& describe(const std::string description) {
     this->description = description;
@@ -97,19 +100,19 @@ class Operator {
    */
   static const Operator* Get(const std::string& op_name) {
     const Operator* op = cinn::Registry<Operator>::Find(op_name);
-    CHECK(op != nullptr) << "Operator " << op_name << " is not registered";
+    CHECK(op) << "Operator [" << op_name << "] is not registered";
     return op;
   }
 
   template <typename ValueType>
   inline Operator& set_attr(const std::string& attr_name, const ValueType& value) {
-    UpdateAttrMap(attr_name, [this, attr_name, value](any* pmap) {
-      if (pmap->empty()) {
+    UpdateAttrMap(attr_name, [this, attr_name, value](std::any* pmap) {
+      if (!pmap->has_value()) {
         OpValueType<ValueType> pm;
         pm.attr_name = attr_name;
         *pmap        = std::move(pm);
       }
-      std::vector<ValueType>& vec = get<OpValueType<ValueType>>(*pmap).data;
+      std::vector<ValueType>& vec = std::any_cast<OpValueType<ValueType>&>(*pmap).data;
       // resize the value type.
       if (vec.size() <= index) {
         vec.resize(index + 1, ValueType());
@@ -120,11 +123,11 @@ class Operator {
   }
   template <typename ValueType>
   static const OpValueType<ValueType>& GetAttr(const std::string& attr_name) {
-    const any* ref = GetAttrMap(attr_name);
+    const std::any* ref = GetAttrMap(attr_name);
     if (ref == nullptr) {
       // update the attribute map of the key by creating new empty OpMap
-      UpdateAttrMap(attr_name, [attr_name](any* pmap) {
-        if (pmap->empty()) {
+      UpdateAttrMap(attr_name, [attr_name](std::any* pmap) {
+        if (!pmap->has_value()) {
           OpValueType<ValueType> pm;
           pm.attr_name = attr_name;
           *pmap        = std::move(pm);
@@ -132,7 +135,7 @@ class Operator {
       });
       ref = GetAttrMap(attr_name);
     }
-    return get<OpValueType<ValueType>>(*ref);
+    return std::any_cast<const OpValueType<ValueType>&>(*ref);
   }
 
  private:
@@ -140,11 +143,8 @@ class Operator {
   friend class OpValueType;
   friend class cinn::Registry<Operator>;
   uint32_t index{0};
-  Operator() {
-    OpRegistry* reg = OpRegistry::Global();
-    index           = reg->op_counter++;
-  }
-  static const any* GetAttrMap(const std::string& key) {
+  Operator() { index = OpRegistry::Global()->op_counter++; }
+  static const std::any* GetAttrMap(const std::string& key) {
     auto& dict = OpRegistry::Global()->attr;
     auto it    = dict.find(key);
     if (it != dict.end()) {
@@ -154,11 +154,11 @@ class Operator {
     }
   }
   // update the attribute OpValueType
-  static void UpdateAttrMap(const std::string& key, std::function<void(any*)> updater) {
+  static void UpdateAttrMap(const std::string& key, std::function<void(std::any*)> updater) {
     OpRegistry* reg = OpRegistry::Global();
     std::lock_guard<std::recursive_mutex>(reg->mutex);
-    std::unique_ptr<any>& value = reg->attr[key];
-    if (value.get() == nullptr) value.reset(new any());
+    std::unique_ptr<std::any>& value = reg->attr[key];
+    if (value.get() == nullptr) value.reset(new std::any());
     if (updater != nullptr) updater(value.get());
   }
 };
@@ -173,12 +173,10 @@ class Operator {
  * \param OpName The name of registry
  *
  * \code
- *
  *  CINN_REGISTER_OP(add)
  *  .describe("add two inputs together")
  *  .set_num_inputs(2)
  *  .set_attr<OpKernel>("gpu_kernel", AddKernel);
- *
  * \endcode
  */
 #define CINN_REGISTER_OP(OpName)                                \
