@@ -136,7 +136,7 @@ std::unique_ptr<Instruction> Instruction::CreateNary(const Shape &shape,
       break;
 
     default:
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
 
   auto instr = std::unique_ptr<Instruction>(new Instruction(instr_code, shape));

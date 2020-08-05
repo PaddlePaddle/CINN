@@ -41,7 +41,7 @@ cinn::ir::Tensor BinaryBasicImpl::operator()(const cinn::ir::Tensor& a,
       out_tensor = RunWithArgb5Dim(a, b);
       break;
     default:
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
 
   if (inlined_) out_tensor->stage()->ComputeInline();
@@ -72,7 +72,7 @@ cinn::ir::Tensor BinaryBasicImpl::RunWithArgb1Dim(const Tensor& a, const Tensor&
       });
       break;
     default:
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
   return out_tensor;
 }
@@ -100,7 +100,7 @@ cinn::ir::Tensor BinaryBasicImpl::RunWithArgb2Dim(const Tensor& a, const Tensor&
       });
       break;
     default:
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
   return out_tensor;
 }
@@ -126,7 +126,7 @@ cinn::ir::Tensor BinaryBasicImpl::RunWithArgb3Dim(const Tensor& a, const Tensor&
       });
       break;
     default:
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
   return out_tensor;
 }
@@ -147,7 +147,7 @@ cinn::ir::Tensor BinaryBasicImpl::RunWithArgb4Dim(const Tensor& a, const Tensor&
       });
       break;
     default:
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
   return out_tensor;
 }
@@ -163,7 +163,7 @@ cinn::ir::Tensor BinaryBasicImpl::RunWithArgb5Dim(const Tensor& a, const Tensor&
       });
       break;
     default:
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
   return out_tensor;
 }
@@ -198,7 +198,7 @@ class BinaryLowerImpl : public LowerImplBase {
             context, [](Expr a, Expr b) { return a / b; }, instr->inlined())(at, bt, context->new_ssa_id("add"));
         break;
       default:
-        NOT_IMPLEMENTED
+        CINN_NOT_IMPLEMENTED
     }
 
     scope->Insert(instr, out);

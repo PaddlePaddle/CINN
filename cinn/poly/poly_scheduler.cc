@@ -117,7 +117,7 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
 //! to check validity.
 // TODO(Superjomn) Implement this and integrate it into ComputeAt transform for checking transform validity.
 bool CheckGroupValid(const std::vector<Group>& groups) {
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
   return false;
 }
 

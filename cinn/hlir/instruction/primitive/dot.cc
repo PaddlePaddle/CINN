@@ -47,7 +47,7 @@ Tensor DotBasicImpl::MatDotMat(const Tensor &a, const Tensor &b, const std::stri
     } break;
 
     default:
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
   return out_tensor;
 }
@@ -78,7 +78,7 @@ Tensor DotBasicImpl::operator()(const Tensor &a, const Tensor &b, const std::str
   } else if (a_dims == 1 && b_dims == 1) {
     res = VecDotVec(a, b, name);
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   return res;
@@ -86,7 +86,7 @@ Tensor DotBasicImpl::operator()(const Tensor &a, const Tensor &b, const std::str
 
 class DotLowerImpl : public LowerImplBase {
  public:
-  DotLowerImpl(InstrCode code) : LowerImplBase(code) {}
+  explicit DotLowerImpl(InstrCode code) : LowerImplBase(code) {}
 
   void Run(const Instruction *instr, Context *context, Scope *scope, ComputationLower *lower) override {
     CHECK_EQ(instr->operand_count(), 2UL) << "Dot should take two arguments";
@@ -102,7 +102,7 @@ class DotLowerImpl : public LowerImplBase {
 
 class DotCblasLowerImpl : public LowerImplBase {
  public:
-  DotCblasLowerImpl(InstrCode code) : LowerImplBase(code) {}
+  explicit DotCblasLowerImpl(InstrCode code) : LowerImplBase(code) {}
 
   void Run(const Instruction *instr, Context *context, Scope *scope, ComputationLower *lower) override {
     CHECK_EQ(instr->operand_count(), 2UL) << "Dot should take two arguments";

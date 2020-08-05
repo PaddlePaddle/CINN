@@ -70,7 +70,7 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
         cast =
             runtime::IntrinsicCall(Void(), runtime::intrisic::int32_to_cinn_pod_value_repr, {arg}, {pod_val_addr_expr});
       } else {
-        NOT_IMPLEMENTED
+        CINN_NOT_IMPLEMENTED
       }
 
       exprs.push_back(cast);

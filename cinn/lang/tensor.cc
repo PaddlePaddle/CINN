@@ -57,7 +57,7 @@ std::set<std::string> _Tensor_::GetDependTensorNames() const {
   } else if (is_placeholder_node()) {
     return names;
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   return names;
@@ -218,7 +218,7 @@ std::vector<Expr *> _Tensor_::expr_fields() {
       for (auto &expr : op->read_args()) res.push_back(&expr);
     } else if (is_buffer_shared_node()) {
     } else {
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
     }
   }
 
@@ -246,7 +246,7 @@ std::vector<const Expr *> _Tensor_::expr_fields() const {
     } else if (is_buffer_shared_node()) {
     } else {
       LOG(ERROR) << "func_type: " << func_type;
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
     }
   }
 
@@ -271,7 +271,7 @@ Expr _Tensor_::body() const {
   if (is_buffer_shared_node()) return Expr();
   if (is_compute_node()) return operation->as<ir::ComputeOp>()->body.front();
   if (is_call_node()) return operation->as<ir::CallOp>()->call_expr;
-  NOT_IMPLEMENTED;
+  CINN_NOT_IMPLEMENTED;
 }
 
 Expr *_Tensor_::mutable_body() {
@@ -279,7 +279,7 @@ Expr *_Tensor_::mutable_body() {
   if (is_buffer_shared_node()) return nullptr;
   if (is_compute_node()) return &operation->as<ir::ComputeOp>()->body.front();
   if (is_call_node()) return &operation->as<ir::CallOp>()->call_expr;
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
 }
 
 Expr _Tensor_::tensor_store_expanded_body() {
@@ -298,7 +298,7 @@ Expr _Tensor_::tensor_store_expanded_body() {
         final_body = Tensor(this)(g_axis) + final_body;
         break;
       default:
-        NOT_IMPLEMENTED
+        CINN_NOT_IMPLEMENTED
     }
   }
 
@@ -335,7 +335,7 @@ void _Tensor_::Bind(const Buffer &buffer) {
 void Tensor::ExpandInlined() {
   // Collect all the Calls with Tensors
   // Expand all the uninlined tensor.
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
 }
 
 void _Tensor_::WithBuffer(const Type &type) {

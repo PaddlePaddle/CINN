@@ -63,7 +63,7 @@ llvm::Value *EmitComparison(llvm::CmpInst::Predicate predicate,
   return comparison_result;
 }
 
-#define __IR_EMITTER_NOT_IMPLEMENTED(__op) NOT_IMPLEMENTED
+#define __IR_EMITTER_CINN_NOT_IMPLEMENTED(__op) CINN_NOT_IMPLEMENTED
 
 }  // namespace
 
@@ -208,7 +208,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Add *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Activate *) {  // Should be replaced by a extern call.
-  NOT_IMPLEMENTED;
+  CINN_NOT_IMPLEMENTED;
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Sub *op) {
@@ -330,7 +330,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
       callee = m_->getFunction(runtime::intrisic::pod_value_to_buffer_p);
     } else {
       LOG(ERROR) << "can't cast cinn_pod_value_t to " << op->type();
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
     }
 
     CHECK(callee);
@@ -533,7 +533,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::PolyFor *op) {
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
   return nullptr;
 }
 
@@ -591,7 +591,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
   return ret;
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::PrimitiveNode *) { NOT_IMPLEMENTED return nullptr; }
+llvm::Value *CodeGenLLVM::Visit(const ir::PrimitiveNode *) { CINN_NOT_IMPLEMENTED return nullptr; }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   if (op->name == runtime::intrisic::buffer_create) {
@@ -648,7 +648,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   return Call(callee, std::move(args));
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
+llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) { __IR_EMITTER_CINN_NOT_IMPLEMENTED(op); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Var_ *op) {
   llvm::Value *value = GetVar(op->name, false);
@@ -800,7 +800,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Free *op) {
   return nullptr;
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::_Range_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
+llvm::Value *CodeGenLLVM::Visit(const ir::_Range_ *op) { __IR_EMITTER_CINN_NOT_IMPLEMENTED(op); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Buffer_ *op) { return GetVar(op->name); }
 
@@ -919,9 +919,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Let *op) {
   return GetVar(name);
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::Reduce *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
+llvm::Value *CodeGenLLVM::Visit(const ir::Reduce *op) { __IR_EMITTER_CINN_NOT_IMPLEMENTED(op); }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::Ramp *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
+llvm::Value *CodeGenLLVM::Visit(const ir::Ramp *op) { __IR_EMITTER_CINN_NOT_IMPLEMENTED(op); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Broadcast *op) {
   llvm::Value *value    = Visit(&op->value);
@@ -937,9 +937,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Broadcast *op) {
   return b_->CreateShuffleVector(value, undef, zeros, "broadcast_shuffle");
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::FracOp *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
+llvm::Value *CodeGenLLVM::Visit(const ir::FracOp *op) { __IR_EMITTER_CINN_NOT_IMPLEMENTED(op); }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::Power *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
+llvm::Value *CodeGenLLVM::Visit(const ir::Power *op) { __IR_EMITTER_CINN_NOT_IMPLEMENTED(op); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Product *op) {
   auto size = op->operands().size();
@@ -975,7 +975,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Sum *op) {
   return ret;
 }
 
-#undef __IR_EMITTER_NOT_IMPLEMENTED
+#undef __IR_EMITTER_CINN_NOT_IMPLEMENTED
 
 void CodeGenLLVM::Compile(const lang::Module &module) {
   for (auto &fn : module.functions()) {

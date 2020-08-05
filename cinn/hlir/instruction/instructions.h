@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -175,7 +176,7 @@ class TupleGet : public Instruction {
       shape_ = tuple_node->items()[offset]->shape();
       type_  = tuple_node->items()[offset]->type();
     } else {
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
     }
 
     operands_.push_back(tuple);

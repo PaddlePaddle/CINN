@@ -255,7 +255,7 @@ auto CreateCinnMatmulModule(const std::string &name, Target target, int m, int n
   } else if (name == "array_packing") {
     return CreateMatmulArrayPacking(target, m, n, k);
   }
-  { NOT_IMPLEMENTED }
+  { CINN_NOT_IMPLEMENTED }
 }
 
 auto CreateExecutionEngine(const cinn::lang::Module &module) {

@@ -124,7 +124,7 @@ std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages,
       return scheduler.BuildSchedule();
     } break;
     default:
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
   return nullptr;
 }

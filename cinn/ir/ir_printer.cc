@@ -1,5 +1,6 @@
 #include "cinn/ir/ir_printer.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "cinn/ir/lowered_func.h"
@@ -54,7 +55,7 @@ void IrPrinter::Visit(const Activate *x) {
       os() << "exp";
       break;
     default:
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
 
   os() << "(";
@@ -206,7 +207,7 @@ void IrPrinter::Visit(const Load *x) {
   } else if (x->is_addr_scalar()) {
     Print(x->tensor);
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   os_ << "[";
@@ -225,7 +226,7 @@ void IrPrinter::Visit(const Store *x) {
   } else if (x->is_addr_scalar()) {
     Print(x->tensor);
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   os_ << "[";

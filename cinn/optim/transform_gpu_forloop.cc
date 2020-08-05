@@ -181,7 +181,7 @@ void MarkGpuForloop(const std::string &statement,
             VLOG(3) << "gpu replacing var " << axis_var << " to " << var_expr;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
           } else {
-            NOT_IMPLEMENTED
+            CINN_NOT_IMPLEMENTED
           }
         }
       }
@@ -218,7 +218,7 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
       int level               = stage->GetTransformedLevel(item.first);
       auto [min_val, max_val] = poly::isl_set_get_axis_range(stage->transformed_domain().get(), level);
       auto key                = std::make_pair(item.second.for_type, item.second.offset);
-      gpu_axis_range[key]     = std::max(max_val.get_num_si() + 1, static_cast<long>(gpu_axis_range[key]));
+      gpu_axis_range[key]     = std::max(max_val.get_num_si() + 1, static_cast<int64_t>(gpu_axis_range[key]));
     }
   }
 
@@ -232,7 +232,7 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
         info.set_block_dim(item.first.second, item.second);
         break;
       default:
-        NOT_IMPLEMENTED
+        CINN_NOT_IMPLEMENTED
     }
   }
 

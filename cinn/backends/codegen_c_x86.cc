@@ -93,7 +93,7 @@ void CodeGenCX86::PrintVecInputArgument(const Expr *op) {
       Print(value);
       os() << ")";
     } else {
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
     }
   } else {
     Print(*op);

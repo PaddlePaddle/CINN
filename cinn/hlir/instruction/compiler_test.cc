@@ -362,7 +362,7 @@ void TestElementwise() {
         fp  = cinn_cpu_exp_fp32;
         break;
       default:
-        NOT_IMPLEMENTED
+        CINN_NOT_IMPLEMENTED
     }
     out->set_inlined(false);
 

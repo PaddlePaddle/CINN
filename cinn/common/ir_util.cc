@@ -31,7 +31,7 @@ Expr RampRelatedMul(ir::Broadcast *broadcast, Expr other) {
 }
 // ramp * ramp
 Expr RampRelatedMul(ir::Ramp *ramp, ir::Ramp *other) {
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
   return Expr();
 }
 // ramp + scalar
@@ -51,7 +51,7 @@ Expr RampRelatedAdd(ir::Broadcast *broadcast, Expr other) {
 }
 // ramp * ramp
 Expr RampRelatedAdd(ir::Ramp *ramp, ir::Ramp *other) {
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
   return Expr();
 }
 
@@ -76,7 +76,7 @@ Expr RampRelatedAdd(Expr a, Expr b) {
     CHECK_EQ(a_broadcast->lanes, b_broadcast->lanes);
     return ir::Broadcast::Make(a_broadcast->value + b_broadcast->value, a_broadcast->lanes);
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 }
 
@@ -102,7 +102,7 @@ Expr RampRelatedMul(Expr a, Expr b) {
     return ir::Broadcast::Make(a_broadcast->value * b_broadcast->value, a_broadcast->lanes);
   } else {
     LOG(INFO) << "a,b: " << a << " " << b;
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 }
 
@@ -144,7 +144,7 @@ namespace {
 
 class SubstituteMutator : ir::IRMutator<ir::Expr *> {
  public:
-  SubstituteMutator(const std::map<const ir::_Var_ *, Expr> &var_map) {
+  explicit SubstituteMutator(const std::map<const ir::_Var_ *, Expr> &var_map) {
     for (auto &item : var_map) {
       var_map_[item.first->name] = item.second;
     }
@@ -272,7 +272,7 @@ Expr cast(Expr e, Type type) {
     } else if (type.is_float(64)) {
       return common::make_const(static_cast<double>(e.get_constant()));
     } else {
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
     }
   }
 
@@ -284,7 +284,7 @@ std::vector<std::string> GatherItersToTensorProducer(const std::string &target_t
     std::vector<std::string> iters;
     const std::string &target_tensor_name;
 
-    Visitor(const std::string &target_tensor_name) : target_tensor_name(target_tensor_name) {}
+    explicit Visitor(const std::string &target_tensor_name) : target_tensor_name(target_tensor_name) {}
 
     std::vector<std::string> operator()(Expr *expr) {
       ir::IRMutator<>::Visit(expr, expr);

@@ -101,7 +101,7 @@ GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
   } else if (minus_n) {
     return -BuildHelper(minus_n->v());
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 }
 
@@ -215,7 +215,7 @@ class GiNaCToExprVisitor : public GiNaC::symbol::visitor,
 
     cur = res;
   }
-  void visit(const GiNaC::basic& basic) override { NOT_IMPLEMENTED }
+  void visit(const GiNaC::basic& basic) override { CINN_NOT_IMPLEMENTED }
 };
 
 Expr ExprToGinacConerter::GinacToExpr(const GiNaC::ex& ex) {
