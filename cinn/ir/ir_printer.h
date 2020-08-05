@@ -46,6 +46,7 @@ struct IrPrinter : public IRVisitor {
 };
 
 std::ostream &operator<<(std::ostream &os, Expr a);
+std::ostream &operator<<(std::ostream &os, const std::vector<Expr> &a);
 std::ostream &operator<<(std::ostream &os, const lang::Module &m);
 
 template <typename IRN>
