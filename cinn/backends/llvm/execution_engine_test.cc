@@ -42,11 +42,11 @@ namespace {
 bool RegisterKnownSymbols() {
   decltype(auto) registry = RuntimeSymbolRegistry::Global();
 
-  registry.Register("sinf", reinterpret_cast<void *>(&sinf));
-  registry.Register("sin", reinterpret_cast<void *>(static_cast<double (*)(double)>(&sin)));
+  registry.RegisterFn("sinf", reinterpret_cast<void *>(&sinf));
+  registry.RegisterFn("sin", reinterpret_cast<void *>(static_cast<double (*)(double)>(&sin)));
 
-  registry.Register("cosf", reinterpret_cast<void *>(&cosf));
-  registry.Register("cos", reinterpret_cast<void *>(static_cast<double (*)(double)>(&cos)));
+  registry.RegisterFn("cosf", reinterpret_cast<void *>(&cosf));
+  registry.RegisterFn("cos", reinterpret_cast<void *>(static_cast<double (*)(double)>(&cos)));
   return true;
 }
 
@@ -232,11 +232,11 @@ TEST(ExecutionEngine, custom_runtime_symbols) {
   // registry.Register("dereference_f64_ptr", (void *)+[](double *x) { return *x; });
 
   for (size_t i = 0; i < angle.size(); i++) {
-    registry.Register("theta_" + std::to_string(i), reinterpret_cast<void *>(&angle[i]));
+    registry.RegisterVar("theta_" + std::to_string(i), angle[i]);
   }
 
-  registry.Register("random_x_ptr", reinterpret_cast<void *>(&random_x));
-  registry.Register("random_y_ptr", reinterpret_cast<void *>(&random_y));
+  registry.RegisterVar("random_x_ptr", random_x);
+  registry.RegisterVar("random_y_ptr", random_y);
   {
     llvm::Type *i32_ty        = builder->getInt32Ty();
     llvm::FunctionType *fn_ty = llvm::FunctionType::get(i32_ty, {}, false);
