@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "cinn/ir/ir_operators.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/ir/node.h"
@@ -60,7 +61,12 @@ void BindLoweredFunc(py::module *m) {
       .def("human_readable", &Argument::human_readable);
 
   py::class_<LoweredFunc> lowered_func(*m, "LoweredFunc");
-  lowered_func.def(py::init<>()).def(py::init<IrNode *>());
+  lowered_func.def(py::init<>())
+      .def(py::init<IrNode *>())
+      .def("__str__", [](const ir::LoweredFunc &self) -> std::string { return utils::GetStreamCnt(Expr(self)); })
+      .def("__repr__", [](const ir::LoweredFunc &self) -> std::string {
+        return utils::StringFormat("<LoweredFunc %s>", self->name.c_str());
+      });
 }
 
 void BindNode(py::module *m) {

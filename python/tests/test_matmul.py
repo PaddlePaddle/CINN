@@ -25,6 +25,7 @@ class TestMamul(unittest.TestCase):
     def test_matmul_basic(self):
         a, b, c, c_target, *args = create_data(self.m, self.n, self.k, self.bn)
         module = create_matmul_basic(self.target, self.m, self.n, self.k)
+
         self.engine.link(module)
         matmul = self.engine.lookup("matmul")
         matmul(args)
@@ -35,6 +36,7 @@ class TestMamul(unittest.TestCase):
     def test_matmul_tile(self):
         a, b, c, c_target, *args = create_data(self.m, self.n, self.k, self.bn)
         module = create_matmul_tile(self.target, self.m, self.n, self.k)
+        print('module:\n', module.get_c_code())
         self.engine.link(module)
         matmul = self.engine.lookup("matmul_tile")
         matmul(args)
@@ -82,6 +84,7 @@ def create_matmul_tile(target, m, n, k):
     builder = lang.Module.Builder("matmul_tile", target)
     ts = [a.to_tensor(), b.to_tensor(), c_init, c]
     func = lang.lower("matmul_tile", ts)
+    print('func', func)
     builder.add_function(func)
     return builder.build()
 

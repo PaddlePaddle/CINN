@@ -3,6 +3,7 @@
 #include <memory>
 #include <variant>
 
+#include "cinn/backends/codegen_c.h"
 #include "cinn/common/target.h"
 #include "cinn/lang/buffer.h"
 #include "cinn/lang/builtin.h"
@@ -103,7 +104,12 @@ void BindModule(py::module *m) {
       .def("buffers", &lang::Module::buffers)
       .def("functions", &lang::Module::functions)
       .def("submodules", &lang::Module::submodules)
-      .def("compile", &lang::Module::Compile);
+      .def("compile", &lang::Module::Compile)
+      .def("get_c_code", [](const lang::Module &self) -> std::string {
+        backends::CodeGenC codegen(common::DefaultHostTarget());
+        codegen.SetInlineBuiltinCodes(false);
+        return codegen.Compile(self, backends::CodeGenC::OutputKind::CImpl);
+      });
 
   py::class_<lang::Module::Builder> builder(module, "Builder");
   builder.def(py::init<const std::string &, const common::Target &>())
