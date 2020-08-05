@@ -1,4 +1,5 @@
 add_subdirectory(instruction)
+add_subdirectory(pe)
 
 foreach(cpp ${srcs})
   set(core_src
