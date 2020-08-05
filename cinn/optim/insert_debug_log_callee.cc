@@ -104,7 +104,7 @@ struct StoreDebugInfoBuilder : public ir::IRVisitor {
   std::string type_specifier(const Type &type) {
     if (type.is_float()) return "%f";
     if (type.is_int()) return "%d";
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
     return "";
   }
 

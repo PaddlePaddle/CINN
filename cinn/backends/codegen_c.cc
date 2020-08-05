@@ -92,7 +92,7 @@ std::string CodeGenC::GetTypeRepr(Type type) {
     str += type.customized_type();
   } else {
     LOG(ERROR) << type;
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   if (type.is_cpp_handle()) {
@@ -129,7 +129,7 @@ void CodeGenC::Visit(const ir::Not *op) {
 }
 void CodeGenC::Visit(const ir::Activate *op) {
   // Should be replaced by a tanh function call.
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
 }
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
@@ -264,7 +264,7 @@ void CodeGenC::Visit(const ir::Call *op) {
       os() << ")";
     }
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 }
 void CodeGenC::PrintCallArgs(const ir::Call *op) {
@@ -345,7 +345,7 @@ void CodeGenC::PrintCall_get_address(const ir::Call *op) {
     if (read_buf->type().lanes() <= 1) os() << "&";
     os() << read_buf->name;
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 }
 
@@ -370,7 +370,7 @@ void CodeGenC::PrintCall_pod_values_to_array(const ir::Call *op) {
   os() << " }";
 }
 
-void CodeGenC::Visit(const ir::_Module_ *op) { NOT_IMPLEMENTED }
+void CodeGenC::Visit(const ir::_Module_ *op) { CINN_NOT_IMPLEMENTED }
 void CodeGenC::Visit(const ir::_Var_ *op) { os() << op->name; }
 
 void CodeGenC::Visit(const ir::Load *op) {
@@ -597,7 +597,7 @@ void CodeGenC::PrintFuncArg(const ir::Argument &arg) {
     os() << GetTypeRepr(arg.type()) << " ";
     os() << arg.name();
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
   os() << arg.name();
 }
@@ -620,7 +620,7 @@ void CodeGenC::PrintStackVecType(Type type, int lanes) {
   os() << "StackedVec<" << GetTypeRepr(type) << "," << lanes << ">";
 }
 
-void CodeGenC::Visit(const ir::PrimitiveNode *op){NOT_IMPLEMENTED}
+void CodeGenC::Visit(const ir::PrimitiveNode *op) { CINN_NOT_IMPLEMENTED; }
 
 std::string ReadWholeFile(const std::string &path) {
   CHECK(!path.empty());

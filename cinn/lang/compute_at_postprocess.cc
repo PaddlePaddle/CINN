@@ -283,7 +283,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
       else if (poly_for_n)
         levels.push_back(poly_for_n->iterator);
       else
-        NOT_IMPLEMENTED
+        CINN_NOT_IMPLEMENTED
     }
 
     for (auto& compute_at_info : compute_at_infos) {

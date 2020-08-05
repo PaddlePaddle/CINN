@@ -8,4 +8,4 @@
   TypeName(const TypeName&) = delete;           \
   void operator=(const TypeName&) = delete
 
-#define NOT_IMPLEMENTED LOG(FATAL) << "Not Implemented";
+#define CINN_NOT_IMPLEMENTED LOG(FATAL) << "Not Implemented";

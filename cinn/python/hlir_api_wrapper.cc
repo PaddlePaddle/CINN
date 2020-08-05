@@ -21,7 +21,7 @@ py_instruction python::py_computation_builder::add_binary(const std::string& opr
     ptr = builder_.AddInstruction(
         hlir_instr::Instruction::CreateBinary(hlir_instr::InstrCode::Div, a.data, b.data, shape));
   } else {
-    NOT_IMPLEMENTED;
+    CINN_NOT_IMPLEMENTED;
   }
 
   return py_instruction(ptr);
@@ -38,7 +38,7 @@ python::py_instruction python::py_computation_builder::add_parameter(int param_o
   } else if (dtype == "float64") {
     config.type = Float(64);
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   auto ptr =
@@ -66,7 +66,7 @@ std::string NumpyDtypeToCinn(pybind11::dtype type) {
   } else if (type == pybind11::dtype::of<int64_t>()) {
     t = "int64";
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
   return t;
 }
@@ -98,7 +98,7 @@ pybind11::array py_buffer::numpy() {
   } else if (data_->type == cinn_int64_t()) {
     t = pybind11::dtype::of<int64_t>();
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   pybind11::array::ShapeContainer shape(data_->dims, data_->dims + data_->dimensions);
@@ -118,7 +118,7 @@ py_buffer::py_buffer(const std::vector<int>& shape,
   } else if (device == "x86") {
     d = cinn_x86_device;
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   cinn_type_t t;
@@ -131,7 +131,7 @@ py_buffer::py_buffer(const std::vector<int>& shape,
   } else if (dtype == "int64") {
     t = cinn_int64_t();
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   data_ = cinn_buffer_t::new_(d, t, shape, data_align);

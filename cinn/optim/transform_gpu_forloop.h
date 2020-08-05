@@ -1,9 +1,11 @@
 #pragma once
-#include <cinn/poly/stage.h>
+#include <algorithm>
+#include <utility>
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/poly/isl_utils.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace optim {

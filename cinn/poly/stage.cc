@@ -222,14 +222,13 @@ void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const 
                                                 tensor_->name,                         // producer_tensor_name
                                                 transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
                                                 indice_mins,  // preceding_offset_for_producer_load
-                                                level         // level
-  );
+                                                level);
 
   ComputeAtSchedule(other, level, kind);
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
   Iterator i_new(i.id + "_skew");
   Iterator j_new(j.id + "_skew");
 
@@ -476,7 +475,7 @@ void Stage::Bind(int level, const std::string &axis) {
     uint8_t offset = axis.back() - 'x';
     AddForloopInfo(level, StageForloopInfo{ir::ForType::GPUBlock, DeviceAPI::GPU, offset});
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 }
 
@@ -528,7 +527,7 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
   } else if (memory_type == "local") {
     cache_tensor->stage()->SetScope(ScopeKind::kLocal);
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   return cache_tensor;

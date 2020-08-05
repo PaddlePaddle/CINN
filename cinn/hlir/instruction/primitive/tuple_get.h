@@ -29,7 +29,7 @@ void LowerTupleGet(const Instruction* instr, ComputationLower* lower) {
     CHECK(expr.defined());
     lower->scope().Insert(instr, expr);
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 }
 

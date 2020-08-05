@@ -171,7 +171,7 @@ void _LoweredFunc_::PrepareArgumentExprs() {
     } else if (arg.is_var()) {
       _arg = Var(arg.name(), arg.var_arg()->type());
     } else {
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
     }
 
     CHECK(_arg->type().valid());
@@ -192,7 +192,7 @@ void _LoweredFunc_::PrepareArgumentExprs() {
       pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_buffer_p, {load_expr});
     } else {
       LOG(ERROR) << "Not supported type [" << arg.type() << "]";
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
     }
 
     Expr let_expr = Let::Make(_arg, pod_cast_expr);
@@ -250,7 +250,7 @@ Type Argument::type() const {
   else if (is_buffer())
     return buffer_arg()->type();
   else
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
 }
 
 std::string Argument::name() const {
@@ -259,7 +259,7 @@ std::string Argument::name() const {
   else if (is_var())
     return var_arg()->name;
   else
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   return "";
 }
 

@@ -26,7 +26,7 @@ void ActivateToExternCall(Expr *e) {
         __(kExp, cinn_cpu_exp_fp32)
 #undef __
         default:
-          NOT_IMPLEMENTED
+          CINN_NOT_IMPLEMENTED
       }
     }
   };
