@@ -12,7 +12,7 @@ namespace poly {
 using utils::Join;
 using utils::StringFormat;
 
-std::vector<std::string> GetDimNames(const isl::set &x) {
+std::vector<std::string> isl_get_dim_names(const isl::set &x) {
   std::vector<std::string> res;
   for (int i = 0; i < isl_set_dim(x.get(), isl_dim_set); i++) {
     res.push_back(isl_set_get_dim_name(x.get(), isl_dim_set, i));
@@ -20,7 +20,7 @@ std::vector<std::string> GetDimNames(const isl::set &x) {
   return res;
 }
 
-std::vector<std::string> GetDimNames(const isl::map &x, isl_dim_type dim_type) {
+std::vector<std::string> isl_get_dim_names(const isl::map &x, isl_dim_type dim_type) {
   std::vector<std::string> res;
   for (int i = 0; i < isl_map_dim(x.get(), dim_type); i++) {
     res.push_back(isl_map_get_dim_name(x.get(), dim_type, i));
@@ -28,7 +28,7 @@ std::vector<std::string> GetDimNames(const isl::map &x, isl_dim_type dim_type) {
   return res;
 }
 
-std::vector<std::string> GetDimNames(isl_set *set) {
+std::vector<std::string> isl_get_dim_names(isl_set *set) {
   std::vector<std::string> res;
   for (int i = 0; i < isl_set_dim(set, isl_dim_set); i++) {
     res.push_back(isl_set_get_dim_name(set, isl_dim_set, i));
@@ -36,7 +36,7 @@ std::vector<std::string> GetDimNames(isl_set *set) {
   return res;
 }
 
-void SetDimNames(isl::map *map, isl_dim_type dim_type, const std::vector<std::string> &names) {
+void isl_set_dim_names(isl::map *map, isl_dim_type dim_type, const std::vector<std::string> &names) {
   const int dim = isl_map_dim(map->get(), dim_type);
   CHECK_EQ(dim, names.size());
 
@@ -45,7 +45,7 @@ void SetDimNames(isl::map *map, isl_dim_type dim_type, const std::vector<std::st
   }
 }
 
-void SetDimNames(isl::set *set, const std::vector<std::string> &names) {
+void isl_set_dim_names(isl::set *set, const std::vector<std::string> &names) {
   int dim = isl_set_dim(set->get(), isl_dim_set);
   CHECK_EQ(dim, names.size());
 
@@ -54,7 +54,7 @@ void SetDimNames(isl::set *set, const std::vector<std::string> &names) {
   }
 }
 
-isl::union_map MapsToUnionMap(const std::vector<isl::map> &maps) {
+isl::union_map isl_maps_to_union_map(const std::vector<isl::map> &maps) {
   CHECK(!maps.empty());
   isl::union_map umap = isl::manage(isl_union_map_from_map(maps.front().copy()));
   for (int i = 1; i < maps.size(); i++) {
@@ -63,7 +63,7 @@ isl::union_map MapsToUnionMap(const std::vector<isl::map> &maps) {
   return umap;
 }
 
-isl::union_set SetsToUnionSet(const std::vector<isl::set> &sets) {
+isl::union_set isl_sets_to_union_set(const std::vector<isl::set> &sets) {
   CHECK(!sets.empty());
   isl::union_set uset = isl::manage(isl_union_set_from_set(sets.front().copy()));
   for (int i = 1; i < sets.size(); i++) {
@@ -83,7 +83,7 @@ std::string isl_map_get_statement_repr(__isl_keep isl_map *map, isl_dim_type typ
   return StringFormat("%s[%s]", tuple_name, Join(dims, ", ").c_str());
 }
 
-std::vector<std::string> GetDimNames(isl_map *map, isl_dim_type dim_type) {
+std::vector<std::string> isl_get_dim_names(isl_map *map, isl_dim_type dim_type) {
   std::vector<std::string> res;
   int n = isl_map_dim(map, dim_type);
   for (int i = 0; i < n; i++) {
@@ -94,7 +94,7 @@ std::vector<std::string> GetDimNames(isl_map *map, isl_dim_type dim_type) {
 
 isl::set SetGetDims(isl::set set, const std::vector<int> &dims) {
   std::string tuple_name = isl_set_get_tuple_name(set.get());
-  auto dim_names         = GetDimNames(set);
+  auto dim_names         = isl_get_dim_names(set);
   std::vector<std::string> selected_dim_names;
   for (int v : dims) {
     CHECK_LT(v, dim_names.size());
@@ -214,7 +214,7 @@ std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
   return std::make_tuple(min_val, max_val);
 }
 
-isl::map SetDimNameIfNull(isl_map *map, std::function<std::string(isl_dim_type, int)> namer) {
+isl::map isl_set_dim_name_if_null(isl_map *map, std::function<std::string(isl_dim_type, int)> namer) {
   int in_dims   = isl_map_dim(map, isl_dim_in);
   int out_dims  = isl_map_dim(map, isl_dim_out);
   auto set_name = [&](isl_dim_type dim_type) {
@@ -231,7 +231,7 @@ isl::map SetDimNameIfNull(isl_map *map, std::function<std::string(isl_dim_type, 
   return isl::manage(map);
 }
 
-isl::set SetDimNameIfNull(isl_set *set, std::function<std::string(isl_dim_type, int)> namer) {
+isl::set isl_set_dim_name_if_null(isl_set *set, std::function<std::string(isl_dim_type, int)> namer) {
   for (int i = 0; i < isl_set_dim(set, isl_dim_set); i++) {
     if (!isl_set_get_dim_name(set, isl_dim_set, i)) {
       set = isl_set_set_dim_name(set, isl_dim_set, i, namer(isl_dim_set, i).c_str());
