@@ -184,5 +184,5 @@ class Operator {
   CINN_STR_CONCAT(CINN_REGISTER_VAR_DEF(OpName), __COUNTER__) = \
       ::cinn::Registry<::cinn::hlir::Operator>::Get()->__REGISTER_OR_GET__(#OpName)
 }  // namespace hlir
-CINN_REGISTRY_ENABLE(cinn::hlir::Operator);
 }  // namespace cinn
+CINN_REGISTRY_ENABLE(cinn::hlir::Operator);

@@ -113,5 +113,5 @@ inline void ApplyPass(Graph* g, const std::string& pass) { return ApplyPasses(g,
 
 #define CINN_REGISTER_PASS(name) CINN_REGISTRY_REGISTER(::cinn::hlir::PassFunctionRegister, PassFunctionRegister, name)
 }  // namespace hlir
-CINN_REGISTRY_ENABLE(cinn::hlir::PassFunctionRegister);
 }  // namespace cinn
+CINN_REGISTRY_ENABLE(cinn::hlir::PassFunctionRegister);

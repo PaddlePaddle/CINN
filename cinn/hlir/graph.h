@@ -37,9 +37,7 @@ class Graph : public cinn::common::Graph {
    */
   template <typename T>
   inline const T& GetAttr(const std::string& attr_name) const {
-    LOG(INFO) << attr_name;
     auto it = attrs.find(attr_name);
-    // CHECK(it)<<"cannot find attribute!";
     CHECK(it != attrs.end()) << "Cannot find attribute [" << attr_name << "] in the graph";
     return std::any_cast<const T&>(*it->second);
   }
