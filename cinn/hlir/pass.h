@@ -10,60 +10,23 @@ namespace cinn {
 namespace hlir {
 
 class PassFunctionRegister;
-typedef std::function<Graph(Graph g)> PassFunction;
-
-/**
- * \brief Apply a sequence of passes on a graph.
- * @param g The input graph to apply passes on.
- * @param passes The sequence of pass.
- * @return The graph after being modified by the passes.
- */
-Graph ApplyPasses(Graph g, const std::vector<std::string> passes) {
-  std::vector<const PassFunctionRegister*> fpass;
-  for (auto& name : passes) {
-    auto* reg = cinn::Registry<PassFunctionRegister>::Find(name);
-    CHECK(reg) << "Cannot find pass " << name << " in the registry";
-    fpass.push_back(reg);
-  }
-  for (auto r : fpass) {
-    for (auto& dep : r->graph_attr_dependency) {
-      CHECK_NE(g.attrs.count(dep), 0) << "To apply pass [" << r->name << "], Graph's attribute [" << dep
-                                      << "] is required, but it is not available.";
-      if (g.attrs.count(dep) == 0) {
-        auto* pass_dep = FindPassDep(dep);
-        CHECK(!pass_dep) << "And the attribute is provided by pass [" << pass_dep->name << "].";
-      }
-    }
-    g = r->body(std::move(g));
-  }
-  return g;
-}
-
-// Apply a single pass on a graph.
-inline Graph ApplyPass(Graph g, const std::string& pass) { return ApplyPasses(g, {pass}); }
+typedef std::function<void(Graph* g)> PassFunction;
 
 /**
  * \brief Given an attribute of graph, find the pass that generates this attribute.
  * @param attr_name Name of the graph attribute.
  * @return The pass that generates it.
  */
-const PassFunctionRegister* FindPassDep(const std::string& attr_name) {
-  for (auto* r : cinn::Registry<PassFunctionRegister>::List()) {
-    for (auto& s : r->graph_attr_targets) {
-      if (s == attr_name) return r;
-    }
-  }
-  return nullptr;
-}
+const PassFunctionRegister* FindPassDep(const std::string& attr_name);
 
 class PassFunctionRegister : public cinn::FunctionRegEntryBase<PassFunctionRegister, PassFunction> {
  public:
   bool change_structure{false};
-  /** \brief dependencies on operator attributes */
+  //! dependencies on operator attributes
   std::vector<std::string> op_attr_dependency{};
-  /** \brief dependencies on attributes in the graph */
+  //! dependencies on attributes in the graph
   std::vector<std::string> graph_attr_dependency{};
-  /** \brief generated targets of graph attributes */
+  //! generated targets of graph attributes
   std::vector<std::string> graph_attr_targets{};
 
   /**
@@ -108,8 +71,47 @@ class PassFunctionRegister : public cinn::FunctionRegEntryBase<PassFunctionRegis
     graph_attr_dependency.push_back(attr_name);
     return *this;
   }
+};
+
+const PassFunctionRegister* FindPassDep(const std::string& attr_name) {
+  for (auto* r : cinn::Registry<PassFunctionRegister>::List()) {
+    for (auto& s : r->graph_attr_targets) {
+      if (s == attr_name) return r;
+    }
+  }
+  return nullptr;
 }
 
-#define CINN_REGISTER_PASS(name) CINN_REGISTRY_REGISTER(::cinn::hlir::PassFunctionReg, PassFunctionReg, name)
+/**
+ * \brief Apply a sequence of passes on a graph.
+ * @param g The input graph to apply passes on.
+ * @param passes The sequence of pass.
+ * @return The graph after being modified by the passes.
+ */
+void ApplyPasses(Graph* g, const std::vector<std::string>& passes) {
+  std::vector<const PassFunctionRegister*> fpass;
+  for (auto& name : passes) {
+    auto* reg = cinn::Registry<PassFunctionRegister>::Find(name);
+    CHECK(reg) << "Cannot find pass " << name << " in the registry";
+    fpass.push_back(reg);
+  }
+  for (auto* r : fpass) {
+    for (auto& dep : r->graph_attr_dependency) {
+      CHECK_NE(g->attrs.count(dep), 0) << "To apply pass [" << r->name << "], Graph's attribute [" << dep
+                                       << "] is required, but it is not available.";
+      if (g->attrs.count(dep) == 0) {
+        auto* pass_dep = FindPassDep(dep);
+        CHECK(!pass_dep) << "And the attribute is provided by pass [" << pass_dep->name << "].";
+      }
+    }
+    r->body(g);
+  }
+}
+
+// Apply a single pass on a graph.
+inline void ApplyPass(Graph* g, const std::string& pass) { return ApplyPasses(g, {pass}); }
+
+#define CINN_REGISTER_PASS(name) CINN_REGISTRY_REGISTER(::cinn::hlir::PassFunctionRegister, PassFunctionRegister, name)
 }  // namespace hlir
+CINN_REGISTRY_ENABLE(cinn::hlir::PassFunctionRegister);
 }  // namespace cinn

@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -10,6 +11,7 @@
 namespace cinn {
 namespace hlir {
 class Node;
+class NodeData;
 
 using NodePtr = std::shared_ptr<Node>;
 
@@ -36,14 +38,59 @@ struct NodeAttr {
 };
 
 /**
+ * \brief Node represents an operation in a computation graph.
+ */
+class Node : public cinn::common::GraphNode {
+ public:
+  Node() = default;
+  Node(const Operator *op, const std::string &name, std::string id = nullptr) {
+    this->attrs.op        = op;
+    this->attrs.node_name = name;
+    this->id_             = std::move(id);
+  }
+
+  std::tuple<cinn::common::GraphEdge *, cinn::common::GraphEdge *> LinkTo(cinn::hlir::NodeData *other);
+  /**
+   * \brief Get the unique id of this NodeData.
+   */
+  std::string id() const override { return id_; }
+
+  /**
+   * \brief The attributes in the node.
+   */
+  NodeAttr attrs;
+
+  inline const Operator *op() const { return this->attrs.op; }
+
+  inline bool is_variable() { return (this->attrs.op == nullptr); }
+
+  inline uint32_t num_outputs() { return is_variable() ? 1 : this->op()->num_outputs; }
+
+  inline uint32_t num_inputs() { return is_variable() ? 1 : this->op()->num_inputs; }
+
+  template <class... Args>
+  static NodePtr Create(Args &&... args) {
+    return std::make_shared<Node>(std::forward<Args>(args)...);
+  }
+
+ private:
+  /**
+   * \brief The unique id of the node.
+   */
+  std::string id_;
+};
+
+/**
  * \brief NodeData represents the output data from an operator.
  */
 class NodeData : public cinn::common::GraphNode {
+ public:
   NodeData(NodePtr node, uint32_t index, uint32_t version, std::string id)
       : source_node(std::move(node)), output_index(index), version(version), id_(std::move(id)) {}
 
   NodeData() : source_node(), output_index(), version(), id_() {}
 
+  std::tuple<cinn::common::GraphEdge *, cinn::common::GraphEdge *> LinkTo(Node *other);
   static std::shared_ptr<NodeData> Create(
       const char *op_name,
       std::string node_name,
@@ -91,47 +138,13 @@ class NodeData : public cinn::common::GraphNode {
   std::string id_;
 };
 
-/**
- * \brief Node represents an operation in a computation graph.
- */
-class Node : public cinn::common::GraphNode {
- public:
-  Node() = default;
-  Node(const Operator *op, const std::string &name, std::string id = nullptr) {
-    this->attrs.op        = op;
-    this->attrs.node_name = name;
-    this->id_             = std::move(id);
-  }
+std::tuple<cinn::common::GraphEdge *, cinn::common::GraphEdge *> Node::LinkTo(NodeData *other) {
+  return this->cinn::common::GraphNode::LinkTo(other->as<cinn::common::GraphNode>());
+}
 
-  /**
-   * \brief Get the unique id of this NodeData.
-   */
-  std::string id() const override { return id_; }
-
-  /**
-   * \brief The attributes in the node.
-   */
-  NodeAttr attrs;
-
-  inline const Operator *op() const { return this->attrs.op; }
-
-  inline bool is_variable() { return (this->attrs.op == nullptr); }
-
-  inline uint32_t num_outputs() { return is_variable() ? 1 : this->op()->num_outputs; }
-
-  inline uint32_t num_inputs() { return is_variable() ? 1 : this->op()->num_inputs; }
-
-  template <class... Args>
-  static NodePtr Create(Args &&... args) {
-    return std::make_shared<Node>(std::forward<Args>(args)...);
-  }
-
- private:
-  /**
-   * \brief The unique id of the node.
-   */
-  std::string id_;
-};
+std::tuple<cinn::common::GraphEdge *, cinn::common::GraphEdge *> NodeData::LinkTo(Node *other) {
+  return this->cinn::common::GraphNode::LinkTo(other->as<cinn::common::GraphNode>());
+}
 
 }  // namespace hlir
 }  // namespace cinn
