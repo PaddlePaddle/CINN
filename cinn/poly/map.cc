@@ -58,8 +58,8 @@ isl::map Map::to_isl() const {
   auto handler          = [](const Iterator& x) { return x.id; };
   auto domain_dim_names = utils::Map<std::vector<Iterator>, std::string>(domain_iterators_, handler);
   auto range_dim_names  = utils::Map<std::vector<Iterator>, std::string>(range_iterators_, handler);
-  SetDimNames(&map, isl_dim_in, domain_dim_names);
-  SetDimNames(&map, isl_dim_out, range_dim_names);
+  isl_set_dim_names(&map, isl_dim_in, domain_dim_names);
+  isl_set_dim_names(&map, isl_dim_out, range_dim_names);
   return map;
 }
 
