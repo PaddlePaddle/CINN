@@ -90,8 +90,8 @@ def create_matmul_tile(target, m, n, k):
 
 def create_data(m, n, k, bn):
     # call around to lower the numpy's float precision so that it will not vary too much from C's float precision.
-    a_init = np.around(np.random.randn(m, k).astype("float32"), 6)
-    b_init = np.around(np.random.randn(k, n).astype("float32"), 6)
+    a_init = np.around(np.random.randn(m, k).astype("float32"), 2)
+    b_init = np.around(np.random.randn(k, n).astype("float32"), 2)
     a = runtime.cinn_buffer_t(a_init, runtime.cinn_x86_device)
     b = runtime.cinn_buffer_t(b_init, runtime.cinn_x86_device)
     c = runtime.cinn_buffer_t(np.zeros([m, n]).astype("float32"), runtime.cinn_x86_device)
