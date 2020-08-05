@@ -25,6 +25,7 @@ class TestMamul(unittest.TestCase):
     def test_matmul_basic(self):
         a, b, c, c_target, *args = create_data(self.m, self.n, self.k, self.bn)
         module = create_matmul_basic(self.target, self.m, self.n, self.k)
+
         self.engine.link(module)
         matmul = self.engine.lookup("matmul")
         matmul(args)
@@ -35,6 +36,7 @@ class TestMamul(unittest.TestCase):
     def test_matmul_tile(self):
         a, b, c, c_target, *args = create_data(self.m, self.n, self.k, self.bn)
         module = create_matmul_tile(self.target, self.m, self.n, self.k)
+        print('module:\n', module.get_c_code())
         self.engine.link(module)
         matmul = self.engine.lookup("matmul_tile")
         matmul(args)
@@ -61,6 +63,7 @@ def create_matmul_basic(target, m, n, k):
 
     ts = [a.to_tensor(), b.to_tensor(), c_init, c]
     func = lang.lower("matmul", ts)
+    print('func', func)
     builder.add_function(func)
     return builder.build()
 
@@ -81,12 +84,16 @@ def create_matmul_tile(target, m, n, k):
     builder = lang.Module.Builder("matmul_tile", target)
     ts = [a.to_tensor(), b.to_tensor(), c_init, c]
     func = lang.lower("matmul_tile", ts)
+    print('func', func)
     builder.add_function(func)
     return builder.build()
 
 def create_data(m, n, k, bn):
-    a = runtime.cinn_buffer_t(np.random.randn(m, k).astype("float32"), runtime.cinn_x86_device)
-    b = runtime.cinn_buffer_t(np.random.randn(k, n).astype("float32"), runtime.cinn_x86_device)
+    # call around to lower the numpy's float precision so that it will not vary too much from C's float precision.
+    a_init = np.around(np.random.randn(m, k).astype("float32"), 2)
+    b_init = np.around(np.random.randn(k, n).astype("float32"), 2)
+    a = runtime.cinn_buffer_t(a_init, runtime.cinn_x86_device)
+    b = runtime.cinn_buffer_t(b_init, runtime.cinn_x86_device)
     c = runtime.cinn_buffer_t(np.zeros([m, n]).astype("float32"), runtime.cinn_x86_device)
     c_target = runtime.cinn_buffer_t(a.numpy() @ b.numpy(), runtime.cinn_x86_device)
     packed_b = runtime.cinn_buffer_t(np.zeros([n // bn, k, bn]).astype("float32"), runtime.cinn_x86_device)

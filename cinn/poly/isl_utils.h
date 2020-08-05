@@ -10,27 +10,21 @@ namespace poly {
 
 //! Get dimension names from isl containers.
 // @{
-std::vector<std::string> GetDimNames(const isl::set& x);
-std::vector<std::string> GetDimNames(const isl::map& x, isl_dim_type dim_type);
+std::vector<std::string> isl_get_dim_names(const isl::set& x);
+std::vector<std::string> isl_get_dim_names(const isl::map& x, isl_dim_type dim_type);
+std::vector<std::string> isl_get_dim_names(isl_map* map, isl_dim_type dim_type);
+std::vector<std::string> isl_get_dim_names(isl_set* set);
 // @}
 
-void SetDimNames(isl::set* set, const std::vector<std::string>& names);
-void SetDimNames(isl::map* map, isl_dim_type dim_type, const std::vector<std::string>& names);
+void isl_set_dim_names(isl::set* __isl_keep set, const std::vector<std::string>& names);
+void isl_set_dim_names(isl::map* __isl_keep map, isl_dim_type dim_type, const std::vector<std::string>& names);
 
-std::vector<std::string> GetDimNames(isl_map* map, isl_dim_type dim_type);
-std::vector<std::string> GetDimNames(isl_set* set);
-
-isl::map SetDimNameIfNull(isl_map* __isl_take map, std::function<std::string(isl_dim_type, int)> namer);
-
-isl::set SetDimNameIfNull(isl_set* __isl_take set, std::function<std::string(isl_dim_type, int)> namer);
+isl::map isl_set_dim_name_if_null(isl_map* __isl_take map, std::function<std::string(isl_dim_type, int)> namer);
+isl::set isl_set_dim_name_if_null(isl_set* __isl_take set, std::function<std::string(isl_dim_type, int)> namer);
 
 //! Convert a list of isl::map to isl::union_map
-isl::union_map MapsToUnionMap(const std::vector<isl::map>& maps);
-isl::union_set SetsToUnionSet(const std::vector<isl::set>& sets);
-
-//! Set get a new set consists of several dimensions.
-//! e.g. { s[i,j,k]: 0<i,j,k<100}, get {0,2} dims, get { s[i,k]: 0<i,k<100 }
-isl::set SetGetDims(isl::set set, const std::vector<int>& dims);
+isl::union_map isl_maps_to_union_map(const std::vector<isl::map>& maps);
+isl::union_set isl_sets_to_union_set(const std::vector<isl::set>& sets);
 
 //! Get a representation of the tuple in the map.
 std::string isl_map_get_statement_repr(__isl_keep isl_map* map, isl_dim_type type);
@@ -59,6 +53,10 @@ std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set* __isl_keep set, i
 isl_set* __isl_give isl_set_port_to_other(isl_set* __isl_give from,
                                           isl_set* __isl_give to,
                                           const std::vector<int>& poses);
+
+//! Set get a new set consists of several dimensions.
+//! e.g. { s[i,j,k]: 0<i,j,k<100}, get {0,2} dims, get { s[i,k]: 0<i,k<100 }
+isl::set SetGetDims(isl::set set, const std::vector<int>& dims);
 
 }  // namespace poly
 }  // namespace cinn

@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <vector>
 
 #include "cinn/backends/codegen_c.h"
 #include "cinn/common/common.h"

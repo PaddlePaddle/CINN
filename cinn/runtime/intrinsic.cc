@@ -21,7 +21,7 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices) {
   args.insert(std::end(args), indices.begin(), indices.end());
 
   if (!buffer->type().is_float()) {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   std::string buffer_load_method;
@@ -31,7 +31,7 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices) {
     buffer_load_method = intrisic::buffer_load_float64;
   } else {
     LOG(ERROR) << "support for type " << buffer->type() << " not implemented";
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   return ir::Call::Make(           //

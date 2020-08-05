@@ -13,7 +13,7 @@ ir::Tensor CreatePlaceHolder(const std::vector<Expr> &shape, Type type, const st
   } else if (type == Int(32)) {
     return Placeholder<int32_t>(name, shape);
   }
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
 }
 
 }  // namespace lang

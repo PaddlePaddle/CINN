@@ -151,7 +151,7 @@ Expr Divide(const Sum* a, int b) {
     else if (item.As<Product>())
       args.push_back(Divide(item.As<Product>(), b));
     else
-      NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
   return Sum::Make(args);
 }
@@ -1142,10 +1142,10 @@ Expr ConvertCasToCinn(Expr expr) {
           *expr = init;
         } else {
           // some case like a^-2
-          NOT_IMPLEMENTED
+          CINN_NOT_IMPLEMENTED
         }
       } else {
-        NOT_IMPLEMENTED
+        CINN_NOT_IMPLEMENTED
       }
     }
   };
@@ -1167,11 +1167,11 @@ Expr DividePartially(Sum* a, int b) {
   std::vector<Expr> external_sum_args, sum_args;
 
   for (auto& item : a->operands()) {
-    if (item.As<Product>() && IsDivisible(item.As<Product>(), b))
+    if (item.As<Product>() && IsDivisible(item.As<Product>(), b)) {
       external_sum_args.push_back(Divide(item.As<Product>(), b));
-    else if (item.As<IntImm>() && IsDivisible(item.As<IntImm>()->value, b))
+    } else if (item.As<IntImm>() && IsDivisible(item.As<IntImm>()->value, b)) {
       external_sum_args.push_back(make_const(item.type(), item.As<IntImm>()->value / b));
-    else {
+    } else {
       sum_args.push_back(item);
     }
   }
@@ -1259,7 +1259,7 @@ Expr SimplifyConstantFrac(FracOp* node) {
     CHECK(af);
     return make_const(af->type(), af->value / bf->value);
   }
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
   return Expr();
 }
 

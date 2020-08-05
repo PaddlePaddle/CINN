@@ -47,7 +47,7 @@ Expr Zero(const Type &type) {
   if (type.is_int(64)) return Expr(int64_t(0));
   if (type.is_uint(32)) return Expr(uint32_t(0));
   if (type.is_uint(64)) return Expr(uint64_t(0));
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
   return Expr();
 }
 

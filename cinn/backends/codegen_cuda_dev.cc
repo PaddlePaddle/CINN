@@ -133,7 +133,7 @@ void CodeGenCUDA_Dev::PrintFuncArg(const ir::Argument &arg) {
     os() << GetTypeRepr(arg.type()) << " ";
     os() << arg.name();
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 }
 

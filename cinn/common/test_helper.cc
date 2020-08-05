@@ -14,7 +14,7 @@ cinn_buffer_t* BufferBuilder::Build() {
   } else if (type_ == type_of<int64_t>()) {
     cinn_type = cinn_int64_t();
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   auto* buffer = cinn_buffer_t::new_(cinn_device_kind_t::cinn_x86_device, cinn_type, shape_, align_);
@@ -44,7 +44,7 @@ cinn_buffer_t* BufferBuilder::Build() {
       } else if (type_ == type_of<float>()) {
         SetVal<float>(buffer->host_memory, buffer->num_elements(), init_val_);
       } else {
-        NOT_IMPLEMENTED
+        CINN_NOT_IMPLEMENTED
       }
       break;
   }

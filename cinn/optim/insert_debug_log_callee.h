@@ -1,4 +1,6 @@
 #pragma once
+#include <tuple>
+#include <utility>
 
 #include "cinn/ir/ir.h"
 

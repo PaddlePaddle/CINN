@@ -35,7 +35,7 @@ static const char* TargetToBackendRepr(Target target) {
   if (target.arch == Target::Arch::X86) {
     return backend_llvm_host;
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
   return nullptr;
 }

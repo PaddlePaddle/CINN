@@ -32,7 +32,7 @@ std::vector<Iterator> NamesToIterators(const std::vector<std::string> &names) {
 void Stage::InitTransform() {
   std::string id = isl_set_get_tuple_name(domain_.get());
 
-  auto dims      = GetDimNames(domain_);
+  auto dims      = isl_get_dim_names(domain_);
   auto dims_repr = utils::Join(dims, ", ");
 
   auto repr = utils::StringFormat("{ %s[%s] -> %s[%s] }", id.c_str(), dims_repr.c_str(), id.c_str(), dims_repr.c_str());
@@ -53,7 +53,7 @@ Stage::Stage(const isl::set &domain, Expr expr, ir::_Tensor_ *tensor) : domain_(
 
 std::tuple<Iterator, Iterator> Stage::Split(int level, int factor) {
   AssertAxisIsNotLocked(level);
-  auto dim_names = GetDimNames(transform_, isl_dim_out);
+  auto dim_names = isl_get_dim_names(transform_, isl_dim_out);
   auto axis_name = dim_names.at(level);
   return Split(axis_name, factor);
 }
@@ -63,7 +63,7 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
   AssertAxisIsNotLocked(offset);
 
-  auto dim_names = GetDimNames(transform_, isl_dim_out);
+  auto dim_names = isl_get_dim_names(transform_, isl_dim_out);
 
   VLOG(2) << "domain: " << domain_;
   VLOG(2) << "schedule: " << transform_;
@@ -92,7 +92,7 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
   VLOG(3) << "transform: " << transform.__str__();
   transform_      = transform_.apply_range(transform.to_isl());
   auto range_dims = utils::Map<std::vector<Iterator>, std::string>(to_iters, [](const Iterator &x) { return x.id; });
-  SetDimNames(&transform_, isl_dim_out, range_dims);
+  isl_set_dim_names(&transform_, isl_dim_out, range_dims);
 
   VLOG(3) << "transform " << transform.to_isl();
   VLOG(3) << "schedule after transform: " << transform_;
@@ -102,7 +102,7 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
 }
 
 void Stage::Reorder(const std::vector<Iterator> &order) {
-  auto in_names = GetDimNames(transform_, isl_dim_out);
+  auto in_names = isl_get_dim_names(transform_, isl_dim_out);
   // assert all the iterators in the isl::set.
   std::unordered_set<std::string> in_name_set(in_names.begin(), in_names.end());
   std::set<Iterator> order_set(order.begin(), order.end());
@@ -208,8 +208,9 @@ void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const 
   transform_ = transform.adjusted_ptransform();
 
   // set name of the dimensions if not exists, or it will go wrong in the following process.
-  domain_ = SetDimNameIfNull(domain_.release(), [](isl_dim_type dim_type, int i) { return "pp" + std::to_string(i); });
-  transform_ = SetDimNameIfNull(transform_.release(), [](isl_dim_type dim_type, int i) {
+  domain_    = isl_set_dim_name_if_null(domain_.release(),
+                                     [](isl_dim_type dim_type, int i) { return "pp" + std::to_string(i); });
+  transform_ = isl_set_dim_name_if_null(transform_.release(), [](isl_dim_type dim_type, int i) {
     return (dim_type == isl_dim_in ? "pi" : "po") + std::to_string(i);
   });
 
@@ -221,14 +222,13 @@ void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const 
                                                 tensor_->name,                         // producer_tensor_name
                                                 transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
                                                 indice_mins,  // preceding_offset_for_producer_load
-                                                level         // level
-  );
+                                                level);
 
   ComputeAtSchedule(other, level, kind);
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
-  NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
   Iterator i_new(i.id + "_skew");
   Iterator j_new(j.id + "_skew");
 
@@ -238,7 +238,7 @@ std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j,
 Iterator Stage::Fuse(int level0, int level1) {
   AssertAxisIsNotLocked(level0);
   AssertAxisIsNotLocked(level1);
-  auto dims = GetDimNames(transformed_domain());
+  auto dims = isl_get_dim_names(transformed_domain());
   CHECK_LT(level0, dims.size());
   CHECK_LT(level1, dims.size());
 
@@ -266,7 +266,7 @@ Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
 
   // Aff { s[i,j,k] -> [j] } and get the j's max value
   // to apply something like { S[i,j] -> S[k]: k = i+j }
-  auto from_dim_names = GetDimNames(transform_, isl_dim_out);
+  auto from_dim_names = isl_get_dim_names(transform_, isl_dim_out);
   auto from_iters     = NamesToIterators(from_dim_names);
 
   Aff aff(domain_.ctx(), id(), from_iters, std::vector<Iterator>({Iterator(level1.id)}), {});
@@ -300,7 +300,7 @@ Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
     std::vector<std::string> iter_names;
     for (auto &iter : to_iters) iter_names.push_back(iter.id);
 
-    SetDimNames(&transform_, isl_dim_out, iter_names);
+    isl_set_dim_names(&transform_, isl_dim_out, iter_names);
   }
 
   return Iterator(new_iter_name);
@@ -387,7 +387,7 @@ void Stage::Vectorize(int level, int factor) {
 }
 
 void Stage::Vectorize(const std::string &axis, int factor) {
-  auto dims = GetDimNames(transformed_domain());
+  auto dims = isl_get_dim_names(transformed_domain());
   auto it   = std::find(dims.begin(), dims.end(), axis);
   CHECK(it != dims.end()) << "No dimension called " << axis;
   Vectorize(std::distance(dims.begin(), it), factor);
@@ -401,7 +401,7 @@ void Stage::Unroll(int level) {
 }
 
 std::string Stage::ith_dim_name(int level) {
-  auto dims = GetDimNames(transformed_domain());
+  auto dims = isl_get_dim_names(transformed_domain());
   CHECK_LT(level, dims.size());
   return dims[level];
 }
@@ -462,7 +462,7 @@ void Stage::Unroll(const Iterator &level) {
   Unroll(l);
 }
 
-std::vector<std::string> Stage::axis_names() const { return GetDimNames(transformed_domain()); }
+std::vector<std::string> Stage::axis_names() const { return isl_get_dim_names(transformed_domain()); }
 
 void Stage::Bind(int level, const std::string &axis) {
   CHECK_LT(level, n_out_dims());
@@ -475,7 +475,7 @@ void Stage::Bind(int level, const std::string &axis) {
     uint8_t offset = axis.back() - 'x';
     AddForloopInfo(level, StageForloopInfo{ir::ForType::GPUBlock, DeviceAPI::GPU, offset});
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 }
 
@@ -527,7 +527,7 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
   } else if (memory_type == "local") {
     cache_tensor->stage()->SetScope(ScopeKind::kLocal);
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 
   return cache_tensor;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "cinn/backends/codegen_c.h"
 
 namespace cinn {
@@ -108,7 +110,7 @@ void CodeGenCX86::VisitBinaryOp(const Op *op, Expr a, Expr b, const std::string 
     PrintVecInputArgument(&b);
     os() << ")";
   } else {
-    NOT_IMPLEMENTED
+    CINN_NOT_IMPLEMENTED
   }
 }
 

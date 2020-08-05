@@ -1,5 +1,10 @@
 #pragma once
 
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+
 #include "cinn/hlir/instruction/module.h"
 
 namespace cinn {
@@ -35,7 +40,7 @@ class ModulePass : public PassInterface {
  */
 class ModuleGroupPass : public PassInterface {
  public:
-  bool Run(Module* module) override { NOT_IMPLEMENTED }
+  bool Run(Module* module) override { CINN_NOT_IMPLEMENTED }
 };
 
 class PassRegistry {

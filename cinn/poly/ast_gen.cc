@@ -12,7 +12,7 @@ isl::union_set AstGen::domain() {
   CHECK(!stages_.empty());
   auto sets =
       utils::Map<std::vector<Shared<Stage>>, isl::set>(stages_, [](const Shared<Stage>& e) { return e->domain(); });
-  return SetsToUnionSet(sets);
+  return isl_sets_to_union_set(sets);
 }
 
 isl::ctx AstGen::ctx() const {
@@ -29,7 +29,7 @@ isl::ast_node AstGen::Build() {
     CHECK(it != std::end(schedule_map)) << "stage " << stage->id() << " not found in the map";
     maps.push_back(it->second);
   }
-  auto schedule = MapsToUnionMap(maps);
+  auto schedule = isl_maps_to_union_map(maps);
 
   // Build it.
   auto ast_build = isl::ast_build::from_context(context_);
@@ -152,7 +152,7 @@ isl::union_map AstGen::transform() {
   for (auto& stage : stages()) {
     transforms.push_back(stage->transform());
   }
-  return MapsToUnionMap(transforms);
+  return isl_maps_to_union_map(transforms);
 }
 
 namespace detail {

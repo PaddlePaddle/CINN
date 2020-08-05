@@ -56,7 +56,7 @@ struct FoldCINNCallArgumentsMutator : public ir::IRMutator<> {
         case ir::CallType::Extern:
           break;
         default:
-          NOT_IMPLEMENTED
+          CINN_NOT_IMPLEMENTED
       }
     }
   }
