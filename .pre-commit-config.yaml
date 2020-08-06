@@ -29,3 +29,19 @@ repos:
         entry: bash ./tools/codestyle/cpplint_pre_commit.hook
         language: system
         files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx)$
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v2.5.0
+    hooks:
+    -   id: check-added-large-files
+        args: [--maxkb=500]
+
+# -   repo: https://github.com/pre-commit/pre-commit-hooks
+#     rev: v1.2.3
+#     hooks:
+#     - id: flake8
+
+-   repo: https://github.com/pre-commit/mirrors-yapf.git
+    rev: v0.26.0
+    hooks:
+    - id: yapf
+      args: ['--parallel', '--in-place']

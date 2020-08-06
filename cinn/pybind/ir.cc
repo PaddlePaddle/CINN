@@ -104,7 +104,10 @@ void BindNode(py::module *m) {
   // struct IntImm : ExprNode<IntImm>
   DefineExprNode<ir::IntImm>(m, "IntImm");
   py::class_<ir::IntImm, ir::ExprNode<ir::IntImm>> int_imm(*m, "IntImm");
-  int_imm.def_readwrite("value", &ir::IntImm::value).def(py::init<Type, int64_t>());
+  int_imm.def_readwrite("value", &ir::IntImm::value)
+      .def(py::init<Type, int64_t>())
+      .def("__str__", [](const ir::IntImm &self) { return std::to_string(self.value); })
+      .def("__repr__", [](const ir::IntImm &self) { return utils::StringFormat("<IntImm %d>", self.value); });
 
   // struct UIntImm : ExprNode<UIntImm>
   DefineExprNode<ir::UIntImm>(m, "UIntImm");
@@ -139,6 +142,8 @@ void BindNode(py::module *m) {
       .def("as_int64", &ir::Expr::as_int64)
       .def("as_float", &ir::Expr::as_float)
       .def("as_double", &ir::Expr::as_double);
+
+  expr.def("__str__", [](const Expr &self) { return utils::GetStreamCnt(self); });
 
   expr.def("as_var_mutable", py::overload_cast<>(&ir::Expr::as_var), py::return_value_policy::reference)
       .def("as_var_const", py::overload_cast<>(&ir::Expr::as_var, py::const_), py::return_value_policy::reference)

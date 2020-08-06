@@ -34,7 +34,7 @@ class Placeholder {
   Expr operator()(const std::vector<Expr> &indices) const;
   // @}
 
-  const Type &type() const { return tensor_->type(); }
+  Type type() const { return tensor_->type(); }
 
   operator ir::Tensor() { return tensor_; }
   operator ir::Expr() { return Expr(tensor_); }

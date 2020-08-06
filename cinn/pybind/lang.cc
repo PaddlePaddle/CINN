@@ -21,6 +21,8 @@ namespace cinn::pybind {
 using common::Type;
 using lang::Placeholder;
 using py::arg;
+using utils::GetStreamCnt;
+using utils::StringFormat;
 
 namespace {
 void BindBuffer(py::module *);
@@ -85,10 +87,7 @@ void BindCompute(py::module *m) {
   m->def("call_lowered",
          py::overload_cast<const std::string &, const std::vector<ir::Expr> &, const std::vector<lang::ReturnType> &>(
              &lang::CallLowered));
-  // TODO(fuchang01): call extern
-  // m->def("call_extern", py::overload_cast<const std::string &, const std::vector<ir::Expr> &>(&lang::CallExtern));
-  // m->def("call_extern",
-  //       py::overload_cast<const std::string &, const std::vector<ir::Expr> &, ir::Tensor &>(&lang::CallExtern));
+  m->def("call_extern", py::overload_cast<const std::string &, const std::vector<ir::Expr> &>(&lang::CallExtern));
 }
 
 void BindModule(py::module *m) {
@@ -133,7 +132,7 @@ class PlaceholderWrapper {
 #undef INIT_PLACEHOLDER
 #undef DEFINE_PLACEHOLDER
 
-  const ir::Type &type() const {
+  ir::Type type() const {
     return std::visit([](auto &v) { return v->type(); }, placeholder_);
   }
 
