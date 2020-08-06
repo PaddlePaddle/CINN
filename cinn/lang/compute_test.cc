@@ -46,7 +46,7 @@ TEST(Call, basic) {
   Placeholder<float> y("y", {M, Expr(10)});
 
   std::vector<ReturnType> return_types({{Float(32), std::vector<Expr>{{M, Expr(20)}}, "C"}});
-  auto tensors = Call("lowered_fun0", {Expr(x), Expr(y)}, return_types);
+  auto tensors = CallLowered("lowered_fun0", {Expr(x), Expr(y)}, return_types);
 }
 
 }  // namespace lang

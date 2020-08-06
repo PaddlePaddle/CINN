@@ -223,7 +223,7 @@ TEST(CodeGenC, matmul) {
   {  // main
     std::vector<lang::ReturnType> returns({lang::ReturnType{Float(32), C->shape, C->name}});
 
-    auto tensors = lang::Call("matmul", {A, B}, returns);
+    auto tensors = lang::CallLowered("matmul", {A, B}, returns);
 
     auto C = tensors[0];
     C->WithBuffer();

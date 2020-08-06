@@ -328,7 +328,7 @@ TEST(matmul, call) {
 
   {  // main
     std::vector<lang::ReturnType> returns({lang::ReturnType{Float(32), C->shape, C->name}});
-    auto tensors = lang::Call("matmul_kernel", {A, B}, returns);
+    auto tensors = lang::CallLowered("matmul_kernel", {A, B}, returns);
     auto C       = tensors[0];
 
     auto fn = Lower("matmul_main", {A, B, C}, {});

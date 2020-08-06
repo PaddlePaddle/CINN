@@ -37,5 +37,11 @@ void RuntimeSymbolRegistry::Register(const std::string &name, void *address) {
   symbols_.insert({name, reinterpret_cast<void *>(address)});
 }
 
+void RuntimeSymbolRegistry::Clear() {
+  std::lock_guard<std::mutex> lock(mu_);
+  symbols_.clear();
+  scalar_holder_.clear();
+}
+
 }  // namespace backends
 }  // namespace cinn
