@@ -33,7 +33,7 @@ std::vector<ir::Tensor> CallImpl(const std::string& fn_name,
     return_types[i].type = types[i];
   }
 
-  return cinn::lang::Call(fn_name, args, return_types);
+  return cinn::lang::CallLowered(fn_name, args, return_types);
 }
 
 }  // namespace primitive

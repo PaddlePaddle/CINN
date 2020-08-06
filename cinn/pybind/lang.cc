@@ -82,15 +82,9 @@ void BindCompute(py::module *m) {
       .def_readwrite("dims", &lang::ReturnType::dims)
       .def_readwrite("name", &lang::ReturnType::name);
 
-  m->def("call",
-         py::overload_cast<const std::string &,
-                           ir::Type,
-                           const std::vector<ir::Expr> &,
-                           const std::vector<ir::Expr> &,
-                           const std::string &>(&lang::Call));
-  m->def("call",
+  m->def("call_lowered",
          py::overload_cast<const std::string &, const std::vector<ir::Expr> &, const std::vector<lang::ReturnType> &>(
-             &lang::Call));
+             &lang::CallLowered));
   // TODO(fuchang01): call extern
   // m->def("call_extern", py::overload_cast<const std::string &, const std::vector<ir::Expr> &>(&lang::CallExtern));
   // m->def("call_extern",

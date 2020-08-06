@@ -149,22 +149,9 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
   return tensor;
 }
 
-ir::Tensor Call(const std::string &target,
-                Type type,
-                const std::vector<Expr> &dims,
-                const std::vector<Expr> &args,
-                const std::string &name) {
-  auto call       = ir::Call::Make(type, target, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0);
-  auto call_op    = ir::CallOp::Make(target, call);
-  auto new_tensor = ir::_Tensor_::Make(name, type, dims, {Expr(1)}, call_op, {});
-  // Append write tensors in the tail.
-  call.As<ir::Call>()->write_args.push_back(new_tensor);
-  return new_tensor;
-}
-
-std::vector<ir::Tensor> Call(const std::string &target,
-                             const std::vector<Expr> &args,
-                             const std::vector<ReturnType> &return_types) {
+std::vector<ir::Tensor> CallLowered(const std::string &target,
+                                    const std::vector<Expr> &args,
+                                    const std::vector<ReturnType> &return_types) {
   auto call = ir::Call::Make(Void(), target, args, {}, ir::CallType::CINN, ir::FunctionRef(), 0);
   std::vector<ir::Tensor> new_tensors;
   for (int i = 0; i < return_types.size(); i++) {

@@ -15,10 +15,11 @@
 namespace cinn {
 namespace backends {
 
+/**
+ * Registry for runtime symbols, these symbols will be inserted into JIT.
+ */
 class RuntimeSymbolRegistry {
  public:
-  using value_t = std::variant<int, int32_t, int64_t, void *>;
-
   static RuntimeSymbolRegistry &Global();
 
   /**
@@ -53,6 +54,11 @@ class RuntimeSymbolRegistry {
    * Get all the symbols.
    */
   const std::map<std::string, void *> &All() const { return symbols_; }
+
+  /**
+   * Clear all the symbols.
+   */
+  void Clear();
 
  private:
   /**

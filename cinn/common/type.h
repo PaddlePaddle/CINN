@@ -117,6 +117,7 @@ struct Type {
   //! How many elements(if a vector type), for scalar types, it should be 1.
   int lanes_{1};
 
+  //! Name of the customized type.
   std::string customized_type_;
 };  // namespace common
 

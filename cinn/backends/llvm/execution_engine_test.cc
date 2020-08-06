@@ -149,7 +149,7 @@ TEST(llvm, module_call_lowered_func) {
 
     std::vector<lang::ReturnType> ret_types({lang::ReturnType{Float(32), {M, N}, "c_out"}});
 
-    auto call_outs = lang::Call("elementwise_add", {a, b}, ret_types);
+    auto call_outs = lang::CallLowered("elementwise_add", {a, b}, ret_types);
     auto c         = call_outs[0];
 
     // here we must call the output, so that it cal output something.
