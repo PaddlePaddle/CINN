@@ -15,7 +15,7 @@ void IrPrinter::Print(Expr e) { IRVisitor::Visit(&e); }
 void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitter) {
   for (int i = 0; i < exprs.size() - 1; i++) {
     Print(exprs[i]);
-    os_ << ", ";
+    os_ << splitter;
   }
   if (exprs.size() > 1) Print(exprs.back());
 }
@@ -391,6 +391,14 @@ void IrPrinter::Visit(const PrimitiveNode *x) {
 }
 
 std::ostream &operator<<(std::ostream &os, Expr a) {
+  std::stringstream ss;
+  IrPrinter printer(ss);
+  printer.Print(a);
+  os << ss.str();
+  return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const std::vector<Expr> &a) {
   std::stringstream ss;
   IrPrinter printer(ss);
   printer.Print(a);
