@@ -17,7 +17,7 @@ ADD_TEST(NAME test_cinn_python_api
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_matmul.py
 )
 
-ADD_TEST(NAME test_cinn_python_api
+ADD_TEST(NAME test_cinn_common
   COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
   python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_common.py
   )
