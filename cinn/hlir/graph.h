@@ -1,12 +1,11 @@
 #pragma once
+#include <any>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 #include "cinn/common/graph_utils.h"
 #include "cinn/hlir/node.h"
-using cinn::utils::any;
-using cinn::utils::get;
 
 namespace cinn {
 namespace hlir {
@@ -21,7 +20,14 @@ class Graph : public cinn::common::Graph {
   std::vector<NodeData*> outputs;
 
   /** \brief attributes of a graph */
-  std::unordered_map<std::string, std::shared_ptr<any>> attrs;
+  std::unordered_map<std::string, std::shared_ptr<std::any>> attrs;
+
+  void RegisterNode(size_t key, cinn::hlir::Node* node) {
+    this->cinn::common::Graph::RegisterNode(key, node->as<cinn::common::GraphNode>());
+  }
+  void RegisterNode(size_t key, cinn::hlir::NodeData* node) {
+    this->cinn::common::Graph::RegisterNode(key, node->as<cinn::common::GraphNode>());
+  }
 
   /**
    * \brief Get the immutable attribute from attrs.
@@ -32,8 +38,8 @@ class Graph : public cinn::common::Graph {
   template <typename T>
   inline const T& GetAttr(const std::string& attr_name) const {
     auto it = attrs.find(attr_name);
-    CHECK_NE(it, attrs.end()) << "Cannot find attribute " << attr_name << " in the graph";
-    return get<T>(*it->second);
+    CHECK(it != attrs.end()) << "Cannot find attribute [" << attr_name << "] in the graph";
+    return std::any_cast<const T&>(*it->second);
   }
 
   /**

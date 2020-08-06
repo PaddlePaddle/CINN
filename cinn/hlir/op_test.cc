@@ -7,7 +7,6 @@
 #include "cinn/cinn.h"
 
 namespace cinn {
-CINN_REGISTRY_ENABLE(cinn::hlir::Operator);
 namespace hlir {
 CINN_REGISTER_OP(add)
     .describe("test of op Add")

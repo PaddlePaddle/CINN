@@ -10,7 +10,6 @@
 #include <string>
 #include <vector>
 
-namespace cinn {
 /**
  * \brief Registry class.
  *  Registry can be used to register global singletons.
@@ -211,5 +210,4 @@ class FunctionRegEntryBase {
  * @sa FactoryRegistryEntryBase
  */
 #define CINN_REGISTRY_REGISTER(EntryType, EntryTypeName, Name) \
-  static EntryType &__make_##EntryTypeName##_##Name##__ = ::cinn::Registry<EntryType>::Get()->__REGISTER__(#Name)
-}  // namespace cinn
+  static EntryType &__make_##EntryTypeName##_##Name##__ = ::Registry<EntryType>::Get()->__REGISTER__(#Name)
