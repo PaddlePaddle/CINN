@@ -396,8 +396,8 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
 
   LOG(INFO) << "fn_kernel: " << fn_kernel;
 
-  RuntimeSymbolRegistry::Global().Register("fn_kernel_ptr_", reinterpret_cast<void*>(&fn_kernel));
-  RuntimeSymbolRegistry::Global().Register("fn_kernel_stream_ptr_", reinterpret_cast<void*>(&stream));
+  RuntimeSymbolRegistry::Global().RegisterFn("fn_kernel_ptr_", reinterpret_cast<void*>(&fn_kernel));
+  RuntimeSymbolRegistry::Global().RegisterVar("fn_kernel_stream_ptr_", stream);
 
   // compile host
   {
@@ -647,8 +647,8 @@ TEST(elementwise_add, share_local_cache) {
 
   // Register to JIT
   void* stream = nullptr;
-  RuntimeSymbolRegistry::Global().Register("elementwise_add_kernel_ptr_", reinterpret_cast<void*>(&fn_kernel));
-  RuntimeSymbolRegistry::Global().Register("elementwise_add_kernel_stream_ptr_", reinterpret_cast<void*>(&stream));
+  RuntimeSymbolRegistry::Global().RegisterFn("elementwise_add_kernel_ptr_", reinterpret_cast<void*>(&fn_kernel));
+  RuntimeSymbolRegistry::Global().RegisterVar("elementwise_add_kernel_stream_ptr_", stream);
 
   // launch the kernel
 
