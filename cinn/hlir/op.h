@@ -100,7 +100,7 @@ class Operator {
    * @return Pointer to a Op, valid throughout program lifetime.
    */
   static const Operator* Get(const std::string& op_name) {
-    const Operator* op = cinn::Registry<Operator>::Find(op_name);
+    const Operator* op = Registry<Operator>::Find(op_name);
     CHECK(op) << "Operator [" << op_name << "] is not registered";
     return op;
   }
@@ -142,7 +142,7 @@ class Operator {
  private:
   template <typename ValueType>
   friend class OpValueType;
-  friend class cinn::Registry<Operator>;
+  friend class Registry<Operator>;
   uint32_t index{0};
   Operator() { index = OpRegistry::Global()->op_counter++; }
   static const std::any* GetAttrMap(const std::string& key) {
@@ -182,7 +182,7 @@ class Operator {
  */
 #define CINN_REGISTER_OP(OpName)                                \
   CINN_STR_CONCAT(CINN_REGISTER_VAR_DEF(OpName), __COUNTER__) = \
-      ::cinn::Registry<::cinn::hlir::Operator>::Get()->__REGISTER_OR_GET__(#OpName)
+      ::Registry<::cinn::hlir::Operator>::Get()->__REGISTER_OR_GET__(#OpName)
 }  // namespace hlir
 }  // namespace cinn
 CINN_REGISTRY_ENABLE(cinn::hlir::Operator);

@@ -19,7 +19,7 @@ typedef std::function<void(Graph* g)> PassFunction;
  */
 const PassFunctionRegister* FindPassDep(const std::string& attr_name);
 
-class PassFunctionRegister : public cinn::FunctionRegEntryBase<PassFunctionRegister, PassFunction> {
+class PassFunctionRegister : public FunctionRegEntryBase<PassFunctionRegister, PassFunction> {
  public:
   bool change_structure{false};
   //! dependencies on operator attributes
@@ -74,7 +74,7 @@ class PassFunctionRegister : public cinn::FunctionRegEntryBase<PassFunctionRegis
 };
 
 const PassFunctionRegister* FindPassDep(const std::string& attr_name) {
-  for (auto* r : cinn::Registry<PassFunctionRegister>::List()) {
+  for (auto* r : Registry<PassFunctionRegister>::List()) {
     for (auto& s : r->graph_attr_targets) {
       if (s == attr_name) return r;
     }
@@ -91,7 +91,7 @@ const PassFunctionRegister* FindPassDep(const std::string& attr_name) {
 void ApplyPasses(Graph* g, const std::vector<std::string>& passes) {
   std::vector<const PassFunctionRegister*> fpass;
   for (auto& name : passes) {
-    auto* reg = cinn::Registry<PassFunctionRegister>::Find(name);
+    auto* reg = Registry<PassFunctionRegister>::Find(name);
     CHECK(reg) << "Cannot find pass " << name << " in the registry";
     fpass.push_back(reg);
   }
