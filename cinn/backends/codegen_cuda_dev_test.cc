@@ -1480,7 +1480,7 @@ TEST(Cuda, external_function) {
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
-  auto fn = Lower("fn4", {A, B, C});
+  auto fn = Lower("fn5", {A, B, C});
 
   Module::Builder builder("module", common::DefaultHostTarget());
   builder.AddFunction(fn);
@@ -1499,7 +1499,7 @@ typedef char int8_t;
 
 
 __global__
-void fn4_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+void fn5_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
   if ((blockIdx.x < 40)) {
   {
@@ -1522,7 +1522,7 @@ void fn4_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
   ASSERT_EQ(utils::Trim(target_source), source_code);
 
   TestElementwiseAddPrecisionBasic(
-      builder.Build(), "fn4", M, N, [](float a, float b) { return std::tanh(a) + std::cos(b); });
+      builder.Build(), "fn5", M, N, [](float a, float b) { return std::tanh(a) + std::cos(b); });
 }
 
 }  // namespace backends

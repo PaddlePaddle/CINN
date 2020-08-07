@@ -209,11 +209,9 @@ void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Call *op) {
-  if (op->is_extern_call()) {
-    os() << op->name + "(";
-    Print(op->read_args);
-    os() << ")";
-  }
+  os() << op->name + "(";
+  Print(op->read_args);
+  os() << ")";
 }
 
 }  // namespace backends
