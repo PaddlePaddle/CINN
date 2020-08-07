@@ -162,7 +162,6 @@ void BindType(py::module *m) {
 void BindObject(py::module *m) {
   py::class_<Object, ObjectWrapper> object(*m, "Object");
   object.def("type_info", &Object::type_info);
-  //.def_readwrite("ref_count", &Object::__ref_count__);
 }
 
 void BindShared(py::module *m) {
@@ -263,6 +262,12 @@ void BindCinnValue(py::module *m) {
   DEFINE_BINARY_OP(__sub__, [](auto x, auto y) { return x - y; });
   DEFINE_BINARY_OP(__mul__, [](auto x, auto y) { return x * y; });
   DEFINE_BINARY_OP(__truediv__, [](auto x, auto y) { return x / y; });
+  DEFINE_BINARY_OP(__and__, [](auto x, auto y) { return x && y; });
+  DEFINE_BINARY_OP(__or__, [](auto x, auto y) { return x || y; });
+  DEFINE_BINARY_OP(__lt__, [](auto x, auto y) { return x < y; });
+  DEFINE_BINARY_OP(__le__, [](auto x, auto y) { return x <= y; });
+  DEFINE_BINARY_OP(__gt__, [](auto x, auto y) { return x > y; });
+  DEFINE_BINARY_OP(__ge__, [](auto x, auto y) { return x >= y; });
 
 #undef DEFINE_BINARY_OP
 }

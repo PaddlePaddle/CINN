@@ -1,5 +1,5 @@
 cc_library(core_api SHARED
-    SRCS runtime.cc common.cc lang.cc ir.cc poly.cc backends.cc bind.cc
+    SRCS runtime.cc common.cc lang.cc ir.cc poly.cc backends.cc bind.cc optim.cc
     DEPS core cinn_runtime pybind)
 
 
