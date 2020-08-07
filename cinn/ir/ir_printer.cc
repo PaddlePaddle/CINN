@@ -13,11 +13,11 @@ namespace ir {
 
 void IrPrinter::Print(Expr e) { IRVisitor::Visit(&e); }
 void IrPrinter::Print(const std::vector<Expr> &exprs, const std::string &splitter) {
-  for (int i = 0; i < exprs.size() - 1; i++) {
+  for (int i = 0; !exprs.empty() && i < exprs.size() - 1; i++) {
     Print(exprs[i]);
     os_ << splitter;
   }
-  if (exprs.size() > 1) Print(exprs.back());
+  if (!exprs.empty()) Print(exprs.back());
 }
 
 void IrPrinter::Visit(const IntImm *x) { os_ << x->value; }

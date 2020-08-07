@@ -1147,7 +1147,12 @@ TEST(GetTransformedLevel, basic) {
 }
 
 // JIT test precision for the basic elementwise add
-void TestElementwiseAddPrecisionBasic(const lang::Module& module, const std::string& fn_name, Expr M, Expr N) {
+void TestElementwiseAddPrecisionBasic(
+    const lang::Module& module,
+    const std::string& fn_name,
+    Expr M,
+    Expr N,
+    std::function<float(float, float)> elem_cal = [](float a, float b) { return a; }) {
   common::CudaModuleTester tester;
   tester.Compile(module);
 
@@ -1181,7 +1186,8 @@ void TestElementwiseAddPrecisionBasic(const lang::Module& module, const std::str
   auto* B_mem        = reinterpret_cast<float*>(B_host->host_memory);
   for (int i = 0; i < M.as_int32() - 2; i++) {
     for (int j = 0; j < N.as_int32(); j++) {
-      ASSERT_NEAR(C_target_mem[i * N.as_int32() + j], A_mem[i * N.as_int32() + j], 1e-5);
+      ASSERT_NEAR(
+          C_target_mem[i * N.as_int32() + j], elem_cal(A_mem[i * N.as_int32() + j], B_mem[i * N.as_int32() + j]), 1e-5);
     }
   }
 
@@ -1447,6 +1453,76 @@ void fn4_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
   ASSERT_EQ(utils::Trim(target_source), source_code);
 
   TestElementwiseAddPrecisionBasic(builder.Build(), "fn4", M, N);
+}
+
+TEST(Cuda, external_function) {
+  // Make a small shape, because the shared memory is small.
+  Expr M(40);
+  Expr N(40);
+
+  auto create_module = [&] {
+    Context::Global().ResetNameId();
+
+    Placeholder<float> A("A", {M, N});
+    Placeholder<float> B("B", {M, N});
+
+    auto C = Compute(
+        {M, N}, [&](Expr i, Expr j) { return CallExtern("tanh", {A(i, j)}) + CallExtern("cos", {B(i, j)}); }, "C");
+    C->stage()->Split(1, 10);
+
+    C->stage()->Bind(0, "blockIdx.x");
+    C->stage()->Bind(1, "threadIdx.x");
+
+    return std::make_tuple(A, B, C);
+  };
+
+  auto [A, B, C] = create_module();  // NOLINT
+  Target target;
+  CodeGenCUDA_Dev codegen(target);
+
+  auto fn = Lower("fn5", {A, B, C});
+
+  Module::Builder builder("module", common::DefaultHostTarget());
+  builder.AddFunction(fn);
+
+  auto source_code = codegen.Compile(builder.Build());
+  std::cout << "CUDA source:\n" << source_code << std::endl;
+
+  auto target_source = R"ROC(
+extern "C" {
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void fn5_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+{
+  if ((blockIdx.x < 40)) {
+  {
+    if ((threadIdx.x < 4)) {
+    {
+      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+        C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (tanh(A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]) + cos(B[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]));
+      };
+    }
+    };
+  }
+  };
+}
+
+}
+)ROC";
+
+  LOG(INFO) << "GPU thread config: " << fn->cuda_axis_info;
+
+  ASSERT_EQ(utils::Trim(target_source), source_code);
+
+  TestElementwiseAddPrecisionBasic(
+      builder.Build(), "fn5", M, N, [](float a, float b) { return std::tanh(a) + std::cos(b); });
 }
 
 }  // namespace backends

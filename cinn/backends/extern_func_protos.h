@@ -13,10 +13,7 @@ class ExternFunctionProtoRegistry : public FunctionProtoRegistry {
   using FunctionProtoRegistry::Lookup;
   using FunctionProtoRegistry::Register;
 
-  static ExternFunctionProtoRegistry& Global() {
-    static ExternFunctionProtoRegistry x;
-    return x;
-  }
+  static ExternFunctionProtoRegistry& Global();
 
  private:
   ExternFunctionProtoRegistry();
