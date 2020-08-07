@@ -1,6 +1,7 @@
 import cinn_core
 from cinn_core import Context, Computation, Compiler, Buffer, Module
 
+
 def Shape(li):
     data = cinn_core.Shape()
     for v in li:
@@ -11,6 +12,7 @@ def Shape(li):
         else:
             assert False
     return data
+
 
 def Args(li):
     data = cinn_core.Args()

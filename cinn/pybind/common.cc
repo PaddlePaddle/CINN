@@ -1,3 +1,4 @@
+#include "cinn/common/ir_util.h"
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
 #include "cinn/common/target.h"
@@ -5,6 +6,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
+#include "cinn/utils/string.h"
 
 namespace py = pybind11;
 
@@ -14,6 +16,8 @@ using common::CINNValue;
 using common::Object;
 using common::Target;
 using common::Type;
+using utils::GetStreamCnt;
+using utils::StringFormat;
 
 namespace {
 void BindTarget(py::module *);
@@ -76,16 +80,20 @@ void BindType(py::module *m) {
   DEFINE_TYPE_METHOD(with_type);
   DEFINE_TYPE_METHOD(with_cpp_const);
 #undef DEFINE_TYPE_METHOD
-  type.def("vector_of", &Type::VectorOf).def("element_of", &Type::ElementOf).def("pointer_of", &Type::PointerOf);
+  type.def("vector_of", &Type::VectorOf)
+      .def("element_of", &Type::ElementOf)
+      .def("pointer_of", &Type::PointerOf)
+      .def("__str__", [](const Type &self) { return GetStreamCnt(self); })
+      .def("__repr__", [](const Type &self) { return StringFormat("<Type: %s>", GetStreamCnt(self).c_str()); });
 
   py::enum_<Type::type_t> type_t(type, "type_t");
-  type_t.value("Unk", Type::type_t::Unk)
-      .value("Int", Type::type_t::Int)
-      .value("UInt", Type::type_t::UInt)
-      .value("Float", Type::type_t::Float)
-      .value("String", Type::type_t::String)
-      .value("Void", Type::type_t::Void)
-      .value("Customized", Type::type_t::Customized)
+  type_t.value("unk", Type::type_t::Unk)
+      .value("int", Type::type_t::Int)
+      .value("uInt", Type::type_t::UInt)
+      .value("float", Type::type_t::Float)
+      .value("string", Type::type_t::String)
+      .value("void", Type::type_t::Void)
+      .value("customized", Type::type_t::Customized)
       .export_values();
 
   py::enum_<Type::cpp_type_t> cpp_type_t(type, "cpp_type_t");
@@ -95,12 +103,38 @@ void BindType(py::module *m) {
       .value("HandleHandle", Type::cpp_type_t::HandleHandle)
       .export_values();
 
-  m->def("void", &common::Void)
-      .def("int", &common::Int)
-      .def("uint", &common::UInt)
-      .def("float", &common::Float)
-      .def("bool", &common::Bool)
-      .def("string", &common::String);
+  m->def("Void", &common::Void)
+      .def("Int", &common::Int, py::arg("bits"), py::arg("lanes") = 1)
+      .def("UInt", &common::UInt, py::arg("bits"), py::arg("lanes") = 1)
+      .def("Float", &common::Float, py::arg("bits"), py::arg("lanes") = 1)
+      .def("Bool", &common::Bool, py::arg("lanes") = 1)
+      .def("String", &common::String);
+
+  m->def(
+       "make_const",
+       [](const Type &type, int32_t val) -> Expr { return common::make_const(type, val); },
+       py::arg("type"),
+       py::arg("val"))
+      .def(
+          "make_const",
+          [](const Type &type, int64_t val) -> Expr { return common::make_const(type, val); },
+          py::arg("type"),
+          py::arg("val"))
+      .def(
+          "make_const",
+          [](const Type &type, float val) -> Expr { return common::make_const(type, val); },
+          py::arg("type"),
+          py::arg("val"))
+      .def(
+          "make_const",
+          [](const Type &type, double val) -> Expr { return common::make_const(type, val); },
+          py::arg("type"),
+          py::arg("val"))
+      .def(
+          "make_const",
+          [](const Type &type, bool val) -> Expr { return common::make_const(type, val); },
+          py::arg("type"),
+          py::arg("val"));
 
   m->def("type_of", [](std::string_view dtype) {
     if (dtype == "float32") return common::type_of<float>();
@@ -128,7 +162,6 @@ void BindType(py::module *m) {
 void BindObject(py::module *m) {
   py::class_<Object, ObjectWrapper> object(*m, "Object");
   object.def("type_info", &Object::type_info);
-  //.def_readwrite("ref_count", &Object::__ref_count__);
 }
 
 void BindShared(py::module *m) {
@@ -229,6 +262,12 @@ void BindCinnValue(py::module *m) {
   DEFINE_BINARY_OP(__sub__, [](auto x, auto y) { return x - y; });
   DEFINE_BINARY_OP(__mul__, [](auto x, auto y) { return x * y; });
   DEFINE_BINARY_OP(__truediv__, [](auto x, auto y) { return x / y; });
+  DEFINE_BINARY_OP(__and__, [](auto x, auto y) { return x && y; });
+  DEFINE_BINARY_OP(__or__, [](auto x, auto y) { return x || y; });
+  DEFINE_BINARY_OP(__lt__, [](auto x, auto y) { return x < y; });
+  DEFINE_BINARY_OP(__le__, [](auto x, auto y) { return x <= y; });
+  DEFINE_BINARY_OP(__gt__, [](auto x, auto y) { return x > y; });
+  DEFINE_BINARY_OP(__ge__, [](auto x, auto y) { return x >= y; });
 
 #undef DEFINE_BINARY_OP
 }
