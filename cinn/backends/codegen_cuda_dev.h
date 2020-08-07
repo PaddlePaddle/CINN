@@ -60,6 +60,7 @@ class CodeGenCUDA_Dev : public CodeGenC {
   void Visit(const ir::_LoweredFunc_* op) override;
   void Visit(const ir::Min* op) override;
   void Visit(const ir::Alloc* op) override;
+  void Visit(const ir::Call* op) override;
 
   void PrintBuiltinCodes();
 

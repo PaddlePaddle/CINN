@@ -15,12 +15,6 @@ struct FunctionProto {
   using shape_inference_t =
       std::function<std::vector<Expr> /*shape*/ (const std::vector<Expr>& /*arguments*/, int /*value_offset*/)>;
 
-  FunctionProto(const std::string& name,
-                const std::vector<Type>& readonly_arg_types,
-                const std::vector<Type>& mutable_arg_types,
-                Type ret_type                     = Void(),
-                shape_inference_t shape_inference = shape_inference_t());
-
   std::string name;
   std::vector<Type> readonly_arg_types;
   std::vector<Type> mutable_arg_types;
@@ -28,6 +22,29 @@ struct FunctionProto {
 
   // Inference the output's shape.
   shape_inference_t shape_inference;
+
+  /**
+   * Constructor for multiple output function.
+   * @param name Name of the function.
+   * @param readonly_arg_types The input types.
+   * @param mutable_arg_types The output types.
+   * @param ret_type The return type, default to Void().
+   * @param shape_inference The shape inference for each of the output tensor.
+   */
+  FunctionProto(const std::string& name,
+                const std::vector<Type>& readonly_arg_types,
+                const std::vector<Type>& mutable_arg_types,
+                Type ret_type                     = Void(),
+                shape_inference_t shape_inference = shape_inference_t());
+
+  /**
+   * Constructor for single output function.
+   * @param name Name of the function.
+   * @param input_types The input types.
+   * @param ret_type The return type.
+   */
+  FunctionProto(const std::string& name, const std::vector<Type>& input_types, Type ret_type)
+      : name(name), readonly_arg_types(input_types), ret_type(ret_type) {}
 
   /**
    * Tell whether the Call \p op matches the function prototype.
