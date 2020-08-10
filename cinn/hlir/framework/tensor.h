@@ -51,8 +51,10 @@ class Tensor final {
 
   template <typename T>
   const T* data() const {
-    return buffer_->data()->memory;
+    return reinterpret_cast<T*>(buffer_->data()->memory);
   }
+
+  cinn_buffer_t* buffer() { return buffer_->data(); }
 
  private:
   // A shared ptr to make it easier to share buffer between tensors.

@@ -4,6 +4,7 @@ set(srcs
   variable.cc
   buffer.cc
   memory.cc
+  instruction.cc
   )
 
 if(WITH_CUDA)
@@ -14,6 +15,7 @@ endif()
 
 cc_test(test_hlir_framework_tensor SRCS tensor_test.cc DEPS core)
 cc_test(test_hlir_framework_scope SRCS scope_test.cc DEPS core)
+cc_test(test_hlir_framework_instruction SRCS instruction_test.cc DEPS core)
 
 
 foreach(cpp ${srcs})

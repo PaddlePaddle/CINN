@@ -85,6 +85,7 @@ struct ArgsBuilder {
   template <typename T>
   ArgsBuilder& Add(T x) {
     data_.emplace_back(x);
+    LOG(INFO) << "ArgsBuilder add a " << data_.back().type_code();
     return *this;
   }
 
