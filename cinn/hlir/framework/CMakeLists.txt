@@ -6,7 +6,12 @@ set(srcs
   memory.cc
   )
 
-cc_test(test_hlir_framework_buffer SRCS buffer_test.cc DEPS core)
+if(WITH_CUDA)
+  nv_test(test_hlir_framework_buffer SRCS buffer_test.cc DEPS core)
+else()
+  cc_test(test_hlir_framework_buffer SRCS buffer_test.cc DEPS core)
+endif()
+
 cc_test(test_hlir_framework_tensor SRCS tensor_test.cc DEPS core)
 cc_test(test_hlir_framework_scope SRCS scope_test.cc DEPS core)
 

@@ -328,7 +328,7 @@ void CodeGenC::PrintCall_buffer_get_data_handle(const ir::Call *op) {
   auto *buffer = op->read_args[0].As<ir::_Buffer_>();
   os() << buffer->name;
   os() << "->";
-  os() << "host_memory";
+  os() << "memory";
 }
 
 void CodeGenC::PrintCall_get_address(const ir::Call *op) {

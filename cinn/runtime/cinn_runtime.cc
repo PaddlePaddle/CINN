@@ -213,9 +213,9 @@ void debug_pod_value(cinn_pod_value_t v, int i) {
     case cinn_pod_value_t::type_code<cinn_buffer_t*>(): {
       cinn_buffer_t* node = v;
       if (node->memory) {
-        cinn_print_debug_string("arg[%d].host_memory: %p\n", i, node->memory);
+        cinn_print_debug_string("arg[%d].memory: %p\n", i, node->memory);
       } else {
-        cinn_print_debug_string("arg[%d].host_memory: %p\n", i, NULL);
+        cinn_print_debug_string("arg[%d].memory: %p\n", i, NULL);
       }
     } break;
     case cinn_pod_value_t::type_code<int32_t>(): {

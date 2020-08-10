@@ -26,11 +26,11 @@ void cinn_mkl_exp_v_fp32(cinn_buffer_t *x, cinn_buffer_t *out) {
 /*
 void cinn_mkl_cos_v_fp32(cinn_buffer_t *x, cinn_buffer_t *out) {
   CHECK_EQ(x->num_elements(), out->num_elements());
-  vsCosh(x->num_elements(), reinterpret_cast<float *>(x->host_memory), reinterpret_cast<float *>(out->host_memory));
+  vsCosh(x->num_elements(), reinterpret_cast<float *>(x->memory), reinterpret_cast<float *>(out->memory));
 }
 void cinn_mkl_cos_v_fp64(cinn_buffer_t *x, cinn_buffer_t *out) {
   CHECK_EQ(x->num_elements(), out->num_elements());
-  vdCosh(x->num_elements(), reinterpret_cast<double *>(x->host_memory), reinterpret_cast<double *>(out->host_memory));
+  vdCosh(x->num_elements(), reinterpret_cast<double *>(x->memory), reinterpret_cast<double *>(out->memory));
 }
 */
 

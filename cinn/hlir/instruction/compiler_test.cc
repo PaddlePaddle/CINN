@@ -107,9 +107,9 @@ TEST(Compiler, call_main) {
 
   auto [a, b, c] = CreateTestBuffer(100, 200);  // NOLINT
 
-  cinn_print_debug_string("a.host_memory: %p", a->memory);
-  cinn_print_debug_string("b.host_memory: %p", b->memory);
-  cinn_print_debug_string("c.host_memory: %p", c->memory);
+  cinn_print_debug_string("a.memory: %p", a->memory);
+  cinn_print_debug_string("b.memory: %p", b->memory);
+  cinn_print_debug_string("c.memory: %p", c->memory);
 
   cinn_pod_value_t a_arg(a), b_arg(b), c_arg(c);
   cinn_pod_value_t args[] = {a_arg, b_arg, c_arg};
@@ -134,9 +134,9 @@ TEST(Compiler, call_main1) {
 
   auto [a, b, c] = CreateTestBuffer(100, 200);  // NOLINT
 
-  cinn_print_debug_string("a.host_memory: %p", a->memory);
-  cinn_print_debug_string("b.host_memory: %p", b->memory);
-  cinn_print_debug_string("c.host_memory: %p", c->memory);
+  cinn_print_debug_string("a.memory: %p", a->memory);
+  cinn_print_debug_string("b.memory: %p", b->memory);
+  cinn_print_debug_string("c.memory: %p", c->memory);
 
   cinn_pod_value_t a_arg(a), b_arg(b), c_arg(c);
   cinn_pod_value_t args[] = {a_arg, b_arg, c_arg};
