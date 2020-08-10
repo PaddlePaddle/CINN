@@ -4,7 +4,6 @@
 
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/cas.h"
-#include "cinn/hlir/instruction/lower_impl.h"
 
 namespace {
 
