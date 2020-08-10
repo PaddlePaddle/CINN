@@ -45,9 +45,9 @@ TEST(Vectorize, basic) {
 
   fn_ptr(reinterpret_cast<void**>(args.data()), args.size());
 
-  auto* A_data = reinterpret_cast<float*>(A_buf->host_memory);
-  auto* B_data = reinterpret_cast<float*>(B_buf->host_memory);
-  auto* C_data = reinterpret_cast<float*>(C_buf->host_memory);
+  auto* A_data = reinterpret_cast<float*>(A_buf->memory);
+  auto* B_data = reinterpret_cast<float*>(B_buf->memory);
+  auto* C_data = reinterpret_cast<float*>(C_buf->memory);
   for (int i = 0; i < C_buf->num_elements(); i++) {
     ASSERT_NEAR(A_data[i] + B_data[i], C_data[i], 1e-5);
   }

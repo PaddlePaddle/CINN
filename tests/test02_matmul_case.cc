@@ -33,10 +33,10 @@ TEST(test02, basic) {
   cinn_buffer_malloc(nullptr, C);
   cinn_buffer_malloc(nullptr, packedB);
 
-  float* Ad        = reinterpret_cast<float*>(A->host_memory);
-  float* Bd        = reinterpret_cast<float*>(B->host_memory);
-  float* Cd_target = reinterpret_cast<float*>(C_target->host_memory);
-  float* Cd        = reinterpret_cast<float*>(C->host_memory);
+  float* Ad        = reinterpret_cast<float*>(A->memory);
+  float* Bd        = reinterpret_cast<float*>(B->memory);
+  float* Cd_target = reinterpret_cast<float*>(C_target->memory);
+  float* Cd        = reinterpret_cast<float*>(C->memory);
 
   for (int i = 0; i < M; i++) {
     for (int k = 0; k < K; k++) {

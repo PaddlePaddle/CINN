@@ -48,12 +48,12 @@ void CudaModuleTester::Compile(const lang::Module& m, const std::string& rewrite
 }
 
 void* CudaModuleTester::CreateDeviceBuffer(const cinn_buffer_t* host_buffer) {
-  CHECK(host_buffer->host_memory);
+  CHECK(host_buffer->memory);
   int num_bytes = host_buffer->num_elements() * sizeof(float);
   CUdeviceptr data;
   cuMemAlloc(&data, num_bytes);
 
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data), host_buffer->host_memory, num_bytes, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data), host_buffer->memory, num_bytes, cudaMemcpyHostToDevice));
   return reinterpret_cast<void*>(data);
 }
 

@@ -70,5 +70,7 @@ static const Target& DefaultNVGPUTarget() {
   return target;
 }
 
+std::ostream& operator<<(std::ostream& os, Target::Arch arch);
+
 }  // namespace common
 }  // namespace cinn

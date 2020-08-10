@@ -417,9 +417,9 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
     cinn_buffer_t* C_buf =
         cinn_buffer_new(cinn_x86_device, cinn_float32_t(), std::vector<int>{{M.as_int32(), N.as_int32()}});
 
-    A_buf->host_memory = reinterpret_cast<uint8_t*>(Ad);
-    B_buf->host_memory = reinterpret_cast<uint8_t*>(Bd);
-    C_buf->host_memory = reinterpret_cast<uint8_t*>(Cd);
+    A_buf->memory = reinterpret_cast<uint8_t*>(Ad);
+    B_buf->memory = reinterpret_cast<uint8_t*>(Bd);
+    C_buf->memory = reinterpret_cast<uint8_t*>(Cd);
 
     CUDA_CALL(cudaDeviceSynchronize());
 
@@ -714,9 +714,9 @@ TEST(elementwise_add, share_local_cache) {
     cinn_buffer_t* C_buf =
         cinn_buffer_new(cinn_x86_device, cinn_float32_t(), std::vector<int>{{M.as_int32(), N.as_int32()}});
 
-    A_buf->host_memory = reinterpret_cast<uint8_t*>(Ad);
-    B_buf->host_memory = reinterpret_cast<uint8_t*>(Bd);
-    C_buf->host_memory = reinterpret_cast<uint8_t*>(Cd);
+    A_buf->memory = reinterpret_cast<uint8_t*>(Ad);
+    B_buf->memory = reinterpret_cast<uint8_t*>(Bd);
+    C_buf->memory = reinterpret_cast<uint8_t*>(Cd);
 
     CUDA_CALL(cudaDeviceSynchronize());
 
@@ -971,23 +971,23 @@ void fn0_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->host_memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->host_memory = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->host_memory = reinterpret_cast<uint8_t*>(C_dev);
-  auto args                = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn0", args.data(), args.size());
   CUDA_CALL(cudaDeviceSynchronize());
 
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->host_memory),
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->memory),
                        C_dev,
                        C_target_host->num_elements() * sizeof(float),
                        cudaMemcpyDeviceToHost));
 
-  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->host_memory);
-  auto* A_mem        = reinterpret_cast<float*>(A_host->host_memory);
-  auto* B_mem        = reinterpret_cast<float*>(B_host->host_memory);
+  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->memory);
+  auto* A_mem        = reinterpret_cast<float*>(A_host->memory);
+  auto* B_mem        = reinterpret_cast<float*>(B_host->memory);
   for (int i = 0; i < C_target_host->num_elements(); i++) {
     ASSERT_NEAR(C_target_mem[i], A_mem[i] + B_mem[i], 1e-5);
   }
@@ -1099,23 +1099,23 @@ void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->host_memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->host_memory = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->host_memory = reinterpret_cast<uint8_t*>(C_dev);
-  auto args                = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn1", args.data(), args.size());
   CUDA_CALL(cudaDeviceSynchronize());
 
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->host_memory),
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->memory),
                        C_dev,
                        C_target_host->num_elements() * sizeof(float),
                        cudaMemcpyDeviceToHost));
 
-  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->host_memory);
-  auto* A_mem        = reinterpret_cast<float*>(A_host->host_memory);
-  auto* B_mem        = reinterpret_cast<float*>(B_host->host_memory);
+  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->memory);
+  auto* A_mem        = reinterpret_cast<float*>(A_host->memory);
+  auto* B_mem        = reinterpret_cast<float*>(B_host->memory);
   for (int i = 0; i < M.as_int32() - 2; i++) {
     for (int j = 0; j < N.as_int32(); j++) {
       ASSERT_NEAR(C_target_mem[i * N.as_int32() + j],
@@ -1167,23 +1167,23 @@ void TestElementwiseAddPrecisionBasic(
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->host_memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->host_memory = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->host_memory = reinterpret_cast<uint8_t*>(C_dev);
-  auto args                = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester(fn_name, args.data(), args.size());
   CUDA_CALL(cudaDeviceSynchronize());
 
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->host_memory),
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->memory),
                        C_dev,
                        C_target_host->num_elements() * sizeof(float),
                        cudaMemcpyDeviceToHost));
 
-  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->host_memory);
-  auto* A_mem        = reinterpret_cast<float*>(A_host->host_memory);
-  auto* B_mem        = reinterpret_cast<float*>(B_host->host_memory);
+  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->memory);
+  auto* A_mem        = reinterpret_cast<float*>(A_host->memory);
+  auto* B_mem        = reinterpret_cast<float*>(B_host->memory);
   for (int i = 0; i < M.as_int32() - 2; i++) {
     for (int j = 0; j < N.as_int32(); j++) {
       ASSERT_NEAR(

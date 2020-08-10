@@ -84,8 +84,8 @@ TEST(Tensor, Collapse) {
   fn(args.data(), args.size());
 
   // check result
-  auto* A_data = reinterpret_cast<float*>(A_buf->host_memory);
-  auto* C_data = reinterpret_cast<float*>(C_buf->host_memory);
+  auto* A_data = reinterpret_cast<float*>(A_buf->memory);
+  auto* C_data = reinterpret_cast<float*>(C_buf->memory);
   for (int i = 0; i < A_buf->num_elements(); i++) {
     ASSERT_NEAR(C_data[i], A_data[i] * A_data[i] + 1.f, 1e-5);
   }

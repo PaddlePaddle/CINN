@@ -14,9 +14,9 @@ TEST(test01, basic) {
   auto* B = cinn::common::BufferBuilder(Float(32), {100, 32}).set_align(32).set_random().Build();
   auto* C = cinn::common::BufferBuilder(Float(32), {100, 32}).set_align(32).set_zero().Build();
 
-  float* Ad = reinterpret_cast<float*>(A->host_memory);
-  float* Bd = reinterpret_cast<float*>(B->host_memory);
-  float* Cd = reinterpret_cast<float*>(C->host_memory);
+  float* Ad = reinterpret_cast<float*>(A->memory);
+  float* Bd = reinterpret_cast<float*>(B->memory);
+  float* Cd = reinterpret_cast<float*>(C->memory);
   ASSERT_EQ(C->num_elements(), A->num_elements());
 
   auto check = [&] {
@@ -44,9 +44,9 @@ TEST(test01, compute_at) {
   auto* B = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_random().Build();
   auto* C = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_zero().Build();
 
-  float* Ad = reinterpret_cast<float*>(A->host_memory);
-  float* Bd = reinterpret_cast<float*>(B->host_memory);
-  float* Cd = reinterpret_cast<float*>(C->host_memory);
+  float* Ad = reinterpret_cast<float*>(A->memory);
+  float* Bd = reinterpret_cast<float*>(B->memory);
+  float* Cd = reinterpret_cast<float*>(C->memory);
   ASSERT_EQ(C->num_elements(), A->num_elements());
 
   auto check_add = [&] {
@@ -91,9 +91,9 @@ TEST(test01, compute_at_level1) {
   auto* B = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_random().Build();
   auto* C = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_zero().Build();
 
-  float* Ad = reinterpret_cast<float*>(A->host_memory);
-  float* Bd = reinterpret_cast<float*>(B->host_memory);
-  float* Cd = reinterpret_cast<float*>(C->host_memory);
+  float* Ad = reinterpret_cast<float*>(A->memory);
+  float* Bd = reinterpret_cast<float*>(B->memory);
+  float* Cd = reinterpret_cast<float*>(C->memory);
   ASSERT_EQ(C->num_elements(), A->num_elements());
 
   auto check_add = [&] {

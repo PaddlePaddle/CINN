@@ -71,9 +71,9 @@ void add1(void* _args, int32_t num_args)
   const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
   cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = ((const float*)(_A->host_memory));
-  const float* B = ((const float*)(_B->host_memory));
-  float* C = ((float*)(_C->host_memory));
+  const float* A = ((const float*)(_A->memory));
+  const float* B = ((const float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 20; j += 1) {
       C[((20 * i) + j)] = (A[((20 * i) + j)] + B[((20 * i) + j)]);
@@ -166,10 +166,10 @@ void add1(void* _args, int32_t num_args)
   cinn_buffer_t* _D = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[3]));
   cinn_buffer_malloc((void*)(0), _C);
   cinn_buffer_malloc((void*)(0), _D);
-  const float* A = ((const float*)(_A->host_memory));
-  const float* B = ((const float*)(_B->host_memory));
-  float* C = ((float*)(_C->host_memory));
-  float* D = ((float*)(_D->host_memory));
+  const float* A = ((const float*)(_A->memory));
+  const float* B = ((const float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  float* D = ((float*)(_D->memory));
   for (int32_t i_outer = 0; i_outer < 25; i_outer += 1) {
     for (int32_t i_inner = 0; i_inner < 4; i_inner += 1) {
       for (int32_t j = 0; j < 20; j += 1) {
@@ -251,10 +251,10 @@ void matmul(void* _args, int32_t num_args)
   const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
   cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = ((const float*)(_A->host_memory));
-  const float* B = ((const float*)(_B->host_memory));
-  float* C = ((float*)(_C->host_memory));
-  float* C_init = ((float*)(_C->host_memory));
+  const float* A = ((const float*)(_A->memory));
+  const float* B = ((const float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  float* C_init = ((float*)(_C->memory));
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 50; j += 1) {
       C_init[((50 * i) + j)] = 0;
@@ -272,9 +272,9 @@ void main(void* _args, int32_t num_args)
   const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
   cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = ((const float*)(_A->host_memory));
-  const float* B = ((const float*)(_B->host_memory));
-  float* C = ((float*)(_C->host_memory));
+  const float* A = ((const float*)(_A->memory));
+  const float* B = ((const float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
   {
     cinn_pod_value_t _pod_val__8;
     buffer_p_to_cinn_pod_value(_A, &_pod_val__8);
@@ -351,10 +351,10 @@ void matmul(void* _args, int32_t num_args)
   const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
   cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = ((const float*)(_A->host_memory));
-  const float* B = ((const float*)(_B->host_memory));
-  float* C = ((float*)(_C->host_memory));
-  float* C_init = ((float*)(_C->host_memory));
+  const float* A = ((const float*)(_A->memory));
+  const float* B = ((const float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  float* C_init = ((float*)(_C->memory));
   for (int32_t i_outer = 0; i_outer < 4; i_outer += 1) {
     for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
       for (int32_t i_inner = 0; i_inner < (1 + ((int32_t)(cinn_min(31, (99 + (-32 * i_outer)))))); i_inner += 1) {
@@ -431,10 +431,10 @@ void matmul_with_packing(void* _args, int32_t num_args)
   cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[3]));
   cinn_buffer_malloc((void*)(0), _PackedB);
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = ((const float*)(_A->host_memory));
-  const float* B = ((const float*)(_B->host_memory));
-  float* C = ((float*)(_C->host_memory));
-  float* PackedB = ((float*)(_PackedB->host_memory));
+  const float* A = ((const float*)(_A->memory));
+  const float* B = ((const float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  float* PackedB = ((float*)(_PackedB->memory));
   for (int32_t i = 0; i < 15; i += 1) {
     for (int32_t j = 0; j < 200; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {

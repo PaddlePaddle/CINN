@@ -8,28 +8,28 @@ int cinn_x86_malloc(void* context, cinn_buffer_t* buf) {
   uint64_t memory_size = buf->num_elements() * buf->type.bytes();
   CINN_CHECK(memory_size > 0);
   if (buf->memory_size < memory_size) {
-    if (buf->host_memory) {
-      free(buf->host_memory);
+    if (buf->memory) {
+      free(buf->memory);
     }
     int bytes = buf->type.bytes() * buf->num_elements();
     if (buf->align == 0) {
-      buf->host_memory = (unsigned char*)malloc(bytes);
+      buf->memory = (unsigned char*)malloc(bytes);
     } else {
-      buf->host_memory = (unsigned char*)aligned_alloc(buf->align, bytes);
+      buf->memory = (unsigned char*)aligned_alloc(buf->align, bytes);
     }
     buf->memory_size = memory_size;
     CINN_LOG("buf.memory size is %ld\n", buf->memory_size);
   }
-  ASSERT_NOT_NULL(buf->host_memory);
+  ASSERT_NOT_NULL(buf->memory);
   return 0;
 }
 
 int cinn_x86_free(void* context, cinn_buffer_t* buf) {
   // ASSERT_NOT_NULL(context);
   ASSERT_NOT_NULL(buf);
-  if (buf->host_memory) {
-    free(buf->host_memory);
-    buf->host_memory = NULL;
+  if (buf->memory) {
+    free(buf->memory);
+    buf->memory = NULL;
   }
   return 0;
 }

@@ -1,3 +1,4 @@
+add_subdirectory(framework)
 add_subdirectory(instruction)
 add_subdirectory(pe)
 
