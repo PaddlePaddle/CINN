@@ -30,9 +30,9 @@ cinn_buffer_t* BufferBuilder::Build() {
       if (type_ == type_of<float>()) {
         RandomFloat<float>(buffer->memory, buffer->num_elements());
       } else if (type_ == type_of<double>()) {
-        RandomFloat<double>(buffer->host_memory, buffer->num_elements());
+        RandomFloat<double>(buffer->memory, buffer->num_elements());
       } else if (type_ == type_of<int32_t>()) {
-        RandomInt<int32_t>(buffer->host_memory, buffer->num_elements());
+        RandomInt<int32_t>(buffer->memory, buffer->num_elements());
       } else if (type_ == type_of<int64_t>()) {
         RandomInt<int64_t>(buffer->memory, buffer->num_elements());
       }
@@ -40,7 +40,7 @@ cinn_buffer_t* BufferBuilder::Build() {
 
     case InitType::kSetValue:
       if (type_ == type_of<int>()) {
-        SetVal<int>(buffer->host_memory, buffer->num_elements(), init_val_);
+        SetVal<int>(buffer->memory, buffer->num_elements(), init_val_);
       } else if (type_ == type_of<float>()) {
         SetVal<float>(buffer->memory, buffer->num_elements(), init_val_);
       } else {

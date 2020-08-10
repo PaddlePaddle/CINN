@@ -153,11 +153,11 @@ void BindCinnRuntime(py::module *m) {
   py::class_<cinn_buffer_t> cinn_buffer(*m, "cinn_buffer_t");
   cinn_buffer.def_readwrite("device", &cinn_buffer_t::device)
       .def_readwrite("device_interface", &cinn_buffer_t::device_interface)
-      .def_readwrite("host_memory", &cinn_buffer_t::memory)
+      .def_readwrite("memory", &cinn_buffer_t::memory)
       .def_readwrite("flag", &cinn_buffer_t::flag)
       .def_readwrite("type", &cinn_buffer_t::type)
       .def_readwrite("dimensions", &cinn_buffer_t::dimensions)
-      .def_readwrite("dims", &cinn_buffer_t::dims)
+      //.def_readwrite("dims", &cinn_buffer_t::dims)
       .def_readwrite("lazy", &cinn_buffer_t::lazy)
       .def_readwrite("memory_size", &cinn_buffer_t::memory_size)
       .def_readwrite("align", &cinn_buffer_t::align)
