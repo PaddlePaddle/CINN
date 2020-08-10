@@ -1,10 +1,10 @@
 #include "cinn/hlir/framework/buffer.h"
-#include "cinn/backends/cuda_util.h"
 #ifdef CINN_WITH_CUDA
-#include <cuda.h>
+#include "cinn/backends/cuda_util.h"
 #endif
-
 #include <gtest/gtest.h>
+
+#include <vector>
 
 namespace cinn {
 namespace hlir {
