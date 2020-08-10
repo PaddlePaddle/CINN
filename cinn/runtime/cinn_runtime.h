@@ -151,7 +151,7 @@ typedef struct cinn_buffer_t {
   const struct cinn_device_interface_t* device_interface;
 
   //! A pointer to the memory in host.
-  uint8_t* host_memory;
+  uint8_t* memory;
 
   //! Extra flags.
   uint64_t flag;
@@ -175,7 +175,7 @@ typedef struct cinn_buffer_t {
   cinn_buffer_t()
       : device(cinn_unk_device),
         device_interface(NULL),
-        host_memory(NULL),
+        memory(NULL),
         flag(0UL),
         type(cinn_type_t()),
         dimensions(0),
@@ -221,7 +221,7 @@ typedef struct cinn_buffer_t {
   }
 
   CINN_ALWAYS_INLINE uint8_t* begin() const { return 0; }
-  CINN_ALWAYS_INLINE uint8_t* end() const { return host_memory + num_elements() * type.bytes(); }
+  CINN_ALWAYS_INLINE uint8_t* end() const { return memory + num_elements() * type.bytes(); }
 
   CINN_ALWAYS_INLINE bool get_flag(cinn_buffer_kind_t flag) const { return (this->flag & flag) != 0; }
   CINN_ALWAYS_INLINE void set_flag(cinn_buffer_kind_t flag, bool value) {
@@ -255,10 +255,10 @@ struct cinn_device_interface_impl_t {
 extern struct cinn_device_interface_t* cinn_x86_device_interface();
 
 inline float cinn_buffer_load_float32(struct cinn_buffer_t* buf, uint32_t index) {
-  return ((float*)buf->host_memory)[index];  // NOLINT
+  return ((float*)buf->memory)[index];  // NOLINT
 }
 inline double cinn_buffer_load_float64(struct cinn_buffer_t* buf, uint32_t index) {
-  return ((double*)buf->host_memory)[index];  // NOLINT
+  return ((double*)buf->memory)[index];  // NOLINT
 }
 #endif  // __cplusplus
 

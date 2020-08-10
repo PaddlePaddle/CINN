@@ -26,15 +26,15 @@ auto CreateTestBuffer(int kM, int kN) {
   cinn_buffer_malloc(nullptr, A);
   cinn_buffer_malloc(nullptr, B);
   cinn_buffer_malloc(nullptr, C);
-  float* Ad = reinterpret_cast<float*>(A->host_memory);
-  float* Bd = reinterpret_cast<float*>(B->host_memory);
+  float* Ad = reinterpret_cast<float*>(A->memory);
+  float* Bd = reinterpret_cast<float*>(B->memory);
 
   for (int i = 0; i < A->num_elements(); i++) {
     Ad[i] = i;
     Bd[i] = i;
   }
 
-  float* Cd = reinterpret_cast<float*>(C->host_memory);
+  float* Cd = reinterpret_cast<float*>(C->memory);
   CHECK_EQ(C->num_elements(), A->num_elements());
 
   return std::make_tuple(A, B, C);
@@ -89,15 +89,15 @@ TEST(Compiler, call_kernel_directly) {
 
   compiler.Eval(module.get(), args, 3, "elementwise_add0");
 
-  const float* c_data = reinterpret_cast<float*>(c->host_memory);
+  const float* c_data = reinterpret_cast<float*>(c->memory);
 
   for (int i = 0; i < c->num_elements(); i++) {
     ASSERT_EQ(c_data[i], i * 2);
   }
 
-  delete a->host_memory;
-  delete b->host_memory;
-  delete c->host_memory;
+  delete a->memory;
+  delete b->memory;
+  delete c->memory;
 }
 
 TEST(Compiler, call_main) {
@@ -107,24 +107,24 @@ TEST(Compiler, call_main) {
 
   auto [a, b, c] = CreateTestBuffer(100, 200);  // NOLINT
 
-  cinn_print_debug_string("a.host_memory: %p", a->host_memory);
-  cinn_print_debug_string("b.host_memory: %p", b->host_memory);
-  cinn_print_debug_string("c.host_memory: %p", c->host_memory);
+  cinn_print_debug_string("a.host_memory: %p", a->memory);
+  cinn_print_debug_string("b.host_memory: %p", b->memory);
+  cinn_print_debug_string("c.host_memory: %p", c->memory);
 
   cinn_pod_value_t a_arg(a), b_arg(b), c_arg(c);
   cinn_pod_value_t args[] = {a_arg, b_arg, c_arg};
 
   compiler.Eval(module.get(), args, 3, "");
 
-  const float* c_data = reinterpret_cast<float*>(c->host_memory);
+  const float* c_data = reinterpret_cast<float*>(c->memory);
 
   for (int i = 0; i < c->num_elements(); i++) {
     ASSERT_EQ(c_data[i], i * 2);
   }
 
-  delete a->host_memory;
-  delete b->host_memory;
-  delete c->host_memory;
+  delete a->memory;
+  delete b->memory;
+  delete c->memory;
 }
 
 TEST(Compiler, call_main1) {
@@ -134,16 +134,16 @@ TEST(Compiler, call_main1) {
 
   auto [a, b, c] = CreateTestBuffer(100, 200);  // NOLINT
 
-  cinn_print_debug_string("a.host_memory: %p", a->host_memory);
-  cinn_print_debug_string("b.host_memory: %p", b->host_memory);
-  cinn_print_debug_string("c.host_memory: %p", c->host_memory);
+  cinn_print_debug_string("a.host_memory: %p", a->memory);
+  cinn_print_debug_string("b.host_memory: %p", b->memory);
+  cinn_print_debug_string("c.host_memory: %p", c->memory);
 
   cinn_pod_value_t a_arg(a), b_arg(b), c_arg(c);
   cinn_pod_value_t args[] = {a_arg, b_arg, c_arg};
 
   compiler.Eval(module.get(), args, 3, "");
 
-  const float* c_data = reinterpret_cast<float*>(c->host_memory);
+  const float* c_data = reinterpret_cast<float*>(c->memory);
 
   for (int i = 0; i < c->num_elements(); i++) {
     ASSERT_EQ(c_data[i], i * 2);
@@ -225,10 +225,10 @@ TEST(Compiler, call_main_dense_model) {
   const int batch_size_runtime = 20;
 
   auto handcraft_compu = [&] {
-    auto* xb_data    = reinterpret_cast<float*>(Xb->host_memory);
-    auto* Wb_data    = reinterpret_cast<float*>(Wb->host_memory);
-    auto* Biasb_data = reinterpret_cast<float*>(Biasb->host_memory);
-    auto* Outb_data  = reinterpret_cast<float*>(Outb_target->host_memory);
+    auto* xb_data    = reinterpret_cast<float*>(Xb->memory);
+    auto* Wb_data    = reinterpret_cast<float*>(Wb->memory);
+    auto* Biasb_data = reinterpret_cast<float*>(Biasb->memory);
+    auto* Outb_data  = reinterpret_cast<float*>(Outb_target->memory);
 
     for (int b = 0; b < batch_size_runtime; b++) {
       for (int m = 0; m < M; m++) {
@@ -259,13 +259,13 @@ TEST(Compiler, call_main_dense_model) {
 
     auto randomize_buffer = [](cinn_buffer_t* buffer) {
       cinn_buffer_malloc(nullptr, buffer);
-      auto* data = reinterpret_cast<float*>(buffer->host_memory);
+      auto* data = reinterpret_cast<float*>(buffer->memory);
       // for (int i = 0; i < buffer->num_elements(); i++) data[i] = static_cast<float>(rand()) / RAND_MAX;
       for (int i = 0; i < buffer->num_elements(); i++) data[i] = 1;
     };
     auto initialize_buffer = [](cinn_buffer_t* buffer) {
       cinn_buffer_malloc(nullptr, buffer);
-      auto* data = reinterpret_cast<float*>(buffer->host_memory);
+      auto* data = reinterpret_cast<float*>(buffer->memory);
       memset(data, 2, buffer->num_elements() * sizeof(float));
     };
 
@@ -289,8 +289,8 @@ TEST(Compiler, call_main_dense_model) {
   {  // check result
     handcraft_compu();
 
-    auto* out_data        = reinterpret_cast<float*>(Outb->host_memory);
-    auto* out_target_data = reinterpret_cast<float*>(Outb_target->host_memory);
+    auto* out_data        = reinterpret_cast<float*>(Outb->memory);
+    auto* out_target_data = reinterpret_cast<float*>(Outb_target->memory);
 
     for (int b = 0; b < batch_size_runtime; b++) {
       for (int m = 0; m < M; m++) {
@@ -380,8 +380,8 @@ void TestElementwise() {
     auto args              = common::ArgsBuilder().Add(x_buf).Add(out_buf).Build();
     compiler.Eval("tanh0", args.data(), 2);
 
-    auto* x_data   = reinterpret_cast<float*>(x_buf->host_memory);
-    auto* out_data = reinterpret_cast<float*>(out_buf->host_memory);
+    auto* x_data   = reinterpret_cast<float*>(x_buf->memory);
+    auto* out_data = reinterpret_cast<float*>(out_buf->memory);
 
     for (int i = 0; i < out_buf->num_elements(); i++) {
       ASSERT_NEAR(fp(x_data[i]), out_data[i], 1e-5);
@@ -432,8 +432,8 @@ TEST(Compiler, dot_cgemm) {
 
     compiler.Eval(fn_name, args.data(), args.size());
 
-    auto* out_data  = reinterpret_cast<float*>(out_buf->host_memory);
-    auto* out_data1 = reinterpret_cast<float*>(out1_buf->host_memory);
+    auto* out_data  = reinterpret_cast<float*>(out_buf->memory);
+    auto* out_data1 = reinterpret_cast<float*>(out1_buf->memory);
     for (int i = 0; i < out_buf->num_elements(); i++) {
       if (i < 4) {
         LOG(INFO) << "Dot result: " << out_data[i];

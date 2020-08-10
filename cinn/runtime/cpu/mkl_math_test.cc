@@ -63,8 +63,8 @@ void TestCallElementwise(const std::string &fn_name, float (*fn_runtime)(float),
   cinn_pod_value_t args[] = {a_arg, b_arg};
   fn_(args, 2);
 
-  auto *ad = reinterpret_cast<float *>(A_buf->host_memory);
-  auto *bd = reinterpret_cast<float *>(B_buf->host_memory);
+  auto *ad = reinterpret_cast<float *>(A_buf->memory);
+  auto *bd = reinterpret_cast<float *>(B_buf->memory);
   for (int i = 0; i < A_buf->num_elements(); i++) {
     ASSERT_NEAR(bd[i], fn_runtime(ad[i]), 1e-5);
   }

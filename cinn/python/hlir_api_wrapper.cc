@@ -81,9 +81,9 @@ std::shared_ptr<py_buffer> py_buffer::from_numpy(pybind11::array array) {
 
   auto buffer = std::make_shared<py_buffer>(shape, type, "x86", 32);
   cinn_buffer_malloc(nullptr, buffer->data_);
-  CHECK(buffer->data_->host_memory);
+  CHECK(buffer->data_->memory);
 
-  std::memcpy(static_cast<void*>(buffer->data_->host_memory), array.mutable_data(), buffer->data_->memory_size);
+  std::memcpy(static_cast<void*>(buffer->data_->memory), array.mutable_data(), buffer->data_->memory_size);
   return buffer;
 }
 
@@ -103,8 +103,8 @@ pybind11::array py_buffer::numpy() {
 
   pybind11::array::ShapeContainer shape(data_->dims, data_->dims + data_->dimensions);
   pybind11::array py_data(t, std::move(shape));
-  CHECK(data_->host_memory);
-  std::memcpy(py_data.mutable_data(), data_->host_memory, data_->memory_size);
+  CHECK(data_->memory);
+  std::memcpy(py_data.mutable_data(), data_->memory, data_->memory_size);
   return py_data;
 }
 

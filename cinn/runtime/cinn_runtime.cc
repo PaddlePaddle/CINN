@@ -26,7 +26,7 @@ void* cinn_buffer_slice(struct cinn_buffer_t* buf, uint32_t offset) {
   CINN_CHECK(buf);
   uint64_t offset_byte = offset * buf->type.bytes();
   CINN_CHECK_LT(offset_byte, buf->memory_size);
-  return buf->host_memory + offset_byte;
+  return buf->memory + offset_byte;
 }
 
 int cinn_device_sync(void* context, struct cinn_buffer_t* buf) {
@@ -65,12 +65,12 @@ int cinn_buffer_copy(void* context, struct cinn_buffer_t* src, struct cinn_buffe
 
 void* cinn_buffer_get_data_handle(struct cinn_buffer_t* buf) {
   CINN_CHECKP(buf, "%s", "buffer is null");
-  return buf->host_memory;
+  return buf->memory;
 }
 
 void* cinn_buffer_get_data_const_handle(const struct cinn_buffer_t* buf) {
   CINN_CHECKP(buf, "%s", "buffer is null");
-  return buf->host_memory;
+  return buf->memory;
 }
 
 cinn_type_t cinn_unk_t() { return cinn_type_t(cinn_type_unk, 0); }
@@ -94,7 +94,7 @@ struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device,
   memcpy(&(buf->dims[0]), shape.data(), shape.size() * sizeof(int));
   buf->type        = type;
   buf->device      = device;
-  buf->host_memory = nullptr;
+  buf->memory      = nullptr;
   buf->memory_size = 0;
   buf->lazy        = true;
   // NOTE set device_interface for each buffer.
@@ -212,8 +212,8 @@ void debug_pod_value(cinn_pod_value_t v, int i) {
   switch (v.type_code()) {
     case cinn_pod_value_t::type_code<cinn_buffer_t*>(): {
       cinn_buffer_t* node = v;
-      if (node->host_memory) {
-        cinn_print_debug_string("arg[%d].host_memory: %p\n", i, node->host_memory);
+      if (node->memory) {
+        cinn_print_debug_string("arg[%d].host_memory: %p\n", i, node->memory);
       } else {
         cinn_print_debug_string("arg[%d].host_memory: %p\n", i, NULL);
       }

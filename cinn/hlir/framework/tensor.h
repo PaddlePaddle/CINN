@@ -46,12 +46,12 @@ class Tensor final {
   template <typename T>
   inline T* mutable_data(const Target& target) {
     buffer_->ResizeLazy(shape_.numel() * sizeof(T), target);
-    return reinterpret_cast<T*>(buffer_->data()->host_memory);
+    return reinterpret_cast<T*>(buffer_->data()->memory);
   }
 
   template <typename T>
   const T* data() const {
-    return buffer_->data()->host_memory;
+    return buffer_->data()->memory;
   }
 
  private:

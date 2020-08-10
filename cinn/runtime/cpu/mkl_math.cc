@@ -12,15 +12,15 @@
 
 void cinn_mkl_tanh_v_fp32(cinn_buffer_t *x, cinn_buffer_t *out) {
   CHECK_EQ(x->num_elements(), out->num_elements());
-  vsTanh(x->num_elements(), reinterpret_cast<float *>(x->host_memory), reinterpret_cast<float *>(out->host_memory));
+  vsTanh(x->num_elements(), reinterpret_cast<float *>(x->memory), reinterpret_cast<float *>(out->memory));
 }
 void cinn_mkl_tanh_v_fp64(cinn_buffer_t *x, cinn_buffer_t *out) {
   CHECK_EQ(x->num_elements(), out->num_elements());
-  vdTanh(x->num_elements(), reinterpret_cast<double *>(x->host_memory), reinterpret_cast<double *>(out->host_memory));
+  vdTanh(x->num_elements(), reinterpret_cast<double *>(x->memory), reinterpret_cast<double *>(out->memory));
 }
 void cinn_mkl_exp_v_fp32(cinn_buffer_t *x, cinn_buffer_t *out) {
   CHECK_EQ(x->num_elements(), out->num_elements());
-  vdExp(x->num_elements(), reinterpret_cast<double *>(x->host_memory), reinterpret_cast<double *>(out->host_memory));
+  vdExp(x->num_elements(), reinterpret_cast<double *>(x->memory), reinterpret_cast<double *>(out->memory));
 }
 
 /*

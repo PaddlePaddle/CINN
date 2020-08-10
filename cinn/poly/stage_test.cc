@@ -209,8 +209,8 @@ function fn (_A, _cache, _C)
 
   fn_handler(arg_pack.data(), arg_pack.size());
 
-  auto* C_data = reinterpret_cast<float*>(C_buf->host_memory);
-  auto* A_data = reinterpret_cast<float*>(A_buf->host_memory);
+  auto* C_data = reinterpret_cast<float*>(C_buf->memory);
+  auto* A_data = reinterpret_cast<float*>(A_buf->memory);
 
   for (int k = 0; k < 10; k++) {
     for (int i = 0; i < 10; i++) {
@@ -451,9 +451,9 @@ void TestElementwiseAddJitPrecession(std::function<void(ir::Tensor*)>&& schedule
 
   fn_handler(arg_pack.data(), arg_pack.size());
 
-  auto* A_data = reinterpret_cast<float*>(A_buf->host_memory);
-  auto* B_data = reinterpret_cast<float*>(B_buf->host_memory);
-  auto* C_data = reinterpret_cast<float*>(C_buf->host_memory);
+  auto* A_data = reinterpret_cast<float*>(A_buf->memory);
+  auto* B_data = reinterpret_cast<float*>(B_buf->memory);
+  auto* C_data = reinterpret_cast<float*>(C_buf->memory);
   for (int i = 0; i < A_buf->num_elements(); i++) {
     if (i < 4) LOG(INFO) << C_data[i];
     ASSERT_NEAR(A_data[i] + B_data[i], C_data[i], 1e-5);

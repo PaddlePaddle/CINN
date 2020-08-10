@@ -40,8 +40,8 @@ struct Buffer final {
 
   //! Free all the memory owned by this buffer.
   void Free() {
-    if (!data_.host_memory) return;
-    memory_mng_cache_->free(data_.host_memory);
+    if (!data_.memory) return;
+    memory_mng_cache_->free(data_.memory);
   }
 
  private:

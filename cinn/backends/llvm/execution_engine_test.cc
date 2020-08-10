@@ -62,15 +62,15 @@ auto CreateTestBuffer() {
   cinn_buffer_malloc(nullptr, A);
   cinn_buffer_malloc(nullptr, B);
   cinn_buffer_malloc(nullptr, C);
-  float *Ad = reinterpret_cast<float *>(A->host_memory);
-  float *Bd = reinterpret_cast<float *>(B->host_memory);
+  float *Ad = reinterpret_cast<float *>(A->memory);
+  float *Bd = reinterpret_cast<float *>(B->memory);
 
   for (int i = 0; i < A->num_elements(); i++) {
     Ad[i] = static_cast<float>(rand()) / RAND_MAX;  // NOLINT
     Bd[i] = static_cast<float>(rand()) / RAND_MAX;  // NOLINT
   }
 
-  float *Cd = reinterpret_cast<float *>(C->host_memory);
+  float *Cd = reinterpret_cast<float *>(C->memory);
   CHECK_EQ(C->num_elements(), A->num_elements());
 
   return std::make_tuple(A, B, C);
@@ -119,9 +119,9 @@ TEST(llvm_test01, elementwise_add) {
   cinn_pod_value_t args[3] = {a_arg, b_arg, c_arg};
   elementwise_add(args, 3);
 
-  float *ad = reinterpret_cast<float *>(a->host_memory);
-  float *bd = reinterpret_cast<float *>(b->host_memory);
-  float *cd = reinterpret_cast<float *>(c->host_memory);
+  float *ad = reinterpret_cast<float *>(a->memory);
+  float *bd = reinterpret_cast<float *>(b->memory);
+  float *cd = reinterpret_cast<float *>(c->memory);
 
   for (int i = 0; i < c->num_elements(); i++) {
     EXPECT_EQ(ad[i] + bd[i], cd[i]);
@@ -180,11 +180,11 @@ TEST(llvm, module_call_lowered_func) {
 
     elementwise_add(args, 3);
 
-    auto *ad = reinterpret_cast<float *>(ab->host_memory);
-    auto *bd = reinterpret_cast<float *>(bb->host_memory);
+    auto *ad = reinterpret_cast<float *>(ab->memory);
+    auto *bd = reinterpret_cast<float *>(bb->memory);
     for (int i = 0; i < kM; i++) {
       for (int j = 0; j < kN; j++) {
-        auto *data = reinterpret_cast<float *>(cb->host_memory);
+        auto *data = reinterpret_cast<float *>(cb->memory);
         ASSERT_NEAR(data[i * kN + j], ad[i * kN + j] + bd[i * kN + j], 1e-5);
       }
     }
@@ -309,9 +309,9 @@ TEST(ExecutionEngine, call_extern) {
 
   comp(args, 3);
 
-  auto *ad = reinterpret_cast<float *>(ab->host_memory);
-  auto *bd = reinterpret_cast<float *>(bb->host_memory);
-  auto *cd = reinterpret_cast<float *>(cb->host_memory);
+  auto *ad = reinterpret_cast<float *>(ab->memory);
+  auto *bd = reinterpret_cast<float *>(bb->memory);
+  auto *cd = reinterpret_cast<float *>(cb->memory);
   for (int m = 0; m < kM; m++) {
     for (int n = 0; n < kN; n++) {
       ASSERT_NEAR(cd[m * kN + n], cinn_cpu_tanh_fp32(ad[m * kN + n] + bd[m * kN + n]), 1e-5);

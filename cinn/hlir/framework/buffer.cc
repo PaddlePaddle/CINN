@@ -10,8 +10,8 @@ void Buffer::Resize(uint32_t size) {
   }
 
   if (size_ != size) {
-    data_.host_memory = reinterpret_cast<uint8_t*>(Malloc(size));
-    size_             = size;
+    data_.memory = reinterpret_cast<uint8_t*>(Malloc(size));
+    size_        = size;
   }
 }
 
