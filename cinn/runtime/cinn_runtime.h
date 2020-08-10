@@ -1,3 +1,7 @@
+/**
+ * This file contains some core runtime concepts, the basic definition is used in C so that it can be deployed in some
+ * light-weight devices.
+ */
 #ifndef CINN_RUNTIME_CINN_RUNTIME_H_
 #define CINN_RUNTIME_CINN_RUNTIME_H_
 #ifdef __cplusplus
@@ -138,6 +142,7 @@ extern void* cinn_buffer_get_data_handle(struct cinn_buffer_t* buf);
 extern void* cinn_buffer_get_data_const_handle(const struct cinn_buffer_t* buf);
 
 //! The raw representation of a buffer,used in the generated code/lib.
+#define CINN_BUFFER_MAX_DIMS 8
 typedef struct cinn_buffer_t {
   //! Tell which kind of device this buffer locates.
   cinn_device_kind_t device;
@@ -146,7 +151,7 @@ typedef struct cinn_buffer_t {
   const struct cinn_device_interface_t* device_interface;
 
   //! A pointer to the memory in host.
-  uint8_t* host_memory;
+  uint8_t* memory;
 
   //! Extra flags.
   uint64_t flag;
@@ -156,7 +161,7 @@ typedef struct cinn_buffer_t {
 
   //! Number of dimensions.
   int32_t dimensions;
-  cinn_dimension_t* dims;
+  cinn_dimension_t dims[CINN_BUFFER_MAX_DIMS];
 
   //! Allocate and deallocate lazily, default true.
   char lazy;
@@ -170,11 +175,10 @@ typedef struct cinn_buffer_t {
   cinn_buffer_t()
       : device(cinn_unk_device),
         device_interface(NULL),
-        host_memory(NULL),
+        memory(NULL),
         flag(0UL),
         type(cinn_type_t()),
         dimensions(0),
-        dims(NULL),
         memory_size(0),
         align(0),
         lazy(true) {}
@@ -185,20 +189,13 @@ typedef struct cinn_buffer_t {
                                     int align = 0);
   static void delete_(struct cinn_buffer_t* x) { delete x; }
 
-  ~cinn_buffer_t() {
-    delete host_memory;
-    delete dims;
-  }
+  ~cinn_buffer_t() {}
 
   // NOTE the buffer should be resized first.
   static void alloc(struct cinn_buffer_t*);
 
   //! Set the shape of the buffer. NOTE this just record the shape, not allocate the memory.
   CINN_ALWAYS_INLINE void resize(const cinn_dimension_t* dims, int dimensions) {
-    if (this->dimensions != dimensions) {
-      if (this->dims) free(this->dims);
-      this->dims = (cinn_dimension_t*)malloc(dimensions * sizeof(cinn_dimension_t));  // NOLINT
-    }
     this->dimensions = dimensions;
     memcpy(this->dims, dims, dimensions * sizeof(cinn_dimension_t));
   }
@@ -224,7 +221,7 @@ typedef struct cinn_buffer_t {
   }
 
   CINN_ALWAYS_INLINE uint8_t* begin() const { return 0; }
-  CINN_ALWAYS_INLINE uint8_t* end() const { return host_memory + num_elements() * type.bytes(); }
+  CINN_ALWAYS_INLINE uint8_t* end() const { return memory + num_elements() * type.bytes(); }
 
   CINN_ALWAYS_INLINE bool get_flag(cinn_buffer_kind_t flag) const { return (this->flag & flag) != 0; }
   CINN_ALWAYS_INLINE void set_flag(cinn_buffer_kind_t flag, bool value) {
@@ -258,10 +255,10 @@ struct cinn_device_interface_impl_t {
 extern struct cinn_device_interface_t* cinn_x86_device_interface();
 
 inline float cinn_buffer_load_float32(struct cinn_buffer_t* buf, uint32_t index) {
-  return ((float*)buf->host_memory)[index];  // NOLINT
+  return ((float*)buf->memory)[index];  // NOLINT
 }
 inline double cinn_buffer_load_float64(struct cinn_buffer_t* buf, uint32_t index) {
-  return ((double*)buf->host_memory)[index];  // NOLINT
+  return ((double*)buf->memory)[index];  // NOLINT
 }
 #endif  // __cplusplus
 

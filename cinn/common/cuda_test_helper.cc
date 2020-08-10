@@ -36,10 +36,9 @@ void CudaModuleTester::Compile(const lang::Module& m, const std::string& rewrite
     CHECK(fn_kernel);
     kernel_handles_.push_back(fn_kernel);
 
-    backends::RuntimeSymbolRegistry::Global().Register(kernel_fn_name + "_ptr_",
-                                                       reinterpret_cast<void*>(&kernel_handles_.back()));
-    backends::RuntimeSymbolRegistry::Global().Register(kernel_fn_name + "_stream_ptr_",
-                                                       reinterpret_cast<void*>(&stream_));
+    backends::RuntimeSymbolRegistry::Global().RegisterFn(kernel_fn_name + "_ptr_",
+                                                         reinterpret_cast<void*>(&kernel_handles_.back()));
+    backends::RuntimeSymbolRegistry::Global().RegisterVar(kernel_fn_name + "_stream_ptr_", stream_);
   }
 
   jit_ = backends::SimpleJIT::Create();
@@ -49,12 +48,12 @@ void CudaModuleTester::Compile(const lang::Module& m, const std::string& rewrite
 }
 
 void* CudaModuleTester::CreateDeviceBuffer(const cinn_buffer_t* host_buffer) {
-  CHECK(host_buffer->host_memory);
+  CHECK(host_buffer->memory);
   int num_bytes = host_buffer->num_elements() * sizeof(float);
   CUdeviceptr data;
   cuMemAlloc(&data, num_bytes);
 
-  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data), host_buffer->host_memory, num_bytes, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data), host_buffer->memory, num_bytes, cudaMemcpyHostToDevice));
   return reinterpret_cast<void*>(data);
 }
 

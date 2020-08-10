@@ -13,7 +13,8 @@ class TestPackedFunc(unittest.TestCase):
         pass
 
     def test_lambda(self):
-        add3 = ir.register_packed_func("test_packed_func_add3")(lambda x, y, z: x + y + z)
+        add3 = ir.register_packed_func(
+            "test_packed_func_add3")(lambda x, y, z: x + y + z)
         self.assertEqual(add3(1, 2, 3), 6)
         self.assertEqual(ir.get_global_func("test_packed_func_add3"), add3)
         self.assertTrue(isinstance(add3, ir.PackedFunc))
@@ -37,7 +38,8 @@ class TestPackedFunc(unittest.TestCase):
                     r = r + arg
                 return r
 
-        accumulate = ir.register_packed_func("accumulate_float")(Accumulator(1.0))
+        accumulate = ir.register_packed_func("accumulate_float")(
+            Accumulator(1.0))
         self.assertTrue(isclose(accumulate(1., 2., 3., 4.), 11.))
 
     def test_cxx_register(self):

@@ -39,7 +39,7 @@ cinn_buffer_t *CreateBufferFromNumpy(py::array data, cinn_device_kind_t device, 
   std::copy_n(data.shape(), data.ndim(), std::back_inserter(shape));
   auto *buffer = cinn_buffer_t::new_(device, type, shape, align);
   cinn_buffer_malloc(nullptr, buffer);
-  std::memcpy(buffer->host_memory, data.data(), data.nbytes());
+  std::memcpy(buffer->memory, data.data(), data.nbytes());
 
   return buffer;
 }
@@ -68,7 +68,7 @@ py::array BufferHostMemoryToNumpy(cinn_buffer_t &buffer) {  // NOLINT
   cinn_buffer_copy_to_host(nullptr, &buffer);
   switch (buffer.device) {
     case cinn_x86_device:
-      std::memcpy(mutable_data, buffer.host_memory, buffer.memory_size);
+      std::memcpy(mutable_data, buffer.memory, buffer.memory_size);
       break;
   }
 
@@ -153,11 +153,11 @@ void BindCinnRuntime(py::module *m) {
   py::class_<cinn_buffer_t> cinn_buffer(*m, "cinn_buffer_t");
   cinn_buffer.def_readwrite("device", &cinn_buffer_t::device)
       .def_readwrite("device_interface", &cinn_buffer_t::device_interface)
-      .def_readwrite("host_memory", &cinn_buffer_t::host_memory)
+      .def_readwrite("memory", &cinn_buffer_t::memory)
       .def_readwrite("flag", &cinn_buffer_t::flag)
       .def_readwrite("type", &cinn_buffer_t::type)
       .def_readwrite("dimensions", &cinn_buffer_t::dimensions)
-      .def_readwrite("dims", &cinn_buffer_t::dims)
+      //.def_readwrite("dims", &cinn_buffer_t::dims)
       .def_readwrite("lazy", &cinn_buffer_t::lazy)
       .def_readwrite("memory_size", &cinn_buffer_t::memory_size)
       .def_readwrite("align", &cinn_buffer_t::align)

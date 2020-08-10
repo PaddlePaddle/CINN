@@ -13,6 +13,7 @@ PYBIND11_MODULE(core_api, m) {
   py::module ir       = m.def_submodule("ir", "namespace cinn::ir");
   py::module poly     = m.def_submodule("poly", "namespace cinn::poly, polyhedral");
   py::module backends = m.def_submodule("backends", "namespace cinn::backends, execution backends");
+  py::module optim    = m.def_submodule("optim", "namespace cinn::optim, CINN IR optimization");
 
   BindRuntime(&runtime);
   BindCommon(&common);
@@ -20,5 +21,6 @@ PYBIND11_MODULE(core_api, m) {
   BindIr(&ir);
   BindPoly(&poly);
   BindBackends(&backends);
+  BindOptim(&optim);
 }
 }  // namespace cinn::pybind

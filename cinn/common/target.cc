@@ -73,5 +73,23 @@ std::ostream &operator<<(std::ostream &os, const Target &target) {
   return os;
 }
 
+std::ostream &operator<<(std::ostream &os, Target::Arch arch) {
+  switch (arch) {
+    case Target::Arch::Unk:
+      os << "Unk";
+      break;
+    case Target::Arch::X86:
+      os << "X86";
+      break;
+    case Target::Arch::ARM:
+      os << "ARM";
+      break;
+    case Target::Arch::NVGPU:
+      os << "NVGPU";
+      break;
+  }
+  return os;
+}
+
 }  // namespace common
 }  // namespace cinn

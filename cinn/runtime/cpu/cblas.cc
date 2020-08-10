@@ -4,7 +4,6 @@
 
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/cas.h"
-#include "cinn/hlir/instruction/lower_impl.h"
 
 namespace {
 
@@ -32,12 +31,12 @@ void cinn_cpu_mkl_gemm_fp32(float alpha,
               N,
               K,
               alpha,
-              reinterpret_cast<float*>(A->host_memory),
+              reinterpret_cast<float*>(A->memory),
               lda,
-              reinterpret_cast<float*>(B->host_memory),
+              reinterpret_cast<float*>(B->memory),
               ldb,
               beta,
-              reinterpret_cast<float*>(C->host_memory),
+              reinterpret_cast<float*>(C->memory),
               ldc);
 }
 

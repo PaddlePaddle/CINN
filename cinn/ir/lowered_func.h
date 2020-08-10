@@ -137,7 +137,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   std::vector<Expr> dealloc_output_buffer_exprs;
   // @}
 
-  //! something like: float* A_data = (float*)(A->host_memory);
+  //! something like: float* A_data = (float*)(A->memory);
   std::vector<Expr> buffer_data_cast_exprs;
 
   std::vector<Expr> argument_prepare_exprs;

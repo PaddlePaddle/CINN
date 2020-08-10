@@ -13,7 +13,7 @@ void RegisterExternFunctionHelper(const std::string &fn_name,
   ExternFunctionEmitterRegistry::Global().Register(ExternFuncID{TargetToBackendRepr(target), fn_name.c_str()},
                                                    new backends::ExternFunctionLLVMEmitter(fn_name));
 
-  RuntimeSymbolRegistry::Global().Register(fn_name, reinterpret_cast<void *>(fn_ptr));
+  RuntimeSymbolRegistry::Global().RegisterFn(fn_name, reinterpret_cast<void *>(fn_ptr));
 }
 
 void RegisterExternFunction::End() {

@@ -17,6 +17,11 @@
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 
+/**
+ * Helper to register an external function into CINN, including the prototype, the function address.
+ * @param fn__: name of the function
+ * @param target__: the Target.
+ */
 #define REGISTER_EXTERN_FUNC_HELPER(fn__, target__) \
   ::cinn::backends::RegisterExternFunction(#fn__, target__, reinterpret_cast<void*>(fn__))
 
@@ -40,30 +45,59 @@ static const char* TargetToBackendRepr(Target target) {
   return nullptr;
 }
 
+/**
+ * Helper class to register an external function.
+ */
 struct RegisterExternFunction {
   RegisterExternFunction(const std::string& fn_name, Target target, void* fn_ptr)
       : fn_name_(fn_name), target_(target), fn_ptr_(fn_ptr), fn_proto_builder_(fn_name) {}
 
+  /**
+   * Add an input type.
+   * @tparam T The input type.
+   * @return itself.
+   */
   template <typename T>
   RegisterExternFunction& AddInputType() {
     fn_proto_builder_.AddInputType<T>();
     return *this;
   }
+
+  /**
+   * Add an output type.
+   * @tparam T The output type.
+   * @return itself.
+   */
   template <typename T>
   RegisterExternFunction& AddOutputType() {
     fn_proto_builder_.AddOutputType<T>();
     return *this;
   }
+
+  /**
+   * Add an return type.
+   * @tparam T The return type.
+   * @return itself.
+   */
   template <typename T>
   RegisterExternFunction& SetRetType() {
     fn_proto_builder_.SetRetType<T>();
     return *this;
   }
+
+  /**
+   * Add an shape inference.
+   * @param handle The handle to help inference the shape.
+   * @return itself.
+   */
   RegisterExternFunction& SetShapeInference(FunctionProto::shape_inference_t handle) {
     fn_proto_builder_.SetShapeInference(handle);
     return *this;
   }
 
+  /**
+   * End the register, once end, futher modification is disallowed.
+   */
   void End();
 
  private:

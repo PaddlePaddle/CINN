@@ -12,6 +12,17 @@ ExternFunctionProtoRegistry::ExternFunctionProtoRegistry() {
     auto* n = detail::CreateTanhVProto();
     Register(n->name, n);
   }
+
+  Register("cos", new FunctionProto("cos", {Float(32)}, Float(32)));
+  Register("sign", new FunctionProto("sign", {Float(32)}, Float(32)));
+  Register("sin", new FunctionProto("sin", {Float(32)}, Float(32)));
+  Register("tanh", new FunctionProto("tanh", {Float(32)}, Float(32)));
+  Register("log", new FunctionProto("log", {Float(32)}, Float(32)));
+}
+
+ExternFunctionProtoRegistry& ExternFunctionProtoRegistry::Global() {
+  static ExternFunctionProtoRegistry x;
+  return x;
 }
 
 namespace detail {

@@ -104,7 +104,10 @@ void BindNode(py::module *m) {
   // struct IntImm : ExprNode<IntImm>
   DefineExprNode<ir::IntImm>(m, "IntImm");
   py::class_<ir::IntImm, ir::ExprNode<ir::IntImm>> int_imm(*m, "IntImm");
-  int_imm.def_readwrite("value", &ir::IntImm::value).def(py::init<Type, int64_t>());
+  int_imm.def_readwrite("value", &ir::IntImm::value)
+      .def(py::init<Type, int64_t>())
+      .def("__str__", [](const ir::IntImm &self) { return std::to_string(self.value); })
+      .def("__repr__", [](const ir::IntImm &self) { return utils::StringFormat("<IntImm %d>", self.value); });
 
   // struct UIntImm : ExprNode<UIntImm>
   DefineExprNode<ir::UIntImm>(m, "UIntImm");
@@ -140,6 +143,8 @@ void BindNode(py::module *m) {
       .def("as_float", &ir::Expr::as_float)
       .def("as_double", &ir::Expr::as_double);
 
+  expr.def("__str__", [](const Expr &self) { return utils::GetStreamCnt(self); });
+
   expr.def("as_var_mutable", py::overload_cast<>(&ir::Expr::as_var), py::return_value_policy::reference)
       .def("as_var_const", py::overload_cast<>(&ir::Expr::as_var, py::const_), py::return_value_policy::reference)
       .def("as_var_ref", &ir::Expr::as_var_ref);
@@ -154,13 +159,37 @@ void BindNode(py::module *m) {
       .def("type", &ir::Expr::type);
 
   // operators
-  expr.def("__add__", [](ir::Expr &self, ir::Expr &other) { return self + other; })
-      .def("__sub__", [](ir::Expr &self, ir::Expr &other) { return self - other; })
-      .def("__mul__", [](ir::Expr &self, ir::Expr &other) { return self * other; })
-      .def("__div__", [](ir::Expr &self, ir::Expr &other) { return self / other; })
-      .def("__mod__", [](ir::Expr &self, ir::Expr &other) { return self % other; })
-      .def("__and__", [](ir::Expr &self, ir::Expr &other) { return self && other; })
-      .def("__or__", [](ir::Expr &self, ir::Expr &other) { return self || other; });
+
+#define BIND_POD_BINARY_OP(otype__) \
+  .def(py::self + otype__)          \
+      .def(py::self - otype__)      \
+      .def(py::self *otype__)       \
+      .def(py::self / otype__)      \
+      .def(py::self % otype__)      \
+      .def(py::self < otype__)      \
+      .def(py::self <= otype__)     \
+      .def(py::self > otype__)      \
+      .def(py::self >= otype__)     \
+      .def(otype__ + py::self)      \
+      .def(otype__ - py::self)      \
+      .def(otype__ *py::self)       \
+      .def(otype__ / py::self)      \
+      .def(otype__ % py::self)      \
+      .def(otype__ < py::self)      \
+      .def(otype__ <= py::self)     \
+      .def(otype__ > py::self)      \
+      .def(otype__ >= py::self)
+
+  expr                              //
+      BIND_POD_BINARY_OP(py::self)  //
+      BIND_POD_BINARY_OP(int())     //
+      BIND_POD_BINARY_OP(float())   //
+      ;
+
+  expr.def("__add__", [](const Expr &self, const Var &other) -> Expr { return self + other; })
+      .def("__sub__", [](const Expr &self, const Var &other) -> Expr { return self - other; })
+      .def("__mul__", [](const Expr &self, const Var &other) -> Expr { return self * other; })
+      .def("__div__", [](const Expr &self, const Var &other) -> Expr { return self / other; });
 }
 
 void BindIrVisitor(py::module *m) {
@@ -352,8 +381,23 @@ void BindIrIr(py::module *m) {
       .def("get_const", py::overload_cast<>(&Var::get, py::const_), py::return_value_policy::reference)
       .def("to_expr_mutable", py::overload_cast<>(&Var::operator ir::Expr))
       .def("to_expr_const", py::overload_cast<>(&Var::operator ir::Expr, py::const_))
-      .def(py::self == Var())
-      .def(py::self != Var());
+
+          BIND_POD_BINARY_OP(int())  //
+      BIND_POD_BINARY_OP(int32_t())  //
+      BIND_POD_BINARY_OP(float())
+
+#define BINARY_OP(type__)                                                       \
+  .def("__add__", [](Var &self, type__ v) -> Expr { return self + v; })         \
+      .def("__sub__", [](Var &self, type__ v) -> Expr { return self - v; })     \
+      .def("__truediv__", [](Var &self, type__ v) -> Expr { return self / v; }) \
+      .def("__mul__", [](Var &self, type__ v) -> Expr { return self * v; })     \
+      .def("__mod__", [](Var &self, type__ v) -> Expr { return self % v; })
+
+          BINARY_OP(int32_t)  //
+      BINARY_OP(int64_t)      //
+      BINARY_OP(float)        //
+      BINARY_OP(double);
+#undef BINARY_OP
 
   DefineExprNode<ir::Power>(m, "Power");
   py::class_<ir::Power, ir::ExprNode<ir::Power>> power(*m, "Power");

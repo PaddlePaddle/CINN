@@ -67,9 +67,9 @@ void matmul(void* _args, int32_t num_args)
   const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
   cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
   cinn_buffer_malloc((void*)(0), _C);
-  const float* A = ((const float*)(_A->host_memory));
-  const float* B = ((const float*)(_B->host_memory));
-  float* C = ((float*)(_C->host_memory));
+  const float* A = ((const float*)(_A->memory));
+  const float* B = ((const float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
   for (int32_t i_outer = 0; i_outer < 64; i_outer += 1) {
     for (int32_t i_inner = 0; i_inner < 8; i_inner += 1) {
       for (int32_t j_outer = 0; j_outer < 63; j_outer += 1) {

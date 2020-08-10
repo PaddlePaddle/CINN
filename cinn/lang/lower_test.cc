@@ -94,7 +94,7 @@ TEST(lower, lowered_call) {
       {B, N}, [&](Var i, Var j) { return X(i, j) + Y(i, j); }, "Z");
 
   std::vector<ReturnType> return_types({{Float(32), std::vector<Expr>{{B, N}}, "C"}});
-  auto tensors = Call("lowered_fun0", {X, Y, Z}, return_types);
+  auto tensors = CallLowered("lowered_fun0", {X, Y, Z}, return_types);
   auto C       = tensors[0];
 
   LOG(INFO) << "call_op: " << C->operation->as<ir::CallOp>()->call_expr;

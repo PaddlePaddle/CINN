@@ -26,7 +26,7 @@ void* cinn_buffer_slice(struct cinn_buffer_t* buf, uint32_t offset) {
   CINN_CHECK(buf);
   uint64_t offset_byte = offset * buf->type.bytes();
   CINN_CHECK_LT(offset_byte, buf->memory_size);
-  return buf->host_memory + offset_byte;
+  return buf->memory + offset_byte;
 }
 
 int cinn_device_sync(void* context, struct cinn_buffer_t* buf) {
@@ -65,12 +65,12 @@ int cinn_buffer_copy(void* context, struct cinn_buffer_t* src, struct cinn_buffe
 
 void* cinn_buffer_get_data_handle(struct cinn_buffer_t* buf) {
   CINN_CHECKP(buf, "%s", "buffer is null");
-  return buf->host_memory;
+  return buf->memory;
 }
 
 void* cinn_buffer_get_data_const_handle(const struct cinn_buffer_t* buf) {
   CINN_CHECKP(buf, "%s", "buffer is null");
-  return buf->host_memory;
+  return buf->memory;
 }
 
 cinn_type_t cinn_unk_t() { return cinn_type_t(cinn_type_unk, 0); }
@@ -87,20 +87,20 @@ struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device,
                                           cinn_type_t type,
                                           const std::vector<int>& shape,
                                           int align) {
-  int32_t dimensions     = shape.size();
-  cinn_dimension_t* dims = (cinn_dimension_t*)malloc(sizeof(cinn_dimension_t) * dimensions);  // NOLINT
-  memcpy(dims, shape.data(), shape.size() * sizeof(int));
+  int32_t dimensions = shape.size();
+  CINN_CHECK(shape.size() < CINN_BUFFER_MAX_DIMS);
 
-  struct cinn_buffer_t* x = (struct cinn_buffer_t*)malloc(sizeof(struct cinn_buffer_t));
-  x->type                 = type;
-  x->device               = device;
-  x->host_memory          = nullptr;
-  x->memory_size          = 0;
-  x->lazy                 = true;
+  struct cinn_buffer_t* buf = (struct cinn_buffer_t*)malloc(sizeof(struct cinn_buffer_t));
+  memcpy(&(buf->dims[0]), shape.data(), shape.size() * sizeof(int));
+  buf->type        = type;
+  buf->device      = device;
+  buf->memory      = nullptr;
+  buf->memory_size = 0;
+  buf->lazy        = true;
   // NOTE set device_interface for each buffer.
-  switch (x->device) {
+  switch (buf->device) {
     case cinn_x86_device:
-      x->device_interface = cinn_x86_device_interface();
+      buf->device_interface = cinn_x86_device_interface();
       break;
     case cinn_unk_device:
       fprintf(stderr, "Device type of buffer should be set, found Unk");
@@ -111,10 +111,9 @@ struct cinn_buffer_t* cinn_buffer_t::new_(cinn_device_kind_t device,
       abort();
   }
 
-  x->dims       = dims;
-  x->dimensions = dimensions;
-  x->align      = align;
-  return x;
+  buf->dimensions = dimensions;
+  buf->align      = align;
+  return buf;
 }
 
 cinn_buffer_t* cinn_buffer_new(cinn_device_kind_t device, cinn_type_t type, const std::vector<int>& shape, int align) {
@@ -213,10 +212,10 @@ void debug_pod_value(cinn_pod_value_t v, int i) {
   switch (v.type_code()) {
     case cinn_pod_value_t::type_code<cinn_buffer_t*>(): {
       cinn_buffer_t* node = v;
-      if (node->host_memory) {
-        cinn_print_debug_string("arg[%d].host_memory: %p\n", i, node->host_memory);
+      if (node->memory) {
+        cinn_print_debug_string("arg[%d].memory: %p\n", i, node->memory);
       } else {
-        cinn_print_debug_string("arg[%d].host_memory: %p\n", i, NULL);
+        cinn_print_debug_string("arg[%d].memory: %p\n", i, NULL);
       }
     } break;
     case cinn_pod_value_t::type_code<int32_t>(): {
