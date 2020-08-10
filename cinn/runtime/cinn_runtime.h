@@ -1,3 +1,7 @@
+/**
+ * This file contains some core runtime concepts, the basic definition is used in C so that it can be deployed in some
+ * light-weight devices.
+ */
 #ifndef CINN_RUNTIME_CINN_RUNTIME_H_
 #define CINN_RUNTIME_CINN_RUNTIME_H_
 #ifdef __cplusplus
@@ -138,6 +142,7 @@ extern void* cinn_buffer_get_data_handle(struct cinn_buffer_t* buf);
 extern void* cinn_buffer_get_data_const_handle(const struct cinn_buffer_t* buf);
 
 //! The raw representation of a buffer,used in the generated code/lib.
+#define CINN_BUFFER_MAX_DIMS 8
 typedef struct cinn_buffer_t {
   //! Tell which kind of device this buffer locates.
   cinn_device_kind_t device;
@@ -156,7 +161,7 @@ typedef struct cinn_buffer_t {
 
   //! Number of dimensions.
   int32_t dimensions;
-  cinn_dimension_t* dims;
+  cinn_dimension_t dims[CINN_BUFFER_MAX_DIMS];
 
   //! Allocate and deallocate lazily, default true.
   char lazy;
@@ -174,7 +179,6 @@ typedef struct cinn_buffer_t {
         flag(0UL),
         type(cinn_type_t()),
         dimensions(0),
-        dims(NULL),
         memory_size(0),
         align(0),
         lazy(true) {}
@@ -185,20 +189,13 @@ typedef struct cinn_buffer_t {
                                     int align = 0);
   static void delete_(struct cinn_buffer_t* x) { delete x; }
 
-  ~cinn_buffer_t() {
-    delete host_memory;
-    delete dims;
-  }
+  ~cinn_buffer_t() {}
 
   // NOTE the buffer should be resized first.
   static void alloc(struct cinn_buffer_t*);
 
   //! Set the shape of the buffer. NOTE this just record the shape, not allocate the memory.
   CINN_ALWAYS_INLINE void resize(const cinn_dimension_t* dims, int dimensions) {
-    if (this->dimensions != dimensions) {
-      if (this->dims) free(this->dims);
-      this->dims = (cinn_dimension_t*)malloc(dimensions * sizeof(cinn_dimension_t));  // NOLINT
-    }
     this->dimensions = dimensions;
     memcpy(this->dims, dims, dimensions * sizeof(cinn_dimension_t));
   }

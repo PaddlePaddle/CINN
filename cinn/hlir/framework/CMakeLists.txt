@@ -1,0 +1,18 @@
+set(srcs
+  tensor.cc
+  scope.cc
+  variable.cc
+  buffer.cc
+  memory.cc
+  )
+
+cc_test(test_hlir_framework_buffer SRCS buffer_test.cc DEPS core)
+cc_test(test_hlir_framework_tensor SRCS tensor_test.cc DEPS core)
+cc_test(test_hlir_framework_scope SRCS scope_test.cc DEPS core)
+
+
+foreach(cpp ${srcs})
+  set(core_src
+    "${core_src};cinn/hlir/framework/${cpp}"
+    CACHE INTERNAL "")
+endforeach()
