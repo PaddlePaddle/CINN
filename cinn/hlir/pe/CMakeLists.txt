@@ -1,5 +1,12 @@
 set(srcs
-        broadcast.cc)
+        broadcast.cc
+        elementwise.cc
+        nn.cc
+        reduction.cc
+        schedule.cc
+        transform.cc
+        vision.cc
+        )
 
 foreach(cpp ${srcs})
   set(core_src

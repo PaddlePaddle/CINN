@@ -22,7 +22,6 @@ class ExternFunctionProtoRegistry : public FunctionProtoRegistry {
 
 namespace detail {
 
-FunctionProto* CreateTanhProto();
 FunctionProto* CreateTanhVProto();
 
 }  // namespace detail

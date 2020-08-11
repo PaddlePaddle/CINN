@@ -4,20 +4,23 @@ namespace cinn {
 namespace backends {
 
 ExternFunctionProtoRegistry::ExternFunctionProtoRegistry() {
-  {
-    auto* n = detail::CreateTanhProto();
-    Register(n->name, n);
+  static const std::vector<std::string> extern_funcs_fp32 = {
+      "exp",      "erf",   "sigmoid",    "sqrt",        "log",        "log2",        "log10",       "floor",
+      "ceil",     "round", "trunc",      "cos",         "cosh",       "tan",         "sin",         "sinh",
+      "acos",     "acosh", "asin",       "asinh",       "atan",       "atanh",       "isnan",       "tanh",
+      "isfinite", "isinf", "left_shift", "right_shift", "bitwise_or", "bitwise_and", "bitwise_xor", "bitwise_not"};
+  static const std::vector<std::string> extern_funcs_int64 = {
+      "left_shift", "right_shift", "bitwise_or", "bitwise_and", "bitwise_xor", "bitwise_not"};
+  for (int i = 0; i < extern_funcs_fp32.size(); ++i) {
+    auto* proto = new FunctionProto(extern_funcs_fp32[i], {Float(32)}, Float(32));
+    Register(proto->name, proto);
   }
-  {
-    auto* n = detail::CreateTanhVProto();
-    Register(n->name, n);
+  for (int i = 0; i < extern_funcs_int64.size(); ++i) {
+    auto* proto = new FunctionProto(extern_funcs_int64[i], {Int(64)}, Int(64));
+    Register(proto->name, proto);
   }
-
-  Register("cos", new FunctionProto("cos", {Float(32)}, Float(32)));
-  Register("sign", new FunctionProto("sign", {Float(32)}, Float(32)));
-  Register("sin", new FunctionProto("sin", {Float(32)}, Float(32)));
-  Register("tanh", new FunctionProto("tanh", {Float(32)}, Float(32)));
-  Register("log", new FunctionProto("log", {Float(32)}, Float(32)));
+  auto* n = detail::CreateTanhVProto();
+  Register(n->name, n);
 }
 
 ExternFunctionProtoRegistry& ExternFunctionProtoRegistry::Global() {
@@ -27,7 +30,6 @@ ExternFunctionProtoRegistry& ExternFunctionProtoRegistry::Global() {
 
 namespace detail {
 
-FunctionProto* CreateTanhProto() { return new FunctionProto(extern_func__tanh, {Float(32)}, {}, Float(32)); }
 FunctionProto* CreateTanhVProto() {
   return new FunctionProto(
       extern_func__tanh_v, {type_of<float*>()}, {type_of<float*>()}, Void(), FunctionProto::ShapeFollowNthArgument(0));

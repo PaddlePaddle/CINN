@@ -28,6 +28,13 @@
 #define REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(fn__, target__, in_type__, out_type__) \
   REGISTER_EXTERN_FUNC_HELPER(fn__, target__).SetRetType<out_type__>().AddInputType<in_type__>().End()
 
+#define REGISTER_EXTERN_FUNC_TWO_IN_ONE_OUT(fn__, target__, in_type1__, in_type2__, out_type__) \
+  REGISTER_EXTERN_FUNC_HELPER(fn__, target__)                                                   \
+      .SetRetType<out_type__>()                                                                 \
+      .AddInputType<in_type1__>()                                                               \
+      .AddInputType<in_type2__>()                                                               \
+      .End()
+
 #define REGISTER_EXTERN_FUNC(symbol__) bool __cinn__##symbol__##__registrar()
 #define USE_EXTERN_FUNC(symbol__)                \
   extern bool __cinn__##symbol__##__registrar(); \
