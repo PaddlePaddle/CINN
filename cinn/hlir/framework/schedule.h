@@ -15,12 +15,7 @@ namespace framework {
 class Schedule : public common::Object {
  public:
   const char* type_info() const override { return "CINNSchedule"; }
-  /**
-   * \brief Create a schedule for array of ops(and their dependencies).
-   * @param ops The ops to be scheduled.
-   * @return sch The created Schedule.
-   */
-  // explicit Schedule(std::vector<cinn::ir::Operation> ops);
+
   /**
    * \brief Get the stage corresponds to the op
    * @param op The operation.

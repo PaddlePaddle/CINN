@@ -44,11 +44,10 @@ class OpImplementation : public common::Object {
    * @param target The build target.
    * @return The computation schedule.
    */
-  hlir::Schedule* Schedule(const std::vector<ir::Tensor>& outs, const Target& target) {
+  common::Shared<Schedule> GetSchedule(const std::vector<ir::Tensor>& outs, const Target& target) {
     // To do : add support for packedfunc to return Schedule
     // Expected : return this->fschedule(outs, target);
-    hlir::Schedule* temp;
-    return temp;
+    return nullptr;
   }
 
   const char* type_info() const { return _type_key; }
