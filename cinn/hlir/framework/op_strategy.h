@@ -3,7 +3,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "cinn/hlir/schedule.h"
+#include "cinn/hlir/framework/schedule.h"
 #include "cinn/ir/packed_func.h"
 
 using CINNCompute  = cinn::ir::PackedFunc;
@@ -11,6 +11,7 @@ using CINNSchedule = cinn::ir::PackedFunc;
 
 namespace cinn {
 namespace hlir {
+namespace framework {
 
 //! Operator implementation that includes compute and schedule function.
 class OpImplementation : public common::Object {
@@ -116,5 +117,6 @@ class OpStrategy : public common::Object {
   }
 };
 
+}  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

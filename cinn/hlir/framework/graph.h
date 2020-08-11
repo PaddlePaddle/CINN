@@ -4,11 +4,13 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
 #include "cinn/common/graph_utils.h"
-#include "cinn/hlir/node.h"
+#include "cinn/hlir/framework/node.h"
 
 namespace cinn {
 namespace hlir {
+namespace framework {
 
 /**
  * \brief Symbolic computation graph.
@@ -22,10 +24,10 @@ class Graph : public cinn::common::Graph {
   /** \brief attributes of a graph */
   std::unordered_map<std::string, std::shared_ptr<std::any>> attrs;
 
-  void RegisterNode(size_t key, cinn::hlir::Node* node) {
+  void RegisterNode(size_t key, Node* node) {
     this->cinn::common::Graph::RegisterNode(key, node->as<cinn::common::GraphNode>());
   }
-  void RegisterNode(size_t key, cinn::hlir::NodeData* node) {
+  void RegisterNode(size_t key, NodeData* node) {
     this->cinn::common::Graph::RegisterNode(key, node->as<cinn::common::GraphNode>());
   }
 
@@ -53,5 +55,6 @@ class Graph : public cinn::common::Graph {
   }
 };
 
+}  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

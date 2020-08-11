@@ -16,6 +16,7 @@
 
 namespace cinn {
 namespace hlir {
+namespace framework {
 class Operator;
 
 struct OpRegistry {
@@ -43,7 +44,7 @@ class OpValueType {
   }
 
   inline const ValueType& Get(const Operator* op, const ValueType& def_value) const {
-    if (op == nullptr) return def_value;
+    if (!op) return def_value;
     const uint32_t idx = op->index;
     if (idx < data.size()) {
       return data[idx];
@@ -53,7 +54,7 @@ class OpValueType {
   }
 
   inline bool Find(const Operator* op) const {
-    if (op == nullptr) return false;
+    if (!op) return false;
     const uint32_t idx = op->index;
     return idx < data.size();
   }
@@ -163,8 +164,8 @@ class Operator {
   }
 };
 
-//! internal macros to make
-#define CINN_REGISTER_VAR_DEF(OpName) static ::cinn::hlir::Operator& __make_##HlirOp##_##OpName
+// internal macros to make
+#define CINN_REGISTER_VAR_DEF(OpName) static ::cinn::hlir::framework::Operator& __make_##HlirOp##_##OpName
 
 /**
  * @def CINNR_REGISTER_OP
@@ -181,7 +182,10 @@ class Operator {
  */
 #define CINN_REGISTER_OP(OpName)                                \
   CINN_STR_CONCAT(CINN_REGISTER_VAR_DEF(OpName), __COUNTER__) = \
-      ::Registry<::cinn::hlir::Operator>::Get()->__REGISTER_OR_GET__(#OpName)
+      ::Registry<::cinn::hlir::framework::Operator>::Get()->__REGISTER_OR_GET__(#OpName)
+
+}  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
-CINN_REGISTRY_ENABLE(cinn::hlir::Operator);
+
+CINN_REGISTRY_ENABLE(cinn::hlir::framework::Operator);

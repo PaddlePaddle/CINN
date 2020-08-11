@@ -16,6 +16,8 @@ endif()
 cc_test(test_hlir_framework_tensor SRCS tensor_test.cc DEPS core)
 cc_test(test_hlir_framework_scope SRCS scope_test.cc DEPS core)
 cc_test(test_hlir_framework_instruction SRCS instruction_test.cc DEPS core)
+cc_test(test_hlir_framework_op SRCS op_test.cc DEPS core)
+cc_test(test_hlir_framework_print_graph_pass SRCS print_graph_pass_test.cc DEPS core)
 
 
 foreach(cpp ${srcs})

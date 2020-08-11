@@ -17,7 +17,7 @@ void CudaModuleTester::Compile(const lang::Module& m, const std::string& rewrite
   CHECK(!device_module.functions().empty());
 
   backends::CodeGenCUDA_Dev codegen(DefaultHostTarget());
-  auto source_code = codegen.Compile(m);
+  auto source_code = codegen.Compile(device_module);
 
   // compile CUDA kernel.
   backends::NVRTC_Compiler compiler;

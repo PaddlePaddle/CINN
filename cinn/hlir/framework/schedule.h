@@ -6,7 +6,7 @@
 #include "cinn/lang/tensor.h"
 namespace cinn {
 namespace hlir {
-
+namespace framework {
 /**
  * \brief Global schedule container
  *  For operations and all the operations they depend on.
@@ -42,6 +42,6 @@ class Schedule : public common::Object {
   //! map of original operation to the stages
   std::unordered_map<std::string, ir::Tensor> stage_map;
 };
-
+}  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

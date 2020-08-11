@@ -104,7 +104,8 @@ void CodeGenCUDA_Dev::Visit(const ir::Min *op) {
 }
 
 void CodeGenCUDA_Dev::PrintFunctionDeclaration(const ir::_LoweredFunc_ *op) {
-  os() << "void " << GenKernelName(op->name) << "(";
+  // os() << "void " << GenKernelName(op->name) << "(";
+  os() << "void " << op->name << "(";
   for (int i = 0; i < op->args.size() - 1; i++) {
     auto &arg = op->args[i];
     PrintFuncArg(arg);

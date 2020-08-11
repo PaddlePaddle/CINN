@@ -602,10 +602,12 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   } else if (op->is_extern_call()) {
     auto emitter_id = ExternFuncID{backend_llvm_host, op->name.c_str()};
     auto *emitter   = ExternFunctionEmitterRegistry::Global().Lookup(emitter_id);
-    CHECK(emitter) << "No extern function emitter called " << emitter_id;
-    emitter->BindCodeGen(this);
-    emitter->Emit(op);
-    return extern_func_emit_res_;
+    if (emitter) {
+      // CHECK(emitter) << "No extern function emitter called " << emitter_id;
+      emitter->BindCodeGen(this);
+      emitter->Emit(op);
+      return extern_func_emit_res_;
+    }
   }
 
   llvm::Function *callee = m_->getFunction(op->name);
