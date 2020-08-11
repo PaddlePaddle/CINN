@@ -22,6 +22,7 @@ void Compiler::Build(const lang::Module& module) {
 }
 
 void Compiler::CompileCudaModule(const Module& module) {
+#ifdef CINN_WITH_CUDA
   auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
   LOG(INFO) << "host module:\n" << host_module;
 
@@ -56,6 +57,10 @@ void Compiler::CompileCudaModule(const Module& module) {
     engine_ = SimpleJIT::Create();
     engine_->Link<CodeGenCUDA_Host>(host_module);
   }
+
+#else
+  CINN_NOT_IMPLEMENTED
+#endif
 }
 
 void Compiler::CompileX86Module(const Module& module) { engine_->Link(module); }
