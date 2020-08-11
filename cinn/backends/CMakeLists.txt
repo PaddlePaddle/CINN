@@ -10,8 +10,7 @@ set(srcs outputs.cc
         extern_func_protos.cc
         extern_func_jit_register.cc
         modular.cc
-        # cuda_util.cc
-        # nvrtc_util.cc
+        compiler.cc
 )
 if (WITH_CUDA)
   list(APPEND srcs cuda_util.cc nvrtc_util.cc codegen_cuda_util.cc)
@@ -34,6 +33,10 @@ if (WITH_CUDA)
 
   cc_library(generated1_cuda SRCS ${CMAKE_BINARY_DIR}/cinn/backends/generated1.cu DEPS core)
   add_dependencies(generated1_cuda test_codegen_cuda_dev)
+
+  nv_test(test_compiler SRCS compiler_test.cc DEPS core)
+else()
+  cc_test(test_compiler SRCS compiler_test.cc DEPS core)
 endif()
 
 

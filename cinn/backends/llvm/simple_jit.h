@@ -50,7 +50,9 @@ class SimpleJIT {
 
   void Link(llvm::orc::ThreadSafeModule m, bool optimize = true) { llvm::cantFail(jit_->addIRModule(std::move(m))); }
 
-  llvm::JITTargetAddress Lookup(const std::string &name) { return llvm::cantFail(jit_->lookup(name)).getAddress(); }
+  llvm::JITTargetAddress Lookup(std::string_view name) {
+    return llvm::cantFail(jit_->lookup(AsStringRef(name))).getAddress();
+  }
 
  private:
   void AddModule(std::unique_ptr<llvm::Module> module, bool optimize);

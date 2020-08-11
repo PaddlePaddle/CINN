@@ -79,7 +79,7 @@ void NaiveObjectCache::notifyObjectCompiled(const llvm::Module *m, llvm::MemoryB
 std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Module *m) {
   auto it = cached_objects_.find(m->getModuleIdentifier());
   if (it == cached_objects_.end()) {
-    LOG(INFO) << "No object for " << m->getModuleIdentifier() << " in cache. Compiling.";
+    VLOG(1) << "No object for " << m->getModuleIdentifier() << " in cache. Compiling.";
     return nullptr;
   }
 
