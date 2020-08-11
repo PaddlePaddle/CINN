@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "cinn/common/macros.h"
-#include "cinn/utils/base.h"
 #include "cinn/utils/registry.h"
 
 namespace cinn {
@@ -126,7 +125,7 @@ class Operator {
   static const OpValueType<ValueType>& GetAttr(const std::string& attr_name) {
     const std::any* ref = GetAttrMap(attr_name);
     if (ref == nullptr) {
-      // update the attribute map of the key by creating new empty OpMap
+      //! update the attribute map of the key by creating new empty OpMap
       UpdateAttrMap(attr_name, [attr_name](std::any* pmap) {
         if (!pmap->has_value()) {
           OpValueType<ValueType> pm;
@@ -154,7 +153,7 @@ class Operator {
       return nullptr;
     }
   }
-  // update the attribute OpValueType
+  //! update the attribute OpValueType
   static void UpdateAttrMap(const std::string& key, std::function<void(std::any*)> updater) {
     OpRegistry* reg = OpRegistry::Global();
     std::lock_guard<std::recursive_mutex>(reg->mutex);
@@ -164,7 +163,7 @@ class Operator {
   }
 };
 
-// internal macros to make
+//! internal macros to make
 #define CINN_REGISTER_VAR_DEF(OpName) static ::cinn::hlir::Operator& __make_##HlirOp##_##OpName
 
 /**
