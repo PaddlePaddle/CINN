@@ -5,11 +5,13 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
 #include "cinn/common/graph_utils.h"
-#include "cinn/hlir/op.h"
+#include "cinn/hlir/framework/op.h"
 
 namespace cinn {
 namespace hlir {
+namespace framework {
 class Node;
 class NodeData;
 
@@ -40,7 +42,7 @@ struct NodeAttr {
 /**
  * \brief Node represents an operation in a computation graph.
  */
-class Node : public cinn::common::GraphNode {
+class Node : public common::GraphNode {
  public:
   Node() = default;
   Node(const Operator *op, const std::string &name, std::string id = nullptr) {
@@ -49,7 +51,7 @@ class Node : public cinn::common::GraphNode {
     this->id_             = std::move(id);
   }
 
-  std::tuple<cinn::common::GraphEdge *, cinn::common::GraphEdge *> LinkTo(cinn::hlir::NodeData *other);
+  std::tuple<common::GraphEdge *, common::GraphEdge *> LinkTo(NodeData *other);
   /**
    * \brief Get the unique id of this NodeData.
    */
@@ -83,14 +85,14 @@ class Node : public cinn::common::GraphNode {
 /**
  * \brief NodeData represents the output data from an operator.
  */
-class NodeData : public cinn::common::GraphNode {
+class NodeData : public common::GraphNode {
  public:
   NodeData(NodePtr node, uint32_t index, uint32_t version, std::string id)
       : source_node(std::move(node)), output_index(index), version(version), id_(std::move(id)) {}
 
   NodeData() : source_node(), output_index(), version(), id_() {}
 
-  std::tuple<cinn::common::GraphEdge *, cinn::common::GraphEdge *> LinkTo(Node *other);
+  std::tuple<common::GraphEdge *, common::GraphEdge *> LinkTo(Node *other);
   static std::shared_ptr<NodeData> Create(
       const char *op_name,
       std::string node_name,
@@ -138,13 +140,14 @@ class NodeData : public cinn::common::GraphNode {
   std::string id_;
 };
 
-std::tuple<cinn::common::GraphEdge *, cinn::common::GraphEdge *> Node::LinkTo(NodeData *other) {
-  return this->cinn::common::GraphNode::LinkTo(other->as<cinn::common::GraphNode>());
+std::tuple<common::GraphEdge *, common::GraphEdge *> Node::LinkTo(NodeData *other) {
+  return this->common::GraphNode::LinkTo(other->as<common::GraphNode>());
 }
 
-std::tuple<cinn::common::GraphEdge *, cinn::common::GraphEdge *> NodeData::LinkTo(Node *other) {
-  return this->cinn::common::GraphNode::LinkTo(other->as<cinn::common::GraphNode>());
+std::tuple<common::GraphEdge *, common::GraphEdge *> NodeData::LinkTo(Node *other) {
+  return this->common::GraphNode::LinkTo(other->as<common::GraphNode>());
 }
 
+}  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

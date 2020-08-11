@@ -1,4 +1,4 @@
-#include "cinn/hlir/op.h"
+#include "cinn/hlir/framework/op.h"
 
 #include <gtest/gtest.h>
 
@@ -8,6 +8,8 @@
 
 namespace cinn {
 namespace hlir {
+namespace framework {
+
 CINN_REGISTER_OP(add)
     .describe("test of op Add")
     .set_num_inputs(2)
@@ -21,5 +23,7 @@ TEST(Operator, GetAttr) {
   ASSERT_EQ(add->description, "test of op Add");
   ASSERT_EQ(nick[add], "plus");
 }
+
+}  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

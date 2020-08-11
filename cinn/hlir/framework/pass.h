@@ -2,12 +2,16 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "cinn/hlir/graph.h"
+
+#include "cinn/hlir/framework/graph.h"
 #include "cinn/utils/registry.h"
 
-using cinn::hlir::Graph;
+#define CINN_REGISTER_PASS(name) \
+  CINN_REGISTRY_REGISTER(::cinn::hlir::framework::PassFunctionRegister, PassFunctionRegister, name)
+
 namespace cinn {
 namespace hlir {
+namespace framework {
 
 class PassFunctionRegister;
 typedef std::function<void(Graph* g)> PassFunction;
@@ -111,7 +115,8 @@ void ApplyPasses(Graph* g, const std::vector<std::string>& passes) {
 // Apply a single pass on a graph.
 inline void ApplyPass(Graph* g, const std::string& pass) { return ApplyPasses(g, {pass}); }
 
-#define CINN_REGISTER_PASS(name) CINN_REGISTRY_REGISTER(::cinn::hlir::PassFunctionRegister, PassFunctionRegister, name)
+}  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
-CINN_REGISTRY_ENABLE(cinn::hlir::PassFunctionRegister);
+
+CINN_REGISTRY_ENABLE(cinn::hlir::framework::PassFunctionRegister);
