@@ -406,7 +406,17 @@ std::ostream &operator<<(std::ostream &os, const std::vector<Expr> &a) {
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const lang::Module &m);
+std::ostream &operator<<(std::ostream &os, const lang::Module &m) {
+  os << "Module " << m->name << " {\n\n";
+
+  for (auto &fn : m->functions) {
+    os << fn << '\n';
+  }
+
+  os << "\n\n}";
+
+  return os;
+}
 
 }  // namespace ir
 }  // namespace cinn

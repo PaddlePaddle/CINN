@@ -146,7 +146,7 @@ TEST(CodeGenCUDA, compile_run_jit) {
 
   dim3 grid(M.as_int32(), 1, 1);
   dim3 block(N.as_int32(), 1, 1);
-  cuda_module.LaunchKernel(0, "elementwise_add_kernel", grid, block, args);
+  cuda_module.LaunchKernel(0, "elementwise_add", grid, block, args);
 
   CUDA_CALL(cudaMemcpy(host_data3.data(),
                        reinterpret_cast<void*>(Cd),
@@ -256,7 +256,7 @@ class ElementwiseTester {
       block.x = block_sizes[2];
     }
 
-    cuda_module.LaunchKernel(0, fn_name_ + "_kernel", grid, block, args);
+    cuda_module.LaunchKernel(0, fn_name_, grid, block, args);
 
     CUDA_CALL(cudaMemcpy(
         host_data3.data(), reinterpret_cast<void*>(Cd), num_elements * sizeof(float), cudaMemcpyDeviceToHost));
@@ -391,7 +391,7 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
   CHECK(!ptx.empty());
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
-  fn_kernel = cuda_module.GetFunction(0, "fn_kernel");
+  fn_kernel = cuda_module.GetFunction(0, "fn");
   CHECK(fn_kernel);
 
   LOG(INFO) << "fn_kernel: " << fn_kernel;
@@ -927,7 +927,7 @@ typedef char int8_t;
 
 
 __global__
-void fn0_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
   float _A_read_cache_3 [ 1 * 10 ];
   float* A_read_cache_3 = _A_read_cache_3;
@@ -953,12 +953,10 @@ void fn0_kernel(const float* __restrict__ A, const float* __restrict__ B, float*
 )ROC";
   ASSERT_EQ(utils::Trim(source_target), source_code);
 
-  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
-
   backends::NVRTC_Compiler compiler;
 
   common::CudaModuleTester tester;
-  tester.Compile(builder.Build());
+  tester.Compile(module);
 
   auto* A_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
   auto* B_host        = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
@@ -1056,7 +1054,7 @@ typedef char int8_t;
 
 
 __global__
-void fn1_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
   float _A_read_cache_3 [ 3 * 10 ];
   float* A_read_cache_3 = _A_read_cache_3;
@@ -1249,7 +1247,7 @@ typedef char int8_t;
 
 
 __global__
-void fn2_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
   __shared__ float _A_read_cache_3 [ 1 * 200 ];
   float* A_read_cache_3 = _A_read_cache_3;
@@ -1336,7 +1334,7 @@ typedef char int8_t;
 
 
 __global__
-void fn3_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
   __shared__ float _A_read_cache_3 [ 40 * 40 ];
   float* A_read_cache_3 = _A_read_cache_3;
@@ -1427,7 +1425,7 @@ typedef char int8_t;
 
 
 __global__
-void fn4_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C_cache_write_out_3)
+void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C_cache_write_out_3)
 {
   float _C [ 1 * 1 ];
   float* C = _C;
@@ -1499,7 +1497,7 @@ typedef char int8_t;
 
 
 __global__
-void fn5_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+void fn5(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
   if ((blockIdx.x < 40)) {
   {

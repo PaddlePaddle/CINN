@@ -155,7 +155,7 @@ void ExternFunctionLLVMEmitter::EmitImpl(const ir::Call* op) {
     }
   }
 
-  LOG(INFO) << "function type " << op->name << ": " << DumpToString(*custom_function);
+  VLOG(3) << "function type " << op->name << ": " << DumpToString(*custom_function);
 
   auto* command                   = codegen_for_emitter.b()->CreateCall(custom_function, args);
   codegen_->extern_func_emit_res_ = command;

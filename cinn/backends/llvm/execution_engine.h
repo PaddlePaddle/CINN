@@ -53,8 +53,6 @@ struct ExecutionOptions {
 
 class ExecutionEngine {
  public:
-  friend std::unique_ptr<ExecutionEngine> std::make_unique<ExecutionEngine>(bool &&);
-
   static std::unique_ptr<ExecutionEngine> Create(const ExecutionOptions &config);
 
   void *Lookup(std::string_view name);
@@ -69,6 +67,8 @@ class ExecutionEngine {
   void RegisterRuntimeSymbols();
 
   bool SetupTargetTriple(llvm::Module *module);
+
+  friend std::unique_ptr<ExecutionEngine> std::make_unique<ExecutionEngine>(bool &&);
 
  private:
   mutable std::mutex mu_;
