@@ -12,8 +12,9 @@
 
 namespace cinn {
 namespace backends {
+using lang::Module;
 
-void Compiler::Build(const lang::Module& module) {
+void Compiler::Build(const Module& module) {
   if (target_.arch == Target::Arch::NVGPU) {
     CompileCudaModule(module);
   } else if (target_.arch == Target::Arch::X86) {

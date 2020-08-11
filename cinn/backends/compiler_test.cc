@@ -1,6 +1,5 @@
 #include "cinn/backends/compiler.h"
 
-#include <cuda.h>
 #include <gtest/gtest.h>
 
 #include <vector>
