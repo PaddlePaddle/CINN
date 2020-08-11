@@ -1,12 +1,14 @@
 #include "cinn/backends/compiler.h"
 
+#include "cinn/backends/llvm/runtime_symbol_registry.h"
+#ifdef CINN_WITH_CUDA
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/backends/codegen_cuda_host.h"
 #include "cinn/backends/codegen_cuda_util.h"
-#include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/backends/nvrtc_util.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/cuda/cuda_util.h"
+#endif
 
 namespace cinn {
 namespace backends {
