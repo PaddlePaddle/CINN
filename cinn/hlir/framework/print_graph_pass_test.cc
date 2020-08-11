@@ -1,12 +1,13 @@
 #include <gtest/gtest.h>
 #include <any>
 #include <string>
-#include "cinn/hlir/graph.h"
-#include "cinn/hlir/node.h"
-#include "cinn/hlir/op.h"
-#include "cinn/hlir/pass.h"
+#include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/op.h"
+#include "cinn/hlir/framework/pass.h"
 namespace cinn {
 namespace hlir {
+namespace framework {
 
 void PrintGraphPass(Graph* src) {
   std::string res;
@@ -15,7 +16,7 @@ void PrintGraphPass(Graph* src) {
   for (auto i : store_node) {
     if (i->id().length() < 8 || i->id().substr(0, 8) != "NodeData") {
       res += std::to_string(index) + ":";
-      res += i->as<cinn::hlir::Node>()->attrs.node_name;
+      res += i->as<Node>()->attrs.node_name;
       res += "(" + i->id() + ")\n";
       index++;
     }
@@ -51,7 +52,7 @@ TEST(Operator, GetAttr) {
   g->RegisterNode(1, output0);
   g->RegisterNode(2, node1);
   g->RegisterNode(3, output1);
-  cinn::hlir::ApplyPass(g, "PrintGraph");
+  ApplyPass(g, "PrintGraph");
   auto s = g->GetAttr<std::string>("print_graph");
   LOG(INFO) << "0:elementwise_add(Node_add0)\n1:elementwise_add(Node_add1)\n";
   ASSERT_EQ(s, "0:elementwise_add(Node_add0)\n1:elementwise_add(Node_add1)\n");
@@ -61,5 +62,7 @@ TEST(Operator, GetAttr) {
   delete output0;
   delete node0;
 }
+
+}  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
