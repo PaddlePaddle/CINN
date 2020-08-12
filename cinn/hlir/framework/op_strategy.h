@@ -14,7 +14,7 @@ namespace hlir {
 namespace framework {
 
 //! Operator implementation that includes compute and schedule function.
-class OpImplementation : public common::Object {
+class OpImpl : public common::Object {
  public:
   //! Compute function
   CINNCompute fcompute;
@@ -32,7 +32,7 @@ class OpImplementation : public common::Object {
    * @return The output compute description of the operator.
    */
   ir::Tensor Compute(const std::vector<ir::Tensor>& inputs, const Type& out_type) {
-    // To do : add support for packedfunc to return Tensor
+    // TODO(haozech) : add support for packedfunc to return Tensor
     // Expected : return this->fcompute(inputs, out_type);
     ir::Tensor temp;
     return temp;
@@ -44,35 +44,37 @@ class OpImplementation : public common::Object {
    * @param target The build target.
    * @return The computation schedule.
    */
-  common::Shared<Schedule> GetSchedule(const std::vector<ir::Tensor>& outs, const Target& target) {
-    // To do : add support for packedfunc to return Schedule
+  common::Shared<Schedule> GetSchedule(const std::vector<ir::Tensor>& outs,
+                                       const std::vector<ir::Tensor>& temp_tensors,
+                                       const Target& target) {
+    // TODO(haozech) : add support for packedfunc to return Schedule
     // Expected : return this->fschedule(outs, target);
     return nullptr;
   }
 
-  const char* type_info() const { return _type_key; }
+  const char* type_info() const override { return _type_key; }
 
  private:
   static constexpr const char* _type_key = "OpImplementation";
 };
 
 //! Specialized implementations for operators under certain conditions.
-class OpSpecialization : public common::Object {
+class OpSpec : public common::Object {
  public:
   //! List of implementations.
-  std::vector<OpImplementation*> implementations;
+  std::vector<OpImpl*> implementations;
 
   /** \brief Condition to enable the specialization.
    *    Could be undefined to represent generic case.
-   *  To do : build a specified class SpecializedCondition to represent the condition.
+   *  TODO(haozech) : build a specified class SpecializedCondition to represent the condition.
    *  Expected : SpecializedCondition condition;
    */
   std::string condition;
 
-  const char* type_info() const { return _type_key; }
+  const char* type_info() const override { return _type_key; }
 
-  void AddImplementation(CINNCompute fcompute, CINNSchedule fschedule, std::string name, int plevel) {
-    auto n       = make_shared<OpImplementation>();
+  void AddImpl(CINNCompute fcompute, CINNSchedule fschedule, std::string name, int plevel) {
+    auto n       = make_shared<OpImpl>();
     n->fcompute  = fcompute;
     n->fschedule = fschedule;
     n->name      = std::move(name);
@@ -89,7 +91,7 @@ class OpStrategy : public common::Object {
  public:
   const char* type_info() const override { return "CINNOpStrategy"; }
   //! List of operator specializations.
-  std::vector<OpSpecialization*> specializations;
+  std::vector<OpSpec*> specializations;
 
   /**
    * \brief Add an implementation.
@@ -98,20 +100,20 @@ class OpStrategy : public common::Object {
    * @param name Name of the implementation
    * @param plevel Priority level of the implementation
    */
-  void AddImplementation(CINNCompute fcompute, CINNSchedule fschedule, std::string name, int plevel) {
-    //! To do : here curr_cond should get the condition from outside.
+  void AddImpl(CINNCompute fcompute, CINNSchedule fschedule, std::string name, int plevel) {
+    //! TODO(haozech) : here curr_cond should get the condition from outside.
     //! Expected : auto curr_cond = SpecializedCondition::Current();
     std::string curr_cond = "current_condition";
-    OpSpecialization* op_spec;
-    for (OpSpecialization* op_spec : specializations) {
+    OpSpec* op_spec;
+    for (OpSpec* op_spec : specializations) {
       if (op_spec->condition == curr_cond) {
-        op_spec->AddImplementation(fcompute, fschedule, std::move(name), plevel);
+        op_spec->AddImpl(fcompute, fschedule, std::move(name), plevel);
         return;
       }
     }
-    OpSpecialization* n = make_shared<OpSpecialization>();
-    n->condition        = curr_cond;
-    n->AddImplementation(fcompute, fschedule, std::move(name), plevel);
+    OpSpec* n    = make_shared<OpSpec>();
+    n->condition = curr_cond;
+    n->AddImpl(fcompute, fschedule, std::move(name), plevel);
     this->specializations.push_back(n);
   }
 };

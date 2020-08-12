@@ -28,12 +28,12 @@ common::Shared<OpStrategy> GetStrategyTest() {
     (*ret) = Expr(pe::Add(a.as_tensor_ref(), b.as_tensor_ref(), "C").get());
   };
   ir::PackedFunc fcompute(body);
-  // To do: fschedule should be an instance of pe::schedule...
+  // TODO(haozech): fschedule should be an instance of pe::schedule...
   ir::PackedFunc fschedule;
   common::Shared<OpStrategy> strategy(make_shared<OpStrategy>());
   //! To build more complex strategy, we can add more than 1
   //! implementations to one Opstrategy, with different plevel.
-  strategy->AddImplementation(fcompute, fschedule, "test.strategy", 10);
+  strategy->AddImpl(fcompute, fschedule, "test.strategy", 10);
   return strategy;
 }
 
