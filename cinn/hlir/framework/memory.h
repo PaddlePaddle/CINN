@@ -1,8 +1,10 @@
 #pragma once
 
 #include <glog/logging.h>
+
 #include <memory>
 #include <unordered_map>
+
 #include "cinn/common/macros.h"
 #include "cinn/common/target.h"
 

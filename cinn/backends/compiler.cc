@@ -68,7 +68,7 @@ void Compiler::CompileCudaModule(const Module& module) {
 
 void Compiler::CompileX86Module(const Module& module) { engine_->Link(module); }
 
-lower_func_ptr_t Compiler::GetFn(std::string_view fn_name) {
+lower_func_ptr_t Compiler::Lookup(std::string_view fn_name) {
   CHECK(engine_);
   return reinterpret_cast<lower_func_ptr_t>(engine_->Lookup(fn_name));
 }

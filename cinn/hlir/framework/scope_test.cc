@@ -1,4 +1,5 @@
 #include "cinn/hlir/framework/scope.h"
+
 #include <gtest/gtest.h>
 
 namespace cinn {

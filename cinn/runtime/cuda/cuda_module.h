@@ -1,4 +1,6 @@
 #pragma once
+#ifdef CINN_WITH_CUDA
+
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <glog/logging.h>
@@ -87,3 +89,5 @@ class CUDAModule {
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn
+
+#endif  // CINN_WITH_CUDA

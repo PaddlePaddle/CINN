@@ -360,6 +360,9 @@ struct cinn_pod_value_t {
   template <typename T>
   static int type_code();
 
+  void set_type_code(int x) { type_code_ = x; }
+  void set_value(union cinn_value_t x) { value_ = x; }
+
  protected:
   // @}
 #endif  // __cplusplus

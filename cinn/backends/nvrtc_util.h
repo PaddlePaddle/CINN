@@ -1,5 +1,5 @@
 #pragma once
-
+#ifdef CINN_WITH_CUDA
 #if defined(__linux__)
 #include <sys/stat.h>
 #endif
@@ -47,3 +47,5 @@ class NVRTC_Compiler {
 
 }  // namespace backends
 }  // namespace cinn
+
+#endif  // CINN_WITH_CUDA
