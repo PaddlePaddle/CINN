@@ -21,9 +21,8 @@
 
 #include <functional>
 #include <memory>
-#include <mutex>  // NOLINT
-#include <optional>
-#include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "cinn/backends/llvm/codegen_llvm.h"

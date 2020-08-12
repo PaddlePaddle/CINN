@@ -211,3 +211,6 @@ class FunctionRegEntryBase {
  */
 #define CINN_REGISTRY_REGISTER(EntryType, EntryTypeName, Name) \
   static EntryType &__make_##EntryTypeName##_##Name##__ = ::Registry<EntryType>::Get()->__REGISTER__(#Name)
+
+#define CINN_STR_CONCAT_(__x, __y) __x##__y
+#define CINN_STR_CONCAT(__x, __y) CINN_STR_CONCAT_(__x, __y)

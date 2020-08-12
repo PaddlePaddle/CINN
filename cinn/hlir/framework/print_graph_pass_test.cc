@@ -60,9 +60,7 @@ TEST(Operator, GetAttr) {
   ASSERT_EQ(s, "0:elementwise_add(Node_add0)\n1:elementwise_add(Node_add1)\n");
   delete g;
   delete output1;
-  delete node1;
   delete output0;
-  delete node0;
 }
 
 }  // namespace framework
