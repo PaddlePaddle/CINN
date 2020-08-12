@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "cinn/common/ir_util.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/node.h"
 #include "cinn/lang/compute.h"
 
@@ -11,10 +12,8 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+using namespace cinn::ir;
 using cinn::common::make_zero;
-using cinn::ir::_Var_;
-using cinn::ir::Max;
-using cinn::ir::Tensor;
 using cinn::lang::Compute;
 
 void GetBroadcastShape(const std::vector<Expr>& shape1,
@@ -115,16 +114,7 @@ Tensor Broadcast(const FuncOp& op, const Tensor& a, const Tensor& b, const std::
   return output;
 }
 
-/**
- * @brief Compute A && B with auto-broadcasting.
- *
- * @param A The first tensor or Expr
- * @param B The second tensor or Expr
- * @param output_name The name of the output Tensor
- *
- * @return The result Tensor or Expr.
- */
-#define HLIR_DEFINE_BC_OP(name__, compute__)                                                       \
+#define HLIR_IMP_BC_PE(name__, compute__)                                                          \
   Tensor name__(const Tensor& A, const Tensor& B, const std::string& output_name) {                \
     auto fn = [&](const Expr& a, const Expr& b) { compute__ };                                     \
     return Broadcast(fn, A, B, output_name);                                                       \
@@ -141,10 +131,30 @@ Tensor Broadcast(const FuncOp& op, const Tensor& a, const Tensor& b, const std::
   }                                                                                                \
   Expr name__(const Expr& a, const Expr& b) { compute__ }
 
-HLIR_DEFINE_BC_OP(Add, return a + b;);
-HLIR_DEFINE_BC_OP(Substract, return a - b;);
-HLIR_DEFINE_BC_OP(Multiply, return a * b;);
-HLIR_DEFINE_BC_OP(Divide, return a / b;);
+HLIR_IMP_BC_PE(Add, return a + b;);
+HLIR_IMP_BC_PE(Substract, return a - b;);
+HLIR_IMP_BC_PE(Multiply, return a * b;);
+HLIR_IMP_BC_PE(Divide, return a / b;);
+HLIR_IMP_BC_PE(Floor_divide, return Floor(a / b););
+HLIR_IMP_BC_PE(Mod, return a % b;);
+HLIR_IMP_BC_PE(Floor_mod, return a - Floor(a / b) * b;);
+HLIR_IMP_BC_PE(Maximum, return Max::Make(a, b););
+HLIR_IMP_BC_PE(Minimum, return Min::Make(a, b););
+HLIR_IMP_BC_PE(Power, return Power::Make(a, b););
+HLIR_IMP_BC_PE(LeftShift, return a << b;);
+HLIR_IMP_BC_PE(RightShift, return a >> b;);
+HLIR_IMP_BC_PE(LogicaAnd, return a && b;);
+HLIR_IMP_BC_PE(LogicalOr, return a || b;);
+HLIR_IMP_BC_PE(LogicalXOr, return a ^ b;);
+HLIR_IMP_BC_PE(BitwiseAnd, return a & b;);
+HLIR_IMP_BC_PE(BitwiseOr, return a | b;);
+HLIR_IMP_BC_PE(BitwiseXor, return a ^ b;);
+HLIR_IMP_BC_PE(Greater, return a > b;);
+HLIR_IMP_BC_PE(Less, return a < b;);
+HLIR_IMP_BC_PE(Equal, return EQ::Make(a, b););
+HLIR_IMP_BC_PE(NotEqual, return NE::Make(a, b););
+HLIR_IMP_BC_PE(GreaterEqual, return a >= b;);
+HLIR_IMP_BC_PE(LessEqual, return a <= b;);
 
 }  // namespace pe
 }  // namespace hlir
