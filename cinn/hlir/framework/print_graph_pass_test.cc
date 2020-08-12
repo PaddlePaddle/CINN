@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
+
 #include <any>
 #include <string>
+
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"

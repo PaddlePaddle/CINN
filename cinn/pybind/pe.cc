@@ -16,47 +16,41 @@ using utils::GetStreamCnt;
 using utils::StringFormat;
 
 void BindPE(py::module* m) {
-#define BIND_ELEMENTWISE(name__, fn__) m->def(#name__, &hlir::pe::fn__)
-  BIND_ELEMENTWISE(exp, Exp);
-  BIND_ELEMENTWISE(erf, Erf);
-  BIND_ELEMENTWISE(sqrt, Sqrt);
-  BIND_ELEMENTWISE(log, Log);
-  BIND_ELEMENTWISE(log2, Log2);
-  BIND_ELEMENTWISE(log10, Log10);
-  BIND_ELEMENTWISE(floor, Floor);
-  BIND_ELEMENTWISE(ceil, Ceil);
-  BIND_ELEMENTWISE(round, Round);
-  BIND_ELEMENTWISE(trunc, Trunc);
-  BIND_ELEMENTWISE(cos, Cos);
-  BIND_ELEMENTWISE(cosh, Cosh);
-  BIND_ELEMENTWISE(tan, Tan);
-  BIND_ELEMENTWISE(sin, Sin);
-  BIND_ELEMENTWISE(sinh, Sinh);
-  BIND_ELEMENTWISE(acos, Acos);
-  BIND_ELEMENTWISE(acosh, Acosh);
-  BIND_ELEMENTWISE(asin, Asin);
-  BIND_ELEMENTWISE(asinh, Asinh);
-  BIND_ELEMENTWISE(atan, Atan);
-  BIND_ELEMENTWISE(atanh, Atanh);
-  BIND_ELEMENTWISE(isnan, Isnan);
-  BIND_ELEMENTWISE(tanh, Tanh);
-  BIND_ELEMENTWISE(isfinite, Isfinite);
-  BIND_ELEMENTWISE(isinf, Isinf);
+#define BIND_UNARY(name__, fn__) m->def(#name__, &hlir::pe::fn__, py::arg("x"), py::arg("out") = "T_" #name__ "_out")
+  BIND_UNARY(exp, Exp);
+  BIND_UNARY(erf, Erf);
+  BIND_UNARY(sqrt, Sqrt);
+  BIND_UNARY(log, Log);
+  BIND_UNARY(log2, Log2);
+  BIND_UNARY(log10, Log10);
+  BIND_UNARY(floor, Floor);
+  BIND_UNARY(ceil, Ceil);
+  BIND_UNARY(round, Round);
+  BIND_UNARY(trunc, Trunc);
+  BIND_UNARY(cos, Cos);
+  BIND_UNARY(cosh, Cosh);
+  BIND_UNARY(tan, Tan);
+  BIND_UNARY(sin, Sin);
+  BIND_UNARY(sinh, Sinh);
+  BIND_UNARY(acos, Acos);
+  BIND_UNARY(acosh, Acosh);
+  BIND_UNARY(asin, Asin);
+  BIND_UNARY(asinh, Asinh);
+  BIND_UNARY(atan, Atan);
+  BIND_UNARY(atanh, Atanh);
+  BIND_UNARY(isnan, Isnan);
+  BIND_UNARY(tanh, Tanh);
+  BIND_UNARY(isfinite, Isfinite);
+  BIND_UNARY(isinf, Isinf);
 
-  BIND_ELEMENTWISE(negative, Negative);
-  BIND_ELEMENTWISE(identity, Identity);
-  BIND_ELEMENTWISE(logical_not, LogicalNot);
-  BIND_ELEMENTWISE(bitwise_not, BitwiseNot);
-  BIND_ELEMENTWISE(sigmoid, Sigmoid);
-  BIND_ELEMENTWISE(sign, Sign);
-  BIND_ELEMENTWISE(abs, Abs);
-  BIND_ELEMENTWISE(rsqrt, Rsqrt);
-  BIND_ELEMENTWISE(cast, Cast);
-  BIND_ELEMENTWISE(clip, Clip);
-  BIND_ELEMENTWISE(reinterpret, Reinterpret);
-  BIND_ELEMENTWISE(elementwise_sum, ElementwiseSum);
-  BIND_ELEMENTWISE(full, Full);
-  BIND_ELEMENTWISE(full_like, FullLike);
+  BIND_UNARY(negative, Negative);
+  BIND_UNARY(identity, Identity);
+  BIND_UNARY(logical_not, LogicalNot);
+  BIND_UNARY(bitwise_not, BitwiseNot);
+  BIND_UNARY(sigmoid, Sigmoid);
+  BIND_UNARY(sign, Sign);
+  BIND_UNARY(abs, Abs);
+  BIND_UNARY(rsqrt, Rsqrt);
 }
 
 }  // namespace pybind
