@@ -34,7 +34,7 @@ TEST(Compiler, x86) {
     auto compiler = Compiler::Create(common::DefaultHostTarget());
     compiler->Build(builder.Build());
 
-    auto* fnp = compiler->GetFn("fn");
+    auto* fnp = compiler->Lookup("fn");
     ASSERT_TRUE(fnp);
 
     auto* Ab = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
@@ -67,7 +67,7 @@ TEST(Compiler, x86) {
     auto compiler = Compiler::Create(common::DefaultNVGPUTarget());
     compiler->Build(builder.Build());
 
-    auto* fnp = compiler->GetFn("fn");
+    auto* fnp = compiler->Lookup("fn");
     ASSERT_TRUE(fnp);
 
     auto* Ab = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();

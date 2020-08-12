@@ -1,7 +1,6 @@
 cc_library(core_api SHARED
-    SRCS runtime.cc common.cc lang.cc ir.cc poly.cc backends.cc bind.cc optim.cc
+    SRCS runtime.cc common.cc lang.cc ir.cc poly.cc backends.cc bind.cc optim.cc pe.cc
     DEPS core cinn_runtime pybind)
-
 
 execute_process(COMMAND python3 -m pybind11 --includes OUTPUT_VARIABLE pybind_includes)
 string(REGEX REPLACE "\n$" "" pybind_includes "${pybind_includes}")
