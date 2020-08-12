@@ -55,7 +55,7 @@ class OpImpl : public common::Object {
   const char* type_info() const override { return _type_key; }
 
  private:
-  static constexpr const char* _type_key = "OpImplementation";
+  static constexpr char* _type_key = "OpImplementation";
 };
 
 //! Specialized implementations for operators under certain conditions.
@@ -83,7 +83,7 @@ class OpSpec : public common::Object {
   }
 
  private:
-  static constexpr const char* _type_key = "OpSpecialization";
+  static constexpr char* _type_key = "OpSpecialization";
 };
 
 //! Operator strategy class.
