@@ -49,4 +49,11 @@ float __cinn_host_tanh_fp32(float x);
 float __cinn_host_ceil_fp32(float x);
 void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out);
 //@}
+
+//! math map like functions
+//@{
+float cinn_cpu_tanh_v_fp32(float x);
+float cinn_cpu_cos_v_fp32(float x);
+float cinn_cpu_sin_v_fp32(float x);
+//@}
 }

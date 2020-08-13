@@ -28,7 +28,7 @@ struct Visitor : Ts... {
 };
 
 template <class... Ts>
-Visitor(Ts...) -> Visitor<Ts...>;
+Visitor(Ts...)->Visitor<Ts...>;
 
 using ExprOp   = std::variant<ir::IntImm,
                             ir::UIntImm,

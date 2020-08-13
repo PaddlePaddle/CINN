@@ -15,10 +15,10 @@ using namespace std;
   float cinn_cpu_##name__##_fp32(float a) { return name__(a); }
 
 #define CINN_IMP_CPU_FUNC_INT_BINARY(name__, rule__) \
-  int cinn_cpu_##name__##_int(int a, int b) { return a rule__ b; }
+  int cinn_cpu_##name__##_int32(int a, int b) { return a rule__ b; }
 
 #define CINN_IMP_CPU_FUNC_INT_UNARY(name__, rule__) \
-  int cinn_cpu_##name__##_int(int a) { return rule__(a); }
+  int cinn_cpu_##name__##_int32(int a) { return rule__(a); }
 
 CINN_IMP_CPU_FUNC_FP32(exp);
 CINN_IMP_CPU_FUNC_FP32(erf);
@@ -67,24 +67,18 @@ void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
 float __cinn_host_ceil_fp32(float x) { return std::ceil(x); }
 }
 
-namespace cinn {
-namespace runtime {
-namespace cpu {
-using backends::FunctionProto;
-
-namespace {
-
-bool RegisterRuntimeSymbols() {
-  auto host_target = common::DefaultHostTarget();
+REGISTER_EXTERN_FUNC(host_intrinsics) {
+  auto host_target = cinn::common::DefaultHostTarget();
+  using cinn::backends::FunctionProto;
 
 #define REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT_FLOAT(func__) \
   REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(cinn_cpu_##func__##_fp32, host_target, float, float);
 
 #define REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT_INT(func__) \
-  REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(cinn_cpu_##func__##_int, host_target, int, int);
+  REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(cinn_cpu_##func__##_int32, host_target, int, int);
 
 #define REGISTER_EXTERN_FUNC_TWO_IN_ONE_OUT_INT(func__) \
-  REGISTER_EXTERN_FUNC_TWO_IN_ONE_OUT(cinn_cpu_##func__##_int, host_target, int, int, int);
+  REGISTER_EXTERN_FUNC_TWO_IN_ONE_OUT(cinn_cpu_##func__##_int32, host_target, int, int, int);
 
   REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT_FLOAT(exp);
   REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT_FLOAT(erf);
@@ -131,13 +125,4 @@ bool RegisterRuntimeSymbols() {
       .AddInputType<float>()
       .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
       .End();
-
-  return true;
 }
-
-[[maybe_unused]] bool x = RegisterRuntimeSymbols();
-
-}  // namespace
-}  // namespace cpu
-}  // namespace runtime
-}  // namespace cinn

@@ -43,56 +43,5 @@ class ExternFunctionLLVMEmitter : public ExternFunctionEmitter {
   std::string fn_name_;
 };
 
-/**
- * Emitter for tanh in CodeGenC.
- */
-class ExternFuncEmitter_C_tanh : public ExternFunctionEmitter {
- public:
-  void BindCodeGen(void* codegen) override;
-  const char* func_name() const override;
-  void EmitImpl(const ir::Call* op) override;
-  bool RetValuePacked() const override;
-  const char* backend_kind() const override;
-
- private:
-  CodeGenC* codegen_{};
-};
-
-class ExternFuncEmitter_LLVM_tanh : public ExternFunctionEmitter {
- public:
-  void BindCodeGen(void* codegen) override;
-  const char* func_name() const override;
-  void EmitImpl(const ir::Call* op) override;
-  bool RetValuePacked() const override;
-  const char* backend_kind() const override;
-
- private:
-  CodeGenLLVM* codegen_{};
-};
-
-class ExternFuncEmitter_C_tanh_v : public ExternFunctionEmitter {
- public:
-  void BindCodeGen(void* codegen) override;
-  const char* func_name() const override;
-  void EmitImpl(const ir::Call* op) override;
-  bool RetValuePacked() const override;
-  const char* backend_kind() const override;
-
- private:
-  CodeGenC* codegen_{};
-};
-
-class ExternFuncEmitter_LLVM_tanh_v : public ExternFunctionEmitter {
- public:
-  void BindCodeGen(void* codegen) override;
-  const char* func_name() const override;
-  void EmitImpl(const ir::Call* op) override;
-  bool RetValuePacked() const override;
-  const char* backend_kind() const override;
-
- private:
-  CodeGenLLVM* codegen_{};
-};
-
 }  // namespace backends
 }  // namespace cinn
