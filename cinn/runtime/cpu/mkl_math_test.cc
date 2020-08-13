@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 
+#include "cinn/backends/compiler.h"
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/cinn.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
