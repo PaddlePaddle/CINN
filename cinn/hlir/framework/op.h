@@ -36,28 +36,11 @@ struct OpRegistry {
 template <typename ValueType>
 class OpValueType {
  public:
-  inline const ValueType& operator[](const Operator* op) const {
-    CHECK(op) << "The input op is nullptr and it is invalid! Please check again.";
-    const uint32_t idx = op->index;
-    CHECK_LT(idx, data.size()) << "Attribute " << attr_name << " has not been registered for Operator " << op->name;
-    return data[idx];
-  }
+  inline const ValueType& operator[](const Operator* op) const;
 
-  inline const ValueType& Get(const Operator* op, const ValueType& def_value) const {
-    if (!op) return def_value;
-    const uint32_t idx = op->index;
-    if (idx < data.size()) {
-      return data[idx];
-    } else {
-      return def_value;
-    }
-  }
+  inline const ValueType& Get(const Operator* op, const ValueType& def_value) const;
 
-  inline bool Find(const Operator* op) const {
-    if (!op) return false;
-    const uint32_t idx = op->index;
-    return idx < data.size();
-  }
+  inline bool Find(const Operator* op) const;
 
  private:
   friend class Operator;
@@ -139,6 +122,8 @@ class Operator {
     return std::any_cast<const OpValueType<ValueType>&>(*ref);
   }
 
+  auto get_index() const { return index; }
+
  private:
   template <typename ValueType>
   friend class OpValueType;
@@ -163,6 +148,32 @@ class Operator {
     if (updater != nullptr) updater(value.get());
   }
 };
+
+template <typename ValueType>
+const ValueType& OpValueType<ValueType>::operator[](const Operator* op) const {
+  CHECK(op) << "The input op is nullptr and it is invalid! Please check again.";
+  const uint32_t idx = op->index;
+  CHECK_LT(idx, data.size()) << "Attribute " << attr_name << " has not been registered for Operator " << op->name;
+  return data[idx];
+}
+
+template <typename ValueType>
+const ValueType& OpValueType<ValueType>::Get(const Operator* op, const ValueType& def_value) const {
+  if (!op) return def_value;
+  const uint32_t idx = op->index;
+  if (idx < data.size()) {
+    return data[idx];
+  } else {
+    return def_value;
+  }
+}
+
+template <typename ValueType>
+bool OpValueType<ValueType>::Find(const Operator* op) const {
+  if (!op) return false;
+  const uint32_t idx = op->index;
+  return idx < data.size();
+}
 
 // internal macros to make
 #define CINN_REGISTER_VAR_DEF(OpName) static ::cinn::hlir::framework::Operator& __make_##HlirOp##_##OpName
