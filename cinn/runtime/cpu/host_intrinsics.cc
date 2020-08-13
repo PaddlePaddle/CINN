@@ -71,15 +71,9 @@ void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
 float __cinn_host_ceil_fp32(float x) { return std::ceil(x); }
 }
 
-namespace cinn {
-namespace runtime {
-namespace cpu {
-using backends::FunctionProto;
-
-namespace {
-
-bool RegisterRuntimeSymbols() {
-  auto host_target = common::DefaultHostTarget();
+REGISTER_EXTERN_FUNC(host_intrinsics) {
+  auto host_target = cinn::common::DefaultHostTarget();
+  using cinn::backends::FunctionProto;
 
 #define REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT_FLOAT(func__) \
   REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(cinn_cpu_##func__##_fp32, host_target, float, float);
@@ -137,16 +131,7 @@ bool RegisterRuntimeSymbols() {
       .End();
 
   // ================== register scalar input output function =============
-  REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_tanh_v_fp32, host_target).SetRetType<float>().AddInputType<float>().End();
   REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_cos_v_fp32, host_target).SetRetType<float>().AddInputType<float>().End();
   REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_sin_v_fp32, host_target).SetRetType<float>().AddInputType<float>().End();
-
-  return true;
+  REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_tanh_v_fp32, host_target).SetRetType<float>().AddInputType<float>().End();
 }
-
-[[maybe_unused]] bool x = RegisterRuntimeSymbols();
-
-}  // namespace
-}  // namespace cpu
-}  // namespace runtime
-}  // namespace cinn
