@@ -18,7 +18,7 @@ namespace cpu {
 TEST(tanh, basic) {
   Expr M(10), N(20);
   Placeholder<float> x("x", {M, N});
-  auto y = Compute({M, N}, [&](Expr i, Expr j) { return CallExtern("cinn_cpu_tanh_v_fp32", {x(i, j)}); });
+  auto y = Compute({M, N}, [&](Expr i, Expr j) { return CallExtern("cinn_cpu_tanh_fp32", {x(i, j)}); });
 
   auto jit = backends::SimpleJIT::Create();
 

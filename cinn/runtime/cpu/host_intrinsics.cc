@@ -15,10 +15,10 @@ using namespace std;
   float cinn_cpu_##name__##_fp32(float a) { return name__(a); }
 
 #define CINN_IMP_CPU_FUNC_INT_BINARY(name__, rule__) \
-  int cinn_cpu_##name__##_int(int a, int b) { return a rule__ b; }
+  int cinn_cpu_##name__##_int32(int a, int b) { return a rule__ b; }
 
 #define CINN_IMP_CPU_FUNC_INT_UNARY(name__, rule__) \
-  int cinn_cpu_##name__##_int(int a) { return rule__(a); }
+  int cinn_cpu_##name__##_int32(int a) { return rule__(a); }
 
 CINN_IMP_CPU_FUNC_FP32(exp);
 CINN_IMP_CPU_FUNC_FP32(erf);
@@ -53,10 +53,6 @@ CINN_IMP_CPU_FUNC_INT_BINARY(bitwise_and, &);
 CINN_IMP_CPU_FUNC_INT_BINARY(bitwise_xor, ^);
 CINN_IMP_CPU_FUNC_INT_UNARY(bitwise_not, !);
 
-float cinn_cpu_tanh_v_fp32(float x) { return std::tanh(x); }
-float cinn_cpu_cos_v_fp32(float x) { return std::cos(x); }
-float cinn_cpu_sin_v_fp32(float x) { return std::sin(x); }
-
 float __cinn_host_tanh_fp32(float x) { return std::tanh(x); }
 void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
   CINN_CHECK_EQ(x->num_elements(), out->num_elements());
@@ -79,10 +75,10 @@ REGISTER_EXTERN_FUNC(host_intrinsics) {
   REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(cinn_cpu_##func__##_fp32, host_target, float, float);
 
 #define REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT_INT(func__) \
-  REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(cinn_cpu_##func__##_int, host_target, int, int);
+  REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(cinn_cpu_##func__##_int32, host_target, int, int);
 
 #define REGISTER_EXTERN_FUNC_TWO_IN_ONE_OUT_INT(func__) \
-  REGISTER_EXTERN_FUNC_TWO_IN_ONE_OUT(cinn_cpu_##func__##_int, host_target, int, int, int);
+  REGISTER_EXTERN_FUNC_TWO_IN_ONE_OUT(cinn_cpu_##func__##_int32, host_target, int, int, int);
 
   REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT_FLOAT(exp);
   REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT_FLOAT(erf);
@@ -129,9 +125,4 @@ REGISTER_EXTERN_FUNC(host_intrinsics) {
       .AddInputType<float>()
       .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
       .End();
-
-  // ================== register scalar input output function =============
-  REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_cos_v_fp32, host_target).SetRetType<float>().AddInputType<float>().End();
-  REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_sin_v_fp32, host_target).SetRetType<float>().AddInputType<float>().End();
-  REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_tanh_v_fp32, host_target).SetRetType<float>().AddInputType<float>().End();
 }
