@@ -12,6 +12,7 @@
 #include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/optim/ir_simplify.h"
+#include "cinn/runtime/cpu/use_extern_funcs.h"
 
 namespace cinn {
 namespace backends {
@@ -396,9 +397,8 @@ TEST(CodeGenC, matmul_packed) {
   C->Bind(C_buf);
 
   {
-    poly::Iterator i_outer, i_inner, j_outer, j_inner, k_outer, k_inner;
-    std::tie(i_outer, i_inner, j_outer, j_inner) = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
-    std::tie(k_outer, k_inner)                   = C->stage()->Split(poly::Iterator("k0"), 4);
+    auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
+    auto [k_outer, k_inner]                   = C->stage()->Split(poly::Iterator("k0"), 4);
     C->stage()->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
   }
 
@@ -469,7 +469,7 @@ TEST(CodeGenC, call_extern) {
   Placeholder<float> x("x", {M});
 
   ir::Tensor y = Compute(
-      {M}, [=](Var i) -> Expr { return lang::CallExtern("tanh", {x(i)}); }, "y");
+      {M}, [=](Var i) -> Expr { return lang::CallExtern("cinn_cpu_tanh_v_fp32", {x(i)}); }, "y");
   y->WithBuffer();
 
   auto yexpr = Lower("yy", {y});

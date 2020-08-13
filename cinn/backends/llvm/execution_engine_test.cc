@@ -34,6 +34,7 @@
 #include "cinn/lang/placeholder.h"
 #include "cinn/optim/optimize.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
+#include "cinn/runtime/cpu/use_extern_funcs.h"
 
 namespace cinn {
 namespace backends {
@@ -288,7 +289,7 @@ TEST(ExecutionEngine, call_extern) {
   add_out->stage()->ComputeInline();
 
   ir::Tensor res = Compute(
-      {M, N}, [&](Var i, Var j) -> Expr { return lang::CallExtern("tanh", {add_out(i, j)}); }, "res");
+      {M, N}, [&](Var i, Var j) -> Expr { return lang::CallExtern("cinn_cpu_tanh_fp32", {add_out(i, j)}); }, "res");
 
   auto func = Lower("comp", {x, y, res});
 

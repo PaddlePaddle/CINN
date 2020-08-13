@@ -38,7 +38,7 @@ Expr Optimize(Expr e, bool runtime_debug_info) {
 
   RemoveNestedBlock(&copied);
 
-  ActivateToExternCall(&copied);
+  // ActivateToExternCall(&copied);
   ExternCallMultiOutputShallowStore(&copied);
 
   Simplify(&copied);
