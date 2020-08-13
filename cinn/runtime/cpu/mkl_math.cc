@@ -22,7 +22,6 @@ void cinn_mkl_exp_v_fp32(cinn_buffer_t *x, cinn_buffer_t *out) {
   CHECK_EQ(x->num_elements(), out->num_elements());
   vdExp(x->num_elements(), reinterpret_cast<double *>(x->memory), reinterpret_cast<double *>(out->memory));
 }
-float cinn_tanh(float x) { return std::tanh(x); }
 
 /*
 void cinn_mkl_cos_v_fp32(cinn_buffer_t *x, cinn_buffer_t *out) {
