@@ -1,4 +1,5 @@
 #pragma once
+#ifdef CINN_WITH_CUDA
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -45,3 +46,5 @@ std::string cuda_block_axis_name(int level);
 
 }  // namespace backends
 }  // namespace cinn
+
+#endif  // CINN_WITH_CUDA

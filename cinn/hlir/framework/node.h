@@ -75,6 +75,8 @@ class Node : public common::GraphNode {
     return std::make_shared<Node>(std::forward<Args>(args)...);
   }
 
+  static constexpr char *__type_info__ = "hlir_framework_node";
+
  private:
   /**
    * \brief The unique id of the node.
@@ -133,10 +135,12 @@ class NodeData : public common::GraphNode {
    */
   uint32_t version;
 
+  static constexpr char *__type_info__ = "hlir_framework_node";
+
+ private:
   /**
    * \brief The unique id of this NodeData.
    */
- private:
   std::string id_;
 };
 

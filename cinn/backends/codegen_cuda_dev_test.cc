@@ -1480,7 +1480,7 @@ TEST(Cuda, external_function) {
 
   auto fn = Lower("fn5", {A, B, C});
 
-  Module::Builder builder("module", common::DefaultHostTarget());
+  Module::Builder builder("module", common::DefaultNVGPUTarget());
   builder.AddFunction(fn);
 
   auto source_code = codegen.Compile(builder.Build());

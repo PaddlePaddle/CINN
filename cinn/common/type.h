@@ -53,6 +53,7 @@ struct Type {
   bool is_int(int bits = -1) const { return type_ == type_t::Int && (bits < 0 || bits == this->bits()); }
   bool is_uint(int bits = -1) const { return type_ == type_t::UInt && (bits < 0 || bits == this->bits()); }
   bool is_string() const { return type_ == type_t::String; }
+  bool is_index_type() { return is_int() && lanes() == 1 && (bits() == 32 || bits() == 64); }
   // @}
 
   Type& set_cpp_handle(bool x = true);

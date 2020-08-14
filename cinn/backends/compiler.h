@@ -7,6 +7,7 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/simple_jit.h"
+#include "cinn/ir/packed_func.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/runtime/cuda/cuda_module.h"
 #endif
@@ -29,7 +30,7 @@ class Compiler final {
    * Retrieve a function by \p fn_name.
    * @return function address or null if not exists.
    */
-  lower_func_ptr_t GetFn(std::string_view fn_name);
+  lower_func_ptr_t Lookup(std::string_view fn_name);
 
  private:
   void CompileCudaModule(const lang::Module& module);

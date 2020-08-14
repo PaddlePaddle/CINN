@@ -12,5 +12,6 @@ void BindIr(pybind11::module *m);
 void BindBackends(pybind11::module *m);
 void BindPoly(pybind11::module *m);
 void BindOptim(pybind11::module *m);
+void BindPE(pybind11::module *m);
 
 }  // namespace cinn::pybind

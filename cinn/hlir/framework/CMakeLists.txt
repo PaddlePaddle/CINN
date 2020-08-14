@@ -5,6 +5,7 @@ set(srcs
   buffer.cc
   memory.cc
   instruction.cc
+  graph_compiler.cc
   )
 
 if(WITH_CUDA)

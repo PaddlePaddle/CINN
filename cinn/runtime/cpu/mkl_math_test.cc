@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
 
+#include "cinn/backends/compiler.h"
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/cinn.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
@@ -12,14 +14,19 @@ namespace cinn {
 namespace runtime {
 namespace cpu {
 
-cinn_buffer_t *CreateBuffer(const std::vector<int> shape, bool random = true) {
+cinn_buffer_t *CreateBuffer(const std::vector<int> shape, bool random = true, int set_value = 0) {
   if (random) {
     return common::BufferBuilder(Float(32), shape).set_random().Build();
+  } else if (set_value != 0) {
+    return common::BufferBuilder(Float(32), shape).set_val(set_value).Build();
   }
   return common::BufferBuilder(Float(32), shape).set_zero().Build();
 }
 
-void TestCallElementwise(const std::string &fn_name, float (*fn_runtime)(float), bool is_elementwise) {
+void TestCallElementwise(const std::string &fn_name,
+                         float (*fn_runtime)(float),
+                         bool is_elementwise,
+                         int set_value = 0) {
   Expr M(10);
   Expr N(10);
   Placeholder<float> x("x", {M, N});
@@ -56,7 +63,12 @@ void TestCallElementwise(const std::string &fn_name, float (*fn_runtime)(float),
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
 
-  auto *A_buf = CreateBuffer({10, 10});
+  cinn_buffer_t *A_buf;
+  if (set_value != 0) {
+    A_buf = CreateBuffer({10, 10}, false, set_value);
+  } else {
+    A_buf = CreateBuffer({10, 10});
+  }
   auto *B_buf = CreateBuffer({10, 10}, false);
 
   cinn_pod_value_t a_arg(A_buf), b_arg(B_buf);
@@ -70,10 +82,41 @@ void TestCallElementwise(const std::string &fn_name, float (*fn_runtime)(float),
   }
 }
 
-TEST(mkl_math, tanh_fp32) { TestCallElementwise("cinn_cpu_tanh_fp32", cinn_cpu_tanh_fp32, true); }
-TEST(mkl_math, ceil_fp32) { TestCallElementwise("cinn_cpu_ceil_fp32", cinn_cpu_ceil_fp32, true); }
-TEST(mkl_math, floor_fp32) { TestCallElementwise("cinn_cpu_floor_fp32", cinn_cpu_floor_fp32, true); }
-TEST(mkl_math, exp_fp32) { TestCallElementwise("cinn_cpu_exp_fp32", cinn_cpu_exp_fp32, true); }
+#define TEST_MKL_MATH_FP32(test_name__, is_elementwise)                                                   \
+  TEST(mkl_math, test_name__) {                                                                           \
+    TestCallElementwise("cinn_cpu_" #test_name__ "_fp32", cinn_cpu_##test_name__##_fp32, is_elementwise); \
+  }
+#define TEST_MKL_MATH_FP32_SET(test_name__, is_elementwise, value)                                               \
+  TEST(mkl_math, test_name__) {                                                                                  \
+    TestCallElementwise("cinn_cpu_" #test_name__ "_fp32", cinn_cpu_##test_name__##_fp32, is_elementwise, value); \
+  }
+
+TEST_MKL_MATH_FP32(exp, true)
+TEST_MKL_MATH_FP32(erf, true)
+TEST_MKL_MATH_FP32(sqrt, true)
+TEST_MKL_MATH_FP32(log, true)
+TEST_MKL_MATH_FP32(log2, true)
+TEST_MKL_MATH_FP32(log10, true)
+TEST_MKL_MATH_FP32(floor, true)
+TEST_MKL_MATH_FP32(ceil, true)
+TEST_MKL_MATH_FP32(round, true)
+TEST_MKL_MATH_FP32(trunc, true)
+TEST_MKL_MATH_FP32(cos, true)
+TEST_MKL_MATH_FP32(cosh, true)
+TEST_MKL_MATH_FP32(tan, true)
+TEST_MKL_MATH_FP32(sin, true)
+TEST_MKL_MATH_FP32(sinh, true)
+TEST_MKL_MATH_FP32(acos, true)
+TEST_MKL_MATH_FP32_SET(acosh, true, 1.5)
+TEST_MKL_MATH_FP32(asin, true)
+TEST_MKL_MATH_FP32(asinh, true)
+TEST_MKL_MATH_FP32(atan, true)
+TEST_MKL_MATH_FP32(atanh, true)
+TEST_MKL_MATH_FP32(isnan, true)
+TEST_MKL_MATH_FP32(tanh, true)
+TEST_MKL_MATH_FP32(isfinite, true)
+TEST_MKL_MATH_FP32(isinf, true)
+
 TEST(mkl_math, tanh_v_fp32) { TestCallElementwise("cinn_mkl_tanh_v_fp32", cinn_cpu_tanh_fp32, false); }
 
 TEST(cinn_cpu_mkl_gemm_fp32, test) {
