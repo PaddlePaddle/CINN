@@ -67,7 +67,7 @@ void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
 float __cinn_host_ceil_fp32(float x) { return std::ceil(x); }
 }
 
-REGISTER_EXTERN_FUNC(host_intrinsics) {
+CINN_REGISTER_HELPER(host_intrinsics) {
   auto host_target = cinn::common::DefaultHostTarget();
   using cinn::backends::FunctionProto;
 

@@ -15,6 +15,7 @@ PYBIND11_MODULE(core_api, m) {
   py::module backends = m.def_submodule("backends", "namespace cinn::backends, execution backends");
   py::module optim    = m.def_submodule("optim", "namespace cinn::optim, CINN IR optimization");
   py::module pe       = m.def_submodule("pe", "namespace cinn::hlir::pe, CINN Primitive Emitters");
+  py::module frontend = m.def_submodule("frontend", "namespace cinn::frontend, CINN frontend");
 
   BindRuntime(&runtime);
   BindCommon(&common);
@@ -24,5 +25,6 @@ PYBIND11_MODULE(core_api, m) {
   BindBackends(&backends);
   BindOptim(&optim);
   BindPE(&pe);
+  BindFrontend(&frontend);
 }
 }  // namespace cinn::pybind
