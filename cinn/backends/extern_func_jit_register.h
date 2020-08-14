@@ -16,6 +16,7 @@
 #include "cinn/backends/llvm/ir_builder_mixin.h"
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
+#include "cinn/common/macros.h"
 
 /**
  * Helper to register an external function into CINN, including the prototype, the function address.
@@ -34,11 +35,6 @@
       .AddInputType<in_type1__>()                                                               \
       .AddInputType<in_type2__>()                                                               \
       .End()
-
-#define REGISTER_EXTERN_FUNC(symbol__) bool __cinn__##symbol__##__registrar()
-#define USE_EXTERN_FUNC(symbol__)                \
-  extern bool __cinn__##symbol__##__registrar(); \
-  [[maybe_unused]] static bool __cinn_extern_registrar_##symbol__ = __cinn__##symbol__##__registrar();
 
 namespace cinn {
 namespace backends {

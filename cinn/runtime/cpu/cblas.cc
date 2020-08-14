@@ -40,7 +40,7 @@ void cinn_cpu_mkl_gemm_fp32(float alpha,
               ldc);
 }
 
-REGISTER_EXTERN_FUNC(cinn_cpu_mkl_gemm_fp32) {
+CINN_REGISTER_HELPER(cinn_cpu_mkl_gemm_fp32) {
   using namespace cinn;  // NOLINT
   using backends::FunctionProto;
   auto host_target = common::DefaultHostTarget();

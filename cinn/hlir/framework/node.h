@@ -137,6 +137,7 @@ class NodeData : public common::GraphNode {
 
   static constexpr char *__type_info__ = "hlir_framework_node";
 
+  ir::Tensor data_{};
  private:
   /**
    * \brief The unique id of this NodeData.

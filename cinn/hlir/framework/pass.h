@@ -78,7 +78,7 @@ class PassFunctionRegister : public FunctionRegEntryBase<PassFunctionRegister, P
 };
 
 const PassFunctionRegister* FindPassDep(const std::string& attr_name) {
-  for (auto* r : Registry<PassFunctionRegister>::List()) {
+  for (auto* r : Registry<PassFunctionRegister>::Global()->List()) {
     for (auto& s : r->graph_attr_targets) {
       if (s == attr_name) return r;
     }
@@ -95,7 +95,7 @@ const PassFunctionRegister* FindPassDep(const std::string& attr_name) {
 void ApplyPasses(Graph* g, const std::vector<std::string>& passes) {
   std::vector<const PassFunctionRegister*> fpass;
   for (auto& name : passes) {
-    auto* reg = Registry<PassFunctionRegister>::Find(name);
+    auto* reg = Registry<PassFunctionRegister>::Global()->Find(name);
     CHECK(reg) << "Cannot find pass " << name << " in the registry";
     fpass.push_back(reg);
   }
@@ -118,5 +118,3 @@ inline void ApplyPass(Graph* g, const std::string& pass) { return ApplyPasses(g,
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
-
-CINN_REGISTRY_ENABLE(cinn::hlir::framework::PassFunctionRegister);
