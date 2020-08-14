@@ -32,17 +32,20 @@ std::shared_ptr<OpStrategy> StrategyTest(const NodeAttr &attr,
                                          common::Type out_type,
                                          const common::Target &target) {
   ir::PackedFunc::body_t compute_body = [](ir::Args args, ir::RetValue *ret) {
-    ir::Expr a = args[0];
-    ir::Expr b = args[1];
-    (*ret)     = ir::Expr(pe::Add(a.as_tensor_ref(), b.as_tensor_ref(), "C").get());
+    common::CINNValuePackShared a = args[0];
+    ir::Expr A                    = a[0];
+    ir::Expr B                    = a[1];
+    *ret                          = common::CINNValuePack::Make(
+        {common::CINNValue(ir::Expr(pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), "C").get()))});
   };
   ir::PackedFunc fcompute(compute_body);
 
   ir::PackedFunc::body_t schedule_body = [](ir::Args args, ir::RetValue *ret) {
-    ir::Expr a = args[0];
-    a.as_tensor_ref()->stage()->Vectorize(1, 16);
-    a.as_tensor_ref()->stage()->Unroll(1);
-    (*ret) = a;
+    common::CINNValuePackShared a = args[0];
+    ir::Expr A                    = a[0];
+    A.as_tensor_ref()->stage()->Vectorize(1, 16);
+    A.as_tensor_ref()->stage()->Unroll(1);
+    *ret = common::CINNValuePack::Make({common::CINNValue(A)});
   };
   ir::PackedFunc fschedule(schedule_body);
 
@@ -73,11 +76,15 @@ TEST(Operator, GetAttr) {
   common::Type type;
   common::Target target;
   target.arch = common::Target::Arch::X86;
+  auto impl   = SelectImpl(strategy[add](attr, inputs, type, target));
 
-  auto impl  = SelectImpl(strategy[add](attr, inputs, type, target));
-  ir::Expr C = impl->fcompute(A, B);
-  C          = impl->fschedule(C);
-  inputs.push_back(C.as_tensor_ref());
+  common::CINNValuePackShared cinn_input = common::CINNValuePack::Make({common::CINNValue(A), common::CINNValue(B)});
+  common::CINNValuePackShared C          = impl->fcompute(cinn_input);
+  C                                      = impl->fschedule(C);
+  for (int i = 0; i < C.get()->size(); i++) {
+    ir::Expr temp = C[i];
+    inputs.push_back(temp.as_tensor_ref());
+  }
   auto func = Lower("add1", inputs);
   LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
