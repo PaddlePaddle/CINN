@@ -1,6 +1,5 @@
 set(srcs
   syntax.cc
-  api.cc
   )
 
 cc_test(test_frontend_syntax SRCS syntax_test.cc DEPS core)

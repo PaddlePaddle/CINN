@@ -48,18 +48,13 @@ struct _Variable_ : public common::Object {
   static constexpr char* __type_info__ = "cinn_frontend_variable";
 };
 
-struct Variable {
-  explicit Variable(std::string_view id = "") {
-    auto* n = common::make_shared<_Variable_>();
-    n->id   = id.empty() ? common::Context::Global().NewName("var") : id;
-    data_.Reset(n);
+struct Variable : public common::Shared<_Variable_> {
+  explicit Variable(std::string_view id = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
+    get()->id = id.empty() ? common::Context::Global().NewName("var") : id;
   }
 
-  _Variable_* operator->() { return data_.get(); }
-  const _Variable_* operator->() const { return data_.get(); }
-
- private:
-  common::Shared<_Variable_> data_;
+  _Variable_* operator->() { return get(); }
+  const _Variable_* operator->() const { return get(); }
 };
 
 struct _Instruction_ : public common::Object {
