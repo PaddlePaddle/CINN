@@ -22,7 +22,7 @@ struct Variable;
 class Placeholder {
  public:
   Placeholder(const common::Type& type, const std::vector<int>& shape, std::string_view id = "")
-      : type_(type), shape_(shape), id_(id.empty() ? common::Context::Global().NewName("placeholder_") : id) {}
+      : type_(type), shape_(shape), id_(id.empty() ? common::Context::Global().NewName("placeholder") : id) {}
 
   const std::vector<int>& shape() const { return shape_; }
 
@@ -51,7 +51,7 @@ struct _Variable_ : public common::Object {
 struct Variable {
   explicit Variable(std::string_view id = "") {
     auto* n = common::make_shared<_Variable_>();
-    n->id   = id.empty() ? common::Context::Global().NewName("var_") : id;
+    n->id   = id.empty() ? common::Context::Global().NewName("var") : id;
     data_.Reset(n);
   }
 
@@ -63,7 +63,7 @@ struct Variable {
 };
 
 struct _Instruction_ : public common::Object {
-  using attr_t = std::variant<int, std::string, std::vector<int>, std::vector<std::string>>;
+  using attr_t = std::variant<int, float, std::string, std::vector<int>, std::vector<float>, std::vector<std::string>>;
 
   std::string op_type;
   std::unordered_map<std::string, attr_t> attrs;
@@ -88,10 +88,10 @@ struct Instruction : public common::Shared<_Instruction_> {
   }
 
   template <typename T>
-  const T& GetAttr(const std::string& key) {
+  T GetAttr(const std::string& key) {
     auto it = get()->attrs.find(key);
-    CHECK_NE(it, get()->attrs.end()) << "No attribute called [" << key << "]";
-    return std::get<const T&>(it->second);
+    CHECK(it != get()->attrs.end()) << "No attribute called [" << key << "]";
+    return std::get<T>(it->second);
   }
 
  private:
