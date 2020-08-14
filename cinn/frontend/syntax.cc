@@ -65,4 +65,4 @@ std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTRY_ENABLE(cinn::hlir::framework::Operator);
+// CINN_REGISTRY_ENABLE(cinn::hlir::framework::Operator);

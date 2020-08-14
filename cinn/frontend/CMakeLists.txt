@@ -1,6 +1,5 @@
 set(srcs
   syntax.cc
-  pybind.cc
   api.cc
   )
 

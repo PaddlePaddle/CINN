@@ -1,5 +1,4 @@
 #include "cinn/pybind/bind.h"
-#include "cinn/frontend/pybind.h"
 
 namespace py = pybind11;
 
@@ -26,6 +25,6 @@ PYBIND11_MODULE(core_api, m) {
   BindBackends(&backends);
   BindOptim(&optim);
   BindPE(&pe);
-  frontend::BindSyntax(&frontend);
+  BindFrontend(&frontend);
 }
 }  // namespace cinn::pybind

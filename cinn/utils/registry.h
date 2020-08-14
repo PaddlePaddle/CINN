@@ -7,6 +7,7 @@
  */
 #pragma once
 #include <glog/raw_logging.h>
+
 #include <map>
 #include <string>
 #include <vector>
@@ -23,7 +24,7 @@ template <typename EntryType>
 class Registry {
  public:
   /** @return list of entries in the registry(excluding alias) */
-  inline static const std::vector<const EntryType *> &List() { return Global()->const_list_; }
+  inline const std::vector<const EntryType *> &List() { return const_list_; }
 
   /** @return list all names registered in the registry, including alias */
   inline std::vector<std::string> ListAllNames() {
@@ -98,7 +99,10 @@ class Registry {
    *  This function can be defined by CINN_REGISTRY_ENABLE.
    * @return get a singleton
    */
-  static Registry *Global();
+  static Registry *Global() {
+    static Registry<EntryType> inst;
+    return &inst;
+  }
 
   Registry() = default;
   ~Registry() {
@@ -192,19 +196,6 @@ class FunctionRegEntryBase {
 };
 
 /**
- * @def CINN_REGISTRY_ENABLE
- * \brief Macro to enable the registry of EntryType.
- * This macro must be used under namespace cinn, and only used once in cc file.
- * @param EntryType Type of registry entry
- */
-#define CINN_REGISTRY_ENABLE(EntryType)                \
-  template <>                                          \
-  Registry<EntryType> *Registry<EntryType>::Global() { \
-    static Registry<EntryType> inst;                   \
-    return &inst;                                      \
-  }
-
-/**
  * \brief Generic macro to register an EntryType
  *  There is a complete example in FactoryRegistryEntryBase.
  *
@@ -214,7 +205,7 @@ class FunctionRegEntryBase {
  * @sa FactoryRegistryEntryBase
  */
 #define CINN_REGISTRY_REGISTER(EntryType, EntryTypeName, Name) \
-  static EntryType &__make_##EntryTypeName##_##Name##__ = ::Registry<EntryType>::Get()->__REGISTER__(#Name)
+  static EntryType &__make_##EntryTypeName##_##Name##__ = ::Registry<EntryType>::Global()->__REGISTER__(#Name)
 
 #define CINN_STR_CONCAT_(__x, __y) __x##__y
 #define CINN_STR_CONCAT(__x, __y) CINN_STR_CONCAT_(__x, __y)

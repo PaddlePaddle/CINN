@@ -1,15 +1,14 @@
-#include "cinn/frontend/pybind.h"
-
+#include <pybind11/pybind11.h>
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/utils/string.h"
 
-namespace cinn {
-namespace frontend {
+namespace cinn::pybind {
 
 namespace py = pybind11;
+using namespace cinn::frontend;  // NOLINT
 
-void BindSyntax(pybind11::module *m) {
+void BindFontend(pybind11::module *m) {
   py::class_<Variable>(*m, "Variable")  //
       .def(py::init<const std::string &>(), py::arg("id") = "")
       .def("__str__", [](Variable &self) { return self->id; })
@@ -50,5 +49,4 @@ void BindSyntax(pybind11::module *m) {
 
 }  // namespace frontend
 
-}  // namespace frontend
-}  // namespace cinn
+}  // namespace cinn::pybind
