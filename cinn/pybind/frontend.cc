@@ -8,7 +8,7 @@ namespace cinn::pybind {
 namespace py = pybind11;
 using namespace cinn::frontend;  // NOLINT
 
-void BindFontend(pybind11::module *m) {
+void BindFrontend(pybind11::module *m) {
   py::class_<Variable>(*m, "Variable")  //
       .def(py::init<const std::string &>(), py::arg("id") = "")
       .def("__str__", [](Variable &self) { return self->id; })
