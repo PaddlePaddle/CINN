@@ -5,9 +5,7 @@
 #include <string>
 
 #include "cinn/cinn.h"
-
 #include "cinn/hlir/framework/op_strategy.h"
-
 #include "cinn/hlir/pe/broadcast.h"
 
 namespace cinn {

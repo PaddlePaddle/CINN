@@ -19,13 +19,14 @@ namespace hlir {
 namespace framework {
 class Operator;
 
-struct OpRegistry {
+struct OpRegistry : public Registry<Operator> {
   std::recursive_mutex mutex;
   std::atomic<int> op_counter{0};
   std::unordered_map<std::string, std::unique_ptr<std::any>> attr;
+
   static OpRegistry* Global() {
-    static OpRegistry inst;
-    return &inst;
+    static OpRegistry x;
+    return &x;
   }
 
  private:
@@ -83,7 +84,7 @@ class Operator {
    * @return Pointer to a Op, valid throughout program lifetime.
    */
   static const Operator* Get(const std::string& op_name) {
-    const Operator* op = Registry<Operator>::Find(op_name);
+    const Operator* op = OpRegistry::Global()->Find(op_name);
     CHECK(op) << "Operator [" << op_name << "] is not registered";
     return op;
   }
@@ -193,10 +194,8 @@ bool OpValueType<ValueType>::Find(const Operator* op) const {
  */
 #define CINN_REGISTER_OP(OpName)                                \
   CINN_STR_CONCAT(CINN_REGISTER_VAR_DEF(OpName), __COUNTER__) = \
-      ::Registry<::cinn::hlir::framework::Operator>::Get()->__REGISTER_OR_GET__(#OpName)
+      ::cinn::hlir::framework::OpRegistry::Global()->__REGISTER_OR_GET__(#OpName)
 
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
-
-CINN_REGISTRY_ENABLE(cinn::hlir::framework::Operator);

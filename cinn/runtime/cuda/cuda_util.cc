@@ -50,7 +50,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
 }  // namespace runtime
 }  // namespace cinn
 
-REGISTER_EXTERN_FUNC(cinn_call_cuda_kernel) {
+CINN_REGISTER_HELPER(cinn_call_cuda_kernel) {
   using cinn::runtime::cuda::cinn_call_cuda_kernel;
   REGISTER_EXTERN_FUNC_HELPER(cinn_call_cuda_kernel, cinn::common::DefaultHostTarget())
       .SetRetType<void>()

@@ -6,6 +6,7 @@
  * \brief Registry utility that helps to build registry singletons.
  */
 #pragma once
+#include <glog/raw_logging.h>
 #include <map>
 #include <string>
 #include <vector>
@@ -22,13 +23,12 @@ template <typename EntryType>
 class Registry {
  public:
   /** @return list of entries in the registry(excluding alias) */
-  inline static const std::vector<const EntryType *> &List() { return Get()->const_list_; }
+  inline static const std::vector<const EntryType *> &List() { return Global()->const_list_; }
+
   /** @return list all names registered in the registry, including alias */
-  inline static std::vector<std::string> ListAllNames() {
-    const std::map<std::string, EntryType *> &fmap = Get()->fmap_;
-    typename std::map<std::string, EntryType *>::const_iterator p;
+  inline std::vector<std::string> ListAllNames() {
     std::vector<std::string> names;
-    for (p = fmap.begin(); p != fmap.end(); ++p) {
+    for (auto p = fmap_.begin(); p != fmap_.end(); ++p) {
       names.push_back(p->first);
     }
     return names;
@@ -38,13 +38,12 @@ class Registry {
    * @param name name of the function
    * @return the corresponding function, can be NULL
    */
-  inline static const EntryType *Find(const std::string &name) {
-    const std::map<std::string, EntryType *> &fmap                = Get()->fmap_;
-    typename std::map<std::string, EntryType *>::const_iterator p = fmap.find(name);
-    if (p != fmap.end()) {
+  inline const EntryType *Find(const std::string &name) {
+    typename std::map<std::string, EntryType *>::const_iterator p = fmap_.find(name);
+    if (p != fmap_.end()) {
       return p->second;
     } else {
-      return NULL;
+      return nullptr;
     }
   }
   /**
@@ -68,9 +67,10 @@ class Registry {
    */
   inline EntryType &__REGISTER__(const std::string &name) {
     std::lock_guard<std::mutex> guard(registering_mutex);
-    if (fmap_.count(name) > 0) {
+    if (fmap_.count(name)) {
       return *fmap_[name];
     }
+
     EntryType *e = new EntryType();
     e->name      = name;
     fmap_[name]  = e;
@@ -78,24 +78,34 @@ class Registry {
     entry_list_.push_back(e);
     return *e;
   }
+
   /**
    * \brief Internal function to either register or get registered entry
    * @param name name of the function
    * @return ref to the registered entry, used to set properties
    */
   inline EntryType &__REGISTER_OR_GET__(const std::string &name) {
-    if (fmap_.count(name) == 0) {
+    RAW_LOG(INFO, "Register %s", name.c_str());
+    if (!fmap_.count(name)) {
       return __REGISTER__(name);
     } else {
       return *fmap_.at(name);
     }
   }
+
   /**
    * \brief get a singleton of the Registry.
    *  This function can be defined by CINN_REGISTRY_ENABLE.
    * @return get a singleton
    */
-  static Registry *Get();
+  static Registry *Global();
+
+  Registry() = default;
+  ~Registry() {
+    for (size_t i = 0; i < entry_list_.size(); ++i) {
+      delete entry_list_[i];
+    }
+  }
 
  private:
   /** \brief list of entry types */
@@ -107,13 +117,7 @@ class Registry {
   /** \brief lock guarding the registering*/
   std::mutex registering_mutex;
   /** \brief constructor */
-  Registry() {}
   /** \brief destructor */
-  ~Registry() {
-    for (size_t i = 0; i < entry_list_.size(); ++i) {
-      delete entry_list_[i];
-    }
-  }
 };
 
 /**
@@ -193,11 +197,11 @@ class FunctionRegEntryBase {
  * This macro must be used under namespace cinn, and only used once in cc file.
  * @param EntryType Type of registry entry
  */
-#define CINN_REGISTRY_ENABLE(EntryType)             \
-  template <>                                       \
-  Registry<EntryType> *Registry<EntryType>::Get() { \
-    static Registry<EntryType> inst;                \
-    return &inst;                                   \
+#define CINN_REGISTRY_ENABLE(EntryType)                \
+  template <>                                          \
+  Registry<EntryType> *Registry<EntryType>::Global() { \
+    static Registry<EntryType> inst;                   \
+    return &inst;                                      \
   }
 
 /**
