@@ -117,7 +117,7 @@ void CINNValuePack::AddValue(const CINNValue &value) {
   values_.push_back(value);
 }
 void CINNValuePack::Clear() { values_.clear(); }
-const char *CINNValuePack::type_info() const { return "CINNValuePack"; }
+const char *CINNValuePack::type_info() const { return __type_info__; }
 
 CINNValue &CINNValue::operator=(int32_t value) {
   *this = CINNValue(value);

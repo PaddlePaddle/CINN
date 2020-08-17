@@ -60,10 +60,11 @@ struct CINNValuePack : public common::Object {
  private:
   CINNValuePack() = default;
   std::vector<CINNValue> values_;
+  static constexpr char* __type_info__ = "CINNValuePack";
 };
 
 struct CINNValuePackShared : public Shared<CINNValuePack> {
-  CINNValuePackShared(CINNValuePack* ptr) : Shared<CINNValuePack>(ptr) {}
+  explicit CINNValuePackShared(CINNValuePack* ptr) : Shared<CINNValuePack>(ptr) {}
 
   CINNValue& operator[](int offset) { return (*operator->())[offset]; }
   const CINNValue& operator[](int offset) const { return (*operator->())[offset]; }

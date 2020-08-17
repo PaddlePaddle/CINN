@@ -141,7 +141,7 @@ class IrNode : public common::Object {
   const char* type_info() const override { return __type_info__; }
 
  protected:
-  constexpr static const char* __type_info__ = "IRNode";
+  static constexpr char* __type_info__ = "IRNode";
   Type type_;
 };
 

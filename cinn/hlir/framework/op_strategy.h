@@ -52,10 +52,10 @@ class OpImpl : public common::Object {
     return nullptr;
   }
 
-  const char* type_info() const override { return _type_key; }
+  const char* type_info() const override { return __type_info__; }
 
  private:
-  static constexpr char* _type_key = "OpImplementation";
+  static constexpr char* __type_info__ = "OpImplementation";
 };
 
 //! Specialized implementations for operators under certain conditions.
@@ -71,7 +71,7 @@ class OpSpec : public common::Object {
    */
   std::string condition;
 
-  const char* type_info() const override { return _type_key; }
+  const char* type_info() const override { return __type_info__; }
 
   void AddImpl(CINNCompute fcompute, CINNSchedule fschedule, std::string name, int plevel) {
     auto n       = std::make_shared<OpImpl>();
@@ -83,13 +83,13 @@ class OpSpec : public common::Object {
   }
 
  private:
-  static constexpr char* _type_key = "OpSpecialization";
+  static constexpr char* __type_info__ = "OpSpecialization";
 };
 
 //! Operator strategy class.
 class OpStrategy : public common::Object {
  public:
-  const char* type_info() const override { return "CINNOpStrategy"; }
+  const char* type_info() const override { return __type_info__; }
   //! List of operator specializations.
   std::vector<std::shared_ptr<OpSpec>> specializations;
 
@@ -115,6 +115,9 @@ class OpStrategy : public common::Object {
     n->AddImpl(fcompute, fschedule, std::move(name), plevel);
     this->specializations.push_back(n);
   }
+
+ private:
+  static constexpr char* __type_info__ = "OpStrategy";
 };
 
 std::shared_ptr<OpImpl> SelectImpl(std::shared_ptr<OpStrategy> strategy) {

@@ -35,13 +35,14 @@ class GraphEdge : public Object {
 
   GraphNode* source() const { return source_; }
   GraphNode* sink() const { return sink_; }
-  const char* type_info() const override { return "graph_edge"; }
+  const char* type_info() const override { return __type_info__; }
 
  private:
   //! Source of this edge.
   GraphNode* source_{};
   //! End of this edge.
   GraphNode* sink_{};
+  static constexpr char* __type_info__ = "graph_edge";
 };
 
 struct GraphEdgeCompare {

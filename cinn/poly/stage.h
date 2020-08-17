@@ -219,7 +219,7 @@ class Stage : public Object {
   //! Get the statements.
   std::vector<std::string> input_statements() const;
 
-  virtual const char* type_info() const { return "Status"; }
+  virtual const char* type_info() const { return __type_info__; }
 
   inline const ir::VectorizeInfo& vectorize_info() const { return vectorize_info_; }
   inline const std::set<int>& unroll_info() const { return unroll_info_; }
@@ -279,6 +279,8 @@ class Stage : public Object {
   ScopeKind scope_{ScopeKind::kLocal};
 
   std::set<int> locked_axis_;
+
+  static constexpr char* __type_info__ = "Status";
 
   friend isl_map* __isl_give GatherAccesses(Stage* stage, const std::string& tensor_name);
   friend class PolyGroupScheduler;
