@@ -73,10 +73,11 @@ TEST(Operator, GetAttr) {
   for (auto i : s) {
     LOG(INFO) << "Var id is: " << i.first << " and Var shape is: ";
     std::vector<int> correct_shape{100, 32};
-    CHECK_EQ(i.second, correct_shape) << "The infered shape of " << i.first << " should be {100,32}, but get";
     for (auto j : i.second) {
       LOG(INFO) << j << " ";
     }
+    CHECK_EQ(i.second[0], 100) << "The infered shape is wrong.";
+    CHECK_EQ(i.second[1], 32) << "The infered shape is wrong.";
   }
 }
 

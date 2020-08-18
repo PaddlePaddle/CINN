@@ -56,17 +56,15 @@ class Graph : public cinn::common::Graph {
   /** \brief attributes of a graph */
   std::unordered_map<std::string, std::shared_ptr<std::any>> attrs;
 
-  void RegisterNode(size_t key, Node* node) {
-    this->cinn::common::Graph::RegisterNode(key, node->as<common::GraphNode>());
-  }
+  void RegisterNode(size_t key, Node* node) { this->common::Graph::RegisterNode(key, node->as<common::GraphNode>()); }
   void RegisterNode(size_t key, NodeData* node) {
-    this->cinn::common::Graph::RegisterNode(key, node->as<common::GraphNode>());
+    this->common::Graph::RegisterNode(key, node->as<common::GraphNode>());
   }
   void RegisterNode(const std::string& key, Node* node) {
-    this->cinn::common::Graph::RegisterNode(key, node->as<common::GraphNode>());
+    this->common::Graph::RegisterNode(key, node->as<common::GraphNode>());
   }
   void RegisterNode(const std::string& key, NodeData* node) {
-    this->cinn::common::Graph::RegisterNode(key, node->as<common::GraphNode>());
+    this->common::Graph::RegisterNode(key, node->as<common::GraphNode>());
   }
 
   /**
