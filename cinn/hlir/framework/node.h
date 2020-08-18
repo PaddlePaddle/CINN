@@ -23,6 +23,8 @@ using NodePtr = std::shared_ptr<Node>;
  *  and other parameters like axis.
  */
 struct NodeAttr {
+  using attr_t = std::variant<int, float, std::string, std::vector<int>, std::vector<float>, std::vector<std::string>>;
+
   /**
    * \brief The operator this node uses.
    */
@@ -36,7 +38,7 @@ struct NodeAttr {
   /**
    * \brief The attributes stored as string in dictionary.
    */
-  std::unordered_map<std::string, std::string> attr_store;
+  std::unordered_map<std::string, attr_t> attr_store;
 };
 
 /**
@@ -50,7 +52,7 @@ class Node : public common::GraphNode {
     this->attrs.node_name = name;
     this->id_             = std::move(id);
   }
-
+  const char *type_info() const override { return __type_info__; }
   std::tuple<common::GraphEdge *, common::GraphEdge *> LinkTo(NodeData *other);
   /**
    * \brief Get the unique id of this NodeData.
@@ -88,6 +90,8 @@ class Node : public common::GraphNode {
  * \brief NodeData represents the output data from an operator.
  */
 class NodeData : public common::GraphNode {
+  using attr_t = std::variant<int, float, std::string, std::vector<int>, std::vector<float>, std::vector<std::string>>;
+
  public:
   NodeData(NodePtr node, uint32_t index, uint32_t version, std::string id)
       : source_node(std::move(node)), output_index(index), version(version), id_(std::move(id)) {}
@@ -99,8 +103,8 @@ class NodeData : public common::GraphNode {
       const char *op_name,
       std::string node_name,
       std::vector<NodeData> inputs,
-      std::string id                                     = nullptr,
-      std::unordered_map<std::string, std::string> attrs = std::unordered_map<std::string, std::string>()) {
+      std::string id                                = nullptr,
+      std::unordered_map<std::string, attr_t> attrs = std::unordered_map<std::string, attr_t>()) {
     auto res                           = std::make_shared<NodeData>();
     res->id_                           = std::move(id);
     res->source_node                   = Node::Create();
@@ -110,6 +114,7 @@ class NodeData : public common::GraphNode {
     return res;
   }
 
+  const char *type_info() const override { return __type_info__; }
   /**
    * \brief Get the unique id of this NodeData.
    */
@@ -135,7 +140,7 @@ class NodeData : public common::GraphNode {
    */
   uint32_t version;
 
-  static constexpr char *__type_info__ = "hlir_framework_node";
+  static constexpr char *__type_info__ = "hlir_framework_nodedata";
 
  private:
   /**
