@@ -72,6 +72,8 @@ TEST(Operator, GetAttr) {
   auto s = g->GetAttr<std::unordered_map<std::string, std::vector<int>>>("infer_shape");
   for (auto i : s) {
     LOG(INFO) << "Var id is: " << i.first << " and Var shape is: ";
+    std::vector<int> correct_shape{100, 32};
+    CHECK_EQ(i.second, correct_shape) << "The infered shape of " << i.first << " should be {100,32}, but get";
     for (auto j : i.second) {
       LOG(INFO) << j << " ";
     }
