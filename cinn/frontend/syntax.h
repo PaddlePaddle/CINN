@@ -68,7 +68,7 @@ struct _Instruction_ : public common::Object {
 
   const char* type_info() const override { return __type_info__; }
 
-  static constexpr const char* __type_info__ = "cinn_frontend_instruction";
+  static constexpr char* __type_info__ = "cinn_frontend_instruction";
 };
 
 struct Instruction : public common::Shared<_Instruction_> {

@@ -14,7 +14,7 @@ namespace framework {
  */
 class Schedule : public common::Object {
  public:
-  const char* type_info() const override { return "CINNSchedule"; }
+  const char* type_info() const override { return __type_info__; }
 
   /**
    * \brief Get the stage corresponds to the op
@@ -36,6 +36,9 @@ class Schedule : public common::Object {
 
   //! map of original operation to the stages
   std::unordered_map<std::string, ir::Tensor> stage_map;
+
+ private:
+  static constexpr char* __type_info__ = "CINNSchedule";
 };
 }  // namespace framework
 }  // namespace hlir
