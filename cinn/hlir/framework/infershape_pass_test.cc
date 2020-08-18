@@ -8,6 +8,7 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/ir/packed_func.h"
+
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -32,19 +33,19 @@ void InferShapePass(Graph* src) {
   auto op_infershape =
       Operator::GetAttr<std::function<std::vector<std::vector<int>>(std::vector<std::vector<int>>)>>("infer_shape");
   for (auto i : store_node) {
-    if (i->type_info() == "hlir_framework_node") {
+    if (i->check_type<Node>()) {
       std::vector<std::vector<int>> inputs_shape;
       for (auto j : i->inlinks()) {
-        inputs_shape.push_back(res[j->source()->as<NodeData>()->id()]);
+        inputs_shape.push_back(res[j->source()->safe_as<NodeData>()->id()]);
       }
-      auto out_shape = op_infershape[i->as<Node>()->op()](inputs_shape);
+      auto out_shape = op_infershape[i->safe_as<Node>()->op()](inputs_shape);
       int counter    = 0;
       CHECK_EQ(i->outlinks().size(), out_shape.size())
           << "The output number of node " << i->id() << " is " << i->outlinks().size()
           << " , which is different with the output shape size " << out_shape.size() << " . And the op type is "
-          << i->as<Node>()->op()->name;
+          << i->safe_as<Node>()->op()->name;
       for (auto j : i->outlinks()) {
-        res[j->sink()->as<NodeData>()->id()] = out_shape[counter++];
+        res[j->sink()->safe_as<NodeData>()->id()] = out_shape[counter++];
       }
     }
   }

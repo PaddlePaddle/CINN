@@ -42,6 +42,15 @@ struct Object {
     return static_cast<const T*>(this);
   }
 
+  //! Check if the type is right.
+  template <typename T>
+  bool check_type() const {
+    if (std::strcmp(type_info(), T::__type_info__) == 0) {
+      return true;
+    }
+    return false;
+  }
+
   //! The reference count, which make all the derived type able to share.
   mutable RefCount __ref_count__;
 };

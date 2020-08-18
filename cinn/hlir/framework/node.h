@@ -16,7 +16,6 @@ class Node;
 class NodeData;
 
 using NodePtr = std::shared_ptr<Node>;
-using attr_t  = std::variant<int, float, std::string, std::vector<int>, std::vector<float>, std::vector<std::string>>;
 
 /**
  * \brief Attributes of each node in graph.
@@ -24,6 +23,8 @@ using attr_t  = std::variant<int, float, std::string, std::vector<int>, std::vec
  *  and other parameters like axis.
  */
 struct NodeAttr {
+  using attr_t = std::variant<int, float, std::string, std::vector<int>, std::vector<float>, std::vector<std::string>>;
+
   /**
    * \brief The operator this node uses.
    */
@@ -89,6 +90,8 @@ class Node : public common::GraphNode {
  * \brief NodeData represents the output data from an operator.
  */
 class NodeData : public common::GraphNode {
+  using attr_t = std::variant<int, float, std::string, std::vector<int>, std::vector<float>, std::vector<std::string>>;
+
  public:
   NodeData(NodePtr node, uint32_t index, uint32_t version, std::string id)
       : source_node(std::move(node)), output_index(index), version(version), id_(std::move(id)) {}
