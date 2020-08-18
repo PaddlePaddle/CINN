@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+
 #include "cinn/backends/compiler.h"
 #include "cinn/common/macros.h"
 #include "cinn/hlir/framework/graph.h"
@@ -37,10 +38,7 @@ class Program {
 class GraphCompiler final {
  public:
   GraphCompiler(Target target, const std::shared_ptr<Scope>& scope, Graph* const graph)
-      : target_(std::move(target)),
-        scope_(scope),
-        graph_(graph),
-        m_builder_(Context::Global().NewName("module"), target) {}
+      : target_(std::move(target)), scope_(scope), graph_(graph), m_builder_(UniqName("module"), target) {}
 
   std::unique_ptr<Program> Build();
 
