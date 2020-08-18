@@ -45,17 +45,16 @@ class GraphCompiler final {
   std::unique_ptr<Program> Build();
 
  private:
-  // TODO(haozech) add implementation
-  ir::LoweredFunc GetOpFunc(const Operator* op) { CINN_NOT_IMPLEMENTED; }
+  ir::LoweredFunc GetOpFunc(const Node* node);
 
-  std::string GenOpFuncName(const Operator* op) const {
-    return "fn_" + op->name + "_" + std::to_string(op->get_index());
+  std::string GenOpFuncName(const Node* node) const {
+    return "fn_" + node->op()->name + "_" + std::to_string(node->op()->get_index());
   }
 
   // TODO(haozech) add implementation
-  std::vector<std::string> OpGetInputNames(const Operator* op) const { CINN_NOT_IMPLEMENTED; }
+  std::vector<std::string> OpGetInputNames(const Node* node) const;
   // TODO(haozech) add implementation
-  std::vector<std::string> OpGetOutputNames(const Operator* op) const { CINN_NOT_IMPLEMENTED; }
+  std::vector<std::string> OpGetOutputNames(const Node* node) const;
 
   std::vector<std::unique_ptr<Instruction>> BuildInstructions();
 

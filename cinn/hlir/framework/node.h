@@ -16,6 +16,7 @@ class Node;
 class NodeData;
 
 using NodePtr = std::shared_ptr<Node>;
+using attr_t  = std::variant<int, float, std::string, std::vector<int>, std::vector<float>, std::vector<std::string>>;
 
 /**
  * \brief Attributes of each node in graph.
@@ -36,7 +37,7 @@ struct NodeAttr {
   /**
    * \brief The attributes stored as string in dictionary.
    */
-  std::unordered_map<std::string, std::string> attr_store;
+  std::unordered_map<std::string, attr_t> attr_store;
 };
 
 /**
@@ -50,7 +51,7 @@ class Node : public common::GraphNode {
     this->attrs.node_name = name;
     this->id_             = std::move(id);
   }
-
+  const char *type_info() const override { return __type_info__; }
   std::tuple<common::GraphEdge *, common::GraphEdge *> LinkTo(NodeData *other);
   /**
    * \brief Get the unique id of this NodeData.
@@ -99,8 +100,8 @@ class NodeData : public common::GraphNode {
       const char *op_name,
       std::string node_name,
       std::vector<NodeData> inputs,
-      std::string id                                     = nullptr,
-      std::unordered_map<std::string, std::string> attrs = std::unordered_map<std::string, std::string>()) {
+      std::string id                                = nullptr,
+      std::unordered_map<std::string, attr_t> attrs = std::unordered_map<std::string, attr_t>()) {
     auto res                           = std::make_shared<NodeData>();
     res->id_                           = std::move(id);
     res->source_node                   = Node::Create();
@@ -110,6 +111,7 @@ class NodeData : public common::GraphNode {
     return res;
   }
 
+  const char *type_info() const override { return __type_info__; }
   /**
    * \brief Get the unique id of this NodeData.
    */
@@ -135,7 +137,7 @@ class NodeData : public common::GraphNode {
    */
   uint32_t version;
 
-  static constexpr char *__type_info__ = "hlir_framework_node";
+  static constexpr char *__type_info__ = "hlir_framework_nodedata";
 
  private:
   /**
