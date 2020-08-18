@@ -73,5 +73,7 @@ class Context {
   mutable std::string runtime_include_dir_;
 };
 
+static std::string UniqName(const std::string& prefix) { return Context::Global().NewName(prefix); }
+
 }  // namespace common
 }  // namespace cinn

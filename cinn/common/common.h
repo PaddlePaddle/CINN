@@ -17,6 +17,7 @@ using common::make_shared;
 using common::Object;
 using common::ref_count;
 using common::Shared;
+using common::UniqName;
 
 // Type related.
 using common::Bool;

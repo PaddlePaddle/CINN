@@ -13,6 +13,11 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+struct OpStrategy;
+
+using StrategyFunction = std::function<std::shared_ptr<OpStrategy>(
+    const NodeAttr, const std::vector<ir::Tensor>, common::Type, const common::Target)>;
+
 //! Operator implementation that includes compute and schedule function.
 class OpImpl : public common::Object {
  public:
