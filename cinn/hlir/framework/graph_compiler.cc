@@ -1,7 +1,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
-
 #include <unordered_map>
 #include "cinn/hlir/framework/instruction.h"
+#include "cinn/hlir/framework/tensor.h"
 
 namespace cinn {
 namespace hlir {
@@ -86,6 +86,25 @@ std::vector<std::string> GraphCompiler::OpGetOutputNames(const Node* node) const
     res.push_back(i->sink()->as<NodeData>()->id());
   }
   return res;
+}
+
+std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph> graph) {
+  auto dict                    = graph->GetAttr<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  std::shared_ptr<Scope> scope = std::make_shared<Scope>();
+  for (auto iter : dict) {
+    auto* var    = scope->Var<Tensor>(iter.first);
+    auto& tensor = std::get<Tensor>(*var);
+    std::vector<Shape::dim_t> shape;
+    for (auto shape_dim : iter.second) {
+      shape.push_back(Shape::dim_t(shape_dim));
+    }
+    tensor.Resize(Shape{shape});
+    auto* data = tensor.mutable_data<float>(target);
+    for (size_t j = 0; j < tensor.shape().numel(); j++) {
+      data[j] = 0.f;  // All 0 data
+    }
+  }
+  return scope;
 }
 
 }  // namespace framework

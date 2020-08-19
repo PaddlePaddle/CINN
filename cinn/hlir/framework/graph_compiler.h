@@ -66,6 +66,8 @@ class GraphCompiler final {
   lang::Module::Builder m_builder_;
 };
 
+std::shared_ptr<Scope> BuildScope(Target target, std::shared_ptr<Graph> graph);
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
