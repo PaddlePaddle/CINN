@@ -4,18 +4,18 @@
 #include <string_view>
 #include <vector>
 
-#include "cinn/ir/packed_func.h"
+#include "cinn/lang/packed_func.h"
 
 namespace cinn::ir {
 
 class Registry {
  public:
-  Registry &SetBody(PackedFunc f);
-  Registry &SetBody(PackedFunc::body_t f);
+  Registry &SetBody(lang::PackedFunc f);
+  Registry &SetBody(lang::PackedFunc::body_t f);
 
   static Registry &Register(const std::string &name, bool can_override = false);
   static bool Remove(const std::string &name);
-  static const PackedFunc *Get(const std::string &name);
+  static const lang::PackedFunc *Get(const std::string &name);
   static std::vector<std::string> ListNames();
 
   struct Manager;
@@ -24,7 +24,7 @@ class Registry {
 
  protected:
   std::string name_;
-  PackedFunc func_;
+  lang::PackedFunc func_;
   friend class Manager;
 };
 

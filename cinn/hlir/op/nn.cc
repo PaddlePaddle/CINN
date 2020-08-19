@@ -8,28 +8,28 @@ namespace hlir {
 namespace op {
 using common::CINNValue;
 using common::CINNValuePack;
-using common::CINNValuePackShared;
 using framework::OpStrategy;
 using framework::StrategyFunction;
+using lang::Args;
+using lang::RetValue;
 
 std::shared_ptr<OpStrategy> StrategyForAdd(const framework::NodeAttr &attr,
                                            const std::vector<ir::Tensor> &inputs,
                                            Type out_type,
                                            const Target &target) {
-  framework::CINNCompute add_compute([](ir::Args args, ir::RetValue *ret) {
-    CINNValuePackShared a = args[0];
-    ir::Expr A            = a[0];
-    ir::Expr B            = a[1];
+  framework::CINNCompute add_compute([](Args args, RetValue *ret) {
+    CINNValuePack a = args[0];
+    ir::Expr A      = a[0];
+    ir::Expr B      = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
-    *ret =
-        CINNValuePack::Make({CINNValue(ir::Expr(pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), UniqName("C")).get()))});
+    *ret = CINNValuePack({CINNValue(ir::Expr(pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), UniqName("C")).get()))});
   });
 
-  framework::CINNSchedule add_schedule([](ir::Args args, ir::RetValue *ret) {
-    CINNValuePackShared a = args[0];
-    ir::Expr A            = a[0];
-    *ret                  = CINNValuePack::Make({CINNValue(A)});
+  framework::CINNSchedule add_schedule([](Args args, RetValue *ret) {
+    CINNValuePack a = args[0];
+    ir::Expr A      = a[0];
+    *ret            = CINNValuePack({CINNValue(A)});
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

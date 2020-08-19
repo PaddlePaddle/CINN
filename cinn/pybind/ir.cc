@@ -13,8 +13,8 @@
 #include "cinn/ir/lowered_func.h"
 #include "cinn/ir/node.h"
 #include "cinn/ir/operation.h"
-#include "cinn/ir/packed_func.h"
 #include "cinn/ir/registry.h"
+#include "cinn/lang/packed_func.h"
 #include "cinn/lang/tensor.h"
 #include "cinn/poly/stage.h"
 #include "cinn/pybind/bind.h"
@@ -579,8 +579,8 @@ void BindIrTensor(py::module *m) {
   operation.def(py::init<>()).def(py::init<ir::IrNode *>()).def_readwrite("name", &ir::Operation::name);
 }
 
-auto PackedFuncCall(ir::PackedFunc &self, py::args args) {  // NOLINT
-  ir::Args cinn_args;
+auto PackedFuncCall(lang::PackedFunc &self, py::args args) {  // NOLINT
+  lang::Args cinn_args;
   using common::CINNValue;
   for (auto handle : args) {
     if (py::isinstance<py::int_>(handle)) {
@@ -595,31 +595,28 @@ auto PackedFuncCall(ir::PackedFunc &self, py::args args) {  // NOLINT
       LOG(FATAL) << "unsupported type: " << std::string(py::str(handle.get_type()));
     }
   }
-  ir::RetValue ret_value;
+  lang::RetValue ret_value;
   self.body()(cinn_args, &ret_value);
   return ConvertToVar(ret_value);
 }
 
 void BindPackedFunc(py::module *m) {
-  py::class_<ir::Args> args(*m, "Args");
+  py::class_<lang::Args> args(*m, "Args");
   args.def(py::init<>())
       .def(py::init<cinn_value_t *, int *, int>())
-      .def("append", &ir::Args::Append)
-      .def("size", &ir::Args::size)
-      .def("__len__", &ir::Args::size)
+      .def("append", &lang::Args::Append)
+      .def("size", &lang::Args::size)
+      .def("__len__", &lang::Args::size)
       .def(
-          "__getitem__", [](ir::Args &self, int i) { return self[i]; }, py::return_value_policy::reference)
-      .def("__setitem__", [](ir::Args &self, int i, common::CINNValue &v) { self[i] = v; });
+          "__getitem__", [](lang::Args &self, int i) { return self[i]; }, py::return_value_policy::reference)
+      .def("__setitem__", [](lang::Args &self, int i, common::CINNValue &v) { self[i] = v; });
 
-  py::class_<ir::PackedFunc> packed_func(*m, "PackedFunc");
+  py::class_<lang::PackedFunc> packed_func(*m, "PackedFunc");
   packed_func.def(py::init<>())
       .def(py::init<const std::string &>())
-      .def(py::init<ir::PackedFunc::body_t>())
-      .def("body", &ir::PackedFunc::body)
+      .def(py::init<lang::PackedFunc::body_t>())
+      .def("body", &lang::PackedFunc::body)
       .def("__call__", &PackedFuncCall);
-
-  // using CinnType = std::variant<int32_t, int64_t, float, double, void *, char *, const char *, cinn_buffer_t *,
-  // ir::Expr, ir::Var>;
 }
 
 void BindRegistry(py::module *m) {
@@ -634,25 +631,25 @@ void BindRegistry(py::module *m) {
       .def_static("remove", &ir::Registry::Remove)
       .def_static("get", &ir::Registry::Get, py::return_value_policy::reference)
       .def_static("list_names", &ir::Registry::ListNames)
-      .def("set_body", py::overload_cast<ir::PackedFunc>(&ir::Registry::SetBody), py::return_value_policy::reference);
+      .def("set_body", py::overload_cast<lang::PackedFunc>(&ir::Registry::SetBody), py::return_value_policy::reference);
   //.def("set_body",
   //     py::overload_cast<ir::PackedFunc::body_t>(&ir::Registry::SetBody),
   //     py::return_value_policy::reference);
 
 #ifdef CINN_WITH_TEST
-  ir::Registry::Register("test_add_int64").SetBody([](ir::Args args, ir::RetValue *rv) {
+  ir::Registry::Register("test_add_int64").SetBody([](lang::Args args, lang::RetValue *rv) {
     int64_t x = args[0];
     int64_t y = args[1];
     *rv       = x + y;
   });
 
-  ir::Registry::Register("test_add_expr").SetBody([](ir::Args args, ir::RetValue *rv) {
+  ir::Registry::Register("test_add_expr").SetBody([](lang::Args args, lang::RetValue *rv) {
     ir::Expr x = args[0];
     ir::Expr y = args[1];
     *rv        = x + y;
   });
 
-  ir::Registry::Register("test_mul_float").SetBody([](ir::Args args, ir::RetValue *rv) {
+  ir::Registry::Register("test_mul_float").SetBody([](lang::Args args, lang::RetValue *rv) {
     float x = args[0];
     float y = args[1];
     *rv     = x * y;
