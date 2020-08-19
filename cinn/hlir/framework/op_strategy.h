@@ -6,12 +6,12 @@
 #include "cinn/hlir/framework/schedule.h"
 #include "cinn/ir/packed_func.h"
 
-using CINNCompute  = cinn::ir::PackedFunc;
-using CINNSchedule = cinn::ir::PackedFunc;
-
 namespace cinn {
 namespace hlir {
 namespace framework {
+
+using CINNCompute  = ir::PackedFunc;
+using CINNSchedule = ir::PackedFunc;
 
 struct OpStrategy;
 

@@ -16,7 +16,7 @@ std::shared_ptr<OpStrategy> StrategyForAdd(const framework::NodeAttr &attr,
                                            const std::vector<ir::Tensor> &inputs,
                                            Type out_type,
                                            const Target &target) {
-  ir::PackedFunc add_compute(ir::PackedFunc::body_t compute_body = [](ir::Args args, ir::RetValue *ret) {
+  framework::CINNCompute add_compute([](ir::Args args, ir::RetValue *ret) {
     CINNValuePackShared a = args[0];
     ir::Expr A            = a[0];
     ir::Expr B            = a[1];
@@ -26,7 +26,7 @@ std::shared_ptr<OpStrategy> StrategyForAdd(const framework::NodeAttr &attr,
         CINNValuePack::Make({CINNValue(ir::Expr(pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), UniqName("C")).get()))});
   });
 
-  ir::PackedFunc add_schedule([](ir::Args args, ir::RetValue *ret) {
+  framework::CINNSchedule add_schedule([](ir::Args args, ir::RetValue *ret) {
     CINNValuePackShared a = args[0];
     ir::Expr A            = a[0];
     *ret                  = CINNValuePack::Make({CINNValue(A)});
@@ -38,15 +38,15 @@ std::shared_ptr<OpStrategy> StrategyForAdd(const framework::NodeAttr &attr,
   return strategy;
 }
 
+}  // namespace op
+}  // namespace hlir
+}  // namespace cinn
+
 CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(add)
       .describe("Add two tensors")
       .set_num_inputs(2)
       .set_num_outputs(1)
-      .set_attr<StrategyFunction>("CINNStrategy", StrategyForAdd)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForAdd)
       .set_support_level(4);
 }
-
-}  // namespace op
-}  // namespace hlir
-}  // namespace cinn

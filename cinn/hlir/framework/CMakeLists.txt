@@ -7,6 +7,7 @@ set(srcs
   instruction.cc
   graph_compiler.cc
   graph.cc
+  node.cc
   )
 
 if(WITH_CUDA)

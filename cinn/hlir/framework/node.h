@@ -149,14 +149,6 @@ class NodeData : public common::GraphNode {
   std::string id_;
 };
 
-std::tuple<common::GraphEdge *, common::GraphEdge *> Node::LinkTo(NodeData *other) {
-  return this->common::GraphNode::LinkTo(other->as<common::GraphNode>());
-}
-
-std::tuple<common::GraphEdge *, common::GraphEdge *> NodeData::LinkTo(Node *other) {
-  return this->common::GraphNode::LinkTo(other->as<common::GraphNode>());
-}
-
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
