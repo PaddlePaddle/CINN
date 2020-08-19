@@ -857,7 +857,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
       /*Result=*/b_->getVoidTy(),
       /*Params=*/std::move(arg_types),
       /*isVarArg=*/false);
-  LOG(INFO) << op->name;
   CHECK(m_->getFunction(op->name) == nullptr) << "function[" << op->name << "] exists";
 
   llvm::Function *function = llvm::Function::Create(

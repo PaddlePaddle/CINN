@@ -34,9 +34,9 @@ class CINNValuePack;
  */
 struct _CINNValuePack_ : public common::Object {
   /**
-   * Create a new _CINNValuePack_ instance.
+   * Create a new CINNValuePack instance.
    * @param array The list of CINNValues.
-   * @return a _CINNValuePack_.
+   * @return a CINNValuePack.
    */
   static CINNValuePack Make(const std::vector<CINNValue>& array);
 
