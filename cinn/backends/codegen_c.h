@@ -9,8 +9,8 @@
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/lowered_func.h"
-#include "cinn/ir/packed_func.h"
 #include "cinn/lang/module.h"
+#include "cinn/lang/packed_func.h"
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {

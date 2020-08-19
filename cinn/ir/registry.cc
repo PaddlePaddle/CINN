@@ -4,6 +4,8 @@
 #include <mutex>  // NOLINT
 
 namespace cinn::ir {
+using lang::PackedFunc;
+
 struct Registry::Manager {
   static Manager *Global() {
     static Manager manager;

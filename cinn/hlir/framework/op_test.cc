@@ -13,6 +13,9 @@
 namespace cinn {
 namespace hlir {
 namespace framework {
+using lang::Args;
+using lang::PackedFunc;
+using lang::RetValue;
 
 using CCompute = std::function<std::shared_ptr<ir::Tensor>(const std::vector<ir::Tensor>)>;
 
@@ -27,23 +30,23 @@ std::shared_ptr<OpStrategy> StrategyTest(const NodeAttr &attr,
                                          const std::vector<ir::Tensor> &inputs,
                                          common::Type out_type,
                                          const common::Target &target) {
-  ir::PackedFunc::body_t compute_body = [](ir::Args args, ir::RetValue *ret) {
+  PackedFunc::body_t compute_body = [](Args args, RetValue *ret) {
     common::CINNValuePackShared a = args[0];
     ir::Expr A                    = a[0];
     ir::Expr B                    = a[1];
     *ret                          = common::CINNValuePack::Make(
         {common::CINNValue(ir::Expr(pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), "C").get()))});
   };
-  ir::PackedFunc fcompute(compute_body);
+  PackedFunc fcompute(compute_body);
 
-  ir::PackedFunc::body_t schedule_body = [](ir::Args args, ir::RetValue *ret) {
+  PackedFunc::body_t schedule_body = [](Args args, RetValue *ret) {
     common::CINNValuePackShared a = args[0];
     ir::Expr A                    = a[0];
     A.as_tensor_ref()->stage()->Vectorize(1, 16);
     A.as_tensor_ref()->stage()->Unroll(1);
     *ret = common::CINNValuePack::Make({common::CINNValue(A)});
   };
-  ir::PackedFunc fschedule(schedule_body);
+  PackedFunc fschedule(schedule_body);
 
   auto strategy = std::make_shared<OpStrategy>();
 

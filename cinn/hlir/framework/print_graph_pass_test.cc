@@ -7,7 +7,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/pass.h"
-#include "cinn/ir/packed_func.h"
+#include "cinn/lang/packed_func.h"
 namespace cinn {
 namespace hlir {
 namespace framework {

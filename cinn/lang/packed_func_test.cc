@@ -1,4 +1,4 @@
-#include "cinn/ir/packed_func.h"
+#include "cinn/lang/packed_func.h"
 
 #include <gtest/gtest.h>
 
@@ -7,7 +7,7 @@
 #include "cinn/utils/string.h"
 
 namespace cinn {
-namespace ir {
+namespace lang {
 
 TEST(Function, test) {
   PackedFunc::body_t func_body = [](Args args, RetValue* ret) {
@@ -77,5 +77,5 @@ TEST(Function, ReturnMultiValue) {
   EXPECT_EQ(d, -1);
 }
 
-}  // namespace ir
+}  // namespace lang
 }  // namespace cinn
