@@ -64,14 +64,14 @@ TEST(Function, ReturnMultiValue) {
     int c = a + b;
     int d = a - b;
 
-    *ret = common::CINNValuePack::Make({common::CINNValue(c), common::CINNValue(d)});
+    *ret = common::_CINNValuePack_::Make({common::CINNValue(c), common::CINNValue(d)});
   };
 
   PackedFunc func(body);
 
-  common::CINNValuePackShared ret = func(1, 2);
-  int c                           = ret[0];
-  int d                           = ret[1];
+  common::CINNValuePack ret = func(1, 2);
+  int c                     = ret[0];
+  int d                     = ret[1];
 
   EXPECT_EQ(c, 3);
   EXPECT_EQ(d, -1);

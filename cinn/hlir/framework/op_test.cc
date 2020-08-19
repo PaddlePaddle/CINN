@@ -31,20 +31,20 @@ std::shared_ptr<OpStrategy> StrategyTest(const NodeAttr &attr,
                                          common::Type out_type,
                                          const common::Target &target) {
   PackedFunc::body_t compute_body = [](Args args, RetValue *ret) {
-    common::CINNValuePackShared a = args[0];
-    ir::Expr A                    = a[0];
-    ir::Expr B                    = a[1];
-    *ret                          = common::CINNValuePack::Make(
+    common::CINNValuePack a = args[0];
+    ir::Expr A              = a[0];
+    ir::Expr B              = a[1];
+    *ret                    = common::_CINNValuePack_::Make(
         {common::CINNValue(ir::Expr(pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), "C").get()))});
   };
   PackedFunc fcompute(compute_body);
 
   PackedFunc::body_t schedule_body = [](Args args, RetValue *ret) {
-    common::CINNValuePackShared a = args[0];
-    ir::Expr A                    = a[0];
+    common::CINNValuePack a = args[0];
+    ir::Expr A              = a[0];
     A.as_tensor_ref()->stage()->Vectorize(1, 16);
     A.as_tensor_ref()->stage()->Unroll(1);
-    *ret = common::CINNValuePack::Make({common::CINNValue(A)});
+    *ret = common::_CINNValuePack_::Make({common::CINNValue(A)});
   };
   PackedFunc fschedule(schedule_body);
 
@@ -77,9 +77,9 @@ TEST(Operator, GetAttr) {
   target.arch = common::Target::Arch::X86;
   auto impl   = SelectImpl(strategy[add](attr, inputs, type, target));
 
-  common::CINNValuePackShared cinn_input = common::CINNValuePack::Make({common::CINNValue(A), common::CINNValue(B)});
-  common::CINNValuePackShared C          = impl->fcompute(cinn_input);
-  C                                      = impl->fschedule(C);
+  common::CINNValuePack cinn_input = common::_CINNValuePack_::Make({common::CINNValue(A), common::CINNValue(B)});
+  common::CINNValuePack C          = impl->fcompute(cinn_input);
+  C                                = impl->fschedule(C);
   for (int i = 0; i < C.get()->size(); i++) {
     ir::Expr temp = C[i];
     inputs.push_back(temp.as_tensor_ref());
