@@ -360,13 +360,6 @@ void BindIrIr(py::module *m) {
 
   DEFINE_UNARY_NODE(Minus);
   DEFINE_UNARY_NODE(Not);
-  DEFINE_UNARY_NODE(Activate).def_readwrite("kind", &ir::Activate::kind);
-  py::enum_<ir::Activate::Kind> kind(py_Activate, "Kind");
-  kind.value("kTanh", ir::Activate::Kind::kTanh)
-      .value("kSigmoid", ir::Activate::Kind::kSigmoid)
-      .value("kExp", ir::Activate::Kind::kExp)
-      .value("kCeil", ir::Activate::Kind::kCeil)
-      .value("kFloor", ir::Activate::Kind::kFloor);
 
 #undef DEFINE_UNARY_NODE
 

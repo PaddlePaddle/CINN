@@ -30,7 +30,7 @@ class CINNValue;
 class CINNValuePack;
 
 /**
- * A CINNValuePack is a shared Array of multiple CINNValue.
+ * A CINNValuePack is a shared Array of multiple CINNValues.
  */
 struct _CINNValuePack_ : public common::Object {
   /**
@@ -45,10 +45,10 @@ struct _CINNValuePack_ : public common::Object {
   //! Get i-th element in readonly mode.
   const CINNValue& operator[](int offset) const;
 
-  //! Add one \p value to the tail.
+  //! Append one \p value to the pack.
   void AddValue(const CINNValue& value);
 
-  //! Remove all the values.
+  //! Remove all the values owned.
   void Clear();
 
   size_t size() const { return values_.size(); }
@@ -63,11 +63,17 @@ struct _CINNValuePack_ : public common::Object {
   static constexpr char* __type_info__ = "CINNValuePack";
 };
 
+/**
+ * CINNValuePack helps to hold multiple CINNValues in a CINNValue.
+ * It is used in PackedFunc where multiple result should be returned at once.
+ */
 struct CINNValuePack : public Shared<_CINNValuePack_> {
   explicit CINNValuePack(_CINNValuePack_* ptr) : Shared<_CINNValuePack_>(ptr) {}
   explicit CINNValuePack(const std::vector<CINNValue>& array) : Shared<_CINNValuePack_>(_CINNValuePack_::Make(array)) {}
 
+  //! Get \p offset-th value.
   CINNValue& operator[](int offset) { return (*operator->())[offset]; }
+  //! Get \p offset-th value.
   const CINNValue& operator[](int offset) const { return (*operator->())[offset]; }
 
   _CINNValuePack_* operator->() { return get(); }

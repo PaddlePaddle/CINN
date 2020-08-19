@@ -323,14 +323,6 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Sum::Make(operands);
   }
 
-  Expr Visit(const ir::Activate* op) override {
-    auto arg = Visit(&op->operand(0));
-
-    auto n  = common::make_shared<ir::Activate>(arg);
-    n->kind = op->kind;
-    return n;
-  }
-
   Expr Visit(const ir::PrimitiveNode* op) override {
     std::vector<std::vector<Expr>> arguments;
     for (auto& args : op->arguments) {

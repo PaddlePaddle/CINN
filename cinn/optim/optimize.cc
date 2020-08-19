@@ -1,7 +1,6 @@
 #include "cinn/optim/optimize.h"
 
 #include "cinn/ir/ir_printer.h"
-#include "cinn/optim/activate_to_extern_call.h"
 #include "cinn/optim/cache_read_write_replace.h"
 #include "cinn/optim/call_arg_list_to_pod_value.h"
 #include "cinn/optim/eliminate_broadcast_in_forloop.h"

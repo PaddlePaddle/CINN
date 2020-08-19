@@ -364,26 +364,6 @@ struct Call : public ExprNode<Call> {
   static const IrNodeTy _node_type_ = IrNodeTy::Call;
 };
 
-struct Activate : public UnaryOpNode<Activate> {
-  explicit Activate(Expr x) : UnaryOpNode<Activate>(x.type(), x) {}
-  enum class Kind {
-    kTanh,
-    kSigmoid,
-    kExp,
-    kCeil,
-    kFloor,
-  };
-  Kind kind;
-
-  static Expr Make(Kind kind, Expr arg) {
-    auto n  = make_shared<Activate>(arg);
-    n->kind = kind;
-    return Expr(n);
-  }
-
-  static const IrNodeTy _node_type_ = IrNodeTy::Activate;
-};
-
 /**
  * Variable used as iterator value or bound definition.
  */

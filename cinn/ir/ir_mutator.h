@@ -159,11 +159,6 @@ void IRMutator<T>::Visit(const Free *expr, T op) {
   IRVisitorBase<void, T>::Visit(&node->destination, &node->destination);
 }
 template <typename T>
-void IRMutator<T>::Visit(const Activate *expr, T op) {
-  auto *node = op->template As<Activate>();
-  IRVisitorBase<void, T>::Visit(&node->operand(0), &node->operand(0));
-}
-template <typename T>
 void IRMutator<T>::Visit(const _Range_ *expr, T op) {}
 template <typename T>
 void IRMutator<T>::Visit(const _Buffer_ *expr, T op) {
