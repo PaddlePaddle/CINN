@@ -175,25 +175,25 @@ void BindShared(py::module *m) {
 }
 
 void BindCinnValue(py::module *m) {
+  using common::_CINNValuePack_;
   using common::CINNValuePack;
-  using common::CINNValuePackShared;
 
-  DefineShared<CINNValuePack>(m, "CINNValuePack");
+  DefineShared<_CINNValuePack_>(m, "_CINNValuePack_");
 
-  py::class_<CINNValuePack> cinn_value_pack(*m, "CINNValuePack");
-  cinn_value_pack.def_static("make", &CINNValuePack::Make)
+  py::class_<_CINNValuePack_> cinn_value_pack(*m, "_CINNValuePack_");
+  cinn_value_pack.def_static("make", &_CINNValuePack_::Make)
+      .def("__getitem__", [](_CINNValuePack_ &self, int offset) { return self[offset]; })
+      .def("__setitem__", [](_CINNValuePack_ &self, int offset, CINNValue &v) { self[offset] = v; })
+      .def("add_value", &_CINNValuePack_::AddValue)
+      .def("clear", &_CINNValuePack_::Clear)
+      .def("size", &_CINNValuePack_::size)
+      .def("__len__", &_CINNValuePack_::size)
+      .def("type_info", &_CINNValuePack_::type_info);
+
+  py::class_<CINNValuePack, common::Shared<_CINNValuePack_>> cinn_value_pack_shared(*m, "CINNValuePack");
+  cinn_value_pack_shared.def(py::init<_CINNValuePack_ *>())
       .def("__getitem__", [](CINNValuePack &self, int offset) { return self[offset]; })
-      .def("__setitem__", [](CINNValuePack &self, int offset, CINNValue &v) { self[offset] = v; })
-      .def("add_value", &CINNValuePack::AddValue)
-      .def("clear", &CINNValuePack::Clear)
-      .def("size", &CINNValuePack::size)
-      .def("__len__", &CINNValuePack::size)
-      .def("type_info", &CINNValuePack::type_info);
-
-  py::class_<CINNValuePackShared, common::Shared<CINNValuePack>> cinn_value_pack_shared(*m, "CINNValuePackShared");
-  cinn_value_pack_shared.def(py::init<CINNValuePack *>())
-      .def("__getitem__", [](CINNValuePackShared &self, int offset) { return self[offset]; })
-      .def("__setitem__", [](CINNValuePackShared &self, int offset, CINNValue &v) { self[offset] = v; });
+      .def("__setitem__", [](CINNValuePack &self, int offset, CINNValue &v) { self[offset] = v; });
 
   py::class_<CINNValue, cinn_pod_value_t> cinn_value(*m, "CINNValue");
   cinn_value.def(py::init<>())
@@ -208,7 +208,7 @@ void BindCinnValue(py::module *m) {
       .def(py::init<const char *>())
       .def(py::init<const ir::Var &>())
       .def(py::init<const ir::Expr &>())
-      .def(py::init<const CINNValuePackShared &>())
+      .def(py::init<const CINNValuePack &>())
       .def("defined", &CINNValue::defined)
       .def("to_double", [](CINNValue &self) { return static_cast<double>(self); })
       .def("to_float", [](CINNValue &self) { return static_cast<float>(self); })
@@ -227,7 +227,7 @@ void BindCinnValue(py::module *m) {
       .def("set", &CINNValue::Set<const ir::Var &>)
       .def("set", &CINNValue::Set<const ir::Expr &>)
       .def("set", &CINNValue::Set<cinn_buffer_t *>)
-      .def("set", &CINNValue::Set<const CINNValuePackShared &>)
+      .def("set", &CINNValue::Set<const CINNValuePack &>)
       .def("set", &CINNValue::Set<const char *>)
       .def("set", &CINNValue::Set<const CINNValue &>);
 

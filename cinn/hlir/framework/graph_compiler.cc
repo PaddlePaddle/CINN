@@ -62,8 +62,8 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   common::Type type;
   auto impl = SelectImpl(strategy[node->op()](node->attrs, inputs, type, target_));
 
-  common::CINNValuePackShared C = impl->fcompute(common::CINNValuePack::Make(cinn_inputs));
-  C                             = impl->fschedule(C);
+  common::CINNValuePack C = impl->fcompute(common::_CINNValuePack_::Make(cinn_inputs));
+  C                       = impl->fschedule(C);
   for (int i = 0; i < C.get()->size(); i++) {
     ir::Expr temp = C[i];
     inputs.push_back(temp.as_tensor_ref());

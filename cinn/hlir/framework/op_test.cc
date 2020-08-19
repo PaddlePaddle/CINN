@@ -33,9 +33,9 @@ TEST(Operator, GetAttr) {
   target.arch = common::Target::Arch::X86;
   auto impl   = SelectImpl(strategy[add](attr, inputs, type, target));
 
-  common::CINNValuePackShared cinn_input = common::CINNValuePack::Make({common::CINNValue(A), common::CINNValue(B)});
-  common::CINNValuePackShared C          = impl->fcompute(cinn_input);
-  C                                      = impl->fschedule(C);
+  common::CINNValuePack cinn_input = common::_CINNValuePack_::Make({common::CINNValue(A), common::CINNValue(B)});
+  common::CINNValuePack C          = impl->fcompute(cinn_input);
+  C                                = impl->fschedule(C);
   for (int i = 0; i < C.get()->size(); i++) {
     ir::Expr temp = C[i];
     inputs.push_back(temp.as_tensor_ref());

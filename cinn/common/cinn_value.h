@@ -27,18 +27,18 @@ template <typename T>
 cinn_value_t ToValue(T v);
 
 class CINNValue;
-class CINNValuePackShared;
+class CINNValuePack;
 
 /**
- * A CINNValuePack is a shared Array of multiple CINNValue.
+ * A _CINNValuePack_ is a shared Array of multiple CINNValue.
  */
-struct CINNValuePack : public common::Object {
+struct _CINNValuePack_ : public common::Object {
   /**
-   * Create a new CINNValuePack instance.
+   * Create a new _CINNValuePack_ instance.
    * @param array The list of CINNValues.
-   * @return a CINNValuePack.
+   * @return a _CINNValuePack_.
    */
-  static CINNValuePackShared Make(const std::vector<CINNValue>& array);
+  static CINNValuePack Make(const std::vector<CINNValue>& array);
 
   //! Get i-th element in mutable mode.
   CINNValue& operator[](int offset);
@@ -53,24 +53,24 @@ struct CINNValuePack : public common::Object {
 
   size_t size() const { return values_.size(); }
 
-  CINN_DISALLOW_COPY_AND_ASSIGN(CINNValuePack);
+  CINN_DISALLOW_COPY_AND_ASSIGN(_CINNValuePack_);
 
   const char* type_info() const override;
 
  private:
-  CINNValuePack() = default;
+  _CINNValuePack_() = default;
   std::vector<CINNValue> values_;
-  static constexpr char* __type_info__ = "CINNValuePack";
+  static constexpr char* __type_info__ = "_CINNValuePack_";
 };
 
-struct CINNValuePackShared : public Shared<CINNValuePack> {
-  explicit CINNValuePackShared(CINNValuePack* ptr) : Shared<CINNValuePack>(ptr) {}
-
+struct CINNValuePack : public Shared<_CINNValuePack_> {
+  explicit CINNValuePack(_CINNValuePack_* ptr) : Shared<_CINNValuePack_>(ptr) {}
+  explicit CINNValuePack(const std::vector<CINNValue>& array) : Shared<_CINNValuePack_>(_CINNValuePack_::Make(array)) {}
   CINNValue& operator[](int offset) { return (*operator->())[offset]; }
   const CINNValue& operator[](int offset) const { return (*operator->())[offset]; }
 
-  CINNValuePack* operator->() { return get(); }
-  const CINNValuePack* operator->() const { return get(); }
+  _CINNValuePack_* operator->() { return get(); }
+  const _CINNValuePack_* operator->() const { return get(); }
 };
 
 /**
@@ -93,7 +93,7 @@ class CINNValue : public cinn_pod_value_t {
   explicit CINNValue(const char* value) : cinn_pod_value_t(value) {}
   explicit CINNValue(const ir::Var& value);
   explicit CINNValue(const ir::Expr& value);
-  explicit CINNValue(const CINNValuePackShared& value);
+  explicit CINNValue(const CINNValuePack& value);
 
   bool defined() const { return type_code_ != kNull; }
 
@@ -108,7 +108,7 @@ class CINNValue : public cinn_pod_value_t {
   using cinn_pod_value_t::operator char*;
   operator ir::Var() const;
   operator ir::Expr() const;
-  operator CINNValuePackShared() const;
+  operator CINNValuePack() const;
   // @}
 
   //! Assign operators
@@ -122,7 +122,7 @@ class CINNValue : public cinn_pod_value_t {
   CINNValue& operator=(const ir::Expr& value);
   CINNValue& operator=(cinn_buffer_t* value);
   CINNValue& operator=(void* value);
-  CINNValue& operator=(const CINNValuePackShared& value);
+  CINNValue& operator=(const CINNValuePack& value);
   CINNValue& operator=(const char* value);
   // @}
 
