@@ -8,6 +8,7 @@ set(srcs
   graph_compiler.cc
   graph.cc
   node.cc
+  pass.cc
   )
 
 if(WITH_CUDA)
