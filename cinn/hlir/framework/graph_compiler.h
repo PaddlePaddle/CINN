@@ -12,7 +12,7 @@
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/ir/lowered_func.h"
-#include "cinn/lang/packed_func.h"
+#include "cinn/ir/packed_func.h"
 
 namespace cinn {
 namespace hlir {
@@ -37,7 +37,7 @@ class Program {
 
 class GraphCompiler final {
  public:
-  GraphCompiler(Target target, const std::shared_ptr<Scope>& scope, Graph* const graph)
+  GraphCompiler(Target target, const std::shared_ptr<Scope>& scope, std::shared_ptr<Graph> graph)
       : target_(std::move(target)), scope_(scope), graph_(graph), m_builder_(UniqName("module"), target) {}
 
   std::unique_ptr<Program> Build();
@@ -45,9 +45,7 @@ class GraphCompiler final {
  private:
   ir::LoweredFunc GetOpFunc(const Node* node);
 
-  std::string GenOpFuncName(const Node* node) const {
-    return "fn_" + node->op()->name + "_" + std::to_string(node->op()->get_index());
-  }
+  std::string GenOpFuncName(const Node* node) const { return "fn_" + node->id(); }
 
   // TODO(haozech) add implementation
   std::vector<std::string> OpGetInputNames(const Node* node) const;
@@ -58,7 +56,7 @@ class GraphCompiler final {
 
  private:
   Target target_;
-  Graph* const graph_{};
+  std::shared_ptr<Graph> graph_;
   std::shared_ptr<Scope> scope_;
 
   std::unique_ptr<backends::Compiler> compiler_;

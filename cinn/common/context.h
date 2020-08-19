@@ -9,6 +9,7 @@
 
 #include "cinn/common/debug_manager.h"
 #include "cinn/common/info_registry.h"
+#include "cinn/common/target.h"
 
 namespace cinn {
 
@@ -44,6 +45,11 @@ struct NameGenerator {
 class Context {
  public:
   static Context& Global();
+
+  Target GetTarget() {
+    Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64, {});
+    return target;
+  }
 
   /**
    * Generate a new unique name.

@@ -1,4 +1,4 @@
-#include "cinn/lang/packed_func.h"
+#include "cinn/ir/packed_func.h"
 
 #include <gtest/gtest.h>
 
@@ -7,7 +7,7 @@
 #include "cinn/utils/string.h"
 
 namespace cinn {
-namespace lang {
+namespace ir {
 
 TEST(Function, test) {
   PackedFunc::body_t func_body = [](Args args, RetValue* ret) {
@@ -64,18 +64,18 @@ TEST(Function, ReturnMultiValue) {
     int c = a + b;
     int d = a - b;
 
-    *ret = common::_CINNValuePack_::Make({common::CINNValue(c), common::CINNValue(d)});
+    *ret = common::CINNValuePack::Make({common::CINNValue(c), common::CINNValue(d)});
   };
 
   PackedFunc func(body);
 
-  common::CINNValuePack ret = func(1, 2);
-  int c                     = ret[0];
-  int d                     = ret[1];
+  common::CINNValuePackShared ret = func(1, 2);
+  int c                           = ret[0];
+  int d                           = ret[1];
 
   EXPECT_EQ(c, 3);
   EXPECT_EQ(d, -1);
 }
 
-}  // namespace lang
+}  // namespace ir
 }  // namespace cinn

@@ -4,59 +4,19 @@
 #include <string>
 
 #include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/pass.h"
-#include "cinn/lang/packed_func.h"
+#include "cinn/hlir/framework/scope.h"
+#include "cinn/hlir/op/use_ops.h"
+#include "cinn/hlir/pass/use_pass.h"
+#include "cinn/hlir/pe/broadcast.h"
+#include "cinn/ir/packed_func.h"
 
 namespace cinn {
 namespace hlir {
 namespace framework {
-
-std::vector<std::vector<int>> AddInferShape(std::vector<std::vector<int>> inputs_shape) {
-  CHECK(inputs_shape.size() && inputs_shape[0].size()) << "The input's shape size is 0! Please check again.";
-  std::vector<std::vector<int>> res{inputs_shape[0]};
-  return res;
-}
-
-CINN_REGISTER_OP(add)
-    .describe("test of op Add")
-    .set_num_inputs(2)
-    .set_num_outputs(1)
-    .set_attr<std::string>("nick_name", "plus")
-    .set_attr<std::function<std::vector<std::vector<int>>(std::vector<std::vector<int>>)>>("infer_shape", AddInferShape)
-    .set_support_level(4);
-
-void InferShapePass(Graph* src) {
-  auto res        = src->GetAttr<std::unordered_map<std::string, std::vector<int>>>("infer_shape");
-  auto store_node = std::get<0>(src->topological_order());
-  auto op_infershape =
-      Operator::GetAttr<std::function<std::vector<std::vector<int>>(std::vector<std::vector<int>>)>>("infer_shape");
-  for (auto i : store_node) {
-    if (i->check_type<Node>()) {
-      std::vector<std::vector<int>> inputs_shape;
-      for (auto j : i->inlinks()) {
-        inputs_shape.push_back(res[j->source()->safe_as<NodeData>()->id()]);
-      }
-      auto out_shape = op_infershape[i->safe_as<Node>()->op()](inputs_shape);
-      int counter    = 0;
-      CHECK_EQ(i->outlinks().size(), out_shape.size())
-          << "The output number of node " << i->id() << " is " << i->outlinks().size()
-          << " , which is different with the output shape size " << out_shape.size() << " . And the op type is "
-          << i->safe_as<Node>()->op()->name;
-      for (auto j : i->outlinks()) {
-        res[j->sink()->safe_as<NodeData>()->id()] = out_shape[counter++];
-      }
-    }
-  }
-  src->attrs["infer_shape"] = std::make_shared<std::any>(res);
-}
-
-CINN_REGISTER_PASS(InferShape)
-    .describe("This pass infer the shape of tensor and save to g.attrs[\"infer_shape\"].")
-    .set_change_structure(false)
-    .provide_graph_attr("infer_shape")
-    .set_body(InferShapePass);
 
 TEST(Operator, GetAttr) {
   frontend::Program prog;
@@ -69,19 +29,49 @@ TEST(Operator, GetAttr) {
   auto d   = prog.add(c, b);
   auto e   = prog.add(c, d);
   ASSERT_EQ(prog.size(), 3UL);
-  std::unique_ptr<Graph> g(new Graph(prog));
+  std::shared_ptr<Graph> g(new Graph(prog));
   ApplyPass(g.get(), "InferShape");
-  auto s = g->GetAttr<std::unordered_map<std::string, std::vector<int>>>("infer_shape");
-  for (auto i : s) {
-    LOG(INFO) << "Var id is: " << i.first << " and Var shape is: ";
-    for (auto j : i.second) {
-      LOG(INFO) << j << " ";
+  auto dict                    = g->GetAttr<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  std::shared_ptr<Scope> scope = std::make_shared<Scope>();
+
+  auto get_tensor = [&](const std::string& name) {
+    auto* var    = scope->Var<Tensor>(name);
+    auto& tensor = std::get<Tensor>(*var);
+    return tensor;
+  };
+
+  for (auto iter : dict) {
+    CHECK_EQ(iter.second[0], 100) << "The infered shape is wrong.";
+    CHECK_EQ(iter.second[1], 32) << "The infered shape is wrong.";
+    auto* var    = scope->Var<Tensor>(iter.first);
+    auto& tensor = std::get<Tensor>(*var);
+    std::vector<Shape::dim_t> shape;
+    int product = 1;
+    for (auto shape_dim : iter.second) {
+      product *= shape_dim;
+      shape.push_back(Shape::dim_t(shape_dim));
     }
-    CHECK_EQ(i.second[0], 100) << "The infered shape is wrong.";
-    CHECK_EQ(i.second[1], 32) << "The infered shape is wrong.";
+    tensor.Resize(Shape{shape});
+    auto* data = tensor.mutable_data<float>(common::DefaultHostTarget());
+    for (size_t j = 0; j < product; j++) {
+      unsigned int seed = j;
+      data[j]           = (rand_r(&seed) * 1.f) / RAND_MAX;  // All 1.0 data
+    }
+  }
+  GraphCompiler gc(common::Context::Global().GetTarget(), scope, g);
+  std::unique_ptr<Program> program = gc.Build();
+  program->Execute();
+
+  auto xd = get_tensor("a").data<float>();
+  auto yd = get_tensor("b").data<float>();
+  auto zd = get_tensor(e->id).data<float>();
+
+  for (int i = 0; i < 100 * 32; i++) {
+    LOG_FIRST_N(INFO, 3) << "data: " << 2 * xd[i] << " + " << 3 * yd[i] << " = " << zd[i];
+    ASSERT_NEAR(2 * xd[i] + 3 * yd[i], zd[i], 1e-5);
   }
 }
-
 }  // namespace framework
+
 }  // namespace hlir
 }  // namespace cinn

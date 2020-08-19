@@ -13,13 +13,17 @@ std::unique_ptr<Program> GraphCompiler::Build() {
     auto* node = n->safe_as<Node>();
     if (node) {
       auto lowered_func = GetOpFunc(node);
+      LOG(INFO) << "CodeGen: " << lowered_func;
       m_builder_.AddFunction(lowered_func);
     }
   }
 
   LOG(INFO) << "Compile the module";
   // compile the module
-  CHECK(compiler_);
+  if (!compiler_) {
+    compiler_ = backends::Compiler::Create(target_);
+  }
+  LOG(INFO) << "compiler_->Build";
   compiler_->Build(m_builder_.Build());
 
   return std::unique_ptr<Program>(new Program(scope_, BuildInstructions()));
@@ -45,7 +49,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
 
 ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   auto strategy = Operator::GetAttr<StrategyFunction>("CINNStrategy");
-  auto res      = graph_->GetAttr<std::unordered_map<std::string, std::vector<int>>>("infer_shape");
+  auto res      = graph_->GetAttr<std::unordered_map<std::string, std::vector<int>>>("infershape");
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
   for (auto i : node->inlinks()) {
@@ -58,13 +62,14 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   common::Type type;
   auto impl = SelectImpl(strategy[node->op()](node->attrs, inputs, type, target_));
 
-  common::CINNValuePack C = impl->fcompute(common::_CINNValuePack_::Make(cinn_inputs));
-  C                       = impl->fschedule(C);
+  common::CINNValuePackShared C = impl->fcompute(common::CINNValuePack::Make(cinn_inputs));
+  C                             = impl->fschedule(C);
   for (int i = 0; i < C.get()->size(); i++) {
     ir::Expr temp = C[i];
     inputs.push_back(temp.as_tensor_ref());
   }
-  auto func = Lower(node->id(), inputs);
+  auto func = Lower(GenOpFuncName(node), inputs);
+  return func;
 }
 
 std::vector<std::string> GraphCompiler::OpGetInputNames(const Node* node) const {

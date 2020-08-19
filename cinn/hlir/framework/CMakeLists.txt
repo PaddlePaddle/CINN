@@ -9,6 +9,7 @@ set(srcs
   graph.cc
   node.cc
   pass.cc
+  op_strategy.cc
   )
 
 if(WITH_CUDA)

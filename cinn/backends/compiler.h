@@ -7,7 +7,7 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/simple_jit.h"
-#include "cinn/lang/packed_func.h"
+#include "cinn/ir/packed_func.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/runtime/cuda/cuda_module.h"
 #endif

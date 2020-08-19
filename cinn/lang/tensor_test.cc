@@ -7,9 +7,9 @@
 #include "cinn/common/test_helper.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/packed_func.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
-#include "cinn/lang/packed_func.h"
 #include "cinn/lang/placeholder.h"
 
 namespace cinn {

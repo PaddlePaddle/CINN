@@ -27,7 +27,7 @@ __m(char *, 20);  // start from a larger number to avoid duplicate id with cinn_
 __m(char const *, 21);
 __m(ir::Expr, 22);
 __m(ir::Var, 23);
-__m(CINNValuePack, 24);
+__m(CINNValuePackShared, 24);
 #undef __m
 //@}
 
@@ -79,9 +79,9 @@ CINNValue::operator ir::Expr() const {
   CHECK_EQ(type_code_, TypeCode<ir::Expr>());
   return std::any_cast<Expr>(shared_);
 }
-CINNValue::operator CINNValuePack() const {
-  CHECK_EQ(type_code_, TypeCode<CINNValuePack>());
-  return std::any_cast<CINNValuePack>(shared_);
+CINNValue::operator CINNValuePackShared() const {
+  CHECK_EQ(type_code_, TypeCode<CINNValuePackShared>());
+  return std::any_cast<CINNValuePackShared>(shared_);
 }
 CINNValue::CINNValue(char *value) : cinn_pod_value_t(ToValue(value), TypeCode<char *>()) {}
 
@@ -93,30 +93,31 @@ CINNValue::CINNValue(const Expr &value) : cinn_pod_value_t(cinn_value_t(), TypeC
   CHECK(value.defined());
   shared_ = value;
 }
-CINNValue::CINNValue(const CINNValuePack &value) : cinn_pod_value_t(cinn_value_t(), TypeCode<CINNValuePack>()) {
+CINNValue::CINNValue(const CINNValuePackShared &value)
+    : cinn_pod_value_t(cinn_value_t(), TypeCode<CINNValuePackShared>()) {
   CHECK(value.defined());
   shared_ = value;
 }
 
-CINNValuePack _CINNValuePack_::Make(const std::vector<CINNValue> &array) {
-  auto *node = new _CINNValuePack_;
+CINNValuePackShared CINNValuePack::Make(const std::vector<CINNValue> &array) {
+  auto *node = new CINNValuePack;
   for (auto &item : array) node->AddValue(item);
-  return CINNValuePack(node);
+  return CINNValuePackShared(node);
 }
-CINNValue &_CINNValuePack_::operator[](int offset) {
+CINNValue &CINNValuePack::operator[](int offset) {
   CHECK_LT(offset, size());
   return values_[offset];
 }
-const CINNValue &_CINNValuePack_::operator[](int offset) const {
+const CINNValue &CINNValuePack::operator[](int offset) const {
   CHECK_LT(offset, size());
   return values_[offset];
 }
-void _CINNValuePack_::AddValue(const CINNValue &value) {
+void CINNValuePack::AddValue(const CINNValue &value) {
   CHECK(value.defined());
   values_.push_back(value);
 }
-void _CINNValuePack_::Clear() { values_.clear(); }
-const char *_CINNValuePack_::type_info() const { return __type_info__; }
+void CINNValuePack::Clear() { values_.clear(); }
+const char *CINNValuePack::type_info() const { return __type_info__; }
 
 CINNValue &CINNValue::operator=(int32_t value) {
   *this = CINNValue(value);
@@ -150,7 +151,7 @@ CINNValue &CINNValue::operator=(const char *value) {
   *this = CINNValue(value);
   return *this;
 }
-CINNValue &CINNValue::operator=(const CINNValuePack &value) {
+CINNValue &CINNValue::operator=(const CINNValuePackShared &value) {
   *this = CINNValue(value);
   return *this;
 }

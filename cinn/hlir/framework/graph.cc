@@ -32,7 +32,7 @@ Graph::Graph(frontend::Program prog) {
     }
     this->RegisterNode(node_tmp->id(), node_tmp);
   }
-  this->attrs["infer_shape"] = std::make_shared<std::any>(res);
+  this->attrs["infershape"] = std::make_shared<std::any>(res);
 }
 
 }  // namespace framework

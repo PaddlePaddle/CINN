@@ -7,18 +7,12 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/pass.h"
-#include "cinn/lang/packed_func.h"
+#include "cinn/hlir/op/use_ops.h"
+#include "cinn/ir/packed_func.h"
 
 namespace cinn {
 namespace hlir {
 namespace framework {
-
-CINN_REGISTER_OP(add)
-    .describe("test of op Add")
-    .set_num_inputs(2)
-    .set_num_outputs(1)
-    .set_attr<std::string>("nick_name", "plus")
-    .set_support_level(4);
 
 void PrintGraphPass(Graph* src) {
   std::string res;

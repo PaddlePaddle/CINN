@@ -9,7 +9,7 @@
 #include "cinn/ir/ir.h"
 
 namespace cinn {
-namespace lang {
+namespace ir {
 using common::CINNValue;
 
 /**
@@ -105,5 +105,5 @@ class PackedFunc {
   body_t body_;
 };
 
-}  // namespace lang
+}  // namespace ir
 }  // namespace cinn

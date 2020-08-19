@@ -1,7 +1,7 @@
-#include "cinn/lang/packed_func.h"
+#include "cinn/ir/packed_func.h"
 
 namespace cinn {
-namespace lang {
+namespace ir {
 
 Args::Args(cinn_value_t *values, int *type_codes, int len) {
   for (int i = 0; i < len; i++) {
@@ -9,5 +9,5 @@ Args::Args(cinn_value_t *values, int *type_codes, int len) {
   }
 }
 
-}  // namespace lang
+}  // namespace ir
 }  // namespace cinn
