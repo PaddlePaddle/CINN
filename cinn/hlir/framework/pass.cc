@@ -24,6 +24,15 @@ void ApplyPasses(Graph* g, const std::vector<std::string>& passes) {
   }
 }
 
+const PassFunctionRegister* FindPassDep(const std::string& attr_name) {
+  for (auto* r : Registry<PassFunctionRegister>::Global()->List()) {
+    for (auto& s : r->graph_attr_targets) {
+      if (s == attr_name) return r;
+    }
+  }
+  return nullptr;
+}
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

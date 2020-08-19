@@ -77,14 +77,7 @@ class PassFunctionRegister : public FunctionRegEntryBase<PassFunctionRegister, P
   }
 };
 
-const PassFunctionRegister* FindPassDep(const std::string& attr_name) {
-  for (auto* r : Registry<PassFunctionRegister>::Global()->List()) {
-    for (auto& s : r->graph_attr_targets) {
-      if (s == attr_name) return r;
-    }
-  }
-  return nullptr;
-}
+const PassFunctionRegister* FindPassDep(const std::string& attr_name);
 
 /**
  * \brief Apply a sequence of passes on a graph.
