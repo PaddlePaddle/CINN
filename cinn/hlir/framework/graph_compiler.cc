@@ -6,8 +6,6 @@
 namespace cinn {
 namespace hlir {
 namespace framework {
-using StrategyFunction = std::function<std::shared_ptr<OpStrategy>(
-    const NodeAttr, const std::vector<ir::Tensor>, common::Type, const common::Target)>;
 
 std::unique_ptr<Program> GraphCompiler::Build() {
   auto [nodes, edges] = graph_->topological_order();

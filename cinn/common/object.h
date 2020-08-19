@@ -30,16 +30,18 @@ struct Object {
   //! Type safe cast.
   template <typename T>
   T* safe_as() {
-    CHECK(std::strcmp(type_info(), T::__type_info__) == 0)
-        << "type mismatch, this is a " << type_info() << ", but want a " << T::__type_info__;
-    return static_cast<T*>(this);
+    if (std::strcmp(type_info(), T::__type_info__) == 0) {
+      return static_cast<T*>(this);
+    }
+    return nullptr;
   }
   //! Type safe cast.
   template <typename T>
   const T* safe_as() const {
-    CHECK(std::strcmp(type_info(), T::__type_info__) == 0)
-        << "type mismatch, this is a " << type_info() << ", but want a " << T::__type_info__;
-    return static_cast<const T*>(this);
+    if (std::strcmp(type_info(), T::__type_info__) == 0) {
+      return static_cast<const T*>(this);
+    }
+    return nullptr;
   }
 
   //! Check if the type is right.

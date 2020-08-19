@@ -3,11 +3,9 @@
 #include <gtest/gtest.h>
 
 #include <functional>
-
 #include <string>
 
 #include "cinn/cinn.h"
-
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/broadcast.h"
@@ -15,8 +13,6 @@
 namespace cinn {
 namespace hlir {
 namespace framework {
-using StrategyFunction = std::function<std::shared_ptr<OpStrategy>(
-    const NodeAttr, const std::vector<ir::Tensor>, common::Type, const common::Target)>;
 
 using CCompute = std::function<std::shared_ptr<ir::Tensor>(const std::vector<ir::Tensor>)>;
 
@@ -49,7 +45,7 @@ std::shared_ptr<OpStrategy> StrategyTest(const NodeAttr &attr,
   };
   ir::PackedFunc fschedule(schedule_body);
 
-  std::shared_ptr<OpStrategy> strategy = std::make_shared<OpStrategy>();
+  auto strategy = std::make_shared<OpStrategy>();
 
   if (target.arch == common::Target::Arch ::X86) {
     strategy->AddImpl(fcompute, fschedule, "test.strategy.x86", 10);

@@ -4,8 +4,8 @@
 #include <tuple>
 #include <unordered_map>
 #include <utility>
+#include <variant>
 #include <vector>
-
 #include "cinn/common/graph_utils.h"
 #include "cinn/hlir/framework/op.h"
 
@@ -148,14 +148,6 @@ class NodeData : public common::GraphNode {
    */
   std::string id_;
 };
-
-std::tuple<common::GraphEdge *, common::GraphEdge *> Node::LinkTo(NodeData *other) {
-  return this->common::GraphNode::LinkTo(other->as<common::GraphNode>());
-}
-
-std::tuple<common::GraphEdge *, common::GraphEdge *> NodeData::LinkTo(Node *other) {
-  return this->common::GraphNode::LinkTo(other->as<common::GraphNode>());
-}
 
 }  // namespace framework
 }  // namespace hlir

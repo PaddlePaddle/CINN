@@ -60,6 +60,7 @@ CINN_REGISTER_PASS(InferShape)
 
 TEST(Operator, GetAttr) {
   frontend::Program prog;
+  // TODO(Superjomn) Replace with Placeholder here.
   frontend::Variable a("a");
   frontend::Variable b("b");
   a->shape = {100, 32};
@@ -67,13 +68,12 @@ TEST(Operator, GetAttr) {
   auto c   = prog.add(a, b);
   auto d   = prog.add(c, b);
   auto e   = prog.add(c, d);
-  ASSERT_EQ(prog.size(), 3);
-  Graph* g = new Graph(prog);
-  ApplyPass(g, "InferShape");
+  ASSERT_EQ(prog.size(), 3UL);
+  std::unique_ptr<Graph> g(new Graph(prog));
+  ApplyPass(g.get(), "InferShape");
   auto s = g->GetAttr<std::unordered_map<std::string, std::vector<int>>>("infer_shape");
   for (auto i : s) {
     LOG(INFO) << "Var id is: " << i.first << " and Var shape is: ";
-    std::vector<int> correct_shape{100, 32};
     for (auto j : i.second) {
       LOG(INFO) << j << " ";
     }

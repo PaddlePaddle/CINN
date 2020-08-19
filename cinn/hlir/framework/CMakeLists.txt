@@ -6,6 +6,9 @@ set(srcs
   memory.cc
   instruction.cc
   graph_compiler.cc
+  graph.cc
+  node.cc
+  pass.cc
   )
 
 if(WITH_CUDA)
