@@ -12,7 +12,7 @@
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/ir/lowered_func.h"
-#include "cinn/ir/packed_func.h"
+#include "cinn/lang/packed_func.h"
 
 namespace cinn {
 namespace hlir {

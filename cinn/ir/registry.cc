@@ -19,13 +19,13 @@ struct Registry::Manager {
   void operator=(Manager &) = delete;
 };
 
-Registry &Registry::SetBody(PackedFunc f) {
+Registry &Registry::SetBody(lang::PackedFunc f) {
   func_ = f;
   return *this;
 }
 
-Registry &Registry::SetBody(PackedFunc::body_t f) {
-  func_ = ir::PackedFunc(f);
+Registry &Registry::SetBody(lang::PackedFunc::body_t f) {
+  func_ = lang::PackedFunc(f);
   return *this;
 }
 
@@ -54,7 +54,7 @@ Registry::Registry(const std::string &name) : name_(name) {}
   return false;
 }
 
-/*static*/ const PackedFunc *Registry::Get(const std::string &name) {
+/*static*/ const lang::PackedFunc *Registry::Get(const std::string &name) {
   auto *manager = Manager::Global();
   std::lock_guard<std::mutex> lock(manager->mu);
   auto *r = manager->functions[name];

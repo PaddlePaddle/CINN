@@ -12,7 +12,7 @@
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
 #include "cinn/hlir/pe/broadcast.h"
-#include "cinn/ir/packed_func.h"
+#include "cinn/lang/packed_func.h"
 
 namespace cinn {
 namespace hlir {

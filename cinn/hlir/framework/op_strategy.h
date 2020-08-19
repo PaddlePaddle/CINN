@@ -5,14 +5,14 @@
 #include <vector>
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/schedule.h"
-#include "cinn/ir/packed_func.h"
+#include "cinn/lang/packed_func.h"
 
 namespace cinn {
 namespace hlir {
 namespace framework {
 
-using CINNCompute  = ir::PackedFunc;
-using CINNSchedule = ir::PackedFunc;
+using CINNCompute  = lang::PackedFunc;
+using CINNSchedule = lang::PackedFunc;
 
 struct OpStrategy;
 
