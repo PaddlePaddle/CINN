@@ -14,7 +14,7 @@ using framework::StrategyFunction;
 
 std::shared_ptr<OpStrategy> StrategyForAdd(const framework::NodeAttr &attr,
                                            const std::vector<ir::Tensor> &inputs,
-                                           Type out_type,
+                                           const std::vector<Type> &out_type,
                                            const Target &target) {
   framework::CINNCompute add_compute([](lang::Args args, lang::RetValue *ret) {
     CINNValuePack a = args[0];
@@ -38,9 +38,15 @@ std::shared_ptr<OpStrategy> StrategyForAdd(const framework::NodeAttr &attr,
   return strategy;
 }
 
-std::vector<std::vector<int>> InferShapeForAdd(std::vector<std::vector<int>> inputs_shape) {
+std::vector<std::vector<int>> InferShapeForAdd(const std::vector<std::vector<int>> &inputs_shape) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<std::vector<int>> res{inputs_shape[0]};
+  return res;
+}
+
+std::vector<Type> InferDtypeForAdd(const std::vector<Type> &inputs_type, const framework::NodeAttr &attr) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
@@ -55,5 +61,6 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForAdd)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForAdd))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForAdd))
       .set_support_level(4);
 }

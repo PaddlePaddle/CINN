@@ -28,7 +28,7 @@ TEST(Operator, GetAttr) {
 
   NodeAttr attr;
   std::vector<ir::Tensor> inputs{A, B};
-  common::Type type;
+  std::vector<common::Type> type{common::Float(32)};
   common::Target target;
   target.arch = common::Target::Arch::X86;
   auto impl   = OpStrategy::SelectImpl(strategy[add](attr, inputs, type, target));

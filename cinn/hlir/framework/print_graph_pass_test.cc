@@ -39,9 +39,12 @@ TEST(Operator, GetAttr) {
   frontend::Program prog;
   frontend::Variable a("a");
   frontend::Variable b("b");
-  auto c = prog.add(a, b);
-  auto d = prog.add(c, b);
-  auto e = prog.add(c, d);
+  common::Type t = common::Float(32);
+  a->type        = t;
+  b->type        = t;
+  auto c         = prog.add(a, b);
+  auto d         = prog.add(c, b);
+  auto e         = prog.add(c, d);
   ASSERT_EQ(prog.size(), 3);
   Graph* g = new Graph(prog);
   ApplyPass(g, "PrintGraph");

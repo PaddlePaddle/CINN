@@ -37,11 +37,14 @@ TEST(Operator, GetAttr) {
   // TODO(Superjomn) Replace with Placeholder here.
   frontend::Variable a("a");
   frontend::Variable b("b");
-  a->shape = {100, 32};
-  b->shape = {100, 32};
-  auto c   = prog.add(a, b);
-  auto d   = prog.add(c, b);
-  auto e   = prog.add(c, d);
+  common::Type t = common::Float(32);
+  a->shape       = {100, 32};
+  b->shape       = {100, 32};
+  a->type        = t;
+  b->type        = t;
+  auto c         = prog.add(a, b);
+  auto d         = prog.add(c, b);
+  auto e         = prog.add(c, d);
   ASSERT_EQ(prog.size(), 3UL);
   std::shared_ptr<Graph> g(new Graph(prog));
   ApplyPass(g.get(), "InferShape");
