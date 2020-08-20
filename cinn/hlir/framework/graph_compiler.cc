@@ -70,7 +70,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
 
   auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, target_));
 
-  common::CINNValuePack C = impl->fcompute(common::_CINNValuePack_::Make(cinn_inputs));
+  common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
   C                       = impl->fschedule(C);
   for (int i = 0; i < C.get()->size(); i++) {
     ir::Expr temp = C[i];
