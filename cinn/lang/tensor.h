@@ -35,27 +35,16 @@ constexpr bool GE(int a, int b) { return a >= b; }
 
 class _Tensor_;
 
-/**
- * @brief Tensor representing a possible input, or intermediate computation result.
- *
- * Tensor is the a general type in CINN, it holds a computation(analygous to a node in SSA graph) or placeholder. A
- * tensor can `Bind` a Buffer, or just has a expression and easy to inline expanded in the consumer's computation.
- *
- * # Reshape
- * An existing tensor can be reshaped with underlying buffer shared.
- * \code
- * auto C1 = C.Reshape({...});
- * \endcode
- */
-enum class ViewKind {
-  kPrecending = 0,
-  kCollapse   = 1,
-};
-
 class Tensor : public ir::IrNodeRef {
  public:
   Tensor() = default;
   explicit Tensor(ir::IrNode* n) : IrNodeRef(n) {}
+  Tensor(const std::string& name,
+         Type dtype,
+         const std::vector<Expr>& shape,
+         const std::vector<Expr>& domain,
+         FunctionRef fn,
+         const std::vector<Var>& reduce_axis = {});
 
   //! Get number of dimensions.
   inline size_t ndims() const;
@@ -146,6 +135,24 @@ struct ComputeAtInfo {
 };
 
 /**
+ * Meta infomation for tensor.
+ */
+struct TensorScheduleMeta {
+  //! read cache relation if has one.
+  std::unique_ptr<ReadCacheRelation> read_cache_relation;
+  //! write cache relation if has one.
+  std::unique_ptr<WriteCacheRelation> write_cache_relation;
+
+  //! Store the information of all the other producer tensors `compute_at` this tensor.
+  std::vector<ComputeAtInfo> compute_at_infos;
+
+  bool compute_inline{false};
+
+  //! Name of the tensors thouse share buffer with `this` tensor.
+  std::set<std::string> tensors_to_share_buffer_with;
+};
+
+/**
  * _Tensor_ holds the content of a Tensor.
  *
  * NOTE(All) Some rules:
@@ -172,13 +179,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! The bound buffer, for each tensor if it is not inline.
   Buffer buffer;
 
-  //! read cache relation if has one.
-  std::unique_ptr<ReadCacheRelation> read_cache_relation;
-  //! write cache relation if has one.
-  std::unique_ptr<WriteCacheRelation> write_cache_relation;
-
-  //! Store the information of all the other producer tensors `compute_at` this tensor.
-  std::vector<ComputeAtInfo> compute_at_infos;
+  TensorScheduleMeta meta;
 
   //! Polyhedral element for analysis and schedule.
   poly::Stage* stage();
@@ -193,11 +194,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      const std::vector<Expr>& domain,
                      FunctionRef fn,
                      const std::vector<Var>& reduce_axis = {});
-
-  bool compute_inline{false};
-
-  //! Name of the tensors thouse share buffer with `this` tensor.
-  std::set<std::string> tensors_to_share_buffer_with;
 
   //! Reshape a tensor.
   Tensor BufferShared(const std::string& name, const std::vector<Expr>& shape) const;
@@ -297,6 +293,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   void Bind(const Buffer& buffer);
   void UnBind(lang::Buffer& buffer);  // NOLINT
 
+ private:
   //! Create the polyhedral element for analysis.
   //! It is based on the shape.
   void InitStage();

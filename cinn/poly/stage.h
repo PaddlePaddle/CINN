@@ -260,6 +260,8 @@ class Stage : public Object {
   //! Get number of transform output dimensions, this equals to the number of dimensions of corresponding tensor.
   inline int n_out_dims() const { return isl_map_dim(transform_.get(), isl_dim_out); }
 
+  static constexpr char* __type_info__ = "Stage";
+
  private:
   isl::set domain_;
   isl::map transform_;
@@ -279,8 +281,6 @@ class Stage : public Object {
   ScopeKind scope_{ScopeKind::kLocal};
 
   std::set<int> locked_axis_;
-
-  static constexpr char* __type_info__ = "Status";
 
   friend isl_map* __isl_give GatherAccesses(Stage* stage, const std::string& tensor_name);
   friend class PolyGroupScheduler;

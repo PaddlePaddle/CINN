@@ -271,7 +271,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
     }
 
     // get the target consumer
-    auto& compute_at_infos = op->tensor.as_tensor()->compute_at_infos;
+    auto& compute_at_infos = op->tensor.as_tensor()->meta.compute_at_infos;
     CHECK(!compute_at_infos.empty());
 
     std::vector<Var> levels;
@@ -323,7 +323,7 @@ void ProcessComputeAtInfo(Expr* expr) {
   // in consumer, reset presending axis in producer's Load to zero.
 
   auto tensor_with_compute_at_infos = ir::CollectIRNodes(
-      *expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->compute_at_infos.empty(); });
+      *expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->meta.compute_at_infos.empty(); });
 
   for (auto& tensor : tensor_with_compute_at_infos) {
     VLOG(4) << "consumer: " << tensor;
@@ -333,7 +333,7 @@ void ProcessComputeAtInfo(Expr* expr) {
 
 void UpdateComputeAtBufferShape(Expr* expr) {
   auto tensor_with_compute_at_infos = ir::CollectIRNodes(*expr, [&](const Expr* x) {
-    return x->as_tensor() && !x->as_tensor()->inlined() && !x->as_tensor()->compute_at_infos.empty();
+    return x->as_tensor() && !x->as_tensor()->inlined() && !x->as_tensor()->meta.compute_at_infos.empty();
   });
 
   auto tensor_map = ir::CollectTensorMap(
@@ -341,7 +341,7 @@ void UpdateComputeAtBufferShape(Expr* expr) {
 
   std::unordered_map<std::string, ir::ComputeAtInfo*> buffer_to_compute_at_info;
   for (auto& item : tensor_map) {
-    auto& compute_at_infos = item.second.as_tensor()->compute_at_infos;
+    auto& compute_at_infos = item.second.as_tensor()->meta.compute_at_infos;
     if (compute_at_infos.empty()) continue;
     for (auto& compute_at : compute_at_infos) {
       auto& producer_tensor = tensor_map.at(compute_at.producer_tensor_name);

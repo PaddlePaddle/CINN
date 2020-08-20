@@ -83,7 +83,7 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
 }
 
 Expr _Tensor_::inline_expanded(const std::vector<Expr> &indices) {
-  CHECK(compute_inline) << "tensor is should be marked as compute_inline";
+  CHECK(meta.compute_inline) << "tensor is should be marked as compute_inline";
   CHECK(is_compute_node());
   return get_compute_op()->producer_fn(indices);
 }
@@ -406,6 +406,14 @@ Tensor Tensor::Reshape(const std::vector<Expr> &shape) {
 
 bool operator<(const Tensor &a, const Tensor &b) { return a->name < b->name; }
 
+Tensor::Tensor(const std::string &name,
+               Type dtype,
+               const std::vector<Expr> &shape,
+               const std::vector<Expr> &domain,
+               FunctionRef fn,
+               const std::vector<Var> &reduce_axis)
+    : IrNodeRef(_Tensor_::Make(name, dtype, shape, domain, fn, reduce_axis).self()) {}
+
 bool _Tensor_::is_tuple_get() const {
   return is_call_node() && operation.defined() &&
          operation->as<ir::_Operation_>()->func_type() == ir::CallOp::__func_type__ &&
@@ -427,7 +435,7 @@ Tensor _Tensor_::BufferShared(const std::string &name, const std::vector<Expr> &
   return Tensor(n);
 }
 
-bool _Tensor_::inlined() const { return compute_inline; }
+bool _Tensor_::inlined() const { return meta.compute_inline; }
 
 bool _Tensor_::IsDependOnStatement(const std::string &statement) {
   if (!is_compute_node()) {

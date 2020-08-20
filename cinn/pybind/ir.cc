@@ -489,9 +489,6 @@ void BindOperation(py::module *m) {
 }
 
 void BindIrTensor(py::module *m) {
-  py::enum_<ir::ViewKind> view_kind(*m, "ViewKind");
-  view_kind.value("kPrecending", ir::ViewKind::kPrecending).value("kCollapse", ir::ViewKind::kCollapse);
-
   py::class_<ir::Tensor, ir::IrNodeRef> tensor(*m, "Tensor");
   tensor.def(py::init<>())
       .def(py::init<ir::IrNode *>())
@@ -516,8 +513,6 @@ void BindIrTensor(py::module *m) {
       .def("domain_with_reduce_axis", &ir::_Tensor_::domain_without_reduce_axis)
       .def("domain_without_reduce_axis", &ir::_Tensor_::domain_without_reduce_axis)
       .def_static("make", &ir::_Tensor_::Make)
-      .def_readwrite("compute_inline", &ir::_Tensor_::compute_inline)
-      .def_readwrite("tensors_to_share_buffer_with", &ir::_Tensor_::tensors_to_share_buffer_with)
       .def("buffer_shared", &ir::_Tensor_::BufferShared)
       .def("inlined", &ir::_Tensor_::inlined)
       .def("is_tuple", &ir::_Tensor_::is_tuple)
@@ -555,18 +550,7 @@ void BindIrTensor(py::module *m) {
            py::arg("memory_type"),
            py::arg("type") = Type::type_t::Void)
       .def("bind", py::overload_cast<lang::Buffer &>(&ir::_Tensor_::Bind))
-      .def("bind", py::overload_cast<const ir::Buffer &>(&ir::_Tensor_::Bind))
-      // TODO(fuchang01): c++ not implemented .def("un_bind", &ir::_Tensor_::UnBind)
-      .def("init_stage", &ir::_Tensor_::InitStage)
-      .def("drop_stage", &ir::_Tensor_::DropStage)
-      // TODO(fuchang01): c++ not implemented .def("fake_stage", &ir::_Tensor_::FakeStage)
-      .def("is_faked", &ir::_Tensor_::is_faked)
-      .def("init_axis", &ir::_Tensor_::InitAxis)
-      // TODO(fuchang01): c++ not implemented .def("extract_buffer_depended_tensors",
-      // &ir::_Tensor_::ExtractBufferDependedTensors)
-      .def("generate_isl_domain", &ir::_Tensor_::GenerateIslDomain);
-
-  // DefineExprNode(m, &_tensor_, "_Tensor_");
+      .def("bind", py::overload_cast<const ir::Buffer &>(&ir::_Tensor_::Bind));
 
   py::class_<ir::ReadCacheRelation> read_cache_relation(*m, "ReadCacheRelation");
   read_cache_relation.def_readwrite("cache_name", &ir::ReadCacheRelation::cache_name)

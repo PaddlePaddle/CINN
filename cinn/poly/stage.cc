@@ -218,11 +218,11 @@ void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const 
   std::vector<int> offsets;
   std::transform(indice_mins.begin(), indice_mins.end(), std::back_inserter(offsets), [&](int x) { return -x; });
 
-  other->tensor_->compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
-                                                tensor_->name,                         // producer_tensor_name
-                                                transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
-                                                indice_mins,  // preceding_offset_for_producer_load
-                                                level);
+  other->tensor_->meta.compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
+                                                     tensor_->name,                         // producer_tensor_name
+                                                     transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
+                                                     indice_mins,  // preceding_offset_for_producer_load
+                                                     level);
 
   ComputeAtSchedule(other, level, kind);
 }
@@ -436,7 +436,7 @@ std::vector<std::pair<std::string, std::string>> ExtractLinksFromCalls(const std
       for (auto &arg : args) {
         auto *arg_tensor = arg.As<ir::_Tensor_>();
         if (!arg_tensor) continue;  // Get something like POD values.
-        if (arg_tensor->compute_inline) continue;
+        if (arg_tensor->meta.compute_inline) continue;
         if (arg_tensor->is_placeholder_node() && !with_placeholder) continue;
         links.emplace_back(arg_tensor->name, tensor->name);
       }
@@ -519,8 +519,8 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
   std::transform(
       readers.begin(), readers.end(), std::back_inserter(reader_names), [](const ir::Tensor &x) { return x->name; });
 
-  CHECK(!tensor_->read_cache_relation) << "Duplicate read cache found, just one is allowed";
-  tensor_->read_cache_relation.reset(new ir::ReadCacheRelation{cache_name, reader_names});
+  CHECK(!tensor_->meta.read_cache_relation) << "Duplicate read cache found, just one is allowed";
+  tensor_->meta.read_cache_relation.reset(new ir::ReadCacheRelation{cache_name, reader_names});
 
   if (memory_type == "shared") {
     cache_tensor->stage()->SetScope(ScopeKind::kShared);
@@ -550,23 +550,23 @@ ir::Tensor Stage::CacheWrite(const std::string &memory_type) {
 
   write_stage->stage()->CtrlDepend(my_tensor);
 
-  CHECK(!tensor_->write_cache_relation) << "Duplicate write cache found, just one is allowed";
-  tensor_->write_cache_relation.reset(new ir::WriteCacheRelation{cache_name});
+  CHECK(!tensor_->meta.write_cache_relation) << "Duplicate write cache found, just one is allowed";
+  tensor_->meta.write_cache_relation.reset(new ir::WriteCacheRelation{cache_name});
 
   return write_stage;
 }
 
 void Stage::ComputeInline() {
   CHECK(tensor_);
-  tensor_->compute_inline = true;
+  tensor_->meta.compute_inline = true;
 }
 
 void Stage::ShareBufferWith(ir::Tensor other) {
   CHECK(tensor_);
-  CHECK(!other->compute_inline);
-  CHECK(!this->tensor_->compute_inline);
-  tensor_->tensors_to_share_buffer_with.insert(other->name);
-  other->tensors_to_share_buffer_with.insert(tensor_->name);
+  CHECK(!other->meta.compute_inline);
+  CHECK(!this->tensor_->meta.compute_inline);
+  tensor_->meta.tensors_to_share_buffer_with.insert(other->name);
+  other->meta.tensors_to_share_buffer_with.insert(tensor_->name);
 }
 
 void Stage::CtrlDepend(const ir::Tensor &t) { add_extra_depend_stage(t->name); }

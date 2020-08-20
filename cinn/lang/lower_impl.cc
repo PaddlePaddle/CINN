@@ -427,13 +427,13 @@ LowerImpl::LowerImpl(const std::string& fn_name,
     named_stages[stage->id()] = stage;
   }
   for (auto* stage : stages) {
-    if (stage->tensor()->read_cache_relation) {
-      read_caches[stage->id()] = named_stages[stage->tensor()->read_cache_relation->cache_name];
-      read_caches_rev[stage->tensor()->read_cache_relation->cache_name] = stage;
+    if (stage->tensor()->meta.read_cache_relation) {
+      read_caches[stage->id()] = named_stages[stage->tensor()->meta.read_cache_relation->cache_name];
+      read_caches_rev[stage->tensor()->meta.read_cache_relation->cache_name] = stage;
     }
-    if (stage->tensor()->write_cache_relation) {
-      write_caches[stage->id()] = named_stages[stage->tensor()->write_cache_relation->cache_name];
-      write_caches_rev[stage->tensor()->write_cache_relation->cache_name] = stage;
+    if (stage->tensor()->meta.write_cache_relation) {
+      write_caches[stage->id()] = named_stages[stage->tensor()->meta.write_cache_relation->cache_name];
+      write_caches_rev[stage->tensor()->meta.write_cache_relation->cache_name] = stage;
     }
   }
 
