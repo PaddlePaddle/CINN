@@ -22,8 +22,8 @@ std::shared_ptr<OpStrategy> StrategyForAdd(const framework::NodeAttr &attr,
     ir::Expr B      = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
-    *ret = _CINNValuePack_::Make(
-        {CINNValue(ir::Expr(pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), UniqName("C")).get()))});
+    std::vector<CINNValue> temp{CINNValue(ir::Expr(pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), UniqName("C")).get()))};
+    *ret = CINNValuePack(temp);
   });
 
   framework::CINNSchedule add_schedule([](lang::Args args, lang::RetValue *ret) {
