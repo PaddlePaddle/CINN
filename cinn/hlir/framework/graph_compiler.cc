@@ -60,7 +60,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     cinn_inputs.push_back(common::CINNValue(temp));
   }
   common::Type type;
-  auto impl = SelectImpl(strategy[node->op()](node->attrs, inputs, type, target_));
+  auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, type, target_));
 
   common::CINNValuePack C = impl->fcompute(common::_CINNValuePack_::Make(cinn_inputs));
   C                       = impl->fschedule(C);
@@ -88,9 +88,9 @@ std::vector<std::string> GraphCompiler::OpGetOutputNames(const Node* node) const
   return res;
 }
 
-std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph> graph) {
-  auto dict                    = graph->GetAttr<std::unordered_map<std::string, std::vector<int>>>("infershape");
-  std::shared_ptr<Scope> scope = std::make_shared<Scope>();
+std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& graph) {
+  auto dict  = graph->GetAttr<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  auto scope = std::make_shared<Scope>();
   for (auto iter : dict) {
     auto* var    = scope->Var<Tensor>(iter.first);
     auto& tensor = std::get<Tensor>(*var);
@@ -100,9 +100,6 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph> gr
     }
     tensor.Resize(Shape{shape});
     auto* data = tensor.mutable_data<float>(target);
-    for (size_t j = 0; j < tensor.shape().numel(); j++) {
-      data[j] = 0.f;  // All 0 data
-    }
   }
   return scope;
 }

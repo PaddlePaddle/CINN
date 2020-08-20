@@ -37,7 +37,7 @@ class Program {
 
 class GraphCompiler final {
  public:
-  GraphCompiler(Target target, const std::shared_ptr<Scope>& scope, std::shared_ptr<Graph> graph)
+  GraphCompiler(Target target, const std::shared_ptr<Scope>& scope, const std::shared_ptr<Graph>& graph)
       : target_(std::move(target)), scope_(scope), graph_(graph), m_builder_(UniqName("module"), target) {}
 
   std::unique_ptr<Program> Build();
@@ -66,7 +66,7 @@ class GraphCompiler final {
   lang::Module::Builder m_builder_;
 };
 
-std::shared_ptr<Scope> BuildScope(Target target, std::shared_ptr<Graph> graph);
+std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& graph);
 
 }  // namespace framework
 }  // namespace hlir

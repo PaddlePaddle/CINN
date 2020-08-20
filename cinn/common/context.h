@@ -46,11 +46,6 @@ class Context {
  public:
   static Context& Global();
 
-  Target GetTarget() {
-    Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64, {});
-    return target;
-  }
-
   /**
    * Generate a new unique name.
    * @param name_hint The prefix.

@@ -3,13 +3,16 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/use_pass.h"
+
 namespace cinn {
 namespace hlir {
 namespace pass {
+
 using framework::Graph;
 using framework::Node;
 using framework::NodeData;
 using framework::Operator;
+
 void InferShapePass(Graph* src) {
   auto res        = src->GetAttr<std::unordered_map<std::string, std::vector<int>>>("infershape");
   auto store_node = std::get<0>(src->topological_order());
@@ -40,7 +43,7 @@ void InferShapePass(Graph* src) {
 }  // namespace cinn
 CINN_REGISTER_HELPER(passes) {
   CINN_REGISTER_PASS(InferShape)
-      .describe("This pass infer the shape of tensor and save to g.attrs[\"infer_shape\"].")
+      .describe("This pass infer the shape of tensor and save to g.attrs[\"infershape\"].")
       .set_change_structure(false)
       .provide_graph_attr("infershape")
       .set_body(cinn::hlir::pass::InferShapePass);

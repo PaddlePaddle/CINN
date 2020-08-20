@@ -31,7 +31,7 @@ TEST(Operator, GetAttr) {
   common::Type type;
   common::Target target;
   target.arch = common::Target::Arch::X86;
-  auto impl   = SelectImpl(strategy[add](attr, inputs, type, target));
+  auto impl   = OpStrategy::SelectImpl(strategy[add](attr, inputs, type, target));
 
   common::CINNValuePack cinn_input = common::_CINNValuePack_::Make({common::CINNValue(A), common::CINNValue(B)});
   common::CINNValuePack C          = impl->fcompute(cinn_input);

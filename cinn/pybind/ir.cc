@@ -210,7 +210,6 @@ void BindIrIr(py::module *m) {
   DefineExprNode<ir::Cast>(m, "Cast");
   py::class_<ir::Cast, ExprNode<ir::Cast>> cast(*m, "Cast");
   cast.def(py::init<>())
-      // .def_static("make", &ir::Cast::Make)
       .def("v_mutable", py::overload_cast<>(&ir::Cast::v), py::return_value_policy::reference)
       .def("v_const", py::overload_cast<>(&ir::Cast::v, py::const_), py::return_value_policy::reference)
       .def("accept", &ir::Cast::Accept);
@@ -442,7 +441,6 @@ void BindIrIr(py::module *m) {
       .def_readwrite("buffers", &ir::_Module_::buffers)
       .def_readwrite("functions", &ir::_Module_::functions)
       .def_readwrite("submodules", &ir::_Module_::submodules);
-  // .def_static("make", &ir::_Module_::Make);
 }
 
 void BindOperation(py::module *m) {
@@ -616,9 +614,6 @@ void BindPackedFunc(py::module *m) {
       .def(py::init<lang::PackedFunc::body_t>())
       .def("body", &lang::PackedFunc::body)
       .def("__call__", &PackedFuncCall);
-
-  // using CinnType = std::variant<int32_t, int64_t, float, double, void *, char *, const char *, cinn_buffer_t *,
-  // ir::Expr, ir::Var>;
 }
 
 void BindRegistry(py::module *m) {
@@ -634,9 +629,6 @@ void BindRegistry(py::module *m) {
       .def_static("get", &ir::Registry::Get, py::return_value_policy::reference)
       .def_static("list_names", &ir::Registry::ListNames)
       .def("set_body", py::overload_cast<lang::PackedFunc>(&ir::Registry::SetBody), py::return_value_policy::reference);
-  // .def("set_body",
-  //     py::overload_cast<lang::PackedFunc::body_t>(&ir::Registry::SetBody),
-  //     py::return_value_policy::reference);
 
 #ifdef CINN_WITH_TEST
   ir::Registry::Register("test_add_int64").SetBody([](lang::Args args, lang::RetValue *rv) {

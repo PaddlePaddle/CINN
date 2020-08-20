@@ -39,7 +39,7 @@ std::shared_ptr<OpStrategy> StrategyForAdd(const framework::NodeAttr &attr,
 }
 
 std::vector<std::vector<int>> InferShapeForAdd(std::vector<std::vector<int>> inputs_shape) {
-  CHECK(inputs_shape.size() && inputs_shape[0].size()) << "The input's shape size is 0! Please check again.";
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<std::vector<int>> res{inputs_shape[0]};
   return res;
 }
@@ -54,7 +54,6 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(2)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForAdd)
-      .set_attr<std::function<std::vector<std::vector<int>>(std::vector<std::vector<int>>)>>(
-          "infershape", cinn::hlir::op::InferShapeForAdd)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForAdd))
       .set_support_level(4);
 }

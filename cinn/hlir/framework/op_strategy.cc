@@ -3,7 +3,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-std::shared_ptr<OpImpl> SelectImpl(std::shared_ptr<OpStrategy> strategy) {
+std::shared_ptr<OpImpl> OpStrategy::SelectImpl(const std::shared_ptr<OpStrategy>& strategy) {
   //! should get the host info from global environment.
   std::string curr_condition  = "default";
   std::shared_ptr<OpImpl> res = nullptr;

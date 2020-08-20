@@ -60,7 +60,7 @@ struct _CINNValuePack_ : public common::Object {
  private:
   _CINNValuePack_() = default;
   std::vector<CINNValue> values_;
-  static constexpr char* __type_info__ = "_CINNValuePack_";
+  static constexpr char* __type_info__ = "CINNValuePack";
 };
 
 struct CINNValuePack : public Shared<_CINNValuePack_> {

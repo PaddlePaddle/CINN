@@ -107,12 +107,11 @@ class OpStrategy : public common::Object {
    * @param plevel Priority level of the implementation
    */
   void AddImpl(CINNCompute fcompute, CINNSchedule fschedule, std::string name, int plevel);
+  static std::shared_ptr<OpImpl> SelectImpl(const std::shared_ptr<OpStrategy>& strategy);
 
  private:
   static constexpr char* __type_info__ = "OpStrategy";
 };
-
-std::shared_ptr<OpImpl> SelectImpl(std::shared_ptr<OpStrategy> strategy);
 
 }  // namespace framework
 }  // namespace hlir
