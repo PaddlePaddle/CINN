@@ -14,8 +14,8 @@
 #include "cinn/ir/node.h"
 #include "cinn/ir/operation.h"
 #include "cinn/ir/registry.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/lang/packed_func.h"
-#include "cinn/lang/tensor.h"
 #include "cinn/poly/stage.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
@@ -521,7 +521,7 @@ void BindIrTensor(py::module *m) {
       .def("get_depend_tensor_names", &ir::_Tensor_::GetDependTensorNames)
       .def("is_depend_on_statement", &ir::_Tensor_::IsDependOnStatement)
       .def("depending_tensor_names", &ir::_Tensor_::DependingTensorNames)
-      .def("same_shape_with", &ir::_Tensor_::SameShapeWith)
+      .def("same_shape_with", &ir::_Tensor_::HasSameShapeWith)
       .def("is_compute_node", &ir::_Tensor_::is_compute_node)
       .def("is_placeholder_node", &ir::_Tensor_::is_placeholder_node)
       .def("is_call_node", &ir::_Tensor_::is_call_node)

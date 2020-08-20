@@ -6,12 +6,12 @@
 
 #include "cinn/backends/codegen_c.h"
 #include "cinn/common/common.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/lang/buffer.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
 #include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
-#include "cinn/lang/tensor.h"
 
 namespace cinn {
 namespace ir {

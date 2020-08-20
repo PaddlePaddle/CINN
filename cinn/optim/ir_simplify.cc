@@ -14,7 +14,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {

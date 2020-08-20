@@ -6,7 +6,7 @@
 #include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/lowered_func.h"
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 
 namespace cinn {
 namespace ir {

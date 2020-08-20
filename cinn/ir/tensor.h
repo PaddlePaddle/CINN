@@ -47,7 +47,7 @@ class Tensor : public ir::IrNodeRef {
          const std::vector<Var>& reduce_axis = {});
 
   //! Get number of dimensions.
-  inline size_t ndims() const;
+  size_t ndims() const;
 
   /**
    * Get a tensor with a new shape but underlying buffer shared.
@@ -195,9 +195,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      FunctionRef fn,
                      const std::vector<Var>& reduce_axis = {});
 
-  //! Reshape a tensor.
-  Tensor BufferShared(const std::string& name, const std::vector<Expr>& shape) const;
-
   //! Tell whether this tensor is inline.
   bool inlined() const;
 
@@ -206,6 +203,9 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   bool is_tuple_get() const;
 
   Tensor TupleGet(int offset) const;
+
+  //! Reshape a tensor.
+  Tensor BufferShared(const std::string& name, const std::vector<Expr>& shape) const;
 
   /**
    * Get the names of the dependency(read or write) tensors.
@@ -218,7 +218,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
    * @param statement The name of a statement(equivalent to the id of tensor).
    * @return A boolean.
    */
-  bool IsDependOnStatement(const std::string& statement);
+  bool IsDependOnStatement(std::string_view statement);
 
   /**
    * Get the names of the tensors thouse this tensor depends on.
@@ -228,7 +228,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   /**
    * Tell whether this tensor has same shape with \p other.
    */
-  bool SameShapeWith(const Tensor& other) const;
+  bool HasSameShapeWith(const Tensor& other) const;
 
   //! Operation related.
   // @{
@@ -285,13 +285,14 @@ class _Tensor_ : public ExprNode<_Tensor_> {
    */
   bool Uses(const ir::Tensor& other);
 
-  //! Create a buffer belong to this tensor.
-  void WithBuffer(const Type& type = Void());
-  void WithBuffer(const std::string& memory_type, const Type& type = Void());
   //! Bind to a buffer, will persist data to the buffer in runtime.
   void Bind(lang::Buffer& buffer);  // NOLINT
   void Bind(const Buffer& buffer);
   void UnBind(lang::Buffer& buffer);  // NOLINT
+
+  //! Create a buffer belong to this tensor.
+  void WithBuffer(const Type& type = Void());
+  void WithBuffer(const std::string& memory_type, const Type& type = Void());
 
  private:
   //! Create the polyhedral element for analysis.
@@ -319,6 +320,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Normal axis.
   std::vector<Var> axis_;
 };
+
+Shared<poly::Stage> CreateStage(const ir::Tensor& tensor);
 
 struct ReadCacheRelation {
   //! Name of the cache tensor.

@@ -6,8 +6,8 @@
 
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/lang/compute_at_postprocess.h"
-#include "cinn/lang/tensor.h"
 #include "cinn/optim/cache_read_write_replace.h"
 #include "cinn/optim/ir_replace.h"
 #include "cinn/optim/ir_simplify.h"

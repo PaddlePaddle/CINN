@@ -3,7 +3,8 @@
 #include <unordered_map>
 #include <vector>
 #include "cinn/cinn.h"
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
+
 namespace cinn {
 namespace hlir {
 namespace framework {

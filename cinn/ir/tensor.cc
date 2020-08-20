@@ -1,4 +1,4 @@
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 
 #include <cstring>
 
@@ -360,7 +360,7 @@ void _Tensor_::WithBuffer(const std::string &memory_type, const Type &type) {
   }
 }
 
-bool _Tensor_::SameShapeWith(const Tensor &other) const {
+bool _Tensor_::HasSameShapeWith(const Tensor &other) const {
   if (shape.size() != other->shape.size()) return false;
 
   for (int i = 0; i < shape.size(); i++) {
@@ -437,7 +437,7 @@ Tensor _Tensor_::BufferShared(const std::string &name, const std::vector<Expr> &
 
 bool _Tensor_::inlined() const { return meta.compute_inline; }
 
-bool _Tensor_::IsDependOnStatement(const std::string &statement) {
+bool _Tensor_::IsDependOnStatement(std::string_view statement) {
   if (!is_compute_node()) {
     return false;
   }
@@ -481,6 +481,8 @@ bool _Tensor_::Uses(const Tensor &other) {
   });
   return !loads.empty();
 }
+
+Shared<poly::Stage> CreateStage(const Tensor &tensor) {}
 
 }  // namespace ir
 }  // namespace cinn

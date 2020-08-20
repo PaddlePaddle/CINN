@@ -1,4 +1,4 @@
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 
 #include <gtest/gtest.h>
 

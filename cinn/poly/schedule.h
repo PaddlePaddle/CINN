@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "cinn/common/common.h"
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/poly/graph.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/poly/map.h"

@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 
 namespace cinn {
 namespace lang {

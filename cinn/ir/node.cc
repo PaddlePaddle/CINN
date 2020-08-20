@@ -5,8 +5,8 @@
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/lang/module.h"
-#include "cinn/lang/tensor.h"
 
 namespace cinn {
 namespace ir {

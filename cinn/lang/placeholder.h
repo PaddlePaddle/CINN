@@ -7,7 +7,7 @@
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/operation.h"
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
