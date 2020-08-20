@@ -520,7 +520,7 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
       readers.begin(), readers.end(), std::back_inserter(reader_names), [](const ir::Tensor &x) { return x->name; });
 
   CHECK(!tensor_->meta.read_cache_relation) << "Duplicate read cache found, just one is allowed";
-  tensor_->meta.read_cache_relation.reset(new ir::ReadCacheRelation{cache_name, reader_names});
+  tensor_->meta.read_cache_relation.reset(new ReadCacheRelation{cache_name, reader_names});
 
   if (memory_type == "shared") {
     cache_tensor->stage()->SetScope(ScopeKind::kShared);
@@ -551,7 +551,7 @@ ir::Tensor Stage::CacheWrite(const std::string &memory_type) {
   write_stage->stage()->CtrlDepend(my_tensor);
 
   CHECK(!tensor_->meta.write_cache_relation) << "Duplicate write cache found, just one is allowed";
-  tensor_->meta.write_cache_relation.reset(new ir::WriteCacheRelation{cache_name});
+  tensor_->meta.write_cache_relation.reset(new WriteCacheRelation{cache_name});
 
   return write_stage;
 }

@@ -17,8 +17,6 @@ namespace cinn {
 namespace lang {
 namespace detail {
 
-using ir::ComputeAtInfo;
-
 void CheckNoIslCallRemains(Expr* expr) {
   auto isl_calls = ir::CollectIRNodes(
       *expr, [](const Expr* expr) { return expr->As<ir::Call>() && expr->As<ir::Call>()->is_isl_call(); });

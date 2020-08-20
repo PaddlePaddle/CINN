@@ -44,6 +44,61 @@ struct StageForloopInfo {
   ir::DeviceAPI device;
 };
 
+struct ReadCacheRelation {
+  //! Name of the cache tensor.
+  std::string cache_name;
+  //! Names of the reading tensors.
+  std::vector<std::string> readers;
+};
+
+struct WriteCacheRelation {
+  //! Name of the cache tensor.
+  std::string cache_name;
+};
+
+//! Store the infomations about some other tensor `compute_at` this tensor.
+struct ComputeAtInfo {
+  ComputeAtInfo(const std::string& consumer_tensor_name,
+                const std::string& producer_tensor_name,
+                const std::vector<int>& adjusted_producer_shape,
+                const std::vector<int>& preceding_offset_for_producer_load,
+                int level)
+      : consumer_tensor_name(consumer_tensor_name),
+        producer_tensor_name(producer_tensor_name),
+        adjusted_producer_shape(adjusted_producer_shape),
+        preceding_offset_for_producer_load(preceding_offset_for_producer_load),
+        level(level) {}
+
+  std::string consumer_tensor_name;
+  std::string producer_tensor_name;
+  //! The shape of the buffer belong to the producer tensor after compute_at.
+  //! NOTE this doesn't support dynamic dimension yet.
+  std::vector<int> adjusted_producer_shape;
+  //! The preceding offsets for the indice in the Loads for the producers, the offset will make the minimum indice to be
+  //! 0, size of this should equal to level+1.
+  std::vector<int> preceding_offset_for_producer_load;
+  //! the level of the consumer tensor's transformed range.
+  int level{-1};
+};
+
+/**
+ * Meta infomation for tensor.
+ */
+struct TensorScheduleMeta {
+  //! read cache relation if has one.
+  std::unique_ptr<ReadCacheRelation> read_cache_relation;
+  //! write cache relation if has one.
+  std::unique_ptr<WriteCacheRelation> write_cache_relation;
+
+  //! Store the information of all the other producer tensors `compute_at` this tensor.
+  std::vector<ComputeAtInfo> compute_at_infos;
+
+  bool compute_inline{false};
+
+  //! Name of the tensors thouse share buffer with `this` tensor.
+  std::set<std::string> tensors_to_share_buffer_with;
+};
+
 /**
  * Stage is the basic element of polyhedral which represents a stage in CINN.
  * It supports multiple transforms such as tile, split and so on.

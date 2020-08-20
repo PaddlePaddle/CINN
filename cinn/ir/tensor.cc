@@ -172,7 +172,7 @@ poly::Stage *_Tensor_::stage() {
   return (*static_cast<Shared<poly::Stage> *>(stage_shared))->as<poly::Stage>();
 }
 
-void _Tensor_::InitAxis() {
+void _Tensor_::InitAxis() const {
   // CHECK(!domain_without_reduce_axis().empty());
   axis_ = common::GenDefaultAxis(domain_without_reduce_axis().size());
 }
@@ -181,7 +181,7 @@ bool _Tensor_::has_expression() const {
   return (!is_placeholder_node()) && (!is_tuple_get()) && (!is_buffer_shared_node());
 }
 
-isl::set _Tensor_::GenerateIslDomain() {
+isl::set _Tensor_::GenerateIslDomain() const {
   // include the reduce axis.
   std::vector<poly::Dim> dims;
 
@@ -482,7 +482,9 @@ bool _Tensor_::Uses(const Tensor &other) {
   return !loads.empty();
 }
 
-Shared<poly::Stage> CreateStage(const Tensor &tensor) {}
+Shared<poly::Stage> CreateStage(Tensor tensor) {
+  return poly::Stage::New(tensor->GenerateIslDomain(), tensor->body(), tensor.self());
+}
 
 }  // namespace ir
 }  // namespace cinn

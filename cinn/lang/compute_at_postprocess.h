@@ -62,7 +62,7 @@ namespace detail {
  * @param axis The consumer axis.
  * @param consumer_forloop_root The first forloop level of consumer expression.
  */
-void ReplaceParamWithConsumerAxis(const ir::ComputeAtInfo& info,
+void ReplaceParamWithConsumerAxis(const poly::ComputeAtInfo& info,
                                   const std::vector<Var>& axis,
                                   Expr* consumer_forloop_root);
 

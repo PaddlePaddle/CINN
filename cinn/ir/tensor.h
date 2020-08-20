@@ -14,12 +14,9 @@
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/function_base.h"
 #include "cinn/lang/buffer.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
-
-namespace poly {
-struct Stage;
-}  // namespace poly
 
 namespace lang {
 template <typename T>
@@ -109,49 +106,6 @@ class PlaceholderOp;
 struct ReadCacheRelation;
 struct WriteCacheRelation;
 
-//! Store the infomations about some other tensor `compute_at` this tensor.
-struct ComputeAtInfo {
-  ComputeAtInfo(const std::string& consumer_tensor_name,
-                const std::string& producer_tensor_name,
-                const std::vector<int>& adjusted_producer_shape,
-                const std::vector<int>& preceding_offset_for_producer_load,
-                int level)
-      : consumer_tensor_name(consumer_tensor_name),
-        producer_tensor_name(producer_tensor_name),
-        adjusted_producer_shape(adjusted_producer_shape),
-        preceding_offset_for_producer_load(preceding_offset_for_producer_load),
-        level(level) {}
-
-  std::string consumer_tensor_name;
-  std::string producer_tensor_name;
-  //! The shape of the buffer belong to the producer tensor after compute_at.
-  //! NOTE this doesn't support dynamic dimension yet.
-  std::vector<int> adjusted_producer_shape;
-  //! The preceding offsets for the indice in the Loads for the producers, the offset will make the minimum indice to be
-  //! 0, size of this should equal to level+1.
-  std::vector<int> preceding_offset_for_producer_load;
-  //! the level of the consumer tensor's transformed range.
-  int level{-1};
-};
-
-/**
- * Meta infomation for tensor.
- */
-struct TensorScheduleMeta {
-  //! read cache relation if has one.
-  std::unique_ptr<ReadCacheRelation> read_cache_relation;
-  //! write cache relation if has one.
-  std::unique_ptr<WriteCacheRelation> write_cache_relation;
-
-  //! Store the information of all the other producer tensors `compute_at` this tensor.
-  std::vector<ComputeAtInfo> compute_at_infos;
-
-  bool compute_inline{false};
-
-  //! Name of the tensors thouse share buffer with `this` tensor.
-  std::set<std::string> tensors_to_share_buffer_with;
-};
-
 /**
  * _Tensor_ holds the content of a Tensor.
  *
@@ -179,7 +133,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! The bound buffer, for each tensor if it is not inline.
   Buffer buffer;
 
-  TensorScheduleMeta meta;
+  poly::TensorScheduleMeta meta;
 
   //! Polyhedral element for analysis and schedule.
   poly::Stage* stage();
@@ -306,34 +260,24 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   bool is_faked() const;
 
   //! Initialize the axis field after the shape field is assigned.
-  void InitAxis();
+  void InitAxis() const;
 
   //! Extract the tensors of the buffer this writes to. We should schedule this tensor after those tensors, or there
   //! will be read-write conflicts.
   void ExtractBufferDependedTensors();
 
-  isl::set GenerateIslDomain();
+  isl::set GenerateIslDomain() const;
 
   //! The names of the tensors depend the same buffer and should schedule before this.
   std::set<std::string> buffer_depended_tensor_names_;
 
   //! Normal axis.
-  std::vector<Var> axis_;
+  mutable std::vector<Var> axis_;
+
+  friend Shared<poly::Stage> CreateStage(Tensor tensor);
 };
 
-Shared<poly::Stage> CreateStage(const ir::Tensor& tensor);
-
-struct ReadCacheRelation {
-  //! Name of the cache tensor.
-  std::string cache_name;
-  //! Names of the reading tensors.
-  std::vector<std::string> readers;
-};
-
-struct WriteCacheRelation {
-  //! Name of the cache tensor.
-  std::string cache_name;
-};
+Shared<poly::Stage> CreateStage(Tensor tensor);
 
 class _Operation_;
 class Operation : public FunctionRef {

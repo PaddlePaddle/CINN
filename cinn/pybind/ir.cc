@@ -552,13 +552,6 @@ void BindIrTensor(py::module *m) {
       .def("bind", py::overload_cast<lang::Buffer &>(&ir::_Tensor_::Bind))
       .def("bind", py::overload_cast<const ir::Buffer &>(&ir::_Tensor_::Bind));
 
-  py::class_<ir::ReadCacheRelation> read_cache_relation(*m, "ReadCacheRelation");
-  read_cache_relation.def_readwrite("cache_name", &ir::ReadCacheRelation::cache_name)
-      .def_readwrite("readers", &ir::ReadCacheRelation::readers);
-
-  py::class_<ir::WriteCacheRelation> write_cache_relation(*m, "WriteCacheRelation");
-  write_cache_relation.def_readwrite("cache_name", &ir::WriteCacheRelation::cache_name);
-
   py::class_<ir::Operation /*, ir::FunctionDef*/> operation(*m, "Operation");
   operation.def(py::init<>()).def(py::init<ir::IrNode *>()).def_readwrite("name", &ir::Operation::name);
 }
