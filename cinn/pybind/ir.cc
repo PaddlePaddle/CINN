@@ -235,7 +235,9 @@ void BindIrIr(py::module *m) {
       .value("kSum", ir::Reduce::ReduceType::kSum)
       .value("kSub", ir::Reduce::ReduceType::kSub)
       .value("kMul", ir::Reduce::ReduceType::kMul)
-      .value("kDiv", ir::Reduce::ReduceType::kDiv);
+      .value("kDiv", ir::Reduce::ReduceType::kDiv)
+      .value("kMax", ir::Reduce::ReduceType::kMax)
+      .value("kMin", ir::Reduce::ReduceType::kMin);
 
   reduce.def_readwrite("init", &ir::Reduce::init)
       .def_readwrite("body", &ir::Reduce::body)

@@ -1,5 +1,6 @@
 #include "cinn/common/target.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/reduction.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
 #include "cinn/utils/string.h"
@@ -51,6 +52,27 @@ void BindPE(py::module* m) {
   BIND_UNARY(sign, Sign);
   BIND_UNARY(abs, Abs);
   BIND_UNARY(rsqrt, Rsqrt);
+
+#define BIND_REDUCE(name__, fn__)      \
+  m->def(#name__,                      \
+         &hlir::pe::fn__,              \
+         py::arg("x"),                 \
+         py::arg("axes"),              \
+         py::arg("keep_dims") = false, \
+         py::arg("initial"),           \
+         py::arg("out") = "T_" #name__ "_out")
+  BIND_REDUCE(sum, Sum);
+  BIND_REDUCE(prod, Prod);
+
+#define BIND_REDUCE1(name__, fn__)     \
+  m->def(#name__,                      \
+         &hlir::pe::fn__,              \
+         py::arg("x"),                 \
+         py::arg("axes"),              \
+         py::arg("keep_dims") = false, \
+         py::arg("out")       = "T_" #name__ "_out")
+  BIND_REDUCE1(max, Max);
+  BIND_REDUCE1(min, Min);
 }
 
 }  // namespace pybind
