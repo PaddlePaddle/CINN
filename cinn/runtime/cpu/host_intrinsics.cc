@@ -53,18 +53,15 @@ CINN_IMP_CPU_FUNC_INT_BINARY(bitwise_and, &);
 CINN_IMP_CPU_FUNC_INT_BINARY(bitwise_xor, ^);
 CINN_IMP_CPU_FUNC_INT_UNARY(bitwise_not, !);
 
-float __cinn_host_tanh_fp32(float x) { return std::tanh(x); }
 void __cinn_host_tanh_v(const cinn_buffer_t* x, cinn_buffer_t* out) {
   CINN_CHECK_EQ(x->num_elements(), out->num_elements());
   int xn         = x->num_elements();
   auto* x_data   = (float*)(x->memory);
   auto* out_data = (float*)(out->memory);
   for (int i = 0; i < x->num_elements(); i++) {
-    out_data[i] = __cinn_host_tanh_fp32(x_data[i]);
+    out_data[i] = cinn_cpu_tanh_fp32(x_data[i]);
   }
 }
-
-float __cinn_host_ceil_fp32(float x) { return std::ceil(x); }
 }
 
 CINN_REGISTER_HELPER(host_intrinsics) {
@@ -112,17 +109,4 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   REGISTER_EXTERN_FUNC_TWO_IN_ONE_OUT_INT(bitwise_and);
   REGISTER_EXTERN_FUNC_TWO_IN_ONE_OUT_INT(bitwise_xor);
   REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT_INT(bitwise_not);
-
-  REGISTER_EXTERN_FUNC_HELPER(__cinn_host_ceil_fp32, host_target)
-      .SetRetType<float>()
-      .AddInputType<float>()
-      .AddOutputType<float>()
-      .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
-      .End();
-
-  REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_exp_fp32, host_target)
-      .SetRetType<float>()
-      .AddInputType<float>()
-      .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
-      .End();
 }

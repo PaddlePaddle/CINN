@@ -1,4 +1,5 @@
 #include "cinn/pybind/bind.h"
+#include "cinn/runtime/cpu/use_extern_host_intrinsics.h"
 
 namespace py = pybind11;
 

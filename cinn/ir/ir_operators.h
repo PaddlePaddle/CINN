@@ -175,5 +175,15 @@ inline Expr LeakyRelu(Expr e, double alpha) {
   return Select::Make(e > zero, e, e * make_const(e->type(), alpha));
 }
 
+inline Expr LeakyRelu(Expr e, Expr alpha) {
+  auto zero = make_const(e->type(), 0);
+  return Select::Make(e > zero, e, e * alpha);
+}
+
+inline Expr ReduceSum(Expr e, Expr initial = Expr(0)) { return Reduce::Make(Reduce::kSum, initial, e); }
+inline Expr ReduceMul(Expr e, Expr initial = Expr(1)) { return Reduce::Make(Reduce::kMul, initial, e); }
+inline Expr ReduceMax(Expr e, Expr initial) { return Reduce::Make(Reduce::kMax, initial, e); }
+inline Expr ReduceMin(Expr e, Expr initial) { return Reduce::Make(Reduce::kMin, initial, e); }
+
 }  // namespace ir
 }  // namespace cinn
