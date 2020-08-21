@@ -64,7 +64,9 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     ir::Expr temp = C[i];
     inputs.push_back(temp.as_tensor_ref());
   }
-  auto func = Lower(node->id(), inputs);
+
+  auto stages = poly::CreateStages(inputs);
+  auto func   = Lower(node->id(), stages, inputs);
 }
 
 std::vector<std::string> GraphCompiler::OpGetInputNames(const Node* node) const {

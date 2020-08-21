@@ -76,10 +76,10 @@ struct CacheReplaceMutator : public ir::IRMutator<> {
 
 }  // namespace
 
-void CacheReadWriteReplace(Expr* expr, std::map<std::string, ir::Tensor>* global_tensor_map) {
-  auto cached_tensors = ir::CollectIRNodes(*expr, [](const Expr* x) {
+void CacheReadWriteReplace(Expr* expr, poly::StageMap stages, std::map<std::string, ir::Tensor>* global_tensor_map) {
+  auto cached_tensors = ir::CollectIRNodes(*expr, [&](const Expr* x) {
     auto* t = x->as_tensor();
-    return t && (t->meta.read_cache_relation || t->meta.write_cache_relation);
+    return t && (stages[t]->meta.read_cache_relation || stages[t]->meta.write_cache_relation);
   });
 
   auto tensors = ir::CollectIRNodes(*expr, [](const Expr* x) { return x->as_tensor(); });
@@ -103,12 +103,12 @@ void CacheReadWriteReplace(Expr* expr, std::map<std::string, ir::Tensor>* global
   }
 
   for (auto& t : uniq_cached_tensors) {
-    if (t->meta.read_cache_relation) {
-      auto cache = global_tensor_map->at(t->meta.read_cache_relation->cache_name);
-      CacheReplaceMutator(t->name, cache, t->meta.read_cache_relation->readers, true /*read*/)(expr);
+    if (stages[t]->meta.read_cache_relation) {
+      auto cache = global_tensor_map->at(stages[t]->meta.read_cache_relation->cache_name);
+      CacheReplaceMutator(t->name, cache, stages[t]->meta.read_cache_relation->readers, true /*read*/)(expr);
     }
-    if (t->meta.write_cache_relation) {
-      auto cache = tensor_map.at(t->meta.write_cache_relation->cache_name);
+    if (stages[t]->meta.write_cache_relation) {
+      auto cache = tensor_map.at(stages[t]->meta.write_cache_relation->cache_name);
       CacheReplaceMutator(t->name, cache, {}, false /*write*/)(expr);
     }
   }

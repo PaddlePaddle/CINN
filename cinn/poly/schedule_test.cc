@@ -11,7 +11,7 @@
 namespace cinn {
 namespace poly {
 
-TEST(CreateSchedule, compute_at) {
+TEST(CreateStages, compute_at) {
   Expr N(100);
   lang::Placeholder<float> A("A", {N, N});
 
@@ -50,7 +50,7 @@ TEST(CreateSchedule, compute_at) {
   EXPECT_EQ(utils::GetStreamCnt(funcs->body), utils::Trim(target_out));
 }
 
-TEST(CreateSchedule, buffer_bind_to_multiple_tensors_schedule) {
+TEST(CreateStages, buffer_bind_to_multiple_tensors_schedule) {
   Expr N(100);
   lang::Placeholder<float> A("A", {N, N});
   /*

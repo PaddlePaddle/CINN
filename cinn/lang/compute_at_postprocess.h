@@ -47,12 +47,12 @@ namespace lang {
  * The expression `C[_p0, i] = (cache[_p0, i] + (cache[(1 + _p0), i] + B[_p0, i]))` produces tensor `C`, but the cache
  * should start from zero.
  */
-void ProcessComputeAtInfo(Expr* expr);
+void ProcessComputeAtInfo(Expr* expr, poly::StageMap stages);
 
 /**
  * Resize the compute_at consumer buffer size.
  */
-void UpdateComputeAtBufferShape(Expr* expr);
+void UpdateComputeAtBufferShape(Expr* expr, poly::StageMap stages);
 
 namespace detail {
 

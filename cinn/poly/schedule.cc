@@ -101,11 +101,13 @@ void TimeSchedule::ResizeTimeSpace(int size) {
   }
 }
 
+/*
 std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor, ScheduleKind schedule_kind) {
   auto stages = GatherStagesInTensors({tensor});
   VLOG(3) << "collected " << stages.size() << " stages";
   return CreateSchedule(stages, schedule_kind);
 }
+ */
 
 std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages,
                                          ScheduleKind schedule_kind,
@@ -130,6 +132,7 @@ std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages,
 }
 
 // TODO(Superjomn) Consider the dependencies between TupleGet and extern Call.
+/*
 std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bool with_placeholder) {
   // get the stages from a tensor.
   std::vector<Stage *> stages;
@@ -160,6 +163,7 @@ std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bo
   std::reverse(stages.begin(), stages.end());
   return stages;
 }
+ */
 
 std::map<std::string, isl::map> CollectScheduleMapFromGroup(const ScheduleGroup &group) {
   std::map<std::string, isl::map> map;

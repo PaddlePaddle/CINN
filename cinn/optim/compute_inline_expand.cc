@@ -75,7 +75,7 @@ struct SSABuilder : public ir::IRMutator<> {
 
 }  // namespace
 
-void ComputeInlineExpand(Expr *expr) {
+void ComputeInlineExpand(Expr *expr, poly::StageMap stages) {
   /*
    * 1. Create a SSA graph
    * 2. follow the topological order, expand inline each tensor marked as compute_inline.
@@ -97,7 +97,7 @@ void ComputeInlineExpand(Expr *expr) {
   for (auto *n : node_order) {
     auto *node = n->safe_as<SSANode>();
     auto t     = tensor_map.at(node->id());
-    if (t->meta.compute_inline) {
+    if (stages[t]->meta.compute_inline) {
       VLOG(2) << "inlining " << t->name;
       TensorInlineExpandMutator(t->name)(expr);
     }

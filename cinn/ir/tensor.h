@@ -133,7 +133,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! The bound buffer, for each tensor if it is not inline.
   Buffer buffer;
 
-  poly::TensorScheduleMeta meta;
+  // poly::TensorScheduleMeta meta;
 
   //! Polyhedral element for analysis and schedule.
   poly::Stage* stage();
@@ -148,9 +148,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      const std::vector<Expr>& domain,
                      FunctionRef fn,
                      const std::vector<Var>& reduce_axis = {});
-
-  //! Tell whether this tensor is inline.
-  bool inlined() const;
 
   //! Tell whether this tensor represents a tuple (consists of one or multiple tensors as output of a extern Call).
   bool is_tuple() const;

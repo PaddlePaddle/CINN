@@ -69,6 +69,7 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
 
   CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension";
 
+  /*
   if (node->inlined()) {
     VLOG(3) << "detect an inlined tensor and expand it";
     auto *compute_op = node->get_compute_op();
@@ -78,12 +79,12 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   } else {
     // CHECK(node->buffer.defined()) << utils::StringFormat("Buffer for [%s] should be defined so that it can be
     // sliced", node->name.c_str());
-    return Load::Make(*this, indices);
   }
+   */
+  return Load::Make(*this, indices);
 }
 
 Expr _Tensor_::inline_expanded(const std::vector<Expr> &indices) {
-  CHECK(meta.compute_inline) << "tensor is should be marked as compute_inline";
   CHECK(is_compute_node());
   return get_compute_op()->producer_fn(indices);
 }
@@ -308,7 +309,7 @@ Expr _Tensor_::tensor_store_expanded_body() {
 }
 
 void _Tensor_::Bind(lang::Buffer &buffer) {
-  CHECK(!inlined()) << "Inlined tensor should bing buffer";
+  // CHECK(!inlined()) << "Inlined tensor should bing buffer";
   CHECK(!buffer->type().is_void());
   if (this->buffer.defined()) {
     // remove the old buffer
@@ -398,12 +399,6 @@ std::vector<Expr> _Tensor_::domain_with_reduce_axis() const {
   return res;
 }
 
-Tensor Tensor::Reshape(const std::vector<Expr> &shape) {
-  // TODO(Superjomn) Check both the shapes have same number of elements.
-  auto name = Context::Global().NewName(self()->name + "_reshape");
-  return self()->BufferShared(name, shape);
-}
-
 bool operator<(const Tensor &a, const Tensor &b) { return a->name < b->name; }
 
 Tensor::Tensor(const std::string &name,
@@ -419,23 +414,6 @@ bool _Tensor_::is_tuple_get() const {
          operation->as<ir::_Operation_>()->func_type() == ir::CallOp::__func_type__ &&
          operation->as<ir::CallOp>()->is_tuple_get;
 }
-
-Tensor _Tensor_::BufferShared(const std::string &name, const std::vector<Expr> &shape) const {
-  CHECK(!inlined());
-  auto op   = BufferShareOp::Make();
-  auto n    = make_shared<_Tensor_>();
-  n->name   = name;
-  n->shape  = shape;
-  n->domain = shape;
-  n->set_type(type());
-  n->operation = op;
-  n->InitStage();
-  n->InitAxis();
-  n->Bind(this->buffer);
-  return Tensor(n);
-}
-
-bool _Tensor_::inlined() const { return meta.compute_inline; }
 
 bool _Tensor_::IsDependOnStatement(std::string_view statement) {
   if (!is_compute_node()) {

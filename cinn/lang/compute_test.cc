@@ -25,7 +25,7 @@ TEST(Compute, basic) {
 
   LOG(INFO) << "z: " << z->operation->as<ir::ComputeOp>()->body[0];
 
-  auto schedule = poly::CreateSchedule(z);
+  auto schedule = poly::CreateStages(z);
   LOG(INFO) << "group: " << schedule->groups.size();
 
   for (auto& group : schedule->groups) {

@@ -22,7 +22,8 @@ TEST(test01_elementwise_add, basic) {
   target.os   = Target::OS ::Linux;
   Module::Builder builder("module1", target);
 
-  auto func = Lower("add1", {A, B, C});
+  auto stages = CreateStages({A, B, C});
+  auto func   = Lower("add1", stages, {A, B, C});
 
   builder.AddFunction(func);
 
@@ -48,7 +49,8 @@ TEST(test01_elementwise_add, vectorize) {
   target.os   = Target::OS ::Linux;
   Module::Builder builder("module2", target);
 
-  auto funcs = Lower("add1_vectorize", {A, B, C});
+  auto stages = CreateStages({A, B, C});
+  auto funcs  = Lower("add1_vectorize", stages, {A, B, C});
 
   auto func = Optimize(funcs);
   LOG(INFO) << "after optim:\n" << func;
@@ -85,7 +87,8 @@ TEST(elementwise_add, compute_at) {
 
   Module::Builder builder("module3", common::DefaultHostTarget());
 
-  auto fn = Lower("fn_compute_at", {A, B, C}, {}, {A_cache}, &builder);
+  auto stages = CreateStages({A, B, C, A_cache});
+  auto fn     = Lower("fn_compute_at", stages, {A, B, C}, {}, {A_cache}, &builder);
 
   CodeGenCX86 compiler(common::DefaultHostTarget(), CodeGenCX86::Feature::AVX256);
   Outputs outputs;
@@ -100,7 +103,8 @@ TEST(elementwise_add, compute_at1) {
 
   Module::Builder builder("module4", common::DefaultHostTarget());
 
-  auto fn = Lower("fn_compute_at_level1", {A, B, C}, {}, {A_cache}, &builder);
+  auto stages = CreateStages({A, B, C, A_cache});
+  auto fn     = Lower("fn_compute_at_level1", stages, {A, B, C}, {}, {A_cache}, &builder);
 
   CodeGenCX86 compiler(common::DefaultHostTarget(), CodeGenCX86::Feature::AVX256);
   Outputs outputs;

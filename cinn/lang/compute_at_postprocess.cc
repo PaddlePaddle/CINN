@@ -8,11 +8,13 @@
 #include "cinn/optim/ir_replace.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/poly/compute_at_transform.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace lang {
 namespace detail {
 using poly::ComputeAtInfo;
+using poly::StageMap;
 
 /**
  * Process the producer related Store and Load indices.
@@ -191,8 +193,10 @@ struct ResetProducerLoadIndiceInConsumerMutator : public ir::IRMutator<> {
  */
 struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   std::string tensor_name;
+  poly::StageMap stages;
 
-  explicit CorrectComputeAtRelatedIndiceMutator(const std::string& tensor_name) : tensor_name(tensor_name) {}
+  explicit CorrectComputeAtRelatedIndiceMutator(const std::string& tensor_name, poly::StageMap stages)
+      : tensor_name(tensor_name) {}
 
   void operator()(Expr* e) { return ir::IRMutator<>::Visit(e, e); }
 
@@ -269,7 +273,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
     }
 
     // get the target consumer
-    auto& compute_at_infos = op->tensor.as_tensor()->meta.compute_at_infos;
+    auto& compute_at_infos = stages[op->tensor.as_tensor()]->meta.compute_at_infos;
     CHECK(!compute_at_infos.empty());
 
     std::vector<Var> levels;
@@ -310,7 +314,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   std::vector<Expr*> forloop_stack;
 };
 
-void ProcessComputeAtInfo(Expr* expr) {
+void ProcessComputeAtInfo(Expr* expr, poly::StageMap stages) {
   // 1. collect all the consumer tensors thouse have compute_at_infos.
   // 2. for each producer tensor, reset the producer tensor loads indice.
 
@@ -321,25 +325,26 @@ void ProcessComputeAtInfo(Expr* expr) {
   // in consumer, reset presending axis in producer's Load to zero.
 
   auto tensor_with_compute_at_infos = ir::CollectIRNodes(
-      *expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->meta.compute_at_infos.empty(); });
+      *expr, [&](const Expr* x) { return x->as_tensor() && !stages[x->as_tensor()]->meta.compute_at_infos.empty(); });
 
   for (auto& tensor : tensor_with_compute_at_infos) {
     VLOG(4) << "consumer: " << tensor;
-    CorrectComputeAtRelatedIndiceMutator(tensor.as_tensor()->name)(expr);
+    CorrectComputeAtRelatedIndiceMutator(tensor.as_tensor()->name, stages)(expr);
   }
 }
 
-void UpdateComputeAtBufferShape(Expr* expr) {
+void UpdateComputeAtBufferShape(Expr* expr, poly::StageMap stages) {
   auto tensor_with_compute_at_infos = ir::CollectIRNodes(*expr, [&](const Expr* x) {
-    return x->as_tensor() && !x->as_tensor()->inlined() && !x->as_tensor()->meta.compute_at_infos.empty();
+    return x->as_tensor() && !stages[x->as_tensor()]->inlined() &&
+           !stages[x->as_tensor()]->meta.compute_at_infos.empty();
   });
 
   auto tensor_map = ir::CollectTensorMap(
-      *expr, [&](const Expr* x) { return !x->as_tensor()->inlined() && x->as_tensor()->buffer.defined(); });
+      *expr, [&](const Expr* x) { return !stages[x->as_tensor()]->inlined() && x->as_tensor()->buffer.defined(); });
 
   std::unordered_map<std::string, poly::ComputeAtInfo*> buffer_to_compute_at_info;
   for (auto& item : tensor_map) {
-    auto& compute_at_infos = item.second.as_tensor()->meta.compute_at_infos;
+    auto& compute_at_infos = stages[item.second.as_tensor()]->meta.compute_at_infos;
     if (compute_at_infos.empty()) continue;
     for (auto& compute_at : compute_at_infos) {
       auto& producer_tensor = tensor_map.at(compute_at.producer_tensor_name);
@@ -371,7 +376,8 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     VLOG(4) << "Updated alloca: " << Expr(alloca);
   };
 
-  auto tensors = ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->inlined(); });
+  auto tensors =
+      ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->as_tensor() && !stages[x->as_tensor()]->inlined(); });
   for (auto& t : tensors) {
     if (!t.as_tensor()->buffer.defined() || !buffer_to_compute_at_info.count(t.as_tensor()->buffer->name)) continue;
     auto& buffer       = t.as_tensor()->buffer;

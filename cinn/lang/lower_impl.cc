@@ -34,6 +34,7 @@ void CheckNoIslCallRemains(Expr* expr) {
 Expr LowerGroup(const poly::ScheduleGroup& group,
                 const std::map<std::string, Expr>& tuple_to_expr,
                 std::map<std::string, ir::Tensor>* global_tensor_map,
+                StageMap stage_map,
                 ir::CudaAxisInfo* cuda_axis_info) {
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
@@ -77,10 +78,10 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   }
   CheckNoIslCallRemains(&e);
 
-  optim::CacheReadWriteReplace(&e, global_tensor_map);
+  optim::CacheReadWriteReplace(&e, stage_map, global_tensor_map);
 
   // deal with the compute_at relations
-  ProcessComputeAtInfo(&e);
+  ProcessComputeAtInfo(&e, stage_map);
 
   // mark vectorize.
   {
@@ -130,8 +131,8 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   return e;
 }
 
-bool TensorContainsGPUInfo(ir::Tensor t) {
-  if (t->inlined()) return false;
+bool TensorContainsGPUInfo(ir::Tensor t, poly::Stage* stage) {
+  if (stage->inlined()) return false;
   if (t->stage()) {
     for (auto& info : t->stage()->forloop_infos()) {
       if (info.second.device == ir::DeviceAPI::GPU) {
@@ -149,8 +150,9 @@ std::string CompuGraphNode::id() const {
   return tensor->name;
 }
 
-void CreateCompGraphHelper(common::Graph* graph, ir::Tensor& t, Expr e, bool hide_inline) {  // NOLINT
-  bool hide_t               = hide_inline && t->inlined();
+void CreateCompGraphHelper(
+    common::Graph* graph, ir::Tensor& t, const poly::StageMap& stages, Expr e, bool hide_inline) {  // NOLINT
+  bool hide_t               = hide_inline && stages[t]->inlined();
   common::GraphNode* t_node = graph->RetriveNode(t->name);
   if (!t_node && !hide_t) {
     t_node = graph->RegisterNode(t->name, new CompuGraphNode(t));
@@ -159,7 +161,7 @@ void CreateCompGraphHelper(common::Graph* graph, ir::Tensor& t, Expr e, bool hid
   auto e_tensor = e.as_tensor_ref();
   if (e_tensor.defined()) {
     auto* e_node = graph->RetriveNode(e_tensor->name);
-    if (!e_node && !(hide_inline && e_tensor->inlined())) {
+    if (!e_node && !(hide_inline && stages[e_tensor]->inlined())) {
       e_node = graph->RegisterNode(e_tensor->name, new CompuGraphNode(e_tensor));
     }
     if (!hide_t && t_node && e_node) e_node->LinkTo(t_node);
@@ -167,21 +169,23 @@ void CreateCompGraphHelper(common::Graph* graph, ir::Tensor& t, Expr e, bool hid
 
   for (auto* e_dep : e->expr_fields()) {
     if (e_tensor.defined()) {
-      CreateCompGraphHelper(graph, e_tensor, *e_dep, hide_inline);
+      CreateCompGraphHelper(graph, e_tensor, stages, *e_dep, hide_inline);
     } else {
-      CreateCompGraphHelper(graph, t, *e_dep, hide_inline);
+      CreateCompGraphHelper(graph, t, stages, *e_dep, hide_inline);
     }
   }
 }
 
-std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& tensors, bool hide_inline) {
+std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& tensors,
+                                               StageMap stages,
+                                               bool hide_inline) {
   auto graph = std::make_unique<common::Graph>();
 
   for (auto& t : tensors) {
     auto tc = t;
-    if (hide_inline && tc->inlined()) continue;
+    if (hide_inline && stages[tc]->inlined()) continue;
     for (auto& e : tc->expr_fields()) {
-      CreateCompGraphHelper(graph.get(), tc, *e, hide_inline);
+      CreateCompGraphHelper(graph.get(), tc, stages, *e, hide_inline);
     }
   }
 
@@ -203,7 +207,7 @@ std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& te
 void LowerImpl::CheckArgsUnique() {
   std::unordered_set<std::string> arg_names;
   for (auto& tensor : tensor_args_) {
-    CHECK(!tensor->inlined()) << "Inline tensor cannot be argument of function";
+    CHECK(!stages_[tensor]->inlined()) << "Inline tensor cannot be argument of function";
     CHECK(!arg_names.count(tensor->name)) << "The argument of the function, tensor [" << tensor->name << "] duplicates";
     arg_names.insert(tensor->name);
     if (!tensor->buffer.defined()) {
@@ -307,7 +311,10 @@ ir::LoweredFunc LowerImpl::operator()() {
   // get tensors
   std::vector<Tensor> all_tensors;
 
-  std::vector<poly::Stage*> stages = poly::GatherStagesInTensors(CollectAllTensors());
+  std::vector<poly::Stage*> stages;
+  for (auto& item : stages_) {
+    stages.push_back(item.second.get());
+  }
 
   auto deps     = CollectExtraDependencies();
   auto schedule = poly::CreateSchedule(
@@ -315,7 +322,7 @@ ir::LoweredFunc LowerImpl::operator()() {
 
   auto func_body = GenerateFunctionBody(schedule.get());
 
-  auto tensor_map = optim::InitialAssignBuffer(&func_body);
+  auto tensor_map = optim::InitialAssignBuffer(&func_body, stages_);
   // copy the tensor(with buffer assigned) back to func's args.
   {
     for (auto& arg : tensor_args_) {
@@ -343,11 +350,11 @@ ir::LoweredFunc LowerImpl::operator()() {
   auto func = ir::_LoweredFunc_::Make(fn_name_, func_args, func_body, temp_buffers);
 
   // some necessary modification.
-  optim::ComputeInlineExpand(&func->body);
+  optim::ComputeInlineExpand(&func->body, stages_);
 
   auto res = optim::Optimize(func, FLAGS_cinn_runtime_display_debug_info);
 
-  UpdateComputeAtBufferShape(&res);
+  UpdateComputeAtBufferShape(&res, stages_);
 
   if (cuda_axis_info_.valid()) {
     auto* func           = res.as_lowered_func();
@@ -397,7 +404,7 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
       tuple_to_expr[tensor->name] = tensor->tensor_store_expanded_body();
     }
 
-    Expr group_expr = LowerGroup(group, tuple_to_expr, &global_tensor_map, &cuda_axis_info_);
+    Expr group_expr = LowerGroup(group, tuple_to_expr, &global_tensor_map, stages_, &cuda_axis_info_);
     if (group_expr.defined()) {
       VLOG(3) << "group expr:\n" << group_expr;
       exprs.push_back(group_expr);
@@ -409,33 +416,40 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
 }
 
 LowerImpl::LowerImpl(const std::string& fn_name,
+                     StageMap stages,
                      const std::vector<Tensor>& tensor_args,
                      const std::vector<Var>& scalar_args,
                      const std::vector<Tensor>& temp_tensor_args)
-    : fn_name_(fn_name), tensor_args_(tensor_args), scalar_args_(scalar_args), temp_tensor_args_(temp_tensor_args) {
+    : fn_name_(fn_name),
+      stages_(stages),
+      tensor_args_(tensor_args),
+      scalar_args_(scalar_args),
+      temp_tensor_args_(temp_tensor_args) {
   {  // Initialize the graph
     std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
     tensors.insert(std::end(tensors), temp_tensor_args.begin(), temp_tensor_args.end());
-    compu_graph_ = CreateCompGraph(tensors, true /*hide_inlined*/);
+    compu_graph_ = CreateCompGraph(tensors, stages, true /*hide_inlined*/);
   }
 
-  auto stages = poly::GatherStagesInTensors(CollectAllTensors());
+  std::vector<poly::Stage*> all_stages;
+  for (auto& item : stages_) all_stages.push_back(item.second.get());
+
   std::map<std::string, poly::Stage*> named_stages, read_caches, write_caches, read_caches_rev, write_caches_rev;
-  for (auto* stage : stages) {
+  for (auto* stage : all_stages) {
     named_stages[stage->id()] = stage;
   }
-  for (auto* stage : stages) {
-    if (stage->tensor()->meta.read_cache_relation) {
-      read_caches[stage->id()] = named_stages[stage->tensor()->meta.read_cache_relation->cache_name];
-      read_caches_rev[stage->tensor()->meta.read_cache_relation->cache_name] = stage;
+  for (auto* stage : all_stages) {
+    if (stage->meta.read_cache_relation) {
+      read_caches[stage->id()] = named_stages[stage->meta.read_cache_relation->cache_name];
+      read_caches_rev[stage->meta.read_cache_relation->cache_name] = stage;
     }
-    if (stage->tensor()->meta.write_cache_relation) {
-      write_caches[stage->id()] = named_stages[stage->tensor()->meta.write_cache_relation->cache_name];
-      write_caches_rev[stage->tensor()->meta.write_cache_relation->cache_name] = stage;
+    if (stage->meta.write_cache_relation) {
+      write_caches[stage->id()] = named_stages[stage->meta.write_cache_relation->cache_name];
+      write_caches_rev[stage->meta.write_cache_relation->cache_name] = stage;
     }
   }
 
-  for (auto* stage : stages) {
+  for (auto* stage : all_stages) {
     if (stage->tensor()->buffer.get() && (read_caches_rev.count(stage->id()) || write_caches_rev.count(stage->id())) &&
         stage->tensor()->buffer->memory_type == ir::MemoryType::GPUShared) {
       auto sync_threads = Compute(
@@ -454,7 +468,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
       ir::Tensor this_tensor(read_caches_rev.count(stage->id()) ? read_caches_rev.at(stage->id())->tensor()
                                                                 : write_caches_rev.at(stage->id())->tensor());
 
-      for (auto* other : stages) {
+      for (auto* other : all_stages) {
         if (other->id() != stage->id() && other->tensor()->Uses(this_tensor)) {
           other->CtrlDepend(sync_threads);
         }
@@ -465,7 +479,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
   {  // update schedule.
     std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
     tensors.insert(std::end(tensors), temp_tensor_args_.begin(), temp_tensor_args_.end());
-    compu_graph_ = CreateCompGraph(tensors, true /*hide_inlined*/);
+    compu_graph_ = CreateCompGraph(tensors, stages, true /*hide_inlined*/);
 
     VLOG(1) << "Computation Graph:\n" << compu_graph_->Visualize();
   }

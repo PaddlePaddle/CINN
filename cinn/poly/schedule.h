@@ -161,7 +161,7 @@ enum class ScheduleKind {
 };
 
 //! Create a schedule from a tensor.
-std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor, ScheduleKind schedule_kind = ScheduleKind::Poly);
+// std::unique_ptr<Schedule> CreateSchedule(const ir::Tensor &tensor, ScheduleKind schedule_kind = ScheduleKind::Poly);
 //! Create a schedule from a list of stages, it will schedule the stages using the information from data dependency,
 //! iteration domains.
 std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages,
@@ -174,7 +174,7 @@ std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages,
  * @param with_placeholder Whether to include placeholders(default false).
  * @returns The stages in topological order follow the connection to `xs`.
  */
-std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bool with_placeholder = false);
+// std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bool with_placeholder = false);
 
 struct ScheduleGraphEdge : public common::GraphEdge {
   ScheduleGraphEdge(common::GraphNode *a, common::GraphNode *b) : common::GraphEdge(a, b) {}

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cinn/ir/ir.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace optim {
@@ -11,6 +12,7 @@ namespace optim {
  * @param buffer_shared the clusters that each cluster share the same buffer.
  */
 std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
+                                                      poly::StageMap stages,
                                                       const std::vector<std::set<std::string>>& buffer_shared = {});
 
 }  // namespace optim

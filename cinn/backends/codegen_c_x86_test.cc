@@ -45,7 +45,9 @@ TEST(CodeGenCX86, basic) {
   C->stage()->Vectorize(1, 16);
   C->stage()->Unroll(1);
 
-  auto func = Lower("matmul", {A, B, C, D});
+  auto stages = poly::CreateStages({A, B, C, D});
+
+  auto func = Lower("matmul", stages, {A, B, C, D});
 
   std::cout << "before optim\n" << func->body << std::endl;
 

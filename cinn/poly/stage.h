@@ -107,6 +107,8 @@ class Stage : public Object {
  public:
   static Shared<Stage> New(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
 
+  TensorScheduleMeta meta;
+
   /**
    * The id of this element, should be unique across the transform.
    */
@@ -129,10 +131,12 @@ class Stage : public Object {
    */
   void ComputeInline();
 
+  bool inlined() const { return meta.compute_inline; }
+
   /**
    * Mark this buffer should share buffer with \p other.
    */
-  void ShareBufferWith(ir::Tensor other);
+  void ShareBufferWith(Stage* other);
 
   /**
    * Split the loop level of into two new loop levels.
@@ -342,8 +346,6 @@ class Stage : public Object {
 };
 
 std::vector<std::pair<std::string, std::string>> ExtractExtraDepLinksFromStages(const std::vector<Stage*>& stages);
-std::vector<std::pair<std::string, std::string>> ExtractLinksFromCalls(const std::vector<ir::Tensor>& tensors,
-                                                                       bool with_placeholder = false);
 
 //! This stage compute_at some other stage.
 struct ComputeAtRelation {
@@ -368,6 +370,42 @@ inline Iterator DefaultIterator(int i) { return Iterator(common::axis_name(i)); 
  * Collect the access to a tensor named \p tensor_name in \p stage.
  */
 std::vector<isl::map> GatherAccesses(const Stage* stage, const std::string& tensor_name);
+
+class _StageMap_ : public Object {
+ public:
+  Stage* operator[](const ir::Tensor& tensor);
+  const Stage* operator[](const ir::Tensor& tensor) const;
+  Stage* operator[](const ir::_Tensor_* tensor);
+  const Stage* operator[](const ir::_Tensor_* tensor) const;
+
+  Stage* Insert(const ir::Tensor& key, Stage* stage);
+
+  inline size_t size() const { return data_.size(); }
+
+  const char* type_info() const override { return __type_info__; }
+
+  static constexpr const char* __type_info__ = "StageMap";
+
+ private:
+  std::unordered_map<std::string, Shared<Stage>> data_;
+
+  friend class StageMap;
+};
+
+class StageMap : public Shared<_StageMap_> {
+ public:
+  StageMap() : Shared(new _StageMap_) {}
+
+  Stage* operator[](const ir::Tensor& tensor) { return (*self())[tensor]; }
+  const Stage* operator[](const ir::Tensor& tensor) const { return (*self())[tensor]; }
+  Stage* operator[](const ir::_Tensor_* tensor) { return (*self())[tensor]; }
+  const Stage* operator[](const ir::_Tensor_* tensor) const { return (*self())[tensor]; }
+
+  auto begin() const { return self()->data_.begin(); }
+  auto end() const { return self()->data_.end(); }
+};
+
+StageMap CreateStages(const std::vector<ir::Tensor>& tensors);
 
 }  // namespace poly
 }  // namespace cinn
