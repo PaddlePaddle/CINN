@@ -196,7 +196,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   poly::StageMap stages;
 
   explicit CorrectComputeAtRelatedIndiceMutator(const std::string& tensor_name, poly::StageMap stages)
-      : tensor_name(tensor_name) {}
+      : tensor_name(tensor_name), stages(stages) {}
 
   void operator()(Expr* e) { return ir::IRMutator<>::Visit(e, e); }
 

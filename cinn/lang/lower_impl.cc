@@ -309,7 +309,7 @@ ir::LoweredFunc LowerImpl::operator()() {
 
   std::vector<poly::Stage*> stages;
   for (auto& item : stages_) {
-    stages.push_back(item.second.get());
+    if (!item.second->inlined()) stages.push_back(item.second.get());
   }
 
   auto deps     = CollectExtraDependencies();
@@ -317,6 +317,8 @@ ir::LoweredFunc LowerImpl::operator()() {
       stages, poly::ScheduleKind::Poly, std::vector<std::pair<std::string, std::string>>(deps.begin(), deps.end()));
 
   auto func_body = GenerateFunctionBody(schedule.get());
+
+  LOG(INFO) << "func_body: " << func_body;
 
   auto tensor_map = optim::InitialAssignBuffer(&func_body, stages_);
   // copy the tensor(with buffer assigned) back to func's args.
@@ -428,7 +430,9 @@ LowerImpl::LowerImpl(const std::string& fn_name,
   }
 
   std::vector<poly::Stage*> all_stages;
-  for (auto& item : stages_) all_stages.push_back(item.second.get());
+  for (auto& item : stages_) {
+    if (!item.second->inlined()) all_stages.push_back(item.second.get());
+  }
 
   std::map<std::string, poly::Stage*> named_stages, read_caches, write_caches, read_caches_rev, write_caches_rev;
   for (auto* stage : all_stages) {

@@ -200,6 +200,7 @@ void add1(void* _args, int32_t num_args)
 
 TEST(CodeGenC, matmul) {
   using namespace ir;  // NOLINT
+  Context::Global().ResetNameId();
 
   Placeholder<float> A("A", {Expr(100), Expr(20)});
   Placeholder<float> B("B", {Expr(20), Expr(50)});
@@ -284,15 +285,15 @@ void main(void* _args, int32_t num_args)
   const float* B = ((const float*)(_B->memory));
   float* C = ((float*)(_C->memory));
   {
-    cinn_pod_value_t _pod_val__8;
-    buffer_p_to_cinn_pod_value(_A, &_pod_val__8);
-    cinn_pod_value_t _pod_val__9;
-    buffer_p_to_cinn_pod_value(_B, &_pod_val__9);
-    cinn_pod_value_t _pod_val__10;
-    buffer_p_to_cinn_pod_value(_C, &_pod_val__10);
-    cinn_pod_value_t _pod_arr_11[3];
-    cinn_args_construct(_pod_arr_11, 3, &_pod_val__8, &_pod_val__9, &_pod_val__10);
-    matmul(_pod_arr_11, 5);
+    cinn_pod_value_t _pod_val__3;
+    buffer_p_to_cinn_pod_value(_A, &_pod_val__3);
+    cinn_pod_value_t _pod_val__4;
+    buffer_p_to_cinn_pod_value(_B, &_pod_val__4);
+    cinn_pod_value_t _pod_val__5;
+    buffer_p_to_cinn_pod_value(_C, &_pod_val__5);
+    cinn_pod_value_t _pod_arr_6[3];
+    cinn_args_construct(_pod_arr_6, 3, &_pod_val__3, &_pod_val__4, &_pod_val__5);
+    matmul(_pod_arr_6, 5);
   };
   cinn_buffer_free((void*)(0), _C);
 }

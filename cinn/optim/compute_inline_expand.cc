@@ -38,10 +38,8 @@ struct SSANode : public common::GraphNode {
 
   const char *type_info() const override { return __type_info__; }
 
-  static const char *__type_info__;
+  static constexpr char *__type_info__ = "optim::SSANode";
 };
-
-const char *SSANode::__type_info__ = "SSANode";
 
 // TODO(Superjomn) the graph here is not a SSA now, it is flattern for the ir::CollectIRNodes method collects all the
 // tensors recursively, so it can not reserve the level information, fix it.
@@ -54,6 +52,7 @@ struct SSABuilder : public ir::IRMutator<> {
   }
 
   void Visit(const ir::Store *op, Expr *expr) override {
+    LOG(INFO) << "Expr: " << *expr;
     auto *node = expr->As<ir::Store>();
 
     auto *cur_graph_node = graph.RetriveNode(node->tensor.as_tensor()->name);
@@ -84,6 +83,7 @@ void ComputeInlineExpand(Expr *expr, poly::StageMap stages) {
   SSABuilder ssa_builder;
   auto &ssa_graph = ssa_builder(expr).graph;
   VLOG(4) << "inline SSA graph:\n" << ssa_graph.Visualize();
+  LOG(INFO) << "inline SSA graph:\n" << ssa_graph.Visualize();
 
   auto [node_order, edge_order] = ssa_graph.topological_order();  // NOLINT
 
@@ -97,7 +97,7 @@ void ComputeInlineExpand(Expr *expr, poly::StageMap stages) {
   for (auto *n : node_order) {
     auto *node = n->safe_as<SSANode>();
     auto t     = tensor_map.at(node->id());
-    if (stages[t]->meta.compute_inline) {
+    if (stages[t]->inlined()) {
       VLOG(2) << "inlining " << t->name;
       TensorInlineExpandMutator(t->name)(expr);
     }

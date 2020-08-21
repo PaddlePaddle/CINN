@@ -118,9 +118,11 @@ TEST(ComputeAt, Before) {
   auto C = Compute(
       {Expr(10), Expr(10)}, [&](Expr i, Expr j) { return A_cache(i, j) + B(i, j); }, "C");
 
-  A_cache->stage()->ComputeAt(C->stage(), 1);
+  auto stages = CreateStages({A_cache, C});
 
-  auto fn = Lower("fn", {A, B, A_cache, C});
+  stages[A_cache]->ComputeAt(stages[C], 1);
+
+  auto fn = Lower("fn", stages, {A, B, A_cache, C});
   LOG(INFO) << "fn:\n" << fn;
 
   auto target = R"ROC(
@@ -156,9 +158,10 @@ TEST(ComputeAt, level0) {
       },
       "C");
 
-  A_cache->stage()->ComputeAt(C->stage(), 0);
+  auto stages = CreateStages({C});
+  stages[A_cache]->ComputeAt(stages[C], 0);
 
-  auto fn = Lower("fn", {A, A_cache, C});
+  auto fn = Lower("fn", stages, {A, A_cache, C});
   LOG(INFO) << "fn:\n" << fn;
 
   auto target = R"ROC(
@@ -240,9 +243,10 @@ TEST(ComputeAt, level1) {
       },
       "C");
 
-  A_cache->stage()->ComputeAt(C->stage(), 1);
+  auto stages = CreateStages({C});
+  stages[A_cache]->ComputeAt(stages[C], 1);
 
-  auto fn = Lower("fn", {A, B, A_cache, C});
+  auto fn = Lower("fn", stages, {A, B, A_cache, C});
   LOG(INFO) << "fn:\n" << fn;
 
   auto target = R"ROC(
@@ -301,10 +305,11 @@ TEST(ComputeAt, simple) {
     auto B = Compute(
         {n / 2, n / 2}, [&](Expr i, Expr j) { return A1(i, j) + A1(i + 1, j) + A1(i + 2, j); }, "B");
 
-    B->stage()->Split(0, 16);
-    A1->stage()->ComputeAt(B->stage(), 1);
+    auto stages = CreateStages({B});
+    stages[B]->Split(0, 16);
+    stages[A1]->ComputeAt(stages[B], 1);
 
-    auto fn = Lower("fn", {A, A1, B});
+    auto fn = Lower("fn", stages, {A, A1, B});
     LOG(INFO) << "fn:\n" << fn;
 
     auto target = R"ROC(
@@ -360,10 +365,11 @@ TEST(ComputeAt, Before1) {
   {  // C_init Before C
     auto [cache_prepare, transformed_compute] = create_module();
 
-    cache_prepare->stage()->ComputeAt(transformed_compute->stage(), 1, Stage::kComputeAtBefore);
+    auto stages = CreateStages({cache_prepare, transformed_compute});
+    stages[cache_prepare]->ComputeAt(stages[transformed_compute], 1, Stage::kComputeAtBefore);
 
     // codegen and compare
-    auto fn = Lower("fn", {A, cache_prepare, transformed_compute});
+    auto fn = Lower("fn", stages, {A, cache_prepare, transformed_compute});
     LOG(INFO) << "fn:\n" << fn;
 
     auto target = utils::Trim(R"ROC(
@@ -391,10 +397,11 @@ function fn (_A, _cache, _transformed)
   {  // C_init After C
     auto [cache_prepare, transformed_compute] = create_module();
 
-    cache_prepare->stage()->ComputeAt(transformed_compute->stage(), 1, Stage::kComputeAtAfter);
+    auto stages = CreateStages({cache_prepare, transformed_compute});
+    stages[cache_prepare]->ComputeAt(stages[transformed_compute], 1, Stage::kComputeAtAfter);
 
     // codegen and compare
-    auto fn = Lower("fn", {A, cache_prepare, transformed_compute});
+    auto fn = Lower("fn", stages, {A, cache_prepare, transformed_compute});
 
     auto target = utils::Trim(R"ROC(
 function fn (_A, _cache, _transformed)
@@ -420,7 +427,7 @@ function fn (_A, _cache, _transformed)
   }
 }
 
-void TestElementwiseAddJitPrecession(std::function<void(ir::Tensor*)>&& scheduler) {
+void TestElementwiseAddJitPrecession(std::function<void(ir::Tensor*, StageMap)>&& scheduler) {
   Expr M(30);
   Expr N(40);
   Placeholder<float> A("A", {M, N});
@@ -428,11 +435,12 @@ void TestElementwiseAddJitPrecession(std::function<void(ir::Tensor*)>&& schedule
 
   auto C = Compute(
       {M, N}, [&](Var i, Var j) -> Expr { return A(i, j) + B(i, j); }, "C");
-  C->WithBuffer();
 
-  scheduler(&C);
+  auto stages = CreateStages({C});
 
-  auto fn = Lower("fn", {A, B, C});
+  scheduler(&C, stages);
+
+  auto fn = Lower("fn", stages, {A, B, C});
   LOG(INFO) << "fn:\n" << fn;
 
   Module::Builder module_builder("some_module", common::DefaultHostTarget());
@@ -465,40 +473,34 @@ void TestElementwiseAddJitPrecession(std::function<void(ir::Tensor*)>&& schedule
 
 // use an elementwise_add to test fuse precision
 TEST(Fuse, jit_precision_test) {
-  TestElementwiseAddJitPrecession([](ir::Tensor* C) { (*C)->stage()->Fuse(0, 1); });
+  TestElementwiseAddJitPrecession([](ir::Tensor* C, StageMap stages) { stages[(*C)]->Fuse(0, 1); });
 }
 
 // split test fuse precision
 TEST(Fuse, jit_precision_test2) {
-  TestElementwiseAddJitPrecession([](ir::Tensor* C) {
-    auto [i_outer, i_inner] = (*C)->stage()->Split(0, 4);
-    (*C)->stage()->Fuse(i_outer, i_inner);
+  TestElementwiseAddJitPrecession([](ir::Tensor* C, StageMap stages) {
+    auto [i_outer, i_inner] = stages[(*C)]->Split(0, 4);
+    stages[(*C)]->Fuse(i_outer, i_inner);
   });
 }
 
 TEST(Tile, jit_precision_test) {
-  TestElementwiseAddJitPrecession([](ir::Tensor* C) { (*C)->stage()->Tile(0, 1, 4, 4); });
+  TestElementwiseAddJitPrecession([](ir::Tensor* C, StageMap stages) { stages[(*C)]->Tile(0, 1, 4, 4); });
 }
 
 TEST(Reorder, jit_precision_test) {
-  TestElementwiseAddJitPrecession([](ir::Tensor* C) {
-    auto* stage = (*C)->stage();
+  TestElementwiseAddJitPrecession([](ir::Tensor* C, StageMap stages) {
+    auto* stage = stages[(*C)];
     stage->Reorder({stage->axis(1), stage->axis(0)});
   });
 }
 
 TEST(Unroll, jit_precision_test) {
-  TestElementwiseAddJitPrecession([](ir::Tensor* C) {
-    auto* stage = (*C)->stage();
-    stage->Unroll(1);
-  });
+  TestElementwiseAddJitPrecession([](ir::Tensor* C, StageMap stages) { stages[(*C)]->Unroll(1); });
 }
 
 TEST(Unroll, jit_precision_test1) {
-  TestElementwiseAddJitPrecession([](ir::Tensor* C) {
-    auto* stage = (*C)->stage();
-    stage->Unroll(0);
-  });
+  TestElementwiseAddJitPrecession([](ir::Tensor* C, StageMap stages) { stages[*C]->Unroll(0); });
 }
 
 TEST(ComputeInline, basic) {
@@ -515,14 +517,16 @@ TEST(ComputeInline, basic) {
   auto C = Compute(
       {M, N}, [=](Expr i, Expr j) -> Expr { return B2(i, j) * 2.f; }, "C");
 
-  B->stage()->ComputeInline();
-  B1->stage()->ComputeInline();
-  B2->stage()->ComputeInline();
+  auto stages = CreateStages({C});
+
+  stages[B]->ComputeInline();
+  stages[B1]->ComputeInline();
+  stages[B2]->ComputeInline();
 
   auto inlined_B = B->inline_expanded({Expr(2), Expr(1)});
   ASSERT_EQ("(A[2, 1] + 1)", utils::GetStreamCnt(inlined_B));
 
-  auto fn = Lower("fn", {A, C});
+  auto fn = Lower("fn", stages, {A, C});
 
   LOG(INFO) << "fn:\n" << fn;
 
@@ -560,11 +564,13 @@ TEST(ComputeInline, complex_graph) {
   auto C2 = Compute(
       {M, N}, [=](Expr i, Expr j) -> Expr { return B2(i, j) * 2.f; }, "C2");
 
-  B->stage()->ComputeInline();
-  B1->stage()->ComputeInline();
-  B2->stage()->ComputeInline();
+  auto stages = CreateStages({C, C1, C2});
 
-  auto fn = Lower("fn", {A, C, C1, C2});
+  stages[B]->ComputeInline();
+  stages[B1]->ComputeInline();
+  stages[B2]->ComputeInline();
+
+  auto fn = Lower("fn", stages, {A, C, C1, C2});
 
   LOG(INFO) << "fn:\n" << fn;
 
@@ -607,9 +613,11 @@ TEST(ShareBufferWith, basic) {
   auto B1 = Compute(
       {M, N}, [=](Expr i, Expr j) -> Expr { return B(i, j) + 1.f; }, "B1");
 
-  B1->stage()->ShareBufferWith(B);
+  auto stages = CreateStages({B, B1});
 
-  auto fn = Lower("fn", {A, B, B1});
+  stages[B1]->ShareBufferWith(stages[B]);
+
+  auto fn = Lower("fn", stages, {A, B, B1});
 
   LOG(INFO) << "fn:\n" << fn;
 
@@ -628,10 +636,6 @@ TEST(isl, test) {
       ctx, "[p0, p1] -> { p[i, j] : p0 = 0 and 0 <= p1 <= 2 and 4p1 <= i <= 1 + 4p1 and 0 <= j <= 9 + 4p1 - i }");
 
   isl::map schedule(ctx, "[p0, p1] -> { p[i, j] -> p[t0, t1, t2 = j] : 2t1 = i and (t0) mod 2 = 0 and 0 <= t0 <= 1 }");
-
-  // domain   = isl::manage(isl_set_remove_redundancies(domain.release()));
-  // domain   = domain.coalesce();
-  // schedule = schedule.coalesce();
 
   auto schedule_intersected = schedule.intersect_domain(domain);
   LOG(INFO) << "schedule_intersected: " << schedule_intersected.coalesce();

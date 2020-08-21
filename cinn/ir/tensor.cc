@@ -69,18 +69,6 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
 
   CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension";
 
-  /*
-  if (node->inlined()) {
-    VLOG(3) << "detect an inlined tensor and expand it";
-    auto *compute_op = node->get_compute_op();
-    CHECK(compute_op) << "Inlined Tensor should be generate from a ComputeOp";
-    CHECK(compute_op->producer_fn) << "producer_fn field is unset";
-    return compute_op->producer_fn(indices);
-  } else {
-    // CHECK(node->buffer.defined()) << utils::StringFormat("Buffer for [%s] should be defined so that it can be
-    // sliced", node->name.c_str());
-  }
-   */
   return Load::Make(*this, indices);
 }
 
