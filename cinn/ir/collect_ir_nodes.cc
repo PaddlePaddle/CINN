@@ -73,5 +73,23 @@ std::map<std::string, Expr> CollectTensorMap(Expr x, std::function<bool(const Ex
   return tensor_map;
 }
 
+std::set<Expr> CollectLoadTensors(Expr x, std::function<bool(const Expr*)>&& teller) {
+  struct Mutator : public ir::IRMutator<const Expr*> {
+    std::function<bool(const Expr*)> teller;
+    std::set<Expr> exprs;
+    Mutator(std::function<bool(const Expr*)>&& teller) : teller(std::move(teller)) {}
+
+    void operator()(const Expr* expr) { ir::IRMutator<const Expr*>::Visit(expr, expr); }
+
+    void Visit(const Load* op, const Expr* expr) override {
+      if (teller(&op->tensor)) exprs.insert(op->tensor);
+    }
+  };
+
+  Mutator mutator(std::move(teller));
+  mutator(&x);
+  return mutator.exprs;
+}
+
 }  // namespace ir
 }  // namespace cinn
