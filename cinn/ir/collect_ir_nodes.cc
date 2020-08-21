@@ -91,5 +91,36 @@ std::set<Expr> CollectLoadTensors(Expr x, std::function<bool(const Expr*)>&& tel
   return mutator.exprs;
 }
 
+std::set<Expr> CollectStoreTensors(Expr x, std::function<bool(const Expr*)>&& teller) {
+  struct Mutator : public ir::IRMutator<const Expr*> {
+    std::function<bool(const Expr*)> teller;
+    std::set<Expr> exprs;
+    Mutator(std::function<bool(const Expr*)>&& teller) : teller(std::move(teller)) {}
+
+    void operator()(const Expr* expr) { ir::IRMutator<const Expr*>::Visit(expr, expr); }
+
+    void Visit(const Store* op, const Expr* expr) override {
+      if (teller(&op->tensor)) exprs.insert(op->tensor);
+    }
+  };
+
+  Mutator mutator(std::move(teller));
+  mutator(&x);
+  return mutator.exprs;
+}
+
+std::set<Expr> CollectReferencedTensors(Expr x, const std::function<bool(const Expr*)>& teller) {
+  auto handle0 = teller;
+  auto handle1 = teller;
+
+  auto ts0 = CollectLoadTensors(x, std::move(handle0));
+  auto ts1 = CollectLoadTensors(x, std::move(handle1));
+
+  for (auto& item : ts1) {
+    ts0.insert(item);
+  }
+  return ts0;
+}
+
 }  // namespace ir
 }  // namespace cinn

@@ -304,12 +304,9 @@ std::unordered_map<std::string, Tensor> LowerImpl::GenAllTensorMap() {
 }
 
 ir::LoweredFunc LowerImpl::operator()() {
-  // get tensors
-  std::vector<Tensor> all_tensors;
-
   std::vector<poly::Stage*> stages;
-  for (auto& item : stages_) {
-    if (!item.second->inlined()) stages.push_back(item.second.get());
+  for (auto& t : CollectAllTensors()) {
+    if (!stages_[t]->inlined()) stages.push_back(stages_[t]);
   }
 
   auto deps     = CollectExtraDependencies();
@@ -427,6 +424,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
     std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
     tensors.insert(std::end(tensors), temp_tensor_args.begin(), temp_tensor_args.end());
     compu_graph_ = CreateCompGraph(tensors, stages, true /*hide_inlined*/);
+    LOG(INFO) << "compu_graph: " << compu_graph_->Visualize();
   }
 
   std::vector<poly::Stage*> all_stages;
