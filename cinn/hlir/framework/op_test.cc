@@ -17,21 +17,21 @@ namespace framework {
 
 using CCompute = std::function<std::shared_ptr<ir::Tensor>(const std::vector<ir::Tensor>)>;
 
-TEST(Operator, GetAttr) {
+TEST(Operator, GetAttrs) {
   auto add      = Operator::Get("add");
   Operator temp = *add;
-  auto strategy = Operator::GetAttr<StrategyFunction>("CINNStrategy");
+  auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
   Expr M(100), N(32);
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  NodeAttr attr;
+  NodeAttr attrs;
   std::vector<ir::Tensor> inputs{A, B};
-  std::vector<common::Type> type{common::Float(32)};
+  std::vector<Type> type{Float(32)};
   common::Target target;
   target.arch = common::Target::Arch::X86;
-  auto impl   = OpStrategy::SelectImpl(strategy[add](attr, inputs, type, target));
+  auto impl   = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, target));
 
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B)}};
   common::CINNValuePack C          = impl->fcompute(cinn_input);

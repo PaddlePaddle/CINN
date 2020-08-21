@@ -12,7 +12,7 @@ using common::CINNValuePack;
 using framework::OpStrategy;
 using framework::StrategyFunction;
 
-std::shared_ptr<OpStrategy> StrategyForAdd(const framework::NodeAttr &attr,
+std::shared_ptr<OpStrategy> StrategyForAdd(const framework::NodeAttr &attrs,
                                            const std::vector<ir::Tensor> &inputs,
                                            const std::vector<Type> &out_type,
                                            const Target &target) {
@@ -43,7 +43,7 @@ std::vector<std::vector<int>> InferShapeForAdd(const std::vector<std::vector<int
   return res;
 }
 
-std::vector<Type> InferDtypeForAdd(const std::vector<Type> &inputs_type, const framework::NodeAttr &attr) {
+std::vector<Type> InferDtypeForAdd(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;

@@ -14,21 +14,21 @@ Graph::Graph(frontend::Program prog) {
         new Node(Operator::Get(temp->op_type), temp->op_type, temp->op_type + "_" + std::to_string(counter++));
     std::shared_ptr<Node> node_ptr(node_tmp);
     node_tmp->attrs.attr_store = temp->attrs;
-    for (frontend::Variable input_v : temp->inputs) {
-      NodeData* input_data = this->RetriveNode(input_v->id)->as<NodeData>();
-      if (!input_data) {
+    for (auto& input_v : temp->inputs) {
+      common::GraphNode* graph_node = this->RetriveNode(input_v->id);
+      if (!graph_node) {
         dtype_dict[input_v->id] = input_v->type;
         shape_dict[input_v->id] = input_v->shape;
-        input_data              = new NodeData(nullptr, 0, 0, input_v->id);
+        NodeData* input_data    = new NodeData(nullptr, 0, 0, input_v->id);
         input_data->LinkTo(node_tmp);
         this->RegisterNode(input_v->id, input_data);
       } else {
-        input_data->LinkTo(node_tmp);
+        graph_node->as<NodeData>()->LinkTo(node_tmp);
       }
     }
-    for (frontend::Variable output_v : temp->outputs) {
-      int out_idx           = 0;
-      NodeData* output_data = new NodeData(node_ptr, out_idx++, 0, output_v->id);
+    for (auto& output_v : temp->outputs) {
+      int out_idx       = 0;
+      auto* output_data = new NodeData(node_ptr, out_idx++, 0, output_v->id);
       node_tmp->LinkTo(output_data);
       this->RegisterNode(output_v->id, output_data);
     }

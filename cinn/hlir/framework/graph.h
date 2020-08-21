@@ -45,10 +45,23 @@ class Graph : public cinn::common::Graph {
    * @tparam T the type of the attribute.
    */
   template <typename T>
-  inline const T& GetAttr(const std::string& attr_name) const {
+  inline const T& GetAttrs(const std::string& attr_name) const {
     auto it = attrs.find(attr_name);
     CHECK(it != attrs.end()) << "Cannot find attribute [" << attr_name << "] in the graph";
     return std::any_cast<const T&>(*it->second);
+  }
+
+  /**
+   * \brief Get the mutable attribute from attrs.
+   * @param attr_name the name of the attribute
+   * @return the reference to corresponding attribute
+   * @tparam T the type of the attribute.
+   */
+  template <typename T>
+  inline T& GetMutableAttrs(const std::string& attr_name) {
+    auto it = attrs.find(attr_name);
+    CHECK(it != attrs.end()) << "Cannot find attribute [" << attr_name << "] in the graph";
+    return std::any_cast<T&>(*it->second);
   }
 
   /**

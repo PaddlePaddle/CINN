@@ -17,7 +17,7 @@ using CINNSchedule = lang::PackedFunc;
 struct OpStrategy;
 
 using StrategyFunction = std::function<std::shared_ptr<OpStrategy>(
-    const NodeAttr&, const std::vector<ir::Tensor>&, std::vector<common::Type>&, const common::Target&)>;
+    const NodeAttr&, const std::vector<ir::Tensor>&, std::vector<Type>&, const common::Target&)>;
 
 //! Operator implementation that includes compute and schedule function.
 class OpImpl : public common::Object {

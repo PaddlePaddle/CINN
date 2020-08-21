@@ -22,7 +22,7 @@ class Operator;
 struct OpRegistry : public Registry<Operator> {
   std::recursive_mutex mutex;
   std::atomic<int> op_counter{0};
-  std::unordered_map<std::string, std::unique_ptr<std::any>> attr;
+  std::unordered_map<std::string, std::unique_ptr<std::any>> attrs;
 
   static OpRegistry* Global() {
     static OpRegistry x;
@@ -107,7 +107,7 @@ class Operator {
     return *this;
   }
   template <typename ValueType>
-  static const OpValueType<ValueType>& GetAttr(const std::string& attr_name) {
+  static const OpValueType<ValueType>& GetAttrs(const std::string& attr_name) {
     const std::any* ref = GetAttrMap(attr_name);
     if (ref == nullptr) {
       //! update the attribute map of the key by creating new empty OpMap
@@ -132,7 +132,7 @@ class Operator {
   uint32_t index{0};
   Operator() { index = OpRegistry::Global()->op_counter++; }
   static const std::any* GetAttrMap(const std::string& key) {
-    auto& dict = OpRegistry::Global()->attr;
+    auto& dict = OpRegistry::Global()->attrs;
     auto it    = dict.find(key);
     if (it != dict.end()) {
       return it->second.get();
@@ -144,7 +144,7 @@ class Operator {
   static void UpdateAttrMap(const std::string& key, std::function<void(std::any*)> updater) {
     OpRegistry* reg = OpRegistry::Global();
     std::lock_guard<std::recursive_mutex>(reg->mutex);
-    std::unique_ptr<std::any>& value = reg->attr[key];
+    std::unique_ptr<std::any>& value = reg->attrs[key];
     if (value.get() == nullptr) value.reset(new std::any());
     if (updater != nullptr) updater(value.get());
   }

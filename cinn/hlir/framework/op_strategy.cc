@@ -7,9 +7,9 @@ std::shared_ptr<OpImpl> OpStrategy::SelectImpl(const std::shared_ptr<OpStrategy>
   //! should get the host info from global environment.
   std::string curr_condition  = "default";
   std::shared_ptr<OpImpl> res = nullptr;
-  for (auto spec : strategy->specializations) {
+  for (auto& spec : strategy->specializations) {
     if (spec->condition == "default") {
-      for (auto i : spec->implementations) {
+      for (auto& i : spec->implementations) {
         if (!res || res->plevel < i->plevel) {
           res = i;
         }
@@ -24,7 +24,7 @@ void OpStrategy::AddImpl(CINNCompute fcompute, CINNSchedule fschedule, std::stri
   //! TODO(haozech) : here curr_cond should get the condition from outside.
   //! Expected : auto curr_cond = SpecializedCondition::Current();
   std::string curr_condition = "default";
-  for (auto op_spec : specializations) {
+  for (auto& op_spec : specializations) {
     if (op_spec->condition == curr_condition) {
       op_spec->AddImpl(fcompute, fschedule, std::move(name), plevel);
       return;
