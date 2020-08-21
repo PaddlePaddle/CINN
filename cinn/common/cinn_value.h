@@ -30,7 +30,7 @@ class CINNValue;
 class CINNValuePack;
 
 /**
- * A CINNValuePack is a shared Array of multiple CINNValue.
+ * A _CINNValuePack_ is a shared Array of multiple CINNValue.
  */
 struct _CINNValuePack_ : public common::Object {
   /**
@@ -66,7 +66,6 @@ struct _CINNValuePack_ : public common::Object {
 struct CINNValuePack : public Shared<_CINNValuePack_> {
   explicit CINNValuePack(_CINNValuePack_* ptr) : Shared<_CINNValuePack_>(ptr) {}
   explicit CINNValuePack(const std::vector<CINNValue>& array) : Shared<_CINNValuePack_>(_CINNValuePack_::Make(array)) {}
-
   CINNValue& operator[](int offset) { return (*operator->())[offset]; }
   const CINNValue& operator[](int offset) const { return (*operator->())[offset]; }
 

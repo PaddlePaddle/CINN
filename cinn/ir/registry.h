@@ -20,7 +20,7 @@ class Registry {
 
   struct Manager;
 
-  Registry(const std::string &);
+  explicit Registry(const std::string &);
 
  protected:
   std::string name_;

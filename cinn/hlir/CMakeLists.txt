@@ -1,6 +1,7 @@
 add_subdirectory(framework)
 add_subdirectory(pe)
 add_subdirectory(op)
+add_subdirectory(pass)
 
 foreach(cpp ${srcs})
   set(core_src
