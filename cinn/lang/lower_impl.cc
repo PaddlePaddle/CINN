@@ -9,6 +9,7 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute_at_postprocess.h"
 #include "cinn/optim/cache_read_write_replace.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace lang {
@@ -454,6 +455,8 @@ LowerImpl::LowerImpl(const std::string& fn_name,
           {},
           [](const std::vector<Expr>& axis) { return runtime::IntrinsicCall(Void(), "__syncthreads", {}); },
           Context::Global().NewName("syncthreads"));
+
+      stages->Insert(sync_threads, ir::CreateStage(sync_threads).get());
       CHECK_EQ(sync_threads->type(), Void());
       stages[sync_threads]->CtrlDepend(ir::Tensor(stage->tensor()));
 

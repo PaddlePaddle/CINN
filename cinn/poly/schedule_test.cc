@@ -17,17 +17,14 @@ TEST(CreateStages, compute_at) {
 
   auto B = lang::Compute(
       {N, N}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "B");
-  lang::Buffer B_buf(B->type());
-  B->Bind(B_buf);
 
   auto C = lang::Compute(
       {N, N, N}, [&](Var i, Var j, Var k) { return B(i, j) * B(j, k); }, "C");
-  lang::Buffer C_buf(C->type());
-  C->Bind(C_buf);
 
-  B->stage()->ComputeAtSchedule(C->stage(), 1);
+  auto stages = CreateStages({C});
+  stages[B]->ComputeAtSchedule(stages[C], 1);
 
-  auto funcs = lang::Lower("func", {B, C});
+  auto funcs = lang::Lower("func", stages, {B, C});
 
   std::cout << funcs->body << std::endl;
 
@@ -70,7 +67,14 @@ TEST(CreateStages, buffer_bind_to_multiple_tensors_schedule) {
       {N, N}, [&](Var i, Var j) { return A(i, j) + 1.f; }, "D");
   D->Bind(B_buf);
 
-  auto funcs = lang::Lower("func", {B, C, D});
+  auto stages = CreateStages({B, C, D});
+
+  stages[C]->ShareBufferWith(stages[B]);
+  stages[D]->ShareBufferWith(stages[B]);
+  stages[C]->CtrlDepend(B);
+  stages[D]->CtrlDepend(C);
+
+  auto funcs = lang::Lower("func", stages, {B, C, D});
 
   std::cout << funcs->body << std::endl;
 

@@ -47,10 +47,12 @@ void TestCallElementwise(const std::string &fn_name,
     lower_args.push_back(comp_out);
   }
 
+  auto stages = CreateStages(lower_args);
+
   auto target = common::DefaultHostTarget();
   target.arch = Target::Arch::X86;
   lang::Module::Builder builder("module0", target);
-  auto func = Lower("fn", lower_args);
+  auto func = Lower("fn", stages, lower_args);
   builder.AddFunction(func);
 
   LOG(INFO) << "func:\n" << func;
@@ -151,10 +153,13 @@ TEST(cinn_cpu_mkl_gemm_fp32, test) {
   auto out = call->TupleGet(0);
   out->WithBuffer(Float(32));
 
+  auto stages = CreateStages({call, out});
+
   auto target = common::DefaultHostTarget();
   target.arch = Target::Arch::X86;
   lang::Module::Builder builder("module0", target);
-  auto func = Lower("fn", {A, B, out, call});
+
+  auto func = Lower("fn", stages, {A, B, out, call});
   builder.AddFunction(func);
 
   LOG(INFO) << "func:\n" << func;

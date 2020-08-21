@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "cinn/backends/codegen_c.h"
+#include "cinn/cinn.h"
 #include "cinn/common/common.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/buffer.h"
@@ -40,12 +41,14 @@ TEST(Buffer, bind_to_multiple_tensors) {
   Expr N(20);
   Tensor A = lang::Compute(
       {M, N}, [=](Var i, Var j) { return Expr(0.f); }, "A");
-  A->WithBuffer();
   Tensor B = lang::Compute(
       {M, N}, [=](Var i, Var j) { return Expr(1.f); }, "B");
-  B->Bind(A->buffer);
 
-  auto funcs = lang::Lower("func1", {A, B});
+  auto stages = CreateStages({A, B});
+
+  stages[B]->ShareBufferWith(stages[A]);
+
+  auto funcs = lang::Lower("func1", stages, {A, B});
 
   Target target;
   target.arch = Target::Arch ::X86;
