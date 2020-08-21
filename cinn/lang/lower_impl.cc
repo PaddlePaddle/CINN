@@ -9,9 +9,6 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute_at_postprocess.h"
 #include "cinn/optim/cache_read_write_replace.h"
-#include "cinn/optim/ir_replace.h"
-#include "cinn/optim/ir_simplify.h"
-#include "cinn/poly/compute_at_transform.h"
 
 namespace cinn {
 namespace lang {
@@ -125,16 +122,15 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     optim::TransformGpuForloops(forloop_infos, &e);
     cuda_axis_info->ExtendWith(optim::GatherAxisInfoFromStages(stages));
   }
-
-#endif
+#endif  // CINN_WITH_CUDA
 
   return e;
 }
 
 bool TensorContainsGPUInfo(ir::Tensor t, poly::Stage* stage) {
   if (stage->inlined()) return false;
-  if (t->stage()) {
-    for (auto& info : t->stage()->forloop_infos()) {
+  if (stage) {
+    for (auto& info : stage->forloop_infos()) {
       if (info.second.device == ir::DeviceAPI::GPU) {
         return true;
       }
@@ -193,7 +189,7 @@ std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& te
   for (auto* node : graph->nodes()) {
     auto* cnode = node->safe_as<CompuGraphNode>();
     CHECK(cnode);
-    for (auto& tname : cnode->tensor->stage()->extra_depend_stages()) {
+    for (auto& tname : stages[cnode->tensor]->extra_depend_stages()) {
       auto* depend_node = graph->RetriveNode(tname);
       if (depend_node) {
         depend_node->LinkTo(node);
@@ -380,7 +376,7 @@ std::set<std::pair<std::string, std::string>> LowerImpl::CollectExtraDependencie
   for (auto* node : compu_graph_->nodes()) {
     auto* cnode = node->safe_as<CompuGraphNode>();
     CHECK(cnode);
-    for (auto& dep : cnode->tensor->stage()->extra_depend_stages()) {
+    for (auto& dep : stages_[cnode->tensor]->extra_depend_stages()) {
       deps.emplace(dep, cnode->tensor->name);
     }
   }
@@ -457,10 +453,10 @@ LowerImpl::LowerImpl(const std::string& fn_name,
           [](const std::vector<Expr>& axis) { return runtime::IntrinsicCall(Void(), "__syncthreads", {}); },
           Context::Global().NewName("syncthreads"));
       CHECK_EQ(sync_threads->type(), Void());
-      sync_threads->stage()->CtrlDepend(ir::Tensor(stage->tensor()));
+      stages[sync_threads]->CtrlDepend(ir::Tensor(stage->tensor()));
 
       for (auto& compute_at : stage->compute_ats()) {
-        sync_threads->stage()->ComputeAt(compute_at.stage.get(), compute_at.level);
+        stages[sync_threads]->ComputeAt(compute_at.stage.get(), compute_at.level);
       }
 
       temp_tensor_args_.push_back(sync_threads);

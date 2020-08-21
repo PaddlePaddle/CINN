@@ -33,6 +33,8 @@ enum class ScopeKind {
   kShared = 1,
 };
 
+class StageMap;
+
 struct StageForloopInfo {
   StageForloopInfo() = default;
   StageForloopInfo(ir::ForType for_type, ir::DeviceAPI device, uint8_t offset)
@@ -227,14 +229,14 @@ class Stage : public Object {
    * @param memory_type the memory type, "share" for CUDA share memory, "local" for CUDA local memory.
    * @param readers the readers of the \p tensor
    */
-  ir::Tensor CacheRead(const std::string& memory_type, const std::vector<ir::Tensor>& readers);
+  ir::Tensor CacheRead(const std::string& memory_type, const std::vector<ir::Tensor>& readers, poly::StageMap stages);
 
   /**
    * Create a cache for write to the original tensor.
    * @param tensor the tensor to create the cache for.
    * @param memory_type "share" for CUDA share memory, "local" for CUDA local memory.
    */
-  ir::Tensor CacheWrite(const std::string& memory_type);
+  ir::Tensor CacheWrite(const std::string& memory_type, poly::StageMap stages);
 
   /**
    * Set thread scope.

@@ -168,10 +168,12 @@ void _Tensor_::DropStage() {
 
 bool _Tensor_::is_faked() const { return false; }
 
+/*
 poly::Stage *_Tensor_::stage() {
   if (!stage_shared) return nullptr;
   return (*static_cast<Shared<poly::Stage> *>(stage_shared))->as<poly::Stage>();
 }
+ */
 
 void _Tensor_::InitAxis() const {
   // CHECK(!domain_without_reduce_axis().empty());
