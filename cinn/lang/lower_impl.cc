@@ -147,28 +147,110 @@ std::string CompuGraphNode::id() const {
   return tensor->name;
 }
 
-void CreateCompGraphHelper(
-    common::Graph* graph, ir::Tensor& t, const poly::StageMap& stages, Expr e, bool hide_inline) {  // NOLINT
-  bool hide_t               = hide_inline && stages[t]->inlined();
+/**
+ * \brief Add nodes to graph with dependencies.
+ * We create a computation graph based on the tensor dependency relations.
+ * NOTE The graph will contain the inline tensors so that the dependency will be reserved.
+ * @param graph The graph
+ * @param t The tensor.
+ * @param stages The stage map.
+ */
+void CreateCompGraphWithInlineTensors(common::Graph* graph,
+                                      const ir::Tensor& t,
+                                      StageMap stages,
+                                      std::set<ir::Tensor>* visited) {
+  if (visited->count(t)) return;
   common::GraphNode* t_node = graph->RetriveNode(t->name);
-  if (!t_node && !hide_t) {
+  if (!t_node) {
     t_node = graph->RegisterNode(t->name, new CompuGraphNode(t));
   }
 
-  auto e_tensor = e.as_tensor_ref();
-  if (e_tensor.defined()) {
-    auto* e_node = graph->RetriveNode(e_tensor->name);
-    if (!e_node && !(hide_inline && stages[e_tensor]->inlined())) {
+  visited->insert(t);
+
+  // collect dependency tensors of t
+  // here we just collect the tensors in Load nodes
+  // NOTE there may be some other cases.
+  auto deps = ir::CollectLoadTensors(t->body(), [](const Expr* x) { return x->as_tensor(); });
+  for (const auto& dep : deps) {
+    auto e_tensor = dep.as_tensor_ref();
+    auto* e_node  = graph->RetriveNode(e_tensor->name);
+    if (!e_node) {
       e_node = graph->RegisterNode(e_tensor->name, new CompuGraphNode(e_tensor));
     }
-    if (!hide_t && t_node && e_node) e_node->LinkTo(t_node);
+    e_node->LinkTo(t_node);
+    if (!visited->count(e_tensor)) {
+      CreateCompGraphWithInlineTensors(graph, e_tensor, stages, visited);
+    }
+  }
+}
+
+std::unique_ptr<common::Graph> CreateCompGraphWithInlineTensorHidden(const std::vector<ir::Tensor>& tensors,
+                                                                     StageMap stages) {
+  // create a graph with inline tensor first.
+  std::unique_ptr<common::Graph> graph(new common::Graph);
+  std::set<ir::Tensor> visited;
+  for (auto& t : tensors) {
+    CreateCompGraphWithInlineTensors(graph.get(), t, stages, &visited);
   }
 
-  for (auto* e_dep : e->expr_fields()) {
-    if (e_tensor.defined()) {
-      CreateCompGraphHelper(graph, e_tensor, stages, *e_dep, hide_inline);
-    } else {
-      CreateCompGraphHelper(graph, t, stages, *e_dep, hide_inline);
+  // greedy remove the inline tensor, each time merge the inputs of an inline tensor to its sink node.
+
+  std::set<common::GraphNode*> inline_nodes;
+  do {
+    inline_nodes = graph->CollectNodes([&](const common::GraphNode* x) {
+      auto* comp_node = x->safe_as<CompuGraphNode>();
+      return stages[comp_node->tensor]->inlined();
+    });
+    if (inline_nodes.empty()) break;
+
+    /*
+     * A -> inlined -> B
+     * C /
+     * =>
+     * A -> B
+     * C /
+     */
+    for (auto* inline_node : inline_nodes) {
+      // remove this node, merge its inputs to the sink nodes.
+      auto inline_inlinks  = inline_node->inlinks();
+      auto inline_outlinks = inline_node->outlinks();
+
+      // unlink the inline node from its inputs and outputs
+      for (auto& link : inline_inlinks) {
+        link->source()->UnLinkTo(link->sink());
+      }
+      for (auto& link : inline_outlinks) {
+        link->source()->UnLinkTo(link->sink());
+      }
+
+      // link inline node's input nodes to its output nodes.
+      for (auto out_edge : inline_outlinks) {
+        auto* out = out_edge->sink();
+        for (auto in_edge : inline_inlinks) {
+          auto* source = in_edge->source();
+          source->LinkTo(out);
+        }
+      }
+
+      graph->DropNode(inline_node);
+    }
+
+  } while (!inline_nodes.empty());
+
+  return graph;
+}
+
+void CompuGraphAddCtrlDepLinks(common::Graph* graph, StageMap stages) {
+  for (auto& x : graph->nodes()) {
+    auto* node = x->safe_as<CompuGraphNode>();
+    CHECK(node);
+    for (auto& dep : stages[node->tensor]->extra_depend_stages()) {
+      auto* dep_node = graph->RetriveNode(dep);
+      if (dep_node) {
+        VLOG(3) << "Add control link: " << dep << " -> " << node->id();
+        LOG(INFO) << "Add control link: " << dep << " -> " << node->id();
+        dep_node->LinkTo(node);
+      }
     }
   }
 }
@@ -176,29 +258,19 @@ void CreateCompGraphHelper(
 std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& tensors,
                                                StageMap stages,
                                                bool hide_inline) {
-  auto graph = std::make_unique<common::Graph>();
-
-  for (auto& t : tensors) {
-    auto tc = t;
-    if (hide_inline && stages[tc]->inlined()) continue;
-    for (auto& e : tc->expr_fields()) {
-      CreateCompGraphHelper(graph.get(), tc, stages, *e, hide_inline);
+  if (hide_inline) {
+    auto graph = CreateCompGraphWithInlineTensorHidden(tensors, stages);
+    CompuGraphAddCtrlDepLinks(graph.get(), stages);
+    return graph;
+  } else {
+    auto graph = std::make_unique<common::Graph>();
+    std::set<ir::Tensor> visited;
+    for (auto& t : tensors) {
+      CreateCompGraphWithInlineTensors(graph.get(), t, stages, &visited);
     }
+    CompuGraphAddCtrlDepLinks(graph.get(), stages);
+    return graph;
   }
-
-  // consider the extra_depend field in tensor.stage
-  for (auto* node : graph->nodes()) {
-    auto* cnode = node->safe_as<CompuGraphNode>();
-    CHECK(cnode);
-    for (auto& tname : stages[cnode->tensor]->extra_depend_stages()) {
-      auto* depend_node = graph->RetriveNode(tname);
-      if (depend_node) {
-        depend_node->LinkTo(node);
-      }
-    }
-  }
-
-  return graph;
 }
 
 void LowerImpl::CheckArgsUnique() {
@@ -424,8 +496,10 @@ LowerImpl::LowerImpl(const std::string& fn_name,
   {  // Initialize the graph
     std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
     tensors.insert(std::end(tensors), temp_tensor_args.begin(), temp_tensor_args.end());
-    compu_graph_ = CreateCompGraph(tensors, stages, true /*hide_inlined*/);
-    LOG(INFO) << "compu_graph: " << compu_graph_->Visualize();
+
+    compu_graph_ = CreateCompGraph(tensors, stages, false /*inline_hide*/);
+
+    LOG(INFO) << "compu_graph:\n" << compu_graph_->Visualize();
   }
 
   std::vector<poly::Stage*> all_stages;
@@ -480,7 +554,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
   {  // update schedule.
     std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());
     tensors.insert(std::end(tensors), temp_tensor_args_.begin(), temp_tensor_args_.end());
-    compu_graph_ = CreateCompGraph(tensors, stages, true /*hide_inlined*/);
+    compu_graph_ = CreateCompGraph(tensors, stages, true /*inline_hide*/);
 
     VLOG(1) << "Computation Graph:\n" << compu_graph_->Visualize();
   }

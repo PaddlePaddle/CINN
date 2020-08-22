@@ -40,5 +40,7 @@ TEST(CollectIRNodes, basic) {
   auto exprs    = CollectIRNodes(fn_body, [](const Expr* x) { return x; });
 }
 
+TEST(Collect)
+
 }  // namespace ir
 }  // namespace cinn

@@ -20,6 +20,9 @@ std::set<Expr> CollectLoadTensors(Expr x, std::function<bool(const Expr*)>&& tel
  */
 std::set<Expr> CollectStoreTensors(Expr x, std::function<bool(const Expr*)>&& teller);
 
+/**
+ * Collect both the Store and Load nodes.
+ */
 std::set<Expr> CollectReferencedTensors(Expr x, const std::function<bool(const Expr*)>& teller);
 
 std::map<std::string, Expr> CollectTensorMap(

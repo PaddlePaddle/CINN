@@ -568,7 +568,7 @@ TEST(Conv, basic) {
 
   auto stages = CreateStages({A, W, Apad, B});
   stages[Apad]->ComputeInline();
-  auto B_cache = stages[B]->CacheRead("shared", {B}, stages);
+  auto B_cache = stages[B]->CacheRead("shared", {}, stages);
 
   auto fn = Lower("fn", stages, {A, W, B, B_cache});
 

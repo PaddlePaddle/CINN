@@ -74,6 +74,7 @@ std::map<std::string, Expr> CollectTensorMap(Expr x, std::function<bool(const Ex
 }
 
 std::set<Expr> CollectLoadTensors(Expr x, std::function<bool(const Expr*)>&& teller) {
+  if (!x.defined()) return std::set<Expr>();
   struct Mutator : public ir::IRMutator<const Expr*> {
     std::function<bool(const Expr*)> teller;
     std::set<Expr> exprs;

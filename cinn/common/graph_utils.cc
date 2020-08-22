@@ -63,10 +63,18 @@ std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topologica
   std::map<std::string, int> indegree;
   for (auto *n : nodes()) {
     indegree[n->id()] = n->inlinks().size();
+
+    for (auto &link : n->inlinks()) {
+      LOG(INFO) << "inlink: " << link->source()->id() << " -> " << link->sink()->id();
+    }
+    for (auto &link : n->outlinks()) {
+      LOG(INFO) << "outlink: " << link->source()->id() << " -> " << link->sink()->id();
+    }
   }
 
   // insert start points first.
   for (auto *n : start_points()) {
+    LOG(INFO) << "start from: " << n->id();
     queue.push_back(n);
   }
 
@@ -81,6 +89,7 @@ std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topologica
       CHECK_EQ(edge->source(), top_node);
       edge_order.push_back(edge.get());
       auto *sink = edge->sink();
+      LOG(INFO) << "sink: " << sink->id() << " " << indegree[sink->id()];
       if ((--indegree[sink->id()]) == 0) {
         queue.push_back(sink);
       }
@@ -152,6 +161,14 @@ bool GraphEdgeCompare::operator()(const Shared<GraphEdge> &a, const Shared<Graph
     return a->sink()->id() > b->sink()->id();
   }
   return a->source()->id() < b->source()->id();
+}
+
+std::set<GraphNode *> Graph::CollectNodes(std::function<bool(const common::GraphNode *)> &&teller) {
+  std::set<GraphNode *> res;
+  for (auto *node : nodes()) {
+    if (teller(node)) res.insert(node);
+  }
+  return res;
 }
 
 }  // namespace common
