@@ -20,12 +20,14 @@ TEST(TransformGpuForloops, basic) {
   auto C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
-  auto [i_outer, i_inner] = C->stage()->Split(0, 10);  // NOLINT
-  C->stage()->Bind(0, "blockIdx.x");
-  C->stage()->Bind(1, "threadIdx.x");
-  C->stage()->Bind(2, "threadIdx.y");
+  auto stages = CreateStages({C});
 
-  auto func = Lower("elementwise_add", {A, B, C});
+  auto [i_outer, i_inner] = stages[C]->Split(0, 10);  // NOLINT
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
+  stages[C]->Bind(2, "threadIdx.y");
+
+  auto func = Lower("elementwise_add", stages, {A, B, C});
   Expr func_expr(func);
 
   std::cout << "\n" << func << std::endl;
@@ -74,15 +76,17 @@ TEST(TransformGpuForloops, multiple_thread_axis) {
   auto D = Compute(
       {M, N}, [&](Expr i, Expr j) { return C(i, j) + A(i, j); }, "D");
 
-  auto [i_outer, i_inner] = C->stage()->Split(0, 10);  // NOLINT
-  C->stage()->Bind(0, "blockIdx.x");
-  C->stage()->Bind(1, "threadIdx.x");
-  C->stage()->Bind(2, "threadIdx.y");
+  auto stages = CreateStages({C, D});
 
-  D->stage()->Bind(0, "blockIdx.x");
-  D->stage()->Bind(1, "threadIdx.x");
+  auto [i_outer, i_inner] = stages[C]->Split(0, 10);  // NOLINT
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
+  stages[C]->Bind(2, "threadIdx.y");
 
-  auto func = Lower("elementwise_add", {A, B, C, D});
+  stages[D]->Bind(0, "blockIdx.x");
+  stages[D]->Bind(1, "threadIdx.x");
+
+  auto func = Lower("elementwise_add", stages, {A, B, C, D});
 
   std::cout << "\n" << func << std::endl;
 

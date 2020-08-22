@@ -13,6 +13,8 @@
 namespace cinn {
 namespace hlir {
 namespace framework {
+using common::CINNValue;
+using common::CINNValuePack;
 using lang::Args;
 using lang::PackedFunc;
 using lang::RetValue;
@@ -31,20 +33,25 @@ std::shared_ptr<OpStrategy> StrategyTest(const NodeAttr &attr,
                                          common::Type out_type,
                                          const common::Target &target) {
   PackedFunc::body_t compute_body = [](Args args, RetValue *ret) {
-    common::CINNValuePack a = args[0];
-    ir::Expr A              = a[0];
-    ir::Expr B              = a[1];
-    *ret                    = common::_CINNValuePack_::Make(
-        {common::CINNValue(ir::Expr(pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), "C").get()))});
+    CINNValuePack a = args[0];
+    ir::Expr A      = a[0];
+    ir::Expr B      = a[1];
+    auto C          = pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), "C");
+
+    auto stages = poly::CreateStages({A.as_tensor_ref(), B.as_tensor_ref(), C});
+
+    *ret = CINNValuePack{{CINNValue(ir::Expr(C.get())), CINNValue(stages)}};
   };
   PackedFunc fcompute(compute_body);
 
   PackedFunc::body_t schedule_body = [](Args args, RetValue *ret) {
-    common::CINNValuePack a = args[0];
-    ir::Expr A              = a[0];
-    A.as_tensor_ref()->stage()->Vectorize(1, 16);
-    A.as_tensor_ref()->stage()->Unroll(1);
-    *ret = common::_CINNValuePack_::Make({common::CINNValue(A)});
+    CHECK_EQ(args.size(), 2UL);
+    CINNValuePack a       = args[0];
+    ir::Expr A            = a[0];
+    poly::StageMap stages = a[1];
+    stages[A.as_tensor_ref()]->Vectorize(1, 16);
+    stages[A.as_tensor_ref()]->Unroll(1);
+    *ret = CINNValuePack{{CINNValue(A), CINNValue(stages)}};
   };
   PackedFunc fschedule(schedule_body);
 
@@ -77,14 +84,16 @@ TEST(Operator, GetAttr) {
   target.arch = common::Target::Arch::X86;
   auto impl   = SelectImpl(strategy[add](attr, inputs, type, target));
 
-  common::CINNValuePack cinn_input = common::_CINNValuePack_::Make({common::CINNValue(A), common::CINNValue(B)});
-  common::CINNValuePack C          = impl->fcompute(cinn_input);
-  C                                = impl->fschedule(C);
-  for (int i = 0; i < C.get()->size(); i++) {
+  CINNValuePack cinn_input = CINNValuePack{{CINNValue(A), CINNValue(B)}};
+  CINNValuePack C          = impl->fcompute(cinn_input);
+  poly::StageMap stages    = C.back();
+  C                        = impl->fschedule(C, stages);
+  for (int i = 0; i < C.get()->size() - 1; i++) {
     ir::Expr temp = C[i];
     inputs.push_back(temp.as_tensor_ref());
   }
-  auto func = Lower("add1", inputs);
+
+  auto func = Lower("add1", stages, inputs);
   LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
   ASSERT_EQ(impl->name, "test.strategy.x86");

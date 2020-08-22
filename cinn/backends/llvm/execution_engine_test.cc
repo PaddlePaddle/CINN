@@ -94,7 +94,8 @@ auto CreateTestCinnModule() {
   target.os   = common::Target::OS::Linux;
   lang::Module::Builder builder("module1", target);
 
-  auto funcs = lang::Lower("elementwise_add", {A, B, C});
+  auto stages = CreateStages({C});
+  auto funcs  = lang::Lower("elementwise_add", stages, {A, B, C});
 
   // auto func = optim::Optimize(funcs);
 
@@ -138,9 +139,9 @@ TEST(llvm, module_call_lowered_func) {
     lang::Placeholder<float> b("b", {M, N});
     auto c = lang::Compute(
         {M, N}, [&](auto i, auto j) { return a(i, j) + b(i, j); }, "c");
-    c->WithBuffer();
 
-    auto fn = lang::Lower("elementwise_add", {a, b, c}, {});
+    auto stages = CreateStages({c});
+    auto fn     = lang::Lower("elementwise_add", stages, {a, b, c}, {});
     builder.AddFunction(fn);
   }
 
@@ -155,7 +156,8 @@ TEST(llvm, module_call_lowered_func) {
 
     // here we must call the output, so that it cal output something.
 
-    auto main_fn = lang::Lower("main", {a, b, c}, {});
+    auto stages  = CreateStages({c});
+    auto main_fn = lang::Lower("main", stages, {a, b, c}, {});
     builder.AddFunction(main_fn);
 
     CodeGenC codegen(common::DefaultHostTarget());
@@ -286,12 +288,14 @@ TEST(ExecutionEngine, call_extern) {
 
   auto add_out = Compute(
       {M, N}, [=](Var i, Var j) { return x(i, j) + y(i, j); }, "add_out");
-  add_out->stage()->ComputeInline();
 
   ir::Tensor res = Compute(
       {M, N}, [&](Var i, Var j) -> Expr { return lang::CallExtern("cinn_cpu_tanh_fp32", {add_out(i, j)}); }, "res");
 
-  auto func = Lower("comp", {x, y, res});
+  auto stages = CreateStages({add_out, res});
+
+  stages[add_out]->ComputeInline();
+  auto func = Lower("comp", stages, {x, y, res});
 
   Module::Builder builder("module0", common::DefaultHostTarget());
   builder.AddFunction(func);

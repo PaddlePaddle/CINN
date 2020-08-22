@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include "cinn/cinn.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/buffer.h"
@@ -9,35 +10,6 @@
 
 namespace cinn {
 namespace lang {
-
-TEST(Compute, basic) {
-  Expr M(100);
-
-  Placeholder<float> x("x", {M, M});
-
-  ir::Tensor y = Compute(
-      {M, M}, [=](Var i, Var j) -> Expr { return x(i, j) + 1.f; }, "y");
-  LOG(INFO) << "compute: " << y->operation->as<ir::ComputeOp>()->body[0];
-  y->stage()->ComputeInline();
-
-  ir::Tensor z = Compute(
-      {M, M}, [=](Var i, Var j) -> Expr { return y(i, j) * 2.f; }, "z");
-
-  LOG(INFO) << "z: " << z->operation->as<ir::ComputeOp>()->body[0];
-
-  auto schedule = poly::CreateStages(z);
-  LOG(INFO) << "group: " << schedule->groups.size();
-
-  for (auto& group : schedule->groups) {
-    LOG(INFO) << "group: " << group.nodes.size();
-    for (auto& node : group.nodes) {
-      LOG(INFO) << "node " << node->id();
-    }
-  }
-
-  ASSERT_EQ(schedule->groups.size(), 2UL);
-  LOG(INFO) << "Finished";
-}
 
 TEST(Call, basic) {
   Expr M(100);

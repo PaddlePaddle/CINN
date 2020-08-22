@@ -19,11 +19,13 @@ TEST(CacheReadWriteReplace, basic) {
   auto C = Compute(
       {M, N}, [&](Expr i, Expr j) -> Expr { return A(i, j) + B(i, j); }, "C");
 
-  // AA cache
-  auto AA = A->stage()->CacheRead("shared", {C});
-  auto CC = C->stage()->CacheWrite("local");
+  auto stages = CreateStages({C});
 
-  auto fn = Lower("fn", {A, B, C}, {}, {AA, CC});
+  // AA cache
+  auto AA = stages[A]->CacheRead("shared", {C}, stages);
+  auto CC = stages[C]->CacheWrite("local", stages);
+
+  auto fn = Lower("fn", stages, {A, B, C}, {}, {AA, CC});
 
   LOG(INFO) << "fn:\n" << Expr(fn);
 
@@ -75,12 +77,13 @@ TEST(CacheReadWriteReplace, cache_write) {
   auto C1 = Compute(
       {M, N}, [=](Expr i, Expr j) { return C0(i, j) + 1.f; }, "C1");
 
-  C->stage()->ComputeInline();
-  C0->stage()->ComputeInline();
+  auto stages = CreateStages({A, B, C, C0, C1});
+  stages[C]->ComputeInline();
+  stages[C0]->ComputeInline();
 
-  auto Co = C1->stage()->CacheWrite("shared");
+  auto Co = stages[C1]->CacheWrite("shared", stages);
 
-  auto fn = Lower("fn", {A, B, Co}, {}, {C, C0, C1});
+  auto fn = Lower("fn", stages, {A, B, Co}, {}, {C, C0, C1});
   LOG(INFO) << "\n" << fn;
 
   auto target_source = R"ROC(

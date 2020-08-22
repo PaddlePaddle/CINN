@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
+#include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
@@ -448,7 +449,8 @@ TEST(CodeGenLLVM, LowerFunc) {
 
     z->Bind(z_buf);
 
-    auto function = lang::Lower("add1", {x, y, z});
+    auto stages   = CreateStages({x, y, z});
+    auto function = lang::Lower("add1", stages, {x, y, z});
     ir::Expr func_expr(function);
 
     auto ir_function = emitter->Visit(&func_expr);
