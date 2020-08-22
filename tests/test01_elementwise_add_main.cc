@@ -41,7 +41,9 @@ TEST(test01_elementwise_add, vectorize) {
   Placeholder<float> B("B", {M, N});
 
   auto C = hlir::pe::Add(A.tensor(), B.tensor(), "C");
-  C->stage()->Vectorize(1, 8);
+
+  auto stages = CreateStages({C});
+  stages[C]->Vectorize(1, 8);
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -49,8 +51,7 @@ TEST(test01_elementwise_add, vectorize) {
   target.os   = Target::OS ::Linux;
   Module::Builder builder("module2", target);
 
-  auto stages = CreateStages({A, B, C});
-  auto funcs  = Lower("add1_vectorize", stages, {A, B, C});
+  auto funcs = Lower("add1_vectorize", stages, {A, B, C});
 
   auto func = Optimize(funcs);
   LOG(INFO) << "after optim:\n" << func;
@@ -83,12 +84,13 @@ auto BuildComputeAtExpr() {
 
 TEST(elementwise_add, compute_at) {
   auto [A, B, A_cache, C] = BuildComputeAtExpr();
-  A_cache->stage()->ComputeAt(C->stage(), 0);
+
+  auto stages = CreateStages({A, B, A_cache, C});
+  stages[A_cache]->ComputeAt(stages[C], 0);
 
   Module::Builder builder("module3", common::DefaultHostTarget());
 
-  auto stages = CreateStages({A, B, C, A_cache});
-  auto fn     = Lower("fn_compute_at", stages, {A, B, C}, {}, {A_cache}, &builder);
+  auto fn = Lower("fn_compute_at", stages, {A, B, C}, {}, {A_cache}, &builder);
 
   CodeGenCX86 compiler(common::DefaultHostTarget(), CodeGenCX86::Feature::AVX256);
   Outputs outputs;
@@ -99,12 +101,13 @@ TEST(elementwise_add, compute_at) {
 
 TEST(elementwise_add, compute_at1) {
   auto [A, B, A_cache, C] = BuildComputeAtExpr();
-  A_cache->stage()->ComputeAt(C->stage(), 1);
+
+  auto stages = CreateStages({A, B, A_cache, C});
+  stages[A_cache]->ComputeAt(stages[C], 1);
 
   Module::Builder builder("module4", common::DefaultHostTarget());
 
-  auto stages = CreateStages({A, B, C, A_cache});
-  auto fn     = Lower("fn_compute_at_level1", stages, {A, B, C}, {}, {A_cache}, &builder);
+  auto fn = Lower("fn_compute_at_level1", stages, {A, B, C}, {}, {A_cache}, &builder);
 
   CodeGenCX86 compiler(common::DefaultHostTarget(), CodeGenCX86::Feature::AVX256);
   Outputs outputs;
