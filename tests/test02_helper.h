@@ -29,7 +29,7 @@ auto CreateMatmulBasicModule(Target target, int m, int n, int k) {
   auto k1 = Var(K.as_int32(), "k1");
   auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
 
-  auto stages = CreateStages({C});
+  auto stages = CreateStages({C_init, C});
   stages[C_init]->ShareBufferWith(stages[C]);
   stages[C]->CtrlDepend(C_init);
 

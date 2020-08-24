@@ -17,7 +17,7 @@ void ActivateToExternCall(Expr *e, Target target) {
 
     void Visit(const ir::Call *op, Expr *expr) override {
       // We only process the X86 device.
-      if (target.arch != Target::Arch::X86 || target.arch != Target::Arch::Unk) return;
+      if (target.arch == Target::Arch::NVGPU) return;
 
       auto *node = expr->As<ir::Call>();
       CHECK(node);

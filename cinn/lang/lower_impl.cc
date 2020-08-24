@@ -121,7 +121,8 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
       forloop_infos[stage->id()] = for_infos;
     }
     optim::TransformGpuForloops(forloop_infos, &e);
-    cuda_axis_info->ExtendWith(optim::GatherAxisInfoFromStages(stages));
+    auto axis_info = optim::GatherAxisInfoFromStages(stages);
+    if (axis_info.valid()) cuda_axis_info->ExtendWith(axis_info);
   }
 #endif  // CINN_WITH_CUDA
 
@@ -419,7 +420,7 @@ ir::LoweredFunc LowerImpl::operator()() {
 
   // some necessary modification.
   optim::ComputeInlineExpand(&func->body, stages_);
-  Target target = func->cuda_axis_info.valid() ? common::DefaultNVGPUTarget() : common::DefaultHostTarget();
+  Target target = cuda_axis_info_.valid() ? common::DefaultNVGPUTarget() : common::DefaultHostTarget();
   auto res      = optim::Optimize(func, target, FLAGS_cinn_runtime_display_debug_info);
 
   UpdateComputeAtBufferShape(&res, stages_);

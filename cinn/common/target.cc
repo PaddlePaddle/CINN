@@ -51,6 +51,9 @@ std::ostream &operator<<(std::ostream &os, const Target &target) {
     case Target::Arch::ARM:
       os << "arm";
       break;
+    case Target::Arch::NVGPU:
+      os << "nvgpu";
+      break;
     case Target::Arch::Unk:
       os << "unk";
       break;
