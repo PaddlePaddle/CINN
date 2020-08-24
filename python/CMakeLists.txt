@@ -36,3 +36,8 @@ ADD_TEST(NAME test_cinn_pe_reduction
         COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
         python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_pe_reduction.py
 )
+
+ADD_TEST(NAME test_op_unittest
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_op.py
+)
