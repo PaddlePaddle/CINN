@@ -142,7 +142,6 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->WithBuffer();
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k0) * B(k0, j)); }, "C", {k0});
 
   auto stages = CreateStages({C_init, C});
@@ -175,7 +174,6 @@ lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->WithBuffer();
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
   target.arch = Target::Arch::X86;
@@ -184,6 +182,7 @@ lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
 
   auto stages = CreateStages({C_init, C});
   stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
 
   // Blocking by loop tiling.
   {

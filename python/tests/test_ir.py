@@ -26,7 +26,7 @@ class TestIR(unittest.TestCase):
         expr = b + 1
         print(expr)
 
-        self.assertEqual(str(b * 0), "0")
+        self.assertEqual(str(simplify(b * 0)), "0")
         print(expr)
         print(simplify(expr))
 

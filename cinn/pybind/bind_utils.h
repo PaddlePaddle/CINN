@@ -82,14 +82,12 @@ inline ValueVar ConvertToVar(const CINNValue &value) {
 }
 
 template <typename T>
-void DefineShared(py::module *m, std::string_view obj_name) {
+auto DefineShared(py::module *m, std::string_view obj_name) {
   std::string name = "Shared" + std::string(obj_name);
   py::class_<Shared<T>> shared(*m, name.c_str());
 
   shared.def(py::init<>()).def(py::init<T *>()).def(py::init<const Shared<T> &>());
-  //.def(py::init<Shared<T> &&>())k
-  // TODO: .def("reset", &Shared<T>::Reset, py::arg("x") = nullptr)
-  // TODO: .def("get", &Shared<T>::get, py::return_value_policy::reference);
+  return shared;
 }
 
 template <typename NodeType>

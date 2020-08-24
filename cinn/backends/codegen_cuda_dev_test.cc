@@ -17,6 +17,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/runtime/cpu/use_extern_funcs.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 #include "cinn/runtime/use_extern_funcs.h"
@@ -1131,7 +1132,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
 
     auto C = Compute(
         {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
-    auto stages = CreateStages({C});
+    auto stages = CreateStages({A, B, C});
     auto AL     = stages[A]->CacheRead("shared", {C}, stages);
 
     stages[C]->Split(1, 10);
@@ -1222,7 +1223,7 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
     auto C = Compute(
         {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
 
-    auto stages = CreateStages({C});
+    auto stages = CreateStages({A, B, C});
     auto AL     = stages[A]->CacheRead("shared", {C}, stages);
 
     stages[C]->Split(1, 10);
@@ -1313,7 +1314,7 @@ TEST(ElementwiseAdd, cache_write_local) {
     auto C = Compute(
         {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
 
-    auto stages = CreateStages({C});
+    auto stages = CreateStages({A, B, C});
 
     auto Co = stages[C]->CacheWrite("local", stages);
 
@@ -1394,7 +1395,7 @@ TEST(Cuda, external_function) {
     auto C = Compute(
         {M, N}, [&](Expr i, Expr j) { return CallExtern("tanh", {A(i, j)}) + CallExtern("cos", {B(i, j)}); }, "C");
 
-    auto stages = CreateStages({C});
+    auto stages = CreateStages({A, B, C});
 
     stages[C]->Split(1, 10);
     stages[C]->Bind(0, "blockIdx.x");

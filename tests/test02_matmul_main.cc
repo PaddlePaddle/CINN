@@ -311,11 +311,11 @@ TEST(matmul, call) {
   }
 
   {  // main
-
     std::vector<lang::ReturnType> returns({lang::ReturnType{Float(32), C->shape, C->name}});
     auto tensors = lang::CallLowered("matmul_kernel", {A, B}, returns);
     auto C       = tensors[0];
 
+    LOG(INFO) << "stage domain: " << stages[C]->domain();
     auto fn = Lower("matmul_main", stages, {A, B, C}, {});
     builder.AddFunction(fn);
   }

@@ -156,6 +156,9 @@ void BindType(py::module *m) {
     if (dtype == "const_cinn_buffer_p") return common::type_of<const cinn_buffer_t *>();
     if (dtype == "cinn_pod_value") return common::type_of<cinn_pod_value_t>();
     if (dtype == "cinn_pod_value_p") return common::type_of<cinn_pod_value_t *>();
+
+    CINN_NOT_IMPLEMENTED;
+    return Void();
   });
 }
 

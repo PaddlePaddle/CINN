@@ -20,7 +20,7 @@
 namespace cinn {
 namespace optim {
 
-Expr Optimize(Expr e, bool runtime_debug_info) {
+Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   CHECK(e.defined());
   auto copied = IRCopy(e);
 
@@ -38,7 +38,7 @@ Expr Optimize(Expr e, bool runtime_debug_info) {
 
   RemoveNestedBlock(&copied);
 
-  // ActivateToExternCall(&copied);
+  ActivateToExternCall(&copied, target);
   ExternCallMultiOutputShallowStore(&copied);
 
   Simplify(&copied);

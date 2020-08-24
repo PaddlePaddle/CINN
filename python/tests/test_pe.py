@@ -7,6 +7,7 @@ from cinn import ir
 from cinn import lang
 from cinn import Target
 from cinn import pe
+from cinn.poly import *
 from cinn.common import *
 
 
@@ -41,7 +42,10 @@ class TestPE(unittest.TestCase):
 
         func_name = "test_" + fn_name
 
-        func = lang.lower(func_name, [x.to_tensor(), y])
+        stages = create_stages([y])
+        func = lang.lower(func_name, stages, [x.to_tensor(), y])
+
+        print('C code', func)
 
         builder = lang.Module.Builder("elementwise_module", self.target)
         builder.add_function(func)

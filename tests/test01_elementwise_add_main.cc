@@ -51,9 +51,8 @@ TEST(test01_elementwise_add, vectorize) {
   target.os   = Target::OS ::Linux;
   Module::Builder builder("module2", target);
 
-  auto funcs = Lower("add1_vectorize", stages, {A, B, C});
+  auto func = Lower("add1_vectorize", stages, {A, B, C});
 
-  auto func = Optimize(funcs);
   LOG(INFO) << "after optim:\n" << func;
   builder.AddFunction(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
   // module.Append(C_buf);

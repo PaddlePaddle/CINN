@@ -47,23 +47,6 @@ class Tensor : public ir::IrNodeRef {
   size_t ndims() const;
 
   /**
-   * Get a tensor with a new shape but underlying buffer shared.
-   */
-  Tensor Reshape(const std::vector<Expr>& shape);
-
-  /**
-   * Slice the preceding n axis and get a new tensor that share the same buffer.
-   *
-   * \code
-   * Tensor A; // shape {M, N, K}
-   * Tensor A_slice = A.slice(1);
-   * \endcode
-   * @param naxis The count of preceding axis to slice.
-   * @return a Tensor with its computation inlined.
-   */
-  Tensor Slice(int naxis);
-
-  /**
    * Take elements from the tensor.
    * This take one or multiple expressions as indices.
    *
@@ -149,9 +132,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   bool is_tuple_get() const;
 
   Tensor TupleGet(int offset) const;
-
-  //! Reshape a tensor.
-  Tensor BufferShared(const std::string& name, const std::vector<Expr>& shape) const;
 
   /**
    * Get the names of the dependency(read or write) tensors.

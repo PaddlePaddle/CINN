@@ -44,6 +44,7 @@ void BindLower(py::module *m) {
   m->def("lower",
          &lang::Lower,
          arg("name"),
+         arg("stages"),
          arg("tensor_args"),
          arg("scalar_args")  = std::vector<ir::Var>(),
          arg("temp_tensors") = std::vector<ir::Tensor>(),

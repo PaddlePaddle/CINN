@@ -30,13 +30,6 @@ void BindMap(py::module *m) {
 }
 
 void BindStage(py::module *m) {
-  // // struct StageForloopInfo
-  // py::class_<StageForloopInfo> stage_forloop_info(*m, "StageForloopInfo");
-  // stage_forloop_info.def(py::init<ir::ForType, uint8_t, ir::DeviceAPI>())
-  //     .def_readwrite("for_type", &StageForloopInfo::for_type)
-  //     .def_readwrite("device", &StageForloopInfo::device)
-  //     .def_readwrite("offset", &StageForloopInfo::offset);
-
   py::class_<Stage, common::Object> stage(*m, "Stage");
   // enum Stage::ComputeAtKind
   py::enum_<Stage::ComputeAtKind> compute_at_kind(stage, "ComputeAtKind");
@@ -45,8 +38,6 @@ void BindStage(py::module *m) {
       .value("kComputeAtAfter", Stage::ComputeAtKind::kComputeAtAfter);
 
   DefineShared<Stage>(m, "Stage");
-  // class Stage
-  // stage.def_static("new", &Stage::New, arg("domin"), arg("expr") = ir::Expr(), arg("tensor") = nullptr)
   stage.def("id", &Stage::id)
       .def("expr", &Stage::expr)
       .def("axis", py::overload_cast<int>(&Stage::axis, py::const_))
@@ -74,11 +65,19 @@ void BindStage(py::module *m) {
       .def("cache_read", &Stage::CacheRead)
       .def("cache_write", &Stage::CacheRead);
 }
+
+void BindStageMap(py::module *m) {
+  DefineShared<poly::_StageMap_>(m, "StageMap");
+  py::class_<poly::StageMap, Shared<poly::_StageMap_>> stage_map(*m, "StageMap");
+  m->def("create_stages", &poly::CreateStages, py::arg("tensors"));
+}
+
 }  // namespace
 
 void BindPoly(py::module *m) {
   BindMap(m);
   BindStage(m);
+  BindStageMap(m);
 }
 
 }  // namespace cinn::pybind

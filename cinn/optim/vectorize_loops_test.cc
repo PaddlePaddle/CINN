@@ -38,7 +38,7 @@ TEST(Vectorize, replace_var) {
 
   auto funcs = Lower("matmul", stages, {A, B, C});
 
-  Expr func = optim::Optimize(funcs);
+  Expr func = optim::Optimize(funcs, common::DefaultHostTarget());
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -211,7 +211,7 @@ TEST(Vectorize, single_for) {
                                body,
                                vectorize_info);
 
-  forloop = optim::Optimize(forloop);
+  forloop = optim::Optimize(forloop, common::DefaultHostTarget());
 
   LOG(INFO) << "Forloop\n" << forloop;
 }
