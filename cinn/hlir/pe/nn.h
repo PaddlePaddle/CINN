@@ -1,6 +1,10 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "cinn/ir/ir.h"
+#include "cinn/lang/compute.h"
 
 namespace cinn {
 namespace hlir {
@@ -15,8 +19,13 @@ namespace pe {
  *
  * @return The result Tensor.
  */
+
 template <typename T>
-ir::Tensor Relu(const ir::Tensor& A, T threshold = static_cast<T>(0), const std::string& output_name = "T_Relu_out");
+ir::Tensor Relu(const ir::Tensor& A, T threshold = static_cast<T>(0), const std::string& output_name = "T_Relu_out") {
+  return Compute(
+      A->shape, [&](const std::vector<Expr>& indice) { return ir::Relu(A(indice), threshold); }, output_name);
+}
+
 /**
  * @brief Leaky Rectified Linear Unit.
  *
