@@ -272,6 +272,8 @@ struct Reduce : public ExprNode<Reduce> {
     kSub,
     kMul,
     kDiv,
+    kMax,
+    kMin,
   };
 
   //! The initial value.
@@ -285,10 +287,12 @@ struct Reduce : public ExprNode<Reduce> {
     n->init        = init;
     n->body        = body;
     n->reduce_type = reduce_type;
-    CHECK(init.type().valid());
     CHECK(body.type().valid());
-    CHECK_EQ(init.type(), body.type());
-    n->set_type(init.type());
+    if (init.defined()) {
+      CHECK(init.type().valid());
+      CHECK_EQ(init.type(), body.type());
+    }
+    n->set_type(body.type());
     return Expr(n);
   }
 

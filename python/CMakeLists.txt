@@ -31,3 +31,13 @@ ADD_TEST(NAME test_cinn_packed_func
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_packed_func.py
 )
+
+ADD_TEST(NAME test_cinn_pe_elementwise
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_pe_elementwise.py
+)
+
+ADD_TEST(NAME test_cinn_pe_reduction
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_pe_reduction.py
+)

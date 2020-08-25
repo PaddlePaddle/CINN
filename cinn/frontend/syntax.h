@@ -83,7 +83,7 @@ struct Instruction : public common::Shared<_Instruction_> {
   }
 
   template <typename T>
-  T GetAttr(const std::string& key) {
+  T GetAttrs(const std::string& key) {
     auto it = get()->attrs.find(key);
     CHECK(it != get()->attrs.end()) << "No attribute called [" << key << "]";
     return std::get<T>(it->second);

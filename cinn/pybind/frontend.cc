@@ -33,12 +33,12 @@ void BindFrontend(pybind11::module *m) {
            [](Instruction &self, const std::string &key, const std::vector<float> &x) { self.SetAttr(key, x); })
       .def("set_attr",
            [](Instruction &self, const std::string &key, const std::vector<std::string> &x) { self.SetAttr(key, x); })
-      .def("get_attr_int32", &Instruction::GetAttr<int>)
-      .def("get_attr_fp32", &Instruction::GetAttr<float>)
-      .def("get_attr_str", &Instruction::GetAttr<std::string>)
-      .def("get_attr_int32s", &Instruction::GetAttr<std::vector<int>>)
-      .def("get_attr_fp32s", &Instruction::GetAttr<std::vector<float>>)
-      .def("get_attr_strs", &Instruction::GetAttr<std::vector<std::string>>)
+      .def("get_attr_int32", &Instruction::GetAttrs<int>)
+      .def("get_attr_fp32", &Instruction::GetAttrs<float>)
+      .def("get_attr_str", &Instruction::GetAttrs<std::string>)
+      .def("get_attr_int32s", &Instruction::GetAttrs<std::vector<int>>)
+      .def("get_attr_fp32s", &Instruction::GetAttrs<std::vector<float>>)
+      .def("get_attr_strs", &Instruction::GetAttrs<std::vector<std::string>>)
       .def("__str__", [](Instruction &self) { return utils::GetStreamCnt(self); });
 
   py::class_<Program>(*m, "Program")
@@ -46,7 +46,6 @@ void BindFrontend(pybind11::module *m) {
       .def("size", &Program::size)
       .def("__getitem__", [](Program &self, int idx) { return self[idx]; })
       .def("add", &Program::add);
-
 }  // namespace frontend
 
 }  // namespace cinn::pybind

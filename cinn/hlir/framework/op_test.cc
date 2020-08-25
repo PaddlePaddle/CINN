@@ -8,6 +8,7 @@
 #include "cinn/cinn.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pe/broadcast.h"
 
 namespace cinn {
@@ -66,23 +67,21 @@ std::shared_ptr<OpStrategy> StrategyTest(const NodeAttr &attr,
   return strategy;
 }
 
-TEST(Operator, GetAttr) {
+TEST(Operator, GetAttrs) {
   auto add      = Operator::Get("add");
   Operator temp = *add;
-  temp.set_attr<StrategyFunction>("CINNStrategy", StrategyTest);
-  auto nick     = Operator::GetAttr<std::string>("nick_name");
-  auto strategy = Operator::GetAttr<StrategyFunction>("CINNStrategy");
+  auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
   Expr M(100), N(32);
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  NodeAttr attr;
+  NodeAttr attrs;
   std::vector<ir::Tensor> inputs{A, B};
-  common::Type type;
+  std::vector<Type> type{Float(32)};
   common::Target target;
   target.arch = common::Target::Arch::X86;
-  auto impl   = SelectImpl(strategy[add](attr, inputs, type, target));
+  auto impl   = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, target));
 
   CINNValuePack cinn_input = CINNValuePack{{CINNValue(A), CINNValue(B)}};
   CINNValuePack C          = impl->fcompute(cinn_input);
@@ -96,9 +95,8 @@ TEST(Operator, GetAttr) {
   auto func = Lower("add1", stages, inputs);
   LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
-  ASSERT_EQ(impl->name, "test.strategy.x86");
-  ASSERT_EQ(add->description, "test of op Add");
-  ASSERT_EQ(nick[add], "plus");
+  ASSERT_EQ(impl->name, "strategy.add.x86");
+  ASSERT_EQ(add->description, "Add two tensors");
 }
 
 }  // namespace framework

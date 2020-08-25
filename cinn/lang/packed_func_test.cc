@@ -64,7 +64,7 @@ TEST(Function, ReturnMultiValue) {
     int c = a + b;
     int d = a - b;
 
-    *ret = common::_CINNValuePack_::Make({common::CINNValue(c), common::CINNValue(d)});
+    *ret = common::CINNValuePack{{common::CINNValue(c), common::CINNValue(d)}};
   };
 
   PackedFunc func(body);

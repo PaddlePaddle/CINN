@@ -281,6 +281,15 @@ Expr _Tensor_::tensor_store_expanded_body() {
       case ir::Reduce::kSum:
         final_body = Tensor(this)(g_axis) + final_body;
         break;
+      case ir::Reduce::kMul:
+        final_body = Tensor(this)(g_axis) * final_body;
+        break;
+      case ir::Reduce::kMax:
+        final_body = Max::Make(Tensor(this)(g_axis), final_body);
+        break;
+      case ir::Reduce::kMin:
+        final_body = Min::Make(Tensor(this)(g_axis), final_body);
+        break;
       default:
         CINN_NOT_IMPLEMENTED
     }

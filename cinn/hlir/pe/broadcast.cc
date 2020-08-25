@@ -1,6 +1,5 @@
 #include "cinn/hlir/pe/broadcast.h"
 
-#include <algorithm>
 #include <vector>
 
 #include "cinn/common/ir_util.h"

@@ -46,7 +46,7 @@ struct Object {
 
   //! Check if the type is right.
   template <typename T>
-  bool check_type() const {
+  bool is_type() const {
     if (std::strcmp(type_info(), T::__type_info__) == 0) {
       return true;
     }

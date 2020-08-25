@@ -3,6 +3,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/schedule.h"
 #include "cinn/lang/packed_func.h"
 
@@ -16,7 +17,7 @@ using CINNSchedule = lang::PackedFunc;
 struct OpStrategy;
 
 using StrategyFunction = std::function<std::shared_ptr<OpStrategy>(
-    const NodeAttr, const std::vector<ir::Tensor>, common::Type, const common::Target)>;
+    const NodeAttr&, const std::vector<ir::Tensor>&, std::vector<Type>&, const common::Target&)>;
 
 //! Operator implementation that includes compute and schedule function.
 class OpImpl : public common::Object {
@@ -105,42 +106,12 @@ class OpStrategy : public common::Object {
    * @param name Name of the implementation
    * @param plevel Priority level of the implementation
    */
-  void AddImpl(CINNCompute fcompute, CINNSchedule fschedule, std::string name, int plevel) {
-    //! TODO(haozech) : here curr_cond should get the condition from outside.
-    //! Expected : auto curr_cond = SpecializedCondition::Current();
-    std::string curr_condition = "default";
-    for (auto op_spec : specializations) {
-      if (op_spec->condition == curr_condition) {
-        op_spec->AddImpl(fcompute, fschedule, std::move(name), plevel);
-        return;
-      }
-    }
-    std::shared_ptr<OpSpec> n = std::make_shared<OpSpec>();
-    n->condition              = curr_condition;
-    n->AddImpl(fcompute, fschedule, std::move(name), plevel);
-    this->specializations.push_back(n);
-  }
+  void AddImpl(CINNCompute fcompute, CINNSchedule fschedule, std::string name, int plevel);
+  static std::shared_ptr<OpImpl> SelectImpl(const std::shared_ptr<OpStrategy>& strategy);
 
  private:
   static constexpr char* __type_info__ = "OpStrategy";
 };
-
-std::shared_ptr<OpImpl> SelectImpl(std::shared_ptr<OpStrategy> strategy) {
-  //! should get the host info from global environment.
-  std::string curr_condition  = "default";
-  std::shared_ptr<OpImpl> res = nullptr;
-  for (auto spec : strategy->specializations) {
-    if (spec->condition == "default") {
-      for (auto i : spec->implementations) {
-        if (!res || res->plevel < i->plevel) {
-          res = i;
-        }
-      }
-    }
-  }
-  CHECK(res) << "There is no available strategy implementation! SelectImpl failed!";
-  return res;
-}
 
 }  // namespace framework
 }  // namespace hlir

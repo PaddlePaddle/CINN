@@ -9,6 +9,7 @@
 
 #include "cinn/common/debug_manager.h"
 #include "cinn/common/info_registry.h"
+#include "cinn/common/target.h"
 
 namespace cinn {
 
