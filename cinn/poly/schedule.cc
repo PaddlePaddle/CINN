@@ -131,40 +131,6 @@ std::unique_ptr<Schedule> CreateSchedule(const std::vector<Stage *> &stages,
   return nullptr;
 }
 
-// TODO(Superjomn) Consider the dependencies between TupleGet and extern Call.
-/*
-std::vector<Stage *> GatherStagesInTensors(const std::vector<ir::Tensor> &xs, bool with_placeholder) {
-  // get the stages from a tensor.
-  std::vector<Stage *> stages;
-  std::deque<ir::Tensor> queue;
-  for (auto &x : xs) {
-    CHECK(!x->inlined()) << "Inlined tensor should not be output of a function";
-    if (x->is_tuple_get()) continue;
-    queue.push_back(x);
-  }
-
-  std::set<Expr> visited;
-  while (!queue.empty()) {
-    auto top = queue.front();
-    queue.pop_front();
-    if (visited.count(Expr(top))) continue;
-    if (top->meta.compute_inline) continue;
-    visited.insert(Expr(top));
-    if (top->stage()) {
-      stages.push_back(top->stage());
-    }
-
-    auto tensor_exprs = ir::CollectIRNodes(Expr(top), [](const Expr *expr) { return expr->As<ir::_Tensor_>(); });
-    for (auto &expr : tensor_exprs) {
-      if (!visited.count(expr)) queue.push_back(ir::Tensor(const_cast<ir::_Tensor_ *>(expr.As<ir::_Tensor_>())));
-    }
-  }
-
-  std::reverse(stages.begin(), stages.end());
-  return stages;
-}
- */
-
 std::map<std::string, isl::map> CollectScheduleMapFromGroup(const ScheduleGroup &group) {
   std::map<std::string, isl::map> map;
 
