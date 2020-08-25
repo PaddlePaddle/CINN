@@ -45,7 +45,7 @@ void BindStage(py::module *m) {
       .def("axis_names", &Stage::axis_names)
       .def("bind", &Stage::Bind)
       .def("compute_inline", &Stage::ComputeInline)
-      .def("share_buffer_with", &Stage::ShareBufferWith)
+      .def("share_buffer_with", [](Stage &self, Stage &other) { self.ShareBufferWith(&other); })
       .def("split", py::overload_cast<const Iterator &, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("split", py::overload_cast<const std::string &, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("split", py::overload_cast<int, int>(&Stage::Split), arg("level"), arg("factor"))
@@ -69,6 +69,12 @@ void BindStage(py::module *m) {
 void BindStageMap(py::module *m) {
   DefineShared<poly::_StageMap_>(m, "StageMap");
   py::class_<poly::StageMap, Shared<poly::_StageMap_>> stage_map(*m, "StageMap");
+  stage_map  //
+      .def(
+          "__getitem__",
+          [](poly::StageMap self, ir::Tensor &t) -> Stage & { return *self[t]; },
+          py::return_value_policy::reference);
+
   m->def("create_stages", &poly::CreateStages, py::arg("tensors"));
 }
 
