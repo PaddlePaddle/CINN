@@ -4,6 +4,7 @@ import cinn
 import numpy as np
 from cinn import runtime
 from cinn import ir
+from cinn.poly import create_stages
 from cinn import lang
 from cinn import Target
 from cinn import pe
@@ -77,7 +78,8 @@ class TestPEElementwise(unittest.TestCase):
 
         func_name = "test_" + fn_name
 
-        func = lang.lower(func_name, [x.to_tensor(), y])
+        stages = create_stages([x.to_tensor(), y])
+        func = lang.lower(func_name, stages, [x.to_tensor(), y])
 
         builder = lang.Module.Builder("elementwise_module", self.target)
         builder.add_function(func)

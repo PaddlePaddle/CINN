@@ -132,15 +132,19 @@ std::vector<Tensor> DoReduce(const Tensor& tensor,
     auto compute_init = [&](const std::vector<Expr>& indices) { return initial; };
     Tensor C_init     = Compute(output_shape, compute_init, output_name + "_init");
     Tensor C          = Compute(output_shape, compute, output_name, reduce_axes);
+
+    stages->InsertLazily(C);
+    stages->InsertLazily(C_init);
+
     stages[C]->ShareBufferWith(stages[C_init]);
     stages[C]->CtrlDepend(C_init);
-    // stages[C_init]->ComputeAtSchedule(C->stage(), 0, poly::Stage::kComputeAtBefore);
 
     tensors.emplace_back(C);
     tensors.emplace_back(C_init);
   } else {
     Tensor C = Compute(output_shape, compute, output_name, reduce_axes);
     tensors.emplace_back(C);
+    stages->InsertLazily(C);
   }
   return tensors;
 }

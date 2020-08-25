@@ -293,8 +293,6 @@ Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
 
   Map trans(domain_.ctx(), id(), from_iters, to_iters, conds, id());
 
-  LOG(INFO) << "fuse trans: " << trans;
-
   transform_ = transform_.apply_range(trans.to_isl());
   {
     std::vector<std::string> iter_names;
@@ -623,7 +621,7 @@ int Stage::GetTransformedLevel(int level) {
 }
 
 Stage *_StageMap_::operator[](const ir::Tensor &tensor) {
-  CHECK(data_.count(tensor->name));
+  CHECK(data_.count(tensor->name)) << "StageMap has no stage for tensor [" << tensor->name << "]";
   return data_[tensor->name].get();
 }
 const Stage *_StageMap_::operator[](const ir::Tensor &tensor) const {
@@ -635,14 +633,17 @@ Stage *_StageMap_::operator[](const ir::_Tensor_ *tensor) {
   return data_[tensor->name].get();
 }
 const Stage *_StageMap_::operator[](const ir::_Tensor_ *tensor) const {
-  CHECK(data_.count(tensor->name));
+  CHECK(data_.count(tensor->name)) << "StageMap has no stage for tensor [" << tensor->name << "]";
   return data_.at(tensor->name).get();
 }
 
 Stage *_StageMap_::Insert(const ir::Tensor &key, Stage *stage) {
   CHECK(stage);
   data_[key->name].Reset(stage);
+  return stage;
 }
+
+Stage *_StageMap_::InsertLazily(const ir::Tensor &key) { return Insert(key, ir::CreateStage(key).get()); }
 
 StageMap CreateStages(const std::vector<ir::Tensor> &tensors) {
   StageMap stages;

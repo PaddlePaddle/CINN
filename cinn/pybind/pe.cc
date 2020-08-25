@@ -57,6 +57,7 @@ void BindPE(py::module* m) {
   m->def(#name__,                      \
          &hlir::pe::fn__,              \
          py::arg("x"),                 \
+         py::arg("stages"),            \
          py::arg("axes"),              \
          py::arg("keep_dims") = false, \
          py::arg("initial"),           \
@@ -68,6 +69,7 @@ void BindPE(py::module* m) {
   m->def(#name__,                      \
          &hlir::pe::fn__,              \
          py::arg("x"),                 \
+         py::arg("stages"),            \
          py::arg("axes"),              \
          py::arg("keep_dims") = false, \
          py::arg("out")       = "T_" #name__ "_out")

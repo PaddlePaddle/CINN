@@ -381,6 +381,7 @@ class _StageMap_ : public Object {
   const Stage* operator[](const ir::_Tensor_* tensor) const;
 
   Stage* Insert(const ir::Tensor& key, Stage* stage);
+  Stage* InsertLazily(const ir::Tensor& key);
 
   inline size_t size() const { return data_.size(); }
 

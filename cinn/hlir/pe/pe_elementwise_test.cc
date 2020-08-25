@@ -8,6 +8,7 @@
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/reduction.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
 
