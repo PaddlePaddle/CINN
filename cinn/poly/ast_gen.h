@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/poly/poly_scheduler.h"
 #include "cinn/poly/schedule.h"

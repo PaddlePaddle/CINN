@@ -3,7 +3,7 @@
 #include <unordered_set>
 
 #include "cinn/ir/ir_printer.h"
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {

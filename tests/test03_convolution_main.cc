@@ -24,8 +24,6 @@ TEST(test03_conv, basic) {
         return ir::Select::Make(cond, A(yy - pad, xx - pad, cc, nn), Expr(0.f));
       },
       "Apad");
-  Buffer Apad_buf(Apad->type());
-  Apad->Bind(Apad_buf);
 
   Var rc(Expr(0), Expr(in_channel), "rc");
   Var ry(Expr(0), Expr(kernel), "ry");
@@ -37,13 +35,14 @@ TEST(test03_conv, basic) {
                    },
                    "B",
                    {ry, rx, rc});
-  Buffer B_buf(Apad->type());
-  B->Bind(B_buf);
 
   Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64);
 
   Module::Builder builder("conv", target);
-  auto func = Lower("conv", {A, W, Apad, B});
+
+  auto stages = CreateStages({Apad, B});
+
+  auto func = Lower("conv", stages, {A, W, Apad, B});
 
   builder.AddFunction(func);
 

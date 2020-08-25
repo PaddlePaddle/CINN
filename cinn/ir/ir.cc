@@ -8,8 +8,8 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/lang/module.h"
-#include "cinn/lang/tensor.h"
 #include "cinn/optim/ir_simplify.h"
 
 namespace cinn {

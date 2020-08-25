@@ -7,30 +7,18 @@
 namespace cinn {
 namespace optim {
 
-void ActivateToExternCall(Expr *e) {
+void ActivateToExternCall(Expr *e, Target target) {
   struct Mutator : ir::IRMutator<Expr *> {
+    Target target;
+
+    Mutator(Target target) : target(target) {}
+
     void operator()(Expr *e) { ir::IRMutator<>::Visit(e, e); }
 
-    void Visit(const ir::Activate *op, Expr *expr) override {
-      auto *node = expr->As<ir::Activate>();
-      operator()(&node->operand(0));
-
-      switch (node->kind) {
-#define __(code__, func__)                                 \
-  case ir::Activate::Kind::code__:                         \
-    *expr = lang::CallExtern(#func__, {node->operand(0)}); \
-    break;
-        __(kTanh, cinn_cpu_tanh_fp32)
-        __(kCeil, cinn_cpu_ceil_fp32)
-        __(kFloor, cinn_cpu_floor_fp32)
-        __(kExp, cinn_cpu_exp_fp32)
-#undef __
-        default:
-          CINN_NOT_IMPLEMENTED
-      }
-    }
-
     void Visit(const ir::Call *op, Expr *expr) override {
+      // We only process the X86 device.
+      if (target.arch == Target::Arch::NVGPU) return;
+
       auto *node = expr->As<ir::Call>();
       CHECK(node);
       static const std::vector<std::string> extern_funcs_fp32 = {
@@ -55,7 +43,8 @@ void ActivateToExternCall(Expr *e) {
     }
   };
 
-  Mutator()(e);
+  Mutator m(target);
+  m(e);
 }
 
 }  // namespace optim

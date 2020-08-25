@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 
+#include "cinn/cinn.h"
 #include "cinn/lang/buffer.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/placeholder.h"
@@ -16,14 +17,12 @@ TEST(lower, basic) {
 
   Placeholder<float> A("A", {Expr(M), Expr(N)});
 
-  Buffer B_buf(Float(32));
-
   auto B = Compute(
       {M, N}, [=](Var i, Var j) -> Expr { return A(i, j) + 1.f; }, "B");
 
-  B->Bind(B_buf);
+  auto stages = CreateStages({B});
 
-  auto lower_funcs = Lower("cal_B", {A, B});
+  auto lower_funcs = Lower("cal_B", stages, {A, B});
 
   LOG(INFO) << "lower_size " << lower_funcs;
 
@@ -53,12 +52,12 @@ TEST(lower, more_complex) {
   Placeholder<float> A("A", {Expr(M), Expr(N)});
   Placeholder<float> B("B", {Expr(N), Expr(K)});
 
-  Buffer C_buf(Float(32));
   auto C = Compute(
       {M, N, K}, [=](Var i, Var j, Var k) -> Expr { return A(i, j) * B(j, k); }, "C");
-  C->Bind(C_buf);
 
-  auto lower_funcs = Lower("cal_C", {A, B, C});
+  auto stages = CreateStages({C});
+
+  auto lower_funcs = Lower("cal_C", stages, {A, B, C});
 
   std::cout << "func:\n" << Expr(lower_funcs->self()) << std::endl;
 }
@@ -75,9 +74,9 @@ TEST(lower, dynamic_shape) {
 
   auto C = Compute(
       {B, N, K}, [=](Var i, Var j, Var k) -> Expr { return X(i, j) * W(j, k); }, "C");
-  C->WithBuffer();
 
-  auto lower_funcs = Lower("cal_C", {X, W, C});
+  auto stages      = CreateStages({C});
+  auto lower_funcs = Lower("cal_C", stages, {X, W, C});
 
   std::cout << "func:\n" << Expr(lower_funcs->self()) << std::endl;
 }
@@ -97,9 +96,11 @@ TEST(lower, lowered_call) {
   auto tensors = CallLowered("lowered_fun0", {X, Y, Z}, return_types);
   auto C       = tensors[0];
 
+  auto stages = CreateStages({X, Y, Z, C});
+
   LOG(INFO) << "call_op: " << C->operation->as<ir::CallOp>()->call_expr;
 
-  auto lower_func = Lower("fn", {X, Y, Z, C});
+  auto lower_func = Lower("fn", stages, {X, Y, Z, C});
 }
 
 // test the temp_buffers are all collected.
@@ -119,7 +120,9 @@ TEST(lower, temp_buffer_collects) {
 
   lang::Module::Builder b("somemodule", common::DefaultHostTarget());
 
-  auto fn = Lower("fn", {A, output}, {}, {}, &b);
+  auto stages = CreateStages({B, C, D, output});
+
+  auto fn = Lower("fn", stages, {A, output}, {}, {}, &b);
 
   auto module = b.Build();
 

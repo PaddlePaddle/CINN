@@ -807,7 +807,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Range_ *op) { __IR_EMITTER_NOT_IMPLEM
 llvm::Value *CodeGenLLVM::Visit(const ir::_Buffer_ *op) { return GetVar(op->name); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Tensor_ *op) {
-  CHECK(!op->inlined());
   return GetVar(op->name);
   auto *buffer_op = op->buffer.As<ir::_Buffer_>();
   // return (*named_vars_)[buffer_op->name] = Visit(buffer_op);

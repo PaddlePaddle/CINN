@@ -14,12 +14,9 @@
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/function_base.h"
 #include "cinn/lang/buffer.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
-
-namespace poly {
-struct Stage;
-}  // namespace poly
 
 namespace lang {
 template <typename T>
@@ -35,47 +32,19 @@ constexpr bool GE(int a, int b) { return a >= b; }
 
 class _Tensor_;
 
-/**
- * @brief Tensor representing a possible input, or intermediate computation result.
- *
- * Tensor is the a general type in CINN, it holds a computation(analygous to a node in SSA graph) or placeholder. A
- * tensor can `Bind` a Buffer, or just has a expression and easy to inline expanded in the consumer's computation.
- *
- * # Reshape
- * An existing tensor can be reshaped with underlying buffer shared.
- * \code
- * auto C1 = C.Reshape({...});
- * \endcode
- */
-enum class ViewKind {
-  kPrecending = 0,
-  kCollapse   = 1,
-};
-
 class Tensor : public ir::IrNodeRef {
  public:
   Tensor() = default;
   explicit Tensor(ir::IrNode* n) : IrNodeRef(n) {}
+  Tensor(const std::string& name,
+         Type dtype,
+         const std::vector<Expr>& shape,
+         const std::vector<Expr>& domain,
+         FunctionRef fn,
+         const std::vector<Var>& reduce_axis = {});
 
   //! Get number of dimensions.
-  inline size_t ndims() const;
-
-  /**
-   * Get a tensor with a new shape but underlying buffer shared.
-   */
-  Tensor Reshape(const std::vector<Expr>& shape);
-
-  /**
-   * Slice the preceding n axis and get a new tensor that share the same buffer.
-   *
-   * \code
-   * Tensor A; // shape {M, N, K}
-   * Tensor A_slice = A.slice(1);
-   * \endcode
-   * @param naxis The count of preceding axis to slice.
-   * @return a Tensor with its computation inlined.
-   */
-  Tensor Slice(int naxis);
+  size_t ndims() const;
 
   /**
    * Take elements from the tensor.
@@ -120,31 +89,6 @@ class PlaceholderOp;
 struct ReadCacheRelation;
 struct WriteCacheRelation;
 
-//! Store the infomations about some other tensor `compute_at` this tensor.
-struct ComputeAtInfo {
-  ComputeAtInfo(const std::string& consumer_tensor_name,
-                const std::string& producer_tensor_name,
-                const std::vector<int>& adjusted_producer_shape,
-                const std::vector<int>& preceding_offset_for_producer_load,
-                int level)
-      : consumer_tensor_name(consumer_tensor_name),
-        producer_tensor_name(producer_tensor_name),
-        adjusted_producer_shape(adjusted_producer_shape),
-        preceding_offset_for_producer_load(preceding_offset_for_producer_load),
-        level(level) {}
-
-  std::string consumer_tensor_name;
-  std::string producer_tensor_name;
-  //! The shape of the buffer belong to the producer tensor after compute_at.
-  //! NOTE this doesn't support dynamic dimension yet.
-  std::vector<int> adjusted_producer_shape;
-  //! The preceding offsets for the indice in the Loads for the producers, the offset will make the minimum indice to be
-  //! 0, size of this should equal to level+1.
-  std::vector<int> preceding_offset_for_producer_load;
-  //! the level of the consumer tensor's transformed range.
-  int level{-1};
-};
-
 /**
  * _Tensor_ holds the content of a Tensor.
  *
@@ -172,17 +116,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! The bound buffer, for each tensor if it is not inline.
   Buffer buffer;
 
-  //! read cache relation if has one.
-  std::unique_ptr<ReadCacheRelation> read_cache_relation;
-  //! write cache relation if has one.
-  std::unique_ptr<WriteCacheRelation> write_cache_relation;
-
-  //! Store the information of all the other producer tensors `compute_at` this tensor.
-  std::vector<ComputeAtInfo> compute_at_infos;
-
-  //! Polyhedral element for analysis and schedule.
-  poly::Stage* stage();
-
   std::vector<Expr> domain_with_reduce_axis() const;
   const std::vector<Expr>& domain_without_reduce_axis() const { return domain; }
 
@@ -193,17 +126,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      const std::vector<Expr>& domain,
                      FunctionRef fn,
                      const std::vector<Var>& reduce_axis = {});
-
-  bool compute_inline{false};
-
-  //! Name of the tensors thouse share buffer with `this` tensor.
-  std::set<std::string> tensors_to_share_buffer_with;
-
-  //! Reshape a tensor.
-  Tensor BufferShared(const std::string& name, const std::vector<Expr>& shape) const;
-
-  //! Tell whether this tensor is inline.
-  bool inlined() const;
 
   //! Tell whether this tensor represents a tuple (consists of one or multiple tensors as output of a extern Call).
   bool is_tuple() const;
@@ -222,7 +144,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
    * @param statement The name of a statement(equivalent to the id of tensor).
    * @return A boolean.
    */
-  bool IsDependOnStatement(const std::string& statement);
+  bool IsDependOnStatement(std::string_view statement);
 
   /**
    * Get the names of the tensors thouse this tensor depends on.
@@ -232,7 +154,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   /**
    * Tell whether this tensor has same shape with \p other.
    */
-  bool SameShapeWith(const Tensor& other) const;
+  bool HasSameShapeWith(const Tensor& other) const;
 
   //! Operation related.
   // @{
@@ -289,14 +211,16 @@ class _Tensor_ : public ExprNode<_Tensor_> {
    */
   bool Uses(const ir::Tensor& other);
 
-  //! Create a buffer belong to this tensor.
-  void WithBuffer(const Type& type = Void());
-  void WithBuffer(const std::string& memory_type, const Type& type = Void());
   //! Bind to a buffer, will persist data to the buffer in runtime.
   void Bind(lang::Buffer& buffer);  // NOLINT
   void Bind(const Buffer& buffer);
   void UnBind(lang::Buffer& buffer);  // NOLINT
 
+  //! Create a buffer belong to this tensor.
+  void WithBuffer(const Type& type = Void());
+  void WithBuffer(const std::string& memory_type, const Type& type = Void());
+
+ private:
   //! Create the polyhedral element for analysis.
   //! It is based on the shape.
   void InitStage();
@@ -308,32 +232,24 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   bool is_faked() const;
 
   //! Initialize the axis field after the shape field is assigned.
-  void InitAxis();
+  void InitAxis() const;
 
   //! Extract the tensors of the buffer this writes to. We should schedule this tensor after those tensors, or there
   //! will be read-write conflicts.
   void ExtractBufferDependedTensors();
 
-  isl::set GenerateIslDomain();
+  isl::set GenerateIslDomain() const;
 
   //! The names of the tensors depend the same buffer and should schedule before this.
   std::set<std::string> buffer_depended_tensor_names_;
 
   //! Normal axis.
-  std::vector<Var> axis_;
+  mutable std::vector<Var> axis_;
+
+  friend Shared<poly::Stage> CreateStage(Tensor tensor);
 };
 
-struct ReadCacheRelation {
-  //! Name of the cache tensor.
-  std::string cache_name;
-  //! Names of the reading tensors.
-  std::vector<std::string> readers;
-};
-
-struct WriteCacheRelation {
-  //! Name of the cache tensor.
-  std::string cache_name;
-};
+Shared<poly::Stage> CreateStage(Tensor tensor);
 
 class _Operation_;
 class Operation : public FunctionRef {

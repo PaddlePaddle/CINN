@@ -4,7 +4,7 @@
 
 #include <iostream>
 
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 
 namespace cinn {
 namespace backends {

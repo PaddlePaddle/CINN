@@ -22,13 +22,17 @@ std::shared_ptr<OpStrategy> StrategyForAdd(const framework::NodeAttr &attrs,
     ir::Expr B      = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
-    *ret = CINNValuePack{{CINNValue(ir::Expr(pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), UniqName("C")).get()))}};
+    auto out = pe::Add(A.as_tensor_ref(), B.as_tensor_ref(), UniqName("C"));
+
+    auto stages = CreateStages({out});
+    *ret        = CINNValuePack{{CINNValue(ir::Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule add_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack a = args[0];
-    ir::Expr A      = a[0];
-    *ret            = CINNValuePack{{CINNValue(A)}};
+    CINNValuePack arg_pack      = args[0];
+    ir::Expr A [[maybe_unused]] = arg_pack[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

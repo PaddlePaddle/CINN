@@ -14,8 +14,8 @@
 #include "cinn/ir/node.h"
 #include "cinn/ir/operation.h"
 #include "cinn/ir/registry.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/lang/packed_func.h"
-#include "cinn/lang/tensor.h"
 #include "cinn/poly/stage.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
@@ -229,7 +229,7 @@ void BindIrIr(py::module *m) {
   DefineExprNode<ir::Reduce>(m, "Reduce");
   py::class_<ir::Reduce, ExprNode<ir::Reduce>> reduce(*m, "Reduce");
   py::enum_<ir::Reduce::ReduceType> reduce_type(reduce, "ReduceType");
-  reduce_type.value("kSum", ir::Reduce::ReduceType::kSum)
+  reduce_type  //
       .value("kSum", ir::Reduce::ReduceType::kSum)
       .value("kSub", ir::Reduce::ReduceType::kSub)
       .value("kMul", ir::Reduce::ReduceType::kMul)
@@ -468,15 +468,6 @@ void BindOperation(py::module *m) {
       .def_static("make", &ir::CallOp::Make)
       .def("func_type", &ir::CallOp::func_type);
 
-  py::class_<ir::PrecedingViewOp /*, _Operation_Wrapper*/> preceding_view_op(*m, "PrecedingViewOp");
-  preceding_view_op.def_readwrite("tensor", &ir::PrecedingViewOp::tensor)
-      .def_readwrite("preceding_axis", &ir::PrecedingViewOp::preceding_axis)
-      .def_static("make", &ir::PrecedingViewOp::Make)
-      .def("func_type", &ir::PrecedingViewOp::func_type);
-
-  py::class_<ir::BufferShareOp /*, _Operation_Wrapper*/> buffer_shared_op(*m, "BufferShareOp");
-  buffer_shared_op.def("func_type", &ir::BufferShareOp::func_type).def_static("make", &ir::BufferShareOp::Make);
-
   py::class_<ir::ComputeOp /*, _Operation_Wrapper*/> compute_op(*m, "ComputeOp");
   compute_op.def_readwrite("reduce_axis", &ir::ComputeOp::reduce_axis)
       .def_readwrite("shape", &ir::ComputeOp::shape)
@@ -488,18 +479,12 @@ void BindOperation(py::module *m) {
 }
 
 void BindIrTensor(py::module *m) {
-  py::enum_<ir::ViewKind> view_kind(*m, "ViewKind");
-  view_kind.value("kPrecending", ir::ViewKind::kPrecending).value("kCollapse", ir::ViewKind::kCollapse);
-
   py::class_<ir::Tensor, ir::IrNodeRef> tensor(*m, "Tensor");
   tensor.def(py::init<>())
       .def(py::init<ir::IrNode *>())
       .def("ndims", &ir::Tensor::ndims)
       // TODO(fuchang01): c++ not implemented .def("slice", &ir::Tensor::Slice)
-      .def("reshape", &ir::Tensor::Reshape)
-      .def("expand_inlined", &ir::Tensor::ExpandInlined)
-      .def(
-          "stage", [](ir::Tensor &self) { return self->stage(); }, py::return_value_policy::reference);
+      .def("expand_inlined", &ir::Tensor::ExpandInlined);
 
   DefineExprNode<ir::_Tensor_>(m, "_Tensor_");
   py::class_<ir::_Tensor_, ir::ExprNode<ir::_Tensor_>> _tensor_(*m, "_Tensor_");
@@ -511,21 +496,16 @@ void BindIrTensor(py::module *m) {
       // TODO(fuchang01): c++ not implemented .def_readwrite("read_cache_relation", &ir::_Tensor_::read_cache_relation)
       // TODO(fuchang01): c++ not implemented .def_readwrite("write_cache_relation",
       // &ir::_Tensor_::write_cache_relation)
-      .def("stage", &ir::_Tensor_::stage, py::return_value_policy::reference)
       .def("domain_with_reduce_axis", &ir::_Tensor_::domain_without_reduce_axis)
       .def("domain_without_reduce_axis", &ir::_Tensor_::domain_without_reduce_axis)
       .def_static("make", &ir::_Tensor_::Make)
-      .def_readwrite("compute_inline", &ir::_Tensor_::compute_inline)
-      .def_readwrite("tensors_to_share_buffer_with", &ir::_Tensor_::tensors_to_share_buffer_with)
-      .def("buffer_shared", &ir::_Tensor_::BufferShared)
-      .def("inlined", &ir::_Tensor_::inlined)
       .def("is_tuple", &ir::_Tensor_::is_tuple)
       .def("is_tuple_get", &ir::_Tensor_::is_tuple_get)
       .def("tuple_get", &ir::_Tensor_::TupleGet)
       .def("get_depend_tensor_names", &ir::_Tensor_::GetDependTensorNames)
       .def("is_depend_on_statement", &ir::_Tensor_::IsDependOnStatement)
       .def("depending_tensor_names", &ir::_Tensor_::DependingTensorNames)
-      .def("same_shape_with", &ir::_Tensor_::SameShapeWith)
+      .def("same_shape_with", &ir::_Tensor_::HasSameShapeWith)
       .def("is_compute_node", &ir::_Tensor_::is_compute_node)
       .def("is_placeholder_node", &ir::_Tensor_::is_placeholder_node)
       .def("is_call_node", &ir::_Tensor_::is_call_node)
@@ -554,25 +534,7 @@ void BindIrTensor(py::module *m) {
            py::arg("memory_type"),
            py::arg("type") = Type::type_t::Void)
       .def("bind", py::overload_cast<lang::Buffer &>(&ir::_Tensor_::Bind))
-      .def("bind", py::overload_cast<const ir::Buffer &>(&ir::_Tensor_::Bind))
-      // TODO(fuchang01): c++ not implemented .def("un_bind", &ir::_Tensor_::UnBind)
-      .def("init_stage", &ir::_Tensor_::InitStage)
-      .def("drop_stage", &ir::_Tensor_::DropStage)
-      // TODO(fuchang01): c++ not implemented .def("fake_stage", &ir::_Tensor_::FakeStage)
-      .def("is_faked", &ir::_Tensor_::is_faked)
-      .def("init_axis", &ir::_Tensor_::InitAxis)
-      // TODO(fuchang01): c++ not implemented .def("extract_buffer_depended_tensors",
-      // &ir::_Tensor_::ExtractBufferDependedTensors)
-      .def("generate_isl_domain", &ir::_Tensor_::GenerateIslDomain);
-
-  // DefineExprNode(m, &_tensor_, "_Tensor_");
-
-  py::class_<ir::ReadCacheRelation> read_cache_relation(*m, "ReadCacheRelation");
-  read_cache_relation.def_readwrite("cache_name", &ir::ReadCacheRelation::cache_name)
-      .def_readwrite("readers", &ir::ReadCacheRelation::readers);
-
-  py::class_<ir::WriteCacheRelation> write_cache_relation(*m, "WriteCacheRelation");
-  write_cache_relation.def_readwrite("cache_name", &ir::WriteCacheRelation::cache_name);
+      .def("bind", py::overload_cast<const ir::Buffer &>(&ir::_Tensor_::Bind));
 
   py::class_<ir::Operation /*, ir::FunctionDef*/> operation(*m, "Operation");
   operation.def(py::init<>()).def(py::init<ir::IrNode *>()).def_readwrite("name", &ir::Operation::name);

@@ -14,6 +14,10 @@ struct cinn_buffer_t;
 
 namespace cinn {
 
+namespace poly {
+struct StageMap;
+}  // namespace poly
+
 namespace ir {
 
 class Expr;
@@ -69,6 +73,18 @@ struct CINNValuePack : public Shared<_CINNValuePack_> {
   CINNValue& operator[](int offset) { return (*operator->())[offset]; }
   const CINNValue& operator[](int offset) const { return (*operator->())[offset]; }
 
+  size_t size() const { return (*operator->()).size(); }
+
+  CINNValue& back() {
+    CHECK_GT((*operator->()).size(), 0);
+    return (*operator->())[size() - 1];
+  }
+
+  const CINNValue& back() const {
+    CHECK_GT((*operator->()).size(), 0);
+    return (*operator->())[size() - 1];
+  }
+
   _CINNValuePack_* operator->() { return get(); }
   const _CINNValuePack_* operator->() const { return get(); }
 };
@@ -94,6 +110,7 @@ class CINNValue : public cinn_pod_value_t {
   explicit CINNValue(const ir::Var& value);
   explicit CINNValue(const ir::Expr& value);
   explicit CINNValue(const CINNValuePack& value);
+  explicit CINNValue(const poly::StageMap& value);
 
   bool defined() const { return type_code_ != kNull; }
 
@@ -109,6 +126,7 @@ class CINNValue : public cinn_pod_value_t {
   operator ir::Var() const;
   operator ir::Expr() const;
   operator CINNValuePack() const;
+  operator poly::StageMap() const;
   // @}
 
   //! Assign operators
@@ -124,6 +142,7 @@ class CINNValue : public cinn_pod_value_t {
   CINNValue& operator=(void* value);
   CINNValue& operator=(const CINNValuePack& value);
   CINNValue& operator=(const char* value);
+  CINNValue& operator=(const poly::StageMap& value);
   // @}
 
   //! Set the value.

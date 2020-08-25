@@ -13,7 +13,7 @@ namespace optim {
  * @param tensor_name name of the tensor to expand inline.
  * @param memo a memo to avoid duplicate expand.
  */
-void ComputeInlineExpand(Expr* expr);
+void ComputeInlineExpand(Expr* expr, poly::StageMap stages);
 
 }  // namespace optim
 }  // namespace cinn

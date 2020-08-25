@@ -51,6 +51,7 @@ void CheckNoIslCallRemains(const Expr* expr);
 Expr LowerGroup(const poly::ScheduleGroup& group,
                 const std::map<std::string, Expr>& tuple_to_expr,
                 std::map<std::string, Tensor>* global_tensor_map,
+                StageMap stages,
                 ir::CudaAxisInfo* cuda_axis_info = nullptr);
 
 /**
@@ -75,7 +76,9 @@ struct CompuGraphNode : public common::GraphNode {
  * @param hide_inline hide inline tensor nodes.
  * @return a graph.
  */
-std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& tensors, bool hide_inline = false);
+std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& tensors,
+                                               StageMap stages,
+                                               bool hide_inline = false);
 
 class LowerImpl {
  public:
@@ -88,6 +91,7 @@ class LowerImpl {
    * The \p tensor_args contains both input and output tensors.
    */
   LowerImpl(const std::string& fn_name,
+            StageMap stages,
             const std::vector<Tensor>& tensor_args,
             const std::vector<Var>& scalar_args,
             const std::vector<Tensor>& temp_tensor_args = {});
@@ -156,6 +160,8 @@ class LowerImpl {
   const std::vector<Var>& scalar_args_;
   std::vector<Tensor> temp_tensor_args_;
 
+  StageMap stages_;
+
   //! A computation graph generated from the tensor_args and scalar_args.
   std::unique_ptr<common::Graph> compu_graph_;
 
@@ -166,7 +172,7 @@ class LowerImpl {
 /**
  * \brief Tell whether a tensor contains some GPU related information, such some schedule.
  */
-bool TensorContainsGPUInfo(ir::Tensor t);
+bool TensorContainsGPUInfo(ir::Tensor t, poly::Stage* stage);
 
 /**
  * Mark the PolyFor as Vectorized if it is scheduled Vectorize in Stage.

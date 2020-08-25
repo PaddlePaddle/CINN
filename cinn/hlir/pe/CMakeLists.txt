@@ -14,5 +14,5 @@ foreach(cpp ${srcs})
       CACHE INTERNAL "")
 endforeach()
 
-cc_test(test_pe_elementwise SRCS test_pe_elementwise.cc DEPS core)
-cc_test(test_pe_broadcast SRCS test_pe_broadcast.cc DEPS core)
+cc_test(test_pe_elementwise SRCS pe_elementwise_test.cc DEPS core)
+cc_test(test_pe_broadcast SRCS pe_broadcast_test.cc DEPS core)

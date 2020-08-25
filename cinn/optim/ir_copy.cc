@@ -159,14 +159,11 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
       auto buffer    = Visit(&buffer_expr);
       tensor->buffer = buffer.as_buffer_ref();
     }
-    tensor->domain                       = domain;
-    tensor->shape                        = shape;
-    tensor->reduce_axis                  = op->reduce_axis;
-    tensor->operation                    = operaion;
-    tensor->name                         = name;
-    tensor->compute_inline               = op->compute_inline;
-    tensor->compute_at_infos             = op->compute_at_infos;
-    tensor->tensors_to_share_buffer_with = op->tensors_to_share_buffer_with;
+    tensor->domain      = domain;
+    tensor->shape       = shape;
+    tensor->reduce_axis = op->reduce_axis;
+    tensor->operation   = operaion;
+    tensor->name        = name;
 
     tensor_map[tensor->name] = tensor;
 

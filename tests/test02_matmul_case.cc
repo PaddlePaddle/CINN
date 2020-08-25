@@ -149,7 +149,10 @@ TEST(test02, basic) {
 
   TEST_FUNC3(matmul_array_packing_dynamic_shape, 1e-5);
 
-  TEST_FUNC(matmul_main);
+  // Currently, the execution of a LoweredFunc is scheduled by the outer framework, so no need to Call inside another
+  // LoweredFunc.
+  // TODO(Superjomn) Fixit latter.
+  // TEST_FUNC(matmul_main);
 
 #define TEST_LLVM_MATMUL(test_name, TARGET)                                                                      \
   do {                                                                                                           \

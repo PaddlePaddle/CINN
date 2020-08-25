@@ -27,6 +27,7 @@ using lang::Module;
 using lang::Placeholder;
 using lang::Sum;
 using optim::Optimize;
+using poly::CreateStages;
 
 using ir::logic_and;
 using ir::logic_or;

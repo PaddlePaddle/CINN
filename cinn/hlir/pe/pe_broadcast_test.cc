@@ -26,12 +26,14 @@ void TestBroadcastPE(const std::string &fn_name,
 
   auto C = func_op(A.tensor(), B.tensor(), "C");
 
+  auto stages = CreateStages({C});
+
   Target target;
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
   Module::Builder builder("module0", target);
-  auto func = Lower("fn", {A, B, C});
+  auto func = Lower("fn", stages, {A, B, C});
   builder.AddFunction(func);
   LOG(INFO) << "func:\n" << func;
 

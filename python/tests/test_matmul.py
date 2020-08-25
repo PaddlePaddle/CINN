@@ -7,6 +7,7 @@ from cinn import runtime
 from cinn import ir
 from cinn import lang
 from cinn import Target
+from cinn.poly import create_stages
 
 
 class TestMamul(unittest.TestCase):
@@ -58,13 +59,15 @@ def create_matmul_basic(target, m, n, k):
         a(v[0], k1.to_expr_mutable()) * b(k1.to_expr_mutable(), v[1])), "c",
                      [k1])
 
-    c_init.stage().share_buffer_with(c)
-    c.stage().ctrl_depend(c_init)
+    stages = create_stages([c_init, c])
+    c_stage = stages[c]
+    stages[c_init].share_buffer_with(c_stage)
+    stages[c].ctrl_depend(c_init)
 
     builder = lang.Module.Builder("matmul", target)
 
     ts = [a.to_tensor(), b.to_tensor(), c_init, c]
-    func = lang.lower("matmul", ts)
+    func = lang.lower("matmul", stages, ts)
     print('func', func)
     builder.add_function(func)
     return builder.build()
@@ -82,13 +85,14 @@ def create_matmul_tile(target, m, n, k):
         a(v[0], k1.to_expr_mutable()) * b(k1.to_expr_mutable(), v[1])), "c",
                      [k1])
 
-    c.stage().share_buffer_with(c_init)
-    c.stage().ctrl_depend(c_init)
-    c.stage().tile(0, 1, 4, 4)
+    stages = create_stages([c_init, c])
+    stages[c].share_buffer_with(stages[c_init])
+    stages[c].ctrl_depend(c_init)
+    stages[c].tile(0, 1, 4, 4)
 
     builder = lang.Module.Builder("matmul_tile", target)
     ts = [a.to_tensor(), b.to_tensor(), c_init, c]
-    func = lang.lower("matmul_tile", ts)
+    func = lang.lower("matmul_tile", stages, ts)
     print('func', func)
     builder.add_function(func)
     return builder.build()

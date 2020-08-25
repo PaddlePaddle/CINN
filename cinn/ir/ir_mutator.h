@@ -199,7 +199,8 @@ void IRMutator<T>::Visit(const Let *expr, T op) {
 template <typename T>
 void IRMutator<T>::Visit(const Reduce *expr, T op) {
   auto *node = op->template As<Reduce>();
-  IRVisitorBase<void, T>::Visit(&node->init, &node->init);
+  if (node->init.defined()) IRVisitorBase<void, T>::Visit(&node->init, &node->init);
+  CHECK(node->body.defined());
   IRVisitorBase<void, T>::Visit(&node->body, &node->body);
 }
 

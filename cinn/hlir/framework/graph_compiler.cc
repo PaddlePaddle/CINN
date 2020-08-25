@@ -1,5 +1,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
+
 #include <unordered_map>
+
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/tensor.h"
 
@@ -13,7 +15,6 @@ std::unique_ptr<Program> GraphCompiler::Build() {
     auto* node = n->safe_as<Node>();
     if (node) {
       auto lowered_func = GetOpFunc(node);
-      LOG(INFO) << "CodeGen: " << lowered_func;
       m_builder_.AddFunction(lowered_func);
     }
   }
@@ -21,6 +22,7 @@ std::unique_ptr<Program> GraphCompiler::Build() {
   if (!compiler_) {
     compiler_ = backends::Compiler::Create(target_);
   }
+
   compiler_->Build(m_builder_.Build());
 
   return std::unique_ptr<Program>(new Program(scope_, BuildInstructions()));
@@ -45,15 +47,15 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
 }
 
 ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
-  auto strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-  auto shape_dict = graph_->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
-  auto dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
   for (auto& i : node->inlinks()) {
     std::string input_id      = i->source()->as<NodeData>()->id();
-    std::vector<int> in_shape = shape_dict[input_id];
-    Type dtype                = dtype_dict[input_id];
+    std::vector<int> in_shape = shape_dict.at(input_id);
+    Type dtype                = dtype_dict.at(input_id);
     CHECK_EQ(dtype, Float(32)) << "The dtype of node " << input_id
                                << " is not float! Other dtype is not implemented yet.";
     lang::Placeholder<float> temp(input_id, in_shape);
@@ -61,10 +63,14 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     cinn_inputs.push_back(common::CINNValue(temp));
   }
 
+  auto stages = CreateStages(inputs);
+
+  cinn_inputs.push_back(common::CINNValue(stages));
+
   std::vector<Type> out_types;
   for (auto& out : node->outlinks()) {
-    std::string out_id = out->source()->as<NodeData>()->id();
-    Type dtype         = dtype_dict[out_id];
+    std::string out_id = out->sink()->safe_as<NodeData>()->id();
+    Type dtype         = dtype_dict.at(out_id);
     out_types.push_back(dtype);
   }
 
@@ -72,11 +78,14 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
 
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
   C                       = impl->fschedule(C);
-  for (int i = 0; i < C.get()->size(); i++) {
+  for (int i = 0; i < C.get()->size() - 1; i++) {
     ir::Expr temp = C[i];
+    stages->Insert(temp.as_tensor_ref(), ir::CreateStage(temp.as_tensor_ref()).get());
     inputs.push_back(temp.as_tensor_ref());
   }
-  auto func = Lower(GenOpFuncName(node), inputs);
+
+  auto func = Lower(GenOpFuncName(node), stages, inputs);
+
   return func;
 }
 
@@ -97,9 +106,9 @@ std::vector<std::string> GraphCompiler::OpGetOutputNames(const Node* node) const
 }
 
 std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& graph) {
-  auto shape_dict = graph->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
-  auto dtype_dict = graph->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
-  auto scope      = std::make_shared<Scope>();
+  auto& shape_dict = graph->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  auto& dtype_dict = graph->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  auto scope       = std::make_shared<Scope>();
   for (auto& iter : shape_dict) {
     auto* var    = scope->Var<Tensor>(iter.first);
     auto& tensor = std::get<Tensor>(*var);
@@ -108,9 +117,9 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
       shape.push_back(Shape::dim_t(shape_dim));
     }
     tensor.Resize(Shape{shape});
-    CHECK_EQ(dtype_dict[iter.first], Float(32))
+    CHECK_EQ(dtype_dict.at(iter.first), Float(32))
         << "The dtype of node " << iter.first << " is not float! Other dtype is not implemented yet.";
-    auto* data = tensor.mutable_data<float>(target);
+    tensor.mutable_data<float>(target);
   }
   return scope;
 }

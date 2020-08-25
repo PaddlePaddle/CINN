@@ -11,15 +11,14 @@ namespace optim {
 
 TEST(Optimize, Unroll) {
   Placeholder<float> A("A", {100, 20});
-  lang::Buffer buf(Float(32));
 
-  auto C = Compute({Expr(100), Expr(20)}, [&](Var i, Var j) { return A(i, j) + 1.f; });
-  C->Bind(buf);
+  auto C      = Compute({Expr(100), Expr(20)}, [&](Var i, Var j) { return A(i, j) + 1.f; });
+  auto stages = CreateStages({C});
 
-  C->stage()->Split(1, 5);
-  C->stage()->Unroll(2);
+  stages[C]->Split(1, 5);
+  stages[C]->Unroll(2);
 
-  auto func = Lower("matmul", {A, C});
+  auto func = Lower("matmul", stages, {A, C});
 
   auto out = R"ROC(
 {

@@ -42,11 +42,10 @@ TEST(IrSimplify, basic) {
                  9.f * 10000.f * 1.f * 1.f * 0.f;
         },
         "B");
-    Buffer B_buf(B->type());
-    B->Bind(B_buf);
 
-    auto func = Lower("func", {B});
-    auto body = func->body;
+    auto stages = CreateStages({B});
+    auto func   = Lower("func", stages, {B});
+    auto body   = func->body;
 
     LOG(INFO) << "original body:\n" << body;
     Simplify(&body);
@@ -75,10 +74,10 @@ TEST(IrSimplify, basic) {
                  9.f * 10000.f * 1.f * 1.f * 0.f;
         },
         "B");
-    Buffer B_buf(B->type());
-    B->Bind(B_buf);
 
-    auto func = Lower("func", {B});
+    auto stages = CreateStages({B});
+
+    auto func = Lower("func", stages, {B});
     auto body = func->body;
 
     LOG(INFO) << "original body:\n" << body;

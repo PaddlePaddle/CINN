@@ -1,5 +1,5 @@
 #include "cinn/pybind/bind.h"
-#include "cinn/runtime/cpu/use_extern_host_intrinsics.h"
+#include "cinn/backends/extern_func_jit_register.h"
 
 namespace py = pybind11;
 
@@ -28,4 +28,7 @@ PYBIND11_MODULE(core_api, m) {
   BindPE(&pe);
   BindFrontend(&frontend);
 }
+
 }  // namespace cinn::pybind
+
+CINN_USE_REGISTER(host_intrinsics);

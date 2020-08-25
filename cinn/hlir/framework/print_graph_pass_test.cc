@@ -19,7 +19,7 @@ void PrintGraphPass(Graph* src) {
   auto store_node = std::get<0>(src->topological_order());
   int index       = 0;
   for (auto& i : store_node) {
-    if (i->check_type<Node>()) {
+    if (i->is_type<Node>()) {
       res += std::to_string(index) + ":";
       res += i->safe_as<Node>()->attrs.node_name;
       res += "(" + i->id() + ")\n";

@@ -7,14 +7,15 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/lang/module.h"
 #include "cinn/lang/packed_func.h"
-#include "cinn/lang/tensor.h"
 #include "cinn/poly/schedule.h"
 
 namespace cinn {
 namespace lang {
 using ir::Tensor;
+using poly::StageMap;
 
 /**
  * \brief Lower the computation of \p tensor_args and \p scalar_args to a LoweredFunc.
@@ -27,6 +28,7 @@ using ir::Tensor;
  * scalar_args.
  */
 ir::LoweredFunc Lower(const std::string &name,
+                      StageMap stages,
                       const std::vector<Tensor> &tensor_args,
                       const std::vector<Var> &scalar_args     = {},
                       const std::vector<Tensor> &temp_tensors = {},

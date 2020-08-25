@@ -26,7 +26,9 @@ TEST(Compiler, x86) {
   {                                    // test x86
     auto [A, B, C] = create_module();  // NOLINT
 
-    auto fn = Lower("fn", {A, B, C});
+    auto stages = CreateStages({C});
+
+    auto fn = Lower("fn", stages, {A, B, C});
 
     lang::Module::Builder builder("some_module", common::DefaultHostTarget());
     builder.AddFunction(fn);
@@ -56,10 +58,12 @@ TEST(Compiler, x86) {
 #ifdef CINN_WITH_CUDA
   {                                    // cuda
     auto [A, B, C] = create_module();  // NOLINT
-    C->stage()->Bind(0, "blockIdx.x");
-    C->stage()->Bind(1, "threadIdx.x");
+    auto stages    = CreateStages({C});
 
-    auto fn = Lower("fn", {A, B, C});
+    stages[C]->Bind(0, "blockIdx.x");
+    stages[C]->Bind(1, "threadIdx.x");
+
+    auto fn = Lower("fn", stages, {A, B, C});
 
     lang::Module::Builder builder("some_module", common::DefaultHostTarget());
     builder.AddFunction(fn);

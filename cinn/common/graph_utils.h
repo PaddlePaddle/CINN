@@ -85,6 +85,30 @@ class GraphNode : public Object {
     return std::make_tuple(a, b);
   }
 
+  void UnLinkTo(GraphNode* other) {
+    LOG(INFO) << "Unlink " << this->id() << " to " << other->id();
+    if (other == this) return;
+    // remove outlink
+    {
+      auto it = std::find_if(outlinks_.begin(), outlinks_.end(), [&](const Shared<GraphEdge>& x) {
+        return x->sink() == other || x->source() == other;
+      });
+      if (it != outlinks_.end()) {
+        outlinks_.erase(it);
+        other->UnLinkTo(this);
+      }
+    }
+    {
+      auto it = std::find_if(inlinks_.begin(), inlinks_.end(), [&](const Shared<GraphEdge>& x) {
+        return x->sink() == other || x->source() == other;
+      });
+      if (it != inlinks_.end()) {
+        inlinks_.erase(it);
+        other->UnLinkTo(this);
+      }
+    }
+  }
+
   bool IsLinkedTo(GraphNode* other) const {
     for (auto& e : outlinks_) {
       if (e->sink()->id() == other->id()) return true;
@@ -154,6 +178,16 @@ class Graph {
 
   std::vector<const GraphNode*> nodes() const;
   std::vector<GraphNode*> nodes();
+
+  //! Collect the nodes match the condition defined by \p teller in the graph.
+  std::set<GraphNode*> CollectNodes(std::function<bool(const common::GraphNode*)>&& teller);
+
+  void DropNode(GraphNode* n) {
+    auto it = std::find_if(nodes_.begin(), nodes_.end(), [&](auto& x) { return x.get() == n; });
+    if (it != nodes_.end()) {
+      nodes_.erase(it);
+    }
+  }
 
   //! Get a string representation to visualize a graph.
   std::string Visualize() const;

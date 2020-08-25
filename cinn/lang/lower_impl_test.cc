@@ -27,7 +27,8 @@ TEST(CreateCompGraph, single_layer) {
     LOG(INFO) << "e: " << *e;
   }
 
-  auto graph = CreateCompGraph({A, B, C});
+  auto stages = CreateStages({C});
+  auto graph  = CreateCompGraph({A, B, C}, stages);
 
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
@@ -73,7 +74,8 @@ TEST(CreateCompGraph, multi_layers) {
   auto E = Compute(
       {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j) + C(i, j) + D(i, j); }, "E");
 
-  auto graph = CreateCompGraph({A, B, E});
+  auto stages = CreateStages({C, D, E});
+  auto graph  = CreateCompGraph({A, B, E}, stages);
 
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
@@ -137,12 +139,13 @@ TEST(CreateCompGraph, multi_layers_with_extra_deps) {
   auto F = Compute(
       {M, N}, [&](Expr i, Expr j) { return C(i, j) + D(i, j) + E(i, j); }, "F");
 
+  auto stages = CreateStages({C, D, E, F});
   // C->D
-  D->stage()->CtrlDepend(C);
+  stages[D]->CtrlDepend(C);
   // C->E
-  E->stage()->CtrlDepend(C);
+  stages[E]->CtrlDepend(C);
 
-  auto graph = CreateCompGraph({A, B, F});
+  auto graph = CreateCompGraph({A, B, F}, stages);
 
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
@@ -205,9 +208,10 @@ TEST(CreateCompGraph, inline_compatible) {
   auto E = Compute(
       {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j) + C(i, j) + D(i, j); }, "E");
 
-  D->stage()->ComputeInline();
+  auto stages = CreateStages({C, D, E});
+  stages[D]->ComputeInline();
 
-  auto graph = CreateCompGraph({A, B, E}, true);
+  auto graph = CreateCompGraph({A, B, E}, stages, true);
 
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
@@ -263,9 +267,10 @@ TEST(CreateCompGraph, inline_compatible1) {
   auto E = Compute(
       {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j) + C(i, j) + D(i, j); }, "E");
 
-  C->stage()->ComputeInline();
+  auto stages = CreateStages({C, D, E});
+  stages[C]->ComputeInline();
 
-  auto graph = CreateCompGraph({A, B, E}, true);
+  auto graph = CreateCompGraph({A, B, E}, stages, true);
 
   LOG(INFO) << "graph:\n" << graph->Visualize();
 

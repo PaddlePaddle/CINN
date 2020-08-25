@@ -15,11 +15,12 @@ TEST(Vectorize, basic) {
   Placeholder<float> A("A", {M});
   Placeholder<float> B("B", {M});
 
-  auto C = Compute({M}, [&](Expr i) { return A(i) + B(i); });
+  auto C      = Compute({M}, [&](Expr i) { return A(i) + B(i); });
+  auto stages = CreateStages({C});
 
-  C->stage()->Vectorize(0, 8);
+  stages[C]->Vectorize(0, 8);
 
-  auto fn = Lower("fn", {A, B, C});
+  auto fn = Lower("fn", stages, {A, B, C});
 
   LOG(INFO) << "fn: " << fn;
 

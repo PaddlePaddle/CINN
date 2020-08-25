@@ -4,8 +4,8 @@
 #include <vector>
 
 #include "cinn/ir/lowered_func.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/lang/module.h"
-#include "cinn/lang/tensor.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
