@@ -45,9 +45,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
 }
 
 ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
-  auto strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-  auto shape_dict = graph_->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
-  auto dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto& shape_dict = graph_->GetMutableAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  auto& dtype_dict = graph_->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
   for (auto& i : node->inlinks()) {
