@@ -22,7 +22,7 @@ using lang::RetValue;
 
 using CCompute = std::function<std::shared_ptr<ir::Tensor>(const std::vector<ir::Tensor>)>;
 
-CINN_REGISTER_OP(add)
+CINN_REGISTER_OP(_add_test_)
     .describe("test of op Add")
     .set_num_inputs(2)
     .set_num_outputs(1)
@@ -68,7 +68,7 @@ std::shared_ptr<OpStrategy> StrategyTest(const NodeAttr &attr,
 }
 
 TEST(Operator, GetAttrs) {
-  auto add      = Operator::Get("add");
+  auto add      = Operator::Get("_add_test_");
   Operator temp = *add;
   auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
@@ -85,14 +85,15 @@ TEST(Operator, GetAttrs) {
 
   CINNValuePack cinn_input = CINNValuePack{{CINNValue(A), CINNValue(B)}};
   CINNValuePack C          = impl->fcompute(cinn_input);
-  poly::StageMap stages    = C.back();
+  ASSERT_EQ(C->size(), 2UL);
+  poly::StageMap stages    = C[1];
   C                        = impl->fschedule(C, stages);
   for (int i = 0; i < C.get()->size() - 1; i++) {
     ir::Expr temp = C[i];
     inputs.push_back(temp.as_tensor_ref());
   }
 
-  auto func = Lower("add1", stages, inputs);
+  auto func = Lower("_add_test_", stages, inputs);
   LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
   ASSERT_EQ(impl->name, "strategy.add.x86");
