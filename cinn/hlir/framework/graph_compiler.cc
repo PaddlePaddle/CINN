@@ -46,14 +46,14 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
 
 ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-  auto& shape_dict = graph_->GetMutableAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
-  auto& dtype_dict = graph_->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
   for (auto& i : node->inlinks()) {
     std::string input_id      = i->source()->as<NodeData>()->id();
-    std::vector<int> in_shape = shape_dict[input_id];
-    Type dtype                = dtype_dict[input_id];
+    std::vector<int> in_shape = shape_dict.at(input_id);
+    Type dtype                = dtype_dict.at(input_id);
     CHECK_EQ(dtype, Float(32)) << "The dtype of node " << input_id
                                << " is not float! Other dtype is not implemented yet.";
     lang::Placeholder<float> temp(input_id, in_shape);
@@ -63,8 +63,8 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
 
   std::vector<Type> out_types;
   for (auto& out : node->outlinks()) {
-    std::string out_id = out->source()->as<NodeData>()->id();
-    Type dtype         = dtype_dict[out_id];
+    std::string out_id = out->sink()->safe_as<NodeData>()->id();
+    Type dtype         = dtype_dict.at(out_id);
     out_types.push_back(dtype);
   }
 
@@ -110,7 +110,7 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     tensor.Resize(Shape{shape});
     CHECK_EQ(dtype_dict.at(iter.first), Float(32))
         << "The dtype of node " << iter.first << " is not float! Other dtype is not implemented yet.";
-    auto* data = tensor.mutable_data<float>(target);
+    tensor.mutable_data<float>(target);
   }
   return scope;
 }
