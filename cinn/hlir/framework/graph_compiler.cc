@@ -97,9 +97,9 @@ std::vector<std::string> GraphCompiler::OpGetOutputNames(const Node* node) const
 }
 
 std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& graph) {
-  auto shape_dict = graph->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
-  auto dtype_dict = graph->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
-  auto scope      = std::make_shared<Scope>();
+  auto& shape_dict = graph->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  auto& dtype_dict = graph->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  auto scope       = std::make_shared<Scope>();
   for (auto& iter : shape_dict) {
     auto* var    = scope->Var<Tensor>(iter.first);
     auto& tensor = std::get<Tensor>(*var);
@@ -108,7 +108,7 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
       shape.push_back(Shape::dim_t(shape_dim));
     }
     tensor.Resize(Shape{shape});
-    CHECK_EQ(dtype_dict[iter.first], Float(32))
+    CHECK_EQ(dtype_dict.at(iter.first), Float(32))
         << "The dtype of node " << iter.first << " is not float! Other dtype is not implemented yet.";
     auto* data = tensor.mutable_data<float>(target);
   }
