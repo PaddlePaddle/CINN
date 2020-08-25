@@ -5,8 +5,8 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/ir/ir_operators.h"
-#include "cinn/lang/compute.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/lang/compute.h"
 
 namespace cinn {
 namespace hlir {
@@ -134,7 +134,7 @@ std::vector<Tensor> DoReduce(const Tensor& tensor,
     Tensor C          = Compute(output_shape, compute, output_name, reduce_axes);
     stages[C]->ShareBufferWith(stages[C_init]);
     stages[C]->CtrlDepend(C_init);
-    //stages[C_init]->ComputeAtSchedule(C->stage(), 0, poly::Stage::kComputeAtBefore);
+    // stages[C_init]->ComputeAtSchedule(C->stage(), 0, poly::Stage::kComputeAtBefore);
 
     tensors.emplace_back(C);
     tensors.emplace_back(C_init);
@@ -180,7 +180,7 @@ std::vector<Tensor> Sum(const Tensor& A,
                         bool keep_dims,
                         const ir::Expr& initial,
                         const std::string& output_name) {
-  return Reduce(A, stages,axes, ReduceSum, keep_dims, initial, output_name);
+  return Reduce(A, stages, axes, ReduceSum, keep_dims, initial, output_name);
 }
 
 std::vector<Tensor> Prod(const Tensor& A,
@@ -192,13 +192,15 @@ std::vector<Tensor> Prod(const Tensor& A,
   return Reduce(A, stages, axes, ReduceMul, keep_dims, initial, output_name);
 }
 
-Tensor Max(const Tensor& A, StageMap stages, const std::vector<int>& axes, bool keep_dims, const std::string& output_name) {
+Tensor Max(
+    const Tensor& A, StageMap stages, const std::vector<int>& axes, bool keep_dims, const std::string& output_name) {
   std::vector<Tensor> tensors = Reduce(A, stages, axes, ReduceMax, keep_dims, Expr(), output_name);
   CHECK(!tensors.empty());
   return tensors.front();
 }
 
-Tensor Min(const Tensor& A, StageMap stages, const std::vector<int>& axes, bool keep_dims, const std::string& output_name) {
+Tensor Min(
+    const Tensor& A, StageMap stages, const std::vector<int>& axes, bool keep_dims, const std::string& output_name) {
   std::vector<Tensor> tensors = Reduce(A, stages, axes, ReduceMin, keep_dims, Expr(), output_name);
   CHECK(!tensors.empty());
   return tensors.front();

@@ -13,7 +13,6 @@ std::unique_ptr<Program> GraphCompiler::Build() {
     auto* node = n->safe_as<Node>();
     if (node) {
       auto lowered_func = GetOpFunc(node);
-      LOG(INFO) << "CodeGen: " << lowered_func;
       m_builder_.AddFunction(lowered_func);
     }
   }
@@ -21,6 +20,8 @@ std::unique_ptr<Program> GraphCompiler::Build() {
   if (!compiler_) {
     compiler_ = backends::Compiler::Create(target_);
   }
+
+  LOG(INFO) << "CodeGen:\n" << m_builder_.Build();
   compiler_->Build(m_builder_.Build());
 
   return std::unique_ptr<Program>(new Program(scope_, BuildInstructions()));
@@ -79,7 +80,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   }
 
   auto stages = poly::CreateStages(inputs);
-  auto func   = Lower(node->id(), stages, inputs);
+  auto func   = Lower(GenOpFuncName(node), stages, inputs);
 
   return func;
 }
@@ -103,7 +104,7 @@ std::vector<std::string> GraphCompiler::OpGetOutputNames(const Node* node) const
 std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& graph) {
   auto& shape_dict = graph->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
   auto& dtype_dict = graph->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
-  auto scope      = std::make_shared<Scope>();
+  auto scope       = std::make_shared<Scope>();
   for (auto& iter : shape_dict) {
     auto* var    = scope->Var<Tensor>(iter.first);
     auto& tensor = std::get<Tensor>(*var);
