@@ -154,5 +154,13 @@ bool GraphEdgeCompare::operator()(const Shared<GraphEdge> &a, const Shared<Graph
   return a->source()->id() < b->source()->id();
 }
 
+std::set<GraphNode *> Graph::CollectNodes(std::function<bool(const common::GraphNode *)> &&teller) {
+  std::set<GraphNode *> res;
+  for (auto *node : nodes()) {
+    if (teller(node)) res.insert(node);
+  }
+  return res;
+}
+
 }  // namespace common
 }  // namespace cinn

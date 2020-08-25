@@ -7,7 +7,7 @@
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/operation.h"
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
@@ -59,7 +59,7 @@ class Placeholder {
 
     auto op = ir::PlaceholderOp::Make(name, shape, type_of<T>());
 
-    tensor_ = ir::_Tensor_::Make(name, type_of<T>(), shape, shape, op, {});
+    tensor_ = ir::Tensor(name, type_of<T>(), shape, shape, op, {});
     Buffer buffer(tensor_->type());
     tensor_->Bind(buffer);
   }

@@ -17,6 +17,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/runtime/cpu/use_extern_funcs.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 #include "cinn/runtime/use_extern_funcs.h"
@@ -61,12 +62,14 @@ TEST(CodeGenCUDA, basic) {
   auto C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
-  C->stage()->Bind(0, "blockIdx.x");
-  C->stage()->Bind(1, "threadIdx.x");
+  auto stages = CreateStages({C});
+
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = Lower("elementwise_add", {A, B, C});
+  auto func = Lower("elementwise_add", stages, {A, B, C});
 
   auto compiled = codegen.Compile(func);
 
@@ -84,14 +87,15 @@ TEST(CodeGenCUDA, Module_output) {
 
   auto C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
-  C->WithBuffer();
 
-  C->stage()->Bind(0, "blockIdx.x");
-  C->stage()->Bind(1, "threadIdx.x");
+  auto stages = CreateStages({C});
+
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = Lower("elementwise_add", {A, B, C});
+  auto func = Lower("elementwise_add", stages, {A, B, C});
 
   Module::Builder builder("module", target);
   builder.AddFunction(func);
@@ -112,14 +116,15 @@ TEST(CodeGenCUDA, compile_run_jit) {
 
   auto C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
-  C->WithBuffer();
 
-  C->stage()->Bind(0, "blockIdx.x");
-  C->stage()->Bind(1, "threadIdx.x");
+  auto stages = CreateStages({C});
+
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = Lower("elementwise_add", {A, B, C});
+  auto func = Lower("elementwise_add", stages, {A, B, C});
 
   Module::Builder builder("module", target);
   builder.AddFunction(func);
@@ -176,7 +181,6 @@ class ElementwiseTester {
 
     auto C = Compute(
         {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
-    C->WithBuffer();
 
     return std::make_tuple(A, B, C);
   }
@@ -187,7 +191,8 @@ class ElementwiseTester {
             std::vector<int> grid_sizes,
             std::vector<int> block_sizes) {
     Var M("M");
-    auto func = Lower(fn_name_, {A, B, C}, {M});
+    auto stages = CreateStages({A, B, C});
+    auto func   = Lower(fn_name_, stages, {A, B, C}, {M});
     LOG(INFO) << "func:\n" << func;
 
     Target target;
@@ -284,15 +289,17 @@ TEST(CodeGenCUDA, jit_dynamic_shape0) {
   ElementwiseTester tester("elementwise_base");
   auto [A, B, C] = tester.BuildNet();  // NOLINT
 
-  auto [M_outer, M_inner] = C->stage()->Split(0, 32);  // M/32, 32 NOLINT
-  C->stage()->Reorder({
+  auto stages = CreateStages({C});
+
+  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  stages[C]->Reorder({
       M_inner,
-      C->stage()->axis(2),
+      stages[C]->axis(2),
       M_outer,
   });
 
-  C->stage()->Bind(0, "blockIdx.x");
-  C->stage()->Bind(1, "threadIdx.x");
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {tester.N.as_int32()});
 }
@@ -301,36 +308,41 @@ TEST(CodeGenCUDA, jit_dynamic_shape1) {
   ElementwiseTester tester("elementwise1");
   auto [A, B, C] = tester.BuildNet();  // NOLINT
 
-  auto [M_outer, M_inner] = C->stage()->Split(0, 32);  // M/32, 32 NOLINT
-  auto [N_outer, N_inner] = C->stage()->Split(2, 32);  // M/32, 32 NOLINT
-  C->stage()->Reorder({
+  auto stages = CreateStages({C});
+
+  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto [N_outer, N_inner] = stages[C]->Split(2, 32);  // M/32, 32 NOLINT
+  stages[C]->Reorder({
       M_inner,
       N_inner,
       M_outer,
       N_outer,
   });
 
-  C->stage()->Bind(0, "blockIdx.x");
-  C->stage()->Bind(1, "threadIdx.x");
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {32});
 }
 
 TEST(CodeGenCUDA, jit_dynamic_shape2) {
   ElementwiseTester tester("elementwise2");
+
   auto [A, B, C] = tester.BuildNet();  // NOLINT
 
-  auto [M_outer, M_inner] = C->stage()->Split(0, 32);  // M/32, 32 NOLINT
-  auto [N_outer, N_inner] = C->stage()->Split(2, 3);   // M/32, 32 NOLINT
-  C->stage()->Reorder({
+  auto stages = CreateStages({C});
+
+  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto [N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
+  stages[C]->Reorder({
       M_inner,
       N_inner,
       M_outer,
       N_outer,
   });
 
-  C->stage()->Bind(0, "blockIdx.x");
-  C->stage()->Bind(1, "threadIdx.x");
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
 
   tester.Test(A, B, C, {32}, {3});
 }
@@ -340,21 +352,22 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
 
   ElementwiseTester tester("elementwise_host_test");
   auto [A, B, C] = tester.BuildNet();  // NOLINT
+  auto stages    = CreateStages({C});
 
-  auto [M_outer, M_inner] = C->stage()->Split(0, 32);  // M/32, 32 NOLINT
-  auto [N_outer, N_inner] = C->stage()->Split(2, 3);   // M/32, 32 NOLINT
-  C->stage()->Reorder({
+  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto [N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
+  stages[C]->Reorder({
       M_inner,
       N_inner,
       M_outer,
       N_outer,
   });
 
-  C->stage()->Bind(0, "blockIdx.x");
-  C->stage()->Bind(1, "threadIdx.x");
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
 
   Var M("M");
-  auto func = Lower("fn", {A, B, C}, {M});
+  auto func = Lower("fn", stages, {A, B, C}, {M});
 
   LOG(INFO) << "func:\n" << func;
 
@@ -495,12 +508,10 @@ TEST(depthwise_conv, test) {
       padded_input->shape,
       [=](Expr b, Expr c, Expr i, Expr j) -> Expr { return padded_input(b, c, i, j); },
       "cache_paded_input");
-  IS->WithBuffer();
   auto FS = Compute(
       ir::Tensor(filter)->shape,
       [=](Expr c0, Expr c1, Expr w, Expr h) -> Expr { return filter(c0, c1, w, h); },
       "cache_filter");
-  FS->WithBuffer();
 
   auto output = Compute({Expr(batch), Expr(in_channel), Expr(out_height), Expr(out_width)},
                         [=](Var b, Var c, Var i, Var j) -> Expr {
@@ -509,34 +520,16 @@ TEST(depthwise_conv, test) {
                         },
                         "output",
                         {di, dj});
-  output->WithBuffer();
 
-  output->stage()->Fuse(0, 1);
-  output->stage()->Fuse(0, 1);
-  output->stage()->Split(0, 20);
+  auto stages = CreateStages({output});
 
-  // similar to
-  // s[Output].bind(Output.op.axis[0], block_y)
-  // s[Output].bind(Output.op.axis[1], block_x)
-  // output->stage()->GpuThreads(output->stage()->ith_iterator(1), output->stage()->ith_iterator(0));
-  // IS->stage()->GpuThreads(IS->stage()->ith_iterator(1), IS->stage()->ith_iterator(0));
-  // FS->stage()->GpuThreads(FS->stage()->ith_iterator(1), FS->stage()->ith_iterator(0));
-  // IS->stage()->ComputeAt(output->stage(), 1, poly::Stage::kComputeAtBefore);
+  stages[padded_input]->ComputeInline();
 
-  // const int block_size = 32;
+  stages[output]->Fuse(0, 1);
+  stages[output]->Fuse(0, 1);
+  stages[output]->Split(0, 20);
 
-  // // schedule
-  // // bx1, _ = s[Output].split(Output.op.axis[2], factor=blocking_h)
-  // auto [bx1, _bx1] = output->stage()->Split(2, block_size);  // NOLINT
-  // // x2, _ = s[Output].split(Output.op.axis[3], factor=blocking_w)
-  // auto [bx2, _bx2] = output->stage()->Split(3, block_size);
-
-  // // assign one 32x32 block to one cuda block.
-  // auto by = output->stage()->Fuse(0, 1);
-  // auto bx = output->stage()->Fuse(bx1, bx2);
-  // output->stage()->GpuBlocks(bx, by);
-
-  auto fn = Lower("fn", {input, filter, IS, FS, output});
+  auto fn = Lower("fn", stages, {input, filter, IS, FS, output});
 
   LOG(INFO) << "fn:\n" << fn;
 }
@@ -573,11 +566,12 @@ TEST(Conv, basic) {
                    },
                    "B",
                    {rc, ry, rx});
-  B->WithBuffer();
 
-  B->stage()->CacheRead("shared", {B});
+  auto stages = CreateStages({A, W, Apad, B});
+  stages[Apad]->ComputeInline();
+  auto B_cache = stages[B]->CacheRead("shared", {}, stages);
 
-  auto fn = Lower("fn", {A, W, B});
+  auto fn = Lower("fn", stages, {A, W, B, B_cache});
 
   LOG(INFO) << "fn:\n" << fn;
 }
@@ -596,23 +590,25 @@ TEST(elementwise_add, share_local_cache) {
   auto C = Compute(
       {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
-  auto AA = A->stage()->CacheRead("shared", {C});
+  auto stages = CreateStages({C});
+
+  auto AA = stages[A]->CacheRead("shared", {C}, stages);
   // NOTE here, the CC replace the C as the output the function.
-  auto CC = C->stage()->CacheWrite("local");
+  auto CC = stages[C]->CacheWrite("local", stages);
 
-  C->stage()->Bind(0, "blockIdx.x");
-  C->stage()->Bind(1, "threadIdx.x");
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
 
-  A->stage()->Bind(0, "blockIdx.x");
-  AA->stage()->Bind(1, "threadIdx.x");
+  stages[A]->Bind(0, "blockIdx.x");
+  stages[AA]->Bind(1, "threadIdx.x");
 
-  CC->stage()->Bind(0, "blockIdx.x");
-  CC->stage()->Bind(1, "threadIdx.x");
+  stages[CC]->Bind(0, "blockIdx.x");
+  stages[CC]->Bind(1, "threadIdx.x");
 
   Target target;
   Module::Builder builder("gpu_module", target);
 
-  auto fn = Lower("elementwise_add", {A, B, CC}, {}, {AA, C}, &builder);
+  auto fn = Lower("elementwise_add", stages, {A, B, CC}, {}, {AA, C}, &builder);
 
   ASSERT_EQ(fn->temp_bufs.size(), 2UL);
 
@@ -735,81 +731,6 @@ TEST(elementwise_add, share_local_cache) {
   CUDA_CALL(cudaFree(reinterpret_cast<void*>(Cd)))
 }
 
-TEST(Conv, basic_add_cache) {
-  Expr batch(256);
-  Expr in_channel(256);
-  Expr out_channel(512);
-  Expr in_size(14);
-  Expr pad(1);
-  Expr kernel(3);
-  Expr stride(1);
-  Expr out_size = (in_size - kernel + 2 * pad) / stride + 1;
-
-  Placeholder<float> A("A", {in_size, in_size, in_channel, batch});
-  Placeholder<float> W("W", {kernel, kernel, in_channel, out_channel});
-
-  auto Apad = Compute(
-      {in_size + 2 * pad, in_size + 2 * pad, in_channel, batch}, [=](Expr yy, Expr xx, Expr cc, Expr nn) -> Expr {
-        return common::select(common::and_all({yy >= pad, yy - pad < in_size, xx >= pad, xx - pad < in_size}),
-                              A(yy - pad, xx - pad, cc, nn),
-                              common::make_const(Float(32), 0));
-      });
-
-  auto AA = Compute(
-      Apad->shape, [=](const std::vector<Expr>& dims) -> Expr { return Apad(dims); }, "AA");
-  auto WW = Compute(
-      W->shape, [=](const std::vector<Expr>& dims) { return W(dims); }, "WW");
-  AA->WithBuffer("shared");
-  WW->WithBuffer("shared");
-
-  auto AL = Compute(
-      AA->shape, [=](const std::vector<Expr>& dims) -> Expr { return AA(dims); }, "AL");
-  auto WL = Compute(
-      WW->shape, [=](const std::vector<Expr>& dims) -> Expr { return WW(dims); }, "WL");
-
-  AL->WithBuffer("local");
-  WL->WithBuffer("local");
-
-  Var rc(in_channel, "rc");
-  Var ry(kernel, "ry");
-  Var rx(kernel, "rx");
-
-  auto BL = Compute({out_size, out_size, out_channel, batch},
-                    [=](Expr yy, Expr xx, Expr ff, Expr nn) -> Expr {
-                      return Sum(AA(yy * stride + ry, xx * stride + rx, rc, nn) * WW(ry, rx, rc, ff));
-                    },
-                    "BL",
-                    {rc, ry, rx});
-  BL->WithBuffer("local");
-
-  auto B = Compute(
-      BL->shape, [=](const std::vector<Expr>& dims) -> Expr { return BL(dims); }, "B");
-  B->WithBuffer();
-
-  int tile         = 8;
-  int num_thread   = 8;
-  int block_factor = tile * num_thread;
-  int step         = 8;
-  int vthread      = 2;
-
-  auto hi = BL->stage()->ith_dim_name(0);
-  auto wi = BL->stage()->ith_dim_name(1);
-  auto fi = BL->stage()->ith_dim_name(2);
-  auto ni = BL->stage()->ith_dim_name(3);
-
-  auto bz        = BL->stage()->Fuse(hi, wi);
-  auto [by, fi1] = BL->stage()->Split(fi, block_factor);
-  auto [bx, ni1] = BL->stage()->Split(ni, block_factor);
-
-  BL->stage()->Bind(2, "blockIdx.x");
-  BL->stage()->Bind(1, "blockIdx.y");
-  BL->stage()->Bind(0, "blockIdx.z");
-
-  auto fn = Lower("fn", {A, W, AA, WW, AL, WL, BL, B});
-
-  LOG(INFO) << "fn:\n" << fn;
-}
-
 TEST(Conv, optimize) {
   // basic implementation
   Expr batch(256);
@@ -844,18 +765,15 @@ TEST(Conv, optimize) {
                    "B",
                    {rc, ry, rx} /*reduce axis*/);
 
-  // auto fn = Lower("conv", {A, W, B});
-  // LOG(INFO) << fn;
+  auto stages = CreateStages({B});
 
-  // blocking
+  auto AA = stages[Apad]->CacheRead("shared", {B}, stages);
+  auto WW = stages[W]->CacheRead("shared", {B}, stages);
+  auto AL = stages[AA]->CacheRead("local", {B}, stages);
+  auto WL = stages[WW]->CacheRead("local", {B}, stages);
+  auto BL = stages[B]->CacheWrite("local", stages);
 
-  Apad->stage()->ComputeInline();
-
-  auto AA = Apad->stage()->CacheRead("shared", {B});
-  auto WW = W->stage()->CacheRead("shared", {B});
-  auto AL = AA->stage()->CacheRead("local", {B});
-  auto WL = WW->stage()->CacheRead("local", {B});
-  auto BL = B->stage()->CacheWrite("local");
+  stages[Apad]->ComputeInline();
 
   // tile consts
   const int tile         = 8;
@@ -864,24 +782,24 @@ TEST(Conv, optimize) {
   const int step         = 8;
   const int vthread      = 2;
 
-  auto hi = B->stage()->axis(0);
-  auto wi = B->stage()->axis(1);
-  auto fi = B->stage()->axis(2);
-  auto ni = B->stage()->axis(3);
-  auto bz = B->stage()->Fuse(hi, wi);
+  auto hi = stages[B]->axis(0);
+  auto wi = stages[B]->axis(1);
+  auto fi = stages[B]->axis(2);
+  auto ni = stages[B]->axis(3);
+  auto bz = stages[B]->Fuse(hi, wi);
 
   poly::Iterator by, bx, ty, tx;
-  std::tie(by, fi) = B->stage()->Split(fi, block_factor);  // NOLINT
-  std::tie(bx, ni) = B->stage()->Split(ni, block_factor);  // NOLINT
+  std::tie(by, fi) = stages[B]->Split(fi, block_factor);  // NOLINT
+  std::tie(bx, ni) = stages[B]->Split(ni, block_factor);  // NOLINT
 
   poly::Iterator tyz, txz;
-  std::tie(tyz, fi) = B->stage()->Split(fi, vthread);
-  std::tie(txz, ni) = B->stage()->Split(ni, vthread);
-  std::tie(ty, fi)  = B->stage()->Split(fi, num_thread);
-  std::tie(tx, ni)  = B->stage()->Split(ni, num_thread);
-  B->stage()->Reorder({bz, by, bx, tyz, txz, ty, tx, fi, ni});
+  std::tie(tyz, fi) = stages[B]->Split(fi, vthread);
+  std::tie(txz, ni) = stages[B]->Split(ni, vthread);
+  std::tie(ty, fi)  = stages[B]->Split(fi, num_thread);
+  std::tie(tx, ni)  = stages[B]->Split(ni, num_thread);
+  stages[B]->Reorder({bz, by, bx, tyz, txz, ty, tx, fi, ni});
 
-  LOG(INFO) << Lower("conv", {A, W, BL}, {}, {AA, WW, AL, WL, B});
+  LOG(INFO) << Lower("conv", stages, {A, W, BL}, {}, {AA, WW, AL, WL, B});
 }
 
 TEST(ElementwiseAdd, cache_read_local) {
@@ -895,19 +813,22 @@ TEST(ElementwiseAdd, cache_read_local) {
 
   auto C = Compute(
       {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
-  C->stage()->Split(1, 10);
 
-  auto AL = A->stage()->CacheRead("local", {C});
-  AL->stage()->Split(1, 10);
+  auto stages = CreateStages({C});
 
-  AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
-  C->stage()->Bind(0, "threadIdx.x");
-  C->stage()->Bind(1, "blockIdx.x");
+  auto AL = stages[A]->CacheRead("local", {C}, stages);
+
+  stages[C]->Split(1, 10);
+  stages[AL]->Split(1, 10);
+
+  stages[AL]->ComputeAt(stages[C], 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
+  stages[C]->Bind(0, "threadIdx.x");
+  stages[C]->Bind(1, "blockIdx.x");
 
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
-  auto fn = Lower("fn0", {A, B, C}, {}, {AL});
+  auto fn = Lower("fn0", stages, {A, B, C}, {}, {AL});
 
   Module::Builder builder("module", target);
   builder.AddFunction(fn);
@@ -1007,18 +928,19 @@ TEST(ElementwiseAdd, cache_read1) {
 
     auto C = Compute(
         {M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
-    C->stage()->Split(1, 10);
 
-    auto AL = A->stage()->CacheRead("local", {C});
-    AL->stage()->Split(1, 10);
+    auto stages = CreateStages({C});
+    auto AL     = stages[A]->CacheRead("local", {C}, stages);
 
-    AL->stage()->ComputeAt(C->stage(), 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
+    stages[C]->Split(1, 10);
+    stages[AL]->Split(1, 10);
+    stages[AL]->ComputeAt(stages[C], 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
 
-    return std::make_tuple(A, B, C, AL);
+    return std::make_tuple(A, B, C, AL, stages);
   };
   {
-    auto [A, B, C, AL] = create_module();  // NOLINT
-    auto fn            = Lower("fn1", {A, B, C}, {}, {AL});
+    auto [A, B, C, AL, stages] = create_module();  // NOLINT
+    auto fn                    = Lower("fn1", stages, {A, B, C}, {}, {AL});
     CodeGenC codegen_c(common::DefaultHostTarget());
     codegen_c.SetInlineBuiltinCodes(false);
 
@@ -1029,14 +951,14 @@ TEST(ElementwiseAdd, cache_read1) {
     std::cout << "C source code:\n" << c_source_code << std::endl;
   }
 
-  auto [A, B, C, AL] = create_module();  // NOLINT
-  C->stage()->Bind(0, "threadIdx.x");
-  C->stage()->Bind(1, "blockIdx.x");
+  auto [A, B, C, AL, stages] = create_module();  // NOLINT
+  stages[C]->Bind(0, "threadIdx.x");
+  stages[C]->Bind(1, "blockIdx.x");
 
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
-  auto fn = Lower("fn1", {A, B, C}, {}, {AL});
+  auto fn = Lower("fn1", stages, {A, B, C}, {}, {AL});
   Module::Builder builder("module", common::DefaultHostTarget());
   builder.AddFunction(fn);
 
@@ -1135,13 +1057,15 @@ TEST(GetTransformedLevel, basic) {
   Placeholder<float> B("B", {M, N});
 
   auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j); });
+  auto D = Compute({M, N}, [&](Expr i, Expr j) { return C(i, j); });
+
+  auto stages = CreateStages({C, D});
 
   // No ComputeAt, the GetTransformedLevel just returns the level without change.
-  ASSERT_EQ(C->stage()->GetTransformedLevel(0), 0);
+  ASSERT_EQ(stages[C]->GetTransformedLevel(0), 0);
 
-  auto D = Compute({M, N}, [&](Expr i, Expr j) { return C(i, j); });
-  C->stage()->ComputeAt(D->stage(), 1);
-  ASSERT_EQ(C->stage()->GetTransformedLevel(0), 0 + 1 + 1);
+  stages[C]->ComputeAt(stages[D], 1);
+  ASSERT_EQ(stages[C]->GetTransformedLevel(0), 0 + 1 + 1);
 }
 
 // JIT test precision for the basic elementwise add
@@ -1208,27 +1132,28 @@ TEST(ElementwiseAdd, cache_read_shared) {
 
     auto C = Compute(
         {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
-    C->stage()->Split(1, 10);
+    auto stages = CreateStages({A, B, C});
+    auto AL     = stages[A]->CacheRead("shared", {C}, stages);
 
-    auto AL = A->stage()->CacheRead("shared", {C});
+    stages[C]->Split(1, 10);
 
     // If the shape is larger than shared memory, then the threadIdx should be shared across all the blocks, that means
     // the shared memory producer should be `ComputeAt` at(inside) the producer's innermost blockIdx axis, that will
     // make the producer share the blockIdx and sees only the threadIdx.
-    AL->stage()->ComputeAt(C->stage(), 0, poly::Stage::kComputeAtAuto, A->name);
+    stages[AL]->ComputeAt(stages[C], 0, poly::Stage::kComputeAtAuto, A->name);
 
-    C->stage()->Bind(0, "blockIdx.x");
-    C->stage()->Bind(1, "threadIdx.x");
-    AL->stage()->Bind(1, "threadIdx.x");
+    stages[C]->Bind(0, "blockIdx.x");
+    stages[C]->Bind(1, "threadIdx.x");
+    stages[AL]->Bind(1, "threadIdx.x");
 
-    return std::make_tuple(A, B, C, AL);
+    return std::make_tuple(A, B, C, AL, stages);
   };
 
-  auto [A, B, C, AL] = create_module();  // NOLINT
+  auto [A, B, C, AL, stages] = create_module();  // NOLINT
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
-  auto fn = Lower("fn2", {A, B, C}, {}, {AL});
+  auto fn = Lower("fn2", stages, {A, B, C}, {}, {AL});
 
   Module::Builder builder("module", common::DefaultHostTarget());
   builder.AddFunction(fn);
@@ -1297,25 +1222,27 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
 
     auto C = Compute(
         {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
-    C->stage()->Split(1, 10);
 
-    auto AL = A->stage()->CacheRead("shared", {C});
-    AL->stage()->Split(1, 10);
+    auto stages = CreateStages({A, B, C});
+    auto AL     = stages[A]->CacheRead("shared", {C}, stages);
+
+    stages[C]->Split(1, 10);
+    stages[AL]->Split(1, 10);
 
     // AL->stage()->ComputeAt(C->stage(), 0, poly::Stage::kComputeAtAuto, A->name);
-    C->stage()->Bind(0, "blockIdx.x");
-    C->stage()->Bind(1, "threadIdx.x");
-    AL->stage()->Bind(0, "blockIdx.x");
-    AL->stage()->Bind(1, "threadIdx.x");
+    stages[C]->Bind(0, "blockIdx.x");
+    stages[C]->Bind(1, "threadIdx.x");
+    stages[AL]->Bind(0, "blockIdx.x");
+    stages[AL]->Bind(1, "threadIdx.x");
 
-    return std::make_tuple(A, B, C, AL);
+    return std::make_tuple(A, B, C, AL, stages);
   };
 
-  auto [A, B, C, AL] = create_module();  // NOLINT
+  auto [A, B, C, AL, stages] = create_module();  // NOLINT
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
-  auto fn = Lower("fn3", {A, B, C}, {}, {AL});
+  auto fn = Lower("fn3", stages, {A, B, C}, {}, {AL});
 
   Module::Builder builder("module", common::DefaultHostTarget());
   builder.AddFunction(fn);
@@ -1386,27 +1313,28 @@ TEST(ElementwiseAdd, cache_write_local) {
 
     auto C = Compute(
         {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
-    C->stage()->Split(1, 10);
 
-    auto Co = C->stage()->CacheWrite("local");
+    auto stages = CreateStages({A, B, C});
 
+    auto Co = stages[C]->CacheWrite("local", stages);
+
+    stages[C]->Split(1, 10);
     // Cache write local, the local memory can just share in a single thread, so it must ComputeAt(inside) the innermost
     // thread.
-    C->stage()->ComputeAt(Co->stage(), 1);
+    stages[C]->ComputeAt(stages[Co], 1);
+    stages[C]->Bind(0, "blockIdx.x");
+    stages[C]->Bind(1, "threadIdx.x");
+    stages[Co]->Bind(0, "blockIdx.x");
+    stages[Co]->Bind(1, "threadIdx.x");
 
-    C->stage()->Bind(0, "blockIdx.x");
-    C->stage()->Bind(1, "threadIdx.x");
-    Co->stage()->Bind(0, "blockIdx.x");
-    Co->stage()->Bind(1, "threadIdx.x");
-
-    return std::make_tuple(A, B, C, Co);
+    return std::make_tuple(A, B, C, Co, stages);
   };
 
-  auto [A, B, C, Co] = create_module();  // NOLINT
+  auto [A, B, C, Co, stages] = create_module();  // NOLINT
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
-  auto fn = Lower("fn4", {A, B, Co}, {}, {C});
+  auto fn = Lower("fn4", stages, {A, B, Co}, {}, {C});
 
   Module::Builder builder("module", common::DefaultHostTarget());
   builder.AddFunction(fn);
@@ -1466,19 +1394,21 @@ TEST(Cuda, external_function) {
 
     auto C = Compute(
         {M, N}, [&](Expr i, Expr j) { return CallExtern("tanh", {A(i, j)}) + CallExtern("cos", {B(i, j)}); }, "C");
-    C->stage()->Split(1, 10);
 
-    C->stage()->Bind(0, "blockIdx.x");
-    C->stage()->Bind(1, "threadIdx.x");
+    auto stages = CreateStages({A, B, C});
 
-    return std::make_tuple(A, B, C);
+    stages[C]->Split(1, 10);
+    stages[C]->Bind(0, "blockIdx.x");
+    stages[C]->Bind(1, "threadIdx.x");
+
+    return std::make_tuple(A, B, C, stages);
   };
 
-  auto [A, B, C] = create_module();  // NOLINT
+  auto [A, B, C, stages] = create_module();  // NOLINT
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
-  auto fn = Lower("fn5", {A, B, C});
+  auto fn = Lower("fn5", stages, {A, B, C});
 
   Module::Builder builder("module", common::DefaultNVGPUTarget());
   builder.AddFunction(fn);

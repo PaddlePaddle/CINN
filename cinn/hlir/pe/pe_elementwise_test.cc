@@ -8,6 +8,7 @@
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/reduction.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
 
@@ -25,12 +26,14 @@ void TestElementwisePE(const std::string &fn_name,
 
   auto A_out = func_op(A.tensor(), fn_name + "_out");
 
+  auto stages = CreateStages({A_out});
+
   Target target;
   target.arch = Target::Arch ::X86;
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
   Module::Builder builder("module0", target);
-  auto func = Lower("fn", {A, A_out});
+  auto func = Lower("fn", stages, {A, A_out});
   LOG(INFO) << "func:\n" << func;
   builder.AddFunction(func);
 

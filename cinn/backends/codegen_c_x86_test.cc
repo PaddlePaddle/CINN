@@ -41,11 +41,12 @@ TEST(CodeGenCX86, basic) {
   Tensor D = Compute(
       {Expr(M), Expr(N)}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "D");
 
+  auto stages = CreateStages({C, D});
   // vectorize C, not D
-  C->stage()->Vectorize(1, 16);
-  C->stage()->Unroll(1);
+  stages[C]->Vectorize(1, 16);
+  stages[C]->Unroll(1);
 
-  auto func = Lower("matmul", {A, B, C, D});
+  auto func = Lower("matmul", stages, {A, B, C, D});
 
   std::cout << "before optim\n" << func->body << std::endl;
 

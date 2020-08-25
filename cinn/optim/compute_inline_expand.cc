@@ -38,10 +38,8 @@ struct SSANode : public common::GraphNode {
 
   const char *type_info() const override { return __type_info__; }
 
-  static const char *__type_info__;
+  static constexpr char *__type_info__ = "optim::SSANode";
 };
-
-const char *SSANode::__type_info__ = "SSANode";
 
 // TODO(Superjomn) the graph here is not a SSA now, it is flattern for the ir::CollectIRNodes method collects all the
 // tensors recursively, so it can not reserve the level information, fix it.
@@ -54,6 +52,7 @@ struct SSABuilder : public ir::IRMutator<> {
   }
 
   void Visit(const ir::Store *op, Expr *expr) override {
+    LOG(INFO) << "Expr: " << *expr;
     auto *node = expr->As<ir::Store>();
 
     auto *cur_graph_node = graph.RetriveNode(node->tensor.as_tensor()->name);
@@ -75,32 +74,26 @@ struct SSABuilder : public ir::IRMutator<> {
 
 }  // namespace
 
-void ComputeInlineExpand(Expr *expr) {
-  /*
-   * 1. Create a SSA graph
-   * 2. follow the topological order, expand inline each tensor marked as compute_inline.
-   */
+void ComputeInlineExpand(Expr *expr, poly::StageMap stages) {
+  // the inline tensors contained in the expression.
+  auto inline_tensors =
+      ir::CollectIRNodes(*expr, [&](const Expr *x) { return x->as_tensor() && stages[x->as_tensor()]->inlined(); });
 
-  SSABuilder ssa_builder;
-  auto &ssa_graph = ssa_builder(expr).graph;
-  VLOG(4) << "inline SSA graph:\n" << ssa_graph.Visualize();
-
-  auto [node_order, edge_order] = ssa_graph.topological_order();  // NOLINT
-
-  auto tensors = ir::CollectIRNodes(*expr, [](const Expr *x) { return x->as_tensor(); });
-  std::map<std::string, ir::Tensor> tensor_map;
-  for (auto &x : tensors) {
-    auto t              = x.as_tensor_ref();
-    tensor_map[t->name] = t;
-  }
-
-  for (auto *n : node_order) {
-    auto *node = n->safe_as<SSANode>();
-    auto t     = tensor_map.at(node->id());
-    if (t->compute_inline) {
-      VLOG(2) << "inlining " << t->name;
-      TensorInlineExpandMutator(t->name)(expr);
+  // keep inline expand if any inline tensor exists
+  // NOTE This is a naive method to greedily expand the inline tensors until none exists, a better way is to create a
+  // SSA graph and expand the inline tensors in the reversed dependency order.
+  // TODO(Superjomn) Use the SSA graph to improve this.
+  while (!inline_tensors.empty()) {
+    for (const auto &t : inline_tensors) {
+      auto *tensor = t.as_tensor();
+      TensorInlineExpandMutator(tensor->name)(expr);
     }
+
+    inline_tensors = ir::CollectLoadTensors(
+        *expr, [&](const Expr *x) { return x->as_tensor() && stages[x->as_tensor()]->inlined(); });
+
+    LOG(INFO) << "inline tensor size: " << inline_tensors.size();
+    LOG(INFO) << "expr: " << *expr;
   }
 }
 

@@ -14,27 +14,31 @@ using framework::Node;
 using framework::NodeData;
 using framework::Operator;
 
-void InferShapePass(Graph* src) {
-  auto& shape_dict = src->GetMutableAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
-  auto& dtype_dict = src->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
-  auto store_node  = std::get<0>(src->topological_order());
+void InferShapePass(Graph* graph) {
+  auto& shape_dict = graph->GetMutableAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  auto& dtype_dict = graph->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  auto store_nodes = std::get<0>(graph->topological_order());
   auto& op_infershape =
       Operator::GetAttrs<std::function<std::vector<std::vector<int>>(const std::vector<std::vector<int>>&)>>(
           "infershape");
   auto& op_inferdtype =
       Operator::GetAttrs<std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&)>>(
           "inferdtype");
-  for (auto& node : store_node) {
-    if (node->check_type<Node>()) {
+  for (auto& node : store_nodes) {
+    if (node->is_type<Node>()) {
       std::vector<std::vector<int>> inputs_shape;
       std::vector<Type> inputs_dtype;
       for (auto& in_edge : node->inlinks()) {
-        inputs_shape.push_back(shape_dict[in_edge->source()->safe_as<NodeData>()->id()]);
-        inputs_dtype.push_back(dtype_dict[in_edge->source()->safe_as<NodeData>()->id()]);
+        auto* source_node = in_edge->source()->safe_as<NodeData>();
+        CHECK(source_node);
+        CHECK(shape_dict.count(source_node->id())) << "No shape for " << source_node->id();
+        CHECK(dtype_dict.count(source_node->id())) << "No dtype for " << source_node->id();
+        inputs_shape.push_back(shape_dict[source_node->id()]);
+        inputs_dtype.push_back(dtype_dict[source_node->id()]);
       }
+
       auto out_shape = op_infershape[node->safe_as<Node>()->op()](inputs_shape);
       auto out_dtype = op_inferdtype[node->safe_as<Node>()->op()](inputs_dtype, node->safe_as<Node>()->attrs);
-      int counter    = 0;
       CHECK_EQ(node->outlinks().size(), out_shape.size())
           << "The output number of node " << node->id() << " is " << node->outlinks().size()
           << " , which is different with the output shape size " << out_shape.size() << " . And the op type is "
@@ -43,15 +47,20 @@ void InferShapePass(Graph* src) {
           << "The output number of node " << node->id() << " is " << node->outlinks().size()
           << " , which is different with the output dtype size " << out_dtype.size() << " . And the op type is "
           << node->safe_as<Node>()->op()->name;
+
+      int counter = 0;
       for (auto& out_edge : node->outlinks()) {
-        shape_dict[out_edge->sink()->safe_as<NodeData>()->id()] = out_shape[counter];
-        dtype_dict[out_edge->sink()->safe_as<NodeData>()->id()] = out_dtype[counter];
+        auto* sink_node = out_edge->sink()->safe_as<NodeData>();
+        CHECK(sink_node);
+
+        shape_dict[sink_node->id()] = out_shape[counter];
+        dtype_dict[sink_node->id()] = out_dtype[counter];
         counter++;
       }
     }
   }
-  src->attrs["infershape"] = std::make_shared<std::any>(shape_dict);
-  src->attrs["inferdtype"] = std::make_shared<std::any>(dtype_dict);
+  graph->attrs["infershape"] = std::make_shared<std::any>(shape_dict);
+  graph->attrs["inferdtype"] = std::make_shared<std::any>(dtype_dict);
 }
 
 }  // namespace pass

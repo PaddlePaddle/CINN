@@ -33,6 +33,8 @@ enum class ScopeKind {
   kShared = 1,
 };
 
+class StageMap;
+
 struct StageForloopInfo {
   StageForloopInfo() = default;
   StageForloopInfo(ir::ForType for_type, ir::DeviceAPI device, uint8_t offset)
@@ -44,6 +46,61 @@ struct StageForloopInfo {
   ir::DeviceAPI device;
 };
 
+struct ReadCacheRelation {
+  //! Name of the cache tensor.
+  std::string cache_name;
+  //! Names of the reading tensors.
+  std::vector<std::string> readers;
+};
+
+struct WriteCacheRelation {
+  //! Name of the cache tensor.
+  std::string cache_name;
+};
+
+//! Store the infomations about some other tensor `compute_at` this tensor.
+struct ComputeAtInfo {
+  ComputeAtInfo(const std::string& consumer_tensor_name,
+                const std::string& producer_tensor_name,
+                const std::vector<int>& adjusted_producer_shape,
+                const std::vector<int>& preceding_offset_for_producer_load,
+                int level)
+      : consumer_tensor_name(consumer_tensor_name),
+        producer_tensor_name(producer_tensor_name),
+        adjusted_producer_shape(adjusted_producer_shape),
+        preceding_offset_for_producer_load(preceding_offset_for_producer_load),
+        level(level) {}
+
+  std::string consumer_tensor_name;
+  std::string producer_tensor_name;
+  //! The shape of the buffer belong to the producer tensor after compute_at.
+  //! NOTE this doesn't support dynamic dimension yet.
+  std::vector<int> adjusted_producer_shape;
+  //! The preceding offsets for the indice in the Loads for the producers, the offset will make the minimum indice to be
+  //! 0, size of this should equal to level+1.
+  std::vector<int> preceding_offset_for_producer_load;
+  //! the level of the consumer tensor's transformed range.
+  int level{-1};
+};
+
+/**
+ * Meta infomation for tensor.
+ */
+struct TensorScheduleMeta {
+  //! read cache relation if has one.
+  std::unique_ptr<ReadCacheRelation> read_cache_relation;
+  //! write cache relation if has one.
+  std::unique_ptr<WriteCacheRelation> write_cache_relation;
+
+  //! Store the information of all the other producer tensors `compute_at` this tensor.
+  std::vector<ComputeAtInfo> compute_at_infos;
+
+  bool compute_inline{false};
+
+  //! Name of the tensors thouse share buffer with `this` tensor.
+  std::set<std::string> tensors_to_share_buffer_with;
+};
+
 /**
  * Stage is the basic element of polyhedral which represents a stage in CINN.
  * It supports multiple transforms such as tile, split and so on.
@@ -51,6 +108,8 @@ struct StageForloopInfo {
 class Stage : public Object {
  public:
   static Shared<Stage> New(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
+
+  TensorScheduleMeta meta;
 
   /**
    * The id of this element, should be unique across the transform.
@@ -74,10 +133,12 @@ class Stage : public Object {
    */
   void ComputeInline();
 
+  bool inlined() const { return meta.compute_inline; }
+
   /**
    * Mark this buffer should share buffer with \p other.
    */
-  void ShareBufferWith(ir::Tensor other);
+  void ShareBufferWith(Stage* other);
 
   /**
    * Split the loop level of into two new loop levels.
@@ -168,14 +229,14 @@ class Stage : public Object {
    * @param memory_type the memory type, "share" for CUDA share memory, "local" for CUDA local memory.
    * @param readers the readers of the \p tensor
    */
-  ir::Tensor CacheRead(const std::string& memory_type, const std::vector<ir::Tensor>& readers);
+  ir::Tensor CacheRead(const std::string& memory_type, const std::vector<ir::Tensor>& readers, poly::StageMap stages);
 
   /**
    * Create a cache for write to the original tensor.
    * @param tensor the tensor to create the cache for.
    * @param memory_type "share" for CUDA share memory, "local" for CUDA local memory.
    */
-  ir::Tensor CacheWrite(const std::string& memory_type);
+  ir::Tensor CacheWrite(const std::string& memory_type, poly::StageMap stages);
 
   /**
    * Set thread scope.
@@ -260,6 +321,8 @@ class Stage : public Object {
   //! Get number of transform output dimensions, this equals to the number of dimensions of corresponding tensor.
   inline int n_out_dims() const { return isl_map_dim(transform_.get(), isl_dim_out); }
 
+  static constexpr char* __type_info__ = "Stage";
+
  private:
   isl::set domain_;
   isl::map transform_;
@@ -280,15 +343,11 @@ class Stage : public Object {
 
   std::set<int> locked_axis_;
 
-  static constexpr char* __type_info__ = "Status";
-
   friend isl_map* __isl_give GatherAccesses(Stage* stage, const std::string& tensor_name);
   friend class PolyGroupScheduler;
 };
 
 std::vector<std::pair<std::string, std::string>> ExtractExtraDepLinksFromStages(const std::vector<Stage*>& stages);
-std::vector<std::pair<std::string, std::string>> ExtractLinksFromCalls(const std::vector<ir::Tensor>& tensors,
-                                                                       bool with_placeholder = false);
 
 //! This stage compute_at some other stage.
 struct ComputeAtRelation {
@@ -313,6 +372,43 @@ inline Iterator DefaultIterator(int i) { return Iterator(common::axis_name(i)); 
  * Collect the access to a tensor named \p tensor_name in \p stage.
  */
 std::vector<isl::map> GatherAccesses(const Stage* stage, const std::string& tensor_name);
+
+class _StageMap_ : public Object {
+ public:
+  Stage* operator[](const ir::Tensor& tensor);
+  const Stage* operator[](const ir::Tensor& tensor) const;
+  Stage* operator[](const ir::_Tensor_* tensor);
+  const Stage* operator[](const ir::_Tensor_* tensor) const;
+
+  Stage* Insert(const ir::Tensor& key, Stage* stage);
+  Stage* InsertLazily(const ir::Tensor& key);
+
+  inline size_t size() const { return data_.size(); }
+
+  const char* type_info() const override { return __type_info__; }
+
+  static constexpr const char* __type_info__ = "StageMap";
+
+ private:
+  std::unordered_map<std::string, Shared<Stage>> data_;
+
+  friend class StageMap;
+};
+
+class StageMap : public Shared<_StageMap_> {
+ public:
+  StageMap() : Shared(new _StageMap_) {}
+
+  Stage* operator[](const ir::Tensor& tensor) { return (*self())[tensor]; }
+  const Stage* operator[](const ir::Tensor& tensor) const { return (*self())[tensor]; }
+  Stage* operator[](const ir::_Tensor_* tensor) { return (*self())[tensor]; }
+  const Stage* operator[](const ir::_Tensor_* tensor) const { return (*self())[tensor]; }
+
+  auto begin() const { return self()->data_.begin(); }
+  auto end() const { return self()->data_.end(); }
+};
+
+StageMap CreateStages(const std::vector<ir::Tensor>& tensors);
 
 }  // namespace poly
 }  // namespace cinn

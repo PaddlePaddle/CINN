@@ -25,7 +25,9 @@ TEST(CollectIRNodes, basic) {
   auto C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
 
-  auto fn = Lower("fn", {A, B, C});
+  auto stages = CreateStages({C});
+
+  auto fn = Lower("fn", stages, {A, B, C});
 
   LOG(INFO) << "fn:\n" << fn;
 

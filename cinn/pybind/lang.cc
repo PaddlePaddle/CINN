@@ -5,13 +5,13 @@
 
 #include "cinn/backends/codegen_c.h"
 #include "cinn/common/target.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/lang/buffer.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
 #include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
-#include "cinn/lang/tensor.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
 
@@ -44,6 +44,7 @@ void BindLower(py::module *m) {
   m->def("lower",
          &lang::Lower,
          arg("name"),
+         arg("stages"),
          arg("tensor_args"),
          arg("scalar_args")  = std::vector<ir::Var>(),
          arg("temp_tensors") = std::vector<ir::Tensor>(),

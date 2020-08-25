@@ -42,12 +42,13 @@ struct IRReplaceTensorMutator : ir::IRMutator<> {
 }  // namespace
 
 std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
+                                                      poly::StageMap stages,
                                                       const std::vector<std::set<std::string>>& buffer_shared) {
   std::map<std::string, ir::Tensor> tensor_map;
 
-  auto tensor_exprs = ir::CollectIRNodes(*expr, [](const Expr* x) {
+  auto tensor_exprs = ir::CollectIRNodes(*expr, [&](const Expr* x) {
     auto* t = x->as_tensor();
-    return t && (!t->compute_inline) && !t->buffer.defined();
+    return t && (!stages[t]->meta.compute_inline) && !t->buffer.defined();
   });
 
   if (tensor_exprs.empty()) return tensor_map;
@@ -69,9 +70,9 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
     return false;
   });
 
-  auto existing_tensors = ir::CollectIRNodes(*expr, [](const Expr* x) {
+  auto existing_tensors = ir::CollectIRNodes(*expr, [&](const Expr* x) {
     auto* t = x->as_tensor();
-    return t && !t->compute_inline && !t->buffer.defined();
+    return t && !stages[t]->meta.compute_inline && !t->buffer.defined();
   });
   CHECK_EQ(existing_tensors.size(), tensor_map.size())
       << "some of the tensors named same are not unified to one object";
@@ -84,8 +85,8 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
 
   for (auto& item : tensor_map) {
     auto* cur_n = uf_map[item.first];
-    if (!item.second->tensors_to_share_buffer_with.empty()) {
-      for (auto& other : item.second->tensors_to_share_buffer_with) {
+    if (!stages[item.second]->meta.tensors_to_share_buffer_with.empty()) {
+      for (auto& other : stages[item.second]->meta.tensors_to_share_buffer_with) {
         // we might intialize the buffer in args.
         auto* other_n = uf_map[other];
         if (!other_n) continue;

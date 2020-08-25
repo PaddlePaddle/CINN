@@ -23,7 +23,8 @@ std::unique_ptr<backends::SimpleJIT> GetLoweredFunc(int M, int N) {
   auto z = Compute(
       {m, n}, [=](Expr i, Expr j) { return x(i, j) + y(i, j); }, "z");
 
-  auto fn = Lower("fn", {x, y, z});
+  auto stages = CreateStages({z});
+  auto fn     = Lower("fn", stages, {x, y, z});
 
   lang::Module::Builder builder("some_module", common::DefaultHostTarget());
   builder.AddFunction(fn);

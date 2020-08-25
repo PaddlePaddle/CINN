@@ -145,7 +145,7 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
   }
 
   auto op     = ir::ComputeOp::Make(unique_name, fn, real_shape, domain, reduce_axis);
-  auto tensor = ir::_Tensor_::Make(unique_name, fn_body.type(), real_shape, domain, op, reduce_axis);
+  auto tensor = ir::Tensor(unique_name, fn_body.type(), real_shape, domain, op, reduce_axis);
   return tensor;
 }
 
@@ -157,7 +157,7 @@ std::vector<ir::Tensor> CallLowered(const std::string &target,
   for (int i = 0; i < return_types.size(); i++) {
     auto &return_type = return_types[i];
     auto call_op      = ir::CallOp::Make(target, call);
-    auto new_tensor   = ir::_Tensor_::Make(return_type.name, return_type.type, return_type.dims, {Expr(1)}, call_op);
+    auto new_tensor   = ir::Tensor(return_type.name, return_type.type, return_type.dims, {Expr(1)}, call_op);
     // Append write tensors in the tail.
     call.As<ir::Call>()->write_args.push_back(new_tensor);
     new_tensor->set_type(return_type.type);
@@ -184,7 +184,7 @@ Expr CallExtern(const std::string &target, const std::vector<Expr> &args) {
       op->as<ir::CallOp>()->value_slot   = i;
       op->as<ir::CallOp>()->is_tuple_get = true;
       auto name = Context::Global().NewName("tuple_" + target + "_out" + std::to_string(i) + "_");
-      auto ret  = ir::_Tensor_::Make(name, proto->mutable_arg_types[i], shape, shape, op, {});
+      auto ret  = ir::Tensor(name, proto->mutable_arg_types[i], shape, shape, op, {});
       mutable_args.push_back(ret);
     }
     call.As<ir::Call>()->write_args = mutable_args;

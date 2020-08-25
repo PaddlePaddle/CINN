@@ -28,17 +28,17 @@ TEST(Vectorize, replace_var) {
   Placeholder<float> B("B", {M, N});
 
   // C = A * B
-  lang::Buffer C_buf(Float(32));
 
   Tensor C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
-  C->Bind(C_buf);
 
-  C->stage()->Vectorize(1, 16);
+  auto stages = CreateStages({C});
 
-  auto funcs = Lower("matmul", {A, B, C});
+  stages[C]->Vectorize(1, 16);
 
-  Expr func = optim::Optimize(funcs);
+  auto funcs = Lower("matmul", stages, {A, B, C});
+
+  Expr func = optim::Optimize(funcs, common::DefaultHostTarget());
 
   Target target;
   target.arch = Target::Arch ::X86;
@@ -93,20 +93,21 @@ TEST(Vectorize, TestMarkVectorize) {
   Placeholder<float> B("B", {M, N});
 
   // C = A * B
-  lang::Buffer C_buf(Float(32));
 
   Tensor C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
-  C->Bind(C_buf);
 
   Tensor D = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "D");
-  D->Bind(C_buf);
+
+  auto stages = CreateStages({C, D});
+
+  stages[D]->ShareBufferWith(stages[C]);
 
   // vectorize C, not D
-  C->stage()->Vectorize(1, 16);
+  stages[C]->Vectorize(1, 16);
 
-  auto func = Lower("matmul", {A, B, C, D});
+  auto func = Lower("matmul", stages, {A, B, C, D});
 
   std::cout << "before optim\n" << func->body << std::endl;
 
@@ -210,7 +211,7 @@ TEST(Vectorize, single_for) {
                                body,
                                vectorize_info);
 
-  forloop = optim::Optimize(forloop);
+  forloop = optim::Optimize(forloop, common::DefaultHostTarget());
 
   LOG(INFO) << "Forloop\n" << forloop;
 }

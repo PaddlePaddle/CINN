@@ -434,10 +434,7 @@ void CodeGenC::Visit(const ir::Free *op) {
 
 void CodeGenC::Visit(const ir::_Range_ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::_Buffer_ *op) { os() << op->name; }
-void CodeGenC::Visit(const ir::_Tensor_ *op) {
-  CHECK(!op->inlined());
-  os() << op->buffer->name;
-}
+void CodeGenC::Visit(const ir::_Tensor_ *op) { os() << op->buffer->name; }
 void CodeGenC::Visit(const ir::Let *op) {
   bool is_vec = false;
   CHECK(op->type().valid());

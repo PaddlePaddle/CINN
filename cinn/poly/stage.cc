@@ -10,8 +10,8 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/lang/compute.h"
-#include "cinn/lang/tensor.h"
 #include "cinn/optim/ir_replace.h"
 #include "cinn/poly/compute_at_transform.h"
 #include "cinn/poly/isl_utils.h"
@@ -218,11 +218,11 @@ void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const 
   std::vector<int> offsets;
   std::transform(indice_mins.begin(), indice_mins.end(), std::back_inserter(offsets), [&](int x) { return -x; });
 
-  other->tensor_->compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
-                                                tensor_->name,                         // producer_tensor_name
-                                                transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
-                                                indice_mins,  // preceding_offset_for_producer_load
-                                                level);
+  other->meta.compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
+                                            tensor_->name,                         // producer_tensor_name
+                                            transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
+                                            indice_mins,                           // preceding_offset_for_producer_load
+                                            level);
 
   ComputeAtSchedule(other, level, kind);
 }
@@ -292,8 +292,6 @@ Iterator Stage::Fuse(const Iterator &level0, const Iterator &level1) {
       "%s = %s * %d + %s", new_iter_name.c_str(), level0.id.c_str(), level1_max_val, level1.id.c_str()));
 
   Map trans(domain_.ctx(), id(), from_iters, to_iters, conds, id());
-
-  LOG(INFO) << "fuse trans: " << trans;
 
   transform_ = transform_.apply_range(trans.to_isl());
   {
@@ -426,26 +424,6 @@ std::vector<std::pair<std::string, std::string>> ExtractExtraDepLinksFromStages(
   return extra_links;
 }
 
-std::vector<std::pair<std::string, std::string>> ExtractLinksFromCalls(const std::vector<ir::Tensor> &tensors,
-                                                                       bool with_placeholder) {
-  std::vector<std::pair<std::string, std::string>> links;
-
-  for (auto &tensor : tensors) {
-    if (tensor->is_call_node()) {
-      const auto &args = tensor->operation->as<ir::CallOp>()->read_args();
-      for (auto &arg : args) {
-        auto *arg_tensor = arg.As<ir::_Tensor_>();
-        if (!arg_tensor) continue;  // Get something like POD values.
-        if (arg_tensor->compute_inline) continue;
-        if (arg_tensor->is_placeholder_node() && !with_placeholder) continue;
-        links.emplace_back(arg_tensor->name, tensor->name);
-      }
-    }
-  }
-
-  return links;
-}
-
 void Stage::Unroll(const std::string &level) {
   auto dim_names = axis_names();
   auto it        = std::find(dim_names.begin(), dim_names.end(), level);
@@ -502,7 +480,7 @@ bool Stage::has_expression() const {
  * 2. add extra deps between cache and tensor to keep SSA order
  * 3. register the readers of the cache to the \p tensor, replace latter in Lower
  */
-ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir::Tensor> &readers) {
+ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir::Tensor> &readers, StageMap stages) {
   CHECK(tensor_);
   auto my_tensor         = ir::Tensor(tensor_);
   std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
@@ -511,21 +489,23 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
       tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
   cache_tensor->WithBuffer(memory_type);
 
+  stages->Insert(cache_tensor, CreateStage(cache_tensor).get());
+
   for (auto &reader : readers) {
-    Reference(&reader)->stage()->CtrlDepend(cache_tensor);
+    stages[reader]->CtrlDepend(cache_tensor);
   }
 
   std::vector<std::string> reader_names;
   std::transform(
       readers.begin(), readers.end(), std::back_inserter(reader_names), [](const ir::Tensor &x) { return x->name; });
 
-  CHECK(!tensor_->read_cache_relation) << "Duplicate read cache found, just one is allowed";
-  tensor_->read_cache_relation.reset(new ir::ReadCacheRelation{cache_name, reader_names});
+  CHECK(!meta.read_cache_relation) << "Duplicate read cache found, just one is allowed";
+  meta.read_cache_relation.reset(new ReadCacheRelation{cache_name, reader_names});
 
   if (memory_type == "shared") {
-    cache_tensor->stage()->SetScope(ScopeKind::kShared);
+    stages[cache_tensor]->SetScope(ScopeKind::kShared);
   } else if (memory_type == "local") {
-    cache_tensor->stage()->SetScope(ScopeKind::kLocal);
+    stages[cache_tensor]->SetScope(ScopeKind::kLocal);
   } else {
     CINN_NOT_IMPLEMENTED
   }
@@ -536,10 +516,10 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
 /*
  * Replace the tensor's name to cache_name, and create a cache_stage to copy content from cache to original tensor.
  */
-ir::Tensor Stage::CacheWrite(const std::string &memory_type) {
+ir::Tensor Stage::CacheWrite(const std::string &memory_type, StageMap stages) {
   CHECK(tensor_);
   CHECK(!tensor_->buffer.defined()) << "This tensor is already binded to a buffer, cannot cache write";
-  CHECK(!tensor_->inlined()) << "Cannot create a write cache on an inlined tensor";
+  CHECK(!meta.compute_inline) << "Cannot create a write cache on an inlined tensor";
   auto my_tensor         = ir::Tensor(tensor_);
   std::string cache_name = Context::Global().NewName(tensor_->name + "_cache_write_out");
   // make my_tensor a cache
@@ -547,26 +527,27 @@ ir::Tensor Stage::CacheWrite(const std::string &memory_type) {
 
   auto write_stage = lang::Compute(
       tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
+  stages->Insert(write_stage, CreateStage(write_stage).get());
 
-  write_stage->stage()->CtrlDepend(my_tensor);
+  stages[write_stage]->CtrlDepend(my_tensor);
 
-  CHECK(!tensor_->write_cache_relation) << "Duplicate write cache found, just one is allowed";
-  tensor_->write_cache_relation.reset(new ir::WriteCacheRelation{cache_name});
+  CHECK(!meta.write_cache_relation) << "Duplicate write cache found, just one is allowed";
+  meta.write_cache_relation.reset(new WriteCacheRelation{cache_name});
 
   return write_stage;
 }
 
 void Stage::ComputeInline() {
   CHECK(tensor_);
-  tensor_->compute_inline = true;
+  meta.compute_inline = true;
 }
 
-void Stage::ShareBufferWith(ir::Tensor other) {
+void Stage::ShareBufferWith(Stage *other) {
   CHECK(tensor_);
-  CHECK(!other->compute_inline);
-  CHECK(!this->tensor_->compute_inline);
-  tensor_->tensors_to_share_buffer_with.insert(other->name);
-  other->tensors_to_share_buffer_with.insert(tensor_->name);
+  CHECK(!other->meta.compute_inline);
+  CHECK(!meta.compute_inline);
+  meta.tensors_to_share_buffer_with.insert(other->id());
+  other->meta.tensors_to_share_buffer_with.insert(tensor_->name);
 }
 
 void Stage::CtrlDepend(const ir::Tensor &t) { add_extra_depend_stage(t->name); }
@@ -637,6 +618,50 @@ int Stage::GetTransformedLevel(int level) {
 
   // or just return the original.
   return level;
+}
+
+Stage *_StageMap_::operator[](const ir::Tensor &tensor) {
+  CHECK(data_.count(tensor->name)) << "StageMap has no stage for tensor [" << tensor->name << "]";
+  return data_[tensor->name].get();
+}
+const Stage *_StageMap_::operator[](const ir::Tensor &tensor) const {
+  CHECK(data_.count(tensor->name));
+  return data_.at(tensor->name).get();
+}
+Stage *_StageMap_::operator[](const ir::_Tensor_ *tensor) {
+  CHECK(data_.count(tensor->name));
+  return data_[tensor->name].get();
+}
+const Stage *_StageMap_::operator[](const ir::_Tensor_ *tensor) const {
+  CHECK(data_.count(tensor->name)) << "StageMap has no stage for tensor [" << tensor->name << "]";
+  return data_.at(tensor->name).get();
+}
+
+Stage *_StageMap_::Insert(const ir::Tensor &key, Stage *stage) {
+  CHECK(stage);
+  data_[key->name].Reset(stage);
+  return stage;
+}
+
+Stage *_StageMap_::InsertLazily(const ir::Tensor &key) { return Insert(key, ir::CreateStage(key).get()); }
+
+StageMap CreateStages(const std::vector<ir::Tensor> &tensors) {
+  StageMap stages;
+
+  std::set<ir::Tensor> all_tensors(tensors.begin(), tensors.end());
+
+  for (auto &tensor : tensors) {
+    auto used_tensors = ir::CollectIRNodes(tensor->body(), [](const Expr *x) { return x->as_tensor(); });
+    for (const Expr &x : used_tensors) {
+      all_tensors.insert(x.as_tensor_ref());
+    }
+  }
+
+  for (auto &t : all_tensors) {
+    stages->Insert(t, ir::CreateStage(t).get());
+  }
+
+  return stages;
 }
 
 }  // namespace poly

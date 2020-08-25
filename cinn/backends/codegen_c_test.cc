@@ -5,6 +5,7 @@
 #include <sstream>
 #include <tuple>
 
+#include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
@@ -50,7 +51,8 @@ TEST(CodeGenC, module) {
   target.os   = Target::OS ::Linux;
   Module::Builder builder("module1", target);
 
-  auto func = Lower("add1", {A, B, C});
+  auto stages = CreateStages({A, B, C});
+  auto func   = Lower("add1", stages, {A, B, C});
 
   builder.AddFunction(func);
   builder.AddBuffer(C_buf.buffer());
@@ -123,7 +125,8 @@ TEST(CodeGenC, module_with_transform) {
   Placeholder<float> B("B", {M, N});
 
   // An inlined tensor, should not appear in final C code! It can be used by any times and expand its expression there.
-  auto inlined0 = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) * 2.f + 1.f; });
+  auto inlined0 = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) * 2.f + 1.f; }, "inlined");
 
   auto C = Compute(
       {M, N}, [&](Var i, Var j) { return A(i, j) + B(i, j) + inlined0(i, j); }, "C");
@@ -131,22 +134,22 @@ TEST(CodeGenC, module_with_transform) {
   auto D = Compute(
       {M, N}, [&](Var i, Var j) { return C(i, j) * 2.f * inlined0(i, j); }, "D");
 
-  poly::Iterator i_outer, i_inner;
-  std::tie(i_outer, i_inner) = C->stage()->Split(poly::DefaultIterator(0), 4);
+  auto stages = CreateStages({C, D});
 
-  D->stage()->Tile(poly::DefaultIterator(0), poly::DefaultIterator(1), 4, 16);
+  auto [i_outer, i_inner] = stages[C]->Split(0, 4);
+
+  stages[D]->Tile(0, 1, 4, 16);
+
+  stages[inlined0]->ComputeInline();
 
   Target target = common::DefaultHostTarget();
   Module::Builder builder("module1", target);
 
-  inlined0->stage()->ComputeInline();
+  auto func = Lower("add1", stages, {A, B, C, D});
 
-  auto funcs = Lower("add1", {A, B, C, D});
+  LOG(INFO) << "func:\n" << func;
 
-  Expr func(funcs);
-  optim::Simplify(&func);
-
-  builder.AddFunction(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
+  builder.AddFunction(func);
   builder.AddBuffer(C->buffer);
 
   CodeGenC codegen(target);
@@ -197,6 +200,7 @@ void add1(void* _args, int32_t num_args)
 
 TEST(CodeGenC, matmul) {
   using namespace ir;  // NOLINT
+  Context::Global().ResetNameId();
 
   Placeholder<float> A("A", {Expr(100), Expr(20)});
   Placeholder<float> B("B", {Expr(20), Expr(50)});
@@ -213,11 +217,13 @@ TEST(CodeGenC, matmul) {
 
   Tensor C = Compute({Expr(100), Expr(50)}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
 
-  C->stage()->ShareBufferWith(C_init);
-  C_init->stage()->ComputeAtSchedule(C->stage(), 1, poly::Stage::kComputeAtBefore);
+  auto stages = CreateStages({A, B, C_init, C});
+  stages[C]->ShareBufferWith(stages[C_init]);
+
+  stages[C_init]->ComputeAtSchedule(stages[C], 1, poly::Stage::kComputeAtBefore);
 
   // Code gen
-  auto func = Lower("matmul", {A, B, C_init, C});
+  auto func = Lower("matmul", stages, {A, B, C_init, C});
   builder.AddFunction(func);
   builder.AddBuffer(C->buffer);
 
@@ -231,7 +237,9 @@ TEST(CodeGenC, matmul) {
 
     LOG(INFO) << "C.body: " << C->body();
 
-    auto f = Lower("main", {A, B, C}, {});
+    auto stages = CreateStages({C});
+
+    auto f = Lower("main", stages, {A, B, C}, {});
     std::cout << "f\n" << Expr(f) << std::endl;
     builder.AddFunction(f);
   }
@@ -277,15 +285,15 @@ void main(void* _args, int32_t num_args)
   const float* B = ((const float*)(_B->memory));
   float* C = ((float*)(_C->memory));
   {
-    cinn_pod_value_t _pod_val__8;
-    buffer_p_to_cinn_pod_value(_A, &_pod_val__8);
-    cinn_pod_value_t _pod_val__9;
-    buffer_p_to_cinn_pod_value(_B, &_pod_val__9);
-    cinn_pod_value_t _pod_val__10;
-    buffer_p_to_cinn_pod_value(_C, &_pod_val__10);
-    cinn_pod_value_t _pod_arr_11[3];
-    cinn_args_construct(_pod_arr_11, 3, &_pod_val__8, &_pod_val__9, &_pod_val__10);
-    matmul(_pod_arr_11, 5);
+    cinn_pod_value_t _pod_val__3;
+    buffer_p_to_cinn_pod_value(_A, &_pod_val__3);
+    cinn_pod_value_t _pod_val__4;
+    buffer_p_to_cinn_pod_value(_B, &_pod_val__4);
+    cinn_pod_value_t _pod_val__5;
+    buffer_p_to_cinn_pod_value(_C, &_pod_val__5);
+    cinn_pod_value_t _pod_arr_6[3];
+    cinn_args_construct(_pod_arr_6, 3, &_pod_val__3, &_pod_val__4, &_pod_val__5);
+    matmul(_pod_arr_6, 5);
   };
   cinn_buffer_free((void*)(0), _C);
 }
@@ -312,23 +320,24 @@ TEST(CodeGenC, matmul_tile) {
 
   Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
 
-  C->stage()->ShareBufferWith(C_init);
+  auto stages = CreateStages({C, C_init});
+  stages[C]->ShareBufferWith(stages[C_init]);
 
   {
-    auto [i_outer, i_inner, j_outer, j_inner] = C_init->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
-    C_init->stage()->Reorder({i_outer, j_outer, i_inner, j_inner});
+    auto [i_outer, i_inner, j_outer, j_inner] = stages[C_init]->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
+    stages[C_init]->Reorder({i_outer, j_outer, i_inner, j_inner});
   }
 
   {
-    auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
-    auto [k_outer, k_inner]                   = C->stage()->Split(poly::Iterator("k0"), 4);            // NOLINT
-    C->stage()->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
+    auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
+    auto [k_outer, k_inner]                   = stages[C]->Split(poly::Iterator("k0"), 4);            // NOLINT
+    stages[C]->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
   }
 
-  C_init->stage()->ComputeAtSchedule(C->stage(), 3, poly::Stage::kComputeAtBefore);
+  stages[C_init]->ComputeAtSchedule(stages[C], 3, poly::Stage::kComputeAtBefore);
 
   // Code gen
-  auto func = Lower("matmul", {A, B, C_init, C});
+  auto func = Lower("matmul", stages, {A, B, C_init, C});
 
   Target target = common::DefaultHostTarget();
 
@@ -385,32 +394,29 @@ TEST(CodeGenC, matmul_packed) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  lang::Buffer packedB_buf(Float(32));
-  lang::Buffer C_buf(Float(32));
-
   // TODO(Superjomn) Make sure the domain works.
   Var k(K.as_int32(), "k0");
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "PackedB");
-  packedB->Bind(packedB_buf);
   auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, k) * packedB(j / bn, k, j % bn); }, "C", {k});
-  C->Bind(C_buf);
+
+  auto stages = CreateStages({packedB, C});
 
   {
-    auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());
-    auto [k_outer, k_inner]                   = C->stage()->Split(poly::Iterator("k0"), 4);
-    C->stage()->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
+    auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn.as_int32(), bn.as_int32());
+    auto [k_outer, k_inner]                   = stages[C]->Split(poly::Iterator("k0"), 4);
+    stages[C]->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
   }
 
   // Code gen
-  auto func = Lower("matmul_with_packing", {A, B, packedB, C});
+  auto func = Lower("matmul_with_packing", stages, {A, B, packedB, C});
 
   Target target = common::DefaultHostTarget();
 
   Module::Builder builder("module1", target);
   builder.AddFunction(func);
-  builder.AddBuffer(C_buf.buffer());
-  builder.AddBuffer(packedB_buf.buffer());
+  builder.AddBuffer(C->buffer);
+  builder.AddBuffer(packedB->buffer);
 
   CodeGenC codegen(target);
   codegen.SetInlineBuiltinCodes(false);
@@ -470,9 +476,10 @@ TEST(CodeGenC, call_extern) {
 
   ir::Tensor y = Compute(
       {M}, [=](Var i) -> Expr { return lang::CallExtern("cinn_cpu_tanh_fp32", {x(i)}); }, "y");
-  y->WithBuffer();
 
-  auto yexpr = Lower("yy", {y});
+  auto stages = CreateStages({y});
+
+  auto yexpr = Lower("yy", stages, {y});
 
   Module::Builder builder("module0", common::DefaultHostTarget());
   builder.AddFunction(yexpr);

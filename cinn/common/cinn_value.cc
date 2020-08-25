@@ -2,6 +2,7 @@
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/node.h"
+#include "cinn/poly/stage.h"
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
@@ -28,6 +29,7 @@ __m(char const *, 21);
 __m(ir::Expr, 22);
 __m(ir::Var, 23);
 __m(CINNValuePack, 24);
+__m(poly::StageMap, 25);
 #undef __m
 //@}
 
@@ -83,6 +85,10 @@ CINNValue::operator CINNValuePack() const {
   CHECK_EQ(type_code_, TypeCode<CINNValuePack>());
   return std::any_cast<CINNValuePack>(shared_);
 }
+CINNValue::operator poly::StageMap() const {
+  CHECK_EQ(type_code(), TypeCode<poly::StageMap>());
+  return std::any_cast<poly::StageMap>(shared_);
+}
 CINNValue::CINNValue(char *value) : cinn_pod_value_t(ToValue(value), TypeCode<char *>()) {}
 
 CINNValue::CINNValue(const Var &value) : cinn_pod_value_t(cinn_value_t(), TypeCode<Var>()) {
@@ -94,6 +100,10 @@ CINNValue::CINNValue(const Expr &value) : cinn_pod_value_t(cinn_value_t(), TypeC
   shared_ = value;
 }
 CINNValue::CINNValue(const CINNValuePack &value) : cinn_pod_value_t(cinn_value_t(), TypeCode<CINNValuePack>()) {
+  CHECK(value.defined());
+  shared_ = value;
+}
+CINNValue::CINNValue(const poly::StageMap &value) : cinn_pod_value_t(cinn_value_t(), TypeCode<poly::StageMap>()) {
   CHECK(value.defined());
   shared_ = value;
 }
@@ -162,5 +172,10 @@ CINNValue &CINNValue::operator=(const ir::Expr &value) {
   *this = CINNValue(value);
   return *this;
 }
+CINNValue &CINNValue::operator=(const poly::StageMap &value) {
+  *this = CINNValue(value);
+  return *this;
+}
+
 }  // namespace common
 }  // namespace cinn

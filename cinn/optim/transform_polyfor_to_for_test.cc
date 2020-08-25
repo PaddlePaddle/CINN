@@ -17,19 +17,19 @@ TEST(Expr, basic) {
   Placeholder<float> B("B", {K, N});
 
   // C = A * B
-  lang::Buffer C_buf(Float(32));
   Var k(K.as_int32(), "k0");
 
   Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
-  C->Bind(C_buf);
+
+  auto stages = CreateStages({C});
 
   {
-    C->stage()->Split("i", 8);
-    C->stage()->Split("j", 8);
+    stages[C]->Split("i", 8);
+    stages[C]->Split("j", 8);
   }
 
   // Code gen
-  auto func = Lower("matmul", {A, B, C});
+  auto func = Lower("matmul", stages, {A, B, C});
 
   Target target;
   target.arch = Target::Arch ::X86;

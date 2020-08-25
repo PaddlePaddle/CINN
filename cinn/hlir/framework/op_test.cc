@@ -34,13 +34,16 @@ TEST(Operator, GetAttrs) {
   auto impl   = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, target));
 
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B)}};
-  common::CINNValuePack C          = impl->fcompute(cinn_input);
-  C                                = impl->fschedule(C);
-  for (int i = 0; i < C.get()->size(); i++) {
-    ir::Expr temp = C[i];
+  common::CINNValuePack rets       = impl->fcompute(cinn_input);
+  ASSERT_EQ(rets.size(), 2UL);
+  rets = impl->fschedule(rets);
+  ASSERT_EQ(rets.size(), 2UL);
+  // the last element is a StageMap
+  for (int i = 0; i < rets->size() - 1; i++) {
+    ir::Expr temp = rets[i];
     inputs.push_back(temp.as_tensor_ref());
   }
-  auto func = Lower("add1", inputs);
+  auto func = Lower("add1", rets.back(), inputs);
   LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
   ASSERT_EQ(impl->name, "strategy.add.x86");

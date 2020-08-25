@@ -29,12 +29,13 @@ auto CreateMatmulBasicModule(Target target, int m, int n, int k) {
   auto k1 = Var(K.as_int32(), "k1");
   auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
 
-  C_init->stage()->ShareBufferWith(C);
-  C->stage()->CtrlDepend(C_init);
+  auto stages = CreateStages({C_init, C});
+  stages[C_init]->ShareBufferWith(stages[C]);
+  stages[C]->CtrlDepend(C_init);
 
   Module::Builder builder("module_basic", target);
 
-  auto func = Lower("matmul_basic", {A, B, C_init, C});
+  auto func = Lower("matmul_basic", stages, {A, B, C_init, C});
 
   builder.AddFunction(func);
   return builder.Build();
@@ -52,14 +53,15 @@ auto CreateMatmulTileModule(Target target, int m, int n, int k) {
   auto k1 = Var(K.as_int32(), "k1");
   auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
 
-  C->stage()->ShareBufferWith(C_init);
-  C->stage()->CtrlDepend(C_init);
+  auto stages = CreateStages({C_init, C});
+  stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
 
-  C->stage()->Tile(0, 1, 4, 4);
+  stages[C]->Tile(0, 1, 4, 4);
 
   Module::Builder builder("module_tile", target);
 
-  auto func = Lower("matmul_tile", {A, B, C, C_init});
+  auto func = Lower("matmul_tile", stages, {A, B, C, C_init});
 
   builder.AddFunction(func);
   return builder.Build();
@@ -77,20 +79,22 @@ auto CreateMatmulSplitModule(Target target, int m, int n, int k) {
   auto k1 = Var(K.as_int32(), "k1");
   auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
 
-  C->stage()->ShareBufferWith(C_init);
-  C->stage()->CtrlDepend(C_init);
+  auto stages = CreateStages({C_init, C});
 
-  auto c_poly_iterators = [&C](auto &&... args) {
+  stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
+
+  auto c_poly_iterators = [&](auto &&... args) {
     std::vector<poly::Iterator> iters;
-    (iters.push_back(C->stage()->ith_iterator(args)), ...);
+    (iters.push_back(stages[C]->ith_iterator(args)), ...);
     return iters;
   };
-  C->stage()->Split(2, 16);
-  C->stage()->Reorder(c_poly_iterators(1, 0, 2, 3));
+  stages[C]->Split(2, 16);
+  stages[C]->Reorder(c_poly_iterators(1, 0, 2, 3));
 
   Module::Builder builder("module_split", target);
 
-  auto func = Lower("matmul_split", {A, B, C, C_init});
+  auto func = Lower("matmul_split", stages, {A, B, C, C_init});
 
   builder.AddFunction(func);
   return builder.Build();
@@ -108,17 +112,19 @@ auto CreateMatmulBlockModule(Target target, int m, int n, int k) {
   auto k1 = Var(K.as_int32(), "k1");
   auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
 
-  C->stage()->ShareBufferWith(C_init);
-  C->stage()->CtrlDepend(C_init);
+  auto stages = CreateStages({C_init, C});
+
+  stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
 
   constexpr int bn                          = 32;
-  auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn, bn);  // NOLINT
-  auto [k_outer, k_inner]                   = C->stage()->Split(k1->name, 4);  // NOLINT
-  C->stage()->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
+  auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
+  auto [k_outer, k_inner]                   = stages[C]->Split(k1->name, 4);  // NOLINT
+  stages[C]->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
 
   Module::Builder builder("module_block", target);
 
-  auto func = Lower("matmul_block", {A, B, C, C_init});
+  auto func = Lower("matmul_block", stages, {A, B, C, C_init});
 
   builder.AddFunction(func);
   return builder.Build();
@@ -136,21 +142,20 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->WithBuffer();
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k0) * B(k0, j)); }, "C", {k0});
-  C->Bind(C_init->buffer);
-  // ASSERT_EQ(C->buffer_depended_tensor_names().size(), 1UL);
+
+  auto stages = CreateStages({C_init, C});
+  stages[C]->ShareBufferWith(stages[C_init]);
+
   {
-    auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn, bn);
-    auto [k_outer, k_inner]                   = C->stage()->Split("k0", 4);
-
-    C->stage()->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
-
-    C->stage()->Vectorize(j_inner, 8);
+    auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);
+    auto [k_outer, k_inner]                   = stages[C]->Split("k0", 4);
+    stages[C]->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
+    stages[C]->Vectorize(j_inner, 8);
   }
 
   Module::Builder builder("module_vectorize", target);
-  auto func = Lower("matmul_vectorize", {A, B, C, C_init});
+  auto func = Lower("matmul_vectorize", stages, {A, B, C, C_init});
 
   builder.AddFunction(func);
 
@@ -169,31 +174,32 @@ lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->WithBuffer();
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
-  C->Bind(C_init->buffer);
-  CHECK_EQ(C->buffer_depended_tensor_names().size(), 1UL);
 
   target.arch = Target::Arch::X86;
   target.bits = Target::Bit::k32;
   target.os   = Target::OS::Linux;
 
+  auto stages = CreateStages({C_init, C});
+  stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
+
   // Blocking by loop tiling.
   {
-    auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn, bn);  // NOLINT
-    auto [k_outer, k_inner]                   = C->stage()->Split("k0", 4);      // NOLINT
+    auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
+    auto [k_outer, k_inner]                   = stages[C]->Split("k0", 4);      // NOLINT
 
-    C_init->stage()->Vectorize(1, 8);
-    C_init->stage()->Unroll(1);
+    stages[C_init]->Vectorize(1, 8);
+    stages[C_init]->Unroll(1);
 
-    C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
+    stages[C]->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
 
-    C->stage()->Vectorize(j_inner, 8);
-    C->stage()->Unroll(5);
+    stages[C]->Vectorize(j_inner, 8);
+    stages[C]->Unroll(5);
   }
 
   Module::Builder builder("module_loop_permutation", target);
-  auto func = Lower("matmul_loop_permutation", {A, B, C, C_init});
+  auto func = Lower("matmul_loop_permutation", stages, {A, B, C, C_init});
 
   builder.AddFunction(func);
   return builder.Build();
@@ -211,34 +217,34 @@ lang::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
 
   auto C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-  C_init->WithBuffer();
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
-  packedB->WithBuffer();
-  LOG(INFO) << "stage: " << packedB->stage()->transformed_domain();
-  packedB->stage()->Vectorize(2, 8);
-
   auto C = Compute({M, N}, [&](Expr i, Expr j) { return Sum(A(i, k) * packedB(j / bn, k, j % bn)); }, "C", {k});
-  C->Bind(C_init->buffer);
 
-  CHECK_EQ(C->buffer_depended_tensor_names().size(), 1UL);
+  auto stages = CreateStages({C_init, C});
+
+  stages[C]->ShareBufferWith(stages[C_init]);
+
+  LOG(INFO) << "stage: " << stages[packedB]->transformed_domain();
+  stages[packedB]->Vectorize(2, 8);
 
   {
-    auto [i_outer, i_inner, j_outer, j_inner] = C->stage()->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
-    auto [k_outer, k_inner]                   = C->stage()->Split("k0", 4);                            // NOLINT
+    auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
+    auto [k_outer, k_inner]                   = stages[C]->Split("k0", 4);                            // NOLINT
 
-    C->stage()->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
-    C->stage()->Vectorize(j_inner, 8);
+    stages[C]->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
+    stages[C]->Vectorize(j_inner, 8);
   }
 
   Module::Builder builder("module_array_packing", target);
-  auto func = Lower("matmul_array_packing", {A, B, C, C_init, packedB});
+  auto func = Lower("matmul_array_packing", stages, {A, B, C, C_init, packedB});
 
   builder.AddFunction(func);
 
   return builder.Build();
 }
 
+// TODO(Superjomn) To refactor this, strange to use if-else here.
 auto CreateCinnMatmulModule(const std::string &name, Target target, int m, int n, int k) {
   if (name == "basic") {
     return CreateMatmulBasicModule(target, m, n, k);

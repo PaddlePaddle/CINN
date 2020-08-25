@@ -8,6 +8,7 @@ from cinn import lang
 from cinn import Target
 from cinn import pe
 from cinn.common import *
+from cinn.poly import create_stages
 
 
 class TestPEReduction(unittest.TestCase):
@@ -94,13 +95,14 @@ class TestPEReduction(unittest.TestCase):
         )]
         x = lang.Placeholder("float32", "x", [m, n])
         func_name = "test_" + fn_name
+        stages = create_stages([x.to_tensor()])
         if initial:
-            y, y_init = cinn_fn(x.to_tensor(), axes, keep_dims,
+            y, y_init = cinn_fn(x.to_tensor(), stages, axes, keep_dims,
                                 ir.Expr(initial))
-            func = lang.lower(func_name, [x.to_tensor(), y, y_init])
+            func = lang.lower(func_name, stages, [x.to_tensor(), y, y_init])
         else:
-            y = cinn_fn(x.to_tensor(), axes, keep_dims)
-            func = lang.lower(func_name, [x.to_tensor(), y])
+            y = cinn_fn(x.to_tensor(), stages, axes, keep_dims)
+            func = lang.lower(func_name, stages, [x.to_tensor(), y])
 
         builder = lang.Module.Builder("reduction_module", self.target)
         builder.add_function(func)

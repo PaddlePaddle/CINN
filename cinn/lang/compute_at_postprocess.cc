@@ -4,16 +4,17 @@
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
-#include "cinn/lang/tensor.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/optim/ir_replace.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/poly/compute_at_transform.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace lang {
-using ir::ComputeAtInfo;
-
 namespace detail {
+using poly::ComputeAtInfo;
+using poly::StageMap;
 
 /**
  * Process the producer related Store and Load indices.
@@ -151,11 +152,11 @@ struct NormalizeProducerDomainMutator : public ir::IRMutator<> {
 struct ResetProducerLoadIndiceInConsumerMutator : public ir::IRMutator<> {
   const std::string& producer_tensor_name;
   const std::vector<Var>& consumer_axis;
-  const ComputeAtInfo& compute_at_info;
+  const poly::ComputeAtInfo& compute_at_info;
 
   ResetProducerLoadIndiceInConsumerMutator(const std::string& producer_tensor_name,
                                            const std::vector<Var>& consumer_axis,
-                                           const ComputeAtInfo& compute_at_info)
+                                           const poly::ComputeAtInfo& compute_at_info)
       : producer_tensor_name(producer_tensor_name), consumer_axis(consumer_axis), compute_at_info(compute_at_info) {}
 
   void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
@@ -182,7 +183,6 @@ struct ResetProducerLoadIndiceInConsumerMutator : public ir::IRMutator<> {
 
 }  // namespace detail
 
-using ir::ComputeAtInfo;
 /**
  * Lets define the consumer tensor as C and the producer tensor as P for short.
  * First, find the forloop generating C, keep the forloop levels in a stack.
@@ -193,8 +193,10 @@ using ir::ComputeAtInfo;
  */
 struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   std::string tensor_name;
+  poly::StageMap stages;
 
-  explicit CorrectComputeAtRelatedIndiceMutator(const std::string& tensor_name) : tensor_name(tensor_name) {}
+  explicit CorrectComputeAtRelatedIndiceMutator(const std::string& tensor_name, poly::StageMap stages)
+      : tensor_name(tensor_name), stages(stages) {}
 
   void operator()(Expr* e) { return ir::IRMutator<>::Visit(e, e); }
 
@@ -257,7 +259,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   void ResetProducerLoadIndiceInConsumer(const std::vector<Var>& consumer_axis,
                                          Expr* consumer_store_expr,
                                          const std::string& producer_tensor_name,
-                                         const ComputeAtInfo& compute_at_info) {
+                                         const poly::ComputeAtInfo& compute_at_info) {
     detail::ResetProducerLoadIndiceInConsumerMutator(
         producer_tensor_name, consumer_axis, compute_at_info)(consumer_store_expr);
   }
@@ -271,7 +273,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
     }
 
     // get the target consumer
-    auto& compute_at_infos = op->tensor.as_tensor()->compute_at_infos;
+    auto& compute_at_infos = stages[op->tensor.as_tensor()]->meta.compute_at_infos;
     CHECK(!compute_at_infos.empty());
 
     std::vector<Var> levels;
@@ -312,7 +314,7 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
   std::vector<Expr*> forloop_stack;
 };
 
-void ProcessComputeAtInfo(Expr* expr) {
+void ProcessComputeAtInfo(Expr* expr, poly::StageMap stages) {
   // 1. collect all the consumer tensors thouse have compute_at_infos.
   // 2. for each producer tensor, reset the producer tensor loads indice.
 
@@ -323,25 +325,26 @@ void ProcessComputeAtInfo(Expr* expr) {
   // in consumer, reset presending axis in producer's Load to zero.
 
   auto tensor_with_compute_at_infos = ir::CollectIRNodes(
-      *expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->compute_at_infos.empty(); });
+      *expr, [&](const Expr* x) { return x->as_tensor() && !stages[x->as_tensor()]->meta.compute_at_infos.empty(); });
 
   for (auto& tensor : tensor_with_compute_at_infos) {
     VLOG(4) << "consumer: " << tensor;
-    CorrectComputeAtRelatedIndiceMutator(tensor.as_tensor()->name)(expr);
+    CorrectComputeAtRelatedIndiceMutator(tensor.as_tensor()->name, stages)(expr);
   }
 }
 
-void UpdateComputeAtBufferShape(Expr* expr) {
+void UpdateComputeAtBufferShape(Expr* expr, poly::StageMap stages) {
   auto tensor_with_compute_at_infos = ir::CollectIRNodes(*expr, [&](const Expr* x) {
-    return x->as_tensor() && !x->as_tensor()->inlined() && !x->as_tensor()->compute_at_infos.empty();
+    return x->as_tensor() && !stages[x->as_tensor()]->inlined() &&
+           !stages[x->as_tensor()]->meta.compute_at_infos.empty();
   });
 
   auto tensor_map = ir::CollectTensorMap(
-      *expr, [&](const Expr* x) { return !x->as_tensor()->inlined() && x->as_tensor()->buffer.defined(); });
+      *expr, [&](const Expr* x) { return !stages[x->as_tensor()]->inlined() && x->as_tensor()->buffer.defined(); });
 
-  std::unordered_map<std::string, ir::ComputeAtInfo*> buffer_to_compute_at_info;
+  std::unordered_map<std::string, poly::ComputeAtInfo*> buffer_to_compute_at_info;
   for (auto& item : tensor_map) {
-    auto& compute_at_infos = item.second.as_tensor()->compute_at_infos;
+    auto& compute_at_infos = stages[item.second.as_tensor()]->meta.compute_at_infos;
     if (compute_at_infos.empty()) continue;
     for (auto& compute_at : compute_at_infos) {
       auto& producer_tensor = tensor_map.at(compute_at.producer_tensor_name);
@@ -349,7 +352,7 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     }
   }
 
-  auto process_tensor = [&](ir::_Tensor_* tensor, const ComputeAtInfo& compute_at_info) {
+  auto process_tensor = [&](ir::_Tensor_* tensor, const poly::ComputeAtInfo& compute_at_info) {
     tensor->shape.clear();
     for (int v : compute_at_info.adjusted_producer_shape) {
       tensor->shape.push_back(Expr(v));
@@ -357,7 +360,7 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     VLOG(4) << "Updated tensor: " << ir::Tensor(tensor);
   };
 
-  auto process_buffer = [&](ir::_Buffer_* buffer, const ComputeAtInfo& compute_at_info) {
+  auto process_buffer = [&](ir::_Buffer_* buffer, const poly::ComputeAtInfo& compute_at_info) {
     buffer->shape.clear();
     for (int v : compute_at_info.adjusted_producer_shape) {
       buffer->shape.push_back(Expr(v));
@@ -365,7 +368,7 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     VLOG(4) << "Updated buffer: " << ir::Buffer(buffer);
   };
 
-  auto process_alloca = [&](ir::Alloc* alloca, const ComputeAtInfo& compute_at_info) {
+  auto process_alloca = [&](ir::Alloc* alloca, const poly::ComputeAtInfo& compute_at_info) {
     alloca->extents.clear();
     for (int v : compute_at_info.adjusted_producer_shape) {
       alloca->extents.push_back(Expr(v));
@@ -373,7 +376,8 @@ void UpdateComputeAtBufferShape(Expr* expr) {
     VLOG(4) << "Updated alloca: " << Expr(alloca);
   };
 
-  auto tensors = ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->as_tensor() && !x->as_tensor()->inlined(); });
+  auto tensors =
+      ir::CollectIRNodes(*expr, [&](const Expr* x) { return x->as_tensor() && !stages[x->as_tensor()]->inlined(); });
   for (auto& t : tensors) {
     if (!t.as_tensor()->buffer.defined() || !buffer_to_compute_at_info.count(t.as_tensor()->buffer->name)) continue;
     auto& buffer       = t.as_tensor()->buffer;
