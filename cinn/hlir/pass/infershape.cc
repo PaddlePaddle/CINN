@@ -15,7 +15,6 @@ using framework::NodeData;
 using framework::Operator;
 
 void InferShapePass(Graph* graph) {
-  LOG(INFO) << "graph:\n" << graph->Visualize();
   auto& shape_dict = graph->GetMutableAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
   auto& dtype_dict = graph->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
   auto store_nodes = std::get<0>(graph->topological_order());
@@ -26,9 +25,7 @@ void InferShapePass(Graph* graph) {
       Operator::GetAttrs<std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&)>>(
           "inferdtype");
   for (auto& node : store_nodes) {
-    LOG(INFO) << "current node type: " << node->type_info();
     if (node->is_type<Node>()) {
-      LOG(INFO) << "processing node " << node->id();
       std::vector<std::vector<int>> inputs_shape;
       std::vector<Type> inputs_dtype;
       for (auto& in_edge : node->inlinks()) {
@@ -55,7 +52,7 @@ void InferShapePass(Graph* graph) {
       for (auto& out_edge : node->outlinks()) {
         auto* sink_node = out_edge->sink()->safe_as<NodeData>();
         CHECK(sink_node);
-        LOG(INFO) << "set dtype for " << sink_node->id();
+
         shape_dict[sink_node->id()] = out_shape[counter];
         dtype_dict[sink_node->id()] = out_dtype[counter];
         counter++;

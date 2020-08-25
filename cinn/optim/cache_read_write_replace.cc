@@ -65,7 +65,6 @@ struct CacheReplaceMutator : public ir::IRMutator<> {
   void Visit(const ir::Load* op, Expr* expr) override {
     auto* node   = expr->As<ir::Load>();
     auto* tensor = node->tensor.as_tensor();
-    LOG(INFO) << "cache: " << cache;
     if (to_mutate_ && tensor && tensor->name == cache->name) {
       node->tensor = Expr(cache);
     } else {
@@ -105,7 +104,6 @@ void CacheReadWriteReplace(Expr* expr, poly::StageMap stages, std::map<std::stri
   for (auto& t : uniq_cached_tensors) {
     if (stages[t]->meta.read_cache_relation) {
       auto cache = global_tensor_map->at(stages[t]->meta.read_cache_relation->cache_name);
-      LOG(INFO) << "cache: " << cache;
       CacheReplaceMutator(t->name, cache, stages[t]->meta.read_cache_relation->readers, true /*read*/)(expr);
     }
     if (stages[t]->meta.write_cache_relation) {

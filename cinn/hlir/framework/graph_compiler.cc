@@ -1,5 +1,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
+
 #include <unordered_map>
+
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/tensor.h"
 
@@ -21,7 +23,6 @@ std::unique_ptr<Program> GraphCompiler::Build() {
     compiler_ = backends::Compiler::Create(target_);
   }
 
-  LOG(INFO) << "CodeGen:\n" << m_builder_.Build();
   compiler_->Build(m_builder_.Build());
 
   return std::unique_ptr<Program>(new Program(scope_, BuildInstructions()));
@@ -46,7 +47,6 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
 }
 
 ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
-  LOG(INFO) << "Op node: " << node->id();
   auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
   auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
@@ -63,6 +63,10 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     cinn_inputs.push_back(common::CINNValue(temp));
   }
 
+  auto stages = CreateStages(inputs);
+
+  cinn_inputs.push_back(common::CINNValue(stages));
+
   std::vector<Type> out_types;
   for (auto& out : node->outlinks()) {
     std::string out_id = out->sink()->safe_as<NodeData>()->id();
@@ -74,13 +78,13 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
 
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
   C                       = impl->fschedule(C);
-  for (int i = 0; i < C.get()->size(); i++) {
+  for (int i = 0; i < C.get()->size() - 1; i++) {
     ir::Expr temp = C[i];
+    stages->Insert(temp.as_tensor_ref(), ir::CreateStage(temp.as_tensor_ref()).get());
     inputs.push_back(temp.as_tensor_ref());
   }
 
-  auto stages = poly::CreateStages(inputs);
-  auto func   = Lower(GenOpFuncName(node), stages, inputs);
+  auto func = Lower(GenOpFuncName(node), stages, inputs);
 
   return func;
 }
