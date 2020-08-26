@@ -62,19 +62,14 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     inputs.push_back(temp);
     cinn_inputs.push_back(common::CINNValue(temp));
   }
-
-  auto stages = CreateStages(inputs);
-
-  cinn_inputs.push_back(common::CINNValue(stages));
-
   std::vector<Type> out_types;
   for (auto& out : node->outlinks()) {
     std::string out_id = out->sink()->safe_as<NodeData>()->id();
     Type dtype         = dtype_dict.at(out_id);
     out_types.push_back(dtype);
   }
-
-  auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, target_));
+  auto stages = CreateStages(inputs);
+  auto impl   = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, target_));
 
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
   C                       = impl->fschedule(C);

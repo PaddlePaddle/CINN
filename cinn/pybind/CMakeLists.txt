@@ -1,4 +1,4 @@
-set(srcs runtime.cc common.cc lang.cc ir.cc poly.cc backends.cc bind.cc optim.cc pe.cc frontend.cc)
+set(srcs runtime.cc common.cc lang.cc ir.cc poly.cc backends.cc bind.cc optim.cc pe.cc frontend.cc framework.cc)
 if (WITH_CUDA)
   message(STATUS "Compile core_api with CUDA support")
   nv_library(core_api SHARED
