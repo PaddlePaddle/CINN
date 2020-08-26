@@ -17,7 +17,7 @@ using CINNSchedule = lang::PackedFunc;
 class OpStrategy;
 
 using StrategyFunction = std::function<std::shared_ptr<OpStrategy>(
-    const NodeAttr &, const std::vector<ir::Tensor> &, const std::vector<Type> &, const common::Target &)>;
+    const NodeAttr&, const std::vector<ir::Tensor>&, const std::vector<Type>&, const common::Target&)>;
 
 //! Operator implementation that includes compute and schedule function.
 class OpImpl : public common::Object {
@@ -37,7 +37,7 @@ class OpImpl : public common::Object {
    * @param out_type The output type information.
    * @return The output compute description of the operator.
    */
-  ir::Tensor Compute(const std::vector<ir::Tensor> &inputs, const Type &out_type) {
+  ir::Tensor Compute(const std::vector<ir::Tensor>& inputs, const Type& out_type) {
     // TODO(haozech) : add support for packedfunc to return Tensor
     // Expected : return this->fcompute(inputs, out_type);
     ir::Tensor temp;
@@ -50,18 +50,18 @@ class OpImpl : public common::Object {
    * @param target The build target.
    * @return The computation schedule.
    */
-  common::Shared<Schedule> GetSchedule(const std::vector<ir::Tensor> &outs,
-                                       const std::vector<ir::Tensor> &temp_tensors,
-                                       const Target &target) {
+  common::Shared<Schedule> GetSchedule(const std::vector<ir::Tensor>& outs,
+                                       const std::vector<ir::Tensor>& temp_tensors,
+                                       const Target& target) {
     // TODO(haozech) : add support for packedfunc to return Schedule
     // Expected : return this->fschedule(outs, target);
     return nullptr;
   }
 
-  const char *type_info() const override { return __type_info__; }
+  const char* type_info() const override { return __type_info__; }
 
  private:
-  static constexpr char *__type_info__ = "OpImplementation";
+  static constexpr char* __type_info__ = "OpImplementation";
 };
 
 //! Specialized implementations for operators under certain conditions.
@@ -72,12 +72,12 @@ class OpSpec : public common::Object {
 
   /** \brief Condition to enable the specialization.
    *    Could be undefined to represent generic case.
-   *  TODO(haozech) : build a specified class SpecializedCondition to represent
-   * the condition. Expected : SpecializedCondition condition;
+   *  TODO(haozech) : build a specified class SpecializedCondition to represent the condition.
+   *  Expected : SpecializedCondition condition;
    */
   std::string condition;
 
-  const char *type_info() const override { return __type_info__; }
+  const char* type_info() const override { return __type_info__; }
 
   void AddImpl(CINNCompute fcompute, CINNSchedule fschedule, std::string name, int plevel) {
     auto n       = std::make_shared<OpImpl>();
@@ -89,13 +89,13 @@ class OpSpec : public common::Object {
   }
 
  private:
-  static constexpr char *__type_info__ = "OpSpecialization";
+  static constexpr char* __type_info__ = "OpSpecialization";
 };
 
 //! Operator strategy class.
 class OpStrategy : public common::Object {
  public:
-  const char *type_info() const override { return __type_info__; }
+  const char* type_info() const override { return __type_info__; }
   //! List of operator specializations.
   std::vector<std::shared_ptr<OpSpec>> specializations;
 
@@ -107,10 +107,10 @@ class OpStrategy : public common::Object {
    * @param plevel Priority level of the implementation
    */
   void AddImpl(CINNCompute fcompute, CINNSchedule fschedule, std::string name, int plevel);
-  static std::shared_ptr<OpImpl> SelectImpl(const std::shared_ptr<OpStrategy> &strategy);
+  static std::shared_ptr<OpImpl> SelectImpl(const std::shared_ptr<OpStrategy>& strategy);
 
  private:
-  static constexpr char *__type_info__ = "OpStrategy";
+  static constexpr char* __type_info__ = "OpStrategy";
 };
 
 }  // namespace framework

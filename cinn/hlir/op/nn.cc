@@ -62,13 +62,16 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
     CINNValuePack a = args[0];
     ir::Expr A      = a[0];
     CHECK(A.as_tensor());
-    *ret = CINNValuePack{{CINNValue(ir::Expr((pe::Relu<float>(A.as_tensor_ref())).get()))}};
+    auto out    = pe::Relu<float>(A.as_tensor_ref(), 0.0, UniqName("Relu_output"));
+    auto stages = CreateStages({out});
+    *ret        = CINNValuePack{{CINNValue(ir::Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule relu_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack a = args[0];
-    ir::Expr A      = a[0];
-    *ret            = CINNValuePack{{CINNValue(A)}};
+    CINNValuePack arg_pack      = args[0];
+    ir::Expr A [[maybe_unused]] = arg_pack[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
