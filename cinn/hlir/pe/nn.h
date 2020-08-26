@@ -22,7 +22,7 @@ namespace pe {
 
 template <typename T>
 ir::Tensor Relu(const ir::Tensor& A, T threshold = static_cast<T>(0), const std::string& output_name = "T_Relu_out") {
-  return Compute(
+  return lang::Compute(
       A->shape, [&](const std::vector<Expr>& indice) { return ir::Relu(A(indice), threshold); }, output_name);
 }
 
