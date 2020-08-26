@@ -6,10 +6,10 @@ namespace cinn {
 namespace optim {
 
 /**
- * Replace Activate IR nodes with extern call if needed.
+ * Map the Call nodes to external function call.
  * TODO(Suerjomn) consider different backends.
  */
-void ActivateToExternCall(Expr *e, Target target);
+void MapExternCall(Expr *e, Target target);
 
 }  // namespace optim
 }  // namespace cinn

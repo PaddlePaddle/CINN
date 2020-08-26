@@ -1,7 +1,6 @@
 #include "cinn/optim/optimize.h"
 
 #include "cinn/ir/ir_printer.h"
-#include "cinn/optim/activate_to_extern_call.h"
 #include "cinn/optim/cache_read_write_replace.h"
 #include "cinn/optim/call_arg_list_to_pod_value.h"
 #include "cinn/optim/eliminate_broadcast_in_forloop.h"
@@ -11,6 +10,7 @@
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/lower_function_call_bind_vars.h"
+#include "cinn/optim/map_extern_call.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
@@ -38,7 +38,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
 
   RemoveNestedBlock(&copied);
 
-  ActivateToExternCall(&copied, target);
+  MapExternCall(&copied, target);
   ExternCallMultiOutputShallowStore(&copied);
 
   Simplify(&copied);

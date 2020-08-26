@@ -1,4 +1,4 @@
-#include "cinn/optim/activate_to_extern_call.h"
+#include "cinn/optim/map_extern_call.h"
 
 #include "cinn/cinn.h"
 #include "cinn/ir/ir_mutator.h"
@@ -7,7 +7,7 @@
 namespace cinn {
 namespace optim {
 
-void ActivateToExternCall(Expr *e, Target target) {
+void MapExternCall(Expr *e, Target target) {
   struct Mutator : ir::IRMutator<Expr *> {
     Target target;
 
