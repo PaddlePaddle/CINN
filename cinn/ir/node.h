@@ -90,7 +90,6 @@ class Var;
   macro__(Power)                            \
   macro__(Product)                          \
   macro__(Sum)                              \
-  macro__(Activate)                         \
   macro__(PrimitiveNode)                    \
 
 #define NODETY_FORALL(__m)              \
