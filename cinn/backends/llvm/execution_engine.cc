@@ -40,6 +40,7 @@
 #include <string_view>
 #include <utility>
 
+#include "cinn/backends/codegen_cuda_host.h"
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/codegen_x86.h"
@@ -134,13 +135,13 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
   return engine;
 }
 
+template <typename CodeGenT>
 void ExecutionEngine::Link(const lang::Module &module) {
   llvm::SMDiagnostic error;
-  auto ctx = std::make_unique<llvm::LLVMContext>();
-  auto m   = llvm::parseAssemblyString(AsStringRef(backends::kRuntimeLlvmIr), error, *ctx);
-  auto b   = std::make_unique<llvm::IRBuilder<>>(*ctx);
-  // auto emitter = std::make_unique<CodeGenLLVM>(m.get(), b.get());
-  auto emitter = std::make_unique<CodeGenX86>(m.get(), b.get());
+  auto ctx     = std::make_unique<llvm::LLVMContext>();
+  auto m       = llvm::parseAssemblyString(AsStringRef(backends::kRuntimeLlvmIr), error, *ctx);
+  auto b       = std::make_unique<llvm::IRBuilder<>>(*ctx);
+  auto emitter = std::make_unique<CodeGenT>(m.get(), b.get());
 
   for (auto &buffer : module->buffers) {
     auto expr = runtime::BufferCreate(buffer.as_buffer_ref());
@@ -212,5 +213,9 @@ void ExecutionEngine::RegisterRuntimeSymbols() {
     llvm::cantFail(jit_->defineAbsolute(name, {llvm::pointerToJITTargetAddress(addr), llvm::JITSymbolFlags::None}));
   }
 }
+
+template void ExecutionEngine::Link<CodeGenLLVM>(const lang::Module &module);
+template void ExecutionEngine::Link<CodeGenX86>(const lang::Module &module);
+template void ExecutionEngine::Link<CodeGenCUDA_Host>(const lang::Module &module);
 
 }  // namespace cinn::backends

@@ -29,6 +29,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/backends/llvm/codegen_x86.h"
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/lang/module.h"
 
@@ -57,6 +58,7 @@ class ExecutionEngine {
 
   void *Lookup(std::string_view name);
 
+  template <typename CodeGenT = CodeGenLLVM>
   void Link(const lang::Module &module);
 
   bool AddModule(std::unique_ptr<llvm::Module> module, std::unique_ptr<llvm::LLVMContext> context);
