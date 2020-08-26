@@ -57,8 +57,8 @@ void Compiler::CompileCudaModule(const Module& module) {
   }
 
   {  // compile host jit
-    engine_ = SimpleJIT::Create();
-    engine_->Link<CodeGenCUDA_Host>(host_module, true /*optimize*/);
+    engine_ = ExecutionEngine::Create(ExecutionOptions());
+    engine_->Link<CodeGenCUDA_Host>(host_module);
   }
 
 #else
