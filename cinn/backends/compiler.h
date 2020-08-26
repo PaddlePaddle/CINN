@@ -37,13 +37,13 @@ class Compiler final {
 
   void CompileX86Module(const lang::Module& module);
 
-  explicit Compiler(const Target& target) : target_(target), engine_(SimpleJIT::Create()) {}
+  explicit Compiler(const Target& target) : target_(target), engine_(ExecutionEngine::Create(ExecutionOptions())) {}
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Compiler);
 
  private:
   Target target_;
-  std::unique_ptr<SimpleJIT> engine_;
+  std::unique_ptr<ExecutionEngine> engine_;
 
 #ifdef CINN_WITH_CUDA
   std::unique_ptr<runtime::cuda::CUDAModule> cuda_module_;
