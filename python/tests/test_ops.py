@@ -65,8 +65,9 @@ class SingleOpTester(unittest.TestCase):
         module = self.__codegen(op_name, inputs)
         self.compiler.build(module)
         fn = self.compiler.lookup(op_name)
-        out = runtime.cinn_buffer_t(
-            np.zeros(output_shape).astype("float32"), runtime.cinn_x86_device)
+        out = []
+        for out_shape in output_shape:
+            out.append(runtime.cinn_buffer_t(np.zeros(out_shape).astype("float32"), runtime.cinn_x86_device))
 
         args = []
         temp_inputs = []
@@ -75,13 +76,16 @@ class SingleOpTester(unittest.TestCase):
                 runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device))
         for in_data in temp_inputs:
             args.append(runtime.cinn_pod_value_t(in_data))
-
-        args.append(runtime.cinn_pod_value_t(out))
+        for out_data in out:
+            args.append(runtime.cinn_pod_value_t(out_data))
 
         fn(args)
+        print("test op output is:")
+        out_result = out[len(out)-1]
+        print(out_result.numpy())
         self.assertTrue(
             np.allclose(
-                out.numpy(), self.create_target_data(inputs_data), atol=1e-4))
+                out_result.numpy(), self.create_target_data(inputs_data), atol=1e-4))
 
     def __codegen(self, op_name, inputs):
         types = [common.Float(32)]
@@ -107,7 +111,7 @@ class OpTest_add(SingleOpTester):
         return X + Y
 
     def test_op(self):
-        self.to_test_op([[100, 32], [100, 32]], [100, 32], "add")
+        self.to_test_op([[100, 32], [100, 32]], [[100, 32]], "add")
 
 
 class OpTest_relu(SingleOpTester):
@@ -116,8 +120,14 @@ class OpTest_relu(SingleOpTester):
         return np.maximum(X, np.zeros(np.array(X).shape).astype("float32"))
 
     def test_op(self):
-        self.to_test_op([[32, 32]], [32, 32], "relu")
+        self.to_test_op([[32, 32]], [[32, 32]], "relu")
 
+class OpTest_conv2d(SingleOpTester):
+    def create_target_data(self, inputs_data):
+        return np.ones((1,2,5,5)).astype("float32")
+
+    def test_op(self):
+        self.to_test_op([[1, 3, 10, 10], [2,3,2,2]], [[1,3,12,12],[2,3,3,3],[1,2,5,5]], "conv2d")
 
 if __name__ == "__main__":
     unittest.main()

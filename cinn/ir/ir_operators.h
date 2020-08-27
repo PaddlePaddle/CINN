@@ -43,6 +43,10 @@ template <typename POD, typename = typename std::enable_if<std::is_pod<POD>::val
 Expr operator>=(Expr a, POD b) {
   return GE::Make(Expr(a), Expr(b));
 }
+template <typename POD, typename = typename std::enable_if<std::is_pod<POD>::value>::type>
+Expr operator==(Expr a, POD b) {
+  return EQ::Make(Expr(a), Expr(b));
+}
 
 //- right hand --
 template <typename POD, typename = typename std::enable_if<std::is_pod<POD>::value>::type>
@@ -80,6 +84,10 @@ Expr operator>(POD a, Expr b) {
 template <typename POD, typename = typename std::enable_if<std::is_pod<POD>::value>::type>
 Expr operator>=(POD a, Expr b) {
   return GE::Make(Expr(a), Expr(b));
+}
+template <typename POD, typename = typename std::enable_if<std::is_pod<POD>::value>::type>
+Expr operator==(POD a, Expr b) {
+  return EQ::Make(Expr(a), Expr(b));
 }
 
 //--

@@ -2,6 +2,7 @@
 #include <vector>
 
 #include "cinn/hlir/pe/nn.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 
 namespace cinn {
@@ -24,6 +25,65 @@ Tensor PRelu(const Tensor& A, const Tensor& slope, const int axis, const std::st
       A->shape,
       [&](const std::vector<Expr>& indice) { return LeakyRelu(A(indice), slope(indice[axis])); },
       output_name);
+}
+
+std::vector<ir::Tensor> Conv2d_nchw(const ir::Tensor& input,
+                                    const ir::Tensor& weights,
+                                    int pad_h,
+                                    int pad_w,
+                                    int stride_h,
+                                    int stride_w,
+                                    int dilation,
+                                    int groups,
+                                    const std::string& output_name) {
+  CHECK_EQ(4, input->shape.size()) << "Input's dimension of Conv2d op is not 4! Please check.";
+  CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d op is not 4! Please check.";
+  std::vector<Expr> output_shape{
+      input->shape[0],                                                                                // B
+      weights->shape[0],                                                                              // O
+      Expr((input->shape[2] - ((weights->shape[2] - 1) * dilation + 1) + 2 * pad_h) / stride_h + 1),  // H
+      Expr((input->shape[3] - ((weights->shape[3] - 1) * dilation + 1) + 2 * pad_w) / stride_w + 1)   // W
+  };
+  LOG(INFO) << "stage4";
+  auto input_pad = Compute(
+      {input->shape[0], input->shape[1], input->shape[2] + 2 * pad_h, input->shape[3] + 2 * pad_w},
+      [=](Expr nn, Expr cc, Expr yy, Expr xx) {
+        auto cond =
+            ir::logic_and({yy >= pad_h, yy - pad_h < input->shape[2], xx >= pad_w, xx - pad_w < input->shape[3]});
+        return ir::Select::Make(cond, input(nn, cc, yy - pad_h, xx - pad_w), Expr(0.f));
+      },
+      "input_pad_unique");
+  LOG(INFO) << "stage5";
+  std::vector<Expr> new_weights_shape{weights->shape[0],
+                                      weights->shape[1],
+                                      dilation * (weights->shape[2] - 1) + 1,
+                                      dilation * (weights->shape[3] - 1) + 1};
+  LOG(INFO) << "stage6";
+  auto weights_dilation = Compute(
+      new_weights_shape,
+      [=](Expr nn, Expr cc, Expr yy, Expr xx) {
+        auto cond = ir::logic_and({(xx + 1) % dilation == 0, (yy + 1) % dilation == 0});
+        return ir::Select::Make(cond, weights(nn, cc, (yy + 1) / dilation - 1, (xx + 1) / dilation - 1), Expr(0.f));
+      },
+      "weights_dilation_unique");
+  LOG(INFO) << "stage7";
+
+  Var rc(input_pad->shape[1], "rc");
+  Var ry(weights_dilation->shape[2], "ry");
+  Var rx(weights_dilation->shape[3], "rx");
+  LOG(INFO) << "stage8";
+  LOG(INFO) << output_shape;
+  LOG(INFO) << input_pad->shape;
+  LOG(INFO) << weights_dilation->shape;
+  auto res = Compute(
+      output_shape,
+      [=](Expr nn, Expr ff, Expr yy, Expr xx) {
+        return lang::Sum(input_pad(nn, rc, yy * stride_h + ry, xx * stride_w + rx) * weights_dilation(ff, rc, ry, rx));
+      },
+      output_name,
+      {ry, rx, rc});
+  LOG(INFO) << "stage9";
+  return {input_pad, weights_dilation, res};
 }
 
 }  // namespace pe
