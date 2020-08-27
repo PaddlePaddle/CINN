@@ -249,7 +249,6 @@ void CompuGraphAddCtrlDepLinks(common::Graph* graph, StageMap stages) {
       auto* dep_node = graph->RetriveNode(dep);
       if (dep_node) {
         VLOG(3) << "Add control link: " << dep << " -> " << node->id();
-        LOG(INFO) << "Add control link: " << dep << " -> " << node->id();
         dep_node->LinkTo(node);
       }
     }
@@ -389,8 +388,6 @@ ir::LoweredFunc LowerImpl::operator()() {
 
   auto func_body = GenerateFunctionBody(schedule.get());
 
-  LOG(INFO) << "func_body: " << func_body;
-
   auto tensor_map = optim::InitialAssignBuffer(&func_body, stages_);
   // copy the tensor(with buffer assigned) back to func's args.
   {
@@ -500,7 +497,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
 
     compu_graph_ = CreateCompGraph(tensors, stages, false /*inline_hide*/);
 
-    LOG(INFO) << "compu_graph:\n" << compu_graph_->Visualize();
+    VLOG(1) << "compu_graph:\n" << compu_graph_->Visualize();
   }
 
   std::vector<poly::Stage*> all_stages;

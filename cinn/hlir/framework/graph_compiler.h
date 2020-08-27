@@ -18,15 +18,29 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+/**
+ * The Program is the runtime instance for running a computation.
+ */
 class Program {
  public:
+  /**
+   * Constructor.
+   * @param scope The scope containing all the runtime variables.
+   * @param instrs The instructions belonging to this program.
+   */
   Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_ptr<Instruction>>&& instrs)
       : scope_(scope), instrs_(std::move(instrs)) {}
 
+  /**
+   * Execute the program -- that is running all the instructions inside it.
+   */
   void Execute() {
     for (auto& ins : instrs_) ins->Run();
   }
 
+  /**
+   * Get the number of instructions.
+   */
   size_t size() const { return instrs_.size(); }
 
  private:
@@ -35,6 +49,9 @@ class Program {
   std::vector<std::unique_ptr<Instruction>> instrs_;
 };
 
+/**
+ * GraphCompiler compiles a graph and generate the runtime Program.
+ */
 class GraphCompiler final {
  public:
   GraphCompiler(Target target, const std::shared_ptr<Scope>& scope, const std::shared_ptr<Graph>& graph)
@@ -61,9 +78,9 @@ class GraphCompiler final {
 
   std::unique_ptr<backends::Compiler> compiler_;
 
-  CINN_DISALLOW_COPY_AND_ASSIGN(GraphCompiler);
-
   lang::Module::Builder m_builder_;
+
+  CINN_DISALLOW_COPY_AND_ASSIGN(GraphCompiler);
 };
 
 std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& graph);
