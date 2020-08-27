@@ -9,6 +9,7 @@ from cinn import framework
 from cinn import ir
 from cinn import common
 from cinn.poly import create_stages
+import logging
 
 
 class TestOps(unittest.TestCase):
@@ -20,29 +21,33 @@ class TestOps(unittest.TestCase):
         self.target.os = common.Target.OS.Linux
 
     def test_ops(self):
-        print("Test for op add begin:")
+        logging.warning("Test for op add begin:")
         self.op_unittest([[100, 32], [100, 32]], [100, 32], "add")
-        print("Test for op relu begin:")
+        logging.warning("Test for op relu begin:")
         self.op_unittest([[32, 32]], [32, 32], "relu")
 
     def op_unittest(self, input_shapes, output_shape, op_name):
         self.compiler = cinn.Compiler.create(self.target)
         inputs = []
         inputs_data = []
+
         for i_shape in input_shapes:
             expr_shape = []
             inputs_data.append(
                 np.around(np.random.random(i_shape).astype("float32"), 3))
+
             for dim_shape in i_shape:
                 expr_shape.append(ir.Expr(dim_shape))
+
             inputs.append(
-                lang.Placeholder("float32", self.GetName(),
+                lang.Placeholder("float32", self.get_name(),
                                  expr_shape).to_tensor())
         module = self.codegen(op_name, inputs)
         self.compiler.build(module)
         fn = self.compiler.lookup(op_name)
         out = runtime.cinn_buffer_t(
             np.zeros(output_shape).astype("float32"), runtime.cinn_x86_device)
+
         args = []
         temp_inputs = []
         for in_data in inputs_data:
@@ -50,7 +55,9 @@ class TestOps(unittest.TestCase):
                 runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device))
         for in_data in temp_inputs:
             args.append(runtime.cinn_pod_value_t(in_data))
+
         args.append(runtime.cinn_pod_value_t(out))
+
         fn(args)
         self.assertTrue(
             np.allclose(
@@ -79,7 +86,7 @@ class TestOps(unittest.TestCase):
             X = inputs_data
         return np.maximum(X, np.zeros(np.array(X).shape).astype("float32"))
 
-    def GetName(self):
+    def get_name(self):
         self.counter = self.counter + 1
         return "Var_" + str(self.counter)
 
