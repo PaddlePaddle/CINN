@@ -40,6 +40,55 @@ class LLVMIRVisitor : public ir::IRVisitorBase<llvm::Value *> {
  */
 bool LLVM_WillVarLowerAsPointer(const std::string &var_name);
 
+class SymbolTable {
+ public:
+  SymbolTable() = default;
+
+  void PushScope() { scopes_.emplace_back(); }
+
+  llvm::Value *Lookup(const std::string &id) {
+    for (auto it = scopes_.rbegin(); it != scopes_.rend(); it++) {
+      auto vt = (*it).find(id);
+      if (vt != (*it).end()) return vt->second;
+    }
+    return nullptr;
+  }
+
+  void Insert(const std::string &id, llvm::Value *value) {
+    CHECK(!scopes_.empty());
+    scopes_.back().emplace(id, value);
+  }
+
+  void Erase(const std::string &id) {
+    CHECK(!scopes_.empty());
+    scopes_.back().erase(id);
+  }
+
+  void PopScope() {
+    CHECK(!scopes_.empty());
+    scopes_.pop_back();
+  }
+
+  //! Get the number of the variables contained in the current scope.
+  size_t size() const { return scopes_.empty() ? 0 : scopes_.back().size(); }
+
+  size_t num_scopes() const { return scopes_.size(); }
+
+ private:
+  std::vector<std::unordered_map<std::string, llvm::Value *>> scopes_;
+
+  SymbolTable(const SymbolTable &) = delete;
+};
+
+struct SymbolTableGuard {
+  SymbolTableGuard(SymbolTable &symbol_table) : symbol_table_(symbol_table) { symbol_table.PushScope(); }
+
+  ~SymbolTableGuard() { symbol_table_.PopScope(); }
+
+ private:
+  SymbolTable &symbol_table_;
+};
+
 /**
  * Base class of all the LLVM-based codegen.
  */
@@ -47,7 +96,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
  public:
   explicit CodeGenLLVM(llvm::Module *m,
                        llvm::IRBuilder<> *b,
-                       std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> vars = nullptr);
+                       const std::shared_ptr<SymbolTable> &symbol_table = nullptr);
 
   // Common llvm types
   // @{
@@ -61,6 +110,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   inline llvm::Type *ll_cinn_pod_ty() const { return llvm_type_of<cinn_pod_value_t>(m_); }
   inline llvm::Type *ll_cinn_pod_p_ty() const { return llvm_type_of<cinn_pod_value_t *>(m_); }
   // @}
+
   //! get a llvm type equivalent to a CINN type.
   inline llvm::Type *ll_type_of(Type type) { return CinnTypeToLLVMType(type, m_); }
 
@@ -85,7 +135,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   //! Used for the ExternFuncEmitter to store temporary result.
   mutable llvm::Value *extern_func_emit_res_{};
 
-  std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> named_vars() { return named_vars_; }
+  std::shared_ptr<SymbolTable> named_vars() { return symbol_table_; }
 
   llvm::FunctionType *GenFunctionTypeFromCinnFunction(const ir::_LoweredFunc_ *func, bool with_buffer_type);
 
@@ -116,12 +166,6 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   llvm::Value *EmitBinaryOp(llvm::Value *lhs, llvm::Value *rhs, char opcode, bool is_integral, bool is_signed = true);
 
-  llvm::Value *EmitIntegerUnaryOp(llvm::Value *);
-  llvm::Value *EmitFloatUnaryOp(llvm::Value *, llvm::Value *);
-
-  llvm::Value *EmitIntegerBinaryOp(llvm::Value *);
-  llvm::Value *EmitFloatBinaryOp(llvm::Value *, llvm::Value *);
-
   llvm::Value *LLVMGenGlobalStringVar(const std::string &data);
 
   llvm::Value *CreateBufferPtr(Type t, llvm::Value *buffer, llvm::Value *index);
@@ -130,35 +174,15 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   llvm::Value *DenseVectorLoad(const ir::Load *load);
 
-  void InitTarget(Target target) {
-    switch (target.arch) {
-      case Target::Arch::X86:
-        if (target.bits == Target::Bit::k32) {
-          naive_vec_alignment_ = 256;
-        } else if (target.bits == Target::Bit::k64) {
-          naive_vec_alignment_ = 512;
-        } else {
-          LOG(FATAL) << "get unknown bits";
-        }
-        break;
-      case Target::Arch::ARM:
-        naive_vec_alignment_ = 128;
-        break;
-      case Target::Arch::NVGPU:
-        naive_vec_alignment_ = 128;
-        break;
-      case Target::Arch::Unk:
-        LOG(FATAL) << "unknown Arch found";
-        break;
-    }
-  }
+  void InitTarget(const Target &target);
 
   llvm::Module *m_;
   llvm::IRBuilder<> *b_;
 
   std::unique_ptr<llvm::MDBuilder> md_builder_;
 
-  std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> named_vars_;
+  // std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> named_vars_;
+  std::shared_ptr<SymbolTable> symbol_table_;
   std::unordered_set<ir::_Var_ *> alias_vars_;
 
   llvm::MDNode *md_tbaa_root_{nullptr};

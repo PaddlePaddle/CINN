@@ -9,9 +9,7 @@
 
 namespace cinn::backends {
 
-CodeGenX86::CodeGenX86(llvm::Module *m,
-                       llvm::IRBuilder<> *b,
-                       std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> vars)
+CodeGenX86::CodeGenX86(llvm::Module *m, llvm::IRBuilder<> *b, const std::shared_ptr<SymbolTable> &vars)
     : CodeGenLLVM(m, b, vars) {}
 
 CodeGenX86::~CodeGenX86() {}

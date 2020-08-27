@@ -16,9 +16,7 @@ namespace backends {
  */
 class CodeGenCUDA_Host : public CodeGenLLVM {
  public:
-  explicit CodeGenCUDA_Host(llvm::Module *m,
-                            llvm::IRBuilder<> *b,
-                            std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> vars = nullptr)
+  explicit CodeGenCUDA_Host(llvm::Module *m, llvm::IRBuilder<> *b, const std::shared_ptr<SymbolTable> &vars = nullptr)
       : CodeGenLLVM(m, b, vars) {}
 
   static std::string GenKernelPtrVarName(const std::string &kernel_name) { return kernel_name + "_kernel_ptr_"; }

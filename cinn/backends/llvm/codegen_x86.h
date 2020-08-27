@@ -13,9 +13,7 @@ namespace cinn::backends {
 
 class CodeGenX86 : public CodeGenLLVM {
  public:
-  explicit CodeGenX86(llvm::Module *m,
-                      llvm::IRBuilder<> *b,
-                      std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> vars = nullptr);
+  explicit CodeGenX86(llvm::Module *m, llvm::IRBuilder<> *b, const std::shared_ptr<SymbolTable> &vars = nullptr);
   virtual ~CodeGenX86();
 
   using LLVMIRVisitor::Visit;
