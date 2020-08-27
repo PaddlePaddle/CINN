@@ -12,7 +12,16 @@ from cinn.poly import create_stages
 import logging
 
 
-class TestOps(unittest.TestCase):
+class SingleOpTester(unittest.TestCase):
+    '''
+    A unittest framework for testing a single operator.
+
+    Two methods one should override for each Operator's unittest
+
+    1. create_target_data
+    2. test_op
+    '''
+
     def setUp(self):
         self.counter = 0
         self.target = common.Target()
@@ -20,13 +29,24 @@ class TestOps(unittest.TestCase):
         self.target.bits = common.Target.Bit.k32
         self.target.os = common.Target.OS.Linux
 
-    def test_ops(self):
-        logging.warning("Test for op add begin:")
-        self.op_unittest([[100, 32], [100, 32]], [100, 32], "add")
-        logging.warning("Test for op relu begin:")
-        self.op_unittest([[32, 32]], [32, 32], "relu")
+    def create_target_data(self, inputs_data):
+        '''
+        create the target of the operator's execution output.
+        '''
+        raise NotImplemented
 
-    def op_unittest(self, input_shapes, output_shape, op_name):
+    def test_op(self):
+        '''
+        USER API
+
+        The real use case should implement this method!
+        '''
+        pass
+
+    def to_test_op(self, input_shapes, output_shape, op_name):
+        '''
+        Test the operator.
+        '''
         self.compiler = cinn.Compiler.create(self.target)
         inputs = []
         inputs_data = []
@@ -40,9 +60,9 @@ class TestOps(unittest.TestCase):
                 expr_shape.append(ir.Expr(dim_shape))
 
             inputs.append(
-                lang.Placeholder("float32", self.get_name(),
+                lang.Placeholder("float32", self.__gen_var_name(),
                                  expr_shape).to_tensor())
-        module = self.codegen(op_name, inputs)
+        module = self.__codegen(op_name, inputs)
         self.compiler.build(module)
         fn = self.compiler.lookup(op_name)
         out = runtime.cinn_buffer_t(
@@ -61,11 +81,9 @@ class TestOps(unittest.TestCase):
         fn(args)
         self.assertTrue(
             np.allclose(
-                out.numpy(),
-                self.create_target_data(inputs_data, op_name),
-                atol=1e-4))
+                out.numpy(), self.create_target_data(inputs_data), atol=1e-4))
 
-    def codegen(self, op_name, inputs):
+    def __codegen(self, op_name, inputs):
         types = [common.Float(32)]
         attrs = framework.NodeAttr()
         strategy_map = framework.Operator.get_op_attrs("CINNStrategy")
@@ -73,24 +91,33 @@ class TestOps(unittest.TestCase):
                                           self.target)
         stages = create_stages(res)
         func = lang.lower(op_name, stages, res)
-        print('func', func)
+        logging.warning('func:\n\n%s\n', func)
         builder = lang.Module.Builder(op_name, self.target)
         builder.add_function(func)
         return builder.build()
 
-    def create_target_data(self, inputs_data, op_name):
-        if (op_name == "add"):
-            X, Y = inputs_data
-            return X + Y
-        elif (op_name == "relu"):
-            X = inputs_data
-        return np.maximum(X, np.zeros(np.array(X).shape).astype("float32"))
-
-    def get_name(self):
+    def __gen_var_name(self):
         self.counter = self.counter + 1
         return "Var_" + str(self.counter)
 
 
+class OpTest_add(SingleOpTester):
+    def create_target_data(self, inputs_data):
+        X, Y = inputs_data
+        return X + Y
+
+    def test_op(self):
+        self.to_test_op([[100, 32], [100, 32]], [100, 32], "add")
+
+
+class OpTest_tanh(SingleOpTester):
+    def create_target_data(self, inputs_data):
+        X = inputs_data
+        return np.maximum(X, np.zeros(np.array(X).shape).astype("float32"))
+
+    def test_op(self):
+        self.to_test_op([[32, 32]], [32, 32], "relu")
+
+
 if __name__ == "__main__":
-    print("test begin!!")
     unittest.main()
