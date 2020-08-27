@@ -460,5 +460,26 @@ TEST(CodeGenLLVM, LowerFunc) {
   } while (false);
 }
 
+TEST(SymbolTable, test) {
+  SymbolTable table;
+  ASSERT_EQ(table.num_scopes(), 0UL);
+
+  table.PushScope();
+
+  auto *fake_addr = reinterpret_cast<llvm::Value *>(1);
+  table.Insert("a", fake_addr);
+  ASSERT_EQ(table.size(), 1UL);
+
+  table.PushScope();
+  table.Insert("b", fake_addr);
+  ASSERT_EQ(table.size(), 1UL);
+
+  auto *a = table.Lookup("a");
+  ASSERT_EQ(a, fake_addr);
+
+  auto *b = table.Lookup("b");
+  ASSERT_EQ(b, fake_addr);
+}
+
 }  // namespace backends
 }  // namespace cinn

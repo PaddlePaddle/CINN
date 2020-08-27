@@ -67,13 +67,13 @@ llvm::Value *EmitComparison(llvm::CmpInst::Predicate predicate,
 
 }  // namespace
 
-CodeGenLLVM::CodeGenLLVM(llvm::Module *m,
-                         llvm::IRBuilder<> *b,
-                         std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> vars)
-    : m_(m), b_(b), named_vars_(vars) {
-  if (!named_vars_.get()) {
-    named_vars_ = std::make_shared<std::unordered_map<std::string, llvm::Value *>>();
+CodeGenLLVM::CodeGenLLVM(llvm::Module *m, llvm::IRBuilder<> *b, const std::shared_ptr<SymbolTable> &symbol_table)
+    : m_(m), b_(b), symbol_table_(symbol_table) {
+  if (!symbol_table.get()) {
+    symbol_table_ = std::make_shared<SymbolTable>();
   }
+  symbol_table_->PushScope();  // Create a new scope by default.
+
   md_builder_        = std::make_unique<llvm::MDBuilder>(b_->getContext());
   md_tbaa_root_      = md_builder_->createTBAARoot("cinn-tbaa");
   md_tbaa_alias_set_ = md_builder_->createTBAANode("cinn-alias", md_tbaa_root_);
@@ -115,10 +115,6 @@ llvm::Value *CodeGenLLVM::EmitVectorPad(llvm::Value *vec, int lanes) {
 }
 
 llvm::Value *CodeGenLLVM::EmitVectorConcat(std::vector<llvm::Value *> vecs) {
-  // int lanes = static_cast<int>(std::accumulate(vecs.begin(), vecs.end(), 0,
-  //                                             [](llvm::Value *x, llvm::Value *y) { return
-  //                                             x->getType()->getVectorNumElements() +
-  //                                             y->getType()->getVectorNumElements(); }));
   int lanes = 0;
   for (auto *v : vecs) {
     lanes += static_cast<int>(v->getType()->getVectorNumElements());
@@ -391,6 +387,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
+  SymbolTableGuard symbol_table_guard(*symbol_table_);
+
   do {
     break;
     llvm::BasicBlock *preheader_bb = b_->GetInsertBlock();
@@ -415,7 +413,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
     if (old_var) {
       SetVar(op->loop_var->name, old_var);
     } else {
-      named_vars_->erase(op->loop_var->name);
+      symbol_table_->Erase(op->loop_var->name);
     }
 
     auto loop_next = Add(loop_value, llvm::ConstantInt::get(b_->getInt32Ty(), 1), "indvar.inc", true, true);
@@ -521,7 +519,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
   if (old_var) {
     SetVar(op->loop_var->name, old_var);
   } else {
-    named_vars_->erase(op->loop_var->name);
+    symbol_table_->Erase(op->loop_var->name);
   }
 
   b_->SetInsertPoint(exit_bb);
@@ -538,6 +536,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Select *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::IfThenElse *op) {
+  SymbolTableGuard symbol_table_guard(*symbol_table_);
+
   bool emit_else = op->false_case.defined();
 
   auto &ll_ctx      = b_->getContext();
@@ -572,6 +572,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::IfThenElse *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
+  // Create a new scope holding the temporary variables.
+  SymbolTableGuard symbol_table_guard(*symbol_table_);
+
   llvm::Value *ret = nullptr;
 
   llvm::BasicBlock *block =
@@ -793,8 +796,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Alloc *op) {
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Free *op) {
   auto *buffer_op = op->destination.As<ir::_Buffer_>();
-  CHECK(named_vars_->count(buffer_op->name));
-  named_vars_->erase(buffer_op->name);
+  CHECK(symbol_table_->Lookup(buffer_op->name));
+  symbol_table_->Erase(buffer_op->name);
   return nullptr;
 }
 
@@ -806,13 +809,11 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Tensor_ *op) {
   return GetVar(op->name);
   auto *buffer_op = op->buffer.As<ir::_Buffer_>();
   // return (*named_vars_)[buffer_op->name] = Visit(buffer_op);
-  if (named_vars_->count(buffer_op->name)) {
+  if (symbol_table_->Lookup(buffer_op->name)) {
     return Visit(buffer_op);
   }
 
   return SetVar(buffer_op->name, Visit(buffer_op));
-  // CHECK(!named_vars_->count(buffer_op->name)) << "[" << NodeToExpr(buffer_op) << "], " << buffer_op->name << "
-  // already exists"; return SetVar(buffer_op->name, Visit(buffer_op));
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
@@ -882,7 +883,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
   if (old_args) {
     SetVar("_args", old_args);  // restore _args
   } else {
-    named_vars_->erase("_args");
+    symbol_table_->Erase("_args");
   }
   RetVoid();
   return function;
@@ -1012,16 +1013,15 @@ llvm::Value *CodeGenLLVM::EmitCall_debug_info(const ir::Call *op) {
 }
 
 llvm::Value *CodeGenLLVM::GetVar(const std::string &name, bool lazy) {
-  auto it = named_vars_->find(name);
+  auto symbol = symbol_table_->Lookup(name);
   if (!lazy) {
-    CHECK(it != named_vars_->end()) << "No var [" << name << "] found";
-    return it->second;
+    CHECK(symbol) << "No var [" << name << "] found";
   }
-  return (*named_vars_)[name];
+  return symbol;
 }
 
 llvm::Value *CodeGenLLVM::SetVar(const std::string &name, llvm::Value *val) {
-  (*named_vars_)[name] = val;
+  symbol_table_->Insert(name, val);
   CHECK(GetVar(name));
   return val;
 }
@@ -1123,6 +1123,29 @@ llvm::Value *CodeGenLLVM::CreateVecSlice(llvm::Value *vec, int begin, int lanes)
   }
   llvm::Constant *undef = llvm::UndefValue::get(vec->getType());
   return b_->CreateShuffleVector(vec, undef, llvm::ConstantVector::get(indices));
+}
+
+void CodeGenLLVM::InitTarget(const Target &target) {
+  switch (target.arch) {
+    case Target::Arch::X86:
+      if (target.bits == Target::Bit::k32) {
+        naive_vec_alignment_ = 256;
+      } else if (target.bits == Target::Bit::k64) {
+        naive_vec_alignment_ = 512;
+      } else {
+        LOG(FATAL) << "get unknown bits";
+      }
+      break;
+    case Target::Arch::ARM:
+      naive_vec_alignment_ = 128;
+      break;
+    case Target::Arch::NVGPU:
+      naive_vec_alignment_ = 128;
+      break;
+    case Target::Arch::Unk:
+      LOG(FATAL) << "unknown Arch found";
+      break;
+  }
 }
 
 bool LLVM_WillVarLowerAsPointer(const std::string &var_name) {
