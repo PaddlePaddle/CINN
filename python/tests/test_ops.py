@@ -110,7 +110,7 @@ class OpTest_add(SingleOpTester):
         self.to_test_op([[100, 32], [100, 32]], [100, 32], "add")
 
 
-class OpTest_tanh(SingleOpTester):
+class OpTest_relu(SingleOpTester):
     def create_target_data(self, inputs_data):
         X = inputs_data
         return np.maximum(X, np.zeros(np.array(X).shape).astype("float32"))
