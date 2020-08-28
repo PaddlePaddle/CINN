@@ -1,5 +1,6 @@
 #include "cinn/pybind/bind.h"
 #include "cinn/backends/extern_func_jit_register.h"
+#include "cinn/runtime/use_extern_funcs.h"
 
 namespace py = pybind11;
 
@@ -33,4 +34,4 @@ PYBIND11_MODULE(core_api, m) {
 
 }  // namespace cinn::pybind
 
-CINN_USE_REGISTER(host_intrinsics);
+//CINN_USE_REGISTER(host_intrinsics);
