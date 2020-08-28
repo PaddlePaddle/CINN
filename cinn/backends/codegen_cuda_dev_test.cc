@@ -840,6 +840,8 @@ TEST(ElementwiseAdd, cache_read_local) {
   std::string source_target = R"ROC(
 extern "C" {
 
+#include "cinn_cuda_runtime_source.cuh"
+
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
@@ -967,6 +969,8 @@ TEST(ElementwiseAdd, cache_read1) {
 
   std::string source_target = R"ROC(
 extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
@@ -1164,6 +1168,8 @@ TEST(ElementwiseAdd, cache_read_shared) {
   auto target_source = R"ROC(
 extern "C" {
 
+#include "cinn_cuda_runtime_source.cuh"
+
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
@@ -1252,6 +1258,8 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
 
   auto target_source = R"ROC(
 extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
@@ -1344,6 +1352,8 @@ TEST(ElementwiseAdd, cache_write_local) {
 
   auto target_source = R"ROC(
 extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
 typedef int int32_t;

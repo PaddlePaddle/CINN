@@ -26,6 +26,7 @@ if (WITH_CUDA)
   enable_language(CUDA)
   find_package(CUDA REQUIRED)
   include_directories(${CUDA_INCLUDE_DIRS})
+  include_directories(${CMAKE_SOURCE_DIR}/cinn/runtime/cuda)
   set(CUDA_SEPARABLE_COMPILATION ON)
 endif()
 
