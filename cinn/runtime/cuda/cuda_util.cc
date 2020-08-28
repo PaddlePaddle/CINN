@@ -49,4 +49,3 @@ void cinn_call_cuda_kernel(void *kernel_fn,
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn
-
