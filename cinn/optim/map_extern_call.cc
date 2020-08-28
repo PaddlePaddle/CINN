@@ -11,7 +11,7 @@ void MapExternCall(Expr *e, Target target) {
   struct Mutator : ir::IRMutator<Expr *> {
     Target target;
 
-    Mutator(Target target) : target(target) { LOG(INFO) << "target: " << target; }
+    explicit Mutator(Target target) : target(target) {}
 
     void operator()(Expr *e) { ir::IRMutator<>::Visit(e, e); }
 
