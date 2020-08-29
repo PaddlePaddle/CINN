@@ -21,6 +21,7 @@ class SingleOpTester(unittest.TestCase):
     1. create_target_data
     2. test_op
     '''
+
     def setUp(self):
         self.counter = 0
         self.target = common.Target()
@@ -86,13 +87,16 @@ class SingleOpTester(unittest.TestCase):
         out_result = out[len(out) - 1]
         print(out_result.numpy())
         self.assertTrue(
-            np.allclose(out_result.numpy(),
-                        self.create_target_data(inputs_data),
-                        atol=1e-4))
+            np.allclose(
+                out_result.numpy(),
+                self.create_target_data(inputs_data),
+                atol=1e-4))
 
     def __codegen(self, op_name, inputs):
         types = [common.Float(32)]
         attrs = framework.NodeAttr()
+        attrs.attr_store = {"test_attr_store": 1}
+        attrs.set_attr("test_set_attr", 2)
         strategy_map = framework.Operator.get_op_attrs("CINNStrategy")
         res = strategy_map.apply_strategy(op_name, attrs, inputs, types,
                                           self.target)
@@ -108,21 +112,22 @@ class SingleOpTester(unittest.TestCase):
         return "Var_" + str(self.counter)
 
 
-# class OpTest_add(SingleOpTester):
-#     def create_target_data(self, inputs_data):
-#         X, Y = inputs_data
-#         return X + Y
+class OpTest_add(SingleOpTester):
+    def create_target_data(self, inputs_data):
+        X, Y = inputs_data
+        return X + Y
 
-#     def test_op(self):
-#         self.to_test_op([[100, 32], [100, 32]], [[100, 32]], "add")
+    def test_op(self):
+        self.to_test_op([[100, 32], [100, 32]], [[100, 32]], "add")
 
-# class OpTest_relu(SingleOpTester):
-#     def create_target_data(self, inputs_data):
-#         X = inputs_data
-#         return np.maximum(X, np.zeros(np.array(X).shape).astype("float32"))
 
-#     def test_op(self):
-#         self.to_test_op([[32, 32]], [[32, 32]], "relu")
+class OpTest_relu(SingleOpTester):
+    def create_target_data(self, inputs_data):
+        X = inputs_data
+        return np.maximum(X, np.zeros(np.array(X).shape).astype("float32"))
+
+    def test_op(self):
+        self.to_test_op([[32, 32]], [[32, 32]], "relu")
 
 
 class OpTest_conv2d(SingleOpTester):

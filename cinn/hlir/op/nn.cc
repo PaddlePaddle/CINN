@@ -59,6 +59,10 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
                                             const std::vector<ir::Tensor> &inputs,
                                             const std::vector<Type> &out_type,
                                             const Target &target) {
+  for (auto iter : attrs.attr_store) {
+    LOG(INFO) << "In StrategyForRelu, the input NodeAttr attrs is: ";
+    LOG(INFO) << iter.first << " : " << std::get<int>(iter.second);
+  }
   framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
     CINNValuePack a = args[0];
     ir::Expr A      = a[0];
