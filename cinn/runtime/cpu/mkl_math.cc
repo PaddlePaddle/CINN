@@ -34,46 +34,29 @@ void cinn_mkl_cos_v_fp64(cinn_buffer_t *x, cinn_buffer_t *out) {
 }
 */
 
-namespace cinn {
-namespace hlir {
-namespace instruction {
-namespace x86 {
-using backends::FunctionProto;
+CINN_REGISTER_HELPER(mkl_math) {
+  using cinn::backends::FunctionProto;
 
-namespace {
+  auto host_target = cinn::common::DefaultHostTarget();
 
-struct RegisterMklMath {
-  RegisterMklMath() {
-    auto host_target = common::DefaultHostTarget();
+  REGISTER_EXTERN_FUNC_HELPER(cinn_mkl_tanh_v_fp32, host_target)
+      .SetRetType<void>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddOutputType<cinn_buffer_t *>()
+      .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
+      .End();
 
-    REGISTER_EXTERN_FUNC_HELPER(cinn_mkl_tanh_v_fp32, host_target)
-        .SetRetType<void>()
-        .AddInputType<cinn_buffer_t *>()
-        .AddOutputType<cinn_buffer_t *>()
-        .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
-        .End();
+  REGISTER_EXTERN_FUNC_HELPER(cinn_mkl_tanh_v_fp64, host_target)
+      .SetRetType<void>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddOutputType<cinn_buffer_t *>()
+      .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
+      .End();
 
-    REGISTER_EXTERN_FUNC_HELPER(cinn_mkl_tanh_v_fp64, host_target)
-        .SetRetType<void>()
-        .AddInputType<cinn_buffer_t *>()
-        .AddOutputType<cinn_buffer_t *>()
-        .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
-        .End();
-
-    REGISTER_EXTERN_FUNC_HELPER(cinn_mkl_exp_v_fp32, host_target)
-        .SetRetType<void>()
-        .AddInputType<cinn_buffer_t *>()
-        .AddOutputType<cinn_buffer_t *>()
-        .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
-        .End();
-  }
-};
-
-[[maybe_unused]] static RegisterMklMath x;
-
-}  // namespace
-
-}  // namespace x86
-}  // namespace instruction
-}  // namespace hlir
-}  // namespace cinn
+  REGISTER_EXTERN_FUNC_HELPER(cinn_mkl_exp_v_fp32, host_target)
+      .SetRetType<void>()
+      .AddInputType<cinn_buffer_t *>()
+      .AddOutputType<cinn_buffer_t *>()
+      .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
+      .End();
+}

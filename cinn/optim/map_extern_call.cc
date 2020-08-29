@@ -11,35 +11,40 @@ void MapExternCall(Expr *e, Target target) {
   struct Mutator : ir::IRMutator<Expr *> {
     Target target;
 
-    Mutator(Target target) : target(target) {}
+    explicit Mutator(Target target) : target(target) {}
 
     void operator()(Expr *e) { ir::IRMutator<>::Visit(e, e); }
 
     void Visit(const ir::Call *op, Expr *expr) override {
-      // We only process the X86 device.
-      if (target.arch == Target::Arch::NVGPU) return;
-
       auto *node = expr->As<ir::Call>();
       CHECK(node);
-      static const std::vector<std::string> extern_funcs_fp32 = {
-          "exp",         "erf",         "sigmoid",     "sqrt",        "log",        "log2",        "log10",
-          "floor",       "ceil",        "round",       "trunc",       "cos",        "cosh",        "tan",
-          "sin",         "sinh",        "acos",        "acosh",       "asin",       "asinh",       "atan",
-          "atanh",       "isnan",       "tanh",        "isfinite",    "isinf",      "left_shift",  "right_shift",
-          "bitwise_or",  "bitwise_and", "bitwise_xor", "bitwise_not", "left_shift", "right_shift", "bitwise_or",
-          "bitwise_and", "bitwise_xor", "bitwise_not"};
-      static const std::vector<std::string> extern_funcs_int64 = {
-          "left_shift", "right_shift", "bitwise_or", "bitwise_and", "bitwise_xor", "bitwise_not"};
 
-      auto it = std::find(extern_funcs_fp32.begin(), extern_funcs_fp32.end(), node->name);
-      if (it != extern_funcs_fp32.end()) {
-        *expr = lang::CallExtern("cinn_cpu_" + *it + "_fp32", node->read_args);
+      if (target.arch == Target::Arch::NVGPU) {
+        DealWithNvGpuIntrisics(node, expr);
       } else {
-        it = std::find(extern_funcs_int64.begin(), extern_funcs_int64.end(), node->name);
-        if (it != extern_funcs_int64.end()) {
-          *expr = lang::CallExtern("cinn_cpu_" + *it + "_int64", node->read_args);
-        }
+        DealWithCpuIntrisics(node, expr);
       }
+    }
+
+    void DealWithCpuIntrisics(ir::Call *node, Expr *expr) {
+      if (kExternFp32Calls.count(node->name)) {
+        CHECK_GE(node->read_args.size(), 1UL);
+        CHECK_EQ(node->read_args.front().type(), Float(32));
+        *expr = lang::CallExtern("cinn_cpu_" + node->name + "_fp32", node->read_args);
+      } else if (kExternInt64Calls.count(node->name)) {
+        CHECK_GE(node->read_args.size(), 1UL);
+        CHECK_EQ(node->read_args.front().type(), Int(64));
+        *expr = lang::CallExtern("cinn_cpu_" + node->name + "_int64", node->read_args);
+      }
+    }
+
+    void DealWithNvGpuIntrisics(ir::Call *node, Expr *expr) {
+      if (kExternFp32Calls.count(node->name)) {
+        CHECK_GE(node->read_args.size(), 1UL);
+        CHECK_EQ(node->read_args.front().type(), Float(32));
+        *expr = lang::CallExtern("cinn_nvgpu_" + node->name + "_fp32", node->read_args);
+      }
+      // TODO(Superjomn) deal with int64 intrisics.
     }
   };
 

@@ -26,24 +26,51 @@
 #define REGISTER_EXTERN_FUNC_HELPER(fn__, target__) \
   ::cinn::backends::RegisterExternFunction(#fn__, target__, reinterpret_cast<void*>(fn__))
 
-#define REGISTER_EXTERN_FUNC_ONE_IN_ONE_OUT(fn__, target__, in_type__, out_type__) \
+#define REGISTER_FACKED_EXTERN_FUNC_HELPER(fn__, target__) ::cinn::backends::RegisterExternFunction(#fn__, target__)
+
+/**
+ * Register an external function with one input and one output.
+ */
+#define REGISTER_EXTERN_FUNC_1_IN_1_OUT(fn__, target__, in_type__, out_type__) \
   REGISTER_EXTERN_FUNC_HELPER(fn__, target__).SetRetType<out_type__>().AddInputType<in_type__>().End()
 
-#define REGISTER_EXTERN_FUNC_TWO_IN_ONE_OUT(fn__, target__, in_type1__, in_type2__, out_type__) \
-  REGISTER_EXTERN_FUNC_HELPER(fn__, target__)                                                   \
-      .SetRetType<out_type__>()                                                                 \
-      .AddInputType<in_type1__>()                                                               \
-      .AddInputType<in_type2__>()                                                               \
+/**
+ * Register an external function with one input and one output.
+ */
+#define REGISTER_EXTERN_FUNC_2_IN_1_OUT(fn__, target__, in_type1__, in_type2__, out_type__) \
+  REGISTER_EXTERN_FUNC_HELPER(fn__, target__)                                               \
+      .SetRetType<out_type__>()                                                             \
+      .AddInputType<in_type1__>()                                                           \
+      .AddInputType<in_type2__>()                                                           \
+      .End()
+
+/**
+ * Register a sourced function(No function address, called in generated source code).
+ */
+#define REGISTER_EXTERN_SOURCE_FUNC_1_IN_1_OUT(fn__, target__, in_type__, out_type__) \
+  REGISTER_FACKED_EXTERN_FUNC_HELPER(fn__, target__).SetRetType<out_type__>().AddInputType<in_type__>().End()
+
+/**
+ * Register a sourced function(No function address, called in generated source code).
+ */
+#define REGISTER_EXTERN_SOURCE_FUNC_2_IN_1_OUT(fn__, target__, in_type1__, in_type2__, out_type__) \
+  REGISTER_EXTERN_FUNC_HELPER(fn__, target__)                                                      \
+      .SetRetType<out_type__>()                                                                    \
+      .AddInputType<in_type1__>()                                                                  \
+      .AddInputType<in_type2__>()                                                                  \
       .End()
 
 namespace cinn {
 namespace backends {
 
 static const char* TargetToBackendRepr(Target target) {
-  if (target.arch == Target::Arch::X86) {
-    return backend_llvm_host;
-  } else {
-    CINN_NOT_IMPLEMENTED
+  switch (target.arch) {
+    case Target::Arch::X86:
+      return backend_llvm_host;
+    case Target::Arch::NVGPU:
+      return backend_nvgpu;
+    default:
+      CINN_NOT_IMPLEMENTED
   }
   return nullptr;
 }
@@ -52,7 +79,13 @@ static const char* TargetToBackendRepr(Target target) {
  * Helper class to register an external function.
  */
 struct RegisterExternFunction {
-  RegisterExternFunction(const std::string& fn_name, Target target, void* fn_ptr)
+  /**
+   * Constructor.
+   * @param fn_name Name of the function.
+   * @param target Target of the function.
+   * @param fn_ptr Address of the function, not valid if leave as null.
+   */
+  RegisterExternFunction(const std::string& fn_name, Target target, void* fn_ptr = nullptr)
       : fn_name_(fn_name), target_(target), fn_ptr_(fn_ptr), fn_proto_builder_(fn_name) {}
 
   /**

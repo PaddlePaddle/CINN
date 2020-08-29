@@ -1,4 +1,4 @@
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -mavx -Wno-write-strings")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -mavx -Wno-write-strings -Wno-psabi")
 
 function(cc_library TARGET_NAME)
   set(options STATIC static SHARED shared)

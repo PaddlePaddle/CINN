@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "cinn/backends/compiler.h"
+#include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/cinn.h"
@@ -188,3 +189,6 @@ TEST(cinn_cpu_mkl_gemm_fp32, test) {
 }  // namespace cpu
 }  // namespace runtime
 }  // namespace cinn
+
+CINN_USE_REGISTER(mkl_math)
+CINN_USE_REGISTER(cinn_cpu_mkl_gemm_fp32)

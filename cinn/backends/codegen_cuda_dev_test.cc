@@ -840,6 +840,8 @@ TEST(ElementwiseAdd, cache_read_local) {
   std::string source_target = R"ROC(
 extern "C" {
 
+#include "cinn_cuda_runtime_source.cuh"
+
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
@@ -967,6 +969,8 @@ TEST(ElementwiseAdd, cache_read1) {
 
   std::string source_target = R"ROC(
 extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
@@ -1164,6 +1168,8 @@ TEST(ElementwiseAdd, cache_read_shared) {
   auto target_source = R"ROC(
 extern "C" {
 
+#include "cinn_cuda_runtime_source.cuh"
+
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
@@ -1252,6 +1258,8 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
 
   auto target_source = R"ROC(
 extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
 
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
@@ -1345,6 +1353,8 @@ TEST(ElementwiseAdd, cache_write_local) {
   auto target_source = R"ROC(
 extern "C" {
 
+#include "cinn_cuda_runtime_source.cuh"
+
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
@@ -1419,6 +1429,8 @@ TEST(Cuda, external_function) {
   auto target_source = R"ROC(
 extern "C" {
 
+#include "cinn_cuda_runtime_source.cuh"
+
 #ifdef __CUDACC_RTC__
 typedef int int32_t;
 typedef char int8_t;
@@ -1434,7 +1446,7 @@ void fn5(const float* __restrict__ A, const float* __restrict__ B, float* __rest
     if ((threadIdx.x < 4)) {
     {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (tanh(A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]) + cos(B[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]));
+        C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (cinn_nvgpu_tanh_fp32(A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]) + cinn_nvgpu_cos_fp32(B[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]));
       };
     }
     };
