@@ -124,6 +124,7 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
 
   // shape is the buffer's shape.
   std::vector<Expr> domain_without_reduce_axis;
+  std::vector<Expr> shape_simplified;
 
   // construct the shape.
   for (auto dim : domain) {
@@ -132,7 +133,13 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
     domain_without_reduce_axis.push_back(copied);
   }
 
-  auto real_shape = shape.empty() ? domain_without_reduce_axis : shape;
+  for (auto dim : shape) {
+    auto copied = dim;
+    optim::Simplify(&copied);
+    shape_simplified.push_back(copied);
+  }
+
+  auto real_shape = shape_simplified.empty() ? domain_without_reduce_axis : shape_simplified;
 
   // The body returns void, that means no buffer is needed.
   if (fn_body.type() == Void()) real_shape.clear();
@@ -144,8 +151,10 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
     CHECK(!common::IsAxisNameReserved(ra->name)) << "reduce axis [" << ra->name << "]'s name is reserved";
   }
 
-  auto op     = ir::ComputeOp::Make(unique_name, fn, real_shape, domain, reduce_axis);
-  auto tensor = ir::Tensor(unique_name, fn_body.type(), real_shape, domain, op, reduce_axis);
+  VLOG(3) << "domain: " << domain_without_reduce_axis;
+
+  auto op     = ir::ComputeOp::Make(unique_name, fn, real_shape, domain_without_reduce_axis, reduce_axis);
+  auto tensor = ir::Tensor(unique_name, fn_body.type(), real_shape, domain_without_reduce_axis, op, reduce_axis);
   return tensor;
 }
 

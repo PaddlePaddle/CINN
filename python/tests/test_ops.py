@@ -21,7 +21,6 @@ class SingleOpTester(unittest.TestCase):
     1. create_target_data
     2. test_op
     '''
-
     def setUp(self):
         self.counter = 0
         self.target = common.Target()
@@ -67,7 +66,10 @@ class SingleOpTester(unittest.TestCase):
         fn = self.compiler.lookup(op_name)
         out = []
         for out_shape in output_shape:
-            out.append(runtime.cinn_buffer_t(np.zeros(out_shape).astype("float32"), runtime.cinn_x86_device))
+            out.append(
+                runtime.cinn_buffer_t(
+                    np.zeros(out_shape).astype("float32"),
+                    runtime.cinn_x86_device))
 
         args = []
         temp_inputs = []
@@ -81,11 +83,12 @@ class SingleOpTester(unittest.TestCase):
 
         fn(args)
         print("test op output is:")
-        out_result = out[len(out)-1]
+        out_result = out[len(out) - 1]
         print(out_result.numpy())
         self.assertTrue(
-            np.allclose(
-                out_result.numpy(), self.create_target_data(inputs_data), atol=1e-4))
+            np.allclose(out_result.numpy(),
+                        self.create_target_data(inputs_data),
+                        atol=1e-4))
 
     def __codegen(self, op_name, inputs):
         types = [common.Float(32)]
@@ -105,29 +108,31 @@ class SingleOpTester(unittest.TestCase):
         return "Var_" + str(self.counter)
 
 
-class OpTest_add(SingleOpTester):
-    def create_target_data(self, inputs_data):
-        X, Y = inputs_data
-        return X + Y
+# class OpTest_add(SingleOpTester):
+#     def create_target_data(self, inputs_data):
+#         X, Y = inputs_data
+#         return X + Y
 
-    def test_op(self):
-        self.to_test_op([[100, 32], [100, 32]], [[100, 32]], "add")
+#     def test_op(self):
+#         self.to_test_op([[100, 32], [100, 32]], [[100, 32]], "add")
 
+# class OpTest_relu(SingleOpTester):
+#     def create_target_data(self, inputs_data):
+#         X = inputs_data
+#         return np.maximum(X, np.zeros(np.array(X).shape).astype("float32"))
 
-class OpTest_relu(SingleOpTester):
-    def create_target_data(self, inputs_data):
-        X = inputs_data
-        return np.maximum(X, np.zeros(np.array(X).shape).astype("float32"))
+#     def test_op(self):
+#         self.to_test_op([[32, 32]], [[32, 32]], "relu")
 
-    def test_op(self):
-        self.to_test_op([[32, 32]], [[32, 32]], "relu")
 
 class OpTest_conv2d(SingleOpTester):
     def create_target_data(self, inputs_data):
-        return np.ones((1,2,5,5)).astype("float32")
+        return np.ones((1, 2, 5, 5)).astype("float32")
 
     def test_op(self):
-        self.to_test_op([[1, 3, 10, 10], [2,3,2,2]], [[1,3,12,12],[2,3,3,3],[1,2,5,5]], "conv2d")
+        self.to_test_op([[1, 3, 10, 10], [2, 3, 2, 2]],
+                        [[1, 3, 12, 12], [2, 3, 3, 3], [1, 2, 5, 5]], "conv2d")
+
 
 if __name__ == "__main__":
     unittest.main()
