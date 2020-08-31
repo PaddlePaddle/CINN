@@ -518,6 +518,8 @@ void BindIrTensor(py::module *m) {
       .def("buffer_depended_tensor_names", &ir::_Tensor_::buffer_depended_tensor_names)
       .def(py::init<>())
       .def("has_expression", &ir::_Tensor_::has_expression)
+      .def("reshape", &ir::_Tensor_::Reshape)
+      .def("reshape_copied", &ir::_Tensor_::ReshapeCopied)
       .def("with_buffer",
            py::overload_cast<const ir::Type &>(&ir::_Tensor_::WithBuffer),
            py::arg("type") = Type::type_t::Void)

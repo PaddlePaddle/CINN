@@ -97,7 +97,7 @@ struct TensorScheduleMeta {
 
   bool compute_inline{false};
 
-  //! Name of the tensors thouse share buffer with `this` tensor.
+  //! Name of the tensors those share buffer with `this` tensor.
   std::set<std::string> tensors_to_share_buffer_with;
 };
 

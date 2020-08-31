@@ -313,7 +313,7 @@ std::vector<ir::Argument> LowerImpl::GenerateFunctionArgumentList(Expr fn_body) 
   for (auto& tensor : tensor_args_) {
     auto* tensor_node = tensor.As<ir::_Tensor_>();
     bool is_output    = teller.IsWrite(tensor->name);
-    VLOG(5) << "tensor argument " << tensor->name << " buffer " << tensor->buffer->name;
+    VLOG(1) << "tensor argument " << tensor->name << " buffer " << tensor->buffer->name;
 
     // avoid duplicate
     if (!tensor_node->buffer.defined()) continue;
@@ -378,7 +378,9 @@ std::unordered_map<std::string, Tensor> LowerImpl::GenAllTensorMap() {
 
 ir::LoweredFunc LowerImpl::operator()() {
   std::vector<poly::Stage*> stages;
+  std::map<std::string, ir::Tensor> all_tensor_map;
   for (auto& t : CollectAllTensors()) {
+    all_tensor_map[t->name] = t;
     if (!stages_[t]->inlined()) stages.push_back(stages_[t]);
   }
 
@@ -388,7 +390,7 @@ ir::LoweredFunc LowerImpl::operator()() {
 
   auto func_body = GenerateFunctionBody(schedule.get());
 
-  auto tensor_map = optim::InitialAssignBuffer(&func_body, stages_);
+  auto tensor_map = optim::InitialAssignBuffer(&func_body, stages_, all_tensor_map, comp_graph());
   // copy the tensor(with buffer assigned) back to func's args.
   {
     for (auto& arg : tensor_args_) {
