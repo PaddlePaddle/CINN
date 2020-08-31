@@ -52,7 +52,6 @@ struct SSABuilder : public ir::IRMutator<> {
   }
 
   void Visit(const ir::Store *op, Expr *expr) override {
-    LOG(INFO) << "Expr: " << *expr;
     auto *node = expr->As<ir::Store>();
 
     auto *cur_graph_node = graph.RetriveNode(node->tensor.as_tensor()->name);
