@@ -142,5 +142,17 @@ class OpTest_relu(SingleOpTester):
         self.to_test_op([[1, 3, 10, 10], [2, 3, 2, 2]],
                         [[1, 3, 12, 12], [2, 3, 3, 3], [1, 2, 5, 5]], "conv2d", attrs) """
 
+
+class OpTest_batchnorm(SingleOpTester):
+    def create_target_data(self, inputs_data):
+        X = inputs_data
+        return np.array(X).astype("float32")
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        self.to_test_op([[1, 3, 2, 2], [4, 3]], [[1, 3, 2, 2]], "batchnorm",
+                        attrs)
+
+
 if __name__ == "__main__":
     unittest.main()

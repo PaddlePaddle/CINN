@@ -191,6 +191,55 @@ std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type, cons
   return res;
 }
 
+std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attrs,
+                                                 const std::vector<ir::Tensor> &inputs,
+                                                 const std::vector<Type> &out_type,
+                                                 const Target &target) {
+  float epsilon = 0.00001f;
+  if (attrs.attr_store.find("epsilon") != attrs.attr_store.end()) {
+    epsilon = std::get<float>(attrs.attr_store.at("epsilon"));
+  }
+  framework::CINNCompute batchnorm_compute([=](lang::Args args, lang::RetValue *ret) {
+    CINNValuePack a = args[0];
+    ir::Expr A      = a[0];
+    ir::Expr B      = a[1];
+    CHECK(A.as_tensor());
+    CHECK(B.as_tensor());
+    auto out    = pe::BatchNorm_NCHW(A.as_tensor_ref(), B.as_tensor_ref(), epsilon, UniqName("Relu_output"));
+    auto stages = CreateStages({out});
+    *ret        = CINNValuePack{{CINNValue(ir::Expr(out.get())), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule batchnorm_schedule([](lang::Args args, lang::RetValue *ret) {
+    CINNValuePack arg_pack      = args[0];
+    ir::Expr A [[maybe_unused]] = arg_pack[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  CHECK(out_type.size()) << "Out_type of batchnorm op is empty! Please check.";
+  if (out_type[0] == Float(32)) {
+    strategy->AddImpl(batchnorm_compute, batchnorm_schedule, "strategy.batchnorm.x86", 1);
+  } else {
+    LOG(INFO) << "BatchNorm op with dtype != float32 is not implemented yet!";
+  }
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForBatchNorm(const std::vector<std::vector<int>> &inputs_shape,
+                                                     const framework::NodeAttr &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  std::vector<std::vector<int>> res{inputs_shape[0]};
+  return res;
+}
+
+std::vector<Type> InferDtypeForBatchNorm(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -219,5 +268,13 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
+      .set_support_level(4);
+  CINN_REGISTER_OP(batchnorm)
+      .describe("Can be used as a normalizer function for convolution or fully_connected operations.")
+      .set_num_inputs(2)  // here we consider batchnorm's 4 attrs(mean, variance, scale, bias) as anohter input
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBatchNorm)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBatchNorm))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBatchNorm))
       .set_support_level(4);
 }
