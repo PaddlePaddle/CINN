@@ -15,12 +15,12 @@ using framework::NodeData;
 using framework::Operator;
 
 void InferShapePass(Graph* graph) {
-  auto& shape_dict = graph->GetMutableAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
-  auto& dtype_dict = graph->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
-  auto store_nodes = std::get<0>(graph->topological_order());
-  auto& op_infershape =
-      Operator::GetAttrs<std::function<std::vector<std::vector<int>>(const std::vector<std::vector<int>>&)>>(
-          "infershape");
+  auto& shape_dict    = graph->GetMutableAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  auto& dtype_dict    = graph->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  auto store_nodes    = std::get<0>(graph->topological_order());
+  auto& op_infershape = Operator::GetAttrs<
+      std::function<std::vector<std::vector<int>>(const std::vector<std::vector<int>>&, const framework::NodeAttr&)>>(
+      "infershape");
   auto& op_inferdtype =
       Operator::GetAttrs<std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&)>>(
           "inferdtype");
@@ -37,7 +37,7 @@ void InferShapePass(Graph* graph) {
         inputs_dtype.push_back(dtype_dict[source_node->id()]);
       }
 
-      auto out_shape = op_infershape[node->safe_as<Node>()->op()](inputs_shape);
+      auto out_shape = op_infershape[node->safe_as<Node>()->op()](inputs_shape, node->safe_as<Node>()->attrs);
       auto out_dtype = op_inferdtype[node->safe_as<Node>()->op()](inputs_dtype, node->safe_as<Node>()->attrs);
       CHECK_EQ(node->outlinks().size(), out_shape.size())
           << "The output number of node " << node->id() << " is " << node->outlinks().size()

@@ -51,6 +51,16 @@ ir::Tensor PRelu(const ir::Tensor& A,
                  const int axis                 = 1,
                  const std::string& output_name = "T_PRelu_out");
 
+std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor& input,
+                                    const ir::Tensor& weights,
+                                    int pad_h,
+                                    int pad_w,
+                                    int stride_h,
+                                    int stride_w,
+                                    int dilation,
+                                    int groups,
+                                    const std::string& output_name);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
