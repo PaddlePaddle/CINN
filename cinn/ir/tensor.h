@@ -98,9 +98,6 @@ struct WriteCacheRelation;
  * 2. never try to change a tensor's name, that will cause chaos.
  */
 class _Tensor_ : public ExprNode<_Tensor_> {
-  //! a pointer to Shared<Stage>, use void* to avoid cyclic definition dependency.
-  void* stage_shared{};
-
  public:
   //! Shape of this tensor(buffer).
   std::vector<Expr> shape;
@@ -150,6 +147,18 @@ class _Tensor_ : public ExprNode<_Tensor_> {
    * Get the names of the tensors thouse this tensor depends on.
    */
   std::set<std::string> DependingTensorNames();
+
+  /**
+   * Get a new tensor with the \p shape, but the underlying buffer shared.
+   * NOTE the tensor to Reshape should not be an inlined computation.
+   */
+  ir::Tensor Reshape(const std::vector<Expr>& shape, poly::StageMap stages) const;
+
+  /**
+   * Get a new tensor with the \p shape with a newly allocated buffer.
+   * NOTE the tensor to Reshape should not be an inlined computation.
+   */
+  ir::Tensor ReshapeCopied(const std::vector<Expr>& shape, poly::StageMap stages) const;
 
   /**
    * Tell whether this tensor has same shape with \p other.
@@ -221,16 +230,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   void WithBuffer(const std::string& memory_type, const Type& type = Void());
 
  private:
-  //! Create the polyhedral element for analysis.
-  //! It is based on the shape.
-  void InitStage();
-
-  //! Free the memory for stage.
-  void DropStage();
-
-  void FakeStage();
-  bool is_faked() const;
-
   //! Initialize the axis field after the shape field is assigned.
   void InitAxis() const;
 

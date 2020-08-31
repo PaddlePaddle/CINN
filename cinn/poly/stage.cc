@@ -546,6 +546,7 @@ void Stage::ShareBufferWith(Stage *other) {
   CHECK(tensor_);
   CHECK(!other->meta.compute_inline);
   CHECK(!meta.compute_inline);
+
   meta.tensors_to_share_buffer_with.insert(other->id());
   other->meta.tensors_to_share_buffer_with.insert(tensor_->name);
 }

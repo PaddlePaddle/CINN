@@ -86,7 +86,6 @@ class GraphNode : public Object {
   }
 
   void UnLinkTo(GraphNode* other) {
-    LOG(INFO) << "Unlink " << this->id() << " to " << other->id();
     if (other == this) return;
     // remove outlink
     {
@@ -168,7 +167,7 @@ class Graph {
   std::vector<GraphNode*> start_points();
 
   //! Return the graph's nodes and edges(visited) in topological order.
-  std::tuple<std::vector<GraphNode*>, std::vector<GraphEdge*>> topological_order();
+  std::tuple<std::vector<GraphNode*>, std::vector<GraphEdge*>> topological_order() const;
 
   //! Return the graph's DFS order.
   std::vector<GraphNode*> dfs_order();

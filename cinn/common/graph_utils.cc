@@ -7,6 +7,7 @@
 #include <set>
 #include <stack>
 
+#include "cinn/common/common.h"
 #include "cinn/utils/dot_lang.h"
 
 namespace cinn {
@@ -54,7 +55,7 @@ std::vector<GraphNode *> Graph::nodes() {
   return res;
 }
 
-std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topological_order() {
+std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topological_order() const {
   std::vector<GraphNode *> node_order;
   std::vector<GraphEdge *> edge_order;
   std::deque<GraphNode *> queue;
@@ -67,7 +68,7 @@ std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topologica
 
   // insert start points first.
   for (auto *n : start_points()) {
-    queue.push_back(n);
+    queue.push_back(&Reference(n));
   }
 
   // start to visit

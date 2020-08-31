@@ -16,6 +16,7 @@ namespace common {
 
 struct UnionFindNode : public Object {
   UnionFindNode* parent{};
+  std::string cluster_info;
 
   std::tuple<UnionFindNode*, int /*height*/> GetRoot() {
     auto* p   = this;

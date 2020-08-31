@@ -253,17 +253,17 @@ TEST(CodeGenC, matmul) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 50 });
+cinn_buffer_t* _C_init = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 50 });
 void matmul(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
   const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
-  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_t* _C_init = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
+  cinn_buffer_malloc((void*)(0), _C_init);
   const float* A = ((const float*)(_A->memory));
   const float* B = ((const float*)(_B->memory));
-  float* C = ((float*)(_C->memory));
-  float* C_init = ((float*)(_C->memory));
+  float* C = ((float*)(_C_init->memory));
+  float* C_init = ((float*)(_C_init->memory));
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 50; j += 1) {
       C_init[((50 * i) + j)] = 0;
@@ -272,7 +272,7 @@ void matmul(void* _args, int32_t num_args)
       };
     };
   };
-  cinn_buffer_free((void*)(0), _C);
+  cinn_buffer_free((void*)(0), _C_init);
 }
 
 void main(void* _args, int32_t num_args)
@@ -354,17 +354,17 @@ TEST(CodeGenC, matmul_tile) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 }, 32/*align*/);
+cinn_buffer_t* _C_init = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 }, 32/*align*/);
 void matmul(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
   const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
-  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
-  cinn_buffer_malloc((void*)(0), _C);
+  cinn_buffer_t* _C_init = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
+  cinn_buffer_malloc((void*)(0), _C_init);
   const float* A = ((const float*)(_A->memory));
   const float* B = ((const float*)(_B->memory));
-  float* C = ((float*)(_C->memory));
-  float* C_init = ((float*)(_C->memory));
+  float* C = ((float*)(_C_init->memory));
+  float* C_init = ((float*)(_C_init->memory));
   for (int32_t i_outer = 0; i_outer < 4; i_outer += 1) {
     for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
       for (int32_t i_inner = 0; i_inner < (1 + ((int32_t)(cinn_min(31, (99 + (-32 * i_outer)))))); i_inner += 1) {
@@ -379,7 +379,7 @@ void matmul(void* _args, int32_t num_args)
       };
     };
   };
-  cinn_buffer_free((void*)(0), _C);
+  cinn_buffer_free((void*)(0), _C_init);
 }
 )ROC";
 

@@ -2,6 +2,7 @@
 
 #include <cstring>
 
+#include "cinn/cinn.h"
 #include "cinn/common/cas.h"
 #include "cinn/common/common.h"
 #include "cinn/common/ir_util.h"
@@ -29,7 +30,6 @@ Tensor _Tensor_::Make(const std::string &name,
   n->reduce_axis = reduce_axis;
   n->set_type(dtype);
   n->operation = fn;
-  n->InitStage();
   n->InitAxis();
 
   return Tensor(n);
@@ -114,47 +114,6 @@ PlaceholderOp *_Tensor_::get_placeholder_op() const {
   if (!is_placeholder_node()) return nullptr;
   return operation->as<PlaceholderOp>();
 }
-
-void _Tensor_::InitStage() {
-  // Avoid duplicate init.
-  if (stage_shared) {
-    auto &shared_stage = *static_cast<Shared<poly::Stage> *>(stage_shared);
-    for (auto &depend : buffer_depended_tensor_names()) {
-      shared_stage->add_extra_depend_stage(depend);
-    }
-    return;
-  }
-
-  stage_shared       = new Shared<poly::Stage>;
-  auto &shared_stage = *static_cast<Shared<poly::Stage> *>(stage_shared);
-  auto *op           = operation->as<_Operation_>();
-  if (is_compute_node()) {
-    auto &body = op->as<ComputeOp>()->body;
-    CHECK_EQ(body.size(), 1UL) << "only support functional programming";
-    shared_stage = poly::Stage::New(GenerateIslDomain(), body.front(), this);
-  } else if (is_call_node()) {
-    if (!is_extern_call_node()) {
-      shared_stage = poly::Stage::New(GenerateIslDomain(), body(), this);
-    } else {
-      shared_stage = poly::Stage::New(GenerateIslDomain(), body(), this);
-    }
-  } else {
-    shared_stage = poly::Stage::New(GenerateIslDomain(), body(), this);
-  }
-
-  shared_stage->set_extra_depend_stages(buffer_depended_tensor_names_);
-  auto depend_tensor_names = DependingTensorNames();
-  for (auto &x : depend_tensor_names) shared_stage->add_extra_depend_stage(x);
-}
-
-void _Tensor_::DropStage() {
-  if (stage_shared) {
-    delete static_cast<Shared<poly::Stage> *>(stage_shared);
-    stage_shared = nullptr;
-  }
-}
-
-bool _Tensor_::is_faked() const { return false; }
 
 void _Tensor_::InitAxis() const {
   // CHECK(!domain_without_reduce_axis().empty());
@@ -244,11 +203,7 @@ std::vector<const Expr *> _Tensor_::expr_fields() const {
   return res;
 }
 
-_Tensor_::~_Tensor_() {
-  if (stage_shared) {
-    delete static_cast<Shared<poly::Stage> *>(stage_shared);
-  }
-}
+_Tensor_::~_Tensor_() {}
 
 Expr _Tensor_::body() const {
   if (is_placeholder_node()) return Expr();
@@ -315,9 +270,6 @@ void _Tensor_::Bind(lang::Buffer &buffer) {
   CHECK(!buffer->binded_tensor_names().empty());
   this->buffer = buffer.buffer();
   CHECK(this->buffer.defined());
-
-  // Reset stage to nullptr to tell others this tensor should be inlined.
-  InitStage();
 }
 
 void _Tensor_::Bind(const Buffer &buffer) {
@@ -450,6 +402,36 @@ bool _Tensor_::Uses(const Tensor &other) {
     return loadn->tensor.as_tensor()->name == other->name;
   });
   return !loads.empty();
+}
+
+ir::Tensor _Tensor_::Reshape(const std::vector<Expr> &shape, poly::StageMap stages) const {
+  CHECK(!stages[this]->inlined());
+  auto op    = BufferShareOp::Make();
+  auto n     = make_shared<_Tensor_>();
+  auto selft = Tensor(const_cast<ir::_Tensor_ *>(this));
+
+  n->name   = Context::Global().NewName(name + "_reshape");
+  n->shape  = shape;
+  n->domain = shape;
+  n->set_type(type());
+  n->operation = op;
+  n->InitAxis();
+
+  auto t = Tensor(n);
+  stages->InsertLazily(t);
+
+  stages[n]->ShareBufferWith(stages[this]);
+  stages[n]->CtrlDepend(selft);
+  return t;
+}
+
+ir::Tensor _Tensor_::ReshapeCopied(const std::vector<Expr> &shape, poly::StageMap stages) const {
+  auto t      = ir::Tensor(const_cast<ir::_Tensor_ *>(this));
+  auto copied = Compute(domain, [=](const std::vector<Expr> &axis) { return t(axis); });
+  stages->InsertLazily(copied);
+  auto res = copied->Reshape(shape, poly::StageMap());
+  stages->InsertLazily(res);
+  return res;
 }
 
 Shared<poly::Stage> CreateStage(Tensor tensor) {

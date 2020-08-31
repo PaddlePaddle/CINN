@@ -31,7 +31,8 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
   std::unordered_set<std::string> temp_buffer_names;  // used to avoid duplication.
   std::vector<ir::Buffer> temp_buffers;
   auto all_tensors = ir::CollectIRNodes(body, [&](const Expr* x) {
-    return x->as_tensor() && !stage_map[x->as_tensor()]->inlined() && !tensor_arg_names.count(x->as_tensor()->name);
+    return x->as_tensor() && x->as_tensor()->buffer.defined() && !stage_map[x->as_tensor()]->inlined() &&
+           !tensor_arg_names.count(x->as_tensor()->name);
   });
   for (auto& e : all_tensors) {
     if (!temp_buffer_names.count(e.as_tensor()->buffer->name)) {
