@@ -1,6 +1,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/context.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
@@ -27,7 +28,7 @@ Tensor PRelu(const Tensor& A, const Tensor& slope, const int axis, const std::st
       output_name);
 }
 
-std::vector<ir::Tensor> Conv2d_nchw(const ir::Tensor& input,
+std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor& input,
                                     const ir::Tensor& weights,
                                     int pad_h,
                                     int pad_w,
@@ -51,7 +52,7 @@ std::vector<ir::Tensor> Conv2d_nchw(const ir::Tensor& input,
             ir::logic_and({yy >= pad_h, yy - pad_h < input->shape[2], xx >= pad_w, xx - pad_w < input->shape[3]});
         return ir::Select::Make(cond, input(nn, cc, yy - pad_h, xx - pad_w), Expr(0.f));
       },
-      "input_pad_unique");
+      UniqName("input_pad"));
   std::vector<Expr> new_weights_shape{weights->shape[0],
                                       weights->shape[1],
                                       dilation * (weights->shape[2] - 1) + 1,
@@ -62,21 +63,20 @@ std::vector<ir::Tensor> Conv2d_nchw(const ir::Tensor& input,
         auto cond = ir::logic_and({(xx) % dilation == 0, yy % dilation == 0});
         return ir::Select::Make(cond, weights(nn, cc, yy / dilation, xx / dilation), Expr(0.f));
       },
-      "weights_dilation_unique");
+      UniqName("weights_dilation"));
 
-  Var rc(input_pad->shape[1], "rc");
-  Var ry(weights_dilation->shape[2], "ry");
-  Var rx(weights_dilation->shape[3], "rx");
+  Var rc(input_pad->shape[1], UniqName("rc"));
+  Var ry(weights_dilation->shape[2], UniqName("ry"));
+  Var rx(weights_dilation->shape[3], UniqName("rx"));
 
-  LOG(INFO) << input_pad->shape;
-  LOG(INFO) << weights_dilation->shape;
-  auto res = Compute(
-      output_shape,
-      [=](Expr nn, Expr ff, Expr yy, Expr xx) {
-        return lang::Sum(input_pad(nn, rc, yy * stride_h + ry, xx * stride_w + rx) * weights_dilation(ff, rc, ry, rx));
-      },
-      output_name,
-      {ry, rx, rc});
+  auto res = Compute(output_shape,
+                     [=](Expr nn, Expr ff, Expr yy, Expr xx) {
+                       return ir::ReduceSum(
+                           input_pad(nn, rc, yy * stride_h + ry, xx * stride_w + rx) * weights_dilation(ff, rc, ry, rx),
+                           Expr(0.f));
+                     },
+                     output_name,
+                     {ry, rx, rc});
   return {input_pad, weights_dilation, res};
 }
 

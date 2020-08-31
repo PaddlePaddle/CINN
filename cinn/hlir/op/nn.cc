@@ -124,10 +124,17 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     ir::Expr B      = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
-    LOG(INFO) << "before pe::Conv2d_nchw";
-    auto out = pe::Conv2d_nchw(
-        A.as_tensor_ref(), B.as_tensor_ref(), padding[0], padding[1], stride[0], stride[1], dilation, groups);
-    LOG(INFO) << "after pe::Conv2d_nchw";
+    CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
+    CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
+    auto out    = pe::Conv2d_NCHW(A.as_tensor_ref(),
+                               B.as_tensor_ref(),
+                               padding[0],
+                               padding[1],
+                               stride[0],
+                               stride[1],
+                               dilation,
+                               groups,
+                               UniqName("Conv2d_output"));
     auto stages = CreateStages(out);
     std::vector<CINNValue> res;
     for (auto &t : out) {
@@ -147,7 +154,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   auto strategy = std::make_shared<framework::OpStrategy>();
   CHECK(out_type.size()) << "Out_type of conv2d op is empty! Please check.";
   if (out_type[0] == Float(32)) {
-    strategy->AddImpl(conv2d_compute, conv2d_schedule, "strategy.relu.x86", 1);
+    strategy->AddImpl(conv2d_compute, conv2d_schedule, "strategy.conv2d.x86", 1);
   } else {
     LOG(INFO) << "Conv2d op with dtype != float32 is not implemented yet!";
   }
@@ -169,6 +176,9 @@ std::vector<std::vector<int>> InferShapeForConv2d(const std::vector<std::vector<
   if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
     dilation = std::get<int>(attrs.attr_store.at("dilation"));
   }
+  CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
+  CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
+  CHECK_EQ(inputs_shape[0].size(), 4) << "The first input tensor's shape size of conv2d op is not 4! Please check.";
   int out_shape_h = (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation + 1) + 2 * padding[0]) / stride[0] + 1;
   int out_shape_w = (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation + 1) + 2 * padding[1]) / stride[1] + 1;
   std::vector<std::vector<int>> res{{inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
