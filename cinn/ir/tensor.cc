@@ -3,6 +3,7 @@
 #include <cstring>
 
 #include "cinn/cinn.h"
+#include "cinn/common/arithmatic.h"
 #include "cinn/common/cas.h"
 #include "cinn/common/common.h"
 #include "cinn/common/ir_util.h"
@@ -409,6 +410,16 @@ ir::Tensor _Tensor_::Reshape(const std::vector<Expr> &shape, poly::StageMap stag
   auto op    = BufferShareOp::Make();
   auto n     = make_shared<_Tensor_>();
   auto selft = Tensor(const_cast<ir::_Tensor_ *>(this));
+
+  {
+    Expr this_num_elements = Expr(1);
+    for (auto &e : this->shape) this_num_elements = this_num_elements * e;
+
+    Expr num_elements = Expr(1);
+    for (auto &e : shape) num_elements = num_elements * e;
+
+    CHECK(MathIsZero(this_num_elements - num_elements)) << "number of elements mismatch";
+  }
 
   n->name   = Context::Global().NewName(name + "_reshape");
   n->shape  = shape;
