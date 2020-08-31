@@ -157,9 +157,18 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
 std::vector<std::vector<int>> InferShapeForConv2d(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::NodeAttr &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  auto dilation   = std::get<int>(attrs.attr_store.at("dilation"));
-  auto padding    = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
-  auto stride     = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  std::vector<int> padding({0, 0});
+  std::vector<int> stride({1, 1});
+  int dilation(1);
+  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
+    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  }
+  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
+    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  }
+  if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
+    dilation = std::get<int>(attrs.attr_store.at("dilation"));
+  }
   int out_shape_h = (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation + 1) + 2 * padding[0]) / stride[0] + 1;
   int out_shape_w = (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation + 1) + 2 * padding[1]) / stride[1] + 1;
   std::vector<std::vector<int>> res{{inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
