@@ -25,17 +25,12 @@ const char* BufferUFNode::__type_info__ = "BufferUFNode";
 struct IRReplaceTensorMutator : ir::IRMutator<> {
   const std::map<std::string, ir::Tensor>& tensor_map;
   IRReplaceTensorMutator(const std::map<std::string, ir::Tensor>& tensor_map) : tensor_map(tensor_map) {}
-  void operator()(Expr* expr) {
-    LOG(INFO) << "original expr: " << *expr;
-    ir::IRMutator<>::Visit(expr, expr);
-  }
+  void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
   void Visit(const ir::_Tensor_* op, Expr* expr) override {
     auto it = tensor_map.find(op->name);
     if (it != tensor_map.end()) {
-      LOG(INFO) << "unify tensor " << *expr;
       *expr = Expr(it->second);
-      LOG(INFO) << "unified to " << expr->as_tensor();
     }
   }
 };
@@ -49,7 +44,6 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
   // The tensor map helps to reserve only one tensor instance for a tensor(called the same name).
   std::map<std::string, ir::Tensor> buffer_updated_tensor;
 
-  LOG(INFO) << "** InitialAssignBuffer expr:\n" << *expr;
   for (auto& item : all_tensor_map) {
     if (stages[item.second]->inlined()) continue;
     buffer_updated_tensor[item.second->name] = item.second;
@@ -99,7 +93,6 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
       auto& cluster_info = std::get<0>(it->second->GetRoot())->cluster_info;
       if (cluster_info.empty()) {  // buffer owner(a tensor) of this cluster not set yet.
         cluster_info = nn->tensor->name;
-        LOG(INFO) << "** update cluster tensor name: " << cluster_info;
       }
     }
   }
@@ -108,13 +101,12 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
     auto* cluster_root = std::get<0>(cluster[0]->GetRoot());
     auto root_tensor   = all_tensor_map.at(cluster_root->cluster_info);
     if (!root_tensor->buffer.defined() && !root_tensor->type().is_void()) root_tensor->WithBuffer();
-    LOG(INFO) << "cluster root tensor: " << root_tensor->name;
 
     for (auto* n : cluster) {
       auto& tensor = all_tensor_map.at(n->safe_as<BufferUFNode>()->tensor_name);
       if (tensor != root_tensor) {
         Reference(&tensor)->Bind(root_tensor->buffer);
-        LOG(INFO) << "tensor " << tensor->name << " bind buffer [" << tensor->buffer->name << "]";
+        VLOG(3) << "tensor " << tensor->name << " bind buffer [" << tensor->buffer->name << "]";
       }
     }
   }

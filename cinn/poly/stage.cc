@@ -630,7 +630,7 @@ const Stage *_StageMap_::operator[](const ir::Tensor &tensor) const {
   return data_.at(tensor->name).get();
 }
 Stage *_StageMap_::operator[](const ir::_Tensor_ *tensor) {
-  CHECK(data_.count(tensor->name));
+  CHECK(data_.count(tensor->name)) << "StageMap has no stage for tensor [" << tensor->name << "]";
   return data_[tensor->name].get();
 }
 const Stage *_StageMap_::operator[](const ir::_Tensor_ *tensor) const {

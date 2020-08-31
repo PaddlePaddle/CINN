@@ -427,9 +427,12 @@ ir::Tensor _Tensor_::Reshape(const std::vector<Expr> &shape, poly::StageMap stag
 
 ir::Tensor _Tensor_::ReshapeCopied(const std::vector<Expr> &shape, poly::StageMap stages) const {
   auto t      = ir::Tensor(const_cast<ir::_Tensor_ *>(this));
-  auto copied = Compute(domain, [=](const std::vector<Expr> &axis) { return t(axis); });
+  auto copied = Compute(
+      domain,
+      [=](const std::vector<Expr> &axis) { return t(axis); },
+      Context::Global().NewName(this->name + "_copied"));
   stages->InsertLazily(copied);
-  auto res = copied->Reshape(shape, poly::StageMap());
+  auto res = copied->Reshape(shape, stages);
   stages->InsertLazily(res);
   return res;
 }

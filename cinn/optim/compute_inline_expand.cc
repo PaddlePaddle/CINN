@@ -91,9 +91,6 @@ void ComputeInlineExpand(Expr *expr, poly::StageMap stages) {
 
     inline_tensors = ir::CollectLoadTensors(
         *expr, [&](const Expr *x) { return x->as_tensor() && stages[x->as_tensor()]->inlined(); });
-
-    LOG(INFO) << "inline tensor size: " << inline_tensors.size();
-    LOG(INFO) << "expr: " << *expr;
   }
 }
 
