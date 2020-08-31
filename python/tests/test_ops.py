@@ -43,7 +43,7 @@ class SingleOpTester(unittest.TestCase):
         '''
         pass
 
-    def to_test_op(self, input_shapes, output_shape, op_name):
+    def to_test_op(self, input_shapes, output_shape, op_name, attrs):
         '''
         Test the operator.
         '''
@@ -54,7 +54,7 @@ class SingleOpTester(unittest.TestCase):
         for i_shape in input_shapes:
             expr_shape = []
             inputs_data.append(
-                np.around(np.random.random(i_shape).astype("float32"), 3))
+                np.around(np.ones(i_shape).astype("float32"), 3))
 
             for dim_shape in i_shape:
                 expr_shape.append(ir.Expr(dim_shape))
@@ -62,11 +62,15 @@ class SingleOpTester(unittest.TestCase):
             inputs.append(
                 lang.Placeholder("float32", self.__gen_var_name(),
                                  expr_shape).to_tensor())
-        module = self.__codegen(op_name, inputs)
+        module = self.__codegen(op_name, inputs, attrs)
         self.compiler.build(module)
         fn = self.compiler.lookup(op_name)
-        out = runtime.cinn_buffer_t(
-            np.zeros(output_shape).astype("float32"), runtime.cinn_x86_device)
+        out = []
+        for out_shape in output_shape:
+            out.append(
+                runtime.cinn_buffer_t(
+                    np.zeros(out_shape).astype("float32"),
+                    runtime.cinn_x86_device))
 
         args = []
         temp_inputs = []
@@ -75,17 +79,21 @@ class SingleOpTester(unittest.TestCase):
                 runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device))
         for in_data in temp_inputs:
             args.append(runtime.cinn_pod_value_t(in_data))
-
-        args.append(runtime.cinn_pod_value_t(out))
+        for out_data in out:
+            args.append(runtime.cinn_pod_value_t(out_data))
 
         fn(args)
+        print("test op output is:")
+        out_result = out[len(out) - 1]
+        print(out_result.numpy())
         self.assertTrue(
             np.allclose(
-                out.numpy(), self.create_target_data(inputs_data), atol=1e-4))
+                out_result.numpy(),
+                self.create_target_data(inputs_data),
+                atol=1e-4))
 
-    def __codegen(self, op_name, inputs):
+    def __codegen(self, op_name, inputs, attrs):
         types = [common.Float(32)]
-        attrs = framework.NodeAttr()
         strategy_map = framework.Operator.get_op_attrs("CINNStrategy")
         res = strategy_map.apply_strategy(op_name, attrs, inputs, types,
                                           self.target)
@@ -107,7 +115,8 @@ class OpTest_add(SingleOpTester):
         return X + Y
 
     def test_op(self):
-        self.to_test_op([[100, 32], [100, 32]], [100, 32], "add")
+        attrs = framework.NodeAttr()
+        self.to_test_op([[100, 32], [100, 32]], [[100, 32]], "add", attrs)
 
 
 class OpTest_relu(SingleOpTester):
@@ -116,8 +125,22 @@ class OpTest_relu(SingleOpTester):
         return np.maximum(X, np.zeros(np.array(X).shape).astype("float32"))
 
     def test_op(self):
-        self.to_test_op([[32, 32]], [32, 32], "relu")
+        attrs = framework.NodeAttr()
+        self.to_test_op([[32, 32]], [[32, 32]], "relu", attrs)
 
+
+""" class OpTest_conv2d(SingleOpTester):
+    def create_target_data(self, inputs_data):
+        return np.ones((1, 2, 5, 5)).astype("float32")
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        attrs.attr_store = {"padding": [1, 1]}
+        attrs.set_attr("stride", [2, 2])
+        attrs.set_attr("dilation", 2)
+        attrs.set_attr("groups", 1)
+        self.to_test_op([[1, 3, 10, 10], [2, 3, 2, 2]],
+                        [[1, 3, 12, 12], [2, 3, 3, 3], [1, 2, 5, 5]], "conv2d", attrs) """
 
 if __name__ == "__main__":
     unittest.main()
