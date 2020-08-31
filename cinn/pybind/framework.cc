@@ -36,11 +36,8 @@ void BindFramework(pybind11::module *m) {
              }
              auto stages = CreateStages(inputs);
              temp_inputs.push_back(common::CINNValue(stages));
-             LOG(INFO) << "stage1";
              common::CINNValuePack C = impl->fcompute(common::CINNValuePack{temp_inputs});
-             LOG(INFO) << "stage2";
-             C = impl->fschedule(C);
-             LOG(INFO) << "stage3";
+             C                       = impl->fschedule(C);
              for (int i = 0; i < C.get()->size() - 1; i++) {
                ir::Expr temp = C[i];
                res.push_back(temp.as_tensor_ref());

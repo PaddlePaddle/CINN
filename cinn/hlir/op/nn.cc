@@ -59,10 +59,6 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
                                             const std::vector<ir::Tensor> &inputs,
                                             const std::vector<Type> &out_type,
                                             const Target &target) {
-  for (auto iter : attrs.attr_store) {
-    LOG(INFO) << "In StrategyForRelu, the input NodeAttr attrs is: ";
-    LOG(INFO) << iter.first << " : " << std::get<int>(iter.second);
-  }
   framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
     CINNValuePack a = args[0];
     ir::Expr A      = a[0];
@@ -106,14 +102,31 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
                                               const Target &target) {
-  framework::CINNCompute conv2d_compute([](lang::Args args, lang::RetValue *ret) {
+  std::vector<int> padding({0, 0});
+  std::vector<int> stride({1, 1});
+  int dilation(1);
+  int groups(1);
+  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
+    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  }
+  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
+    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  }
+  if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
+    dilation = std::get<int>(attrs.attr_store.at("dilation"));
+  }
+  if (attrs.attr_store.find("groups") != attrs.attr_store.end()) {
+    groups = std::get<int>(attrs.attr_store.at("groups"));
+  }
+  framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
     CINNValuePack a = args[0];
     ir::Expr A      = a[0];
     ir::Expr B      = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     LOG(INFO) << "before pe::Conv2d_nchw";
-    auto out = pe::Conv2d_nchw(A.as_tensor_ref(), B.as_tensor_ref(), 1, 1, 2, 2, 2, 1);
+    auto out = pe::Conv2d_nchw(
+        A.as_tensor_ref(), B.as_tensor_ref(), padding[0], padding[1], stride[0], stride[1], dilation, groups);
     LOG(INFO) << "after pe::Conv2d_nchw";
     auto stages = CreateStages(out);
     std::vector<CINNValue> res;
