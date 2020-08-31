@@ -72,7 +72,6 @@ TEST(Tensor, Reshape) {
   auto A1 = A->Reshape({Expr(10), Expr(10), Expr(100)}, stages);
   auto B  = Compute(A1->shape, [=](Expr i, Expr j, Expr k) { return A1(i, j, k) * 2.f; });
 
-  stages[A1]->ShareBufferWith(stages[A]);
   stages->InsertLazily(B);
 
   auto func = lang::Lower("fn", stages, {A, B});
@@ -122,13 +121,10 @@ TEST(Tensor, ReshapeCopied) {
   auto A1 = A->ReshapeCopied({Expr(10), Expr(10), Expr(100)}, stages);
   auto B  = Compute(A1->shape, [=](Expr i, Expr j, Expr k) { return A1(i, j, k) * 2.f; });
 
-  stages[A1]->ShareBufferWith(stages[A]);
   stages->InsertLazily(B);
 
-  auto func = lang::Lower("fn", stages, {A, B});
-
   lang::Module::Builder builder("some_modue", common::DefaultHostTarget());
-  builder.AddFunction(func);
+  auto func = lang::Lower("fn", stages, {A, B}, {}, {}, &builder);
 
   backends::CodeGenC codegenc(common::DefaultHostTarget());
   codegenc.SetInlineBuiltinCodes(false);
@@ -139,13 +135,14 @@ TEST(Tensor, ReshapeCopied) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
+cinn_buffer_t* _A_copied_2_reshape_3 = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 10, 10, 100 }, 32/*align*/);
 void fn(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
   cinn_buffer_t* _tensor_4 = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
   cinn_buffer_malloc((void*)(0), _tensor_4);
-  cinn_buffer_malloc((void*)(0), _A);
-  const float* A_copied_2_reshape_3 = ((const float*)(_A->memory));
+  cinn_buffer_malloc((void*)(0), _A_copied_2_reshape_3);
+  const float* A_copied_2_reshape_3 = ((const float*)(_A_copied_2_reshape_3->memory));
   float* tensor_4 = ((float*)(_tensor_4->memory));
   for (int32_t i = 0; i < 10; i += 1) {
     for (int32_t j = 0; j < 10; j += 1) {
