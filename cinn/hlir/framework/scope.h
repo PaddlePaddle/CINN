@@ -23,7 +23,7 @@ class Scope {
   Variable* Var(const std::string& name);
 
   //! Find a variable, get null if not exists.
-  Variable* FindVar(const std::string& name);
+  Variable* FindVar(const std::string& name) const;
 
  private:
   std::unordered_map<std::string, std::unique_ptr<Variable>> dic;

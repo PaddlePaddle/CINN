@@ -1,3 +1,4 @@
+#pragma once
 #include "cinn/frontend/paddle/cpp/desc_api.h"
 
 namespace cinn::frontend::paddle::cpp {

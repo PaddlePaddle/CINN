@@ -2,6 +2,7 @@ set(srcs
   var_desc.cc
   op_desc.cc
   block_desc.cc
+  program_desc.cc
   )
 
 foreach(cpp ${srcs})

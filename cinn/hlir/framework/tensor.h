@@ -5,6 +5,7 @@
 #include <numeric>
 #include <vector>
 
+#include "cinn/common/common.h"
 #include "cinn/common/macros.h"
 #include "cinn/hlir/framework/buffer.h"
 
@@ -45,6 +46,7 @@ class Tensor final {
 
   template <typename T>
   inline T* mutable_data(const Target& target) {
+    set_type(type_of<T>());
     buffer_->ResizeLazy(shape_.numel() * sizeof(T), target);
     return reinterpret_cast<T*>(buffer_->data()->memory);
   }
@@ -54,9 +56,15 @@ class Tensor final {
     return reinterpret_cast<T*>(buffer_->data()->memory);
   }
 
+  const Type& type() { return type_; }
+
+  void set_type(Type type) { type_ = type; }
+  const Type& type() const { return type_; }
+
   cinn_buffer_t* buffer() { return buffer_->data(); }
 
  private:
+  common::Type type_;
   // A shared ptr to make it easier to share buffer between tensors.
   std::shared_ptr<Buffer> buffer_;
   Shape shape_;

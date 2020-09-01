@@ -4,7 +4,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-Variable* Scope::FindVar(const std::string& name) {
+Variable* Scope::FindVar(const std::string& name) const {
   auto it = dic.find(name);
   if (it != dic.end()) return it->second.get();
   return nullptr;
