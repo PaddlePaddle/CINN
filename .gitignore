@@ -2,6 +2,8 @@
 *.pyc
 *.o
 *.a
+*.so
+*.ll
 cmake-build*
 build*
 .idea*

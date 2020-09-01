@@ -4,6 +4,7 @@ set(srcs
 
 cc_test(test_frontend_syntax SRCS syntax_test.cc DEPS core)
 
+add_subdirectory(paddle)
 
 foreach(cpp ${srcs})
   set(core_src
