@@ -1,4 +1,5 @@
 set(srcs
+  var_desc.cc
   op_desc.cc
   block_desc.cc
   )
