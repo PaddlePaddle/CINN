@@ -1146,7 +1146,6 @@ Expr ConvertCasToCinn(Expr expr) {
           Visit(&new_expr);
           *expr = new_expr;
           return;
-          CINN_NOT_IMPLEMENTED
         }
       } else {
         CINN_NOT_IMPLEMENTED

@@ -271,7 +271,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_support_level(4);
   CINN_REGISTER_OP(batchnorm)
       .describe("Can be used as a normalizer function for convolution or fully_connected operations.")
-      .set_num_inputs(2)  // here we consider batchnorm's 4 attrs(mean, variance, scale, bias) as anohter input
+      .set_num_inputs(2)  // here we consider batchnorm's 4 attrs(mean, variance, scale, bias) as another input
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBatchNorm)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBatchNorm))
