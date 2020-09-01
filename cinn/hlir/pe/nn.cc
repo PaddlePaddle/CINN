@@ -80,6 +80,33 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor& input,
   return {input_pad, weights_dilation, res};
 }
 
+/**
+ * Can be used as a normalizer function for convolution or fully_connected operations.
+ * Specified for NCHW layout.
+ * Math: Y = (X - mean) / sqrt(variance + epsilon) * scale + bias
+ * @param input The input variable.
+ * @param weights The weights containing mean, variance, scale and bias.
+ * @param epsilon The param epsilon is added to avoid divide zero.
+ * @param output_name The name of output tensor.
+ * @return The calculated output tensor.
+ */
+ir::Tensor BatchNorm_NCHW(const ir::Tensor& input,
+                          const ir::Tensor& weights,
+                          float epsilon,
+                          const std::string& output_name) {
+  CHECK_EQ(4, input->shape.size()) << "Input's dimension of BatchNorm op is not 4! Please check.";
+  CHECK_EQ(2, weights->shape.size()) << "Weight's dimension of BatchNorm op is not 2! Please check.";
+  auto res = Compute(
+      input->shape,
+      [=](Expr n, Expr c, Expr h, Expr w) {
+        return (((input(n, c, h, w) - weights(Expr(0), c)) / ir::Sqrt(weights(Expr(1), c) + Expr(epsilon))) *
+                    weights(Expr(2), c) +
+                weights(Expr(3), c));
+      },
+      output_name);
+  return res;
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
