@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import unittest
-import math
 import numpy as np
 import cinn
 from cinn import frontend
@@ -66,12 +65,8 @@ class SingleOpTester(unittest.TestCase):
         module = self.__codegen(op_name, inputs, attrs)
         self.compiler.build(module)
         fn = self.compiler.lookup(op_name)
-        out = []
-        for out_shape in output_shape:
-            out.append(
-                runtime.cinn_buffer_t(
-                    np.zeros(out_shape).astype("float32"),
-                    runtime.cinn_x86_device))
+        out = runtime.cinn_buffer_t(
+            np.zeros(output_shape).astype("float32"), runtime.cinn_x86_device)
 
         args = []
         temp_inputs = []
@@ -80,14 +75,13 @@ class SingleOpTester(unittest.TestCase):
                 runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device))
         for in_data in temp_inputs:
             args.append(runtime.cinn_pod_value_t(in_data))
-        for out_data in out:
-            args.append(runtime.cinn_pod_value_t(out_data))
+
+        args.append(runtime.cinn_pod_value_t(out))
 
         fn(args)
-
-        out_result = out[len(out) - 1].numpy()
-        correct_result = self.create_target_data(inputs_data)
-        self.assertTrue(np.allclose(out_result, correct_result, atol=1e-4))
+        self.assertTrue(
+            np.allclose(
+                out.numpy(), self.create_target_data(inputs_data), atol=1e-4))
 
     def __codegen(self, op_name, inputs, attrs):
         types = [common.Float(32)]
@@ -106,53 +100,27 @@ class SingleOpTester(unittest.TestCase):
         return "Var_" + str(self.counter)
 
 
-class OpTest_add(SingleOpTester):
+class OpTest_add_0(SingleOpTester):
     def create_target_data(self, inputs_data):
-        [X, Y] = inputs_data
+        X, Y = inputs_data
         return X + Y
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        self.to_test_op([[100, 32], [100, 32]], [[100, 32]], "add", attrs)
-
-
-class OpTest_relu(SingleOpTester):
-    def create_target_data(self, inputs_data):
-        [X] = inputs_data
-        return np.maximum(X, np.zeros(X.shape).astype("float32"))
-
-    def test_op(self):
-        attrs = framework.NodeAttr()
-        self.to_test_op([[32]], [[32]], "relu", attrs)
-
-
-""" class OpTest_conv2d(SingleOpTester):
-    def create_target_data(self, inputs_data):
-        return np.ones((1, 2, 5, 5)).astype("float32")
-
-    def test_op(self):
-        attrs = framework.NodeAttr()
-        attrs.attr_store = {"padding": [1, 1]}
-        attrs.set_attr("stride", [2, 2])
-        attrs.set_attr("dilation", 2)
-        attrs.set_attr("groups", 1)
-        self.to_test_op([[1, 3, 10, 10], [2, 3, 2, 2]],
-                        [[1, 3, 12, 12], [2, 3, 3, 3], [1, 2, 5, 5]], "conv2d", attrs) """
-
-
-class OpTest_batchnorm(SingleOpTester):
-    def create_target_data(self, inputs_data):
-        [X, Y] = inputs_data
-        c = X.shape[1]
-        for i in range(0, c):
-            X[:, i, :, :] = (X[:, i, :, :] - Y[0, i]) / math.sqrt(
-                Y[1, i] + 0.00001) * Y[2, i] + Y[3, i]
-        return X
-
-    def test_op(self):
-        attrs = framework.NodeAttr()
-        self.to_test_op([[1, 3, 2, 2], [4, 3]], [[1, 3, 2, 2]], "batchnorm",
+        attrs.attr_store = {"axis": 0}
+        self.to_test_op([[100, 32], [100, 32]], [100, 32], "elementwise_add",
                         attrs)
+
+
+class OpTest_add_1(SingleOpTester):
+    def create_target_data(self, inputs_data):
+        X, Y = inputs_data
+        return X + Y
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        attrs.attr_store = {"axis": 1}
+        self.to_test_op([[3, 2], [2]], [3, 2], "elementwise_add", attrs)
 
 
 if __name__ == "__main__":

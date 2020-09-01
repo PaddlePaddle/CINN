@@ -28,7 +28,7 @@ Placeholder::operator Variable() {
 }
 
 Variable Program::add(const Variable& a, const Variable& b) {
-  Instruction instr("add");
+  Instruction instr("elementwise_add");
   instr.SetInputs({a, b});
   AddInstruction(instr);
   return instr.GetOutputs()[0];

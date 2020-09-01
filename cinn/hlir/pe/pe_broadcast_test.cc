@@ -1,30 +1,28 @@
 #include <gtest/gtest.h>
 
-#include "cinn/backends/compiler.h"
 #include "cinn/backends/llvm/execution_engine.h"
-#include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/cinn.h"
-#include "cinn/common/ir_util.h"
 #include "cinn/common/target.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
-#include "cinn/runtime/cpu/use_extern_funcs.h"
 
 namespace cinn {
-namespace common {
+namespace hlir {
+namespace pe {
+using ir::Tensor;
 
-template <typename FuncOp>
-void TestBroadcastPE(const std::string &fn_name,
-                     const FuncOp &func_op,
-                     float (*fn_runtime)(float, float),
-                     int set_value = 0) {
+void TestBroadcastPE(
+    const std::string &fn_name,
+    Tensor (*func_op)(const Tensor &A, const Tensor &B, const std::string &output_name, const Expr &axis),
+    float (*fn_runtime)(float, float),
+    int set_value = 0) {
   Expr M(100), N(32);
 
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = func_op(A.tensor(), B.tensor(), "C");
+  auto C = func_op(A.tensor(), B.tensor(), "C", Expr());
 
   auto stages = CreateStages({C});
 
@@ -71,10 +69,8 @@ void TestBroadcastPE(const std::string &fn_name,
 #define RULE(test_name__, rule__) \
   float test_name__(float a, float b) { rule__ }
 
-#define TEST_BROADCAST_PE_FP32_BASIC(test_name__)                                              \
-  TEST(elementwise_pe, test_name__) {                                                          \
-    TestBroadcastPE("PE_Broadcast_" #test_name__ "_fp32", hlir::pe::test_name__, test_name__); \
-  }
+#define TEST_BROADCAST_PE_FP32_BASIC(test_name__) \
+  TEST(elementwise_pe, test_name__) { TestBroadcastPE("PE_Broadcast_" #test_name__ "_fp32", test_name__, test_name__); }
 #define TEST_BROADCAST_PE_FP32_SET_BASIC(test_name__) \
   TEST(elementwise_pe, test_name__) { TestBroadcastPE("PE_Broadcast_" #test_name__ "_fp32", test_name__, value); }
 
@@ -84,5 +80,6 @@ void TestBroadcastPE(const std::string &fn_name,
 
 TEST_BROADCAST_PE_FP32(Add, return a + b;)
 
-}  // namespace common
+}  // namespace pe
+}  // namespace hlir
 }  // namespace cinn

@@ -1,7 +1,104 @@
 #include "cinn/hlir/pe/transform.h"
 
+#include "cinn/common/ir_util.h"
+#include "cinn/ir/tensor.h"
+#include "cinn/lang/compute.h"
+
+#include <algorithm>
+
 namespace cinn {
 namespace hlir {
-namespace pe {}  // namespace pe
+namespace pe {
+
+using cinn::lang::Compute;
+using namespace ir;
+void GetMatmulOutputShape(const std::vector<Expr>& shape1,
+                          const std::vector<Expr>& shape2,
+                          std::vector<Expr>* shape1_new,
+                          std::vector<Expr>* shape2_new,
+                          std::vector<Expr>* output_shape,
+                          bool trans_a,
+                          bool trans_b,
+                          int x_num_col_dims,
+                          int y_num_col_dims) {
+  CHECK(shape1_new && shape2_new && output_shape);
+  *shape1_new = shape1;
+  *shape2_new = shape2;
+  if (trans_a) {
+    reverse(shape1_new->begin(), shape1_new->end());
+  }
+  if (trans_b) {
+    reverse(shape2_new->begin(), shape2_new->end());
+  }
+  // first get output shape
+  output_shape->insert(output_shape->begin(), shape1_new->begin(), shape1_new->begin() + x_num_col_dims);
+  output_shape->insert(output_shape->end(), shape2_new->begin() + y_num_col_dims, shape2_new->end());
+}
+
+void GetMatmulIndice(const std::vector<Expr>& shape1_new,
+                     const std::vector<Expr>& shape2_new,
+                     const std::vector<Expr>& indices,
+                     int x_num_col_dims,
+                     int y_num_col_dims,
+                     std::vector<Expr>* indice1,
+                     std::vector<Expr>* indice2,
+                     std::vector<Var>* reduce_axes) {
+  CHECK(indice1 && indice2 && reduce_axes);
+  if (indice1->empty() && indice2->empty()) {
+    CHECK_GE(indices.size(), x_num_col_dims);
+    for (size_t i = 0; i < x_num_col_dims; i++) {
+      indice1->emplace_back(indices[i]);
+    }
+    Expr reduce_shape1 = Expr(1);
+    int count          = 1;
+    // A reduce axes
+    for (size_t i = x_num_col_dims; i < shape1_new.size(); i++) {
+      reduce_shape1           = reduce_shape1 * shape1_new[i];
+      std::string reduce_name = "k" + std::to_string(count);
+      auto k                  = _Var_::Make(Expr(0), shape1_new[i], reduce_name);
+      reduce_axes->emplace_back(k);
+      indice1->emplace_back(k);
+      count++;
+    }
+    Expr reduce_shape2 = Expr(1);
+    // B reduce axes
+    for (size_t i = 0; i < y_num_col_dims; i++) {
+      reduce_shape2 = reduce_shape2 * shape2_new[i];
+      // tempory check
+      CHECK(MathEqual(shape1_new[shape1_new.size() - 1 - i], shape2_new[i]));
+      indice2->emplace_back((*indice1)[indice1->size() - 1 - i]);
+    }
+    CHECK(MathEqual(reduce_shape1, reduce_shape2));
+    CHECK_GE(indices.size(), shape2_new.size() - y_num_col_dims);
+    for (size_t i = y_num_col_dims; i < shape2_new.size(); i++) {
+      indice2->emplace_back(indices[x_num_col_dims + i - y_num_col_dims]);
+    }
+  }
+}
+
+Tensor Matmul(const Tensor& A,
+              const Tensor& B,
+              bool trans_a,
+              bool trans_b,
+              int x_num_col_dims,
+              int y_num_col_dims,
+              const std::string& name) {
+  std::vector<Expr> output_shape;
+  std::vector<Expr> shape1_new;
+  std::vector<Expr> shape2_new;
+  std::vector<Expr> A_indice;
+  std::vector<Expr> B_indice;
+  std::vector<Var> reduce_axes;
+  GetMatmulOutputShape(
+      A->shape, B->shape, &shape1_new, &shape2_new, &output_shape, trans_a, trans_b, x_num_col_dims, y_num_col_dims);
+  auto fn = [&](const std::vector<Expr>& indices) {
+    GetMatmulIndice(
+        shape1_new, shape2_new, indices, x_num_col_dims, y_num_col_dims, &A_indice, &B_indice, &reduce_axes);
+    return ReduceSum(A(A_indice) * B(B_indice), Expr());
+  };
+  return Compute(output_shape, fn, name, reduce_axes);
+}
+
+}  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

@@ -1,42 +1,51 @@
+#include "cinn/hlir/pe/nn.h"
+
 #include <string>
 #include <vector>
 
 #include "cinn/common/context.h"
+#include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/nn.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
+#include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
 namespace hlir {
 namespace pe {
 
 using cinn::lang::Compute;
-using ir::Expr;
-using ir::Tensor;
+using namespace ir;
 
-Tensor LeakyRelu(const Tensor& A, double alpha, const std::string& output_name) {
+enum PoolType {
+  kAvgPool,
+  kMaxPool,
+};
+
+Tensor LeakyRelu(const Tensor &A, double alpha, const std::string &output_name) {
   return Compute(
-      A->shape, [&](const std::vector<Expr>& indice) { return LeakyRelu(A(indice), alpha); }, output_name);
+      A->shape, [&](const std::vector<Expr> &indice) { return LeakyRelu(A(indice), alpha); }, output_name);
 }
 
-Tensor PRelu(const Tensor& A, const Tensor& slope, const int axis, const std::string& output_name) {
+Tensor PRelu(const Tensor &A, const Tensor &slope, const int axis, const std::string &output_name) {
   CHECK_LT(axis, A->shape.size()) << "Wrong axis value: " << axis << std::endl;
   CHECK(A->shape[axis] == slope->shape[0]) << "Wrong slope shape: " << slope->shape[0] << std::endl;
   return Compute(
       A->shape,
-      [&](const std::vector<Expr>& indice) { return LeakyRelu(A(indice), slope(indice[axis])); },
+      [&](const std::vector<Expr> &indice) { return LeakyRelu(A(indice), slope(indice[axis])); },
       output_name);
 }
 
-std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor& input,
-                                    const ir::Tensor& weights,
+std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
+                                    const ir::Tensor &weights,
                                     int pad_h,
                                     int pad_w,
                                     int stride_h,
                                     int stride_w,
                                     int dilation,
                                     int groups,
-                                    const std::string& output_name) {
+                                    const std::string &output_name) {
   CHECK_EQ(4, input->shape.size()) << "Input's dimension of Conv2d op is not 4! Please check.";
   CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d op is not 4! Please check.";
   std::vector<Expr> output_shape{
@@ -90,10 +99,10 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor& input,
  * @param output_name The name of output tensor.
  * @return The calculated output tensor.
  */
-ir::Tensor BatchNorm_NCHW(const ir::Tensor& input,
-                          const ir::Tensor& weights,
+ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
+                          const ir::Tensor &weights,
                           float epsilon,
-                          const std::string& output_name) {
+                          const std::string &output_name) {
   CHECK_EQ(4, input->shape.size()) << "Input's dimension of BatchNorm op is not 4! Please check.";
   CHECK_EQ(2, weights->shape.size()) << "Weight's dimension of BatchNorm op is not 2! Please check.";
   auto res = Compute(

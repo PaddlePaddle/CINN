@@ -1,5 +1,7 @@
 set(srcs
-  nn.cc
+        nn.cc
+        broadcast.cc
+        transform.cc
   )
 
 foreach(cpp ${srcs})
@@ -7,3 +9,5 @@ foreach(cpp ${srcs})
     "${core_src};cinn/hlir/op/${cpp}"
     CACHE INTERNAL "")
 endforeach()
+
+cc_test(test_op_broadcast SRCS op_broadcast_test.cc DEPS core)

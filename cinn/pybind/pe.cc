@@ -1,6 +1,7 @@
 #include "cinn/common/target.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/reduction.h"
+#include "cinn/hlir/pe/transform.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
 #include "cinn/utils/string.h"
@@ -75,6 +76,16 @@ void BindPE(py::module* m) {
          py::arg("out")       = "T_" #name__ "_out")
   BIND_REDUCE1(max, Max);
   BIND_REDUCE1(min, Min);
+
+  m->def("matmul",
+         &hlir::pe::Matmul,
+         py::arg("tensor_a"),
+         py::arg("tensor_b"),
+         py::arg("trans_a"),
+         py::arg("trans_b"),
+         py::arg("x_num_col_dims"),
+         py::arg("y_num_col_dims"),
+         py::arg("out") = "T_Matmul_out");
 }
 
 }  // namespace pybind

@@ -50,7 +50,9 @@ TEST(Operator, GetAttrs) {
   ApplyPass(g, "PrintGraph");
   auto s = g->GetAttrs<std::string>("print_graph");
   LOG(INFO) << s;
-  ASSERT_EQ(s, "0:add(add_0)\n1:add(add_1)\n2:add(add_2)\n");
+  ASSERT_EQ(s,
+            "0:elementwise_add(elementwise_add_0)\n1:elementwise_add(elementwise_add_1)\n2:elementwise_add(elementwise_"
+            "add_2)\n");
 }
 
 }  // namespace framework

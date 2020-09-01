@@ -16,3 +16,4 @@ endforeach()
 
 cc_test(test_pe_elementwise SRCS pe_elementwise_test.cc DEPS core)
 cc_test(test_pe_broadcast SRCS pe_broadcast_test.cc DEPS core)
+cc_test(test_pe_transform SRCS pe_transform_test.cc DEPS core)

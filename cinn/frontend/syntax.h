@@ -76,7 +76,14 @@ struct Variable : public common::Shared<_Variable_> {
  * Data of a Instruction.
  */
 struct _Instruction_ : public common::Object {
-  using attr_t = std::variant<int, float, std::string, std::vector<int>, std::vector<float>, std::vector<std::string>>;
+  using attr_t = std::variant<int,
+                              float,
+                              bool,
+                              std::string,
+                              std::vector<int>,
+                              std::vector<float>,
+                              std::vector<bool>,
+                              std::vector<std::string>>;
 
   std::string op_type;
   std::unordered_map<std::string, attr_t> attrs;
