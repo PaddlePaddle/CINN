@@ -1128,6 +1128,8 @@ Expr ConvertCasToCinn(Expr expr) {
       Visit(&a);
       Visit(&b);
 
+      LOG(INFO) << "power: " << *expr;
+
       auto* node = expr->As<ir::Power>();
       if (b.is_constant()) {
         if (b.get_constant() == 1) {
@@ -1142,7 +1144,10 @@ Expr ConvertCasToCinn(Expr expr) {
           *expr = init;
         } else {
           // some case like a^-2
-          CINN_NOT_IMPLEMENTED
+          auto new_expr = make_const(a.type(), 1.f) / (ir::Power::Make(a, make_const(b.type(), -b.get_constant())));
+          Visit(&new_expr);
+          *expr = new_expr;
+          return;
         }
       } else {
         CINN_NOT_IMPLEMENTED
