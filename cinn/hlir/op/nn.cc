@@ -205,7 +205,7 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
     ir::Expr B      = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
-    auto out    = pe::BatchNorm_NCHW(A.as_tensor_ref(), B.as_tensor_ref(), epsilon, UniqName("Relu_output"));
+    auto out    = pe::BatchNorm_NCHW(A.as_tensor_ref(), B.as_tensor_ref(), epsilon, UniqName("BatchNorm_output"));
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(ir::Expr(out.get())), CINNValue(stages)}};
   });

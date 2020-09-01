@@ -1142,6 +1142,10 @@ Expr ConvertCasToCinn(Expr expr) {
           *expr = init;
         } else {
           // some case like a^-2
+          auto new_expr = make_const(a.type(), 1.f) / (ir::Power::Make(a, make_const(b.type(), -b.get_constant())));
+          Visit(&new_expr);
+          *expr = new_expr;
+          return;
           CINN_NOT_IMPLEMENTED
         }
       } else {
