@@ -67,7 +67,7 @@ Expr Tensor::operator()(const std::vector<Expr> &indices) const {
   CHECK(!self()->is_tuple()) << "should extract a specific value from the tuple and operate on that instead";
   auto *node = operator->();
 
-  CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension " << node->name;
+  CHECK_EQ(indices.size(), ndims()) << "number of indices not match the dimension";
 
   return Load::Make(*this, indices);
 }
