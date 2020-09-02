@@ -15,8 +15,14 @@ namespace pe {
  *
  * @return The result Tensor or Expr.
  */
-#define HLIR_DCL_BC_PE(name__) \
-  ir::Tensor name__(const ir::Tensor& A, const ir::Tensor& B, const std::string& output_name = "T_" #name__ "_out");
+#define HLIR_DCL_BC_PE(name__)                                                                                     \
+  ir::Tensor name__(const ir::Tensor& A,                                                                           \
+                    const ir::Tensor& B,                                                                           \
+                    const std::string& output_name = "T_" #name__ "_out",                                          \
+                    const ir::Expr& axis           = ir::Expr());                                                            \
+  ir::Tensor name__(const ir::Expr& A, const ir::Tensor& B, const std::string& output_name = "T_" #name__ "_out"); \
+  ir::Tensor name__(const ir::Tensor& A, const ir::Expr& B, const std::string& output_name = "T_" #name__ "_out"); \
+  ir::Expr name__(const ir::Expr& A, const ir::Expr& B);
 
 //! Compute A + B with auto-broadcasting.
 HLIR_DCL_BC_PE(Add);
@@ -27,11 +33,11 @@ HLIR_DCL_BC_PE(Multiply);
 //! Compute A / B with auto-broadcasting.
 HLIR_DCL_BC_PE(Divide);
 //! Compute Floor(A / B) with auto-broadcasting.
-HLIR_DCL_BC_PE(Floor_divide);
+HLIR_DCL_BC_PE(FloorDivide);
 //! Compute A % B with auto-broadcasting.
 HLIR_DCL_BC_PE(Mod);
 //! Compute A - floor_div(A, B) * B with auto-broadcasting.
-HLIR_DCL_BC_PE(Floor_mod);
+HLIR_DCL_BC_PE(FloorMod);
 //! Compute Maximum(A, B) with auto-broadcasting.
 HLIR_DCL_BC_PE(Maximum);
 //! Compute Minimum(A, B) with auto-broadcasting.

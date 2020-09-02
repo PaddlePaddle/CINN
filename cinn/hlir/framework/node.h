@@ -23,7 +23,14 @@ using NodePtr = std::shared_ptr<Node>;
  *  and other parameters like axis.
  */
 struct NodeAttr {
-  using attr_t = std::variant<int, float, std::string, std::vector<int>, std::vector<float>, std::vector<std::string>>;
+  using attr_t = std::variant<int,
+                              float,
+                              bool,
+                              std::string,
+                              std::vector<int>,
+                              std::vector<float>,
+                              std::vector<bool>,
+                              std::vector<std::string>>;
 
   /**
    * \brief The operator this node uses.
@@ -90,7 +97,14 @@ class Node : public common::GraphNode {
  * \brief NodeData represents the output data from an operator.
  */
 class NodeData : public common::GraphNode {
-  using attr_t = std::variant<int, float, std::string, std::vector<int>, std::vector<float>, std::vector<std::string>>;
+  using attr_t = std::variant<int,
+                              float,
+                              bool,
+                              std::string,
+                              std::vector<int>,
+                              std::vector<float>,
+                              std::vector<bool>,
+                              std::vector<std::string>>;
 
  public:
   NodeData(NodePtr node, uint32_t index, uint32_t version, std::string id)

@@ -49,6 +49,6 @@ void BindFramework(pybind11::module *m) {
       .def_readwrite("attr_store", &NodeAttr::attr_store)
       .def("set_attr",
            [](NodeAttr &self, const std::string &key, NodeAttr::attr_t value) { self.attr_store[key] = value; });
-}  // namespace frontend
 
+}  // namespace frontend
 }  // namespace cinn::pybind

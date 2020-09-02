@@ -93,19 +93,21 @@ class TestPEReduction(unittest.TestCase):
             self.m,
             self.n,
         )]
+        axes_expr = [ir.Expr(_) for _ in axes]
         x = lang.Placeholder("float32", "x", [m, n])
         func_name = "test_" + fn_name
         stages = create_stages([x.to_tensor()])
         if initial:
-            y, y_init = cinn_fn(x.to_tensor(), stages, axes, keep_dims,
+            y, y_init = cinn_fn(x.to_tensor(), stages, axes_expr, keep_dims,
                                 ir.Expr(initial))
             func = lang.lower(func_name, stages, [x.to_tensor(), y, y_init])
         else:
-            y = cinn_fn(x.to_tensor(), stages, axes, keep_dims)
+            y = cinn_fn(x.to_tensor(), stages, axes_expr, keep_dims)
             func = lang.lower(func_name, stages, [x.to_tensor(), y])
 
         builder = lang.Module.Builder("reduction_module", self.target)
         builder.add_function(func)
+        print(func)
 
         module = builder.build()
         self.compiler.build(module)

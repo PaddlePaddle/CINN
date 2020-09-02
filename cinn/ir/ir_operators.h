@@ -178,6 +178,11 @@ inline Expr Relu(Expr e, T threshold = static_cast<T>(0)) {
   return Max::Make(e, make_const(e->type(), threshold));
 }
 
+template <typename T>
+inline Expr Relu6(Expr e, T threshold = static_cast<T>(0)) {
+  return Min::Make(Max::Make(e, make_const(e->type(), threshold)), make_const(e->type(), 6));
+}
+
 inline Expr LeakyRelu(Expr e, double alpha) {
   auto zero = make_const(e->type(), 0);
   return Select::Make(e > zero, e, e * make_const(e->type(), alpha));
@@ -188,8 +193,18 @@ inline Expr LeakyRelu(Expr e, Expr alpha) {
   return Select::Make(e > zero, e, e * alpha);
 }
 
-inline Expr ReduceSum(Expr e, Expr initial = Expr(0)) { return Reduce::Make(Reduce::kSum, initial, e); }
-inline Expr ReduceMul(Expr e, Expr initial = Expr(1)) { return Reduce::Make(Reduce::kMul, initial, e); }
+inline Expr ReduceSum(Expr e, Expr initial) {
+  if (!initial.defined()) {
+    initial = Zero(e->type());
+  }
+  return Reduce::Make(Reduce::kSum, initial, e);
+}
+inline Expr ReduceMul(Expr e, Expr initial) {
+  if (!initial.defined()) {
+    initial = make_const(e->type(), 1);
+  }
+  return Reduce::Make(Reduce::kMul, initial, e);
+}
 inline Expr ReduceMax(Expr e, Expr initial) { return Reduce::Make(Reduce::kMax, initial, e); }
 inline Expr ReduceMin(Expr e, Expr initial) { return Reduce::Make(Reduce::kMin, initial, e); }
 

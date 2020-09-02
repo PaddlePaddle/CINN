@@ -27,14 +27,15 @@ using namespace ir;
  * @notes If the input axes are empty, the result will be axes including all dimensions. If any input element is
  * negative, it will be treated as an offset from the last dimension (same as python indexing rules).
  */
-void GetRealAxes(int ndim, const std::vector<int>& axes, std::vector<int>* real_axes) {
+void GetRealAxes(int ndim, const std::vector<Expr>& axes, std::vector<int>* real_axes) {
   CHECK(real_axes);
   if (axes.empty()) {
     for (int i = 0; i < ndim; ++i) {
       real_axes->push_back(i);
     }
   } else {
-    for (auto val : axes) {
+    for (auto axis : axes) {
+      auto val = axis.as_int32();
       if (val < 0) {
         val += ndim;
       }
@@ -106,8 +107,8 @@ std::vector<Tensor> DoReduce(const Tensor& tensor,
                              const std::string& output_name) {
   std::vector<Var> reduce_axes;
   for (auto& axis : real_axes) {
-    std::string name = "k" + std::to_string(axis);
-    reduce_axes.push_back(_Var_::Make(Expr(0), tensor->shape[axis], name));
+    std::string name = UniqName("k");
+    reduce_axes.push_back(Var(tensor->shape[axis], name));
   }
   auto compute = [&](const std::vector<Expr>& indices) {
     std::vector<Expr> eval_indice;
@@ -163,7 +164,7 @@ std::vector<Tensor> DoReduce(const Tensor& tensor,
 template <typename FuncOp>
 std::vector<Tensor> Reduce(const Tensor& tensor,
                            poly::StageMap stages,
-                           const std::vector<int>& axes,
+                           const std::vector<Expr>& axes,
                            const FuncOp& fn,
                            bool keep_dims,
                            const ir::Expr& initial,
@@ -180,7 +181,7 @@ std::vector<Tensor> Reduce(const Tensor& tensor,
 
 std::vector<Tensor> Sum(const Tensor& A,
                         poly::StageMap stages,
-                        const std::vector<int>& axes,
+                        const std::vector<Expr>& axes,
                         bool keep_dims,
                         const ir::Expr& initial,
                         const std::string& output_name) {
@@ -189,7 +190,7 @@ std::vector<Tensor> Sum(const Tensor& A,
 
 std::vector<Tensor> Prod(const Tensor& A,
                          poly::StageMap stages,
-                         const std::vector<int>& axes,
+                         const std::vector<Expr>& axes,
                          bool keep_dims,
                          const ir::Expr& initial,
                          const std::string& output_name) {
@@ -197,14 +198,14 @@ std::vector<Tensor> Prod(const Tensor& A,
 }
 
 Tensor Max(
-    const Tensor& A, StageMap stages, const std::vector<int>& axes, bool keep_dims, const std::string& output_name) {
+    const Tensor& A, StageMap stages, const std::vector<Expr>& axes, bool keep_dims, const std::string& output_name) {
   std::vector<Tensor> tensors = Reduce(A, stages, axes, ReduceMax, keep_dims, Expr(), output_name);
   CHECK(!tensors.empty());
   return tensors.front();
 }
 
 Tensor Min(
-    const Tensor& A, StageMap stages, const std::vector<int>& axes, bool keep_dims, const std::string& output_name) {
+    const Tensor& A, StageMap stages, const std::vector<Expr>& axes, bool keep_dims, const std::string& output_name) {
   std::vector<Tensor> tensors = Reduce(A, stages, axes, ReduceMin, keep_dims, Expr(), output_name);
   CHECK(!tensors.empty());
   return tensors.front();
