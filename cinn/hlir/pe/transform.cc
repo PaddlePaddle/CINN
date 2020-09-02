@@ -21,14 +21,16 @@ void GetMatmulOutputShape(const std::vector<Expr>& shape1,
                           bool trans_b,
                           int x_num_col_dims,
                           int y_num_col_dims) {
-  CHECK(shape1_new && shape2_new && output_shape);
+  CHECK(shape1_new);
+  CHECK(shape2_new);
+  CHECK(output_shape);
   *shape1_new = shape1;
   *shape2_new = shape2;
   if (trans_a) {
-    reverse(shape1_new->begin(), shape1_new->end());
+    std::reverse(shape1_new->begin(), shape1_new->end());
   }
   if (trans_b) {
-    reverse(shape2_new->begin(), shape2_new->end());
+    std::reverse(shape2_new->begin(), shape2_new->end());
   }
   // first get output shape
   output_shape->insert(output_shape->begin(), shape1_new->begin(), shape1_new->begin() + x_num_col_dims);
@@ -78,10 +80,10 @@ void GetMatmulIndice(const std::vector<Expr>& shape1_new,
       indice2->emplace_back(indices[x_num_col_dims + i - y_num_col_dims]);
     }
     if (trans_a) {
-      reverse(indice1->begin(), indice1->end());
+      std::reverse(indice1->begin(), indice1->end());
     }
     if (trans_b) {
-      reverse(indice2->begin(), indice2->end());
+      std::reverse(indice2->begin(), indice2->end());
     }
   }
 }
