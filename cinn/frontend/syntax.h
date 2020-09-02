@@ -146,6 +146,41 @@ struct Program {
   Variable add(const Variable& a, const Variable& b);
 
   /**
+   * Apply Rectified Linear Unit on input Variable.
+   * Actually apply: outupt = max(input,0)
+   *
+   * @param a The first variable.
+   * @return The result.
+   */
+  Variable relu(const Variable& a);
+
+  /**
+   * The convolution2D layer calculates the output based on the input, filter
+   * and strides, paddings, dilations, groups parameters.
+   *
+   * @param a The first variable input.
+   * @param b The second variable filter(weights).
+   * @param attr_store The params like padding, stride, dilation, etc.
+   * @return The result.
+   */
+  std::vector<Variable> conv2d(const Variable& a,
+                               const Variable& b,
+                               const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
+
+  /**
+   * The batchnorm layer can be used as a normalizer function
+   * for convolution or fully_connected operations.
+   *
+   * @param a The first variable input.
+   * @param b The second variable filter(weights).
+   * @param attr_store The params like eplison.
+   * @return The result.
+   */
+  Variable batchnorm(const Variable& a,
+                     const Variable& b,
+                     const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
+
+  /**
    * Get \p i-th instruction.
    */
   Instruction& operator[](size_t i);

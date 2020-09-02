@@ -1,4 +1,5 @@
 #include "cinn/frontend/syntax.h"
+#include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/utils/string.h"
 
@@ -30,6 +31,38 @@ Placeholder::operator Variable() {
 Variable Program::add(const Variable& a, const Variable& b) {
   Instruction instr("elementwise_add");
   instr.SetInputs({a, b});
+  AddInstruction(instr);
+  return instr.GetOutputs()[0];
+}
+
+Variable Program::relu(const Variable& a) {
+  Instruction instr("relu");
+  instr.SetInputs({a});
+  AddInstruction(instr);
+  return instr.GetOutputs()[0];
+}
+
+std::vector<Variable> Program::conv2d(
+    const Variable& a,
+    const Variable& b,
+    const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store) {
+  Instruction instr("conv2d");
+  instr.SetInputs({a, b});
+  for (auto& iter : attr_store) {
+    instr.SetAttr(iter.first, iter.second);
+  }
+  AddInstruction(instr);
+  return instr.GetOutputs();
+}
+
+Variable Program::batchnorm(const Variable& a,
+                            const Variable& b,
+                            const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store) {
+  Instruction instr("batchnorm");
+  instr.SetInputs({a, b});
+  for (auto& iter : attr_store) {
+    instr.SetAttr(iter.first, iter.second);
+  }
   AddInstruction(instr);
   return instr.GetOutputs()[0];
 }

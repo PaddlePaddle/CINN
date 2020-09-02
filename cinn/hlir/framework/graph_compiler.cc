@@ -9,6 +9,16 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+void GraphCompiler::PrintFunc() {
+  auto [nodes, edges] = graph_->topological_order();
+  for (auto& n : nodes) {
+    auto* node = n->safe_as<Node>();
+    if (node) {
+      auto lowered_func = GetOpFunc(node);
+    }
+  }
+}
+
 std::unique_ptr<Program> GraphCompiler::Build() {
   auto [nodes, edges] = graph_->topological_order();
   for (auto& n : nodes) {
@@ -52,7 +62,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
-  for (auto& i : node->inlinks()) {
+  for (auto& i : node->inlinks_in_order()) {
     std::string input_id      = i->source()->as<NodeData>()->id();
     std::vector<int> in_shape = shape_dict.at(input_id);
     Type dtype                = dtype_dict.at(input_id);
@@ -63,7 +73,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     cinn_inputs.push_back(common::CINNValue(temp));
   }
   std::vector<Type> out_types;
-  for (auto& out : node->outlinks()) {
+  for (auto& out : node->outlinks_in_order()) {
     std::string out_id = out->sink()->safe_as<NodeData>()->id();
     Type dtype         = dtype_dict.at(out_id);
     out_types.push_back(dtype);
@@ -80,13 +90,13 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   }
 
   auto func = Lower(GenOpFuncName(node), stages, inputs);
-
+  LOG(INFO) << "The function of node [" << node->attrs.node_name << "] is: " << func;
   return func;
 }
 
 std::vector<std::string> GraphCompiler::OpGetInputNames(const Node* node) const {
   std::vector<std::string> res;
-  for (auto& i : node->inlinks()) {
+  for (auto& i : node->inlinks_in_order()) {
     res.push_back(i->source()->as<NodeData>()->id());
   }
   return res;
@@ -94,7 +104,7 @@ std::vector<std::string> GraphCompiler::OpGetInputNames(const Node* node) const 
 
 std::vector<std::string> GraphCompiler::OpGetOutputNames(const Node* node) const {
   std::vector<std::string> res;
-  for (auto& i : node->outlinks()) {
+  for (auto& i : node->outlinks_in_order()) {
     res.push_back(i->sink()->as<NodeData>()->id());
   }
   return res;
