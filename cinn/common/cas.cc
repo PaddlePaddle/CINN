@@ -1166,7 +1166,6 @@ bool IsExprCasCompatible(Expr expr) {
 
 // Partially divide a by b. e.g. (2x+y)/2 => x + y/2
 Expr DividePartially(Sum* a, int b) {
-  LOG(INFO) << "Divide partially";
   std::vector<Expr> external_sum_args, sum_args;
 
   for (auto& item : a->operands()) {
