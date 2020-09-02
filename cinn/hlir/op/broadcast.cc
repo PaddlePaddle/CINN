@@ -65,6 +65,69 @@ std::vector<Type> InferDtypeForElementwiseAdd(const std::vector<Type> &inputs_ty
   return res;
 }
 
+std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
+                                             const std::vector<ir::Tensor> &inputs,
+                                             const std::vector<Type> &out_type,
+                                             const Target &target) {
+  float scale           = 1.f;
+  float bias            = 0.f;
+  bool bias_after_scale = true;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "scale") {
+      scale = std::get<float>(iter.second);
+    } else if (iter.first == "bias") {
+      bias = std::get<float>(iter.second);
+    } else if (iter.first == "bias_after_scale") {
+      bias_after_scale = std::get<bool>(iter.second);
+    }
+  }
+  framework::CINNCompute scale_compute([=](lang::Args args, lang::RetValue *ret) {
+    CINNValuePack a = args[0];
+    ir::Expr A_expr = a[0];
+    CHECK(A_expr.as_tensor());
+    ir::Tensor A = A_expr.as_tensor_ref();
+    ir::Tensor out;
+    if (bias_after_scale) {
+      out = Compute(
+          A->shape,
+          [=](const std::vector<Expr> &indice) { return scale * A(indice) + bias; },
+          UniqName("Scale_output"));
+    } else {
+      out = Compute(
+          A->shape,
+          [=](const std::vector<Expr> &indice) { return scale * (A(indice) + bias); },
+          UniqName("Scale_output"));
+    }
+    auto stages = CreateStages({out});
+    *ret        = CINNValuePack{{CINNValue(ir::Expr(out.get())), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule scale_schedule([](lang::Args args, lang::RetValue *ret) {
+    CINNValuePack arg_pack      = args[0];
+    ir::Expr A [[maybe_unused]] = arg_pack[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(scale_compute, scale_schedule, "strategy.scale.x86", 1);
+
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForScale(const std::vector<std::vector<int>> &inputs_shape,
+                                                 const framework::NodeAttr &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  std::vector<std::vector<int>> res{inputs_shape[0]};
+  return res;
+}
+
+std::vector<Type> InferDtypeForScale(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -77,5 +140,13 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForElementwiseAdd)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForElementwiseAdd))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForElementwiseAdd))
+      .set_support_level(4);
+  CINN_REGISTER_OP(scale)
+      .describe("Putting scale and bias to the input Tensor")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScale)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForScale))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForScale))
       .set_support_level(4);
 }
