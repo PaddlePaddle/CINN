@@ -1,5 +1,7 @@
 #include "cinn/frontend/paddle/model_parser.h"
+
 #include <fstream>
+
 #include "cinn/common/common.h"
 #include "cinn/frontend/paddle/compatible_pb.h"
 
@@ -219,7 +221,7 @@ void LoadModelPb(const std::string &model_dir,
           LoadLoDTensor(file, scope->Var<hlir::framework::Tensor>(var.name()));
           break;
         default:
-          CHECK(false) << "unknown weight type";
+          LOG(FATAL) << "unknown weight type";
       }
     }
   }

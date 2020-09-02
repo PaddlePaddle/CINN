@@ -11,7 +11,6 @@ namespace cinn::frontend::paddle::cpp {
  * Compatible interfaces for all the different kinds of XXXDesc. All the XXXDesc
  * classes should implement this.
  */
-
 class VarDescAPI {
  public:
   enum class Type {

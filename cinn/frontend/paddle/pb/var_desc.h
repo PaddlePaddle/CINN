@@ -1,9 +1,11 @@
 #pragma once
 #include <glog/logging.h>
 #include <google/protobuf/map.h>
+
 #include <algorithm>
 #include <string>
 #include <vector>
+
 #include "cinn/frontend/paddle/cpp/desc_api.h"
 #include "cinn/frontend/paddle/framework.pb.h"
 
@@ -67,7 +69,6 @@ class VarDesc : public cpp::VarDescAPI {
 
   void SetDataTypes(const std::vector<framework_proto::VarType::Type> &multiple_data_type);
 
-  // framework::proto::VarType::Type GetDataType() const;
   VarDescAPI::VarDataType GetDataType() const;
 
   std::vector<framework_proto::VarType::Type> GetDataTypes() const;
