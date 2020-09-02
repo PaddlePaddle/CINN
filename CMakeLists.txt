@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(DOWNLOAD_MODEL_DIR "${THIRD_PARTY_PATH}/model")
 
 option(WITH_TESTING         "Compile with Unittests"          ON)
 option(WITH_CUDA            "Compile with CUDA support"       OFF)
