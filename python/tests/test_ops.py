@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import unittest
+import math
 import numpy as np
 import cinn
 from cinn import frontend
@@ -54,7 +55,7 @@ class SingleOpTester(unittest.TestCase):
         for i_shape in input_shapes:
             expr_shape = []
             inputs_data.append(
-                np.around(np.ones(i_shape).astype("float32"), 3))
+                np.around(np.random.random(i_shape).astype("float32"), 3))
 
             for dim_shape in i_shape:
                 expr_shape.append(ir.Expr(dim_shape))
@@ -83,14 +84,10 @@ class SingleOpTester(unittest.TestCase):
             args.append(runtime.cinn_pod_value_t(out_data))
 
         fn(args)
-        print("test op output is:")
-        out_result = out[len(out) - 1]
-        print(out_result.numpy())
-        self.assertTrue(
-            np.allclose(
-                out_result.numpy(),
-                self.create_target_data(inputs_data),
-                atol=1e-4))
+
+        out_result = out[len(out) - 1].numpy()
+        correct_result = self.create_target_data(inputs_data)
+        self.assertTrue(np.allclose(out_result, correct_result, atol=1e-4))
 
     def __codegen(self, op_name, inputs, attrs):
         types = [common.Float(32)]
@@ -111,7 +108,7 @@ class SingleOpTester(unittest.TestCase):
 
 class OpTest_add(SingleOpTester):
     def create_target_data(self, inputs_data):
-        X, Y = inputs_data
+        [X, Y] = inputs_data
         return X + Y
 
     def test_op(self):
@@ -121,12 +118,12 @@ class OpTest_add(SingleOpTester):
 
 class OpTest_relu(SingleOpTester):
     def create_target_data(self, inputs_data):
-        X = inputs_data
-        return np.maximum(X, np.zeros(np.array(X).shape).astype("float32"))
+        [X] = inputs_data
+        return np.maximum(X, np.zeros(X.shape).astype("float32"))
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        self.to_test_op([[32, 32]], [[32, 32]], "relu", attrs)
+        self.to_test_op([[32]], [[32]], "relu", attrs)
 
 
 """ class OpTest_conv2d(SingleOpTester):
@@ -141,6 +138,22 @@ class OpTest_relu(SingleOpTester):
         attrs.set_attr("groups", 1)
         self.to_test_op([[1, 3, 10, 10], [2, 3, 2, 2]],
                         [[1, 3, 12, 12], [2, 3, 3, 3], [1, 2, 5, 5]], "conv2d", attrs) """
+
+
+class OpTest_batchnorm(SingleOpTester):
+    def create_target_data(self, inputs_data):
+        [X, Y] = inputs_data
+        c = X.shape[1]
+        for i in range(0, c):
+            X[:, i, :, :] = (X[:, i, :, :] - Y[0, i]) / math.sqrt(
+                Y[1, i] + 0.00001) * Y[2, i] + Y[3, i]
+        return X
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        self.to_test_op([[1, 3, 2, 2], [4, 3]], [[1, 3, 2, 2]], "batchnorm",
+                        attrs)
+
 
 if __name__ == "__main__":
     unittest.main()

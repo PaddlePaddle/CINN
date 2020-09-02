@@ -61,6 +61,11 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor& input,
                                     int groups,
                                     const std::string& output_name);
 
+ir::Tensor BatchNorm_NCHW(const ir::Tensor& input,
+                          const ir::Tensor& weights,
+                          float epsilon,
+                          const std::string& output_name);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
