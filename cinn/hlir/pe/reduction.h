@@ -22,7 +22,7 @@ namespace pe {
  */
 std::vector<ir::Tensor> Sum(const ir::Tensor& A,
                             poly::StageMap stages,
-                            const std::vector<int>& axis,
+                            const std::vector<ir::Expr>& axis,
                             bool keep_dims                 = false,
                             const ir::Expr& initial        = ir::Expr(0),
                             const std::string& output_name = "T_Reduce_Sum_out");
@@ -43,7 +43,7 @@ std::vector<ir::Tensor> Sum(const ir::Tensor& A,
  */
 std::vector<ir::Tensor> Prod(const ir::Tensor& A,
                              poly::StageMap stages,
-                             const std::vector<int>& axis,
+                             const std::vector<ir::Expr>& axis,
                              bool keep_dims                 = false,
                              const ir::Expr& initial        = ir::Expr(1),
                              const std::string& output_name = "T_Reduce_Prod_out");
@@ -63,7 +63,7 @@ std::vector<ir::Tensor> Prod(const ir::Tensor& A,
  */
 ir::Tensor Max(const ir::Tensor& A,
                poly::StageMap stages,
-               const std::vector<int>& axis,
+               const std::vector<ir::Expr>& axis,
                bool keep_dims                 = false,
                const std::string& output_name = "T_Reduce_Max_out");
 
@@ -82,7 +82,7 @@ ir::Tensor Max(const ir::Tensor& A,
  */
 ir::Tensor Min(const ir::Tensor& A,
                poly::StageMap stages,
-               const std::vector<int>& axis,
+               const std::vector<ir::Expr>& axis,
                bool keep_dims                 = false,
                const std::string& output_name = "T_Reduce_Min_out");
 

@@ -18,7 +18,7 @@ namespace framework {
 using CCompute = std::function<std::shared_ptr<ir::Tensor>(const std::vector<ir::Tensor>)>;
 
 TEST(Operator, GetAttrs) {
-  auto add      = Operator::Get("add");
+  auto add      = Operator::Get("elementwise_add");
   Operator temp = *add;
   auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
@@ -46,7 +46,7 @@ TEST(Operator, GetAttrs) {
   auto func = Lower("add1", rets.back(), inputs);
   LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
-  ASSERT_EQ(impl->name, "strategy.add.x86");
+  ASSERT_EQ(impl->name, "strategy.elementwise_add.x86");
   ASSERT_EQ(add->description, "Add two tensors");
 }
 

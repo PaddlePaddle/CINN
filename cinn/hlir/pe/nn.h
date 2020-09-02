@@ -27,6 +27,21 @@ ir::Tensor Relu(const ir::Tensor& A, T threshold = static_cast<T>(0), const std:
 }
 
 /**
+ * @brief Rectified Linear Unit bounded by six.
+ *
+ * @param A The first Tensor
+ * @param threshold The relu threshold (default: 0)
+ * @param output_name The name of the output Tensor
+ *
+ * @return The result Tensor.
+ */
+template <typename T>
+ir::Tensor Relu6(const ir::Tensor& A, T threshold = static_cast<T>(0), const std::string& output_name = "T_Relu6_out") {
+  return lang::Compute(
+      A->shape, [&](const std::vector<Expr>& indice) { return ir::Relu6(A(indice), threshold); }, output_name);
+}
+
+/**
  * @brief Leaky Rectified Linear Unit.
  *
  * @param A The first Tensor
@@ -36,6 +51,7 @@ ir::Tensor Relu(const ir::Tensor& A, T threshold = static_cast<T>(0), const std:
  * @return The result Tensor.
  */
 ir::Tensor LeakyRelu(const ir::Tensor& A, double alpha = 0.1, const std::string& output_name = "T_LeakyRelu_out");
+
 /**
  * @brief Leaky Rectified Linear Unit.
  *

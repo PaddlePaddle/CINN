@@ -95,5 +95,13 @@ Expr make_const(Type t, T v) {
   return Expr();
 }
 
+template <typename FuncOp>
+Expr FoldExpr(FuncOp funcOp, Expr init_value, const std::vector<Expr> &values) {
+  for (const Expr &val : values) {
+    init_value = funcOp(init_value, val);
+  }
+  return init_value;
+}
+
 }  // namespace common
 }  // namespace cinn

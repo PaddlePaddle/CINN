@@ -1,8 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "cinn/backends/compiler.h"
 #include "cinn/backends/llvm/execution_engine.h"
-#include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/cinn.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/common/target.h"
@@ -13,7 +11,8 @@
 #include "cinn/runtime/cpu/use_extern_funcs.h"
 
 namespace cinn {
-namespace common {
+namespace hlir {
+namespace pe {
 
 template <typename FuncOp>
 void TestElementwisePE(const std::string &fn_name,
@@ -28,10 +27,7 @@ void TestElementwisePE(const std::string &fn_name,
 
   auto stages = CreateStages({A_out});
 
-  Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  Target target = common::DefaultHostTarget();
   Module::Builder builder("module0", target);
   auto func = Lower("fn", stages, {A, A_out});
   LOG(INFO) << "func:\n" << func;
@@ -64,13 +60,13 @@ void TestElementwisePE(const std::string &fn_name,
   }
 }
 
-#define TEST_ELEMENTWISE_PE_FP32(test_name__, PE__)                                                           \
-  TEST(elementwise_pe, test_name__) {                                                                         \
-    TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", hlir::pe::PE__, cinn_cpu_##test_name__##_fp32); \
+#define TEST_ELEMENTWISE_PE_FP32(test_name__, PE__)                                                 \
+  TEST(elementwise_pe, test_name__) {                                                               \
+    TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, cinn_cpu_##test_name__##_fp32); \
   }
-#define TEST_ELEMENTWISE_PE_FP32_SET(test_name__, PE__, value__)                                                       \
-  TEST(elementwise_pe, test_name__) {                                                                                  \
-    TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", hlir::pe::PE__, cinn_cpu_##test_name__##_fp32, value__); \
+#define TEST_ELEMENTWISE_PE_FP32_SET(test_name__, PE__, value__)                                             \
+  TEST(elementwise_pe, test_name__) {                                                                        \
+    TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, cinn_cpu_##test_name__##_fp32, value__); \
   }
 
 TEST_ELEMENTWISE_PE_FP32(exp, Exp)
@@ -99,5 +95,6 @@ TEST_ELEMENTWISE_PE_FP32(tanh, Tanh)
 TEST_ELEMENTWISE_PE_FP32(isfinite, Isfinite)
 TEST_ELEMENTWISE_PE_FP32(isinf, Isinf)
 
-}  // namespace common
+}  // namespace pe
+}  // namespace hlir
 }  // namespace cinn
