@@ -21,7 +21,9 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
                        std::vector<bool>* broadcast_flag1,
                        std::vector<bool>* broadcast_flag2,
                        const Expr& axis) {
-  CHECK(common_shape && broadcast_flag1 && broadcast_flag2);
+  CHECK(common_shape);
+  CHECK(broadcast_flag1);
+  CHECK(broadcast_flag2);
   std::vector<Expr> shape2_new = shape2;
   if (axis.defined()) {
     int axis_val = axis.as_int32();
@@ -93,7 +95,8 @@ void GetBroadcastIndice(const std::vector<Expr>& indice,
                         std::vector<Expr>* broadcast_indice2,
                         const std::vector<bool>& broadcast_flags1,
                         const std::vector<bool>& broadcast_flags2) {
-  CHECK(broadcast_indice1 && broadcast_indice2);
+  CHECK(broadcast_indice1);
+  CHECK(broadcast_indice2);
   if (broadcast_indice1->empty() && broadcast_indice2->empty()) {
     int flag_size = broadcast_flags1.size();
     int i;

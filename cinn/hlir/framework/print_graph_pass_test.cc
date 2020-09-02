@@ -9,6 +9,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/lang/packed_func.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -50,9 +51,12 @@ TEST(Operator, GetAttrs) {
   ApplyPass(g, "PrintGraph");
   auto s = g->GetAttrs<std::string>("print_graph");
   LOG(INFO) << s;
-  ASSERT_EQ(s,
-            "0:elementwise_add(elementwise_add_0)\n1:elementwise_add(elementwise_add_1)\n2:elementwise_add(elementwise_"
-            "add_2)\n");
+  std::string target_str = R"ROC(
+0:elementwise_add(elementwise_add_0)
+1:elementwise_add(elementwise_add_1)
+2:elementwise_add(elementwise_add_2)
+)ROC";
+  ASSERT_EQ(utils::Trim(s), utils::Trim(target_str));
 }
 
 }  // namespace framework

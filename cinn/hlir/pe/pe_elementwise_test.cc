@@ -27,10 +27,7 @@ void TestElementwisePE(const std::string &fn_name,
 
   auto stages = CreateStages({A_out});
 
-  Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  Target target = common::DefaultHostTarget();
   Module::Builder builder("module0", target);
   auto func = Lower("fn", stages, {A, A_out});
   LOG(INFO) << "func:\n" << func;

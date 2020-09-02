@@ -107,8 +107,8 @@ std::vector<Tensor> DoReduce(const Tensor& tensor,
                              const std::string& output_name) {
   std::vector<Var> reduce_axes;
   for (auto& axis : real_axes) {
-    std::string name = "k" + std::to_string(axis);
-    reduce_axes.push_back(_Var_::Make(Expr(0), tensor->shape[axis], name));
+    std::string name = UniqName("k");
+    reduce_axes.push_back(Var(tensor->shape[axis], name));
   }
   auto compute = [&](const std::vector<Expr>& indices) {
     std::vector<Expr> eval_indice;

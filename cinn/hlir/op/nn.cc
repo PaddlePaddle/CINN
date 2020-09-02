@@ -241,6 +241,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
       .set_support_level(4);
+
   CINN_REGISTER_OP(relu6)
       .describe("Output 0 for each input element < 0. Output itself for each input element >= 0 and <=6.")
       .set_num_inputs(1)
@@ -249,6 +250,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
       .set_support_level(4);
+
   CINN_REGISTER_OP(conv2d)
       .describe("Do a 2-D convolution with an NCHW-layout.")
       .set_num_inputs(2)  // here we consider filter as anohter input
@@ -257,6 +259,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
       .set_support_level(4);
+
   CINN_REGISTER_OP(batchnorm)
       .describe("Can be used as a normalizer function for convolution or fully_connected operations.")
       .set_num_inputs(2)  // here we consider batchnorm's 4 attrs(mean, variance, scale, bias) as another input

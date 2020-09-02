@@ -32,6 +32,14 @@ class TestPETransform(unittest.TestCase):
             self.transform_matmul_tester(fn_name, pe_fn, np_fn, False, False,
                                          1, 1)
 
+    def test_transform_1(self):
+        for (fn_name, pe_fn, np_fn) in [
+            ("matmul", pe.matmul, np.matmul),
+        ]:
+            self.compiler = cinn.Compiler.create(self.target)
+            self.transform_matmul_tester(fn_name, pe_fn, np_fn, False, True, 1,
+                                         1)
+
     def transform_matmul_tester(self, fn_name, cinn_fn, np_fn, trans_a,
                                 trans_b, x_num_col_dims, y_num_col_dims):
         m, n, k = [ir.Expr(_) for _ in (
@@ -39,8 +47,10 @@ class TestPETransform(unittest.TestCase):
             self.n,
             self.k,
         )]
-        x = lang.Placeholder("float32", "x", [m, k])
-        y = lang.Placeholder("float32", "y", [k, n])
+        x_shape_expr = [k, m] if trans_a else [m, k]
+        y_shape_expr = [n, k] if trans_b else [k, n]
+        x = lang.Placeholder("float32", "x", x_shape_expr)
+        y = lang.Placeholder("float32", "y", y_shape_expr)
         func_name = "test_" + fn_name
 
         z = cinn_fn(x.to_tensor(), y.to_tensor(), trans_a, trans_b,
@@ -58,7 +68,7 @@ class TestPETransform(unittest.TestCase):
         fn = self.compiler.lookup(func_name)
 
         x_data, y_data, x_buf, y_buf, out_buf, *args = self.create_data(
-            (self.m, self.n))
+            (self.m, self.n), trans_a, trans_b)
         fn(args)
 
         self.assertTrue(
@@ -74,12 +84,20 @@ class TestPETransform(unittest.TestCase):
         y_data = np.transpose(y_data) if trans_b else y_data
         return np_target_fn(x_data, y_data)
 
-    def create_data(self, output_shape):
+    def create_data(self, output_shape, trans_a, trans_b):
         if not self.transform_data:
-            x_data = np.around(
-                np.random.randn(self.m, self.k).astype("float32"), 2)
-            y_data = np.around(
-                np.random.randn(self.k, self.n).astype("float32"), 2)
+            if trans_a:
+                x_data = np.around(
+                    np.random.randn(self.k, self.m).astype("float32"), 2)
+            else:
+                x_data = np.around(
+                    np.random.randn(self.m, self.k).astype("float32"), 2)
+            if trans_b:
+                y_data = np.around(
+                    np.random.randn(self.n, self.k).astype("float32"), 2)
+            else:
+                y_data = np.around(
+                    np.random.randn(self.k, self.n).astype("float32"), 2)
             x = runtime.cinn_buffer_t(x_data, runtime.cinn_x86_device)
             y = runtime.cinn_buffer_t(y_data, runtime.cinn_x86_device)
             out = runtime.cinn_buffer_t(

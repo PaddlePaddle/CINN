@@ -38,12 +38,16 @@ void GetMatmulOutputShape(const std::vector<Expr>& shape1,
 void GetMatmulIndice(const std::vector<Expr>& shape1_new,
                      const std::vector<Expr>& shape2_new,
                      const std::vector<Expr>& indices,
+                     bool trans_a,
+                     bool trans_b,
                      int x_num_col_dims,
                      int y_num_col_dims,
                      std::vector<Expr>* indice1,
                      std::vector<Expr>* indice2,
                      std::vector<Var>* reduce_axes) {
-  CHECK(indice1 && indice2 && reduce_axes);
+  CHECK(indice1);
+  CHECK(indice2);
+  CHECK(reduce_axes);
   if (indice1->empty() && indice2->empty()) {
     CHECK_GE(indices.size(), x_num_col_dims);
     for (size_t i = 0; i < x_num_col_dims; i++) {
@@ -54,8 +58,8 @@ void GetMatmulIndice(const std::vector<Expr>& shape1_new,
     // A reduce axes
     for (size_t i = x_num_col_dims; i < shape1_new.size(); i++) {
       reduce_shape1           = reduce_shape1 * shape1_new[i];
-      std::string reduce_name = "k" + std::to_string(count);
-      auto k                  = _Var_::Make(Expr(0), shape1_new[i], reduce_name);
+      std::string reduce_name = UniqName("k");
+      auto k                  = Var(shape1_new[i], reduce_name);
       reduce_axes->emplace_back(k);
       indice1->emplace_back(k);
       count++;
@@ -72,6 +76,12 @@ void GetMatmulIndice(const std::vector<Expr>& shape1_new,
     CHECK_GE(indices.size(), shape2_new.size() - y_num_col_dims);
     for (size_t i = y_num_col_dims; i < shape2_new.size(); i++) {
       indice2->emplace_back(indices[x_num_col_dims + i - y_num_col_dims]);
+    }
+    if (trans_a) {
+      reverse(indice1->begin(), indice1->end());
+    }
+    if (trans_b) {
+      reverse(indice2->begin(), indice2->end());
     }
   }
 }
@@ -92,8 +102,16 @@ Tensor Matmul(const Tensor& A,
   GetMatmulOutputShape(
       A->shape, B->shape, &shape1_new, &shape2_new, &output_shape, trans_a, trans_b, x_num_col_dims, y_num_col_dims);
   auto fn = [&](const std::vector<Expr>& indices) {
-    GetMatmulIndice(
-        shape1_new, shape2_new, indices, x_num_col_dims, y_num_col_dims, &A_indice, &B_indice, &reduce_axes);
+    GetMatmulIndice(shape1_new,
+                    shape2_new,
+                    indices,
+                    trans_a,
+                    trans_b,
+                    x_num_col_dims,
+                    y_num_col_dims,
+                    &A_indice,
+                    &B_indice,
+                    &reduce_axes);
     return ReduceSum(A(A_indice) * B(B_indice), Expr());
   };
   return Compute(output_shape, fn, name, reduce_axes);
