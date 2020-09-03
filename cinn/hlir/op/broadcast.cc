@@ -120,29 +120,29 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
     }
   }
   framework::CINNCompute scale_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of scale compute is empty! Please check.";
     CINNValuePack a = args[0];
-    ir::Expr A_expr = a[0];
+    CHECK(!a.empty()) << "The input tensors of scale compute is empty! Please check.";
+    Expr A_expr = a[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
     ir::Tensor out;
     if (bias_after_scale) {
       out = Compute(
-          A->shape,
-          [=](const std::vector<Expr> &indice) { return scale * A(indice) + bias; },
-          UniqName("Scale_output"));
+          A->shape, [=](const std::vector<Expr> &indice) { return scale * A(indice) + bias; }, UniqName("Scale_out"));
     } else {
       out = Compute(
-          A->shape,
-          [=](const std::vector<Expr> &indice) { return scale * (A(indice) + bias); },
-          UniqName("Scale_output"));
+          A->shape, [=](const std::vector<Expr> &indice) { return scale * (A(indice) + bias); }, UniqName("Scale_out"));
     }
     auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(ir::Expr(out.get())), CINNValue(stages)}};
+    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule scale_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack      = args[0];
-    ir::Expr A [[maybe_unused]] = arg_pack[0];
+    CHECK(!args.empty()) << "The input arguments of scale schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK(!arg_pack.empty()) << "The input tensor of scale schedule is empty! Please check.";
+    Expr A [[maybe_unused]] = arg_pack[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     *ret = arg_pack;
   });
@@ -188,6 +188,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForElementwise))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForElementwise))
       .set_support_level(4);
+
   CINN_REGISTER_OP(scale)
       .describe("Putting scale and bias to the input Tensor")
       .set_num_inputs(1)

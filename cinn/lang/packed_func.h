@@ -33,6 +33,9 @@ class Args {
   //! Count of the arguments.
   size_t size() const { return values_.size(); }
 
+  //! if the arguments is empty
+  bool empty() const { return values_.empty(); }
+
   //! Get i-th element.
   ArgValue& operator[](int i) { return values_[i]; }
   const ArgValue& operator[](int i) const { return values_[i]; }
