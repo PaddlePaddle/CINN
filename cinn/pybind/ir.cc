@@ -475,7 +475,6 @@ void BindIrTensor(py::module *m) {
   tensor.def(py::init<>())
       .def(py::init<ir::IrNode *>())
       .def("ndims", &ir::Tensor::ndims)
-      // TODO(fuchang01): c++ not implemented .def("slice", &ir::Tensor::Slice)
       .def("expand_inlined", &ir::Tensor::ExpandInlined);
 
   DefineExprNode<ir::_Tensor_>(m, "_Tensor_");
@@ -485,9 +484,6 @@ void BindIrTensor(py::module *m) {
       .def_readwrite("operation", &ir::_Tensor_::operation)
       .def_readwrite("name", &ir::_Tensor_::name)
       .def_readwrite("buffer", &ir::_Tensor_::buffer)
-      // TODO(fuchang01): c++ not implemented .def_readwrite("read_cache_relation", &ir::_Tensor_::read_cache_relation)
-      // TODO(fuchang01): c++ not implemented .def_readwrite("write_cache_relation",
-      // &ir::_Tensor_::write_cache_relation)
       .def("domain_with_reduce_axis", &ir::_Tensor_::domain_without_reduce_axis)
       .def("domain_without_reduce_axis", &ir::_Tensor_::domain_without_reduce_axis)
       .def_static("make", &ir::_Tensor_::Make)
@@ -528,7 +524,8 @@ void BindIrTensor(py::module *m) {
            py::arg("memory_type"),
            py::arg("type") = Type::type_t::Void)
       .def("bind", py::overload_cast<lang::Buffer &>(&ir::_Tensor_::Bind))
-      .def("bind", py::overload_cast<const ir::Buffer &>(&ir::_Tensor_::Bind));
+      .def("bind", py::overload_cast<const ir::Buffer &>(&ir::_Tensor_::Bind))
+      .def("__str__", [](const ir::Tensor &self) { return "<Tensor " + self->name + ">"; });
 
   py::class_<ir::Operation /*, ir::FunctionDef*/> operation(*m, "Operation");
   operation.def(py::init<>()).def(py::init<ir::IrNode *>()).def_readwrite("name", &ir::Operation::name);
