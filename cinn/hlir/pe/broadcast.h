@@ -15,14 +15,14 @@ namespace pe {
  *
  * @return The result Tensor or Expr.
  */
-#define HLIR_DCL_BC_PE(name__)                                                                                     \
-  ir::Tensor name__(const ir::Tensor& A,                                                                           \
-                    const ir::Tensor& B,                                                                           \
-                    const std::string& output_name = "T_" #name__ "_out",                                          \
-                    const ir::Expr& axis           = ir::Expr());                                                            \
-  ir::Tensor name__(const ir::Expr& A, const ir::Tensor& B, const std::string& output_name = "T_" #name__ "_out"); \
-  ir::Tensor name__(const ir::Tensor& A, const ir::Expr& B, const std::string& output_name = "T_" #name__ "_out"); \
-  ir::Expr name__(const ir::Expr& A, const ir::Expr& B);
+#define HLIR_DCL_BC_PE(name__)                                                                                 \
+  ir::Tensor name__(const ir::Tensor& A,                                                                       \
+                    const ir::Tensor& B,                                                                       \
+                    const std::string& output_name = "T_" #name__ "_out",                                      \
+                    const Expr& axis               = Expr());                                                                \
+  ir::Tensor name__(const Expr& A, const ir::Tensor& B, const std::string& output_name = "T_" #name__ "_out"); \
+  ir::Tensor name__(const ir::Tensor& A, const Expr& B, const std::string& output_name = "T_" #name__ "_out"); \
+  Expr name__(const Expr& A, const Expr& B);
 
 //! Compute A + B with auto-broadcasting.
 HLIR_DCL_BC_PE(Add);
