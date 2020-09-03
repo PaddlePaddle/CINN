@@ -12,6 +12,7 @@
 #include "cinn/common/context.h"
 #include "cinn/common/object.h"
 #include "cinn/common/type.h"
+#include "cinn/hlir/framework/node.h"
 
 namespace cinn {
 namespace frontend {
@@ -76,14 +77,7 @@ struct Variable : public common::Shared<_Variable_> {
  * Data of a Instruction.
  */
 struct _Instruction_ : public common::Object {
-  using attr_t = std::variant<int,
-                              float,
-                              bool,
-                              std::string,
-                              std::vector<int>,
-                              std::vector<float>,
-                              std::vector<bool>,
-                              std::vector<std::string>>;
+  using attr_t = hlir::framework::AttrType;
 
   std::string op_type;
   std::unordered_map<std::string, attr_t> attrs;

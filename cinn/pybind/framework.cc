@@ -2,6 +2,7 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+
 #include "cinn/common/cinn_value.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
@@ -44,11 +45,13 @@ void BindFramework(pybind11::module *m) {
              }
              return res;
            });
+
   py::class_<NodeAttr>(*m, "NodeAttr")
       .def(py::init<>())
       .def_readwrite("attr_store", &NodeAttr::attr_store)
       .def("set_attr",
-           [](NodeAttr &self, const std::string &key, NodeAttr::attr_t value) { self.attr_store[key] = value; });
+           [](NodeAttr &self, const std::string &key, NodeAttr::attr_t value) { self.attr_store[key] = value; })
+      .def("__str__", [](NodeAttr &self) { return utils::GetStreamCnt(self); });
 
 }  // namespace frontend
 }  // namespace cinn::pybind

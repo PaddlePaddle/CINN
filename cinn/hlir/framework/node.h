@@ -6,6 +6,7 @@
 #include <utility>
 #include <variant>
 #include <vector>
+
 #include "cinn/common/graph_utils.h"
 #include "cinn/hlir/framework/op.h"
 
@@ -15,7 +16,15 @@ namespace framework {
 class Node;
 class NodeData;
 
-using NodePtr = std::shared_ptr<Node>;
+using NodePtr  = std::shared_ptr<Node>;
+using AttrType = std::variant<bool,
+                              float,
+                              int,
+                              std::string,
+                              std::vector<bool>,
+                              std::vector<int>,
+                              std::vector<float>,
+                              std::vector<std::string>>;
 
 /**
  * \brief Attributes of each node in graph.
@@ -23,14 +32,7 @@ using NodePtr = std::shared_ptr<Node>;
  *  and other parameters like axis.
  */
 struct NodeAttr {
-  using attr_t = std::variant<int,
-                              float,
-                              bool,
-                              std::string,
-                              std::vector<int>,
-                              std::vector<float>,
-                              std::vector<bool>,
-                              std::vector<std::string>>;
+  using attr_t = AttrType;
 
   /**
    * \brief The operator this node uses.
@@ -47,6 +49,8 @@ struct NodeAttr {
    */
   std::unordered_map<std::string, attr_t> attr_store;
 };
+
+std::ostream &operator<<(std::ostream &os, const NodeAttr &node_attr);
 
 /**
  * \brief Node represents an operation in a computation graph.
@@ -97,14 +101,7 @@ class Node : public common::GraphNode {
  * \brief NodeData represents the output data from an operator.
  */
 class NodeData : public common::GraphNode {
-  using attr_t = std::variant<int,
-                              float,
-                              bool,
-                              std::string,
-                              std::vector<int>,
-                              std::vector<float>,
-                              std::vector<bool>,
-                              std::vector<std::string>>;
+  using attr_t = AttrType;
 
  public:
   NodeData(NodePtr node, uint32_t index, uint32_t version, std::string id)
