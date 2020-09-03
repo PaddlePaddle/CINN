@@ -18,8 +18,8 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
                                            const Target &target) {
   framework::CINNCompute add_compute([&attrs](lang::Args args, lang::RetValue *ret) {
     CINNValuePack a = args[0];
-    ir::Expr A      = a[0];
-    ir::Expr B      = a[1];
+    Expr A          = a[0];
+    Expr B          = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     auto attr_store    = attrs.attr_store;
@@ -43,12 +43,12 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
         A.as_tensor_ref(), B.as_tensor_ref(), trans_a, trans_b, x_num_col_dims, y_num_col_dims, UniqName("C"));
 
     auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(ir::Expr(out.get())), CINNValue(stages)}};
+    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule add_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack      = args[0];
-    ir::Expr A [[maybe_unused]] = arg_pack[0];
+    CINNValuePack arg_pack  = args[0];
+    Expr A [[maybe_unused]] = arg_pack[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     *ret = arg_pack;
   });

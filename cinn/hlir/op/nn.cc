@@ -19,16 +19,16 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
                                             const Target &target) {
   framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
     CINNValuePack a = args[0];
-    ir::Expr A      = a[0];
+    Expr A          = a[0];
     CHECK(A.as_tensor());
     auto out    = pe::Relu<float>(A.as_tensor_ref(), 0.0, UniqName("Relu_output"));
     auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(ir::Expr(out.get())), CINNValue(stages)}};
+    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule relu_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack      = args[0];
-    ir::Expr A [[maybe_unused]] = arg_pack[0];
+    CINNValuePack arg_pack  = args[0];
+    Expr A [[maybe_unused]] = arg_pack[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     *ret = arg_pack;
   });
@@ -62,16 +62,16 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
                                              const Target &target) {
   framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
     CINNValuePack a = args[0];
-    ir::Expr A      = a[0];
+    Expr A          = a[0];
     CHECK(A.as_tensor());
     auto out    = pe::Relu6<float>(A.as_tensor_ref(), 0.0, UniqName("Relu6_output"));
     auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(ir::Expr(out.get())), CINNValue(stages)}};
+    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule relu_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack      = args[0];
-    ir::Expr A [[maybe_unused]] = arg_pack[0];
+    CINNValuePack arg_pack  = args[0];
+    Expr A [[maybe_unused]] = arg_pack[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     *ret = arg_pack;
   });
@@ -108,8 +108,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   }
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
     CINNValuePack a = args[0];
-    ir::Expr A      = a[0];
-    ir::Expr B      = a[1];
+    Expr A          = a[0];
+    Expr B          = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
@@ -126,15 +126,15 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     auto stages = CreateStages(out);
     std::vector<CINNValue> res;
     for (auto &t : out) {
-      res.push_back(CINNValue(ir::Expr(t.get())));
+      res.push_back(CINNValue(Expr(t.get())));
     }
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
 
   framework::CINNSchedule conv2d_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack      = args[0];
-    ir::Expr A [[maybe_unused]] = arg_pack[0];
+    CINNValuePack arg_pack  = args[0];
+    Expr A [[maybe_unused]] = arg_pack[0];
     CHECK_EQ(arg_pack.size(), 4UL);
     *ret = arg_pack;
   });
@@ -189,18 +189,18 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
   }
   framework::CINNCompute batchnorm_compute([=](lang::Args args, lang::RetValue *ret) {
     CINNValuePack a = args[0];
-    ir::Expr A      = a[0];
-    ir::Expr B      = a[1];
+    Expr A          = a[0];
+    Expr B          = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     auto out    = pe::BatchNorm_NCHW(A.as_tensor_ref(), B.as_tensor_ref(), epsilon, UniqName("BatchNorm_output"));
     auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(ir::Expr(out.get())), CINNValue(stages)}};
+    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule batchnorm_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack      = args[0];
-    ir::Expr A [[maybe_unused]] = arg_pack[0];
+    CINNValuePack arg_pack  = args[0];
+    Expr A [[maybe_unused]] = arg_pack[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     *ret = arg_pack;
   });
