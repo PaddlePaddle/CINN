@@ -46,3 +46,8 @@ ADD_TEST(NAME test_cinn_op_nn
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_op_nn.py
 )
+
+ADD_TEST(NAME test_cinn_op_broadcast
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_op_broadcast.py
+)
