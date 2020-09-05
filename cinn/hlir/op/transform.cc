@@ -1,4 +1,5 @@
 #include "cinn/hlir/pe/transform.h"
+
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -85,4 +86,5 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMul))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMul))
       .set_support_level(4);
+  return true;
 }

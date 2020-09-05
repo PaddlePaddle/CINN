@@ -1,10 +1,10 @@
 #include "cinn/hlir/pe/transform.h"
 
+#include <algorithm>
+
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute.h"
-
-#include <algorithm>
 
 namespace cinn {
 namespace hlir {

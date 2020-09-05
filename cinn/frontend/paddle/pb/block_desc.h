@@ -1,5 +1,6 @@
 #pragma once
 #include <glog/logging.h>
+
 #include "cinn/frontend/paddle/cpp/desc_api.h"
 #include "cinn/frontend/paddle/framework.pb.h"
 

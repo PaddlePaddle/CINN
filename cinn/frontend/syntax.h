@@ -94,7 +94,7 @@ struct _Instruction_ : public common::Object {
  * Instruction is the basic computational unit of a Program, similar to the operator concept in a DNN platform.
  */
 struct Instruction : public common::Shared<_Instruction_> {
-  explicit Instruction(std::string_view op_type, Program* parent = nullptr);
+  explicit Instruction(std::string_view op_type, const std::vector<Variable>& inputs = {}, Program* parent = nullptr);
 
   /**
    * Set the inputs of the instruction.
@@ -102,6 +102,10 @@ struct Instruction : public common::Shared<_Instruction_> {
    */
   void SetInputs(const std::vector<Variable>& vars) { get()->inputs = vars; }
   const std::vector<Variable>& GetOutputs() const { return get()->outputs; }
+  const Variable& GetOutput(size_t offset) const {
+    CHECK_LT(offset, get()->outputs.size());
+    return GetOutputs()[offset];
+  }
 
   /**
    * Set an attribute of the instruction.
@@ -145,6 +149,24 @@ struct Program {
    */
   Variable add(const Variable& a, const Variable& b);
 
+  Variable relu(const Variable& a);
+  Variable relu6(const Variable& a);
+
+  /**
+   * Multiply two matrix.
+   */
+  Variable mul(const Variable& a,
+               const Variable& b,
+               bool trans_a       = false,
+               bool trans_b       = false,
+               int x_num_col_dims = -1,
+               int y_num_col_dims = -1);
+
+  /**
+   * Add two tensors element-wise.
+   */
+  Variable elementwise_add(const Variable& a, const Variable& b, int axis = 0);
+
   /**
    * Get \p i-th instruction.
    */
@@ -161,10 +183,12 @@ struct Program {
   inline size_t size() const { return instrs.size(); }
 
  private:
-  void AddInstruction(const Instruction& other) { instrs.push_back(other); }
+  void AppendInstruction(const Instruction& other) { instrs.push_back(other); }
 
   std::vector<Instruction> instrs;
 };
+
+void LoadPaddleProgram(const std::string& model_dir, bool is_combined);
 
 std::ostream& operator<<(std::ostream& os, const Variable& x);
 std::ostream& operator<<(std::ostream& os, const Instruction& instr);

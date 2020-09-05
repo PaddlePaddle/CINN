@@ -1,6 +1,7 @@
 #include "cinn/hlir/pe/broadcast.h"
 
 #include <iostream>
+
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -197,4 +198,6 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForScale))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForScale))
       .set_support_level(4);
+
+  return true;
 }
