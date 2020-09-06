@@ -103,6 +103,8 @@ TEST(syntax, program_execute_fc) {
   SetRandData(at, target);
   SetRandData(wt, target);
   SetRandData(bt, target);
+
+  runtime_program->Execute();
 }
 
 }  // namespace frontend

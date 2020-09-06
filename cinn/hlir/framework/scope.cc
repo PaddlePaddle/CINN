@@ -5,8 +5,8 @@ namespace hlir {
 namespace framework {
 
 Variable* Scope::FindVar(const std::string& name) const {
-  auto it = dic.find(name);
-  if (it != dic.end()) return it->second.get();
+  auto it = data_.find(name);
+  if (it != data_.end()) return it->second.get();
   return nullptr;
 }
 

@@ -35,7 +35,11 @@ class Program {
    * Execute the program -- that is running all the instructions inside it.
    */
   void Execute() {
-    for (auto& ins : instrs_) ins->Run();
+    for (auto& ins : instrs_) {
+      LOG(INFO) << "run ins";
+      ins->Run();
+      LOG(INFO) << "run ins done";
+    }
   }
 
   /**
