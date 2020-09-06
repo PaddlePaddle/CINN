@@ -57,6 +57,8 @@ struct _CINNValuePack_ : public common::Object {
 
   size_t size() const { return values_.size(); }
 
+  bool empty() const { return values_.empty(); }
+
   CINN_DISALLOW_COPY_AND_ASSIGN(_CINNValuePack_);
 
   const char* type_info() const override;
@@ -74,6 +76,8 @@ struct CINNValuePack : public Shared<_CINNValuePack_> {
   const CINNValue& operator[](int offset) const { return (*operator->())[offset]; }
 
   size_t size() const { return (*operator->()).size(); }
+
+  bool empty() const { return (*operator->()).empty(); }
 
   CINNValue& back() {
     CHECK_GT((*operator->()).size(), 0);

@@ -59,6 +59,31 @@ class OpTest_mul_1(SingleOpTester):
         attrs.attr_store = {"axis": 1}
         self.to_test_op([[3, 2], [2]], [[3, 2]], "elementwise_mul", attrs)
 
+class OpTest_scale_0(SingleOpTester):
+    def create_target_data(self, inputs_data):
+        [X] = inputs_data
+        return X * 0.5 + 0.5
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        attrs.attr_store = {"scale": 0.5, "bias": 0.5}
+        self.to_test_op([[100, 32]], [[100, 32]], "scale", attrs)
+
+
+class OpTest_scale_1(SingleOpTester):
+    def create_target_data(self, inputs_data):
+        [X] = inputs_data
+        return (X + 0.5) * 0.5
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        attrs.attr_store = {
+            "scale": 0.5,
+            "bias": 0.5,
+            "bias_after_scale": False
+        }
+        self.to_test_op([[100, 32]], [[100, 32]], "scale", attrs)
+
 
 if __name__ == "__main__":
     unittest.main()
