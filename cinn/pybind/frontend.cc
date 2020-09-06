@@ -1,10 +1,18 @@
+#include <pybind11/functional.h>
+#include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include "cinn/common/type.h"
 #include "cinn/frontend/syntax.h"
+#include "cinn/hlir/framework/graph.h"
+#include "cinn/hlir/framework/graph_compiler.h"
+#include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/utils/string.h"
 
 namespace cinn::pybind {
-
+using common::Type;
+using frontend::Placeholder;
 namespace py = pybind11;
 using namespace cinn::frontend;  // NOLINT
 
@@ -12,7 +20,16 @@ void BindFrontend(pybind11::module *m) {
   py::class_<Variable>(*m, "Variable")  //
       .def(py::init<const std::string &>(), py::arg("id") = "")
       .def("__str__", [](Variable &self) { return self->id; })
-      .def("__repr__", [](Variable &self) { return utils::GetStreamCnt(self); });
+      .def("__repr__", [](Variable &self) { return utils::GetStreamCnt(self); })
+      .def("set_type",
+           [](Variable &self, const Type &type) {
+             self->type = type;
+             return self;
+           })
+      .def("set_shape", [](Variable &self, const std::vector<int> &shape) {
+        self->shape = shape;
+        return self;
+      });
 
   py::class_<Placeholder>(*m, "Placeholder")  //
       .def(py::init<const common::Type &, const std::vector<int> &, std::string_view>(),
@@ -45,7 +62,17 @@ void BindFrontend(pybind11::module *m) {
       .def(py::init<>())
       .def("size", &Program::size)
       .def("__getitem__", [](Program &self, int idx) { return self[idx]; })
-      .def("add", &Program::add);
+      .def("add", &Program::add)
+      .def("relu", &Program::relu)
+      .def("conv2d", &Program::conv2d)
+      .def("batchnorm", &Program::batchnorm)
+      .def("print_func", [](Program &self, const common::Target &target) {
+        std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
+        hlir::framework::ApplyPass(g.get(), "InferShape");
+        std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
+        hlir::framework::GraphCompiler gc(target, scope, g);
+        gc.PrintFunc();
+      });
 }  // namespace frontend
 
 }  // namespace cinn::pybind
