@@ -5,6 +5,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute.h"
+#include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
 namespace hlir {
@@ -70,11 +71,12 @@ void GetMatmulIndice(const std::vector<Expr>& shape1_new,
     // B reduce axes
     for (size_t i = 0; i < y_num_col_dims; i++) {
       reduce_shape2 = reduce_shape2 * shape2_new[i];
-      // tempory check
-      CHECK(MathEqual(shape1_new[shape1_new.size() - 1 - i], shape2_new[i]));
+      optim::Simplify(&reduce_shape2);
       indice2->emplace_back((*indice1)[indice1->size() - 1 - i]);
     }
-    CHECK(MathEqual(reduce_shape1, reduce_shape2));
+
+    CHECK(MathEqual(reduce_shape1, reduce_shape2))
+        << "reduce shape not match: " << reduce_shape1 << " vs " << reduce_shape2;
     CHECK_GE(indices.size(), shape2_new.size() - y_num_col_dims);
     for (size_t i = y_num_col_dims; i < shape2_new.size(); i++) {
       indice2->emplace_back(indices[x_num_col_dims + i - y_num_col_dims]);

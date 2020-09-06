@@ -23,6 +23,8 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseAdd(const framework::NodeAttr 
     CINNValuePack a = args[0];
     Expr A_expr     = a[0];
     Expr B_expr     = a[1];
+    LOG(INFO) << "A_expr: " << A_expr;
+    LOG(INFO) << "B_expr: " << B_expr;
     CHECK(A_expr.as_tensor());
     CHECK(B_expr.as_tensor());
     ir::Tensor A    = A_expr.as_tensor_ref();

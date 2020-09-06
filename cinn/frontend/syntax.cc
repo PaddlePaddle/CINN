@@ -23,21 +23,16 @@ Instruction::Instruction(std::string_view op_type, const std::vector<Variable>& 
   PrepareOutputs();
 }
 
-Placeholder::operator Variable() {
-  Variable var(id());
-  var->shape = shape();
-  var->type  = type_;
-  return var;
-}
+Placeholder::operator Variable() const { return var_; }
 
 Instruction& Program::operator[](size_t i) {
-  CHECK_LT(i, instrs.size());
-  return instrs[i];
+  CHECK_LT(i, instrs_.size());
+  return instrs_[i];
 }
 
 const Instruction& Program::operator[](size_t i) const {
-  CHECK_LT(i, instrs.size());
-  return instrs[i];
+  CHECK_LT(i, instrs_.size());
+  return instrs_[i];
 }
 
 std::ostream& operator<<(std::ostream& os, const Variable& x) {
@@ -70,6 +65,20 @@ void LoadPaddleProgram(const std::string& model_dir, bool is_combined) {
   for (int i = 0; i < block_desc->OpsSize(); i++) {
     auto* op_desc = block_desc->GetOp<paddle::cpp::OpDesc>(i);
   }
+}
+
+void Program::SetInputs(const std::vector<Variable>& xs) {
+  CHECK(!xs.empty()) << "At least one input is needed for a program!";
+  for (int i = 0; i < xs.size(); i++) {
+    CHECK(!xs[i]->shape.empty()) << "Found " << i << "-th input's shape is not set yet";
+    CHECK(!xs[i]->type.is_unk()) << "Found " << i << "-th input's type is not set yet";
+    inputs_.push_back(xs[i]);
+  }
+}
+
+void Program::Validate() const {
+  CHECK(!inputs_.empty()) << "Inputs of the program is not set yet";
+  CHECK(!instrs_.empty()) << "No instruction is added yet";
 }
 
 Variable Program::add(const Variable& a, const Variable& b) {

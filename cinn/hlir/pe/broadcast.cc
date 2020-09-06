@@ -124,6 +124,8 @@ Tensor Broadcast(const FuncOp& op,
   std::vector<Expr> broadcast_indice1;
   std::vector<Expr> broadcast_indice2;
 
+  LOG(INFO) << "a: " << a;
+  LOG(INFO) << "b: " << b;
   GetBroadcastShape(a->shape, b->shape, &common_shape, &broadcast_flags1, &broadcast_flags2, axis);
   auto fn = [&](const std::vector<Expr>& indice) {
     GetBroadcastIndice(indice, &broadcast_indice1, &broadcast_indice2, broadcast_flags1, broadcast_flags2);

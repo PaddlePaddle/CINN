@@ -48,8 +48,10 @@ TEST(Operator, GetAttrs) {
   ASSERT_EQ(prog.size(), 3UL);
   std::shared_ptr<Graph> g(new Graph(prog));
   ApplyPass(g.get(), "InferShape");
+
   Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64, {});
-  std::shared_ptr<Scope> scope = BuildScope(target, g);
+  auto scope = BuildScope(target, g);
+
   GraphCompiler gc(target, scope, g);
   std::unique_ptr<Program> program = gc.Build();
 

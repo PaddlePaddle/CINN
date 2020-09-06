@@ -75,4 +75,6 @@ CINN_REGISTER_HELPER(passes) {
       .provide_graph_attr("infershape")
       .provide_graph_attr("inferdtype")
       .set_body(cinn::hlir::pass::InferShapePass);
+
+  return true;
 }

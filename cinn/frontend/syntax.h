@@ -9,6 +9,7 @@
 #include <variant>
 #include <vector>
 
+#include "cinn/common/common.h"
 #include "cinn/common/context.h"
 #include "cinn/common/object.h"
 #include "cinn/common/type.h"
@@ -19,34 +20,6 @@ namespace frontend {
 
 struct Program;
 struct Variable;
-
-/**
- * Placeholder is the fed slot of a computation.
- */
-class Placeholder {
- public:
-  /**
-   * @param type Type of the fed
-   * @param shape Shape of the fed
-   * @param id ID of the fed
-   */
-  Placeholder(const common::Type& type, const std::vector<int>& shape, std::string_view id = "")
-      : type_(type), shape_(shape), id_(id.empty() ? common::Context::Global().NewName("placeholder") : id) {}
-
-  const std::vector<int>& shape() const { return shape_; }
-
-  std::string_view id() const { return id_; }
-
-  operator Variable();
-
-  Program* parent_program() { return parent_program_; }
-
- private:
-  common::Type type_;
-  std::string id_{};
-  std::vector<int> shape_;
-  Program* parent_program_{};
-};
 
 struct _Variable_ : public common::Object {
   std::string id;
@@ -71,6 +44,38 @@ struct Variable : public common::Shared<_Variable_> {
 
   _Variable_* operator->() { return get(); }
   const _Variable_* operator->() const { return get(); }
+};
+
+/**
+ * Placeholder is the fed slot of a computation.
+ */
+class Placeholder {
+ public:
+  /**
+   * @param type Type of the fed
+   * @param shape Shape of the fed
+   * @param id ID of the fed
+   */
+  Placeholder(const common::Type& type, const std::vector<int>& shape, std::string_view id = "")
+      : id_(id.empty() ? common::Context::Global().NewName("placeholder") : id), var_{id} {
+    var_->shape = shape;
+    var_->type  = type;
+  }
+
+  const std::vector<int>& shape() const { return var_->shape; }
+
+  Type type() const { return var_->type; }
+
+  std::string_view id() const { return id_; }
+
+  operator Variable() const;
+
+  Program* parent_program() { return parent_program_; }
+
+ private:
+  Variable var_;
+  std::string id_{};
+  Program* parent_program_{};
 };
 
 /**
@@ -140,6 +145,7 @@ struct Instruction : public common::Shared<_Instruction_> {
  * Program is a representation of a computation.
  */
 struct Program {
+  void SetInputs(const std::vector<Variable>& xs);
   /**
    * Add two variables.
    *
@@ -180,12 +186,16 @@ struct Program {
    * Get number of instructions in the program.
    * @return
    */
-  inline size_t size() const { return instrs.size(); }
+  inline size_t size() const { return instrs_.size(); }
+
+  void Validate() const;
 
  private:
-  void AppendInstruction(const Instruction& other) { instrs.push_back(other); }
+  void AppendInstruction(const Instruction& other) { instrs_.push_back(other); }
 
-  std::vector<Instruction> instrs;
+  std::vector<Instruction> instrs_;
+
+  std::vector<Variable> inputs_;
 };
 
 void LoadPaddleProgram(const std::string& model_dir, bool is_combined);

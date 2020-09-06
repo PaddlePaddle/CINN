@@ -10,6 +10,12 @@ Variable* Scope::FindVar(const std::string& name) const {
   return nullptr;
 }
 
+Tensor* Scope::GetTensor(const std::string& name) const {
+  auto* var = FindVar(name);
+  CHECK(var) << "No variable called [" << name << "] found";
+  return &std::get<Tensor>(*var);
+}
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
