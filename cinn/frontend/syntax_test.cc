@@ -80,8 +80,7 @@ TEST(syntax, program_execute_fc) {
 
   Program program;
   auto mul_out = program.mul(a, w, false /*trans_a*/, false /*trans_b*/, 2, 1);
-  LOG(INFO) << "mul_out: " << mul_out;
-  auto add_out = program.elementwise_add(mul_out, b, 1);
+  auto add_out = program.elementwise_add(mul_out, b, 2);
   program.SetInputs({a, w, b});
 
   auto graph = std::make_shared<hlir::framework::Graph>(program);

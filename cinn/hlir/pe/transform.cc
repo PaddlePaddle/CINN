@@ -105,6 +105,7 @@ Tensor Matmul(const Tensor& A,
   std::vector<Var> reduce_axes;
   GetMatmulOutputShape(
       A->shape, B->shape, &shape1_new, &shape2_new, &output_shape, trans_a, trans_b, x_num_col_dims, y_num_col_dims);
+
   auto fn = [&](const std::vector<Expr>& indices) {
     GetMatmulIndice(shape1_new,
                     shape2_new,
@@ -118,7 +119,7 @@ Tensor Matmul(const Tensor& A,
                     &reduce_axes);
     return ReduceSum(A(A_indice) * B(B_indice), Expr());
   };
-  return Compute(output_shape, fn, name, reduce_axes);
+  return Compute(output_shape, fn, name, reduce_axes, output_shape);
 }
 
 }  // namespace pe

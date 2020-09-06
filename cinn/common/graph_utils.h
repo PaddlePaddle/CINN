@@ -31,13 +31,17 @@ class GraphNode;
  */
 class GraphEdge : public Object {
  public:
-  GraphEdge(GraphNode* source, GraphNode* sink) : source_(source), sink_(sink) {}
+  GraphEdge(GraphNode* source, GraphNode* sink, int index = -1) : source_(source), sink_(sink), index_(index) {}
 
   GraphNode* source() const { return source_; }
   GraphNode* sink() const { return sink_; }
   const char* type_info() const override { return __type_info__; }
+  int index() const { return index_; }
 
  private:
+  //! the index in sink node's inlinks_ or source node's outlinks_
+  //! this is used to keep the input/output tensor's order of operator node
+  int index_{-1};
   //! Source of this edge.
   GraphNode* source_{};
   //! End of this edge.
@@ -64,9 +68,10 @@ class GraphNode : public Object {
     EdgeT *a, *b;
     CHECK(other);
     CHECK_NE(other, this) << "cannot link to itself";
-    auto edge  = make_shared<GraphEdge>(this, other);
-    auto edge1 = make_shared<GraphEdge>(this, other);
-
+    auto edge  = make_shared<GraphEdge>(this, other, index_outlinks);
+    auto edge1 = make_shared<GraphEdge>(this, other, other->index_inlinks);
+    index_outlinks++;
+    other->index_inlinks++;
     outlinks_.insert(edge);
     other->inlinks_.insert(edge1);
 
@@ -140,6 +145,9 @@ class GraphNode : public Object {
   std::set<common::Shared<GraphEdge>, GraphEdgeCompare> outlinks_;
 
   mutable int visited_time_{};
+  //! used to mark the index of node's input/output tensors
+  int index_inlinks{0};
+  int index_outlinks{0};
 };
 
 /**

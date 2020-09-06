@@ -42,9 +42,10 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
   int size2 = shape2_new.size();
   Expr one(1);
   int i;
+  // insert common axis from right to left to common_axis
   for (i = 1; i <= std::min(size1, size2); ++i) {
-    const _Var_* var1 = shape1[size1 - i].As<_Var_>();
-    const _Var_* var2 = shape2_new[size2 - i].As<_Var_>();
+    auto* var1 = shape1[size1 - i].as_var();
+    auto* var2 = shape2_new[size2 - i].as_var();
     if (MathEqual(shape1[size1 - i], shape2_new[size2 - i])) {
       common_shape->insert(common_shape->begin(), shape1[size1 - i]);
       broadcast_flag1->emplace_back(true);
@@ -73,8 +74,8 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
       broadcast_flag1->emplace_back(true);
       broadcast_flag2->emplace_back(true);
     } else {
-      CHECK(false) << "Incompatible broadcast dims " << shape1[size1 - i] << " and " << shape2_new[size2 - i]
-                   << " in: " << shape1 << " and " << shape2_new << std::endl;
+      LOG(FATAL) << "Incompatible broadcast dims " << shape1[size1 - i] << " and " << shape2_new[size2 - i]
+                 << " in: " << shape1 << " and " << shape2_new << std::endl;
     }
   }
   if (size1 != size2) {
@@ -124,8 +125,6 @@ Tensor Broadcast(const FuncOp& op,
   std::vector<Expr> broadcast_indice1;
   std::vector<Expr> broadcast_indice2;
 
-  LOG(INFO) << "a: " << a;
-  LOG(INFO) << "b: " << b;
   GetBroadcastShape(a->shape, b->shape, &common_shape, &broadcast_flags1, &broadcast_flags2, axis);
   auto fn = [&](const std::vector<Expr>& indice) {
     GetBroadcastIndice(indice, &broadcast_indice1, &broadcast_indice2, broadcast_flags1, broadcast_flags2);

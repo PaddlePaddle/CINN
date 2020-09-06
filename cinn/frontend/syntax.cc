@@ -1,6 +1,7 @@
 #include "cinn/frontend/syntax.h"
 
 #include "cinn/frontend/paddle/model_parser.h"
+#include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/utils/string.h"
 
@@ -24,6 +25,31 @@ Instruction::Instruction(std::string_view op_type, const std::vector<Variable>& 
 }
 
 Placeholder::operator Variable() const { return var_; }
+
+std::vector<Variable> Program::conv2d(
+    const Variable& a,
+    const Variable& b,
+    const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store) {
+  Instruction instr("conv2d");
+  instr.SetInputs({a, b});
+  for (auto& iter : attr_store) {
+    instr.SetAttr(iter.first, iter.second);
+  }
+  AppendInstruction(instr);
+  return instr.GetOutputs();
+}
+
+Variable Program::batchnorm(const Variable& a,
+                            const Variable& b,
+                            const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store) {
+  Instruction instr("batchnorm");
+  instr.SetInputs({a, b});
+  for (auto& iter : attr_store) {
+    instr.SetAttr(iter.first, iter.second);
+  }
+  AppendInstruction(instr);
+  return instr.GetOutputs()[0];
+}
 
 Instruction& Program::operator[](size_t i) {
   CHECK_LT(i, instrs_.size());

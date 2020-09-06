@@ -59,6 +59,8 @@ class GraphCompiler final {
 
   std::unique_ptr<Program> Build();
 
+  void PrintFunc();
+
  private:
   ir::LoweredFunc GetOpFunc(const Node* node);
 

@@ -1,5 +1,7 @@
 #include "cinn/hlir/framework/pass.h"
 
+#include "cinn/hlir/pass/use_pass.h"
+
 namespace cinn {
 namespace hlir {
 namespace framework {

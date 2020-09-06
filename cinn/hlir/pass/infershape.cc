@@ -3,6 +3,7 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {
@@ -53,6 +54,7 @@ void InferShapePass(Graph* graph) {
         auto* sink_node = out_edge->sink()->safe_as<NodeData>();
         CHECK(sink_node);
 
+        VLOG(3) << "Infershape: " << sink_node->id() << " " << utils::Join(out_shape[counter], ",");
         shape_dict[sink_node->id()] = out_shape[counter];
         dtype_dict[sink_node->id()] = out_dtype[counter];
         counter++;
