@@ -1,4 +1,5 @@
 #include "cinn/hlir/framework/node.h"
+
 #include <algorithm>
 
 namespace cinn {
@@ -16,15 +17,15 @@ std::tuple<common::GraphEdge*, common::GraphEdge*> NodeData::LinkTo(Node* other)
 namespace {
 
 struct PyBindNodeAttrVisitor {
-  std::stringstream &out;
-  PyBindNodeAttrVisitor(std::stringstream &out) : out(out) {}
+  std::stringstream& out;
+  explicit PyBindNodeAttrVisitor(std::stringstream& out) : out(out) {}
 
   void operator()(int v) { out << "int: " << v; }
   void operator()(float v) { out << "float: " << v; }
   void operator()(bool v) { out << "bool: " << v; }
-  void operator()(const std::string &v) { out << "string: " << v; }
+  void operator()(const std::string& v) { out << "string: " << v; }
 #define VISIT_ELEMENTS(T__)                                      \
-  void operator()(const std::vector<T__> &vs) {                  \
+  void operator()(const std::vector<T__>& vs) {                  \
     if (vs.empty()) return;                                      \
     for (int i = 0; i < vs.size() - 1; i++) out << vs[i] << ","; \
     out << vs.back();                                            \
@@ -37,10 +38,10 @@ struct PyBindNodeAttrVisitor {
 
 }  // namespace
 
-std::ostream &operator<<(std::ostream &os, const NodeAttr &node_attr) {
+std::ostream& operator<<(std::ostream& os, const NodeAttr& node_attr) {
   std::stringstream ss;
   ss << "NodeAttr:\n";
-  for (auto &item : node_attr.attr_store) {
+  for (auto& item : node_attr.attr_store) {
     std::stringstream os;
     PyBindNodeAttrVisitor visitor(os);
     std::visit(visitor, item.second);

@@ -1,6 +1,7 @@
 #include "cinn/hlir/pe/broadcast.h"
 
 #include <iostream>
+
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -94,7 +95,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr 
 
 std::vector<std::vector<int>> InferShapeForElementwise(const std::vector<std::vector<int>> &inputs_shape,
                                                        const framework::NodeAttr &attrs) {
-  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  CHECK_EQ(inputs_shape.size(), 2UL);
   std::vector<std::vector<int>> res{inputs_shape[0]};
   return res;
 }
@@ -199,4 +200,6 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForScale))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForScale))
       .set_support_level(4);
+
+  return true;
 }

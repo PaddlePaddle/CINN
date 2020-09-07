@@ -17,17 +17,17 @@ using py::arg;
 void BindCinnRuntime(py::module *);
 
 cinn_type_t NumpyTypeToCinn(py::dtype dt) {
-  if (dt == py::dtype::of<int32_t>()) {
+  if (dt.is(py::dtype::of<int32_t>())) {
     return cinn_int32_t();
-  } else if (dt == py::dtype::of<int64_t>()) {
+  } else if (dt.is(py::dtype::of<int64_t>())) {
     return cinn_int64_t();
-  } else if (dt == py::dtype::of<uint32_t>()) {
+  } else if (dt.is(py::dtype::of<uint32_t>())) {
     return cinn_uint32_t();
-  } else if (dt == py::dtype::of<uint64_t>()) {
+  } else if (dt.is(py::dtype::of<uint64_t>())) {
     return cinn_uint64_t();
-  } else if (dt == py::dtype::of<float>()) {
+  } else if (dt.is(py::dtype::of<float>())) {
     return cinn_float32_t();
-  } else if (dt == py::dtype::of<double>()) {
+  } else if (dt.is(py::dtype::of<double>())) {
     return cinn_float64_t();
   }
   return cinn_unk_t();

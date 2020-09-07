@@ -26,21 +26,6 @@ std::string StringFormat(const std::string &fmt_str, ...) {
   return std::string(formatted.get());
 }
 
-std::string Join(const std::vector<std::string> &fields, const std::string &splitter) {
-  std::stringstream ss;
-  if (fields.empty()) return "";
-  for (int i = 0; i < fields.size() - 1; i++) {
-    ss << fields[i];
-    ss << splitter;
-  }
-
-  if (fields.size() > 0) {
-    ss << fields.back();
-  }
-
-  return ss.str();
-}
-
 std::string Trim(const std::string &s, const char *empty) {
   if (s.empty()) return s;
   auto start = s.find_first_not_of(empty);
