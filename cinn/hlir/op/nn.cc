@@ -29,7 +29,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
 
   framework::CINNSchedule relu_schedule([](lang::Args args, lang::RetValue *ret) {
     CINNValuePack arg_pack  = args[0];
-    Expr A [[maybe_unused]] = arg_pack[0];  // NOLINT
+    Expr A [[maybe_unused]] = arg_pack[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     *ret = arg_pack;
   });
@@ -72,7 +72,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
 
   framework::CINNSchedule relu_schedule([](lang::Args args, lang::RetValue *ret) {
     CINNValuePack arg_pack  = args[0];
-    Expr A [[maybe_unused]] = arg_pack[0];  // NOLINT
+    Expr A [[maybe_unused]] = arg_pack[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     *ret = arg_pack;
   });
