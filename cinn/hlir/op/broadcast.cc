@@ -73,7 +73,6 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr 
     }
 
     auto out = pe::Multiply(A, B, UniqName("C"), axis);
-    LOG(INFO) << "Multiply out " << out;
 
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
