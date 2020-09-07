@@ -30,7 +30,7 @@ class SingleOpTester(unittest.TestCase):
         self.target.bits = common.Target.Bit.k32
         self.target.os = common.Target.OS.Linux
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         '''
         create the target of the operator's execution output.
         '''
@@ -86,7 +86,7 @@ class SingleOpTester(unittest.TestCase):
         fn(args)
 
         out_result = out[len(out) - 1].numpy()
-        correct_result = self.create_target_data(inputs_data)
+        correct_result = self.create_target_data(inputs_data, attrs)
         self.assertTrue(np.allclose(out_result, correct_result, atol=1e-4))
 
     def __codegen(self, op_name, inputs, attrs):

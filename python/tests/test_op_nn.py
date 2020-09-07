@@ -15,7 +15,7 @@ from test_utils import SingleOpTester
 
 
 class OpTest_relu(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X] = inputs_data
         return np.maximum(X, np.zeros(X.shape).astype("float32"))
 
@@ -25,7 +25,7 @@ class OpTest_relu(SingleOpTester):
 
 
 class OpTest_relu6(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X] = inputs_data
         return np.minimum(
             np.maximum(X,
@@ -51,7 +51,7 @@ class OpTest_relu6(SingleOpTester):
 
 
 class OpTest_batchnorm(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X, Y] = inputs_data
         c = X.shape[1]
         for i in range(0, c):

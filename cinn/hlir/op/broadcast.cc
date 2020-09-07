@@ -40,10 +40,11 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseAdd(const framework::NodeAttr 
   });
 
   framework::CINNSchedule add_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of elementwise_add schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -78,10 +79,11 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr 
   });
 
   framework::CINNSchedule mul_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of elementwise_mul schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -141,10 +143,10 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
   framework::CINNSchedule scale_schedule([](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of scale schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK(!arg_pack.empty()) << "The input tensor of scale schedule is empty! Please check.";
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of scale schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
