@@ -94,7 +94,13 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr 
 
 std::vector<std::vector<int>> InferShapeForElementwise(const std::vector<std::vector<int>> &inputs_shape,
                                                        const framework::NodeAttr &attrs) {
-  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  CHECK_EQ(inputs_shape.size(), 2UL);
+  auto &input_shape0 = inputs_shape[0];
+  auto &input_shape1 = inputs_shape[1];
+
+  LOG(INFO) << "elementwise_add shape0: " << utils::Join(input_shape0, ",");
+  LOG(INFO) << "elementwise_add shape1: " << utils::Join(input_shape1, ",");
+
   std::vector<std::vector<int>> res{inputs_shape[0]};
   return res;
 }

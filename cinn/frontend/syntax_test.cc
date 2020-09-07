@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include "cinn/cinn.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -68,22 +70,9 @@ TEST(syntax, program_execute_multi_elementwise_add) {
   runtime_program->Execute();
 }
 
-TEST(syntax, program_execute_fc) {
-  const int B = 10;  // batch size
-  const int M = 32;
-  const int K = 18;
-  const int N = 24;
-
-  Placeholder a(Float(32), {B, M, K});
-  Placeholder w(Float(32), {K, N});  // weight
-  Placeholder b(Float(32), {N});     // bias
-
-  Program program;
-  auto mul_out = program.mul(a, w, false /*trans_a*/, false /*trans_b*/, 2, 1);
-  auto add_out = program.elementwise_add(mul_out, b, 2);
-  program.SetInputs({a, w, b});
-
-  auto graph = std::make_shared<hlir::framework::Graph>(program);
+TEST(syntax, program_execute_multi_elementwise_add2) {
+  auto program = CreateAddProgram();
+  auto graph   = std::make_shared<hlir::framework::Graph>(*program);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
@@ -94,15 +83,54 @@ TEST(syntax, program_execute_fc) {
   auto runtime_program = gc.Build();
 
   scope->Var<hlir::framework::Tensor>("a");
-  scope->Var<hlir::framework::Tensor>("w");
   scope->Var<hlir::framework::Tensor>("b");
 
-  auto at = scope->GetTensor("a");
-  auto wt = scope->GetTensor("w");
-  auto bt = scope->GetTensor("b");
+  auto A = scope->GetTensor("a");
+  auto B = scope->GetTensor("b");
+  SetRandData(A, target);
+  SetRandData(B, target);
+
+  runtime_program->Execute();
+}
+
+TEST(syntax, program_execute_fc) {
+  const int B = 10;  // batch size
+  const int M = 32;
+  const int K = 18;
+  const int N = 24;
+
+  Placeholder a(Float(32), {B, M, K}, "a");
+  Placeholder w(Float(32), {K, N}, "w");  // weight
+  Placeholder b(Float(32), {N}, "b");     // bias
+
+  Program program;
+  auto mul_out = program.mul(a, w, false /*trans_a*/, false /*trans_b*/, 2, 1);
+  auto add_out = program.add(mul_out, b);
+  program.SetInputs({a, w, b});
+  program.Validate();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program);
+
+  hlir::framework::ApplyPass(graph.get(), "InferShape");
+  Target target = common::DefaultHostTarget();
+  auto scope    = BuildScope(target, graph);
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>(std::string(a.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(w.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(b.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(mul_out->id));
+
+  auto at        = scope->GetTensor(std::string(a.id()));
+  auto wt        = scope->GetTensor(std::string(w.id()));
+  auto bt        = scope->GetTensor(std::string(b.id()));
+  auto fake_outt = scope->GetTensor(std::string(mul_out->id));
   SetRandData(at, target);
   SetRandData(wt, target);
   SetRandData(bt, target);
+  SetRandData(fake_outt, target);
 
   runtime_program->Execute();
 }

@@ -36,9 +36,9 @@ class Program {
    */
   void Execute() {
     for (auto& ins : instrs_) {
-      LOG(INFO) << "run ins";
-      ins->Run();
-      LOG(INFO) << "run ins done";
+      for (int i = 0; i < 100; i++) {
+        ins->Run();
+      }
     }
   }
 
@@ -46,6 +46,8 @@ class Program {
    * Get the number of instructions.
    */
   size_t size() const { return instrs_.size(); }
+
+  ~Program() {}
 
  private:
   // We need to hold scope to assure tensors alive used in instructions.

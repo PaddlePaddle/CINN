@@ -25,11 +25,13 @@ void InferShapePass(Graph* graph) {
   auto& op_inferdtype =
       Operator::GetAttrs<std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&)>>(
           "inferdtype");
-  for (auto& node : store_nodes) {
-    if (node->is_type<Node>()) {
+
+  for (auto& n : store_nodes) {
+    auto node = n->safe_as<Node>();
+    if (node) {
       std::vector<std::vector<int>> inputs_shape;
       std::vector<Type> inputs_dtype;
-      for (auto& in_edge : node->inlinks()) {
+      for (auto& in_edge : node->inlinks_in_order()) {
         auto* source_node = in_edge->source()->safe_as<NodeData>();
         CHECK(source_node);
         CHECK(shape_dict.count(source_node->id())) << "No shape for " << source_node->id();

@@ -121,6 +121,7 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     for (auto& shape_dim : iter.second) {
       shape.push_back(Shape::dim_t(shape_dim));
     }
+    VLOG(3) << "Tensor [" << iter.first << "] resize to " << utils::Join(shape, ",");
     tensor.Resize(Shape{shape});
     CHECK_EQ(dtype_dict.at(iter.first), Float(32))
         << "The dtype of node " << iter.first << " is not float! Other dtype is not implemented yet.";

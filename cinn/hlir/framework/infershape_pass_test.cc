@@ -46,7 +46,7 @@ TEST(Operator, GetAttrs) {
   auto d   = prog.add(c, b);
   auto e   = prog.add(c, d);
   ASSERT_EQ(prog.size(), 3UL);
-  std::shared_ptr<Graph> g(new Graph(prog));
+  auto g = std::make_shared<Graph>(prog);
   ApplyPass(g.get(), "InferShape");
 
   Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64, {});
