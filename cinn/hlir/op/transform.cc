@@ -19,7 +19,7 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
                                            const std::vector<ir::Tensor> &inputs,
                                            const std::vector<Type> &out_type,
                                            const Target &target) {
-  framework::CINNCompute add_compute([&attrs](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute mul_compute([&attrs](lang::Args args, lang::RetValue *ret) {
     CINNValuePack a = args[0];
     Expr A          = a[0];
     Expr B          = a[1];
@@ -50,15 +50,16 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule add_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
+  framework::CINNSchedule mul_schedule([](lang::Args args, lang::RetValue *ret) {
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of mul schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(add_compute, add_schedule, "strategy.mul.x86", 1);
+  strategy->AddImpl(mul_compute, mul_schedule, "strategy.mul.x86", 1);
 
   return strategy;
 }

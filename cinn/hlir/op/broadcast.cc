@@ -5,6 +5,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/ir/ir_operators.h"
 
 namespace cinn {
 namespace hlir {
@@ -42,10 +43,11 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseAdd(const framework::NodeAttr 
   });
 
   framework::CINNSchedule add_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of elementwise_add schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -80,10 +82,11 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr 
   });
 
   framework::CINNSchedule mul_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of elementwise_mul schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -143,10 +146,10 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
   framework::CINNSchedule scale_schedule([](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of scale schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK(!arg_pack.empty()) << "The input tensor of scale schedule is empty! Please check.";
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of scale schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -163,6 +166,72 @@ std::vector<shape_t> InferShapeForScale(const std::vector<shape_t> &inputs_shape
 std::vector<Type> InferDtypeForScale(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
+std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
+                                               const std::vector<ir::Tensor> &inputs,
+                                               const std::vector<Type> &out_type,
+                                               const Target &target) {
+  int axis = -1;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "axis") {
+      axis = std::get<int>(iter.second);
+    }
+  }
+  framework::CINNCompute softmax_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of softmax compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "The input tensors of softmax compute is empty! Please check.";
+    Expr A_expr = a[0];
+    CHECK(A_expr.as_tensor());
+    ir::Tensor A = A_expr.as_tensor_ref();
+    ir::Tensor out;
+    int new_axis = axis;
+    if (axis == -1) {
+      new_axis = A->shape.size() - 1;
+    }
+
+    Var axis_j(A->shape[new_axis], UniqName("axis_j"));
+    auto temp = Compute(A->shape,
+                        [=](const std::vector<Expr> &indice) {
+                          std::vector<Expr> new_indice = indice;
+                          new_indice[new_axis]         = axis_j;
+                          return ir::ReduceSum(Exp(A(new_indice)), Expr(0.f));
+                        },
+                        "softmax_temp_out",
+                        {axis_j});
+    out       = Compute(
+        A->shape, [=](const std::vector<Expr> &indice) { return Exp(A(indice)) / temp(indice); }, "softmax_out");
+    auto stages = CreateStages({temp, out});
+    *ret        = CINNValuePack{{CINNValue(Expr(temp.get())), CINNValue(Expr(out.get())), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule softmax_schedule([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of softmax schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL) << "The input tensor's size of softmax schedule is " << arg_pack.size()
+                                   << "and it should be equal to 3! Please check.";
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(softmax_compute, softmax_schedule, "strategy.softmax.x86", 1);
+
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForSoftmax(const std::vector<std::vector<int>> &inputs_shape,
+                                                   const framework::NodeAttr &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  std::vector<std::vector<int>> res{inputs_shape[0], inputs_shape[0]};
+  return res;
+}
+
+std::vector<Type> InferDtypeForSoftmax(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
 }
 
@@ -196,6 +265,15 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScale)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForScale))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForScale))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(softmax)
+      .describe("This operator implements the softmax layer")
+      .set_num_inputs(1)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSoftmax)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSoftmax))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSoftmax))
       .set_support_level(4);
 
   return true;

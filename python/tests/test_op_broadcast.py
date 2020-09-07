@@ -15,7 +15,7 @@ from test_utils import SingleOpTester
 
 
 class OpTest_add_0(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X, Y] = inputs_data
         return X + Y
 
@@ -27,7 +27,7 @@ class OpTest_add_0(SingleOpTester):
 
 
 class OpTest_add_1(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X, Y] = inputs_data
         return X + Y
 
@@ -38,7 +38,7 @@ class OpTest_add_1(SingleOpTester):
 
 
 class OpTest_mul_0(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X, Y] = inputs_data
         return X * Y
 
@@ -50,7 +50,7 @@ class OpTest_mul_0(SingleOpTester):
 
 
 class OpTest_mul_1(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X, Y] = inputs_data
         return X * Y
 
@@ -61,26 +61,26 @@ class OpTest_mul_1(SingleOpTester):
 
 
 class OpTest_scale_0(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X] = inputs_data
-        return X * 0.5 + 0.5
+        return X * attrs.attr_store["scale"] + attrs.attr_store["bias"]
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        attrs.attr_store = {"scale": 0.5, "bias": 0.5}
+        attrs.attr_store = {"scale": 0.7, "bias": 0.3}
         self.to_test_op([[100, 32]], [[100, 32]], "scale", attrs)
 
 
 class OpTest_scale_1(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X] = inputs_data
-        return (X + 0.5) * 0.5
+        return (X + attrs.attr_store["bias"]) * attrs.attr_store["scale"]
 
     def test_op(self):
         attrs = framework.NodeAttr()
         attrs.attr_store = {
-            "scale": 0.5,
-            "bias": 0.5,
+            "scale": 0.6,
+            "bias": 0.4,
             "bias_after_scale": False
         }
         self.to_test_op([[100, 32]], [[100, 32]], "scale", attrs)

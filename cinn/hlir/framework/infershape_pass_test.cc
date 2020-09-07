@@ -13,6 +13,8 @@
 #include "cinn/hlir/pass/use_pass.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/lang/packed_func.h"
+#include "cinn/runtime/cpu/host_intrinsics.h"
+#include "cinn/runtime/cpu/use_extern_funcs.h"
 
 namespace cinn {
 namespace hlir {
@@ -35,32 +37,41 @@ void SetRandData(Tensor tensor, Target target) {
 TEST(Operator, GetAttrs) {
   frontend::Program prog;
   // TODO(Superjomn) Replace with Placeholder here.
-  frontend::Variable a("a");
-  frontend::Variable b("b");
+  frontend::Variable a("A");
+  frontend::Variable b("B");
   Type t   = Float(32);
-  a->shape = {100, 32};
-  b->shape = {100, 32};
+  a->shape = {1, 3, 224, 224};
+  b->shape = {1, 3, 224, 224};
   a->type  = t;
   b->type  = t;
   auto c   = prog.add(a, b);
-  auto d   = prog.add(c, b);
-  auto e   = prog.add(c, d);
-  ASSERT_EQ(prog.size(), 3UL);
-  auto g = std::make_shared<Graph>(prog);
-  ApplyPass(g.get(), "InferShape");
+  auto d   = prog.relu(c);
 
-  Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64, {});
-  auto scope = BuildScope(target, g);
+  frontend::Variable e("E");
+  e->shape = {32, 3, 3, 3};
+  e->type  = t;
 
-  GraphCompiler gc(target, scope, g);
-  std::unique_ptr<Program> program = gc.Build();
+  std::unordered_map<std::string, NodeAttr::attr_t> attr1;
+  attr1["stride"]   = std::vector<int>({2, 2});
+  attr1["padding"]  = std::vector<int>({1, 1});
+  attr1["dilation"] = static_cast<int>(1);
+  attr1["epsilon"]  = 0.00001f;
 
-  auto A = GetTensor(scope, "a");
-  auto B = GetTensor(scope, "b");
+  auto A = GetTensor(scope, "A");
+  auto B = GetTensor(scope, "B");
   SetRandData(A, target);
   SetRandData(B, target);
 
-  program->Execute();
+  frontend::Variable g("G");
+  g->shape = {4, 32};
+  g->type  = t;
+
+  auto f = prog.conv2d(d, e, attr2);
+  auto h = prog.batchnorm(f, g, attr1);
+  ASSERT_EQ(prog.size(), 4UL);
+
+  auto graph = std::make_shared<Graph>(prog);
+  ApplyPass(graph.get(), "InferShape");
 
   auto A_data = A->data<float>();
   auto B_data = B->data<float>();

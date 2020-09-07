@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
+import paddle as paddle
+import paddle.fluid as fluid
+import numpy as np
 import unittest
 import math
-import numpy as np
 import cinn
 from cinn import frontend
 from cinn import runtime
@@ -15,7 +17,7 @@ from test_utils import SingleOpTester
 
 
 class OpTest_relu(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X] = inputs_data
         return np.maximum(X, np.zeros(X.shape).astype("float32"))
 
@@ -25,7 +27,7 @@ class OpTest_relu(SingleOpTester):
 
 
 class OpTest_relu6(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X] = inputs_data
         return np.minimum(
             np.maximum(X,
@@ -36,9 +38,27 @@ class OpTest_relu6(SingleOpTester):
         self.to_test_op([[32, 32]], [[32, 32]], "relu6", attrs)
 
 
-""" class OpTest_conv2d(SingleOpTester):
-    def create_target_data(self, inputs_data):
-        return np.ones((1, 2, 5, 5)).astype("float32")
+class OpTest_conv2d(SingleOpTester):
+    def create_target_data(self, inputs_data, attrs):
+        img = fluid.layers.data(name='img', shape=[3, 10, 10], dtype='float32')
+        param = fluid.initializer.NumpyArrayInitializer(
+            np.array(inputs_data[1]).reshape((2, 3, 2, 2)).astype("float32"))
+        res = fluid.layers.conv2d(
+            input=img,
+            num_filters=2,
+            filter_size=2,
+            stride=2,
+            padding=1,
+            dilation=2,
+            param_attr=param)
+        exe = fluid.Executor(fluid.CPUPlace())
+        exe.run(fluid.default_startup_program())
+
+        x = np.array(inputs_data[0]).reshape((1, 3, 10, 10)).astype("float32")
+        output = exe.run(feed={"img": x}, fetch_list=[res])
+        output = np.array(output)
+        print("output's shape is:", output.shape)
+        return output
 
     def test_op(self):
         attrs = framework.NodeAttr()
@@ -47,11 +67,12 @@ class OpTest_relu6(SingleOpTester):
         attrs.set_attr("dilation", 2)
         attrs.set_attr("groups", 1)
         self.to_test_op([[1, 3, 10, 10], [2, 3, 2, 2]],
-                        [[1, 3, 12, 12], [2, 3, 3, 3], [1, 2, 5, 5]], "conv2d", attrs) """
+                        [[1, 3, 12, 12], [2, 3, 3, 3], [1, 2, 5, 5]], "conv2d",
+                        attrs)
 
 
 class OpTest_batchnorm(SingleOpTester):
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         [X, Y] = inputs_data
         c = X.shape[1]
         for i in range(0, c):
@@ -63,6 +84,21 @@ class OpTest_batchnorm(SingleOpTester):
         attrs = framework.NodeAttr()
         self.to_test_op([[1, 3, 2, 2], [4, 3]], [[1, 3, 2, 2]], "batchnorm",
                         attrs)
+
+
+class OpTest_softmax(SingleOpTester):
+    def create_target_data(self, inputs_data, attrs):
+        [X] = inputs_data
+        Y = np.zeros(X.shape).astype("float32")
+        for i in range(0, Y.shape[1]):
+            Y[:, i, :] = np.exp(X[:, i, :]) / np.sum(
+                np.exp(X), axis=1, keepdims=True)[:, 0, :]
+        return Y
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        attrs.set_attr("axis", 1)
+        self.to_test_op([[2, 3, 4]], [[2, 3, 4], [2, 3, 4]], "softmax", attrs)
 
 
 if __name__ == "__main__":
