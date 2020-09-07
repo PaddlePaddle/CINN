@@ -85,12 +85,12 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   C                       = impl->fschedule(C);
   for (int i = 0; i < C.get()->size() - 1; i++) {
     ir::Expr temp = C[i];
-    stages->Insert(temp.as_tensor_ref(), ir::CreateStage(temp.as_tensor_ref()).get());
+    stages->InsertLazily(temp.as_tensor_ref());
     inputs.push_back(temp.as_tensor_ref());
   }
 
   auto func = Lower(GenOpFuncName(node), stages, inputs);
-  LOG(INFO) << "The function of node [" << node->attrs.node_name << "] is: " << func;
+  LOG(INFO) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
   return func;
 }
 
@@ -121,6 +121,7 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     for (auto& shape_dim : iter.second) {
       shape.push_back(Shape::dim_t(shape_dim));
     }
+    VLOG(3) << "Tensor [" << iter.first << "] resize to " << utils::Join(shape, ",");
     tensor.Resize(Shape{shape});
     CHECK_EQ(dtype_dict.at(iter.first), Float(32))
         << "The dtype of node " << iter.first << " is not float! Other dtype is not implemented yet.";

@@ -8,6 +8,7 @@
 #include "cinn/common/common.h"
 #include "cinn/common/macros.h"
 #include "cinn/hlir/framework/buffer.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace hlir {

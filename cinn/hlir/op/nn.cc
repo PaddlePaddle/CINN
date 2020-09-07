@@ -1,4 +1,5 @@
 #include "cinn/hlir/pe/nn.h"
+
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -276,4 +277,6 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBatchNorm))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBatchNorm))
       .set_support_level(4);
+
+  return true;
 }

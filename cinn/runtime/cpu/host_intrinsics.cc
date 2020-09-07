@@ -1,9 +1,10 @@
+#include "cinn/runtime/cpu/host_intrinsics.h"
+
 #include <glog/logging.h>
 #include <math.h>
 
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/function_prototype.h"
-#include "cinn/runtime/cpu/host_intrinsics.h"
 #include "cinn/runtime/cpu/mkl_math.h"
 
 extern "C" {
@@ -107,4 +108,6 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT(bitwise_and);
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT(bitwise_xor);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_INT(bitwise_not);
+
+  return true;
 }

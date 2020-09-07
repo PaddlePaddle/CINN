@@ -22,7 +22,14 @@ std::string StringFormat(const std::string& fmt_str, ...);
 /**
  * Join multiple fields to a single string. Similar to Python's str.join method.
  */
-std::string Join(const std::vector<std::string>& fields, const std::string& splitter);
+template <typename T = std::string>
+std::string Join(const std::vector<T>& fields, const std::string& splitter) {
+  if (fields.empty()) return "";
+  std::stringstream ss;
+  for (int i = 0; i < fields.size() - 1; i++) ss << fields[i] << splitter;
+  ss << fields.back();
+  return ss.str();
+}
 
 std::vector<std::string> Split(const std::string& str, const std::string& splitter);
 

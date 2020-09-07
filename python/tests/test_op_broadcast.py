@@ -59,6 +59,7 @@ class OpTest_mul_1(SingleOpTester):
         attrs.attr_store = {"axis": 1}
         self.to_test_op([[3, 2], [2]], [[3, 2]], "elementwise_mul", attrs)
 
+
 class OpTest_scale_0(SingleOpTester):
     def create_target_data(self, inputs_data):
         [X] = inputs_data

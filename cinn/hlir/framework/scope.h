@@ -14,6 +14,8 @@ namespace framework {
 
 using Variable = std::variant<Tensor>;
 
+struct Tensor;
+
 class Scope {
  public:
   Scope() = default;
@@ -25,8 +27,10 @@ class Scope {
   //! Find a variable, get null if not exists.
   Variable* FindVar(const std::string& name) const;
 
+  Tensor* GetTensor(const std::string& name) const;
+
  private:
-  std::unordered_map<std::string, std::unique_ptr<Variable>> dic;
+  std::unordered_map<std::string, std::unique_ptr<Variable>> data_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Scope);
 };
@@ -36,7 +40,7 @@ Variable* Scope::Var(const std::string& name) {
   Variable* x = FindVar(name);
   if (x) return x;
   auto* data = new Variable(T());
-  dic[name].reset(data);
+  data_[name].reset(data);
   return data;
 }
 
