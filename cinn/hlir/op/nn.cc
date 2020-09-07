@@ -28,10 +28,11 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule relu_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of relu schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -71,10 +72,11 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule relu_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of relu6 schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -134,10 +136,11 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule conv2d_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 4UL) << "The input tensor's size of conv2d schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 4UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -208,10 +211,11 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
   });
 
   framework::CINNSchedule batchnorm_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of batchnorm schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
