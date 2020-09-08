@@ -8,3 +8,6 @@ cmake-build*
 build*
 .idea*
 *.html
+*.rej
+*.orig
+*.patch
