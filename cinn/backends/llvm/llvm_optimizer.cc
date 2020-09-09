@@ -141,7 +141,7 @@ void LLVMModuleOptimizer::operator()(llvm::Module *m) {
   fpm->doFinalization();
 
   // TODO(Superjomn) Enable this. This is quite slow when turned on.
-  //mpm->run(*m);
+  // mpm->run(*m);
 }
 
 }  // namespace cinn::backends

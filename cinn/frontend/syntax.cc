@@ -1,5 +1,9 @@
 #include "cinn/frontend/syntax.h"
 
+#include <memory>
+#include <tuple>
+#include <utility>
+
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
@@ -82,7 +86,7 @@ std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
 
 class PaddleModelToProgram {
  public:
-  PaddleModelToProgram(Scope* scope) : scope_(scope), program_(new Program) {
+  explicit PaddleModelToProgram(Scope* scope) : scope_(scope), program_(new Program) {
     CHECK(scope_);
 
     AddOpMapper_feed();
@@ -136,7 +140,7 @@ void PaddleModelToProgram::AddOpMapper_feed() {
   op_mappers_["feed"] = [&](const paddle::cpp::OpDesc& op_desc) {
     auto outs = op_desc.Output("Out");
     CHECK_EQ(outs.size(), 1UL);
-    LOG(INFO) << "Model get feed [" << outs[0] << "]";
+    VLOG(2) << "Model get feed [" << outs[0] << "]";
     Placeholder input(Float(32), {}, outs[0]);
     AddVar(outs[0], input);
   };
@@ -151,7 +155,7 @@ void PaddleModelToProgram::AddOpMapper_fetch() {
 void PaddleModelToProgram::AddOpMapper_scale() {
   op_mappers_["scale"] = [&](const paddle::cpp::OpDesc& op_desc) {
     auto x_name = op_desc.Input("X").front();
-    auto x = GetVar(utils::TransValidVarName(x_name));
+    auto x      = GetVar(utils::TransValidVarName(x_name));
     float scale{};
     if (op_desc.HasAttr("scale")) {  // the old model format
       scale = op_desc.GetAttr<float>("scale");
@@ -163,7 +167,7 @@ void PaddleModelToProgram::AddOpMapper_scale() {
       scale              = scale_tensor.mutable_data<float>(common::DefaultHostTarget())[0];
     }
 
-    auto out = program_->scale(x, scale);
+    auto out      = program_->scale(x, scale);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
   };
@@ -171,15 +175,15 @@ void PaddleModelToProgram::AddOpMapper_scale() {
 
 void PaddleModelToProgram::AddOpMapper_mul() {
   op_mappers_["mul"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    auto x_name = op_desc.Input("X").front();
-    auto y_name = op_desc.Input("Y").front();
+    auto x_name        = op_desc.Input("X").front();
+    auto y_name        = op_desc.Input("Y").front();
     auto x             = GetVar(utils::TransValidVarName(x_name));
     auto y             = GetVar(utils::TransValidVarName(y_name));
     int x_num_col_dims = op_desc.GetAttr<int>("x_num_col_dims");
     int y_num_col_dims = op_desc.GetAttr<int>("y_num_col_dims");
     VLOG(4) << "Mul x_num_col_dims: " << x_num_col_dims;
     VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
-    auto out           = program_->mul(x, y, false, false, x_num_col_dims, y_num_col_dims);
+    auto out      = program_->mul(x, y, false, false, x_num_col_dims, y_num_col_dims);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
   };

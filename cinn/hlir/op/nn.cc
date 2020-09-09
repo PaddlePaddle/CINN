@@ -168,10 +168,8 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
   CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
   CHECK_EQ(inputs_shape[0].size(), 4) << "The first input tensor's shape size of conv2d op is not 4! Please check.";
-  int out_shape_h =
-      (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation + 1) + 2 * padding[0]) / stride[0] + 1;
-  int out_shape_w =
-      (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation + 1) + 2 * padding[1]) / stride[1] + 1;
+  int out_shape_h = (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation + 1) + 2 * padding[0]) / stride[0] + 1;
+  int out_shape_w = (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation + 1) + 2 * padding[1]) / stride[1] + 1;
   std::vector<shape_t> res{{inputs_shape[0][0],
                             inputs_shape[0][1],
                             inputs_shape[0][2] + 2 * padding[0],

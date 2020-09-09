@@ -12,8 +12,8 @@ using common::_CINNValuePack_;
 using common::CINNValue;
 using common::CINNValuePack;
 using framework::OpStrategy;
-using framework::StrategyFunction;
 using framework::shape_t;
+using framework::StrategyFunction;
 
 std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
                                            const std::vector<ir::Tensor> &inputs,
@@ -63,8 +63,7 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForMul(const std::vector<shape_t> &inputs_shape,
-                                                    const framework::NodeAttr &attrs) {
+std::vector<shape_t> InferShapeForMul(const std::vector<shape_t> &inputs_shape, const framework::NodeAttr &attrs) {
   VLOG(3) << "Mul shape0: " << utils::Join(inputs_shape[0], ",");
   VLOG(3) << "Mul shape1: " << utils::Join(inputs_shape[1], ",");
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape is empty";

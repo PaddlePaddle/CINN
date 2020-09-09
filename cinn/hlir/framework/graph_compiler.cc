@@ -63,9 +63,9 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
   for (auto& i : node->inlinks_in_order()) {
-    std::string input_id      = i->source()->as<NodeData>()->id();
-    auto in_shape = shape_dict.at(input_id);
-    Type dtype                = dtype_dict.at(input_id);
+    std::string input_id = i->source()->as<NodeData>()->id();
+    auto in_shape        = shape_dict.at(input_id);
+    Type dtype           = dtype_dict.at(input_id);
     CHECK_EQ(dtype, Float(32)) << "The dtype of node " << input_id
                                << " is not float! Other dtype is not implemented yet.";
     lang::Placeholder<float> temp(input_id, in_shape);
