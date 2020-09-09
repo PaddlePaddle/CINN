@@ -12,6 +12,7 @@ using common::_CINNValuePack_;
 using common::CINNValue;
 using common::CINNValuePack;
 using framework::OpStrategy;
+using framework::shape_t;
 using framework::StrategyFunction;
 
 std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
@@ -62,8 +63,7 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
   return strategy;
 }
 
-std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int>> &inputs_shape,
-                                               const framework::NodeAttr &attrs) {
+std::vector<shape_t> InferShapeForMul(const std::vector<shape_t> &inputs_shape, const framework::NodeAttr &attrs) {
   VLOG(3) << "Mul shape0: " << utils::Join(inputs_shape[0], ",");
   VLOG(3) << "Mul shape1: " << utils::Join(inputs_shape[1], ",");
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape is empty";
@@ -77,7 +77,7 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
     y_num_col_dims = std::get<int>(attrs.attr_store.at("y_num_col_dims"));
   }
 
-  std::vector<int> out_shape;
+  shape_t out_shape;
   for (int i = 0; i < x_num_col_dims; i++) out_shape.push_back(inputs_shape[0][i]);
   for (int i = 0; i < y_num_col_dims; i++) out_shape.push_back(inputs_shape[1][inputs_shape.size() - 1 - i]);
 

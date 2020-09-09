@@ -13,6 +13,7 @@ using common::_CINNValuePack_;
 using common::CINNValue;
 using common::CINNValuePack;
 using framework::OpStrategy;
+using framework::shape_t;
 using framework::StrategyFunction;
 
 std::shared_ptr<OpStrategy> StrategyForElementwiseAdd(const framework::NodeAttr &attrs,
@@ -91,10 +92,10 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr 
   return strategy;
 }
 
-std::vector<std::vector<int>> InferShapeForElementwise(const std::vector<std::vector<int>> &inputs_shape,
-                                                       const framework::NodeAttr &attrs) {
+std::vector<shape_t> InferShapeForElementwise(const std::vector<shape_t> &inputs_shape,
+                                              const framework::NodeAttr &attrs) {
   CHECK_EQ(inputs_shape.size(), 2UL);
-  std::vector<std::vector<int>> res{inputs_shape[0]};
+  std::vector<shape_t> res{inputs_shape[0]};
   return res;
 }
 
@@ -154,11 +155,9 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
   return strategy;
 }
 
-std::vector<std::vector<int>> InferShapeForScale(const std::vector<std::vector<int>> &inputs_shape,
-                                                 const framework::NodeAttr &attrs) {
+std::vector<shape_t> InferShapeForScale(const std::vector<shape_t> &inputs_shape, const framework::NodeAttr &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  std::vector<std::vector<int>> res{inputs_shape[0]};
-  return res;
+  return {{inputs_shape[0]}};
 }
 
 std::vector<Type> InferDtypeForScale(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {

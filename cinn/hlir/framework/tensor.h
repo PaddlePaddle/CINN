@@ -16,7 +16,7 @@ namespace framework {
 using common::Target;
 
 struct Shape {
-  using dim_t = uint32_t;
+  using dim_t = int;
 
   Shape() = default;
   explicit Shape(const std::vector<dim_t>& data) : data_(data) {}

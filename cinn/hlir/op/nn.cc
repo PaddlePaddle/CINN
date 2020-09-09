@@ -12,6 +12,7 @@ using common::_CINNValuePack_;
 using common::CINNValue;
 using common::CINNValuePack;
 using framework::OpStrategy;
+using framework::shape_t;
 using framework::StrategyFunction;
 
 std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
@@ -44,10 +45,10 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
   return strategy;
 }
 
-std::vector<std::vector<int>> InferShapeForRelu(const std::vector<std::vector<int>> &inputs_shape,
-                                                const framework::NodeAttr &attrs) {
+std::vector<framework::shape_t> InferShapeForRelu(const std::vector<framework::shape_t> &inputs_shape,
+                                                  const framework::NodeAttr &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  std::vector<std::vector<int>> res{inputs_shape[0]};
+  std::vector<framework::shape_t> res{inputs_shape[0]};
   return res;
 }
 
@@ -150,8 +151,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   return strategy;
 }
 
-std::vector<std::vector<int>> InferShapeForConv2d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  const framework::NodeAttr &attrs) {
+std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shape, const framework::NodeAttr &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
@@ -170,15 +170,15 @@ std::vector<std::vector<int>> InferShapeForConv2d(const std::vector<std::vector<
   CHECK_EQ(inputs_shape[0].size(), 4) << "The first input tensor's shape size of conv2d op is not 4! Please check.";
   int out_shape_h = (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation + 1) + 2 * padding[0]) / stride[0] + 1;
   int out_shape_w = (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation + 1) + 2 * padding[1]) / stride[1] + 1;
-  std::vector<std::vector<int>> res{{inputs_shape[0][0],
-                                     inputs_shape[0][1],
-                                     inputs_shape[0][2] + 2 * padding[0],
-                                     inputs_shape[0][3] + 2 * padding[1]},
-                                    {inputs_shape[1][0],
-                                     inputs_shape[1][1],
-                                     (inputs_shape[1][2] - 1) * dilation + 1,
-                                     (inputs_shape[1][3] - 1) * dilation + 1},
-                                    {inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
+  std::vector<shape_t> res{{inputs_shape[0][0],
+                            inputs_shape[0][1],
+                            inputs_shape[0][2] + 2 * padding[0],
+                            inputs_shape[0][3] + 2 * padding[1]},
+                           {inputs_shape[1][0],
+                            inputs_shape[1][1],
+                            (inputs_shape[1][2] - 1) * dilation + 1,
+                            (inputs_shape[1][3] - 1) * dilation + 1},
+                           {inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
   return res;
 }
 
@@ -224,10 +224,10 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
   return strategy;
 }
 
-std::vector<std::vector<int>> InferShapeForBatchNorm(const std::vector<std::vector<int>> &inputs_shape,
-                                                     const framework::NodeAttr &attrs) {
+std::vector<shape_t> InferShapeForBatchNorm(const std::vector<shape_t> &inputs_shape,
+                                            const framework::NodeAttr &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  std::vector<std::vector<int>> res{inputs_shape[0]};
+  std::vector<shape_t> res{inputs_shape[0]};
   return res;
 }
 

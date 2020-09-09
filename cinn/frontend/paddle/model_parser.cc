@@ -45,7 +45,7 @@ void TensorFromStream(std::istream &is, hlir::framework::Tensor *tensor) {
   }
 
   // read tensor
-  std::vector<uint32_t> dims_vec;
+  std::vector<int32_t> dims_vec;
   std::copy(desc.dims().begin(), desc.dims().end(), std::back_inserter(dims_vec));
   hlir::framework::Shape dims(dims_vec);
   tensor->Resize(dims);
@@ -82,17 +82,15 @@ void LoadLoDTensor(std::istream &is, hlir::framework::Variable *var) {
   // Load LoD information
   uint64_t lod_level{};
   is.read(reinterpret_cast<char *>(&lod_level), sizeof(lod_level));
-  /*
-  auto &lod = *tensor->mutable_lod();
-  lod.resize(lod_level);
+
   for (uint64_t i = 0; i < lod_level; ++i) {
     uint64_t size;
     is.read(reinterpret_cast<char *>(&size), sizeof(size));
     std::vector<uint64_t> tmp(size / sizeof(uint64_t));
     is.read(reinterpret_cast<char *>(tmp.data()), static_cast<std::streamsize>(size));
-    lod[i] = tmp;
+    // lod[i] = tmp;
   }
-   */
+
   TensorFromStream(is, &tensor);
 }
 
@@ -157,7 +155,7 @@ void LoadCombinedParamsPb(const std::string &path,
   // Load vars
   auto load_var_func = [&](std::istream &is) {
     for (size_t i = 0; i < paramlist.size(); ++i) {
-      auto *var = scope->Var<hlir::framework::Tensor>(paramlist[i]);
+      auto *var = scope->Var<hlir::framework::Tensor>(utils::TransValidVarName(paramlist[i]));
       // Error checking
       CHECK(static_cast<bool>(is)) << "There is a problem with loading model parameters";
       LoadLoDTensor(is, var);
@@ -218,7 +216,7 @@ void LoadModelPb(const std::string &model_dir,
       std::ifstream file(file_path, std::ios::binary);
       switch (var.type().type()) {
         case framework_proto::VarType_Type_LOD_TENSOR:
-          LoadLoDTensor(file, scope->Var<hlir::framework::Tensor>(var.name()));
+          LoadLoDTensor(file, scope->Var<hlir::framework::Tensor>(utils::TransValidVarName(var.name())));
           break;
         default:
           LOG(FATAL) << "unknown weight type";
@@ -226,7 +224,7 @@ void LoadModelPb(const std::string &model_dir,
     }
   }
 
-  VLOG(4) << "Load protobuf model in '" << model_dir << "'' successfully";
+  VLOG(4) << "Load protobuf model in [" << model_dir << "] successfully";
 }
 
 }  // namespace cinn::frontend::paddle

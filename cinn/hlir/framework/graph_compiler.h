@@ -47,8 +47,6 @@ class Program {
    */
   size_t size() const { return instrs_.size(); }
 
-  ~Program() {}
-
  private:
   // We need to hold scope to assure tensors alive used in instructions.
   std::shared_ptr<Scope> scope_;
@@ -91,7 +89,9 @@ class GraphCompiler final {
   CINN_DISALLOW_COPY_AND_ASSIGN(GraphCompiler);
 };
 
-std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& graph);
+std::shared_ptr<Scope> BuildScope(Target target,
+                                  const std::shared_ptr<Graph>& graph,
+                                  std::shared_ptr<Scope> scope = nullptr);
 
 }  // namespace framework
 }  // namespace hlir

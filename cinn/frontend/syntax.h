@@ -14,6 +14,7 @@
 #include "cinn/common/object.h"
 #include "cinn/common/type.h"
 #include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/scope.h"
 
 namespace cinn {
 namespace frontend {
@@ -36,11 +37,13 @@ struct _Variable_ : public common::Object {
 struct Variable : public common::Shared<_Variable_> {
   /**
    * Constructor.
-   * @param id The identifier of the variable, if null, a random ID will be assigned.
+   * @param id_hint The identifier of the variable, if null, a random ID will be assigned.
    */
-  explicit Variable(std::string_view id = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
-    get()->id = id.empty() ? common::Context::Global().NewName("var") : id;
+  explicit Variable(std::string_view id_hint = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
+    get()->id = id_hint.empty() ? common::Context::Global().NewName("var") : id_hint;
   }
+
+  void set_id(const std::string& id) { operator->()->id = id; }
 
   _Variable_* operator->() { return get(); }
   const _Variable_* operator->() const { return get(); }
@@ -180,6 +183,8 @@ struct Program {
   Variable relu(const Variable& a);
   Variable relu6(const Variable& a);
 
+  Variable scale(const Variable& a, float ratio);
+
   /**
    * The convolution2D layer calculates the output based on the input, filter
    * and strides, paddings, dilations, groups parameters.
@@ -231,7 +236,13 @@ struct Program {
   std::vector<Variable> inputs_;
 };
 
-void LoadPaddleProgram(const std::string& model_dir, bool is_combined);
+/**
+ * Load a Paddle model and return a frontend program.
+ * @param model_dir The directory of the model.
+ * @param is_combined Whether the parameters in the Paddle model is combined.
+ */
+std::tuple<std::unique_ptr<Program>, std::unordered_map<std::string, Variable>> LoadPaddleProgram(
+    const std::string& model_dir, hlir::framework::Scope* scope, bool is_combined);
 
 std::ostream& operator<<(std::ostream& os, const Variable& x);
 std::ostream& operator<<(std::ostream& os, const Instruction& instr);
