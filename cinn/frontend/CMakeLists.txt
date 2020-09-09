@@ -3,9 +3,11 @@ set(srcs
   )
 
 if(NOT WITH_CUDA)
-cc_test(test_frontend_syntax SRCS syntax_test.cc DEPS core)
+  cc_test(test_frontend_syntax SRCS syntax_test.cc DEPS core
+    ARGS --model_dir=${THIRD_PARTY_PATH}/model/lite_naive_model)
 else()
-nv_test(test_frontend_syntax SRCS syntax_test.cc DEPS core)
+  nv_test(test_frontend_syntax SRCS syntax_test.cc DEPS core
+    ARGS --model_dir=${THIRD_PARTY_PATH}/model/lite_naive_model)
 endif()
 
 
