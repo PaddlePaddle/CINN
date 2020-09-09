@@ -222,7 +222,6 @@ struct Program {
 
   /**
    * Get number of instructions in the program.
-   * @return
    */
   inline size_t size() const { return instrs_.size(); }
 

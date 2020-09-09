@@ -3,10 +3,12 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <pybind11/numpy.h>
 #include "cinn/common/cinn_value.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/framework/scope.h"
 #include "cinn/hlir/op/use_ops.h"
 
 namespace cinn::pybind {
@@ -53,5 +55,16 @@ void BindFramework(pybind11::module *m) {
            [](NodeAttr &self, const std::string &key, NodeAttr::attr_t value) { self.attr_store[key] = value; })
       .def("__str__", [](NodeAttr &self) { return utils::GetStreamCnt(self); });
 
-}  // namespace frontend
+  py::class_<Scope>(*m, "Scope")
+      .def(py::init<>())  //
+      .def("get_tensor", [](Scope &self, const std::string &name) {
+        py::dtype dt = py::dtype::of<float>();
+        auto *t      = self.GetTensor(name);
+        py::array::ShapeContainer shape(t->shape().data().begin(), t->shape().data().end());
+        py::array array(std::move(dt), std::move(shape));
+        auto *mutable_data = array.mutable_data();
+        std::memcpy(mutable_data, t->data<float>(), t->shape().numel() * sizeof(float));
+        return array;
+      });
+}
 }  // namespace cinn::pybind

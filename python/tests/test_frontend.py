@@ -41,5 +41,17 @@ class TestFrontend(unittest.TestCase):
         prog.print_func(self.target)
 
 
+class TestLoadPaddleModel(unittest.TestCase):
+    def setUp(self):
+        self.target = Target()
+        self.target.arch = Target.Arch.X86
+        self.target.bits = Target.Bit.k64
+        self.target.os = Target.OS.Linux
+
+    def test_model(self):
+        scope = Scope.create();
+
+
+
 if __name__ == "__main__":
     unittest.main()

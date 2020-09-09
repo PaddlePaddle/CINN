@@ -40,7 +40,7 @@ int cinn_device_sync(void* context, struct cinn_buffer_t* buf) {
 int cinn_device_release(void* context, const struct cinn_device_interface_t* device_interface) {
   // ASSERT_NOT_NULL(context)
   ASSERT_NOT_NULL(device_interface)
-  CINN_CINN_NOT_IMPLEMENTED
+  CINN_NOT_IMPLEMENTED
 }
 
 int cinn_buffer_copy_to_host(void* context, struct cinn_buffer_t* buf) {
@@ -273,7 +273,7 @@ void* cinn_pod_value_t::data_addr() const {
       return (void*)&value_.v_handle;  // NOLINT
     default:
       cinn_print_debug_string("POD value type [%d] not supported", type_code());
-      CINN_CINN_NOT_IMPLEMENTED
+      CINN_NOT_IMPLEMENTED
   }
   return nullptr;
 }
