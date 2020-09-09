@@ -44,7 +44,7 @@ TEST(syntax, basic) {
   }
 }
 
-void SetRandData(hlir::framework::Tensor* tensor, Target target) {
+void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
   auto* data = tensor->mutable_data<float>(target);
   for (size_t j = 0; j < tensor->shape().numel(); j++) {
     unsigned int seed = j;

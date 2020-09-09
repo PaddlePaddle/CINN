@@ -7,7 +7,7 @@ namespace hlir {
 namespace framework {
 
 TEST(Tensor, basic) {
-  Tensor tensor;
+  _Tensor_ tensor;
   tensor.Resize(Shape{{3, 2}});
 
   auto* data = tensor.mutable_data<float>(common::DefaultHostTarget());

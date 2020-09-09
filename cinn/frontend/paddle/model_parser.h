@@ -39,8 +39,8 @@ void LoadCombinedParamsPb(const std::string& path,
                           bool params_from_memory = false);
 
 // LoDTensor to ostream
-void TensorToStream(std::ostream& os, const hlir::framework::Tensor& tensor);
-void TensorFromStream(std::istream& is, hlir::framework::Tensor* tensor);
+void TensorToStream(std::ostream& os, const hlir::framework::_Tensor_& tensor);
+void TensorFromStream(std::istream& is, hlir::framework::_Tensor_* tensor);
 void ReadBinaryFile(const std::string& filename, std::string* contents);
 
 }  // namespace cinn::frontend::paddle

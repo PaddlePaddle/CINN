@@ -1,6 +1,10 @@
 #pragma once
+#include <algorithm>
 #include <memory>
 #include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/scope.h"
@@ -25,7 +29,7 @@ class Executor final {
 
   void Run();
 
-  hlir::framework::Tensor* GetTensor(const std::string& name);
+  hlir::framework::Tensor GetTensor(const std::string& name);
 
  private:
   /**
@@ -40,6 +44,7 @@ class Executor final {
 
   std::shared_ptr<hlir::framework::Scope> scope_;
   std::unique_ptr<frontend::Program> program_;
+  std::unique_ptr<hlir::framework::GraphCompiler> graph_compiler_;
 
   std::unordered_map<std::string, Variable> var_map_;
   std::unordered_map<std::string, std::string> var_map_paddle_to_program_;

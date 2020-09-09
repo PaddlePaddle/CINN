@@ -14,7 +14,7 @@ namespace framework {
 
 using Variable = std::variant<Tensor>;
 
-struct Tensor;
+struct _Tensor_;
 
 class Scope {
  public:
@@ -27,7 +27,7 @@ class Scope {
   //! Find a variable, get null if not exists.
   Variable* FindVar(const std::string& name) const;
 
-  Tensor* GetTensor(const std::string& name) const;
+  Tensor GetTensor(const std::string& name) const;
 
   //! Get variable names.
   std::vector<std::string_view> var_names() const;

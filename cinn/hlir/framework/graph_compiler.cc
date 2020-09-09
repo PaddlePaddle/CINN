@@ -122,10 +122,10 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
       shape.push_back(Shape::dim_t(shape_dim));
     }
     VLOG(3) << "Tensor [" << iter.first << "] resize to " << utils::Join(shape, ",");
-    tensor.Resize(Shape{shape});
+    tensor->Resize(Shape{shape});
     CHECK_EQ(dtype_dict.at(iter.first), Float(32))
         << "The dtype of node " << iter.first << " is not float! Other dtype is not implemented yet.";
-    tensor.mutable_data<float>(target);
+    tensor->mutable_data<float>(target);
   }
   return scope;
 }

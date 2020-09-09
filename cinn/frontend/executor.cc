@@ -1,4 +1,5 @@
 #include "cinn/frontend/executor.h"
+
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/pass.h"
@@ -18,7 +19,7 @@ void Executor::LoadPaddleModel(const std::string& model_dir, bool params_combine
 
 void Executor::Run() { runtime_program_->Execute(); }
 
-hlir::framework::Tensor* Executor::GetTensor(const std::string& name) { return scope_->GetTensor(name); }
+hlir::framework::Tensor Executor::GetTensor(const std::string& name) { return scope_->GetTensor(name); }
 
 void Executor::Build(const std::vector<std::string>& input_names,
                      const std::vector<hlir::framework::shape_t>& input_shapes) {
@@ -41,8 +42,8 @@ void Executor::Build(const std::vector<std::string>& input_names,
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   Target target = common::DefaultHostTarget();
   scope_        = hlir::framework::BuildScope(target, graph, scope_);
-  hlir::framework::GraphCompiler gc(target, scope_, graph);
-  runtime_program_ = gc.Build();
+  graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph));
+  runtime_program_ = graph_compiler_->Build();
 }
 
 }  // namespace cinn::frontend

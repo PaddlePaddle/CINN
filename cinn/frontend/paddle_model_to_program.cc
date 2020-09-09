@@ -35,7 +35,7 @@ void PaddleModelToProgram::AddOpMapper_scale() {
       auto* scale_tensor_var = scope_->FindVar(op_desc.Input("ScaleTensor").front());
       CHECK(scale_tensor_var) << "No scale tensor found in the scope";
       auto& scale_tensor = std::get<hlir::framework::Tensor>(*scale_tensor_var);
-      scale              = scale_tensor.mutable_data<float>(common::DefaultHostTarget())[0];
+      scale              = scale_tensor->mutable_data<float>(common::DefaultHostTarget())[0];
     }
 
     auto out      = program_->scale(x, scale);
@@ -116,7 +116,7 @@ Variable PaddleModelToProgram::GetVar(const std::string& name) {
     auto& tensor = std::get<hlir::framework::Tensor>(*var);
     Variable var;
     var.set_id(name);
-    var->shape = tensor.shape().data();
+    var->shape = tensor->shape().data();
     // TODO(Superjomn) Make this determined by model.
     var->type = Float(32);
     AddVar(name, var);

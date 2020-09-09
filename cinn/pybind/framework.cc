@@ -1,9 +1,9 @@
 #include <pybind11/functional.h>
+#include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <pybind11/numpy.h>
 #include "cinn/common/cinn_value.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
@@ -59,12 +59,40 @@ void BindFramework(pybind11::module *m) {
       .def(py::init<>())  //
       .def("get_tensor", [](Scope &self, const std::string &name) {
         py::dtype dt = py::dtype::of<float>();
-        auto *t      = self.GetTensor(name);
+        auto t       = self.GetTensor(name);
         py::array::ShapeContainer shape(t->shape().data().begin(), t->shape().data().end());
         py::array array(std::move(dt), std::move(shape));
         auto *mutable_data = array.mutable_data();
         std::memcpy(mutable_data, t->data<float>(), t->shape().numel() * sizeof(float));
         return array;
+      });
+
+  py::class_<common::Shared<hlir::framework::_Tensor_>>(*m, "SharedTensor");
+  py::class_<Tensor, common::Shared<hlir::framework::_Tensor_>>(*m, "Tensor")
+      .def(py::init<>())
+      .def("shape", [](hlir::framework::Tensor &self) { return self->shape().data(); })
+      .def("set_type", [](hlir::framework::Tensor &self, Type type) { self->set_type(type); })
+      .def("numpy",
+           [](hlir::framework::Tensor &self) {
+             py::dtype dt;
+             // set float by default
+             dt = py::dtype::of<float>();
+             py::array::ShapeContainer shape(self->shape().data().begin(), self->shape().data().end());
+             py::array array(std::move(dt), std::move(shape));
+             void *array_data = array.mutable_data();
+             std::memcpy(array_data, self->data<float>(), self->shape().numel() * sizeof(float));
+             return array;
+           })
+      .def("from_numpy", [](hlir::framework::Tensor &self, py::array array) {
+        CHECK(array.dtype().is(py::dtype::of<double>()));
+        hlir::framework::shape_t shape;
+        std::copy_n(array.shape(), array.ndim(), std::back_inserter(shape));
+        self->Resize(Shape(shape));
+        // TODO(Superjomn) Support other target.
+        auto *data = self->mutable_data<float>(common::DefaultHostTarget());
+        for (int i = 0; i < self->shape().numel(); i++) {
+          data[i] = reinterpret_cast<const double *>(array.data())[i];
+        }
       });
 }
 }  // namespace cinn::pybind

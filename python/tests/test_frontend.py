@@ -49,8 +49,7 @@ class TestLoadPaddleModel(unittest.TestCase):
         self.target.os = Target.OS.Linux
 
     def test_model(self):
-        scope = Scope.create();
-
+        pass
 
 
 if __name__ == "__main__":
