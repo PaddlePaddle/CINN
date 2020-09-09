@@ -19,7 +19,16 @@ void Executor::LoadPaddleModel(const std::string& model_dir, bool params_combine
 
 void Executor::Run() { runtime_program_->Execute(); }
 
-hlir::framework::Tensor Executor::GetTensor(const std::string& name) { return scope_->GetTensor(name); }
+hlir::framework::Tensor Executor::GetTensor(const std::string& name) {
+  auto valid_name = utils::TransValidVarName(name);
+  if (scope_->FindVar(valid_name)) return scope_->GetTensor(name);
+
+  auto it = var_map_paddle_to_program_.find(name);
+  if (it == var_map_paddle_to_program_.end()) {
+    LOG(FATAL) << "No variable";
+  }
+  return scope_->GetTensor(it->second);
+}
 
 void Executor::Build(const std::vector<std::string>& input_names,
                      const std::vector<hlir::framework::shape_t>& input_shapes) {

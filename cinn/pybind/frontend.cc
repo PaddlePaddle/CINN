@@ -4,6 +4,7 @@
 #include <pybind11/stl.h>
 
 #include "cinn/common/common.h"
+#include "cinn/frontend/executor.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -78,6 +79,15 @@ void BindFrontend(pybind11::module *m) {
         hlir::framework::GraphCompiler gc(target, scope, g);
         gc.PrintFunc();
       });
+
+  py::class_<frontend::Executor>(*m, "Executor")
+      .def(py::init<const std::vector<std::string> &, const std::vector<hlir::framework::shape_t> &>(),
+           py::arg("input_names"),
+           py::arg("input_shapes"))  //
+      .def("load_paddle_model", &frontend::Executor::LoadPaddleModel)
+      .def("run", &frontend::Executor::Run)
+      .def("get_tensor", &frontend::Executor::GetTensor)
+      .def("scope", &frontend::Executor::scope);
 }
 
 }  // namespace cinn::pybind

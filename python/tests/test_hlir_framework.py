@@ -9,10 +9,6 @@ class TensorTest(unittest.TestCase):
         data = np.random.random([10, 5])
         tensor.from_numpy(data)
 
-        print(tensor.numpy())
-
-        print(data)
-
         self.assertTrue(np.allclose(tensor.numpy(), data))
 
 

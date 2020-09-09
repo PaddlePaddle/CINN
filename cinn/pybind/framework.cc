@@ -5,6 +5,7 @@
 #include <pybind11/stl.h>
 
 #include "cinn/common/cinn_value.h"
+#include "cinn/frontend/executor.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -57,15 +58,17 @@ void BindFramework(pybind11::module *m) {
 
   py::class_<Scope>(*m, "Scope")
       .def(py::init<>())  //
-      .def("get_tensor", [](Scope &self, const std::string &name) {
-        py::dtype dt = py::dtype::of<float>();
-        auto t       = self.GetTensor(name);
-        py::array::ShapeContainer shape(t->shape().data().begin(), t->shape().data().end());
-        py::array array(std::move(dt), std::move(shape));
-        auto *mutable_data = array.mutable_data();
-        std::memcpy(mutable_data, t->data<float>(), t->shape().numel() * sizeof(float));
-        return array;
-      });
+      .def("get_tensor",
+           [](Scope &self, const std::string &name) {
+             py::dtype dt = py::dtype::of<float>();
+             auto t       = self.GetTensor(name);
+             py::array::ShapeContainer shape(t->shape().data().begin(), t->shape().data().end());
+             py::array array(std::move(dt), std::move(shape));
+             auto *mutable_data = array.mutable_data();
+             std::memcpy(mutable_data, t->data<float>(), t->shape().numel() * sizeof(float));
+             return array;
+           })
+      .def("var_names", &Scope::var_names);
 
   py::class_<common::Shared<hlir::framework::_Tensor_>>(*m, "SharedTensor");
   py::class_<Tensor, common::Shared<hlir::framework::_Tensor_>>(*m, "Tensor")

@@ -146,7 +146,7 @@ TEST(load_paddle_model, fc_execute) {
 
   auto [program, var_map, var_map_paddle_to_program] =
       LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
-  var_map["a"]->shape = {20, 10};
+  var_map["a"]->shape = {10, 10};
   program->SetInputs({var_map["a"]});
   program->Validate();
 
@@ -159,8 +159,9 @@ TEST(load_paddle_model, fc_execute) {
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 
-  auto at = scope->GetTensor("a");
-  SetRandData(at, target);
+  auto at       = scope->GetTensor("a");
+  auto* at_data = at->mutable_data<float>(common::DefaultHostTarget());
+  for (int i = 0; i < at->shape().numel(); i++) at_data[i] = 1.f;
 
   runtime_program->Execute();
 
@@ -170,7 +171,7 @@ TEST(load_paddle_model, fc_execute) {
   auto tensor                   = scope->GetTensor(var_map_paddle_to_program.at(output_name));
   LOG(INFO) << "tensor.shape: " << utils::Join(tensor->shape().data(), ",");
   auto* data = tensor->data<float>();
-  for (int i = 0; i < 10; i++) LOG(INFO) << data[i];
+  for (int i = 0; i < 10; i++) LOG(INFO) << "data: " << data[i];
 }
 
 }  // namespace frontend

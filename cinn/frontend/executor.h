@@ -31,6 +31,11 @@ class Executor final {
 
   hlir::framework::Tensor GetTensor(const std::string& name);
 
+  std::shared_ptr<hlir::framework::Scope> scope() {
+    CHECK(scope_);
+    return scope_;
+  }
+
  private:
   /**
    * Build the model.

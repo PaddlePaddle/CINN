@@ -49,7 +49,17 @@ class TestLoadPaddleModel(unittest.TestCase):
         self.target.os = Target.OS.Linux
 
     def test_model(self):
-        pass
+        x_shape = [20, 10]
+        self.executor = Executor(["a"], [x_shape])
+        self.executor.load_paddle_model(
+            "/home/chunwei/project/cinn2/tests/fake_model/model2", False)
+        a_t = self.executor.get_tensor("a")
+        # a_t.from_numpy(np.random.random(x_shape))
+        a_t.from_numpy(np.ones(x_shape, dtype="float"))
+        self.executor.run()
+
+        out = self.executor.get_tensor("fc_0.tmp_1")
+        print("out", out.numpy())
 
 
 if __name__ == "__main__":
