@@ -74,5 +74,15 @@ void Replace(std::string *s, const std::string &from, const std::string &to) {
   }
 }
 
+bool IsVarNameValid(const std::string &name) {
+    if (name.empty()) return false;
+    return name.find(' ') == std::string::npos &&   //
+           name.find('.') == std::string::npos &&   //
+           name.find('/') == std::string::npos &&   //
+           name.find('\t') == std::string::npos &&  //
+           name.find('\n') == std::string::npos &&  //
+           name.find('\r') == std::string::npos;
+}
+
 }  // namespace utils
 }  // namespace cinn

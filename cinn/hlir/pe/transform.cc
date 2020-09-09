@@ -48,6 +48,8 @@ void GetMatmulIndice(const std::vector<Expr>& shape1_new,
                      std::vector<Expr>* indice1,
                      std::vector<Expr>* indice2,
                      std::vector<Var>* reduce_axes) {
+  LOG(INFO) << "shape1: " << utils::Join(shape1_new, ",");
+  LOG(INFO) << "shape2: " << utils::Join(shape2_new, ",");
   CHECK(indice1);
   CHECK(indice2);
   CHECK(reduce_axes);

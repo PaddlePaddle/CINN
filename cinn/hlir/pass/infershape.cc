@@ -16,11 +16,11 @@ using framework::NodeData;
 using framework::Operator;
 
 void InferShapePass(Graph* graph) {
-  auto& shape_dict    = graph->GetMutableAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  auto& shape_dict    = graph->GetMutableAttrs<std::unordered_map<std::string, framework::shape_t>>("infershape");
   auto& dtype_dict    = graph->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
   auto store_nodes    = std::get<0>(graph->topological_order());
   auto& op_infershape = Operator::GetAttrs<
-      std::function<std::vector<std::vector<int>>(const std::vector<std::vector<int>>&, const framework::NodeAttr&)>>(
+      std::function<std::vector<framework::shape_t>(const std::vector<framework::shape_t>&, const framework::NodeAttr&)>>(
       "infershape");
   auto& op_inferdtype =
       Operator::GetAttrs<std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&)>>(
@@ -29,7 +29,7 @@ void InferShapePass(Graph* graph) {
   for (auto& n : store_nodes) {
     auto node = n->safe_as<Node>();
     if (node) {
-      std::vector<std::vector<int>> inputs_shape;
+      std::vector<framework::shape_t> inputs_shape;
       std::vector<Type> inputs_dtype;
       for (auto& in_edge : node->inlinks_in_order()) {
         auto* source_node = in_edge->source()->safe_as<NodeData>();

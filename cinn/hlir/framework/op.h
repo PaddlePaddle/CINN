@@ -19,6 +19,9 @@ namespace hlir {
 namespace framework {
 class Operator;
 
+using shape_t = std::vector<int32_t>;
+using dim_t   = shape_t ::value_type;
+
 struct OpRegistry : public Registry<Operator> {
   std::recursive_mutex mutex;
   std::atomic<int> op_counter{0};

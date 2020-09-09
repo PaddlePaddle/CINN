@@ -16,7 +16,7 @@ using Variable = std::variant<Tensor>;
 
 struct Tensor;
 
-class Scope {
+class Scope : std::enable_shared_from_this<Scope> {
  public:
   Scope() = default;
 
@@ -37,6 +37,7 @@ class Scope {
 
 template <typename T>
 Variable* Scope::Var(const std::string& name) {
+  VLOG(4) << "Scope insert Var [" << name << "]";
   Variable* x = FindVar(name);
   if (x) return x;
   auto* data = new Variable(T());

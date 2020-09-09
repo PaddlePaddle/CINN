@@ -11,8 +11,12 @@
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
 
+DEFINE_string(model_dir, "", "");
+
 namespace cinn {
 namespace frontend {
+
+using hlir::framework::Scope;
 
 std::unique_ptr<Program> CreateAddProgram() {
   const int M = 32;
@@ -133,6 +137,25 @@ TEST(syntax, program_execute_fc) {
   SetRandData(fake_outt, target);
 
   runtime_program->Execute();
+}
+
+// Load a simple Paddle model, execute it
+TEST(load_paddle_model, fc_execute) {
+  auto scope = std::make_shared<Scope>();
+
+  auto [program, var_map] = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
+  var_map["a"]->shape     = {20, 100};
+  program->SetInputs({var_map["a"]});
+  program->Validate();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(*program);
+
+  hlir::framework::ApplyPass(graph.get(), "InferShape");
+  Target target = common::DefaultHostTarget();
+  scope         = BuildScope(target, graph, scope);
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
 }
 
 }  // namespace frontend

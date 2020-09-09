@@ -58,13 +58,13 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
 
 ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-  auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
+  auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
   auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
   for (auto& i : node->inlinks_in_order()) {
     std::string input_id      = i->source()->as<NodeData>()->id();
-    std::vector<int> in_shape = shape_dict.at(input_id);
+    auto in_shape = shape_dict.at(input_id);
     Type dtype                = dtype_dict.at(input_id);
     CHECK_EQ(dtype, Float(32)) << "The dtype of node " << input_id
                                << " is not float! Other dtype is not implemented yet.";
@@ -110,10 +110,10 @@ std::vector<std::string> GraphCompiler::OpGetOutputNames(const Node* node) const
   return res;
 }
 
-std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& graph) {
-  auto& shape_dict = graph->GetAttrs<std::unordered_map<std::string, std::vector<int>>>("infershape");
+std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& graph, std::shared_ptr<Scope> scope) {
+  auto& shape_dict = graph->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
   auto& dtype_dict = graph->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
-  auto scope       = std::make_shared<Scope>();
+  if (!scope) scope = std::make_shared<Scope>();
   for (auto& iter : shape_dict) {
     auto* var    = scope->Var<Tensor>(iter.first);
     auto& tensor = std::get<Tensor>(*var);

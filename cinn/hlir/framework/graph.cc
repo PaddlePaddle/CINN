@@ -5,7 +5,7 @@ namespace hlir {
 namespace framework {
 
 Graph::Graph(const frontend::Program& prog) {
-  std::unordered_map<std::string, std::vector<int>> shape_dict;
+  std::unordered_map<std::string, shape_t> shape_dict;
   std::unordered_map<std::string, common::Type> dtype_dict;
   int counter = 0;
   for (size_t i = 0; i < prog.size(); i++) {

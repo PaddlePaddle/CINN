@@ -283,4 +283,4 @@ void BindCommon(py::module *m) {
   BindShared(m);
   BindCinnValue(m);
 }
-}  // namespace cinn::pybind
+} // namespace cinn::pybind
