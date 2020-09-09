@@ -1,5 +1,4 @@
 #include "cinn/hlir/pe/nn.h"
-
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -20,8 +19,10 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
                                             const std::vector<Type> &out_type,
                                             const Target &target) {
   framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of relu compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    Expr A          = a[0];
+    CHECK(!a.empty()) << "at least one input tensor for relu compute\n";
+    Expr A = a[0];
     CHECK(A.as_tensor());
     auto out    = pe::Relu<float>(A.as_tensor_ref(), 0.0, UniqName("Relu_output"));
     auto stages = CreateStages({out});
@@ -29,10 +30,11 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule relu_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
-    Expr A [[maybe_unused]] = arg_pack[0];
+    CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -63,8 +65,10 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
                                              const std::vector<Type> &out_type,
                                              const Target &target) {
   framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of relu6 compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    Expr A          = a[0];
+    CHECK(!a.empty()) << "at least one input tensor for relu6 compute\n";
+    Expr A = a[0];
     CHECK(A.as_tensor());
     auto out    = pe::Relu6<float>(A.as_tensor_ref(), 0.0, UniqName("Relu6_output"));
     auto stages = CreateStages({out});
@@ -72,10 +76,11 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule relu_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
-    Expr A [[maybe_unused]] = arg_pack[0];
+    CHECK(!args.empty()) << "The input argument of relu6 schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -109,9 +114,11 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     groups = std::get<int>(attrs.attr_store.at("groups"));
   }
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of conv2d compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    Expr A          = a[0];
-    Expr B          = a[1];
+    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for conv2d compute\n";
+    Expr A = a[0];
+    Expr B = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
@@ -135,10 +142,11 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   });
 
   framework::CINNSchedule conv2d_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
-    Expr A [[maybe_unused]] = arg_pack[0];
+    CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 4UL);
-    *ret = arg_pack;
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -197,9 +205,11 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
     epsilon = std::get<float>(attrs.attr_store.at("epsilon"));
   }
   framework::CINNCompute batchnorm_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of batchnorm compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    Expr A          = a[0];
-    Expr B          = a[1];
+    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for batchnorm compute\n";
+    Expr A = a[0];
+    Expr B = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     auto out    = pe::BatchNorm_NCHW(A.as_tensor_ref(), B.as_tensor_ref(), epsilon, UniqName("BatchNorm_output"));
@@ -208,10 +218,11 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
   });
 
   framework::CINNSchedule batchnorm_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
-    Expr A [[maybe_unused]] = arg_pack[0];
+    CHECK(!args.empty()) << "The input argument of batchnorm schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -234,6 +245,438 @@ std::vector<shape_t> InferShapeForBatchNorm(const std::vector<shape_t> &inputs_s
 std::vector<Type> InferDtypeForBatchNorm(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
+std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
+                                              const std::vector<ir::Tensor> &inputs,
+                                              const std::vector<Type> &out_type,
+                                              const Target &target) {
+  framework::CINNCompute pool1d_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of pool1d compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "The input tensor of pool1d compute is empty! Please check.\n";
+    Expr A = a[0];
+    CHECK(A.as_tensor());
+    auto attr_store = attrs.attr_store;
+    std::vector<int> kernel_size;   // [kernel_w]
+    std::vector<int> stride_size;   // [stride_w]
+    std::vector<int> padding_size;  // [padding_left, padding_right]
+    std::string pool_type   = "max";
+    bool ceil_mode          = false;
+    bool exclusive          = true;
+    std::string data_format = "NCW";
+    for (auto &iter : attrs.attr_store) {
+      if (iter.first == "kernel_size") {
+        kernel_size = std::get<std::vector<int>>(iter.second);
+      } else if (iter.first == "stride_size") {
+        stride_size = std::get<std::vector<int>>(iter.second);
+      } else if (iter.first == "padding_size") {
+        padding_size = std::get<std::vector<int>>(iter.second);
+      } else if (iter.first == "pool_type") {
+        pool_type = std::get<std::string>(iter.second);
+      } else if (iter.first == "ceil_mode") {
+        ceil_mode = std::get<bool>(iter.second);
+      } else if (iter.first == "exclusive") {
+        exclusive = std::get<bool>(iter.second);
+      } else if (iter.first == "data_format") {
+        data_format = std::get<std::string>(iter.second);
+      } else {
+        LOG(ERROR) << "unsupported attr: " << iter.first << std::endl;
+      }
+    }
+    CHECK(!kernel_size.empty());
+    CHECK(!stride_size.empty());
+    CHECK(!padding_size.empty());
+    auto out = pe::Pool1d(A.as_tensor_ref(),
+                          kernel_size,
+                          stride_size,
+                          padding_size,
+                          pool_type,
+                          ceil_mode,
+                          exclusive,
+                          data_format,
+                          UniqName("T_Pool1d_out"));
+
+    auto stages = CreateStages(out);
+    std::vector<CINNValue> res;
+    for (auto &t : out) {
+      res.push_back(CINNValue(Expr(t.get())));
+    }
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule pool1d_schedule([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of pool1d schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL);
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(pool1d_compute, pool1d_schedule, "strategy.pool1d.x86", 1);
+
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<int>> &inputs_shape,
+                                                  const framework::NodeAttr &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  auto attr_store = attrs.attr_store;
+  std::vector<int> kernel_size;   // [kernel_w]
+  std::vector<int> stride_size;   // [stride_w]
+  std::vector<int> padding_size;  // [padding_left, padding_right]
+  std::string pool_type   = "max";
+  bool ceil_mode          = false;
+  bool exclusive          = true;
+  std::string data_format = "NCW";
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "kernel_size") {
+      kernel_size = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "stride_size") {
+      stride_size = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "padding_size") {
+      padding_size = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "ceil_mode") {
+      ceil_mode = std::get<bool>(iter.second);
+    } else if (iter.first == "exclusive") {
+      exclusive = std::get<bool>(iter.second);
+    } else if (iter.first == "data_format") {
+      data_format = std::get<std::string>(iter.second);
+    }
+  }
+  CHECK_EQ(kernel_size.size(), 1U);
+  CHECK_EQ(stride_size.size(), 1U);
+  CHECK_EQ(padding_size.size(), 2U);
+
+  std::vector<int> output_shape0 = inputs_shape[0];
+  std::vector<int> output_shape1 = inputs_shape[0];
+  CHECK_EQ(output_shape0.size(), 3U);
+  int width_axis = -1;
+  if (data_format == "NCW") {
+    width_axis = 2;
+  } else if (data_format == "NWC") {
+    width_axis = 1;
+  } else {
+    LOG(ERROR) << "unsupported data_format: " << data_format << std::endl;
+  }
+
+  output_shape0[width_axis] += padding_size[0] + padding_size[1];
+  if (ceil_mode) {
+    output_shape0[width_axis] += stride_size[0];
+    output_shape1[width_axis] =
+        (inputs_shape[0][width_axis] - kernel_size[0] + padding_size[0] + padding_size[1] + stride_size[0] - 1) /
+            stride_size[0] +
+        1;
+  } else {
+    output_shape1[width_axis] =
+        (inputs_shape[0][width_axis] - kernel_size[0] + padding_size[0] + padding_size[1]) / stride_size[0] + 1;
+  }
+
+  std::vector<std::vector<int>> res{output_shape0, output_shape1};
+  return res;
+}
+
+std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
+                                              const std::vector<ir::Tensor> &inputs,
+                                              const std::vector<Type> &out_type,
+                                              const Target &target) {
+  framework::CINNCompute pool2d_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of pool2d compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "The input tensor of pool2d compute is empty! Please check.\n";
+    Expr A = a[0];
+    CHECK(A.as_tensor());
+    auto attr_store = attrs.attr_store;
+    std::vector<int> kernel_size;   // [kernel_h, kernel_w]
+    std::vector<int> stride_size;   // [stride_h, stride_w]
+    std::vector<int> padding_size;  // [padding_top, padding_left, padding_bottom, padding_right]
+    std::string pool_type   = "max";
+    bool ceil_mode          = false;
+    bool exclusive          = true;
+    std::string data_format = "NCHW";
+    for (auto &iter : attrs.attr_store) {
+      if (iter.first == "kernel_size") {
+        kernel_size = std::get<std::vector<int>>(iter.second);
+      } else if (iter.first == "stride_size") {
+        stride_size = std::get<std::vector<int>>(iter.second);
+      } else if (iter.first == "padding_size") {
+        padding_size = std::get<std::vector<int>>(iter.second);
+      } else if (iter.first == "pool_type") {
+        pool_type = std::get<std::string>(iter.second);
+      } else if (iter.first == "ceil_mode") {
+        ceil_mode = std::get<bool>(iter.second);
+      } else if (iter.first == "exclusive") {
+        exclusive = std::get<bool>(iter.second);
+      } else if (iter.first == "data_format") {
+        data_format = std::get<std::string>(iter.second);
+      } else {
+        LOG(ERROR) << "unsupported attr: " << iter.first << std::endl;
+      }
+    }
+    CHECK(!kernel_size.empty());
+    CHECK(!stride_size.empty());
+    CHECK(!padding_size.empty());
+    auto out = pe::Pool2d(A.as_tensor_ref(),
+                          kernel_size,
+                          stride_size,
+                          padding_size,
+                          pool_type,
+                          ceil_mode,
+                          exclusive,
+                          data_format,
+                          UniqName("T_Pool2d_out"));
+
+    auto stages = CreateStages(out);
+    std::vector<CINNValue> res;
+    for (auto &t : out) {
+      res.push_back(CINNValue(Expr(t.get())));
+    }
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule pool2d_schedule([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of pool2d schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL);
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(pool2d_compute, pool2d_schedule, "strategy.pool2d.x86", 1);
+
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<int>> &inputs_shape,
+                                                  const framework::NodeAttr &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  auto attr_store = attrs.attr_store;
+  std::vector<int> kernel_size;
+  std::vector<int> stride_size;
+  std::vector<int> padding_size;
+  std::string pool_type   = "max";
+  bool ceil_mode          = false;
+  bool exclusive          = true;
+  std::string data_format = "NCHW";
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "kernel_size") {
+      kernel_size = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "stride_size") {
+      stride_size = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "padding_size") {
+      padding_size = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "ceil_mode") {
+      ceil_mode = std::get<bool>(iter.second);
+    } else if (iter.first == "exclusive") {
+      exclusive = std::get<bool>(iter.second);
+    } else if (iter.first == "data_format") {
+      data_format = std::get<std::string>(iter.second);
+    }
+  }
+  CHECK_EQ(kernel_size.size(), 2U);
+  CHECK_EQ(stride_size.size(), 2U);
+
+  std::vector<int> output_shape0 = inputs_shape[0];
+  std::vector<int> output_shape1 = inputs_shape[0];
+  CHECK_EQ(output_shape0.size(), 4U);
+  int height_axis = -1;
+  int width_axis  = -1;
+  if (data_format == "NCHW") {
+    height_axis = 2;
+    width_axis  = 3;
+  } else if (data_format == "NHWC") {
+    height_axis = 1;
+    width_axis  = 2;
+  } else {
+    LOG(ERROR) << "unsupported data_format: " << data_format << std::endl;
+  }
+
+  output_shape0[height_axis] += padding_size[0] + padding_size[2];
+  output_shape0[width_axis] += padding_size[1] + padding_size[3];
+  if (ceil_mode) {
+    output_shape0[height_axis] += stride_size[0] - 1;
+    output_shape0[width_axis] += stride_size[1] - 1;
+    output_shape1[height_axis] =
+        (inputs_shape[0][height_axis] - kernel_size[0] + padding_size[0] + padding_size[2] + stride_size[0] - 1) /
+            stride_size[0] +
+        1;
+    output_shape1[width_axis] =
+        (inputs_shape[0][width_axis] - kernel_size[1] + padding_size[1] + padding_size[3] + stride_size[1] - 1) /
+            stride_size[1] +
+        1;
+  } else {
+    output_shape1[height_axis] =
+        (inputs_shape[0][height_axis] - kernel_size[0] + padding_size[0] + padding_size[2]) / stride_size[0] + 1;
+    output_shape1[width_axis] =
+        (inputs_shape[0][width_axis] - kernel_size[1] + padding_size[1] + padding_size[3]) / stride_size[1] + 1;
+  }
+
+  std::vector<std::vector<int>> res{output_shape0, output_shape1};
+  return res;
+}
+
+std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
+                                              const std::vector<ir::Tensor> &inputs,
+                                              const std::vector<Type> &out_type,
+                                              const Target &target) {
+  framework::CINNCompute pool3d_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of pool3d compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "The input tensor of pool3d compute is empty! Please check.\n";
+    Expr A = a[0];
+    CHECK(A.as_tensor());
+    auto attr_store = attrs.attr_store;
+    std::vector<int> kernel_size;  // [kernel_d, kernel_h, kernel_w]
+    std::vector<int> stride_size;  // [stride_d, stride_h, stride_w]
+    std::vector<int>
+        padding_size;  // [padding_front, padding_top, padding_left, padding_back, padding_bottom, padding_right]
+    std::string pool_type   = "max";
+    bool ceil_mode          = false;
+    bool exclusive          = true;
+    std::string data_format = "NCDHW";
+    for (auto &iter : attrs.attr_store) {
+      if (iter.first == "kernel_size") {
+        kernel_size = std::get<std::vector<int>>(iter.second);
+      } else if (iter.first == "stride_size") {
+        stride_size = std::get<std::vector<int>>(iter.second);
+      } else if (iter.first == "padding_size") {
+        padding_size = std::get<std::vector<int>>(iter.second);
+      } else if (iter.first == "pool_type") {
+        pool_type = std::get<std::string>(iter.second);
+      } else if (iter.first == "ceil_mode") {
+        ceil_mode = std::get<bool>(iter.second);
+      } else if (iter.first == "exclusive") {
+        exclusive = std::get<bool>(iter.second);
+      } else if (iter.first == "data_format") {
+        data_format = std::get<std::string>(iter.second);
+      } else {
+        LOG(ERROR) << "unsupported attr: " << iter.first << std::endl;
+      }
+    }
+    CHECK(!kernel_size.empty());
+    CHECK(!stride_size.empty());
+    CHECK(!padding_size.empty());
+    auto out = pe::Pool3d(A.as_tensor_ref(),
+                          kernel_size,
+                          stride_size,
+                          padding_size,
+                          pool_type,
+                          ceil_mode,
+                          exclusive,
+                          data_format,
+                          UniqName("T_Pool3d_out"));
+
+    auto stages = CreateStages(out);
+    std::vector<CINNValue> res;
+    for (auto &t : out) {
+      res.push_back(CINNValue(Expr(t.get())));
+    }
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule pool3d_schedule([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of pool3d schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL);
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(pool3d_compute, pool3d_schedule, "strategy.pool3d.x86", 1);
+
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<int>> &inputs_shape,
+                                                  const framework::NodeAttr &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  auto attr_store = attrs.attr_store;
+  std::vector<int> kernel_size;  // [kernel_d, kernel_h, kernel_w]
+  std::vector<int> stride_size;  // [stride_d, stride_h, stride_w]
+  std::vector<int>
+      padding_size;  // [padding_front, padding_top, padding_left, padding_bottom, padding_right, padding_back]
+  std::string pool_type   = "max";
+  bool ceil_mode          = false;
+  bool exclusive          = true;
+  std::string data_format = "NCDHW";
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "kernel_size") {
+      kernel_size = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "stride_size") {
+      stride_size = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "padding_size") {
+      padding_size = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "ceil_mode") {
+      ceil_mode = std::get<bool>(iter.second);
+    } else if (iter.first == "exclusive") {
+      exclusive = std::get<bool>(iter.second);
+    } else if (iter.first == "data_format") {
+      data_format = std::get<std::string>(iter.second);
+    }
+  }
+  CHECK_EQ(kernel_size.size(), 3U);
+  CHECK_EQ(stride_size.size(), 3U);
+
+  std::vector<int> output_shape0 = inputs_shape[0];
+  std::vector<int> output_shape1 = inputs_shape[0];
+  CHECK_EQ(output_shape0.size(), 6U);
+  int depth_axis  = -1;
+  int height_axis = -1;
+  int width_axis  = -1;
+  if (data_format == "NCDHW") {
+    depth_axis  = 2;
+    height_axis = 3;
+    width_axis  = 4;
+  } else if (data_format == "NDHWC") {
+    depth_axis  = 1;
+    height_axis = 2;
+    width_axis  = 3;
+  } else {
+    LOG(ERROR) << "unsupported data_format: " << data_format << std::endl;
+  }
+
+  output_shape0[depth_axis] += padding_size[0] + padding_size[3];
+  output_shape0[height_axis] += padding_size[1] + padding_size[4];
+  output_shape0[width_axis] += padding_size[2] + padding_size[5];
+  if (ceil_mode) {
+    output_shape0[depth_axis] += stride_size[0] - 1;
+    output_shape0[height_axis] += stride_size[1] - 1;
+    output_shape0[width_axis] += stride_size[2] - 1;
+    output_shape1[depth_axis] =
+        (inputs_shape[0][depth_axis] - kernel_size[0] + padding_size[0] + padding_size[3] + stride_size[0] - 1) /
+            stride_size[0] +
+        1;
+    output_shape1[height_axis] =
+        (inputs_shape[0][height_axis] - kernel_size[1] + padding_size[1] + padding_size[4] + stride_size[1] - 1) /
+            stride_size[1] +
+        1;
+    output_shape1[width_axis] =
+        (inputs_shape[0][width_axis] - kernel_size[2] + padding_size[2] + padding_size[5] + stride_size[2] - 1) /
+            stride_size[2] +
+        1;
+  } else {
+    output_shape1[depth_axis] =
+        (inputs_shape[0][depth_axis] - kernel_size[0] + padding_size[0] + padding_size[3]) / stride_size[0] + 1;
+    output_shape1[height_axis] =
+        (inputs_shape[0][height_axis] - kernel_size[1] + padding_size[1] + padding_size[4]) / stride_size[1] + 1;
+    output_shape1[width_axis] =
+        (inputs_shape[0][width_axis] - kernel_size[2] + padding_size[2] + padding_size[5]) / stride_size[2] + 1;
+  }
+
+  std::vector<std::vector<int>> res{output_shape0, output_shape1};
+  return res;
+}
+
+std::vector<Type> InferDtypeForPool(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
 }
 
@@ -276,6 +719,33 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBatchNorm)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBatchNorm))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBatchNorm))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(pool1d)
+      .describe("Do pooling on the width dimension of the input tensor.")
+      .set_num_inputs(1)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool1d)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool1d))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(pool2d)
+      .describe("Do pooling on the height and width dimension of the input tensor.")
+      .set_num_inputs(1)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool2d)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool2d))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(pool3d)
+      .describe("Do pooling on the depth, height and width dimension of the input tensor.")
+      .set_num_inputs(1)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool3d)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool3d))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
       .set_support_level(4);
 
   return true;

@@ -82,6 +82,83 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor& input,
                           float epsilon,
                           const std::string& output_name);
 
+/**
+ * @brief Perform pooling on the width dimension of the tensor.
+ *        Width axis is determined by the data_format string in which 'W' means width. Only support NCW and NWC
+ * data_format.
+ * @param tensor The input tensor with shape of {N, C, W} or {N, W, C}
+ * @param kernel_size Vector of ints: {pool_kernel_width}
+ * @param stride_size Vector of ints: {pool_stride_width}
+ * @param padding_size Vector of ints: {head_pad_width, tail_pad_width}
+ * @param pool_type The type of pooling operator, currently support "max" and "avg". Default is "max".
+ * @param ceil_mode Whether to use ceil when calculating the output size. Default is false.
+ * @param exclusive Whether include padding in the calculation. Default is True.
+ * @param data_format The input data format. Only support NCW and NWC data_format.
+ * @param output_name the name of the output tensor after padding and pooling.
+ *
+ * @return the vector of padding tensor and pooling tensor.
+ */
+std::vector<ir::Tensor> Pool1d(const ir::Tensor& tensor,
+                               const std::vector<int>& kernel_size,
+                               const std::vector<int>& stride_size,
+                               const std::vector<int>& padding_size,
+                               const std::string& pool_type   = "max",
+                               bool ceil_mode                 = false,
+                               bool exclusive                 = true,
+                               const std::string& data_format = "NCW",
+                               const std::string& output_name = "T_Pool1d_out");
+
+/**
+ * @brief Perform pooling on the height and width dimension of the tensor.
+ *        Height and width axes are determined by the data_format string in which 'H' means height and 'W' means width.
+ *        Only support NCHW and NHWC data_format.
+ * @param tensor The input tensor with shape of {N, C, H, W} or {N, H, W, C}
+ * @param kernel_size Vector of ints: {pool_kernel_height, pool_kernel_width}
+ * @param stride_size Vector of ints: {pool_stride_height, pool_stride_width}
+ * @param padding_size Vector of ints: {head_pad_height, head_pad_width, tail_pad_height, tail_pad_width}
+ * @param pool_type The type of pooling operator, currently support "max" and "avg". Default is "max".
+ * @param ceil_mode Whether to use ceil when calculating the output size. Default is false.
+ * @param exclusive Whether include padding in the calculation. Default is True.
+ * @param data_format The input data format. Only support NCHW and NHWC data_format.
+ * @param output_name the name of the output tensor after padding and pooling.
+ *
+ * @return the vector of padding tensor and pooling tensor.
+ */
+std::vector<ir::Tensor> Pool2d(const ir::Tensor& tensor,
+                               const std::vector<int>& kernel_size,
+                               const std::vector<int>& stride_size,
+                               const std::vector<int>& padding_size,
+                               const std::string& pool_type   = "max",
+                               bool ceil_mode                 = false,
+                               bool exclusive                 = true,
+                               const std::string& data_format = "NCHW",
+                               const std::string& output_name = "T_Pool2d_out");
+
+/**
+ * @brief Perform pooling on the depth, height and width dimension of the tensor.
+ *        Depth, height and width axis is determined by the data_format string in which 'D' means depth, 'H' means
+ * height and 'W' means width. Only support NCDHW and NDHWC data_format.
+ * @param tensor The input tensor with shape of {N, C, D, H, W} or {N, D, H, W, C}
+ * @param kernel_size Vector of ints: {pool_kernel_depth, pool_kernel_height, pool_kernel_width}
+ * @param stride_size Vector of ints: {pool_stride_depth, pool_stride_height, pool_stride_width}
+ * @param padding_size Vector of ints: {head_pad_depth, head_pad_height, head_pad_width, tail_pad_depth,
+ * tail_pad_height, tail_pad_width}
+ * @param pool_type The type of pooling operator, currently support "max" and "avg". Default is "max".
+ * @param ceil_mode Whether to use ceil when calculating the output size. Default is false.
+ * @param exclusive Whether include padding in the calculation. Default is True.
+ * @param data_format The input data format. Only support NCDHW and NDHWC data_format.
+ * @param output_name the name of the output tensor after padding and pooling.
+ */
+std::vector<ir::Tensor> Pool3d(const ir::Tensor& x,
+                               const std::vector<int>& kernel_size,
+                               const std::vector<int>& stride_size,
+                               const std::vector<int>& padding_size,
+                               const std::string& pool_type   = "max",
+                               bool ceil_mode                 = false,
+                               bool exclusive                 = true,
+                               const std::string& data_format = "NCDHW",
+                               const std::string& output_name = "T_Pool3d_out");
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
