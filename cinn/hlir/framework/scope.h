@@ -29,6 +29,9 @@ class Scope : std::enable_shared_from_this<Scope> {
 
   Tensor* GetTensor(const std::string& name) const;
 
+  //! Get variable names.
+  std::vector<std::string_view> var_names() const;
+
  private:
   std::unordered_map<std::string, std::unique_ptr<Variable>> data_;
 

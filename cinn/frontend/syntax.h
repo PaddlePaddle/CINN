@@ -240,9 +240,13 @@ struct Program {
  * Load a Paddle model and return a frontend program.
  * @param model_dir The directory of the model.
  * @param is_combined Whether the parameters in the Paddle model is combined.
+ * @returns program, a map from name to variable and a map from variable name in Paddle model to the corresponding in
+ * program
  */
-std::tuple<std::unique_ptr<Program>, std::unordered_map<std::string, Variable>> LoadPaddleProgram(
-    const std::string& model_dir, hlir::framework::Scope* scope, bool is_combined);
+std::tuple<std::unique_ptr<Program>,
+           std::unordered_map<std::string, Variable>,
+           std::unordered_map<std::string, std::string>>
+LoadPaddleProgram(const std::string& model_dir, hlir::framework::Scope* scope, bool is_combined);
 
 std::ostream& operator<<(std::ostream& os, const Variable& x);
 std::ostream& operator<<(std::ostream& os, const Instruction& instr);

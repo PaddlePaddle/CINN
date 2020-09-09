@@ -54,10 +54,7 @@ std::string GetStreamCnt(const T& x) {
   return os.str();
 }
 
-static std::string TransValidVarName(std::string name) {
-  utils::Replace(&name, ".", "__");
-  return name;
-}
+std::string TransValidVarName(std::string name);
 
 bool IsVarNameValid(const std::string& name);
 

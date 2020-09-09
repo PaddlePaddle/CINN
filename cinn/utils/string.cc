@@ -84,5 +84,11 @@ bool IsVarNameValid(const std::string &name) {
          name.find('\r') == std::string::npos;
 }
 
+std::string TransValidVarName(std::string name) {
+  utils::Replace(&name, ".", "__");
+  utils::Replace(&name, "/", "___");
+  return name;
+}
+
 }  // namespace utils
 }  // namespace cinn
