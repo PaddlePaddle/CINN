@@ -64,7 +64,11 @@ void BindFrontend(pybind11::module *m) {
       .def("size", &Program::size)
       .def("__getitem__", [](Program &self, int idx) { return self[idx]; })
       .def("add", &Program::add)
+      .def("mul", &Program::mul)
+      .def("elementwise_add", &Program::elementwise_add)
       .def("relu", &Program::relu)
+      .def("relu6", &Program::relu6)
+      .def("scale", &Program::scale)
       .def("conv2d", &Program::conv2d)
       .def("batchnorm", &Program::batchnorm)
       .def("print_func", [](Program &self, const common::Target &target) {
@@ -74,6 +78,6 @@ void BindFrontend(pybind11::module *m) {
         hlir::framework::GraphCompiler gc(target, scope, g);
         gc.PrintFunc();
       });
-}  // namespace frontend
+}
 
 }  // namespace cinn::pybind
