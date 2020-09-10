@@ -12,7 +12,7 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
-model_dir = sys.argv[1]
+model_dir = sys.argv.pop()
 
 
 class TestFrontend(unittest.TestCase):
@@ -52,7 +52,7 @@ class TestLoadPaddleModel(unittest.TestCase):
         self.target.bits = Target.Bit.k64
         self.target.os = Target.OS.Linux
 
-        self.model_dir = "/home/chunwei/project/cinn2/tests/fake_model/model2"
+        self.model_dir = model_dir
 
         self.x_shape = [1, 2]
 
@@ -98,8 +98,6 @@ class TestLoadPaddleModel(unittest.TestCase):
         print('a', self.executor.get_tensor("a").numpy())
         print('fc_0.b_0', self.executor.get_tensor("fc_0__b_0").numpy())
         print('fc_0.w_0', self.executor.get_tensor("fc_0__w_0").numpy())
-        print('var_4', self.executor.get_tensor("var_4").numpy())
-        print('var_8', self.executor.get_tensor("var_8").numpy())
         w = self.executor.get_tensor("fc_0__w_0").numpy()
 
         print('numpy out', np.matmul(x_data, w))
