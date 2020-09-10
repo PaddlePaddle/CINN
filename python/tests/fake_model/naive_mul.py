@@ -27,5 +27,5 @@ loss = exe = fluid.Executor(cpu)
 
 exe.run(fluid.default_startup_program())
 
-fluid.io.save_inference_model("./model2", [a.name], [a1], exe)
+fluid.io.save_inference_model("./naive_mul_model", [a.name], [a1], exe)
 print('res', a1.name)

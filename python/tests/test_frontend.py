@@ -10,36 +10,39 @@ from cinn import lang
 from cinn.common import *
 import numpy as np
 import paddle.fluid as fluid
+import sys
+
+model_dir = sys.argv[1]
 
 
-# class TestFrontend(unittest.TestCase):
-#     def setUp(self):
-#         self.target = Target()
-#         self.target.arch = Target.Arch.X86
-#         self.target.bits = Target.Bit.k64
-#         self.target.os = Target.OS.Linux
+class TestFrontend(unittest.TestCase):
+    def setUp(self):
+        self.target = Target()
+        self.target.arch = Target.Arch.X86
+        self.target.bits = Target.Bit.k64
+        self.target.os = Target.OS.Linux
 
-#     def test_basic(self):
-#         prog = Program()
+    def test_basic(self):
+        prog = Program()
 
-#         a = Variable("a").set_type(Float(32)).set_shape([1, 24, 56, 56])
-#         b = Variable("b").set_type(Float(32)).set_shape([1, 24, 56, 56])
-#         c = prog.add(a, b)
-#         d = prog.relu(c)
-#         e = Variable("e").set_type(Float(32)).set_shape([144, 24, 1, 1])
-#         [f1, f2, f3] = prog.conv2d(d, e, {
-#             "stride": [1, 1],
-#             "dilation": 1,
-#             "padding": [0, 0]
-#         })
-#         g = Variable("g").set_type(Float(32)).set_shape([4, 144])
-#         h = prog.batchnorm(f3, g, {"epsilon": 0.00001})
+        a = Variable("a").set_type(Float(32)).set_shape([1, 24, 56, 56])
+        b = Variable("b").set_type(Float(32)).set_shape([1, 24, 56, 56])
+        c = prog.add(a, b)
+        d = prog.relu(c)
+        e = Variable("e").set_type(Float(32)).set_shape([144, 24, 1, 1])
+        [f1, f2, f3] = prog.conv2d(d, e, {
+            "stride": [1, 1],
+            "dilation": 1,
+            "padding": [0, 0]
+        })
+        g = Variable("g").set_type(Float(32)).set_shape([4, 144])
+        h = prog.batchnorm(f3, g, {"epsilon": 0.00001})
 
-#         self.assertEqual(prog.size(), 4)
-#         # print program
-#         for i in range(prog.size()):
-#             print(prog[i])
-#         prog.print_func(self.target)
+        self.assertEqual(prog.size(), 4)
+        # print program
+        for i in range(prog.size()):
+            print(prog[i])
+        prog.print_func(self.target)
 
 
 class TestLoadPaddleModel(unittest.TestCase):
@@ -67,11 +70,14 @@ class TestLoadPaddleModel(unittest.TestCase):
     def get_paddle_inference_result(self, data):
         exe = fluid.Executor(fluid.CPUPlace())
 
-        [inference_program, feed_target_names, fetch_targets] = fluid.io.load_inference_model(dirname=self.model_dir, executor=exe)
+        [inference_program, feed_target_names,
+         fetch_targets] = fluid.io.load_inference_model(
+             dirname=self.model_dir, executor=exe)
 
-        results = exe.run(inference_program,
-                            feed={feed_target_names[0]: data},
-                                            fetch_list=fetch_targets)
+        results = exe.run(
+            inference_program,
+            feed={feed_target_names[0]: data},
+            fetch_list=fetch_targets)
 
         result = results[0]
         return result
@@ -103,7 +109,6 @@ class TestLoadPaddleModel(unittest.TestCase):
 
         target_result = self.get_paddle_inference_result(x_data)
         print("paddle out", target_result)
-
 
 
 if __name__ == "__main__":
