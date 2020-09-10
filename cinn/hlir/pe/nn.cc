@@ -5,7 +5,6 @@
 
 #include "cinn/common/context.h"
 #include "cinn/hlir/pe/broadcast.h"
-#include "cinn/hlir/pe/nn.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
@@ -16,7 +15,9 @@ namespace hlir {
 namespace pe {
 
 using cinn::lang::Compute;
-using namespace ir;
+using ir::Expr;
+using ir::Tensor;
+using ir::Var;
 
 enum PoolType {
   kAvgPool,
@@ -108,7 +109,7 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
   auto res = Compute(
       input->shape,
       [=](Expr n, Expr c, Expr h, Expr w) {
-        return (((input(n, c, h, w) - weights(Expr(0), c)) / ir::Sqrt(weights(Expr(1), c) + Expr(epsilon))) *
+        return (((input(n, c, h, w) - weights(Expr(0), c)) / Sqrt(weights(Expr(1), c) + Expr(epsilon))) *
                     weights(Expr(2), c) +
                 weights(Expr(3), c));
       },

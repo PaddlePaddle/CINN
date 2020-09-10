@@ -39,7 +39,7 @@ struct Variable : public common::Shared<_Variable_> {
    * @param id The identifier of the variable, if null, a random ID will be assigned.
    */
   explicit Variable(std::string_view id = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
-    get()->id = id.empty() ? common::Context::Global().NewName("var") : id;
+    get()->id = id.empty() ? common::Context::Global().NewName("var") : (std::string(id) + "_var_");
   }
 
   _Variable_* operator->() { return get(); }
@@ -57,7 +57,8 @@ class Placeholder {
    * @param id ID of the fed
    */
   Placeholder(const common::Type& type, const std::vector<int>& shape, std::string_view id = "")
-      : id_(id.empty() ? common::Context::Global().NewName("placeholder") : id), var_{id} {
+      : id_(id.empty() ? common::Context::Global().NewName("placeholder") : (std::string(id) + "_placeholder_")),
+        var_{id} {
     var_->shape = shape;
     var_->type  = type;
   }

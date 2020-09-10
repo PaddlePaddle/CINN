@@ -42,17 +42,17 @@ void InferShapePass(Graph* graph) {
 
       auto out_shape = op_infershape[node->safe_as<Node>()->op()](inputs_shape, node->safe_as<Node>()->attrs);
       auto out_dtype = op_inferdtype[node->safe_as<Node>()->op()](inputs_dtype, node->safe_as<Node>()->attrs);
-      CHECK_EQ(node->outlinks().size(), out_shape.size())
-          << "The output number of node " << node->id() << " is " << node->outlinks().size()
+      CHECK_EQ(node->outlinks_in_order().size(), out_shape.size())
+          << "The output number of node " << node->id() << " is " << node->outlinks_in_order().size()
           << " , which is different with the output shape size " << out_shape.size() << " . And the op type is "
           << node->safe_as<Node>()->op()->name;
-      CHECK_EQ(node->outlinks().size(), out_dtype.size())
-          << "The output number of node " << node->id() << " is " << node->outlinks().size()
+      CHECK_EQ(node->outlinks_in_order().size(), out_dtype.size())
+          << "The output number of node " << node->id() << " is " << node->outlinks_in_order().size()
           << " , which is different with the output dtype size " << out_dtype.size() << " . And the op type is "
           << node->safe_as<Node>()->op()->name;
 
       int counter = 0;
-      for (auto& out_edge : node->outlinks()) {
+      for (auto& out_edge : node->outlinks_in_order()) {
         auto* sink_node = out_edge->sink()->safe_as<NodeData>();
         CHECK(sink_node);
 

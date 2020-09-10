@@ -18,6 +18,11 @@ class TestFrontend(unittest.TestCase):
         self.target.bits = Target.Bit.k64
         self.target.os = Target.OS.Linux
 
+    def paddle_test(self, result):
+        print(
+            "Do nothing now! Import paddle leads to segmentation fault. To be fixed."
+        )
+
     def test_basic(self):
         prog = Program()
 
@@ -31,14 +36,17 @@ class TestFrontend(unittest.TestCase):
             "dilation": 1,
             "padding": [0, 0]
         })
-        g = Variable("g").set_type(Float(32)).set_shape([4, 144])
-        h = prog.batchnorm(f3, g, {"epsilon": 0.00001})
 
-        self.assertEqual(prog.size(), 4)
+        self.assertEqual(prog.size(), 3)
         # print program
         for i in range(prog.size()):
             print(prog[i])
-        prog.print_func(self.target)
+        result = prog.build_with_inputs(self.target, [a, b, e], f3)
+        print("The result list's size is: ")
+        print(len(result))
+        print("The output tensor's length is: ")
+        print(len(result[len(result) - 1]))
+        self.paddle_test(result)
 
 
 if __name__ == "__main__":
