@@ -25,7 +25,7 @@ hlir::framework::Tensor Executor::GetTensor(const std::string& name) {
 
   auto it = var_map_paddle_to_program_.find(name);
   if (it == var_map_paddle_to_program_.end()) {
-    LOG(FATAL) << "No variable";
+    LOG(FATAL) << "No variable called [" << name << "] found in executor";
   }
   return scope_->GetTensor(it->second);
 }

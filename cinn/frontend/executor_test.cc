@@ -6,7 +6,7 @@ DEFINE_string(model_dir, "", "");
 namespace cinn::frontend {
 
 TEST(Executor, basic) {
-  Executor executor({"a"}, {{20, 10}});
+  Executor executor({"a"}, {{1, 2}});
   executor.LoadPaddleModel(FLAGS_model_dir);
   executor.Run();
 }

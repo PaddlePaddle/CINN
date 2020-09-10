@@ -87,14 +87,14 @@ void BindFramework(pybind11::module *m) {
              return array;
            })
       .def("from_numpy", [](hlir::framework::Tensor &self, py::array array) {
-        CHECK(array.dtype().is(py::dtype::of<double>()));
+        CHECK(array.dtype().is(py::dtype::of<float>())) << "currently only support float32 data type as input";
         hlir::framework::shape_t shape;
         std::copy_n(array.shape(), array.ndim(), std::back_inserter(shape));
         self->Resize(Shape(shape));
         // TODO(Superjomn) Support other target.
         auto *data = self->mutable_data<float>(common::DefaultHostTarget());
         for (int i = 0; i < self->shape().numel(); i++) {
-          data[i] = reinterpret_cast<const double *>(array.data())[i];
+          data[i] = reinterpret_cast<const float *>(array.data())[i];
         }
       });
 }

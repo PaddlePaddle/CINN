@@ -4,14 +4,16 @@ import numpy as np
 import paddle.fluid as fluid
 from paddle.fluid.backward import append_backward
 
-a = fluid.layers.data(name="a", shape=[-1, 10], dtype='float32')
-label = fluid.layers.data(name="label", shape=[10], dtype='float32')
+size = 2
+
+a = fluid.layers.data(name="a", shape=[-1, size], dtype='float32')
+label = fluid.layers.data(name="label", shape=[size], dtype='float32')
 
 a1 = fluid.layers.fc(
     input=a,
-    size=10,
-    act="relu",
-    bias_attr=fluid.ParamAttr(name="fc_bias"),
+    size=size,
+    # act="relu",
+    # bias_attr=fluid.ParamAttr(name="fc_bias"),
     num_flatten_dims=1)
 
 cost = fluid.layers.square_error_cost(a1, label)

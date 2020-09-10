@@ -19,7 +19,8 @@ void PaddleModelToProgram::AddOpMapper_feed() {
 
 void PaddleModelToProgram::AddOpMapper_fetch() {
   op_mappers_["fetch"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    // do nothing
+    auto output_name = op_desc.Input("X").front();
+    LOG(INFO) << "detect model output: [" << output_name << "]";
   };
 }
 
