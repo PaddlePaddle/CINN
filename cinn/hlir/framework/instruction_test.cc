@@ -48,8 +48,8 @@ TEST(Instruction, basic) {
 
   for (auto& name : std::vector<std::string>({"x", "y", "z"})) {
     auto tensor = get_tensor(name);
-    tensor.Resize(Shape{{M, N}});
-    auto* data = tensor.mutable_data<float>(common::DefaultHostTarget());
+    tensor->Resize(Shape{{M, N}});
+    auto* data = tensor->mutable_data<float>(common::DefaultHostTarget());
     for (int i = 0; i < M * N; i++) {
       data[i] = (rand() * 1.f) / RAND_MAX;  // NOLINT
     }
@@ -66,9 +66,9 @@ TEST(Instruction, basic) {
 
   // check result
   {
-    auto xd = get_tensor("x").data<float>();
-    auto yd = get_tensor("y").data<float>();
-    auto zd = get_tensor("z").data<float>();
+    auto xd = get_tensor("x")->data<float>();
+    auto yd = get_tensor("y")->data<float>();
+    auto zd = get_tensor("z")->data<float>();
 
     for (int i = 0; i < M * N; i++) {
       LOG_FIRST_N(INFO, 3) << "data: " << xd[i] << " + " << yd[i] << " = " << zd[i];

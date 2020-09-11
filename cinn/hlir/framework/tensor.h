@@ -34,9 +34,9 @@ struct Shape {
   std::vector<dim_t> data_;
 };
 
-class Tensor final {
+class _Tensor_ : public Object {
  public:
-  Tensor() : buffer_(std::make_shared<Buffer>()) {}
+  _Tensor_() : buffer_(std::make_shared<Buffer>()) {}
 
   const Shape& shape() const { return shape_; }
 
@@ -64,11 +64,21 @@ class Tensor final {
 
   cinn_buffer_t* buffer() { return buffer_->data(); }
 
+  const char* type_info() const override { return __type_info__; }
+
  private:
   common::Type type_;
   // A shared ptr to make it easier to share buffer between tensors.
   std::shared_ptr<Buffer> buffer_;
   Shape shape_;
+
+  static constexpr char* __type_info__ = "_frontend_tensor_";
+};
+
+class Tensor : public Shared<_Tensor_> {
+ public:
+  Tensor() : Shared(new _Tensor_) {}
+  explicit Tensor(_Tensor_* x) : Shared(x) {}
 };
 
 }  // namespace framework

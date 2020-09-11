@@ -14,11 +14,11 @@ namespace framework {
 
 using Variable = std::variant<Tensor>;
 
-struct Tensor;
+struct _Tensor_;
 
-class Scope : std::enable_shared_from_this<Scope> {
+class Scope {
  public:
-  Scope() = default;
+  static std::shared_ptr<Scope> Create() { return std::make_shared<Scope>(); }
 
   //! Get or create a variable.
   template <typename T>
@@ -27,7 +27,12 @@ class Scope : std::enable_shared_from_this<Scope> {
   //! Find a variable, get null if not exists.
   Variable* FindVar(const std::string& name) const;
 
-  Tensor* GetTensor(const std::string& name) const;
+  Tensor GetTensor(const std::string& name) const;
+
+  //! Get variable names.
+  std::vector<std::string_view> var_names() const;
+
+  Scope() = default;
 
  private:
   std::unordered_map<std::string, std::unique_ptr<Variable>> data_;

@@ -64,6 +64,11 @@ function cmake_ {
     cmake ..
 }
 
+function prepare_model {
+    cd $build_dir/thirds
+    python $workspace/python/tests/fake_model/naive_mul.py
+}
+
 function build {
     cd $build_dir
 
@@ -83,7 +88,7 @@ function build {
 
 function run_test {
     cd $build_dir
-    ctest -V
+    ctest --parallel 10 -V
 }
 
 function CI {
@@ -93,6 +98,7 @@ function CI {
     prepare_llvm
     cmake_
     build
+    prepare_model
     run_test
 }
 

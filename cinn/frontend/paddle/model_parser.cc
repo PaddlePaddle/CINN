@@ -27,7 +27,7 @@ int SizeOfType(framework_proto::VarType::Type type) {
   return -1;
 }
 
-void TensorFromStream(std::istream &is, hlir::framework::Tensor *tensor) {
+void TensorFromStream(std::istream &is, hlir::framework::_Tensor_ *tensor) {
   using Type = framework_proto::VarType::Type;
   uint32_t version;
   is.read(reinterpret_cast<char *>(&version), sizeof(version));
@@ -91,7 +91,7 @@ void LoadLoDTensor(std::istream &is, hlir::framework::Variable *var) {
     // lod[i] = tmp;
   }
 
-  TensorFromStream(is, &tensor);
+  TensorFromStream(is, tensor.operator->());
 }
 
 void ReadBinaryFile(const std::string &filename, std::string *contents) {

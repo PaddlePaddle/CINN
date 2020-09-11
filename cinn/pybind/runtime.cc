@@ -1,3 +1,4 @@
+#include <glog/logging.h>
 #include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
@@ -59,7 +60,7 @@ py::array BufferHostMemoryToNumpy(cinn_buffer_t &buffer) {  // NOLINT
   } else if (buffer.type == cinn_float64_t()) {
     dt = py::dtype::of<double>();
   } else {
-    // unsupport
+    LOG(FATAL) << "Not supported type found";
   }
 
   py::array::ShapeContainer shape(buffer.dims, buffer.dims + buffer.dimensions);

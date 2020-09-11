@@ -280,12 +280,13 @@ struct CorrectComputeAtRelatedIndiceMutator : public ir::IRMutator<> {
     for (Expr* forloop : forloop_stack) {
       auto* for_n      = forloop->As<ir::For>();
       auto* poly_for_n = forloop->As<ir::PolyFor>();
-      if (for_n)
+      if (for_n) {
         levels.push_back(for_n->loop_var);
-      else if (poly_for_n)
+      } else if (poly_for_n) {
         levels.push_back(poly_for_n->iterator);
-      else
+      } else {
         CINN_NOT_IMPLEMENTED
+      }
     }
 
     for (auto& compute_at_info : compute_at_infos) {

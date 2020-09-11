@@ -8,7 +8,9 @@
   TypeName(const TypeName&) = delete;           \
   void operator=(const TypeName&) = delete
 
+#ifndef CINN_NOT_IMPLEMENTED
 #define CINN_NOT_IMPLEMENTED LOG(FATAL) << "Not Implemented";
+#endif
 
 #define CINN_RESULT_SHOULD_USE __attribute__((warn_unused_result))
 
