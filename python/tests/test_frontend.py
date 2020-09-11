@@ -54,7 +54,7 @@ class TestLoadPaddleModel(unittest.TestCase):
 
         self.model_dir = model_dir
 
-        self.x_shape = [1, 2]
+        self.x_shape = [4, 30]
 
     def get_paddle_inference_result(self, data):
         exe = fluid.Executor(fluid.CPUPlace())
@@ -72,30 +72,22 @@ class TestLoadPaddleModel(unittest.TestCase):
         return result
 
     def test_model(self):
-        x_data = np.ones(self.x_shape, dtype="float32")
+        x_data = np.random.random(self.x_shape).astype("float32")
         self.executor = Executor(["a"], [self.x_shape])
         self.executor.load_paddle_model(self.model_dir, False)
         a_t = self.executor.get_tensor("a")
         a_t.from_numpy(x_data)
 
-        out = self.executor.get_tensor("fc_0.tmp_1")
+        out = self.executor.get_tensor("fc_0.tmp_2")
         out.from_numpy(np.zeros(out.shape(), dtype='float32'))
-        print('out.shape', out.shape())
 
         self.executor.run()
 
-        print('a', self.executor.get_tensor("a").numpy())
-        print('fc_0.b_0', self.executor.get_tensor("fc_0__b_0").numpy())
-        print('fc_0.w_0', self.executor.get_tensor("fc_0__w_0").numpy())
-        w = self.executor.get_tensor("fc_0__w_0").numpy()
-
-        print('numpy out', np.matmul(x_data, w))
-
-        # out = self.executor.get_tensor("save_infer_model/scale_0.tmp_0")
-        print("out", out.numpy())
-
+        out = out.numpy()
         target_result = self.get_paddle_inference_result(x_data)
-        print("paddle out", target_result)
+
+        print("out", out)
+        self.assertTrue(np.allclose(out, target_result))
 
 
 if __name__ == "__main__":

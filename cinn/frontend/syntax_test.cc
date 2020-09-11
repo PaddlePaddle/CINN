@@ -146,7 +146,7 @@ TEST(load_paddle_model, fc_execute) {
 
   auto [program, var_map, var_map_paddle_to_program] =
       LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
-  var_map["a"]->shape = {1, 2};
+  var_map["a"]->shape = {1, 30};
   program->SetInputs({var_map["a"]});
   program->Validate();
 
