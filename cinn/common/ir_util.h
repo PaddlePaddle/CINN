@@ -97,13 +97,13 @@ Expr make_const(Type t, T v) {
 }
 
 template <typename FuncOp>
-Expr FoldExpr(FuncOp funcOp, const std::vector<Expr> &values) {
+Expr FoldExpr(FuncOp func_op, const std::vector<Expr> &values) {
   Expr init_value;
   for (const Expr &val : values) {
     if (!init_value.defined()) {
       init_value = val;
     } else {
-      init_value = funcOp(val, init_value);
+      init_value = func_op(val, init_value);
     }
   }
   return init_value;

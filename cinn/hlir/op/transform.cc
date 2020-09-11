@@ -100,7 +100,7 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   output_shape.insert(output_shape.begin(), shape1_new.begin(), shape1_new.begin() + x_num_col_dims);
   output_shape.insert(output_shape.end(), shape2_new.begin() + y_num_col_dims, shape2_new.end());
 
-  if (output_shape.empty()) return {{1}};
+  CHECK(!output_shape.empty()) << "infer_shape for mul turns out to be empty. Please check\n";
   std::vector<std::vector<int>> res{output_shape};
   return res;
 }

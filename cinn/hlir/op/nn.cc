@@ -285,9 +285,10 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
         LOG(ERROR) << "unsupported attr: " << iter.first << std::endl;
       }
     }
-    CHECK(!kernel_size.empty());
-    CHECK(!stride_size.empty());
-    CHECK(!padding_size.empty());
+    CHECK(!kernel_size.empty()) << "kernel_size for pool1d is empty. Please check.\n";
+    CHECK(!stride_size.empty()) << "stride_size for pool1d is empty. Please check.\n";
+    CHECK(!padding_size.empty()) << "padding_size for pool1d is empty. Please check.\n";
+
     auto out = pe::Pool1d(A.as_tensor_ref(),
                           kernel_size,
                           stride_size,
@@ -347,9 +348,9 @@ std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<
       data_format = std::get<std::string>(iter.second);
     }
   }
-  CHECK_EQ(kernel_size.size(), 1U);
-  CHECK_EQ(stride_size.size(), 1U);
-  CHECK_EQ(padding_size.size(), 2U);
+  CHECK_EQ(kernel_size.size(), 1U) << "kernel size for pool1d should be 1.\n";
+  CHECK_EQ(stride_size.size(), 1U) << "stride_size size for pool1d should be 1.\n";
+  CHECK_EQ(padding_size.size(), 2U) << "padding_size size for pool1d should be 2.\n";
 
   std::vector<int> output_shape0 = inputs_shape[0];
   std::vector<int> output_shape1 = inputs_shape[0];
@@ -416,9 +417,10 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
         LOG(ERROR) << "unsupported attr: " << iter.first << std::endl;
       }
     }
-    CHECK(!kernel_size.empty());
-    CHECK(!stride_size.empty());
-    CHECK(!padding_size.empty());
+    CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
+    CHECK(!stride_size.empty()) << "stride_size for pool2d is empty. Please check.\n";
+    CHECK(!padding_size.empty()) << "padding_size for pool2d is empty. Please check.\n";
+
     auto out = pe::Pool2d(A.as_tensor_ref(),
                           kernel_size,
                           stride_size,
@@ -478,12 +480,12 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
       data_format = std::get<std::string>(iter.second);
     }
   }
-  CHECK_EQ(kernel_size.size(), 2U);
-  CHECK_EQ(stride_size.size(), 2U);
+  CHECK_EQ(kernel_size.size(), 2U) << "kernel size for pool1d should be 2.\n";
+  CHECK_EQ(stride_size.size(), 2U) << "stride_size size for pool1d should be 2.\n";
 
   std::vector<int> output_shape0 = inputs_shape[0];
   std::vector<int> output_shape1 = inputs_shape[0];
-  CHECK_EQ(output_shape0.size(), 4U);
+  CHECK_EQ(inputs_shape[0].size(), 4U) << "input_shape size for pool2d should be 4.\n";
   int height_axis = -1;
   int width_axis  = -1;
   if (data_format == "NCHW") {
@@ -558,9 +560,10 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
         LOG(ERROR) << "unsupported attr: " << iter.first << std::endl;
       }
     }
-    CHECK(!kernel_size.empty());
-    CHECK(!stride_size.empty());
-    CHECK(!padding_size.empty());
+    CHECK(!kernel_size.empty()) << "kernel_size for pool3d is empty. Please check.\n";
+    CHECK(!stride_size.empty()) << "stride_size for pool3d is empty. Please check.\n";
+    CHECK(!padding_size.empty()) << "padding_size for pool3d is empty. Please check.\n";
+
     auto out = pe::Pool3d(A.as_tensor_ref(),
                           kernel_size,
                           stride_size,
@@ -621,12 +624,13 @@ std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<
       data_format = std::get<std::string>(iter.second);
     }
   }
-  CHECK_EQ(kernel_size.size(), 3U);
-  CHECK_EQ(stride_size.size(), 3U);
+
+  CHECK_EQ(kernel_size.size(), 3U) << "kernel_size for pool3d should be 3.\n";
+  CHECK_EQ(stride_size.size(), 3U) << "stride_size for pool3d should be 3.\n";
 
   std::vector<int> output_shape0 = inputs_shape[0];
   std::vector<int> output_shape1 = inputs_shape[0];
-  CHECK_EQ(output_shape0.size(), 6U);
+  CHECK_EQ(inputs_shape[0].size(), 6U) << "input_shape size for pool3d should be 6.\n";
   int depth_axis  = -1;
   int height_axis = -1;
   int width_axis  = -1;
