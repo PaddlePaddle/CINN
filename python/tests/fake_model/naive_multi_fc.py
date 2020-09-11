@@ -14,19 +14,19 @@ a = fluid.layers.data(name="a", shape=[-1, size], dtype='float32')
 label = fluid.layers.data(name="label", shape=[size], dtype='float32')
 
 fc_out = fluid.layers.fc(
-        input=a,
+    input=a,
+    size=size,
+    act="relu",
+    bias_attr=fluid.ParamAttr(name="fc_bias"),
+    num_flatten_dims=1)
+
+for i in range(num_layers - 1):
+    fc_out = fluid.layers.fc(
+        input=fc_out,
         size=size,
         act="relu",
         bias_attr=fluid.ParamAttr(name="fc_bias"),
         num_flatten_dims=1)
-
-for i in range(num_layers-1):
-    fc_out = fluid.layers.fc(
-            input=fc_out,
-            size=size,
-            act="relu",
-            bias_attr=fluid.ParamAttr(name="fc_bias"),
-            num_flatten_dims=1)
 
 cost = fluid.layers.square_error_cost(fc_out, label)
 avg_cost = fluid.layers.mean(cost)
