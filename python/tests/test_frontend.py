@@ -12,7 +12,9 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
-model_dir = sys.argv.pop()
+assert len(sys.argv) == 1 + 2  # model count
+multi_fc_model_dir = sys.argv.pop()
+naive_model_dir = sys.argv.pop()
 
 
 class TestFrontend(unittest.TestCase):
@@ -52,42 +54,101 @@ class TestLoadPaddleModel(unittest.TestCase):
         self.target.bits = Target.Bit.k64
         self.target.os = Target.OS.Linux
 
-        self.model_dir = model_dir
+    # def get_paddle_inference_result(self, model_dir, data):
+    #     exe = fluid.Executor(fluid.CPUPlace())
 
-        self.x_shape = [4, 30]
+    #     [inference_program, feed_target_names,
+    #      fetch_targets] = fluid.io.load_inference_model(
+    #          dirname=model_dir, executor=exe)
 
-    def get_paddle_inference_result(self, data):
-        exe = fluid.Executor(fluid.CPUPlace())
+    #     results = exe.run(
+    #         inference_program,
+    #         feed={feed_target_names[0]: data},
+    #         fetch_list=fetch_targets)
 
-        [inference_program, feed_target_names,
-         fetch_targets] = fluid.io.load_inference_model(
-             dirname=self.model_dir, executor=exe)
+    #     return results[0]
 
-        results = exe.run(
-            inference_program,
-            feed={feed_target_names[0]: data},
-            fetch_list=fetch_targets)
+    def get_paddle_inference_result(self, model_dir, data):
+        config = fluid.core.AnalysisConfig(model_dir)
+        config.disable_gpu()
+        config.switch_ir_optim(False)
+        self.paddle_predictor = fluid.core.create_paddle_predictor(config)
+        data = fluid.core.PaddleTensor(data)
+        results = self.paddle_predictor.run([data])
+        fc0_out = self.paddle_predictor.get_output_tensor(
+            'fc_0.tmp_2').copy_to_cpu()
 
-        result = results[0]
-        return result
+        fc0_out = self.paddle_predictor.get_output_tensor(
+            'fc_1.tmp_2').copy_to_cpu()
 
-    def test_model(self):
-        x_data = np.random.random(self.x_shape).astype("float32")
-        self.executor = Executor(["a"], [self.x_shape])
-        self.executor.load_paddle_model(self.model_dir, False)
+        return results[0].as_ndarray()
+
+    def test_naive_mul_model(self):
+        model_dir = naive_model_dir
+        x_shape = [4, 30]
+        x_data = np.random.random(x_shape).astype("float32")
+        self.executor = Executor(["a"], [x_shape])
+        self.executor.load_paddle_model(naive_model_dir, False)
         a_t = self.executor.get_tensor("a")
         a_t.from_numpy(x_data)
 
         out = self.executor.get_tensor("fc_0.tmp_2")
-        out.from_numpy(np.zeros(out.shape(), dtype='float32'))
 
         self.executor.run()
 
         out = out.numpy()
-        target_result = self.get_paddle_inference_result(x_data)
+        target_result = self.get_paddle_inference_result(model_dir, x_data)
 
-        print("out", out)
         self.assertTrue(np.allclose(out, target_result, atol=1e-4))
+
+    def get_paddle_out(self, var_name):
+        return self.paddle_predictor.get_output_tensor(var_name).copy_to_cpu()
+
+    def test_naive_multi_fc_model(self):
+        def reset_zero(var_name):
+            out = self.executor.get_tensor(var_name)
+            out.from_numpy(np.zeros(out.shape(), dtype='float32'))
+
+        model_dir = multi_fc_model_dir
+        x_shape = [1, 6]
+        x_data = np.random.random(x_shape).astype("float32")
+        self.executor = Executor(["a"], [x_shape])
+        self.executor.load_paddle_model(model_dir, False)
+        a_t = self.executor.get_tensor("a")
+        a_t.from_numpy(x_data)
+
+        # The reduce PE not clear the buffer before accumulation, so currently we need to set zero manully.
+        # TODO(Superjomn) fix this.
+        reset_zero("var_27")
+        reset_zero("var_37")
+        reset_zero("var_45")
+
+        self.executor.run()
+
+        target_result = self.get_paddle_inference_result(model_dir, x_data)
+
+        out = self.executor.get_tensor("fc_1.tmp_2")
+        out = out.numpy()
+
+        def compare_output(cinn_var_name, paddle_var_name):
+            cinn_out = self.executor.get_tensor(cinn_var_name).numpy()
+            paddle_out = self.get_paddle_out(paddle_var_name)
+            if not np.allclose(cinn_out, paddle_out, atol=1e-6):
+                print("cinn", cinn_var_name, "\n", cinn_out)
+                print("paddle", paddle_var_name, "\n", paddle_out)
+            self.assertTrue(np.allclose(cinn_out, paddle_out, atol=1e-6))
+
+        compare_output("fc_0__w_0", "fc_0.w_0")
+        compare_output("fc_1__w_0", "fc_1.w_0")
+        compare_output("fc_2__w_0", "fc_2.w_0")
+        compare_output("fc_bias", "fc_bias")
+
+        compare_output("var_37", "fc_1.tmp_0")
+
+        compare_output("var_33", "fc_0.tmp_2")
+        compare_output("var_41", "fc_1.tmp_2")
+        compare_output("var_49", "fc_2.tmp_2")
+        compare_output("fc_2.tmp_2", "fc_2.tmp_2")
 
 
 if __name__ == "__main__":

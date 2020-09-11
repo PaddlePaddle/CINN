@@ -4,6 +4,10 @@
 #include <tuple>
 #include <utility>
 
+#include <iomanip>
+#include <sstream>
+#include <type_traits>
+#include <variant>
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/frontend/paddle_model_to_program.h"
 #include "cinn/hlir/framework/node.h"
@@ -73,15 +77,7 @@ std::ostream& operator<<(std::ostream& os, const Variable& x) {
 }
 
 std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
-  std::vector<std::string> outs, ins;
-  for (auto& x : instr->inputs) {
-    ins.push_back(utils::GetStreamCnt(x));
-  }
-  for (auto& x : instr->outputs) {
-    outs.push_back(utils::GetStreamCnt(x));
-  }
-
-  os << utils::Join(outs, ", ") << " = " << instr->op_type << "(" << utils::Join(ins, ", ") << ")";
+  os << instr->debug_string();
   return os;
 }
 
@@ -149,6 +145,56 @@ Variable Program::mul(
   instr.SetAttr("y_num_col_dims", y_num_col_dims);
   AppendInstruction(instr);
   return instr.GetOutput(0);
+}
+
+std::string _Instruction_::debug_string() const {
+  struct Visit {
+    std::stringstream& s_;
+    explicit Visit(std::stringstream& s) : s_(s) {}
+    void operator()(int x) { s_ << x; }
+    void operator()(float x) { s_ << x; }
+    void operator()(bool x) { s_ << (x ? "true" : "false"); }
+    void operator()(const std::string& x) { s_ << x; }
+    void operator()(const std::vector<int>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
+    void operator()(const std::vector<float>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
+    void operator()(const std::vector<bool>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
+    void operator()(const std::vector<std::string>& x) { s_ << "[" + utils::Join(x, ",") + "]"; }
+  };
+
+  std::stringstream ss;
+  std::vector<std::string> input_names, output_names;
+  std::transform(
+      inputs.begin(), inputs.end(), std::back_inserter(input_names), [](const Variable& x) { return x->id; });
+  std::transform(
+      outputs.begin(), outputs.end(), std::back_inserter(output_names), [](const Variable& x) { return x->id; });
+
+  ss << utils::Join(output_names, ", ");
+  ss << " = ";
+  ss << op_type;
+  ss << "(";
+  ss << utils::Join(input_names, ", ");
+  if (!attrs.empty()) ss << ", ";
+
+  std::vector<std::string> attr_strs;
+  for (auto& attr : attrs) {
+    std::stringstream iss;
+    iss << attr.first << "=";
+    std::visit(Visit{iss}, attr.second);
+    attr_strs.push_back(iss.str());
+  }
+  ss << utils::Join(attr_strs, ", ");
+  ss << ")";
+
+  return ss.str();
+}
+
+std::ostream& operator<<(std::ostream& os, const Program& program) {
+  os << "Program {\n";
+  for (int i = 0; i < program.size(); i++) {
+    os << program[i] << "\n";
+  }
+  os << "}\n";
+  return os;
 }
 
 }  // namespace frontend

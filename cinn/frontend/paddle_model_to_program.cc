@@ -69,9 +69,8 @@ void PaddleModelToProgram::AddOpMapper_relu() {
   op_mappers_["relu"] = [&](const paddle::cpp::OpDesc& op_desc) {
     auto x_name   = op_desc.Input("X").front();
     auto out_name = op_desc.Output("Out").front();
-
-    auto x   = GetVar(TransValidVarName(x_name));
-    auto out = program_->relu(x);
+    auto x        = GetVar(TransValidVarName(x_name));
+    auto out      = program_->relu(x);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -83,8 +82,7 @@ void PaddleModelToProgram::AddOpMapper_elementwise_add() {
     auto x_name   = op_desc.Input("X").front();
     auto y_name   = op_desc.Input("Y").front();
     auto out_name = op_desc.Output("Out").front();
-
-    int axis = op_desc.GetAttr<int>("axis");
+    int axis      = op_desc.GetAttr<int>("axis");
 
     auto x   = GetVar(TransValidVarName(x_name));
     auto y   = GetVar(TransValidVarName(y_name));

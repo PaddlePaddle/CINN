@@ -132,10 +132,10 @@ TEST(syntax, program_execute_fc) {
   auto wt        = scope->GetTensor(std::string(w.id()));
   auto bt        = scope->GetTensor(std::string(b.id()));
   auto fake_outt = scope->GetTensor(std::string(mul_out->id));
+  auto add_outt  = scope->GetTensor(std::string(add_out->id));
   SetRandData(at, target);
   SetRandData(wt, target);
   SetRandData(bt, target);
-  SetRandData(fake_outt, target);
 
   runtime_program->Execute();
 }
@@ -149,6 +149,8 @@ TEST(load_paddle_model, fc_execute) {
   var_map["a"]->shape = {1, 30};
   program->SetInputs({var_map["a"]});
   program->Validate();
+
+  LOG(INFO) << "program:\n" << *program;
 
   auto graph = std::make_shared<hlir::framework::Graph>(*program);
 

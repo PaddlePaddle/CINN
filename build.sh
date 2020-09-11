@@ -67,6 +67,7 @@ function cmake_ {
 function prepare_model {
     cd $build_dir/thirds
     python $workspace/python/tests/fake_model/naive_mul.py
+    python $workspace/python/tests/fake_model/naive_multi_fc.py
 }
 
 function build {

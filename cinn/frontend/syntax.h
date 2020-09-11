@@ -4,7 +4,9 @@
  */
 #include <glog/logging.h>
 
+#include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -94,6 +96,8 @@ struct _Instruction_ : public common::Object {
   Program* parent_program{};
 
   const char* type_info() const override { return __type_info__; }
+
+  std::string debug_string() const;
 
   static constexpr char* __type_info__ = "cinn_frontend_instruction";
 };
@@ -249,6 +253,7 @@ LoadPaddleProgram(const std::string& model_dir, hlir::framework::Scope* scope, b
 
 std::ostream& operator<<(std::ostream& os, const Variable& x);
 std::ostream& operator<<(std::ostream& os, const Instruction& instr);
+std::ostream& operator<<(std::ostream& os, const Program& program);
 
 }  // namespace frontend
 }  // namespace cinn
