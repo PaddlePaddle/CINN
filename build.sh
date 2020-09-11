@@ -88,7 +88,7 @@ function build {
 
 function run_test {
     cd $build_dir
-    ctest
+    ctest --parallel 10
 }
 
 function CI {
