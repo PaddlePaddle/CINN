@@ -72,7 +72,6 @@ void BindFrontend(pybind11::module *m) {
       .def("scale", &Program::scale)
       .def("conv2d", &Program::conv2d)
       .def("batchnorm", &Program::batchnorm)
-      .def("scale", &Program::scale)
       .def("softmax", &Program::softmax)
       .def("build_with_inputs",
            [](Program &self,
@@ -105,6 +104,15 @@ void BindFrontend(pybind11::module *m) {
              result_data.push_back(temp);
              return result_data;
            });
+
+  py::class_<frontend::Executor>(*m, "Executor")
+      .def(py::init<const std::vector<std::string> &, const std::vector<hlir::framework::shape_t> &>(),
+           py::arg("input_names"),
+           py::arg("input_shapes"))  //
+      .def("load_paddle_model", &frontend::Executor::LoadPaddleModel)
+      .def("run", &frontend::Executor::Run)
+      .def("get_tensor", &frontend::Executor::GetTensor)
+      .def("scope", &frontend::Executor::scope);
 }  // namespace frontend
 
 }  // namespace cinn::pybind

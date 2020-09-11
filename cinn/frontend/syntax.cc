@@ -154,13 +154,6 @@ Variable Program::relu6(const Variable& a) {
   return instr.GetOutput(0);
 }
 
-Variable Program::scale(const Variable& a, float ratio) {
-  Instruction instr("scale", {a});
-  instr.SetAttr("scale", ratio);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
 Variable Program::mul(
     const Variable& a, const Variable& b, bool trans_a, bool trans_b, int x_num_col_dims, int y_num_col_dims) {
   Instruction instr("mul", {a, b});

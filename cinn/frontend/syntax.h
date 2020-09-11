@@ -4,7 +4,9 @@
  */
 #include <glog/logging.h>
 
+#include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -191,8 +193,6 @@ struct Program {
    */
   Variable relu(const Variable& a);
   Variable relu6(const Variable& a);
-
-  Variable scale(const Variable& a, float ratio);
 
   /**
    * The convolution2D layer calculates the output based on the input, filter

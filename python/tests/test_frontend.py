@@ -25,8 +25,8 @@ class TestFrontend(unittest.TestCase):
         self.target.os = Target.OS.Linux
 
     def paddle_verify(self, result):
-        a = fluid.layers.data(name='a', shape=[24, 56, 56], dtype='float32')
-        b = fluid.layers.data(name='b', shape=[24, 56, 56], dtype='float32')
+        a = fluid.layers.data(name='A', shape=[24, 56, 56], dtype='float32')
+        b = fluid.layers.data(name='B', shape=[24, 56, 56], dtype='float32')
         c = fluid.layers.elementwise_add(a, b)
         d = fluid.layers.relu(c)
         e = fluid.initializer.NumpyArrayInitializer(
@@ -47,8 +47,9 @@ class TestFrontend(unittest.TestCase):
 
         x = np.array(result[0]).reshape((1, 24, 56, 56)).astype("float32")
         y = np.array(result[1]).reshape((1, 24, 56, 56)).astype("float32")
-        output = exe.run(feed={"a": x, "b": y}, fetch_list=[res])
+        output = exe.run(feed={"A": x, "B": y}, fetch_list=[res])
         output = np.array(output).reshape(-1)
+        print("result in paddle_verify: \n")
         for i in range(0, 10):
             print(result[len(result) - 1][i], " vs: ", output[i])
         self.assertTrue(
@@ -107,9 +108,9 @@ class TestLoadPaddleModel(unittest.TestCase):
 
     def test_model(self):
         x_data = np.random.random(self.x_shape).astype("float32")
-        self.executor = Executor(["a"], [self.x_shape])
+        self.executor = Executor(["A"], [self.x_shape])
         self.executor.load_paddle_model(self.model_dir, False)
-        a_t = self.executor.get_tensor("a")
+        a_t = self.executor.get_tensor("A")
         a_t.from_numpy(x_data)
 
         out = self.executor.get_tensor("fc_0.tmp_2")
@@ -120,7 +121,11 @@ class TestLoadPaddleModel(unittest.TestCase):
         out = out.numpy()
         target_result = self.get_paddle_inference_result(x_data)
 
-        print("out", out)
+        print("result in test_model: \n")
+        out = out.reshape(-1)
+        target_result = target_result.reshape(-1)
+        for i in range(0, 120):
+            print(out[i], " vs: ", target_result[i])
         self.assertTrue(np.allclose(out, target_result, atol=1e-4))
 
 
