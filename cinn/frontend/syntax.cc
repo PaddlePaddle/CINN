@@ -58,8 +58,7 @@ Variable Program::batchnorm(const Variable& a,
 
 Variable Program::scale(const Variable& a,
                         const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store) {
-  Instruction instr("scale");
-  instr.SetInputs({a});
+  Instruction instr("scale", {a});
   for (auto& iter : attr_store) {
     instr.SetAttr(iter.first, iter.second);
   }

@@ -88,6 +88,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     stages->InsertLazily(temp.as_tensor_ref());
     inputs.push_back(temp.as_tensor_ref());
   }
+
   auto func = Lower(GenOpFuncName(node), stages, inputs);
   LOG(INFO) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
   return func;
