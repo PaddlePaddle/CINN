@@ -88,7 +88,7 @@ function build {
 
 function run_test {
     cd $build_dir
-    ctest -V
+    ctest
 }
 
 function CI {
