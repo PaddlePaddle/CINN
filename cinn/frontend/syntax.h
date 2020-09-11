@@ -39,7 +39,11 @@ struct Variable : public common::Shared<_Variable_> {
    * @param id The identifier of the variable, if null, a random ID will be assigned.
    */
   explicit Variable(std::string_view id = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
-    get()->id = id.empty() ? common::Context::Global().NewName("var") : (std::string(id) + "_var_");
+    CHECK(id.size() != 1 || (id < "a" || id > "z"))
+        << "The Variable's name is : [" << id
+        << "]. And any name of one small letter such as \"a\", \"i\", \"j\", etc., is not permitted."
+        << " Please change it to capital letter or rename it with a longer string.";
+    get()->id = id.empty() ? common::Context::Global().NewName("var") : id;
   }
 
   _Variable_* operator->() { return get(); }
@@ -56,9 +60,13 @@ class Placeholder {
    * @param shape Shape of the fed
    * @param id ID of the fed
    */
-  Placeholder(const common::Type& type, const std::vector<int>& shape, std::string_view id = "")
-      : id_(id.empty() ? common::Context::Global().NewName("placeholder") : (std::string(id) + "_placeholder_")),
-        var_{id} {
+  Placeholder(const common::Type& type, const std::vector<int>& shape, std::string_view id = "") {
+    CHECK(id.size() != 1 || (id < "a" || id > "z"))
+        << "The Variable's name is : [" << id
+        << "]. And any name of one small letter such as \"a\", \"i\", \"j\", etc., is not permitted."
+        << " Please change it to capital letter or rename it with a longer string.";
+    id_         = id.empty() ? common::Context::Global().NewName("placeholder") : id;
+    var_        = Variable(id_);
     var_->shape = shape;
     var_->type  = type;
   }
@@ -190,9 +198,9 @@ struct Program {
    * @param attr_store The params like padding, stride, dilation, etc.
    * @return The result.
    */
-  std::vector<Variable> conv2d(const Variable& a,
-                               const Variable& b,
-                               const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
+  Variable conv2d(const Variable& a,
+                  const Variable& b,
+                  const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
 
   /**
    * The batchnorm layer can be used as a normalizer function
@@ -207,6 +215,11 @@ struct Program {
                      const Variable& b,
                      const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
 
+  Variable scale(const Variable& a,
+                 const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
+
+  Variable softmax(const Variable& a,
+                   const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
   /**
    * Get \p i-th instruction.
    */

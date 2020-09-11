@@ -37,8 +37,8 @@ void SetRandData(Tensor* tensor, Target target) {
 TEST(Operator, GetAttrs) {
   frontend::Program prog;
   // TODO(Superjomn) Replace with Placeholder here.
-  frontend::Variable a("a");
-  frontend::Variable b("b");
+  frontend::Variable a("A");
+  frontend::Variable b("B");
   Type t   = Float(32);
   a->shape = {1, 3, 224, 224};
   b->shape = {1, 3, 224, 224};
@@ -47,7 +47,7 @@ TEST(Operator, GetAttrs) {
   auto c   = prog.add(a, b);
   auto d   = prog.relu(c);
 
-  frontend::Variable e("e");
+  frontend::Variable e("E");
   e->shape = {32, 3, 3, 3};
   e->type  = t;
 
@@ -63,12 +63,12 @@ TEST(Operator, GetAttrs) {
   attr2["dilation"] = static_cast<int>(1);
   attr2["epsilon"]  = 0.00001f;
 
-  frontend::Variable g("g");
+  frontend::Variable g("G");
   g->shape = {4, 32};
   g->type  = t;
 
   auto f = prog.conv2d(d, e, attr2);
-  auto h = prog.batchnorm(f[2], g, attr1);
+  auto h = prog.batchnorm(f, g, attr1);
   ASSERT_EQ(prog.size(), 4UL);
 
   auto graph = std::make_shared<Graph>(prog);

@@ -67,6 +67,8 @@ void BindFrontend(pybind11::module *m) {
       .def("relu", &Program::relu)
       .def("conv2d", &Program::conv2d)
       .def("batchnorm", &Program::batchnorm)
+      .def("scale", &Program::scale)
+      .def("softmax", &Program::softmax)
       .def("build_with_inputs",
            [](Program &self,
               const common::Target &target,

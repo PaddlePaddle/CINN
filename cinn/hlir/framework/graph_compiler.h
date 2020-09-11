@@ -36,9 +36,7 @@ class Program {
    */
   void Execute() {
     for (auto& ins : instrs_) {
-      for (int i = 0; i < 100; i++) {
-        ins->Run();
-      }
+      ins->Run();
     }
   }
 
