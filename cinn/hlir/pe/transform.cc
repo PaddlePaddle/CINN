@@ -90,13 +90,14 @@ void GetMatmulIndice(const std::vector<Expr>& shape1_new,
   }
 }
 
-Tensor Matmul(const Tensor& A,
-              const Tensor& B,
-              bool trans_a,
-              bool trans_b,
-              int x_num_col_dims,
-              int y_num_col_dims,
-              const std::string& name) {
+std::vector<Tensor> Matmul(const Tensor& A,
+                           const Tensor& B,
+                           poly::StageMap stages,
+                           bool trans_a,
+                           bool trans_b,
+                           int x_num_col_dims,
+                           int y_num_col_dims,
+                           const std::string& output_name) {
   std::vector<Expr> output_shape;
   std::vector<Expr> shape1_new;
   std::vector<Expr> shape2_new;
@@ -119,7 +120,21 @@ Tensor Matmul(const Tensor& A,
                     &reduce_axes);
     return ReduceSum(A(A_indice) * B(B_indice), Expr());
   };
-  return Compute(output_shape, fn, name, reduce_axes, output_shape);
+  auto compute_init = [&](const std::vector<Expr>& indices) { return make_const(A->type(), 0); };
+  std::vector<Tensor> tensors;
+  Tensor C_init = Compute(output_shape, compute_init, output_name + "_init");
+  Tensor C      = Compute(output_shape, fn, output_name, reduce_axes);
+
+  stages->InsertLazily(C);
+  stages->InsertLazily(C_init);
+
+  stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
+
+  tensors.emplace_back(C);
+  tensors.emplace_back(C_init);
+
+  return tensors;
 }
 
 }  // namespace pe

@@ -81,6 +81,7 @@ void BindPE(py::module* m) {
          &hlir::pe::Matmul,
          py::arg("tensor_a"),
          py::arg("tensor_b"),
+         py::arg("stages"),
          py::arg("trans_a"),
          py::arg("trans_b"),
          py::arg("x_num_col_dims"),

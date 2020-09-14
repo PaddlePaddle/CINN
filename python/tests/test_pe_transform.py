@@ -53,10 +53,14 @@ class TestPETransform(unittest.TestCase):
         y = lang.Placeholder("float32", "y", y_shape_expr)
         func_name = "test_" + fn_name
 
-        z = cinn_fn(x.to_tensor(), y.to_tensor(), trans_a, trans_b,
+        stages = create_stages([x.to_tensor(), y.to_tensor()])
+        z = cinn_fn(x.to_tensor(), y.to_tensor(), stages, trans_a, trans_b,
                     x_num_col_dims, y_num_col_dims)
-        stages = create_stages([z])
-        func = lang.lower(func_name, stages, [x.to_tensor(), y.to_tensor(), z])
+        temp_input = [x.to_tensor(), y.to_tensor()]
+        for tensor in z:
+            temp_input.append(tensor)
+
+        func = lang.lower(func_name, stages, temp_input)
         print(func)
 
         builder = lang.Module.Builder("transform_module", self.target)

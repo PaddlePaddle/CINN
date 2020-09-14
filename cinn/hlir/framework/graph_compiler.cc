@@ -79,7 +79,8 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     out_types.push_back(dtype);
   }
   auto stages = CreateStages(inputs);
-  auto impl   = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, target_));
+  cinn_inputs.push_back(common::CINNValue(stages));
+  auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, target_));
 
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
   C                       = impl->fschedule(C);

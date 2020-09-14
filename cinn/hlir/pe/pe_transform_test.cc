@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <vector>
+
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/cinn.h"
 #include "cinn/common/target.h"
@@ -21,13 +23,16 @@ TEST(MatmulPE, PE_Matmul_Test0) {
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
-  auto C = hlir::pe::Matmul(A.tensor(), B.tensor(), false, false, 1, 1, "C");
-
-  auto stages = CreateStages({C});
+  auto stages = CreateStages({A.tensor(), B.tensor()});
+  auto C      = hlir::pe::Matmul(A.tensor(), B.tensor(), stages, false, false, 1, 1, "C");
 
   Target target = common::DefaultHostTarget();
   Module::Builder builder("module0", target);
-  auto func = Lower("fn", stages, {A, B, C});
+  std::vector<Tensor> temp_inputs = {A, B};
+  for (auto &tensor : C) {
+    temp_inputs.push_back(tensor);
+  }
+  auto func = Lower("fn", stages, temp_inputs);
   builder.AddFunction(func);
   LOG(INFO) << "func:\n" << func;
 
