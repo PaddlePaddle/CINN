@@ -390,7 +390,10 @@ ir::LoweredFunc LowerImpl::operator()() {
 
   auto func_body = GenerateFunctionBody(schedule.get());
 
-  auto tensor_map = optim::InitialAssignBuffer(&func_body, stages_, all_tensor_map, comp_graph());
+  std::set<std::string> temp_tensor_names;
+  for (auto& t : temp_tensor_args_) temp_tensor_names.insert(t->name);
+
+  auto tensor_map = optim::InitialAssignBuffer(&func_body, stages_, all_tensor_map, comp_graph(), temp_tensor_names);
   // copy the tensor(with buffer assigned) back to func's args.
   {
     for (auto& arg : tensor_args_) {

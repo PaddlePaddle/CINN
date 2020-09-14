@@ -24,6 +24,7 @@ TEST(test02_matmul, basic) {
   auto stages = CreateStages({C_init, C});
 
   stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
 
   Target target;
   target.arch = Target::Arch::X86;
@@ -32,7 +33,7 @@ TEST(test02_matmul, basic) {
 
   {
     Module::Builder builder("module1", target);
-    auto func = Lower("matmul", stages, {A, B, C, C_init});
+    auto func = Lower("matmul", stages, {A, B, C});
 
     builder.AddFunction(func);
 
@@ -47,7 +48,7 @@ TEST(test02_matmul, basic) {
     stages[C]->Tile(0, 1, 4, 4);
 
     Module::Builder builder("module2", target);
-    auto func = Lower("matmul_tile", stages, {A, B, C, C_init});
+    auto func = Lower("matmul_tile", stages, {A, B, C});
 
     builder.AddFunction(func);
 
@@ -71,6 +72,7 @@ TEST(matmul, Split) {
   auto stages = CreateStages({C_init, C});
 
   stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
 
   Target target;
   target.arch = Target::Arch::X86;
@@ -83,7 +85,7 @@ TEST(matmul, Split) {
   stages[C]->Reorder(iterators);
 
   Module::Builder builder("module3", target);
-  auto func = Lower("matmul_split", stages, {A, B, C, C_init});
+  auto func = Lower("matmul_split", stages, {A, B, C});
 
   builder.AddFunction(func);
 
@@ -107,6 +109,7 @@ TEST(matmul, Blocking) {
 
   auto stages = CreateStages({C_init, C});
   stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
 
   Target target;
   target.arch = Target::Arch::X86;
@@ -121,7 +124,7 @@ TEST(matmul, Blocking) {
   }
 
   Module::Builder builder("module_block", target);
-  auto func = Lower("matmul_block", stages, {A, B, C, C_init});
+  auto func = Lower("matmul_block", stages, {A, B, C});
 
   builder.AddFunction(func);
 
@@ -145,6 +148,7 @@ TEST(matmul, Vectorization) {
 
   auto stages = CreateStages({C_init, C});
   stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
 
   Target target;
   target.arch = Target::Arch::X86;
@@ -160,7 +164,7 @@ TEST(matmul, Vectorization) {
   }
 
   Module::Builder builder("module_vectorize", target);
-  auto func = Lower("matmul_vectorize", stages, {A, B, C, C_init});
+  auto func = Lower("matmul_vectorize", stages, {A, B, C});
 
   builder.AddFunction(func);
 
@@ -202,7 +206,8 @@ TEST(matmul, varient_shape) {
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
   auto stages = CreateStages({C_init, C});
-  stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
+  stages[C_init]->ShareBufferWith(stages[C]);
 
   Target target;
   target.arch = Target::Arch::X86;
@@ -211,7 +216,7 @@ TEST(matmul, varient_shape) {
 
   {
     Module::Builder builder("matmul_dynamic_shape", target);
-    auto func = Lower("matmul_dynamic_shape", stages, {A, B, C, C_init}, {M});
+    auto func = Lower("matmul_dynamic_shape", stages, {A, B, C}, {M});
 
     builder.AddFunction(func);
 
@@ -226,7 +231,7 @@ TEST(matmul, varient_shape) {
     auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
 
     Module::Builder builder("matmul_dynamic_shape_tile", target);
-    auto func = Lower("matmul_dynamic_shape_tile", stages, {A, B, C, C_init} /*tensors*/, {M} /*scalars*/);
+    auto func = Lower("matmul_dynamic_shape_tile", stages, {A, B, C} /*tensors*/, {M} /*scalars*/);
     LOG(INFO) << "func " << Expr(func);
 
     builder.AddFunction(func);
@@ -258,6 +263,7 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
 
   auto stages = CreateStages({C_init, C});
   stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
 
   LOG(INFO) << "stage: " << stages[packedB]->transformed_domain();
   stages[packedB]->Vectorize(2, 8);
@@ -276,7 +282,7 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
   }
 
   Module::Builder builder("module_array_packing_dynamic_shape", target);
-  auto func = Lower("matmul_array_packing_dynamic_shape", stages, {A, B, C, C_init}, {M}, {packedB}, &builder);
+  auto func = Lower("matmul_array_packing_dynamic_shape", stages, {A, B, C}, {M}, {packedB}, &builder);
 
   CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX256);
   Outputs outputs;
@@ -302,10 +308,12 @@ TEST(matmul, call) {
   target.os   = Target::OS::Linux;
 
   auto stages = CreateStages({C_init, C});
+  stages[C]->CtrlDepend(C_init);
+
   Module::Builder builder("module_call", target);
   {
     stages[C]->ShareBufferWith(stages[C_init]);
-    auto func = Lower("matmul_kernel", stages, {A, B, C, C_init});
+    auto func = Lower("matmul_kernel", stages, {A, B, C});
 
     builder.AddFunction(func);
   }

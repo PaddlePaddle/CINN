@@ -32,7 +32,8 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
   std::vector<ir::Buffer> temp_buffers;
   auto all_tensors = ir::CollectIRNodes(body, [&](const Expr* x) {
     return x->as_tensor() && x->as_tensor()->buffer.defined() && !stage_map[x->as_tensor()]->inlined() &&
-           !tensor_arg_names.count(x->as_tensor()->name);
+           !tensor_arg_names.count(x->as_tensor()->name) &&
+           stage_map[x->as_tensor()]->meta.tensors_to_share_buffer_with.empty();
   });
   for (auto& e : all_tensors) {
     if (!temp_buffer_names.count(e.as_tensor()->buffer->name)) {
