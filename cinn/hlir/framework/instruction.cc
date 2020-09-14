@@ -17,7 +17,7 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs() {
 
     // TODO(Superjomn) Support other types.
     auto& tensor = std::get<Tensor>(*var);
-    builder.Add(tensor.buffer());
+    builder.Add(tensor->buffer());
   }
 
   args_cached_ = builder.Build();

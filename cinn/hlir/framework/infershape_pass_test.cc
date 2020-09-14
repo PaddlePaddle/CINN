@@ -24,7 +24,7 @@ Tensor GetTensor(const std::shared_ptr<Scope>& scope, const std::string& name) {
   return tensor;
 }
 
-void SetRandData(Tensor* tensor, Target target) {
+void SetRandData(Tensor tensor, Target target) {
   auto* data = tensor->mutable_data<float>(target);
   for (size_t j = 0; j < tensor->shape().numel(); j++) {
     unsigned int seed = j;
@@ -57,14 +57,14 @@ TEST(Operator, GetAttrs) {
 
   auto A = GetTensor(scope, "a");
   auto B = GetTensor(scope, "b");
-  SetRandData(&A, target);
-  SetRandData(&B, target);
+  SetRandData(A, target);
+  SetRandData(B, target);
 
   program->Execute();
 
-  auto A_data = A.data<float>();
-  auto B_data = B.data<float>();
-  auto E_data = GetTensor(scope, e->id).data<float>();
+  auto A_data = A->data<float>();
+  auto B_data = B->data<float>();
+  auto E_data = GetTensor(scope, e->id)->data<float>();
   for (int i = 0; i < 100 * 32; i++) {
     LOG_FIRST_N(INFO, 3) << "data: " << 2 * A_data[i] << " + " << 3 * B_data[i] << " = " << E_data[i];
     ASSERT_NEAR(2 * A_data[i] + 3 * B_data[i], E_data[i], 1e-5);

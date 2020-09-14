@@ -9,6 +9,10 @@ from cinn import ir
 from cinn import lang
 from cinn.common import *
 import numpy as np
+import paddle.fluid as fluid
+import sys
+
+model_dir = sys.argv.pop()
 
 
 class TestFrontend(unittest.TestCase):
@@ -39,6 +43,51 @@ class TestFrontend(unittest.TestCase):
         for i in range(prog.size()):
             print(prog[i])
         prog.print_func(self.target)
+
+
+class TestLoadPaddleModel(unittest.TestCase):
+    def setUp(self):
+        self.target = Target()
+        self.target.arch = Target.Arch.X86
+        self.target.bits = Target.Bit.k64
+        self.target.os = Target.OS.Linux
+
+        self.model_dir = model_dir
+
+        self.x_shape = [4, 30]
+
+    def get_paddle_inference_result(self, data):
+        exe = fluid.Executor(fluid.CPUPlace())
+
+        [inference_program, feed_target_names,
+         fetch_targets] = fluid.io.load_inference_model(
+             dirname=self.model_dir, executor=exe)
+
+        results = exe.run(
+            inference_program,
+            feed={feed_target_names[0]: data},
+            fetch_list=fetch_targets)
+
+        result = results[0]
+        return result
+
+    def test_model(self):
+        x_data = np.random.random(self.x_shape).astype("float32")
+        self.executor = Executor(["a"], [self.x_shape])
+        self.executor.load_paddle_model(self.model_dir, False)
+        a_t = self.executor.get_tensor("a")
+        a_t.from_numpy(x_data)
+
+        out = self.executor.get_tensor("fc_0.tmp_2")
+        out.from_numpy(np.zeros(out.shape(), dtype='float32'))
+
+        self.executor.run()
+
+        out = out.numpy()
+        target_result = self.get_paddle_inference_result(x_data)
+
+        print("out", out)
+        self.assertTrue(np.allclose(out, target_result, atol=1e-4))
 
 
 if __name__ == "__main__":

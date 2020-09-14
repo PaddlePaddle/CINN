@@ -4,6 +4,7 @@
 #include <pybind11/stl.h>
 
 #include "cinn/common/common.h"
+#include "cinn/frontend/executor.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -64,7 +65,11 @@ void BindFrontend(pybind11::module *m) {
       .def("size", &Program::size)
       .def("__getitem__", [](Program &self, int idx) { return self[idx]; })
       .def("add", &Program::add)
+      .def("mul", &Program::mul)
+      .def("elementwise_add", &Program::elementwise_add)
       .def("relu", &Program::relu)
+      .def("relu6", &Program::relu6)
+      .def("scale", &Program::scale)
       .def("conv2d", &Program::conv2d)
       .def("batchnorm", &Program::batchnorm)
       .def("print_func", [](Program &self, const common::Target &target) {
@@ -74,6 +79,15 @@ void BindFrontend(pybind11::module *m) {
         hlir::framework::GraphCompiler gc(target, scope, g);
         gc.PrintFunc();
       });
-}  // namespace frontend
+
+  py::class_<frontend::Executor>(*m, "Executor")
+      .def(py::init<const std::vector<std::string> &, const std::vector<hlir::framework::shape_t> &>(),
+           py::arg("input_names"),
+           py::arg("input_shapes"))  //
+      .def("load_paddle_model", &frontend::Executor::LoadPaddleModel)
+      .def("run", &frontend::Executor::Run)
+      .def("get_tensor", &frontend::Executor::GetTensor)
+      .def("scope", &frontend::Executor::scope);
+}
 
 }  // namespace cinn::pybind

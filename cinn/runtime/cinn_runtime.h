@@ -279,9 +279,13 @@ static inline int32_t cinn_max(int32_t a, int32_t b) { return a > b ? a : b; }
 }  // extern "C"
 #endif
 
-#define CINN_CINN_NOT_IMPLEMENTED      \
-  fprintf(stderr, "Not Implemented!"); \
-  abort();
+#ifndef CINN_RUNTIME_NOT_IMPLEMENTED
+#define CINN_RUNTIME_NOT_IMPLEMENTED     \
+  do {                                   \
+    fprintf(stderr, "Not Implemented!"); \
+    abort();                             \
+  } while (false);
+#endif
 
 #define ASSERT_NOT_NULL(v__)          \
   if (!v__) {                         \

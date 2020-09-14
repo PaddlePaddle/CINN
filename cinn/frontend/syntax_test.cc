@@ -17,6 +17,7 @@ namespace cinn {
 namespace frontend {
 
 using hlir::framework::Scope;
+using utils::Join;
 
 std::unique_ptr<Program> CreateAddProgram() {
   const int M = 32;
@@ -43,7 +44,7 @@ TEST(syntax, basic) {
   }
 }
 
-void SetRandData(hlir::framework::Tensor* tensor, Target target) {
+void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
   auto* data = tensor->mutable_data<float>(target);
   for (size_t j = 0; j < tensor->shape().numel(); j++) {
     unsigned int seed = j;
@@ -143,8 +144,9 @@ TEST(syntax, program_execute_fc) {
 TEST(load_paddle_model, fc_execute) {
   auto scope = std::make_shared<Scope>();
 
-  auto [program, var_map] = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
-  var_map["a"]->shape     = {20, 100};
+  auto [program, var_map, var_map_paddle_to_program] =
+      LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
+  var_map["a"]->shape = {1, 30};
   program->SetInputs({var_map["a"]});
   program->Validate();
 
@@ -156,6 +158,20 @@ TEST(load_paddle_model, fc_execute) {
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
+
+  auto at       = scope->GetTensor("a");
+  auto* at_data = at->mutable_data<float>(common::DefaultHostTarget());
+  for (int i = 0; i < at->shape().numel(); i++) at_data[i] = 1.f;
+
+  runtime_program->Execute();
+
+  LOG(INFO) << "scope.names: " << Join(scope->var_names(), ",");
+
+  const std::string output_name = "fc_0.tmp_1";
+  auto tensor                   = scope->GetTensor(var_map_paddle_to_program.at(output_name));
+  LOG(INFO) << "tensor.shape: " << utils::Join(tensor->shape().data(), ",");
+  auto* data = tensor->data<float>();
+  for (int i = 0; i < 10; i++) LOG(INFO) << "data: " << data[i];
 }
 
 }  // namespace frontend
