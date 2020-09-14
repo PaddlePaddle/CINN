@@ -35,7 +35,7 @@ auto CreateMatmulBasicModule(Target target, int m, int n, int k) {
 
   Module::Builder builder("module_basic", target);
 
-  auto func = Lower("matmul_basic", stages, {A, B, C_init, C});
+  auto func = Lower("matmul_basic", stages, {A, B, C});
 
   builder.AddFunction(func);
   return builder.Build();
@@ -61,7 +61,7 @@ auto CreateMatmulTileModule(Target target, int m, int n, int k) {
 
   Module::Builder builder("module_tile", target);
 
-  auto func = Lower("matmul_tile", stages, {A, B, C, C_init});
+  auto func = Lower("matmul_tile", stages, {A, B, C});
 
   builder.AddFunction(func);
   return builder.Build();
@@ -94,7 +94,7 @@ auto CreateMatmulSplitModule(Target target, int m, int n, int k) {
 
   Module::Builder builder("module_split", target);
 
-  auto func = Lower("matmul_split", stages, {A, B, C, C_init});
+  auto func = Lower("matmul_split", stages, {A, B, C});
 
   builder.AddFunction(func);
   return builder.Build();
@@ -124,7 +124,7 @@ auto CreateMatmulBlockModule(Target target, int m, int n, int k) {
 
   Module::Builder builder("module_block", target);
 
-  auto func = Lower("matmul_block", stages, {A, B, C, C_init});
+  auto func = Lower("matmul_block", stages, {A, B, C});
 
   builder.AddFunction(func);
   return builder.Build();
@@ -146,6 +146,7 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
 
   auto stages = CreateStages({C_init, C});
   stages[C]->ShareBufferWith(stages[C_init]);
+  stages[C]->CtrlDepend(C_init);
 
   {
     auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);
@@ -155,7 +156,7 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
   }
 
   Module::Builder builder("module_vectorize", target);
-  auto func = Lower("matmul_vectorize", stages, {A, B, C, C_init});
+  auto func = Lower("matmul_vectorize", stages, {A, B, C});
 
   builder.AddFunction(func);
 
@@ -199,7 +200,7 @@ lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
   }
 
   Module::Builder builder("module_loop_permutation", target);
-  auto func = Lower("matmul_loop_permutation", stages, {A, B, C, C_init});
+  auto func = Lower("matmul_loop_permutation", stages, {A, B, C});
 
   builder.AddFunction(func);
   return builder.Build();
@@ -224,8 +225,7 @@ lang::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
   auto stages = CreateStages({C_init, C});
 
   stages[C]->ShareBufferWith(stages[C_init]);
-
-  LOG(INFO) << "stage: " << stages[packedB]->transformed_domain();
+  stages[C]->CtrlDepend(C_init);
   stages[packedB]->Vectorize(2, 8);
 
   {
@@ -237,7 +237,7 @@ lang::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
   }
 
   Module::Builder builder("module_array_packing", target);
-  auto func = Lower("matmul_array_packing", stages, {A, B, C, C_init, packedB});
+  auto func = Lower("matmul_array_packing", stages, {A, B, C, packedB});
 
   builder.AddFunction(func);
 

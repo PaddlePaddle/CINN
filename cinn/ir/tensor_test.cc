@@ -93,7 +93,6 @@ void fn(void* _args, int32_t num_args)
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
   cinn_buffer_t* _tensor_3 = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
   cinn_buffer_malloc((void*)(0), _tensor_3);
-  cinn_buffer_malloc((void*)(0), _A);
   const float* A_reshape_2 = ((const float*)(_A->memory));
   float* tensor_3 = ((float*)(_tensor_3->memory));
   for (int32_t i = 0; i < 10; i += 1) {
