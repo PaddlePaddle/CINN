@@ -12,6 +12,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
+#include "cinn/lang/compute.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -220,6 +221,15 @@ Expr *_Tensor_::mutable_body() {
   if (is_compute_node()) return &operation->as<ir::ComputeOp>()->body.front();
   if (is_call_node()) return &operation->as<ir::CallOp>()->call_expr;
   CINN_NOT_IMPLEMENTED
+}
+
+ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, Expr init_val) const {
+  auto init_tensor = lang::Compute(
+      shape, [=](const std::vector<Expr> &axis) { return init_val; }, UniqName(name + "_init"));
+  stages->InsertLazily(init_tensor);
+  stages[this]->CtrlDepend(init_tensor);
+  stages[this]->ShareBufferWith(stages[init_tensor]);
+  return init_tensor;
 }
 
 Expr _Tensor_::tensor_store_expanded_body() {
