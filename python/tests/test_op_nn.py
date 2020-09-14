@@ -267,7 +267,7 @@ class OpTest_batchnorm(SingleOpTester):
                         attrs)
 
 
-class OpTest_softmax(SingleOpTester):
+class OpTest_softmax_0(SingleOpTester):
     def create_target_data(self, inputs_data, attrs):
         [X] = inputs_data
         Y = np.zeros(X.shape).astype("float32")
@@ -279,7 +279,40 @@ class OpTest_softmax(SingleOpTester):
     def test_op(self):
         attrs = framework.NodeAttr()
         attrs.set_attr("axis", 1)
-        self.to_test_op([[2, 3, 4]], [[2, 3, 4], [2, 3, 4]], "softmax", attrs)
+        self.to_test_op([[12, 224, 224]], [[12, 224, 224], [12, 224, 224]],
+                        "softmax", attrs)
+
+
+class OpTest_softmax_1(SingleOpTester):
+    def create_target_data(self, inputs_data, attrs):
+        [X] = inputs_data
+        Y = np.zeros(X.shape).astype("float32")
+        for i in range(0, Y.shape[2]):
+            Y[:, :, i] = np.exp(X[:, :, i]) / np.sum(
+                np.exp(X), axis=2, keepdims=True)[:, :, 0]
+        return Y
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        attrs.set_attr("axis", -1)
+        self.to_test_op([[12, 224, 224]], [[12, 224, 224], [12, 224, 224]],
+                        "softmax", attrs)
+
+
+class OpTest_softmax_2(SingleOpTester):
+    def create_target_data(self, inputs_data, attrs):
+        [X] = inputs_data
+        Y = np.zeros(X.shape).astype("float32")
+        for i in range(0, Y.shape[0]):
+            Y[i, :, :] = np.exp(X[i, :, :]) / np.sum(
+                np.exp(X), axis=0, keepdims=True)[0, :, :]
+        return Y
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        attrs.set_attr("axis", 0)
+        self.to_test_op([[12, 224, 224]], [[12, 224, 224], [12, 224, 224]],
+                        "softmax", attrs)
 
 
 class OpTest_sigmoid(SingleOpTester):

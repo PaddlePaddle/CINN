@@ -124,7 +124,7 @@ class TestLoadPaddleModel(unittest.TestCase):
         print("result in test_model: \n")
         out = out.reshape(-1)
         target_result = target_result.reshape(-1)
-        for i in range(0, 120):
+        for i in range(0, out.shape[0]):
             print(out[i], " vs: ", target_result[i])
         self.assertTrue(np.allclose(out, target_result, atol=1e-3))
 

@@ -731,6 +731,62 @@ std::vector<Type> InferDtypeForSigmoid(const std::vector<Type> &inputs_type, con
   return res;
 }
 
+std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
+                                               const std::vector<ir::Tensor> &inputs,
+                                               const std::vector<Type> &out_type,
+                                               const Target &target) {
+  int axis = -1;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "axis") {
+      axis = std::get<int>(iter.second);
+    }
+  }
+  framework::CINNCompute softmax_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of softmax compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "The input tensors of softmax compute is empty! Please check.";
+    Expr A_expr = a[0];
+    CHECK(A_expr.as_tensor());
+    ir::Tensor A = A_expr.as_tensor_ref();
+    int new_axis = axis;
+    if (axis == -1) {
+      new_axis = A->shape.size() - 1;
+    }
+    auto out = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
+    CHECK_EQ(out.size(), 2);
+    auto stages = CreateStages(out);
+    out[0]->InitReduction(stages, Expr(0.f));
+    *ret = CINNValuePack{{CINNValue(out[0]), CINNValue(out[1]), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule softmax_schedule([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of softmax schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL) << "The input tensor's size of softmax schedule is " << arg_pack.size()
+                                   << "and it should be equal to 3! Please check.";
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(softmax_compute, softmax_schedule, "strategy.softmax.x86", 1);
+
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForSoftmax(const std::vector<std::vector<int>> &inputs_shape,
+                                                   const framework::NodeAttr &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  std::vector<std::vector<int>> res{inputs_shape[0], inputs_shape[0]};
+  return res;
+}
+
+std::vector<Type> InferDtypeForSoftmax(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0], inputs_type[0]};
+  return res;
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -806,6 +862,15 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSigmoid)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSigmoid))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSigmoid))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(softmax)
+      .describe("This operator implements the softmax layer")
+      .set_num_inputs(1)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSoftmax)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSoftmax))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSoftmax))
       .set_support_level(4);
 
   return true;

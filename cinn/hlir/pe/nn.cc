@@ -115,6 +115,28 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
 }
 
 /**
+ * This operator implements the softmax layer.
+ * @param A The input tensor.
+ * @param axis The axis parameter.
+ * @param output_name The name of output tensor.
+ * @return The calculated output tensor.
+ */
+std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string &output_name) {
+  Var axis_j(A->shape[axis], UniqName("axis_j"));
+  auto temp      = Compute(A->shape,
+                      [=](const std::vector<Expr> &indice) {
+                        std::vector<Expr> new_indice = indice;
+                        new_indice[axis]             = axis_j;
+                        return ir::ReduceSum(Exp(A(new_indice)), Expr(0.f));
+                      },
+                      "softmax_temp_out",
+                      {axis_j});
+  ir::Tensor out = Compute(
+      A->shape, [=](const std::vector<Expr> &indice) { return Exp(A(indice)) / temp(indice); }, "softmax_out");
+  return {temp, out};
+}
+
+/**
  * @brief Perform padding operation.
  * @param tensor The input tensor.
  * @param pad_before Vector of Exprs describing the padding before the respective dimension
