@@ -23,15 +23,11 @@ auto CreateMatmulBasicModule(Target target, int m, int n, int k) {
   auto A = Placeholder<float>("A", {M, K});
   auto B = Placeholder<float>("B", {K, N});
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-
   auto k1 = Var(K.as_int32(), "k1");
   auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
 
-  auto stages = CreateStages({C_init, C});
-  stages[C_init]->ShareBufferWith(stages[C]);
-  stages[C]->CtrlDepend(C_init);
+  auto stages = CreateStages({C});
+  C->InitReduction(stages, Expr(0.f));
 
   Module::Builder builder("module_basic", target);
 
@@ -47,15 +43,11 @@ auto CreateMatmulTileModule(Target target, int m, int n, int k) {
   auto A = Placeholder<float>("A", {M, K});
   auto B = Placeholder<float>("B", {K, N});
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-
   auto k1 = Var(K.as_int32(), "k1");
   auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
 
-  auto stages = CreateStages({C_init, C});
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
+  auto stages = CreateStages({C});
+  C->InitReduction(stages, common::make_const(0.f));
 
   stages[C]->Tile(0, 1, 4, 4);
 
@@ -73,16 +65,11 @@ auto CreateMatmulSplitModule(Target target, int m, int n, int k) {
   auto A = Placeholder<float>("A", {M, K});
   auto B = Placeholder<float>("B", {K, N});
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-
   auto k1 = Var(K.as_int32(), "k1");
   auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
 
-  auto stages = CreateStages({C_init, C});
-
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
+  auto stages = CreateStages({C});
+  C->InitReduction(stages, common::make_const(0.f));
 
   auto c_poly_iterators = [&](auto &&... args) {
     std::vector<poly::Iterator> iters;
@@ -106,16 +93,11 @@ auto CreateMatmulBlockModule(Target target, int m, int n, int k) {
   auto A = Placeholder<float>("A", {M, K});
   auto B = Placeholder<float>("B", {K, N});
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-
   auto k1 = Var(K.as_int32(), "k1");
   auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
 
-  auto stages = CreateStages({C_init, C});
-
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
+  auto stages = CreateStages({C});
+  C->InitReduction(stages, common::make_const(0.f));
 
   constexpr int bn                          = 32;
   auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
@@ -140,13 +122,10 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
 
   int bn = 32;
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k0) * B(k0, j)); }, "C", {k0});
 
-  auto stages = CreateStages({C_init, C});
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
+  auto stages = CreateStages({C});
+  C->InitReduction(stages, common::make_const(0.f));
 
   {
     auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);
@@ -164,6 +143,10 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
 }
 
 lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
+
   auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k_));
 
   Placeholder<float> A("A", {M, K});
@@ -173,17 +156,10 @@ lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
 
   int bn = 32;
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
-  target.arch = Target::Arch::X86;
-  target.bits = Target::Bit::k32;
-  target.os   = Target::OS::Linux;
-
-  auto stages = CreateStages({C_init, C});
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
+  auto stages       = CreateStages({C});
+  ir::Tensor C_init = C->InitReduction(stages, common::make_const(0.f));
 
   // Blocking by loop tiling.
   {
