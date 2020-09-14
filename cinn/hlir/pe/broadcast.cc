@@ -1,5 +1,6 @@
 #include "cinn/hlir/pe/broadcast.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "cinn/common/ir_util.h"
@@ -11,9 +12,9 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
-using namespace cinn::ir;
-using cinn::common::make_zero;
-using cinn::lang::Compute;
+using common::make_zero;
+using ir::Tensor;
+using lang::Compute;
 
 void GetBroadcastShape(const std::vector<Expr>& shape1,
                        const std::vector<Expr>& shape2,
@@ -24,28 +25,34 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
   CHECK(common_shape);
   CHECK(broadcast_flag1);
   CHECK(broadcast_flag2);
+  int size1                    = shape1.size();
   std::vector<Expr> shape2_new = shape2;
+  int axis_offset              = -1;
   if (axis.defined()) {
     int axis_val = axis.as_int32();
     CHECK_GE(axis_val, -1) << "wrong axis: " << axis_val << std::endl;
     CHECK_GE(shape1.size(), shape2.size()) << "A's shape should no less than B's when axis is defined\n";
     CHECK_LE(axis_val, shape1.size() - shape2.size()) << "wrong axis: " << axis_val << std::endl;
     if (axis_val >= 0) {
-      int axis_offset = shape1.size() - shape2.size() - axis_val;
-      for (int i = 0; i < axis_offset; ++i) {
-        // specified axis to align, we push the Expr one to align
+      axis_offset = shape1.size() - shape2.size() - axis_val;
+      for (int i = 1; i <= axis_offset; ++i) {
+        // specified axis to align, we push the Expr one in tensor B so as to align right with tensor A.
         shape2_new.emplace_back(Expr(1));
+        common_shape->insert(common_shape->begin(), shape1[size1 - i]);
+        // flag is used to indicate whether to include the indice or not.
+        broadcast_flag1->emplace_back(true);
+        broadcast_flag2->emplace_back(false);
       }
     }
   }
-  int size1 = shape1.size();
+
   int size2 = shape2_new.size();
   Expr one(1);
   int i;
-  // insert common axis from right to left to common_axis
-  for (i = 1; i <= std::min(size1, size2); ++i) {
-    auto* var1 = shape1[size1 - i].as_var();
-    auto* var2 = shape2_new[size2 - i].as_var();
+  i = axis_offset <= 0 ? 1 : axis_offset + 1;
+  for (; i <= std::min(size1, size2); ++i) {
+    auto* var1 = shape1[size1 - i].As<ir::_Var_>();
+    auto* var2 = shape2_new[size2 - i].As<ir::_Var_>();
     if (MathEqual(shape1[size1 - i], shape2_new[size2 - i])) {
       common_shape->insert(common_shape->begin(), shape1[size1 - i]);
       broadcast_flag1->emplace_back(true);
@@ -61,7 +68,7 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
       broadcast_flag1->emplace_back(true);
       broadcast_flag2->emplace_back(false);
     } else if (var1 && var2) {
-      Expr max_var = Max::Make(shape1[size1 - i], shape2_new[size2 - i]);
+      Expr max_var = ir::Max::Make(shape1[size1 - i], shape2_new[size2 - i]);
       common_shape->insert(common_shape->begin(), max_var);
       broadcast_flag1->emplace_back(true);
       broadcast_flag2->emplace_back(true);
@@ -158,9 +165,9 @@ HLIR_IMP_BC_PE(Divide, return a / b;);
 HLIR_IMP_BC_PE(FloorDivide, return Floor(a / b););
 HLIR_IMP_BC_PE(Mod, return a % b;);
 HLIR_IMP_BC_PE(FloorMod, return a - Floor(a / b) * b;);
-HLIR_IMP_BC_PE(Maximum, return Max::Make(a, b););
-HLIR_IMP_BC_PE(Minimum, return Min::Make(a, b););
-HLIR_IMP_BC_PE(Power, return Power::Make(a, b););
+HLIR_IMP_BC_PE(Maximum, return ir::Max::Make(a, b););
+HLIR_IMP_BC_PE(Minimum, return ir::Min::Make(a, b););
+HLIR_IMP_BC_PE(Power, return ir::Power::Make(a, b););
 HLIR_IMP_BC_PE(LeftShift, return a << b;);
 HLIR_IMP_BC_PE(RightShift, return a >> b;);
 HLIR_IMP_BC_PE(LogicaAnd, return a && b;);
@@ -171,8 +178,8 @@ HLIR_IMP_BC_PE(BitwiseOr, return a | b;);
 HLIR_IMP_BC_PE(BitwiseXor, return a ^ b;);
 HLIR_IMP_BC_PE(Greater, return a > b;);
 HLIR_IMP_BC_PE(Less, return a < b;);
-HLIR_IMP_BC_PE(Equal, return EQ::Make(a, b););
-HLIR_IMP_BC_PE(NotEqual, return NE::Make(a, b););
+HLIR_IMP_BC_PE(Equal, return ir::EQ::Make(a, b););
+HLIR_IMP_BC_PE(NotEqual, return ir::NE::Make(a, b););
 HLIR_IMP_BC_PE(GreaterEqual, return a >= b;);
 HLIR_IMP_BC_PE(LessEqual, return a <= b;);
 

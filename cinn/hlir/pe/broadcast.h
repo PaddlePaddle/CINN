@@ -11,18 +11,25 @@ namespace pe {
  *
  * @param A The first Tensor or Expr
  * @param B The second Tensor or Expr
- * @param output_name The name of the output Tensor
+ * @param axis Tensor B's beginning position of Tensor A. Default is -1(right align) and then axis = rank(X)-rank(Y).
+ * @param out_name The name of the output Tensor
  *
  * @return The result Tensor or Expr.
+ * @notes Tensor A's shape should no less than Tensor B's.
+ * e.g.
+ * shape(A) = (2, 3, 4, 5), shape(B) = (4, 5), with axis=-1(default) or axis=2
+ * shape(A) = (2, 3, 4, 5), shape(B) = (3, 4), with axis=1
+ * shape(A) = (2, 3, 4, 5), shape(B) = (2), with axis=0
+ * shape(A) = (2, 3, 4, 5), shape(B) = (2, 1), with axis=0
  */
-#define HLIR_DCL_BC_PE(name__)                                                                                 \
-  ir::Tensor name__(const ir::Tensor& A,                                                                       \
-                    const ir::Tensor& B,                                                                       \
-                    const std::string& output_name = "T_" #name__ "_out",                                      \
-                    const Expr& axis               = Expr());                                                                \
-  ir::Tensor name__(const Expr& A, const ir::Tensor& B, const std::string& output_name = "T_" #name__ "_out"); \
-  ir::Tensor name__(const ir::Tensor& A, const Expr& B, const std::string& output_name = "T_" #name__ "_out"); \
-  Expr name__(const Expr& A, const Expr& B);
+#define HLIR_DCL_BC_PE(name__)                                                                              \
+  Expr name__(const Expr& A, const Expr& B);                                                                \
+  ir::Tensor name__(const ir::Tensor& A,                                                                    \
+                    const ir::Tensor& B,                                                                    \
+                    const std::string& out_name = "T_" #name__ "_out",                                      \
+                    const Expr& axis            = Expr());                                                             \
+  ir::Tensor name__(const Expr& A, const ir::Tensor& B, const std::string& out_name = "T_" #name__ "_out"); \
+  ir::Tensor name__(const ir::Tensor& A, const Expr& B, const std::string& out_name = "T_" #name__ "_out");
 
 //! Compute A + B with auto-broadcasting.
 HLIR_DCL_BC_PE(Add);
