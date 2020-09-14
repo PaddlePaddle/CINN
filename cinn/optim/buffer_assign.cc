@@ -40,7 +40,8 @@ struct IRReplaceTensorMutator : ir::IRMutator<> {
 std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
                                                       poly::StageMap stages,
                                                       const std::map<std::string, ir::Tensor>& all_tensor_map,
-                                                      const common::Graph* comp_graph) {
+                                                      const common::Graph* comp_graph,
+                                                      const std::set<std::string>& temp_tensor_names) {
   // The tensor map helps to reserve only one tensor instance for a tensor(called the same name).
   std::map<std::string, ir::Tensor> buffer_updated_tensor;
 
@@ -97,9 +98,22 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
     }
   }
 
+  // Get a center of the cluster, it will consider the following rules
+  // 1. Prefer a tensor arg than a temp tensor.
+  auto cluster_get_center_tensor = [&](const std::vector<common::UnionFindNode*>& cluster) {
+    ir::Tensor some_tensor;
+    // try to find a node that is a tensor_arg, allocate buffer for it, and make others share buffer with it.
+    for (auto* n : cluster) {
+      auto* node   = n->safe_as<BufferUFNode>();
+      bool is_temp = temp_tensor_names.count(node->tensor_name);
+      if (!is_temp) return all_tensor_map.at(node->tensor_name);
+      some_tensor = all_tensor_map.at(node->tensor_name);
+    }
+    return some_tensor;
+  };
+
   for (auto& cluster : union_find.GetClusters()) {
-    auto* cluster_root = std::get<0>(cluster[0]->GetRoot());
-    auto root_tensor   = all_tensor_map.at(cluster_root->cluster_info);
+    auto root_tensor = cluster_get_center_tensor(cluster);
     if (!root_tensor->buffer.defined() && !root_tensor->type().is_void()) root_tensor->WithBuffer();
 
     for (auto* n : cluster) {

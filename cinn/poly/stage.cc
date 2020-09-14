@@ -152,8 +152,9 @@ std::tuple<Iterator, Iterator, Iterator, Iterator> Stage::Tile(const Iterator &l
 
 void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
+  CHECK(other->tensor());
+  CHECK(tensor());
 
-  CHECK(tensor_);
   ComputeAtRelation relation;
   relation.stage = other;
   relation.level = level;
@@ -164,10 +165,10 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
   // Consider the order if provide.
   switch (kind) {
     case kComputeAtBefore:
-      other->add_extra_depend_stage(id());
+      other->CtrlDepend(ir::Tensor(tensor()));
       break;
     case kComputeAtAfter:
-      add_extra_depend_stage(other->id());
+      CtrlDepend(ir::Tensor(other->tensor()));
       break;
     case kComputeAtAuto:
       // Do nothing.
@@ -415,9 +416,9 @@ isl::set Stage::transformed_domain() const {
 std::vector<std::pair<std::string, std::string>> ExtractExtraDepLinksFromStages(const std::vector<Stage *> &stages) {
   std::vector<std::pair<std::string, std::string>> extra_links;
   for (auto &stage : stages) {
-    for (auto &tensor_name : stage->extra_depend_stages()) {
-      VLOG(1) << "get extra stage: " << tensor_name << " -> " << stage->id();
-      extra_links.emplace_back(tensor_name, stage->id());
+    for (auto &tensor : stage->ctrl_depends()) {
+      VLOG(1) << "get extra stage: " << tensor->name << " -> " << stage->id();
+      extra_links.emplace_back(tensor->name, stage->id());
     }
   }
 
@@ -551,8 +552,6 @@ void Stage::ShareBufferWith(Stage *other) {
   other->meta.tensors_to_share_buffer_with.insert(tensor_->name);
 }
 
-void Stage::CtrlDepend(const ir::Tensor &t) { add_extra_depend_stage(t->name); }
-
 isl_map *__isl_give GatherAccesses(Stage *stage, const std::string &tensor_name) {
   CHECK(stage->tensor_);
   auto loads = ir::CollectIRNodes(stage->tensor_->body(), [&](const Expr *x) {
@@ -620,6 +619,10 @@ int Stage::GetTransformedLevel(int level) {
   // or just return the original.
   return level;
 }
+
+void Stage::CtrlDepend(const ir::Tensor &t) { ctrl_depends_.insert(t); }
+
+const std::set<ir::Tensor> &Stage::ctrl_depends() const { return ctrl_depends_; }
 
 Stage *_StageMap_::operator[](const ir::Tensor &tensor) {
   CHECK(data_.count(tensor->name)) << "StageMap has no stage for tensor [" << tensor->name << "]";

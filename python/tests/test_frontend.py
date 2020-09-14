@@ -87,7 +87,7 @@ class TestLoadPaddleModel(unittest.TestCase):
         target_result = self.get_paddle_inference_result(x_data)
 
         print("out", out)
-        self.assertTrue(np.allclose(out, target_result, atol=1e-4))
+        self.assertTrue(np.allclose(out, target_result, atol=1e-3))
 
 
 if __name__ == "__main__":
