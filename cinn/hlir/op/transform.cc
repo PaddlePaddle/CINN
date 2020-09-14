@@ -49,9 +49,9 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     auto out = pe::Matmul(
         A.as_tensor_ref(), B.as_tensor_ref(), trans_a, trans_b, x_num_col_dims, y_num_col_dims, UniqName("C"));
     VLOG(3) << "matmul out: " << out;
-
     auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+    out->InitReduction(stages, Expr(0.f));
+    *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule mul_schedule([](lang::Args args, lang::RetValue *ret) {

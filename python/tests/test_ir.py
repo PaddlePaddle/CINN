@@ -17,8 +17,8 @@ class TestIR(unittest.TestCase):
         self.assertEqual(str(simplify(one * Expr(0))), "0")
 
     def test_expr(self):
-        a = Var("a")
-        b = Var("b")
+        a = Var("A")
+        b = Var("B")
 
         expr = 1 + b
         print(expr)

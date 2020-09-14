@@ -5,6 +5,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/ir/ir_operators.h"
 
 namespace cinn {
 namespace hlir {
@@ -152,10 +153,10 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
   framework::CINNSchedule scale_schedule([](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of scale schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK(!arg_pack.empty()) << "The input tensor of scale schedule is empty! Please check.";
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of scale schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

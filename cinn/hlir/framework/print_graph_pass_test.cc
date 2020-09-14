@@ -38,8 +38,8 @@ CINN_REGISTER_PASS(PrintGraph)
 
 TEST(Operator, GetAttrs) {
   frontend::Program prog;
-  frontend::Variable a("a");
-  frontend::Variable b("b");
+  frontend::Variable a("A");
+  frontend::Variable b("B");
   Type t  = Float(32);
   a->type = t;
   b->type = t;

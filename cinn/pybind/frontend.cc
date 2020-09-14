@@ -72,13 +72,38 @@ void BindFrontend(pybind11::module *m) {
       .def("scale", &Program::scale)
       .def("conv2d", &Program::conv2d)
       .def("batchnorm", &Program::batchnorm)
-      .def("print_func", [](Program &self, const common::Target &target) {
-        std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
-        hlir::framework::ApplyPass(g.get(), "InferShape");
-        std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
-        hlir::framework::GraphCompiler gc(target, scope, g);
-        gc.PrintFunc();
-      });
+      .def("softmax", &Program::softmax)
+      .def("build_with_inputs",
+           [](Program &self,
+              const common::Target &target,
+              const std::vector<Variable> &tensor_inputs,
+              const Variable &tensor_out) {
+             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
+             hlir::framework::ApplyPass(g.get(), "InferShape");
+             std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
+             hlir::framework::GraphCompiler gc(target, scope, g);
+             auto program = gc.Build();
+             std::vector<std::vector<float>> result_data;
+             for (auto &i : tensor_inputs) {
+               auto in_tensor = scope->GetTensor(i->id);
+               auto *data     = in_tensor->mutable_data<float>(target);
+               std::vector<float> temp(in_tensor->shape().numel(), 0.0);
+               for (size_t j = 0; j < in_tensor->shape().numel(); j++) {
+                 unsigned int seed = j;
+                 data[j]           = (rand_r(&seed) * 1.f) / RAND_MAX;  // All random data
+                 temp[j]           = data[j];
+               }
+               result_data.push_back(temp);
+             }
+             program->Execute();
+             auto out = scope->GetTensor(tensor_out->id);
+             std::vector<float> temp(out->shape().numel(), 0.0);
+             for (size_t i = 0; i < out->shape().numel(); i++) {
+               temp[i] = out->data<float>()[i];
+             }
+             result_data.push_back(temp);
+             return result_data;
+           });
 
   py::class_<frontend::Executor>(*m, "Executor")
       .def(py::init<const std::vector<std::string> &, const std::vector<hlir::framework::shape_t> &>(),
@@ -88,6 +113,6 @@ void BindFrontend(pybind11::module *m) {
       .def("run", &frontend::Executor::Run)
       .def("get_tensor", &frontend::Executor::GetTensor)
       .def("scope", &frontend::Executor::scope);
-}
+}  // namespace frontend
 
 }  // namespace cinn::pybind

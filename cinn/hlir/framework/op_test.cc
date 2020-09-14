@@ -29,9 +29,8 @@ TEST(Operator, GetAttrs) {
   NodeAttr attrs;
   std::vector<ir::Tensor> inputs{A, B};
   std::vector<Type> type{Float(32)};
-  common::Target target;
-  target.arch = common::Target::Arch::X86;
-  auto impl   = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, target));
+  common::Target target = common::DefaultHostTarget();
+  auto impl             = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, target));
 
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
