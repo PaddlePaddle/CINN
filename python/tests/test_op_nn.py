@@ -282,5 +282,17 @@ class OpTest_softmax(SingleOpTester):
         self.to_test_op([[2, 3, 4]], [[2, 3, 4], [2, 3, 4]], "softmax", attrs)
 
 
+class OpTest_sigmoid(SingleOpTester):
+    def create_target_data(self, inputs_data, attrs):
+        x = np.array(inputs_data[0])
+        y = 1 / (1 + np.exp(-x))
+        print("output's shape is:", y.shape)
+        return y
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        self.to_test_op([[3, 224, 224]], [[3, 224, 224]], "sigmoid", attrs)
+
+
 if __name__ == "__main__":
     unittest.main()
