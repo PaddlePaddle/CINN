@@ -11,7 +11,7 @@ namespace cinn::frontend {
 void Executor::LoadPaddleModel(const std::string& model_dir, bool params_combined) {
   auto [program, var_map, var_map_paddle_to_program] = LoadPaddleProgram(model_dir, scope_.get(), params_combined);
   program_.reset(program.release());
-  for (auto iter : var_map_) {
+  for (auto& iter : var_map_) {
     LOG(INFO) << "key is: " << iter.first << ". Value is: " << iter.second->id;
   }
   var_map_                   = var_map;

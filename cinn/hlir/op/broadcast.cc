@@ -211,7 +211,8 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     out       = Compute(
         A->shape, [=](const std::vector<Expr> &indice) { return Exp(A(indice)) / temp(indice); }, "softmax_out");
     auto stages = CreateStages({temp, out});
-    *ret        = CINNValuePack{{CINNValue(Expr(temp.get())), CINNValue(Expr(out.get())), CINNValue(stages)}};
+    temp->InitReduction(stages, Expr(0.f));
+    *ret = CINNValuePack{{CINNValue(Expr(temp.get())), CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule softmax_schedule([](lang::Args args, lang::RetValue *ret) {

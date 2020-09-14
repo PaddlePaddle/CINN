@@ -68,8 +68,7 @@ Variable Program::scale(const Variable& a,
 
 Variable Program::softmax(const Variable& a,
                           const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store) {
-  Instruction instr("softmax");
-  instr.SetInputs({a});
+  Instruction instr("softmax", {a});
   for (auto& iter : attr_store) {
     instr.SetAttr(iter.first, iter.second);
   }
