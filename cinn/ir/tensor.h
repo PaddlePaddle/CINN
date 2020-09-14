@@ -124,6 +124,14 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      FunctionRef fn,
                      const std::vector<Var>& reduce_axis = {});
 
+  /**
+   * Create the initialization tensor.
+   * @param stages The stages.
+   * @param init_val The initial value.
+   * @return The initializing tensor.
+   */
+  ir::Tensor InitReduction(poly::StageMap stages, Expr init_val) const;
+
   //! Tell whether this tensor represents a tuple (consists of one or multiple tensors as output of a extern Call).
   bool is_tuple() const;
   bool is_tuple_get() const;

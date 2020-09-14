@@ -17,19 +17,12 @@ TEST(test02_matmul, basic) {
 
   Var k(K.as_int32(), "k0");
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
-  auto stages = CreateStages({C_init, C});
+  auto stages = CreateStages({C});
+  C->InitReduction(stages, Expr(0.f));
 
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
-
-  Target target;
-  target.arch = Target::Arch::X86;
-  target.bits = Target::Bit::k32;
-  target.os   = Target::OS::Linux;
+  Target target = common::DefaultHostTarget();
 
   {
     Module::Builder builder("module1", target);
@@ -65,19 +58,12 @@ TEST(matmul, Split) {
 
   Var k(K.as_int32(), "k0");
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
-  auto stages = CreateStages({C_init, C});
+  auto stages = CreateStages({C});
+  auto C_init = C->InitReduction(stages, Expr(0.f));
 
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
-
-  Target target;
-  target.arch = Target::Arch::X86;
-  target.bits = Target::Bit::k32;
-  target.os   = Target::OS::Linux;
+  Target target = common::DefaultHostTarget();
 
   auto [i0, i1] = stages[C]->Split(2, 16);
   std::vector<Iterator> iterators(
@@ -103,18 +89,12 @@ TEST(matmul, Blocking) {
 
   int bn = 32;
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
-  auto stages = CreateStages({C_init, C});
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
+  auto stages = CreateStages({C});
+  C->InitReduction(stages, Expr(0.f));
 
-  Target target;
-  target.arch = Target::Arch::X86;
-  target.bits = Target::Bit::k32;
-  target.os   = Target::OS::Linux;
+  Target target = common::DefaultHostTarget();
 
   // Blocking by loop tiling.
   {
@@ -142,18 +122,12 @@ TEST(matmul, Vectorization) {
 
   int bn = 32;
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
-  auto stages = CreateStages({C_init, C});
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
+  auto stages = CreateStages({C});
+  C->InitReduction(stages, Expr(0.f));
 
-  Target target;
-  target.arch = Target::Arch::X86;
-  target.bits = Target::Bit::k32;
-  target.os   = Target::OS::Linux;
+  Target target = common::DefaultHostTarget();
 
   // Blocking by loop tiling.
   {
@@ -201,18 +175,12 @@ TEST(matmul, varient_shape) {
 
   Var k(K.as_int32(), "k0");
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
-  auto stages = CreateStages({C_init, C});
-  stages[C]->CtrlDepend(C_init);
-  stages[C_init]->ShareBufferWith(stages[C]);
+  auto stages = CreateStages({C});
+  C->InitReduction(stages, Expr(0.f));
 
-  Target target;
-  target.arch = Target::Arch::X86;
-  target.bits = Target::Bit::k32;
-  target.os   = Target::OS::Linux;
+  Target target = common::DefaultHostTarget();
 
   {
     Module::Builder builder("matmul_dynamic_shape", target);
@@ -254,18 +222,14 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
 
   Expr bn(32);
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
 
   auto C = Compute({M, N}, [&](Expr i, Expr j) { return Sum(A(i, k) * packedB(j / bn, k, j % bn)); }, "C", {k});
 
-  auto stages = CreateStages({C_init, C});
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
+  auto stages = CreateStages({C});
+  C->InitReduction(stages, Expr(0.f));
 
-  LOG(INFO) << "stage: " << stages[packedB]->transformed_domain();
   stages[packedB]->Vectorize(2, 8);
 
   Target target;
@@ -298,21 +262,15 @@ TEST(matmul, call) {
   Var k(K.as_int32(), "k0");
   Buffer C_buf(Float(32));
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
-  Target target;
-  target.arch = Target::Arch::X86;
-  target.bits = Target::Bit::k32;
-  target.os   = Target::OS::Linux;
+  Target target = common::DefaultHostTarget();
 
-  auto stages = CreateStages({C_init, C});
-  stages[C]->CtrlDepend(C_init);
+  auto stages = CreateStages({C});
+  C->InitReduction(stages, Expr(0.f));
 
   Module::Builder builder("module_call", target);
   {
-    stages[C]->ShareBufferWith(stages[C_init]);
     auto func = Lower("matmul_kernel", stages, {A, B, C});
 
     builder.AddFunction(func);
