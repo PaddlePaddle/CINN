@@ -126,6 +126,7 @@ class TestLoadPaddleModel(unittest.TestCase):
         target_result = target_result.reshape(-1)
         for i in range(0, out.shape[0]):
             print(out[i], " vs: ", target_result[i])
+            print("diff is:", out[i] - target_result[i])
         self.assertTrue(np.allclose(out, target_result, atol=1e-3))
 
 

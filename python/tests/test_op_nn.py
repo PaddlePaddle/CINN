@@ -264,7 +264,7 @@ class OpTest_pool1d(SingleOpTester):
         "data_format": "NCW"
     }
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool1d(inputs_data[0], self.attrs)
 
     def test_op(self):
@@ -284,7 +284,7 @@ class OpTest_pool1d_1(SingleOpTester):
         "data_format": "NCW"
     }
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool1d(inputs_data[0], self.attrs)
 
     def test_op(self):
@@ -304,7 +304,7 @@ class OpTest_pool1d_2(SingleOpTester):
         "data_format": "NWC"
     }
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool1d(inputs_data[0], self.attrs)
 
     def test_op(self):
@@ -324,7 +324,7 @@ class OpTest_pool2d(SingleOpTester):
         "data_format": "NCHW"
     }
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool2d(inputs_data[0], self.attrs)
 
     def test_op(self):
@@ -344,7 +344,7 @@ class OpTest_pool2d_1(SingleOpTester):
         "data_format": "NCHW"
     }
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool2d(inputs_data[0], self.attrs)
 
     def test_op(self):
@@ -364,7 +364,7 @@ class OpTest_pool2d_2(SingleOpTester):
         "data_format": "NHWC"
     }
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool2d(inputs_data[0], self.attrs)
 
     def test_op(self):
@@ -384,7 +384,7 @@ class OpTest_pool3d(SingleOpTester):
         "data_format": "NCDHW"
     }
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool3d(inputs_data[0], self.attrs)
 
     def test_op(self):
@@ -404,7 +404,7 @@ class OpTest_pool3d_1(SingleOpTester):
         "data_format": "NCDHW"
     }
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool3d(inputs_data[0], self.attrs)
 
     def test_op(self):
@@ -424,7 +424,7 @@ class OpTest_pool3d_2(SingleOpTester):
         "data_format": "NDHWC"
     }
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool3d(inputs_data[0], self.attrs)
 
     def test_op(self):
