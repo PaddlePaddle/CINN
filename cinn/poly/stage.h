@@ -14,15 +14,11 @@
 
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/poly/domain.h"
 #include "cinn/poly/map.h"
 
 namespace cinn {
-namespace ir {
-class _Tensor_;
-class Tensor;
-}  // namespace ir
-
 namespace poly {
 using ir::DeviceAPI;
 
@@ -219,8 +215,10 @@ class Stage : public Object {
   std::tuple<Iterator, Iterator>  //
   Skew(const Iterator& i, const Iterator& j, int factor);
 
-  // Add a control dependency link to \p t.
+  //! Add a control dependency link to \p t.
   void CtrlDepend(const ir::Tensor& t);
+  //! Get the tensors control depend on.
+  const std::set<ir::Tensor>& ctrl_depends() const;
 
   /**
    * Create a cache Tensor and load the \p source into this buffer, replace all the reading in the readers with the
@@ -285,9 +283,11 @@ class Stage : public Object {
   inline const ir::VectorizeInfo& vectorize_info() const { return vectorize_info_; }
   inline const std::set<int>& unroll_info() const { return unroll_info_; }
 
+  /*
   const std::set<std::string>& extra_depend_stages() const { return extra_depend_stages_; }
   void set_extra_depend_stages(const std::set<std::string>& x) { extra_depend_stages_ = x; }
   void add_extra_depend_stage(const std::string& statement) { extra_depend_stages_.insert(statement); }
+   */
 
   const std::map<int /*level*/, StageForloopInfo>& forloop_infos() const { return forloop_infos_; }
 
@@ -332,14 +332,14 @@ class Stage : public Object {
   ir::VectorizeInfo vectorize_info_;
   //! The for-loop levels to unroll.
   std::set<int> unroll_info_;
-  //! The other stages it depends.
-  std::set<std::string> extra_depend_stages_;
   //! Record some forloop levels' information.
   std::map<int /*level*/, StageForloopInfo> forloop_infos_;
   //! A weak reference to the tensor.
   ir::_Tensor_* tensor_{};
   //! Thread scope.
   ScopeKind scope_{ScopeKind::kLocal};
+
+  std::set<ir::Tensor> ctrl_depends_;
 
   std::set<int> locked_axis_;
 

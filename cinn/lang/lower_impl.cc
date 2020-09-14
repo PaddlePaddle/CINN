@@ -245,8 +245,8 @@ void CompuGraphAddCtrlDepLinks(common::Graph* graph, StageMap stages) {
   for (auto& x : graph->nodes()) {
     auto* node = x->safe_as<CompuGraphNode>();
     CHECK(node);
-    for (auto& dep : stages[node->tensor]->extra_depend_stages()) {
-      auto* dep_node = graph->RetriveNode(dep);
+    for (auto& dep : stages[node->tensor]->ctrl_depends()) {
+      auto* dep_node = graph->RetriveNode(dep->name);
       if (dep_node) {
         VLOG(3) << "Add control link: " << dep << " -> " << node->id();
         dep_node->LinkTo(node);
@@ -448,8 +448,8 @@ std::set<std::pair<std::string, std::string>> LowerImpl::CollectExtraDependencie
   for (auto* node : compu_graph_->nodes()) {
     auto* cnode = node->safe_as<CompuGraphNode>();
     CHECK(cnode);
-    for (auto& dep : stages_[cnode->tensor]->extra_depend_stages()) {
-      deps.emplace(dep, cnode->tensor->name);
+    for (auto& dep : stages_[cnode->tensor]->ctrl_depends()) {
+      deps.emplace(dep->name, cnode->tensor->name);
     }
   }
   return deps;

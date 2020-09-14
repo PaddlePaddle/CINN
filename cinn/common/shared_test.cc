@@ -10,7 +10,10 @@ namespace common {
 
 struct A : public Object {
   const char *type_info() const override { return "A"; }
+
+  Shared<A> other;
 };
+
 class B : public Object {};
 
 TEST(Shared, test) {
@@ -24,6 +27,14 @@ TEST(Shared, test) {
   }
 
   ASSERT_EQ(ref_count(a_ref.get()).val(), 1);
+}
+
+TEST(Shared, cycle_share) {
+  {
+    Shared<A> a_ref(make_shared<A>());
+    a_ref->other = a_ref;
+    ASSERT_EQ(a_ref->__ref_count__.val(), 2);
+  }
 }
 
 }  // namespace common
