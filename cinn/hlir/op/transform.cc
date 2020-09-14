@@ -19,10 +19,12 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
                                            const std::vector<ir::Tensor> &inputs,
                                            const std::vector<Type> &out_type,
                                            const Target &target) {
-  framework::CINNCompute add_compute([&attrs](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute mul_compute([&attrs](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of mul compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    Expr A          = a[0];
-    Expr B          = a[1];
+    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for mul compute\n";
+    Expr A = a[0];
+    Expr B = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     auto attr_store    = attrs.attr_store;
@@ -39,6 +41,8 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
         x_num_col_dims = std::get<int>(iter.second);
       } else if (iter.first == "y_num_col_dims") {
         y_num_col_dims = std::get<int>(iter.second);
+      } else {
+        LOG(ERROR) << "unsupported attr: " << iter.first << std::endl;
       }
     }
 
@@ -50,39 +54,55 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule add_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
-    Expr A [[maybe_unused]] = arg_pack[0];
+  framework::CINNSchedule mul_schedule([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(add_compute, add_schedule, "strategy.mul.x86", 1);
+  strategy->AddImpl(mul_compute, mul_schedule, "strategy.mul.x86", 1);
 
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForMul(const std::vector<shape_t> &inputs_shape, const framework::NodeAttr &attrs) {
-  VLOG(3) << "Mul shape0: " << utils::Join(inputs_shape[0], ",");
-  VLOG(3) << "Mul shape1: " << utils::Join(inputs_shape[1], ",");
-  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape is empty";
-
-  int x_num_col_dims = -1;
-  if (attrs.attr_store.count("x_num_col_dims")) {
-    x_num_col_dims = std::get<int>(attrs.attr_store.at("x_num_col_dims"));
+std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int>> &inputs_shape,
+                                               const framework::NodeAttr &attrs) {
+  CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
+  std::vector<int> output_shape;
+  std::vector<int> shape1_new;
+  std::vector<int> shape2_new;
+  bool trans_a       = false;
+  bool trans_b       = false;
+  int x_num_col_dims = 1;
+  int y_num_col_dims = 1;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "trans_a") {
+      trans_a = std::get<bool>(iter.second);
+    } else if (iter.first == "trans_b") {
+      trans_b = std::get<bool>(iter.second);
+    } else if (iter.first == "x_num_col_dims") {
+      x_num_col_dims = std::get<int>(iter.second);
+    } else if (iter.first == "y_num_col_dims") {
+      y_num_col_dims = std::get<int>(iter.second);
+    }
   }
-  int y_num_col_dims = -1;
-  if (attrs.attr_store.count("y_num_col_dims")) {
-    y_num_col_dims = std::get<int>(attrs.attr_store.at("y_num_col_dims"));
+  shape1_new = inputs_shape[0];
+  shape2_new = inputs_shape[1];
+  if (trans_a) {
+    std::reverse(shape1_new.begin(), shape1_new.end());
   }
+  if (trans_b) {
+    std::reverse(shape2_new.begin(), shape2_new.end());
+  }
+  output_shape.insert(output_shape.begin(), shape1_new.begin(), shape1_new.begin() + x_num_col_dims);
+  output_shape.insert(output_shape.end(), shape2_new.begin() + y_num_col_dims, shape2_new.end());
 
-  shape_t out_shape;
-  for (int i = 0; i < x_num_col_dims; i++) out_shape.push_back(inputs_shape[0][i]);
-  for (int i = 0; i < y_num_col_dims; i++) out_shape.push_back(inputs_shape[1][inputs_shape.size() - 1 - i]);
-
-  if (out_shape.empty()) return {{1}};
-  return {out_shape};
+  CHECK(!output_shape.empty()) << "infer_shape for mul turns out to be empty. Please check\n";
+  std::vector<std::vector<int>> res{output_shape};
+  return res;
 }
 
 std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {

@@ -1,5 +1,7 @@
 #pragma once
-#include <cinn/common/ir_util.h>
+#include <vector>
+
+#include "cinn/common/ir_util.h"
 
 #include "cinn/ir/ir.h"
 
@@ -207,6 +209,8 @@ inline Expr ReduceMul(Expr e, Expr initial) {
 }
 inline Expr ReduceMax(Expr e, Expr initial) { return Reduce::Make(Reduce::kMax, initial, e); }
 inline Expr ReduceMin(Expr e, Expr initial) { return Reduce::Make(Reduce::kMin, initial, e); }
+
+Expr min_value(const Type& type);
 
 }  // namespace ir
 }  // namespace cinn
