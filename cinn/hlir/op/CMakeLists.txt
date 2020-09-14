@@ -11,3 +11,4 @@ foreach(cpp ${srcs})
 endforeach()
 
 cc_test(test_op_broadcast SRCS op_broadcast_test.cc DEPS core)
+cc_test(test_op_nn SRCS op_nn_test.cc DEPS core)

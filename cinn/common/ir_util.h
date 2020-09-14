@@ -1,5 +1,6 @@
 #pragma once
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -96,9 +97,14 @@ Expr make_const(Type t, T v) {
 }
 
 template <typename FuncOp>
-Expr FoldExpr(FuncOp funcOp, Expr init_value, const std::vector<Expr> &values) {
+Expr FoldExpr(FuncOp func_op, const std::vector<Expr> &values) {
+  Expr init_value;
   for (const Expr &val : values) {
-    init_value = funcOp(init_value, val);
+    if (!init_value.defined()) {
+      init_value = val;
+    } else {
+      init_value = func_op(val, init_value);
+    }
   }
   return init_value;
 }

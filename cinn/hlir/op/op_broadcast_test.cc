@@ -37,7 +37,7 @@ TEST(Operator, Operator_ElementWise_Add_Test0) {
   ASSERT_EQ(rets.size(), 2UL);
   // the last element is a StageMap
   for (int i = 0; i < rets->size() - 1; i++) {
-    ir::Expr temp = rets[i];
+    Expr temp = rets[i];
     inputs.push_back(temp.as_tensor_ref());
   }
   auto func = Lower("add1", rets.back(), inputs);
@@ -69,7 +69,7 @@ TEST(Operator, Operator_ElementWise_Add_Test1) {
   ASSERT_EQ(rets.size(), 2UL);
   // the last element is a StageMap
   for (int i = 0; i < rets->size() - 1; i++) {
-    ir::Expr temp = rets[i];
+    Expr temp = rets[i];
     inputs.push_back(temp.as_tensor_ref());
   }
   auto func = Lower("add1", rets.back(), inputs);

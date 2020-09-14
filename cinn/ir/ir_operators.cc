@@ -1,6 +1,8 @@
 #include "cinn/ir/ir_operators.h"
 
-#include <cinn/lang/compute.h>
+#include <limits>
+
+#include "cinn/lang/compute.h"
 
 #include "cinn/common/type.h"
 
@@ -144,6 +146,31 @@ EXTERN_CALL_IMP(Isnan, isnan);
 EXTERN_CALL_IMP(Tanh, tanh);
 EXTERN_CALL_IMP(Isfinite, isfinite);
 EXTERN_CALL_IMP(Isinf, isinf);
+
+Expr min_value(const Type& type) {
+  CHECK_EQ(type.lanes(), 1);
+  if (type.is_int()) {
+    if (type.bits() == 64) {
+      return Expr(std::numeric_limits<int64_t>::lowest());
+    } else if (type.bits() < 64) {
+      int64_t val = 1;
+      val         = -(val << (type.bits() - 1));
+      return Expr(val);
+    }
+  } else if (type.is_uint()) {
+    return Expr(0);
+  } else if (type.is_float()) {
+    if (type.bits() == 64) {
+      return Expr(std::numeric_limits<double>::lowest());
+    } else if (type.bits() == 32) {
+      return Expr(std::numeric_limits<float>::lowest());
+    } else if (type.bits() == 16) {
+      return Expr(-65504.0);
+    }
+  }
+  LOG(FATAL) << "Cannot decide min_value for type" << type;
+  return Expr();
+}
 
 }  // namespace ir
 }  // namespace cinn
