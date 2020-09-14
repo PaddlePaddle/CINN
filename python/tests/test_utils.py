@@ -72,9 +72,10 @@ class SingleOpTester(unittest.TestCase):
         for in_data in temp_inputs:
             args.append(runtime.cinn_pod_value_t(in_data))
         if output_shape == None:
-            correct_result, output_shape = self.create_target_data(inputs_data)
+            correct_result, output_shape = self.create_target_data(
+                inputs_data, attrs)
         else:
-            correct_result = self.create_target_data(inputs_data)
+            correct_result = self.create_target_data(inputs_data, attrs)
 
         module = self.__codegen(op_name, inputs, attrs)
 
