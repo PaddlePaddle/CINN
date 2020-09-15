@@ -37,4 +37,16 @@ T& Reference(const T* x) {
   return *const_cast<T*>(x);
 }
 
+static void CheckVarNameValid(const std::string_view name) {
+  CHECK(!name.empty());
+  CHECK(name.find(' ') == std::string::npos &&   //
+        name.find('.') == std::string::npos &&   //
+        name.find('/') == std::string::npos &&   //
+        name.find('\t') == std::string::npos &&  //
+        name.find('\n') == std::string::npos &&  //
+        name.find('\r') == std::string::npos)
+      << "Some invalid character found";
+  CHECK(!common::IsAxisNameReserved(std::string(name))) << "The name [" << name << "] is reserved for internal axis";
+}
+
 }  // namespace cinn

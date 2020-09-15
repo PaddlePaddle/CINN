@@ -109,7 +109,7 @@ void PaddleModelToProgram::AddOp(const paddle::cpp::OpDesc& op_desc) {
 }
 
 Variable PaddleModelToProgram::GetVar(const std::string& name) {
-  CHECK(utils::IsVarNameValid(name)) << "Name [" << name << "] is not valid";
+  CheckVarNameValid(name);
 
   auto it = var_map_.find(name);
   if (it != var_map_.end()) return it->second;
@@ -144,7 +144,7 @@ std::unique_ptr<Program> PaddleModelToProgram::operator()(const std::string& mod
 }
 
 void PaddleModelToProgram::AddVar(const std::string& name, const Variable& var) {
-  CHECK(utils::IsVarNameValid(name)) << "Invalid name found [" << name << "]";
+  CheckVarNameValid(name);
   CHECK(!var_map_.count(name)) << "Duplicate variable [" << name << "] found";
   var_map_[name] = var;
 }
