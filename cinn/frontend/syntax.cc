@@ -34,7 +34,7 @@ Placeholder::operator Variable() const { return var_; }
 
 Variable Program::conv2d(const Variable& a,
                          const Variable& b,
-                         const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store) {
+                         const std::unordered_map<std::string, attr_t>& attr_store) {
   Instruction instr("conv2d");
   instr.SetInputs({a, b});
   for (auto& iter : attr_store) {
@@ -46,7 +46,7 @@ Variable Program::conv2d(const Variable& a,
 
 Variable Program::batchnorm(const Variable& a,
                             const Variable& b,
-                            const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store) {
+                            const std::unordered_map<std::string, attr_t>& attr_store) {
   Instruction instr("batchnorm");
   instr.SetInputs({a, b});
   for (auto& iter : attr_store) {
@@ -56,8 +56,7 @@ Variable Program::batchnorm(const Variable& a,
   return instr.GetOutput(0);
 }
 
-Variable Program::scale(const Variable& a,
-                        const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store) {
+Variable Program::scale(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
   Instruction instr("scale", {a});
   for (auto& iter : attr_store) {
     instr.SetAttr(iter.first, iter.second);
@@ -66,8 +65,7 @@ Variable Program::scale(const Variable& a,
   return instr.GetOutput(0);
 }
 
-Variable Program::softmax(const Variable& a,
-                          const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store) {
+Variable Program::softmax(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
   Instruction instr("softmax", {a});
   for (auto& iter : attr_store) {
     instr.SetAttr(iter.first, iter.second);

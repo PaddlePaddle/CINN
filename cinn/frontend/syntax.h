@@ -159,6 +159,7 @@ struct Instruction : public common::Shared<_Instruction_> {
  * Program is a representation of a computation.
  */
 struct Program {
+  using attr_t = hlir::framework::NodeAttr::attr_t;
   void SetInputs(const std::vector<Variable>& xs);
   /**
    * Add two variables.
@@ -203,9 +204,7 @@ struct Program {
    * @param attr_store The params like padding, stride, dilation, etc.
    * @return The result.
    */
-  Variable conv2d(const Variable& a,
-                  const Variable& b,
-                  const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
+  Variable conv2d(const Variable& a, const Variable& b, const std::unordered_map<std::string, attr_t>& attr_store);
 
   /**
    * The batchnorm layer can be used as a normalizer function
@@ -216,15 +215,11 @@ struct Program {
    * @param attr_store The params like eplison.
    * @return The result.
    */
-  Variable batchnorm(const Variable& a,
-                     const Variable& b,
-                     const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
+  Variable batchnorm(const Variable& a, const Variable& b, const std::unordered_map<std::string, attr_t>& attr_store);
 
-  Variable scale(const Variable& a,
-                 const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
+  Variable scale(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
 
-  Variable softmax(const Variable& a,
-                   const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
+  Variable softmax(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
   /**
    * Get \p i-th instruction.
    */
