@@ -30,7 +30,7 @@ class SingleOpTester(unittest.TestCase):
         self.target.bits = common.Target.Bit.k32
         self.target.os = common.Target.OS.Linux
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         '''
         create the target of the operator's execution output.
         '''
@@ -72,9 +72,10 @@ class SingleOpTester(unittest.TestCase):
         for in_data in temp_inputs:
             args.append(runtime.cinn_pod_value_t(in_data))
         if output_shape == None:
-            correct_result, output_shape = self.create_target_data(inputs_data)
+            correct_result, output_shape = self.create_target_data(
+                inputs_data, attrs)
         else:
-            correct_result = self.create_target_data(inputs_data)
+            correct_result = self.create_target_data(inputs_data, attrs)
 
         module = self.__codegen(op_name, inputs, attrs)
 
