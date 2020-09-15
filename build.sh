@@ -127,6 +127,10 @@ function main {
                 CI
                 shift
                 ;;
+            prepare_model)
+                prepare_model
+                shift
+                ;;
             prepare_llvm)
                 prepare_llvm
                 ;;

@@ -1,4 +1,5 @@
 #include "cinn/hlir/framework/scope.h"
+
 #include "cinn/common/common.h"
 
 namespace cinn {

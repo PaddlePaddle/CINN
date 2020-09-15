@@ -66,7 +66,7 @@ class Placeholder {
    * @param id ID of the fed
    */
   Placeholder(const common::Type& type, const std::vector<int>& shape, std::string_view id_hint = "") {
-    CheckVarNameValid(std::string(id_hint));
+    if (!id_hint.empty()) CheckVarNameValid(std::string(id_hint));
     id_         = id_hint.empty() ? common::Context::Global().NewName("placeholder") : id_hint;
     var_        = Variable(id_);
     var_->shape = shape;
