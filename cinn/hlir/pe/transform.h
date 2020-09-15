@@ -30,14 +30,14 @@ namespace pe {
  *
  * @return the output tensor
  */
-std::vector<ir::Tensor> Matmul(const ir::Tensor& A,
-                               const ir::Tensor& B,
-                               poly::StageMap stages,
-                               bool trans_a            = false,
-                               bool trans_b            = false,
-                               int x_num_col_dims      = 1,
-                               int y_num_col_dims      = 1,
-                               const std::string& name = "T_Transform_Matmul_out");
+ir::Tensor Matmul(const ir::Tensor& A,
+                  const ir::Tensor& B,
+                  poly::StageMap stages,
+                  bool trans_a            = false,
+                  bool trans_b            = false,
+                  int x_num_col_dims      = 1,
+                  int y_num_col_dims      = 1,
+                  const std::string& name = "T_Transform_Matmul_out");
 
 }  // namespace pe
 }  // namespace hlir

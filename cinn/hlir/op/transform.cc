@@ -50,18 +50,13 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     auto out              = pe::Matmul(
         A.as_tensor_ref(), B.as_tensor_ref(), stages, trans_a, trans_b, x_num_col_dims, y_num_col_dims, UniqName("C"));
 
-    std::vector<CINNValue> res;
-    for (auto &tensor : out) {
-      res.push_back(CINNValue(tensor));
-    }
-    res.push_back(CINNValue(stages));
-    *ret = CINNValuePack{res};
+    *ret = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule mul_schedule([](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 3UL);
+    CHECK_EQ(arg_pack.size(), 2UL);
     Expr A [[maybe_unused]] = arg_pack[0];
     *ret                    = arg_pack;
   });
@@ -105,13 +100,13 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   output_shape.insert(output_shape.end(), shape2_new.begin() + y_num_col_dims, shape2_new.end());
 
   CHECK(!output_shape.empty()) << "infer_shape for mul turns out to be empty. Please check\n";
-  std::vector<std::vector<int>> res{output_shape, output_shape};
+  std::vector<std::vector<int>> res{output_shape};
   return res;
 }
 
 std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0], inputs_type[0]};
+  std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
@@ -123,7 +118,7 @@ CINN_REGISTER_HELPER(transform_ops) {
   CINN_REGISTER_OP(mul)
       .describe("Multiply two tensors")
       .set_num_inputs(2)
-      .set_num_outputs(2)
+      .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMul)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMul))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMul))

@@ -28,11 +28,7 @@ TEST(MatmulPE, PE_Matmul_Test0) {
 
   Target target = common::DefaultHostTarget();
   Module::Builder builder("module0", target);
-  std::vector<Tensor> temp_inputs = {A, B};
-  for (auto &tensor : C) {
-    temp_inputs.push_back(tensor);
-  }
-  auto func = Lower("fn", stages, temp_inputs);
+  auto func = Lower("fn", stages, {A, B, C});
   builder.AddFunction(func);
   LOG(INFO) << "func:\n" << func;
 
