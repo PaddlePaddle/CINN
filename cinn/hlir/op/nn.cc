@@ -43,7 +43,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
   if (out_type[0] == Float(32)) {
     strategy->AddImpl(relu_compute, relu_schedule, "strategy.relu.x86", 1);
   } else {
-    LOG(INFO) << "Relu op with dtype != float32 is not implemented yet!";
+    LOG(FATAL) << "Relu op with dtype != float32 is not implemented yet!";
   }
   return strategy;
 }
@@ -89,7 +89,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
   if (out_type[0] == Float(32)) {
     strategy->AddImpl(relu_compute, relu_schedule, "strategy.relu6.x86", 1);
   } else {
-    LOG(INFO) << "Relu6 op with dtype != float32 is not implemented yet!";
+    LOG(FATAL) << "Relu6 op with dtype != float32 is not implemented yet!";
   }
   return strategy;
 }
@@ -155,7 +155,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   if (out_type[0] == Float(32)) {
     strategy->AddImpl(conv2d_compute, conv2d_schedule, "strategy.conv2d.x86", 1);
   } else {
-    LOG(INFO) << "Conv2d op with dtype != float32 is not implemented yet!";
+    LOG(FATAL) << "Conv2d op with dtype != float32 is not implemented yet!";
   }
   return strategy;
 }
@@ -231,7 +231,7 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
   if (out_type[0] == Float(32)) {
     strategy->AddImpl(batchnorm_compute, batchnorm_schedule, "strategy.batchnorm.x86", 1);
   } else {
-    LOG(INFO) << "BatchNorm op with dtype != float32 is not implemented yet!";
+    LOG(FATAL) << "BatchNorm op with dtype != float32 is not implemented yet!";
   }
   return strategy;
 }
@@ -713,7 +713,7 @@ std::shared_ptr<OpStrategy> StrategyForSigmoid(const framework::NodeAttr &attrs,
   if (out_type[0] == Float(32)) {
     strategy->AddImpl(sigmoid_compute, sigmoid_schedule, "strategy.sigmoid.x86", 1);
   } else {
-    LOG(INFO) << "Sigmoid op with dtype != float32 is not implemented yet!";
+    LOG(FATAL) << "Sigmoid op with dtype != float32 is not implemented yet!";
   }
   return strategy;
 }
