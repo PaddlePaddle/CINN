@@ -135,10 +135,10 @@ TEST(llvm, module_call_lowered_func) {
   ir::Expr M(kM);
   ir::Expr N(kN);
   {  // define fn
-    lang::Placeholder<float> a("a", {M, N});
-    lang::Placeholder<float> b("b", {M, N});
+    lang::Placeholder<float> a("A", {M, N});
+    lang::Placeholder<float> b("B", {M, N});
     auto c = lang::Compute(
-        {M, N}, [&](auto i, auto j) { return a(i, j) + b(i, j); }, "c");
+        {M, N}, [&](auto i, auto j) { return a(i, j) + b(i, j); }, "C");
 
     auto stages = CreateStages({c});
     auto fn     = lang::Lower("elementwise_add", stages, {a, b, c}, {});
@@ -146,8 +146,8 @@ TEST(llvm, module_call_lowered_func) {
   }
 
   {  // call fn
-    lang::Placeholder<float> a("a", {M, N});
-    lang::Placeholder<float> b("b", {M, N});
+    lang::Placeholder<float> a("A", {M, N});
+    lang::Placeholder<float> b("B", {M, N});
 
     std::vector<lang::ReturnType> ret_types({lang::ReturnType{Float(32), {M, N}, "c_out"}});
 

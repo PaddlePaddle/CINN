@@ -82,6 +82,7 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor& input,
                           float epsilon,
                           const std::string& output_name);
 
+std::vector<ir::Tensor> Softmax(const ir::Tensor& A, int axis, const std::string& output_name);
 /**
  * @brief Perform pooling on the width dimension of the tensor.
  *        Width axis is determined by the data_format string in which 'W' means width. Only support NCW and NWC

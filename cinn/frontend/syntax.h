@@ -4,7 +4,9 @@
  */
 #include <glog/logging.h>
 
+#include <memory>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -40,6 +42,10 @@ struct Variable : public common::Shared<_Variable_> {
    * @param id_hint The identifier of the variable, if null, a random ID will be assigned.
    */
   explicit Variable(std::string_view id_hint = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
+    CHECK(id_hint.size() != 1 || (id_hint < "a" || id_hint > "z"))
+        << "The Variable's name is : [" << id_hint
+        << "]. And any name of one small letter such as \"a\", \"i\", \"j\", etc., is not permitted."
+        << " Please change it to capital letter or rename it with a longer string.";
     get()->id = id_hint.empty() ? common::Context::Global().NewName("var") : id_hint;
   }
 
@@ -59,8 +65,13 @@ class Placeholder {
    * @param shape Shape of the fed
    * @param id ID of the fed
    */
-  Placeholder(const common::Type& type, const std::vector<int>& shape, std::string_view id = "")
-      : id_(id.empty() ? common::Context::Global().NewName("placeholder") : id), var_{id} {
+  Placeholder(const common::Type& type, const std::vector<int>& shape, std::string_view id_hint = "") {
+    CHECK(id_hint.empty() || id_hint.size() > 1UL || std::isupper(id_hint[0]))
+        << "The Variable's name is : [" << id_hint
+        << "]. And any name of one small letter such as \"a\", \"i\", \"j\", etc., is not permitted."
+        << " Please change it to capital letter or rename it with a longer string.";
+    id_         = id_hint.empty() ? common::Context::Global().NewName("placeholder") : id_hint;
+    var_        = Variable(id_);
     var_->shape = shape;
     var_->type  = type;
   }
@@ -148,6 +159,7 @@ struct Instruction : public common::Shared<_Instruction_> {
  * Program is a representation of a computation.
  */
 struct Program {
+  using attr_t = hlir::framework::NodeAttr::attr_t;
   void SetInputs(const std::vector<Variable>& xs);
   /**
    * Add two variables.
@@ -183,8 +195,6 @@ struct Program {
   Variable relu(const Variable& a);
   Variable relu6(const Variable& a);
 
-  Variable scale(const Variable& a, float ratio);
-
   /**
    * The convolution2D layer calculates the output based on the input, filter
    * and strides, paddings, dilations, groups parameters.
@@ -194,9 +204,7 @@ struct Program {
    * @param attr_store The params like padding, stride, dilation, etc.
    * @return The result.
    */
-  std::vector<Variable> conv2d(const Variable& a,
-                               const Variable& b,
-                               const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
+  Variable conv2d(const Variable& a, const Variable& b, const std::unordered_map<std::string, attr_t>& attr_store);
 
   /**
    * The batchnorm layer can be used as a normalizer function
@@ -207,10 +215,11 @@ struct Program {
    * @param attr_store The params like eplison.
    * @return The result.
    */
-  Variable batchnorm(const Variable& a,
-                     const Variable& b,
-                     const std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t>& attr_store);
+  Variable batchnorm(const Variable& a, const Variable& b, const std::unordered_map<std::string, attr_t>& attr_store);
 
+  Variable scale(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+
+  Variable softmax(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
   /**
    * Get \p i-th instruction.
    */

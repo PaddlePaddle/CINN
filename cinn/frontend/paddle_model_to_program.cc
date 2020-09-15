@@ -1,6 +1,7 @@
 #include "cinn/frontend/paddle_model_to_program.h"
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/frontend/paddle/pb/program_desc.h"
+#include "cinn/hlir/framework/node.h"
 
 namespace cinn {
 namespace frontend {
@@ -38,9 +39,10 @@ void PaddleModelToProgram::AddOpMapper_scale() {
       auto& scale_tensor = std::get<hlir::framework::Tensor>(*scale_tensor_var);
       scale              = scale_tensor->mutable_data<float>(common::DefaultHostTarget())[0];
     }
-
-    auto out      = program_->scale(x, scale);
-    auto out_name = op_desc.Output("Out").front();
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    attrs["scale"] = scale;
+    auto out       = program_->scale(x, attrs);
+    auto out_name  = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
   };

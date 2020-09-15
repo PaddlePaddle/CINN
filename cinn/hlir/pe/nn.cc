@@ -106,12 +106,34 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
   auto res = Compute(
       input->shape,
       [=](Expr n, Expr c, Expr h, Expr w) {
-        return (((input(n, c, h, w) - weights(Expr(0), c)) / ir::Sqrt(weights(Expr(1), c) + Expr(epsilon))) *
+        return (((input(n, c, h, w) - weights(Expr(0), c)) / Sqrt(weights(Expr(1), c) + Expr(epsilon))) *
                     weights(Expr(2), c) +
                 weights(Expr(3), c));
       },
       output_name);
   return res;
+}
+
+/**
+ * This operator implements the softmax layer.
+ * @param A The input tensor.
+ * @param axis The axis parameter.
+ * @param output_name The name of output tensor.
+ * @return The calculated output tensor.
+ */
+std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string &output_name) {
+  Var axis_j(A->shape[axis], UniqName("axis_j"));
+  auto temp      = Compute(A->shape,
+                      [=](const std::vector<Expr> &indice) {
+                        std::vector<Expr> new_indice = indice;
+                        new_indice[axis]             = axis_j;
+                        return ir::ReduceSum(Exp(A(new_indice)), Expr(0.f));
+                      },
+                      "softmax_temp_out",
+                      {axis_j});
+  ir::Tensor out = Compute(
+      A->shape, [=](const std::vector<Expr> &indice) { return Exp(A(indice)) / temp(indice); }, "softmax_out");
+  return {temp, out};
 }
 
 /**
