@@ -30,7 +30,7 @@ class SingleOpTester(unittest.TestCase):
         self.target.bits = common.Target.Bit.k32
         self.target.os = common.Target.OS.Linux
 
-    def create_target_data(self, inputs_data):
+    def create_target_data(self, inputs_data, attrs):
         '''
         create the target of the operator's execution output.
         '''
@@ -63,7 +63,22 @@ class SingleOpTester(unittest.TestCase):
             inputs.append(
                 lang.Placeholder("float32", self.__gen_var_name(),
                                  expr_shape).to_tensor())
+
+        args = []
+        temp_inputs = []
+        for in_data in inputs_data:
+            temp_inputs.append(
+                runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device))
+        for in_data in temp_inputs:
+            args.append(runtime.cinn_pod_value_t(in_data))
+        if output_shape == None:
+            correct_result, output_shape = self.create_target_data(
+                inputs_data, attrs)
+        else:
+            correct_result = self.create_target_data(inputs_data, attrs)
+
         module = self.__codegen(op_name, inputs, attrs)
+
         self.compiler.build(module)
         fn = self.compiler.lookup(op_name)
         out = []
@@ -73,20 +88,11 @@ class SingleOpTester(unittest.TestCase):
                     np.zeros(out_shape).astype("float32"),
                     runtime.cinn_x86_device))
 
-        args = []
-        temp_inputs = []
-        for in_data in inputs_data:
-            temp_inputs.append(
-                runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device))
-        for in_data in temp_inputs:
-            args.append(runtime.cinn_pod_value_t(in_data))
         for out_data in out:
             args.append(runtime.cinn_pod_value_t(out_data))
-
         fn(args)
 
         out_result = out[len(out) - 1].numpy()
-        correct_result = self.create_target_data(inputs_data)
         self.assertTrue(np.allclose(out_result, correct_result, atol=1e-4))
 
     def __codegen(self, op_name, inputs, attrs):

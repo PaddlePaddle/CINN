@@ -172,8 +172,8 @@ void SchedulerBase::AddStage(const Stage &x) {
 void SchedulerBase::FinishStageAdd() {
   for (auto *node : schedule_graph_.nodes()) {
     auto *schedule_node = node->safe_as<ScheduleGraphNode>();
-    for (auto &depend : schedule_node->stage->extra_depend_stages()) {
-      auto *depend_node = schedule_graph_.RetriveNode(depend);
+    for (auto &depend : schedule_node->stage->ctrl_depends()) {
+      auto *depend_node = schedule_graph_.RetriveNode(depend->name);
       if (depend_node) {            // some dependencies might be in another graph.
         depend_node->LinkTo(node);  // Add link from extra depend statment to current node.
       }

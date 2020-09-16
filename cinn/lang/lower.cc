@@ -32,7 +32,8 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
   std::vector<ir::Buffer> temp_buffers;
   auto all_tensors = ir::CollectIRNodes(body, [&](const Expr* x) {
     return x->as_tensor() && x->as_tensor()->buffer.defined() && !stage_map[x->as_tensor()]->inlined() &&
-           !tensor_arg_names.count(x->as_tensor()->name);
+           !tensor_arg_names.count(x->as_tensor()->name) &&
+           stage_map[x->as_tensor()]->meta.tensors_to_share_buffer_with.empty();
   });
   for (auto& e : all_tensors) {
     if (!temp_buffer_names.count(e.as_tensor()->buffer->name)) {
@@ -43,13 +44,30 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
   return temp_buffers;
 }
 
+std::set<ir::Tensor> CollectTempTensorsFromCtrlDepends(StageMap stages, const std::vector<Tensor>& tensor_args) {
+  std::set<ir::Tensor> res;
+  for (auto& stage : stages) {
+    res.insert(stage.second->ctrl_depends().begin(), stage.second->ctrl_depends().end());
+  }
+
+  for (auto& t : tensor_args) {
+    if (res.count(t)) res.erase(t);
+  }
+  return res;
+}
+
 ir::LoweredFunc Lower(const std::string& name,
                       StageMap stages,
                       const std::vector<Tensor>& tensor_args,
                       const std::vector<Var>& scalar_args,
                       const std::vector<Tensor>& temp_tensors,
                       Module::Builder* b) {
-  auto lower_impl_instance = detail::LowerImpl(name, stages, tensor_args, scalar_args, temp_tensors);
+  // Merge the ctrl_deps with the given temp_tensors ang get a new temp_tensors
+  auto ctrl_deps = CollectTempTensorsFromCtrlDepends(stages, tensor_args);
+  ctrl_deps.insert(temp_tensors.begin(), temp_tensors.end());
+
+  auto lower_impl_instance = detail::LowerImpl(
+      name, stages, tensor_args, scalar_args, std::vector<Tensor>(ctrl_deps.begin(), ctrl_deps.end()));
 
   auto res = lower_impl_instance();
 

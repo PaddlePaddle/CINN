@@ -5,6 +5,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/ir/ir_operators.h"
 
 namespace cinn {
 namespace hlir {
@@ -21,18 +22,23 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseAdd(const framework::NodeAttr 
                                                       const std::vector<Type> &out_type,
                                                       const Target &target) {
   framework::CINNCompute add_compute([&attrs](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of add compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    Expr A_expr     = a[0];
-    Expr B_expr     = a[1];
+    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for add compute\n";
+    Expr A_expr = a[0];
+    Expr B_expr = a[1];
     CHECK(A_expr.as_tensor());
     CHECK(B_expr.as_tensor());
-    ir::Tensor A    = A_expr.as_tensor_ref();
-    ir::Tensor B    = B_expr.as_tensor_ref();
-    auto attr_store = attrs.attr_store;
-    auto iter       = attr_store.find("axis");
+    ir::Tensor A = A_expr.as_tensor_ref();
+    ir::Tensor B = B_expr.as_tensor_ref();
     Expr axis;
-    if (iter != attr_store.end()) {
-      axis = Expr(std::get<int>(iter->second));
+    bool trans_a;
+    for (auto &iter : attrs.attr_store) {
+      if (iter.first == "axis") {
+        axis = Expr(std::get<int>(iter.second));
+      } else {
+        LOG(ERROR) << "unsupported attr_store: " << iter.first << std::endl;
+      }
     }
 
     auto out = pe::Add(A, B, UniqName("C"), axis);
@@ -42,10 +48,11 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseAdd(const framework::NodeAttr 
   });
 
   framework::CINNSchedule add_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
-    Expr A [[maybe_unused]] = arg_pack[0];
+    CHECK(!args.empty()) << "The input argument of add schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -59,9 +66,11 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr 
                                                       const std::vector<Type> &out_type,
                                                       const Target &target) {
   framework::CINNCompute mul_compute([&attrs](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of elementwise_mul compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    Expr A_expr     = a[0];
-    Expr B_expr     = a[1];
+    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for elementwise_mul compute\n";
+    Expr A_expr = a[0];
+    Expr B_expr = a[1];
     CHECK(A_expr.as_tensor());
     CHECK(B_expr.as_tensor());
     ir::Tensor A    = A_expr.as_tensor_ref();
@@ -80,10 +89,11 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr 
   });
 
   framework::CINNSchedule mul_schedule([](lang::Args args, lang::RetValue *ret) {
-    CINNValuePack arg_pack  = args[0];
-    Expr A [[maybe_unused]] = arg_pack[0];
+    CHECK(!args.empty()) << "The input argument of elementwise_mul schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -143,10 +153,10 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
   framework::CINNSchedule scale_schedule([](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of scale schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK(!arg_pack.empty()) << "The input tensor of scale schedule is empty! Please check.";
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of scale schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    *ret = arg_pack;
+    *ret                    = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

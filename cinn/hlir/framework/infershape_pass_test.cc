@@ -35,8 +35,8 @@ void SetRandData(Tensor tensor, Target target) {
 TEST(Operator, GetAttrs) {
   frontend::Program prog;
   // TODO(Superjomn) Replace with Placeholder here.
-  frontend::Variable a("a");
-  frontend::Variable b("b");
+  frontend::Variable a("A");
+  frontend::Variable b("B");
   Type t   = Float(32);
   a->shape = {100, 32};
   b->shape = {100, 32};
@@ -55,8 +55,8 @@ TEST(Operator, GetAttrs) {
   GraphCompiler gc(target, scope, g);
   std::unique_ptr<Program> program = gc.Build();
 
-  auto A = GetTensor(scope, "a");
-  auto B = GetTensor(scope, "b");
+  auto A = GetTensor(scope, "A");
+  auto B = GetTensor(scope, "B");
   SetRandData(A, target);
   SetRandData(B, target);
 

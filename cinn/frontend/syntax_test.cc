@@ -64,11 +64,11 @@ TEST(syntax, program_execute_multi_elementwise_add) {
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 
-  scope->Var<hlir::framework::Tensor>("a");
-  scope->Var<hlir::framework::Tensor>("b");
+  scope->Var<hlir::framework::Tensor>("A");
+  scope->Var<hlir::framework::Tensor>("B");
 
-  auto A = scope->GetTensor("a");
-  auto B = scope->GetTensor("b");
+  auto A = scope->GetTensor("A");
+  auto B = scope->GetTensor("B");
   SetRandData(A, target);
   SetRandData(B, target);
 
@@ -87,11 +87,11 @@ TEST(syntax, program_execute_multi_elementwise_add2) {
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 
-  scope->Var<hlir::framework::Tensor>("a");
-  scope->Var<hlir::framework::Tensor>("b");
+  scope->Var<hlir::framework::Tensor>("A");
+  scope->Var<hlir::framework::Tensor>("B");
 
-  auto A = scope->GetTensor("a");
-  auto B = scope->GetTensor("b");
+  auto A = scope->GetTensor("A");
+  auto B = scope->GetTensor("B");
   SetRandData(A, target);
   SetRandData(B, target);
 
@@ -104,9 +104,9 @@ TEST(syntax, program_execute_fc) {
   const int K = 18;
   const int N = 24;
 
-  Placeholder a(Float(32), {B, M, K}, "a");
-  Placeholder w(Float(32), {K, N}, "w");  // weight
-  Placeholder b(Float(32), {N}, "b");     // bias
+  Placeholder a(Float(32), {B, M, K}, "A");
+  Placeholder w(Float(32), {K, N}, "W");  // weight
+  Placeholder b(Float(32), {N}, "B");     // bias
 
   Program program;
   auto mul_out = program.mul(a, w, false /*trans_a*/, false /*trans_b*/, 2, 1);
