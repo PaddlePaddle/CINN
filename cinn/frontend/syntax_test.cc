@@ -146,8 +146,8 @@ TEST(load_paddle_model, fc_execute) {
 
   auto [program, var_map, var_map_paddle_to_program] =
       LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
-  var_map["a"]->shape = {1, 30};
-  program->SetInputs({var_map["a"]});
+  var_map["A"]->shape = {1, 30};
+  program->SetInputs({var_map["A"]});
   program->Validate();
 
   LOG(INFO) << "program:\n" << *program;
@@ -161,7 +161,7 @@ TEST(load_paddle_model, fc_execute) {
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 
-  auto at       = scope->GetTensor("a");
+  auto at       = scope->GetTensor("A");
   auto* at_data = at->mutable_data<float>(common::DefaultHostTarget());
   for (int i = 0; i < at->shape().numel(); i++) at_data[i] = 1.f;
 
