@@ -1,4 +1,5 @@
 #include "cinn/frontend/executor.h"
+
 #include <gtest/gtest.h>
 
 DEFINE_string(model_dir, "", "");

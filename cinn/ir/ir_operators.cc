@@ -2,9 +2,8 @@
 
 #include <limits>
 
-#include "cinn/lang/compute.h"
-
 #include "cinn/common/type.h"
+#include "cinn/lang/compute.h"
 
 namespace cinn {
 namespace ir {
