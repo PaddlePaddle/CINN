@@ -78,19 +78,24 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     Type dtype         = dtype_dict.at(out_id);
     out_types.push_back(dtype);
   }
-  auto stages = CreateStages(inputs);
-  auto impl   = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, target_));
+
+  auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, target_));
 
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
-  C                       = impl->fschedule(C);
-  for (int i = 0; i < C.get()->size() - 1; i++) {
+  poly::StageMap stages   = C.back();
+  for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
     stages->InsertLazily(temp.as_tensor_ref());
+  }
+
+  C = impl->fschedule(C);
+  for (int i = 0; i < C->size() - 1; i++) {
+    ir::Expr temp = C[i];
     inputs.push_back(temp.as_tensor_ref());
   }
 
   auto func = Lower(GenOpFuncName(node), stages, inputs);
-  // VLOG(2) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
+  LOG(INFO) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
   return func;
 }
 

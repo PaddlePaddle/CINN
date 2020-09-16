@@ -13,7 +13,7 @@ a1 = fluid.layers.fc(
     input=a,
     size=size,
     act="relu",
-    bias_attr=fluid.ParamAttr(name="fc_bias"),
+    bias_attr=None,
     num_flatten_dims=1)
 
 cost = fluid.layers.square_error_cost(a1, label)
