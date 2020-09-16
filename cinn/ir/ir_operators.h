@@ -2,7 +2,6 @@
 #include <vector>
 
 #include "cinn/common/ir_util.h"
-
 #include "cinn/ir/ir.h"
 
 namespace cinn {

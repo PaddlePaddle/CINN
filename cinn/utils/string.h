@@ -56,7 +56,5 @@ std::string GetStreamCnt(const T& x) {
 
 std::string TransValidVarName(std::string name);
 
-bool IsVarNameValid(const std::string& name);
-
 }  // namespace utils
 }  // namespace cinn

@@ -42,10 +42,7 @@ struct Variable : public common::Shared<_Variable_> {
    * @param id_hint The identifier of the variable, if null, a random ID will be assigned.
    */
   explicit Variable(std::string_view id_hint = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
-    CHECK(id_hint.size() != 1 || (id_hint < "a" || id_hint > "z"))
-        << "The Variable's name is : [" << id_hint
-        << "]. And any name of one small letter such as \"a\", \"i\", \"j\", etc., is not permitted."
-        << " Please change it to capital letter or rename it with a longer string.";
+    if (!id_hint.empty()) CheckVarNameValid(id_hint);
     get()->id = id_hint.empty() ? common::Context::Global().NewName("var") : id_hint;
   }
 
@@ -66,10 +63,7 @@ class Placeholder {
    * @param id ID of the fed
    */
   Placeholder(const common::Type& type, const std::vector<int>& shape, std::string_view id_hint = "") {
-    CHECK(id_hint.empty() || id_hint.size() > 1UL || std::isupper(id_hint[0]))
-        << "The Variable's name is : [" << id_hint
-        << "]. And any name of one small letter such as \"a\", \"i\", \"j\", etc., is not permitted."
-        << " Please change it to capital letter or rename it with a longer string.";
+    if (!id_hint.empty()) CheckVarNameValid(std::string(id_hint));
     id_         = id_hint.empty() ? common::Context::Global().NewName("placeholder") : id_hint;
     var_        = Variable(id_);
     var_->shape = shape;

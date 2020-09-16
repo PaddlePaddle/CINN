@@ -134,15 +134,20 @@ TEST(Tensor, ReshapeCopied) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _A_copied_2_reshape_3 = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 10, 10, 100 }, 32/*align*/);
 void fn(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
   cinn_buffer_t* _tensor_4 = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
   cinn_buffer_malloc((void*)(0), _tensor_4);
-  cinn_buffer_malloc((void*)(0), _A_copied_2_reshape_3);
+  const float* A = ((const float*)(_A->memory));
+  float* A_copied_2 = ((float*)(_A_copied_2_reshape_3->memory));
   const float* A_copied_2_reshape_3 = ((const float*)(_A_copied_2_reshape_3->memory));
   float* tensor_4 = ((float*)(_tensor_4->memory));
+  for (int32_t i = 0; i < 100; i += 1) {
+    for (int32_t j = 0; j < 100; j += 1) {
+      A_copied_2[((100 * i) + j)] = A[((100 * i) + j)];
+    };
+  };
   for (int32_t i = 0; i < 10; i += 1) {
     for (int32_t j = 0; j < 10; j += 1) {
       for (int32_t k = 0; k < 100; k += 1) {
