@@ -32,6 +32,9 @@ class PaddleModelToProgram {
     AddOpMapper_scale();
     AddOpMapper_relu();
     AddOpMapper_elementwise_add();
+    AddOpMapper_conv2d();
+    AddOpMapper_batchnorm();
+    AddOpMapper_pool2d();
   }
 
   std::unique_ptr<Program> operator()(const std::string& model_dir, bool is_combined);
@@ -46,6 +49,9 @@ class PaddleModelToProgram {
   void AddOpMapper_mul();
   void AddOpMapper_relu();
   void AddOpMapper_elementwise_add();
+  void AddOpMapper_conv2d();
+  void AddOpMapper_batchnorm();
+  void AddOpMapper_pool2d();
   // @}
 
   const std::unordered_map<std::string, Variable>& var_map() const { return var_map_; }

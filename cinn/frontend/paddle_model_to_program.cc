@@ -98,6 +98,88 @@ void PaddleModelToProgram::AddOpMapper_elementwise_add() {
   };
 }
 
+void PaddleModelToProgram::AddOpMapper_conv2d() {
+  op_mappers_["conv2d"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    auto x_name   = op_desc.Input("Input").front();
+    auto y_name   = op_desc.Input("Filter").front();
+    auto out_name = op_desc.Output("Output").front();
+
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    CHECK(op_desc.HasAttr("paddings"));
+    attrs["padding"] = op_desc.GetAttr<std::vector<int>>("paddings");
+    CHECK(op_desc.HasAttr("strides"));
+    attrs["stride"] = op_desc.GetAttr<std::vector<int>>("strides");
+    CHECK(op_desc.HasAttr("dilations"));
+    attrs["dilation"] = op_desc.GetAttr<std::vector<int>>("dilations");
+    CHECK(op_desc.HasAttr("groups"));
+    attrs["groups"] = op_desc.GetAttr<int>("groups");
+    auto x          = GetVar(TransValidVarName(x_name));
+    auto y          = GetVar(TransValidVarName(y_name));
+    auto out        = program_->conv2d(x, y, attrs);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_pool2d() {
+  op_mappers_["pool2d"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    auto x_name   = op_desc.Input("X").front();
+    auto out_name = op_desc.Output("Out").front();
+
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    CHECK(op_desc.HasAttr("pooling_type"));
+    attrs["pool_type"] = op_desc.GetAttr<std::string>("pooling_type");
+    CHECK(op_desc.HasAttr("ksize"));
+    attrs["kernel_size"] = op_desc.GetAttr<std::vector<int>>("ksize");
+    CHECK(op_desc.HasAttr("strides"));
+    attrs["stride_size"] = op_desc.GetAttr<std::vector<int>>("strides");
+    CHECK(op_desc.HasAttr("paddings"));
+    auto padding_size = op_desc.GetAttr<std::vector<int>>("paddings");
+    if (padding_size.size() == 2) {
+      padding_size.insert(padding_size.begin(), padding_size.front());
+      padding_size.push_back(padding_size.back());
+    }
+    attrs["padding_size"] = padding_size;
+    CHECK(op_desc.HasAttr("ceil_mode"));
+    attrs["ceil_mode"] = op_desc.GetAttr<bool>("ceil_mode");
+    CHECK(op_desc.HasAttr("exclusive"));
+    attrs["exclusive"] = op_desc.GetAttr<bool>("exclusive");
+    CHECK(op_desc.HasAttr("data_format"));
+    attrs["data_format"] = op_desc.GetAttr<std::string>("data_format");
+
+    auto x   = GetVar(TransValidVarName(x_name));
+    auto out = program_->pool2d(x, attrs);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_batchnorm() {
+  op_mappers_["batch_norm"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    auto x_name        = op_desc.Input("X").front();
+    auto scale_name    = op_desc.Input("Scale").front();
+    auto bias_name     = op_desc.Input("Bias").front();
+    auto mean_name     = op_desc.Input("Mean").front();
+    auto variance_name = op_desc.Input("Variance").front();
+    auto out_name      = op_desc.Output("Y").front();
+
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    CHECK(op_desc.HasAttr("epsilon"));
+    attrs["epsilon"] = op_desc.GetAttr<float>("epsilon");
+    auto x           = GetVar(TransValidVarName(x_name));
+    auto scale       = GetVar(TransValidVarName(scale_name));
+    auto bias        = GetVar(TransValidVarName(bias_name));
+    auto mean        = GetVar(TransValidVarName(mean_name));
+    auto variance    = GetVar(TransValidVarName(variance_name));
+    auto out         = program_->batchnorm(x, scale, bias, mean, variance, attrs);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
 void PaddleModelToProgram::AddOp(const paddle::cpp::OpDesc& op_desc) {
   const auto& op_type = op_desc.Type();
   auto it             = op_mappers_.find(op_type);
@@ -121,6 +203,10 @@ Variable PaddleModelToProgram::GetVar(const std::string& name) {
     Variable var;
     var.set_id(name);
     var->shape = tensor->shape().data();
+    LOG(INFO) << "The shape of variable " << name << "is : \n";
+    for (auto& i : tensor->shape().data()) {
+      LOG(INFO) << i << ", ";
+    }
     // TODO(Superjomn) Make this determined by model.
     var->type = Float(32);
     AddVar(name, var);

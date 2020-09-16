@@ -101,7 +101,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                               const Target &target) {
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
-  int dilation(1);
+  std::vector<int> dilation({1, 1});
   int groups(1);
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
     padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
@@ -110,7 +110,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
   }
   if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
-    dilation = std::get<int>(attrs.attr_store.at("dilation"));
+    dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
   }
   if (attrs.attr_store.find("groups") != attrs.attr_store.end()) {
     groups = std::get<int>(attrs.attr_store.at("groups"));
@@ -131,7 +131,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                padding[1],
                                stride[0],
                                stride[1],
-                               dilation,
+                               dilation[0],
+                               dilation[1],
                                groups,
                                UniqName("Conv2d_output"));
     auto stages = CreateStages(out);
@@ -165,7 +166,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
-  int dilation(1);
+  std::vector<int> dilation({1, 1});
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
     padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
@@ -173,21 +174,24 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
     stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
   }
   if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
-    dilation = std::get<int>(attrs.attr_store.at("dilation"));
+    dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
   }
   CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
   CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
-  CHECK_EQ(inputs_shape[0].size(), 4) << "The first input tensor's shape size of conv2d op is not 4! Please check.";
-  int out_shape_h = (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation + 1) + 2 * padding[0]) / stride[0] + 1;
-  int out_shape_w = (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation + 1) + 2 * padding[1]) / stride[1] + 1;
+  CHECK_GE(inputs_shape[0].size(), 3) << "The first input tensor's shape size of conv2d op is < 3! Please check.";
+
+  int out_shape_h =
+      (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
+  int out_shape_w =
+      (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
   std::vector<shape_t> res{{inputs_shape[0][0],
                             inputs_shape[0][1],
                             inputs_shape[0][2] + 2 * padding[0],
                             inputs_shape[0][3] + 2 * padding[1]},
                            {inputs_shape[1][0],
                             inputs_shape[1][1],
-                            (inputs_shape[1][2] - 1) * dilation + 1,
-                            (inputs_shape[1][3] - 1) * dilation + 1},
+                            (inputs_shape[1][2] - 1) * dilation[0] + 1,
+                            (inputs_shape[1][3] - 1) * dilation[1] + 1},
                            {inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
   return res;
 }
@@ -209,12 +213,25 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
   framework::CINNCompute batchnorm_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of batchnorm compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for batchnorm compute\n";
-    Expr A = a[0];
-    Expr B = a[1];
+    CHECK_GE(a.size(), 5U) << "at least 5 input tensors for batchnorm compute\n";
+    Expr A        = a[0];
+    Expr Scale    = a[1];
+    Expr Bias     = a[2];
+    Expr Mean     = a[3];
+    Expr Variance = a[4];
+
     CHECK(A.as_tensor());
-    CHECK(B.as_tensor());
-    auto out    = pe::BatchNorm_NCHW(A.as_tensor_ref(), B.as_tensor_ref(), epsilon, UniqName("BatchNorm_output"));
+    CHECK(Scale.as_tensor());
+    CHECK(Bias.as_tensor());
+    CHECK(Mean.as_tensor());
+    CHECK(Variance.as_tensor());
+    auto out    = pe::BatchNorm_NCHW(A.as_tensor_ref(),
+                                  Scale.as_tensor_ref(),
+                                  Bias.as_tensor_ref(),
+                                  Mean.as_tensor_ref(),
+                                  Variance.as_tensor_ref(),
+                                  epsilon,
+                                  UniqName("BatchNorm_output"));
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
@@ -822,7 +839,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 
   CINN_REGISTER_OP(batchnorm)
       .describe("Can be used as a normalizer function for convolution or fully_connected operations.")
-      .set_num_inputs(2)  // here we consider batchnorm's 4 attrs(mean, variance, scale, bias) as another input
+      .set_num_inputs(5)  // here we consider batchnorm's 4 attrs(mean, variance, scale, bias) as other 4 inputs
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBatchNorm)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBatchNorm))

@@ -41,16 +41,17 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                     int pad_w,
                                     int stride_h,
                                     int stride_w,
-                                    int dilation,
+                                    int dilation_h,
+                                    int dilation_w,
                                     int groups,
                                     const std::string &output_name) {
   CHECK_EQ(4, input->shape.size()) << "Input's dimension of Conv2d op is not 4! Please check.";
   CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d op is not 4! Please check.";
   std::vector<Expr> output_shape{
-      input->shape[0],                                                                                // B
-      weights->shape[0],                                                                              // O
-      Expr((input->shape[2] - ((weights->shape[2] - 1) * dilation + 1) + 2 * pad_h) / stride_h + 1),  // H
-      Expr((input->shape[3] - ((weights->shape[3] - 1) * dilation + 1) + 2 * pad_w) / stride_w + 1)   // W
+      input->shape[0],                                                                                  // B
+      weights->shape[0],                                                                                // O
+      Expr((input->shape[2] - ((weights->shape[2] - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1),  // H
+      Expr((input->shape[3] - ((weights->shape[3] - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1)   // W
   };
   auto input_pad = Compute(
       {input->shape[0], input->shape[1], input->shape[2] + 2 * pad_h, input->shape[3] + 2 * pad_w},
@@ -62,13 +63,13 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
       UniqName("input_pad"));
   std::vector<Expr> new_weights_shape{weights->shape[0],
                                       weights->shape[1],
-                                      dilation * (weights->shape[2] - 1) + 1,
-                                      dilation * (weights->shape[3] - 1) + 1};
+                                      dilation_h * (weights->shape[2] - 1) + 1,
+                                      dilation_w * (weights->shape[3] - 1) + 1};
   auto weights_dilation = Compute(
       new_weights_shape,
       [=](Expr nn, Expr cc, Expr yy, Expr xx) {
-        auto cond = ir::logic_and({(xx) % dilation == 0, yy % dilation == 0});
-        return ir::Select::Make(cond, weights(nn, cc, yy / dilation, xx / dilation), Expr(0.f));
+        auto cond = ir::logic_and({(xx) % dilation_h == 0, yy % dilation_w == 0});
+        return ir::Select::Make(cond, weights(nn, cc, yy / dilation_h, xx / dilation_w), Expr(0.f));
       },
       UniqName("weights_dilation"));
 
@@ -98,17 +99,21 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
  * @return The calculated output tensor.
  */
 ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
-                          const ir::Tensor &weights,
+                          const ir::Tensor &scale,
+                          const ir::Tensor &bias,
+                          const ir::Tensor &mean,
+                          const ir::Tensor &variance,
                           float epsilon,
                           const std::string &output_name) {
   CHECK_EQ(4, input->shape.size()) << "Input's dimension of BatchNorm op is not 4! Please check.";
-  CHECK_EQ(2, weights->shape.size()) << "Weight's dimension of BatchNorm op is not 2! Please check.";
+  CHECK_EQ(1, scale->shape.size()) << "Scale's dimension of BatchNorm op is not 1! Please check.";
+  CHECK_EQ(1, bias->shape.size()) << "Bias's dimension of BatchNorm op is not 1! Please check.";
+  CHECK_EQ(1, mean->shape.size()) << "Mean's dimension of BatchNorm op is not 1! Please check.";
+  CHECK_EQ(1, variance->shape.size()) << "Variance's dimension of BatchNorm op is not 1! Please check.";
   auto res = Compute(
       input->shape,
       [=](Expr n, Expr c, Expr h, Expr w) {
-        return (((input(n, c, h, w) - weights(Expr(0), c)) / Sqrt(weights(Expr(1), c) + Expr(epsilon))) *
-                    weights(Expr(2), c) +
-                weights(Expr(3), c));
+        return (((input(n, c, h, w) - mean(c)) / Sqrt(variance(c) + Expr(epsilon))) * scale(c) + bias(c));
       },
       output_name);
   return res;
