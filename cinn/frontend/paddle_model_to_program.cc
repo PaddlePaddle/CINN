@@ -21,6 +21,7 @@ void PaddleModelToProgram::AddOpMapper_feed() {
 
 void PaddleModelToProgram::AddOpMapper_fetch() {
   op_mappers_["fetch"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("X").empty());
     auto output_name = op_desc.Input("X").front();
     LOG(INFO) << "detect model output: [" << output_name << "]";
   };
@@ -28,6 +29,7 @@ void PaddleModelToProgram::AddOpMapper_fetch() {
 
 void PaddleModelToProgram::AddOpMapper_scale() {
   op_mappers_["scale"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("X").empty());
     auto x_name = op_desc.Input("X").front();
     auto x      = GetVar(utils::TransValidVarName(x_name));
     float scale{};
@@ -35,6 +37,7 @@ void PaddleModelToProgram::AddOpMapper_scale() {
       scale = op_desc.GetAttr<float>("scale");
     } else {  // the newly refactored format
       // load scale tensor
+      CHECK(!op_desc.Input("ScaleTensor").empty());
       auto* scale_tensor_var = scope_->FindVar(op_desc.Input("ScaleTensor").front());
       CHECK(scale_tensor_var) << "No scale tensor found in the scope";
       auto& scale_tensor = std::get<hlir::framework::Tensor>(*scale_tensor_var);
@@ -43,7 +46,8 @@ void PaddleModelToProgram::AddOpMapper_scale() {
     std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     attrs["scale"] = scale;
     auto out       = program_->scale(x, attrs);
-    auto out_name  = op_desc.Output("Out").front();
+    CHECK(!op_desc.Output("Out").empty());
+    auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
   };
@@ -51,7 +55,9 @@ void PaddleModelToProgram::AddOpMapper_scale() {
 
 void PaddleModelToProgram::AddOpMapper_mul() {
   op_mappers_["mul"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    auto x_name        = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("Y").empty());
     auto y_name        = op_desc.Input("Y").front();
     auto x             = GetVar(utils::TransValidVarName(x_name));
     auto y             = GetVar(utils::TransValidVarName(y_name));
@@ -61,7 +67,8 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
     VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
-    auto out      = program_->mul(x, y, false, false, x_num_col_dims, y_num_col_dims);
+    auto out = program_->mul(x, y, false, false, x_num_col_dims, y_num_col_dims);
+    CHECK(!op_desc.Output("Out").empty());
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -70,7 +77,9 @@ void PaddleModelToProgram::AddOpMapper_mul() {
 
 void PaddleModelToProgram::AddOpMapper_relu() {
   op_mappers_["relu"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    auto x_name   = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Output("Out").empty());
     auto out_name = op_desc.Output("Out").front();
 
     auto x   = GetVar(TransValidVarName(x_name));
@@ -83,8 +92,11 @@ void PaddleModelToProgram::AddOpMapper_relu() {
 
 void PaddleModelToProgram::AddOpMapper_elementwise_add() {
   op_mappers_["elementwise_add"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    auto x_name   = op_desc.Input("X").front();
-    auto y_name   = op_desc.Input("Y").front();
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("Y").empty());
+    auto y_name = op_desc.Input("Y").front();
+    CHECK(!op_desc.Output("Out").empty());
     auto out_name = op_desc.Output("Out").front();
 
     int axis = op_desc.GetAttr<int>("axis");
@@ -92,6 +104,99 @@ void PaddleModelToProgram::AddOpMapper_elementwise_add() {
     auto x   = GetVar(TransValidVarName(x_name));
     auto y   = GetVar(TransValidVarName(y_name));
     auto out = program_->elementwise_add(x, y, axis);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_conv2d() {
+  op_mappers_["conv2d"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("Input").empty());
+    auto x_name = op_desc.Input("Input").front();
+    CHECK(!op_desc.Input("Filter").empty());
+    auto y_name = op_desc.Input("Filter").front();
+    CHECK(!op_desc.Output("Output").empty());
+    auto out_name = op_desc.Output("Output").front();
+
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    CHECK(op_desc.HasAttr("paddings"));
+    attrs["padding"] = op_desc.GetAttr<std::vector<int>>("paddings");
+    CHECK(op_desc.HasAttr("strides"));
+    attrs["stride"] = op_desc.GetAttr<std::vector<int>>("strides");
+    CHECK(op_desc.HasAttr("dilations"));
+    attrs["dilation"] = op_desc.GetAttr<std::vector<int>>("dilations");
+    CHECK(op_desc.HasAttr("groups"));
+    attrs["groups"] = op_desc.GetAttr<int>("groups");
+    auto x          = GetVar(TransValidVarName(x_name));
+    auto y          = GetVar(TransValidVarName(y_name));
+    auto out        = program_->conv2d(x, y, attrs);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_pool2d() {
+  op_mappers_["pool2d"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Output("Out").empty());
+    auto out_name = op_desc.Output("Out").front();
+
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    CHECK(op_desc.HasAttr("pooling_type"));
+    attrs["pool_type"] = op_desc.GetAttr<std::string>("pooling_type");
+    CHECK(op_desc.HasAttr("ksize"));
+    attrs["kernel_size"] = op_desc.GetAttr<std::vector<int>>("ksize");
+    CHECK(op_desc.HasAttr("strides"));
+    attrs["stride_size"] = op_desc.GetAttr<std::vector<int>>("strides");
+    CHECK(op_desc.HasAttr("paddings"));
+    auto padding_size = op_desc.GetAttr<std::vector<int>>("paddings");
+    if (padding_size.size() == 2) {
+      padding_size.insert(padding_size.begin(), padding_size.front());
+      padding_size.push_back(padding_size.back());
+    }
+    attrs["padding_size"] = padding_size;
+    CHECK(op_desc.HasAttr("ceil_mode"));
+    attrs["ceil_mode"] = op_desc.GetAttr<bool>("ceil_mode");
+    CHECK(op_desc.HasAttr("exclusive"));
+    attrs["exclusive"] = op_desc.GetAttr<bool>("exclusive");
+    CHECK(op_desc.HasAttr("data_format"));
+    attrs["data_format"] = op_desc.GetAttr<std::string>("data_format");
+
+    auto x   = GetVar(TransValidVarName(x_name));
+    auto out = program_->pool2d(x, attrs);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_batchnorm() {
+  op_mappers_["batch_norm"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("Scale").empty());
+    auto scale_name = op_desc.Input("Scale").front();
+    CHECK(!op_desc.Input("Bias").empty());
+    auto bias_name = op_desc.Input("Bias").front();
+    CHECK(!op_desc.Input("Mean").empty());
+    auto mean_name = op_desc.Input("Mean").front();
+    CHECK(!op_desc.Input("Variance").empty());
+    auto variance_name = op_desc.Input("Variance").front();
+    CHECK(!op_desc.Output("Y").empty());
+    auto out_name = op_desc.Output("Y").front();
+
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    CHECK(op_desc.HasAttr("epsilon"));
+    attrs["epsilon"] = op_desc.GetAttr<float>("epsilon");
+    auto x           = GetVar(TransValidVarName(x_name));
+    auto scale       = GetVar(TransValidVarName(scale_name));
+    auto bias        = GetVar(TransValidVarName(bias_name));
+    auto mean        = GetVar(TransValidVarName(mean_name));
+    auto variance    = GetVar(TransValidVarName(variance_name));
+    auto out         = program_->batchnorm(x, scale, bias, mean, variance, attrs);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -121,6 +226,10 @@ Variable PaddleModelToProgram::GetVar(const std::string& name) {
     Variable var;
     var.set_id(name);
     var->shape = tensor->shape().data();
+    LOG(INFO) << "The shape of variable " << name << "is : \n";
+    for (auto& i : tensor->shape().data()) {
+      LOG(INFO) << i << ", ";
+    }
     // TODO(Superjomn) Make this determined by model.
     var->type = Float(32);
     AddVar(name, var);

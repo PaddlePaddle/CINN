@@ -65,7 +65,7 @@ class TestFrontend(unittest.TestCase):
         e = Variable("E").set_type(Float(32)).set_shape([144, 24, 1, 1])
         f = prog.conv2d(d, e, {
             "stride": [1, 1],
-            "dilation": 1,
+            "dilation": [1, 1],
             "padding": [0, 0]
         })
         g = prog.scale(f, {"scale": 2.0, "bias": 0.5})

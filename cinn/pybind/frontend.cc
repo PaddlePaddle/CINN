@@ -89,9 +89,8 @@ void BindFrontend(pybind11::module *m) {
                auto *data     = in_tensor->mutable_data<float>(target);
                std::vector<float> temp(in_tensor->shape().numel(), 0.0);
                for (size_t j = 0; j < in_tensor->shape().numel(); j++) {
-                 unsigned int seed = j;
-                 data[j]           = (rand_r(&seed) * 1.f) / RAND_MAX;  // All random data
-                 temp[j]           = data[j];
+                 data[j] = (rand() * 1.f) / RAND_MAX;  // All random data
+                 temp[j] = data[j];
                }
                result_data.push_back(temp);
              }

@@ -171,8 +171,8 @@ struct Program {
                const Variable& b,
                bool trans_a       = false,
                bool trans_b       = false,
-               int x_num_col_dims = -1,
-               int y_num_col_dims = -1);
+               int x_num_col_dims = 1,
+               int y_num_col_dims = 1);
 
   /**
    * Add two tensors element-wise.
@@ -200,6 +200,8 @@ struct Program {
    */
   Variable conv2d(const Variable& a, const Variable& b, const std::unordered_map<std::string, attr_t>& attr_store);
 
+  Variable pool2d(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+
   /**
    * The batchnorm layer can be used as a normalizer function
    * for convolution or fully_connected operations.
@@ -209,7 +211,12 @@ struct Program {
    * @param attr_store The params like eplison.
    * @return The result.
    */
-  Variable batchnorm(const Variable& a, const Variable& b, const std::unordered_map<std::string, attr_t>& attr_store);
+  Variable batchnorm(const Variable& a,
+                     const Variable& scale,
+                     const Variable& bias,
+                     const Variable& mean,
+                     const Variable& variance,
+                     const std::unordered_map<std::string, attr_t>& attr_store);
 
   Variable scale(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
 
