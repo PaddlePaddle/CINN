@@ -118,7 +118,7 @@ class TestLoadPaddleModel_FC(unittest.TestCase):
 
         self.executor.run()
 
-        out = self.executor.get_tensor("var_11")
+        out = self.executor.get_tensor("fc_0.tmp_2")
         target = self.get_paddle_inference_result(self.model_dir, x_data)
 
         self.assertTrue(np.allclose(out.numpy(), target, atol=1e-4))
