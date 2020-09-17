@@ -21,6 +21,7 @@ void PaddleModelToProgram::AddOpMapper_feed() {
 
 void PaddleModelToProgram::AddOpMapper_fetch() {
   op_mappers_["fetch"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("X").empty());
     auto output_name = op_desc.Input("X").front();
     LOG(INFO) << "detect model output: [" << output_name << "]";
   };
@@ -28,6 +29,7 @@ void PaddleModelToProgram::AddOpMapper_fetch() {
 
 void PaddleModelToProgram::AddOpMapper_scale() {
   op_mappers_["scale"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("X").empty());
     auto x_name = op_desc.Input("X").front();
     auto x      = GetVar(utils::TransValidVarName(x_name));
     float scale{};
@@ -35,6 +37,7 @@ void PaddleModelToProgram::AddOpMapper_scale() {
       scale = op_desc.GetAttr<float>("scale");
     } else {  // the newly refactored format
       // load scale tensor
+      CHECK(!op_desc.Input("ScaleTensor").empty());
       auto* scale_tensor_var = scope_->FindVar(op_desc.Input("ScaleTensor").front());
       CHECK(scale_tensor_var) << "No scale tensor found in the scope";
       auto& scale_tensor = std::get<hlir::framework::Tensor>(*scale_tensor_var);
@@ -43,7 +46,8 @@ void PaddleModelToProgram::AddOpMapper_scale() {
     std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     attrs["scale"] = scale;
     auto out       = program_->scale(x, attrs);
-    auto out_name  = op_desc.Output("Out").front();
+    CHECK(!op_desc.Output("Out").empty());
+    auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
   };
@@ -51,7 +55,9 @@ void PaddleModelToProgram::AddOpMapper_scale() {
 
 void PaddleModelToProgram::AddOpMapper_mul() {
   op_mappers_["mul"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    auto x_name        = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("Y").empty());
     auto y_name        = op_desc.Input("Y").front();
     auto x             = GetVar(utils::TransValidVarName(x_name));
     auto y             = GetVar(utils::TransValidVarName(y_name));
@@ -61,7 +67,8 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
     VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
-    auto out      = program_->mul(x, y, false, false, x_num_col_dims, y_num_col_dims);
+    auto out = program_->mul(x, y, false, false, x_num_col_dims, y_num_col_dims);
+    CHECK(!op_desc.Output("Out").empty());
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -70,7 +77,9 @@ void PaddleModelToProgram::AddOpMapper_mul() {
 
 void PaddleModelToProgram::AddOpMapper_relu() {
   op_mappers_["relu"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    auto x_name   = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Output("Out").empty());
     auto out_name = op_desc.Output("Out").front();
 
     auto x   = GetVar(TransValidVarName(x_name));
@@ -83,8 +92,11 @@ void PaddleModelToProgram::AddOpMapper_relu() {
 
 void PaddleModelToProgram::AddOpMapper_elementwise_add() {
   op_mappers_["elementwise_add"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    auto x_name   = op_desc.Input("X").front();
-    auto y_name   = op_desc.Input("Y").front();
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("Y").empty());
+    auto y_name = op_desc.Input("Y").front();
+    CHECK(!op_desc.Output("Out").empty());
     auto out_name = op_desc.Output("Out").front();
 
     int axis = op_desc.GetAttr<int>("axis");
@@ -100,8 +112,11 @@ void PaddleModelToProgram::AddOpMapper_elementwise_add() {
 
 void PaddleModelToProgram::AddOpMapper_conv2d() {
   op_mappers_["conv2d"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    auto x_name   = op_desc.Input("Input").front();
-    auto y_name   = op_desc.Input("Filter").front();
+    CHECK(!op_desc.Input("Input").empty());
+    auto x_name = op_desc.Input("Input").front();
+    CHECK(!op_desc.Input("Filter").empty());
+    auto y_name = op_desc.Input("Filter").front();
+    CHECK(!op_desc.Output("Output").empty());
     auto out_name = op_desc.Output("Output").front();
 
     std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
@@ -124,7 +139,9 @@ void PaddleModelToProgram::AddOpMapper_conv2d() {
 
 void PaddleModelToProgram::AddOpMapper_pool2d() {
   op_mappers_["pool2d"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    auto x_name   = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Output("Out").empty());
     auto out_name = op_desc.Output("Out").front();
 
     std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
@@ -158,12 +175,18 @@ void PaddleModelToProgram::AddOpMapper_pool2d() {
 
 void PaddleModelToProgram::AddOpMapper_batchnorm() {
   op_mappers_["batch_norm"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    auto x_name        = op_desc.Input("X").front();
-    auto scale_name    = op_desc.Input("Scale").front();
-    auto bias_name     = op_desc.Input("Bias").front();
-    auto mean_name     = op_desc.Input("Mean").front();
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("Scale").empty());
+    auto scale_name = op_desc.Input("Scale").front();
+    CHECK(!op_desc.Input("Bias").empty());
+    auto bias_name = op_desc.Input("Bias").front();
+    CHECK(!op_desc.Input("Mean").empty());
+    auto mean_name = op_desc.Input("Mean").front();
+    CHECK(!op_desc.Input("Variance").empty());
     auto variance_name = op_desc.Input("Variance").front();
-    auto out_name      = op_desc.Output("Y").front();
+    CHECK(!op_desc.Output("Y").empty());
+    auto out_name = op_desc.Output("Y").front();
 
     std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("epsilon"));

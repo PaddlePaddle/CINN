@@ -61,9 +61,11 @@ class TestLoadResnetModel(unittest.TestCase):
         print("result in test_model: \n")
         out = out.reshape(-1)
         target_result = target_result.reshape(-1)
-        for i in range(0, 20):
-            print(out[i], " vs: ", target_result[i])
-            print("diff is:", out[i] - target_result[i])
+        for i in range(0, out.shape[0]):
+            if np.abs(out[i] - target_result[i]) > 1e-3:
+                print("Error! ", i, "-th data has diff with target data:\n",
+                      out[i], " vs: ", target_result[i], ". Diff is: ",
+                      out[i] - target_result[i])
         self.assertTrue(np.allclose(out, target_result, atol=1e-3))
 
 

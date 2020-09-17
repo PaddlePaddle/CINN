@@ -437,7 +437,10 @@ class OpTest_batchnorm(SingleOpTester):
         [X, Scale, Bias, Mean, Variance] = inputs_data
         c = X.shape[1]
         for i in range(0, c):
+            """ TODO(haozech) This should be the correct compute function(with sqrt)
             X[:, i, :, :] = (X[:, i, :, :] - Mean[i]) / math.sqrt(
+                Variance[i] + 0.00001) * Scale[i] + Bias[i] """
+            X[:, i, :, :] = (X[:, i, :, :] - Mean[i]) / (
                 Variance[i] + 0.00001) * Scale[i] + Bias[i]
         return X
 
