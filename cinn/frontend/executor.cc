@@ -25,7 +25,8 @@ hlir::framework::Tensor Executor::GetTensor(const std::string& name) {
 
   auto it = var_map_paddle_to_program_.find(name);
   if (it == var_map_paddle_to_program_.end()) {
-    LOG(FATAL) << "No variable called [" << name << "] found in executor";
+    LOG(FATAL) << "No variable called [" << name
+               << "] found in executor\nThe existing vars: " << utils::Join(scope_->var_names(), ", ");
   }
   return scope_->GetTensor(it->second);
 }
@@ -45,6 +46,8 @@ void Executor::Build(const std::vector<std::string>& input_names,
 
   program_->SetInputs({input_vars});
   program_->Validate();
+
+  LOG(INFO) << "Program:\n" << *program_;
 
   auto graph = std::make_shared<hlir::framework::Graph>(*program_);
 

@@ -54,7 +54,9 @@ ADD_TEST(NAME test_cinn_op_broadcast
 
 ADD_TEST(NAME test_cinn_frontend
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_frontend.py ${CMAKE_BINARY_DIR}/thirds/naive_mul_model
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_frontend.py
+    ${CMAKE_BINARY_DIR}/thirds/naive_mul_model
+    ${CMAKE_BINARY_DIR}/thirds/multi_fc_model
 )
 
 ADD_TEST(NAME test_cinn_resnet

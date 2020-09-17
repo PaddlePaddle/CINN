@@ -14,7 +14,9 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
-model_dir = sys.argv.pop()
+assert len(sys.argv) == 1 + 2  # model count
+multi_fc_model_dir = sys.argv.pop()
+naive_model_dir = sys.argv.pop()
 
 
 class TestFrontend(unittest.TestCase):
@@ -68,6 +70,7 @@ class TestFrontend(unittest.TestCase):
             "dilation": [1, 1],
             "padding": [0, 0]
         })
+        print('f', f)
         g = prog.scale(f, {"scale": 2.0, "bias": 0.5})
         h = prog.softmax(g, {"axis": 1})
 
@@ -80,54 +83,82 @@ class TestFrontend(unittest.TestCase):
         self.paddle_verify(result)
 
 
-class TestLoadPaddleModel(unittest.TestCase):
+class TestLoadPaddleModel_FC(unittest.TestCase):
     def setUp(self):
         self.target = Target()
         self.target.arch = Target.Arch.X86
         self.target.bits = Target.Bit.k64
         self.target.os = Target.OS.Linux
 
-        self.model_dir = model_dir
+        self.model_dir = naive_model_dir
 
-        self.x_shape = [4, 30]
+    def get_paddle_inference_result(self, model_dir, data):
+        config = fluid.core.AnalysisConfig(model_dir)
+        config.disable_gpu()
+        config.switch_ir_optim(False)
+        self.paddle_predictor = fluid.core.create_paddle_predictor(config)
+        data = fluid.core.PaddleTensor(data)
+        results = self.paddle_predictor.run([data])
+        fc0_out = self.paddle_predictor.get_output_tensor(
+            'fc_0.tmp_0').copy_to_cpu()
 
-    def get_paddle_inference_result(self, data):
-        exe = fluid.Executor(fluid.CPUPlace())
-
-        [inference_program, feed_target_names,
-         fetch_targets] = fluid.io.load_inference_model(
-             dirname=self.model_dir, executor=exe)
-
-        results = exe.run(
-            inference_program,
-            feed={feed_target_names[0]: data},
-            fetch_list=fetch_targets)
-
-        result = results[0]
-        return result
+        return results[0].as_ndarray()
 
     def test_model(self):
-        x_data = np.random.random(self.x_shape).astype("float32")
+        np.random.seed(0)
+        self.x_shape = [4, 30]
+        x_data = np.random.random(
+            self.x_shape).astype("float16").astype("float32")
+        print('x_data', x_data)
+
         self.executor = Executor(["A"], [self.x_shape])
         self.executor.load_paddle_model(self.model_dir, False)
         a_t = self.executor.get_tensor("A")
         a_t.from_numpy(x_data)
 
+        self.executor.run()
+
         out = self.executor.get_tensor("fc_0.tmp_2")
-        out.from_numpy(np.zeros(out.shape(), dtype='float32'))
+        target = self.get_paddle_inference_result(self.model_dir, x_data)
+
+        self.assertTrue(np.allclose(out.numpy(), target, atol=1e-4))
+
+
+class TestLoadPaddleModel_MultiFC(unittest.TestCase):
+    def setUp(self):
+        self.target = Target()
+        self.target.arch = Target.Arch.X86
+        self.target.bits = Target.Bit.k64
+        self.target.os = Target.OS.Linux
+
+        self.model_dir = multi_fc_model_dir
+
+    def get_paddle_inference_result(self, model_dir, data):
+        config = fluid.core.AnalysisConfig(model_dir)
+        config.disable_gpu()
+        config.switch_ir_optim(False)
+        self.paddle_predictor = fluid.core.create_paddle_predictor(config)
+        data = fluid.core.PaddleTensor(data)
+        results = self.paddle_predictor.run([data])
+
+        return results[0].as_ndarray()
+
+    def test_model(self):
+        np.random.seed(0)
+        self.x_shape = [8, 64]
+        x_data = np.random.random(self.x_shape).astype("float32")
+
+        self.executor = Executor(["A"], [self.x_shape])
+        self.executor.load_paddle_model(self.model_dir, False)
+        a_t = self.executor.get_tensor("A")
+        a_t.from_numpy(x_data)
 
         self.executor.run()
 
-        out = out.numpy()
-        target_result = self.get_paddle_inference_result(x_data)
+        out = self.executor.get_tensor("fc_5.tmp_2")
+        target = self.get_paddle_inference_result(self.model_dir, x_data)
 
-        print("result in test_model: \n")
-        out = out.reshape(-1)
-        target_result = target_result.reshape(-1)
-        for i in range(0, out.shape[0]):
-            print(out[i], " vs: ", target_result[i])
-            print("diff is:", out[i] - target_result[i])
-        self.assertTrue(np.allclose(out, target_result, atol=1e-3))
+        self.assertTrue(np.allclose(out.numpy(), target, atol=1e-4))
 
 
 if __name__ == "__main__":
