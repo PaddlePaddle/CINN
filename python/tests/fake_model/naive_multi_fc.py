@@ -7,10 +7,10 @@ import numpy as np
 import paddle.fluid as fluid
 from paddle.fluid.backward import append_backward
 
-size = 6
-num_layers = 3
+size = 64
+num_layers = 6
 
-a = fluid.layers.data(name="a", shape=[-1, size], dtype='float32')
+a = fluid.layers.data(name="A", shape=[-1, size], dtype='float32')
 label = fluid.layers.data(name="label", shape=[size], dtype='float32')
 
 fc_out = fluid.layers.fc(

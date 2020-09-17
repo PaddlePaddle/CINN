@@ -10,11 +10,7 @@ a = fluid.layers.data(name="A", shape=[-1, size], dtype='float32')
 label = fluid.layers.data(name="label", shape=[size], dtype='float32')
 
 a1 = fluid.layers.fc(
-    input=a,
-    size=size,
-    act="relu",
-    bias_attr=None,
-    num_flatten_dims=1)
+    input=a, size=size, act="relu", bias_attr=None, num_flatten_dims=1)
 
 cost = fluid.layers.square_error_cost(a1, label)
 avg_cost = fluid.layers.mean(cost)
