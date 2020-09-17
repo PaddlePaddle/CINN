@@ -73,12 +73,16 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor& input,
                                     int pad_w,
                                     int stride_h,
                                     int stride_w,
-                                    int dilation,
+                                    int dilation_h,
+                                    int dilation_w,
                                     int groups,
                                     const std::string& output_name);
 
 ir::Tensor BatchNorm_NCHW(const ir::Tensor& input,
-                          const ir::Tensor& weights,
+                          const ir::Tensor& scale,
+                          const ir::Tensor& bias,
+                          const ir::Tensor& mean,
+                          const ir::Tensor& variance,
                           float epsilon,
                           const std::string& output_name);
 

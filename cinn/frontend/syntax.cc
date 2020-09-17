@@ -48,11 +48,24 @@ Variable Program::conv2d(const Variable& a,
   return instr.GetOutput(2);
 }
 
+Variable Program::pool2d(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
+  Instruction instr("pool2d");
+  instr.SetInputs({a});
+  for (auto& iter : attr_store) {
+    instr.SetAttr(iter.first, iter.second);
+  }
+  AppendInstruction(instr);
+  return instr.GetOutput(1);
+}
+
 Variable Program::batchnorm(const Variable& a,
-                            const Variable& b,
+                            const Variable& scale,
+                            const Variable& bias,
+                            const Variable& mean,
+                            const Variable& variance,
                             const std::unordered_map<std::string, attr_t>& attr_store) {
   Instruction instr("batchnorm");
-  instr.SetInputs({a, b});
+  instr.SetInputs({a, scale, bias, mean, variance});
   for (auto& iter : attr_store) {
     instr.SetAttr(iter.first, iter.second);
   }

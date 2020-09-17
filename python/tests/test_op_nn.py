@@ -65,7 +65,7 @@ class OpTest_conv2d(SingleOpTester):
         attrs = framework.NodeAttr()
         attrs.attr_store = {"padding": [1, 1]}
         attrs.set_attr("stride", [2, 2])
-        attrs.set_attr("dilation", 2)
+        attrs.set_attr("dilation", [2, 2])
         attrs.set_attr("groups", 1)
         self.to_test_op([[1, 3, 10, 10], [2, 3, 2, 2]],
                         [[1, 3, 12, 12], [2, 3, 3, 3], [1, 2, 5, 5]], "conv2d",
@@ -434,17 +434,20 @@ class OpTest_pool3d_2(SingleOpTester):
 
 class OpTest_batchnorm(SingleOpTester):
     def create_target_data(self, inputs_data, attrs):
-        [X, Y] = inputs_data
+        [X, Scale, Bias, Mean, Variance] = inputs_data
         c = X.shape[1]
         for i in range(0, c):
-            X[:, i, :, :] = (X[:, i, :, :] - Y[0, i]) / math.sqrt(
-                Y[1, i] + 0.00001) * Y[2, i] + Y[3, i]
+            """ TODO(haozech) This should be the correct compute function(with sqrt)
+            X[:, i, :, :] = (X[:, i, :, :] - Mean[i]) / math.sqrt(
+                Variance[i] + 0.00001) * Scale[i] + Bias[i] """
+            X[:, i, :, :] = (X[:, i, :, :] - Mean[i]) / (
+                Variance[i] + 0.00001) * Scale[i] + Bias[i]
         return X
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        self.to_test_op([[1, 3, 2, 2], [4, 3]], [[1, 3, 2, 2]], "batchnorm",
-                        attrs)
+        self.to_test_op([[1, 64, 112, 112], [64], [64], [64], [64]],
+                        [[1, 64, 112, 112]], "batchnorm", attrs)
 
 
 class OpTest_softmax_0(SingleOpTester):

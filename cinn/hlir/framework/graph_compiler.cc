@@ -33,6 +33,11 @@ std::unique_ptr<Program> GraphCompiler::Build() {
     compiler_ = backends::Compiler::Create(target_);
   }
 
+  CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
+  codegen.SetInlineBuiltinCodes(false);
+  auto out = codegen.Compile(m_builder_.Build(), CodeGenC::OutputKind::CImpl);
+  LOG(INFO) << "[Debug] C Code is:\n" << out;
+
   compiler_->Build(m_builder_.Build());
 
   return std::unique_ptr<Program>(new Program(scope_, BuildInstructions()));

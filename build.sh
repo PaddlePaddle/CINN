@@ -68,6 +68,7 @@ function prepare_model {
     cd $build_dir/thirds
     python $workspace/python/tests/fake_model/naive_mul.py
     python $workspace/python/tests/fake_model/naive_multi_fc.py
+    python $workspace/python/tests/fake_model/resnet_model.py
 }
 
 function build {
