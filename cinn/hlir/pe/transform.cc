@@ -61,7 +61,7 @@ void GetMatmulIndice(const std::vector<Expr>& shape1_new,
     // A reduce axes
     for (size_t i = x_num_col_dims; i < shape1_new.size(); i++) {
       reduce_shape1           = reduce_shape1 * shape1_new[i];
-      std::string reduce_name = UniqName("k");
+      std::string reduce_name = UniqName("kk");
       auto k                  = Var(shape1_new[i], reduce_name);
       reduce_axes->emplace_back(k);
       indice1->emplace_back(k);

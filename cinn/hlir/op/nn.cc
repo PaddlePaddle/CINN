@@ -380,7 +380,7 @@ std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<
   } else if (data_format == "NWC") {
     width_axis = 1;
   } else {
-    LOG(ERROR) << "unsupported data_format: " << data_format << std::endl;
+    LOG(FATAL) << "unsupported data_format: " << data_format << std::endl;
   }
 
   output_shape0[width_axis] += padding_size[0] + padding_size[1];

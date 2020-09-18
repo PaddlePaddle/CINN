@@ -27,6 +27,7 @@
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Support/Alignment.h"
 
 namespace cinn {
@@ -336,9 +337,11 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
     if (value->getType() == target) break;
 
     if (to.is_cpp_handle() || to.is_cpp_handle_handle()) {
-      value = BitCast(value, target);
+      value = BitCast(value, target, "cast_to_cpp_handle");
       break;
     }
+
+    LOG(INFO) << "instr: " << DumpToString(*value);
 
     if (to.is_bool()) {
       if (from.is_float()) {
@@ -614,17 +617,20 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
 
   std::vector<llvm::Value *> args;
   for (const auto &e : op->read_args) {
-    args.push_back(Visit(&e));
+    auto *arg = Visit(&e);
+    CHECK(arg) << "argument " << e << " is null";
+    args.push_back(arg);
   }
   for (const auto &e : op->write_args) {
-    args.push_back(Visit(&e));
+    auto *arg = Visit(&e);
+    CHECK(arg) << "argument " << e << " is null";
+    args.push_back(arg);
   }
 
   if (op->is_cinn_call()) {
-    args[0] = BitCast(args[0], ll_void_p_ty());
-  }
-  if (op->is_intrinsic_call() && op->name == runtime::intrisic::args_construct_repr) {
-    args[0] = BitCast(args[0], ll_cinn_pod_p_ty());
+    args[0] = BitCast(args[0], ll_void_p_ty(), "cast_to_void_p");
+  } else if (op->is_intrinsic_call() && op->name == runtime::intrisic::args_construct_repr) {
+    args[0] = BitCast(args[0], ll_cinn_pod_p_ty(), "cast_to_pod_p");
   }
 
   // Type cast statements in the head section of a CINN function.
@@ -637,7 +643,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
     CHECK(arg_load->tensor.As<ir::Cast>()) << "get " << arg_load->tensor;
     auto _array_ptr       = arg_load->tensor.As<ir::Cast>()->v();
     auto array_ptr        = GetVar(_array_ptr.as_var()->name);
-    auto cast_to_pod_arr  = BitCast(array_ptr, ll_cinn_pod_p_ty());
+    auto cast_to_pod_arr  = BitCast(array_ptr, ll_cinn_pod_p_ty(), "cast_to_pod_arr");
     auto indice           = arg_load->index();
     auto *get_element_ptr = InBoundsGEP(ll_cinn_pod_ty(), cast_to_pod_arr, Visit(&indice), "");
     args.clear();
@@ -876,16 +882,26 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
       /*Parent=*/function,
       /*InsertBefore=*/nullptr);
 
-  llvm::Value *old_args = GetVar("_args");  // store _args
-  SetVar("_args", args[0]);
   b_->SetInsertPoint(entry);
-  Visit(&function_body);
-  if (old_args) {
-    SetVar("_args", old_args);  // restore _args
-  } else {
-    symbol_table_->Erase("_args");
+  SetVar("_args", args[0]);
+
+  {
+    CHECK_EQ(args.size(), 2UL);
+    for (int i = 0; i < 2; i++) {
+      auto *argument = llvm::dyn_cast<llvm::Argument>(args[0]);
+      CHECK(argument);
+      CHECK_EQ(argument->getParent(), b_->GetInsertBlock()->getParent());
+    }
   }
+
+  Visit(&function_body);
   RetVoid();
+
+  symbol_table_->Erase("_args");
+
+  CHECK(!llvm::verifyFunction(*function, &llvm::errs())) << "Invalid function detected!\n"
+                                                         << "LLVM IR:\n"
+                                                         << DumpToString(*function);
   return function;
 }
 

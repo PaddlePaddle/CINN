@@ -137,7 +137,7 @@ std::vector<ir::Tensor> Pool2d(const ir::Tensor& tensor,
                                bool ceil_mode                 = false,
                                bool exclusive                 = true,
                                const std::string& data_format = "NCHW",
-                               const std::string& output_name = "T_Pool2d_out");
+                               const std::string& output_name = "pool2d_out");
 
 /**
  * @brief Perform pooling on the depth, height and width dimension of the tensor.

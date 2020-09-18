@@ -6,6 +6,8 @@
 
 #include "cinn/cinn.h"
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/nn.h"
 #include "cinn/runtime/use_extern_funcs.h"
 
 namespace cinn {
@@ -109,6 +111,38 @@ TEST(Compiler, x86) {
     }
   }
 #endif
+}
+
+TEST(Compiler, sqrt) {
+  Expr N(100);
+  Expr C(10);
+  Expr H(10);
+  Expr W(10);
+
+  Placeholder<float> input("input", {N, C, H, W});
+  Placeholder<float> mean("mean", {C});
+  Placeholder<float> scale("scale", {C});
+  Placeholder<float> variance("variance", {C});
+  Placeholder<float> bias("bias", {C});
+  float epsilon = 0.1f;
+
+  auto A = Compute({N, C, H, W}, [=](Expr n, Expr c, Expr h, Expr w) {
+    return (input(n, c, h, w) - mean(c)) * scale(c) / Sqrt(variance(c) + Expr(epsilon)) + bias(c);
+  });
+
+  auto B = hlir::pe::Pool2d(input, {3, 3}, {1, 1}, {1, 1, 1, 1}, "max", false, false);
+
+  auto BB = hlir::pe::BatchNorm_NCHW(input, scale, bias, mean, variance, epsilon, "batchnorm");
+
+  auto stages = CreateStages({input, mean, scale, variance, A, bias, B[0], BB});
+
+  auto fn = Lower("fn", stages, {input, mean, scale, bias, variance, A, B[0], BB});
+
+  Module::Builder builder("some", common::DefaultHostTarget());
+  builder.AddFunction(fn);
+
+  auto compiler = Compiler::Create(common::DefaultHostTarget());
+  compiler->Build(builder.Build());
 }
 
 }  // namespace backends

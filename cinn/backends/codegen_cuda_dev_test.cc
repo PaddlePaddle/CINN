@@ -852,19 +852,19 @@ typedef char int8_t;
 __global__
 void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _A_read_cache_3 [ 1 * 10 ];
-  float* A_read_cache_3 = _A_read_cache_3;
+  float _A_read_cache [ 1 * 10 ];
+  float* A_read_cache = _A_read_cache;
   if ((threadIdx.x < 100)) {
   {
     if ((blockIdx.x < 20)) {
     {
       if (((((threadIdx.x >= 0) && (threadIdx.x <= 99)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
         for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-          A_read_cache_3[j_inner] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))];
+          A_read_cache[j_inner] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))];
         };
       };
       for (int32_t i = 0; i < 10; i += 1) {
-        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[i] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
+        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache[i] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
       };
     }
     };
@@ -982,8 +982,8 @@ typedef char int8_t;
 __global__
 void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _A_read_cache_3 [ 3 * 10 ];
-  float* A_read_cache_3 = _A_read_cache_3;
+  float _A_read_cache [ 3 * 10 ];
+  float* A_read_cache = _A_read_cache;
   if ((threadIdx.x < 98)) {
   {
     if ((blockIdx.x < 20)) {
@@ -991,12 +991,12 @@ void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       if (((((threadIdx.x >= 0) && (threadIdx.x <= 97)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
         for (int32_t i = 0; i < 3; i += 1) {
           for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-            A_read_cache_3[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + ((200 * threadIdx.x) + j_inner)))];
+            A_read_cache[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + ((200 * threadIdx.x) + j_inner)))];
           };
         };
       };
       for (int32_t i = 0; i < 10; i += 1) {
-        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache_3[i] + (A_read_cache_3[(10 + i)] + (A_read_cache_3[(20 + i)] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))])));
+        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache[i] + (A_read_cache[(10 + i)] + (A_read_cache[(20 + i)] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))])));
       };
     }
     };
@@ -1180,14 +1180,14 @@ typedef char int8_t;
 __global__
 void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  __shared__ float _A_read_cache_3 [ 1 * 200 ];
-  float* A_read_cache_3 = _A_read_cache_3;
+  __shared__ float _A_read_cache [ 1 * 200 ];
+  float* A_read_cache = _A_read_cache;
   if ((blockIdx.x < 100)) {
   {
     if (((blockIdx.x >= 0) && (blockIdx.x <= 99))) {
       if ((threadIdx.x < 200)) {
       {
-        A_read_cache_3[threadIdx.x] = A[((200 * blockIdx.x) + threadIdx.x)];
+        A_read_cache[threadIdx.x] = A[((200 * blockIdx.x) + threadIdx.x)];
       }
       };
     };
@@ -1195,7 +1195,7 @@ void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __rest
     if ((threadIdx.x < 20)) {
     {
       for (int32_t j = 0; j < 10; j += 1) {
-        C[((200 * blockIdx.x) + ((10 * threadIdx.x) + j))] = A_read_cache_3[((10 * threadIdx.x) + j)];
+        C[((200 * blockIdx.x) + ((10 * threadIdx.x) + j))] = A_read_cache[((10 * threadIdx.x) + j)];
       };
     }
     };
@@ -1271,14 +1271,14 @@ typedef char int8_t;
 __global__
 void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  __shared__ float _A_read_cache_3 [ 40 * 40 ];
-  float* A_read_cache_3 = _A_read_cache_3;
+  __shared__ float _A_read_cache [ 40 * 40 ];
+  float* A_read_cache = _A_read_cache;
   if ((blockIdx.x < 40)) {
   {
     if ((threadIdx.x < 4)) {
     {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        A_read_cache_3[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
+        A_read_cache[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
       };
     }
     };
@@ -1290,7 +1290,7 @@ void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __rest
     if ((threadIdx.x < 4)) {
     {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = A_read_cache_3[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
+        C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = A_read_cache[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
       };
     }
     };
@@ -1363,7 +1363,7 @@ typedef char int8_t;
 
 
 __global__
-void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C_cache_write_out_3)
+void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C_cache_write_out)
 {
   float _C [ 1 * 1 ];
   float* C = _C;
@@ -1374,7 +1374,7 @@ void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       if (((((blockIdx.x >= 0) && (blockIdx.x <= 39)) && (threadIdx.x >= 0)) && (threadIdx.x <= 39))) {
         C[0] = A[((40 * blockIdx.x) + threadIdx.x)];
       };
-      C_cache_write_out_3[((40 * blockIdx.x) + threadIdx.x)] = C[0];
+      C_cache_write_out[((40 * blockIdx.x) + threadIdx.x)] = C[0];
     }
     };
   }
