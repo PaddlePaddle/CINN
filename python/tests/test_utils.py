@@ -44,7 +44,12 @@ class SingleOpTester(unittest.TestCase):
         '''
         pass
 
-    def to_test_op(self, input_shapes, output_shape, op_name, attrs):
+    def to_test_op(self,
+                   input_shapes,
+                   output_shape,
+                   op_name,
+                   attrs,
+                   positive=None):
         '''
         Test the operator.
         '''
@@ -54,8 +59,18 @@ class SingleOpTester(unittest.TestCase):
 
         for i_shape in input_shapes:
             expr_shape = []
-            inputs_data.append(
-                np.around(np.random.random(i_shape).astype("float32"), 3))
+            if positive is True:
+                inputs_data.append(
+                    np.abs(
+                        np.around(
+                            np.random.random(i_shape).astype("float32"), 3)))
+
+            elif positive is False:
+                inputs_data.append(-np.abs(
+                    np.around(np.random.random(i_shape).astype("float32"), 3)))
+            else:
+                inputs_data.append(
+                    np.around(np.random.random(i_shape).astype("float32"), 3))
 
             for dim_shape in i_shape:
                 expr_shape.append(ir.Expr(dim_shape))
@@ -93,7 +108,7 @@ class SingleOpTester(unittest.TestCase):
         fn(args)
 
         out_result = out[len(out) - 1].numpy()
-        self.assertTrue(np.allclose(out_result, correct_result, atol=1e-4))
+        self.assertTrue(np.allclose(out_result, correct_result, atol=1e-2))
 
     def __codegen(self, op_name, inputs, attrs):
         types = [common.Float(32)]

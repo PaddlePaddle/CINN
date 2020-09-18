@@ -58,7 +58,6 @@ class OpTest_conv2d(SingleOpTester):
         x = np.array(inputs_data[0]).reshape((1, 3, 10, 10)).astype("float32")
         output = exe.run(feed={"img": x}, fetch_list=[res])
         output = np.array(output)
-        print("output's shape is:", output.shape)
         return output
 
     def test_op(self):
@@ -446,8 +445,11 @@ class OpTest_batchnorm(SingleOpTester):
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        self.to_test_op([[1, 64, 112, 112], [64], [64], [64], [64]],
-                        [[1, 64, 112, 112]], "batchnorm", attrs)
+        # self.to_test_op([[1, 64, 112, 112], [64], [64], [64], [64]],
+        #                 [[1, 64, 112, 112]], "batchnorm", attrs)
+
+        self.to_test_op([[1, 8, 3, 3], [8], [8], [8], [8]], [[1, 8, 3, 3]],
+                        "batchnorm", attrs, True)
 
 
 class OpTest_softmax_0(SingleOpTester):
@@ -502,7 +504,6 @@ class OpTest_sigmoid(SingleOpTester):
     def create_target_data(self, inputs_data, attrs):
         x = np.array(inputs_data[0])
         y = 1 / (1 + np.exp(-x))
-        print("output's shape is:", y.shape)
         return y
 
     def test_op(self):

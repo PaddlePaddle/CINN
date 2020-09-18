@@ -136,6 +136,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                groups,
                                UniqName("Conv2d_output"));
     auto stages = CreateStages(out);
+    out[2]->InitReduction(stages, Expr(0.f));  // res
+
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
