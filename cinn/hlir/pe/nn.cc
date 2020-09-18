@@ -113,9 +113,7 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
   auto res = Compute(
       input->shape,
       [=](Expr n, Expr c, Expr h, Expr w) {
-        //! TODO(haozech) Add Sqrt will cause bug
-        // return (input(n, c, h, w) - mean(c)) * scale(c) / Sqrt(variance(c) + Expr(epsilon)) + bias(c);
-        return (input(n, c, h, w) - mean(c)) * scale(c) / (variance(c) + Expr(epsilon)) + bias(c);
+        return (input(n, c, h, w) - mean(c)) * scale(c) / Sqrt(variance(c) + Expr(epsilon)) + bias(c);
       },
       UniqName(output_name));
   return res;
