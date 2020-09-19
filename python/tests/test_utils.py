@@ -22,7 +22,6 @@ class SingleOpTester(unittest.TestCase):
     1. create_target_data
     2. test_op
     '''
-
     def setUp(self):
         self.counter = 0
         self.target = common.Target()
@@ -108,7 +107,7 @@ class SingleOpTester(unittest.TestCase):
         fn(args)
 
         out_result = out[len(out) - 1].numpy()
-        self.assertTrue(np.allclose(out_result, correct_result, atol=1e-2))
+        self.assertTrue(np.allclose(out_result, correct_result, atol=1e-4))
 
     def __codegen(self, op_name, inputs, attrs):
         types = [common.Float(32)]
