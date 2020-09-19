@@ -44,14 +44,13 @@ class OpTest_conv2d(SingleOpTester):
         img = fluid.layers.data(name='img', shape=[3, 10, 10], dtype='float32')
         param = fluid.initializer.NumpyArrayInitializer(
             np.array(inputs_data[1]).reshape((2, 3, 2, 2)).astype("float32"))
-        res = fluid.layers.conv2d(
-            input=img,
-            num_filters=2,
-            filter_size=2,
-            stride=2,
-            padding=1,
-            dilation=2,
-            param_attr=param)
+        res = fluid.layers.conv2d(input=img,
+                                  num_filters=2,
+                                  filter_size=2,
+                                  stride=2,
+                                  padding=1,
+                                  dilation=2,
+                                  param_attr=param)
         exe = fluid.Executor(fluid.CPUPlace())
         exe.run(fluid.default_startup_program())
 
@@ -436,20 +435,14 @@ class OpTest_batchnorm(SingleOpTester):
         [X, Scale, Bias, Mean, Variance] = inputs_data
         c = X.shape[1]
         for i in range(0, c):
-            """ TODO(haozech) This should be the correct compute function(with sqrt)
             X[:, i, :, :] = (X[:, i, :, :] - Mean[i]) / math.sqrt(
-                Variance[i] + 0.00001) * Scale[i] + Bias[i] """
-            X[:, i, :, :] = (X[:, i, :, :] - Mean[i]) / (
                 Variance[i] + 0.00001) * Scale[i] + Bias[i]
         return X
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        # self.to_test_op([[1, 64, 112, 112], [64], [64], [64], [64]],
-        #                 [[1, 64, 112, 112]], "batchnorm", attrs)
-
-        self.to_test_op([[1, 8, 3, 3], [8], [8], [8], [8]], [[1, 8, 3, 3]],
-                        "batchnorm", attrs, True)
+        self.to_test_op([[1, 64, 112, 112], [64], [64], [64], [64]],
+                        [[1, 64, 112, 112]], "batchnorm", attrs)
 
 
 class OpTest_softmax_0(SingleOpTester):
