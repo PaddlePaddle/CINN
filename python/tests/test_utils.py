@@ -22,6 +22,7 @@ class SingleOpTester(unittest.TestCase):
     1. create_target_data
     2. test_op
     '''
+
     def setUp(self):
         self.counter = 0
         self.target = common.Target()
