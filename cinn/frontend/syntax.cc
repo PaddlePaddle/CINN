@@ -1,13 +1,13 @@
 #include "cinn/frontend/syntax.h"
 
-#include <memory>
-#include <tuple>
-#include <utility>
-
 #include <iomanip>
+#include <memory>
 #include <sstream>
+#include <tuple>
 #include <type_traits>
+#include <utility>
 #include <variant>
+
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/frontend/paddle_model_to_program.h"
 #include "cinn/hlir/framework/node.h"

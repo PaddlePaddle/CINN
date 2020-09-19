@@ -44,13 +44,14 @@ class OpTest_conv2d(SingleOpTester):
         img = fluid.layers.data(name='img', shape=[3, 10, 10], dtype='float32')
         param = fluid.initializer.NumpyArrayInitializer(
             np.array(inputs_data[1]).reshape((2, 3, 2, 2)).astype("float32"))
-        res = fluid.layers.conv2d(input=img,
-                                  num_filters=2,
-                                  filter_size=2,
-                                  stride=2,
-                                  padding=1,
-                                  dilation=2,
-                                  param_attr=param)
+        res = fluid.layers.conv2d(
+            input=img,
+            num_filters=2,
+            filter_size=2,
+            stride=2,
+            padding=1,
+            dilation=2,
+            param_attr=param)
         exe = fluid.Executor(fluid.CPUPlace())
         exe.run(fluid.default_startup_program())
 
