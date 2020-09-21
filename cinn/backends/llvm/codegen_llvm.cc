@@ -882,26 +882,12 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
       /*Parent=*/function,
       /*InsertBefore=*/nullptr);
 
-  b_->SetInsertPoint(entry);
   SetVar("_args", args[0]);
-
-  {
-    CHECK_EQ(args.size(), 2UL);
-    for (int i = 0; i < 2; i++) {
-      auto *argument = llvm::dyn_cast<llvm::Argument>(args[0]);
-      CHECK(argument);
-      CHECK_EQ(argument->getParent(), b_->GetInsertBlock()->getParent());
-    }
-  }
-
+  b_->SetInsertPoint(entry);
   Visit(&function_body);
+  symbol_table_->Erase("_args");
   RetVoid();
 
-  symbol_table_->Erase("_args");
-
-  CHECK(!llvm::verifyFunction(*function, &llvm::errs())) << "Invalid function detected!\n"
-                                                         << "LLVM IR:\n"
-                                                         << DumpToString(*function);
   return function;
 }
 
