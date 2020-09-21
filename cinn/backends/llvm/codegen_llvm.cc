@@ -876,15 +876,10 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
       /*Parent=*/function,
       /*InsertBefore=*/nullptr);
 
-  llvm::Value *old_args = GetVar("_args");  // store _args
   SetVar("_args", args[0]);
   b_->SetInsertPoint(entry);
   Visit(&function_body);
-  if (old_args) {
-    SetVar("_args", old_args);  // restore _args
-  } else {
-    symbol_table_->Erase("_args");
-  }
+  symbol_table_->Erase("_args");
   RetVoid();
   return function;
 }
