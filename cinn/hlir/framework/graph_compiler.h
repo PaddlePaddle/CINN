@@ -63,6 +63,8 @@ class GraphCompiler final {
 
   void PrintFunc();
 
+  const std::shared_ptr<Scope>& GetScope() const { return scope_; }
+
  private:
   ir::LoweredFunc GetOpFunc(const Node* node);
 

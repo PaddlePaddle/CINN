@@ -44,29 +44,26 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                     int dilation_h,
                                     int dilation_w,
                                     int groups,
+                                    const std::vector<std::vector<int>> &output_shapes,
                                     const std::string &output_name) {
   CHECK_EQ(4, input->shape.size()) << "Input's dimension of Conv2d op is not 4! Please check.";
   CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d op is not 4! Please check.";
+  CHECK_EQ(3, output_shapes.size()) << "The size of output_shapes of Conv2d op is not 3! Please check.";
+  CHECK_EQ(4, output_shapes[0].size()) << "The size of output_shapes[0] of Conv2d op is not 4! Please check.";
+  CHECK_EQ(4, output_shapes[1].size()) << "The size of output_shapes[1] of Conv2d op is not 4! Please check.";
+  CHECK_EQ(4, output_shapes[2].size()) << "The size of output_shapes[2] of Conv2d op is not 4! Please check.";
   std::vector<Expr> output_shape{
-      input->shape[0],                                                                                  // B
-      weights->shape[0],                                                                                // O
-      Expr((input->shape[2] - ((weights->shape[2] - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1),  // H
-      Expr((input->shape[3] - ((weights->shape[3] - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1)   // W
-  };
+      Expr(output_shapes[2][0]), Expr(output_shapes[2][1]), Expr(output_shapes[2][2]), Expr(output_shapes[2][3])};
   auto input_pad = Compute(
-      {input->shape[0], input->shape[1], input->shape[2] + 2 * pad_h, input->shape[3] + 2 * pad_w},
+      {Expr(output_shapes[0][0]), Expr(output_shapes[0][1]), Expr(output_shapes[0][2]), Expr(output_shapes[0][3])},
       [=](Expr nn, Expr cc, Expr yy, Expr xx) {
         auto cond =
             ir::logic_and({yy >= pad_h, yy - pad_h < input->shape[2], xx >= pad_w, xx - pad_w < input->shape[3]});
         return ir::Select::Make(cond, input(nn, cc, yy - pad_h, xx - pad_w), Expr(0.f));
       },
       UniqName("input_pad"));
-  std::vector<Expr> new_weights_shape{weights->shape[0],
-                                      weights->shape[1],
-                                      dilation_h * (weights->shape[2] - 1) + 1,
-                                      dilation_w * (weights->shape[3] - 1) + 1};
   auto weights_dilation = Compute(
-      new_weights_shape,
+      {Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])},
       [=](Expr nn, Expr cc, Expr yy, Expr xx) {
         auto cond = ir::logic_and({(xx) % dilation_h == 0, yy % dilation_w == 0});
         return ir::Select::Make(cond, weights(nn, cc, yy / dilation_h, xx / dilation_w), Expr(0.f));
@@ -139,8 +136,25 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
                       "softmax_temp_out",
                       {axis_j});
   ir::Tensor out = Compute(
-      A->shape, [=](const std::vector<Expr> &indice) { return Exp(A(indice)) / temp(indice); }, "softmax_out");
+      A->shape, [=](const std::vector<Expr> &indice) { return Exp(A(indice)) / temp(indice); }, output_name);
   return {temp, out};
+}
+
+ir::Tensor Slice(const ir::Tensor &A,
+                 const std::vector<int> &starts,
+                 const std::vector<int> &axes,
+                 const std::vector<Expr> &output_shape,
+                 const std::string &output_name) {
+  return Compute(
+      output_shape,
+      [=](const std::vector<Expr> &indice) {
+        std::vector<Expr> temp = indice;
+        for (int i = 0; i < axes.size(); i++) {
+          temp[axes[i]] = temp[axes[i]] + Expr(starts[i]) + (starts[i] < 0 ? A->shape[axes[i]] : Expr(0));
+        }
+        return A(temp);
+      },
+      output_name);
 }
 
 /**
