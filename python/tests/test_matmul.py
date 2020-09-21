@@ -12,6 +12,7 @@ from cinn.poly import create_stages
 
 class TestMamul(unittest.TestCase):
     def setUp(self):
+        np.random.seed(0)
         self.target = Target()
         self.target.arch = Target.Arch.X86
         self.target.bits = Target.Bit.k32
