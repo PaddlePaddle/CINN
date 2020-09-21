@@ -3,7 +3,7 @@
 The project CINN is a machine learning compiler and executor for multiple hardware. 
 It is designed to provide multiple layers of APIs to make DNN computation graph easier to define,  faster to execute, and more convenient to extend with more hardware backends. Currently, it targets X86 CPUs and NVidia GPUs, and it is easy to extend.
 
-CINN is based on the polyhedral model thus it can extend with more loop optimizations. This project is in active development. 
+This project is in active development. 
 
 ## Example
 
