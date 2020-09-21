@@ -53,11 +53,10 @@ class TestFrontend(unittest.TestCase):
         output = np.array(output).reshape(-1)
         print("result in paddle_verify: \n")
         for i in range(0, output.shape[0]):
-            if np.abs(output[i] - result[len(result) - 1][i]) > 1e-3:
+            if np.abs(output[i] - result[len(result) - 1][i]) > 1e-4:
                 print("Error! ", i, "-th data has diff with target data:\n",
                       output[i], " vs: ", result[len(result) - 1][i],
                       ". Diff is: ", output[i] - result[len(result) - 1][i])
-            print(result[len(result) - 1][i], " vs: ", output[i])
         self.assertTrue(
             np.allclose(result[len(result) - 1], output, atol=1e-4))
 
