@@ -59,4 +59,6 @@ CINN_REGISTER_HELPER(mkl_math) {
       .AddOutputType<cinn_buffer_t *>()
       .SetShapeInference(FunctionProto::ShapeFollowNthArgument(0))
       .End();
+
+  return true;
 }

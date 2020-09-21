@@ -436,20 +436,14 @@ class OpTest_batchnorm(SingleOpTester):
         [X, Scale, Bias, Mean, Variance] = inputs_data
         c = X.shape[1]
         for i in range(0, c):
-            """ TODO(haozech) This should be the correct compute function(with sqrt)
             X[:, i, :, :] = (X[:, i, :, :] - Mean[i]) / math.sqrt(
-                Variance[i] + 0.00001) * Scale[i] + Bias[i] """
-            X[:, i, :, :] = (X[:, i, :, :] - Mean[i]) / (
                 Variance[i] + 0.00001) * Scale[i] + Bias[i]
         return X
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        # self.to_test_op([[1, 64, 112, 112], [64], [64], [64], [64]],
-        #                 [[1, 64, 112, 112]], "batchnorm", attrs)
-
-        self.to_test_op([[1, 8, 3, 3], [8], [8], [8], [8]], [[1, 8, 3, 3]],
-                        "batchnorm", attrs, True)
+        self.to_test_op([[1, 64, 112, 112], [64], [64], [64], [64]],
+                        [[1, 64, 112, 112]], "batchnorm", attrs)
 
 
 class OpTest_softmax_0(SingleOpTester):
