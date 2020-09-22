@@ -1,6 +1,6 @@
 #include "cinn/frontend/paddle/cpp/op_desc.h"
-
 #include <cstdint>
+#include <utility>
 
 namespace cinn::frontend::paddle::cpp {
 
@@ -30,13 +30,14 @@ std::pair<OpDesc::attrs_t::const_iterator, OpDesc::attr_types_t::const_iterator>
   return std::make_pair(it, attr_it);
 }
 
-#define GET_IMPL_ONE(T, repr__)                                                                                       \
-  template <>                                                                                                         \
-  T OpDesc::GetAttr<T>(const std::string& name) const {                                                               \
-    auto pair = FindAttr(*this, name);                                                                                \
-    CHECK(pair.second->second == AttrType::repr__) << "required type is " << #repr__ << " not match the true type."   \
-                                                   << " And the attrbute's name is: [" << pair.second->first << "]."; \
-    return std::any_cast<T>(pair.first->second);                                                                      \
+#define GET_IMPL_ONE(T, repr__)                                                                \
+  template <>                                                                                  \
+  T OpDesc::GetAttr<T>(const std::string& name) const {                                        \
+    auto pair = FindAttr(*this, name);                                                         \
+    CHECK(pair.second->second == AttrType::repr__)                                             \
+        << "The attrbute [" << pair.second->first << "]'s type doesn't match the target type!" \
+        << "Its type should be " << #repr__ << ". Please check.";                              \
+    return std::any_cast<T>(pair.first->second);                                               \
   }
 
 GET_IMPL_ONE(int32_t, INT)

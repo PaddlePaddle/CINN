@@ -18,6 +18,7 @@ using framework::StrategyFunction;
 std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
                                            const std::vector<ir::Tensor> &inputs,
                                            const std::vector<Type> &out_type,
+                                           const std::vector<std::vector<int>> &output_shapes,
                                            const Target &target) {
   framework::CINNCompute mul_compute([&attrs](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of mul compute is empty! Please check.\n";
@@ -42,7 +43,7 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       } else if (iter.first == "y_num_col_dims") {
         y_num_col_dims = std::get<int>(iter.second);
       } else {
-        LOG(ERROR) << "unsupported attr: " << iter.first << std::endl;
+        LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
     }
 

@@ -41,7 +41,7 @@ optimizer = fluid.optimizer.SGD(learning_rate=0.001)
 optimizer.minimize(avg_cost)
 
 cpu = fluid.core.CPUPlace()
-loss = exe = fluid.Executor(cpu)
+exe = fluid.Executor(cpu)
 
 exe.run(fluid.default_startup_program())
 

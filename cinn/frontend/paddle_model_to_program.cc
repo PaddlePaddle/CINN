@@ -89,6 +89,24 @@ void PaddleModelToProgram::AddOpMapper_relu() {
   };
 }
 
+void PaddleModelToProgram::AddOpMapper_softmax() {
+  op_mappers_["softmax"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Output("Out").empty());
+    auto out_name = op_desc.Output("Out").front();
+
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    CHECK(op_desc.HasAttr("axis"));
+    attrs["axis"] = op_desc.GetAttr<int>("axis");
+
+    auto x   = GetVar(TransValidVarName(x_name));
+    auto out = program_->softmax(x, attrs);
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
 void PaddleModelToProgram::AddOpMapper_elementwise_add() {
   op_mappers_["elementwise_add"] = [&](const paddle::cpp::OpDesc& op_desc) {
     CHECK(!op_desc.Input("X").empty());

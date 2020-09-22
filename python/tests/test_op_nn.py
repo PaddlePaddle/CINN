@@ -507,5 +507,33 @@ class OpTest_sigmoid(SingleOpTester):
         self.to_test_op([[3, 224, 224]], [[3, 224, 224]], "sigmoid", attrs)
 
 
+class OpTest_slice_0(SingleOpTester):
+    def create_target_data(self, inputs_data, attrs):
+        [X] = inputs_data
+        Y = X[:, 0:2, 2:4, :]
+        return Y
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        attrs.set_attr("axes", [0, 1, 2])
+        attrs.set_attr("starts", [-3, 0, 2])
+        attrs.set_attr("ends", [3, 2, 4])
+        self.to_test_op([[3, 4, 5, 6]], [[3, 2, 2, 6]], "slice", attrs)
+
+
+class OpTest_slice_1(SingleOpTester):
+    def create_target_data(self, inputs_data, attrs):
+        [X] = inputs_data
+        Y = X[:, 0:3, 1:2, 2:4]
+        return Y
+
+    def test_op(self):
+        attrs = framework.NodeAttr()
+        attrs.set_attr("axes", [1, 2, 3])
+        attrs.set_attr("starts", [0, 1, 2])
+        attrs.set_attr("ends", [3, 2, 4])
+        self.to_test_op([[3, 4, 5, 6]], [[3, 3, 1, 2]], "slice", attrs)
+
+
 if __name__ == "__main__":
     unittest.main()

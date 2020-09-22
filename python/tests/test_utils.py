@@ -44,7 +44,7 @@ class SingleOpTester(unittest.TestCase):
         '''
         pass
 
-    def to_test_op(self, input_shapes, output_shape, op_name, attrs):
+    def to_test_op(self, input_shapes, output_shapes, op_name, attrs):
         '''
         Test the operator.
         '''
@@ -71,18 +71,18 @@ class SingleOpTester(unittest.TestCase):
                 runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device))
         for in_data in temp_inputs:
             args.append(runtime.cinn_pod_value_t(in_data))
-        if output_shape == None:
-            correct_result, output_shape = self.create_target_data(
+        if output_shapes == None:
+            correct_result, output_shapes = self.create_target_data(
                 inputs_data, attrs)
         else:
             correct_result = self.create_target_data(inputs_data, attrs)
 
-        module = self.__codegen(op_name, inputs, attrs)
+        module = self.__codegen(op_name, inputs, output_shapes, attrs)
 
         self.compiler.build(module)
         fn = self.compiler.lookup(op_name)
         out = []
-        for out_shape in output_shape:
+        for out_shape in output_shapes:
             out.append(
                 runtime.cinn_buffer_t(
                     np.zeros(out_shape).astype("float32"),
@@ -95,11 +95,11 @@ class SingleOpTester(unittest.TestCase):
         out_result = out[len(out) - 1].numpy()
         self.assertTrue(np.allclose(out_result, correct_result, atol=1e-4))
 
-    def __codegen(self, op_name, inputs, attrs):
+    def __codegen(self, op_name, inputs, output_shapes, attrs):
         types = [common.Float(32)]
         strategy_map = framework.Operator.get_op_attrs("CINNStrategy")
         res = strategy_map.apply_strategy(op_name, attrs, inputs, types,
-                                          self.target)
+                                          output_shapes, self.target)
         stages = create_stages(res)
         func = lang.lower(op_name, stages, res)
         logging.warning('func:\n\n%s\n', func)
