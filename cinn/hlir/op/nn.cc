@@ -140,8 +140,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                output_shapes,
                                UniqName("Conv2d_output"));
     auto stages = CreateStages(out);
-    out[2]->InitReduction(stages, Expr(0.f));  // res
-
+    out[2]->InitReduction(stages, Expr(0.f));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -327,6 +326,7 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
                           UniqName("T_Pool1d_out"));
 
     auto stages = CreateStages(out);
+    out[1]->InitReduction(stages, Expr(0.f));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -460,6 +460,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
                           UniqName("T_Pool2d_out"));
 
     auto stages = CreateStages(out);
+    out[1]->InitReduction(stages, Expr(0.f));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -522,6 +523,10 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   } else if (data_format == "NHWC") {
     height_axis = 1;
     width_axis  = 2;
+  } else if (data_format == "AnyLayout") {
+    height_axis = 2;
+    width_axis  = 3;
+    data_format = "NCHW";
   } else {
     LOG(ERROR) << "unsupported data_format: " << data_format << std::endl;
   }
@@ -604,6 +609,7 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
                           UniqName("T_Pool3d_out"));
 
     auto stages = CreateStages(out);
+    out[1]->InitReduction(stages, Expr(0.f));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));

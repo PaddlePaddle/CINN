@@ -235,7 +235,6 @@ std::unique_ptr<common::Graph> CreateCompGraphWithInlineTensorHidden(const std::
 
       graph->DropNode(inline_node);
     }
-
   } while (!inline_nodes.empty());
 
   return graph;
@@ -277,7 +276,8 @@ void LowerImpl::CheckArgsUnique() {
   std::unordered_set<std::string> arg_names;
   for (auto& tensor : tensor_args_) {
     CHECK(!stages_[tensor]->inlined()) << "Inline tensor cannot be argument of function";
-    CHECK(!arg_names.count(tensor->name)) << "The argument of the function, tensor [" << tensor->name << "] duplicates";
+    CHECK(!arg_names.count(tensor->name))
+        << "The argument of the function, tensor [" << tensor->name << "] duplicates in function " << fn_name_;
     arg_names.insert(tensor->name);
     if (!tensor->buffer.defined()) {
       LOG(ERROR) << "tensor [" << tensor->name << "] buffer is null";

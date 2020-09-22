@@ -31,8 +31,9 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
   if (axis.defined()) {
     int axis_val = axis.as_int32();
     CHECK_GE(axis_val, -1) << "wrong axis: " << axis_val << std::endl;
-    CHECK_GE(shape1.size(), shape2.size()) << "A's shape should no less than B's when axis is defined\n";
-    CHECK_LE(axis_val, shape1.size() - shape2.size()) << "wrong axis: " << axis_val << std::endl;
+    CHECK_GE(shape1.size(), shape2.size()) << "A's shape should be no less than B's when axis is defined\n";
+    CHECK_LE(axis_val, int(shape1.size() - shape2.size()))
+        << "wrong axis: " << axis_val << " is not <= " << shape1.size() - shape2.size() << std::endl;
     if (axis_val >= 0) {
       axis_offset = shape1.size() - shape2.size() - axis_val;
       for (int i = 1; i <= axis_offset; ++i) {

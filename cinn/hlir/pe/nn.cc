@@ -6,6 +6,7 @@
 #include "cinn/common/cas.h"
 #include "cinn/common/context.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/hlir/pe/elementwise.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
@@ -293,6 +294,10 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
                              bool ceil_mode,
                              bool exclusive,
                              const std::string &output_name) {
+  LOG(INFO) << "kernel_size length is: " << kernel_size.size();
+  LOG(INFO) << "kernel_size is: " << kernel_size[0];
+  LOG(INFO) << "padding_size length is: " << padding_size.size();
+  LOG(INFO) << "padding_size is: " << padding_size[0];
   CHECK(!kernel_size.empty()) << "Pooling kernel_size should not be empty\n";
   int k_size = kernel_size.size();
   int x_size = tensor->shape.size();
@@ -332,12 +337,12 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
     out_shape[ii] = out_dim;
   }
 
-  Tensor temp = tensor;
-  Tensor res  = tensor;
+  Tensor temp;
+  Tensor res;
   if (pool_type == "max") {
     Expr min_value = ir::min_value(tensor->type());
     // Pad the input tensor with the pad_value of type's minimum value
-    temp = do_pad ? Pad(tensor, pad_before, pad_after, min_value, UniqName("pad_temp")) : tensor;
+    temp = do_pad ? Pad(tensor, pad_before, pad_after, min_value, UniqName("pad_temp")) : Identity(tensor);
     res  = Compute(
         out_shape,
         [=](const std::vector<Expr> &output) {
@@ -355,7 +360,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
         daxis);
   } else if (pool_type == "avg") {
     // Pad the input tensor with pad_value zero
-    temp = do_pad ? Pad(tensor, pad_before, pad_after, 0, UniqName("pad_temp")) : tensor;
+    temp = do_pad ? Pad(tensor, pad_before, pad_after, 0, UniqName("pad_temp")) : Identity(tensor);
     res  = Compute(
         out_shape,
         [=](const std::vector<Expr> &output) {
@@ -437,6 +442,9 @@ std::vector<Tensor> Pool2d(const Tensor &tensor,
   } else if (data_format == "NHWC") {
     height_axis = 1;
     width_axis  = 2;
+  } else if (data_format == "AnyLayout") {
+    height_axis = 2;
+    width_axis  = 3;
   } else {
     LOG(FATAL) << "Unsupported data format: " << data_format << std::endl;
   }
