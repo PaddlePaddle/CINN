@@ -11,8 +11,8 @@ namespace cinn::frontend {
 void Executor::LoadPaddleModel(const std::string& model_dir, bool params_combined) {
   auto [program, var_map, var_map_paddle_to_program] = LoadPaddleProgram(model_dir, scope_.get(), params_combined);
   program_.reset(program.release());
-  var_map_                   = var_map;
-  var_map_paddle_to_program_ = var_map_paddle_to_program;
+  var_map_                = var_map;
+  var_map_paddle_to_cinn_ = var_map_paddle_to_program;
 
   Build(input_names_, input_shapes_);
 }
@@ -20,11 +20,10 @@ void Executor::LoadPaddleModel(const std::string& model_dir, bool params_combine
 void Executor::Run() { runtime_program_->Execute(); }
 
 hlir::framework::Tensor Executor::GetTensor(const std::string& name) {
-  auto valid_name = utils::TransValidVarName(name);
-  if (scope_->FindVar(valid_name)) return scope_->GetTensor(name);
+  if (scope_->FindVar(name)) return scope_->GetTensor(name);
 
-  auto it = var_map_paddle_to_program_.find(name);
-  if (it == var_map_paddle_to_program_.end()) {
+  auto it = var_map_paddle_to_cinn_.find(name);
+  if (it == var_map_paddle_to_cinn_.end()) {
     LOG(FATAL) << "No variable called [" << name
                << "] found in executor\nThe existing vars: " << utils::Join(scope_->var_names(), ", ");
   }

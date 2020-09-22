@@ -52,7 +52,8 @@ class Executor final {
   std::unique_ptr<hlir::framework::GraphCompiler> graph_compiler_;
 
   std::unordered_map<std::string, Variable> var_map_;
-  std::unordered_map<std::string, std::string> var_map_paddle_to_program_;
+  std::unordered_map<std::string, std::string> var_map_paddle_to_cinn_;
+  std::unordered_map<std::string, std::string> var_map_cinn_to_paddle_;
 
   std::unique_ptr<hlir::framework::Program> runtime_program_;
 };

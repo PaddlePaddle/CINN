@@ -12,6 +12,7 @@ TEST(Executor, basic) {
   Executor executor({"A"}, {{1, 30}});
   executor.LoadPaddleModel(FLAGS_model_dir);
   executor.Run();
+  executor.GetTensor("fc_0.tmp_2");
 }
 
 }  // namespace cinn::frontend
