@@ -1,0 +1,35 @@
+FROM nvidia/cuda:10.1-cudnn7-runtime-ubuntu18.04
+
+RUN apt update --fix-missing
+RUN apt install g++-7 gcc-7 -y
+RUN apt install python3 -y
+RUN apt install wget -y
+RUN apt install python3-pip -y
+RUN apt install clang cmake -y
+RUN apt install libginac-dev -y
+RUN apt install autoconf libtool -y
+
+
+# Install Python packages #################################################
+RUN mkdir -p ~/.pip
+RUN echo "[global]" >> ~/.pip/pip.conf
+RUN echo "  trusted-host =  mirrors.aliyun.com" >> ~/.pip/pip.conf
+RUN echo "  index-url = http://mirrors.aliyun.com/pypi/simple" >> ~/.pip/pip.conf
+
+RUN cat ~/.pip/pip.conf
+
+RUN python3 -m pip install numpy
+
+# Install LLVM #############################################################
+RUN echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic main" >> /etc/apt/source.list
+RUN echo "deb-src http://apt.llvm.org/bionic/ llvm-toolchain-bionic main" >> /etc/apt/source.list
+RUN echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-10 main" >> /etc/apt/source.list
+RUN echo "deb-src http://apt.llvm.org/bionic/ llvm-toolchain-bionic-10 main" >> /etc/apt/source.list
+RUN ln -s /usr/bin/llvm-config-6.0 /usr/bin/llvm-config
+
+RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|apt-key add -
+
+RUN apt update
+RUN apt install libclang-dev llvm-10 llvm-10-dev libclang-10-dev -y
+
+RUN apt install git -y
