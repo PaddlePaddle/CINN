@@ -90,7 +90,7 @@ function build {
 
 function run_test {
     cd $build_dir
-    ctest --parallel 4 -V
+    ctest --parallel 10 -V
 }
 
 function CI {
