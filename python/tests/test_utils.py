@@ -24,6 +24,7 @@ class SingleOpTester(unittest.TestCase):
     '''
 
     def setUp(self):
+        np.random.seed(0)
         self.counter = 0
         self.target = common.Target()
         self.target.arch = common.Target.Arch.X86
@@ -54,18 +55,8 @@ class SingleOpTester(unittest.TestCase):
 
         for i_shape in input_shapes:
             expr_shape = []
-            if positive is True:
-                inputs_data.append(
-                    np.abs(
-                        np.around(
-                            np.random.random(i_shape).astype("float32"), 3)))
-
-            elif positive is False:
-                inputs_data.append(-np.abs(
-                    np.around(np.random.random(i_shape).astype("float32"), 3)))
-            else:
-                inputs_data.append(
-                    np.around(np.random.random(i_shape).astype("float32"), 3))
+            inputs_data.append(
+                np.around(np.random.random(i_shape).astype("float32"), 3))
 
             for dim_shape in i_shape:
                 expr_shape.append(ir.Expr(dim_shape))
