@@ -7,7 +7,6 @@ namespace hlir {
 namespace framework {
 
 Variable* Scope::FindVar(const std::string& name) const {
-  CheckVarNameValid(name);
   auto it = data_.find(name);
   if (it != data_.end()) return it->second.get();
   return nullptr;

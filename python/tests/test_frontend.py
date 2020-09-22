@@ -81,7 +81,6 @@ class TestFrontend(unittest.TestCase):
         # print program
         for i in range(prog.size()):
             print(prog[i])
-        # prog.build_program(self.target, [a, b, e], h)
         tensor_data = [
             np.random.random([1, 24, 56, 56]).astype("float32"),
             np.random.random([1, 24, 56, 56]).astype("float32"),
