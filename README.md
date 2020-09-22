@@ -60,7 +60,7 @@ CINN is based on the polyhedral compilation thus it can extend with more loop op
 
 The overall architecture is as follows
 
-![CINN architecture (1)](./.images/cinn-architecutre.png)
+![CINN architecture (1)](./docs/images/cinn-architecutre.png)
 
 
 
