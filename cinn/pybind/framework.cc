@@ -29,9 +29,10 @@ void BindFramework(pybind11::module *m) {
               const NodeAttr &attrs,
               const std::vector<ir::Tensor> &inputs,
               const std::vector<Type> &out_types,
+              const std::vector<std::vector<int>> &output_shapes,
               const common::Target &target) {
              const Operator *op_ptr = Operator::Get(key);
-             auto impl              = OpStrategy::SelectImpl(self[op_ptr](attrs, inputs, out_types, target));
+             auto impl = OpStrategy::SelectImpl(self[op_ptr](attrs, inputs, out_types, output_shapes, target));
              std::vector<common::CINNValue> temp_inputs;
              std::vector<ir::Tensor> res;
              for (auto tensor : inputs) {

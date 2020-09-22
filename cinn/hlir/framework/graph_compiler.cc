@@ -67,6 +67,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
+  std::vector<std::vector<int>> output_shapes;
   for (auto& i : node->inlinks_in_order()) {
     std::string input_id = i->source()->as<NodeData>()->id();
     auto in_shape        = shape_dict.at(input_id);
@@ -80,10 +81,12 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   std::vector<Type> out_types;
   for (auto& out : node->outlinks_in_order()) {
     std::string out_id = out->sink()->safe_as<NodeData>()->id();
+    auto out_shape     = shape_dict.at(out_id);
     Type dtype         = dtype_dict.at(out_id);
+    output_shapes.push_back(out_shape);
     out_types.push_back(dtype);
   }
-  auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, target_));
+  auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, output_shapes, target_));
 
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
   poly::StageMap stages   = C.back();
