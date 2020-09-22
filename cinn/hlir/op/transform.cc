@@ -63,8 +63,19 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     *ret                    = arg_pack;
   });
 
+  framework::CINNSchedule mul_cuda_schedule([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty());
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    ir::Tensor A          = Expr(arg_pack[0]).as_tensor_ref();
+    poly::StageMap stages = arg_pack[1];
+    stages[A]->Bind(0, "blockIdx.x");
+    stages[A]->Bind(1, "threadIdx.x");
+  });
+
   auto strategy = std::make_shared<framework::OpStrategy>();
   strategy->AddImpl(mul_compute, mul_schedule, "strategy.mul.x86", 1);
+  strategy->AddImpl(mul_compute, mul_cuda_schedule, "strategy.mul.cuda", 1);
 
   return strategy;
 }
