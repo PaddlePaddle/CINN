@@ -242,10 +242,6 @@ Variable PaddleModelToProgram::GetVar(const std::string& name) {
     Variable var;
     var.set_id(name);
     var->shape = tensor->shape().data();
-    LOG(INFO) << "The shape of variable " << name << "is : \n";
-    for (auto& i : tensor->shape().data()) {
-      LOG(INFO) << i << ", ";
-    }
     // TODO(Superjomn) Make this determined by model.
     var->type = Float(32);
     AddVar(name, var);

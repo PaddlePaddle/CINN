@@ -103,7 +103,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   }
 
   auto func = Lower(GenOpFuncName(node), stages, inputs);
-  LOG(INFO) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
+  VLOG(2) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
   return func;
 }
 

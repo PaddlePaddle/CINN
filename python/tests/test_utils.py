@@ -24,6 +24,7 @@ class SingleOpTester(unittest.TestCase):
     '''
 
     def setUp(self):
+        np.random.seed(0)
         self.counter = 0
         self.target = common.Target()
         self.target.arch = common.Target.Arch.X86

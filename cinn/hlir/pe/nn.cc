@@ -112,7 +112,7 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
       [=](Expr n, Expr c, Expr h, Expr w) {
         return (input(n, c, h, w) - mean(c)) * scale(c) / Sqrt(variance(c) + Expr(epsilon)) + bias(c);
       },
-      output_name);
+      UniqName(output_name));
   return res;
 }
 
@@ -131,10 +131,12 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
                         new_indice[axis]             = axis_j;
                         return ir::ReduceSum(Exp(A(new_indice)), Expr(0.f));
                       },
-                      "softmax_temp_out",
+                      UniqName("softmax_temp_out"),
                       {axis_j});
   ir::Tensor out = Compute(
-      A->shape, [=](const std::vector<Expr> &indice) { return Exp(A(indice)) / temp(indice); }, output_name);
+      A->shape,
+      [=](const std::vector<Expr> &indice) { return Exp(A(indice)) / temp(indice); },
+      UniqName("softmax_out"));
   return {temp, out};
 }
 
@@ -187,7 +189,7 @@ Tensor Pad(const Tensor &tensor,
            const std::vector<Expr> &pad_before,
            std::vector<Expr> pad_after = std::vector<Expr>(),
            Expr pad_value              = Expr(),
-           const std::string &name     = UniqName("T_pad_out"),
+           const std::string &name     = "pad_out",
            const std::string &pad_mode = "constant") {
   // When pad_after is empty, it takes the same values as pad_before (symmetric padding)
   if (pad_after.size() < pad_before.size()) {
@@ -261,7 +263,7 @@ Tensor Pad(const Tensor &tensor,
     }
     return tensor(indices);
   };
-  return Compute(output_shape, fn, name);
+  return Compute(output_shape, fn, UniqName(name));
 }
 
 /**
@@ -440,7 +442,8 @@ std::vector<Tensor> Pool2d(const Tensor &tensor,
   }
   CHECK_EQ(tensor->shape.size(), 4U) << "pool1d requires tensor's shape_size to be 4\n";
   std::vector<int> axis = {height_axis, width_axis};
-  return PoolImpl(tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, output_name);
+  return PoolImpl(
+      tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, UniqName(output_name));
 }
 
 std::vector<Tensor> Pool3d(const Tensor &tensor,

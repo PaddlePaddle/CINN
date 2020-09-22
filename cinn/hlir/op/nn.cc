@@ -140,6 +140,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                output_shapes,
                                UniqName("Conv2d_output"));
     auto stages = CreateStages(out);
+    out[2]->InitReduction(stages, Expr(0.f));  // res
+
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -386,7 +388,7 @@ std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<
   } else if (data_format == "NWC") {
     width_axis = 1;
   } else {
-    LOG(ERROR) << "unsupported data_format: " << data_format << std::endl;
+    LOG(FATAL) << "unsupported data_format: " << data_format << std::endl;
   }
 
   output_shape0[width_axis] += padding_size[0] + padding_size[1];
