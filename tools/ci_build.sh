@@ -4,14 +4,17 @@ set -ex
 readonly workspace=$PWD
 
 function install_isl {
-    git clone https://github.com/inducer/isl.git
+    if [ ! -d isl ]; then
+        git clone https://github.com/inducer/isl.git isl
+    fi
+
     cd isl
     git checkout a72ac2e
     ./autogen.sh
 
     find /usr -name "SourceLocation.h"
 
-    ./configure --clang=system
+    ./configure --with-clang=system
     make -j
     sudo make install
 }
