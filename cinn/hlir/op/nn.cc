@@ -5,6 +5,7 @@
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/ir/node.h"
 
 namespace cinn {
 namespace hlir {
@@ -140,7 +141,9 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                output_shapes,
                                UniqName("Conv2d_output"));
     auto stages = CreateStages(out);
-    out[2]->InitReduction(stages, Expr(0.f));
+    CHECK_EQ(out.size(), 3U) << "The size of pe::Conv2d_NCHW's output should be 3.";
+    CHECK(!out_type.empty()) << "Output type of Conv2d is empty! Please check.\n";
+    out[2]->InitReduction(stages, ir::Zero(out_type[0]));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -326,7 +329,9 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
                           UniqName("T_Pool1d_out"));
 
     auto stages = CreateStages(out);
-    out[1]->InitReduction(stages, Expr(0.f));
+    CHECK_EQ(out.size(), 2U) << "The size of pe::Pool1d's output should be 2.";
+    CHECK(!out_type.empty()) << "Output type of Pool1d is empty! Please check.\n";
+    out[1]->InitReduction(stages, ir::Zero(out_type[0]));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -460,7 +465,9 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
                           UniqName("T_Pool2d_out"));
 
     auto stages = CreateStages(out);
-    out[1]->InitReduction(stages, Expr(0.f));
+    CHECK_EQ(out.size(), 2U) << "The size of pe::Pool2d's output should be 2.";
+    CHECK(!out_type.empty()) << "Output type of Pool2d is empty! Please check.\n";
+    out[1]->InitReduction(stages, ir::Zero(out_type[0]));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -609,7 +616,9 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
                           UniqName("T_Pool3d_out"));
 
     auto stages = CreateStages(out);
-    out[1]->InitReduction(stages, Expr(0.f));
+    CHECK_EQ(out.size(), 2U) << "The size of pe::Pool3d's output should be 2.";
+    CHECK(!out_type.empty()) << "Output type of Pool3d is empty! Please check.\n";
+    out[1]->InitReduction(stages, ir::Zero(out_type[0]));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -788,10 +797,11 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     if (axis == -1) {
       new_axis = A->shape.size() - 1;
     }
-    auto out = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
-    CHECK_EQ(out.size(), 2);
+    auto out    = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
     auto stages = CreateStages(out);
-    out[0]->InitReduction(stages, Expr(0.f));
+    CHECK_EQ(out.size(), 2U) << "The size of pe::Softmax's output should be 2.";
+    CHECK(!out_type.empty()) << "Output type of Softmax is empty! Please check.\n";
+    out[0]->InitReduction(stages, ir::Zero(out_type[0]));
     *ret = CINNValuePack{{CINNValue(out[0]), CINNValue(out[1]), CINNValue(stages)}};
   });
 

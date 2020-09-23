@@ -20,7 +20,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
                                               const std::vector<Type> &out_type,
                                               const std::vector<std::vector<int>> &output_shapes,
                                               const Target &target) {
-  framework::CINNCompute matmul_compute([&attrs](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute matmul_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Matmul compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK_GE(a.size(), 2U) << "at least 2 input tensors for Matmul compute\n";
@@ -56,7 +56,8 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
                           UniqName("Matmul_output"));
     VLOG(3) << "matmul out: " << out;
     auto stages = CreateStages({out});
-    out->InitReduction(stages, Expr(0.f));
+    CHECK(!out_type.empty()) << "Output type of MatMul is empty! Please check.\n";
+    out->InitReduction(stages, ir::Zero(out_type[0]));
     *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
@@ -122,7 +123,7 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
                                            const std::vector<Type> &out_type,
                                            const std::vector<std::vector<int>> &output_shapes,
                                            const Target &target) {
-  framework::CINNCompute mul_compute([&attrs](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute mul_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Mul compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK_GE(a.size(), 2U) << "at least 2 input tensors for Mul compute\n";
@@ -173,7 +174,8 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
                        {axis_k});
     VLOG(3) << "mul out: " << out;
     stages->InsertLazily(out);
-    out->InitReduction(stages, Expr(0.f));
+    CHECK(!out_type.empty()) << "Output type of Mul is empty! Please check.\n";
+    out->InitReduction(stages, ir::Zero(out_type[0]));
     *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
