@@ -57,4 +57,9 @@ void Executor::Build(const std::vector<std::string>& input_names,
   runtime_program_ = graph_compiler_->Build();
 }
 
+std::shared_ptr<hlir::framework::Scope> Executor::scope() {
+  CHECK(scope_);
+  return scope_;
+}
+
 }  // namespace cinn::frontend
