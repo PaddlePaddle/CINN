@@ -13,7 +13,7 @@ namespace cinn {
 namespace frontend {
 
 /**
- * Executor for a model.
+ * The executor for a model.
  */
 class Executor final {
  public:
@@ -27,14 +27,14 @@ class Executor final {
    */
   void LoadPaddleModel(const std::string& model_dir, bool params_combined = false);
 
+  /**
+   * Run the executor.
+   */
   void Run();
 
   hlir::framework::Tensor GetTensor(const std::string& name);
 
-  std::shared_ptr<hlir::framework::Scope> scope() {
-    CHECK(scope_);
-    return scope_;
-  }
+  std::shared_ptr<hlir::framework::Scope> scope();
 
  private:
   /**
