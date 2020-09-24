@@ -14,7 +14,7 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
-model_dir = sys.argv.pop()
+model_dir = '/WorkSpace/mobilenetv2'
 
 
 class TestLoadResnetModel(unittest.TestCase):
@@ -23,52 +23,50 @@ class TestLoadResnetModel(unittest.TestCase):
         self.target.arch = Target.Arch.X86
         self.target.bits = Target.Bit.k64
         self.target.os = Target.OS.Linux
-
         self.model_dir = model_dir
+        self.x_shape = [1, 3, 224, 224]
+        self.target_tensor = 'save_infer_model/scale_0'
+        self.input_tensor = 'image'
 
-        self.x_shape = [1, 32, 112, 112]
-
-    def get_paddle_inference_result(self, data):
-        exe = fluid.Executor(fluid.CPUPlace())
-
-        [inference_program, feed_target_names,
-         fetch_targets] = fluid.io.load_inference_model(
-             dirname=self.model_dir, executor=exe)
-
-        results = exe.run(
-            inference_program,
-            feed={feed_target_names[0]: data},
-            fetch_list=fetch_targets)
-
-        result = results[0]
-        return result
+    def get_paddle_inference_result(self, model_dir, data):
+        config = fluid.core.AnalysisConfig(model_dir + '/__model__',
+                                           model_dir + '/params')
+        config.disable_gpu()
+        config.switch_ir_optim(False)
+        self.paddle_predictor = fluid.core.create_paddle_predictor(config)
+        data = fluid.core.PaddleTensor(data)
+        results = self.paddle_predictor.run([data])
+        get_tensor = self.paddle_predictor.get_output_tensor(
+            self.target_tensor).copy_to_cpu()
+        #return results[0].as_ndarray()
+        return get_tensor
 
     def test_model(self):
-        np.random.seed(0)
         x_data = np.random.random(self.x_shape).astype("float32")
-        self.executor = Executor(["resnet_input"], [self.x_shape])
-        self.executor.load_paddle_model(self.model_dir, False)
-        a_t = self.executor.get_tensor("resnet_input")
+        self.executor = Executor([self.input_tensor], [self.x_shape])
+        print("self.mode_dir is:", self.model_dir)
+        # True means load combined model
+        self.executor.load_paddle_model(self.model_dir, True)
+        a_t = self.executor.get_tensor(self.input_tensor)
         a_t.from_numpy(x_data)
 
-        out = self.executor.get_tensor("relu_0.tmp_0")
+        out = self.executor.get_tensor(self.target_tensor)
         out.from_numpy(np.zeros(out.shape(), dtype='float32'))
 
         self.executor.run()
 
         out = out.numpy()
-        target_result = self.get_paddle_inference_result(x_data)
+        target_result = self.get_paddle_inference_result(
+            self.model_dir, x_data)
 
         print("result in test_model: \n")
         out = out.reshape(-1)
         target_result = target_result.reshape(-1)
-        # out.shape[0]
-        for i in range(0, 20):
+        for i in range(0, out.shape[0]):
             if np.abs(out[i] - target_result[i]) > 1e-3:
                 print("Error! ", i, "-th data has diff with target data:\n",
                       out[i], " vs: ", target_result[i], ". Diff is: ",
                       out[i] - target_result[i])
-        # TODO(haozech) fix this.
         self.assertTrue(np.allclose(out, target_result, atol=1e-3))
 
 

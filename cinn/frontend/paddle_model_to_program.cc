@@ -67,7 +67,7 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
     VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
-    auto out = program_->mul(x, y, false, false, x_num_col_dims, y_num_col_dims);
+    auto out = program_->mul(x, y, x_num_col_dims, y_num_col_dims);
     CHECK(!op_desc.Output("Out").empty());
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
@@ -97,9 +97,11 @@ void PaddleModelToProgram::AddOpMapper_softmax() {
     auto out_name = op_desc.Output("Out").front();
 
     std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
-    CHECK(op_desc.HasAttr("axis"));
-    attrs["axis"] = op_desc.GetAttr<int>("axis");
-
+    if (op_desc.HasAttr("axis")) {
+      attrs["axis"] = op_desc.GetAttr<int>("axis");
+    } else {
+      attrs["axis"] = int(-1);
+    }
     auto x   = GetVar(TransValidVarName(x_name));
     auto out = program_->softmax(x, attrs);
     AddVar(TransValidVarName(out_name), out);
@@ -120,6 +122,52 @@ void PaddleModelToProgram::AddOpMapper_elementwise_add() {
     auto x   = GetVar(TransValidVarName(x_name));
     auto y   = GetVar(TransValidVarName(y_name));
     auto out = program_->elementwise_add(x, y, axis);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_relu6() {
+  op_mappers_["relu6"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Output("Out").empty());
+    auto out_name = op_desc.Output("Out").front();
+
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    CHECK(op_desc.HasAttr("threshold"));
+    CHECK_EQ(op_desc.GetAttr<float>("threshold"), 6.0f) << "Threshold of Relu6 is not 6! To be implemented.";
+    attrs["threshold"] = op_desc.GetAttr<float>("threshold");
+
+    auto x   = GetVar(TransValidVarName(x_name));
+    auto out = program_->relu6(x, attrs);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+void PaddleModelToProgram::AddOpMapper_depthwise_conv2d() {
+  op_mappers_["depthwise_conv2d"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("Input").empty());
+    auto x_name = op_desc.Input("Input").front();
+    CHECK(!op_desc.Input("Filter").empty());
+    auto y_name = op_desc.Input("Filter").front();
+    CHECK(!op_desc.Output("Output").empty());
+    auto out_name = op_desc.Output("Output").front();
+
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    CHECK(op_desc.HasAttr("paddings"));
+    attrs["padding"] = op_desc.GetAttr<std::vector<int>>("paddings");
+    CHECK(op_desc.HasAttr("strides"));
+    attrs["stride"] = op_desc.GetAttr<std::vector<int>>("strides");
+    CHECK(op_desc.HasAttr("dilations"));
+    attrs["dilation"] = op_desc.GetAttr<std::vector<int>>("dilations");
+    CHECK(op_desc.HasAttr("groups"));
+    attrs["groups"] = op_desc.GetAttr<int>("groups");
+    auto x          = GetVar(TransValidVarName(x_name));
+    auto y          = GetVar(TransValidVarName(y_name));
+    auto out        = program_->depthwise_conv2d(x, y, attrs);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
