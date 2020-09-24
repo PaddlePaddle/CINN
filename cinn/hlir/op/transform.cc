@@ -143,37 +143,10 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
         LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
     }
-    auto A_tensor = A.as_tensor_ref();
-    auto B_tensor = B.as_tensor_ref();
-    std::vector<Expr> new_xshape{Expr(1), Expr(1)};
-    std::vector<Expr> new_yshape{Expr(1), Expr(1)};
-    auto stages = CreateStages({A_tensor, B_tensor});
-    for (int i = 0; i < A_tensor->shape.size(); i++) {
-      if (i < x_num_col_dims) {
-        new_xshape[0] = new_xshape[0] * A_tensor->shape[i];
-      } else {
-        new_xshape[1] = new_xshape[1] * A_tensor->shape[i];
-      }
-    }
-
-    for (int i = 0; i < B_tensor->shape.size(); i++) {
-      if (i < y_num_col_dims) {
-        new_yshape[0] = new_yshape[0] * B_tensor->shape[i];
-      } else {
-        new_yshape[1] = new_yshape[1] * B_tensor->shape[i];
-      }
-    }
-
-    auto new_A = A_tensor->Reshape(new_xshape, stages);
-    auto new_B = B_tensor->Reshape(new_yshape, stages);
-    std::vector<Expr> output_shape{new_xshape[0], new_yshape[1]};
-    Var axis_k(new_xshape[1], UniqName("axis_k"));
-    auto out = Compute(output_shape,
-                       [=](Expr m, Expr n) { return ir::ReduceSum(new_A(m, axis_k) * new_B(axis_k, n), Expr(0.f)); },
-                       UniqName("Mul_out"),
-                       {axis_k});
+    auto out = pe::Matmul(
+        A.as_tensor_ref(), B.as_tensor_ref(), false, false, x_num_col_dims, y_num_col_dims, UniqName("Mul_output"));
     VLOG(3) << "mul out: " << out;
-    stages->InsertLazily(out);
+    auto stages = CreateStages({out});
     CHECK(!out_type.empty()) << "Output type of Mul is empty! Please check.\n";
     out->InitReduction(stages, ir::Zero(out_type[0]));
     *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
@@ -199,9 +172,7 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
 
-  std::vector<int> output_shape(2);
-  std::vector<int> shape1_new{1, 1};
-  std::vector<int> shape2_new{1, 1};
+  std::vector<int> output_shape;
   int x_num_col_dims = 1;
   int y_num_col_dims = 1;
   for (auto &iter : attrs.attr_store) {
@@ -211,25 +182,10 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
       y_num_col_dims = std::get<int>(iter.second);
     }
   }
-  for (int i = 0; i < inputs_shape[0].size(); i++) {
-    if (i < x_num_col_dims) {
-      shape1_new[0] = shape1_new[0] * inputs_shape[0][i];
-    } else {
-      shape1_new[1] = shape1_new[1] * inputs_shape[0][i];
-    }
-  }
 
-  for (int i = 0; i < inputs_shape[1].size(); i++) {
-    if (i < y_num_col_dims) {
-      shape2_new[0] = shape2_new[0] * inputs_shape[1][i];
-    } else {
-      shape2_new[1] = shape2_new[1] * inputs_shape[1][i];
-    }
-  }
-  CHECK_EQ(shape1_new[1], shape2_new[0])
-      << "For matrix multiply: X * Y, second dim of X's shape should be equal to first dim of Y's shape! Please Check!";
-  output_shape[0] = shape1_new[0];
-  output_shape[1] = shape2_new[1];
+  output_shape.insert(output_shape.begin(), inputs_shape[0].begin(), inputs_shape[0].begin() + x_num_col_dims);
+  output_shape.insert(output_shape.end(), inputs_shape[1].begin() + y_num_col_dims, inputs_shape[1].end());
+
   std::vector<std::vector<int>> res{output_shape};
   return res;
 }
