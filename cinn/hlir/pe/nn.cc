@@ -5,7 +5,9 @@
 
 #include "cinn/common/cas.h"
 #include "cinn/common/context.h"
+#include "cinn/common/ir_util.h"
 #include "cinn/hlir/pe/broadcast.h"
+#include "cinn/hlir/pe/elementwise.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
@@ -187,10 +189,10 @@ ir::Tensor Slice(const ir::Tensor &A,
  */
 Tensor Pad(const Tensor &tensor,
            const std::vector<Expr> &pad_before,
-           std::vector<Expr> pad_after = std::vector<Expr>(),
-           Expr pad_value              = Expr(),
-           const std::string &name     = "pad_out",
-           const std::string &pad_mode = "constant") {
+           std::vector<Expr> pad_after,
+           Expr pad_value,
+           const std::string &name,
+           const std::string &pad_mode) {
   // When pad_after is empty, it takes the same values as pad_before (symmetric padding)
   if (pad_after.size() < pad_before.size()) {
     for (size_t i = pad_after.size(); i < pad_before.size(); ++i) {
@@ -293,6 +295,10 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
                              bool ceil_mode,
                              bool exclusive,
                              const std::string &output_name) {
+  LOG(INFO) << "kernel_size length is: " << kernel_size.size();
+  LOG(INFO) << "kernel_size is: " << kernel_size[0];
+  LOG(INFO) << "padding_size length is: " << padding_size.size();
+  LOG(INFO) << "padding_size is: " << padding_size[0];
   CHECK(!kernel_size.empty()) << "Pooling kernel_size should not be empty\n";
   int k_size = kernel_size.size();
   int x_size = tensor->shape.size();
@@ -332,12 +338,12 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
     out_shape[ii] = out_dim;
   }
 
-  Tensor temp = tensor;
-  Tensor res  = tensor;
+  Tensor temp;
+  Tensor res;
   if (pool_type == "max") {
     Expr min_value = ir::min_value(tensor->type());
     // Pad the input tensor with the pad_value of type's minimum value
-    temp = do_pad ? Pad(tensor, pad_before, pad_after, min_value, UniqName("pad_temp")) : tensor;
+    temp = do_pad ? Pad(tensor, pad_before, pad_after, min_value, UniqName("pad_temp")) : Identity(tensor);
     res  = Compute(
         out_shape,
         [=](const std::vector<Expr> &output) {
@@ -355,7 +361,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
         daxis);
   } else if (pool_type == "avg") {
     // Pad the input tensor with pad_value zero
-    temp = do_pad ? Pad(tensor, pad_before, pad_after, 0, UniqName("pad_temp")) : tensor;
+    temp = do_pad ? Pad(tensor, pad_before, pad_after, 0, UniqName("pad_temp")) : Identity(tensor);
     res  = Compute(
         out_shape,
         [=](const std::vector<Expr> &output) {
@@ -437,6 +443,9 @@ std::vector<Tensor> Pool2d(const Tensor &tensor,
   } else if (data_format == "NHWC") {
     height_axis = 1;
     width_axis  = 2;
+  } else if (data_format == "AnyLayout") {
+    height_axis = 2;
+    width_axis  = 3;
   } else {
     LOG(FATAL) << "Unsupported data format: " << data_format << std::endl;
   }
@@ -472,6 +481,97 @@ std::vector<Tensor> Pool3d(const Tensor &tensor,
   CHECK_EQ(tensor->shape.size(), 5U) << "pool1d requires tensor's shape_size to be 5\n";
   std::vector<int> axis = {depth_axis, height_axis, width_axis};
   return PoolImpl(tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, output_name);
+}
+
+std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
+                                          const Tensor &weight,
+                                          int pad_h,
+                                          int pad_w,
+                                          int stride_h,
+                                          int stride_w,
+                                          const std::vector<std::vector<int>> &output_shapes,
+                                          const std::string output_name) {
+  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
+  CHECK_EQ(weight->shape.size(), 4U) << "Weight's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
+  Expr in_h = input->shape[2];
+  Expr in_w = input->shape[3];
+  Expr c_m  = weight->shape[1];  // channel_multiplier
+  std::vector<Expr> output_shape;
+  if (output_shapes.size() == 2) {
+    // already computed by infer_shape
+    CHECK_EQ(4, output_shapes[1].size())
+        << "The size of output_shapes[1] of Depthwise_Conv2d op is not 4! Please check.";
+    output_shape = {
+        Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
+  } else {
+    output_shape = {
+        input->shape[0],                                                  // B
+        weight->shape[1] * input->shape[1],                               // O
+        (input->shape[2] - weight->shape[2] + 2 * pad_h) / stride_h + 1,  // H
+        (input->shape[3] - weight->shape[3] + 2 * pad_w) / stride_w + 1   // W
+    };
+  }
+  auto input_pad =
+      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
+
+  Var kernel_h = Var(weight->shape[2], "kh");
+  Var kernel_w = Var(weight->shape[3], "kw");
+  auto res =
+      Compute(output_shape,
+              [=](Expr nn, Expr ff, Expr yy, Expr xx) {
+                return ir::ReduceSum(input_pad(nn, ff / c_m, yy * stride_h + kernel_h, xx * stride_w + kernel_w) *
+                                         weight(ff / c_m, ff % c_m, kernel_h, kernel_w),
+                                     common::make_const(input->type(), 0));
+              },
+              output_name,
+              {kernel_h, kernel_w});
+  return {input_pad, res};
+}
+
+std::vector<Tensor> Depthwise_Conv2d_NHWC(const Tensor &input,
+                                          const Tensor &weight,
+                                          int pad_h,
+                                          int pad_w,
+                                          int stride_h,
+                                          int stride_w,
+                                          const std::vector<std::vector<int>> &output_shapes,
+                                          const std::string output_name) {
+  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
+  CHECK_EQ(weight->shape.size(), 4U) << "Weight's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
+  Expr in_h = input->shape[1];
+  Expr in_w = input->shape[2];
+  Expr c_m  = weight->shape[1];  // channel_multiplier
+  std::vector<Expr> output_shape;
+  if (output_shapes.size() == 2) {
+    // already computed by infer_shape
+    CHECK_EQ(4, output_shapes[1].size())
+        << "The size of output_shapes[1] of Depthwise_Conv2d op is not 4! Please check.";
+    output_shape = {
+        Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
+  } else {
+    output_shape = {
+        input->shape[0],                                                  // B
+        (input->shape[1] - weight->shape[2] + 2 * pad_h) / stride_h + 1,  // H
+        (input->shape[2] - weight->shape[3] + 2 * pad_w) / stride_w + 1,  // W
+        weight->shape[1] * input->shape[3]                                // O
+    };
+  }
+
+  auto input_pad =
+      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(pad_h), Expr(pad_w), Expr(0)});
+
+  Var kernel_h = Var(weight->shape[2], "kh");
+  Var kernel_w = Var(weight->shape[3], "kw");
+  auto res =
+      Compute(output_shape,
+              [=](Expr nn, Expr yy, Expr xx, Expr ff) {
+                return ir::ReduceSum(input_pad(nn, yy * stride_h + kernel_h, xx * stride_w + kernel_w, ff / c_m) *
+                                         weight(ff / c_m, ff % c_m, kernel_h, kernel_w),
+                                     common::make_const(input->type(), 0));
+              },
+              output_name,
+              {kernel_h, kernel_w});
+  return {input_pad, res};
 }
 
 }  // namespace pe

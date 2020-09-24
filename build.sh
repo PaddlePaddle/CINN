@@ -66,6 +66,10 @@ function cmake_ {
 
 function prepare_model {
     cd $build_dir/thirds
+    wget https://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar
+    tar -xvf ResNet18.tar
+    wget https://paddle-inference-dist.bj.bcebos.com/CINN/MobileNetV2.tar
+    tar -xvf MobileNetV2.tar
     python $workspace/python/tests/fake_model/naive_mul.py
     python $workspace/python/tests/fake_model/naive_multi_fc.py
     python $workspace/python/tests/fake_model/resnet_model.py

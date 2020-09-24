@@ -185,12 +185,16 @@ void LoadModelPb(const std::string &model_dir,
   CHECK(cpp_prog);
   CHECK(scope);
   cpp_prog->ClearBlocks();
-
+  LOG(INFO) << "model_dir is: " << model_dir;
+  LOG(INFO) << "model_file is: " << model_file;
+  LOG(INFO) << "param_file is: " << param_file;
   // Load model
   VLOG(4) << "Start load model program...";
-  std::string prog_path = model_dir + "/__model__";
+  std::string prog_path       = model_dir + "/__model__";
+  std::string param_file_temp = param_file;
   if (combined) {
-    prog_path = model_file;
+    // prog_path = model_file;
+    param_file_temp = model_dir + "/params";
   }
   framework_proto::ProgramDesc pb_proto_prog = *LoadProgram(prog_path, model_from_memory);
   pb::ProgramDesc pb_prog(&pb_proto_prog);
@@ -204,7 +208,7 @@ void LoadModelPb(const std::string &model_dir,
                                            << " you should load the combined model using cfg.set_model_buffer "
                                               "interface.";
   if (combined) {
-    LoadCombinedParamsPb(param_file, scope, *cpp_prog, model_from_memory);
+    LoadCombinedParamsPb(param_file_temp, scope, *cpp_prog, model_from_memory);
   } else {
     auto main_block = pb_proto_prog.blocks(0);
     for (auto &var : main_block.vars()) {

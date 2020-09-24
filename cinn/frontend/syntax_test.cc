@@ -108,7 +108,7 @@ TEST(syntax, program_execute_fc) {
   Placeholder b(Float(32), {N}, "B");     // bias
 
   Program program;
-  auto mul_out = program.mul(a, w, false /*trans_a*/, false /*trans_b*/, 2, 1);
+  auto mul_out = program.mul(a, w, 2, 1);
   auto add_out = program.add(mul_out, b);
   program.SetInputs({a, w, b});
   program.Validate();

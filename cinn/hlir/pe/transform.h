@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <vector>
 
 #include "cinn/ir/node.h"
@@ -36,7 +37,7 @@ ir::Tensor Matmul(const ir::Tensor& A,
                   bool trans_b            = false,
                   int x_num_col_dims      = 1,
                   int y_num_col_dims      = 1,
-                  const std::string& name = "T_Transform_Matmul_out");
+                  const std::string& name = UniqName("T_Transform_Matmul_out"));
 
 }  // namespace pe
 }  // namespace hlir

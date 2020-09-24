@@ -169,12 +169,7 @@ struct Program {
   /**
    * Multiply two matrix.
    */
-  Variable mul(const Variable& a,
-               const Variable& b,
-               bool trans_a       = false,
-               bool trans_b       = false,
-               int x_num_col_dims = 1,
-               int y_num_col_dims = 1);
+  Variable mul(const Variable& a, const Variable& b, int x_num_col_dims = 1, int y_num_col_dims = 1);
 
   /**
    * Add two tensors element-wise.
@@ -189,7 +184,7 @@ struct Program {
    * @return The result.
    */
   Variable relu(const Variable& a);
-  Variable relu6(const Variable& a);
+  Variable relu6(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
 
   /**
    * The convolution2D layer calculates the output based on the input, filter
@@ -201,7 +196,9 @@ struct Program {
    * @return The result.
    */
   Variable conv2d(const Variable& a, const Variable& b, const std::unordered_map<std::string, attr_t>& attr_store);
-
+  Variable depthwise_conv2d(const Variable& a,
+                            const Variable& b,
+                            const std::unordered_map<std::string, attr_t>& attr_store);
   Variable pool2d(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
 
   /**

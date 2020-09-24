@@ -172,6 +172,31 @@ std::vector<ir::Tensor> Pool3d(const ir::Tensor& x,
                                const std::string& data_format = "NCDHW",
                                const std::string& output_name = "T_Pool3d_out");
 
+std::vector<ir::Tensor> Depthwise_Conv2d_NCHW(const ir::Tensor& input,
+                                              const ir::Tensor& weight,
+                                              int pad_h,
+                                              int pad_w,
+                                              int stride_h,
+                                              int stride_w,
+                                              const std::vector<std::vector<int>>& output_shapes,
+                                              const std::string output_name = UniqName("T_depthwise_conv2d_nchw"));
+
+std::vector<ir::Tensor> Depthwise_Conv2d_NHWC(const ir::Tensor& input,
+                                              const ir::Tensor& weight,
+                                              int pad_h,
+                                              int pad_w,
+                                              int stride_h,
+                                              int stride_w,
+                                              const std::vector<std::vector<int>>& output_shapes,
+                                              const std::string output_name = UniqName("T_depthwise_conv2d_nhwc"));
+
+ir::Tensor Pad(const ir::Tensor& tensor,
+               const std::vector<Expr>& pad_before,
+               std::vector<Expr> pad_after = std::vector<Expr>(),
+               Expr pad_value              = Expr(),
+               const std::string& name     = UniqName("T_pad_out"),
+               const std::string& pad_mode = "constant");
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
