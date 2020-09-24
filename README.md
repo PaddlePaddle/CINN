@@ -1,4 +1,22 @@
+```
+                        ___                    ___          ___     
+                       /\__\                  /\  \        /\  \    ______________
+                      /:/  /       ___        \:\  \       \:\  \   
+                     /:/  /       /\__\        \:\  \       \:\  \  ______________
+                    /:/  /  ___  /:/__/    _____\:\  \  _____\:\  \ 
+                   /:/__/  /\__\/::\  \   /::::::::\__\/::::::::\__\ ______________
+                   \:\  \ /:/  /\/\:\  \__\:\~~\~~\/__/\:\~~\~~\/__/
+                    \:\  /:/  /  ~~\:\/\__\\:\  \       \:\  \       _________________
+                     \:\/:/  /      \::/  / \:\  \       \:\  \     ______________
+                      \::/  /       /:/  /   \:\__\       \:\__\    ______________
+                       \/__/        \/__/     \/__/        \/__/    ______________
+
+```
+
+
 # CINN : Compiler Infrastructure for Neural Networks
+
+
 
 The project CINN is a machine learning compiler and executor for multiple hardware. 
 It is designed to provide multiple layers of APIs to make DNN computation graph easier to define,  faster to execute, and more convenient to extend with more hardware backends. Currently, it targets X86 CPUs and NVidia GPUs, and it is easy to extend.
@@ -93,7 +111,7 @@ ctest -V
 ```
 
 ### Concepts
-There are two level of APIs in CINN, the higher level is HLIR and the lower level is CINN IR, both contains some concepts.
+There are two levels of APIs in CINN, the higher level is HLIR and the lower level is CINN IR, both contain some concepts.
 
 In HLIR
 
@@ -114,7 +132,7 @@ In CINN IR
 ### Reference the API usage
 Read the code in the tests
 
-For python API, reference the code inside `python/tests`.
+For Python API, reference the code inside `python/tests`.
 
 The C++ API locates in `cinn/*/*_test.cc`, the high level API locates in `hlir/frontend`, the lower level API is in `cinn/cinn.h`.
 
