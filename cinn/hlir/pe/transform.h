@@ -33,11 +33,11 @@ namespace pe {
  */
 ir::Tensor Matmul(const ir::Tensor& A,
                   const ir::Tensor& B,
-                  bool trans_a,
-                  bool trans_b,
-                  int x_num_col_dims,
-                  int y_num_col_dims,
-                  const std::string& name);
+                  bool trans_a            = false,
+                  bool trans_b            = false,
+                  int x_num_col_dims      = 1,
+                  int y_num_col_dims      = 1,
+                  const std::string& name = UniqName("T_Transform_Matmul_out"));
 
 }  // namespace pe
 }  // namespace hlir

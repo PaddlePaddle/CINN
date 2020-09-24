@@ -69,7 +69,6 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
                                              const std::vector<Type> &out_type,
                                              const std::vector<std::vector<int>> &output_shapes,
                                              const Target &target) {
-  LOG(INFO) << " Detect Relu6!! \n";
   framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of relu6 compute is empty! Please check.\n";
     CINNValuePack a = args[0];
@@ -172,7 +171,6 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
 }
 
 std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shape, const framework::NodeAttr &attrs) {
-  LOG(INFO) << " Detect Conv2d!! \n";
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
@@ -955,7 +953,6 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
                                                        const std::vector<Type> &out_type,
                                                        const std::vector<std::vector<int>> &output_shapes,
                                                        const Target &target) {
-  LOG(INFO) << " Detect Depthwise_conv2d!! \n";
   std::vector<int> padding = {0, 0};
   std::vector<int> stride  = {1, 1};
   std::string data_format  = "NCHW";

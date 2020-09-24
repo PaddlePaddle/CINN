@@ -14,7 +14,7 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
-model_dir = '/WorkSpace/mobilenetv2'
+model_dir = sys.argv.pop()
 
 
 class TestLoadResnetModel(unittest.TestCase):
