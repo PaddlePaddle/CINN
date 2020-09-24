@@ -45,46 +45,225 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                     int stride_w,
                                     int dilation_h,
                                     int dilation_w,
-                                    int groups,
                                     const std::vector<std::vector<int>> &output_shapes,
                                     const std::string &output_name) {
-  CHECK_EQ(4, input->shape.size()) << "Input's dimension of Conv2d op is not 4! Please check.";
-  CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d op is not 4! Please check.";
-  CHECK_EQ(3, output_shapes.size()) << "The size of output_shapes of Conv2d op is not 3! Please check.";
-  CHECK_EQ(4, output_shapes[0].size()) << "The size of output_shapes[0] of Conv2d op is not 4! Please check.";
-  CHECK_EQ(4, output_shapes[1].size()) << "The size of output_shapes[1] of Conv2d op is not 4! Please check.";
-  CHECK_EQ(4, output_shapes[2].size()) << "The size of output_shapes[2] of Conv2d op is not 4! Please check.";
-  std::vector<Expr> output_shape{
-      Expr(output_shapes[2][0]), Expr(output_shapes[2][1]), Expr(output_shapes[2][2]), Expr(output_shapes[2][3])};
-  auto input_pad = Compute(
-      {Expr(output_shapes[0][0]), Expr(output_shapes[0][1]), Expr(output_shapes[0][2]), Expr(output_shapes[0][3])},
-      [=](Expr nn, Expr cc, Expr yy, Expr xx) {
-        auto cond =
-            ir::logic_and({yy >= pad_h, yy - pad_h < input->shape[2], xx >= pad_w, xx - pad_w < input->shape[3]});
-        return ir::Select::Make(cond, input(nn, cc, yy - pad_h, xx - pad_w), Expr(0.f));
-      },
-      UniqName("input_pad"));
+  CHECK_EQ(4, input->shape.size()) << "Input's dimension of Conv2d_NCHW op is not 4! Please check.";
+  CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d_NCHW op is not 4! Please check.";
+  std::vector<Expr> output_shape;
+  std::vector<Expr> new_weights_shape;
+  if (output_shapes.size() == 3) {
+    // already computed by infer_shape
+    CHECK_EQ(4, output_shapes[0].size()) << "The size of output_shapes[0] of Conv2d op is not 4! Please check.";
+    CHECK_EQ(4, output_shapes[1].size()) << "The size of output_shapes[1] of Conv2d op is not 4! Please check.";
+    CHECK_EQ(4, output_shapes[2].size()) << "The size of output_shapes[2] of Conv2d op is not 4! Please check.";
+    output_shape = {
+        Expr(output_shapes[2][0]), Expr(output_shapes[2][1]), Expr(output_shapes[2][2]), Expr(output_shapes[2][3])};
+    new_weights_shape = {
+        Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
+  } else {
+    output_shape = {
+        input->shape[0],                                                                                  // B
+        weights->shape[0],                                                                                // O
+        Expr((input->shape[2] - ((weights->shape[2] - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1),  // H
+        Expr((input->shape[3] - ((weights->shape[3] - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1)   // W
+    };
+    new_weights_shape = {weights->shape[0],
+                         weights->shape[1],
+                         dilation_h * (weights->shape[2] - 1) + 1,
+                         dilation_w * (weights->shape[3] - 1) + 1};
+  }
+  auto input_pad =
+      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
+
   auto weights_dilation = Compute(
-      {Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])},
+      new_weights_shape,
       [=](Expr nn, Expr cc, Expr yy, Expr xx) {
         auto cond = ir::logic_and({(xx) % dilation_h == 0, yy % dilation_w == 0});
-        return ir::Select::Make(cond, weights(nn, cc, yy / dilation_h, xx / dilation_w), Expr(0.f));
+        return ir::Select::Make(
+            cond, weights(nn, cc, yy / dilation_h, xx / dilation_w), common::make_const(weights->type(), 0));
       },
       UniqName("weights_dilation"));
 
-  Var rc(input_pad->shape[1], UniqName("rc"));
-  Var ry(weights_dilation->shape[2], UniqName("ry"));
-  Var rx(weights_dilation->shape[3], UniqName("rx"));
+  Var fc(weights->shape[1], UniqName("fc"));
+  Var fy(weights_dilation->shape[2], UniqName("fy"));
+  Var fx(weights_dilation->shape[3], UniqName("fx"));
 
-  auto res = Compute(output_shape,
-                     [=](Expr nn, Expr ff, Expr yy, Expr xx) {
-                       return ir::ReduceSum(
-                           input_pad(nn, rc, yy * stride_h + ry, xx * stride_w + rx) * weights_dilation(ff, rc, ry, rx),
-                           Expr(0.f));
-                     },
-                     output_name,
-                     {ry, rx, rc});
+  CHECK(MathEqual((weights->shape[0] * weights->shape[1]) % input->shape[1], Expr(0)))
+      << "filter's output channel size must be divisible by group\n";
+  auto res =
+      Compute(output_shape,
+              [=](Expr nn, Expr ff, Expr yy, Expr xx) {
+                return ir::ReduceSum(
+                    input_pad(nn,
+                              ff / (weights->shape[0] * weights->shape[1] / input->shape[1]) * weights->shape[1] + fc,
+                              yy * stride_h + fy,
+                              xx * stride_w + fx) *
+                        weights_dilation(ff, fc, fy, fx),
+                    common::make_const(input->type(), 0));
+              },
+              output_name,
+              {fc, fy, fx});
   return {input_pad, weights_dilation, res};
+}
+
+std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
+                                    const ir::Tensor &weights,
+                                    int pad_h,
+                                    int pad_w,
+                                    int stride_h,
+                                    int stride_w,
+                                    int dilation_h,
+                                    int dilation_w,
+                                    const std::vector<std::vector<int>> &output_shapes,
+                                    const std::string &output_name) {
+  CHECK_EQ(4, input->shape.size()) << "Input's dimension of Conv2d_NHWC op is not 4! Please check.";
+  CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d_NHWC op is not 4! Please check.";
+  std::vector<Expr> output_shape;
+  std::vector<Expr> new_weights_shape;
+  if (output_shapes.size() == 3) {
+    // already computed by infer_shape
+    CHECK_EQ(4, output_shapes[0].size()) << "The size of output_shapes[0] of Conv2d op is not 4! Please check.";
+    CHECK_EQ(4, output_shapes[1].size()) << "The size of output_shapes[1] of Conv2d op is not 4! Please check.";
+    CHECK_EQ(4, output_shapes[2].size()) << "The size of output_shapes[2] of Conv2d op is not 4! Please check.";
+    output_shape = {
+        Expr(output_shapes[2][0]), Expr(output_shapes[2][1]), Expr(output_shapes[2][2]), Expr(output_shapes[2][3])};
+    new_weights_shape = {
+        Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
+  } else {
+    output_shape = {
+        input->shape[0],                                                                                  // B
+        Expr((input->shape[1] - ((weights->shape[2] - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1),  // H
+        Expr((input->shape[2] - ((weights->shape[3] - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1),  // W
+        weights->shape[0]                                                                                 // O
+    };
+    new_weights_shape = {weights->shape[0],
+                         weights->shape[1],
+                         dilation_h * (weights->shape[2] - 1) + 1,
+                         dilation_w * (weights->shape[3] - 1) + 1};
+  }
+  auto input_pad =
+      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(pad_h), Expr(pad_w), Expr(0)});
+
+  auto weights_dilation = Compute(
+      new_weights_shape,
+      [=](Expr nn, Expr cc, Expr yy, Expr xx) {
+        auto cond = ir::logic_and({(xx) % dilation_h == 0, yy % dilation_w == 0});
+        return ir::Select::Make(
+            cond, weights(nn, cc, yy / dilation_h, xx / dilation_w), common::make_const(weights->type(), 0));
+      },
+      UniqName("weights_dilation"));
+
+  Var fc(weights->shape[1], UniqName("fc"));
+  Var fy(weights_dilation->shape[2], UniqName("fy"));
+  Var fx(weights_dilation->shape[3], UniqName("fx"));
+
+  CHECK(MathEqual((weights->shape[0] * weights->shape[1]) % input->shape[3], Expr(0)))
+      << "filter's output channel size must be divisible by group\n";
+  auto res =
+      Compute(output_shape,
+              [=](Expr nn, Expr yy, Expr xx, Expr ff) {
+                return ir::ReduceSum(
+                    input_pad(nn,
+                              yy * stride_h + fy,
+                              xx * stride_w + fx,
+                              ff / (weights->shape[0] * weights->shape[1] / input->shape[3]) * weights->shape[1] + fc) *
+                        weights_dilation(ff, fc, fy, fx),
+                    common::make_const(input->type(), 0));
+              },
+              output_name,
+              {fy, fx, fc});
+  return {input_pad, weights_dilation, res};
+}
+
+std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
+                                          const Tensor &weight,
+                                          int pad_h,
+                                          int pad_w,
+                                          int stride_h,
+                                          int stride_w,
+                                          const std::vector<std::vector<int>> &output_shapes,
+                                          const std::string output_name) {
+  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
+  CHECK_EQ(weight->shape.size(), 4U) << "Weight's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
+  Expr in_h = input->shape[2];
+  Expr in_w = input->shape[3];
+  Expr c_m  = weight->shape[1];  // channel_multiplier
+  std::vector<Expr> output_shape;
+  if (output_shapes.size() == 2) {
+    // already computed by infer_shape
+    CHECK_EQ(4, output_shapes[1].size())
+        << "The size of output_shapes[1] of Depthwise_Conv2d op is not 4! Please check.";
+    output_shape = {
+        Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
+  } else {
+    output_shape = {
+        input->shape[0],                                                  // B
+        weight->shape[1] * input->shape[1],                               // O
+        (input->shape[2] - weight->shape[2] + 2 * pad_h) / stride_h + 1,  // H
+        (input->shape[3] - weight->shape[3] + 2 * pad_w) / stride_w + 1   // W
+    };
+  }
+  auto input_pad =
+      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
+
+  Var kernel_h = Var(weight->shape[2], "kh");
+  Var kernel_w = Var(weight->shape[3], "kw");
+  auto res =
+      Compute(output_shape,
+              [=](Expr nn, Expr ff, Expr yy, Expr xx) {
+                return ir::ReduceSum(input_pad(nn, ff / c_m, yy * stride_h + kernel_h, xx * stride_w + kernel_w) *
+                                         weight(ff / c_m, ff % c_m, kernel_h, kernel_w),
+                                     common::make_const(input->type(), 0));
+              },
+              output_name,
+              {kernel_h, kernel_w});
+  return {input_pad, res};
+}
+
+std::vector<Tensor> Depthwise_Conv2d_NHWC(const Tensor &input,
+                                          const Tensor &weight,
+                                          int pad_h,
+                                          int pad_w,
+                                          int stride_h,
+                                          int stride_w,
+                                          const std::vector<std::vector<int>> &output_shapes,
+                                          const std::string output_name) {
+  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
+  CHECK_EQ(weight->shape.size(), 4U) << "Weight's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
+  Expr in_h = input->shape[1];
+  Expr in_w = input->shape[2];
+  Expr c_m  = weight->shape[1];  // channel_multiplier
+  std::vector<Expr> output_shape;
+  if (output_shapes.size() == 2) {
+    // already computed by infer_shape
+    CHECK_EQ(4, output_shapes[1].size())
+        << "The size of output_shapes[1] of Depthwise_Conv2d op is not 4! Please check.";
+    output_shape = {
+        Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
+  } else {
+    output_shape = {
+        input->shape[0],                                                  // B
+        (input->shape[1] - weight->shape[2] + 2 * pad_h) / stride_h + 1,  // H
+        (input->shape[2] - weight->shape[3] + 2 * pad_w) / stride_w + 1,  // W
+        weight->shape[1] * input->shape[3]                                // O
+    };
+  }
+
+  auto input_pad =
+      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(pad_h), Expr(pad_w), Expr(0)});
+
+  Var kernel_h = Var(weight->shape[2], "kh");
+  Var kernel_w = Var(weight->shape[3], "kw");
+  auto res =
+      Compute(output_shape,
+              [=](Expr nn, Expr yy, Expr xx, Expr ff) {
+                return ir::ReduceSum(input_pad(nn, yy * stride_h + kernel_h, xx * stride_w + kernel_w, ff / c_m) *
+                                         weight(ff / c_m, ff % c_m, kernel_h, kernel_w),
+                                     common::make_const(input->type(), 0));
+              },
+              output_name,
+              {kernel_h, kernel_w});
+  return {input_pad, res};
 }
 
 /**
@@ -357,7 +536,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
 
           return ReduceMax(temp(indices), min_value);
         },
-        output_name,
+        UniqName(output_name),
         daxis);
   } else if (pool_type == "avg") {
     // Pad the input tensor with pad_value zero
@@ -396,7 +575,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
             return ReduceSum(ir::Div::Make(temp(indices), cast(kernel_size, Float(32))), Expr());
           }
         },
-        output_name,
+        UniqName(output_name),
         daxis);
   } else {
     LOG(ERROR) << "Unrecognized pool_type: " << pool_type;
@@ -423,7 +602,8 @@ std::vector<Tensor> Pool1d(const Tensor &tensor,
   }
   CHECK_EQ(tensor->shape.size(), 3U) << "pool1d requires tensor's shape_size to be 3\n";
   std::vector<int> axis = {width_axis};
-  return PoolImpl(tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, output_name);
+  return PoolImpl(
+      tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, UniqName(output_name));
 }
 
 std::vector<Tensor> Pool2d(const Tensor &tensor,
@@ -480,98 +660,8 @@ std::vector<Tensor> Pool3d(const Tensor &tensor,
   }
   CHECK_EQ(tensor->shape.size(), 5U) << "pool1d requires tensor's shape_size to be 5\n";
   std::vector<int> axis = {depth_axis, height_axis, width_axis};
-  return PoolImpl(tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, output_name);
-}
-
-std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
-                                          const Tensor &weight,
-                                          int pad_h,
-                                          int pad_w,
-                                          int stride_h,
-                                          int stride_w,
-                                          const std::vector<std::vector<int>> &output_shapes,
-                                          const std::string output_name) {
-  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
-  CHECK_EQ(weight->shape.size(), 4U) << "Weight's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
-  Expr in_h = input->shape[2];
-  Expr in_w = input->shape[3];
-  Expr c_m  = weight->shape[1];  // channel_multiplier
-  std::vector<Expr> output_shape;
-  if (output_shapes.size() == 2) {
-    // already computed by infer_shape
-    CHECK_EQ(4, output_shapes[1].size())
-        << "The size of output_shapes[1] of Depthwise_Conv2d op is not 4! Please check.";
-    output_shape = {
-        Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
-  } else {
-    output_shape = {
-        input->shape[0],                                                  // B
-        weight->shape[1] * input->shape[1],                               // O
-        (input->shape[2] - weight->shape[2] + 2 * pad_h) / stride_h + 1,  // H
-        (input->shape[3] - weight->shape[3] + 2 * pad_w) / stride_w + 1   // W
-    };
-  }
-  auto input_pad =
-      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
-
-  Var kernel_h = Var(weight->shape[2], "kh");
-  Var kernel_w = Var(weight->shape[3], "kw");
-  auto res =
-      Compute(output_shape,
-              [=](Expr nn, Expr ff, Expr yy, Expr xx) {
-                return ir::ReduceSum(input_pad(nn, ff / c_m, yy * stride_h + kernel_h, xx * stride_w + kernel_w) *
-                                         weight(ff / c_m, ff % c_m, kernel_h, kernel_w),
-                                     common::make_const(input->type(), 0));
-              },
-              output_name,
-              {kernel_h, kernel_w});
-  return {input_pad, res};
-}
-
-std::vector<Tensor> Depthwise_Conv2d_NHWC(const Tensor &input,
-                                          const Tensor &weight,
-                                          int pad_h,
-                                          int pad_w,
-                                          int stride_h,
-                                          int stride_w,
-                                          const std::vector<std::vector<int>> &output_shapes,
-                                          const std::string output_name) {
-  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
-  CHECK_EQ(weight->shape.size(), 4U) << "Weight's dimension of Depthwise_Conv2d_NCHW is not 4! Please check.\n";
-  Expr in_h = input->shape[1];
-  Expr in_w = input->shape[2];
-  Expr c_m  = weight->shape[1];  // channel_multiplier
-  std::vector<Expr> output_shape;
-  if (output_shapes.size() == 2) {
-    // already computed by infer_shape
-    CHECK_EQ(4, output_shapes[1].size())
-        << "The size of output_shapes[1] of Depthwise_Conv2d op is not 4! Please check.";
-    output_shape = {
-        Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
-  } else {
-    output_shape = {
-        input->shape[0],                                                  // B
-        (input->shape[1] - weight->shape[2] + 2 * pad_h) / stride_h + 1,  // H
-        (input->shape[2] - weight->shape[3] + 2 * pad_w) / stride_w + 1,  // W
-        weight->shape[1] * input->shape[3]                                // O
-    };
-  }
-
-  auto input_pad =
-      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(pad_h), Expr(pad_w), Expr(0)});
-
-  Var kernel_h = Var(weight->shape[2], "kh");
-  Var kernel_w = Var(weight->shape[3], "kw");
-  auto res =
-      Compute(output_shape,
-              [=](Expr nn, Expr yy, Expr xx, Expr ff) {
-                return ir::ReduceSum(input_pad(nn, yy * stride_h + kernel_h, xx * stride_w + kernel_w, ff / c_m) *
-                                         weight(ff / c_m, ff % c_m, kernel_h, kernel_w),
-                                     common::make_const(input->type(), 0));
-              },
-              output_name,
-              {kernel_h, kernel_w});
-  return {input_pad, res};
+  return PoolImpl(
+      tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, UniqName(output_name));
 }
 
 }  // namespace pe

@@ -98,9 +98,9 @@ class TestPEReduction(unittest.TestCase):
         func_name = "test_" + fn_name
         stages = create_stages([x.to_tensor()])
         if initial:
-            y, y_init = cinn_fn(x.to_tensor(), stages, axes_expr, keep_dims,
+            y = cinn_fn(x.to_tensor(), stages, axes_expr, keep_dims,
                                 ir.Expr(initial))
-            func = lang.lower(func_name, stages, [x.to_tensor(), y, y_init])
+            func = lang.lower(func_name, stages, [x.to_tensor(), y])
         else:
             y = cinn_fn(x.to_tensor(), stages, axes_expr, keep_dims)
             func = lang.lower(func_name, stages, [x.to_tensor(), y])

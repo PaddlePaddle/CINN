@@ -106,7 +106,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
   std::vector<int> dilation({1, 1});
-  int groups(1);
+  std::string data_format = "NCHW";
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
     padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
@@ -116,8 +116,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
     dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
   }
-  if (attrs.attr_store.find("groups") != attrs.attr_store.end()) {
-    groups = std::get<int>(attrs.attr_store.at("groups"));
+  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
+    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
   }
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of conv2d compute is empty! Please check.\n";
@@ -129,25 +129,45 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     CHECK(B.as_tensor());
     CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
     CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
-    auto out    = pe::Conv2d_NCHW(A.as_tensor_ref(),
-                               B.as_tensor_ref(),
-                               padding[0],
-                               padding[1],
-                               stride[0],
-                               stride[1],
-                               dilation[0],
-                               dilation[1],
-                               groups,
-                               output_shapes,
-                               UniqName("Conv2d_output"));
-    auto stages = CreateStages(out);
-    CHECK_EQ(out.size(), 3U) << "The size of pe::Conv2d_NCHW's output should be 3.";
-    CHECK(!out_type.empty()) << "Output type of Conv2d is empty! Please check.\n";
-    out[2]->InitReduction(stages, ir::Zero(out_type[0]));
+    CHECK_EQ(dilation.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
+    CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
+    std::vector<ir::Tensor> out;
+    if (data_format == "NCHW") {
+      // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
+      out = pe::Conv2d_NCHW(A.as_tensor_ref(),
+                            B.as_tensor_ref(),
+                            padding[0],
+                            padding[1],
+                            stride[0],
+                            stride[1],
+                            dilation[0],
+                            dilation[1],
+                            output_shapes,
+                            UniqName("Conv2d_nchw_out"));
+    } else {
+      // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
+      out = pe::Conv2d_NHWC(A.as_tensor_ref(),
+                            B.as_tensor_ref(),
+                            padding[0],
+                            padding[1],
+                            stride[0],
+                            stride[1],
+                            dilation[0],
+                            dilation[1],
+                            output_shapes,
+                            UniqName("Conv2d_nhwc_out"));
+    }
+
+    auto stages = CreateStages({A.as_tensor_ref(), B.as_tensor_ref()});
+
     std::vector<CINNValue> res;
     for (auto &t : out) {
-      res.push_back(CINNValue(Expr(t.get())));
+      stages->InsertLazily(t);
+      res.push_back(CINNValue(t));
     }
+    CHECK_EQ(out.size(), 3U) << "The output tensor sizes of depthwise_conv op in depthwise_conv op should be 3\n";
+    out[2]->InitReduction(stages, make_const(out[2]->type(), 0));  // res
+
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
@@ -175,6 +195,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
   std::vector<int> dilation({1, 1});
+  std::string data_format = "NCHW";
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
     padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
@@ -184,29 +205,181 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
     dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
   }
+  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
+    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+  }
   CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
   CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
   CHECK_GE(inputs_shape[0].size(), 3) << "The first input tensor's shape size of conv2d op is < 3! Please check.";
+  CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
 
-  int out_shape_h =
-      (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
-  int out_shape_w =
-      (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
-  std::vector<shape_t> res{{inputs_shape[0][0],
-                            inputs_shape[0][1],
-                            inputs_shape[0][2] + 2 * padding[0],
-                            inputs_shape[0][3] + 2 * padding[1]},
-                           {inputs_shape[1][0],
-                            inputs_shape[1][1],
-                            (inputs_shape[1][2] - 1) * dilation[0] + 1,
-                            (inputs_shape[1][3] - 1) * dilation[1] + 1},
-                           {inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
+  std::vector<shape_t> res;
+  if (data_format == "NCHW") {
+    // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
+    int out_shape_h =
+        (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
+    int out_shape_w =
+        (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
+    res = {{inputs_shape[0][0],
+            inputs_shape[0][1],
+            inputs_shape[0][2] + 2 * padding[0],
+            inputs_shape[0][3] + 2 * padding[1]},
+           {inputs_shape[1][0],
+            inputs_shape[1][1],
+            (inputs_shape[1][2] - 1) * dilation[0] + 1,
+            (inputs_shape[1][3] - 1) * dilation[1] + 1},
+           {inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
+  } else {
+    // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
+    int out_shape_h =
+        (inputs_shape[0][1] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
+    int out_shape_w =
+        (inputs_shape[0][2] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
+    res = {{inputs_shape[0][0],
+            inputs_shape[0][1] + 2 * padding[0],
+            inputs_shape[0][2] + 2 * padding[1],
+            inputs_shape[0][3]},
+           {inputs_shape[1][0],
+            inputs_shape[1][1],
+            (inputs_shape[1][2] - 1) * dilation[0] + 1,
+            (inputs_shape[1][3] - 1) * dilation[1] + 1},
+           {inputs_shape[0][0], out_shape_h, out_shape_w, inputs_shape[1][0]}};
+  }
   return res;
 }
 
 std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[1], inputs_type[0]};
+  return res;
+}
+
+std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr &attrs,
+                                                       const std::vector<ir::Tensor> &inputs,
+                                                       const std::vector<Type> &out_type,
+                                                       const std::vector<std::vector<int>> &output_shapes,
+                                                       const Target &target) {
+  std::vector<int> padding = {0, 0};
+  std::vector<int> stride  = {1, 1};
+  std::string data_format  = "NCHW";
+  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
+    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  }
+  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
+    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  }
+  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
+    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+  }
+
+  framework::CINNCompute depthwise_conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of depthwise_conv compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for depthwise_conv compute\n";
+    Expr A = a[0];
+    Expr B = a[1];
+    CHECK(A.as_tensor());
+    CHECK(B.as_tensor());
+    CHECK_EQ(padding.size(), 2) << "The size of padding in depthwise_conv op is not 2! Please check.\n";
+    CHECK_EQ(stride.size(), 2) << "The size of stride in depthwise_conv op is not 2! Please check.\n";
+    CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
+    std::vector<ir::Tensor> out;
+    if (data_format == "NCHW") {
+      out = pe::Depthwise_Conv2d_NCHW(A.as_tensor_ref(),
+                                      B.as_tensor_ref(),
+                                      padding[0],
+                                      padding[1],
+                                      stride[0],
+                                      stride[1],
+                                      output_shapes,
+                                      UniqName("T_depthwise_conv2d_nchw_out"));
+    } else {
+      out = pe::Depthwise_Conv2d_NHWC(A.as_tensor_ref(),
+                                      B.as_tensor_ref(),
+                                      padding[0],
+                                      padding[1],
+                                      stride[0],
+                                      stride[1],
+                                      output_shapes,
+                                      UniqName("T_depthwise_conv2d_nhwc_out"));
+    }
+
+    auto stages = CreateStages({A.as_tensor_ref(), B.as_tensor_ref()});
+    std::vector<CINNValue> res;
+    for (auto &t : out) {
+      stages->InsertLazily(t);
+      res.push_back(CINNValue(t));
+    }
+    CHECK_EQ(out.size(), 2U) << "The output tensor sizes of depthwise_conv op in depthwise_conv op should be 2\n";
+    out[1]->InitReduction(stages, make_const(out[1]->type(), 0));  // res
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule depthwise_conv2d_schedule([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of depthwise_conv schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL);
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  CHECK(out_type.size()) << "Out_type of depthwise_conv op is empty! Please check.";
+  if (out_type[0] == Float(32)) {
+    strategy->AddImpl(depthwise_conv2d_compute, depthwise_conv2d_schedule, "strategy.depthwise_conv.x86", 1);
+  } else {
+    LOG(INFO) << "depthwise_conv op with dtype != float32 is not implemented yet!";
+  }
+  return strategy;
+}
+
+std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &inputs_shape,
+                                                  const framework::NodeAttr &attrs) {
+  CHECK_EQ(inputs_shape.size(), 2U) << "at least 2 input tensors for depthwise_conv2d op\n";
+  CHECK_EQ(inputs_shape[0].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
+  CHECK_EQ(inputs_shape[1].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
+  std::vector<int> padding = {0, 0};
+  std::vector<int> stride  = {1, 1};
+  std::string data_format  = "NCHW";
+  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
+    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  }
+  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
+    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  }
+  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
+    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+  }
+  std::vector<shape_t> res;
+  CHECK_EQ(padding.size(), 2U) << "The size of padding in depthwise_conv2d op is not 2! Please check.";
+  CHECK_EQ(stride.size(), 2U) << "The size of stride in depthwise_conv2d op is not 2! Please check.";
+  CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
+  if (data_format == "NCHW") {
+    // A is input: [N, C, H, W], and B is filter: [C_in, channel_multiplier, f_h, f_w]
+    int out_shape_h = (inputs_shape[0][2] - inputs_shape[1][2] + 2 * padding[0]) / stride[0] + 1;
+    int out_shape_w = (inputs_shape[0][3] - inputs_shape[1][3] + 2 * padding[1]) / stride[1] + 1;
+    res             = {{inputs_shape[0][0],
+            inputs_shape[0][1],
+            inputs_shape[0][2] + 2 * padding[0],
+            inputs_shape[0][3] + 2 * padding[1]},
+           {inputs_shape[0][0], inputs_shape[1][1] * inputs_shape[0][1], out_shape_h, out_shape_w}};
+  } else {
+    // A is input: [N, H, W, C], and B is filter: [C_in, channel_multiplier, f_h, f_w]
+    int out_shape_h = (inputs_shape[0][1] - inputs_shape[1][1] + 2 * padding[0]) / stride[0] + 1;
+    int out_shape_w = (inputs_shape[0][2] - inputs_shape[1][2] + 2 * padding[1]) / stride[1] + 1;
+    res             = {{inputs_shape[0][0],
+            inputs_shape[0][1] + 2 * padding[0],
+            inputs_shape[0][2] + 2 * padding[1],
+            inputs_shape[0][3]},
+           {inputs_shape[0][0], out_shape_h, out_shape_w, inputs_shape[1][1] * inputs_shape[0][3]}};
+  }
+  return res;
+}
+
+std::vector<Type> InferDtypeForDepthwiseConv2d(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
 }
 
@@ -948,135 +1121,6 @@ std::vector<Type> InferDtypeForSlice(const std::vector<Type> &inputs_type, const
   return res;
 }
 
-std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr &attrs,
-                                                       const std::vector<ir::Tensor> &inputs,
-                                                       const std::vector<Type> &out_type,
-                                                       const std::vector<std::vector<int>> &output_shapes,
-                                                       const Target &target) {
-  std::vector<int> padding = {0, 0};
-  std::vector<int> stride  = {1, 1};
-  std::string data_format  = "NCHW";
-  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
-  }
-  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
-  }
-  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
-  }
-
-  framework::CINNCompute depthwise_conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of depthwise_conv compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for depthwise_conv compute\n";
-    Expr A = a[0];
-    Expr B = a[1];
-    CHECK(A.as_tensor());
-    CHECK(B.as_tensor());
-    CHECK_EQ(padding.size(), 2) << "The size of padding in depthwise_conv op is not 2! Please check.\n";
-    CHECK_EQ(stride.size(), 2) << "The size of stride in depthwise_conv op is not 2! Please check.\n";
-    CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
-    std::vector<ir::Tensor> out;
-    if (data_format == "NCHW") {
-      out = pe::Depthwise_Conv2d_NCHW(A.as_tensor_ref(),
-                                      B.as_tensor_ref(),
-                                      padding[0],
-                                      padding[1],
-                                      stride[0],
-                                      stride[1],
-                                      output_shapes,
-                                      UniqName("T_depthwise_conv2d_nchw_out"));
-    } else {
-      out = pe::Depthwise_Conv2d_NHWC(A.as_tensor_ref(),
-                                      B.as_tensor_ref(),
-                                      padding[0],
-                                      padding[1],
-                                      stride[0],
-                                      stride[1],
-                                      output_shapes,
-                                      UniqName("T_depthwise_conv2d_nhwc_out"));
-    }
-
-    auto stages = CreateStages({A.as_tensor_ref(), B.as_tensor_ref()});
-    std::vector<CINNValue> res;
-    for (auto &t : out) {
-      stages->InsertLazily(t);
-      res.push_back(CINNValue(t));
-    }
-    CHECK_EQ(out.size(), 2U) << "The output tensor sizes of depthwise_conv op in depthwise_conv op should be 2\n";
-    out[1]->InitReduction(stages, make_const(out[1]->type(), 0));  // res
-    res.push_back(CINNValue(stages));
-    *ret = CINNValuePack{res};
-  });
-
-  framework::CINNSchedule depthwise_conv2d_schedule([](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of depthwise_conv schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 3UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
-    *ret                    = arg_pack;
-  });
-
-  auto strategy = std::make_shared<framework::OpStrategy>();
-  CHECK(out_type.size()) << "Out_type of depthwise_conv op is empty! Please check.";
-  if (out_type[0] == Float(32)) {
-    strategy->AddImpl(depthwise_conv2d_compute, depthwise_conv2d_schedule, "strategy.depthwise_conv.x86", 1);
-  } else {
-    LOG(INFO) << "depthwise_conv op with dtype != float32 is not implemented yet!";
-  }
-  return strategy;
-}
-
-std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &inputs_shape,
-                                                  const framework::NodeAttr &attrs) {
-  CHECK_EQ(inputs_shape.size(), 2U) << "at least 2 input tensors for depthwise_conv2d op\n";
-  CHECK_EQ(inputs_shape[0].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
-  CHECK_EQ(inputs_shape[1].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
-  std::vector<int> padding = {0, 0};
-  std::vector<int> stride  = {1, 1};
-  std::string data_format  = "NCHW";
-  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
-  }
-  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
-  }
-  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
-  }
-  std::vector<shape_t> res;
-  CHECK_EQ(padding.size(), 2U) << "The size of padding in depthwise_conv2d op is not 2! Please check.";
-  CHECK_EQ(stride.size(), 2U) << "The size of stride in depthwise_conv2d op is not 2! Please check.";
-  CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
-  if (data_format == "NCHW") {
-    // A is input: [N, C, H, W], and B is filter: [C_in, channel_multiplier, f_h, f_w]
-    int out_shape_h = (inputs_shape[0][2] - inputs_shape[1][2] + 2 * padding[0]) / stride[0] + 1;
-    int out_shape_w = (inputs_shape[0][3] - inputs_shape[1][3] + 2 * padding[1]) / stride[1] + 1;
-    res             = {{inputs_shape[0][0],
-            inputs_shape[0][1],
-            inputs_shape[0][2] + 2 * padding[0],
-            inputs_shape[0][3] + 2 * padding[1]},
-           {inputs_shape[0][0], inputs_shape[1][1] * inputs_shape[0][1], out_shape_h, out_shape_w}};
-  } else {
-    // A is input: [N, H, W, C], and B is filter: [C_in, channel_multiplier, f_h, f_w]
-    int out_shape_h = (inputs_shape[0][1] - inputs_shape[1][1] + 2 * padding[0]) / stride[0] + 1;
-    int out_shape_w = (inputs_shape[0][2] - inputs_shape[1][2] + 2 * padding[1]) / stride[1] + 1;
-    res             = {{inputs_shape[0][0],
-            inputs_shape[0][1] + 2 * padding[0],
-            inputs_shape[0][2] + 2 * padding[1],
-            inputs_shape[0][3]},
-           {inputs_shape[0][0], out_shape_h, out_shape_w, inputs_shape[1][1] * inputs_shape[0][3]}};
-  }
-  return res;
-}
-
-std::vector<Type> InferDtypeForDepthwiseConv2d(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0], inputs_type[0]};
-  return res;
-}
-
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -1101,12 +1145,21 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_support_level(4);
 
   CINN_REGISTER_OP(conv2d)
-      .describe("Do a 2-D convolution with an NCHW-layout.")
-      .set_num_inputs(2)  // here we consider filter as anohter input
+      .describe("Do a 2-D convolution with an NCHW/NHWC layout.")
+      .set_num_inputs(2)  // here we consider filter as another input
       .set_num_outputs(3)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(depthwise_conv2d)
+      .describe("Do a 2-D depthwise convolution with an NCHW/NHWC layout.")
+      .set_num_inputs(2)  // here we consider filter as another input
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDepthwiseConv2d))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDepthwiseConv2d))
       .set_support_level(4);
 
   CINN_REGISTER_OP(batchnorm)

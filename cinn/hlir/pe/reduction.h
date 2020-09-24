@@ -20,12 +20,12 @@ namespace pe {
  *
  * @return The result Tensors.
  */
-std::vector<ir::Tensor> Sum(const ir::Tensor& A,
-                            poly::StageMap stages,
-                            const std::vector<Expr>& axis,
-                            bool keep_dims                 = false,
-                            const Expr& initial            = Expr(0),
-                            const std::string& output_name = "T_Reduce_Sum_out");
+ir::Tensor Sum(const ir::Tensor& A,
+               poly::StageMap stages,
+               const std::vector<Expr>& axis,
+               bool keep_dims                 = false,
+               const Expr& initial            = Expr(0),
+               const std::string& output_name = "T_Reduce_Sum_out");
 
 /**
  * @brief product array elements over a given axis
@@ -41,12 +41,12 @@ std::vector<ir::Tensor> Sum(const ir::Tensor& A,
  *
  * @return The result Tensors.
  */
-std::vector<ir::Tensor> Prod(const ir::Tensor& A,
-                             poly::StageMap stages,
-                             const std::vector<Expr>& axis,
-                             bool keep_dims                 = false,
-                             const Expr& initial            = Expr(1),
-                             const std::string& output_name = "T_Reduce_Prod_out");
+ir::Tensor Prod(const ir::Tensor& A,
+                poly::StageMap stages,
+                const std::vector<Expr>& axis,
+                bool keep_dims                 = false,
+                const Expr& initial            = Expr(1),
+                const std::string& output_name = "T_Reduce_Prod_out");
 
 /**
  * @brief find the maxium of array elements over a given axis

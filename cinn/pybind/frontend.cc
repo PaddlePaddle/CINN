@@ -74,6 +74,7 @@ void BindFrontend(pybind11::module *m) {
       .def("conv2d", &Program::conv2d)
       .def("batchnorm", &Program::batchnorm)
       .def("softmax", &Program::softmax)
+      .def("pool2d", &Program::pool2d)
       .def("build_and_get_output",
            [](Program &self,
               const common::Target &target,
