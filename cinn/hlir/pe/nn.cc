@@ -51,6 +51,7 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
   CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d_NCHW op is not 4! Please check.";
   std::vector<Expr> output_shape;
   std::vector<Expr> new_weights_shape;
+  std::vector<Expr> input_pad_shape;
   if (output_shapes.size() == 3) {
     // already computed by infer_shape
     CHECK_EQ(4, output_shapes[0].size()) << "The size of output_shapes[0] of Conv2d op is not 4! Please check.";
@@ -60,6 +61,8 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
         Expr(output_shapes[2][0]), Expr(output_shapes[2][1]), Expr(output_shapes[2][2]), Expr(output_shapes[2][3])};
     new_weights_shape = {
         Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
+    input_pad_shape = {
+        Expr(output_shapes[0][0]), Expr(output_shapes[0][1]), Expr(output_shapes[0][2]), Expr(output_shapes[0][3])};
   } else {
     output_shape = {
         input->shape[0],                                                                                  // B
@@ -71,10 +74,16 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                          weights->shape[1],
                          dilation_h * (weights->shape[2] - 1) + 1,
                          dilation_w * (weights->shape[3] - 1) + 1};
+    input_pad_shape   = {input->shape[0], input->shape[1], input->shape[2] + 2 * pad_h, input->shape[3] + 2 * pad_w};
   }
-  auto input_pad =
-      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
-
+  auto input_pad = Compute(
+      input_pad_shape,
+      [=](Expr nn, Expr cc, Expr yy, Expr xx) {
+        auto cond =
+            ir::logic_and({yy >= pad_h, yy - pad_h < input->shape[2], xx >= pad_w, xx - pad_w < input->shape[3]});
+        return ir::Select::Make(cond, input(nn, cc, yy - pad_h, xx - pad_w), ir::Zero(input->type()));
+      },
+      UniqName("input_pad"));
   auto weights_dilation = Compute(
       new_weights_shape,
       [=](Expr nn, Expr cc, Expr yy, Expr xx) {
@@ -120,6 +129,7 @@ std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
   CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d_NHWC op is not 4! Please check.";
   std::vector<Expr> output_shape;
   std::vector<Expr> new_weights_shape;
+  std::vector<Expr> input_pad_shape;
   if (output_shapes.size() == 3) {
     // already computed by infer_shape
     CHECK_EQ(4, output_shapes[0].size()) << "The size of output_shapes[0] of Conv2d op is not 4! Please check.";
@@ -129,6 +139,8 @@ std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
         Expr(output_shapes[2][0]), Expr(output_shapes[2][1]), Expr(output_shapes[2][2]), Expr(output_shapes[2][3])};
     new_weights_shape = {
         Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
+    input_pad_shape = {
+        Expr(output_shapes[0][0]), Expr(output_shapes[0][1]), Expr(output_shapes[0][2]), Expr(output_shapes[0][3])};
   } else {
     output_shape = {
         input->shape[0],                                                                                  // B
@@ -140,9 +152,16 @@ std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
                          weights->shape[1],
                          dilation_h * (weights->shape[2] - 1) + 1,
                          dilation_w * (weights->shape[3] - 1) + 1};
+    input_pad_shape   = {input->shape[0], input->shape[1] + 2 * pad_h, input->shape[2] + 2 * pad_w, input->shape[3]};
   }
-  auto input_pad =
-      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(pad_h), Expr(pad_w), Expr(0)});
+  auto input_pad = Compute(
+      input_pad_shape,
+      [=](Expr nn, Expr yy, Expr xx, Expr cc) {
+        auto cond =
+            ir::logic_and({yy >= pad_h, yy - pad_h < input->shape[1], xx >= pad_w, xx - pad_w < input->shape[2]});
+        return ir::Select::Make(cond, input(nn, yy - pad_h, xx - pad_w, cc), ir::Zero(input->type()));
+      },
+      UniqName("input_pad"));
 
   auto weights_dilation = Compute(
       new_weights_shape,

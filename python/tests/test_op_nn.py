@@ -46,7 +46,7 @@ class OpTest_conv2d_nchw(SingleOpTester):
         self.groups = 1
         assert np.mod(self.input_size[1], self.groups) == 0
         f_c = self.input_size[1] // self.groups
-        self.filter_size = [64, f_c, 7, 7]
+        self.filter_size = [2, f_c, 2, 2]
         assert np.mod(self.filter_size[0], self.groups) == 0
         self.data_format = "NCHW"
         self.attrs = framework.NodeAttr()
@@ -170,9 +170,9 @@ class OpTest_conv2d_nhwc_group(SingleOpTester):
         self.filter_size = [16, f_c, 7, 7]
         self.data_format = "NHWC"
         self.attrs = framework.NodeAttr()
-        self.padding = [1, 1]
+        self.padding = [2, 2]
         self.stride = [2, 2]
-        self.dilation = [1, 1]
+        self.dilation = [2, 2]
         self.attrs.attr_store = {
             "stride": self.stride,
             "padding": self.padding,
