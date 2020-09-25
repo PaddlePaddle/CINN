@@ -66,9 +66,8 @@ class OpTest_conv2d(SingleOpTester):
         attrs.set_attr("stride", [2, 2])
         attrs.set_attr("dilation", [2, 2])
         attrs.set_attr("groups", 1)
-        self.to_test_op([[1, 3, 10, 10], [2, 3, 2, 2]],
-                        [[1, 3, 12, 12], [2, 3, 3, 3], [1, 2, 5, 5]], "conv2d",
-                        attrs)
+        self.to_test_op([[1, 3, 10, 10], [2, 3, 2, 2]], [[1, 2, 5, 5]],
+                        "conv2d", attrs)
 
 
 class OpTest_pool1d(SingleOpTester):

@@ -50,14 +50,26 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                     const std::string &output_name) {
   CHECK_EQ(4, input->shape.size()) << "Input's dimension of Conv2d op is not 4! Please check.";
   CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d op is not 4! Please check.";
-  CHECK_EQ(3, output_shapes.size()) << "The size of output_shapes of Conv2d op is not 3! Please check.";
-  CHECK_EQ(4, output_shapes[0].size()) << "The size of output_shapes[0] of Conv2d op is not 4! Please check.";
-  CHECK_EQ(4, output_shapes[1].size()) << "The size of output_shapes[1] of Conv2d op is not 4! Please check.";
-  CHECK_EQ(4, output_shapes[2].size()) << "The size of output_shapes[2] of Conv2d op is not 4! Please check.";
-  std::vector<Expr> output_shape{
-      Expr(output_shapes[2][0]), Expr(output_shapes[2][1]), Expr(output_shapes[2][2]), Expr(output_shapes[2][3])};
+
+  Expr out_shape_h = (input->shape[2] - ((weights->shape[2] - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1;
+  Expr out_shape_w = (input->shape[3] - ((weights->shape[3] - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1;
+  std::vector<std::vector<Expr>> output_shapes_temp{
+      {input->shape[0], input->shape[1], input->shape[2] + 2 * pad_h, input->shape[3] + 2 * pad_w},
+      {weights->shape[0],
+       weights->shape[1],
+       (weights->shape[2] - 1) * dilation_h + 1,
+       (weights->shape[3] - 1) * dilation_w + 1},
+      {input->shape[0], weights->shape[0], out_shape_h, out_shape_w}};
+
+  std::vector<Expr> output_shape{Expr(output_shapes_temp[2][0]),
+                                 Expr(output_shapes_temp[2][1]),
+                                 Expr(output_shapes_temp[2][2]),
+                                 Expr(output_shapes_temp[2][3])};
   auto input_pad = Compute(
-      {Expr(output_shapes[0][0]), Expr(output_shapes[0][1]), Expr(output_shapes[0][2]), Expr(output_shapes[0][3])},
+      {Expr(output_shapes_temp[0][0]),
+       Expr(output_shapes_temp[0][1]),
+       Expr(output_shapes_temp[0][2]),
+       Expr(output_shapes_temp[0][3])},
       [=](Expr nn, Expr cc, Expr yy, Expr xx) {
         auto cond =
             ir::logic_and({yy >= pad_h, yy - pad_h < input->shape[2], xx >= pad_w, xx - pad_w < input->shape[3]});
@@ -65,7 +77,10 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
       },
       UniqName("input_pad"));
   auto weights_dilation = Compute(
-      {Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])},
+      {Expr(output_shapes_temp[1][0]),
+       Expr(output_shapes_temp[1][1]),
+       Expr(output_shapes_temp[1][2]),
+       Expr(output_shapes_temp[1][3])},
       [=](Expr nn, Expr cc, Expr yy, Expr xx) {
         auto cond = ir::logic_and({(xx) % dilation_h == 0, yy % dilation_w == 0});
         return ir::Select::Make(cond, weights(nn, cc, yy / dilation_h, xx / dilation_w), Expr(0.f));
@@ -497,12 +512,12 @@ std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
   Expr in_w = input->shape[3];
   Expr c_m  = weight->shape[1];  // channel_multiplier
   std::vector<Expr> output_shape;
-  if (output_shapes.size() == 2) {
+  if (output_shapes.size() == 1) {
     // already computed by infer_shape
-    CHECK_EQ(4, output_shapes[1].size())
-        << "The size of output_shapes[1] of Depthwise_Conv2d op is not 4! Please check.";
+    CHECK_EQ(4, output_shapes[0].size())
+        << "The size of output_shapes[0] of Depthwise_Conv2d op is not 4! Please check.";
     output_shape = {
-        Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
+        Expr(output_shapes[0][0]), Expr(output_shapes[0][1]), Expr(output_shapes[0][2]), Expr(output_shapes[0][3])};
   } else {
     output_shape = {
         input->shape[0],                                                  // B
@@ -542,12 +557,12 @@ std::vector<Tensor> Depthwise_Conv2d_NHWC(const Tensor &input,
   Expr in_w = input->shape[2];
   Expr c_m  = weight->shape[1];  // channel_multiplier
   std::vector<Expr> output_shape;
-  if (output_shapes.size() == 2) {
+  if (output_shapes.size() == 1) {
     // already computed by infer_shape
-    CHECK_EQ(4, output_shapes[1].size())
-        << "The size of output_shapes[1] of Depthwise_Conv2d op is not 4! Please check.";
+    CHECK_EQ(4, output_shapes[0].size())
+        << "The size of output_shapes[0] of Depthwise_Conv2d op is not 4! Please check.";
     output_shape = {
-        Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
+        Expr(output_shapes[0][0]), Expr(output_shapes[0][1]), Expr(output_shapes[0][2]), Expr(output_shapes[0][3])};
   } else {
     output_shape = {
         input->shape[0],                                                  // B

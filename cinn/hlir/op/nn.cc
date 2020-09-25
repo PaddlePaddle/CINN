@@ -6,6 +6,7 @@
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/ir/node.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace hlir {
@@ -156,8 +157,12 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 4UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
-    *ret                    = arg_pack;
+    poly::StageMap stages = arg_pack[3];
+    Expr input_pad        = arg_pack[0];
+    stages[input_pad.as_tensor_ref()]->ComputeInline();
+    Expr weights_dilation = arg_pack[1];
+    stages[weights_dilation.as_tensor_ref()]->ComputeInline();
+    *ret = CINNValuePack{{arg_pack[2], CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -192,21 +197,13 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
   int out_shape_w =
       (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
-  std::vector<shape_t> res{{inputs_shape[0][0],
-                            inputs_shape[0][1],
-                            inputs_shape[0][2] + 2 * padding[0],
-                            inputs_shape[0][3] + 2 * padding[1]},
-                           {inputs_shape[1][0],
-                            inputs_shape[1][1],
-                            (inputs_shape[1][2] - 1) * dilation[0] + 1,
-                            (inputs_shape[1][3] - 1) * dilation[1] + 1},
-                           {inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
+  std::vector<shape_t> res{{inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
   return res;
 }
 
 std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0], inputs_type[1], inputs_type[0]};
+  std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
@@ -1014,8 +1011,11 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
     CHECK(!args.empty()) << "The input argument of depthwise_conv schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 3UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
-    *ret                    = arg_pack;
+
+    poly::StageMap stages = arg_pack[2];
+    Expr input_pad        = arg_pack[0];
+    stages[input_pad.as_tensor_ref()]->ComputeInline();
+    *ret = CINNValuePack{{arg_pack[1], CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1053,27 +1053,19 @@ std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &in
     // A is input: [N, C, H, W], and B is filter: [C_in, channel_multiplier, f_h, f_w]
     int out_shape_h = (inputs_shape[0][2] - inputs_shape[1][2] + 2 * padding[0]) / stride[0] + 1;
     int out_shape_w = (inputs_shape[0][3] - inputs_shape[1][3] + 2 * padding[1]) / stride[1] + 1;
-    res             = {{inputs_shape[0][0],
-            inputs_shape[0][1],
-            inputs_shape[0][2] + 2 * padding[0],
-            inputs_shape[0][3] + 2 * padding[1]},
-           {inputs_shape[0][0], inputs_shape[1][1] * inputs_shape[0][1], out_shape_h, out_shape_w}};
+    res             = {{inputs_shape[0][0], inputs_shape[1][1] * inputs_shape[0][1], out_shape_h, out_shape_w}};
   } else {
     // A is input: [N, H, W, C], and B is filter: [C_in, channel_multiplier, f_h, f_w]
     int out_shape_h = (inputs_shape[0][1] - inputs_shape[1][1] + 2 * padding[0]) / stride[0] + 1;
     int out_shape_w = (inputs_shape[0][2] - inputs_shape[1][2] + 2 * padding[1]) / stride[1] + 1;
-    res             = {{inputs_shape[0][0],
-            inputs_shape[0][1] + 2 * padding[0],
-            inputs_shape[0][2] + 2 * padding[1],
-            inputs_shape[0][3]},
-           {inputs_shape[0][0], out_shape_h, out_shape_w, inputs_shape[1][1] * inputs_shape[0][3]}};
+    res             = {{inputs_shape[0][0], out_shape_h, out_shape_w, inputs_shape[1][1] * inputs_shape[0][3]}};
   }
   return res;
 }
 
 std::vector<Type> InferDtypeForDepthwiseConv2d(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0], inputs_type[0]};
+  std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
@@ -1103,7 +1095,7 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(conv2d)
       .describe("Do a 2-D convolution with an NCHW-layout.")
       .set_num_inputs(2)  // here we consider filter as anohter input
-      .set_num_outputs(3)
+      .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
@@ -1175,7 +1167,7 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(depthwise_conv2d)
       .describe("Do a 2-D depthwise convolution with an NCHW/NHWC layout.")
       .set_num_inputs(2)  // here we consider filter as another input
-      .set_num_outputs(2)
+      .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDepthwiseConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDepthwiseConv2d))
