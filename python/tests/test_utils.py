@@ -100,10 +100,8 @@ class SingleOpTester(unittest.TestCase):
     def __codegen(self, op_name, inputs, output_shapes, attrs):
         types = [common.Float(32)]
         strategy_map = framework.Operator.get_op_attrs("CINNStrategy")
-        res = strategy_map.apply_strategy(op_name, attrs, inputs, types,
-                                          output_shapes, self.target)
-        stages = create_stages(res)
-        func = lang.lower(op_name, stages, res)
+        func = strategy_map.apply_strategy(op_name, attrs, inputs, types,
+                                           output_shapes, self.target)
         logging.warning('func:\n\n%s\n', func)
         builder = lang.Module.Builder(op_name, self.target)
         builder.add_function(func)

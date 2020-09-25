@@ -400,6 +400,14 @@ ir::LoweredFunc LowerImpl::operator()() {
       if (arg->is_placeholder_node()) continue;
       if (arg->buffer.defined()) continue;
       if (arg->body().As<ir::Call>() && arg->body().type().is_void()) continue;  // extern call
+      if (tensor_map.find(arg->name) == tensor_map.end()) {
+        LOG(INFO) << "Didn't find arg tensor " << arg->name << "in tensor_map.\n"
+                  << "The function is " << fn_name_ << "\nAnd all the arg tensors are:\n";
+        for (auto& i : tensor_args_) {
+          LOG(INFO) << i->name;
+        }
+        LOG(FATAL) << "Fatal Error!";
+      }
       Reference(&arg)->buffer = tensor_map.at(arg->name)->buffer;
     }
   }
@@ -421,7 +429,9 @@ ir::LoweredFunc LowerImpl::operator()() {
   auto func = ir::_LoweredFunc_::Make(fn_name_, func_args, func_body, temp_buffers);
 
   // some necessary modification.
+  LOG(INFO) << "Before optim::ComputeInlineExpand(&func->body, stages_); in function " << fn_name_;
   optim::ComputeInlineExpand(&func->body, stages_);
+  LOG(INFO) << "After optim::ComputeInlineExpand(&func->body, stages_); in function " << fn_name_;
   Target target = cuda_axis_info_.valid() ? common::DefaultNVGPUTarget() : common::DefaultHostTarget();
   auto res      = optim::Optimize(func, target, FLAGS_cinn_runtime_display_debug_info);
 

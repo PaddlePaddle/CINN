@@ -92,6 +92,6 @@ def conv2d_native(inputs_data, input_shape, filter_size, attrs, is_depthwise):
     print("pad's shape is:", pad_shape)
     print("dilation's shape is:", dilation_shape)
     if is_depthwise:
-        return output, [pad_shape, res_shape]
+        return output, [res_shape]
     else:
-        return output, [pad_shape, dilation_shape, res_shape]
+        return output, [res_shape]
