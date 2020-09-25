@@ -341,8 +341,10 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of pool1d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 3UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
-    *ret                    = arg_pack;
+    poly::StageMap stages = arg_pack[2];
+    Expr input_pad        = arg_pack[0];
+    stages[input_pad.as_tensor_ref()]->ComputeInline();
+    *ret = CINNValuePack{{arg_pack[1], CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -405,7 +407,7 @@ std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<
         (inputs_shape[0][width_axis] - kernel_size[0] + padding_size[0] + padding_size[1]) / stride_size[0] + 1;
   }
 
-  std::vector<std::vector<int>> res{output_shape0, output_shape1};
+  std::vector<std::vector<int>> res{output_shape1};
   return res;
 }
 
@@ -477,8 +479,10 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of pool2d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 3UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
-    *ret                    = arg_pack;
+    poly::StageMap stages = arg_pack[2];
+    Expr input_pad        = arg_pack[0];
+    stages[input_pad.as_tensor_ref()]->ComputeInline();
+    *ret = CINNValuePack{{arg_pack[1], CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -555,7 +559,7 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
         (inputs_shape[0][width_axis] - kernel_size[1] + padding_size[1] + padding_size[3]) / stride_size[1] + 1;
   }
 
-  std::vector<std::vector<int>> res{output_shape0, output_shape1};
+  std::vector<std::vector<int>> res{output_shape1};
   return res;
 }
 
@@ -628,8 +632,10 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of pool3d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 3UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
-    *ret                    = arg_pack;
+    poly::StageMap stages = arg_pack[2];
+    Expr input_pad        = arg_pack[0];
+    stages[input_pad.as_tensor_ref()]->ComputeInline();
+    *ret = CINNValuePack{{arg_pack[1], CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -715,13 +721,13 @@ std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<
         (inputs_shape[0][width_axis] - kernel_size[2] + padding_size[2] + padding_size[5]) / stride_size[2] + 1;
   }
 
-  std::vector<std::vector<int>> res{output_shape0, output_shape1};
+  std::vector<std::vector<int>> res{output_shape1};
   return res;
 }
 
 std::vector<Type> InferDtypeForPool(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0], inputs_type[0]};
+  std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
@@ -1113,7 +1119,7 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(pool1d)
       .describe("Do pooling on the width dimension of the input tensor.")
       .set_num_inputs(1)
-      .set_num_outputs(2)
+      .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool1d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool1d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
@@ -1122,7 +1128,7 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(pool2d)
       .describe("Do pooling on the height and width dimension of the input tensor.")
       .set_num_inputs(1)
-      .set_num_outputs(2)
+      .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
@@ -1131,7 +1137,7 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(pool3d)
       .describe("Do pooling on the depth, height and width dimension of the input tensor.")
       .set_num_inputs(1)
-      .set_num_outputs(2)
+      .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool3d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool3d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))

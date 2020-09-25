@@ -429,7 +429,9 @@ ir::LoweredFunc LowerImpl::operator()() {
   auto func = ir::_LoweredFunc_::Make(fn_name_, func_args, func_body, temp_buffers);
 
   // some necessary modification.
+  LOG(INFO) << "Before optim::ComputeInlineExpand(&func->body, stages_); in function " << fn_name_;
   optim::ComputeInlineExpand(&func->body, stages_);
+  LOG(INFO) << "After optim::ComputeInlineExpand(&func->body, stages_); in function " << fn_name_;
   Target target = cuda_axis_info_.valid() ? common::DefaultNVGPUTarget() : common::DefaultHostTarget();
   auto res      = optim::Optimize(func, target, FLAGS_cinn_runtime_display_debug_info);
 

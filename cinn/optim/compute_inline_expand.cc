@@ -16,7 +16,11 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
 
   TensorInlineExpandMutator(const std::string &tensor_name) : tensor_name(tensor_name) {}
 
-  void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+  void operator()(Expr *expr) {
+    LOG(INFO) << "void operator()(Expr *expr) Begin";
+    ir::IRMutator<>::Visit(expr, expr);
+    LOG(INFO) << "void operator()(Expr *expr) End";
+  }
 
   void Visit(const ir::Load *op, Expr *expr) override {
     auto *node   = expr->As<ir::Load>();
@@ -86,7 +90,10 @@ void ComputeInlineExpand(Expr *expr, poly::StageMap stages) {
   while (!inline_tensors.empty()) {
     for (const auto &t : inline_tensors) {
       auto *tensor = t.as_tensor();
+      LOG(INFO) << "Before TensorInlineExpandMutator(tensor->name)(expr); And the tensor'names is [" << tensor->name
+                << "].";
       TensorInlineExpandMutator(tensor->name)(expr);
+      LOG(INFO) << "After TensorInlineExpandMutator(tensor->name)(expr);";
     }
 
     inline_tensors = ir::CollectLoadTensors(

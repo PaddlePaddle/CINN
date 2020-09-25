@@ -144,7 +144,7 @@ def pool2d(np_data, attrs, dtype="float32"):
         raise ValueError("pool type {} is not supported".format(pool_type))
 
     ret_np = np.maximum(ret_np, fill_value)
-    return ret_np, [out_shape0, out_shape]
+    return ret_np, [out_shape]
 
 
 def pool3d(np_data, attrs, dtype="float32"):
@@ -302,7 +302,7 @@ def pool3d(np_data, attrs, dtype="float32"):
         raise ValueError("pool type {} is not supported".format(pool_type))
 
     ret_np = np.maximum(ret_np, fill_value)
-    return ret_np, [out_shape0, out_shape]
+    return ret_np, [out_shape]
 
 
 def pool1d(np_data, attrs, dtype="float32"):
@@ -422,4 +422,4 @@ def pool1d(np_data, attrs, dtype="float32"):
         raise ValueError("pool type {} is not supported".format(pool_type))
 
     ret_np = np.maximum(ret_np, fill_value)
-    return ret_np, [out_shape0, out_shape]
+    return ret_np, [out_shape]

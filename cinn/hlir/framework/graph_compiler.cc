@@ -68,6 +68,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
   std::vector<std::vector<int>> output_shapes;
+  LOG(INFO) << "GetOpFunc of op " << node->id();
   for (auto& i : node->inlinks_in_order()) {
     std::string input_id = i->source()->as<NodeData>()->id();
     auto in_shape        = shape_dict.at(input_id);

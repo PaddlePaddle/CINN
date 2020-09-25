@@ -67,7 +67,7 @@ Variable Program::pool2d(const Variable& a, const std::unordered_map<std::string
     instr.SetAttr(iter.first, iter.second);
   }
   AppendInstruction(instr);
-  return instr.GetOutput(1);
+  return instr.GetOutput(0);
 }
 
 Variable Program::batchnorm(const Variable& a,
