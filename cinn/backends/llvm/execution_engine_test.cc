@@ -240,6 +240,8 @@ TEST(ExecutionEngine, custom_runtime_symbols) {
 
   registry.RegisterVar("random_x_ptr", random_x);
   registry.RegisterVar("random_y_ptr", random_y);
+
+#if LLVM_VERSION_MAJOR <= 10
   {
     llvm::Type *i32_ty        = builder->getInt32Ty();
     llvm::FunctionType *fn_ty = llvm::FunctionType::get(i32_ty, {}, false);
@@ -256,12 +258,15 @@ TEST(ExecutionEngine, custom_runtime_symbols) {
     auto ret               = builder->CreateAdd(random_x_value, random_y_value);
     builder->CreateRet(ret);
   }
+#endif
 
   auto engine = cinn::backends::ExecutionEngine::Create({1});
   engine->AddModule(std::move(module), std::move(context));
 
+#if LLVM_VERSION_MAJOR <= 10
   auto *add_random_x_y = reinterpret_cast<int (*)()>(engine->Lookup("_add_random_x_y"));
   ASSERT_EQ(random_x + random_y, add_random_x_y());
+#endif
 
   auto *call_cosf = reinterpret_cast<float (*)(float)>(engine->Lookup("_call_custom_cosf"));
   auto *call_cos  = reinterpret_cast<double (*)(double)>(engine->Lookup("_call_custom_cos"));

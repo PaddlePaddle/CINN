@@ -247,13 +247,11 @@ void CudaSyncThreadsDropIfThenElse(Expr *expr) {
   struct Mutator : public ir::IRMutator<> {
     void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
-#define BLOCK_VISIT(op__)                               \
-  void Visit(const ir::op__ *op, Expr *expr) override { \
-    blocked_statement_stack.push_back(expr);            \
-    ir::IRMutator<>::Visit(op, expr);                   \
-    blocked_statement_stack.pop_back();                 \
-  }
-    BLOCK_VISIT(IfThenElse)
+    void Visit(const ir::IfThenElse *op, Expr *expr) override {
+      blocked_statement_stack.push_back(expr);
+      ir::IRMutator<>::Visit(op, expr);
+      blocked_statement_stack.pop_back();
+    }
 
     void Visit(const ir::Call *op, Expr *expr) override {
       if (op->name == runtime::intrisic::cuda_sync_threads) {
