@@ -84,7 +84,7 @@ CodeGenLLVM::CodeGenLLVM(llvm::Module *m, llvm::IRBuilder<> *b, const std::share
 CodeGenLLVM::~CodeGenLLVM() {}
 
 llvm::Value *CodeGenLLVM::EmitVectorSlice(llvm::Value *vec, int begin, int extent) {
-  int numel = static_cast<int>(vec->getType()->getVectorNumElements());
+  int numel = llvm::dyn_cast<llvm::VectorType>(vec->getType())->getNumElements();
   if (extent == numel && begin == 0) return vec;
 
   CHECK(begin >= 0 && extent <= numel) << "Slicing out of bound!";
@@ -103,7 +103,8 @@ llvm::Value *CodeGenLLVM::EmitVectorSlice(llvm::Value *vec, int begin, int exten
 
 llvm::Value *CodeGenLLVM::EmitVectorPad(llvm::Value *vec, int lanes) {
   llvm::Value *mask = llvm::UndefValue::get(llvm::VectorType::get(b_->getInt32Ty(), lanes));
-  int numel         = static_cast<int>(vec->getType()->getVectorNumElements());
+  int numel         = llvm::dyn_cast<llvm::VectorType>(vec->getType())->getNumElements();
+
   CHECK(numel <= lanes);
   if (numel == lanes) return vec;
   for (int i = 0; i < numel; i++) {
@@ -117,15 +118,15 @@ llvm::Value *CodeGenLLVM::EmitVectorPad(llvm::Value *vec, int lanes) {
 llvm::Value *CodeGenLLVM::EmitVectorConcat(std::vector<llvm::Value *> vecs) {
   int lanes = 0;
   for (auto *v : vecs) {
-    lanes += static_cast<int>(v->getType()->getVectorNumElements());
+    lanes += llvm::dyn_cast<llvm::VectorType>(v->getType())->getNumElements();
   }
   while (vecs.size() > 1) {
     std::vector<llvm::Value *> new_vecs;
     for (size_t i = 0; i < vecs.size() - 1; i += 2) {
       auto *lhs            = vecs[i];
       auto *rhs            = vecs[i + 1];
-      const auto lhs_lanes = lhs->getType()->getVectorNumElements();
-      const auto rhs_lanes = rhs->getType()->getVectorNumElements();
+      const auto lhs_lanes = llvm::dyn_cast<llvm::VectorType>(lhs->getType())->getNumElements();
+      const auto rhs_lanes = llvm::dyn_cast<llvm::VectorType>(rhs->getType())->getNumElements();
       if (lhs_lanes < rhs_lanes) {
         lhs = EmitVectorPad(lhs, rhs_lanes);
       } else if (lhs_lanes > rhs_lanes) {
@@ -931,7 +932,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Broadcast *op) {
 #else
   const int elem_count = op->lanes;
 #endif
-  llvm::Constant *zeros = llvm::ConstantVector::getSplat(elem_count, zero);
+  llvm::Constant *zeros = llvm::ConstantVector::getSplat(llvm::ElementCount(elem_count, true), zero);
   return b_->CreateShuffleVector(value, undef, zeros, "broadcast_shuffle");
 }
 
@@ -1114,7 +1115,8 @@ llvm::Value *CodeGenLLVM::CreateBufferPtr(Type t, llvm::Value *buffer, llvm::Val
 }
 
 llvm::Value *CodeGenLLVM::CreateVecSlice(llvm::Value *vec, int begin, int lanes) {
-  int total_lanes = static_cast<int>(vec->getType()->getVectorNumElements());
+  LOG(INFO) << "type: " << DumpToString(*vec->getType());
+  int total_lanes = llvm::dyn_cast<llvm::VectorType>(vec->getType())->getNumElements();
   CHECK_LE(begin + lanes, total_lanes);
   if (lanes == total_lanes && begin == 0) return vec;  // full slice
   std::vector<llvm::Constant *> indices;

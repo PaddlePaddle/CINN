@@ -106,8 +106,9 @@ LLVMModuleOptimizer::LLVMModuleOptimizer(llvm::TargetMachine *machine,
     : opt_level_(opt_level), print_passes_(print_passes), machine_(machine) {}
 
 void LLVMModuleOptimizer::operator()(llvm::Module *m) {
-  auto machine = std::move(*llvm::orc::JITTargetMachineBuilder::detectHost()->createTargetMachine());
-  auto fpm     = std::make_unique<CustomFunctionPassManager>(print_passes_, m);
+  auto machine =
+      std::move(llvm::cantFail(llvm::cantFail(llvm::orc::JITTargetMachineBuilder::detectHost()).createTargetMachine()));
+  auto fpm = std::make_unique<CustomFunctionPassManager>(print_passes_, m);
   // fpm->add(llvm::createTargetTransformInfoWrapperPass(llvm::TargetIRAnalysis()));
   // fpm->add(llvm::createInstructionCombiningPass());
   // fpm->add(llvm::createReassociatePass());
