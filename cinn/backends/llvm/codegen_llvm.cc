@@ -929,12 +929,12 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Broadcast *op) {
   llvm::Constant *undef = llvm::UndefValue::get(llvm::VectorType::get(value->getType(), op->lanes));
   llvm::Constant *zero  = llvm::ConstantInt::get(ll_int32_ty(), 0);
   value                 = b_->CreateInsertElement(undef, value, zero, "broadcast");
-#if LLVM_VERSION >= 110
-  const llvm::ElementCount elem_count(op->lanes, /*scalable*/ false);
+#if LLVM_VERSION_MAJOR >= 11
+  const llvm::ElementCount elem_count(op->lanes, /*scalable*/ true);
 #else
   const int elem_count = op->lanes;
 #endif
-  llvm::Constant *zeros = llvm::ConstantVector::getSplat(llvm::ElementCount(elem_count, true), zero);
+  llvm::Constant *zeros = llvm::ConstantVector::getSplat(elem_count, zero);
   return b_->CreateShuffleVector(value, undef, zeros, "broadcast_shuffle");
 }
 

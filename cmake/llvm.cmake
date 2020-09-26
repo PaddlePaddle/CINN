@@ -10,9 +10,20 @@ message(STATUS "Found MLIR: ${MLIR_DIR}")
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-# To build with MLIR, the LLVM is build from source code using the flags
+# To build with MLIR, the LLVM is build from source code using the following flags:
+# cmake -G Ninja ../llvm \
+#   -DLLVM_ENABLE_PROJECTS=mlir \
+#   -DLLVM_BUILD_EXAMPLES=ON \
+#   -DLLVM_TARGETS_TO_BUILD="X86;NVPTX;AMDGPU" \
+#   -DCMAKE_BUILD_TYPE=Release \
+#   -DLLVM_ENABLE_ASSERTIONS=ON \
+#   -DLLVM_ENABLE_ZLIB=OFF \
+#   -DLLVM_ENABLE_RTTI=ON
 
+# the valid tag is llvmorg-11.0.0-rc1
 add_definitions(${LLVM_DEFINITIONS})
 
-llvm_map_components_to_libnames(llvm_libs support core irreader
-        X86 executionengine orcjit mcjit NVPTX AMDGPU all)
+llvm_map_components_to_libnames(llvm_libs Support Core irreader
+        X86 executionengine orcjit mcjit NVPTX AMDGPU all codegen)
+
+message(STATUS "LLVM libs: ${llvm_libs}")
