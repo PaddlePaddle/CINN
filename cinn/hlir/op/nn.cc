@@ -130,7 +130,6 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
     CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
     CHECK_EQ(dilation.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
-    CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
     std::vector<ir::Tensor> out;
     if (data_format == "NCHW") {
       // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
@@ -144,7 +143,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                             dilation[1],
                             output_shapes,
                             UniqName("Conv2d_nchw_out"));
-    } else {
+    } else if (data_format == "NHWC") {
       // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
       out = pe::Conv2d_NHWC(A.as_tensor_ref(),
                             B.as_tensor_ref(),
@@ -156,6 +155,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                             dilation[1],
                             output_shapes,
                             UniqName("Conv2d_nhwc_out"));
+    } else {
+      LOG(FATAL) << "Only support NCHW and NHWC data layout\n";
     }
 
     auto stages = CreateStages({A.as_tensor_ref(), B.as_tensor_ref()});
@@ -211,7 +212,6 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
   CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
   CHECK_GE(inputs_shape[0].size(), 3) << "The first input tensor's shape size of conv2d op is < 3! Please check.";
-  CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
 
   std::vector<shape_t> res;
   if (data_format == "NCHW") {
@@ -229,7 +229,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
             (inputs_shape[1][2] - 1) * dilation[0] + 1,
             (inputs_shape[1][3] - 1) * dilation[1] + 1},
            {inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
-  } else {
+  } else if (data_format == "NHWC") {
     // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
     int out_shape_h =
         (inputs_shape[0][1] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
@@ -244,6 +244,8 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
             (inputs_shape[1][2] - 1) * dilation[0] + 1,
             (inputs_shape[1][3] - 1) * dilation[1] + 1},
            {inputs_shape[0][0], out_shape_h, out_shape_w, inputs_shape[1][0]}};
+  } else {
+    LOG(FATAL) << "Only support NCHW and NHWC data layout\n";
   }
   return res;
 }
@@ -293,7 +295,7 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
                                       stride[1],
                                       output_shapes,
                                       UniqName("T_depthwise_conv2d_nchw_out"));
-    } else {
+    } else if (data_format == "NHWC") {
       out = pe::Depthwise_Conv2d_NHWC(A.as_tensor_ref(),
                                       B.as_tensor_ref(),
                                       padding[0],
@@ -302,6 +304,8 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
                                       stride[1],
                                       output_shapes,
                                       UniqName("T_depthwise_conv2d_nhwc_out"));
+    } else {
+      LOG(FATAL) << "Only support NCHW and NHWC data layout\n";
     }
 
     auto stages = CreateStages({A.as_tensor_ref(), B.as_tensor_ref()});
@@ -354,7 +358,6 @@ std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &in
   std::vector<shape_t> res;
   CHECK_EQ(padding.size(), 2U) << "The size of padding in depthwise_conv2d op is not 2! Please check.";
   CHECK_EQ(stride.size(), 2U) << "The size of stride in depthwise_conv2d op is not 2! Please check.";
-  CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
   if (data_format == "NCHW") {
     // A is input: [N, C, H, W], and B is filter: [C_in, channel_multiplier, f_h, f_w]
     int out_shape_h = (inputs_shape[0][2] - inputs_shape[1][2] + 2 * padding[0]) / stride[0] + 1;
@@ -364,7 +367,7 @@ std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &in
             inputs_shape[0][2] + 2 * padding[0],
             inputs_shape[0][3] + 2 * padding[1]},
            {inputs_shape[0][0], inputs_shape[1][1] * inputs_shape[0][1], out_shape_h, out_shape_w}};
-  } else {
+  } else if (data_format == "NHWC") {
     // A is input: [N, H, W, C], and B is filter: [C_in, channel_multiplier, f_h, f_w]
     int out_shape_h = (inputs_shape[0][1] - inputs_shape[1][1] + 2 * padding[0]) / stride[0] + 1;
     int out_shape_w = (inputs_shape[0][2] - inputs_shape[1][2] + 2 * padding[1]) / stride[1] + 1;
@@ -373,6 +376,8 @@ std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &in
             inputs_shape[0][2] + 2 * padding[1],
             inputs_shape[0][3]},
            {inputs_shape[0][0], out_shape_h, out_shape_w, inputs_shape[1][1] * inputs_shape[0][3]}};
+  } else {
+    LOG(FATAL) << "Only support NCHW and NHWC data layout\n";
   }
   return res;
 }

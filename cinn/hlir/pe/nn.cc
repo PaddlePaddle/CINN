@@ -47,16 +47,16 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                     int dilation_w,
                                     const std::vector<std::vector<int>> &output_shapes,
                                     const std::string &output_name) {
-  CHECK_EQ(4, input->shape.size()) << "Input's dimension of Conv2d_NCHW op is not 4! Please check.";
-  CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d_NCHW op is not 4! Please check.";
+  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Conv2d_NCHW op is not 4! Please check.";
+  CHECK_EQ(weights->shape.size(), 4U) << "Weight's dimension of Conv2d_NCHW op is not 4! Please check.";
   std::vector<Expr> output_shape;
   std::vector<Expr> new_weights_shape;
   std::vector<Expr> input_pad_shape;
   if (output_shapes.size() == 3) {
     // already computed by infer_shape
-    CHECK_EQ(4, output_shapes[0].size()) << "The size of output_shapes[0] of Conv2d op is not 4! Please check.";
-    CHECK_EQ(4, output_shapes[1].size()) << "The size of output_shapes[1] of Conv2d op is not 4! Please check.";
-    CHECK_EQ(4, output_shapes[2].size()) << "The size of output_shapes[2] of Conv2d op is not 4! Please check.";
+    CHECK_EQ(output_shapes[0].size(), 4U) << "The size of output_shapes[0] of Conv2d op is not 4! Please check.";
+    CHECK_EQ(output_shapes[1].size(), 4U) << "The size of output_shapes[1] of Conv2d op is not 4! Please check.";
+    CHECK_EQ(output_shapes[2].size(), 4U) << "The size of output_shapes[2] of Conv2d op is not 4! Please check.";
     output_shape = {
         Expr(output_shapes[2][0]), Expr(output_shapes[2][1]), Expr(output_shapes[2][2]), Expr(output_shapes[2][3])};
     new_weights_shape = {
@@ -125,16 +125,16 @@ std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
                                     int dilation_w,
                                     const std::vector<std::vector<int>> &output_shapes,
                                     const std::string &output_name) {
-  CHECK_EQ(4, input->shape.size()) << "Input's dimension of Conv2d_NHWC op is not 4! Please check.";
-  CHECK_EQ(4, weights->shape.size()) << "Weight's dimension of Conv2d_NHWC op is not 4! Please check.";
+  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Conv2d_NHWC op is not 4! Please check.";
+  CHECK_EQ(weights->shape.size(), 4U) << "Weight's dimension of Conv2d_NHWC op is not 4! Please check.";
   std::vector<Expr> output_shape;
   std::vector<Expr> new_weights_shape;
   std::vector<Expr> input_pad_shape;
   if (output_shapes.size() == 3) {
     // already computed by infer_shape
-    CHECK_EQ(4, output_shapes[0].size()) << "The size of output_shapes[0] of Conv2d op is not 4! Please check.";
-    CHECK_EQ(4, output_shapes[1].size()) << "The size of output_shapes[1] of Conv2d op is not 4! Please check.";
-    CHECK_EQ(4, output_shapes[2].size()) << "The size of output_shapes[2] of Conv2d op is not 4! Please check.";
+    CHECK_EQ(output_shapes[0].size(), 4U) << "The size of output_shapes[0] of Conv2d op is not 4! Please check.";
+    CHECK_EQ(output_shapes[1].size(), 4U) << "The size of output_shapes[1] of Conv2d op is not 4! Please check.";
+    CHECK_EQ(output_shapes[2].size(), 4U) << "The size of output_shapes[2] of Conv2d op is not 4! Please check.";
     output_shape = {
         Expr(output_shapes[2][0]), Expr(output_shapes[2][1]), Expr(output_shapes[2][2]), Expr(output_shapes[2][3])};
     new_weights_shape = {
@@ -210,7 +210,7 @@ std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
   std::vector<Expr> output_shape;
   if (output_shapes.size() == 2) {
     // already computed by infer_shape
-    CHECK_EQ(4, output_shapes[1].size())
+    CHECK_EQ(output_shapes[1].size(), 4U)
         << "The size of output_shapes[1] of Depthwise_Conv2d op is not 4! Please check.";
     output_shape = {
         Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
@@ -255,7 +255,7 @@ std::vector<Tensor> Depthwise_Conv2d_NHWC(const Tensor &input,
   std::vector<Expr> output_shape;
   if (output_shapes.size() == 2) {
     // already computed by infer_shape
-    CHECK_EQ(4, output_shapes[1].size())
+    CHECK_EQ(output_shapes[1].size(), 4U)
         << "The size of output_shapes[1] of Depthwise_Conv2d op is not 4! Please check.";
     output_shape = {
         Expr(output_shapes[1][0]), Expr(output_shapes[1][1]), Expr(output_shapes[1][2]), Expr(output_shapes[1][3])};
@@ -302,11 +302,11 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
                           const ir::Tensor &variance,
                           float epsilon,
                           const std::string &output_name) {
-  CHECK_EQ(4, input->shape.size()) << "Input's dimension of BatchNorm op is not 4! Please check.";
-  CHECK_EQ(1, scale->shape.size()) << "Scale's dimension of BatchNorm op is not 1! Please check.";
-  CHECK_EQ(1, bias->shape.size()) << "Bias's dimension of BatchNorm op is not 1! Please check.";
-  CHECK_EQ(1, mean->shape.size()) << "Mean's dimension of BatchNorm op is not 1! Please check.";
-  CHECK_EQ(1, variance->shape.size()) << "Variance's dimension of BatchNorm op is not 1! Please check.";
+  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of BatchNorm op is not 4! Please check.";
+  CHECK_EQ(scale->shape.size(), 1U) << "Scale's dimension of BatchNorm op is not 1! Please check.";
+  CHECK_EQ(bias->shape.size(), 1U) << "Bias's dimension of BatchNorm op is not 1! Please check.";
+  CHECK_EQ(mean->shape.size(), 1U) << "Mean's dimension of BatchNorm op is not 1! Please check.";
+  CHECK_EQ(variance->shape.size(), 1U) << "Variance's dimension of BatchNorm op is not 1! Please check.";
   auto res = Compute(
       input->shape,
       [=](Expr n, Expr c, Expr h, Expr w) {
