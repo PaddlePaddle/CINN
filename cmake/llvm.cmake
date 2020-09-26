@@ -5,6 +5,11 @@ endif()
 find_package(LLVM REQUIRED CONFIG)
 find_package(MLIR REQUIRED CONFIG)
 include_directories(${LLVM_INCLUDE_DIRS})
+list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+include(AddLLVM)
+include(TableGen)
+include(AddMLIR)
 
 message(STATUS "Found MLIR: ${MLIR_DIR}")
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
@@ -27,3 +32,6 @@ llvm_map_components_to_libnames(llvm_libs Support Core irreader
         X86 executionengine orcjit mcjit NVPTX AMDGPU all codegen)
 
 message(STATUS "LLVM libs: ${llvm_libs}")
+
+get_property(mlir_libs GLOBAL PROPERTY MLIR_ALL_LIBS)
+message(STATUS "MLIR libs: ${mlir_libs}")
