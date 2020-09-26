@@ -1,4 +1,5 @@
 #include <pybind11/functional.h>
+#include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -73,35 +74,30 @@ void BindFrontend(pybind11::module *m) {
       .def("conv2d", &Program::conv2d)
       .def("batchnorm", &Program::batchnorm)
       .def("softmax", &Program::softmax)
-      .def("build_with_inputs",
+      .def("build_and_get_output",
            [](Program &self,
               const common::Target &target,
               const std::vector<Variable> &tensor_inputs,
+              const std::vector<py::array> &input_data,
               const Variable &tensor_out) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
              hlir::framework::ApplyPass(g.get(), "InferShape");
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();
-             std::vector<std::vector<float>> result_data;
-             for (auto &i : tensor_inputs) {
-               auto in_tensor = scope->GetTensor(i->id);
+             for (size_t i = 0; i < tensor_inputs.size(); i++) {
+               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
                auto *data     = in_tensor->mutable_data<float>(target);
-               std::vector<float> temp(in_tensor->shape().numel(), 0.0);
+               CHECK_EQ(input_data[i].size(), in_tensor->shape().numel())
+                   << "The size of tensor [" << tensor_inputs[i]->id
+                   << "] is different with the input data's size! Please check.";
                for (size_t j = 0; j < in_tensor->shape().numel(); j++) {
-                 data[j] = (rand() * 1.f) / RAND_MAX;  // All random data
-                 temp[j] = data[j];
+                 data[j] = reinterpret_cast<const float *>(input_data[i].data())[j];  // All random data
                }
-               result_data.push_back(temp);
              }
              program->Execute();
              auto out = scope->GetTensor(tensor_out->id);
-             std::vector<float> temp(out->shape().numel(), 0.0);
-             for (size_t i = 0; i < out->shape().numel(); i++) {
-               temp[i] = out->data<float>()[i];
-             }
-             result_data.push_back(temp);
-             return result_data;
+             return out;
            });
 
   py::class_<frontend::Executor>(*m, "Executor")

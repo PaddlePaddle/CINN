@@ -27,19 +27,19 @@ TEST(Optimize, Unroll) {
     for (j_outer, 4)
     {
       {
-        tensor_2[i, (5 * j_outer)] = (1 + A[i, (5 * j_outer)])
+        tensor[i, (5 * j_outer)] = (1 + A[i, (5 * j_outer)])
       }
       {
-        tensor_2[i, (1 + (5 * j_outer))] = (1 + A[i, (1 + (5 * j_outer))])
+        tensor[i, (1 + (5 * j_outer))] = (1 + A[i, (1 + (5 * j_outer))])
       }
       {
-        tensor_2[i, (2 + (5 * j_outer))] = (1 + A[i, (2 + (5 * j_outer))])
+        tensor[i, (2 + (5 * j_outer))] = (1 + A[i, (2 + (5 * j_outer))])
       }
       {
-        tensor_2[i, (3 + (5 * j_outer))] = (1 + A[i, (3 + (5 * j_outer))])
+        tensor[i, (3 + (5 * j_outer))] = (1 + A[i, (3 + (5 * j_outer))])
       }
       {
-        tensor_2[i, (4 + (5 * j_outer))] = (1 + A[i, (4 + (5 * j_outer))])
+        tensor[i, (4 + (5 * j_outer))] = (1 + A[i, (4 + (5 * j_outer))])
       }
     }
   }

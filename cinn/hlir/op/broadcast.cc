@@ -20,6 +20,7 @@ using framework::StrategyFunction;
 std::shared_ptr<OpStrategy> StrategyForElementwiseAdd(const framework::NodeAttr &attrs,
                                                       const std::vector<ir::Tensor> &inputs,
                                                       const std::vector<Type> &out_type,
+                                                      const std::vector<std::vector<int>> &output_shapes,
                                                       const Target &target) {
   framework::CINNCompute add_compute([&attrs](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of add compute is empty! Please check.\n";
@@ -64,6 +65,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseAdd(const framework::NodeAttr 
 std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr &attrs,
                                                       const std::vector<ir::Tensor> &inputs,
                                                       const std::vector<Type> &out_type,
+                                                      const std::vector<std::vector<int>> &output_shapes,
                                                       const Target &target) {
   framework::CINNCompute mul_compute([&attrs](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of elementwise_mul compute is empty! Please check.\n";
@@ -118,6 +120,7 @@ std::vector<Type> InferDtypeForElementwise(const std::vector<Type> &inputs_type,
 std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
                                              const std::vector<ir::Tensor> &inputs,
                                              const std::vector<Type> &out_type,
+                                             const std::vector<std::vector<int>> &output_shapes,
                                              const Target &target) {
   float scale           = 1.f;
   float bias            = 0.f;

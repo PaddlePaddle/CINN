@@ -29,7 +29,7 @@ TEST(Operator, Operator_ElementWise_Add_Test0) {
   std::vector<ir::Tensor> inputs{A.tensor(), B.tensor()};
   std::vector<Type> type{Float(32)};
   common::Target target            = common::DefaultHostTarget();
-  auto impl                        = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, target));
+  auto impl                        = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, {{100, 32}}, target));
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   ASSERT_EQ(rets.size(), 2UL);
@@ -61,7 +61,7 @@ TEST(Operator, Operator_ElementWise_Add_Test1) {
   std::vector<ir::Tensor> inputs{A.tensor(), B.tensor()};
   std::vector<Type> type{Float(32)};
   common::Target target            = common::DefaultHostTarget();
-  auto impl                        = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, target));
+  auto impl                        = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, {{100, 32}}, target));
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   ASSERT_EQ(rets.size(), 2UL);

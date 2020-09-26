@@ -59,7 +59,17 @@ ADD_TEST(NAME test_cinn_frontend
     ${CMAKE_BINARY_DIR}/thirds/multi_fc_model
 )
 
-ADD_TEST(NAME test_cinn_resnet
+ADD_TEST(NAME test_cinn_fake_resnet
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet.py ${CMAKE_BINARY_DIR}/thirds/resnet_model
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet.py "${CMAKE_BINARY_DIR}/thirds/resnet_model"
+)
+
+ADD_TEST(NAME test_cinn_real_resnet18
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet18.py "${CMAKE_BINARY_DIR}/thirds/ResNet18"
+)
+
+ADD_TEST(NAME test_cinn_real_mobilenetV2
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mobilenetv2.py "${CMAKE_BINARY_DIR}/thirds/MobileNetV2"
 )

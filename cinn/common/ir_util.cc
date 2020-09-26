@@ -359,5 +359,15 @@ std::vector<Expr *> GetForloopStackToStore(Expr *expr, const std::string &tensor
   return Mutator(tensor_name)(expr);
 }
 
+Expr max(Expr a, Expr b) {
+  CHECK_EQ(a.type(), b.type());
+  return ir::Max::Make(a, b);
+}
+
+Expr min(Expr a, Expr b) {
+  CHECK_EQ(a.type(), b.type());
+  return ir::Min::Make(a, b);
+}
+
 }  // namespace common
 }  // namespace cinn

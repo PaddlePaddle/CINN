@@ -13,7 +13,7 @@ namespace cinn {
 namespace frontend {
 
 /**
- * Executor for a model.
+ * The executor for a model.
  */
 class Executor final {
  public:
@@ -27,14 +27,14 @@ class Executor final {
    */
   void LoadPaddleModel(const std::string& model_dir, bool params_combined = false);
 
+  /**
+   * Run the executor.
+   */
   void Run();
 
   hlir::framework::Tensor GetTensor(const std::string& name);
 
-  std::shared_ptr<hlir::framework::Scope> scope() {
-    CHECK(scope_);
-    return scope_;
-  }
+  std::shared_ptr<hlir::framework::Scope> scope();
 
  private:
   /**
@@ -52,7 +52,8 @@ class Executor final {
   std::unique_ptr<hlir::framework::GraphCompiler> graph_compiler_;
 
   std::unordered_map<std::string, Variable> var_map_;
-  std::unordered_map<std::string, std::string> var_map_paddle_to_program_;
+  std::unordered_map<std::string, std::string> var_map_paddle_to_cinn_;
+  std::unordered_map<std::string, std::string> var_map_cinn_to_paddle_;
 
   std::unique_ptr<hlir::framework::Program> runtime_program_;
 };

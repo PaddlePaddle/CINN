@@ -21,25 +21,16 @@ class Expr;
 
 namespace common {
 
-struct ID {
-  size_t id() const { return cur_; }
-  size_t New() { return ++cur_; }
-  void Reset() { cur_ = 0; }
-
- private:
-  size_t cur_;
-};
-
 extern const char* kRuntimeIncludeDirEnvironKey;
 
 struct NameGenerator {
-  std::string New(const std::string& name_hint) { return name_hint + "_" + std::to_string(id_.New()); }
+  std::string New(const std::string& name_hint);
 
   // Reset id to initial.
-  void ResetID() { id_.Reset(); }
+  void ResetID() { name_hint_idx_.clear(); }
 
  private:
-  ID id_;
+  std::unordered_map<std::string, uint32_t> name_hint_idx_;
 };
 
 class Context {

@@ -36,7 +36,7 @@ function fn (_A, _B, _C)
   {
     for (j, 20)
     {
-      A_read_cache_3[i, j] = A[i, j]
+      A_read_cache[i, j] = A[i, j]
     }
   }
   __syncthreads()
@@ -44,14 +44,14 @@ function fn (_A, _B, _C)
   {
     for (j, 20)
     {
-      C[i, j] = (A_read_cache_3[i, j] + B[i, j])
+      C[i, j] = (A_read_cache[i, j] + B[i, j])
     }
   }
   for (i, 100)
   {
     for (j, 20)
     {
-      C_cache_write_out_4[i, j] = C[i, j]
+      C_cache_write_out[i, j] = C[i, j]
     }
   }
 }
@@ -87,7 +87,7 @@ TEST(CacheReadWriteReplace, cache_write) {
   LOG(INFO) << "\n" << fn;
 
   auto target_source = R"ROC(
-function fn (_A, _B, _C1_cache_write_out_3)
+function fn (_A, _B, _C1_cache_write_out)
 {
   for (i, 100)
   {
@@ -100,7 +100,7 @@ function fn (_A, _B, _C1_cache_write_out_3)
   {
     for (j, 100)
     {
-      C1_cache_write_out_3[i, j] = C1[i, j]
+      C1_cache_write_out[i, j] = C1[i, j]
     }
   }
 }

@@ -78,6 +78,10 @@ Expr or_any(const std::vector<Expr> &conds);
 //! Cast the expression \p e to type \type.
 Expr cast(Expr e, Type type);
 
+Expr max(Expr a, Expr b);
+
+Expr min(Expr a, Expr b);
+
 template <typename T>
 Expr make_const(Type t, T v) {
   if (t.is_vector()) {

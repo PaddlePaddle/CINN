@@ -38,8 +38,8 @@ TEST(Operator, Operator_Pool2d_Test0) {
   attrs.attr_store["pool_type"]    = pool_type;
   std::vector<ir::Tensor> inputs{A.tensor()};
   std::vector<Type> type{Float(32)};
-  common::Target target            = common::DefaultHostTarget();
-  auto impl                        = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, target));
+  common::Target target = common::DefaultHostTarget();
+  auto impl = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, {{1, 3, 10, 10}, {1, 3, 5, 5}}, target));
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
@@ -94,8 +94,8 @@ TEST(Operator, Operator_Pool2d_Test1) {
   attrs.attr_store["exclusive"]    = false;
   std::vector<ir::Tensor> inputs{A.tensor()};
   std::vector<Type> type{Float(32)};
-  common::Target target            = common::DefaultHostTarget();
-  auto impl                        = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, target));
+  common::Target target = common::DefaultHostTarget();
+  auto impl = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, {{1, 3, 11, 11}, {1, 3, 5, 5}}, target));
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
@@ -152,8 +152,8 @@ TEST(Operator, Operator_Pool2d_Test2) {
   attrs.attr_store["data_format"]  = data_format;
   std::vector<ir::Tensor> inputs{A.tensor()};
   std::vector<Type> type{Float(32)};
-  common::Target target            = common::DefaultHostTarget();
-  auto impl                        = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, target));
+  common::Target target = common::DefaultHostTarget();
+  auto impl = OpStrategy::SelectImpl(strategy[pool2d](attrs, inputs, type, {{1, 11, 11, 3}, {1, 5, 5, 3}}, target));
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
@@ -210,8 +210,9 @@ TEST(Operator, Operator_Pool3d_Test0) {
   attrs.attr_store["data_format"]  = data_format;
   std::vector<ir::Tensor> inputs{A.tensor()};
   std::vector<Type> type{Float(32)};
-  common::Target target            = common::DefaultHostTarget();
-  auto impl                        = OpStrategy::SelectImpl(strategy[pool3d](attrs, inputs, type, target));
+  common::Target target = common::DefaultHostTarget();
+  auto impl =
+      OpStrategy::SelectImpl(strategy[pool3d](attrs, inputs, type, {{1, 11, 11, 11, 3}, {1, 5, 5, 5, 3}}, target));
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
@@ -268,8 +269,8 @@ TEST(Operator, Operator_Pool1d_Test0) {
   attrs.attr_store["data_format"]  = data_format;
   std::vector<ir::Tensor> inputs{A.tensor()};
   std::vector<Type> type{Float(32)};
-  common::Target target            = common::DefaultHostTarget();
-  auto impl                        = OpStrategy::SelectImpl(strategy[pool1d](attrs, inputs, type, target));
+  common::Target target = common::DefaultHostTarget();
+  auto impl = OpStrategy::SelectImpl(strategy[pool1d](attrs, inputs, type, {{1, 11, 3}, {1, 5, 3}}, target));
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);

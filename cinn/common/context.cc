@@ -20,6 +20,15 @@ const std::string& Context::runtime_include_dir() const {
 
 const char* kRuntimeIncludeDirEnvironKey = "runtime_include_dir";
 
+std::string NameGenerator::New(const std::string& name_hint) {
+  auto it = name_hint_idx_.find(name_hint);
+  if (it == name_hint_idx_.end()) {
+    name_hint_idx_.emplace(name_hint, -1);
+    return name_hint;
+  }
+  return name_hint + "_" + std::to_string(++it->second);
+}
+
 }  // namespace common
 
 DEFINE_bool(cinn_runtime_display_debug_info, false, "Whether to display debug information in runtime");

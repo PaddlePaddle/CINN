@@ -5,6 +5,7 @@
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/ir/node.h"
 
 namespace cinn {
 namespace hlir {
@@ -19,6 +20,7 @@ using framework::StrategyFunction;
 std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
                                             const std::vector<ir::Tensor> &inputs,
                                             const std::vector<Type> &out_type,
+                                            const std::vector<std::vector<int>> &output_shapes,
                                             const Target &target) {
   framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of relu compute is empty! Please check.\n";
@@ -65,6 +67,7 @@ std::vector<Type> InferDtypeForRelu(const std::vector<Type> &inputs_type, const 
 std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
                                              const std::vector<ir::Tensor> &inputs,
                                              const std::vector<Type> &out_type,
+                                             const std::vector<std::vector<int>> &output_shapes,
                                              const Target &target) {
   framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of relu6 compute is empty! Please check.\n";
@@ -98,6 +101,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
 std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
+                                              const std::vector<std::vector<int>> &output_shapes,
                                               const Target &target) {
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
@@ -134,8 +138,12 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                dilation[0],
                                dilation[1],
                                groups,
+                               output_shapes,
                                UniqName("Conv2d_output"));
     auto stages = CreateStages(out);
+    CHECK_EQ(out.size(), 3U) << "The size of pe::Conv2d_NCHW's output should be 3.";
+    CHECK(!out_type.empty()) << "Output type of Conv2d is empty! Please check.\n";
+    out[2]->InitReduction(stages, ir::Zero(out_type[0]));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -205,6 +213,7 @@ std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type, cons
 std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attrs,
                                                  const std::vector<ir::Tensor> &inputs,
                                                  const std::vector<Type> &out_type,
+                                                 const std::vector<std::vector<int>> &output_shapes,
                                                  const Target &target) {
   float epsilon = 0.00001f;
   if (attrs.attr_store.find("epsilon") != attrs.attr_store.end()) {
@@ -270,6 +279,7 @@ std::vector<Type> InferDtypeForBatchNorm(const std::vector<Type> &inputs_type, c
 std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
+                                              const std::vector<std::vector<int>> &output_shapes,
                                               const Target &target) {
   framework::CINNCompute pool1d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of pool1d compute is empty! Please check.\n";
@@ -301,7 +311,7 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
       } else if (iter.first == "data_format") {
         data_format = std::get<std::string>(iter.second);
       } else {
-        LOG(ERROR) << "unsupported attr: " << iter.first << std::endl;
+        LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
     }
     CHECK(!kernel_size.empty()) << "kernel_size for pool1d is empty. Please check.\n";
@@ -319,6 +329,9 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
                           UniqName("T_Pool1d_out"));
 
     auto stages = CreateStages(out);
+    CHECK_EQ(out.size(), 2U) << "The size of pe::Pool1d's output should be 2.";
+    CHECK(!out_type.empty()) << "Output type of Pool1d is empty! Please check.\n";
+    out[1]->InitReduction(stages, ir::Zero(out_type[0]));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -380,7 +393,7 @@ std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<
   } else if (data_format == "NWC") {
     width_axis = 1;
   } else {
-    LOG(ERROR) << "unsupported data_format: " << data_format << std::endl;
+    LOG(FATAL) << "unsupported data_format: " << data_format << std::endl;
   }
 
   output_shape0[width_axis] += padding_size[0] + padding_size[1];
@@ -402,6 +415,7 @@ std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<
 std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
+                                              const std::vector<std::vector<int>> &output_shapes,
                                               const Target &target) {
   framework::CINNCompute pool2d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of pool2d compute is empty! Please check.\n";
@@ -433,7 +447,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       } else if (iter.first == "data_format") {
         data_format = std::get<std::string>(iter.second);
       } else {
-        LOG(ERROR) << "unsupported attr: " << iter.first << std::endl;
+        LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
     }
     CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
@@ -451,6 +465,9 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
                           UniqName("T_Pool2d_out"));
 
     auto stages = CreateStages(out);
+    CHECK_EQ(out.size(), 2U) << "The size of pe::Pool2d's output should be 2.";
+    CHECK(!out_type.empty()) << "Output type of Pool2d is empty! Please check.\n";
+    out[1]->InitReduction(stages, ir::Zero(out_type[0]));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -513,6 +530,10 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   } else if (data_format == "NHWC") {
     height_axis = 1;
     width_axis  = 2;
+  } else if (data_format == "AnyLayout") {
+    height_axis = 2;
+    width_axis  = 3;
+    data_format = "NCHW";
   } else {
     LOG(ERROR) << "unsupported data_format: " << data_format << std::endl;
   }
@@ -544,6 +565,7 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
 std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
+                                              const std::vector<std::vector<int>> &output_shapes,
                                               const Target &target) {
   framework::CINNCompute pool3d_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of pool3d compute is empty! Please check.\n";
@@ -576,7 +598,7 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
       } else if (iter.first == "data_format") {
         data_format = std::get<std::string>(iter.second);
       } else {
-        LOG(ERROR) << "unsupported attr: " << iter.first << std::endl;
+        LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
     }
     CHECK(!kernel_size.empty()) << "kernel_size for pool3d is empty. Please check.\n";
@@ -594,6 +616,9 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
                           UniqName("T_Pool3d_out"));
 
     auto stages = CreateStages(out);
+    CHECK_EQ(out.size(), 2U) << "The size of pe::Pool3d's output should be 2.";
+    CHECK(!out_type.empty()) << "Output type of Pool3d is empty! Please check.\n";
+    out[1]->InitReduction(stages, ir::Zero(out_type[0]));
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
@@ -706,6 +731,7 @@ std::vector<Type> InferDtypeForPool(const std::vector<Type> &inputs_type, const 
 std::shared_ptr<OpStrategy> StrategyForSigmoid(const framework::NodeAttr &attrs,
                                                const std::vector<ir::Tensor> &inputs,
                                                const std::vector<Type> &out_type,
+                                               const std::vector<std::vector<int>> &output_shapes,
                                                const Target &target) {
   framework::CINNCompute sigmoid_compute([](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of sigmoid compute is empty! Please check.\n";
@@ -752,6 +778,7 @@ std::vector<Type> InferDtypeForSigmoid(const std::vector<Type> &inputs_type, con
 std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
                                                const std::vector<ir::Tensor> &inputs,
                                                const std::vector<Type> &out_type,
+                                               const std::vector<std::vector<int>> &output_shapes,
                                                const Target &target) {
   int axis = -1;
   for (auto &iter : attrs.attr_store) {
@@ -770,10 +797,11 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     if (axis == -1) {
       new_axis = A->shape.size() - 1;
     }
-    auto out = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
-    CHECK_EQ(out.size(), 2);
+    auto out    = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
     auto stages = CreateStages(out);
-    out[0]->InitReduction(stages, Expr(0.f));
+    CHECK_EQ(out.size(), 2U) << "The size of pe::Softmax's output should be 2.";
+    CHECK(!out_type.empty()) << "Output type of Softmax is empty! Please check.\n";
+    out[0]->InitReduction(stages, ir::Zero(out_type[0]));
     *ret = CINNValuePack{{CINNValue(out[0]), CINNValue(out[1]), CINNValue(stages)}};
   });
 
@@ -800,6 +828,250 @@ std::vector<std::vector<int>> InferShapeForSoftmax(const std::vector<std::vector
 }
 
 std::vector<Type> InferDtypeForSoftmax(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0], inputs_type[0]};
+  return res;
+}
+
+std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
+                                             const std::vector<ir::Tensor> &inputs,
+                                             const std::vector<Type> &out_type,
+                                             const std::vector<std::vector<int>> &output_shapes,
+                                             const Target &target) {
+  std::vector<int> starts;
+  std::vector<int> ends;
+  std::vector<int> axes;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "starts") {
+      starts = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "ends") {
+      ends = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "axes") {
+      axes = std::get<std::vector<int>>(iter.second);
+    } else {
+      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
+    }
+  }
+  CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
+  CHECK(!ends.empty()) << "The Slice op doesn't find [ends] attrbute! It it a mandatory attribute, please check.";
+  CHECK_EQ(starts.size(), ends.size()) << "The size of [starts] and [ends] must be identical! Please check.";
+  if (!axes.empty()) {
+    CHECK_EQ(starts.size(), axes.size()) << "The size of [starts] and [axes] must be identical! Please check.";
+  } else {
+    for (int i = 0; i < starts.size(); i++) {
+      axes.push_back(i);
+    }
+  }
+  std::vector<Expr> output_shape;
+  for (auto &i : output_shapes[0]) {
+    output_shape.push_back(Expr(i));
+  }
+
+  framework::CINNCompute slice_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of slice compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "The input tensors of slice compute is empty! Please check.";
+    Expr A_expr = a[0];
+    CHECK(A_expr.as_tensor());
+    ir::Tensor A = A_expr.as_tensor_ref();
+
+    auto out    = pe::Slice(A, starts, axes, output_shape, UniqName("Slice_output"));
+    auto stages = CreateStages({out});
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule slice_schedule([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of slice schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of slice schedule is " << arg_pack.size()
+                                   << "and it should be equal to 3! Please check.";
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(slice_compute, slice_schedule, "strategy.slice.x86", 1);
+
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<int>> &inputs_shape,
+                                                 const framework::NodeAttr &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  std::vector<int> starts;
+  std::vector<int> ends;
+  std::vector<int> axes;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "starts") {
+      starts = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "ends") {
+      ends = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "axes") {
+      axes = std::get<std::vector<int>>(iter.second);
+    } else {
+      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
+    }
+  }
+  CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
+  CHECK(!ends.empty()) << "The Slice op doesn't find [ends] attrbute! It it a mandatory attribute, please check.";
+  CHECK_EQ(starts.size(), ends.size()) << "The size of [starts] and [ends] must be identical! Please check.";
+  if (!axes.empty()) {
+    CHECK_EQ(starts.size(), axes.size()) << "The size of [starts] and [axes] must be identical! Please check.";
+  } else {
+    for (int i = 0; i < starts.size(); i++) {
+      axes.push_back(i);
+    }
+  }
+  std::vector<int> output_shape = inputs_shape[0];
+  for (int i = 0; i < axes.size(); i++) {
+    if (ends[i] < 0) {
+      ends[i] = output_shape[axes[i]] + ends[i];
+    }
+    if (starts[i] < 0) {
+      starts[i] = output_shape[axes[i]] + starts[i];
+    }
+    if (ends[i] > output_shape[axes[i]]) {
+      ends[i] = output_shape[axes[i]];
+    }
+    if (starts[i] > output_shape[axes[i]]) {
+      starts[i] = output_shape[axes[i]];
+    }
+    output_shape[axes[i]] = ends[i] - starts[i];
+  }
+  std::vector<std::vector<int>> res{output_shape};
+  return res;
+}
+
+std::vector<Type> InferDtypeForSlice(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
+std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr &attrs,
+                                                       const std::vector<ir::Tensor> &inputs,
+                                                       const std::vector<Type> &out_type,
+                                                       const std::vector<std::vector<int>> &output_shapes,
+                                                       const Target &target) {
+  std::vector<int> padding = {0, 0};
+  std::vector<int> stride  = {1, 1};
+  std::string data_format  = "NCHW";
+  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
+    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  }
+  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
+    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  }
+  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
+    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+  }
+
+  framework::CINNCompute depthwise_conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of depthwise_conv compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for depthwise_conv compute\n";
+    Expr A = a[0];
+    Expr B = a[1];
+    CHECK(A.as_tensor());
+    CHECK(B.as_tensor());
+    CHECK_EQ(padding.size(), 2) << "The size of padding in depthwise_conv op is not 2! Please check.\n";
+    CHECK_EQ(stride.size(), 2) << "The size of stride in depthwise_conv op is not 2! Please check.\n";
+    CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
+    std::vector<ir::Tensor> out;
+    if (data_format == "NCHW") {
+      out = pe::Depthwise_Conv2d_NCHW(A.as_tensor_ref(),
+                                      B.as_tensor_ref(),
+                                      padding[0],
+                                      padding[1],
+                                      stride[0],
+                                      stride[1],
+                                      output_shapes,
+                                      UniqName("T_depthwise_conv2d_nchw_out"));
+    } else {
+      out = pe::Depthwise_Conv2d_NHWC(A.as_tensor_ref(),
+                                      B.as_tensor_ref(),
+                                      padding[0],
+                                      padding[1],
+                                      stride[0],
+                                      stride[1],
+                                      output_shapes,
+                                      UniqName("T_depthwise_conv2d_nhwc_out"));
+    }
+
+    auto stages = CreateStages({A.as_tensor_ref(), B.as_tensor_ref()});
+    std::vector<CINNValue> res;
+    for (auto &t : out) {
+      stages->InsertLazily(t);
+      res.push_back(CINNValue(t));
+    }
+    CHECK_EQ(out.size(), 2U) << "The output tensor sizes of depthwise_conv op in depthwise_conv op should be 2\n";
+    out[1]->InitReduction(stages, make_const(out[1]->type(), 0));  // res
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule depthwise_conv2d_schedule([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of depthwise_conv schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL);
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  CHECK(out_type.size()) << "Out_type of depthwise_conv op is empty! Please check.";
+  if (out_type[0] == Float(32)) {
+    strategy->AddImpl(depthwise_conv2d_compute, depthwise_conv2d_schedule, "strategy.depthwise_conv.x86", 1);
+  } else {
+    LOG(INFO) << "depthwise_conv op with dtype != float32 is not implemented yet!";
+  }
+  return strategy;
+}
+
+std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &inputs_shape,
+                                                  const framework::NodeAttr &attrs) {
+  CHECK_EQ(inputs_shape.size(), 2U) << "at least 2 input tensors for depthwise_conv2d op\n";
+  CHECK_EQ(inputs_shape[0].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
+  CHECK_EQ(inputs_shape[1].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
+  std::vector<int> padding = {0, 0};
+  std::vector<int> stride  = {1, 1};
+  std::string data_format  = "NCHW";
+  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
+    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  }
+  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
+    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  }
+  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
+    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+  }
+  std::vector<shape_t> res;
+  CHECK_EQ(padding.size(), 2U) << "The size of padding in depthwise_conv2d op is not 2! Please check.";
+  CHECK_EQ(stride.size(), 2U) << "The size of stride in depthwise_conv2d op is not 2! Please check.";
+  CHECK(data_format == "NCHW" || data_format == "NHWC") << "only support NCHW/NHWC data_format.\n";
+  if (data_format == "NCHW") {
+    // A is input: [N, C, H, W], and B is filter: [C_in, channel_multiplier, f_h, f_w]
+    int out_shape_h = (inputs_shape[0][2] - inputs_shape[1][2] + 2 * padding[0]) / stride[0] + 1;
+    int out_shape_w = (inputs_shape[0][3] - inputs_shape[1][3] + 2 * padding[1]) / stride[1] + 1;
+    res             = {{inputs_shape[0][0],
+            inputs_shape[0][1],
+            inputs_shape[0][2] + 2 * padding[0],
+            inputs_shape[0][3] + 2 * padding[1]},
+           {inputs_shape[0][0], inputs_shape[1][1] * inputs_shape[0][1], out_shape_h, out_shape_w}};
+  } else {
+    // A is input: [N, H, W, C], and B is filter: [C_in, channel_multiplier, f_h, f_w]
+    int out_shape_h = (inputs_shape[0][1] - inputs_shape[1][1] + 2 * padding[0]) / stride[0] + 1;
+    int out_shape_w = (inputs_shape[0][2] - inputs_shape[1][2] + 2 * padding[1]) / stride[1] + 1;
+    res             = {{inputs_shape[0][0],
+            inputs_shape[0][1] + 2 * padding[0],
+            inputs_shape[0][2] + 2 * padding[1],
+            inputs_shape[0][3]},
+           {inputs_shape[0][0], out_shape_h, out_shape_w, inputs_shape[1][1] * inputs_shape[0][3]}};
+  }
+  return res;
+}
+
+std::vector<Type> InferDtypeForDepthwiseConv2d(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
@@ -889,6 +1161,24 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSoftmax)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSoftmax))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSoftmax))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(slice)
+      .describe("This operator implements the slice layer")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSlice)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSlice))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSlice))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(depthwise_conv2d)
+      .describe("Do a 2-D depthwise convolution with an NCHW/NHWC layout.")
+      .set_num_inputs(2)  // here we consider filter as another input
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDepthwiseConv2d))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDepthwiseConv2d))
       .set_support_level(4);
 
   return true;

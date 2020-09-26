@@ -48,6 +48,18 @@ Variable Program::conv2d(const Variable& a,
   return instr.GetOutput(2);
 }
 
+Variable Program::depthwise_conv2d(const Variable& a,
+                                   const Variable& b,
+                                   const std::unordered_map<std::string, attr_t>& attr_store) {
+  Instruction instr("depthwise_conv2d");
+  instr.SetInputs({a, b});
+  for (auto& iter : attr_store) {
+    instr.SetAttr(iter.first, iter.second);
+  }
+  AppendInstruction(instr);
+  return instr.GetOutput(1);
+}
+
 Variable Program::pool2d(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
   Instruction instr("pool2d");
   instr.SetInputs({a});
@@ -153,17 +165,14 @@ Variable Program::relu(const Variable& a) {
   return instr.GetOutput(0);
 }
 
-Variable Program::relu6(const Variable& a) {
+Variable Program::relu6(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
   Instruction instr("relu6", {a});
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
 
-Variable Program::mul(
-    const Variable& a, const Variable& b, bool trans_a, bool trans_b, int x_num_col_dims, int y_num_col_dims) {
+Variable Program::mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims) {
   Instruction instr("mul", {a, b});
-  instr.SetAttr("trans_a", trans_a);
-  instr.SetAttr("trans_b", trans_b);
   instr.SetAttr("x_num_col_dims", x_num_col_dims);
   instr.SetAttr("y_num_col_dims", y_num_col_dims);
   AppendInstruction(instr);

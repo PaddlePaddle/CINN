@@ -52,8 +52,11 @@ class TestFrontend(unittest.TestCase):
         output = exe.run(feed={"A": x, "B": y}, fetch_list=[res])
         output = np.array(output).reshape(-1)
         print("result in paddle_verify: \n")
-        for i in range(0, 10):
-            print(result[len(result) - 1][i], " vs: ", output[i])
+        for i in range(0, output.shape[0]):
+            if np.abs(output[i] - result[len(result) - 1][i]) > 1e-4:
+                print("Error! ", i, "-th data has diff with target data:\n",
+                      output[i], " vs: ", result[len(result) - 1][i],
+                      ". Diff is: ", output[i] - result[len(result) - 1][i])
         self.assertTrue(
             np.allclose(result[len(result) - 1], output, atol=1e-4))
 
@@ -78,9 +81,16 @@ class TestFrontend(unittest.TestCase):
         # print program
         for i in range(prog.size()):
             print(prog[i])
-        result = prog.build_with_inputs(self.target, [a, b, e], h)
-
-        self.paddle_verify(result)
+        tensor_data = [
+            np.random.random([1, 24, 56, 56]).astype("float32"),
+            np.random.random([1, 24, 56, 56]).astype("float32"),
+            np.random.random([144, 24, 1, 1]).astype("float32")
+        ]
+        result = prog.build_and_get_output(self.target, [a, b, e], tensor_data,
+                                           h)
+        result = result.numpy().reshape(-1)
+        tensor_data.append(result)
+        self.paddle_verify(tensor_data)
 
 
 class TestLoadPaddleModel_FC(unittest.TestCase):
