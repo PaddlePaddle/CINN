@@ -82,6 +82,7 @@ class SingleOpTester(unittest.TestCase):
 
         self.compiler.build(module)
         fn = self.compiler.lookup(op_name)
+
         out = []
         for out_shape in output_shapes:
             out.append(

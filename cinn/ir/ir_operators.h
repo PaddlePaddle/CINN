@@ -194,13 +194,13 @@ inline Expr LeakyRelu(Expr e, Expr alpha) {
   return Select::Make(e > zero, e, e * alpha);
 }
 
-inline Expr ReduceSum(Expr e, Expr initial) {
+inline Expr ReduceSum(Expr e, Expr initial = Expr()) {
   if (!initial.defined()) {
     initial = Zero(e->type());
   }
   return Reduce::Make(Reduce::kSum, initial, e);
 }
-inline Expr ReduceMul(Expr e, Expr initial) {
+inline Expr ReduceMul(Expr e, Expr initial = Expr()) {
   if (!initial.defined()) {
     initial = make_const(e->type(), 1);
   }
