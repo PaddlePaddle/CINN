@@ -45,7 +45,7 @@ Variable Program::conv2d(const Variable& a,
     instr.SetAttr(iter.first, iter.second);
   }
   AppendInstruction(instr);
-  return instr.GetOutput(2);
+  return instr.GetOutput(0);
 }
 
 Variable Program::depthwise_conv2d(const Variable& a,
@@ -57,7 +57,7 @@ Variable Program::depthwise_conv2d(const Variable& a,
     instr.SetAttr(iter.first, iter.second);
   }
   AppendInstruction(instr);
-  return instr.GetOutput(1);
+  return instr.GetOutput(0);
 }
 
 Variable Program::pool2d(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
@@ -67,7 +67,7 @@ Variable Program::pool2d(const Variable& a, const std::unordered_map<std::string
     instr.SetAttr(iter.first, iter.second);
   }
   AppendInstruction(instr);
-  return instr.GetOutput(1);
+  return instr.GetOutput(0);
 }
 
 Variable Program::batchnorm(const Variable& a,

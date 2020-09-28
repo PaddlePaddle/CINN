@@ -35,19 +35,24 @@ void BindFramework(pybind11::module *m) {
              auto impl = OpStrategy::SelectImpl(self[op_ptr](attrs, inputs, out_types, output_shapes, target));
              std::vector<common::CINNValue> temp_inputs;
              std::vector<ir::Tensor> res;
-             for (auto tensor : inputs) {
+             for (auto &tensor : inputs) {
                res.push_back(tensor);
                temp_inputs.push_back(common::CINNValue(tensor));
              }
-             auto stages = CreateStages(inputs);
-             temp_inputs.push_back(common::CINNValue(stages));
              common::CINNValuePack C = impl->fcompute(common::CINNValuePack{temp_inputs});
-             C                       = impl->fschedule(C);
-             for (int i = 0; i < C.get()->size() - 1; i++) {
+             poly::StageMap stages   = C.back();
+             // make sure all the tensors in the stages before schedule launch.
+             for (int i = 0; i < C->size() - 1; i++) {
+               ir::Expr temp = C[i];
+               stages->InsertLazily(temp.as_tensor_ref());
+             }
+             C = impl->fschedule(C);
+             for (int i = 0; i < C->size() - 1; i++) {
                ir::Expr temp = C[i];
                res.push_back(temp.as_tensor_ref());
              }
-             return res;
+             auto func = Lower(key, stages, res);
+             return func;
            });
 
   py::class_<NodeAttr>(*m, "NodeAttr")

@@ -72,26 +72,8 @@ def conv2d_native(inputs_data, input_shape, filter_size, attrs, is_depthwise):
         print("output's shape is:", output.shape)
 
     res_shape = output.shape[1:]
-    pad_shape = list(input_shape)
-    dilation_shape = list(filter_size_new)
-    assert len(padding) == 2
-    assert len(pad_shape) == 4
-    assert len(dilation_shape) == 4
-    if data_format == "NCHW":
-        h_index = 2
-        w_index = 3
-    else:
-        h_index = 1
-        w_index = 2
 
-    pad_shape[h_index] += 2 * padding[0]
-    pad_shape[w_index] += 2 * padding[1]
-    dilation_shape[2] = (filter_size_new[2] - 1) * dilation[0] + 1
-    dilation_shape[3] = (filter_size_new[3] - 1) * dilation[1] + 1
-
-    print("pad's shape is:", pad_shape)
-    print("dilation's shape is:", dilation_shape)
     if is_depthwise:
-        return output, [pad_shape, res_shape]
+        return output, [res_shape]
     else:
-        return output, [pad_shape, dilation_shape, res_shape]
+        return output, [res_shape]
