@@ -73,3 +73,8 @@ ADD_TEST(NAME test_cinn_real_mobilenetV2
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_mobilenetv2.py "${CMAKE_BINARY_DIR}/thirds/MobileNetV2"
 )
+
+ADD_TEST(NAME test_cinn_real_efficientnet
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_efficientnet.py "${CMAKE_BINARY_DIR}/thirds/EfficientNet"
+)

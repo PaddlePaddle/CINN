@@ -128,6 +128,25 @@ void PaddleModelToProgram::AddOpMapper_elementwise_add() {
   };
 }
 
+void PaddleModelToProgram::AddOpMapper_elementwise_mul() {
+  op_mappers_["elementwise_mul"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Input("Y").empty());
+    auto y_name = op_desc.Input("Y").front();
+    CHECK(!op_desc.Output("Out").empty());
+    auto out_name = op_desc.Output("Out").front();
+    int axis      = op_desc.GetAttr<int>("axis");
+
+    auto x   = GetVar(TransValidVarName(x_name));
+    auto y   = GetVar(TransValidVarName(y_name));
+    auto out = program_->elementwise_mul(x, y, axis);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
 void PaddleModelToProgram::AddOpMapper_relu6() {
   op_mappers_["relu6"] = [&](const paddle::cpp::OpDesc& op_desc) {
     CHECK(!op_desc.Input("X").empty());
@@ -141,7 +160,7 @@ void PaddleModelToProgram::AddOpMapper_relu6() {
     attrs["threshold"] = op_desc.GetAttr<float>("threshold");
 
     auto x   = GetVar(TransValidVarName(x_name));
-    auto out = program_->relu6(x, attrs);
+    auto out = program_->relu6(x);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -217,6 +236,7 @@ void PaddleModelToProgram::AddOpMapper_pool2d() {
     attrs["stride_size"] = op_desc.GetAttr<std::vector<int>>("strides");
     CHECK(op_desc.HasAttr("paddings"));
     auto padding_size = op_desc.GetAttr<std::vector<int>>("paddings");
+
     if (padding_size.size() == 2) {
       padding_size.insert(padding_size.begin(), padding_size.front());
       padding_size.push_back(padding_size.back());
@@ -228,6 +248,8 @@ void PaddleModelToProgram::AddOpMapper_pool2d() {
     attrs["exclusive"] = op_desc.GetAttr<bool>("exclusive");
     CHECK(op_desc.HasAttr("data_format"));
     attrs["data_format"] = op_desc.GetAttr<std::string>("data_format");
+    CHECK(op_desc.HasAttr("global_pooling"));
+    attrs["global_pooling"] = op_desc.GetAttr<bool>("global_pooling");
 
     auto x   = GetVar(TransValidVarName(x_name));
     auto out = program_->pool2d(x, attrs);
@@ -261,6 +283,63 @@ void PaddleModelToProgram::AddOpMapper_batchnorm() {
     auto mean        = GetVar(TransValidVarName(mean_name));
     auto variance    = GetVar(TransValidVarName(variance_name));
     auto out         = program_->batchnorm(x, scale, bias, mean, variance, attrs);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_sigmoid() {
+  op_mappers_["sigmoid"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Output("Out").empty());
+    auto out_name = op_desc.Output("Out").front();
+
+    auto x   = GetVar(TransValidVarName(x_name));
+    auto out = program_->sigmoid(x);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_slice() {
+  op_mappers_["slice"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("Input").empty());
+    auto x_name = op_desc.Input("Input").front();
+    CHECK(!op_desc.Output("Out").empty());
+    auto out_name = op_desc.Output("Out").front();
+
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    CHECK(op_desc.HasAttr("starts"));
+    attrs["starts"] = op_desc.GetAttr<std::vector<int>>("starts");
+    CHECK(op_desc.HasAttr("ends"));
+    attrs["ends"] = op_desc.GetAttr<std::vector<int>>("ends");
+    CHECK(op_desc.HasAttr("axes"));
+    attrs["axes"] = op_desc.GetAttr<std::vector<int>>("axes");
+    auto x        = GetVar(TransValidVarName(x_name));
+    auto out      = program_->slice(x, attrs);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_dropout_infer() {
+  op_mappers_["dropout"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK(!op_desc.Input("X").empty());
+    auto x_name = op_desc.Input("X").front();
+    CHECK(!op_desc.Output("Out").empty());
+    auto out_name = op_desc.Output("Out").front();
+
+    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    CHECK(op_desc.HasAttr("dropout_prob"));
+    attrs["dropout_prob"] = op_desc.GetAttr<float>("dropout_prob");
+    CHECK(op_desc.HasAttr("dropout_implementation"));
+    attrs["dropout_implementation"] = op_desc.GetAttr<std::string>("dropout_implementation");
+    auto x                          = GetVar(TransValidVarName(x_name));
+    auto out                        = program_->dropout_infer(x, attrs);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;

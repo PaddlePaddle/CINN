@@ -83,6 +83,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr 
     if (iter != attr_store.end()) {
       axis = Expr(std::get<int>(iter->second));
     }
+    LOG(INFO) << "StrategyForElementwiseMul" << A->shape << " " << B->shape;
 
     auto out = pe::Multiply(A, B, UniqName("C"), axis);
 

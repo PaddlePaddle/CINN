@@ -297,6 +297,22 @@ std::vector<ir::Tensor> Pool3d(const ir::Tensor &tensor,
                                const std::string &data_format = "NCDHW",
                                const std::string &output_name = UniqName("T_Pool3d_out"));
 
+/**
+ * @brief Perform dropout in the inference which will downgrade the outcome at inference or keep the same.
+ * @param tensor The input tensor
+ * @param dropout_prob float. Probability of setting units to zero.
+ * @param dropout_implementation ['downgrade_in_infer'(default)|'upscale_in_train']
+ * 1. downgrade_in_infer(default), downgrade the outcome at inference
+ *      out = input * (1.0 - dropout_prob)
+ * 2. upscale_in_train, keep the same
+ *      out = input
+ * @param output_name the name of the output tensor.
+ */
+ir::Tensor DropoutInfer(const ir::Tensor &tensor,
+                        float dropout_prob,
+                        const std::string &dropout_implementation = "downgrade_in_infer",
+                        const std::string &output_name            = UniqName("T_Dropout_infer_out"));
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

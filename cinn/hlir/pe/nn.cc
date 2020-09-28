@@ -11,7 +11,6 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
-#include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
 namespace hlir {
@@ -643,6 +642,20 @@ std::vector<Tensor> Pool3d(const Tensor &tensor,
   std::vector<int> axis = {depth_axis, height_axis, width_axis};
   return PoolImpl(
       tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, UniqName(output_name));
+}
+
+Tensor DropoutInfer(const ir::Tensor &tensor,
+                    float dropout_prob,
+                    const std::string &dropout_implementation,
+                    const std::string &output_name) {
+  if (dropout_implementation == "downgrade_in_infer") {
+    LOG(INFO) << "DropoutInfer: tensor's shape:" << tensor->shape;
+    return Multiply(tensor, Expr(1 - dropout_prob));
+  } else if (dropout_implementation == "upscale_in_train") {
+    return Identity(tensor);
+  } else {
+    LOG(FATAL) << "dropout_implementation attr must be 'downgrade_in_infer' or 'upscale_in_train'\n";
+  }
 }
 
 }  // namespace pe
