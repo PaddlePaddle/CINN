@@ -97,7 +97,6 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                     int stride_w,
                                     int dilation_h,
                                     int dilation_w,
-                                    const std::vector<std::vector<int>> &output_shapes,
                                     const std::string &output_name = UniqName("T_Conv2d_NCHW_out"));
 
 /**
@@ -124,7 +123,6 @@ std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
                                     int stride_w,
                                     int dilation_h,
                                     int dilation_w,
-                                    const std::vector<std::vector<int>> &output_shapes,
                                     const std::string &output_name = UniqName("T_Conv2d_NHWC_out"));
 
 /**
@@ -147,7 +145,6 @@ std::vector<ir::Tensor> Depthwise_Conv2d_NCHW(const ir::Tensor &input,
                                               int pad_w,
                                               int stride_h,
                                               int stride_w,
-                                              const std::vector<std::vector<int>> &output_shapes,
                                               const std::string output_name = UniqName("T_depthwise_conv2d_nchw"));
 
 /**
@@ -170,7 +167,6 @@ std::vector<ir::Tensor> Depthwise_Conv2d_NHWC(const ir::Tensor &input,
                                               int pad_w,
                                               int stride_h,
                                               int stride_w,
-                                              const std::vector<std::vector<int>> &output_shapes,
                                               const std::string output_name = UniqName("T_depthwise_conv2d_nhwc"));
 
 ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
