@@ -101,14 +101,14 @@ void BindFrontend(pybind11::module *m) {
              return out;
            });
 
-  py::class_<frontend::Executor>(*m, "Executor")
+  py::class_<frontend::Interpreter>(*m, "Interpreter")
       .def(py::init<const std::vector<std::string> &, const std::vector<hlir::framework::shape_t> &>(),
            py::arg("input_names"),
            py::arg("input_shapes"))  //
-      .def("load_paddle_model", &frontend::Executor::LoadPaddleModel)
-      .def("run", &frontend::Executor::Run)
-      .def("get_tensor", &frontend::Executor::GetTensor)
-      .def("scope", &frontend::Executor::scope);
+      .def("load_paddle_model", &frontend::Interpreter::LoadPaddleModel)
+      .def("run", &frontend::Interpreter::Run)
+      .def("get_tensor", &frontend::Interpreter::GetTensor)
+      .def("scope", &frontend::Interpreter::scope);
 }  // namespace frontend
 
 }  // namespace cinn::pybind

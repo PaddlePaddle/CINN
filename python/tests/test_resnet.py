@@ -46,8 +46,8 @@ class TestLoadResnetModel(unittest.TestCase):
     def test_model(self):
         np.random.seed(0)
         x_data = np.random.random(self.x_shape).astype("float32")
-        self.executor = Executor(["resnet_input"], [self.x_shape])
-        self.executor.load_paddle_model(self.model_dir, False)
+        self.executor = Interpreter(["resnet_input"], [self.x_shape])
+        self.executor.load_paddle_model(self.model_dir, self.target, False)
         a_t = self.executor.get_tensor("resnet_input")
         a_t.from_numpy(x_data)
 

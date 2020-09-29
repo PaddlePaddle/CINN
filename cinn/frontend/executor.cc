@@ -8,18 +8,18 @@
 
 namespace cinn::frontend {
 
-void Executor::LoadPaddleModel(const std::string& model_dir, bool params_combined) {
+void Interpreter::LoadPaddleModel(const std::string& model_dir, const Target& target, bool params_combined) {
   auto [program, var_map, var_map_paddle_to_program] = LoadPaddleProgram(model_dir, scope_.get(), params_combined);
   program_.reset(program.release());
   var_map_                = var_map;
   var_map_paddle_to_cinn_ = var_map_paddle_to_program;
 
-  Build(input_names_, input_shapes_);
+  Build(input_names_, input_shapes_, target);
 }
 
-void Executor::Run() { runtime_program_->Execute(); }
+void Interpreter::Run() { runtime_program_->Execute(); }
 
-hlir::framework::Tensor Executor::GetTensor(const std::string& name) {
+hlir::framework::Tensor Interpreter::GetTensor(const std::string& name) {
   if (scope_->FindVar(name)) return scope_->GetTensor(name);
 
   auto it = var_map_paddle_to_cinn_.find(name);
@@ -30,8 +30,9 @@ hlir::framework::Tensor Executor::GetTensor(const std::string& name) {
   return scope_->GetTensor(it->second);
 }
 
-void Executor::Build(const std::vector<std::string>& input_names,
-                     const std::vector<hlir::framework::shape_t>& input_shapes) {
+void Interpreter::Build(const std::vector<std::string>& input_names,
+                        const std::vector<hlir::framework::shape_t>& input_shapes,
+                        const Target& target) {
   CHECK(!input_names.empty());
   CHECK(!var_map_.empty());
   CHECK_EQ(input_names.size(), input_shapes.size());
@@ -51,13 +52,13 @@ void Executor::Build(const std::vector<std::string>& input_names,
   auto graph = std::make_shared<hlir::framework::Graph>(*program_);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
-  Target target = common::DefaultHostTarget();
-  scope_        = hlir::framework::BuildScope(target, graph, scope_);
+  // Target target = common::DefaultHostTarget();
+  scope_ = hlir::framework::BuildScope(target, graph, scope_);
   graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph));
   runtime_program_ = graph_compiler_->Build();
 }
 
-std::shared_ptr<hlir::framework::Scope> Executor::scope() {
+std::shared_ptr<hlir::framework::Scope> Interpreter::scope() {
   CHECK(scope_);
   return scope_;
 }

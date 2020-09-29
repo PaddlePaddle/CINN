@@ -5,6 +5,6 @@ set(ISL_HOME "")
 
 # Whether enable NVidia CUDA support.
 # Possible values: ON, OFF
-set(WITH_CUDA OFF)
+set(WITH_CUDA ON)
 
 set(WITH_MKL_CBLAS ON)
