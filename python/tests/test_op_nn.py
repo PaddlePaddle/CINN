@@ -565,5 +565,51 @@ class OpTest_slice_1(SingleOpTester):
         self.to_test_op([[3, 4, 5, 6]], [[3, 3, 1, 2]], "slice", attrs)
 
 
+class OpTest_dropout_infer_0(SingleOpTester):
+    def init_testcase(self):
+        self.attrs = framework.NodeAttr()
+        self.attrs.attr_store = {
+            "dropout_prob": 0.2,
+            "dropout_implementation": "downgrade_in_infer",
+        }
+
+    def create_target_data(self, inputs_data, attrs):
+        [X] = inputs_data
+        assert "dropout_implementation" in self.attrs.attr_store
+        if self.attrs.attr_store[
+                "dropout_implementation"] == "downgrade_in_infer":
+            return X * (1 - self.attrs.attr_store["dropout_prob"])
+        else:
+            return X
+
+    def test_op(self):
+        self.init_testcase()
+        self.to_test_op([[2, 1280, 2, 2]], [[2, 1280, 2, 2]], "dropout_infer",
+                        self.attrs)
+
+
+class OpTest_dropout_infer_1(SingleOpTester):
+    def init_testcase(self):
+        self.attrs = framework.NodeAttr()
+        self.attrs.attr_store = {
+            "dropout_prob": 0.2,
+            "dropout_implementation": "upscale_in_train",
+        }
+
+    def create_target_data(self, inputs_data, attrs):
+        [X] = inputs_data
+        assert "dropout_implementation" in self.attrs.attr_store
+        if self.attrs.attr_store[
+                "dropout_implementation"] == "downgrade_in_infer":
+            return X * (1 - self.attrs.attr_store["dropout_prob"])
+        else:
+            return X
+
+    def test_op(self):
+        self.init_testcase()
+        self.to_test_op([[2, 1280, 2, 2]], [[2, 1280, 2, 2]], "dropout_infer",
+                        self.attrs)
+
+
 if __name__ == "__main__":
     unittest.main()

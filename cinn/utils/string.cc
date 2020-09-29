@@ -77,6 +77,7 @@ void Replace(std::string *s, const std::string &from, const std::string &to) {
 std::string TransValidVarName(std::string name) {
   utils::Replace(&name, ".", "__");
   utils::Replace(&name, "/", "___");
+  name.erase(0, name.find_first_not_of("_"));
   return name;
 }
 

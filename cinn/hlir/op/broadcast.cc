@@ -44,7 +44,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseAdd(const framework::NodeAttr 
 
     auto out = pe::Add(A, B, UniqName("C"), axis);
 
-    auto stages = CreateStages({out});
+    auto stages = CreateStages({A, B, out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
@@ -86,7 +86,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr 
 
     auto out = pe::Multiply(A, B, UniqName("C"), axis);
 
-    auto stages = CreateStages({out});
+    auto stages = CreateStages({A, B, out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 

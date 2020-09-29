@@ -174,7 +174,12 @@ struct Program {
   /**
    * Add two tensors element-wise.
    */
-  Variable elementwise_add(const Variable& a, const Variable& b, int axis = 0);
+  Variable elementwise_add(const Variable& a, const Variable& b, int axis = -1);
+
+  /**
+   * Multiply two tensors element-wise.
+   */
+  Variable elementwise_mul(const Variable& a, const Variable& b, int axis = -1);
 
   /**
    * Apply Rectified Linear Unit on input Variable.
@@ -184,7 +189,7 @@ struct Program {
    * @return The result.
    */
   Variable relu(const Variable& a);
-  Variable relu6(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+  Variable relu6(const Variable& a);
 
   /**
    * The convolution2D layer calculates the output based on the input, filter
@@ -220,6 +225,13 @@ struct Program {
   Variable scale(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
 
   Variable softmax(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+
+  Variable sigmoid(const Variable& a);
+
+  Variable slice(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+
+  Variable dropout_infer(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+
   /**
    * Get \p i-th instruction.
    */

@@ -599,6 +599,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     std::string pool_type   = "max";
     bool ceil_mode          = false;
     bool exclusive          = true;
+    bool global_pooling     = false;
     std::string data_format = "NCHW";
     for (auto &iter : attrs.attr_store) {
       if (iter.first == "kernel_size") {
@@ -615,6 +616,8 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
         exclusive = std::get<bool>(iter.second);
       } else if (iter.first == "data_format") {
         data_format = std::get<std::string>(iter.second);
+      } else if (iter.first == "global_pooling") {
+        global_pooling = std::get<bool>(iter.second);
       } else {
         LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
@@ -623,7 +626,29 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     CHECK(!stride_size.empty()) << "stride_size for pool2d is empty. Please check.\n";
     CHECK(!padding_size.empty()) << "padding_size for pool2d is empty. Please check.\n";
 
-    auto out = pe::Pool2d(A.as_tensor_ref(),
+    ir::Tensor A_tensor = A.as_tensor_ref();
+    CHECK_EQ(A_tensor->shape.size(), 4U) << "pool2d's input tensor size should be 4. Please check.\n";
+    if (global_pooling) {
+      int height_index = -1;
+      int width_index  = -1;
+      if (data_format == "NCHW") {
+        height_index = 2;
+        width_index  = 3;
+      } else if (data_format == "NHWC") {
+        height_index = 1;
+        width_index  = 2;
+      } else if (data_format == "AnyLayout") {
+        height_index = 2;
+        width_index  = 3;
+        data_format  = "NCHW";
+      } else {
+        LOG(FATAL) << "Only support 'NCHW' or 'NHWC' or 'AnyLayout' data_format.\n";
+      }
+      kernel_size  = {A_tensor->shape[height_index].as_int32(), A_tensor->shape[width_index].as_int32()};
+      padding_size = {0, 0, 0, 0};
+    }
+
+    auto out = pe::Pool2d(A_tensor,
                           kernel_size,
                           stride_size,
                           padding_size,
@@ -633,14 +658,15 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
                           data_format,
                           UniqName("T_Pool2d_out"));
 
-    auto stages = CreateStages(out);
+    auto stages = CreateStages({A_tensor});
     CHECK(out.size() == 1U || out.size() == 2U) << "The size of pe::Pool2d's output should be 1 or 2.";
-    CHECK(!out_type.empty()) << "Output type of Pool2d is empty! Please check.\n";
-    out.back()->InitReduction(stages, ir::Zero(out_type[0]));
     std::vector<CINNValue> res;
     for (auto &t : out) {
-      res.push_back(CINNValue(Expr(t.get())));
+      stages->InsertLazily(t);
+      res.push_back(CINNValue(t));
     }
+    CHECK(!out_type.empty()) << "Output type of Pool2d is empty! Please check.\n";
+    out.back()->InitReduction(stages, ir::Zero(out_type[0]));
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });
@@ -668,7 +694,8 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
 
 std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::NodeAttr &attrs) {
-  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  CHECK(!inputs_shape.empty() && inputs_shape[0].size() == 4)
+      << "The input's shape size of pool2d should be 4! Please check again.";
   auto attr_store = attrs.attr_store;
   std::vector<int> kernel_size;
   std::vector<int> stride_size;
@@ -677,6 +704,7 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   bool ceil_mode          = false;
   bool exclusive          = true;
   std::string data_format = "NCHW";
+  bool global_pooling     = false;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "kernel_size") {
       kernel_size = std::get<std::vector<int>>(iter.second);
@@ -688,17 +716,18 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
       ceil_mode = std::get<bool>(iter.second);
     } else if (iter.first == "exclusive") {
       exclusive = std::get<bool>(iter.second);
+    } else if (iter.first == "global_pooling") {
+      global_pooling = std::get<bool>(iter.second);
     } else if (iter.first == "data_format") {
       data_format = std::get<std::string>(iter.second);
     }
   }
-  CHECK_EQ(kernel_size.size(), 2U) << "kernel size for pool1d should be 2.\n";
-  CHECK_EQ(stride_size.size(), 2U) << "stride_size size for pool1d should be 2.\n";
+  CHECK_EQ(kernel_size.size(), 2U) << "kernel size for pool2d should be 2.\n";
+  CHECK_EQ(stride_size.size(), 2U) << "stride_size size for pool2d should be 2.\n";
 
   std::vector<int> output_shape1 = inputs_shape[0];
-  CHECK_EQ(inputs_shape[0].size(), 4U) << "input_shape size for pool2d should be 4.\n";
-  int height_axis = -1;
-  int width_axis  = -1;
+  int height_axis                = -1;
+  int width_axis                 = -1;
   if (data_format == "NCHW") {
     height_axis = 2;
     width_axis  = 3;
@@ -711,6 +740,11 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
     data_format = "NCHW";
   } else {
     LOG(ERROR) << "unsupported data_format: " << data_format << std::endl;
+  }
+
+  if (global_pooling) {
+    kernel_size  = {inputs_shape[0][height_axis], inputs_shape[0][width_axis]};
+    padding_size = {0, 0, 0, 0};
   }
 
   if (ceil_mode) {
@@ -1055,7 +1089,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input arguments of slice schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of slice schedule is " << arg_pack.size()
-                                   << "and it should be equal to 3! Please check.";
+                                   << "and it should be equal to 2! Please check.";
     Expr A [[maybe_unused]] = arg_pack[0];
     *ret                    = arg_pack;
   });
@@ -1114,6 +1148,76 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
 }
 
 std::vector<Type> InferDtypeForSlice(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
+std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &attrs,
+                                                    const std::vector<ir::Tensor> &inputs,
+                                                    const std::vector<Type> &out_type,
+                                                    const std::vector<std::vector<int>> &output_shapes,
+                                                    const Target &target) {
+  float dropout_prob                 = 0;
+  std::string dropout_implementation = "downgrade_in_infer";
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "dropout_prob") {
+      dropout_prob = std::get<float>(iter.second);
+    } else if (iter.first == "dropout_implementation") {
+      dropout_implementation = std::get<std::string>(iter.second);
+    } else {
+      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
+    }
+  }
+
+  framework::CINNCompute dropout_infer_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of dropout_infer compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "The input tensors of dropout_infer compute is empty! Please check.";
+    Expr A_expr = a[0];
+    CHECK(A_expr.as_tensor());
+    ir::Tensor A = A_expr.as_tensor_ref();
+
+    auto out    = pe::DropoutInfer(A, dropout_prob, dropout_implementation, UniqName("T_dropout_infer_out"));
+    auto stages = CreateStages({A, out});
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule dropout_infer_schedule([](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of dropout_infer schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of dropout_infer schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
+    Expr A [[maybe_unused]] = arg_pack[0];
+    *ret                    = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(dropout_infer_compute, dropout_infer_schedule, "strategy.dropout_infer.x86", 1);
+
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForDropoutInfer(const std::vector<std::vector<int>> &inputs_shape,
+                                                        const framework::NodeAttr &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  float dropout_prob                 = 0;
+  std::string dropout_implementation = "downgrade_in_infer";
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "dropout_prob") {
+      dropout_prob = std::get<float>(iter.second);
+    } else if (iter.first == "dropout_implementation") {
+      dropout_implementation = std::get<std::string>(iter.second);
+    } else {
+      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
+    }
+  }
+
+  std::vector<std::vector<int>> res{inputs_shape[0]};
+  return res;
+}
+
+std::vector<Type> InferDtypeForDropoutInfer(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -1221,6 +1325,15 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSlice)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSlice))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSlice))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(dropout_infer)
+      .describe("Downgrade the outcome at inference or keep the same.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDropoutInfer)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDropoutInfer))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDropoutInfer))
       .set_support_level(4);
 
   return true;

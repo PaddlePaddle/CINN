@@ -70,6 +70,8 @@ function prepare_model {
     tar -xvf ResNet18.tar
     wget https://paddle-inference-dist.bj.bcebos.com/CINN/MobileNetV2.tar
     tar -xvf MobileNetV2.tar
+    wget https://paddle-inference-dist.bj.bcebos.com/CINN/EfficientNet.tar
+    tar -xvf EfficientNet.tar
     python $workspace/python/tests/fake_model/naive_mul.py
     python $workspace/python/tests/fake_model/naive_multi_fc.py
     python $workspace/python/tests/fake_model/resnet_model.py
