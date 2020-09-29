@@ -20,8 +20,8 @@ set(MLIR_CMAKE_COMMAND
   " \
 cmake -G Ninja ../llvm \
   -DLLVM_ENABLE_PROJECTS=mlir \
-  -DLLVM_BUILD_EXAMPLES=ON \
-  -DLLVM_TARGETS_TO_BUILD="X86;NVPTX" \
+  -DLLVM_BUILD_EXAMPLES=OFF \
+  -DLLVM_TARGETS_TO_BUILD="X86" \
   -DCMAKE_BUILD_TYPE=Release \
   -DLLVM_ENABLE_ASSERTIONS=ON \
   -DLLVM_ENABLE_ZLIB=OFF \
@@ -32,7 +32,7 @@ cmake -G Ninja ../llvm \
 add_definitions(${LLVM_DEFINITIONS})
 
 llvm_map_components_to_libnames(llvm_libs Support Core irreader
-        X86 executionengine orcjit mcjit NVPTX AMDGPU all codegen)
+        X86 executionengine orcjit mcjit all codegen)
 
 message(STATUS "LLVM libs: ${llvm_libs}")
 

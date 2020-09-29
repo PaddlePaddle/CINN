@@ -8,8 +8,8 @@ def CINN_Dialect : Dialect {
 class CINN_Op<string mnemonic, list<OpTrait> traits = []> :
     Op<CINN_Dialect, mnemonic, traits>;
 
-def ONNXEntryPointOp: CINN_Op<"EntryPoint"> {
-  let summary = "Indicate ONNX entry point";
+def PlaceholderOp: CINN_Op<"PlaceholderOp"> {
+  let summary = "Indicate Model entry point";
   let description = [{
   }];
 
