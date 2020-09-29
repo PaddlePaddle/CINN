@@ -25,8 +25,7 @@ class TestLoadEfficientNetModel(unittest.TestCase):
         self.target.os = Target.OS.Linux
         self.model_dir = model_dir
         self.x_shape = [1, 3, 224, 224]
-        self.target_tensor = 'pool2d_16.tmp_0'
-        # self.target_tensor = 'save_infer_model/scale_0'
+        self.target_tensor = 'save_infer_model/scale_0'
         self.input_tensor = 'image'
 
     def get_paddle_inference_result(self, model_dir, data):

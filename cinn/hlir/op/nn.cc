@@ -1213,10 +1213,6 @@ std::vector<std::vector<int>> InferShapeForDropoutInfer(const std::vector<std::v
     }
   }
 
-  for (auto &i : inputs_shape[0]) {
-    LOG(INFO) << "InferShapeForDropoutInfer input shape: " << i;
-  }
-
   std::vector<std::vector<int>> res{inputs_shape[0]};
   return res;
 }
@@ -1333,7 +1329,7 @@ CINN_REGISTER_HELPER(nn_ops) {
 
   CINN_REGISTER_OP(dropout_infer)
       .describe("Downgrade the outcome at inference or keep the same.")
-      .set_num_inputs(1)  // here we consider filter as another input
+      .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDropoutInfer)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDropoutInfer))
