@@ -17,5 +17,4 @@ class CinnDialect : public ::mlir::Dialect {
   static llvm::StringRef getDialectNamespace() { return "cinn::hlir::dialect"; }
 };
 
-
-}  // namespace cinn::hlir::mlir
+}  // namespace cinn::hlir::dialect

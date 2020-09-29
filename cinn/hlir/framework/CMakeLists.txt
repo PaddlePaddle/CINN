@@ -10,6 +10,7 @@ set(srcs
   node.cc
   pass.cc
   op_strategy.cc
+  kernel_registry.cc
   )
 
 if(WITH_CUDA)
