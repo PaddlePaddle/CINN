@@ -23,7 +23,7 @@ class LLVMModuleOptimizer final {
 
  private:
   llvm::TargetMachine *machine_;
-  int opt_level_;
-  bool print_passes_;
+  int opt_level_{};
+  bool print_passes_{};
 };
 }  // namespace cinn::backends

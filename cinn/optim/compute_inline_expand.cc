@@ -16,11 +16,7 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
 
   TensorInlineExpandMutator(const std::string &tensor_name) : tensor_name(tensor_name) {}
 
-  void operator()(Expr *expr) {
-    LOG(INFO) << "void operator()(Expr *expr) Begin";
-    ir::IRMutator<>::Visit(expr, expr);
-    LOG(INFO) << "void operator()(Expr *expr) End";
-  }
+  void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
   void Visit(const ir::Load *op, Expr *expr) override {
     auto *node   = expr->As<ir::Load>();

@@ -66,6 +66,15 @@ llvm::Value *EmitComparison(llvm::CmpInst::Predicate predicate,
 
 #define __IR_EMITTER_NOT_IMPLEMENTED(__op) CINN_NOT_IMPLEMENTED
 
+int NextPowerOfTwo(int x) {
+  for (int p2 = 1;; p2 *= 2) {
+    if (p2 >= x) {
+      return p2;
+    }
+  }
+  return 0;
+}
+
 }  // namespace
 
 CodeGenLLVM::CodeGenLLVM(llvm::Module *m, llvm::IRBuilder<> *b, const std::shared_ptr<SymbolTable> &symbol_table)
@@ -514,10 +523,12 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
       llvm_unroll_metadata += "enable";
   }
 
+  /*
   loop_metadata.push_back(llvm::MDNode::get(ctx, {llvm::MDString::get(ctx, llvm_unroll_metadata)}));
   auto loop_id = llvm::MDNode::get(ctx, loop_metadata);
   loop_id->replaceOperandWith(0, loop_id);
   back_branch->setMetadata(llvm::LLVMContext::MD_loop, loop_id);
+   */
 
   if (old_var) {
     SetVar(op->loop_var->name, old_var);
@@ -693,16 +704,21 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
 
     // auto load_inst = Load(InBoundsGEP(array, std::move(indices)));
     auto *load_inst = AlignedLoad(InBoundsGEP(array, std::move(indices)), llvm::MaybeAlign());
+    /*
     if (is_alias) {
       llvm::MDNode *meta = md_builder_->createTBAANode("cinn-alias", md_tbaa_root_);
       load_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
+    }
+     */
+    if (auto *load_tensor = op->tensor.as_tensor()) {
+      AddTbaaMetadata(load_inst, load_tensor->name, op->index());
     }
 
     {
       int alignment = op->type().bits();
       alignment     = 8;
-      // CHECK(alignment > 0);
-      // load_inst->setAlignment(llvm::Align(std::min(alignment, 8)));
+      CHECK(alignment > 0);
+      load_inst->setAlignment(llvm::Align(std::min(alignment, 8)));
     }
 
     // TODO(fc500110): tbaa AliasAnalysis
@@ -743,21 +759,24 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
 
     // auto *store_inst = Store(Visit(&op->value), InBoundsGEP(array, std::move(indices)));
     auto *store_inst = AlignedStore(Visit(&op->value), InBoundsGEP(array, std::move(indices)), llvm::MaybeAlign());
+    /*
     if (is_alias) {
       llvm::MDNode *meta = md_builder_->createTBAANode("cinn-alias", md_tbaa_root_);
       store_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
     }
+     */
     {
       int alignment = op->type().bits();
       alignment     = 8;
       CHECK_GT(alignment, 0);
-      // store_inst->setAlignment(llvm::Align(std::min(alignment, 8)));
+      store_inst->setAlignment(llvm::Align(std::min(alignment, 8)));
     }
     // TODO(fc500110): tbaa AliasAnalysis
     // auto md_tbaa_root      = md_builder_->createTBAARoot("cinn-tbaa");
     // auto md_tbaa_alias_set = md_builder_->createTBAANode("cinn-alias", md_tbaa_root);
     // llvm::MDNode *meta     = md_tbaa_alias_set;
     // store_inst->setMetadata("tbaa", md_builder_->createTBAAStructTagNode(meta, meta, 0));
+    AddTbaaMetadata(store_inst, op->tensor.as_tensor()->name, op->index());
     return store_inst;
   } else {  // vector store
     Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
@@ -785,6 +804,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
         auto *vtype = llvm::VectorType::get(ll_type_of(op->type().ElementOf()), lanes)->getPointerTo();
         llvm::StoreInst *inst =
             b_->CreateAlignedStore(CreateVecSlice(value, offset, lanes), b_->CreatePointerCast(ptr, vtype), alignment);
+        AddTbaaMetadata(inst, op->tensor.as_tensor()->name, base);
         return inst;
       }
     }
@@ -1083,6 +1103,7 @@ llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
     llvm::Value *vec_ptr = b_->CreatePointerCast(elt_ptr, slice_type->getPointerTo(), "get_vec_ptr");
 
     llvm::Instruction *load_inst = b_->CreateAlignedLoad(vec_ptr, llvm::Align(alignment), "load_vec");
+    AddTbaaMetadata(load_inst, op->tensor.as_tensor()->name, op->index());
 
     slices.push_back(load_inst);
   }
@@ -1152,6 +1173,57 @@ void CodeGenLLVM::InitTarget(const Target &target) {
 
 bool LLVM_WillVarLowerAsPointer(const std::string &var_name) {
   return var_name == "_args" || utils::Endswith(var_name, "__ptr");
+}
+
+void CodeGenLLVM::AddTbaaMetadata(llvm::Instruction *inst, std::string_view buffer, Expr index) {
+  // If the index is constant, generate some TBAA info that helps LLVM understand our loads/stores aren't aliased.
+  bool constant_index = false;
+  int base            = 0;
+  int width           = 1;
+
+  if (index.defined()) {
+    if (const ir::Ramp *ramp = index.As<ir::Ramp>()) {
+      auto *pstride_int = ramp->stride.As<ir::IntImm>();
+      auto *pbase_int   = ramp->base.As<ir::IntImm>();
+      if (pstride_int && pbase_int) {
+        int stride = pstride_int->value;
+        base       = pbase_int->value;
+        CHECK_GE(base, 0);
+        width = NextPowerOfTwo(ramp->lanes * stride);
+
+        while (base % width) {
+          base -= base % width;
+          width *= 2;
+        }
+        constant_index = true;
+      }
+    } else {
+      auto *pbase_int = index.As<ir::IntImm>();
+      if (pbase_int) {
+        int pbase      = pbase_int->value;
+        base           = pbase;
+        constant_index = true;
+      }
+    }
+  }
+
+  llvm::MDBuilder builder(b_->getContext());
+
+  // Add type-based-alias-analysis metadata to the pointer, so that loads and stores to different buffers can get
+  // reordered.
+  llvm::MDNode *tbaa = builder.createTBAARoot("cinn buffer");
+  tbaa               = builder.createTBAAScalarTypeNode(std::string(buffer), tbaa);
+
+  // Add metadata fro constant indices to allow loads and stores to the same buffer to get reordered.
+  if (constant_index) {
+    for (int w = 1024; w >= width; w /= 2) {
+      int b = (base / w) * w;
+      tbaa  = builder.createTBAAScalarTypeNode(utils::StringFormat("%s.width%d.base%d", buffer.data(), w, b), tbaa);
+    }
+  }
+
+  tbaa = builder.createTBAAStructTagNode(tbaa, tbaa, 0);
+  inst->setMetadata("tbaa", tbaa);
 }
 
 }  // namespace backends

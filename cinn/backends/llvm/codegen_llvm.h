@@ -174,6 +174,12 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   llvm::Value *DenseVectorLoad(const ir::Load *load);
 
+  /**
+   * Mark a load or store with type-based-alias-analysis metadata so that LLVM can optimize by reordering loads and
+   * stores accross different buffers.
+   */
+  void AddTbaaMetadata(llvm::Instruction *inst, std::string_view buffer, Expr index);
+
   void InitTarget(const Target &target);
 
   llvm::Module *m_;

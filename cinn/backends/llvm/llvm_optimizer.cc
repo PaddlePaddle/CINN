@@ -54,7 +54,8 @@ template <typename PassManagerT>
 class CustomPassManager : public PassManagerT {
  public:
   template <typename... Ts>
-  explicit CustomPassManager(bool print_passes, Ts &&... ts) : PassManagerT(std::forward<Ts>(ts)...) {}
+  explicit CustomPassManager(bool print_passes, Ts &&... ts)
+      : PassManagerT(std::forward<Ts>(ts)...), print_passes_(print_passes) {}
 
   void add(llvm::Pass *pass) override {
     if (print_passes_) {
@@ -106,8 +107,9 @@ LLVMModuleOptimizer::LLVMModuleOptimizer(llvm::TargetMachine *machine,
     : opt_level_(opt_level), print_passes_(print_passes), machine_(machine) {}
 
 void LLVMModuleOptimizer::operator()(llvm::Module *m) {
-  auto machine = std::move(*llvm::orc::JITTargetMachineBuilder::detectHost()->createTargetMachine());
-  auto fpm     = std::make_unique<CustomFunctionPassManager>(print_passes_, m);
+  auto machine =
+      std::move(llvm::cantFail(llvm::cantFail(llvm::orc::JITTargetMachineBuilder::detectHost()).createTargetMachine()));
+  auto fpm = std::make_unique<CustomFunctionPassManager>(print_passes_, m);
   // fpm->add(llvm::createTargetTransformInfoWrapperPass(llvm::TargetIRAnalysis()));
   // fpm->add(llvm::createInstructionCombiningPass());
   // fpm->add(llvm::createReassociatePass());
@@ -141,7 +143,7 @@ void LLVMModuleOptimizer::operator()(llvm::Module *m) {
   fpm->doFinalization();
 
   // TODO(Superjomn) Enable this. This is quite slow when turned on.
-  // mpm->run(*m);
+  mpm->run(*m);
 }
 
 }  // namespace cinn::backends
