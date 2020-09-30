@@ -50,7 +50,6 @@ include(cmake/nvrtc.cmake)
 include(cmake/llvm.cmake)
 include(cmake/external/protobuf.cmake)
 include(cmake/external/mklml.cmake)
-#include(cmake/external/boost.cmakeg)
 find_package(Threads REQUIRED)
 
 include_directories(${ISL_HOME}/include)
@@ -70,7 +69,7 @@ add_subdirectory(cinn)
 add_subdirectory(tests)
 
 cc_library(core SRCS ${core_src} DEPS glog ${llvm_libs} mklml framework_proto)
-add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER)
+add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 
 if (WITH_CUDA)
   target_link_libraries(core ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES})

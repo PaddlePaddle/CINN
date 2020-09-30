@@ -3,6 +3,7 @@ if (${CMAKE_CXX_COMPILER} STREQUAL "clang++")
 endif()
 
 find_package(LLVM REQUIRED CONFIG)
+find_package(ZLIB REQUIRED)
 
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
