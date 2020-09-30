@@ -68,9 +68,11 @@ set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
 add_subdirectory(tests)
 
-cc_library(core SRCS ${core_src} DEPS glog mklml framework_proto ${llvm_libs})
+cc_library(core SRCS ${core_src} DEPS glog mklml framework_proto)
 if (TARGET LLVM)
   target_link_libraries(core LLVM)
+else()
+  target_link_libraries(core ${llvm_libs})
 endif()
 add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 
