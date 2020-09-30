@@ -142,8 +142,6 @@ gflags glog ${os_dependency_modules} ${CUDNN_LIBRARY} ${CUBLAS_LIBRARIES} ${CUDA
     if (nv_test_SERIAL)
         set_property(TEST ${TARGET_NAME} PROPERTY RUN_SERIAL 1)
     endif()
-    message(STATUS "CUDA: ${CUDA_LIBRARIES}")
-    message(STATUS "CUDA_ROOT: ${CUDA_TOOLKIT_ROOT_DIR}")
     target_link_libraries(${TARGET_NAME} Threads::Threads ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDA_cudart_static_LIBRARY}
       ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/libcuda.so
       )
