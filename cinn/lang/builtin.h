@@ -4,8 +4,11 @@
 namespace cinn {
 namespace lang {
 
-//! Reduce sum with single reduce varialbe.
+//! Reduce sum with reduce axis.
 Expr Sum(Expr body);
+
+//! Reduce mul with reduce axis.
+Expr Mul(Expr body);
 
 }  // namespace lang
 }  // namespace cinn

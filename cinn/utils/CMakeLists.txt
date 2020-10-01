@@ -1,4 +1,4 @@
-set(srcs string.cc functional.cc dot_lang.cc timer.cc)
+set(srcs string.cc functional.cc dot_lang.cc timer.cc llvm_utils.cc)
 
 cc_test(test_string SRCS string_test.cc DEPS core)
 

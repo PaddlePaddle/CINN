@@ -20,7 +20,7 @@ TEST(test02_matmul, basic) {
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages, Expr(0.f));
+  C->InitReduction(stages);
 
   Target target = common::DefaultHostTarget();
 
@@ -61,7 +61,7 @@ TEST(matmul, Split) {
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
   auto stages = CreateStages({C});
-  auto C_init = C->InitReduction(stages, Expr(0.f));
+  auto C_init = C->InitReduction(stages);
 
   Target target = common::DefaultHostTarget();
 
@@ -92,7 +92,7 @@ TEST(matmul, Blocking) {
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages, Expr(0.f));
+  C->InitReduction(stages);
 
   Target target = common::DefaultHostTarget();
 
@@ -125,7 +125,7 @@ TEST(matmul, Vectorization) {
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages, Expr(0.f));
+  C->InitReduction(stages);
 
   Target target = common::DefaultHostTarget();
 
@@ -178,7 +178,7 @@ TEST(matmul, varient_shape) {
   auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages, Expr(0.f));
+  C->InitReduction(stages);
 
   Target target = common::DefaultHostTarget();
 
@@ -228,7 +228,7 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
   auto C = Compute({M, N}, [&](Expr i, Expr j) { return Sum(A(i, k) * packedB(j / bn, k, j % bn)); }, "C", {k});
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages, Expr(0.f));
+  C->InitReduction(stages);
 
   stages[packedB]->Vectorize(2, 8);
 
@@ -267,7 +267,7 @@ TEST(matmul, call) {
   Target target = common::DefaultHostTarget();
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages, Expr(0.f));
+  C->InitReduction(stages);
 
   Module::Builder builder("module_call", target);
   {

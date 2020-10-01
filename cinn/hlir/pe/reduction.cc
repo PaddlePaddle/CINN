@@ -131,7 +131,7 @@ Tensor DoReduce(const Tensor& tensor,
   if (initial.defined()) {
     Tensor C = Compute(output_shape, compute, output_name, reduce_axes);
     stages->InsertLazily(C);
-    C->InitReduction(stages, initial);
+    C->InitReduction(stages);
     return C;
   } else {
     Tensor C = Compute(output_shape, compute, output_name, reduce_axes);
