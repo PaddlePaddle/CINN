@@ -29,13 +29,12 @@ TEST(test03_conv, basic) {
   Var ry(Expr(0), Expr(kernel), "ry");
   Var rx(Expr(0), Expr(kernel), "rx");
 
-  auto B =
-      Compute({out_size, out_size, out_channel, batch},
-              [&](Expr yy, Expr xx, Expr ff, Expr nn) {
-                return ReduceSum(Apad(yy * stride + ry, xx * stride + rx, rc, nn) * W(ry, rx, rc, ff), {rx, ry, rc});
-              },
-              "B",
-              {ry, rx, rc});
+  auto B = Compute(
+      {out_size, out_size, out_channel, batch},
+      [&](Expr yy, Expr xx, Expr ff, Expr nn) {
+        return ReduceSum(Apad(yy * stride + ry, xx * stride + rx, rc, nn) * W(ry, rx, rc, ff), {rx, ry, rc});
+      },
+      "B");
 
   Target target(Target::OS::Linux, Target::Arch::X86, Target::Bit::k64);
 

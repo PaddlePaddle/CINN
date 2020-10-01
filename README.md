@@ -58,11 +58,11 @@ Placeholder<float> B("B", {K, N});
 Var k(K.as_int32(), "k");
 
 auto C = Compute({M, N},
-                 [=](Expr i, Expr j) { return Sum(A(i, k) * B(k, j)); }, 
-                 "C", {k});
+                 [=](Expr i, Expr j) { return Sum(A(i, k) * B(k, j), {k}/*reduce axis*/); }, 
+                 "C");
 
 auto stages = CreateStages({C});
-C->InitReduction(stages, Expr(0.f)); // Initialize C to zero before compuation.
+C->InitReduction(stages);    // Initialize C to zero before compuation.
 
 // some schedule to optimize the code
 stages[C]->Tile(0, 1, 4, 4); // Tile the 0-th and 1-th axis with the block size as 4.

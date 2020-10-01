@@ -168,10 +168,10 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     auto new_B = B_tensor->Reshape(new_yshape, stages);
     std::vector<Expr> output_shape{new_xshape[0], new_yshape[1]};
     Var axis_k(new_xshape[1], UniqName("axis_k"));
-    auto out = Compute(output_shape,
-                       [=](Expr m, Expr n) { return lang::ReduceSum(new_A(m, axis_k) * new_B(axis_k, n), {axis_k}); },
-                       UniqName("Mul_out"),
-                       {axis_k});
+    auto out = Compute(
+        output_shape,
+        [=](Expr m, Expr n) { return lang::ReduceSum(new_A(m, axis_k) * new_B(axis_k, n), {axis_k}); },
+        UniqName("Mul_out"));
     VLOG(3) << "mul out: " << out;
     stages->InsertLazily(out);
     CHECK(!out_type.empty()) << "Output type of Mul is empty! Please check.\n";

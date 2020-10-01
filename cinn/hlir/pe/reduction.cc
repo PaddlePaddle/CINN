@@ -130,12 +130,12 @@ Tensor DoReduce(const Tensor& tensor,
     return fn(tensor(eval_indice), reduce_axes, initial);
   };
   if (initial.defined()) {
-    Tensor C = Compute(output_shape, compute, output_name, reduce_axes);
+    Tensor C = Compute(output_shape, compute, output_name);
     stages->InsertLazily(C);
     C->InitReduction(stages);
     return C;
   } else {
-    Tensor C = Compute(output_shape, compute, output_name, reduce_axes);
+    Tensor C = Compute(output_shape, compute, output_name);
     stages->InsertLazily(C);
     return C;
   }

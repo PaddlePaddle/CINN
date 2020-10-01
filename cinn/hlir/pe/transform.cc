@@ -118,7 +118,7 @@ Tensor Matmul(const Tensor& A,
                     &reduce_axes);
     return lang::ReduceSum(A(A_indice) * B(B_indice), reduce_axes);
   };
-  return Compute(output_shape, fn, name, reduce_axes);
+  return Compute(output_shape, fn, name);
 }
 
 }  // namespace pe

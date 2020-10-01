@@ -38,7 +38,7 @@ The Operation is the operation on tensors, including
 ```c++
 Tensor C = Compute({M,N}/*output shape*/, [&](Var i, Var j) {
   Var k;
-  return ReduceSum(A[i,k] * B[k,j], k);
+  return ReduceSum(A[i,k] * B[k,j], {k});
 });
 ```
 

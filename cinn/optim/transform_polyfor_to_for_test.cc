@@ -19,7 +19,8 @@ TEST(Expr, basic) {
   // C = A * B
   Var k(K.as_int32(), "k0");
 
-  Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::ReduceSum(A(i, k) * B(k, j), {k}); }, "C", {k});
+  Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return lang::ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C});
 

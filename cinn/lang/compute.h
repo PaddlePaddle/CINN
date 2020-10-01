@@ -19,41 +19,34 @@ using compute_handler_t = std::function<Expr(const std::vector<Expr> &)>;
 // The shape are constant integers.
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr()> fn,
-                   const std::string &name             = "",
-                   const std::vector<Var> &reduce_axis = {},
-                   const std::vector<Expr> &shape      = {});
+                   const std::string &name        = "",
+                   const std::vector<Expr> &shape = {});
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr)> fn,
-                   const std::string &name             = "",
-                   const std::vector<Var> &reduce_axis = {},
-                   const std::vector<Expr> &shape      = {});
+                   const std::string &name        = "",
+                   const std::vector<Expr> &shape = {});
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr)> fn,
-                   const std::string &name             = "",
-                   const std::vector<Var> &reduce_axis = {},
-                   const std::vector<Expr> &shape      = {});
+                   const std::string &name        = "",
+                   const std::vector<Expr> &shape = {});
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr, Expr)> fn,
-                   const std::string &name             = "",
-                   const std::vector<Var> &reduce_axis = {},
-                   const std::vector<Expr> &shape      = {});
+                   const std::string &name        = "",
+                   const std::vector<Expr> &shape = {});
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr, Expr, Expr)> fn,
-                   const std::string &name             = "",
-                   const std::vector<Var> &reduce_axis = {},
-                   const std::vector<Expr> &shape      = {});
+                   const std::string &name        = "",
+                   const std::vector<Expr> &shape = {});
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr, Expr, Expr, Expr)> fn,
-                   const std::string &name             = "",
-                   const std::vector<Var> &reduce_axis = {},
-                   const std::vector<Expr> &shape      = {});
+                   const std::string &name        = "",
+                   const std::vector<Expr> &shape = {});
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    compute_handler_t fn,
-                   const std::string &name             = "",
-                   const std::vector<Var> &reduce_axis = {},
-                   const std::vector<Expr> &shape      = {});
+                   const std::string &name        = "",
+                   const std::vector<Expr> &shape = {});
 // @}
 
 struct ReturnType {

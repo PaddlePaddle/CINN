@@ -85,19 +85,18 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
 
   CHECK(MathEqual((weights->shape[0] * weights->shape[1]) % input->shape[1], Expr(0)))
       << "filter's output channel size must be divisible by group\n";
-  auto res =
-      Compute(output_shape,
-              [=](Expr nn, Expr ff, Expr yy, Expr xx) {
-                return lang::ReduceSum(
-                    input_pad(nn,
-                              ff / (weights->shape[0] * weights->shape[1] / input->shape[1]) * weights->shape[1] + fc,
-                              yy * stride_h + fy,
-                              xx * stride_w + fx) *
-                        weights_dilation(ff, fc, fy, fx),
-                    {fc, fy, fx});
-              },
-              output_name,
-              {fc, fy, fx});
+  auto res = Compute(
+      output_shape,
+      [=](Expr nn, Expr ff, Expr yy, Expr xx) {
+        return lang::ReduceSum(
+            input_pad(nn,
+                      ff / (weights->shape[0] * weights->shape[1] / input->shape[1]) * weights->shape[1] + fc,
+                      yy * stride_h + fy,
+                      xx * stride_w + fx) *
+                weights_dilation(ff, fc, fy, fx),
+            {fc, fy, fx});
+      },
+      output_name);
   return {input_pad, weights_dilation, res};
 }
 
@@ -151,19 +150,18 @@ std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
 
   CHECK(MathEqual((weights->shape[0] * weights->shape[1]) % input->shape[3], Expr(0)))
       << "filter's output channel size must be divisible by group\n";
-  auto res =
-      Compute(output_shape,
-              [=](Expr nn, Expr yy, Expr xx, Expr ff) {
-                return lang::ReduceSum(
-                    input_pad(nn,
-                              yy * stride_h + fy,
-                              xx * stride_w + fx,
-                              ff / (weights->shape[0] * weights->shape[1] / input->shape[3]) * weights->shape[1] + fc) *
-                        weights_dilation(ff, fc, fy, fx),
-                    {fy, fx, fc});
-              },
-              output_name,
-              {fy, fx, fc});
+  auto res = Compute(
+      output_shape,
+      [=](Expr nn, Expr yy, Expr xx, Expr ff) {
+        return lang::ReduceSum(
+            input_pad(nn,
+                      yy * stride_h + fy,
+                      xx * stride_w + fx,
+                      ff / (weights->shape[0] * weights->shape[1] / input->shape[3]) * weights->shape[1] + fc) *
+                weights_dilation(ff, fc, fy, fx),
+            {fy, fx, fc});
+      },
+      output_name);
   return {input_pad, weights_dilation, res};
 }
 
@@ -192,15 +190,14 @@ std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
 
   Var kernel_h = Var(weight->shape[2], "kh");
   Var kernel_w = Var(weight->shape[3], "kw");
-  auto res =
-      Compute(output_shape,
-              [=](Expr nn, Expr ff, Expr yy, Expr xx) {
-                return lang::ReduceSum(input_pad(nn, ff / c_m, yy * stride_h + kernel_h, xx * stride_w + kernel_w) *
-                                           weight(ff / c_m, ff % c_m, kernel_h, kernel_w),
-                                       {kernel_h, kernel_w});
-              },
-              output_name,
-              {kernel_h, kernel_w});
+  auto res     = Compute(
+      output_shape,
+      [=](Expr nn, Expr ff, Expr yy, Expr xx) {
+        return lang::ReduceSum(input_pad(nn, ff / c_m, yy * stride_h + kernel_h, xx * stride_w + kernel_w) *
+                                   weight(ff / c_m, ff % c_m, kernel_h, kernel_w),
+                               {kernel_h, kernel_w});
+      },
+      output_name);
   return {input_pad, res};
 }
 
@@ -230,15 +227,14 @@ std::vector<Tensor> Depthwise_Conv2d_NHWC(const Tensor &input,
 
   Var kernel_h = Var(weight->shape[2], "kh");
   Var kernel_w = Var(weight->shape[3], "kw");
-  auto res =
-      Compute(output_shape,
-              [=](Expr nn, Expr yy, Expr xx, Expr ff) {
-                return lang::ReduceSum(input_pad(nn, yy * stride_h + kernel_h, xx * stride_w + kernel_w, ff / c_m) *
-                                           weight(ff / c_m, ff % c_m, kernel_h, kernel_w),
-                                       {kernel_h, kernel_w});
-              },
-              output_name,
-              {kernel_h, kernel_w});
+  auto res     = Compute(
+      output_shape,
+      [=](Expr nn, Expr yy, Expr xx, Expr ff) {
+        return lang::ReduceSum(input_pad(nn, yy * stride_h + kernel_h, xx * stride_w + kernel_w, ff / c_m) *
+                                   weight(ff / c_m, ff % c_m, kernel_h, kernel_w),
+                               {kernel_h, kernel_w});
+      },
+      output_name);
   return {input_pad, res};
 }
 
@@ -282,14 +278,14 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
  */
 std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string &output_name) {
   Var axis_j(A->shape[axis], UniqName("axis_j"));
-  auto temp      = Compute(A->shape,
-                      [=](const std::vector<Expr> &indice) {
-                        std::vector<Expr> new_indice = indice;
-                        new_indice[axis]             = axis_j;
-                        return lang::ReduceSum(lang::Exp(A(new_indice)), {axis_j});
-                      },
-                      UniqName("softmax_temp_out"),
-                      {axis_j});
+  auto temp = Compute(
+      A->shape,
+      [=](const std::vector<Expr> &indice) {
+        std::vector<Expr> new_indice = indice;
+        new_indice[axis]             = axis_j;
+        return lang::ReduceSum(lang::Exp(A(new_indice)), {axis_j});
+      },
+      UniqName("softmax_temp_out"));
   ir::Tensor out = Compute(
       A->shape,
       [=](const std::vector<Expr> &indice) { return lang::Exp(A(indice)) / temp(indice); },
@@ -512,8 +508,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
 
           return lang::ReduceMax(temp(indices), {daxis}, min_value);
         },
-        UniqName(output_name),
-        daxis);
+        UniqName(output_name));
   } else if (pool_type == "avg") {
     // Pad the input tensor with pad_value zero
     temp = do_pad ? Pad(tensor, pad_before, pad_after, 0, UniqName("pad_temp")) : tensor;
@@ -551,8 +546,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
             return lang::ReduceSum(ir::Div::Make(temp(indices), cast(kernel_size, Float(32))), daxis);
           }
         },
-        UniqName(output_name),
-        daxis);
+        UniqName(output_name));
   } else {
     LOG(ERROR) << "Unrecognized pool_type: " << pool_type;
   }

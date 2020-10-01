@@ -354,7 +354,7 @@ TEST(ComputeAt, Before1) {
 
   auto create_module = [&] {
     // cached compute way
-    auto cache_prepare = Compute({M, N} /*domain*/, [&](Var i, Var j) { return A(i, j); }, "cache", {}, {N} /*shape*/);
+    auto cache_prepare = Compute({M, N} /*domain*/, [&](Var i, Var j) { return A(i, j); }, "cache", {N} /*shape*/);
 
     auto transformed_compute = Compute(
         {M, N}, [&](Var i, Var j) { return Expr(1.f); }, "transformed");

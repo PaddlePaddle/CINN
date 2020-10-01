@@ -17,7 +17,8 @@ TEST(test02_matmul, basic) {
 
   Var k(K.as_int32(), "k0");
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C", {k});
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C});
   C->InitReduction(stages);
@@ -58,7 +59,8 @@ TEST(matmul, Split) {
 
   Var k(K.as_int32(), "k0");
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C", {k});
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C});
   auto C_init = C->InitReduction(stages);
@@ -89,7 +91,8 @@ TEST(matmul, Blocking) {
 
   int bn = 32;
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C", {k});
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C});
   C->InitReduction(stages);
@@ -122,7 +125,8 @@ TEST(matmul, Vectorization) {
 
   int bn = 32;
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C", {k});
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C});
   C->InitReduction(stages);
@@ -175,7 +179,8 @@ TEST(matmul, varient_shape) {
 
   Var k(K.as_int32(), "k0");
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C", {k});
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C});
   C->InitReduction(stages);
@@ -225,8 +230,8 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
 
-  auto C =
-      Compute({M, N}, [&](Expr i, Expr j) { return ReduceSum(A(i, k) * packedB(j / bn, k, j % bn), {k}); }, "C", {k});
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return ReduceSum(A(i, k) * packedB(j / bn, k, j % bn), {k}); }, "C");
 
   auto stages = CreateStages({C});
   C->InitReduction(stages);
@@ -263,7 +268,8 @@ TEST(matmul, call) {
   Var k(K.as_int32(), "k0");
   Buffer C_buf(Float(32));
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C", {k});
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   Target target = common::DefaultHostTarget();
 

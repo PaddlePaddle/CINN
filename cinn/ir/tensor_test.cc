@@ -167,22 +167,20 @@ TEST(Tensor, reduce) {
   Placeholder<float> A("A", {Expr(10)});
   Var reduce_axis(Expr(10), "ii");
   {
-    auto C =
-        Compute(A->shape,
-                [=](const std::vector<Expr>& axis) { return lang::ReduceSum(A(reduce_axis) + 1.f, {reduce_axis}); },
-                "C",
-                {reduce_axis});
+    auto C = Compute(
+        A->shape,
+        [=](const std::vector<Expr>& axis) { return lang::ReduceSum(A(reduce_axis) + 1.f, {reduce_axis}); },
+        "C");
     ASSERT_TRUE(C->has_expression());
     ASSERT_TRUE(C->is_reduce_sum());
     ASSERT_FALSE(C->is_reduce_mul());
   }
 
   {
-    auto C =
-        Compute(A->shape,
-                [=](const std::vector<Expr>& axis) { return lang::ReduceMul(A(reduce_axis) + 1.f, {reduce_axis}); },
-                "C",
-                {reduce_axis});
+    auto C = Compute(
+        A->shape,
+        [=](const std::vector<Expr>& axis) { return lang::ReduceMul(A(reduce_axis) + 1.f, {reduce_axis}); },
+        "C");
     ASSERT_TRUE(C->has_expression());
     ASSERT_TRUE(C->is_reduce_mul());
     ASSERT_FALSE(C->is_reduce_sum());
