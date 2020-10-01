@@ -24,7 +24,7 @@ auto CreateMatmulBasicModule(Target target, int m, int n, int k) {
   auto B = Placeholder<float>("B", {K, N});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+  auto C  = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C", {k1});
 
   auto stages = CreateStages({C});
   C->InitReduction(stages);
@@ -44,7 +44,7 @@ auto CreateMatmulTileModule(Target target, int m, int n, int k) {
   auto B = Placeholder<float>("B", {K, N});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+  auto C  = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C", {k1});
 
   auto stages = CreateStages({C});
   C->InitReduction(stages);
@@ -66,7 +66,7 @@ auto CreateMatmulSplitModule(Target target, int m, int n, int k) {
   auto B = Placeholder<float>("B", {K, N});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+  auto C  = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C", {k1});
 
   auto stages = CreateStages({C});
   C->InitReduction(stages);
@@ -94,7 +94,7 @@ auto CreateMatmulBlockModule(Target target, int m, int n, int k) {
   auto B = Placeholder<float>("B", {K, N});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+  auto C  = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C", {k1});
 
   auto stages = CreateStages({C});
   C->InitReduction(stages);
@@ -122,7 +122,7 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
 
   int bn = 32;
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k0) * B(k0, j)); }, "C", {k0});
+  auto C = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k0) * B(k0, j), {k0}); }, "C", {k0});
 
   auto stages = CreateStages({C});
   C->InitReduction(stages);
@@ -156,7 +156,7 @@ lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
 
   int bn = 32;
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
+  auto C = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C", {k});
 
   auto stages       = CreateStages({C});
   ir::Tensor C_init = C->InitReduction(stages);
@@ -196,7 +196,8 @@ lang::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
-  auto C = Compute({M, N}, [&](Expr i, Expr j) { return Sum(A(i, k) * packedB(j / bn, k, j % bn)); }, "C", {k});
+  auto C =
+      Compute({M, N}, [&](Expr i, Expr j) { return ReduceSum(A(i, k) * packedB(j / bn, k, j % bn), {k}); }, "C", {k});
 
   auto stages = CreateStages({C_init, C});
 

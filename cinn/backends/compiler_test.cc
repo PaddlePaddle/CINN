@@ -127,7 +127,7 @@ TEST(Compiler, sqrt) {
   float epsilon = 0.1f;
 
   auto A = Compute({N, C, H, W}, [=](Expr n, Expr c, Expr h, Expr w) {
-    return (input(n, c, h, w) - mean(c)) * scale(c) / Sqrt(variance(c) + Expr(epsilon)) + bias(c);
+    return (input(n, c, h, w) - mean(c)) * scale(c) / lang::Sqrt(variance(c) + Expr(epsilon)) + bias(c);
   });
 
   auto B = hlir::pe::Pool2d(input, {3, 3}, {1, 1}, {1, 1, 1, 1}, "max", false, false);

@@ -14,6 +14,7 @@
 #include "cinn/common/type.h"
 #include "cinn/ir/function_base.h"
 #include "cinn/ir/node.h"
+#include "cinn/utils/small_vector.h"
 
 namespace cinn {
 
@@ -266,61 +267,6 @@ struct Let : public ExprNode<Let> {
   }
 };
 
-struct Reduce : public ExprNode<Reduce> {
-  enum ReduceType {
-    kSum = 0,
-    kSub,
-    kMul,
-    kDiv,
-    kMax,
-    kMin,
-  };
-
-  //! The initial value.
-  Expr init;
-  Expr body;
-  //! The type of the reduce operation.
-  ReduceType reduce_type;
-
-  static Expr Make(ReduceType reduce_type, Expr init, Expr body) {
-    auto n         = common::make_shared<Reduce>();
-    n->init        = init;
-    n->body        = body;
-    n->reduce_type = reduce_type;
-    CHECK(body.type().valid());
-    if (init.defined()) {
-      CHECK(init.type().valid());
-      CHECK_EQ(init.type(), body.type());
-    }
-    n->set_type(body.type());
-    return Expr(n);
-  }
-
-  Type type() const override { return body.type().ElementOf(); }
-
-  std::vector<Expr*> expr_fields() override {
-    std::vector<Expr*> res;
-    if (init.defined()) {
-      res.push_back(&init);
-    }
-    CHECK(body.defined());
-    res.push_back(&body);
-    return res;
-  }
-
-  std::vector<const Expr*> expr_fields() const override {
-    std::vector<const Expr*> res;
-    if (init.defined()) {
-      res.push_back(&init);
-    }
-    CHECK(body.defined());
-    res.push_back(&body);
-    return res;
-  }
-
-  static const IrNodeTy _node_type_ = IrNodeTy::Reduce;
-};
-
 enum CallType : int {
   //! Extern "C" function.
   Extern = 0,
@@ -421,6 +367,37 @@ struct Var : public IrNodeRef {
   _Var_* operator->() { return get(); }
   const _Var_* get() const { return static_cast<const _Var_*>(ptr()); }
   _Var_* get() { return static_cast<_Var_*>(ptr()); }
+};
+
+struct Reduce : public ExprNode<Reduce> {
+  enum ReduceType {
+    kSum = 0,
+    kSub,
+    kMul,
+    kDiv,
+    kMax,
+    kMin,
+  };
+
+  //! The initial value.
+  Expr init;
+
+  // ! The body.
+  Expr body;
+
+  utils::SmallVector<Var, 4> reduce_axis;
+
+  //! The type of the reduce operation.
+  ReduceType reduce_type;
+
+  static Expr Make(ReduceType reduce_type, Expr init, Expr body, const std::vector<Var>& reduce_aixs);
+
+  Type type() const override { return body.type().ElementOf(); }
+
+  std::vector<Expr*> expr_fields() override;
+  std::vector<const Expr*> expr_fields() const override;
+
+  static const IrNodeTy _node_type_ = IrNodeTy::Reduce;
 };
 
 /**

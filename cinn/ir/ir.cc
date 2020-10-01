@@ -550,5 +550,37 @@ Expr PrimitiveNode::Make(const std::string &name, const std::map<std::string, at
   return Expr(n);
 }
 
+Expr Reduce::Make(Reduce::ReduceType reduce_type, Expr init, Expr body, const std::vector<Var> &reduce_aixs) {
+  auto n         = common::make_shared<Reduce>();
+  n->init        = init;
+  n->body        = body;
+  n->reduce_type = reduce_type;
+  n->reduce_axis.append(reduce_aixs.begin(), reduce_aixs.end());
+  CHECK(body.type().valid());
+  if (init.defined()) {
+    CHECK(init.type().valid());
+    CHECK_EQ(init.type(), body.type());
+  }
+  n->set_type(body.type());
+  return Expr(n);
+}
+std::vector<Expr *> Reduce::expr_fields() {
+  std::vector<Expr *> res;
+  if (init.defined()) {
+    res.push_back(&init);
+  }
+  CHECK(body.defined());
+  res.push_back(&body);
+  return res;
+}
+std::vector<const Expr *> Reduce::expr_fields() const {
+  std::vector<const Expr *> res;
+  if (init.defined()) {
+    res.push_back(&init);
+  }
+  CHECK(body.defined());
+  res.push_back(&body);
+  return res;
+}
 }  // namespace ir
 }  // namespace cinn

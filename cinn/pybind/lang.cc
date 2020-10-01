@@ -191,7 +191,13 @@ void BindPlaceholder(py::module *m) {
   m->def("create_placeholder", &lang::CreatePlaceHolder);
 }
 
-void BindBuiltin(py::module *m) { m->def("sum", &lang::Sum); }
+void BindBuiltin(py::module *m) {
+  m->def("reduce_sum", &lang::ReduceSum, py::arg("e"), py::arg("reduce_axis"), py::arg("init") = Expr());
+  m->def("reduce_mul", &lang::ReduceMul);
+  m->def("reduce_max", &lang::ReduceMax);
+  m->def("reduce_min", &lang::ReduceMin);
+}
+
 }  // namespace
 
 void BindLang(py::module *m) {

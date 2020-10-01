@@ -56,9 +56,9 @@ def create_matmul_basic(target, m, n, k):
     c_init = lang.compute([m, n], lambda v: ir.Expr(0.), "c_init")
 
     k1 = ir.Var(k.as_int32(), "k1")
-    c = lang.compute([m, n], lambda v: lang.sum(
-        a(v[0], k1.to_expr_mutable()) * b(k1.to_expr_mutable(), v[1])), "c",
-                     [k1])
+    c = lang.compute([m, n], lambda v: lang.reduce_sum(
+        a(v[0], k1.to_expr_mutable()) * b(k1.to_expr_mutable(), v[1]), [k1]),
+                     "c", [k1])
 
     stages = create_stages([c_init, c])
     c_stage = stages[c]
@@ -82,9 +82,9 @@ def create_matmul_tile(target, m, n, k):
     c_init = lang.compute([m, n], lambda v: ir.Expr(0.), "c_init")
 
     k1 = ir.Var(k.as_int32(), "k1")
-    c = lang.compute([m, n], lambda v: lang.sum(
-        a(v[0], k1.to_expr_mutable()) * b(k1.to_expr_mutable(), v[1])), "c",
-                     [k1])
+    c = lang.compute([m, n], lambda v: lang.reduce_sum(
+        a(v[0], k1.to_expr_mutable()) * b(k1.to_expr_mutable(), v[1]), [k1]),
+                     "c", [k1])
 
     stages = create_stages([c_init, c])
     stages[c].share_buffer_with(stages[c_init])

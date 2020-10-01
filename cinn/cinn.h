@@ -25,12 +25,15 @@ using lang::Compute;
 using lang::Lower;
 using lang::Module;
 using lang::Placeholder;
-using lang::Sum;
+using lang::ReduceMax;
+using lang::ReduceMin;
+using lang::ReduceMul;
+using lang::ReduceSum;
 using optim::Optimize;
 using poly::CreateStages;
 
-using ir::logic_and;
-using ir::logic_or;
+using lang::logic_and;
+using lang::logic_or;
 
 using common::Target;
 

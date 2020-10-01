@@ -23,8 +23,8 @@ PYBIND11_MODULE(core_api, m) {
 
   BindRuntime(&runtime);
   BindCommon(&common);
-  BindLang(&lang);
   BindIr(&ir);
+  BindLang(&lang);
   BindPoly(&poly);
   BindBackends(&backends);
   BindOptim(&optim);

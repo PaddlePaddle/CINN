@@ -215,7 +215,8 @@ TEST(CodeGenC, matmul) {
   Tensor C_init = Compute(
       {Expr(100), Expr(50)}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
 
-  Tensor C = Compute({Expr(100), Expr(50)}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
+  Tensor C =
+      Compute({Expr(100), Expr(50)}, [&](Var i, Var j) { return lang::ReduceSum(A(i, k) * B(k, j), {k}); }, "C", {k});
 
   auto stages = CreateStages({A, B, C_init, C});
   stages[C]->ShareBufferWith(stages[C_init]);
@@ -318,7 +319,7 @@ TEST(CodeGenC, matmul_tile) {
   Tensor C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
 
-  Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
+  Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::ReduceSum(A(i, k) * B(k, j), {k}); }, "C", {k});
 
   auto stages = CreateStages({C, C_init});
   stages[C]->ShareBufferWith(stages[C_init]);

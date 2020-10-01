@@ -824,6 +824,7 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
     CHECK(out.size() == 1U || out.size() == 2U) << "The size of pe::Pool3d's output should be 1 or 2.";
     CHECK(!out_type.empty()) << "Output type of Pool3d is empty! Please check.\n";
     out.back()->InitReduction(stages);
+
     std::vector<CINNValue> res;
     for (auto &t : out) {
       res.push_back(CINNValue(Expr(t.get())));
