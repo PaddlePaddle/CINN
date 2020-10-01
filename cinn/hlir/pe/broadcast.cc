@@ -6,6 +6,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/node.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 
 namespace cinn {
@@ -179,9 +180,9 @@ HLIR_IMP_BC_PE(Add, return a + b;);
 HLIR_IMP_BC_PE(Substract, return a - b;);
 HLIR_IMP_BC_PE(Multiply, return a * b;);
 HLIR_IMP_BC_PE(Divide, return a / b;);
-HLIR_IMP_BC_PE(FloorDivide, return Floor(a / b););
+HLIR_IMP_BC_PE(FloorDivide, return lang::Floor(a / b););
 HLIR_IMP_BC_PE(Mod, return a % b;);
-HLIR_IMP_BC_PE(FloorMod, return a - Floor(a / b) * b;);
+HLIR_IMP_BC_PE(FloorMod, return a - lang::Floor(a / b) * b;);
 HLIR_IMP_BC_PE(Maximum, return ir::Max::Make(a, b););
 HLIR_IMP_BC_PE(Minimum, return ir::Min::Make(a, b););
 HLIR_IMP_BC_PE(Power, return ir::Power::Make(a, b););

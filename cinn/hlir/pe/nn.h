@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 
 namespace cinn {
@@ -25,7 +26,7 @@ ir::Tensor Relu(const ir::Tensor &A,
                 T threshold                    = static_cast<T>(0),
                 const std::string &output_name = UniqName("T_Relu_out")) {
   return lang::Compute(
-      A->shape, [&](const std::vector<Expr> &indice) { return ir::Relu(A(indice), threshold); }, output_name);
+      A->shape, [&](const std::vector<Expr> &indice) { return lang::Relu(A(indice), threshold); }, output_name);
 }
 
 /**
@@ -42,7 +43,7 @@ ir::Tensor Relu6(const ir::Tensor &A,
                  T threshold                    = static_cast<T>(0),
                  const std::string &output_name = UniqName("T_Relu6_out")) {
   return lang::Compute(
-      A->shape, [&](const std::vector<Expr> &indice) { return ir::Relu6(A(indice), threshold); }, output_name);
+      A->shape, [&](const std::vector<Expr> &indice) { return lang::Relu6(A(indice), threshold); }, output_name);
 }
 
 /**

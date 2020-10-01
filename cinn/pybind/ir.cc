@@ -472,10 +472,7 @@ void BindOperation(py::module *m) {
 
 void BindIrTensor(py::module *m) {
   py::class_<ir::Tensor, ir::IrNodeRef> tensor(*m, "Tensor");
-  tensor.def(py::init<>())
-      .def(py::init<ir::IrNode *>())
-      .def("ndims", &ir::Tensor::ndims)
-      .def("expand_inlined", &ir::Tensor::ExpandInlined);
+  tensor.def(py::init<>()).def(py::init<ir::IrNode *>()).def("ndims", &ir::Tensor::ndims);
 
   DefineExprNode<ir::_Tensor_>(m, "_Tensor_");
   py::class_<ir::_Tensor_, ir::ExprNode<ir::_Tensor_>> _tensor_(*m, "_Tensor_");

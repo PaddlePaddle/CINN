@@ -624,6 +624,13 @@ void Stage::CtrlDepend(const ir::Tensor &t) { ctrl_depends_.insert(t); }
 
 const std::set<ir::Tensor> &Stage::ctrl_depends() const { return ctrl_depends_; }
 
+ir::Tensor Stage::LookupCtrlDepend(const std::string &tensor_name) const {
+  auto it = std::find_if(
+      ctrl_depends_.begin(), ctrl_depends_.end(), [&](const ir::Tensor &x) { return x->name == tensor_name; });
+  if (it == ctrl_depends_.end()) return ir::Tensor();
+  return *it;
+}
+
 Stage *_StageMap_::operator[](const ir::Tensor &tensor) {
   CHECK(data_.count(tensor->name)) << "StageMap has no stage for tensor [" << tensor->name << "]";
   return data_[tensor->name].get();
@@ -669,6 +676,12 @@ StageMap CreateStages(const std::vector<ir::Tensor> &tensors) {
   }
 
   return stages;
+}
+
+Stage *_StageMap_::Lookup(const std::string &name) const {
+  auto it = data_.find(name);
+  if (it == data_.end()) return nullptr;
+  return it->second.get();
 }
 
 }  // namespace poly

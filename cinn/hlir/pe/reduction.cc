@@ -6,6 +6,7 @@
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 
 namespace cinn {
@@ -110,7 +111,7 @@ Tensor DoReduce(const Tensor& tensor,
     std::string name = UniqName("kk");
     reduce_axes.push_back(Var(tensor->shape[axis], name));
   }
-  auto compute = [&](const std::vector<Expr>& indices) {
+  auto compute = [&](const std::vector<Expr>& indices) -> Expr {
     std::vector<Expr> eval_indice;
     int indice_cnt = 0;
     int reduce_cnt = 0;
@@ -126,15 +127,15 @@ Tensor DoReduce(const Tensor& tensor,
       eval_indice.push_back(indices[indice_cnt]);
       indice_cnt++;
     }
-    return fn(tensor(eval_indice), initial);
+    return fn(tensor(eval_indice), reduce_axes, initial);
   };
   if (initial.defined()) {
-    Tensor C = Compute(output_shape, compute, output_name, reduce_axes);
+    Tensor C = Compute(output_shape, compute, output_name);
     stages->InsertLazily(C);
-    C->InitReduction(stages, initial);
+    C->InitReduction(stages);
     return C;
   } else {
-    Tensor C = Compute(output_shape, compute, output_name, reduce_axes);
+    Tensor C = Compute(output_shape, compute, output_name);
     stages->InsertLazily(C);
     return C;
   }
@@ -175,7 +176,7 @@ Tensor Sum(const Tensor& A,
            bool keep_dims,
            const ir::Expr& initial,
            const std::string& output_name) {
-  return Reduce(A, stages, axes, ReduceSum, keep_dims, initial, output_name);
+  return Reduce(A, stages, axes, lang::ReduceSum, keep_dims, initial, output_name);
 }
 
 Tensor Prod(const Tensor& A,
@@ -184,17 +185,17 @@ Tensor Prod(const Tensor& A,
             bool keep_dims,
             const ir::Expr& initial,
             const std::string& output_name) {
-  return Reduce(A, stages, axes, ReduceMul, keep_dims, initial, output_name);
+  return Reduce(A, stages, axes, lang::ReduceMul, keep_dims, initial, output_name);
 }
 
 Tensor Max(
     const Tensor& A, StageMap stages, const std::vector<Expr>& axes, bool keep_dims, const std::string& output_name) {
-  return Reduce(A, stages, axes, ReduceMax, keep_dims, Expr(), output_name);
+  return Reduce(A, stages, axes, lang::ReduceMax, keep_dims, Expr(), output_name);
 }
 
 Tensor Min(
     const Tensor& A, StageMap stages, const std::vector<Expr>& axes, bool keep_dims, const std::string& output_name) {
-  return Reduce(A, stages, axes, ReduceMin, keep_dims, Expr(), output_name);
+  return Reduce(A, stages, axes, lang::ReduceMin, keep_dims, Expr(), output_name);
 }
 
 }  // namespace pe

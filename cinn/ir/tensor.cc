@@ -223,9 +223,15 @@ Expr *_Tensor_::mutable_body() {
   CINN_NOT_IMPLEMENTED
 }
 
-ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, Expr init_val) const {
+ir::Tensor _Tensor_::InitReduction(poly::StageMap stages) const {
+  CHECK(contains_reduce_axis()) << "InitReduction only works on a reduce tensor";
+  // return if already rexists.
+  std::string init_reduce_tensor_name = GenReduceInitTensorNameOf(name);
+  if (stages->Lookup(init_reduce_tensor_name)) return stages[this]->LookupCtrlDepend(init_reduce_tensor_name);
+
+  // create a new init tensor.
   auto init_tensor = lang::Compute(
-      shape, [=](const std::vector<Expr> &axis) { return init_val; }, UniqName(name + "_init"));
+      shape, [=](const std::vector<Expr> &axis) { return GetReduceInitVal(); }, UniqName(init_reduce_tensor_name));
   stages->InsertLazily(init_tensor);
   stages[this]->CtrlDepend(init_tensor);
   stages[this]->ShareBufferWith(stages[init_tensor]);
@@ -286,12 +292,6 @@ void _Tensor_::Bind(lang::Buffer &buffer) {
 void _Tensor_::Bind(const Buffer &buffer) {
   lang::Buffer buf(buffer);
   Bind(buf);
-}
-
-void Tensor::ExpandInlined() {
-  // Collect all the Calls with Tensors
-  // Expand all the uninlined tensor.
-  CINN_NOT_IMPLEMENTED
 }
 
 void _Tensor_::WithBuffer(const Type &type) {
@@ -461,6 +461,22 @@ ir::Tensor _Tensor_::ReshapeCopied(const std::vector<Expr> &shape, poly::StageMa
 Shared<poly::Stage> CreateStage(Tensor tensor) {
   auto isl_domain = tensor->GenerateIslDomain();
   return poly::Stage::New(isl_domain, tensor->body(), tensor.self());
+}
+
+std::string GenReduceInitTensorNameOf(const std::string &tensor_name) { return tensor_name + "__reduce_init"; }
+
+bool _Tensor_::is_reduce_sum() const {
+  if (!contains_reduce_axis()) return false;
+  return body().As<ir::Reduce>() && body().As<ir::Reduce>()->reduce_type == ir::Reduce::ReduceType::kSum;
+}
+bool _Tensor_::is_reduce_mul() const {
+  if (!contains_reduce_axis()) return false;
+  return body().As<ir::Reduce>() && body().As<ir::Reduce>()->reduce_type == ir::Reduce::ReduceType::kMul;
+}
+
+Expr _Tensor_::GetReduceInitVal() const {
+  CHECK(is_reduce_tensor());
+  return body().As<ir::Reduce>()->init;
 }
 
 }  // namespace ir

@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "cinn/ir/ir_operators.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 
 namespace cinn {
@@ -13,10 +14,10 @@ using cinn::lang::Compute;
 using ir::Expr;
 using ir::Tensor;
 
-#define HLIR_IMP_UNARY_PE(name__)                                                                   \
-  Tensor name__(const Tensor& A, const std::string& output_name) {                                  \
-    return Compute(                                                                                 \
-        A->shape, [&](const std::vector<Expr>& indice) { return name__(A(indice)); }, output_name); \
+#define HLIR_IMP_UNARY_PE(name__)                                                                         \
+  Tensor name__(const Tensor& A, const std::string& output_name) {                                        \
+    return Compute(                                                                                       \
+        A->shape, [&](const std::vector<Expr>& indice) { return lang::name__(A(indice)); }, output_name); \
   }
 
 HLIR_IMP_UNARY_PE(Exp);

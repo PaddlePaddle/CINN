@@ -57,7 +57,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     VLOG(3) << "matmul out: " << out;
     auto stages = CreateStages({out});
     CHECK(!out_type.empty()) << "Output type of MatMul is empty! Please check.\n";
-    out->InitReduction(stages, ir::Zero(out_type[0]));
+    out->InitReduction(stages);
     *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
@@ -168,14 +168,14 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     auto new_B = B_tensor->Reshape(new_yshape, stages);
     std::vector<Expr> output_shape{new_xshape[0], new_yshape[1]};
     Var axis_k(new_xshape[1], UniqName("axis_k"));
-    auto out = Compute(output_shape,
-                       [=](Expr m, Expr n) { return ir::ReduceSum(new_A(m, axis_k) * new_B(axis_k, n), Expr(0.f)); },
-                       UniqName("Mul_out"),
-                       {axis_k});
+    auto out = Compute(
+        output_shape,
+        [=](Expr m, Expr n) { return lang::ReduceSum(new_A(m, axis_k) * new_B(axis_k, n), {axis_k}); },
+        UniqName("Mul_out"));
     VLOG(3) << "mul out: " << out;
     stages->InsertLazily(out);
     CHECK(!out_type.empty()) << "Output type of Mul is empty! Please check.\n";
-    out->InitReduction(stages, ir::Zero(out_type[0]));
+    out->InitReduction(stages);
     *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 

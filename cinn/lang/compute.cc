@@ -14,7 +14,6 @@ namespace lang {
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr()> fn,
                    const std::string &name,
-                   const std::vector<Var> &reduce_axis,
                    const std::vector<Expr> &shape) {
   return Compute(
       domain,
@@ -23,14 +22,12 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
         return fn();
       },
       name,
-      reduce_axis,
       shape);
 }
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr)> fn,
                    const std::string &name,
-                   const std::vector<Var> &reduce_axis,
                    const std::vector<Expr> &shape) {
   return Compute(
       domain,
@@ -39,14 +36,12 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
         return fn(axis[0]);
       },
       name,
-      reduce_axis,
       shape);
 }
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr)> fn,
                    const std::string &name,
-                   const std::vector<Var> &reduce_axis,
                    const std::vector<Expr> &shape) {
   return Compute(
       domain,
@@ -55,14 +50,12 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
         return fn(axis[0], axis[1]);
       },
       name,
-      reduce_axis,
       shape);
 }
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr, Expr)> fn,
                    const std::string &name,
-                   const std::vector<Var> &reduce_axis,
                    const std::vector<Expr> &shape) {
   return Compute(
       domain,
@@ -71,14 +64,12 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
         return fn(axis[0], axis[1], axis[2]);
       },
       name,
-      reduce_axis,
       shape);
 }
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr, Expr, Expr)> fn,
                    const std::string &name,
-                   const std::vector<Var> &reduce_axis,
                    const std::vector<Expr> &shape) {
   return Compute(
       domain,
@@ -87,14 +78,12 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
         return fn(axis[0], axis[1], axis[2], axis[3]);
       },
       name,
-      reduce_axis,
       shape);
 }
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(Expr, Expr, Expr, Expr, Expr)> fn,
                    const std::string &name,
-                   const std::vector<Var> &reduce_axis,
                    const std::vector<Expr> &shape) {
   return Compute(
       domain,
@@ -103,19 +92,23 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
         return fn(axis[0], axis[1], axis[2], axis[3], axis[4]);
       },
       name,
-      reduce_axis,
       shape);
 }
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(const std::vector<Expr> &)> fn,
                    const std::string &name,
-                   const std::vector<Var> &reduce_axis,
                    const std::vector<Expr> &shape) {
   auto axises = common::GenDefaultAxis(domain.size());
   std::vector<Expr> _axis;
   for (auto &x : axises) _axis.push_back(x);
   Expr fn_body = fn(_axis);
+
+  std::vector<Var> reduce_axis;
+  if (fn_body.As<ir::Reduce>()) {
+    auto &fn_reduce_axis = fn_body.As<ir::Reduce>()->reduce_axis;
+    reduce_axis.insert(std::begin(reduce_axis), fn_reduce_axis.begin(), fn_reduce_axis.end());
+  }
 
   // When the fn_body is a CallExtern, a tensor will return directly.
   if (fn_body.as_tensor()) {

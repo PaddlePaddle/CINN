@@ -72,17 +72,21 @@ class Tensor : public ir::IrNodeRef {
 
   friend bool operator<(const Tensor& a, const Tensor& b);
 
-  //! Expand the inline expression in the body.
-  void ExpandInlined();
-
   _Tensor_* self() { return operator->(); }
   const _Tensor_* self() const { return operator->(); }
 
   inline const _Tensor_* operator->() const { return As<_Tensor_>(); }
   inline _Tensor_* operator->() { return As<_Tensor_>(); }
 
+  //! Cast to an Expr.
   inline operator Expr() const { return Expr(get()); }
 };
+
+/**
+ * \brief Generate the name of the reduce init tensor of \p tensor.
+ * This is used for retrieving the corresponding reduction-init tensor from a stage map by name.
+ */
+std::string GenReduceInitTensorNameOf(const std::string& tensor_name);
 
 class ComputeOp;
 class PlaceholderOp;
@@ -130,7 +134,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
    * @param init_val The initial value.
    * @return The initializing tensor.
    */
-  ir::Tensor InitReduction(poly::StageMap stages, Expr init_val) const;
+  ir::Tensor InitReduction(poly::StageMap stages) const;
 
   //! Tell whether this tensor represents a tuple (consists of one or multiple tensors as output of a extern Call).
   bool is_tuple() const;
@@ -196,6 +200,11 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   //! Tell whether contain a reduce axis.
   bool contains_reduce_axis() const { return !reduce_axis.empty(); }
+  bool is_reduce_tensor() const { return contains_reduce_axis(); }
+  bool is_reduce_sum() const;
+  bool is_reduce_mul() const;
+  //! Get the initial value of a reduce tensor.
+  Expr GetReduceInitVal() const;
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;

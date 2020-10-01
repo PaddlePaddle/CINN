@@ -513,13 +513,13 @@ TEST(depthwise_conv, test) {
       [=](Expr c0, Expr c1, Expr w, Expr h) -> Expr { return filter(c0, c1, w, h); },
       "cache_filter");
 
-  auto output = Compute({Expr(batch), Expr(in_channel), Expr(out_height), Expr(out_width)},
-                        [=](Var b, Var c, Var i, Var j) -> Expr {
-                          auto expr = IS(b, c, i * stride + di, j * stride + dj) * FS(c, c, di, dj);
-                          return Sum(expr);
-                        },
-                        "output",
-                        {di, dj});
+  auto output = Compute(
+      {Expr(batch), Expr(in_channel), Expr(out_height), Expr(out_width)},
+      [=](Var b, Var c, Var i, Var j) -> Expr {
+        auto expr = IS(b, c, i * stride + di, j * stride + dj) * FS(c, c, di, dj);
+        return lang::ReduceSum(expr, {di, dj});
+      },
+      "output");
 
   auto stages = CreateStages({output});
 
@@ -560,12 +560,12 @@ TEST(Conv, basic) {
   Var ry(kernel, "ry");
   Var rx(kernel, "rx");
 
-  auto B = Compute({out_size, out_size, out_channel, batch},
-                   [=](Expr yy, Expr xx, Expr ff, Expr nn) -> Expr {
-                     return Sum(Apad(yy * stride + ry, xx * stride + rx, rc, nn) * W(ry, rx, rc, ff));
-                   },
-                   "B",
-                   {rc, ry, rx});
+  auto B = Compute(
+      {out_size, out_size, out_channel, batch},
+      [=](Expr yy, Expr xx, Expr ff, Expr nn) -> Expr {
+        return lang::ReduceSum(Apad(yy * stride + ry, xx * stride + rx, rc, nn) * W(ry, rx, rc, ff), {rc, ry, rx});
+      },
+      "B");
 
   auto stages = CreateStages({A, W, Apad, B});
   stages[Apad]->ComputeInline();
@@ -758,12 +758,12 @@ TEST(Conv, optimize) {
   auto ry = Var(kernel, "ry");
   auto rx = Var(kernel, "rx");
 
-  auto B = Compute({out_size, out_size, out_channel, batch},
-                   [=](Expr yy, Expr xx, Expr ff, Expr nn) {
-                     return Sum(Apad(yy * stride + ry, xx * stride + rx, rc, nn) * W(ry, rx, rc, ff));
-                   },
-                   "B",
-                   {rc, ry, rx} /*reduce axis*/);
+  auto B = Compute(
+      {out_size, out_size, out_channel, batch},
+      [=](Expr yy, Expr xx, Expr ff, Expr nn) {
+        return lang::ReduceSum(Apad(yy * stride + ry, xx * stride + rx, rc, nn) * W(ry, rx, rc, ff), {rc, ry, rx});
+      },
+      "B");
 
   auto stages = CreateStages({B});
 

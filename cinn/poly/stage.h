@@ -297,6 +297,8 @@ class Stage : public Object {
 
   void ComputeAtSchedule(Stage* other, int level, ComputeAtKind kind = kComputeAtAuto);
 
+  ir::Tensor LookupCtrlDepend(const std::string& tensor_name) const;
+
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
 
@@ -375,13 +377,24 @@ std::vector<isl::map> GatherAccesses(const Stage* stage, const std::string& tens
 
 class _StageMap_ : public Object {
  public:
+  /**
+   * Get a stage from the stage map.
+   * NOTE The stage should exists, or it will abort.
+   */
+  // @{
   Stage* operator[](const ir::Tensor& tensor);
   const Stage* operator[](const ir::Tensor& tensor) const;
   Stage* operator[](const ir::_Tensor_* tensor);
   const Stage* operator[](const ir::_Tensor_* tensor) const;
+  // @}
 
+  //! Insert a stage into the map, it will replace if an older one exists.
   Stage* Insert(const ir::Tensor& key, Stage* stage);
+  //! Insert a stage only if not exists.
   Stage* InsertLazily(const ir::Tensor& key);
+
+  //! Lookup a tensor from the map, return nullptr if not exists.
+  Stage* Lookup(const std::string& name) const;
 
   inline size_t size() const { return data_.size(); }
 

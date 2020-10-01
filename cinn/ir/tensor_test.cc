@@ -8,6 +8,7 @@
 #include "cinn/common/test_helper.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
 #include "cinn/lang/packed_func.h"
@@ -160,6 +161,30 @@ void fn(void* _args, int32_t num_args)
 )ROC";
 
   ASSERT_EQ(Trim(target_source), Trim(source));
+}
+
+TEST(Tensor, reduce) {
+  Placeholder<float> A("A", {Expr(10)});
+  Var reduce_axis(Expr(10), "ii");
+  {
+    auto C = Compute(
+        A->shape,
+        [=](const std::vector<Expr>& axis) { return lang::ReduceSum(A(reduce_axis) + 1.f, {reduce_axis}); },
+        "C");
+    ASSERT_TRUE(C->has_expression());
+    ASSERT_TRUE(C->is_reduce_sum());
+    ASSERT_FALSE(C->is_reduce_mul());
+  }
+
+  {
+    auto C = Compute(
+        A->shape,
+        [=](const std::vector<Expr>& axis) { return lang::ReduceMul(A(reduce_axis) + 1.f, {reduce_axis}); },
+        "C");
+    ASSERT_TRUE(C->has_expression());
+    ASSERT_TRUE(C->is_reduce_mul());
+    ASSERT_FALSE(C->is_reduce_sum());
+  }
 }
 
 }  // namespace ir

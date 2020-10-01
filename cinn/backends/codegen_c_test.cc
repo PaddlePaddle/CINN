@@ -215,7 +215,8 @@ TEST(CodeGenC, matmul) {
   Tensor C_init = Compute(
       {Expr(100), Expr(50)}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
 
-  Tensor C = Compute({Expr(100), Expr(50)}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
+  Tensor C = Compute(
+      {Expr(100), Expr(50)}, [&](Var i, Var j) { return lang::ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({A, B, C_init, C});
   stages[C]->ShareBufferWith(stages[C_init]);
@@ -318,7 +319,8 @@ TEST(CodeGenC, matmul_tile) {
   Tensor C_init = Compute(
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
 
-  Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
+  Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return lang::ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C, C_init});
   stages[C]->ShareBufferWith(stages[C_init]);
@@ -398,7 +400,8 @@ TEST(CodeGenC, matmul_packed) {
   Var k(K.as_int32(), "k0");
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "PackedB");
-  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, k) * packedB(j / bn, k, j % bn); }, "C", {k});
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return ReduceSum(A(i, k) * packedB(j / bn, k, j % bn), {k}); }, "C");
 
   auto stages = CreateStages({packedB, C});
 
@@ -454,7 +457,7 @@ void matmul_with_packing(void* _args, int32_t num_args)
         for (int32_t j_inner = 0; j_inner < (1 + ((int32_t)(cinn_min(31, (499 + (-32 * j_outer)))))); j_inner += 1) {
           for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
             for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * PackedB[((j_inner % 32) + ((6400 * (j_inner / 32)) + ((6400 * j_outer) + ((32 * k0_inner) + (128 * k0_outer)))))]);
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * PackedB[((j_inner % 32) + ((6400 * (j_inner / 32)) + ((6400 * j_outer) + ((32 * k0_inner) + (128 * k0_outer)))))]));
             };
           };
         };

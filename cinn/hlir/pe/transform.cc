@@ -5,6 +5,7 @@
 #include "cinn/common/cas.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 
 namespace cinn {
@@ -115,9 +116,9 @@ Tensor Matmul(const Tensor& A,
                     &A_indice,
                     &B_indice,
                     &reduce_axes);
-    return ReduceSum(A(A_indice) * B(B_indice));
+    return lang::ReduceSum(A(A_indice) * B(B_indice), reduce_axes);
   };
-  return Compute(output_shape, fn, name, reduce_axes);
+  return Compute(output_shape, fn, name);
 }
 
 }  // namespace pe
