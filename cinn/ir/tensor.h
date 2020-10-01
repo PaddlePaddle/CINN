@@ -18,9 +18,15 @@
 
 namespace cinn {
 
+namespace ir {
+class Tensor;
+}  // namespace ir
+
 namespace lang {
 template <typename T>
 struct Placeholder;
+
+void InitReduceTensor(poly::StageMap stages, const ir::Tensor& tensor);
 }  // namespace lang
 
 namespace ir {
@@ -31,6 +37,7 @@ constexpr bool GE(int a, int b) { return a >= b; }
 }  // namespace detail
 
 class _Tensor_;
+class Tensor;
 
 class Tensor : public ir::IrNodeRef {
  public:
@@ -128,13 +135,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      FunctionRef fn,
                      const std::vector<Var>& reduce_axis = {});
 
-  /**
-   * Create the initialization tensor.
-   * @param stages The stages.
-   * @param init_val The initial value.
-   * @return The initializing tensor.
-   */
-  ir::Tensor InitReduction(poly::StageMap stages) const;
   bool IsReduceInited(poly::StageMap stages) const;
 
   //! Tell whether this tensor represents a tuple (consists of one or multiple tensors as output of a extern Call).
@@ -257,6 +257,14 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   isl::set GenerateIslDomain() const;
 
+  /**
+   * Create the initialization tensor.
+   * @param stages The stages.
+   * @param init_val The initial value.
+   * @return The initializing tensor.
+   */
+  ir::Tensor InitReduction(poly::StageMap stages) const;
+
   //! The names of the tensors depend the same buffer and should schedule before this.
   std::set<std::string> buffer_depended_tensor_names_;
 
@@ -264,6 +272,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   mutable std::vector<Var> axis_;
 
   friend Shared<poly::Stage> CreateStage(Tensor tensor);
+
+  friend void lang::InitReduceTensor(poly::StageMap stages, const ir::Tensor& tensor);
 };
 
 Shared<poly::Stage> CreateStage(Tensor tensor);
