@@ -551,6 +551,8 @@ Expr PrimitiveNode::Make(const std::string &name, const std::map<std::string, at
 }
 
 Expr Reduce::Make(Reduce::ReduceType reduce_type, Expr init, Expr body, const std::vector<Var> &reduce_aixs) {
+  CHECK(body.defined());
+  CHECK(init.defined());
   auto n         = common::make_shared<Reduce>();
   n->init        = init;
   n->body        = body;

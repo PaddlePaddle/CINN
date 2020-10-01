@@ -58,26 +58,36 @@ EXTERN_CALL_IMP(Isinf, isinf);
 
 Expr min_value(const Type& type) {
   CHECK_EQ(type.lanes(), 1);
-  if (type.is_int()) {
-    if (type.bits() == 64) {
-      return Expr(std::numeric_limits<int64_t>::lowest());
-    } else if (type.bits() < 64) {
-      int64_t val = 1;
-      val         = -(val << (type.bits() - 1));
-      return Expr(val);
-    }
-  } else if (type.is_uint()) {
-    return Expr(0);
-  } else if (type.is_float()) {
-    if (type.bits() == 64) {
-      return Expr(std::numeric_limits<double>::lowest());
-    } else if (type.bits() == 32) {
-      return Expr(std::numeric_limits<float>::lowest());
-    } else if (type.bits() == 16) {
-      return Expr(-65504.0);
-    }
+#define FOR_CASE(type__)                             \
+  if (type == type_of<type__>()) {                   \
+    return Expr(std::numeric_limits<type__>::min()); \
   }
-  LOG(FATAL) << "Cannot decide min_value for type" << type;
+  FOR_CASE(int32_t)
+  FOR_CASE(int64_t)
+  FOR_CASE(uint32_t)
+  FOR_CASE(uint64_t)
+  FOR_CASE(float)
+  FOR_CASE(double)
+#undef FOR_CASE
+  return Expr();
+}
+
+Expr max_value(const Type& type) {
+  CHECK_EQ(type.lanes(), 1);
+
+#define FOR_CASE(type__)                             \
+  if (type == type_of<type__>()) {                   \
+    return Expr(std::numeric_limits<type__>::max()); \
+  }
+  FOR_CASE(int32_t)
+  FOR_CASE(int64_t)
+  FOR_CASE(uint32_t)
+  FOR_CASE(uint64_t)
+  FOR_CASE(float)
+  FOR_CASE(double)
+#undef FOR_CASE
+
+  CINN_NOT_IMPLEMENTED
   return Expr();
 }
 

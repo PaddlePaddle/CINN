@@ -99,14 +99,21 @@ inline Expr ReduceMul(Expr e, const std::vector<Var>& reduce_axis, Expr initial 
   return ir::Reduce::Make(ir::Reduce::kMul, initial, e, reduce_axis);
 }
 
-inline Expr ReduceMax(Expr e, const std::vector<Var>& reduce_axis, Expr initial) {
+Expr min_value(const Type& type);
+Expr max_value(const Type& type);
+
+inline Expr ReduceMax(Expr e, const std::vector<Var>& reduce_axis, Expr initial = Expr()) {
+  if (!initial.defined()) {
+    initial = min_value(e.type());
+  }
   return ir::Reduce::Make(ir::Reduce::kMax, initial, e, reduce_axis);
 }
-inline Expr ReduceMin(Expr e, const std::vector<Var>& reduce_axis, Expr initial) {
+inline Expr ReduceMin(Expr e, const std::vector<Var>& reduce_axis, Expr initial = Expr()) {
+  if (!initial.defined()) {
+    initial = max_value(e.type());
+  }
   return ir::Reduce::Make(ir::Reduce::kMin, initial, e, reduce_axis);
 }
-
-Expr min_value(const Type& type);
 
 }  // namespace lang
 }  // namespace cinn

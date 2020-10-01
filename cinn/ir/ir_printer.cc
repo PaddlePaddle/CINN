@@ -299,6 +299,8 @@ void IrPrinter::Visit(const Reduce *f) {
   }
   os() << ", ";
   Print(f->body);
+  os() << ",";
+  Print(f->init);
   os() << ")";
 }
 

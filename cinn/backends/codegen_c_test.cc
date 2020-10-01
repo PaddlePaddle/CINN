@@ -212,19 +212,13 @@ TEST(CodeGenC, matmul) {
   // C = A * B
   Var k(20, "k0");
 
-  Tensor C_init = Compute(
-      {Expr(100), Expr(50)}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
-
   Tensor C = Compute(
       {Expr(100), Expr(50)}, [&](Var i, Var j) { return lang::ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
-  auto stages = CreateStages({A, B, C_init, C});
-  stages[C]->ShareBufferWith(stages[C_init]);
-
-  stages[C_init]->ComputeAtSchedule(stages[C], 1, poly::Stage::kComputeAtBefore);
+  auto stages = CreateStages({A, B, C});
 
   // Code gen
-  auto func = Lower("matmul", stages, {A, B, C_init, C});
+  auto func = Lower("matmul", stages, {A, B, C});
   builder.AddFunction(func);
   builder.AddBuffer(C->buffer);
 
@@ -264,10 +258,14 @@ void matmul(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   const float* B = ((const float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  float* C_init = ((float*)(_C->memory));
+  float* C__reduce_init = ((float*)(_C->memory));
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 50; j += 1) {
-      C_init[((50 * i) + j)] = 0;
+      C__reduce_init[((50 * i) + j)] = 0;
+    };
+  };
+  for (int32_t i = 0; i < 100; i += 1) {
+    for (int32_t j = 0; j < 50; j += 1) {
       for (int32_t k0 = 0; k0 < 20; k0 += 1) {
         C[((50 * i) + j)] = (C[((50 * i) + j)] + (A[((20 * i) + k0)] * B[((50 * k0) + j)]));
       };
@@ -366,7 +364,13 @@ void matmul(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   const float* B = ((const float*)(_B->memory));
   float* C = ((float*)(_C->memory));
+  float* C__reduce_init = ((float*)(_C->memory));
   float* C_init = ((float*)(_C->memory));
+  for (int32_t i = 0; i < 100; i += 1) {
+    for (int32_t j = 0; j < 500; j += 1) {
+      C__reduce_init[((500 * i) + j)] = 0;
+    };
+  };
   for (int32_t i_outer = 0; i_outer < 4; i_outer += 1) {
     for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
       for (int32_t i_inner = 0; i_inner < (1 + ((int32_t)(cinn_min(31, (99 + (-32 * i_outer)))))); i_inner += 1) {
@@ -443,7 +447,13 @@ void matmul_with_packing(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   const float* B = ((const float*)(_B->memory));
   float* C = ((float*)(_C->memory));
+  float* C__reduce_init = ((float*)(_C->memory));
   float* PackedB = ((float*)(_PackedB->memory));
+  for (int32_t i = 0; i < 100; i += 1) {
+    for (int32_t j = 0; j < 500; j += 1) {
+      C__reduce_init[((500 * i) + j)] = 0;
+    };
+  };
   for (int32_t i = 0; i < 15; i += 1) {
     for (int32_t j = 0; j < 200; j += 1) {
       for (int32_t k = 0; k < 32; k += 1) {

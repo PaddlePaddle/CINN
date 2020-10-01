@@ -28,7 +28,6 @@ auto CreateMatmulBasicModule(Target target, int m, int n, int k) {
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages);
 
   Module::Builder builder("module_basic", target);
 
@@ -49,7 +48,6 @@ auto CreateMatmulTileModule(Target target, int m, int n, int k) {
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages);
 
   stages[C]->Tile(0, 1, 4, 4);
 
@@ -72,7 +70,6 @@ auto CreateMatmulSplitModule(Target target, int m, int n, int k) {
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages);
 
   auto c_poly_iterators = [&](auto &&... args) {
     std::vector<poly::Iterator> iters;
@@ -101,7 +98,6 @@ auto CreateMatmulBlockModule(Target target, int m, int n, int k) {
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages);
 
   constexpr int bn                          = 32;
   auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
@@ -130,7 +126,6 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k0) * B(k0, j), {k0}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages);
 
   {
     auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);
@@ -164,16 +159,12 @@ lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
   auto C = Compute(
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
-  auto stages       = CreateStages({C});
-  ir::Tensor C_init = C->InitReduction(stages);
+  auto stages = CreateStages({C});
 
   // Blocking by loop tiling.
   {
     auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
     auto [k_outer, k_inner]                   = stages[C]->Split("k0", 4);      // NOLINT
-
-    stages[C_init]->Vectorize(1, 8);
-    stages[C_init]->Unroll(1);
 
     stages[C]->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
 

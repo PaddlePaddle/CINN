@@ -231,7 +231,7 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages) const {
 
   // create a new init tensor.
   auto init_tensor = lang::Compute(
-      shape, [=](const std::vector<Expr> &axis) { return GetReduceInitVal(); }, UniqName(init_reduce_tensor_name));
+      shape, [=](const std::vector<Expr> &axis) { return GetReduceInitVal(); }, init_reduce_tensor_name);
   stages->InsertLazily(init_tensor);
   stages[this]->CtrlDepend(init_tensor);
   stages[this]->ShareBufferWith(stages[init_tensor]);
@@ -478,6 +478,8 @@ Expr _Tensor_::GetReduceInitVal() const {
   CHECK(is_reduce_tensor());
   return body().As<ir::Reduce>()->init;
 }
+
+bool _Tensor_::IsReduceInited(poly::StageMap stages) const { return stages->Lookup(GenReduceInitTensorNameOf(name)); }
 
 }  // namespace ir
 }  // namespace cinn

@@ -20,12 +20,10 @@ TEST(test02_matmul, basic) {
   auto C = Compute(
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
-  auto stages = CreateStages({C});
-  C->InitReduction(stages);
-
   Target target = common::DefaultHostTarget();
 
   {
+    auto stages = CreateStages({C});
     Module::Builder builder("module1", target);
     auto func = Lower("matmul", stages, {A, B, C});
 
@@ -39,6 +37,7 @@ TEST(test02_matmul, basic) {
 
   // Tile
   {
+    auto stages = CreateStages({C});
     stages[C]->Tile(0, 1, 4, 4);
 
     Module::Builder builder("module2", target);
@@ -63,7 +62,6 @@ TEST(matmul, Split) {
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C});
-  auto C_init = C->InitReduction(stages);
 
   Target target = common::DefaultHostTarget();
 
@@ -95,7 +93,6 @@ TEST(matmul, Blocking) {
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages);
 
   Target target = common::DefaultHostTarget();
 
@@ -129,7 +126,6 @@ TEST(matmul, Vectorization) {
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages);
 
   Target target = common::DefaultHostTarget();
 
@@ -183,7 +179,6 @@ TEST(matmul, varient_shape) {
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages);
 
   Target target = common::DefaultHostTarget();
 
@@ -234,7 +229,6 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
       {M, N}, [&](Expr i, Expr j) { return ReduceSum(A(i, k) * packedB(j / bn, k, j % bn), {k}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages);
 
   stages[packedB]->Vectorize(2, 8);
 
@@ -274,7 +268,6 @@ TEST(matmul, call) {
   Target target = common::DefaultHostTarget();
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages);
 
   Module::Builder builder("module_call", target);
   {
