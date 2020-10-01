@@ -105,7 +105,7 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
   Expr fn_body = fn(_axis);
 
   std::vector<Var> reduce_axis;
-  if (fn_body.As<ir::Reduce>()) {
+  if (fn_body.defined() && fn_body.As<ir::Reduce>()) {
     auto &fn_reduce_axis = fn_body.As<ir::Reduce>()->reduce_axis;
     reduce_axis.insert(std::begin(reduce_axis), fn_reduce_axis.begin(), fn_reduce_axis.end());
   }
