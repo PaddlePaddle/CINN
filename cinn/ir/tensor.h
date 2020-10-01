@@ -135,6 +135,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
    * @return The initializing tensor.
    */
   ir::Tensor InitReduction(poly::StageMap stages) const;
+  bool IsReduceInited(poly::StageMap stages) const;
 
   //! Tell whether this tensor represents a tuple (consists of one or multiple tensors as output of a extern Call).
   bool is_tuple() const;

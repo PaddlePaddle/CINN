@@ -479,5 +479,7 @@ Expr _Tensor_::GetReduceInitVal() const {
   return body().As<ir::Reduce>()->init;
 }
 
+bool _Tensor_::IsReduceInited(poly::StageMap stages) const { return stages->Lookup(GenReduceInitTensorNameOf(name)); }
+
 }  // namespace ir
 }  // namespace cinn

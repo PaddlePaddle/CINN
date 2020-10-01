@@ -384,13 +384,6 @@ ir::LoweredFunc LowerImpl::operator()() {
     if (!stages_[t]->inlined()) stages.push_back(stages_[t]);
   }
 
-  // Init reduce
-  for (auto& item : all_tensor_map) {
-    if (item.second->is_reduce_tensor() && !stages_->Lookup(ir::GenReduceInitTensorNameOf(item.first))) {
-      item.second->InitReduction(stages_);
-    }
-  }
-
   auto deps     = CollectExtraDependencies();
   auto schedule = poly::CreateSchedule(
       stages, poly::ScheduleKind::Poly, std::vector<std::pair<std::string, std::string>>(deps.begin(), deps.end()));
