@@ -6,6 +6,7 @@
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 
 namespace cinn {
@@ -97,20 +98,20 @@ void GetOutputShape(const std::vector<int>& real_axes,
  * @return The result tensor.
  */
 template <typename FuncOp>
-std::vector<Tensor> DoReduce(const Tensor& tensor,
-                             poly::StageMap stages,
-                             const FuncOp& fn,
-                             const std::vector<Expr>& output_shape,
-                             const std::vector<int>& real_axes,
-                             const std::vector<int>& squeeze_axes,
-                             const ir::Expr& initial,
-                             const std::string& output_name) {
+Tensor DoReduce(const Tensor& tensor,
+                poly::StageMap stages,
+                const FuncOp& fn,
+                const std::vector<Expr>& output_shape,
+                const std::vector<int>& real_axes,
+                const std::vector<int>& squeeze_axes,
+                const ir::Expr& initial,
+                const std::string& output_name) {
   std::vector<Var> reduce_axes;
   for (auto& axis : real_axes) {
     std::string name = UniqName("kk");
     reduce_axes.push_back(Var(tensor->shape[axis], name));
   }
-  auto compute = [&](const std::vector<Expr>& indices) {
+  auto compute = [&](const std::vector<Expr>& indices) -> Expr {
     std::vector<Expr> eval_indice;
     int indice_cnt = 0;
     int reduce_cnt = 0;
@@ -126,28 +127,12 @@ std::vector<Tensor> DoReduce(const Tensor& tensor,
       eval_indice.push_back(indices[indice_cnt]);
       indice_cnt++;
     }
-    return fn(tensor(eval_indice), initial);
+    return fn(tensor(eval_indice), reduce_axes, initial);
   };
-  std::vector<Tensor> tensors;
-  if (initial.defined()) {
-    auto compute_init = [&](const std::vector<Expr>& indices) { return initial; };
-    Tensor C_init     = Compute(output_shape, compute_init, output_name + "_init");
-    Tensor C          = Compute(output_shape, compute, output_name, reduce_axes);
 
-    stages->InsertLazily(C);
-    stages->InsertLazily(C_init);
-
-    stages[C]->ShareBufferWith(stages[C_init]);
-    stages[C]->CtrlDepend(C_init);
-
-    tensors.emplace_back(C);
-    tensors.emplace_back(C_init);
-  } else {
-    Tensor C = Compute(output_shape, compute, output_name, reduce_axes);
-    tensors.emplace_back(C);
-    stages->InsertLazily(C);
-  }
-  return tensors;
+  Tensor C = Compute(output_shape, compute, output_name);
+  stages->InsertLazily(C);
+  return C;
 }
 
 /**
@@ -162,13 +147,13 @@ std::vector<Tensor> DoReduce(const Tensor& tensor,
  * @return The result tensor.
  */
 template <typename FuncOp>
-std::vector<Tensor> Reduce(const Tensor& tensor,
-                           poly::StageMap stages,
-                           const std::vector<Expr>& axes,
-                           const FuncOp& fn,
-                           bool keep_dims,
-                           const ir::Expr& initial,
-                           const std::string& output_name) {
+Tensor Reduce(const Tensor& tensor,
+              poly::StageMap stages,
+              const std::vector<Expr>& axes,
+              const FuncOp& fn,
+              bool keep_dims,
+              const ir::Expr& initial,
+              const std::string& output_name) {
   auto ndim = tensor->shape.size();
   CHECK_NE(ndim, 0) << "Reduce tensor's dim must be more than 0";
   std::vector<int> real_axes;
@@ -179,36 +164,32 @@ std::vector<Tensor> Reduce(const Tensor& tensor,
       tensor, stages, fn, output_shapes, real_axes, keep_dims ? std::vector<int>() : real_axes, initial, output_name);
 }
 
-std::vector<Tensor> Sum(const Tensor& A,
-                        poly::StageMap stages,
-                        const std::vector<Expr>& axes,
-                        bool keep_dims,
-                        const ir::Expr& initial,
-                        const std::string& output_name) {
-  return Reduce(A, stages, axes, ReduceSum, keep_dims, initial, output_name);
+Tensor Sum(const Tensor& A,
+           poly::StageMap stages,
+           const std::vector<Expr>& axes,
+           bool keep_dims,
+           const ir::Expr& initial,
+           const std::string& output_name) {
+  return Reduce(A, stages, axes, lang::ReduceSum, keep_dims, initial, output_name);
 }
 
-std::vector<Tensor> Prod(const Tensor& A,
-                         poly::StageMap stages,
-                         const std::vector<Expr>& axes,
-                         bool keep_dims,
-                         const ir::Expr& initial,
-                         const std::string& output_name) {
-  return Reduce(A, stages, axes, ReduceMul, keep_dims, initial, output_name);
+Tensor Prod(const Tensor& A,
+            poly::StageMap stages,
+            const std::vector<Expr>& axes,
+            bool keep_dims,
+            const ir::Expr& initial,
+            const std::string& output_name) {
+  return Reduce(A, stages, axes, lang::ReduceMul, keep_dims, initial, output_name);
 }
 
 Tensor Max(
     const Tensor& A, StageMap stages, const std::vector<Expr>& axes, bool keep_dims, const std::string& output_name) {
-  std::vector<Tensor> tensors = Reduce(A, stages, axes, ReduceMax, keep_dims, Expr(), output_name);
-  CHECK(!tensors.empty());
-  return tensors.front();
+  return Reduce(A, stages, axes, lang::ReduceMax, keep_dims, Expr(), output_name);
 }
 
 Tensor Min(
     const Tensor& A, StageMap stages, const std::vector<Expr>& axes, bool keep_dims, const std::string& output_name) {
-  std::vector<Tensor> tensors = Reduce(A, stages, axes, ReduceMin, keep_dims, Expr(), output_name);
-  CHECK(!tensors.empty());
-  return tensors.front();
+  return Reduce(A, stages, axes, lang::ReduceMin, keep_dims, Expr(), output_name);
 }
 
 }  // namespace pe

@@ -52,21 +52,17 @@ void BindLower(py::module *m) {
 }
 
 void BindCompute(py::module *m) {
-#define MAKE_COMPUTE_FN(__fn)                      \
-  py::overload_cast<const std::vector<ir::Expr> &, \
-                    __fn,                          \
-                    const std::string &,           \
-                    const std::vector<ir::Var> &,  \
-                    const std::vector<ir::Expr> &>(&lang::Compute)
+#define MAKE_COMPUTE_FN(__fn)                                                                                 \
+  py::overload_cast<const std::vector<ir::Expr> &, __fn, const std::string &, const std::vector<ir::Expr> &>( \
+      &lang::Compute)
 
-#define DEFINE_COMPUTE(__fn)                          \
-  m->def("compute",                                   \
-         MAKE_COMPUTE_FN(__fn),                       \
-         arg("domin"),                                \
-         arg("fn"),                                   \
-         arg("name")        = "",                     \
-         arg("reduce_axis") = std::vector<ir::Var>(), \
-         arg("shape")       = std::vector<ir::Expr>())
+#define DEFINE_COMPUTE(__fn)    \
+  m->def("compute",             \
+         MAKE_COMPUTE_FN(__fn), \
+         arg("domin"),          \
+         arg("fn"),             \
+         arg("name")  = "",     \
+         arg("shape") = std::vector<ir::Expr>())
 
   // DEFINE_COMPUTE(std::function<ir::Expr()>);
   // DEFINE_COMPUTE(std::function<ir::Expr(ir::Expr)>);
@@ -191,7 +187,13 @@ void BindPlaceholder(py::module *m) {
   m->def("create_placeholder", &lang::CreatePlaceHolder);
 }
 
-void BindBuiltin(py::module *m) { m->def("sum", &lang::Sum); }
+void BindBuiltin(py::module *m) {
+  m->def("reduce_sum", &lang::ReduceSum, py::arg("e"), py::arg("reduce_axis"), py::arg("init") = Expr());
+  m->def("reduce_mul", &lang::ReduceMul);
+  m->def("reduce_max", &lang::ReduceMax);
+  m->def("reduce_min", &lang::ReduceMin);
+}
+
 }  // namespace
 
 void BindLang(py::module *m) {

@@ -18,9 +18,15 @@
 
 namespace cinn {
 
+namespace ir {
+class Tensor;
+}  // namespace ir
+
 namespace lang {
 template <typename T>
 struct Placeholder;
+
+void InitReduceTensor(poly::StageMap stages, const ir::Tensor& tensor);
 }  // namespace lang
 
 namespace ir {
@@ -31,6 +37,7 @@ constexpr bool GE(int a, int b) { return a >= b; }
 }  // namespace detail
 
 class _Tensor_;
+class Tensor;
 
 class Tensor : public ir::IrNodeRef {
  public:
@@ -72,17 +79,21 @@ class Tensor : public ir::IrNodeRef {
 
   friend bool operator<(const Tensor& a, const Tensor& b);
 
-  //! Expand the inline expression in the body.
-  void ExpandInlined();
-
   _Tensor_* self() { return operator->(); }
   const _Tensor_* self() const { return operator->(); }
 
   inline const _Tensor_* operator->() const { return As<_Tensor_>(); }
   inline _Tensor_* operator->() { return As<_Tensor_>(); }
 
+  //! Cast to an Expr.
   inline operator Expr() const { return Expr(get()); }
 };
+
+/**
+ * \brief Generate the name of the reduce init tensor of \p tensor.
+ * This is used for retrieving the corresponding reduction-init tensor from a stage map by name.
+ */
+std::string GenReduceInitTensorNameOf(const std::string& tensor_name);
 
 class ComputeOp;
 class PlaceholderOp;
@@ -124,13 +135,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      FunctionRef fn,
                      const std::vector<Var>& reduce_axis = {});
 
-  /**
-   * Create the initialization tensor.
-   * @param stages The stages.
-   * @param init_val The initial value.
-   * @return The initializing tensor.
-   */
-  ir::Tensor InitReduction(poly::StageMap stages, Expr init_val) const;
+  bool IsReduceInited(poly::StageMap stages) const;
 
   //! Tell whether this tensor represents a tuple (consists of one or multiple tensors as output of a extern Call).
   bool is_tuple() const;
@@ -196,6 +201,11 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   //! Tell whether contain a reduce axis.
   bool contains_reduce_axis() const { return !reduce_axis.empty(); }
+  bool is_reduce_tensor() const { return contains_reduce_axis(); }
+  bool is_reduce_sum() const;
+  bool is_reduce_mul() const;
+  //! Get the initial value of a reduce tensor.
+  Expr GetReduceInitVal() const;
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
@@ -247,6 +257,14 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   isl::set GenerateIslDomain() const;
 
+  /**
+   * Create the initialization tensor.
+   * @param stages The stages.
+   * @param init_val The initial value.
+   * @return The initializing tensor.
+   */
+  ir::Tensor InitReduction(poly::StageMap stages) const;
+
   //! The names of the tensors depend the same buffer and should schedule before this.
   std::set<std::string> buffer_depended_tensor_names_;
 
@@ -254,6 +272,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   mutable std::vector<Var> axis_;
 
   friend Shared<poly::Stage> CreateStage(Tensor tensor);
+
+  friend void lang::InitReduceTensor(poly::StageMap stages, const ir::Tensor& tensor);
 };
 
 Shared<poly::Stage> CreateStage(Tensor tensor);

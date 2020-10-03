@@ -2,10 +2,11 @@
 
 #include <algorithm>
 
+#include "cinn/common/cas.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
-#include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
 namespace hlir {
@@ -57,7 +58,6 @@ void GetMatmulIndice(const std::vector<Expr>& shape1_new,
       indice1->emplace_back(indices[i]);
     }
     Expr reduce_shape1 = Expr(1);
-    int count          = 1;
     // A reduce axes
     for (size_t i = x_num_col_dims; i < shape1_new.size(); i++) {
       reduce_shape1           = reduce_shape1 * shape1_new[i];
@@ -65,13 +65,12 @@ void GetMatmulIndice(const std::vector<Expr>& shape1_new,
       auto k                  = Var(shape1_new[i], reduce_name);
       reduce_axes->emplace_back(k);
       indice1->emplace_back(k);
-      count++;
     }
     Expr reduce_shape2 = Expr(1);
     // B reduce axes
     for (size_t i = 0; i < y_num_col_dims; i++) {
       reduce_shape2 = reduce_shape2 * shape2_new[i];
-      optim::Simplify(&reduce_shape2);
+      reduce_shape2 = common::AutoSimplify(reduce_shape2);
       indice2->emplace_back((*indice1)[indice1->size() - 1 - i]);
     }
 
@@ -117,9 +116,9 @@ Tensor Matmul(const Tensor& A,
                     &A_indice,
                     &B_indice,
                     &reduce_axes);
-    return ReduceSum(A(A_indice) * B(B_indice), Expr());
+    return lang::ReduceSum(A(A_indice) * B(B_indice), reduce_axes);
   };
-  return Compute(output_shape, fn, name, reduce_axes, output_shape);
+  return Compute(output_shape, fn, name);
 }
 
 }  // namespace pe

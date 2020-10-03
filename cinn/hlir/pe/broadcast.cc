@@ -6,6 +6,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/node.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 
 namespace cinn {
@@ -21,13 +22,13 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
                        std::vector<Expr>* common_shape,
                        std::vector<bool>* broadcast_flag1,
                        std::vector<bool>* broadcast_flag2,
+                       int* axis_offset,
                        const Expr& axis) {
   CHECK(common_shape);
   CHECK(broadcast_flag1);
   CHECK(broadcast_flag2);
   int size1                    = shape1.size();
   std::vector<Expr> shape2_new = shape2;
-  int axis_offset              = -1;
   if (axis.defined()) {
     int axis_val = axis.as_int32();
     CHECK_GE(axis_val, -1) << "wrong axis: " << axis_val << std::endl;
@@ -35,9 +36,9 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
     CHECK_LE(axis_val, int(shape1.size() - shape2.size()))
         << "wrong axis: " << axis_val << " is not <= " << shape1.size() - shape2.size() << std::endl;
     if (axis_val >= 0) {
-      axis_offset = shape1.size() - shape2.size() - axis_val;
-      for (int i = 1; i <= axis_offset; ++i) {
-        // specified axis to align, we push the Expr one in tensor B so as to align right with tensor A.
+      *axis_offset = shape1.size() - shape2.size() - axis_val;
+      for (int i = 1; i <= *axis_offset; ++i) {
+        // specified axis to align, we insert Expr one in tensor B so as to align right with tensor A.
         shape2_new.emplace_back(Expr(1));
         common_shape->insert(common_shape->begin(), shape1[size1 - i]);
         // flag is used to indicate whether to include the indice or not.
@@ -50,12 +51,14 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
   int size2 = shape2_new.size();
   Expr one(1);
   int i;
-  i = axis_offset <= 0 ? 1 : axis_offset + 1;
+  i = axis_offset <= 0 ? 1 : *axis_offset + 1;
   for (; i <= std::min(size1, size2); ++i) {
+    // traverse from right to left to get the output shape and broadcast flag
     auto* var1 = shape1[size1 - i].As<ir::_Var_>();
     auto* var2 = shape2_new[size2 - i].As<ir::_Var_>();
     if (MathEqual(shape1[size1 - i], shape2_new[size2 - i])) {
       common_shape->insert(common_shape->begin(), shape1[size1 - i]);
+      // broadcast flags are recorded in a reverse order
       broadcast_flag1->emplace_back(true);
       broadcast_flag2->emplace_back(true);
     } else if (MathEqual(one, shape1[size1 - i])) {
@@ -100,6 +103,9 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
 }
 
 void GetBroadcastIndice(const std::vector<Expr>& indice,
+                        const Tensor& tensor_a,
+                        const Tensor& tensor_b,
+                        int axis_offset,
                         std::vector<Expr>* broadcast_indice1,
                         std::vector<Expr>* broadcast_indice2,
                         const std::vector<bool>& broadcast_flags1,
@@ -112,10 +118,18 @@ void GetBroadcastIndice(const std::vector<Expr>& indice,
     CHECK_GE(indice.size(), flag_size);
     for (i = 0; i < flag_size; i++) {
       if (broadcast_flags1[flag_size - 1 - i]) {
+        // broadcast indices are added from left to right
         broadcast_indice1->push_back(indice[i]);
+      } else {
+        broadcast_indice1->push_back(Expr(0));
       }
       if (broadcast_flags2[flag_size - 1 - i]) {
         broadcast_indice2->push_back(indice[i]);
+      } else if (flag_size - i <= tensor_b->shape.size() + axis_offset &&
+                 broadcast_indice2->size() < tensor_b->shape.size()) {
+        // insert indice 0 when have not yet reached the dimension of tensor. Meanwhile we have to consider the case of
+        // axis alignment.
+        broadcast_indice2->push_back(Expr(0));
       }
     }
   }
@@ -132,10 +146,13 @@ Tensor Broadcast(const FuncOp& op,
   std::vector<bool> broadcast_flags2;
   std::vector<Expr> broadcast_indice1;
   std::vector<Expr> broadcast_indice2;
+  // the counts of left-shift of tensor b so as to right alignment
+  int axis_offset = 0;
 
-  GetBroadcastShape(a->shape, b->shape, &common_shape, &broadcast_flags1, &broadcast_flags2, axis);
+  GetBroadcastShape(a->shape, b->shape, &common_shape, &broadcast_flags1, &broadcast_flags2, &axis_offset, axis);
   auto fn = [&](const std::vector<Expr>& indice) {
-    GetBroadcastIndice(indice, &broadcast_indice1, &broadcast_indice2, broadcast_flags1, broadcast_flags2);
+    GetBroadcastIndice(
+        indice, a, b, axis_offset, &broadcast_indice1, &broadcast_indice2, broadcast_flags1, broadcast_flags2);
     return op(a(broadcast_indice1), b(broadcast_indice2));
   };
   Tensor output = Compute(common_shape, fn, output_name);
@@ -163,9 +180,9 @@ HLIR_IMP_BC_PE(Add, return a + b;);
 HLIR_IMP_BC_PE(Substract, return a - b;);
 HLIR_IMP_BC_PE(Multiply, return a * b;);
 HLIR_IMP_BC_PE(Divide, return a / b;);
-HLIR_IMP_BC_PE(FloorDivide, return Floor(a / b););
+HLIR_IMP_BC_PE(FloorDivide, return lang::Floor(a / b););
 HLIR_IMP_BC_PE(Mod, return a % b;);
-HLIR_IMP_BC_PE(FloorMod, return a - Floor(a / b) * b;);
+HLIR_IMP_BC_PE(FloorMod, return a - lang::Floor(a / b) * b;);
 HLIR_IMP_BC_PE(Maximum, return ir::Max::Make(a, b););
 HLIR_IMP_BC_PE(Minimum, return ir::Min::Make(a, b););
 HLIR_IMP_BC_PE(Power, return ir::Power::Make(a, b););

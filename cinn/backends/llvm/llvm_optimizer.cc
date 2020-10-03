@@ -54,7 +54,8 @@ template <typename PassManagerT>
 class CustomPassManager : public PassManagerT {
  public:
   template <typename... Ts>
-  explicit CustomPassManager(bool print_passes, Ts &&... ts) : PassManagerT(std::forward<Ts>(ts)...) {}
+  explicit CustomPassManager(bool print_passes, Ts &&... ts)
+      : PassManagerT(std::forward<Ts>(ts)...), print_passes_(print_passes) {}
 
   void add(llvm::Pass *pass) override {
     if (print_passes_) {
@@ -142,7 +143,7 @@ void LLVMModuleOptimizer::operator()(llvm::Module *m) {
   fpm->doFinalization();
 
   // TODO(Superjomn) Enable this. This is quite slow when turned on.
-  // mpm->run(*m);
+  mpm->run(*m);
 }
 
 }  // namespace cinn::backends

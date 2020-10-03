@@ -258,7 +258,8 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const Reduce* op) override {
     auto init = Visit(&op->init);
     auto body = Visit(&op->body);
-    return Reduce::Make(op->reduce_type, init, body);
+    std::vector<Var> reduce_axis(op->reduce_axis.begin(), op->reduce_axis.end());
+    return Reduce::Make(op->reduce_type, init, body, reduce_axis);
   }
 
   Expr Visit(const Ramp* op) override {

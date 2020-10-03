@@ -101,12 +101,11 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
 
   auto compile_layer_creator = [&engine](llvm::orc::JITTargetMachineBuilder jtmb)
       -> llvm::Expected<std::unique_ptr<llvm::orc::IRCompileLayer::IRCompiler>> {
-    auto machine = jtmb.createTargetMachine();
+    auto machine = llvm::cantFail(jtmb.createTargetMachine());
     VLOG(1) << "create llvm compile layer";
-    VLOG(1) << "Target Name: " << (*machine)->getTarget().getName();
-    VLOG(1) << "Target CPU: " << (*machine)->getTargetCPU().str() << std::endl;
-    if (!machine) return machine.takeError();
-    return std::make_unique<llvm::orc::TMOwningSimpleCompiler>(std::move(*machine), engine->cache_.get());
+    VLOG(1) << "Target Name: " << machine->getTarget().getName();
+    VLOG(1) << "Target CPU: " << machine->getTargetCPU().str() << std::endl;
+    return std::make_unique<llvm::orc::TMOwningSimpleCompiler>(std::move(machine), engine->cache_.get());
   };
 
   auto object_layer_creator = [&](llvm::orc::ExecutionSession &session, const llvm::Triple &triple) {

@@ -24,10 +24,10 @@ auto CreateMatmulBasicModule(Target target, int m, int n, int k) {
   auto B = Placeholder<float>("B", {K, N});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+  auto C  = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages, Expr(0.f));
 
   Module::Builder builder("module_basic", target);
 
@@ -44,10 +44,10 @@ auto CreateMatmulTileModule(Target target, int m, int n, int k) {
   auto B = Placeholder<float>("B", {K, N});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+  auto C  = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages, common::make_const(0.f));
 
   stages[C]->Tile(0, 1, 4, 4);
 
@@ -66,10 +66,10 @@ auto CreateMatmulSplitModule(Target target, int m, int n, int k) {
   auto B = Placeholder<float>("B", {K, N});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+  auto C  = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages, common::make_const(0.f));
 
   auto c_poly_iterators = [&](auto &&... args) {
     std::vector<poly::Iterator> iters;
@@ -94,10 +94,10 @@ auto CreateMatmulBlockModule(Target target, int m, int n, int k) {
   auto B = Placeholder<float>("B", {K, N});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto C  = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k1) * B(k1, j)); }, "C", {k1});
+  auto C  = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages, common::make_const(0.f));
 
   constexpr int bn                          = 32;
   auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
@@ -122,10 +122,10 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
 
   int bn = 32;
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k0) * B(k0, j)); }, "C", {k0});
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k0) * B(k0, j), {k0}); }, "C");
 
   auto stages = CreateStages({C});
-  C->InitReduction(stages, common::make_const(0.f));
 
   {
     auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);
@@ -156,18 +156,15 @@ lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
 
   int bn = 32;
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return Sum(A(i, k) * B(k, j)); }, "C", {k});
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
-  auto stages       = CreateStages({C});
-  ir::Tensor C_init = C->InitReduction(stages, common::make_const(0.f));
+  auto stages = CreateStages({C});
 
   // Blocking by loop tiling.
   {
     auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
     auto [k_outer, k_inner]                   = stages[C]->Split("k0", 4);      // NOLINT
-
-    stages[C_init]->Vectorize(1, 8);
-    stages[C_init]->Unroll(1);
 
     stages[C]->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
 
@@ -196,7 +193,8 @@ lang::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
       {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
-  auto C = Compute({M, N}, [&](Expr i, Expr j) { return Sum(A(i, k) * packedB(j / bn, k, j % bn)); }, "C", {k});
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return ReduceSum(A(i, k) * packedB(j / bn, k, j % bn), {k}); }, "C");
 
   auto stages = CreateStages({C_init, C});
 

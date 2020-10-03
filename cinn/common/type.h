@@ -137,11 +137,12 @@ template <> inline Type type_of<float>() { return Float(32); }
 template <> inline Type type_of<double>() { return Float(64); }
 template <> inline Type type_of<unsigned char>() { return UInt(8); }
 template <> inline Type type_of<int16_t>() { return UInt(16); }
-template <> inline Type type_of<unsigned int>() { return UInt(32); }
+template <> inline Type type_of<int32_t>() { return Int(32); }
+template <> inline Type type_of<uint32_t>() { return UInt(32); }
 template <> inline Type type_of<bool>() { return Bool(); }
 template <> inline Type type_of<char>() { return Int(8); }
-template <> inline Type type_of<int32_t>() { return Int(32); }
 template <> inline Type type_of<int64_t>() { return Int(64); }
+template <> inline Type type_of<uint64_t>() { return UInt(64); }
 template <> inline Type type_of<signed char>() { return Int(8); }
 template <> inline Type type_of<void>() { return Void(); }
 // clang-format on

@@ -51,14 +51,8 @@ def pool2d(np_data, attrs, dtype="float32"):
     else:
         pt, pl, pb, pr = padding_size
 
-    out_shape0 = list(in_shape)
-    out_shape0[height_axis] = in_shape[height_axis] + pt + pb
-    out_shape0[width_axis] = in_shape[width_axis] + pl + pr
-
     out_shape = list(in_shape)
     if ceil_mode:
-        out_shape0[height_axis] += s_h - 1
-        out_shape0[width_axis] += s_w - 1
         out_shape[height_axis] = int(
             math.ceil(float(in_shape[height_axis] - k_h + pt + pb) / s_h) + 1)
         out_shape[width_axis] = int(
@@ -144,7 +138,7 @@ def pool2d(np_data, attrs, dtype="float32"):
         raise ValueError("pool type {} is not supported".format(pool_type))
 
     ret_np = np.maximum(ret_np, fill_value)
-    return ret_np, [out_shape0, out_shape]
+    return ret_np, [out_shape]
 
 
 def pool3d(np_data, attrs, dtype="float32"):
@@ -196,16 +190,8 @@ def pool3d(np_data, attrs, dtype="float32"):
     else:
         pf, pt, pl, pk, pb, pr = padding_size
 
-    out_shape0 = list(in_shape)
-    out_shape0[depth_axis] = in_shape[depth_axis] + pf + pk
-    out_shape0[height_axis] = in_shape[height_axis] + pt + pb
-    out_shape0[width_axis] = in_shape[width_axis] + pl + pr
-
     out_shape = list(in_shape)
     if ceil_mode:
-        out_shape0[depth_axis] += s_d - 1
-        out_shape0[height_axis] += s_h - 1
-        out_shape0[width_axis] += s_w - 1
         out_shape[depth_axis] = int(
             math.ceil(float(in_shape[depth_axis] - k_d + pf + pk) / s_d) + 1)
         out_shape[height_axis] = int(
@@ -302,7 +288,7 @@ def pool3d(np_data, attrs, dtype="float32"):
         raise ValueError("pool type {} is not supported".format(pool_type))
 
     ret_np = np.maximum(ret_np, fill_value)
-    return ret_np, [out_shape0, out_shape]
+    return ret_np, [out_shape]
 
 
 def pool1d(np_data, attrs, dtype="float32"):
@@ -350,12 +336,8 @@ def pool1d(np_data, attrs, dtype="float32"):
     else:
         pl, pr = padding_size
 
-    out_shape0 = list(in_shape)
-    out_shape0[width_axis] = in_shape[width_axis] + pl + pr
-
     out_shape = list(in_shape)
     if ceil_mode:
-        out_shape0[width_axis] += s_w - 1
         out_shape[width_axis] = int(
             math.ceil(float(in_shape[width_axis] - k_w + pl + pr) / s_w) + 1)
     else:
@@ -422,4 +404,4 @@ def pool1d(np_data, attrs, dtype="float32"):
         raise ValueError("pool type {} is not supported".format(pool_type))
 
     ret_np = np.maximum(ret_np, fill_value)
-    return ret_np, [out_shape0, out_shape]
+    return ret_np, [out_shape]

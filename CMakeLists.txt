@@ -50,7 +50,6 @@ include(cmake/nvrtc.cmake)
 include(cmake/llvm.cmake)
 include(cmake/external/protobuf.cmake)
 include(cmake/external/mklml.cmake)
-#include(cmake/external/boost.cmakeg)
 find_package(Threads REQUIRED)
 
 include_directories(${ISL_HOME}/include)
@@ -69,7 +68,16 @@ set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
 add_subdirectory(tests)
 
+
 cc_library(core SRCS ${core_src} DEPS glog ${llvm_libs} mklml framework_proto ${MLIR_ALL_LIBS})
+if (TARGET LLVM)
+  target_link_libraries(core LLVM)
+else()
+  target_link_libraries(core ${llvm_libs})
+endif()
+add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
+
+
 add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER)
 add_dependencies(core OpsInc)
 add_dependencies(core basic_kernels_inc)

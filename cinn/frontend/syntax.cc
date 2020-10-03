@@ -45,7 +45,7 @@ Variable Program::conv2d(const Variable& a,
     instr.SetAttr(iter.first, iter.second);
   }
   AppendInstruction(instr);
-  return instr.GetOutput(2);
+  return instr.GetOutput(0);
 }
 
 Variable Program::depthwise_conv2d(const Variable& a,
@@ -57,7 +57,7 @@ Variable Program::depthwise_conv2d(const Variable& a,
     instr.SetAttr(iter.first, iter.second);
   }
   AppendInstruction(instr);
-  return instr.GetOutput(1);
+  return instr.GetOutput(0);
 }
 
 Variable Program::pool2d(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
@@ -67,7 +67,7 @@ Variable Program::pool2d(const Variable& a, const std::unordered_map<std::string
     instr.SetAttr(iter.first, iter.second);
   }
   AppendInstruction(instr);
-  return instr.GetOutput(1);
+  return instr.GetOutput(0);
 }
 
 Variable Program::batchnorm(const Variable& a,
@@ -101,6 +101,30 @@ Variable Program::softmax(const Variable& a, const std::unordered_map<std::strin
   }
   AppendInstruction(instr);
   return instr.GetOutput(1);
+}
+
+Variable Program::sigmoid(const Variable& a) {
+  Instruction instr("sigmoid", {a});
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable Program::slice(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
+  Instruction instr("slice", {a});
+  for (auto& iter : attr_store) {
+    instr.SetAttr(iter.first, iter.second);
+  }
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable Program::dropout_infer(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
+  Instruction instr("dropout_infer", {a});
+  for (auto& iter : attr_store) {
+    instr.SetAttr(iter.first, iter.second);
+  }
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
 }
 
 Instruction& Program::operator[](size_t i) {
@@ -159,13 +183,20 @@ Variable Program::elementwise_add(const Variable& a, const Variable& b, int axis
   return instr.GetOutput(0);
 }
 
+Variable Program::elementwise_mul(const Variable& a, const Variable& b, int axis) {
+  Instruction instr("elementwise_mul", {a, b});
+  instr.SetAttr("axis", axis);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable Program::relu(const Variable& a) {
   Instruction instr("relu", {a});
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
 
-Variable Program::relu6(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
+Variable Program::relu6(const Variable& a) {
   Instruction instr("relu6", {a});
   AppendInstruction(instr);
   return instr.GetOutput(0);

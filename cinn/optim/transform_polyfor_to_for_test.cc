@@ -19,7 +19,8 @@ TEST(Expr, basic) {
   // C = A * B
   Var k(K.as_int32(), "k0");
 
-  Tensor C = Compute({M, N}, [&](Var i, Var j) { return lang::Sum(A(i, k) * B(k, j)); }, "C", {k});
+  Tensor C = Compute(
+      {M, N}, [&](Var i, Var j) { return lang::ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -70,6 +71,12 @@ void matmul(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   const float* B = ((const float*)(_B->memory));
   float* C = ((float*)(_C->memory));
+  float* C__reduce_init = ((float*)(_C->memory));
+  for (int32_t i = 0; i < 512; i += 1) {
+    for (int32_t j = 0; j < 500; j += 1) {
+      C__reduce_init[((500 * i) + j)] = 0;
+    };
+  };
   for (int32_t i_outer = 0; i_outer < 64; i_outer += 1) {
     for (int32_t i_inner = 0; i_inner < 8; i_inner += 1) {
       for (int32_t j_outer = 0; j_outer < 63; j_outer += 1) {

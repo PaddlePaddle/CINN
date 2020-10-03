@@ -238,35 +238,8 @@ TEST(ExecutionEngine, custom_runtime_symbols) {
     registry.RegisterVar("theta_" + std::to_string(i), angle[i]);
   }
 
-  registry.RegisterVar("random_x_ptr", random_x);
-  registry.RegisterVar("random_y_ptr", random_y);
-
-#if LLVM_VERSION_MAJOR <= 10
-  {
-    llvm::Type *i32_ty        = builder->getInt32Ty();
-    llvm::FunctionType *fn_ty = llvm::FunctionType::get(i32_ty, {}, false);
-    llvm::Function *fn =
-        llvm::Function::Create(fn_ty, llvm::Function::ExternalLinkage, "_add_random_x_y", module.get());
-    fn->setCallingConv(llvm::CallingConv::C);
-    llvm::BasicBlock *entry = llvm::BasicBlock::Create(module->getContext(), "entry", fn);
-    builder->SetInsertPoint(entry);
-    llvm::Type *i32_ptr_ty = llvm::Type::getInt32PtrTy(*context);
-    auto *random_x_ptr     = module->getOrInsertGlobal("random_x_ptr", i32_ptr_ty);
-    auto *random_y_ptr     = module->getOrInsertGlobal("random_y_ptr", i32_ptr_ty);
-    auto *random_x_value   = builder->CreateLoad(random_x_ptr);
-    auto *random_y_value   = builder->CreateLoad(random_y_ptr);
-    auto ret               = builder->CreateAdd(random_x_value, random_y_value);
-    builder->CreateRet(ret);
-  }
-#endif
-
   auto engine = cinn::backends::ExecutionEngine::Create({1});
   engine->AddModule(std::move(module), std::move(context));
-
-#if LLVM_VERSION_MAJOR <= 10
-  auto *add_random_x_y = reinterpret_cast<int (*)()>(engine->Lookup("_add_random_x_y"));
-  ASSERT_EQ(random_x + random_y, add_random_x_y());
-#endif
 
   auto *call_cosf = reinterpret_cast<float (*)(float)>(engine->Lookup("_call_custom_cosf"));
   auto *call_cos  = reinterpret_cast<double (*)(double)>(engine->Lookup("_call_custom_cos"));

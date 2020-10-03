@@ -56,12 +56,33 @@ std::set<ir::Tensor> CollectTempTensorsFromCtrlDepends(StageMap stages, const st
   return res;
 }
 
+void InitReduceTensor(StageMap stages, const Tensor& tensor) {
+  if (tensor->is_reduce_tensor() && !tensor->IsReduceInited(stages)) {
+    LOG(INFO) << "Init reduce tensor: " << tensor->name;
+    LOG(INFO) << "tensor.body: " << tensor->body();
+    tensor->InitReduction(stages);
+  }
+
+  auto uninited_reduce_tensors = ir::CollectIRNodes(tensor->body(), [&](const Expr* x) {
+    return x && x->defined() && x->as_tensor() && x->as_tensor()->is_reduce_tensor() &&
+           !x->as_tensor()->IsReduceInited(stages);
+  });
+  for (auto& t : uninited_reduce_tensors) {
+    LOG(INFO) << "Init reduce tensor: " << t.as_tensor()->name;
+    t.as_tensor()->InitReduction(stages);
+  }
+}
+
 ir::LoweredFunc Lower(const std::string& name,
                       StageMap stages,
                       const std::vector<Tensor>& tensor_args,
                       const std::vector<Var>& scalar_args,
                       const std::vector<Tensor>& temp_tensors,
                       Module::Builder* b) {
+  // Init the reduce tensors first before any process.
+  for (auto& t : tensor_args) InitReduceTensor(stages, t);
+  for (auto& t : temp_tensors) InitReduceTensor(stages, t);
+
   // Merge the ctrl_deps with the given temp_tensors ang get a new temp_tensors
   auto ctrl_deps = CollectTempTensorsFromCtrlDepends(stages, tensor_args);
   ctrl_deps.insert(temp_tensors.begin(), temp_tensors.end());
