@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+
 #include "cinn/common/common.h"
 
 namespace cinn::hlir::framework {

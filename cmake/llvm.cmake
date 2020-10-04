@@ -21,8 +21,8 @@ message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 # To build with MLIR, the LLVM is build from source code using the following flags:
-set(MLIR_CMAKE_COMMAND
-  " \
+
+#[==[
 cmake -G Ninja ../llvm \
   -DLLVM_ENABLE_PROJECTS=mlir \
   -DLLVM_BUILD_EXAMPLES=OFF \
@@ -31,7 +31,7 @@ cmake -G Ninja ../llvm \
   -DLLVM_ENABLE_ASSERTIONS=ON \
   -DLLVM_ENABLE_ZLIB=OFF \
   -DLLVM_ENABLE_RTTI=ON \
-")
+#]==]
 
 # the valid tag is llvmorg-11.0.0-rc1
 add_definitions(${LLVM_DEFINITIONS})

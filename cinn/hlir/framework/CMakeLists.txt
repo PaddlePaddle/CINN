@@ -11,6 +11,7 @@ set(srcs
   pass.cc
   op_strategy.cc
   kernel_registry.cc
+  kernel_utils.cc
   )
 
 if(WITH_CUDA)
