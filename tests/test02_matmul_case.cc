@@ -192,6 +192,8 @@ TEST(test02, basic) {
 #undef TEST_LLVM_MATMUL
 }
 
+// include the generated C source code:
+// @{
 #include "tests/test02_matmul.cc"
 #include "tests/test02_matmul_array_packing.cc"
 #include "tests/test02_matmul_array_packing_dynamic_shape.cc"
@@ -203,3 +205,4 @@ TEST(test02, basic) {
 #include "tests/test02_matmul_varient_shape.cc"
 #include "tests/test02_matmul_varient_shape_tile.cc"
 #include "tests/test02_matmul_vectorize.cc"
+// @}

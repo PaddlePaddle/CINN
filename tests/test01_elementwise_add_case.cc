@@ -8,8 +8,9 @@
 #include "tests/test01_elementwise_add_compute_at_level1.h"
 #include "tests/test01_elementwise_add_vectorize.h"
 
+namespace cinn {
+
 TEST(test01, basic) {
-  using namespace cinn;
   auto* A = cinn::common::BufferBuilder(Float(32), {100, 32}).set_align(32).set_random().Build();
   auto* B = cinn::common::BufferBuilder(Float(32), {100, 32}).set_align(32).set_random().Build();
   auto* C = cinn::common::BufferBuilder(Float(32), {100, 32}).set_align(32).set_zero().Build();
@@ -39,10 +40,9 @@ TEST(test01, basic) {
 TEST(test01, compute_at) {
   const int M = 100;
   const int N = 32;
-  using namespace cinn;
-  auto* A = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_random().Build();
-  auto* B = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_random().Build();
-  auto* C = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_zero().Build();
+  auto* A     = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_random().Build();
+  auto* B     = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_random().Build();
+  auto* C     = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_zero().Build();
 
   float* Ad = reinterpret_cast<float*>(A->memory);
   float* Bd = reinterpret_cast<float*>(B->memory);
@@ -86,10 +86,9 @@ TEST(test01, compute_at) {
 TEST(test01, compute_at_level1) {
   const int M = 100;
   const int N = 32;
-  using namespace cinn;
-  auto* A = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_random().Build();
-  auto* B = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_random().Build();
-  auto* C = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_zero().Build();
+  auto* A     = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_random().Build();
+  auto* B     = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_random().Build();
+  auto* C     = cinn::common::BufferBuilder(Float(32), {M, N}).set_align(32).set_zero().Build();
 
   float* Ad = reinterpret_cast<float*>(A->memory);
   float* Bd = reinterpret_cast<float*>(B->memory);
@@ -129,3 +128,13 @@ TEST(test01, compute_at_level1) {
   cinn_buffer_free(nullptr, B);
   cinn_buffer_free(nullptr, C);
 }
+
+}  // namespace cinn
+
+// include the generated C source code:
+// @{
+#include "tests/test01_elementwise_add.cc"
+#include "tests/test01_elementwise_add_compute_at.cc"
+#include "tests/test01_elementwise_add_compute_at_level1.cc"
+#include "tests/test01_elementwise_add_vectorize.cc"
+// @}
