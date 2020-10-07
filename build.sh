@@ -24,9 +24,6 @@ function prepare {
 
     mkdir -p tests
     mkdir -p cinn/backends
-
-    touch cinn/backends/generated_module1.cc
-    touch cinn/backends/generated1.cu
 }
 
 function prepare_llvm {

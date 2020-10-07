@@ -101,7 +101,7 @@ TEST(CodeGenCUDA, Module_output) {
   builder.AddFunction(func);
 
   Outputs outputs;
-  outputs = outputs.cuda_source("generated1.cu");
+  outputs = outputs.cuda_source("_generated1.cu");
   codegen.Compile(builder.Build(), outputs);
 }
 

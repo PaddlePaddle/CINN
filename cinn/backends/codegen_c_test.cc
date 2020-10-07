@@ -112,7 +112,7 @@ void add1(void* _args, int32_t num_args);
     CodeGenC compiler(target);
     compiler.SetInlineBuiltinCodes(false);
     Outputs outputs;
-    outputs = outputs.c_header("./generated_module1.h").c_source("./generated_module1.cc");
+    outputs = outputs.c_header("./generated_module1.h").c_source("./_generated_module1.cc");
     compiler.Compile(builder.Build(), outputs);
   }
 }
