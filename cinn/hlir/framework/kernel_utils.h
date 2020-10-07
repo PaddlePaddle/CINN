@@ -2,6 +2,7 @@
 #include <glog/logging.h>
 
 #include <any>
+#include <type_traits>
 #include <variant>
 
 #include "cinn/common/cinn_value.h"
@@ -88,14 +89,37 @@ struct KernelCallHelper {
   }
 };
 
+// Treat any other type as an Argument.
+template <typename Head, typename... Tail>
+struct KernelCallHelper<Head, Tail...> {
+  using ArgT = std::decay_t<Head>;
+
+  template <typename T>
+  static T GetArg(AnyValue* value, std::true_type) {
+    return T(&value->template get<typename ArgT::UnderlyingT>());
+  }
+
+  template <typename T>
+  static T& GetArg(AnyValue* value, std::false_type) {
+    return value->get<ArgT>();
+  }
+
+  template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+  static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
+    static_assert(in_idx != -1, "Do not place Arguments after RemainingArguments");
+    ;
+    static_assert(out_idx == 0, "Arguments shoud");
+  }
+};
+
 template <typename F, F f>
-struct CinnKenrelImpl;
+struct CinnKernelImpl;
 
 template <typename T>
 struct TypeTag {};
 
 template <typename Return, typename... Args, Return (*impl_fn)(Args...)>
-struct CinnKenrelImpl<Return (*)(Args...), impl_fn> {
+struct CinnKernelImpl<Return (*)(Args...), impl_fn> {
   static void Invoke(KernelFrame* frame) { KernelCallHelper<Args..., TypeTag<int>>::template Invoke<0, 0, 0>(frame); }
 
  private:
@@ -130,5 +154,7 @@ struct CinnKenrelImpl<Return (*)(Args...), impl_fn> {
     EmplaceTupleResult(frame, std::move(t), std::make_index_sequence<sizeof...(T)>{});
   }
 };
+
+#define CINN_KERNEL(...) ::cinn::hlir::framework::CinnKernelImpl<decltype(&__VA_ARGS__), &__VA_ARGS__>::Invoke
 
 }  // namespace cinn::hlir::framework

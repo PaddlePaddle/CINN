@@ -16,6 +16,8 @@ using KernelImplType = void (*)(KernelFrame* frame);
  */
 class KernelRegistry {
  public:
+  KernelRegistry();
+
   //! Add a kernel implementation.
   void AddKernel(std::string_view name, KernelImplType fn);
 
@@ -27,5 +29,7 @@ class KernelRegistry {
   class Impl;
   std::unique_ptr<Impl> impl_;
 };
+
+void RegisterIntegerKernels(KernelRegistry* registry);
 
 }  // namespace cinn::hlir::framework
