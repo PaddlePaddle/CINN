@@ -7,6 +7,8 @@
 
 #include <vector>
 
+#ifndef _CINN_X86_BUILTIN_SOURCE_
+#define _CINN_X86_BUILTIN_SOURCE_
 //! Vector in stack, this can only used in generated .cc file.
 template <typename T, size_t Num>
 struct StackVec {
@@ -340,3 +342,5 @@ inline __m512d cinn_avx512_mul(const __m512d& a, const __m512d& b) { return _mm5
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///                     )END Predefined utilities in CINN
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#endif  // _CINN_X86_BUILTIN_SOURCE_
