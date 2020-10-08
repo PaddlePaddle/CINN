@@ -72,7 +72,7 @@ function build {
     ctest -R test01_elementwise_add_main
     ctest -R test02_matmul_main
     ctest -R test03_conv_main
-    ctest -R test_codegen_c
+    ctest -R "test_codegen_c$"
 
     make -j $JOBS
 }
