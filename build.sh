@@ -67,10 +67,12 @@ function build {
     make test01_elementwise_add_main -j $JOBS
     make test02_matmul_main -j $JOBS
     make test03_conv_main -j $JOBS
+    make test_codegen_c -j $JOBS
 
     ctest -R test01_elementwise_add_main
     ctest -R test02_matmul_main
     ctest -R test03_conv_main
+    ctest -R test_codegen_c
 
     make -j $JOBS
 }
