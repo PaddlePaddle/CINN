@@ -6,3 +6,8 @@
 #include "tests/test03_convolution.h"
 
 TEST(test03, basic) {}
+
+// include the generated C source code:
+// @{
+#include "tests/test03_convolution.cc"
+// @}

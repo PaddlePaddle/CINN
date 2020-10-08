@@ -2,7 +2,7 @@ include "mlir/IR/OpBase.td"
 
 def CINN_Dialect : Dialect {
   let name = "cinn";
-  let cppNamespace = "cinn::hlir::dialect";
+  let cppNamespace = "::cinn::dialect";
 }
 
 class CINN_Op<string mnemonic, list<OpTrait> traits = []> :

@@ -10,6 +10,7 @@
 #include "cinn/backends/codegen_cuda_util.h"
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/extern_func_jit_register.h"
+#include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/backends/nvrtc_util.h"
 #include "cinn/cinn.h"
@@ -101,7 +102,7 @@ TEST(CodeGenCUDA, Module_output) {
   builder.AddFunction(func);
 
   Outputs outputs;
-  outputs = outputs.cuda_source("generated1.cu");
+  outputs = outputs.cuda_source("_generated1.cu");
   codegen.Compile(builder.Build(), outputs);
 }
 
@@ -415,7 +416,7 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
   // compile host
   {
     auto jit = SimpleJIT::Create();
-    jit->Link<CodeGenCUDA_Host>(host_module, false);
+    jit->Link<CodeGenCUDA_Host>(host_module);
 
     auto fn_ptr = jit->Lookup("fn");
     CHECK(fn_ptr);

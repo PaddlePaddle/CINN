@@ -56,6 +56,9 @@ void SimpleJIT::AddModule(std::unique_ptr<llvm::Module> module, bool optimize) {
     module_pass_manager.run(*module, module_analysis_manager);
   }
 
+  LOG(INFO) << "jit target: " << jit_->getDataLayout().getStringRepresentation();
+  LOG(INFO) << "module target: " << module->getDataLayout().getStringRepresentation();
+
   llvm::orc::ThreadSafeModule tsm(std::move(module), context_);
   llvm::cantFail(jit_->addIRModule(std::move(tsm)));
 
@@ -96,6 +99,7 @@ void SimpleJIT::Link(lang::Module module, bool optimize) {
   std::string runtime_ir(backends::kRuntimeLlvmIr);
   llvm::SMDiagnostic error;
   auto m = llvm::parseAssemblyString(runtime_ir, error, context());
+  m->setDataLayout(jit_->getDataLayout());
   auto b = std::make_unique<llvm::IRBuilder<>>(context());
 
   auto ir_emitter = std::make_unique<CodeGenT>(m.get(), b.get());

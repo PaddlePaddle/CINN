@@ -4,14 +4,14 @@
 #else
 #define BASIC_OPS
 
-include "cinn/hlir/dialect/cinn_base.td"
+include "cinn/dialect/cinn_base.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 class CINN_Op<string mnemonic, list<OpTrait> traits = []> : Op<CINN_Dialect, mnemonic, !listconcat(traits, [IsolatedFromAbove])> {
 
   // Each registered op needs to provide all of a printer, parser and verifier.
   let printer = [{ return cinn::dialect::print(p, *this); }];
-  let verifier = [{ return cinn:dialect::verify(*this); }];
+  let verifier = [{ return cinn::dialect::verify(*this); }];
   let parser = [{ return cinn::dialect::parse$cppClass(parser, result); }];
 }
 
@@ -28,7 +28,7 @@ def CallOp : CINN_Op<"call"> {
 
   let extraClassDeclaration = [{
       StringRef getCallee() { return callee(); }
-      milr::FnctionType getCalleeType();
+      mlir::FunctionType getCalleeType();
     }];
 }
 
@@ -40,7 +40,7 @@ class ConstantOp<string suffix, Type baseType, Attr attr>
   let results = (outs baseType);
 }
 
-def ConstantI32Op : ConstantOp<"i32", I32, I32Attr>;
+//def ConstantI32Op : ConstantOp<"i32", I32, I32Attr>;
 def ConstantF32Op : ConstantOp<"f32", F32, F32Attr>;
 
 def ReturnOp : CINN_Op<"return", [Terminator]> {
@@ -72,10 +72,10 @@ class AddOp<string suffix, Type type> : CINN_Op<"add." # suffix, [NoSideEffect]>
   let verifier = ?;
 }
 
-def AddI32Op : AddOp<"i32", I32>;
-def AddI64Op : AddOp<"i64", I64>;
+//def AddI32Op : AddOp<"i32", I32>;
+//def AddI64Op : AddOp<"i64", I64>;
 def AddF32Op : AddOp<"f32", F32>;
-def AddF64Op : AddOp<"f64", F64>;
+//def AddF64Op : AddOp<"f64", F64>;
 
 class PrintOp<string suffix, Type type> : CINN_Op<"print." # suffix> {
   let summary = "cinn.print operation";
@@ -88,9 +88,9 @@ class PrintOp<string suffix, Type type> : CINN_Op<"print." # suffix> {
   let verifier = ?;
 }
 
-def PrintI32Op : PrintOp<"i32", I32>;
-def PrintI64Op : PrintOp<"i64", I64>;
+//def PrintI32Op : PrintOp<"i32", I32>;
+//def PrintI64Op : PrintOp<"i64", I64>;
 def PrintF32Op : PrintOp<"f32", F32>;
-def PrintF64Op : PrintOp<"f64", F64>;
+//def PrintF64Op : PrintOp<"f64", F64>;
 
 #endif  // basic kernels

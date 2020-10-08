@@ -89,29 +89,6 @@ struct KernelCallHelper {
   }
 };
 
-// Treat any other type as an Argument.
-template <typename Head, typename... Tail>
-struct KernelCallHelper<Head, Tail...> {
-  using ArgT = std::decay_t<Head>;
-
-  template <typename T>
-  static T GetArg(AnyValue* value, std::true_type) {
-    return T(&value->template get<typename ArgT::UnderlyingT>());
-  }
-
-  template <typename T>
-  static T& GetArg(AnyValue* value, std::false_type) {
-    return value->get<ArgT>();
-  }
-
-  template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
-  static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
-    static_assert(in_idx != -1, "Do not place Arguments after RemainingArguments");
-    ;
-    static_assert(out_idx == 0, "Arguments shoud");
-  }
-};
-
 template <typename F, F f>
 struct CinnKernelImpl;
 
