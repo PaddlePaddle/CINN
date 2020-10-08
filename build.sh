@@ -24,25 +24,6 @@ function prepare {
 
     mkdir -p tests
     mkdir -p cinn/backends
-
-    touch tests/test01_elementwise_add.cc
-    touch tests/test01_elementwise_add_compute_at.cc
-    touch tests/test01_elementwise_add_compute_at_level1.cc
-    touch tests/test02_matmul.cc
-    touch tests/test02_matmul_tile.cc
-    touch tests/test02_matmul_block.cc
-    touch tests/test02_matmul_vectorize.cc
-    touch tests/test02_matmul_loop_permutation.cc
-    touch tests/test02_matmul_array_packing.cc
-    touch tests/test02_matmul_split.cc
-    touch tests/test02_matmul_varient_shape.cc
-    touch tests/test02_matmul_varient_shape_tile.cc
-    touch tests/test02_matmul_array_packing_dynamic_shape.cc
-    touch tests/test02_matmul_call.cc
-    touch tests/test01_elementwise_add_vectorize.cc
-    touch cinn/backends/generated_module1.cc
-    touch cinn/backends/generated1.cu
-    touch tests/test03_convolution.cc
 }
 
 function prepare_llvm {
@@ -86,10 +67,12 @@ function build {
     make test01_elementwise_add_main -j $JOBS
     make test02_matmul_main -j $JOBS
     make test03_conv_main -j $JOBS
+    make test_codegen_c -j $JOBS
 
     ctest -R test01_elementwise_add_main
     ctest -R test02_matmul_main
     ctest -R test03_conv_main
+    ctest -R "test_codegen_c$"
 
     make -j $JOBS
 }

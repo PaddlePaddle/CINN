@@ -191,3 +191,18 @@ TEST(test02, basic) {
 
 #undef TEST_LLVM_MATMUL
 }
+
+// include the generated C source code:
+// @{
+#include "tests/test02_matmul.cc"
+#include "tests/test02_matmul_array_packing.cc"
+#include "tests/test02_matmul_array_packing_dynamic_shape.cc"
+#include "tests/test02_matmul_block.cc"
+#include "tests/test02_matmul_call.cc"
+#include "tests/test02_matmul_loop_permutation.cc"
+#include "tests/test02_matmul_split.cc"
+#include "tests/test02_matmul_tile.cc"
+#include "tests/test02_matmul_varient_shape.cc"
+#include "tests/test02_matmul_varient_shape_tile.cc"
+#include "tests/test02_matmul_vectorize.cc"
+// @}
