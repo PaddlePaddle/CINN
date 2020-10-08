@@ -178,6 +178,7 @@ void ExecutionEngine::Link(const lang::Module &module) {
 }
 
 bool ExecutionEngine::AddModule(std::unique_ptr<llvm::Module> module, std::unique_ptr<llvm::LLVMContext> context) {
+  module->setDataLayout(jit_->getDataLayout());
   if (false) {
     LOG(INFO) << "======= dump jit lib ==========";
     std::string buffer;
@@ -189,10 +190,7 @@ bool ExecutionEngine::AddModule(std::unique_ptr<llvm::Module> module, std::uniqu
   }
   llvm::orc::ThreadSafeContext tsc(std::move(context));
   llvm::orc::ThreadSafeModule tsm(std::move(module), std::move(tsc));
-  if (auto error = jit_->addIRModule(std::move(tsm))) {
-    LOG(ERROR) << "LLVM link module error!";
-    return false;
-  }
+  llvm::cantFail(jit_->addIRModule(std::move(tsm)));
   return true;
 }
 
