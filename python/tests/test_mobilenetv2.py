@@ -43,10 +43,10 @@ class TestLoadResnetModel(unittest.TestCase):
 
     def test_model(self):
         x_data = np.random.random(self.x_shape).astype("float32")
-        self.executor = Executor([self.input_tensor], [self.x_shape])
+        self.executor = Interpreter([self.input_tensor], [self.x_shape])
         print("self.mode_dir is:", self.model_dir)
         # True means load combined model
-        self.executor.load_paddle_model(self.model_dir, True)
+        self.executor.load_paddle_model(self.model_dir, self.target, True)
         a_t = self.executor.get_tensor(self.input_tensor)
         a_t.from_numpy(x_data)
 
