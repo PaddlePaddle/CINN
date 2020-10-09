@@ -8,23 +8,62 @@
 namespace cinn {
 namespace poly {
 
-isl::union_set AstGen::domain() {
+struct AstGen::Impl {
+  Impl(const isl::set& context, const poly::ScheduleGroup& schedule_group)
+      : context_(context), schedule_group_(schedule_group) {}
+  //! Set the ISL ast_gen configs.
+  void InitIslAstConfig();
+
+  //! Return a domain composed of all the elements.
+  isl::union_set domain();
+
+  //! Return a map composed of all the transforms.
+  isl::union_map transform();
+
+  isl::ctx ctx() const;
+
+  /**
+   * Help to collect the map from the axis(and the pos) in statement to the transformed indice.
+   * e.g. If s[i,j] will be generated to something like s[a+2, b] in the final AST, this will return
+   * - a map { i->a+2, j->b, 0->a+2, 1->b }.
+   */
+  static std::map<std::string, isl::ast_expr> ExtractIslTransformedIndiceMap(const isl::set& iterator_domain,
+                                                                             isl_ast_build* build);
+
+  //! Get the polyhedral stages.
+  const std::vector<Shared<Stage>>& stages() const { return stages_; }
+
+ private:
+  isl::set context_;
+  std::vector<Shared<Stage>> stages_;
+  const poly::ScheduleGroup& schedule_group_;
+  std::vector<std::string> iterator_names_;
+  //! tuple name -> { axis -> isl_ast }
+  std::map<std::string, std::map<std::string, isl::ast_expr>> transformed_indice_map_;
+  isl::union_map build_options_;
+
+  friend class AstGen;
+};
+
+isl::union_set AstGen::Impl::domain() {
   CHECK(!stages_.empty());
   auto sets =
       utils::Map<std::vector<Shared<Stage>>, isl::set>(stages_, [](const Shared<Stage>& e) { return e->domain(); });
   return isl_sets_to_union_set(sets);
 }
 
-isl::ctx AstGen::ctx() const {
+isl::ctx AstGen::ctx() const { return impl_->ctx(); }
+
+isl::ctx AstGen::Impl::ctx() const {
   CHECK(!stages_.empty());
   return stages_.front()->domain().ctx();
 }
 
 isl::ast_node AstGen::Build() {
   // Collect schedule from scheduler.
-  auto schedule_map = CollectScheduleMapFromGroup(schedule_group_);
+  auto schedule_map = CollectScheduleMapFromGroup(impl_->schedule_group_);
   std::vector<isl::map> maps;
-  for (auto& stage : stages_) {
+  for (auto& stage : impl_->stages_) {
     auto it = schedule_map.find(stage->id());
     CHECK(it != std::end(schedule_map)) << "stage " << stage->id() << " not found in the map";
     maps.push_back(it->second);
@@ -32,16 +71,17 @@ isl::ast_node AstGen::Build() {
   auto schedule = isl_maps_to_union_map(maps);
 
   // Build it.
-  auto ast_build = isl::ast_build::from_context(context_);
+  auto ast_build = isl::ast_build::from_context(impl_->context_);
 
-  if (!build_options_.is_null())
-    ast_build = isl::manage(isl_ast_build_set_options(ast_build.release(), build_options_.release()));
+  if (!impl_->build_options_.is_null())
+    ast_build = isl::manage(isl_ast_build_set_options(ast_build.release(), impl_->build_options_.release()));
 
   // Set iterators names for readable code.
   // CHECK(!schedule_group_.dimension_names.empty());
-  auto iterator_names = iterator_names_.empty() ? schedule_group_.dimension_names : iterator_names_;
-  iterator_names      = SchedulerBase::WrapIteratorNames(iterator_names);
-  isl::id_list ids    = isl::manage(isl_id_list_alloc(ctx().get(), iterator_names.size()));
+  auto iterator_names =
+      impl_->iterator_names_.empty() ? impl_->schedule_group_.dimension_names : impl_->iterator_names_;
+  iterator_names   = SchedulerBase::WrapIteratorNames(iterator_names);
+  isl::id_list ids = isl::manage(isl_id_list_alloc(ctx().get(), iterator_names.size()));
   for (int i = 0; i < iterator_names.size(); i++) {
     ids = isl::manage(isl_id_list_add(ids.release(), isl_id_alloc(ctx().get(), iterator_names[i].c_str(), nullptr)));
   }
@@ -49,26 +89,26 @@ isl::ast_node AstGen::Build() {
 
   // collect iterator map
   auto get_domain_by_name = [this](const std::string& name) -> isl::set {
-    auto ele_it =
-        std::find_if(stages_.begin(), stages_.end(), [&name](const Shared<Stage>& ele) { return ele->id() == name; });
-    CHECK(ele_it != std::end(stages_));
+    auto ele_it = std::find_if(
+        impl_->stages_.begin(), impl_->stages_.end(), [&name](const Shared<Stage>& ele) { return ele->id() == name; });
+    CHECK(ele_it != std::end(impl_->stages_));
     return (*ele_it)->domain();
   };
 
   auto collect = [&](isl::ast_node node, isl::ast_build build) -> isl::ast_node {
-    auto tuple_name                     = detail::GetTupleName(node.get());
-    auto indice_map                     = ExtractIslTransformedIndiceMap(get_domain_by_name(tuple_name), build.get());
-    transformed_indice_map_[tuple_name] = indice_map;
+    auto tuple_name = detail::GetTupleName(node.get());
+    auto indice_map = impl_->ExtractIslTransformedIndiceMap(get_domain_by_name(tuple_name), build.get());
+    impl_->transformed_indice_map_[tuple_name] = indice_map;
     return node;
   };
 
   ast_build = ast_build.set_at_each_domain(collect);
 
-  isl::union_map transformed_schedule = transform().apply_range(schedule);
+  isl::union_map transformed_schedule = impl_->transform().apply_range(schedule);
   VLOG(4) << "transformed_schedule: " << transformed_schedule;
-  auto schedule_domain = transformed_schedule.intersect_domain(domain());
-  VLOG(4) << "domain: " << domain();
-  VLOG(4) << "transform schedule " << stages()[0]->transform();
+  auto schedule_domain = transformed_schedule.intersect_domain(impl_->domain());
+  VLOG(4) << "domain: " << impl_->domain();
+  VLOG(4) << "transform schedule " << impl_->stages()[0]->transform();
   VLOG(4) << "schedule: " << schedule;
   VLOG(4) << "schedule_domain: " << schedule_domain;
   auto ast = ast_build.node_from_schedule_map(schedule_domain);
@@ -77,14 +117,14 @@ isl::ast_node AstGen::Build() {
 }
 
 AstGen& AstGen::SetIteratorNames(const std::vector<std::string>& names) {
-  iterator_names_ = names;
+  impl_->iterator_names_ = names;
   return *this;
 }
 
 isl::ast_expr CreateIslAstIndexExpression(isl_ast_build* build, const isl::map& access);
 
-std::map<std::string, isl::ast_expr> AstGen::ExtractIslTransformedIndiceMap(const isl::set& iterator_domain,
-                                                                            isl_ast_build* build) {
+std::map<std::string, isl::ast_expr> AstGen::Impl::ExtractIslTransformedIndiceMap(const isl::set& iterator_domain,
+                                                                                  isl_ast_build* build) {
   std::map<std::string, isl::ast_expr> iterator_map;
   isl::map identity = isl::manage(isl_set_identity(iterator_domain.copy()));
   isl::map schedule = identity;
@@ -107,8 +147,8 @@ std::map<std::string, isl::ast_expr> AstGen::ExtractIslTransformedIndiceMap(cons
 }
 
 const std::map<std::string, isl::ast_expr>& AstGen::axis2ast(const std::string& tuple_name) const {
-  auto it = transformed_indice_map_.find(tuple_name);
-  CHECK(it != transformed_indice_map_.end()) << "no id " << tuple_name;
+  auto it = impl_->transformed_indice_map_.find(tuple_name);
+  CHECK(it != impl_->transformed_indice_map_.end()) << "no id " << tuple_name;
   return it->second;
 }
 
@@ -147,7 +187,7 @@ isl::ast_expr CreateIslAstIndexExpression(isl_ast_build* build, const isl::map& 
   return index_expr;
 }
 
-isl::union_map AstGen::transform() {
+isl::union_map AstGen::Impl::transform() {
   std::vector<isl::map> transforms;
   for (auto& stage : stages()) {
     transforms.push_back(stage->transform());
@@ -395,7 +435,7 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
   }
 }
 
-void AstGen::InitIslAstConfig() {
+void AstGen::Impl::InitIslAstConfig() {
   isl_options_set_ast_build_detect_min_max(ctx().get(), 1);
   isl_options_set_ast_build_exploit_nested_bounds(ctx().get(), 1);
   isl_options_set_ast_build_scale_strides(ctx().get(), 1);
@@ -403,10 +443,14 @@ void AstGen::InitIslAstConfig() {
 }
 
 AstGen::AstGen(const isl::set& context, const std::vector<Stage*>& stages, const poly::ScheduleGroup& group)
-    : context_(context), schedule_group_(group) {
-  for (auto* x : stages) stages_.emplace_back(x);
-  InitIslAstConfig();
+    : impl_(new Impl(context, group)) {
+  for (auto* x : stages) impl_->stages_.emplace_back(x);
+  impl_->InitIslAstConfig();
 }
+void AstGen::SetBuildOptions(const isl::union_map& options) { impl_->build_options_ = options; }
+bool AstGen::ContainsStatement(const std::string& name) const { return impl_->transformed_indice_map_.count(name); }
+
+AstGen::~AstGen() {}
 
 }  // namespace poly
 }  // namespace cinn
