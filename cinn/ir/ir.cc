@@ -298,10 +298,6 @@ Expr Free::Make(Expr dest) {
   return Expr(node);
 }
 
-void _Range_::Accept(IRVisitor *v) const { v->Visit(this); }
-
-Range::Range(_Range_ *n) : IrNodeRef(n) {}
-
 Expr Call::Make(Type type,
                 const std::string &name,
                 const std::vector<Expr> &read_args,

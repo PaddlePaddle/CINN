@@ -223,15 +223,6 @@ void IrPrinter::DoIndent() { os_ << std::string(indent_, ' '); }
 void IrPrinter::IncIndent() { indent_ += indent_unit; }
 void IrPrinter::DecIndent() { indent_ -= indent_unit; }
 
-void IrPrinter::Visit(const _Range_ *x) {
-  os_ << "Range(min=";
-  Print(x->min);
-  os_ << ", "
-      << "extent=";
-  Print(x->extent);
-  os_ << ")";
-}
-
 void IrPrinter::Visit(const _Buffer_ *x) {
   std::vector<std::string> dim_names;
   std::transform(x->shape.begin(), x->shape.end(), std::back_inserter(dim_names), [&](const Expr &x) {
