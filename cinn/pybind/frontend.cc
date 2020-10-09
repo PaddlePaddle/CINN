@@ -5,7 +5,7 @@
 #include <pybind11/stl.h>
 
 #include "cinn/common/common.h"
-#include "cinn/frontend/executor.h"
+#include "cinn/frontend/interpreter.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"

@@ -1,7 +1,7 @@
 set(srcs
   syntax.cc
   paddle_model_to_program.cc
-  executor.cc
+  interpreter.cc
   )
 
 if(NOT WITH_CUDA)
@@ -9,17 +9,17 @@ if(NOT WITH_CUDA)
           ARGS "--model_dir=${THIRD_PARTY_PATH}/naive_mul_model"
           SRCS syntax_test.cc DEPS core)
 
-  cc_test(test_frontend_executor
+  cc_test(test_frontend_interpreter
           ARGS --model_dir=${THIRD_PARTY_PATH}/naive_mul_model
-          SRCS executor_test.cc DEPS core)
+          SRCS interpreter_test.cc DEPS core)
 else()
   nv_test(test_frontend_syntax
           ARGS "--model_dir=${THIRD_PARTY_PATH}/naive_mul_model"
           SRCS syntax_test.cc DEPS core )
 
-  nv_test(test_frontend_executor
+  nv_test(test_frontend_interpreter
           ARGS --model_dir=${THIRD_PARTY_PATH}/naive_mul_model
-          SRCS executor_test.cc DEPS core)
+          SRCS interpreter_test.cc DEPS core)
 endif()
 
 
