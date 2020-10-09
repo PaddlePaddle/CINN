@@ -15,9 +15,9 @@ namespace frontend {
 /**
  * The executor for a model.
  */
-class Executor final {
+class Interpreter final {
  public:
-  Executor(const std::vector<std::string>& input_names, const std::vector<hlir::framework::shape_t>& input_shapes)
+  Interpreter(const std::vector<std::string>& input_names, const std::vector<hlir::framework::shape_t>& input_shapes)
       : scope_(std::make_shared<hlir::framework::Scope>()), input_names_(input_names), input_shapes_(input_shapes) {}
 
   /**
@@ -25,7 +25,7 @@ class Executor final {
    * @param model_dir The directory path to the model.
    * @param params_combined Whether the parameters are composed to a single file.
    */
-  void LoadPaddleModel(const std::string& model_dir, bool params_combined = false);
+  void LoadPaddleModel(const std::string& model_dir, const Target& target, bool params_combined = false);
 
   /**
    * Run the executor.
@@ -42,7 +42,9 @@ class Executor final {
    * @param input_names The name of input variables.
    * @param input_shapes The input shapes.
    */
-  void Build(const std::vector<std::string>& input_names, const std::vector<hlir::framework::shape_t>& input_shapes);
+  void Build(const std::vector<std::string>& input_names,
+             const std::vector<hlir::framework::shape_t>& input_shapes,
+             const Target& target);
 
   std::vector<std::string> input_names_;
   std::vector<hlir::framework::shape_t> input_shapes_;
