@@ -58,8 +58,6 @@ std::set<ir::Tensor> CollectTempTensorsFromCtrlDepends(StageMap stages, const st
 
 void InitReduceTensor(StageMap stages, const Tensor& tensor) {
   if (tensor->is_reduce_tensor() && !tensor->IsReduceInited(stages)) {
-    LOG(INFO) << "Init reduce tensor: " << tensor->name;
-    LOG(INFO) << "tensor.body: " << tensor->body();
     tensor->InitReduction(stages);
   }
 
