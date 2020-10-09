@@ -77,7 +77,6 @@ class Var;
   macro__(Store)                            \
   macro__(Alloc)                            \
   macro__(Free)                             \
-  macro__(_Range_)                          \
   macro__(_Buffer_)                         \
   macro__(_Tensor_)                         \
   macro__(_LoweredFunc_)                    \
