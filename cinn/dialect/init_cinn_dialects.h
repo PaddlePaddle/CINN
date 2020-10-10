@@ -4,6 +4,6 @@
 
 namespace cinn::dialect {
 
-void RegisterCinnDialects();
+void RegisterCinnDialects(mlir::DialectRegistry& registry);
 
 }  // namespace cinn::dialect

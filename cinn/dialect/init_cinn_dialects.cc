@@ -5,6 +5,6 @@
 
 namespace cinn::dialect {
 
-void RegisterCinnDialects() { mlir::DialectRegistration<CINN_Dialect>(); }
+void RegisterCinnDialects(mlir::DialectRegistry& registry) { registry.insert<CINN_Dialect>(); }
 
 }  // namespace cinn::dialect

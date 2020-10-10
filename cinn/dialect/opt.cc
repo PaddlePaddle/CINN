@@ -4,4 +4,8 @@
 
 #include "cinn/dialect/init_cinn_dialects.h"
 
-int main(int argc, char** argv) { cinn::dialect::RegisterCinnDialects(); }
+int main(int argc, char** argv) {
+  mlir::DialectRegistry registry;
+  cinn::dialect::RegisterCinnDialects(registry);
+  return mlir::failed(mlir::MlirOptMain(argc, argv, "CINN", registry));
+}
