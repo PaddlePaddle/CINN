@@ -14,9 +14,11 @@
 ```
 
 
-# CINN : Compiler Infrastructure for Neural Networks
+# CINN : a Compiler Infrastructure for Neural Networks
 
 
+[install](./docs/install.md] | 
+[roadmap](./docs/roadmap.md]
 
 The project CINN is a machine learning compiler and executor for multiple hardwares. 
 It is designed to provide multiple layers of APIs to make DNN computation graph easier to define,  faster to execute, and more convenient to extend with hardware backends.
@@ -44,9 +46,9 @@ inter.Run();
 // get output content from output_handle
 ```
 
-### Define a raw computation and execute
+### Use CINN lower level DSL to define some computation and execute
 
-The following is a naive matrix-multiplication implementation
+The following is a naive matrix-multiplication implementation using the CINN DSL
 
 ```c++
 #include "cinn/cinn.h"
@@ -121,10 +123,16 @@ void matmul_block(void* _args, int32_t num_args)
 }
 ```
 
+Change the `CodeGenCX86` usage to `CodeGenLLVM`, it will produce a LLVM JIT-compiled function instead which can invoke realtime.
+
 ## How it works
 
-CINN lowers a traditional neural network model into a two-level intermediate representation(IR). The high-level IR(HLIR) helps to define some domain-specific computation and perform some overall optimization on the IR-graph; 
-the lower-level IR(CINN IR) helps to represent some computation semantic and finally lower to a hardware backend.
+The CINN lowers a traditional DNN model into a two-level intermediate representation(IR), the high-level IR(HLIR) and CINN IR.
+
+The HLIR helps to define some domain-specific computation and perform some overall optimization on the IR-graph; 
+the CINN IR helps to represent some computation semantic and finally lower to a hardware backend.
+
+Both levels of IR have the similar SSA graph, analysis and optimization facilities.
 
 CINN is based on the polyhedral compilation thus it is easy to extend with more loop optimizations.
 The schedule transform is applied between the lowering from HLIR to CINN IR.
