@@ -40,8 +40,10 @@ class ConstantOp<string suffix, Type baseType, Attr attr>
   let results = (outs baseType);
 }
 
-//def ConstantI32Op : ConstantOp<"i32", I32, I32Attr>;
+def ConstantI32Op : ConstantOp<"i32", I32, I32Attr>;
+def ConstantI64Op : ConstantOp<"i64", I64, I64Attr>;
 def ConstantF32Op : ConstantOp<"f32", F32, F32Attr>;
+def ConstantF64Op : ConstantOp<"f64", F64, F64Attr>;
 
 def ReturnOp : CINN_Op<"return", [Terminator]> {
   let summary = "host executor return operation";
@@ -72,10 +74,10 @@ class AddOp<string suffix, Type type> : CINN_Op<"add." # suffix, [NoSideEffect]>
   let verifier = ?;
 }
 
-//def AddI32Op : AddOp<"i32", I32>;
-//def AddI64Op : AddOp<"i64", I64>;
+def AddI32Op : AddOp<"i32", I32>;
+def AddI64Op : AddOp<"i64", I64>;
 def AddF32Op : AddOp<"f32", F32>;
-//def AddF64Op : AddOp<"f64", F64>;
+def AddF64Op : AddOp<"f64", F64>;
 
 class PrintOp<string suffix, Type type> : CINN_Op<"print." # suffix> {
   let summary = "cinn.print operation";

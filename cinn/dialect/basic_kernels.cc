@@ -40,6 +40,16 @@ static ParseResult parseConstantOp(Type attrType, OpAsmParser &parser, Operation
 static ParseResult parseConstantF32Op(OpAsmParser &parser, OperationState &result) {
   return parseConstantOp(FloatType::getF32(result.getContext()), parser, result);
 }
+static ParseResult parseConstantF64Op(OpAsmParser &parser, OperationState &result) {
+  return parseConstantOp(FloatType::getF64(result.getContext()), parser, result);
+}
+static ParseResult parseConstantI32Op(OpAsmParser &parser, OperationState &result) {
+  return parseConstantOp(IntegerType::get(32, result.getContext()), parser, result);
+}
+static ParseResult parseConstantI64Op(OpAsmParser &parser, OperationState &result) {
+  return parseConstantOp(IntegerType::get(64, result.getContext()), parser, result);
+}
+
 static ParseResult parseReturnOp(OpAsmParser &parser, OperationState &result) {
   SmallVector<OpAsmParser::OperandType, 2> opInfo;
   SmallVector<Type, 2> types;
@@ -73,6 +83,9 @@ static void printConstant(OpAsmPrinter &p, mlir::Operation *op) {
 }
 
 static void print(OpAsmPrinter &p, ConstantF32Op op) { printConstant(p, op); }
+static void print(OpAsmPrinter &p, ConstantF64Op op) { printConstant(p, op); }
+static void print(OpAsmPrinter &p, ConstantI32Op op) { printConstant(p, op); }
+static void print(OpAsmPrinter &p, ConstantI64Op op) { printConstant(p, op); }
 
 static void print(OpAsmPrinter &p, ReturnOp op) {
   p << "cinn.return";
@@ -85,7 +98,12 @@ static void print(OpAsmPrinter &p, ReturnOp op) {
 }
 
 static LogicalResult verify(CallOp op) { return success(); }
+
 static LogicalResult verify(ConstantF32Op op) { return success(); }
+static LogicalResult verify(ConstantI32Op op) { return success(); }
+static LogicalResult verify(ConstantF64Op op) { return success(); }
+static LogicalResult verify(ConstantI64Op op) { return success(); }
+
 static LogicalResult verify(ReturnOp op) {
   auto function = dyn_cast<FuncOp>(op.getParentOp());
 
