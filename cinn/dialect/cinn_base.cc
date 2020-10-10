@@ -4,7 +4,7 @@
 
 namespace cinn::dialect {
 
-CINN_Dialect::CINN_Dialect(mlir::MLIRContext *context) : mlir::Dialect("cinn", context) {
+CINN_Dialect::CINN_Dialect(mlir::MLIRContext *context) : mlir::Dialect("cinn", context, TypeID::get<CINN_Dialect>()) {
   allowUnknownTypes();
 
   allowUnknownOperations();
@@ -20,7 +20,7 @@ mlir::Type CINN_Dialect::parseType(mlir::DialectAsmParser &parser) const {
   if (auto type = mlir::Dialect::parseType(parser)) return type;
 
   mlir::Location loc = parser.getEncodedSourceLoc(parser.getNameLoc());
-  ;
+
   mlir::emitError(loc) << "Unknown cinn type " << spec;
   return {};
 }

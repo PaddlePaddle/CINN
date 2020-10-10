@@ -112,8 +112,13 @@ llvm::Value *CodeGenLLVM::EmitVectorSlice(llvm::Value *vec, int begin, int exten
 }
 
 llvm::Value *CodeGenLLVM::EmitVectorPad(llvm::Value *vec, int lanes) {
+#if LLVM_VERSION_MAJOR <= 10
   llvm::Value *mask = llvm::UndefValue::get(llvm::VectorType::get(b_->getInt32Ty(), lanes));
-  int numel         = llvm::dyn_cast<llvm::VectorType>(vec->getType())->getNumElements();
+#else
+  llvm::Value *mask =
+      llvm::UndefValue::get(llvm::VectorType::get(b_->getInt32Ty(), llvm::ElementCount(lanes, false /*Scalable*/)));
+#endif
+  int numel = llvm::dyn_cast<llvm::VectorType>(vec->getType())->getNumElements();
 
   CHECK(numel <= lanes);
   if (numel == lanes) return vec;
@@ -799,10 +804,12 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
 
       // fit the total_lanes in native_lanes(split into multiple native steps)
       for (int offset = 0; offset < total_lanes; offset += step) {
-        int lanes   = std::min(step, total_lanes - offset);
-        Expr base   = common::AutoSimplify(ramp->base + offset);
-        auto *ptr   = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&base));
-        auto *vtype = llvm::VectorType::get(ll_type_of(op->type().ElementOf()), lanes)->getPointerTo();
+        int lanes = std::min(step, total_lanes - offset);
+        Expr base = common::AutoSimplify(ramp->base + offset);
+        auto *ptr = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&base));
+        auto *vtype =
+            llvm::VectorType::get(ll_type_of(op->type().ElementOf()), llvm::ElementCount(lanes, false /*Scalable*/))
+                ->getPointerTo();
         llvm::StoreInst *inst =
             b_->CreateAlignedStore(CreateVecSlice(value, offset, lanes), b_->CreatePointerCast(ptr, vtype), alignment);
         AddTbaaMetadata(inst, op->tensor.as_tensor()->name, base);
@@ -934,7 +941,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Let *op) {
     int align      = get_align(align_bits);
     inst->setAlignment(llvm::Align(align));
     SetVar(name, inst);
-    // SetVar(name, Alloca(CinnTypeToLLVMType(op->type(), m_), nullptr, name));
   }
 
   return GetVar(name);
@@ -945,15 +951,15 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Reduce *op) { __IR_EMITTER_NOT_IMPLEME
 llvm::Value *CodeGenLLVM::Visit(const ir::Ramp *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Broadcast *op) {
-  llvm::Value *value    = Visit(&op->value);
-  llvm::Constant *undef = llvm::UndefValue::get(llvm::VectorType::get(value->getType(), op->lanes));
-  llvm::Constant *zero  = llvm::ConstantInt::get(ll_int32_ty(), 0);
-  value                 = b_->CreateInsertElement(undef, value, zero, "broadcast");
 #if LLVM_VERSION_MAJOR >= 11
-  const llvm::ElementCount elem_count(op->lanes, /*scalable*/ true);
+  const llvm::ElementCount elem_count(op->lanes, /*scalable*/ false);
 #else
   const int elem_count = op->lanes;
 #endif
+  llvm::Value *value    = Visit(&op->value);
+  llvm::Constant *undef = llvm::UndefValue::get(llvm::VectorType::get(value->getType(), elem_count));
+  llvm::Constant *zero  = llvm::ConstantInt::get(ll_int32_ty(), 0);
+  value                 = b_->CreateInsertElement(undef, value, zero, "broadcast");
   llvm::Constant *zeros = llvm::ConstantVector::getSplat(elem_count, zero);
   return b_->CreateShuffleVector(value, undef, zeros, "broadcast_shuffle");
 }
@@ -1098,7 +1104,13 @@ llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
     auto slide_stride = Expr(1);
     auto slide_index  = slice_base;
 
-    llvm::Type *slice_type = llvm::VectorType::get(CinnTypeToLLVMType(op->type().ElementOf(), m_), slice_lanes);
+#if LLVM_VERSION_MAJOR >= 11
+    const llvm::ElementCount elem_count(slice_lanes, /*scalable*/ false);
+#else
+    const int elem_count = slice_lanes;
+#endif
+
+    llvm::Type *slice_type = llvm::VectorType::get(CinnTypeToLLVMType(op->type().ElementOf(), m_), elem_count);
 
     llvm::Value *elt_ptr = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&slice_base));
     llvm::Value *vec_ptr = b_->CreatePointerCast(elt_ptr, slice_type->getPointerTo(), "get_vec_ptr");

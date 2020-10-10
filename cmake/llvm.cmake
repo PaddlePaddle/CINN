@@ -32,8 +32,8 @@ cmake -G Ninja ../llvm \
   -DLLVM_ENABLE_ZLIB=OFF \
   -DLLVM_ENABLE_RTTI=ON \
 #]==]
+# The matched llvm-project version is f9dc2b7079350d0fed3bb3775f496b90483c9e42 (currently a temporary commit)
 
-# the valid tag is llvmorg-11.0.0-rc1
 add_definitions(${LLVM_DEFINITIONS})
 
 llvm_map_components_to_libnames(llvm_libs Support Core irreader
