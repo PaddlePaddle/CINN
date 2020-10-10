@@ -1,5 +1,5 @@
 #+title: Design of CINN
-This document describe the design of the project CINN (Compiler Infrastructure for Neural Networks). 
+This document describe the design of the project CINN.
 * Multi-layer architecture
 To enable the compiler to handle the general DNN tasks, a multi-layer system is designed.
 

@@ -18,8 +18,9 @@
 
 
 
-The project CINN is a machine learning compiler and executor for multiple hardware. 
-It is designed to provide multiple layers of APIs to make DNN computation graph easier to define,  faster to execute, and more convenient to extend with more hardware backends. Currently, it targets X86 CPUs and NVidia GPUs, and it is easy to extend.
+The project CINN is a machine learning compiler and executor for multiple hardwares. 
+It is designed to provide multiple layers of APIs to make DNN computation graph easier to define,  faster to execute, and more convenient to extend with hardware backends.
+Currently, it targets X86 CPUs and NVidia GPUs.
 
 This project is in active development. 
 
@@ -30,16 +31,16 @@ Let's take C++ APIs as an example, the corresponding Python APIs are available a
 ### Load a PaddlePaddle model and execute
 
 ```c++
-#include "cinn/frontend/executor.h"
+#include "cinn/frontend/interpreter.h"
 using cinn::hlir::framework;
 
-Executor executor({"input0"}/*list of inputs' names*/, 
+Interpreter inter({"input0"}/*list of inputs' names*/, 
                   {{1, 30}}/*list of inputs' shapes*/);
-executor.LoadPaddleModel(/*string of model directory*/);
-auto input_handle = executor.GetTensor("input0");
-auto output_handle = executor.GetTensor("output0");
+inter.LoadPaddleModel(/*string of model directory*/);
+auto input_handle = inter.GetTensor("input0");
+auto output_handle = inter.GetTensor("output0");
 // set data to input_handle
-executor.Run();
+inter.Run();
 // get output content from output_handle
 ```
 
@@ -51,20 +52,38 @@ The following is a naive matrix-multiplication implementation
 #include "cinn/cinn.h"
 using namespace cinn;
 
+// Declare constants
 Expr M(10), N(20), K(30);
-Placeholder<float> A("A", {M, K});
-Placeholder<float> B("B", {K, N});
-// reduce axis
-Var k(K.as_int32(), "k");
 
-auto C = Compute({M, N},
-                 [=](Expr i, Expr j) { return Sum(A(i, k) * B(k, j), {k}/*reduce axis*/); }, 
-                 "C");
+// Declare the inputs 
+auto A = Placeholder<float>("A", {M, K});
+auto B = Placeholder<float>("B", {K, N});
 
+auto k1 = Var(K.as_int32(), "k1");
+auto C  = Compute(
+    {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(k1, j), {k1}); }, "C");
+
+Target target = common::DefaultHostTarget();
+
+int block_size = 32;
+
+// The stages holds all the schedules for each tensors.
 auto stages = CreateStages({C});
 
-// some schedule to optimize the code
-stages[C]->Tile(0, 1, 4, 4); // Tile the 0-th and 1-th axis with the block size as 4.
+// Blocking optimization by loop tiling stragety.
+auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);
+auto [k_outer, k_inner]                   = stages[C]->Split("k0", 4);
+stages[C]->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
+
+// Generate C source code:
+Module::Builder builder("module_block", target);
+auto func = Lower("matmul_block", stages, {A, B, C});
+builder.AddFunction(func);
+
+CodeGenCX86 compiler(target, CodeGenCX86::Feature::AVX512);
+Outputs outputs;
+outputs = outputs.c_header("./test02_matmul_block.h").c_source("./test02_matmul_block.cc");
+compiler.Compile(builder.Build(), outputs);
 ```
 
 ## How it works
