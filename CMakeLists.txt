@@ -79,7 +79,7 @@ add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 
 
 add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER)
-add_dependencies(core OpsInc)
+add_dependencies(core ops_inc)
 add_dependencies(core basic_kernels_inc)
 add_dependencies(core cinn_base_inc)
 

@@ -56,7 +56,24 @@ static void print(OpAsmPrinter &p, CallOp op) {
   p << " : ";
 }
 
-static void print(OpAsmPrinter &p, ConstantF32Op op) {}
+static void printConstant(OpAsmPrinter &p, mlir::Operation *op) {
+  p << op->getName() << " ";
+  p.printOptionalAttrDict(op->getAttrs(), /*elidedAttrs=*/{"value"});
+
+  if (op->getAttrs().size() > 1) p << ' ';
+  Attribute attr = op->getAttr("value");
+  if (auto int_attr = attr.dyn_cast<IntegerAttr>()) {
+    bool is_signed = int_attr.getType().isIndex() || int_attr.getType().getIntOrFloatBitWidth() != 1;
+    int_attr.getValue().print(p.getStream(), is_signed);
+  } else if (auto float_attr = attr.dyn_cast<FloatAttr>()) {
+    p << float_attr.getValue().convertToFloat();
+  } else {
+    op->emitOpError("unknown attribute type");
+  }
+}
+
+static void print(OpAsmPrinter &p, ConstantF32Op op) { printConstant(p, op); }
+
 static void print(OpAsmPrinter &p, ReturnOp op) {
   p << "cinn.return";
   if (op.getNumOperands() > 0) {

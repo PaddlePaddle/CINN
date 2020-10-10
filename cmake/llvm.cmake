@@ -44,3 +44,14 @@ message(STATUS "LLVM libs: ${llvm_libs}")
 get_property(mlir_libs GLOBAL PROPERTY MLIR_ALL_LIBS)
 message(STATUS "MLIR libs: ${mlir_libs}")
 add_definitions(${LLVM_DEFINITIONS})
+
+
+# tb_base is the name of a xxx.td file (without the .td suffix)
+function(mlir_tablegen_on td_base)
+  set(LLVM_TARGET_DEFINITIONS ${td_base}.td)
+  mlir_tablegen(${td_base}.hpp.inc -gen-op-decls "-I${ONNX_MLIR_SRC_ROOT}/compiler/pass")
+  mlir_tablegen(${td_base}.cpp.inc -gen-op-defs "-I${ONNX_MLIR_SRC_ROOT}/compiler/pass")
+  add_public_tablegen_target(${td_base}_IncGen)
+  add_custom_target(${td_base}_inc DEPENDS ${td_base}_IncGen)
+endfunction()
+
