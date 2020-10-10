@@ -47,22 +47,7 @@ class Placeholder {
  private:
   Expr Call(const std::vector<Expr> &indices) const;
 
-  void Init(const std::string &name, const std::vector<Expr> &shape) {
-    ir::Var buffer_ptr(Context::Global().NewName("buffer"));
-    buffer_ptr->set_type(type_of<T>());
-
-    std::vector<Expr> strides(shape.size(), Expr(1));
-    Expr offset(0);
-
-    std::vector<ir::Var> axis;
-    for (int i = 0; i < shape.size(); i++) axis.emplace_back(common::axis_name(i));
-
-    auto op = ir::PlaceholderOp::Make(name, shape, type_of<T>());
-
-    tensor_ = ir::Tensor(name, type_of<T>(), shape, shape, op, {});
-    Buffer buffer(tensor_->type());
-    tensor_->Bind(buffer);
-  }
+  void Init(const std::string &name, const std::vector<Expr> &shape);
 
   ir::Tensor tensor_;
 };
@@ -90,6 +75,25 @@ Placeholder<T>::Placeholder(const std::string &name, const std::vector<Expr> &sh
 }
 
 ir::Tensor CreatePlaceHolder(const std::vector<Expr> &shape, Type type, const std::string &name);
+
+/// ------- details -------
+template <typename T>
+void Placeholder<T>::Init(const std::string &name, const std::vector<Expr> &shape) {
+  ir::Var buffer_ptr(Context::Global().NewName("buffer"));
+  buffer_ptr->set_type(type_of<T>());
+
+  std::vector<Expr> strides(shape.size(), Expr(1));
+  Expr offset(0);
+
+  std::vector<ir::Var> axis;
+  for (int i = 0; i < shape.size(); i++) axis.emplace_back(common::axis_name(i));
+
+  auto op = ir::PlaceholderOp::Make(name, shape, type_of<T>());
+
+  tensor_ = ir::Tensor(name, type_of<T>(), shape, shape, op, {});
+  Buffer buffer(tensor_->type());
+  tensor_->Bind(buffer);
+}
 
 }  // namespace lang
 }  // namespace cinn
