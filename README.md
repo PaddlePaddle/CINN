@@ -17,8 +17,8 @@
 # CINN : a Compiler Infrastructure for Neural Networks
 
 
-[install](./docs/install.md] | 
-[roadmap](./docs/roadmap.md]
+[Install](./docs/install.md) | 
+[Roadmap](./docs/roadmap.md)
 
 The project CINN is a machine learning compiler and executor for multiple hardwares. 
 It is designed to provide multiple layers of APIs to make DNN computation graph easier to define,  faster to execute, and more convenient to extend with hardware backends.
