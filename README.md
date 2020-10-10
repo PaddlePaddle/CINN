@@ -86,6 +86,41 @@ outputs = outputs.c_header("./test02_matmul_block.h").c_source("./test02_matmul_
 compiler.Compile(builder.Build(), outputs);
 ```
 
+This can genrate the optimized C source code like
+
+```c++
+void matmul_block(void* _args, int32_t num_args)
+{
+  const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
+  const cinn_buffer_t* _B = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _C = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[2]));
+  cinn_buffer_malloc((void*)(0), _C);
+  const float* A = ((const float*)(_A->memory));
+  const float* B = ((const float*)(_B->memory));
+  float* C = ((float*)(_C->memory));
+  float* C__reduce_init = ((float*)(_C->memory));
+  for (int32_t i = 0; i < 1024; i += 1) {
+    for (int32_t j = 0; j < 1024; j += 1) {
+      C__reduce_init[((1024 * i) + j)] = 0;
+    };
+  };
+  for (int32_t i_outer = 0; i_outer < 32; i_outer += 1) {
+    for (int32_t j_outer = 0; j_outer < 32; j_outer += 1) {
+      for (int32_t k0_outer = 0; k0_outer < 256; k0_outer += 1) {
+        for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
+          for (int32_t i_inner = 0; i_inner < 32; i_inner += 1) {
+            for (int32_t j_inner = 0; j_inner < 32; j_inner += 1) {
+              C[((1024 * i_inner) + ((32768 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((1024 * i_inner) + ((32768 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((1024 * i_inner) + ((32768 * i_outer) + ((4 * k0_outer) + k0_inner)))] * B[((32 * j_outer) + ((1024 * k0_inner) + ((4096 * k0_outer) + j_inner)))]));
+            };
+          };
+        };
+      };
+    };
+  };
+  cinn_buffer_free((void*)(0), _C);
+}
+```
+
 ## How it works
 
 CINN lowers a traditional neural network model into a two-level intermediate representation(IR). The high-level IR(HLIR) helps to define some domain-specific computation and perform some overall optimization on the IR-graph; 
