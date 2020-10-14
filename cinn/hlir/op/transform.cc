@@ -60,12 +60,18 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule matmul_schedule([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule matmul_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
-    *ret                    = arg_pack;
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+    }
+    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -177,12 +183,18 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule mul_schedule([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule mul_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
-    *ret                    = arg_pack;
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+    }
+    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();

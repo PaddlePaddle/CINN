@@ -38,18 +38,20 @@ std::unique_ptr<Program> GraphCompiler::Build() {
     CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
     codegen.SetInlineBuiltinCodes(false);
     auto build_module = m_builder_.Build();
-    auto out = codegen.Compile(build_module, CodeGenC::OutputKind::CImpl);
+    auto out          = codegen.Compile(build_module, CodeGenC::OutputKind::CImpl);
     LOG(INFO) << "[Debug] C Code is:\n" << out;
     compiler_->Build(build_module);
   } else if (this->target_.arch == Target::Arch::NVGPU) {
     backends::CodeGenCUDA_Dev codegen(this->target_);
     codegen.SetInlineBuiltinCodes(false);
     auto build_module = m_builder_.Build();
-    auto out = codegen.Compile(build_module);
+    auto out          = codegen.Compile(build_module);
     LOG(INFO) << "[Debug] CUDA Code is:\n" << out;
     compiler_->Build(build_module);
+  } else {
+    CINN_NOT_IMPLEMENTED
   }
-  
+
   return std::unique_ptr<Program>(new Program(scope_, BuildInstructions()));
 }
 

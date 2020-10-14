@@ -39,7 +39,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out = arg_pack[0];
+      Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
@@ -188,6 +188,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     Expr weights_dilation = arg_pack[1];
     CHECK(weights_dilation.as_tensor());
     stages[weights_dilation.as_tensor_ref()]->ComputeInline();
+
     if (target.arch == Target::Arch::NVGPU) {
       Expr Out = arg_pack[2];
       CHECK(Out.as_tensor());
@@ -336,10 +337,9 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
         stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
       }
       *ret = CINNValuePack{{arg_pack[1], CINNValue(stages)}};
-    }
-    else {
+    } else {
       if (target.arch == Target::Arch::NVGPU) {
-        Expr Out = arg_pack[0];
+        Expr Out              = arg_pack[0];
         poly::StageMap stages = arg_pack[1];
         CHECK(Out.as_tensor());
         stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");

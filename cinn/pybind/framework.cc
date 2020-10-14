@@ -70,13 +70,22 @@ void BindFramework(pybind11::module *m) {
   py::class_<Scope>(*m, "Scope")
       .def(py::init<>())  //
       .def("get_tensor",
-           [](Scope &self, const std::string &name) {
+           [](Scope &self, const std::string &name, const Target &target) {
              py::dtype dt = py::dtype::of<float>();
              auto t       = self.GetTensor(name);
              py::array::ShapeContainer shape(t->shape().data().begin(), t->shape().data().end());
              py::array array(std::move(dt), std::move(shape));
              auto *mutable_data = array.mutable_data();
-             std::memcpy(mutable_data, t->data<float>(), t->shape().numel() * sizeof(float));
+             if (target.arch == Target::Arch::X86) {
+               std::memcpy(mutable_data, t->data<float>(), t->shape().numel() * sizeof(float));
+             } else if (target.arch == Target::Arch::NVGPU) {
+               CUDA_CALL(cudaMemcpy(mutable_data,
+                                    reinterpret_cast<void *>(t->mutable_data<float>(target)),
+                                    t->shape().numel() * sizeof(float),
+                                    cudaMemcpyDeviceToHost));
+             } else {
+               CINN_NOT_IMPLEMENTED
+             }
              return array;
            })
       .def("var_names", &Scope::var_names);
@@ -102,10 +111,18 @@ void BindFramework(pybind11::module *m) {
         hlir::framework::shape_t shape;
         std::copy_n(array.shape(), array.ndim(), std::back_inserter(shape));
         self->Resize(Shape(shape));
-        // TODO(Superjomn) Support other target.
         auto *data = self->mutable_data<float>(target);
-        for (int i = 0; i < self->shape().numel(); i++) {
-          data[i] = reinterpret_cast<const float *>(array.data())[i];
+        if (target.arch == Target::Arch::X86) {
+          for (int i = 0; i < self->shape().numel(); i++) {
+            data[i] = reinterpret_cast<const float *>(array.data())[i];
+          }
+        } else if (target.arch == Target::Arch::NVGPU) {
+          CUDA_CALL(cudaMemcpy(reinterpret_cast<void *>(data),
+                               reinterpret_cast<const float *>(array.data()),
+                               self->shape().numel() * sizeof(float),
+                               cudaMemcpyHostToDevice));
+        } else {
+          CINN_NOT_IMPLEMENTED
         }
       });
 }
