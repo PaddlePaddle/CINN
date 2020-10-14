@@ -78,10 +78,13 @@ endif()
 add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 
 
-add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER)
-add_dependencies(core ops_inc)
-add_dependencies(core basic_kernels_inc)
-add_dependencies(core cinn_base_inc)
+add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER
+        # MLIR td file generations
+        ops_inc
+        basic_kernels_inc
+        cinn_base_inc
+        tensor_shape_inc
+        )
 
 if (WITH_CUDA)
   target_link_libraries(core ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES})
