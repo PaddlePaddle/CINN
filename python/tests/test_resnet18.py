@@ -48,10 +48,10 @@ class TestLoadResnetModel(unittest.TestCase):
         # True means load combined model
         self.executor.load_paddle_model(self.model_dir, self.target, True)
         a_t = self.executor.get_tensor(self.input_tensor)
-        a_t.from_numpy(x_data)
+        a_t.from_numpy(x_data, self.target)
 
         out = self.executor.get_tensor(self.target_tensor)
-        out.from_numpy(np.zeros(out.shape(), dtype='float32'))
+        out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
 
         self.executor.run()
 

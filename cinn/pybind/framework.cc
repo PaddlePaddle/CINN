@@ -97,13 +97,13 @@ void BindFramework(pybind11::module *m) {
              std::memcpy(array_data, self->data<float>(), self->shape().numel() * sizeof(float));
              return array;
            })
-      .def("from_numpy", [](hlir::framework::Tensor &self, py::array array) {
+      .def("from_numpy", [](hlir::framework::Tensor &self, py::array array, const common::Target &target) {
         CHECK(array.dtype().is(py::dtype::of<float>())) << "currently only support float32 data type as input";
         hlir::framework::shape_t shape;
         std::copy_n(array.shape(), array.ndim(), std::back_inserter(shape));
         self->Resize(Shape(shape));
         // TODO(Superjomn) Support other target.
-        auto *data = self->mutable_data<float>(common::DefaultHostTarget());
+        auto *data = self->mutable_data<float>(target);
         for (int i = 0; i < self->shape().numel(); i++) {
           data[i] = reinterpret_cast<const float *>(array.data())[i];
         }

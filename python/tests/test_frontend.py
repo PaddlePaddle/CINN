@@ -124,7 +124,7 @@ class TestLoadPaddleModel_FC(unittest.TestCase):
         self.executor = Interpreter(["A"], [self.x_shape])
         self.executor.load_paddle_model(self.model_dir, self.target, False)
         a_t = self.executor.get_tensor("A")
-        a_t.from_numpy(x_data)
+        a_t.from_numpy(x_data, self.target)
 
         self.executor.run()
 
@@ -161,7 +161,7 @@ class TestLoadPaddleModel_MultiFC(unittest.TestCase):
         self.executor = Interpreter(["A"], [self.x_shape])
         self.executor.load_paddle_model(self.model_dir, self.target, False)
         a_t = self.executor.get_tensor("A")
-        a_t.from_numpy(x_data)
+        a_t.from_numpy(x_data, self.target)
 
         self.executor.run()
 

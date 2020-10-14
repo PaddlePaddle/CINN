@@ -49,10 +49,10 @@ class TestLoadResnetModel(unittest.TestCase):
         self.executor = Interpreter(["resnet_input"], [self.x_shape])
         self.executor.load_paddle_model(self.model_dir, self.target, False)
         a_t = self.executor.get_tensor("resnet_input")
-        a_t.from_numpy(x_data)
+        a_t.from_numpy(x_data, self.target)
 
         out = self.executor.get_tensor("relu_0.tmp_0")
-        out.from_numpy(np.zeros(out.shape(), dtype='float32'))
+        out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
 
         self.executor.run()
 
@@ -68,7 +68,6 @@ class TestLoadResnetModel(unittest.TestCase):
                 print("Error! ", i, "-th data has diff with target data:\n",
                       out[i], " vs: ", target_result[i], ". Diff is: ",
                       out[i] - target_result[i])
-        # TODO(haozech) fix this.
         self.assertTrue(np.allclose(out, target_result, atol=1e-3))
 
 

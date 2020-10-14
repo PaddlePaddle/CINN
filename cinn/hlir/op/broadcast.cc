@@ -48,11 +48,17 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseAdd(const framework::NodeAttr 
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule add_schedule([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule add_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of add schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr Out = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+    }
     *ret                    = arg_pack;
   });
 
@@ -153,12 +159,18 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule scale_schedule([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule scale_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of scale schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of scale schedule is " << arg_pack.size()
                                    << "and it should be equal to 2! Please check.";
-    Expr A [[maybe_unused]] = arg_pack[0];
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr Out = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+    }
     *ret                    = arg_pack;
   });
 
