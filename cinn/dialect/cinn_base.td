@@ -14,8 +14,6 @@ def CINN_Dialect : Dialect {
   let cppNamespace = "::cinn::dialect";
 }
 
-
-
 // Type definitions
 def StringType : OpaqueType<"cinn", "string", "!cinn.string type">;
 

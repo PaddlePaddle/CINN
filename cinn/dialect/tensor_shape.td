@@ -1,6 +1,6 @@
-#ifdef CINN_TENSOR_SHAPE_OPS
+#ifdef CINN_OPS
 #else
-#define CINN_TENSOR_SHAPE_OPS
+#define CINN_OPS
 
 include "cinn/dialect/cinn_base.td"
 include "cinn/dialect/tensor_shape_base.td"
@@ -13,7 +13,7 @@ class TS_Op<string mnemonic, list<OpTrait> traits = []> :
   let printer = " return cinn::dialect::printOpWithOperands(p, *this)" ";";
 }
 
-def TS_BuildShapeOp : TS_Op<"build_shpe", [NoSideEffect]> {
+def TS_BuildShapeOp : TS_Op<"build_shape", [NoSideEffect]> {
   let summary = "Build tensor shape operation";
   let description = [{
     An operation that builds a tensor shape of given ranks and extents.
@@ -46,4 +46,4 @@ def TS_PrintShapeOp : TS_Op<"print_shape"> {
   let assemblyFormat = "operands attr-dict";
 }
 
-#endif // CINN_TENSOR_SHAPE_OPS
+#endif

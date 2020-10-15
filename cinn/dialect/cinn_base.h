@@ -7,14 +7,6 @@
 
 namespace cinn::dialect {
 
-class CINN_Dialect : public mlir::Dialect {
- public:
-  explicit CINN_Dialect(mlir::MLIRContext *context);
-  static llvm::StringRef getDialectNamespace() { return "cinn::dialect"; }
-
-  mlir::Type parseType(mlir::DialectAsmParser &parser) const override;
-
-  void printType(mlir::Type type, mlir::DialectAsmPrinter &printer) const override;
-};
+#include "cinn/dialect/cinn_base_dialect.hpp.inc"
 
 }  // namespace cinn::dialect

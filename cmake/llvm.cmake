@@ -48,9 +48,17 @@ add_definitions(${LLVM_DEFINITIONS})
 
 # tb_base is the name of a xxx.td file (without the .td suffix)
 function(mlir_tablegen_on td_base)
+  set(options)
+  set(oneValueArgs DIALECT)
+  cmake_parse_arguments(mlir_tablegen_on "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
   set(LLVM_TARGET_DEFINITIONS ${td_base}.td)
   mlir_tablegen(${td_base}.hpp.inc -gen-op-decls "-I${ONNX_MLIR_SRC_ROOT}/compiler/pass")
   mlir_tablegen(${td_base}.cpp.inc -gen-op-defs "-I${ONNX_MLIR_SRC_ROOT}/compiler/pass")
+  if (mlir_tablegen_on_DIALECT)
+    mlir_tablegen(${td_base}_dialect.hpp.inc --gen-dialect-decls -dialect=${mlir_tablegen_on_DIALECT}
+       "-I${ONNX_MLIR_SRC_ROOT}/compiler/pass")
+  endif()
   add_public_tablegen_target(${td_base}_IncGen)
   add_custom_target(${td_base}_inc DEPENDS ${td_base}_IncGen)
 endfunction()
