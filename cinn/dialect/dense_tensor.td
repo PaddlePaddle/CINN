@@ -1,14 +1,19 @@
+#ifdef DT_OPS
+#else
+#define DT_OPS
+
 include "cinn/dialect/cinn_base.td"
+include "cinn/dialect/tensor_shape_base.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
-def DenseTensor_Dialect : Dialect {
-  let name = "cinn_dt";
+def DT_Dialect : Dialect {
+  let name = "dt";
 
   let description = [{
       The DenseTensor dialect.
   }];
 
-  let cppNamespace = "cinn::dialect::dt";
+  let cppNamespace = "::cinn::dt";
 }
 
 class DT_Op<string mnemonic, list<OpTrait> traits = []> :
@@ -16,7 +21,7 @@ class DT_Op<string mnemonic, list<OpTrait> traits = []> :
 
 class CreateUninitTensorOp<string dtype, int rank>
       : DT_Op<"create_uninit_tensor." # dtype # "." # rank, [NoSideEffect]> {
-  let summary = "cinn_dt.create_uninit_tensor operation";
+  let summary = "dt.create_uninit_tensor operation";
 
   let description = [{
       An operation that creates an uninitialized tensor.
@@ -25,11 +30,70 @@ class CreateUninitTensorOp<string dtype, int rank>
   let arguments = (ins);  // no input arguments but a attribute
   let results = (outs TensorType);
 
-  let printer = [{ return cinn::dialect::dt::printCreateUninitTensorOp(p, *this); }];
-  let parser = " return cinn::dialect::dt::parseCreateUninitTensorOp(parser, result);";
+  let printer = [{ return cinn::dt::printCreateUninitTensorOp(p, *this); }];
+  let parser = " return cinn::dt::parseCreateUninitTensorOp(parser, result);";
 }
 
-class MakeTensorOp<string dtype> : DT_Op<"make_tensor." # dtype> {
-  let summary = "cinn_dt.make_tensor operation";
-  let description = [{}];
+class FillTensorWithConstantOp<string dtype> :
+      DT_Op<"fill_tensor_with_constant." # dtype> {
+  let summary = "dt.fill_tensor_with_constant operation";
+
+  let description = [{
+      An operation that fills an input tensor with a value.
+  }];
+
+  let arguments = (ins TensorType);
+  let results = (outs);
+
+  let printer = [{ return cinn::dt::printFillTensorWithConstantOp(p, *this); }];
+  let parser = " return cinn::dt::parseFillTensorWithConstantOp(parser, result);";
 }
+
+def PrintTensorOp : DT_Op<"print_tensor"> {
+  let summary = "dt.print_tensor operation";
+
+  let description = [{
+    An operation that prints a tensor.
+  }];
+
+  let arguments = (ins TensorType);
+  let assemblyFormat = "operands attr-dict";
+}
+
+class SetTensorOp<string dtype> :
+      DT_Op<"set_tensor_with_constant_values." # dtype> {
+  let summary = "dt.set_tensor_with_constant_values operation";
+
+  let description = [{
+    An operation that sets an input tensor with given values.
+  }];
+
+  let arguments = (ins TensorType);
+  let results = (outs);
+
+  let printer = [{ return cinn::dt::printSetTensorOp(p, *this); }];
+  let parser = " return cinn::dt::parseSetTensorOp(parser, result);";
+}
+
+def GetTensorShapeOp : DT_Op<"get_tensor_shape", [NoSideEffect]> {
+  let summary = "dt.get_tensor_shape operation";
+
+  let description = [{
+      An operation that returns the shape of the input tensor.
+  }];
+
+  let arguments = (ins TensorType);
+  let results = (outs TS_Shape);
+  let assemblyFormat = "operands attr-dict";
+}
+
+foreach dtype = ["ui8", "ui16", "ui32", "ui64", "i32", "f32", "f64", "i64"] in {
+  foreach rank = [0, 1, 2, 3, 4] in {
+    def DT_CreateUninitTensorOp_#dtype#_#rank :
+        CreateUninitTensorOp<dtype, rank>;
+  }
+  def DT_FillTensorOp_#dtype : FillTensorWithConstantOp<dtype>;
+  def DT_SetTensorOp_#dtype : SetTensorOp<dtype>;
+}
+
+#endif  // DT_OPS
