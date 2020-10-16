@@ -6,6 +6,8 @@ set(srcs
         init_cinn_dialects.cc
         tensor_shape.cc
         dense_tensor.cc
+        mlir_loader.cc
+        diagnostic_utils.cc
         )
 
 mlir_tablegen_on(ops)
@@ -14,14 +16,21 @@ mlir_tablegen_on(cinn_base DIALECT cinn)
 mlir_tablegen_on(tensor_shape DIALECT ts)
 mlir_tablegen_on(dense_tensor DIALECT dt)
 
+# TODO(Superjomn) add a cmake function cc_executable to ecapsulate the following code
 add_executable(cinn_opt opt.cc)
 target_link_libraries(cinn_opt core ${mlir_libs})
 
+
+# MLIR opt tests
+# %{
 add_test(test_mlir_opt_on_basic ${CMAKE_BINARY_DIR}/cinn/dialect/cinn_opt
         ${CMAKE_SOURCE_DIR}/cinn/dialect/mlir_tests/basic.mlir)
 
 add_test(test_mlir_opt_on_tensor_shape ${CMAKE_BINARY_DIR}/cinn/dialect/cinn_opt
         ${CMAKE_SOURCE_DIR}/cinn/dialect/mlir_tests/tensor_shape.mlir)
+# %}
+
+cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS core MLIRAnalysis MLIRStandardOps MLIRPass MLIRParser MLIRDialect MLIRIR MLIROptLib)
 
 foreach(cpp ${srcs})
   set(core_src

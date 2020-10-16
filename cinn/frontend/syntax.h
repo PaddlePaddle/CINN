@@ -248,9 +248,9 @@ struct Program {
 
   void Validate() const;
 
- private:
   void AppendInstruction(const Instruction& other) { instrs_.push_back(other); }
 
+ private:
   std::vector<Instruction> instrs_;
 
   std::vector<Variable> inputs_;
