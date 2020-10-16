@@ -156,7 +156,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
 
   //! Prepare the expressions for `alloc_tmp_buffer_exprs`.
   std::vector<Expr> PrepareAllocTempBufferExprs() const;
-  std::vector<Expr> CudaPrepareBufferCastExprs() const;
+  std::vector<Expr> CudaAliasVarExprs() const;
 
  private:
   void CheckValid() const;

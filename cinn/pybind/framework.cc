@@ -79,10 +79,14 @@ void BindFramework(pybind11::module *m) {
              if (target.arch == Target::Arch::X86) {
                std::memcpy(mutable_data, t->data<float>(), t->shape().numel() * sizeof(float));
              } else if (target.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
                CUDA_CALL(cudaMemcpy(mutable_data,
                                     reinterpret_cast<void *>(t->mutable_data<float>(target)),
                                     t->shape().numel() * sizeof(float),
                                     cudaMemcpyDeviceToHost));
+#else
+               LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
              } else {
                CINN_NOT_IMPLEMENTED
              }
@@ -106,10 +110,14 @@ void BindFramework(pybind11::module *m) {
              if (target.arch == Target::Arch::X86) {
                std::memcpy(array_data, self->data<float>(), self->shape().numel() * sizeof(float));
              } else if (target.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
                CUDA_CALL(cudaMemcpy(array_data,
                                     reinterpret_cast<void *>(self->mutable_data<float>(target)),
                                     self->shape().numel() * sizeof(float),
                                     cudaMemcpyDeviceToHost));
+#else
+               LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
              } else {
                CINN_NOT_IMPLEMENTED
              }
@@ -126,10 +134,14 @@ void BindFramework(pybind11::module *m) {
             data[i] = reinterpret_cast<const float *>(array.data())[i];
           }
         } else if (target.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
           CUDA_CALL(cudaMemcpy(reinterpret_cast<void *>(data),
                                reinterpret_cast<const float *>(array.data()),
                                self->shape().numel() * sizeof(float),
                                cudaMemcpyHostToDevice));
+#else
+               LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
         } else {
           CINN_NOT_IMPLEMENTED
         }

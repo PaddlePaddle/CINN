@@ -59,7 +59,6 @@ std::vector<Expr> CodeGenCUDA_Dev::GenerateBufferAliasExprs(const ir::_LoweredFu
   }
 
   for (auto &t : unique_tensors) {
-    LOG(INFO) << "[Cuda] The tensors in GenerateBufferAliasExprs of function " << op->name << " is :[" << t->name;
     auto data_type     = t->type();
     auto data_ptr_type = data_type;
     data_ptr_type.set_cpp_handle();
@@ -84,16 +83,12 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
 
   auto alloca_temp_buffers = op->PrepareAllocTempBufferExprs();
   auto temp_buffer_alias   = GenerateBufferAliasExprs(op, op->temp_bufs);
-  auto k                   = op->CudaPrepareBufferCastExprs();
+  auto alis_var_exprs      = op->CudaAliasVarExprs();
 
 #define APPEND_TO_NEW_BODY(field__) new_body.insert(std::end(new_body), std::begin(field__), std::end(field__));
   APPEND_TO_NEW_BODY(alloca_temp_buffers)
   APPEND_TO_NEW_BODY(temp_buffer_alias)
-  // new_body.insert(std::end(new_body), std::begin(alloca_temp_buffers), std::end(alloca_temp_buffers));
-  // new_body.insert(std::end(new_body), std::begin(temp_buffer_alias), std::end(temp_buffer_alias));
-  APPEND_TO_NEW_BODY(k)
-  // new_body.push_back(ir::Block::Make(alloca_temp_buffers));
-  // new_body.push_back(ir::Block::Make(temp_buffer_alias));
+  APPEND_TO_NEW_BODY(alis_var_exprs)
 
   new_body.push_back(op->body);
 
@@ -102,16 +97,6 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   optim::RemoveNestedBlock(&func_body);
 
   Print(func_body);
-
-  /*   Expr temp_buffer_alloc = ir::Block::Make(op->PrepareAllocTempBufferExprs());
-    Expr func_body         = op->body;
-    Expr temp_buffer_alias = ir::Block::Make(GenerateBufferAliasExprs(op, op->temp_bufs));
-
-    Expr new_body = ir::Block::Make({temp_buffer_alloc, temp_buffer_alias, op->buffer_data_cast_exprs, func_body});
-
-    optim::RemoveNestedBlock(&new_body);
-
-    Print(new_body); */
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Alloc *op) {

@@ -129,28 +129,16 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
   }
 }
 
-std::vector<Expr> _LoweredFunc_::CudaPrepareBufferCastExprs() const {
+std::vector<Expr> _LoweredFunc_::CudaAliasVarExprs() const {
   // collect write.
   std::vector<Expr> res;
   optim::TensorWriteTeller write_teller;
   write_teller.Collect(&body);
 
-  // ir::BufferGetTensorName(arg.buffer_arg().As<ir::_Buffer_>());
-
   auto tensors = CollectAllTensorReference();
   std::sort(tensors.begin(), tensors.end(), [](const Tensor& a, const Tensor& b) { return a->name < b->name; });
-  VLOG(3) << "Function used " << tensors.size() << " buffers";
-  LOG(INFO) << "[Cuda] The function's args are:\n";
-  for (auto& a : args) {
-    if (a.is_buffer()) {
-      LOG(INFO) << a.name() << " is buffer\n";
-    } else if (a.is_var()) {
-      LOG(INFO) << a.name() << " is var\n";
-    }
-  }
+
   for (auto& tensor : tensors) {
-    LOG(INFO) << "[Cuda]The tensor's name is: " << tensor->name;
-    LOG(INFO) << "[Cuda]The tensor's buffer name is: " << tensor->buffer->name;
     auto* node = tensor.As<ir::_Tensor_>();
     CHECK(node);
     if (!tensor->buffer.defined()) continue;
@@ -161,7 +149,6 @@ std::vector<Expr> _LoweredFunc_::CudaPrepareBufferCastExprs() const {
     value_type.set_cpp_const(is_const);
     Var variable = _Var_::Make(tensor->name, value_type);
     Var body     = Var(tensor->buffer->name.substr(1), value_type);
-    // Expr body = runtime::BufferGetDataHandle(tensor->buffer, is_const);
 
     auto let = Let::Make(variable, body);
 
