@@ -38,6 +38,18 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
+std::vector<float> test_mul(const std::vector<float>& A, const std::vector<float>& B, int M, int K, int N) {
+  std::vector<float> C_target(M * N);
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N; j++) {
+      for (int k = 0; k < K; k++) {
+        C_target[i * N + j] += A[i * K + k] * B[k * N + j];
+      }
+    }
+  }
+  return C_target;
+}
+
 Tensor GetTensor(const std::shared_ptr<Scope>& scope, const std::string& name) {
   auto* var    = scope->Var<Tensor>(name);
   auto& tensor = std::get<Tensor>(*var);
@@ -70,22 +82,22 @@ std::vector<float> CudaGetData(const Tensor& tensor, const Target& target) {
 TEST(GraphCompiler, RunModel) {
   using attr_t = hlir::framework::AttrType;
   frontend::Program prog;
-  // TODO(Superjomn) Replace with Placeholder here.
-  Expr M(100);
-  Expr N(32);
+  Expr M(4);
+  Expr K(30);
+  Expr N(30);
   frontend::Variable a("A");
   frontend::Variable b("B");
   Type t   = Float(32);
-  a->shape = {M.as_int32(), N.as_int32()};
-  b->shape = {M.as_int32(), N.as_int32()};
+  a->shape = {M.as_int32(), K.as_int32()};
+  b->shape = {K.as_int32(), N.as_int32()};
   a->type  = t;
   b->type  = t;
-  auto c   = prog.add(a, b);
-  auto d   = prog.add(c, b);
-  auto e   = prog.add(c, d);
+  auto c   = prog.mul(a, b);
+  auto d   = prog.add(c, a);  // N must = K
+  auto e   = prog.relu(d);
   std::unordered_map<std::string, attr_t> attr_store;
-  attr_store["scale"] = 1.0f;
-  attr_store["bias"]  = 0.0f;
+  attr_store["scale"] = 2.0f;
+  attr_store["bias"]  = 0.5f;
   auto o              = prog.scale(e, attr_store);
   ASSERT_EQ(prog.size(), 4UL);
   auto g = std::make_shared<Graph>(prog);
@@ -108,11 +120,12 @@ TEST(GraphCompiler, RunModel) {
   auto Out        = GetTensor(scope, o->id);
   auto host_data3 = CudaGetData(Out, target);
 
+  auto target_mul = test_mul(host_data1, host_data2, M.as_int32(), K.as_int32(), N.as_int32());
   for (int i = 0; i < Out->shape().numel(); i++) {
-    LOG_FIRST_N(INFO, 10) << "data[" << i << "]: "
-                          << "2 * " << host_data1[i] << " + "
-                          << "3 * " << host_data2[i] << " = " << host_data3[i];
-    EXPECT_NEAR(host_data3[i], 2 * host_data1[i] + 3 * host_data2[i], 1e-5);
+    /*      LOG_FIRST_N(INFO, 10) << "data[" << i << "]: "
+                              << "2 * " << host_data1[i] << " + "
+                              << "3 * " << host_data2[i] << " = " << host_data3[i]; */
+    EXPECT_NEAR(host_data3[i], 2 * (host_data1[i] + target_mul[i]) + 0.5, 1e-5);
   }
 }
 }  // namespace framework

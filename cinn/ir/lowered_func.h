@@ -156,6 +156,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
 
   //! Prepare the expressions for `alloc_tmp_buffer_exprs`.
   std::vector<Expr> PrepareAllocTempBufferExprs() const;
+  std::vector<Expr> CudaPrepareBufferCastExprs() const;
 
  private:
   void CheckValid() const;
@@ -166,6 +167,7 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
   //! Insert the allocation expr for temporary variables.
   void AllocTempBuffer();
   void PrepareBufferCastExprs();
+
   void PrepareArgumentExprs();
   //! Get all the Buffers the function body references.
   //! NOTE it will return the buffers with duplicates removed(by comparing their name).

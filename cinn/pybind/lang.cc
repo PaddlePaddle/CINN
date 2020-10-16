@@ -48,7 +48,8 @@ void BindLower(py::module *m) {
          arg("tensor_args"),
          arg("scalar_args")  = std::vector<ir::Var>(),
          arg("temp_tensors") = std::vector<ir::Tensor>(),
-         arg("b")            = nullptr);
+         arg("b")            = nullptr,
+         arg("target")       = common::DefaultHostTarget());
 }
 
 void BindCompute(py::module *m) {

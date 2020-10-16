@@ -54,7 +54,7 @@ class TestLoadEfficientNetModel(unittest.TestCase):
 
         self.executor.run()
 
-        out = out.numpy()
+        out = out.numpy(self.target)
         target_result = self.get_paddle_inference_result(
             self.model_dir, x_data)
 

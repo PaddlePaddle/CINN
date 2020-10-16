@@ -115,7 +115,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     inputs.push_back(temp.as_tensor_ref());
   }
 
-  auto func = Lower(GenOpFuncName(node), stages, inputs);
+  auto func = Lower(GenOpFuncName(node), stages, inputs, {}, {}, nullptr, this->target_);
   VLOG(2) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
   return func;
 }

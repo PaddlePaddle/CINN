@@ -96,14 +96,23 @@ void BindFramework(pybind11::module *m) {
       .def("shape", [](hlir::framework::Tensor &self) { return self->shape().data(); })
       .def("set_type", [](hlir::framework::Tensor &self, Type type) { self->set_type(type); })
       .def("numpy",
-           [](hlir::framework::Tensor &self) {
+           [](hlir::framework::Tensor &self, const common::Target &target) {
              py::dtype dt;
              // set float by default
              dt = py::dtype::of<float>();
              py::array::ShapeContainer shape(self->shape().data().begin(), self->shape().data().end());
              py::array array(std::move(dt), std::move(shape));
              void *array_data = array.mutable_data();
-             std::memcpy(array_data, self->data<float>(), self->shape().numel() * sizeof(float));
+             if (target.arch == Target::Arch::X86) {
+               std::memcpy(array_data, self->data<float>(), self->shape().numel() * sizeof(float));
+             } else if (target.arch == Target::Arch::NVGPU) {
+               CUDA_CALL(cudaMemcpy(array_data,
+                                    reinterpret_cast<void *>(self->mutable_data<float>(target)),
+                                    self->shape().numel() * sizeof(float),
+                                    cudaMemcpyDeviceToHost));
+             } else {
+               CINN_NOT_IMPLEMENTED
+             }
              return array;
            })
       .def("from_numpy", [](hlir::framework::Tensor &self, py::array array, const common::Target &target) {
