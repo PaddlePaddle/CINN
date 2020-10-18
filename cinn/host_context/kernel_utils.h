@@ -78,10 +78,7 @@ struct KernelImpl<Return (*)(Args...), impl_fn> {
   // bool _ is an unnecessary parameter to make compiler allow templace specific in non-namespace scope.
   template <typename T, bool _>
   struct KernelReturnHelper {
-    static void Invoke(KernelFrame* frame, const Args&... args) {
-      LOG(INFO) << "Handle return: ";
-      HandleReturn(frame, impl_fn(args...));
-    }
+    static void Invoke(KernelFrame* frame, const Args&... args) { HandleReturn(frame, impl_fn(args...)); }
   };
 
   template <bool _>
@@ -154,6 +151,14 @@ struct KernelImpl<Return (*)(Args...), impl_fn> {
       KernelReturnHelper<Return, false>::Invoke(frame, pargs...);
     }
   };
+
+  // Handle pair result
+  template <typename T0, typename T1>
+  static void HandleReturn(KernelFrame* frame, std::pair<T0, T1>&& t) {
+    CHECK_EQ(frame->GetNumResults(), 2);
+    StoreResultAt(frame, 0, std::move(t.first));
+    StoreResultAt(frame, 1, std::move(t.second));
+  }
 
   // Store the function result back to the output Value in KernelFrame.
   template <typename T>
