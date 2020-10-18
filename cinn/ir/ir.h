@@ -809,37 +809,6 @@ struct PrimitiveNode : public ExprNode<PrimitiveNode> {
   static const IrNodeTy _node_type_ = IrNodeTy::PrimitiveNode;
 };
 
-class _Range_;
-class Range : public IrNodeRef {
- public:
-  Range() = default;
-  explicit Range(IrNodeRef n) : IrNodeRef(n) {}
-  explicit Range(_Range_* n);
-  _Range_* operator->() const { return get()->as<_Range_>(); }
-};
-
-class _Range_ : public ExprNode<_Range_> {
- public:
-  //! Begin of the range.
-  Expr min;
-  //! Extent of the range.
-  Expr extent;
-
-  _Range_() : ExprNode(Type()) {}
-  _Range_(Expr min, Expr extent) : ExprNode(Type()), min(min), extent(extent) {}
-  IrNodeTy node_type() const override { return _node_type_; }
-  void Accept(IRVisitor* v) const override;
-
-  static Range Make(Expr min, Expr extent) {
-    auto node    = common::make_shared<_Range_>();
-    node->min    = min;
-    node->extent = extent;
-    return Range(node);
-  }
-
-  static const IrNodeTy _node_type_ = IrNodeTy::_Range_;
-};
-
 }  // namespace ir
 
 // Expose the following to cinn namespace for easier usage.

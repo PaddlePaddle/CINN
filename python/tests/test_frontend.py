@@ -121,8 +121,8 @@ class TestLoadPaddleModel_FC(unittest.TestCase):
             self.x_shape).astype("float16").astype("float32")
         print('x_data', x_data)
 
-        self.executor = Executor(["A"], [self.x_shape])
-        self.executor.load_paddle_model(self.model_dir, False)
+        self.executor = Interpreter(["A"], [self.x_shape])
+        self.executor.load_paddle_model(self.model_dir, self.target, False)
         a_t = self.executor.get_tensor("A")
         a_t.from_numpy(x_data)
 
@@ -158,8 +158,8 @@ class TestLoadPaddleModel_MultiFC(unittest.TestCase):
         self.x_shape = [8, 64]
         x_data = np.random.random(self.x_shape).astype("float32")
 
-        self.executor = Executor(["A"], [self.x_shape])
-        self.executor.load_paddle_model(self.model_dir, False)
+        self.executor = Interpreter(["A"], [self.x_shape])
+        self.executor.load_paddle_model(self.model_dir, self.target, False)
         a_t = self.executor.get_tensor("A")
         a_t.from_numpy(x_data)
 

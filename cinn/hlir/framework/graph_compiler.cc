@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 
+#include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/tensor.h"
 
@@ -33,11 +34,16 @@ std::unique_ptr<Program> GraphCompiler::Build() {
     compiler_ = backends::Compiler::Create(target_);
   }
 
-  CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
-  codegen.SetInlineBuiltinCodes(false);
-  auto out = codegen.Compile(m_builder_.Build(), CodeGenC::OutputKind::CImpl);
-  LOG(INFO) << "[Debug] C Code is:\n" << out;
-
+  if (this->target_.arch == Target::Arch::X86) {
+    CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
+    codegen.SetInlineBuiltinCodes(false);
+    auto out = codegen.Compile(m_builder_.Build(), CodeGenC::OutputKind::CImpl);
+    LOG(INFO) << "[Debug] C Code is:\n" << out;
+  } else if (this->target_.arch == Target::Arch::NVGPU) {
+    backends::CodeGenCUDA_Dev codegen(this->target_);
+    auto out = codegen.Compile(m_builder_.Build());
+    LOG(INFO) << "[Debug] CUDA Code is:\n" << out;
+  }
   compiler_->Build(m_builder_.Build());
 
   return std::unique_ptr<Program>(new Program(scope_, BuildInstructions()));
@@ -68,7 +74,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
   std::vector<std::vector<int>> output_shapes;
-  LOG(INFO) << "GetOpFunc of op " << node->id();
+  VLOG(2) << "GetOpFunc of op " << node->id();
   for (auto& i : node->inlinks_in_order()) {
     std::string input_id = i->source()->as<NodeData>()->id();
     auto in_shape        = shape_dict.at(input_id);

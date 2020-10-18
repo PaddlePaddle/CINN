@@ -25,6 +25,7 @@ namespace poly {
 class AstGen {
  public:
   AstGen(const isl::set& context, const std::vector<Stage*>& stages, const poly::ScheduleGroup& group);
+  ~AstGen();
 
   /**
    * Set for-loop iterator names.
@@ -42,39 +43,13 @@ class AstGen {
 
   const std::map<std::string, Expr> axis2expr(const std::string& tuple_name) const;
 
-  bool ContainsStatement(const std::string& name) const { return transformed_indice_map_.count(name); }
+  bool ContainsStatement(const std::string& name) const;
 
-  void SetBuildOptions(const isl::union_map& options) { build_options_ = options; }
-
- private:
-  //! Set the ISL ast_gen configs.
-  void InitIslAstConfig();
-
-  //! Return a domain composed of all the elements.
-  isl::union_set domain();
-
-  //! Return a map composed of all the transforms.
-  isl::union_map transform();
-
-  /**
-   * Help to collect the map from the axis(and the pos) in statement to the transformed indice.
-   * e.g. If s[i,j] will be generated to something like s[a+2, b] in the final AST, this will return
-   * - a map { i->a+2, j->b, 0->a+2, 1->b }.
-   */
-  static std::map<std::string, isl::ast_expr> ExtractIslTransformedIndiceMap(const isl::set& iterator_domain,
-                                                                             isl_ast_build* build);
-
-  //! Get the polyhedral stages.
-  const std::vector<Shared<Stage>>& stages() const { return stages_; }
+  void SetBuildOptions(const isl::union_map& options);
 
  private:
-  isl::set context_;
-  std::vector<Shared<Stage>> stages_;
-  const poly::ScheduleGroup schedule_group_;
-  std::vector<std::string> iterator_names_;
-  //! tuple name -> { axis -> isl_ast }
-  std::map<std::string, std::map<std::string, isl::ast_expr>> transformed_indice_map_;
-  isl::union_map build_options_;
+  class Impl;
+  std::unique_ptr<Impl> impl_;
 };
 
 /**

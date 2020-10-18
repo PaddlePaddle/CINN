@@ -53,8 +53,7 @@ using ExprOp   = std::variant<ir::IntImm,
                             ir::Product,
                             ir::Sum,
                             ir::Block,
-                            ir::_Module_,
-                            ir::_Range_>;
+                            ir::_Module_>;
 using BinaryOp = std::variant<>;
 using UnaryOp  = std::variant<>;
 

@@ -5,7 +5,7 @@
 #include <pybind11/stl.h>
 
 #include "cinn/common/cinn_value.h"
-#include "cinn/frontend/executor.h"
+#include "cinn/frontend/interpreter.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"

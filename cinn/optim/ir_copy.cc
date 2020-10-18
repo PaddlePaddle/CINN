@@ -188,11 +188,6 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return expr;
   }
 
-  Expr Visit(const _Range_* op) override {
-    LOG(FATAL) << "not implemented";
-    return Expr();
-  }
-
   Expr Visit(const ir::_Module_* op) override {
     std::vector<Expr> buffers;
     std::vector<Expr> functions;

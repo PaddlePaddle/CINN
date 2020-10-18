@@ -835,8 +835,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Free *op) {
   return nullptr;
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::_Range_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
-
 llvm::Value *CodeGenLLVM::Visit(const ir::_Buffer_ *op) { return GetVar(op->name); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Tensor_ *op) {

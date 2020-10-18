@@ -251,10 +251,6 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Initialize the axis field after the shape field is assigned.
   void InitAxis() const;
 
-  //! Extract the tensors of the buffer this writes to. We should schedule this tensor after those tensors, or there
-  //! will be read-write conflicts.
-  void ExtractBufferDependedTensors();
-
   isl::set GenerateIslDomain() const;
 
   /**
