@@ -1,4 +1,5 @@
 #pragma once
+#include <glog/logging.h>
 #include <utility>
 #include <variant>
 #include "cinn/common/object.h"
@@ -8,17 +9,19 @@ namespace cinn {
 namespace host_context {
 
 using ValueVariantType = std::variant<int32_t, int64_t, float, double, bool>;
-class _Value_ : public ValueVariantType, public common::Object {
+class _Value_ : public common::Object {
  public:
   using variant_type = ValueVariantType;
 
-  explicit _Value_(int32_t x) : variant_type(x) {}
-  explicit _Value_(int64_t x) : variant_type(x) {}
-  explicit _Value_(float x) : variant_type(x) {}
-  explicit _Value_(double x) : variant_type(x) {}
-  explicit _Value_(bool x) : variant_type(x) {}
+  explicit _Value_(int32_t x) : data(x) {}
+  explicit _Value_(int64_t x) : data(x) {}
+  explicit _Value_(float x) : data(x) {}
+  explicit _Value_(double x) : data(x) {}
+  explicit _Value_(bool x) : data(x) {}
 
   const char* type_info() const override;
+
+  ValueVariantType data;
 
  private:
   static constexpr const char* __type_info__ = "host_context_value";
@@ -37,16 +40,11 @@ class Value : common::Shared<_Value_> {
   explicit Value(double val);
   explicit Value(bool val);
 
-  //! Get a mutable data.
-  template <typename T>
-  T& get() {
-    return *p_;
-  }
-
   //! Get a readonly data.
   template <typename T>
-  const T& get() const {
-    return *p_;
+  T get() const {
+    CHECK(p_);
+    return std::get<T>(p_->data);
   }
 
   //! Assign a data.

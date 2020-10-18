@@ -17,7 +17,7 @@ mlir_tablegen_on(tensor_shape DIALECT ts)
 mlir_tablegen_on(dense_tensor DIALECT dt)
 
 # TODO(Superjomn) add a cmake function cc_executable to ecapsulate the following code
-add_executable(cinn_opt opt.cc)
+add_executable(cinn_opt opt.cc ../host_context/kernel_utils_test.cc)
 target_link_libraries(cinn_opt core ${mlir_libs})
 
 

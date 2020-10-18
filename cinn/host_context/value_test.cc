@@ -9,10 +9,10 @@ TEST(Value, test) {
   ASSERT_EQ(x.get<int>(), 12);
 
   Value y(1.2f);
-  ASSERT_EQ(x.get<float>(), 1.2f);
+  ASSERT_EQ(y.get<float>(), 1.2f);
 
   Value z(true);
-  ASSERT_EQ(x.get<bool>(), true);
+  ASSERT_EQ(z.get<bool>(), true);
 }
 
 }  // namespace host_context

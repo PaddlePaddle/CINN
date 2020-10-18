@@ -36,7 +36,7 @@ class KernelFrame {
 
   void SetResultAt(int index, Value value) {
     CHECK_LT(index, num_results_) << "Invalid result index";
-    value_or_attrs_[index] = value;
+    value_or_attrs_[num_arguments_ + index] = value;
   }
 
   llvm::ArrayRef<Value> GetResults() const { return GetValues(num_arguments_, num_results_); }
@@ -57,7 +57,7 @@ class KernelFrame {
 
  protected:
   int num_arguments_{};
-  int num_results_{};
+  int num_results_{-1};
 
   utils::SmallVector<Value, 8> value_or_attrs_;
 };
