@@ -39,6 +39,13 @@ ir::Tensor Matmul(const ir::Tensor& A,
                   int y_num_col_dims      = 1,
                   const std::string& name = UniqName("T_Transform_Matmul_out"));
 
+ir::Tensor Mul(const ir::Tensor& A,
+               const ir::Tensor& B,
+               int x_num_col_dims,
+               const std::vector<ir::Expr>& output_shape,
+               const ir::Var& axis_k,
+               const std::string& name);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

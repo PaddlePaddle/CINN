@@ -174,18 +174,8 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     Var axis_k(check_dim, UniqName("axis_k"));
     auto new_A = A_tensor->Reshape(new_xshape, stages);
     auto new_B = B_tensor->Reshape(new_yshape, stages);
-    auto out   = Compute(
-        output_shape,
-        [=](const std::vector<Expr> &indice) {
-          std::vector<Expr> A_indice;
-          std::vector<Expr> B_indice;
-          B_indice.push_back(axis_k);
-          A_indice.insert(A_indice.begin(), indice.begin(), indice.begin() + x_num_col_dims);
-          B_indice.insert(B_indice.begin() + 1, indice.begin() + x_num_col_dims, indice.end());
-          A_indice.push_back(axis_k);
-          return lang::ReduceSum(new_A(A_indice) * new_B(B_indice), {axis_k});
-        },
-        UniqName("Mul_out"));
+
+    auto out = pe::Mul(new_A, new_B, x_num_col_dims, output_shape, axis_k, UniqName("Mul_output"));
     VLOG(3) << "mul out: " << out;
     stages->InsertLazily(out);
     CHECK(!out_type.empty()) << "Output type of Mul is empty! Please check.\n";

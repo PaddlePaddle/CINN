@@ -73,10 +73,11 @@ void _LoweredFunc_::PrepareAllocOutputBufferExprs() {
 
 std::vector<Expr> _LoweredFunc_::PrepareAllocTempBufferExprs() const {
   std::vector<Expr> alloc_output_buffer_exprs;
-  if (temp_bufs.empty())
+  if (temp_bufs.empty()) {
     LOG(INFO) << "The temp_bufs of " << this->name << " is empty!!";
-  else
+  } else {
     LOG(INFO) << "The " << this->name << " 's temp_bufs's size is " << temp_bufs.size();
+  }
   for (auto& temp_buf : temp_bufs) {
     if (!temp_buf->shape.empty() && temp_buf->type() != Void()) {
       alloc_output_buffer_exprs.push_back(Alloc::Make(temp_buf, temp_buf->type(), temp_buf->shape, Expr(), Expr()));
@@ -141,8 +142,12 @@ std::vector<Expr> _LoweredFunc_::CudaAliasVarExprs() const {
   for (auto& tensor : tensors) {
     auto* node = tensor.As<ir::_Tensor_>();
     CHECK(node);
-    if (!tensor->buffer.defined()) continue;
-    if (tensor->name == tensor->buffer->name.substr(1)) continue;
+    if (!tensor->buffer.defined()) {
+      continue;
+    }
+    if (tensor->name == tensor->buffer->name.substr(1)) {
+      continue;
+    }
     Type value_type = tensor->type().ElementOf();
     bool is_const   = !write_teller.IsWrite(tensor->name);
     value_type.set_cpp_handle();
