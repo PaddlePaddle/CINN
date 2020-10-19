@@ -5,9 +5,13 @@ import numpy as np
 
 class TensorTest(unittest.TestCase):
     def test_basic(self):
+        target = Target()
+        target.arch = Target.Arch.X86
+        target.bits = Target.Bit.k64
+        target.os = Target.OS.Linux
         tensor = Tensor()
         data = np.random.random([10, 5])
-        tensor.from_numpy(data)
+        tensor.from_numpy(data, target)
 
         self.assertTrue(np.allclose(tensor.numpy(), data))
 

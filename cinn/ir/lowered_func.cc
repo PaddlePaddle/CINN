@@ -73,6 +73,11 @@ void _LoweredFunc_::PrepareAllocOutputBufferExprs() {
 
 std::vector<Expr> _LoweredFunc_::PrepareAllocTempBufferExprs() const {
   std::vector<Expr> alloc_output_buffer_exprs;
+  if (temp_bufs.empty()) {
+    LOG(INFO) << "The temp_bufs of " << this->name << " is empty!!";
+  } else {
+    LOG(INFO) << "The " << this->name << " 's temp_bufs's size is " << temp_bufs.size();
+  }
   for (auto& temp_buf : temp_bufs) {
     if (!temp_buf->shape.empty() && temp_buf->type() != Void()) {
       alloc_output_buffer_exprs.push_back(Alloc::Make(temp_buf, temp_buf->type(), temp_buf->shape, Expr(), Expr()));
@@ -123,6 +128,38 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
 
     buffer_data_cast_exprs.push_back(let);
   }
+}
+
+std::vector<Expr> _LoweredFunc_::CudaAliasVarExprs() const {
+  // collect write.
+  std::vector<Expr> res;
+  optim::TensorWriteTeller write_teller;
+  write_teller.Collect(&body);
+
+  auto tensors = CollectAllTensorReference();
+  std::sort(tensors.begin(), tensors.end(), [](const Tensor& a, const Tensor& b) { return a->name < b->name; });
+
+  for (auto& tensor : tensors) {
+    auto* node = tensor.As<ir::_Tensor_>();
+    CHECK(node);
+    if (!tensor->buffer.defined()) {
+      continue;
+    }
+    if (tensor->name == tensor->buffer->name.substr(1)) {
+      continue;
+    }
+    Type value_type = tensor->type().ElementOf();
+    bool is_const   = !write_teller.IsWrite(tensor->name);
+    value_type.set_cpp_handle();
+    value_type.set_cpp_const(is_const);
+    Var variable = _Var_::Make(tensor->name, value_type);
+    Var body     = Var(tensor->buffer->name.substr(1), value_type);
+
+    auto let = Let::Make(variable, body);
+
+    res.push_back(let);
+  }
+  return res;
 }
 
 void _LoweredFunc_::PrepareArgumentExprs() {

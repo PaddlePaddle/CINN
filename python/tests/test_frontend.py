@@ -88,7 +88,7 @@ class TestFrontend(unittest.TestCase):
         ]
         result = prog.build_and_get_output(self.target, [a, b, e], tensor_data,
                                            h)
-        result = result.numpy().reshape(-1)
+        result = result.numpy(self.target).reshape(-1)
         tensor_data.append(result)
         self.paddle_verify(tensor_data)
 
@@ -124,14 +124,14 @@ class TestLoadPaddleModel_FC(unittest.TestCase):
         self.executor = Interpreter(["A"], [self.x_shape])
         self.executor.load_paddle_model(self.model_dir, self.target, False)
         a_t = self.executor.get_tensor("A")
-        a_t.from_numpy(x_data)
+        a_t.from_numpy(x_data, self.target)
 
         self.executor.run()
 
         out = self.executor.get_tensor("fc_0.tmp_2")
         target = self.get_paddle_inference_result(self.model_dir, x_data)
 
-        self.assertTrue(np.allclose(out.numpy(), target, atol=1e-4))
+        self.assertTrue(np.allclose(out.numpy(self.target), target, atol=1e-4))
 
 
 class TestLoadPaddleModel_MultiFC(unittest.TestCase):
@@ -161,14 +161,14 @@ class TestLoadPaddleModel_MultiFC(unittest.TestCase):
         self.executor = Interpreter(["A"], [self.x_shape])
         self.executor.load_paddle_model(self.model_dir, self.target, False)
         a_t = self.executor.get_tensor("A")
-        a_t.from_numpy(x_data)
+        a_t.from_numpy(x_data, self.target)
 
         self.executor.run()
 
         out = self.executor.get_tensor("fc_5.tmp_2")
         target = self.get_paddle_inference_result(self.model_dir, x_data)
 
-        self.assertTrue(np.allclose(out.numpy(), target, atol=1e-4))
+        self.assertTrue(np.allclose(out.numpy(self.target), target, atol=1e-4))
 
 
 if __name__ == "__main__":

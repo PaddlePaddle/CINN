@@ -32,7 +32,8 @@ ir::LoweredFunc Lower(const std::string &name,
                       const std::vector<Tensor> &tensor_args,
                       const std::vector<Var> &scalar_args     = {},
                       const std::vector<Tensor> &temp_tensors = {},
-                      Module::Builder *b                      = nullptr);
+                      Module::Builder *b                      = nullptr,
+                      const Target &target                    = common::DefaultHostTarget());
 
 }  // namespace lang
 }  // namespace cinn

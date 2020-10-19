@@ -79,15 +79,24 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
 
   DoIndent();
 
-  Expr temp_buffer_alloc = ir::Block::Make(op->PrepareAllocTempBufferExprs());
-  Expr func_body         = op->body;
-  Expr temp_buffer_alias = ir::Block::Make(GenerateBufferAliasExprs(op, op->temp_bufs));
+  std::vector<Expr> new_body;
 
-  Expr new_body = ir::Block::Make({temp_buffer_alloc, temp_buffer_alias, func_body});
+  auto alloca_temp_buffers = op->PrepareAllocTempBufferExprs();
+  auto temp_buffer_alias   = GenerateBufferAliasExprs(op, op->temp_bufs);
+  auto alis_var_exprs      = op->CudaAliasVarExprs();
 
-  optim::RemoveNestedBlock(&new_body);
+#define APPEND_TO_NEW_BODY(field__) new_body.insert(std::end(new_body), std::begin(field__), std::end(field__));
+  APPEND_TO_NEW_BODY(alloca_temp_buffers)
+  APPEND_TO_NEW_BODY(temp_buffer_alias)
+  APPEND_TO_NEW_BODY(alis_var_exprs)
 
-  Print(new_body);
+  new_body.push_back(op->body);
+
+  Expr func_body = ir::Block::Make(new_body);
+
+  optim::RemoveNestedBlock(&func_body);
+
+  Print(func_body);
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Alloc *op) {
@@ -96,7 +105,15 @@ void CodeGenCUDA_Dev::Visit(const ir::Alloc *op) {
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Min *op) {
-  os() << "min(";
+  os() << "cinn_nvgpu_min_fp32(";
+  Print(op->a());
+  os() << ", ";
+  Print(op->b());
+  os() << ")";
+}
+
+void CodeGenCUDA_Dev::Visit(const ir::Max *op) {
+  os() << "cinn_nvgpu_max_fp32(";
   Print(op->a());
   os() << ", ";
   Print(op->b());
