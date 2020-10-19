@@ -8,6 +8,9 @@
 
 namespace cinn::host_context {
 
+/**
+ * KernelFrame captures the states(input arguments, attributes, results) associated with a kernel invocation.
+ */
 class KernelFrame {
  public:
   int GetNumArgs() const { return num_arguments_; }
@@ -19,7 +22,7 @@ class KernelFrame {
     return value_or_attrs_[index];
   }
 
-  Value& GetArgAt(int index) {
+  ValueRef& GetArgAt(int index) {
     CHECK_LT(index, GetNumArgs());
     return value_or_attrs_[index];
   }
@@ -31,25 +34,27 @@ class KernelFrame {
 
   template <typename T, typename... Args>
   void EmplaceResult(int index, Args&&... args) {
-    SetResultAt(index, Value(T(std::forward<Args>(args)...)));
+    SetResultAt(index, T(std::forward<Args>(args)...));
   }
 
-  void SetResultAt(int index, Value value) {
+  template <typename T>
+  void SetResultAt(int index, T&& value) {
     CHECK_LT(index, num_results_) << "Invalid result index";
-    value_or_attrs_[num_arguments_ + index] = value;
+    CHECK(value_or_attrs_[num_arguments_ + index].get());
+    value_or_attrs_[num_arguments_ + index]->data = std::move(value);
   }
 
-  llvm::ArrayRef<Value> GetResults() const { return GetValues(num_arguments_, num_results_); }
-  llvm::MutableArrayRef<Value> GetResults() { return GetMutableValues(num_arguments_, num_results_); }
+  llvm::ArrayRef<ValueRef> GetResults() const { return GetValues(num_arguments_, num_results_); }
+  llvm::MutableArrayRef<ValueRef> GetResults() { return GetMutableValues(num_arguments_, num_results_); }
 
-  llvm::ArrayRef<Value> GetValues(size_t from, size_t length) const {
+  llvm::ArrayRef<ValueRef> GetValues(size_t from, size_t length) const {
     CHECK_LE(from + length, num_arguments_ + num_results_);
     if (length == 0) return {};
 
     return llvm::makeArrayRef(&value_or_attrs_[from], length);
   }
 
-  llvm::MutableArrayRef<Value> GetMutableValues(size_t from, size_t length) {
+  llvm::MutableArrayRef<ValueRef> GetMutableValues(size_t from, size_t length) {
     CHECK_LE(from + length, num_arguments_ + num_results_);
     if (length == 0) return {};
     return llvm::makeMutableArrayRef(&value_or_attrs_[from], length);
@@ -59,12 +64,12 @@ class KernelFrame {
   int num_arguments_{};
   int num_results_{-1};
 
-  utils::SmallVector<Value, 8> value_or_attrs_;
+  utils::SmallVector<ValueRef, 8> value_or_attrs_;
 };
 
 class KernelFrameBuilder : public KernelFrame {
  public:
-  void AddArgument(Value value) {
+  void AddArgument(ValueRef value) {
     CHECK_EQ(num_results_, -1) << "Should call AddArgument before calling SetNumResults";
     value_or_attrs_.push_back(value);
     ++num_arguments_;
@@ -75,6 +80,13 @@ class KernelFrameBuilder : public KernelFrame {
     CHECK_EQ(num_results_, -1);
     num_results_ = n;
     value_or_attrs_.resize(value_or_attrs_.size() + n);
+  }
+
+  void SetResultAt(int result_id, Value* value) {
+    CHECK_EQ(value_or_attrs_.size(), num_arguments_ + num_results_) << "Call SetNumResults first";
+    CHECK_LT(result_id + num_arguments_, value_or_attrs_.size());
+    CHECK(value);
+    value_or_attrs_[num_arguments_ + result_id].Reset(value);
   }
 
   void Reset() {

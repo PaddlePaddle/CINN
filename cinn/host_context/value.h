@@ -9,15 +9,20 @@ namespace cinn {
 namespace host_context {
 
 using ValueVariantType = std::variant<int32_t, int64_t, float, double, bool>;
-class _Value_ : public common::Object {
+
+/**
+ * Represents any data type for value in host context.
+ */
+class Value : public common::Object {
  public:
   using variant_type = ValueVariantType;
 
-  explicit _Value_(int32_t x) : data(x) {}
-  explicit _Value_(int64_t x) : data(x) {}
-  explicit _Value_(float x) : data(x) {}
-  explicit _Value_(double x) : data(x) {}
-  explicit _Value_(bool x) : data(x) {}
+  explicit Value() {}
+  explicit Value(int32_t x) : data(x) {}
+  explicit Value(int64_t x) : data(x) {}
+  explicit Value(float x) : data(x) {}
+  explicit Value(double x) : data(x) {}
+  explicit Value(bool x) : data(x) {}
 
   const char* type_info() const override;
 
@@ -28,18 +33,22 @@ class _Value_ : public common::Object {
 };
 
 /**
- * Represents any value types in host context.
+ * Represents a counted reference of a Value.
  */
-class Value : common::Shared<_Value_> {
+class ValueRef : common::Shared<Value> {
  public:
-  Value() = default;
-  explicit Value(_Value_* n) : common::Shared<_Value_>(n) {}
-  explicit Value(int32_t val);
-  explicit Value(int64_t val);
-  explicit Value(float val);
-  explicit Value(double val);
-  explicit Value(bool val);
+  ValueRef() = default;
+  explicit ValueRef(Value* n) : common::Shared<Value>(n) {}
+  explicit ValueRef(int32_t val);
+  explicit ValueRef(int64_t val);
+  explicit ValueRef(float val);
+  explicit ValueRef(double val);
+  explicit ValueRef(bool val);
 
+  using common::Shared<Value>::get;
+  using common::Shared<Value>::Reset;
+  using common::Shared<Value>::operator->;
+  using common::Shared<Value>::operator*;
   //! Get a readonly data.
   template <typename T>
   T get() const {
@@ -51,7 +60,7 @@ class Value : common::Shared<_Value_> {
   template <typename T>
   void Assign(const T& x) {
     if (!p_) {
-      p_ = common::make_shared<_Value_>();
+      p_ = common::make_shared<Value>();
     }
     *p_ = x;
   }

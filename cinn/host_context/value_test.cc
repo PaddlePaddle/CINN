@@ -4,14 +4,14 @@
 namespace cinn {
 namespace host_context {
 
-TEST(Value, test) {
-  Value x(12);
+TEST(ValueRef, test) {
+  ValueRef x(12);
   ASSERT_EQ(x.get<int>(), 12);
 
-  Value y(1.2f);
+  ValueRef y(1.2f);
   ASSERT_EQ(y.get<float>(), 1.2f);
 
-  Value z(true);
+  ValueRef z(true);
   ASSERT_EQ(z.get<bool>(), true);
 }
 

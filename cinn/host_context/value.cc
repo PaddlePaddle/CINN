@@ -4,13 +4,13 @@
 namespace cinn {
 namespace host_context {
 
-Value::Value(int32_t val) : Shared<_Value_>(new _Value_(val)) {}
-Value::Value(int64_t val) : Shared<_Value_>(new _Value_(val)) {}
-Value::Value(float val) : Shared<_Value_>(new _Value_(val)) {}
-Value::Value(double val) : Shared<_Value_>(new _Value_(val)) {}
-Value::Value(bool val) : Shared<_Value_>(new _Value_(val)) {}
+ValueRef::ValueRef(int32_t val) : Shared<Value>(new Value(val)) {}
+ValueRef::ValueRef(int64_t val) : Shared<Value>(new Value(val)) {}
+ValueRef::ValueRef(float val) : Shared<Value>(new Value(val)) {}
+ValueRef::ValueRef(double val) : Shared<Value>(new Value(val)) {}
+ValueRef::ValueRef(bool val) : Shared<Value>(new Value(val)) {}
 
-const char* _Value_::type_info() const { return __type_info__; }
+const char* Value::type_info() const { return __type_info__; }
 
 }  // namespace host_context
 }  // namespace cinn

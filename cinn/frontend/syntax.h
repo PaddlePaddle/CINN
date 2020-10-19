@@ -94,6 +94,7 @@ struct _Instruction_ : public common::Object {
 
   std::string op_type;
   std::unordered_map<std::string, attr_t> attrs;
+  std::vector<std::pair<std::string, attr_t>> attrs_ordered;
   std::vector<Variable> inputs;
   std::vector<Variable> outputs;
   Program* parent_program{};
