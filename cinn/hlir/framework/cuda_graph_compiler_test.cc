@@ -122,9 +122,8 @@ TEST(GraphCompiler, RunModel) {
 
   auto target_mul = test_mul(host_data1, host_data2, M.as_int32(), K.as_int32(), N.as_int32());
   for (int i = 0; i < Out->shape().numel(); i++) {
-    /*      LOG_FIRST_N(INFO, 10) << "data[" << i << "]: "
-                              << "2 * " << host_data1[i] << " + "
-                              << "3 * " << host_data2[i] << " = " << host_data3[i]; */
+    LOG_FIRST_N(INFO, 10) << "cinn_data[" << i << "]: " << 2 * (host_data1[i] + target_mul[i]) + 0.5
+                          << " v.s. target_data[" << i << "]: " << host_data3[i];
     EXPECT_NEAR(host_data3[i], 2 * (host_data1[i] + target_mul[i]) + 0.5, 1e-5);
   }
 }
