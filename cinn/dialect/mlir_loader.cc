@@ -34,6 +34,20 @@ mlir::OwningModuleRef LoadMlirSource(mlir::MLIRContext* context, std::string_vie
   return res;
 }
 
+mlir::OwningModuleRef LoadMlirFile(std::string_view file_name, mlir::MLIRContext* context) {
+  context->allowUnregisteredDialects();
+  RegisterCinnDialects(context->getDialectRegistry());
+  context->getDialectRegistry().insert<mlir::StandardOpsDialect>();
+
+  mlir::ScopedDiagnosticHandler scope_handler(context, [](mlir::Diagnostic& diag) {
+    if (diag.getSeverity() != mlir::DiagnosticSeverity::Error) return mlir::success();
+    LOG(INFO) << "diag: " << diag.str();
+    return mlir::failure(true);
+  });
+
+  return mlir::parseSourceFile(file_name, context);
+}
+
 class Translator {
  public:
   explicit Translator(mlir::ModuleOp module) : module_(module) {}

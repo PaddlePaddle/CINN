@@ -79,7 +79,9 @@ class KernelFrameBuilder : public KernelFrame {
     CHECK_EQ(num_arguments_, value_or_attrs_.size());
     CHECK_EQ(num_results_, -1);
     num_results_ = n;
-    value_or_attrs_.resize(value_or_attrs_.size() + n);
+    for (int i = 0; i < n; i++) {
+      value_or_attrs_.emplace_back(new Value);
+    }
   }
 
   void SetResultAt(int result_id, Value* value) {

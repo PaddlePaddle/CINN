@@ -9,6 +9,11 @@ struct KernelRegistry;
 
 namespace cinn::kernel {
 
+/**
+ * Register all the basic kernels to \p registry.
+ */
+void RegisterBasicKernels(host_context::KernelRegistry* registry);
+
 void RegisterIntBasicKernels(host_context::KernelRegistry* registry);
 void RegisterFloatBasicKernels(host_context::KernelRegistry* registry);
 

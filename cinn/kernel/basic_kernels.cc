@@ -27,7 +27,12 @@ T div(T a, T b) {
 
 template <typename T>
 void print(T a) {
-  std::cout << a;
+  std::cout << a << std::endl;
+}
+
+void RegisterBasicKernels(host_context::KernelRegistry *registry) {
+  RegisterIntBasicKernels(registry);
+  RegisterFloatBasicKernels(registry);
 }
 
 void RegisterIntBasicKernels(host_context::KernelRegistry *registry) {
@@ -41,7 +46,7 @@ void RegisterIntBasicKernels(host_context::KernelRegistry *registry) {
 void RegisterFloatBasicKernels(host_context::KernelRegistry *registry) {
   registry->AddKernel("cinn.add.f32", CINN_KERNEL(add<float>));
   registry->AddKernel("cinn.sub.f32", CINN_KERNEL(sub<float>));
-  registry->AddKernel("cinn.mul.f32", CINN_KERNEL(sub<float>));
+  registry->AddKernel("cinn.mul.f32", CINN_KERNEL(mul<float>));
   registry->AddKernel("cinn.div.f32", CINN_KERNEL(div<float>));
   registry->AddKernel("cinn.print.f32", CINN_KERNEL(print<float>));
 }

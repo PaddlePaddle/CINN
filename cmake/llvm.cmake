@@ -46,6 +46,10 @@ message(STATUS "MLIR libs: ${mlir_libs}")
 add_definitions(${LLVM_DEFINITIONS})
 
 
+# The minimum needed libraries for MLIR IR parse and transform.
+set(MLIR_IR_LIBS MLIRAnalysis MLIRStandardOps MLIRPass MLIRParser MLIRDialect MLIRIR MLIROptLib)
+
+
 # tb_base is the name of a xxx.td file (without the .td suffix)
 function(mlir_tablegen_on td_base)
   set(options)
