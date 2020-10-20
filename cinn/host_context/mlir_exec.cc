@@ -20,11 +20,7 @@ int main(int argc, char** argv) {
 
   kernel::RegisterBasicKernels(&registry);
 
-  host_context::CoreRuntimeBuilder runtime(&registry);
-  host_context::MlirToRuntimeTranslate(module.get(), &runtime);
-
-  LOG(INFO) << "execution output:";
-  runtime.Execute();
+  host_context::ExecuteMlir(module.get(), &registry);
 
   std::cout << std::endl;
   return 0;
