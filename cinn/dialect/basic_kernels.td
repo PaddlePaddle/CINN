@@ -79,6 +79,23 @@ def AddI64Op : AddOp<"i64", I64>;
 def AddF32Op : AddOp<"f32", F32>;
 def AddF64Op : AddOp<"f64", F64>;
 
+class MulOp<string suffix, Type type> : CINN_Op<"mul." # suffix, [NoSideEffect]> {
+    let summary = "cinn.mul operation";
+    let description = [{
+        An operation that takes two inputs and returns their mul as result.
+    }];
+
+    let arguments = (ins type, type);
+let results = (outs type);
+let assemblyFormat = "operands attr-dict";
+let verifier = ?;
+}
+
+def MulI32Op : MulOp<"i32", I32>;
+def MulI64Op : MulOp<"i64", I64>;
+def MulF32Op : MulOp<"f32", F32>;
+def MulF64Op : MulOp<"f64", F64>;
+
 class PrintOp<string suffix, Type type> : CINN_Op<"print." # suffix> {
   let summary = "cinn.print operation";
   let description = [{

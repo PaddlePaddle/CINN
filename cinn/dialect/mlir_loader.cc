@@ -67,6 +67,10 @@ class Translator {
       if (inst.isKnownTerminator()) break;
       for (auto val : inst.getResults()) {
         LOG(INFO) << "get instruction: " << inst.getName().getStringRef().str();
+        for (auto& op : inst.getOpOperands()) {
+          LOG(INFO) << "operand owner: " << op.getOwner()->getName().getStringRef().str();
+          LOG(INFO) << "op " << op.getOperandNumber();
+        }
       }
     }
   }

@@ -13,6 +13,7 @@ add_subdirectory(hlir)
 add_subdirectory(pybind)
 add_subdirectory(frontend)
 add_subdirectory(host_context)
+add_subdirectory(kernel)
 
 
 # Download a model

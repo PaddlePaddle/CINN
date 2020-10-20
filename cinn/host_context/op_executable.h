@@ -10,6 +10,7 @@ namespace cinn::host_context {
 class SymbolTable;
 class KernelRegistry;
 class KernelFrame;
+class Value;
 
 /**
  * OpExecutable is a runtime executable instance for an operation. It captures all the information(Tensors, attributes
@@ -18,14 +19,6 @@ class KernelFrame;
  */
 class OpExecutable {
  public:
-  OpExecutable(std::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry = nullptr);
-
-  void AppendArgument(std::string_view name);
-
-  void SetResults(llvm::ArrayRef<std::string> result_names);
-
-  void SetResultNum(int num);
-
   KernelFrame& frame();
   const KernelFrame& frame() const;
 
@@ -33,9 +26,26 @@ class OpExecutable {
 
   ~OpExecutable();
 
- private:
+ protected:
   class Impl;
+  OpExecutable(Impl* impl);
+
   std::unique_ptr<Impl> impl_;
+};
+
+/**
+ * Builder to help contruct an OpExecutable.
+ */
+class OpExecutableBuilder : public OpExecutable {
+ public:
+  OpExecutableBuilder(std::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry = nullptr);
+  OpExecutableBuilder(OpExecutableBuilder&& other);
+
+  void AppendArgument(std::string_view name);
+  void AppendArgument(Value* value);
+
+  void SetResults(llvm::ArrayRef<std::string> result_names);
+  void SetResults(llvm::ArrayRef<Value*> results);
 };
 
 }  // namespace cinn::host_context

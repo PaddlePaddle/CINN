@@ -34,6 +34,10 @@ func @main() -> f32 {
   LOG(INFO) << "module name: " << module->getOperationName().data();
   for (auto func : module->getOps<mlir::FuncOp>()) {
     LOG(INFO) << "get func " << func.getName().str();
+    int num_args = func.getNumArguments();
+    for (int i = 0; i < num_args; i++) {
+      LOG(INFO) << "arg: " << func.getArgument(i).getArgNumber();
+    }
   }
 
   MlirToFrontend(module.release());

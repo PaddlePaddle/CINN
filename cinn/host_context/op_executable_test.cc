@@ -18,7 +18,7 @@ TEST(OpExecutable, basic) {
   table.Register("a", 1);
   table.Register("b", 2);
 
-  OpExecutable executable("cinn.test.add.i32", &table, &registry);
+  OpExecutableBuilder executable("cinn.test.add.i32", &table, &registry);
   executable.AppendArgument("a");
   executable.AppendArgument("b");
   executable.SetResults({"c"});

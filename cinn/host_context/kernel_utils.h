@@ -58,6 +58,17 @@ class Result {
   ValueRef* result_{};
 };
 
+template <typename T>
+class Attribute {
+ public:
+  explicit Attribute(ValueRef value) : value_(value) {}
+
+  T& get() { return value_.get<T>(); }
+
+ private:
+  ValueRef value_;
+};
+
 template <typename F, F f>
 struct KernelImpl;
 
