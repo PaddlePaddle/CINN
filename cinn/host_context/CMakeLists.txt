@@ -6,6 +6,7 @@ set(srcs
         symbol_table.cc
         op_executable.cc
         core_runtime.cc
+        tensor_shape.cc
         mlir_to_runtime_translate.cc
   )
 

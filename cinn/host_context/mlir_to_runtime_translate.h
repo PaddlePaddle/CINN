@@ -15,9 +15,11 @@ class MlirToRuntimeTranslator {
   void Emit();
 
   //! Emit a "cinn.constant.*" operation, return true if succeed.
-  bool EmitConstant(mlir::Operation* op);
+  bool EmitConstantOp(mlir::Operation* op);
   //! Emit a "cinn.return" operation.
-  bool EmitReturn(mlir::Operation* op);
+  bool EmitReturnOp(mlir::Operation* op);
+  //! Emit a "ts.build_shape" operation.
+  bool EmitBuildShapeOp(mlir::Operation* op);
   //! Emit an operation other than the special cases above.
   bool EmitGeneralOp(mlir::Operation* op);
 

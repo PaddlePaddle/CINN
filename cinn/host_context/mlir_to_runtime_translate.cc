@@ -12,9 +12,11 @@
 #include <utility>
 #include <vector>
 #include "cinn/dialect/mlir_loader.h"
+#include "cinn/dialect/tensor_shape.h"
 #include "cinn/host_context/core_runtime.h"
 #include "cinn/host_context/kernel_registry.h"
 #include "cinn/host_context/op_executable.h"
+#include "cinn/host_context/tensor_shape.h"
 #include "cinn/host_context/value.h"
 
 namespace cinn::host_context {
@@ -41,7 +43,7 @@ struct MlirToRuntimeTranslator::Impl {
   llvm::DenseMap<mlir::Value, ValueRef> value_map;
 };
 
-bool MlirToRuntimeTranslator::EmitConstant(mlir::Operation* op) {
+bool MlirToRuntimeTranslator::EmitConstantOp(mlir::Operation* op) {
   if (!utils::Startswith(op->getName().getStringRef().str(), "cinn.constant")) return false;
   VLOG(3) << "Emitting constant op [" << op->getName().getStringRef().str() << "]";
 
@@ -99,11 +101,16 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
   impl_->cur_op->SetResults(res_values);
 
   // process attributes
+  auto attrs = op->getAttrs();
+  for (int i = 0; i < attrs.size(); i++) {
+    auto& attr = attrs[i];
+  }
+
   CHECK(op->getAttrs().empty()) << "Not support attribute yet";
   return true;
 }
 
-bool MlirToRuntimeTranslator::EmitReturn(mlir::Operation* op) {
+bool MlirToRuntimeTranslator::EmitReturnOp(mlir::Operation* op) {
   if (op->getName().getStringRef() == "cinn.return") return true;
   return false;
 }
@@ -119,8 +126,9 @@ void MlirToRuntimeTranslator::Emit() {
   for (auto& op : block) {
     VLOG(3) << "instr: " << DumpToString(op);
 
-    if (EmitConstant(&op)) continue;
-    if (EmitReturn(&op)) continue;
+    if (EmitConstantOp(&op)) continue;
+    if (EmitBuildShapeOp(&op)) continue;
+    if (EmitReturnOp(&op)) continue;
     if (EmitGeneralOp(&op)) continue;
     LOG(FATAL) << "failed to emit op: " << DumpToString(op);
   }
@@ -149,6 +157,23 @@ void MlirToRuntimeTranslator::UpdateCurFuncName(std::string_view name) { impl_->
 MlirToRuntimeTranslator::MlirToRuntimeTranslator(mlir::ModuleOp module, CoreRuntimeBuilder* runtime) : impl_(new Impl) {
   impl_->module  = module;
   impl_->runtime = runtime;
+}
+
+bool MlirToRuntimeTranslator::EmitBuildShapeOp(mlir::Operation* op) {
+  LOG(INFO) << "processing build shape";
+  if (op->getName().getStringRef() != "ts.build_shape") return false;
+
+  auto value = op->getAttr("value");
+
+  CHECK(value.isa<mlir::ArrayAttr>());
+  auto values = value.cast<mlir::ArrayAttr>().getValue();
+  std::vector<int64_t> dims;
+  for (auto& attr_v : values) {
+    dims.push_back(attr_v.cast<mlir::IntegerAttr>().getInt());
+  }
+  impl_->op_results[op] = {ValueRef(new Value(TensorShape(llvm::ArrayRef<int64_t>(dims))))};
+
+  return true;
 }
 
 void MlirToRuntimeTranslate(mlir::ModuleOp module, CoreRuntimeBuilder* runtime) {
@@ -184,8 +209,9 @@ class FunctionExecute : public MlirToRuntimeTranslator {
       CHECK_EQ(blocks.size(), 1UL) << "function with more than one block is not supported yet";
 
       for (auto& op : blocks.front()) {
-        if (EmitConstant(&op)) continue;
-        if (EmitReturn(&op)) continue;
+        if (EmitConstantOp(&op)) continue;
+        if (EmitBuildShapeOp(&op)) continue;
+        if (EmitReturnOp(&op)) continue;
         if (EmitGeneralOp(&op)) continue;
         LOG(FATAL) << "Not supported op: " << DumpToString(op);
       }

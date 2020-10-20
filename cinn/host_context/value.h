@@ -4,11 +4,12 @@
 #include <variant>
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
+#include "cinn/host_context/tensor_shape.h"
 
 namespace cinn {
 namespace host_context {
 
-using ValueVariantType = std::variant<int32_t, int64_t, float, double, bool>;
+using ValueVariantType = std::variant<int32_t, int64_t, float, double, bool, TensorShape>;
 
 /**
  * Represents any data type for value in host context.
@@ -23,6 +24,7 @@ class Value : public common::Object {
   explicit Value(float x) : data(x) {}
   explicit Value(double x) : data(x) {}
   explicit Value(bool x) : data(x) {}
+  explicit Value(TensorShape&& x) : data(std::move(x)) {}
 
   const char* type_info() const override;
 
