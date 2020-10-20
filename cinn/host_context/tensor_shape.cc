@@ -51,9 +51,9 @@ std::optional<TensorShape> DynamicTensorShape::ToTensorShape() const {
 std::ostream& operator<<(std::ostream& os, const TensorShape& v) {
   os << "shape[";
   for (int i = 0; i < v.GetRank() - 1; i++) {
-    os << v << ",";
+    os << v.dims_[i] << ",";
   }
-  if (v.GetRank()) os << v.dims_.back();
+  if (v.GetRank() > 0) os << v.dims_.back();
   os << "]";
   return os;
 }
