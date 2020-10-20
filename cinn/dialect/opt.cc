@@ -1,5 +1,3 @@
-#include "cinn/dialect/opt.h"
-
 #include <glog/logging.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/Support/MlirOptMain.h>
