@@ -77,6 +77,7 @@ void TensorFromStream(std::istream &is, hlir::framework::_Tensor_ *tensor, const
     // tensor->set_persistable(true);
     is.read(static_cast<char *>(buf), size);
   } else if (target.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
     if (desc.data_type() != Type::VarType_Type_FP32) LOG(FATAL) << "[CUDA] The type is not fp32!!";
     auto *data = tensor->mutable_data<float>(target);
     tensor->set_type(Float(32));
@@ -85,6 +86,9 @@ void TensorFromStream(std::istream &is, hlir::framework::_Tensor_ *tensor, const
     is.read(reinterpret_cast<char *>(temp.data()), size);
     CUDA_CALL(cudaMemcpy(
         reinterpret_cast<void *>(data), temp.data(), tensor->shape().numel() * sizeof(float), cudaMemcpyHostToDevice));
+#else
+    LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
   } else {
     CINN_NOT_IMPLEMENTED
   }
