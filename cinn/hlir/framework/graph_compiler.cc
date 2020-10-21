@@ -35,18 +35,10 @@ std::unique_ptr<Program> GraphCompiler::Build() {
   }
 
   if (this->target_.arch == Target::Arch::X86) {
-    CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
-    codegen.SetInlineBuiltinCodes(false);
     auto build_module = m_builder_.Build();
-    auto out          = codegen.Compile(build_module, CodeGenC::OutputKind::CImpl);
-    LOG(INFO) << "[Debug] C Code is:\n" << out;
     compiler_->Build(build_module);
   } else if (this->target_.arch == Target::Arch::NVGPU) {
-    backends::CodeGenCUDA_Dev codegen(this->target_);
-    codegen.SetInlineBuiltinCodes(false);
     auto build_module = m_builder_.Build();
-    auto out          = codegen.Compile(build_module);
-    LOG(INFO) << "[Debug] CUDA Code is:\n" << out;
     compiler_->Build(build_module);
   } else {
     CINN_NOT_IMPLEMENTED
@@ -147,7 +139,7 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     for (auto& shape_dim : iter.second) {
       shape.push_back(Shape::dim_t(shape_dim));
     }
-    VLOG(3) << "Tensor [" << iter.first << "] resize to " << utils::Join(shape, ",");
+    LOG(INFO) << "Tensor [" << iter.first << "] resize to " << utils::Join(shape, ",");
     tensor->Resize(Shape{shape});
     CHECK_EQ(dtype_dict.at(iter.first), Float(32))
         << "The dtype of node " << iter.first << " is not float! Other dtype is not implemented yet.";

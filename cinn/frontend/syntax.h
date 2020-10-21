@@ -267,7 +267,10 @@ struct Program {
 std::tuple<std::unique_ptr<Program>,
            std::unordered_map<std::string, Variable>,
            std::unordered_map<std::string, std::string>>
-LoadPaddleProgram(const std::string& model_dir, hlir::framework::Scope* scope, bool is_combined);
+LoadPaddleProgram(const std::string& model_dir,
+                  hlir::framework::Scope* scope,
+                  bool is_combined,
+                  const common::Target& target = common::DefaultHostTarget());
 
 std::ostream& operator<<(std::ostream& os, const Variable& x);
 std::ostream& operator<<(std::ostream& os, const Instruction& instr);

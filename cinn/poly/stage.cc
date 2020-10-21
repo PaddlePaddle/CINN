@@ -550,7 +550,6 @@ void Stage::ShareBufferWith(Stage *other) {
 
   meta.tensors_to_share_buffer_with.insert(other->id());
   other->meta.tensors_to_share_buffer_with.insert(tensor_->name);
-  LOG(INFO) << "In ShareBufferWith: 2 tensors are: " << other->id() << "  " << tensor_->name;
 }
 
 isl_map *__isl_give GatherAccesses(Stage *stage, const std::string &tensor_name) {

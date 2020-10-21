@@ -24,7 +24,7 @@ class TestLoadResnetModel(unittest.TestCase):
         self.target.bits = Target.Bit.k64
         self.target.os = Target.OS.Linux
         self.model_dir = model_dir
-        self.x_shape = [1, 3, 224, 224]
+        self.x_shape = [2, 3, 224, 224]
         self.target_tensor = 'save_infer_model/scale_0'
         self.input_tensor = 'image'
 

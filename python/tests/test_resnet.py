@@ -26,7 +26,7 @@ class TestLoadResnetModel(unittest.TestCase):
 
         self.model_dir = model_dir
 
-        self.x_shape = [1, 32, 112, 112]
+        self.x_shape = [2, 24, 56, 56]
 
     def get_paddle_inference_result(self, data):
         exe = fluid.Executor(fluid.CPUPlace())

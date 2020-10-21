@@ -1,7 +1,12 @@
 #include "cinn/frontend/paddle/model_parser.h"
 
 #include <fstream>
+#include <vector>
 
+#include "cinn/backends/codegen_cuda_dev.h"
+#include "cinn/backends/codegen_cuda_host.h"
+#include "cinn/backends/codegen_cuda_util.h"
+#include "cinn/backends/cuda_util.h"
 #include "cinn/common/common.h"
 #include "cinn/frontend/paddle/compatible_pb.h"
 
@@ -27,7 +32,7 @@ int SizeOfType(framework_proto::VarType::Type type) {
   return -1;
 }
 
-void TensorFromStream(std::istream &is, hlir::framework::_Tensor_ *tensor) {
+void TensorFromStream(std::istream &is, hlir::framework::_Tensor_ *tensor, const common::Target &target) {
   using Type = framework_proto::VarType::Type;
   uint32_t version;
   is.read(reinterpret_cast<char *>(&version), sizeof(version));
@@ -52,28 +57,40 @@ void TensorFromStream(std::istream &is, hlir::framework::_Tensor_ *tensor) {
   void *buf;
   size_t size = tensor->shape().numel() * SizeOfType(desc.data_type());
   // alllocate memory
-  switch (static_cast<int>(desc.data_type())) {
-#define SET_TENSOR(desc, type, precision)                          \
-  case Type::VarType_Type_##desc:                                  \
-    buf = tensor->mutable_data<type>(common::DefaultHostTarget()); \
-    tensor->set_type(precision);                                   \
+  if (target.arch == Target::Arch::X86) {
+    switch (static_cast<int>(desc.data_type())) {
+#define SET_TENSOR(desc, type, precision)     \
+  case Type::VarType_Type_##desc:             \
+    buf = tensor->mutable_data<type>(target); \
+    tensor->set_type(precision);              \
     break
 
-    SET_TENSOR(FP32, float, Float(32));
-    SET_TENSOR(INT8, int8_t, Int(8));
-    SET_TENSOR(INT16, int16_t, Int(16));
-    SET_TENSOR(INT32, int32_t, Int(32));
-    SET_TENSOR(INT64, int64_t, Int(64));
+      SET_TENSOR(FP32, float, Float(32));
+      SET_TENSOR(INT8, int8_t, Int(8));
+      SET_TENSOR(INT16, int16_t, Int(16));
+      SET_TENSOR(INT32, int32_t, Int(32));
+      SET_TENSOR(INT64, int64_t, Int(64));
 #undef SET_TENSOR
-    default:
-      LOG(FATAL) << "unknown type " << desc.data_type();
+      default:
+        LOG(FATAL) << "unknown type " << desc.data_type();
+    }
+    // tensor->set_persistable(true);
+    is.read(static_cast<char *>(buf), size);
+  } else if (target.arch == Target::Arch::NVGPU) {
+    if (desc.data_type() != Type::VarType_Type_FP32) LOG(FATAL) << "[CUDA] The type is not fp32!!";
+    auto *data = tensor->mutable_data<float>(target);
+    tensor->set_type(Float(32));
+    std::vector<float> temp(tensor->shape().numel());
+    // LOG(INFO) <<"[CUDA] The tensor's size is "<< tensor->shape().numel();
+    is.read(reinterpret_cast<char *>(temp.data()), size);
+    CUDA_CALL(cudaMemcpy(
+        reinterpret_cast<void *>(data), temp.data(), tensor->shape().numel() * sizeof(float), cudaMemcpyHostToDevice));
+  } else {
+    CINN_NOT_IMPLEMENTED
   }
-  // tensor->set_persistable(true);
-
-  is.read(static_cast<char *>(buf), size);
 }
 
-void LoadLoDTensor(std::istream &is, hlir::framework::Variable *var) {
+void LoadLoDTensor(std::istream &is, hlir::framework::Variable *var, const common::Target &target) {
   auto &tensor = std::get<hlir::framework::Tensor>(*var);
   uint32_t version{};
   is.read(reinterpret_cast<char *>(&version), sizeof(version));
@@ -91,7 +108,7 @@ void LoadLoDTensor(std::istream &is, hlir::framework::Variable *var) {
     // lod[i] = tmp;
   }
 
-  TensorFromStream(is, tensor.operator->());
+  TensorFromStream(is, tensor.operator->(), target);
 }
 
 void ReadBinaryFile(const std::string &filename, std::string *contents) {
@@ -121,10 +138,10 @@ std::unique_ptr<framework_proto::ProgramDesc> LoadProgram(const std::string &pat
 void LoadParams(const std::string &path) {}
 
 // Load directly to CPU, and latter transfer to other devices.
-void LoadParam(const std::string &path, hlir::framework::Variable *out) {
+void LoadParam(const std::string &path, hlir::framework::Variable *out, const common::Target &target) {
   std::ifstream fin(path, std::ios::binary);
   CHECK(fin.is_open()) << "failed to open file " << path;
-  LoadLoDTensor(fin, out);
+  LoadLoDTensor(fin, out, target);
 }
 
 bool IsPersistable(const cpp::VarDesc &var) {
@@ -138,7 +155,8 @@ bool IsPersistable(const cpp::VarDesc &var) {
 void LoadCombinedParamsPb(const std::string &path,
                           hlir::framework::Scope *scope,
                           const cpp::ProgramDesc &cpp_prog,
-                          bool params_from_memory) {
+                          bool params_from_memory,
+                          const common::Target &target) {
   CHECK(scope);
   auto prog             = cpp_prog;
   auto &main_block_desc = *prog.GetBlock<cpp::BlockDesc>(0);
@@ -158,7 +176,7 @@ void LoadCombinedParamsPb(const std::string &path,
       auto *var = scope->Var<hlir::framework::Tensor>(utils::TransValidVarName(paramlist[i]));
       // Error checking
       CHECK(static_cast<bool>(is)) << "There is a problem with loading model parameters";
-      LoadLoDTensor(is, var);
+      LoadLoDTensor(is, var, target);
     }
     is.peek();
     CHECK(is.eof()) << "You are not allowed to load partial data via"
@@ -181,7 +199,8 @@ void LoadModelPb(const std::string &model_dir,
                  hlir::framework::Scope *scope,
                  cpp::ProgramDesc *cpp_prog,
                  bool combined,
-                 bool model_from_memory) {
+                 bool model_from_memory,
+                 const common::Target &target) {
   CHECK(cpp_prog);
   CHECK(scope);
   cpp_prog->ClearBlocks();
@@ -208,7 +227,7 @@ void LoadModelPb(const std::string &model_dir,
                                            << " you should load the combined model using cfg.set_model_buffer "
                                               "interface.";
   if (combined) {
-    LoadCombinedParamsPb(param_file_temp, scope, *cpp_prog, model_from_memory);
+    LoadCombinedParamsPb(param_file_temp, scope, *cpp_prog, model_from_memory, target);
   } else {
     auto main_block = pb_proto_prog.blocks(0);
     for (auto &var : main_block.vars()) {
@@ -220,7 +239,7 @@ void LoadModelPb(const std::string &model_dir,
       std::ifstream file(file_path, std::ios::binary);
       switch (var.type().type()) {
         case framework_proto::VarType_Type_LOD_TENSOR:
-          LoadLoDTensor(file, scope->Var<hlir::framework::Tensor>(utils::TransValidVarName(var.name())));
+          LoadLoDTensor(file, scope->Var<hlir::framework::Tensor>(utils::TransValidVarName(var.name())), target);
           break;
         default:
           LOG(FATAL) << "unknown weight type";

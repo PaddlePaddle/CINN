@@ -381,7 +381,7 @@ Variable PaddleModelToProgram::GetVar(const std::string& name) {
 
 std::unique_ptr<Program> PaddleModelToProgram::operator()(const std::string& model_dir, bool is_combined) {
   paddle::cpp::ProgramDesc program_desc;
-  paddle::LoadModelPb(model_dir, "__model__", "", scope_, &program_desc, is_combined);
+  paddle::LoadModelPb(model_dir, "__model__", "", scope_, &program_desc, is_combined, false, target_);
   CHECK_EQ(program_desc.BlocksSize(), 1) << "CINN can only support the model with a single block";
   auto* block_desc = program_desc.GetBlock<paddle::cpp::BlockDesc>(0);
 

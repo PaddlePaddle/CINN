@@ -20,6 +20,9 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                            int block_y,
                            int block_z,
                            void *stream) {
+  LOG(INFO) << "Num_args is: " << num_args;
+  LOG(INFO) << "grid_xyz is: " << grid_x << " " << grid_y << " " << grid_z;
+  LOG(INFO) << "block_xyz is: " << block_x << " " << block_y << " " << block_z;
   // prepare void**
   void *arr[20];
   CHECK_LT(num_args, 20);
