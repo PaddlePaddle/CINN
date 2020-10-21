@@ -42,6 +42,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Split(1, 2);
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
@@ -95,6 +96,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Split(1, 2);
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
@@ -198,6 +200,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     if (target.arch == Target::Arch::NVGPU) {
       Expr Out = arg_pack[2];
       CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Split(1, 2);
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
@@ -337,6 +340,7 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
       if (target.arch == Target::Arch::NVGPU) {
         Expr Out = arg_pack[1];
         CHECK(Out.as_tensor());
+        stages[Out.as_tensor_ref()]->Split(1, 2);
         stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
         stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
       }
@@ -448,6 +452,7 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Split(1, 2);
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
@@ -730,6 +735,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       if (target.arch == Target::Arch::NVGPU) {
         Expr Out = arg_pack[1];
         CHECK(Out.as_tensor());
+        stages[Out.as_tensor_ref()]->Split(1, 2);
         stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
         stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
       }
@@ -739,6 +745,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
         Expr Out              = arg_pack[0];
         poly::StageMap stages = arg_pack[1];
         CHECK(Out.as_tensor());
+        stages[Out.as_tensor_ref()]->Split(1, 2);
         stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
         stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
       }
@@ -1030,6 +1037,7 @@ std::shared_ptr<OpStrategy> StrategyForSigmoid(const framework::NodeAttr &attrs,
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Split(1, 2);
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
@@ -1286,6 +1294,7 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Split(1, 2);
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }

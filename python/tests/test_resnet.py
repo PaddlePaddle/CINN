@@ -20,13 +20,13 @@ model_dir = sys.argv.pop()
 class TestLoadResnetModel(unittest.TestCase):
     def setUp(self):
         self.target = Target()
-        self.target.arch = Target.Arch.X86
+        self.target.arch = Target.Arch.NVGPU
         self.target.bits = Target.Bit.k64
         self.target.os = Target.OS.Linux
 
         self.model_dir = model_dir
 
-        self.x_shape = [2, 24, 56, 56]
+        self.x_shape = [2, 160, 7, 7]
 
     def get_paddle_inference_result(self, data):
         exe = fluid.Executor(fluid.CPUPlace())

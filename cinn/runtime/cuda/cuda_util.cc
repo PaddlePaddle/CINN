@@ -20,9 +20,6 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                            int block_y,
                            int block_z,
                            void *stream) {
-  LOG(INFO) << "Num_args is: " << num_args;
-  LOG(INFO) << "grid_xyz is: " << grid_x << " " << grid_y << " " << grid_z;
-  LOG(INFO) << "block_xyz is: " << block_x << " " << block_y << " " << block_z;
   // prepare void**
   void *arr[20];
   CHECK_LT(num_args, 20);
@@ -33,7 +30,12 @@ void cinn_call_cuda_kernel(void *kernel_fn,
       arr[i] = args[i].data_addr();
     }
   }
-
+  /*   while (block_x > 800 && block_x % 2 == 0) {
+      block_x = block_x / 2;
+    } */
+  LOG(INFO) << "Num_args is: " << num_args;
+  LOG(INFO) << "grid_xyz is: " << grid_x << " " << grid_y << " " << grid_z;
+  LOG(INFO) << "block_xyz is: " << block_x << " " << block_y << " " << block_z;
   CUDA_DRIVER_CALL(cuLaunchKernel(static_cast<CUfunction>(kernel_fn),
                                   grid_x,
                                   grid_y,

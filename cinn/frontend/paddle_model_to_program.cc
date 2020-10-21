@@ -33,6 +33,7 @@ void PaddleModelToProgram::AddOpMapper_scale() {
     auto x_name = op_desc.Input("X").front();
     auto x      = GetVar(utils::TransValidVarName(x_name));
     float scale{};
+    float bias{};
     if (op_desc.HasAttr("scale")) {  // the old model format
       scale = op_desc.GetAttr<float>("scale");
     } else {  // the newly refactored format
@@ -43,8 +44,14 @@ void PaddleModelToProgram::AddOpMapper_scale() {
       auto& scale_tensor = std::get<hlir::framework::Tensor>(*scale_tensor_var);
       scale              = scale_tensor->mutable_data<float>(common::DefaultHostTarget())[0];
     }
+    if (op_desc.HasAttr("bias")) {  // the old model format
+      bias = op_desc.GetAttr<float>("bias");
+    } else {
+      LOG(FATAL) << "Didn't find [bias] attr in Scale operator!!";
+    }
     std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     attrs["scale"] = scale;
+    attrs["bias"]  = bias;
     auto out       = program_->scale(x, attrs);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();

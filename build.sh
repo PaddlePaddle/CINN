@@ -42,7 +42,7 @@ function cmake_ {
     cp $workspace/cmake/config.cmake $build_dir
     echo "set(ISL_HOME /usr/local)" >> $build_dir/config.cmake
     # To enable Cuda backend, set(WITH_CUDA ON)
-    echo "set(WITH_CUDA OFF)" >> $build_dir/config.cmake
+    echo "set(WITH_CUDA ON)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
     cmake .. -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir

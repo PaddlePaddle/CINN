@@ -20,7 +20,7 @@ model_dir = sys.argv.pop()
 class TestLoadResnetModel(unittest.TestCase):
     def setUp(self):
         self.target = Target()
-        self.target.arch = Target.Arch.X86
+        self.target.arch = Target.Arch.NVGPU
         self.target.bits = Target.Bit.k64
         self.target.os = Target.OS.Linux
         self.model_dir = model_dir
