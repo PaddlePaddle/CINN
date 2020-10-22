@@ -42,15 +42,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      if (output_shapes.back().size() > 1 && output_shapes.back()[1] >= 512) {
-        int temp_split = 1;
-        int temp_num   = output_shapes.back()[1];
-        while (temp_num >= 512) {
-          temp_split = temp_split * 2;
-          temp_num   = temp_num / 2;
-        }
-        stages[Out.as_tensor_ref()]->Split(1, temp_split);
-      }
+      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
@@ -104,17 +96,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      if (output_shapes.back().size() > 1 && output_shapes.back()[1] >= 512) {
-        int temp_split = 1;
-        int temp_num   = output_shapes.back()[1];
-        while (temp_num >= 512) {
-          temp_split = temp_split * 2;
-          temp_num   = temp_num / 2;
-        }
-
-        LOG(INFO) << "DEBUG: The split size: " << temp_split;
-        stages[Out.as_tensor_ref()]->Split(1, temp_split);
-      }
+      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
@@ -462,17 +444,7 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      if (output_shapes.back().size() > 1 && output_shapes.back()[1] >= 512) {
-        int temp_split = 1;
-        int temp_num   = output_shapes.back()[1];
-        while (temp_num >= 512) {
-          temp_split = temp_split * 2;
-          temp_num   = temp_num / 2;
-        }
-
-        LOG(INFO) << "DEBUG: The split size: " << temp_split;
-        stages[Out.as_tensor_ref()]->Split(1, temp_split);
-      }
+      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
@@ -1032,17 +1004,7 @@ std::shared_ptr<OpStrategy> StrategyForSigmoid(const framework::NodeAttr &attrs,
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      if (output_shapes.back().size() > 1 && output_shapes.back()[1] >= 512) {
-        int temp_split = 1;
-        int temp_num   = output_shapes.back()[1];
-        while (temp_num >= 512) {
-          temp_split = temp_split * 2;
-          temp_num   = temp_num / 2;
-        }
-
-        LOG(INFO) << "DEBUG: The split size: " << temp_split;
-        stages[Out.as_tensor_ref()]->Split(1, temp_split);
-      }
+      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
@@ -1301,17 +1263,7 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      if (output_shapes.back().size() > 1 && output_shapes.back()[1] >= 512) {
-        int temp_split = 1;
-        int temp_num   = output_shapes.back()[1];
-        while (temp_num >= 512) {
-          temp_split = temp_split * 2;
-          temp_num   = temp_num / 2;
-        }
-
-        LOG(INFO) << "DEBUG: The split size: " << temp_split;
-        stages[Out.as_tensor_ref()]->Split(1, temp_split);
-      }
+      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }

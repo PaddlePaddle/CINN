@@ -5,6 +5,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/pe/nn.h"
 #include "cinn/ir/ir_operators.h"
 
 namespace cinn {
@@ -56,17 +57,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseAdd(const framework::NodeAttr 
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      if (output_shapes.back().size() > 1 && output_shapes.back()[1] >= 512) {
-        int temp_split = 1;
-        int temp_num   = output_shapes.back()[1];
-        while (temp_num >= 512) {
-          temp_split = temp_split * 2;
-          temp_num   = temp_num / 2;
-        }
-
-        LOG(INFO) << "DEBUG: The split size: " << temp_split;
-        stages[Out.as_tensor_ref()]->Split(1, temp_split);
-      }
+      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
@@ -115,17 +106,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwiseMul(const framework::NodeAttr 
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      if (output_shapes.back().size() > 1 && output_shapes.back()[1] >= 512) {
-        int temp_split = 1;
-        int temp_num   = output_shapes.back()[1];
-        while (temp_num >= 512) {
-          temp_split = temp_split * 2;
-          temp_num   = temp_num / 2;
-        }
-
-        LOG(INFO) << "DEBUG: The split size: " << temp_split;
-        stages[Out.as_tensor_ref()]->Split(1, temp_split);
-      }
+      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
@@ -196,17 +177,7 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      if (output_shapes.back().size() > 1 && output_shapes.back()[1] >= 512) {
-        int temp_split = 1;
-        int temp_num   = output_shapes.back()[1];
-        while (temp_num >= 512) {
-          temp_split = temp_split * 2;
-          temp_num   = temp_num / 2;
-        }
-
-        LOG(INFO) << "DEBUG: The split size: " << temp_split;
-        stages[Out.as_tensor_ref()]->Split(1, temp_split);
-      }
+      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
