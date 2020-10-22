@@ -9,7 +9,7 @@ def TensorShapeDialect : Dialect {
     let description = [{
         The Tensor Shape dialect.
 
-            This dialect contains operations for working with tensor shapes.
+        This dialect contains operations for working with tensor shapes.
     }];
 
     let cppNamespace = "::cinn::ts";

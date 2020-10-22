@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <string>
+#include "llvm/ADT/ArrayRef.h"
 
 namespace cinn::host_context {
 
@@ -36,6 +37,8 @@ class CoreRuntimeBuilder : public CoreRuntime {
   explicit CoreRuntimeBuilder(KernelRegistry* kernel_registry);
 
   SymbolTable* NewSymbolTable(std::string_view fn_name);
+
+  llvm::ArrayRef<std::string_view> attr_names() const;
 
   OpExecutableBuilder* NewOpExecutable(std::string_view op_name, const std::string& fn_name);
 };

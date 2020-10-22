@@ -59,6 +59,8 @@ void OpExecutableBuilder::SetResults(llvm::ArrayRef<Value*> results) {
   }
 }
 
+void OpExecutableBuilder::AppendAttribute(Value* value) { impl_->frame.AddAttribute(value); }
+
 OpExecutableBuilder::OpExecutableBuilder(OpExecutableBuilder&& other) : OpExecutable(other.impl_.release()) {}
 
 void OpExecutable::Execute() { impl_->kernel_impl(&impl_->frame); }

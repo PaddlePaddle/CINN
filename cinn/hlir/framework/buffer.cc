@@ -7,6 +7,7 @@ namespace framework {
 void Buffer::Resize(uint32_t size) {
   if (size_ > 0) {
     Free();
+    size_ = 0;
   }
 
   if (size_ != size) {

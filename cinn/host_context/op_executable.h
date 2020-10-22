@@ -46,6 +46,8 @@ class OpExecutableBuilder : public OpExecutable {
 
   void SetResults(llvm::ArrayRef<std::string> result_names);
   void SetResults(llvm::ArrayRef<Value*> results);
+
+  void AppendAttribute(Value* value);
 };
 
 }  // namespace cinn::host_context

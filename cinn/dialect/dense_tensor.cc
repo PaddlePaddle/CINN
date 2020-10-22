@@ -17,6 +17,7 @@ using namespace mlir;
 
 void DTDialect::initialize() {
   allowUnknownTypes();
+  addTypes<TensorType>();
   addOperations<
 #define GET_OP_LIST
 #include "cinn/dialect/dense_tensor.cpp.inc"

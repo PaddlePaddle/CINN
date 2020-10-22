@@ -6,6 +6,7 @@
 #include "cinn/host_context/kernel_registry.h"
 #include "cinn/host_context/mlir_to_runtime_translate.h"
 #include "cinn/kernel/basic_kernels.h"
+#include "cinn/kernel/tensor_kernels.h"
 #include "cinn/kernel/tensor_shape_kernels.h"
 
 int main(int argc, char** argv) {
@@ -21,6 +22,7 @@ int main(int argc, char** argv) {
 
   kernel::RegisterBasicKernels(&registry);
   kernel::RegisterTensorShapeKernels(&registry);
+  kernel::RegisterTensorKernels(&registry);
 
   host_context::ExecuteMlir(module.get(), &registry);
 

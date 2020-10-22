@@ -76,6 +76,96 @@ bool MlirToRuntimeTranslator::EmitConstantOp(mlir::Operation* op) {
   return true;
 }
 
+template <>
+std::optional<int32_t> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::IntegerAttr>()) return std::nullopt;
+  if (attr->isa<mlir::IntegerAttr>()) {
+    auto val = attr->cast<mlir::IntegerAttr>();
+    if (val.getType().isInteger(32)) {
+      return val.getInt();
+    }
+  }
+}
+template <>
+std::optional<int64_t> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::IntegerAttr>()) return std::nullopt;
+  if (attr->isa<mlir::IntegerAttr>()) {
+    auto val = attr->cast<mlir::IntegerAttr>();
+    if (val.getType().isInteger(64)) {
+      return val.getInt();
+    }
+  }
+}
+
+// TODO(Superjomn) Make double and float parsing share some thing.
+template <>
+std::optional<float> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::FloatAttr>()) return std::nullopt;
+  if (attr->isa<mlir::FloatAttr>()) {
+    auto val = attr->cast<mlir::FloatAttr>();
+    if (val.getType().isF32()) return val.getValueAsDouble();
+  }
+}
+
+template <>
+std::optional<double> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::FloatAttr>()) return std::nullopt;
+  if (attr->isa<mlir::FloatAttr>()) {
+    auto val = attr->cast<mlir::FloatAttr>();
+    if (val.getType().isF64()) return val.getValueAsDouble();
+  }
+}
+
+#define PROCESS_ARRAY_INT(type__, bits__)                                                                  \
+  template <>                                                                                              \
+  std::optional<std::vector<type__>> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) { \
+    if (!attr->isa<mlir::ArrayAttr>()) return std::nullopt;                                                \
+    auto array = attr->cast<mlir::ArrayAttr>();                                                            \
+    CHECK(!array.empty());                                                                                 \
+                                                                                                           \
+    if (!array[0].getType().isInteger(bits__)) return std::nullopt;                                        \
+                                                                                                           \
+    std::vector<type__> res;                                                                               \
+    for (auto& v : array) {                                                                                \
+      res.push_back(v.cast<mlir::IntegerAttr>().getInt());                                                 \
+    }                                                                                                      \
+    return res;                                                                                            \
+  }
+
+PROCESS_ARRAY_INT(int16_t, 16);
+PROCESS_ARRAY_INT(int32_t, 32);
+PROCESS_ARRAY_INT(int64_t, 64);
+
+template <>
+std::optional<std::vector<float>> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::ArrayAttr>()) return std::nullopt;
+  auto array = attr->cast<mlir::ArrayAttr>();
+  CHECK(!array.empty());
+
+  if (!array[0].getType().isF32()) return std::nullopt;
+
+  std::vector<float> res;
+  for (auto& v : array) {
+    res.push_back(v.cast<mlir::FloatAttr>().getValueAsDouble());
+  }
+  return res;
+}
+
+template <>
+std::optional<std::vector<double>> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::ArrayAttr>()) return std::nullopt;
+  auto array = attr->cast<mlir::ArrayAttr>();
+  CHECK(!array.empty());
+
+  if (!array[0].getType().isF64()) return std::nullopt;
+
+  std::vector<double> res;
+  for (auto& v : array) {
+    res.push_back(v.cast<mlir::FloatAttr>().getValueAsDouble());
+  }
+  return res;
+}
+
 bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
   impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
 
@@ -83,6 +173,7 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
   for (int i = 0, e = op->getNumOperands(); i < e; i++) {
     auto operand = op->getOperand(i);
     if (operand.getKind() == mlir::Value::Kind::BlockArgument) LOG(FATAL) << "Not support BlockArgument";
+
     Value* arg_value = GetValue(operand);
     if (!arg_value) {
       auto upstream_op = operand.getDefiningOp();
@@ -102,11 +193,32 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
 
   // process attributes
   auto attrs = op->getAttrs();
+
   for (int i = 0; i < attrs.size(); i++) {
     auto& attr = attrs[i];
+    if (auto v = EmitAttribute<int32_t>(&attr.second)) {
+      impl_->cur_op->AppendAttribute(new Value(*v));
+    } else if (auto v = EmitAttribute<int64_t>(&attr.second)) {
+      impl_->cur_op->AppendAttribute(new Value(*v));
+    } else if (auto v = EmitAttribute<float>(&attr.second)) {
+      impl_->cur_op->AppendAttribute(new Value(*v));
+    } else if (auto v = EmitAttribute<double>(&attr.second)) {
+      impl_->cur_op->AppendAttribute(new Value(*v));
+    } else if (auto v = EmitAttribute<std::vector<int16_t>>(&attr.second)) {
+      impl_->cur_op->AppendAttribute(new Value(std::move(*v)));
+    } else if (auto v = EmitAttribute<std::vector<int32_t>>(&attr.second)) {
+      impl_->cur_op->AppendAttribute(new Value(std::move(*v)));
+    } else if (auto v = EmitAttribute<std::vector<int64_t>>(&attr.second)) {
+      impl_->cur_op->AppendAttribute(new Value(std::move(*v)));
+    } else if (auto v = EmitAttribute<std::vector<float>>(&attr.second)) {
+      impl_->cur_op->AppendAttribute(new Value(std::move(*v)));
+    } else if (auto v = EmitAttribute<std::vector<double>>(&attr.second)) {
+      impl_->cur_op->AppendAttribute(new Value(std::move(*v)));
+    } else {
+      LOG(FATAL) << "Not supported attribute type";
+    }
   }
 
-  CHECK(op->getAttrs().empty()) << "Not support attribute yet";
   return true;
 }
 
@@ -160,7 +272,6 @@ MlirToRuntimeTranslator::MlirToRuntimeTranslator(mlir::ModuleOp module, CoreRunt
 }
 
 bool MlirToRuntimeTranslator::EmitBuildShapeOp(mlir::Operation* op) {
-  LOG(INFO) << "processing build shape";
   if (op->getName().getStringRef() != "ts.build_shape") return false;
 
   auto value = op->getAttr("value");

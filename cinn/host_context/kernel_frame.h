@@ -17,14 +17,30 @@ class KernelFrame {
   int GetNumResults() const { return num_results_; }
 
   template <typename T>
-  T& GetArgAt(int index) const {
+  T& GetArgAt(int index) {
     CHECK_LT(index, GetNumArgs());
-    return value_or_attrs_[index];
+    return value_or_attrs_[index].get<T>();
+  }
+  template <typename T>
+  const T& GetArgAt(int index) const {
+    CHECK_LT(index, GetNumArgs());
+    return value_or_attrs_[index].get<T>();
   }
 
-  ValueRef& GetArgAt(int index) {
+  Value* GetArgAt(int index) {
     CHECK_LT(index, GetNumArgs());
-    return value_or_attrs_[index];
+    return value_or_attrs_[index].get();
+  }
+
+  Value* GetAttributeAt(int idx) {
+    CHECK_NE(num_results_, -1) << "Must call SetNumResults before GetAttributeAt";
+    CHECK_LT(idx, value_or_attrs_.size() - num_arguments_ - num_results_);
+    return value_or_attrs_[num_arguments_ + num_results_ + idx].get();
+  }
+
+  void AddAttribute(Value* v) {
+    CHECK_NE(num_results_, -1) << "Must call SetNumResults before calling AddAttribute";
+    value_or_attrs_.emplace_back(v);
   }
 
   template <typename T, typename... Args>
@@ -41,7 +57,7 @@ class KernelFrame {
   void SetResultAt(int index, T&& value) {
     CHECK_LT(index, num_results_) << "Invalid result index";
     CHECK(value_or_attrs_[num_arguments_ + index].get());
-    value_or_attrs_[num_arguments_ + index]->data = std::move(value);
+    value_or_attrs_[num_arguments_ + index]->set(std::move(value));
   }
 
   llvm::ArrayRef<ValueRef> GetResults() const { return GetValues(num_arguments_, num_results_); }
@@ -65,6 +81,7 @@ class KernelFrame {
   int num_results_{-1};
 
   utils::SmallVector<ValueRef, 8> value_or_attrs_;
+  utils::SmallVector<ValueRef, 4> attrs_;
 };
 
 class KernelFrameBuilder : public KernelFrame {

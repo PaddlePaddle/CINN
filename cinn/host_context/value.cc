@@ -1,5 +1,6 @@
 #include "cinn/host_context/value.h"
 #include <variant>
+#include "cinn/host_context/dense_tensor_view.h"
 
 namespace cinn {
 namespace host_context {

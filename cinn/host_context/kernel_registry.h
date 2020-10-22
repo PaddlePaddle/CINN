@@ -1,4 +1,7 @@
 #pragma once
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+
 #include <memory>
 
 namespace cinn {
@@ -16,6 +19,7 @@ class KernelRegistry {
   KernelRegistry();
 
   void AddKernel(std::string_view key, KernelImplementation fn);
+  void AddKernelAttrNameList(std::string_view key, llvm::ArrayRef<std::string_view> names);
 
   KernelImplementation GetKernel(std::string_view key) const;
 

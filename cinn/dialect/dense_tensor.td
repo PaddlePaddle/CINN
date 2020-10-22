@@ -19,8 +19,8 @@ def DT_Dialect : Dialect {
 class DT_Op<string mnemonic, list<OpTrait> traits = []> :
       Op<DT_Dialect, mnemonic, traits>;
 
-class CreateUninitTensorOp<string dtype, int rank>
-      : DT_Op<"create_uninit_tensor." # dtype # "." # rank, [NoSideEffect]> {
+class CreateUninitTensorOp<string dtype>
+      : DT_Op<"create_uninit_tensor." # dtype, [NoSideEffect]> {
   let summary = "dt.create_uninit_tensor operation";
 
   let description = [{
@@ -57,6 +57,7 @@ def PrintTensorOp : DT_Op<"print_tensor"> {
   }];
 
   let arguments = (ins TensorType);
+  let results = (outs);
   let assemblyFormat = "operands attr-dict";
 }
 
@@ -88,10 +89,7 @@ def GetTensorShapeOp : DT_Op<"get_tensor_shape", [NoSideEffect]> {
 }
 
 foreach dtype = ["ui8", "ui16", "ui32", "ui64", "i32", "f32", "f64", "i64"] in {
-  foreach rank = [0, 1, 2, 3, 4] in {
-    def DT_CreateUninitTensorOp_#dtype#_#rank :
-        CreateUninitTensorOp<dtype, rank>;
-  }
+  def DT_CreateUninitTensorOp_#dtype : CreateUninitTensorOp<dtype>;
   def DT_FillTensorOp_#dtype : FillTensorWithConstantOp<dtype>;
   def DT_SetTensorOp_#dtype : SetTensorOp<dtype>;
 }

@@ -19,5 +19,6 @@ def StringType : OpaqueType<"cinn", "string", "!cinn.string type">;
 
 def TensorType : OpaqueType<"t", "tensor", "tensor">;
 
+def BufferType : OpaqueType<"b", "buffer", "buffer">;
 
 #endif  // CINN_BASE

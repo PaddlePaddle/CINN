@@ -61,12 +61,29 @@ class Result {
 template <typename T>
 class Attribute {
  public:
-  explicit Attribute(ValueRef value) : value_(value) {}
+  explicit Attribute(const Value* value) : value_(value) {}
 
-  T& get() { return value_.get<T>(); }
+  const T& get() const { return value_->get<T>(); }
 
  private:
-  ValueRef value_;
+  const Value* value_;
+};
+
+template <typename ViewT>
+class ArgumentView {
+  using UnderlyingT = typename ViewT::UnderlyingT;
+
+ public:
+  explicit ArgumentView(Value* value) : value_(value), arg_(&value->template get<UnderlyingT>()) {}
+
+  Value* value() const { return value_; }
+  ViewT& get() const { return arg_; }
+  ViewT* operator->() const { return &get(); }
+  ViewT& operator*() const { return get(); }
+
+ private:
+  Value* value_{};
+  mutable ViewT arg_;
 };
 
 template <typename F, F f>
@@ -112,6 +129,19 @@ struct KernelImpl<Return (*)(Args...), impl_fn> {
     }
   };
 
+  template <typename Head, typename... Tail>
+  struct KernelCallHelper<ArgumentView<Head>, Tail...> {
+    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
+      static_assert(in_idx != -1, "Do not place Arguments after RemainingArguments");
+      static_assert(out_idx == 0, "Arguments should appear before results");
+      static_assert(const_idx == 0, "Arguments and results should appear before attributes.");
+
+      ArgumentView<Head> arg(frame->GetArgAt(in_idx));
+      KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx>(frame, pargs..., arg);
+    }
+  };
+
   // Specialization to cast a single result argument (Head).
   template <typename Head, typename... Tail>
   struct KernelCallHelper<Result<Head>, Tail...> {
@@ -121,6 +151,17 @@ struct KernelImpl<Return (*)(Args...), impl_fn> {
       static_assert(const_idx == 0, "Arguments and results should appear before attributes");
       Result<Head> arg(&frame->GetResults()[out_idx]);
       KernelCallHelper<Tail...>::template Invoke<in_idx, out_idx + 1, const_idx>(frame, pargs..., arg);
+    }
+  };
+
+  // Specialization to cast a single attribute.
+  template <typename Head, typename... Tail>
+  struct KernelCallHelper<Attribute<Head>, Tail...> {
+    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
+      static_assert(const_idx != -1, "Do not place Attributes after RemainingAttributes");
+      Attribute<Head> arg(frame->GetAttributeAt(const_idx));
+      KernelCallHelper<Tail...>::template Invoke<in_idx, out_idx, const_idx + 1>(frame, pargs..., arg);
     }
   };
 
@@ -148,8 +189,8 @@ struct KernelImpl<Return (*)(Args...), impl_fn> {
       static_assert(out_idx == 0, "Arguments should appear before results");
       static_assert(const_idx == 0, "Arguments and results should appear before attributes.");
 
-      auto& value = frame->GetArgAt(in_idx);
-      auto&& arg  = value.get<ArgT>();
+      auto* value = frame->GetArgAt(in_idx);
+      auto&& arg  = value->get<ArgT>();
 
       KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx>(frame, pargs..., arg);
     }

@@ -23,6 +23,9 @@ class MlirToRuntimeTranslator {
   //! Emit an operation other than the special cases above.
   bool EmitGeneralOp(mlir::Operation* op);
 
+  template <typename T>
+  std::optional<T> EmitAttribute(const mlir::Attribute* attr);
+
   Value* GetOpResult(mlir::Operation* op);
 
   Value* GetValue(mlir::Value value);

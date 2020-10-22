@@ -4,12 +4,27 @@
 #include <variant>
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
+#include "cinn/host_context/dense_tensor.h"
+#include "cinn/host_context/dense_tensor_view.h"
 #include "cinn/host_context/tensor_shape.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace cinn {
 namespace host_context {
 
-using ValueVariantType = std::variant<int32_t, int64_t, float, double, bool, TensorShape>;
+using ValueVariantType = std::variant<int16_t,
+                                      int32_t,
+                                      int64_t,
+                                      float,
+                                      double,
+                                      bool,
+                                      TensorShape,
+                                      DenseTensor,
+                                      std::vector<int16_t>,
+                                      std::vector<int32_t>,
+                                      std::vector<int64_t>,
+                                      std::vector<float>,
+                                      std::vector<double>>;
 
 /**
  * Represents any data type for value in host context.
@@ -24,13 +39,32 @@ class Value : public common::Object {
   explicit Value(float x) : data(x) {}
   explicit Value(double x) : data(x) {}
   explicit Value(bool x) : data(x) {}
+  explicit Value(std::vector<int16_t>&& x) : data(x) {}
+  explicit Value(std::vector<int32_t>&& x) : data(x) {}
+  explicit Value(std::vector<int64_t>&& x) : data(x) {}
+  explicit Value(std::vector<float>&& x) : data(x) {}
+  explicit Value(std::vector<double>&& x) : data(x) {}
   explicit Value(TensorShape&& x) : data(std::move(x)) {}
+  explicit Value(DenseTensor&& x) : data(std::move(x)) {}
+
+  template <typename T>
+  const T& get() const {
+    return std::get<T>(data);
+  }
+  template <typename T>
+  T& get() {
+    return std::get<T>(data);
+  }
+
+  template <typename T>
+  void set(T&& v) {
+    data = std::move(v);
+  }
 
   const char* type_info() const override;
 
-  ValueVariantType data;
-
  private:
+  ValueVariantType data;
   static constexpr const char* __type_info__ = "host_context_value";
 };
 
@@ -53,9 +87,15 @@ class ValueRef : common::Shared<Value> {
   using common::Shared<Value>::operator*;
   //! Get a readonly data.
   template <typename T>
-  T get() const {
+  const T& get() const {
     CHECK(p_);
-    return std::get<T>(p_->data);
+    return p_->get<T>();
+  }
+
+  template <typename T>
+  T& get() {
+    CHECK(p_);
+    return p_->get<T>();
   }
 
   //! Assign a data.
