@@ -1,8 +1,5 @@
 #include "cinn/backends/compiler.h"
 
-#include <fstream>
-#include <iostream>
-
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #ifdef CINN_WITH_CUDA
 #include "cinn/backends/codegen_cuda_dev.h"
@@ -30,24 +27,13 @@ void Compiler::Build(const Module& module) {
 void Compiler::CompileCudaModule(const Module& module) {
 #ifdef CINN_WITH_CUDA
   auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
-  LOG(INFO) << "host module:\n" << host_module;
+  LOG(INFO) << "[CUDA] host module:\n" << host_module;
 
   {  // compile cuda device
-    LOG(INFO) << "device module:\n" << device_module;
+    LOG(INFO) << "[CUDA] device module:\n" << device_module;
     CodeGenCUDA_Dev codegen(target_);
     auto source_code = codegen.Compile(device_module);
-    int k            = source_code.size();
-    LOG(INFO) << "source code size is: " << k;
-    if (k > 153000) {
-      /*       std::ofstream os;     //创建一个文件输出流对象
-            os.open("72log.txt");//将对象与文件关联
-            std::string str;
-            LOG(INFO) <<"Output to 72log.txt!!!";
-            std::cin>>source_code;
-            os<<source_code;   //将输入的内容放入txt文件中
-            os.close(); */
-    }
-    LOG(INFO) << "source code:\n" << source_code;
+    LOG(INFO) << "[CUDA] source code:\n" << source_code;
     using runtime::cuda::CUDAModule;
 
     backends::NVRTC_Compiler compiler;

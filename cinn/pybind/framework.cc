@@ -127,7 +127,6 @@ void BindFramework(pybind11::module *m) {
         CHECK(array.dtype().is(py::dtype::of<float>())) << "currently only support float32 data type as input";
         hlir::framework::shape_t shape;
         std::copy_n(array.shape(), array.ndim(), std::back_inserter(shape));
-        // self->Resize(Shape(shape));
         CHECK_EQ(std::accumulate(shape.begin(), shape.end(), 1, [](int32_t a, int32_t b) { return a * b; }),
                  self->shape().numel());
         auto *data = self->mutable_data<float>(target);

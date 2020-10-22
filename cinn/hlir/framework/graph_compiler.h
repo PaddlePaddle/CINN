@@ -38,13 +38,13 @@ class Program {
     for (auto& ins : instrs_) {
       auto in_args  = ins->GetInArgs();
       auto out_args = ins->GetOutArgs();
-      LOG(INFO) << "Op in args: ";
+      VLOG(3) << "Op in args: ";
       for (auto& in : in_args) {
-        LOG(INFO) << in << " ";
+        VLOG(3) << in << " ";
       }
-      LOG(INFO) << "Op out args: ";
+      VLOG(3) << "Op out args: ";
       for (auto& out : out_args) {
-        LOG(INFO) << out << " ";
+        VLOG(3) << out << " ";
       }
       ins->Run();
     }

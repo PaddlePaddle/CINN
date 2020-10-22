@@ -65,11 +65,11 @@ void TensorFromStream(std::istream &is, hlir::framework::_Tensor_ *tensor, const
     tensor->set_type(precision);              \
     break
 
-      SET_TENSOR(FP32, float, Float(32));
-      SET_TENSOR(INT8, int8_t, Int(8));
-      SET_TENSOR(INT16, int16_t, Int(16));
-      SET_TENSOR(INT32, int32_t, Int(32));
-      SET_TENSOR(INT64, int64_t, Int(64));
+    SET_TENSOR(FP32, float, Float(32));
+    SET_TENSOR(INT8, int8_t, Int(8));
+    SET_TENSOR(INT16, int16_t, Int(16));
+    SET_TENSOR(INT32, int32_t, Int(32));
+    SET_TENSOR(INT64, int64_t, Int(64));
 #undef SET_TENSOR
       default:
         LOG(FATAL) << "unknown type " << desc.data_type();

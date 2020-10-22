@@ -20,7 +20,7 @@ model_dir = sys.argv.pop()
 class TestLoadEfficientNetModel(unittest.TestCase):
     def setUp(self):
         self.target = Target()
-        self.target.arch = Target.Arch.NVGPU
+        self.target.arch = Target.Arch.X86
         self.target.bits = Target.Bit.k64
         self.target.os = Target.OS.Linux
         self.model_dir = model_dir
@@ -40,7 +40,7 @@ class TestLoadEfficientNetModel(unittest.TestCase):
             self.target_tensor).copy_to_cpu()
         return get_tensor
 
-    def test_model(self):
+    def apply_test(self):
         x_data = np.random.random(self.x_shape).astype("float32")
         self.executor = Interpreter([self.input_tensor], [self.x_shape])
         print("self.mode_dir is:", self.model_dir)
@@ -67,6 +67,11 @@ class TestLoadEfficientNetModel(unittest.TestCase):
                       out[i], " vs: ", target_result[i], ". Diff is: ",
                       out[i] - target_result[i])
         self.assertTrue(np.allclose(out, target_result, atol=1e-3))
+
+    def test_model(self):
+        self.apply_test()
+        #self.target.arch = Target.Arch.NVGPU
+        #self.apply_test()
 
 
 if __name__ == "__main__":
