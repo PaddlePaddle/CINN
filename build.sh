@@ -47,6 +47,7 @@ function cmake_ {
     cd $build_dir
     cmake .. -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir
 
+    make GEN_LLVM_RUNTIME_IR_HEADER
     # make the code generated compilable
     sed -i 's/0git/0/g' $build_dir/cinn/backends/llvm/cinn_runtime_llvm_ir.h
 }
