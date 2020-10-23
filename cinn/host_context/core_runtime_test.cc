@@ -36,10 +36,10 @@ TEST(CoreRuntime, basic) {
 
   builder.Execute();
 
-  ASSERT_EQ(std::get<int>(table->Get("d")->data), 4);
-  ASSERT_EQ(std::get<int>(table->Get("c")->data), 3);
+  ASSERT_EQ(table->Get("d")->get<int>(), 4);
+  ASSERT_EQ(table->Get("c")->get<int>(), 3);
 
-  ASSERT_EQ(std::get<int>(table->Get("e")->data), -1);
+  ASSERT_EQ(table->Get("e")->get<int>(), -1);
 }
 
 }  // namespace host_context

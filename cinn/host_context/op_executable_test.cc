@@ -31,7 +31,7 @@ TEST(OpExecutable, basic) {
   ASSERT_EQ(results.front().get<int>(), 3);
 
   // check symbol table contains the same result instance.
-  int c = std::get<int>(table.Get("c")->data);
+  int c = table.Get("c")->get<int>();
   ASSERT_EQ(c, 3);
 }
 

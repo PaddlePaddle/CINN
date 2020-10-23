@@ -20,10 +20,9 @@ cc_test(test_op_executable SRCS op_executable_test.cc DEPS core)
 cc_test(test_core_runtime SRCS core_runtime_test.cc DEPS core)
 cc_test(test_mlir_to_runtime_translate SRCS mlir_to_runtime_translate_test.cc DEPS core ${MLIR_IR_LIBS})
 
-add_test(test_mlir_exec_on_basic ${CMAKE_BINARY_DIR}/cinn/host_context/cinn-exec -i
-        ${CMAKE_CURRENT_SOURCE_DIR}/mlir_tests/basic.mlir | FileChecker  ${CMAKE_CURRENT_SOURCE_DIR}/mlir_tests/basic.mlir)
-add_test(test_mlir_exec_on_basic ${CMAKE_BINARY_DIR}/cinn/host_context/cinn-exec -i
-        ${CMAKE_CURRENT_SOURCE_DIR}/mlir_tests/shape.mlir | FileChecker  ${CMAKE_CURRENT_SOURCE_DIR}/mlir_tests/shape.mlir)
+cinn_exec_check(test_mlir_exec_on_basic ./mlir_tests/basic.mlir)
+cinn_exec_check(test_mlir_exec_on_shape ./mlir_tests/shape.mlir)
+cinn_exec_check(test_mlir_exec_on_dense_tensor ./mlir_tests/dense_tensor.mlir)
 
 add_executable(cinn-exec mlir_exec.cc)
 target_link_libraries(cinn-exec core ${MLIR_IR_LIBS})

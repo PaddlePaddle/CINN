@@ -67,3 +67,11 @@ function(mlir_tablegen_on td_base)
   add_custom_target(${td_base}_inc DEPENDS ${td_base}_IncGen)
 endfunction()
 
+# Execute the mlir script with cinn-exec program.
+# @name: name of the test
+# @script: path to the mlir script file
+function (cinn_exec_check name script)
+  add_test(NAME ${name}
+    COMMAND sh -c "${CMAKE_BINARY_DIR}/cinn/host_context/cinn-exec -i ${CMAKE_CURRENT_SOURCE_DIR}/${script}| FileCheck-10  ${CMAKE_CURRENT_SOURCE_DIR}/${script}")
+endfunction()
+
