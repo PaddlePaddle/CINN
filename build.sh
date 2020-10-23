@@ -29,9 +29,13 @@ function prepare {
 function prepare_llvm {
     cd $workspace
     clang++ -mavx2 -masm=intel -S -emit-llvm cinn/runtime/cinn_runtime.cc -I$PWD
+    # make the code generated compilable
+    sed -i 's/0git/0/g' $build_dir/cinn/backends/llvm/cinn_runtime_llvm_ir.h
     cd -
 
     export runtime_include_dir=$workspace/cinn/runtime
+
+    export PATH=${LLVM11_DIR}/bin:$PATH
 }
 
 function cmake_ {
@@ -42,7 +46,7 @@ function cmake_ {
     echo "set(WITH_CUDA OFF)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
-    cmake ..
+    cmake .. -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir
 }
 
 function prepare_model {
