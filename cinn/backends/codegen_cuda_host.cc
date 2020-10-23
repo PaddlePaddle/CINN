@@ -71,7 +71,7 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
 
   auto* ll_num_args_copied = b_->CreateAlloca(ll_int32_ty(), nullptr, "num_args_copied");
   Store(ll_args_count, ll_num_args_copied);
-  SetVar(ll_num_args_copied->getName(), ll_num_args_copied);
+  SetVar(std::string(ll_num_args_copied->getName()), ll_num_args_copied);
 
   const std::string& func_arg0_name = func->args[0].name();
   CHECK(LLVM_WillVarLowerAsPointer(func_arg0_name))
@@ -95,7 +95,7 @@ llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* f
                                         {
                                             kernel_fn_ptr_var,  // kernel_fn
                                             args_var,           // args
-                                            Var(ll_num_args_copied->getName(), type_of<int32_t>()),
+                                            Var(std::string(ll_num_args_copied->getName()), type_of<int32_t>()),
                                             Expr(func->cuda_axis_info.grid_dim(0)),   // grid_x
                                             Expr(func->cuda_axis_info.grid_dim(1)),   // grid_y
                                             Expr(func->cuda_axis_info.grid_dim(2)),   // grid_z

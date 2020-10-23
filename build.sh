@@ -32,6 +32,8 @@ function prepare_llvm {
     cd -
 
     export runtime_include_dir=$workspace/cinn/runtime/cuda
+
+    export PATH=${LLVM11_DIR}/bin:$PATH
 }
 
 function cmake_ {
@@ -43,7 +45,11 @@ function cmake_ {
     echo "set(WITH_CUDA OFF)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
-    cmake ..
+    cmake .. -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir
+
+    make GEN_LLVM_RUNTIME_IR_HEADER
+    # make the code generated compilable
+    sed -i 's/0git/0/g' $build_dir/cinn/backends/llvm/cinn_runtime_llvm_ir.h
 }
 
 function prepare_model {

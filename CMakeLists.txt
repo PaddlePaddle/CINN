@@ -64,17 +64,30 @@ link_directories("/usr/lib")
 set(global_test_args "--cinn_x86_builtin_code_root=${CMAKE_SOURCE_DIR}/cinn/backends")
 
 set(core_src CACHE INTERNAL "" FORCE)
+set(core_deps CACHE INTERNAL "" FORCE)
 set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
 add_subdirectory(tests)
 
-cc_library(core SRCS ${core_src} DEPS glog mklml framework_proto)
+
+cc_library(core SRCS ${core_src} DEPS glog ${llvm_libs} mklml framework_proto ${MLIR_ALL_LIBS})
 if (TARGET LLVM)
   target_link_libraries(core LLVM)
 else()
   target_link_libraries(core ${llvm_libs})
 endif()
 add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
+
+
+add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER
+        # MLIR td file generations
+        ops_inc
+        basic_kernels_inc
+        cinn_base_inc
+        tensor_shape_inc
+        dense_tensor_inc
+        ${core_deps}
+        )
 
 if (WITH_CUDA)
   target_link_libraries(core ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES})
