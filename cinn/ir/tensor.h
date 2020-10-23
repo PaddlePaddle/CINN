@@ -26,7 +26,9 @@ namespace lang {
 template <typename T>
 struct Placeholder;
 
-void InitReduceTensor(poly::StageMap stages, const ir::Tensor& tensor);
+void InitReduceTensor(poly::StageMap stages,
+                      const ir::Tensor& tensor,
+                      const Target& target = common::DefaultHostTarget());
 }  // namespace lang
 
 namespace ir {
@@ -259,7 +261,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
    * @param init_val The initial value.
    * @return The initializing tensor.
    */
-  ir::Tensor InitReduction(poly::StageMap stages) const;
+  ir::Tensor InitReduction(poly::StageMap stages, const Target& target = common::DefaultHostTarget()) const;
 
   //! The names of the tensors depend the same buffer and should schedule before this.
   std::set<std::string> buffer_depended_tensor_names_;
@@ -269,7 +271,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   friend Shared<poly::Stage> CreateStage(Tensor tensor);
 
-  friend void lang::InitReduceTensor(poly::StageMap stages, const ir::Tensor& tensor);
+  friend void lang::InitReduceTensor(poly::StageMap stages, const ir::Tensor& tensor, const Target& target);
 };
 
 Shared<poly::Stage> CreateStage(Tensor tensor);

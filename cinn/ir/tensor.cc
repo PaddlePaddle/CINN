@@ -223,7 +223,7 @@ Expr *_Tensor_::mutable_body() {
   CINN_NOT_IMPLEMENTED
 }
 
-ir::Tensor _Tensor_::InitReduction(poly::StageMap stages) const {
+ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) const {
   CHECK(contains_reduce_axis()) << "InitReduction only works on a reduce tensor";
   // return if already rexists.
   std::string init_reduce_tensor_name = GenReduceInitTensorNameOf(name);
@@ -233,6 +233,10 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages) const {
   auto init_tensor = lang::Compute(
       shape, [=](const std::vector<Expr> &axis) { return GetReduceInitVal(); }, init_reduce_tensor_name);
   stages->InsertLazily(init_tensor);
+  if (target.arch == Target::Arch::NVGPU) {
+    stages[init_tensor]->Bind(0, "blockIdx.x");
+    stages[init_tensor]->Bind(1, "threadIdx.x");
+  }
   stages[this]->CtrlDepend(init_tensor);
   stages[this]->ShareBufferWith(stages[init_tensor]);
   return init_tensor;

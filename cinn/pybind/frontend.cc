@@ -92,8 +92,21 @@ void BindFrontend(pybind11::module *m) {
                CHECK_EQ(input_data[i].size(), in_tensor->shape().numel())
                    << "The size of tensor [" << tensor_inputs[i]->id
                    << "] is different with the input data's size! Please check.";
-               for (size_t j = 0; j < in_tensor->shape().numel(); j++) {
-                 data[j] = reinterpret_cast<const float *>(input_data[i].data())[j];  // All random data
+               if (target.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
+                 CUDA_CALL(cudaMemcpy(reinterpret_cast<void *>(data),
+                                      input_data[i].data(),
+                                      in_tensor->shape().numel() * sizeof(float),
+                                      cudaMemcpyHostToDevice));
+#else
+                 LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
+               } else if (target.arch == Target::Arch::X86) {
+                 for (size_t j = 0; j < in_tensor->shape().numel(); j++) {
+                   data[j] = reinterpret_cast<const float *>(input_data[i].data())[j];  // All random data
+                 }
+               } else {
+                 CINN_NOT_IMPLEMENTED
                }
              }
              program->Execute();

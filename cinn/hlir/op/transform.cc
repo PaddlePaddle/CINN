@@ -60,12 +60,18 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule matmul_schedule([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule matmul_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
-    *ret                    = arg_pack;
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+    }
+    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -144,45 +150,50 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     }
     auto A_tensor = A.as_tensor_ref();
     auto B_tensor = B.as_tensor_ref();
-    std::vector<Expr> new_xshape{Expr(1), Expr(1)};
-    std::vector<Expr> new_yshape{Expr(1), Expr(1)};
-    auto stages = CreateStages({A_tensor, B_tensor});
+    auto stages   = CreateStages({A_tensor, B_tensor});
+    std::vector<Expr> output_shape;
+    std::vector<Expr> new_xshape;
+    std::vector<Expr> new_yshape;
+    Expr check_dim(1);
     for (int i = 0; i < A_tensor->shape.size(); i++) {
       if (i < x_num_col_dims) {
-        new_xshape[0] = new_xshape[0] * A_tensor->shape[i];
+        output_shape.push_back(A_tensor->shape[i]);
+        new_xshape.push_back(A_tensor->shape[i]);
       } else {
-        new_xshape[1] = new_xshape[1] * A_tensor->shape[i];
+        check_dim = check_dim * A_tensor->shape[i];
       }
     }
-
+    new_xshape.push_back(check_dim);
+    new_yshape.push_back(check_dim);
     for (int i = 0; i < B_tensor->shape.size(); i++) {
-      if (i < y_num_col_dims) {
-        new_yshape[0] = new_yshape[0] * B_tensor->shape[i];
-      } else {
-        new_yshape[1] = new_yshape[1] * B_tensor->shape[i];
+      if (i >= y_num_col_dims) {
+        output_shape.push_back(B_tensor->shape[i]);
+        new_yshape.push_back(B_tensor->shape[i]);
       }
     }
-
+    Var axis_k(check_dim, UniqName("axis_k"));
     auto new_A = A_tensor->Reshape(new_xshape, stages);
     auto new_B = B_tensor->Reshape(new_yshape, stages);
-    std::vector<Expr> output_shape{new_xshape[0], new_yshape[1]};
-    Var axis_k(new_xshape[1], UniqName("axis_k"));
-    auto out = Compute(
-        output_shape,
-        [=](Expr m, Expr n) { return lang::ReduceSum(new_A(m, axis_k) * new_B(axis_k, n), {axis_k}); },
-        UniqName("Mul_out"));
+
+    auto out = pe::Mul(new_A, new_B, x_num_col_dims, output_shape, axis_k, UniqName("Mul_output"));
     VLOG(3) << "mul out: " << out;
     stages->InsertLazily(out);
     CHECK(!out_type.empty()) << "Output type of Mul is empty! Please check.\n";
     *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule mul_schedule([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule mul_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
-    *ret                    = arg_pack;
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+    }
+    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -197,9 +208,7 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
 
-  std::vector<int> output_shape(2);
-  std::vector<int> shape1_new{1, 1};
-  std::vector<int> shape2_new{1, 1};
+  std::vector<int> output_shape;
   int x_num_col_dims = 1;
   int y_num_col_dims = 1;
   for (auto &iter : attrs.attr_store) {
@@ -207,27 +216,43 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
       x_num_col_dims = std::get<int>(iter.second);
     } else if (iter.first == "y_num_col_dims") {
       y_num_col_dims = std::get<int>(iter.second);
+    } else {
+      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
     }
   }
+  int check_dim_x = 1;
+  int check_dim_y = 1;
   for (int i = 0; i < inputs_shape[0].size(); i++) {
     if (i < x_num_col_dims) {
-      shape1_new[0] = shape1_new[0] * inputs_shape[0][i];
+      output_shape.push_back(inputs_shape[0][i]);
     } else {
-      shape1_new[1] = shape1_new[1] * inputs_shape[0][i];
+      check_dim_x = check_dim_x * inputs_shape[0][i];
     }
   }
 
   for (int i = 0; i < inputs_shape[1].size(); i++) {
     if (i < y_num_col_dims) {
-      shape2_new[0] = shape2_new[0] * inputs_shape[1][i];
+      check_dim_y = check_dim_y * inputs_shape[1][i];
     } else {
-      shape2_new[1] = shape2_new[1] * inputs_shape[1][i];
+      output_shape.push_back(inputs_shape[1][i]);
     }
   }
-  CHECK_EQ(shape1_new[1], shape2_new[0])
-      << "For matrix multiply: X * Y, second dim of X's shape should be equal to first dim of Y's shape! Please Check!";
-  output_shape[0] = shape1_new[0];
-  output_shape[1] = shape2_new[1];
+  CHECK_EQ(check_dim_x, check_dim_y) << "For matrix multiply: X * Y, second dim of X's shape :[" << check_dim_x
+                                     << "] should be equal to first dim of Y's shape :[" << check_dim_y
+                                     << "]! Please Check!";
+
+  LOG(INFO) << "infer shape of mul's output is:\n";
+  for (auto v : output_shape) {
+    LOG(INFO) << v << ", ";
+  }
+  LOG(INFO) << "first input shape of mul is:\n";
+  for (auto v : inputs_shape[0]) {
+    LOG(INFO) << v << ", ";
+  }
+  LOG(INFO) << "second input shape of mul is:\n";
+  for (auto v : inputs_shape[1]) {
+    LOG(INFO) << v << ", ";
+  }
   std::vector<std::vector<int>> res{output_shape};
   return res;
 }

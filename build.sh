@@ -33,7 +33,7 @@ function prepare_llvm {
     sed -i 's/0git/0/g' $build_dir/cinn/backends/llvm/cinn_runtime_llvm_ir.h
     cd -
 
-    export runtime_include_dir=$workspace/cinn/runtime
+    export runtime_include_dir=$workspace/cinn/runtime/cuda
 
     export PATH=${LLVM11_DIR}/bin:$PATH
 }
@@ -43,6 +43,7 @@ function cmake_ {
     mkdir -p $build_dir
     cp $workspace/cmake/config.cmake $build_dir
     echo "set(ISL_HOME /usr/local)" >> $build_dir/config.cmake
+    # To enable Cuda backend, set(WITH_CUDA ON)
     echo "set(WITH_CUDA OFF)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
@@ -51,12 +52,18 @@ function cmake_ {
 
 function prepare_model {
     cd $build_dir/thirds
-    wget http://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar
-    tar -xvf ResNet18.tar
-    wget http://paddle-inference-dist.bj.bcebos.com/CINN/MobileNetV2.tar
-    tar -xvf MobileNetV2.tar
-    wget http://paddle-inference-dist.bj.bcebos.com/CINN/EfficientNet.tar
-    tar -xvf EfficientNet.tar
+    if [[ ! -f "ResNet18.tar" ]]; then
+        wget http://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar
+        tar -xvf ResNet18.tar
+    fi
+    if [[ ! -f "MobileNetV2.tar" ]]; then
+        wget http://paddle-inference-dist.bj.bcebos.com/CINN/MobileNetV2.tar
+        tar -xvf MobileNetV2.tar
+    fi
+    if [[ ! -f "EfficientNet.tar" ]]; then
+        wget http://paddle-inference-dist.bj.bcebos.com/CINN/EfficientNet.tar
+        tar -xvf EfficientNet.tar
+    fi
     python $workspace/python/tests/fake_model/naive_mul.py
     python $workspace/python/tests/fake_model/naive_multi_fc.py
     python $workspace/python/tests/fake_model/resnet_model.py

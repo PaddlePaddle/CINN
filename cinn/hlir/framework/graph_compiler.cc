@@ -37,14 +37,20 @@ std::unique_ptr<Program> GraphCompiler::Build() {
   if (this->target_.arch == Target::Arch::X86) {
     CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
     codegen.SetInlineBuiltinCodes(false);
-    auto out = codegen.Compile(m_builder_.Build(), CodeGenC::OutputKind::CImpl);
+    auto build_module = m_builder_.Build();
+    auto out          = codegen.Compile(build_module, CodeGenC::OutputKind::CImpl);
     LOG(INFO) << "[Debug] C Code is:\n" << out;
+    compiler_->Build(build_module);
   } else if (this->target_.arch == Target::Arch::NVGPU) {
     backends::CodeGenCUDA_Dev codegen(this->target_);
-    auto out = codegen.Compile(m_builder_.Build());
+    codegen.SetInlineBuiltinCodes(false);
+    auto build_module = m_builder_.Build();
+    auto out          = codegen.Compile(build_module);
     LOG(INFO) << "[Debug] CUDA Code is:\n" << out;
+    compiler_->Build(build_module);
+  } else {
+    CINN_NOT_IMPLEMENTED
   }
-  compiler_->Build(m_builder_.Build());
 
   return std::unique_ptr<Program>(new Program(scope_, BuildInstructions()));
 }
@@ -109,7 +115,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     inputs.push_back(temp.as_tensor_ref());
   }
 
-  auto func = Lower(GenOpFuncName(node), stages, inputs);
+  auto func = Lower(GenOpFuncName(node), stages, inputs, {}, {}, nullptr, this->target_);
   VLOG(2) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
   return func;
 }

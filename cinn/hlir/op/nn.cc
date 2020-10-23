@@ -34,12 +34,18 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
-  framework::CINNSchedule relu_schedule([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule relu_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
-    Expr A [[maybe_unused]] = arg_pack[0];
-    *ret                    = arg_pack;
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+    }
+    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -171,7 +177,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule conv2d_schedule([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule conv2d_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 4UL);
@@ -182,6 +188,13 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     Expr weights_dilation = arg_pack[1];
     CHECK(weights_dilation.as_tensor());
     stages[weights_dilation.as_tensor_ref()]->ComputeInline();
+
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr Out = arg_pack[2];
+      CHECK(Out.as_tensor());
+      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+    }
     *ret = CINNValuePack{{arg_pack[2], CINNValue(stages)}};
   });
 
@@ -306,7 +319,7 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule depthwise_conv2d_schedule([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule depthwise_conv2d_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of depthwise_conv schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
@@ -315,8 +328,23 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
       Expr input_pad        = arg_pack[0];
       CHECK(input_pad.as_tensor());
       stages[input_pad.as_tensor_ref()]->ComputeInline();
+      if (target.arch == Target::Arch::NVGPU) {
+        Expr Out = arg_pack[1];
+        CHECK(Out.as_tensor());
+        stages[input_pad.as_tensor_ref()]->Bind(0, "blockIdx.x");
+        stages[input_pad.as_tensor_ref()]->Bind(1, "threadIdx.x");
+        stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+        stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      }
       *ret = CINNValuePack{{arg_pack[1], CINNValue(stages)}};
     } else {
+      if (target.arch == Target::Arch::NVGPU) {
+        Expr Out              = arg_pack[0];
+        poly::StageMap stages = arg_pack[1];
+        CHECK(Out.as_tensor());
+        stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+        stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      }
       *ret = arg_pack;
     }
   });
