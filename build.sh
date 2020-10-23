@@ -5,7 +5,8 @@ workspace=$PWD
 build_dir=$workspace/build
 
 JOBS=8
-
+ # To enable Cuda backend, set(WITH_CUDA ON)
+cuda_config=OFF
 
 function check_style {
     export PATH=/usr/bin:$PATH
@@ -42,7 +43,7 @@ function cmake_ {
     cp $workspace/cmake/config.cmake $build_dir
     echo "set(ISL_HOME /usr/local)" >> $build_dir/config.cmake
     # To enable Cuda backend, set(WITH_CUDA ON)
-    echo "set(WITH_CUDA OFF)" >> $build_dir/config.cmake
+    echo "set(WITH_CUDA $cuda_config)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
     cmake .. -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir
@@ -81,6 +82,10 @@ function build {
     make test02_matmul_main -j $JOBS
     make test03_conv_main -j $JOBS
     make test_codegen_c -j $JOBS
+    if [[ $cuda_config == "ON" ]]; then
+        make test_codegen_cuda_dev -j $JOBS
+        ctest -R test_codegen_cuda_dev
+    fi
 
     ctest -R test01_elementwise_add_main
     ctest -R test02_matmul_main
