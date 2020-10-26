@@ -14,7 +14,8 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
-assert len(sys.argv) == 1 + 2  # model count
+assert len(sys.argv) == 1 + 2 + 1  # model and enable_gpu count
+enable_gpu = sys.argv.pop()
 multi_fc_model_dir = sys.argv.pop()
 naive_model_dir = sys.argv.pop()
 
@@ -22,7 +23,10 @@ naive_model_dir = sys.argv.pop()
 class TestFrontend(unittest.TestCase):
     def setUp(self):
         self.target = Target()
-        self.target.arch = Target.Arch.X86
+        if enable_gpu == "ON":
+            self.target.arch = Target.Arch.NVGPU
+        else:
+            self.target.arch = Target.Arch.X86
         self.target.bits = Target.Bit.k64
         self.target.os = Target.OS.Linux
 

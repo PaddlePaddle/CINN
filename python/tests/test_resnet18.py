@@ -14,13 +14,19 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
+enable_gpu = sys.argv.pop()
 model_dir = sys.argv.pop()
+print("enable_gpu is : ", enable_gpu)
+print("model_dir is : ", model_dir)
 
 
 class TestLoadResnetModel(unittest.TestCase):
     def setUp(self):
         self.target = Target()
-        self.target.arch = Target.Arch.X86
+        if enable_gpu == "ON":
+            self.target.arch = Target.Arch.NVGPU
+        else:
+            self.target.arch = Target.Arch.X86
         self.target.bits = Target.Bit.k64
         self.target.os = Target.OS.Linux
         self.model_dir = model_dir
@@ -71,8 +77,6 @@ class TestLoadResnetModel(unittest.TestCase):
 
     def test_model(self):
         self.apply_test()
-        #self.target.arch = Target.Arch.NVGPU
-        #self.apply_test()
 
 
 if __name__ == "__main__":
