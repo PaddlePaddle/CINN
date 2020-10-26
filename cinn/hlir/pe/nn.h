@@ -6,10 +6,13 @@
 #include "cinn/ir/ir.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace hlir {
 namespace pe {
+
+void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape);
 
 /**
  * @brief Rectified Linear Unit.

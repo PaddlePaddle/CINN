@@ -6,7 +6,7 @@ from paddle.fluid.backward import append_backward
 
 size = 30
 
-a = fluid.layers.data(name="A", shape=[-1, size], dtype='float32')
+a = fluid.data(name="A", shape=[-1, size], dtype='float32')
 label = fluid.layers.data(name="label", shape=[size], dtype='float32')
 
 a1 = fluid.layers.fc(
@@ -24,4 +24,4 @@ loss = exe = fluid.Executor(cpu)
 exe.run(fluid.default_startup_program())
 
 fluid.io.save_inference_model("./naive_mul_model", [a.name], [a1], exe)
-print('res', a1.name)
+print('res is : ', a1.name)

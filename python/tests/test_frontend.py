@@ -27,8 +27,8 @@ class TestFrontend(unittest.TestCase):
         self.target.os = Target.OS.Linux
 
     def paddle_verify(self, result):
-        a = fluid.layers.data(name='A', shape=[24, 56, 56], dtype='float32')
-        b = fluid.layers.data(name='B', shape=[24, 56, 56], dtype='float32')
+        a = fluid.data(name='A', shape=[2, 24, 56, 56], dtype='float32')
+        b = fluid.data(name='B', shape=[2, 24, 56, 56], dtype='float32')
         c = fluid.layers.elementwise_add(a, b)
         d = fluid.layers.relu(c)
         e = fluid.initializer.NumpyArrayInitializer(
@@ -47,8 +47,8 @@ class TestFrontend(unittest.TestCase):
         exe = fluid.Executor(fluid.CPUPlace())
         exe.run(fluid.default_startup_program())
 
-        x = np.array(result[0]).reshape((1, 24, 56, 56)).astype("float32")
-        y = np.array(result[1]).reshape((1, 24, 56, 56)).astype("float32")
+        x = np.array(result[0]).reshape((2, 24, 56, 56)).astype("float32")
+        y = np.array(result[1]).reshape((2, 24, 56, 56)).astype("float32")
         output = exe.run(feed={"A": x, "B": y}, fetch_list=[res])
         output = np.array(output).reshape(-1)
         print("result in paddle_verify: \n")
@@ -63,8 +63,8 @@ class TestFrontend(unittest.TestCase):
     def test_basic(self):
         prog = Program()
 
-        a = Variable("A").set_type(Float(32)).set_shape([1, 24, 56, 56])
-        b = Variable("B").set_type(Float(32)).set_shape([1, 24, 56, 56])
+        a = Variable("A").set_type(Float(32)).set_shape([2, 24, 56, 56])
+        b = Variable("B").set_type(Float(32)).set_shape([2, 24, 56, 56])
         c = prog.add(a, b)
         d = prog.relu(c)
         e = Variable("E").set_type(Float(32)).set_shape([144, 24, 1, 1])
@@ -82,8 +82,8 @@ class TestFrontend(unittest.TestCase):
         for i in range(prog.size()):
             print(prog[i])
         tensor_data = [
-            np.random.random([1, 24, 56, 56]).astype("float32"),
-            np.random.random([1, 24, 56, 56]).astype("float32"),
+            np.random.random([2, 24, 56, 56]).astype("float32"),
+            np.random.random([2, 24, 56, 56]).astype("float32"),
             np.random.random([144, 24, 1, 1]).astype("float32")
         ]
         result = prog.build_and_get_output(self.target, [a, b, e], tensor_data,
@@ -109,8 +109,6 @@ class TestLoadPaddleModel_FC(unittest.TestCase):
         self.paddle_predictor = fluid.core.create_paddle_predictor(config)
         data = fluid.core.PaddleTensor(data)
         results = self.paddle_predictor.run([data])
-        fc0_out = self.paddle_predictor.get_output_tensor(
-            'fc_0.tmp_0').copy_to_cpu()
 
         return results[0].as_ndarray()
 
@@ -129,9 +127,12 @@ class TestLoadPaddleModel_FC(unittest.TestCase):
         self.executor.run()
 
         out = self.executor.get_tensor("fc_0.tmp_2")
-        target = self.get_paddle_inference_result(self.model_dir, x_data)
+        target_data = self.get_paddle_inference_result(self.model_dir, x_data)
+        print("target_data's shape is: ", target_data.shape)
+        out_np = out.numpy(self.target)
+        print("cinn data's shape is: ", out_np.shape)
 
-        self.assertTrue(np.allclose(out.numpy(self.target), target, atol=1e-4))
+        self.assertTrue(np.allclose(out_np, target_data, atol=1e-4))
 
 
 class TestLoadPaddleModel_MultiFC(unittest.TestCase):

@@ -40,7 +40,7 @@ struct Interpreter::Impl {
 
 void Interpreter::LoadPaddleModel(const std::string& model_dir, const Target& target, bool params_combined) {
   auto [program, var_map, var_map_paddle_to_program] =
-      LoadPaddleProgram(model_dir, impl_->scope_.get(), params_combined);
+      LoadPaddleProgram(model_dir, impl_->scope_.get(), params_combined, target);
   impl_->program_.reset(program.release());
   impl_->var_map_                = var_map;
   impl_->var_map_paddle_to_cinn_ = var_map_paddle_to_program;

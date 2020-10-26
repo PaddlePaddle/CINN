@@ -67,12 +67,11 @@ py::array BufferHostMemoryToNumpy(cinn_buffer_t &buffer) {  // NOLINT
   py::array array(std::move(dt), std::move(shape));
   void *mutable_data = array.mutable_data();
   cinn_buffer_copy_to_host(nullptr, &buffer);
-  switch (buffer.device) {
-    case cinn_x86_device:
-      std::memcpy(mutable_data, buffer.memory, buffer.memory_size);
-      break;
+  if (buffer.device == cinn_x86_device) {
+    std::memcpy(mutable_data, buffer.memory, buffer.memory_size);
+  } else {
+    CINN_RUNTIME_NOT_IMPLEMENTED
   }
-
   return array;
 }
 

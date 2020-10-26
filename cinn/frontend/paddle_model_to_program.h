@@ -23,7 +23,8 @@ namespace frontend {
 
 class PaddleModelToProgram {
  public:
-  explicit PaddleModelToProgram(hlir::framework::Scope* scope) : scope_(scope), program_(new Program) {
+  explicit PaddleModelToProgram(hlir::framework::Scope* scope, const common::Target& target)
+      : scope_(scope), target_(target), program_(new Program) {
     CHECK(scope_);
 
     AddOpMapper_feed();
@@ -83,6 +84,7 @@ class PaddleModelToProgram {
   // map from var in Paddle model to var name in program.
   std::unordered_map<std::string, std::string> var_model_to_program_map_;
   hlir::framework::Scope* scope_{};
+  common::Target target_;
 };
 
 }  // namespace frontend

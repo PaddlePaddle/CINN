@@ -47,6 +47,8 @@ class Instruction {
     auto& pod_args = PreparePodArgs();
     fn_(pod_args.data(), pod_args.size());
   }
+  std::vector<std::string> GetInArgs() { return in_args_; }
+  std::vector<std::string> GetOutArgs() { return out_args_; }
 
  protected:
   std::vector<cinn_pod_value_t>& PreparePodArgs();

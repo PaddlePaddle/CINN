@@ -36,6 +36,16 @@ class Program {
    */
   void Execute() {
     for (auto& ins : instrs_) {
+      auto in_args  = ins->GetInArgs();
+      auto out_args = ins->GetOutArgs();
+      VLOG(3) << "Op in args: ";
+      for (auto& in : in_args) {
+        VLOG(3) << in << " ";
+      }
+      VLOG(3) << "Op out args: ";
+      for (auto& out : out_args) {
+        VLOG(3) << out << " ";
+      }
       ins->Run();
     }
   }
