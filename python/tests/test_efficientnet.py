@@ -14,15 +14,16 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
+enable_gpu = sys.argv.pop()
 model_dir = sys.argv.pop()
 
 
 class TestLoadEfficientNetModel(unittest.TestCase):
     def setUp(self):
-        self.target = Target()
-        self.target.arch = Target.Arch.X86
-        self.target.bits = Target.Bit.k64
-        self.target.os = Target.OS.Linux
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
         self.model_dir = model_dir
         self.x_shape = [2, 3, 224, 224]
         self.target_tensor = 'save_infer_model/scale_0'

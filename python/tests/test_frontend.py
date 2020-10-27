@@ -14,17 +14,18 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
-assert len(sys.argv) == 1 + 2  # model count
+assert len(sys.argv) == 1 + 2 + 1  # model and enable_gpu count
+enable_gpu = sys.argv.pop()
 multi_fc_model_dir = sys.argv.pop()
 naive_model_dir = sys.argv.pop()
 
 
 class TestFrontend(unittest.TestCase):
     def setUp(self):
-        self.target = Target()
-        self.target.arch = Target.Arch.X86
-        self.target.bits = Target.Bit.k64
-        self.target.os = Target.OS.Linux
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
 
     def paddle_verify(self, result):
         a = fluid.data(name='A', shape=[2, 24, 56, 56], dtype='float32')
@@ -95,10 +96,10 @@ class TestFrontend(unittest.TestCase):
 
 class TestLoadPaddleModel_FC(unittest.TestCase):
     def setUp(self):
-        self.target = Target()
-        self.target.arch = Target.Arch.X86
-        self.target.bits = Target.Bit.k64
-        self.target.os = Target.OS.Linux
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
 
         self.model_dir = naive_model_dir
 
@@ -137,10 +138,10 @@ class TestLoadPaddleModel_FC(unittest.TestCase):
 
 class TestLoadPaddleModel_MultiFC(unittest.TestCase):
     def setUp(self):
-        self.target = Target()
-        self.target.arch = Target.Arch.X86
-        self.target.bits = Target.Bit.k64
-        self.target.os = Target.OS.Linux
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
 
         self.model_dir = multi_fc_model_dir
 

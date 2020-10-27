@@ -5,8 +5,12 @@ workspace=$PWD
 build_dir=$workspace/build
 
 JOBS=8
- # To enable Cuda backend, set(WITH_CUDA ON)
+
 cuda_config=OFF
+
+function gpu_on {
+    cuda_config=ON
+}
 
 function check_style {
     export PATH=/usr/bin:$PATH
@@ -116,6 +120,10 @@ function main {
     # Parse command line.
     for i in "$@"; do
         case $i in
+            gpu_on)
+                gpu_on
+                shift
+                ;;
             check_style)
                 check_style
                 shift

@@ -14,15 +14,18 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
+enable_gpu = sys.argv.pop()
 model_dir = sys.argv.pop()
+print("enable_gpu is : ", enable_gpu)
+print("model_dir is : ", model_dir)
 
 
 class TestLoadResnetModel(unittest.TestCase):
     def setUp(self):
-        self.target = Target()
-        self.target.arch = Target.Arch.X86
-        self.target.bits = Target.Bit.k64
-        self.target.os = Target.OS.Linux
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
         self.model_dir = model_dir
         self.x_shape = [2, 3, 224, 224]
         self.target_tensor = 'save_infer_model/scale_0'
@@ -71,8 +74,6 @@ class TestLoadResnetModel(unittest.TestCase):
 
     def test_model(self):
         self.apply_test()
-        #self.target.arch = Target.Arch.NVGPU
-        #self.apply_test()
 
 
 if __name__ == "__main__":
