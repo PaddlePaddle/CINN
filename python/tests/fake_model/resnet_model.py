@@ -1,8 +1,11 @@
 import numpy
+import paddle
 import sys, os
 import numpy as np
 import paddle.fluid as fluid
 from paddle.fluid.backward import append_backward
+
+paddle.enable_static()
 
 resnet_input = fluid.layers.data(
     name="resnet_input",

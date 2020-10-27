@@ -4,11 +4,13 @@ A fake model with multiple FC layers to test CINN on a more complex model.
 import numpy
 import sys, os
 import numpy as np
+import paddle
 import paddle.fluid as fluid
 from paddle.fluid.backward import append_backward
 
 size = 64
 num_layers = 6
+paddle.enable_static()
 
 a = fluid.layers.data(name="A", shape=[-1, size], dtype='float32')
 label = fluid.layers.data(name="label", shape=[size], dtype='float32')

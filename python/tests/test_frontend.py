@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import paddle as paddle
+import paddle
 import paddle.fluid as fluid
 from cinn.frontend import *
 from cinn import Target
@@ -27,6 +27,8 @@ class TestFrontend(unittest.TestCase):
         self.target.os = Target.OS.Linux
 
     def paddle_verify(self, result):
+        paddle.enable_static()
+
         a = fluid.layers.data(name='A', shape=[24, 56, 56], dtype='float32')
         b = fluid.layers.data(name='B', shape=[24, 56, 56], dtype='float32')
         c = fluid.layers.elementwise_add(a, b)
