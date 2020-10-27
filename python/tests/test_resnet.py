@@ -30,19 +30,13 @@ class TestLoadResnetModel(unittest.TestCase):
         self.x_shape = [2, 160, 7, 7]
 
     def get_paddle_inference_result(self, data):
-        exe = fluid.Executor(fluid.CPUPlace())
-
-        [inference_program, feed_target_names,
-         fetch_targets] = fluid.io.load_inference_model(
-             dirname=self.model_dir, executor=exe)
-
-        results = exe.run(
-            inference_program,
-            feed={feed_target_names[0]: data},
-            fetch_list=fetch_targets)
-
-        result = results[0]
-        return result
+        config = fluid.core.AnalysisConfig(self.model_dir)
+        config.disable_gpu()
+        config.switch_ir_optim(False)
+        self.paddle_predictor = fluid.core.create_paddle_predictor(config)
+        data = fluid.core.PaddleTensor(data)
+        results = self.paddle_predictor.run([data])
+        return results[0].as_ndarray()
 
     def apply_test(self):
         np.random.seed(0)

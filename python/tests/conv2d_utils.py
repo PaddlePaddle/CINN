@@ -6,6 +6,7 @@ import numpy as np
 
 def conv2d_native(inputs_data, input_shape, filter_size, attrs, is_depthwise):
     main_program = fluid.Program()
+    paddle.enable_static()
     with fluid.program_guard(main_program, fluid.Program()):
         padding = [0, 0]
         stride = [1, 1]

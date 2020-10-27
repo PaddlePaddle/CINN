@@ -28,6 +28,7 @@ class TestFrontend(unittest.TestCase):
             self.target = DefaultHostTarget()
 
     def paddle_verify(self, result):
+        paddle.enable_static()
         a = fluid.data(name='A', shape=[2, 24, 56, 56], dtype='float32')
         b = fluid.data(name='B', shape=[2, 24, 56, 56], dtype='float32')
         c = fluid.layers.elementwise_add(a, b)
