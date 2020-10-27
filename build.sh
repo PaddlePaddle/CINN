@@ -5,7 +5,7 @@ workspace=$PWD
 build_dir=$workspace/build
 
 JOBS=8
- # To enable Cuda backend, set(WITH_CUDA ON)
+
 cuda_config=OFF
 
 function gpu_on {

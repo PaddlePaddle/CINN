@@ -22,13 +22,10 @@ print("model_dir is : ", model_dir)
 
 class TestLoadResnetModel(unittest.TestCase):
     def setUp(self):
-        self.target = Target()
         if enable_gpu == "ON":
-            self.target.arch = Target.Arch.NVGPU
+            self.target = DefaultNVGPUTarget()
         else:
-            self.target.arch = Target.Arch.X86
-        self.target.bits = Target.Bit.k64
-        self.target.os = Target.OS.Linux
+            self.target = DefaultHostTarget()
         self.model_dir = model_dir
         self.x_shape = [2, 3, 224, 224]
         self.target_tensor = 'save_infer_model/scale_0'
