@@ -22,6 +22,19 @@ using ir::Min;
 using ir::Select;
 using ir::Tensor;
 
+void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape) {
+  if (output_shape.size() > 1 && output_shape[1] >= 512) {
+    int temp_split = 1;
+    int temp_num   = output_shape[1];
+    while (temp_num >= 512) {
+      temp_split = temp_split * 2;
+      temp_num   = temp_num / 2;
+    }
+    stage->Split(1, temp_split);
+  }
+  return;
+}
+
 Tensor LeakyRelu(const Tensor &A, double alpha, const std::string &output_name) {
   return Compute(
       A->shape, [=](const std::vector<Expr> &indice) { return lang::LeakyRelu(A(indice), alpha); }, output_name);

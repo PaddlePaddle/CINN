@@ -113,7 +113,7 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
         session, []() { return std::make_unique<llvm::SectionMemoryManager>(); });
     llvm::orc::JITDylib *main_jd = session.getJITDylibByName("<main>");
     if (!main_jd) {
-      main_jd = &session.createJITDylib("<main>");
+      main_jd = &llvm::cantFail(session.createJITDylib("<main>"));
     }
     return object_layer;
   };
@@ -208,7 +208,8 @@ void ExecutionEngine::RegisterRuntimeSymbols() {
   const auto &registry = RuntimeSymbolRegistry::Global();
   auto *session        = &jit_->getExecutionSession();
   for (const auto &[name, addr] : registry.All()) {
-    llvm::cantFail(jit_->defineAbsolute(name, {llvm::pointerToJITTargetAddress(addr), llvm::JITSymbolFlags::None}));
+    llvm::cantFail(jit_->define(llvm::orc::absoluteSymbols(
+        {{session->intern(name), {llvm::pointerToJITTargetAddress(addr), llvm::JITSymbolFlags::None}}})));
   }
 }
 

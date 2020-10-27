@@ -94,6 +94,7 @@ struct _Instruction_ : public common::Object {
 
   std::string op_type;
   std::unordered_map<std::string, attr_t> attrs;
+  std::vector<std::pair<std::string, attr_t>> attrs_ordered;
   std::vector<Variable> inputs;
   std::vector<Variable> outputs;
   Program* parent_program{};
@@ -248,9 +249,9 @@ struct Program {
 
   void Validate() const;
 
- private:
   void AppendInstruction(const Instruction& other) { instrs_.push_back(other); }
 
+ private:
   std::vector<Instruction> instrs_;
 
   std::vector<Variable> inputs_;
@@ -266,7 +267,10 @@ struct Program {
 std::tuple<std::unique_ptr<Program>,
            std::unordered_map<std::string, Variable>,
            std::unordered_map<std::string, std::string>>
-LoadPaddleProgram(const std::string& model_dir, hlir::framework::Scope* scope, bool is_combined);
+LoadPaddleProgram(const std::string& model_dir,
+                  hlir::framework::Scope* scope,
+                  bool is_combined,
+                  const common::Target& target = common::DefaultHostTarget());
 
 std::ostream& operator<<(std::ostream& os, const Variable& x);
 std::ostream& operator<<(std::ostream& os, const Instruction& instr);

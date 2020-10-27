@@ -37,6 +37,8 @@ void BindTarget(py::module *m) {
       .def("defined", &Target::defined)
       .def("runtime_arch", &Target::runtime_arch);
 
+  m->def("DefaultHostTarget", &common::DefaultHostTarget).def("DefaultNVGPUTarget", &common::DefaultNVGPUTarget);
+
   py::enum_<Target::OS> os(target, "OS");
   os.value("Unk", Target::OS::Unk).value("Linux", Target::OS::Linux).value("Windows", Target::OS::Windows);
 

@@ -415,3 +415,9 @@ void cinn_args_construct(cinn_pod_value_t* arr, int count, ...);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
+
+#ifdef __cplusplus
+template <typename T>
+cinn_type_t cinn_type_of();
+
+#endif  // __cplusplus

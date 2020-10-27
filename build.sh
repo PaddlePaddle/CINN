@@ -6,6 +6,11 @@ build_dir=$workspace/build
 
 JOBS=8
 
+cuda_config=OFF
+
+function gpu_on {
+    cuda_config=ON
+}
 
 function check_style {
     export PATH=/usr/bin:$PATH
@@ -32,6 +37,8 @@ function prepare_llvm {
     cd -
 
     export runtime_include_dir=$workspace/cinn/runtime/cuda
+
+    export PATH=${LLVM11_DIR}/bin:$PATH
 }
 
 function cmake_ {
@@ -40,10 +47,14 @@ function cmake_ {
     cp $workspace/cmake/config.cmake $build_dir
     echo "set(ISL_HOME /usr/local)" >> $build_dir/config.cmake
     # To enable Cuda backend, set(WITH_CUDA ON)
-    echo "set(WITH_CUDA OFF)" >> $build_dir/config.cmake
+    echo "set(WITH_CUDA $cuda_config)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
-    cmake ..
+    cmake .. -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir
+
+    make GEN_LLVM_RUNTIME_IR_HEADER
+    # make the code generated compilable
+    sed -i 's/0git/0/g' $build_dir/cinn/backends/llvm/cinn_runtime_llvm_ir.h
 }
 
 function prepare_model {
@@ -75,6 +86,10 @@ function build {
     make test02_matmul_main -j $JOBS
     make test03_conv_main -j $JOBS
     make test_codegen_c -j $JOBS
+    if [[ $cuda_config == "ON" ]]; then
+        make test_codegen_cuda_dev -j $JOBS
+        ctest -R test_codegen_cuda_dev
+    fi
 
     ctest -R test01_elementwise_add_main
     ctest -R test02_matmul_main
@@ -105,6 +120,10 @@ function main {
     # Parse command line.
     for i in "$@"; do
         case $i in
+            gpu_on)
+                gpu_on
+                shift
+                ;;
             check_style)
                 check_style
                 shift

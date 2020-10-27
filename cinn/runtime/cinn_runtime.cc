@@ -278,4 +278,21 @@ void* cinn_pod_value_t::data_addr() const {
   return nullptr;
 }
 
+template <>
+cinn_type_t cinn_type_of<int32_t>() {
+  return cinn_int32_t();
+}
+template <>
+cinn_type_t cinn_type_of<int64_t>() {
+  return cinn_int64_t();
+}
+template <>
+cinn_type_t cinn_type_of<float>() {
+  return cinn_float32_t();
+}
+template <>
+cinn_type_t cinn_type_of<double>() {
+  return cinn_float64_t();
+}
+
 #include "cinn/runtime/cinn_x86_device_impl.cc"

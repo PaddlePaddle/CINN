@@ -30,7 +30,8 @@ void cinn_call_cuda_kernel(void *kernel_fn,
       arr[i] = args[i].data_addr();
     }
   }
-
+  VLOG(3) << "[CUDA] LaunchKernel grid_xyz is: " << grid_x << "," << grid_y << "," << grid_z;
+  VLOG(3) << "[CUDA] LaunchKernel block_xyz is: " << block_x << "," << block_y << "," << block_z;
   CUDA_DRIVER_CALL(cuLaunchKernel(static_cast<CUfunction>(kernel_fn),
                                   grid_x,
                                   grid_y,

@@ -14,17 +14,18 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
-assert len(sys.argv) == 1 + 2  # model count
+assert len(sys.argv) == 1 + 2 + 1  # model and enable_gpu count
+enable_gpu = sys.argv.pop()
 multi_fc_model_dir = sys.argv.pop()
 naive_model_dir = sys.argv.pop()
 
 
 class TestFrontend(unittest.TestCase):
     def setUp(self):
-        self.target = Target()
-        self.target.arch = Target.Arch.X86
-        self.target.bits = Target.Bit.k64
-        self.target.os = Target.OS.Linux
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
 
     def paddle_verify(self, result):
         paddle.enable_static()
@@ -49,8 +50,8 @@ class TestFrontend(unittest.TestCase):
         exe = fluid.Executor(fluid.CPUPlace())
         exe.run(fluid.default_startup_program())
 
-        x = np.array(result[0]).reshape((1, 24, 56, 56)).astype("float32")
-        y = np.array(result[1]).reshape((1, 24, 56, 56)).astype("float32")
+        x = np.array(result[0]).reshape((2, 24, 56, 56)).astype("float32")
+        y = np.array(result[1]).reshape((2, 24, 56, 56)).astype("float32")
         output = exe.run(feed={"A": x, "B": y}, fetch_list=[res])
         output = np.array(output).reshape(-1)
         print("result in paddle_verify: \n")
@@ -65,8 +66,8 @@ class TestFrontend(unittest.TestCase):
     def test_basic(self):
         prog = Program()
 
-        a = Variable("A").set_type(Float(32)).set_shape([1, 24, 56, 56])
-        b = Variable("B").set_type(Float(32)).set_shape([1, 24, 56, 56])
+        a = Variable("A").set_type(Float(32)).set_shape([2, 24, 56, 56])
+        b = Variable("B").set_type(Float(32)).set_shape([2, 24, 56, 56])
         c = prog.add(a, b)
         d = prog.relu(c)
         e = Variable("E").set_type(Float(32)).set_shape([144, 24, 1, 1])
@@ -84,8 +85,8 @@ class TestFrontend(unittest.TestCase):
         for i in range(prog.size()):
             print(prog[i])
         tensor_data = [
-            np.random.random([1, 24, 56, 56]).astype("float32"),
-            np.random.random([1, 24, 56, 56]).astype("float32"),
+            np.random.random([2, 24, 56, 56]).astype("float32"),
+            np.random.random([2, 24, 56, 56]).astype("float32"),
             np.random.random([144, 24, 1, 1]).astype("float32")
         ]
         result = prog.build_and_get_output(self.target, [a, b, e], tensor_data,
@@ -97,10 +98,10 @@ class TestFrontend(unittest.TestCase):
 
 class TestLoadPaddleModel_FC(unittest.TestCase):
     def setUp(self):
-        self.target = Target()
-        self.target.arch = Target.Arch.X86
-        self.target.bits = Target.Bit.k64
-        self.target.os = Target.OS.Linux
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
 
         self.model_dir = naive_model_dir
 
@@ -111,8 +112,6 @@ class TestLoadPaddleModel_FC(unittest.TestCase):
         self.paddle_predictor = fluid.core.create_paddle_predictor(config)
         data = fluid.core.PaddleTensor(data)
         results = self.paddle_predictor.run([data])
-        fc0_out = self.paddle_predictor.get_output_tensor(
-            'fc_0.tmp_0').copy_to_cpu()
 
         return results[0].as_ndarray()
 
@@ -131,17 +130,20 @@ class TestLoadPaddleModel_FC(unittest.TestCase):
         self.executor.run()
 
         out = self.executor.get_tensor("fc_0.tmp_2")
-        target = self.get_paddle_inference_result(self.model_dir, x_data)
+        target_data = self.get_paddle_inference_result(self.model_dir, x_data)
+        print("target_data's shape is: ", target_data.shape)
+        out_np = out.numpy(self.target)
+        print("cinn data's shape is: ", out_np.shape)
 
-        self.assertTrue(np.allclose(out.numpy(self.target), target, atol=1e-4))
+        self.assertTrue(np.allclose(out_np, target_data, atol=1e-4))
 
 
 class TestLoadPaddleModel_MultiFC(unittest.TestCase):
     def setUp(self):
-        self.target = Target()
-        self.target.arch = Target.Arch.X86
-        self.target.bits = Target.Bit.k64
-        self.target.os = Target.OS.Linux
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
 
         self.model_dir = multi_fc_model_dir
 

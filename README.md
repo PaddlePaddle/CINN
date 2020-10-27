@@ -24,7 +24,7 @@ The project CINN is a machine learning compiler and executor for multiple hardwa
 It is designed to provide multiple layers of APIs to make DNN computation graph easier to define,  faster to execute, and more convenient to extend with hardware backends.
 Currently, it targets X86 CPUs and NVidia GPUs.
 
-This project is in active development. 
+This project is under active development. 
 
 ## Example
 
@@ -45,6 +45,7 @@ auto output_handle = inter.GetTensor("output0");
 inter.Run();
 // get output content from output_handle
 ```
+Note that for api `LoadPaddleModel`, the `params_combined` param is set to be false by default.
 
 ### Use CINN lower level DSL to define some computation and execute
 
@@ -177,10 +178,12 @@ There are two levels of APIs in CINN, the higher level is HLIR and the lower lev
 In HLIR
 
 - `Primitive Emitter`(PE), encapsulates the computation of different tensor-based algorithms,
-- `frontend::Executor`, the container to execute a model (of PaddlePaddle),
-- `frotnend::Program`, the program helps to define a machine learning computation,
+- `frontend::Interpreter`, the container to execute a model (of PaddlePaddle),
+- `frontend::Program`, the program helps to define a machine learning computation,
 - `hlir::framework::Tensor`, multi-dimensional arrays helps to manage a memory buffer.
-
+- 'hlir::framework::Program', the final executable program in runtime. It holds many basic executable elements. 
+- 'hlir::framework::Graph', the graph that represents the structure of a model. Each node in the graph represents an operator (conv2d, relu, mul, etc.).
+- 'hlir::framework::GraphCompiler', the compiler that transforms the graph representation(hlir::framework::Graph) of a model into an executable program(hlir::framework::Program).
 In CINN IR
 
 - `Compute`, the method to define a computation,
