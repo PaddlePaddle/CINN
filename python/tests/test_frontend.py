@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import paddle as paddle
+import paddle
 import paddle.fluid as fluid
 from cinn.frontend import *
 from cinn import Target
@@ -28,8 +28,10 @@ class TestFrontend(unittest.TestCase):
             self.target = DefaultHostTarget()
 
     def paddle_verify(self, result):
-        a = fluid.data(name='A', shape=[2, 24, 56, 56], dtype='float32')
-        b = fluid.data(name='B', shape=[2, 24, 56, 56], dtype='float32')
+        paddle.enable_static()
+
+        a = fluid.layers.data(name='A', shape=[24, 56, 56], dtype='float32')
+        b = fluid.layers.data(name='B', shape=[24, 56, 56], dtype='float32')
         c = fluid.layers.elementwise_add(a, b)
         d = fluid.layers.relu(c)
         e = fluid.initializer.NumpyArrayInitializer(
