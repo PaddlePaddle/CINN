@@ -72,7 +72,7 @@ inline ValueVar ConvertToVar(const CINNValue &value) {
   } else if (type_code == CINNValue::TypeCode<ir::Var>()) {
     var = ir::Var(value);
   } else if (type_code == CINNValue::TypeCode<ir::Expr>()) {
-    var = ir::Expr(value);
+    var = ir::Expr(value.operator ir::Expr());
   } else {
     var = nullptr;
   }
