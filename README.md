@@ -89,7 +89,7 @@ outputs = outputs.c_header("./test02_matmul_block.h").c_source("./test02_matmul_
 compiler.Compile(builder.Build(), outputs);
 ```
 
-This can genrate the optimized C source code like
+This can generate the optimized C source code like
 
 ```c++
 void matmul_block(void* _args, int32_t num_args)
