@@ -1,23 +1,15 @@
 # v0.1-alpha
-This release will focus on the core framework, it plans to support the following features:
+This release will focus on the core framework.
 
-- [x] CPU X86: high performance CodeGenC_X86 and CodeGenLLVM_X86 backend,
-- [x] CUDA: the GPU related schedule, the base performance,
-- The core framework:
-  - [x] a well-encapsulated JIT framework that can call CINN expression or external functions
-  - [ ] full support for extern-Call, the ability to trigger the MKL or CUBLAS functions,
-  - [x] a computation definition and schedule framework to provide the ability to define new algorithm and performance automatically tune.
-- API
-  - [x] python api for HLIR and CINN(optional)
-  - [x] C++ APIs
-- Documents to introduce
-  - [ ] the basic concepts
-  - [ ] the architecture
-  - [ ] the usage of the APIs
-  - [ ] example to develop new HLIR/primitive instructions
-- Some basic primitives:
-  - [ ] the actives,
-  - [ ] Dot,
-  - [ ] some binary ones, such as Add, Sub and so on,
-  - [ ] Conv
-- [ ] provide a real model and its benchmark
+# v0.1-beta
+
+This version focus on usability, a new runtime and generated kernel performance.
+
+1. Usability
+  - Refine the CINN/DSL, provide a more unified API
+  - Expose the new runtime to API
+2. a new runtime
+  - based on MLIR, fine-grained kernel
+3. generated kernel performance
+  - improve CPU and GPU kernel performance
+  - release a benchmark
