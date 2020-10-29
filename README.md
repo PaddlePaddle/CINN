@@ -162,8 +162,11 @@ Then start a docker container, and compile the code inside it
 # compile and install isl
 sh tools/ci_build.sh
 
-# compile the tests and python library
+# compile the tests and python library with X86 backends
 ./build.sh ci
+
+# compile the tests and python library with NVGPU(CUDA) backends
+./build.sh gpu_on ci
 ```
 
 After compilation, you can launch the C++ and python tests
