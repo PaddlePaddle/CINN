@@ -24,8 +24,7 @@ SET(BASIC_TEST_NAMES
 )
 
 foreach(basic_test_name ${BASIC_TEST_NAMES})
-    string(REGEX REPLACE "/test" "/test_cinn" "${ctest_name}" "${basic_test_name}")
-    ADD_TEST(NAME ${ctest_name}
+    ADD_TEST(NAME ${basic_test_name}
         COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
         python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/${basic_test_name}.py WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
