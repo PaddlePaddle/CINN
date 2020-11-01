@@ -4,8 +4,8 @@
 #include <vector>
 
 #include "cinn/ir/lowered_func.h"
+#include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
-#include "cinn/lang/module.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -380,7 +380,7 @@ std::ostream &operator<<(std::ostream &os, const std::vector<Expr> &a) {
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const lang::Module &m) {
+std::ostream &operator<<(std::ostream &os, const ir::Module &m) {
   os << "Module " << m->name << " {\n\n";
 
   for (auto &fn : m->functions) {

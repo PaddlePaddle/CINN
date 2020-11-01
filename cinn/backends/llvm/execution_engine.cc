@@ -135,7 +135,7 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
 }
 
 template <typename CodeGenT>
-void ExecutionEngine::Link(const lang::Module &module) {
+void ExecutionEngine::Link(const ir::Module &module) {
   llvm::SMDiagnostic error;
   auto ctx     = std::make_unique<llvm::LLVMContext>();
   auto m       = llvm::parseAssemblyString(AsStringRef(backends::kRuntimeLlvmIr), error, *ctx);
@@ -213,8 +213,8 @@ void ExecutionEngine::RegisterRuntimeSymbols() {
   }
 }
 
-template void ExecutionEngine::Link<CodeGenLLVM>(const lang::Module &module);
-template void ExecutionEngine::Link<CodeGenX86>(const lang::Module &module);
-template void ExecutionEngine::Link<CodeGenCUDA_Host>(const lang::Module &module);
+template void ExecutionEngine::Link<CodeGenLLVM>(const ir::Module &module);
+template void ExecutionEngine::Link<CodeGenX86>(const ir::Module &module);
+template void ExecutionEngine::Link<CodeGenCUDA_Host>(const ir::Module &module);
 
 }  // namespace cinn::backends

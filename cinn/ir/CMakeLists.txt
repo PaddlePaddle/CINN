@@ -14,6 +14,7 @@ set(srcs
     collect_ir_nodes.cc
     registry.cc
     tensor.cc
+    module.cc
     )
 
 foreach(cpp ${srcs})

@@ -21,13 +21,11 @@ namespace cinn {
 namespace poly {
 class Stage;
 }  // namespace poly
-namespace lang {
-class Module;
-}  // namespace lang
 
 namespace ir {
 struct Buffer;
 struct LoweredFunc;
+class Module;
 
 using common::Object;
 using common::Shared;
@@ -783,7 +781,7 @@ struct _Module_ : public ExprNode<_Module_> {
   std::vector<Expr> functions;
   std::vector<Expr> submodules;
 
-  static lang::Module Make(const std::string& name, Target target);
+  static ir::Module Make(const std::string& name, Target target);
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Module_;
 };

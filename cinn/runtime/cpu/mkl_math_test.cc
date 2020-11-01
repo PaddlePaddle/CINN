@@ -52,7 +52,7 @@ void TestCallElementwise(const std::string &fn_name,
 
   auto target = common::DefaultHostTarget();
   target.arch = Target::Arch::X86;
-  lang::Module::Builder builder("module0", target);
+  ir::Module::Builder builder("module0", target);
   auto func = Lower("fn", stages, lower_args);
   builder.AddFunction(func);
 
@@ -158,7 +158,7 @@ TEST(cinn_cpu_mkl_gemm_fp32, test) {
 
   auto target = common::DefaultHostTarget();
   target.arch = Target::Arch::X86;
-  lang::Module::Builder builder("module0", target);
+  ir::Module::Builder builder("module0", target);
 
   auto func = Lower("fn", stages, {A, B, out, call});
   builder.AddFunction(func);

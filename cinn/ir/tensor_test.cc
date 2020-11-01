@@ -77,7 +77,7 @@ TEST(Tensor, Reshape) {
 
   auto func = lang::Lower("fn", stages, {A, B});
 
-  lang::Module::Builder builder("some_modue", common::DefaultHostTarget());
+  ir::Module::Builder builder("some_modue", common::DefaultHostTarget());
   builder.AddFunction(func);
 
   backends::CodeGenC codegenc(common::DefaultHostTarget());
@@ -123,7 +123,7 @@ TEST(Tensor, ReshapeCopied) {
 
   stages->InsertLazily(B);
 
-  lang::Module::Builder builder("some_modue", common::DefaultHostTarget());
+  ir::Module::Builder builder("some_modue", common::DefaultHostTarget());
   auto func = lang::Lower("fn", stages, {A, B}, {}, {}, &builder);
 
   backends::CodeGenC codegenc(common::DefaultHostTarget());

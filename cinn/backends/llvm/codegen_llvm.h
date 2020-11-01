@@ -18,7 +18,7 @@
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/lowered_func.h"
-#include "cinn/lang/module.h"
+#include "cinn/ir/module.h"
 
 namespace cinn {
 namespace backends {
@@ -124,7 +124,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   //! Get the bound LLVM ir builder.
   llvm::IRBuilder<> *b() { return b_; }
 
-  void Compile(const lang::Module &module);
+  void Compile(const ir::Module &module);
 
   using LLVMIRVisitor::Visit;
 

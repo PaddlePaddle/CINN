@@ -14,7 +14,7 @@ using namespace utils;  // NOLINT
 
 const char *kCKeywordRestrict = "__restrict__";
 
-void CodeGenC::Compile(const lang::Module &module, const Outputs &outputs) {
+void CodeGenC::Compile(const ir::Module &module, const Outputs &outputs) {
   if (!outputs.c_header_name.empty()) {
     auto source = Compile(module, OutputKind::CHeader);
     std::ofstream file(outputs.c_header_name);
@@ -36,7 +36,7 @@ void CodeGenC::Compile(const lang::Module &module, const Outputs &outputs) {
 
 CodeGenC::CodeGenC(Target target) : ir::IrPrinter(ss_) {}
 
-std::string CodeGenC::Compile(const lang::Module &module, OutputKind output_kind) {
+std::string CodeGenC::Compile(const ir::Module &module, OutputKind output_kind) {
   ss_.str("");
   if (output_kind == OutputKind::CHeader) {
     GenerateHeaderFile(module);
@@ -565,7 +565,7 @@ void CodeGenC::PrintBufferDestroy(const std::vector<ir::Buffer> &buffers) {
   }
 }
 
-void CodeGenC::GenerateHeaderFile(const lang::Module &module) {
+void CodeGenC::GenerateHeaderFile(const ir::Module &module) {
   PrintFileGuardOpen(module.name());
   PrintIncludes();
 

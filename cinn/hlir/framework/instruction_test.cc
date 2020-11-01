@@ -26,7 +26,7 @@ std::unique_ptr<backends::SimpleJIT> GetLoweredFunc(int M, int N) {
   auto stages = CreateStages({z});
   auto fn     = Lower("fn", stages, {x, y, z});
 
-  lang::Module::Builder builder("some_module", common::DefaultHostTarget());
+  ir::Module::Builder builder("some_module", common::DefaultHostTarget());
   builder.AddFunction(fn);
 
   auto jit = backends::SimpleJIT::Create();

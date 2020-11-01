@@ -11,14 +11,14 @@ namespace backends {
 
 CodeGenCUDA_Dev::CodeGenCUDA_Dev(Target target) : CodeGenC(target) {}
 
-std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, bool for_nvrtc) {
+std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, bool for_nvrtc) {
   for_nvrtc_  = for_nvrtc;
   auto source = Compile(module, OutputKind::CImpl);
 
   return source;
 }
 
-void CodeGenCUDA_Dev::Compile(const lang::Module &module, const Outputs &outputs) {
+void CodeGenCUDA_Dev::Compile(const ir::Module &module, const Outputs &outputs) {
   CodeGenC::inline_builtin_codes_ = false;
   if (!outputs.c_header_name.empty()) {
     auto source = Compile(module, OutputKind::CHeader);
@@ -160,7 +160,7 @@ void CodeGenCUDA_Dev::PrintBuiltinCodes() {
 )ROC";
 }
 
-std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, CodeGenC::OutputKind output_kind) {
+std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, CodeGenC::OutputKind output_kind) {
   ss_.str("");
 
   if (for_nvrtc_) {

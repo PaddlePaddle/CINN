@@ -1075,7 +1075,7 @@ TEST(GetTransformedLevel, basic) {
 
 // JIT test precision for the basic elementwise add
 void TestElementwiseAddPrecisionBasic(
-    const lang::Module& module,
+    const ir::Module& module,
     const std::string& fn_name,
     Expr M,
     Expr N,

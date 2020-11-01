@@ -94,7 +94,7 @@ class GraphCompiler final {
 
   std::unique_ptr<backends::Compiler> compiler_;
 
-  lang::Module::Builder m_builder_;
+  ir::Module::Builder m_builder_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(GraphCompiler);
 };
