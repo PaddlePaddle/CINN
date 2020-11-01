@@ -22,7 +22,7 @@ namespace backends {
  * - replace the original kernel function with a Call node and add it to the first module, add a device kernel function
  * to the second module.
  */
-std::tuple<lang::Module, lang::Module> SplitCudaAndHostModule(lang::Module module);
+std::tuple<ir::Module, ir::Module> SplitCudaAndHostModule(ir::Module module);
 
 namespace detail {
 
@@ -31,7 +31,7 @@ struct CollectHostFunctionVisitor : public ir::IRMutator<> {
       : host_module_builder(module_name + "_host", common::DefaultHostTarget()),
         device_module_builder(module_name + "_gpu_device", common::DefaultNVGPUTarget()) {}
 
-  std::tuple<lang::Module, lang::Module> operator()(Expr* expr) {
+  std::tuple<ir::Module, ir::Module> operator()(Expr* expr) {
     ir::IRMutator<>::Visit(expr, expr);
     return std::make_tuple(host_module_builder.Build(), device_module_builder.Build());
   }
@@ -97,8 +97,8 @@ struct CollectHostFunctionVisitor : public ir::IRMutator<> {
   bool IsCudaFunction(const ir::_LoweredFunc_* func);
 
  private:
-  lang::Module::Builder host_module_builder;
-  lang::Module::Builder device_module_builder;
+  ir::Module::Builder host_module_builder;
+  ir::Module::Builder device_module_builder;
 };
 
 }  // namespace detail

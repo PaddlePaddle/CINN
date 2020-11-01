@@ -10,7 +10,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
-#include "cinn/lang/module.h"
+#include "cinn/ir/module.h"
 
 namespace cinn {
 namespace optim {

@@ -2,7 +2,6 @@ set(srcs
     buffer.cc
     compute.cc
     placeholder.cc
-    module.cc
     lower.cc
     builtin.cc
     lower_impl.cc

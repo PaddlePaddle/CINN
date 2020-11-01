@@ -13,9 +13,6 @@
 #include "cinn/common/type.h"
 
 namespace cinn {
-namespace lang {
-class Module;
-}  // namespace lang
 
 namespace ir {
 using common::Float;
@@ -23,6 +20,7 @@ using common::Int;
 using common::Type;
 using common::type_of;
 
+class Module;
 class IRVisitor;
 class _Buffer_;
 class Buffer;
@@ -295,7 +293,7 @@ struct Expr : public IrNodeRef {
 
   _Module_* as_module();
   const _Module_* as_module() const;
-  lang::Module as_module_ref() const;
+  ir::Module as_module_ref() const;
 
   _Tensor_* as_tensor();
   const _Tensor_* as_tensor() const;

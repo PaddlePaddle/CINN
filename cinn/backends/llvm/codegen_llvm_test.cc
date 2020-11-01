@@ -17,9 +17,9 @@
 #include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"
 #include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/module.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
-#include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 
 namespace cinn {

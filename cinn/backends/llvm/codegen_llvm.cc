@@ -1002,7 +1002,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Sum *op) {
 
 #undef __IR_EMITTER_CINN_NOT_IMPLEMENTED
 
-void CodeGenLLVM::Compile(const lang::Module &module) {
+void CodeGenLLVM::Compile(const ir::Module &module) {
   for (auto &fn : module.functions()) {
     Expr fn_expr(fn);
     Visit(&fn_expr);

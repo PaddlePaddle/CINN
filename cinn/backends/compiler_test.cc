@@ -32,7 +32,7 @@ TEST(Compiler, x86) {
 
     auto fn = Lower("fn", stages, {A, B, C});
 
-    lang::Module::Builder builder("some_module", common::DefaultHostTarget());
+    ir::Module::Builder builder("some_module", common::DefaultHostTarget());
     builder.AddFunction(fn);
 
     auto compiler = Compiler::Create(common::DefaultHostTarget());
@@ -67,7 +67,7 @@ TEST(Compiler, x86) {
 
     auto fn = Lower("fn", stages, {A, B, C});
 
-    lang::Module::Builder builder("some_module", common::DefaultHostTarget());
+    ir::Module::Builder builder("some_module", common::DefaultHostTarget());
     builder.AddFunction(fn);
 
     auto compiler = Compiler::Create(common::DefaultNVGPUTarget());

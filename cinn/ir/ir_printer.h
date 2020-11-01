@@ -9,11 +9,11 @@
 namespace cinn {
 
 namespace lang {
-class Module;
 class LoweredFunc;
 }  // namespace lang
 
 namespace ir {
+class Module;
 
 struct IrPrinter : public IRVisitor {
   explicit IrPrinter(std::ostream &os) : os_(os) {}
@@ -47,7 +47,7 @@ struct IrPrinter : public IRVisitor {
 
 std::ostream &operator<<(std::ostream &os, Expr a);
 std::ostream &operator<<(std::ostream &os, const std::vector<Expr> &a);
-std::ostream &operator<<(std::ostream &os, const lang::Module &m);
+std::ostream &operator<<(std::ostream &os, const Module &m);
 
 template <typename IRN>
 void IrPrinter::PrintBinaryOp(const std::string &op, const BinaryOpNode<IRN> *x) {

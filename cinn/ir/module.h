@@ -13,9 +13,7 @@ namespace backends {
 class CodeGenC;
 }  // namespace backends
 
-namespace lang {
-
-class Module;
+namespace ir {
 
 /**
  * Module represents IR containing lowered function definitions and buffers.
@@ -72,5 +70,5 @@ class Module : public ir::IrNodeRef {
   friend class ::cinn::ir::_Module_;
 };
 
-}  // namespace lang
+}  // namespace ir
 }  // namespace cinn

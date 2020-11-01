@@ -1,6 +1,6 @@
 #pragma once
 #include "cinn/ir/ir.h"
-#include "cinn/lang/module.h"
+#include "cinn/ir/module.h"
 
 namespace cinn {
 namespace optim {
@@ -16,7 +16,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info = false);
 /**
  * Optimize a Module.
  */
-lang::Module Optimize(const lang::Module& module);
+ir::Module Optimize(const ir::Module& module);
 
 }  // namespace optim
 }  // namespace cinn

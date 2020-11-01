@@ -9,7 +9,7 @@
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/lowered_func.h"
-#include "cinn/lang/module.h"
+#include "cinn/ir/module.h"
 #include "cinn/lang/packed_func.h"
 #include "cinn/runtime/cinn_runtime.h"
 
@@ -18,9 +18,9 @@ namespace cinn {
 //! Root of the builtin code.
 DECLARE_string(cinn_x86_builtin_code_root);
 
-namespace lang {
+namespace ir {
 class Module;
-}  // namespace lang
+}  // namespace ir
 
 namespace backends {
 
@@ -36,9 +36,9 @@ class CodeGenC : public ir::IrPrinter {
 
   explicit CodeGenC(Target target);
 
-  void Compile(const lang::Module& module, const Outputs& outputs);
+  void Compile(const ir::Module& module, const Outputs& outputs);
 
-  virtual std::string Compile(const lang::Module& module, OutputKind output_kind);
+  virtual std::string Compile(const ir::Module& module, OutputKind output_kind);
 
   //! Disable inline the builtin codes(too large) for simpler string comparation.
   void SetInlineBuiltinCodes(bool x = true) { inline_builtin_codes_ = x; }
@@ -47,7 +47,7 @@ class CodeGenC : public ir::IrPrinter {
   std::string Compile(const ir::LoweredFunc& function);
   std::string Compile(const ir::Buffer& buffer);
 
-  void GenerateHeaderFile(const lang::Module& module);
+  void GenerateHeaderFile(const ir::Module& module);
 
   std::string GetTypeRepr(Type type);
   //! type cast, print like "int(x)"

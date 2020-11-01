@@ -31,7 +31,7 @@
 
 #include "cinn/backends/llvm/codegen_x86.h"
 #include "cinn/backends/llvm/llvm_util.h"
-#include "cinn/lang/module.h"
+#include "cinn/ir/module.h"
 
 namespace cinn::backends {
 
@@ -59,7 +59,7 @@ class ExecutionEngine {
   void *Lookup(std::string_view name);
 
   template <typename CodeGenT = CodeGenLLVM>
-  void Link(const lang::Module &module);
+  void Link(const ir::Module &module);
 
   bool AddModule(std::unique_ptr<llvm::Module> module, std::unique_ptr<llvm::LLVMContext> context);
 

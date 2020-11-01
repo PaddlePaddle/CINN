@@ -7,11 +7,11 @@
 #include "cinn/backends/codegen_c.h"
 #include "cinn/cinn.h"
 #include "cinn/common/common.h"
+#include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/buffer.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
-#include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 
 namespace cinn {
@@ -55,7 +55,7 @@ TEST(Buffer, bind_to_multiple_tensors) {
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
 
-  lang::Module::Builder builder("module1", target);
+  ir::Module::Builder builder("module1", target);
   builder.AddFunction(funcs);
   builder.AddBuffer(A->buffer);
 

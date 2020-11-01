@@ -1,11 +1,11 @@
-#include "cinn/lang/module.h"
+#include "cinn/ir/module.h"
 
 #include <memory>
 
 #include "cinn/optim/optimize.h"
 
 namespace cinn {
-namespace lang {
+namespace ir {
 
 void Module::Builder::AddFunction(ir::LoweredFunc func) { module_->functions.push_back(func); }
 
@@ -26,7 +26,7 @@ Module Module::Builder::Build() {
     LOG(ERROR) << "Module has no functions";
   }
 
-  auto res = Module(module_.get());
+  auto res = ir::Module(module_.get());
 
   return optim::Optimize(res);
 }
@@ -55,7 +55,7 @@ std::vector<ir::LoweredFunc> Module::functions() const {
 }
 
 std::vector<Module> Module::submodules() const {
-  std::vector<lang::Module> modules;
+  std::vector<ir::Module> modules;
   for (auto &x : self()->submodules) {
     modules.push_back(x.as_module_ref());
   }
@@ -66,5 +66,5 @@ void Module::Compile(const backends::Outputs &outputs) const {}
 
 Module::operator Expr() const { return Expr(ptr()); }
 
-}  // namespace lang
+}  // namespace ir
 }  // namespace cinn

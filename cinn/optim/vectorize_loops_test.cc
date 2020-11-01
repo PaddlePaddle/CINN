@@ -45,7 +45,7 @@ TEST(Vectorize, replace_var) {
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
 
-  lang::Module::Builder builder("module1", target);
+  ir::Module::Builder builder("module1", target);
   builder.AddFunction(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
 
   CodeGenC codegen(target);
@@ -115,7 +115,7 @@ TEST(Vectorize, TestMarkVectorize) {
   optim::VectorizeLoops(&func->body, target);
   optim::Simplify(&func->body);
 
-  lang::Module::Builder builder("module1", target);
+  ir::Module::Builder builder("module1", target);
   builder.AddFunction(func);
 
   CodeGenC codegen(target);

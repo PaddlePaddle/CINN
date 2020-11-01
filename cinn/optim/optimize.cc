@@ -51,7 +51,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   return copied;
 }
 
-lang::Module Optimize(const lang::Module& module) {
+ir::Module Optimize(const ir::Module& module) {
   auto copied = IRCopy(Expr(module));
 
   LowerFunctionCallBindVars(&copied);

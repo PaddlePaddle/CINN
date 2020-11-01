@@ -38,7 +38,7 @@ TEST(Expr, basic) {
   target.os   = Target::OS ::Linux;
 
   {
-    lang::Module::Builder builder("module1", target);
+    ir::Module::Builder builder("module1", target);
     builder.AddFunction(func);
 
     CodeGenC codegen(target);
@@ -50,7 +50,7 @@ TEST(Expr, basic) {
   optim::TransformPolyForToFor(&func->body);
 
   {
-    lang::Module::Builder builder("module1", target);
+    ir::Module::Builder builder("module1", target);
     builder.AddFunction(func);
 
     CodeGenC codegen(target);

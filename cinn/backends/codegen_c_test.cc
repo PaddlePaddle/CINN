@@ -7,10 +7,10 @@
 
 #include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/module.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
-#include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
@@ -18,9 +18,9 @@
 namespace cinn {
 namespace backends {
 
+using ir::Module;
 using lang::Compute;
 using lang::Lower;
-using lang::Module;
 using lang::Placeholder;
 using utils::StringFormat;
 using utils::Trim;

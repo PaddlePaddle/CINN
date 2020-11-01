@@ -24,7 +24,7 @@ TEST(tanh, basic) {
 
   auto jit = backends::SimpleJIT::Create();
 
-  lang::Module::Builder builder("module1", common::DefaultHostTarget());
+  ir::Module::Builder builder("module1", common::DefaultHostTarget());
 
   auto fn = Lower("fn", stages, {x, y});
   LOG(INFO) << "fn:\n" << fn;

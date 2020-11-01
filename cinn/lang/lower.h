@@ -7,8 +7,8 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
+#include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
-#include "cinn/lang/module.h"
 #include "cinn/lang/packed_func.h"
 #include "cinn/poly/schedule.h"
 
@@ -32,7 +32,7 @@ ir::LoweredFunc Lower(const std::string &name,
                       const std::vector<Tensor> &tensor_args,
                       const std::vector<Var> &scalar_args     = {},
                       const std::vector<Tensor> &temp_tensors = {},
-                      Module::Builder *b                      = nullptr,
+                      ir::Module::Builder *b                  = nullptr,
                       const Target &target                    = common::DefaultHostTarget());
 
 }  // namespace lang

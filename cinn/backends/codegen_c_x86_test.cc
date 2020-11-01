@@ -3,10 +3,10 @@
 #include <gtest/gtest.h>
 
 #include "cinn/cinn.h"
+#include "cinn/ir/module.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
-#include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
@@ -50,7 +50,7 @@ TEST(CodeGenCX86, basic) {
 
   std::cout << "before optim\n" << func->body << std::endl;
 
-  lang::Module::Builder builder("module1", target);
+  ir::Module::Builder builder("module1", target);
   builder.AddFunction(func);
 
   CodeGenCX86 codegen(target, CodeGenCX86::Feature::AVX512);

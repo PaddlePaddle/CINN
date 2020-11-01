@@ -8,8 +8,8 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
-#include "cinn/lang/module.h"
 #include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
@@ -532,11 +532,11 @@ Expr Power::Make(Expr n, Expr d) {
   return Expr(node);
 }
 
-lang::Module _Module_::Make(const std::string &name, Target target) {
+ir::Module _Module_::Make(const std::string &name, Target target) {
   auto n    = make_shared<_Module_>();
   n->name   = name;
   n->target = target;
-  return lang::Module(n);
+  return ir::Module(n);
 }
 
 Expr PrimitiveNode::Make(const std::string &name, const std::map<std::string, attr_t> &attrs) {

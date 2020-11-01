@@ -6,7 +6,7 @@
 namespace cinn {
 namespace backends {
 
-std::tuple<lang::Module, lang::Module> SplitCudaAndHostModule(lang::Module module) {
+std::tuple<ir::Module, ir::Module> SplitCudaAndHostModule(ir::Module module) {
   detail::CollectHostFunctionVisitor visitor(module->name);
   Expr expr(module);
   return visitor(&expr);

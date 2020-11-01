@@ -5,8 +5,8 @@
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
-#include "cinn/lang/module.h"
 
 namespace cinn {
 namespace ir {
@@ -102,11 +102,11 @@ const _LoweredFunc_ *Expr::as_lowered_func() const { return As<_LoweredFunc_>();
 
 _Module_ *Expr::as_module() { return As<_Module_>(); }
 const _Module_ *Expr::as_module() const { return As<_Module_>(); }
-lang::Module Expr::as_module_ref() const {
+ir::Module Expr::as_module_ref() const {
   auto *module = as_module();
   CHECK(module);  // Need check here?
   // TODO(Superjomn) remove the Reference here.
-  return lang::Module(&Reference(module));
+  return ir::Module(&Reference(module));
 }
 
 LoweredFunc Expr::as_lowered_func_ref() const {

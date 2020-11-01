@@ -95,7 +95,7 @@ SimpleJIT::SimpleJIT() : context_(std::make_unique<llvm::LLVMContext>()) {
 }
 
 template <typename CodeGenT>
-void SimpleJIT::Link(lang::Module module, bool optimize) {
+void SimpleJIT::Link(ir::Module module, bool optimize) {
   std::string runtime_ir(backends::kRuntimeLlvmIr);
   llvm::SMDiagnostic error;
   auto m = llvm::parseAssemblyString(runtime_ir, error, context());
@@ -119,8 +119,8 @@ void SimpleJIT::Link(lang::Module module, bool optimize) {
   AddModule(std::move(m), optimize);
 }
 
-template void SimpleJIT::Link<CodeGenLLVM>(lang::Module module, bool optimize);
-template void SimpleJIT::Link<CodeGenCUDA_Host>(lang::Module module, bool optimize);
+template void SimpleJIT::Link<CodeGenLLVM>(ir::Module module, bool optimize);
+template void SimpleJIT::Link<CodeGenCUDA_Host>(ir::Module module, bool optimize);
 
 }  // namespace backends
 

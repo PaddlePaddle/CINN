@@ -18,7 +18,7 @@ class CudaModuleTester {
   // Call the host function in JIT.
   void operator()(const std::string& fn_name, void* args, int arg_num);
 
-  void Compile(const lang::Module& m, const std::string& rewrite_cuda_code = "");
+  void Compile(const ir::Module& m, const std::string& rewrite_cuda_code = "");
 
   void* LookupKernel(const std::string& name);
 

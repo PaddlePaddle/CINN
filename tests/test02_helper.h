@@ -142,7 +142,7 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
   return builder.Build();
 }
 
-lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
+ir::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
   target.arch = Target::Arch::X86;
   target.bits = Target::Bit::k32;
   target.os   = Target::OS::Linux;
@@ -179,7 +179,7 @@ lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
   return builder.Build();
 }
 
-lang::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
+ir::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
   auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k_));
 
   Placeholder<float> A("A", {M, K});
@@ -238,13 +238,13 @@ auto CreateCinnMatmulModule(const std::string &name, Target target, int m, int n
   { CINN_NOT_IMPLEMENTED }
 }
 
-auto CreateExecutionEngine(const cinn::lang::Module &module) {
+auto CreateExecutionEngine(const cinn::ir::Module &module) {
   auto engine = cinn::backends::ExecutionEngine::Create({});
   engine->Link(module);
   return engine;
 }
 
-auto CreateSimpleJit(const cinn::lang::Module &module) {
+auto CreateSimpleJit(const cinn::ir::Module &module) {
   auto jit = cinn::backends::SimpleJIT::Create();
   jit->Link(module, true);
 

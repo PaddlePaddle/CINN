@@ -12,7 +12,7 @@
 
 namespace cinn {
 namespace backends {
-using lang::Module;
+using ir::Module;
 
 void Compiler::Build(const Module& module) {
   if (target_.arch == Target::Arch::NVGPU) {
