@@ -351,7 +351,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
   do {
     if (value->getType() == target) break;
 
-    if (to.is_cpp_handle() || to.is_cpp_handle_handle()) {
+    if (to.is_cpp_handle() || to.is_cpp_handle2()) {
       value = BitCast(value, target, "cast_to_cpp_handle");
       break;
     }

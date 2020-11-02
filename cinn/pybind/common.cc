@@ -71,8 +71,8 @@ void BindType(py::module *m) {
   DEFINE_TYPE_METHOD(is_string);
   DEFINE_TYPE_METHOD(set_cpp_handle);
   DEFINE_TYPE_METHOD(is_cpp_handle);
-  DEFINE_TYPE_METHOD(set_cpp_handle_handle);
-  DEFINE_TYPE_METHOD(is_cpp_handle_handle);
+  DEFINE_TYPE_METHOD(set_cpp_handle2);
+  DEFINE_TYPE_METHOD(is_cpp_handle2);
   DEFINE_TYPE_METHOD(set_cpp_const);
   DEFINE_TYPE_METHOD(is_cpp_const);
   DEFINE_TYPE_METHOD(set_customized_type);

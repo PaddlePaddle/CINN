@@ -26,7 +26,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
   if (type.is_void() && type.is_cpp_handle()) {
     return llvm::PointerType::getUnqual(i8);
   }
-  if (type.is_void() && type.is_cpp_handle_handle()) {
+  if (type.is_void() && type.is_cpp_handle2()) {
     return llvm::PointerType::getUnqual(llvm::PointerType::getUnqual(i8));
   }
 
@@ -59,7 +59,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
     ir_type = llvm::PointerType::getUnqual(ir_type);
   }
 
-  if (type.is_cpp_handle_handle()) {
+  if (type.is_cpp_handle2()) {
     ir_type = llvm::PointerType::getUnqual(ir_type);
     ir_type = llvm::PointerType::getUnqual(ir_type);
   }

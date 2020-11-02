@@ -56,7 +56,7 @@ std::ostream &operator<<(std::ostream &os, const Type &t) {
 
   if (t.lanes() > 1) os << "<" << t.lanes() << ">";
   if (t.is_cpp_handle()) os << "*";
-  if (t.is_cpp_handle_handle()) os << "**";
+  if (t.is_cpp_handle2()) os << "**";
 
   return os;
 }
@@ -200,7 +200,7 @@ bool Type::is_index_type() { return is_int() && lanes() == 1 && (bits() == 32 ||
 bool Type::is_cpp_handle() const {
   return static_cast<uint8_t>(GetStorage().cpp_type_) & static_cast<uint8_t>(cpp_type_t::Handle);
 }
-bool Type::is_cpp_handle_handle() const {
+bool Type::is_cpp_handle2() const {
   return static_cast<uint8_t>(GetStorage().cpp_type_) & static_cast<uint8_t>(cpp_type_t::HandleHandle);
 }
 bool Type::is_cpp_const() const {
@@ -275,6 +275,10 @@ const Type &UI64() {
 }
 const Type &I1() {
   static auto t = Int(1);
+  return t;
+}
+const Type &UI1() {
+  static auto t = UInt(1);
   return t;
 }
 

@@ -65,7 +65,7 @@ struct Type {
   CINN_NODISCARD bool is_cpp_handle() const;
 
   Type& set_cpp_handle2(bool x = true);
-  CINN_NODISCARD bool is_cpp_handle_handle() const;
+  CINN_NODISCARD bool is_cpp_handle2() const;
 
   Type& set_cpp_const(bool is_const = true);
   CINN_NODISCARD bool is_cpp_const() const;
@@ -139,6 +139,7 @@ const Type& UI16();
 const Type& UI32();
 const Type& UI64();
 const Type& I1();
+const Type& UI1();
 // @}
 
 template <typename T>
@@ -151,7 +152,7 @@ template <> inline Type type_of<unsigned char>() { return UI8(); }
 template <> inline Type type_of<int16_t>() { return UI16(); }
 template <> inline Type type_of<int32_t>() { return I32(); }
 template <> inline Type type_of<uint32_t>() { return UI32(); }
-template <> inline Type type_of<bool>() { return I1(); }
+template <> inline Type type_of<bool>() { return UI1(); }
 template <> inline Type type_of<char>() { return I8(); }
 template <> inline Type type_of<int64_t>() { return I64(); }
 template <> inline Type type_of<uint64_t>() { return UI64(); }
