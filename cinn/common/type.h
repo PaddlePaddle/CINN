@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include <memory>
+#include "cinn/common/macros.h"
 #include "cinn/runtime/cinn_runtime.h"
 
 //! Much of the concepts are borrowed from Halide project.
@@ -35,41 +37,42 @@ struct Type {
     HandleHandle = 1 << 2,  // pointer of pointer, such as `cinn_buffer_t**`.
   };
 
-  Type() = default;
-  Type(type_t t, int b, int w) : type_(t), bits_(b), lanes_(w) {}
+  Type();
+  Type(type_t t, int b, int w);
+  Type(const Type& other);
+  explicit Type(Type&& other);
+  Type& operator=(const Type& other);
 
-  inline bool is_primitive() const { return !is_unk() && type_ != type_t::Customized; }
-  inline bool is_customized() const { return !is_unk() && type_ == type_t::Customized; }
-  bool valid() const;
+  CINN_NODISCARD bool is_primitive() const;
+  CINN_NODISCARD bool is_customized() const;
+  CINN_NODISCARD bool valid() const;
 
   //! Some helper functions to check a type.
   // @{
-  bool is_unk() const { return type_ == type_t::Unk; }
-  bool is_void() const { return type_ == type_t::Void; }
-  bool is_bool() const { return type_ == type_t::UInt && bits_ == 1; }
-  bool is_vector() const { return lanes_ > 1; }
-  bool is_scalar() const { return lanes_ == 1; }
-  bool is_float(int bits = -1) const { return type_ == type_t::Float && (bits < 0 || bits == this->bits()); }
-  bool is_int(int bits = -1) const { return type_ == type_t::Int && (bits < 0 || bits == this->bits()); }
-  bool is_uint(int bits = -1) const { return type_ == type_t::UInt && (bits < 0 || bits == this->bits()); }
-  bool is_string() const { return type_ == type_t::String; }
-  bool is_index_type() { return is_int() && lanes() == 1 && (bits() == 32 || bits() == 64); }
+  CINN_NODISCARD bool is_unk() const;
+  CINN_NODISCARD bool is_void() const;
+  CINN_NODISCARD bool is_bool() const;
+  CINN_NODISCARD bool is_vector() const;
+  CINN_NODISCARD bool is_scalar() const;
+  CINN_NODISCARD bool is_float(int bits = -1) const;
+  CINN_NODISCARD bool is_int(int bits = -1) const;
+  CINN_NODISCARD bool is_uint(int bits = -1) const;
+  CINN_NODISCARD bool is_string() const;
+  CINN_NODISCARD bool is_index_type();
   // @}
 
   Type& set_cpp_handle(bool x = true);
-  bool is_cpp_handle() const { return static_cast<uint8_t>(cpp_type_) & static_cast<uint8_t>(cpp_type_t::Handle); }
+  CINN_NODISCARD bool is_cpp_handle() const;
 
-  Type& set_cpp_handle_handle(bool x = true);
-  bool is_cpp_handle_handle() const {
-    return static_cast<uint8_t>(cpp_type_) & static_cast<uint8_t>(cpp_type_t::HandleHandle);
-  }
+  Type& set_cpp_handle2(bool x = true);
+  CINN_NODISCARD bool is_cpp_handle2() const;
 
   Type& set_cpp_const(bool is_const = true);
-  bool is_cpp_const() const { return static_cast<uint8_t>(cpp_type_t::Const) & static_cast<uint8_t>(cpp_type_); }
+  CINN_NODISCARD bool is_cpp_const() const;
 
   Type& set_customized_type(const std::string& t);
-  const std::string& customized_type() const { return customized_type_; }
-  bool is_customized_type() const { return !customized_type_.empty(); }
+  const std::string& customized_type() const;
+  CINN_NODISCARD bool is_customized_type() const;
 
   // Get a new type with bits set to \p x.
   Type with_bits(int x) const;
@@ -82,17 +85,14 @@ struct Type {
 
   //! Getters
   // @{
-  type_t type() const { return type_; }
-  int bits() const { return bits_; }
-  int lanes() const { return lanes_; }
-  cpp_type_t cpp_type() const { return cpp_type_; }
+  type_t type() const;
+  int bits() const;
+  int lanes() const;
+  cpp_type_t cpp_type() const;
   // @}
 
   //! Compare two types for equality.
-  bool operator==(const Type& other) const {
-    return type_ == other.type_ && bits_ == other.bits_ && lanes_ == other.lanes_ && cpp_type_ == other.cpp_type_ &&
-           customized_type() == other.customized_type();
-  }
+  bool operator==(const Type& other) const;
 
   //! Compare two types for inequality.
   bool operator!=(const Type& other) const { return !(*this == other); }
@@ -106,20 +106,16 @@ struct Type {
 
   friend std::ostream& operator<<(std::ostream& os, const Type& t);
 
+  ~Type();
+
  private:
   void CheckTypeValid() const;
 
-  type_t type_{type_t::Unk};
-  cpp_type_t cpp_type_{cpp_type_t::None};
+  struct Storage;
+  Storage& GetStorage();
+  const Storage& GetStorage() const;
 
-  //! How many bits per element.
-  int bits_{};
-
-  //! How many elements(if a vector type), for scalar types, it should be 1.
-  int lanes_{1};
-
-  //! Name of the customized type.
-  std::string customized_type_;
+  std::unique_ptr<Storage> storage_;
 };  // namespace common
 
 inline Type Void() { return Type(Type::type_t ::Void, 1, 0); }
@@ -129,21 +125,38 @@ inline Type Float(int bits, int lanes = 1) { return Type(Type::type_t ::Float, b
 inline Type Bool(int lanes = 1) { return Type(Type::type_t ::UInt, 1, lanes); }
 inline Type String() { return Type(Type::type_t::String, 1, 1); }
 
+//! Builtin native types as global singletons.
+// @{
+const Type& F16();
+const Type& F32();
+const Type& F64();
+const Type& I8();
+const Type& I16();
+const Type& I32();
+const Type& I64();
+const Type& UI8();
+const Type& UI16();
+const Type& UI32();
+const Type& UI64();
+const Type& I1();
+const Type& UI1();
+// @}
+
 template <typename T>
 Type type_of();
 
 // clang-format off
-template <> inline Type type_of<float>() { return Float(32); }
-template <> inline Type type_of<double>() { return Float(64); }
-template <> inline Type type_of<unsigned char>() { return UInt(8); }
-template <> inline Type type_of<int16_t>() { return UInt(16); }
-template <> inline Type type_of<int32_t>() { return Int(32); }
-template <> inline Type type_of<uint32_t>() { return UInt(32); }
-template <> inline Type type_of<bool>() { return Bool(); }
-template <> inline Type type_of<char>() { return Int(8); }
-template <> inline Type type_of<int64_t>() { return Int(64); }
-template <> inline Type type_of<uint64_t>() { return UInt(64); }
-template <> inline Type type_of<signed char>() { return Int(8); }
+template <> inline Type type_of<float>() { return F32(); }
+template <> inline Type type_of<double>() { return F64(); }
+template <> inline Type type_of<unsigned char>() { return UI8(); }
+template <> inline Type type_of<int16_t>() { return UI16(); }
+template <> inline Type type_of<int32_t>() { return I32(); }
+template <> inline Type type_of<uint32_t>() { return UI32(); }
+template <> inline Type type_of<bool>() { return UI1(); }
+template <> inline Type type_of<char>() { return I8(); }
+template <> inline Type type_of<int64_t>() { return I64(); }
+template <> inline Type type_of<uint64_t>() { return UI64(); }
+template <> inline Type type_of<signed char>() { return I8(); }
 template <> inline Type type_of<void>() { return Void(); }
 // clang-format on
 template <>
@@ -161,7 +174,7 @@ inline Type type_of<void*>() {
 template <>
 inline Type type_of<void**>() {
   Type x = type_of<void>();
-  x.set_cpp_handle_handle();
+  x.set_cpp_handle2();
   return x;
 }
 template <>

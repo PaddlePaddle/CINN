@@ -97,7 +97,7 @@ std::string CodeGenC::GetTypeRepr(Type type) {
 
   if (type.is_cpp_handle()) {
     str += "*";
-  } else if (type.is_cpp_handle_handle()) {
+  } else if (type.is_cpp_handle2()) {
     str += "**";
   }
   return str;
