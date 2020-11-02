@@ -14,6 +14,7 @@ set(srcs
     registry.cc
     tensor.cc
     module.cc
+    intrinsic_ops.cc
     )
 
 foreach(cpp ${srcs})
