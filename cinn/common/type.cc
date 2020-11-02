@@ -94,7 +94,7 @@ Type &Type::set_cpp_handle(bool x) {
   return *this;
 }
 
-Type &Type::set_cpp_handle_handle(bool x) {
+Type &Type::set_cpp_handle2(bool x) {
   auto &v = (*reinterpret_cast<uint8_t *>(&GetStorage().cpp_type_));
   if (x)
     v |= static_cast<uint8_t>(cpp_type_t::HandleHandle);
@@ -109,7 +109,9 @@ Type Type::VectorOf(int w) const {
   return Type(type(), w, bits());
 }
 
-Type::Type(const Type &other) : storage_(new Storage(*other.storage_)) {}
+Type::Type(const Type &other) {
+  if (other.storage_) storage_.reset(new Storage(*other.storage_));
+}
 
 Type Type::ElementOf() const {
   CheckTypeValid();
@@ -217,7 +219,7 @@ bool Type::operator==(const Type &other) const {
 bool Type::is_string() const { return type() == type_t::String; }
 
 Type &Type::operator=(const Type &other) {
-  storage_.reset(new Storage(*other.storage_));
+  if (other.storage_) storage_.reset(new Storage(*other.storage_));
   return *this;
 }
 
@@ -225,6 +227,56 @@ Type::Storage &Type::GetStorage() { return *storage_; }
 const Type::Storage &Type::GetStorage() const { return *storage_; }
 
 Type::Type() : storage_(new Storage) {}
+Type::Type(Type &&other) : storage_(std::move(other.storage_)) {}
+
+const Type &F16() {
+  static auto t = Float(16);
+  return t;
+}
+const Type &F32() {
+  static auto t = Float(32);
+  return t;
+}
+const Type &F64() {
+  static auto t = Float(64);
+  return t;
+}
+const Type &I8() {
+  static auto t = Int(8);
+  return t;
+}
+const Type &I16() {
+  static auto t = Int(16);
+  return t;
+}
+const Type &I32() {
+  static auto t = Int(32);
+  return t;
+}
+const Type &I64() {
+  static auto t = Int(64);
+  return t;
+}
+const Type &UI8() {
+  static auto t = UInt(8);
+  return t;
+}
+const Type &UI16() {
+  static auto t = UInt(16);
+  return t;
+}
+const Type &UI32() {
+  static auto t = UInt(32);
+  return t;
+}
+const Type &UI64() {
+  static auto t = UInt(64);
+  return t;
+}
+const Type &I1() {
+  static auto t = Int(1);
+  return t;
+}
 
 }  // namespace common
 }  // namespace cinn

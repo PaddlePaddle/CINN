@@ -40,11 +40,12 @@ struct Type {
   Type();
   Type(type_t t, int b, int w);
   Type(const Type& other);
+  explicit Type(Type&& other);
   Type& operator=(const Type& other);
 
-  bool is_primitive() const;
-  bool is_customized() const;
-  bool valid() const;
+  CINN_NODISCARD bool is_primitive() const;
+  CINN_NODISCARD bool is_customized() const;
+  CINN_NODISCARD bool valid() const;
 
   //! Some helper functions to check a type.
   // @{
@@ -63,7 +64,7 @@ struct Type {
   Type& set_cpp_handle(bool x = true);
   CINN_NODISCARD bool is_cpp_handle() const;
 
-  Type& set_cpp_handle_handle(bool x = true);
+  Type& set_cpp_handle2(bool x = true);
   CINN_NODISCARD bool is_cpp_handle_handle() const;
 
   Type& set_cpp_const(bool is_const = true);
@@ -124,21 +125,37 @@ inline Type Float(int bits, int lanes = 1) { return Type(Type::type_t ::Float, b
 inline Type Bool(int lanes = 1) { return Type(Type::type_t ::UInt, 1, lanes); }
 inline Type String() { return Type(Type::type_t::String, 1, 1); }
 
+//! Builtin native types as global singletons.
+// @{
+const Type& F16();
+const Type& F32();
+const Type& F64();
+const Type& I8();
+const Type& I16();
+const Type& I32();
+const Type& I64();
+const Type& UI8();
+const Type& UI16();
+const Type& UI32();
+const Type& UI64();
+const Type& I1();
+// @}
+
 template <typename T>
 Type type_of();
 
 // clang-format off
-template <> inline Type type_of<float>() { return Float(32); }
-template <> inline Type type_of<double>() { return Float(64); }
-template <> inline Type type_of<unsigned char>() { return UInt(8); }
-template <> inline Type type_of<int16_t>() { return UInt(16); }
-template <> inline Type type_of<int32_t>() { return Int(32); }
-template <> inline Type type_of<uint32_t>() { return UInt(32); }
-template <> inline Type type_of<bool>() { return Bool(); }
-template <> inline Type type_of<char>() { return Int(8); }
-template <> inline Type type_of<int64_t>() { return Int(64); }
-template <> inline Type type_of<uint64_t>() { return UInt(64); }
-template <> inline Type type_of<signed char>() { return Int(8); }
+template <> inline Type type_of<float>() { return F32(); }
+template <> inline Type type_of<double>() { return F64(); }
+template <> inline Type type_of<unsigned char>() { return UI8(); }
+template <> inline Type type_of<int16_t>() { return UI16(); }
+template <> inline Type type_of<int32_t>() { return I32(); }
+template <> inline Type type_of<uint32_t>() { return UI32(); }
+template <> inline Type type_of<bool>() { return I1(); }
+template <> inline Type type_of<char>() { return I8(); }
+template <> inline Type type_of<int64_t>() { return I64(); }
+template <> inline Type type_of<uint64_t>() { return UI64(); }
+template <> inline Type type_of<signed char>() { return I8(); }
 template <> inline Type type_of<void>() { return Void(); }
 // clang-format on
 template <>
@@ -156,7 +173,7 @@ inline Type type_of<void*>() {
 template <>
 inline Type type_of<void**>() {
   Type x = type_of<void>();
-  x.set_cpp_handle_handle();
+  x.set_cpp_handle2();
   return x;
 }
 template <>
