@@ -7,11 +7,11 @@
 #include <string>
 #include <type_traits>
 
+#include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/lowered_func.h"
-#include "cinn/ir/node.h"
 #include "cinn/ir/operation.h"
 #include "cinn/ir/registry.h"
 #include "cinn/ir/tensor.h"

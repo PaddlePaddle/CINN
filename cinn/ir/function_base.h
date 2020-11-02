@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cinn/ir/node.h"
+#include "cinn/ir/ir_base.h"
 
 namespace cinn {
 namespace ir {

@@ -13,7 +13,7 @@
 #include "cinn/common/shared.h"
 #include "cinn/common/type.h"
 #include "cinn/ir/function_base.h"
-#include "cinn/ir/node.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/utils/small_vector.h"
 
 namespace cinn {

@@ -5,7 +5,7 @@
 #include <utility>
 #include <vector>
 
-#include "cinn/ir/node.h"
+#include "cinn/ir/ir_base.h"
 
 /**
  * \file

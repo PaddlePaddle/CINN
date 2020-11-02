@@ -9,8 +9,8 @@
 #include "cinn/common/cinn_value.h"
 #include "cinn/common/shared.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_visitor.h"
-#include "cinn/ir/node.h"
 #include "cinn/ir/tensor.h"
 
 namespace py = pybind11;
