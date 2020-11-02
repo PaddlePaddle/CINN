@@ -5,7 +5,7 @@
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
-#include "cinn/ir/node.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {

@@ -1,7 +1,6 @@
 set(srcs
-    node.cc
     ir.cc
-    node.cc
+    ir_base.cc
     ir_visitor.cc
     ir_printer.cc
     ir_mutator.cc

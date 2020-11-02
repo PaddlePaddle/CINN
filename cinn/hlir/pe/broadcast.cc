@@ -4,8 +4,8 @@
 #include <vector>
 
 #include "cinn/common/ir_util.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_operators.h"
-#include "cinn/ir/node.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 

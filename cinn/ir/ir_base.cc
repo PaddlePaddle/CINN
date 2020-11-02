@@ -1,4 +1,4 @@
-#include "cinn/ir/node.h"
+#include "cinn/ir/ir_base.h"
 
 #include "cinn/common/cinn_value.h"
 #include "cinn/common/common.h"

@@ -1,6 +1,6 @@
 #include "cinn/hlir/pe/reduction.h"
 
-#include <cinn/ir/node.h>
+#include <cinn/ir/ir_base.h>
 
 #include "cinn/common/ir_util.h"
 #include "cinn/hlir/pe/broadcast.h"
