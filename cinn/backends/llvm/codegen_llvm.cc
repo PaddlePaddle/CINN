@@ -1238,5 +1238,7 @@ void CodeGenLLVM::AddTbaaMetadata(llvm::Instruction *inst, std::string_view buff
   inst->setMetadata("tbaa", tbaa);
 }
 
+llvm::Value *CodeGenLLVM::Visit(const ir::IntrinsicOp *) { CINN_NOT_IMPLEMENTED }
+
 }  // namespace backends
 }  // namespace cinn

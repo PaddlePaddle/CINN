@@ -329,6 +329,23 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr(n);
   }
 
+  Expr Visit(const ir::IntrinsicOp* op) override {
+    switch (op->getKind()) {
+      case ir::IntrinsicKind::kBufferGetDataHandle: {
+        auto* n = llvm::dyn_cast<intrinsics::BufferGetDataHandle>(op);
+        return intrinsics::BufferGetDataHandle::Make(Visit(&n->buffer));
+      }
+      case ir::IntrinsicKind::kBufferGetDataConstHandle: {
+        auto* n = llvm::dyn_cast<intrinsics::BufferGetDataConstHandle>(op);
+        return intrinsics::BufferGetDataConstHandle::Make(Visit(&n->buffer));
+      }
+      case ir::IntrinsicKind::kPodValueToX: {
+        auto* n = llvm::dyn_cast<intrinsics::PodValueToX>(op);
+        return intrinsics::PodValueToX::Make(Visit(&n->pod_value_ptr));
+      }
+    }
+  }
+
 #define OP_BINARY_HANDLE(op__)               \
   Expr Visit(const ir::op__* op) override {  \
     auto a = IRVisitorBase::Visit(&op->a()); \

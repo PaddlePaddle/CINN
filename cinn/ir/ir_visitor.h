@@ -4,6 +4,7 @@
 
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/collect_ir_nodes.h"
+#include "cinn/ir/intrinsic_ops.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/ir/tensor.h"

@@ -2,6 +2,7 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/Casting.h>
 #include "cinn/common/type.h"
 #include "cinn/ir/ir.h"
 
@@ -12,12 +13,17 @@ namespace cinn::ir {
 
 enum class IntrinsicKind {
   // All the intrinsics should registered here.
+  kBufferGetDataHandle,
+  kBufferGetDataConstHandle,
+  kPodValueToX,
 };
 
 class IntrinsicOp : public IrNode {
  public:
-  IntrinsicOp(llvm::ArrayRef<Type> input_types, llvm::ArrayRef<Type> output_types)
-      : input_types_(input_types.begin(), input_types.end()), output_types_(output_types.begin(), output_types.end()) {}
+  IntrinsicOp(IntrinsicKind kind, llvm::ArrayRef<Type> input_types, llvm::ArrayRef<Type> output_types)
+      : kind_(kind),
+        input_types_(input_types.begin(), input_types.end()),
+        output_types_(output_types.begin(), output_types.end()) {}
 
   const Type& GetInputType(int offset) const;
   const Type& GetOutputType(int offset) const;
@@ -32,11 +38,17 @@ class IntrinsicOp : public IrNode {
   void Verify(llvm::ArrayRef<Expr> inputs);
 
   const char* type_info() const override;
-  void Accept(IRVisitor* v) const override;
+
+  IntrinsicKind getKind() const { return kind_; }
+
+  IrNodeTy node_type() const override { return _node_type_; }
+
+  static constexpr IrNodeTy _node_type_{IrNodeTy::IntrinsicOp};
 
  protected:
   llvm::SmallVector<Type, 4> input_types_;
   llvm::SmallVector<Type, 4> output_types_;
+  const IntrinsicKind kind_;
 };
 
 namespace intrinsics {
@@ -46,9 +58,12 @@ namespace intrinsics {
  */
 struct BufferGetDataHandle : public IntrinsicOp {
   // signature: (cinn_buffer_t*) -> (void*)
-  BufferGetDataHandle() : IntrinsicOp({type_of<cinn_buffer_t*>()}, {type_of<void*>()}) {}
+  BufferGetDataHandle()
+      : IntrinsicOp(IntrinsicKind::kBufferGetDataHandle, {type_of<cinn_buffer_t*>()}, {type_of<void*>()}) {}
 
   static Expr Make(Expr buffer);
+
+  static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kBufferGetDataHandle; }
 
   Expr buffer;
 };
@@ -58,9 +73,12 @@ struct BufferGetDataHandle : public IntrinsicOp {
  */
 struct BufferGetDataConstHandle : public IntrinsicOp {
   // signature: (cinn_buffer_t*) -> (const void*)
-  BufferGetDataConstHandle() : IntrinsicOp({type_of<const cinn_buffer_t*>()}, {type_of<void*>()}) {}
+  BufferGetDataConstHandle()
+      : IntrinsicOp(IntrinsicKind::kBufferGetDataConstHandle, {type_of<const cinn_buffer_t*>()}, {type_of<void*>()}) {}
 
   static Expr Make(Expr buffer);
+
+  static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kBufferGetDataConstHandle; }
 
   Expr buffer;
 };
@@ -76,9 +94,11 @@ struct BufferGetDataConstHandle : public IntrinsicOp {
  */
 struct PodValueToX : public IntrinsicOp {
   // signature: (cinn_pod_value_t*) -> (X), X is some type.
-  PodValueToX(const Type& xtype) : IntrinsicOp({type_of<cinn_pod_value_t*>()}, {xtype}) {}
+  PodValueToX(const Type& xtype) : IntrinsicOp(IntrinsicKind::kPodValueToX, {type_of<cinn_pod_value_t*>()}, {xtype}) {}
 
   static Expr Make(Expr pod_value_ptr);
+
+  static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kPodValueToX; }
 
   Expr pod_value_ptr;
 };

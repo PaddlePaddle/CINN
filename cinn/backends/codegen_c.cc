@@ -612,7 +612,9 @@ void CodeGenC::PrintStackVecType(Type type, int lanes) {
   os() << "StackedVec<" << GetTypeRepr(type) << "," << lanes << ">";
 }
 
-void CodeGenC::Visit(const ir::PrimitiveNode *op) { CINN_NOT_IMPLEMENTED; }
+void CodeGenC::Visit(const ir::PrimitiveNode *op) { CINN_NOT_IMPLEMENTED }
+
+void CodeGenC::Visit(const ir::IntrinsicOp *op){CINN_NOT_IMPLEMENTED}
 
 std::string ReadWholeFile(const std::string &path) {
   CHECK(!path.empty());

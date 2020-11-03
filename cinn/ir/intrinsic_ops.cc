@@ -40,8 +40,6 @@ void IntrinsicOp::Verify(llvm::ArrayRef<Expr> inputs, llvm::ArrayRef<Expr> outpu
   Verify(input_types, output_types);
 }
 
-void IntrinsicOp::Accept(IRVisitor* v) const {}
-
 Expr intrinsics::BufferGetDataHandle::Make(Expr buffer) {
   auto* n = new BufferGetDataHandle;
   n->Verify({buffer});

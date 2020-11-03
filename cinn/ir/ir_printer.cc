@@ -364,7 +364,10 @@ void IrPrinter::Visit(const PrimitiveNode *x) {
   os() << ")";
 }
 
-std::ostream &operator<<(std::ostream &os, Expr a) {
+void IrPrinter::Visit(const IntrinsicOp *x){CINN_NOT_IMPLEMENTED}
+
+std::ostream &
+operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);
   printer.Print(a);
