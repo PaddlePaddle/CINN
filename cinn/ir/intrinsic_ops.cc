@@ -42,10 +42,26 @@ void IntrinsicOp::Verify(llvm::ArrayRef<Expr> inputs, llvm::ArrayRef<Expr> outpu
 
 void IntrinsicOp::Accept(IRVisitor* v) const {}
 
-Expr intrinsics::BufferGetMemoryAddr::Make(Expr buffer) {
-  auto* n = new BufferGetMemoryAddr;
+Expr intrinsics::BufferGetDataHandle::Make(Expr buffer) {
+  auto* n = new BufferGetDataHandle;
   n->Verify({buffer});
   n->buffer = buffer;
+  n->set_type(n->GetOutputType(0));
+  return Expr(n);
+}
+
+Expr intrinsics::BufferGetDataConstHandle::Make(Expr buffer) {
+  auto* n = new BufferGetDataHandle;
+  n->Verify({buffer});
+  n->buffer = buffer;
+  n->set_type(n->GetOutputType(0));
+  return Expr(n);
+}
+
+Expr intrinsics::PodValueToX::Make(Expr pod_value_ptr) {
+  auto* n = new PodValueToX(pod_value_ptr.type());
+  n->Verify({pod_value_ptr});
+  n->pod_value_ptr = pod_value_ptr;
   n->set_type(n->GetOutputType(0));
   return Expr(n);
 }

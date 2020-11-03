@@ -58,10 +58,6 @@ static const char* pod_values_to_array_repr = "pod_values_to_array";
 
 static const char* get_address_repr = "get_address";
 
-// static const char* args_create  = "cinn_args_create";
-// static const char* args_set     = "cinn_args_set";
-// static const char* args_destroy = "cinn_args_destroy";
-
 static const char* args_construct_repr = "cinn_args_construct";
 
 //! Name of the helper intrinsic used to display debug string.

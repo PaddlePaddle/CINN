@@ -42,16 +42,45 @@ class IntrinsicOp : public IrNode {
 namespace intrinsics {
 
 /**
- * BufferGetMemoryAddr is the operation to get the memory address from cinn_buffer_t.
+ * The operation to get the memory address from cinn_buffer_t.
  */
-struct BufferGetMemoryAddr : public IntrinsicOp {
- public:
+struct BufferGetDataHandle : public IntrinsicOp {
   // signature: (cinn_buffer_t*) -> (void*)
-  BufferGetMemoryAddr() : IntrinsicOp({type_of<cinn_buffer_t*>()}, {type_of<void*>()}) {}
+  BufferGetDataHandle() : IntrinsicOp({type_of<cinn_buffer_t*>()}, {type_of<void*>()}) {}
 
   static Expr Make(Expr buffer);
 
   Expr buffer;
+};
+
+/**
+ * The operation to get the memory address from cinn_buffer_t.
+ */
+struct BufferGetDataConstHandle : public IntrinsicOp {
+  // signature: (cinn_buffer_t*) -> (const void*)
+  BufferGetDataConstHandle() : IntrinsicOp({type_of<const cinn_buffer_t*>()}, {type_of<void*>()}) {}
+
+  static Expr Make(Expr buffer);
+
+  Expr buffer;
+};
+
+/**
+ * The operation to represent the helper methods:
+ * - cinn_pod_value_to_float
+ * - cinn_pod_value_to_duoble
+ * - cinn_pod_value_to_int64
+ * - cinn_pod_value_to_int32
+ * - cinn_pod_value_to_void_p
+ * - cinn_pod_value_to_buffer_p
+ */
+struct PodValueToX : public IntrinsicOp {
+  // signature: (cinn_pod_value_t*) -> (X), X is some type.
+  PodValueToX(const Type& xtype) : IntrinsicOp({type_of<cinn_pod_value_t*>()}, {xtype}) {}
+
+  static Expr Make(Expr pod_value_ptr);
+
+  Expr pod_value_ptr;
 };
 
 }  // namespace intrinsics
