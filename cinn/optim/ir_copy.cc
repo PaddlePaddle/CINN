@@ -127,6 +127,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
 
     auto new_node            = _Buffer_::Make(name, shape);
     new_node->strides        = strides;
+    new_node->dtype          = op->dtype;  // copy data element's type.
     new_node->name           = name;
     new_node->scope          = scope;
     new_node->data_alignment = data_alignment;
@@ -329,20 +330,17 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr(n);
   }
 
+#define __(x__) Expr Visit(const ir::intrinsics::x__* op);
+  INTRINSIC_KIND_FOR_EACH(__)
+#undef __
+
   Expr Visit(const ir::IntrinsicOp* op) override {
     switch (op->getKind()) {
-      case ir::IntrinsicKind::kBufferGetDataHandle: {
-        auto* n = llvm::dyn_cast<intrinsics::BufferGetDataHandle>(op);
-        return intrinsics::BufferGetDataHandle::Make(Visit(&n->buffer));
-      }
-      case ir::IntrinsicKind::kBufferGetDataConstHandle: {
-        auto* n = llvm::dyn_cast<intrinsics::BufferGetDataConstHandle>(op);
-        return intrinsics::BufferGetDataConstHandle::Make(Visit(&n->buffer));
-      }
-      case ir::IntrinsicKind::kPodValueToX: {
-        auto* n = llvm::dyn_cast<intrinsics::PodValueToX>(op);
-        return intrinsics::PodValueToX::Make(Visit(&n->pod_value_ptr));
-      }
+#define __(x__)                   \
+  case ir::IntrinsicKind::k##x__: \
+    return Visit(llvm::dyn_cast<ir::intrinsics::x__>(op));
+      INTRINSIC_KIND_FOR_EACH(__)
+#undef __
     }
   }
 
@@ -372,14 +370,19 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 };
 
+Expr IRCopyVisitor::Visit(const ir::intrinsics::BufferGetDataHandle* op) {
+  return intrinsics::BufferGetDataHandle::Make(Visit(&op->buffer));
+}
+Expr IRCopyVisitor::Visit(const ir::intrinsics::BufferGetDataConstHandle* op) {
+  return intrinsics::BufferGetDataConstHandle::Make(Visit(&op->buffer));
+}
+Expr IRCopyVisitor::Visit(const ir::intrinsics::PodValueToX* op) {
+  return intrinsics::PodValueToX::Make(Visit(&op->pod_value_ptr));
+}
+
 Expr IRCopy(Expr x) {
   IRCopyVisitor visitor;
-
   auto copied = visitor.Visit(&x);
-
-  // common::CheckTensorUniqueInExpr(copied);
-  // common::CheckBufferUniqueInExpr(copied);
-
   return copied;
 }
 

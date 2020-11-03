@@ -16,6 +16,7 @@
 
 #include "cinn/backends/llvm/ir_builder_mixin.h"
 #include "cinn/backends/llvm/llvm_util.h"
+#include "cinn/ir/intrinsic_ops.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/ir/module.h"
@@ -130,6 +131,10 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
 #define __(op__) llvm::Value *Visit(const ir::op__ *) override;
   NODETY_FORALL(__)
+#undef __
+
+#define __(op__) llvm::Value *Visit(const ir::intrinsics::op__ *);
+  INTRINSIC_KIND_FOR_EACH(__)
 #undef __
 
   //! Used for the ExternFuncEmitter to store temporary result.

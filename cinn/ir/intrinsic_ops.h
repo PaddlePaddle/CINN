@@ -11,12 +11,21 @@
 
 namespace cinn::ir {
 
+// clang-format off
+#define INTRINSIC_KIND_FOR_EACH(macro__)                 \
+  macro__(BufferGetDataHandle)                           \
+  macro__(BufferGetDataConstHandle)                      \
+  macro__(PodValueToX)                                   \
+// clang-format on
+
+
 enum class IntrinsicKind {
   // All the intrinsics should registered here.
-  kBufferGetDataHandle,
-  kBufferGetDataConstHandle,
-  kPodValueToX,
+#define __(x__) k ## x__,
+  INTRINSIC_KIND_FOR_EACH(__)
+#undef __
 };
+
 
 class IntrinsicOp : public IrNode {
  public:
@@ -94,7 +103,8 @@ struct BufferGetDataConstHandle : public IntrinsicOp {
  */
 struct PodValueToX : public IntrinsicOp {
   // signature: (cinn_pod_value_t*) -> (X), X is some type.
-  PodValueToX(const Type& xtype) : IntrinsicOp(IntrinsicKind::kPodValueToX, {type_of<cinn_pod_value_t*>()}, {xtype}) {}
+  explicit PodValueToX(const Type& xtype)
+      : IntrinsicOp(IntrinsicKind::kPodValueToX, {type_of<cinn_pod_value_t*>()}, {xtype}) {}
 
   static Expr Make(Expr pod_value_ptr);
 

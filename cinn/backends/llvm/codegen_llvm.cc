@@ -1238,7 +1238,28 @@ void CodeGenLLVM::AddTbaaMetadata(llvm::Instruction *inst, std::string_view buff
   inst->setMetadata("tbaa", tbaa);
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::IntrinsicOp *) { CINN_NOT_IMPLEMENTED }
+llvm::Value *CodeGenLLVM::Visit(const ir::IntrinsicOp *op) {
+  switch (op->getKind()) {
+#define __(op__)                   \
+  case ir::IntrinsicKind::k##op__: \
+    return Visit(llvm::dyn_cast<ir::intrinsics::op__>(op));
+    INTRINSIC_KIND_FOR_EACH(__)
+#undef __
+  }
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferGetDataHandle *op) {
+  std::vector<llvm::Value *> args({Visit(&op->buffer)});
+  auto *callee = m_->getFunction("cinn_buffer_get_data_handle");
+  return Call(callee, std::move(args));
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferGetDataConstHandle *op) {
+  std::vector<llvm::Value *> args({Visit(&op->buffer)});
+  auto *callee = m_->getFunction("cinn_buffer_get_data_handle");
+  return Call(callee, std::move(args));
+}
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *) { CINN_NOT_IMPLEMENTED }
 
 }  // namespace backends
 }  // namespace cinn

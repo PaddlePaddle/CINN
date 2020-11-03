@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cinn/common/common.h"
+#include "cinn/ir/intrinsic_ops.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/lowered_func.h"
@@ -80,13 +81,16 @@ class CodeGenC : public ir::IrPrinter {
   void PrintCall_buffer_create(const ir::Call* op);
   void PrintCall_buffer_malloc(const ir::Call* op);
   void PrintCall_cinn_pod_value_to_(const ir::Call* op);
-  void PrintCall_buffer_get_data_handle(const ir::Call* op);
   void PrintCall_get_address(const ir::Call* op);
   void PrintCall_pod_values_to_array(const ir::Call* op);
   // @}
 
 #define __DEFINE_VISIT(op__) void Visit(const ir::op__* op) override;
   NODETY_FORALL(__DEFINE_VISIT)
+#undef __DEFINE_VISIT
+
+#define __DEFINE_VISIT(op__) void Visit(const ir::intrinsics::op__* op);
+  INTRINSIC_KIND_FOR_EACH(__DEFINE_VISIT)
 #undef __DEFINE_VISIT
 
   void PrintFuncArg(const ir::Argument& arg);

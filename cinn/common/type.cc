@@ -126,8 +126,27 @@ Type Type::ElementOf() const {
 void Type::CheckTypeValid() const { CHECK_NE(GetStorage().type_, type_t::Unk); }
 
 Type Type::PointerOf() const {
-  auto x = ElementOf();
-  x.set_cpp_handle();
+  CheckTypeValid();
+  auto x = *this;
+  CHECK(!x.is_cpp_handle2()) << "Not support three level of PointerOf";
+  if (x.is_cpp_handle())
+    x.set_cpp_handle2();
+  else
+    x.set_cpp_handle();
+  return x;
+}
+
+Type Type::ConstOf() const {
+  CheckTypeValid();
+  auto x = *this;
+  x.set_cpp_const();
+  return x;
+}
+
+Type Type::IgnoreConst() const {
+  CheckTypeValid();
+  auto x = *this;
+  x.set_cpp_const(false);
   return x;
 }
 

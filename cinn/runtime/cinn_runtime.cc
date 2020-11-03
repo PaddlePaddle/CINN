@@ -74,12 +74,12 @@ void* cinn_buffer_get_data_const_handle(const struct cinn_buffer_t* buf) {
 }
 
 cinn_type_t cinn_unk_t() { return cinn_type_t(cinn_type_unk, 0); }
-cinn_type_t cinn_int32_t() { return cinn_type_t(cinn_type_int, 32); }
-cinn_type_t cinn_int64_t() { return cinn_type_t(cinn_type_int, 64); }
-cinn_type_t cinn_uint32_t() { return cinn_type_t(cinn_type_uint, 32); }
-cinn_type_t cinn_uint64_t() { return cinn_type_t(cinn_type_uint, 64); }
-cinn_type_t cinn_float32_t() { return cinn_type_t(cinn_type_float, 32); }
-cinn_type_t cinn_float64_t() { return cinn_type_t(cinn_type_float, 64); }
+cinn_type_t cinn_int32_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 32, num_asterisks); }
+cinn_type_t cinn_int64_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 64, num_asterisks); }
+cinn_type_t cinn_uint32_t(int num_asterisks) { return cinn_type_t(cinn_type_uint, 32, num_asterisks); }
+cinn_type_t cinn_uint64_t(int num_asterisks) { return cinn_type_t(cinn_type_uint, 64, num_asterisks); }
+cinn_type_t cinn_float32_t(int num_asterisks) { return cinn_type_t(cinn_type_float, 32, num_asterisks); }
+cinn_type_t cinn_float64_t(int num_asterisks) { return cinn_type_t(cinn_type_float, 64, num_asterisks); }
 
 }  // extern "C"
 
@@ -292,6 +292,10 @@ cinn_type_t cinn_type_of<float>() {
 }
 template <>
 cinn_type_t cinn_type_of<double>() {
+  return cinn_float64_t();
+}
+template <>
+cinn_type_t cinn_type_of<float*>() {
   return cinn_float64_t();
 }
 

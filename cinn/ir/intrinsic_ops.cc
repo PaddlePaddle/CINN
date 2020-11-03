@@ -29,7 +29,7 @@ void IntrinsicOp::Verify(llvm::ArrayRef<Type> input_types, llvm::ArrayRef<Type> 
 void IntrinsicOp::Verify(llvm::ArrayRef<Expr> inputs) {
   CHECK_EQ(inputs.size(), input_types_.size());
   for (int i = 0; i < inputs.size(); i++) {
-    CHECK_EQ(inputs[i].type(), input_types_[i]);
+    CHECK_EQ(inputs[i].type().IgnoreConst(), input_types_[i].IgnoreConst());
   }
 }
 
@@ -49,7 +49,7 @@ Expr intrinsics::BufferGetDataHandle::Make(Expr buffer) {
 }
 
 Expr intrinsics::BufferGetDataConstHandle::Make(Expr buffer) {
-  auto* n = new BufferGetDataHandle;
+  auto* n = new BufferGetDataConstHandle;
   n->Verify({buffer});
   n->buffer = buffer;
   n->set_type(n->GetOutputType(0));

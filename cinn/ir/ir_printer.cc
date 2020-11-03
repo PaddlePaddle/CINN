@@ -385,13 +385,10 @@ std::ostream &operator<<(std::ostream &os, const std::vector<Expr> &a) {
 
 std::ostream &operator<<(std::ostream &os, const ir::Module &m) {
   os << "Module " << m->name << " {\n\n";
-
   for (auto &fn : m->functions) {
     os << fn << '\n';
   }
-
   os << "\n\n}";
-
   return os;
 }
 

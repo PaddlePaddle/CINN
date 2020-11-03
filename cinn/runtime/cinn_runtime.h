@@ -53,10 +53,13 @@ typedef struct cinn_type_t {
   //! Number of elements in a vector, 1 for scalar.
   uint16_t lanes;
 
+  //! Number of '*', e.g. for `float*`, the num_asterisks is 1, `float**` it is 2.
+  uint8_t num_asterisks{0};
+
 #ifdef __cplusplus
   CINN_ALWAYS_INLINE cinn_type_t() : code(cinn_type_int), bits(0), lanes(0) {}
-  CINN_ALWAYS_INLINE cinn_type_t(cinn_type_code_t code, uint8_t bits, uint16_t lanes = 1)
-      : code(code), bits(bits), lanes(lanes) {}
+  CINN_ALWAYS_INLINE cinn_type_t(cinn_type_code_t code, uint8_t bits, uint16_t lanes = 1, uint8_t num_asterisks = 0)
+      : code(code), bits(bits), lanes(lanes), num_asterisks(num_asterisks) {}
   CINN_ALWAYS_INLINE bool operator==(const cinn_type_t& other) const {
     return code == other.code && bits == other.bits && lanes == other.lanes;
   }
@@ -68,12 +71,12 @@ typedef struct cinn_type_t {
 //! Some primitive types.
 // @{
 extern cinn_type_t cinn_unk_t();
-extern cinn_type_t cinn_int32_t();
-extern cinn_type_t cinn_int64_t();
-extern cinn_type_t cinn_uint32_t();
-extern cinn_type_t cinn_uint64_t();
-extern cinn_type_t cinn_float32_t();
-extern cinn_type_t cinn_float64_t();
+extern cinn_type_t cinn_int32_t(int num_asterisks = 0);
+extern cinn_type_t cinn_int64_t(int num_asterisks = 0);
+extern cinn_type_t cinn_uint32_t(int num_asterisks = 0);
+extern cinn_type_t cinn_uint64_t(int num_asterisks = 0);
+extern cinn_type_t cinn_float32_t(int num_asterisks = 0);
+extern cinn_type_t cinn_float64_t(int num_asterisks = 0);
 // @}
 
 //! Help to define the size of a dimension, due to polyhedral representation, we no need to record the extend or

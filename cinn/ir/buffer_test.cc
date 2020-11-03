@@ -27,6 +27,9 @@ TEST(Buffer, basic) {
   // Check shared
   ASSERT_EQ(ref_count(buffer.get()).val(), 1);
 
+  ASSERT_EQ(buffer->type(), type_of<cinn_buffer_t*>());
+  ASSERT_EQ(buffer->dtype, ptr->type());
+
   {
     auto buffer1 = buffer;
     ASSERT_EQ(ref_count(buffer.get()).val(), 2);
@@ -60,6 +63,7 @@ TEST(Buffer, bind_to_multiple_tensors) {
   builder.AddBuffer(A->buffer);
 
   backends::CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 }

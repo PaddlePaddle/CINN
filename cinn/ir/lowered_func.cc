@@ -117,9 +117,12 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
     value_type.set_cpp_const(is_const);
     Var variable = _Var_::Make(tensor->name, value_type);
 
-    Expr body = runtime::BufferGetDataHandle(tensor->buffer, is_const);
+    Expr body = is_const ? ir::intrinsics::BufferGetDataConstHandle::Make(tensor->buffer)
+                         : ir::intrinsics::BufferGetDataHandle::Make(tensor->buffer);
 
-    auto let = Let::Make(variable, body);
+    Type target_type = is_const ? tensor->buffer->dtype.PointerOf().ConstOf() : tensor->buffer->dtype.PointerOf();
+    body             = ir::Cast::Make(target_type, body);
+    auto let         = Let::Make(variable, body);
 
     buffer_data_cast_exprs.push_back(let);
   }

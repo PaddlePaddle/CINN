@@ -459,10 +459,6 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
                              bool ceil_mode,
                              bool exclusive,
                              const std::string &output_name) {
-  LOG(INFO) << "kernel_size length is: " << kernel_size.size();
-  LOG(INFO) << "kernel_size is: " << kernel_size[0];
-  LOG(INFO) << "padding_size length is: " << padding_size.size();
-  LOG(INFO) << "padding_size is: " << padding_size[0];
   CHECK(!kernel_size.empty()) << "Pooling kernel_size should not be empty\n";
   int k_size = kernel_size.size();
   int x_size = tensor->shape.size();

@@ -61,6 +61,8 @@ cinn_type_t ToRuntimeType(Type type) {
     return cinn_float32_t();
   } else if (type == Float(64)) {
     return cinn_float64_t();
+  } else if (type == Float(32).PointerOf()) {
+    return cinn_type_of<float*>();
   }
   LOG(FATAL) << "Not supported type " << type;
   return cinn_unk_t();
