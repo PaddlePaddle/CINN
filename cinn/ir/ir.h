@@ -41,8 +41,6 @@ struct Cast : public ExprNode<Cast> {
   Expr& v() { return operand(0); }
   const Expr& v() const { return operand(0); }
 
-  void Accept(IRVisitor* v) const override;
-
   static const IrNodeTy _node_type_ = IrNodeTy::Cast;
 };
 

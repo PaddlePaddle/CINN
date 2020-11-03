@@ -300,7 +300,6 @@ class _Operation_ : public ir::FunctionBase {
   //! Additional attributes of the operation.
   std::map<std::string, IrNodeRef> attrs;
 
-  void Accept(IRVisitor* v) const override {}
   const std::string& func_name() const final { return name; }
 
   //! The function type.
