@@ -77,7 +77,11 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   //! The memory type of the buffer.
   MemoryType memory_type{MemoryType::Heap};
 
-  _Buffer_() : elem_offset(Expr(0)) {}
+  //! The data type of the elements.
+  //! This is different from `type`, a buffer's type should always be `cinn_buffer_t*`.
+  Type dtype;
+
+  _Buffer_() : elem_offset(Expr(0)) { set_type(type_of<cinn_buffer_t*>()); }
 
   static Buffer Make(Var data,
                      Type dtype,
@@ -95,9 +99,9 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   static Buffer Make(const std::string& name, Type type) {
     CHECK(!type.is_void());
     CHECK(!type.is_unk());
-    auto n  = make_shared<_Buffer_>();
-    n->name = name;
-    n->set_type(type);
+    auto n   = make_shared<_Buffer_>();
+    n->name  = name;
+    n->dtype = type;
     return Buffer(n);
   }
 

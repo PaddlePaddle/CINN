@@ -61,34 +61,11 @@ cinn_type_t ToRuntimeType(Type type) {
     return cinn_float32_t();
   } else if (type == Float(64)) {
     return cinn_float64_t();
+  } else if (type == Float(32).PointerOf()) {
+    return cinn_type_of<float*>();
   }
   LOG(FATAL) << "Not supported type " << type;
   return cinn_unk_t();
-}
-
-ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_const) {
-  CHECK(buffer->type().valid());
-  Type type = buffer->type();
-  type.set_cpp_handle();
-  type.set_cpp_const(is_const);
-  Expr call;
-  if (!is_const)
-    call = ir::Call::Make(
-        type, intrisic::buffer_get_data_handle, {Expr(buffer)}, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0);
-  else
-    call = ir::Call::Make(type,
-                          intrisic::buffer_get_data_const_handle,
-                          {Expr(buffer)},
-                          {},
-                          ir::CallType::Intrinsic,
-                          ir::FunctionRef(),
-                          0);
-
-  Type target_type = buffer->type().ElementOf();
-  target_type.set_cpp_handle();
-  target_type.set_cpp_const(is_const);
-  auto cast = ir::Cast::Make(target_type, call);
-  return cast;
 }
 
 Expr IntrinsicCall(Type type,

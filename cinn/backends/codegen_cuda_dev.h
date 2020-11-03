@@ -80,8 +80,7 @@ class CodeGenCUDA_Dev : public CodeGenC {
 
  private:
   Target target_;
-
-  bool for_nvrtc_ = false;
+  bool for_nvrtc_{false};
 };
 
 }  // namespace backends

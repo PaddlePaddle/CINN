@@ -103,6 +103,10 @@ struct Type {
   Type ElementOf() const;
   //! Generate the address type.
   Type PointerOf() const;
+  //! Ignore const.
+  Type IgnoreConst() const;
+  //! Add const.
+  Type ConstOf() const;
 
   friend std::ostream& operator<<(std::ostream& os, const Type& t);
 

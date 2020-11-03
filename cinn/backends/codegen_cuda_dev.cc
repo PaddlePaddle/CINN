@@ -138,10 +138,8 @@ void CodeGenCUDA_Dev::PrintFuncArg(const ir::Argument &arg) {
   if (arg.is_buffer()) {
     // In CUDA kernel, only primitive type is supported, so we replace the buffer with T*j
     if (arg.is_input()) os() << "const ";
-    os() << GetTypeRepr(arg.type());
-    if (!arg.type().is_cpp_handle()) {
-      os() << "* ";
-    }
+    os() << GetTypeRepr(arg.buffer_arg()->dtype);
+    os() << "* ";
     os() << kCKeywordRestrict << " ";
     os() << ir::BufferGetTensorName(arg.buffer_arg().As<ir::_Buffer_>());
   } else if (arg.is_var()) {
@@ -201,7 +199,7 @@ void CodeGenCUDA_Dev::PrintIncludes() {
 void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {
   CHECK_NE(buffer->type(), Void());
   auto print_gpu_memory = [&](const std::string &mark) {
-    os() << mark << GetTypeRepr(buffer->type()) << " " << buffer->name << " ";
+    os() << mark << GetTypeRepr(buffer->dtype) << " " << buffer->name << " ";
 
     os() << "[ ";
     for (int i = 0; i < buffer->shape.size() - 1; i++) {

@@ -231,9 +231,6 @@ void CodeGenC::Visit(const ir::Call *op) {
     PrintCall_cinn_pod_value_to_(op);
   } else if (op->name == runtime::intrisic::buffer_malloc) {
     PrintCall_buffer_malloc(op);
-  } else if (op->name == runtime::intrisic::buffer_get_data_handle ||
-             op->name == runtime::intrisic::buffer_get_data_const_handle) {
-    PrintCall_buffer_get_data_handle(op);
   } else if (op->name == runtime::intrisic::get_address_repr) {
     PrintCall_get_address(op);
   } else if (op->name == runtime::intrisic::pod_values_to_array_repr) {
@@ -292,7 +289,7 @@ void CodeGenC::PrintCall_buffer_create(const ir::Call *op) {
   os() << "(";
   PrintCastExpr("cinn_device_kind_t", op->read_args[1]);
   os() << "/*target*/, ";
-  PrintRuntimeType(runtime::ToRuntimeType(op->read_args.front().type().ElementOf()));
+  PrintRuntimeType(runtime::ToRuntimeType(buffer_arg->dtype.ElementOf()));
   os() << ", ";
   PrintShape(op->read_args[0].As<ir::_Buffer_>()->shape);
   if (buffer_arg->data_alignment > 0) {
@@ -317,14 +314,6 @@ void CodeGenC::PrintCall_cinn_pod_value_to_(const ir::Call *op) {
   Print(op->read_args[0]);
   os() << ")";
   os() << ")";
-}
-
-void CodeGenC::PrintCall_buffer_get_data_handle(const ir::Call *op) {
-  CHECK_EQ(op->read_args.size(), 1UL);
-  auto *buffer = op->read_args[0].As<ir::_Buffer_>();
-  os() << buffer->name;
-  os() << "->";
-  os() << "memory";
 }
 
 void CodeGenC::PrintCall_get_address(const ir::Call *op) {
@@ -612,7 +601,33 @@ void CodeGenC::PrintStackVecType(Type type, int lanes) {
   os() << "StackedVec<" << GetTypeRepr(type) << "," << lanes << ">";
 }
 
-void CodeGenC::Visit(const ir::PrimitiveNode *op) { CINN_NOT_IMPLEMENTED; }
+void CodeGenC::Visit(const ir::PrimitiveNode *op) { CINN_NOT_IMPLEMENTED }
+
+void CodeGenC::Visit(const ir::IntrinsicOp *op) {
+  switch (op->getKind()) {
+#define __(x)                                     \
+  case ir::IntrinsicKind::k##x:                   \
+    Visit(llvm::dyn_cast<ir::intrinsics::x>(op)); \
+    break;
+
+    INTRINSIC_KIND_FOR_EACH(__)
+#undef __
+  }
+}
+
+void CodeGenC::Visit(const ir::intrinsics::BufferGetDataHandle *op) {
+  os() << op->buffer.as_buffer()->name;
+  os() << "->";
+  os() << "memory";
+}
+
+void CodeGenC::Visit(const ir::intrinsics::BufferGetDataConstHandle *op) {
+  os() << op->buffer.as_buffer()->name;
+  os() << "->";
+  os() << "memory";
+}
+
+void CodeGenC::Visit(const ir::intrinsics::PodValueToX *op){CINN_NOT_IMPLEMENTED}
 
 std::string ReadWholeFile(const std::string &path) {
   CHECK(!path.empty());

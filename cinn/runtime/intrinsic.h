@@ -58,10 +58,6 @@ static const char* pod_values_to_array_repr = "pod_values_to_array";
 
 static const char* get_address_repr = "get_address";
 
-// static const char* args_create  = "cinn_args_create";
-// static const char* args_set     = "cinn_args_set";
-// static const char* args_destroy = "cinn_args_destroy";
-
 static const char* args_construct_repr = "cinn_args_construct";
 
 //! Name of the helper intrinsic used to display debug string.
@@ -102,7 +98,7 @@ ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices);
 ir::Expr BufferMalloc(ir::Buffer buffer);
 ir::Expr BufferMalloc(ir::Var buffer_var);
 
-ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_const = true);
+// ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_const = true);
 
 //! Convert the Type in compile time to runtime type.
 cinn_type_t ToRuntimeType(Type type);

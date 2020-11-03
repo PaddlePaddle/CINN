@@ -47,7 +47,7 @@ Buffer _Buffer_::Make(Var data,
   node->data_alignment = data_alignment;
   node->offset_factor  = offset_factor;
   node->target         = target;
-  node->set_type(dtype);
+  node->dtype          = dtype;
   return Buffer(node);
 }
 
@@ -55,11 +55,13 @@ Buffer _Buffer_::Make(const std::string &name, const std::vector<Expr> &shape) {
   auto *node  = common::make_shared<_Buffer_>();
   node->name  = name;
   node->shape = shape;
+  node->dtype = Void();
   return Buffer(node);
 }
 
 Buffer _Buffer_::Make() {
-  auto *node = common::make_shared<_Buffer_>();
+  auto *node  = common::make_shared<_Buffer_>();
+  node->dtype = Void();
   return Buffer(node);
 }
 

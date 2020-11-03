@@ -14,6 +14,7 @@ set(srcs
     registry.cc
     tensor.cc
     module.cc
+    intrinsic_ops.cc
     )
 
 foreach(cpp ${srcs})
@@ -31,3 +32,4 @@ cc_test(test_collect_ir_nodes SRCS collect_ir_nodes_test.cc DEPS core)
 # cc_test(test_tensor SRCS tensor_test.cc DEPS core)
 cc_test(test_buffer SRCS buffer_test.cc DEPS core ARGS ${global_test_args})
 cc_test(test_tensor SRCS tensor_test.cc DEPS core)
+cc_test(test_intrinsic_ops SRCS intrinsic_ops_test.cc DEPS core)
