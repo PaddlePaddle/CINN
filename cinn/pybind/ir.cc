@@ -82,7 +82,6 @@ void BindNode(py::module *m) {
   ir_node.def(py::init<>())
       .def(py::init<ir::Type>())
       .def_readwrite("operands", &ir::IrNode::operands)
-      .def("accept", &ir::IrNode::Accept)
       .def("node_type", &ir::IrNode::node_type)
       .def("type", &ir::IrNode::type)
       .def("set_type", &ir::IrNode::set_type)
@@ -98,8 +97,7 @@ void BindNode(py::module *m) {
   ir_node_ref.def(py::init<>())
       .def(py::init<const ir::IrNodeRef &>())
       .def(py::init<ir::IrNode *>())
-      .def("node_type", &ir::IrNodeRef::node_type)
-      .def("accept", &ir::IrNodeRef::Accept);
+      .def("node_type", &ir::IrNodeRef::node_type);
 
   // struct IntImm : ExprNode<IntImm>
   DefineExprNode<ir::IntImm>(m, "IntImm");
@@ -211,8 +209,7 @@ void BindIrIr(py::module *m) {
   py::class_<ir::Cast, ExprNode<ir::Cast>> cast(*m, "Cast");
   cast.def(py::init<>())
       .def("v_mutable", py::overload_cast<>(&ir::Cast::v), py::return_value_policy::reference)
-      .def("v_const", py::overload_cast<>(&ir::Cast::v, py::const_), py::return_value_policy::reference)
-      .def("accept", &ir::Cast::Accept);
+      .def("v_const", py::overload_cast<>(&ir::Cast::v, py::const_), py::return_value_policy::reference);
 
   // struct Let : ExprNode<Let>
   DefineExprNode<ir::Let>(m, "Let");

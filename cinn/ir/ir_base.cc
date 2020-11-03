@@ -18,7 +18,6 @@ namespace ir {
   void ExprNode<t__>::Accept(cinn::ir::IRVisitor *v) const { \
     v->Visit(const_self());                                  \
   }
-NODETY_FORALL(__m)
 #undef __m
 // @}
 

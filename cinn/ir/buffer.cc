@@ -63,7 +63,6 @@ Buffer _Buffer_::Make() {
   return Buffer(node);
 }
 
-void _Buffer_::Accept(IRVisitor *v) const { v->Visit(this); }
 IrNodeTy _Buffer_::node_type() const { return _node_type_; }
 
 void _Buffer_::BindTo(const Tensor &tensor) { BindTo(tensor.As<_Tensor_>()); }

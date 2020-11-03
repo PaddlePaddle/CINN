@@ -28,8 +28,6 @@ Expr Cast::Make(Type t, Expr v) {
   return Expr(node);
 }
 
-void Cast::Accept(IRVisitor *v) const { v->IRVisitorBase::Visit(&this->v()); }
-
 Expr Add::Make(Expr a, Expr b) {
   auto node = make_shared<Add>(a, b);
   return Expr(node);
