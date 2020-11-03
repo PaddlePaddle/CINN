@@ -225,9 +225,7 @@ void CodeGenC::Visit(const ir::Block *op) {
   os() << "}";
 }
 void CodeGenC::Visit(const ir::Call *op) {
-  if (op->name == runtime::intrisic::buffer_create) {
-    PrintCall_buffer_create(op);
-  } else if (op->is_intrinsic_call() && utils::Startswith(op->name, "cinn_pod_value_to_")) {
+  if (op->is_intrinsic_call() && utils::Startswith(op->name, "cinn_pod_value_to_")) {
     PrintCall_cinn_pod_value_to_(op);
   } else if (op->name == runtime::intrisic::buffer_malloc) {
     PrintCall_buffer_malloc(op);
@@ -277,25 +275,6 @@ void CodeGenC::PrintCallArgs(const ir::Call *op) {
     }
     Print(op->write_args.back());
   }
-}
-
-void CodeGenC::PrintCall_buffer_create(const ir::Call *op) {
-  CHECK_EQ(op->read_args.size(), 2UL);
-  const ir::_Buffer_ *buffer_arg = op->read_args.front().as_buffer();
-  CHECK(buffer_arg);
-
-  os() << "cinn_buffer_t* " << buffer_arg->name;
-  os() << " = " << op->name;
-  os() << "(";
-  PrintCastExpr("cinn_device_kind_t", op->read_args[1]);
-  os() << "/*target*/, ";
-  PrintRuntimeType(runtime::ToRuntimeType(buffer_arg->dtype.ElementOf()));
-  os() << ", ";
-  PrintShape(op->read_args[0].As<ir::_Buffer_>()->shape);
-  if (buffer_arg->data_alignment > 0) {
-    os() << ", " << buffer_arg->data_alignment << "/*align*/";
-  }
-  os() << ")";
 }
 
 void CodeGenC::PrintCall_buffer_malloc(const ir::Call *op) {
@@ -540,7 +519,7 @@ void CodeGenC::PrintBufferCreation(const std::vector<ir::Buffer> &buffers) {
     // Ignore the buffer in other devices.
     if (!buffer->is_on_host()) continue;
     DoIndent();
-    auto expr = runtime::BufferCreate(buffer);
+    auto expr = ir::intrinsics::BufferCreate::Make(buffer);
     Print(expr);
     os() << ";\n";
   }
@@ -627,7 +606,25 @@ void CodeGenC::Visit(const ir::intrinsics::BufferGetDataConstHandle *op) {
   os() << "memory";
 }
 
-void CodeGenC::Visit(const ir::intrinsics::PodValueToX *op){CINN_NOT_IMPLEMENTED}
+void CodeGenC::Visit(const ir::intrinsics::PodValueToX *op) { CINN_NOT_IMPLEMENTED }
+
+void CodeGenC::Visit(const ir::intrinsics::BufferCreate *op) {
+  const ir::_Buffer_ *buffer_arg = op->buffer.as_buffer();
+  CHECK(buffer_arg);
+
+  os() << "cinn_buffer_t* " << buffer_arg->name;
+  os() << " = " << runtime::intrisic::buffer_create;
+  os() << "(";
+  PrintCastExpr("cinn_device_kind_t", Expr(buffer_arg->target.runtime_arch()));
+  os() << "/*target*/, ";
+  PrintRuntimeType(runtime::ToRuntimeType(buffer_arg->dtype.ElementOf()));
+  os() << ", ";
+  PrintShape(buffer_arg->shape);
+  if (buffer_arg->data_alignment > 0) {
+    os() << ", " << buffer_arg->data_alignment << "/*align*/";
+  }
+  os() << ")";
+}
 
 std::string ReadWholeFile(const std::string &path) {
   CHECK(!path.empty());

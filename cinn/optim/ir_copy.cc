@@ -379,6 +379,9 @@ Expr IRCopyVisitor::Visit(const ir::intrinsics::BufferGetDataConstHandle* op) {
 Expr IRCopyVisitor::Visit(const ir::intrinsics::PodValueToX* op) {
   return intrinsics::PodValueToX::Make(Visit(&op->pod_value_ptr));
 }
+Expr IRCopyVisitor::Visit(const ir::intrinsics::BufferCreate* op) {
+  return intrinsics::BufferCreate::Make(Visit(&op->buffer));
+}
 
 Expr IRCopy(Expr x) {
   IRCopyVisitor visitor;

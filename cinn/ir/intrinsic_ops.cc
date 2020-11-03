@@ -64,4 +64,12 @@ Expr intrinsics::PodValueToX::Make(Expr pod_value_ptr) {
   return Expr(n);
 }
 
+Expr intrinsics::BufferCreate::Make(Expr buffer) {
+  auto* n = new BufferCreate;
+  n->set_type(Void());
+  n->buffer = buffer;
+  n->Verify({n->buffer});
+  return Expr(n);
+}
+
 }  // namespace cinn::ir

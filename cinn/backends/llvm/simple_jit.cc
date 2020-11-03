@@ -104,7 +104,7 @@ void SimpleJIT::Link(ir::Module module, bool optimize) {
 
   auto ir_emitter = std::make_unique<CodeGenT>(m.get(), b.get());
   for (auto &buffer : module->buffers) {
-    auto expr = runtime::BufferCreate(buffer.as_buffer_ref());
+    auto expr = ir::intrinsics::BufferCreate::Make(buffer.as_buffer_ref());
     ir_emitter->Visit(&expr);
   }
 

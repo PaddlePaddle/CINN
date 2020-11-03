@@ -613,8 +613,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
 llvm::Value *CodeGenLLVM::Visit(const ir::PrimitiveNode *) { CINN_NOT_IMPLEMENTED return nullptr; }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
-  if (op->name == runtime::intrisic::buffer_create) {
-  } else if (op->name == runtime::intrisic::get_address_repr) {
+  if (op->name == runtime::intrisic::get_address_repr) {
     return EmitCall_get_address(op);
   } else if (op->name == runtime::intrisic::debug_log_repr) {
     return EmitCall_debug_info(op);
@@ -1009,13 +1008,6 @@ void CodeGenLLVM::Compile(const ir::Module &module) {
   }
 }
 
-llvm::Value *CodeGenLLVM::EmitCall_buffer_create(const ir::Call *op) {
-  CHECK_EQ(op->read_args.size(), 2UL);
-  const ir::_Buffer_ *buffer_arg = op->read_args.front().as_buffer();
-  CHECK(buffer_arg);
-  return nullptr;
-}
-
 llvm::Value *CodeGenLLVM::EmitCall_buffer_malloc(const ir::Call *op) { return nullptr; }
 
 llvm::Value *CodeGenLLVM::EmitCall_get_address(const ir::Call *op) {
@@ -1256,9 +1248,17 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferGetDataHandle *op) {
 
 llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferGetDataConstHandle *op) {
   std::vector<llvm::Value *> args({Visit(&op->buffer)});
-  auto *callee = m_->getFunction("cinn_buffer_get_data_handle");
+  auto *callee = m_->getFunction("cinn_buffer_get_data_const_handle");
   return Call(callee, std::move(args));
 }
+
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferCreate *op) {
+  auto *callee = m_->getFunction(runtime::intrisic::buffer_create);
+  Expr arch(op->buffer.as_buffer()->target.runtime_arch());
+  std::vector<llvm::Value *> args({Visit(&op->buffer), Visit(&arch)});
+  return Call(callee, std::move(args));
+}
+
 llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *) { CINN_NOT_IMPLEMENTED }
 
 }  // namespace backends

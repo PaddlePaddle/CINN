@@ -143,7 +143,7 @@ void ExecutionEngine::Link(const ir::Module &module) {
   auto emitter = std::make_unique<CodeGenT>(m.get(), b.get());
 
   for (auto &buffer : module->buffers) {
-    auto expr = runtime::BufferCreate(buffer.as_buffer_ref());
+    auto expr = ir::intrinsics::BufferCreate::Make(buffer.as_buffer_ref());
     emitter->Visit(&expr);
   }
 

@@ -81,7 +81,6 @@ Expr IntrinsicCall(Type type,
 
 Expr GetAddr(Type type, Expr arg);
 
-ir::Expr BufferCreate(ir::Buffer buffer);
 /**
  * Get an expression to load an element from a buffer.
  * @param buffer

@@ -16,6 +16,7 @@ namespace cinn::ir {
   macro__(BufferGetDataHandle)                           \
   macro__(BufferGetDataConstHandle)                      \
   macro__(PodValueToX)                                   \
+  macro__(BufferCreate)                                  \
 // clang-format on
 
 
@@ -112,6 +113,18 @@ struct PodValueToX : public IntrinsicOp {
 
   Expr pod_value_ptr;
 };
+
+struct BufferCreate : public IntrinsicOp {
+  // signature: (cinn_buffer_t*) -> void
+  explicit BufferCreate(): IntrinsicOp(IntrinsicKind::kBufferCreate, {type_of<cinn_buffer_t*>()}, {}) {}
+
+  static Expr Make(Expr buffer);
+
+  static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kBufferCreate; }
+
+  Expr buffer;
+};
+
 
 }  // namespace intrinsics
 

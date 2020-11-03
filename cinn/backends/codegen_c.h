@@ -78,7 +78,6 @@ class CodeGenC : public ir::IrPrinter {
   //! Print different kinds of Calls.
   // @{
   void PrintCallArgs(const ir::Call* call);
-  void PrintCall_buffer_create(const ir::Call* op);
   void PrintCall_buffer_malloc(const ir::Call* op);
   void PrintCall_cinn_pod_value_to_(const ir::Call* op);
   void PrintCall_get_address(const ir::Call* op);

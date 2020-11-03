@@ -8,14 +8,6 @@ namespace runtime {
 
 Expr GetAddr(Type type, Expr arg) { return IntrinsicCall(type, intrisic::get_address_repr, {arg}); }
 
-ir::Expr BufferCreate(ir::Buffer buffer) {
-  std::vector<Expr> args;
-  args.push_back(Expr(buffer));
-  args.push_back(Expr(buffer->target.runtime_arch()));
-  CHECK(buffer->target.defined()) << "Buffer [" << buffer->name << "] target not set, get " << buffer->target;
-  return ir::Call::Make(Void(), intrisic::buffer_create, args, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0);
-}
-
 ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices) {
   std::vector<ir::Expr> args({ir::Expr(buffer->buffer_addr())});
   args.insert(std::end(args), indices.begin(), indices.end());
