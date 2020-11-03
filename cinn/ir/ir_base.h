@@ -125,7 +125,6 @@ class IrNode : public common::Object {
   explicit IrNode(Type t) : type_(t) {}
   virtual ~IrNode() = default;
 
-  virtual void Accept(IRVisitor* v) const = 0;
   virtual IrNodeTy node_type() const { return IrNodeTy::kUnk; }
   virtual Type type() const { return type_; }
   void set_type(Type type) { type_ = type; }
@@ -171,8 +170,6 @@ class IrNodeRef : public common::Shared<IrNode> {
 
   IrNode* ptr() { return get(); }
   IrNode* ptr() const { return get(); }
-
-  void Accept(IRVisitor* v) const { get()->Accept(v); }
 };
 
 template <typename T>
@@ -180,8 +177,6 @@ struct ExprNode : public IrNode {
   ExprNode() : IrNode(Type()) {}
   explicit ExprNode(Type t) : IrNode(t) { set_type(t); }
   explicit ExprNode(int num_operands) { operands().resize(num_operands); }
-
-  void Accept(IRVisitor* v) const override;
 
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return dynamic_cast<const T*>(this); }

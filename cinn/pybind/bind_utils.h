@@ -99,7 +99,6 @@ void DefineExprNode(py::module *m, std::string_view node_name) {
   expr_node.def(py::init<>())
       .def(py::init<Type>())
       .def(py::init<int>())
-      .def("accept", &ExprNodeT::Accept)
       .def("operands_mutable", py::overload_cast<>(&ExprNodeT::operands))
       .def("operands_const", py::overload_cast<>(&ExprNodeT::operands, py::const_))
       .def("operand_mutable", py::overload_cast<int>(&ExprNodeT::operand), py::return_value_policy::reference)
@@ -154,9 +153,7 @@ class ObjectWrapper : public Object {
 };
 
 class IrNodeWrapper : ir::IrNode {
- public:
   using ir::IrNode::IrNode;
-  void Accept(ir::IRVisitor *v) const override { PYBIND11_OVERLOAD_PURE(void, ir::IrNode, Accept); }
 };
 
 class _Operation_Wrapper : ir::_Operation_ {

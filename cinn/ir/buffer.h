@@ -115,7 +115,6 @@ class _Buffer_ : public ExprNode<_Buffer_> {
 
   Var buffer_addr() const;
 
-  void Accept(IRVisitor* v) const override;
   IrNodeTy node_type() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Buffer_;
