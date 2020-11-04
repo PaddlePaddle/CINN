@@ -413,7 +413,10 @@ Type Load::type() const {
 
   int lanes = 0;
   for (auto &idx : indices) lanes = std::max(lanes, idx.type().lanes());
-  return tensor.type().ElementOf().with_lanes(lanes);
+  auto type = tensor.type().ElementOf().with_lanes(lanes);
+  if (type.is_cpp_handle()) return type.set_cpp_handle(false);
+  if (type.is_cpp_handle2()) return type.set_cpp_handle(true);
+  return type;
 }
 
 std::vector<Expr *> Load::expr_fields() {

@@ -107,11 +107,11 @@ struct BufferGetDataConstHandle : public IntrinsicOp {
  * - cinn_pod_value_to_buffer_p
  */
 struct PodValueToX : public IntrinsicOp {
-  // signature: (cinn_pod_value_t*) -> (X), X is some type.
-  explicit PodValueToX(const Type& xtype)
-      : IntrinsicOp(IntrinsicKind::kPodValueToX, {type_of<cinn_pod_value_t*>()}, {xtype}) {}
+  // signature: (cinn_pod_value_t*) -> (X), X is some pod type.
+  explicit PodValueToX()
+      : IntrinsicOp(IntrinsicKind::kPodValueToX, {type_of<cinn_pod_value_t*>()}, {}) {}
 
-  static Expr Make(Expr pod_value_ptr);
+  static Expr Make(Expr pod_value_ptr, const Type& type);
 
   static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kPodValueToX; }
 

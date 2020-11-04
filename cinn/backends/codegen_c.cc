@@ -604,7 +604,28 @@ void CodeGenC::Visit(const ir::intrinsics::BufferGetDataConstHandle *op) {
   os() << "memory";
 }
 
-void CodeGenC::Visit(const ir::intrinsics::PodValueToX *op) { CINN_NOT_IMPLEMENTED }
+void CodeGenC::Visit(const ir::intrinsics::PodValueToX *op) {
+  auto to_type = op->GetOutputType(0);
+  if (to_type == type_of<float>()) {
+    os() << runtime::intrisic::pod_value_to_float;
+  } else if (to_type == type_of<double>()) {
+    os() << runtime::intrisic::pod_value_to_double;
+  } else if (to_type == type_of<int32_t>()) {
+    os() << runtime::intrisic::pod_value_to_int32;
+  } else if (to_type == type_of<int64_t>()) {
+    os() << runtime::intrisic::pod_value_to_int64;
+  } else if (to_type == type_of<void *>()) {
+    os() << runtime::intrisic::pod_value_to_void_p;
+  } else if (to_type == type_of<cinn_buffer_t *>()) {
+    os() << runtime::intrisic::pod_value_to_buffer_p;
+  } else {
+    LOG(FATAL) << "Not supported type: " << to_type;
+  }
+
+  os() << "(";
+  Print(op->pod_value_ptr);
+  os() << ")";
+}
 
 void CodeGenC::Visit(const ir::intrinsics::BufferCreate *op) {
   const ir::_Buffer_ *buffer_arg = op->buffer.as_buffer();
@@ -630,7 +651,9 @@ void CodeGenC::Visit(const ir::intrinsics::GetAddr *op) {
   } else if (op->data.as_var()) {
     os() << "&" << op->data.as_var()->name;
   } else {
-    CINN_NOT_IMPLEMENTED
+    os() << "&(";
+    Print(op->data);
+    os() << ")";
   }
 }
 

@@ -56,8 +56,9 @@ Expr intrinsics::BufferGetDataConstHandle::Make(Expr buffer) {
   return Expr(n);
 }
 
-Expr intrinsics::PodValueToX::Make(Expr pod_value_ptr) {
-  auto* n = new PodValueToX(pod_value_ptr.type());
+Expr intrinsics::PodValueToX::Make(Expr pod_value_ptr, const Type& type) {
+  auto* n = new PodValueToX;
+  n->AddOutputType(type);
   n->Verify({pod_value_ptr});
   n->pod_value_ptr = pod_value_ptr;
   n->set_type(n->GetOutputType(0));
