@@ -26,10 +26,6 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
 
       // Declare pod_array.
       oprs.push_back(ir::Let::Make(pod_array_var, Expr()));
-
-      // args.insert(args.begin(), common::make_const(Int(32), op->total_args_count()));
-      // args.insert(args.begin(), pod_array_var);
-
       oprs.push_back(ir::intrinsics::ArgsConstruct::Make(pod_array_var, args));
 
       auto new_call = ir::Call::Make(Void(),
@@ -74,7 +70,6 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
       }
 
       exprs.push_back(cast);
-
       args.push_back(pod_val_addr_expr);
     };
 

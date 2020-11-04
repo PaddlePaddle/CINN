@@ -645,25 +645,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
     args[0]  = BitCast(args[0], ll_void_p_ty(), "cast_to_void_p");
   }
 
-  // Type cast statements in the head section of a CINN function.
-  if (utils::Startswith(op->name, "cinn_pod_value_to_")) {
-    CHECK_EQ(op->read_args.size(), 1UL);
-    CHECK_EQ(op->write_args.size(), 0UL);
-
-    // prepare the argument
-    auto arg_load = op->read_args.front().As<ir::Load>();
-    CHECK(arg_load->tensor.As<ir::Cast>()) << "get " << arg_load->tensor;
-    auto _array_ptr       = arg_load->tensor.As<ir::Cast>()->v();
-    auto array_ptr        = GetVar(_array_ptr.as_var()->name);
-    auto cast_to_pod_arr  = BitCast(array_ptr, ll_cinn_pod_p_ty(), "cast_to_pod_arr");
-    auto indice           = arg_load->index();
-    auto *get_element_ptr = InBoundsGEP(ll_cinn_pod_ty(), cast_to_pod_arr, Visit(&indice), "");
-    args.clear();
-    args.push_back(get_element_ptr);
-
-    return Call(callee, std::move(args), "cinn_pod_value_to_");
-  }
-
   return Call(callee, std::move(args));
 }
 

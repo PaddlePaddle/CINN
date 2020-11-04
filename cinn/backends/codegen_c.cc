@@ -225,14 +225,11 @@ void CodeGenC::Visit(const ir::Block *op) {
   os() << "}";
 }
 void CodeGenC::Visit(const ir::Call *op) {
-  if (op->is_intrinsic_call() && utils::Startswith(op->name, "cinn_pod_value_to_")) {
-    PrintCall_cinn_pod_value_to_(op);
-  } else if (op->name == runtime::intrisic::buffer_malloc) {
+  if (op->name == runtime::intrisic::buffer_malloc) {
     PrintCall_buffer_malloc(op);
   } else if (op->name == runtime::intrisic::pod_values_to_array_repr) {
     PrintCall_pod_values_to_array(op);
   } else if (op->is_intrinsic_call()) {
-    // CHECK(!op->read_args.empty() || !op->write_args.empty());
     os() << op->name << "(";
     PrintCallArgs(op);
     os() << ")";

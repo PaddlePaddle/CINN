@@ -217,19 +217,14 @@ void _LoweredFunc_::PrepareArgumentExprs() {
 
     if (arg.is_buffer()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<cinn_buffer_t*>());
-      // pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_buffer_p, {load_expr});
     } else if (arg.type() == type_of<int32_t>()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<int32_t>());
-      // pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_int32, {load_expr});
     } else if (arg.type() == type_of<int64_t>()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<int64_t>());
-      // pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_int64, {load_expr});
     } else if (arg.type() == type_of<float>()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<float>());
-      // pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_float, {load_expr});
     } else if (arg.type() == type_of<double>()) {
       pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<double>());
-      // pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_double, {load_expr});
     } else {
       LOG(ERROR) << "Not supported type [" << arg.type() << "]";
       CINN_NOT_IMPLEMENTED
