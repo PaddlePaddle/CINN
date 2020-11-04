@@ -72,4 +72,28 @@ Expr intrinsics::BufferCreate::Make(Expr buffer) {
   return Expr(n);
 }
 
+Expr intrinsics::GetAddr::Make(Expr data) {
+  auto* n = new GetAddr;
+  n->set_type(data.type().PointerOf());
+  n->data          = data;
+  n->input_types_  = {data.type()};
+  n->output_types_ = {data.type().PointerOf()};
+  return Expr(n);
+}
+
+Expr intrinsics::ArgsConstruct::Make(Var var, llvm::ArrayRef<Expr> args) {
+  auto* n = new ArgsConstruct;
+  CHECK_EQ(var->type().ElementOf(), type_of<cinn_pod_value_t>());
+  CHECK_GE(var->type().lanes(), 1);
+  for (auto& arg : args) {
+    CHECK_EQ(arg.type(), type_of<cinn_pod_value_t*>());
+    n->AddInputType(var->type());
+    n->AddInputType(arg.type());
+  }
+  n->var = var;
+  n->AddOutputType(type_of<cinn_pod_value_t*>());
+  n->args.assign(args.begin(), args.end());
+  return Expr(n);
+}
+
 }  // namespace cinn::ir

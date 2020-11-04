@@ -6,42 +6,6 @@
 namespace cinn {
 namespace runtime {
 
-Expr GetAddr(Type type, Expr arg) { return IntrinsicCall(type, intrisic::get_address_repr, {arg}); }
-
-ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices) {
-  std::vector<ir::Expr> args({ir::Expr(buffer->buffer_addr())});
-  args.insert(std::end(args), indices.begin(), indices.end());
-
-  if (!buffer->type().is_float()) {
-    CINN_NOT_IMPLEMENTED
-  }
-
-  std::string buffer_load_method;
-  if (buffer->type().bits() == 32) {
-    buffer_load_method = intrisic::buffer_load_float32;
-  } else if (buffer->type().bits() == 64) {
-    buffer_load_method = intrisic::buffer_load_float64;
-  } else {
-    LOG(ERROR) << "support for type " << buffer->type() << " not implemented";
-    CINN_NOT_IMPLEMENTED
-  }
-
-  return ir::Call::Make(           //
-      buffer->type().ElementOf(),  //
-      buffer_load_method,          //
-      args,
-      {},
-      ir::CallType::Intrinsic,
-      ir::FunctionRef(),
-      0);
-}
-
-ir::Expr BufferMalloc(ir::Buffer buffer) { return BufferMalloc(buffer->buffer_addr()); }
-ir::Expr BufferMalloc(ir::Var buffer_var) {
-  return ir::Call::Make(
-      Void(), intrisic::buffer_malloc, {Expr(0), buffer_var}, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0);
-}
-
 cinn_type_t ToRuntimeType(Type type) {
   if (type == Int(32)) {
     return cinn_int32_t();

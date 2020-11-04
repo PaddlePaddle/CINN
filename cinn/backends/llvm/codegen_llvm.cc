@@ -356,8 +356,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
       break;
     }
 
-    LOG(INFO) << "instr: " << DumpToString(*value);
-
     if (to.is_bool()) {
       if (from.is_float()) {
         llvm::Constant *zero = llvm::ConstantFP::get(source, 0.);
@@ -613,9 +611,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
 llvm::Value *CodeGenLLVM::Visit(const ir::PrimitiveNode *) { CINN_NOT_IMPLEMENTED return nullptr; }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
-  if (op->name == runtime::intrisic::get_address_repr) {
-    return EmitCall_get_address(op);
-  } else if (op->name == runtime::intrisic::debug_log_repr) {
+  if (op->name == runtime::intrisic::debug_log_repr) {
     return EmitCall_debug_info(op);
   } else if (op->is_extern_call()) {
     auto emitter_id = ExternFuncID{backend_llvm_host, op->name.c_str()};
@@ -644,9 +640,9 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   }
 
   if (op->is_cinn_call()) {
-    args[0] = BitCast(args[0], ll_void_p_ty(), "cast_to_void_p");
-  } else if (op->is_intrinsic_call() && op->name == runtime::intrisic::args_construct_repr) {
-    args[0] = BitCast(args[0], ll_cinn_pod_p_ty(), "cast_to_pod_p");
+    auto arg = ir::intrinsics::GetAddr::Make(op->read_args[0]);
+    args[0]  = Visit(&arg);
+    args[0]  = BitCast(args[0], ll_void_p_ty(), "cast_to_void_p");
   }
 
   // Type cast statements in the head section of a CINN function.
@@ -852,7 +848,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Buffer_ *op) { return GetVar(op->name
 llvm::Value *CodeGenLLVM::Visit(const ir::_Tensor_ *op) {
   return GetVar(op->name);
   auto *buffer_op = op->buffer.As<ir::_Buffer_>();
-  // return (*named_vars_)[buffer_op->name] = Visit(buffer_op);
   if (symbol_table_->Lookup(buffer_op->name)) {
     return Visit(buffer_op);
   }
@@ -905,7 +900,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
       /*Name=*/op->name,
       /*Module=*/m_);
   function->setCallingConv(llvm::CallingConv::C);
-  // function->addFnAttr("no-frame-pointer-elim", "false");
   function->setHasUWTable();  // GDB
 
   std::vector<llvm::Value *> args;
@@ -1148,7 +1142,6 @@ llvm::Value *CodeGenLLVM::CreateBufferPtr(Type t, llvm::Value *buffer, llvm::Val
 }
 
 llvm::Value *CodeGenLLVM::CreateVecSlice(llvm::Value *vec, int begin, int lanes) {
-  LOG(INFO) << "type: " << DumpToString(*vec->getType());
   int total_lanes = llvm::dyn_cast<llvm::VectorType>(vec->getType())->getNumElements();
   CHECK_LE(begin + lanes, total_lanes);
   if (lanes == total_lanes && begin == 0) return vec;  // full slice
@@ -1264,6 +1257,35 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferCreate *op) {
   auto *callee = m_->getFunction(runtime::intrisic::buffer_create);
   Expr arch(op->buffer.as_buffer()->target.runtime_arch());
   std::vector<llvm::Value *> args({Visit(&op->buffer), Visit(&arch)});
+  return Call(callee, std::move(args));
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::GetAddr *op) {
+  if (auto *n = op->data.as_var()) {
+    return GetVar(n->name);
+  } else if (auto *n = op->data.as_buffer()) {
+    return GetVar(n->name);
+  }
+  return nullptr;
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::ArgsConstruct *op) {
+  llvm::SmallVector<llvm::Value *, 7> args;
+  Expr var(op->var);
+  var->set_type(type_of<cinn_pod_value_t>());
+  var = ir::intrinsics::GetAddr::Make(var);
+
+  llvm::Value *ll_var = Visit(&var);
+  var                 = ir::Cast::Make(type_of<cinn_pod_value_t *>(), var);
+
+  Expr num_args(static_cast<int>(op->args.size()));
+  args.push_back(BitCast(ll_var, ll_cinn_pod_p_ty(), "cast_to_pod_value_t_ptr"));
+  args.push_back(Visit(&num_args));
+  for (auto &arg : op->args) {
+    args.push_back(Visit(&arg));
+  }
+
+  auto *callee = m_->getFunction(runtime::intrisic::args_construct_repr);
   return Call(callee, std::move(args));
 }
 

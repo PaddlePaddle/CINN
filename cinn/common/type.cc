@@ -115,12 +115,9 @@ Type::Type(const Type &other) {
 
 Type Type::ElementOf() const {
   CheckTypeValid();
-  if (is_primitive())
-    return Type(type(), bits(), 1);
-  else {
-    CHECK_EQ(lanes(), 1);
-    return *this;
-  }
+  auto type             = *this;
+  type.storage_->lanes_ = 1;
+  return type;
 }
 
 void Type::CheckTypeValid() const { CHECK_NE(GetStorage().type_, type_t::Unk); }

@@ -229,8 +229,6 @@ void CodeGenC::Visit(const ir::Call *op) {
     PrintCall_cinn_pod_value_to_(op);
   } else if (op->name == runtime::intrisic::buffer_malloc) {
     PrintCall_buffer_malloc(op);
-  } else if (op->name == runtime::intrisic::get_address_repr) {
-    PrintCall_get_address(op);
   } else if (op->name == runtime::intrisic::pod_values_to_array_repr) {
     PrintCall_pod_values_to_array(op);
   } else if (op->is_intrinsic_call()) {
@@ -622,6 +620,30 @@ void CodeGenC::Visit(const ir::intrinsics::BufferCreate *op) {
   PrintShape(buffer_arg->shape);
   if (buffer_arg->data_alignment > 0) {
     os() << ", " << buffer_arg->data_alignment << "/*align*/";
+  }
+  os() << ")";
+}
+
+void CodeGenC::Visit(const ir::intrinsics::GetAddr *op) {
+  if (op->data.as_buffer()) {
+    os() << "&" << op->data.as_buffer()->name;
+  } else if (op->data.as_var()) {
+    os() << "&" << op->data.as_var()->name;
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+}
+
+void CodeGenC::Visit(const ir::intrinsics::ArgsConstruct *op) {
+  os() << runtime::intrisic::args_construct_repr << "(";
+  os() << op->var->name << ", ";
+  os() << op->args.size() << ", ";
+  for (int i = 0; i < op->args.size() - 1; i++) {
+    Print(op->args[i]);
+    os() << ", ";
+  }
+  if (!op->args.empty()) {
+    Print(op->args.back());
   }
   os() << ")";
 }
