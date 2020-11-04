@@ -205,4 +205,4 @@ The C++ API locates in `cinn/*/*_test.cc`, the high level API locates in `hlir/f
 
 ## License
 
-CINN is licensed under the Apache 2.0 License.
+CINN is licensed under the [Apache 2.0 license](LICENSE).
