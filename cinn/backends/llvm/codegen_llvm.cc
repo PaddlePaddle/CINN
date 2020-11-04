@@ -671,7 +671,20 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   return Call(callee, std::move(args));
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
+llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) {
+  for (auto &buffer : op->buffers) {
+    auto expr = ir::intrinsics::BufferCreate::Make(buffer.as_buffer_ref());
+    Visit(&expr);
+  }
+
+  for (auto &fn : op->functions) {
+    VLOG(1) << "JIT Linking function [" << fn.As<ir::_LoweredFunc_>()->name << "]";
+    ir::Expr fn_expr(fn);
+    auto fnll = Visit(&fn_expr);
+
+    VLOG(5) << "fn llvm:\n" << DumpToString(*fnll);
+  }
+}
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Var_ *op) {
   llvm::Value *value = GetVar(op->name, false);
@@ -722,7 +735,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
     {
       int alignment = op->type().bits();
       alignment     = 8;
-      CHECK(alignment > 0);
+      CHECK_GT(alignment, 0);
       load_inst->setAlignment(llvm::Align(std::min(alignment, 8)));
     }
 
@@ -1001,12 +1014,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Sum *op) {
 
 #undef __IR_EMITTER_CINN_NOT_IMPLEMENTED
 
-void CodeGenLLVM::Compile(const ir::Module &module) {
-  for (auto &fn : module.functions()) {
-    Expr fn_expr(fn);
-    Visit(&fn_expr);
-  }
-}
+void CodeGenLLVM::Compile(const ir::Module &module) { Visit(module.self()); }
 
 llvm::Value *CodeGenLLVM::EmitCall_buffer_malloc(const ir::Call *op) { return nullptr; }
 
