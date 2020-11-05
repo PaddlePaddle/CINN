@@ -39,6 +39,10 @@ struct IrPrinter : public IRVisitor {
   NODETY_FORALL(__)
 #undef __
 
+#define __(op__) void Visit(const intrinsics::op__ *x);
+  INTRINSIC_KIND_FOR_EACH(__)
+#undef __
+
  private:
   std::ostream &os_;
   uint16_t indent_{};

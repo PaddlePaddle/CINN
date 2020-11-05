@@ -225,18 +225,11 @@ void CodeGenC::Visit(const ir::Block *op) {
   os() << "}";
 }
 void CodeGenC::Visit(const ir::Call *op) {
-  if (op->name == runtime::intrisic::buffer_create) {
-    PrintCall_buffer_create(op);
-  } else if (op->is_intrinsic_call() && utils::Startswith(op->name, "cinn_pod_value_to_")) {
-    PrintCall_cinn_pod_value_to_(op);
-  } else if (op->name == runtime::intrisic::buffer_malloc) {
+  if (op->name == runtime::intrisic::buffer_malloc) {
     PrintCall_buffer_malloc(op);
-  } else if (op->name == runtime::intrisic::get_address_repr) {
-    PrintCall_get_address(op);
   } else if (op->name == runtime::intrisic::pod_values_to_array_repr) {
     PrintCall_pod_values_to_array(op);
   } else if (op->is_intrinsic_call()) {
-    // CHECK(!op->read_args.empty() || !op->write_args.empty());
     os() << op->name << "(";
     PrintCallArgs(op);
     os() << ")";
@@ -277,25 +270,6 @@ void CodeGenC::PrintCallArgs(const ir::Call *op) {
     }
     Print(op->write_args.back());
   }
-}
-
-void CodeGenC::PrintCall_buffer_create(const ir::Call *op) {
-  CHECK_EQ(op->read_args.size(), 2UL);
-  const ir::_Buffer_ *buffer_arg = op->read_args.front().as_buffer();
-  CHECK(buffer_arg);
-
-  os() << "cinn_buffer_t* " << buffer_arg->name;
-  os() << " = " << op->name;
-  os() << "(";
-  PrintCastExpr("cinn_device_kind_t", op->read_args[1]);
-  os() << "/*target*/, ";
-  PrintRuntimeType(runtime::ToRuntimeType(buffer_arg->dtype.ElementOf()));
-  os() << ", ";
-  PrintShape(op->read_args[0].As<ir::_Buffer_>()->shape);
-  if (buffer_arg->data_alignment > 0) {
-    os() << ", " << buffer_arg->data_alignment << "/*align*/";
-  }
-  os() << ")";
 }
 
 void CodeGenC::PrintCall_buffer_malloc(const ir::Call *op) {
@@ -540,7 +514,7 @@ void CodeGenC::PrintBufferCreation(const std::vector<ir::Buffer> &buffers) {
     // Ignore the buffer in other devices.
     if (!buffer->is_on_host()) continue;
     DoIndent();
-    auto expr = runtime::BufferCreate(buffer);
+    auto expr = ir::intrinsics::BufferCreate::Make(buffer);
     Print(expr);
     os() << ";\n";
   }
@@ -627,7 +601,72 @@ void CodeGenC::Visit(const ir::intrinsics::BufferGetDataConstHandle *op) {
   os() << "memory";
 }
 
-void CodeGenC::Visit(const ir::intrinsics::PodValueToX *op){CINN_NOT_IMPLEMENTED}
+void CodeGenC::Visit(const ir::intrinsics::PodValueToX *op) {
+  auto to_type = op->GetOutputType(0);
+  if (to_type == type_of<float>()) {
+    os() << runtime::intrisic::pod_value_to_float;
+  } else if (to_type == type_of<double>()) {
+    os() << runtime::intrisic::pod_value_to_double;
+  } else if (to_type == type_of<int32_t>()) {
+    os() << runtime::intrisic::pod_value_to_int32;
+  } else if (to_type == type_of<int64_t>()) {
+    os() << runtime::intrisic::pod_value_to_int64;
+  } else if (to_type == type_of<void *>()) {
+    os() << runtime::intrisic::pod_value_to_void_p;
+  } else if (to_type == type_of<cinn_buffer_t *>()) {
+    os() << runtime::intrisic::pod_value_to_buffer_p;
+  } else {
+    LOG(FATAL) << "Not supported type: " << to_type;
+  }
+
+  os() << "(";
+  Print(op->pod_value_ptr);
+  os() << ")";
+}
+
+void CodeGenC::Visit(const ir::intrinsics::BufferCreate *op) {
+  const ir::_Buffer_ *buffer_arg = op->buffer.as_buffer();
+  CHECK(buffer_arg);
+
+  os() << "cinn_buffer_t* " << buffer_arg->name;
+  os() << " = " << runtime::intrisic::buffer_create;
+  os() << "(";
+  PrintCastExpr("cinn_device_kind_t", Expr(buffer_arg->target.runtime_arch()));
+  os() << "/*target*/, ";
+  PrintRuntimeType(runtime::ToRuntimeType(buffer_arg->dtype.ElementOf()));
+  os() << ", ";
+  PrintShape(buffer_arg->shape);
+  if (buffer_arg->data_alignment > 0) {
+    os() << ", " << buffer_arg->data_alignment << "/*align*/";
+  }
+  os() << ")";
+}
+
+void CodeGenC::Visit(const ir::intrinsics::GetAddr *op) {
+  if (op->data.as_buffer()) {
+    os() << "&" << op->data.as_buffer()->name;
+  } else if (op->data.as_var()) {
+    os() << "&" << op->data.as_var()->name;
+  } else {
+    os() << "&(";
+    Print(op->data);
+    os() << ")";
+  }
+}
+
+void CodeGenC::Visit(const ir::intrinsics::ArgsConstruct *op) {
+  os() << runtime::intrisic::args_construct_repr << "(";
+  os() << op->var->name << ", ";
+  os() << op->args.size() << ", ";
+  for (int i = 0; i < op->args.size() - 1; i++) {
+    Print(op->args[i]);
+    os() << ", ";
+  }
+  if (!op->args.empty()) {
+    Print(op->args.back());
+  }
+  os() << ")";
+}
 
 std::string ReadWholeFile(const std::string &path) {
   CHECK(!path.empty());

@@ -16,6 +16,9 @@ namespace cinn::ir {
   macro__(BufferGetDataHandle)                           \
   macro__(BufferGetDataConstHandle)                      \
   macro__(PodValueToX)                                   \
+  macro__(BufferCreate)                                  \
+  macro__(GetAddr)                                       \
+  macro__(ArgsConstruct)                                 \
 // clang-format on
 
 
@@ -37,13 +40,15 @@ class IntrinsicOp : public IrNode {
   const Type& GetInputType(int offset) const;
   const Type& GetOutputType(int offset) const;
 
+  void AddInputType(const Type& type) { input_types_.push_back(type); }
+  void AddOutputType(const Type& type) { output_types_.push_back(type); }
+
   const llvm::SmallVectorImpl<Type>& input_types() const { return input_types_; }
   const llvm::SmallVectorImpl<Type>& output_types() const { return input_types_; }
 
   //! Verify the \p input_types and \p output_types matches the signature of this operation.
   void Verify(llvm::ArrayRef<Type> input_types, llvm::ArrayRef<Type> output_types);
   void Verify(llvm::ArrayRef<Expr> inputs, llvm::ArrayRef<Expr> outputs);
-
   void Verify(llvm::ArrayRef<Expr> inputs);
 
   const char* type_info() const override;
@@ -102,16 +107,59 @@ struct BufferGetDataConstHandle : public IntrinsicOp {
  * - cinn_pod_value_to_buffer_p
  */
 struct PodValueToX : public IntrinsicOp {
-  // signature: (cinn_pod_value_t*) -> (X), X is some type.
-  explicit PodValueToX(const Type& xtype)
-      : IntrinsicOp(IntrinsicKind::kPodValueToX, {type_of<cinn_pod_value_t*>()}, {xtype}) {}
+  // signature: (cinn_pod_value_t*) -> (X), X is some pod type.
+  explicit PodValueToX()
+      : IntrinsicOp(IntrinsicKind::kPodValueToX, {type_of<cinn_pod_value_t*>()}, {}) {}
 
-  static Expr Make(Expr pod_value_ptr);
+  static Expr Make(Expr pod_value_ptr, const Type& type);
 
   static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kPodValueToX; }
 
   Expr pod_value_ptr;
 };
+
+/**
+ * The operation to create a buffer.
+ */
+struct BufferCreate : public IntrinsicOp {
+  // signature: (cinn_buffer_t*) -> void
+  explicit BufferCreate(): IntrinsicOp(IntrinsicKind::kBufferCreate, {type_of<cinn_buffer_t*>()}, {}) {}
+
+  static Expr Make(Expr buffer);
+
+  static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kBufferCreate; }
+
+  Expr buffer;
+};
+
+/**
+ * The operation to get the address of a data.
+ */
+struct GetAddr : public IntrinsicOp {
+  // signature: (X) -> (X*)
+  explicit GetAddr(): IntrinsicOp(IntrinsicKind::kGetAddr, {}, {}) {}
+
+  static Expr Make(Expr data);
+
+  static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kGetAddr; }
+
+  Expr data;
+};
+
+/**
+ * The operation to construct a cinn_pod_value_t*
+ */
+struct ArgsConstruct : public IntrinsicOp {
+  explicit ArgsConstruct() : IntrinsicOp(IntrinsicKind::kArgsConstruct, {}, {}) {}
+
+  static Expr Make(Var var, llvm::ArrayRef<Expr> args);
+
+  static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kArgsConstruct; }
+
+  Var var;
+  llvm::SmallVector<Expr, 4> args;
+};
+
 
 }  // namespace intrinsics
 

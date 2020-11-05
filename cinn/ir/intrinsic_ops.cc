@@ -56,11 +56,44 @@ Expr intrinsics::BufferGetDataConstHandle::Make(Expr buffer) {
   return Expr(n);
 }
 
-Expr intrinsics::PodValueToX::Make(Expr pod_value_ptr) {
-  auto* n = new PodValueToX(pod_value_ptr.type());
+Expr intrinsics::PodValueToX::Make(Expr pod_value_ptr, const Type& type) {
+  auto* n = new PodValueToX;
+  n->AddOutputType(type);
   n->Verify({pod_value_ptr});
   n->pod_value_ptr = pod_value_ptr;
   n->set_type(n->GetOutputType(0));
+  return Expr(n);
+}
+
+Expr intrinsics::BufferCreate::Make(Expr buffer) {
+  auto* n = new BufferCreate;
+  n->set_type(Void());
+  n->buffer = buffer;
+  n->Verify({n->buffer});
+  return Expr(n);
+}
+
+Expr intrinsics::GetAddr::Make(Expr data) {
+  auto* n = new GetAddr;
+  n->set_type(data.type().PointerOf());
+  n->data          = data;
+  n->input_types_  = {data.type()};
+  n->output_types_ = {data.type().PointerOf()};
+  return Expr(n);
+}
+
+Expr intrinsics::ArgsConstruct::Make(Var var, llvm::ArrayRef<Expr> args) {
+  auto* n = new ArgsConstruct;
+  CHECK_EQ(var->type().ElementOf(), type_of<cinn_pod_value_t>());
+  CHECK_GE(var->type().lanes(), 1);
+  for (auto& arg : args) {
+    CHECK_EQ(arg.type(), type_of<cinn_pod_value_t*>());
+    n->AddInputType(var->type());
+    n->AddInputType(arg.type());
+  }
+  n->var = var;
+  n->AddOutputType(type_of<cinn_pod_value_t*>());
+  n->args.assign(args.begin(), args.end());
   return Expr(n);
 }
 

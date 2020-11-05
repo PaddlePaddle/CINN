@@ -6,6 +6,7 @@
 #include "cinn/ir/lowered_func.h"
 #include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -364,10 +365,53 @@ void IrPrinter::Visit(const PrimitiveNode *x) {
   os() << ")";
 }
 
-void IrPrinter::Visit(const IntrinsicOp *x){CINN_NOT_IMPLEMENTED}
+void IrPrinter::Visit(const IntrinsicOp *x) {
+  switch (x->getKind()) {
+#define __(op__)                                \
+  case IntrinsicKind::k##op__:                  \
+    Visit(llvm::dyn_cast<intrinsics::op__>(x)); \
+    break;
 
-std::ostream &
-operator<<(std::ostream &os, Expr a) {
+    INTRINSIC_KIND_FOR_EACH(__)
+#undef __
+  }
+}
+void IrPrinter::Visit(const intrinsics::BufferGetDataHandle *x) {
+  os() << runtime::intrisic::buffer_get_data_handle;
+  Print(x->buffer);
+  os() << ")";
+}
+void IrPrinter::Visit(const intrinsics::BufferGetDataConstHandle *x) {
+  os() << runtime::intrisic::buffer_get_data_const_handle;
+  Print(x->buffer);
+  os() << ")";
+}
+void IrPrinter::Visit(const intrinsics::PodValueToX *x) {
+  os() << "pod_value_to_";
+  os() << x->GetOutputType(0);
+  os() << "(";
+  Print(x->pod_value_ptr);
+  os() << ")";
+}
+void IrPrinter::Visit(const intrinsics::BufferCreate *x) {
+  Print(x->buffer);
+  os() << " = ";
+  os() << runtime::intrisic::buffer_create;
+  os() << "()";
+}
+void IrPrinter::Visit(const intrinsics::GetAddr *x) {
+  os() << "get_addr(";
+  Print(x->data);
+  os() << ")";
+}
+void IrPrinter::Visit(const intrinsics::ArgsConstruct *x) {
+  os() << runtime::intrisic::args_construct_repr;
+  os() << "(";
+  Print(std::vector<Expr>(x->args.begin(), x->args.end()));
+  os() << ")";
+}
+
+std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);
   printer.Print(a);

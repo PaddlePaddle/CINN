@@ -292,7 +292,7 @@ void main(void* _args, int32_t num_args)
     buffer_p_to_cinn_pod_value(_C, &_pod_val__1);
     cinn_pod_value_t _pod_arr[3];
     cinn_args_construct(_pod_arr, 3, &_pod_val_, &_pod_val__0, &_pod_val__1);
-    matmul(_pod_arr, 5);
+    matmul(_pod_arr, 3);
   };
   cinn_buffer_free((void*)(0), _C);
 }

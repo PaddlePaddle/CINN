@@ -79,27 +79,6 @@ Expr IntrinsicCall(Type type,
                    const std::vector<Expr>& args,
                    const std::vector<Expr>& write_args = {});
 
-Expr GetAddr(Type type, Expr arg);
-
-ir::Expr BufferCreate(ir::Buffer buffer);
-/**
- * Get an expression to load an element from a buffer.
- * @param buffer
- * @param shape
- * @param indices
- */
-ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices);
-
-/**
- * Get an expression to malloc a buffer.
- * @param buffer
- * @return
- */
-ir::Expr BufferMalloc(ir::Buffer buffer);
-ir::Expr BufferMalloc(ir::Var buffer_var);
-
-// ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_const = true);
-
 //! Convert the Type in compile time to runtime type.
 cinn_type_t ToRuntimeType(Type type);
 

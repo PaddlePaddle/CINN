@@ -137,21 +137,11 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
 template <typename CodeGenT>
 void ExecutionEngine::Link(const ir::Module &module) {
   llvm::SMDiagnostic error;
-  auto ctx     = std::make_unique<llvm::LLVMContext>();
-  auto m       = llvm::parseAssemblyString(AsStringRef(backends::kRuntimeLlvmIr), error, *ctx);
-  auto b       = std::make_unique<llvm::IRBuilder<>>(*ctx);
-  auto emitter = std::make_unique<CodeGenT>(m.get(), b.get());
-
-  for (auto &buffer : module->buffers) {
-    auto expr = runtime::BufferCreate(buffer.as_buffer_ref());
-    emitter->Visit(&expr);
-  }
-
-  for (auto &function : module.functions()) {
-    ir::Expr expr(function);
-    auto *f = emitter->Visit(&expr);
-    CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module detected";
-  }
+  auto ctx        = std::make_unique<llvm::LLVMContext>();
+  auto m          = llvm::parseAssemblyString(AsStringRef(backends::kRuntimeLlvmIr), error, *ctx);
+  auto b          = std::make_unique<llvm::IRBuilder<>>(*ctx);
+  auto ir_emitter = std::make_unique<CodeGenT>(m.get(), b.get());
+  ir_emitter->Compile(module);
 
   CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module found";
 

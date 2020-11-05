@@ -356,8 +356,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
       break;
     }
 
-    LOG(INFO) << "instr: " << DumpToString(*value);
-
     if (to.is_bool()) {
       if (from.is_float()) {
         llvm::Constant *zero = llvm::ConstantFP::get(source, 0.);
@@ -613,10 +611,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
 llvm::Value *CodeGenLLVM::Visit(const ir::PrimitiveNode *) { CINN_NOT_IMPLEMENTED return nullptr; }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
-  if (op->name == runtime::intrisic::buffer_create) {
-  } else if (op->name == runtime::intrisic::get_address_repr) {
-    return EmitCall_get_address(op);
-  } else if (op->name == runtime::intrisic::debug_log_repr) {
+  if (op->name == runtime::intrisic::debug_log_repr) {
     return EmitCall_debug_info(op);
   } else if (op->is_extern_call()) {
     auto emitter_id = ExternFuncID{backend_llvm_host, op->name.c_str()};
@@ -645,34 +640,28 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
   }
 
   if (op->is_cinn_call()) {
-    args[0] = BitCast(args[0], ll_void_p_ty(), "cast_to_void_p");
-  } else if (op->is_intrinsic_call() && op->name == runtime::intrisic::args_construct_repr) {
-    args[0] = BitCast(args[0], ll_cinn_pod_p_ty(), "cast_to_pod_p");
-  }
-
-  // Type cast statements in the head section of a CINN function.
-  if (utils::Startswith(op->name, "cinn_pod_value_to_")) {
-    CHECK_EQ(op->read_args.size(), 1UL);
-    CHECK_EQ(op->write_args.size(), 0UL);
-
-    // prepare the argument
-    auto arg_load = op->read_args.front().As<ir::Load>();
-    CHECK(arg_load->tensor.As<ir::Cast>()) << "get " << arg_load->tensor;
-    auto _array_ptr       = arg_load->tensor.As<ir::Cast>()->v();
-    auto array_ptr        = GetVar(_array_ptr.as_var()->name);
-    auto cast_to_pod_arr  = BitCast(array_ptr, ll_cinn_pod_p_ty(), "cast_to_pod_arr");
-    auto indice           = arg_load->index();
-    auto *get_element_ptr = InBoundsGEP(ll_cinn_pod_ty(), cast_to_pod_arr, Visit(&indice), "");
-    args.clear();
-    args.push_back(get_element_ptr);
-
-    return Call(callee, std::move(args), "cinn_pod_value_to_");
+    auto arg = ir::intrinsics::GetAddr::Make(op->read_args[0]);
+    args[0]  = Visit(&arg);
+    args[0]  = BitCast(args[0], ll_void_p_ty(), "cast_to_void_p");
   }
 
   return Call(callee, std::move(args));
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) { __IR_EMITTER_NOT_IMPLEMENTED(op); }
+llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) {
+  for (auto &buffer : op->buffers) {
+    auto expr = ir::intrinsics::BufferCreate::Make(buffer.as_buffer_ref());
+    Visit(&expr);
+  }
+
+  for (auto &fn : op->functions) {
+    VLOG(1) << "JIT Linking function [" << fn.As<ir::_LoweredFunc_>()->name << "]";
+    ir::Expr fn_expr(fn);
+    auto fnll = Visit(&fn_expr);
+
+    VLOG(5) << "fn llvm:\n" << DumpToString(*fnll);
+  }
+}
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Var_ *op) {
   llvm::Value *value = GetVar(op->name, false);
@@ -723,7 +712,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
     {
       int alignment = op->type().bits();
       alignment     = 8;
-      CHECK(alignment > 0);
+      CHECK_GT(alignment, 0);
       load_inst->setAlignment(llvm::Align(std::min(alignment, 8)));
     }
 
@@ -840,7 +829,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Buffer_ *op) { return GetVar(op->name
 llvm::Value *CodeGenLLVM::Visit(const ir::_Tensor_ *op) {
   return GetVar(op->name);
   auto *buffer_op = op->buffer.As<ir::_Buffer_>();
-  // return (*named_vars_)[buffer_op->name] = Visit(buffer_op);
   if (symbol_table_->Lookup(buffer_op->name)) {
     return Visit(buffer_op);
   }
@@ -893,7 +881,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
       /*Name=*/op->name,
       /*Module=*/m_);
   function->setCallingConv(llvm::CallingConv::C);
-  // function->addFnAttr("no-frame-pointer-elim", "false");
   function->setHasUWTable();  // GDB
 
   std::vector<llvm::Value *> args;
@@ -1002,19 +989,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Sum *op) {
 
 #undef __IR_EMITTER_CINN_NOT_IMPLEMENTED
 
-void CodeGenLLVM::Compile(const ir::Module &module) {
-  for (auto &fn : module.functions()) {
-    Expr fn_expr(fn);
-    Visit(&fn_expr);
-  }
-}
-
-llvm::Value *CodeGenLLVM::EmitCall_buffer_create(const ir::Call *op) {
-  CHECK_EQ(op->read_args.size(), 2UL);
-  const ir::_Buffer_ *buffer_arg = op->read_args.front().as_buffer();
-  CHECK(buffer_arg);
-  return nullptr;
-}
+void CodeGenLLVM::Compile(const ir::Module &module) { Visit(module.self()); }
 
 llvm::Value *CodeGenLLVM::EmitCall_buffer_malloc(const ir::Call *op) { return nullptr; }
 
@@ -1148,7 +1123,6 @@ llvm::Value *CodeGenLLVM::CreateBufferPtr(Type t, llvm::Value *buffer, llvm::Val
 }
 
 llvm::Value *CodeGenLLVM::CreateVecSlice(llvm::Value *vec, int begin, int lanes) {
-  LOG(INFO) << "type: " << DumpToString(*vec->getType());
   int total_lanes = llvm::dyn_cast<llvm::VectorType>(vec->getType())->getNumElements();
   CHECK_LE(begin + lanes, total_lanes);
   if (lanes == total_lanes && begin == 0) return vec;  // full slice
@@ -1256,10 +1230,80 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferGetDataHandle *op) {
 
 llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferGetDataConstHandle *op) {
   std::vector<llvm::Value *> args({Visit(&op->buffer)});
-  auto *callee = m_->getFunction("cinn_buffer_get_data_handle");
+  auto *callee = m_->getFunction("cinn_buffer_get_data_const_handle");
   return Call(callee, std::move(args));
 }
-llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *) { CINN_NOT_IMPLEMENTED }
+
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferCreate *op) {
+  auto *callee = m_->getFunction(runtime::intrisic::buffer_create);
+  Expr arch(op->buffer.as_buffer()->target.runtime_arch());
+  std::vector<llvm::Value *> args({Visit(&op->buffer), Visit(&arch)});
+  return Call(callee, std::move(args));
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::GetAddr *op) {
+  if (auto *n = op->data.as_var()) {
+    return GetVar(n->name);
+  } else if (auto *n = op->data.as_buffer()) {
+    return GetVar(n->name);
+  }
+  if (auto *n = op->data.As<ir::Load>()) {  // get the address to an element in a buffer
+    auto *e = Visit(&op->data);
+    if (auto *e_load = llvm::dyn_cast<llvm::LoadInst>(e)) {
+      return e_load->getPointerOperand();
+    }
+    return e;
+  }
+  return nullptr;
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::ArgsConstruct *op) {
+  llvm::SmallVector<llvm::Value *, 7> args;
+  Expr var(op->var);
+  var->set_type(type_of<cinn_pod_value_t>());
+  var = ir::intrinsics::GetAddr::Make(var);
+
+  llvm::Value *ll_var = Visit(&var);
+  var                 = ir::Cast::Make(type_of<cinn_pod_value_t *>(), var);
+
+  Expr num_args(static_cast<int>(op->args.size()));
+  args.push_back(BitCast(ll_var, ll_cinn_pod_p_ty(), "cast_to_pod_value_t_ptr"));
+  args.push_back(Visit(&num_args));
+  for (auto &arg : op->args) {
+    args.push_back(Visit(&arg));
+  }
+
+  auto *callee = m_->getFunction(runtime::intrisic::args_construct_repr);
+  return Call(callee, std::move(args));
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *op) {
+  auto to_type = op->GetOutputType(0);
+  llvm::Function *callee{};
+
+  if (to_type == type_of<float>()) {
+    callee = m_->getFunction(runtime::intrisic::pod_value_to_float);
+  } else if (to_type == type_of<double>()) {
+    callee = m_->getFunction(runtime::intrisic::pod_value_to_double);
+  } else if (to_type == type_of<int32_t>()) {
+    callee = m_->getFunction(runtime::intrisic::pod_value_to_int32);
+  } else if (to_type == type_of<int64_t>()) {
+    callee = m_->getFunction(runtime::intrisic::pod_value_to_int64);
+  } else if (to_type == type_of<void *>()) {
+    callee = m_->getFunction(runtime::intrisic::pod_value_to_void_p);
+  } else if (to_type == type_of<cinn_buffer_t *>()) {
+    callee = m_->getFunction(runtime::intrisic::pod_value_to_buffer_p);
+  } else {
+    LOG(FATAL) << "Not supported type: " << to_type;
+  }
+
+  CHECK(callee);
+  LOG(INFO) << "value: " << op->pod_value_ptr;
+  auto *value = Visit(&op->pod_value_ptr);
+  CHECK(value);
+  LOG(INFO) << "-value: " << DumpToString(*value);
+  return Call(callee, std::vector<llvm::Value *>({value}), "pod_value_cast");
+}
 
 }  // namespace backends
 }  // namespace cinn

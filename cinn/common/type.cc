@@ -85,7 +85,14 @@ std::ostream &operator<<(std::ostream &os, Type::type_t t) {
 }
 
 Type &Type::set_cpp_handle(bool x) {
+  // unset the other handle-related bits.
+  set_cpp_handle2(false);
+
   auto &v = (*reinterpret_cast<uint8_t *>(&GetStorage().cpp_type_));
+  // unset the other handle-related bits.
+  v &= ~static_cast<uint8_t>(cpp_type_t::Handle);
+  v &= ~static_cast<uint8_t>(cpp_type_t::HandleHandle);
+
   if (x)
     v |= static_cast<uint8_t>(cpp_type_t::Handle);
   else
@@ -96,6 +103,11 @@ Type &Type::set_cpp_handle(bool x) {
 
 Type &Type::set_cpp_handle2(bool x) {
   auto &v = (*reinterpret_cast<uint8_t *>(&GetStorage().cpp_type_));
+
+  // unset the other handle-related bits.
+  v &= ~static_cast<uint8_t>(cpp_type_t::Handle);
+  v &= ~static_cast<uint8_t>(cpp_type_t::HandleHandle);
+
   if (x)
     v |= static_cast<uint8_t>(cpp_type_t::HandleHandle);
   else
@@ -115,12 +127,9 @@ Type::Type(const Type &other) {
 
 Type Type::ElementOf() const {
   CheckTypeValid();
-  if (is_primitive())
-    return Type(type(), bits(), 1);
-  else {
-    CHECK_EQ(lanes(), 1);
-    return *this;
-  }
+  auto type             = *this;
+  type.storage_->lanes_ = 1;
+  return type;
 }
 
 void Type::CheckTypeValid() const { CHECK_NE(GetStorage().type_, type_t::Unk); }
