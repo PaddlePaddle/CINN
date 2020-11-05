@@ -28,6 +28,11 @@ Expr Cast::Make(Type t, Expr v) {
   return Expr(node);
 }
 
+void Cast::Verify() const {
+  if (v().type() == type())
+    LOG(WARNING) << "Found a Cast Node casting a value to the same type, this is not reasonable";
+}
+
 Expr Add::Make(Expr a, Expr b) {
   auto node = make_shared<Add>(a, b);
   return Expr(node);
@@ -35,10 +40,20 @@ Expr Add::Make(Expr a, Expr b) {
 
 Add::Add(Expr a, Expr b) : BinaryOpNode<Add>(a.type(), a, b) {}
 
+void BinaryNodeVerify(const Expr &a, const Expr &b, std::string_view ir_name) {
+  CHECK(a.defined());
+  CHECK(b.defined());
+  CHECK_EQ(a.type(), b.type()) << "The operands' types of the node [" << ir_name << "] don't match";
+}
+
+void Add::Verify() const { BinaryNodeVerify(a(), b(), "Add"); }
+
 Expr Sub::Make(Expr a, Expr b) {
   auto node = make_shared<Sub>(a, b);
   return Expr(node);
 }
+
+void Sub::Verify() const { BinaryNodeVerify(a(), b(), "Sub"); }
 
 Expr Mul::Make(Expr a, Expr b) {
   CHECK(a.defined());
@@ -48,20 +63,28 @@ Expr Mul::Make(Expr a, Expr b) {
   return Expr(node);
 }
 
+void Max::Verify() const { BinaryNodeVerify(a(), b(), "Max"); }
+
 Expr Div::Make(Expr a, Expr b) {
   auto node = make_shared<Div>(a, b);
   return Expr(node);
 }
+
+void Div::Verify() const { BinaryNodeVerify(a(), b(), "Div"); }
 
 Expr Mod::Make(Expr a, Expr b) {
   auto node = make_shared<Mod>(a, b);
   return Expr(node);
 }
 
+void Mod::Verify() const { BinaryNodeVerify(a(), b(), "Mod"); }
+
 Expr Min::Make(Expr a, Expr b) {
   auto node = make_shared<Min>(a, b);
   return Expr(node);
 }
+
+void Min::Verify() const { BinaryNodeVerify(a(), b(), "Min"); }
 
 Expr Max::Make(Expr a, Expr b) {
   auto node = make_shared<Max>(a, b);
@@ -73,44 +96,68 @@ Expr Minus::Make(Expr a) {
   return Expr(node);
 }
 
+void Minus::Verify() const { CHECK(v().defined()); }
+
 Expr EQ::Make(Expr a, Expr b) {
   auto node = make_shared<EQ>(a, b);
   return Expr(node);
 }
+
+void EQ::Verify() const { BinaryNodeVerify(a(), b(), "EQ"); }
 
 Expr NE::Make(Expr a, Expr b) {
   auto node = make_shared<NE>(a, b);
   return Expr(node);
 }
 
+void NE::Verify() const { BinaryNodeVerify(a(), b(), "NE"); }
+
 Expr LT::Make(Expr a, Expr b) {
   auto node = make_shared<LT>(a, b);
   return Expr(node);
 }
+
+void LT::Verify() const { BinaryNodeVerify(a(), b(), "LT"); }
 
 Expr LE::Make(Expr a, Expr b) {
   auto node = make_shared<LE>(a, b);
   return Expr(node);
 }
 
+void LE::Verify() const { BinaryNodeVerify(a(), b(), "LE"); }
+
 Expr GT::Make(Expr a, Expr b) {
   auto node = make_shared<GT>(a, b);
   return Expr(node);
 }
+
+void GT::Verify() const { BinaryNodeVerify(a(), b(), "GT"); }
 
 Expr GE::Make(Expr a, Expr b) {
   auto node = make_shared<GE>(a, b);
   return Expr(node);
 }
 
+void GE::Verify() const { BinaryNodeVerify(a(), b(), "GE"); }
+
 Expr And::Make(Expr a, Expr b) {
   auto node = make_shared<And>(a, b);
   return Expr(node);
 }
 
+void And::Verify() const {
+  BinaryNodeVerify(a(), b(), "And");
+  CHECK_EQ(a().type(), type_of<bool>());
+}
+
 Expr Or::Make(Expr a, Expr b) {
   auto node = make_shared<Or>(a, b);
   return Expr(node);
+}
+
+void Or::Verify() const {
+  BinaryNodeVerify(a(), b(), "Or");
+  CHECK_EQ(a().type(), type_of<bool>());
 }
 
 Type Or::type() const { return type_; }
@@ -119,6 +166,8 @@ Expr Not::Make(Expr v) {
   auto node = make_shared<Not>(v);
   return Expr(node);
 }
+
+void Not::Verify() const { CHECK_EQ(v().type(), type_of<bool>()); }
 
 Type Not::type() const { return type_; }
 
@@ -132,6 +181,14 @@ Expr Let::Make(Expr symbol, Expr body) {
   n->body   = body;
   n->set_type(n->symbol->type());
   return Expr(n);
+}
+
+void Let::Verify() const {
+  CHECK(symbol.defined());
+  // The default value(contained in body) is not required.
+  if (body.defined()) {
+    CHECK_EQ(symbol.type(), body.type());
+  }
 }
 
 Type Let::type() const { return symbol.type(); }
@@ -160,6 +217,10 @@ Expr _Var_::Copy() const {
   n->set_type(type());
   return Expr(n);
 }
+
+void _Var_::Verify() const { CHECK(!name.empty()) << "Var should have a name"; }
+
+void Mul::Verify() const { BinaryNodeVerify(a(), b(), "Mul"); }
 
 Expr For::Make(
     Var loop_var, Expr min, Expr extent, ForType for_type, DeviceAPI device_api, Expr body, VectorizeInfo vector_info) {
@@ -252,6 +313,8 @@ std::vector<const Expr *> Store::expr_fields() const {
   return exprs;
 }
 
+void Store::Verify() const { CHECK(tensor.defined()); }
+
 Expr Alloc::Make(Expr dest, Type type, const std::vector<Expr> &extents, Expr condition, Expr body) {
   auto node = make_shared<Alloc>();
   CHECK(dest.As<_Buffer_>()) << "Alloc destination only supports Buffer";
@@ -329,6 +392,7 @@ std::vector<const Expr *> Call::expr_fields() const {
   for (auto &x : write_args) res.push_back(&x);
   return res;
 }
+void Call::Verify() const {}
 
 Expr PolyFor::Make(Var iterator,
                    Expr init_val,
@@ -448,6 +512,16 @@ const std::string &Load::name() const {
   auto *t = tensor.As<ir::_Tensor_>();
   CHECK(t);
   return t->name;
+}
+
+void Load::Verify() const {
+  CHECK(tensor.defined());
+  CHECK(!indices.empty()) << "At least one indice is needed";
+  for (auto &indice : indices) {
+    CHECK(indice.defined());
+    CHECK(indice.type().ElementOf() == type_of<int32_t>() || indice.type().ElementOf() == type_of<int64_t>())
+        << "get type " << indice.type() << " vs (int64 or int32)";
+  }
 }
 
 bool LoadStoreAddrMnger::is_addr_tensor() const { return tensor.As<_Tensor_>(); }
@@ -581,5 +655,92 @@ std::vector<const Expr *> Reduce::expr_fields() const {
   res.push_back(&body);
   return res;
 }
+
+void Reduce::Verify() const {
+  CHECK(init.defined());
+  CHECK(body.defined());
+  CHECK(!reduce_axis.empty()) << "At least one reduce axis is needed";
+  CHECK_EQ(init.type(), body.type());
+}
+
+void Select::Verify() const {
+  CHECK(condition.defined());
+  CHECK(true_value.defined());
+  CHECK(false_value.defined());
+  CHECK_EQ(condition.type(), type_of<bool>()) << "Select Node's condition should be a boolean";
+  CHECK_EQ(true_value.type(), false_value.type())
+      << "Select Node's true_value and false_value should have the same type";
+}
+
+void Free::Verify() const { CHECK(destination.defined()); }
+
+void Alloc::Verify() const { CHECK(destination.defined()); }
+
+void For::Verify() const {
+  CHECK(loop_var.defined());
+  CHECK(min.defined());
+  CHECK(extent.defined());
+  CHECK(body.defined());
+
+  CHECK_EQ(loop_var->type(), type_of<int32_t>());
+  CHECK_EQ(min->type(), type_of<int32_t>());
+  CHECK_EQ(extent->type(), type_of<int32_t>());
+}
+
+void PolyFor::Verify() const {
+  CHECK(iterator.defined());
+  CHECK(init.defined());
+  CHECK(condition.defined());
+  CHECK(inc.defined());
+  CHECK(body.defined());
+
+  CHECK_EQ(iterator->type(), type_of<int32_t>());
+  CHECK_EQ(init.type(), type_of<int32_t>());
+  CHECK_EQ(condition.type(), type_of<bool>());
+  CHECK_EQ(inc.type(), type_of<int32_t>());
+}
+
+void Ramp::Verify() const {
+  CHECK(base.defined());
+  CHECK(stride.defined());
+}
+
+void FracOp::Verify() const {
+  CHECK(a().defined());
+  CHECK(b().defined());
+  CHECK_EQ(a().type(), b().type());
+}
+
+void Broadcast::Verify() const { CHECK(value.defined()); }
+
+void Power::Verify() const {
+  CHECK(a().defined());
+  CHECK(b().defined());
+  CHECK(b().type() == type_of<int32_t>());
+}
+
+void MultiOperandVerify(llvm::ArrayRef<Expr> operands) {
+  Type operand_type = operands.front().type();
+  CHECK(operand_type.valid());
+  for (int i = 1; i < operands.size(); i++) {
+    CHECK(operands[i].defined());
+    CHECK_EQ(operands[i].type(), operand_type);
+  }
+}
+
+void Product::Verify() const {
+  CHECK_GT(operands().size(), 1UL) << "Product node should have more than 1 operands";
+  MultiOperandVerify(operands());
+}
+
+void Sum::Verify() const {
+  CHECK_GT(operands().size(), 1UL) << "Sum node should have more than 1 operands";
+  MultiOperandVerify(operands());
+}
+
+void Block::Verify() const {}
+
+void PrimitiveNode::Verify() const {}
+
 }  // namespace ir
 }  // namespace cinn

@@ -47,9 +47,11 @@ class IntrinsicOp : public IrNode {
   const llvm::SmallVectorImpl<Type>& output_types() const { return input_types_; }
 
   //! Verify the \p input_types and \p output_types matches the signature of this operation.
-  void Verify(llvm::ArrayRef<Type> input_types, llvm::ArrayRef<Type> output_types);
-  void Verify(llvm::ArrayRef<Expr> inputs, llvm::ArrayRef<Expr> outputs);
-  void Verify(llvm::ArrayRef<Expr> inputs);
+  void Verify(llvm::ArrayRef<Type> input_types, llvm::ArrayRef<Type> output_types) const;
+  void Verify(llvm::ArrayRef<Expr> inputs, llvm::ArrayRef<Expr> outputs) const;
+  void Verify(llvm::ArrayRef<Expr> inputs) const;
+
+  void Verify() const override { }
 
   const char* type_info() const override;
 
@@ -108,7 +110,7 @@ struct BufferGetDataConstHandle : public IntrinsicOp {
  */
 struct PodValueToX : public IntrinsicOp {
   // signature: (cinn_pod_value_t*) -> (X), X is some pod type.
-  explicit PodValueToX()
+  PodValueToX()
       : IntrinsicOp(IntrinsicKind::kPodValueToX, {type_of<cinn_pod_value_t*>()}, {}) {}
 
   static Expr Make(Expr pod_value_ptr, const Type& type);
@@ -123,7 +125,7 @@ struct PodValueToX : public IntrinsicOp {
  */
 struct BufferCreate : public IntrinsicOp {
   // signature: (cinn_buffer_t*) -> void
-  explicit BufferCreate(): IntrinsicOp(IntrinsicKind::kBufferCreate, {type_of<cinn_buffer_t*>()}, {}) {}
+  BufferCreate(): IntrinsicOp(IntrinsicKind::kBufferCreate, {type_of<cinn_buffer_t*>()}, {}) {}
 
   static Expr Make(Expr buffer);
 
@@ -137,7 +139,7 @@ struct BufferCreate : public IntrinsicOp {
  */
 struct GetAddr : public IntrinsicOp {
   // signature: (X) -> (X*)
-  explicit GetAddr(): IntrinsicOp(IntrinsicKind::kGetAddr, {}, {}) {}
+  GetAddr(): IntrinsicOp(IntrinsicKind::kGetAddr, {}, {}) {}
 
   static Expr Make(Expr data);
 
@@ -150,7 +152,7 @@ struct GetAddr : public IntrinsicOp {
  * The operation to construct a cinn_pod_value_t*
  */
 struct ArgsConstruct : public IntrinsicOp {
-  explicit ArgsConstruct() : IntrinsicOp(IntrinsicKind::kArgsConstruct, {}, {}) {}
+  ArgsConstruct() : IntrinsicOp(IntrinsicKind::kArgsConstruct, {}, {}) {}
 
   static Expr Make(Var var, llvm::ArrayRef<Expr> args);
 

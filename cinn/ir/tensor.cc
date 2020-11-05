@@ -486,5 +486,11 @@ Expr _Tensor_::GetReduceInitVal() const {
 
 bool _Tensor_::IsReduceInited(poly::StageMap stages) const { return stages->Lookup(GenReduceInitTensorNameOf(name)); }
 
+void _Tensor_::Verify() const {
+  CHECK(!shape.empty());
+  CHECK(!domain.empty());
+  CHECK(!name.empty()) << "Name of tensor should be set";
+}
+
 }  // namespace ir
 }  // namespace cinn

@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "cinn/backends/extern_func_emitter.h"
+#include "cinn/ir/ir_verify.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/runtime/intrinsic.h"
@@ -15,6 +16,8 @@ using namespace utils;  // NOLINT
 const char *kCKeywordRestrict = "__restrict__";
 
 void CodeGenC::Compile(const ir::Module &module, const Outputs &outputs) {
+  ir::IrVerify(Expr(module));
+
   if (!outputs.c_header_name.empty()) {
     auto source = Compile(module, OutputKind::CHeader);
     std::ofstream file(outputs.c_header_name);

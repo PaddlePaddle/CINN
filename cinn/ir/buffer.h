@@ -44,10 +44,6 @@ class Buffer : public IrNodeRef {
   // @{
   //! Expression to destroy the buffer.
   Expr DestroyExpr() const;
-  //! Expression to load a element from a buffer.
-  // Expr LoadExpr(const std::vector<Expr>& indice) const;
-  //! Expression to store a value to a position in a buffer.
-  // Expr StoreExpr(const std::vector<Expr>& indice, Expr value) const;
   // @}
 
   const _Buffer_* operator->() const;
@@ -120,6 +116,8 @@ class _Buffer_ : public ExprNode<_Buffer_> {
   Var buffer_addr() const;
 
   IrNodeTy node_type() const override;
+
+  void Verify() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Buffer_;
 

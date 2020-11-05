@@ -1,4 +1,5 @@
 #include "cinn/backends/codegen_cuda_dev.h"
+#include "cinn/ir/ir_verify.h"
 
 #include <fstream>
 #include <set>
@@ -19,6 +20,8 @@ std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, bool for_nvrtc) {
 }
 
 void CodeGenCUDA_Dev::Compile(const ir::Module &module, const Outputs &outputs) {
+  ir::IrVerify(Expr(module));
+
   CodeGenC::inline_builtin_codes_ = false;
   if (!outputs.c_header_name.empty()) {
     auto source = Compile(module, OutputKind::CHeader);

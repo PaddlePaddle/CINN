@@ -136,6 +136,9 @@ class IrNode : public common::Object {
 
   const char* type_info() const override { return __type_info__; }
 
+  //! Verify the current IR node's correctness.
+  virtual void Verify() const { CINN_NOT_IMPLEMENTED }
+
  protected:
   static constexpr char* __type_info__ = "IRNode";
   Type type_;
@@ -202,10 +205,12 @@ struct ExprNode : public IrNode {
 struct IntImm : public ExprNode<IntImm> {
   int64_t value;
 
-  IntImm(Type t, int64_t v) : ExprNode<IntImm>(t), value(v) {
-    CHECK(t.is_int());
-    CHECK(t.is_scalar());
-    CHECK(t.bits() == 8 || t.bits() == 16 || t.bits() == 32 || t.bits() == 64);
+  IntImm(Type t, int64_t v) : ExprNode<IntImm>(t), value(v) { Verify(); }
+
+  void Verify() const override {
+    CHECK(type().is_int());
+    CHECK(type().is_scalar());
+    CHECK(type().bits() == 8 || type().bits() == 16 || type().bits() == 32 || type().bits() == 64);
   }
 
   static const IrNodeTy _node_type_ = IrNodeTy::IntImm;
@@ -214,10 +219,13 @@ struct IntImm : public ExprNode<IntImm> {
 struct UIntImm : public ExprNode<UIntImm> {
   int64_t value;
 
-  UIntImm(Type t, int64_t v) : ExprNode<UIntImm>(t), value(v) {
-    CHECK(t.is_uint());
-    CHECK(t.is_scalar());
-    CHECK(t.bits() == 1 /*bool*/ || t.bits() == 8 || t.bits() == 16 || t.bits() == 32 || t.bits() == 64);
+  UIntImm(Type t, int64_t v) : ExprNode<UIntImm>(t), value(v) { Verify(); }
+
+  void Verify() const override {
+    CHECK(type().is_uint());
+    CHECK(type().is_scalar());
+    CHECK(type().bits() == 1 /*bool*/ || type().bits() == 8 || type().bits() == 16 || type().bits() == 32 ||
+          type().bits() == 64);
   }
 
   static const IrNodeTy _node_type_ = IrNodeTy::UIntImm;
@@ -226,9 +234,11 @@ struct UIntImm : public ExprNode<UIntImm> {
 struct FloatImm : public ExprNode<FloatImm> {
   double value;
 
-  FloatImm(Type t, float v) : ExprNode<FloatImm>(t), value(v) {
-    CHECK(t.is_float());
-    CHECK(t.is_scalar());
+  FloatImm(Type t, float v) : ExprNode<FloatImm>(t), value(v) { Verify(); }
+
+  void Verify() const override {
+    CHECK(type().is_float());
+    CHECK(type().is_scalar());
   }
 
   static const IrNodeTy _node_type_ = IrNodeTy::FloatImm;
@@ -237,7 +247,9 @@ struct FloatImm : public ExprNode<FloatImm> {
 struct StringImm : public ExprNode<StringImm> {
   std::string value;
 
-  explicit StringImm(const std::string& value) : value(value) {}
+  explicit StringImm(const std::string& value) : value(value) { Verify(); }
+
+  void Verify() const override {}
 
   static const IrNodeTy _node_type_ = IrNodeTy::StringImm;
 };

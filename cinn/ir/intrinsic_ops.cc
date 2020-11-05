@@ -13,7 +13,7 @@ const Type& IntrinsicOp::GetOutputType(int offset) const {
   return output_types_[offset];
 }
 
-void IntrinsicOp::Verify(llvm::ArrayRef<Type> input_types, llvm::ArrayRef<Type> output_types) {
+void IntrinsicOp::Verify(llvm::ArrayRef<Type> input_types, llvm::ArrayRef<Type> output_types) const {
   CHECK_EQ(input_types.size(), input_types_.size());
   CHECK_EQ(output_types.size(), output_types_.size());
 
@@ -26,14 +26,14 @@ void IntrinsicOp::Verify(llvm::ArrayRef<Type> input_types, llvm::ArrayRef<Type> 
   }
 }
 
-void IntrinsicOp::Verify(llvm::ArrayRef<Expr> inputs) {
+void IntrinsicOp::Verify(llvm::ArrayRef<Expr> inputs) const {
   CHECK_EQ(inputs.size(), input_types_.size());
   for (int i = 0; i < inputs.size(); i++) {
     CHECK_EQ(inputs[i].type().IgnoreConst(), input_types_[i].IgnoreConst());
   }
 }
 
-void IntrinsicOp::Verify(llvm::ArrayRef<Expr> inputs, llvm::ArrayRef<Expr> outputs) {
+void IntrinsicOp::Verify(llvm::ArrayRef<Expr> inputs, llvm::ArrayRef<Expr> outputs) const {
   llvm::SmallVector<Type, 4> input_types, output_types;
   for (auto& e : inputs) input_types.push_back(e.type());
   for (auto& e : outputs) output_types.push_back(e.type());
