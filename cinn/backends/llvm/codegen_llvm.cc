@@ -1,4 +1,5 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
+#include "cinn/ir/ir_verify.h"
 
 #include <glog/logging.h>
 #include <glog/stl_logging.h>
@@ -649,6 +650,11 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) {
+  {
+    Expr body_to_verify(&Reference(op));
+    ir::IrVerify(body_to_verify);
+  }
+
   for (auto &buffer : op->buffers) {
     auto expr = ir::intrinsics::BufferCreate::Make(buffer.as_buffer_ref());
     Visit(&expr);

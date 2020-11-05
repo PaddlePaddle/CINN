@@ -83,6 +83,12 @@ Var _Buffer_::buffer_addr() const {
   return _Var_::Make(name, thetype);
 }
 
+void _Buffer_::Verify() const {
+  CHECK(!shape.empty());
+  CHECK(!name.empty());
+  CHECK(dtype.valid());
+}
+
 Expr Buffer::DestroyExpr() const {
   auto *node = operator->();
   return runtime::IntrinsicCall(Void(), runtime::intrisic::buffer_destroy, {ir::_Var_::Make(node->name, node->type())});

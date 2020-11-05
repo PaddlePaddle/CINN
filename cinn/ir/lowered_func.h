@@ -149,6 +149,8 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
 
   bool is_gpu_host() const { return cuda_axis_info.valid(); }
 
+  void Verify() const override {}
+
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 

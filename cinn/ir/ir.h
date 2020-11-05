@@ -10,6 +10,7 @@
 #include <variant>
 #include <vector>
 
+#include <map>
 #include "cinn/common/shared.h"
 #include "cinn/common/type.h"
 #include "cinn/ir/function_base.h"
@@ -41,6 +42,8 @@ struct Cast : public ExprNode<Cast> {
   Expr& v() { return operand(0); }
   const Expr& v() const { return operand(0); }
 
+  void Verify() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Cast;
 };
 
@@ -51,6 +54,8 @@ struct Add : public BinaryOpNode<Add> {
   Add(Expr a, Expr b);
 
   static Expr Make(Expr a, Expr b);
+
+  void Verify() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Add;
 };
@@ -63,6 +68,8 @@ struct Sub : public BinaryOpNode<Sub> {
 
   static Expr Make(Expr a, Expr b);
 
+  void Verify() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Sub;
 };
 
@@ -73,6 +80,9 @@ struct Mul : public BinaryOpNode<Mul> {
   Mul(Expr a, Expr b) : BinaryOpNode<Mul>(a.type(), a, b) {}
 
   static Expr Make(Expr a, Expr b);
+
+  void Verify() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Mul;
 };
 
@@ -83,6 +93,7 @@ struct Div : public BinaryOpNode<Div> {
   Div(Expr a, Expr b) : BinaryOpNode<Div>(a.type(), a, b) {}
 
   static Expr Make(Expr a, Expr b);
+  void Verify() const override;
   static const IrNodeTy _node_type_ = IrNodeTy::Div;
 };
 
@@ -93,6 +104,7 @@ struct Mod : public BinaryOpNode<Mod> {
   Mod(Expr a, Expr b) : BinaryOpNode<Mod>(a.type(), a, b) {}
 
   static Expr Make(Expr a, Expr b);
+  void Verify() const override;
   static const IrNodeTy _node_type_ = IrNodeTy::Mod;
 };
 
@@ -103,6 +115,7 @@ struct Min : public BinaryOpNode<Min> {
   Min(Expr a, Expr b) : BinaryOpNode<Min>(a.type(), a, b) {}
 
   static Expr Make(Expr a, Expr b);
+  void Verify() const override;
   static const IrNodeTy _node_type_ = IrNodeTy::Min;
 };
 
@@ -113,6 +126,8 @@ struct Max : public BinaryOpNode<Max> {
   Max(Expr a, Expr b) : BinaryOpNode<Max>(a.type(), a, b) {}
 
   static Expr Make(Expr a, Expr b);
+
+  void Verify() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Max;
 };
@@ -126,6 +141,7 @@ struct EQ : public BinaryOpNode<EQ> {
   Type type() const { return Bool(a()->type().lanes()); }
 
   static Expr Make(Expr a, Expr b);
+  void Verify() const override;
   static const IrNodeTy _node_type_ = IrNodeTy::EQ;
 };
 
@@ -138,6 +154,7 @@ struct NE : public BinaryOpNode<NE> {
   Type type() const { return Bool(a()->type().lanes()); }
 
   static Expr Make(Expr a, Expr b);
+  void Verify() const override;
   static const IrNodeTy _node_type_ = IrNodeTy::NE;
 };
 
@@ -150,6 +167,7 @@ struct LT : public BinaryOpNode<LT> {
   Type type() const { return Bool(a()->type().lanes()); }
 
   static Expr Make(Expr a, Expr b);
+  void Verify() const override;
   static const IrNodeTy _node_type_ = IrNodeTy::LT;
 };
 
@@ -162,6 +180,7 @@ struct LE : public BinaryOpNode<LE> {
   Type type() const { return Bool(a()->type().lanes()); }
 
   static Expr Make(Expr a, Expr b);
+  void Verify() const override;
   static const IrNodeTy _node_type_ = IrNodeTy::LE;
 };
 
@@ -174,6 +193,7 @@ struct GT : public BinaryOpNode<GT> {
   Type type() const { return Bool(a()->type().lanes()); }
 
   static Expr Make(Expr a, Expr b);
+  void Verify() const override;
   static const IrNodeTy _node_type_ = IrNodeTy::GT;
 };
 
@@ -186,6 +206,7 @@ struct GE : public BinaryOpNode<GE> {
   Type type() const { return Bool(a()->type().lanes()); }
 
   static Expr Make(Expr a, Expr b);
+  void Verify() const override;
   static const IrNodeTy _node_type_ = IrNodeTy::GE;
 };
 
@@ -201,6 +222,7 @@ struct And : public BinaryOpNode<And> {
   Type type() const { return Bool(a()->type().lanes()); }
 
   static Expr Make(Expr a, Expr b);
+  void Verify() const override;
   static const IrNodeTy _node_type_ = IrNodeTy::And;
 };
 
@@ -211,6 +233,7 @@ struct Minus : public UnaryOpNode<Minus> {
   explicit Minus(Expr x) : UnaryOpNode<Minus>(x.type(), x) {}
 
   static Expr Make(Expr a);
+  void Verify() const override;
   static const IrNodeTy _node_type_ = IrNodeTy::Minus;
 };
 
@@ -226,6 +249,7 @@ struct Or : public BinaryOpNode<Or> {
   static Expr Make(Expr a, Expr b);
 
   Type type() const override;
+  void Verify() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Or;
 };
@@ -239,6 +263,7 @@ struct Not : public UnaryOpNode<Not> {
   static Expr Make(Expr v);
 
   Type type() const override;
+  void Verify() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Not;
 };
@@ -250,6 +275,8 @@ struct Let : public ExprNode<Let> {
   static Expr Make(Expr symbol, Expr body);
 
   Type type() const override;
+
+  void Verify() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::Let;
 
@@ -297,6 +324,8 @@ struct Call : public ExprNode<Call> {
                    FunctionRef func = FunctionRef(),
                    int value_index  = 0);
 
+  void Verify() const override;
+
   inline size_t total_args_count() const { return read_args.size() + write_args.size(); }
 
   inline bool is_extern_call() const { return call_type == CallType::Extern; }
@@ -332,6 +361,8 @@ struct _Var_ : public ExprNode<_Var_> {
   static Expr Make(const std::string& name, const Type& type);
   //! Make a reduce axis.
   static Expr Make(Expr lower_bound, Expr upper_bound, const std::string& name);
+
+  void Verify() const override;
 
   Expr Copy() const override;
 
@@ -393,6 +424,8 @@ struct Reduce : public ExprNode<Reduce> {
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
+  void Verify() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Reduce;
 };
 
@@ -419,6 +452,8 @@ struct Select : public ExprNode<Select> {
     CHECK_EQ(true_value.type(), false_value.type());
     return true_value.type();
   }
+
+  void Verify() const override;
 
   std::vector<Expr*> expr_fields() override { return {&condition, &true_value, &false_value}; }
   std::vector<const Expr*> expr_fields() const override { return {&condition, &true_value, &false_value}; }
@@ -447,6 +482,8 @@ struct Load : public ExprNode<Load>, public LoadStoreAddrMnger {
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
+  void Verify() const override;
+
   const std::string& name() const;
 
   Type type() const override;
@@ -465,6 +502,8 @@ struct Store : public ExprNode<Store>, public LoadStoreAddrMnger {
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
+
+  void Verify() const override;
 
   Type type() const override;
   Expr index() const;
@@ -493,6 +532,8 @@ struct Alloc : public ExprNode<Alloc> {
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
+  void Verify() const override;
+
   int32_t ConstantAllocationSize() const;
   static int32_t ConstantAllocationSize(const std::vector<Expr>& extents);
 
@@ -509,6 +550,8 @@ struct Free : public ExprNode<Free> {
 
   static Expr Make(Expr dest);
 
+  void Verify() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Free;
 };
 
@@ -520,6 +563,12 @@ struct IfThenElse : public ExprNode<IfThenElse> {
   IfThenElse(Expr condition, Expr true_case, Expr false_case);
 
   static Expr Make(Expr condition, Expr true_case, Expr false_case = Expr());
+
+  void Verify() const override {
+    CHECK(condition.defined());
+    CHECK(true_case.defined());
+    CHECK_EQ(condition.type(), type_of<bool>());
+  }
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
@@ -632,6 +681,8 @@ struct For : public ExprNode<For>, public ForBase {
                    Expr body,
                    VectorizeInfo vector_info = VectorizeInfo());
 
+  void Verify() const override;
+
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
@@ -666,6 +717,8 @@ struct PolyFor : public ExprNode<PolyFor>, public ForBase {
                    Expr body,
                    VectorizeInfo vector_info = VectorizeInfo());
 
+  void Verify() const override;
+
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
@@ -679,6 +732,8 @@ struct Ramp : public ExprNode<Ramp> {
 
   static Expr Make(Expr base, Expr stride, int lanes);
 
+  void Verify() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Ramp;
 };
 
@@ -690,6 +745,8 @@ struct Broadcast : public ExprNode<Broadcast> {
   static Expr Make(Expr value, int lanes);
 
   Type type() const override;
+
+  void Verify() const override;
 
   std::vector<Expr*> expr_fields() override { return {&value}; }
   std::vector<const Expr*> expr_fields() const override { return {&value}; }
@@ -710,6 +767,8 @@ struct FracOp : public BinaryOpNode<FracOp> {
     return a().get_constant() / b().get_constant();
   }
 
+  void Verify() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::FracOp;
 
   using ExprNode<FracOp>::operands;
@@ -718,6 +777,8 @@ struct FracOp : public BinaryOpNode<FracOp> {
 struct Power : public ExprNode<Power> {
   Power() { operands().resize(2); }
   static Expr Make(Expr n, Expr d);
+
+  void Verify() const override;
 
   Type type() const override {
     CHECK(a().defined());
@@ -743,6 +804,8 @@ struct Product : public ExprNode<Product> {
 
   Type type() const override { return operands().front().type(); }
 
+  void Verify() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Product;
 };
 
@@ -753,6 +816,8 @@ struct Sum : public ExprNode<Sum> {
 
   Type type() const override { return operands().front().type(); }
 
+  void Verify() const override;
+
   static const IrNodeTy _node_type_ = IrNodeTy::Sum;
 };
 
@@ -762,6 +827,8 @@ struct Block : public ExprNode<Block> {
   Block() : ExprNode(Type()) {}
 
   static Expr Make(const std::vector<Expr>& stmts);
+
+  void Verify() const override;
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
@@ -780,6 +847,8 @@ struct _Module_ : public ExprNode<_Module_> {
   std::vector<Expr> submodules;
 
   static ir::Module Make(const std::string& name, Target target);
+
+  void Verify() const override {}
 
   static const IrNodeTy _node_type_ = IrNodeTy::_Module_;
 };
@@ -801,6 +870,8 @@ struct PrimitiveNode : public ExprNode<PrimitiveNode> {
   std::map<std::string, attr_t> attrs;
 
   static Expr Make(const std::string& name, const std::map<std::string, attr_t>& attrs);
+
+  void Verify() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::PrimitiveNode;
 };

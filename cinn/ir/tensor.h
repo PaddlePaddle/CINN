@@ -137,6 +137,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      FunctionRef fn,
                      const std::vector<Var>& reduce_axis = {});
 
+  void Verify() const override;
+
   bool IsReduceInited(poly::StageMap stages) const;
 
   //! Tell whether this tensor represents a tuple (consists of one or multiple tensors as output of a extern Call).
@@ -301,6 +303,8 @@ class _Operation_ : public ir::FunctionBase {
   std::map<std::string, IrNodeRef> attrs;
 
   const std::string& func_name() const final { return name; }
+
+  void Verify() const override {}
 
   //! The function type.
   virtual const char* func_type() const = 0;
