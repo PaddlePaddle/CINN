@@ -1,12 +1,12 @@
-#include "core_runtime.h"
+#include "cinnrt/host_context/core_runtime.h"
 
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include "kernel_registry.h"
-#include "op_executable.h"
-#include "symbol_table.h"
+#include "cinnrt/host_context/kernel_registry.h"
+#include "cinnrt/host_context/op_executable.h"
+#include "cinnrt/host_context/symbol_table.h"
 
 namespace cinn::host_context {
 

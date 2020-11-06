@@ -1,4 +1,4 @@
-#include "tensor_shape.h"
+#include "cinnrt/host_context/tensor_shape.h"
 
 #include <glog/logging.h>
 

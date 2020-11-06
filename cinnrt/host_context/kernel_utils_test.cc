@@ -1,4 +1,4 @@
-#include "kernel_utils.h"
+#include "cinnrt/host_context/kernel_utils.h"
 
 #include <gtest/gtest.h>
 

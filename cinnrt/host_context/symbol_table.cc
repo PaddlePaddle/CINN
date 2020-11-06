@@ -1,4 +1,4 @@
-#include "symbol_table.h"
+#include "cinnrt/host_context/symbol_table.h"
 
 #include <string>
 

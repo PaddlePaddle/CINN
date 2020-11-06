@@ -1,4 +1,4 @@
-#include "kernel_frame.h"
+#include "cinnrt/host_context/kernel_frame.h"
 
 #include <memory>
 

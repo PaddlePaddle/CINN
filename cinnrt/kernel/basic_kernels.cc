@@ -1,4 +1,4 @@
-#include "basic_kernels.h"
+#include "cinnrt/kernel/basic_kernels.h"
 
 #include <iostream>
 

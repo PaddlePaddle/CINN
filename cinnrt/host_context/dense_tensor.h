@@ -4,7 +4,7 @@
 
 #include "cinn/common/shared.h"
 #include "cinn/runtime/cinn_runtime.h"
-#include "tensor_shape.h"
+#include "cinnrt/host_context/tensor_shape.h"
 
 namespace cinn::hlir::framework {
 class Buffer;

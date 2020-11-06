@@ -5,7 +5,7 @@
 #include <utility>
 
 #include "cinn/utils/small_vector.h"
-#include "value.h"
+#include "cinnrt/host_context/value.h"
 
 namespace cinn::host_context {
 

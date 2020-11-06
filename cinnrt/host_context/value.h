@@ -6,10 +6,10 @@
 
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
-#include "dense_tensor.h"
-#include "dense_tensor_view.h"
+#include "cinnrt/host_context/dense_tensor.h"
+#include "cinnrt/host_context/dense_tensor_view.h"
+#include "cinnrt/host_context/tensor_shape.h"
 #include "llvm/ADT/SmallVector.h"
-#include "tensor_shape.h"
 
 namespace cinn {
 namespace host_context {

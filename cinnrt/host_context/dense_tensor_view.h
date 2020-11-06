@@ -2,7 +2,7 @@
 
 #include <glog/logging.h>
 
-#include "dense_tensor.h"
+#include "cinnrt/host_context/dense_tensor.h"
 
 namespace cinn::host_context {
 

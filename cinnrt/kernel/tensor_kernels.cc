@@ -1,4 +1,4 @@
-#include "tensor_kernels.h"
+#include "cinnrt/kernel/tensor_kernels.h"
 
 #include <iostream>
 #include <vector>

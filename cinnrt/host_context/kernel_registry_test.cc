@@ -1,8 +1,8 @@
-#include "kernel_registry.h"
+#include "cinnrt/host_context/kernel_registry.h"
 
 #include <gtest/gtest.h>
 
-#include "kernel_utils.h"
+#include "cinnrt/host_context/kernel_utils.h"
 
 namespace cinn::host_context {
 

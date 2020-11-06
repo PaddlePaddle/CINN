@@ -3,13 +3,13 @@
 #include <iostream>
 #include <string>
 
-#include "cinn/dialect/mlir_loader.h"
-#include "cinn/kernel/basic_kernels.h"
-#include "cinn/kernel/tensor_kernels.h"
-#include "cinn/kernel/tensor_shape_kernels.h"
-#include "core_runtime.h"
-#include "kernel_registry.h"
-#include "mlir_to_runtime_translate.h"
+#include "cinnrt/dialect/mlir_loader.h"
+#include "cinnrt/host_context/core_runtime.h"
+#include "cinnrt/host_context/kernel_registry.h"
+#include "cinnrt/host_context/mlir_to_runtime_translate.h"
+#include "cinnrt/kernel/basic_kernels.h"
+#include "cinnrt/kernel/tensor_kernels.h"
+#include "cinnrt/kernel/tensor_shape_kernels.h"
 
 int main(int argc, char** argv) {
   using namespace llvm;  // NOLINT

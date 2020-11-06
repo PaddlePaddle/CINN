@@ -1,8 +1,8 @@
-#include "value.h"
+#include "cinnrt/host_context/value.h"
 
 #include <variant>
 
-#include "dense_tensor_view.h"
+#include "cinnrt/host_context/dense_tensor_view.h"
 
 namespace cinn {
 namespace host_context {

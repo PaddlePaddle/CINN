@@ -1,4 +1,4 @@
-#include "tensor_shape_kernels.h"
+#include "cinnrt/kernel/tensor_shape_kernels.h"
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>

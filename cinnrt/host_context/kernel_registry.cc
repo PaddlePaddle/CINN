@@ -1,4 +1,4 @@
-#include "kernel_registry.h"
+#include "cinnrt/host_context/kernel_registry.h"
 
 #include <glog/logging.h>
 

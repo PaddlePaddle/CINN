@@ -1,12 +1,12 @@
-#include "mlir_to_runtime_translate.h"
+#include "cinnrt/host_context/mlir_to_runtime_translate.h"
 
 #include <gtest/gtest.h>
 
 #include "cinnrt/dialect/mlir_loader.h"
+#include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/kernel_utils.h"
 #include "cinnrt/kernel/basic_kernels.h"
-#include "core_runtime.h"
 
 namespace cinn::host_context {
 

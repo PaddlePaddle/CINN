@@ -3,7 +3,7 @@
 #include <memory>
 #include <unordered_map>
 
-#include "value.h"
+#include "cinnrt/host_context/value.h"
 
 namespace cinn {
 namespace host_context {

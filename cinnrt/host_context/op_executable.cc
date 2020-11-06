@@ -1,10 +1,10 @@
-#include "op_executable.h"
+#include "cinnrt/host_context/op_executable.h"
 
 #include <string>
 
-#include "kernel_frame.h"
-#include "kernel_registry.h"
-#include "symbol_table.h"
+#include "cinnrt/host_context/kernel_frame.h"
+#include "cinnrt/host_context/kernel_registry.h"
+#include "cinnrt/host_context/symbol_table.h"
 
 namespace cinn::host_context {
 
