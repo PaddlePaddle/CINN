@@ -20,7 +20,7 @@ void TensorShapeDialect::initialize() {
   addTypes<ShapeType, PartialShapeType>();
   addOperations<
 #define GET_OP_LIST
-#include "cinn/dialect/tensor_shape.cpp.inc"
+#include "cinnrt/dialect/tensor_shape.cpp.inc"
       >();
 }
 
