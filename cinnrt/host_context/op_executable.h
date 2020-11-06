@@ -5,7 +5,7 @@
 #include <string>
 #include <string_view>
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 class SymbolTable;
 class KernelRegistry;
@@ -50,4 +50,4 @@ class OpExecutableBuilder : public OpExecutable {
   void AppendAttribute(Value* value);
 };
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

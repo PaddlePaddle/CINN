@@ -11,7 +11,7 @@
 #include "cinnrt/host_context/tensor_shape.h"
 #include "llvm/ADT/SmallVector.h"
 
-namespace cinn {
+namespace cinnrt {
 namespace host_context {
 
 using ValueVariantType = std::variant<int16_t,
@@ -31,7 +31,7 @@ using ValueVariantType = std::variant<int16_t,
 /**
  * Represents any data type for value in host context.
  */
-class Value : public common::Object {
+class Value : public cinn::common::Object {
  public:
   using variant_type = ValueVariantType;
 
@@ -73,20 +73,20 @@ class Value : public common::Object {
 /**
  * Represents a counted reference of a Value.
  */
-class ValueRef : common::Shared<Value> {
+class ValueRef : cinn::common::Shared<Value> {
  public:
   ValueRef() = default;
-  explicit ValueRef(Value* n) : common::Shared<Value>(n) {}
+  explicit ValueRef(Value* n) : cinn::common::Shared<Value>(n) {}
   explicit ValueRef(int32_t val);
   explicit ValueRef(int64_t val);
   explicit ValueRef(float val);
   explicit ValueRef(double val);
   explicit ValueRef(bool val);
 
-  using common::Shared<Value>::get;
-  using common::Shared<Value>::Reset;
-  using common::Shared<Value>::operator->;
-  using common::Shared<Value>::operator*;
+  using cinn::common::Shared<Value>::get;
+  using cinn::common::Shared<Value>::Reset;
+  using cinn::common::Shared<Value>::operator->;
+  using cinn::common::Shared<Value>::operator*;
   //! Get a readonly data.
   template <typename T>
   const T& get() const {
@@ -104,18 +104,18 @@ class ValueRef : common::Shared<Value> {
   template <typename T>
   void Assign(const T& x) {
     if (!p_) {
-      p_ = common::make_shared<Value>();
+      p_ = cinn::common::make_shared<Value>();
     }
     *p_ = x;
   }
 
   template <typename T, typename... Args>
   void Assign(Args... args) {
-    p_ = common::make_shared<T>(std::forward<Args>(args)...);
+    p_ = cinn::common::make_shared<T>(std::forward<Args>(args)...);
   }
 
   inline bool IsValid() { return p_; }
 };
 
 }  // namespace host_context
-}  // namespace cinn
+}  // namespace cinnrt

@@ -6,6 +6,6 @@
 
 int main(int argc, char** argv) {
   mlir::DialectRegistry registry;
-  cinn::RegisterCinnDialects(registry);
+  cinnrt::RegisterCinnDialects(registry);
   return mlir::failed(mlir::MlirOptMain(argc, argv, "CINN", registry, true));
 }

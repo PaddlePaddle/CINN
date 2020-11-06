@@ -4,7 +4,7 @@
 
 #include "cinnrt/host_context/kernel_utils.h"
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 int add_i32(int a, int b) { return a + b; }
 
@@ -28,4 +28,4 @@ TEST(KernelRegistry, basic) {
   ASSERT_EQ(results[0].get<int>(), 3);
 }
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

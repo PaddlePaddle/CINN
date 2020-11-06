@@ -9,7 +9,7 @@
 #include "cinnrt/host_context/kernel_utils.h"
 #include "cinnrt/host_context/tensor_shape.h"
 
-namespace cinn::kernel {
+namespace cinnrt::kernel {
 using namespace host_context;  // NOLINT
 
 /// ===== Kernel begin ====
@@ -38,4 +38,4 @@ void RegisterTensorKernels(host_context::KernelRegistry* registry) {
   registry->AddKernel("dt.fill_tensor_with_constant.f64", CINN_KERNEL(FillTensorWithConstant<double>));
 }
 
-}  // namespace cinn::kernel
+}  // namespace cinnrt::kernel

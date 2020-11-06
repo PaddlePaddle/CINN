@@ -4,7 +4,7 @@
 
 #include <unordered_map>
 
-namespace cinn {
+namespace cinnrt {
 namespace host_context {
 
 struct KernelRegistry::Impl {
@@ -38,4 +38,4 @@ KernelRegistry* GetCpuKernelRegistry() {
 }
 
 }  // namespace host_context
-}  // namespace cinn
+}  // namespace cinnrt

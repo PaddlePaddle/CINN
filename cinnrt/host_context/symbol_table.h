@@ -5,7 +5,7 @@
 
 #include "cinnrt/host_context/value.h"
 
-namespace cinn {
+namespace cinnrt {
 namespace host_context {
 
 /**
@@ -40,4 +40,4 @@ class SymbolTable {
 };
 
 }  // namespace host_context
-}  // namespace cinn
+}  // namespace cinnrt

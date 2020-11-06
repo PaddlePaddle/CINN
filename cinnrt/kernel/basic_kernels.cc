@@ -5,7 +5,7 @@
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/kernel_utils.h"
 
-namespace cinn::kernel {
+namespace cinnrt::kernel {
 
 template <typename T>
 T add(T a, T b) {
@@ -53,4 +53,4 @@ void RegisterFloatBasicKernels(host_context::KernelRegistry *registry) {
   registry->AddKernel("cinn.print.f32", CINN_KERNEL(print<float>));
 }
 
-}  // namespace cinn::kernel
+}  // namespace cinnrt::kernel

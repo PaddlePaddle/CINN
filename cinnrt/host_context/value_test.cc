@@ -2,7 +2,7 @@
 
 #include <gtest/gtest.h>
 
-namespace cinn {
+namespace cinnrt {
 namespace host_context {
 
 TEST(ValueRef, test) {
@@ -17,4 +17,4 @@ TEST(ValueRef, test) {
 }
 
 }  // namespace host_context
-}  // namespace cinn
+}  // namespace cinnrt

@@ -11,7 +11,7 @@ def CINN_Dialect : Dialect {
     The CINN host dialect.
   }];
 
-  let cppNamespace = "::cinn::dialect";
+  let cppNamespace = "::cinnrt::dialect";
 }
 
 // Type definitions

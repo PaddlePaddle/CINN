@@ -7,7 +7,7 @@
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 #include <mlir/Support/LogicalResult.h>
 
-namespace cinn::hlir::dialect {
+namespace cinnrt::hlir::dialect {
 
 class CinnDialect : public ::mlir::Dialect {
  public:
@@ -17,4 +17,4 @@ class CinnDialect : public ::mlir::Dialect {
   static llvm::StringRef getDialectNamespace() { return "cinn::hlir::dialect"; }
 };
 
-}  // namespace cinn::hlir::dialect
+}  // namespace cinnrt::hlir::dialect

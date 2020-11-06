@@ -2,16 +2,16 @@
 
 #include "cinn/hlir/framework/buffer.h"
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 DenseTensor::DenseTensor(const TensorShape& shape, const cinn_type_t& dtype, DeviceKind device)
     : shape_(shape), dtype_(dtype) {
-  buffer_.reset(new hlir::framework::Buffer(common::DefaultHostTarget()));
+  buffer_.reset(new cinn::hlir::framework::Buffer(cinn::common::DefaultHostTarget()));
   buffer_->ResizeLazy(dtype.bytes() * shape.GetNumElements());
 }
 
 const TensorShape& DenseTensor::shape() const { return shape_; }
-const hlir::framework::Buffer* DenseTensor::buffer() const { return buffer_.get(); }
+const cinn::hlir::framework::Buffer* DenseTensor::buffer() const { return buffer_.get(); }
 
 template <typename T>
 void DisplayArray(std::ostream& os, T* data, int num_elements) {
@@ -50,4 +50,4 @@ DenseTensor::~DenseTensor() {}
 
 void* DenseTensor::data() const { return buffer_->data()->memory; }
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

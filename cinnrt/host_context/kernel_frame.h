@@ -7,7 +7,7 @@
 #include "cinn/utils/small_vector.h"
 #include "cinnrt/host_context/value.h"
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 /**
  * KernelFrame captures the states(input arguments, attributes, results) associated with a kernel invocation.
@@ -81,8 +81,8 @@ class KernelFrame {
   int num_arguments_{};
   int num_results_{-1};
 
-  utils::SmallVector<ValueRef, 8> value_or_attrs_;
-  utils::SmallVector<ValueRef, 4> attrs_;
+  llvm::SmallVector<ValueRef, 8> value_or_attrs_;
+  llvm::SmallVector<ValueRef, 4> attrs_;
 };
 
 class KernelFrameBuilder : public KernelFrame {
@@ -116,4 +116,4 @@ class KernelFrameBuilder : public KernelFrame {
   }
 };
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

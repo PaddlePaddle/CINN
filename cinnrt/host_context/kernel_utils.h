@@ -8,7 +8,7 @@
 #include "cinnrt/host_context/kernel_frame.h"
 #include "cinnrt/host_context/value.h"
 
-namespace cinn {
+namespace cinnrt {
 namespace host_context {
 
 template <typename T>
@@ -92,7 +92,7 @@ struct KernelImpl;
 template <typename T>
 struct TypeTag {};
 
-#define CINN_KERNEL(...) ::cinn::host_context::KernelImpl<decltype(&__VA_ARGS__), &__VA_ARGS__>::Invoke
+#define CINN_KERNEL(...) ::cinnrt::host_context::KernelImpl<decltype(&__VA_ARGS__), &__VA_ARGS__>::Invoke
 
 template <typename Return, typename... Args, Return (*impl_fn)(Args...)>
 struct KernelImpl<Return (*)(Args...), impl_fn> {
@@ -228,4 +228,4 @@ struct KernelImpl<Return (*)(Args...), impl_fn> {
 };
 
 }  // namespace host_context
-}  // namespace cinn
+}  // namespace cinnrt

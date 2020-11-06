@@ -5,8 +5,8 @@
 
 #include "cinnrt/dialect/cinn_base.hpp.inc"
 
-namespace cinn::dialect {
+namespace cinnrt::dialect {
 
 #include "cinnrt/dialect/cinn_base_dialect.hpp.inc"
 
-}  // namespace cinn::dialect
+}  // namespace cinnrt::dialect

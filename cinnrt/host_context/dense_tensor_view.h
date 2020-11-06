@@ -4,7 +4,7 @@
 
 #include "cinnrt/host_context/dense_tensor.h"
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 template <typename DType>
 class DTArrayView {
@@ -38,4 +38,4 @@ class MutableDTArrayView : public DTArrayView<DType> {
   llvm::MutableArrayRef<DType> Elements() { return llvm::MutableArrayRef<DType>(data(), this->GetNumElements()); }
 };
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

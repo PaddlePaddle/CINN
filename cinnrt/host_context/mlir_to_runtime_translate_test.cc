@@ -8,7 +8,7 @@
 #include "cinnrt/host_context/kernel_utils.h"
 #include "cinnrt/kernel/basic_kernels.h"
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 TEST(MlirToRuntimeTranslate, basic) {
   mlir::MLIRContext context;
@@ -65,4 +65,4 @@ func @main() -> () {
   ExecuteMlir(module.get(), &registry);
 }
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

@@ -7,7 +7,7 @@
 
 #include "cinn/utils/string.h"
 
-namespace cinn {
+namespace cinnrt {
 namespace host_context {
 
 TensorShape::TensorShape(llvm::ArrayRef<int64_t> dims) : dims_(dims.begin(), dims.end()) {}
@@ -72,4 +72,4 @@ std::ostream& operator<<(std::ostream& os, const DynamicTensorShape& v) {
 }
 
 }  // namespace host_context
-}  // namespace cinn
+}  // namespace cinnrt

@@ -22,7 +22,7 @@
 #include "cinnrt/host_context/tensor_shape.h"
 #include "cinnrt/host_context/value.h"
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 template <typename T>
 std::string DumpToString(T& op) {  // NOLINT
@@ -47,7 +47,7 @@ struct MlirToRuntimeTranslator::Impl {
 };
 
 bool MlirToRuntimeTranslator::EmitConstantOp(mlir::Operation* op) {
-  if (!utils::Startswith(op->getName().getStringRef().str(), "cinn.constant")) return false;
+  if (!cinn::utils::Startswith(op->getName().getStringRef().str(), "cinn.constant")) return false;
   VLOG(3) << "Emitting constant op [" << op->getName().getStringRef().str() << "]";
 
   auto attr = op->getAttr("value");
@@ -346,4 +346,4 @@ void ExecuteMlir(mlir::ModuleOp module, KernelRegistry* registry) {
   execute.Emit();
 }
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

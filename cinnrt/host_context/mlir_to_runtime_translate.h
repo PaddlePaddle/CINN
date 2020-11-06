@@ -2,7 +2,7 @@
 
 #include <mlir/IR/Module.h>
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 class CoreRuntimeBuilder;
 class Value;
@@ -44,8 +44,8 @@ class MlirToRuntimeTranslator {
 /**
  * Build a CoreRuntime from a MLIR module.
  */
-void MlirToRuntimeTranslate(mlir::ModuleOp module, cinn::host_context::CoreRuntimeBuilder* runtime);
+void MlirToRuntimeTranslate(mlir::ModuleOp module, CoreRuntimeBuilder* runtime);
 
 void ExecuteMlir(mlir::ModuleOp module, KernelRegistry* registry);
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace cinn::dialect {
+namespace cinnrt::dialect {
 
 struct MyScopedDiagnosicHandler::Impl {
   Impl() : diag_stream_(diag_str_) {}
@@ -30,4 +30,4 @@ mlir::LogicalResult MyScopedDiagnosicHandler::handler(mlir::Diagnostic *diag) {
   return mlir::failure(true);
 }
 
-}  // namespace cinn::dialect
+}  // namespace cinnrt::dialect

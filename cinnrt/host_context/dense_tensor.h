@@ -10,7 +10,7 @@ namespace cinn::hlir::framework {
 class Buffer;
 }  // namespace cinn::hlir::framework
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 enum class DeviceKind {
   kCPU = 0,
@@ -26,7 +26,7 @@ class DenseTensor {
 
   const TensorShape& shape() const;
 
-  const hlir::framework::Buffer* buffer() const;
+  const cinn::hlir::framework::Buffer* buffer() const;
 
   void* data() const;
 
@@ -37,7 +37,7 @@ class DenseTensor {
  private:
   TensorShape shape_;
   cinn_type_t dtype_;
-  std::shared_ptr<hlir::framework::Buffer> buffer_;
+  std::shared_ptr<cinn::hlir::framework::Buffer> buffer_;
 };
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

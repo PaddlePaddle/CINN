@@ -4,7 +4,7 @@
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 
 using namespace mlir;  // NOLINT
-namespace cinn::dt {
+namespace cinnrt::dt {
 
 class TensorType : public mlir::Type::TypeBase<TensorType, mlir::Type, mlir::TypeStorage> {
  public:
@@ -16,4 +16,4 @@ class TensorType : public mlir::Type::TypeBase<TensorType, mlir::Type, mlir::Typ
 #define GET_OP_CLASSES
 #include "cinnrt/dialect/dense_tensor.hpp.inc"
 
-}  // namespace cinn::dt
+}  // namespace cinnrt::dt

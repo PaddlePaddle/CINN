@@ -13,7 +13,7 @@ def DT_Dialect : Dialect {
       The DenseTensor dialect.
   }];
 
-  let cppNamespace = "::cinn::dt";
+  let cppNamespace = "::cinnrt::dt";
 }
 
 class DT_Op<string mnemonic, list<OpTrait> traits = []> :
@@ -30,8 +30,8 @@ class CreateUninitTensorOp<string dtype>
   let arguments = (ins);  // no input arguments but a attribute
   let results = (outs TensorType);
 
-  let printer = [{ return cinn::dt::printCreateUninitTensorOp(p, *this); }];
-  let parser = " return cinn::dt::parseCreateUninitTensorOp(parser, result);";
+  let printer = [{ return cinnrt::dt::printCreateUninitTensorOp(p, *this); }];
+  let parser = " return cinnrt::dt::parseCreateUninitTensorOp(parser, result);";
 }
 
 class FillTensorWithConstantOp<string dtype> :
@@ -45,8 +45,8 @@ class FillTensorWithConstantOp<string dtype> :
   let arguments = (ins TensorType);
   let results = (outs);
 
-  let printer = [{ return cinn::dt::printFillTensorWithConstantOp(p, *this); }];
-  let parser = " return cinn::dt::parseFillTensorWithConstantOp(parser, result);";
+  let printer = [{ return cinnrt::dt::printFillTensorWithConstantOp(p, *this); }];
+  let parser = " return cinnrt::dt::parseFillTensorWithConstantOp(parser, result);";
 }
 
 def PrintTensorOp : DT_Op<"print_tensor"> {
@@ -72,8 +72,8 @@ class SetTensorOp<string dtype> :
   let arguments = (ins TensorType);
   let results = (outs);
 
-  let printer = [{ return cinn::dt::printSetTensorOp(p, *this); }];
-  let parser = " return cinn::dt::parseSetTensorOp(parser, result);";
+  let printer = [{ return cinnrt::dt::printSetTensorOp(p, *this); }];
+  let parser = " return cinnrt::dt::parseSetTensorOp(parser, result);";
 }
 
 def GetTensorShapeOp : DT_Op<"get_tensor_shape", [NoSideEffect]> {

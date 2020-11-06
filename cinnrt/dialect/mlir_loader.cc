@@ -17,7 +17,7 @@
 #include "cinnrt/dialect/diagnostic_utils.h"
 #include "cinnrt/dialect/init_cinn_dialects.h"
 
-namespace cinn::dialect {
+namespace cinnrt::dialect {
 
 mlir::OwningModuleRef LoadMlirSource(mlir::MLIRContext* context, std::string_view mlir_source) {
   context->allowUnregisteredDialects();
@@ -94,10 +94,10 @@ class Translator {
   std::unordered_map<std::string, int> subgraph_index_map_;
 };
 
-std::unique_ptr<frontend::Program> MlirToFrontend(mlir::ModuleOp module) {
+std::unique_ptr<cinn::frontend::Program> MlirToFrontend(mlir::ModuleOp module) {
   Translator translator(module);
   translator.Build();
-  return std::unique_ptr<frontend::Program>();
+  return std::unique_ptr<cinn::frontend::Program>();
 }
 
-}  // namespace cinn::dialect
+}  // namespace cinnrt::dialect

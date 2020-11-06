@@ -2,7 +2,7 @@
 
 #include <string>
 
-namespace cinn {
+namespace cinnrt {
 namespace host_context {
 
 struct SymbolTable::Impl {
@@ -38,4 +38,4 @@ REGISTER_TYPE__(bool)
 #undef REGISTER_TYPE__
 
 }  // namespace host_context
-}  // namespace cinn
+}  // namespace cinnrt

@@ -6,7 +6,7 @@
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/symbol_table.h"
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 struct OpExecutable::Impl {
   Impl(std::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry)
@@ -69,4 +69,4 @@ void OpExecutable::Execute() { impl_->kernel_impl(&impl_->frame); }
 
 OpExecutable::~OpExecutable() {}
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

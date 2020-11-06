@@ -12,8 +12,8 @@
 #include "cinnrt/kernel/tensor_shape_kernels.h"
 
 int main(int argc, char** argv) {
-  using namespace llvm;  // NOLINT
-  using namespace cinn;  // NOLINT
+  using namespace llvm;    // NOLINT
+  using namespace cinnrt;  // NOLINT
   cl::opt<std::string> input_file("i", cl::desc("Specify input filename"), cl::value_desc("input file name"));
   cl::ParseCommandLineOptions(argc, argv);
 

@@ -14,7 +14,7 @@
 
 #include "cinnrt/dialect/tensor_shape.h"
 
-namespace cinn::dt {
+namespace cinnrt::dt {
 using namespace mlir;
 
 void DTDialect::initialize() {
@@ -84,4 +84,4 @@ static void printSetTensorOp(OpAsmPrinter& p, SetTensorOp op) {
 #define GET_OP_CLASSES
 #include "cinnrt/dialect/dense_tensor.cpp.inc"
 
-}  // namespace cinn::dt
+}  // namespace cinnrt::dt

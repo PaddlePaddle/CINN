@@ -4,7 +4,7 @@
 
 #include "cinnrt/host_context/dense_tensor_view.h"
 
-namespace cinn {
+namespace cinnrt {
 namespace host_context {
 
 ValueRef::ValueRef(int32_t val) : Shared<Value>(new Value(val)) {}
@@ -16,4 +16,4 @@ ValueRef::ValueRef(bool val) : Shared<Value>(new Value(val)) {}
 const char* Value::type_info() const { return __type_info__; }
 
 }  // namespace host_context
-}  // namespace cinn
+}  // namespace cinnrt

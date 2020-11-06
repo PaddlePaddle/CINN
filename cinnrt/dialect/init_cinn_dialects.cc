@@ -7,10 +7,10 @@
 #include "cinnrt/dialect/dense_tensor.h"
 #include "cinnrt/dialect/tensor_shape.h"
 
-namespace cinn {
+namespace cinnrt {
 
 void RegisterCinnDialects(mlir::DialectRegistry& registry) {
   registry.insert<ts::TensorShapeDialect, dialect::CINNDialect, dt::DTDialect>();
 }
 
-}  // namespace cinn
+}  // namespace cinnrt

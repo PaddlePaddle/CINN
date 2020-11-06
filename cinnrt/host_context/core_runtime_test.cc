@@ -7,7 +7,7 @@
 #include "cinnrt/host_context/op_executable.h"
 #include "cinnrt/host_context/symbol_table.h"
 
-namespace cinn {
+namespace cinnrt {
 namespace host_context {
 
 int add(int a, int b) { return a + b; }
@@ -45,4 +45,4 @@ TEST(CoreRuntime, basic) {
 }
 
 }  // namespace host_context
-}  // namespace cinn
+}  // namespace cinnrt

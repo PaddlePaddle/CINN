@@ -8,7 +8,7 @@
 #include "cinnrt/host_context/op_executable.h"
 #include "cinnrt/host_context/symbol_table.h"
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 struct CoreRuntime::Impl {
   KernelRegistry* kernel_registry{};
@@ -44,4 +44,4 @@ OpExecutableBuilder* CoreRuntimeBuilder::NewOpExecutable(std::string_view op_nam
 
 CoreRuntime::~CoreRuntime() {}
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

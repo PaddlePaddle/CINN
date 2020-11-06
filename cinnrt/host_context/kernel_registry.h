@@ -4,7 +4,7 @@
 
 #include <memory>
 
-namespace cinn {
+namespace cinnrt {
 namespace host_context {
 
 class KernelFrame;
@@ -35,4 +35,4 @@ class KernelRegistry {
 KernelRegistry* GetCpuKernelRegistry();
 
 }  // namespace host_context
-}  // namespace cinn
+}  // namespace cinnrt

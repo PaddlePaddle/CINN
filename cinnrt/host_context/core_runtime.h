@@ -3,7 +3,7 @@
 #include <memory>
 #include <string>
 
-namespace cinn::host_context {
+namespace cinnrt::host_context {
 
 class KernelRegistry;
 class OpExecutable;
@@ -43,4 +43,4 @@ class CoreRuntimeBuilder : public CoreRuntime {
   OpExecutableBuilder* NewOpExecutable(std::string_view op_name, const std::string& fn_name);
 };
 
-}  // namespace cinn::host_context
+}  // namespace cinnrt::host_context

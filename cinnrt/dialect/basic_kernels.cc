@@ -11,7 +11,7 @@
 #include <mlir/IR/TypeUtilities.h>
 #include <mlir/Support/LogicalResult.h>
 
-namespace cinn::dialect {
+namespace cinnrt::dialect {
 using namespace mlir;
 
 static ParseResult parseCallOp(OpAsmParser &parser, OperationState &result) {
@@ -120,4 +120,4 @@ static LogicalResult verify(ReturnOp op) {
 #define GET_OP_CLASSES
 #include "cinnrt/dialect/basic_kernels.cpp.inc"
 
-}  // namespace cinn::dialect
+}  // namespace cinnrt::dialect

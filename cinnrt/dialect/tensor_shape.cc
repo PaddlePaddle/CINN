@@ -12,7 +12,7 @@
 #include <mlir/IR/TypeUtilities.h>
 #include <mlir/Support/LogicalResult.h>
 
-namespace cinn::ts {
+namespace cinnrt::ts {
 using namespace mlir;
 
 void TensorShapeDialect::initialize() {
@@ -50,4 +50,4 @@ void TensorShapeDialect::printType(::mlir::Type type, ::mlir::DialectAsmPrinter 
 #define GET_OP_CLASSES
 #include "cinnrt/dialect/tensor_shape.cpp.inc"
 
-}  // namespace cinn::ts
+}  // namespace cinnrt::ts

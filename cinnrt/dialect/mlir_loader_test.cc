@@ -11,7 +11,7 @@
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinnrt/dialect/init_cinn_dialects.h"
 
-namespace cinn::dialect {
+namespace cinnrt::dialect {
 
 TEST(MlirLoader, basic) {
   mlir::MLIRContext context;
@@ -43,4 +43,4 @@ func @main() -> f32 {
   MlirToFrontend(module.release());
 }
 
-}  // namespace cinn::dialect
+}  // namespace cinnrt::dialect

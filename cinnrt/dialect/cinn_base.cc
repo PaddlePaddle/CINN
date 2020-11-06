@@ -2,7 +2,7 @@
 
 #include "cinnrt/dialect/basic_kernels.h"
 
-namespace cinn::dialect {
+namespace cinnrt::dialect {
 using namespace mlir;
 
 void CINNDialect::initialize() {
@@ -16,4 +16,4 @@ void CINNDialect::initialize() {
 #undef GET_OP_LIST
 }
 
-}  // namespace cinn::dialect
+}  // namespace cinnrt::dialect

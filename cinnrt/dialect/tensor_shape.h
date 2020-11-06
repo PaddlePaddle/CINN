@@ -3,7 +3,7 @@
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 
-namespace cinn::ts {
+namespace cinnrt::ts {
 
 class ShapeType : public mlir::Type::TypeBase<ShapeType, mlir::Type, mlir::TypeStorage> {
  public:
@@ -20,4 +20,4 @@ using namespace mlir;  // NOLINT
 #include "cinnrt/dialect/tensor_shape.hpp.inc"
 #include "cinnrt/dialect/tensor_shape_dialect.hpp.inc"
 
-}  // namespace cinn::ts
+}  // namespace cinnrt::ts

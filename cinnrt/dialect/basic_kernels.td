@@ -10,9 +10,9 @@ include "mlir/Interfaces/SideEffectInterfaces.td"
 class CINN_Op<string mnemonic, list<OpTrait> traits = []> : Op<CINN_Dialect, mnemonic, !listconcat(traits, [IsolatedFromAbove])> {
 
   // Each registered op needs to provide all of a printer, parser and verifier.
-  let printer = [{ return cinn::dialect::print(p, *this); }];
-  let verifier = [{ return cinn::dialect::verify(*this); }];
-  let parser = [{ return cinn::dialect::parse$cppClass(parser, result); }];
+  let printer = [{ return cinnrt::dialect::print(p, *this); }];
+  let verifier = [{ return cinnrt::dialect::verify(*this); }];
+  let parser = [{ return cinnrt::dialect::parse$cppClass(parser, result); }];
 }
 
 def CallOp : CINN_Op<"call"> {

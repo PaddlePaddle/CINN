@@ -2,6 +2,6 @@
 
 #include <memory>
 
-namespace cinn {
+namespace cinnrt {
 namespace host_context {}  // namespace host_context
-}  // namespace cinn
+}  // namespace cinnrt
