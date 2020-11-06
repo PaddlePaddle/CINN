@@ -17,7 +17,7 @@ class PartialShapeType : public mlir::Type::TypeBase<PartialShapeType, mlir::Typ
 
 using namespace mlir;  // NOLINT
 #define GET_OP_CLASSES
-#include "cinn/dialect/tensor_shape.hpp.inc"
-#include "cinn/dialect/tensor_shape_dialect.hpp.inc"
+#include "cinnrt/dialect/tensor_shape.hpp.inc"
+#include "cinnrt/dialect/tensor_shape_dialect.hpp.inc"
 
 }  // namespace cinn::ts

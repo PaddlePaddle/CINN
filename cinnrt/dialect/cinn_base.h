@@ -7,6 +7,6 @@
 
 namespace cinn::dialect {
 
-#include "cinn/dialect/cinn_base_dialect.hpp.inc"
+#include "cinnrt/dialect/cinn_base_dialect.hpp.inc"
 
 }  // namespace cinn::dialect

@@ -5,5 +5,5 @@
 namespace cinn::dialect {
 using namespace mlir;  // NOLINT
 #define GET_OP_CLASSES
-#include "cinn/dialect/basic_kernels.hpp.inc"
+#include "cinnrt/dialect/basic_kernels.hpp.inc"
 }  // namespace cinn::dialect

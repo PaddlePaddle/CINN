@@ -11,9 +11,9 @@ class TensorType : public mlir::Type::TypeBase<TensorType, mlir::Type, mlir::Typ
   using Base::Base;
 };
 
-#include "cinn/dialect/dense_tensor_dialect.hpp.inc"
+#include "cinnrt/dialect/dense_tensor_dialect.hpp.inc"
 
 #define GET_OP_CLASSES
-#include "cinn/dialect/dense_tensor.hpp.inc"
+#include "cinnrt/dialect/dense_tensor.hpp.inc"
 
 }  // namespace cinn::dt
