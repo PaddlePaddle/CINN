@@ -22,7 +22,7 @@ void DTDialect::initialize() {
   addTypes<TensorType>();
   addOperations<
 #define GET_OP_LIST
-#include "cinn/dialect/dense_tensor.cpp.inc"
+#include "cinnrt/dialect/dense_tensor.cpp.inc"
       >();
 }
 
