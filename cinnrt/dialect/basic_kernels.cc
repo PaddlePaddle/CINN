@@ -118,6 +118,6 @@ static LogicalResult verify(ReturnOp op) {
 }
 
 #define GET_OP_CLASSES
-#include "cinn/dialect/basic_kernels.cpp.inc"
+#include "cinnrt/dialect/basic_kernels.cpp.inc"
 
 }  // namespace cinn::dialect

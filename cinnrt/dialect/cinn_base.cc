@@ -11,7 +11,7 @@ void CINNDialect::initialize() {
 
 #define GET_OP_LIST
   addOperations<
-#include "cinn/dialect/basic_kernels.cpp.inc"
+#include "cinnrt/dialect/basic_kernels.cpp.inc"
       >();
 #undef GET_OP_LIST
 }

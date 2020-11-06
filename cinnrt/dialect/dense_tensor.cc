@@ -82,6 +82,6 @@ static void printSetTensorOp(OpAsmPrinter& p, SetTensorOp op) {
 }
 
 #define GET_OP_CLASSES
-#include "cinn/dialect/dense_tensor.cpp.inc"
+#include "cinnrt/dialect/dense_tensor.cpp.inc"
 
 }  // namespace cinn::dt

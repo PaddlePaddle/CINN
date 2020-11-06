@@ -48,6 +48,6 @@ void TensorShapeDialect::printType(::mlir::Type type, ::mlir::DialectAsmPrinter 
 }
 
 #define GET_OP_CLASSES
-#include "cinn/dialect/tensor_shape.cpp.inc"
+#include "cinnrt/dialect/tensor_shape.cpp.inc"
 
 }  // namespace cinn::ts
