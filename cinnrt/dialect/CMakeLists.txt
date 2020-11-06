@@ -24,10 +24,10 @@ target_link_libraries(cinn-opt core ${mlir_libs})
 # MLIR opt tests
 # %{
 add_test(test_mlir_opt_on_basic ${CMAKE_BINARY_DIR}/cinnrt/dialect/cinn-opt
-        ${CMAKE_SOURCE_DIR}/cinn/dialect/mlir_tests/basic.mlir)
+        ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/basic.mlir)
 
 add_test(test_mlir_opt_on_tensor_shape ${CMAKE_BINARY_DIR}/cinnrt/dialect/cinn-opt
-        ${CMAKE_SOURCE_DIR}/cinn/dialect/mlir_tests/tensor_shape.mlir)
+        ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/tensor_shape.mlir)
 # %}
 
 cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS core ${MLIR_IR_LIBS})
