@@ -67,6 +67,7 @@ set(core_src CACHE INTERNAL "" FORCE)
 set(core_deps CACHE INTERNAL "" FORCE)
 set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
+add_subdirectory(cinnrt)
 add_subdirectory(tests)
 
 
