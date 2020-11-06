@@ -2,7 +2,7 @@
 #include <mlir/IR/Dialect.h>
 #include <mlir/Support/MlirOptMain.h>
 
-#include "init_cinn_dialects.h"
+#include "cinnrt/dialect/init_cinn_dialects.h"
 
 int main(int argc, char** argv) {
   mlir::DialectRegistry registry;

@@ -1,4 +1,4 @@
-#include "mlir_loader.h"
+#include "cinnrt/dialect/mlir_loader.h"
 
 #include <llvm/Support/SourceMgr.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
@@ -14,8 +14,8 @@
 #include <vector>
 
 #include "cinn/frontend/syntax.h"
-#include "diagnostic_utils.h"
-#include "init_cinn_dialects.h"
+#include "cinnrt/dialect/diagnostic_utils.h"
+#include "cinnrt/dialect/init_cinn_dialects.h"
 
 namespace cinn::dialect {
 

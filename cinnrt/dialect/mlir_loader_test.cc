@@ -1,4 +1,4 @@
-#include "mlir_loader.h"
+#include "cinnrt/dialect/mlir_loader.h"
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -9,7 +9,7 @@
 #include <string>
 
 #include "cinn/backends/llvm/llvm_util.h"
-#include "init_cinn_dialects.h"
+#include "cinnrt/dialect/init_cinn_dialects.h"
 
 namespace cinn::dialect {
 

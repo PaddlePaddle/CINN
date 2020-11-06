@@ -1,4 +1,4 @@
-#include "diagnostic_utils.h"
+#include "cinnrt/dialect/diagnostic_utils.h"
 
 #include <string>
 

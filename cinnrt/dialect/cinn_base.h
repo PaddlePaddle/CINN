@@ -3,7 +3,7 @@
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/DialectImplementation.h>
 
-#include "cinn/dialect/cinn_base.hpp.inc"
+#include "cinnrt/dialect/cinn_base.hpp.inc"
 
 namespace cinn::dialect {
 

@@ -1,11 +1,11 @@
-#include "init_cinn_dialects.h"
+#include "cinnrt/dialect/init_cinn_dialects.h"
 
 #include <glog/logging.h>
 
-#include "basic_kernels.h"
-#include "cinn_base.h"
-#include "dense_tensor.h"
-#include "tensor_shape.h"
+#include "cinnrt/dialect/basic_kernels.h"
+#include "cinnrt/dialect/cinn_base.h"
+#include "cinnrt/dialect/dense_tensor.h"
+#include "cinnrt/dialect/tensor_shape.h"
 
 namespace cinn {
 

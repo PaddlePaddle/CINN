@@ -1,4 +1,4 @@
-#include "tensor_shape.h"
+#include "cinnrt/dialect/tensor_shape.h"
 
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/IR/Attributes.h>

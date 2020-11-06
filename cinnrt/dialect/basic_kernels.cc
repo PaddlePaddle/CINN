@@ -1,4 +1,4 @@
-#include "basic_kernels.h"
+#include "cinnrt/dialect/basic_kernels.h"
 
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/IR/Attributes.h>

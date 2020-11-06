@@ -1,6 +1,6 @@
-#include "cinn_base.h"
+#include "cinnrt/dialect/cinn_base.h"
 
-#include "basic_kernels.h"
+#include "cinnrt/dialect/basic_kernels.h"
 
 namespace cinn::dialect {
 using namespace mlir;

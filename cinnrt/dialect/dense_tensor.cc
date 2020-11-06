@@ -1,4 +1,4 @@
-#include "dense_tensor.h"
+#include "cinnrt/dialect/dense_tensor.h"
 
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/IR/Attributes.h>
@@ -12,7 +12,7 @@
 #include <mlir/IR/TypeUtilities.h>
 #include <mlir/Support/LogicalResult.h>
 
-#include "tensor_shape.h"
+#include "cinnrt/dialect/tensor_shape.h"
 
 namespace cinn::dt {
 using namespace mlir;
