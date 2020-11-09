@@ -26,7 +26,7 @@ ExternalProject_Add(
         extern_pybind
         ${EXTERNAL_PROJECT_LOG_ARGS}
         GIT_REPOSITORY  "https://github.com/pybind/pybind11.git"
-        GIT_TAG         "v2.4.0"
+        GIT_TAG         "v2.4.3"
         PREFIX          ${PYBIND_SOURCE_DIR}
         UPDATE_COMMAND  ""
         CONFIGURE_COMMAND ""
