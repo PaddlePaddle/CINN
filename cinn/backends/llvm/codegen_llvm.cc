@@ -1,5 +1,4 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
-#include "cinn/ir/ir_verify.h"
 
 #include <glog/logging.h>
 #include <glog/stl_logging.h>
@@ -22,6 +21,7 @@
 #include "cinn/common/type.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/ir_verify.h"
 #include "cinn/runtime/cinn_runtime.h"
 #include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"

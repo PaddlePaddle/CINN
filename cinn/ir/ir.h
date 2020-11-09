@@ -4,13 +4,13 @@
 #pragma once
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
 #include <variant>
 #include <vector>
 
-#include <map>
 #include "cinn/common/shared.h"
 #include "cinn/common/type.h"
 #include "cinn/ir/function_base.h"

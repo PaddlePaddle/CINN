@@ -70,7 +70,7 @@ function(cc_test TARGET_NAME)
       set_property(TEST ${TARGET_NAME} PROPERTY RUN_SERIAL 1)
     endif()
     # No unit test should exceed 10 minutes.
-    set_tests_properties(${TARGET_NAME} PROPERTIES TIMEOUT 600)
+    set_tests_properties(${TARGET_NAME} PROPERTIES TIMEOUT 6000)
   endif()
 endfunction()
 

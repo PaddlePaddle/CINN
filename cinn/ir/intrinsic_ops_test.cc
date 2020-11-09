@@ -1,4 +1,5 @@
 #include "cinn/ir/intrinsic_ops.h"
+
 #include <gtest/gtest.h>
 
 namespace cinn::ir {

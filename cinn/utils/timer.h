@@ -14,7 +14,7 @@ class Timer {
   float Stop();
 
  private:
-  std::chrono::time_point<std::chrono::system_clock> start_, end_;
+  std::chrono::time_point<std::chrono::high_resolution_clock, std::chrono::nanoseconds> start_, end_;
 };
 
 }  // namespace utils
