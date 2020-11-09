@@ -142,7 +142,6 @@ void LLVMModuleOptimizer::operator()(llvm::Module *m) {
   std::for_each(m->begin(), m->end(), [&fpm](auto &fn) { fpm->run(fn); });
   fpm->doFinalization();
 
-  // TODO(Superjomn) Enable this. This is quite slow when turned on.
   mpm->run(*m);
 }
 

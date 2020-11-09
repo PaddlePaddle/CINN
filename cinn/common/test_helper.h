@@ -50,9 +50,9 @@ struct BufferBuilder {
 
  private:
   template <typename T>
-  void RandomFloat(void* arr, int len) {
+  void RandomFloat(void* arr, uint64_t len) {
     auto* data = static_cast<T*>(arr);
-    for (int i = 0; i < len; i++) {
+    for (uint64_t i = 0; i < len; i++) {
       data[i] = static_cast<T>(rand()) / RAND_MAX;  // NOLINT
     }
   }

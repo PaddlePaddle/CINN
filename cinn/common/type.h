@@ -1,9 +1,9 @@
 #pragma once
 #include <glog/logging.h>
 
+#include <memory>
 #include <string>
 
-#include <memory>
 #include "cinn/common/macros.h"
 #include "cinn/runtime/cinn_runtime.h"
 

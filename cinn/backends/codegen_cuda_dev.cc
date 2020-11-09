@@ -1,10 +1,10 @@
 #include "cinn/backends/codegen_cuda_dev.h"
-#include "cinn/ir/ir_verify.h"
 
 #include <fstream>
 #include <set>
 #include <unordered_set>
 
+#include "cinn/ir/ir_verify.h"
 #include "cinn/optim/remove_nested_block.h"
 
 namespace cinn {
