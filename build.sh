@@ -27,6 +27,8 @@ function prepare {
     mkdir -p $build_dir
     cd $build_dir
 
+    python3 -m pip install sphinx sphinx_gallery
+
     mkdir -p tests
     mkdir -p cinn/backends
 }
@@ -39,6 +41,13 @@ function prepare_llvm {
     export runtime_include_dir=$workspace/cinn/runtime/cuda
 
     export PATH=${LLVM11_DIR}/bin:$PATH
+}
+
+function make_doc {
+    cd $build_dir
+    ln -s $build_dir/cinn/pybind/core_api.so $workspace/python/cinn/
+    cd $workspace/docs
+    make html
 }
 
 function cmake_ {
@@ -113,6 +122,8 @@ function CI {
     build
     prepare_model
     run_test
+
+    make_doc
 }
 
 

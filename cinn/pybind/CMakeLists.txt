@@ -10,7 +10,7 @@ else()
   message(STATUS "Compile core_api without CUDA support")
   cc_library(core_api SHARED
       SRCS ${srcs}
-      DEPS core cinn_runtime pybind)
+      DEPS core cinn_runtime pybind ${llvm_libs})
 endif()
 
 execute_process(COMMAND python3 -m pybind11 --includes OUTPUT_VARIABLE pybind_includes)

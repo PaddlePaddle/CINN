@@ -1,3 +1,5 @@
+#include <llvm/Support/FormatVariadic.h>
+
 #include "cinn/poly/stage.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
@@ -23,7 +25,9 @@ void BindMap(py::module *m) {
       .def(py::init<const std::string &>())
       .def(py::init<const Iterator &>())
       .def("__eq__", [](Iterator &self, Iterator &other) { return self == other; })
-      .def("__ne__", [](Iterator &self, Iterator &other) { return self != other; });
+      .def("__ne__", [](Iterator &self, Iterator &other) { return self != other; })
+      .def("__str__", [](Iterator &self) { return self.id; })
+      .def("__repr__", [](Iterator &self) -> std::string { return llvm::formatv("<Iterator {0}>", self.id); });
 
   py::class_<Condition> condition(*m, "Condition");
   condition.def_readwrite("cond", &Condition::cond).def(py::init<std::string>()).def("__str__", &Condition::__str__);
@@ -44,13 +48,18 @@ void BindStage(py::module *m) {
       .def("axis", py::overload_cast<const std::string &>(&Stage::axis, py::const_))
       .def("axis_names", &Stage::axis_names)
       .def("bind", &Stage::Bind)
-      .def("compute_inline", &Stage::ComputeInline)
-      .def("share_buffer_with", [](Stage &self, Stage &other) { self.ShareBufferWith(&other); })
+      .def("compute_inline",
+           &Stage::ComputeInline,
+           "Mark this tensor as inline, and will expand in-place in where it is used")
+      .def(
+          "share_buffer_with",
+          [](Stage &self, Stage &other) { self.ShareBufferWith(&other); },
+          "Share the underlying buffer with another tensor")
       .def("split", py::overload_cast<const Iterator &, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("split", py::overload_cast<const std::string &, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("split", py::overload_cast<int, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("fuse", py::overload_cast<int, int>(&Stage::Fuse), arg("level0"), arg("level1"))
-      .def("reorder", &Stage::Reorder)
+      .def("reorder", &Stage::Reorder, "Reorder the axis in the computation")
       .def("tile", py::overload_cast<const Iterator &, const Iterator &, int, int>(&Stage::Tile))
       .def("tile", py::overload_cast<int, int, int, int>(&Stage::Tile))
       .def("vectorize", py::overload_cast<int, int>(&Stage::Vectorize))
