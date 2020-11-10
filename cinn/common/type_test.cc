@@ -1,4 +1,5 @@
 #include "cinn/common/type.h"
+
 #include <gtest/gtest.h>
 
 namespace cinn::common {

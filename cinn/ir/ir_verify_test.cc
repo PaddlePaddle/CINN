@@ -1,5 +1,7 @@
 #include "cinn/ir/ir_verify.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/ir/ir_operators.h"
 
 namespace cinn::ir {

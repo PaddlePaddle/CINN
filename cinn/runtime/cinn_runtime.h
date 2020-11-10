@@ -203,8 +203,8 @@ typedef struct cinn_buffer_t {
     memcpy(this->dims, dims, dimensions * sizeof(cinn_dimension_t));
   }
 
-  CINN_ALWAYS_INLINE int num_elements() const {
-    int res = 1;
+  CINN_ALWAYS_INLINE uint64_t num_elements() const {
+    uint64_t res = 1;
     for (int i = 0; i < dimensions; i++) {
       res *= dims[i];
     }

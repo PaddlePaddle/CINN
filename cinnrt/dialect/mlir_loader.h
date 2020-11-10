@@ -1,8 +1,10 @@
 #pragma once
 
 #include <mlir/IR/Module.h>
+
 #include <memory>
 #include <string_view>
+
 #include "cinn/frontend/syntax.h"
 
 namespace cinnrt::dialect {

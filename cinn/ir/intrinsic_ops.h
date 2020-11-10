@@ -3,6 +3,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Casting.h>
+
 #include "cinn/common/type.h"
 #include "cinn/ir/ir.h"
 
