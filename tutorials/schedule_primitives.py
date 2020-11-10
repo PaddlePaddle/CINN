@@ -71,7 +71,7 @@ print(fn)
 ##################################################################
 #
 # reorder
-# ------
+# ---------
 # :code:`reorder` can reorder the axises in the specified order.
 A = cinn.Placeholder('float32', 'A', (m, n))
 B = cinn.Placeholder('float32', 'B', (m, n))

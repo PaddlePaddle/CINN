@@ -11,3 +11,5 @@ build*
 *.rej
 *.orig
 *.patch
+gen_modules
+*.ipynb
