@@ -159,6 +159,10 @@ function main {
                 prepare_model
                 shift
                 ;;
+            make_doc)
+                make_doc
+                shift
+                ;;
             prepare_llvm)
                 prepare_llvm
                 ;;
