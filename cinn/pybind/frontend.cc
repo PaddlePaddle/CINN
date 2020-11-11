@@ -12,6 +12,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/utils/string.h"
+#include "cinn/utils/timer.h"
 
 namespace cinn::pybind {
 using common::Type;
@@ -110,6 +111,55 @@ void BindFrontend(pybind11::module *m) {
                }
              }
              program->Execute();
+             auto out = scope->GetTensor(tensor_out->id);
+             return out;
+           })
+      .def("test_benchmark",
+           [](Program &self,
+              const common::Target &target,
+              const std::vector<Variable> &tensor_inputs,
+              const std::vector<py::array> &input_data,
+              const Variable &tensor_out,
+              int repeat_,
+              const std::string &info) {
+             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
+             hlir::framework::ApplyPass(g.get(), "InferShape");
+             std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
+             hlir::framework::GraphCompiler gc(target, scope, g);
+             auto program = gc.Build();
+             for (size_t i = 0; i < tensor_inputs.size(); i++) {
+               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
+               auto *data     = in_tensor->mutable_data<float>(target);
+               CHECK_EQ(input_data[i].size(), in_tensor->shape().numel())
+                   << "The size of tensor [" << tensor_inputs[i]->id
+                   << "] is different with the input data's size! Please check.";
+               if (target.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
+                 CUDA_CALL(cudaMemcpy(reinterpret_cast<void *>(data),
+                                      input_data[i].data(),
+                                      in_tensor->shape().numel() * sizeof(float),
+                                      cudaMemcpyHostToDevice));
+#else
+                 LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
+               } else if (target.arch == Target::Arch::X86) {
+                 for (size_t j = 0; j < in_tensor->shape().numel(); j++) {
+                   data[j] = reinterpret_cast<const float *>(input_data[i].data())[j];  // All random data
+                 }
+               } else {
+                 CINN_NOT_IMPLEMENTED
+               }
+             }
+             cinn::utils::Timer timer;
+             for (int i = 0; i < repeat_ + 100; i++) {
+               if (i == 100) {
+                 timer.Start();
+               }
+               program->Execute();
+             }
+             double test_op_time = timer.Stop() / repeat_;
+             LOG(INFO) << info;
+             LOG(INFO) << "Repeat times: " << repeat_ << ", average op run time: " << test_op_time << " ms";
              auto out = scope->GetTensor(tensor_out->id);
              return out;
            });

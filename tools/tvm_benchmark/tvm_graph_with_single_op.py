@@ -16,8 +16,8 @@ import tvm.contrib.graph_runtime as runtime
 
 
 def get_network_conv2d():
-    input_shape = [(1, 512, 7, 7), (512, 512, 3, 3)]
-    output_shape = (1, 512, 7, 7)
+    input_shape = [(2, 512, 7, 7), (512, 512, 3, 3)]
+    output_shape = (2, 512, 7, 7)
     input_names = ["x", "y"]
     x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
     y = relay.Var(input_names[1], tvm.relay.TensorType(input_shape[1]))
@@ -34,8 +34,8 @@ def get_network_conv2d():
 
 
 def get_network_relu():
-    input_shape = [(1, 512, 7, 7)]
-    output_shape = (1, 512, 7, 7)
+    input_shape = [(64, 64)]
+    output_shape = (64, 64)
     input_names = ["x"]
     x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
     print("[Test]Begin building graph with op relay.nn.relu")
@@ -45,8 +45,8 @@ def get_network_relu():
 
 
 def get_network_elementwise():
-    input_shape = [(1, 512, 7, 7), (1, 512, 7, 7)]
-    output_shape = (1, 512, 7, 7)
+    input_shape = [(64, 64), (64, 64)]
+    output_shape = (64, 64)
     input_names = ["x", "y"]
     x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
     y = relay.Var(input_names[1], tvm.relay.TensorType(input_shape[1]))
@@ -57,8 +57,8 @@ def get_network_elementwise():
 
 
 def get_network_matmul():
-    input_shape = [(512, 512), (512, 512)]
-    output_shape = (512, 512)
+    input_shape = [(32, 32), (32, 32)]
+    output_shape = (32, 32)
     input_names = ["x", "y"]
     x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
     y = relay.Var(input_names[1], tvm.relay.TensorType(input_shape[1]))
@@ -80,8 +80,8 @@ def get_network_softmax():
 
 
 def get_network_pool2d():
-    input_shape = [(1, 64, 112, 112)]
-    output_shape = (1, 64, 56, 56)
+    input_shape = [(2, 64, 112, 112)]
+    output_shape = (2, 64, 56, 56)
     input_names = ["x"]
     x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
     print("[Test]Begin building graph with op relay.nn.max_pool2d")
@@ -96,14 +96,14 @@ def get_network_pool2d():
 
 
 def get_network_batchnorm():
-    data0 = relay.var("data0", relay.TensorType((1, 512, 7, 7), "float32"))
+    data0 = relay.var("data0", relay.TensorType((2, 512, 7, 7), "float32"))
     bn_gamma = relay.var("bn_gamma1", relay.TensorType((512, ), "float32"))
     bn_beta = relay.var("bn_beta1", relay.TensorType((512, ), "float32"))
     bn_mmean = relay.var("bn_mean1", relay.TensorType((512, ), "float32"))
     bn_mvar = relay.var("bn_var1", relay.TensorType((512, ), "float32"))
     bn = relay.nn.batch_norm(data0, bn_gamma, bn_beta, bn_mmean, bn_mvar)[0]
-    input_shape = [(1, 512, 7, 7), (512), (512), (512), (512)]
-    output_shape = (1, 512, 7, 7)
+    input_shape = [(2, 512, 7, 7), (512), (512), (512), (512)]
+    output_shape = (2, 512, 7, 7)
     input_names = ["data0", "bn_gamma1", "bn_beta1", "bn_mean1", "bn_var1"]
     print("[Test]Begin building graph with op relay.nn.batch_norm")
     mod = relay.Function([data0, bn_gamma, bn_beta, bn_mmean, bn_mvar], bn)
