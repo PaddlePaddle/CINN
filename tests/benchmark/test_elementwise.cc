@@ -1,23 +1,12 @@
 #include "tests/benchmark/test_elementwise.h"
 
-#include <gtest/gtest.h>
-
 #include "cinn/cinn.h"
 #include "cinn/hlir/framework/node.h"
 
 namespace cinn {
 namespace tests {
 
-void ElementwiseAddTester::Compare() {
-  std::vector<float *> all_datas = GetAllDatas();
-  int out_dims                   = GetOutDims();
-  CHECK_EQ(all_datas.size(), 3U) << "elementwise_add should have 3 args.\n";
-  for (int i = 0; i < out_dims; ++i) {
-    EXPECT_EQ((all_datas[0][i] + all_datas[1][i]), all_datas[2][i]);
-  }
-}
-
-TEST(test_elementwise_add, default) {
+TEST(test_elementwise_add, default_fp32) {
   int M = 100;
   int N = 32;
   std::vector<std::vector<int>> input_shapes{{M, N}, {M, N}};
@@ -25,7 +14,21 @@ TEST(test_elementwise_add, default) {
   hlir::framework::NodeAttr attrs;
   ElementwiseAddTester add_tester(op_name, input_shapes);
   std::vector<Type> type{Float(32)};
-  add_tester.TestOp("elementwise_add_default", attrs, type);
+  auto input_tensors = add_tester.CreateInputTensors<float>();
+  add_tester.TestOp("elementwise_add_default_fp32", &input_tensors, attrs, type);
+}
+
+TEST(test_elementwise_add, default_int32) {
+  int M = 100;
+  int N = 32;
+  std::vector<std::vector<int>> input_shapes{{M, N}, {M, N}};
+  std::string op_name = "elementwise_add";
+  hlir::framework::NodeAttr attrs;
+  ElementwiseAddTester add_tester(op_name, input_shapes);
+  std::vector<Type> out_types{Int(32)};
+  auto input_tensors = add_tester.CreateInputTensors<int>();
+  add_tester.TestOp("elementwise_add_default_int32", &input_tensors, attrs, out_types);
+  add_tester.Compare<int>();
 }
 
 }  // namespace tests

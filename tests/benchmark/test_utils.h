@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -22,16 +23,16 @@ class OpBenchmarkTester {
 
   virtual ~OpBenchmarkTester() = default;
 
-  void CreateBuffer();
-
   void TestOp(const std::string &test_name,
+              std::vector<ir::Tensor> *input_tensors_ptr,
               const hlir::framework::NodeAttr &attrs,
               const std::vector<Type> &out_types,
               bool use_default_stragegy = true);
 
-  Module CreateCinnModule(const hlir::framework::NodeAttr &attrs,
-                          const std::vector<Type> &out_types,
-                          bool use_default_stragegy = true);
+  virtual Module CreateCinnModule(std::vector<ir::Tensor> *input_tensors_ptr,
+                                  const hlir::framework::NodeAttr &attrs,
+                                  const std::vector<Type> &out_types,
+                                  bool use_default_stragegy = true);
 
   // should define specific stragey if not use default schedule
   virtual std::vector<ir::Tensor> CreateSpecificStrategy(const std::vector<ir::Tensor> &inputs,
@@ -39,24 +40,38 @@ class OpBenchmarkTester {
     CINN_NOT_IMPLEMENTED
   }
 
-  auto CreateExecutionEngine(const cinn::ir::Module &module);
+  virtual std::unique_ptr<backends::ExecutionEngine> CreateExecutionEngine(const cinn::ir::Module &module);
 
-  virtual void Compare() {}
-
-  virtual void Reset();
-
-  std::vector<float *> &GetAllDatas() { return all_datas_; }
+  std::vector<cinn_pod_value_t> &GetAllArgs() { return all_args_; }
   int GetOutDims() { return out_dims_; }
 
+  template <typename T = float>
+  std::vector<ir::Tensor> CreateInputTensors() {
+    std::vector<ir::Tensor> inputs;
+    std::vector<std::vector<Expr>> expr_shapes;
+    for (int i = 0; i < input_shapes_.size(); i++) {
+      std::vector<Expr> expr_shape;
+      for (int j = 0; j < input_shapes_[i].size(); ++j) {
+        expr_shape.push_back(Expr(input_shapes_[i][j]));
+      }
+      expr_shapes.push_back(expr_shape);
+      Placeholder<T> input(common::UniqName("input"), expr_shape);
+      inputs.push_back(input.tensor());
+    }
+    return inputs;
+  }
+
  private:
+  void CreateBuffer();
+
   common::Target target_;
   std::string op_name_;
   float diff_;
   int repeat_;
   std::vector<std::vector<int>> input_shapes_;
   std::vector<std::vector<int>> output_shapes_;
+  std::vector<Type> out_types_;
   std::vector<cinn_pod_value_t> all_args_;
-  std::vector<float *> all_datas_;
   int out_dims_;
 };
 
