@@ -7,6 +7,7 @@
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/cinn.h"
 #include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/op/use_ops.h"
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
@@ -24,12 +25,12 @@ class OpBenchmarkTester {
   virtual ~OpBenchmarkTester() = default;
 
   void TestOp(const std::string &test_name,
-              std::vector<ir::Tensor> *input_tensors_ptr,
+              const std::vector<ir::Tensor> &input_tensors,
               const hlir::framework::NodeAttr &attrs,
               const std::vector<Type> &out_types,
               bool use_default_stragegy = true);
 
-  virtual Module CreateCinnModule(std::vector<ir::Tensor> *input_tensors_ptr,
+  virtual Module CreateCinnModule(const std::vector<ir::Tensor> &input_tensors,
                                   const hlir::framework::NodeAttr &attrs,
                                   const std::vector<Type> &out_types,
                                   bool use_default_stragegy = true);

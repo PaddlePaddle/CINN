@@ -3,7 +3,6 @@
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
-#include "cinn/hlir/op/use_ops.h"
 #include "cinn/utils/timer.h"
 
 namespace cinn {
@@ -16,11 +15,11 @@ std::unique_ptr<backends::ExecutionEngine> OpBenchmarkTester::CreateExecutionEng
 }
 
 void OpBenchmarkTester::TestOp(const std::string& test_name,
-                               std::vector<Tensor>* input_tensors_ptr,
+                               const std::vector<Tensor>& input_tensors,
                                const hlir::framework::NodeAttr& attrs,
                                const std::vector<Type>& out_types,
                                bool use_default_stragegy) {
-  auto module        = CreateCinnModule(input_tensors_ptr, attrs, out_types, use_default_stragegy);
+  auto module        = CreateCinnModule(input_tensors, attrs, out_types, use_default_stragegy);
   auto engine        = CreateExecutionEngine(module);
   auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(engine->Lookup(op_name_));
   out_types_         = out_types;
@@ -35,7 +34,7 @@ void OpBenchmarkTester::TestOp(const std::string& test_name,
   LOG(INFO) << "repeat times: " << repeat_ << ", kernel run time: " << test_op_time << " ms";
 }
 
-Module OpBenchmarkTester::CreateCinnModule(std::vector<Tensor>* input_tensors_ptr,
+Module OpBenchmarkTester::CreateCinnModule(const std::vector<Tensor>& input_tensors,
                                            const hlir::framework::NodeAttr& attrs,
                                            const std::vector<Type>& out_types,
                                            bool use_default_stragegy) {
@@ -45,16 +44,16 @@ Module OpBenchmarkTester::CreateCinnModule(std::vector<Tensor>* input_tensors_pt
   std::vector<Expr> output_shape_expr;
   CHECK(!out_types.empty());
   Type type = out_types.back();
-  rets      = *input_tensors_ptr;
+  rets      = input_tensors;
 
   if (use_default_stragegy) {
     auto strategy = hlir::framework::Operator::GetAttrs<hlir::framework::StrategyFunction>("CINNStrategy");
     auto op       = hlir::framework::Operator::Get(op_name_);
     CHECK(op) << op_name_ << " isn't supported yet\n";
-    auto impl = hlir::framework::OpStrategy::SelectImpl(
-        strategy[op](attrs, *input_tensors_ptr, out_types, input_shapes_, target_));
+    auto impl =
+        hlir::framework::OpStrategy::SelectImpl(strategy[op](attrs, input_tensors, out_types, input_shapes_, target_));
     std::vector<common::CINNValue> temp_inputs;
-    for (auto& tensor : *input_tensors_ptr) {
+    for (auto& tensor : input_tensors) {
       temp_inputs.push_back(common::CINNValue(tensor));
     }
     common::CINNValuePack C = impl->fcompute(common::CINNValuePack(temp_inputs));
@@ -77,8 +76,8 @@ Module OpBenchmarkTester::CreateCinnModule(std::vector<Tensor>* input_tensors_pt
     }
 
   } else {
-    stages = CreateStages(*input_tensors_ptr);
-    outs   = CreateSpecificStrategy(*input_tensors_ptr, &stages);
+    stages = CreateStages(input_tensors);
+    outs   = CreateSpecificStrategy(input_tensors, &stages);
 
     for (auto& out : outs) {
       stages->InsertLazily(out);

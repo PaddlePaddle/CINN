@@ -177,7 +177,7 @@ TEST(test_matmul, default) {
   MatmulTester matmul_tester(op_name, input_shapes);
   std::vector<Type> type{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_default", &input_tensors, attrs, type);
+  matmul_tester.TestOp("matmul_default", input_tensors, attrs, type);
 }
 
 TEST(test_matmul, tile) {
@@ -190,7 +190,7 @@ TEST(test_matmul, tile) {
   MatmulTileTester matmul_tester(op_name, input_shapes);
   std::vector<Type> type{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_tile", &input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_tile", input_tensors, attrs, type, false);
 }
 
 TEST(test_matmul, split) {
@@ -203,7 +203,7 @@ TEST(test_matmul, split) {
   MatmulSplitTester matmul_tester(op_name, input_shapes);
   std::vector<Type> type{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_split", &input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_split", input_tensors, attrs, type, false);
 }
 
 TEST(test_matmul, block) {
@@ -216,7 +216,7 @@ TEST(test_matmul, block) {
   MatmulBlockTester matmul_tester(op_name, input_shapes);
   std::vector<Type> type{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_block", &input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_block", input_tensors, attrs, type, false);
 }
 
 TEST(test_matmul, vectorize) {
@@ -229,7 +229,7 @@ TEST(test_matmul, vectorize) {
   MatmulVectorizeTester matmul_tester(op_name, input_shapes);
   std::vector<Type> type{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_vectorize", &input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_vectorize", input_tensors, attrs, type, false);
 }
 
 TEST(test_matmul, loop_permutation) {
@@ -242,7 +242,7 @@ TEST(test_matmul, loop_permutation) {
   MatmulLoopPermutationTester matmul_tester(op_name, input_shapes);
   std::vector<Type> type{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_loop_permutation", &input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_loop_permutation", input_tensors, attrs, type, false);
 }
 
 TEST(test_matmul, array_packing) {
@@ -255,7 +255,7 @@ TEST(test_matmul, array_packing) {
   MatmulArrayPackingTester matmul_tester(op_name, input_shapes);
   std::vector<Type> type{Float(32), Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_array_packing", &input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_array_packing", input_tensors, attrs, type, false);
 }
 
 }  // namespace tests

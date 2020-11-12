@@ -15,7 +15,7 @@ TEST(test_elementwise_add, default_fp32) {
   ElementwiseAddTester add_tester(op_name, input_shapes);
   std::vector<Type> type{Float(32)};
   auto input_tensors = add_tester.CreateInputTensors<float>();
-  add_tester.TestOp("elementwise_add_default_fp32", &input_tensors, attrs, type);
+  add_tester.TestOp("elementwise_add_default_fp32", input_tensors, attrs, type);
 }
 
 TEST(test_elementwise_add, default_int32) {
@@ -27,7 +27,7 @@ TEST(test_elementwise_add, default_int32) {
   ElementwiseAddTester add_tester(op_name, input_shapes);
   std::vector<Type> out_types{Int(32)};
   auto input_tensors = add_tester.CreateInputTensors<int>();
-  add_tester.TestOp("elementwise_add_default_int32", &input_tensors, attrs, out_types);
+  add_tester.TestOp("elementwise_add_default_int32", input_tensors, attrs, out_types);
   add_tester.Compare<int>();
 }
 
