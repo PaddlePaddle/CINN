@@ -1,10 +1,10 @@
 #include "cinn/ir/ir.h"
 
+#include <llvm/Support/FormatVariadic.h>
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
 
-#include <llvm/Support/FormatVariadic.h>
 #include <string>
 #include <type_traits>
 

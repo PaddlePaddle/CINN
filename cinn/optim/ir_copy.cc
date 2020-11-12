@@ -2,6 +2,7 @@
 
 #include <z3.h>
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -165,6 +166,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     tensor->reduce_axis = op->reduce_axis;
     tensor->operation   = operaion;
     tensor->name        = name;
+    tensor->set_type(op->type());
 
     tensor_map[tensor->name] = tensor;
 

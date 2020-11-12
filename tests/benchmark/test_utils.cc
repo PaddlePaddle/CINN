@@ -1,28 +1,28 @@
 #include "tests/benchmark/test_utils.h"
 
-#include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
-#include "cinn/hlir/op/use_ops.h"
 #include "cinn/utils/timer.h"
 
 namespace cinn {
 namespace tests {
 using ir::Tensor;
-auto OpBenchmarkTester::CreateExecutionEngine(const cinn::ir::Module& module) {
-  auto engine = cinn::backends::ExecutionEngine::Create({});
+std::unique_ptr<backends::ExecutionEngine> OpBenchmarkTester::CreateExecutionEngine(const cinn::ir::Module& module) {
+  auto engine = backends::ExecutionEngine::Create({});
   engine->Link(module);
   return engine;
 }
 
 void OpBenchmarkTester::TestOp(const std::string& test_name,
+                               const std::vector<Tensor>& input_tensors,
                                const hlir::framework::NodeAttr& attrs,
                                const std::vector<Type>& out_types,
                                bool use_default_stragegy) {
-  auto module        = CreateCinnModule(attrs, out_types, use_default_stragegy);
+  auto module        = CreateCinnModule(input_tensors, attrs, out_types, use_default_stragegy);
   auto engine        = CreateExecutionEngine(module);
   auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(engine->Lookup(op_name_));
+  out_types_         = out_types;
   CreateBuffer();
   LOG(INFO) << "Testing " << test_name;
   cinn::utils::Timer timer;
@@ -32,36 +32,28 @@ void OpBenchmarkTester::TestOp(const std::string& test_name,
   }
   double test_op_time = timer.Stop() / repeat_;
   LOG(INFO) << "repeat times: " << repeat_ << ", kernel run time: " << test_op_time << " ms";
-  Compare();
-  Reset();
 }
 
-Module OpBenchmarkTester::CreateCinnModule(const hlir::framework::NodeAttr& attrs,
+Module OpBenchmarkTester::CreateCinnModule(const std::vector<Tensor>& input_tensors,
+                                           const hlir::framework::NodeAttr& attrs,
                                            const std::vector<Type>& out_types,
                                            bool use_default_stragegy) {
-  std::vector<std::vector<Expr>> expr_shapes;
-  std::vector<Tensor> inputs;
   std::vector<Tensor> outs;
   std::vector<Tensor> rets;
   poly::StageMap stages;
   std::vector<Expr> output_shape_expr;
-  for (int i = 0; i < input_shapes_.size(); i++) {
-    std::vector<Expr> expr_shape;
-    for (int j = 0; j < input_shapes_[i].size(); ++j) {
-      expr_shape.push_back(Expr(input_shapes_[i][j]));
-    }
-    expr_shapes.push_back(expr_shape);
-    Placeholder<float> input(common::UniqName("input"), expr_shape);
-    inputs.push_back(input.tensor());
-    rets.push_back(input.tensor());
-  }
+  CHECK(!out_types.empty());
+  Type type = out_types.back();
+  rets      = input_tensors;
+
   if (use_default_stragegy) {
     auto strategy = hlir::framework::Operator::GetAttrs<hlir::framework::StrategyFunction>("CINNStrategy");
     auto op       = hlir::framework::Operator::Get(op_name_);
     CHECK(op) << op_name_ << " isn't supported yet\n";
-    auto impl = hlir::framework::OpStrategy::SelectImpl(strategy[op](attrs, inputs, out_types, input_shapes_, target_));
+    auto impl =
+        hlir::framework::OpStrategy::SelectImpl(strategy[op](attrs, input_tensors, out_types, input_shapes_, target_));
     std::vector<common::CINNValue> temp_inputs;
-    for (auto& tensor : inputs) {
+    for (auto& tensor : input_tensors) {
       temp_inputs.push_back(common::CINNValue(tensor));
     }
     common::CINNValuePack C = impl->fcompute(common::CINNValuePack(temp_inputs));
@@ -84,8 +76,8 @@ Module OpBenchmarkTester::CreateCinnModule(const hlir::framework::NodeAttr& attr
     }
 
   } else {
-    stages = CreateStages(inputs);
-    outs   = CreateSpecificStrategy(inputs, &stages);
+    stages = CreateStages(input_tensors);
+    outs   = CreateSpecificStrategy(input_tensors, &stages);
 
     for (auto& out : outs) {
       stages->InsertLazily(out);
@@ -107,28 +99,19 @@ Module OpBenchmarkTester::CreateCinnModule(const hlir::framework::NodeAttr& attr
 
 void OpBenchmarkTester::CreateBuffer() {
   std::vector<cinn_pod_value_t> args;
-  for (auto& input_shape : input_shapes_) {
-    auto* buffer = common::BufferBuilder(Float(32), input_shape).set_align(32).set_random().Build();
+  for (size_t i = 0; i < input_shapes_.size(); i++) {
+    auto* buffer = common::BufferBuilder(out_types_.back(), input_shapes_[i]).set_align(32).set_random().Build();
     cinn_pod_value_t arg(buffer);
     all_args_.push_back(arg);
-    all_datas_.push_back(reinterpret_cast<float*>(buffer->memory));
   }
   CHECK(!output_shapes_.empty()) << "output shapes shouldn't be empty\n";
-  // default only consider the last out as the kernel args
-  for (auto& output_shape : output_shapes_) {
-    auto* buffer = common::BufferBuilder(Float(32), output_shapes_.back()).set_align(32).set_zero().Build();
+  CHECK_EQ(output_shapes_.size(), out_types_.size());
+  for (size_t i = 0; i < output_shapes_.size(); i++) {
+    auto* buffer = common::BufferBuilder(out_types_[i], output_shapes_[i]).set_align(32).set_zero().Build();
     CHECK(buffer);
     out_dims_ = buffer->num_elements();
     cinn_pod_value_t arg(buffer);
     all_args_.push_back(arg);
-    all_datas_.push_back(reinterpret_cast<float*>(buffer->memory));
-  }
-}
-
-void OpBenchmarkTester::Reset() {
-  CHECK(!all_datas_.empty());
-  for (int i = 0; i < out_dims_; ++i) {
-    all_datas_.back()[i] = 0.f;
   }
 }
 
