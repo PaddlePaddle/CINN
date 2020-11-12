@@ -12,7 +12,7 @@ from tvm.contrib.utils import tempdir
 import tvm.contrib.graph_runtime as runtime
 
 # To test different ops, change this single-op network.
-# See ./relay_op.rst to get the op list.
+# See https://github.com/apache/incubator-tvm/blob/main/docs/langref/relay_op.rst to get the op list.
 
 
 def get_network_conv2d():
