@@ -168,17 +168,8 @@ void BindFrontend(pybind11::module *m) {
                  CINN_NOT_IMPLEMENTED
                }
              }
-             cinn::utils::Timer timer;
-             // Here we run 100 times to preheat.
-             for (int i = 0; i < repeat_ + 100; i++) {
-               if (i == 100) {
-                 timer.Start();
-               }
-               program->Execute();
-             }
-             double test_op_time = timer.Stop() / repeat_;
              LOG(INFO) << info;
-             LOG(INFO) << "Repeat times: " << repeat_ << ", average op run time: " << test_op_time << " ms";
+             program->ExecuteTest(repeat_);
              auto out = scope->GetTensor(tensor_out->id);
              return out;
            });

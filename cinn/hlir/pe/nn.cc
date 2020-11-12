@@ -1,5 +1,7 @@
 #include "cinn/hlir/pe/nn.h"
 
+#include <functional>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -21,6 +23,40 @@ using ir::Max;
 using ir::Min;
 using ir::Select;
 using ir::Tensor;
+
+void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
+  CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
+  int dims = stage->n_out_dims();
+  for (int i = 1; i < dims; i++) {
+    stage->Fuse(0, 1);
+  }
+  int num_thread        = target.max_num_threads();
+  int num_block         = 256;
+  int vector_width      = 1;
+  int prod_size         = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
+  bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
+  if (need_block_split) {
+    LOG(INFO) << "[Need_block_split]";
+    auto [X_outer, X_inner]  = stage->Split(0, num_thread * num_block);
+    auto [Block_x, Thread_x] = stage->Split(X_inner, num_thread);
+    stage->Reorder({Block_x, Thread_x, X_outer});
+    stage->Bind(0, "blockIdx.x");
+    stage->Bind(1, "threadIdx.x");
+  } else {
+    LOG(INFO) << "[Not need_block_split]";
+    if (prod_size > num_thread) {
+      stage->Split(0, num_thread);
+      stage->Bind(0, "blockIdx.x");
+      stage->Bind(1, "threadIdx.x");
+    } else {
+      auto [Thread_x, Block_x] = stage->Split(0, 2);
+      stage->Reorder({Block_x, Thread_x});
+      stage->Bind(0, "blockIdx.x");
+      stage->Bind(1, "threadIdx.x");
+    }
+  }
+  return;
+}
 
 void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape) {
   if (output_shape.size() > 1 && output_shape[1] >= 512) {

@@ -50,6 +50,8 @@ struct Target {
   //! Get the Runtime architecture, it is casted to integer to avoid header file depending.
   int runtime_arch() const;
 
+  int max_num_threads() const;
+
   bool operator==(const Target& other) const;
   bool operator!=(const Target& other) const { return !(*this == other); }
   friend std::ostream& operator<<(std::ostream& os, const Target& target);

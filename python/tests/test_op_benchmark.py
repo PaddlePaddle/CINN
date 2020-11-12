@@ -77,16 +77,16 @@ class TestBenchmark(unittest.TestCase):
 
     def test_elementwise(self):
         prog = Program()
-        a = Variable("A").set_type(Float(32)).set_shape([2, 512, 7, 7])
-        b = Variable("B").set_type(Float(32)).set_shape([2, 512, 7, 7])
+        a = Variable("A").set_type(Float(32)).set_shape([64, 64])
+        b = Variable("B").set_type(Float(32)).set_shape([64, 64])
         c = prog.add(a, b)
         tensor_data = [
-            np.random.random([2, 512, 7, 7]).astype("float32"),
-            np.random.random([2, 512, 7, 7]).astype("float32")
+            np.random.random([64, 64]).astype("float32"),
+            np.random.random([64, 64]).astype("float32")
         ]
         result = prog.test_benchmark(
             self.target, [a, b], tensor_data, c, 200,
-            "TESTING [elementwise_add] time cost with shape [2, 512, 7, 7]...")
+            "TESTING [elementwise_add] time cost with shape [64,64]...")
 
     def test_batchnorm(self):
         prog = Program()
@@ -109,12 +109,12 @@ class TestBenchmark(unittest.TestCase):
 
     def test_relu(self):
         prog = Program()
-        a = Variable("A").set_type(Float(32)).set_shape([2, 512, 7, 7])
+        a = Variable("A").set_type(Float(32)).set_shape([64, 64])
         c = prog.relu(a)
-        tensor_data = [np.random.random([2, 512, 7, 7]).astype("float32")]
+        tensor_data = [np.random.random([64, 64]).astype("float32")]
         result = prog.test_benchmark(
             self.target, [a], tensor_data, c, 200,
-            "TESTING [relu] time cost with shape [2, 512, 7, 7]...")
+            "TESTING [relu] time cost with shape [64,64]...")
 
 
 if __name__ == "__main__":

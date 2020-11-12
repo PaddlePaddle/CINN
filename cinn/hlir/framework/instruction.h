@@ -5,6 +5,7 @@
 
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/scope.h"
+#include "cinn/utils/timer.h"
 
 namespace cinn {
 namespace hlir {
@@ -38,6 +39,21 @@ class Instruction {
    * @param fn The JIT compiled function address.
    */
   void SetLoweredFunc(lower_func_ptr_t fn) { fn_ = fn; }
+
+  void RunTest(int repeat_) {
+    CHECK(fn_) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
+    auto& pod_args = PreparePodArgs();
+    cinn::utils::Timer timer;
+    for (int i = 0; i < 100; i++) {
+      fn_(pod_args.data(), pod_args.size());
+    }
+    timer.Start();
+    for (int i = 0; i < repeat_; i++) {
+      fn_(pod_args.data(), pod_args.size());
+    }
+    double test_op_time = timer.Stop() / repeat_;
+    LOG(INFO) << "Repeat times: [" << repeat_ << "], average op run time: [" << test_op_time << "] ms";
+  }
 
   /**
    * Run the Instruction.

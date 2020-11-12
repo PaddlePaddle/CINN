@@ -50,6 +50,12 @@ class Program {
     }
   }
 
+  void ExecuteTest(int repeat_) {
+    CHECK_EQ(instrs_.size(), 1);
+    for (auto& ins : instrs_) {
+      ins->RunTest(repeat_);
+    }
+  }
   /**
    * Get the number of instructions.
    */

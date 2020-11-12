@@ -28,6 +28,11 @@ int Target::runtime_arch() const {
   return -1;
 }
 
+int Target::max_num_threads() const {
+  CHECK(arch == Arch::NVGPU) << "The target is not NVGPU! Cannot get max number of threads.";
+  return 1024;
+}
+
 std::ostream &operator<<(std::ostream &os, const Target &target) {
   os << "Target<";
   switch (target.os) {

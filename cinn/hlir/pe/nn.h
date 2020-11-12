@@ -12,6 +12,8 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
+
 void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape);
 
 /**

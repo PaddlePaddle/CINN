@@ -299,6 +299,11 @@ class Stage : public Object {
 
   ir::Tensor LookupCtrlDepend(const std::string& tensor_name) const;
 
+  //! Get number of transform output dimensions, this equals to the number of forloops in generated code.
+  inline int n_in_dims() const { return isl_map_dim(transform_.get(), isl_dim_in); }
+  //! Get number of transform output dimensions, this equals to the number of dimensions of corresponding tensor.
+  inline int n_out_dims() const { return isl_map_dim(transform_.get(), isl_dim_out); }
+
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
 
@@ -317,11 +322,6 @@ class Stage : public Object {
   bool is_axis_locked(uint32_t level) const;
   //! Assert that the axis is not locked, abort if fail.
   void AssertAxisIsNotLocked(uint32_t level);
-
-  //! Get number of transform output dimensions, this equals to the number of forloops in generated code.
-  inline int n_in_dims() const { return isl_map_dim(transform_.get(), isl_dim_in); }
-  //! Get number of transform output dimensions, this equals to the number of dimensions of corresponding tensor.
-  inline int n_out_dims() const { return isl_map_dim(transform_.get(), isl_dim_out); }
 
   static constexpr char* __type_info__ = "Stage";
 
