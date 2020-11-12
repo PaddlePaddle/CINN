@@ -111,8 +111,12 @@ def get_network_batchnorm():
     return mod, params, input_shape, output_shape, input_names
 
 
-#### DEVICE CONFIG ####
-target = tvm.target.cuda()
+##################################################################
+# For CUDA backends, use
+# :code:`target = "cuda"`
+# For X86 backends, use
+# :code:`target = "llvm"`
+target = "cuda"
 dtype = "float32"
 
 

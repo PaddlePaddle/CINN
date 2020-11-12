@@ -114,6 +114,24 @@ void BindFrontend(pybind11::module *m) {
              auto out = scope->GetTensor(tensor_out->id);
              return out;
            })
+      /**
+       * @brief Test the performance of a single-op program
+       * @param self The program built with only one op
+       * @param target The Target that controls the backends to execute on
+       * @param tensor_inputs The vector that contains all input Variables. Must be on CPU
+       * @param input_data The vector that contains each input Variable's data(stored as py::array)
+       * @param tensor_out The output Variable.
+       * @param repeat_ The number of executing time. Increase it to avoid testing noise.
+       * @param info The string to be print before testing. Usually it implyies the kind of op and
+       *  input variable's shape.
+       *
+       * @return The output tensor after executing the op.
+       *
+       * @note
+       *  This function is for user to test single op performance on python.
+       *  To learn more about how to test op's benchmark, see '/python/tests/test_op_benchmark.py'
+       *
+       */
       .def("test_benchmark",
            [](Program &self,
               const common::Target &target,
@@ -151,6 +169,7 @@ void BindFrontend(pybind11::module *m) {
                }
              }
              cinn::utils::Timer timer;
+             // Here we run 100 times to preheat.
              for (int i = 0; i < repeat_ + 100; i++) {
                if (i == 100) {
                  timer.Start();
