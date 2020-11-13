@@ -2,6 +2,7 @@
 
 #include <isl/cpp.h>
 
+#include <llvm/ADT/ArrayRef.h>
 #include <string>
 #include <vector>
 
@@ -18,6 +19,8 @@ std::vector<std::string> isl_get_dim_names(isl_set* set);
 
 void isl_set_dim_names(isl::set* __isl_keep set, const std::vector<std::string>& names);
 void isl_set_dim_names(isl::map* __isl_keep map, isl_dim_type dim_type, const std::vector<std::string>& names);
+
+isl::union_set isl_union_set_from_sets(llvm::ArrayRef<isl::set> sets);
 
 isl::map isl_set_dim_name_if_null(isl_map* __isl_take map, std::function<std::string(isl_dim_type, int)> namer);
 isl::set isl_set_dim_name_if_null(isl_set* __isl_take set, std::function<std::string(isl_dim_type, int)> namer);
@@ -40,6 +43,9 @@ isl_set* __isl_give isl_rename_axis(isl_set* __isl_take set, int offset, const c
 isl_map* __isl_give isl_rename_axis(isl_map* __isl_take map, isl_dim_type dim_type, int offset, const char* name);
 
 isl_set* __isl_give isl_simplify(isl_set* __isl_take set);
+
+// { s[i]: 0 < i < 20 }
+bool isl_set_axis_has_noparam_constant_bound(isl_set* __isl_keep set, int pos);
 
 //! get a minimum and maximum range of a set, if the bound not exists, return a INT_MAX instead.
 //! NOTE the set should be bound.

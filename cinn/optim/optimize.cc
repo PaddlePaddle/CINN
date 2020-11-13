@@ -12,6 +12,7 @@
 #include "cinn/optim/lower_function_call_bind_vars.h"
 #include "cinn/optim/map_extern_call.h"
 #include "cinn/optim/remove_nested_block.h"
+#include "cinn/optim/replace_const_param_to_integer.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/optim/unroll_loops.h"
@@ -41,6 +42,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   MapExternCall(&copied, target);
   ExternCallMultiOutputShallowStore(&copied);
 
+  ReplaceConstParamToInteger(&copied);
   Simplify(&copied);
 
   if (runtime_debug_info) {
