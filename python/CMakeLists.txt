@@ -38,6 +38,12 @@ ADD_TEST(NAME test_cinn_frontend
     "${WITH_CUDA}" WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
+ADD_TEST(NAME test_cinn_op_benchmark
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_op_benchmark.py "${WITH_CUDA}"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
 ADD_TEST(NAME test_cinn_fake_resnet
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet.py "${CMAKE_BINARY_DIR}/thirds/resnet_model" "${WITH_CUDA}"
