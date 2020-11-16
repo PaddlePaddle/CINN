@@ -44,10 +44,8 @@ struct StaticImmConditionMutator : public ir::IRMutator<> {
     // create a set
 
     std::string set_repr = utils::StringFormat("[]->{ : %s }", utils::GetStreamCnt(*expr).c_str());
-    LOG(INFO) << set_repr;
     isl::ctx ctx(isl_ctx_alloc());
     isl::set cond_set(ctx, set_repr);
-    LOG(INFO) << "cond_set: " << cond_set;
 
     *expr = Expr(!cond_set.is_empty());
     return true;

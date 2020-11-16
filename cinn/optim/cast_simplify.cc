@@ -11,7 +11,6 @@ struct Mutator : ir::IRMutator<> {
   void Visit(const ir::Cast* op, Expr* expr) {
     auto* node = expr->As<ir::Cast>();
 
-    LOG(INFO) << op->type() << " vs " << op->v().type();
     Visit(&node->v(), &node->v());
 
     if (op->type() == op->v().type()) {

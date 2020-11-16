@@ -81,7 +81,6 @@ isl::set TransIdentityExtentToContextId(isl::set set) {
 
     std::string cond_str = llvm::formatv(
         "{0} <= {1} <= {2}", val, isl_set_get_dim_name(res_set.get(), isl_dim_set, offset), const_param_name);
-    LOG(INFO) << "cond_str: " << cond_str;
     std::string param_cond_str = llvm::formatv("{0} <= {1} < {2}", val, const_param_name, val + 2);
 
     std::string set_repr = llvm::formatv("[{0}] -> { {1}[{2}]: {3} and {4} }",
@@ -101,7 +100,6 @@ isl::set TransIdentityExtentToContextId(isl::set set) {
 }
 
 isl::union_set TransIdentityExtentToContextId(isl::union_set set) {
-  LOG(INFO) << "get union set " << set;
   auto* set_list = isl_union_set_get_set_list(set.release());
   llvm::SmallVector<isl::set, 4> sets;
   for (int i = 0; i < isl_set_list_n_set(set_list); i++) {
