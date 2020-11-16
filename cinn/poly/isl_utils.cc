@@ -198,7 +198,8 @@ isl::union_set isl_union_set_from_sets(llvm::ArrayRef<isl::set> sets) {
 
 std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
   CHECK(isl_set_dim_is_bounded(set, isl_dim_set, pos)) << "an unbound cannot get range, " << isl_set_to_str(set);
-  CHECK(isl_set_axis_has_noparam_constant_bound(set, pos));
+  // CHECK(isl_set_axis_has_noparam_constant_bound(set, pos))
+  //<< isl_set_to_str(set) << " " << pos << "-th dim involves param";
 
   std::vector<std::string> from_iters;
   std::string target_axis_name;
@@ -231,6 +232,9 @@ bool isl_set_axis_has_noparam_constant_bound(isl_set __isl_keep *set, int pos) {
 
   isl_pw_aff *min_val = isl_set_dim_min(isl_set_copy(set), pos);
   isl_pw_aff *max_val = isl_set_dim_max(isl_set_copy(set), pos);
+  VLOG(3) << "set: " << isl_set_to_str(set);
+  VLOG(3) << "min_val: " << isl_pw_aff_to_str(min_val);
+  VLOG(3) << "max_val: " << isl_pw_aff_to_str(max_val);
 
   isl::set context(isl_set_get_ctx(set), "{:}");
   auto is_dim_a_constant = [&](isl_pw_aff *__isl_give val) {
@@ -241,21 +245,25 @@ bool isl_set_axis_has_noparam_constant_bound(isl_set __isl_keep *set, int pos) {
     isl_pw_aff_foreach_piece(
         val,
         [](isl_set *__isl_give set, isl_aff *__isl_give aff, void *user) -> isl_stat {
+          // Ignore the set piece, e.g. [_cp_C_0, _cp_C_1] -> { cache[0, 0] : _cp_C_0 = 0 and _cp_C_1 = 0 }
+          // will get a set [_cp_C_0, _cp_C_1] -> {  : _cp_C_0 = 0 and _cp_C_1 = 0 }
+          if (set) {
+            // ignore
+          }
+
+          CHECK(aff);
           auto &is_param_involved = *reinterpret_cast<bool *>(user);
           if (is_param_involved) return isl_stat_ok;
 
-          for (int i = 0; i < isl_aff_dim(aff, isl_dim_set); i++) {
-            if (isl_aff_plain_is_zero(aff)) continue;
-            isl_val *coeff = isl_aff_get_coefficient_val(aff, isl_dim_set, i);
-            if (!isl_val_is_zero(coeff)) {
-              is_param_involved = true;
-              break;
-            }
-          }
+          // drop unused params, so the Aff [n]->{ [(0)] } will be []->{ [(0)] }
+          auto *pw_aff = isl_pw_aff_from_aff(aff);
+          pw_aff       = isl_pw_aff_drop_unused_params(pw_aff);
+
+          // check if some params is involved.
+          isl::set params   = isl::manage(isl_pw_aff_params(pw_aff));
+          is_param_involved = isl_set_dim(params.get(), isl_dim_param) > 0;
 
           isl_set_free(set);
-          isl_aff_free(aff);
-
           return isl_stat_ok;
         },
         reinterpret_cast<void *>(&is_param_involved));

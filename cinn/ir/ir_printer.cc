@@ -115,12 +115,12 @@ void IrPrinter::Visit(const Block *x) {
   os_ << "{\n";
 
   IncIndent();
-  for (int i = 0; i < x->stmts.size() - 1; i++) {
+  for (int i = 0; !x->stmts.empty() && i < x->stmts.size() - 1; i++) {
     DoIndent();
     Print(x->stmts[i]);
     os_ << "\n";
   }
-  if (x->stmts.size() >= 1) {
+  if (!x->stmts.empty()) {
     DoIndent();
     Print(x->stmts.back());
   }
@@ -233,7 +233,6 @@ void IrPrinter::Visit(const _Buffer_ *x) {
   os_ << "_Buffer_<" << x->type() << ": " << utils::Join(dim_names, ",") << ">(" << x->name << ")";
 }
 void IrPrinter::Visit(const _Tensor_ *x) {
-  CHECK(!x->shape.empty());
   os_ << "Tensor(";
   os() << x->name << ", ";
   os() << "[";
