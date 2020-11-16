@@ -34,8 +34,8 @@ def get_network_conv2d():
 
 
 def get_network_relu():
-    input_shape = [(64, 64)]
-    output_shape = (64, 64)
+    input_shape = [(1024, 7)]
+    output_shape = (1024, 7)
     input_names = ["x"]
     x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
     print("[Test]Begin building graph with op relay.nn.relu")
@@ -45,8 +45,8 @@ def get_network_relu():
 
 
 def get_network_elementwise():
-    input_shape = [(64, 64), (64, 64)]
-    output_shape = (64, 64)
+    input_shape = [(4, 1024), (4, 1024)]
+    output_shape = (4, 1024)
     input_names = ["x", "y"]
     x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
     y = relay.Var(input_names[1], tvm.relay.TensorType(input_shape[1]))
@@ -124,17 +124,17 @@ def tune_and_evaluate(func):
     # extract workloads from relay program
     mod, params, input_shape, out_shape, input_names = func()
 
-    lib = relay.build_module.build(mod, target=target, params=params)
-
+    runtime_mod = relay.build_module.build(mod, target=target)
+    print("-----GPU code-----")
+    print(runtime_mod.get_lib().imported_modules[0].get_source())
     # load parameters
     ctx = tvm.context(str(target), 0)
-    module = runtime.GraphModule(lib["default"](ctx))
+    module = runtime.GraphModule(runtime_mod["default"](ctx))
     for index in range(len(input_shape)):
         data_temp = tvm.nd.array(
             (np.random.uniform(size=input_shape[index])).astype(dtype))
         module.set_input(input_names[index], data_temp)
     # evaluate
-
     evaluator_preheat = module.module.time_evaluator(
         "run", ctx, number=50, repeat=50)
     evaluator = module.module.time_evaluator(
@@ -150,10 +150,10 @@ def tune_and_evaluate(func):
           (np.mean(prof_res2), np.std(prof_res2)))
 
 
-tune_and_evaluate(get_network_conv2d)
-tune_and_evaluate(get_network_pool2d)
-tune_and_evaluate(get_network_softmax)
-tune_and_evaluate(get_network_matmul)
-tune_and_evaluate(get_network_batchnorm)
+#tune_and_evaluate(get_network_conv2d)
+#tune_and_evaluate(get_network_pool2d)
+#tune_and_evaluate(get_network_softmax)
+#tune_and_evaluate(get_network_matmul)
+#tune_and_evaluate(get_network_batchnorm)
 tune_and_evaluate(get_network_relu)
 tune_and_evaluate(get_network_elementwise)

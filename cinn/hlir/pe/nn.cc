@@ -49,10 +49,7 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
       stage->Bind(0, "blockIdx.x");
       stage->Bind(1, "threadIdx.x");
     } else {
-      auto [Thread_x, Block_x] = stage->Split(0, 2);
-      stage->Reorder({Block_x, Thread_x});
-      stage->Bind(0, "blockIdx.x");
-      stage->Bind(1, "threadIdx.x");
+      stage->Bind(0, "threadIdx.x");
     }
   }
   return;

@@ -75,18 +75,48 @@ class TestBenchmark(unittest.TestCase):
             self.target, [a], tensor_data, c, 200,
             "TESTING [pool2d] time cost with shape [2, 64, 112, 112]...")
 
-    def test_elementwise(self):
+    def test_elementwise1(self):
         prog = Program()
-        a = Variable("A").set_type(Float(32)).set_shape([64, 64])
-        b = Variable("B").set_type(Float(32)).set_shape([64, 64])
+        a = Variable("A").set_type(Float(32)).set_shape([2, 512, 7, 7])
+        b = Variable("B").set_type(Float(32)).set_shape([2, 512, 7, 7])
         c = prog.add(a, b)
         tensor_data = [
-            np.random.random([64, 64]).astype("float32"),
-            np.random.random([64, 64]).astype("float32")
+            np.random.random([2, 512, 7, 7]).astype("float32"),
+            np.random.random([2, 512, 7, 7]).astype("float32")
         ]
         result = prog.test_benchmark(
             self.target, [a, b], tensor_data, c, 200,
-            "TESTING [elementwise_add] time cost with shape [64,64]...")
+            "TESTING [elementwise_add] time cost with shape [2,512,7,7]...")
+
+    def test_elementwise2(self):
+        prog = Program()
+        a = Variable("A").set_type(Float(32)).set_shape([4, 1024])
+        b = Variable("B").set_type(Float(32)).set_shape([4, 1024])
+        c = prog.add(a, b)
+        tensor_data = [
+            np.random.random([4, 1024]).astype("float32"),
+            np.random.random([4, 1024]).astype("float32")
+        ]
+        result = prog.test_benchmark_with_code(
+            self.target, [a, b], tensor_data, c, 200,
+            "TESTING [elementwise_add] time cost with shape [4,1024]...",
+            '''extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+__global__
+void fn_elementwise_add_0_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ EleAdd_Out_0)
+{
+
+      EleAdd_Out_0[((1024 * ((int)blockIdx.x)) + ((int)threadIdx.x))] = (A[((1024 * ((int)blockIdx.x)) + ((int)threadIdx.x))] + B[((1024 * ((int)blockIdx.x)) + ((int)threadIdx.x))]);
+}
+
+}''')
 
     def test_batchnorm(self):
         prog = Program()
