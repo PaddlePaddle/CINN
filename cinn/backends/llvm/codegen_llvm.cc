@@ -1304,10 +1304,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *op) {
   }
 
   CHECK(callee);
-  LOG(INFO) << "value: " << op->pod_value_ptr;
   auto *value = Visit(&op->pod_value_ptr);
   CHECK(value);
-  LOG(INFO) << "-value: " << DumpToString(*value);
   return Call(callee, std::vector<llvm::Value *>({value}), "pod_value_cast");
 }
 
