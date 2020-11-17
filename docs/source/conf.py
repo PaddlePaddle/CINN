@@ -36,6 +36,9 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.mathjax',
     'sphinx_gallery.gen_gallery',
+    'recommonmark',
+    #'breathe',
+    #'exhale',
 ]
 
 autosummary_generate = True
