@@ -14,7 +14,6 @@ function gpu_on {
 
 function check_style {
     export PATH=/usr/bin:$PATH
-    #pre-commit install
     clang-format --version
 
     if ! pre-commit run -a ; then

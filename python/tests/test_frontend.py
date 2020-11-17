@@ -14,12 +14,6 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
-print("args", sys.argv)
-
-sys.argv = [
-    "", "/home/chunwei/project/cinn2/cmake-build-debug/thirds/naive_mul_model",
-    "/home/chunwei/project/cinn2/cmake-build-debug/thirds/multi_fc_model", "ON"
-]
 assert len(sys.argv) == 1 + 2 + 1  # model and enable_gpu count
 enable_gpu = sys.argv.pop()
 multi_fc_model_dir = sys.argv.pop()
