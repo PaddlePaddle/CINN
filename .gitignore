@@ -13,3 +13,6 @@ build*
 *.patch
 gen_modules
 *.ipynb
+docs/source/cpp
+docs/source/doxygen_output
+docs/source/tutorials
