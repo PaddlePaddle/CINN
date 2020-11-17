@@ -53,7 +53,7 @@ void BindExecutionEngine(py::module *m) {
     py::class_<Compiler> compiler(*m, "Compiler");
     compiler
         .def_static("create", &Compiler::Create)  //
-        .def("build", &Compiler::Build)           //
+        .def("build", &Compiler::BuildDefault)    //
         .def("lookup", lookup);
   }
 }

@@ -50,6 +50,12 @@ class Program {
     }
   }
 
+  void ExecuteTest(int repeat_) {
+    CHECK_EQ(instrs_.size(), 1);
+    for (auto& ins : instrs_) {
+      ins->RunTest(repeat_);
+    }
+  }
   /**
    * Get the number of instructions.
    */
@@ -69,7 +75,7 @@ class GraphCompiler final {
   GraphCompiler(Target target, const std::shared_ptr<Scope>& scope, const std::shared_ptr<Graph>& graph)
       : target_(std::move(target)), scope_(scope), graph_(graph), m_builder_(UniqName("module"), target) {}
 
-  std::unique_ptr<Program> Build();
+  std::unique_ptr<Program> Build(const std::string& code = "");
 
   void PrintFunc();
 

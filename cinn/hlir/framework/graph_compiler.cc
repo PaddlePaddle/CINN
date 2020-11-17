@@ -20,7 +20,7 @@ void GraphCompiler::PrintFunc() {
   }
 }
 
-std::unique_ptr<Program> GraphCompiler::Build() {
+std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   auto [nodes, edges] = graph_->topological_order();
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
@@ -43,7 +43,7 @@ std::unique_ptr<Program> GraphCompiler::Build() {
     LOG(INFO) << "[X86] C Code is:\n" << out;
   }
 
-  compiler_->Build(build_module);
+  compiler_->Build(build_module, code);
 
   return std::unique_ptr<Program>(new Program(scope_, BuildInstructions()));
 }

@@ -14,7 +14,17 @@ namespace cinn {
 namespace backends {
 using ir::Module;
 
-void Compiler::Build(const Module& module) {
+void Compiler::Build(const Module& module, const std::string& code) {
+  if (target_.arch == Target::Arch::NVGPU) {
+    CompileCudaModule(module, code);
+  } else if (target_.arch == Target::Arch::X86) {
+    CompileX86Module(module);
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+}
+
+void Compiler::BuildDefault(const Module& module) {
   if (target_.arch == Target::Arch::NVGPU) {
     CompileCudaModule(module);
   } else if (target_.arch == Target::Arch::X86) {
@@ -24,7 +34,7 @@ void Compiler::Build(const Module& module) {
   }
 }
 
-void Compiler::CompileCudaModule(const Module& module) {
+void Compiler::CompileCudaModule(const Module& module, const std::string& code) {
 #ifdef CINN_WITH_CUDA
   auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
   LOG(INFO) << "[CUDA] host module:\n" << host_module;
@@ -33,6 +43,7 @@ void Compiler::CompileCudaModule(const Module& module) {
     LOG(INFO) << "[CUDA] device module:\n" << device_module;
     CodeGenCUDA_Dev codegen(target_);
     auto source_code = codegen.Compile(device_module);
+    if (!code.empty()) source_code = code;
     LOG(INFO) << "[CUDA] source code:\n" << source_code;
     using runtime::cuda::CUDAModule;
 
