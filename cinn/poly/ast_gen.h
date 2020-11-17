@@ -19,6 +19,8 @@
 namespace cinn {
 namespace poly {
 
+static const char* kIslParamConstPrefix = "_const_";
+
 /**
  * Generate IR from polyhedral schedule.
  */
@@ -57,6 +59,15 @@ class AstGen {
  */
 void IslAstNodeToCinnExpr(const isl::ast_node& node, ir::Expr* expr);
 void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr);
+
+/**
+ * Transform the set whose axis has one element like
+ *  { s[i=0,j] : ... }
+ * to a new set with a parameter to force all the axis has a range:
+ *  [_const_0] -> { s[i,j]: 0 <= i <= _const_0 and _const_0 < 0+2 and ... }
+ */
+isl::union_set TransIdentityExtentToContextId(isl::union_set set);
+isl::set TransIdentityExtentToContextId(isl::set set);
 
 namespace detail {
 

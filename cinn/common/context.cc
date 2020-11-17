@@ -7,6 +7,7 @@ namespace common {
 
 Context& Context::Global() {
   static Context x;
+  isl_options_set_on_error(x.ctx_.get(), ISL_ON_ERROR_ABORT);
   return x;
 }
 

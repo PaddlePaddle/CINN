@@ -76,7 +76,6 @@ class TestFrontend(unittest.TestCase):
             "dilation": [1, 1],
             "padding": [0, 0]
         })
-        print('f', f)
         g = prog.scale(f, {"scale": 2.0, "bias": 0.5})
         h = prog.softmax(g, {"axis": 1})
 
@@ -89,6 +88,7 @@ class TestFrontend(unittest.TestCase):
             np.random.random([2, 24, 56, 56]).astype("float32"),
             np.random.random([144, 24, 1, 1]).astype("float32")
         ]
+
         result = prog.build_and_get_output(self.target, [a, b, e], tensor_data,
                                            h)
         result = result.numpy(self.target).reshape(-1)

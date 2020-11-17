@@ -243,18 +243,6 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
                                      << "] should be equal to first dim of Y's shape :[" << check_dim_y
                                      << "]! Please Check!";
 
-  LOG(INFO) << "infer shape of mul's output is:\n";
-  for (auto v : output_shape) {
-    LOG(INFO) << v << ", ";
-  }
-  LOG(INFO) << "first input shape of mul is:\n";
-  for (auto v : inputs_shape[0]) {
-    LOG(INFO) << v << ", ";
-  }
-  LOG(INFO) << "second input shape of mul is:\n";
-  for (auto v : inputs_shape[1]) {
-    LOG(INFO) << v << ", ";
-  }
   std::vector<std::vector<int>> res{output_shape};
   return res;
 }

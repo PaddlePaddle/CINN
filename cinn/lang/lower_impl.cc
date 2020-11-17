@@ -105,7 +105,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     mutator(&e);
   }
 
-  // mark gpu
+  // mark gpu threads
 #ifdef CINN_WITH_CUDA
   {
     optim::forloop_infos_t forloop_infos;

@@ -52,7 +52,7 @@ CreateNVMemory(int M, int N) {
 }
 
 TEST(CodeGenCUDA, basic) {
-  Expr M(100);
+  Expr M(1);
   Expr N(200);
 
   Target target;

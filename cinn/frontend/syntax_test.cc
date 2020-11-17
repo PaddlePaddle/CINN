@@ -175,5 +175,46 @@ TEST(load_paddle_model, fc_execute) {
   for (int i = 0; i < 10; i++) LOG(INFO) << "data: " << data[i];
 }
 
+/*
+TEST(Frontend, conv) {
+  Placeholder A(Float(32), {2, 24, 56, 45}, "A");
+  Placeholder B(Float(32), {2, 24, 56, 45}, "B");
+  Placeholder E(Float(32), {144, 24, 1, 1}, "E");
+
+  Program program;
+  auto c = program.elementwise_add(A, B);
+  auto d = program.relu(c);
+  std::unordered_map<std::string, Program::attr_t> attrs;
+  attrs["stride"]   = std::vector<int>({1, 1});
+  attrs["dilation"] = std::vector<int>({1, 1});
+  attrs["padding"]  = std::vector<int>({0, 0});
+
+  auto f = program.conv2d(d, E, attrs);
+
+  std::unordered_map<std::string, Program::attr_t> attrs1, attrs2;
+
+  attrs1["scale"] = 2.0f;
+  attrs1["bias"]  = 0.5f;
+
+  auto g = program.scale(f, attrs1);
+
+  attrs2["axis"] = 1;
+
+  auto h = program.softmax(g, attrs2);
+
+  program.SetInputs({A, B, E});
+  program.Validate();
+
+  auto graph = std::make_shared<hlir::framework::Graph>(program);
+
+  hlir::framework::ApplyPass(graph.get(), "InferShape");
+  Target target = common::DefaultHostTarget();
+  auto scope    = BuildScope(target, graph);
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+}
+ */
+
 }  // namespace frontend
 }  // namespace cinn
