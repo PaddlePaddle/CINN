@@ -26,7 +26,8 @@ function prepare {
     mkdir -p $build_dir
     cd $build_dir
 
-    python3 -m pip install sphinx sphinx_gallery recommonmark --trusted-host mirrors.aliyun.com
+    python3 -m pip install sphinx sphinx_gallery recommonmark exhale --trusted-host mirrors.aliyun.com
+    apt install doxygen -y
 
     mkdir -p tests
     mkdir -p cinn/backends
@@ -46,6 +47,7 @@ function make_doc {
     cd $build_dir
     ln -s $build_dir/cinn/pybind/core_api.so $workspace/python/cinn/
     cd $workspace/docs
+    mkdir -p docs/source/cpp
     make html
 }
 

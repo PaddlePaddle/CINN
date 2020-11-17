@@ -33,6 +33,13 @@ Get Started
    tutorials/index
 
 
+C++ APIs
+~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
+
+   cpp/library_root.rst
+
 
 cinnrt
 -------
