@@ -43,8 +43,6 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                                   static_cast<CUstream>(stream),
                                   reinterpret_cast<void **>(arr),
                                   nullptr))
-
-  // CUDA_CALL(cudaDeviceSynchronize());
 }
 
 }  // namespace cuda
