@@ -53,21 +53,17 @@ def create_matmul_basic(target, m, n, k):
     a = lang.Placeholder("float32", "A", [m, k])
     b = lang.Placeholder("float32", "B", [k, n])
 
-    c_init = lang.compute([m, n], lambda v: ir.Expr(0.), "c_init")
-
     k1 = ir.Var(k.as_int32(), "k1")
     c = lang.compute([m, n], lambda v: lang.reduce_sum(
         a(v[0], k1.to_expr_mutable()) * b(k1.to_expr_mutable(), v[1]), [k1]),
                      "c")
 
-    stages = create_stages([c_init, c])
+    stages = create_stages([c])
     c_stage = stages[c]
-    stages[c_init].share_buffer_with(c_stage)
-    stages[c].ctrl_depend(c_init)
 
     builder = lang.Module.Builder("matmul", target)
 
-    ts = [a.to_tensor(), b.to_tensor(), c_init, c]
+    ts = [a.to_tensor(), b.to_tensor(), c]
     func = lang.lower("matmul", stages, ts)
     print('func', func)
     builder.add_function(func)
@@ -79,20 +75,16 @@ def create_matmul_tile(target, m, n, k):
     a = lang.Placeholder("float32", "A", [m, k])
     b = lang.Placeholder("float32", "B", [k, n])
 
-    c_init = lang.compute([m, n], lambda v: ir.Expr(0.), "c_init")
-
     k1 = ir.Var(k.as_int32(), "k1")
     c = lang.compute([m, n], lambda v: lang.reduce_sum(
         a(v[0], k1.to_expr_mutable()) * b(k1.to_expr_mutable(), v[1]), [k1]),
                      "c")
 
-    stages = create_stages([c_init, c])
-    stages[c].share_buffer_with(stages[c_init])
-    stages[c].ctrl_depend(c_init)
+    stages = create_stages([c])
     stages[c].tile(0, 1, 4, 4)
 
     builder = lang.Module.Builder("matmul_tile", target)
-    ts = [a.to_tensor(), b.to_tensor(), c_init, c]
+    ts = [a.to_tensor(), b.to_tensor(), c]
     func = lang.lower("matmul_tile", stages, ts)
     print('func', func)
     builder.add_function(func)

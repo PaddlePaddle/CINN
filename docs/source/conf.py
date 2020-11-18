@@ -36,6 +36,9 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.mathjax',
     'sphinx_gallery.gen_gallery',
+    'recommonmark',
+    'breathe',
+    'exhale',
 ]
 
 autosummary_generate = True
@@ -84,3 +87,30 @@ sphinx_gallery_conf = {
     'find_mayavi_figures': False,
     'expected_failing_examples': []
 }
+
+###################################################################
+# Setup the breathe extension
+
+breathe_projects = {"CINN Project": "./doxygen_output/xml"}
+breathe_default_project = "CINN Project"
+
+# Setup the exhale extension
+exhale_args = {
+    # These arguments are required
+    "containmentFolder": "./cpp",
+    "rootFileName": "library_root.rst",
+    "rootFileTitle": "C++ Symbols",
+    "doxygenStripFromPath": "..",
+    # Suggested optional arguments
+    "createTreeView": True,
+    # TIP: if using the sphinx-bootstrap-theme, you need
+    # "treeViewIsBootstrap": True,
+    "exhaleExecutesDoxygen": True,
+    "exhaleDoxygenStdin": "INPUT = ../../cinn/frontend ../../cinn/lang"
+}
+
+# Tell sphinx what the primary language being documented is.
+primary_domain = 'cpp'
+
+# Tell sphinx what the pygments highlight language should be.
+highlight_language = 'cpp'

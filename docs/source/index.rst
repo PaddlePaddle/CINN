@@ -15,6 +15,13 @@ CINN(a Compiler Infrusture for Neural Networks) is a union of several sub-projec
 - :code:`cinn`, a domain specific language for kernel construction,
 - :code:`cinnrt`, an efficient runtime framework for static graph execution.
 
+Install
+-------
+.. toctree::
+   :maxdepth: 1
+
+   ./install.md
+
 cinn
 ------
 
@@ -25,6 +32,13 @@ Get Started
 
    tutorials/index
 
+
+C++ APIs
+~~~~~~~~~~~~~~
+.. toctree::
+   :maxdepth: 1
+
+   cpp/library_root.rst
 
 
 cinnrt

@@ -144,6 +144,8 @@ void BindNode(py::module *m) {
       .def("as_int64", &ir::Expr::as_int64)
       .def("as_float", &ir::Expr::as_float)
       .def("as_double", &ir::Expr::as_double)
+      .def("int", [](ir::Expr &self) { return self.As<ir::IntImm>()->value; })
+      .def("float", [](ir::Expr &self) { return self.As<ir::FloatImm>()->value; })
 
       .def("__str__", [](const Expr &self) { return utils::GetStreamCnt(self); })
       .def("__repr__", [](const Expr &self) -> std::string {
@@ -379,6 +381,7 @@ void BindIrIr(py::module *m) {
       .def("to_expr_mutable", py::overload_cast<>(&Var::operator ir::Expr))
       .def("to_expr_const", py::overload_cast<>(&Var::operator ir::Expr, py::const_))
       .def("__repr__", [](Var &self) -> std::string { return llvm::formatv("<cinn.ir.Var {0}>", self->name); })
+      .def("expr", [](Var &self) -> Expr { return Expr(self->self()); })
 
           BIND_POD_BINARY_OP(int())  //
       BIND_POD_BINARY_OP(int32_t())  //

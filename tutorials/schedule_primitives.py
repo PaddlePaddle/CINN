@@ -16,7 +16,7 @@ n = cinn.Expr(8)
 
 print(m, n)
 # get the integer contained in an integer expression
-print(m.as_int32())
+print(m.int())
 
 ##################################################################
 #
