@@ -19,6 +19,9 @@ endif()
 cc_library(__x86_source_fake_lib SRCS _x86_builtin_source.cc)
 add_subdirectory(llvm)
 
+if (WITH_CUDA)
+    nv_test(test_raw_cuda_code SRCS raw_cuda_code_test.cu DEPS core)
+endif()
 
 cc_test(test_codegen_c SRCS codegen_c_test.cc DEPS core ARGS ${global_test_args})
 cc_test(test_codegen_c_x86 SRCS codegen_c_x86_test.cc DEPS core ARGS ${global_test_args})
