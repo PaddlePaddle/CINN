@@ -1,5 +1,6 @@
 #include "tests/benchmark/test_utils.h"
 
+#include "cinn/common/cas.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -65,16 +66,12 @@ Module OpBenchmarkTester::CreateCinnModule(const std::vector<Tensor>& input_tens
       std::vector<Expr> output_shape_expr = temp.as_tensor_ref()->domain_without_reduce_axis();
       std::vector<int> output_shape;
       for (auto& shape : output_shape_expr) {
-        output_shape.push_back(shape.as_int32());
+        LOG(INFO) << shape;
+        output_shape.push_back(common::AutoSimplify(shape).as_int32());
       }
       output_shapes_.push_back(output_shape);
-    }
-    C = impl->fschedule(C);
-    for (int i = 0; i < C->size() - 1; i++) {
-      ir::Expr temp = C[i];
       rets.push_back(temp.as_tensor_ref());
     }
-
   } else {
     stages = CreateStages(input_tensors);
     outs   = CreateSpecificStrategy(input_tensors, &stages);

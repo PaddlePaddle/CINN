@@ -43,7 +43,7 @@ TEST(Operator, Operator_Pool2d_Test0) {
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 3UL);
+  ASSERT_EQ(rets.size(), 2UL);
   // the last element is a StageMap
   for (int i = 0; i < rets->size() - 1; i++) {
     Expr temp = rets[i];
@@ -99,7 +99,7 @@ TEST(Operator, Operator_Pool2d_Test1) {
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 3UL);
+  ASSERT_EQ(rets.size(), 2UL);
   // the last element is a StageMap
   for (int i = 0; i < rets->size() - 1; i++) {
     Expr temp = rets[i];
@@ -157,7 +157,7 @@ TEST(Operator, Operator_Pool2d_Test2) {
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 3UL);
+  ASSERT_EQ(rets.size(), 2UL);
   // the last element is a StageMap
   for (int i = 0; i < rets->size() - 1; i++) {
     Expr temp = rets[i];
@@ -216,7 +216,7 @@ TEST(Operator, Operator_Pool3d_Test0) {
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 3UL);
+  ASSERT_EQ(rets.size(), 2UL);
   // the last element is a StageMap
   for (int i = 0; i < rets->size() - 1; i++) {
     Expr temp = rets[i];
@@ -274,7 +274,7 @@ TEST(Operator, Operator_Pool1d_Test0) {
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
-  ASSERT_EQ(rets.size(), 3UL);
+  ASSERT_EQ(rets.size(), 2UL);
   // the last element is a StageMap
   for (int i = 0; i < rets->size() - 1; i++) {
     Expr temp = rets[i];
