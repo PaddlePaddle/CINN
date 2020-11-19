@@ -24,6 +24,37 @@ using ir::Min;
 using ir::Select;
 using ir::Tensor;
 
+void CudaScheduleConv(poly::StageMap stages,
+                      ir::Tensor input_pad,
+                      ir::Tensor kernel_dilation,
+                      ir::Tensor output,
+                      const common::Target &target) {
+  auto OL        = stages[output]->CacheWrite("local", stages);
+  auto AA        = stages[input_pad]->CacheRead("shared", {OL}, stages);
+  auto WW        = stages[kernel_dilation]->CacheRead("shared", {OL}, stages);
+  int num_thread = target.max_num_threads();
+  stages[output]->Fuse(0, 1);
+  auto [Block_x, Thread_x] = stages[output]->Split(0, num_thread);
+  stages[output]->Bind(0, "blockIdx.x");
+  stages[output]->Bind(1, "threadIdx.x");
+  stages[OL]->ComputeAt(stages[output], 1);
+  auto reduce_xyz = OL->reduce_axis;
+
+  int dimsA = stages[AA]->n_out_dims();
+  for (int i = 1; i < dimsA; i++) {
+    stages[AA]->Fuse(0, 1);
+  }
+  int dimsW = stages[WW]->n_out_dims();
+  for (int i = 1; i < dimsW; i++) {
+    stages[WW]->Fuse(0, 1);
+  }
+  stages[AA]->Split(0, num_thread);
+  stages[AA]->Bind(1, "threadIdx.x");
+  stages[WW]->Split(0, num_thread);
+  stages[WW]->Bind(1, "threadIdx.x");
+  return;
+}
+
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
   CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
   int dims = stage->n_out_dims();

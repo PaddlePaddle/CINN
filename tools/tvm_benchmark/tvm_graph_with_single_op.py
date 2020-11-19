@@ -33,9 +33,99 @@ def get_network_conv2d():
     return mod, params, input_shape, output_shape, input_names
 
 
+def get_network_conv2d_resnet1():
+    input_shape = [(2, 3, 224, 224), (64, 3, 7, 7)]
+    output_shape = (2, 64, 112, 112)
+    input_names = ["x", "y"]
+    x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
+    y = relay.Var(input_names[1], tvm.relay.TensorType(input_shape[1]))
+    print("[Test]Begin building graph with op relay.nn.conv2d resnet1")
+    mod = relay.Function([x, y],
+                         relay.nn.conv2d(
+                             x,
+                             y,
+                             kernel_size=(7, 7),
+                             padding=(3, 3),
+                             strides=(2, 2)))
+    params = []
+    return mod, params, input_shape, output_shape, input_names
+
+
+def get_network_conv2d_resnet2():
+    input_shape = [(2, 64, 56, 56), (64, 64, 3, 3)]
+    output_shape = (2, 64, 56, 56)
+    input_names = ["x", "y"]
+    x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
+    y = relay.Var(input_names[1], tvm.relay.TensorType(input_shape[1]))
+    print("[Test]Begin building graph with op relay.nn.conv2d resnet2")
+    mod = relay.Function([x, y],
+                         relay.nn.conv2d(
+                             x,
+                             y,
+                             kernel_size=(3, 3),
+                             padding=(1, 1),
+                             strides=(1, 1)))
+    params = []
+    return mod, params, input_shape, output_shape, input_names
+
+
+def get_network_conv2d_resnet3():
+    input_shape = [(2, 64, 56, 56), (64, 64, 1, 1)]
+    output_shape = (2, 64, 56, 56)
+    input_names = ["x", "y"]
+    x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
+    y = relay.Var(input_names[1], tvm.relay.TensorType(input_shape[1]))
+    print("[Test]Begin building graph with op relay.nn.conv2d resnet2")
+    mod = relay.Function([x, y],
+                         relay.nn.conv2d(
+                             x,
+                             y,
+                             kernel_size=(1, 1),
+                             padding=(0, 0),
+                             strides=(1, 1)))
+    params = []
+    return mod, params, input_shape, output_shape, input_names
+
+
+def get_network_conv2d_resnet4():
+    input_shape = [(2, 64, 56, 56), (128, 64, 1, 1)]
+    output_shape = (2, 128, 28, 28)
+    input_names = ["x", "y"]
+    x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
+    y = relay.Var(input_names[1], tvm.relay.TensorType(input_shape[1]))
+    print("[Test]Begin building graph with op relay.nn.conv2d resnet2")
+    mod = relay.Function([x, y],
+                         relay.nn.conv2d(
+                             x,
+                             y,
+                             kernel_size=(1, 1),
+                             padding=(0, 0),
+                             strides=(2, 2)))
+    params = []
+    return mod, params, input_shape, output_shape, input_names
+
+
+def get_network_conv2d_resnet5():
+    input_shape = [(2, 128, 28, 28), (256, 128, 3, 3)]
+    output_shape = (2, 256, 14, 14)
+    input_names = ["x", "y"]
+    x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
+    y = relay.Var(input_names[1], tvm.relay.TensorType(input_shape[1]))
+    print("[Test]Begin building graph with op relay.nn.conv2d resnet2")
+    mod = relay.Function([x, y],
+                         relay.nn.conv2d(
+                             x,
+                             y,
+                             kernel_size=(3, 3),
+                             padding=(1, 1),
+                             strides=(2, 2)))
+    params = []
+    return mod, params, input_shape, output_shape, input_names
+
+
 def get_network_relu():
-    input_shape = [(1024, 7)]
-    output_shape = (1024, 7)
+    input_shape = [(2, 512, 112, 112)]
+    output_shape = (2, 512, 112, 112)
     input_names = ["x"]
     x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
     print("[Test]Begin building graph with op relay.nn.relu")
@@ -45,8 +135,8 @@ def get_network_relu():
 
 
 def get_network_elementwise():
-    input_shape = [(4, 1024), (4, 1024)]
-    output_shape = (4, 1024)
+    input_shape = [(64, 64), (64, 64)]
+    output_shape = (64, 64)
     input_names = ["x", "y"]
     x = relay.Var(input_names[0], tvm.relay.TensorType(input_shape[0]))
     y = relay.Var(input_names[1], tvm.relay.TensorType(input_shape[1]))
@@ -96,14 +186,14 @@ def get_network_pool2d():
 
 
 def get_network_batchnorm():
-    data0 = relay.var("data0", relay.TensorType((2, 512, 7, 7), "float32"))
+    data0 = relay.var("data0", relay.TensorType((2, 512, 32, 32), "float32"))
     bn_gamma = relay.var("bn_gamma1", relay.TensorType((512, ), "float32"))
     bn_beta = relay.var("bn_beta1", relay.TensorType((512, ), "float32"))
     bn_mmean = relay.var("bn_mean1", relay.TensorType((512, ), "float32"))
     bn_mvar = relay.var("bn_var1", relay.TensorType((512, ), "float32"))
     bn = relay.nn.batch_norm(data0, bn_gamma, bn_beta, bn_mmean, bn_mvar)[0]
-    input_shape = [(2, 512, 7, 7), (512), (512), (512), (512)]
-    output_shape = (2, 512, 7, 7)
+    input_shape = [(2, 512, 32, 32), (512), (512), (512), (512)]
+    output_shape = (2, 512, 32, 32)
     input_names = ["data0", "bn_gamma1", "bn_beta1", "bn_mean1", "bn_var1"]
     print("[Test]Begin building graph with op relay.nn.batch_norm")
     mod = relay.Function([data0, bn_gamma, bn_beta, bn_mmean, bn_mvar], bn)
@@ -136,9 +226,8 @@ def tune_and_evaluate(func):
         module.set_input(input_names[index], data_temp)
     # evaluate
     evaluator_preheat = module.module.time_evaluator(
-        "run", ctx, number=50, repeat=50)
-    evaluator = module.module.time_evaluator(
-        "run", ctx, number=500, repeat=100)
+        "run", ctx, number=10, repeat=10)
+    evaluator = module.module.time_evaluator("run", ctx, number=100, repeat=10)
 
     prof_res1 = np.array(
         evaluator_preheat().results) * 1000  # convert to millisecond
@@ -150,10 +239,15 @@ def tune_and_evaluate(func):
           (np.mean(prof_res2), np.std(prof_res2)))
 
 
-#tune_and_evaluate(get_network_conv2d)
 #tune_and_evaluate(get_network_pool2d)
 #tune_and_evaluate(get_network_softmax)
 #tune_and_evaluate(get_network_matmul)
 #tune_and_evaluate(get_network_batchnorm)
 tune_and_evaluate(get_network_relu)
-tune_and_evaluate(get_network_elementwise)
+#tune_and_evaluate(get_network_elementwise)
+#tune_and_evaluate(get_network_conv2d_resnet1)
+#tune_and_evaluate(get_network_conv2d_resnet2)
+#tune_and_evaluate(get_network_conv2d_resnet3)
+#tune_and_evaluate(get_network_conv2d_resnet4)
+#tune_and_evaluate(get_network_conv2d_resnet5)
+#tune_and_evaluate(get_network_conv2d)

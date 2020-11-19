@@ -71,6 +71,7 @@ void BindFrontend(pybind11::module *m) {
       .def("elementwise_add", &Program::elementwise_add)
       .def("relu", &Program::relu)
       .def("relu6", &Program::relu6)
+      .def("sigmoid", &Program::sigmoid)
       .def("scale", &Program::scale)
       .def("conv2d", &Program::conv2d)
       .def("batchnorm", &Program::batchnorm)
