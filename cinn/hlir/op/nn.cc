@@ -196,11 +196,11 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     if (target.arch == Target::Arch::NVGPU) {
       Expr Out = arg_pack[2];
       CHECK(Out.as_tensor());
-      pe::CudaScheduleConv(
-          stages, input_pad.as_tensor_ref(), weights_dilation.as_tensor_ref(), Out.as_tensor_ref(), target);
-      // stages[Out.as_tensor_ref()]->Split(1, 2);
-      // stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      // stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      // pe::CudaScheduleConv(stages, input_pad.as_tensor_ref(), weights_dilation.as_tensor_ref(), Out.as_tensor_ref(),
+      // target);
+      stages[Out.as_tensor_ref()]->Split(1, 2);
+      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
     *ret = CINNValuePack{{arg_pack[2], CINNValue(stages)}};
   });

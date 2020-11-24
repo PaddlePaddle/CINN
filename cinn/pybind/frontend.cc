@@ -68,6 +68,7 @@ void BindFrontend(pybind11::module *m) {
       .def("__getitem__", [](Program &self, int idx) { return self[idx]; })
       .def("add", &Program::add)
       .def("mul", &Program::mul)
+      .def("mulbias", &Program::mulbias)
       .def("elementwise_add", &Program::elementwise_add)
       .def("relu", &Program::relu)
       .def("relu6", &Program::relu6)

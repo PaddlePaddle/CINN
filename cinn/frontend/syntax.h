@@ -173,6 +173,12 @@ struct Program {
   Variable mul(const Variable& a, const Variable& b, int x_num_col_dims = 1, int y_num_col_dims = 1);
 
   /**
+   * Multiply two matrix and add a bias.
+   */
+  Variable mulbias(
+      const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims = 1, int y_num_col_dims = 1);
+
+  /**
    * Add two tensors element-wise.
    */
   Variable elementwise_add(const Variable& a, const Variable& b, int axis = -1);

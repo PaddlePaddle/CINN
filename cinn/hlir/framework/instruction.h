@@ -44,22 +44,7 @@ class Instruction {
   void RunTest(int repeat_) {
     CHECK(fn_) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
     auto& pod_args = PreparePodArgs();
-    cinn::utils::Timer timer1, timer2;
-    for (int i = 0; i < 100; i++) {
-      fn_(pod_args.data(), pod_args.size());
-    }
-    timer1.Start();
-    for (int i = 0; i < repeat_; i++) {
-      fn_(pod_args.data(), pod_args.size());
-    }
-    // timer2.Start();
-    // CUDA_CALL(cudaDeviceSynchronize());
-    CUDA_CALL(cudaStreamSynchronize(static_cast<cudaStream_t>(nullptr)));
-    double test_op_time = timer1.Stop() / repeat_;
-
-    // double test_op_time2 = timer2.Stop();
-    LOG(INFO) << "Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
-    // LOG(INFO) << "cudaDeviceSynchronize time: [" << test_op_time2 << "] ms";
+    fn_(pod_args.data(), pod_args.size());
   }
 
   /**

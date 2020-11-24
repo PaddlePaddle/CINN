@@ -12,6 +12,11 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+void CudaScheduleMul(poly::StageMap stages,
+                     ir::Tensor output,
+                     const std::vector<int> &output_shape,
+                     const common::Target &target);
+
 void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor input_pad,
                       ir::Tensor kernel_dilation,

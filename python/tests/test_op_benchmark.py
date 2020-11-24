@@ -58,6 +58,91 @@ class TestBenchmark(unittest.TestCase):
             self.target, [a, b], tensor_data, c, 200,
             "TESTING [matmul] time cost with shape [512,512]...")
 
+    def test_matmul1(self):
+        prog = Program()
+        a = Variable("A").set_type(Float(32)).set_shape([512, 512])
+        b = Variable("B").set_type(Float(32)).set_shape([512, 512])
+        c = Variable("C").set_type(Float(32)).set_shape([512, 512])
+        d = prog.mulbias(a, b, c, 1, 1)
+        tensor_data = [
+            np.random.random([512, 512]).astype("float32"),
+            np.random.random([512, 512]).astype("float32"),
+            np.random.random([512, 512]).astype("float32")
+        ]
+        result = prog.test_benchmark(
+            self.target, [a, b, c], tensor_data, d, 200,
+            "TESTING [mulbias] time cost with shape [512,512]...")
+
+    def test_matmul2(self):
+        prog = Program()
+        a = Variable("A").set_type(Float(32)).set_shape([512, 512])
+        b = Variable("B").set_type(Float(32)).set_shape([512, 512])
+        c = Variable("C").set_type(Float(32)).set_shape([512, 512])
+        d = prog.mul(a, b, 1, 1)
+        e = prog.add(d, c)
+        tensor_data = [
+            np.random.random([512, 512]).astype("float32"),
+            np.random.random([512, 512]).astype("float32"),
+            np.random.random([512, 512]).astype("float32")
+        ]
+        result = prog.test_benchmark(
+            self.target, [a, b, c], tensor_data, e, 200,
+            "TESTING [mul and add] time cost with shape [512,512]...")
+
+    def test_matmul(self):
+        prog = Program()
+        a = Variable("A").set_type(Float(32)).set_shape([512, 512])
+        b = Variable("B").set_type(Float(32)).set_shape([512, 512])
+        c = Variable("C").set_type(Float(32)).set_shape([512, 512])
+        d = prog.mul(a, b, 1, 1)
+        # e = prog.add(d, c)
+        tensor_data = [
+            np.random.random([512, 512]).astype("float32"),
+            np.random.random([512, 512]).astype("float32")
+        ]
+        result = prog.test_benchmark_with_code(
+            self.target, [a, b], tensor_data, d, 200,
+            "TESTING [matmul] time cost with shape [512,512]...", '''
+            extern "C" {
+#include "cinn_cuda_runtime_source.cuh"
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+ __global__
+ void fn_mul_0_kernel(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ Mul_output)
+ {
+   const float* A_reshape = A;
+   const float* B_reshape = B;
+   float* Mul_output__reduce_init = Mul_output;
+   if ((blockIdx.x < 512)) {
+   {
+     if ((threadIdx.x < 256)) {
+     {
+       for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
+         Mul_output__reduce_init[((512 * blockIdx.x) + ((2 * threadIdx.x) + j_inner))] = 0;
+       };
+     }
+     };
+   }
+   };
+   if ((blockIdx.x < 512)) {
+   {
+     if ((threadIdx.x < 256)) {
+     {
+       for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
+        for (int32_t axis_k = 0; axis_k < 512; axis_k += 1) {
+          Mul_output[((512 * blockIdx.x) + ((2 * threadIdx.x) + j_inner))] = (Mul_output[((512 * blockIdx.x) + ((2 * threadIdx.x) + j_inner))] + (A_reshape[((512 * blockIdx.x) + axis_k)] * B_reshape[((512 * axis_k) + ((2 * threadIdx.x) + j_inner))])) + Mul_output[((512 * blockIdx.x) + ((2 * threadIdx.x) + j_inner))];
+         };
+       };
+     }
+     };
+  }
+  };
+ }
+ }''')
+
     def atest_pool2d(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([2, 64, 112, 112])
@@ -82,7 +167,7 @@ class TestBenchmark(unittest.TestCase):
             np.random.random([64, 64]).astype("float32")
         ]
         result = prog.test_benchmark(
-            self.target, [a, b], tensor_data, c, 100000,
+            self.target, [a, b], tensor_data, c, 200,
             "TESTING [elementwise_add] time cost with shape [64, 64]...")
         result = result.numpy(self.target).reshape(-1)
         self.assertTrue(
@@ -101,7 +186,7 @@ class TestBenchmark(unittest.TestCase):
             np.random.random([2, 512, 112, 112]).astype("float32")
         ]
         result = prog.test_benchmark(
-            self.target, [a, b], tensor_data, c, 1000,
+            self.target, [a, b], tensor_data, c, 200,
             "TESTING [elementwise_add] time cost with shape [2, 512, 112, 112]..."
         )
         result = result.numpy(self.target).reshape(-1)
@@ -169,7 +254,7 @@ void fn_elementwise_add_0_kernel(const float* __restrict__ A, const float* __res
             np.random.random([64]).astype("float32")
         ]
         result = prog.test_benchmark(
-            self.target, [a, b, c, d, e], tensor_data, f, 100000,
+            self.target, [a, b, c, d, e], tensor_data, f, 200,
             "TESTING [batchnorm] time cost with shape [2, 64, 8, 8]...")
 
     def test_relu3(self):
@@ -178,7 +263,7 @@ void fn_elementwise_add_0_kernel(const float* __restrict__ A, const float* __res
         c = prog.relu(a)
         tensor_data = [np.random.random([2, 512, 112, 112]).astype("float32")]
         result = prog.test_benchmark(
-            self.target, [a], tensor_data, c, 1000,
+            self.target, [a], tensor_data, c, 200,
             "TESTING [relu] time cost with shape [2,512,112,112]...")
 
     def test_relu(self):
@@ -187,7 +272,7 @@ void fn_elementwise_add_0_kernel(const float* __restrict__ A, const float* __res
         c = prog.sigmoid(a)
         tensor_data = [np.random.random([64, 64]).astype("float32")]
         result = prog.test_benchmark(
-            self.target, [a], tensor_data, c, 1000,
+            self.target, [a], tensor_data, c, 200,
             "TESTING [sigmoid] time cost with shape [64,64]...")
 
     def test_relu2(self):
@@ -196,7 +281,7 @@ void fn_elementwise_add_0_kernel(const float* __restrict__ A, const float* __res
         c = prog.sigmoid(a)
         tensor_data = [np.random.random([2, 512, 112, 112]).astype("float32")]
         result = prog.test_benchmark(
-            self.target, [a], tensor_data, c, 1000,
+            self.target, [a], tensor_data, c, 200,
             "TESTING [sigmoid] time cost with shape [2,512,112,112]...")
 
 
