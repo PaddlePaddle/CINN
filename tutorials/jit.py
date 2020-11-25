@@ -23,10 +23,10 @@ A = cinn.Placeholder("float32", "A", [m, k])
 B = cinn.Placeholder("float32", "B", [k, n])
 
 kr = cinn.Var(k.as_int32(), "kr")
-C = cinn.compute(
-    [m, n],
-    lambda v: cinn.reduce_sum(A(v[0], kr.expr()) * B(kr.expr(), v[1]), [kr]),
-    "C")
+C = cinn.compute([
+    m, n
+], lambda v: cinn.reduce_sum(A(v[0], kr.expr()) * B(kr.expr(), v[1]), [kr]),
+                 "C")
 
 stages = cinn.create_stages([C])
 

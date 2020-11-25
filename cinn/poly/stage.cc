@@ -684,5 +684,13 @@ Stage *_StageMap_::Lookup(const std::string &name) const {
   return it->second.get();
 }
 
+void cinn::poly::Stage::RFactor(Iterator axis) {
+  LOG(INFO) << "rfactor on " << axis;
+  int level = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, axis.id.c_str());
+  AssertAxisIsNotLocked(level);
+  LockAxis(level);
+  rfactor_axis_.insert(axis.id);
+}
+
 }  // namespace poly
 }  // namespace cinn

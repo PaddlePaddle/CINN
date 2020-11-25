@@ -81,8 +81,7 @@ def test_elementwise():
 def test_relu():
     input_shapes, out_shape = [(100, 32)], (100, 32)
     input_shapes1, out_shape1 = [(1024, 1024, 1024)], (1024, 1024, 1024)
-    input_shapes2, out_shape2 = [(1024, 14, 14)], (1024, 14,
-                                                                   14)
+    input_shapes2, out_shape2 = [(1024, 14, 14)], (1024, 14, 14)
     name = "relu"
 
     def compute(A):
@@ -161,7 +160,8 @@ def test_exp():
         return topi.exp(A)
 
     test_op(compute, input_shapes, out_shape, name=name)
-    test_op(compute, input_shapes1, out_shape1, name=name)   
+    test_op(compute, input_shapes1, out_shape1, name=name)
+
 
 def test_sigmoid():
     input_shapes, out_shape = [(2, 672, 1, 1)], (2, 672, 1, 1)

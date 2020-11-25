@@ -9,6 +9,7 @@
 #include <set>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -256,6 +257,11 @@ class Stage : public Object {
   Iterator Fuse(int level0, int level1);
   Iterator Fuse(const std::string& level0, const std::string& level1);
 
+  /**
+   * Split the reduce \p axis by extent of \p factor.
+   */
+  void RFactor(Iterator axis);
+
   const isl::set& domain() const { return domain_; }
   const isl::map& transform() const { return transform_; }
   isl::set transformed_domain() const;
@@ -283,12 +289,6 @@ class Stage : public Object {
   inline const ir::VectorizeInfo& vectorize_info() const { return vectorize_info_; }
   inline const std::set<int>& unroll_info() const { return unroll_info_; }
 
-  /*
-  const std::set<std::string>& extra_depend_stages() const { return extra_depend_stages_; }
-  void set_extra_depend_stages(const std::set<std::string>& x) { extra_depend_stages_ = x; }
-  void add_extra_depend_stage(const std::string& statement) { extra_depend_stages_.insert(statement); }
-   */
-
   const std::map<int /*level*/, StageForloopInfo>& forloop_infos() const { return forloop_infos_; }
 
   bool has_expression() const;
@@ -303,6 +303,8 @@ class Stage : public Object {
   inline int n_in_dims() const { return isl_map_dim(transform_.get(), isl_dim_in); }
   //! Get number of transform output dimensions, this equals to the number of dimensions of corresponding tensor.
   inline int n_out_dims() const { return isl_map_dim(transform_.get(), isl_dim_out); }
+
+  const std::set<std::string> rfactor_axis() const { return rfactor_axis_; }
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
@@ -344,6 +346,8 @@ class Stage : public Object {
   std::set<ir::Tensor> ctrl_depends_;
 
   std::set<int> locked_axis_;
+
+  std::set<std::string> rfactor_axis_;
 
   friend isl_map* __isl_give GatherAccesses(Stage* stage, const std::string& tensor_name);
   friend class PolyGroupScheduler;
