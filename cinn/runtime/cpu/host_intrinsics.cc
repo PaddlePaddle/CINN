@@ -13,6 +13,9 @@ using namespace std;
 #define CINN_IMP_CPU_FUNC_FP32(name__) \
   float cinn_cpu_##name__##_fp32(float a) { return name__(a); }
 
+#define CINN_IMP_CPU_FUNC_FP32_BOOL(name__) \
+  bool cinn_cpu_##name__##_fp32(float a) { return name__(a); }
+
 #define CINN_IMP_CPU_FUNC_INT_BINARY(name__, rule__) \
   int cinn_cpu_##name__##_int32(int a, int b) { return a rule__ b; }
 
@@ -40,10 +43,10 @@ CINN_IMP_CPU_FUNC_FP32(asin);
 CINN_IMP_CPU_FUNC_FP32(asinh);
 CINN_IMP_CPU_FUNC_FP32(atan);
 CINN_IMP_CPU_FUNC_FP32(atanh);
-CINN_IMP_CPU_FUNC_FP32(isnan);
+CINN_IMP_CPU_FUNC_FP32_BOOL(isnan);
 CINN_IMP_CPU_FUNC_FP32(tanh);
-CINN_IMP_CPU_FUNC_FP32(isfinite);
-CINN_IMP_CPU_FUNC_FP32(isinf);
+CINN_IMP_CPU_FUNC_FP32_BOOL(isfinite);
+CINN_IMP_CPU_FUNC_FP32_BOOL(isinf);
 
 CINN_IMP_CPU_FUNC_INT_BINARY(left_shift, <<);
 CINN_IMP_CPU_FUNC_INT_BINARY(right_shift, >>);
@@ -69,6 +72,9 @@ CINN_REGISTER_HELPER(host_intrinsics) {
 
 #define REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(func__) \
   REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_cpu_##func__##_fp32, host_target, float, float);
+
+#define REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT_BOOL(func__) \
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_cpu_##func__##_fp32, host_target, float, bool);
 
 #define REGISTER_EXTERN_FUNC_1_IN_1_OUT_INT(func__) \
   REGISTER_EXTERN_FUNC_1_IN_1_OUT(cinn_cpu_##func__##_int32, host_target, int, int);
@@ -97,10 +103,10 @@ CINN_REGISTER_HELPER(host_intrinsics) {
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(asinh);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(atan);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(atanh);
-  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isnan);
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT_BOOL(isnan);
   REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(tanh);
-  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isfinite);
-  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT(isinf);
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT_BOOL(isfinite);
+  REGISTER_EXTERN_FUNC_1_IN_1_OUT_FLOAT_BOOL(isinf);
 
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT(left_shift);
   REGISTER_EXTERN_FUNC_2_IN_1_OUT_INT(right_shift);

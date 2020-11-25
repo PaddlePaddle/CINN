@@ -2,7 +2,10 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/IR/Intrinsics.h>
 #include <llvm/Support/Casting.h>
+
+#include <string>
 
 #include "cinn/common/type.h"
 #include "cinn/ir/ir.h"
@@ -20,16 +23,15 @@ namespace cinn::ir {
   macro__(BufferCreate)                                  \
   macro__(GetAddr)                                       \
   macro__(ArgsConstruct)                                 \
+  macro__(UnaryIntrin)
 // clang-format on
 
-
 enum class IntrinsicKind {
-  // All the intrinsics should registered here.
-#define __(x__) k ## x__,
+// All the intrinsics should registered here.
+#define __(x__) k##x__,
   INTRINSIC_KIND_FOR_EACH(__)
 #undef __
 };
-
 
 class IntrinsicOp : public IrNode {
  public:
@@ -52,7 +54,7 @@ class IntrinsicOp : public IrNode {
   void Verify(llvm::ArrayRef<Expr> inputs, llvm::ArrayRef<Expr> outputs) const;
   void Verify(llvm::ArrayRef<Expr> inputs) const;
 
-  void Verify() const override { }
+  void Verify() const override {}
 
   const char* type_info() const override;
 
@@ -111,8 +113,7 @@ struct BufferGetDataConstHandle : public IntrinsicOp {
  */
 struct PodValueToX : public IntrinsicOp {
   // signature: (cinn_pod_value_t*) -> (X), X is some pod type.
-  PodValueToX()
-      : IntrinsicOp(IntrinsicKind::kPodValueToX, {type_of<cinn_pod_value_t*>()}, {}) {}
+  PodValueToX() : IntrinsicOp(IntrinsicKind::kPodValueToX, {type_of<cinn_pod_value_t*>()}, {}) {}
 
   static Expr Make(Expr pod_value_ptr, const Type& type);
 
@@ -126,7 +127,7 @@ struct PodValueToX : public IntrinsicOp {
  */
 struct BufferCreate : public IntrinsicOp {
   // signature: (cinn_buffer_t*) -> void
-  BufferCreate(): IntrinsicOp(IntrinsicKind::kBufferCreate, {type_of<cinn_buffer_t*>()}, {}) {}
+  BufferCreate() : IntrinsicOp(IntrinsicKind::kBufferCreate, {type_of<cinn_buffer_t*>()}, {}) {}
 
   static Expr Make(Expr buffer);
 
@@ -140,7 +141,7 @@ struct BufferCreate : public IntrinsicOp {
  */
 struct GetAddr : public IntrinsicOp {
   // signature: (X) -> (X*)
-  GetAddr(): IntrinsicOp(IntrinsicKind::kGetAddr, {}, {}) {}
+  GetAddr() : IntrinsicOp(IntrinsicKind::kGetAddr, {}, {}) {}
 
   static Expr Make(Expr data);
 
@@ -163,6 +164,22 @@ struct ArgsConstruct : public IntrinsicOp {
   llvm::SmallVector<Expr, 4> args;
 };
 
+/**
+ * The operation of unary computation
+ */
+struct UnaryIntrin : public IntrinsicOp {
+  UnaryIntrin() : IntrinsicOp(IntrinsicKind::kUnaryIntrin, {}, {}) {}
+
+  static Expr Make(
+      const std::string& name, llvm::ArrayRef<Expr> args, llvm::Intrinsic::ID id, int64_t arg_nums, const Type& type);
+
+  static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kUnaryIntrin; }
+
+  std::string name;
+  llvm::SmallVector<Expr, 4> args;
+  llvm::Intrinsic::ID id;
+  int64_t arg_nums;
+};
 
 }  // namespace intrinsics
 

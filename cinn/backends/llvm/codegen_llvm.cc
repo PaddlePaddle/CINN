@@ -2,10 +2,13 @@
 
 #include <glog/logging.h>
 #include <glog/stl_logging.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Metadata.h>
+#include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
@@ -78,8 +81,11 @@ int NextPowerOfTwo(int x) {
 
 }  // namespace
 
-CodeGenLLVM::CodeGenLLVM(llvm::Module *m, llvm::IRBuilder<> *b, const std::shared_ptr<SymbolTable> &symbol_table)
-    : m_(m), b_(b), symbol_table_(symbol_table) {
+CodeGenLLVM::CodeGenLLVM(llvm::Module *m,
+                         llvm::IRBuilder<> *b,
+                         const std::shared_ptr<SymbolTable> &symbol_table,
+                         const Target &target)
+    : m_(m), b_(b), symbol_table_(symbol_table), target_(target) {
   if (!symbol_table.get()) {
     symbol_table_ = std::make_shared<SymbolTable>();
   }
@@ -88,8 +94,7 @@ CodeGenLLVM::CodeGenLLVM(llvm::Module *m, llvm::IRBuilder<> *b, const std::share
   md_builder_        = std::make_unique<llvm::MDBuilder>(b_->getContext());
   md_tbaa_root_      = md_builder_->createTBAARoot("cinn-tbaa");
   md_tbaa_alias_set_ = md_builder_->createTBAANode("cinn-alias", md_tbaa_root_);
-
-  InitTarget(common::DefaultHostTarget());
+  InitTarget(target_);
 }
 
 CodeGenLLVM::~CodeGenLLVM() {}
@@ -1141,6 +1146,11 @@ llvm::Value *CodeGenLLVM::CreateVecSlice(llvm::Value *vec, int begin, int lanes)
 }
 
 void CodeGenLLVM::InitTarget(const Target &target) {
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmParsers();
+  llvm::InitializeAllAsmPrinters();
   switch (target.arch) {
     case Target::Arch::X86:
       if (target.bits == Target::Bit::k32) {
@@ -1281,6 +1291,104 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::ArgsConstruct *op) {
 
   auto *callee = m_->getFunction(runtime::intrisic::args_construct_repr);
   return Call(callee, std::move(args));
+}
+
+llvm::Function *CodeGenLLVM::GetIntrinsicDecl(llvm::Intrinsic::ID id,
+                                              llvm::Type *ret_type,
+                                              llvm::ArrayRef<llvm::Type *> arg_types) {
+  llvm::Module *module = m_;
+
+  if (!llvm::Intrinsic::isOverloaded(id)) {
+    return llvm::Intrinsic::getDeclaration(module, id, {});
+  }
+
+  llvm::SmallVector<llvm::Intrinsic::IITDescriptor, 4> infos;
+  llvm::Intrinsic::getIntrinsicInfoTableEntries(id, infos);
+  llvm::SmallVector<llvm::Type *, 4> overload_types;
+
+  auto try_match = [&](llvm::FunctionType *f_ty, bool var_arg) {
+    overload_types.clear();
+    llvm::ArrayRef<llvm::Intrinsic::IITDescriptor> ref(infos);
+    auto match = llvm::Intrinsic::matchIntrinsicSignature(f_ty, ref, overload_types);
+    if (match == llvm::Intrinsic::MatchIntrinsicTypes_Match) {
+      if (llvm::Intrinsic::matchIntrinsicVarArg(var_arg, ref)) {
+        return llvm::Intrinsic::MatchIntrinsicTypes_NoMatchArg;
+      }
+    }
+    return match;
+  };
+
+  auto *fn_ty = llvm::FunctionType::get(ret_type, arg_types, false);
+  switch (try_match(fn_ty, false)) {
+    case llvm::Intrinsic::MatchIntrinsicTypes_Match:
+      return llvm::Intrinsic::getDeclaration(module, id, overload_types);
+    case llvm::Intrinsic::MatchIntrinsicTypes_NoMatchRet:
+      return nullptr;
+    case llvm::Intrinsic::MatchIntrinsicTypes_NoMatchArg:
+      break;
+  }
+
+  // try matching the var arg signature.
+  llvm::SmallVector<llvm::Type *, 4> var_types;
+  for (int i = 0; i <= arg_types.size(); ++i) {
+    if (i > 0) {
+      var_types.push_back(arg_types[i - 1]);
+    }
+    auto *ft = llvm::FunctionType::get(ret_type, var_types, true);
+    if (try_match(ft, true) == llvm::Intrinsic::MatchIntrinsicTypes_Match) {
+      return llvm::Intrinsic::getDeclaration(module, id, overload_types);
+    }
+  }
+  return nullptr;
+}
+
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::UnaryIntrin *op) {
+  std::string func_name = op->name;
+  if (op->id == -1) {
+    if (func_name == "bitwise_and") {
+      CHECK_GE(op->args.size(), 2U);
+      return b_->CreateAnd(Visit(&op->args[0]), Visit(&op->args[1]));
+    } else if (func_name == "bitwise_or") {
+      CHECK_GE(op->args.size(), 2U);
+      return b_->CreateOr(Visit(&op->args[0]), Visit(&op->args[1]));
+    } else if (func_name == "bitwise_xor") {
+      CHECK_GE(op->args.size(), 2U);
+      return b_->CreateXor(Visit(&op->args[0]), Visit(&op->args[1]));
+    } else if (func_name == "bitwise_not") {
+      CHECK_GE(op->args.size(), 1U);
+      return b_->CreateNot(Visit(&op->args[0]));
+    } else if (func_name == "left_shift") {
+      CHECK_GE(op->args.size(), 2U);
+      return b_->CreateShl(Visit(&op->args[0]), Visit(&op->args[1]));
+    } else if (func_name == "right_shift") {
+      CHECK_GE(op->args.size(), 2U);
+      if (op->args[0]->type().is_int()) {
+        return b_->CreateAShr(Visit(&op->args[0]), Visit(&op->args[1]));
+      } else {
+        return b_->CreateLShr(Visit(&op->args[0]), Visit(&op->args[1]));
+      }
+    } else if (func_name == "isnan") {
+      CHECK_GE(op->args.size(), 1U);
+      llvm::Value *v = Visit(&op->args[0]);
+      return b_->CreateFCmpUNO(v, v);
+    }
+  }
+
+  llvm::Intrinsic::ID id = op->id;
+  int64_t num_signature  = op->arg_nums;
+  std::vector<llvm::Value *> arg_value;
+  std::vector<llvm::Type *> arg_type;
+  for (size_t i = 0; i < op->args.size(); ++i) {
+    arg_value.push_back(Visit(&op->args[i]));
+    if (i < static_cast<size_t>(num_signature)) {
+      arg_type.push_back(arg_value.back()->getType());
+    }
+  }
+  CHECK(!op->args.empty());
+  llvm::Type *return_type = CinnTypeToLLVMType(op->type(), m_);
+  llvm::Function *fn      = GetIntrinsicDecl(id, return_type, arg_type);
+  CHECK(fn) << "Cannot find intrinsic declaration, possible type mismatch: " << llvm::Intrinsic::getName(id, {});
+  return b_->CreateCall(fn, arg_value);
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *op) {

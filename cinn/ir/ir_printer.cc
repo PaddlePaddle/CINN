@@ -410,6 +410,20 @@ void IrPrinter::Visit(const intrinsics::ArgsConstruct *x) {
   os() << ")";
 }
 
+void IrPrinter::Visit(const intrinsics::UnaryIntrin *x) {
+  os_ << runtime::intrisic::unary_intrin_repr << "_";
+  os_ << x->name << "(";
+  if (!x->args.empty()) {
+    for (int i = 0; i < x->args.size() - 1; i++) {
+      Print(x->args[i]);
+      os_ << ", ";
+    }
+    Print(x->args.back());
+  }
+
+  os_ << ")";
+}
+
 std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);

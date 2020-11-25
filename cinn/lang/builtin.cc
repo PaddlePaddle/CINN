@@ -1,5 +1,9 @@
 #include "cinn/lang/builtin.h"
 
+#include <cmath>
+#include <limits>
+#include <utility>
+
 #include "cinn/cinn.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir.h"
@@ -51,10 +55,7 @@ EXTERN_CALL_IMP(Asin, asin);
 EXTERN_CALL_IMP(Asinh, asinh);
 EXTERN_CALL_IMP(Atan, atan);
 EXTERN_CALL_IMP(Atanh, atanh);
-EXTERN_CALL_IMP(Isnan, isnan);
 EXTERN_CALL_IMP(Tanh, tanh);
-EXTERN_CALL_IMP(Isfinite, isfinite);
-EXTERN_CALL_IMP(Isinf, isinf);
 
 Expr min_value(const Type& type) {
   CHECK_EQ(type.lanes(), 1);
@@ -90,6 +91,74 @@ Expr max_value(const Type& type) {
   CINN_NOT_IMPLEMENTED
   return Expr();
 }
+
+Expr Abs(Expr e) {
+  Type type      = e->type();
+  Type bool_type = Bool(type.lanes());
+  if (type.is_uint()) {
+    return e;
+  } else if (type.is_int()) {
+    auto node = e.As<ir::IntImm>();
+    if (node) {
+      return make_const(type, std::abs(node->value));
+    }
+    return ir::Select::Make(e > make_const(e->type(), 0), e, -e);
+  } else if (type.is_float()) {
+    auto node = e.As<ir::FloatImm>();
+    if (node) {
+      return make_const(type, std::fabs(node->value));
+    }
+    return CallExtern("fabs", {e});
+  }
+}
+
+Expr IsNan(Expr e) {
+  Type type = e->type();
+  // Type bool_type = Bool(type.lanes());
+  if (type.is_int() || type.is_uint()) {
+    return common::make_bool(false, type.lanes());
+  } else if (type.is_float()) {
+    auto* node = e.As<ir::FloatImm>();
+    if (node) {
+      return common::make_bool(std::isnan(node->value), type.lanes());
+    }
+    Expr arg = e;
+    if (type.bits() == 16) {
+      arg = ir::Cast::Make(Float(32), std::move(e));
+    }
+    return CallExtern("isnan", {arg});
+  } else {
+    LOG(FATAL) << type << "is not supported for isnan op.";
+    return e;
+  }
+}
+
+Expr Infinity(const Type& type) {
+  CHECK_EQ(type.lanes(), 1U);
+  if (type.is_float()) {
+    if (type.bits() == 64) {
+      return make_const(type, std::numeric_limits<double>::infinity());
+    } else if (type.bits() == 32 || type.bits() == 16) {
+      return make_const(type, std::numeric_limits<float>::infinity());
+    }
+  }
+  LOG(FATAL) << "Cannot decide infinity for type " << type;
+  return Expr();
+}
+
+Expr IsInf(Expr e) {
+  Type type = e->type();
+  if (type.is_int() || type.is_uint()) {
+    return common::make_bool(false, type.lanes());
+  } else if (type.is_float()) {
+    return common::make_bool(is_zero(Abs(e) - Infinity(type)), type.lanes()) && !IsNan(e);
+  } else {
+    LOG(FATAL) << type << "is not supported for isinf op.";
+    return e;
+  }
+}
+
+Expr IsFinite(Expr e) { return !IsInf(e) && !IsNan(e); }
 
 }  // namespace lang
 }  // namespace cinn

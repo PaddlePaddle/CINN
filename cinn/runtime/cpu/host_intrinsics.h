@@ -7,6 +7,7 @@
 extern "C" {
 
 #define CINN_DCL_CPU_FUNC_FP32(name__) float cinn_cpu_##name__##_fp32(float a);
+#define CINN_DCL_CPU_FUNC_FP32_BOOL(name__) bool cinn_cpu_##name__##_fp32(float a);
 #define CINN_DCL_CPU_FUNC_INT_UNARY(name__) int cinn_cpu_##name__##_int(int a);
 #define CINN_DCL_CPU_FUNC_INT_BINARY(name__) int cinn_cpu_##name__##_int(int a, int b);
 
@@ -31,10 +32,10 @@ CINN_DCL_CPU_FUNC_FP32(asin);
 CINN_DCL_CPU_FUNC_FP32(asinh);
 CINN_DCL_CPU_FUNC_FP32(atan);
 CINN_DCL_CPU_FUNC_FP32(atanh);
-CINN_DCL_CPU_FUNC_FP32(isnan);
+CINN_DCL_CPU_FUNC_FP32_BOOL(isnan);
 CINN_DCL_CPU_FUNC_FP32(tanh);
-CINN_DCL_CPU_FUNC_FP32(isfinite);
-CINN_DCL_CPU_FUNC_FP32(isinf);
+CINN_DCL_CPU_FUNC_FP32_BOOL(isfinite);
+CINN_DCL_CPU_FUNC_FP32_BOOL(isinf);
 
 CINN_DCL_CPU_FUNC_INT_BINARY(left_shift);
 CINN_DCL_CPU_FUNC_INT_BINARY(right_shift);

@@ -1,24 +1,36 @@
 #include "cinn/backends/extern_func_protos.h"
 
+#include <string>
+#include <vector>
+
 namespace cinn {
 namespace backends {
 
 ExternFunctionProtoRegistry::ExternFunctionProtoRegistry() {
-  static const std::vector<std::string> extern_funcs_fp32 = {
-      "exp",      "erf",   "sigmoid",    "sqrt",        "log",        "log2",        "log10",       "floor",
-      "ceil",     "round", "trunc",      "cos",         "cosh",       "tan",         "sin",         "sinh",
-      "acos",     "acosh", "asin",       "asinh",       "atan",       "atanh",       "isnan",       "tanh",
-      "isfinite", "isinf", "left_shift", "right_shift", "bitwise_or", "bitwise_and", "bitwise_xor", "bitwise_not"};
-  static const std::vector<std::string> extern_funcs_int64 = {
+  static const std::vector<std::string> extern_funcs_fp32_unary = {
+      "exp",  "erf", "sigmoid", "sqrt", "log",  "log2", "log10", "floor", "ceil",  "round", "trunc", "cos",
+      "cosh", "tan", "tanh",    "sin",  "sinh", "acos", "acosh", "asin",  "asinh", "atan",  "atanh", "fabs"};
+  static const std::vector<std::string> extern_funcs_bool_unary = {"isnan", "isfinite", "isinf"};
+  static const std::vector<std::string> extern_funcs_int_binary = {
       "left_shift", "right_shift", "bitwise_or", "bitwise_and", "bitwise_xor", "bitwise_not"};
-  for (int i = 0; i < extern_funcs_fp32.size(); ++i) {
-    auto* proto = new FunctionProto(extern_funcs_fp32[i], {Float(32)}, Float(32));
+  static const std::vector<std::string> extern_funcs_int_unary = {"bitwise_not"};
+  for (int i = 0; i < extern_funcs_fp32_unary.size(); ++i) {
+    auto* proto = new FunctionProto(extern_funcs_fp32_unary[i], {Float(32)}, Float(32));
     Register(proto->name, proto);
   }
-  for (int i = 0; i < extern_funcs_int64.size(); ++i) {
-    auto* proto = new FunctionProto(extern_funcs_int64[i], {Int(64)}, Int(64));
+  for (int i = 0; i < extern_funcs_bool_unary.size(); ++i) {
+    auto* proto = new FunctionProto(extern_funcs_bool_unary[i], {Float(32)}, Bool());
     Register(proto->name, proto);
   }
+  for (int i = 0; i < extern_funcs_int_binary.size(); ++i) {
+    auto* proto = new FunctionProto(extern_funcs_int_binary[i], {Int(32), Int(32)}, Int(32));
+    Register(proto->name, proto);
+  }
+  for (int i = 0; i < extern_funcs_int_unary.size(); ++i) {
+    auto* proto = new FunctionProto(extern_funcs_int_unary[i], {Int(32)}, Int(32));
+    Register(proto->name, proto);
+  }
+
   auto* n = detail::CreateTanhVProto();
   Register(n->name, n);
 }

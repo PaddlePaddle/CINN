@@ -13,6 +13,7 @@
 #include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/lower_function_call_bind_vars.h"
+#include "cinn/optim/lower_intrin.h"
 #include "cinn/optim/map_extern_call.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_const_param_to_integer.h"
@@ -60,11 +61,12 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   return copied;
 }
 
-ir::Module Optimize(const ir::Module& module) {
+ir::Module Optimize(const ir::Module& module, const Target& target) {
   auto copied = IRCopy(Expr(module));
 
   LowerFunctionCallBindVars(&copied);
   CallArgListToPodValue(&copied);
+  LowerIntrin(&copied, target);
 
   return copied.as_module_ref();
 }

@@ -27,19 +27,15 @@ void MapExternCall(Expr *e, Target target) {
     }
 
     void DealWithCpuIntrisics(ir::Call *node, Expr *expr) {
-      if (kExternFp32Calls.count(node->name)) {
+      if (kExternFp32CallsCPU.count(node->name)) {
         CHECK_GE(node->read_args.size(), 1UL);
         CHECK_EQ(node->read_args.front().type(), Float(32));
         *expr = lang::CallExtern("cinn_cpu_" + node->name + "_fp32", node->read_args);
-      } else if (kExternInt64Calls.count(node->name)) {
-        CHECK_GE(node->read_args.size(), 1UL);
-        CHECK_EQ(node->read_args.front().type(), Int(64));
-        *expr = lang::CallExtern("cinn_cpu_" + node->name + "_int64", node->read_args);
       }
     }
 
     void DealWithNvGpuIntrisics(ir::Call *node, Expr *expr) {
-      if (kExternFp32Calls.count(node->name)) {
+      if (kExternFp32CallsGPU.count(node->name)) {
         CHECK_GE(node->read_args.size(), 1UL);
         CHECK_EQ(node->read_args.front().type(), Float(32));
         *expr = lang::CallExtern("cinn_nvgpu_" + node->name + "_fp32", node->read_args);

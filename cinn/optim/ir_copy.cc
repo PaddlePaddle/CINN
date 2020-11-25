@@ -392,6 +392,9 @@ Expr IRCopyVisitor::Visit(const ir::intrinsics::ArgsConstruct* op) {
   }
   return intrinsics::ArgsConstruct::Make(op->var, args);
 }
+Expr IRCopyVisitor::Visit(const ir::intrinsics::UnaryIntrin* op) {
+  return intrinsics::UnaryIntrin::Make(op->name, op->args, op->id, op->arg_nums, op->type());
+}
 
 Expr IRCopy(Expr x) {
   IRCopyVisitor visitor;

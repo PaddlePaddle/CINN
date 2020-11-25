@@ -14,10 +14,10 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
-template <typename FuncOp>
+template <typename FuncOp, typename FuncRuntime>
 void TestElementwisePE(const std::string &fn_name,
                        const FuncOp &func_op,
-                       float (*fn_runtime)(float),
+                       const FuncRuntime fn_runtime,
                        int set_value = 0) {
   Expr M(100), N(32);
 
@@ -90,10 +90,10 @@ TEST_ELEMENTWISE_PE_FP32(asin, Asin)
 TEST_ELEMENTWISE_PE_FP32(asinh, Asinh)
 TEST_ELEMENTWISE_PE_FP32(atan, Atan)
 TEST_ELEMENTWISE_PE_FP32(atanh, Atanh)
-TEST_ELEMENTWISE_PE_FP32(isnan, Isnan)
+TEST_ELEMENTWISE_PE_FP32(isnan, IsNan)
 TEST_ELEMENTWISE_PE_FP32(tanh, Tanh)
-TEST_ELEMENTWISE_PE_FP32(isfinite, Isfinite)
-TEST_ELEMENTWISE_PE_FP32(isinf, Isinf)
+// TEST_ELEMENTWISE_PE_FP32(isfinite, IsFinite)
+TEST_ELEMENTWISE_PE_FP32(isinf, IsInf)
 
 }  // namespace pe
 }  // namespace hlir
