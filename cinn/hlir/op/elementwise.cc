@@ -18,47 +18,58 @@ using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
 using namespace pe;
+using PeFunc = std::function<ir::Tensor(const ir::Tensor &A, const std::string &out_name)>;
 
-#define StrategyForUnary(op_name__, pe__)                                                                \
-  std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                        \
-                                                const std::vector<ir::Tensor> &inputs,                   \
-                                                const std::vector<Type> &out_type,                       \
-                                                const std::vector<std::vector<int>> &output_shapes,      \
-                                                const Target &target) {                                  \
-    framework::CINNCompute unary_compute([&attrs](lang::Args args, lang::RetValue *ret) {                \
-      CHECK(!args.empty()) << "The input argument of " #op_name__ " compute is empty! Please check.\n";  \
-      CINNValuePack a = args[0];                                                                         \
-      CHECK_EQ(a.size(), 1U) << "1 input tensor for " #op_name__ " compute\n";                           \
-      Expr A_expr = a[0];                                                                                \
-      CHECK(A_expr.as_tensor());                                                                         \
-      ir::Tensor A = A_expr.as_tensor_ref();                                                             \
-      auto out     = pe__(A, UniqName(#op_name__ "_Out"));                                               \
-      auto stages  = CreateStages({A, out});                                                             \
-      *ret         = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};                     \
-    });                                                                                                  \
-                                                                                                         \
-    framework::CINNSchedule unary_schedule([=](lang::Args args, lang::RetValue *ret) {                   \
-      CHECK(!args.empty()) << "The input argument of " #op_name__ " schedule is empty! Please check.\n"; \
-      CINNValuePack arg_pack = args[0];                                                                  \
-      CHECK_EQ(arg_pack.size(), 2UL);                                                                    \
-      if (target.arch == Target::Arch::NVGPU) {                                                          \
-        Expr Out              = arg_pack[0];                                                             \
-        poly::StageMap stages = arg_pack[1];                                                             \
-        CHECK(Out.as_tensor());                                                                          \
-        pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());                        \
-        if (Out.as_tensor()->shape.size() > 1) {                                                         \
-          stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");                                            \
-          stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");                                           \
-        }                                                                                                \
-      }                                                                                                  \
-      *ret = arg_pack;                                                                                   \
-    });                                                                                                  \
-                                                                                                         \
-    auto strategy = std::make_shared<framework::OpStrategy>();                                           \
-    strategy->AddImpl(unary_compute, unary_schedule, "strategy." #op_name__ ".x86", 1);                  \
-                                                                                                         \
-    return strategy;                                                                                     \
+#define StrategyForUnary(op_name__, pe__)                                                            \
+  std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                    \
+                                                const std::vector<ir::Tensor> &inputs,               \
+                                                const std::vector<Type> &out_type,                   \
+                                                const std::vector<std::vector<int>> &output_shapes,  \
+                                                const Target &target) {                              \
+    return StrategyForElementwise(attrs, inputs, out_type, output_shapes, target, #op_name__, pe__); \
   }
+
+std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &attrs,
+                                                   const std::vector<ir::Tensor> &inputs,
+                                                   const std::vector<Type> &out_type,
+                                                   const std::vector<std::vector<int>> &output_shapes,
+                                                   const Target &target,
+                                                   const std::string &op_name,
+                                                   const PeFunc &pe_func) {
+  framework::CINNCompute unary_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK_EQ(a.size(), 1U) << "1 input tensor for " << op_name << " compute";
+    Expr A_expr = a[0];
+    CHECK(A_expr.as_tensor());
+    ir::Tensor A = A_expr.as_tensor_ref();
+    auto out     = pe_func(A, UniqName(op_name + "_Out"));
+    auto stages  = CreateStages({A, out});
+    *ret         = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule unary_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
+      if (Out.as_tensor()->shape.size() > 1) {
+        stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+        stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      }
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(unary_compute, unary_schedule, "strategy." + op_name + ".x86", 1);
+
+  return strategy;
+}
 
 std::vector<shape_t> InferShapeForElementwise(const std::vector<shape_t> &inputs_shape,
                                               const framework::NodeAttr &attrs) {
@@ -96,8 +107,10 @@ StrategyForUnary(atan, Atan);
 StrategyForUnary(atanh, Atanh);
 StrategyForUnary(tanh, Tanh);
 
-StrategyForUnary(isnan, IsNan) StrategyForUnary(isfinite, IsFinite) StrategyForUnary(isinf, IsInf)
-    StrategyForUnary(bitwise_not, BitwiseNot)
+StrategyForUnary(isnan, IsNan);
+StrategyForUnary(isfinite, IsFinite);
+StrategyForUnary(isinf, IsInf);
+StrategyForUnary(bitwise_not, BitwiseNot);
 
 }  // namespace op
 }  // namespace hlir

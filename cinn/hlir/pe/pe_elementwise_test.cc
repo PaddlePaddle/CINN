@@ -17,7 +17,7 @@ namespace pe {
 template <typename FuncOp, typename FuncRuntime>
 void TestElementwisePE(const std::string &fn_name,
                        const FuncOp &func_op,
-                       const FuncRuntime fn_runtime,
+                       const FuncRuntime &fn_runtime,
                        int set_value = 0) {
   Expr M(100), N(32);
 

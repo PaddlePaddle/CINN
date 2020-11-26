@@ -18,53 +18,65 @@ using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
 using namespace pe;
-#define StrategyForBinary(op_name__, pe__)                                                               \
-  std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                        \
-                                                const std::vector<ir::Tensor> &inputs,                   \
-                                                const std::vector<Type> &out_type,                       \
-                                                const std::vector<std::vector<int>> &output_shapes,      \
-                                                const Target &target) {                                  \
-    framework::CINNCompute binary_compute([&attrs](lang::Args args, lang::RetValue *ret) {               \
-      CHECK(!args.empty()) << "The input argument of " #op_name__ " compute is empty! Please check.\n";  \
-      CINNValuePack a = args[0];                                                                         \
-      CHECK_GE(a.size(), 2U) << "at least 2 input tensors for " #op_name__ " compute\n";                 \
-      Expr A_expr = a[0];                                                                                \
-      Expr B_expr = a[1];                                                                                \
-      CHECK(A_expr.as_tensor());                                                                         \
-      CHECK(B_expr.as_tensor());                                                                         \
-      ir::Tensor A = A_expr.as_tensor_ref();                                                             \
-      ir::Tensor B = B_expr.as_tensor_ref();                                                             \
-      Expr axis;                                                                                         \
-      bool trans_a;                                                                                      \
-      for (auto &iter : attrs.attr_store) {                                                              \
-        if (iter.first == "axis") {                                                                      \
-          axis = Expr(std::get<int>(iter.second));                                                       \
-        } else {                                                                                         \
-          LOG(ERROR) << "unsupported attr_store: " << iter.first << std::endl;                           \
-        }                                                                                                \
-      }                                                                                                  \
-      auto out    = pe__(A, B, UniqName(#op_name__ "_Out"), axis);                                       \
-      auto stages = CreateStages({A, B, out});                                                           \
-      *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};                      \
-    });                                                                                                  \
-                                                                                                         \
-    framework::CINNSchedule binary_schedule([=](lang::Args args, lang::RetValue *ret) {                  \
-      CHECK(!args.empty()) << "The input argument of " #op_name__ " schedule is empty! Please check.\n"; \
-      CINNValuePack arg_pack = args[0];                                                                  \
-      CHECK_EQ(arg_pack.size(), 2UL);                                                                    \
-      if (target.arch == Target::Arch::NVGPU) {                                                          \
-        Expr Out              = arg_pack[0];                                                             \
-        poly::StageMap stages = arg_pack[1];                                                             \
-        CHECK(Out.as_tensor());                                                                          \
-        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);            \
-      }                                                                                                  \
-      *ret = arg_pack;                                                                                   \
-    });                                                                                                  \
-                                                                                                         \
-    auto strategy = std::make_shared<framework::OpStrategy>();                                           \
-    strategy->AddImpl(binary_compute, binary_schedule, "strategy." #op_name__ ".x86", 1);                \
-    return strategy;                                                                                     \
+
+#define StrategyForBinary(op_name__, pe__)                                                          \
+  std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                   \
+                                                const std::vector<ir::Tensor> &inputs,              \
+                                                const std::vector<Type> &out_type,                  \
+                                                const std::vector<std::vector<int>> &output_shapes, \
+                                                const Target &target) {                             \
+    return StrategyForBroadcast(attrs, inputs, out_type, output_shapes, target, #op_name__, pe__);  \
   }
+
+std::shared_ptr<OpStrategy> StrategyForBroadcast(
+    const framework::NodeAttr &attrs,
+    const std::vector<ir::Tensor> &inputs,
+    const std::vector<Type> &out_type,
+    const std::vector<std::vector<int>> &output_shapes,
+    const Target &target,
+    const std::string &op_name,
+    ir::Tensor (*pe_func)(const ir::Tensor &A, const ir::Tensor &B, const std::string &output_name, const Expr &axis)) {
+  framework::CINNCompute binary_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for " << op_name << " compute";
+    Expr A_expr = a[0];
+    Expr B_expr = a[1];
+    CHECK(A_expr.as_tensor());
+    CHECK(B_expr.as_tensor());
+    ir::Tensor A = A_expr.as_tensor_ref();
+    ir::Tensor B = B_expr.as_tensor_ref();
+    Expr axis;
+    bool trans_a;
+    for (auto &iter : attrs.attr_store) {
+      if (iter.first == "axis") {
+        axis = Expr(std::get<int>(iter.second));
+      } else {
+        LOG(ERROR) << "unsupported attr_store: " << iter.first << std::endl;
+      }
+    }
+    auto out    = pe_func(A, B, UniqName(op_name + "_Out"), axis);
+    auto stages = CreateStages({A, B, out});
+    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule binary_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(binary_compute, binary_schedule, "strategy." + op_name + ".x86", 1);
+  return strategy;
+}
 
 std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_shape,
                                             const framework::NodeAttr &attrs) {

@@ -65,8 +65,8 @@ def test_op(func,
 
 def test_elementwise():
     input_shapes, out_shape = [(100, 32), (100, 32)], (100, 32)
-    input_shapes1, out_shape1 = [(1024, 1024, 1024),
-                                 (1024, 1024, 1024)], (1024, 1024, 1024)
+    # input_shapes1, out_shape1 = [(1024, 1024, 1024),
+    #                              (1024, 1024, 1024)], (1024, 1024, 1024)
     input_shapes2, out_shape2 = [(1024, 14, 14), (1024, 14, 14)], (1024, 14,
                                                                    14)
 
@@ -74,33 +74,30 @@ def test_elementwise():
         return topi.add(A, B)
 
     def compute_mul(A, B):
-        return topi.mul(A, B)
+        return topi.multiply(A, B)
 
     test_op(compute_add, input_shapes, out_shape, name="elementwise_add")
-
-
-#     test_op(compute_add, input_shapes1, out_shape1, name="elementwise_add")
-#     test_op(compute_add, input_shapes2, out_shape2, name="elementwise_add")
-#     test_op(compute_mul, input_shapes, out_shape, name="elementwise_mul")
-#     test_op(compute_mul, input_shapes1, out_shape1, name="elementwise_mul")
-#     test_op(compute_mul, input_shapes2, out_shape2, name="elementwise_mul")
+    # test_op(compute_add, input_shapes1, out_shape1, name="elementwise_add")
+    test_op(compute_add, input_shapes2, out_shape2, name="elementwise_add")
+    test_op(compute_mul, input_shapes, out_shape, name="elementwise_mul")
+    # test_op(compute_mul, input_shapes1, out_shape1, name="elementwise_mul")
+    test_op(compute_mul, input_shapes2, out_shape2, name="elementwise_mul")
 
 
 def test_relu():
     input_shapes, out_shape = [(2, 512, 7, 7)], (2, 512, 7, 7)
-    # input_shapes, out_shape = [(100,32)], (100,32)
-    # input_shapes1, out_shape1 = [(1024, 1024, 1024),(1024, 1024, 1024)], (1024, 1024, 1024)
-    # input_shapes2, out_shape2 = [(1024, 14, 14),(1024, 14, 14)], (1024, 14, 14)
+    input_shapes1, out_shape1 = [(1024, 1024, 1024)], (1024, 1024, 1024)
+    input_shapes2, out_shape2 = [(1024, 14, 14)], (1024, 14, 14)
+    input_shapes3, out_shape3 = [(100, 32)], (100, 32)
     name = "relu"
 
     def compute(A):
         return topi.nn.relu(A)
 
     test_op(compute, input_shapes, out_shape, name=name)
-
-
-#     test_op(compute, input_shapes1, out_shape1, name=name)
-#     test_op(compute, input_shapes2, out_shape2, name=name)
+    test_op(compute, input_shapes1, out_shape1, name=name)
+    test_op(compute, input_shapes2, out_shape2, name=name)
+    test_op(compute, input_shapes3, out_shape3, name=name)
 
 
 def test_conv2d_nchw():
@@ -159,15 +156,13 @@ def test_softmax():
         return topi.nn.softmax(A)
 
     test_op(compute, input_shapes, out_shape, name=name)
-
-
-#     test_op(compute, input_shapes1, out_shape1, name=name)
+    test_op(compute, input_shapes1, out_shape1, name=name)
 
 
 def test_unary():
     input_shapes, out_shape = [(1024, 2048)], (1024, 2048)
-    # input_shapes, out_shape = [(1024,2047)], (1024,2047)
     input_shapes1, out_shape1 = [(3, 1000)], (3, 1000)
+    input_shapes2, out_shape2 = [(1024, 2047)], (1024, 2047)
 
     def test_unary_basic(name, func):
         def compute(A):
@@ -175,6 +170,7 @@ def test_unary():
 
         test_op(compute, input_shapes, out_shape, name=name)
         test_op(compute, input_shapes1, out_shape1, name=name)
+        test_op(compute, input_shapes2, out_shape2, name=name)
 
     for opfunc in [
             topi.exp,
@@ -206,8 +202,8 @@ def test_unary():
 
 def test_bitwise_not():
     input_shapes, out_shape = [(1024, 2048)], (1024, 2048)
-    # input_shapes, out_shape = [(1024,2047)], (1024,2047)
     input_shapes1, out_shape1 = [(3, 1000)], (3, 1000)
+    input_shapes2, out_shape2 = [(1024, 2047)], (1024, 2047)
     type = ["int32", "int32", "int32"]
 
     def test_unary_basic(name, func):
@@ -216,6 +212,7 @@ def test_bitwise_not():
 
         test_op(compute, input_shapes, out_shape, name=name, dtype=type)
         test_op(compute, input_shapes1, out_shape1, name=name, dtype=type)
+        test_op(compute, input_shapes2, out_shape2, name=name, dtype=type)
 
     for opfunc in [
             topi.bitwise_not,
@@ -225,8 +222,8 @@ def test_bitwise_not():
 
 def test_bitwise_binary():
     input_shapes, out_shape = [(1024, 2048), (1024, 2048)], (1024, 2048)
-    # input_shapes, out_shape = [(1024,2047)], (1024,2047)
     input_shapes1, out_shape1 = [(3, 1000), (3, 1000)], (3, 1000)
+    input_shapes2, out_shape2 = [(1024, 2047), (1024, 2047)], (1024, 2047)
     type = ["int32", "int32", "int32"]
 
     def test_binary_basic(name, func):
@@ -235,6 +232,7 @@ def test_bitwise_binary():
 
         test_op(compute, input_shapes, out_shape, name=name, dtype=type)
         test_op(compute, input_shapes1, out_shape1, name=name, dtype=type)
+        test_op(compute, input_shapes2, out_shape2, name=name, dtype=type)
 
     for opfunc in [
             topi.bitwise_or,
@@ -260,16 +258,18 @@ def test_sigmoid():
 
 def test_matmul():
     input_shapes, out_shape = [(32, 32), (32, 32)], (32, 32)
-    # input_shapes, out_shape = [(512,512), (512,512)], (512,512)
-    # input_shapes, out_shape = [(1024,1024),(1024,1024)], (1024,1024)
-    # input_shapes1, out_shape1 = [(100,32), (32,100)], (100,100)
+    input_shapes1, out_shape1 = [(512, 512), (512, 512)], (512, 512)
+    # input_shapes2, out_shape2 = [(1024,1024),(1024,1024)], (1024,1024)
+    input_shapes3, out_shape3 = [(100, 32), (32, 100)], (100, 100)
     name = "matmul"
 
     def compute(A, B):
         return topi.matmul(A, B, False, False)
 
     test_op(compute, input_shapes, out_shape, name=name)
-    # test_op(compute, input_shapes1, out_shape1, name=name)
+    test_op(compute, input_shapes1, out_shape1, name=name)
+    # test_op(compute, input_shapes2, out_shape2, name=name)
+    test_op(compute, input_shapes3, out_shape3, name=name)
 
 
 # batch_norm
