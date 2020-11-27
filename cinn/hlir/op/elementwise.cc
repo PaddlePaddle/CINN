@@ -112,12 +112,14 @@ StrategyForUnary(isfinite, IsFinite);
 StrategyForUnary(isinf, IsInf);
 StrategyForUnary(bitwise_not, BitwiseNot);
 
+#undef StrategyForUnary
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(elementwise_ops) {
-#define CINN_REGISTER(op__, op_stragegy__)                                                                           \
+#define CINN_REGISTER_UNARY(op__, op_stragegy__)                                                                     \
   CINN_REGISTER_OP(op__)                                                                                             \
       .describe(#op__ " function")                                                                                   \
       .set_num_inputs(1)                                                                                             \
@@ -127,33 +129,34 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForElementwise))                               \
       .set_support_level(4);
 
-  CINN_REGISTER(exp, Exp);
-  CINN_REGISTER(erf, Erf);
-  CINN_REGISTER(sqrt, Sqrt);
-  CINN_REGISTER(log, Log);
-  CINN_REGISTER(log2, Log2);
-  CINN_REGISTER(log10, Log10);
-  CINN_REGISTER(floor, Floor);
-  CINN_REGISTER(ceil, Ceil);
-  CINN_REGISTER(round, Round);
-  CINN_REGISTER(trunc, Trunc);
-  CINN_REGISTER(cos, Cos);
-  CINN_REGISTER(cosh, Cosh);
-  CINN_REGISTER(tan, Tan);
-  CINN_REGISTER(sin, Sin);
-  CINN_REGISTER(sinh, Sinh);
-  CINN_REGISTER(acos, Acos);
-  CINN_REGISTER(acosh, Acosh);
-  CINN_REGISTER(asin, Asin);
-  CINN_REGISTER(asinh, Asinh);
-  CINN_REGISTER(atan, Atan);
-  CINN_REGISTER(atanh, Atanh);
-  CINN_REGISTER(tanh, Tanh);
+  CINN_REGISTER_UNARY(exp, Exp);
+  CINN_REGISTER_UNARY(erf, Erf);
+  CINN_REGISTER_UNARY(sqrt, Sqrt);
+  CINN_REGISTER_UNARY(log, Log);
+  CINN_REGISTER_UNARY(log2, Log2);
+  CINN_REGISTER_UNARY(log10, Log10);
+  CINN_REGISTER_UNARY(floor, Floor);
+  CINN_REGISTER_UNARY(ceil, Ceil);
+  CINN_REGISTER_UNARY(round, Round);
+  CINN_REGISTER_UNARY(trunc, Trunc);
+  CINN_REGISTER_UNARY(cos, Cos);
+  CINN_REGISTER_UNARY(cosh, Cosh);
+  CINN_REGISTER_UNARY(tan, Tan);
+  CINN_REGISTER_UNARY(sin, Sin);
+  CINN_REGISTER_UNARY(sinh, Sinh);
+  CINN_REGISTER_UNARY(acos, Acos);
+  CINN_REGISTER_UNARY(acosh, Acosh);
+  CINN_REGISTER_UNARY(asin, Asin);
+  CINN_REGISTER_UNARY(asinh, Asinh);
+  CINN_REGISTER_UNARY(atan, Atan);
+  CINN_REGISTER_UNARY(atanh, Atanh);
+  CINN_REGISTER_UNARY(tanh, Tanh);
 
-  CINN_REGISTER(isnan, IsNan)
-  CINN_REGISTER(isfinite, IsFinite)
-  CINN_REGISTER(isinf, IsInf)
-  CINN_REGISTER(bitwise_not, BitwiseNot)
+  CINN_REGISTER_UNARY(isnan, IsNan)
+  CINN_REGISTER_UNARY(isfinite, IsFinite)
+  CINN_REGISTER_UNARY(isinf, IsInf)
+  CINN_REGISTER_UNARY(bitwise_not, BitwiseNot)
+#undef CINN_REGISTER_UNARY
 
   return true;
 }

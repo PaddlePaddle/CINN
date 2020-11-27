@@ -488,7 +488,7 @@ TEST(CodeGenC, call_extern) {
   Placeholder<float> x("x", {M});
 
   ir::Tensor y = Compute(
-      {M}, [=](Var i) -> Expr { return lang::CallExtern("cinn_cpu_tanh_fp32", {x(i)}); }, "y");
+      {M}, [=](Var i) -> Expr { return lang::CallExtern("tanh", {x(i)}); }, "y");
 
   auto stages = CreateStages({y});
 

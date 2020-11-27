@@ -167,12 +167,14 @@ StrategyForBinary(bitwise_and, BitwiseAnd);
 StrategyForBinary(left_shift, LeftShift);
 StrategyForBinary(right_shift, RightShift);
 
+#undef StrategyForBinary
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(broadcast_ops) {
-#define CINN_REGISTER(op__, op_stragegy__)                                                                           \
+#define CINN_REGISTER_BINARY(op__, op_stragegy__)                                                                    \
   CINN_REGISTER_OP(op__)                                                                                             \
       .describe(#op__ " function")                                                                                   \
       .set_num_inputs(1)                                                                                             \
@@ -182,14 +184,15 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBroadcast))                                 \
       .set_support_level(4);
 
-  CINN_REGISTER(elementwise_add, Add);
-  CINN_REGISTER(elementwise_mul, Multiply);
+  CINN_REGISTER_BINARY(elementwise_add, Add);
+  CINN_REGISTER_BINARY(elementwise_mul, Multiply);
 
-  CINN_REGISTER(bitwise_or, BitwiseOr);
-  CINN_REGISTER(bitwise_xor, BitwiseXor);
-  CINN_REGISTER(bitwise_and, BitwiseAnd);
-  CINN_REGISTER(left_shift, LeftShift);
-  CINN_REGISTER(right_shift, RightShift);
+  CINN_REGISTER_BINARY(bitwise_or, BitwiseOr);
+  CINN_REGISTER_BINARY(bitwise_xor, BitwiseXor);
+  CINN_REGISTER_BINARY(bitwise_and, BitwiseAnd);
+  CINN_REGISTER_BINARY(left_shift, LeftShift);
+  CINN_REGISTER_BINARY(right_shift, RightShift);
+#undef CINN_REGISTER_BINARY
 
   CINN_REGISTER_OP(scale)
       .describe("Putting scale and bias to the input Tensor")
