@@ -742,5 +742,16 @@ void Block::Verify() const {}
 
 void PrimitiveNode::Verify() const {}
 
+Expr Provide::Make(ir::Buffer buffer, Expr body) {
+  auto *n   = common::make_shared<Provide>();
+  n->buffer = buffer;
+  n->body   = body;
+}
+
+void Provide::Verify() const {
+  CHECK(buffer.as_buffer());
+  CHECK(body.defined());
+}
+
 }  // namespace ir
 }  // namespace cinn

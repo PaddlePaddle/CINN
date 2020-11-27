@@ -369,5 +369,16 @@ Expr min(Expr a, Expr b) {
   return ir::Min::Make(a, b);
 }
 
+std::tuple<ir::IrNodeTy, Expr> BinaryArithEqualGetBody(const ir::Store *e) {
+  auto op0  = e->tensor;
+  auto op0_as_load = ir::Load::Make(op0, e->indices);
+  auto body = e->value;
+  LOG(INFO) << "body: " << body;
+  LOG(INFO) << "body0: " << body->operand(0);
+  LOG(INFO) << "body1: " << body->operand(1);
+  if (op0_as_load != body->operand(0)) return std::make_tuple(body->node_type(), Expr());
+  return std::make_tuple(body->node_type(), body->operand(1));
+}
+
 }  // namespace common
 }  // namespace cinn

@@ -1,9 +1,12 @@
 #pragma once
-
 #include "cinn/ir/ir.h"
 
 namespace cinn::optim {
 
-void RFactorRewrite(Expr* e, poly::StageMap stages);
+/**
+ * Expand the Reduce Nodes to Stores.
+ * @param e
+ */
+void ExpandReduce(Expr* e);
 
 }  // namespace cinn::optim

@@ -687,49 +687,6 @@ TEST(isl, test1) {
   LOG(INFO) << "code:\n\n" << isl_ast_node_to_C_str(node);
 }
 
-/*
-// C[i,j] += A(i,k) * B(k,j)
-
-for (i, 10) {
-  for (j, 20) {
-    C__reduce_init[i, j] = 0
-  }
-}
-for (i, 10) {
-  for (j, 20) {
-    for (k0_outer, 2) {
-      for (k0_inner, (1 + cinn_min(15, (29 + (-16 * k0_outer))))) {
-        C[i, j] = (C[i, j] + (A[i, ((16 * k0_outer) + k0_inner)] * B[((16 * k0_outer) + k0_inner), j]))
-      }
-    }
-  }
-}
-
-To something like
-
-for (i, 16) {
-  for (j, 32) {
-    C__reduce_init[i, j] = 0
-  }
-}
-for (i, 16) {
-  for (j, 32) {
-    for (k0_outer, 3) {
-      for (k0_inner, 16) { // init to zero
-        C.rt[k0_inner] = 0.f;
-      }
-      for (k0_inner, 16)
-      {
-        C.rt[k0_inner] = C.rt[k0_inner] + (A[i, ((16 * k0_outer) + k0_inner)] * B[((16 * k0_outer) + k0_inner), j]))
-        //C[i, j] = (C[i, j] + (A[i, ((16 * k0_outer) + k0_inner)] * B[((16 * k0_outer) + k0_inner), j]))
-      }
-      for (k0_inner, 16) {
-        C[i, j] += C.rt[k0_inner];
-      }
-    }
-  }
-}
-*/
 TEST(Stage, RFactor) {
   Expr M(16), N(32), K(48);
   Placeholder<float> A("A", {M, K});
@@ -748,9 +705,6 @@ TEST(Stage, RFactor) {
 
   LOG(INFO) << fn;
 
-  Var mm(M, "mm");
-  Var nn(N, "nn");
-  Var kk(N, "kk");
 }
 
 }  // namespace poly

@@ -854,6 +854,23 @@ struct _Module_ : public ExprNode<_Module_> {
 };
 
 /**
+ * Provide a temporary tensor. We use this to create temporary tensor after polyhderal schedule.
+ * This always need to create a local buffer.
+ */
+struct Provide : public ExprNode<Provide> {
+  // The buffer of the tensor.
+  Expr buffer;
+
+  // The body of the computation for the tensor.
+  Expr body;
+
+  static Expr Make(ir::Buffer buffer, Expr body);
+
+  void Verify() const override;
+  static const IrNodeTy _node_type_ = IrNodeTy::_Module_;
+};
+
+/**
  * \brief PrimitiveNode holds the contept of Primitive in CINN.
  * A Primitive is a basic Call to some Expr function, it is introduced to create several level of coarsed-grained IR
  * nodes for better IR optimization and hardware adaption.

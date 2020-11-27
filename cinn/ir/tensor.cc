@@ -123,7 +123,7 @@ void _Tensor_::InitAxis() const {
 }
 
 bool _Tensor_::has_expression() const {
-  return (!is_placeholder_node()) && (!is_tuple_get()) && (!is_buffer_shared_node());
+  return (!is_placeholder_node()) && (!is_tuple_get()) && (!is_buffer_shared_node()) && body().defined();
 }
 
 isl::set _Tensor_::GenerateIslDomain() const {
@@ -212,7 +212,7 @@ Expr _Tensor_::body() const {
   if (is_buffer_shared_node()) return Expr();
   if (is_compute_node()) return operation->as<ir::ComputeOp>()->body.front();
   if (is_call_node()) return operation->as<ir::CallOp>()->call_expr;
-  CINN_NOT_IMPLEMENTED;
+  return Expr();
 }
 
 Expr *_Tensor_::mutable_body() {

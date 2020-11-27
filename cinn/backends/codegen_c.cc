@@ -690,6 +690,11 @@ void CodeGenC::PrintBuiltinCodes() {
   os() << source << "\n";
 }
 
+void CodeGenC::Visit(const ir::Provide *op) {
+  // This should not implement.
+  CINN_NOT_IMPLEMENTED
+}
+
 namespace detail {
 
 Expr StridedRampBase(Expr e, int stride) {
@@ -702,7 +707,6 @@ Expr StridedRampBase(Expr e, int stride) {
 }
 
 }  // namespace detail
-
 }  // namespace backends
 
 DEFINE_string(cinn_x86_builtin_code_root, "", "");

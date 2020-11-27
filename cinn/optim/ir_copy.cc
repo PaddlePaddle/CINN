@@ -332,6 +332,13 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr(n);
   }
 
+  Expr Visit(const ir::Provide* op) override {
+    auto n    = common::make_shared<ir::Provide>();
+    n->body   = Visit(&op->body);
+    n->buffer = Visit(&op->buffer);
+    return Expr(n);
+  }
+
 #define __(x__) Expr Visit(const ir::intrinsics::x__* op);
   INTRINSIC_KIND_FOR_EACH(__)
 #undef __

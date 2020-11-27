@@ -113,5 +113,15 @@ Expr FoldExpr(FuncOp func_op, const std::vector<Expr> &values) {
   return init_value;
 }
 
+/**
+ * Get the body of a `+=` or `-=` right operand.
+ *
+ * e.g.
+ *
+ * A = A + B, will get B
+ * A = min(A, B) will get B also
+ */
+std::tuple<ir::IrNodeTy, Expr> BinaryArithEqualGetBody(const ir::Store* e);
+
 }  // namespace common
 }  // namespace cinn

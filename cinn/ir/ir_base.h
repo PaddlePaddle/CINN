@@ -88,6 +88,7 @@ class Var;
   macro__(Product)                          \
   macro__(Sum)                              \
   macro__(PrimitiveNode)                    \
+  macro__(Provide)                          \
   macro__(IntrinsicOp)                      \
 
 #define NODETY_FORALL(__m)              \
@@ -129,6 +130,15 @@ class IrNode : public common::Object {
   virtual IrNodeTy node_type() const { return IrNodeTy::kUnk; }
   virtual Type type() const { return type_; }
   void set_type(Type type) { type_ = type; }
+
+  Expr& operand(int i) {
+    CHECK_LT(i, operands.size());
+    return operands[i];
+  }
+  const Expr& operand(int i) const {
+    CHECK_LT(i, operands.size());
+    return operands[i];
+  }
 
   //! Gather all the expression fields in this node for easier visit and mutate.
   virtual std::vector<Expr*> expr_fields() { return {}; }
@@ -185,17 +195,10 @@ struct ExprNode : public IrNode {
   T* self() { return static_cast<T*>(this); }
   const T* const_self() const { return dynamic_cast<const T*>(this); }
 
+  using IrNode::operand;
+
   const std::vector<Expr>& operands() const { return IrNode::operands; }
   std::vector<Expr>& operands() { return IrNode::operands; }
-
-  Expr& operand(int i) {
-    CHECK_LT(i, operands().size());
-    return operands()[i];
-  }
-  const Expr& operand(int i) const {
-    CHECK_LT(i, operands().size());
-    return operands()[i];
-  }
 
   virtual Expr Copy() const;
 

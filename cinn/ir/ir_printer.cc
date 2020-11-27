@@ -410,6 +410,12 @@ void IrPrinter::Visit(const intrinsics::ArgsConstruct *x) {
   os() << ")";
 }
 
+void IrPrinter::Visit(const Provide *x) {
+  os() << "Provide(" << x->buffer << ") {\n";
+  Print(x->body);
+  os() << "\n}";
+}
+
 std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);

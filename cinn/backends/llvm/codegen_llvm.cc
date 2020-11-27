@@ -1309,5 +1309,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *op) {
   return Call(callee, std::vector<llvm::Value *>({value}), "pod_value_cast");
 }
 
+llvm::Value *CodeGenLLVM::Visit(const ir::Provide *) { CINN_NOT_IMPLEMENTED }
+
 }  // namespace backends
 }  // namespace cinn

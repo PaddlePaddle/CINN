@@ -269,5 +269,12 @@ void IRMutator<T>::Visit(const IntrinsicOp *expr, T op) {
   }
 }
 
+template <typename T>
+void IRMutator<T>::Visit(const Provide *op, T expr) {
+  auto *node = expr->template As<Provide>();
+  Visit(&node->buffer, &node->buffer);
+  Visit(&node->body, &node->body);
+}
+
 }  // namespace ir
 }  // namespace cinn
