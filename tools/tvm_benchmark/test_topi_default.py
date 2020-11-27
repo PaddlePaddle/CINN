@@ -200,6 +200,28 @@ def test_unary():
         test_unary_basic(str(opfunc), opfunc)
 
 
+def test_is():
+    input_shapes, out_shape = [(1024, 2048)], (1024, 2048)
+    input_shapes1, out_shape1 = [(3, 1000)], (3, 1000)
+    input_shapes2, out_shape2 = [(1024, 2047)], (1024, 2047)
+    type = ["float32", "bool"]
+
+    def test_is_basic(name, func):
+        def compute(A):
+            return func(A)
+
+        test_op(compute, input_shapes, out_shape, name=name, dtype=type)
+        test_op(compute, input_shapes1, out_shape1, name=name, dtype=type)
+        test_op(compute, input_shapes2, out_shape2, name=name, dtype=type)
+
+    for opfunc in [
+            topi.isnan,
+            topi.isfinite,
+            topi.isinf,
+    ]:
+        test_is_basic(str(opfunc), opfunc)
+
+
 def test_bitwise_not():
     input_shapes, out_shape = [(1024, 2048)], (1024, 2048)
     input_shapes1, out_shape1 = [(3, 1000)], (3, 1000)
@@ -296,6 +318,7 @@ if __name__ == "__main__":
     test_pool2d()
     test_softmax()
     test_unary()
+    test_is()
     test_bitwise_not()
     test_bitwise_binary()
     test_sigmoid()

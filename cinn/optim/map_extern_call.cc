@@ -30,7 +30,8 @@ void MapExternCall(Expr *e, Target target) {
       if (kExternFp32CallsCPU.count(node->name)) {
         CHECK_GE(node->read_args.size(), 1UL);
         CHECK_EQ(node->read_args.front().type(), Float(32));
-        *expr = lang::CallExtern("cinn_cpu_" + node->name + "_fp32", node->read_args);
+        auto out_type = node->type();
+        *expr         = lang::CallExtern(node->name + "f", node->read_args);
       }
     }
 

@@ -16,8 +16,7 @@ static const std::set<std::string> kExternFp32CallsGPU{
      "bitwise_or",  "bitwise_and", "bitwise_xor", "bitwise_not", "left_shift", "right_shift", "bitwise_or",
      "bitwise_and", "bitwise_xor", "bitwise_not"}};
 
-static const std::set<std::string> kExternFp32CallsCPU = {
-    "erf", "acos", "acosh", "asin", "asinh", "atan", "atanh", "isnan", "isfinite", "isinf"};
+static const std::set<std::string> kExternFp32CallsCPU = {"erf", "acos", "acosh", "asin", "asinh", "atan", "atanh"};
 
 /**
  * Map the Call nodes to external function call.
