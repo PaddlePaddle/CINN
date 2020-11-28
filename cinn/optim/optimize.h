@@ -16,7 +16,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info = false);
 /**
  * Optimize a Module.
  */
-ir::Module Optimize(const ir::Module& module);
+ir::Module Optimize(const ir::Module& module, const Target& target);
 
 }  // namespace optim
 }  // namespace cinn

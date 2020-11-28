@@ -671,6 +671,18 @@ void CodeGenC::Visit(const ir::intrinsics::ArgsConstruct *op) {
   os() << ")";
 }
 
+void CodeGenC::Visit(const ir::intrinsics::UnaryIntrin *op) {
+  os() << runtime::intrisic::unary_intrin_repr << "_";
+  os() << op->name << "(";
+  if (!op->args.empty()) {
+    for (int i = 0; i < op->args.size() - 1; i++) {
+      Print(op->args[i]);
+      os() << ", ";
+    }
+    Print(op->args.back());
+  }
+}
+
 std::string ReadWholeFile(const std::string &path) {
   CHECK(!path.empty());
   std::ifstream file(path);

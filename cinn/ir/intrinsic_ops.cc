@@ -97,4 +97,17 @@ Expr intrinsics::ArgsConstruct::Make(Var var, llvm::ArrayRef<Expr> args) {
   return Expr(n);
 }
 
+Expr intrinsics::UnaryIntrin::Make(
+    const std::string& name, llvm::ArrayRef<Expr> args, llvm::Intrinsic::ID id, int64_t arg_nums, const Type& type) {
+  auto* n = new UnaryIntrin;
+  n->name = name;
+  n->args.assign(args.begin(), args.end());
+  n->id       = id;
+  n->arg_nums = arg_nums;
+  CHECK(!type.is_unk());
+  n->type_ = type;
+
+  return Expr(n);
+}
+
 }  // namespace cinn::ir

@@ -7,5 +7,5 @@ target_compile_options(test_matmul PRIVATE "-O3")
 cc_test(test_elementwise SRCS test_elementwise.cc test_utils.cc DEPS core ARGS ${global_test_args})
 target_compile_options(test_elementwise PRIVATE "-O3")
 
-cc_test(test_all_ops_defualt SRCS test_all_ops_default.cc test_utils.cc DEPS core ARGS ${global_test_args})
-target_compile_options(test_all_ops_defualt PRIVATE "-O3")
+cc_test(test_all_ops_default SRCS test_all_ops_default.cc test_utils.cc DEPS core ARGS ${global_test_args})
+target_compile_options(test_all_ops_default PRIVATE "-O3")

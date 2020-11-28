@@ -7,23 +7,28 @@ from tvm.contrib import tar, ndk
 import os
 from tvm import topi
 
-dtype = "float32"
+dtype = ["float32", "float32", "float32", "float32"]
 target = "llvm"
 ctx = tvm.context(target, 0)
 repeat = 10
 
 
-def test_op(func, input_shapes, out_shape, attrs={}, name="test_op"):
+def test_op(func,
+            input_shapes,
+            out_shape,
+            attrs={},
+            name="test_op",
+            dtype=dtype):
     assert len(input_shapes) >= 1
-    A = te.placeholder(input_shapes[0], name="A")
+    A = te.placeholder(input_shapes[0], name="A", dtype=dtype[0])
     if len(input_shapes) == 1:
         C = func(A)
     elif len(input_shapes) == 2:
-        B = te.placeholder(input_shapes[1], name="B")
+        B = te.placeholder(input_shapes[1], name="B", dtype=dtype[1])
         C = func(A, B)
     elif len(input_shapes) == 3:
-        B = te.placeholder(input_shapes[1], name="B")
-        B1 = te.placeholder(input_shapes[2], name="B1")
+        B = te.placeholder(input_shapes[1], name="B", dtype=dtype[1])
+        B1 = te.placeholder(input_shapes[2], name="B1", dtype=dtype[2])
         C = func(A, B, B1)
     # Default schedule
     s = te.create_schedule(C.op)
@@ -35,14 +40,15 @@ def test_op(func, input_shapes, out_shape, attrs={}, name="test_op"):
         func = tvm.build(s, [A, B, B1, C], target=target, name=name)
     assert func
     print(func)
-    a = tvm.nd.array(numpy.random.random(input_shapes[0]).astype(dtype), ctx)
+    a = tvm.nd.array(
+        numpy.random.random(input_shapes[0]).astype(dtype[0]), ctx)
     if len(input_shapes) > 1:
         b = tvm.nd.array(
-            numpy.random.random(input_shapes[1]).astype(dtype), ctx)
+            numpy.random.random(input_shapes[1]).astype(dtype[1]), ctx)
     if len(input_shapes) > 2:
         b1 = tvm.nd.array(
-            numpy.random.random(input_shapes[2]).astype(dtype), ctx)
-    c = tvm.nd.array(numpy.zeros(out_shape, dtype=dtype), ctx)
+            numpy.random.random(input_shapes[2]).astype(dtype[2]), ctx)
+    c = tvm.nd.array(numpy.zeros(out_shape, dtype=dtype[len(dtype) - 1]), ctx)
 
     evaluator = func.time_evaluator(func.entry_name, ctx, number=repeat)
     print("repeat: %f" % repeat)
@@ -59,8 +65,8 @@ def test_op(func, input_shapes, out_shape, attrs={}, name="test_op"):
 
 def test_elementwise():
     input_shapes, out_shape = [(100, 32), (100, 32)], (100, 32)
-    input_shapes1, out_shape1 = [(1024, 1024, 1024),
-                                 (1024, 1024, 1024)], (1024, 1024, 1024)
+    # input_shapes1, out_shape1 = [(1024, 1024, 1024),
+    #                              (1024, 1024, 1024)], (1024, 1024, 1024)
     input_shapes2, out_shape2 = [(1024, 14, 14), (1024, 14, 14)], (1024, 14,
                                                                    14)
 
@@ -71,18 +77,18 @@ def test_elementwise():
         return topi.multiply(A, B)
 
     test_op(compute_add, input_shapes, out_shape, name="elementwise_add")
-    test_op(compute_add, input_shapes1, out_shape1, name="elementwise_add")
+    # test_op(compute_add, input_shapes1, out_shape1, name="elementwise_add")
     test_op(compute_add, input_shapes2, out_shape2, name="elementwise_add")
     test_op(compute_mul, input_shapes, out_shape, name="elementwise_mul")
-    test_op(compute_mul, input_shapes1, out_shape1, name="elementwise_mul")
+    # test_op(compute_mul, input_shapes1, out_shape1, name="elementwise_mul")
     test_op(compute_mul, input_shapes2, out_shape2, name="elementwise_mul")
 
 
 def test_relu():
-    input_shapes, out_shape = [(100, 32)], (100, 32)
+    input_shapes, out_shape = [(2, 512, 7, 7)], (2, 512, 7, 7)
     input_shapes1, out_shape1 = [(1024, 1024, 1024)], (1024, 1024, 1024)
-    input_shapes2, out_shape2 = [(1024, 14, 14)], (1024, 14,
-                                                                   14)
+    input_shapes2, out_shape2 = [(1024, 14, 14)], (1024, 14, 14)
+    input_shapes3, out_shape3 = [(100, 32)], (100, 32)
     name = "relu"
 
     def compute(A):
@@ -91,6 +97,7 @@ def test_relu():
     test_op(compute, input_shapes, out_shape, name=name)
     test_op(compute, input_shapes1, out_shape1, name=name)
     test_op(compute, input_shapes2, out_shape2, name=name)
+    test_op(compute, input_shapes3, out_shape3, name=name)
 
 
 def test_conv2d_nchw():
@@ -152,16 +159,112 @@ def test_softmax():
     test_op(compute, input_shapes1, out_shape1, name=name)
 
 
-def test_exp():
+def test_unary():
     input_shapes, out_shape = [(1024, 2048)], (1024, 2048)
     input_shapes1, out_shape1 = [(3, 1000)], (3, 1000)
-    name = "exp"
+    input_shapes2, out_shape2 = [(1024, 2047)], (1024, 2047)
 
-    def compute(A):
-        return topi.exp(A)
+    def test_unary_basic(name, func):
+        def compute(A):
+            return func(A)
 
-    test_op(compute, input_shapes, out_shape, name=name)
-    test_op(compute, input_shapes1, out_shape1, name=name)   
+        test_op(compute, input_shapes, out_shape, name=name)
+        test_op(compute, input_shapes1, out_shape1, name=name)
+        test_op(compute, input_shapes2, out_shape2, name=name)
+
+    for opfunc in [
+            topi.exp,
+            topi.erf,
+            topi.sigmoid,
+            topi.sqrt,
+            topi.log,
+            topi.log2,
+            topi.log10,
+            topi.floor,
+            topi.ceil,
+            topi.round,
+            topi.trunc,
+            topi.cos,
+            topi.cosh,
+            topi.tan,
+            topi.tanh,
+            topi.sin,
+            topi.sinh,
+            topi.acos,
+            topi.acosh,
+            topi.asin,
+            topi.asinh,
+            topi.atan,
+            topi.atanh,
+    ]:
+        test_unary_basic(str(opfunc), opfunc)
+
+
+def test_is():
+    input_shapes, out_shape = [(1024, 2048)], (1024, 2048)
+    input_shapes1, out_shape1 = [(3, 1000)], (3, 1000)
+    input_shapes2, out_shape2 = [(1024, 2047)], (1024, 2047)
+    type = ["float32", "bool"]
+
+    def test_is_basic(name, func):
+        def compute(A):
+            return func(A)
+
+        test_op(compute, input_shapes, out_shape, name=name, dtype=type)
+        test_op(compute, input_shapes1, out_shape1, name=name, dtype=type)
+        test_op(compute, input_shapes2, out_shape2, name=name, dtype=type)
+
+    for opfunc in [
+            topi.isnan,
+            topi.isfinite,
+            topi.isinf,
+    ]:
+        test_is_basic(str(opfunc), opfunc)
+
+
+def test_bitwise_not():
+    input_shapes, out_shape = [(1024, 2048)], (1024, 2048)
+    input_shapes1, out_shape1 = [(3, 1000)], (3, 1000)
+    input_shapes2, out_shape2 = [(1024, 2047)], (1024, 2047)
+    type = ["int32", "int32", "int32"]
+
+    def test_unary_basic(name, func):
+        def compute(A):
+            return func(A)
+
+        test_op(compute, input_shapes, out_shape, name=name, dtype=type)
+        test_op(compute, input_shapes1, out_shape1, name=name, dtype=type)
+        test_op(compute, input_shapes2, out_shape2, name=name, dtype=type)
+
+    for opfunc in [
+            topi.bitwise_not,
+    ]:
+        test_unary_basic(str(opfunc), opfunc)
+
+
+def test_bitwise_binary():
+    input_shapes, out_shape = [(1024, 2048), (1024, 2048)], (1024, 2048)
+    input_shapes1, out_shape1 = [(3, 1000), (3, 1000)], (3, 1000)
+    input_shapes2, out_shape2 = [(1024, 2047), (1024, 2047)], (1024, 2047)
+    type = ["int32", "int32", "int32"]
+
+    def test_binary_basic(name, func):
+        def compute(A, B):
+            return func(A, B)
+
+        test_op(compute, input_shapes, out_shape, name=name, dtype=type)
+        test_op(compute, input_shapes1, out_shape1, name=name, dtype=type)
+        test_op(compute, input_shapes2, out_shape2, name=name, dtype=type)
+
+    for opfunc in [
+            topi.bitwise_or,
+            topi.bitwise_and,
+            topi.bitwise_xor,
+            topi.left_shift,
+            topi.right_shift,
+    ]:
+        test_binary_basic(str(opfunc), opfunc)
+
 
 def test_sigmoid():
     input_shapes, out_shape = [(2, 672, 1, 1)], (2, 672, 1, 1)
@@ -176,17 +279,19 @@ def test_sigmoid():
 
 
 def test_matmul():
-    # input_shapes, out_shape = [(32,32),(32,32)], (32,32)
-    input_shapes, out_shape = [(512, 512), (512, 512)], (512, 512)
-    # input_shapes, out_shape = [(1024,1024),(1024,1024)], (1024,1024)
-    # input_shapes1, out_shape1 = [(100,32), (32,100)], (100,100)
+    input_shapes, out_shape = [(32, 32), (32, 32)], (32, 32)
+    input_shapes1, out_shape1 = [(512, 512), (512, 512)], (512, 512)
+    # input_shapes2, out_shape2 = [(1024,1024),(1024,1024)], (1024,1024)
+    input_shapes3, out_shape3 = [(100, 32), (32, 100)], (100, 100)
     name = "matmul"
 
     def compute(A, B):
         return topi.matmul(A, B, False, False)
 
     test_op(compute, input_shapes, out_shape, name=name)
-    # test_op(compute, input_shapes1, out_shape1, name=name)
+    test_op(compute, input_shapes1, out_shape1, name=name)
+    # test_op(compute, input_shapes2, out_shape2, name=name)
+    test_op(compute, input_shapes3, out_shape3, name=name)
 
 
 # batch_norm
@@ -212,7 +317,10 @@ if __name__ == "__main__":
     test_depthwise_conv2d_nchw()
     test_pool2d()
     test_softmax()
-    test_exp()
+    test_unary()
+    test_is()
+    test_bitwise_not()
+    test_bitwise_binary()
     test_sigmoid()
     test_matmul()
     test_batch_norm()

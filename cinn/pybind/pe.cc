@@ -40,10 +40,10 @@ void BindPE(py::module* m) {
   BIND_UNARY(asinh, Asinh);
   BIND_UNARY(atan, Atan);
   BIND_UNARY(atanh, Atanh);
-  BIND_UNARY(isnan, Isnan);
+  BIND_UNARY(isnan, IsNan);
   BIND_UNARY(tanh, Tanh);
-  BIND_UNARY(isfinite, Isfinite);
-  BIND_UNARY(isinf, Isinf);
+  BIND_UNARY(isfinite, IsFinite);
+  BIND_UNARY(isinf, IsInf);
 
   BIND_UNARY(negative, Negative);
   BIND_UNARY(identity, Identity);

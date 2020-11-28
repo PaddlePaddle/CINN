@@ -60,6 +60,8 @@ static const char* get_address_repr = "get_address";
 
 static const char* args_construct_repr = "cinn_args_construct";
 
+static const char* unary_intrin_repr = "cinn_unary_intrin";
+
 //! Name of the helper intrinsic used to display debug string.
 static const char* debug_log_repr = "cinn_print_debug_string";
 

@@ -82,7 +82,7 @@ class SymbolTable {
 };
 
 struct SymbolTableGuard {
-  SymbolTableGuard(SymbolTable &symbol_table) : symbol_table_(symbol_table) { symbol_table.PushScope(); }
+  explicit SymbolTableGuard(SymbolTable &symbol_table) : symbol_table_(symbol_table) { symbol_table.PushScope(); }
 
   ~SymbolTableGuard() { symbol_table_.PopScope(); }
 
@@ -97,7 +97,8 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
  public:
   explicit CodeGenLLVM(llvm::Module *m,
                        llvm::IRBuilder<> *b,
-                       const std::shared_ptr<SymbolTable> &symbol_table = nullptr);
+                       const std::shared_ptr<SymbolTable> &symbol_table = nullptr,
+                       const Target &target                             = common::DefaultHostTarget());
 
   // Common llvm types
   // @{
@@ -145,6 +146,10 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   llvm::FunctionType *GenFunctionTypeFromCinnFunction(const ir::_LoweredFunc_ *func, bool with_buffer_type);
 
   virtual llvm::Value *GetVar(const std::string &name, bool lazy = true);
+
+  llvm::Function *GetIntrinsicDecl(llvm::Intrinsic::ID id,
+                                   llvm::Type *ret_type,
+                                   llvm::ArrayRef<llvm::Type *> arg_types);
 
   // Constants
   // @{
@@ -200,6 +205,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   llvm::MDNode *md_tbaa_alias_set_{nullptr};
 
   int naive_vec_alignment_{0};
+  Target target_;
 };
 namespace detail {
 Expr StridedRampBase(Expr e, int stride);

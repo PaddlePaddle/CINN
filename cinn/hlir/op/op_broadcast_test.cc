@@ -44,7 +44,7 @@ TEST(Operator, Operator_ElementWise_Add_Test0) {
   LOG(INFO) << "Test Strategy Codegen:\n" << func;
 
   ASSERT_EQ(impl->name, "strategy.elementwise_add.x86");
-  ASSERT_EQ(add->description, "Add two tensors");
+  ASSERT_EQ(add->description, "elementwise_add function");
 }
 
 TEST(Operator, Operator_ElementWise_Add_Test1) {
@@ -77,7 +77,7 @@ TEST(Operator, Operator_ElementWise_Add_Test1) {
   std::cout << func;
 
   ASSERT_EQ(impl->name, "strategy.elementwise_add.x86");
-  ASSERT_EQ(add->description, "Add two tensors");
+  ASSERT_EQ(add->description, "elementwise_add function");
 }
 
 }  // namespace framework

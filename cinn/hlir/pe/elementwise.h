@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "cinn/ir/ir.h"
 
 namespace cinn {
@@ -37,10 +39,10 @@ HLIR_DCL_UNARY_PE(Asin);
 HLIR_DCL_UNARY_PE(Asinh);
 HLIR_DCL_UNARY_PE(Atan);
 HLIR_DCL_UNARY_PE(Atanh);
-HLIR_DCL_UNARY_PE(Isnan);
+HLIR_DCL_UNARY_PE(IsNan);
 HLIR_DCL_UNARY_PE(Tanh);
-HLIR_DCL_UNARY_PE(Isfinite);
-HLIR_DCL_UNARY_PE(Isinf);
+HLIR_DCL_UNARY_PE(IsFinite);
+HLIR_DCL_UNARY_PE(IsInf);
 
 HLIR_DCL_UNARY_PE(Negative);
 HLIR_DCL_UNARY_PE(Identity);

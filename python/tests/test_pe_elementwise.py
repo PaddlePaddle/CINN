@@ -48,11 +48,11 @@ class TestPEElementwise(unittest.TestCase):
                 # ("asinh", pe.asinh, np.asinh, "float32"),
                 # ("atan", pe.atan, np.atan, "float32"),
                 # ("atanh", pe.atanh, np.atanh, "float32"),
-                # TODO(wenming2014) end
-            ("isnan", pe.isnan, np.isnan, "float32"),
+                # TODO(wenming2014) en
+                # ("isnan", pe.isnan, np.isnan, "float32"),
             ("tanh", pe.tanh, np.tanh, "float32"),
-            ("isfinite", pe.isfinite, np.isfinite, "float32"),
-            ("isinf", pe.isinf, np.isinf, "float32"),
+                # ("isfinite", pe.isfinite, np.isfinite, "float32"),
+                # ("isinf", pe.isinf, np.isinf, "float32"),
             ("negative", pe.negative, np.negative, "float32"),
                 # ("identity", pe.identity, np.identity, "float32"),
                 # TODO(wenming2014) int type

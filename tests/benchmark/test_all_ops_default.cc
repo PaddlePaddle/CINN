@@ -41,8 +41,19 @@ using AttrType = std::variant<bool,
     tester.TestOp(common::UniqName(#op_name__), input_tensors, attrs, type__); \
   }
 
+#define TEST_DEFAULT_INT(op_name__, shape_name__, type__)                      \
+  TEST(op_defualt, shape_name__) {                                             \
+    std::vector<std::vector<int>> input_shapes = shapes_##shape_name__;        \
+    std::string op_name                        = #op_name__;                   \
+    hlir::framework::NodeAttr attrs;                                           \
+    OpBenchmarkTester tester(op_name, input_shapes);                           \
+    auto input_tensors = tester.CreateInputTensors<int>();                     \
+    tester.TestOp(common::UniqName(#op_name__), input_tensors, attrs, type__); \
+  }
+
 std::vector<Type> type{Float(32)};
 std::vector<Type> type1{Float(32), Float(32)};
+std::vector<Type> type2 = {Int(32)};
 // add
 // std::vector<std::vector<int>> shapes_add = {{1024, 1024, 1024}, {1024, 1024, 1024}};
 // TEST_DEFAULT(elementwise_add, add, type)
@@ -106,8 +117,8 @@ std::vector<std::vector<int>> shapes_pool2d1 = {{2, 1024, 14, 14}};
 TEST_DEFAULT1(pool2d, pool2d1, type, attr_store_pool2d)
 
 // softmax
-// std::vector<std::vector<int>> shapes_softmax = {{1024,2048}};
-// TEST_DEFAULT(softmax, softmax, type1)
+std::vector<std::vector<int>> shapes_softmax = {{1024, 2048}};
+TEST_DEFAULT(softmax, softmax, type1)
 std::vector<std::vector<int>> shapes_softmax1 = {{3, 1000}};
 TEST_DEFAULT(softmax, softmax1, type1)
 
@@ -142,6 +153,60 @@ std::vector<int> ends({10000000, 10000000});
 std::vector<int> axes({2, 3});
 std::unordered_map<std::string, AttrType> attr_store_slice = {{"starts", starts}, {"ends", ends}, {"axes", axes}};
 TEST_DEFAULT1(slice, slice, type, attr_store_slice)
+
+// unary
+#define TEST_DEFAULT_UNARY(op__)                                         \
+  std::vector<std::vector<int>> shapes_unary_##op__    = {{1024, 2048}}; \
+  std::vector<std::vector<int>> shapes_unary_##op__##1 = {{3, 1000}};    \
+  TEST_DEFAULT(op__, unary_##op__, type)                                 \
+  TEST_DEFAULT(op__, unary_##op__##1, type)
+
+TEST_DEFAULT_UNARY(exp)
+TEST_DEFAULT_UNARY(erf)
+TEST_DEFAULT_UNARY(sigmoid)
+TEST_DEFAULT_UNARY(sqrt)
+TEST_DEFAULT_UNARY(log)
+TEST_DEFAULT_UNARY(log2)
+TEST_DEFAULT_UNARY(log10)
+TEST_DEFAULT_UNARY(floor)
+TEST_DEFAULT_UNARY(ceil)
+TEST_DEFAULT_UNARY(round)
+TEST_DEFAULT_UNARY(trunc)
+TEST_DEFAULT_UNARY(cos)
+TEST_DEFAULT_UNARY(cosh)
+TEST_DEFAULT_UNARY(tan)
+TEST_DEFAULT_UNARY(tanh)
+TEST_DEFAULT_UNARY(sin)
+TEST_DEFAULT_UNARY(sinh)
+TEST_DEFAULT_UNARY(acos)
+TEST_DEFAULT_UNARY(acosh)
+TEST_DEFAULT_UNARY(asin)
+TEST_DEFAULT_UNARY(asinh)
+TEST_DEFAULT_UNARY(atan)
+TEST_DEFAULT_UNARY(atanh)
+
+// TEST_DEFAULT_UNARY(isnan)
+// TEST_DEFAULT_UNARY(isfinite)
+// TEST_DEFAULT_UNARY(isinf)
+
+// bitwise_not
+std::vector<std::vector<int>> shapes_bitwise_not  = {{1024, 2048}};
+std::vector<std::vector<int>> shapes_bitwise_not1 = {{3, 1000}};
+TEST_DEFAULT_INT(bitwise_not, bitwise_not, type2)
+TEST_DEFAULT_INT(bitwise_not, bitwise_not1, type2)
+
+// binary bitwise
+#define TEST_DEFAULT_BINARY(op__)                                                       \
+  std::vector<std::vector<int>> shapes_binary_##op__    = {{1024, 2048}, {1024, 2048}}; \
+  std::vector<std::vector<int>> shapes_binary_##op__##1 = {{3, 1000}, {3, 1000}};       \
+  TEST_DEFAULT_INT(op__, binary_##op__, type2)                                          \
+  TEST_DEFAULT_INT(op__, binary_##op__##1, type2)
+
+TEST_DEFAULT_BINARY(left_shift)
+TEST_DEFAULT_BINARY(right_shift)
+TEST_DEFAULT_BINARY(bitwise_or)
+TEST_DEFAULT_BINARY(bitwise_and)
+TEST_DEFAULT_BINARY(bitwise_xor)
 
 }  // namespace tests
 }  // namespace cinn
