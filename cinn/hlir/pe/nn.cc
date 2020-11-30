@@ -70,9 +70,11 @@ void CudaScheduleMul(poly::StageMap stages,
     stages[output]->Bind(0, "blockIdx.x");
     stages[output]->Bind(1, "threadIdx.x"); */
 
-  // stages[output]->Split(1, 2);
+  stages[output]->Split(1, 2);
   stages[output]->Bind(0, "blockIdx.x");
+  // stages[output]->Bind(1, "blockIdx.y");
   stages[output]->Bind(1, "threadIdx.x");
+  // stages[output]->Bind(3, "threadIdx.y");
 
   /*       stages[output]->Split(2, 8);
         stages[output]->Split(2, 8);

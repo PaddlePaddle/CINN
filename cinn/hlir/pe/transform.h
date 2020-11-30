@@ -46,13 +46,13 @@ ir::Tensor Mul(const ir::Tensor& A,
                const ir::Var& axis_k,
                const std::string& name);
 
-ir::Tensor MulBias(const ir::Tensor& A,
-                   const ir::Tensor& B,
-                   const ir::Tensor& C,
-                   int x_num_col_dims,
-                   const std::vector<ir::Expr>& output_shape,
-                   const ir::Var& axis_k,
-                   const std::string& name);
+std::vector<ir::Tensor> MulBias(const ir::Tensor& A,
+                                const ir::Tensor& B,
+                                const ir::Tensor& C,
+                                int x_num_col_dims,
+                                const std::vector<ir::Expr>& output_shape,
+                                const ir::Var& axis_k,
+                                const std::string& name);
 
 }  // namespace pe
 }  // namespace hlir

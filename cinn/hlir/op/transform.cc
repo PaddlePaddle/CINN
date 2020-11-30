@@ -166,13 +166,14 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       }
     }
     new_xshape.push_back(check_dim);
-    new_yshape.push_back(check_dim);
+
     for (int i = 0; i < B_tensor->shape.size(); i++) {
-      if (i >= y_num_col_dims) {
+      if (i < y_num_col_dims) {
         output_shape.push_back(B_tensor->shape[i]);
         new_yshape.push_back(B_tensor->shape[i]);
       }
     }
+    new_yshape.push_back(check_dim);
     Var axis_k(check_dim, UniqName("axis_k"));
     auto new_A = A_tensor->Reshape(new_xshape, stages);
     auto new_B = B_tensor->Reshape(new_yshape, stages);
@@ -259,21 +260,28 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
     auto new_B = B_tensor->Reshape(new_yshape, stages);
 
     auto out = pe::MulBias(new_A, new_B, C_tensor, x_num_col_dims, output_shape, axis_k, UniqName("MulBias_output"));
-    VLOG(3) << "mul out: " << out;
-    stages->InsertLazily(out);
+
+    std::vector<CINNValue> res;
+    for (auto &t : out) {
+      stages->InsertLazily(t);
+      res.push_back(CINNValue(t));
+    }
+    res.push_back(CINNValue(stages));
     CHECK(!out_type.empty()) << "Output type of MulBias is empty! Please check.\n";
-    *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+    *ret = CINNValuePack{res};
   });
 
   framework::CINNSchedule mul_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
+    CHECK_EQ(arg_pack.size(), 3UL);
+    Expr Temp             = arg_pack[0];
+    Expr Out              = arg_pack[1];
+    poly::StageMap stages = arg_pack[2];
+    CHECK(Out.as_tensor());
+    CHECK(Temp.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      pe::CudaScheduleMul(stages, Out.as_tensor_ref(), output_shapes.back(), target);
+      pe::CudaScheduleMul(stages, Temp.as_tensor_ref(), output_shapes.back(), target);
       // stages[Out.as_tensor_ref()]->Split(1, 2);
       // stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       // stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
@@ -318,9 +326,9 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
 
   for (int i = 0; i < inputs_shape[1].size(); i++) {
     if (i < y_num_col_dims) {
-      check_dim_y = check_dim_y * inputs_shape[1][i];
-    } else {
       output_shape.push_back(inputs_shape[1][i]);
+    } else {
+      check_dim_y = check_dim_y * inputs_shape[1][i];
     }
   }
   CHECK_EQ(check_dim_x, check_dim_y) << "For matrix multiply: X * Y, second dim of X's shape :[" << check_dim_x
@@ -334,6 +342,55 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
 std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
+std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector<int>> &inputs_shape,
+                                                   const framework::NodeAttr &attrs) {
+  // CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
+  CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
+  CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
+
+  std::vector<int> output_shape;
+  int x_num_col_dims = 1;
+  int y_num_col_dims = 1;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "x_num_col_dims") {
+      x_num_col_dims = std::get<int>(iter.second);
+    } else if (iter.first == "y_num_col_dims") {
+      y_num_col_dims = std::get<int>(iter.second);
+    } else {
+      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
+    }
+  }
+  int check_dim_x = 1;
+  int check_dim_y = 1;
+  for (int i = 0; i < inputs_shape[0].size(); i++) {
+    if (i < x_num_col_dims) {
+      output_shape.push_back(inputs_shape[0][i]);
+    } else {
+      check_dim_x = check_dim_x * inputs_shape[0][i];
+    }
+  }
+
+  for (int i = 0; i < inputs_shape[1].size(); i++) {
+    if (i < y_num_col_dims) {
+      check_dim_y = check_dim_y * inputs_shape[1][i];
+    } else {
+      output_shape.push_back(inputs_shape[1][i]);
+    }
+  }
+  CHECK_EQ(check_dim_x, check_dim_y) << "For matrix multiply: X * Y, second dim of X's shape :[" << check_dim_x
+                                     << "] should be equal to first dim of Y's shape :[" << check_dim_y
+                                     << "]! Please Check!";
+
+  std::vector<std::vector<int>> res{output_shape, output_shape};
+  return res;
+}
+
+std::vector<Type> InferDtypeForMulBias(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
 }
 
@@ -365,10 +422,10 @@ CINN_REGISTER_HELPER(transform_ops) {
   CINN_REGISTER_OP(mulbias)
       .describe("This operator is used to perform matrix multiplication for input X and Y and add Z.")
       .set_num_inputs(3)
-      .set_num_outputs(1)
+      .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMulBias)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMul))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMul))
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMulBias))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMulBias))
       .set_support_level(4);
   return true;
 }

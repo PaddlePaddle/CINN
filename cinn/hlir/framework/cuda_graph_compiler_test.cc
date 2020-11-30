@@ -43,7 +43,7 @@ std::vector<float> test_mul(const std::vector<float>& A, const std::vector<float
   for (int i = 0; i < M; i++) {
     for (int j = 0; j < N; j++) {
       for (int k = 0; k < K; k++) {
-        C_target[i * N + j] += A[i * K + k] * B[k * N + j];
+        C_target[i * N + j] += A[i * K + k] * B[j * N + k];
       }
     }
   }
@@ -89,7 +89,7 @@ TEST(GraphCompiler, RunModel) {
   frontend::Variable b("B");
   Type t   = Float(32);
   a->shape = {M.as_int32(), K.as_int32()};
-  b->shape = {K.as_int32(), N.as_int32()};
+  b->shape = {N.as_int32(), K.as_int32()};
   a->type  = t;
   b->type  = t;
   auto c   = prog.mul(a, b);

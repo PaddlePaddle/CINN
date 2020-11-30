@@ -216,7 +216,7 @@ Variable Program::mulbias(
   instr.SetAttr("x_num_col_dims", x_num_col_dims);
   instr.SetAttr("y_num_col_dims", y_num_col_dims);
   AppendInstruction(instr);
-  return instr.GetOutput(0);
+  return instr.GetOutput(1);
 }
 
 std::string _Instruction_::debug_string() const {

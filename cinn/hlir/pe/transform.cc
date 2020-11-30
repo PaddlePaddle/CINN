@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "cinn/common/cas.h"
+#include "cinn/common/context.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
@@ -132,23 +133,23 @@ Tensor Mul(const Tensor& A,
       [=](const std::vector<Expr>& indice) {
         std::vector<Expr> A_indice;
         std::vector<Expr> B_indice;
-        B_indice.push_back(axis_k);
         A_indice.insert(A_indice.begin(), indice.begin(), indice.begin() + x_num_col_dims);
-        B_indice.insert(B_indice.begin() + 1, indice.begin() + x_num_col_dims, indice.end());
+        B_indice.insert(B_indice.begin(), indice.begin() + x_num_col_dims, indice.end());
         A_indice.push_back(axis_k);
+        B_indice.push_back(axis_k);
         return lang::ReduceSum(A(A_indice) * B(B_indice), {axis_k});
       },
       name);
 }
 
-Tensor MulBias(const Tensor& A,
-               const Tensor& B,
-               const Tensor& C,
-               int x_num_col_dims,
-               const std::vector<Expr>& output_shape,
-               const Var& axis_k,
-               const std::string& name) {
-  return Compute(
+std::vector<ir::Tensor> MulBias(const Tensor& A,
+                                const Tensor& B,
+                                const Tensor& C,
+                                int x_num_col_dims,
+                                const std::vector<Expr>& output_shape,
+                                const Var& axis_k,
+                                const std::string& name) {
+  auto temp = Compute(
       output_shape,
       [=](const std::vector<Expr>& indice) {
         std::vector<Expr> A_indice;
@@ -157,9 +158,12 @@ Tensor MulBias(const Tensor& A,
         A_indice.insert(A_indice.begin(), indice.begin(), indice.begin() + x_num_col_dims);
         B_indice.insert(B_indice.begin() + 1, indice.begin() + x_num_col_dims, indice.end());
         A_indice.push_back(axis_k);
-        return lang::ReduceSum(A(A_indice) * B(B_indice) + C(indice), {axis_k});
+        return lang::ReduceSum(A(A_indice) * B(B_indice), {axis_k});
       },
-      name);
+      UniqName("temp_out_mulbias"));
+  auto res = Compute(
+      output_shape, [=](const std::vector<Expr>& indice) { return temp(indice) + C(indice); }, name);
+  return {temp, res};
 }
 
 }  // namespace pe

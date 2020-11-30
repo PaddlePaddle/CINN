@@ -54,7 +54,7 @@ class Program {
   }
 
   void ExecuteTest(int repeat_) {
-    cinn::utils::Timer timer1, timer2;
+    cinn::utils::Timer timer1;
     for (int i = 0; i < 100; i++) {
       for (auto& ins : instrs_) {
         ins->RunTest(repeat_);

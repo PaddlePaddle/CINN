@@ -9,6 +9,28 @@ namespace frontend {
 using utils::Join;
 using utils::TransValidVarName;
 
+void MoveData(float* data, int i, int M, int N) {
+  float temp = data[i];  // 暂存
+  int cur    = i;        // 当前下标
+  int pre    = (cur % M) * N + cur / M;
+  while (pre != i) {
+    data[cur] = data[pre];
+    cur       = pre;
+    pre       = (cur % M) * N + cur / M;
+  }
+  data[cur] = temp;
+}
+
+void TransposeData(float* data, int M, int N) {
+  for (int i = 0; i < M * N; i++) {
+    int next = (i % N) * M + i / N;
+    while (next > i)  // 若存在后继小于i说明重复
+      next = (next % N) * M + next / N;
+    if (next == i)  // 处理当前环
+      MoveData(data, i, M, N);
+  }
+}
+
 void PaddleModelToProgram::AddOpMapper_feed() {
   op_mappers_["feed"] = [&](const paddle::cpp::OpDesc& op_desc) {
     auto outs = op_desc.Output("Out");
@@ -65,11 +87,13 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-    auto y_name        = op_desc.Input("Y").front();
-    auto x             = GetVar(utils::TransValidVarName(x_name));
+    auto y_name = op_desc.Input("Y").front();
+    auto x      = GetVar(utils::TransValidVarName(x_name));
+    TransposeVar(TransValidVarName(y_name));
     auto y             = GetVar(utils::TransValidVarName(y_name));
     int x_num_col_dims = op_desc.GetAttr<int>("x_num_col_dims");
     int y_num_col_dims = op_desc.GetAttr<int>("y_num_col_dims");
+    CHECK_EQ(y_num_col_dims, 1) << "The y_num_col_dims of mul is not 1! Please check.";
     VLOG(4) << "Mul x_num_col_dims: " << x_num_col_dims;
     VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
@@ -364,6 +388,56 @@ void PaddleModelToProgram::AddOp(const paddle::cpp::OpDesc& op_desc) {
   LOG(FATAL) << "Not supported op [" << op_desc.Type() << "] found";
 }
 
+void PaddleModelToProgram::TransposeVar(const std::string& name) {
+  CheckVarNameValid(name);
+  auto* var = scope_->FindVar(name);
+  if (var) {
+    auto& tensor = std::get<hlir::framework::Tensor>(*var);
+    if (target_.arch == Target::Arch::X86) {
+      float* data = tensor->mutable_data<float>(target_);
+      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
+      TransposeData(data, tensor->shape().data()[0], tensor->shape().data()[1]);
+    } else if (target_.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
+      std::vector<float> data(tensor->shape().numel());
+      CUDA_CALL(cudaMemcpy(data.data(),
+                           reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
+                           tensor->shape().numel() * sizeof(float),
+                           cudaMemcpyDeviceToHost));
+#else
+      LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
+      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
+
+      TransposeData(data.data(), tensor->shape().data()[0], tensor->shape().data()[1]);
+
+#ifdef CINN_WITH_CUDA
+      CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
+                           data.data(),
+                           tensor->shape().numel() * sizeof(float),
+                           cudaMemcpyHostToDevice));
+#else
+      LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
+
+    } else {
+      CINN_NOT_IMPLEMENTED
+    }
+
+    Variable var;
+    var.set_id(name);
+    std::vector<int> reverse_shape = tensor->shape().data();
+    std::reverse(reverse_shape.begin(), reverse_shape.end());
+    tensor->shape().SetData(reverse_shape);
+    var->shape = tensor->shape().data();
+    // TODO(Superjomn) Make this determined by model.
+    var->type = Float(32);
+    AddVar(name, var, true);
+  } else {
+    LOG(FATAL) << "No var called [" << name << "] exists";
+  }
+}
+
 Variable PaddleModelToProgram::GetVar(const std::string& name) {
   CheckVarNameValid(name);
 
@@ -399,9 +473,11 @@ std::unique_ptr<Program> PaddleModelToProgram::operator()(const std::string& mod
   return std::move(program_);
 }
 
-void PaddleModelToProgram::AddVar(const std::string& name, const Variable& var) {
+void PaddleModelToProgram::AddVar(const std::string& name, const Variable& var, bool replace) {
   CheckVarNameValid(name);
-  CHECK(!var_map_.count(name)) << "Duplicate variable [" << name << "] found";
+  if (replace == false) {
+    CHECK(!var_map_.count(name)) << "Duplicate variable [" << name << "] found";
+  }
   var_map_[name] = var;
 }
 
