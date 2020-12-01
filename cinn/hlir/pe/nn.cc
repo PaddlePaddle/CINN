@@ -28,61 +28,9 @@ void CudaScheduleMul(poly::StageMap stages,
                      ir::Tensor output,
                      const std::vector<int> &output_shape,
                      const common::Target &target) {
-  /*     int wmma_m = 16;
-      int wmma_n = 16;
-      int warp_size = 32;
-      int vec = 2;
-      int block_row_warps = 2;
-      int block_col_warps = 2;
-      int warp_row_tiles = 2;
-      int warp_col_tiles = 2;
-
-      int block_factor_b = wmma_m * warp_row_tiles * block_row_warps;
-      int block_factor_o = wmma_n * warp_col_tiles * block_col_warps;
-      if (output_shape[0] > 64 && output_shape[1] > 64) {
-        auto [block_i, bc] = stages[output]->Split(0, block_factor_b);
-        auto [block_j, oc] = stages[output]->Split(2, block_factor_o);
-        stages[output]->Reorder({block_i, block_j, bc, oc});
-      auto t = stages[output]->Fuse(bc, oc);
-      auto [t1, vi] = stages[output]->Split(t, vec);
-      auto [t2, tx] = stages[output]->Split(t1, warp_size);
-      auto [t3, ty] = stages[output]->Split(t2, block_row_warps);
-      auto [t4, tz] = stages[output]->Split(t3, block_col_warps);
-        stages[output]->Bind(0, "blockIdx.x");
-        stages[output]->Bind(1, "blockIdx.y");
-      stages[output]->Bind(3, "threadIdx.z");
-      stages[output]->Bind(4, "threadIdx.y");
-      stages[output]->Bind(5, "threadIdx.x");
-      stages[output]->Vectorize(vi, 16);
-      }
-      else {
-        stages[output]->Bind(0, "blockIdx.x");
-        stages[output]->Bind(1, "blockIdx.y");
-      } */
-  // stages[output]->Split(0, 4);
-
-  /*     int dims = stages[output]->n_out_dims();
-    for (int i = 1; i < dims; i++) {
-      stages[output]->Fuse(0, 1);
-    }
-    stages[output]->Split(0, 1024);
-    stages[output]->Split(0, 256);
-    stages[output]->Bind(0, "blockIdx.x");
-    stages[output]->Bind(1, "threadIdx.x"); */
-
   stages[output]->Split(1, 2);
   stages[output]->Bind(0, "blockIdx.x");
-  // stages[output]->Bind(1, "blockIdx.y");
   stages[output]->Bind(1, "threadIdx.x");
-  // stages[output]->Bind(3, "threadIdx.y");
-
-  /*       stages[output]->Split(2, 8);
-        stages[output]->Split(2, 8);
-        stages[output]->Bind(0, "blockIdx.x");
-        stages[output]->Bind(1, "blockIdx.y");
-        stages[output]->Bind(2, "threadIdx.x");
-        stages[output]->Bind(3, "threadIdx.y");
-        stages[output]->Bind(4, "threadIdx.z"); */
 
   return;
 }
@@ -92,29 +40,12 @@ void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor kernel_dilation,
                       ir::Tensor output,
                       const common::Target &target) {
-  // auto OL        = stages[output]->CacheWrite("local", stages);
-  // auto AA        = stages[input_pad]->CacheRead("shared", {OL}, stages);
-  // auto WW        = stages[kernel_dilation]->CacheRead("shared", {OL}, stages);
   int num_thread = target.max_num_threads();
   stages[output]->Fuse(0, 1);
   auto [Block_x, Thread_x] = stages[output]->Split(0, num_thread);
   stages[output]->Bind(0, "blockIdx.x");
   stages[output]->Bind(1, "threadIdx.x");
-  // stages[OL]->ComputeAt(stages[output], 1);
-  // auto reduce_xyz = OL->reduce_axis;
 
-  /*   int dimsA = stages[AA]->n_out_dims();
-    for (int i = 1; i < dimsA; i++) {
-      stages[AA]->Fuse(0, 1);
-    }
-    int dimsW = stages[WW]->n_out_dims();
-    for (int i = 1; i < dimsW; i++) {
-      stages[WW]->Fuse(0, 1);
-    }
-    stages[AA]->Split(0, num_thread);
-    stages[AA]->Bind(1, "threadIdx.x");
-    stages[WW]->Split(0, num_thread);
-    stages[WW]->Bind(1, "threadIdx.x"); */
   return;
 }
 

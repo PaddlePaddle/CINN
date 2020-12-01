@@ -10,8 +10,8 @@ using utils::Join;
 using utils::TransValidVarName;
 
 void MoveData(float* data, int i, int M, int N) {
-  float temp = data[i];  // 暂存
-  int cur    = i;        // 当前下标
+  float temp = data[i];
+  int cur    = i;  // current data index
   int pre    = (cur % M) * N + cur / M;
   while (pre != i) {
     data[cur] = data[pre];
@@ -24,9 +24,9 @@ void MoveData(float* data, int i, int M, int N) {
 void TransposeData(float* data, int M, int N) {
   for (int i = 0; i < M * N; i++) {
     int next = (i % N) * M + i / N;
-    while (next > i)  // 若存在后继小于i说明重复
+    while (next > i)  // next < 1 implies duplicate
       next = (next % N) * M + next / N;
-    if (next == i)  // 处理当前环
+    if (next == i)  // process current ring
       MoveData(data, i, M, N);
   }
 }
