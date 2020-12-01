@@ -69,6 +69,7 @@ set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
 add_subdirectory(cinnrt)
 add_subdirectory(tests)
+add_subdirectory(tutorials)
 
 
 cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml framework_proto ${MLIR_ALL_LIBS})
