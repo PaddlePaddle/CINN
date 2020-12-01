@@ -2,7 +2,7 @@
 set -ex
 
 workspace=$PWD
-build_dir_name=${cinn_build:build}
+build_dir_name=${cinn_build:-build}
 build_dir=$workspace/${build_dir_name}
 
 JOBS=8
