@@ -137,7 +137,7 @@ function fn1 (_A, _B, _tensor)
           for (k0, 50)
           {
             tensor[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] = (tensor[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] + (A[((4 * i_outer) + i_inner), k0] * B[k0, ((4 * j_outer) + j_inner)]))
-                                                                           }
+          }
         }
       }
     }
@@ -145,5 +145,5 @@ function fn1 (_A, _B, _tensor)
 })ROC";
 
   //! @IGNORE-NEXT
-  ASSERT_EQ(utils::GetStreamCnt(fn1), target_source);
+  ASSERT_EQ(utils::GetStreamCnt(fn1), utils::Trim(target_source));
 }
