@@ -132,10 +132,10 @@ class Parser(object):
         self.doc.h1(content[len(Mark.h1):].strip())
 
     def eat_h2(self, content: str) -> None:
-        self.doc.h1(content[len(Mark.h2):].strip())
+        self.doc.h2(content[len(Mark.h2):].strip())
 
     def eat_h3(self, content: str) -> None:
-        self.doc.h1(content[len(Mark.h3):].strip())
+        self.doc.h3(content[len(Mark.h3):].strip())
 
     def eat_ignore_next(self, content: ContentGenerator) -> None:
         content.get_line()
