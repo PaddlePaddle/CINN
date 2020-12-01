@@ -72,7 +72,7 @@ void BindStage(py::module *m) {
       .def("skew", &Stage::Skew)
       .def("ctrl_depend", &Stage::CtrlDepend)
       .def("cache_read", &Stage::CacheRead)
-      .def("cache_write", &Stage::CacheRead);
+      .def("cache_write", &Stage::CacheWrite);
 }
 
 void BindStageMap(py::module *m) {

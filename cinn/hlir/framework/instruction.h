@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/backends/cuda_util.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/utils/timer.h"
@@ -43,16 +44,7 @@ class Instruction {
   void RunTest(int repeat_) {
     CHECK(fn_) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
     auto& pod_args = PreparePodArgs();
-    cinn::utils::Timer timer;
-    for (int i = 0; i < 100; i++) {
-      fn_(pod_args.data(), pod_args.size());
-    }
-    timer.Start();
-    for (int i = 0; i < repeat_; i++) {
-      fn_(pod_args.data(), pod_args.size());
-    }
-    double test_op_time = timer.Stop() / repeat_;
-    LOG(INFO) << "Repeat times: [" << repeat_ << "], average op run time: [" << test_op_time << "] ms";
+    fn_(pod_args.data(), pod_args.size());
   }
 
   /**

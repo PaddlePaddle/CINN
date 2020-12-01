@@ -38,7 +38,7 @@ class _Tensor_ : public Object {
  public:
   _Tensor_() : buffer_(std::make_shared<Buffer>()) {}
 
-  const Shape& shape() const { return shape_; }
+  Shape& shape() { return shape_; }
 
   void Resize(const Shape& shape) {
     shape_ = shape;
