@@ -1,5 +1,5 @@
 set(srcs
-infershape.cc
+  infershape.cc
   )
 
 foreach(cpp ${srcs})

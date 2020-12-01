@@ -1,7 +1,7 @@
 set(srcs string.cc functional.cc dot_lang.cc timer.cc error.cc
         small_vector.cc)
 
-cc_test(test_string SRCS string_test.cc DEPS core)
+cc_test(test_string SRCS string_test.cc DEPS cinncore)
 
 foreach(cpp ${srcs})
   set(core_src
