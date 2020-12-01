@@ -14,12 +14,6 @@ label = fluid.layers.data(name="label", shape=[512, 512], dtype='float32')
 
 a1 = fluid.layers.mul(a, b)
 
-#cost = fluid.layers.square_error_cost(a1, label)
-#avg_cost = fluid.layers.mean(cost)
-
-#optimizer = fluid.optimizer.SGD(learning_rate=0.001)
-#optimizer.minimize(avg_cost)
-
 cpu = fluid.core.CPUPlace()
 loss = exe = fluid.Executor(cpu)
 

@@ -25,21 +25,16 @@ def main():
 
     for _ in range(0, 10):
         predictor.zero_copy_run()
-    #time_start = time.time()
     for i in range(0, 500):
         predictor.zero_copy_run()
     output_names = predictor.get_output_names()
     output_tensor = predictor.get_output_tensor(output_names[0])
     output_data = output_tensor.copy_to_cpu()
-    #time_end = time.time()
-    #print('totally cost',(time_end-time_start)/2)
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_dir", type=str, help="model filename")
-    #parser.add_argument("--params_file", type=str, help="parameter filename")
-    #parser.add_argument("--batch_size", type=int, default=1, help="batch size")
 
     return parser.parse_args()
 
