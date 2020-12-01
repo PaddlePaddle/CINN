@@ -24,6 +24,31 @@ using ir::Min;
 using ir::Select;
 using ir::Tensor;
 
+void CudaScheduleMul(poly::StageMap stages,
+                     ir::Tensor output,
+                     const std::vector<int> &output_shape,
+                     const common::Target &target) {
+  stages[output]->Split(1, 2);
+  stages[output]->Bind(0, "blockIdx.x");
+  stages[output]->Bind(1, "threadIdx.x");
+
+  return;
+}
+
+void CudaScheduleConv(poly::StageMap stages,
+                      ir::Tensor input_pad,
+                      ir::Tensor kernel_dilation,
+                      ir::Tensor output,
+                      const common::Target &target) {
+  int num_thread = target.max_num_threads();
+  stages[output]->Fuse(0, 1);
+  auto [Block_x, Thread_x] = stages[output]->Split(0, num_thread);
+  stages[output]->Bind(0, "blockIdx.x");
+  stages[output]->Bind(1, "threadIdx.x");
+
+  return;
+}
+
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
   CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
   int dims = stage->n_out_dims();

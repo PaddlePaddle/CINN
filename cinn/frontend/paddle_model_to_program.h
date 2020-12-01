@@ -9,6 +9,7 @@
 #include <variant>
 #include <vector>
 
+#include "cinn/backends/cuda_util.h"
 #include "cinn/common/common.h"
 #include "cinn/common/context.h"
 #include "cinn/common/object.h"
@@ -73,9 +74,11 @@ class PaddleModelToProgram {
   const std::unordered_map<std::string, std::string>& var_model_to_program_map() { return var_model_to_program_map_; }
 
  protected:
-  void AddVar(const std::string& name, const Variable& var);
+  void AddVar(const std::string& name, const Variable& var, bool replace = false);
 
   Variable GetVar(const std::string& name);
+
+  void TransposeVar(const std::string& name);
 
  private:
   std::unordered_map<std::string, std::function<void(const paddle::cpp::OpDesc&)>> op_mappers_;

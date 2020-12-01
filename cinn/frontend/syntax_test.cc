@@ -104,7 +104,7 @@ TEST(syntax, program_execute_fc) {
   const int N = 24;
 
   Placeholder a(Float(32), {B, M, K}, "A");
-  Placeholder w(Float(32), {K, N}, "W");  // weight
+  Placeholder w(Float(32), {N, K}, "W");  // weight
   Placeholder b(Float(32), {N}, "B");     // bias
 
   Program program;
