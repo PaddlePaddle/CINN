@@ -154,10 +154,10 @@ std::vector<ir::Tensor> MulBias(const Tensor& A,
       [=](const std::vector<Expr>& indice) {
         std::vector<Expr> A_indice;
         std::vector<Expr> B_indice;
-        B_indice.push_back(axis_k);
         A_indice.insert(A_indice.begin(), indice.begin(), indice.begin() + x_num_col_dims);
-        B_indice.insert(B_indice.begin() + 1, indice.begin() + x_num_col_dims, indice.end());
+        B_indice.insert(B_indice.begin(), indice.begin() + x_num_col_dims, indice.end());
         A_indice.push_back(axis_k);
+        B_indice.push_back(axis_k);
         return lang::ReduceSum(A(A_indice) * B(B_indice), {axis_k});
       },
       UniqName("temp_out_mulbias"));

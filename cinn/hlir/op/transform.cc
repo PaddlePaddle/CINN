@@ -248,13 +248,14 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
       }
     }
     new_xshape.push_back(check_dim);
-    new_yshape.push_back(check_dim);
+
     for (int i = 0; i < B_tensor->shape.size(); i++) {
-      if (i >= y_num_col_dims) {
+      if (i < y_num_col_dims) {
         output_shape.push_back(B_tensor->shape[i]);
         new_yshape.push_back(B_tensor->shape[i]);
       }
     }
+    new_yshape.push_back(check_dim);
     Var axis_k(check_dim, UniqName("axis_k"));
     auto new_A = A_tensor->Reshape(new_xshape, stages);
     auto new_B = B_tensor->Reshape(new_yshape, stages);
@@ -282,9 +283,10 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
     CHECK(Temp.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
       pe::CudaScheduleMul(stages, Temp.as_tensor_ref(), output_shapes.back(), target);
-      // stages[Out.as_tensor_ref()]->Split(1, 2);
-      // stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      // stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      pe::CudaScheduleMul(stages, Out.as_tensor_ref(), output_shapes.back(), target);
+      /* stages[Out.as_tensor_ref()]->Split(1, 2);
+      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x"); */
       // pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(),target);
     }
     *ret = arg_pack;
@@ -375,9 +377,9 @@ std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector
 
   for (int i = 0; i < inputs_shape[1].size(); i++) {
     if (i < y_num_col_dims) {
-      check_dim_y = check_dim_y * inputs_shape[1][i];
-    } else {
       output_shape.push_back(inputs_shape[1][i]);
+    } else {
+      check_dim_y = check_dim_y * inputs_shape[1][i];
     }
   }
   CHECK_EQ(check_dim_x, check_dim_y) << "For matrix multiply: X * Y, second dim of X's shape :[" << check_dim_x
