@@ -9,10 +9,14 @@ cinn_buffer_t* BufferBuilder::Build() {
     cinn_type = cinn_float32_t();
   } else if (type_ == type_of<double>()) {
     cinn_type = cinn_float64_t();
+  } else if (type_ == type_of<int8_t>()) {
+    cinn_type = cinn_int8_t();
   } else if (type_ == type_of<int32_t>()) {
     cinn_type = cinn_int32_t();
   } else if (type_ == type_of<int64_t>()) {
     cinn_type = cinn_int64_t();
+  } else if (type_ == type_of<bool>()) {
+    cinn_type = cinn_bool_t();
   } else {
     CINN_NOT_IMPLEMENTED
   }
@@ -31,6 +35,10 @@ cinn_buffer_t* BufferBuilder::Build() {
         RandomFloat<float>(buffer->memory, buffer->num_elements());
       } else if (type_ == type_of<double>()) {
         RandomFloat<double>(buffer->memory, buffer->num_elements());
+      } else if (type_ == type_of<bool>()) {
+        RandomInt<int8_t>(buffer->memory, buffer->num_elements());
+      } else if (type_ == type_of<int8_t>()) {
+        RandomInt<int8_t>(buffer->memory, buffer->num_elements());
       } else if (type_ == type_of<int32_t>()) {
         RandomInt<int32_t>(buffer->memory, buffer->num_elements());
       } else if (type_ == type_of<int64_t>()) {
@@ -41,6 +49,8 @@ cinn_buffer_t* BufferBuilder::Build() {
     case InitType::kSetValue:
       if (type_ == type_of<int>()) {
         SetVal<int>(buffer->memory, buffer->num_elements(), init_val_);
+      } else if (type_ == type_of<int8_t>()) {
+        SetVal<int8_t>(buffer->memory, buffer->num_elements(), init_val_);
       } else if (type_ == type_of<float>()) {
         SetVal<float>(buffer->memory, buffer->num_elements(), init_val_);
       } else {

@@ -3,6 +3,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/cache_read_write_replace.h"
 #include "cinn/optim/call_arg_list_to_pod_value.h"
+#include "cinn/optim/cast_bool_to_int8.h"
 #include "cinn/optim/cast_simplify.h"
 #include "cinn/optim/compare_simplify.h"
 #include "cinn/optim/eliminate_broadcast_in_forloop.h"
@@ -48,6 +49,7 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   ExternCallMultiOutputShallowStore(&copied);
 
   ReplaceConstParamToInteger(&copied);
+  CastBoolToInt8(&copied, target);
   CastSimplify(&copied);
   Simplify(&copied);
   CompareSimplify(&copied);

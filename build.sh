@@ -26,7 +26,7 @@ function prepare {
     mkdir -p $build_dir
     cd $build_dir
 
-    python3 -m pip install sphinx sphinx_gallery recommonmark exhale --trusted-host mirrors.aliyun.com
+    python3 -m pip install sphinx sphinx_gallery recommonmark exhale scipy --trusted-host mirrors.aliyun.com
     apt install doxygen -y
 
     mkdir -p tests
