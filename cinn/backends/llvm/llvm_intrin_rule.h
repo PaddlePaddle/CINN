@@ -58,7 +58,33 @@ void RegisterCpuIntrinRule() {
 
           ir::Registry::Register("lower_cpu_intrinsic_bitwise_not", true)
               .SetBody(MakeFloatIntrinOp<-1, 1, false>);
+
   ir::Registry::Register("lower_cpu_intrinsic_isnan", true).SetBody(MakeFloatIntrinOp<-1, 1, false>);
+
+  ir::Registry::Register("lower_cpu_intrinsic_isfinite", true).SetBody([](lang::Args args, lang::RetValue *rv) {
+    CHECK_GE(args.size(), 1U);
+    Expr arg0      = args[0];
+    ir::Call *node = arg0->as<ir::Call>();
+    CHECK(node);
+    CHECK(!node->read_args.empty());
+    Expr arg = node->read_args[0];
+    *rv      = !(lang::IsInf(arg)) && !(lang::IsNan(arg));
+  });
+
+  ir::Registry::Register("lower_cpu_intrinsic_isinf", true).SetBody([](lang::Args args, lang::RetValue *rv) {
+    CHECK_GE(args.size(), 1U);
+    Expr arg0      = args[0];
+    ir::Call *node = arg0->as<ir::Call>();
+    CHECK(node);
+    CHECK(!node->read_args.empty());
+    Expr arg  = node->read_args[0];
+    Type type = arg->type();
+    if (type.is_int() || type.is_uint()) {
+      *rv = common::make_bool(false, type.lanes());
+    } else if (type.is_float()) {
+      *rv = ir::EQ::Make(lang::Abs(arg), lang::Infinity(type)) && !(lang::IsNan(arg));
+    }
+  });
 
   ir::Registry::Register("lower_cpu_intrinsic_exp10", true).SetBody([](lang::Args args, lang::RetValue *rv) {
     CHECK_GE(args.size(), 1U);

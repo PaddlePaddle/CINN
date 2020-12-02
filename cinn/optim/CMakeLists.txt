@@ -22,6 +22,7 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   compare_simplify.cc
   if_simplify.cc
   lower_intrin.cc
+  cast_bool_to_int8.cc
   )
 if (WITH_CUDA)
   list(APPEND srcs transform_gpu_forloop.cc)

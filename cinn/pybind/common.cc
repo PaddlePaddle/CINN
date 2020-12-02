@@ -142,6 +142,7 @@ void BindType(py::module *m) {
     if (dtype == "float32") return common::type_of<float>();
     if (dtype == "float64") return common::type_of<double>();
     if (dtype == "uchar") return common::type_of<unsigned char>();
+    if (dtype == "int8") return common::type_of<int8_t>();
     if (dtype == "int16") return common::type_of<int16_t>();
     if (dtype == "uint32") return common::type_of<uint32_t>();
     if (dtype == "bool") return common::type_of<bool>();
@@ -203,6 +204,8 @@ void BindCinnValue(py::module *m) {
   py::class_<CINNValue, cinn_pod_value_t> cinn_value(*m, "CINNValue");
   cinn_value.def(py::init<>())
       .def(py::init<cinn_value_t, int>())
+      .def(py::init<bool>())
+      .def(py::init<int8_t>())
       .def(py::init<int32_t>())
       .def(py::init<int64_t>())
       .def(py::init<float>())
@@ -217,6 +220,7 @@ void BindCinnValue(py::module *m) {
       .def("defined", &CINNValue::defined)
       .def("to_double", [](CINNValue &self) { return static_cast<double>(self); })
       .def("to_float", [](CINNValue &self) { return static_cast<float>(self); })
+      .def("to_int8", [](CINNValue &self) { return static_cast<int8_t>(self); })
       .def("to_int32", [](CINNValue &self) { return static_cast<int32_t>(self); })
       .def("to_int64", [](CINNValue &self) { return static_cast<int64_t>(self); })
       .def("to_void_p", [](CINNValue &self) { return static_cast<void *>(self); })

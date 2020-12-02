@@ -54,6 +54,7 @@ using AttrType = std::variant<bool,
 std::vector<Type> type{Float(32)};
 std::vector<Type> type1{Float(32), Float(32)};
 std::vector<Type> type2 = {Int(32)};
+std::vector<Type> type3 = {Bool()};
 // add
 // std::vector<std::vector<int>> shapes_add = {{1024, 1024, 1024}, {1024, 1024, 1024}};
 // TEST_DEFAULT(elementwise_add, add, type)
@@ -185,9 +186,16 @@ TEST_DEFAULT_UNARY(asinh)
 TEST_DEFAULT_UNARY(atan)
 TEST_DEFAULT_UNARY(atanh)
 
-// TEST_DEFAULT_UNARY(isnan)
-// TEST_DEFAULT_UNARY(isfinite)
-// TEST_DEFAULT_UNARY(isinf)
+// unary_bool
+#define TEST_DEFAULT_UNARY_BOOL(op__)                                    \
+  std::vector<std::vector<int>> shapes_unary_##op__    = {{1024, 2048}}; \
+  std::vector<std::vector<int>> shapes_unary_##op__##1 = {{3, 1000}};    \
+  TEST_DEFAULT(op__, unary_##op__, type3)                                \
+  TEST_DEFAULT(op__, unary_##op__##1, type3)
+
+TEST_DEFAULT_UNARY_BOOL(isnan)
+TEST_DEFAULT_UNARY_BOOL(isfinite)
+TEST_DEFAULT_UNARY_BOOL(isinf)
 
 // bitwise_not
 std::vector<std::vector<int>> shapes_bitwise_not  = {{1024, 2048}};

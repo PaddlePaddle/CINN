@@ -151,7 +151,7 @@ Expr IsInf(Expr e) {
   if (type.is_int() || type.is_uint()) {
     return common::make_bool(false, type.lanes());
   } else if (type.is_float()) {
-    return common::make_bool(is_zero(Abs(e) - Infinity(type)), type.lanes()) && !IsNan(e);
+    return ir::EQ::Make(Abs(e), Infinity(type)) && !IsNan(e);
   } else {
     LOG(FATAL) << type << "is not supported for isinf op.";
     return e;

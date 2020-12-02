@@ -18,6 +18,7 @@ template <typename FuncOp, typename FuncRuntime>
 void TestElementwisePE(const std::string &fn_name,
                        const FuncOp &func_op,
                        const FuncRuntime &fn_runtime,
+                       Type type     = Float(32),
                        int set_value = 0) {
   Expr M(100), N(32);
 
@@ -25,7 +26,7 @@ void TestElementwisePE(const std::string &fn_name,
 
   auto A_out = func_op(A.tensor(), fn_name + "_out");
 
-  auto stages = CreateStages({A_out});
+  auto stages = CreateStages({A.tensor(), A_out});
 
   Target target = common::DefaultHostTarget();
   Module::Builder builder("module0", target);
@@ -47,24 +48,39 @@ void TestElementwisePE(const std::string &fn_name,
   } else {
     A_buf = common::BufferBuilder(Float(32), {100, 32}).set_random().Build();
   }
-  auto *B_buf = common::BufferBuilder(Float(32), {100, 32}).set_zero().Build();
+  auto *B_buf = common::BufferBuilder(type, {100, 32}).set_align(type.bits()).Build();
 
   cinn_pod_value_t a_arg(A_buf), b_arg(B_buf);
   cinn_pod_value_t args[] = {a_arg, b_arg};
   fn_(args, 2);
 
   auto *ad = reinterpret_cast<float *>(A_buf->memory);
-  auto *bd = reinterpret_cast<float *>(B_buf->memory);
-  for (int i = 0; i < A_buf->num_elements(); i++) {
-    ASSERT_NEAR(bd[i], fn_runtime(ad[i]), 1e-5);
+  if (type.is_bool()) {
+    auto *bd = reinterpret_cast<int8_t *>(B_buf->memory);
+    for (int i = 0; i < A_buf->num_elements(); i++) {
+      ASSERT_NEAR(bd[i], fn_runtime(ad[i]), 1e-5);
+    }
+  } else {
+    auto *bd = reinterpret_cast<float *>(B_buf->memory);
+    for (int i = 0; i < A_buf->num_elements(); i++) {
+      ASSERT_NEAR(bd[i], fn_runtime(ad[i]), 1e-5);
+    }
   }
 }
 
+bool isnan(float e) { return std::isnan(e); }
+bool isfinite(float e) { return std::isfinite(e); }
+bool isinf(float e) { return std::isinf(e); }
+
 #define TEST_ELEMENTWISE_PE_FP32(test_name__, PE__) \
   TEST(elementwise_pe, test_name__) { TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, test_name__); }
-#define TEST_ELEMENTWISE_PE_FP32_SET(test_name__, PE__, value__)                           \
-  TEST(elementwise_pe, test_name__) {                                                      \
-    TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, test_name__, value__); \
+#define TEST_ELEMENTWISE_PE_FP32_BOOL(test_name__, PE__)                                  \
+  TEST(elementwise_pe, test_name__) {                                                     \
+    TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, test_name__, Bool()); \
+  }
+#define TEST_ELEMENTWISE_PE_FP32_SET(test_name__, PE__, value__)                                      \
+  TEST(elementwise_pe, test_name__) {                                                                 \
+    TestElementwisePE("PE_Elementwise_" #test_name__ "_fp32", PE__, test_name__, Float(32), value__); \
   }
 
 TEST_ELEMENTWISE_PE_FP32(exp, Exp)
@@ -88,10 +104,10 @@ TEST_ELEMENTWISE_PE_FP32(asin, Asin)
 TEST_ELEMENTWISE_PE_FP32(asinh, Asinh)
 TEST_ELEMENTWISE_PE_FP32(atan, Atan)
 TEST_ELEMENTWISE_PE_FP32(atanh, Atanh)
-// TEST_ELEMENTWISE_PE_FP32(isnan, IsNan)
 TEST_ELEMENTWISE_PE_FP32(tanh, Tanh)
-// TEST_ELEMENTWISE_PE_FP32(isfinite, IsFinite)
-// TEST_ELEMENTWISE_PE_FP32(isinf, IsInf)
+TEST_ELEMENTWISE_PE_FP32_BOOL(isnan, IsNan)
+TEST_ELEMENTWISE_PE_FP32_BOOL(isfinite, IsFinite)
+TEST_ELEMENTWISE_PE_FP32_BOOL(isinf, IsInf)
 
 }  // namespace pe
 }  // namespace hlir
