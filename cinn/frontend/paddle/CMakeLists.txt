@@ -8,7 +8,7 @@ set(srcs
   compatible_pb.cc
   )
 
-cc_test(test_model_parser SRCS model_parser_test.cc DEPS core
+cc_test(test_model_parser SRCS model_parser_test.cc DEPS cinncore
   ARGS --model_dir=${THIRD_PARTY_PATH}/model/lite_naive_model)
 
 foreach(cpp ${srcs})

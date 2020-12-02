@@ -41,6 +41,12 @@ extensions = [
     'exhale',
 ]
 
+source_suffix = {
+    '.rst': 'restructuredtext',
+    '.txt': 'markdown',
+    '.md': 'markdown',
+}
+
 autosummary_generate = True
 
 # Add any paths that contain templates here, relative to this directory.

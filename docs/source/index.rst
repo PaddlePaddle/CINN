@@ -38,6 +38,7 @@ C++ APIs
 .. toctree::
    :maxdepth: 1
 
+   matmul.md
    cpp/library_root.rst
 
 

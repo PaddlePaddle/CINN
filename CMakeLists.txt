@@ -69,18 +69,19 @@ set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
 add_subdirectory(cinnrt)
 add_subdirectory(tests)
+add_subdirectory(tutorials)
 
 
-cc_library(core SRCS ${core_src} DEPS glog ${llvm_libs} mklml framework_proto ${MLIR_ALL_LIBS})
+cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml framework_proto ${MLIR_ALL_LIBS})
 if (TARGET LLVM)
-  target_link_libraries(core LLVM)
+  target_link_libraries(cinncore LLVM)
 else()
-  target_link_libraries(core ${llvm_libs})
+  target_link_libraries(cinncore ${llvm_libs})
 endif()
-add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
+add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 
 
-add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER
+add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER
         # MLIR td file generations
         ops_inc
         basic_kernels_inc
@@ -91,7 +92,7 @@ add_dependencies(core GEN_LLVM_RUNTIME_IR_HEADER
         )
 
 if (WITH_CUDA)
-  target_link_libraries(core ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES})
+  target_link_libraries(cinncore ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES})
 endif()
 
 add_subdirectory(python)

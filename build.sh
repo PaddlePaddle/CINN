@@ -2,7 +2,8 @@
 set -ex
 
 workspace=$PWD
-build_dir=$workspace/build
+build_dir_name=${cinn_build:-build}
+build_dir=$workspace/${build_dir_name}
 
 JOBS=8
 
@@ -45,9 +46,11 @@ function prepare_llvm {
 
 function make_doc {
     cd $build_dir
+    rm -f $workspace/python/cinn/core_api.so
     ln -s $build_dir/cinn/pybind/core_api.so $workspace/python/cinn/
     cd $workspace/docs
     mkdir -p docs/source/cpp
+    cat $workspace/tutorials/matmul.cc | python $workspace/tools/gen_c++_tutorial.py  > $workspace/docs/source/matmul.md
     make html
 }
 
