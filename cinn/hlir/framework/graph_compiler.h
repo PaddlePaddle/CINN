@@ -49,7 +49,9 @@ class Program {
         VLOG(3) << out << " ";
       }
       ins->Run();
+#ifdef CINN_WITH_CUDA
       CUDA_CALL(cudaDeviceSynchronize());
+#endif
     }
   }
 
@@ -66,10 +68,10 @@ class Program {
         ins->RunTest(repeat_);
       }
     }
-
+#ifdef CINN_WITH_CUDA
     CUDA_CALL(cudaDeviceSynchronize());
+#endif
     double test_op_time = timer1.Stop() / repeat_;
-
     LOG(INFO) << "Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
   }
   /**

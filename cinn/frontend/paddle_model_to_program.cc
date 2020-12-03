@@ -404,14 +404,8 @@ void PaddleModelToProgram::TransposeVar(const std::string& name) {
                            reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
                            tensor->shape().numel() * sizeof(float),
                            cudaMemcpyDeviceToHost));
-#else
-      LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
-#endif
       CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
-
       TransposeData(data.data(), tensor->shape().data()[0], tensor->shape().data()[1]);
-
-#ifdef CINN_WITH_CUDA
       CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
                            data.data(),
                            tensor->shape().numel() * sizeof(float),
@@ -419,7 +413,6 @@ void PaddleModelToProgram::TransposeVar(const std::string& name) {
 #else
       LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
 #endif
-
     } else {
       CINN_NOT_IMPLEMENTED
     }
