@@ -156,6 +156,7 @@ class Stage : public Object {
    * @param order the order of all the iterators.
    */
   void Reorder(const std::vector<Iterator>& order);
+  void Reorder(const std::vector<int>& order);
 
   /**
    * Tile the two loop levels \p level0 and \p level1 with rectangular tiling.
