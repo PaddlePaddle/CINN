@@ -209,6 +209,8 @@ class Stage : public Object {
                  ComputeAtKind kind                    = kComputeAtAuto,
                  const std::string& cached_tensor_name = "");
 
+  void ComputeAt2(Stage* other, int level, ComputeAtKind kind=kComputeAtAuto);
+
   /**
    * Apply loop skewing on the loop levels \p i and \p j with a skewing factor of \p factor.
    * TODO(Superjomn) Refine this transform.
@@ -260,7 +262,7 @@ class Stage : public Object {
   /**
    * Split the reduce \p axis by extent of \p factor.
    */
-  void RFactor(Iterator axis);
+  std::tuple<ir::Tensor, Shared<Stage>> RFactor(Iterator axis);
 
   const isl::set& domain() const { return domain_; }
   const isl::map& transform() const { return transform_; }
@@ -324,6 +326,17 @@ class Stage : public Object {
   bool is_axis_locked(uint32_t level) const;
   //! Assert that the axis is not locked, abort if fail.
   void AssertAxisIsNotLocked(uint32_t level);
+
+  void CloneTo(Stage* stage, std::string_view tuple_name) const {
+    stage->domain_    = domain_;
+    stage->transform_ = transform_;
+    stage->domain_    = isl::manage(isl_set_set_tuple_name(stage->domain_.release(), tuple_name.data()));
+    stage->transform_ = isl::manage(isl_map_set_tuple_name(stage->transform_.release(), isl_dim_in, tuple_name.data()));
+    stage->transform_ =
+        isl::manage(isl_map_set_tuple_name(stage->transform_.release(), isl_dim_out, tuple_name.data()));
+    LOG(INFO) << "transform: " << stage->transform_;
+    LOG(INFO) << "domain: " << stage->domain_;
+  }
 
   static constexpr char* __type_info__ = "Stage";
 

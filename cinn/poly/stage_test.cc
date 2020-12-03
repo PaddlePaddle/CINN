@@ -7,6 +7,7 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/cinn.h"
+#include "cinn/optim/rfactor_rewrite.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/ir/ir.h"
@@ -688,7 +689,7 @@ TEST(isl, test1) {
 }
 
 TEST(Stage, RFactor) {
-  Expr M(16), N(32), K(48);
+  Expr M(16), N(32), K(8);
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
 
@@ -698,10 +699,15 @@ TEST(Stage, RFactor) {
 
   auto stages = CreateStages({C});
 
-  auto [k_outer, k_inner] = stages[C]->Split(k->name, 16);
-  stages[C]->RFactor(k_inner);
+  auto [k_outer, k_inner] = stages[C]->Split(k->name, 4);
+  auto [t, stage] = stages[C]->RFactor(k_inner);
+  stages->Insert(t, stage.get());
 
-  auto fn = Lower("fn", stages, {A, B, C});
+  //stages[C]->ComputeAt2(stages[t], 1);
+
+  auto fn = Lower("fn", stages, {A, B, t,C});
+  Expr fn_expr(fn);
+  optim::RFactorRewrite(&fn_expr, stages);
 
   LOG(INFO) << fn;
 

@@ -66,13 +66,26 @@ struct Mutator : public ir::IRMutator<> {
     if (rfactor_axises.empty()) return;
     CHECK_EQ(rfactor_axises.size(), 1UL) << "Cannot process more than 1 rfactor";
 
+    this->rfactor_axis = Var(*rfactor_axises.begin());
+
     std::string_view axis_name = *rfactor_axises.begin();
 
     auto axis_level = std::find_if(forloops.begin(), forloops.end(), [&](const Expr& forloop) {
       return forloop.As<ir::For>() && forloop.As<ir::For>()->loop_var->name == axis_name;
     });
 
-    RewriteRFactor(std::distance(forloops.begin(), axis_level));
+    // get the tensor reference indice
+    std::vector<Expr> indice;
+    std::vector<Expr> shape;
+    for (auto& forloop_expr : forloops) {
+      auto* forloop = forloop_expr.As<ir::For>();
+      Var loop_var  = forloop->loop_var;
+      if (loop_var == rfactor_axis) break;
+      indice.push_back(loop_var);
+      shape.push_back(forloop->extent);
+    }
+
+    RewriteRFactor(std::distance(forloops.begin(), axis_level), indice, shape);
   }
 
   void Visit(const ir::For* op, Expr* expr) override {
@@ -93,7 +106,7 @@ struct Mutator : public ir::IRMutator<> {
     forloops.pop_back();
   }
 
-  void RewriteRFactor(int offset) {
+  void RewriteRFactor(int offset, std::vector<Expr> indices, std::vector<Expr> shape) {
     auto* forloop = forloops[offset].As<ir::For>();
     CHECK(forloop);
 
@@ -105,15 +118,13 @@ struct Mutator : public ir::IRMutator<> {
     CHECK(old_store) << "expr: " << forloop->body;
     LOG(INFO) << "old_store: " << forloop->body;
 
-    std::vector<Expr> shape({forloop->extent});
-
-    Expr tensor =
-        ir::_Tensor_::Make(old_store->tensor.as_tensor()->name + "_rf", old_store->value.type(), shape, shape, nullptr);
+    Expr tensor = ir::_Tensor_::Make(
+        old_store->tensor.as_tensor()->name + "_rfactor", old_store->value.type(), shape, shape, nullptr);
 
     auto [node_type, right_operand] = common::BinaryArithEqualGetBody(old_store);
     CHECK(right_operand.defined());
 
-    Expr right_operand1 = tensor.as_tensor_ref()(forloop->loop_var);
+    Expr right_operand1 = tensor.as_tensor_ref()(indices);
     switch (node_type) {
       case ir::IrNodeTy::Add:
         right_operand1 = right_operand1 + right_operand;
@@ -138,16 +149,11 @@ struct Mutator : public ir::IRMutator<> {
     }
 
     // create a new store
-    auto new_store = ir::Store::Make(tensor, right_operand1, {forloop->loop_var});
+    auto new_store = ir::Store::Make(tensor, right_operand1, indices);
 
     forloop->body = ir::Block::Make({new_store});
 
     // to append a forloop to assign the origial tensor value
-    
-
-
-
-
   }
 
   std::vector<Expr> forloops;

@@ -310,6 +310,8 @@ class _Operation_ : public ir::FunctionBase {
   virtual const char* func_type() const = 0;
 };
 
+Shared<poly::Stage> CreateStage(Tensor tensor);
+
 }  // namespace ir
 }  // namespace cinn
 

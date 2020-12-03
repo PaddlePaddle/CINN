@@ -123,6 +123,8 @@ isl::ast_node AstGen::Build() {
   }
   auto schedule = isl_maps_to_union_map(maps);
 
+  LOG(INFO) << "schedule:\n" << schedule;
+
   // Build it.
   auto ast_build = isl::ast_build::from_context(impl_->context_);
 
@@ -158,13 +160,18 @@ isl::ast_node AstGen::Build() {
 
   isl::union_set new_domain = TransIdentityExtentToContextId(impl_->domain());
 
+  LOG(INFO) << "transform: " << impl_->transform();
+  LOG(INFO) << "schedule: " << schedule;
   isl::union_map transformed_schedule = impl_->transform().apply_range(schedule);
+  LOG(INFO) << "transformed_schedule: " << transformed_schedule;
   VLOG(4) << "transformed_schedule: " << transformed_schedule;
   auto schedule_domain = transformed_schedule.intersect_domain(new_domain);
   VLOG(4) << "domain: " << impl_->domain();
   VLOG(4) << "transform schedule " << impl_->stages()[0]->transform();
   VLOG(4) << "schedule: " << schedule;
   VLOG(4) << "schedule_domain: " << schedule_domain;
+
+  LOG(INFO) << "schedule_domain: " << schedule_domain;
   auto ast = ast_build.node_from_schedule_map(schedule_domain);
   VLOG(2) << "AST:\n" << isl_ast_node_to_C_str(ast.get());
   return ast;

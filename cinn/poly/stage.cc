@@ -11,6 +11,7 @@
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 #include "cinn/optim/ir_replace.h"
 #include "cinn/poly/compute_at_transform.h"
@@ -179,6 +180,18 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
   for (int i = 0; i < isl_map_dim(transform_.get(), isl_dim_out); i++) {
     LockAxis(i);
   }
+}
+
+void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
+  // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
+
+  CHECK(tensor_);
+  ComputeAtRelation relation;
+  relation.stage = other;
+  relation.level = level;
+
+  CHECK(relation.IsCompatible(this));
+  compute_ats_[other->id()] = relation;
 }
 
 void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
@@ -684,12 +697,45 @@ Stage *_StageMap_::Lookup(const std::string &name) const {
   return it->second.get();
 }
 
-void cinn::poly::Stage::RFactor(Iterator axis) {
+std::tuple<ir::Tensor, Shared<Stage>> cinn::poly::Stage::RFactor(Iterator axis) {
   LOG(INFO) << "rfactor on " << axis;
   int level = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, axis.id.c_str());
   AssertAxisIsNotLocked(level);
   LockAxis(level);
   rfactor_axis_.insert(axis.id);
+
+  auto t     = lang::Compute(tensor()->domain, tensor()->get_compute_op()->producer_fn, tensor()->name + "_rfactor");
+  auto stage = ir::CreateStage(t);
+  CloneTo(stage.get(), t->name);
+
+  // remove the axis before the refactor axis (k.outer) from the transform
+  {
+    auto axis_names  = isl_get_dim_names(stage->transformed_domain());
+    auto axis_names1 = axis_names;
+    auto it          = std::find(axis_names1.begin(), axis_names1.end(), axis.id);
+    CHECK(it != axis_names1.begin());
+    *(it-1) = "x";
+    //axis_names1.erase(it - 1);
+
+    std::string repr  = utils::StringFormat("{ %s[%s] -> %s[%s] : x=1 }",
+                                           t->name.c_str(),
+                                           utils::Join(axis_names, ",").c_str(),
+                                           t->name.c_str(),
+                                           utils::Join(axis_names1, ",").c_str());
+    stage->transform_ = isl::manage(isl_map_apply_range(
+        stage->transform_.release(), isl_map_read_from_str(stage->transform_.ctx().get(), repr.c_str())));
+
+    // set name
+    for (int i = 0; i < axis_names1.size(); i++) {
+      stage->transform_ =
+          isl::manage(isl_map_set_dim_name(stage->transform_.release(), isl_dim_out, i, axis_names1[i].c_str()));
+    }
+    LOG(INFO) << "transform: " << stage->transform_;
+    LOG(INFO) << "transformed_domain: " << stage->transformed_domain();
+  }
+
+  //stage->CtrlDepend(ir::Tensor(this->tensor()));
+  return std::make_tuple(t, stage);
 }
 
 }  // namespace poly

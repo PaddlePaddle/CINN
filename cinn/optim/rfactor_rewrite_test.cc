@@ -22,7 +22,7 @@ TEST(RFactorRewrite, basic) {
 
   LOG(INFO) << fn;
 
-  RFactorRewrite(&fn, stages);
+  //RFactorRewrite(&fn, stages);
 
   LOG(INFO) << fn;
 
