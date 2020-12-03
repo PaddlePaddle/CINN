@@ -54,6 +54,20 @@ print(fn)
 
 ##################################################################
 #
+# fuse
+# ------
+# :code:`fuse` can fuse two specific axises into a axis.
+# It is the reverse operation of `split`.
+A = cinn.Placeholder('float32', 'A', (m, n))
+B = cinn.compute((m, n), lambda v: A(v[0], v[1]) * 2., name='B')
+
+stages = cinn.create_stages([B])
+i0 = stages[B].fuse(level0=0, level1=1)
+fn = cinn.lower("fn", stages, [A.to_tensor(), B])
+print(fn)
+
+##################################################################
+#
 # tile
 # ------
 # :code:`tile` can partition two adjacent axises into blocks.
@@ -138,4 +152,60 @@ stages[C].bind(0, "blockIdx.x")
 stages[C].bind(1, "threadIdx.x")
 
 fn = cinn.lower("fn", stages, [A.to_tensor(), B.to_tensor(), C])
+print(fn)
+
+##################################################################
+#
+# compute_at
+# ----------------
+# :code:`compute_at` can specify the stage to be computed at
+# another stage's scope.
+# The input param `other` specifies the other stage.
+# The input param `level` specifies the stage's scope(which loop)
+# to be computed at.
+A = cinn.Placeholder('float32', 'A', (m, n, n))
+B = cinn.Placeholder('float32', 'B', (m, n, n))
+C = cinn.compute(
+    (m, n), lambda v: A(v[0], v[1], v[1]) * B(v[0], v[1], v[1]), name='C')
+D = cinn.compute((m, n), lambda v: C(v[0], v[1]) + 1., name='D')
+stages = cinn.create_stages([C, D])
+
+print("---------Before compute_at---------")
+fn = cinn.lower("fn", stages, [A.to_tensor(), B.to_tensor(), C, D])
+print(fn)
+
+print("---------After compute_at---------")
+stages[C].compute_at(other=stages[D], level=1)
+fn2 = cinn.lower("fn", stages, [A.to_tensor(), B.to_tensor(), C, D])
+print(fn2)
+
+##################################################################
+#
+# cache_read
+# ------
+# :code:`cache_read` can create a cache Tensor and load the origin
+# Tensor's data into this buffer.
+# It will replace all the reading in the readers with the cache.
+A = cinn.Placeholder('float32', 'A', (m, n))
+B = cinn.compute((m, n), lambda v: A(v[0], v[1]) * 2., name='B')
+
+stages = cinn.create_stages([B])
+ACR = stages[A.to_tensor()].cache_read("local", [B], stages)
+fn = cinn.lower("fn", stages, [A.to_tensor(), ACR, B])
+print(fn)
+
+##################################################################
+#
+# cache_write
+# ------
+# :code:`cache_write` can create a cache for writing to the
+# original tensor.
+# It will store the data in the cache memory first, then
+# write to the output tensor.
+A = cinn.Placeholder('float32', 'A', (m, n))
+B = cinn.compute((m, n), lambda v: A(v[0], v[1]) * 2., name='B')
+
+stages = cinn.create_stages([B])
+BCR = stages[B].cache_write("local", stages)
+fn = cinn.lower("fn", stages, [A.to_tensor(), B, BCR])
 print(fn)
