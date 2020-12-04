@@ -2,6 +2,14 @@ set(srcs intrinsic.cc cinn_runtime.cc
         #cinn_x86_device_impl.cc
         intrinsic_types.cc)
 
+set(includes
+    buffer.h
+    cinn_runtime.h
+    intrinsic.h
+    intrinsic_types.h
+    use_extern_funcs.h
+    )
+
 cc_library(cinn_runtime SRCS cinn_runtime.cc buffer.cc
         #cinn_x86_device_impl.cc
         )
@@ -15,4 +23,8 @@ foreach(cpp ${srcs})
     set(core_src
             "${core_src};cinn/runtime/${cpp}"
             CACHE INTERNAL "")
+endforeach()
+
+foreach(header ${includes})
+  set(core_includes "${core_includes};cinn/runtime/${header}" CACHE INTERNAL "")
 endforeach()

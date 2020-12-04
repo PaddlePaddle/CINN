@@ -12,6 +12,25 @@ set(srcs outputs.cc
         modular.cc
         compiler.cc
 )
+
+set(includes
+    codegen_c.h
+    codegen_c_x86.h
+    codegen_cuda_dev.h
+    codegen_cuda_host.h
+    codegen_cuda_util.h
+    compiler.h
+    cuda_util.h
+    extern_func_emitter.h
+    extern_func_emitter_builtin.h
+    extern_func_jit_register.h
+    extern_func_protos.h
+    function_prototype.h
+    modular.h
+    nvrtc_util.h
+    outputs.h
+    )
+
 if (WITH_CUDA)
   list(APPEND srcs cuda_util.cc nvrtc_util.cc codegen_cuda_util.cc)
 endif()
@@ -47,4 +66,8 @@ foreach(cpp ${srcs})
   set(core_src
           "${core_src};cinn/backends/${cpp}"
           CACHE INTERNAL "")
+endforeach()
+
+foreach(header ${includes})
+  set(core_includes "${core_includes};cinn/backends/${header}" CACHE INTERNAL "")
 endforeach()

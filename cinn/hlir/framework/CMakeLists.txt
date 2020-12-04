@@ -12,6 +12,22 @@ set(srcs
   op_strategy.cc
   )
 
+set(includes
+    buffer.h
+    graph.h
+    graph_compiler.h
+    instruction.h
+    memory.h
+    node.h
+    op.h
+    op_strategy.h
+    pass.h
+    schedule.h
+    scope.h
+    tensor.h
+    variable.h
+    )
+
 if(WITH_CUDA)
   nv_test(test_hlir_framework_buffer SRCS buffer_test.cc DEPS cinncore)
   nv_test(test_hlir_framework_infershape_pass SRCS infershape_pass_test.cc DEPS cinncore)
@@ -31,4 +47,8 @@ foreach(cpp ${srcs})
   set(core_src
     "${core_src};cinn/hlir/framework/${cpp}"
     CACHE INTERNAL "")
+endforeach()
+
+foreach(header ${includes})
+  set(core_includes "${core_includes};cinn/hlir/framework/${header}" CACHE INTERNAL "")
 endforeach()

@@ -12,10 +12,28 @@ set(srcs
     compute_at_transform.cc
 )
 
+set(includes
+    ast_gen.h
+    compute_at_transform.h
+    dim.h
+    domain.h
+    graph.h
+    isl_utils.h
+    map.h
+    naive_scheduler.h
+    poly_scheduler.h
+    schedule.h
+    stage.h
+    )
+
 foreach(cpp ${srcs})
   set(core_src
       "${core_src};cinn/poly/${cpp}"
       CACHE INTERNAL "")
+endforeach()
+
+foreach(header ${includes})
+  set(core_includes "${core_includes};cinn/poly/${header}" CACHE INTERNAL "")
 endforeach()
 
 # cc_test(test_graph SRCS graph_test.cc DEPS core)

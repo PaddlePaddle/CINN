@@ -24,7 +24,29 @@ foreach(cpp ${srcs})
       CACHE INTERNAL "")
 endforeach()
 
-message(STATUS "core_src: ${core_src}")
+set(includes
+    buffer.h
+    collect_ir_nodes.h
+    function_base.h
+    function_definition.h
+    intrinsic_ops.h
+    ir.h
+    ir_base.h
+    ir_mutator.h
+    ir_operators.h
+    ir_printer.h
+    ir_verify.h
+    ir_visitor.h
+    lowered_func.h
+    module.h
+    operation.h
+    registry.h
+    tensor.h
+    )
+
+foreach(header ${includes})
+  set(core_includes "${core_includes};cinn/ir/${header}" CACHE INTERNAL "")
+endforeach()
 
 # cc_test(test_ir SRCS ir_test.cc DEPS core)
 # cc_test(test_ir_printer SRCS ir_printer_test.cc DEPS core)

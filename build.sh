@@ -5,7 +5,7 @@ workspace=$PWD
 build_dir_name=${cinn_build:-build}
 build_dir=$workspace/${build_dir_name}
 
-JOBS=8
+JOBS=80
 
 cuda_config=OFF
 
@@ -94,9 +94,9 @@ function prepare_model {
         wget http://paddle-inference-dist.bj.bcebos.com/CINN/EfficientNet.tar
         tar -xvf EfficientNet.tar
     fi
-    python $workspace/python/tests/fake_model/naive_mul.py
-    python $workspace/python/tests/fake_model/naive_multi_fc.py
-    python $workspace/python/tests/fake_model/resnet_model.py
+    python3 $workspace/python/tests/fake_model/naive_mul.py
+    python3 $workspace/python/tests/fake_model/naive_multi_fc.py
+    python3 $workspace/python/tests/fake_model/resnet_model.py
 }
 
 function build {
@@ -122,9 +122,17 @@ function build {
     make -j $JOBS
 }
 
+function run_demo {
+    cd $build_dir/dist
+    bash build_demo.sh
+    ./demo
+    rm ./demo
+    cd -
+}
+
 function run_test {
     cd $build_dir
-    ctest --parallel 10 -V
+    ctest --parallel 80 -V
 }
 
 function CI {
@@ -134,6 +142,7 @@ function CI {
     prepare_llvm
     cmake_
     build
+    run_demo
     prepare_model
     run_test
 

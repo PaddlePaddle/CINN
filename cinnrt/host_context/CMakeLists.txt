@@ -12,6 +12,19 @@ set(srcs
         mlir_to_runtime_translate.cc
   )
 
+set(includes
+    core_runtime.h
+    dense_tensor.h
+    dense_tensor_view.h
+    kernel_frame.h
+    kernel_registry.h
+    kernel_utils.h
+    mlir_to_runtime_translate.h
+    op_executable.h
+    symbol_table.h
+    tensor_shape.h
+    value.h
+    )
 
 cc_test(test_host_context_value SRCS value_test.cc DEPS cinncore)
 cc_test(test_kernel_utils SRCS kernel_utils_test.cc DEPS cinncore)
@@ -31,4 +44,8 @@ foreach(cpp ${srcs})
   set(core_src
     "${core_src};cinnrt/host_context/${cpp}"
     CACHE INTERNAL "")
+endforeach()
+
+foreach(header ${includes})
+  set(core_includes "${core_includes};cinnrt/host_context/${header}" CACHE INTERNAL "")
 endforeach()
