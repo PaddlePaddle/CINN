@@ -5,7 +5,7 @@ workspace=$PWD
 build_dir_name=${cinn_build:-build}
 build_dir=$workspace/${build_dir_name}
 
-JOBS=80
+JOBS=8
 
 cuda_config=OFF
 
@@ -132,7 +132,7 @@ function run_demo {
 
 function run_test {
     cd $build_dir
-    ctest --parallel 80 -V
+    ctest --parallel 10 -V
 }
 
 function CI {
