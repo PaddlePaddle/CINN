@@ -59,7 +59,12 @@ void BindStage(py::module *m) {
       .def("split", py::overload_cast<const std::string &, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("split", py::overload_cast<int, int>(&Stage::Split), arg("level"), arg("factor"))
       .def("fuse", py::overload_cast<int, int>(&Stage::Fuse), arg("level0"), arg("level1"))
-      .def("reorder", &Stage::Reorder, "Reorder the axis in the computation")
+      .def("reorder",
+           py::overload_cast<const std::vector<Iterator> &>(&Stage::Reorder),
+           "Reorder the axis in the computation")
+      .def("reorder",
+           py::overload_cast<const std::vector<int> &>(&Stage::Reorder),
+           "Reorder the axis in the computation")
       .def("tile", py::overload_cast<const Iterator &, const Iterator &, int, int>(&Stage::Tile))
       .def("tile", py::overload_cast<int, int, int, int>(&Stage::Tile))
       .def("vectorize", py::overload_cast<int, int>(&Stage::Vectorize))

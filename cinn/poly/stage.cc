@@ -132,6 +132,12 @@ void Stage::Reorder(const std::vector<Iterator> &order) {
   transform_ = transform_.apply_range(transform.to_isl());
 }
 
+void Stage::Reorder(const std::vector<int> &order) {
+  std::vector<Iterator> iters;
+  for (int id : order) iters.push_back(ith_iterator(id));
+  Reorder(iters);
+}
+
 std::tuple<Iterator, Iterator, Iterator, Iterator>  //
 Stage::Tile(int level0, int level1, int factor0, int factor1) {
   AssertAxisIsNotLocked(level0);
