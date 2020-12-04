@@ -45,6 +45,16 @@ function prepare_llvm {
 }
 
 function make_doc {
+    cd $workspace/tutorials
+    if [[ -f "ResNet18.tar" ]]; then
+        echo "model file for tutorials already downloaded."
+    elif [[ -f "$build_dir/thirds/ResNet18.tar" ]]; then
+        rm -rf $workspace/tutorials/ResNet18
+        ln -s $build_dir/thirds/ResNet18 $workspace/tutorials/ResNet18
+    else
+        wget http://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar
+        tar -xvf ResNet18.tar
+    fi
     cd $build_dir
     rm -f $workspace/python/cinn/core_api.so
     ln -s $build_dir/cinn/pybind/core_api.so $workspace/python/cinn/
