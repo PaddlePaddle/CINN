@@ -3,7 +3,7 @@ Tutorials
 This page contains the tutorials about CINN.
 
 #### Run demo
-compile demo.cpp
+compile demo.cc
 
 ```bash
 cd build/dist
