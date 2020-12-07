@@ -1,16 +1,6 @@
 set(srcs string.cc functional.cc dot_lang.cc timer.cc error.cc
         small_vector.cc)
 
-set(includes
-    dot_lang.h
-    error.h
-    functional.h
-    registry.h
-    small_vector.h
-    string.h
-    timer.h
-    )
-
 cc_test(test_string SRCS string_test.cc DEPS cinncore)
 
 foreach(cpp ${srcs})
@@ -19,6 +9,8 @@ foreach(cpp ${srcs})
       CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/utils/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

@@ -23,18 +23,6 @@ set(srcs
   llvm_optimizer.cc
 )
 
-set(includes
-  codegen_llvm.h
-  codegen_x86.h
-  execution_engine.h
-  ir_builder_mixin.h
-  llvm_intrin_rule.h
-  llvm_optimizer.h
-  llvm_util.h
-  runtime_symbol_registry.h
-  simple_jit.h
-)
-
 cc_test(test_codegen_llvm SRCS codegen_llvm_test.cc DEPS cinncore)
 cc_test(test_execution_engine SRCS execution_engine_test.cc DEPS cinncore)
 cc_test(test_codegen_x86 SRCS codegen_x86_test.cc DEPS cinncore)
@@ -45,6 +33,8 @@ foreach(cpp ${srcs})
     CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/backends/llvm/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

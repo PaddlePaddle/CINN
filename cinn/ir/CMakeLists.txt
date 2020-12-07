@@ -24,28 +24,10 @@ foreach(cpp ${srcs})
       CACHE INTERNAL "")
 endforeach()
 
-set(includes
-    buffer.h
-    collect_ir_nodes.h
-    function_base.h
-    function_definition.h
-    intrinsic_ops.h
-    ir.h
-    ir_base.h
-    ir_mutator.h
-    ir_operators.h
-    ir_printer.h
-    ir_verify.h
-    ir_visitor.h
-    lowered_func.h
-    module.h
-    operation.h
-    registry.h
-    tensor.h
-    )
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
 
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/ir/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()
 
 # cc_test(test_ir SRCS ir_test.cc DEPS core)

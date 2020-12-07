@@ -4,13 +4,6 @@ set(srcs
         cblas.cc
         )
 
-set(includes
-    cblas.h
-    host_intrinsics.h
-    mkl_math.h
-    use_extern_funcs.h
-    )
-
 cc_test(test_mkl_math SRCS mkl_math_test.cc mkl_math.cc DEPS cinncore)
 cc_test(test_host_intrinsics SRCS host_intrinsics_test.cc DEPS cinncore)
 
@@ -20,6 +13,8 @@ foreach(cpp ${srcs})
             CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/runtime/cpu/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

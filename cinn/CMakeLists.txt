@@ -15,4 +15,7 @@ add_subdirectory(frontend)
 # Download a model
 download_and_uncompress("${DOWNLOAD_MODEL_DIR}" "${PADDLE_RESOURCE_URL}" "lite_naive_model.tar.gz")
 
-set(core_includes "${core_includes};cinn/cinn.h" CACHE INTERNAL "")
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+foreach(header ${includes})
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
+endforeach()

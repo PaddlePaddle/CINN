@@ -10,12 +10,8 @@ foreach(cpp ${srcs})
             CACHE INTERNAL "")
 endforeach()
 
-set(includes
-    basic_kernels.h
-    tensor_kernels.h
-    tensor_shape_kernels.h
-    )
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
 
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinnrt/kernel/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

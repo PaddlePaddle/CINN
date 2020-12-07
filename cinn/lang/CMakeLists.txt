@@ -9,25 +9,16 @@ set(srcs
     packed_func.cc
     )
 
-set(includes
-    buffer.h
-    builtin.h
-    compute.h
-    compute_at_postprocess.h
-    lower.h
-    lower_impl.h
-    packed_func.h
-    placeholder.h
-    )
-
 foreach(cpp ${srcs})
   set(core_src
       "${core_src};cinn/lang/${cpp}"
       CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/lang/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()
 
 cc_test(test_compute SRCS compute_test.cc DEPS cinncore)

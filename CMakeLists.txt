@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 project(CINN)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
 
 set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -102,7 +103,7 @@ foreach(header ${core_includes})
 endforeach()
 
 add_custom_command(TARGET cinncore POST_BUILD
-    COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/demo.cpp ${CMAKE_BINARY_DIR}/dist/demo.cpp
+    COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/demo.cc ${CMAKE_BINARY_DIR}/dist/demo.cc
     COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/build_demo.sh ${CMAKE_BINARY_DIR}/dist/build_demo.sh
     COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/libcinncore.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libcinncore.a
     COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/frontend/paddle/libframework_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libframework_proto.a

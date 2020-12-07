@@ -2,16 +2,14 @@ set(srcs
   infershape.cc
   )
 
-set(includes
-    use_pass.h
-    )
-
 foreach(cpp ${srcs})
   set(core_src
     "${core_src};cinn/hlir/pass/${cpp}"
     CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/hlir/pass/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

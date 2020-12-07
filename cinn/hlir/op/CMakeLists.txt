@@ -5,18 +5,16 @@ set(srcs
         elementwise.cc
   )
 
-set(includes
-    use_ops.h
-    )
-
 foreach(cpp ${srcs})
   set(core_src
     "${core_src};cinn/hlir/op/${cpp}"
     CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/hlir/op/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()
 
 cc_test(test_cinn_op_broadcast SRCS op_broadcast_test.cc DEPS cinncore)

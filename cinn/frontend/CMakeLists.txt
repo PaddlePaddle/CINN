@@ -4,12 +4,6 @@ set(srcs
   interpreter.cc
   )
 
-set(includes
-    interpreter.h
-    paddle_model_to_program.h
-    syntax.h
-    )
-
 if(NOT WITH_CUDA)
   cc_test(test_frontend_syntax
           ARGS "--model_dir=${THIRD_PARTY_PATH}/naive_mul_model"
@@ -37,6 +31,8 @@ foreach(cpp ${srcs})
     CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/frontend/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

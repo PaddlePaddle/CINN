@@ -17,35 +17,16 @@ set(srcs
     union_find.cc
     )
 
-set(includes
-    arithmatic.h
-    cas.h
-    common.h
-    cuda_test_helper.h
-    graph_utils.h
-    ir_util.h
-    object.h
-    target.h
-    type.h
-    axis.h
-    cinn_value.h
-    context.h
-    debug_manager.h
-    info_registry.h
-    macros.h
-    shared.h
-    test_helper.h
-    union_find.h
-    )
-
 foreach(cpp ${srcs})
   set(core_src
       "${core_src};cinn/common/${cpp}"
       CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/common/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()
 
 cc_test(test_cinn_value SRCS cinn_value_test.cc DEPS cinncore)

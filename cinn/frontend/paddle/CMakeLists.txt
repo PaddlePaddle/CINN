@@ -8,11 +8,6 @@ set(srcs
   compatible_pb.cc
   )
 
-set(includes
-  compatible_pb.h
-  model_parser.h
-  )
-
 cc_test(test_model_parser SRCS model_parser_test.cc DEPS cinncore
   ARGS --model_dir=${THIRD_PARTY_PATH}/model/lite_naive_model)
 
@@ -20,6 +15,8 @@ foreach(cpp ${srcs})
   set(core_src "${core_src};cinn/frontend/paddle/${cpp}" CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/frontend/paddle/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

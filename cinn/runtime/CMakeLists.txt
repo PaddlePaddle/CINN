@@ -2,14 +2,6 @@ set(srcs intrinsic.cc cinn_runtime.cc
         #cinn_x86_device_impl.cc
         intrinsic_types.cc)
 
-set(includes
-    buffer.h
-    cinn_runtime.h
-    intrinsic.h
-    intrinsic_types.h
-    use_extern_funcs.h
-    )
-
 cc_library(cinn_runtime SRCS cinn_runtime.cc buffer.cc
         #cinn_x86_device_impl.cc
         )
@@ -25,6 +17,8 @@ foreach(cpp ${srcs})
             CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/runtime/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

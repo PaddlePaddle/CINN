@@ -12,20 +12,6 @@ set(srcs
         mlir_to_runtime_translate.cc
   )
 
-set(includes
-    core_runtime.h
-    dense_tensor.h
-    dense_tensor_view.h
-    kernel_frame.h
-    kernel_registry.h
-    kernel_utils.h
-    mlir_to_runtime_translate.h
-    op_executable.h
-    symbol_table.h
-    tensor_shape.h
-    value.h
-    )
-
 cc_test(test_host_context_value SRCS value_test.cc DEPS cinncore)
 cc_test(test_kernel_utils SRCS kernel_utils_test.cc DEPS cinncore)
 cc_test(test_kernel_registry SRCS kernel_registry_test.cc DEPS cinncore)
@@ -46,6 +32,8 @@ foreach(cpp ${srcs})
     CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinnrt/host_context/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

@@ -13,24 +13,6 @@ set(srcs outputs.cc
         compiler.cc
 )
 
-set(includes
-    codegen_c.h
-    codegen_c_x86.h
-    codegen_cuda_dev.h
-    codegen_cuda_host.h
-    codegen_cuda_util.h
-    compiler.h
-    cuda_util.h
-    extern_func_emitter.h
-    extern_func_emitter_builtin.h
-    extern_func_jit_register.h
-    extern_func_protos.h
-    function_prototype.h
-    modular.h
-    nvrtc_util.h
-    outputs.h
-    )
-
 if (WITH_CUDA)
   list(APPEND srcs cuda_util.cc nvrtc_util.cc codegen_cuda_util.cc)
 endif()
@@ -68,6 +50,8 @@ foreach(cpp ${srcs})
           CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinn/backends/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

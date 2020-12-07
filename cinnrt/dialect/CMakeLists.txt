@@ -10,17 +10,6 @@ set(srcs
         diagnostic_utils.cc
         )
 
-set(includes
-    basic_kernels.h
-    cinn_base.h
-    dense_tensor.h
-    diagnostic_utils.h
-    init_cinn_dialects.h
-    mlir_loader.h
-    tensor_shape.h
-    types.h
-    )
-
 mlir_tablegen_on(ops)
 mlir_tablegen_on(basic_kernels)
 mlir_tablegen_on(cinn_base DIALECT cinn)
@@ -49,6 +38,8 @@ foreach(cpp ${srcs})
       CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
 foreach(header ${includes})
-  set(core_includes "${core_includes};cinnrt/dialect/${header}" CACHE INTERNAL "")
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()
