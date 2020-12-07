@@ -107,7 +107,7 @@ add_custom_command(TARGET cinncore POST_BUILD
     COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/build_demo.sh ${CMAKE_BINARY_DIR}/dist/build_demo.sh
     COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/libcinncore.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libcinncore.a
     COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/frontend/paddle/libframework_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libframework_proto.a
-    COMMAND cmake -E copy_directory ${CMAKE_SOURCE_DIR}/llvm11-latest ${CMAKE_BINARY_DIR}/dist/third_party/llvm11
+    COMMAND cmake -E copy_directory ${LLVM11_DIR} ${CMAKE_BINARY_DIR}/dist/third_party/llvm11
     COMMAND cmake -E copy_directory ${CMAKE_BINARY_DIR}/thirds/install ${CMAKE_BINARY_DIR}/dist/third_party
     COMMENT "distribute libcinncore.a and related header files."
     DEPENDS cinncore
