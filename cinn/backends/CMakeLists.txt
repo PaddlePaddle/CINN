@@ -12,6 +12,7 @@ set(srcs outputs.cc
         modular.cc
         compiler.cc
 )
+
 if (WITH_CUDA)
   list(APPEND srcs cuda_util.cc nvrtc_util.cc codegen_cuda_util.cc)
 endif()
@@ -47,4 +48,10 @@ foreach(cpp ${srcs})
   set(core_src
           "${core_src};cinn/backends/${cpp}"
           CACHE INTERNAL "")
+endforeach()
+
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
+foreach(header ${includes})
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

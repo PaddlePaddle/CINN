@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 project(CINN)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
 
 set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -64,13 +65,13 @@ link_directories("/usr/lib")
 set(global_test_args "--cinn_x86_builtin_code_root=${CMAKE_SOURCE_DIR}/cinn/backends")
 
 set(core_src CACHE INTERNAL "" FORCE)
+set(core_includes CACHE INTERNAL "" FORCE)
 set(core_deps CACHE INTERNAL "" FORCE)
 set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
 add_subdirectory(cinnrt)
 add_subdirectory(tests)
 add_subdirectory(tutorials)
-
 
 cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml framework_proto ${MLIR_ALL_LIBS})
 if (TARGET LLVM)
@@ -94,5 +95,23 @@ add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER
 if (WITH_CUDA)
   target_link_libraries(cinncore ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES})
 endif()
+
+# --------distribute cinncore lib and include begin--------
+foreach(header ${core_includes})
+    get_filename_component(prefix ${header} DIRECTORY)
+    file(COPY ${header} DESTINATION ${CMAKE_BINARY_DIR}/dist/cinn/include/${prefix})
+endforeach()
+
+add_custom_command(TARGET cinncore POST_BUILD
+    COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/demo.cc ${CMAKE_BINARY_DIR}/dist/demo.cc
+    COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/build_demo.sh ${CMAKE_BINARY_DIR}/dist/build_demo.sh
+    COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/libcinncore.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libcinncore.a
+    COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/frontend/paddle/libframework_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libframework_proto.a
+    COMMAND cmake -E copy_directory ${LLVM11_DIR} ${CMAKE_BINARY_DIR}/dist/third_party/llvm11
+    COMMAND cmake -E copy_directory ${CMAKE_BINARY_DIR}/thirds/install ${CMAKE_BINARY_DIR}/dist/third_party
+    COMMENT "distribute libcinncore.a and related header files."
+    DEPENDS cinncore
+)
+# --------distribute cinncore lib and include end--------
 
 add_subdirectory(python)

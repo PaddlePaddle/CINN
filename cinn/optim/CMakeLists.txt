@@ -24,6 +24,7 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   lower_intrin.cc
   cast_bool_to_int8.cc
   )
+
 if (WITH_CUDA)
   list(APPEND srcs transform_gpu_forloop.cc)
 endif()
@@ -32,6 +33,12 @@ foreach(cpp ${srcs})
   set(core_src
       "${core_src};cinn/optim/${cpp}"
       CACHE INTERNAL "")
+endforeach()
+
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
+foreach(header ${includes})
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()
 
 cc_test(test_remove_nested_block SRCS remove_nested_block_test.cc DEPS cinncore)
@@ -45,6 +52,7 @@ cc_test(test_cache_read_write_replace SRCS cache_read_write_replace_test.cc DEPS
 cc_test(test_cast_simplify SRCS cast_simplify_test.cc DEPS cinncore)
 cc_test(test_compare_simplify SRCS compare_simplify_test.cc DEPS cinncore)
 cc_test(test_if_simplify SRCS if_simplify_test.cc DEPS cinncore)
+
 if (WITH_CUDA)
   cc_test(test_transform_gpu_forloop SRCS transform_gpu_forloop_test.cc DEPS cinncore)
 endif()

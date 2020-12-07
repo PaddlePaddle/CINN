@@ -14,3 +14,9 @@ cc_test(test_model_parser SRCS model_parser_test.cc DEPS cinncore
 foreach(cpp ${srcs})
   set(core_src "${core_src};cinn/frontend/paddle/${cpp}" CACHE INTERNAL "")
 endforeach()
+
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
+foreach(header ${includes})
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
+endforeach()

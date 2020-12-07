@@ -12,7 +12,6 @@ set(srcs
         mlir_to_runtime_translate.cc
   )
 
-
 cc_test(test_host_context_value SRCS value_test.cc DEPS cinncore)
 cc_test(test_kernel_utils SRCS kernel_utils_test.cc DEPS cinncore)
 cc_test(test_kernel_registry SRCS kernel_registry_test.cc DEPS cinncore)
@@ -31,4 +30,10 @@ foreach(cpp ${srcs})
   set(core_src
     "${core_src};cinnrt/host_context/${cpp}"
     CACHE INTERNAL "")
+endforeach()
+
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
+foreach(header ${includes})
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()

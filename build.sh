@@ -73,7 +73,7 @@ function cmake_ {
     echo "set(WITH_CUDA $cuda_config)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
-    cmake .. -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir
+    cmake .. -DLLVM11_DIR=${LLVM11_DIR} -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir
 
     make GEN_LLVM_RUNTIME_IR_HEADER
     # make the code generated compilable
@@ -94,9 +94,9 @@ function prepare_model {
         wget http://paddle-inference-dist.bj.bcebos.com/CINN/EfficientNet.tar
         tar -xvf EfficientNet.tar
     fi
-    python $workspace/python/tests/fake_model/naive_mul.py
-    python $workspace/python/tests/fake_model/naive_multi_fc.py
-    python $workspace/python/tests/fake_model/resnet_model.py
+    python3 $workspace/python/tests/fake_model/naive_mul.py
+    python3 $workspace/python/tests/fake_model/naive_multi_fc.py
+    python3 $workspace/python/tests/fake_model/resnet_model.py
 }
 
 function build {
@@ -122,6 +122,14 @@ function build {
     make -j $JOBS
 }
 
+function run_demo {
+    cd $build_dir/dist
+    bash build_demo.sh
+    ./demo
+    rm ./demo
+    cd -
+}
+
 function run_test {
     cd $build_dir
     ctest --parallel 10 -V
@@ -134,6 +142,7 @@ function CI {
     prepare_llvm
     cmake_
     build
+    run_demo
     prepare_model
     run_test
 

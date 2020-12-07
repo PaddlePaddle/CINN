@@ -23,6 +23,12 @@ foreach(cpp ${srcs})
       CACHE INTERNAL "")
 endforeach()
 
+file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
+foreach(header ${includes})
+  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
+endforeach()
+
 cc_test(test_cinn_value SRCS cinn_value_test.cc DEPS cinncore)
 cc_test(test_shared SRCS shared_test.cc DEPS cinncore)
 cc_test(test_graph_utils SRCS graph_utils_test.cc DEPS cinncore)
