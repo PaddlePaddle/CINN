@@ -357,7 +357,7 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
     }
   }
 
-  LOG(INFO) <<"schedule_graph: " << schedule_graph_.Visualize();
+  LOG(INFO) << "schedule_graph: " << schedule_graph_.Visualize();
   auto [nodes_in_order, edges_in_order] = schedule_graph_.topological_order();
   std::vector<Shared<ScheduleGraphNode>> res;
 

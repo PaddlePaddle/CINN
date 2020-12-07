@@ -209,7 +209,7 @@ class Stage : public Object {
                  ComputeAtKind kind                    = kComputeAtAuto,
                  const std::string& cached_tensor_name = "");
 
-  void ComputeAt2(Stage* other, int level, ComputeAtKind kind=kComputeAtAuto);
+  void ComputeAt2(Stage* other, int level, ComputeAtKind kind = kComputeAtAuto);
 
   /**
    * Apply loop skewing on the loop levels \p i and \p j with a skewing factor of \p factor.

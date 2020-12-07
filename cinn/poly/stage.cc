@@ -714,8 +714,8 @@ std::tuple<ir::Tensor, Shared<Stage>> cinn::poly::Stage::RFactor(Iterator axis) 
     auto axis_names1 = axis_names;
     auto it          = std::find(axis_names1.begin(), axis_names1.end(), axis.id);
     CHECK(it != axis_names1.begin());
-    *(it-1) = "x";
-    //axis_names1.erase(it - 1);
+    *(it - 1) = "x";
+    // axis_names1.erase(it - 1);
 
     std::string repr  = utils::StringFormat("{ %s[%s] -> %s[%s] : x=1 }",
                                            t->name.c_str(),
@@ -734,7 +734,7 @@ std::tuple<ir::Tensor, Shared<Stage>> cinn::poly::Stage::RFactor(Iterator axis) 
     LOG(INFO) << "transformed_domain: " << stage->transformed_domain();
   }
 
-  //stage->CtrlDepend(ir::Tensor(this->tensor()));
+  // stage->CtrlDepend(ir::Tensor(this->tensor()));
   return std::make_tuple(t, stage);
 }
 

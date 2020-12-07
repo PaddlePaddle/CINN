@@ -121,7 +121,7 @@ Expr FoldExpr(FuncOp func_op, const std::vector<Expr> &values) {
  * A = A + B, will get B
  * A = min(A, B) will get B also
  */
-std::tuple<ir::IrNodeTy, Expr> BinaryArithEqualGetBody(const ir::Store* e);
+std::tuple<ir::IrNodeTy, Expr> BinaryArithEqualGetBody(const ir::Store *e);
 
 }  // namespace common
 }  // namespace cinn

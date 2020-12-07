@@ -370,9 +370,9 @@ Expr min(Expr a, Expr b) {
 }
 
 std::tuple<ir::IrNodeTy, Expr> BinaryArithEqualGetBody(const ir::Store *e) {
-  auto op0  = e->tensor;
+  auto op0         = e->tensor;
   auto op0_as_load = ir::Load::Make(op0, e->indices);
-  auto body = e->value;
+  auto body        = e->value;
   LOG(INFO) << "body: " << body;
   LOG(INFO) << "body0: " << body->operand(0);
   LOG(INFO) << "body1: " << body->operand(1);

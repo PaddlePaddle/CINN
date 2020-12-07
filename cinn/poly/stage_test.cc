@@ -7,12 +7,12 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/cinn.h"
-#include "cinn/optim/rfactor_rewrite.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/rfactor_rewrite.h"
 
 namespace cinn {
 namespace poly {
@@ -700,17 +700,16 @@ TEST(Stage, RFactor) {
   auto stages = CreateStages({C});
 
   auto [k_outer, k_inner] = stages[C]->Split(k->name, 4);
-  auto [t, stage] = stages[C]->RFactor(k_inner);
+  auto [t, stage]         = stages[C]->RFactor(k_inner);
   stages->Insert(t, stage.get());
 
-  //stages[C]->ComputeAt2(stages[t], 1);
+  // stages[C]->ComputeAt2(stages[t], 1);
 
-  auto fn = Lower("fn", stages, {A, B, t,C});
+  auto fn = Lower("fn", stages, {A, B, t, C});
   Expr fn_expr(fn);
   optim::RFactorRewrite(&fn_expr, stages);
 
   LOG(INFO) << fn;
-
 }
 
 }  // namespace poly
