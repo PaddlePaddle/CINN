@@ -379,7 +379,7 @@ void CodeGenC::Visit(const ir::Alloc *op) {
   os() << "(";
   os() << "(void*)(0), ";
 
-  auto *buffer = op->destination.As<ir::_Buffer_>();
+  auto *buffer = op->buffer.As<ir::_Buffer_>();
   os() << buffer->name;
   os() << ")";
 }
@@ -389,7 +389,7 @@ void CodeGenC::Visit(const ir::Free *op) {
   os() << "(";
   os() << "(void*)(0), ";
 
-  auto *buffer = op->destination.As<ir::_Buffer_>();
+  auto *buffer = op->buffer.As<ir::_Buffer_>();
   os() << buffer->name;
   os() << ")";
 }

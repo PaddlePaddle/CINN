@@ -821,7 +821,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Alloc *op) {
-  auto *buffer_op = op->destination.As<ir::_Buffer_>();
+  auto *buffer_op = op->buffer.As<ir::_Buffer_>();
   auto *buffer    = GetVar(buffer_op->name);
   CHECK(buffer);
 
@@ -829,7 +829,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Alloc *op) {
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Free *op) {
-  auto *buffer_op = op->destination.As<ir::_Buffer_>();
+  auto *buffer_op = op->buffer.As<ir::_Buffer_>();
   CHECK(symbol_table_->Lookup(buffer_op->name));
   symbol_table_->Erase(buffer_op->name);
   return nullptr;

@@ -517,7 +517,7 @@ struct Store : public ExprNode<Store>, public LoadStoreAddrMnger {
  */
 struct Alloc : public ExprNode<Alloc> {
   //! The destination of the allocation, this might be a buffer or a variable.
-  Expr destination;
+  Expr buffer;
   //! Dimensions of this buffer (as a multi-dimensional array).
   std::vector<Expr> extents;
   // NOTE the condition might be undefined, that means always true.
@@ -544,7 +544,7 @@ struct Alloc : public ExprNode<Alloc> {
  * Free the resources associated with the given buffer.
  */
 struct Free : public ExprNode<Free> {
-  Expr destination;
+  Expr buffer;
 
   Free() : ExprNode(Type()) {}
 

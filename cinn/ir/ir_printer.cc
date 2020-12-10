@@ -160,7 +160,7 @@ void IrPrinter::Visit(const Cast *x) {
 void IrPrinter::Visit(const _Module_ *x) {}
 void IrPrinter::Visit(const _Var_ *x) { os_ << x->name; }
 void IrPrinter::Visit(const Alloc *x) {
-  auto *buffer = x->destination.As<ir::_Buffer_>();
+  auto *buffer = x->buffer.As<ir::_Buffer_>();
   CHECK(buffer);
   os_ << "alloc(" << buffer->name << ", ";
   Print(x->extents);
@@ -215,7 +215,7 @@ void IrPrinter::Visit(const Store *x) {
   Print(x->value);
 }
 void IrPrinter::Visit(const Free *x) {
-  auto *buffer = x->destination.As<ir::_Buffer_>();
+  auto *buffer = x->buffer.As<ir::_Buffer_>();
   CHECK(buffer);
   os_ << "free(" << buffer->name << ")";
 }

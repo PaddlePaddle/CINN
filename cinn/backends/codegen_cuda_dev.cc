@@ -103,8 +103,8 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Alloc *op) {
-  CHECK(op->destination.as_buffer());
-  PrintTempBufferCreation(op->destination.as_buffer_ref());
+  CHECK(op->buffer.as_buffer());
+  PrintTempBufferCreation(op->buffer.as_buffer_ref());
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Min *op) {

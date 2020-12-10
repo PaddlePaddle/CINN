@@ -318,10 +318,10 @@ void Store::Verify() const { CHECK(tensor.defined()); }
 Expr Alloc::Make(Expr dest, Type type, const std::vector<Expr> &extents, Expr condition, Expr body) {
   auto node = make_shared<Alloc>();
   CHECK(dest.As<_Buffer_>()) << "Alloc destination only supports Buffer";
-  node->destination = dest;
-  node->extents     = extents;
-  node->condition   = condition;
-  node->body        = body;
+  node->buffer    = dest;
+  node->extents   = extents;
+  node->condition = condition;
+  node->body      = body;
   node->set_type(type);
   return Expr(node);
 }
@@ -355,7 +355,7 @@ std::vector<const Expr *> Alloc::expr_fields() const {
 Expr Free::Make(Expr dest) {
   auto node = make_shared<Free>();
   CHECK(dest.As<_Buffer_>()) << "Free destination only supports Buffer";
-  node->destination = dest;
+  node->buffer = dest;
   return Expr(node);
 }
 
@@ -672,9 +672,9 @@ void Select::Verify() const {
       << "Select Node's true_value and false_value should have the same type";
 }
 
-void Free::Verify() const { CHECK(destination.defined()); }
+void Free::Verify() const { CHECK(buffer.defined()); }
 
-void Alloc::Verify() const { CHECK(destination.defined()); }
+void Alloc::Verify() const { CHECK(buffer.defined()); }
 
 void For::Verify() const {
   CHECK(loop_var.defined());
