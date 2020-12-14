@@ -90,6 +90,7 @@ add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER
         cinn_base_inc
         tensor_shape_inc
         dense_tensor_inc
+        pd_ops_inc
         ${core_deps}
         )
 
