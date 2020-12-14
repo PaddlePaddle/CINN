@@ -8,6 +8,8 @@ set(srcs
         dense_tensor.cc
         mlir_loader.cc
         diagnostic_utils.cc
+        pd_types.cc
+        pd_ops.cc
         )
 
 mlir_tablegen_on(ops)
@@ -15,10 +17,13 @@ mlir_tablegen_on(basic_kernels)
 mlir_tablegen_on(cinn_base DIALECT cinn)
 mlir_tablegen_on(tensor_shape DIALECT ts)
 mlir_tablegen_on(dense_tensor DIALECT dt)
+mlir_tablegen_on(pd_op_base DIALECT pd)
+mlir_tablegen_on(pd_ops)
 
 # TODO(Superjomn) add a cmake function cc_executable to ecapsulate the following code
 add_executable(cinn-opt opt.cc)
 target_link_libraries(cinn-opt cinncore ${mlir_libs})
+add_dependencies(cinn-opt pd_ops_inc)
 
 
 # MLIR opt tests

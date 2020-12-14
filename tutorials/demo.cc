@@ -39,8 +39,8 @@ int run() {
 
   auto* fnp = compiler->Lookup("fn");
   if (fnp == nullptr) {
-      std::cerr << "lookup function failed." << std::endl;
-      return 1;
+    std::cerr << "lookup function failed." << std::endl;
+    return 1;
   }
 
   auto* Ab = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
@@ -55,18 +55,16 @@ int run() {
   auto* Bd = reinterpret_cast<float*>(Bb->memory);
   auto* Cd = reinterpret_cast<float*>(Cb->memory);
   for (int i = 0; i < Ab->num_elements(); i++) {
-      if (abs(Ad[i] + Bd[i] - Cd[i]) > 1e-5) {
-          std::cerr << "ERROR: Compute failed." << std::endl;
-          return 1;
-      }
+    if (abs(Ad[i] + Bd[i] - Cd[i]) > 1e-5) {
+      std::cerr << "ERROR: Compute failed." << std::endl;
+      return 1;
+    }
   }
-  
+
   std::cout << "run demo successfully." << std::endl;
   return 0;
 }
 }  // namespace backends
 }  // namespace cinn
 
-int main() {
-    return cinn::backends::run();
-}
+int main() { return cinn::backends::run(); }

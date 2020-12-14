@@ -21,7 +21,6 @@ def PD_FeedOp : PD_Op<"Feed", [NoSideEffect]> {
   }];
 }
 
-
 def PD_AbsOp : PD_Op<"Abs", [NoSideEffect]> {
   let summary = "Computes the absolute value of a tensor";
 

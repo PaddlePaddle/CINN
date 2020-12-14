@@ -116,8 +116,8 @@ test_performance(stages)
 ##################################################################
 # Array Packing
 # ---------------------
-packedB = cinn.compute([n / bn, k, cinn.Expr(bn)],
-                       lambda x: B(x[1], x[0] * bn + x[2]), "packedB")
+packedB = cinn.compute(
+    [n / bn, k, cinn.Expr(bn)], lambda x: B(x[1], x[0] * bn + x[2]), "packedB")
 C = cinn.compute([m, n], lambda x: cinn.reduce_sum(
     A(x[0], k1.expr()) * packedB(x[1] / bn, k1.expr(), x[1] % bn), [k1]), "C")
 
@@ -135,7 +135,7 @@ packedB_buf = runtime.cinn_buffer_t(
     runtime.cinn_x86_device, 32)
 
 # The final performance is
-test_performance(stages,
-                 fn_inputs=[A.to_tensor(),
-                            B.to_tensor(), C, packedB],
-                 input_args=[a, b, c, packedB_buf])
+test_performance(
+    stages,
+    fn_inputs=[A.to_tensor(), B.to_tensor(), C, packedB],
+    input_args=[a, b, c, packedB_buf])
