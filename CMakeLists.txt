@@ -11,7 +11,7 @@ set(DOWNLOAD_MODEL_DIR "${THIRD_PARTY_PATH}/model")
 option(WITH_TESTING         "Compile with Unittests"          ON)
 option(WITH_CUDA            "Compile with CUDA support"       OFF)
 option(WITH_DEBUG           "Compile with debug information"  OFF)
-option(PUBLISH_LIBS OFF)
+option(PUBLISH_LIBS         "Whether to publish compiled libraries" OFF)
 
 if (WITH_TESTING)
   add_definitions(-DCINN_WITH_TEST)
