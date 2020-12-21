@@ -56,6 +56,7 @@ struct Type {
   CINN_NODISCARD bool is_scalar() const;
   CINN_NODISCARD bool is_float(int bits = -1) const;
   CINN_NODISCARD bool is_int(int bits = -1) const;
+  CINN_NODISCARD bool is_integer(int bits = -1) const;
   CINN_NODISCARD bool is_uint(int bits = -1) const;
   CINN_NODISCARD bool is_string() const;
   CINN_NODISCARD bool is_index_type();

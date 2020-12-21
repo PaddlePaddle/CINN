@@ -44,11 +44,11 @@ void TestElementwisePE(const std::string &fn_name,
 
   cinn_buffer_t *A_buf;
   if (set_value != 0) {
-    A_buf = common::BufferBuilder(Float(32), {100, 32}).set_val(set_value).Build();
+    A_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_val(set_value).Build();
   } else {
-    A_buf = common::BufferBuilder(Float(32), {100, 32}).set_random().Build();
+    A_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
   }
-  auto *B_buf = common::BufferBuilder(type, {100, 32}).set_align(type.bits()).Build();
+  auto *B_buf = common::BufferBuilder(type, {M.as_int32(), N.as_int32()}).set_align(type.bits()).Build();
 
   cinn_pod_value_t a_arg(A_buf), b_arg(B_buf);
   cinn_pod_value_t args[] = {a_arg, b_arg};

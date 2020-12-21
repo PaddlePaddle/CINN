@@ -52,6 +52,8 @@ struct Target {
 
   int max_num_threads() const;
 
+  int get_target_bits() const;
+
   bool operator==(const Target& other) const;
   bool operator!=(const Target& other) const { return !(*this == other); }
   friend std::ostream& operator<<(std::ostream& os, const Target& target);

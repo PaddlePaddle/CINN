@@ -474,10 +474,11 @@ struct LoadStoreAddrMnger {
  */
 struct Load : public ExprNode<Load>, public LoadStoreAddrMnger {
   std::vector<Expr> indices;
+  Expr index_;
   //! The abstract offset.
   Expr index() const;
 
-  static Expr Make(Expr tensor, const std::vector<Expr>& indices);
+  static Expr Make(Expr tensor, const std::vector<Expr>& indices, Expr index = Expr());
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
@@ -497,8 +498,9 @@ struct Load : public ExprNode<Load>, public LoadStoreAddrMnger {
 struct Store : public ExprNode<Store>, public LoadStoreAddrMnger {
   Expr value;
   std::vector<Expr> indices;
+  Expr index_;
 
-  static Expr Make(Expr tensor, Expr value, const std::vector<Expr>& indices);
+  static Expr Make(Expr tensor, Expr value, const std::vector<Expr>& indices, Expr index = Expr());
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;

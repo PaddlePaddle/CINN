@@ -43,13 +43,13 @@ void TestBroadcastPE(
   cinn_buffer_t *A_buf;
   cinn_buffer_t *B_buf;
   if (set_value != 0) {
-    A_buf = common::BufferBuilder(Float(32), {100, 32}).set_val(set_value).Build();
-    B_buf = common::BufferBuilder(Float(32), {100, 32}).set_val(set_value).Build();
+    A_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_val(set_value).Build();
+    B_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_val(set_value).Build();
   } else {
-    A_buf = common::BufferBuilder(Float(32), {100, 32}).set_random().Build();
-    B_buf = common::BufferBuilder(Float(32), {100, 32}).set_random().Build();
+    A_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
+    B_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_random().Build();
   }
-  auto *C_buf = common::BufferBuilder(Float(32), {100, 32}).set_zero().Build();
+  auto *C_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
 
   cinn_pod_value_t a_arg(A_buf), b_arg(B_buf), c_arg(C_buf);
   cinn_pod_value_t args[] = {a_arg, b_arg, c_arg};
@@ -87,13 +87,13 @@ void TestBroadcastPE1(
   cinn_buffer_t *A_buf;
   cinn_buffer_t *B_buf;
   if (set_value != 0) {
-    A_buf = common::BufferBuilder(Float(32), {100, 32, 10}).set_val(set_value).Build();
-    B_buf = common::BufferBuilder(Float(32), {32}).set_val(set_value).Build();
+    A_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32(), K.as_int32()}).set_val(set_value).Build();
+    B_buf = common::BufferBuilder(Float(32), {N.as_int32()}).set_val(set_value).Build();
   } else {
-    A_buf = common::BufferBuilder(Float(32), {100, 32, 10}).set_random().Build();
-    B_buf = common::BufferBuilder(Float(32), {32}).set_random().Build();
+    A_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32(), K.as_int32()}).set_random().Build();
+    B_buf = common::BufferBuilder(Float(32), {N.as_int32()}).set_random().Build();
   }
-  auto *C_buf = common::BufferBuilder(Float(32), {100, 32, 10}).set_zero().Build();
+  auto *C_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32(), K.as_int32()}).set_zero().Build();
   cinn_pod_value_t a_arg(A_buf), b_arg(B_buf), c_arg(C_buf);
   cinn_pod_value_t args[] = {a_arg, b_arg, c_arg};
   fn_(args, 3);
@@ -134,13 +134,17 @@ void TestBroadcastPE2(
   cinn_buffer_t *A_buf;
   cinn_buffer_t *B_buf;
   if (set_value != 0) {
-    A_buf = common::BufferBuilder(Float(32), {100, 32, 10, 1}).set_val(set_value).Build();
-    B_buf = common::BufferBuilder(Float(32), {32, 10}).set_val(set_value).Build();
+    A_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32(), K.as_int32(), R.as_int32()})
+                .set_val(set_value)
+                .Build();
+    B_buf = common::BufferBuilder(Float(32), {N.as_int32(), K.as_int32()}).set_val(set_value).Build();
   } else {
-    A_buf = common::BufferBuilder(Float(32), {100, 32, 10, 1}).set_random().Build();
-    B_buf = common::BufferBuilder(Float(32), {32, 10}).set_random().Build();
+    A_buf =
+        common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32(), K.as_int32(), R.as_int32()}).set_random().Build();
+    B_buf = common::BufferBuilder(Float(32), {N.as_int32(), K.as_int32()}).set_random().Build();
   }
-  auto *C_buf = common::BufferBuilder(Float(32), {100, 32, 10, 1}).set_zero().Build();
+  auto *C_buf =
+      common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32(), K.as_int32(), R.as_int32()}).set_zero().Build();
   cinn_pod_value_t a_arg(A_buf), b_arg(B_buf), c_arg(C_buf);
   cinn_pod_value_t args[] = {a_arg, b_arg, c_arg};
   fn_(args, 3);
@@ -162,12 +166,9 @@ void TestBroadcastPE2(
 #define RULE(test_name__, rule__) \
   float test_name__(float a, float b) { rule__ }
 
-#define TEST_BROADCAST_PE_FP32_BASIC(test_name__)                                                                      \
-  TEST(broadcast_pe, test_name__) { TestBroadcastPE("PE_Broadcast_" #test_name__ "_fp32", test_name__, test_name__); } \
-  TEST(broadcast_pe1, test_name__) {                                                                                   \
-    TestBroadcastPE1("PE_Broadcast_" #test_name__ "_fp32", test_name__, test_name__);                                  \
-  }                                                                                                                    \
-  TEST(broadcast_pe2, test_name__) { TestBroadcastPE2("PE_Broadcast_" #test_name__ "_fp32", test_name__, test_name__); }
+#define TEST_BROADCAST_PE_FP32_BASIC(test_name__) \
+  TEST(broadcast_pe, test_name__) { TestBroadcastPE("PE_Broadcast_" #test_name__ "_fp32", test_name__, test_name__); }
+
 #define TEST_BROADCAST_PE_FP32_SET_BASIC(test_name__) \
   TEST(broadcast_pe, test_name__) { TestBroadcastPE("PE_Broadcast_" #test_name__ "_fp32", test_name__, value); }
 
