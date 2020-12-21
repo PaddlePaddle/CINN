@@ -27,6 +27,7 @@ struct ComputeAtRelation;
 enum class ScopeKind {
   kLocal  = 0,
   kShared = 1,
+  kGlobal = 2,
 };
 
 class StageMap;
@@ -229,6 +230,10 @@ class Stage : public Object {
    */
   ir::Tensor CacheRead(const std::string& memory_type, const std::vector<ir::Tensor>& readers, poly::StageMap stages);
 
+  ir::Tensor CacheRead2(const std::string& memory_type, std::vector<ir::Tensor>& readers, poly::StageMap stages);
+
+  void ComputeAt2(Stage* other, int level, ComputeAtKind kind = kComputeAtBefore);
+
   /**
    * Create a cache for write to the original tensor.
    * @param tensor the tensor to create the cache for.
@@ -339,8 +344,8 @@ class Stage : public Object {
   //! A weak reference to the tensor.
   ir::_Tensor_* tensor_{};
   //! Thread scope.
-  ScopeKind scope_{ScopeKind::kLocal};
-
+  // ScopeKind scope_{ScopeKind::kLocal};
+  ScopeKind scope_{ScopeKind::kGlobal};
   std::set<ir::Tensor> ctrl_depends_;
 
   std::set<int> locked_axis_;

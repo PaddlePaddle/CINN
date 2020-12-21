@@ -428,7 +428,7 @@ Expr PolyFor::extent() const {
   });
 
   if (nodes.empty()) {
-    return Expr();
+    // return Expr();
   }
 
   auto *le_n = condition.As<LE>();
