@@ -91,20 +91,24 @@ Module OpBenchmarkTester::CreateCinnModule(const std::vector<Tensor>& input_tens
   LOG(INFO) << func;
   Module::Builder builder("module_" + op_name_, target_);
   builder.AddFunction(func);
+  CodeGenC compiler(target_);
+  Outputs outputs;
+  outputs = outputs.c_header("./test_" + op_name_ + ".h").c_source("./test_" + op_name_ + ".cc");
+  compiler.Compile(builder.Build(), outputs);
   return builder.Build();
 }
 
 void OpBenchmarkTester::CreateBuffer() {
   std::vector<cinn_pod_value_t> args;
   for (size_t i = 0; i < input_shapes_.size(); i++) {
-    auto* buffer = common::BufferBuilder(out_types_.back(), input_shapes_[i]).set_align(32).set_random().Build();
+    auto* buffer = common::BufferBuilder(out_types_.back(), input_shapes_[i]).set_align(512).set_random().Build();
     cinn_pod_value_t arg(buffer);
     all_args_.push_back(arg);
   }
   CHECK(!output_shapes_.empty()) << "output shapes shouldn't be empty\n";
   CHECK_EQ(output_shapes_.size(), out_types_.size());
   for (size_t i = 0; i < output_shapes_.size(); i++) {
-    auto* buffer = common::BufferBuilder(out_types_[i], output_shapes_[i]).set_align(32).set_zero().Build();
+    auto* buffer = common::BufferBuilder(out_types_[i], output_shapes_[i]).set_align(512).set_zero().Build();
     CHECK(buffer);
     out_dims_ = buffer->num_elements();
     cinn_pod_value_t arg(buffer);

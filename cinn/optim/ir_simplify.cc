@@ -170,6 +170,22 @@ struct SimplifyRampMutator : public ir::IRMutator<Expr*> {
     Simplify(&node->base);
     Simplify(&node->stride);
   }
+  // ramp + ramp
+  void Visit(const Add* op, Expr* expr) override {
+    auto* node  = expr->As<ir::Add>();
+    Expr a      = node->a();
+    Expr b      = node->b();
+    auto a_ramp = a.As<ir::Ramp>();
+    auto b_ramp = b.As<ir::Ramp>();
+
+    if (a_ramp && b_ramp && a_ramp->lanes == b_ramp->lanes) {
+      Expr base_add   = common::AutoSimplify(a_ramp->base + b_ramp->base);
+      Expr stride_add = common::AutoSimplify(a_ramp->stride + b_ramp->stride);
+      LOG(INFO) << base_add;
+      LOG(INFO) << stride_add;
+      *expr = ir::Ramp::Make(base_add, stride_add, a_ramp->lanes);
+    }
+  }
 };
 
 struct ReplaceFracWithDivMutator : public ir::IRMutator<> {

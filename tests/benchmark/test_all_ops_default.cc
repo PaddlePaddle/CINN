@@ -56,14 +56,36 @@ std::vector<Type> type1{Float(32), Float(32)};
 std::vector<Type> type2 = {Int(32)};
 std::vector<Type> type3 = {Bool()};
 // add
-// std::vector<std::vector<int>> shapes_add = {{1024, 1024, 1024}, {1024, 1024, 1024}};
-// TEST_DEFAULT(elementwise_add, add, type)
-std::vector<std::vector<int>> shapes_add1 = {{100, 32}, {100, 32}};
-TEST_DEFAULT(elementwise_add, add1, type)
+std::vector<std::vector<int>> shapes_add = {{1024, 1024, 1024}, {1024, 1024, 1024}};
+TEST_DEFAULT(elementwise_add, add, type)
+std::vector<std::vector<int>> shapes_add1_0 = {{100, 32}, {100, 32}};
+std::vector<std::vector<int>> shapes_add1_1 = {{32, 100}, {32, 100}};
+std::vector<std::vector<int>> shapes_add1_2 = {{100, 33}, {100, 33}};
+std::vector<std::vector<int>> shapes_add1_3 = {{33, 100}, {33, 100}};
+std::vector<std::vector<int>> shapes_add1_4 = {{100, 16}, {100, 16}};
+std::vector<std::vector<int>> shapes_add1_5 = {{1, 33}, {1, 33}};
+std::vector<std::vector<int>> shapes_add1_6 = {{33}, {33}};
+TEST_DEFAULT(elementwise_add, add1_0, type)
+TEST_DEFAULT(elementwise_add, add1_1, type)
+TEST_DEFAULT(elementwise_add, add1_2, type)
+TEST_DEFAULT(elementwise_add, add1_3, type)
+TEST_DEFAULT(elementwise_add, add1_4, type)
+TEST_DEFAULT(elementwise_add, add1_5, type)
+TEST_DEFAULT(elementwise_add, add1_6, type)
 std::vector<std::vector<int>> shapes_add2 = {{1024, 14, 14}, {1024, 14, 14}};
 TEST_DEFAULT(elementwise_add, add2, type)
 std::vector<std::vector<int>> shapes_add3 = {{1}, {1}};
 TEST_DEFAULT(elementwise_add, add3, type)
+std::vector<std::vector<int>> shapes_add4 = {{1, 8}, {1, 8}};
+TEST_DEFAULT(elementwise_add, add4, type)
+std::vector<std::vector<int>> shapes_add5_0 = {{1024, 2}, {1024, 2}};
+std::vector<std::vector<int>> shapes_add5_1 = {{2, 1024}, {2, 1024}};
+std::vector<std::vector<int>> shapes_add5_2 = {{1025, 2}, {1025, 2}};
+std::vector<std::vector<int>> shapes_add5_3 = {{2, 1025}, {2, 1025}};
+TEST_DEFAULT(elementwise_add, add5_0, type)
+TEST_DEFAULT(elementwise_add, add5_1, type)
+TEST_DEFAULT(elementwise_add, add5_2, type)
+TEST_DEFAULT(elementwise_add, add5_3, type)
 // mul
 // std::vector<std::vector<int>> shapes_mul = {{1024, 1024, 1024}, {1024, 1024, 1024}};
 // TEST_DEFAULT(elementwise_mul, mul, type)
@@ -118,8 +140,8 @@ std::vector<std::vector<int>> shapes_pool2d1 = {{2, 1024, 14, 14}};
 TEST_DEFAULT1(pool2d, pool2d1, type, attr_store_pool2d)
 
 // softmax
-std::vector<std::vector<int>> shapes_softmax = {{1024, 2048}};
-TEST_DEFAULT(softmax, softmax, type1)
+// std::vector<std::vector<int>> shapes_softmax = {{1024, 2048}};
+// TEST_DEFAULT(softmax, softmax, type1)
 std::vector<std::vector<int>> shapes_softmax1 = {{3, 1000}};
 TEST_DEFAULT(softmax, softmax1, type1)
 

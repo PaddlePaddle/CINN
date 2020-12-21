@@ -65,6 +65,8 @@ void IrPrinter::Visit(const For *x) {
   os_ << "for (";
   Print(x->loop_var);
   os_ << ", ";
+  Print(x->min);
+  os_ << ", ";
   Print(x->extent);
   os_ << ")\n";
 

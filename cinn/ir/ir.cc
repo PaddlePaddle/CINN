@@ -272,22 +272,22 @@ IfThenElse::IfThenElse(Expr condition, Expr true_case, Expr false_case)
 std::vector<Expr *> IfThenElse::expr_fields() { return {&condition, &true_case, &false_case}; }
 std::vector<const Expr *> IfThenElse::expr_fields() const { return {&condition, &true_case, &false_case}; }
 
-Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
+Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices, Expr index) {
   CHECK(tensor.As<_Tensor_>()) << "tensor should be _Tensor_ type";
   auto node     = make_shared<Store>();
   node->tensor  = tensor;
   node->value   = value;
   node->indices = indices;
+  node->index_  = index;
 
-  for (auto &indice : indices) {
-    if (indice.As<Add>()) {
-      if (indice.As<Add>()->b().As<Ramp>() || indice.As<Add>()->a().As<Ramp>()) {
-        LOG(FATAL) << "found";
-      }
-    }
-  }
   if (tensor->type() != Void()) {
-    node->set_type(tensor->type().ElementOf().with_lanes(node->index().type().lanes()));
+    Expr index;
+    if (node->index_.defined()) {
+      index = node->index_;
+    } else {
+      index = node->index();
+    }
+    node->set_type(tensor->type().ElementOf().with_lanes(index.type().lanes()));
   }
   return Expr(node);
 }
@@ -295,6 +295,11 @@ Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
 Expr Store::index() const {
   auto *tensor_n = tensor.As<ir::_Tensor_>();
   CHECK(tensor_n);
+  if (index_.defined()) {
+    Expr index = index_;
+    optim::Simplify(&index);
+    return index;
+  }
   Expr res = common::IndiceToAbsOffset(tensor_n->shape, indices);
   optim::Simplify(&res);
   return res;
@@ -462,13 +467,14 @@ Var &Var::operator=(const _Var_ *x) {
   return *this;
 }
 
-Expr Load::Make(Expr tensor, const std::vector<Expr> &indices) {
+Expr Load::Make(Expr tensor, const std::vector<Expr> &indices, Expr index) {
   CHECK(tensor->type().valid());
   CHECK(!indices.empty());
   for (auto &idx : indices) CHECK_EQ(idx.type().ElementOf(), Int(32));
   auto node     = make_shared<Load>();
   node->tensor  = tensor;
   node->indices = indices;
+  node->index_  = index;
   return Expr(node);
 }
 Type Load::type() const {
@@ -499,6 +505,11 @@ Expr Load::index() const {
   if (is_addr_tensor()) {
     auto *tensor_n = tensor.As<_Tensor_>();
     CHECK(tensor_n);
+    if (index_.defined()) {
+      Expr index = index_;
+      optim::Simplify(&index);
+      return index;
+    }
     Expr res = common::IndiceToAbsOffset(tensor_n->shape, indices);
     optim::Simplify(&res);
     return res;

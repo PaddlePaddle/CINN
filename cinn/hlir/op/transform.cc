@@ -4,6 +4,7 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/nn.h"
+#include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_printer.h"
 
 namespace cinn {

@@ -428,7 +428,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
     llvm::Value *old_var = GetVar(op->loop_var->name);
     SetVar(op->loop_var->name, loop_value);
     auto *end = Visit(&op->extent);
-    CondBr(ICmpSGE(loop_value, end), for_body, for_end);
+    CondBr(ICmpSLT(loop_value, end), for_body, for_end);
     b_->SetInsertPoint(for_body);
     Visit(&op->body);
 
@@ -789,15 +789,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
     auto ramp_expr          = op->index();
     auto *ramp              = index.As<ir::Ramp>();
     if (dense_strided_ramp.defined()) {  // stride 1
-      int alignment = op->type().ElementOf().bits();
-
-      int native_bits  = 512;
-      int native_bytes = native_bits / 8;
-
-      alignment = 64;
-
       int total_lanes = op->type().lanes();
-      int step        = native_bits / op->type().ElementOf().bits();
+      int step        = naive_vec_alignment_ / op->type().ElementOf().bits();
 
       auto *buffer = Visit(&op->tensor);
       auto *value  = Visit(&op->value);
@@ -810,11 +803,14 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
         auto *vtype =
             llvm::VectorType::get(ll_type_of(op->type().ElementOf()), llvm::ElementCount(lanes, false /*Scalable*/))
                 ->getPointerTo();
+        int alignment = lanes * op->type().ElementOf().bits() / 8;
         llvm::StoreInst *inst =
             b_->CreateAlignedStore(CreateVecSlice(value, offset, lanes), b_->CreatePointerCast(ptr, vtype), alignment);
         AddTbaaMetadata(inst, op->tensor.as_tensor()->name, base);
         return inst;
       }
+    } else {
+      LOG(FATAL) << "unsupported Ramp index " << op->index();
     }
   }
   return nullptr;
@@ -1065,17 +1061,8 @@ llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
   auto *ramp = index.As<ir::Ramp>();
   CHECK(ramp);
 
-  int alignment = op->type().bits();
-
-  // for x86_64
-  // TODO(Superjomn) replae this with arch.
-  int native_bits  = 512;
-  int native_bytes = native_bits / 8;
-
-  alignment = 64;
-
   int load_lanes   = op->type().lanes();
-  int native_lanes = native_bits / op->type().bits();
+  int native_lanes = naive_vec_alignment_ / op->type().bits();
 
   std::vector<llvm::Value *> slices;
 
@@ -1098,6 +1085,8 @@ llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
 
     llvm::Value *elt_ptr = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&slice_base));
     llvm::Value *vec_ptr = b_->CreatePointerCast(elt_ptr, slice_type->getPointerTo(), "get_vec_ptr");
+
+    int alignment = slice_lanes * op->type().ElementOf().bits() / 8;
 
     llvm::Instruction *load_inst = b_->CreateAlignedLoad(vec_ptr, llvm::Align(alignment), "load_vec");
     AddTbaaMetadata(load_inst, op->tensor.as_tensor()->name, op->index());
