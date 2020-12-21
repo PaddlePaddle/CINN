@@ -11,5 +11,10 @@ namespace optim {
  */
 void ReplaceVarWithExpr(Expr *source, const Var &var, const Expr &expr);
 
+void ReplaceVarWithExpr2(Expr *source,
+                         const Var &var,
+                         const Expr &expr,
+                         std::map<std::string, ir::Tensor> *global_tensor_map,
+                         bool blockidx);
 }  // namespace optim
 }  // namespace cinn

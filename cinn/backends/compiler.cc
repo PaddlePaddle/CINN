@@ -24,6 +24,21 @@ void Compiler::Build(const Module& module, const std::string& code) {
   }
 }
 
+std::string Compiler::GetCode(const ir::Module& module) {
+  if (target_.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
+    auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+    CodeGenCUDA_Dev codegen(target_);
+    auto source_code = codegen.Compile(device_module);
+    return source_code;
+#else
+    CINN_NOT_IMPLEMENTED
+#endif
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+}
+
 void Compiler::BuildDefault(const Module& module) {
   if (target_.arch == Target::Arch::NVGPU) {
     CompileCudaModule(module);

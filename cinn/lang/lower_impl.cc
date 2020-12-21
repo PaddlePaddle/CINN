@@ -120,7 +120,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
 
       forloop_infos[stage->id()] = for_infos;
     }
-    optim::TransformGpuForloops(forloop_infos, &e);
+    optim::TransformGpuForloops(forloop_infos, global_tensor_map, &e);
     auto axis_info = optim::GatherAxisInfoFromStages(stages);
     if (axis_info.valid()) cuda_axis_info->ExtendWith(axis_info);
   }
