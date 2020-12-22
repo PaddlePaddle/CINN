@@ -187,7 +187,7 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       std::vector<ir::Tensor> readers{out};
       auto BB = stages[new_B]->CacheRead2("local", readers, stages);
       stages[BB]->Split(0, 2);
-      stages[BB]->Bind(0, "threadIdx.x");
+      stages[BB]->Bind(0, "blockIdx.x");
     }
 
     *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};

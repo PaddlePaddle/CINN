@@ -568,7 +568,6 @@ struct CacheReplaceMutator : public ir::IRMutator<> {
 
   void Visit(const ir::_Tensor_ *op, Expr *expr) override {
     if (to_mutate_ && tensor_name == op->name) {
-      LOG(INFO) << "Do Replace";
       *expr = cache;
     }
   }
@@ -589,9 +588,7 @@ struct CacheReplaceMutator : public ir::IRMutator<> {
 
 void CacheReadWriteReplace(std::vector<ir::Tensor> &readers, ir::Tensor cache_tensor, std::string origin_tensor_name) {
   for (auto k : readers) {
-    LOG(INFO) << "The Reader tensor is: " << k->name;
     auto op = k->operation->as<ir::ComputeOp>()->body;
-    LOG(INFO) << "The vector<Expr>'s shape is: " << op.size();
     for (auto j : op) {
       CacheReplaceMutator(origin_tensor_name, cache_tensor, true /*read*/)(&j);
     }
