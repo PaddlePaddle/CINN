@@ -217,7 +217,7 @@ void BindFrontend(pybind11::module *m) {
              auto out = scope->GetTensor(tensor_out->id);
              return out;
            })
-      .def("test_codegen",
+      .def("test_generate_code",
            [](Program &self,
               const common::Target &target,
               const std::vector<Variable> &tensor_inputs,
