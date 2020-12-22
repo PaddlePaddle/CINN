@@ -1253,7 +1253,7 @@ void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __rest
 
   LOG(INFO) << "GPU thread config: " << fn->cuda_axis_info;
 
-  // ASSERT_EQ(utils::Trim(target_source), source_code);
+  ASSERT_EQ(utils::Trim(target_source), source_code);
 
   TestElementwiseAddPrecisionBasic(builder.Build(), "fn2", M, N);
 }
@@ -1316,14 +1316,14 @@ typedef char int8_t;
 __global__
 void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  __shared__ float _A_read_cache [ 40 * 40 ];
+  __shared__ float _A_read_cache [ (((1 * 40) * 40) / 40) ];
   float* A_read_cache = _A_read_cache;
   if ((blockIdx.x < 40)) {
   {
     if ((threadIdx.x < 4)) {
     {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        A_read_cache[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
+        A_read_cache[((10 * threadIdx.x) + j_inner)] = A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
       };
     }
     };
@@ -1335,7 +1335,7 @@ void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __rest
     if ((threadIdx.x < 4)) {
     {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = A_read_cache[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
+        C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = A_read_cache[((10 * threadIdx.x) + j_inner)];
       };
     }
     };
@@ -1348,7 +1348,7 @@ void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __rest
 
   LOG(INFO) << "GPU thread config: " << fn->cuda_axis_info;
 
-  // ASSERT_EQ(utils::Trim(target_source), source_code);
+  ASSERT_EQ(utils::Trim(target_source), source_code);
 
   TestElementwiseAddPrecisionBasic(builder.Build(), "fn3", M, N);
 }

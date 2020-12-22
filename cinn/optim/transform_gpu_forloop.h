@@ -38,7 +38,7 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage*>& stage
  * \endcode
  *
  * @param expr The expression to modify.
- * @param statement The target statement.
+ * @param global_tensor_map The map mapping a tensor's name to itself.
  * @param forloop_infos A map of forloop to their infomation.
  */
 void TransformGpuForloops(const forloop_infos_t& forloop_infos,

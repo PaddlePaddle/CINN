@@ -345,7 +345,6 @@ class Stage : public Object {
   //! A weak reference to the tensor.
   ir::_Tensor_* tensor_{};
   //! Thread scope.
-  // ScopeKind scope_{ScopeKind::kLocal};
   ScopeKind scope_{ScopeKind::kGlobal};
   std::set<ir::Tensor> ctrl_depends_;
 

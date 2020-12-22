@@ -84,7 +84,6 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
 
   std::vector<Expr> new_body;
 
-  // auto alloca_temp_buffers = op->CudaPrepareAllocTempBufferExprs();
   auto alloca_temp_buffers = op->PrepareAllocTempBufferExprs();
   auto temp_buffer_alias   = GenerateBufferAliasExprs(op, op->temp_bufs);
   auto alis_var_exprs      = op->CudaAliasVarExprs();

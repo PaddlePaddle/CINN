@@ -227,7 +227,7 @@ void BindFrontend(pybind11::module *m) {
              hlir::framework::ApplyPass(g.get(), "InferShape");
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
-             return gc.CodeGen();
+             return gc.GenSourceCode();
            });
 
   py::class_<frontend::Interpreter>(*m, "Interpreter")

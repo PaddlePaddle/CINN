@@ -566,74 +566,7 @@ struct CacheReplaceMutator : public ir::IRMutator<> {
     ir::IRMutator<>::Visit(&node->value, &node->value);
   }
 
-  void Visit(const ir::Reduce *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::Reduce* op, Expr* expr) ";
-    auto *node = expr->As<ir::Reduce>();
-    ir::IRMutator<>::Visit(&node->init, &node->init);
-    ir::IRMutator<>::Visit(&node->body, &node->body);
-  }
-
-  void Visit(const ir::Select *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::Select* op, Expr* expr) ";
-    auto *node = expr->As<ir::Select>();
-    ir::IRMutator<>::Visit(&node->condition, &node->condition);
-    ir::IRMutator<>::Visit(&node->true_value, &node->true_value);
-    ir::IRMutator<>::Visit(&node->false_value, &node->false_value);
-  }
-
-  void Visit(const ir::Add *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::Add* op, Expr* expr) ";
-    auto *node = expr->As<ir::Add>();
-    ir::IRMutator<>::Visit(&node->a(), &node->a());
-    ir::IRMutator<>::Visit(&node->b(), &node->b());
-  }
-
-  void Visit(const ir::Sub *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::Sub* op, Expr* expr) ";
-    auto *node = expr->As<ir::Sub>();
-    ir::IRMutator<>::Visit(&node->a(), &node->a());
-    ir::IRMutator<>::Visit(&node->b(), &node->b());
-  }
-
-  void Visit(const ir::Mul *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::Mul* op, Expr* expr) ";
-    auto *node = expr->As<ir::Mul>();
-    ir::IRMutator<>::Visit(&node->a(), &node->a());
-    ir::IRMutator<>::Visit(&node->b(), &node->b());
-  }
-
-  void Visit(const ir::Div *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::Div* op, Expr* expr) ";
-    auto *node = expr->As<ir::Div>();
-    ir::IRMutator<>::Visit(&node->a(), &node->a());
-    ir::IRMutator<>::Visit(&node->b(), &node->b());
-  }
-
-  void Visit(const ir::Mod *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::Mod* op, Expr* expr) ";
-    auto *node = expr->As<ir::Mod>();
-    ir::IRMutator<>::Visit(&node->a(), &node->a());
-    ir::IRMutator<>::Visit(&node->b(), &node->b());
-  }
-
-  void Visit(const ir::Min *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::Min* op, Expr* expr) ";
-    auto *node = expr->As<ir::Min>();
-    ir::IRMutator<>::Visit(&node->a(), &node->a());
-    ir::IRMutator<>::Visit(&node->b(), &node->b());
-  }
-
-  void Visit(const ir::Max *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::Max* op, Expr* expr) ";
-    auto *node = expr->As<ir::Max>();
-    ir::IRMutator<>::Visit(&node->a(), &node->a());
-    ir::IRMutator<>::Visit(&node->b(), &node->b());
-  }
-
   void Visit(const ir::_Tensor_ *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::_Tensor_* op, Expr* expr) override";
-    LOG(INFO) << "And the tensor's name is: " << op->name;
-    LOG(INFO) << "And the origin tensor's name is: " << tensor_name;
     if (to_mutate_ && tensor_name == op->name) {
       LOG(INFO) << "Do Replace";
       *expr = cache;
@@ -641,20 +574,13 @@ struct CacheReplaceMutator : public ir::IRMutator<> {
   }
 
   void Visit(const ir::Load *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::Load* op, Expr* expr) override";
-    auto *node   = expr->As<ir::Load>();
+    auto *node = expr->As<ir::Load>();
+    CHECK(node->tensor.as_tensor());
     auto *tensor = node->tensor.as_tensor();
-    LOG(INFO) << "And the tensor's name is: " << tensor->name;
-    LOG(INFO) << "And the replace tensor's name is: " << cache->name;
     for (auto &index : node->indices) {
       ir::IRMutator<>::Visit(&index, &index);
     }
     ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
-    /*     if (to_mutate_ && tensor && tensor->name == cache->name) {
-          node->tensor = Expr(cache);
-        } else {
-          ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
-        } */
   }
 
   bool to_mutate_{true};
@@ -668,7 +594,6 @@ void CacheReadWriteReplace(std::vector<ir::Tensor> &readers, ir::Tensor cache_te
     LOG(INFO) << "The vector<Expr>'s shape is: " << op.size();
     for (auto j : op) {
       CacheReplaceMutator(origin_tensor_name, cache_tensor, true /*read*/)(&j);
-      // CacheReplaceMutator(t->name, cache, {}, false /*write*/)(expr);
     }
   }
 }
@@ -696,12 +621,7 @@ ir::Tensor Stage::CacheRead2(const std::string &memory_type, std::vector<ir::Ten
   std::vector<std::string> reader_names;
   std::transform(
       readers.begin(), readers.end(), std::back_inserter(reader_names), [](const ir::Tensor &x) { return x->name; });
-  /*   readers.push_back(cache_tensor);
-    ReplaceTensor(readers);
-    readers.pop_back(); */
   CacheReadWriteReplace(readers, cache_tensor, tensor_->name);
-  /*    CHECK(!meta.read_cache_relation) << "Duplicate read cache found, just one is allowed";
-    meta.read_cache_relation.reset(new ReadCacheRelation{cache_name, reader_names});  */
 
   if (memory_type == "shared") {
     stages[cache_tensor]->SetScope(ScopeKind::kShared);

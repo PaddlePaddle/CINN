@@ -24,7 +24,7 @@ void Compiler::Build(const Module& module, const std::string& code) {
   }
 }
 
-std::string Compiler::GetCode(const ir::Module& module) {
+std::string Compiler::GetSourceCode(const ir::Module& module) {
   if (target_.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
     auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT

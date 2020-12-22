@@ -20,7 +20,7 @@ void GraphCompiler::PrintFunc() {
   }
 }
 
-std::string GraphCompiler::CodeGen() {
+std::string GraphCompiler::GenSourceCode() {
   auto [nodes, edges] = graph_->topological_order();
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
@@ -36,7 +36,7 @@ std::string GraphCompiler::CodeGen() {
 
   auto build_module = m_builder_.Build();
 
-  return compiler_->GetCode(build_module);
+  return compiler_->GetSourceCode(build_module);
 }
 
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {

@@ -149,10 +149,7 @@ void MarkGpuForloop(const std::string &statement,
    private:
     // Mark the specific store.
     void Visit(const ir::Store *op, Expr *expr) override {
-      LOG(INFO) << "void Mutator::Visit(const ir::Store *op, Expr *expr)";
       auto *tensor = op->tensor.As<ir::_Tensor_>();
-      LOG(INFO) << "tensor->name is : " << tensor->name;
-      LOG(INFO) << "statement is : " << statement;
       if (tensor->name == statement) {
         MarkForloop();
       }
@@ -160,7 +157,6 @@ void MarkGpuForloop(const std::string &statement,
 
     void MarkForloop() {
       // start from 0, threadIdx.x
-      LOG(INFO) << "void Mutator::MarkForloop()";
       for (auto *expr : forloop_stack) {
         auto *for_     = expr->As<ir::For>();
         auto *poly_for = expr->As<ir::PolyFor>();
@@ -179,16 +175,16 @@ void MarkGpuForloop(const std::string &statement,
           }
 
           auto &forloop_info = forloop_infos.at(iterator_name);
-          LOG(INFO) << "Statement is : " << statement;
+          VLOG(2) << "Statement of for loop is : " << statement;
           if (it->second.for_type == ir::ForType::GPUThread) {
             Var cuda_var(backends::cuda_thread_axis_name(forloop_info.offset));
             Expr var_expr(cuda_var);
-            LOG(INFO) << "gpu replacing var " << axis_var->name << " to " << cuda_var->name;
+            VLOG(2) << "gpu replacing var " << axis_var->name << " to " << cuda_var->name;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
             if (statement.size() > 10 && (statement.substr(statement.size() - 10) == "read_cache") &&
                 (*global_tensor_map).count(statement) > 0) {
               if ((*global_tensor_map)[statement]->buffer->memory_type == ir::MemoryType::GPULocal) {
-                Expr extent       = for_ ? for_->extent : poly_for->extent();
+                Expr extent       = for_ ? for_->extent : poly_for->ExtractExtent();
                 auto buffer_shape = (*global_tensor_map)[statement]->buffer->shape;
                 Expr prod(1);
                 for (auto i : buffer_shape) {
@@ -199,18 +195,18 @@ void MarkGpuForloop(const std::string &statement,
                 (*global_tensor_map)[statement]->buffer->shape = new_shape;
               }
             }
-            LOG(INFO) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
-            optim::ReplaceVarWithExpr2(expr, var_expr, ir::Expr(0), global_tensor_map, false);
+            VLOG(2) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
+            optim::CUDAReplaceIndexOfCachePass(expr, var_expr, ir::Expr(0), global_tensor_map, false);
           } else if (it->second.for_type == ir::ForType::GPUBlock) {
             Var cuda_var(backends::cuda_block_axis_name(forloop_info.offset));
             Expr var_expr(cuda_var);
-            LOG(INFO) << "gpu replacing var " << axis_var->name << " to " << cuda_var->name;
+            VLOG(2) << "gpu replacing var " << axis_var->name << " to " << cuda_var->name;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
             if (statement.size() > 10 && (statement.substr(statement.size() - 10) == "read_cache") &&
                 (*global_tensor_map).count(statement) > 0) {
               if (((*global_tensor_map)[statement]->buffer->memory_type == ir::MemoryType::GPULocal) ||
                   ((*global_tensor_map)[statement]->buffer->memory_type == ir::MemoryType::GPUShared)) {
-                Expr extent       = for_ ? for_->extent : poly_for->extent();
+                Expr extent       = for_ ? for_->extent : poly_for->ExtractExtent();
                 auto buffer_shape = (*global_tensor_map)[statement]->buffer->shape;
                 Expr prod(1);
                 for (auto i : buffer_shape) {
@@ -221,8 +217,8 @@ void MarkGpuForloop(const std::string &statement,
                 (*global_tensor_map)[statement]->buffer->shape = new_shape;
               }
             }
-            LOG(INFO) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
-            optim::ReplaceVarWithExpr2(expr, var_expr, ir::Expr(0), global_tensor_map, true);
+            VLOG(3) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
+            optim::CUDAReplaceIndexOfCachePass(expr, var_expr, ir::Expr(0), global_tensor_map, true);
           } else {
             CINN_NOT_IMPLEMENTED
           }
@@ -231,13 +227,11 @@ void MarkGpuForloop(const std::string &statement,
     }
 
     void Visit(const ir::For *op, Expr *expr) override {
-      LOG(INFO) << "void Visit(const ir::For *op, Expr *expr)";
       forloop_stack.push_back(expr);
       IRMutator::Visit(op, expr);
       forloop_stack.pop_back();
     }
     void Visit(const ir::PolyFor *op, Expr *expr) override {
-      LOG(INFO) << "void Visit(const ir::PolyFor *op, Expr *expr)";
       forloop_stack.push_back(expr);
       IRMutator::Visit(op, expr);
       forloop_stack.pop_back();
@@ -254,10 +248,6 @@ void TransformGpuForloops(const forloop_infos_t &forloop_infos,
                           std::map<std::string, ir::Tensor> *global_tensor_map,
                           Expr *expr) {
   for (auto &item : forloop_infos) {
-    LOG(INFO) << "forloop_infos.first: " << item.first;
-    for (auto &item2 : item.second) {
-      LOG(INFO) << "forloop_infos.second.first: " << item.first;
-    }
     MarkGpuForloop(item.first, item.second, global_tensor_map, expr);
   }
 }

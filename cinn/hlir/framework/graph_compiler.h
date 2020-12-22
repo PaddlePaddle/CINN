@@ -95,7 +95,7 @@ class GraphCompiler final {
 
   std::unique_ptr<Program> Build(const std::string& code = "");
 
-  std::string CodeGen();
+  std::string GenSourceCode();
 
   void PrintFunc();
 

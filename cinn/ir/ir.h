@@ -706,7 +706,7 @@ struct PolyFor : public ExprNode<PolyFor>, public ForBase {
 
   PolyFor() : ExprNode(Type()) {}
 
-  Expr extent() const;
+  Expr ExtractExtent() const;
 
   static Expr Make(Var iterator,
                    Expr init_val,
