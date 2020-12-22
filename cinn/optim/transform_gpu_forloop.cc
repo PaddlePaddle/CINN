@@ -181,8 +181,7 @@ void MarkGpuForloop(const std::string &statement,
             Expr var_expr(cuda_var);
             VLOG(2) << "gpu replacing var " << axis_var->name << " to " << cuda_var->name;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
-            if (statement.size() > 10 && (statement.substr(statement.size() - 10) == "read_cache") &&
-                (*global_tensor_map).count(statement) > 0) {
+            if (utils::Endswith(statement, "read_cache") && (*global_tensor_map).count(statement) > 0) {
               if ((*global_tensor_map)[statement]->buffer->memory_type == ir::MemoryType::GPULocal) {
                 Expr extent       = for_ ? for_->extent : poly_for->ExtractExtent();
                 auto buffer_shape = (*global_tensor_map)[statement]->buffer->shape;
@@ -202,8 +201,7 @@ void MarkGpuForloop(const std::string &statement,
             Expr var_expr(cuda_var);
             VLOG(2) << "gpu replacing var " << axis_var->name << " to " << cuda_var->name;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
-            if (statement.size() > 10 && (statement.substr(statement.size() - 10) == "read_cache") &&
-                (*global_tensor_map).count(statement) > 0) {
+            if (utils::Endswith(statement, "read_cache") && (*global_tensor_map).count(statement) > 0) {
               if (((*global_tensor_map)[statement]->buffer->memory_type == ir::MemoryType::GPULocal) ||
                   ((*global_tensor_map)[statement]->buffer->memory_type == ir::MemoryType::GPUShared)) {
                 Expr extent       = for_ ? for_->extent : poly_for->ExtractExtent();
