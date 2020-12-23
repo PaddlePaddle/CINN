@@ -192,7 +192,7 @@ struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
       }
       case ir::IrNodeTy::PolyFor: {
         auto *node = e.As<ir::PolyFor>();
-        ss << "<PolyFor " << node->iterator << " in [" << node->init << ", " << node->extent() << ")"
+        ss << "<PolyFor " << node->iterator << " in [" << node->init << ", " << node->ExtractExtent() << ")"
            << " with condition: " << node->condition << ">";
         break;
       }

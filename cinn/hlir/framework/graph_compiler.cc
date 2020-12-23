@@ -20,6 +20,25 @@ void GraphCompiler::PrintFunc() {
   }
 }
 
+std::string GraphCompiler::GenSourceCode() {
+  auto [nodes, edges] = graph_->topological_order();
+  for (auto& n : nodes) {
+    auto* node = n->safe_as<Node>();
+    if (node) {
+      auto lowered_func = GetOpFunc(node);
+      m_builder_.AddFunction(lowered_func);
+    }
+  }
+  // compile the module
+  if (!compiler_) {
+    compiler_ = backends::Compiler::Create(target_);
+  }
+
+  auto build_module = m_builder_.Build();
+
+  return compiler_->GetSourceCode(build_module);
+}
+
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   auto [nodes, edges] = graph_->topological_order();
   for (auto& n : nodes) {

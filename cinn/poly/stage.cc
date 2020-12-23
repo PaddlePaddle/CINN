@@ -187,6 +187,18 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
   }
 }
 
+void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
+  // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
+
+  CHECK(tensor_);
+  ComputeAtRelation relation;
+  relation.stage = other;
+  relation.level = level;
+
+  CHECK(relation.IsCompatible(this));
+  compute_ats_[other->id()] = relation;
+}
+
 void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
   isl::map access;
   isl_map *access_raw{};
@@ -508,6 +520,105 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
 
   CHECK(!meta.read_cache_relation) << "Duplicate read cache found, just one is allowed";
   meta.read_cache_relation.reset(new ReadCacheRelation{cache_name, reader_names});
+
+  if (memory_type == "shared") {
+    stages[cache_tensor]->SetScope(ScopeKind::kShared);
+  } else if (memory_type == "local") {
+    stages[cache_tensor]->SetScope(ScopeKind::kLocal);
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+
+  return cache_tensor;
+}
+
+namespace {
+
+/**
+ * Replace the reader of a cache tensor to tensor.
+ */
+struct CacheReplaceMutator : public ir::IRMutator<> {
+  std::string tensor_name;
+  ir::Tensor cache;
+  bool read_or_write{};
+
+  /**
+   * construct
+   * @param tensor_name name of the tensor to cache
+   * @param cache the cache
+   * @param read_or_write read or write cache
+   */
+  CacheReplaceMutator(const std::string &tensor_name, ir::Tensor cache, bool read_or_write)
+      : tensor_name(tensor_name), cache(cache), read_or_write(read_or_write) {}
+
+  void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+ private:
+  void Visit(const ir::Store *op, Expr *expr) override {
+    LOG(INFO) << "void Visit(const ir::Store* op, Expr* expr) ";
+    auto *node            = expr->As<ir::Store>();
+    auto read_cache_match = op->tensor.as_tensor();
+    LOG(INFO) << "And the tensor's name is: " << op->tensor.as_tensor()->name;
+    for (auto &index : node->indices) {
+      ir::IRMutator<>::Visit(&index, &index);
+    }
+    ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+    ir::IRMutator<>::Visit(&node->value, &node->value);
+  }
+
+  void Visit(const ir::_Tensor_ *op, Expr *expr) override {
+    if (to_mutate_ && tensor_name == op->name) {
+      *expr = cache;
+    }
+  }
+
+  void Visit(const ir::Load *op, Expr *expr) override {
+    auto *node = expr->As<ir::Load>();
+    CHECK(node->tensor.as_tensor());
+    auto *tensor = node->tensor.as_tensor();
+    for (auto &index : node->indices) {
+      ir::IRMutator<>::Visit(&index, &index);
+    }
+    ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+  }
+
+  bool to_mutate_{true};
+};
+}  // namespace
+
+void CacheReadWriteReplace(std::vector<ir::Tensor> &readers, ir::Tensor cache_tensor, std::string origin_tensor_name) {
+  for (auto k : readers) {
+    auto op = k->operation->as<ir::ComputeOp>()->body;
+    for (auto j : op) {
+      CacheReplaceMutator(origin_tensor_name, cache_tensor, true /*read*/)(&j);
+    }
+  }
+}
+
+/*
+ * To create a read cache:
+ * 1. create a cache write stage for cache assign.
+ * 2. add extra deps between cache and tensor to keep SSA order
+ * 3. register the readers of the cache to the \p tensor, replace latter in Lower
+ */
+ir::Tensor Stage::CacheRead2(const std::string &memory_type, std::vector<ir::Tensor> &readers, StageMap stages) {
+  CHECK(tensor_);
+  auto my_tensor         = ir::Tensor(tensor_);
+  std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
+  VLOG(4) << "cache_name " << cache_name;
+  auto cache_tensor = lang::Compute(
+      tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
+  cache_tensor->WithBuffer(memory_type);
+
+  stages->Insert(cache_tensor, CreateStage(cache_tensor).get());
+  for (auto &reader : readers) {
+    stages[reader]->CtrlDepend(cache_tensor);
+  }
+
+  std::vector<std::string> reader_names;
+  std::transform(
+      readers.begin(), readers.end(), std::back_inserter(reader_names), [](const ir::Tensor &x) { return x->name; });
+  CacheReadWriteReplace(readers, cache_tensor, tensor_->name);
 
   if (memory_type == "shared") {
     stages[cache_tensor]->SetScope(ScopeKind::kShared);

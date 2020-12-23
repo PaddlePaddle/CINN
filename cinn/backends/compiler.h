@@ -26,6 +26,8 @@ class Compiler final {
    */
   void Build(const ir::Module& module, const std::string& code = "");
 
+  std::string GetSourceCode(const ir::Module& module);
+
   void BuildDefault(const ir::Module& module);
 
   /**
