@@ -30,6 +30,9 @@ class Module;
 
 using common::Object;
 using common::Shared;
+// NOTE attr_t only support POD, can not contain Expr or other IR nodes, or the IRVisitor or IRCopy on PrimitiveNode
+// will result in undefined behavior.
+using attr_t = std::variant<int, float, bool, std::string>;
 
 /**
  * Cast a node to another type, can't change the width.
@@ -308,7 +311,8 @@ struct Call : public ExprNode<Call> {
   //! The arguments.
   std::vector<Expr> read_args;
   std::vector<Expr> write_args;
-
+  //! the attribute of this CallNode.
+  std::map<std::string, attr_t> attrs;
   //! Type of calls.
   CallType call_type;
   //! The function to be called.
@@ -321,8 +325,9 @@ struct Call : public ExprNode<Call> {
                    const std::vector<Expr>& read_args,
                    const std::vector<Expr>& write_args,
                    CallType call_type,
-                   FunctionRef func = FunctionRef(),
-                   int value_index  = 0);
+                   FunctionRef func                           = FunctionRef(),
+                   int value_index                            = 0,
+                   const std::map<std::string, attr_t>& attrs = {});
 
   void Verify() const override;
 
@@ -474,11 +479,10 @@ struct LoadStoreAddrMnger {
  */
 struct Load : public ExprNode<Load>, public LoadStoreAddrMnger {
   std::vector<Expr> indices;
-  Expr index_;
   //! The abstract offset.
   Expr index() const;
 
-  static Expr Make(Expr tensor, const std::vector<Expr>& indices, Expr index = Expr());
+  static Expr Make(Expr tensor, const std::vector<Expr>& indices);
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
@@ -498,9 +502,8 @@ struct Load : public ExprNode<Load>, public LoadStoreAddrMnger {
 struct Store : public ExprNode<Store>, public LoadStoreAddrMnger {
   Expr value;
   std::vector<Expr> indices;
-  Expr index_;
 
-  static Expr Make(Expr tensor, Expr value, const std::vector<Expr>& indices, Expr index = Expr());
+  static Expr Make(Expr tensor, Expr value, const std::vector<Expr>& indices);
 
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
@@ -861,10 +864,6 @@ struct _Module_ : public ExprNode<_Module_> {
  * nodes for better IR optimization and hardware adaption.
  */
 struct PrimitiveNode : public ExprNode<PrimitiveNode> {
-  // NOTE attr_t only support POD, can not contain Expr or other IR nodes, or the IRVisitor or IRCopy on PrimitiveNode
-  // will result in undefined behavior.
-  using attr_t = std::variant<int, float, bool, std::string>;
-
   std::string name;
   //! the inputs of the PrimitiveNode, the vector<vector<Expr>> can hold variadic arguments.
   std::vector<std::vector<Expr>> arguments;

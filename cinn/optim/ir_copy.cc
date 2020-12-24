@@ -63,7 +63,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const Call* op) override {
     auto read_args  = Visit(op->read_args);
     auto write_args = Visit(op->write_args);
-    return Call::Make(op->type(), op->name, read_args, write_args, op->call_type, FunctionRef(), 0);
+    return Call::Make(op->type(), op->name, read_args, write_args, op->call_type, FunctionRef(), 0, op->attrs);
   }
 
   Expr Visit(const _Var_* op) override {
@@ -84,28 +84,20 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
 
   Expr Visit(const Load* op) override {
     auto tensor = Visit(&op->tensor);
-    Expr index_;
-    if (op->index_.defined()) {
-      index_ = Visit(&op->index_);
-    }
     std::vector<Expr> indices;
     for (auto& idx : op->indices) {
       indices.push_back(Visit(&idx));
     }
-    return Load::Make(tensor, indices, index_);
+    return Load::Make(tensor, indices);
   }
 
   Expr Visit(const Store* op) override {
     auto tensor = Visit(&op->tensor);
     auto value  = Visit(&op->value);
-    Expr index_;
-    if (op->index_.defined()) {
-      index_ = Visit(&op->index_);
-    }
     std::vector<Expr> indices;
     for (auto& idx : op->indices) indices.push_back(Visit(&idx));
 
-    return Store::Make(tensor, value, indices, index_);
+    return Store::Make(tensor, value, indices);
   }
 
   Expr Visit(const Alloc* op) override {

@@ -1,3 +1,4 @@
+
 #include <pybind11/functional.h>
 
 #include <memory>
@@ -85,7 +86,11 @@ void BindCompute(py::module *m) {
   m->def("call_lowered",
          py::overload_cast<const std::string &, const std::vector<ir::Expr> &, const std::vector<lang::ReturnType> &>(
              &lang::CallLowered));
-  m->def("call_extern", py::overload_cast<const std::string &, const std::vector<ir::Expr> &>(&lang::CallExtern));
+  m->def(
+      "call_extern",
+      py::overload_cast<const std::string &,
+                        const std::vector<ir::Expr> &,
+                        const std::map<std::string, std::variant<int, float, bool, std::string>> &>(&lang::CallExtern));
 }
 
 void BindModule(py::module *m) {

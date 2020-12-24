@@ -61,11 +61,6 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
       if (Out.as_tensor()->shape.size() > 1) {
         stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
         stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
-      } else if (target.arch == Target::Arch::X86) {
-        Expr Out              = arg_pack[0];
-        poly::StageMap stages = arg_pack[1];
-        CHECK(Out.as_tensor());
-        pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.back(), target);
       }
     }
     *ret = arg_pack;

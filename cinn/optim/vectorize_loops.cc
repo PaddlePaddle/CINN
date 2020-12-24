@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "cinn/common/cas.h"
@@ -124,25 +125,9 @@ class Vectorizer : public IRMutator<Expr *> {
     node->false_value = Widen(node->false_value, lanes);
   }
 
-  Expr Get1DIndex(Expr tensor, const std::vector<Expr> indices) {
-    auto *tensor_ptr = tensor.As<_Tensor_>();
-    CHECK(tensor_ptr);
-    Expr index = IndiceToAbsOffset(tensor_ptr->shape, indices);
-    index      = common::AutoSimplify(index, var_intervals_);
-    Simplify(&index);
-    Visit(&index);
-    index = common::AutoSimplify(index, var_intervals_);
-    Simplify(&index);
-    return index;
-  }
-
   void Visit(const Load *op, Expr *expr) override {
     auto *node                = expr->As<Load>();
     std::vector<Expr> indices = node->indices;
-    // get the 1D index
-    Expr tensor = node->tensor;
-    Expr index  = Get1DIndex(tensor, indices);
-
     // We ignore the predicate here.
     bool need_visit = false;
     for (int i = 0; i < indices.size(); i++) {
@@ -153,7 +138,7 @@ class Vectorizer : public IRMutator<Expr *> {
     }
     if (!need_visit) return;
 
-    *expr = Load::Make(node->tensor, node->indices, index);
+    *expr = Load::Make(node->tensor, node->indices);
   }
 
   void Visit(const Store *op, Expr *expr) override {
@@ -162,9 +147,6 @@ class Vectorizer : public IRMutator<Expr *> {
     Visit(&node->value);
 
     std::vector<Expr> indices = node->indices;
-    // get the 1D index
-    Expr tensor = node->tensor;
-    Expr index  = Get1DIndex(tensor, indices);
     // We ignore the predicate here.
     for (auto &idx : node->indices) {
       Visit(&idx);
@@ -188,7 +170,7 @@ class Vectorizer : public IRMutator<Expr *> {
     for (auto &idx : node->indices) {
       new_indices.push_back(Widen(idx, lanes));
     }
-    *expr = Store::Make(node->tensor, node->value, new_indices, index);
+    *expr = Store::Make(node->tensor, node->value, new_indices);
   }
 
   void Visit(const Call *op, Expr *expr) override { LOG(ERROR) << "Ignore widen Call node"; }
@@ -303,6 +285,7 @@ class Vectorizer : public IRMutator<Expr *> {
 struct VectorizeLoops_ : public IRMutator<Expr *> {
   const Target &target;
   std::unordered_map<std::string, common::CasInterval> var_intervals;
+  bool vectorizable_ = true;
 
   explicit VectorizeLoops_(const Target &t) : target(t) {}
 
@@ -346,6 +329,14 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     *expr = Store::Make(node->tensor, node->value, node->indices);
   }
 
+  void Visit(const Call *op, Expr *expr) override {
+    auto it = op->attrs.find("vectorizable");
+    if (it != op->attrs.end()) {
+      vectorizable_ = std::get<bool>(it->second);
+    }
+    return;
+  }
+
   void Visit(const For *forloop, Expr *expr) {
     auto *node = expr->As<For>();
     if (forloop->extent.As<IntImm>()) {
@@ -353,16 +344,6 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     } else {
       var_intervals.emplace(forloop->loop_var->name, common::CasInterval{Expr(0), forloop->extent - 1});
     }
-    // // unroll for if it has cinn_min extent(has tail block) by solve the condition and then vectorize separately
-    // Block *block = node->body.As<Block>();
-    // For *inner_for;
-    // if (block && block->stmts.size() == 1) {
-    //   inner_for = block->stmts.front().As<For>();
-    // }
-    // if (inner_for) {
-    //   if (UnrollCmpFor(node, inner_for, expr)) return;
-    // }
-
     // the extent the forloops marked as Vectorized should be int constant
     if (forloop->is_vectorized()) {
       Context::Global().info_rgt().Get<int>("vectorized_forloop_count")++;
@@ -376,9 +357,11 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
       auto *extent_min = for_extent.As<Min>();
       auto *extent_max = for_extent.As<Max>();
 
-      if (extent_min || extent_max) {
+      vectorizable_ = true;
+      IRMutator<>::Visit(&node->body, &node->body);
+      if (extent_min || extent_max || !vectorizable_) {
         // not vectorize if has tail blocks, for llvm to optimize
-        IRMutator<>::Visit(&node->body, &node->body);
+        node->reset_vectorize_info();
         return;
       }
 
@@ -398,6 +381,7 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
 
       if (!extent_int) {
         IRMutator<>::Visit(&node->body, &node->body);
+        return;
       }
 
       int extent = extent_int->value;
@@ -474,7 +458,7 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
                                      outer_for->vectorize_info());
           optim::IrReplace(&out_for_b, outer_for->loop_var, Expr(new_iterator_outer));
           *expr = Block::Make({out_for_a, out_for_b});
-          LOG(INFO) << *expr;
+          VLOG(2) << *expr;
           IRMutator::Visit(expr, expr);
           return true;
         }
@@ -500,7 +484,7 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     forloop->set_vectorized(false);
 
     forloop->extent = times;
-    if (times_int) {
+    if (times_int && forloop->extent.as_int32() >= 1) {
       var_intervals.emplace(forloop->loop_var->name, common::CasInterval{0, forloop->extent.as_int32() - 1});
     } else {
       var_intervals.erase(forloop->loop_var->name);

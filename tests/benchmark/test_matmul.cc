@@ -175,9 +175,10 @@ TEST(test_matmul, default) {
   std::string op_name = "matmul";
   hlir::framework::NodeAttr attrs;
   MatmulTester matmul_tester(op_name, input_shapes);
-  std::vector<Type> type{Float(32)};
+  std::vector<Type> input_types{Float(32), Float(32)};
+  std::vector<Type> output_types{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_default", input_tensors, attrs, type);
+  matmul_tester.TestOp("matmul_default", input_tensors, attrs, input_types, output_types);
 }
 
 TEST(test_matmul, tile) {
@@ -188,9 +189,10 @@ TEST(test_matmul, tile) {
   std::string op_name = "matmul";
   hlir::framework::NodeAttr attrs;
   MatmulTileTester matmul_tester(op_name, input_shapes);
-  std::vector<Type> type{Float(32)};
+  std::vector<Type> input_types{Float(32), Float(32)};
+  std::vector<Type> output_types{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_tile", input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_tile", input_tensors, attrs, input_types, output_types, false);
 }
 
 TEST(test_matmul, split) {
@@ -201,9 +203,10 @@ TEST(test_matmul, split) {
   std::string op_name = "matmul";
   hlir::framework::NodeAttr attrs;
   MatmulSplitTester matmul_tester(op_name, input_shapes);
-  std::vector<Type> type{Float(32)};
+  std::vector<Type> input_types{Float(32), Float(32)};
+  std::vector<Type> output_types{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_split", input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_split", input_tensors, attrs, input_types, output_types, false);
 }
 
 TEST(test_matmul, block) {
@@ -214,9 +217,10 @@ TEST(test_matmul, block) {
   std::string op_name = "matmul";
   hlir::framework::NodeAttr attrs;
   MatmulBlockTester matmul_tester(op_name, input_shapes);
-  std::vector<Type> type{Float(32)};
+  std::vector<Type> input_types{Float(32), Float(32)};
+  std::vector<Type> output_types{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_block", input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_block", input_tensors, attrs, input_types, output_types, false);
 }
 
 TEST(test_matmul, vectorize) {
@@ -227,9 +231,10 @@ TEST(test_matmul, vectorize) {
   std::string op_name = "matmul";
   hlir::framework::NodeAttr attrs;
   MatmulVectorizeTester matmul_tester(op_name, input_shapes);
-  std::vector<Type> type{Float(32)};
+  std::vector<Type> input_types{Float(32), Float(32)};
+  std::vector<Type> output_types{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_vectorize", input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_vectorize", input_tensors, attrs, input_types, output_types, false);
 }
 
 TEST(test_matmul, loop_permutation) {
@@ -240,9 +245,10 @@ TEST(test_matmul, loop_permutation) {
   std::string op_name = "matmul";
   hlir::framework::NodeAttr attrs;
   MatmulLoopPermutationTester matmul_tester(op_name, input_shapes);
-  std::vector<Type> type{Float(32)};
+  std::vector<Type> input_types{Float(32), Float(32)};
+  std::vector<Type> output_types{Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_loop_permutation", input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_loop_permutation", input_tensors, attrs, input_types, output_types, false);
 }
 
 TEST(test_matmul, array_packing) {
@@ -253,9 +259,10 @@ TEST(test_matmul, array_packing) {
   std::string op_name = "matmul";
   hlir::framework::NodeAttr attrs;
   MatmulArrayPackingTester matmul_tester(op_name, input_shapes);
-  std::vector<Type> type{Float(32), Float(32)};
+  std::vector<Type> input_types{Float(32), Float(32)};
+  std::vector<Type> output_types{Float(32), Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
-  matmul_tester.TestOp("matmul_array_packing", input_tensors, attrs, type, false);
+  matmul_tester.TestOp("matmul_array_packing", input_tensors, attrs, input_types, output_types, false);
 }
 
 }  // namespace tests

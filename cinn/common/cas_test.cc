@@ -324,7 +324,7 @@ TEST(CAS, SimplifyCompoundMod) {
     LOG(INFO) << "p0 " << p0;
     auto p2 = AutoSimplify(p0);
     LOG(INFO) << "simplified " << p2;
-    EXPECT_EQ(GetStreamCnt(p2), "((1 * x) % 4)");
+    EXPECT_EQ(GetStreamCnt(p2), "(-1 * ((-1 * x) % 4))");
   }
   {  // (33 + x % 34) + -33
     Var x   = ir::_Var_::Make("x", Int(32));

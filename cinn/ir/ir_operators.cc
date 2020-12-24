@@ -1,12 +1,14 @@
 #include "cinn/ir/ir_operators.h"
 
 #include <limits>
+#include <string>
 
 #include "cinn/common/type.h"
 #include "cinn/lang/compute.h"
 
 namespace cinn {
 namespace ir {
+using attr_t = std::variant<int, float, bool, std::string>;
 
 Expr operator<<(Expr a, Expr b) {
   CHECK(a.type().is_int() || a.type().is_uint());
@@ -25,7 +27,7 @@ Expr operator<<(Expr a, Expr b) {
       return Expr(int_a->value << int_b->value);
     }
   }
-  return lang::CallExtern("left_shift", {a, b});
+  return lang::CallExtern("left_shift", {a, b}, {{"vectorizable", false}});
 }
 
 Expr operator>>(Expr a, Expr b) {
@@ -45,7 +47,7 @@ Expr operator>>(Expr a, Expr b) {
       return Expr(int_a->value >> int_b->value);
     }
   }
-  return lang::CallExtern("right_shift", {a, b});
+  return lang::CallExtern("right_shift", {a, b}, {{"vectorizable", false}});
 }
 
 Expr operator|(Expr a, Expr b) {
@@ -60,7 +62,7 @@ Expr operator|(Expr a, Expr b) {
       return Expr(int_a->value | int_b->value);
     }
   }
-  return lang::CallExtern("bitwise_or", {a, b});
+  return lang::CallExtern("bitwise_or", {a, b}, {{"vectorizable", false}});
 }
 
 Expr operator&(Expr a, Expr b) {
@@ -75,7 +77,7 @@ Expr operator&(Expr a, Expr b) {
       return Expr(int_a->value & int_b->value);
     }
   }
-  return lang::CallExtern("bitwise_and", {a, b});
+  return lang::CallExtern("bitwise_and", {a, b}, {{"vectorizable", false}});
 }
 
 Expr operator^(Expr a, Expr b) {
@@ -90,12 +92,12 @@ Expr operator^(Expr a, Expr b) {
       return Expr(int_a->value ^ int_b->value);
     }
   }
-  return lang::CallExtern("bitwise_xor", {a, b});
+  return lang::CallExtern("bitwise_xor", {a, b}, {{"vectorizable", false}});
 }
 
 Expr operator~(Expr a) {
   CHECK(a.type().is_int() || a.type().is_uint());
-  return lang::CallExtern("bitwise_not", {a});
+  return lang::CallExtern("bitwise_not", {a}, {{"vectorizable", false}});
 }
 
 }  // namespace ir

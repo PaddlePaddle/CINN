@@ -67,9 +67,13 @@ class SingleOpTester(unittest.TestCase):
 
         args = []
         temp_inputs = []
+        alignment = 0
+        if self.target.arch == common.Target.Arch.X86:
+            alignment = 512
         for in_data in inputs_data:
             temp_inputs.append(
-                runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device))
+                runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device,
+                                      alignment))
         for in_data in temp_inputs:
             args.append(runtime.cinn_pod_value_t(in_data))
         if output_shapes == None:
@@ -84,11 +88,12 @@ class SingleOpTester(unittest.TestCase):
         fn = self.compiler.lookup(op_name)
 
         out = []
+
         for out_shape in output_shapes:
             out.append(
                 runtime.cinn_buffer_t(
                     np.zeros(out_shape).astype("float32"),
-                    runtime.cinn_x86_device))
+                    runtime.cinn_x86_device, alignment))
 
         for out_data in out:
             args.append(runtime.cinn_pod_value_t(out_data))

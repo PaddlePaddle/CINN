@@ -22,9 +22,9 @@ TEST(Optimize, Unroll) {
 
   auto out = R"ROC(
 {
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j_outer, 4)
+    for (j_outer, 0, 4)
     {
       {
         tensor[i, (5 * j_outer)] = (1 + A[i, (5 * j_outer)])

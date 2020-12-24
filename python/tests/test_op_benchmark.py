@@ -17,7 +17,10 @@ enable_gpu = sys.argv.pop()
 
 class TestBenchmark(unittest.TestCase):
     def setUp(self):
-        self.target = DefaultNVGPUTarget()
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
 
     def atest_conv2d(self):
         prog = Program()
