@@ -49,7 +49,6 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   MapExternCall(&copied, target);
   ExternCallMultiOutputShallowStore(&copied);
 
-  CastBoolToInt8(&copied, target);
   CastSimplify(&copied);
   Simplify(&copied);
   CompareSimplify(&copied);

@@ -57,8 +57,8 @@ Expr RampRelatedAdd(ir::Ramp *ramp, ir::Ramp *other) {
   if (ramp->lanes == other->lanes) {
     Expr base_add   = common::AutoSimplify(ramp->base + other->base);
     Expr stride_add = common::AutoSimplify(ramp->stride + other->stride);
-    LOG(INFO) << base_add;
-    LOG(INFO) << stride_add;
+    VLOG(2) << base_add;
+    VLOG(2) << stride_add;
     return ir::Ramp::Make(base_add, stride_add, ramp->lanes);
   }
   CINN_NOT_IMPLEMENTED

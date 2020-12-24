@@ -23,15 +23,19 @@ struct Buffer final {
 
   //! Resize the memory hold by this buffer *exactlly* to \p size.
   void Resize(uint32_t size);
+  void Resize(uint32_t alignment, uint32_t size);
 
   //! Lazily resize the memory.
   void ResizeLazy(uint32_t size);
+  void ResizeLazy(uint32_t alignment, uint32_t size);
 
   //! Resize the memory to \p size in target \p target.
   void Resize(uint32_t size, const common::Target& target);
+  void Resize(uint32_t alignment, uint32_t size, const common::Target& target);
 
   //! Lazily resize the memory to \p size in target \p target.
   void ResizeLazy(uint32_t size, const common::Target& target);
+  void ResizeLazy(uint32_t alignment, uint32_t size, const common::Target& target);
 
   void SetTarget(const common::Target& target);
 
@@ -48,6 +52,11 @@ struct Buffer final {
   inline void* Malloc(uint32_t size) CINN_RESULT_SHOULD_USE {
     CHECK(memory_mng_cache_) << "Should set target first";
     return memory_mng_cache_->malloc(size);
+  }
+
+  inline void* AlignedAlloc(uint32_t alignment, uint32_t size) CINN_RESULT_SHOULD_USE {
+    CHECK(memory_mng_cache_) << "Should set target first";
+    return memory_mng_cache_->aligned_alloc(alignment, size);
   }
 
  private:

@@ -170,13 +170,13 @@ std::vector<ir::Tensor> CallLowered(const std::string &target,
   return new_tensors;
 }
 
-Expr CallExtern(const std::string &target, const std::vector<Expr> &args) {
+Expr CallExtern(const std::string &target, const std::vector<Expr> &args, const std::map<std::string, attr_t> &attrs) {
   auto *proto = backends::ExternFunctionProtoRegistry::Global().Lookup(target);
   CHECK(proto) << "No extern function prototype " << target << " found\n"
                << "existing records are:\n"
                << backends::ExternFunctionProtoRegistry::Global().debug_string();
 
-  auto call = ir::Call::Make(proto->ret_type, target, args, {}, ir::CallType::Extern, ir::FunctionRef(), 0);
+  auto call = ir::Call::Make(proto->ret_type, target, args, {}, ir::CallType::Extern, ir::FunctionRef(), 0, attrs);
   std::vector<Expr> mutable_args;
   // Call a function with multiple outputs.
   if (proto->ret_type.is_void()) {

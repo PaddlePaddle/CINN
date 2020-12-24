@@ -106,7 +106,7 @@ struct SimplifyLoadMutator : public ir::IRMutator<ir::Expr*> {
   void Visit(const For* op, Expr* expr) override {
     auto* min_i    = op->min.As<IntImm>();
     auto* extent_i = op->extent.As<IntImm>();
-    if (min_i && extent_i) {
+    if (min_i && extent_i && extent_i->value > min_i->value) {
       var_intervals_.emplace(op->loop_var->name, common::CasInterval{min_i->value, extent_i->value - 1});
     }
 
@@ -181,9 +181,7 @@ struct SimplifyRampMutator : public ir::IRMutator<Expr*> {
     if (a_ramp && b_ramp && a_ramp->lanes == b_ramp->lanes) {
       Expr base_add   = common::AutoSimplify(a_ramp->base + b_ramp->base);
       Expr stride_add = common::AutoSimplify(a_ramp->stride + b_ramp->stride);
-      LOG(INFO) << base_add;
-      LOG(INFO) << stride_add;
-      *expr = ir::Ramp::Make(base_add, stride_add, a_ramp->lanes);
+      *expr           = ir::Ramp::Make(base_add, stride_add, a_ramp->lanes);
     }
   }
 };

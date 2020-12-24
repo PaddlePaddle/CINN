@@ -16,6 +16,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
   }
 
   llvm::Type *v   = llvm::Type::getVoidTy(m->getContext());
+  llvm::Type *i1  = llvm::Type::getInt1Ty(m->getContext());
   llvm::Type *i8  = llvm::Type::getInt8Ty(m->getContext());
   llvm::Type *u8  = llvm::Type::getInt8Ty(m->getContext());
   llvm::Type *i32 = llvm::Type::getInt32Ty(m->getContext());
@@ -37,7 +38,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
   } else if (type.is_int(64)) {
     ir_type = i64;
   } else if (type.is_bool()) {
-    ir_type = i8;
+    ir_type = i1;
   } else if (type.is_float(32)) {
     ir_type = f32;
   } else if (type.is_float(64)) {

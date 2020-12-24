@@ -208,7 +208,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::IntImm *op) {
 
 llvm::Value *CodeGenLLVM::Visit(const ir::UIntImm *op) {
   if (op->type().is_bool()) {
-    auto *type = b_->getInt8Ty();
+    auto *type = b_->getInt1Ty();
     return llvm::ConstantInt::get(type, op->value, false);
   }
   auto *type = b_->getIntNTy(op->type().bits());
@@ -810,7 +810,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
         return inst;
       }
     } else {
-      LOG(FATAL) << "unsupported Ramp index " << op->index();
+      LOG(FATAL) << "unsupported Ramp index " << ramp_expr;
     }
   }
   return nullptr;

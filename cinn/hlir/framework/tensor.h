@@ -48,7 +48,12 @@ class _Tensor_ : public Object {
   template <typename T>
   inline T* mutable_data(const Target& target) {
     set_type(type_of<T>());
-    buffer_->ResizeLazy(shape_.numel() * sizeof(T), target);
+    if (target == common::DefaultHostTarget()) {
+      int alignment = target.get_target_bits() * 8;
+      buffer_->ResizeLazy(alignment, shape_.numel() * sizeof(T), target);
+    } else {
+      buffer_->ResizeLazy(shape_.numel() * sizeof(T), target);
+    }
     return reinterpret_cast<T*>(buffer_->data()->memory);
   }
 
