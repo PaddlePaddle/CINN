@@ -23,7 +23,7 @@ class PaddleDialect : public Dialect {
  public:
   explicit PaddleDialect(MLIRContext* context);
 
-  static StringRef getDialectNamespace() { return "TF"; }
+  static StringRef getDialectNamespace() { return "PD"; }
 
   Type parseType(DialectAsmParser& parser) const override { return Dialect::parseType(parser); }
   void printType(Type type, DialectAsmPrinter& printer) const override { Dialect::printType(type, printer); }

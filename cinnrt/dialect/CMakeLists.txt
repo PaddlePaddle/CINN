@@ -31,8 +31,12 @@ add_dependencies(cinn-opt pd_ops_inc)
 add_test(test_mlir_opt_on_basic ${CMAKE_BINARY_DIR}/cinnrt/dialect/cinn-opt
         ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/basic.mlir)
 
-add_test(test_mlir_opt_on_tensor_shape ${CMAKE_BINARY_DIR}/cinnrt/dialect/cinn-opt
+set(cinn_opt_path ${CMAKE_BINARY_DIR}/cinnrt/dialect/cinn-opt)
+add_test(test_mlir_opt_on_tensor_shape ${cinn_opt_path}
         ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/tensor_shape.mlir)
+add_test(test_mlir_opt_on_paddle_ops
+        ${cinn_opt_path}
+        ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/paddle_ops.mlir)
 # %}
 
 cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS cinncore ${MLIR_IR_LIBS})
