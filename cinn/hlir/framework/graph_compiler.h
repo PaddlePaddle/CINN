@@ -95,6 +95,8 @@ class GraphCompiler final {
 
   std::unique_ptr<Program> Build(const std::string& code = "");
 
+  std::string GenSourceCode();
+
   void PrintFunc();
 
   const std::shared_ptr<Scope>& GetScope() const { return scope_; }

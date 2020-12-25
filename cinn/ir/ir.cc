@@ -419,7 +419,7 @@ Expr PolyFor::Make(Var iterator,
 std::vector<Expr *> PolyFor::expr_fields() { return {&init, &condition, &inc, &body}; }
 std::vector<const Expr *> PolyFor::expr_fields() const { return {&init, &condition, &inc, &body}; }
 
-Expr PolyFor::extent() const {
+Expr PolyFor::ExtractExtent() const {
   auto nodes = CollectIRNodes(condition, [&](const Expr *e) {
     return e->As<NE>() ||   //
            e->As<EQ>() ||   //
@@ -427,7 +427,7 @@ Expr PolyFor::extent() const {
            e->As<Max>();
   });
 
-  if (nodes.empty()) {
+  if (!nodes.empty()) {
     return Expr();
   }
 

@@ -182,6 +182,14 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     VLOG(3) << "mul out: " << out;
     stages->InsertLazily(out);
     CHECK(!out_type.empty()) << "Output type of Mul is empty! Please check.\n";
+
+    if (target.arch == Target::Arch::NVGPU) {
+      std::vector<ir::Tensor> readers{out};
+      auto BB = stages[new_B]->CacheRead2("local", readers, stages);
+      stages[BB]->Split(0, 2);
+      stages[BB]->Bind(0, "threadIdx.x");
+    }
+
     *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
