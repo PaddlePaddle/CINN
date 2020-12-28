@@ -638,8 +638,8 @@ TEST(elementwise_add, share_local_cache) {
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> temp{C};
-  auto CC     = stages[C]->CacheWrite2("local", stages);
-  auto AA     = stages[A]->CacheRead2("shared", temp, stages);
+  auto CC = stages[C]->CacheWrite2("local", stages);
+  auto AA = stages[A]->CacheRead2("shared", temp, stages);
   // NOTE here, the CC replace the C as the output the function.
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -812,11 +812,11 @@ TEST(Conv, optimize) {
 
   auto stages = CreateStages({B});
   std::vector<ir::Tensor> temp{B};
-  auto BL     = stages[B]->CacheWrite2("local", stages);
-  auto AA     = stages[Apad]->CacheRead2("shared", temp, stages);
-  auto WW     = stages[W]->CacheRead2("shared", temp, stages);
-  auto AL     = stages[AA]->CacheRead2("local", temp, stages);
-  auto WL     = stages[WW]->CacheRead2("local", temp, stages);
+  auto BL = stages[B]->CacheWrite2("local", stages);
+  auto AA = stages[Apad]->CacheRead2("shared", temp, stages);
+  auto WW = stages[W]->CacheRead2("shared", temp, stages);
+  auto AL = stages[AA]->CacheRead2("local", temp, stages);
+  auto WL = stages[WW]->CacheRead2("local", temp, stages);
 
   stages[Apad]->ComputeInline();
 
@@ -1184,7 +1184,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
         {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
     auto stages = CreateStages({A, B, C});
     std::vector<ir::Tensor> temp{C};
-    auto AL     = stages[A]->CacheRead2("shared", temp, stages);
+    auto AL = stages[A]->CacheRead2("shared", temp, stages);
 
     stages[C]->Split(1, 10);
 
@@ -1277,7 +1277,7 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
 
     auto stages = CreateStages({A, B, C});
     std::vector<ir::Tensor> temp{C};
-    auto AL     = stages[A]->CacheRead2("shared", temp, stages);
+    auto AL = stages[A]->CacheRead2("shared", temp, stages);
 
     stages[C]->Split(1, 10);
     stages[AL]->Split(1, 10);
@@ -1396,7 +1396,7 @@ TEST(ElementwiseAdd, cache_write_local) {
   auto source_code = codegen.Compile(builder.Build());
   std::cout << "CUDA source:\n" << source_code << std::endl;
 
-   auto target_source = R"ROC(
+  auto target_source = R"ROC(
 extern "C" {
 
 #include "cinn_cuda_runtime_source.cuh"
