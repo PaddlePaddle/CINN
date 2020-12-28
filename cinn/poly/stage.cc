@@ -655,6 +655,37 @@ ir::Tensor Stage::CacheWrite(const std::string &memory_type, StageMap stages) {
   return write_stage;
 }
 
+/*
+ * Replace the tensor's name to cache_name, and create a cache_stage to copy content from cache to original tensor.
+ */
+ir::Tensor Stage::CacheWrite2(const std::string &memory_type, StageMap stages) {
+  CHECK(tensor_);
+  CHECK(!tensor_->buffer.defined()) << "This tensor is already binded to a buffer, cannot cache write";
+  CHECK(!meta.compute_inline) << "Cannot create a write cache on an inlined tensor";
+
+  std::string cache_name = Context::Global().NewName(tensor_->name + "_cache_write_out");
+  auto original_name     = tensor_->name;
+  tensor_->name          = cache_name;
+  auto my_tensor         = ir::Tensor(tensor_);
+  // make my_tensor a cache
+  my_tensor->WithBuffer(memory_type);
+
+  auto write_stage = lang::Compute(
+      tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, original_name);
+
+  stages->Insert(my_tensor, CreateStage(my_tensor).get());
+
+  stages->Insert(write_stage, CreateStage(write_stage).get());
+
+  stages[write_stage]->CtrlDepend(my_tensor);
+
+  /*   CHECK(!meta.write_cache_relation) << "Duplicate write cache found, just one is allowed";
+    meta.write_cache_relation.reset(new WriteCacheRelation{cache_name}); */
+  /* CacheReadWriteReplace({tensor_}, cache_tensor, tensor_->name); */
+
+  return write_stage;
+}
+
 void Stage::ComputeInline() {
   CHECK(tensor_);
   meta.compute_inline = true;

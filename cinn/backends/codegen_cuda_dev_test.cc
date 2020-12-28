@@ -614,7 +614,8 @@ TEST(Conv, basic) {
 
   auto stages = CreateStages({A, W, Apad, B});
   stages[Apad]->ComputeInline();
-  auto B_cache = stages[B]->CacheRead("shared", {}, stages);
+  std::vector<ir::Tensor> temp;
+  auto B_cache = stages[B]->CacheRead2("shared", temp, stages);
 
   auto fn = Lower("fn", stages, {A, W, B, B_cache});
 
@@ -636,10 +637,10 @@ TEST(elementwise_add, share_local_cache) {
       {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
   auto stages = CreateStages({C});
-
-  auto AA = stages[A]->CacheRead("shared", {C}, stages);
+  std::vector<ir::Tensor> temp{C};
+  auto CC     = stages[C]->CacheWrite2("local", stages);
+  auto AA     = stages[A]->CacheRead2("shared", temp, stages);
   // NOTE here, the CC replace the C as the output the function.
-  auto CC = stages[C]->CacheWrite("local", stages);
 
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
@@ -650,8 +651,7 @@ TEST(elementwise_add, share_local_cache) {
   stages[CC]->Bind(0, "blockIdx.x");
   stages[CC]->Bind(1, "threadIdx.x");
 
-  Target target;
-  Module::Builder builder("gpu_module", target);
+  Module::Builder builder("gpu_module", common::DefaultNVGPUTarget());
 
   auto fn = Lower("elementwise_add", stages, {A, B, CC}, {}, {AA, C}, &builder);
 
@@ -669,7 +669,7 @@ TEST(elementwise_add, share_local_cache) {
   }
 
   // compile with device code
-  CodeGenCUDA_Dev codegen(target);
+  CodeGenCUDA_Dev codegen(common::DefaultNVGPUTarget());
   auto source_code = codegen.Compile(builder.Build());
 
   LOG(INFO) << "device source code:\n" << source_code;
@@ -811,12 +811,12 @@ TEST(Conv, optimize) {
       "B");
 
   auto stages = CreateStages({B});
-
-  auto AA = stages[Apad]->CacheRead("shared", {B}, stages);
-  auto WW = stages[W]->CacheRead("shared", {B}, stages);
-  auto AL = stages[AA]->CacheRead("local", {B}, stages);
-  auto WL = stages[WW]->CacheRead("local", {B}, stages);
-  auto BL = stages[B]->CacheWrite("local", stages);
+  std::vector<ir::Tensor> temp{B};
+  auto BL     = stages[B]->CacheWrite2("local", stages);
+  auto AA     = stages[Apad]->CacheRead2("shared", temp, stages);
+  auto WW     = stages[W]->CacheRead2("shared", temp, stages);
+  auto AL     = stages[AA]->CacheRead2("local", temp, stages);
+  auto WL     = stages[WW]->CacheRead2("local", temp, stages);
 
   stages[Apad]->ComputeInline();
 
@@ -861,8 +861,9 @@ TEST(ElementwiseAdd, cache_read_local) {
 
   auto stages = CreateStages({C});
 
-  auto AL = stages[A]->CacheRead("local", {C}, stages);
+  std::vector<ir::Tensor> temp{C};
 
+  auto AL = stages[A]->CacheRead2("local", temp, stages);
   stages[C]->Split(1, 10);
   stages[AL]->Split(1, 10);
 
@@ -1182,7 +1183,8 @@ TEST(ElementwiseAdd, cache_read_shared) {
     auto C = Compute(
         {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
     auto stages = CreateStages({A, B, C});
-    auto AL     = stages[A]->CacheRead("shared", {C}, stages);
+    std::vector<ir::Tensor> temp{C};
+    auto AL     = stages[A]->CacheRead2("shared", temp, stages);
 
     stages[C]->Split(1, 10);
 
@@ -1208,7 +1210,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
   builder.AddFunction(fn);
 
   auto source_code = codegen.Compile(builder.Build());
-  std::cout << "CUDA source:\n" << source_code << std::endl;
+  std::cout << "CUDA source2:\n" << source_code << std::endl;
 
   auto target_source = R"ROC(
 extern "C" {
@@ -1236,7 +1238,6 @@ void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       }
       };
     };
-    __syncthreads();
     if ((threadIdx.x < 20)) {
     {
       for (int32_t j = 0; j < 10; j += 1) {
@@ -1275,7 +1276,8 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
         {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
 
     auto stages = CreateStages({A, B, C});
-    auto AL     = stages[A]->CacheRead("shared", {C}, stages);
+    std::vector<ir::Tensor> temp{C};
+    auto AL     = stages[A]->CacheRead2("shared", temp, stages);
 
     stages[C]->Split(1, 10);
     stages[AL]->Split(1, 10);
@@ -1299,7 +1301,7 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
   builder.AddFunction(fn);
 
   auto source_code = codegen.Compile(builder.Build());
-  std::cout << "CUDA source:\n" << source_code << std::endl;
+  std::cout << "CUDA source3:\n" << source_code << std::endl;
 
   auto target_source = R"ROC(
 extern "C" {
@@ -1329,7 +1331,6 @@ void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __rest
     };
   }
   };
-  __syncthreads();
   if ((blockIdx.x < 40)) {
   {
     if ((threadIdx.x < 4)) {
@@ -1369,7 +1370,7 @@ TEST(ElementwiseAdd, cache_write_local) {
 
     auto stages = CreateStages({A, B, C});
 
-    auto Co = stages[C]->CacheWrite("local", stages);
+    auto Co = stages[C]->CacheWrite2("local", stages);
 
     stages[C]->Split(1, 10);
     // Cache write local, the local memory can just share in a single thread, so it must ComputeAt(inside) the innermost
@@ -1384,18 +1385,18 @@ TEST(ElementwiseAdd, cache_write_local) {
   };
 
   auto [A, B, C, Co, stages] = create_module();  // NOLINT
-  Target target;
-  CodeGenCUDA_Dev codegen(target);
+
+  CodeGenCUDA_Dev codegen(common::DefaultNVGPUTarget());
 
   auto fn = Lower("fn4", stages, {A, B, Co}, {}, {C});
 
-  Module::Builder builder("module", common::DefaultHostTarget());
+  Module::Builder builder("module", common::DefaultNVGPUTarget());
   builder.AddFunction(fn);
 
   auto source_code = codegen.Compile(builder.Build());
   std::cout << "CUDA source:\n" << source_code << std::endl;
 
-  auto target_source = R"ROC(
+   auto target_source = R"ROC(
 extern "C" {
 
 #include "cinn_cuda_runtime_source.cuh"
@@ -1408,18 +1409,18 @@ typedef char int8_t;
 
 
 __global__
-void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C_cache_write_out)
+void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _C [ 1 * 1 ];
-  float* C = _C;
+  float _C_cache_write_out [ 1 * 1 ];
+  float* C_cache_write_out = _C_cache_write_out;
   if ((blockIdx.x < 40)) {
   {
     if ((threadIdx.x < 40)) {
     {
       if (((((blockIdx.x >= 0) && (blockIdx.x <= 39)) && (threadIdx.x >= 0)) && (threadIdx.x <= 39))) {
-        C[0] = A[((40 * blockIdx.x) + threadIdx.x)];
+        C_cache_write_out[0] = A[((40 * blockIdx.x) + threadIdx.x)];
       };
-      C_cache_write_out[((40 * blockIdx.x) + threadIdx.x)] = C[0];
+      C[((40 * blockIdx.x) + threadIdx.x)] = C_cache_write_out[0];
     }
     };
   }
