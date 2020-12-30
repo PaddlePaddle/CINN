@@ -91,6 +91,7 @@ struct CasSimplifyMutator {
   bool GetMaxBound(Expr* lower_bound, Expr* upper_bound, Expr max, bool unfold_const_bound = true);
   bool GetExprBound(Expr* lower_bound, Expr* upper_bound, Expr min, bool unfold_const_bound = true);
   bool SimplifySpecificSumMod(Expr* u, Expr a, Expr b);
+  Expr SimplifySpecificSum(Expr u);
 
  private:
   std::vector<Expr> MergeProduct(const std::vector<Expr>& _p, const std::vector<Expr>& _q);

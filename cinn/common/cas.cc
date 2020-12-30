@@ -1309,6 +1309,83 @@ Expr CasSimplifyMutator::SimplifyCmp(Expr u) {
   return u;
 }
 
+/**
+ * deal with index's div-mod add simplification, tempory solution, not cover all situations.
+ * case 1: m / n * n + m % n = m (m, n's type is int)
+ * case 2: m / n1 * n3 + n2 * m % n3 = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
+ * case 3: m / n2 + n1 * m % (n3) = n1 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
+ */
+Expr CasSimplifyMutator::SimplifySpecificSum(Expr tmp) {
+  auto sum = tmp.As<Sum>();
+  if (!sum) {
+    return tmp;
+  }
+  CHECK_GE(sum->operands().size(), 2U);
+  Expr left      = sum->operand(0);
+  Expr right     = sum->operand(1);
+  auto left_mod  = left.As<Mod>();
+  auto right_mod = right.As<Mod>();
+  auto left_mul  = left.As<Product>();
+  auto right_mul = right.As<Product>();
+  auto left_div  = left.As<FracOp>();
+  auto right_div = right.As<FracOp>();
+  // normalize to left mul and right mod
+  if (right_mul && left_mod) {
+    left_mul  = right_mul;
+    right_mod = left_mod;
+  }
+  // normalize to left div and right mod
+  if (right_div && left_mod) {
+    left_div  = right_div;
+    right_mod = left_mod;
+  }
+  if (!right_mod || (!left_mul && !left_div)) {
+    return tmp;
+  }
+  CHECK_GE(right_mod->operands().size(), 2U);
+  Expr mod_left  = right_mod->operand(0);
+  Expr mod_right = right_mod->operand(1);
+  if (!mod_left->type().is_integer() || !mod_right->type().is_integer()) {
+    return tmp;
+  }
+  if (left_mul) {
+    // case 1: m / n * n + m % n = m (m, n's type is int)
+    // case 2: m / n1 * n3 + n2 * m % n3 = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
+    CHECK_GE(left_mul->operands().size(), 2U);
+    Expr mul_left  = left_mul->operand(0);
+    Expr mul_right = left_mul->operand(1);
+    if (!MathEqual(mod_right, mul_right)) {
+      return tmp;
+    }
+    auto div = mul_left.As<FracOp>();
+    if (!div) {
+      return tmp;
+    }
+    CHECK_GE(div->operands().size(), 2U);
+    Expr div_left  = div->operand(0);
+    Expr div_right = div->operand(1);
+    if (!div_left->type().is_integer() || !div_right->type().is_integer()) {
+      return tmp;
+    }
+    if (MathEqual(div_left * mod_right, mod_left * div_right)) {
+      tmp = mod_left;
+    }
+  } else if (left_div) {
+    // case 3: m / n1 + n2 * m % (n3) = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
+    CHECK_GE(left_div->operands().size(), 2U);
+    Expr div_left  = left_div->operand(0);
+    Expr div_right = left_div->operand(1);
+    if (!div_left->type().is_integer() || !div_right->type().is_integer()) {
+      return tmp;
+    }
+    if (MathEqual(mod_right * div_left, mod_left * div_right)) {
+      tmp = mod_left;
+    }
+  }
+
+  return tmp;
+}
+
 Expr CasSimplifyMutator::operator()(Expr u) {
   if (u.As<Min>() || u.As<Max>()) {
     return SimplifyCmp(u);
@@ -1340,74 +1417,7 @@ Expr CasSimplifyMutator::operator()(Expr u) {
     // case 1: m / n * n + m % n = m (m, n's type is int)
     // case 2: m / n1 * n3 + n2 * m % n3 = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
     // case 3: m / n2 + n1 * m % (n3) = n1 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
-    auto sum = tmp.As<Sum>();
-    if (!sum) {
-      return tmp;
-    }
-    CHECK_GE(sum->operands().size(), 2U);
-    Expr left      = sum->operand(0);
-    Expr right     = sum->operand(1);
-    auto left_mod  = left.As<Mod>();
-    auto right_mod = right.As<Mod>();
-    auto left_mul  = left.As<Product>();
-    auto right_mul = right.As<Product>();
-    auto left_div  = left.As<FracOp>();
-    auto right_div = right.As<FracOp>();
-    // normalize to left mul and right mod
-    if (right_mul && left_mod) {
-      left_mul  = right_mul;
-      right_mod = left_mod;
-    }
-    // normalize to left div and right mod
-    if (right_div && left_mod) {
-      left_div  = right_div;
-      right_mod = left_mod;
-    }
-    if (!right_mod || (!left_mul && !left_div)) {
-      return tmp;
-    }
-    CHECK_GE(right_mod->operands().size(), 2U);
-    Expr mod_left  = right_mod->operand(0);
-    Expr mod_right = right_mod->operand(1);
-    if (!mod_left->type().is_integer() || !mod_right->type().is_integer()) {
-      return tmp;
-    }
-    if (left_mul) {
-      // case 1: m / n * n + m % n = m (m, n's type is int)
-      // case 2: m / n1 * n3 + n2 * m % n3 = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
-      CHECK_GE(left_mul->operands().size(), 2U);
-      Expr mul_left  = left_mul->operand(0);
-      Expr mul_right = left_mul->operand(1);
-      if (!MathEqual(mod_right, mul_right)) {
-        return tmp;
-      }
-      auto div = mul_left.As<FracOp>();
-      if (!div) {
-        return tmp;
-      }
-      CHECK_GE(div->operands().size(), 2U);
-      Expr div_left  = div->operand(0);
-      Expr div_right = div->operand(1);
-      if (!div_left->type().is_integer() || !div_right->type().is_integer()) {
-        return tmp;
-      }
-      if (MathEqual(div_left * mod_right, mod_left * div_right)) {
-        tmp = mod_left;
-      }
-    } else if (left_div) {
-      // case 3: m / n1 + n2 * m % (n3) = n2 * m if n3 = n1 * n2 (m, n1, n2, n3's type is int)
-      CHECK_GE(left_div->operands().size(), 2U);
-      Expr div_left  = left_div->operand(0);
-      Expr div_right = left_div->operand(1);
-      if (!div_left->type().is_integer() || !div_right->type().is_integer()) {
-        return tmp;
-      }
-      if (MathEqual(mod_right * div_left, mod_left * div_right)) {
-        tmp = mod_left;
-      }
-    }
-
-    return tmp;
+    return SimplifySpecificSum(tmp);
   }
 
   if (u.As<Mod>()) {

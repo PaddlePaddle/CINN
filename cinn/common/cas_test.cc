@@ -353,15 +353,15 @@ TEST(CAS, SimplifyCompoundMod) {
     var_intervals.emplace("x2", CasInterval{0, 1});
     auto p2 = AutoSimplify(p0, var_intervals);
     LOG(INFO) << "simplified " << p2;
-    #ifdef CINN_WITH_CUDA
-      EXPECT_EQ(GetStreamCnt(p2), "((32 + ((-1 * x1) + (-16 * x2))) % 33)");
-    #else
-      EXPECT_EQ(GetStreamCnt(p2), "(32 + (((-1 * x1) + (-16 * x2)) % 33))");
-    #endif
+#ifdef CINN_WITH_CUDA
+    EXPECT_EQ(GetStreamCnt(p2), "((32 + ((-1 * x1) + (-16 * x2))) % 33)");
+#else
+    EXPECT_EQ(GetStreamCnt(p2), "(32 + (((-1 * x1) + (-16 * x2)) % 33))");
+#endif
   }
 }
 TEST(CAS, SimplifyNegtive) {
-  {  // bug: (-1*x) /2
+  {  // (-1*x) /2
     Var x   = ir::_Var_::Make("x", Int(32));
     auto p0 = ir::FracOp::Make(-x, Expr(2));
     LOG(INFO) << "p0 " << p0;
