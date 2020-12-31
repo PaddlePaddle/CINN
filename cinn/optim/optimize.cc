@@ -36,7 +36,6 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   CastSimplify(&copied);
   Simplify(&copied);
   VectorizeLoops(&copied, Target());
-  EliminateBroadcastInForloop(&copied);
   UnrollLoop(&copied);
 #ifdef CINN_WITH_CUDA
   RemoveGpuForloopsAxis(&copied);

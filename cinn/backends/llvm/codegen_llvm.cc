@@ -1374,7 +1374,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::UnaryIntrin *op) {
     }
   }
   CHECK(!op->args.empty());
-  llvm::Type *return_type = CinnTypeToLLVMType(op->type(), m_);
+  llvm::Type *return_type = CinnTypeToLLVMType(op->type(), m_, true);
   llvm::Function *fn      = GetIntrinsicDecl(id, return_type, arg_type);
   CHECK(fn) << "Cannot find intrinsic declaration, possible type mismatch: " << llvm::Intrinsic::getName(id, {});
   return b_->CreateCall(fn, arg_value);

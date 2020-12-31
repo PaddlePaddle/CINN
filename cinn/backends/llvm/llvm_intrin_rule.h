@@ -24,8 +24,8 @@ inline void MakeFloatIntrinOp(lang::Args args, lang::RetValue *rv) {
   CHECK(node);
   CHECK_GE(node->read_args.size(), arg_nums);
   if (add_float_suffix) {
-    CHECK_EQ(node->type(), Float(32));
-    *rv = ir::intrinsics::UnaryIntrin::Make(node->name + "f", node->read_args, id, arg_nums, Float(32));
+    CHECK(node->type().is_float());
+    *rv = ir::intrinsics::UnaryIntrin::Make(node->name + "f", node->read_args, id, arg_nums, node->type());
   } else {
     *rv = ir::intrinsics::UnaryIntrin::Make(node->name, node->read_args, id, arg_nums, node->type());
   }

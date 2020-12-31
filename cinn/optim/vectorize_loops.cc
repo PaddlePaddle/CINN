@@ -137,8 +137,15 @@ class Vectorizer : public IRMutator<Expr *> {
       }
     }
     if (!need_visit) return;
-
-    *expr = Load::Make(node->tensor, node->indices);
+    int lanes = 0;
+    for (auto &idx : node->indices) {
+      lanes = std::max(idx.type().lanes(), lanes);
+    }
+    std::vector<Expr> new_indices;
+    for (auto &idx : node->indices) {
+      new_indices.push_back(Widen(idx, lanes));
+    }
+    *expr = Load::Make(node->tensor, new_indices);
   }
 
   void Visit(const Store *op, Expr *expr) override {
@@ -173,7 +180,45 @@ class Vectorizer : public IRMutator<Expr *> {
     *expr = Store::Make(node->tensor, node->value, new_indices);
   }
 
-  void Visit(const Call *op, Expr *expr) override { LOG(ERROR) << "Ignore widen Call node"; }
+  void Visit(const Call *op, Expr *expr) override {
+    std::vector<Expr> read_args  = op->read_args;
+    std::vector<Expr> write_args = op->write_args;
+    auto *node                   = expr->As<Call>();
+    ir::IRMutator<>::Visit(op, expr);
+    bool is_changed = false;
+    int lanes       = 0;
+    for (int i = 0; i < node->read_args.size(); i++) {
+      lanes = std::max(node->read_args[i].type().lanes(), lanes);
+      if (!node->read_args[i].same_as(read_args[i])) {
+        is_changed = true;
+      }
+    }
+    for (int i = 0; i < node->write_args.size(); i++) {
+      lanes = std::max(node->write_args[i].type().lanes(), lanes);
+      if (!node->write_args[i].same_as(write_args[i])) {
+        is_changed = true;
+      }
+    }
+    if (!is_changed) return;
+
+    for (int i = 0; i < read_args.size(); i++) {
+      node->read_args[i] = Widen(node->read_args[i], lanes);
+    }
+    for (int i = 0; i < write_args.size(); i++) {
+      node->write_args[i] = Widen(node->write_args[i], lanes);
+    }
+
+    CHECK(!read_args.empty());
+    Type type = op->type().with_lanes(lanes);
+    *expr     = Call::Make(type,
+                       node->name,
+                       node->read_args,
+                       node->write_args,
+                       node->call_type,
+                       node->func,
+                       node->value_index,
+                       node->attrs);
+  }
 
   void Visit(const Let *op, Expr *expr) override {
     auto *node = expr->As<Let>();
