@@ -128,9 +128,9 @@ TEST(ComputeAt, Before) {
   auto target = R"ROC(
 function fn (_A, _B, _cache, _C)
 {
-  for (po0, 10)
+  for (po0, 0, 10)
   {
-    for (po1, 10)
+    for (po1, 0, 10)
     {
       if (((((po0 >= 0) and (po0 <= 9)) and (po1 >= 0)) and (po1 <= 9))) {
         cache[0, 0] = A[po0, po1]
@@ -167,20 +167,20 @@ TEST(ComputeAt, level0) {
   auto target = R"ROC(
 function fn (_A, _cache, _C)
 {
-  for (po0, 10)
+  for (po0, 0, 10)
   {
     if (((po0 >= 0) and (po0 <= 9))) {
-      for (j, 11)
+      for (j, 0, 11)
       {
-        for (k, 10)
+        for (k, 0, 10)
         {
           cache[0, j, k] = A[po0, j, k]
         }
       }
     }
-    for (i, 10)
+    for (i, 0, 10)
     {
-      for (j, 10)
+      for (j, 0, 10)
       {
         C[po0, i, j] = select((i < 9), (cache[0, i, j] + cache[0, (1 + i), j]), 0)
       }
@@ -315,20 +315,20 @@ TEST(ComputeAt, simple) {
     auto target = R"ROC(
 function fn (_A, _A1, _B)
 {
-  for (po0, 2)
+  for (po0, 0, 2)
   {
-    for (po1, 16)
+    for (po1, 0, 16)
     {
       if (((((po1 >= 0) and (((16 * po0) + po1) >= 0)) and (po1 <= 15)) and (((16 * po0) + po1) <= 31))) {
-        for (i, 3)
+        for (i, 0, 3)
         {
-          for (j, 32)
+          for (j, 0, 32)
           {
             A1[i, j] = A[(i + ((16 * po0) + po1)), j]
           }
         }
       }
-      for (i, 32)
+      for (i, 0, 32)
       {
         B[((16 * po0) + po1), i] = (A1[0, i] + (A1[1, i] + A1[2, i]))
       }
@@ -375,16 +375,16 @@ TEST(ComputeAt, Before1) {
     auto target = utils::Trim(R"ROC(
 function fn (_A, _cache, _transformed)
 {
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 200)
+    for (j, 0, 200)
     {
       transformed[i, j] = 1
     }
   }
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 200)
+    for (j, 0, 200)
     {
       cache[i] = A[i, j]
     }
@@ -406,16 +406,16 @@ function fn (_A, _cache, _transformed)
     auto target = utils::Trim(R"ROC(
 function fn (_A, _cache, _transformed)
 {
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 200)
+    for (j, 0, 200)
     {
       transformed[i, j] = 1
     }
   }
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 200)
+    for (j, 0, 200)
     {
       cache[i] = A[i, j]
     }
@@ -533,9 +533,9 @@ TEST(ComputeInline, basic) {
   auto target = R"ROC(
 function fn (_A, _C)
 {
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 200)
+    for (j, 0, 200)
     {
       C[i, j] = (6 + (2 * A[i, j]))
     }
@@ -577,23 +577,23 @@ TEST(ComputeInline, complex_graph) {
   auto target = R"ROC(
 function fn (_A, _C, _C1, _C2)
 {
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 200)
+    for (j, 0, 200)
     {
       C2[i, j] = (6 + (2 * A[i, j]))
     }
   }
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 200)
+    for (j, 0, 200)
     {
       C1[i, j] = (4 + (2 * A[i, j]))
     }
   }
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 200)
+    for (j, 0, 200)
     {
       C[i, j] = (2 + (2 * A[i, j]))
     }

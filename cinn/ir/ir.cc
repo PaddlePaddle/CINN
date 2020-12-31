@@ -279,13 +279,6 @@ Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
   node->value   = value;
   node->indices = indices;
 
-  for (auto &indice : indices) {
-    if (indice.As<Add>()) {
-      if (indice.As<Add>()->b().As<Ramp>() || indice.As<Add>()->a().As<Ramp>()) {
-        LOG(FATAL) << "found";
-      }
-    }
-  }
   if (tensor->type() != Void()) {
     node->set_type(tensor->type().ElementOf().with_lanes(node->index().type().lanes()));
   }
@@ -365,7 +358,8 @@ Expr Call::Make(Type type,
                 const std::vector<Expr> &write_args,
                 CallType call_type,
                 FunctionRef func,
-                int value_index) {
+                int value_index,
+                const std::map<std::string, attr_t> &attrs) {
   for (size_t i = 0; i < read_args.size(); ++i) {
     CHECK(read_args[i].defined());
   }
@@ -378,6 +372,7 @@ Expr Call::Make(Type type,
   node->func        = func;
   node->value_index = value_index;
   node->set_type(type);
+  node->attrs = attrs;
   return Expr(node);
 }
 std::vector<Expr *> Call::expr_fields() {

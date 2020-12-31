@@ -1,5 +1,8 @@
 #include "cinn/optim/compare_simplify.h"
+
 #include <string>
+
+#include "cinn/common/ir_util.h"
 #include "cinn/ir/collect_ir_nodes.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
@@ -71,20 +74,20 @@ struct StaticImmConditionMutator : public ir::IRMutator<> {
     if (has_var) return false;
 
     switch (expr->node_type()) {
-#define __GET_FIELDS(ntype__, cmp__)         \
-  auto* node = expr->As<ir::ntype__>();      \
-  auto* ai   = node->a().As<ir::IntImm>();   \
-  auto* bi   = node->b().As<ir::IntImm>();   \
-  auto* af   = node->a().As<ir::FloatImm>(); \
-  auto* bf   = node->b().As<ir::FloatImm>(); \
-  if (ai && bi) {                            \
-    *expr = Expr(ai->value cmp__ bi->value); \
-    return true;                             \
-  }                                          \
-  if (af && bf) {                            \
-    *expr = Expr(af->value cmp__ bf->value); \
-    return true;                             \
-  }                                          \
+#define __GET_FIELDS(ntype__, cmp__)                                                 \
+  auto* node = expr->As<ir::ntype__>();                                              \
+  auto* ai   = node->a().As<ir::IntImm>();                                           \
+  auto* bi   = node->b().As<ir::IntImm>();                                           \
+  auto* af   = node->a().As<ir::FloatImm>();                                         \
+  auto* bf   = node->b().As<ir::FloatImm>();                                         \
+  if (ai && bi) {                                                                    \
+    *expr = common::make_bool(ai->value cmp__ bi->value, node->a()->type().lanes()); \
+    return true;                                                                     \
+  }                                                                                  \
+  if (af && bf) {                                                                    \
+    *expr = common::make_bool(af->value cmp__ bf->value, node->a()->type().lanes()); \
+    return true;                                                                     \
+  }                                                                                  \
   break;
 
       case ir::IrNodeTy::EQ: {
