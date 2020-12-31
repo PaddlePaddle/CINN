@@ -9,7 +9,7 @@
 namespace cinn {
 namespace backends {
 
-llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
+llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) {
   llvm::Type *ir_type = nullptr;
   if (type.is_cpp_const()) {
     // TODO(fc500110) support it latter.
@@ -51,9 +51,13 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
   }
   CHECK(ir_type) << "LLVM can't convert type: " << type;
 
-  // C array.
+  // C array / vector.
   if (type.lanes() > 1) {
-    ir_type = llvm::ArrayType::get(ir_type, type.lanes());
+    if (is_vec) {
+      ir_type = llvm::FixedVectorType::get(ir_type, type.lanes());
+    } else {
+      ir_type = llvm::ArrayType::get(ir_type, type.lanes());
+    }
   }
 
   if (type.is_cpp_handle()) {

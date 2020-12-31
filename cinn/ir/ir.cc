@@ -464,6 +464,7 @@ Expr Load::Make(Expr tensor, const std::vector<Expr> &indices) {
   auto node     = make_shared<Load>();
   node->tensor  = tensor;
   node->indices = indices;
+  node->set_type(node->type());
   return Expr(node);
 }
 Type Load::type() const {
@@ -662,7 +663,7 @@ void Select::Verify() const {
   CHECK(condition.defined());
   CHECK(true_value.defined());
   CHECK(false_value.defined());
-  CHECK_EQ(condition.type(), type_of<bool>()) << "Select Node's condition should be a boolean";
+  CHECK(condition.type().is_bool()) << "Select Node's condition should be a boolean";
   CHECK_EQ(true_value.type(), false_value.type())
       << "Select Node's true_value and false_value should have the same type";
 }
