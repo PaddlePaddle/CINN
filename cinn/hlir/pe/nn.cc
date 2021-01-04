@@ -279,13 +279,28 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
  * @return The calculated output tensor.
  */
 std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string &output_name) {
+#ifdef CINN_WITH_CUDA
+  Var axis_j(A->shape[axis], UniqName("axis_j"));
+  auto temp = Compute(
+      A->shape,
+      [=](const std::vector<Expr> &indice) {
+        std::vector<Expr> new_indice = indice;
+        new_indice[axis]             = axis_j;
+        return lang::ReduceSum(lang::Exp(A(new_indice)), {axis_j});
+      },
+      UniqName("softmax_temp_out"));
+  ir::Tensor out = Compute(
+      A->shape,
+      [=](const std::vector<Expr> &indice) { return lang::Exp(A(indice)) / temp(indice); },
+      UniqName("softmax_out"));
+  return {temp, out};
+#else
   if (axis == -1) {
     axis = A->shape.size() - 1;
   }
   Var reduce_axis(A->shape[axis], UniqName("reduce_axis"));
   std::vector<Expr> new_shapes;
-  for (size_t i = 0; i < A->shape.size(); i++)
-  {
+  for (size_t i = 0; i < A->shape.size(); i++) {
     if (static_cast<int>(i) != axis) {
       new_shapes.push_back(A->shape[i]);
     }
@@ -295,12 +310,11 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
       [=](const std::vector<Expr> &indice) {
         std::vector<Expr> new_indice;
         int count = 0;
-        for (size_t i = 0; i < A->shape.size(); i++)
-        {
+        for (size_t i = 0; i < A->shape.size(); i++) {
           if (static_cast<int>(i) != axis) {
             new_indice.push_back(indice[count++]);
           } else {
-             new_indice.push_back(reduce_axis);
+            new_indice.push_back(reduce_axis);
           }
         }
         return lang::ReduceSum(lang::Exp(A(new_indice)), {reduce_axis});
@@ -311,15 +325,16 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
       A->shape,
       [=](const std::vector<Expr> &indice) {
         std::vector<Expr> new_indice;
-        for (size_t i = 0; i < indice.size(); i++)
-        {
-          if(static_cast<int>(i) != axis) {
+        for (size_t i = 0; i < indice.size(); i++) {
+          if (static_cast<int>(i) != axis) {
             new_indice.push_back(indice[i]);
           }
         }
-        return lang::Exp(A(indice)) / temp(new_indice); },
+        return lang::Exp(A(indice)) / temp(new_indice);
+      },
       UniqName("softmax_out"));
   return {temp, out};
+#endif
 }
 
 ir::Tensor Slice(const ir::Tensor &A,
