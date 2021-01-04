@@ -657,52 +657,6 @@ TEST(elementwise_add1, share_local_cache) {
   CodeGenCUDA_Dev codegen(common::DefaultNVGPUTarget());
   auto source_code = codegen.Compile(builder.Build());
 
-  LOG(INFO) << "device source code elementwise_add1:\n" << source_code;
-
-  std::string source_target = R"ROC(
-extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
-
-__global__
-void elementwise_add1(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
-{
-  float _A_read_cache [ ((1 * (((1 * 100) * 200) / 100)) / 200) ];
-  float _A_read_cache_read_cache [ 100 * 200 ];
-  float* A_read_cache = _A_read_cache;
-  float* A_read_cache_read_cache = _A_read_cache_read_cache;
-  if ((blockIdx.x < 100)) {
-  {
-    if ((threadIdx.x < 200)) {
-    {
-      A_read_cache[0] = A[((200 * blockIdx.x) + threadIdx.x)];
-    }
-    };
-  }
-  };
-  if ((blockIdx.x < 100)) {
-  {
-    if ((threadIdx.x < 200)) {
-    {
-      A_read_cache_read_cache[0] = A_read_cache[0];
-      C[((200 * blockIdx.x) + threadIdx.x)] = (A_read_cache_read_cache[0] + B[((200 * blockIdx.x) + threadIdx.x)]);
-    }
-    };
-  }
-  };
-}
-
-}
-)ROC";
-  ASSERT_EQ(utils::Trim(source_target), source_code);
-
   backends::NVRTC_Compiler compiler;
 
   common::CudaModuleTester tester;
@@ -748,7 +702,7 @@ void elementwise_add1(const float* __restrict__ A, const float* __restrict__ B, 
   cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
-TEST(elementwise_add, share_local_cache) {
+TEST(elementwise_add0, share_local_cache) {
   Expr M(100);
   Expr N(20);
 
@@ -796,58 +750,6 @@ TEST(elementwise_add, share_local_cache) {
   auto source_code = codegen.Compile(builder.Build());
 
   LOG(INFO) << "device source code elementwise_add0:\n" << source_code;
-
-  std::string source_target = R"ROC(
-extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
-
-__global__
-void elementwise_add0(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
-{
-  __shared__ float _A_read_cache_0 [ 100 * 20 ];
-  float _C_cache_write_out [ ((1 * (((1 * 100) * 20) / 100)) / 20) ];
-  float* A_read_cache_0 = _A_read_cache_0;
-  float* C_cache_write_out = _C_cache_write_out;
-  if ((blockIdx.x < 100)) {
-  {
-    if ((threadIdx.x < 20)) {
-    {
-      A_read_cache_0[((20 * blockIdx.x) + threadIdx.x)] = A[((20 * blockIdx.x) + threadIdx.x)];
-    }
-    };
-  }
-  };
-  if ((blockIdx.x < 100)) {
-  {
-    if ((threadIdx.x < 20)) {
-    {
-      C_cache_write_out[0] = (A_read_cache_0[((20 * blockIdx.x) + threadIdx.x)] + B[((20 * blockIdx.x) + threadIdx.x)]);
-    }
-    };
-  }
-  };
-  if ((blockIdx.x < 100)) {
-  {
-    if ((threadIdx.x < 20)) {
-    {
-      C[((20 * blockIdx.x) + threadIdx.x)] = C_cache_write_out[0];
-    }
-    };
-  }
-  };
-}
-
-}
-)ROC";
-  ASSERT_EQ(utils::Trim(source_target), source_code);
 
   backends::NVRTC_Compiler compiler;
 
@@ -1302,15 +1204,10 @@ TEST(ElementwiseAdd, cache_read_shared) {
     auto AL = stages[A]->CacheRead2("shared", temp, stages);
 
     stages[C]->Split(1, 10);
-
-    // If the shape is larger than shared memory, then the threadIdx should be shared across all the blocks, that means
-    // the shared memory producer should be `ComputeAt` at(inside) the producer's innermost blockIdx axis, that will
-    // make the producer share the blockIdx and sees only the threadIdx.
-    stages[AL]->ComputeAt(stages[C], 0, poly::Stage::kComputeAtAuto, A->name);
-
+    stages[AL]->Split(1, 10);
+    stages[AL]->ComputeAt(stages[C], 1);
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");
-    stages[AL]->Bind(1, "threadIdx.x");
 
     return std::make_tuple(A, B, C, AL, stages);
   };
@@ -1342,21 +1239,19 @@ typedef char int8_t;
 __global__
 void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  __shared__ float _A_read_cache [ 1 * 200 ];
+  __shared__ float _A_read_cache [ 1 * 10 ];
   float* A_read_cache = _A_read_cache;
   if ((blockIdx.x < 100)) {
   {
-    if (((blockIdx.x >= 0) && (blockIdx.x <= 99))) {
-      if ((threadIdx.x < 200)) {
-      {
-        A_read_cache[threadIdx.x] = A[((200 * blockIdx.x) + threadIdx.x)];
-      }
-      };
-    };
     if ((threadIdx.x < 20)) {
     {
-      for (int32_t j = 0; j < 10; j += 1) {
-        C[((200 * blockIdx.x) + ((10 * threadIdx.x) + j))] = A_read_cache[((10 * threadIdx.x) + j)];
+      if (((((blockIdx.x >= 0) && (blockIdx.x <= 99)) && (threadIdx.x >= 0)) && (threadIdx.x <= 19))) {
+        for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+          A_read_cache[j_inner] = A[((200 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
+        };
+      };
+      for (int32_t i = 0; i < 10; i += 1) {
+        C[((200 * blockIdx.x) + ((10 * threadIdx.x) + i))] = A_read_cache[i];
       };
     }
     };
