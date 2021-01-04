@@ -1,4 +1,8 @@
 #pragma once
+#include <map>
+#include <string>
+#include <vector>
+
 #include "cinn/ir/ir.h"
 
 namespace cinn {
@@ -22,7 +26,8 @@ void ReplaceVarWithExpr(Expr *source, const Var &var, const Expr &expr);
 void CUDAReplaceIndexOfCachePass(Expr *source,
                                  const Var &var,
                                  const Expr &expr,
-                                 const std::map<std::string, ir::Tensor> *global_tensor_map,
-                                 bool blockidx);
+                                 std::map<std::string, ir::Tensor> *global_tensor_map,
+                                 bool blockidx,
+                                 const Expr &extent);
 }  // namespace optim
 }  // namespace cinn

@@ -24,15 +24,27 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
                                             const std::vector<Type> &out_type,
                                             const std::vector<std::vector<int>> &output_shapes,
                                             const Target &target) {
-  framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute relu_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of relu compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK(!a.empty()) << "at least one input tensor for relu compute\n";
     Expr A = a[0];
     CHECK(A.as_tensor());
-    auto out    = pe::Relu<float>(A.as_tensor_ref(), 0.0, UniqName("Relu_output"));
-    auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+    auto out      = pe::Relu<float>(A.as_tensor_ref(), 0.0, UniqName("Relu_output"));
+    ir::Tensor At = A.as_tensor_ref();
+    auto stages   = CreateStages({At, out});
+    if (target.arch == Target::Arch::NVGPU) {
+      if (output_shapes[0].size() < 2) LOG(FATAL) << "Error of size!";
+      std::vector<ir::Tensor> temp{out};
+      auto AA = stages[At]->CacheRead2("local", temp, stages);
+      auto AL = stages[AA]->CacheRead2("local", temp, stages);
+      stages[AA]->Bind(0, "blockIdx.x");
+      stages[AA]->Bind(1, "threadIdx.x");
+      stages[out]->Bind(0, "blockIdx.x");
+      stages[out]->Bind(1, "threadIdx.x");
+      stages[AL]->ComputeAt2(stages[out], 1);
+    }
+    *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule relu_schedule([=](lang::Args args, lang::RetValue *ret) {
@@ -40,10 +52,10 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
+      /*       Expr Out              = arg_pack[0];
+            poly::StageMap stages = arg_pack[1];
+            CHECK(Out.as_tensor());
+            pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target); */
     }
     *ret = arg_pack;
   });
