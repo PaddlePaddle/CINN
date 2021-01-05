@@ -413,7 +413,7 @@ std::vector<Var> _Tensor_::axis_with_reduce() const {
   return axis;
 }
 
-bool _Tensor_::Uses(const Tensor &other) {
+bool _Tensor_::Uses(const Tensor &other) const {
   auto loads = ir::CollectIRNodes(body(), [&](const Expr *x) {
     auto *loadn = x->As<ir::Load>();
     if (!loadn) return false;

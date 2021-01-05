@@ -532,6 +532,30 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir
   return cache_tensor;
 }
 
+void Stage::SyncThreads(const std::vector<ir::Tensor> &after_tensors, StageMap stages) {
+  CHECK(tensor_);
+  auto this_tensor = ir::Tensor(tensor_);
+
+  auto sync_threads = lang::Compute(
+      {},
+      [](const std::vector<Expr> &axis) { return runtime::IntrinsicCall(Void(), "__syncthreads", {}); },
+      Context::Global().NewName("syncthreads"));
+
+  stages->Insert(sync_threads, ir::CreateStage(sync_threads).get());
+  CHECK_EQ(sync_threads->type(), Void());
+  stages[sync_threads]->CtrlDepend(this_tensor);
+
+  for (auto &compute_at : this->compute_ats()) {
+    stages[sync_threads]->ComputeAt(compute_at.stage.get(), compute_at.level);
+  }
+
+  for (auto &other : after_tensors) {
+    if (other->Uses(this_tensor)) {
+      stages[other]->CtrlDepend(sync_threads);
+    }
+  }
+}
+
 namespace {
 
 /**
