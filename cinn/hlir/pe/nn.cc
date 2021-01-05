@@ -279,22 +279,6 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
  * @return The calculated output tensor.
  */
 std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string &output_name) {
-#ifdef CINN_WITH_CUDA
-  Var axis_j(A->shape[axis], UniqName("axis_j"));
-  auto temp = Compute(
-      A->shape,
-      [=](const std::vector<Expr> &indice) {
-        std::vector<Expr> new_indice = indice;
-        new_indice[axis]             = axis_j;
-        return lang::ReduceSum(lang::Exp(A(new_indice)), {axis_j});
-      },
-      UniqName("softmax_temp_out"));
-  ir::Tensor out = Compute(
-      A->shape,
-      [=](const std::vector<Expr> &indice) { return lang::Exp(A(indice)) / temp(indice); },
-      UniqName("softmax_out"));
-  return {temp, out};
-#else
   if (axis == -1) {
     axis = A->shape.size() - 1;
   }
@@ -334,7 +318,6 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
       },
       UniqName("softmax_out"));
   return {temp, out};
-#endif
 }
 
 ir::Tensor Slice(const ir::Tensor &A,
