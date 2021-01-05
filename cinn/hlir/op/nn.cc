@@ -24,7 +24,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
                                             const std::vector<Type> &out_type,
                                             const std::vector<std::vector<int>> &output_shapes,
                                             const Target &target) {
-  framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute relu_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of relu compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK(!a.empty()) << "at least one input tensor for relu compute\n";
