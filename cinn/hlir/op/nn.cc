@@ -1064,17 +1064,23 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     CHECK_EQ(arg_pack.size(), 3UL) << "The input tensor's size of softmax schedule is " << arg_pack.size()
                                    << "and it should be equal to 3! Please check.";
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out1             = arg_pack[0];
-      Expr Out2             = arg_pack[1];
+      Expr out1             = arg_pack[0];
+      Expr out2             = arg_pack[1];
       poly::StageMap stages = arg_pack[2];
-      CHECK(Out1.as_tensor());
-      CHECK(Out2.as_tensor());
-      stages[Out1.as_tensor_ref()]->Split(1, 2);
-      stages[Out2.as_tensor_ref()]->Split(1, 2);
-      stages[Out1.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out1.as_tensor_ref()]->Bind(1, "threadIdx.x");
-      stages[Out2.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out2.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      CHECK(out1.as_tensor());
+      CHECK(out2.as_tensor());
+      ir::Tensor tensor_a = out1.as_tensor_ref();
+      ir::Tensor tensor_b = out2.as_tensor_ref();
+      if (tensor_a->shape.size() > 1) {
+        stages[tensor_a]->Split(1, 2);
+        stages[tensor_a]->Bind(0, "blockIdx.x");
+        stages[tensor_a]->Bind(1, "threadIdx.x");
+      }
+      if (tensor_b->shape.size() > 1) {
+        stages[tensor_b]->Split(1, 2);
+        stages[tensor_b]->Bind(0, "blockIdx.x");
+        stages[tensor_b]->Bind(1, "threadIdx.x");
+      }
     }
     *ret = arg_pack;
   });
