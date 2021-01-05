@@ -1205,9 +1205,9 @@ TEST(ElementwiseAdd, cache_read_shared) {
 
     stages[C]->Split(1, 10);
     stages[AL]->Split(1, 10);
-    stages[AL]->ComputeAt(stages[C], 1);
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");
+    stages[AL]->ComputeAt(stages[C], 1);
 
     return std::make_tuple(A, B, C, AL, stages);
   };

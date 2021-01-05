@@ -33,22 +33,6 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
     auto out    = pe::Relu<float>(A.as_tensor_ref(), 0.0, UniqName("Relu_output"));
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
-
-    /*     auto out      = pe::Relu<float>(A.as_tensor_ref(), 0.0, UniqName("Relu_output"));
-        ir::Tensor At = A.as_tensor_ref();
-        auto stages   = CreateStages({At, out});
-        if (target.arch == Target::Arch::NVGPU) {
-          if (output_shapes[0].size() < 2) LOG(FATAL) << "Error of size!";
-          std::vector<ir::Tensor> temp{out};
-          auto AA = stages[At]->CacheRead2("local", temp, stages);
-          auto AL = stages[AA]->CacheRead2("local", temp, stages);
-          stages[AA]->Bind(0, "blockIdx.x");
-          stages[AA]->Bind(1, "threadIdx.x");
-          stages[out]->Bind(0, "blockIdx.x");
-          stages[out]->Bind(1, "threadIdx.x");
-          stages[AL]->ComputeAt2(stages[out], 1);
-        }
-        *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}}; */
   });
 
   framework::CINNSchedule relu_schedule([=](lang::Args args, lang::RetValue *ret) {
