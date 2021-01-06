@@ -106,6 +106,114 @@ TEST(CodeGenCUDA, Module_output) {
   codegen.Compile(builder.Build(), outputs);
 }
 
+TEST(CodeGenCUDA2, compile_run_jit2) {
+  Expr M(100);
+  Expr N(200);
+
+  Target target;
+
+  Placeholder<float> A("X", {M, N});
+  Placeholder<float> B("Y", {M, N});
+
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+
+  auto stages = CreateStages({C});
+  std::vector<ir::Tensor> readers{C};
+  auto B_cache = stages[B]->CacheRead2("local", readers, stages);
+  stages[B_cache]->Split(0, 10);
+  stages[C]->Split(0, 10);
+  stages[B_cache]->Bind(0, "blockIdx.x");
+  stages[B_cache]->Bind(1, "threadIdx.x");
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
+  stages[B_cache]->SyncThreads({C}, stages);
+  stages[B_cache]->ComputeAt2(stages[C], 0);
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func = Lower("elementwise_add3", stages, {A, B, C});
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled CacheRead2 sync code:\n\n\n" << source_code;
+
+  std::string source_target = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void elementwise_add3(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
+{
+  float _Y_read_cache [ ((1 * (((1 * 100) * 200) / 10)) / 10) ];
+  float* Y_read_cache = _Y_read_cache;
+  if ((blockIdx.x < 10)) {
+  {
+    if ((threadIdx.x < 10)) {
+    {
+      for (int32_t j = 0; j < 200; j += 1) {
+        Y_read_cache[j] = Y[((2000 * blockIdx.x) + ((200 * threadIdx.x) + j))];
+      };
+    }
+    };
+    __syncthreads();
+    if ((threadIdx.x < 10)) {
+    {
+      for (int32_t j = 0; j < 200; j += 1) {
+        C[((2000 * blockIdx.x) + ((200 * threadIdx.x) + j))] = (X[((2000 * blockIdx.x) + ((200 * threadIdx.x) + j))] * Y_read_cache[j]);
+      };
+    }
+    };
+  }
+  };
+}
+
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(source_target), source_code);
+
+  using runtime::cuda::CUDAModule;
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+
+  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+
+  // launch the kernel
+
+  void* args[] = {&Ad, &Bd, &Cd};
+
+  dim3 grid(10, 1, 1);
+  dim3 block(10, 1, 1);
+  cuda_module.LaunchKernel(0, "elementwise_add3", grid, block, args);
+
+  CUDA_CALL(cudaMemcpy(host_data3.data(),
+                       reinterpret_cast<void*>(Cd),
+                       M.as_int32() * N.as_int32() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+
+  for (int i = 0; i < M.as_int32(); i++) {
+    for (int j = 0; j < N.as_int32(); j++) {
+      int offset = i * N.as_int32() + j;
+      EXPECT_NEAR(host_data3[offset], host_data1[offset] * host_data2[offset], 1e-5);
+    }
+  }
+}
+
 TEST(CodeGenCUDA, compile_run_jit) {
   Expr M(100);
   Expr N(200);
@@ -125,7 +233,7 @@ TEST(CodeGenCUDA, compile_run_jit) {
   stages[B_cache]->Bind(1, "threadIdx.x");
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
-
+  stages[B_cache]->SyncThreads({C}, stages);
   CodeGenCUDA_Dev codegen(target);
 
   auto func = Lower("elementwise_add", stages, {A, B, C});
@@ -163,6 +271,7 @@ void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, f
     };
   }
   };
+  __syncthreads();
   if ((blockIdx.x < 100)) {
   {
     if ((threadIdx.x < 200)) {
