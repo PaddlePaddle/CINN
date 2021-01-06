@@ -40,10 +40,15 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
+      Expr out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
+      CHECK(out.as_tensor());
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });
@@ -92,10 +97,15 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
+      Expr out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
+      CHECK(out.as_tensor());
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });

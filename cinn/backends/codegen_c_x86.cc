@@ -14,13 +14,11 @@ void CodeGenCX86::Visit(const ir::Load *op) {
     CHECK(op->type().is_vector());
 
     int bits = op->type().bits() * op->type().lanes();
-    if (SupportsAVX512()) {
-      CHECK_EQ(bits, 512);
+    if (SupportsAVX512() && bits == 512) {
       os() << "cinn_avx512_load(";
       PrintAbsAddr(op);
       os() << ")";
-    } else if (SupportsAVX256()) {
-      CHECK_EQ(bits, 256);
+    } else if (SupportsAVX256() && bits == 256) {
       os() << "cinn_avx256_load(";
       PrintAbsAddr(op);
       os() << ")";
@@ -36,13 +34,11 @@ void CodeGenCX86::Visit(const ir::Broadcast *op) {
   CHECK_GT(op->type().lanes(), 1);
   int bits = op->type().bits() * op->type().lanes();
 
-  if (SupportsAVX512()) {
-    CHECK_EQ(bits, 512);
+  if (SupportsAVX512() && bits == 512) {
     os() << "cinn_avx512_set1(";
     PrintCastExpr(op->value.type().ElementOf(), op->value);
     os() << ")";
-  } else if (SupportsAVX256()) {
-    CHECK_EQ(bits, 256);
+  } else if (SupportsAVX256() && bits == 256) {
     os() << "cinn_avx256_set1(";
     PrintCastExpr(op->value.type().ElementOf(), op->value);
     os() << ")";
@@ -58,15 +54,13 @@ void CodeGenCX86::Visit(const ir::Store *op) {
   }
 
   int bits = op->type().bits() * op->type().lanes();
-  if (SupportsAVX512()) {
-    CHECK_EQ(bits, 512);
+  if (SupportsAVX512() && bits == 512) {
     os() << "cinn_avx512_store(";
     PrintAbsAddr(op);
     os() << ", ";
     Print(op->value);
     os() << ")";
-  } else if (SupportsAVX256()) {
-    CHECK_EQ(bits, 256);
+  } else if (SupportsAVX256() && bits == 256) {
     os() << "cinn_avx256_store(";
     PrintAbsAddr(op);
     os() << ", ";

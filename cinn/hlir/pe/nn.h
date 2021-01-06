@@ -214,7 +214,9 @@ ir::Tensor Pad(const ir::Tensor &tensor,
                const std::string &name     = UniqName("T_pad_out"),
                const std::string &pad_mode = "constant");
 
-std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis=-1, const std::string &output_name= UniqName("T_softmax_out"));
+std::vector<ir::Tensor> Softmax(const ir::Tensor &A,
+                                int axis                       = -1,
+                                const std::string &output_name = UniqName("T_softmax_out"));
 
 ir::Tensor Slice(const ir::Tensor &A,
                  const std::vector<int> &starts,

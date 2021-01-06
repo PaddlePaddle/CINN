@@ -7,6 +7,15 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+int GetBetterSplitFactor(int shape, int split_factor) {
+  int better_factor = split_factor;
+  while (better_factor > shape) {
+    better_factor /= 2;
+  }
+  if (better_factor < shape) return better_factor * 2;
+  return better_factor;
+}
+
 void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
   int dims = stage->n_out_dims();
   if (dims > 1) {
@@ -24,19 +33,19 @@ void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_sha
       if (last_two_dim_bits % target_native_vector_bits == 0) {
         fused = stage->Fuse(dims - 2, dims - 1);
         prod_size *= output_shape[dims - 2];
-      } else {
-        return;
       }
     }
     int split_factor = target_native_vector_bits / type_bits;
-    if (prod_size == split_factor) {
-      stage->Vectorize(fused, split_factor);
-      return;
+    if (prod_size <= split_factor) {
+      split_factor = GetBetterSplitFactor(prod_size, split_factor);
+      if (split_factor >= 8) {
+        stage->Vectorize(fused, split_factor);
+      }
+    } else {
+      auto [j_outer, j_inner] = stage->Split(fused, split_factor);
+      stage->Vectorize(j_inner, split_factor);
     }
-    auto [j_outer, j_inner] = stage->Split(fused, split_factor);
-    stage->Vectorize(j_inner, split_factor);
   }
-
   return;
 }
 

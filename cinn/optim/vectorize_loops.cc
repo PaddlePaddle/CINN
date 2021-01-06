@@ -314,7 +314,7 @@ class Vectorizer : public IRMutator<Expr *> {
   }
 
   template <typename T>
-  Expr BinaryOperatorVec(const T *op, Expr *expr) {
+  void BinaryOperatorVec(const T *op, Expr *expr) {
     auto *node = expr->As<T>();
     Expr a0    = node->a();
     Expr b0    = node->b();
@@ -323,7 +323,7 @@ class Vectorizer : public IRMutator<Expr *> {
     // if (a0.same_as(node->a()) && b0.same_as(node->b())) return *expr;
 
     int lanes = std::max(node->a().type().lanes(), node->b().type().lanes());
-    return T::Make(Widen(node->a(), lanes), Widen(node->b(), lanes));
+    *expr     = T::Make(Widen(node->a(), lanes), Widen(node->b(), lanes));
   }
 };
 
@@ -521,8 +521,17 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     if (!for_min_i) return Expr();
     if (for_min_i->value != 0) return Expr();
 
-    Expr times = common::AutoSimplify(Div::Make(forloop->extent, make_const(factor)));
-    Simplify(&times);
+    auto *extent_ptr = forloop->extent.As<IntImm>();
+    Expr times;
+    if (extent_ptr) {
+      int extent_int   = forloop->extent.as_int32();
+      int extent_trunc = extent_int / factor;
+      int extent_times = extent_int % factor == 0 ? extent_trunc : extent_trunc + 1;
+      times            = common::make_const(forloop->extent->type(), extent_times);
+    } else {
+      times = common::AutoSimplify(Div::Make(forloop->extent, make_const(factor)));
+      Simplify(&times);
+    }
 
     // update the current forloop
     auto times_int = times.As<IntImm>();

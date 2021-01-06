@@ -803,7 +803,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
         auto *vtype =
             llvm::VectorType::get(ll_type_of(op->type().ElementOf()), llvm::ElementCount(lanes, false /*Scalable*/))
                 ->getPointerTo();
-        int alignment = lanes * op->type().ElementOf().bits() / 8;
+        int alignment = std::max(op->type().ElementOf().bits() / 8, 1);
         llvm::StoreInst *inst =
             b_->CreateAlignedStore(CreateVecSlice(value, offset, lanes), b_->CreatePointerCast(ptr, vtype), alignment);
         AddTbaaMetadata(inst, op->tensor.as_tensor()->name, base);
@@ -1086,7 +1086,7 @@ llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
     llvm::Value *elt_ptr = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&slice_base));
     llvm::Value *vec_ptr = b_->CreatePointerCast(elt_ptr, slice_type->getPointerTo(), "get_vec_ptr");
 
-    int alignment = slice_lanes * op->type().ElementOf().bits() / 8;
+    int alignment = std::max(op->type().ElementOf().bits() / 8, 1);
 
     llvm::Instruction *load_inst = b_->CreateAlignedLoad(vec_ptr, llvm::Align(alignment), "load_vec");
     AddTbaaMetadata(load_inst, op->tensor.as_tensor()->name, op->index());
