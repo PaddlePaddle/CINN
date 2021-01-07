@@ -49,7 +49,7 @@ class _Tensor_ : public Object {
   inline T* mutable_data(const Target& target) {
     set_type(type_of<T>());
     if (target == common::DefaultHostTarget()) {
-      int alignment = target.get_target_bits() * 8;
+      int alignment = type_of<T>().ElementOf().bits();
       buffer_->ResizeLazy(alignment, shape_.numel() * sizeof(T), target);
     } else {
       buffer_->ResizeLazy(shape_.numel() * sizeof(T), target);

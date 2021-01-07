@@ -69,7 +69,7 @@ class SingleOpTester(unittest.TestCase):
         temp_inputs = []
         alignment = 0
         if self.target.arch == common.Target.Arch.X86:
-            alignment = 512
+            alignment = 32
         for in_data in inputs_data:
             temp_inputs.append(
                 runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device,
