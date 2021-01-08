@@ -236,8 +236,13 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   if (target.arch == Target::Arch::NVGPU) {
     if (init_tensor->shape.size() > 1) {
       stages[init_tensor]->Split(1, 2);
-      stages[init_tensor]->Bind(0, "blockIdx.x");
-      stages[init_tensor]->Bind(1, "threadIdx.x");
+    }
+    stages[init_tensor]->ComputeAt2(stages[this], stages[init_tensor]->axis_names().size() - 1);
+    auto temp = stages[this]->ctrl_depends();
+    for (auto &i : temp) {
+      if (i->name != init_tensor->name) {
+        stages[init_tensor]->CtrlDepend(i);
+      }
     }
   }
   stages[this]->CtrlDepend(init_tensor);
