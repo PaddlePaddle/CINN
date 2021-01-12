@@ -238,12 +238,6 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
       stages[init_tensor]->Split(1, 2);
     }
     stages[init_tensor]->ComputeAt2(stages[this], stages[init_tensor]->axis_names().size() - 1);
-    auto temp = stages[this]->ctrl_depends();
-    for (auto &i : temp) {
-      if (i->name != init_tensor->name) {
-        stages[init_tensor]->CtrlDepend(i);
-      }
-    }
   }
   stages[this]->CtrlDepend(init_tensor);
   stages[this]->ShareBufferWith(stages[init_tensor]);
