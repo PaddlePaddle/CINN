@@ -218,6 +218,25 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
     for (auto& node : b.nodes) {
       min_score1 = std::min(min_score1, node2score[node.get()]);
     }
+
+    bool ab = true;
+    bool ba = true;
+    for (auto& node_b : b.nodes) {
+      for (auto& node_a : a.nodes) {
+        ab = ab && (!node_b->as<common::GraphNode>()->IsLinkedTo(node_a->as<common::GraphNode>()));
+        ba = ba && (!node_a->as<common::GraphNode>()->IsLinkedTo(node_b->as<common::GraphNode>()));
+      }
+    }
+    if (ab && !ba) {
+      return true;
+    } else if (!ab && ba) {
+      return false;
+    } else if (ab && ba) {
+      return min_score0 < min_score1;
+    } else {
+      LOG(FATAL) << "Incompatible usage of [ComputeAt]! "
+                 << "Please check the computation order in graph: " << graph->Visualize();
+    }
     return min_score0 < min_score1;
   });
 
