@@ -90,14 +90,14 @@ TEST_DEFAULT(elementwise_add, add5_1, type1, type)
 TEST_DEFAULT(elementwise_add, add5_2, type1, type)
 TEST_DEFAULT(elementwise_add, add5_3, type1, type)
 // mul
-// std::vector<std::vector<int>> shapes_mul = {{1024, 1024, 1024}, {1024, 1024, 1024}};
-// TEST_DEFAULT(elementwise_mul, mul, type1, type)
-std::vector<std::vector<int>> shapes_mul1 = {{100, 32}, {100, 32}};
-TEST_DEFAULT(elementwise_mul, mul1, type1, type)
-std::vector<std::vector<int>> shapes_mul2 = {{1024, 14, 14}, {1024, 14, 14}};
-TEST_DEFAULT(elementwise_mul, mul2, type1, type)
-std::vector<std::vector<int>> shapes_mul3 = {{1}, {1}};
-TEST_DEFAULT(elementwise_mul, mul3, type1, type)
+std::vector<std::vector<int>> shapes_elementwise_mul = {{1024, 1024, 1024}, {1024, 1024, 1024}};
+TEST_DEFAULT(elementwise_mul, elementwise_mul, type1, type)
+std::vector<std::vector<int>> shapes_elementwise_mul1 = {{100, 32}, {100, 32}};
+TEST_DEFAULT(elementwise_mul, elementwise_mul1, type1, type)
+std::vector<std::vector<int>> shapes_elementwise_mul2 = {{1024, 14, 14}, {1024, 14, 14}};
+TEST_DEFAULT(elementwise_mul, elementwise_mul2, type1, type)
+std::vector<std::vector<int>> shapes_elementwise_mul3 = {{1}, {1}};
+TEST_DEFAULT(elementwise_mul, elementwise_mul3, type1, type)
 
 // relu
 std::vector<std::vector<int>> shapes_relu = {{2, 512, 7, 7}};
@@ -159,12 +159,22 @@ TEST_DEFAULT(sigmoid, sigmoid1, type, type)
 // matmul
 std::vector<std::vector<int>> shapes_matmul = {{32, 32}, {32, 32}};
 TEST_DEFAULT(matmul, matmul, type1, type)
-// std::vector<std::vector<int>> shapes_matmul1 = {{512,512}, {512,512}};
-// TEST_DEFAULT(matmul, matmul1, type1, type)
-// std::vector<std::vector<int>> shapes_matmul2 = {{100,32}, {32,100}};
-// TEST_DEFAULT(matmul, matmul2, type1, type)
-// std::vector<std::vector<int>> shapes_matmul3 = {{1024,1024}, {1024,1024}};
-// TEST_DEFAULT(matmul, matmul3, type1, type)
+std::vector<std::vector<int>> shapes_matmul1 = {{512, 512}, {512, 512}};
+TEST_DEFAULT(matmul, matmul1, type1, type)
+std::vector<std::vector<int>> shapes_matmul2 = {{100, 32}, {32, 100}};
+TEST_DEFAULT(matmul, matmul2, type1, type)
+std::vector<std::vector<int>> shapes_matmul3 = {{1024, 1024}, {1024, 1024}};
+TEST_DEFAULT(matmul, matmul3, type1, type)
+
+// matrix mul
+std::vector<std::vector<int>> shapes_mul = {{32, 32}, {32, 32}};
+TEST_DEFAULT(mul, mul, type1, type1)
+std::vector<std::vector<int>> shapes_mul1 = {{512, 512}, {512, 512}};
+TEST_DEFAULT(mul, mul1, type1, type1)
+std::vector<std::vector<int>> shapes_mul2 = {{100, 32}, {100, 32}};
+TEST_DEFAULT(mul, mul2, type1, type1)
+std::vector<std::vector<int>> shapes_mul3 = {{1024, 1024}, {1024, 1024}};
+TEST_DEFAULT(mul, mul3, type1, type1)
 
 // batchnorm
 std::vector<std::vector<int>> shapes_batchnorm = {{2, 32, 112, 112}, {32}, {32}, {32}, {32}};

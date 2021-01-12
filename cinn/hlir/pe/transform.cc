@@ -13,8 +13,8 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+using ir::Tensor;
 using cinn::lang::Compute;
-using namespace ir;
 void GetMatmulOutputShape(const std::vector<Expr>& shape1,
                           const std::vector<Expr>& shape2,
                           std::vector<Expr>* shape1_new,
@@ -120,6 +120,70 @@ Tensor Matmul(const Tensor& A,
     return lang::ReduceSum(A(A_indice) * B(B_indice), reduce_axes);
   };
   return Compute(output_shape, fn, name);
+}
+
+int GetMulReduceFactor(int reduce_shape, const Type& type, const common::Target& target) {
+  int target_native_vector_bits = target.get_target_bits() * 8;
+  int type_bits                 = type.bits();
+  int split_base                = target_native_vector_bits / type_bits;
+  int split_factor              = 1;
+  int reduce_dim                = reduce_shape;
+  for (size_t i = split_base * 2; i >= 1; --i) {
+    if (reduce_dim % i == 0) {
+      split_factor = i;
+      break;
+    }
+  }
+  return split_factor;
+}
+
+std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string& name, const common::Target& target) {
+  std::vector<Expr> output_shape;
+  CHECK_EQ(A->shape.size(), 2U) << "tensor_A's shape size should be two";
+  CHECK_EQ(B->shape.size(), 2U) << "tensor_B's shape size should be two";
+  CHECK_EQ(A->shape[1], B->shape[1]) << "tensor_A's last shape should be same with tensor_B";
+  output_shape.push_back(A->shape[0]);
+  output_shape.push_back(B->shape[0]);
+
+  if (target.arch == Target::Arch::X86) {
+    int reduce_dim   = A->shape[1].as_int32();
+    int split_factor = GetMulReduceFactor(reduce_dim, A->type(), target);
+    Var reduce_k_first(common::make_const(A->shape[1]->type(), reduce_dim / split_factor), UniqName("reduce_k_first"));
+    auto mul_reduce_first = Compute(
+        {A->shape[0], B->shape[0], Expr(split_factor)},
+        [=](const std::vector<Expr>& indice) {
+          CHECK_EQ(indice.size(), 3U) << "indice size should be three";
+          return lang::ReduceSum(A({indice[0], reduce_k_first * Expr(split_factor) + indice[2]}) *
+                                     B({indice[1], reduce_k_first * Expr(split_factor) + indice[2]}),
+                                 {reduce_k_first});
+        },
+        UniqName("mul_reduce_k_first"));
+    Var reduce_k_second(common::make_const(A->shape[1]->type(), split_factor), UniqName("reduce_k_second"));
+    return {Compute(
+                output_shape,
+                [=](const std::vector<Expr>& indice) {
+                  std::vector<Expr> new_indice = indice;
+                  new_indice.push_back(reduce_k_second);
+                  return lang::ReduceSum(mul_reduce_first(new_indice), {reduce_k_second});
+                },
+                name),
+            mul_reduce_first};
+  } else {
+    Var reduce_k(A->shape[1], UniqName("reduce_k"));
+    return {Compute(
+        output_shape,
+        [=](const std::vector<Expr>& indice) {
+          std::vector<Expr> A_indice;
+          std::vector<Expr> B_indice;
+          CHECK_EQ(indice.size(), 2U) << "indice size should be two";
+          A_indice.push_back(indice[0]);
+          B_indice.push_back(indice[1]);
+          A_indice.push_back(reduce_k);
+          B_indice.push_back(reduce_k);
+          return lang::ReduceSum(A(A_indice) * B(B_indice), {reduce_k});
+        },
+        name)};
+  }
 }
 
 Tensor Mul(const Tensor& A,
