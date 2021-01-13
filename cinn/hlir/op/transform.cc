@@ -1,5 +1,6 @@
 #include "cinn/hlir/pe/transform.h"
 
+#include "cinn/common/cas.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -155,33 +156,49 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     auto B_tensor = B.as_tensor_ref();
     auto stages   = CreateStages({A_tensor, B_tensor});
     std::vector<Expr> output_shape;
-    std::vector<Expr> new_xshape;
-    std::vector<Expr> new_yshape;
-    Expr check_dim(1);
+    std::vector<Expr> new_shape_A;
+    std::vector<Expr> new_shape_B;
+    Expr flatten_shape_A(1);
+    Expr flatten_shape_B(1);
+    Expr reduce_shape_A(1);
+    Expr reduce_shape_B(1);
     for (int i = 0; i < A_tensor->shape.size(); i++) {
       if (i < x_num_col_dims) {
-        output_shape.push_back(A_tensor->shape[i]);
-        new_xshape.push_back(A_tensor->shape[i]);
+        flatten_shape_A = flatten_shape_A * A_tensor->shape[i];
       } else {
-        check_dim = check_dim * A_tensor->shape[i];
+        reduce_shape_A = reduce_shape_A * A_tensor->shape[i];
       }
     }
-    new_xshape.push_back(check_dim);
+    // flatten to 2 dims, new_shape_A: [M, K]
+    flatten_shape_A = common::AutoSimplify(flatten_shape_A);
+    reduce_shape_A  = common::AutoSimplify(reduce_shape_A);
+    new_shape_A.push_back(flatten_shape_A);
+    new_shape_A.push_back(reduce_shape_A);
 
     for (int i = 0; i < B_tensor->shape.size(); i++) {
       if (i < y_num_col_dims) {
-        output_shape.push_back(B_tensor->shape[i]);
-        new_yshape.push_back(B_tensor->shape[i]);
+        flatten_shape_B = flatten_shape_B * B_tensor->shape[i];
+      } else {
+        reduce_shape_B = reduce_shape_B * B_tensor->shape[i];
       }
     }
-    new_yshape.push_back(check_dim);
-    Var axis_k(check_dim, UniqName("axis_k"));
-    auto new_A = A_tensor->Reshape(new_xshape, stages);
-    auto new_B = B_tensor->Reshape(new_yshape, stages);
+    flatten_shape_B = common::AutoSimplify(flatten_shape_B);
+    reduce_shape_B  = common::AutoSimplify(reduce_shape_B);
+    CHECK(is_zero(reduce_shape_A - reduce_shape_B)) << "reduce_shape should be same after flattening";
+    // flatten to 2 dims, new_shape_B: [N, K]
+    new_shape_B.push_back(flatten_shape_B);
+    new_shape_B.push_back(reduce_shape_B);
 
-    auto out = pe::Mul(new_A, new_B, x_num_col_dims, output_shape, axis_k, UniqName("Mul_output"));
-    VLOG(3) << "mul out: " << out;
-    stages->InsertLazily(out);
+    Var axis_k(reduce_shape_A, UniqName("axis_k"));
+    auto new_A = A_tensor->Reshape(new_shape_A, stages);
+    auto new_B = B_tensor->Reshape(new_shape_B, stages);
+
+    auto out = pe::MulBase(new_A, new_B, UniqName("Mul_output"), target);
+    std::vector<CINNValue> res;
+    for (auto &t : out) {
+      stages->InsertLazily(t);
+      res.push_back(CINNValue(t));
+    }
     CHECK(!out_type.empty()) << "Output type of Mul is empty! Please check.\n";
 
     if (target.arch == Target::Arch::NVGPU) {
@@ -190,19 +207,19 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       stages[BB]->Split(0, 2);
       stages[BB]->Bind(0, "threadIdx.x");
     }
-
-    *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
   });
 
   framework::CINNSchedule mul_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
+    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
+    Expr out              = arg_pack[0];
+    poly::StageMap stages = arg_pack.back();
+    CHECK(out.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      pe::CudaScheduleMul(stages, Out.as_tensor_ref(), output_shapes.back(), target);
+      pe::CudaScheduleMul(stages, out.as_tensor_ref(), output_shapes.back(), target);
     }
     *ret = arg_pack;
   });
@@ -218,7 +235,7 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
                                                const std::vector<Type> &out_type,
                                                const std::vector<std::vector<int>> &output_shapes,
                                                const Target &target) {
-  framework::CINNCompute mul_compute([=](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute mul_bias_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Mul compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK_GE(a.size(), 3U) << "at least 2 input tensors for Mul compute\n";
@@ -281,18 +298,18 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
     *ret = CINNValuePack{res};
   });
 
-  framework::CINNSchedule mul_schedule([=](lang::Args args, lang::RetValue *ret) {
+  framework::CINNSchedule mul_bias_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of mul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 3UL);
-    Expr Temp             = arg_pack[0];
-    Expr Out              = arg_pack[1];
+    Expr temp             = arg_pack[0];
+    Expr out              = arg_pack[1];
     poly::StageMap stages = arg_pack[2];
-    CHECK(Out.as_tensor());
-    CHECK(Temp.as_tensor());
+    CHECK(out.as_tensor());
+    CHECK(temp.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleMul(stages, Temp.as_tensor_ref(), output_shapes.back(), target);
-      pe::CudaScheduleMul(stages, Out.as_tensor_ref(), output_shapes.back(), target);
+      pe::CudaScheduleMul(stages, temp.as_tensor_ref(), output_shapes.back(), target);
+      pe::CudaScheduleMul(stages, out.as_tensor_ref(), output_shapes.back(), target);
       /* stages[Out.as_tensor_ref()]->Split(1, 2);
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x"); */
@@ -302,7 +319,7 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  strategy->AddImpl(mul_compute, mul_schedule, "strategy.mulbias.x86", 1);
+  strategy->AddImpl(mul_bias_compute, mul_bias_schedule, "strategy.mulbias.x86", 1);
 
   return strategy;
 }
@@ -325,11 +342,13 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
       LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
     }
   }
-  int check_dim_x = 1;
-  int check_dim_y = 1;
+  int flatten_shape_A = 1;
+  int flatten_shape_B = 1;
+  int check_dim_x     = 1;
+  int check_dim_y     = 1;
   for (int i = 0; i < inputs_shape[0].size(); i++) {
     if (i < x_num_col_dims) {
-      output_shape.push_back(inputs_shape[0][i]);
+      flatten_shape_A *= inputs_shape[0][i];
     } else {
       check_dim_x = check_dim_x * inputs_shape[0][i];
     }
@@ -337,7 +356,7 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
 
   for (int i = 0; i < inputs_shape[1].size(); i++) {
     if (i < y_num_col_dims) {
-      output_shape.push_back(inputs_shape[1][i]);
+      flatten_shape_B *= inputs_shape[1][i];
     } else {
       check_dim_y = check_dim_y * inputs_shape[1][i];
     }
@@ -345,14 +364,18 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   CHECK_EQ(check_dim_x, check_dim_y) << "For matrix multiply: X * Y, second dim of X's shape :[" << check_dim_x
                                      << "] should be equal to first dim of Y's shape :[" << check_dim_y
                                      << "]! Please Check!";
+  output_shape = {flatten_shape_A, flatten_shape_B};
 
-  std::vector<std::vector<int>> res{output_shape};
+  int reduce_factor           = pe::GetMulReduceFactor(check_dim_x, Float(32), common::DefaultHostTarget());
+  std::vector<int> temp_shape = {flatten_shape_A, flatten_shape_B, reduce_factor};
+
+  std::vector<std::vector<int>> res{output_shape, temp_shape};
   return res;
 }
 
 std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
+  std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
 }
 
@@ -424,7 +447,7 @@ CINN_REGISTER_HELPER(transform_ops) {
   CINN_REGISTER_OP(mul)
       .describe("This operator is used to perform matrix multiplication for input X and Y.")
       .set_num_inputs(2)
-      .set_num_outputs(1)
+      .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMul)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMul))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMul))

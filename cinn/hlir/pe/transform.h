@@ -39,6 +39,24 @@ ir::Tensor Matmul(const ir::Tensor& A,
                   int y_num_col_dims      = 1,
                   const std::string& name = UniqName("T_Transform_Matmul_out"));
 
+int GetMulReduceFactor(int reduce_shape, const Type& type, const common::Target& target);
+
+/**
+ * @brief basic PE that calculates a matrix multiplication
+ *
+ * @param A The first input tensor, [M, K]
+ * @param B The second input tensor, [N, K]
+ * @param name The name of the operation
+ * @param target if target is x86, we will split the reduce axis
+ *
+ * @return the output tensor
+Notes: this mul only support two-dims-tensor after flattening [M, K] * [N, K], K is the reduce axis
+ */
+std::vector<ir::Tensor> MulBase(const ir::Tensor& A,
+                                const ir::Tensor& B,
+                                const std::string& name      = UniqName("T_Transform_MulBase_out"),
+                                const common::Target& target = common::DefaultHostTarget());
+
 ir::Tensor Mul(const ir::Tensor& A,
                const ir::Tensor& B,
                int x_num_col_dims,
