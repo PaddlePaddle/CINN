@@ -1,5 +1,6 @@
 #include "dense_tensor.h"
 
+#include <llvm/Support/raw_os_ostream.h>
 #include "cinn/hlir/framework/buffer.h"
 
 namespace cinnrt::host_context {
@@ -20,10 +21,11 @@ void DisplayArray(std::ostream& os, T* data, int num_elements) {
 }
 
 std::ostream& operator<<(std::ostream& os, const DenseTensor& instance) {
-  os << "tensor: ";
-  os << "shape=";
-  os << instance.shape_;
-  os << ", values=[";
+  llvm::raw_os_ostream oos(os);
+  oos << "tensor: ";
+  oos << "shape=";
+  oos << instance.shape_;
+  oos << ", values=[";
 
   if (instance.dtype_ == cinn_type_of<float>()) {
     auto* data = reinterpret_cast<float*>(instance.buffer()->data()->memory);

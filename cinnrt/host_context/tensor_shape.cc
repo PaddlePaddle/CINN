@@ -1,4 +1,5 @@
 #include "cinnrt/host_context/tensor_shape.h"
+#include <llvm/Support/raw_ostream.h>
 
 #include <glog/logging.h>
 
@@ -51,7 +52,7 @@ std::optional<TensorShape> DynamicTensorShape::ToTensorShape() const {
   }
 }
 
-std::ostream& operator<<(std::ostream& os, const TensorShape& v) {
+llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const TensorShape& v) {
   os << "shape[";
   for (int i = 0; i < v.GetRank() - 1; i++) {
     os << v.dims_[i] << ",";

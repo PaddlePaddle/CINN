@@ -16,7 +16,8 @@ class TensorShape {
 
   int GetNumElements() const;
 
-  friend std::ostream& operator<<(std::ostream& os, const TensorShape& v);
+  friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const TensorShape& v);
+  friend bool operator==(const TensorShape& a, const TensorShape& b) { return a.dims_ == b.dims_; }
 
  private:
   llvm::SmallVector<int64_t, 4> dims_;
@@ -44,6 +45,7 @@ class DynamicTensorShape {
   static bool IsDimUnknown(int64_t dim) { return dim == kUnknownDimSize; }
 
   friend std::ostream& operator<<(std::ostream& os, const DynamicTensorShape& v);
+  friend bool operator==(const DynamicTensorShape& a, const DynamicTensorShape& b) { return a.dims_ == b.dims_; }
 
  private:
   //! Will be std::nullopt if no dim is known.

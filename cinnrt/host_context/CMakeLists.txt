@@ -10,6 +10,7 @@ set(srcs
         dense_tensor.cc
         dense_tensor_view.cc
         mlir_to_runtime_translate.cc
+        tensor_metadata.cc
   )
 
 cc_test(test_host_context_value SRCS value_test.cc DEPS cinncore)
