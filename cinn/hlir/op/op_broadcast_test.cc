@@ -3,7 +3,9 @@
 #include <functional>
 #include <string>
 
+#include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/cinn.h"
+#include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -28,8 +30,8 @@ TEST(Operator, Operator_ElementWise_Add_Test0) {
   NodeAttr attrs;
   std::vector<ir::Tensor> inputs{A.tensor(), B.tensor()};
   std::vector<Type> type{Float(32)};
-  common::Target target            = common::DefaultHostTarget();
-  auto impl                        = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, {{100, 32}}, target));
+  common::Target target = common::DefaultHostTarget();
+  auto impl = OpStrategy::SelectImpl(strategy[add](attrs, inputs, type, {{M.as_int32(), N.as_int32()}}, target));
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A), common::CINNValue(B)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   ASSERT_EQ(rets.size(), 2UL);
@@ -40,11 +42,43 @@ TEST(Operator, Operator_ElementWise_Add_Test0) {
     Expr temp = rets[i];
     inputs.push_back(temp.as_tensor_ref());
   }
+  Module::Builder builder("module0", target);
   auto func = Lower("add1", rets.back(), inputs);
   LOG(INFO) << "Test Strategy Codegen:\n" << func;
+  builder.AddFunction(func);
+  LOG(INFO) << "func:\n" << func;
 
   ASSERT_EQ(impl->name, "strategy.elementwise_add.x86");
   ASSERT_EQ(add->description, "elementwise_add function");
+
+  auto jit    = backends::ExecutionEngine::Create({});
+  auto module = builder.Build();
+  jit->Link(module);
+  auto fn = jit->Lookup("add1");
+  CHECK(fn);
+  auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
+  cinn_buffer_t *A_buf;
+  cinn_buffer_t *B_buf;
+  int set_value = 0;
+  if (set_value != 0) {
+    A_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_align(512).set_val(set_value).Build();
+    B_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_align(512).set_val(set_value).Build();
+  } else {
+    A_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_align(512).set_random().Build();
+    B_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_align(512).set_random().Build();
+  }
+  auto *C_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_align(512).set_zero().Build();
+
+  cinn_pod_value_t a_arg(A_buf), b_arg(B_buf), c_arg(C_buf);
+  cinn_pod_value_t args[] = {a_arg, b_arg, c_arg};
+  fn_(args, 3);
+
+  auto *ad = reinterpret_cast<float *>(A_buf->memory);
+  auto *bd = reinterpret_cast<float *>(B_buf->memory);
+  auto *cd = reinterpret_cast<float *>(C_buf->memory);
+  for (int i = 0; i < A_buf->num_elements(); i++) {
+    ASSERT_NEAR(cd[i], ad[i] + bd[i], 1e-5);
+  }
 }
 
 TEST(Operator, Operator_ElementWise_Add_Test1) {

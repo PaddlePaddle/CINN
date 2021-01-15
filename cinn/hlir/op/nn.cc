@@ -5,6 +5,7 @@
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
+#include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/poly/stage.h"
 
@@ -23,7 +24,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
                                             const std::vector<Type> &out_type,
                                             const std::vector<std::vector<int>> &output_shapes,
                                             const Target &target) {
-  framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute relu_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of relu compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK(!a.empty()) << "at least one input tensor for relu compute\n";
@@ -39,10 +40,15 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
+      Expr out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
+      CHECK(out.as_tensor());
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });
@@ -91,10 +97,15 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
+      Expr out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
+      CHECK(out.as_tensor());
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });
@@ -1063,17 +1074,24 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     CHECK_EQ(arg_pack.size(), 3UL) << "The input tensor's size of softmax schedule is " << arg_pack.size()
                                    << "and it should be equal to 3! Please check.";
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out1             = arg_pack[0];
-      Expr Out2             = arg_pack[1];
+      Expr out1             = arg_pack[0];
+      Expr out2             = arg_pack[1];
       poly::StageMap stages = arg_pack[2];
-      CHECK(Out1.as_tensor());
-      CHECK(Out2.as_tensor());
-      stages[Out1.as_tensor_ref()]->Split(1, 2);
-      stages[Out2.as_tensor_ref()]->Split(1, 2);
-      stages[Out1.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out1.as_tensor_ref()]->Bind(1, "threadIdx.x");
-      stages[Out2.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out2.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      CHECK(out1.as_tensor());
+      CHECK(out2.as_tensor());
+      ir::Tensor tensor_a = out1.as_tensor_ref();
+      ir::Tensor tensor_b = out2.as_tensor_ref();
+      if (tensor_a->shape.size() > 1) {
+        stages[tensor_a]->Split(1, 2);
+        stages[tensor_a]->Bind(0, "blockIdx.x");
+        stages[tensor_a]->Bind(1, "threadIdx.x");
+      }
+      if (tensor_b->shape.size() > 1) {
+        stages[tensor_b]->Split(1, 2);
+        stages[tensor_b]->Bind(0, "blockIdx.x");
+        stages[tensor_b]->Bind(1, "threadIdx.x");
+      }
+      stages[tensor_a]->SyncThreads({tensor_b}, stages);
     }
     *ret = arg_pack;
   });

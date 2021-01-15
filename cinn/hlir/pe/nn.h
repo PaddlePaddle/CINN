@@ -12,21 +12,6 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
-void CudaScheduleMul(poly::StageMap stages,
-                     ir::Tensor output,
-                     const std::vector<int> &output_shape,
-                     const common::Target &target);
-
-void CudaScheduleConv(poly::StageMap stages,
-                      ir::Tensor input_pad,
-                      ir::Tensor kernel_dilation,
-                      ir::Tensor output,
-                      const common::Target &target);
-
-void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
-
-void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape);
-
 /**
  * @brief Rectified Linear Unit.
  *
@@ -229,7 +214,9 @@ ir::Tensor Pad(const ir::Tensor &tensor,
                const std::string &name     = UniqName("T_pad_out"),
                const std::string &pad_mode = "constant");
 
-std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string &output_name);
+std::vector<ir::Tensor> Softmax(const ir::Tensor &A,
+                                int axis                       = -1,
+                                const std::string &output_name = UniqName("T_softmax_out"));
 
 ir::Tensor Slice(const ir::Tensor &A,
                  const std::vector<int> &starts,

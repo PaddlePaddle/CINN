@@ -1,4 +1,5 @@
 #include "cinn/optim/if_simplify.h"
+
 #include "cinn/ir/ir_mutator.h"
 
 namespace cinn::optim {
@@ -9,8 +10,16 @@ struct Mutator : public ir::IRMutator<> {
   using ir::IRMutator<>::Visit;
 
   void Visit(const ir::IfThenElse* op, Expr* expr) {
-    if (auto* i = op->condition.As<ir::IntImm>()) {
-      if (i->value) {
+    auto* condition_int  = op->condition.As<ir::IntImm>();
+    auto* condition_uint = op->condition.As<ir::UIntImm>();
+    int64_t value;
+    if (condition_int || condition_uint) {
+      if (condition_int) {
+        value = condition_int->value;
+      } else {
+        value = condition_uint->value;
+      }
+      if (value) {
         *expr = op->true_case;
       } else {
         if (op->false_case.defined()) {

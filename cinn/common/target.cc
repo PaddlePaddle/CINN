@@ -33,6 +33,20 @@ int Target::max_num_threads() const {
   return 1024;
 }
 
+int Target::get_target_bits() const {
+  switch (bits) {
+    case Bit::k32:
+      return 32;
+    case Bit::k64:
+      return 64;
+    case Bit::Unk:
+      return 0;
+    default:
+      LOG(FATAL) << "Not supported Bit";
+  }
+  return -1;
+}
+
 std::ostream &operator<<(std::ostream &os, const Target &target) {
   os << "Target<";
   switch (target.os) {

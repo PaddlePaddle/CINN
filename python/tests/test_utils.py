@@ -45,7 +45,12 @@ class SingleOpTester(unittest.TestCase):
         '''
         pass
 
-    def to_test_op(self, input_shapes, output_shapes, op_name, attrs):
+    def to_test_op(self,
+                   input_shapes,
+                   output_shapes,
+                   op_name,
+                   attrs,
+                   out_index=None):
         '''
         Test the operator.
         '''
@@ -67,9 +72,13 @@ class SingleOpTester(unittest.TestCase):
 
         args = []
         temp_inputs = []
+        alignment = 0
+        if self.target.arch == common.Target.Arch.X86:
+            alignment = 32
         for in_data in inputs_data:
             temp_inputs.append(
-                runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device))
+                runtime.cinn_buffer_t(in_data, runtime.cinn_x86_device,
+                                      alignment))
         for in_data in temp_inputs:
             args.append(runtime.cinn_pod_value_t(in_data))
         if output_shapes == None:
@@ -84,17 +93,21 @@ class SingleOpTester(unittest.TestCase):
         fn = self.compiler.lookup(op_name)
 
         out = []
+
         for out_shape in output_shapes:
             out.append(
                 runtime.cinn_buffer_t(
                     np.zeros(out_shape).astype("float32"),
-                    runtime.cinn_x86_device))
+                    runtime.cinn_x86_device, alignment))
 
         for out_data in out:
             args.append(runtime.cinn_pod_value_t(out_data))
         fn(args)
 
         out_result = out[len(out) - 1].numpy()
+        if out_index != None:
+            out_result = out[out_index].numpy()
+
         self.assertTrue(np.allclose(out_result, correct_result, atol=1e-4))
 
     def __codegen(self, op_name, inputs, output_shapes, attrs):

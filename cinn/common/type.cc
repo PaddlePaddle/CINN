@@ -1,5 +1,7 @@
 #include "cinn/common/type.h"
 
+#include <utility>
+
 namespace cinn {
 namespace common {
 
@@ -224,6 +226,9 @@ bool Type::is_scalar() const { return lanes() == 1; }
 bool Type::is_float(int bits) const { return type() == type_t::Float && (bits < 0 || bits == this->bits()); }
 bool Type::is_uint(int bits) const { return type() == type_t::UInt && (bits < 0 || bits == this->bits()); }
 bool Type::is_int(int bits) const { return type() == type_t::Int && (bits < 0 || bits == this->bits()); }
+bool Type::is_integer(int bits) const {
+  return (type() == type_t::Int || type() == type_t::UInt) && (bits < 0 || bits == this->bits());
+}
 bool Type::is_index_type() { return is_int() && lanes() == 1 && (bits() == 32 || bits() == 64); }
 bool Type::is_cpp_handle() const {
   return static_cast<uint8_t>(GetStorage().cpp_type_) & static_cast<uint8_t>(cpp_type_t::Handle);

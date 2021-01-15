@@ -240,7 +240,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   /**
    * Tell if this tensor uses other tensors in the body.
    */
-  bool Uses(const ir::Tensor& other);
+  bool Uses(const ir::Tensor& other) const;
 
   //! Bind to a buffer, will persist data to the buffer in runtime.
   void Bind(lang::Buffer& buffer);  // NOLINT

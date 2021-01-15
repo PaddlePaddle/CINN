@@ -16,6 +16,7 @@ class MemoryInterface {
  public:
   virtual void* malloc(size_t nbytes) = 0;
   virtual void free(void* data)       = 0;
+  virtual void* aligned_alloc(size_t alignment, size_t nbytes){};
 };
 
 /**

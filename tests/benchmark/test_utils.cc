@@ -18,11 +18,13 @@ std::unique_ptr<backends::ExecutionEngine> OpBenchmarkTester::CreateExecutionEng
 void OpBenchmarkTester::TestOp(const std::string& test_name,
                                const std::vector<Tensor>& input_tensors,
                                const hlir::framework::NodeAttr& attrs,
+                               const std::vector<Type>& input_types,
                                const std::vector<Type>& out_types,
                                bool use_default_stragegy) {
   auto module        = CreateCinnModule(input_tensors, attrs, out_types, use_default_stragegy);
   auto engine        = CreateExecutionEngine(module);
   auto test_func_ptr = reinterpret_cast<void (*)(void**, int32_t)>(engine->Lookup(op_name_));
+  input_types_       = input_types;
   out_types_         = out_types;
   CreateBuffer();
   LOG(INFO) << "Testing " << test_name;
@@ -91,13 +93,17 @@ Module OpBenchmarkTester::CreateCinnModule(const std::vector<Tensor>& input_tens
   LOG(INFO) << func;
   Module::Builder builder("module_" + op_name_, target_);
   builder.AddFunction(func);
+  CodeGenC compiler(target_);
+  Outputs outputs;
+  outputs = outputs.c_header("./test_" + op_name_ + ".h").c_source("./test_" + op_name_ + ".cc");
+  compiler.Compile(builder.Build(), outputs);
   return builder.Build();
 }
 
 void OpBenchmarkTester::CreateBuffer() {
   std::vector<cinn_pod_value_t> args;
   for (size_t i = 0; i < input_shapes_.size(); i++) {
-    auto* buffer = common::BufferBuilder(out_types_.back(), input_shapes_[i]).set_align(32).set_random().Build();
+    auto* buffer = common::BufferBuilder(input_types_[i], input_shapes_[i]).set_align(32).set_random().Build();
     cinn_pod_value_t arg(buffer);
     all_args_.push_back(arg);
   }

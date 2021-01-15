@@ -234,9 +234,10 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
       shape, [=](const std::vector<Expr> &axis) { return GetReduceInitVal(); }, init_reduce_tensor_name);
   stages->InsertLazily(init_tensor);
   if (target.arch == Target::Arch::NVGPU) {
-    stages[init_tensor]->Split(1, 2);
-    stages[init_tensor]->Bind(0, "blockIdx.x");
-    stages[init_tensor]->Bind(1, "threadIdx.x");
+    if (init_tensor->shape.size() > 1) {
+      stages[init_tensor]->Split(1, 2);
+    }
+    stages[init_tensor]->ComputeAt2(stages[this], stages[init_tensor]->axis_names().size() - 1);
   }
   stages[this]->CtrlDepend(init_tensor);
   stages[this]->ShareBufferWith(stages[init_tensor]);
@@ -411,7 +412,7 @@ std::vector<Var> _Tensor_::axis_with_reduce() const {
   return axis;
 }
 
-bool _Tensor_::Uses(const Tensor &other) {
+bool _Tensor_::Uses(const Tensor &other) const {
   auto loads = ir::CollectIRNodes(body(), [&](const Expr *x) {
     auto *loadn = x->As<ir::Load>();
     if (!loadn) return false;

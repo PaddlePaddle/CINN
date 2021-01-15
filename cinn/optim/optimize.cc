@@ -32,10 +32,10 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
 
   FoldCINNCallArguments(&copied);
   TransformPolyForToFor(&copied);
+  ReplaceConstParamToInteger(&copied);
   CastSimplify(&copied);
   Simplify(&copied);
   VectorizeLoops(&copied, Target());
-  EliminateBroadcastInForloop(&copied);
   UnrollLoop(&copied);
 #ifdef CINN_WITH_CUDA
   RemoveGpuForloopsAxis(&copied);
@@ -48,8 +48,6 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   MapExternCall(&copied, target);
   ExternCallMultiOutputShallowStore(&copied);
 
-  ReplaceConstParamToInteger(&copied);
-  CastBoolToInt8(&copied, target);
   CastSimplify(&copied);
   Simplify(&copied);
   CompareSimplify(&copied);
@@ -59,7 +57,6 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
     LOG(WARNING) << "Turn on runtime debug information output";
     InsertDebugLogCallee(&copied);
   }
-
   return copied;
 }
 

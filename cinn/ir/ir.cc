@@ -279,13 +279,6 @@ Expr Store::Make(Expr tensor, Expr value, const std::vector<Expr> &indices) {
   node->value   = value;
   node->indices = indices;
 
-  for (auto &indice : indices) {
-    if (indice.As<Add>()) {
-      if (indice.As<Add>()->b().As<Ramp>() || indice.As<Add>()->a().As<Ramp>()) {
-        LOG(FATAL) << "found";
-      }
-    }
-  }
   if (tensor->type() != Void()) {
     node->set_type(tensor->type().ElementOf().with_lanes(node->index().type().lanes()));
   }
@@ -365,7 +358,8 @@ Expr Call::Make(Type type,
                 const std::vector<Expr> &write_args,
                 CallType call_type,
                 FunctionRef func,
-                int value_index) {
+                int value_index,
+                const std::map<std::string, attr_t> &attrs) {
   for (size_t i = 0; i < read_args.size(); ++i) {
     CHECK(read_args[i].defined());
   }
@@ -378,6 +372,7 @@ Expr Call::Make(Type type,
   node->func        = func;
   node->value_index = value_index;
   node->set_type(type);
+  node->attrs = attrs;
   return Expr(node);
 }
 std::vector<Expr *> Call::expr_fields() {
@@ -469,6 +464,7 @@ Expr Load::Make(Expr tensor, const std::vector<Expr> &indices) {
   auto node     = make_shared<Load>();
   node->tensor  = tensor;
   node->indices = indices;
+  node->set_type(node->type());
   return Expr(node);
 }
 Type Load::type() const {
@@ -667,7 +663,7 @@ void Select::Verify() const {
   CHECK(condition.defined());
   CHECK(true_value.defined());
   CHECK(false_value.defined());
-  CHECK_EQ(condition.type(), type_of<bool>()) << "Select Node's condition should be a boolean";
+  CHECK(condition.type().is_bool()) << "Select Node's condition should be a boolean";
   CHECK_EQ(true_value.type(), false_value.type())
       << "Select Node's true_value and false_value should have the same type";
 }

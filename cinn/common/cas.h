@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_printer.h"
 
 namespace cinn {
 namespace common {
@@ -13,11 +14,20 @@ namespace common {
  */
 struct CasInterval {
   template <typename T>
-  CasInterval(T l, T r) : l(l), r(r) {}
+  CasInterval(T l, T r) : l(l), r(r) {
+    CHECK_LE(l, r) << "left shoud not be larger than right";
+  }
+  CasInterval(Expr e_l, Expr e_r) : e_l(e_l), e_r(e_r) {}
   int l, r;
+  // Note: not verify l <= r and (e_l, e_r) has higher priority than (l, r)
+  Expr e_l, e_r;
 
   friend std::ostream& operator<<(std::ostream& os, const CasInterval& i) {
-    os << "Interval[" << i.l << ", " << i.r << "]";
+    if (i.e_l.defined() && i.e_r.defined()) {
+      os << "Interval[" << i.e_l << ", " << i.e_r << "]";
+    } else {
+      os << "Interval[" << i.l << ", " << i.r << "]";
+    }
     return os;
   }
 };
@@ -56,7 +66,8 @@ struct ExprPosCmp {
 };
 
 struct CasSimplifyMutator {
-  CasSimplifyMutator(const std::unordered_map<std::string, CasInterval> var_intervals) : var_intervals(var_intervals) {}
+  explicit CasSimplifyMutator(const std::unordered_map<std::string, CasInterval> var_intervals)
+      : var_intervals(var_intervals) {}
 
   Expr operator()(Expr u);
 
@@ -64,12 +75,23 @@ struct CasSimplifyMutator {
   Expr SimplifyPower(Expr u);
   Expr SimplifySum(Expr u);
   Expr SimplifyProduct(Expr a);
+  Expr SimplifyCmp(Expr a);
   std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& operands);
   std::vector<Expr> SimplifySumRec(const std::vector<Expr>& operands);
   Expr SimplifyMod(Expr u);
   Expr SimplifyFracOp(Expr expr);
   Expr FurtherSimplifyFracWithInterval(Expr expr, const std::unordered_map<std::string, CasInterval>& var_intervals);
   Expr SimplifyIntegerPower(Expr u);
+  void AddBaseAndSimplify(Expr* base, Expr bound);
+  void UnfoldBound(Expr* lower_bound, Expr* upper_bound, Expr var, bool unfold_const_bound = true);
+  bool GetVarBound(Expr* lower_bound, Expr* upper_bound, Expr var, bool unfold_const_bound = true);
+  bool GetOperandBound(Expr* lower_bound, Expr* upper_bound, Expr var, bool unfold_const_bound = true);
+  bool GetSumBound(Expr* lower_bound, Expr* upper_bound, Expr sum, bool unfold_const_bound = true);
+  bool GetMinBound(Expr* lower_bound, Expr* upper_bound, Expr min, bool unfold_const_bound = true);
+  bool GetMaxBound(Expr* lower_bound, Expr* upper_bound, Expr max, bool unfold_const_bound = true);
+  bool GetExprBound(Expr* lower_bound, Expr* upper_bound, Expr min, bool unfold_const_bound = true);
+  bool SimplifySpecificSumMod(Expr* u, Expr a, Expr b);
+  Expr SimplifySpecificSum(Expr u);
 
  private:
   std::vector<Expr> MergeProduct(const std::vector<Expr>& _p, const std::vector<Expr>& _q);

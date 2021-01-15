@@ -24,73 +24,6 @@ using ir::Min;
 using ir::Select;
 using ir::Tensor;
 
-void CudaScheduleMul(poly::StageMap stages,
-                     ir::Tensor output,
-                     const std::vector<int> &output_shape,
-                     const common::Target &target) {
-  stages[output]->Split(1, 2);
-  stages[output]->Bind(0, "blockIdx.x");
-  stages[output]->Bind(1, "threadIdx.x");
-
-  return;
-}
-
-void CudaScheduleConv(poly::StageMap stages,
-                      ir::Tensor input_pad,
-                      ir::Tensor kernel_dilation,
-                      ir::Tensor output,
-                      const common::Target &target) {
-  int num_thread = target.max_num_threads();
-  stages[output]->Fuse(0, 1);
-  auto [Block_x, Thread_x] = stages[output]->Split(0, num_thread);
-  stages[output]->Bind(0, "blockIdx.x");
-  stages[output]->Bind(1, "threadIdx.x");
-
-  return;
-}
-
-void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
-  CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
-  int dims = stage->n_out_dims();
-  for (int i = 1; i < dims; i++) {
-    stage->Fuse(0, 1);
-  }
-  int num_thread        = target.max_num_threads();
-  int num_block         = 256;
-  int vector_width      = 1;
-  int prod_size         = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
-  bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
-  if (need_block_split) {
-    auto [X_outer, X_inner]  = stage->Split(0, num_thread * num_block);
-    auto [Block_x, Thread_x] = stage->Split(X_inner, num_thread);
-    stage->Reorder({Block_x, Thread_x, X_outer});
-    stage->Bind(0, "blockIdx.x");
-    stage->Bind(1, "threadIdx.x");
-  } else {
-    if (prod_size > num_thread) {
-      stage->Split(0, num_thread);
-      stage->Bind(0, "blockIdx.x");
-      stage->Bind(1, "threadIdx.x");
-    } else {
-      stage->Bind(0, "threadIdx.x");
-    }
-  }
-  return;
-}
-
-void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape) {
-  if (output_shape.size() > 1 && output_shape[1] >= 512) {
-    int temp_split = 1;
-    int temp_num   = output_shape[1];
-    while (temp_num >= 512) {
-      temp_split = temp_split * 2;
-      temp_num   = temp_num / 2;
-    }
-    stage->Split(1, temp_split);
-  }
-  return;
-}
-
 Tensor LeakyRelu(const Tensor &A, double alpha, const std::string &output_name) {
   return Compute(
       A->shape, [=](const std::vector<Expr> &indice) { return lang::LeakyRelu(A(indice), alpha); }, output_name);
@@ -346,18 +279,43 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
  * @return The calculated output tensor.
  */
 std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string &output_name) {
-  Var axis_j(A->shape[axis], UniqName("axis_j"));
+  if (axis == -1) {
+    axis = A->shape.size() - 1;
+  }
+  Var reduce_axis(A->shape[axis], UniqName("reduce_axis"));
+  std::vector<Expr> new_shapes;
+  for (size_t i = 0; i < A->shape.size(); i++) {
+    if (static_cast<int>(i) != axis) {
+      new_shapes.push_back(A->shape[i]);
+    }
+  }
   auto temp = Compute(
-      A->shape,
+      new_shapes,
       [=](const std::vector<Expr> &indice) {
-        std::vector<Expr> new_indice = indice;
-        new_indice[axis]             = axis_j;
-        return lang::ReduceSum(lang::Exp(A(new_indice)), {axis_j});
+        std::vector<Expr> new_indice;
+        int count = 0;
+        for (size_t i = 0; i < A->shape.size(); i++) {
+          if (static_cast<int>(i) != axis) {
+            new_indice.push_back(indice[count++]);
+          } else {
+            new_indice.push_back(reduce_axis);
+          }
+        }
+        return lang::ReduceSum(lang::Exp(A(new_indice)), {reduce_axis});
       },
       UniqName("softmax_temp_out"));
+
   ir::Tensor out = Compute(
       A->shape,
-      [=](const std::vector<Expr> &indice) { return lang::Exp(A(indice)) / temp(indice); },
+      [=](const std::vector<Expr> &indice) {
+        std::vector<Expr> new_indice;
+        for (size_t i = 0; i < indice.size(); i++) {
+          if (static_cast<int>(i) != axis) {
+            new_indice.push_back(indice[i]);
+          }
+        }
+        return lang::Exp(A(indice)) / temp(new_indice);
+      },
       UniqName("softmax_out"));
   return {temp, out};
 }

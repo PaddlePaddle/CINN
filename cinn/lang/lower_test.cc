@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <set>
+
 #include "cinn/cinn.h"
 #include "cinn/lang/buffer.h"
 #include "cinn/lang/compute.h"
@@ -32,9 +34,9 @@ TEST(lower, basic) {
 
   auto out = R"ROC(
 {
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 15)
+    for (j, 0, 15)
     {
       B[i, j] = (1 + A[i, j])
     }

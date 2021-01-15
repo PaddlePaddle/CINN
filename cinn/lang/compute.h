@@ -1,5 +1,6 @@
 #pragma once
 #include <functional>
+#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -13,6 +14,7 @@ namespace cinn {
 namespace lang {
 
 using compute_handler_t = std::function<Expr(const std::vector<Expr> &)>;
+using attr_t            = std::variant<int, float, bool, std::string>;
 
 //! Compute methods for one to five Vars as arguments.
 // @{
@@ -99,8 +101,11 @@ std::vector<ir::Tensor> CallLowered(const std::string &target,
  *
  * @param target The name of the function to call.
  * @param args The readonly arguments(while there should be only one tensor as result).
+ * @param attrs The readonly attrs.
  */
-Expr CallExtern(const std::string &target, const std::vector<Expr> &args);
+Expr CallExtern(const std::string &target,
+                const std::vector<Expr> &args,
+                const std::map<std::string, attr_t> &attrs = {});
 
 }  // namespace lang
 }  // namespace cinn

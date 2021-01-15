@@ -242,6 +242,17 @@ class Stage : public Object {
    */
   ir::Tensor CacheWrite(const std::string& memory_type, poly::StageMap stages);
 
+  ir::Tensor CacheWrite2(const std::string& memory_type, poly::StageMap stages);
+
+  /**
+   * Generate the `syncthreads()` code to sync all threads on CUDA backends.
+   * For other backends like Opencl, generate corresponding code to sync multi threads.
+   * @param tensor the exact tensor computed just before syncthreads.
+   * @param after_tensors the tensors computed after syncthreads.
+   * @param stages the stagemap of all tensor.
+   */
+  void SyncThreads(const std::vector<ir::Tensor>& after_tensors, StageMap stages);
+
   /**
    * Set thread scope.
    */

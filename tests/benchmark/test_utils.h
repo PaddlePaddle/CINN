@@ -27,6 +27,7 @@ class OpBenchmarkTester {
   void TestOp(const std::string &test_name,
               const std::vector<ir::Tensor> &input_tensors,
               const hlir::framework::NodeAttr &attrs,
+              const std::vector<Type> &input_types,
               const std::vector<Type> &out_types,
               bool use_default_stragegy = true);
 
@@ -71,6 +72,7 @@ class OpBenchmarkTester {
   int repeat_;
   std::vector<std::vector<int>> input_shapes_;
   std::vector<std::vector<int>> output_shapes_;
+  std::vector<Type> input_types_;
   std::vector<Type> out_types_;
   std::vector<cinn_pod_value_t> all_args_;
   int out_dims_;
