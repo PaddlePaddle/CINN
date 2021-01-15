@@ -21,6 +21,7 @@ SET(BASIC_TEST_NAMES
     test_pe_transform
     test_op_nn
     test_op_broadcast
+    test_op_transform
 )
 
 foreach(basic_test_name ${BASIC_TEST_NAMES})

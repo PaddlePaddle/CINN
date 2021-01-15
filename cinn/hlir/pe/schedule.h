@@ -11,6 +11,10 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+int GetBasicFactor(const Type &type, const common::Target &target);
+
+int GetBetterSplitFactor(int shape, int split_factor);
+
 void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
 
 void CudaScheduleMul(poly::StageMap stages,

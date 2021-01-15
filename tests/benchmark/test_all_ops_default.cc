@@ -165,6 +165,8 @@ std::vector<std::vector<int>> shapes_matmul2 = {{100, 32}, {32, 100}};
 TEST_DEFAULT(matmul, matmul2, type1, type)
 std::vector<std::vector<int>> shapes_matmul3 = {{1024, 1024}, {1024, 1024}};
 TEST_DEFAULT(matmul, matmul3, type1, type)
+std::vector<std::vector<int>> shapes_matmul4 = {{1, 1024, 1024}, {1, 1024, 1024}};
+TEST_DEFAULT(matmul, matmul4, type1, type)
 
 // matrix mul
 std::vector<std::vector<int>> shapes_mul = {{32, 32}, {32, 32}};
