@@ -18,6 +18,83 @@ using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
 
+void GetMatmulNewShapes(const std::vector<std::vector<int>> &inputs_shape,
+                        bool trans_a,
+                        bool trans_b,
+                        std::vector<int> *new_shape_A,
+                        std::vector<int> *new_shape_B,
+                        std::vector<int> *output_shape) {
+  *new_shape_A      = inputs_shape[0];
+  *new_shape_B      = inputs_shape[1];
+  int a_dim         = inputs_shape[0].size();
+  int b_dim         = inputs_shape[1].size();
+  int batch_shape_A = 1;
+  int batch_shape_B = 1;
+  int max_dim       = std::max(a_dim, b_dim);
+
+  // broadcast dims if tensor's dim is 1
+  if (max_dim == 1 && inputs_shape[0][0] != inputs_shape[1][0]) {
+    // A: [M], B: [N] -> A: [M, 1], B: [1, N]
+    *new_shape_A = {inputs_shape[0][0], 1};
+    *new_shape_B = {1, inputs_shape[1][0]};
+    trans_a      = false;
+    trans_b      = false;
+  } else {
+    // A: [K], B: [K] -> A: [1, K], B: [K, 1]
+    if (a_dim == 1) {
+      *new_shape_A = {1, inputs_shape[0][0]};
+      trans_a      = false;
+    }
+    if (b_dim == 1) {
+      *new_shape_B = {inputs_shape[1][0], 1};
+      trans_b      = false;
+    }
+  }
+  // flatten batch dims
+  if (max_dim > 3) {
+    CHECK_EQ(a_dim, b_dim) << "tensors' dimension should be same if one of them is more than 3";
+    for (int i = 0; i < a_dim - 2; ++i) {
+      batch_shape_A = batch_shape_A * inputs_shape[0][i];
+      batch_shape_B = batch_shape_B * inputs_shape[1][i];
+    }
+    CHECK(batch_shape_A == batch_shape_B || batch_shape_A == 1 || batch_shape_B == 1)
+        << "batch dimension doesn't match";
+    *new_shape_A = {batch_shape_A, inputs_shape[0][a_dim - 2], inputs_shape[0].back()};
+    *new_shape_B = {batch_shape_B, inputs_shape[1][b_dim - 2], inputs_shape[1].back()};
+  }
+
+  max_dim = std::max(new_shape_A->size(), new_shape_B->size());
+  if (new_shape_A->size() == 3U && new_shape_B->size() == 3U) {
+    // eliminate batch 1
+    if (new_shape_A->front() == 1 && new_shape_B->front() == 1) {
+      new_shape_A->erase(new_shape_A->begin());
+      new_shape_B->erase(new_shape_B->begin());
+    }
+  } else if (max_dim == 3) {
+    // broadcast to 3D
+    if (new_shape_A->size() == 2U) {
+      new_shape_A->insert(new_shape_A->begin(), 1);
+    }
+    if (new_shape_B->size() == 2U) {
+      new_shape_B->insert(new_shape_B->begin(), 1);
+    }
+  }
+  CHECK(new_shape_A->size() == 3U || new_shape_A->size() == 2U) << "new_shape_A's dim should be 2 or 3";
+  CHECK(new_shape_B->size() == 3U || new_shape_B->size() == 2U) << "new_shape_B's dim should be 2 or 3";
+  int x_width  = trans_a ? (*new_shape_A)[new_shape_A->size() - 2] : new_shape_A->back();
+  int y_height = trans_b ? new_shape_B->back() : (*new_shape_B)[new_shape_B->size() - 2];
+  CHECK_EQ(x_width, y_height) << "matrix multiplication requires x_width to be same with y_height";
+  if (output_shape != nullptr) {
+    int M = !trans_a ? (*new_shape_A)[new_shape_A->size() - 2] : new_shape_A->back();
+    int N = !trans_b ? new_shape_B->back() : (*new_shape_B)[new_shape_B->size() - 2];
+    if (new_shape_A->size() == 3U) {
+      *output_shape = {new_shape_A->front()};
+    }
+    output_shape->push_back(M);
+    output_shape->push_back(N);
+  }
+}
+
 std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
@@ -31,49 +108,76 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     Expr B = a[1];
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
-    auto attr_store    = attrs.attr_store;
-    bool trans_a       = false;
-    bool trans_b       = false;
-    int x_num_col_dims = 1;
-    int y_num_col_dims = 1;
+    auto attr_store = attrs.attr_store;
+    bool trans_a    = false;
+    bool trans_b    = false;
+    float alpha     = 1;
     for (auto &iter : attrs.attr_store) {
       if (iter.first == "trans_a") {
         trans_a = std::get<bool>(iter.second);
       } else if (iter.first == "trans_b") {
         trans_b = std::get<bool>(iter.second);
-      } else if (iter.first == "x_num_col_dims") {
-        x_num_col_dims = std::get<int>(iter.second);
-      } else if (iter.first == "y_num_col_dims") {
-        y_num_col_dims = std::get<int>(iter.second);
+      } else if (iter.first == "alpha") {
+        alpha = std::get<int>(iter.second);
       } else {
         LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
     }
+    auto tensor_A = A.as_tensor_ref();
+    auto tensor_B = B.as_tensor_ref();
+    auto stages   = CreateStages({tensor_A, tensor_B});
+    ir::Tensor new_A;
+    ir::Tensor new_B;
+    std::vector<int> old_shape_A;
+    std::vector<int> old_shape_B;
+    for (auto &shape : tensor_A->shape) {
+      old_shape_A.push_back(shape.as_int32());
+    }
+    for (auto &shape : tensor_B->shape) {
+      old_shape_B.push_back(shape.as_int32());
+    }
+    CHECK(!old_shape_A.empty());
+    CHECK(!old_shape_B.empty());
+    std::vector<int> new_shape_A = old_shape_A;
+    std::vector<int> new_shape_B = old_shape_B;
+    GetMatmulNewShapes({old_shape_A, old_shape_B}, trans_a, trans_b, &new_shape_A, &new_shape_B, nullptr);
+    std::vector<Expr> new_shape_A_e;
+    std::vector<Expr> new_shape_B_e;
+    for (int shape : new_shape_A) {
+      new_shape_A_e.push_back(Expr(shape));
+    }
+    for (int shape : new_shape_B) {
+      new_shape_B_e.push_back(Expr(shape));
+    }
+    VLOG(4) << "matmul new_shape_A: " << new_shape_A_e;
+    VLOG(4) << "matmul new_shape_B: " << new_shape_B_e;
 
-    auto out = pe::Matmul(A.as_tensor_ref(),
-                          B.as_tensor_ref(),
-                          trans_a,
-                          trans_b,
-                          x_num_col_dims,
-                          y_num_col_dims,
-                          UniqName("Matmul_output"));
-    VLOG(3) << "matmul out: " << out;
-    auto stages = CreateStages({out});
+    new_A = tensor_A->Reshape(new_shape_A_e, stages);
+    new_B = tensor_B->Reshape(new_shape_B_e, stages);
+    std::vector<ir::Tensor> out;
+    out = pe::Matmul(new_A, new_B, trans_a, trans_b, alpha, UniqName("Matmul_output"));
+    std::vector<CINNValue> res;
+    for (auto &t : out) {
+      stages->InsertLazily(t);
+      res.push_back(CINNValue(t));
+    }
     CHECK(!out_type.empty()) << "Output type of MatMul is empty! Please check.\n";
-    *ret = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
   });
 
   framework::CINNSchedule matmul_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of matmul schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
+    int arg_size           = arg_pack.size();
+    CHECK(arg_size == 2UL || arg_size == 3UL || arg_size == 4UL);
+    Expr out              = arg_pack[0];
+    poly::StageMap stages = arg_pack.back();
+    CHECK(out.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      stages[Out.as_tensor_ref()]->Split(1, 2);
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      stages[out.as_tensor_ref()]->Split(1, 2);
+      stages[out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+      stages[out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     }
     *ret = arg_pack;
   });
@@ -88,42 +192,29 @@ std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<
                                                   const framework::NodeAttr &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   std::vector<int> output_shape;
-  std::vector<int> shape1_new;
-  std::vector<int> shape2_new;
-  bool trans_a       = false;
-  bool trans_b       = false;
-  int x_num_col_dims = 1;
-  int y_num_col_dims = 1;
+  std::vector<int> new_shape_A;
+  std::vector<int> new_shape_B;
+  bool trans_a = false;
+  bool trans_b = false;
+  float alpha  = 1;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "trans_a") {
       trans_a = std::get<bool>(iter.second);
     } else if (iter.first == "trans_b") {
       trans_b = std::get<bool>(iter.second);
-    } else if (iter.first == "x_num_col_dims") {
-      x_num_col_dims = std::get<int>(iter.second);
-    } else if (iter.first == "y_num_col_dims") {
-      y_num_col_dims = std::get<int>(iter.second);
+    } else if (iter.first == "alpha") {
+      alpha = std::get<float>(iter.second);
     }
   }
-  shape1_new = inputs_shape[0];
-  shape2_new = inputs_shape[1];
-  if (trans_a) {
-    std::reverse(shape1_new.begin(), shape1_new.end());
-  }
-  if (trans_b) {
-    std::reverse(shape2_new.begin(), shape2_new.end());
-  }
-  output_shape.insert(output_shape.begin(), shape1_new.begin(), shape1_new.begin() + x_num_col_dims);
-  output_shape.insert(output_shape.end(), shape2_new.begin() + y_num_col_dims, shape2_new.end());
-
+  GetMatmulNewShapes(inputs_shape, trans_a, trans_b, &new_shape_A, &new_shape_B, &output_shape);
   CHECK(!output_shape.empty()) << "infer_shape for matmul turns out to be empty. Please check\n";
-  std::vector<std::vector<int>> res{output_shape};
+  std::vector<std::vector<int>> res{output_shape, output_shape};
   return res;
 }
 
 std::vector<Type> InferDtypeForMatMul(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
+  std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
 }
 
@@ -438,7 +529,7 @@ CINN_REGISTER_HELPER(transform_ops) {
           "This operator is used to perform (batched) matrix multiplication over the last two dimensions of the input "
           "tensors X and Y.")
       .set_num_inputs(2)
-      .set_num_outputs(1)
+      .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMatMul)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMatMul))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMatMul))

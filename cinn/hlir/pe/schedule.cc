@@ -7,6 +7,12 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+int GetBasicFactor(const Type &type, const common::Target &target) {
+  int target_native_vector_bits = target.get_target_bits() * 8;
+  int type_bits                 = type.bits();
+  return target_native_vector_bits / type_bits;
+}
+
 int GetBetterSplitFactor(int shape, int split_factor) {
   int better_factor = split_factor;
   while (better_factor > shape) {

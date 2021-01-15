@@ -9,10 +9,10 @@ namespace tests {
 std::vector<ir::Tensor> MatmulTester::CreateSpecificStrategy(const std::vector<ir::Tensor> &inputs,
                                                              poly::StageMap *stages) {
   CHECK_EQ(inputs.size(), 2U) << "matmul's input tensor should be 2.\n";
-  std::vector<ir::Tensor> outs;
-  auto out = hlir::pe::Matmul(inputs[0], inputs[1]);
-  outs.push_back(out);
-  (*stages)->InsertLazily(out);
+  std::vector<ir::Tensor> outs = hlir::pe::Matmul(inputs[0], inputs[1]);
+  for (auto &out : outs) {
+    (*stages)->InsertLazily(out);
+  }
   return outs;
 }
 
@@ -20,10 +20,12 @@ std::vector<ir::Tensor> MatmulTester::CreateSpecificStrategy(const std::vector<i
 std::vector<ir::Tensor> MatmulTileTester::CreateSpecificStrategy(const std::vector<ir::Tensor> &inputs,
                                                                  poly::StageMap *stages) {
   CHECK_EQ(inputs.size(), 2U) << "matmul's input tensor should be 2.\n";
-  std::vector<ir::Tensor> outs;
-  auto out = hlir::pe::Matmul(inputs[0], inputs[1]);
-  outs.push_back(out);
-  (*stages)->InsertLazily(out);
+  std::vector<ir::Tensor> outs = hlir::pe::Matmul(inputs[0], inputs[1]);
+  CHECK(!outs.empty());
+  for (auto &out : outs) {
+    (*stages)->InsertLazily(out);
+  }
+  auto out = outs[0];
   (*stages)[out]->Tile(0, 1, 4, 4);
   return outs;
 }
@@ -32,11 +34,12 @@ std::vector<ir::Tensor> MatmulTileTester::CreateSpecificStrategy(const std::vect
 std::vector<ir::Tensor> MatmulSplitTester::CreateSpecificStrategy(const std::vector<ir::Tensor> &inputs,
                                                                   poly::StageMap *stages) {
   CHECK_EQ(inputs.size(), 2U) << "matmul's input tensor should be 2.\n";
-  std::vector<ir::Tensor> outs;
-  auto out = hlir::pe::Matmul(inputs[0], inputs[1]);
-  outs.push_back(out);
-  (*stages)->InsertLazily(out);
-
+  std::vector<ir::Tensor> outs = hlir::pe::Matmul(inputs[0], inputs[1]);
+  CHECK(!outs.empty());
+  for (auto &out : outs) {
+    (*stages)->InsertLazily(out);
+  }
+  auto out              = outs[0];
   auto c_poly_iterators = [&](auto &&... args) {
     std::vector<poly::Iterator> iters;
     (iters.push_back((*stages)[out]->ith_iterator(args)), ...);
@@ -137,8 +140,6 @@ std::vector<ir::Tensor> MatmulArrayPackingTester::CreateSpecificStrategy(const s
 
   Expr bn(32);
 
-  auto C_init = Compute(
-      {Expr(input_shapes_[0][0]), Expr(input_shapes_[1][1])}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto packedB = Compute(
       {Expr(input_shapes_[1][1]) / bn, Expr(input_shapes_[0][1]), bn},
       [&](Expr x, Expr y, Expr z) { return inputs[1](y, x * bn + z); },
@@ -148,11 +149,8 @@ std::vector<ir::Tensor> MatmulArrayPackingTester::CreateSpecificStrategy(const s
       [&](Expr i, Expr j) { return ReduceSum(inputs[0](i, k) * packedB(j / bn, k, j % bn), {k}); },
       "C");
   (*stages)->InsertLazily(C);
-  (*stages)->InsertLazily(C_init);
   (*stages)->InsertLazily(packedB);
 
-  (*stages)[C]->ShareBufferWith((*stages)[C_init]);
-  (*stages)[C]->CtrlDepend(C_init);
   (*stages)[packedB]->Vectorize(2, 8);
 
   {

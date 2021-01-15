@@ -81,11 +81,10 @@ void BindPE(py::module* m) {
          &hlir::pe::Matmul,
          py::arg("tensor_a"),
          py::arg("tensor_b"),
-         py::arg("trans_a"),
-         py::arg("trans_b"),
-         py::arg("x_num_col_dims"),
-         py::arg("y_num_col_dims"),
-         py::arg("out") = "T_Matmul_out");
+         py::arg("trans_a") = false,
+         py::arg("trans_b") = false,
+         py::arg("alpha")   = 1,
+         py::arg("out")     = "T_Matmul_out");
 }
 
 }  // namespace pybind
