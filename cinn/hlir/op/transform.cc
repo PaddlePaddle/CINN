@@ -311,6 +311,11 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     CHECK(out.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
       pe::CudaScheduleMul(stages, out.as_tensor_ref(), output_shapes.back(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      CHECK_EQ(arg_pack.size(), 3UL);
+      Expr reduce_first = arg_pack[1];
+      CHECK(reduce_first.as_tensor());
+      pe::MulScheduleCPU(stages, out.as_tensor_ref(), reduce_first.as_tensor_ref(), target);
     }
     *ret = arg_pack;
   });

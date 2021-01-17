@@ -244,6 +244,10 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   return init_tensor;
 }
 
+ir::Tensor _Tensor_::GetInitTensor(poly::StageMap stages, const Target &target) const {
+  return InitReduction(stages, target);
+}
+
 Expr _Tensor_::tensor_store_expanded_body() {
   CHECK(!is_placeholder_node()) << "placeholder should not expand store";
 

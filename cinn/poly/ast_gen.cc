@@ -1,8 +1,9 @@
 #include "cinn/poly/ast_gen.h"
 
+#include <llvm/Support/FormatVariadic.h>
+
 #include <utility>
 
-#include <llvm/Support/FormatVariadic.h>
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
 
@@ -95,8 +96,8 @@ isl::set TransIdentityExtentToContextId(isl::set set) {
     isl::set new_set(res_set.ctx(), set_repr);
 
     res_set = res_set.intersect(new_set);
-    return res_set;
   }
+  return res_set;
 }
 
 isl::union_set TransIdentityExtentToContextId(isl::union_set set) {

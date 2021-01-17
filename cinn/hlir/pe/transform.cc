@@ -81,7 +81,7 @@ std::vector<Tensor> Matmul(
 int GetMulReduceFactor(int reduce_shape, const Type& type, const common::Target& target) {
   int split_base   = GetBasicFactor(type, target);
   int split_factor = 1;
-  for (size_t i = split_base * 2; i >= 1; --i) {
+  for (size_t i = split_base; i >= 1; --i) {
     if (reduce_shape % i == 0) {
       split_factor = i;
       break;

@@ -250,6 +250,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! Create a buffer belong to this tensor.
   void WithBuffer(const Type& type = Void());
   void WithBuffer(const std::string& memory_type, const Type& type = Void());
+  Tensor GetInitTensor(poly::StageMap stages, const Target& target = common::DefaultHostTarget()) const;
 
  private:
   //! Initialize the axis field after the shape field is assigned.
