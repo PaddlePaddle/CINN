@@ -18,7 +18,7 @@ int GetBetterSplitFactor(int shape, int split_factor) {
   while (better_factor > shape) {
     better_factor /= 2;
   }
-  if (better_factor < shape) return better_factor * 2;
+  if (better_factor < shape && better_factor != split_factor) return better_factor * 2;
   return better_factor;
 }
 
@@ -64,6 +64,36 @@ void CudaScheduleMul(poly::StageMap stages,
   stages[output]->Bind(1, "threadIdx.x");
 
   return;
+}
+
+void MulScheduleCPU(poly::StageMap stages,
+                    const ir::Tensor &output,
+                    const ir::Tensor &reduce_first,
+                    const common::Target &target) {
+  int split_factor                     = GetBasicFactor(output->type(), target);
+  auto out_reduce_axis                 = output->reduce_axis;
+  std::vector<Expr> reduce_first_shape = reduce_first->shape;
+  std::vector<Expr> output_shape       = output->shape;
+  CHECK_EQ(reduce_first_shape.size(), 3U);
+  CHECK_EQ(output_shape.size(), 2U);
+
+  // reduce_first init
+  auto reduce_first_init    = reduce_first->GetInitTensor(stages, target);
+  int reduce_first_init_dim = stages[reduce_first_init]->axis_names().size();
+  stages[reduce_first_init]->ComputeAt2(stages[reduce_first], reduce_first_init_dim - 2);
+  // output init
+  auto out_init    = output->GetInitTensor(stages, target);
+  int out_init_dim = stages[out_init]->axis_names().size();
+  stages[out_init]->ComputeAt2(stages[output], out_init_dim - 1);
+  // reduce_first
+  int reduce_first_dim = stages[reduce_first]->axis_names().size();
+  stages[reduce_first]->Reorder({reduce_first_dim - 1, reduce_first_dim - 2});
+  int reduce_first_last_shape = reduce_first_shape.back().as_int32();
+  // output
+  int out_dims = stages[output]->n_out_dims();
+  if (reduce_first_last_shape > 1) {
+    stages[output]->Unroll(out_dims - 1);
+  }
 }
 
 void CudaScheduleConv(poly::StageMap stages,
