@@ -1,4 +1,5 @@
 #pragma once
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -17,7 +18,8 @@ class DType {
     BOOL = I1,
   };
 
-  explicit constexpr DType(Kind kind) : kind_(kind) {}
+  DType() = default;
+  explicit constexpr DType(Kind kind) : kind_(kind) { assert(IsValid()); }
 
   DType(const DType&) = default;
   DType& operator=(const DType&) = default;
@@ -26,7 +28,8 @@ class DType {
 
   constexpr Kind kind() const { return kind_; }
 
-  bool is_valid() const { return kind_ == Kind::Unk; }
+  bool IsValid() const { return kind_ != Kind::Unk; }
+  bool IsInvalid() const { return !IsValid(); }
 
   const char* name() const;
 

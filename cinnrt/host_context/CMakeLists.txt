@@ -7,7 +7,7 @@ set(srcs
         op_executable.cc
         core_runtime.cc
         tensor_shape.cc
-        dense_tensor.cc
+        dense_host_tensor.cc
         dense_tensor_view.cc
         mlir_to_runtime_translate.cc
         tensor_metadata.cc

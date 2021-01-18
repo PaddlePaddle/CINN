@@ -6,7 +6,7 @@
 
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
-#include "cinnrt/host_context/dense_tensor.h"
+#include "cinnrt/host_context/dense_host_tensor.h"
 #include "cinnrt/host_context/dense_tensor_view.h"
 #include "cinnrt/host_context/tensor_shape.h"
 #include "llvm/ADT/SmallVector.h"
@@ -21,7 +21,7 @@ using ValueVariantType = std::variant<int16_t,
                                       double,
                                       bool,
                                       TensorShape,
-                                      DenseTensor,
+                                      DenseHostTensor,
                                       std::vector<int16_t>,
                                       std::vector<int32_t>,
                                       std::vector<int64_t>,
@@ -47,7 +47,7 @@ class Value : public cinn::common::Object {
   explicit Value(std::vector<float>&& x) : data(x) {}
   explicit Value(std::vector<double>&& x) : data(x) {}
   explicit Value(TensorShape&& x) : data(std::move(x)) {}
-  explicit Value(DenseTensor&& x) : data(std::move(x)) {}
+  explicit Value(DenseHostTensor&& x) : data(std::move(x)) {}
 
   template <typename T>
   const T& get() const {
