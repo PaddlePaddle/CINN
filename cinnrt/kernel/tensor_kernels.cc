@@ -3,7 +3,7 @@
 #include <iostream>
 #include <vector>
 
-#include "cinnrt/host_context/dense_tensor.h"
+#include "cinnrt/host_context/dense_host_tensor.h"
 #include "cinnrt/host_context/dense_tensor_view.h"
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/kernel_utils.h"
@@ -15,16 +15,17 @@ using namespace host_context;  // NOLINT
 /// ===== Kernel begin ====
 
 template <typename T>
-DenseTensor CreateUninitTensor(Attribute<std::vector<int64_t>> shape) {
+DenseHostTensor CreateUninitTensor(Attribute<std::vector<int64_t>> shape) {
   const auto& shape_data = shape.get();
   auto array             = llvm::ArrayRef<int64_t>(shape_data.data(), shape_data.size());
-  return DenseTensor(TensorShape(array), cinn_type_of<T>());
+  auto type              = GetDType<T>();
+  return DenseHostTensor(TensorShape(array), type);
 }
 
-void PrintTensor(const DenseTensor& tensor) { std::cout << tensor << std::endl; }
+void PrintTensor(const DenseHostTensor& tensor) { std::cout << tensor << std::endl; }
 
 template <typename T>
-void FillTensorWithConstant(DenseTensor* tensor, Attribute<T> v) {
+void FillTensorWithConstant(DenseHostTensor* tensor, Attribute<T> v) {
   MutableDTArrayView<T>(tensor).Fill(v.get());
 }
 

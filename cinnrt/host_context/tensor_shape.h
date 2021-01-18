@@ -10,6 +10,7 @@ namespace host_context {
  */
 class TensorShape {
  public:
+  TensorShape() = default;
   explicit TensorShape(llvm::ArrayRef<int64_t> dims);
 
   int GetRank() const;
