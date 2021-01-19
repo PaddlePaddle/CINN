@@ -29,6 +29,8 @@ std::ostream& operator<<(std::ostream& os, const DenseHostTensor& instance) {
   oos << instance.shape();
   oos << ", values=[";
 
+  oos.flush();
+
   if (instance.metadata().dtype == GetDType<float>()) {
     auto* data = reinterpret_cast<float*>(instance.buffer()->data()->memory);
     DisplayArray(os, data, instance.shape().GetNumElements());
