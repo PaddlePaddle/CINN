@@ -2,34 +2,34 @@
 
 #include <glog/logging.h>
 
-#include "cinnrt/host_context/dense_tensor.h"
+#include "cinnrt/host_context/dense_host_tensor.h"
 
 namespace cinnrt::host_context {
 
 template <typename DType>
 class DTArrayView {
  public:
-  using UnderlyingT = DenseTensor;
+  using UnderlyingT = DenseHostTensor;
 
-  explicit DTArrayView(const DenseTensor* tensor) : tensor_(*tensor) {}
+  explicit DTArrayView(const DenseHostTensor* tensor) : tensor_(*tensor) {}
 
   const TensorShape& shape() { return tensor_.shape(); }
 
   size_t GetNumElements() const { return tensor_.shape().GetNumElements(); }
 
-  const DType* data() const { return static_cast<const DType*>(tensor_.data()); }
-  DType* data() { return static_cast<DType*>(tensor_.data()); }
+  const DType* data() const { return static_cast<const DType*>(tensor_.raw_data()); }
+  DType* data() { return static_cast<DType*>(tensor_.raw_data()); }
 
   llvm::ArrayRef<DType> Elements() const { return llvm::ArrayRef<DType>(data(), GetNumElements()); }
 
  private:
-  const DenseTensor& tensor_;
+  const DenseHostTensor& tensor_;
 };
 
 template <typename DType>
 class MutableDTArrayView : public DTArrayView<DType> {
  public:
-  explicit MutableDTArrayView(DenseTensor* tensor) : DTArrayView<DType>(tensor) {}
+  explicit MutableDTArrayView(DenseHostTensor* tensor) : DTArrayView<DType>(tensor) {}
 
   void Fill(const DType& v) { std::fill(this->data(), this->data() + this->GetNumElements(), v); }
 

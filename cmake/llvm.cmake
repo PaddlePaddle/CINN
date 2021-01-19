@@ -2,8 +2,10 @@ if (${CMAKE_CXX_COMPILER} STREQUAL "clang++")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++ -lc++abi")
 endif()
 
-find_package(LLVM REQUIRED CONFIG)
-find_package(MLIR REQUIRED CONFIG)
+message(STATUS "set LLVM_DIR: ${LLVM_DIR}")
+message(STATUS "set MLIR_DIR: ${MLIR_DIR}")
+find_package(LLVM REQUIRED CONFIG HINTS ${LLVM_DIR})
+find_package(MLIR REQUIRED CONFIG HINTS ${MLIR_DIR})
 find_package(ZLIB REQUIRED)
 
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
