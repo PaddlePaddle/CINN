@@ -58,6 +58,7 @@ class DenseHostTensor : public HostTensor {
   ~DenseHostTensor();
 
  private:
+  // TODO(Superjomn) Discard the dependency of the Buffer in cinncore or create a general buffer in common.
   std::shared_ptr<cinn::hlir::framework::Buffer> buffer_;
 };
 
