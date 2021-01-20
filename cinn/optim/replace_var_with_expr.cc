@@ -99,7 +99,9 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
     auto* node   = expr->As<ir::Store>();
     auto* tensor = node->tensor.as_tensor();
     VLOG(2) << "Store 's tensor name is : " << tensor->name;
-    if ((utils::Endswith(tensor->name, "_read_cache") || utils::Endswith(tensor->name, "_cache_write_out")) &&
+    if (tensor->buffer.defined() &&
+        (utils::Endswith(tensor->buffer->name, "_read_cache") ||
+         utils::Endswith(tensor->buffer->name, "_cache_write_out")) &&
         ((*global_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::GPULocal || blockidx_)) {
       ResizeTempMemory(tensor->name);
       bool temp_replace = do_replace;
@@ -118,7 +120,9 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
     auto* node   = op->As<ir::Load>();
     auto* tensor = node->tensor.as_tensor();
     VLOG(2) << "Load's tensor name is : " << tensor->name;
-    if ((utils::Endswith(tensor->name, "_read_cache") || utils::Endswith(tensor->name, "_cache_write_out")) &&
+    if (tensor->buffer.defined() &&
+        (utils::Endswith(tensor->buffer->name, "_read_cache") ||
+         utils::Endswith(tensor->buffer->name, "_cache_write_out")) &&
         ((*global_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::GPULocal || blockidx_)) {
       bool temp_replace = do_replace;
       do_replace        = true;

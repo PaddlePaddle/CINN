@@ -107,6 +107,9 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
       auto* node   = n->safe_as<BufferUFNode>();
       bool is_temp = temp_tensor_names.count(node->tensor_name);
       if (!is_temp) return all_tensor_map.at(node->tensor_name);
+      if (all_tensor_map.at(node->tensor_name)->buffer.defined()) {
+        return all_tensor_map.at(node->tensor_name);
+      }
       some_tensor = all_tensor_map.at(node->tensor_name);
     }
     return some_tensor;
@@ -114,13 +117,18 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
 
   for (auto& cluster : union_find.GetClusters()) {
     auto root_tensor = cluster_get_center_tensor(cluster);
-    if (!root_tensor->buffer.defined() && !root_tensor->type().is_void()) root_tensor->WithBuffer();
+    if (!root_tensor->buffer.defined() && !root_tensor->type().is_void()) {
+      root_tensor->WithBuffer();
+    }
 
     for (auto* n : cluster) {
       auto& tensor = all_tensor_map.at(n->safe_as<BufferUFNode>()->tensor_name);
       if (tensor != root_tensor) {
+        auto keep_shape = root_tensor->buffer->shape;
         Reference(&tensor)->Bind(root_tensor->buffer);
-        VLOG(3) << "tensor " << tensor->name << " bind buffer [" << tensor->buffer->name << "]";
+        root_tensor->buffer->shape        = keep_shape;
+        Reference(&tensor)->buffer->shape = keep_shape;
+        VLOG(3) << "keep_shape is : " << utils::GetStreamCnt(keep_shape[0]);
       }
     }
   }

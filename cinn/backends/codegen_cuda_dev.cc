@@ -224,7 +224,7 @@ void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {
       break;
 
     default:
-      LOG(FATAL) << "CUDA device codegen not support memory type " << buffer->memory_type;
+      LOG(FATAL) << "CUDA device codegen not support memory " << buffer->name << ", type " << buffer->memory_type;
   }
 }
 
