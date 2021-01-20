@@ -303,7 +303,7 @@ std::vector<std::string> GatherItersToTensorProducer(const std::string &target_t
 
     void Visit(const ir::Store *op, Expr *expr) {
       if (op->tensor.as_tensor()->name == target_tensor_name) {
-        CHECK(iters.empty());
+        iters.clear();
         for (auto &e : for_stack) {
           auto *for_n     = e->As<ir::For>();
           auto *polyfor_n = e->As<ir::PolyFor>();

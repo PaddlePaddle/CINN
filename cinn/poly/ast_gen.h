@@ -66,8 +66,12 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr);
  * to a new set with a parameter to force all the axis has a range:
  *  [_const_0] -> { s[i,j]: 0 <= i <= _const_0 and _const_0 < 0+2 and ... }
  */
+// @{
 isl::union_set TransIdentityExtentToContextId(isl::union_set set);
 isl::set TransIdentityExtentToContextId(isl::set set);
+isl::map TransIdentityExtentToContextIdForSchedule(isl::map map);
+isl::union_map TransIdentityExtentToContextIdForSchedule(isl::union_map map);
+// @}
 
 namespace detail {
 

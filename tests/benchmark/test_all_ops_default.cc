@@ -179,7 +179,7 @@ std::vector<std::vector<int>> shapes_mul3 = {{1024, 1024}, {1024, 1024}};
 TEST_DEFAULT(mul, mul3, type1, type1)
 std::vector<std::vector<int>> shapes_mul4 = {{1}, {1}};
 TEST_DEFAULT(mul, mul4, type1, type1)
-std::vector<std::vector<int>> shapes_mul5 = {{1,30}, {1,30}};
+std::vector<std::vector<int>> shapes_mul5 = {{1, 30}, {1, 30}};
 TEST_DEFAULT(mul, mul5, type1, type1)
 
 // batchnorm

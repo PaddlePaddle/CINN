@@ -4,6 +4,7 @@
 
 #include <utility>
 
+#include <regex>
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
 
@@ -100,6 +101,81 @@ isl::set TransIdentityExtentToContextId(isl::set set) {
   return res_set;
 }
 
+/**
+ * Transform the dx dimensions which are constant to isl params
+ */
+isl::map TransIdentityExtentToContextIdForSchedule(isl::map map) {
+  int out_ndims            = isl_map_dim(map.get(), isl_dim_out);
+  isl::map map_affine_hull = map.affine_hull();
+
+  // extract the range as a new set
+  isl::set map_domain = isl::manage(isl_map_domain(map.copy()));
+  // because only set has the isl_set_get_axis_range method, we extract the range as a set.
+  isl::set range_hull_set = map_domain.apply(map.affine_hull());
+  range_hull_set          = isl::manage(isl_set_set_tuple_name(range_hull_set.release(), "C"));
+
+  const std::regex re("t[0-9]+");
+
+  llvm::SmallVector<std::pair<int /*index*/, int /*val*/>, 4> constant_indexes;
+  // traverse each out dim, if the dim's name is like "t0", check if it is a constant.
+  for (int i = 0; i < out_ndims; i++) {
+    std::string dim_name = isl_set_get_dim_name(range_hull_set.get(), isl_dim_set, i);
+    if (std::regex_match(dim_name, re)) {  // t0,t1 is the real dimension in schedule.
+      auto [left, right] = isl_set_get_axis_range(range_hull_set.get(), i);
+      if (right.sub(left).is_zero()) {
+        constant_indexes.emplace_back(i, left.get_num_si());
+      }
+    }
+  }
+
+  // make the constant_index params to isl param
+  isl::map res_map = map;
+  for (auto [index, val] : constant_indexes) {
+    res_map = isl::manage(isl_map_drop_constraints_involving_dims(res_map.release(), isl_dim_out, index, 1));
+
+    std::string const_param_name = llvm::formatv("{0}{1}", kIslParamConstPrefix, val);
+
+    std::string cond_str = llvm::formatv(
+        "{0} <= {1} <= {2}", val, isl_map_get_dim_name(res_map.get(), isl_dim_set, index), const_param_name);
+    std::string param_cond_str = llvm::formatv("{0} <= {1} < {2}", val, const_param_name, val + 2);
+
+    std::string set_repr = llvm::formatv("[{0}] -> { {1}[{2}]: {3} and {4} }",
+                                         const_param_name,
+                                         isl_map_get_tuple_name(res_map.get(), isl_dim_out),
+                                         utils::Join(isl_get_dim_names(res_map, isl_dim_out), ","),
+                                         cond_str,
+                                         param_cond_str);
+
+    VLOG(4) << "repr: " << set_repr;
+
+    isl::set new_set(res_map.ctx(), set_repr);
+
+    res_map = res_map.intersect_range(new_set);
+  }
+
+  return res_map;
+}
+
+isl::union_map TransIdentityExtentToContextIdForSchedule(isl::union_map map) {
+  int n_map      = isl_union_map_n_map(map.get());
+  auto* map_list = isl_union_map_get_map_list(map.get());
+  isl_union_map* res{};
+  for (int i = 0; i < n_map; i++) {
+    isl::map map = isl::manage(isl_map_list_get_at(map_list, i));
+    map          = TransIdentityExtentToContextIdForSchedule(map);
+    if (!res) {
+      res = isl_union_map_from_map(map.release());
+    } else {
+      res = isl_union_map_add_map(res, map.release());
+    }
+  }
+
+  isl_map_list_free(map_list);
+
+  CHECK(res);
+  return isl::manage(res);
+}
+
 isl::union_set TransIdentityExtentToContextId(isl::union_set set) {
   auto* set_list = isl_union_set_get_set_list(set.release());
   llvm::SmallVector<isl::set, 4> sets;
@@ -162,10 +238,12 @@ isl::ast_node AstGen::Build() {
   isl::union_map transformed_schedule = impl_->transform().apply_range(schedule);
   VLOG(4) << "transformed_schedule: " << transformed_schedule;
   auto schedule_domain = transformed_schedule.intersect_domain(new_domain);
+  schedule_domain      = TransIdentityExtentToContextIdForSchedule(schedule_domain);
   VLOG(4) << "domain: " << impl_->domain();
   VLOG(4) << "transform schedule " << impl_->stages()[0]->transform();
   VLOG(4) << "schedule: " << schedule;
   VLOG(4) << "schedule_domain: " << schedule_domain;
+
   auto ast = ast_build.node_from_schedule_map(schedule_domain);
   VLOG(2) << "AST:\n" << isl_ast_node_to_C_str(ast.get());
   return ast;

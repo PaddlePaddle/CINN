@@ -180,7 +180,7 @@ ir::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
 }
 
 ir::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
-  m=n=k_=16;
+  m = n = k_     = 16;
   auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k_));
 
   Placeholder<float> A("A", {M, K});

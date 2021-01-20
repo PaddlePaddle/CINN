@@ -2,6 +2,7 @@
 
 #include <glog/logging.h>
 #include <isl/cpp.h>
+#include <regex>
 
 #include <algorithm>
 
@@ -11,6 +12,8 @@ namespace cinn {
 namespace poly {
 using utils::Join;
 using utils::StringFormat;
+
+const char *kParamPrefix = "_cp_C_";
 
 std::vector<std::string> isl_get_dim_names(const isl::set &x) {
   std::vector<std::string> res;
@@ -196,10 +199,52 @@ isl::union_set isl_union_set_from_sets(llvm::ArrayRef<isl::set> sets) {
   return res;
 }
 
+isl_set *__isl_give IslReplaceConstantParamToInt(isl_set *__isl_keep set) {
+  isl_set *params = isl_set_params(isl_set_copy(set));
+
+  isl::set set_union = isl::manage(isl_set_universe(isl_set_get_space(set)));
+
+  std::regex re("_cp_C_[0-9]+");  // tell whether match
+  int n_params = isl_set_n_param(params);
+  std::vector<std::string> param_reprs, param_cond_reprs;
+  for (int i = 0; i < n_params; i++) {
+    std::string param_name = isl_set_get_dim_name(params, isl_dim_param, i);
+    if (std::regex_match(param_name, re)) {
+      int val = std::stoi(param_name.substr(std::strlen(kParamPrefix)));
+      param_cond_reprs.push_back(utils::StringFormat("%s=%d", param_name.c_str(), val));
+    }
+    param_reprs.push_back(param_name);
+  }
+
+  // construct set tuple repr
+  std::vector<std::string> fields;
+  for (int i = 0; i < isl_set_dim(set, isl_dim_set); i++) {
+    if (isl_set_has_dim_name(set, isl_dim_set, i)) {
+      fields.push_back(isl_set_get_dim_name(set, isl_dim_set, i));
+    } else {
+      fields.push_back(utils::StringFormat("__i_%d", i));
+    }
+  }
+
+  std::string tuple_repr =
+      utils::StringFormat("%s[%s]", isl_set_get_tuple_name(set), utils::Join(fields, ", ").c_str());
+
+  std::string repr               = utils::StringFormat("[%s] -> { %s : %s}",
+                                         utils::Join(param_reprs, ", ").c_str(),  //
+                                         tuple_repr.c_str(),                      //
+                                         utils::Join(param_cond_reprs, " and ").c_str());
+  isl::set param_assigned_domain = isl::set(isl_set_get_ctx(set), repr);
+
+  isl::set res = isl::manage(isl_set_intersect(param_assigned_domain.release(), isl_set_copy(set)));
+
+  return res.copy();
+}
+
 std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
-  CHECK(isl_set_dim_is_bounded(set, isl_dim_set, pos)) << "an unbound cannot get range, " << isl_set_to_str(set);
-  // CHECK(isl_set_axis_has_noparam_constant_bound(set, pos))
-  //<< isl_set_to_str(set) << " " << pos << "-th dim involves param";
+  set = IslReplaceConstantParamToInt(set);
+  if (!isl_set_dim_is_bounded(set, isl_dim_set, pos)) {
+    return std::make_tuple(isl::val::infty(isl_set_get_ctx(set)), isl::val::infty(isl_set_get_ctx(set)));
+  }
 
   std::vector<std::string> from_iters;
   std::string target_axis_name;
@@ -213,15 +258,16 @@ std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
     if (pos == i) target_axis_name = from_iters.back();
   }
 
-  isl::aff aff(isl_set_get_ctx(set),
-               utils::StringFormat("{ %s[%s] -> [%s] }",
-                                   isl_set_get_tuple_name(set),           // tuple
-                                   utils::Join(from_iters, ",").c_str(),  // [...]
-                                   target_axis_name.c_str()));
+  std::string tpl = utils::StringFormat("{ %s[%s] -> [%s] }",
+                                        isl_set_get_tuple_name(set),           // tuple
+                                        utils::Join(from_iters, ",").c_str(),  // [...]
+                                        target_axis_name.c_str());
+  isl::aff aff(isl_set_get_ctx(set), tpl);
 
   isl::val max_val = isl::manage(isl_set_max_val(set, aff.get()));
   isl::val min_val = isl::manage(isl_set_min_val(set, aff.get()));
 
+  isl_set_free(set);
   return std::make_tuple(min_val, max_val);
 }
 
