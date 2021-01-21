@@ -155,7 +155,11 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     new_A = tensor_A->Reshape(new_shape_A_e, stages);
     new_B = tensor_B->Reshape(new_shape_B_e, stages);
     std::vector<ir::Tensor> out;
-    out = pe::Matmul(new_A, new_B, trans_a, trans_b, alpha, UniqName("Matmul_output"));
+    if (target.arch == Target::Arch::X86) {
+      out = pe::MatmulV2(new_A, new_B, trans_a, trans_b, alpha, UniqName("MatmulV2_output"), target);
+    } else {
+      out = pe::Matmul(new_A, new_B, trans_a, trans_b, alpha, UniqName("Matmul_output"));
+    }
     std::vector<CINNValue> res;
     for (auto &t : out) {
       stages->InsertLazily(t);
@@ -171,13 +175,20 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     int arg_size           = arg_pack.size();
     CHECK(arg_size == 2UL || arg_size == 3UL || arg_size == 4UL);
-    Expr out              = arg_pack[0];
     poly::StageMap stages = arg_pack.back();
-    CHECK(out.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
+      Expr out = arg_pack[0];
+      CHECK(out.as_tensor());
       stages[out.as_tensor_ref()]->Split(1, 2);
       stages[out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+    } else if (target.arch == Target::Arch::X86) {
+      CHECK(arg_pack.size() == 3UL || arg_pack.size() == 4UL);
+      Expr packedB  = arg_pack[arg_size - 2];
+      Expr temp_out = arg_pack[arg_size - 3];
+      CHECK(packedB.as_tensor());
+      CHECK(temp_out.as_tensor());
+      pe::MatmulScheduleCPU(stages, temp_out.as_tensor_ref(), packedB.as_tensor_ref(), target);
     }
     *ret = arg_pack;
   });
@@ -208,13 +219,27 @@ std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<
   }
   GetMatmulNewShapes(inputs_shape, trans_a, trans_b, &new_shape_A, &new_shape_B, &output_shape);
   CHECK(!output_shape.empty()) << "infer_shape for matmul turns out to be empty. Please check\n";
-  std::vector<std::vector<int>> res{output_shape, output_shape};
+  std::vector<int> packedB_shape;
+  int shape_B_size = new_shape_B.size();
+  CHECK_GE(new_shape_A.size(), 2U) << "new_shape_A's size should be more than two";
+  CHECK_GE(new_shape_B.size(), 2U) << "new_shape_B's size should be more than two";
+  CHECK_GE(output_shape.size(), 2U) << "output shape for matmul should be more than two";
+  int k  = new_shape_A.back();
+  int n  = output_shape.back();
+  int bn = pe::GetArrayPackingFactor(n, Float(32), common::DefaultHostTarget());
+
+  packedB_shape = {n / bn, k, bn};
+  if (output_shape.size() > 2) {
+    CHECK_EQ(new_shape_A.size(), output_shape.size());
+    packedB_shape.insert(packedB_shape.begin(), new_shape_A.front());
+  }
+  std::vector<std::vector<int>> res{output_shape, output_shape, packedB_shape};
   return res;
 }
 
 std::vector<Type> InferDtypeForMatMul(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0], inputs_type[0]};
+  std::vector<Type> res{inputs_type[0], inputs_type[0], inputs_type[0]};
   return res;
 }
 
@@ -462,7 +487,7 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
                                      << "]! Please Check!";
   output_shape = {flatten_shape_A, flatten_shape_B};
 
-  int reduce_factor           = pe::GetMulReduceFactor(check_dim_x, Float(32), common::DefaultHostTarget());
+  int reduce_factor           = pe::GetMulFactor(check_dim_x, Float(32), common::DefaultHostTarget());
   std::vector<int> temp_shape = {flatten_shape_A, flatten_shape_B, reduce_factor};
 
   std::vector<std::vector<int>> res{output_shape, temp_shape};
@@ -534,7 +559,7 @@ CINN_REGISTER_HELPER(transform_ops) {
           "This operator is used to perform (batched) matrix multiplication over the last two dimensions of the input "
           "tensors X and Y.")
       .set_num_inputs(2)
-      .set_num_outputs(2)
+      .set_num_outputs(3)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMatMul)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMatMul))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMatMul))

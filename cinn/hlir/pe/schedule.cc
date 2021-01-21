@@ -1,7 +1,12 @@
 #include "cinn/hlir/pe/schedule.h"
 
+#include <isl/cpp.h>
+
 #include <functional>
 #include <numeric>
+#include <utility>
+
+#include "cinn/poly/isl_utils.h"
 
 namespace cinn {
 namespace hlir {
@@ -64,6 +69,126 @@ void CudaScheduleMul(poly::StageMap stages,
   stages[output]->Bind(1, "threadIdx.x");
 
   return;
+}
+
+int GetArrayPackingFactor(int shape, const Type &type, const common::Target &target) {
+  int split_base   = GetBasicFactor(type, target);
+  int split_factor = 1;
+  // temporily use shape-1 instead of shape for isl wrong for1 elimination
+  int i = split_base * split_base < shape ? split_base * split_base : shape;
+  for (; i > 1; i--) {
+    if (shape % i == 0) {
+      split_factor = i;
+      break;
+    }
+  }
+  return split_factor;
+}
+
+void MatmulScheduleCPU(poly::StageMap stages,
+                       const ir::Tensor &output,
+                       const ir::Tensor &packedB,
+                       const common::Target &target) {
+  CHECK_EQ(output->type(), packedB->type());
+  int basic_split_factor = GetBasicFactor(packedB->type(), target);
+  // packedB
+  int packedB_dims         = stages[packedB]->axis_names().size();
+  int packed_last_dim      = packedB->shape[packedB_dims - 1].as_int32();
+  int packedB_split_factor = GetBetterSplitFactor(packed_last_dim, basic_split_factor);
+  // tempory solution for indivisible case
+  if (packedB_split_factor >= 8 && packed_last_dim % packedB_split_factor == 0) {
+    stages[packedB]->Vectorize(packedB_dims - 1, packedB_split_factor);
+  }
+  // output
+  int output_size = output->shape.size();
+  // M, N
+  int M             = output->shape[output_size - 2].as_int32();
+  int N             = output->shape[output_size - 1].as_int32();
+  int bm            = GetArrayPackingFactor(M, output->type(), target);
+  int bn            = GetArrayPackingFactor(N, output->type(), target);
+  int out_axis_dims = stages[output]->axis_names().size();
+  CHECK_GE(out_axis_dims, 3U) << "output tensor's size should be at least 3";
+  poly::Iterator i_axis = stages[output]->axis(out_axis_dims - 3);
+  poly::Iterator j_axis = stages[output]->axis(out_axis_dims - 2);
+  poly::Iterator i_outer, i_inner, j_outer, j_inner;
+  std::vector<poly::Iterator> i_axes, j_axes, k_axes;
+  std::vector<poly::Iterator> all_axes;
+  std::vector<poly::Iterator> all_axes_outer;
+  std::vector<poly::Iterator> all_axes_inner;
+  bool is_m_splited = false;
+  bool is_n_splited = false;
+  // tempory solution for isl for1 wrong elimination
+  if (bm >= 4 && M != bm) {
+    auto axes = stages[output]->Split(i_axis, bm);
+    all_axes_outer.push_back(std::get<0>(axes));
+    all_axes_inner.push_back(std::get<1>(axes));
+    is_m_splited = true;
+  } else {
+    all_axes_outer.push_back(i_axis);
+  }
+  out_axis_dims = stages[output]->axis_names().size();
+  // temp solution for isl for1 wrong elimination
+  if (bn >= 4 && N != bn) {
+    auto axes = stages[output]->Split(j_axis, bn);
+    all_axes_outer.push_back(std::get<0>(axes));
+    all_axes_inner.push_back(std::get<1>(axes));
+    is_n_splited = true;
+  } else {
+    all_axes_outer.push_back(j_axis);
+  }
+  // K
+  int K              = packedB->shape[packedB->shape.size() - 2].as_int32();
+  int k_split_factor = GetBetterSplitFactor(K, basic_split_factor);
+  out_axis_dims      = stages[output]->axis_names().size();
+  auto k_axis        = stages[output]->axis(out_axis_dims - 1);
+  bool is_k_splited  = false;
+  if (k_split_factor >= 4) {
+    auto axes = stages[output]->Split(k_axis, k_split_factor);
+    k_axes.push_back(std::get<0>(axes));
+    k_axes.push_back(std::get<1>(axes));
+    all_axes_outer.push_back(std::get<0>(axes));
+    all_axes_inner.push_back(std::get<1>(axes));
+    is_k_splited = true;
+  } else {
+    all_axes_outer.push_back(k_axis);
+  }
+  std::vector<poly::Iterator> new_order;
+  out_axis_dims = stages[output]->axis_names().size();
+  if (output_size > 2) {
+    // batch
+    all_axes.push_back(stages[output]->axis(0));
+  }
+  for (int i = 0; i < all_axes_outer.size(); ++i) {
+    all_axes.push_back(all_axes_outer[i]);
+  }
+  for (int i = 0; i < all_axes_inner.size(); ++i) {
+    all_axes.push_back(all_axes_inner[i]);
+  }
+  // int axies
+  CHECK_EQ(all_axes.size(), out_axis_dims);
+  if (is_k_splited) {
+    if (is_m_splited || is_n_splited) {
+      // swap k_inner and j_inner/i_inner
+      std::swap(all_axes[out_axis_dims - 1], all_axes[out_axis_dims - 2]);
+    } else {
+      // swap k_inner and j
+      std::swap(all_axes[out_axis_dims - 1], all_axes[out_axis_dims - 3]);
+    }
+  } else {
+    // swap k and j
+    std::swap(all_axes[out_axis_dims - 1], all_axes[out_axis_dims - 2]);
+  }
+  stages[output]->Reorder(all_axes);
+  // vectorize output's last dimemsion
+  auto out_domain = stages[output]->transformed_domain();
+  auto [min, max] = poly::isl_set_get_axis_range(out_domain.get(), out_axis_dims - 1);
+  CHECK_EQ(min.get_num_si(), 0) << "axis range should begin from zero";
+  int out_last_dim        = max.get_num_si() + 1;
+  int output_split_factor = GetBetterSplitFactor(out_last_dim, basic_split_factor);
+  // tempory solution for indivisible case
+  if (output_split_factor >= 8 && packed_last_dim % output_split_factor == 0) {
+    stages[output]->Vectorize(out_axis_dims - 1, output_split_factor);
+  }
 }
 
 void MulScheduleCPU(poly::StageMap stages,
