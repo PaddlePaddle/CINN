@@ -1285,7 +1285,7 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
   return Mod::Make(a, b);
 }
 
-Expr CasSimplifyMutator::SimplifyCmp(Expr u) {
+Expr CasSimplifyMutator::SimplifyMinOrMax(Expr u) {
   // simplify min/max
   auto* u_max = u.As<Max>();
   auto* u_min = u.As<Min>();
@@ -1388,7 +1388,7 @@ Expr CasSimplifyMutator::SimplifySpecificSum(Expr tmp) {
 
 Expr CasSimplifyMutator::operator()(Expr u) {
   if (u.As<Min>() || u.As<Max>()) {
-    return SimplifyCmp(u);
+    return SimplifyMinOrMax(u);
   }
 
   u = detail::SumOrProductGetSingleElementsRec(u);

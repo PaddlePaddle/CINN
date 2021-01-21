@@ -75,7 +75,7 @@ struct CasSimplifyMutator {
   Expr SimplifyPower(Expr u);
   Expr SimplifySum(Expr u);
   Expr SimplifyProduct(Expr a);
-  Expr SimplifyCmp(Expr a);
+  Expr SimplifyMinOrMax(Expr u);
   std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& operands);
   std::vector<Expr> SimplifySumRec(const std::vector<Expr>& operands);
   Expr SimplifyMod(Expr u);
