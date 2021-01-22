@@ -221,9 +221,9 @@ std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<
   CHECK(!output_shape.empty()) << "infer_shape for matmul turns out to be empty. Please check\n";
   std::vector<int> packedB_shape;
   int shape_B_size = new_shape_B.size();
-  CHECK_GE(new_shape_A.size(), 2U) << "new_shape_A's size should be more than two";
-  CHECK_GE(new_shape_B.size(), 2U) << "new_shape_B's size should be more than two";
-  CHECK_GE(output_shape.size(), 2U) << "output shape for matmul should be more than two";
+  CHECK_GE(new_shape_A.size(), 2U) << "new_shape_A's size should be no less than two";
+  CHECK_GE(new_shape_B.size(), 2U) << "new_shape_B's size should be no less than two";
+  CHECK_GE(output_shape.size(), 2U) << "output shape for matmul should be no less than two";
   int k  = new_shape_A.back();
   int n  = output_shape.back();
   int bn = pe::GetArrayPackingFactor(n, Float(32), common::DefaultHostTarget());
