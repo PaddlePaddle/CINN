@@ -42,7 +42,6 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   RemoveGpuForloopsAxis(&copied);
   CudaSyncThreadsDropIfThenElse(&copied);
 #endif
-  // CacheReadWriteReplace(&copied);
 
   RemoveNestedBlock(&copied);
 
@@ -60,6 +59,8 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
     LOG(WARNING) << "Turn on runtime debug information output";
     InsertDebugLogCallee(&copied);
   }
+
+  Simplify(&copied);
   return copied;
 }
 

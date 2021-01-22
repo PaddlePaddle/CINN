@@ -19,6 +19,9 @@
 namespace cinn {
 namespace poly {
 
+// constant parameter defined in ISL.
+static const char* kIslConstParamPrefix = "_cp_C_";
+
 static const char* kIslParamConstPrefix = "_const_";
 
 /**
@@ -72,6 +75,11 @@ isl::set TransIdentityExtentToContextId(isl::set set);
 isl::map TransIdentityExtentToContextIdForSchedule(isl::map map);
 isl::union_map TransIdentityExtentToContextIdForSchedule(isl::union_map map);
 // @}
+
+//! Tell if the string \param s is a constant param such as _cp_C_0.
+bool IsIslConstantParam(const std::string& s);
+//! get 0 from _cp_C_0.
+int IslConstantParamGetId(const std::string& s);
 
 namespace detail {
 

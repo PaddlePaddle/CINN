@@ -24,6 +24,7 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   lower_intrin.cc
   cast_bool_to_int8.cc
   simplify_identity_domain_forloop.cc
+  process_isl_param_in_expr.cc
   )
 
 if (WITH_CUDA)

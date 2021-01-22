@@ -585,5 +585,15 @@ bool AstGen::ContainsStatement(const std::string& name) const { return impl_->tr
 
 AstGen::~AstGen() {}
 
+bool IsIslConstantParam(const std::string& s) {
+  static std::regex re(std::string(kIslParamConstPrefix) + "[0-9]+");
+  return std::regex_match(s, re);
+}
+
+int IslConstantParamGetId(const std::string& s) {
+  CHECK(IsIslConstantParam(s)) << s << " is not a Isl constant param";
+  return std::stoi(s.substr(strlen(kIslParamConstPrefix)));
+}
+
 }  // namespace poly
 }  // namespace cinn

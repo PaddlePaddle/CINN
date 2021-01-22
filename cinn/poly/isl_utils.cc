@@ -6,14 +6,13 @@
 
 #include <algorithm>
 
+#include "cinn/poly/ast_gen.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
 namespace poly {
 using utils::Join;
 using utils::StringFormat;
-
-const char *kParamPrefix = "_cp_C_";
 
 std::vector<std::string> isl_get_dim_names(const isl::set &x) {
   std::vector<std::string> res;
@@ -210,7 +209,7 @@ isl_set *__isl_give IslReplaceConstantParamToInt(isl_set *__isl_keep set) {
   for (int i = 0; i < n_params; i++) {
     std::string param_name = isl_set_get_dim_name(params, isl_dim_param, i);
     if (std::regex_match(param_name, re)) {
-      int val = std::stoi(param_name.substr(std::strlen(kParamPrefix)));
+      int val = std::stoi(param_name.substr(std::strlen(kIslConstParamPrefix)));
       param_cond_reprs.push_back(utils::StringFormat("%s=%d", param_name.c_str(), val));
     }
     param_reprs.push_back(param_name);
