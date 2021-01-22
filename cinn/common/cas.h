@@ -80,6 +80,8 @@ struct CasSimplifyMutator {
   std::vector<Expr> SimplifySumRec(const std::vector<Expr>& operands);
   Expr SimplifyMod(Expr u);
   Expr SimplifyFracOp(Expr expr);
+  Expr SimplifyCmp(Expr u);
+  Expr SimplifyCond(Expr u);
   Expr FurtherSimplifyFracWithInterval(Expr expr, const std::unordered_map<std::string, CasInterval>& var_intervals);
   Expr SimplifyIntegerPower(Expr u);
   void AddBaseAndSimplify(Expr* base, Expr bound);
