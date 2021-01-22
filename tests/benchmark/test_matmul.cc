@@ -174,7 +174,7 @@ TEST(test_matmul, default) {
   hlir::framework::NodeAttr attrs;
   MatmulTester matmul_tester(op_name, input_shapes);
   std::vector<Type> input_types{Float(32), Float(32)};
-  std::vector<Type> output_types{Float(32)};
+  std::vector<Type> output_types{Float(32), Float(32)};
   auto input_tensors = matmul_tester.CreateInputTensors<float>();
   matmul_tester.TestOp("matmul_default", input_tensors, attrs, input_types, output_types);
 }

@@ -189,17 +189,13 @@ ir::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
 
   Expr bn(32);
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
   auto C = Compute(
       {M, N}, [&](Expr i, Expr j) { return ReduceSum(A(i, k) * packedB(j / bn, k, j % bn), {k}); }, "C");
 
-  auto stages = CreateStages({C_init, C});
+  auto stages = CreateStages({C});
 
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
   stages[packedB]->Vectorize(2, 8);
 
   {

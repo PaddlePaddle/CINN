@@ -1603,6 +1603,18 @@ Expr ConvertCasToCinn(Expr expr) {
       Visit(expr);
     }
 
+    void Visit(const FracOp* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
+      CHECK(!is_zero(b)) << "Dividend should not be zero";
+      *expr = Div::Make(a, b);
+      Visit(expr);
+    }
+
     // a * b^-1 -> a/b
     void Visit(const Mul* op, Expr* expr) override {
       auto a = op->a();
