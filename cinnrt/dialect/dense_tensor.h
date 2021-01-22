@@ -29,9 +29,9 @@ public:
   using Base::Base;
   static TensorType get(TargetType target, LayoutType layout, PrecisionType precision);
 
-  TargetType getTarget();
-  LayoutType getLayout();
-  PrecisionType getPrecision();
+  TargetType target();
+  LayoutType layout();
+  PrecisionType precision();
 };
 
 raw_ostream &operator<<(raw_ostream &os, TensorType tensorType);

@@ -51,11 +51,11 @@ void CINNDialect::printType(mlir::Type type, mlir::DialectAsmPrinter &printer) c
   if (type.isa<cinnrt::dt::TensorType>()) {
     auto tensorType = type.cast<cinnrt::dt::TensorType>();
     printer << "tensor<"
-        << tensorType.getTarget()
+        << tensorType.target()
         << ", "
-        << tensorType.getLayout()
+        << tensorType.layout()
         << ", "
-        << tensorType.getPrecision()
+        << tensorType.precision()
         << ">";
     return;
   }

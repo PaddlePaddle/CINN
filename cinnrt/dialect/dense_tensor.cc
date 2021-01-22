@@ -77,23 +77,23 @@ TensorType TensorType::get(TargetType target, LayoutType layout, PrecisionType p
     return Base::get(::cinnrt::Global::getMLIRContext(), target, layout, precision);
 }
 
-TargetType TensorType::getTarget() {
+TargetType TensorType::target() {
     return getImpl()->_target;
 }
 
-LayoutType TensorType::getLayout() {
+LayoutType TensorType::layout() {
     return getImpl()->_layout;
 }
 
-PrecisionType TensorType::getPrecision() {
+PrecisionType TensorType::precision() {
     return getImpl()->_precision;
 }
 
 raw_ostream &operator<<(raw_ostream &os, TensorType tensorType) {
   os << "TensorType<"
-     << tensorType.getTarget() << ", "
-     << tensorType.getLayout() << ", "
-     << tensorType.getPrecision() << ">";
+     << tensorType.target() << ", "
+     << tensorType.layout() << ", "
+     << tensorType.precision() << ">";
   return os;
 }
 
