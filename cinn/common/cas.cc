@@ -1285,7 +1285,7 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
   return Mod::Make(a, b);
 }
 
-Expr CasSimplifyMutator::SimplifyCmp(Expr u) {
+Expr CasSimplifyMutator::SimplifyMinAndMax(Expr u) {
   // simplify min/max
   auto* u_max = u.As<Max>();
   auto* u_min = u.As<Min>();

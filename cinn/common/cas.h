@@ -75,12 +75,12 @@ struct CasSimplifyMutator {
   Expr SimplifyPower(Expr u);
   Expr SimplifySum(Expr u);
   Expr SimplifyProduct(Expr a);
+  Expr SimplifyMinAndMax(Expr a);
   Expr SimplifyCmp(Expr a);
   std::vector<Expr> SimplifyProductRec(const std::vector<Expr>& operands);
   std::vector<Expr> SimplifySumRec(const std::vector<Expr>& operands);
   Expr SimplifyMod(Expr u);
   Expr SimplifyFracOp(Expr expr);
-  Expr SimplifyCmp(Expr u);
   Expr SimplifyCond(Expr u);
   Expr FurtherSimplifyFracWithInterval(Expr expr, const std::unordered_map<std::string, CasInterval>& var_intervals);
   Expr SimplifyIntegerPower(Expr u);
