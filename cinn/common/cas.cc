@@ -2025,7 +2025,6 @@ Expr CasSimplifyMutator::SimplifyCond(Expr u) {
           // Not Not v = v
         case ir::IrNodeTy::Not:
           return v;
-          break;
           // Not <= is >
         case ir::IrNodeTy::LE:
           return ir::GT::Make(v->operand(0), v->operand(1));
