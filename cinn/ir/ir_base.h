@@ -130,6 +130,9 @@ class IrNode : public common::Object {
   virtual Type type() const { return type_; }
   void set_type(Type type) { type_ = type; }
 
+  //! Get i-th operand
+  const Expr& operand(int i);
+
   //! Gather all the expression fields in this node for easier visit and mutate.
   virtual std::vector<Expr*> expr_fields() { return {}; }
   virtual std::vector<const Expr*> expr_fields() const { return {}; }
@@ -310,6 +313,9 @@ struct Expr : public IrNodeRef {
 
   bool is_constant() const;
   double get_constant() const;
+
+  //! Tell if this is a compare op.
+  bool is_cmp() const;
 
   bool is_var() const;
 
