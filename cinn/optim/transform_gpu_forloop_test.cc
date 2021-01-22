@@ -44,15 +44,9 @@ TEST(TransformGpuForloops, basic) {
 function elementwise_add (_A, _B, _C)
 {
   if ((blockIdx.x < 10)) {
-    {
-      if ((threadIdx.x < 10)) {
-        {
-          if ((threadIdx.y < 200)) {
-            {
-              C[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] = (A[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] * B[((10 * blockIdx.x) + threadIdx.x), threadIdx.y])
-            }
-          }
-        }
+    if ((threadIdx.x < 10)) {
+      if ((threadIdx.y < 200)) {
+        C[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] = (A[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] * B[((10 * blockIdx.x) + threadIdx.x), threadIdx.y])
       }
     }
   }
@@ -94,25 +88,15 @@ TEST(TransformGpuForloops, multiple_thread_axis) {
 function elementwise_add (_A, _B, _C, _D)
 {
   if ((blockIdx.x < 10)) {
-    {
-      if ((threadIdx.x < 10)) {
-        {
-          if ((threadIdx.y < 200)) {
-            {
-              C[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] = (A[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] * B[((10 * blockIdx.x) + threadIdx.x), threadIdx.y])
-            }
-          }
-        }
+    if ((threadIdx.x < 10)) {
+      if ((threadIdx.y < 200)) {
+        C[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] = (A[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] * B[((10 * blockIdx.x) + threadIdx.x), threadIdx.y])
       }
     }
   }
   if ((blockIdx.x < 100)) {
-    {
-      if ((threadIdx.x < 200)) {
-        {
-          D[blockIdx.x, threadIdx.x] = (C[blockIdx.x, threadIdx.x] + A[blockIdx.x, threadIdx.x])
-        }
-      }
+    if ((threadIdx.x < 200)) {
+      D[blockIdx.x, threadIdx.x] = (C[blockIdx.x, threadIdx.x] + A[blockIdx.x, threadIdx.x])
     }
   }
 }

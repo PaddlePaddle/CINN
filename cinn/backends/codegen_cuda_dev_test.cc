@@ -160,19 +160,15 @@ void elementwise_add3(const float* __restrict__ X, const float* __restrict__ Y, 
   if ((blockIdx.x < 10)) {
   {
     if ((threadIdx.x < 10)) {
-    {
       for (int32_t j = 0; j < 200; j += 1) {
         Y_read_cache[j] = Y[((2000 * blockIdx.x) + ((200 * threadIdx.x) + j))];
       };
-    }
     };
     __syncthreads();
     if ((threadIdx.x < 10)) {
-    {
       for (int32_t j = 0; j < 200; j += 1) {
         C[((2000 * blockIdx.x) + ((200 * threadIdx.x) + j))] = (X[((2000 * blockIdx.x) + ((200 * threadIdx.x) + j))] * Y_read_cache[j]);
       };
-    }
     };
   }
   };
@@ -263,23 +259,15 @@ void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, f
   float _B_read_cache [ ((1 * (((1 * 100) * 200) / 100)) / 200) ];
   float* B_read_cache = _B_read_cache;
   if ((blockIdx.x < 100)) {
-  {
     if ((threadIdx.x < 200)) {
-    {
       B_read_cache[0] = B[((200 * blockIdx.x) + threadIdx.x)];
-    }
     };
-  }
   };
   __syncthreads();
   if ((blockIdx.x < 100)) {
-  {
     if ((threadIdx.x < 200)) {
-    {
       C[((200 * blockIdx.x) + threadIdx.x)] = (A[((200 * blockIdx.x) + threadIdx.x)] * B_read_cache[0]);
-    }
     };
-  }
   };
 }
 
