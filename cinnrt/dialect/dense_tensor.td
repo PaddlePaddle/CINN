@@ -30,8 +30,8 @@ class CreateUninitTensorOp<string dtype>
   let arguments = (ins);  // no input arguments but a attribute
   let results = (outs TensorType);
 
+  let parser  = [{ return cinnrt::dt::parseCreateUninitTensorOp(parser, result); }];
   let printer = [{ return cinnrt::dt::printCreateUninitTensorOp(p, *this); }];
-  let parser = " return cinnrt::dt::parseCreateUninitTensorOp(parser, result);";
 }
 
 class FillTensorWithConstantOp<string dtype> :
@@ -45,8 +45,8 @@ class FillTensorWithConstantOp<string dtype> :
   let arguments = (ins TensorType);
   let results = (outs);
 
+  let parser  = [{ return cinnrt::dt::parseFillTensorWithConstantOp(parser, result); }];
   let printer = [{ return cinnrt::dt::printFillTensorWithConstantOp(p, *this); }];
-  let parser = " return cinnrt::dt::parseFillTensorWithConstantOp(parser, result);";
 }
 
 def PrintTensorOp : DT_Op<"print_tensor"> {
@@ -56,9 +56,9 @@ def PrintTensorOp : DT_Op<"print_tensor"> {
     An operation that prints a tensor.
   }];
 
-  let arguments = (ins TensorType);
+  let arguments = (ins TensorType:$input);
   let results = (outs);
-  let assemblyFormat = "operands attr-dict";
+  let assemblyFormat = "$input attr-dict `:` type($input)";
 }
 
 class SetTensorOp<string dtype> :
@@ -72,8 +72,8 @@ class SetTensorOp<string dtype> :
   let arguments = (ins TensorType);
   let results = (outs);
 
+  let parser  = [{ return cinnrt::dt::parseSetTensorOp(parser, result); }];
   let printer = [{ return cinnrt::dt::printSetTensorOp(p, *this); }];
-  let parser = " return cinnrt::dt::parseSetTensorOp(parser, result);";
 }
 
 def GetTensorShapeOp : DT_Op<"get_tensor_shape", [NoSideEffect]> {
@@ -83,9 +83,9 @@ def GetTensorShapeOp : DT_Op<"get_tensor_shape", [NoSideEffect]> {
       An operation that returns the shape of the input tensor.
   }];
 
-  let arguments = (ins TensorType);
-  let results = (outs TS_Shape);
-  let assemblyFormat = "operands attr-dict";
+  let arguments = (ins TensorType:$input);
+  let results = (outs TS_Shape:$output);
+  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
 }
 
 foreach dtype = ["ui8", "ui16", "ui32", "ui64", "i32", "f32", "f64", "i64"] in {

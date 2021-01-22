@@ -3,9 +3,13 @@
 #include <mlir/Support/MlirOptMain.h>
 
 #include "cinnrt/dialect/init_cinn_dialects.h"
+#include "cinnrt/common/global.h"
 
 int main(int argc, char** argv) {
-  mlir::DialectRegistry registry;
+  mlir::MLIRContext *context = cinnrt::Global::getMLIRContext();
+  context->allowUnregisteredDialects();
+  auto &registry = context->getDialectRegistry();
   cinnrt::RegisterCinnDialects(registry);
-  return mlir::failed(mlir::MlirOptMain(argc, argv, "CINN", registry, true));
+  //context->getOrLoadDialect<test::TestDialect>();
+  return mlir::failed(mlir::MlirOptMain(argc, argv, "CINN mlir pass driver", registry, true));
 }

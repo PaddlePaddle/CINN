@@ -24,6 +24,9 @@ mlir_tablegen_on(pd_ops)
 add_executable(cinn-opt opt.cc)
 target_link_libraries(cinn-opt cinncore ${mlir_libs})
 add_dependencies(cinn-opt pd_ops_inc)
+add_executable(print-ir print_ir.cc)
+target_link_libraries(print-ir cinncore ${mlir_libs})
+add_dependencies(print-ir pd_ops_inc)
 
 
 # MLIR opt tests
