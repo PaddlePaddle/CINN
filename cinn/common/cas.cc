@@ -2063,7 +2063,7 @@ Expr CasSimplifyMutator::SimplifyCond(Expr u) {
           if (a.As<ir::IntImm>()) {
             return a.As<ir::IntImm>()->value ? a : b;
           }
-          // a || 1 is a
+          // a || 1 is 1
           if (b.As<ir::IntImm>()) {
             return b.As<ir::IntImm>()->value ? b : a;
           }
@@ -2072,11 +2072,10 @@ Expr CasSimplifyMutator::SimplifyCond(Expr u) {
       }
 
       return u;
-    } break;
+    }
 
     default:
       return u;
-      break;
   }
 }
 
