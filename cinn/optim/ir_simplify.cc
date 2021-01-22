@@ -192,7 +192,7 @@ struct SimplifyIfThenElseMutator : public ir::IRMutator<> {
   using ir::IRMutator<>::Visit;
 
   void Visit(const IfThenElse* op, Expr* expr) override {
-    auto* node = expr->As<ir::IfThenElse>();
+    auto* node      = expr->As<ir::IfThenElse>();
     node->condition = common::AutoSimplify(node->condition);
 
     if (node->true_case.defined()) Visit(&node->true_case, &node->true_case);

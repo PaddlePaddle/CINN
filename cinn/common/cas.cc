@@ -1412,7 +1412,7 @@ Expr CasSimplifyMutator::SimplifySpecificSum(Expr tmp) {
 
 Expr CasSimplifyMutator::operator()(Expr u) {
   if (u.As<Min>() || u.As<Max>()) {
-    return SimplifyCmp(u);
+    return SimplifyMinAndMax(u);
   }
 
   u = detail::SumOrProductGetSingleElementsRec(u);
