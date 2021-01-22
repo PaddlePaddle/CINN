@@ -55,22 +55,22 @@ namespace detail {
   };
 } // namespace detail
 
-TargetType getTargetType(mlir::StringRef key) {
+llvm::Optional<TargetType> GetTargetType(mlir::StringRef key) {
   if (key.equals_lower("x86")) return TargetType::X86;
   else if (key.equals_lower("cuda")) return TargetType::CUDA;
-  else return TargetType::Unsupported;
+  else return llvm::None;
 }
 
-LayoutType getLayoutType(mlir::StringRef key) {
+llvm::Optional<LayoutType> GetLayoutType(mlir::StringRef key) {
   if (key.equals_lower("nchw")) return LayoutType::NCHW;
   else if (key.equals_lower("nhwc")) return LayoutType::NHWC;
-  else return LayoutType::Unsupported;
+  else return llvm::None;
 }
 
-PrecisionType getPrecisionType(mlir::StringRef key) {
+llvm::Optional<PrecisionType> GetPrecisionType(mlir::StringRef key) {
   if (key.equals_lower("i32")) return PrecisionType::I32;
   else if (key.equals_lower("f32")) return PrecisionType::F32;
-  else return PrecisionType::Unsupported;
+  else return llvm::None;
 }
 
 TensorType TensorType::get(TargetType target, LayoutType layout, PrecisionType precision) {

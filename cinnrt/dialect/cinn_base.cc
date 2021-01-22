@@ -29,19 +29,40 @@ mlir::Type CINNDialect::parseType(mlir::DialectAsmParser &parser) const {
     llvm::StringRef layout;
     llvm::StringRef precision;
 
+    // parse "<"
     if (parser.parseLess()) return mlir::Type();
+    // parse target
     if (parser.parseKeyword(&target)) return mlir::Type();
+    auto targetType = cinnrt::dt::GetTargetType(target);
+    if (!targetType) {
+      parser.emitError(parser.getCurrentLocation(), "unknown target type: ") << target;
+      return mlir::Type();
+    }
+
+    // parse ","
     if (parser.parseComma()) return mlir::Type();
+    // parse layout
     if (parser.parseKeyword(&layout)) return mlir::Type();
+    auto layoutType = cinnrt::dt::GetLayoutType(layout);
+    if (!layoutType) {
+      parser.emitError(parser.getCurrentLocation(), "unknown layout type: ") << layout;
+      return mlir::Type();
+    }
+
+    // parse ","
     if (parser.parseComma()) return mlir::Type();
+    // parse precision
     if (parser.parseKeyword(&precision)) return mlir::Type();
+    auto precisionType = cinnrt::dt::GetPrecisionType(precision);
+    if (!precisionType) {
+      parser.emitError(parser.getCurrentLocation(), "unknown precision type: ") << precision;
+      return mlir::Type();
+    }
+
+    // parse ">"
     if (parser.parseGreater()) return mlir::Type();
 
-    //llvm::outs() << target << " " << layout << " " << precision << "\n";
-    return cinnrt::dt::TensorType::get(
-            cinnrt::dt::getTargetType(target),
-            cinnrt::dt::getLayoutType(layout),
-            cinnrt::dt::getPrecisionType(precision));
+    return cinnrt::dt::TensorType::get(*targetType, *layoutType, *precisionType);
   }
   parser.emitError(parser.getCurrentLocation(), "unknown cinn type: ") << keyword;
   return mlir::Type();
