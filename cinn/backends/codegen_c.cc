@@ -671,8 +671,7 @@ void CodeGenC::Visit(const ir::intrinsics::ArgsConstruct *op) {
   os() << ")";
 }
 
-void CodeGenC::Visit(const ir::intrinsics::UnaryIntrin *op) {
-  os() << runtime::intrisic::unary_intrin_repr << "_";
+void CodeGenC::Visit(const ir::intrinsics::LLVMIntrin *op) {
   os() << op->name << "(";
   if (!op->args.empty()) {
     for (int i = 0; i < op->args.size() - 1; i++) {
@@ -681,6 +680,7 @@ void CodeGenC::Visit(const ir::intrinsics::UnaryIntrin *op) {
     }
     Print(op->args.back());
   }
+  os() << ")";
 }
 
 std::string ReadWholeFile(const std::string &path) {

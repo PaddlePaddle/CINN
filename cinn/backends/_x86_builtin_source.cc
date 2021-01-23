@@ -3,6 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #include <immintrin.h>
+#include <math.h>
 #include <stdint.h>
 
 #include <vector>
@@ -337,6 +338,20 @@ inline __m256 cinn_avx256_mul(const __m256& a, const __m256& b) { return _mm256_
 inline __m256d cinn_avx256_mul(const __m256d& a, const __m256d& b) { return _mm256_mul_pd(a, b); }
 inline __m512 cinn_avx512_mul(const __m512& a, const __m512& b) { return _mm512_mul_ps(a, b); }
 inline __m512d cinn_avx512_mul(const __m512d& a, const __m512d& b) { return _mm512_mul_pd(a, b); }
+// @}
+
+//! fma
+// @{
+inline __m128 cinn_avx128_fma(const __m128& a, const __m128& b, const __m128& c) { return _mm_fmadd_ps(a, b, c); }
+inline __m128d cinn_avx128_fma(const __m128d& a, const __m128d& b, const __m128d& c) { return _mm_fmadd_pd(a, b, c); }
+inline __m256 cinn_avx256_fma(const __m256& a, const __m256& b, const __m256& c) { return _mm256_fmadd_ps(a, b, c); }
+inline __m256d cinn_avx256_fma(const __m256d& a, const __m256d& b, const __m256d& c) {
+  return _mm256_fmadd_pd(a, b, c);
+}
+inline __m512 cinn_avx512_fma(const __m512& a, const __m512& b, const __m512& c) { return _mm512_fmadd_ps(a, b, c); }
+inline __m512d cinn_avx512_fma(const __m512d& a, const __m512d& b, const __m512d& c) {
+  return _mm512_fmadd_pd(a, b, c);
+}
 // @}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1331,7 +1331,7 @@ llvm::Function *CodeGenLLVM::GetIntrinsicDecl(llvm::Intrinsic::ID id,
   return nullptr;
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::UnaryIntrin *op) {
+llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::LLVMIntrin *op) {
   std::string func_name = op->name;
   if (op->id == -1) {
     if (func_name == "bitwise_and") {

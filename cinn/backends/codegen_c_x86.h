@@ -3,6 +3,7 @@
 #include <string>
 
 #include "cinn/backends/codegen_c.h"
+#include "cinn/ir/intrinsic_ops.h"
 
 namespace cinn {
 namespace backends {
@@ -45,10 +46,10 @@ class CodeGenCX86 : public CodeGenC {
   void Visit(const ir::GE *op) override { CodeGenC::Visit(op); }
   void Visit(const ir::And *op) override { CodeGenC::Visit(op); }
   void Visit(const ir::Or *op) override { CodeGenC::Visit(op); }
-
   void Visit(const ir::Load *op) override;
   void Visit(const ir::Store *op) override;
   void Visit(const ir::Broadcast *op) override;
+  void Visit(const ir::intrinsics::LLVMIntrin *op);
 
   //! Check the features.
   // @{

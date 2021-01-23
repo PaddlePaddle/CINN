@@ -97,9 +97,9 @@ Expr intrinsics::ArgsConstruct::Make(Var var, llvm::ArrayRef<Expr> args) {
   return Expr(n);
 }
 
-Expr intrinsics::UnaryIntrin::Make(
+Expr intrinsics::LLVMIntrin::Make(
     const std::string& name, llvm::ArrayRef<Expr> args, llvm::Intrinsic::ID id, int64_t arg_nums, const Type& type) {
-  auto* n = new UnaryIntrin;
+  auto* n = new LLVMIntrin;
   n->name = name;
   n->args.assign(args.begin(), args.end());
   n->id       = id;
