@@ -412,8 +412,8 @@ void IrPrinter::Visit(const intrinsics::ArgsConstruct *x) {
   os() << ")";
 }
 
-void IrPrinter::Visit(const intrinsics::LLVMIntrin *x) {
-  os_ << runtime::intrisic::llvm_intrin_repr << "_";
+void IrPrinter::Visit(const intrinsics::BuiltinIntrin *x) {
+  os_ << runtime::intrisic::builtin_intrin_repr << "_";
   os_ << x->name << "(";
   if (!x->args.empty()) {
     for (int i = 0; i < x->args.size() - 1; i++) {

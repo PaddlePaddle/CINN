@@ -25,9 +25,9 @@ inline void MakeFloatIntrinOp(lang::Args args, lang::RetValue *rv) {
   CHECK_GE(node->read_args.size(), arg_nums);
   if (add_float_suffix) {
     CHECK(node->type().is_float());
-    *rv = ir::intrinsics::LLVMIntrin::Make(node->name + "f", node->read_args, id, arg_nums, node->type());
+    *rv = ir::intrinsics::BuiltinIntrin::Make(node->name + "f", node->read_args, id, arg_nums, node->type());
   } else {
-    *rv = ir::intrinsics::LLVMIntrin::Make(node->name, node->read_args, id, arg_nums, node->type());
+    *rv = ir::intrinsics::BuiltinIntrin::Make(node->name, node->read_args, id, arg_nums, node->type());
   }
 }
 

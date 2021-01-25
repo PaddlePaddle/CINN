@@ -266,8 +266,8 @@ void IRMutator<T>::Visit(const IntrinsicOp *expr, T op) {
       auto *n = llvm::dyn_cast<intrinsics::PodValueToX>(node);
       Visit(&n->pod_value_ptr, &n->pod_value_ptr);
     } break;
-    case ir::IntrinsicKind::kLLVMIntrin: {
-      auto *n = llvm::dyn_cast<intrinsics::LLVMIntrin>(node);
+    case ir::IntrinsicKind::kBuiltinIntrin: {
+      auto *n = llvm::dyn_cast<intrinsics::BuiltinIntrin>(node);
       for (auto &expr : n->args) {
         Visit(&expr, &expr);
       }

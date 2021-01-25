@@ -94,7 +94,7 @@ void CodeGenCX86::PrintVecInputArgument(const Expr *op) {
   }
 }
 
-void CodeGenCX86::Visit(const ir::intrinsics::LLVMIntrin *op) {
+void CodeGenCX86::Visit(const ir::intrinsics::BuiltinIntrin *op) {
   if (op->type().lanes() == 1) {
     CodeGenC::Visit(op);
     return;

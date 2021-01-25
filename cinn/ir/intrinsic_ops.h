@@ -23,7 +23,7 @@ namespace cinn::ir {
   macro__(BufferCreate)                                  \
   macro__(GetAddr)                                       \
   macro__(ArgsConstruct)                                 \
-  macro__(LLVMIntrin)
+  macro__(BuiltinIntrin)
 // clang-format on
 
 enum class IntrinsicKind {
@@ -167,13 +167,13 @@ struct ArgsConstruct : public IntrinsicOp {
 /**
  * The llvm intrinsic op
  */
-struct LLVMIntrin : public IntrinsicOp {
-  LLVMIntrin() : IntrinsicOp(IntrinsicKind::kLLVMIntrin, {}, {}) {}
+struct BuiltinIntrin : public IntrinsicOp {
+  BuiltinIntrin() : IntrinsicOp(IntrinsicKind::kBuiltinIntrin, {}, {}) {}
 
   static Expr Make(
       const std::string& name, llvm::ArrayRef<Expr> args, llvm::Intrinsic::ID id, int64_t arg_nums, const Type& type);
 
-  static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kLLVMIntrin; }
+  static bool classof(const IntrinsicOp* s) { return s->getKind() == IntrinsicKind::kBuiltinIntrin; }
 
   std::string name;
   llvm::SmallVector<Expr, 4> args;

@@ -671,7 +671,7 @@ void CodeGenC::Visit(const ir::intrinsics::ArgsConstruct *op) {
   os() << ")";
 }
 
-void CodeGenC::Visit(const ir::intrinsics::LLVMIntrin *op) {
+void CodeGenC::Visit(const ir::intrinsics::BuiltinIntrin *op) {
   os() << op->name << "(";
   if (!op->args.empty()) {
     for (int i = 0; i < op->args.size() - 1; i++) {
