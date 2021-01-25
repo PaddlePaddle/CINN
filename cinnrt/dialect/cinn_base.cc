@@ -1,5 +1,3 @@
-#include "llvm/Support/raw_ostream.h"
-
 #include "cinnrt/dialect/cinn_base.h"
 #include "cinnrt/dialect/basic_kernels.h"
 #include "cinnrt/dialect/dense_tensor.h"
@@ -24,6 +22,7 @@ void CINNDialect::initialize() {
 mlir::Type CINNDialect::parseType(mlir::DialectAsmParser &parser) const {
     llvm::StringRef keyword;
   if (parser.parseKeyword(&keyword)) return mlir::Type();
+  // parse TensorType, for example: !cinn.tensor<X86, CUDA, F32>
   if (keyword == "tensor") {
     llvm::StringRef target;
     llvm::StringRef layout;
@@ -69,6 +68,7 @@ mlir::Type CINNDialect::parseType(mlir::DialectAsmParser &parser) const {
 }
 
 void CINNDialect::printType(mlir::Type type, mlir::DialectAsmPrinter &printer) const {
+  // print TensorType, for example: !cinn.tensor<X86, CUDA, F32>
   if (type.isa<cinnrt::dt::TensorType>()) {
     auto tensorType = type.cast<cinnrt::dt::TensorType>();
     printer << "tensor<"

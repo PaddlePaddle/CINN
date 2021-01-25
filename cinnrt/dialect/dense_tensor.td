@@ -27,8 +27,8 @@ class CreateUninitTensorOp<string dtype>
       An operation that creates an uninitialized tensor.
   }];
 
-  let arguments = (ins);  // no input arguments but a attribute
-  let results = (outs TensorType);
+  let arguments = (ins I64ArrayAttr:$shape);
+  let results = (outs TensorType:$output);
 
   let parser  = [{ return cinnrt::dt::parseCreateUninitTensorOp(parser, result); }];
   let printer = [{ return cinnrt::dt::printCreateUninitTensorOp(p, *this); }];

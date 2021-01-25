@@ -1,4 +1,3 @@
-#include <iostream>
 #include "cinnrt/common/global.h"
 #include "cinnrt/dialect/dense_tensor.h"
 
@@ -148,10 +147,11 @@ static ParseResult parseCreateUninitTensorOp(OpAsmParser& parser, OperationState
   auto loc = parser.getCurrentLocation();
   ::mlir::Type outputRawTypes[1];
   ::llvm::ArrayRef<::mlir::Type> outputTypes(outputRawTypes);
-  Type attr_type   = IntegerType::get(64, result.getContext());
 
-  Attribute value_attr;
-  if (parser.parseAttribute(value_attr, attr_type, "shape", result.attributes)) return failure();
+  mlir::ArrayAttr shapeAttr;
+  if (parser.parseAttribute(shapeAttr, parser.getBuilder().getI64Type(), "shape", result.attributes)) return failure();
+  if (parser.parseOptionalAttrDict(result.attributes))
+    return failure();
 
   if (parser.parseArrow()) return failure();
   if (parser.parseType(outputRawTypes[0])) return failure();
@@ -165,7 +165,8 @@ template <typename CreateUninitTensorOp>
 static void printCreateUninitTensorOp(OpAsmPrinter& p, CreateUninitTensorOp op) {
   p << CreateUninitTensorOp::getOperationName();
   p << " ";
-  p << op.getAttr("shape");
+  p.printAttributeWithoutType(op.shapeAttr());
+  p.printOptionalAttrDict(op.getAttrs(), /*elidedAttrs=*/{"shape"});
   p << " -> ";
   p << op.getOperation()->getResultTypes();
 }

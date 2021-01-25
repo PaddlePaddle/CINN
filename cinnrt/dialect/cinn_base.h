@@ -15,9 +15,9 @@ class CINNDialect : public ::mlir::Dialect {
     initialize();
   }
 
-  // parse an instance of a type registered to the dialect.
+  // parse types registered to the dialect.
   mlir::Type parseType(mlir::DialectAsmParser &parser) const override;
-  // print an instance of a type registered to the dialect.
+  // print types registered to the dialect.
   void printType(mlir::Type type, mlir::DialectAsmPrinter &printer) const override;
 
   void initialize();
