@@ -1,9 +1,41 @@
 #include "cinn/optim/remove_nested_block.h"
 
 #include "cinn/ir/ir_mutator.h"
+#include "cinn/ir/ir_printer.h"
 
 namespace cinn {
 namespace optim {
+
+Expr GetExprInsideBlock(Expr op) {
+  Expr node = op;
+  while (node.As<ir::Block>()) {
+    auto& stmts = node.As<ir::Block>()->stmts;
+    if (stmts.size() == 1) {
+      node = stmts.front();
+    } else {
+      break;
+    }
+  }
+  return node;
+}
+
+// This will remove the nested blocks, but it will also remove the block outside the forloop's body.
+struct NestedBlockSimplifer : public ir::IRMutator<Expr*> {
+  void operator()(ir::Expr* expr) { Visit(expr); }
+
+ private:
+  void Visit(ir::Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    auto* node = op->As<ir::Block>();
+    if (node->stmts.size() == 1) {
+      *op = GetExprInsideBlock(*op);
+      IRMutator::Visit(op, op);
+    } else {
+      IRMutator::Visit(expr, op);
+    }
+  }
+};
 
 struct NestedBlockRemover : public ir::IRMutator<Expr*> {
   void operator()(ir::Expr* expr) { Visit(expr); }
@@ -33,7 +65,43 @@ struct NestedBlockRemover : public ir::IRMutator<Expr*> {
   }
 };
 
-void RemoveNestedBlock(Expr* e) { NestedBlockRemover()(e); }
+// add block outside forloop's body.
+struct AddBlockToForloop : public ir::IRMutator<> {
+  void operator()(ir::Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+  void Visit(const ir::For* expr, Expr* op) override {
+    auto* node = op->As<ir::For>();
+    if (!node->body.As<ir::Block>()) {
+      node->body = ir::Block::Make({node->body});
+    }
+
+    ir::IRMutator<>::Visit(expr, op);
+  }
+
+  void Visit(const ir::PolyFor* expr, Expr* op) override {
+    auto* node = op->As<ir::PolyFor>();
+    if (!node->body.As<ir::Block>()) {
+      node->body = ir::Block::Make({node->body});
+    }
+
+    ir::IRMutator<>::Visit(expr, op);
+  }
+
+  void Visit(const ir::_LoweredFunc_* expr, Expr* op) override {
+    auto* node = op->As<ir::_LoweredFunc_>();
+    if (!node->body.As<ir::Block>()) {
+      node->body = ir::Block::Make({node->body});
+    }
+
+    ir::IRMutator<>::Visit(expr, op);
+  }
+};
+
+void RemoveNestedBlock(Expr* e) {
+  NestedBlockRemover()(e);
+  NestedBlockSimplifer()(e);
+  AddBlockToForloop()(e);
+}
 
 }  // namespace optim
 }  // namespace cinn

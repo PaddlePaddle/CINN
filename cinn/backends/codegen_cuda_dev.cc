@@ -98,6 +98,10 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   Expr func_body = ir::Block::Make(new_body);
 
   optim::RemoveNestedBlock(&func_body);
+  // Make sure that the function's body is wrapped by a block
+  if (!func_body.As<ir::Block>()) {
+    func_body = ir::Block::Make({func_body});
+  }
 
   Print(func_body);
 }
