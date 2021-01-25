@@ -51,7 +51,8 @@ void CheckNoIslCallRemains(const Expr* expr);
 Expr LowerGroup(const poly::ScheduleGroup& group,
                 const std::map<std::string, Expr>& tuple_to_expr,
                 std::map<std::string, Tensor>* global_tensor_map,
-                StageMap stages,
+                std::unordered_set<std::string>& resized_buffer,
+                StageMap stage_map,
                 ir::CudaAxisInfo* cuda_axis_info = nullptr);
 
 /**
