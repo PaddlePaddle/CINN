@@ -12,7 +12,6 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <iostream>
 
 #include "cinn/frontend/syntax.h"
 #include "cinnrt/dialect/diagnostic_utils.h"

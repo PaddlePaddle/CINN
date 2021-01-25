@@ -9,9 +9,7 @@ namespace cinnrt::dialect {
 
 class CINNDialect : public ::mlir::Dialect {
   explicit CINNDialect(::mlir::MLIRContext *context)
-    : ::mlir::Dialect(getDialectNamespace(), context,
-      ::mlir::TypeID::get<CINNDialect>()) {
-
+      : ::mlir::Dialect(getDialectNamespace(), context, ::mlir::TypeID::get<CINNDialect>()) {
     initialize();
   }
 
@@ -22,7 +20,8 @@ class CINNDialect : public ::mlir::Dialect {
 
   void initialize();
   friend class ::mlir::MLIRContext;
-public:
+
+ public:
   static ::llvm::StringRef getDialectNamespace() { return "cinn"; }
 };
 

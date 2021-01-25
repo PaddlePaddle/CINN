@@ -1,11 +1,11 @@
 #include "cinnrt/dialect/cinn_base.h"
+
 #include "cinnrt/dialect/basic_kernels.h"
 #include "cinnrt/dialect/dense_tensor.h"
 
 namespace cinnrt::dialect {
-using namespace mlir;
 
-//----CINNDialect definition begin----
+// ----CINNDialect definition begin----
 void CINNDialect::initialize() {
   allowUnknownTypes();
   allowUnknownOperations();
@@ -20,7 +20,7 @@ void CINNDialect::initialize() {
 }
 
 mlir::Type CINNDialect::parseType(mlir::DialectAsmParser &parser) const {
-    llvm::StringRef keyword;
+  llvm::StringRef keyword;
   if (parser.parseKeyword(&keyword)) return mlir::Type();
   // parse TensorType, for example: !cinn.tensor<X86, CUDA, F32>
   if (keyword == "tensor") {
@@ -71,18 +71,12 @@ void CINNDialect::printType(mlir::Type type, mlir::DialectAsmPrinter &printer) c
   // print TensorType, for example: !cinn.tensor<X86, CUDA, F32>
   if (type.isa<cinnrt::dt::TensorType>()) {
     auto tensorType = type.cast<cinnrt::dt::TensorType>();
-    printer << "tensor<"
-        << tensorType.target()
-        << ", "
-        << tensorType.layout()
-        << ", "
-        << tensorType.precision()
-        << ">";
+    printer << "tensor<" << tensorType.target() << ", " << tensorType.layout() << ", " << tensorType.precision() << ">";
     return;
   }
   llvm_unreachable("unknown cinn type.");
 }
 
-//----CINNDialect definition end----
+// ----CINNDialect definition end----
 
 }  // namespace cinnrt::dialect

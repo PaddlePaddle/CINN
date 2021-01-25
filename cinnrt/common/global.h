@@ -6,11 +6,12 @@ namespace cinnrt {
 
 // global variables
 class Global {
-private:
-    static mlir::MLIRContext *context;
-    Global();
-public:
-    static mlir::MLIRContext *getMLIRContext();
-}; // class Global
+ private:
+  static mlir::MLIRContext *context;
+  Global();
 
-} // namespace cinnrt
+ public:
+  static mlir::MLIRContext *getMLIRContext();
+};  // class Global
+
+}  // namespace cinnrt

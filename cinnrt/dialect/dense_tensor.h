@@ -1,19 +1,20 @@
 #pragma once
-#include <string>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
+
+#include <string>
 
 using namespace mlir;  // NOLINT
 namespace cinnrt::dt {
 
 namespace detail {
 struct TensorTypeStorage;
-} // namespace detail
+}  // namespace detail
 
-enum class TargetType : uint8_t {X86, CUDA};
-enum class LayoutType : uint8_t {NCHW, NHWC};
-enum class PrecisionType : uint8_t {I32, F32};
+enum class TargetType : uint8_t { X86, CUDA };
+enum class LayoutType : uint8_t { NCHW, NHWC };
+enum class PrecisionType : uint8_t { I32, F32 };
 
 llvm::Optional<TargetType> GetTargetType(mlir::StringRef key);
 llvm::Optional<LayoutType> GetLayoutType(mlir::StringRef key);
@@ -24,8 +25,7 @@ raw_ostream &operator<<(raw_ostream &os, LayoutType type);
 raw_ostream &operator<<(raw_ostream &os, PrecisionType type);
 
 class TensorType : public mlir::Type::TypeBase<TensorType, mlir::Type, detail::TensorTypeStorage> {
-public:
-
+ public:
   using Base::Base;
   static TensorType get(TargetType target, LayoutType layout, PrecisionType precision);
 

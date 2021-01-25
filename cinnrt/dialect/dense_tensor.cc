@@ -1,4 +1,3 @@
-#include "cinnrt/common/global.h"
 #include "cinnrt/dialect/dense_tensor.h"
 
 #include <llvm/ADT/STLExtras.h>
@@ -13,10 +12,12 @@
 #include <mlir/IR/TypeUtilities.h>
 #include <mlir/Support/LogicalResult.h>
 
+#include <tuple>
+
+#include "cinnrt/common/global.h"
 #include "cinnrt/dialect/tensor_shape.h"
 
 namespace cinnrt::dt {
-using namespace mlir;
 
 void DTDialect::initialize() {
   allowUnknownTypes();
@@ -27,81 +28,75 @@ void DTDialect::initialize() {
 }
 
 namespace detail {
-  struct TensorTypeStorage : public mlir::TypeStorage {
-    TensorTypeStorage(TargetType target, LayoutType layout,
-                      PrecisionType precision): _target(target),
-                          _layout(layout), _precision(precision) {}
+struct TensorTypeStorage : public mlir::TypeStorage {
+  TensorTypeStorage(TargetType target, LayoutType layout, PrecisionType precision)
+      : _target(target), _layout(layout), _precision(precision) {}
 
-    using KeyTy = std::tuple<TargetType, LayoutType, PrecisionType>;
+  using KeyTy = std::tuple<TargetType, LayoutType, PrecisionType>;
 
-    bool operator==(const KeyTy &key) const {
-        return key == KeyTy(_target, _layout, _precision);
-    }
+  bool operator==(const KeyTy &key) const { return key == KeyTy(_target, _layout, _precision); }
 
-    static llvm::hash_code hashKey(const KeyTy &key) {
-        return llvm::hash_value(key);
-    }
+  static llvm::hash_code hashKey(const KeyTy &key) { return llvm::hash_value(key); }
 
-    static TensorTypeStorage *construct(mlir::TypeStorageAllocator &allocator,
-                                        const KeyTy &key) {
-        return new(allocator.allocate<TensorTypeStorage>())
-            TensorTypeStorage(std::get<0>(key), std::get<1>(key), std::get<2>(key));
-    }
+  static TensorTypeStorage *construct(mlir::TypeStorageAllocator &allocator, const KeyTy &key) {
+    return new (allocator.allocate<TensorTypeStorage>())
+        TensorTypeStorage(std::get<0>(key), std::get<1>(key), std::get<2>(key));
+  }
 
-    TargetType    _target;
-    LayoutType    _layout;
-    PrecisionType _precision;
-  };
-} // namespace detail
+  TargetType _target;
+  LayoutType _layout;
+  PrecisionType _precision;
+};
+}  // namespace detail
 
 llvm::Optional<TargetType> GetTargetType(mlir::StringRef key) {
-  if (key.equals_lower("x86")) return TargetType::X86;
-  else if (key.equals_lower("cuda")) return TargetType::CUDA;
-  else return llvm::None;
+  if (key.equals_lower("x86"))
+    return TargetType::X86;
+  else if (key.equals_lower("cuda"))
+    return TargetType::CUDA;
+  else
+    return llvm::None;
 }
 
 llvm::Optional<LayoutType> GetLayoutType(mlir::StringRef key) {
-  if (key.equals_lower("nchw")) return LayoutType::NCHW;
-  else if (key.equals_lower("nhwc")) return LayoutType::NHWC;
-  else return llvm::None;
+  if (key.equals_lower("nchw"))
+    return LayoutType::NCHW;
+  else if (key.equals_lower("nhwc"))
+    return LayoutType::NHWC;
+  else
+    return llvm::None;
 }
 
 llvm::Optional<PrecisionType> GetPrecisionType(mlir::StringRef key) {
-  if (key.equals_lower("i32")) return PrecisionType::I32;
-  else if (key.equals_lower("f32")) return PrecisionType::F32;
-  else return llvm::None;
+  if (key.equals_lower("i32"))
+    return PrecisionType::I32;
+  else if (key.equals_lower("f32"))
+    return PrecisionType::F32;
+  else
+    return llvm::None;
 }
 
 TensorType TensorType::get(TargetType target, LayoutType layout, PrecisionType precision) {
-    return Base::get(::cinnrt::Global::getMLIRContext(), target, layout, precision);
+  return Base::get(::cinnrt::Global::getMLIRContext(), target, layout, precision);
 }
 
-TargetType TensorType::target() {
-    return getImpl()->_target;
-}
+TargetType TensorType::target() { return getImpl()->_target; }
 
-LayoutType TensorType::layout() {
-    return getImpl()->_layout;
-}
+LayoutType TensorType::layout() { return getImpl()->_layout; }
 
-PrecisionType TensorType::precision() {
-    return getImpl()->_precision;
-}
+PrecisionType TensorType::precision() { return getImpl()->_precision; }
 
 raw_ostream &operator<<(raw_ostream &os, TensorType tensorType) {
-  os << "TensorType<"
-     << tensorType.target() << ", "
-     << tensorType.layout() << ", "
-     << tensorType.precision() << ">";
+  os << "TensorType<" << tensorType.target() << ", " << tensorType.layout() << ", " << tensorType.precision() << ">";
   return os;
 }
 
 raw_ostream &operator<<(raw_ostream &os, TargetType type) {
-  switch(type) {
-    case(TargetType::X86):
+  switch (type) {
+    case (TargetType::X86):
       os << "X86";
       break;
-    case(TargetType::CUDA):
+    case (TargetType::CUDA):
       os << "CUDA";
       break;
     default:
@@ -111,11 +106,11 @@ raw_ostream &operator<<(raw_ostream &os, TargetType type) {
 }
 
 raw_ostream &operator<<(raw_ostream &os, LayoutType type) {
-  switch(type) {
-    case(LayoutType::NCHW):
+  switch (type) {
+    case (LayoutType::NCHW):
       os << "NCHW";
       break;
-    case(LayoutType::NHWC):
+    case (LayoutType::NHWC):
       os << "NHWC";
       break;
     default:
@@ -125,11 +120,11 @@ raw_ostream &operator<<(raw_ostream &os, LayoutType type) {
 }
 
 raw_ostream &operator<<(raw_ostream &os, PrecisionType type) {
-  switch(type) {
-    case(PrecisionType::I32):
+  switch (type) {
+    case (PrecisionType::I32):
       os << "I32";
       break;
-    case(PrecisionType::F32):
+    case (PrecisionType::F32):
       os << "F32";
       break;
     default:
@@ -138,31 +133,29 @@ raw_ostream &operator<<(raw_ostream &os, PrecisionType type) {
   return os;
 }
 
-static Type getTensorType(mlir::MLIRContext* context) {
+static Type getTensorType(mlir::MLIRContext *context) {
   auto t_dialect = Identifier::get("t", context);
   return OpaqueType::get(t_dialect, "tensor", context);
 }
 
-static ParseResult parseCreateUninitTensorOp(OpAsmParser& parser, OperationState& result) {
+static ParseResult parseCreateUninitTensorOp(OpAsmParser &parser, OperationState &result) {
   auto loc = parser.getCurrentLocation();
   ::mlir::Type outputRawTypes[1];
   ::llvm::ArrayRef<::mlir::Type> outputTypes(outputRawTypes);
 
   mlir::ArrayAttr shapeAttr;
   if (parser.parseAttribute(shapeAttr, parser.getBuilder().getI64Type(), "shape", result.attributes)) return failure();
-  if (parser.parseOptionalAttrDict(result.attributes))
-    return failure();
+  if (parser.parseOptionalAttrDict(result.attributes)) return failure();
 
   if (parser.parseArrow()) return failure();
   if (parser.parseType(outputRawTypes[0])) return failure();
-  if (!outputRawTypes[0].isa<TensorType>())
-    return parser.emitError(loc, "invalid kind of type specified");
+  if (!outputRawTypes[0].isa<TensorType>()) return parser.emitError(loc, "invalid kind of type specified");
   result.addTypes(outputTypes);
   return success();
 }
 
 template <typename CreateUninitTensorOp>
-static void printCreateUninitTensorOp(OpAsmPrinter& p, CreateUninitTensorOp op) {
+static void printCreateUninitTensorOp(OpAsmPrinter &p, CreateUninitTensorOp op) {
   p << CreateUninitTensorOp::getOperationName();
   p << " ";
   p.printAttributeWithoutType(op.shapeAttr());
@@ -171,8 +164,8 @@ static void printCreateUninitTensorOp(OpAsmPrinter& p, CreateUninitTensorOp op) 
   p << op.getOperation()->getResultTypes();
 }
 
-// TODO: can be removed?
-//static ParseResult parseFillTensorWithConstantOp(OpAsmParser& parser, OperationState& result) {
+// TODO(shibo): can be removed?
+// static ParseResult parseFillTensorWithConstantOp(OpAsmParser& parser, OperationState& result) {
 //  auto loc = parser.getCurrentLocation();
 //  ::mlir::OpAsmParser::OperandType inputRawOperands[1];
 //  ::llvm::ArrayRef<::mlir::OpAsmParser::OperandType> inputOperands(inputRawOperands);
@@ -192,9 +185,9 @@ static void printCreateUninitTensorOp(OpAsmPrinter& p, CreateUninitTensorOp op) 
 //  return success();
 //}
 
-// TODO: can be removed?
-//template <typename FillTensorOp>
-//static void printFillTensorWithConstantOp(OpAsmPrinter& p, FillTensorOp op) {
+// TODO(shibo): can be removed?
+// template <typename FillTensorOp>
+// static void printFillTensorWithConstantOp(OpAsmPrinter& p, FillTensorOp op) {
 //  p << FillTensorOp::getOperationName();
 //  p << " ";
 //  p.printOperand(op.getOperand());
@@ -204,7 +197,7 @@ static void printCreateUninitTensorOp(OpAsmPrinter& p, CreateUninitTensorOp op) 
 //  p << op.getAttr("value");
 //}
 
-static ParseResult parseSetTensorOp(OpAsmParser& parser, OperationState& result) {
+static ParseResult parseSetTensorOp(OpAsmParser &parser, OperationState &result) {
   SmallVector<OpAsmParser::OperandType, 1> operands;
   if (parser.parseOperandList(operands, 1)) return failure();
 
@@ -216,7 +209,7 @@ static ParseResult parseSetTensorOp(OpAsmParser& parser, OperationState& result)
 }
 
 template <typename SetTensorOp>
-static void printSetTensorOp(OpAsmPrinter& p, SetTensorOp op) {
+static void printSetTensorOp(OpAsmPrinter &p, SetTensorOp op) {
   p << SetTensorOp::getOperationName() << " ";
   p.printOperand(op.getOperand());
   p << " " << op.getAttr("values");
