@@ -72,19 +72,17 @@ void matmul(void* _args, int32_t num_args)
   const float* B = ((const float*)(_B->memory));
   float* C = ((float*)(_C->memory));
   float* C__reduce_init = ((float*)(_C->memory));
-  {
-    for (int32_t i = 0; i < 512; i += 1) {
-      for (int32_t j = 0; j < 500; j += 1) {
-        C__reduce_init[((500 * i) + j)] = 0;
-      };
+  for (int32_t i = 0; i < 512; i += 1) {
+    for (int32_t j = 0; j < 500; j += 1) {
+      C__reduce_init[((500 * i) + j)] = 0;
     };
-    for (int32_t i_outer = 0; i_outer < 64; i_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < 8; i_inner += 1) {
-        for (int32_t j_outer = 0; j_outer < 63; j_outer += 1) {
-          for (int32_t j_inner = 0; j_inner < cinn_min(8, (500 + (-8 * j_outer))); j_inner += 1) {
-            for (int32_t k0 = 0; k0 < 200; k0 += 1) {
-              C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((1600 * i_outer) + k0))] * B[((8 * j_outer) + ((500 * k0) + j_inner))]));
-            };
+  };
+  for (int32_t i_outer = 0; i_outer < 64; i_outer += 1) {
+    for (int32_t i_inner = 0; i_inner < 8; i_inner += 1) {
+      for (int32_t j_outer = 0; j_outer < 63; j_outer += 1) {
+        for (int32_t j_inner = 0; j_inner < cinn_min(8, (500 + (-8 * j_outer))); j_inner += 1) {
+          for (int32_t k0 = 0; k0 < 200; k0 += 1) {
+            C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((1600 * i_outer) + k0))] * B[((8 * j_outer) + ((500 * k0) + j_inner))]));
           };
         };
       };

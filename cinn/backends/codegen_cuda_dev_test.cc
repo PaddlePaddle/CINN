@@ -1015,9 +1015,7 @@ void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   float _A_read_cache [ 1 * 10 ];
   float* A_read_cache = _A_read_cache;
   if ((threadIdx.x < 100)) {
-  {
     if ((blockIdx.x < 20)) {
-    {
       if (((((threadIdx.x >= 0) && (threadIdx.x <= 99)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
         for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
           A_read_cache[j_inner] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))];
@@ -1026,9 +1024,7 @@ void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       for (int32_t i = 0; i < 10; i += 1) {
         C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache[i] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
       };
-    }
     };
-  }
   };
 }
 

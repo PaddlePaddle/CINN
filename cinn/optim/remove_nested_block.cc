@@ -6,25 +6,25 @@
 namespace cinn {
 namespace optim {
 
+Expr GetExprInsideBlock(Expr op) {
+  Expr node = op;
+  while (node.As<ir::Block>()) {
+    auto& stmts = node.As<ir::Block>()->stmts;
+    if (stmts.size() == 1) {
+      node = stmts.front();
+    } else {
+      break;
+    }
+  }
+  return node;
+}
+
 // This will remove the nested blocks, but it will also remove the block outside the forloop's body.
 struct NestedBlockSimplifer : public ir::IRMutator<Expr*> {
   void operator()(ir::Expr* expr) { Visit(expr); }
 
  private:
   void Visit(ir::Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
-
-  Expr GetExprInsideBlock(Expr op) {
-    Expr node = op;
-    while (node.As<ir::Block>()) {
-      auto& stmts = node.As<ir::Block>()->stmts;
-      if (stmts.size() == 1) {
-        node = stmts.front();
-      } else {
-        break;
-      }
-    }
-    return node;
-  }
 
   void Visit(const ir::Block* expr, Expr* op) override {
     auto* node = op->As<ir::Block>();
@@ -37,17 +37,18 @@ struct NestedBlockSimplifer : public ir::IRMutator<Expr*> {
   }
 };
 
-struct NestedBlockSimplifer2 : public ir::IRMutator<> {
-  void operator()(ir::Expr* expr) { Visit(expr, expr); }
+struct NestedBlockRemover : public ir::IRMutator<Expr*> {
+  void operator()(ir::Expr* expr) { Visit(expr); }
 
  private:
-  using ir::IRMutator<>::Visit;
+  void Visit(ir::Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
 
-  std::vector<Expr> new_exprs;
+  void Visit(const ir::Block* expr, Expr* op) override {
+    auto* node = op->As<ir::Block>();
 
-  void Visit(const ir::Block* op, Expr* expr) override {
-    auto* node = expr->As<ir::Block>();
-    bool detect_nested{};
+    std::vector<ir::Expr> new_exprs;
+
+    bool detect_nested = false;
     for (auto it = node->stmts.begin(); it != node->stmts.end(); it++) {
       auto* block = it->As<ir::Block>();
       if (block) {
@@ -57,7 +58,10 @@ struct NestedBlockSimplifer2 : public ir::IRMutator<> {
         new_exprs.push_back(*it);
       }
     }
+
     node->stmts = new_exprs;
+
+    IRMutator::Visit(expr, op);
   }
 };
 
@@ -94,9 +98,9 @@ struct AddBlockToForloop : public ir::IRMutator<> {
 };
 
 void RemoveNestedBlock(Expr* e) {
-  NestedBlockSimplifer()(e);
-  NestedBlockSimplifer2()(e);
-  AddBlockToForloop()(e);
+  NestedBlockRemover()(e);
+  //NestedBlockSimplifer()(e);
+  //AddBlockToForloop()(e);
 }
 
 }  // namespace optim
