@@ -51,7 +51,7 @@ void BindBuffer(StageMap& stages) {
 Expr LowerGroup(const poly::ScheduleGroup& group,
                 const std::map<std::string, Expr>& tuple_to_expr,
                 std::map<std::string, ir::Tensor>* global_tensor_map,
-                std::unordered_set<std::string>* resized_buffer,
+                std::unordered_set<std::string>& resized_buffer,
                 StageMap stage_map,
                 ir::CudaAxisInfo* cuda_axis_info) {
   BindBuffer(stage_map);
@@ -505,7 +505,7 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
       tuple_to_expr[tensor->name] = tensor->tensor_store_expanded_body();
     }
 
-    Expr group_expr = LowerGroup(group, tuple_to_expr, &global_tensor_map, &resized_buffer, stages_, &cuda_axis_info_);
+    Expr group_expr = LowerGroup(group, tuple_to_expr, &global_tensor_map, resized_buffer, stages_, &cuda_axis_info_);
     if (group_expr.defined()) {
       VLOG(3) << "group expr:\n" << group_expr;
       exprs.push_back(group_expr);

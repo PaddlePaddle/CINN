@@ -129,13 +129,13 @@ void RemoveGpuForloopsAxis(Expr *expr) {
 void MarkGpuForloop(const std::string &statement,
                     const std::map<std::string, poly::StageForloopInfo> &forloop_infos,
                     std::map<std::string, ir::Tensor> *global_tensor_map,
-                    std::unordered_set<std::string> *resized_buffer,
+                    std::unordered_set<std::string> &resized_buffer,
                     Expr *expr) {
   struct Mutator : public ir::IRMutator<Expr *> {
     const std::string &statement;
     const std::map<std::string, poly::StageForloopInfo> forloop_infos;
     std::map<std::string, ir::Tensor> *global_tensor_map;
-    std::unordered_set<std::string> *resized_buffer;
+    std::unordered_set<std::string> &resized_buffer;
     /**
      * @param statement the tuple name.
      * @param forloop_infos the axis.
@@ -143,7 +143,7 @@ void MarkGpuForloop(const std::string &statement,
     Mutator(const std::string &statement,
             const std::map<std::string, poly::StageForloopInfo> &forloop_infos,
             std::map<std::string, ir::Tensor> *global_tensor_map,
-            std::unordered_set<std::string> *resized_buffer)
+            std::unordered_set<std::string> &resized_buffer)
         : statement(statement),
           forloop_infos(forloop_infos),
           global_tensor_map(global_tensor_map),
@@ -226,7 +226,7 @@ void MarkGpuForloop(const std::string &statement,
 
 void TransformGpuForloops(const forloop_infos_t &forloop_infos,
                           std::map<std::string, ir::Tensor> *global_tensor_map,
-                          std::unordered_set<std::string> *resized_buffer,
+                          std::unordered_set<std::string> &resized_buffer,
                           Expr *expr) {
   for (auto &item : forloop_infos) {
     MarkGpuForloop(item.first, item.second, global_tensor_map, resized_buffer, expr);
