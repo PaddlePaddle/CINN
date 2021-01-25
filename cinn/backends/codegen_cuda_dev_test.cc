@@ -1016,6 +1016,7 @@ void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   float* A_read_cache = _A_read_cache;
   if ((threadIdx.x < 100)) {
     if ((blockIdx.x < 20)) {
+    {
       if (((((threadIdx.x >= 0) && (threadIdx.x <= 99)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
         for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
           A_read_cache[j_inner] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))];
@@ -1024,6 +1025,7 @@ void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       for (int32_t i = 0; i < 10; i += 1) {
         C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache[i] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
       };
+    }
     };
   };
 }
@@ -1141,7 +1143,6 @@ void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   float _A_read_cache [ 3 * 10 ];
   float* A_read_cache = _A_read_cache;
   if ((threadIdx.x < 98)) {
-  {
     if ((blockIdx.x < 20)) {
     {
       if (((((threadIdx.x >= 0) && (threadIdx.x <= 97)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
@@ -1156,7 +1157,6 @@ void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       };
     }
     };
-  }
   };
 }
 
@@ -1335,7 +1335,6 @@ void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   __shared__ float _A_read_cache [ 1 * 10 ];
   float* A_read_cache = _A_read_cache;
   if ((blockIdx.x < 100)) {
-  {
     if ((threadIdx.x < 20)) {
     {
       if (((((blockIdx.x >= 0) && (blockIdx.x <= 99)) && (threadIdx.x >= 0)) && (threadIdx.x <= 19))) {
@@ -1348,7 +1347,6 @@ void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       };
     }
     };
-  }
   };
 }
 
@@ -1424,26 +1422,18 @@ void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   __shared__ float _A_read_cache [ (((1 * 40) * 40) / 40) ];
   float* A_read_cache = _A_read_cache;
   if ((blockIdx.x < 40)) {
-  {
     if ((threadIdx.x < 4)) {
-    {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         A_read_cache[((10 * threadIdx.x) + j_inner)] = A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
       };
-    }
     };
-  }
   };
   if ((blockIdx.x < 40)) {
-  {
     if ((threadIdx.x < 4)) {
-    {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = A_read_cache[((10 * threadIdx.x) + j_inner)];
       };
-    }
     };
-  }
   };
 }
 
@@ -1517,7 +1507,6 @@ void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   float _C_cache_write_out [ 1 * 1 ];
   float* C_cache_write_out = _C_cache_write_out;
   if ((blockIdx.x < 40)) {
-  {
     if ((threadIdx.x < 40)) {
     {
       if (((((blockIdx.x >= 0) && (blockIdx.x <= 39)) && (threadIdx.x >= 0)) && (threadIdx.x <= 39))) {
@@ -1526,7 +1515,6 @@ void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       C[((40 * blockIdx.x) + threadIdx.x)] = C_cache_write_out[0];
     }
     };
-  }
   };
 }
 
@@ -1591,15 +1579,11 @@ __global__
 void fn5(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
   if ((blockIdx.x < 40)) {
-  {
     if ((threadIdx.x < 4)) {
-    {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (cinn_nvgpu_tanh_fp32(A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]) + cinn_nvgpu_cos_fp32(B[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]));
       };
-    }
     };
-  }
   };
 }
 

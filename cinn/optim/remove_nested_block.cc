@@ -99,8 +99,8 @@ struct AddBlockToForloop : public ir::IRMutator<> {
 
 void RemoveNestedBlock(Expr* e) {
   NestedBlockRemover()(e);
-  //NestedBlockSimplifer()(e);
-  //AddBlockToForloop()(e);
+  NestedBlockSimplifer()(e);
+  AddBlockToForloop()(e);
 }
 
 }  // namespace optim
