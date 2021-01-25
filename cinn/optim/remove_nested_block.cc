@@ -7,7 +7,7 @@ namespace cinn {
 namespace optim {
 
 // This will remove the nested blocks, but it will also remove the block outside the forloop's body.
-struct NestedBlockRemover : public ir::IRMutator<Expr*> {
+struct NestedBlockSimplifer : public ir::IRMutator<Expr*> {
   void operator()(ir::Expr* expr) { Visit(expr); }
 
  private:
@@ -34,6 +34,30 @@ struct NestedBlockRemover : public ir::IRMutator<Expr*> {
     } else {
       IRMutator::Visit(expr, op);
     }
+  }
+};
+
+struct NestedBlockSimplifer2 : public ir::IRMutator<> {
+  void operator()(ir::Expr* expr) { Visit(expr, expr); }
+
+ private:
+  using ir::IRMutator<>::Visit;
+
+  std::vector<Expr> new_exprs;
+
+  void Visit(const ir::Block* op, Expr* expr) override {
+    auto* node = expr->As<ir::Block>();
+    bool detect_nested{};
+    for (auto it = node->stmts.begin(); it != node->stmts.end(); it++) {
+      auto* block = it->As<ir::Block>();
+      if (block) {
+        detect_nested = true;
+        new_exprs.insert(std::end(new_exprs), block->stmts.begin(), block->stmts.end());
+      } else {
+        new_exprs.push_back(*it);
+      }
+    }
+    node->stmts = new_exprs;
   }
 };
 
@@ -70,7 +94,8 @@ struct AddBlockToForloop : public ir::IRMutator<> {
 };
 
 void RemoveNestedBlock(Expr* e) {
-  NestedBlockRemover()(e);
+  NestedBlockSimplifer()(e);
+  NestedBlockSimplifer2()(e);
   AddBlockToForloop()(e);
 }
 
