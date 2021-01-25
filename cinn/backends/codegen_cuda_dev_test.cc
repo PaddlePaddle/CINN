@@ -1115,7 +1115,7 @@ TEST(ElementwiseAdd, cache_read_local) {
   stages[C]->Split(1, 10);
   stages[AL]->Split(1, 10);
 
-  stages[AL]->ComputeAt(stages[C], 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
+  stages[AL]->ComputeAt2(stages[C], 1);
   stages[C]->Bind(0, "threadIdx.x");
   stages[C]->Bind(1, "blockIdx.x");
 
@@ -1129,7 +1129,7 @@ TEST(ElementwiseAdd, cache_read_local) {
 
   auto module      = builder.Build();
   auto source_code = codegen.Compile(module);
-  LOG(INFO) << "source:\n" << source_code;
+  LOG(INFO) << "source cache_read_local:\n" << source_code;
 
   std::string source_target = R"ROC(
 extern "C" {
@@ -1146,19 +1146,17 @@ typedef char int8_t;
 __global__
 void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _A_read_cache [ 1 * 10 ];
+  float _A_read_cache [ ((1 * (((1 * 100) * 200) / 100)) / 20) ];
   float* A_read_cache = _A_read_cache;
   if ((threadIdx.x < 100)) {
   {
     if ((blockIdx.x < 20)) {
     {
-      if (((((threadIdx.x >= 0) && (threadIdx.x <= 99)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
-        for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-          A_read_cache[j_inner] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))];
-        };
+      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+        A_read_cache[j_inner] = A[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))];
       };
-      for (int32_t i = 0; i < 10; i += 1) {
-        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache[i] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))]);
+      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))] = (A_read_cache[j_inner] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))]);
       };
     }
     };
@@ -1362,7 +1360,7 @@ TEST(GetTransformedLevel, basic) {
   // No ComputeAt, the GetTransformedLevel just returns the level without change.
   ASSERT_EQ(stages[C]->GetTransformedLevel(0), 0);
 
-  stages[C]->ComputeAt(stages[D], 1);
+  stages[C]->ComputeAt2(stages[D], 1);
   ASSERT_EQ(stages[C]->GetTransformedLevel(0), 0 + 1 + 1);
 }
 
@@ -1438,7 +1436,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
     stages[AL]->Split(1, 10);
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");
-    stages[AL]->ComputeAt(stages[C], 1);
+    stages[AL]->ComputeAt2(stages[C], 1);
 
     return std::make_tuple(A, B, C, AL, stages);
   };
@@ -1470,19 +1468,17 @@ typedef char int8_t;
 __global__
 void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  __shared__ float _A_read_cache [ 1 * 10 ];
+  __shared__ float _A_read_cache [ (((1 * 100) * 200) / 100) ];
   float* A_read_cache = _A_read_cache;
   if ((blockIdx.x < 100)) {
   {
     if ((threadIdx.x < 20)) {
     {
-      if (((((blockIdx.x >= 0) && (blockIdx.x <= 99)) && (threadIdx.x >= 0)) && (threadIdx.x <= 19))) {
-        for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-          A_read_cache[j_inner] = A[((200 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
-        };
+      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+        A_read_cache[((10 * threadIdx.x) + j_inner)] = A[((200 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
       };
-      for (int32_t i = 0; i < 10; i += 1) {
-        C[((200 * blockIdx.x) + ((10 * threadIdx.x) + i))] = A_read_cache[i];
+      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+        C[((200 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = A_read_cache[((10 * threadIdx.x) + j_inner)];
       };
     }
     };
@@ -1523,7 +1519,6 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
     stages[C]->Split(1, 10);
     stages[AL]->Split(1, 10);
 
-    // AL->stage()->ComputeAt(C->stage(), 0, poly::Stage::kComputeAtAuto, A->name);
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");
     stages[AL]->Bind(0, "blockIdx.x");
@@ -1613,12 +1608,9 @@ TEST(ElementwiseAdd, cache_write_local) {
 
     auto Co = stages[C]->CacheWrite2("local", stages);
 
-    stages[C]->Split(1, 10);
     // Cache write local, the local memory can just share in a single thread, so it must ComputeAt(inside) the innermost
     // thread.
-    stages[C]->ComputeAt(stages[Co], 1);
-    stages[C]->Bind(0, "blockIdx.x");
-    stages[C]->Bind(1, "threadIdx.x");
+    stages[C]->ComputeAt2(stages[Co], 1);
     stages[Co]->Bind(0, "blockIdx.x");
     stages[Co]->Bind(1, "threadIdx.x");
 
@@ -1635,7 +1627,7 @@ TEST(ElementwiseAdd, cache_write_local) {
   builder.AddFunction(fn);
 
   auto source_code = codegen.Compile(builder.Build());
-  std::cout << "CUDA source:\n" << source_code << std::endl;
+  std::cout << "CUDA source cache_write:\n" << source_code << std::endl;
 
   auto target_source = R"ROC(
 extern "C" {
@@ -1652,15 +1644,13 @@ typedef char int8_t;
 __global__
 void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _C_cache_write_out [ 1 * 1 ];
+  float _C_cache_write_out [ ((1 * (((1 * 40) * 40) / 40)) / 40) ];
   float* C_cache_write_out = _C_cache_write_out;
   if ((blockIdx.x < 40)) {
   {
     if ((threadIdx.x < 40)) {
     {
-      if (((((blockIdx.x >= 0) && (blockIdx.x <= 39)) && (threadIdx.x >= 0)) && (threadIdx.x <= 39))) {
-        C_cache_write_out[0] = A[((40 * blockIdx.x) + threadIdx.x)];
-      };
+      C_cache_write_out[0] = A[((40 * blockIdx.x) + threadIdx.x)];
       C[((40 * blockIdx.x) + threadIdx.x)] = C_cache_write_out[0];
     }
     };
