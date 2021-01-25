@@ -170,36 +170,38 @@ static void printCreateUninitTensorOp(OpAsmPrinter& p, CreateUninitTensorOp op) 
   p << op.getOperation()->getResultTypes();
 }
 
-static ParseResult parseFillTensorWithConstantOp(OpAsmParser& parser, OperationState& result) {
-  auto loc = parser.getCurrentLocation();
-  ::mlir::OpAsmParser::OperandType inputRawOperands[1];
-  ::llvm::ArrayRef<::mlir::OpAsmParser::OperandType> inputOperands(inputRawOperands);
-  ::mlir::Type inputRawTypes[1];
-  ::llvm::ArrayRef<::mlir::Type> inputTypes(inputRawTypes);
+// TODO: can be removed?
+//static ParseResult parseFillTensorWithConstantOp(OpAsmParser& parser, OperationState& result) {
+//  auto loc = parser.getCurrentLocation();
+//  ::mlir::OpAsmParser::OperandType inputRawOperands[1];
+//  ::llvm::ArrayRef<::mlir::OpAsmParser::OperandType> inputOperands(inputRawOperands);
+//  ::mlir::Type inputRawTypes[1];
+//  ::llvm::ArrayRef<::mlir::Type> inputTypes(inputRawTypes);
+//
+//  if (parser.parseOperand(inputRawOperands[0])) return failure();
+//
+//  if (parser.parseColon()) return failure();
+//  if (parser.parseType(inputRawTypes[0])) return failure();
+//  if (!inputRawTypes[0].isa<TensorType>())
+//    return parser.emitError(loc, "invalid kind of type specified");
+//
+//  Attribute value_attr;
+//  if (parser.resolveOperands(inputOperands, inputTypes, loc, result.operands)) return failure();
+//  if (parser.parseAttribute(value_attr, "value", result.attributes)) return failure();
+//  return success();
+//}
 
-  if (parser.parseOperand(inputRawOperands[0])) return failure();
-
-  if (parser.parseColon()) return failure();
-  if (parser.parseType(inputRawTypes[0])) return failure();
-  if (!inputRawTypes[0].isa<TensorType>())
-    return parser.emitError(loc, "invalid kind of type specified");
-
-  Attribute value_attr;
-  if (parser.resolveOperands(inputOperands, inputTypes, loc, result.operands)) return failure();
-  if (parser.parseAttribute(value_attr, "value", result.attributes)) return failure();
-  return success();
-}
-
-template <typename FillTensorOp>
-static void printFillTensorWithConstantOp(OpAsmPrinter& p, FillTensorOp op) {
-  p << FillTensorOp::getOperationName();
-  p << " ";
-  p.printOperand(op.getOperand());
-  p << " : ";
-  p << op.getOperation()->getOperandTypes();
-  p << " ";
-  p << op.getAttr("value");
-}
+// TODO: can be removed?
+//template <typename FillTensorOp>
+//static void printFillTensorWithConstantOp(OpAsmPrinter& p, FillTensorOp op) {
+//  p << FillTensorOp::getOperationName();
+//  p << " ";
+//  p.printOperand(op.getOperand());
+//  p << " : ";
+//  p << op.getOperation()->getOperandTypes();
+//  p << " ";
+//  p << op.getAttr("value");
+//}
 
 static ParseResult parseSetTensorOp(OpAsmParser& parser, OperationState& result) {
   SmallVector<OpAsmParser::OperandType, 1> operands;

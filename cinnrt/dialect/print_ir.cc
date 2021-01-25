@@ -107,42 +107,6 @@ int main(int argc, char** argv) {
     printOperation(module_ref->getOperation(), 0);
     std::cout << "----------print IR Structure end----------" << std::endl;
 
-    //mlir::Block *block = module_ref->getBody();
-    //// supress unused variable compile warning.
-    //(void)block;
-    //mlir::Region &region = module_ref->getBodyRegion();
-    //(void)region;
-
-    //for (auto iter = module_ref->begin(); iter != module_ref->end(); ++iter) {
-    //    mlir::Operation &op = *iter;
-    //    mlir::Dialect *dialect = op.getDialect();
-    //    string dialect_name = dialect ? dialect->getNamespace().str() : "null";
-    //    cout << op.getName().getStringRef().str() << ", namespace: " << dialect_name << endl;
-    //    if (llvm::isa<mlir::FuncOp>(op)) {
-    //        mlir::FuncOp func_op = llvm::dyn_cast<mlir::FuncOp>(op);
-    //        cout << "func_op: " << func_op.getName().str() << endl;
-    //    } else {
-    //        cout << "non func_op:" << op.getName().getStringRef().str() << endl;
-    //    }
-    //}
-
     module_ref->dump();
-
-    //// ==========test PassManager begin====================
-    //std::cout << "\n\n==========test PassManager begin==============" << std::endl;
-    //mlir::PassManager passManager(context);
-    //// Apply any generic pass manager command line options
-    //applyPassManagerCLOptions(passManager);
-    //// addPass 会调用 getCanonicalizationPatterns
-    //passManager.addNestedPass<mlir::FuncOp>(mlir::createCanonicalizerPass());
-    //// run pass pipeline
-    //if (mlir::failed(passManager.run(*module_ref))) {
-    //    std::cerr << "PassManager run failed" << std::endl;
-    //} else {
-    //    std::cout << "PassManager run succeeded." << std::endl;
-    //}
-    //module_ref->dump();
-    //std::cout << "==========test PassManager end==============" << std::endl;
-    //// ==========test PassManager end===================
     return 0;
 }

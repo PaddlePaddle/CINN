@@ -42,11 +42,16 @@ class FillTensorWithConstantOp<string dtype> :
       An operation that fills an input tensor with a value.
   }];
 
-  let arguments = (ins TensorType);
+  let arguments = (ins
+      TensorType:$input,
+      AnyAttr:$value
+  );
   let results = (outs);
 
-  let parser  = [{ return cinnrt::dt::parseFillTensorWithConstantOp(parser, result); }];
-  let printer = [{ return cinnrt::dt::printFillTensorWithConstantOp(p, *this); }];
+  // TODO: can be removed?
+  //let parser  = [{ return cinnrt::dt::parseFillTensorWithConstantOp(parser, result); }];
+  //let printer = [{ return cinnrt::dt::printFillTensorWithConstantOp(p, *this); }];
+  let assemblyFormat = "`(` $input `:` type($input) `)`  attr-dict";
 }
 
 def PrintTensorOp : DT_Op<"print_tensor"> {
@@ -58,7 +63,7 @@ def PrintTensorOp : DT_Op<"print_tensor"> {
 
   let arguments = (ins TensorType:$input);
   let results = (outs);
-  let assemblyFormat = "$input attr-dict `:` type($input)";
+  let assemblyFormat = "`(` $input `:` type($input) `)` attr-dict";
 }
 
 class SetTensorOp<string dtype> :
