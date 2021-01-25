@@ -5,6 +5,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "cinn/common/common.h"
@@ -143,6 +144,10 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
 }
 
 std::vector<Expr> _LoweredFunc_::CudaAliasVarExprs() const {
+  std::unordered_set<std::string> args_buffer;
+  for (auto arg : args) {
+    args_buffer.insert(arg.name());
+  }
   // collect write.
   std::vector<Expr> res;
   optim::TensorWriteTeller write_teller;
@@ -157,7 +162,7 @@ std::vector<Expr> _LoweredFunc_::CudaAliasVarExprs() const {
     if (!tensor->buffer.defined()) {
       continue;
     }
-    if (tensor->name == tensor->buffer->name.substr(1)) {
+    if (tensor->name == tensor->buffer->name.substr(1) || args_buffer.count(tensor->buffer->name) == 0) {
       continue;
     }
     Type value_type = tensor->type().ElementOf();
