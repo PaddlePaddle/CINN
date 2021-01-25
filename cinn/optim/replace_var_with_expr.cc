@@ -99,7 +99,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
   void Visit(const ir::_Var_* expr, Expr* op) override {
     if (do_replace) {
       if (expr->name != utils::GetStreamCnt(var_->name)) return;
-      LOG(INFO) << "Do Replace: " << expr->name << " to 0";
+      VLOG(2) << "Do Replace: " << expr->name << " to 0";
       auto copied  = IRCopy(expr_);
       *op          = copied;
       find_replace = true;

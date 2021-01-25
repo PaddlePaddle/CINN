@@ -39,8 +39,8 @@ void BindBuffer(StageMap& stages) {
       for (auto& str : stage.second->meta.tensors_to_share_buffer_with) {
         if (tensor_map[str]->buffer.defined()) {
           stage.second->tensor()->Bind(tensor_map[str]->buffer);
-          LOG(INFO) << "Tensor " << stage.second->tensor()->name << " bind buffer to " << tensor_map[str]->name << " , "
-                    << tensor_map[str]->buffer->name;
+          VLOG(3) << "Tensor " << stage.second->tensor()->name << " bind buffer to " << tensor_map[str]->name << " , "
+                  << tensor_map[str]->buffer->name;
         }
       }
     }
