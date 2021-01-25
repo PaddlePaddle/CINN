@@ -422,5 +422,22 @@ TEST(CAS, SimplifyMinMax) {
   }
 }
 
+TEST(CAS, cond) {
+  {
+    Expr cond = Expr(2) > Expr(1);
+    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "1");
+  }
+  {
+    Var a("a");
+    Expr cond = (Expr(2) > Expr(1)) && (a < 20);
+    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "(a < 20)");
+  }
+  {
+    Var a("a");
+    Expr cond = (Expr(2) < Expr(1)) && (a < 20);
+    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "0");
+  }
+}
+
 }  // namespace common
 }  // namespace cinn

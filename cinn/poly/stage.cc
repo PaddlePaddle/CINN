@@ -686,7 +686,7 @@ ir::Tensor Stage::CacheWrite2(const std::string &memory_type, StageMap stages) {
   CHECK(tensor_);
   CHECK(!tensor_->buffer.defined()) << "This tensor is already binded to a buffer, cannot cache write";
   CHECK(!meta.compute_inline) << "Cannot create a write cache on an inlined tensor";
-
+  auto ctrl_depend       = stages[tensor_]->ctrl_depends();
   std::string cache_name = Context::Global().NewName(tensor_->name + "_cache_write_out");
   auto original_name     = tensor_->name;
   tensor_->name          = cache_name;
@@ -698,7 +698,7 @@ ir::Tensor Stage::CacheWrite2(const std::string &memory_type, StageMap stages) {
       tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, original_name);
 
   stages->Insert(my_tensor, CreateStage(my_tensor).get());
-
+  stages[my_tensor]->ctrl_depends_ = ctrl_depend;
   stages->Insert(write_stage, CreateStage(write_stage).get());
 
   stages[write_stage]->CtrlDepend(my_tensor);

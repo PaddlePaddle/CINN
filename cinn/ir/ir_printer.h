@@ -39,7 +39,7 @@ struct IrPrinter : public IRVisitor {
   NODETY_FORALL(__)
 #undef __
 
-#define __(op__) void Visit(const intrinsics::op__ *x);
+#define __(op__) virtual void Visit(const intrinsics::op__ *x);
   INTRINSIC_KIND_FOR_EACH(__)
 #undef __
 

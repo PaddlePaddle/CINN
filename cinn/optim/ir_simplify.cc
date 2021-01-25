@@ -186,6 +186,20 @@ struct SimplifyRampMutator : public ir::IRMutator<Expr*> {
   }
 };
 
+struct SimplifyIfThenElseMutator : public ir::IRMutator<> {
+  void operator()(Expr* x) { ir::IRMutator<>::Visit(x, x); }
+
+  using ir::IRMutator<>::Visit;
+
+  void Visit(const IfThenElse* op, Expr* expr) override {
+    auto* node      = expr->As<ir::IfThenElse>();
+    node->condition = common::AutoSimplify(node->condition);
+
+    if (node->true_case.defined()) Visit(&node->true_case, &node->true_case);
+    if (node->false_case.defined()) Visit(&node->false_case, &node->false_case);
+  }
+};
+
 struct ReplaceFracWithDivMutator : public ir::IRMutator<> {
   void operator()(Expr* x) { ir::IRMutator<>::Visit(x, x); }
 
@@ -205,6 +219,7 @@ void Simplify(Expr* expr) {
   SimplifyRampMutator()(expr);
   SimplifyLoadMutator()(expr);
   SimplifyStoreMutator()(expr);
+  SimplifyIfThenElseMutator()(expr);
 
   common::cas_intervals_t var_intervals;
   SimplifyButStoreLoadMutator mutator(var_intervals);

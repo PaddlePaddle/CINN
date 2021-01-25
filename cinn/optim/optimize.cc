@@ -5,7 +5,6 @@
 #include "cinn/optim/call_arg_list_to_pod_value.h"
 #include "cinn/optim/cast_bool_to_int8.h"
 #include "cinn/optim/cast_simplify.h"
-#include "cinn/optim/compare_simplify.h"
 #include "cinn/optim/eliminate_broadcast_in_forloop.h"
 #include "cinn/optim/extern_call_process.h"
 #include "cinn/optim/fold_cinn_call_arguments.h"
@@ -50,7 +49,6 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
 
   CastSimplify(&copied);
   Simplify(&copied);
-  CompareSimplify(&copied);
   IfSimplify(&copied);
 
   if (runtime_debug_info) {

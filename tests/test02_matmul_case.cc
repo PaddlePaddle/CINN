@@ -58,7 +58,7 @@ TEST(test02, basic) {
     }
   }
 
-  auto compare = [&](float diff = 1e-5) {
+  auto compare = [&](float diff = 1e-4) {
     for (int i = 0; i < M; i++) {
       for (int j = 0; j < N; j++) {
         ASSERT_NEAR(Cd[i * N + j], Cd_target[i * N + j], diff);
