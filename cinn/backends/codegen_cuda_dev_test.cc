@@ -320,6 +320,128 @@ void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, f
   }
 }
 
+TEST(CodeGenCUDA3, compile_run_jit3) {
+  Expr M(32);
+  Expr N(32);
+  Expr K(32);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("A1", {M, K});
+  Placeholder<float> B("B1", {N, K});
+
+  auto k1 = Var(K.as_int32(), "k1");
+  auto CC = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(j, k1), {k1}); }, "C1");
+
+  auto stages = CreateStages({CC});
+  std::vector<ir::Tensor> readers{CC};
+
+  auto C = stages[CC]->CacheWrite2("local", stages);
+
+  stages[C]->Split(1, 2);
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
+
+  stages[CC]->Split(1, 2);
+  stages[CC]->Bind(0, "blockIdx.x");
+  stages[CC]->Bind(1, "threadIdx.x");
+
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func = Lower("mul_cache_write", stages, {A, B, C}, {}, {}, nullptr, target);
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled CacheWrite+InitReduce code:\n\n\n" << source_code;
+
+  std::string source_target = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1, float* __restrict__ C1)
+{
+  float _C1_cache_write_out [ ((1 * (((1 * 32) * 32) / 32)) / 16) ];
+  float* C1_cache_write_out = _C1_cache_write_out;
+  float* C1_cache_write_out__reduce_init = _C1_cache_write_out;
+  if ((blockIdx.x < 32)) {
+  {
+    if ((threadIdx.x < 16)) {
+    {
+      for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
+        C1_cache_write_out__reduce_init[j_inner] = 0;
+        for (int32_t k1 = 0; k1 < 32; k1 += 1) {
+          C1_cache_write_out[j_inner] = (C1_cache_write_out[j_inner] + (A1[((32 * blockIdx.x) + k1)] * B1[((32 * j_inner) + ((64 * threadIdx.x) + k1))]));
+        };
+      };
+    }
+    };
+  }
+  };
+  if ((blockIdx.x < 32)) {
+  {
+    if ((threadIdx.x < 16)) {
+    {
+      for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
+        C1[((32 * blockIdx.x) + ((2 * threadIdx.x) + j_inner))] = C1_cache_write_out[j_inner];
+      };
+    }
+    };
+  }
+  };
+}
+
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(source_target), source_code);
+
+  using runtime::cuda::CUDAModule;
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+
+  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+
+  // launch the kernel
+
+  void* args[] = {&Ad, &Bd, &Cd};
+
+  dim3 grid(32, 1, 1);
+  dim3 block(16, 1, 1);
+  cuda_module.LaunchKernel(0, "mul_cache_write", grid, block, args);
+
+  CUDA_CALL(cudaMemcpy(host_data3.data(),
+                       reinterpret_cast<void*>(Cd),
+                       M.as_int32() * N.as_int32() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+  std::vector<float> res(1024, 0.0);
+  for (int i = 0; i < M.as_int32(); i++) {
+    for (int j = 0; j < N.as_int32(); j++) {
+      for (int k = 0; k < N.as_int32(); k++) {
+        res[i * 32 + j] += host_data1[i * 32 + k] * host_data2[j * 32 + k];
+      }
+      int offset = i * 32 + j;
+      EXPECT_NEAR(host_data3[offset], res[offset], 1e-3);
+    }
+  }
+}
+
 class ElementwiseTester {
  public:
   Expr N{212};
