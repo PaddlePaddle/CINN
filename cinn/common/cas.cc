@@ -1285,7 +1285,7 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
   return Mod::Make(a, b);
 }
 
-Expr CasSimplifyMutator::SimplifyCmp(Expr u) {
+Expr CasSimplifyMutator::SimplifyMinAndMax(Expr u) {
   // simplify min/max
   auto* u_max = u.As<Max>();
   auto* u_min = u.As<Min>();
@@ -1306,6 +1306,30 @@ Expr CasSimplifyMutator::SimplifyCmp(Expr u) {
     }
     return ir::Min::Make(a, b);
   }
+  return u;
+}
+
+Expr CasSimplifyMutator::SimplifyCmp(Expr u) {
+  Expr a = operator()(u->operand(0));
+  Expr b = operator()(u->operand(1));
+
+  if (a.is_constant() && b.is_constant()) {
+    switch (u->node_type()) {
+      case ir::IrNodeTy::LT:
+        return Expr(a.get_constant() < b.get_constant());
+      case ir::IrNodeTy::LE:
+        return Expr(a.get_constant() <= b.get_constant());
+      case ir::IrNodeTy::GT:
+        return Expr(a.get_constant() > b.get_constant());
+      case ir::IrNodeTy::GE:
+        return Expr(a.get_constant() >= b.get_constant());
+      case ir::IrNodeTy::EQ:
+        return Expr(a.get_constant() == b.get_constant());
+      case ir::IrNodeTy::NE:
+        return Expr(a.get_constant() != b.get_constant());
+    }
+  }
+
   return u;
 }
 
@@ -1388,7 +1412,7 @@ Expr CasSimplifyMutator::SimplifySpecificSum(Expr tmp) {
 
 Expr CasSimplifyMutator::operator()(Expr u) {
   if (u.As<Min>() || u.As<Max>()) {
-    return SimplifyCmp(u);
+    return SimplifyMinAndMax(u);
   }
 
   u = detail::SumOrProductGetSingleElementsRec(u);
@@ -1422,6 +1446,19 @@ Expr CasSimplifyMutator::operator()(Expr u) {
 
   if (u.As<Mod>()) {
     return detail::SumOrProductGetSingleElementsRec(SimplifyMod(u));
+  }
+
+  if (u.is_cmp()) {
+    return SimplifyCmp(u);
+  }
+
+  switch (u.node_type()) {
+    case ir::IrNodeTy::And:
+    case ir::IrNodeTy::Or:
+    case ir::IrNodeTy::Not:
+      return SimplifyCond(u);
+    default:
+      break;
   }
 
   return u;
@@ -1973,6 +2010,73 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
 
   if (node->a().same_as(a) && node->b().same_as(b)) return expr;
   return FracOp::Make(a, b);
+}
+
+Expr CasSimplifyMutator::SimplifyCond(Expr u) {
+  switch (u->node_type()) {
+      // -------------------------- NOT -----------------------------
+    case ir::IrNodeTy::Not: {
+      auto* node = u.As<ir::Not>();
+      Expr v     = operator()(node->v());
+      switch (v.node_type()) {
+          // Not 1 = (1 == 0)
+        case ir::IrNodeTy::IntImm:
+          return Expr(v.As<IntImm>()->value == 0);
+          // Not Not v = v
+        case ir::IrNodeTy::Not:
+          return v;
+          // Not <= is >
+        case ir::IrNodeTy::LE:
+          return ir::GT::Make(v->operand(0), v->operand(1));
+          // Not < is >=
+        case ir::IrNodeTy::LT:
+          return ir::GE::Make(v->operand(0), v->operand(1));
+          // Not >= is <
+        case ir::IrNodeTy::GE:
+          return ir::LT::Make(v->operand(0), v->operand(1));
+          // Not > is <=
+        case ir::IrNodeTy::GT:
+          return ir::LE::Make(v->operand(0), v->operand(1));
+        default:
+          return ir::Not::Make(v);
+      }
+    } break;
+      // -------------------------- AND OR -----------------------------
+    case ir::IrNodeTy::And:
+    case ir::IrNodeTy::Or: {
+      Expr a = operator()(u->operand(0));
+      Expr b = operator()(u->operand(1));
+      if (a.is_constant() || b.is_constant()) {
+        if (u.As<ir::And>()) {
+          // 1 && b is b
+          if (a.As<ir::IntImm>()) {
+            return a.As<ir::IntImm>()->value ? b : Expr(false);
+          }
+          // a && 1 is a
+          if (b.As<ir::IntImm>()) {
+            return b.As<ir::IntImm>()->value ? a : Expr(false);
+          }
+          return ir::And::Make(a, b);
+        }
+        if (u.As<ir::Or>()) {
+          // 1 || b is 1
+          if (a.As<ir::IntImm>()) {
+            return a.As<ir::IntImm>()->value ? a : b;
+          }
+          // a || 1 is 1
+          if (b.As<ir::IntImm>()) {
+            return b.As<ir::IntImm>()->value ? b : a;
+          }
+        }
+        return ir::Or::Make(a, b);
+      }
+
+      return u;
+    }
+
+    default:
+      return u;
+  }
 }
 
 }  // namespace detail

@@ -122,5 +122,24 @@ _Var_ *Expr::as_var() { return As<_Var_>(); }
 const _Var_ *Expr::as_var() const { return As<_Var_>(); }
 Var Expr::as_var_ref() const { return Var(&Reference(as_var())); }
 
+bool Expr::is_cmp() const {
+  switch (node_type()) {
+    case ir::IrNodeTy::LE:
+    case ir::IrNodeTy::LT:
+    case ir::IrNodeTy::EQ:
+    case ir::IrNodeTy::NE:
+    case ir::IrNodeTy::GT:
+    case ir::IrNodeTy::GE:
+      return true;
+    default:
+      return false;
+  }
+}
+
+const Expr &IrNode::operand(int i) {
+  CHECK_LT(i, operands.size());
+  return operands[i];
+}
+
 }  // namespace ir
 }  // namespace cinn
