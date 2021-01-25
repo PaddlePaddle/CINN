@@ -14,6 +14,8 @@ namespace optim {
 void LowerIntrin(Expr *e, Target target) {
   if (target.arch == Target::Arch::X86) {
     codegen::RegisterCpuIntrinRule();
+  } else {
+    return;
   }
   struct Mutator : ir::IRMutator<Expr *> {
     Target target;
@@ -22,16 +24,35 @@ void LowerIntrin(Expr *e, Target target) {
 
     void operator()(Expr *e) { ir::IRMutator<>::Visit(e, e); }
 
+    void Visit(const ir::Add *op, Expr *expr) override {
+      auto *node = expr->As<ir::Add>();
+      CHECK(node);
+      Expr ret;
+      if (node->type().is_float()) {
+        if (const ir::Mul *mul = node->b().As<ir::Mul>()) {
+          ret = ir::Call::Make(node->type(), "fma", {mul->a(), mul->b(), node->a()}, {}, ir::CallType::Intrinsic);
+        } else if (const ir::Mul *mul = node->a().As<ir::Mul>()) {
+          ret = ir::Call::Make(node->type(), "fma", {mul->a(), mul->b(), node->b()}, {}, ir::CallType::Intrinsic);
+        }
+        if (ret.defined()) {
+          ir::IRMutator<>::Visit(&ret, &ret);
+          LOG(INFO) << ret;
+          *expr = ret;
+          return;
+        }
+      }
+      ir::IRMutator<>::Visit(&node->a(), &node->a());
+      ir::IRMutator<>::Visit(&node->b(), &node->b());
+    }
+
     void Visit(const ir::Call *op, Expr *expr) override {
       auto *node = expr->As<ir::Call>();
       CHECK(node);
-
-      if (target.arch == Target::Arch::X86) {
-        LowerCpuIntrisicOp(node, expr);
-      }
+      LowerCpuIntrisicOp(node, expr);
     }
 
-    void LowerCpuIntrisicOp(ir::Call *node, Expr *expr) {
+    void LowerCpuIntrisicOp(ir::Call *op, Expr *expr) {
+      auto *node = expr->As<ir::Call>();
       if (kIntrinsicCalls.count(node->name)) {
         CHECK(!node->name.empty());
         auto *func_ptr = ir::Registry::Get("lower_cpu_intrinsic_" + node->name);
@@ -42,6 +63,13 @@ void LowerIntrin(Expr *e, Target target) {
           ir::IRMutator<>::Visit(&ret, &ret);
         }
         *expr = ret;
+        return;
+      }
+      for (auto &expr : node->read_args) {
+        ir::IRMutator<>::Visit(&expr, &expr);
+      }
+      for (auto &expr : node->write_args) {
+        ir::IRMutator<>::Visit(&expr, &expr);
       }
     }
   };
