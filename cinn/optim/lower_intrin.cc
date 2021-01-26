@@ -36,7 +36,6 @@ void LowerIntrin(Expr *e, Target target) {
         }
         if (ret.defined()) {
           ir::IRMutator<>::Visit(&ret, &ret);
-          LOG(INFO) << ret;
           *expr = ret;
           return;
         }
