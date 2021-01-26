@@ -1,5 +1,7 @@
 #pragma once
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include "cinnrt/host_context/value.h"
 
 #include <memory>
 #include <string>
@@ -12,19 +14,27 @@ class OpExecutableBuilder;
 class SymbolTable;
 
 /**
- * CoreRuntime encapsulate the runtime facilities.
+ * CoreRuntime encapsulate the execution for a function.
+ * Each function call will bind to a CoreRuntime instance, push the argument Values in to the argment-list, and get the
+ * result Values from the return-list.
  */
 class CoreRuntime {
  public:
   //! Execute a program.
   void Execute();
 
-  //! Get a SymbolTable bound to a function.
-  SymbolTable* GetSymbolTable(const std::string& fn_name);
+  //! Feed the input arguments, each item is a pair of arg-name and arg-value.
+  void FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueRef>> args);
+
+  //! Get the results of the execution.
+  llvm::SmallVector<ValueRef, 4> GetResults(llvm::ArrayRef<std::string_view> arg_names);
 
   ~CoreRuntime();
 
  protected:
+  //! Get the symbol table.
+  SymbolTable* symbol_table();
+
   class Impl;
   explicit CoreRuntime(Impl* impl);
   std::unique_ptr<Impl> impl_;
@@ -37,7 +47,7 @@ class CoreRuntimeBuilder : public CoreRuntime {
  public:
   explicit CoreRuntimeBuilder(KernelRegistry* kernel_registry);
 
-  SymbolTable* NewSymbolTable(std::string_view fn_name);
+  using CoreRuntime::symbol_table;
 
   llvm::ArrayRef<std::string_view> attr_names() const;
 

@@ -19,7 +19,7 @@ TEST(CoreRuntime, basic) {
   registry.AddKernel("cinn.test.subi32", CINN_KERNEL(sub));
 
   CoreRuntimeBuilder builder(&registry);
-  auto* table = builder.NewSymbolTable("main");
+  auto* table = builder.symbol_table();
   table->Register("a", 1);
   table->Register("b", 2);
   table->Register("d", 4);
@@ -40,7 +40,6 @@ TEST(CoreRuntime, basic) {
 
   ASSERT_EQ(table->Get("d")->get<int>(), 4);
   ASSERT_EQ(table->Get("c")->get<int>(), 3);
-
   ASSERT_EQ(table->Get("e")->get<int>(), -1);
 }
 

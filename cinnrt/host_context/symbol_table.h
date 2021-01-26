@@ -20,6 +20,8 @@ class SymbolTable {
    */
   Value* Register(std::string_view key);
 
+  Value* Register(std::string_view key, ValueRef value);
+
   /**
    * Register a state and set value.
    */

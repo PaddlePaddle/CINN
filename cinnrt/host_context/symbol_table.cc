@@ -17,6 +17,12 @@ Value* SymbolTable::Register(std::string_view key) {
   return it.first->second.get();
 }
 
+Value* SymbolTable::Register(std::string_view key, ValueRef value) {
+  auto it = impl_->data.try_emplace(std::string(key), ValueRef(new Value));
+  CHECK(it.second) << "Duplicate register [" << key << "]";
+  return it.first->second.get();
+}
+
 Value* SymbolTable::Get(std::string_view key) const {
   auto it = impl_->data.find(std::string(key));
   return it != impl_->data.end() ? it->second.get() : nullptr;
