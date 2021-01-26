@@ -1,5 +1,6 @@
 set(srcs
         dtype.cc
+        global.cc
         )
 
 foreach(cpp ${srcs})
