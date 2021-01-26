@@ -32,11 +32,11 @@ llvm::raw_ostream &printIndent(int indent = 0) {
   return llvm::outs();
 }
 
-void printOperation(const mlir::Operation *op, int indent);
-void printRegion(const mlir::Region &region, int indent);
-void printBlock(const mlir::Block &block, int indent);
+void printOperation(mlir::Operation *op, int indent);
+void printRegion(mlir::Region &region, int indent);
+void printBlock(mlir::Block &block, int indent);
 
-void printOperation(const mlir::Operation *op, int indent) {
+void printOperation(mlir::Operation *op, int indent) {
   llvm::Optional<mlir::ModuleOp> module_op = llvm::None;
   if (llvm::isa<mlir::ModuleOp>(op)) module_op = llvm::dyn_cast<mlir::ModuleOp>(op);
   llvm::Optional<mlir::FuncOp> func_op = llvm::None;
@@ -72,14 +72,14 @@ void printOperation(const mlir::Operation *op, int indent) {
   }
 }
 
-void printRegion(const mlir::Region &region, int indent) {
+void printRegion(mlir::Region &region, int indent) {
   printIndent(indent) << "Region with " << region.getBlocks().size() << " blocks:\n";
   for (mlir::Block &block : region.getBlocks()) {
     printBlock(block, indent + 1);
   }
 }
 
-void printBlock(const mlir::Block &block, int indent) {
+void printBlock(mlir::Block &block, int indent) {
   printIndent(indent) << "Block with " << block.getNumArguments() << " arguments"
                       << ", " << block.getNumSuccessors() << " successors"
                       << ", " << block.getOperations().size() << " operations\n";
