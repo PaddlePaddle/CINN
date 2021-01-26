@@ -15,12 +15,19 @@ int GetBasicFactor(const Type &type, const common::Target &target);
 
 int GetBetterSplitFactor(int shape, int split_factor);
 
+int GetArrayPackingFactor(int shape, const Type &type, const common::Target &target);
+
+void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
+
+void MatmulScheduleCPU(poly::StageMap stage,
+                       const ir::Tensor &output,
+                       const ir::Tensor &packedB,
+                       const common::Target &target);
+
 void MulScheduleCPU(poly::StageMap stage,
                     const ir::Tensor &output,
                     const ir::Tensor &input_tensor,
                     const common::Target &target);
-
-void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
 
 void CudaScheduleMul(poly::StageMap stages,
                      ir::Tensor output,

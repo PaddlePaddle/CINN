@@ -26,7 +26,7 @@ TEST(SimplifyIdentityDomainForloop, basic) {
 
   ASSERT_EQ(utils::GetStreamCnt(forloop2), utils::Trim(R"ROC(
 for (k, 0, 100)
-tensor[i]
+tensor[0]
 )ROC"));
 }
 

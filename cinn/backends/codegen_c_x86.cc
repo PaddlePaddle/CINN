@@ -94,5 +94,46 @@ void CodeGenCX86::PrintVecInputArgument(const Expr *op) {
   }
 }
 
+void CodeGenCX86::Visit(const ir::intrinsics::BuiltinIntrin *op) {
+  if (op->type().lanes() == 1) {
+    CodeGenC::Visit(op);
+    return;
+  }
+  int bits = op->type().bits() * op->type().lanes();
+  if (SupportsAVX512() && bits == 512) {
+    os() << "cinn_avx512_" << op->name << "(";
+    if (!op->args.empty()) {
+      for (int i = 0; i < op->args.size() - 1; i++) {
+        PrintVecInputArgument(&op->args[i]);
+        os() << ", ";
+      }
+      Print(op->args.back());
+    }
+    os() << ")";
+  } else if (SupportsAVX256() && bits == 256) {
+    os() << "cinn_avx256_" << op->name << "(";
+    if (!op->args.empty()) {
+      for (int i = 0; i < op->args.size() - 1; i++) {
+        PrintVecInputArgument(&op->args[i]);
+        os() << ", ";
+      }
+      PrintVecInputArgument(&op->args.back());
+    }
+    os() << ")";
+  } else if (bits == 128) {
+    os() << "cinn_avx128_" << op->name << "(";
+    if (!op->args.empty()) {
+      for (int i = 0; i < op->args.size() - 1; i++) {
+        PrintVecInputArgument(&op->args[i]);
+        os() << ", ";
+      }
+      PrintVecInputArgument(&op->args.back());
+    }
+    os() << ")";
+  } else {
+    CodeGenC::Visit(op);
+  }
+}
+
 }  // namespace backends
 }  // namespace cinn

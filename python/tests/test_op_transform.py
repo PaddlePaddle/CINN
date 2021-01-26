@@ -62,8 +62,10 @@ class OpTest_matmul_0(SingleOpTester):
 
 class OpTest_matmul_1(SingleOpTester):
     def init_testcase(self):
+        # self.input_shape = [[256, 32], [256, 32]]
+        # self.output_shape = [[256, 256], [256, 256], [4, 32, 64]]
         self.input_shape = [[100, 32], [100, 32]]
-        self.output_shape = [[100, 100], [100, 100]]
+        self.output_shape = [[100, 100], [100, 100], [2, 32, 50]]
         self.trans_a = False
         self.trans_b = True
         self.alpha = 2
@@ -87,7 +89,8 @@ class OpTest_matmul_1(SingleOpTester):
 class OpTest_matmul_2(SingleOpTester):
     def init_testcase(self):
         self.input_shape = [[2, 3, 100, 32], [2, 3, 100, 32]]
-        self.output_shape = [[2, 3, 100, 100], [2, 3, 100, 100]]
+        self.output_shape = [[2, 3, 100, 100], [2, 3, 100, 100],
+                             [2, 3, 2, 100, 16]]
         self.trans_a = False
         self.trans_b = True
         self.alpha = 2
@@ -111,7 +114,7 @@ class OpTest_matmul_2(SingleOpTester):
 class OpTest_matmul_3(SingleOpTester):
     def init_testcase(self):
         self.input_shape = [[32, 100], [32, 100]]
-        self.output_shape = [[100, 100], [100, 100]]
+        self.output_shape = [[100, 100], [100, 100], [2, 100, 16]]
         self.trans_a = True
         self.trans_b = False
         self.alpha = 2
@@ -135,7 +138,7 @@ class OpTest_matmul_3(SingleOpTester):
 class OpTest_matmul_4(SingleOpTester):
     def init_testcase(self):
         self.input_shape = [[32, 100], [100]]
-        self.output_shape = [[32], [32]]
+        self.output_shape = [[32], [32], [2, 100, 16]]
         self.trans_a = False
         self.trans_b = False
         self.alpha = 2
@@ -159,7 +162,7 @@ class OpTest_matmul_4(SingleOpTester):
 class OpTest_matmul_5(SingleOpTester):
     def init_testcase(self):
         self.input_shape = [[100], [100]]
-        self.output_shape = [[1], [1]]
+        self.output_shape = [[1], [1], [1, 100, 1]]
         self.trans_a = False
         self.trans_b = False
         self.alpha = 2
@@ -183,7 +186,7 @@ class OpTest_matmul_5(SingleOpTester):
 class OpTest_matmul_6(SingleOpTester):
     def init_testcase(self):
         self.input_shape = [[32, 1], [1, 100]]
-        self.output_shape = [[32, 100], [32, 100]]
+        self.output_shape = [[32, 100], [32, 100], [2, 1, 50]]
         self.trans_a = False
         self.trans_b = False
         self.alpha = 2

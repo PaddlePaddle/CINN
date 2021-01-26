@@ -25,9 +25,9 @@ inline void MakeFloatIntrinOp(lang::Args args, lang::RetValue *rv) {
   CHECK_GE(node->read_args.size(), arg_nums);
   if (add_float_suffix) {
     CHECK(node->type().is_float());
-    *rv = ir::intrinsics::UnaryIntrin::Make(node->name + "f", node->read_args, id, arg_nums, node->type());
+    *rv = ir::intrinsics::BuiltinIntrin::Make(node->name + "f", node->read_args, id, arg_nums, node->type());
   } else {
-    *rv = ir::intrinsics::UnaryIntrin::Make(node->name, node->read_args, id, arg_nums, node->type());
+    *rv = ir::intrinsics::BuiltinIntrin::Make(node->name, node->read_args, id, arg_nums, node->type());
   }
 }
 
@@ -56,8 +56,10 @@ void RegisterCpuIntrinRule() {
       RegisterBitwise(right_shift)
 #undef RegisterBitwise
 
-          ir::Registry::Register("lower_cpu_intrinsic_bitwise_not", true)
-              .SetBody(MakeFloatIntrinOp<-1, 1, false>);
+          ir::Registry::Register("lower_cpu_intrinsic_fma", true)
+              .SetBody(MakeFloatIntrinOp<::llvm::Intrinsic::fmuladd, 3, false>);
+
+  ir::Registry::Register("lower_cpu_intrinsic_bitwise_not", true).SetBody(MakeFloatIntrinOp<-1, 1, false>);
 
   ir::Registry::Register("lower_cpu_intrinsic_isnan", true).SetBody(MakeFloatIntrinOp<-1, 1, false>);
 

@@ -1285,7 +1285,7 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
   return Mod::Make(a, b);
 }
 
-Expr CasSimplifyMutator::SimplifyMinOrMax(Expr u) {
+Expr CasSimplifyMutator::SimplifyMinAndMax(Expr u) {
   // simplify min/max
   auto* u_max = u.As<Max>();
   auto* u_min = u.As<Min>();
@@ -1412,7 +1412,7 @@ Expr CasSimplifyMutator::SimplifySpecificSum(Expr tmp) {
 
 Expr CasSimplifyMutator::operator()(Expr u) {
   if (u.As<Min>() || u.As<Max>()) {
-    return SimplifyMinOrMax(u);
+    return SimplifyMinAndMax(u);
   }
 
   u = detail::SumOrProductGetSingleElementsRec(u);
@@ -1637,6 +1637,18 @@ Expr ConvertCasToCinn(Expr expr) {
       }
 
       // process the sum
+      Visit(expr);
+    }
+
+    void Visit(const FracOp* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
+      CHECK(!is_zero(b)) << "Dividend should not be zero";
+      *expr = Div::Make(a, b);
       Visit(expr);
     }
 
@@ -2013,7 +2025,6 @@ Expr CasSimplifyMutator::SimplifyCond(Expr u) {
           // Not Not v = v
         case ir::IrNodeTy::Not:
           return v;
-          break;
           // Not <= is >
         case ir::IrNodeTy::LE:
           return ir::GT::Make(v->operand(0), v->operand(1));
@@ -2052,7 +2063,7 @@ Expr CasSimplifyMutator::SimplifyCond(Expr u) {
           if (a.As<ir::IntImm>()) {
             return a.As<ir::IntImm>()->value ? a : b;
           }
-          // a || 1 is a
+          // a || 1 is 1
           if (b.As<ir::IntImm>()) {
             return b.As<ir::IntImm>()->value ? b : a;
           }
@@ -2061,11 +2072,10 @@ Expr CasSimplifyMutator::SimplifyCond(Expr u) {
       }
 
       return u;
-    } break;
+    }
 
     default:
       return u;
-      break;
   }
 }
 

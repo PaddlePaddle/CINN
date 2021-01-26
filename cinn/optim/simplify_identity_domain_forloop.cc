@@ -106,7 +106,7 @@ void SimplifyIdentityDomainForloop(Expr *e) {
     }
 
     void Visit(const ir::Load *op, Expr *expr) override {
-      auto *node = expr->As<ir::Store>();
+      auto *node = expr->As<ir::Load>();
       for (auto &e : node->indices) {
         for (auto &[var, expr] : table.GetAllConstantVars()) {
           ReplaceVarWithExpr(&e, var, expr);

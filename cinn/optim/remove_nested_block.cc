@@ -6,25 +6,25 @@
 namespace cinn {
 namespace optim {
 
+Expr GetExprInsideBlock(Expr op) {
+  Expr node = op;
+  while (node.As<ir::Block>()) {
+    auto& stmts = node.As<ir::Block>()->stmts;
+    if (stmts.size() == 1) {
+      node = stmts.front();
+    } else {
+      break;
+    }
+  }
+  return node;
+}
+
 // This will remove the nested blocks, but it will also remove the block outside the forloop's body.
-struct NestedBlockRemover : public ir::IRMutator<Expr*> {
+struct NestedBlockSimplifer : public ir::IRMutator<Expr*> {
   void operator()(ir::Expr* expr) { Visit(expr); }
 
  private:
   void Visit(ir::Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
-
-  Expr GetExprInsideBlock(Expr op) {
-    Expr node = op;
-    while (node.As<ir::Block>()) {
-      auto& stmts = node.As<ir::Block>()->stmts;
-      if (stmts.size() == 1) {
-        node = stmts.front();
-      } else {
-        break;
-      }
-    }
-    return node;
-  }
 
   void Visit(const ir::Block* expr, Expr* op) override {
     auto* node = op->As<ir::Block>();
@@ -34,6 +34,34 @@ struct NestedBlockRemover : public ir::IRMutator<Expr*> {
     } else {
       IRMutator::Visit(expr, op);
     }
+  }
+};
+
+struct NestedBlockRemover : public ir::IRMutator<Expr*> {
+  void operator()(ir::Expr* expr) { Visit(expr); }
+
+ private:
+  void Visit(ir::Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+  void Visit(const ir::Block* expr, Expr* op) override {
+    auto* node = op->As<ir::Block>();
+
+    std::vector<ir::Expr> new_exprs;
+
+    bool detect_nested = false;
+    for (auto it = node->stmts.begin(); it != node->stmts.end(); it++) {
+      auto* block = it->As<ir::Block>();
+      if (block) {
+        detect_nested = true;
+        new_exprs.insert(std::end(new_exprs), block->stmts.begin(), block->stmts.end());
+      } else {
+        new_exprs.push_back(*it);
+      }
+    }
+
+    node->stmts = new_exprs;
+
+    IRMutator::Visit(expr, op);
   }
 };
 
@@ -71,6 +99,7 @@ struct AddBlockToForloop : public ir::IRMutator<> {
 
 void RemoveNestedBlock(Expr* e) {
   NestedBlockRemover()(e);
+  NestedBlockSimplifer()(e);
   AddBlockToForloop()(e);
 }
 

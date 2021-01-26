@@ -1,4 +1,4 @@
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -mavx -Wno-write-strings -Wno-psabi")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -mavx -mfma -Wno-write-strings -Wno-psabi")
 
 set(PADDLE_RESOURCE_URL "http://paddle-inference-dist.bj.bcebos.com" CACHE STRING "inference download url")
 
