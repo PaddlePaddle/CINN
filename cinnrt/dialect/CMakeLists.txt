@@ -44,6 +44,9 @@ add_test(test_mlir_opt_on_paddle_ops
 
 cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS cinncore ${MLIR_IR_LIBS})
 
+# execute mlir and run FileCheck
+cinn_exec_check(run_and_check_tensor_type mlir_tests/tensor_type.mlir)
+
 foreach(cpp ${srcs})
   set(core_src
       "${core_src};cinnrt/dialect/${cpp}"
