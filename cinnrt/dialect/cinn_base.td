@@ -19,7 +19,6 @@ def StringType : OpaqueType<"cinn", "string", "!cinn.string type">;
 
 def TensorType :
     Type<CPred<"$_self.isa<::cinnrt::dt::TensorType>()">, "!cinn.tensor type">;
-//    BuildableType<"$_builder.getType<::cinnrt::dt::TensorType>()">
 
 def BufferType : OpaqueType<"b", "buffer", "buffer">;
 

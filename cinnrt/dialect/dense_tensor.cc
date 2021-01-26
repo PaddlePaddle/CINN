@@ -30,11 +30,11 @@ void DTDialect::initialize() {
 namespace detail {
 struct TensorTypeStorage : public mlir::TypeStorage {
   TensorTypeStorage(TargetType target, LayoutType layout, PrecisionType precision)
-      : _target(target), _layout(layout), _precision(precision) {}
+      : target_(target), layout_(layout), precision_(precision) {}
 
   using KeyTy = std::tuple<TargetType, LayoutType, PrecisionType>;
 
-  bool operator==(const KeyTy &key) const { return key == KeyTy(_target, _layout, _precision); }
+  bool operator==(const KeyTy &key) const { return key == KeyTy(target_, layout_, precision_); }
 
   static llvm::hash_code hashKey(const KeyTy &key) { return llvm::hash_value(key); }
 
@@ -43,9 +43,9 @@ struct TensorTypeStorage : public mlir::TypeStorage {
         TensorTypeStorage(std::get<0>(key), std::get<1>(key), std::get<2>(key));
   }
 
-  TargetType _target;
-  LayoutType _layout;
-  PrecisionType _precision;
+  TargetType target_;
+  LayoutType layout_;
+  PrecisionType precision_;
 };
 }  // namespace detail
 
@@ -80,11 +80,11 @@ TensorType TensorType::get(TargetType target, LayoutType layout, PrecisionType p
   return Base::get(::cinnrt::Global::getMLIRContext(), target, layout, precision);
 }
 
-TargetType TensorType::target() { return getImpl()->_target; }
+TargetType TensorType::target() { return getImpl()->target_; }
 
-LayoutType TensorType::layout() { return getImpl()->_layout; }
+LayoutType TensorType::layout() { return getImpl()->layout_; }
 
-PrecisionType TensorType::precision() { return getImpl()->_precision; }
+PrecisionType TensorType::precision() { return getImpl()->precision_; }
 
 raw_ostream &operator<<(raw_ostream &os, TensorType tensorType) {
   os << "TensorType<" << tensorType.target() << ", " << tensorType.layout() << ", " << tensorType.precision() << ">";
