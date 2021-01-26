@@ -17,7 +17,8 @@ def CINN_Dialect : Dialect {
 // Type definitions
 def StringType : OpaqueType<"cinn", "string", "!cinn.string type">;
 
-def TensorType : OpaqueType<"t", "tensor", "tensor">;
+def TensorType :
+    Type<CPred<"$_self.isa<::cinnrt::dt::TensorType>()">, "!cinn.tensor type">;
 
 def BufferType : OpaqueType<"b", "buffer", "buffer">;
 

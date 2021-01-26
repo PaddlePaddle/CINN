@@ -365,29 +365,21 @@ void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1,
   float* C1_cache_write_out = _C1_cache_write_out;
   float* C1_cache_write_out__reduce_init = _C1_cache_write_out;
   if ((blockIdx.x < 32)) {
-  {
     if ((threadIdx.x < 16)) {
-    {
       for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
         C1_cache_write_out__reduce_init[j_inner] = 0;
         for (int32_t k1 = 0; k1 < 32; k1 += 1) {
           C1_cache_write_out[j_inner] = (C1_cache_write_out[j_inner] + (A1[((32 * blockIdx.x) + k1)] * B1[((32 * j_inner) + ((64 * threadIdx.x) + k1))]));
         };
       };
-    }
     };
-  }
   };
   if ((blockIdx.x < 32)) {
-  {
     if ((threadIdx.x < 16)) {
-    {
       for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
         C1[((32 * blockIdx.x) + ((2 * threadIdx.x) + j_inner))] = C1_cache_write_out[j_inner];
       };
-    }
     };
-  }
   };
 }
 

@@ -11,7 +11,10 @@
 namespace cinnrt {
 
 void RegisterCinnDialects(mlir::DialectRegistry& registry) {
-  registry.insert<ts::TensorShapeDialect, dialect::CINNDialect, dt::DTDialect, mlir::PD::PaddleDialect>();
+  registry.insert<ts::TensorShapeDialect>();
+  registry.insert<dialect::CINNDialect>();
+  registry.insert<dt::DTDialect>();
+  registry.insert<mlir::PD::PaddleDialect>();
 }
 
 }  // namespace cinnrt
