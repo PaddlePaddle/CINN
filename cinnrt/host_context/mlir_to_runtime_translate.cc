@@ -18,6 +18,7 @@
 #include "cinnrt/dialect/tensor_shape.h"
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/kernel_registry.h"
+#include "cinnrt/host_context/mlir_function.h"
 #include "cinnrt/host_context/op_executable.h"
 #include "cinnrt/host_context/tensor_shape.h"
 #include "cinnrt/host_context/value.h"
@@ -35,7 +36,10 @@ std::string DumpToString(T& op) {  // NOLINT
 
 struct MlirToRuntimeTranslator::Impl {
   mlir::ModuleOp module;
+  // The runtime for a function call.
   CoreRuntimeBuilder* runtime{};
+  // The current working op, the translator process the ops one by one, each time it updates `cur_op` here to current op
+  // working on.
   OpExecutableBuilder* cur_op{};
 
   // record the current function name.
@@ -230,6 +234,11 @@ bool MlirToRuntimeTranslator::EmitReturnOp(mlir::Operation* op) {
   return false;
 }
 
+bool MlirToRuntimeTranslator::EmitFunctionDef(mlir::Operation* op) {
+  for (auto func_op : impl_->module.getOps<mlir::FuncOp>()) {
+  }
+}
+
 void MlirToRuntimeTranslator::Emit() {
   auto main_fn = impl_->module.lookupSymbol<mlir::FuncOp>("main");
   CHECK(main_fn) << "need main function as entry point of the whole program";
@@ -245,6 +254,7 @@ void MlirToRuntimeTranslator::Emit() {
     if (EmitBuildShapeOp(&op)) continue;
     if (EmitReturnOp(&op)) continue;
     if (EmitGeneralOp(&op)) continue;
+    if (EmitCallOp(&op)) continue;
     LOG(FATAL) << "failed to emit op: " << DumpToString(op);
   }
 }
@@ -288,6 +298,38 @@ bool MlirToRuntimeTranslator::EmitBuildShapeOp(mlir::Operation* op) {
   impl_->op_results[op] = {ValueRef(new Value(TensorShape(llvm::ArrayRef<int64_t>(dims))))};
 
   return true;
+}
+
+bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op) {
+  if (op->getName().getStringRef() != "cinn.call") return false;
+
+  impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
+  CHECK_EQ(op->getNumOperands(), 2);
+
+  auto callee      = op->getAttr("callee");
+  auto callee_name = callee.dyn_cast<mlir::FlatSymbolRefAttr>();
+
+  for (int i = 0; i < op->getNumOperands(); i++) {
+    auto operand    = op->getOperand(i);
+    auto* arg_value = GetValue(operand);
+
+    if (!arg_value) {
+      auto upstream_op = operand.getDefiningOp();
+      arg_value        = GetOpResult(upstream_op);
+    }
+    CHECK(arg_value) << "No-exist argument value found: " << DumpToString(operand);
+    impl_->cur_op->AppendArgument(arg_value);
+  }
+
+  // process results
+  llvm::SmallVector<Value*, 4> res_values;
+  for (int i = 0, e = op->getNumResults(); i < e; i++) {
+    auto res = op->getResult(i);
+    res_values.push_back(AddValue(res));
+  }
+  impl_->cur_op->SetResults(res_values);
+
+  LOG(INFO) << "callee_name: " << callee_name.getValue().str();
 }
 
 void MlirToRuntimeTranslate(mlir::ModuleOp module, CoreRuntimeBuilder* runtime) {
