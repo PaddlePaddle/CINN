@@ -15,7 +15,7 @@ class SymbolTable;
 
 /**
  * CoreRuntime encapsulate the execution for a function.
- * Each function call will bind to a CoreRuntime instance, push the argument Values in to the argment-list, and get the
+ * Each function call will bind to a CoreRuntime instance, push the argument Values in to the argument-list, and get the
  * result Values from the return-list.
  */
 class CoreRuntime {
@@ -41,7 +41,7 @@ class CoreRuntime {
 };
 
 /**
- * The builder for CoreRuntime.
+ * The builder for CoreRuntime, help to construct a function.
  */
 class CoreRuntimeBuilder : public CoreRuntime {
  public:

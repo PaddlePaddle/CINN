@@ -35,10 +35,10 @@ OpExecutableBuilder::OpExecutableBuilder(std::string_view op_name,
 }
 
 void OpExecutableBuilder::AppendArgument(std::string_view name) {
-  if (!impl_->symbol_table->Get(name)) {
+  if (!impl_->symbol_table->GetValue(name)) {
     impl_->symbol_table->Register(name);
   }
-  impl_->frame.AddArgument(ValueRef(impl_->symbol_table->Get(name)));
+  impl_->frame.AddArgument(ValueRef(impl_->symbol_table->GetValue(name)));
 }
 
 void OpExecutableBuilder::AppendArgument(Value* value) { impl_->frame.AddArgument(ValueRef(value)); }

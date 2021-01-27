@@ -46,7 +46,7 @@ void CoreRuntime::FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueRef>> ar
 llvm::SmallVector<ValueRef, 4> CoreRuntime::GetResults(llvm::ArrayRef<std::string_view> arg_names) {
   llvm::SmallVector<ValueRef, 4> results;
   for (auto& name : arg_names) {
-    results.push_back(ValueRef(symbol_table()->Get(name)));
+    results.push_back(ValueRef(symbol_table()->GetValue(name)));
   }
 
   return results;

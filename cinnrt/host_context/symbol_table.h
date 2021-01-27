@@ -28,10 +28,15 @@ class SymbolTable {
   template <typename T>
   Value* Register(std::string_view key, T&& v);
 
+  size_t size() const;
+
   /**
    * Get a state called \p key.
    */
-  Value* Get(std::string_view key) const;
+  Value* GetValue(std::string_view key) const;
+
+  template <typename T>
+  T Get(std::string_view key);
 
   ~SymbolTable();
 

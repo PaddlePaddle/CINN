@@ -33,7 +33,7 @@ TEST(OpExecutable, basic) {
   ASSERT_EQ(results.front().get<int>(), 3);
 
   // check symbol table contains the same result instance.
-  int c = table.Get("c")->get<int>();
+  int c = table.GetValue("c")->get<int>();
   ASSERT_EQ(c, 3);
 }
 

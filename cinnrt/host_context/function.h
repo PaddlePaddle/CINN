@@ -9,6 +9,8 @@ namespace host_context {
 
 /**
  * Base class of all executable Function.
+ *
+ * This is used by `cinn.call` op, to execute a function.
  */
 class Function {
  public:
