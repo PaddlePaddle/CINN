@@ -25,6 +25,9 @@ class Argument {
   ValueRef value_;
 };
 
+/**
+ * RemainingArguments collects all remaining arguments in an ArrayRef.
+ */
 class RemainingArguments {
  public:
   explicit RemainingArguments(llvm::ArrayRef<ValueRef> remaining_arguments)
@@ -36,6 +39,28 @@ class RemainingArguments {
 
  private:
   llvm::ArrayRef<ValueRef> remaining_arguments_;
+};
+
+/**
+ * RemainingResults collects all remaining results in a MutableArrayRef.
+ */
+class RemainingResults {
+ public:
+  RemainingResults(llvm::MutableArrayRef<ValueRef> remaining_results) : remaining_results_(remaining_results) {}
+  llvm::MutableArrayRef<ValueRef> values() { return remaining_results_; }
+  size_t size() const { return remaining_results_.size(); }
+
+  template <typename T>
+  const ValueRef& AllocateAt(int index) {
+    // eagerly create a ValueRef
+    if (remaining_results_[index].get()) return remaining_results_[index];
+    remaining_results_[index] = ValueRef(new Value);
+    return remaining_results_[index];
+  }
+  ValueRef& operator[](size_t i) const { return remaining_results_[i]; }
+
+ private:
+  llvm::MutableArrayRef<ValueRef> remaining_results_;
 };
 
 template <typename T>
@@ -193,6 +218,17 @@ struct KernelImpl<Return (*)(Args...), impl_fn> {
       auto&& arg  = value->get<ArgT>();
 
       KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx>(frame, pargs..., arg);
+    }
+  };
+
+  // RemainingArguments provides an ArrayRef<AsyncValue*> containing all remaining arguments. Useful for variadic
+  // kernels.
+  template <typename... Tail>
+  struct KernelCallHelper<RemainingArguments, Tail...> {
+    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
+      static_assert(in_idx != -1, "Do not use more than one RemainingArguments");
+      static_assert(const_idx == 0, "Arguments and results should appear before attributes");
     }
   };
 

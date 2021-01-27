@@ -63,6 +63,8 @@ class Value : public cinn::common::Object {
     data = std::move(v);
   }
 
+  bool valid() const { return data.index() != std::variant_npos; }
+
   const char* type_info() const override;
 
  private:

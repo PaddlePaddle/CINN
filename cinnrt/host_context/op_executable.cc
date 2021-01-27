@@ -38,10 +38,10 @@ void OpExecutableBuilder::AppendArgument(std::string_view name) {
   if (!impl_->symbol_table->GetValue(name)) {
     impl_->symbol_table->Register(name);
   }
-  impl_->frame.AddArgument(ValueRef(impl_->symbol_table->GetValue(name)));
+  impl_->frame.AddArgument(impl_->symbol_table->GetValue(name));
 }
 
-void OpExecutableBuilder::AppendArgument(Value* value) { impl_->frame.AddArgument(ValueRef(value)); }
+void OpExecutableBuilder::AppendArgument(Value* value) { impl_->frame.AddArgument(value); }
 
 KernelFrame& OpExecutable::frame() { return impl_->frame; }
 const KernelFrame& OpExecutable::frame() const { return impl_->frame; }
