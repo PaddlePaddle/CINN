@@ -19,6 +19,9 @@
 namespace cinn {
 namespace poly {
 
+// constant parameter defined in ISL.
+static const char* kIslConstParamPrefix = "_cp_C_";
+
 static const char* kIslParamConstPrefix = "_const_";
 
 /**
@@ -66,8 +69,17 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr);
  * to a new set with a parameter to force all the axis has a range:
  *  [_const_0] -> { s[i,j]: 0 <= i <= _const_0 and _const_0 < 0+2 and ... }
  */
+// @{
 isl::union_set TransIdentityExtentToContextId(isl::union_set set);
 isl::set TransIdentityExtentToContextId(isl::set set);
+isl::map TransIdentityExtentToContextIdForSchedule(isl::map map);
+isl::union_map TransIdentityExtentToContextIdForSchedule(isl::union_map map);
+// @}
+
+//! Tell if the string \param s is a constant param such as _cp_C_0.
+bool IsIslConstantParam(const std::string& s);
+//! get 0 from _cp_C_0.
+int IslConstantParamGetId(const std::string& s);
 
 namespace detail {
 

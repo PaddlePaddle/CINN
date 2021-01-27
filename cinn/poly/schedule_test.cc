@@ -34,7 +34,10 @@ TEST(CreateStages, compute_at) {
   {
     for (j, 0, 100)
     {
-      B[i, j] = (1 + A[i, j])
+      for (k, 0, 1)
+      {
+        B[i, j] = (1 + A[i, j])
+      }
       for (k, 0, 100)
       {
         C[i, j, k] = (B[i, j] * B[j, k])
@@ -44,7 +47,7 @@ TEST(CreateStages, compute_at) {
 }
 )ROC";
 
-  EXPECT_EQ(utils::GetStreamCnt(funcs->body), utils::Trim(target_out));
+  EXPECT_EQ(utils::Trim(target_out), utils::GetStreamCnt(funcs->body));
 }
 
 TEST(CreateStages, buffer_bind_to_multiple_tensors_schedule) {

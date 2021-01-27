@@ -17,6 +17,7 @@
 #include "cinn/optim/map_extern_call.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_const_param_to_integer.h"
+#include "cinn/optim/simplify_identity_domain_forloop.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/optim/unroll_loops.h"
@@ -40,7 +41,6 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   RemoveGpuForloopsAxis(&copied);
   CudaSyncThreadsDropIfThenElse(&copied);
 #endif
-  // CacheReadWriteReplace(&copied);
 
   RemoveNestedBlock(&copied);
 
@@ -50,11 +50,15 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   CastSimplify(&copied);
   Simplify(&copied);
   IfSimplify(&copied);
+  SimplifyIdentityDomainForloop(&copied);
+  RemoveNestedBlock(&copied);
 
   if (runtime_debug_info) {
     LOG(WARNING) << "Turn on runtime debug information output";
     InsertDebugLogCallee(&copied);
   }
+
+  Simplify(&copied);
   return copied;
 }
 

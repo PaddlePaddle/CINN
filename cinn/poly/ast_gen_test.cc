@@ -26,5 +26,16 @@ TEST(TransIdentityExtentToContextId, basic1) {
   LOG(INFO) << new_set;
 }
 
+TEST(TransIdentityExtentToContextIdForSchedule, basic) {
+  isl::ctx ctx(isl_ctx_alloc());
+  isl::union_map map(
+      ctx,
+      "{ C[i, j, k0] -> [r = 0, t0 = 0, d0 = 0, t1 = 0, d1 = 0, t2, d2 = 0, t3 = i, d3 = 0, t4 = k0 - 4t2, d4 = 0, t5 "
+      "= j, d5 = 0] : 0 <= i <= 15 and 0 <= j <= 15 and 0 <= k0 <= 15 and -3 + k0 <= 4t2 <= k0 }");
+
+  LOG(INFO) << "map: " << map;
+  LOG(INFO) << "res: " << TransIdentityExtentToContextIdForSchedule(map);
+}
+
 }  // namespace poly
 }  // namespace cinn

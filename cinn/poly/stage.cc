@@ -13,6 +13,7 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute.h"
 #include "cinn/optim/ir_replace.h"
+#include "cinn/poly/ast_gen.h"
 #include "cinn/poly/compute_at_transform.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/utils/functional.h"
@@ -97,6 +98,8 @@ std::tuple<Iterator, Iterator> Stage::Split(const Iterator &level, int factor) {
   VLOG(3) << "transform " << transform.to_isl();
   VLOG(3) << "schedule after transform: " << transform_;
   VLOG(3) << "iterators: " << outer_iter << " " << inner_iter;
+
+  auto new_set = domain().apply(transform_);
 
   return std::make_tuple(outer_iter, inner_iter);
 }

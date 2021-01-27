@@ -22,6 +22,8 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   if_simplify.cc
   lower_intrin.cc
   cast_bool_to_int8.cc
+  simplify_identity_domain_forloop.cc
+  process_isl_param_in_expr.cc
   )
 
 if (WITH_CUDA)
@@ -50,6 +52,7 @@ cc_test(test_optimize SRCS optimize_test.cc DEPS cinncore)
 cc_test(test_cache_read_write_replace SRCS cache_read_write_replace_test.cc DEPS cinncore)
 cc_test(test_cast_simplify SRCS cast_simplify_test.cc DEPS cinncore)
 cc_test(test_if_simplify SRCS if_simplify_test.cc DEPS cinncore)
+cc_test(test_simplify_identity_domain_forloop SRCS simplify_identity_domain_forloop_test.cc DEPS cinncore)
 
 if (WITH_CUDA)
   cc_test(test_transform_gpu_forloop SRCS transform_gpu_forloop_test.cc DEPS cinncore)
