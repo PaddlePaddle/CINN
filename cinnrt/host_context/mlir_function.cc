@@ -13,8 +13,7 @@ MlirFunction::MlirFunction(mlir::FuncOp func_op,
       core_runtime_(kernel_registry),
       function_table_(function_table),
       MlirToRuntimeTranslator(&core_runtime_) {
-  LOG(INFO) << "MlirFunction building function " << func_op.getName().str();
-  // return to get result
+  VLOG(3) << "MlirFunction building function " << func_op.getName().str();
 }
 
 void MlirFunction::BuildExecutables(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) {
@@ -57,9 +56,9 @@ void MlirFunction::BuildExecutables(llvm::ArrayRef<Value*> arguments, llvm::Muta
   // set a lambda function to help copy the results from the runtime results in the local function to outer program.
   CHECK_EQ(results_copied.size(), runtime_results.size());
   this->copy_res_fn_ = [results_copied, runtime_results] {
-    LOG(INFO) << "copy results to result";
+    VLOG(4) << "copy results to result";
     for (int i = 0; i < results_copied.size(); i++) {
-      LOG(INFO) << ".. copy " << runtime_results[i] << " to " << results_copied[i];
+      VLOG(4) << ".. copy " << runtime_results[i] << " to " << results_copied[i];
       CopyTo(*runtime_results[i], results_copied[i]);
     }
   };

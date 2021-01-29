@@ -368,7 +368,7 @@ bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, CallArguments call
     impl_->cur_op->AppendAttribute(new Value(it->second.get()));
   }
 
-  LOG(INFO) << "Emit call " << callee_name.getValue().str() << " " << impl_->cur_op->frame();
+  VLOG(3) << "Emit call " << callee_name.getValue().str() << " " << impl_->cur_op->frame();
   return true;
 }
 
@@ -405,7 +405,7 @@ class MlirProgramExecute : public MlirToRuntimeTranslator {
     CoreRuntimeBuilder runtime(registry);
     for (auto func_op : impl_->module.getOps<mlir::FuncOp>()) {
       if (func_op.getNumArguments() == 0) {
-        LOG(INFO) << "Running function " << func_op.getName().str();
+        VLOG(3) << "Running function " << func_op.getName().str();
         EmitAndRunFunc(func_op);
       }
     }
@@ -420,9 +420,9 @@ class MlirProgramExecute : public MlirToRuntimeTranslator {
  private:
   void EmitAndRunFunc(mlir::FuncOp func) {
     // print the function name for llvm FileChecker macro, CHECK-LABEL
-    std::cout << "func " << func.getName().str() << std::endl;
+    std::cout << func.getName().str() << std::endl;
     if (func.getNumArguments() == 0) {  // an entry function, execute it immediately
-      LOG(INFO) << "executing function " << func.getName().str();
+      VLOG(3) << "executing function " << func.getName().str();
       // Emit and execute each function
       CoreRuntimeBuilder runtime(registry);
       impl_->runtime = &runtime;
@@ -442,11 +442,10 @@ class MlirProgramExecute : public MlirToRuntimeTranslator {
         LOG(FATAL) << "Not supported op: " << DumpToString(op);
       }
 
-      LOG(INFO) << "runtime size " << runtime.num_ops();
       runtime.Execute();
 
     } else {
-      LOG(INFO) << "get an callable function: " << func.getName().str();
+      VLOG(2) << "get an callable function: " << func.getName().str();
     }
   }
 
