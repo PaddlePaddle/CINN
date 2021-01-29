@@ -1,4 +1,4 @@
-// CHECK-LABEL: basic_f32
+// CHECK-LABEL: @basic_f32
 func @basic_f32() -> f32 {
   %v0 = cinn.constant.f32 1.0
   %v1 = cinn.constant.f32 2.0
@@ -16,7 +16,7 @@ func @callee.add.f32(%x : f32, %y : f32, %y1 : f32) -> f32 {
   cinn.return %z1 : f32
 }
 
-// CHECK-LABEL: caller.add.f32
+// CHECK-LABEL: @caller.add.f32
 func @caller.add.f32() -> f32 {
   %x = cinn.constant.f32 1.0
   %y = cinn.constant.f32 2.0

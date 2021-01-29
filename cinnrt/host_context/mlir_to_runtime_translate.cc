@@ -420,7 +420,7 @@ class MlirProgramExecute : public MlirToRuntimeTranslator {
  private:
   void EmitAndRunFunc(mlir::FuncOp func) {
     // print the function name for llvm FileChecker macro, CHECK-LABEL
-    std::cout << func.getName().str() << std::endl;
+    std::cout << '@' << func.getName().str() << std::endl;
     if (func.getNumArguments() == 0) {  // an entry function, execute it immediately
       VLOG(3) << "executing function " << func.getName().str();
       // Emit and execute each function

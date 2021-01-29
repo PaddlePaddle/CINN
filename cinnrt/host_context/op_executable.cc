@@ -49,11 +49,12 @@ KernelFrame& OpExecutable::frame() { return impl_->frame; }
 const KernelFrame& OpExecutable::frame() const { return impl_->frame; }
 
 void OpExecutableBuilder::SetResults(llvm::ArrayRef<std::string> result_names) {
-  impl_->frame.SetNumResults(result_names.size());
+  llvm::SmallVector<Value*, 3> results;
   for (int result_id = 0; result_id < result_names.size(); result_id++) {
     Value* value = impl_->symbol_table->Register(result_names[result_id]);
-    impl_->frame.SetResultAt(result_id, value);
+    results.push_back(value);
   }
+  impl_->frame.SetResults(results);
 }
 
 void OpExecutableBuilder::SetResults(llvm::ArrayRef<Value*> results) { impl_->frame.SetResults(results); }
