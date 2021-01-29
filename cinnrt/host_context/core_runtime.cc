@@ -25,7 +25,7 @@ CoreRuntime::CoreRuntime(CoreRuntime::Impl* impl) : impl_(impl) {}
 void CoreRuntime::Execute() {
   int op_offset = 0;
   for (auto& op : impl_->op_executables) {
-    LOG(INFO) << "running op " << op_offset++ << " " << op.name();
+    VLOG(3) << "running op " << op_offset++ << " " << op.name();
     op.Execute();
   }
 }

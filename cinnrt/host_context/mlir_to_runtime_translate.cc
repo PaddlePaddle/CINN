@@ -173,7 +173,7 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
   CHECK(impl_->runtime);
   impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
 
-  LOG(INFO) << "processing general op : " << op->getName().getStringRef().str();
+  VLOG(3) << "processing general op : " << op->getName().getStringRef().str();
 
   // process operands
   for (int i = 0, e = op->getNumOperands(); i < e; i++) {
@@ -181,8 +181,9 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
     auto operand = op->getOperand(i);
     if (operand.getKind() == mlir::Value::Kind::BlockArgument) {
       mlir::BlockArgument arg = operand.dyn_cast<mlir::BlockArgument>();
-      Value* arg_value        = GetValue(mlir::Value(arg));
+      Value* arg_value        = GetValue(arg);
       impl_->cur_op->AppendArgument(arg_value);
+      VLOG(3) << "* op mlir operand: " << DumpToString(arg) << " " << GetValue(arg);
       continue;
     }
 
@@ -194,6 +195,8 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
     }
     CHECK(arg_value) << "No-exist argument value found: " << DumpToString(operand);
     impl_->cur_op->AppendArgument(arg_value);
+
+    VLOG(3) << "* op mlir operand: " << DumpToString(operand) << " " << GetValue(operand) << " vs " << arg_value;
   }
 
   // process results
@@ -201,8 +204,19 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
   for (int i = 0, e = op->getNumResults(); i < e; i++) {
     auto res = op->getResult(i);
     res_values.push_back(AddValue(res));
+
+    VLOG(3) << "* op mlir res: " << DumpToString(res) << " " << GetValue(res);
   }
   impl_->cur_op->SetResults(res_values);
+
+#ifndef NDEBUG
+  {
+    VLOG(3) << "check result";
+    for (int i = 0; i < impl_->cur_op->frame().GetNumResults(); i++) {
+      VLOG(3) << "+ res value: " << impl_->cur_op->frame().GetResults()[i];
+    }
+  }
+#endif
 
   // process attributes
   auto attrs = op->getAttrs();
@@ -286,7 +300,6 @@ Value* MlirToRuntimeTranslator::GetValue(mlir::Value value) {
 }
 
 Value* MlirToRuntimeTranslator::AddValue(mlir::Value value) {
-  LOG(INFO) << "add value " << DumpToString(value);
   auto res = impl_->value_map.try_emplace(value, ValueRef(new Value));
   CHECK(res.second) << "Duplicate add mlir value [" << DumpToString(value) << "]";
   return res.first->second.get();
@@ -321,7 +334,6 @@ bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, CallArguments call
   if (op->getName().getStringRef() != "cinn.call") return false;
 
   impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
-  CHECK_EQ(op->getNumOperands(), 2);
 
   auto callee      = op->getAttr("callee");
   auto callee_name = callee.dyn_cast<mlir::FlatSymbolRefAttr>();
@@ -393,6 +405,7 @@ class MlirProgramExecute : public MlirToRuntimeTranslator {
     CoreRuntimeBuilder runtime(registry);
     for (auto func_op : impl_->module.getOps<mlir::FuncOp>()) {
       if (func_op.getNumArguments() == 0) {
+        LOG(INFO) << "Running function " << func_op.getName().str();
         EmitAndRunFunc(func_op);
       }
     }
@@ -407,11 +420,12 @@ class MlirProgramExecute : public MlirToRuntimeTranslator {
  private:
   void EmitAndRunFunc(mlir::FuncOp func) {
     // print the function name for llvm FileChecker macro, CHECK-LABEL
-    std::cout << func.getName().str() << std::endl;
+    std::cout << "func " << func.getName().str() << std::endl;
     if (func.getNumArguments() == 0) {  // an entry function, execute it immediately
       LOG(INFO) << "executing function " << func.getName().str();
       // Emit and execute each function
       CoreRuntimeBuilder runtime(registry);
+      impl_->runtime = &runtime;
 
       auto& blocks = func.getBlocks();
       CHECK_EQ(blocks.size(), 1UL) << "function with more than one block is not supported yet";
@@ -428,6 +442,7 @@ class MlirProgramExecute : public MlirToRuntimeTranslator {
         LOG(FATAL) << "Not supported op: " << DumpToString(op);
       }
 
+      LOG(INFO) << "runtime size " << runtime.num_ops();
       runtime.Execute();
 
     } else {

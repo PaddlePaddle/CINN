@@ -100,6 +100,15 @@ class KernelFrameBuilder : public KernelFrame {
     ++num_arguments_;
   }
 
+  void SetResults(llvm::ArrayRef<Value*> values) {
+    CHECK_EQ(num_arguments_, value_or_attrs_.size());
+    CHECK_EQ(num_results_, -1);
+    for (Value* x : values) {
+      value_or_attrs_.push_back(x);
+    }
+    num_results_ = values.size();
+  }
+
   void SetNumResults(size_t n) {
     CHECK_EQ(num_arguments_, value_or_attrs_.size());
     CHECK_EQ(num_results_, -1);

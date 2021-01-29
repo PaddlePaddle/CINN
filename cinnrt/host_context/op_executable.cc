@@ -56,22 +56,24 @@ void OpExecutableBuilder::SetResults(llvm::ArrayRef<std::string> result_names) {
   }
 }
 
-void OpExecutableBuilder::SetResults(llvm::ArrayRef<Value*> results) {
-  impl_->frame.SetNumResults(results.size());
-  for (int result_id = 0; result_id < results.size(); result_id++) {
-    CHECK(results[result_id]);
-    impl_->frame.SetResultAt(result_id, results[result_id]);
-  }
-}
+void OpExecutableBuilder::SetResults(llvm::ArrayRef<Value*> results) { impl_->frame.SetResults(results); }
 
 void OpExecutableBuilder::AppendAttribute(Value* value) { impl_->frame.AddAttribute(value); }
 
 OpExecutableBuilder::OpExecutableBuilder(OpExecutableBuilder&& other) : OpExecutable(other.impl_.release()) {}
 
 void OpExecutable::Execute() {
-  LOG(INFO) << "execute " << name() << " --- frame args: " << impl_->frame.GetNumArgs() << " results "
-            << impl_->frame.GetNumResults() << " attributes " << impl_->frame.GetNumAttributes();
-  if (impl_->name == "cinn.call") LOG(INFO) << "res: " << impl_->frame.GetResults()[0];
+#ifndef NDEBUG
+  VLOG(3) << "execute " << name() << " --- frame args: " << impl_->frame.GetNumArgs() << " results "
+          << impl_->frame.GetNumResults() << " attributes " << impl_->frame.GetNumAttributes();
+  for (int i = 0; i < impl_->frame.GetNumArgs(); i++) {
+    VLOG(3) << "function arg: " << impl_->frame.GetArgAt(i);
+  }
+  for (int i = 0; i < impl_->frame.GetNumResults(); i++) {
+    VLOG(3) << "function result: " << impl_->frame.GetResults()[i];
+  }
+#endif
+
   impl_->kernel_impl(&impl_->frame);
 }
 

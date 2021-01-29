@@ -50,12 +50,16 @@ void MlirFunction::BuildExecutables(llvm::ArrayRef<Value*> arguments, llvm::Muta
   // after the block is built, we can get the result values of the whole function call in the runtime_resutls.
 
   mlir::SmallVector<Value*, 3> results_copied;
-  for (ValueRef& x : results) results_copied.push_back(x.get());
+  for (ValueRef& x : results) {
+    results_copied.push_back(x.get());
+  }
 
   // set a lambda function to help copy the results from the runtime results in the local function to outer program.
   CHECK_EQ(results_copied.size(), runtime_results.size());
   this->copy_res_fn_ = [results_copied, runtime_results] {
+    LOG(INFO) << "copy results to result";
     for (int i = 0; i < results_copied.size(); i++) {
+      LOG(INFO) << ".. copy " << runtime_results[i] << " to " << results_copied[i];
       CopyTo(*runtime_results[i], results_copied[i]);
     }
   };

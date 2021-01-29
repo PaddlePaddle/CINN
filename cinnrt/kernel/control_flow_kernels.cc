@@ -9,13 +9,12 @@ namespace kernel {
 static void CINNCall(host_context::RemainingArguments args,
                      host_context::RemainingResults results,
                      host_context::Attribute<host_context::MlirFunction*> fn) {
-  LOG(INFO) << "running call kernel ...";
+  VLOG(3) << "running call kernel ...";
   CHECK_EQ(fn.get()->num_arguments(), args.size());
   CHECK_EQ(fn.get()->num_results(), results.size());
 
   for (auto& v : results.values()) {
     CHECK(v.get());
-    LOG(INFO) << "call kernel get result value: " << v.get();
   }
   fn.get()->Execute(args.values(), results.values());
 }
