@@ -2,10 +2,12 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <string>
 #include "cinn/common/macros.h"
-#include "cinnrt/host_context/value.h"
 
 namespace cinnrt {
 namespace host_context {
+
+struct Value;
+struct ValueRef;
 
 /**
  * Base class of all executable Function.
@@ -14,14 +16,17 @@ namespace host_context {
  */
 class Function {
  public:
-  CINN_DISALLOW_COPY_AND_ASSIGN(Function);
+  Function(Function&& other)
+      : name_(other.name_), num_arguments_(other.num_arguments_), num_results_(other.num_results_) {}
+
+  Function() = delete;
 
   std::string_view name() const { return name_; }
 
   size_t num_arguments() const { return num_arguments_; }
   size_t num_results() const { return num_results_; }
 
-  virtual void Execute(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) const = 0;
+  virtual void Execute(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) const {}
 
   virtual ~Function() = default;
 

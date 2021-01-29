@@ -16,6 +16,9 @@ class KernelFrame {
  public:
   int GetNumArgs() const { return num_arguments_; }
   int GetNumResults() const { return num_results_; }
+  int GetNumAttributes() const {
+    return value_or_attrs_.size() - num_arguments_ - (num_results_ == -1 ? 0 : num_results_);
+  }
 
   template <typename T>
   T& GetArgAt(int index) {
@@ -32,6 +35,9 @@ class KernelFrame {
     CHECK_LT(index, GetNumArgs());
     return value_or_attrs_[index];
   }
+
+  // Get all arguments.
+  llvm::ArrayRef<Value*> GetArguments() const { return GetValues(0, num_arguments_); }
 
   Value* GetAttributeAt(int idx) {
     CHECK_NE(num_results_, -1) << "Must call SetNumResults before GetAttributeAt";
@@ -82,8 +88,9 @@ class KernelFrame {
   int num_results_{-1};
 
   llvm::SmallVector<Value*, 8> value_or_attrs_;
-  llvm::SmallVector<Value*, 4> attrs_;
 };
+
+std::ostream& operator<<(std::ostream& os, const KernelFrame& frame);
 
 class KernelFrameBuilder : public KernelFrame {
  public:

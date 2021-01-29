@@ -9,6 +9,7 @@
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/mlir_to_runtime_translate.h"
 #include "cinnrt/kernel/basic_kernels.h"
+#include "cinnrt/kernel/control_flow_kernels.h"
 #include "cinnrt/kernel/tensor_kernels.h"
 #include "cinnrt/kernel/tensor_shape_kernels.h"
 
@@ -26,6 +27,7 @@ int main(int argc, char** argv) {
   kernel::RegisterBasicKernels(&registry);
   kernel::RegisterTensorShapeKernels(&registry);
   kernel::RegisterTensorKernels(&registry);
+  kernel::RegisterControlFlowKernels(&registry);
 
   host_context::ExecuteMlir(module.get(), &registry);
 

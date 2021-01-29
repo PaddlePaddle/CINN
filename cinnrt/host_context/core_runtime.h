@@ -23,6 +23,8 @@ class CoreRuntime {
   //! Execute a program.
   void Execute();
 
+  size_t num_ops() const;
+
   //! Feed the input arguments, each item is a pair of arg-name and arg-value.
   void FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueRef>> args);
 

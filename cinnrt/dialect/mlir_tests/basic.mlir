@@ -19,5 +19,7 @@ func @caller.add.f32() -> f32 {
   %x = cinn.constant.f32 1.0
   %y = cinn.constant.f32 2.0
   %z = cinn.call @callee.add.f32(%x, %y) : (f32, f32) -> f32
+
+  "cinn.print.f32"(%z) : (f32) -> ()
   cinn.return %z : f32
 }

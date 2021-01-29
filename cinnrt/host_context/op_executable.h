@@ -24,6 +24,8 @@ class OpExecutable {
 
   void Execute();
 
+  std::string_view name() const;
+
   ~OpExecutable();
 
  protected:

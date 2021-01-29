@@ -4,15 +4,18 @@
 #include <utility>
 #include <variant>
 
+#include <llvm/ADT/SmallVector.h>
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
 #include "cinnrt/host_context/dense_host_tensor.h"
 #include "cinnrt/host_context/dense_tensor_view.h"
+#include "cinnrt/host_context/function.h"
 #include "cinnrt/host_context/tensor_shape.h"
-#include "llvm/ADT/SmallVector.h"
 
 namespace cinnrt {
 namespace host_context {
+
+struct MlirFunction;
 
 using ValueVariantType = std::variant<int16_t,
                                       int32_t,
@@ -21,12 +24,16 @@ using ValueVariantType = std::variant<int16_t,
                                       double,
                                       bool,
                                       TensorShape,
+                                      MlirFunction*,
                                       DenseHostTensor,
                                       std::vector<int16_t>,
                                       std::vector<int32_t>,
                                       std::vector<int64_t>,
                                       std::vector<float>,
                                       std::vector<double>>;
+
+//! Copy content from \param from to \param to.
+void CopyTo(const Value& from, Value* to);
 
 /**
  * Represents any data type for value in host context.
@@ -48,6 +55,7 @@ class Value : public cinn::common::Object {
   explicit Value(std::vector<double>&& x) : data(x) {}
   explicit Value(TensorShape&& x) : data(std::move(x)) {}
   explicit Value(DenseHostTensor&& x) : data(std::move(x)) {}
+  explicit Value(MlirFunction* x) : data(x) {}
 
   template <typename T>
   const T& get() const {
@@ -66,6 +74,8 @@ class Value : public cinn::common::Object {
   bool valid() const { return data.index() != std::variant_npos; }
 
   const char* type_info() const override;
+
+  friend void CopyTo(const Value& from, Value* to);
 
  private:
   ValueVariantType data;

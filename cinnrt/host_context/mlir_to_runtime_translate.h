@@ -1,31 +1,70 @@
 #pragma once
 
+#include <mlir/IR/Function.h>
 #include <mlir/IR/Module.h>
+#include <string>
+#include <unordered_map>
 
 namespace cinnrt::host_context {
 
 class CoreRuntimeBuilder;
 class Value;
+class ValueRef;
 class KernelRegistry;
+class MlirFunction;
+
+template <typename T>
+std::string DumpToString(T& op) {  // NOLINT
+  std::string buffer;
+  llvm::raw_string_ostream os(buffer);
+  op.print(os);
+  os.flush();
+  return buffer;
+}
 
 class MlirToRuntimeTranslator {
  public:
+  using function_table_t = std::unordered_map<std::string, std::unique_ptr<MlirFunction>>;
+
+  MlirToRuntimeTranslator(CoreRuntimeBuilder* runtime);
   MlirToRuntimeTranslator(mlir::ModuleOp module, CoreRuntimeBuilder* runtime);
 
-  void Emit();
+  void Run() { EmitFunctions(); }
 
+  virtual ~MlirToRuntimeTranslator();
+
+ protected:
+  //! Emit the main function.
+  void EmitMainFunc();
   //! Emit a "cinn.constant.*" operation, return true if succeed.
   bool EmitConstantOp(mlir::Operation* op);
   //! Emit a "cinn.return" operation.
-  bool EmitReturnOp(mlir::Operation* op);
+  bool EmitReturnOp(mlir::Operation* op, llvm::SmallVectorImpl<mlir::Value>* results);
   //! Emit a "ts.build_shape" operation.
   bool EmitBuildShapeOp(mlir::Operation* op);
   //! Emit an operation other than the special cases above.
   bool EmitGeneralOp(mlir::Operation* op);
+  //! Emit all the functions.
+  bool EmitFunctions();
 
-  bool EmitFunctionDef(mlir::Operation* op);
+  //! Emit a single function, this is an API that should be implemented by inherients.
+  virtual void EmitFunction(mlir::FuncOp op);
 
-  bool EmitCallOp(mlir::Operation* op);
+  struct CallArguments {
+    CallArguments(function_table_t* function_table) : function_table(function_table) {}  // NOLINT
+    CallArguments(function_table_t* function_table,
+                  llvm::ArrayRef<Value*> arguments,
+                  llvm::MutableArrayRef<ValueRef> results)
+        : function_table(function_table), arguments(arguments), results(results) {}
+
+    function_table_t* function_table{};
+    // the input arguments passed to the function call.
+    llvm::ArrayRef<Value*> arguments{};
+    // the result arguments passed out.
+    llvm::MutableArrayRef<ValueRef> results{};
+  };
+
+  bool EmitCallOp(mlir::Operation* op, CallArguments call_arguments);
 
   template <typename T>
   std::optional<T> EmitAttribute(const mlir::Attribute* attr);
@@ -36,9 +75,9 @@ class MlirToRuntimeTranslator {
 
   Value* AddValue(mlir::Value value);
 
-  void UpdateCurFuncName(std::string_view name);
+  Value* AddValue(mlir::Value mlir_value, Value* value);
 
-  ~MlirToRuntimeTranslator();
+  void UpdateCurFuncName(std::string_view name);
 
  protected:
   struct Impl;
@@ -50,6 +89,12 @@ class MlirToRuntimeTranslator {
  */
 void MlirToRuntimeTranslate(mlir::ModuleOp module, CoreRuntimeBuilder* runtime);
 
+/**
+ * Execute a MLIR program, that is execute all the functions without input arguments.
+ * This is mainly used by testcase.
+ * @param module a MLIR module.
+ * @param registry the kernel registry containing all the valid kernels.
+ */
 void ExecuteMlir(mlir::ModuleOp module, KernelRegistry* registry);
 
 }  // namespace cinnrt::host_context

@@ -15,7 +15,7 @@ struct CoreRuntime::Impl {
   SymbolTable symbol_table;
   std::vector<OpExecutableBuilder> op_executables;
 
-  std::vector<ValueRef> results;
+  mutable std::vector<ValueRef> results;
 };
 
 SymbolTable* CoreRuntime::symbol_table() { return &impl_->symbol_table; }
@@ -23,10 +23,14 @@ SymbolTable* CoreRuntime::symbol_table() { return &impl_->symbol_table; }
 CoreRuntime::CoreRuntime(CoreRuntime::Impl* impl) : impl_(impl) {}
 
 void CoreRuntime::Execute() {
+  int op_offset = 0;
   for (auto& op : impl_->op_executables) {
+    LOG(INFO) << "running op " << op_offset++ << " " << op.name();
     op.Execute();
   }
 }
+
+size_t CoreRuntime::num_ops() const { return impl_->op_executables.size(); }
 
 CoreRuntimeBuilder::CoreRuntimeBuilder(KernelRegistry* kernel_registry) : CoreRuntime(new Impl) {
   impl_->kernel_registry = kernel_registry ? kernel_registry : GetCpuKernelRegistry();
