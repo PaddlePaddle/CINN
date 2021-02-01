@@ -17,30 +17,19 @@ std::string DumpToString(T& op) {  // NOLINT
 }
 
 MlirFunctionExecutable::MlirFunctionExecutable(mlir::FuncOp func_op,
-                                               CoreRuntimeBuilder* core_runtime_builder,
-                                               MlirToRuntimeTranslator::function_defs_t& function_table)
-    : Function(func_op.getName().str(), func_op.getNumArguments(), func_op.getNumResults()),
-      func_op_(func_op),
-      core_runtime_builder_(core_runtime_builder),
-      function_table_(function_table),
-      MlirToRuntimeTranslator(core_runtime_builder) {
-  VLOG(3) << "MlirFunction building function " << func_op.getName().str();
-  CHECK(core_runtime_builder_);
-}
-
-MlirFunctionExecutable::MlirFunctionExecutable(mlir::FuncOp func_op,
                                                KernelRegistry* kernel_registry,
                                                MlirToRuntimeTranslator::function_defs_t& function_table)
     : Function(func_op.getName().str(), func_op.getNumArguments(), func_op.getNumResults()),
-      core_runtime_builder_(new CoreRuntimeBuilder(kernel_registry)),
-      function_table_(function_table),
-      MlirToRuntimeTranslator(core_runtime_builder_.get()) {}
+      MlirToRuntimeTranslator(&core_runtime_builder_),
+      func_op_(func_op),
+      core_runtime_builder_(kernel_registry),
+      function_table_(function_table) {}
 
 void MlirFunctionExecutable::BuildExecutables(llvm::ArrayRef<Value*> arguments,
                                               llvm::MutableArrayRef<ValueRef> results) {
-  CHECK_EQ(arguments.size(), func_op_.getNumArguments());
+  CHECK_EQ(arguments.size(), num_arguments());
   // We use the function call's arguments as op_executable's operands to avoid copy.
-  for (int i = 0; i < func_op_.getNumArguments(); i++) {
+  for (int i = 0; i < num_arguments(); i++) {
     AddValue(func_op_.getArgument(i), arguments[i]);
   }
 
@@ -67,7 +56,7 @@ void MlirFunctionExecutable::BuildExecutables(llvm::ArrayRef<Value*> arguments,
     LOG(FATAL) << "Not supported op: " << DumpToString(op);
   }
 
-  // after the block is built, we can get the result values of the whole function call in the runtime_resutls.
+  // after the block is built, we can get the result values of the whole function call in the runtime_results.
 
   mlir::SmallVector<Value*, 3> results_copied;
   for (ValueRef& x : results) {
@@ -89,13 +78,13 @@ void MlirFunctionExecutable::Execute(llvm::ArrayRef<Value*> arguments, llvm::Mut
   CHECK_EQ(arguments.size(), num_arguments());
   CHECK_EQ(results.size(), num_results());
 
-  if (core_runtime_builder_->num_ops() == 0) {
+  if (core_runtime_builder_.num_ops() == 0) {
     const_cast<MlirFunctionExecutable*>(this)->BuildExecutables(arguments, results);
   }
 
   auto& func_op = *const_cast<mlir::FuncOp*>(&func_op_);
 
-  const_cast<CoreRuntimeBuilder*>(core_runtime_builder_.get())->Execute();
+  const_cast<CoreRuntimeBuilder*>(&core_runtime_builder_)->Execute();
 
   copy_res_fn_();
 }

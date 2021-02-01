@@ -20,6 +20,7 @@
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/kernel_frame.h"
 #include "cinnrt/host_context/kernel_registry.h"
+#include "cinnrt/host_context/mlir_function_executable.h"
 #include "cinnrt/host_context/op_executable.h"
 #include "cinnrt/host_context/tensor_shape.h"
 #include "cinnrt/host_context/value.h"
@@ -298,6 +299,7 @@ MlirToRuntimeTranslator::~MlirToRuntimeTranslator() {}
 void MlirToRuntimeTranslator::UpdateCurFuncName(std::string_view name) { impl_->cur_func_name = name; }
 
 MlirToRuntimeTranslator::MlirToRuntimeTranslator(mlir::ModuleOp module, CoreRuntimeBuilder* runtime) : impl_(new Impl) {
+  CHECK(runtime);
   impl_->module  = module;
   impl_->runtime = runtime;
 }
@@ -319,6 +321,8 @@ bool MlirToRuntimeTranslator::EmitBuildShapeOp(mlir::Operation* op) {
 }
 
 bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, function_defs_t* function_table) {
+  CHECK(op);
+  CHECK(function_table);
   if (op->getName().getStringRef() != "cinn.call") return false;
 
   impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
@@ -353,7 +357,7 @@ bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, function_defs_t* f
     // lookup the callee function
     auto it = table.find(callee_name.getValue().str());
     CHECK(it != table.end()) << "can't find function [" << callee_name.getValue().str() << "]";
-    auto* function = impl_->cur_op->CreateFunctionExecutable(mlir::FuncOp(), &impl_->func_defs);
+    auto* function = impl_->cur_op->CreateFunctionExecutable(it->second, &impl_->func_defs);
     impl_->cur_op->AppendAttribute(new Value(function));
   }
 
@@ -362,6 +366,7 @@ bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, function_defs_t* f
 }
 
 MlirToRuntimeTranslator::MlirToRuntimeTranslator(CoreRuntimeBuilder* runtime) : impl_(new Impl) {
+  CHECK(runtime);
   impl_->runtime = runtime;
 }
 

@@ -5,8 +5,6 @@
 #include <string>
 #include <string_view>
 
-#include "cinnrt/host_context/mlir_to_runtime_translate.h"
-
 namespace mlir {
 class FuncOp;
 }  // namespace mlir
@@ -24,9 +22,6 @@ class MlirFunctionExecutable;
  * OpExecutable is a runtime executable instance for an operation. It captures all the information(Tensors, attributes
  * and so on) needed for execution.
  * With the SymbolTable and op definition, it create and hold a KernelFrame once and execute any times.
- *
- * An OpExecutable is an item of a CoreRuntime, but it can holds a CoreRuntime instance for function call (e.g. a
- * `cinn.call` op).
  */
 class OpExecutable {
  public:
@@ -51,6 +46,8 @@ class OpExecutable {
  */
 class OpExecutableBuilder : public OpExecutable {
  public:
+  using function_defs_t = std::unordered_map<std::string, mlir::FuncOp>;
+
   OpExecutableBuilder(std::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry = nullptr);
   OpExecutableBuilder(OpExecutableBuilder&& other);
 
@@ -62,8 +59,7 @@ class OpExecutableBuilder : public OpExecutable {
 
   void AppendAttribute(Value* value);
 
-  MlirFunctionExecutable* CreateFunctionExecutable(mlir::FuncOp op,
-                                                   MlirToRuntimeTranslator::function_defs_t* function_defs);
+  MlirFunctionExecutable* CreateFunctionExecutable(mlir::FuncOp op, function_defs_t* function_defs);
 
   //! Get the CoreRuntime instance for function call(used in `cinn.call` op).
   CoreRuntimeBuilder* GetCallRuntimeBuilder();

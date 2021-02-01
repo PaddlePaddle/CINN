@@ -52,6 +52,8 @@ class CoreRuntimeBuilder : public CoreRuntime {
 
   using CoreRuntime::symbol_table;
 
+  void SetKernelRegistry(KernelRegistry* x);
+
   //! Feed the input arguments, each item is a pair of arg-name and arg-value.
   void FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueRef>> args);
 

@@ -21,11 +21,13 @@ class ValueRef;
 class KernelRegistry;
 
 /**
- * MlirToRuntimeTranslator helpes to translate a MLIR to a CoreRuntime.
+ * MlirToRuntimeTranslator helps to translate a MLIR program to a CoreRuntime.
+ * This is the base class of all the modules those parse a MLIR program and finally generate a CoreRuntime.
  */
 class MlirToRuntimeTranslator {
  public:
-  using function_defs_t  = std::unordered_map<std::string, mlir::FuncOp>;
+  //! Holds all the function definitions.
+  using function_defs_t = std::unordered_map<std::string, mlir::FuncOp>;
 
   MlirToRuntimeTranslator(CoreRuntimeBuilder* runtime);
   MlirToRuntimeTranslator(mlir::ModuleOp module, CoreRuntimeBuilder* runtime);
