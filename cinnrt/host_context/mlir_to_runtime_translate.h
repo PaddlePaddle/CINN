@@ -53,21 +53,7 @@ class MlirToRuntimeTranslator {
   //! Emit a single function, this is an API that should be implemented by inherients.
   virtual void EmitFunction(mlir::FuncOp op);
 
-  struct CallArguments {
-    CallArguments(function_table_t* function_table) : function_table(function_table) {}  // NOLINT
-    CallArguments(function_table_t* function_table,
-                  llvm::ArrayRef<Value*> arguments,
-                  llvm::MutableArrayRef<ValueRef> results)
-        : function_table(function_table), arguments(arguments), results(results) {}
-
-    function_table_t* function_table{};
-    // the input arguments passed to the function call.
-    llvm::ArrayRef<Value*> arguments{};
-    // the result arguments passed out.
-    llvm::MutableArrayRef<ValueRef> results{};
-  };
-
-  bool EmitCallOp(mlir::Operation* op, CallArguments call_arguments);
+  bool EmitCallOp(mlir::Operation* op, function_table_t* function_table);
 
   template <typename T>
   std::optional<T> EmitAttribute(const mlir::Attribute* attr);

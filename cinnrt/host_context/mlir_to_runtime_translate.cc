@@ -283,7 +283,7 @@ void MlirToRuntimeTranslator::EmitMainFunc() {
     if (EmitConstantOp(&op)) continue;
     if (EmitBuildShapeOp(&op)) continue;
     if (EmitReturnOp(&op, nullptr)) continue;
-    if (EmitCallOp(&op, CallArguments{&impl_->functions})) continue;
+    if (EmitCallOp(&op, &impl_->functions)) continue;
     if (EmitGeneralOp(&op)) continue;
     LOG(FATAL) << "failed to emit op: " << DumpToString(op);
   }
@@ -330,7 +330,7 @@ bool MlirToRuntimeTranslator::EmitBuildShapeOp(mlir::Operation* op) {
   return true;
 }
 
-bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, CallArguments call_arguments) {
+bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, function_table_t* function_table) {
   if (op->getName().getStringRef() != "cinn.call") return false;
 
   impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
@@ -360,7 +360,7 @@ bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, CallArguments call
   impl_->cur_op->SetResults(res_values);
 
   // process attribute
-  auto& table = call_arguments.function_table ? *call_arguments.function_table : impl_->functions;
+  auto& table = function_table ? *function_table : impl_->functions;
   {
     // lookup the callee function
     auto it = table.find(callee_name.getValue().str());
@@ -400,17 +400,11 @@ class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
 
   void Run() {
     EmitFunctions();
-    EmitMainFunc();
-  }
 
-  void EmitMainFunc() {
     CHECK(registry);
-    CoreRuntimeBuilder runtime(registry);
     for (auto func_op : impl_->module.getOps<mlir::FuncOp>()) {
-      if (func_op.getNumArguments() == 0) {
-        VLOG(3) << "Running function " << func_op.getName().str();
-        EmitAndRunFunc(func_op);
-      }
+      VLOG(3) << "Running function " << func_op.getName().str();
+      EmitAndRunFuncWithoutArguments(func_op);
     }
   }
 
@@ -421,7 +415,7 @@ class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
   }
 
  private:
-  void EmitAndRunFunc(mlir::FuncOp func) {
+  void EmitAndRunFuncWithoutArguments(mlir::FuncOp func) {
     // print the function name for llvm FileChecker macro, CHECK-LABEL
     std::cout << '@' << func.getName().str() << std::endl;
     if (func.getNumArguments() == 0) {  // an entry function, execute it immediately
@@ -440,7 +434,7 @@ class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
         if (EmitReturnOp(&op, &results)) {
           continue;
         }
-        if (EmitCallOp(&op, CallArguments{&impl_->functions})) continue;
+        if (EmitCallOp(&op, &impl_->functions)) continue;
         if (EmitGeneralOp(&op)) continue;
         LOG(FATAL) << "Not supported op: " << DumpToString(op);
       }

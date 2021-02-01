@@ -40,7 +40,7 @@ void MlirFunction::BuildExecutables(llvm::ArrayRef<Value*> arguments, llvm::Muta
       continue;
     }
 
-    if (EmitCallOp(&op, CallArguments{&function_table_, arguments, results})) continue;
+    if (EmitCallOp(&op, &function_table_)) continue;
 
     if (EmitGeneralOp(&op)) continue;
     LOG(FATAL) << "Not supported op: " << DumpToString(op);
