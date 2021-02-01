@@ -22,6 +22,9 @@ std::string DumpToString(T& op) {  // NOLINT
   return buffer;
 }
 
+/**
+ * MlirToRuntimeTranslator helpes to translate a MLIR to a CoreRuntime.
+ */
 class MlirToRuntimeTranslator {
  public:
   using function_table_t = std::unordered_map<std::string, std::unique_ptr<MlirFunction>>;
@@ -95,6 +98,6 @@ void MlirToRuntimeTranslate(mlir::ModuleOp module, CoreRuntimeBuilder* runtime);
  * @param module a MLIR module.
  * @param registry the kernel registry containing all the valid kernels.
  */
-void ExecuteMlir(mlir::ModuleOp module, KernelRegistry* registry);
+void TestMlir(mlir::ModuleOp module, KernelRegistry* registry);
 
 }  // namespace cinnrt::host_context

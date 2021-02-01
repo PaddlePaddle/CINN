@@ -11,7 +11,7 @@ namespace host_context {
 struct KernelRegistry;
 
 /**
- * Executable function for a given MLIR function definition, mainly used in two seceneios:
+ * Executable function for a given MLIR function definition, mainly used in two scenerios:
  * 1. cinn.call op
  * 2. main function call
  *
@@ -35,11 +35,11 @@ class MlirFunction : public Function, public MlirToRuntimeTranslator {
   void Execute(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) const override;
 
  private:
+
   /**
    * Build the runtime executables once the function call arguments and results are passed in.
    * This will trigger in the first execution.
    */
-
   void BuildExecutables(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results);
 
  private:

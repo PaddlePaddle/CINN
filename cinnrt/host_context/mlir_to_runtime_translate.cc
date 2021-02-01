@@ -386,11 +386,14 @@ void MlirToRuntimeTranslate(mlir::ModuleOp module, CoreRuntimeBuilder* runtime) 
   MlirToRuntimeTranslator(module, runtime).Run();
 }
 
-class MlirProgramExecute : public MlirToRuntimeTranslator {
+/**
+ * Execute the mlir program in test mode -- print some debug infomation to stdout.
+ */
+class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
  public:
   CoreRuntimeBuilder core_runtime;
 
-  MlirProgramExecute(mlir::ModuleOp module, KernelRegistry* registry)
+  MlirProgramTestExecutor(mlir::ModuleOp module, KernelRegistry* registry)
       : core_runtime(registry), MlirToRuntimeTranslator(module, &core_runtime), registry(registry) {
     CHECK(registry);
   }
@@ -453,8 +456,8 @@ class MlirProgramExecute : public MlirToRuntimeTranslator {
   KernelRegistry* registry{};
 };
 
-void ExecuteMlir(mlir::ModuleOp module, KernelRegistry* registry) {
-  MlirProgramExecute execute(module, registry);
+void TestMlir(mlir::ModuleOp module, KernelRegistry* registry) {
+  MlirProgramTestExecutor execute(module, registry);
   execute.Run();
 }
 

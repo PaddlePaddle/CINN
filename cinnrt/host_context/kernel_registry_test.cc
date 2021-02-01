@@ -17,7 +17,7 @@ TEST(KernelRegistry, basic) {
   ASSERT_TRUE(kernel_impl);
 
   ValueRef a(1);
-  ValueRef b(1);
+  ValueRef b(2);
   KernelFrameBuilder fbuilder;
   fbuilder.AddArgument(a.get());
   fbuilder.AddArgument(b.get());

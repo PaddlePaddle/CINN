@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
   kernel::RegisterTensorKernels(&registry);
   kernel::RegisterControlFlowKernels(&registry);
 
-  host_context::ExecuteMlir(module.get(), &registry);
+  host_context::TestMlir(module.get(), &registry);
 
   std::cout << std::endl;
   return 0;
