@@ -14,7 +14,7 @@ class OpExecutableBuilder;
 class SymbolTable;
 
 /**
- * CoreRuntime encapsulate the execution for a function.
+ * CoreRuntime encapsulate the execution for a sequence of ops.
  * Each function call will bind to a CoreRuntime instance, push the argument Values in to the argument-list, and get the
  * result Values from the return-list.
  */
@@ -23,13 +23,12 @@ class CoreRuntime {
   //! Execute a program.
   void Execute();
 
+  //! Return the number of ops.
   size_t num_ops() const;
 
-  //! Feed the input arguments, each item is a pair of arg-name and arg-value.
-  void FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueRef>> args);
-
   //! Get the results of the execution.
-  llvm::SmallVector<ValueRef, 4> GetResults(llvm::ArrayRef<std::string_view> arg_names);
+  llvm::SmallVector<ValueRef, 4>  //
+  GetResults(llvm::ArrayRef<std::string_view> arg_names);
 
   ~CoreRuntime();
 
@@ -50,6 +49,9 @@ class CoreRuntimeBuilder : public CoreRuntime {
   explicit CoreRuntimeBuilder(KernelRegistry* kernel_registry);
 
   using CoreRuntime::symbol_table;
+
+  //! Feed the input arguments, each item is a pair of arg-name and arg-value.
+  void FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueRef>> args);
 
   llvm::ArrayRef<std::string_view> attr_names() const;
 

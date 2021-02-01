@@ -35,7 +35,6 @@ class MlirFunction : public Function, public MlirToRuntimeTranslator {
   void Execute(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) const override;
 
  private:
-
   /**
    * Build the runtime executables once the function call arguments and results are passed in.
    * This will trigger in the first execution.

@@ -41,7 +41,7 @@ OpExecutableBuilder* CoreRuntimeBuilder::NewOpExecutable(std::string_view op_nam
   return &impl_->op_executables.back();
 }
 
-void CoreRuntime::FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueRef>> args) {
+void CoreRuntimeBuilder::FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueRef>> args) {
   for (auto& item : args) {
     symbol_table()->Register(item.first, item.second);
   }
