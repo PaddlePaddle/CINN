@@ -10,6 +10,8 @@ func @basic_f32() -> f32 {
   cinn.return %value : f32
 }
 
+/// ================================================================
+/// @caller call the other function @callee
 func @callee.add.f32(%x : f32, %y : f32, %y1 : f32) -> f32 {
   %z = "cinn.add.f32"(%x, %y) : (f32, f32) -> f32
   %z1 = "cinn.add.f32"(%z, %y1) : (f32, f32) -> f32
@@ -27,3 +29,4 @@ func @caller.add.f32() -> f32 {
   "cinn.print.f32"(%z) : (f32) -> ()
   cinn.return %z : f32
 }
+/// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
