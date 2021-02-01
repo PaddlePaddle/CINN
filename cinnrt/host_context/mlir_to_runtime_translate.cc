@@ -209,7 +209,7 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
   }
   impl_->cur_op->SetResults(res_values);
 
-#ifndef NDEBUG
+#ifdef CINN_DEBUG
   {
     VLOG(3) << "check result";
     for (int i = 0; i < impl_->cur_op->frame().GetNumResults(); i++) {
@@ -267,27 +267,7 @@ bool MlirToRuntimeTranslator::EmitFunctions() {
   }
 }
 
-void MlirToRuntimeTranslator::EmitFunction(mlir::FuncOp op) { CINN_NOT_IMPLEMENTED }
-
-void MlirToRuntimeTranslator::EmitMainFunc() {
-  auto main_fn = impl_->module.lookupSymbol<mlir::FuncOp>("main");
-  CHECK(main_fn) << "need main function as entry point of the whole program";
-  CHECK_EQ(main_fn.getNumArguments(), 0) << "main function not support input arguments";
-  UpdateCurFuncName("main");
-
-  auto& block = main_fn.front();
-
-  for (auto& op : block) {
-    VLOG(3) << "instr: " << DumpToString(op);
-
-    if (EmitConstantOp(&op)) continue;
-    if (EmitBuildShapeOp(&op)) continue;
-    if (EmitReturnOp(&op, nullptr)) continue;
-    if (EmitCallOp(&op, &impl_->functions)) continue;
-    if (EmitGeneralOp(&op)) continue;
-    LOG(FATAL) << "failed to emit op: " << DumpToString(op);
-  }
-}
+void MlirToRuntimeTranslator::EmitFunction(mlir::FuncOp op){CINN_NOT_IMPLEMENTED}
 
 Value* MlirToRuntimeTranslator::GetOpResult(mlir::Operation* op) {
   auto it = impl_->op_results.find(op);

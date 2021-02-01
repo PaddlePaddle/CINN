@@ -37,8 +37,6 @@ class MlirToRuntimeTranslator {
   virtual ~MlirToRuntimeTranslator();
 
  protected:
-  //! Emit the main function.
-  void EmitMainFunc();
   //! Emit a "cinn.constant.*" operation, return true if succeed.
   bool EmitConstantOp(mlir::Operation* op);
   //! Emit a "cinn.return" operation.
