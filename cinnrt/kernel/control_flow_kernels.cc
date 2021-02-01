@@ -1,14 +1,16 @@
 #include "cinnrt/kernel/control_flow_kernels.h"
+
 #include <glog/logging.h>
+
 #include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/mlir_function.h"
+#include "cinnrt/host_context/mlir_function_executable.h"
 
 namespace cinnrt {
 namespace kernel {
 
 static void CINNCall(host_context::RemainingArguments args,
                      host_context::RemainingResults results,
-                     host_context::Attribute<host_context::MlirFunction*> fn) {
+                     host_context::Attribute<host_context::MlirFunctionExecutable*> fn) {
   VLOG(3) << "running call kernel ...";
   CHECK_EQ(fn.get()->num_arguments(), args.size());
   CHECK_EQ(fn.get()->num_results(), results.size());

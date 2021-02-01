@@ -15,18 +15,25 @@ struct KernelRegistry;
  * 1. cinn.call op
  * 2. main function call
  *
- * A MlirFunction might have one or more arguments and results.
+ * A MlirFunctionExecutable might have one or more arguments and results.
  */
-class MlirFunction : public Function, public MlirToRuntimeTranslator {
+class MlirFunctionExecutable : public Function, public MlirToRuntimeTranslator {
  public:
+  using function_defs_t = std::unordered_map<std::string, mlir::FuncOp>;
+
   /**
    * @param func_op a function IR node from the original MLIR module.
    * @param kernel_registry the kernel registry containing all the valid kernels.
+   * @param core_runtime_builder the CoreRuntimeBuilder
    * @param function_table the symbol table for functions.
+   *
+   * construct, take a mlir::FuncOp and create an executable from it.
    */
-  MlirFunction(mlir::FuncOp func_op,
-               KernelRegistry* kernel_registry,
-               MlirToRuntimeTranslator::function_table_t& function_table);
+  MlirFunctionExecutable(mlir::FuncOp func_op,
+                         CoreRuntimeBuilder* core_runtime_builder,
+                         function_defs_t& function_table);
+
+  MlirFunctionExecutable(mlir::FuncOp func_op, KernelRegistry* kernel_registry, function_defs_t& function_table);
 
   /**
    * Execute the function with the given arguments and results.
@@ -43,8 +50,8 @@ class MlirFunction : public Function, public MlirToRuntimeTranslator {
 
  private:
   mlir::FuncOp func_op_;
-  CoreRuntimeBuilder core_runtime_;
-  MlirToRuntimeTranslator::function_table_t& function_table_;
+  std::unique_ptr<CoreRuntimeBuilder> core_runtime_builder_;
+  MlirToRuntimeTranslator::function_defs_t& function_table_;
   std::function<void()> copy_res_fn_;
 };
 

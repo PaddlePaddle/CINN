@@ -1,22 +1,43 @@
-#include "cinnrt/host_context/mlir_function.h"
+#include "cinnrt/host_context/mlir_function_executable.h"
+
 #include <glog/logging.h>
+
 #include "cinnrt/host_context/core_runtime.h"
 
 namespace cinnrt {
 namespace host_context {
 
-MlirFunction::MlirFunction(mlir::FuncOp func_op,
-                           KernelRegistry* kernel_registry,
-                           MlirToRuntimeTranslator::function_table_t& function_table)
-    : Function(func_op.getName().str(), func_op.getNumArguments(), func_op.getNumResults()),
-      func_op_(func_op),
-      core_runtime_(kernel_registry),
-      function_table_(function_table),
-      MlirToRuntimeTranslator(&core_runtime_) {
-  VLOG(3) << "MlirFunction building function " << func_op.getName().str();
+template <typename T>
+std::string DumpToString(T& op) {  // NOLINT
+  std::string buffer;
+  llvm::raw_string_ostream os(buffer);
+  op.print(os);
+  os.flush();
+  return buffer;
 }
 
-void MlirFunction::BuildExecutables(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) {
+MlirFunctionExecutable::MlirFunctionExecutable(mlir::FuncOp func_op,
+                                               CoreRuntimeBuilder* core_runtime_builder,
+                                               MlirToRuntimeTranslator::function_defs_t& function_table)
+    : Function(func_op.getName().str(), func_op.getNumArguments(), func_op.getNumResults()),
+      func_op_(func_op),
+      core_runtime_builder_(core_runtime_builder),
+      function_table_(function_table),
+      MlirToRuntimeTranslator(core_runtime_builder) {
+  VLOG(3) << "MlirFunction building function " << func_op.getName().str();
+  CHECK(core_runtime_builder_);
+}
+
+MlirFunctionExecutable::MlirFunctionExecutable(mlir::FuncOp func_op,
+                                               KernelRegistry* kernel_registry,
+                                               MlirToRuntimeTranslator::function_defs_t& function_table)
+    : Function(func_op.getName().str(), func_op.getNumArguments(), func_op.getNumResults()),
+      core_runtime_builder_(new CoreRuntimeBuilder(kernel_registry)),
+      function_table_(function_table),
+      MlirToRuntimeTranslator(core_runtime_builder_.get()) {}
+
+void MlirFunctionExecutable::BuildExecutables(llvm::ArrayRef<Value*> arguments,
+                                              llvm::MutableArrayRef<ValueRef> results) {
   CHECK_EQ(arguments.size(), func_op_.getNumArguments());
   // We use the function call's arguments as op_executable's operands to avoid copy.
   for (int i = 0; i < func_op_.getNumArguments(); i++) {
@@ -64,17 +85,17 @@ void MlirFunction::BuildExecutables(llvm::ArrayRef<Value*> arguments, llvm::Muta
   };
 }
 
-void MlirFunction::Execute(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) const {
+void MlirFunctionExecutable::Execute(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) const {
   CHECK_EQ(arguments.size(), num_arguments());
   CHECK_EQ(results.size(), num_results());
 
-  if (core_runtime_.num_ops() == 0) {
-    const_cast<MlirFunction*>(this)->BuildExecutables(arguments, results);
+  if (core_runtime_builder_->num_ops() == 0) {
+    const_cast<MlirFunctionExecutable*>(this)->BuildExecutables(arguments, results);
   }
 
   auto& func_op = *const_cast<mlir::FuncOp*>(&func_op_);
 
-  const_cast<CoreRuntimeBuilder*>(&core_runtime_)->Execute();
+  const_cast<CoreRuntimeBuilder*>(core_runtime_builder_.get())->Execute();
 
   copy_res_fn_();
 }

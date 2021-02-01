@@ -20,12 +20,21 @@
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/kernel_frame.h"
 #include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/mlir_function.h"
+#include "cinnrt/host_context/mlir_function_executable.h"
 #include "cinnrt/host_context/op_executable.h"
 #include "cinnrt/host_context/tensor_shape.h"
 #include "cinnrt/host_context/value.h"
 
 namespace cinnrt::host_context {
+
+template <typename T>
+std::string DumpToString(T& op) {  // NOLINT
+  std::string buffer;
+  llvm::raw_string_ostream os(buffer);
+  op.print(os);
+  os.flush();
+  return buffer;
+}
 
 struct MlirToRuntimeTranslator::Impl {
   mlir::ModuleOp module;
@@ -39,7 +48,9 @@ struct MlirToRuntimeTranslator::Impl {
   std::string cur_func_name;
 
   // Record function built from the module, just like a symbol table.
-  std::unordered_map<std::string, std::unique_ptr<MlirFunction>> functions;
+  std::unordered_map<std::string, std::unique_ptr<MlirFunctionExecutable>> functions;
+  // Name to function definitions.
+  std::unordered_map<std::string, mlir::FuncOp> func_defs;
 
   // Map from an operation to its results.
   std::unordered_map<const mlir::Operation*, std::vector<ValueRef>> op_results;
@@ -267,7 +278,7 @@ bool MlirToRuntimeTranslator::EmitFunctions() {
   }
 }
 
-void MlirToRuntimeTranslator::EmitFunction(mlir::FuncOp op){CINN_NOT_IMPLEMENTED}
+void MlirToRuntimeTranslator::EmitFunction(mlir::FuncOp op) { impl_->func_defs[op.getName().str()] = op; }
 
 Value* MlirToRuntimeTranslator::GetOpResult(mlir::Operation* op) {
   auto it = impl_->op_results.find(op);
@@ -310,7 +321,7 @@ bool MlirToRuntimeTranslator::EmitBuildShapeOp(mlir::Operation* op) {
   return true;
 }
 
-bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, function_table_t* function_table) {
+bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, function_defs_t* function_table) {
   if (op->getName().getStringRef() != "cinn.call") return false;
 
   impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
@@ -340,12 +351,13 @@ bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, function_table_t* 
   impl_->cur_op->SetResults(res_values);
 
   // process attribute
-  auto& table = function_table ? *function_table : impl_->functions;
+  auto& table = function_table ? *function_table : impl_->func_defs;
   {
     // lookup the callee function
     auto it = table.find(callee_name.getValue().str());
-    CHECK(it != impl_->functions.end()) << "can't find function [" << callee_name.getValue().str() << "]";
-    impl_->cur_op->AppendAttribute(new Value(it->second.get()));
+    CHECK(it != table.end()) << "can't find function [" << callee_name.getValue().str() << "]";
+    auto* function = impl_->cur_op->CreateFunctionExecutable(mlir::FuncOp(), &impl_->func_defs);
+    impl_->cur_op->AppendAttribute(new Value(function));
   }
 
   VLOG(3) << "Emit call " << callee_name.getValue().str() << " " << impl_->cur_op->frame();
@@ -389,8 +401,10 @@ class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
   }
 
  protected:
+  std::unordered_map<std::string, mlir::FuncOp> func_def_table;
+
   void EmitFunction(mlir::FuncOp op) override {
-    auto it = impl_->functions.try_emplace(op.getName().str(), new MlirFunction(op, registry, impl_->functions));
+    auto it = impl_->func_defs.try_emplace(op.getName().str(), op);
     CHECK(it.second) << "Duplicate function defition found for function [" << op.getName().str();
   }
 
@@ -411,10 +425,8 @@ class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
         if (EmitConstantOp(&op)) continue;
         if (EmitBuildShapeOp(&op)) continue;
         llvm::SmallVector<mlir::Value, 3> results;
-        if (EmitReturnOp(&op, &results)) {
-          continue;
-        }
-        if (EmitCallOp(&op, &impl_->functions)) continue;
+        if (EmitReturnOp(&op, &results)) continue;
+        if (EmitCallOp(&op, &impl_->func_defs)) continue;
         if (EmitGeneralOp(&op)) continue;
         LOG(FATAL) << "Not supported op: " << DumpToString(op);
       }

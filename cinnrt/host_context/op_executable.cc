@@ -4,6 +4,7 @@
 
 #include "cinnrt/host_context/kernel_frame.h"
 #include "cinnrt/host_context/kernel_registry.h"
+#include "cinnrt/host_context/mlir_function_executable.h"
 #include "cinnrt/host_context/symbol_table.h"
 
 namespace cinnrt::host_context {
@@ -18,6 +19,8 @@ struct OpExecutable::Impl {
   SymbolTable* symbol_table{};
   KernelFrameBuilder frame;
   KernelRegistry* kernel_registry{};
+
+  std::unique_ptr<MlirFunctionExecutable> mlir_function_executable;
 
   KernelImplementation kernel_impl{};
 };
@@ -62,6 +65,15 @@ void OpExecutableBuilder::SetResults(llvm::ArrayRef<Value*> results) { impl_->fr
 void OpExecutableBuilder::AppendAttribute(Value* value) { impl_->frame.AddAttribute(value); }
 
 OpExecutableBuilder::OpExecutableBuilder(OpExecutableBuilder&& other) : OpExecutable(other.impl_.release()) {}
+
+CoreRuntimeBuilder* OpExecutableBuilder::GetCallRuntimeBuilder() {}
+
+MlirFunctionExecutable* OpExecutableBuilder::CreateFunctionExecutable(
+    mlir::FuncOp op, MlirToRuntimeTranslator::function_defs_t* function_defs) {
+  CHECK(!impl_->mlir_function_executable);
+  impl_->mlir_function_executable.reset(new MlirFunctionExecutable(op, impl_->kernel_registry, *function_defs));
+  return impl_->mlir_function_executable.get();
+}
 
 void OpExecutable::Execute() {
 #ifndef NDEBUG

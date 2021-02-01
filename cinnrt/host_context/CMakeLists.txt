@@ -12,7 +12,7 @@ set(srcs
         mlir_to_runtime_translate.cc
         tensor_metadata.cc
         function.cc
-        mlir_function.cc
+        mlir_function_executable.cc
   )
 
 cc_test(test_host_context_value SRCS value_test.cc DEPS cinncore)
