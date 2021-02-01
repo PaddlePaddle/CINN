@@ -19,14 +19,12 @@ class CoreRuntimeBuilder;
 class Value;
 class ValueRef;
 class KernelRegistry;
-class MlirFunctionExecutable;
 
 /**
  * MlirToRuntimeTranslator helpes to translate a MLIR to a CoreRuntime.
  */
 class MlirToRuntimeTranslator {
  public:
-  using function_table_t = std::unordered_map<std::string, std::unique_ptr<MlirFunctionExecutable>>;
   using function_defs_t  = std::unordered_map<std::string, mlir::FuncOp>;
 
   MlirToRuntimeTranslator(CoreRuntimeBuilder* runtime);

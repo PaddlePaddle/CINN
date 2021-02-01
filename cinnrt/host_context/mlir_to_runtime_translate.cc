@@ -20,7 +20,6 @@
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/kernel_frame.h"
 #include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/mlir_function_executable.h"
 #include "cinnrt/host_context/op_executable.h"
 #include "cinnrt/host_context/tensor_shape.h"
 #include "cinnrt/host_context/value.h"
@@ -47,8 +46,6 @@ struct MlirToRuntimeTranslator::Impl {
   // record the current function name.
   std::string cur_func_name;
 
-  // Record function built from the module, just like a symbol table.
-  std::unordered_map<std::string, std::unique_ptr<MlirFunctionExecutable>> functions;
   // Name to function definitions.
   std::unordered_map<std::string, mlir::FuncOp> func_defs;
 

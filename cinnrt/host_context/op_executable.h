@@ -1,12 +1,15 @@
 #pragma once
 #include <llvm/ADT/ArrayRef.h>
-#include <mlir/IR/Function.h>
 
 #include <memory>
 #include <string>
 #include <string_view>
 
 #include "cinnrt/host_context/mlir_to_runtime_translate.h"
+
+namespace mlir {
+class FuncOp;
+}  // namespace mlir
 
 namespace cinnrt::host_context {
 
