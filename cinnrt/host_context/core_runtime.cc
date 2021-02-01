@@ -12,34 +12,48 @@ namespace cinnrt::host_context {
 
 struct CoreRuntime::Impl {
   KernelRegistry* kernel_registry{};
-  std::unordered_map<std::string /*function name*/, SymbolTable> symbol_tables;
+  SymbolTable symbol_table;
   std::vector<OpExecutableBuilder> op_executables;
+
+  mutable std::vector<ValueRef> results;
 };
 
-SymbolTable* CoreRuntime::GetSymbolTable(const std::string& fn_name) {
-  auto it = impl_->symbol_tables.find(fn_name);
-  return it != impl_->symbol_tables.end() ? &it->second : nullptr;
-}
+SymbolTable* CoreRuntime::symbol_table() { return &impl_->symbol_table; }
 
 CoreRuntime::CoreRuntime(CoreRuntime::Impl* impl) : impl_(impl) {}
 
 void CoreRuntime::Execute() {
+  int op_offset = 0;
   for (auto& op : impl_->op_executables) {
+    VLOG(3) << "running op " << op_offset++ << " " << op.name();
     op.Execute();
   }
 }
+
+size_t CoreRuntime::num_ops() const { return impl_->op_executables.size(); }
 
 CoreRuntimeBuilder::CoreRuntimeBuilder(KernelRegistry* kernel_registry) : CoreRuntime(new Impl) {
   impl_->kernel_registry = kernel_registry ? kernel_registry : GetCpuKernelRegistry();
 }
 
-SymbolTable* CoreRuntimeBuilder::NewSymbolTable(std::string_view fn_name) {
-  return &impl_->symbol_tables.try_emplace(std::string(fn_name)).first->second;
+OpExecutableBuilder* CoreRuntimeBuilder::NewOpExecutable(std::string_view op_name, const std::string& fn_name) {
+  impl_->op_executables.emplace_back(op_name, symbol_table(), impl_->kernel_registry);
+  return &impl_->op_executables.back();
 }
 
-OpExecutableBuilder* CoreRuntimeBuilder::NewOpExecutable(std::string_view op_name, const std::string& fn_name) {
-  impl_->op_executables.emplace_back(op_name, GetSymbolTable(fn_name), impl_->kernel_registry);
-  return &impl_->op_executables.back();
+void CoreRuntimeBuilder::FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueRef>> args) {
+  for (auto& item : args) {
+    symbol_table()->Register(item.first, item.second);
+  }
+}
+
+llvm::SmallVector<ValueRef, 4> CoreRuntime::GetResults(llvm::ArrayRef<std::string_view> arg_names) {
+  llvm::SmallVector<ValueRef, 4> results;
+  for (auto& name : arg_names) {
+    results.push_back(ValueRef(symbol_table()->GetValue(name)));
+  }
+
+  return results;
 }
 
 CoreRuntime::~CoreRuntime() {}

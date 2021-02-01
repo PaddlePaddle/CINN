@@ -33,13 +33,10 @@ func @main() -> () {
   kernel::RegisterFloatBasicKernels(&registry);
   kernel::RegisterIntBasicKernels(&registry);
 
-  CoreRuntimeBuilder core_builder(&registry);
-  MlirToRuntimeTranslate(module.get(), &core_builder);
-
-  core_builder.Execute();
+  TestMlir(module.get(), &registry);
 }
 
-TEST(ExecuteMlir, basic) {
+TEST(TestMlir, basic) {
   mlir::MLIRContext context;
 
   auto source = R"ROC(
@@ -62,7 +59,7 @@ func @main() -> () {
   kernel::RegisterFloatBasicKernels(&registry);
   kernel::RegisterIntBasicKernels(&registry);
 
-  ExecuteMlir(module.get(), &registry);
+  TestMlir(module.get(), &registry);
 }
 
 }  // namespace cinnrt::host_context

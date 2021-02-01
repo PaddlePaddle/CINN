@@ -2,6 +2,7 @@ set(srcs
         basic_kernels.cc
         tensor_shape_kernels.cc
         tensor_kernels.cc
+        control_flow_kernels.cc
         )
 
 foreach(cpp ${srcs})

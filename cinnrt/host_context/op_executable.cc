@@ -10,11 +10,11 @@ namespace cinnrt::host_context {
 
 struct OpExecutable::Impl {
   Impl(std::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry)
-      : op_name(op_name),
+      : name(op_name),
         symbol_table(symbol_table),
         kernel_registry(kernel_registry ? kernel_registry : GetCpuKernelRegistry()) {}
 
-  std::string_view op_name;
+  std::string name;
   SymbolTable* symbol_table{};
   KernelFrameBuilder frame;
   KernelRegistry* kernel_registry{};
@@ -23,6 +23,8 @@ struct OpExecutable::Impl {
 };
 
 OpExecutable::OpExecutable(OpExecutable::Impl* impl) : impl_(impl) {}
+
+std::string_view OpExecutable::name() const { return impl_->name; }
 
 OpExecutableBuilder::OpExecutableBuilder(std::string_view op_name,
                                          SymbolTable* symbol_table,
@@ -35,37 +37,46 @@ OpExecutableBuilder::OpExecutableBuilder(std::string_view op_name,
 }
 
 void OpExecutableBuilder::AppendArgument(std::string_view name) {
-  if (!impl_->symbol_table->Get(name)) {
+  if (!impl_->symbol_table->GetValue(name)) {
     impl_->symbol_table->Register(name);
   }
-  impl_->frame.AddArgument(ValueRef(impl_->symbol_table->Get(name)));
+  impl_->frame.AddArgument(impl_->symbol_table->GetValue(name));
 }
 
-void OpExecutableBuilder::AppendArgument(Value* value) { impl_->frame.AddArgument(ValueRef(value)); }
+void OpExecutableBuilder::AppendArgument(Value* value) { impl_->frame.AddArgument(value); }
 
 KernelFrame& OpExecutable::frame() { return impl_->frame; }
 const KernelFrame& OpExecutable::frame() const { return impl_->frame; }
 
 void OpExecutableBuilder::SetResults(llvm::ArrayRef<std::string> result_names) {
-  impl_->frame.SetNumResults(result_names.size());
+  llvm::SmallVector<Value*, 3> results;
   for (int result_id = 0; result_id < result_names.size(); result_id++) {
     Value* value = impl_->symbol_table->Register(result_names[result_id]);
-    impl_->frame.SetResultAt(result_id, value);
+    results.push_back(value);
   }
+  impl_->frame.SetResults(results);
 }
 
-void OpExecutableBuilder::SetResults(llvm::ArrayRef<Value*> results) {
-  impl_->frame.SetNumResults(results.size());
-  for (int result_id = 0; result_id < results.size(); result_id++) {
-    impl_->frame.SetResultAt(result_id, results[result_id]);
-  }
-}
+void OpExecutableBuilder::SetResults(llvm::ArrayRef<Value*> results) { impl_->frame.SetResults(results); }
 
 void OpExecutableBuilder::AppendAttribute(Value* value) { impl_->frame.AddAttribute(value); }
 
 OpExecutableBuilder::OpExecutableBuilder(OpExecutableBuilder&& other) : OpExecutable(other.impl_.release()) {}
 
-void OpExecutable::Execute() { impl_->kernel_impl(&impl_->frame); }
+void OpExecutable::Execute() {
+#ifndef NDEBUG
+  VLOG(3) << "execute " << name() << " --- frame args: " << impl_->frame.GetNumArgs() << " results "
+          << impl_->frame.GetNumResults() << " attributes " << impl_->frame.GetNumAttributes();
+  for (int i = 0; i < impl_->frame.GetNumArgs(); i++) {
+    VLOG(3) << "function arg: " << impl_->frame.GetArgAt(i);
+  }
+  for (int i = 0; i < impl_->frame.GetNumResults(); i++) {
+    VLOG(3) << "function result: " << impl_->frame.GetResults()[i];
+  }
+#endif
+
+  impl_->kernel_impl(&impl_->frame);
+}
 
 OpExecutable::~OpExecutable() {}
 

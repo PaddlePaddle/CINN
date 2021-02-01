@@ -46,6 +46,7 @@ cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS cinncore ${MLIR_IR_LIBS})
 
 # execute mlir and run FileCheck
 cinn_exec_check(run_and_check_tensor_type mlir_tests/tensor_type.mlir)
+cinn_exec_check(run_and_check_basic mlir_tests/basic.mlir)
 
 foreach(cpp ${srcs})
   set(core_src

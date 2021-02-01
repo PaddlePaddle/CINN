@@ -1,0 +1,83 @@
+#include "cinnrt/host_context/mlir_function.h"
+#include <glog/logging.h>
+#include "cinnrt/host_context/core_runtime.h"
+
+namespace cinnrt {
+namespace host_context {
+
+MlirFunction::MlirFunction(mlir::FuncOp func_op,
+                           KernelRegistry* kernel_registry,
+                           MlirToRuntimeTranslator::function_table_t& function_table)
+    : Function(func_op.getName().str(), func_op.getNumArguments(), func_op.getNumResults()),
+      func_op_(func_op),
+      core_runtime_(kernel_registry),
+      function_table_(function_table),
+      MlirToRuntimeTranslator(&core_runtime_) {
+  VLOG(3) << "MlirFunction building function " << func_op.getName().str();
+}
+
+void MlirFunction::BuildExecutables(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) {
+  CHECK_EQ(arguments.size(), func_op_.getNumArguments());
+  // We use the function call's arguments as op_executable's operands to avoid copy.
+  for (int i = 0; i < func_op_.getNumArguments(); i++) {
+    AddValue(func_op_.getArgument(i), arguments[i]);
+  }
+
+  // build the program
+  auto& blocks = func_op_.getBlocks();
+  CHECK_EQ(blocks.size(), 1UL) << "function with more than one block is not supported yet";
+
+  llvm::SmallVector<Value*, 3> runtime_results;
+  for (auto& op : blocks.front()) {
+    if (EmitConstantOp(&op)) continue;
+    if (EmitBuildShapeOp(&op)) continue;
+
+    llvm::SmallVector<mlir::Value, 3> mlir_results;
+    if (EmitReturnOp(&op, &mlir_results)) {
+      for (auto v : mlir_results) {
+        runtime_results.push_back(GetValue(v));
+      }
+      continue;
+    }
+
+    if (EmitCallOp(&op, CallArguments{&function_table_, arguments, results})) continue;
+
+    if (EmitGeneralOp(&op)) continue;
+    LOG(FATAL) << "Not supported op: " << DumpToString(op);
+  }
+
+  // after the block is built, we can get the result values of the whole function call in the runtime_resutls.
+
+  mlir::SmallVector<Value*, 3> results_copied;
+  for (ValueRef& x : results) {
+    results_copied.push_back(x.get());
+  }
+
+  // set a lambda function to help copy the results from the runtime results in the local function to outer program.
+  CHECK_EQ(results_copied.size(), runtime_results.size());
+  this->copy_res_fn_ = [results_copied, runtime_results] {
+    VLOG(4) << "copy results to result";
+    for (int i = 0; i < results_copied.size(); i++) {
+      VLOG(4) << ".. copy " << runtime_results[i] << " to " << results_copied[i];
+      CopyTo(*runtime_results[i], results_copied[i]);
+    }
+  };
+}
+
+void MlirFunction::Execute(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) const {
+  CHECK_EQ(arguments.size(), num_arguments());
+  CHECK_EQ(results.size(), num_results());
+
+  if (core_runtime_.num_ops() == 0) {
+    const_cast<MlirFunction*>(this)->BuildExecutables(arguments, results);
+  }
+
+  auto& func_op = *const_cast<mlir::FuncOp*>(&func_op_);
+
+  const_cast<CoreRuntimeBuilder*>(&core_runtime_)->Execute();
+
+  copy_res_fn_();
+}
+
+}  // namespace host_context
+}  // namespace cinnrt

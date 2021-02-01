@@ -30,10 +30,11 @@ TEST(OpExecutable, basic) {
   // check the kernel frame has the result.
   auto results = executable.frame().GetResults();
   ASSERT_EQ(results.size(), 1);
-  ASSERT_EQ(results.front().get<int>(), 3);
+  ASSERT_EQ(results.front()->get<int32_t>(), 3);
 
   // check symbol table contains the same result instance.
-  int c = table.Get("c")->get<int>();
+  LOG(INFO) << "type: " << table.GetValue("c")->type_info();
+  int c = table.GetValue("c")->get<int32_t>();
   ASSERT_EQ(c, 3);
 }
 
