@@ -3,14 +3,15 @@
 #include <iostream>
 #include <vector>
 
-#include "cinnrt/host_context/dense_host_tensor.h"
-#include "cinnrt/host_context/dense_tensor_view.h"
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/kernel_utils.h"
-#include "cinnrt/host_context/tensor_shape.h"
+#include "cinnrt/tensor/dense_host_tensor.h"
+#include "cinnrt/tensor/dense_tensor_view.h"
+#include "cinnrt/tensor/tensor_shape.h"
 
 namespace cinnrt::kernel {
 using namespace host_context;  // NOLINT
+using namespace tensor;        // NOLINT
 
 /// ===== Kernel begin ====
 

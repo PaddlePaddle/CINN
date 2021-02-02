@@ -2,7 +2,7 @@
 
 #include <variant>
 
-#include "cinnrt/host_context/dense_tensor_view.h"
+#include "cinnrt/tensor/dense_tensor_view.h"
 
 namespace cinnrt {
 namespace host_context {
@@ -35,11 +35,11 @@ void CopyTo(const Value& from, Value* to) {
           to->data = arg;
         else if constexpr (std::is_same_v<T, bool>)
           to->data = arg;
-        else if constexpr (std::is_same_v<T, TensorShape>)
+        else if constexpr (std::is_same_v<T, tensor::TensorShape>)
           to->data = arg;
         else if constexpr (std::is_same_v<T, MlirFunctionExecutable*>)
           to->data = arg;
-        else if constexpr (std::is_same_v<T, DenseHostTensor>)
+        else if constexpr (std::is_same_v<T, tensor::DenseHostTensor>)
           to->data = arg;
         else if constexpr (std::is_same_v<T, std::vector<int16_t>>)
           to->data = arg;

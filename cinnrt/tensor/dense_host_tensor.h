@@ -3,14 +3,14 @@
 #include <memory>
 #include <utility>
 
-#include "cinnrt/host_context/tensor_metadata.h"
-#include "cinnrt/host_context/tensor_shape.h"
+#include "cinnrt/tensor/tensor_metadata.h"
+#include "cinnrt/tensor/tensor_shape.h"
 
 namespace cinn::hlir::framework {
 class Buffer;
 }  // namespace cinn::hlir::framework
 
-namespace cinnrt::host_context {
+namespace cinnrt::tensor {
 
 enum class DeviceKind {
   kCPU = 0,
@@ -62,4 +62,4 @@ class DenseHostTensor : public HostTensor {
   std::shared_ptr<cinn::hlir::framework::Buffer> buffer_;
 };
 
-}  // namespace cinnrt::host_context
+}  // namespace cinnrt::tensor

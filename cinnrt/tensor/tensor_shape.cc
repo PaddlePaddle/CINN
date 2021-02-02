@@ -1,4 +1,4 @@
-#include "cinnrt/host_context/tensor_shape.h"
+#include "cinnrt/tensor/tensor_shape.h"
 #include <llvm/Support/raw_ostream.h>
 
 #include <glog/logging.h>
@@ -9,7 +9,7 @@
 #include "cinn/utils/string.h"
 
 namespace cinnrt {
-namespace host_context {
+namespace tensor {
 
 TensorShape::TensorShape(llvm::ArrayRef<int64_t> dims) : dims_(dims.begin(), dims.end()) {}
 
@@ -72,5 +72,5 @@ std::ostream& operator<<(std::ostream& os, const DynamicTensorShape& v) {
   return os;
 }
 
-}  // namespace host_context
+}  // namespace tensor
 }  // namespace cinnrt

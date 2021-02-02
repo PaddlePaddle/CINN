@@ -2,10 +2,10 @@
 
 #include <glog/logging.h>
 #include "cinnrt/common/dtype.h"
-#include "cinnrt/host_context/tensor_shape.h"
+#include "cinnrt/tensor/tensor_shape.h"
 
 namespace cinnrt {
-namespace host_context {
+namespace tensor {
 
 struct TensorMetadata {
   DType dtype;
@@ -26,5 +26,5 @@ struct TensorMetadata {
   friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os, TensorMetadata& meta);
 };
 
-}  // namespace host_context
+}  // namespace tensor
 }  // namespace cinnrt

@@ -6,11 +6,7 @@ set(srcs
         symbol_table.cc
         op_executable.cc
         core_runtime.cc
-        tensor_shape.cc
-        dense_host_tensor.cc
-        dense_tensor_view.cc
         mlir_to_runtime_translate.cc
-        tensor_metadata.cc
         function.cc
         mlir_function_executable.cc
   )

@@ -1,10 +1,10 @@
-#include "cinnrt/host_context/dense_host_tensor.h"
+#include "cinnrt/tensor/dense_host_tensor.h"
 
 #include <llvm/Support/raw_os_ostream.h>
 
 #include "cinn/hlir/framework/buffer.h"
 
-namespace cinnrt::host_context {
+namespace cinnrt::tensor {
 
 DenseHostTensor::DenseHostTensor(const TensorShape& shape, DType dtype) : HostTensor(TensorMetadata{dtype, shape}) {
   CHECK(metadata().IsValid()) << "Tensor construct get invalid metadata";
@@ -57,4 +57,4 @@ DenseHostTensor::~DenseHostTensor() {}
 
 void* DenseHostTensor::raw_data() const { return buffer_->data()->memory; }
 
-}  // namespace cinnrt::host_context
+}  // namespace cinnrt::tensor
