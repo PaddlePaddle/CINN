@@ -1,4 +1,6 @@
-set(srcs
+core_gather_headers()
+
+core_gather_srcs(
     buffer.cc
     compute.cc
     placeholder.cc
@@ -8,18 +10,6 @@ set(srcs
     compute_at_postprocess.cc
     packed_func.cc
     )
-
-foreach(cpp ${srcs})
-  set(core_src
-      "${core_src};cinn/lang/${cpp}"
-      CACHE INTERNAL "")
-endforeach()
-
-file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
-
-foreach(header ${includes})
-  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
-endforeach()
 
 cc_test(test_compute SRCS compute_test.cc DEPS cinncore)
 cc_test(test_placeholder SRCS placeholder_test.cc DEPS cinncore)

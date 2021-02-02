@@ -1,4 +1,9 @@
-set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
+core_gather_headers()
+
+core_gather_srcs(
+  remove_nested_block.cc
+  replace_call_with_expr.cc
+  ir_copy.cc
   ir_replace.cc
   replace_var_with_expr.cc
   tensor_write_tell.cc
@@ -25,20 +30,9 @@ set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
   )
 
 if (WITH_CUDA)
-  list(APPEND srcs transform_gpu_forloop.cc)
+  core_gather_srcs(transform_gpu_forloop.cc)
 endif()
 
-foreach(cpp ${srcs})
-  set(core_src
-      "${core_src};cinn/optim/${cpp}"
-      CACHE INTERNAL "")
-endforeach()
-
-file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
-
-foreach(header ${includes})
-  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
-endforeach()
 
 cc_test(test_remove_nested_block SRCS remove_nested_block_test.cc DEPS cinncore)
 cc_test(test_ir_copy SRCS ir_copy_test.cc DEPS cinncore)

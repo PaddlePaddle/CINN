@@ -1,4 +1,6 @@
-set(srcs
+core_gather_headers()
+
+core_gather_srcs(
   tensor.cc
   scope.cc
   variable.cc
@@ -26,15 +28,3 @@ cc_test(test_hlir_framework_scope SRCS scope_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_instruction SRCS instruction_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_op SRCS op_test.cc DEPS cinncore)
 cc_test(test_hlir_framework_print_graph_pass SRCS print_graph_pass_test.cc DEPS cinncore)
-
-foreach(cpp ${srcs})
-  set(core_src
-    "${core_src};cinn/hlir/framework/${cpp}"
-    CACHE INTERNAL "")
-endforeach()
-
-file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
-
-foreach(header ${includes})
-  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
-endforeach()

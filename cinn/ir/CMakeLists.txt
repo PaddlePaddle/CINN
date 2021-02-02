@@ -1,34 +1,24 @@
-set(srcs
-    ir.cc
-    ir_base.cc
-    ir_visitor.cc
-    ir_printer.cc
-    ir_mutator.cc
-    function_definition.cc
-    lowered_func.cc
-    ir_operators.cc
-    ir_verify.cc
-    buffer.cc
-    function_base.cc
-    operation.cc
-    collect_ir_nodes.cc
-    registry.cc
-    tensor.cc
-    module.cc
-    intrinsic_ops.cc
-    )
+core_gather_headers()
 
-foreach(cpp ${srcs})
-  set(core_src
-      "${core_src};cinn/ir/${cpp}"
-      CACHE INTERNAL "")
-endforeach()
-
-file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
-
-foreach(header ${includes})
-  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
-endforeach()
+core_gather_srcs(
+  ir.cc
+  ir_base.cc
+  ir_visitor.cc
+  ir_printer.cc
+  ir_mutator.cc
+  function_definition.cc
+  lowered_func.cc
+  ir_operators.cc
+  ir_verify.cc
+  buffer.cc
+  function_base.cc
+  operation.cc
+  collect_ir_nodes.cc
+  registry.cc
+  tensor.cc
+  module.cc
+  intrinsic_ops.cc
+  )
 
 # cc_test(test_ir SRCS ir_test.cc DEPS core)
 # cc_test(test_ir_printer SRCS ir_printer_test.cc DEPS core)

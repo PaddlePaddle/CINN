@@ -1,16 +1,19 @@
-set(srcs outputs.cc
-        codegen_c.cc
-        codegen_c_x86.cc
-        codegen_c_x86_test.cc
-        codegen_cuda_dev.cc
-        codegen_cuda_host.cc
-        extern_func_emitter.cc
-        extern_func_emitter_builtin.cc
-        function_prototype.cc
-        extern_func_protos.cc
-        extern_func_jit_register.cc
-        modular.cc
-        compiler.cc
+core_gather_headers()
+
+core_gather_srcs(
+  outputs.cc
+  codegen_c.cc
+  codegen_c_x86.cc
+  codegen_c_x86_test.cc
+  codegen_cuda_dev.cc
+  codegen_cuda_host.cc
+  extern_func_emitter.cc
+  extern_func_emitter_builtin.cc
+  function_prototype.cc
+  extern_func_protos.cc
+  extern_func_jit_register.cc
+  modular.cc
+  compiler.cc
 )
 
 if (WITH_CUDA)

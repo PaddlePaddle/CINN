@@ -351,3 +351,25 @@ function(download_and_uncompress INSTALL_DIR URL FILENAME)
     INSTALL_COMMAND       ""
     )
 endfunction()
+
+# Add a source file to cinncore library.
+# @param src_names: a list of strings
+# usage:
+# core_gather(a.cc b.cc c.cc)
+function(core_gather_srcs srcs)
+  foreach(cpp ${srcs})
+    message(STATUS "add ${cpp} in dir: ${CMAKE_CURRENT_SOURCE_DIR}")
+    set(core_src
+      "${core_src};${CMAKE_CURRENT_SOURCE_DIR}/${cpp}"
+      CACHE INTERNAL "")
+  endforeach()
+
+endfunction()
+
+function(core_gather_headers)
+  file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
+  foreach(header ${includes})
+    set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
+  endforeach()
+endfunction()
