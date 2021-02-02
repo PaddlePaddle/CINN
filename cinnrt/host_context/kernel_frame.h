@@ -95,6 +95,7 @@ std::ostream& operator<<(std::ostream& os, const KernelFrame& frame);
 class KernelFrameBuilder : public KernelFrame {
  public:
   void AddArgument(Value* value) {
+    CHECK(value);
     CHECK_EQ(num_results_, -1) << "Should call AddArgument before calling SetNumResults";
     value_or_attrs_.push_back(value);
     ++num_arguments_;

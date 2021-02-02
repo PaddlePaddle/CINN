@@ -5,12 +5,18 @@
 #include <string>
 #include <string_view>
 
+namespace mlir {
+class FuncOp;
+}  // namespace mlir
+
 namespace cinnrt::host_context {
 
 class SymbolTable;
 class KernelRegistry;
 class KernelFrame;
 class Value;
+class CoreRuntimeBuilder;
+class MlirFunctionExecutable;
 
 /**
  * OpExecutable is a runtime executable instance for an operation. It captures all the information(Tensors, attributes
@@ -30,7 +36,7 @@ class OpExecutable {
 
  protected:
   class Impl;
-  OpExecutable(Impl* impl);
+  explicit OpExecutable(Impl* impl);
 
   std::unique_ptr<Impl> impl_;
 };
@@ -40,6 +46,8 @@ class OpExecutable {
  */
 class OpExecutableBuilder : public OpExecutable {
  public:
+  using function_defs_t = std::unordered_map<std::string, mlir::FuncOp>;
+
   OpExecutableBuilder(std::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry = nullptr);
   OpExecutableBuilder(OpExecutableBuilder&& other);
 
@@ -50,6 +58,11 @@ class OpExecutableBuilder : public OpExecutable {
   void SetResults(llvm::ArrayRef<Value*> results);
 
   void AppendAttribute(Value* value);
+
+  MlirFunctionExecutable* CreateFunctionExecutable(mlir::FuncOp op, function_defs_t* function_defs);
+
+  //! Get the CoreRuntime instance for function call(used in `cinn.call` op).
+  CoreRuntimeBuilder* GetCallRuntimeBuilder();
 };
 
 }  // namespace cinnrt::host_context

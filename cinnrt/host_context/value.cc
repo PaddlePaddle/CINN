@@ -37,7 +37,7 @@ void CopyTo(const Value& from, Value* to) {
           to->data = arg;
         else if constexpr (std::is_same_v<T, TensorShape>)
           to->data = arg;
-        else if constexpr (std::is_same_v<T, MlirFunction*>)
+        else if constexpr (std::is_same_v<T, MlirFunctionExecutable*>)
           to->data = arg;
         else if constexpr (std::is_same_v<T, DenseHostTensor>)
           to->data = arg;

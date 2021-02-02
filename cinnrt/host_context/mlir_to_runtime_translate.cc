@@ -20,12 +20,21 @@
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/kernel_frame.h"
 #include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/mlir_function.h"
+#include "cinnrt/host_context/mlir_function_executable.h"
 #include "cinnrt/host_context/op_executable.h"
 #include "cinnrt/host_context/tensor_shape.h"
 #include "cinnrt/host_context/value.h"
 
 namespace cinnrt::host_context {
+
+template <typename T>
+std::string DumpToString(T& op) {  // NOLINT
+  std::string buffer;
+  llvm::raw_string_ostream os(buffer);
+  op.print(os);
+  os.flush();
+  return buffer;
+}
 
 struct MlirToRuntimeTranslator::Impl {
   mlir::ModuleOp module;
@@ -38,8 +47,8 @@ struct MlirToRuntimeTranslator::Impl {
   // record the current function name.
   std::string cur_func_name;
 
-  // Record function built from the module, just like a symbol table.
-  std::unordered_map<std::string, std::unique_ptr<MlirFunction>> functions;
+  // Name to function definitions.
+  std::unordered_map<std::string, mlir::FuncOp> func_defs;
 
   // Map from an operation to its results.
   std::unordered_map<const mlir::Operation*, std::vector<ValueRef>> op_results;
@@ -209,7 +218,7 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
   }
   impl_->cur_op->SetResults(res_values);
 
-#ifndef NDEBUG
+#ifdef CINN_DEBUG
   {
     VLOG(3) << "check result";
     for (int i = 0; i < impl_->cur_op->frame().GetNumResults(); i++) {
@@ -267,27 +276,7 @@ bool MlirToRuntimeTranslator::EmitFunctions() {
   }
 }
 
-void MlirToRuntimeTranslator::EmitFunction(mlir::FuncOp op) { CINN_NOT_IMPLEMENTED }
-
-void MlirToRuntimeTranslator::EmitMainFunc() {
-  auto main_fn = impl_->module.lookupSymbol<mlir::FuncOp>("main");
-  CHECK(main_fn) << "need main function as entry point of the whole program";
-  CHECK_EQ(main_fn.getNumArguments(), 0) << "main function not support input arguments";
-  UpdateCurFuncName("main");
-
-  auto& block = main_fn.front();
-
-  for (auto& op : block) {
-    VLOG(3) << "instr: " << DumpToString(op);
-
-    if (EmitConstantOp(&op)) continue;
-    if (EmitBuildShapeOp(&op)) continue;
-    if (EmitReturnOp(&op, nullptr)) continue;
-    if (EmitCallOp(&op, CallArguments{&impl_->functions})) continue;
-    if (EmitGeneralOp(&op)) continue;
-    LOG(FATAL) << "failed to emit op: " << DumpToString(op);
-  }
-}
+void MlirToRuntimeTranslator::EmitFunction(mlir::FuncOp op) { impl_->func_defs[op.getName().str()] = op; }
 
 Value* MlirToRuntimeTranslator::GetOpResult(mlir::Operation* op) {
   auto it = impl_->op_results.find(op);
@@ -310,6 +299,7 @@ MlirToRuntimeTranslator::~MlirToRuntimeTranslator() {}
 void MlirToRuntimeTranslator::UpdateCurFuncName(std::string_view name) { impl_->cur_func_name = name; }
 
 MlirToRuntimeTranslator::MlirToRuntimeTranslator(mlir::ModuleOp module, CoreRuntimeBuilder* runtime) : impl_(new Impl) {
+  CHECK(runtime);
   impl_->module  = module;
   impl_->runtime = runtime;
 }
@@ -330,7 +320,9 @@ bool MlirToRuntimeTranslator::EmitBuildShapeOp(mlir::Operation* op) {
   return true;
 }
 
-bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, CallArguments call_arguments) {
+bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, function_defs_t* function_table) {
+  CHECK(op);
+  CHECK(function_table);
   if (op->getName().getStringRef() != "cinn.call") return false;
 
   impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
@@ -360,12 +352,13 @@ bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, CallArguments call
   impl_->cur_op->SetResults(res_values);
 
   // process attribute
-  auto& table = call_arguments.function_table ? *call_arguments.function_table : impl_->functions;
+  auto& table = function_table ? *function_table : impl_->func_defs;
   {
     // lookup the callee function
     auto it = table.find(callee_name.getValue().str());
-    CHECK(it != impl_->functions.end()) << "can't find function [" << callee_name.getValue().str() << "]";
-    impl_->cur_op->AppendAttribute(new Value(it->second.get()));
+    CHECK(it != table.end()) << "can't find function [" << callee_name.getValue().str() << "]";
+    auto* function = impl_->cur_op->CreateFunctionExecutable(it->second, &impl_->func_defs);
+    impl_->cur_op->AppendAttribute(new Value(function));
   }
 
   VLOG(3) << "Emit call " << callee_name.getValue().str() << " " << impl_->cur_op->frame();
@@ -373,6 +366,7 @@ bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, CallArguments call
 }
 
 MlirToRuntimeTranslator::MlirToRuntimeTranslator(CoreRuntimeBuilder* runtime) : impl_(new Impl) {
+  CHECK(runtime);
   impl_->runtime = runtime;
 }
 
@@ -400,28 +394,24 @@ class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
 
   void Run() {
     EmitFunctions();
-    EmitMainFunc();
-  }
 
-  void EmitMainFunc() {
     CHECK(registry);
-    CoreRuntimeBuilder runtime(registry);
     for (auto func_op : impl_->module.getOps<mlir::FuncOp>()) {
-      if (func_op.getNumArguments() == 0) {
-        VLOG(3) << "Running function " << func_op.getName().str();
-        EmitAndRunFunc(func_op);
-      }
+      VLOG(3) << "Running function " << func_op.getName().str();
+      EmitAndRunFuncWithoutArguments(func_op);
     }
   }
 
  protected:
+  std::unordered_map<std::string, mlir::FuncOp> func_def_table;
+
   void EmitFunction(mlir::FuncOp op) override {
-    auto it = impl_->functions.try_emplace(op.getName().str(), new MlirFunction(op, registry, impl_->functions));
+    auto it = impl_->func_defs.try_emplace(op.getName().str(), op);
     CHECK(it.second) << "Duplicate function defition found for function [" << op.getName().str();
   }
 
  private:
-  void EmitAndRunFunc(mlir::FuncOp func) {
+  void EmitAndRunFuncWithoutArguments(mlir::FuncOp func) {
     // print the function name for llvm FileChecker macro, CHECK-LABEL
     std::cout << '@' << func.getName().str() << std::endl;
     if (func.getNumArguments() == 0) {  // an entry function, execute it immediately
@@ -437,10 +427,8 @@ class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
         if (EmitConstantOp(&op)) continue;
         if (EmitBuildShapeOp(&op)) continue;
         llvm::SmallVector<mlir::Value, 3> results;
-        if (EmitReturnOp(&op, &results)) {
-          continue;
-        }
-        if (EmitCallOp(&op, CallArguments{&impl_->functions})) continue;
+        if (EmitReturnOp(&op, &results)) continue;
+        if (EmitCallOp(&op, &impl_->func_defs)) continue;
         if (EmitGeneralOp(&op)) continue;
         LOG(FATAL) << "Not supported op: " << DumpToString(op);
       }

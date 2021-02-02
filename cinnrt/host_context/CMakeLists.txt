@@ -12,14 +12,14 @@ set(srcs
         mlir_to_runtime_translate.cc
         tensor_metadata.cc
         function.cc
-        mlir_function.cc
+        mlir_function_executable.cc
   )
 
-cc_test(test_host_context_value SRCS value_test.cc DEPS cinncore)
-cc_test(test_kernel_utils SRCS kernel_utils_test.cc DEPS cinncore)
-cc_test(test_kernel_registry SRCS kernel_registry_test.cc DEPS cinncore)
-cc_test(test_op_executable SRCS op_executable_test.cc DEPS cinncore)
-cc_test(test_core_runtime SRCS core_runtime_test.cc DEPS cinncore)
+cc_test(test_host_context_value SRCS value_test.cc DEPS cinncore ${MLIR_IR_LIBS})
+cc_test(test_kernel_utils SRCS kernel_utils_test.cc DEPS cinncore ${MLIR_IR_LIBS})
+cc_test(test_kernel_registry SRCS kernel_registry_test.cc DEPS cinncore ${MLIR_IR_LIBS})
+cc_test(test_op_executable SRCS op_executable_test.cc DEPS cinncore ${MLIR_IR_LIBS})
+cc_test(test_core_runtime SRCS core_runtime_test.cc DEPS cinncore ${MLIR_IR_LIBS})
 cc_test(test_mlir_to_runtime_translate SRCS mlir_to_runtime_translate_test.cc DEPS cinncore ${MLIR_IR_LIBS})
 
 cinn_exec_check(test_mlir_exec_on_basic mlir_tests/basic.mlir)

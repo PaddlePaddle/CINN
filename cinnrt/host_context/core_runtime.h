@@ -1,10 +1,10 @@
 #pragma once
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include "cinnrt/host_context/value.h"
-
 #include <memory>
 #include <string>
+#include <utility>
+#include "cinnrt/host_context/value.h"
 
 namespace cinnrt::host_context {
 
@@ -18,7 +18,7 @@ class SymbolTable;
  * Each function call will bind to a CoreRuntime instance, push the argument Values in to the argument-list, and get the
  * result Values from the return-list.
  */
-class CoreRuntime {
+class CoreRuntime : public std::enable_shared_from_this<CoreRuntime> {
  public:
   //! Execute a program.
   void Execute();
@@ -31,6 +31,8 @@ class CoreRuntime {
   GetResults(llvm::ArrayRef<std::string_view> arg_names);
 
   ~CoreRuntime();
+
+  std::shared_ptr<CoreRuntime> getptr() { return std::shared_ptr<CoreRuntime>(this); }
 
  protected:
   //! Get the symbol table.
@@ -49,6 +51,8 @@ class CoreRuntimeBuilder : public CoreRuntime {
   explicit CoreRuntimeBuilder(KernelRegistry* kernel_registry);
 
   using CoreRuntime::symbol_table;
+
+  void SetKernelRegistry(KernelRegistry* x);
 
   //! Feed the input arguments, each item is a pair of arg-name and arg-value.
   void FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueRef>> args);

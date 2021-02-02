@@ -1,10 +1,10 @@
 #pragma once
 #include <glog/logging.h>
 
+#include <llvm/ADT/SmallVector.h>
 #include <utility>
 #include <variant>
-
-#include <llvm/ADT/SmallVector.h>
+#include <vector>
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
 #include "cinnrt/host_context/dense_host_tensor.h"
@@ -15,7 +15,7 @@
 namespace cinnrt {
 namespace host_context {
 
-struct MlirFunction;
+struct MlirFunctionExecutable;
 
 using ValueVariantType = std::variant<int16_t,
                                       int32_t,
@@ -24,7 +24,7 @@ using ValueVariantType = std::variant<int16_t,
                                       double,
                                       bool,
                                       TensorShape,
-                                      MlirFunction*,
+                                      MlirFunctionExecutable*,
                                       DenseHostTensor,
                                       std::vector<int16_t>,
                                       std::vector<int32_t>,
@@ -42,7 +42,7 @@ class Value : public cinn::common::Object {
  public:
   using variant_type = ValueVariantType;
 
-  explicit Value() {}
+  explicit Value() {}  // NOLINT
   explicit Value(int32_t x) : data(x) {}
   explicit Value(int64_t x) : data(x) {}
   explicit Value(float x) : data(x) {}
@@ -55,7 +55,7 @@ class Value : public cinn::common::Object {
   explicit Value(std::vector<double>&& x) : data(x) {}
   explicit Value(TensorShape&& x) : data(std::move(x)) {}
   explicit Value(DenseHostTensor&& x) : data(std::move(x)) {}
-  explicit Value(MlirFunction* x) : data(x) {}
+  explicit Value(MlirFunctionExecutable* x) : data(x) {}
 
   template <typename T>
   const T& get() const {

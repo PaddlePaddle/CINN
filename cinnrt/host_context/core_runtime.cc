@@ -20,7 +20,7 @@ struct CoreRuntime::Impl {
 
 SymbolTable* CoreRuntime::symbol_table() { return &impl_->symbol_table; }
 
-CoreRuntime::CoreRuntime(CoreRuntime::Impl* impl) : impl_(impl) {}
+CoreRuntime::CoreRuntime(CoreRuntime::Impl* impl) : impl_(impl) { CHECK(impl); }
 
 void CoreRuntime::Execute() {
   int op_offset = 0;
@@ -37,6 +37,7 @@ CoreRuntimeBuilder::CoreRuntimeBuilder(KernelRegistry* kernel_registry) : CoreRu
 }
 
 OpExecutableBuilder* CoreRuntimeBuilder::NewOpExecutable(std::string_view op_name, const std::string& fn_name) {
+  CHECK(impl_.get());
   impl_->op_executables.emplace_back(op_name, symbol_table(), impl_->kernel_registry);
   return &impl_->op_executables.back();
 }
@@ -45,6 +46,11 @@ void CoreRuntimeBuilder::FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueR
   for (auto& item : args) {
     symbol_table()->Register(item.first, item.second);
   }
+}
+
+void CoreRuntimeBuilder::SetKernelRegistry(KernelRegistry* x) {
+  CHECK(x);
+  impl_->kernel_registry = x;
 }
 
 llvm::SmallVector<ValueRef, 4> CoreRuntime::GetResults(llvm::ArrayRef<std::string_view> arg_names) {
