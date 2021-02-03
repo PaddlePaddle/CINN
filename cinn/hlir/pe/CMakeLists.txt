@@ -1,6 +1,6 @@
 core_gather_headers()
 
-core_gather_srcs(
+core_gather_srcs(SRCS
   broadcast.cc
   elementwise.cc
   nn.cc

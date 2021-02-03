@@ -1,6 +1,6 @@
 core_gather_headers()
 
-core_gather_srcs(
+core_gather_srcs(SRCS
   outputs.cc
   codegen_c.cc
   codegen_c_x86.cc

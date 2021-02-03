@@ -4,7 +4,7 @@ endif()
 
 core_gather_headers()
 
-core_gather_srcs(
+core_gather_srcs(SRCS
   cuda_module.cc
   cuda_util.cc
   cuda_intrisics.cc

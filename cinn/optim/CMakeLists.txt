@@ -1,6 +1,6 @@
 core_gather_headers()
 
-core_gather_srcs(
+core_gather_srcs(SRCS
   remove_nested_block.cc
   replace_call_with_expr.cc
   ir_copy.cc
@@ -30,7 +30,7 @@ core_gather_srcs(
   )
 
 if (WITH_CUDA)
-  core_gather_srcs(transform_gpu_forloop.cc)
+  core_gather_srcs(SRCS transform_gpu_forloop.cc)
 endif()
 
 
