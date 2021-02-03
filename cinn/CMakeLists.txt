@@ -14,3 +14,5 @@ add_subdirectory(frontend)
 
 # Download a model
 download_and_uncompress("${DOWNLOAD_MODEL_DIR}" "${PADDLE_RESOURCE_URL}" "lite_naive_model.tar.gz")
+
+core_gather_headers()
