@@ -1,13 +1,4 @@
-#set(srcs
-#   basic_kernels.cc
-#)
-
 set(external_kernels_src "basic_kernels.cc")
-#foreach(src ${srcs})
-#    set(external_kernels_src
-#        "${external_kernels_src};${src}"
-#        CACHE INTERNAL "")
-#endforeach()
 
 cc_library(external_kernels SHARED SRCS ${external_kernels_src})
 set_target_properties(external_kernels PROPERTIES LINK_FLAGS "${LINK_FLAGS}")
