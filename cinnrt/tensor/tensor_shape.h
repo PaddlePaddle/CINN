@@ -3,7 +3,7 @@
 #include <llvm/ADT/ArrayRef.h>
 
 namespace cinnrt {
-namespace host_context {
+namespace tensor {
 
 /**
  * TensorShape represents the shape of a Tensor, all the dimensions should be known.
@@ -53,5 +53,5 @@ class DynamicTensorShape {
   std::optional<llvm::SmallVector<int64_t, 4>> dims_;
 };
 
-}  // namespace host_context
+}  // namespace tensor
 }  // namespace cinnrt
