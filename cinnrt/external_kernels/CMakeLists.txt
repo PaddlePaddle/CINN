@@ -3,8 +3,6 @@ set(external_kernels_src "basic_kernels.cc")
 cc_library(external_kernels SHARED SRCS ${external_kernels_src})
 set_target_properties(external_kernels PROPERTIES LINK_FLAGS "${LINK_FLAGS}")
 
-cinn_exec_check(run_and_check_tensor_type mlir_tests/tensor_type.mlir)
-
 set(basic_mlir "${CMAKE_CURRENT_SOURCE_DIR}/basic.mlir")
 set(external_kernels_lib "${CMAKE_CURRENT_BINARY_DIR}/libexternal_kernels.so")
 message(STATUS "basic_mlir: ${basic_mlir}")
