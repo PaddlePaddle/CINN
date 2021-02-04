@@ -66,6 +66,7 @@ find_library(ginac_lib ginac PATHS "/usr/lib" NO_DEFAULT_PATH)
 message(STATUS "ginac: ${ginac_lib}")
 link_directories("/usr/lib")
 
+set(LINK_FLAGS "-Wl,--version-script ${CMAKE_CURRENT_SOURCE_DIR}/cmake/export.map" CACHE INTERNAL "")
 set(global_test_args "--cinn_x86_builtin_code_root=${CMAKE_SOURCE_DIR}/cinn/backends")
 
 set(core_deps CACHE INTERNAL "" FORCE)
@@ -82,7 +83,6 @@ else()
   target_link_libraries(cinncore ${llvm_libs})
 endif()
 add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
-
 
 add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER
         # MLIR td file generations

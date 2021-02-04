@@ -2,9 +2,9 @@
 
 #include <glog/logging.h>
 
-#include "cinnrt/host_context/dense_host_tensor.h"
+#include "cinnrt/tensor/dense_host_tensor.h"
 
-namespace cinnrt::host_context {
+namespace cinnrt::tensor {
 
 template <typename DType>
 class DTArrayView {
@@ -38,4 +38,4 @@ class MutableDTArrayView : public DTArrayView<DType> {
   llvm::MutableArrayRef<DType> Elements() { return llvm::MutableArrayRef<DType>(data(), this->GetNumElements()); }
 };
 
-}  // namespace cinnrt::host_context
+}  // namespace cinnrt::tensor

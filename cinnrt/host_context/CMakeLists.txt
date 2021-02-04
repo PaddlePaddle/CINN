@@ -17,6 +17,7 @@ core_gather_srcs(SRCS
     mlir_function_executable.cc
     )
 
+
 cc_test(test_host_context_value SRCS value_test.cc DEPS cinncore ${MLIR_IR_LIBS})
 cc_test(test_kernel_utils SRCS kernel_utils_test.cc DEPS cinncore ${MLIR_IR_LIBS})
 cc_test(test_kernel_registry SRCS kernel_registry_test.cc DEPS cinncore ${MLIR_IR_LIBS})

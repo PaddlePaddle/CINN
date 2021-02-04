@@ -8,11 +8,11 @@
 #include <llvm/Support/raw_os_ostream.h>
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/kernel_utils.h"
-#include "cinnrt/host_context/tensor_shape.h"
+#include "cinnrt/tensor/tensor_shape.h"
 
 namespace cinnrt::kernel {
 
-void PrintShape(const host_context::TensorShape& shape) {
+void PrintShape(const tensor::TensorShape& shape) {
   llvm::raw_os_ostream oos(std::cout);
   oos << shape << '\n';
 }

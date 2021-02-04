@@ -36,3 +36,14 @@ KernelRegistry* GetCpuKernelRegistry();
 
 }  // namespace host_context
 }  // namespace cinnrt
+
+/**
+ * compile function RegisterKernels in C way to avoid C++ name mangling.
+ */
+#ifdef __cplusplus
+extern "C" {
+#endif
+void RegisterKernels(cinnrt::host_context::KernelRegistry* registry);
+#ifdef __cplusplus
+}
+#endif

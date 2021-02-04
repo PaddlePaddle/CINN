@@ -22,8 +22,8 @@
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/mlir_function_executable.h"
 #include "cinnrt/host_context/op_executable.h"
-#include "cinnrt/host_context/tensor_shape.h"
 #include "cinnrt/host_context/value.h"
+#include "cinnrt/tensor/tensor_shape.h"
 
 namespace cinnrt::host_context {
 
@@ -315,7 +315,7 @@ bool MlirToRuntimeTranslator::EmitBuildShapeOp(mlir::Operation* op) {
   for (auto& attr_v : values) {
     dims.push_back(attr_v.cast<mlir::IntegerAttr>().getInt());
   }
-  impl_->op_results[op] = {ValueRef(new Value(TensorShape(llvm::ArrayRef<int64_t>(dims))))};
+  impl_->op_results[op] = {ValueRef(new Value(tensor::TensorShape(llvm::ArrayRef<int64_t>(dims))))};
 
   return true;
 }
