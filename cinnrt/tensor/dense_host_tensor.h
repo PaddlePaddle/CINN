@@ -19,6 +19,7 @@ enum class DeviceKind {
 class Tensor {
  public:
   virtual bool IsHostTensor() const = 0;
+  virtual ~Tensor()                 = default;
 
   const TensorMetadata& metadata() const { return metadata_; }
 
