@@ -14,6 +14,7 @@ class Shared;
 struct Object {
   //! Get the type representation of this object.
   virtual const char* type_info() const = 0;
+  virtual ~Object()                     = default;
 
   //! Cast to a derived type.
   template <typename T>
