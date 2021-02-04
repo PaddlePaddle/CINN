@@ -10,7 +10,7 @@ int add_i32(int a, int b) { return a + b; }
 
 TEST(KernelRegistry, basic) {
   KernelRegistry registry;
-  std::string_view key = "cinn.test.add.i32";
+  std::string key = "cinn.test.add.i32";
   registry.AddKernel(key, CINN_KERNEL(add_i32));
 
   auto* kernel_impl = registry.GetKernel(key);

@@ -34,7 +34,7 @@ OpExecutableBuilder::OpExecutableBuilder(std::string_view op_name,
                                          KernelRegistry* kernel_registry)
     : OpExecutable(new Impl(op_name, symbol_table, kernel_registry)) {
   // Cpu kernel registry is the default KernelRegistry.
-  impl_->kernel_impl = impl_->kernel_registry->GetKernel(op_name);
+  impl_->kernel_impl = impl_->kernel_registry->GetKernel(std::string(op_name.data(), op_name.size()));
   // TODO(Superjomn) support other device other than CPU.
   CHECK(impl_->kernel_impl) << "No CPU kernel called " << op_name;
 }
