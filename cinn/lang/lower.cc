@@ -48,6 +48,7 @@ std::vector<ir::Buffer> GetTempBuffers(const std::vector<Tensor>& tensor_args,
 std::set<ir::Tensor> CollectTempTensorsFromCtrlDepends(StageMap stages, const std::vector<Tensor>& tensor_args) {
   std::set<ir::Tensor> res;
   for (auto& stage : stages) {
+    res.emplace(ir::Tensor(stage.second->tensor()));
     res.insert(stage.second->ctrl_depends().begin(), stage.second->ctrl_depends().end());
   }
 
