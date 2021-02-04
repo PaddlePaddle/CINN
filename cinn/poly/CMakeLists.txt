@@ -1,4 +1,6 @@
-set(srcs
+core_gather_headers()
+
+core_gather_srcs(SRCS
     dim.cc
     domain.cc
     map.cc
@@ -10,19 +12,8 @@ set(srcs
     ast_gen.cc
     graph.cc
     compute_at_transform.cc
-)
+    )
 
-foreach(cpp ${srcs})
-  set(core_src
-      "${core_src};cinn/poly/${cpp}"
-      CACHE INTERNAL "")
-endforeach()
-
-file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
-
-foreach(header ${includes})
-  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
-endforeach()
 
 # cc_test(test_graph SRCS graph_test.cc DEPS core)
 cc_test(test_schedule SRCS schedule_test.cc DEPS cinncore)

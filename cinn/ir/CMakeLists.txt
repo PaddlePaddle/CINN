@@ -1,4 +1,6 @@
-set(srcs
+core_gather_headers()
+
+core_gather_srcs(SRCS
     ir.cc
     ir_base.cc
     ir_visitor.cc
@@ -17,18 +19,6 @@ set(srcs
     module.cc
     intrinsic_ops.cc
     )
-
-foreach(cpp ${srcs})
-  set(core_src
-      "${core_src};cinn/ir/${cpp}"
-      CACHE INTERNAL "")
-endforeach()
-
-file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
-
-foreach(header ${includes})
-  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
-endforeach()
 
 # cc_test(test_ir SRCS ir_test.cc DEPS core)
 # cc_test(test_ir_printer SRCS ir_printer_test.cc DEPS core)

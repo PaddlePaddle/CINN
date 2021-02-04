@@ -1,44 +1,38 @@
-set(srcs remove_nested_block.cc replace_call_with_expr.cc ir_copy.cc
-  ir_replace.cc
-  replace_var_with_expr.cc
-  tensor_write_tell.cc
-  ir_simplify.cc
-  optimize.cc
-  vectorize_loops.cc
-  unroll_loops.cc
-  transform_polyfor_to_for.cc
-  eliminate_broadcast_in_forloop.cc
-  fold_cinn_call_arguments.cc
-  call_arg_list_to_pod_value.cc
-  insert_debug_log_callee.cc
-  lower_function_call_bind_vars.cc
-  extern_call_process.cc
-  map_extern_call.cc
-  cache_read_write_replace.cc
-  compute_inline_expand.cc
-  buffer_assign.cc
-  replace_const_param_to_integer.cc
-  cast_simplify.cc
-  if_simplify.cc
-  lower_intrin.cc
-  cast_bool_to_int8.cc
-  )
+core_gather_headers()
+
+core_gather_srcs(SRCS
+    remove_nested_block.cc
+    replace_call_with_expr.cc
+    ir_copy.cc
+    ir_replace.cc
+    replace_var_with_expr.cc
+    tensor_write_tell.cc
+    ir_simplify.cc
+    optimize.cc
+    vectorize_loops.cc
+    unroll_loops.cc
+    transform_polyfor_to_for.cc
+    eliminate_broadcast_in_forloop.cc
+    fold_cinn_call_arguments.cc
+    call_arg_list_to_pod_value.cc
+    insert_debug_log_callee.cc
+    lower_function_call_bind_vars.cc
+    extern_call_process.cc
+    map_extern_call.cc
+    cache_read_write_replace.cc
+    compute_inline_expand.cc
+    buffer_assign.cc
+    replace_const_param_to_integer.cc
+    cast_simplify.cc
+    if_simplify.cc
+    lower_intrin.cc
+    cast_bool_to_int8.cc
+    )
 
 if (WITH_CUDA)
-  list(APPEND srcs transform_gpu_forloop.cc)
+  core_gather_srcs(SRCS transform_gpu_forloop.cc)
 endif()
 
-foreach(cpp ${srcs})
-  set(core_src
-      "${core_src};cinn/optim/${cpp}"
-      CACHE INTERNAL "")
-endforeach()
-
-file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
-
-foreach(header ${includes})
-  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
-endforeach()
 
 cc_test(test_remove_nested_block SRCS remove_nested_block_test.cc DEPS cinncore)
 cc_test(test_ir_copy SRCS ir_copy_test.cc DEPS cinncore)

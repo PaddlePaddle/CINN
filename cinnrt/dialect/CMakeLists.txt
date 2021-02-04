@@ -1,16 +1,18 @@
-set(srcs
-        dialect.cc
-        types.cc
-        basic_kernels.cc
-        cinn_base.cc
-        init_cinn_dialects.cc
-        tensor_shape.cc
-        dense_tensor.cc
-        mlir_loader.cc
-        diagnostic_utils.cc
-        pd_types.cc
-        pd_ops.cc
-        )
+core_gather_headers()
+
+core_gather_srcs(SRCS
+    dialect.cc
+    types.cc
+    basic_kernels.cc
+    cinn_base.cc
+    init_cinn_dialects.cc
+    tensor_shape.cc
+    dense_tensor.cc
+    mlir_loader.cc
+    diagnostic_utils.cc
+    pd_types.cc
+    pd_ops.cc
+    )
 
 mlir_tablegen_on(ops)
 mlir_tablegen_on(basic_kernels)
@@ -47,15 +49,3 @@ cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS cinncore ${MLIR_IR_LIBS})
 # execute mlir and run FileCheck
 cinn_exec_check(run_and_check_tensor_type mlir_tests/tensor_type.mlir)
 cinn_exec_check(run_and_check_basic mlir_tests/basic.mlir)
-
-foreach(cpp ${srcs})
-  set(core_src
-      "${core_src};cinnrt/dialect/${cpp}"
-      CACHE INTERNAL "")
-endforeach()
-
-file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
-
-foreach(header ${includes})
-  set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
-endforeach()

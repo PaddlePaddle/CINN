@@ -1,10 +1,6 @@
-set(srcs
-        dtype.cc
-        global.cc
-        )
+core_gather_headers()
 
-foreach(cpp ${srcs})
-    set(core_src
-            "${core_src};cinnrt/common/${cpp}"
-            CACHE INTERNAL "")
-endforeach()
+core_gather_srcs(SRCS
+    dtype.cc
+    global.cc
+    )
