@@ -1,18 +1,18 @@
 core_gather_headers()
 
 core_gather_srcs(SRCS
-  dim.cc
-  domain.cc
-  map.cc
-  stage.cc
-  isl_utils.cc
-  schedule.cc
-  naive_scheduler.cc
-  poly_scheduler.cc
-  ast_gen.cc
-  graph.cc
-  compute_at_transform.cc
-)
+    dim.cc
+    domain.cc
+    map.cc
+    stage.cc
+    isl_utils.cc
+    schedule.cc
+    naive_scheduler.cc
+    poly_scheduler.cc
+    ast_gen.cc
+    graph.cc
+    compute_at_transform.cc
+    )
 
 
 # cc_test(test_graph SRCS graph_test.cc DEPS core)

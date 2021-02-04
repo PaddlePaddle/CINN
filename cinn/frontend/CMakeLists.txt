@@ -1,9 +1,9 @@
 core_gather_headers()
 core_gather_srcs(SRCS
-  syntax.cc
-  paddle_model_to_program.cc
-  interpreter.cc
-  )
+    syntax.cc
+    paddle_model_to_program.cc
+    interpreter.cc
+    )
 
 if(NOT WITH_CUDA)
   cc_test(test_frontend_syntax

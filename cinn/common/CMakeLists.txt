@@ -1,7 +1,6 @@
 core_gather_headers()
 
-core_gather_srcs(
-  SRCS
+core_gather_srcs(SRCS
     shared.cc
     cinn_value.cc
     type.cc
