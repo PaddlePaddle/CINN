@@ -168,6 +168,53 @@ std::vector<Tensor> MatmulV2(const Tensor& A,
   return {temp_res, packedB};
 }
 
+std::vector<Tensor> MatmulMKL(const Tensor& A,
+                              const Tensor& B,
+                              bool trans_a,
+                              bool trans_b,
+                              float alpha,
+                              const std::string& name,
+                              const common::Target& target) {
+  CHECK(target.arch == Target::Arch::X86) << "mkl should be used in the cpu environment";
+  std::vector<Expr> shape_A = A->shape;
+  std::vector<Expr> shape_B = B->shape;
+  int a_dim                 = shape_A.size();
+  int b_dim                 = shape_B.size();
+  CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3";
+  CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3";
+  CHECK_EQ(a_dim, b_dim) << "tensor_A's dim should be same with tensor_B";
+
+  Expr x_width  = trans_a ? shape_A[a_dim - 2] : shape_A.back();
+  Expr y_height = trans_b ? shape_B.back() : shape_B[b_dim - 2];
+  Expr M        = trans_a ? shape_A.back() : shape_A[a_dim - 2];
+  Expr N        = trans_b ? shape_B[b_dim - 2] : shape_B.back();
+  CHECK(is_zero(x_width - y_height)) << "matrix multiplication requires x_width to be same with y_height";
+
+  auto call = Compute(
+      {Expr(1)},
+      [=]() -> Expr {
+        return lang::CallExtern("cinn_cpu_mkl_gemm_fp32",
+                                {
+                                    Expr(alpha),                 // alpha
+                                    M,                           // M
+                                    N,                           // N
+                                    x_width,                     // K
+                                    common::make_bool(trans_a),  // ta
+                                    common::make_bool(trans_b),  // tb
+                                    shape_A.back(),              // lda
+                                    shape_B.back(),              // ldb
+                                    N,                           // ldc
+                                    common::make_zero<float>(),  // beta
+                                    A,                           // A
+                                    B,                           // B
+                                });
+      },
+      UniqName("matmul_mkl_out"));
+  auto out = call->TupleGet(0);
+  out->WithBuffer(A->type());
+  return {out, call};
+}
+
 int GetMulFactor(int shape, const Type& type, const common::Target& target) {
   int split_base   = GetBasicFactor(type, target);
   int split_factor = 1;

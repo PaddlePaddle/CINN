@@ -1,4 +1,4 @@
-#include "mkl_math.h"
+#include "cinn/runtime/cpu/mkl_math.h"
 
 #include <glog/logging.h>
 #include <mkl.h>
@@ -19,6 +19,10 @@ void cinn_mkl_tanh_v_fp64(cinn_buffer_t *x, cinn_buffer_t *out) {
   vdTanh(x->num_elements(), reinterpret_cast<double *>(x->memory), reinterpret_cast<double *>(out->memory));
 }
 void cinn_mkl_exp_v_fp32(cinn_buffer_t *x, cinn_buffer_t *out) {
+  CHECK_EQ(x->num_elements(), out->num_elements());
+  vsExp(x->num_elements(), reinterpret_cast<float *>(x->memory), reinterpret_cast<float *>(out->memory));
+}
+void cinn_mkl_exp_v_fp64(cinn_buffer_t *x, cinn_buffer_t *out) {
   CHECK_EQ(x->num_elements(), out->num_elements());
   vdExp(x->num_elements(), reinterpret_cast<double *>(x->memory), reinterpret_cast<double *>(out->memory));
 }

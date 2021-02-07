@@ -156,7 +156,11 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     new_B = tensor_B->Reshape(new_shape_B_e, stages);
     std::vector<ir::Tensor> out;
     if (target.arch == Target::Arch::X86) {
+#ifdef CINN_WITH_MKL_CBLAS
+      out = pe::MatmulMKL(new_A, new_B, trans_a, trans_b, alpha, UniqName("MatmulMKL_output"), target);
+#else
       out = pe::MatmulV2(new_A, new_B, trans_a, trans_b, alpha, UniqName("MatmulV2_output"), target);
+#endif
     } else {
       out = pe::Matmul(new_A, new_B, trans_a, trans_b, alpha, UniqName("Matmul_output"));
     }
@@ -183,12 +187,16 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
       stages[out.as_tensor_ref()]->Bind(0, "blockIdx.x");
       stages[out.as_tensor_ref()]->Bind(1, "threadIdx.x");
     } else if (target.arch == Target::Arch::X86) {
+#ifdef CINN_WITH_MKL_CBLAS
+      CHECK_EQ(arg_pack.size(), 3UL);
+#else
       CHECK(arg_pack.size() == 3UL || arg_pack.size() == 4UL);
       Expr packedB  = arg_pack[arg_size - 2];
       Expr temp_out = arg_pack[arg_size - 3];
       CHECK(packedB.as_tensor());
       CHECK(temp_out.as_tensor());
       pe::MatmulScheduleCPU(stages, temp_out.as_tensor_ref(), packedB.as_tensor_ref(), target);
+#endif
     }
     *ret = arg_pack;
   });

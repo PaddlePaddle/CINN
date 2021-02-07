@@ -24,7 +24,7 @@ void cinn_cpu_mkl_gemm_fp32(float alpha,
                             cinn_buffer_t* A,
                             cinn_buffer_t* B,
                             cinn_buffer_t* C) {
-  cblas_sgemm(CblasColMajor,
+  cblas_sgemm(CblasRowMajor,
               ToCblasTranspose(ta),
               ToCblasTranspose(tb),
               M,
