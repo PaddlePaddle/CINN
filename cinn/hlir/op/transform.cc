@@ -563,6 +563,8 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMatMul)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMatMul))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMatMul))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
 
   CINN_REGISTER_OP(mul)
@@ -572,6 +574,8 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMul)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMul))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMul))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
 
   CINN_REGISTER_OP(mulbias)
@@ -581,6 +585,8 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMulBias)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMulBias))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMulBias))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
   return true;
 }

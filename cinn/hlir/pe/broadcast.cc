@@ -106,30 +106,28 @@ void GetBroadcastIndice(const std::vector<Expr>& indice,
                         const Tensor& tensor_a,
                         const Tensor& tensor_b,
                         int axis_offset,
-                        std::vector<Expr>* broadcast_indice1,
-                        std::vector<Expr>* broadcast_indice2,
+                        std::vector<Expr>& broadcast_indice1,
+                        std::vector<Expr>& broadcast_indice2,
                         const std::vector<bool>& broadcast_flags1,
                         const std::vector<bool>& broadcast_flags2) {
-  CHECK(broadcast_indice1);
-  CHECK(broadcast_indice2);
-  if (broadcast_indice1->empty() && broadcast_indice2->empty()) {
+  if (broadcast_indice1.empty() && broadcast_indice2.empty()) {
     int flag_size = broadcast_flags1.size();
     int i;
     CHECK_GE(indice.size(), flag_size);
     for (i = 0; i < flag_size; i++) {
       if (broadcast_flags1[flag_size - 1 - i]) {
         // broadcast indices are added from left to right
-        broadcast_indice1->push_back(indice[i]);
+        broadcast_indice1.push_back(indice[i]);
       } else {
-        broadcast_indice1->push_back(Expr(0));
+        broadcast_indice1.push_back(Expr(0));
       }
       if (broadcast_flags2[flag_size - 1 - i]) {
-        broadcast_indice2->push_back(indice[i]);
+        broadcast_indice2.push_back(indice[i]);
       } else if (flag_size - i <= tensor_b->shape.size() + axis_offset &&
-                 broadcast_indice2->size() < tensor_b->shape.size()) {
+                 broadcast_indice2.size() < tensor_b->shape.size()) {
         // insert indice 0 when have not yet reached the dimension of tensor. Meanwhile we have to consider the case of
         // axis alignment.
-        broadcast_indice2->push_back(Expr(0));
+        broadcast_indice2.push_back(Expr(0));
       }
     }
   }
@@ -144,15 +142,17 @@ Tensor Broadcast(const FuncOp& op,
   std::vector<Expr> common_shape;
   std::vector<bool> broadcast_flags1;
   std::vector<bool> broadcast_flags2;
-  std::vector<Expr> broadcast_indice1;
-  std::vector<Expr> broadcast_indice2;
+
   // the counts of left-shift of tensor b so as to right alignment
   int axis_offset = 0;
 
   GetBroadcastShape(a->shape, b->shape, &common_shape, &broadcast_flags1, &broadcast_flags2, &axis_offset, axis);
-  auto fn = [&](const std::vector<Expr>& indice) {
+  auto fn = [=](const std::vector<Expr>& indice) {
+    std::vector<Expr> broadcast_indice1;
+    std::vector<Expr> broadcast_indice2;
     GetBroadcastIndice(
-        indice, a, b, axis_offset, &broadcast_indice1, &broadcast_indice2, broadcast_flags1, broadcast_flags2);
+        indice, a, b, axis_offset, broadcast_indice1, broadcast_indice2, broadcast_flags1, broadcast_flags2);
+
     return op(a(broadcast_indice1), b(broadcast_indice2));
   };
   Tensor output = Compute(common_shape, fn, output_name);

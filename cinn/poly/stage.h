@@ -409,6 +409,8 @@ class _StageMap_ : public Object {
   //! Insert a stage only if not exists.
   Stage* InsertLazily(const ir::Tensor& key);
 
+  Stage* InsertLazily(const ir::Tensor& key, Stage* stage);
+
   //! Lookup a tensor from the map, return nullptr if not exists.
   Stage* Lookup(const std::string& name) const;
 

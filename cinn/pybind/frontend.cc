@@ -86,6 +86,7 @@ void BindFrontend(pybind11::module *m) {
               const Variable &tensor_out) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
              hlir::framework::ApplyPass(g.get(), "InferShape");
+             hlir::framework::ApplyPass(g.get(), "OpFusion");
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();

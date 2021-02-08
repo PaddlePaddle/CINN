@@ -102,6 +102,8 @@ class GraphCompiler final {
   const std::shared_ptr<Scope>& GetScope() const { return scope_; }
 
  private:
+  ir::LoweredFunc GetOpFunc(const std::vector<Node*>& nodes);
+
   ir::LoweredFunc GetOpFunc(const Node* node);
 
   std::string GenOpFuncName(const Node* node) const { return "fn_" + node->id(); }

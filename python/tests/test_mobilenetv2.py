@@ -13,6 +13,7 @@ from cinn.common import *
 import numpy as np
 import paddle.fluid as fluid
 import sys
+import time
 
 enable_gpu = sys.argv.pop()
 model_dir = sys.argv.pop()
@@ -43,22 +44,31 @@ class TestLoadResnetModel(unittest.TestCase):
         return get_tensor
 
     def apply_test(self):
+        start = time.time()
         x_data = np.random.random(self.x_shape).astype("float32")
         self.executor = Interpreter([self.input_tensor], [self.x_shape])
         print("self.mode_dir is:", self.model_dir)
         # True means load combined model
         self.executor.load_paddle_model(self.model_dir, self.target, True)
+        end1 = time.time()
+        print("Inference time1: %.3f sec" % (end1 - start))
         a_t = self.executor.get_tensor(self.input_tensor)
         a_t.from_numpy(x_data, self.target)
 
         out = self.executor.get_tensor(self.target_tensor)
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
+        end2 = time.time()
+        print("Inference time2: %.3f sec" % (end2 - start))
 
         self.executor.run()
+        end3 = time.time()
+        print("Inference time3: %.3f sec" % (end3 - start))
 
         out = out.numpy(self.target)
         target_result = self.get_paddle_inference_result(
             self.model_dir, x_data)
+        end4 = time.time()
+        print("Inference time4: %.3f sec" % (end4 - start))
 
         print("result in test_model: \n")
         out = out.reshape(-1)
@@ -68,6 +78,8 @@ class TestLoadResnetModel(unittest.TestCase):
                 print("Error! ", i, "-th data has diff with target data:\n",
                       out[i], " vs: ", target_result[i], ". Diff is: ",
                       out[i] - target_result[i])
+        end5 = time.time()
+        print("Inference time5: %.3f sec" % (end5 - start))
         self.assertTrue(np.allclose(out, target_result, atol=1e-3))
 
     def test_model(self):
