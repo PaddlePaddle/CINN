@@ -51,9 +51,14 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
         auto* temp_node = nodes[i]->safe_as<Node>();
         CHECK(temp_node) << "Temp node null Error!!";
         fuse_nodes.push_back(temp_node);
+        // Here nodes holds both op node and tensor node. Since a op node is
+        // connnected to a tensor node, in order to visit only the op node,
+        // we use i = i + 2 instead of i = i + 1.
         i = i + 2;
       }
-      i = i - 2;
+      // When jump out of the previous loop, we did one more time of i = i + 2.
+      // So to ensure each node is traversed, we do i = i - 2.
+      i                 = i - 2;
       auto lowered_func = GetOpFunc(fuse_nodes);
       m_builder_.AddFunction(lowered_func);
       continue;
@@ -163,7 +168,6 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
   auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
   std::vector<ir::Tensor> inputs;
   poly::StageMap stages;
-  // LOG(INFO) <<"Start OpFusion!";
   std::vector<int> init_shape{1};
   int fuse_number = nodes.size();
   lang::Placeholder<float> temp_out_ph("init", init_shape);
@@ -203,8 +207,8 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
         OpStrategy::SelectImpl(strategy[node->op()](node->attrs, temp_inputs, out_types, output_shapes, target_));
 
     common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
-
-    C                          = impl->fschedule(C);
+    C                       = impl->fschedule(C);
+    CHECK_GE(C.size(), 2);
     ir::Expr temp0             = C[0];
     temp_out                   = temp0;
     poly::StageMap temp_stages = C.back();
@@ -215,13 +219,10 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
 
     for (int i = 0; i < C->size() - 1; i++) {
       ir::Expr temp = C[i];
-      LOG(INFO) << "stages insert tensor: " << temp.as_tensor_ref()->name;
       stages->InsertLazily(temp.as_tensor_ref(), temp_stages[temp.as_tensor_ref()]);
       if (index < fuse_number - 1 && !temp.as_tensor_ref()->is_reduce_tensor()) {
-        LOG(INFO) << "compute inline: " << temp.as_tensor_ref()->name;
         stages[temp.as_tensor_ref()]->ComputeInline();
       } else {
-        LOG(INFO) << "inputs push_back: " << temp.as_tensor_ref()->name;
         inputs.push_back(temp.as_tensor_ref());
       }
     }

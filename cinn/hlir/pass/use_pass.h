@@ -2,4 +2,5 @@
 
 #include "cinn/common/macros.h"
 
-CINN_USE_REGISTER(passes)
+CINN_USE_REGISTER(InferShape)
+CINN_USE_REGISTER(OpFusion)

@@ -51,24 +51,20 @@ class TestLoadResnetModel(unittest.TestCase):
         # True means load combined model
         self.executor.load_paddle_model(self.model_dir, self.target, True)
         end1 = time.time()
-        print("Inference time1: %.3f sec" % (end1 - start))
+        print("load_paddle_model time is: %.3f sec" % (end1 - start))
         a_t = self.executor.get_tensor(self.input_tensor)
         a_t.from_numpy(x_data, self.target)
 
         out = self.executor.get_tensor(self.target_tensor)
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
-        end2 = time.time()
-        print("Inference time2: %.3f sec" % (end2 - start))
 
         self.executor.run()
-        end3 = time.time()
-        print("Inference time3: %.3f sec" % (end3 - start))
+        end2 = time.time()
+        print("executor.run() time is: %.3f sec" % (end2 - end1))
 
         out = out.numpy(self.target)
         target_result = self.get_paddle_inference_result(
             self.model_dir, x_data)
-        end4 = time.time()
-        print("Inference time4: %.3f sec" % (end4 - start))
 
         print("result in test_model: \n")
         out = out.reshape(-1)
@@ -78,8 +74,6 @@ class TestLoadResnetModel(unittest.TestCase):
                 print("Error! ", i, "-th data has diff with target data:\n",
                       out[i], " vs: ", target_result[i], ". Diff is: ",
                       out[i] - target_result[i])
-        end5 = time.time()
-        print("Inference time5: %.3f sec" % (end5 - start))
         self.assertTrue(np.allclose(out, target_result, atol=1e-3))
 
     def test_model(self):
