@@ -13,6 +13,7 @@ from cinn.common import *
 import numpy as np
 import paddle.fluid as fluid
 import sys
+import time
 
 enable_gpu = sys.argv.pop()
 model_dir = sys.argv.pop()
@@ -42,11 +43,14 @@ class TestLoadEfficientNetModel(unittest.TestCase):
         return get_tensor
 
     def apply_test(self):
+        start = time.time()
         x_data = np.random.random(self.x_shape).astype("float32")
         self.executor = Interpreter([self.input_tensor], [self.x_shape])
         print("self.mode_dir is:", self.model_dir)
         # True means load combined model
         self.executor.load_paddle_model(self.model_dir, self.target, True)
+        end1 = time.time()
+        print("load_paddle_model time is: %.3f sec" % (end1 - start))
         a_t = self.executor.get_tensor(self.input_tensor)
         a_t.from_numpy(x_data, self.target)
 
@@ -54,6 +58,8 @@ class TestLoadEfficientNetModel(unittest.TestCase):
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
 
         self.executor.run()
+        end2 = time.time()
+        print("executor.run() time is: %.3f sec" % (end2 - end1))
 
         out = out.numpy(self.target)
         target_result = self.get_paddle_inference_result(

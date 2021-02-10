@@ -1325,6 +1325,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRelu)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(relu6)
@@ -1334,6 +1335,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRelu6)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(conv2d)
@@ -1343,6 +1345,8 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
 
   CINN_REGISTER_OP(depthwise_conv2d)
@@ -1352,6 +1356,8 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDepthwiseConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDepthwiseConv2d))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
 
   CINN_REGISTER_OP(batchnorm)
@@ -1361,6 +1367,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBatchNorm)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBatchNorm))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBatchNorm))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(pool1d)
@@ -1370,6 +1377,8 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool1d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool1d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
 
   CINN_REGISTER_OP(pool2d)
@@ -1379,6 +1388,8 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
 
   CINN_REGISTER_OP(pool3d)
@@ -1388,6 +1399,8 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool3d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool3d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
 
   CINN_REGISTER_OP(sigmoid)
@@ -1397,6 +1410,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSigmoid)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSigmoid))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSigmoid))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(softmax)
@@ -1406,6 +1420,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSoftmax)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSoftmax))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSoftmax))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(slice)
@@ -1415,6 +1430,8 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSlice)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSlice))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSlice))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
 
   CINN_REGISTER_OP(dropout_infer)
@@ -1424,6 +1441,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDropoutInfer)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDropoutInfer))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDropoutInfer))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   return true;

@@ -5,7 +5,7 @@
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/nn.h"
-#include "cinn/runtime/use_extern_funcs.h"
+#include "cinn/runtime/cpu/use_extern_funcs.h"
 #include "cinn/utils/timer.h"
 
 namespace cinn {

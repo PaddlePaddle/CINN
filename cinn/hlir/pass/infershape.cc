@@ -69,7 +69,7 @@ void InferShapePass(Graph* graph) {
 }  // namespace pass
 }  // namespace hlir
 }  // namespace cinn
-CINN_REGISTER_HELPER(passes) {
+CINN_REGISTER_HELPER(InferShape) {
   CINN_REGISTER_PASS(InferShape)
       .describe(
           "This pass infer the shape and data type of tensor and save to g.attrs[\"infershape\"] and "
@@ -78,6 +78,5 @@ CINN_REGISTER_HELPER(passes) {
       .provide_graph_attr("infershape")
       .provide_graph_attr("inferdtype")
       .set_body(cinn::hlir::pass::InferShapePass);
-
   return true;
 }

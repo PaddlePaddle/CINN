@@ -827,6 +827,13 @@ Stage *_StageMap_::InsertLazily(const ir::Tensor &key) {
   return Insert(key, ir::CreateStage(key).get());
 }
 
+Stage *_StageMap_::InsertLazily(const ir::Tensor &key, Stage *stage) {
+  if (data_.count(key->name)) return operator[](key);
+  CHECK(stage);
+  data_[key->name].Reset(stage);
+  return stage;
+}
+
 StageMap CreateStages(const std::vector<ir::Tensor> &tensors) {
   StageMap stages;
 
