@@ -24,8 +24,8 @@ std::vector<Tensor> Matmul(
   std::vector<Expr> shape_B = B->shape;
   int a_dim                 = shape_A.size();
   int b_dim                 = shape_B.size();
-  CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3";
-  CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3";
+  CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3 while current dim is " << a_dim;
+  CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3 while current dim is " << b_dim;
   CHECK_EQ(a_dim, b_dim) << "tensor_A's dim should be same with tensor_B";
 
   Expr x_width  = trans_a ? shape_A[a_dim - 2] : shape_A.back();
@@ -48,7 +48,7 @@ std::vector<Tensor> Matmul(
         int out_dim = indice.size();
         std::vector<Expr> A_indice;
         std::vector<Expr> B_indice;
-        CHECK(out_dim == 3U || out_dim == 2U) << "indice size should be 2 or 3";
+        CHECK(out_dim == 3U || out_dim == 2U) << "indice size should be 2 or 3 while current dim is " << out_dim;
         if (out_dim == 3U) {
           // batch
           A_indice.push_back(indice[0]);
@@ -89,8 +89,8 @@ std::vector<Tensor> MatmulV2(const Tensor& A,
   std::vector<Expr> shape_B = B->shape;
   int a_dim                 = shape_A.size();
   int b_dim                 = shape_B.size();
-  CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3";
-  CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3";
+  CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3 while current dim is " << a_dim;
+  CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3 while current dim is " << b_dim;
   CHECK_EQ(a_dim, b_dim) << "tensor_A's dim should be same with tensor_B";
 
   Expr x_width  = trans_a ? shape_A[a_dim - 2] : shape_A.back();
@@ -121,7 +121,7 @@ std::vector<Tensor> MatmulV2(const Tensor& A,
       [=](const std::vector<Expr>& indice) {
         std::vector<Expr> indice_b;
         int indice_dim = indice.size();
-        CHECK_GE(indice_dim, 3) << "packedB's dim should be at least 3";
+        CHECK_GE(indice_dim, 3) << "packedB's dim should be at least 3 while current dim is " << indice_dim;
         if (indice_dim == 4) {
           // batch
           indice_b.push_back(indice[0]);
@@ -141,7 +141,7 @@ std::vector<Tensor> MatmulV2(const Tensor& A,
         std::vector<Expr> indice_a;
         std::vector<Expr> indice_b;
         int out_dim = indice.size();
-        CHECK(out_dim == 3U || out_dim == 2U) << "indice size should be 2 or 3";
+        CHECK(out_dim == 3U || out_dim == 2U) << "indice size should be 2 or 3 while current dim is " << out_dim;
         if (out_dim == 3) {
           // batch
           indice_a.push_back(indice[0]);
@@ -180,8 +180,8 @@ std::vector<Tensor> MatmulMKL(const Tensor& A,
   std::vector<Expr> shape_B = B->shape;
   int a_dim                 = shape_A.size();
   int b_dim                 = shape_B.size();
-  CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3";
-  CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3";
+  CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3 while current dim is " << a_dim;
+  CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3 while current dim is " << b_dim;
   CHECK_EQ(a_dim, b_dim) << "tensor_A's dim should be same with tensor_B";
 
   Expr x_width  = trans_a ? shape_A[a_dim - 2] : shape_A.back();
@@ -229,8 +229,8 @@ int GetMulFactor(int shape, const Type& type, const common::Target& target) {
 
 std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string& name, const common::Target& target) {
   std::vector<Expr> output_shape;
-  CHECK_EQ(A->shape.size(), 2U) << "tensor_A's shape size should be two";
-  CHECK_EQ(B->shape.size(), 2U) << "tensor_B's shape size should be two";
+  CHECK_EQ(A->shape.size(), 2U) << "tensor_A's shape size should be two while current shape size is " << A->shape.size();
+  CHECK_EQ(B->shape.size(), 2U) << "tensor_B's shape size should be two while current shape size is " << B->shape.size();
   CHECK_EQ(A->shape[1], B->shape[1]) << "tensor_A's last shape should be same with tensor_B";
   output_shape.push_back(A->shape[0]);
   output_shape.push_back(B->shape[0]);
@@ -242,7 +242,7 @@ std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string&
     auto mul_reduce_first = Compute(
         {A->shape[0], B->shape[0], Expr(split_factor)},
         [=](const std::vector<Expr>& indice) {
-          CHECK_EQ(indice.size(), 3U) << "indice size should be three";
+          CHECK_EQ(indice.size(), 3U) << "indice size should be three while current size is " << indice.size();
           return lang::ReduceSum(A({indice[0], reduce_k_first * Expr(split_factor) + indice[2]}) *
                                      B({indice[1], reduce_k_first * Expr(split_factor) + indice[2]}),
                                  {reduce_k_first});
@@ -265,7 +265,7 @@ std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string&
         [=](const std::vector<Expr>& indice) {
           std::vector<Expr> A_indice;
           std::vector<Expr> B_indice;
-          CHECK_EQ(indice.size(), 2U) << "indice size should be two";
+          CHECK_EQ(indice.size(), 2U) << "indice size should be two while current size is " << indice.size();
           A_indice.push_back(indice[0]);
           B_indice.push_back(indice[1]);
           A_indice.push_back(reduce_k);
