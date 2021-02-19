@@ -29,11 +29,16 @@ void OpBenchmarkTester::TestOp(const std::string& test_name,
   CreateBuffer();
   LOG(INFO) << "Testing " << test_name;
   cinn::utils::Timer timer;
+  // ignore first execution for lazy jit component
+  timer.Start();
+  test_func_ptr(reinterpret_cast<void**>(all_args_.data()), all_args_.size());
+  double test_op_time = timer.Stop();
+  LOG(INFO) << "kernel warmup run time: " << test_op_time << " ms";
   timer.Start();
   for (int i = 0; i < repeat_; i++) {
     test_func_ptr(reinterpret_cast<void**>(all_args_.data()), all_args_.size());
   }
-  double test_op_time = timer.Stop() / repeat_;
+  test_op_time = timer.Stop() / repeat_;
   LOG(INFO) << "repeat times: " << repeat_ << ", kernel run time: " << test_op_time << " ms";
 }
 

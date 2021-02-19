@@ -36,6 +36,14 @@ std::vector<ir::Tensor> MatmulV2(const ir::Tensor& A,
                                  const std::string& name      = UniqName("T_Transform_MatmulV2_out"),
                                  const common::Target& target = common::DefaultHostTarget());
 
+std::vector<ir::Tensor> MatmulMKL(const ir::Tensor& A,
+                                  const ir::Tensor& B,
+                                  bool trans_a                 = false,
+                                  bool trans_b                 = false,
+                                  float alpha                  = 1,
+                                  const std::string& name      = UniqName("T_Transform_MatmulMKL_out"),
+                                  const common::Target& target = common::DefaultHostTarget());
+
 int GetMulFactor(int shape, const Type& type, const common::Target& target);
 
 /**

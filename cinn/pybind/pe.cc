@@ -85,6 +85,16 @@ void BindPE(py::module* m) {
          py::arg("trans_b") = false,
          py::arg("alpha")   = 1,
          py::arg("out")     = "T_Matmul_out");
+
+  m->def("matmul_mkl",
+         &hlir::pe::MatmulMKL,
+         py::arg("tensor_a"),
+         py::arg("tensor_b"),
+         py::arg("trans_a") = false,
+         py::arg("trans_b") = false,
+         py::arg("alpha")   = 1,
+         py::arg("out")     = "T_Matmul_mkl_out",
+         py::arg("target")  = common::DefaultHostTarget());
 }
 
 }  // namespace pybind

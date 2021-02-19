@@ -14,6 +14,8 @@ else()
       DEPS cinncore cinn_runtime pybind ${llvm_libs})
 endif()
 
+target_link_libraries(core_api ${MKLML_LIB})
+
 execute_process(COMMAND python3 -m pybind11 --includes OUTPUT_VARIABLE pybind_includes)
 string(REGEX REPLACE "\n$" "" pybind_includes "${pybind_includes}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${pybind_includes}")

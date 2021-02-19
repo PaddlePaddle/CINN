@@ -33,6 +33,8 @@ int Target::max_num_threads() const {
   return 1024;
 }
 
+std::vector<Target::Lib> Target::get_target_libs() const { return libs; }
+
 int Target::get_target_bits() const {
   switch (bits) {
     case Bit::k32:

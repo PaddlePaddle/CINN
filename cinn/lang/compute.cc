@@ -7,6 +7,7 @@
 #include "cinn/poly/dim.h"
 #include "cinn/poly/domain.h"
 #include "cinn/poly/stage.h"
+#include "cinn/runtime/use_extern_funcs.h"
 
 namespace cinn {
 namespace lang {

@@ -96,7 +96,7 @@ add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER
         )
 
 if (WITH_CUDA)
-  target_link_libraries(cinncore ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES})
+  target_link_libraries(cinncore ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/libcuda.so)
 endif()
 
 # --------distribute cinncore lib and include begin--------

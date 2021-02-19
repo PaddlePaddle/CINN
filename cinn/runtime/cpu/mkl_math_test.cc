@@ -197,6 +197,3 @@ TEST(cinn_cpu_mkl_gemm_fp32, test) {
 }  // namespace cpu
 }  // namespace runtime
 }  // namespace cinn
-
-CINN_USE_REGISTER(mkl_math)
-CINN_USE_REGISTER(cinn_cpu_mkl_gemm_fp32)
