@@ -84,6 +84,11 @@ void GetMatmulNewShapes(const std::vector<std::vector<int>> &inputs_shape,
   int x_width  = trans_a ? (*new_shape_A)[new_shape_A->size() - 2] : new_shape_A->back();
   int y_height = trans_b ? new_shape_B->back() : (*new_shape_B)[new_shape_B->size() - 2];
   CHECK_EQ(x_width, y_height) << "matrix multiplication requires x_width to be same with y_height";
+  if (new_shape_A->size() == 3U) {
+    CHECK_EQ(new_shape_A->front(), new_shape_B->front())
+        << "tensor A and B's batch size should be same but current batch sizes are " << new_shape_A->front() << " and "
+        << new_shape_B->front();
+  }
   if (output_shape != nullptr) {
     int M = !trans_a ? (*new_shape_A)[new_shape_A->size() - 2] : new_shape_A->back();
     int N = !trans_b ? new_shape_B->back() : (*new_shape_B)[new_shape_B->size() - 2];

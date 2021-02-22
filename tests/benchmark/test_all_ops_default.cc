@@ -171,7 +171,7 @@ std::vector<std::vector<int>> shapes_matmul5 = {{1}, {1}};
 TEST_DEFAULT(matmul, matmul5, type1, type1)
 std::vector<std::vector<int>> shapes_matmul6 = {{1, 30}, {30}};
 TEST_DEFAULT(matmul, matmul6, type1, type1)
-std::vector<std::vector<int>> shapes_matmul7 = {{2, 100, 4}, {4, 100}};
+std::vector<std::vector<int>> shapes_matmul7 = {{2, 100, 4}, {2, 4, 100}};
 TEST_DEFAULT(matmul, matmul7, type1, type1)
 
 // matrix mul

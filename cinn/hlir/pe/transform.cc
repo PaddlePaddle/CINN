@@ -183,6 +183,11 @@ std::vector<Tensor> MatmulMKL(const Tensor& A,
   CHECK(a_dim == 3U || a_dim == 2U) << "tensor_A's dim should be 2 or 3 while current dim is " << a_dim;
   CHECK(b_dim == 3U || b_dim == 2U) << "tensor_B's dim should be 2 or 3 while current dim is " << b_dim;
   CHECK_EQ(a_dim, b_dim) << "tensor_A's dim should be same with tensor_B";
+  if (a_dim == 3U) {
+    CHECK_EQ(shape_A.front(), shape_B.front())
+        << "tensor A and B's batch size should be same but current batch sizes are " << shape_A.front() << " and "
+        << shape_B.front();
+  }
 
   Expr x_width  = trans_a ? shape_A[a_dim - 2] : shape_A.back();
   Expr y_height = trans_b ? shape_B.back() : shape_B[b_dim - 2];
@@ -190,26 +195,55 @@ std::vector<Tensor> MatmulMKL(const Tensor& A,
   Expr N        = trans_b ? shape_B[b_dim - 2] : shape_B.back();
   CHECK(is_zero(x_width - y_height)) << "matrix multiplication requires x_width to be same with y_height";
 
-  auto call = Compute(
-      {Expr(1)},
-      [=]() -> Expr {
-        return lang::CallExtern("cinn_cpu_mkl_gemm_fp32",
-                                {
-                                    Expr(alpha),                 // alpha
-                                    M,                           // M
-                                    N,                           // N
-                                    x_width,                     // K
-                                    common::make_bool(trans_a),  // ta
-                                    common::make_bool(trans_b),  // tb
-                                    shape_A.back(),              // lda
-                                    shape_B.back(),              // ldb
-                                    N,                           // ldc
-                                    common::make_zero<float>(),  // beta
-                                    A,                           // A
-                                    B,                           // B
-                                });
-      },
-      UniqName("matmul_mkl_out"));
+  ir::Tensor call;
+  if (a_dim == 2U) {
+    call = Compute(
+        {Expr(1)},
+        [=]() -> Expr {
+          return lang::CallExtern("cinn_cpu_mkl_gemm_fp32",
+                                  {
+                                      Expr(alpha),                 // alpha
+                                      M,                           // M
+                                      N,                           // N
+                                      x_width,                     // K
+                                      common::make_bool(trans_a),  // ta
+                                      common::make_bool(trans_b),  // tb
+                                      shape_A.back(),              // lda
+                                      shape_B.back(),              // ldb
+                                      N,                           // ldc
+                                      common::make_zero<float>(),  // beta
+                                      A,                           // A
+                                      B,                           // B
+                                  });
+        },
+        UniqName("matmul_mkl_out"));
+  } else {
+    // batch matmul
+    call = Compute(
+        {Expr(1)},
+        [=]() -> Expr {
+          return lang::CallExtern("cinn_cpu_mkl_gemm_batch_fp32",
+                                  {
+                                      Expr(alpha),                 // alpha
+                                      shape_A.front(),             // batch
+                                      M,                           // M
+                                      N,                           // N
+                                      x_width,                     // K
+                                      common::make_bool(trans_a),  // ta
+                                      common::make_bool(trans_b),  // tb
+                                      shape_A.back(),              // lda
+                                      shape_B.back(),              // ldb
+                                      N,                           // ldc
+                                      M * x_width,                 // a_stride
+                                      N * x_width,                 // b_stride
+                                      M * N,                       // c_stride
+                                      common::make_zero<float>(),  // beta
+                                      A,                           // A
+                                      B,                           // B
+                                  });
+        },
+        UniqName("batch_matmul_mkl_out"));
+  }
   auto out = call->TupleGet(0);
   out->WithBuffer(A->type());
   return {out, call};
@@ -229,8 +263,10 @@ int GetMulFactor(int shape, const Type& type, const common::Target& target) {
 
 std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string& name, const common::Target& target) {
   std::vector<Expr> output_shape;
-  CHECK_EQ(A->shape.size(), 2U) << "tensor_A's shape size should be two while current shape size is " << A->shape.size();
-  CHECK_EQ(B->shape.size(), 2U) << "tensor_B's shape size should be two while current shape size is " << B->shape.size();
+  CHECK_EQ(A->shape.size(), 2U) << "tensor_A's shape size should be two while current shape size is "
+                                << A->shape.size();
+  CHECK_EQ(B->shape.size(), 2U) << "tensor_B's shape size should be two while current shape size is "
+                                << B->shape.size();
   CHECK_EQ(A->shape[1], B->shape[1]) << "tensor_A's last shape should be same with tensor_B";
   output_shape.push_back(A->shape[0]);
   output_shape.push_back(B->shape[0]);
