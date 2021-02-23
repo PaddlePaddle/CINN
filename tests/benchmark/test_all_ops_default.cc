@@ -211,21 +211,27 @@ TEST_DEFAULT1(slice, slice, type, type, attr_store_slice)
   TEST_DEFAULT(op__, unary_##op__, type, type)                           \
   TEST_DEFAULT(op__, unary_##op__##1, type, type)
 
-TEST_DEFAULT_UNARY(exp)
-TEST_DEFAULT_UNARY(erf)
+#define TEST_DEFAULT_UNARY1(op__)                                        \
+  std::vector<std::vector<int>> shapes_unary_##op__    = {{1024, 2048}}; \
+  std::vector<std::vector<int>> shapes_unary_##op__##1 = {{3, 1000}};    \
+  TEST_DEFAULT(op__, unary_##op__, type, type1)                          \
+  TEST_DEFAULT(op__, unary_##op__##1, type, type1)
+
+TEST_DEFAULT_UNARY1(exp)
+TEST_DEFAULT_UNARY1(erf)
 TEST_DEFAULT_UNARY(sigmoid)
-TEST_DEFAULT_UNARY(sqrt)
-TEST_DEFAULT_UNARY(log)
+TEST_DEFAULT_UNARY1(sqrt)
+TEST_DEFAULT_UNARY1(log)
 TEST_DEFAULT_UNARY(log2)
 TEST_DEFAULT_UNARY(log10)
-TEST_DEFAULT_UNARY(floor)
-TEST_DEFAULT_UNARY(ceil)
-TEST_DEFAULT_UNARY(round)
+TEST_DEFAULT_UNARY1(floor)
+TEST_DEFAULT_UNARY1(ceil)
+TEST_DEFAULT_UNARY1(round)
 TEST_DEFAULT_UNARY(trunc)
 TEST_DEFAULT_UNARY(cos)
 TEST_DEFAULT_UNARY(cosh)
 TEST_DEFAULT_UNARY(tan)
-TEST_DEFAULT_UNARY(tanh)
+TEST_DEFAULT_UNARY1(tanh)
 TEST_DEFAULT_UNARY(sin)
 TEST_DEFAULT_UNARY(sinh)
 TEST_DEFAULT_UNARY(acos)

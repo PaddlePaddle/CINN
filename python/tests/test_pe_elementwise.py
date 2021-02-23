@@ -92,8 +92,11 @@ class TestPEElementwise(unittest.TestCase):
 
         func_name = "test_" + fn_name
 
-        stages = create_stages([x.to_tensor(), y])
-        func = lang.lower(func_name, stages, [x.to_tensor(), y])
+        args = [x.to_tensor()]
+        for out in y:
+            args.append(out)
+        stages = create_stages(args)
+        func = lang.lower(func_name, stages, args)
 
         builder = lang.Module.Builder("elementwise_module", self.target)
         builder.add_function(func)

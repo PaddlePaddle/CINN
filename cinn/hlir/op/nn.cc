@@ -998,9 +998,10 @@ std::shared_ptr<OpStrategy> StrategyForSigmoid(const framework::NodeAttr &attrs,
     CHECK(!a.empty()) << "at least one input tensor for sigmoid compute\n";
     Expr A = a[0];
     CHECK(A.as_tensor());
-    auto out    = pe::Sigmoid(A.as_tensor_ref(), UniqName("Sigmoid_output"));
+    auto out = pe::Sigmoid(A.as_tensor_ref(), UniqName("Sigmoid_output"));
+    CHECK(!out.empty());
     auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+    *ret        = CINNValuePack{{CINNValue(Expr(out.front())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule sigmoid_schedule([=](lang::Args args, lang::RetValue *ret) {
