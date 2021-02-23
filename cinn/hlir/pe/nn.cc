@@ -188,7 +188,7 @@ std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
       (input->shape[3] - weight->shape[3] + 2 * pad_w) / stride_w + 1   // W
   };
   auto input_pad =
-      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
+      (pad_h == 0 && pad_w == 0) ? Identity(input).front() : Pad(input, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
 
   Var kernel_h = Var(weight->shape[2], "kh");
   Var kernel_w = Var(weight->shape[3], "kw");
@@ -225,7 +225,7 @@ std::vector<Tensor> Depthwise_Conv2d_NHWC(const Tensor &input,
   };
 
   auto input_pad =
-      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(pad_h), Expr(pad_w), Expr(0)});
+      (pad_h == 0 && pad_w == 0) ? Identity(input).front() : Pad(input, {Expr(0), Expr(pad_h), Expr(pad_w), Expr(0)});
 
   Var kernel_h = Var(weight->shape[2], "kh");
   Var kernel_w = Var(weight->shape[3], "kw");
@@ -668,7 +668,7 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
   if (dropout_implementation == "downgrade_in_infer") {
     return Multiply(tensor, Expr(1 - dropout_prob));
   } else if (dropout_implementation == "upscale_in_train") {
-    return Identity(tensor);
+    return Identity(tensor).front();
   } else {
     LOG(FATAL) << "dropout_implementation attr must be 'downgrade_in_infer' or 'upscale_in_train'\n";
   }

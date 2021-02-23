@@ -25,12 +25,16 @@ void TestElementwisePE(const std::string &fn_name,
   Placeholder<float> A("A", {M, N});
 
   auto A_out = func_op(A.tensor(), fn_name + "_out");
-
-  auto stages = CreateStages({A.tensor(), A_out});
+  std::vector<ir::Tensor> tensor_args{A};
+  tensor_args.insert(tensor_args.end(), A_out.begin(), A_out.end());
+  auto stages = CreateStages(tensor_args);
 
   Target target = common::DefaultHostTarget();
   Module::Builder builder("module0", target);
-  auto func = Lower("fn", stages, {A, A_out});
+  for (auto &tensor : A_out) {
+    stages->InsertLazily(tensor);
+  }
+  auto func = Lower("fn", stages, tensor_args);
   LOG(INFO) << "func:\n" << func;
   builder.AddFunction(func);
 

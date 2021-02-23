@@ -97,20 +97,22 @@ bool isinf(float e) { return std::isinf(e); }
 
 #define TEST_MKL_MATH_FP32(test_name__, is_elementwise) \
   TEST(mkl_math, test_name__) { TestCallElementwise(#test_name__, test_name__, is_elementwise); }
+#define TEST_CINN_MKL_MATH_FP32(test_name__, is_elementwise) \
+  TEST(mkl_math, test_name__) { TestCallElementwise("cinn_mkl_" #test_name__ "_v_fp32", test_name__, is_elementwise); }
 #define TEST_MKL_MATH_FP32_BOOL(test_name__, is_elementwise) \
   TEST(mkl_math, test_name__) { TestCallElementwise(#test_name__, test_name__, is_elementwise, Bool()); }
 #define TEST_MKL_MATH_FP32_SET(test_name__, is_elementwise, value) \
   TEST(mkl_math, test_name__) { TestCallElementwise(#test_name__, test_name__, is_elementwise, Float(32), value); }
 
-TEST_MKL_MATH_FP32(exp, true)
-TEST_MKL_MATH_FP32(erf, true)
-TEST_MKL_MATH_FP32(sqrt, true)
-TEST_MKL_MATH_FP32(log, true)
+TEST_CINN_MKL_MATH_FP32(exp, false)
+TEST_CINN_MKL_MATH_FP32(erf, false)
+TEST_CINN_MKL_MATH_FP32(sqrt, false)
+TEST_CINN_MKL_MATH_FP32(log, false)
 TEST_MKL_MATH_FP32(log2, true)
 TEST_MKL_MATH_FP32(log10, true)
-TEST_MKL_MATH_FP32(floor, true)
-TEST_MKL_MATH_FP32(ceil, true)
-TEST_MKL_MATH_FP32(round, true)
+TEST_CINN_MKL_MATH_FP32(floor, false)
+TEST_CINN_MKL_MATH_FP32(ceil, false)
+TEST_CINN_MKL_MATH_FP32(round, false)
 TEST_MKL_MATH_FP32(trunc, true)
 TEST_MKL_MATH_FP32(cos, true)
 TEST_MKL_MATH_FP32(cosh, true)
@@ -124,7 +126,7 @@ TEST_MKL_MATH_FP32(asinh, true)
 TEST_MKL_MATH_FP32(atan, true)
 TEST_MKL_MATH_FP32(atanh, true)
 TEST_MKL_MATH_FP32_BOOL(isnan, true)
-TEST_MKL_MATH_FP32(tanh, true)
+TEST_CINN_MKL_MATH_FP32(tanh, false)
 TEST_MKL_MATH_FP32_BOOL(isfinite, true)
 TEST_MKL_MATH_FP32_BOOL(isinf, true)
 
@@ -149,9 +151,9 @@ TEST(cinn_cpu_mkl_gemm_fp32, test) {
                                     K,                           // K
                                     common::make_bool(false),    // ta
                                     common::make_bool(false),    // tb
-                                    M,                           // lda
-                                    K,                           // ldb
-                                    M,                           // ldc
+                                    K,                           // lda
+                                    N,                           // ldb
+                                    N,                           // ldc
                                     common::make_zero<float>(),  // beta
                                     A.tensor(),                  // A
                                     B.tensor(),                  // B

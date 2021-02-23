@@ -1,6 +1,6 @@
 #include "cinn/hlir/pe/elementwise.h"
 
-#include <vector>
+#include <string>
 
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
@@ -14,11 +14,45 @@ using cinn::lang::Compute;
 using ir::Expr;
 using ir::Tensor;
 
-#define HLIR_IMP_UNARY_PE(name__)                                                                         \
-  Tensor name__(const Tensor& A, const std::string& output_name) {                                        \
-    return Compute(                                                                                       \
-        A->shape, [&](const std::vector<Expr>& indice) { return lang::name__(A(indice)); }, output_name); \
+#define HLIR_IMP_UNARY_PE(name__)                                                                          \
+  std::vector<ir::Tensor> name__(const Tensor& A, const std::string& output_name) {                        \
+    return {Compute(                                                                                       \
+        A->shape, [&](const std::vector<Expr>& indice) { return lang::name__(A(indice)); }, output_name)}; \
   }
+
+#define HLIR_MKL_IMP_UNARY_PE(name__, ex_name__)                                                     \
+  std::vector<ir::Tensor> name__##MKL(const Tensor& A, const std::string& output_name) {             \
+    CHECK(A->type().is_float()) << "type should be float or double but get " << A->type();           \
+    std::string fn_name = "cinn_mkl_" #ex_name__ "_v_fp" + std::to_string(A->type().bits());         \
+    auto call           = Compute(                                                                   \
+        {Expr(1)}, [&]() -> Expr { return lang::CallExtern(fn_name, {A}); }, output_name); \
+    auto out = call->TupleGet(0);                                                                    \
+    out->WithBuffer(A->type());                                                                      \
+    return {out, call};                                                                              \
+  }
+
+HLIR_MKL_IMP_UNARY_PE(Exp, exp);
+HLIR_MKL_IMP_UNARY_PE(Erf, erf);
+HLIR_MKL_IMP_UNARY_PE(Sqrt, sqrt);
+HLIR_MKL_IMP_UNARY_PE(Log, log);
+HLIR_MKL_IMP_UNARY_PE(Log2, log2);
+HLIR_MKL_IMP_UNARY_PE(Log10, log10);
+HLIR_MKL_IMP_UNARY_PE(Floor, floor);
+HLIR_MKL_IMP_UNARY_PE(Ceil, ceil);
+HLIR_MKL_IMP_UNARY_PE(Round, round);
+HLIR_MKL_IMP_UNARY_PE(Tanh, tanh);
+HLIR_MKL_IMP_UNARY_PE(Trunc, trunc);
+HLIR_MKL_IMP_UNARY_PE(Cos, cos);
+HLIR_MKL_IMP_UNARY_PE(Sin, sin);
+HLIR_MKL_IMP_UNARY_PE(Cosh, cosh);
+HLIR_MKL_IMP_UNARY_PE(Tan, tan);
+HLIR_MKL_IMP_UNARY_PE(Sinh, sinh);
+HLIR_MKL_IMP_UNARY_PE(Acos, acos);
+HLIR_MKL_IMP_UNARY_PE(Acosh, acosh);
+HLIR_MKL_IMP_UNARY_PE(Asin, asin);
+HLIR_MKL_IMP_UNARY_PE(Asinh, asinh);
+HLIR_MKL_IMP_UNARY_PE(Atan, atan);
+HLIR_MKL_IMP_UNARY_PE(Atanh, atanh);
 
 HLIR_IMP_UNARY_PE(Exp);
 HLIR_IMP_UNARY_PE(Erf);

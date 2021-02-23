@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "cinn/ir/ir.h"
 
@@ -15,8 +16,9 @@ namespace pe {
  *
  * @return The result Tensor.
  */
-#define HLIR_DCL_UNARY_PE(name__) \
-  ir::Tensor name__(const ir::Tensor& A, const std::string& output_name = "T_" #name__ "_out");
+#define HLIR_DCL_UNARY_PE(name__)                                                                            \
+  std::vector<ir::Tensor> name__(const ir::Tensor& A, const std::string& output_name = "T_" #name__ "_out"); \
+  std::vector<ir::Tensor> name__##MKL(const ir::Tensor& A, const std::string& output_name = "T_" #name__ "_mkl_out");
 
 HLIR_DCL_UNARY_PE(Exp);
 HLIR_DCL_UNARY_PE(Erf);
