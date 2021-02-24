@@ -23,7 +23,7 @@ void OpFusionPass(Graph* graph) {
     auto node = store_nodes[i]->safe_as<Node>();
     if (node) {
       auto op_pattern = op_pattern_dict[node->op()];
-      if (op_pattern <= framework::kInjective) {
+      if (op_pattern <= framework::kOutEWiseFusable) {
         int fuse_number = 1;
         while (i + 2 < store_nodes.size() && store_nodes[i + 2]->safe_as<Node>()) {
           auto temp_node = store_nodes[i + 2]->safe_as<Node>();

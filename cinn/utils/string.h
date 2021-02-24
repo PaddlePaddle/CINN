@@ -41,6 +41,15 @@ std::string Uppercase(const std::string& x);
 //! Replace a substr 'from' to 'to' in string s.
 void Replace(std::string* s, const std::string& from, const std::string& to);
 
+//! Count how many times substr 'sub' appears in string s.
+size_t Count(std::string* s, const std::string& sub);
+
+//! Tell if a char is prefix of a tensor's name.
+bool IsPrefix(const char& c);
+
+//! Tell if a char is suffix of a tensor's name.
+bool IsSuffix(const char& c);
+
 //! Tell if a string \p x start with \p str.
 bool Startswith(const std::string& x, const std::string& str);
 

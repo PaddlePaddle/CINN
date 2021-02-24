@@ -532,9 +532,10 @@ void BindIrTensor(py::module *m) {
            py::overload_cast<const ir::Type &>(&ir::_Tensor_::WithBuffer),
            py::arg("type") = Type::type_t::Void)
       .def("with_buffer",
-           py::overload_cast<const std::string &, const ir::Type &>(&ir::_Tensor_::WithBuffer),
+           py::overload_cast<const std::string &, const std::string &, const ir::Type &>(&ir::_Tensor_::WithBuffer),
            py::arg("memory_type"),
-           py::arg("type") = Type::type_t::Void)
+           py::arg("buffer_name") = "",
+           py::arg("type")        = Type::type_t::Void)
       .def("bind", py::overload_cast<lang::Buffer &>(&ir::_Tensor_::Bind))
       .def("bind", py::overload_cast<const ir::Buffer &>(&ir::_Tensor_::Bind))
       .def("__str__", [](const ir::Tensor &self) { return "<Tensor " + self->name + ">"; });

@@ -112,7 +112,8 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
     VLOG(2) << "Store 's tensor name is : " << tensor->name;
     if (tensor->buffer.defined() &&
         (utils::Endswith(tensor->buffer->name, "_read_cache") ||
-         utils::Endswith(tensor->buffer->name, "_cache_write_out")) &&
+         utils::Endswith(tensor->buffer->name, "_cache_write_out") ||
+         utils::Endswith(tensor->buffer->name, "_temp_buffer")) &&
         ((*global_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::GPULocal || blockidx_)) {
       bool temp_replace = do_replace_;
       do_replace_       = true;
@@ -123,9 +124,14 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       if (find_replace_ == true) ResizeTempMemory(tensor->name);
       ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
       do_replace_ = temp_replace;
+      ir::IRMutator<>::Visit(&node->value, &node->value);
     } else {
+      for (auto& index : node->indices) {
+        ir::IRMutator<>::Visit(&index, &index);
+      }
+      ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+      ir::IRMutator<>::Visit(&node->value, &node->value);
     }
-    ir::IRMutator<>::Visit(&node->value, &node->value);
   }
 
   void Visit(const ir::Load* expr, Expr* op) override {
@@ -134,7 +140,8 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
     VLOG(2) << "Load's tensor name is : " << tensor->name;
     if (tensor->buffer.defined() &&
         (utils::Endswith(tensor->buffer->name, "_read_cache") ||
-         utils::Endswith(tensor->buffer->name, "_cache_write_out")) &&
+         utils::Endswith(tensor->buffer->name, "_cache_write_out") ||
+         utils::Endswith(tensor->buffer->name, "_temp_buffer")) &&
         ((*global_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::GPULocal || blockidx_)) {
       bool temp_replace = do_replace_;
       do_replace_       = true;
@@ -142,6 +149,8 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       for (auto& idx : node->indices) ir::IRMutator<>::Visit(&idx, &idx);
       do_replace_ = temp_replace;
     } else {
+      ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+      for (auto& idx : node->indices) ir::IRMutator<>::Visit(&idx, &idx);
     }
   }
 

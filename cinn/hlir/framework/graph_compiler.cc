@@ -5,6 +5,8 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/hlir/framework/instruction.h"
 #include "cinn/hlir/framework/tensor.h"
+#include "cinn/hlir/pe/schedule.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace hlir {
@@ -94,10 +96,24 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
     auto* node = nodes[i]->safe_as<Node>();
     if (node && node->attrs.attr_store.count("FuseNumber") > 0) {
       int fuse_number = std::get<int>(node->attrs.attr_store["FuseNumber"]);
-      auto* end_node  = nodes[i + 2 * fuse_number - 2]->safe_as<Node>();
-      auto instr      = std::unique_ptr<Instruction>(
-          new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(end_node)));
-      auto* fn = compiler_->Lookup(GenOpFuncName(node) + "_fused");
+      std::vector<std::string> inputNames;
+      std::vector<std::string> outputNames;
+      for (int j = 0; j < fuse_number; j++) {
+        auto* temp_node = nodes[i + 2 * j]->safe_as<Node>();
+        CHECK(temp_node);
+        auto temp_inputnames = OpGetInputNames(temp_node);
+        if (j == 0) {
+          inputNames.insert(inputNames.end(), temp_inputnames.begin(), temp_inputnames.end());
+        } else {
+          inputNames.insert(inputNames.end(), temp_inputnames.begin() + 1, temp_inputnames.end());
+        }
+        if (j == fuse_number - 1) {
+          auto temp_outputnames = OpGetOutputNames(temp_node);
+          outputNames.insert(outputNames.end(), temp_outputnames.begin(), temp_outputnames.end());
+        }
+      }
+      auto instr = std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames));
+      auto* fn   = compiler_->Lookup(GenOpFuncName(node) + "_fused");
       CHECK(fn);
       instr->SetLoweredFunc(fn);
       instructions.push_back(std::move(instr));
@@ -222,6 +238,9 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
       stages->InsertLazily(temp.as_tensor_ref(), temp_stages[temp.as_tensor_ref()]);
       if (index < fuse_number - 1 && !temp.as_tensor_ref()->is_reduce_tensor()) {
         stages[temp.as_tensor_ref()]->ComputeInline();
+      } else if (index < fuse_number - 1 && temp.as_tensor_ref()->is_reduce_tensor()) {
+        temp.as_tensor_ref()->WithBuffer("local", "_" + temp.as_tensor_ref()->name + "_temp_buffer");
+        stages[temp.as_tensor_ref()]->SetScope(poly::ScopeKind::kLocal);
       } else {
         inputs.push_back(temp.as_tensor_ref());
       }
@@ -229,6 +248,12 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
     index++;
   }
 
+  for (auto& s : stages) {
+    if (s.second->tensor()->is_reduce_tensor()) {
+      stages[inputs.back()]->CopyTransform(s.second->transform());
+      stages[inputs.back()]->CopyLoopInfo(s.second->forloop_infos(), s.second->transform());
+    }
+  }
   auto func = Lower(GenOpFuncName(nodes[0]) + "_fused", stages, inputs, {}, {}, nullptr, this->target_);
   return func;
 }

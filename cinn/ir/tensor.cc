@@ -234,9 +234,7 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
       shape, [=](const std::vector<Expr> &axis) { return GetReduceInitVal(); }, init_reduce_tensor_name);
   stages->InsertLazily(init_tensor);
   if (target.arch == Target::Arch::NVGPU) {
-    if (init_tensor->shape.size() > 1) {
-      stages[init_tensor]->Split(1, 2);
-    }
+    stages[init_tensor]->CopyTransform(stages[this]->transform());
     stages[init_tensor]->ComputeAt2(stages[this], stages[init_tensor]->axis_names().size() - 1);
   }
   stages[this]->CtrlDepend(init_tensor);
@@ -311,9 +309,9 @@ void _Tensor_::WithBuffer(const Type &type) {
   Bind(buf);
 }
 
-void _Tensor_::WithBuffer(const std::string &memory_type, const Type &type) {
+void _Tensor_::WithBuffer(const std::string &memory_type, const std::string &buffer_name, const Type &type) {
   Type buf_type = type.is_void() ? type_ : type;
-  lang::Buffer buf(buf_type);
+  lang::Buffer buf(buf_type, buffer_name);
   buf->target = common::DefaultHostTarget();
   Bind(buf);
 

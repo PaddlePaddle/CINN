@@ -74,13 +74,13 @@ void _LoweredFunc_::PrepareAllocOutputBufferExprs() {
 }
 
 std::vector<Expr> _LoweredFunc_::PrepareAllocTempBufferExprs() const {
-  std::vector<Expr> alloc_output_buffer_exprs;
+  std::vector<Expr> alloc_temp_buffer_exprs;
   for (auto& temp_buf : temp_bufs) {
     if (!temp_buf->shape.empty() && temp_buf->type() != Void()) {
-      alloc_output_buffer_exprs.push_back(Alloc::Make(temp_buf, temp_buf->type(), temp_buf->shape, Expr(), Expr()));
+      alloc_temp_buffer_exprs.push_back(Alloc::Make(temp_buf, temp_buf->type(), temp_buf->shape, Expr(), Expr()));
     }
   }
-  return alloc_output_buffer_exprs;
+  return alloc_temp_buffer_exprs;
 }
 
 std::vector<Expr> _LoweredFunc_::CudaPrepareAllocTempBufferExprs() const {

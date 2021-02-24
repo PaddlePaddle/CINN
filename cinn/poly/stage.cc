@@ -756,6 +756,55 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
   forloop_infos_[level] = info;
 }
 
+void Stage::CopyTransform(const isl::map &target_transform) {
+  std::string str_target_trans   = isl_map_to_str(target_transform.get());
+  std::string str_this_domain    = isl_set_to_str(domain_.get());
+  std::string target_tensor_name = isl_map_get_tuple_name(target_transform.get(), isl_dim_in);
+  std::string this_tensor_name   = isl_set_get_tuple_name(domain_.get());
+  isl::map temp_transform_       = target_transform;
+  VLOG(2) << "In CopyTransform, the target_transform is : " << str_target_trans;
+  std::set<std::string> this_dim_names;
+  std::vector<std::string> erase_dim_names;
+  for (int i = 0; i < isl_set_dim(domain_.get(), isl_dim_set); i++) {
+    this_dim_names.insert(isl_set_get_dim_name(domain_.get(), isl_dim_set, i));
+  }
+  for (int i = 0; i < isl_map_dim(temp_transform_.get(), isl_dim_in); i++) {
+    if (this_dim_names.count(isl_map_get_dim_name(temp_transform_.get(), isl_dim_in, i)) == 0) {
+      // erase_dim_names.push_back(isl_map_get_dim_name(temp_transform_, isl_dim_in, i));
+      temp_transform_ = isl::manage(isl_map_remove_dims(temp_transform_.release(), isl_dim_in, i, 1));
+      i--;
+    }
+  }
+  std::string new_target_trans = isl_map_to_str(temp_transform_.get());
+  for (int i = 0; i < isl_map_dim(temp_transform_.get(), isl_dim_out); i++) {
+    std::string temp_dim = isl_map_get_dim_name(temp_transform_.get(), isl_dim_out, i);
+    if (utils::Count(&new_target_trans, temp_dim) != utils::Count(&str_target_trans, temp_dim)) {
+      // erase_dim_names.push_back(isl_map_get_dim_name(temp_transform_, isl_dim_out, i));
+      temp_transform_ = isl::manage(isl_map_remove_dims(temp_transform_.release(), isl_dim_out, i, 1));
+      i--;
+    }
+  }
+  std::string res_trans = isl_map_to_str(temp_transform_.get());
+  // utils::Replace(&res_trans, target_tensor_name, this_tensor_name);
+  isl::ctx this_ctx = domain_.ctx();
+  isl::map res_map(this_ctx, res_trans);
+  isl_map_set_tuple_name(res_map.get(), isl_dim_in, this_tensor_name.c_str());
+  isl_map_set_tuple_name(res_map.get(), isl_dim_out, this_tensor_name.c_str());
+  VLOG(2) << "The final result trans is : " << isl_map_to_str(res_map.get());
+  transform_ = res_map;
+}
+
+void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::map &target_transform) {
+  std::map<std::string, StageForloopInfo> dim_forloop_infos;
+  std::vector<std::string> this_dim_names = isl_get_dim_names(transform_, isl_dim_out);
+  for (int i = 0; i < this_dim_names.size(); i++) {
+    int index = isl_map_find_dim_by_name(target_transform.get(), isl_dim_out, this_dim_names[i].c_str());
+    if (target_forloop_infos.count(index) != 0) {
+      forloop_infos_[i] = target_forloop_infos[index];
+    }
+  }
+}
+
 void Stage::LockAxis(uint32_t level) {
   CHECK_LT(level, n_out_dims()) << "axis level out of range";
   locked_axis_.insert(level);

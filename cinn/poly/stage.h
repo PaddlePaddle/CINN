@@ -321,6 +321,16 @@ class Stage : public Object {
   //! Get number of transform output dimensions, this equals to the number of dimensions of corresponding tensor.
   inline int n_out_dims() const { return isl_map_dim(transform_.get(), isl_dim_out); }
 
+  //! Copy other stage's transform.
+  //! For example, if the target_transform is `Split(0,1)`,
+  //! this api will apply `Split(0,1)` on itself.
+  void CopyTransform(const isl::map& target_transform);
+
+  //! Copy other stage's LoopInfo.
+  //! For example, if the target_forloop_infos is `Bind(0,"threadIdx.x")`,
+  //! this api will apply `Bind(0,"threadIdx.x")` on itself.
+  void CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::map& target_transform);
+
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
 

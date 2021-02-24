@@ -249,7 +249,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   //! Create a buffer belong to this tensor.
   void WithBuffer(const Type& type = Void());
-  void WithBuffer(const std::string& memory_type, const Type& type = Void());
+  void WithBuffer(const std::string& memory_type, const std::string& buffer_name = "", const Type& type = Void());
   Tensor GetInitTensor(poly::StageMap stages, const Target& target = common::DefaultHostTarget()) const;
 
  private:
