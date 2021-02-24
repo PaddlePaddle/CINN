@@ -312,13 +312,13 @@ std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string&
   }
 }
 
-Tensor Mul(const Tensor& A,
-           const Tensor& B,
-           int x_num_col_dims,
-           const std::vector<Expr>& output_shape,
-           const Var& axis_k,
-           const std::string& name) {
-  return Compute(
+std::vector<Tensor> Mul(const Tensor& A,
+                        const Tensor& B,
+                        int x_num_col_dims,
+                        const std::vector<Expr>& output_shape,
+                        const Var& axis_k,
+                        const std::string& name) {
+  return {Compute(
       output_shape,
       [=](const std::vector<Expr>& indice) {
         std::vector<Expr> A_indice;
@@ -329,7 +329,48 @@ Tensor Mul(const Tensor& A,
         B_indice.push_back(axis_k);
         return lang::ReduceSum(A(A_indice) * B(B_indice), {axis_k});
       },
-      name);
+      name)};
+}
+
+std::vector<Tensor> MulMKL(const Tensor& A, const Tensor& B, const std::string& name, const common::Target& target) {
+  CHECK(target.arch == Target::Arch::X86) << "mkl should be used in the cpu environment";
+  std::vector<Expr> shape_A = A->shape;
+  std::vector<Expr> shape_B = B->shape;
+  int a_dim                 = shape_A.size();
+  int b_dim                 = shape_B.size();
+  CHECK_EQ(a_dim, 2U) << "tensor_A's shape size should be two while current shape size is " << A->shape.size();
+  CHECK_EQ(b_dim, 2U) << "tensor_B's shape size should be two while current shape size is " << B->shape.size();
+  // A: [M, K], B: [N, K]
+  Expr x_width  = shape_A[1];
+  Expr y_height = shape_B[1];
+  Expr M        = shape_A[0];
+  Expr N        = shape_B[0];
+  CHECK(is_zero(x_width - y_height)) << "matrix multiplication requires x_width to be same with y_height";
+  CHECK_EQ(A->shape[1], B->shape[1]) << "tensor_A's last shape should be same with tensor_B";
+
+  auto call = Compute(
+      {Expr(1)},
+      [=]() -> Expr {
+        return lang::CallExtern("cinn_cpu_mkl_gemm_fp32",
+                                {
+                                    common::make_const(Float(32), 1),  // alpha
+                                    M,                                 // M
+                                    N,                                 // N
+                                    x_width,                           // K
+                                    common::make_bool(false),          // ta
+                                    common::make_bool(true),           // tb
+                                    shape_A.back(),                    // lda
+                                    shape_B.back(),                    // ldb
+                                    N,                                 // ldc
+                                    common::make_zero<float>(),        // beta
+                                    A,                                 // A
+                                    B,                                 // B
+                                });
+      },
+      UniqName("mul_mkl_out"));
+  auto out = call->TupleGet(0);
+  out->WithBuffer(A->type());
+  return {out, call};
 }
 
 std::vector<ir::Tensor> MulBias(const Tensor& A,

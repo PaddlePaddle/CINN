@@ -321,8 +321,16 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     Var axis_k(reduce_shape_A, UniqName("axis_k"));
     auto new_A = A_tensor->Reshape(new_shape_A, stages);
     auto new_B = B_tensor->Reshape(new_shape_B, stages);
-
-    auto out = pe::MulBase(new_A, new_B, UniqName("Mul_output"), target);
+    std::vector<ir::Tensor> out;
+    if (target.arch == Target::Arch::X86) {
+#ifdef CINN_WITH_MKL_CBLAS
+      out = pe::MulMKL(new_A, new_B, UniqName("Mul_mkl_output"), target);
+#else
+      out = pe::MulBase(new_A, new_B, UniqName("Mul_output"), target);
+#endif
+    } else {
+      out = pe::MulBase(new_A, new_B, UniqName("Mul_output"), target);
+    }
     std::vector<CINNValue> res;
     for (auto &t : out) {
       stages->InsertLazily(t);
@@ -351,9 +359,11 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
       pe::CudaScheduleMul(stages, out.as_tensor_ref(), output_shapes.back(), target);
     } else if (target.arch == Target::Arch::X86) {
       CHECK_EQ(arg_pack.size(), 3UL);
+#ifndef CINN_WITH_MKL_CBLAS
       Expr reduce_first = arg_pack[1];
       CHECK(reduce_first.as_tensor());
       pe::MulScheduleCPU(stages, out.as_tensor_ref(), reduce_first.as_tensor_ref(), target);
+#endif
     }
     *ret = arg_pack;
   });

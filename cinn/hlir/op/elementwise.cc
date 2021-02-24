@@ -149,7 +149,7 @@ CINN_REGISTER_HELPER(elementwise_ops) {
   CINN_REGISTER_OP(op__)                                                                                             \
       .describe(#op__ " function")                                                                                   \
       .set_num_inputs(1)                                                                                             \
-      .set_num_outputs(2)                                                                                            \
+      .set_num_outputs(1)                                                                                            \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForElementwise))                               \
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForElementwise))                               \
