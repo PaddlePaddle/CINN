@@ -24,7 +24,6 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
   void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
   void Visit(const ir::_Var_ *expr, Expr *op) override {
-    LOG(INFO) << "Visit expr " << expr->name;
     if (inline_code && temp_buffer) {
       if (utils::Startswith(expr->name, "blockIdx") || (utils::Startswith(expr->name, "threadIdx") && memory_local)) {
         LOG(INFO) << "Do Replace: " << expr->name << " to 0";
