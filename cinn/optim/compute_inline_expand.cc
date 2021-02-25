@@ -26,7 +26,6 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
   void Visit(const ir::_Var_ *expr, Expr *op) override {
     if (inline_code && temp_buffer) {
       if (utils::Startswith(expr->name, "blockIdx") || (utils::Startswith(expr->name, "threadIdx") && memory_local)) {
-        LOG(INFO) << "Do Replace: " << expr->name << " to 0";
         *op = ir::Expr(0);
       }
     }
@@ -84,7 +83,6 @@ struct SSABuilder : public ir::IRMutator<> {
   }
 
   void Visit(const ir::Store *op, Expr *expr) override {
-    LOG(INFO) << "Expr: " << *expr;
     auto *node = expr->As<ir::Store>();
 
     auto *cur_graph_node = graph.RetriveNode(node->tensor.as_tensor()->name);

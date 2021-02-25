@@ -27,7 +27,7 @@ import numpy as np
 #
 # - :code:`x_shape` is the input tensor's shape of the model
 
-enable_gpu = "OFF"
+enable_gpu = "ON"
 model_dir = "./ResNet18"
 input_tensor = 'image'
 target_tensor = 'save_infer_model/scale_0'
