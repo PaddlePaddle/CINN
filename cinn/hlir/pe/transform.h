@@ -62,12 +62,17 @@ std::vector<ir::Tensor> MulBase(const ir::Tensor& A,
                                 const std::string& name      = UniqName("T_Transform_MulBase_out"),
                                 const common::Target& target = common::DefaultHostTarget());
 
-ir::Tensor Mul(const ir::Tensor& A,
-               const ir::Tensor& B,
-               int x_num_col_dims,
-               const std::vector<ir::Expr>& output_shape,
-               const ir::Var& axis_k,
-               const std::string& name);
+std::vector<ir::Tensor> Mul(const ir::Tensor& A,
+                            const ir::Tensor& B,
+                            int x_num_col_dims,
+                            const std::vector<ir::Expr>& output_shape,
+                            const ir::Var& axis_k,
+                            const std::string& name);
+
+std::vector<ir::Tensor> MulMKL(const ir::Tensor& A,
+                               const ir::Tensor& B,
+                               const std::string& name      = UniqName("T_Transform_MulMKL_out"),
+                               const common::Target& target = common::DefaultHostTarget());
 
 std::vector<ir::Tensor> MulBias(const ir::Tensor& A,
                                 const ir::Tensor& B,
