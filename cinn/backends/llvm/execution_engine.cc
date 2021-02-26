@@ -141,8 +141,9 @@ void ExecutionEngine::Link(const ir::Module &module) {
   auto m          = llvm::parseAssemblyString(AsStringRef(backends::kRuntimeLlvmIr), error, *ctx);
   auto b          = std::make_unique<llvm::IRBuilder<>>(*ctx);
   auto ir_emitter = std::make_unique<CodeGenT>(m.get(), b.get());
+  LOG(INFO) << "ir_emitter->Compile(module) Begin";
   ir_emitter->Compile(module);
-
+  LOG(INFO) << "ir_emitter->Compile(module) Succeed!";
   CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module found";
 
   auto machine =

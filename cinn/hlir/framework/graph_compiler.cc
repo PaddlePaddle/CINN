@@ -89,6 +89,7 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 }
 
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
+  LOG(INFO) << "BuildInstructions() Begion!";
   std::vector<std::unique_ptr<Instruction>> instructions;
 
   auto [nodes, edges] = graph_->topological_order();
@@ -138,7 +139,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
   std::vector<std::vector<int>> output_shapes;
-  VLOG(2) << "GetOpFunc of op " << node->id();
+  LOG(INFO) << "GetOpFunc of op " << node->id();
   for (auto& i : node->inlinks_in_order()) {
     std::string input_id = i->source()->as<NodeData>()->id();
     auto in_shape        = shape_dict.at(input_id);
@@ -174,7 +175,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   }
 
   auto func = Lower(GenOpFuncName(node), stages, inputs, {}, {}, nullptr, this->target_);
-  VLOG(2) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
+  LOG(INFO) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
   return func;
 }
 
@@ -182,6 +183,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
   auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
   auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
   auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  LOG(INFO) << "GetOpFunc of fused op " << nodes[0]->id();
   std::vector<ir::Tensor> inputs;
   poly::StageMap stages;
   std::vector<int> init_shape{1};
@@ -255,6 +257,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
     }
   }
   auto func = Lower(GenOpFuncName(nodes[0]) + "_fused", stages, inputs, {}, {}, nullptr, this->target_);
+  LOG(INFO) << "The function of fused node [" << func->name << "] is:\n" << func;
   return func;
 }
 

@@ -1172,8 +1172,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });
