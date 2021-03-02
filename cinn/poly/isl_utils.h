@@ -1,8 +1,8 @@
 #pragma once
 
 #include <isl/cpp.h>
-
 #include <llvm/ADT/ArrayRef.h>
+
 #include <string>
 #include <vector>
 
@@ -51,6 +51,8 @@ bool isl_set_axis_has_noparam_constant_bound(isl_set* __isl_keep set, int pos);
 //! NOTE the set should be bound.
 //! returns: a tuple of (min, max)
 std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set* __isl_keep set, int pos);
+
+std::tuple<isl::val, isl::val> isl_set_get_axis_range_by_name(isl_set* __isl_keep set, std::string axis_name);
 
 //! Port the set from \p from to \p to with the \p poses dims constraints remained.
 //! @param from The set to port.

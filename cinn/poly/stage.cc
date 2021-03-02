@@ -756,12 +756,22 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
   forloop_infos_[level] = info;
 }
 
-void Stage::CopyTransform(const isl::map &target_transform) {
+void Stage::CopyTransform(const isl::map &target_transform, const isl::set target_domain) {
   std::string str_target_trans   = isl_map_to_str(target_transform.get());
   std::string str_this_domain    = isl_set_to_str(domain_.get());
   std::string target_tensor_name = isl_map_get_tuple_name(target_transform.get(), isl_dim_in);
   std::string this_tensor_name   = isl_set_get_tuple_name(domain_.get());
   isl::map temp_transform_       = target_transform;
+  //检测domain中的range 当range不一致时报错
+  auto dim_names = isl_get_dim_names(domain_.get());
+  for (int i = 0; i < dim_names.size(); i++) {
+    auto [origin_min, origin_max] = poly::isl_set_get_axis_range_by_name(domain_.get(), dim_names[i]);
+    auto [target_min, target_max] = poly::isl_set_get_axis_range_by_name(target_domain.get(), dim_names[i]);
+    CHECK_EQ(origin_min.get_num_si(), target_min.get_num_si())
+        << "The range of two stages' corrsponding axis is not the same! Please check.";
+    CHECK_EQ(origin_max.get_num_si(), target_max.get_num_si())
+        << "The range of two stages' corrsponding axis is not the same! Please check.";
+  }
   VLOG(2) << "In CopyTransform, the target_transform is : " << str_target_trans;
   std::set<std::string> this_dim_names;
   std::vector<std::string> erase_dim_names;

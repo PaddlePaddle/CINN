@@ -196,6 +196,29 @@ isl::union_set isl_union_set_from_sets(llvm::ArrayRef<isl::set> sets) {
   return res;
 }
 
+std::tuple<isl::val, isl::val> isl_set_get_axis_range_by_name(isl_set *set, std::string axis_name) {
+  std::vector<std::string> from_iters;
+  for (int i = 0; i < isl_set_dim(set, isl_dim_set); i++) {
+    auto *name = isl_set_get_dim_name(set, isl_dim_set, i);
+    if (name) {
+      from_iters.push_back(name);
+    } else {
+      from_iters.push_back("__emp__" + std::to_string(i));
+    }
+  }
+
+  isl::aff aff(isl_set_get_ctx(set),
+               utils::StringFormat("{ %s[%s] -> [%s] }",
+                                   isl_set_get_tuple_name(set),           // tuple
+                                   utils::Join(from_iters, ",").c_str(),  // [...]
+                                   axis_name.c_str()));
+
+  isl::val max_val = isl::manage(isl_set_max_val(set, aff.get()));
+  isl::val min_val = isl::manage(isl_set_min_val(set, aff.get()));
+
+  return std::make_tuple(min_val, max_val);
+}
+
 std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
   CHECK(isl_set_dim_is_bounded(set, isl_dim_set, pos)) << "an unbound cannot get range, " << isl_set_to_str(set);
   // CHECK(isl_set_axis_has_noparam_constant_bound(set, pos))

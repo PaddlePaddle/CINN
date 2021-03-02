@@ -252,7 +252,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
 
   for (auto& s : stages) {
     if (s.second->tensor()->is_reduce_tensor()) {
-      stages[inputs.back()]->CopyTransform(s.second->transform());
+      stages[inputs.back()]->CopyTransform(s.second->transform(), s.second->domain());
       stages[inputs.back()]->CopyLoopInfo(s.second->forloop_infos(), s.second->transform());
     }
   }
