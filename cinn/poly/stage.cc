@@ -762,7 +762,7 @@ void Stage::CopyTransform(const isl::map &target_transform, const isl::set targe
   std::string target_tensor_name = isl_map_get_tuple_name(target_transform.get(), isl_dim_in);
   std::string this_tensor_name   = isl_set_get_tuple_name(domain_.get());
   isl::map temp_transform_       = target_transform;
-  //检测domain中的range 当range不一致时报错
+  //! Check the dim range in this domain and target domain. Correspoding dim's range must be equal.
   auto dim_names = isl_get_dim_names(domain_.get());
   for (int i = 0; i < dim_names.size(); i++) {
     auto [origin_min, origin_max] = poly::isl_set_get_axis_range_by_name(domain_.get(), dim_names[i]);
@@ -780,7 +780,6 @@ void Stage::CopyTransform(const isl::map &target_transform, const isl::set targe
   }
   for (int i = 0; i < isl_map_dim(temp_transform_.get(), isl_dim_in); i++) {
     if (this_dim_names.count(isl_map_get_dim_name(temp_transform_.get(), isl_dim_in, i)) == 0) {
-      // erase_dim_names.push_back(isl_map_get_dim_name(temp_transform_, isl_dim_in, i));
       temp_transform_ = isl::manage(isl_map_remove_dims(temp_transform_.release(), isl_dim_in, i, 1));
       i--;
     }
@@ -789,14 +788,12 @@ void Stage::CopyTransform(const isl::map &target_transform, const isl::set targe
   for (int i = 0; i < isl_map_dim(temp_transform_.get(), isl_dim_out); i++) {
     std::string temp_dim = isl_map_get_dim_name(temp_transform_.get(), isl_dim_out, i);
     if (utils::Count(&new_target_trans, temp_dim) != utils::Count(&str_target_trans, temp_dim)) {
-      // erase_dim_names.push_back(isl_map_get_dim_name(temp_transform_, isl_dim_out, i));
       temp_transform_ = isl::manage(isl_map_remove_dims(temp_transform_.release(), isl_dim_out, i, 1));
       i--;
     }
   }
   std::string res_trans = isl_map_to_str(temp_transform_.get());
-  // utils::Replace(&res_trans, target_tensor_name, this_tensor_name);
-  isl::ctx this_ctx = domain_.ctx();
+  isl::ctx this_ctx     = domain_.ctx();
   isl::map res_map(this_ctx, res_trans);
   isl_map_set_tuple_name(res_map.get(), isl_dim_in, this_tensor_name.c_str());
   isl_map_set_tuple_name(res_map.get(), isl_dim_out, this_tensor_name.c_str());

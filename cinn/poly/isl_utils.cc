@@ -207,11 +207,10 @@ std::tuple<isl::val, isl::val> isl_set_get_axis_range_by_name(isl_set *set, std:
     }
   }
 
-  isl::aff aff(isl_set_get_ctx(set),
-               utils::StringFormat("{ %s[%s] -> [%s] }",
-                                   isl_set_get_tuple_name(set),           // tuple
-                                   utils::Join(from_iters, ",").c_str(),  // [...]
-                                   axis_name.c_str()));
+  isl::aff aff(
+      isl_set_get_ctx(set),
+      utils::StringFormat(
+          "{ %s[%s] -> [%s] }", isl_set_get_tuple_name(set), utils::Join(from_iters, ",").c_str(), axis_name.c_str()));
 
   isl::val max_val = isl::manage(isl_set_max_val(set, aff.get()));
   isl::val min_val = isl::manage(isl_set_min_val(set, aff.get()));
@@ -221,8 +220,6 @@ std::tuple<isl::val, isl::val> isl_set_get_axis_range_by_name(isl_set *set, std:
 
 std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
   CHECK(isl_set_dim_is_bounded(set, isl_dim_set, pos)) << "an unbound cannot get range, " << isl_set_to_str(set);
-  // CHECK(isl_set_axis_has_noparam_constant_bound(set, pos))
-  //<< isl_set_to_str(set) << " " << pos << "-th dim involves param";
 
   std::vector<std::string> from_iters;
   std::string target_axis_name;
@@ -238,8 +235,8 @@ std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
 
   isl::aff aff(isl_set_get_ctx(set),
                utils::StringFormat("{ %s[%s] -> [%s] }",
-                                   isl_set_get_tuple_name(set),           // tuple
-                                   utils::Join(from_iters, ",").c_str(),  // [...]
+                                   isl_set_get_tuple_name(set),
+                                   utils::Join(from_iters, ",").c_str(),
                                    target_axis_name.c_str()));
 
   isl::val max_val = isl::manage(isl_set_max_val(set, aff.get()));

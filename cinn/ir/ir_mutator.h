@@ -6,7 +6,6 @@
 #include "cinn/ir/intrinsic_ops.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_visitor.h"
-#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace ir {
