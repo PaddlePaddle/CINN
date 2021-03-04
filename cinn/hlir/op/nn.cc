@@ -207,11 +207,10 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     if (target.arch == Target::Arch::NVGPU) {
       Expr Out = arg_pack[2];
       CHECK(Out.as_tensor());
-      // pe::CudaScheduleConv(stages, input_pad.as_tensor_ref(), weights_dilation.as_tensor_ref(), Out.as_tensor_ref(),
-      // target);
-      stages[Out.as_tensor_ref()]->Split(1, 2);
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "blockIdx.y");
+      stages[Out.as_tensor_ref()]->Bind(2, "blockIdx.z");
+      stages[Out.as_tensor_ref()]->Bind(3, "threadIdx.x");
     }
     *ret = CINNValuePack{{arg_pack[2], CINNValue(stages)}};
   });
@@ -350,9 +349,10 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
       stages[input_pad.as_tensor_ref()]->ComputeInline();
     }
     if (target.arch == Target::Arch::NVGPU) {
-      stages[Out.as_tensor_ref()]->Split(1, 2);
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "blockIdx.y");
+      stages[Out.as_tensor_ref()]->Bind(2, "blockIdx.z");
+      stages[Out.as_tensor_ref()]->Bind(3, "threadIdx.x");
     }
 
     *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
@@ -1172,8 +1172,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });
@@ -1378,8 +1377,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool1d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool1d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(pool2d)
@@ -1389,8 +1387,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(pool3d)
@@ -1400,8 +1397,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool3d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool3d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(sigmoid)
@@ -1431,8 +1427,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSlice)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSlice))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSlice))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(dropout_infer)

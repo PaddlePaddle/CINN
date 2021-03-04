@@ -74,6 +74,26 @@ void Replace(std::string *s, const std::string &from, const std::string &to) {
   }
 }
 
+size_t Count(std::string *s, const std::string &sub) {
+  size_t pos   = 0;
+  size_t times = 0;
+  while ((pos = s->find(sub, pos)) != std::string::npos) {
+    if ((pos == 0 || !IsPrefix(s->at(pos - 1))) &&
+        (pos + sub.length() == s->size() || !IsSuffix(s->at(pos + sub.length())))) {
+      pos += sub.length();
+      times++;
+    } else
+      pos++;
+  }
+  return times;
+}
+
+bool IsPrefix(const char &c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_'); }
+
+bool IsSuffix(const char &c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_') || (c >= '0' && c <= '9') || (c == '\'');
+}
+
 std::string TransValidVarName(std::string name) {
   utils::Replace(&name, ".", "__");
   utils::Replace(&name, "/", "___");

@@ -73,8 +73,11 @@ void BindFrontend(pybind11::module *m) {
       .def("relu", &Program::relu)
       .def("relu6", &Program::relu6)
       .def("sigmoid", &Program::sigmoid)
+      .def("dropout_infer", &Program::dropout_infer)
       .def("scale", &Program::scale)
+      .def("slice", &Program::slice)
       .def("conv2d", &Program::conv2d)
+      .def("depthwise_conv2d", &Program::depthwise_conv2d)
       .def("batchnorm", &Program::batchnorm)
       .def("softmax", &Program::softmax)
       .def("pool2d", &Program::pool2d)
@@ -86,7 +89,9 @@ void BindFrontend(pybind11::module *m) {
               const Variable &tensor_out) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
              hlir::framework::ApplyPass(g.get(), "InferShape");
-             hlir::framework::ApplyPass(g.get(), "OpFusion");
+             if (target.arch == Target::Arch::NVGPU) {
+               hlir::framework::ApplyPass(g.get(), "OpFusion");
+             }
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();

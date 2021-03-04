@@ -52,8 +52,9 @@ std::vector<Expr> CodeGenCUDA_Dev::GenerateBufferAliasExprs(const ir::_LoweredFu
   std::set<ir::Buffer> temp_buffer_set(temp_buffers.begin(), temp_buffers.end());
   // prepare temp buffer alias
   std::vector<Expr> buffer_alias;
-  auto tensors = ir::CollectIRNodes(
-      op->body, [&](const Expr *x) { return x->as_tensor() && temp_buffer_set.count(x->as_tensor()->buffer); });
+  auto tensors = ir::CollectIRNodes(op->body, [&](const Expr *x) {
+    return x->as_tensor() && x->as_tensor()->buffer.defined() && temp_buffer_set.count(x->as_tensor()->buffer);
+  });
 
   // unique tensors
   std::set<ir::Tensor> unique_tensors;
