@@ -31,7 +31,7 @@ func @paddle_func() -> () {
   dt.fill_tensor_with_constant.f32 (%out2 : !cinn.tensor<X86, NCHW, F32>) {value=0.0:f32}
   %bias1 = dt.create_uninit_tensor.f32 [3, 4] -> !cinn.tensor<X86, NCHW, F32>
   dt.fill_tensor_with_constant.f32 (%bias1 : !cinn.tensor<X86, NCHW, F32>) {value=3.0:f32}
-  "external.elementwise_add"(%out1, %bias1, %out2) {}: (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>) -> ()
+  "external.elementwise_add"(%out1, %bias1, %out2) {axis=-1}: (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>) -> ()
   dt.print_tensor (%out2 : !cinn.tensor<X86, NCHW, F32>)
 
   // test external.relu

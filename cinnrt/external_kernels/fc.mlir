@@ -18,7 +18,7 @@ func @paddle_func() -> () {
   dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
 
   // test external.elementwise_add
-  "external.elementwise_add"(%out, %bias, %out) {}: (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>) -> ()
+  "external.elementwise_add"(%out, %bias, %out) {axis = -1}: (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>) -> ()
   // CHECK: tensor: shape=shape[3,4], values=[13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13]
   dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
 

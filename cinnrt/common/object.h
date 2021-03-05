@@ -1,9 +1,10 @@
 #pragma once
 #include <cstring>
+#include <iostream>
 
-#include "cinn/common/shared.h"
+#include "cinnrt/common/shared.h"
 
-namespace cinn {
+namespace cinnrt {
 namespace common {
 
 template <typename T>
@@ -14,6 +15,7 @@ class Shared;
 struct Object {
   //! Get the type representation of this object.
   virtual const char* type_info() const = 0;
+  virtual ~Object() {}
 
   //! Cast to a derived type.
   template <typename T>
@@ -61,4 +63,4 @@ using object_ptr    = Object*;
 using shared_object = Shared<Object>;
 
 }  // namespace common
-}  // namespace cinn
+}  // namespace cinnrt
