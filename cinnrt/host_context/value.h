@@ -1,13 +1,14 @@
 #pragma once
 #include <glog/logging.h>
-
 #include <llvm/ADT/SmallVector.h>
+
 #include <utility>
-#include <variant>
 #include <vector>
+
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
 #include "cinnrt/host_context/function.h"
+#include "cinnrt/support/variant.h"
 #include "cinnrt/tensor/dense_host_tensor.h"
 #include "cinnrt/tensor/dense_tensor_view.h"
 #include "cinnrt/tensor/tensor_shape.h"
@@ -17,20 +18,20 @@ namespace host_context {
 
 struct MlirFunctionExecutable;
 
-using ValueVariantType = std::variant<int16_t,
-                                      int32_t,
-                                      int64_t,
-                                      float,
-                                      double,
-                                      bool,
-                                      tensor::TensorShape,
-                                      tensor::DenseHostTensor,
-                                      MlirFunctionExecutable*,
-                                      std::vector<int16_t>,
-                                      std::vector<int32_t>,
-                                      std::vector<int64_t>,
-                                      std::vector<float>,
-                                      std::vector<double>>;
+using ValueVariantType = cinnrt::Variant<int16_t,
+                                         int32_t,
+                                         int64_t,
+                                         float,
+                                         double,
+                                         bool,
+                                         tensor::TensorShape,
+                                         tensor::DenseHostTensor,
+                                         MlirFunctionExecutable*,
+                                         std::vector<int16_t>,
+                                         std::vector<int32_t>,
+                                         std::vector<int64_t>,
+                                         std::vector<float>,
+                                         std::vector<double>>;
 
 //! Copy content from \param from to \param to.
 void CopyTo(const Value& from, Value* to);
@@ -59,11 +60,11 @@ class Value : public cinn::common::Object {
 
   template <typename T>
   const T& get() const {
-    return std::get<T>(data);
+    return data.get<T>();
   }
   template <typename T>
   T& get() {
-    return std::get<T>(data);
+    return data.get<T>();
   }
 
   template <typename T>
@@ -71,7 +72,9 @@ class Value : public cinn::common::Object {
     data = std::move(v);
   }
 
-  bool valid() const { return data.index() != std::variant_npos; }
+  void set(Value* v) { data = std::move(v->data); }
+
+  bool valid() const { return true; }
 
   const char* type_info() const override;
 

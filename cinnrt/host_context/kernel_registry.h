@@ -22,6 +22,7 @@ class KernelRegistry {
   void AddKernelAttrNameList(const std::string &key, const std::vector<std::string> &names);
 
   KernelImplementation GetKernel(const std::string &key) const;
+  std::vector<std::string> GetKernelList() const;
 
   ~KernelRegistry();
 

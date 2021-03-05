@@ -15,6 +15,11 @@ TensorShape::TensorShape(llvm::ArrayRef<int64_t> dims) : dims_(dims.begin(), dim
 
 int TensorShape::GetRank() const { return dims_.size(); }
 
+int64_t TensorShape::GetDim(int idx) const {
+  CHECK_GE(idx, 0);
+  CHECK_LT(idx, GetRank());
+  return dims_[idx];
+}
 int TensorShape::GetNumElements() const {
   int64_t size = 1;
   for (int v : dims_) size *= v;

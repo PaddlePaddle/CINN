@@ -15,6 +15,8 @@ class TensorShape {
 
   int GetRank() const;
 
+  int64_t GetDim(int idx) const;
+
   int GetNumElements() const;
 
   friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const TensorShape& v);

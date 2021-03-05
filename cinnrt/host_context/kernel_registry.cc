@@ -30,6 +30,14 @@ KernelImplementation KernelRegistry::GetKernel(const std::string &key) const {
   return it != impl_->data.end() ? it->second : KernelImplementation{};
 }
 
+std::vector<std::string> KernelRegistry::GetKernelList() const {
+  std::vector<std::string> res(impl_->data.size());
+  for (auto i : impl_->data) {
+    res.push_back(i.first);
+  }
+  return res;
+}
+
 KernelRegistry::~KernelRegistry() {}
 
 KernelRegistry *GetCpuKernelRegistry() {

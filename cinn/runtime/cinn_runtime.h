@@ -184,9 +184,9 @@ typedef struct cinn_buffer_t {
         flag(0UL),
         type(cinn_type_t()),
         dimensions(0),
+        lazy(true),
         memory_size(0),
-        align(0),
-        lazy(true) {}
+        align(0) {}
 
   static struct cinn_buffer_t* new_(cinn_device_kind_t device,
                                     cinn_type_t type,
