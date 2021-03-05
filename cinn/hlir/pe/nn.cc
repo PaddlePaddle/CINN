@@ -213,6 +213,60 @@ std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
   return {input_pad, weights_dilation, res};
 }
 
+std::vector<Tensor> Conv2dCUDNN(const ir::Tensor &input,
+                                const ir::Tensor &weights,
+                                int pad_h,
+                                int pad_w,
+                                int stride_h,
+                                int stride_w,
+                                int dilation_h,
+                                int dilation_w,
+                                const std::string &output_name) {
+  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Conv2d_NHWC op is not 4! Please check.";
+  CHECK_EQ(weights->shape.size(), 4U) << "Weight's dimension of Conv2d_NHWC op is not 4! Please check.";
+  std::vector<Expr> output_shape;
+
+  output_shape = {
+      input->shape[0],                                                                                  // B
+      weights->shape[0],                                                                                // O
+      Expr((input->shape[2] - ((weights->shape[2] - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1),  // H
+      Expr((input->shape[3] - ((weights->shape[3] - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1)   // W
+  };
+
+  ir::Tensor call;
+  call = Compute(
+        {Expr(1)},
+        [=]() -> Expr {
+          return lang::CallExtern("cinn_gpu_cudnn_conv2d",
+                                  {
+                                input->shape[0],
+                                input->shape[1],
+                                input->shape[2],
+                                input->shape[3],
+                                weights->shape[0],
+                                weights->shape[1],
+                                weights->shape[2],
+                                weights->shape[3],
+                                Expr(pad_h),
+                                Expr(pad_w),
+                                Expr(stride_h),
+                                Expr(stride_w),
+                                Expr(dilation_h),
+                                Expr(dilation_w),
+                                output_shape[0],
+                                output_shape[1],
+                                output_shape[2],
+                                output_shape[3],
+                                input,
+                                weights
+                                  });
+        },
+        UniqName("conv2d_cudnn_out"));
+  auto out = call->TupleGet(0);
+  out->WithBuffer(input->type());
+  return {out, call};
+}
+
 std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
                                           const Tensor &weight,
                                           int pad_h,
