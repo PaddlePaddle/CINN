@@ -155,15 +155,27 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     std::vector<ir::Tensor> out;
     if (data_format == "NCHW") {
       // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
-      out = pe::Conv2d_NCHW(A.as_tensor_ref(),
-                            B.as_tensor_ref(),
-                            padding[0],
-                            padding[1],
-                            stride[0],
-                            stride[1],
-                            dilation[0],
-                            dilation[1],
-                            UniqName("Conv2d_nchw_out"));
+      if (target.arch == Target::Arch::NVGPU) {
+        out = pe::Conv2dCUDNN(A.as_tensor_ref(),
+                              B.as_tensor_ref(),
+                              padding[0],
+                              padding[1],
+                              stride[0],
+                              stride[1],
+                              dilation[0],
+                              dilation[1],
+                              UniqName("Conv2d_nchw_out_cudnn"));
+      } else {
+        out = pe::Conv2d_NCHW(A.as_tensor_ref(),
+                              B.as_tensor_ref(),
+                              padding[0],
+                              padding[1],
+                              stride[0],
+                              stride[1],
+                              dilation[0],
+                              dilation[1],
+                              UniqName("Conv2d_nchw_out"));
+      }
     } else if (data_format == "NHWC") {
       // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
       out = pe::Conv2d_NHWC(A.as_tensor_ref(),
@@ -186,7 +198,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
       stages->InsertLazily(t);
       res.push_back(CINNValue(t));
     }
-    CHECK_EQ(out.size(), 3U) << "The output tensor sizes of depthwise_conv op in depthwise_conv op should be 3\n";
+    // CHECK_EQ(out.size(), 3U) << "The output tensor sizes of conv2d op in conv2d op should be 3\n";
 
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
@@ -194,25 +206,29 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
 
   framework::CINNSchedule conv2d_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 4UL);
-    poly::StageMap stages = arg_pack[3];
-    Expr input_pad        = arg_pack[0];
-    CHECK(input_pad.as_tensor());
-    stages[input_pad.as_tensor_ref()]->ComputeInline();
-    Expr weights_dilation = arg_pack[1];
-    CHECK(weights_dilation.as_tensor());
-    stages[weights_dilation.as_tensor_ref()]->ComputeInline();
-
-    if (target.arch == Target::Arch::NVGPU) {
-      Expr Out = arg_pack[2];
-      CHECK(Out.as_tensor());
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "blockIdx.y");
-      stages[Out.as_tensor_ref()]->Bind(2, "blockIdx.z");
-      stages[Out.as_tensor_ref()]->Bind(3, "threadIdx.x");
+    if (target.arch != Target::Arch::NVGPU) {
+      CINNValuePack arg_pack = args[0];
+      CHECK_EQ(arg_pack.size(), 4UL);
+      poly::StageMap stages = arg_pack[3];
+      Expr input_pad        = arg_pack[0];
+      CHECK(input_pad.as_tensor());
+      stages[input_pad.as_tensor_ref()]->ComputeInline();
+      Expr weights_dilation = arg_pack[1];
+      CHECK(weights_dilation.as_tensor());
+      stages[weights_dilation.as_tensor_ref()]->ComputeInline();
+      *ret = CINNValuePack{{arg_pack[2], CINNValue(stages)}};
+    } else {
+      CINNValuePack arg_pack = args[0];
+      *ret                   = CINNValuePack{{arg_pack[0], arg_pack.back()}};
     }
-    *ret = CINNValuePack{{arg_pack[2], CINNValue(stages)}};
+    /*     if (target.arch == Target::Arch::NVGPU) {
+          Expr Out = arg_pack[2];
+          CHECK(Out.as_tensor());
+          stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+          stages[Out.as_tensor_ref()]->Bind(1, "blockIdx.y");
+          stages[Out.as_tensor_ref()]->Bind(2, "blockIdx.z");
+          stages[Out.as_tensor_ref()]->Bind(3, "threadIdx.x");
+        } */
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1345,8 +1361,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(depthwise_conv2d)
@@ -1356,8 +1371,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDepthwiseConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDepthwiseConv2d))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(batchnorm)

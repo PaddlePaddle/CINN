@@ -13,7 +13,9 @@ const int kArgsArrayMaxLen = 20;
 
 llvm::Value* CodeGenCUDA_Host::LowerGPUKernelLauncher(const ir::_LoweredFunc_* func) {
   CHECK(func->cuda_axis_info.valid());
-
+  LOG(INFO) << "LowerGPUKernelLauncher function is : "
+            << ir::_LoweredFunc_::Make(func->name, func->args, func->body, func->temp_bufs);
+  LOG(INFO) << "Func body is : " << utils::GetStreamCnt(func->body);
   /* The current function definiton is
    * void fn(cinn_pod_value_t* args, int num_args) {
    *     Call(fn_kernel, args, num_args);

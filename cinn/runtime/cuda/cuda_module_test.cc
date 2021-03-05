@@ -3,6 +3,9 @@
 #include <gtest/gtest.h>
 
 #include "cinn/backends/nvrtc_util.h"
+#include "cinn/cinn.h"
+#include "cinn/runtime/cuda/cuda_util.h"
+#include "cinn/runtime/cuda/use_extern_funcs.h"
 
 namespace cinn {
 namespace runtime {

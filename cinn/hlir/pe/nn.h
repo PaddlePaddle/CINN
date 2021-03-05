@@ -179,6 +179,16 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
                           float epsilon,
                           const std::string &output_name = UniqName("T_BatchNorm_NCHW_out"));
 
+std::vector<ir::Tensor> Conv2dCUDNN(const ir::Tensor &input,
+                                const ir::Tensor &weights,
+                                int pad_h,
+                                int pad_w,
+                                int stride_h,
+                                int stride_w,
+                                int dilation_h,
+                                int dilation_w,
+                                const std::string &output_name);
+
 /**
  * @brief Perform padding operation.
  * @param tensor The input tensor.
