@@ -1,40 +1,48 @@
 #include "cinnrt/host_context/kernel_registry.h"
 
-#include <glog/logging.h>
-
 #include <unordered_map>
+
+#include "glog/logging.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace cinnrt {
 namespace host_context {
 
 struct KernelRegistry::Impl {
   std::unordered_map<std::string, KernelImplementation> data;
-  std::unordered_map<std::string_view, llvm::SmallVector<std::string_view, 4>> attr_names;
+  std::unordered_map<std::string, llvm::SmallVector<std::string, 4>> attr_names;
 };
 
-KernelRegistry::KernelRegistry() : impl_(new Impl) {}
+KernelRegistry::KernelRegistry() : impl_(std::make_unique<Impl>()) {}
 
-void KernelRegistry::AddKernel(std::string_view key, KernelImplementation fn) {
-  bool added = impl_->data.try_emplace(std::string(key), fn).second;
+void KernelRegistry::AddKernel(const std::string &key, KernelImplementation fn) {
+  bool added = impl_->data.try_emplace(key, fn).second;
   CHECK(added) << "kernel [" << key << "] is registered twice";
 }
 
-void KernelRegistry::AddKernelAttrNameList(std::string_view key, llvm::ArrayRef<std::string_view> names) {
-  bool added =
-      impl_->attr_names.try_emplace(key, llvm::SmallVector<std::string_view, 4>(names.begin(), names.end())).second;
+void KernelRegistry::AddKernelAttrNameList(const std::string &key, const std::vector<std::string> &names) {
+  bool added = impl_->attr_names.try_emplace(key, llvm::SmallVector<std::string, 4>(names.begin(), names.end())).second;
   CHECK(added) << "kernel [" << key << "] is registered twice in attribute names";
 }
 
-KernelImplementation KernelRegistry::GetKernel(std::string_view key) const {
-  auto it = impl_->data.find(std::string(key));
+KernelImplementation KernelRegistry::GetKernel(const std::string &key) const {
+  auto it = impl_->data.find(key);
   return it != impl_->data.end() ? it->second : KernelImplementation{};
+}
+
+std::vector<std::string> KernelRegistry::GetKernelList() const {
+  std::vector<std::string> res(impl_->data.size());
+  for (auto i : impl_->data) {
+    res.push_back(i.first);
+  }
+  return res;
 }
 
 KernelRegistry::~KernelRegistry() {}
 
-KernelRegistry* GetCpuKernelRegistry() {
-  static std::unique_ptr<KernelRegistry> x(new KernelRegistry);
-  return x.get();
+KernelRegistry *GetCpuKernelRegistry() {
+  static auto registry = std::make_unique<KernelRegistry>();
+  return registry.get();
 }
 
 }  // namespace host_context

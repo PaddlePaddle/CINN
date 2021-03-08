@@ -15,6 +15,8 @@ class TensorShape {
 
   int GetRank() const;
 
+  int64_t GetDim(int idx) const;
+
   int GetNumElements() const;
 
   friend llvm::raw_ostream& operator<<(llvm::raw_ostream& os, const TensorShape& v);
@@ -29,7 +31,7 @@ class TensorShape {
  */
 class DynamicTensorShape {
  public:
-  explicit DynamicTensorShape(std::optional<llvm::ArrayRef<int64_t>> dims);
+  explicit DynamicTensorShape(llvm::Optional<llvm::ArrayRef<int64_t>> dims);
 
   //! Returns the rank if rank is known, or kUnknownDimSize.
   int GetRank() const;
@@ -39,7 +41,7 @@ class DynamicTensorShape {
   bool IsShapeKnown() const;
 
   //! Convert to a TensorShape if all the dimensions are known.
-  std::optional<TensorShape> ToTensorShape() const;
+  llvm::Optional<TensorShape> ToTensorShape() const;
 
   static constexpr int64_t kUnknownDimSize = -1;
 
@@ -50,7 +52,7 @@ class DynamicTensorShape {
 
  private:
   //! Will be std::nullopt if no dim is known.
-  std::optional<llvm::SmallVector<int64_t, 4>> dims_;
+  llvm::Optional<llvm::SmallVector<int64_t, 4>> dims_;
 };
 
 }  // namespace tensor

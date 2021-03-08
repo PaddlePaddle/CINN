@@ -1,7 +1,7 @@
 #include "cinnrt/tensor/tensor_shape.h"
-#include <llvm/Support/raw_ostream.h>
 
 #include <glog/logging.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include <algorithm>
 #include <functional>
@@ -15,20 +15,25 @@ TensorShape::TensorShape(llvm::ArrayRef<int64_t> dims) : dims_(dims.begin(), dim
 
 int TensorShape::GetRank() const { return dims_.size(); }
 
+int64_t TensorShape::GetDim(int idx) const {
+  CHECK_GE(idx, 0);
+  CHECK_LT(idx, GetRank());
+  return dims_[idx];
+}
 int TensorShape::GetNumElements() const {
   int64_t size = 1;
   for (int v : dims_) size *= v;
   return size;
 }
 
-DynamicTensorShape::DynamicTensorShape(std::optional<llvm::ArrayRef<int64_t>> dims) {
-  if (dims.has_value()) {
+DynamicTensorShape::DynamicTensorShape(llvm::Optional<llvm::ArrayRef<int64_t>> dims) {
+  if (dims.hasValue()) {
     dims_ = llvm::SmallVector<int64_t, 4>(dims->begin(), dims->end());
   }
 }
 
 int DynamicTensorShape::GetRank() const {
-  if (dims_.has_value()) return dims_->size();
+  if (dims_.hasValue()) return dims_->size();
   return kUnknownDimSize;
 }
 
@@ -39,14 +44,14 @@ int64_t DynamicTensorShape::GetDim(int idx) const {
 }
 
 bool DynamicTensorShape::IsShapeKnown() const {
-  if (!dims_.has_value()) return false;
+  if (!dims_.hasValue()) return false;
   for (int64_t v : *dims_) {
     if (IsDimUnknown(v)) return false;
   }
   return true;
 }
 
-std::optional<TensorShape> DynamicTensorShape::ToTensorShape() const {
+llvm::Optional<TensorShape> DynamicTensorShape::ToTensorShape() const {
   if (IsShapeKnown()) {
     return TensorShape(*dims_);
   }

@@ -41,7 +41,7 @@ class KernelFrame {
 
   Value* GetAttributeAt(int idx) {
     CHECK_NE(num_results_, -1) << "Must call SetNumResults before GetAttributeAt";
-    CHECK_LT(idx, value_or_attrs_.size() - num_arguments_ - num_results_);
+    CHECK_LT(idx, static_cast<int>(value_or_attrs_.size() - num_arguments_ - num_results_));
     return value_or_attrs_[num_arguments_ + num_results_ + idx];
   }
 
@@ -71,14 +71,14 @@ class KernelFrame {
   llvm::MutableArrayRef<Value*> GetResults() { return GetMutableValues(num_arguments_, num_results_); }
 
   llvm::ArrayRef<Value*> GetValues(size_t from, size_t length) const {
-    CHECK_LE(from + length, num_arguments_ + num_results_);
+    CHECK_LE(static_cast<int>(from + length), num_arguments_ + num_results_);
     if (length == 0) return {};
 
     return llvm::makeArrayRef(&value_or_attrs_[from], length);
   }
 
   llvm::MutableArrayRef<Value*> GetMutableValues(size_t from, size_t length) {
-    CHECK_LE(from + length, num_arguments_ + num_results_);
+    CHECK_LE(static_cast<int>(from + length), num_arguments_ + num_results_);
     if (length == 0) return {};
     return llvm::makeMutableArrayRef(&value_or_attrs_[from], length);
   }
@@ -102,7 +102,7 @@ class KernelFrameBuilder : public KernelFrame {
   }
 
   void SetResults(llvm::ArrayRef<Value*> values) {
-    CHECK_EQ(num_arguments_, value_or_attrs_.size());
+    CHECK_EQ(num_arguments_, static_cast<int>(value_or_attrs_.size()));
     CHECK_EQ(num_results_, -1);
     for (Value* x : values) {
       value_or_attrs_.push_back(x);
@@ -111,17 +111,17 @@ class KernelFrameBuilder : public KernelFrame {
   }
 
   void SetNumResults(size_t n) {
-    CHECK_EQ(num_arguments_, value_or_attrs_.size());
+    CHECK_EQ(num_arguments_, static_cast<int>(value_or_attrs_.size()));
     CHECK_EQ(num_results_, -1);
     num_results_ = n;
-    for (int i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; i++) {
       value_or_attrs_.emplace_back(new Value);
     }
   }
 
   void SetResultAt(int result_id, Value* value) {
-    CHECK_EQ(value_or_attrs_.size(), num_arguments_ + num_results_) << "Call SetNumResults first";
-    CHECK_LT(result_id + num_arguments_, value_or_attrs_.size());
+    CHECK_EQ(static_cast<int>(value_or_attrs_.size()), num_arguments_ + num_results_) << "Call SetNumResults first";
+    CHECK_LT(result_id + num_arguments_, static_cast<int>(value_or_attrs_.size()));
     CHECK(value);
     value_or_attrs_[num_arguments_ + result_id]->set(value);
   }

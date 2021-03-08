@@ -1,7 +1,5 @@
 #include "cinnrt/host_context/value.h"
 
-#include <variant>
-
 #include "cinnrt/tensor/dense_tensor_view.h"
 
 namespace cinnrt {
@@ -18,7 +16,7 @@ const char* Value::type_info() const { return __type_info__; }
 void CopyTo(const Value& from, Value* to) {
   CHECK(from.valid()) << "from value is not valid, can't be copied";
   CHECK(to) << "to is not valid";
-  std::visit(
+  visit(
       [&](auto&& arg) {
         using T = std::decay_t<decltype(arg)>;
         if constexpr (std::is_same_v<T, int16_t>)

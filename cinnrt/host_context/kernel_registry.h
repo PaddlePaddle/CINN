@@ -1,15 +1,15 @@
 #pragma once
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/SmallVector.h>
 
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace cinnrt {
 namespace host_context {
 
 class KernelFrame;
 
-using KernelImplementation = void (*)(KernelFrame* frame);
+using KernelImplementation = void (*)(KernelFrame *frame);
 
 /**
  * Hold the kernels registered in the system.
@@ -18,10 +18,11 @@ class KernelRegistry {
  public:
   KernelRegistry();
 
-  void AddKernel(std::string_view key, KernelImplementation fn);
-  void AddKernelAttrNameList(std::string_view key, llvm::ArrayRef<std::string_view> names);
+  void AddKernel(const std::string &key, KernelImplementation fn);
+  void AddKernelAttrNameList(const std::string &key, const std::vector<std::string> &names);
 
-  KernelImplementation GetKernel(std::string_view key) const;
+  KernelImplementation GetKernel(const std::string &key) const;
+  std::vector<std::string> GetKernelList() const;
 
   ~KernelRegistry();
 
@@ -32,7 +33,7 @@ class KernelRegistry {
 };
 
 //! The global CPU kernel registry.
-KernelRegistry* GetCpuKernelRegistry();
+KernelRegistry *GetCpuKernelRegistry();
 
 }  // namespace host_context
 }  // namespace cinnrt
@@ -43,7 +44,7 @@ KernelRegistry* GetCpuKernelRegistry();
 #ifdef __cplusplus
 extern "C" {
 #endif
-void RegisterKernels(cinnrt::host_context::KernelRegistry* registry);
+void RegisterKernels(cinnrt::host_context::KernelRegistry *registry);
 #ifdef __cplusplus
 }
 #endif
