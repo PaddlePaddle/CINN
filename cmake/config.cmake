@@ -8,3 +8,4 @@ set(ISL_HOME "")
 set(WITH_CUDA ON)
 
 set(WITH_MKL_CBLAS ON)
+set(WITH_MKLDNN ON)

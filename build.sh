@@ -124,6 +124,7 @@ function build {
 
 function run_demo {
     cd $build_dir/dist
+    export LD_LIBRARY_PATH=$build_dir/thirds/install/mkldnn/lib:$LD_LIBRARY_PATH
     bash build_demo.sh
     ./demo
     rm ./demo

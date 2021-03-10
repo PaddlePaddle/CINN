@@ -113,9 +113,10 @@ void OpBenchmarkTester::CreateBuffer() {
     all_args_.push_back(arg);
   }
   CHECK(!output_shapes_.empty()) << "output shapes shouldn't be empty\n";
-  CHECK_EQ(output_shapes_.size(), out_types_.size());
-  for (size_t i = 0; i < output_shapes_.size(); i++) {
-    auto* buffer = common::BufferBuilder(out_types_[i], output_shapes_[i]).set_align(32).set_zero().Build();
+  CHECK_GE(output_shapes_.size(), out_types_.size());
+  int offset = output_shapes_.size() - out_types_.size();
+  for (size_t i = offset; i < output_shapes_.size(); i++) {
+    auto* buffer = common::BufferBuilder(out_types_[i - offset], output_shapes_[i]).set_align(32).set_zero().Build();
     CHECK(buffer);
     out_dims_ = buffer->num_elements();
     cinn_pod_value_t arg(buffer);

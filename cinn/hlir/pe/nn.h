@@ -101,6 +101,16 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                     int dilation_w,
                                     const std::string &output_name = UniqName("T_Conv2d_NCHW_out"));
 
+std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
+                                           const ir::Tensor &weights,
+                                           int pad_h,
+                                           int pad_w,
+                                           int stride_h,
+                                           int stride_w,
+                                           int dilation_h,
+                                           int dilation_w,
+                                           const std::string &output_name = UniqName("T_Conv2d_NCHW_out"));
+
 /**
  * @brief Perform a 2-D convolution with an NHWC-layout and support group and depthwise convolution.
  *

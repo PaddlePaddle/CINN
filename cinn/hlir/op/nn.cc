@@ -153,17 +153,34 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
     CHECK_EQ(dilation.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
     std::vector<ir::Tensor> out;
+    bool use_mkldnn = false;
+#ifdef CINN_WITH_MKLDNN
+    use_mkldnn = true;
+#endif
+    use_mkldnn = use_mkldnn && target.arch == Target::Arch::X86;
     if (data_format == "NCHW") {
       // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
-      out = pe::Conv2d_NCHW(A.as_tensor_ref(),
-                            B.as_tensor_ref(),
-                            padding[0],
-                            padding[1],
-                            stride[0],
-                            stride[1],
-                            dilation[0],
-                            dilation[1],
-                            UniqName("Conv2d_nchw_out"));
+      if (use_mkldnn) {
+        out = pe::Conv2d_NCHW_MKLDNN(A.as_tensor_ref(),
+                                     B.as_tensor_ref(),
+                                     padding[0],
+                                     padding[1],
+                                     stride[0],
+                                     stride[1],
+                                     dilation[0],
+                                     dilation[1],
+                                     UniqName("Conv2d_nchw_out"));
+      } else {
+        out = pe::Conv2d_NCHW(A.as_tensor_ref(),
+                              B.as_tensor_ref(),
+                              padding[0],
+                              padding[1],
+                              stride[0],
+                              stride[1],
+                              dilation[0],
+                              dilation[1],
+                              UniqName("Conv2d_nchw_out"));
+      }
     } else if (data_format == "NHWC") {
       // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
       out = pe::Conv2d_NHWC(A.as_tensor_ref(),
@@ -186,7 +203,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
       stages->InsertLazily(t);
       res.push_back(CINNValue(t));
     }
-    CHECK_EQ(out.size(), 3U) << "The output tensor sizes of depthwise_conv op in depthwise_conv op should be 3\n";
+    CHECK(out.size() == 3U || out.size() == 2U)
+        << "The output tensor sizes of conv2d op in conv2d op should be 2 or 3\n";
 
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
@@ -195,15 +213,16 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   framework::CINNSchedule conv2d_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 4UL);
-    poly::StageMap stages = arg_pack[3];
-    Expr input_pad        = arg_pack[0];
-    CHECK(input_pad.as_tensor());
-    stages[input_pad.as_tensor_ref()]->ComputeInline();
-    Expr weights_dilation = arg_pack[1];
-    CHECK(weights_dilation.as_tensor());
-    stages[weights_dilation.as_tensor_ref()]->ComputeInline();
-
+    CHECK(arg_pack.size() == 4UL || arg_pack.size() == 3UL);
+    poly::StageMap stages = arg_pack.back();
+    if (arg_pack.size() == 4UL) {
+      Expr input_pad = arg_pack[0];
+      CHECK(input_pad.as_tensor());
+      stages[input_pad.as_tensor_ref()]->ComputeInline();
+      Expr weights_dilation = arg_pack[1];
+      CHECK(weights_dilation.as_tensor());
+      stages[weights_dilation.as_tensor_ref()]->ComputeInline();
+    }
     if (target.arch == Target::Arch::NVGPU) {
       Expr Out = arg_pack[2];
       CHECK(Out.as_tensor());
@@ -212,7 +231,11 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
       stages[Out.as_tensor_ref()]->Bind(2, "blockIdx.z");
       stages[Out.as_tensor_ref()]->Bind(3, "threadIdx.x");
     }
-    *ret = CINNValuePack{{arg_pack[2], CINNValue(stages)}};
+    if (arg_pack.size() == 4UL) {
+      *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
+    } else {
+      *ret = arg_pack;
+    }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
