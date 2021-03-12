@@ -112,8 +112,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           outputNames.insert(outputNames.end(), temp_outputnames.begin(), temp_outputnames.end());
         }
       }
-      auto instr = std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames));
-      auto* fn   = compiler_->Lookup(GenOpFuncName(node) + "_fused");
+      auto instr = std::unique_ptr<Instruction>(
+          new Instruction(target_, scope_.get(), inputNames, outputNames, node->op()->name + "_fused"));
+      auto* fn = compiler_->Lookup(GenOpFuncName(node) + "_fused");
       CHECK(fn);
       instr->SetLoweredFunc(fn);
       instructions.push_back(std::move(instr));
@@ -121,7 +122,33 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       continue;
     } else if (node) {
       auto instr = std::unique_ptr<Instruction>(
-          new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node)));
+          new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), node->op()->name));
+      if (node->op()->name == "conv2d") {
+        auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+        for (auto& in_node : node->inlinks_in_order()) {
+          std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+          auto in_shape     = shape_dict.at(in_id);
+          instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+        }
+        if (node->attrs.attr_store.find("padding") != node->attrs.attr_store.end()) {
+          auto padding = std::get<std::vector<int>>(node->attrs.attr_store.at("padding"));
+          instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
+        }
+        if (node->attrs.attr_store.find("stride") != node->attrs.attr_store.end()) {
+          auto stride = std::get<std::vector<int>>(node->attrs.attr_store.at("stride"));
+          instr->attrs.insert(instr->attrs.end(), stride.begin(), stride.end());
+        }
+        if (node->attrs.attr_store.find("dilation") != node->attrs.attr_store.end()) {
+          auto dilation = std::get<std::vector<int>>(node->attrs.attr_store.at("dilation"));
+          instr->attrs.insert(instr->attrs.end(), dilation.begin(), dilation.end());
+        }
+        for (auto& out_node : node->outlinks_in_order()) {
+          std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+          auto out_shape     = shape_dict.at(out_id);
+          instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
+        }
+        CHECK_EQ(instr->attrs.size(), 18UL);
+      }
       auto* fn = compiler_->Lookup(GenOpFuncName(node));
       CHECK(fn);
       instr->SetLoweredFunc(fn);

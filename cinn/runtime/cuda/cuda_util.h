@@ -11,6 +11,25 @@ namespace cuda {
 
 const int kCUDAMaxCards{10};
 
+class CudnnHandle {
+ public:
+  ~CudnnHandle();
+  CudnnHandle(const CudnnHandle&) = delete;
+  CudnnHandle& operator=(const CudnnHandle&) = delete;
+  static CudnnHandle& get_instance() {
+    static CudnnHandle instance;
+    return instance;
+  }
+  cudnnHandle_t& GetCudnnHandle() { return cudnn; }
+  float* GetWorkSpace(size_t size);
+
+ private:
+  CudnnHandle();
+  cudnnHandle_t cudnn;
+  float* work_space;
+  size_t size_;
+};
+
 /**
  * Call a CUDA compiled kernel.
  *

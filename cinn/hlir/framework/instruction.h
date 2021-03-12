@@ -6,6 +6,7 @@
 #include "cinn/backends/cuda_util.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/scope.h"
+#include "cinn/runtime/cuda/cuda_util.h"
 #include "cinn/utils/timer.h"
 
 namespace cinn {
@@ -32,8 +33,9 @@ class Instruction {
   Instruction(const Target& target,
               Scope* scope,
               const std::vector<std::string>& in_args,
-              const std::vector<std::string>& out_args)
-      : target_(target), scope_(scope), in_args_(in_args), out_args_(out_args) {}
+              const std::vector<std::string>& out_args,
+              const std::string& function_name = "")
+      : target_(target), scope_(scope), in_args_(in_args), out_args_(out_args), function_name_(function_name) {}
 
   /**
    * Set compiled function address.
@@ -53,16 +55,46 @@ class Instruction {
   void Run() {
     CHECK(fn_) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
     auto& pod_args = PreparePodArgs();
+#ifdef CINN_WITH_CUDNN
+    if (function_name_ == "conv2d") {
+      runtime::cuda::cinn_gpu_cudnn_conv2d(attrs[0],
+                                           attrs[1],
+                                           attrs[2],
+                                           attrs[3],
+                                           attrs[4],
+                                           attrs[5],
+                                           attrs[6],
+                                           attrs[7],
+                                           attrs[8],
+                                           attrs[9],
+                                           attrs[10],
+                                           attrs[11],
+                                           attrs[12],
+                                           attrs[13],
+                                           attrs[14],
+                                           attrs[15],
+                                           attrs[16],
+                                           attrs[17],
+                                           pod_args[0],
+                                           pod_args[1],
+                                           pod_args[2]);
+    } else {
+      fn_(pod_args.data(), pod_args.size());
+    }
+#else
     fn_(pod_args.data(), pod_args.size());
+#endif
   }
   std::vector<std::string> GetInArgs() { return in_args_; }
   std::vector<std::string> GetOutArgs() { return out_args_; }
+  std::vector<int> attrs;
 
  protected:
   std::vector<cinn_pod_value_t>& PreparePodArgs();
 
  private:
   Scope* scope_{};
+  std::string function_name_;
   std::vector<std::string> in_args_;
   std::vector<std::string> out_args_;
 

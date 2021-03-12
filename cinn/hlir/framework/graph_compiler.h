@@ -59,13 +59,13 @@ class Program {
     cinn::utils::Timer timer1;
     for (int i = 0; i < 100; i++) {
       for (auto& ins : instrs_) {
-        ins->RunTest(repeat_);
+        ins->Run();
       }
     }
     timer1.Start();
     for (int i = 0; i < repeat_; i++) {
       for (auto& ins : instrs_) {
-        ins->RunTest(repeat_);
+        ins->Run();
       }
     }
 #ifdef CINN_WITH_CUDA
