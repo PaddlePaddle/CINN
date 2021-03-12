@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cuda.h>
 #include <cudnn.h>
 
 #include "cinn/runtime/cinn_runtime.h"

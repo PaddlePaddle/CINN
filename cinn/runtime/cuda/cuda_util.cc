@@ -1,6 +1,5 @@
 #include "cinn/runtime/cuda/cuda_util.h"
 
-#include <cudnn.h>
 #include <glog/logging.h>
 
 #include <algorithm>
