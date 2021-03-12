@@ -1703,53 +1703,7 @@ void fn5(const float* __restrict__ A, const float* __restrict__ B, float* __rest
 }
 
 TEST(Cudnn, external_function_cudnn) {
-  // Make a small shape, because the shared memory is small.
-
   Context::Global().ResetNameId();
-
-  Expr input_n(2);
-  Expr input_c(512);
-  Expr input_h(7);
-  Expr input_w(7);
-  Expr weights_n(512);
-  Expr weights_c(512);
-  Expr weights_h(3);
-  Expr weights_w(3);
-
-  Placeholder<float> A("A", {input_n, input_c, input_h, input_w});
-  Placeholder<float> B("B", {weights_n, weights_c, weights_h, weights_w});
-
-  auto call = Compute(
-      {Expr(1)},
-      [=]() -> Expr {
-        return lang::CallExtern(
-            "cinn_gpu_cudnn_conv2d",
-            {input_n, input_c, input_h, input_w, weights_n, weights_c, weights_h, weights_w, Expr(1),    Expr(1),
-             Expr(1), Expr(1), Expr(1), Expr(1), input_n,   input_c,   input_h,   input_w,   A.tensor(), B.tensor()});
-      },
-      "extern_call_test_cudnn");
-
-  auto out = call->TupleGet(0);
-  out->WithBuffer(Float(32));
-  auto stages = CreateStages({call, out});
-
-  Target target;
-  CodeGenCUDA_Dev codegen(target);
-
-  auto fn = Lower("fn_cudnn", stages, {A, B, out}, {}, {}, nullptr, common::DefaultNVGPUTarget());
-
-  Module::Builder builder("module", common::DefaultNVGPUTarget());
-  builder.AddFunction(fn);
-
-  auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "CUDA cudnn source1:\n" << fn;
-  LOG(INFO) << "CUDA cudnn source2:\n" << source_code;
-
-  auto [host_module, device_module] = backends::SplitCudaAndHostModule(builder.Build());  // NOLINT
-  /*   CHECK(!host_module.functions().empty());
-    CHECK(!device_module.functions().empty()); */
-  LOG(INFO) << "[CUDA] host module:\n" << host_module;
-  LOG(INFO) << "[CUDA] device module:\n" << device_module;
 
   common::CudaModuleTester tester;
 
@@ -1769,72 +1723,6 @@ TEST(Cudnn, external_function_cudnn) {
 
   runtime::cuda::cinn_gpu_cudnn_conv2d(
       2, 512, 7, 7, 512, 512, 3, 3, 1, 1, 1, 1, 1, 1, 2, 512, 7, 7, dev_bufs[0], dev_bufs[1], dev_bufs[2]);
-}
-
-TEST(cinn_cpu_mkl_gemm_fp32, test) {
-  Expr M(30);
-  Expr N(20);
-  Expr K(40);
-
-  Placeholder<float> A("A", {M, K});
-  Placeholder<float> B("B", {K, N});
-
-  auto call = Compute(
-      {Expr(1)},
-      [=]() -> Expr {
-        return lang::CallExtern("cinn_cpu_mkl_gemm_fp32",
-                                {common::make_one<float>(),   // alpha
-                                 M,                           // M
-                                 N,                           // N
-                                 K,                           // K
-                                 common::make_bool(false),    // ta
-                                 common::make_bool(false),    // tb
-                                 K,                           // lda
-                                 N,                           // ldb
-                                 N,                           // ldc
-                                 common::make_zero<float>(),  // beta
-                                 A.tensor(),                  // A
-                                 B.tensor()});
-      },
-      "extern_call");
-
-  auto out = call->TupleGet(0);
-  out->WithBuffer(Float(32));
-
-  auto stages = CreateStages({call, out});
-
-  auto target = common::DefaultHostTarget();
-  target.arch = Target::Arch::X86;
-  ir::Module::Builder builder("module0", target);
-
-  auto func = Lower("fn", stages, {A, B, out, call});
-  builder.AddFunction(func);
-  LOG(INFO) << "func mkl:\n" << func;
-
-  CodeGenC codegen_c(common::DefaultHostTarget());
-  codegen_c.SetInlineBuiltinCodes(false);
-  auto c_source_code = codegen_c.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
-  LOG(INFO) << "X86 mkl source code:\n" << c_source_code;
-
-  auto jit    = backends::SimpleJIT::Create();
-  auto module = builder.Build();
-
-  jit->Link(module, /*optimize=*/true);
-  auto fn     = jit->Lookup("fn");
-  auto fn_ptr = reinterpret_cast<void (*)(void*, int32_t)>(fn);
-
-  // test with real data
-  auto* A_buf = common::BufferBuilder(Float(32), {M.as_int32(), K.as_int32()}).set_random().Build();
-  auto* B_buf = common::BufferBuilder(Float(32), {K.as_int32(), N.as_int32()}).set_random().Build();
-  auto* C_buf = common::BufferBuilder(Float(32), {M.as_int32(), N.as_int32()}).set_zero().Build();
-
-  auto args = common::ArgsBuilder().Add(A_buf).Add(B_buf).Add(C_buf).Build();
-
-  fn_ptr(args.data(), args.size());
-
-  cinn_buffer_free(nullptr, A_buf);
-  cinn_buffer_free(nullptr, B_buf);
-  cinn_buffer_free(nullptr, C_buf);
 }
 
 }  // namespace backends

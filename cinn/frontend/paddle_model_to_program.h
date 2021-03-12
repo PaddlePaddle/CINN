@@ -26,6 +26,7 @@ class PaddleModelToProgram {
  public:
   explicit PaddleModelToProgram(hlir::framework::Scope* scope, const common::Target& target)
       : scope_(scope), target_(target), program_(new Program) {
+    LOG(INFO) << "Begin PaddleModelToProgram";
     CHECK(scope_);
 
     AddOpMapper_feed();
@@ -79,6 +80,8 @@ class PaddleModelToProgram {
   Variable GetVar(const std::string& name);
 
   void TransposeVar(const std::string& name);
+
+  void ReverseHWVar(const std::string& name);
 
  private:
   std::unordered_map<std::string, std::function<void(const paddle::cpp::OpDesc&)>> op_mappers_;

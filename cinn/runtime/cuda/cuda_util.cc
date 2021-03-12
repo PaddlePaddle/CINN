@@ -3,6 +3,8 @@
 #include <cudnn.h>
 #include <glog/logging.h>
 
+#include <algorithm>
+
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/common/target.h"
@@ -11,6 +13,32 @@
 namespace cinn {
 namespace runtime {
 namespace cuda {
+
+CudnnHandle::CudnnHandle() {
+  CUDNN_CALL(cudnnCreate(&cudnn));
+  size_      = 0;
+  work_space = nullptr;
+}
+
+CudnnHandle::~CudnnHandle() {
+  CUDNN_CALL(cudnnDestroy(cudnn));
+  if (size_ > 0) {
+    CUDA_CALL(cudaFree(work_space));
+  }
+}
+
+float *CudnnHandle::GetWorkSpace(size_t size) {
+  if (size_ >= size) {
+    return work_space;
+  } else {
+    if (size_ > 0) {
+      CUDA_CALL(cudaFree(work_space));
+    }
+    CUDA_CALL(cudaMalloc(&work_space, size));
+    size_ = size;
+    return work_space;
+  }
+}
 
 void cinn_call_cuda_kernel(void *kernel_fn,
                            cinn_pod_value_t *args,
@@ -23,7 +51,6 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                            int block_z,
                            void *stream) {
   // prepare void**
-  LOG(INFO) << "Begin test cinn_call_cuda_kernel";
   void *arr[20];
   CHECK_LT(num_args, 20);
   for (int i = 0; i < num_args; i++) {
@@ -68,29 +95,22 @@ void cinn_gpu_cudnn_conv2d(int input_n,
                            cinn_buffer_t *input,
                            cinn_buffer_t *weights,
                            cinn_buffer_t *output) {
-  LOG(INFO) << "Begin cinn_gpu_cudnn_conv2d";
-  cudnnHandle_t cudnn;
-  CUDNN_CALL(cudnnCreate(&cudnn));
-
-  float alpha = 1.f;
+  cudnnHandle_t &cudnn = CudnnHandle::get_instance().GetCudnnHandle();
+  float alpha          = 1.f;
 
   cudnnTensorDescriptor_t in_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&in_desc));
   CUDNN_CALL(
       cudnnSetTensor4dDescriptor(in_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
 
-  float *in_data1 = reinterpret_cast<float *>(input->memory);
-  float *in_data;
-  CUDA_CALL(cudaMalloc(&in_data, input_n * input_c * input_h * input_w * sizeof(float)));
+  float *in_data = reinterpret_cast<float *>(input->memory);
 
   cudnnFilterDescriptor_t filt_desc;
   CUDNN_CALL(cudnnCreateFilterDescriptor(&filt_desc));
   CUDNN_CALL(cudnnSetFilter4dDescriptor(
       filt_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, weights_n, weights_c, weights_h, weights_w));
 
-  float *filt_data1 = reinterpret_cast<float *>(weights->memory);
-  float *filt_data;
-  CUDA_CALL(cudaMalloc(&filt_data, weights_n * weights_c * weights_h * weights_w * sizeof(float)));
+  float *filt_data = reinterpret_cast<float *>(weights->memory);
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
@@ -103,40 +123,26 @@ void cinn_gpu_cudnn_conv2d(int input_n,
   int out_w;
 
   CUDNN_CALL(cudnnGetConvolution2dForwardOutputDim(conv_desc, in_desc, filt_desc, &out_n, &out_c, &out_h, &out_w));
-  LOG(INFO) << "output shape is : " << out_n << " " << out_c << " " << out_h << " " << out_w;
-  CHECK_EQ(out_n, output_n);
-  CHECK_EQ(out_c, output_c);
-  CHECK_EQ(out_h, output_h);
-  CHECK_EQ(out_w, output_w);
-
   cudnnTensorDescriptor_t out_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&out_desc));
   CUDNN_CALL(cudnnSetTensor4dDescriptor(out_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, out_n, out_c, out_h, out_w));
 
-  float *out_data1 = reinterpret_cast<float *>(output->memory);
-  float *out_data;
-  CUDA_CALL(cudaMalloc(&out_data, out_n * out_c * out_h * out_w * sizeof(float)));
+  float *out_data = reinterpret_cast<float *>(output->memory);
 
-  cudnnConvolutionFwdAlgoPerf_t perf_algo;
-  int returnedAlgoCount;
-  CUDNN_CALL(cudnnFindConvolutionForwardAlgorithm(
-      cudnn, in_desc, filt_desc, conv_desc, out_desc, 1, &returnedAlgoCount, &perf_algo));
-  cudnnConvolutionFwdAlgo_t algo = perf_algo.algo;
-
+  /*   cudnnConvolutionFwdAlgoPerf_t perf_algo;
+    int returnedAlgoCount;
+    CUDNN_CALL(cudnnFindConvolutionForwardAlgorithm(
+        cudnn, in_desc, filt_desc, conv_desc, out_desc, 1, &returnedAlgoCount, &perf_algo));
+    cudnnConvolutionFwdAlgo_t algo = perf_algo.algo; */
+  cudnnConvolutionFwdAlgo_t algo = CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD;
   size_t ws_size;
   CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(cudnn, in_desc, filt_desc, conv_desc, out_desc, algo, &ws_size));
-  LOG(INFO) << "ws_size is : " << ws_size;
 
   float *ws_data;
-  CUDA_CALL(cudaMalloc(&ws_data, ws_size));
+  ws_data = CudnnHandle::get_instance().GetWorkSpace(ws_size);
 
   float beta = 0.f;
-  // out_data or output?
-  CUDA_CALL(
-      cudaMemcpy(in_data, in_data1, input_n * input_c * input_h * input_w * sizeof(float), cudaMemcpyHostToDevice));
 
-  CUDA_CALL(cudaMemcpy(
-      filt_data, filt_data1, weights_n * weights_c * weights_h * weights_w * sizeof(float), cudaMemcpyHostToDevice));
   CUDNN_CALL(cudnnConvolutionForward(cudnn,
                                      &alpha,
                                      in_desc,
@@ -150,9 +156,10 @@ void cinn_gpu_cudnn_conv2d(int input_n,
                                      &beta,
                                      out_desc,
                                      out_data));
-  CUDA_CALL(cudaMemcpy(
-      out_data1, out_data, output_n * output_c * output_h * output_w * sizeof(float), cudaMemcpyDeviceToHost));
-  LOG(INFO) << "end of this function";
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(out_desc));
+  CUDNN_CALL(cudnnDestroyConvolutionDescriptor(conv_desc));
+  CUDNN_CALL(cudnnDestroyFilterDescriptor(filt_desc));
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(in_desc));
 }
 
 }  // namespace cuda

@@ -1378,7 +1378,8 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDepthwiseConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDepthwiseConv2d))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
 
   CINN_REGISTER_OP(batchnorm)

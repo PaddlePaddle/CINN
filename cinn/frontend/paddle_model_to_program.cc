@@ -1,5 +1,7 @@
 #include "cinn/frontend/paddle_model_to_program.h"
 
+#include <algorithm>
+
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/frontend/paddle/pb/program_desc.h"
 #include "cinn/hlir/framework/node.h"
@@ -28,6 +30,14 @@ void TransposeData(float* data, int M, int N) {
       next = (next % N) * M + next / N;
     if (next == i)  // process current ring
       MoveData(data, i, M, N);
+  }
+}
+
+void ReverseHWData(float* data, std::vector<int> shape) {
+  CHECK_EQ(shape.size(), 4UL);
+  for (int i = 0; i < shape[0] * shape[1]; i++) {
+    int num = shape[2] * shape[3];
+    std::reverse(data + (i * num), data + (i * num + num));
   }
 }
 
@@ -230,6 +240,11 @@ void PaddleModelToProgram::AddOpMapper_conv2d() {
     auto x_name = op_desc.Input("Input").front();
     CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
     auto y_name = op_desc.Input("Filter").front();
+#ifdef CINN_WITH_CUDNN
+    if (target_.arch == Target::Arch::NVGPU) {
+      ReverseHWVar(TransValidVarName(y_name));
+    }
+#endif
     CHECK_EQ(op_desc.Output("Output").size(), 1UL);
     auto out_name = op_desc.Output("Output").front();
 
@@ -426,6 +441,39 @@ void PaddleModelToProgram::TransposeVar(const std::string& name) {
     // TODO(Superjomn) Make this determined by model.
     var->type = Float(32);
     AddVar(name, var, true);
+  } else {
+    LOG(FATAL) << "No var called [" << name << "] exists";
+  }
+}
+
+void PaddleModelToProgram::ReverseHWVar(const std::string& name) {
+  CheckVarNameValid(name);
+  auto* var = scope_->FindVar(name);
+  if (var) {
+    auto& tensor = std::get<hlir::framework::Tensor>(*var);
+    if (target_.arch == Target::Arch::X86) {
+      float* data = tensor->mutable_data<float>(target_);
+      CHECK(tensor->shape().size() == 4) << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
+      ReverseHWData(data, tensor->shape().data());
+    } else if (target_.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
+      std::vector<float> data(tensor->shape().numel());
+      CUDA_CALL(cudaMemcpy(data.data(),
+                           reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
+                           tensor->shape().numel() * sizeof(float),
+                           cudaMemcpyDeviceToHost));
+      CHECK(tensor->shape().size() == 4) << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
+      ReverseHWData(data.data(), tensor->shape().data());
+      CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
+                           data.data(),
+                           tensor->shape().numel() * sizeof(float),
+                           cudaMemcpyHostToDevice));
+#else
+      LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
+    } else {
+      CINN_NOT_IMPLEMENTED
+    }
   } else {
     LOG(FATAL) << "No var called [" << name << "] exists";
   }
