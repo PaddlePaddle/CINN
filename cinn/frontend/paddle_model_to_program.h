@@ -26,7 +26,6 @@ class PaddleModelToProgram {
  public:
   explicit PaddleModelToProgram(hlir::framework::Scope* scope, const common::Target& target)
       : scope_(scope), target_(target), program_(new Program) {
-    LOG(INFO) << "Begin PaddleModelToProgram";
     CHECK(scope_);
 
     AddOpMapper_feed();

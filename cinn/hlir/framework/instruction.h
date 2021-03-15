@@ -6,7 +6,9 @@
 #include "cinn/backends/cuda_util.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/scope.h"
+#ifdef CINN_WITH_CUDNN
 #include "cinn/runtime/cuda/cuda_util.h"
+#endif
 #include "cinn/utils/timer.h"
 
 namespace cinn {
@@ -43,12 +45,6 @@ class Instruction {
    */
   void SetLoweredFunc(lower_func_ptr_t fn) { fn_ = fn; }
 
-  void RunTest(int repeat_) {
-    CHECK(fn_) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
-    auto& pod_args = PreparePodArgs();
-    fn_(pod_args.data(), pod_args.size());
-  }
-
   /**
    * Run the Instruction.
    */
@@ -56,7 +52,7 @@ class Instruction {
     CHECK(fn_) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
     auto& pod_args = PreparePodArgs();
 #ifdef CINN_WITH_CUDNN
-    if (function_name_ == "conv2d") {
+    if (function_name_ == "conv2d" && target_.arch == Target::Arch::NVGPU) {
       runtime::cuda::cinn_gpu_cudnn_conv2d(attrs[0],
                                            attrs[1],
                                            attrs[2],
@@ -88,6 +84,7 @@ class Instruction {
   std::vector<std::string> GetInArgs() { return in_args_; }
   std::vector<std::string> GetOutArgs() { return out_args_; }
   std::vector<int> attrs;
+  Target target_;
 
  protected:
   std::vector<cinn_pod_value_t>& PreparePodArgs();
@@ -99,8 +96,6 @@ class Instruction {
   std::vector<std::string> out_args_;
 
   std::vector<cinn_pod_value_t> args_cached_;
-
-  Target target_;
 
   lower_func_ptr_t fn_{};
 };

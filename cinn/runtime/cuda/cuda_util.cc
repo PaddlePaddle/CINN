@@ -128,12 +128,13 @@ void cinn_gpu_cudnn_conv2d(int input_n,
 
   float *out_data = reinterpret_cast<float *>(output->memory);
 
-  /*   cudnnConvolutionFwdAlgoPerf_t perf_algo;
-    int returnedAlgoCount;
-    CUDNN_CALL(cudnnFindConvolutionForwardAlgorithm(
-        cudnn, in_desc, filt_desc, conv_desc, out_desc, 1, &returnedAlgoCount, &perf_algo));
-    cudnnConvolutionFwdAlgo_t algo = perf_algo.algo; */
-  cudnnConvolutionFwdAlgo_t algo = CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD;
+  /*     cudnnConvolutionFwdAlgoPerf_t perf_algo;
+      int returnedAlgoCount;
+      CUDNN_CALL(cudnnFindConvolutionForwardAlgorithm(
+          cudnn, in_desc, filt_desc, conv_desc, out_desc, 1, &returnedAlgoCount, &perf_algo));
+      cudnnConvolutionFwdAlgo_t algo = perf_algo.algo;
+      LOG(INFO) << "The ConvolutionFwdAlgo is : "<<algo; */
+  cudnnConvolutionFwdAlgo_t algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
   size_t ws_size;
   CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(cudnn, in_desc, filt_desc, conv_desc, out_desc, algo, &ws_size));
 

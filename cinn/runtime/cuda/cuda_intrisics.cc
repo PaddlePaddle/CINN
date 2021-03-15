@@ -1,5 +1,3 @@
-#include <cudnn.h>
-
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/function_prototype.h"
