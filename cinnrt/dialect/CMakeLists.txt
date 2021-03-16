@@ -4,6 +4,7 @@ core_gather_srcs(SRCS
     dialect.cc
     types.cc
     basic_kernels.cc
+    test_kernels.cc
     cinn_base.cc
     init_cinn_dialects.cc
     tensor_shape.cc
@@ -16,6 +17,7 @@ core_gather_srcs(SRCS
 
 mlir_tablegen_on(ops)
 mlir_tablegen_on(basic_kernels)
+mlir_tablegen_on(test_kernels)
 mlir_tablegen_on(cinn_base DIALECT cinn)
 mlir_tablegen_on(tensor_shape DIALECT ts)
 mlir_tablegen_on(dense_tensor DIALECT dt)

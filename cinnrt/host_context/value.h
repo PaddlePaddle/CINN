@@ -2,6 +2,7 @@
 #include <glog/logging.h>
 #include <llvm/ADT/SmallVector.h>
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -24,6 +25,7 @@ using ValueVariantType = cinnrt::Variant<int16_t,
                                          float,
                                          double,
                                          bool,
+                                         std::string,
                                          tensor::TensorShape,
                                          tensor::DenseHostTensor,
                                          MlirFunctionExecutable*,
@@ -49,6 +51,7 @@ class Value : public cinnrt::common::Object {
   explicit Value(float x) : data(x) {}
   explicit Value(double x) : data(x) {}
   explicit Value(bool x) : data(x) {}
+  explicit Value(std::string x) : data(x) {}
   explicit Value(std::vector<int16_t>&& x) : data(x) {}
   explicit Value(std::vector<int32_t>&& x) : data(x) {}
   explicit Value(std::vector<int64_t>&& x) : data(x) {}

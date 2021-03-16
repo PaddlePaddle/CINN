@@ -28,7 +28,9 @@ class Function {
   size_t num_arguments() const { return num_arguments_; }
   size_t num_results() const { return num_results_; }
 
-  virtual void Execute(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) const {}
+  virtual void Execute(llvm::ArrayRef<Value*> arguments,
+                       llvm::MutableArrayRef<ValueRef> results,
+                       bool is_region = false) const {}
 
   virtual ~Function() = default;
 

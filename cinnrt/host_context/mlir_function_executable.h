@@ -1,6 +1,9 @@
 #pragma once
-
 #include <mlir/IR/Function.h>
+
+#include <string>
+#include <unordered_map>
+
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/function.h"
 #include "cinnrt/host_context/mlir_to_runtime_translate.h"
@@ -23,21 +26,26 @@ class MlirFunctionExecutable : public Function, public MlirToRuntimeTranslator {
 
   MlirFunctionExecutable(mlir::FuncOp func_op, KernelRegistry* kernel_registry, function_defs_t& function_table);
 
+  MlirFunctionExecutable(mlir::Region* region,
+                         mlir::FunctionType func_type,
+                         KernelRegistry* kernel_registry,
+                         MlirToRuntimeTranslator::function_defs_t& function_table);
+
   /**
    * Execute the function with the given arguments and results.
    * NOTE the \param arguments and \param results should not be altered.
    */
-  void Execute(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) const override;
+  void Execute(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results, bool is_region = false) const;
 
  private:
   /**
    * Build the runtime executables once the function call arguments and results are passed in.
    * This will trigger in the first execution.
    */
-  void BuildExecutables(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results);
+  void BuildExecutables(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results, bool is_region);
 
  private:
-  mlir::FuncOp func_op_;
+  mlir::Region* region_;
   CoreRuntimeBuilder core_runtime_builder_;
   MlirToRuntimeTranslator::function_defs_t& function_table_;
   std::function<void()> copy_res_fn_;

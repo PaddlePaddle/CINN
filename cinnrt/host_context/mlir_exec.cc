@@ -12,6 +12,7 @@
 #include "cinnrt/kernel/control_flow_kernels.h"
 #include "cinnrt/kernel/tensor_kernels.h"
 #include "cinnrt/kernel/tensor_shape_kernels.h"
+#include "cinnrt/kernel/test_kernels.h"
 #include "llvm/Support/DynamicLibrary.h"
 
 static llvm::cl::list<std::string> cl_shared_libs(  // NOLINT
@@ -32,6 +33,7 @@ int main(int argc, char** argv) {
   host_context::KernelRegistry registry;
 
   kernel::RegisterBasicKernels(&registry);
+  kernel::RegisterTestKernels(&registry);
   kernel::RegisterTensorShapeKernels(&registry);
   kernel::RegisterTensorKernels(&registry);
   kernel::RegisterControlFlowKernels(&registry);

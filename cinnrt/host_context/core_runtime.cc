@@ -23,6 +23,7 @@ SymbolTable* CoreRuntime::symbol_table() { return &impl_->symbol_table; }
 CoreRuntime::CoreRuntime(CoreRuntime::Impl* impl) : impl_(impl) { CHECK(impl); }
 
 void CoreRuntime::Execute() {
+  // std::cout << "CoreRuntime::Execute" << std::endl;
   int op_offset = 0;
   for (auto& op : impl_->op_executables) {
     VLOG(3) << "running op " << op_offset++ << " " << op.name();

@@ -5,6 +5,9 @@
 #include <string>
 #include <string_view>
 
+#include "mlir/IR/Function.h"
+#include "mlir/IR/Region.h"
+
 namespace mlir {
 class FuncOp;
 }  // namespace mlir
@@ -60,6 +63,10 @@ class OpExecutableBuilder : public OpExecutable {
   void AppendAttribute(Value* value);
 
   MlirFunctionExecutable* CreateFunctionExecutable(mlir::FuncOp op, function_defs_t* function_defs);
+
+  MlirFunctionExecutable* CreateFunctionExecutable(mlir::Region* region,
+                                                   mlir::FunctionType func_type,
+                                                   function_defs_t* function_defs);
 
   //! Get the CoreRuntime instance for function call(used in `cinn.call` op).
   CoreRuntimeBuilder* GetCallRuntimeBuilder();

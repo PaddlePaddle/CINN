@@ -75,7 +75,17 @@ MlirFunctionExecutable* OpExecutableBuilder::CreateFunctionExecutable(
   return impl_->mlir_function_executable.get();
 }
 
+MlirFunctionExecutable* OpExecutableBuilder::CreateFunctionExecutable(mlir::Region* region,
+                                                                      mlir::FunctionType func_type,
+                                                                      function_defs_t* function_defs) {
+  CHECK(!impl_->mlir_function_executable);
+  impl_->mlir_function_executable.reset(
+      new MlirFunctionExecutable(region, func_type, impl_->kernel_registry, *function_defs));
+  return impl_->mlir_function_executable.get();
+}
+
 void OpExecutable::Execute() {
+  // std::cout << "OpExecutable::Execute" << std::endl;
 #ifndef NDEBUG
   VLOG(3) << "execute " << name() << " --- frame args: " << impl_->frame.GetNumArgs() << " results "
           << impl_->frame.GetNumResults() << " attributes " << impl_->frame.GetNumAttributes();
