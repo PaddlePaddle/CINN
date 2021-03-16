@@ -26,10 +26,12 @@ include(${CMAKE_BINARY_DIR}/config.cmake)
 if (WITH_CUDA)
   message(STATUS "Enable CUDA")
   add_definitions(-DCINN_WITH_CUDA)
+  add_definitions(-DCINN_WITH_CUDNN)
   enable_language(CUDA)
   find_package(CUDA REQUIRED)
   include_directories(${CUDA_INCLUDE_DIRS})
   include_directories(${CMAKE_SOURCE_DIR}/cinn/runtime/cuda)
+  include_directories(/usr/lib/x86_64-linux-gnu)
   set(CUDA_SEPARABLE_COMPILATION ON)
 endif()
 
@@ -97,7 +99,7 @@ add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER
         )
 
 if (WITH_CUDA)
-  target_link_libraries(cinncore ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/libcuda.so)
+  target_link_libraries(cinncore ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/libcuda.so /usr/local/cuda/lib64/libcudnn.so)
 endif()
 
 # --------distribute cinncore lib and include begin--------

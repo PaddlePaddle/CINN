@@ -1,5 +1,7 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 
+#include <cinn/utils/string.h>
+
 #include <fstream>
 #include <set>
 #include <unordered_set>
@@ -235,7 +237,44 @@ void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {
 
 void CodeGenCUDA_Dev::Visit(const ir::Call *op) {
   os() << op->name + "(";
-  Print(op->read_args);
+
+  if (!op->read_args.empty()) {
+    for (int i = 0; i < op->read_args.size() - 1; i++) {
+      auto &arg = op->read_args[i];
+      if (arg.as_tensor()) {
+        os() << arg.as_tensor()->name;
+        os() << ", ";
+      } else {
+        Print(arg);
+        os() << ", ";
+      }
+    }
+    if (op->read_args.back().as_tensor()) {
+      os() << op->read_args.back().as_tensor()->name;
+    } else {
+      Print(op->read_args.back());
+    }
+  }
+
+  if (!op->write_args.empty()) {
+    os() << ", ";
+    for (int i = 0; i < op->write_args.size() - 1; i++) {
+      auto &arg = op->write_args[i];
+      if (arg.as_tensor()) {
+        os() << arg.as_tensor()->name;
+        os() << ", ";
+      } else {
+        Print(arg);
+        os() << ", ";
+      }
+    }
+    if (op->write_args.back().as_tensor()) {
+      os() << op->write_args.back().as_tensor()->name;
+    } else {
+      Print(op->write_args.back());
+    }
+  }
+
   os() << ")";
 }
 

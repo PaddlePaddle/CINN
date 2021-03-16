@@ -80,6 +80,8 @@ class PaddleModelToProgram {
 
   void TransposeVar(const std::string& name);
 
+  void ReverseHWVar(const std::string& name);
+
  private:
   std::unordered_map<std::string, std::function<void(const paddle::cpp::OpDesc&)>> op_mappers_;
   std::unique_ptr<Program> program_;

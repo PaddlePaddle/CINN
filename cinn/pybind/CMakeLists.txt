@@ -6,7 +6,7 @@ if (WITH_CUDA)
       SRCS ${srcs}
       DEPS cinncore cinn_runtime pybind)
   message("cuda_nvrtc: ${CUDA_NVRTC}")
-  target_link_libraries(core_api ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} cuda)
+  target_link_libraries(core_api ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} cuda cudnn)
 else()
   message(STATUS "Compile core_api without CUDA support")
   cc_library(core_api SHARED
@@ -14,7 +14,7 @@ else()
       DEPS cinncore cinn_runtime pybind ${llvm_libs})
 endif()
 
-target_link_libraries(core_api ${MKLML_LIB})
+target_link_libraries(core_api ${MKLML_LIB} )
 
 execute_process(COMMAND python3 -m pybind11 --includes OUTPUT_VARIABLE pybind_includes)
 string(REGEX REPLACE "\n$" "" pybind_includes "${pybind_includes}")

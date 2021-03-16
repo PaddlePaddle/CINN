@@ -1702,5 +1702,28 @@ void fn5(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       builder.Build(), "fn5", M, N, [](float a, float b) { return std::tanh(a) + std::cos(b); });
 }
 
+TEST(Cudnn, external_function_cudnn) {
+  Context::Global().ResetNameId();
+
+  common::CudaModuleTester tester;
+
+  auto* A_host = common::BufferBuilder(Float(32), {2, 512, 7, 7}).set_random().Build();
+  auto* B_host = common::BufferBuilder(Float(32), {512, 512, 3, 3}).set_random().Build();
+  auto* C_host = common::BufferBuilder(Float(32), {2, 512, 7, 7}).set_zero().Build();
+
+  auto* A_dev = tester.CreateDeviceBuffer(A_host);
+  auto* B_dev = tester.CreateDeviceBuffer(B_host);
+  auto* C_dev = tester.CreateDeviceBuffer(C_host);
+
+  cinn_buffer_t* dev_bufs[3];
+  for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+
+  runtime::cuda::cinn_gpu_cudnn_conv2d(
+      2, 512, 7, 7, 512, 512, 3, 3, 1, 1, 1, 1, 1, 1, 2, 512, 7, 7, dev_bufs[0], dev_bufs[1], dev_bufs[2]);
+}
+
 }  // namespace backends
 }  // namespace cinn

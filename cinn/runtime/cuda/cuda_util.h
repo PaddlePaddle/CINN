@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cudnn.h>
+
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
@@ -7,6 +9,25 @@ namespace runtime {
 namespace cuda {
 
 const int kCUDAMaxCards{10};
+
+class CudnnHandle {
+ public:
+  ~CudnnHandle();
+  CudnnHandle(const CudnnHandle&) = delete;
+  CudnnHandle& operator=(const CudnnHandle&) = delete;
+  static CudnnHandle& get_instance() {
+    static CudnnHandle instance;
+    return instance;
+  }
+  cudnnHandle_t& GetCudnnHandle() { return cudnn; }
+  float* GetWorkSpace(size_t size);
+
+ private:
+  CudnnHandle();
+  cudnnHandle_t cudnn;
+  float* work_space;
+  size_t size_;
+};
 
 /**
  * Call a CUDA compiled kernel.
@@ -25,6 +46,27 @@ void cinn_call_cuda_kernel(void* kernel_fn,
                            int block_z,
                            void* stream);
 
+void cinn_gpu_cudnn_conv2d(int input_n,
+                           int input_c,
+                           int input_h,
+                           int input_w,
+                           int weights_n,
+                           int weights_c,
+                           int weights_h,
+                           int weights_w,
+                           int pad_h,
+                           int pad_w,
+                           int stride_h,
+                           int stride_w,
+                           int dilation_h,
+                           int dilation_w,
+                           int output_n,
+                           int output_c,
+                           int output_h,
+                           int output_w,
+                           cinn_buffer_t* input,
+                           cinn_buffer_t* weights,
+                           cinn_buffer_t* output);
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn

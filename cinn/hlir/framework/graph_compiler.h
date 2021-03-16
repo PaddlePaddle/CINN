@@ -50,7 +50,9 @@ class Program {
       }
       ins->Run();
 #ifdef CINN_WITH_CUDA
-      CUDA_CALL(cudaDeviceSynchronize());
+      if (ins->target_.arch == Target::Arch::NVGPU) {
+        CUDA_CALL(cudaDeviceSynchronize());
+      }
 #endif
     }
   }
@@ -59,17 +61,19 @@ class Program {
     cinn::utils::Timer timer1;
     for (int i = 0; i < 100; i++) {
       for (auto& ins : instrs_) {
-        ins->RunTest(repeat_);
+        ins->Run();
       }
     }
     timer1.Start();
     for (int i = 0; i < repeat_; i++) {
       for (auto& ins : instrs_) {
-        ins->RunTest(repeat_);
+        ins->Run();
       }
     }
 #ifdef CINN_WITH_CUDA
-    CUDA_CALL(cudaDeviceSynchronize());
+    if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+      CUDA_CALL(cudaDeviceSynchronize());
+    }
 #endif
     double test_op_time = timer1.Stop() / repeat_;
     LOG(INFO) << "Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";

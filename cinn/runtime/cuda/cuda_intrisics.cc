@@ -1,5 +1,7 @@
+#include "cinn/backends/cuda_util.h"
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/function_prototype.h"
+#include "cinn/common/cas.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 
 CINN_REGISTER_HELPER(cuda_intrinsics) {
