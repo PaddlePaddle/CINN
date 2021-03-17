@@ -1,5 +1,5 @@
-// CHECK: @paddle_func
-func @paddle_func() -> () {
+// CHECK-LABEL: @fc
+func @fc() -> !cinn.tensor<X86, NCHW, F32> {
   %input = dt.create_uninit_tensor.f32 [3, 5] -> !cinn.tensor<X86, NCHW, F32>
   dt.fill_tensor_with_constant.f32 (%input : !cinn.tensor<X86, NCHW, F32>) {value=1.0:f32}
 
@@ -15,17 +15,27 @@ func @paddle_func() -> () {
   // test external.matmul
   "external.matmul"(%input, %w, %out) {}: (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>) -> ()
   // CHECK: tensor: shape=shape[3,4], values=[10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
-  dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
+  //dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
 
   // test external.elementwise_add
   "external.elementwise_add"(%out, %bias, %out) {axis = -1}: (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>) -> ()
   // CHECK: tensor: shape=shape[3,4], values=[13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13, 13]
-  dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
+  //dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
 
   // test external.sigmoid
   "external.sigmoid"(%out, %out) {}: (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>) -> ()
   // CHECK: tensor: shape=shape[3,4], values=[0.999998, 0.999998, 0.999998, 0.999998, 0.999998, 0.999998, 0.999998, 0.999998, 0.999998, 0.999998, 0.999998, 0.999998]
-  dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
+  //dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
 
+  cinn.return %out : !cinn.tensor<X86, NCHW, F32>
+}
+
+// CHECK-LABEL: @benchmark
+func @benchmark() {
+  cinn.benchmark "add.f32"() duration_secs = 100, max_count = 300000, num_warmup_runs = 3
+  {
+    %res = cinn.call @fc() : () -> (!cinn.tensor<X86, NCHW, F32>)
+    cinn.return %res : !cinn.tensor<X86, NCHW, F32>
+  }
   cinn.return
 }
