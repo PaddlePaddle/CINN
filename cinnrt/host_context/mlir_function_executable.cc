@@ -2,6 +2,8 @@
 
 #include <glog/logging.h>
 
+#include <string>
+
 #include "cinnrt/host_context/core_runtime.h"
 
 namespace cinnrt {
@@ -21,20 +23,31 @@ MlirFunctionExecutable::MlirFunctionExecutable(mlir::FuncOp func_op,
                                                MlirToRuntimeTranslator::function_defs_t& function_table)
     : Function(func_op.getName().str(), func_op.getNumArguments(), func_op.getNumResults()),
       MlirToRuntimeTranslator(&core_runtime_builder_),
-      func_op_(func_op),
+      region_(&func_op.getRegion()),
       core_runtime_builder_(kernel_registry),
       function_table_(function_table) {}
 
+MlirFunctionExecutable::MlirFunctionExecutable(mlir::Region* region,
+                                               mlir::FunctionType func_type,
+                                               KernelRegistry* kernel_registry,
+                                               MlirToRuntimeTranslator::function_defs_t& function_table)
+    : Function("", func_type.getNumInputs(), func_type.getNumResults()),
+      core_runtime_builder_(kernel_registry),
+      MlirToRuntimeTranslator(&core_runtime_builder_),
+      region_(region),
+      function_table_(function_table) {}
+
 void MlirFunctionExecutable::BuildExecutables(llvm::ArrayRef<Value*> arguments,
-                                              llvm::MutableArrayRef<ValueRef> results) {
+                                              llvm::MutableArrayRef<ValueRef> results,
+                                              bool is_region) {
   CHECK_EQ(arguments.size(), num_arguments());
   // We use the function call's arguments as op_executable's operands to avoid copy.
   for (int i = 0; i < num_arguments(); i++) {
-    AddValue(func_op_.getArgument(i), arguments[i]);
+    AddValue(region_->getArgument(i), arguments[i]);
   }
 
   // build the program
-  auto& blocks = func_op_.getBlocks();
+  auto& blocks = region_->getBlocks();
   CHECK_EQ(blocks.size(), 1UL) << "function with more than one block is not supported yet";
 
   llvm::SmallVector<Value*, 3> runtime_results;
@@ -44,8 +57,10 @@ void MlirFunctionExecutable::BuildExecutables(llvm::ArrayRef<Value*> arguments,
 
     llvm::SmallVector<mlir::Value, 3> mlir_results;
     if (EmitReturnOp(&op, &mlir_results)) {
-      for (auto v : mlir_results) {
-        runtime_results.push_back(GetValue(v));
+      if (!is_region) {
+        for (auto v : mlir_results) {
+          runtime_results.push_back(GetValue(v));
+        }
       }
       continue;
     }
@@ -59,8 +74,10 @@ void MlirFunctionExecutable::BuildExecutables(llvm::ArrayRef<Value*> arguments,
   // after the block is built, we can get the result values of the whole function call in the runtime_results.
 
   mlir::SmallVector<Value*, 3> results_copied;
-  for (ValueRef& x : results) {
-    results_copied.push_back(x.get());
+  if (!is_region) {
+    for (ValueRef& x : results) {
+      results_copied.push_back(x.get());
+    }
   }
 
   // set a lambda function to help copy the results from the runtime results in the local function to outer program.
@@ -74,15 +91,15 @@ void MlirFunctionExecutable::BuildExecutables(llvm::ArrayRef<Value*> arguments,
   };
 }
 
-void MlirFunctionExecutable::Execute(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results) const {
+void MlirFunctionExecutable::Execute(llvm::ArrayRef<Value*> arguments,
+                                     llvm::MutableArrayRef<ValueRef> results,
+                                     bool is_region) const {
   CHECK_EQ(arguments.size(), num_arguments());
   CHECK_EQ(results.size(), num_results());
 
   if (core_runtime_builder_.num_ops() == 0) {
-    const_cast<MlirFunctionExecutable*>(this)->BuildExecutables(arguments, results);
+    const_cast<MlirFunctionExecutable*>(this)->BuildExecutables(arguments, results, is_region);
   }
-
-  auto& func_op = *const_cast<mlir::FuncOp*>(&func_op_);
 
   const_cast<CoreRuntimeBuilder*>(&core_runtime_builder_)->Execute();
 

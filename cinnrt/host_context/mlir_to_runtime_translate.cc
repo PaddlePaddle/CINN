@@ -128,6 +128,12 @@ std::optional<double> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribu
   }
 }
 
+template <>
+std::optional<std::string> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::StringAttr>()) return std::nullopt;
+  return attr->cast<mlir::StringAttr>().getValue().str();
+}
+
 #define PROCESS_ARRAY_INT(type__, bits__)                                                                  \
   template <>                                                                                              \
   std::optional<std::vector<type__>> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) { \
@@ -178,7 +184,10 @@ std::optional<std::vector<double>> MlirToRuntimeTranslator::EmitAttribute(const 
   return res;
 }
 
+static bool IsReturn(mlir::Operation* op) { return op->getName().getStringRef() == "cinn.return"; }
+
 bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
+  auto loc = op->getLoc();
   CHECK(impl_->runtime);
   impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
 
@@ -240,6 +249,8 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
       impl_->cur_op->AppendAttribute(new Value(*v));
     } else if (auto v = EmitAttribute<double>(&attr.second)) {
       impl_->cur_op->AppendAttribute(new Value(*v));
+    } else if (auto v = EmitAttribute<std::string>(&attr.second)) {
+      impl_->cur_op->AppendAttribute(new Value(std::move(*v)));
     } else if (auto v = EmitAttribute<std::vector<int16_t>>(&attr.second)) {
       impl_->cur_op->AppendAttribute(new Value(std::move(*v)));
     } else if (auto v = EmitAttribute<std::vector<int32_t>>(&attr.second)) {
@@ -253,6 +264,29 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
     } else {
       LOG(FATAL) << "Not supported attribute type";
     }
+  }
+
+  // process regions, we treat regions as attribute.
+  auto num_regions = op->getNumRegions();
+  if (num_regions > 0) {
+    CHECK_EQ(num_regions, 1UL) << "op with more than one region is not supported yet.";
+    auto& region    = op->getRegions().front();
+    auto num_blocks = region.getBlocks().size();
+    CHECK_EQ(num_blocks, 1UL) << "region with more than one block is not supported yet.";
+
+    // process arguments
+    llvm::SmallVector<mlir::Type, 4> inputs;
+    auto& block = region.getBlocks().front();
+    for (auto arg : block.getArguments()) inputs.push_back(arg.getType());
+
+    // process results
+    // NOTE: if an op contains a region, we simply ignore the region's return values,
+    //       or its return values will conflict with op's return values.
+    llvm::SmallVector<mlir::Type, 0> results;
+
+    auto func_type = mlir::FunctionType::get(inputs, results, region.getContext());
+    auto* function = impl_->cur_op->CreateFunctionExecutable(&region, func_type, &impl_->func_defs);
+    impl_->cur_op->AppendAttribute(new Value(function));
   }
 
   return true;

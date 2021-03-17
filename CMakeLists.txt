@@ -91,6 +91,7 @@ add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER
         # MLIR td file generations
         ops_inc
         basic_kernels_inc
+        test_kernels_inc
         cinn_base_inc
         tensor_shape_inc
         dense_tensor_inc

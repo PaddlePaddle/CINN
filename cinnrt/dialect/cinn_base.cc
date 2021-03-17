@@ -2,6 +2,7 @@
 
 #include "cinnrt/dialect/basic_kernels.h"
 #include "cinnrt/dialect/dense_tensor.h"
+#include "cinnrt/dialect/test_kernels.h"
 
 namespace cinnrt::dialect {
 
@@ -12,11 +13,14 @@ void CINNDialect::initialize() {
 
   addTypes<cinnrt::dt::TensorType>();
 
-#define GET_OP_LIST
   addOperations<
+#define GET_OP_LIST
 #include "cinnrt/dialect/basic_kernels.cpp.inc"
       >();
-#undef GET_OP_LIST
+  addOperations<
+#define GET_OP_LIST
+#include "cinnrt/dialect/test_kernels.cpp.inc"
+      >();
 }
 
 mlir::Type CINNDialect::parseType(mlir::DialectAsmParser &parser) const {
