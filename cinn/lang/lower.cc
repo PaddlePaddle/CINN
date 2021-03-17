@@ -68,7 +68,7 @@ void InitReduceTensor(StageMap stages, const Tensor& tensor, const Target& targe
            !x->as_tensor()->IsReduceInited(stages);
   });
   for (auto& t : uninited_reduce_tensors) {
-    LOG(INFO) << "Init reduce tensor: " << t.as_tensor()->name;
+    VLOG(3) << "Init reduce tensor: " << t.as_tensor()->name;
     t.as_tensor()->InitReduction(stages, target);
   }
 }

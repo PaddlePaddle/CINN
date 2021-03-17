@@ -148,6 +148,54 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
         }
         CHECK_EQ(instr->attrs.size(), 18UL);
+      } else if (node->op()->name == "pool2d") {
+        auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+        for (auto& in_node : node->inlinks_in_order()) {
+          std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+          auto in_shape     = shape_dict.at(in_id);
+          CHECK_EQ(in_shape.size(), 4UL);
+          instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+        }
+        bool global_pooling = false;
+        if (node->attrs.attr_store.find("global_pooling") != node->attrs.attr_store.end()) {
+          global_pooling = std::get<bool>(node->attrs.attr_store.at("global_pooling"));
+        }
+        if (node->attrs.attr_store.find("kernel_size") != node->attrs.attr_store.end()) {
+          if (global_pooling == false) {
+            auto padding = std::get<std::vector<int>>(node->attrs.attr_store.at("kernel_size"));
+            instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
+          } else {
+            instr->attrs.push_back(instr->attrs[2]);
+            instr->attrs.push_back(instr->attrs[3]);
+          }
+        }
+        if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
+          if (global_pooling == false) {
+            auto stride = std::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
+            instr->attrs.insert(instr->attrs.end(), stride.begin(), stride.end());
+          } else {
+            instr->attrs.push_back(0);
+            instr->attrs.push_back(0);
+            instr->attrs.push_back(0);
+            instr->attrs.push_back(0);
+          }
+        }
+        if (node->attrs.attr_store.find("stride_size") != node->attrs.attr_store.end()) {
+          auto dilation = std::get<std::vector<int>>(node->attrs.attr_store.at("stride_size"));
+          instr->attrs.insert(instr->attrs.end(), dilation.begin(), dilation.end());
+        }
+        if (node->attrs.attr_store.find("pool_type") != node->attrs.attr_store.end()) {
+          auto pool_type = std::get<std::string>(node->attrs.attr_store.at("pool_type"));
+          instr->str_attrs.push_back(pool_type);
+        }
+
+        for (auto& out_node : node->outlinks_in_order()) {
+          std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+          auto out_shape     = shape_dict.at(out_id);
+          instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
+        }
+        CHECK_EQ(instr->attrs.size(), 16UL);
+        CHECK_EQ(instr->str_attrs.size(), 1UL);
       }
       auto* fn = compiler_->Lookup(GenOpFuncName(node));
       CHECK(fn);

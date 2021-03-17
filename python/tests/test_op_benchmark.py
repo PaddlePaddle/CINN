@@ -36,7 +36,7 @@ class TestBenchmark(unittest.TestCase):
             np.random.random([512, 512, 3, 3]).astype("float32")
         ]
         result = prog.test_benchmark(
-            self.target, [a, b], tensor_data, c, 200,
+            self.target, [a, b], tensor_data, c, 2000,
             "TESTING [conv2d] time cost with shape [2,512,7,7]...")
 
     def atest_softmax(self):
@@ -61,7 +61,7 @@ class TestBenchmark(unittest.TestCase):
             self.target, [a, b], tensor_data, c, 200,
             "TESTING [matmul] time cost with shape [512,512]...")
 
-    def test_matmul1(self):
+    def atest_matmul1(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([128, 512])
         b = Variable("B").set_type(Float(32)).set_shape([256, 512])
@@ -76,7 +76,7 @@ class TestBenchmark(unittest.TestCase):
             self.target, [a, b, c], tensor_data, d, 200,
             "TESTING [mulbias] time cost with shape [128,512]*[256,512]...")
 
-    def test_matmul2(self):
+    def atest_matmul2(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([128, 512])
         b = Variable("B").set_type(Float(32)).set_shape([256, 512])
@@ -93,7 +93,7 @@ class TestBenchmark(unittest.TestCase):
             "TESTING [mul and add] time cost with shape [128,512]*[256,512]..."
         )
 
-    def test_matmul(self):
+    def atest_matmul(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([512, 512])
         b = Variable("B").set_type(Float(32)).set_shape([512, 512])
@@ -147,18 +147,19 @@ typedef char int8_t;
  }
  }''')
 
-    def atest_pool2d(self):
+    def test_pool2d(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([2, 64, 112, 112])
         c = prog.pool2d(
             a, {
                 "kernel_size": (3, 3),
                 "stride_size": (2, 2),
-                "padding_size": (1, 1, 1, 1)
+                "padding_size": (1, 1, 1, 1),
+                "pool_type": "max"
             })
         tensor_data = [np.random.random([2, 64, 112, 112]).astype("float32")]
         result = prog.test_benchmark(
-            self.target, [a], tensor_data, c, 200,
+            self.target, [a], tensor_data, c, 2000,
             "TESTING [pool2d] time cost with shape [2, 64, 112, 112]...")
 
     def atest_elementwise1(self):
@@ -180,7 +181,7 @@ typedef char int8_t;
                 result,
                 atol=1e-4))
 
-    def test_elementwise2(self):
+    def atest_elementwise2(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([2, 512, 112, 112])
         b = Variable("B").set_type(Float(32)).set_shape([2, 512, 112, 112])
@@ -223,7 +224,7 @@ void fn_elementwise_add_0_kernel(const float* __restrict__ A, const float* __res
 
 }''')
 
-    def test_batchnorm(self):
+    def atest_batchnorm(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([2, 512, 32, 32])
         b = Variable("B").set_type(Float(32)).set_shape([512])
@@ -261,7 +262,7 @@ void fn_elementwise_add_0_kernel(const float* __restrict__ A, const float* __res
             self.target, [a, b, c, d, e], tensor_data, f, 200,
             "TESTING [batchnorm] time cost with shape [2, 64, 8, 8]...")
 
-    def test_relu3(self):
+    def atest_relu3(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([2, 512, 112, 112])
         c = prog.relu(a)
@@ -270,7 +271,7 @@ void fn_elementwise_add_0_kernel(const float* __restrict__ A, const float* __res
             self.target, [a], tensor_data, c, 200,
             "TESTING [relu] time cost with shape [2,512,112,112]...")
 
-    def test_relu(self):
+    def atest_relu(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([64, 64])
         c = prog.sigmoid(a)
@@ -279,7 +280,7 @@ void fn_elementwise_add_0_kernel(const float* __restrict__ A, const float* __res
             self.target, [a], tensor_data, c, 200,
             "TESTING [sigmoid] time cost with shape [64,64]...")
 
-    def test_relu2(self):
+    def atest_relu2(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([2, 512, 112, 112])
         c = prog.sigmoid(a)

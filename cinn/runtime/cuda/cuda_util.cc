@@ -116,24 +116,13 @@ void cinn_gpu_cudnn_conv2d(int input_n,
   CUDNN_CALL(cudnnSetConvolution2dDescriptor(
       conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CONVOLUTION, CUDNN_DATA_FLOAT));
 
-  int out_n;
-  int out_c;
-  int out_h;
-  int out_w;
-
-  CUDNN_CALL(cudnnGetConvolution2dForwardOutputDim(conv_desc, in_desc, filt_desc, &out_n, &out_c, &out_h, &out_w));
   cudnnTensorDescriptor_t out_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&out_desc));
-  CUDNN_CALL(cudnnSetTensor4dDescriptor(out_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, out_n, out_c, out_h, out_w));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(
+      out_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   float *out_data = reinterpret_cast<float *>(output->memory);
 
-  /*     cudnnConvolutionFwdAlgoPerf_t perf_algo;
-      int returnedAlgoCount;
-      CUDNN_CALL(cudnnFindConvolutionForwardAlgorithm(
-          cudnn, in_desc, filt_desc, conv_desc, out_desc, 1, &returnedAlgoCount, &perf_algo));
-      cudnnConvolutionFwdAlgo_t algo = perf_algo.algo;
-      LOG(INFO) << "The ConvolutionFwdAlgo is : "<<algo; */
   cudnnConvolutionFwdAlgo_t algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
   size_t ws_size;
   CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(cudnn, in_desc, filt_desc, conv_desc, out_desc, algo, &ws_size));
@@ -160,6 +149,67 @@ void cinn_gpu_cudnn_conv2d(int input_n,
   CUDNN_CALL(cudnnDestroyConvolutionDescriptor(conv_desc));
   CUDNN_CALL(cudnnDestroyFilterDescriptor(filt_desc));
   CUDNN_CALL(cudnnDestroyTensorDescriptor(in_desc));
+}
+
+void cinn_gpu_cudnn_pool2d(int input_n,
+                           int input_c,
+                           int input_h,
+                           int input_w,
+                           const std::string &pool_type,
+                           int kernel_h,
+                           int kernel_w,
+                           int pad_h,
+                           int pad_w,
+                           int stride_h,
+                           int stride_w,
+                           int output_n,
+                           int output_c,
+                           int output_h,
+                           int output_w,
+                           cinn_buffer_t *input,
+                           cinn_buffer_t *output) {
+  cudnnHandle_t &cudnn = CudnnHandle::get_instance().GetCudnnHandle();
+
+  cudnnPoolingDescriptor_t pooling_desc;
+
+  CUDNN_CALL(cudnnCreatePoolingDescriptor(&pooling_desc));
+  cudnnPoolingMode_t pool_mode;
+  if (pool_type == "max") {
+    pool_mode = CUDNN_POOLING_MAX;
+  } else if (pool_type == "avg") {
+    pool_mode = CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+  } else {
+    LOG(ERROR) << "Unrecognized pool_type: " << pool_type;
+  }
+
+  CUDNN_CALL(cudnnSetPooling2dDescriptor(
+      pooling_desc, pool_mode, CUDNN_NOT_PROPAGATE_NAN, kernel_h, kernel_w, pad_h, pad_w, stride_h, stride_w));
+
+  cudnnTensorDescriptor_t in_desc;
+
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&in_desc));
+
+  CUDNN_CALL(
+      cudnnSetTensor4dDescriptor(in_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+
+  cudnnTensorDescriptor_t out_desc;
+
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&out_desc));
+
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(
+      out_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
+
+  float alpha = 1.0f;
+  float beta  = 0.0f;
+
+  float *in_data  = reinterpret_cast<float *>(input->memory);
+  float *out_data = reinterpret_cast<float *>(output->memory);
+
+  CUDNN_CALL(cudnnPoolingForward(cudnn, pooling_desc, &alpha, in_desc, in_data, &beta, out_desc, out_data));
+
+  cudnnDestroyTensorDescriptor(in_desc);
+  cudnnDestroyTensorDescriptor(out_desc);
+  cudnnDestroyPoolingDescriptor(pooling_desc);
 }
 
 }  // namespace cuda
