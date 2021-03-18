@@ -3,6 +3,7 @@
 #include <cassert>
 #include <chrono>
 #include <ctime>
+#include <iomanip>
 #include <iostream>
 #include <string>
 
@@ -29,8 +30,8 @@ class BenchmarkStats {
   void StartRun() {
     ++cur_count_;
     // Start recording CPU time.
-    cur_start_cpu_      = std::clock();
     cur_start_walltime_ = std::chrono::steady_clock::now();
+    cur_start_cpu_      = std::clock();
   }
 
   void StopRun() {
@@ -38,11 +39,11 @@ class BenchmarkStats {
     // period.
     if (cur_count_ <= num_warmup_runs_) return;
 
-    // Stop the wall clock timer.
-    auto cur_stop_walltime_ = std::chrono::steady_clock::now();
-
     // Stop the CPU timer.
     std::clock_t cur_stop_cpu_ = std::clock();
+
+    // Stop the wall clock timer.
+    auto cur_stop_walltime_ = std::chrono::steady_clock::now();
 
     // Collect the wall clock duration.
     auto duration_walltime_ = cur_stop_walltime_ - cur_start_walltime_;
@@ -80,14 +81,17 @@ class BenchmarkStats {
     llvm::raw_string_ostream(prefix) << "BM:" << name_ << ':';
     auto cpu_utilization = total_duration_cpu_.count() * 100.0 / total_duration_walltime_.count();
 
-    llvm::outs() << prefix << "Duration(ns): " << total_duration_walltime_.count() << '\n';
     llvm::outs() << prefix << "Count: " << run_times_walltime_.size() << '\n';
+    llvm::outs() << prefix << "Duration(ns): " << total_duration_walltime_.count() << '\n';
     llvm::outs() << prefix << "Time Min(ns): " << run_times_walltime_.front().count() << '\n';
+    llvm::outs() << prefix << "Time Max(ns): " << run_times_walltime_.back().count() << '\n';
     llvm::outs() << prefix << "Time 50%(ns): " << percentile(0.5, run_times_walltime_).count() << '\n';
     llvm::outs() << prefix << "Time 95%(ns): " << percentile(0.95, run_times_walltime_).count() << '\n';
     llvm::outs() << prefix << "Time 99%(ns): " << percentile(0.99, run_times_walltime_).count() << '\n';
     // Log CPU time statistics.
+    llvm::outs() << prefix << "CPU Duration(ns): " << total_duration_cpu_.count() << '\n';
     llvm::outs() << prefix << "CPU Min(ns): " << run_times_cpu_.front().count() << '\n';
+    llvm::outs() << prefix << "CPU Max(ns): " << run_times_cpu_.back().count() << '\n';
     llvm::outs() << prefix << "CPU 50%(ns): " << percentile(0.5, run_times_cpu_).count() << '\n';
     llvm::outs() << prefix << "CPU 95%(ns): " << percentile(0.95, run_times_cpu_).count() << '\n';
     llvm::outs() << prefix << "CPU 99%(ns): " << percentile(0.99, run_times_cpu_).count() << '\n';
