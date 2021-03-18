@@ -1,7 +1,7 @@
 // CHECK-LABEL: @benchmark
 func @benchmark() {
-  // CHECK-LABEL: BM:add.f32:Duration(ns)
   // CHECK-LABEL: BM:add.f32:Count: 3
+  // CHECK-LABEL: BM:add.f32:Duration(ns)
   // CHECK-LABEL: BM:add.f32:Time Min(ns)
   // CHECK-LABEL: BM:add.f32:Time 50%(ns)
   // CHECK-LABEL: BM:add.f32:Time 95%(ns)
