@@ -28,10 +28,12 @@
     CHECK(e == cudaSuccess || e == cudaErrorCudartUnloading) << "CUDA: " << cudaGetErrorString(e); \
   }
 
-#define CUDNN_CALL(f) { \
-  cudnnStatus_t err = (f); \
-  CHECK(err == CUDNN_STATUS_SUCCESS) << "    Error occurred: " << err << std::endl; \
-}
+#define CUDNN_CALL(f)                                                                                       \
+  {                                                                                                         \
+    cudnnStatus_t err = (f);                                                                                \
+    CHECK(err == CUDNN_STATUS_SUCCESS) << "    Error occurred: " << cudnnGetErrorString(err) << " on line " \
+                                       << __LINE__ << std::endl;                                            \
+  }
 
 #define NVRTC_CALL(x)                                                                         \
   {                                                                                           \

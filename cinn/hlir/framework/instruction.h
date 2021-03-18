@@ -74,6 +74,24 @@ class Instruction {
                                            pod_args[0],
                                            pod_args[1],
                                            pod_args[2]);
+    } else if (function_name_ == "pool2d" && target_.arch == Target::Arch::NVGPU) {
+      runtime::cuda::cinn_gpu_cudnn_pool2d(attrs[0],
+                                           attrs[1],
+                                           attrs[2],
+                                           attrs[3],
+                                           str_attrs[0],
+                                           attrs[4],
+                                           attrs[5],
+                                           attrs[6],
+                                           attrs[8],
+                                           attrs[10],
+                                           attrs[11],
+                                           attrs[12],
+                                           attrs[13],
+                                           attrs[14],
+                                           attrs[15],
+                                           pod_args[0],
+                                           pod_args[1]);
     } else {
       fn_(pod_args.data(), pod_args.size());
     }
@@ -84,6 +102,7 @@ class Instruction {
   std::vector<std::string> GetInArgs() { return in_args_; }
   std::vector<std::string> GetOutArgs() { return out_args_; }
   std::vector<int> attrs;
+  std::vector<std::string> str_attrs;
   Target target_;
 
  protected:

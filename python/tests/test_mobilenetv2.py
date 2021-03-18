@@ -54,13 +54,24 @@ class TestLoadResnetModel(unittest.TestCase):
         print("load_paddle_model time is: %.3f sec" % (end1 - start))
         a_t = self.executor.get_tensor(self.input_tensor)
         a_t.from_numpy(x_data, self.target)
-
         out = self.executor.get_tensor(self.target_tensor)
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
-
-        self.executor.run()
         end2 = time.time()
-        print("executor.run() time is: %.3f sec" % (end2 - end1))
+        self.executor.run()
+        end3 = time.time()
+        print("Preheat executor.run() time is: %.3f sec" % (end3 - end2))
+
+        end4 = time.perf_counter()
+        repeat = 1000
+        for i in range(repeat):
+            self.executor.run()
+        end5 = time.perf_counter()
+        print("Repeat %d times, average Executor.run() time is: %.3f ms" %
+              (repeat, end5 - end4))
+
+        a_t.from_numpy(x_data, self.target)
+        out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
+        self.executor.run()
 
         out = out.numpy(self.target)
         target_result = self.get_paddle_inference_result(
