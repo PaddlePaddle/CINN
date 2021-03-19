@@ -5,6 +5,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/optim/ir_copy.h"
+#include "cinn/optim/replace_const_param_to_integer.h"
 
 namespace cinn {
 namespace optim {
@@ -86,6 +87,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         prod = ir::Mul::Make(prod, i);
       }
       prod = ir::Div::Make(prod, extent_);
+      ReplaceConstParamToInteger(&prod);
       std::vector<Expr> new_shape{prod};
       (*global_tensor_map_)[tensor_name]->buffer->shape = new_shape;
       resized_buffer_.insert(buffer_id);

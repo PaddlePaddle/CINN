@@ -212,6 +212,44 @@ void cinn_gpu_cudnn_pool2d(int input_n,
   cudnnDestroyPoolingDescriptor(pooling_desc);
 }
 
+void cinn_gpu_cudnn_softmax(const std::vector<int> &attrs, cinn_buffer_t *input, cinn_buffer_t *output) {
+  std::vector<int> shape;
+  int rank = attrs.size() - 1;
+  for (int i = 0; i < rank; i++) {
+    shape.push_back(attrs[i]);
+  }
+  int axis = attrs.back();
+  axis     = axis < 0 ? rank + axis : axis;
+  if (shape.size() <= 2) {
+    shape.resize(4, 1);
+  }
+  rank = shape.size();
+
+  cudnnHandle_t &cudnn = CudnnHandle::get_instance().GetCudnnHandle();
+  float *in_data       = reinterpret_cast<float *>(input->memory);
+  float *out_data      = reinterpret_cast<float *>(output->memory);
+
+  cudnnSoftmaxMode_t mode = axis == rank - 1 ? CUDNN_SOFTMAX_MODE_INSTANCE : CUDNN_SOFTMAX_MODE_CHANNEL;
+  cudnnTensorDescriptor_t in_desc;
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&in_desc));
+  CUDNN_CALL(
+      cudnnSetTensor4dDescriptor(in_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, shape[0], shape[1], shape[2], shape[3]));
+
+  cudnnTensorDescriptor_t out_desc;
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&out_desc));
+  CUDNN_CALL(cudnnSetTensor4dDescriptor(
+      out_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, shape[0], shape[1], shape[2], shape[3]));
+
+  float alpha = 1.f;
+  float beta  = 0.f;
+
+  CUDNN_CALL(
+      cudnnSoftmaxForward(cudnn, CUDNN_SOFTMAX_ACCURATE, mode, &alpha, in_desc, in_data, &beta, out_desc, out_data));
+
+  cudnnDestroyTensorDescriptor(in_desc);
+  cudnnDestroyTensorDescriptor(out_desc);
+}
+
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn

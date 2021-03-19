@@ -1745,5 +1745,25 @@ TEST(Cudnn, external_function_cudnn2) {
       2, 64, 112, 112, "max", 3, 3, 1, 1, 2, 2, 2, 64, 56, 56, dev_bufs[0], dev_bufs[1]);
 }
 
+TEST(Cudnn, external_function_cudnn3) {
+  Context::Global().ResetNameId();
+
+  common::CudaModuleTester tester;
+
+  auto* A_host        = common::BufferBuilder(Float(32), {2, 1000}).set_random().Build();
+  auto* B_host        = common::BufferBuilder(Float(32), {2, 1000}).set_random().Build();
+  auto* C_target_host = common::BufferBuilder(Float(32), {2, 1000}).set_zero().Build();
+
+  auto* A_dev = tester.CreateDeviceBuffer(A_host);
+  auto* B_dev = tester.CreateDeviceBuffer(B_host);
+
+  cinn_buffer_t* dev_bufs[2];
+  for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+
+  runtime::cuda::cinn_gpu_cudnn_softmax({2, 1000, -1}, dev_bufs[0], dev_bufs[1]);
+}
+
 }  // namespace backends
 }  // namespace cinn
