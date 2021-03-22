@@ -87,6 +87,8 @@ void cinn_gpu_cudnn_pool2d(int input_n,
                            int output_w,
                            cinn_buffer_t* input,
                            cinn_buffer_t* output);
+
+void cinn_gpu_cudnn_softmax(const std::vector<int>& attrs, cinn_buffer_t* input, cinn_buffer_t* output);
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn

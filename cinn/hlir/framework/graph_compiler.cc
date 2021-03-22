@@ -196,6 +196,17 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
         }
         CHECK_EQ(instr->attrs.size(), 16UL);
         CHECK_EQ(instr->str_attrs.size(), 1UL);
+      } else if (node->op()->name == "softmax") {
+        auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+        for (auto& in_node : node->inlinks_in_order()) {
+          std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+          auto in_shape     = shape_dict.at(in_id);
+          instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+        }
+        if (node->attrs.attr_store.find("axis") != node->attrs.attr_store.end()) {
+          auto axis = std::get<int>(node->attrs.attr_store.at("axis"));
+          instr->attrs.push_back(axis);
+        }
       }
       auto* fn = compiler_->Lookup(GenOpFuncName(node));
       CHECK(fn);
