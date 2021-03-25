@@ -1081,15 +1081,31 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     Expr A_expr = a[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
+    auto stages  = CreateStages({A});
     int new_axis = axis;
     if (axis == -1) {
       new_axis = A->shape.size() - 1;
     }
-    auto out    = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
-    auto stages = CreateStages(out);
+    std::vector<ir::Tensor> out;
+    bool use_mkldnn = false;
+#ifdef CINN_WITH_MKLDNN
+    use_mkldnn = true;
+#endif
+    use_mkldnn = use_mkldnn && (target.arch == Target::Arch::X86);
+    if (use_mkldnn) {
+      out = pe::SoftmaxMKLDNN(A, new_axis, UniqName("Softmax_mkldnn_output"));
+    } else {
+      out = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
+    }
+    std::vector<CINNValue> res;
+    for (auto &t : out) {
+      stages->InsertLazily(t);
+      res.push_back(CINNValue(t));
+    }
     CHECK_EQ(out.size(), 2U) << "The size of pe::Softmax's output should be 2.";
     CHECK(!out_type.empty()) << "Output type of Softmax is empty! Please check.\n";
-    *ret = CINNValuePack{{CINNValue(out[0]), CINNValue(out[1]), CINNValue(stages)}};
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
   });
 
   framework::CINNSchedule softmax_schedule([=](lang::Args args, lang::RetValue *ret) {
@@ -1115,7 +1131,7 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
         stages[tensor_b]->Bind(0, "blockIdx.x");
         stages[tensor_b]->Bind(1, "threadIdx.x");
       }
-      stages[tensor_a]->SyncThreads({tensor_b}, stages);
+      stages[tensor_b]->SyncThreads({tensor_a}, stages);
     }
     *ret = arg_pack;
   });

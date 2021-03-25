@@ -228,6 +228,10 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A,
                                 int axis                       = -1,
                                 const std::string &output_name = UniqName("T_softmax_out"));
 
+std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A,
+                                      int axis                       = -1,
+                                      const std::string &output_name = UniqName("T_softmax_out"));
+
 ir::Tensor Slice(const ir::Tensor &A,
                  const std::vector<int> &starts,
                  const std::vector<int> &axes,
