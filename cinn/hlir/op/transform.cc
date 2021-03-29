@@ -338,12 +338,6 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     }
     CHECK(!out_type.empty()) << "Output type of Mul is empty! Please check.\n";
 
-    if (target.arch == Target::Arch::NVGPU) {
-      std::vector<ir::Tensor> readers{out};
-      auto BB = stages[new_B]->CacheRead2("local", readers, stages);
-      stages[BB]->Split(0, 2);
-      stages[BB]->Bind(0, "threadIdx.x");
-    }
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
   });

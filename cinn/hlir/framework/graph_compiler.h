@@ -38,23 +38,13 @@ class Program {
    */
   void Execute() {
     for (auto& ins : instrs_) {
-      auto in_args  = ins->GetInArgs();
-      auto out_args = ins->GetOutArgs();
-      VLOG(3) << "Op in args: ";
-      for (auto& in : in_args) {
-        VLOG(3) << in << " ";
-      }
-      VLOG(3) << "Op out args: ";
-      for (auto& out : out_args) {
-        VLOG(3) << out << " ";
-      }
       ins->Run();
-#ifdef CINN_WITH_CUDA
-      if (ins->target_.arch == Target::Arch::NVGPU) {
-        CUDA_CALL(cudaDeviceSynchronize());
-      }
-#endif
     }
+#ifdef CINN_WITH_CUDA
+    if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+      CUDA_CALL(cudaDeviceSynchronize());
+    }
+#endif
   }
 
   void ExecuteTest(int repeat_) {

@@ -26,6 +26,10 @@ CudnnHandle::~CudnnHandle() {
   }
 }
 
+CublasHandle::CublasHandle() { cublasCreate(&cublas); }
+
+CublasHandle::~CublasHandle() { cublasDestroy(cublas); }
+
 float *CudnnHandle::GetWorkSpace(size_t size) {
   if (size_ >= size) {
     return work_space;
@@ -37,6 +41,27 @@ float *CudnnHandle::GetWorkSpace(size_t size) {
     size_ = size;
     return work_space;
   }
+}
+
+void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
+                         cinn_buffer_t *input1,
+                         cinn_buffer_t *input2,
+                         cinn_buffer_t *output) {
+  cublasHandle_t &cublas = CublasHandle::get_instance().GetCublasHandle();
+  float *x_data          = reinterpret_cast<float *>(input1->memory);
+  float *y_data          = reinterpret_cast<float *>(input2->memory);
+  float *out_data        = reinterpret_cast<float *>(output->memory);
+  int M                  = 1;
+  CHECK(attrs.size() >= 6);
+  for (int i = 0; i < attrs[attrs.size() - 2]; i++) {
+    M *= attrs[i];
+  }
+  int N       = attrs[attrs.size() - 3];
+  int K       = attrs[attrs.size() - 4];
+  float alpha = 1.f;
+  float beta  = 0.f;
+  // M,N * N,K
+  cublasSgemm(cublas, CUBLAS_OP_N, CUBLAS_OP_N, K, M, N, &alpha, y_data, K, x_data, N, &beta, out_data, K);
 }
 
 void cinn_call_cuda_kernel(void *kernel_fn,
@@ -70,7 +95,6 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                                   static_cast<CUstream>(stream),
                                   reinterpret_cast<void **>(arr),
                                   nullptr))
-  // CUDA_CALL(cudaDeviceSynchronize());
 }
 
 void cinn_gpu_cudnn_conv2d(int input_n,

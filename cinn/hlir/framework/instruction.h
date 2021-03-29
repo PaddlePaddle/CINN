@@ -95,6 +95,9 @@ class Instruction {
     } else if (function_name_ == "softmax" && target_.arch == Target::Arch::NVGPU) {
       CHECK_EQ(pod_args.size(), 3);
       runtime::cuda::cinn_gpu_cudnn_softmax(attrs, pod_args[0], pod_args[1]);
+    } else if (function_name_ == "mul" && target_.arch == Target::Arch::NVGPU) {
+      CHECK_EQ(pod_args.size(), 4);
+      runtime::cuda::cinn_gpu_cublas_mul(attrs, pod_args[0], pod_args[1], pod_args[2]);
     } else {
       fn_(pod_args.data(), pod_args.size());
     }

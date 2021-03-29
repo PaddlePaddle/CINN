@@ -82,18 +82,18 @@ std::vector<float> CudaGetData(const Tensor& tensor, const Target& target) {
 TEST(GraphCompiler, RunModel) {
   using attr_t = hlir::framework::AttrType;
   frontend::Program prog;
-  Expr M(4);
+  Expr M(30);
   Expr K(30);
   Expr N(30);
   frontend::Variable a("A");
   frontend::Variable b("B");
   Type t   = Float(32);
-  a->shape = {M.as_int32(), K.as_int32()};
+  a->shape = {M.as_int32(), K.as_int32(), 1, 1};
   b->shape = {N.as_int32(), K.as_int32()};
   a->type  = t;
   b->type  = t;
   auto c   = prog.mul(a, b);
-  auto d   = prog.add(c, a);  // N must = K
+  auto d   = prog.add(c, b);  // N must = K
   auto e   = prog.relu(d);
   std::unordered_map<std::string, attr_t> attr_store;
   attr_store["scale"] = 2.0f;

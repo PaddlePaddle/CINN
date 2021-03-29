@@ -414,17 +414,7 @@ void PaddleModelToProgram::TransposeVar(const std::string& name) {
       TransposeData(data, tensor->shape().data()[0], tensor->shape().data()[1]);
     } else if (target_.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
-      std::vector<float> data(tensor->shape().numel());
-      CUDA_CALL(cudaMemcpy(data.data(),
-                           reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
-                           tensor->shape().numel() * sizeof(float),
-                           cudaMemcpyDeviceToHost));
-      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
-      TransposeData(data.data(), tensor->shape().data()[0], tensor->shape().data()[1]);
-      CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
-                           data.data(),
-                           tensor->shape().numel() * sizeof(float),
-                           cudaMemcpyHostToDevice));
+      // To use cublas mul api, there is no need to transpose data.
 #else
       LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
 #endif
@@ -438,7 +428,7 @@ void PaddleModelToProgram::TransposeVar(const std::string& name) {
     std::reverse(reverse_shape.begin(), reverse_shape.end());
     tensor->shape().SetData(reverse_shape);
     var->shape = tensor->shape().data();
-    // TODO(Superjomn) Make this determined by model.
+    // TODO(Superjomn) Make this determ ined by model.
     var->type = Float(32);
     AddVar(name, var, true);
   } else {

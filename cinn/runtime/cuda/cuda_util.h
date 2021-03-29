@@ -5,12 +5,28 @@
 #include <string>
 
 #include "cinn/runtime/cinn_runtime.h"
+#include "cublas_v2.h"
 
 namespace cinn {
 namespace runtime {
 namespace cuda {
 
 const int kCUDAMaxCards{10};
+class CublasHandle {
+ public:
+  ~CublasHandle();
+  CublasHandle(const CublasHandle&) = delete;
+  CublasHandle& operator=(const CublasHandle&) = delete;
+  static CublasHandle& get_instance() {
+    static CublasHandle instance;
+    return instance;
+  }
+  cublasHandle_t& GetCublasHandle() { return cublas; }
+
+ private:
+  CublasHandle();
+  cublasHandle_t cublas;
+};
 
 class CudnnHandle {
  public:
@@ -89,6 +105,11 @@ void cinn_gpu_cudnn_pool2d(int input_n,
                            cinn_buffer_t* output);
 
 void cinn_gpu_cudnn_softmax(const std::vector<int>& attrs, cinn_buffer_t* input, cinn_buffer_t* output);
+
+void cinn_gpu_cublas_mul(const std::vector<int>& attrs,
+                         cinn_buffer_t* input1,
+                         cinn_buffer_t* input2,
+                         cinn_buffer_t* output);
 }  // namespace cuda
 }  // namespace runtime
 }  // namespace cinn
