@@ -58,6 +58,7 @@ std::vector<Type> type2 = {Int(32)};
 std::vector<Type> type3 = {Bool()};
 std::vector<Type> type4 = {Float(32), Float(32), Float(32), Float(32), Float(32)};
 std::vector<Type> type5 = {Int(32), Int(32)};
+std::vector<Type> type6 = {Float(32), Void()};
 // add
 std::vector<std::vector<int>> shapes_add = {{1024, 1024, 1024}, {1024, 1024, 1024}};
 TEST_DEFAULT(elementwise_add, add, type1, type)
@@ -112,11 +113,11 @@ std::vector<int> stride_conv2d({1, 1});
 std::vector<int> dilation_conv2d({1, 1});
 std::unordered_map<std::string, AttrType> attr_store_conv2d = {
     {"padding", padding_conv2d}, {"stride", stride_conv2d}, {"dilation", dilation_conv2d}};
-TEST_DEFAULT1(conv2d, conv2d_nchw, type1, type, attr_store_conv2d)
+TEST_DEFAULT1(conv2d, conv2d_nchw, type1, type6, attr_store_conv2d)
 std::vector<std::vector<int>> shapes_conv2d_nchw1 = {{2, 1024, 14, 14}, {256, 1024, 1, 1}};
-TEST_DEFAULT1(conv2d, conv2d_nchw1, type1, type, attr_store_conv2d)
+TEST_DEFAULT1(conv2d, conv2d_nchw1, type1, type6, attr_store_conv2d)
 std::vector<std::vector<int>> shapes_conv2d_nchw2 = {{8, 32, 1, 1}, {8, 32, 1, 1}};
-TEST_DEFAULT1(conv2d, conv2d_nchw2, type1, type, attr_store_conv2d)
+TEST_DEFAULT1(conv2d, conv2d_nchw2, type1, type6, attr_store_conv2d)
 
 // depthwise_conv2d nchw
 std::vector<std::vector<int>> shapes_depthwise_conv2d_nchw            = {{2, 32, 112, 112}, {32, 1, 3, 3}};
@@ -146,9 +147,9 @@ TEST_DEFAULT1(pool2d, pool2d1, type, type, attr_store_pool2d)
 
 // softmax
 std::vector<std::vector<int>> shapes_softmax = {{1024, 2048}};
-TEST_DEFAULT(softmax, softmax, type, type1)
+TEST_DEFAULT(softmax, softmax, type, type6)
 std::vector<std::vector<int>> shapes_softmax1 = {{3, 1000}};
-TEST_DEFAULT(softmax, softmax1, type, type1)
+TEST_DEFAULT(softmax, softmax1, type, type6)
 
 // sigmoid
 std::vector<std::vector<int>> shapes_sigmoid = {{2, 672, 1, 1}};

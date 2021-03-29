@@ -145,7 +145,7 @@ std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
       UniqName("conv2d_nchw_mkldnn_out"));
   auto out = call->TupleGet(0);
   out->WithBuffer(input->type());
-  return {call, out};
+  return {out, call};
 }
 
 std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
@@ -363,7 +363,36 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
         return lang::Exp(A(indice)) / temp(new_indice);
       },
       UniqName("softmax_out"));
-  return {temp, out};
+  return {out, temp};
+}
+
+std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A, int axis, const std::string &output_name) {
+  CHECK_LE(A->shape.size(), 4U) << "Input's dimension of mkldnn softmax op is less than 4! Please check.";
+  if (axis == -1) {
+    axis = A->shape.size() - 1;
+  }
+  auto shape = A->shape;
+  for (size_t i = shape.size(); i < 4; i++) {
+    shape.push_back(Expr(1));
+  }
+
+  auto call = Compute(
+      {Expr(1)},
+      [=]() -> Expr {
+        return lang::CallExtern("cinn_cpu_mkldnn_softmax_fp32",
+                                {
+                                    shape[0],    // batch_size
+                                    shape[1],    // c_in
+                                    shape[2],    // h
+                                    shape[3],    // w
+                                    Expr(axis),  // axis
+                                    A,           // input
+                                });
+      },
+      UniqName("softmax_mkldnn_out"));
+  auto out = call->TupleGet(0);
+  out->WithBuffer(A->type());
+  return {out, call};
 }
 
 ir::Tensor Slice(const ir::Tensor &A,

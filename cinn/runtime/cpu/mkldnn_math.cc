@@ -10,6 +10,42 @@ using mkldnn::memory;
 using tag = memory::format_tag;
 using dt  = memory::data_type;
 
+void cinn_cpu_mkldnn_softmax_fp32(
+    int batch, int channel, int h, int w, int axis, cinn_buffer_t* inputs, cinn_buffer_t* out) {
+  auto engine = mkldnn::engine(mkldnn::engine::kind::cpu, 0);
+  mkldnn::stream engine_stream(engine);
+
+  memory::dims src_dims = {batch, channel};
+  if (h != 1) src_dims.push_back(h);
+  if (w != 1) src_dims.push_back(w);
+  int size        = src_dims.size();
+  auto format_tag = tag::nc;
+  switch (size) {
+    case 2:
+      format_tag = tag::ab;
+      break;
+    case 3:
+      format_tag = tag::abc;
+      break;
+    case 4:
+      format_tag = tag::abcd;
+      break;
+    default:
+      LOG(FATAL) << "wrong dim: " << size;
+      break;
+  }
+
+  auto src_md       = memory::desc(src_dims, dt::f32, format_tag);
+  auto src_mem      = memory(src_md, engine, reinterpret_cast<float*>(inputs->memory));
+  auto dst_mem      = memory(src_md, engine, reinterpret_cast<float*>(out->memory));
+  auto softmax_d    = mkldnn::softmax_forward::desc(mkldnn::prop_kind::forward_inference, src_md, axis);
+  auto softmax_pd   = mkldnn::softmax_forward::primitive_desc(softmax_d, engine);
+  auto softmax_prim = mkldnn::softmax_forward(softmax_pd);
+
+  softmax_prim.execute(engine_stream, {{DNNL_ARG_SRC, src_mem}, {DNNL_ARG_DST, dst_mem}});
+  engine_stream.wait();
+}
+
 void cinn_cpu_mkldnn_conv2d_nchw_fp32(int batch_size,
                                       int c_in,
                                       int input_h,
@@ -136,6 +172,18 @@ CINN_REGISTER_HELPER(cinn_cpu_mkldnn) {
       .AddInputType<cinn_buffer_t*>()   // weights
       .AddOutputType<cinn_buffer_t*>()  // out
       .SetShapeInference(inference_shape_conv2d_nchw)
+      .End();
+
+  REGISTER_EXTERN_FUNC_HELPER(cinn_cpu_mkldnn_softmax_fp32, host_target)
+      .SetRetType<void>()
+      .AddInputType<int>()              // batch_size
+      .AddInputType<int>()              // c_in
+      .AddInputType<int>()              // h
+      .AddInputType<int>()              // w
+      .AddInputType<int>()              // axis
+      .AddInputType<cinn_buffer_t*>()   // inputs
+      .AddOutputType<cinn_buffer_t*>()  // out
+      .SetShapeInference(FunctionProto::ShapeFollowNthArgument(5))
       .End();
 
   return true;
