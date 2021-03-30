@@ -428,7 +428,7 @@ void PaddleModelToProgram::TransposeVar(const std::string& name) {
     std::reverse(reverse_shape.begin(), reverse_shape.end());
     tensor->shape().SetData(reverse_shape);
     var->shape = tensor->shape().data();
-    // TODO(Superjomn) Make this determ ined by model.
+    // TODO(Superjomn) Make this determined by model.
     var->type = Float(32);
     AddVar(name, var, true);
   } else {
