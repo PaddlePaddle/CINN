@@ -207,6 +207,25 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           auto axis = std::get<int>(node->attrs.attr_store.at("axis"));
           instr->attrs.push_back(axis);
         }
+      } else if (node->op()->name == "mul") {
+        auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+        for (auto& in_node : node->inlinks_in_order()) {
+          std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+          auto in_shape     = shape_dict.at(in_id);
+          instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+        }
+        if (node->attrs.attr_store.find("x_num_col_dims") != node->attrs.attr_store.end()) {
+          auto axis = std::get<int>(node->attrs.attr_store.at("x_num_col_dims"));
+          instr->attrs.push_back(axis);
+        } else {
+          instr->attrs.push_back(1);
+        }
+        if (node->attrs.attr_store.find("y_num_col_dims") != node->attrs.attr_store.end()) {
+          auto axis = std::get<int>(node->attrs.attr_store.at("y_num_col_dims"));
+          instr->attrs.push_back(axis);
+        } else {
+          instr->attrs.push_back(1);
+        }
       }
       auto* fn = compiler_->Lookup(GenOpFuncName(node));
       CHECK(fn);

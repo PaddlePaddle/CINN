@@ -26,7 +26,7 @@ class TestLoadEfficientNetModel(unittest.TestCase):
         else:
             self.target = DefaultHostTarget()
         self.model_dir = model_dir
-        self.x_shape = [2, 3, 224, 224]
+        self.x_shape = [1, 3, 224, 224]
         self.target_tensor = 'save_infer_model/scale_0'
         self.input_tensor = 'image'
 
@@ -55,19 +55,17 @@ class TestLoadEfficientNetModel(unittest.TestCase):
         a_t.from_numpy(x_data, self.target)
         out = self.executor.get_tensor(self.target_tensor)
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
-        end2 = time.time()
-        self.executor.run()
-        end3 = time.time()
-        print("Preheat executor.run() time is: %.3f sec" % (end3 - end2))
+        for i in range(10):
+            self.executor.run()
 
-        end4 = time.perf_counter()
         repeat = 1000
+        end4 = time.perf_counter()
         for i in range(repeat):
             self.executor.run()
         end5 = time.perf_counter()
 
         print("Repeat %d times, average Executor.run() time is: %.3f ms" %
-              (repeat, end5 - end4))
+              (repeat, (end5 - end4) * 1000 / repeat))
         a_t.from_numpy(x_data, self.target)
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
         self.executor.run()
