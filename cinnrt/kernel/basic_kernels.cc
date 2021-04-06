@@ -1,9 +1,13 @@
 #include "cinnrt/kernel/basic_kernels.h"
 
 #include <iostream>
+#include <string>
 
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/kernel_utils.h"
+#include "llvm/Support/raw_ostream.h"
+
+using cinnrt::host_context::Attribute;
 
 namespace cinnrt::kernel {
 
@@ -32,9 +36,18 @@ void print(T a) {
   std::cout << a << std::endl;
 }
 
+static std::string GetString(Attribute<std::string> value) { return value.get(); }
+
+static void PrintString(const std::string &str) {
+  llvm::outs() << "string = " << str << '\n';
+  llvm::outs().flush();
+}
+
 void RegisterBasicKernels(host_context::KernelRegistry *registry) {
   RegisterIntBasicKernels(registry);
   RegisterFloatBasicKernels(registry);
+  registry->AddKernel("cinn.get_string", CINN_KERNEL(GetString));
+  registry->AddKernel("cinn.print_string", CINN_KERNEL(PrintString));
 }
 
 void RegisterIntBasicKernels(host_context::KernelRegistry *registry) {

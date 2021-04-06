@@ -36,7 +36,7 @@ function prepare {
 
 function prepare_llvm {
     cd $workspace
-    clang++ -mavx2 -masm=intel -S -emit-llvm cinn/runtime/cinn_runtime.cc -I$PWD
+    #clang++ -mavx2 -masm=intel -S -emit-llvm cinn/runtime/cinn_runtime.cc -I$PWD
     cd -
 
     export runtime_include_dir=$workspace/cinn/runtime/cuda

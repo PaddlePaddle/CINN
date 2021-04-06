@@ -11,6 +11,8 @@
 #include <mlir/IR/TypeUtilities.h>
 #include <mlir/Support/LogicalResult.h>
 
+#include "cinnrt/dialect/dense_tensor.h"
+
 namespace cinnrt::dialect {
 using namespace mlir;
 

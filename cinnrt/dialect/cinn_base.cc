@@ -11,7 +11,9 @@ void CINNDialect::initialize() {
   allowUnknownTypes();
   allowUnknownOperations();
 
+  addTypes<cinnrt::dt::StringType>();
   addTypes<cinnrt::dt::TensorType>();
+  addTypes<cinnrt::dt::TensorMapType>();
 
   addOperations<
 #define GET_OP_LIST
@@ -67,6 +69,15 @@ mlir::Type CINNDialect::parseType(mlir::DialectAsmParser &parser) const {
 
     return cinnrt::dt::TensorType::get(*targetType, *layoutType, *precisionType);
   }
+  // parse TensorMapType, for example: !cinn.tensor_map
+  if (keyword == "tensor_map") {
+    return cinnrt::dt::TensorMapType::get();
+  }
+  // parse StringType, for example: !cinn.string
+  if (keyword == "string") {
+    return cinnrt::dt::StringType::get();
+  }
+
   parser.emitError(parser.getCurrentLocation(), "unknown cinn type: ") << keyword;
   return mlir::Type();
 }
@@ -76,6 +87,16 @@ void CINNDialect::printType(mlir::Type type, mlir::DialectAsmPrinter &printer) c
   if (type.isa<cinnrt::dt::TensorType>()) {
     auto tensorType = type.cast<cinnrt::dt::TensorType>();
     printer << "tensor<" << tensorType.target() << ", " << tensorType.layout() << ", " << tensorType.precision() << ">";
+    return;
+  }
+  // print TensorMapType, for example: !cinn.tensor_map
+  if (type.isa<cinnrt::dt::TensorMapType>()) {
+    printer << "tensor_map";
+    return;
+  }
+  // print StringType, for example: !cinn.string
+  if (type.isa<cinnrt::dt::StringType>()) {
+    printer << "string";
     return;
   }
   llvm_unreachable("unknown cinn type.");

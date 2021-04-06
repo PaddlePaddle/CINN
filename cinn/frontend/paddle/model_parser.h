@@ -28,6 +28,8 @@ void LoadModelPb(const std::string& model_dir,
 // Read a __model__ file.
 std::unique_ptr<framework_proto::ProgramDesc> LoadProgram(const std::string& path, bool program_from_memory = false);
 
+void LoadLoDTensor(std::istream& is, hlir::framework::Variable* var, const common::Target& target);
+
 // Read a single file containing all the parameters.
 void LoadParams(const std::string& path);
 

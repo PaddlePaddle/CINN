@@ -91,6 +91,14 @@ raw_ostream &operator<<(raw_ostream &os, TensorType tensorType) {
   return os;
 }
 
+TensorMapType TensorMapType::get() { return Base::get(::cinnrt::Global::getMLIRContext()); }
+
+TensorMapType TensorMapType::get(mlir::MLIRContext *context) { return Base::get(context); }
+
+StringType StringType::get() { return Base::get(::cinnrt::Global::getMLIRContext()); }
+
+StringType StringType::get(mlir::MLIRContext *context) { return Base::get(context); }
+
 raw_ostream &operator<<(raw_ostream &os, TargetType type) {
   switch (type) {
     case (TargetType::X86):
@@ -207,6 +215,17 @@ static ParseResult parseSetTensorOp(OpAsmParser &parser, OperationState &result)
   return failure(parser.resolveOperand(operands[0], tensor_type, result.operands) ||
                  parser.parseAttribute(value_attr, "values", result.attributes));
 }
+
+// static ParseResult parseLoadTensorsOp(OpAsmParser &parser, OperationState &result) {
+//  SmallVector<OpAsmParser::OperandType, 1> operands;
+//  if (parser.parseOperandList(operands, 1)) return failure();
+//
+//  auto tensor_type = getTensorType(result.getContext());
+//
+//  Attribute value_attr;
+//  return failure(parser.resolveOperand(operands[0], tensor_type, result.operands) ||
+//                 parser.parseAttribute(value_attr, "values", result.attributes));
+//}
 
 template <typename SetTensorOp>
 static void printSetTensorOp(OpAsmPrinter &p, SetTensorOp op) {

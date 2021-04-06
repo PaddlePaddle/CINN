@@ -30,3 +30,11 @@ func @caller.add.f32() -> f32 {
   cinn.return %z : f32
 }
 /// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+// CHECK-LABEL: @string_test
+func @string_test() {
+  %path = cinn.get_string("this is get_string op.")
+  // CHECK-LABEL: string = this is get_string op.
+  cinn.print_string(%path)
+  cinn.return
+}
