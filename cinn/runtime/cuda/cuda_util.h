@@ -3,6 +3,7 @@
 #include <cudnn.h>
 
 #include <string>
+#include <unordered_map>
 
 #include "cinn/runtime/cinn_runtime.h"
 #include "cublas_v2.h"
@@ -26,6 +27,22 @@ class CublasHandle {
  private:
   CublasHandle();
   cublasHandle_t cublas;
+};
+
+class SerialData {
+ public:
+  ~SerialData();
+  SerialData(const SerialData&) = delete;
+  SerialData& operator=(const SerialData&) = delete;
+  static SerialData& get_instance() {
+    static SerialData instance;
+    return instance;
+  }
+  std::unordered_map<int, int>& GetMap() { return get_algo; }
+
+ private:
+  SerialData();
+  std::unordered_map<int, int> get_algo;
 };
 
 class CudnnHandle {
@@ -78,6 +95,7 @@ void cinn_gpu_cudnn_conv2d(int input_n,
                            int stride_w,
                            int dilation_h,
                            int dilation_w,
+                           int groups,
                            int output_n,
                            int output_c,
                            int output_h,

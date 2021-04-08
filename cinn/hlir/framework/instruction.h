@@ -52,7 +52,7 @@ class Instruction {
     CHECK(fn_) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
     auto& pod_args = PreparePodArgs();
 #ifdef CINN_WITH_CUDNN
-    if (function_name_ == "conv2d" && target_.arch == Target::Arch::NVGPU) {
+    if ((function_name_ == "conv2d" || function_name_ == "depthwise_conv2d") && target_.arch == Target::Arch::NVGPU) {
       runtime::cuda::cinn_gpu_cudnn_conv2d(attrs[0],
                                            attrs[1],
                                            attrs[2],
@@ -71,6 +71,7 @@ class Instruction {
                                            attrs[15],
                                            attrs[16],
                                            attrs[17],
+                                           attrs[18],
                                            pod_args[0],
                                            pod_args[1],
                                            pod_args[2]);

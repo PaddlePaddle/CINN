@@ -13,6 +13,10 @@ namespace cinn {
 namespace runtime {
 namespace cuda {
 
+SerialData::SerialData() {}
+
+SerialData::~SerialData() {}
+
 CudnnHandle::CudnnHandle() {
   CUDNN_CALL(cudnnCreate(&cudnn));
   size_      = 0;
@@ -111,6 +115,7 @@ void cinn_gpu_cudnn_conv2d(int input_n,
                            int stride_w,
                            int dilation_h,
                            int dilation_w,
+                           int groups,
                            int output_n,
                            int output_c,
                            int output_h,
@@ -139,6 +144,7 @@ void cinn_gpu_cudnn_conv2d(int input_n,
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
   CUDNN_CALL(cudnnSetConvolution2dDescriptor(
       conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CONVOLUTION, CUDNN_DATA_FLOAT));
+  CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
 
   cudnnTensorDescriptor_t out_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&out_desc));
@@ -147,7 +153,19 @@ void cinn_gpu_cudnn_conv2d(int input_n,
 
   float *out_data = reinterpret_cast<float *>(output->memory);
 
-  cudnnConvolutionFwdAlgo_t algo = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
+  std::unordered_map<int, int> &algo_map = SerialData::get_instance().GetMap();
+  int hash_size = weights_n * weights_c * weights_h * weights_w + input_n * input_c * input_h * input_w -
+                  output_n * output_c * output_h * output_w;
+  cudnnConvolutionFwdAlgo_t algo;
+  if (algo_map.count(hash_size) != 0) {
+    algo = cudnnConvolutionFwdAlgo_t(algo_map[hash_size]);
+  } else {
+    cudnnConvolutionFwdAlgoPerf_t algo_perf;
+    int count;
+    cudnnFindConvolutionForwardAlgorithm(cudnn, in_desc, filt_desc, conv_desc, out_desc, 1, &count, &algo_perf);
+    algo_map[hash_size] = int(algo_perf.algo);
+    algo                = algo_perf.algo;
+  }
   size_t ws_size;
   CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(cudnn, in_desc, filt_desc, conv_desc, out_desc, algo, &ws_size));
 
