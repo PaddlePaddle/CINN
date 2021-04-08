@@ -124,9 +124,11 @@ std::vector<std::vector<int>> shapes_depthwise_conv2d_nchw            = {{2, 32,
 std::vector<int> stride_depthwise_conv2d                              = {1, 1};
 std::vector<int> padding_depthwise_conv2d                             = {1, 1};
 std::vector<int> dilation_depthwise_conv2d                            = {1, 1};
+int groups                                                            = 32;
 std::unordered_map<std::string, AttrType> attr_store_depthwise_conv2d = {{"padding", padding_depthwise_conv2d},
                                                                          {"stride", stride_depthwise_conv2d},
-                                                                         {"dilation", dilation_depthwise_conv2d}};
+                                                                         {"dilation", dilation_depthwise_conv2d},
+                                                                         {"groups", groups}};
 TEST_DEFAULT1(depthwise_conv2d, depthwise_conv2d_nchw, type1, type, attr_store_depthwise_conv2d)
 
 // pool2d

@@ -1722,7 +1722,7 @@ TEST(Cudnn, external_function_cudnn) {
   dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
 
   runtime::cuda::cinn_gpu_cudnn_conv2d(
-      2, 512, 7, 7, 512, 512, 3, 3, 1, 1, 1, 1, 1, 1, 1, 2, 512, 7, 7, dev_bufs[0], dev_bufs[1], dev_bufs[2]);
+      {2, 512, 7, 7, 512, 512, 3, 3, 1, 1, 1, 1, 1, 1, 1, 2, 512, 7, 7}, dev_bufs[0], dev_bufs[1], dev_bufs[2]);
 }
 
 TEST(Cudnn, external_function_cudnn2) {
@@ -1742,7 +1742,7 @@ TEST(Cudnn, external_function_cudnn2) {
   dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
 
   runtime::cuda::cinn_gpu_cudnn_pool2d(
-      2, 64, 112, 112, "max", 3, 3, 1, 1, 2, 2, 2, 64, 56, 56, dev_bufs[0], dev_bufs[1]);
+      {2, 64, 112, 112, 3, 3, 1, 1, 1, 1, 2, 2, 2, 64, 56, 56}, {"max"}, dev_bufs[0], dev_bufs[1]);
 }
 
 TEST(Cudnn, external_function_cudnn3) {

@@ -101,31 +101,32 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                                   nullptr))
 }
 
-void cinn_gpu_cudnn_conv2d(int input_n,
-                           int input_c,
-                           int input_h,
-                           int input_w,
-                           int weights_n,
-                           int weights_c,
-                           int weights_h,
-                           int weights_w,
-                           int pad_h,
-                           int pad_w,
-                           int stride_h,
-                           int stride_w,
-                           int dilation_h,
-                           int dilation_w,
-                           int groups,
-                           int output_n,
-                           int output_c,
-                           int output_h,
-                           int output_w,
+void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs,
                            cinn_buffer_t *input,
                            cinn_buffer_t *weights,
                            cinn_buffer_t *output) {
   cudnnHandle_t &cudnn = CudnnHandle::get_instance().GetCudnnHandle();
   float alpha          = 1.f;
-
+  CHECK_EQ(attrs.size(), 19);
+  int input_n    = attrs[0];
+  int input_c    = attrs[1];
+  int input_h    = attrs[2];
+  int input_w    = attrs[3];
+  int weights_n  = attrs[4];
+  int weights_c  = attrs[5];
+  int weights_h  = attrs[6];
+  int weights_w  = attrs[7];
+  int pad_h      = attrs[8];
+  int pad_w      = attrs[9];
+  int stride_h   = attrs[10];
+  int stride_w   = attrs[11];
+  int dilation_h = attrs[12];
+  int dilation_w = attrs[13];
+  int groups     = attrs[14];
+  int output_n   = attrs[15];
+  int output_c   = attrs[16];
+  int output_h   = attrs[17];
+  int output_w   = attrs[18];
   cudnnTensorDescriptor_t in_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&in_desc));
   CUDNN_CALL(
@@ -193,27 +194,30 @@ void cinn_gpu_cudnn_conv2d(int input_n,
   CUDNN_CALL(cudnnDestroyTensorDescriptor(in_desc));
 }
 
-void cinn_gpu_cudnn_pool2d(int input_n,
-                           int input_c,
-                           int input_h,
-                           int input_w,
-                           const std::string &pool_type,
-                           int kernel_h,
-                           int kernel_w,
-                           int pad_h,
-                           int pad_w,
-                           int stride_h,
-                           int stride_w,
-                           int output_n,
-                           int output_c,
-                           int output_h,
-                           int output_w,
+void cinn_gpu_cudnn_pool2d(const std::vector<int> &attrs,
+                           const std::vector<std::string> &str_attrs,
                            cinn_buffer_t *input,
                            cinn_buffer_t *output) {
   cudnnHandle_t &cudnn = CudnnHandle::get_instance().GetCudnnHandle();
-
+  CHECK_EQ(attrs.size(), 16);
+  // Here the input paddings are pad_top, pad_bottom, pad_left, pad_right.
+  // Since pad_top==pad_bottom and pad_left==pad_rifht, we only take pad_top and pad_left.
+  int input_n           = attrs[0];
+  int input_c           = attrs[1];
+  int input_h           = attrs[2];
+  int input_w           = attrs[3];
+  int kernel_h          = attrs[4];
+  int kernel_w          = attrs[5];
+  int pad_h             = attrs[6];
+  int pad_w             = attrs[8];
+  int stride_h          = attrs[10];
+  int stride_w          = attrs[11];
+  int output_n          = attrs[12];
+  int output_c          = attrs[13];
+  int output_h          = attrs[14];
+  int output_w          = attrs[15];
+  std::string pool_type = str_attrs[0];
   cudnnPoolingDescriptor_t pooling_desc;
-
   CUDNN_CALL(cudnnCreatePoolingDescriptor(&pooling_desc));
   cudnnPoolingMode_t pool_mode;
   if (pool_type == "max") {
