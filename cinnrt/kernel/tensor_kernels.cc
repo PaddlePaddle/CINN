@@ -93,7 +93,7 @@ void _LoadParams(const std::string &path, Scope *scope, ProgramDesc *cpp_prog, c
   }
 }
 
-TensorMap LoadTensors(const std::string &path) {
+TensorMap LoadParams(const std::string &path) {
   auto &map = *Global::getTensorMap();
   std::cout << "loading params from: " << path << std::endl;
   Scope scope;
@@ -103,7 +103,7 @@ TensorMap LoadTensors(const std::string &path) {
   return map;
 }
 
-DenseHostTensor GetTensor(Attribute<std::string> nameAttr) {
+DenseHostTensor GetParam(Attribute<std::string> nameAttr) {
   auto &name = nameAttr.get();
   auto &map  = *Global::getTensorMap();
   return *map[name];
@@ -117,8 +117,8 @@ void RegisterTensorKernels(host_context::KernelRegistry *registry) {
   registry->AddKernel("dt.print_tensor", CINN_KERNEL(PrintTensor));
   registry->AddKernel("dt.fill_tensor_with_constant.f32", CINN_KERNEL(FillTensorWithConstant<float>));
   registry->AddKernel("dt.fill_tensor_with_constant.f64", CINN_KERNEL(FillTensorWithConstant<double>));
-  registry->AddKernel("dt.load_tensors", CINN_KERNEL(LoadTensors));
-  registry->AddKernel("dt.get_tensor", CINN_KERNEL(GetTensor));
+  registry->AddKernel("dt.load_params", CINN_KERNEL(LoadParams));
+  registry->AddKernel("dt.get_param", CINN_KERNEL(GetParam));
 }
 
 }  // namespace cinnrt::kernel
