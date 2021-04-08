@@ -81,8 +81,8 @@ class SetTensorOp<string dtype> :
   let printer = [{ return cinnrt::dt::printSetTensorOp(p, *this); }];
 }
 
-def LoadTensorsOp : DT_Op<"load_tensors", [NoSideEffect]> {
-  let summary = "dt.load_tensors operation";
+def LoadParamsOp : DT_Op<"load_params", [NoSideEffect]> {
+  let summary = "dt.load_params operation";
 
   let description = [{
     An operation that can load tensors to TensorMap.
@@ -96,17 +96,20 @@ def LoadTensorsOp : DT_Op<"load_tensors", [NoSideEffect]> {
   let verifier = ?;
 }
 
-def GetTensorOp : DT_Op<"get_tensor", [NoSideEffect]> {
-  let summary = "dt.get_tensor operation";
+def GetParamOp : DT_Op<"get_param", [NoSideEffect]> {
+  let summary = "dt.get_param operation";
 
   let description = [{
     An operation that can get a tensor from TensorMap.
   }];
 
   // input path of model params.
-  let arguments = (ins StrAttr:$name);
+  let arguments = (ins
+          TensorMapType:$map,
+          StrAttr:$name
+          );
   let results = (outs TensorType:$output);
-  let assemblyFormat = "`(` $name `)` attr-dict `->` type($output)";
+  let assemblyFormat = "`(` $map `,` $name `)` attr-dict `->` type($output)";
   let verifier = ?;
 }
 

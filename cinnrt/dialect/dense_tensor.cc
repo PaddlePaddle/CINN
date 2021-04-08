@@ -216,7 +216,7 @@ static ParseResult parseSetTensorOp(OpAsmParser &parser, OperationState &result)
                  parser.parseAttribute(value_attr, "values", result.attributes));
 }
 
-// static ParseResult parseLoadTensorsOp(OpAsmParser &parser, OperationState &result) {
+// static ParseResult parseLoadParamsOp(OpAsmParser &parser, OperationState &result) {
 //  SmallVector<OpAsmParser::OperandType, 1> operands;
 //  if (parser.parseOperandList(operands, 1)) return failure();
 //
