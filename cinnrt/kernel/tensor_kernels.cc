@@ -94,19 +94,18 @@ void _LoadParams(const std::string &path, Scope *scope, ProgramDesc *cpp_prog, c
 }
 
 TensorMap LoadParams(const std::string &path) {
-  auto &map = *Global::getTensorMap();
+  TensorMap *map = new TensorMap();
   std::cout << "loading params from: " << path << std::endl;
   Scope scope;
   ProgramDesc cpp_prog;
   const Target &target = cinn::common::DefaultHostTarget();
-  _LoadParams(path, &scope, &cpp_prog, target, map);
-  return map;
+  _LoadParams(path, &scope, &cpp_prog, target, *map);
+  return *map;
 }
 
-DenseHostTensor GetParam(Attribute<std::string> nameAttr) {
+DenseHostTensor GetParam(TensorMap map, Attribute<std::string> nameAttr) {
   auto &name = nameAttr.get();
-  auto &map  = *Global::getTensorMap();
-  return *map[name];
+  return *(map[name]);
 }
 
 /// ===== Kernel end ====
