@@ -74,8 +74,7 @@ class TestFrontend(unittest.TestCase):
         f = prog.conv2d(d, e, {
             "stride": [1, 1],
             "dilation": [1, 1],
-            "padding": [0, 0],
-            "groups": 1
+            "padding": [0, 0]
         })
         g = prog.scale(f, {"scale": 2.0, "bias": 0.5})
         h = prog.softmax(g, {"axis": 1})

@@ -29,6 +29,8 @@ void AddAttrs(const std::unordered_map<std::string, AttrType>& attrs_store,
           instr->attrs.insert(instr->attrs.end(), temp.begin(), temp.end());
           break;
       }
+    } else {
+      LOG(ERROR) << "Param " << attr << " missed! Please check.";
     }
   }
 }
@@ -151,7 +153,13 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           auto in_shape     = shape_dict.at(in_id);
           instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
         }
-        AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation", "groups"}, instr.get());
+        AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
+        if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
+          auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
+          instr->attrs.push_back(groups);
+        } else {
+          instr->attrs.push_back(1);
+        }
         for (auto& out_node : node->outlinks_in_order()) {
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
@@ -165,7 +173,13 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           auto in_shape     = shape_dict.at(in_id);
           instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
         }
-        AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation", "groups"}, instr.get());
+        AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
+        if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
+          auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
+          instr->attrs.push_back(groups);
+        } else {
+          instr->attrs.push_back(instr->attrs[1]);
+        }
         for (auto& out_node : node->outlinks_in_order()) {
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
