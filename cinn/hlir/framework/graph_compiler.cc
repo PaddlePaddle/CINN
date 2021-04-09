@@ -11,6 +11,29 @@
 namespace cinn {
 namespace hlir {
 namespace framework {
+// Store params from node to instruction
+void AddAttrs(const std::unordered_map<std::string, AttrType>& attrs_store,
+              const std::vector<std::string>& attrs_name,
+              Instruction* instr) {
+  for (auto& attr : attrs_name) {
+    if (attrs_store.find(attr) != attrs_store.end()) {
+      switch (attrs_store.at(attr).index()) {
+        case 2:
+          instr->attrs.push_back(std::get<int>(attrs_store.at(attr)));
+          break;
+        case 3:
+          instr->str_attrs.push_back(std::get<std::string>(attrs_store.at(attr)));
+          break;
+        case 5:
+          auto temp = std::get<std::vector<int>>(attrs_store.at(attr));
+          instr->attrs.insert(instr->attrs.end(), temp.begin(), temp.end());
+          break;
+      }
+    } else {
+      LOG(ERROR) << "Param " << attr << " missed! Please check.";
+    }
+  }
+}
 
 void GraphCompiler::PrintFunc() {
   auto [nodes, edges] = graph_->topological_order();
@@ -130,24 +153,39 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           auto in_shape     = shape_dict.at(in_id);
           instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
         }
-        if (node->attrs.attr_store.find("padding") != node->attrs.attr_store.end()) {
-          auto padding = std::get<std::vector<int>>(node->attrs.attr_store.at("padding"));
-          instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
-        }
-        if (node->attrs.attr_store.find("stride") != node->attrs.attr_store.end()) {
-          auto stride = std::get<std::vector<int>>(node->attrs.attr_store.at("stride"));
-          instr->attrs.insert(instr->attrs.end(), stride.begin(), stride.end());
-        }
-        if (node->attrs.attr_store.find("dilation") != node->attrs.attr_store.end()) {
-          auto dilation = std::get<std::vector<int>>(node->attrs.attr_store.at("dilation"));
-          instr->attrs.insert(instr->attrs.end(), dilation.begin(), dilation.end());
+        AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
+        if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
+          auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
+          instr->attrs.push_back(groups);
+        } else {
+          instr->attrs.push_back(1);
         }
         for (auto& out_node : node->outlinks_in_order()) {
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
         }
-        CHECK_EQ(instr->attrs.size(), 18UL);
+        CHECK_EQ(instr->attrs.size(), 19UL);
+      } else if (node->op()->name == "depthwise_conv2d") {
+        auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+        for (auto& in_node : node->inlinks_in_order()) {
+          std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+          auto in_shape     = shape_dict.at(in_id);
+          instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+        }
+        AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
+        if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
+          auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
+          instr->attrs.push_back(groups);
+        } else {
+          instr->attrs.push_back(instr->attrs[1]);
+        }
+        for (auto& out_node : node->outlinks_in_order()) {
+          std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+          auto out_shape     = shape_dict.at(out_id);
+          instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
+        }
+        CHECK_EQ(instr->attrs.size(), 19UL);
       } else if (node->op()->name == "pool2d") {
         auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
         for (auto& in_node : node->inlinks_in_order()) {
@@ -180,14 +218,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
             instr->attrs.push_back(0);
           }
         }
-        if (node->attrs.attr_store.find("stride_size") != node->attrs.attr_store.end()) {
-          auto dilation = std::get<std::vector<int>>(node->attrs.attr_store.at("stride_size"));
-          instr->attrs.insert(instr->attrs.end(), dilation.begin(), dilation.end());
-        }
-        if (node->attrs.attr_store.find("pool_type") != node->attrs.attr_store.end()) {
-          auto pool_type = std::get<std::string>(node->attrs.attr_store.at("pool_type"));
-          instr->str_attrs.push_back(pool_type);
-        }
+        AddAttrs(node->attrs.attr_store, {"stride_size", "pool_type"}, instr.get());
 
         for (auto& out_node : node->outlinks_in_order()) {
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
@@ -203,10 +234,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           auto in_shape     = shape_dict.at(in_id);
           instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
         }
-        if (node->attrs.attr_store.find("axis") != node->attrs.attr_store.end()) {
-          auto axis = std::get<int>(node->attrs.attr_store.at("axis"));
-          instr->attrs.push_back(axis);
-        }
+        AddAttrs(node->attrs.attr_store, {"axis"}, instr.get());
       } else if (node->op()->name == "mul") {
         auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
         for (auto& in_node : node->inlinks_in_order()) {

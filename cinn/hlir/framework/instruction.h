@@ -52,46 +52,11 @@ class Instruction {
     CHECK(fn_) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
     auto& pod_args = PreparePodArgs();
 #ifdef CINN_WITH_CUDNN
-    if (function_name_ == "conv2d" && target_.arch == Target::Arch::NVGPU) {
-      runtime::cuda::cinn_gpu_cudnn_conv2d(attrs[0],
-                                           attrs[1],
-                                           attrs[2],
-                                           attrs[3],
-                                           attrs[4],
-                                           attrs[5],
-                                           attrs[6],
-                                           attrs[7],
-                                           attrs[8],
-                                           attrs[9],
-                                           attrs[10],
-                                           attrs[11],
-                                           attrs[12],
-                                           attrs[13],
-                                           attrs[14],
-                                           attrs[15],
-                                           attrs[16],
-                                           attrs[17],
-                                           pod_args[0],
-                                           pod_args[1],
-                                           pod_args[2]);
+    // Here conv2d and depthwise_conv2d are implemented by one cudnn api cudnnConvolutionForward
+    if ((function_name_ == "conv2d" || function_name_ == "depthwise_conv2d") && target_.arch == Target::Arch::NVGPU) {
+      runtime::cuda::cinn_gpu_cudnn_conv2d(attrs, pod_args[0], pod_args[1], pod_args[2]);
     } else if (function_name_ == "pool2d" && target_.arch == Target::Arch::NVGPU) {
-      runtime::cuda::cinn_gpu_cudnn_pool2d(attrs[0],
-                                           attrs[1],
-                                           attrs[2],
-                                           attrs[3],
-                                           str_attrs[0],
-                                           attrs[4],
-                                           attrs[5],
-                                           attrs[6],
-                                           attrs[8],
-                                           attrs[10],
-                                           attrs[11],
-                                           attrs[12],
-                                           attrs[13],
-                                           attrs[14],
-                                           attrs[15],
-                                           pod_args[0],
-                                           pod_args[1]);
+      runtime::cuda::cinn_gpu_cudnn_pool2d(attrs, str_attrs, pod_args[0], pod_args[1]);
     } else if (function_name_ == "softmax" && target_.arch == Target::Arch::NVGPU) {
       CHECK_EQ(pod_args.size(), 3);
       runtime::cuda::cinn_gpu_cudnn_softmax(attrs, pod_args[0], pod_args[1]);
