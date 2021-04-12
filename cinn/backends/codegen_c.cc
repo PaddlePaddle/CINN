@@ -53,8 +53,6 @@ std::string CodeGenC::Compile(const ir::Module &module, OutputKind output_kind) 
       buffers.emplace_back(buffer.as_buffer_ref());
     }
 
-    PrintBufferCreation(buffers);
-
     for (auto &func : module.functions()) {
       Compile(func);
     }
@@ -482,13 +480,17 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
 
   std::vector<Expr> new_body;
 
-  auto alloca_temp_buffers = op->PrepareAllocTempBufferExprs();
+  std::vector<Expr> create_temp_buffers   = op->PrepareCreateTempBufferExprs();
+  std::vector<Expr> alloca_temp_buffers   = op->PrepareAllocTempBufferExprs();
+  std::vector<Expr> dealloca_temp_buffers = op->PrepareDeallocTempBufferExprs();
 #define APPEND_TO_NEW_BODY(field__) new_body.insert(std::end(new_body), std::begin(op->field__), std::end(op->field__));
   APPEND_TO_NEW_BODY(argument_prepare_exprs)
+  new_body.insert(std::end(new_body), std::begin(create_temp_buffers), std::end(create_temp_buffers));
   APPEND_TO_NEW_BODY(alloc_output_buffer_exprs)
   new_body.insert(std::end(new_body), std::begin(alloca_temp_buffers), std::end(alloca_temp_buffers));
   APPEND_TO_NEW_BODY(buffer_data_cast_exprs)
   new_body.push_back(op->body);
+  new_body.insert(std::end(new_body), std::begin(dealloca_temp_buffers), std::end(dealloca_temp_buffers));
   APPEND_TO_NEW_BODY(dealloc_output_buffer_exprs)
 
   Expr func_body = ir::Block::Make(new_body);
@@ -517,7 +519,10 @@ void CodeGenC::PrintBufferCreation(const std::vector<ir::Buffer> &buffers) {
     // Ignore the buffer in other devices.
     if (!buffer->is_on_host()) continue;
     DoIndent();
-    auto expr = ir::intrinsics::BufferCreate::Make(buffer);
+    auto buffer_ptr_type = Type().set_customized_type(common::customized_type::kbuffer_t).set_cpp_handle();
+    Var variable         = ir::_Var_::Make(buffer->name, buffer_ptr_type);
+    auto expr            = ir::intrinsics::BufferCreate::Make(buffer);
+    expr                 = ir::Let::Make(variable, expr);
     Print(expr);
     os() << ";\n";
   }
@@ -631,8 +636,7 @@ void CodeGenC::Visit(const ir::intrinsics::BufferCreate *op) {
   const ir::_Buffer_ *buffer_arg = op->buffer.as_buffer();
   CHECK(buffer_arg);
 
-  os() << "cinn_buffer_t* " << buffer_arg->name;
-  os() << " = " << runtime::intrisic::buffer_create;
+  os() << runtime::intrisic::buffer_create;
   os() << "(";
   PrintCastExpr("cinn_device_kind_t", Expr(buffer_arg->target.runtime_arch()));
   os() << "/*target*/, ";

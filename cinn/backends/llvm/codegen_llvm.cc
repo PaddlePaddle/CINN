@@ -660,11 +660,6 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Module_ *op) {
     ir::IrVerify(body_to_verify);
   }
 
-  for (auto &buffer : op->buffers) {
-    auto expr = ir::intrinsics::BufferCreate::Make(buffer.as_buffer_ref());
-    Visit(&expr);
-  }
-
   for (auto &fn : op->functions) {
     VLOG(1) << "JIT Linking function [" << fn.As<ir::_LoweredFunc_>()->name << "]";
     ir::Expr fn_expr(fn);
@@ -851,7 +846,11 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
       << "the count of allocation and deallocaton expressions is not match";
 
   std::vector<Expr> new_body;
+  auto create_temp_buffers   = op->PrepareCreateTempBufferExprs();
+  auto alloca_temp_buffers   = op->PrepareAllocTempBufferExprs();
+  auto dealloca_temp_buffers = op->PrepareDeallocTempBufferExprs();
   new_body.reserve(op->argument_prepare_exprs.size() + op->alloc_output_buffer_exprs.size() +
+                   create_temp_buffers.size() + alloca_temp_buffers.size() + dealloca_temp_buffers.size() +
                    op->buffer_data_cast_exprs.size() + 1 /*op->body*/ + op->dealloc_output_buffer_exprs.size());
 
   auto new_body_append = [&new_body](auto &&... v) {
@@ -866,9 +865,12 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
   };
 
   new_body_append(op->argument_prepare_exprs,
+                  create_temp_buffers,
+                  alloca_temp_buffers,
                   op->alloc_output_buffer_exprs,
                   op->buffer_data_cast_exprs,
                   op->body,
+                  dealloca_temp_buffers,
                   op->dealloc_output_buffer_exprs);
 
   ir::Expr function_body = ir::Block::Make(new_body);
@@ -1240,10 +1242,19 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferGetDataConstHandle *
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferCreate *op) {
-  auto *callee = m_->getFunction(runtime::intrisic::buffer_create);
-  Expr arch(op->buffer.as_buffer()->target.runtime_arch());
-  std::vector<llvm::Value *> args({Visit(&op->buffer), Visit(&arch)});
-  return Call(callee, std::move(args));
+  auto *callee     = m_->getFunction("cinn_buffer_new_default");
+  auto buffer_node = op->buffer.as_buffer();
+  CHECK(buffer_node);
+  std::vector<llvm::Value *> args({ll_const_int32(buffer_node->target.runtime_arch())});
+  uint64_t memory_size = (buffer_node->dtype.ElementOf().bits() + 7) / 8;
+  for (auto shape : buffer_node->shape) {
+    int shape_int = shape.as_int32();
+    memory_size *= shape_int;
+  }
+  args.push_back(ll_const_int64(memory_size));
+  args.push_back(ll_const_int32(32));
+
+  return Call(callee, args);
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::GetAddr *op) {

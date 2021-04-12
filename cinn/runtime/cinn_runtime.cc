@@ -73,6 +73,31 @@ void* cinn_buffer_get_data_const_handle(const struct cinn_buffer_t* buf) {
   return buf->memory;
 }
 
+cinn_buffer_t* cinn_buffer_new_default(int target, uint64_t memory_size, int align) {
+  struct cinn_buffer_t* buf = (struct cinn_buffer_t*)malloc(sizeof(struct cinn_buffer_t));
+  buf->type                 = cinn_float32_t();
+  buf->device               = (cinn_device_kind_t)target;
+  buf->memory               = nullptr;
+  buf->memory_size          = memory_size;
+  buf->align                = align;
+  buf->lazy                 = true;
+  // NOTE set device_interface for each buffer.
+  switch (buf->device) {
+    case cinn_x86_device:
+      buf->device_interface = cinn_x86_device_interface();
+      break;
+    case cinn_unk_device:
+      fprintf(stderr, "Device type of buffer should be set, found Unk");
+      abort();
+      break;
+    default:
+      fprintf(stderr, "Not supported device type");
+      abort();
+  }
+  cinn_buffer_malloc((void*)(0), buf);
+  return buf;
+}
+
 cinn_type_t cinn_unk_t() { return cinn_type_t(cinn_type_unk, 0); }
 cinn_type_t cinn_bool_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 8, num_asterisks); }
 cinn_type_t cinn_int8_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 8, num_asterisks); }

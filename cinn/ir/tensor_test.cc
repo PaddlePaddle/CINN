@@ -135,11 +135,11 @@ TEST(Tensor, ReshapeCopied) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _A_copied_reshape = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 10, 10, 100 }, 32/*align*/);
 void fn(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
   cinn_buffer_t* _tensor = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _A_copied_reshape = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 10, 10, 100 }, 32/*align*/);
   cinn_buffer_malloc((void*)(0), _tensor);
   cinn_buffer_malloc((void*)(0), _A_copied_reshape);
   const float* A = ((const float*)(_A->memory));
@@ -158,6 +158,7 @@ void fn(void* _args, int32_t num_args)
       };
     };
   };
+  cinn_buffer_free((void*)(0), _A_copied_reshape);
   cinn_buffer_free((void*)(0), _tensor);
 }
 )ROC";
