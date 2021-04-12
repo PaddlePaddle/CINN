@@ -43,7 +43,7 @@ void CopyTo(const Value& from, Value* to) {
           to->data = arg;
         else if constexpr (std::is_same_v<T, std::vector<int64_t>>)
           to->data = arg;
-        else if constexpr (std::is_same_v<T, TensorMap>)
+        else if constexpr (std::is_same_v<T, tensor::TensorMap>)
           to->data = arg;
         else
           LOG(FATAL) << "Not supported Value copy: " << typeid(T).name();

@@ -18,10 +18,13 @@
 #include "cinnrt/kernel/tensor_kernels.h"
 #include "cinnrt/kernel/tensor_shape_kernels.h"
 #include "cinnrt/kernel/test_kernels.h"
+#include "cinnrt/tensor/tensor_map.h"
 #include "llvm/Support/DynamicLibrary.h"
 
-namespace cinnrt {
 using namespace cinnrt::host_context;
+using namespace cinnrt::tensor;
+
+namespace cinnrt {
 
 template <typename T>
 std::string DumpToString(T& op) {  // NOLINT

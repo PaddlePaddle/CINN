@@ -1,4 +1,5 @@
 set(srcs
+  tensor_map.cc
   tensor_shape.cc
   tensor_metadata.cc
   dense_host_tensor.cc
