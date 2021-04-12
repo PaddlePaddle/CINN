@@ -1,0 +1,43 @@
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace cinnrt {
+
+class ConfigBase {
+  std::string model_dir_;
+  std::string mlir_path_;
+  std::vector<std::string> shared_libs_;
+
+ public:
+  ConfigBase() = default;
+  void set_model_dir(const std::string& model_dir) { model_dir_ = model_dir; };
+  const std::string& model_dir() const { return model_dir_; }
+
+  void set_mlir_path(const std::string& mlir_path) { mlir_path_ = mlir_path; };
+  const std::string& mlir_path() const { return mlir_path_; }
+
+  void set_shared_libs(const std::vector<std::string>& shared_libs) { shared_libs_ = shared_libs; };
+  const std::vector<std::string>& shared_libs() const { return shared_libs_; }
+
+  virtual ~ConfigBase() = default;
+};
+
+class CinnrtConfig : public ConfigBase {};
+
+class CinnrtPredictor {
+ public:
+  CinnrtPredictor();
+  ~CinnrtPredictor();
+  void Run();
+  int Init(const CinnrtConfig& config);
+  // std::unique_ptr<DenseHostTensor> GetInput(int i);
+  // std::unique_ptr<DenseHostTensor> GetOutput(int i);
+ protected:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+};
+
+std::shared_ptr<CinnrtPredictor> CreateCinnrtPredictor(const CinnrtConfig& config);
+
+}  // namespace cinnrt
