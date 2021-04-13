@@ -5,9 +5,16 @@
 int cinn_x86_malloc(void* context, cinn_buffer_t* buf) {
   // ASSERT_NOT_NULL(context)
   ASSERT_NOT_NULL(buf)
-  uint64_t memory_size = buf->num_elements() * buf->type.bytes();
+  uint64_t memory_size;
+  bool need_malloc = false;
+  if (buf->memory_size > 0 && !buf->memory) {
+    memory_size = buf->memory_size;
+    need_malloc = true;
+  } else {
+    memory_size = buf->num_elements() * buf->type.bytes();
+  }
   CINN_CHECK(memory_size > 0);
-  if (buf->memory_size < memory_size) {
+  if (buf->memory_size < memory_size || need_malloc) {
     if (buf->memory) {
       free(buf->memory);
     }

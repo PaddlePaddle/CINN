@@ -156,8 +156,10 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
 
   static const IrNodeTy _node_type_ = IrNodeTy::_LoweredFunc_;
 
+  std::vector<Expr> PrepareCreateTempBufferExprs() const;
   //! Prepare the expressions for `alloc_tmp_buffer_exprs`.
   std::vector<Expr> PrepareAllocTempBufferExprs() const;
+  std::vector<Expr> PrepareDeallocTempBufferExprs() const;
   std::vector<Expr> CudaPrepareAllocTempBufferExprs() const;
   std::vector<Expr> CudaAliasVarExprs() const;
 

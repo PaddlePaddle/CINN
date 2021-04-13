@@ -119,6 +119,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   // Common methods to get a constant
   // @{
   inline llvm::Constant *ll_const_int32(int v) const { return llvm::ConstantInt::get(b_->getInt32Ty(), v); }
+  inline llvm::Constant *ll_const_int64(int v) const { return llvm::ConstantInt::get(b_->getInt64Ty(), v); }
   // @}
 
   //! Get the bound LLVM module.

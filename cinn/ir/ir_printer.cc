@@ -395,8 +395,6 @@ void IrPrinter::Visit(const intrinsics::PodValueToX *x) {
   os() << ")";
 }
 void IrPrinter::Visit(const intrinsics::BufferCreate *x) {
-  Print(x->buffer);
-  os() << " = ";
   os() << runtime::intrisic::buffer_create;
   os() << "()";
 }

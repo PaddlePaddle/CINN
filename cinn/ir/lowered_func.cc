@@ -35,10 +35,12 @@ LoweredFunc _LoweredFunc_::Make(const std::string& name,
 
   n->CheckValid();
   n->PrepareAllocOutputBufferExprs();
+  n->PrepareCreateTempBufferExprs();
   n->PrepareAllocTempBufferExprs();
   n->AllocTempBuffer();
   n->PrepareBufferCastExprs();
   n->PrepareArgumentExprs();
+  n->PrepareDeallocTempBufferExprs();
   n->PrepareDeallocOutputBufferExprs();
   return LoweredFunc(n);
 }
@@ -81,6 +83,30 @@ std::vector<Expr> _LoweredFunc_::PrepareAllocTempBufferExprs() const {
     }
   }
   return alloc_temp_buffer_exprs;
+}
+
+std::vector<Expr> _LoweredFunc_::PrepareDeallocTempBufferExprs() const {
+  std::vector<Expr> dealloc_temp_buffer_exprs;
+  for (auto& temp_buf : temp_bufs) {
+    if (!temp_buf->shape.empty() && temp_buf->type() != Void()) {
+      dealloc_temp_buffer_exprs.push_back(Free::Make(temp_buf));
+    }
+  }
+  return dealloc_temp_buffer_exprs;
+}
+
+std::vector<Expr> _LoweredFunc_::PrepareCreateTempBufferExprs() const {
+  std::vector<Expr> create_temp_buffer_exprs;
+  for (auto& temp_buf : temp_bufs) {
+    if (!temp_buf->shape.empty() && temp_buf->type() != Void()) {
+      auto expr            = ir::intrinsics::BufferCreate::Make(temp_buf);
+      auto buffer_ptr_type = Type().set_customized_type(common::customized_type::kbuffer_t).set_cpp_handle();
+      Var variable         = ir::_Var_::Make(temp_buf->name, buffer_ptr_type);
+      expr                 = ir::Let::Make(variable, expr);
+      create_temp_buffer_exprs.push_back(expr);
+    }
+  }
+  return create_temp_buffer_exprs;
 }
 
 std::vector<Expr> _LoweredFunc_::CudaPrepareAllocTempBufferExprs() const {
