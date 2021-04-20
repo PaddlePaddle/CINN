@@ -126,6 +126,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! The bound buffer, for each tensor if it is not inline.
   Buffer buffer;
 
+  std::vector<Expr> new_indices{};
   std::vector<Expr> domain_with_reduce_axis() const;
   const std::vector<Expr>& domain_without_reduce_axis() const { return domain; }
 

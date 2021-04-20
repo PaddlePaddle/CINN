@@ -16,6 +16,8 @@ namespace optim {
  */
 void ReplaceVarWithExpr(Expr *source, const Var &var, const Expr &expr);
 
+std::vector<std::vector<Expr>> CollectTensorIndex(Expr *source, const std::string &tensor_name);
+
 /**
  * In cuda backend, replace the var binded to 'threadIdx.x'/'blockIdx.x'
  * of the cache tensor with expr.

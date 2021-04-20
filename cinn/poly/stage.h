@@ -116,6 +116,7 @@ class Stage : public Object {
   //! Expression contained in this stage.
   const Expr& expr() const { return expr_; }
 
+  void TestChange(Stage* other, int level);
   //! Get the i-th axis.
   Iterator axis(int i) const;
   //! Get the axis named \p i.
@@ -324,7 +325,7 @@ class Stage : public Object {
   //! Copy other stage's transform.
   //! For example, if the target_transform is `Split(0,1)`,
   //! this api will apply `Split(0,1)` on itself.
-  void CopyTransform(const isl::map& target_transform, const isl::set target_domain);
+  void CopyTransform(Stage* other, int level = -1);
 
   //! Copy other stage's LoopInfo.
   //! For example, if the target_forloop_infos is `Bind(0,"threadIdx.x")`,

@@ -53,6 +53,47 @@ void ReplaceVarWithExpr(Expr* source, const Var& var, const Expr& expr) {
   mutator(source);
 }
 
+struct CollectTensorIndexMutator : public ir::IRMutator<> {
+  CollectTensorIndexMutator(const std::string& tensor_name) : tensor_name_(tensor_name) {}
+
+  std::vector<std::vector<Expr>> operator()(Expr* expr) {
+    IRMutator::Visit(expr, expr);
+    return res;
+  }
+
+ private:
+  void Visit(const ir::For* op, Expr* expr) override {
+    auto* node = expr->As<ir::For>();
+    ir::IRMutator<>::Visit(&node->body, &node->body);
+  }
+
+  void Visit(const ir::PolyFor* op, Expr* expr) override {
+    auto* node = expr->As<ir::PolyFor>();
+    ir::IRMutator<>::Visit(&node->body, &node->body);
+  }
+
+  void Visit(const ir::Load* expr, Expr* op) override {
+    auto* node   = op->As<ir::Load>();
+    auto* tensor = node->tensor.as_tensor();
+    if (tensor->name == tensor_name_) {
+      ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+      res.push_back(node->indices);
+    } else {
+      ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+      for (auto& idx : node->indices) ir::IRMutator<>::Visit(&idx, &idx);
+    }
+  }
+
+ private:
+  std::vector<std::vector<Expr>> res;
+  const std::string& tensor_name_;
+};
+
+std::vector<std::vector<Expr>> CollectTensorIndex(Expr* source, const std::string& tensor_name) {
+  CollectTensorIndexMutator mutator(tensor_name);
+  return mutator(source);
+}
+
 struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
   ReplaceVarIndexOfCacheMutator(const Var& var,
                                 const Expr& expr,
