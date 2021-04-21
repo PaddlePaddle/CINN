@@ -1,17 +1,15 @@
 #include "cinnrt/api/cinnrt_api.h"
 
-#include <llvm/Support/SourceMgr.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/Diagnostics.h>
-#include <mlir/IR/Function.h>
-#include <mlir/IR/OperationSupport.h>
-#include <mlir/Parser.h>
+#include <vector>
 
 #include "cinnrt/common/global.h"
+#include "cinnrt/dialect/dense_tensor.h"
 #include "cinnrt/dialect/mlir_loader.h"
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/kernel_registry.h"
+#include "cinnrt/host_context/mlir_function_executable.h"
 #include "cinnrt/host_context/mlir_to_runtime_translate.h"
+#include "cinnrt/host_context/op_executable.h"
 #include "cinnrt/host_context/value.h"
 #include "cinnrt/kernel/basic_kernels.h"
 #include "cinnrt/kernel/control_flow_kernels.h"
@@ -19,10 +17,16 @@
 #include "cinnrt/kernel/tensor_shape_kernels.h"
 #include "cinnrt/kernel/test_kernels.h"
 #include "cinnrt/tensor/tensor_map.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/DynamicLibrary.h"
+#include "mlir/Dialect/StandardOps/IR/Ops.h"
+#include "mlir/Parser.h"
 
 using namespace cinnrt::host_context;
 using namespace cinnrt::tensor;
+using namespace cinnrt::tensor;
+using cinnrt::dt::TensorMapType;
+using cinnrt::dt::TensorType;
 
 namespace cinnrt {
 
@@ -55,25 +59,74 @@ struct MlirToRuntimeTranslator::Impl {
 };
 
 /**
- * Execute the mlir program in predict mode -- print some debug infomation to stdout.
+ * Execute the mlir program in predict mode.
  */
-class MlirPredictExecutor : public MlirToRuntimeTranslator {
+class PredictExecutor : public MlirToRuntimeTranslator {
  public:
   CoreRuntimeBuilder core_runtime;
 
-  MlirPredictExecutor(mlir::ModuleOp module, KernelRegistry* registry)
-      : core_runtime(registry), MlirToRuntimeTranslator(module, &core_runtime), registry(registry) {
-    CHECK(registry);
+  PredictExecutor(mlir::ModuleOp module, KernelRegistry* registry, TensorMap* map)
+      : core_runtime(registry), MlirToRuntimeTranslator(module, &core_runtime), registry_(registry) {
+    CHECK(registry_);
+    Init(map);
   }
 
   void Run() {
-    EmitFunctions();
+    auto arguments = llvm::makeArrayRef(arguments_);
+    auto results   = llvm::makeMutableArrayRef(results_.begin(), results_.size());
+    function_executable_->Execute(arguments, results);
+  }
 
-    CHECK(registry);
+  int GetInputNum() { return inputs_.size(); }
+
+  DenseHostTensor* GetInput(int i) { return inputs_[i]; }
+
+  int GetOutputNum() { return outputs_.size(); }
+
+  DenseHostTensor* GetOutput(int i) { return outputs_[i]; }
+
+ private:
+  void Init(TensorMap* map) {
+    EmitFunctions();
+    llvm::Optional<mlir::FuncOp> predict_func_ = llvm::None;
     for (auto func_op : impl_->module.getOps<mlir::FuncOp>()) {
-      VLOG(3) << "Running function " << func_op.getName().str();
       if (func_op.getName().str() != "predict") continue;
-      EmitAndRunFuncWithoutArguments(func_op);
+      predict_func_ = func_op;
+      break;
+    }
+    if (!predict_func_) {
+      std::cout << "ERROR: init failed, no predict function found in mlir." << std::endl;
+      return;
+    }
+    auto& predict_func   = predict_func_.getValue();
+    function_executable_ = new MlirFunctionExecutable(predict_func, registry_, impl_->func_defs);
+
+    // process parammeters
+    for (int i = 0; i < predict_func.getNumArguments(); ++i) {
+      auto arg  = predict_func.getArgument(i);
+      auto type = arg.getType();
+      // this param is TensorMap
+      if (type.isa<TensorMapType>()) {
+        auto* value = new host_context::Value(std::move(*map));
+        arguments_.push_back(value);
+        AddValue(predict_func.getArgument(i), value);
+      } else {
+        // this param is an input Tensor
+        auto dht    = DenseHostTensor();
+        auto* value = new host_context::Value(std::move(dht));
+        arguments_.push_back(value);
+        inputs_.push_back(&(value->get<DenseHostTensor>()));
+      }
+    }
+
+    // process results
+    auto& last_op = predict_func.front().back();
+    if (last_op.getName().getStringRef() == "cinn.return") {
+      for (int i = 0; i < last_op.getNumOperands(); ++i) {
+        auto* value = AddValue(mlir::Value(last_op.getOperand(i)));
+        results_.push_back(ValueRef(value));
+        outputs_.push_back(&(value->get<DenseHostTensor>()));
+      }
     }
   }
 
@@ -86,37 +139,12 @@ class MlirPredictExecutor : public MlirToRuntimeTranslator {
   }
 
  private:
-  void EmitAndRunFuncWithoutArguments(mlir::FuncOp func) {
-    // print the function name for llvm FileChecker macro, CHECK-LABEL
-    std::cout << '@' << func.getName().str() << std::endl;
-    if (func.getNumArguments() == 0) {  // an entry function, execute it immediately
-      VLOG(3) << "executing function " << func.getName().str();
-      // Emit and execute each function
-      CoreRuntimeBuilder runtime(registry);
-      impl_->runtime = &runtime;
-
-      auto& blocks = func.getBlocks();
-      CHECK_EQ(blocks.size(), 1UL) << "function with more than one block is not supported yet";
-
-      for (auto& op : blocks.front()) {
-        if (EmitConstantOp(&op)) continue;
-        if (EmitBuildShapeOp(&op)) continue;
-        llvm::SmallVector<mlir::Value, 3> results;
-        if (EmitReturnOp(&op, &results)) continue;
-        if (EmitCallOp(&op, &impl_->func_defs)) continue;
-        if (EmitGeneralOp(&op)) continue;
-        LOG(FATAL) << "Not supported op: " << DumpToString(op);
-      }
-
-      runtime.Execute();
-
-    } else {
-      VLOG(2) << "get an callable function: " << func.getName().str();
-    }
-  }
-
- private:
-  KernelRegistry* registry{};
+  KernelRegistry* registry_{};
+  MlirFunctionExecutable* function_executable_;
+  llvm::SmallVector<DenseHostTensor*, 1> inputs_;
+  llvm::SmallVector<host_context::Value*, 2> arguments_;
+  llvm::SmallVector<DenseHostTensor*, 1> outputs_;
+  llvm::SmallVector<ValueRef, 1> results_;
 };
 
 std::shared_ptr<CinnrtPredictor> CreateCinnrtPredictor(const CinnrtConfig& config) {
@@ -127,22 +155,17 @@ std::shared_ptr<CinnrtPredictor> CreateCinnrtPredictor(const CinnrtConfig& confi
 
 struct CinnrtPredictor::Impl {
   mlir::OwningModuleRef module_ref;
-  KernelRegistry* registry;
-  TensorMap* map;
+  PredictExecutor* executor;
 };
 
 CinnrtPredictor::CinnrtPredictor() : impl_(new Impl) {}
 CinnrtPredictor::~CinnrtPredictor() {}
 
-void CinnrtPredictor::Run() {
-  // std::cout << "CinnrtPredictor::Run" << std::endl;
-  MlirPredictExecutor execute(impl_->module_ref.get(), impl_->registry);
-  execute.Run();
-}
+void CinnrtPredictor::Run() { impl_->executor->Run(); }
 
 int CinnrtPredictor::Init(const CinnrtConfig& config) {
   mlir::MLIRContext* context = cinnrt::Global::getMLIRContext();
-  auto module                = dialect::LoadMlirFile(config.mlir_path(), context);
+  auto module_ref            = dialect::LoadMlirFile(config.mlir_path(), context);
 
   KernelRegistry* registry = new KernelRegistry();
 
@@ -152,8 +175,7 @@ int CinnrtPredictor::Init(const CinnrtConfig& config) {
   kernel::RegisterTensorKernels(registry);
   kernel::RegisterControlFlowKernels(registry);
 
-  impl_->module_ref = std::move(module);
-  impl_->registry   = registry;
+  impl_->module_ref = std::move(module_ref);
 
   // load extra shared library
   for (const std::string& lib_path : config.shared_libs()) {
@@ -164,17 +186,25 @@ int CinnrtPredictor::Init(const CinnrtConfig& config) {
       return 1;
     }
     if (auto reg_sym = dynLib.SearchForAddressOfSymbol("RegisterKernels")) {
-      auto reg_func = reinterpret_cast<void (*)(host_context::KernelRegistry*)>(reg_sym);
+      auto reg_func = reinterpret_cast<void (*)(KernelRegistry*)>(reg_sym);
       reg_func(registry);
     } else {
       llvm::outs() << "Symbol \"RegisterKernels\" not found in \"" << lib_path << "\". Skip.\n";
     }
   }
   // Load params
-  TensorMap* map = new TensorMap();
-  impl_->map     = map;
-
+  TensorMap* map = LoadParams(config.model_dir());
+  // Create PredictExecutor
+  impl_->executor = new PredictExecutor(impl_->module_ref.get(), registry, map);
   return 0;
 }
+
+int CinnrtPredictor::GetInputNum() { return impl_->executor->GetInputNum(); }
+
+DenseHostTensor* CinnrtPredictor::GetInput(int i) { return impl_->executor->GetInput(i); }
+
+int CinnrtPredictor::GetOutputNum() { return impl_->executor->GetOutputNum(); }
+
+DenseHostTensor* CinnrtPredictor::GetOutput(int i) { return impl_->executor->GetOutput(i); }
 
 }  // namespace cinnrt

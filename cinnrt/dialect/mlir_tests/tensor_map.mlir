@@ -8,6 +8,7 @@ func @predict(%input:!cinn.tensor<X86, NCHW, F32>, %map: !cinn.tensor_map) -> (!
   "external.matmul"(%input, %w, %out) {}: (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>) -> ()
   "external.elementwise_add"(%out, %bias, %out) {axis = -1}: (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>) -> ()
   "external.sigmoid"(%out, %out) {}: (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>) -> ()
+  //dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
 
   cinn.return %out : !cinn.tensor<X86, NCHW, F32>
 }

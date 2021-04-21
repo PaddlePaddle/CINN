@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 
+#include "cinnrt/tensor/dense_host_tensor.h"
+
 namespace cinnrt {
 
 class ConfigBase {
@@ -31,8 +33,11 @@ class CinnrtPredictor {
   ~CinnrtPredictor();
   void Run();
   int Init(const CinnrtConfig& config);
-  // std::unique_ptr<DenseHostTensor> GetInput(int i);
-  // std::unique_ptr<DenseHostTensor> GetOutput(int i);
+  int GetInputNum();
+  tensor::DenseHostTensor* GetInput(int i);
+  int GetOutputNum();
+  tensor::DenseHostTensor* GetOutput(int i);
+
  protected:
   struct Impl;
   std::unique_ptr<Impl> impl_;

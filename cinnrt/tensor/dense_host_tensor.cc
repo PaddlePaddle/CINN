@@ -13,6 +13,15 @@ DenseHostTensor::DenseHostTensor(const TensorShape& shape, DType dtype) : HostTe
 }
 
 const TensorShape& DenseHostTensor::shape() const { return metadata().shape; }
+
+void DenseHostTensor::Init(const std::vector<int64_t>& shape, DType dtype) {
+  auto shape_array = llvm::ArrayRef<int64_t>(shape.data(), shape.size());
+  auto metadata    = TensorMetadata(dtype, shape_array);
+  setTensorMetadata(metadata);
+  buffer_.reset(new cinn::hlir::framework::Buffer(cinn::common::DefaultHostTarget()));
+  buffer_->ResizeLazy(dtype.GetHostSize() * metadata.shape.GetNumElements());
+}
+
 const cinn::hlir::framework::Buffer* DenseHostTensor::buffer() const { return buffer_.get(); }
 
 template <typename T>
