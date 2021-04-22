@@ -16,7 +16,7 @@ def CINN_Dialect : Dialect {
 
 // Type definitions
 def StringType :
-    Type<CPred<"$_self.isa<::cinnrt::dt::StringType>()">, "!tfrt.string type">,
+    Type<CPred<"$_self.isa<::cinnrt::dt::StringType>()">, "!cinn.string type">,
     BuildableType<"$_builder.getType<::cinnrt::dt::StringType>()">;
 
 def TensorType :

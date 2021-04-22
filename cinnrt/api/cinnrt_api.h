@@ -25,14 +25,14 @@ class ConfigBase {
   virtual ~ConfigBase() = default;
 };
 
-class CinnrtConfig : public ConfigBase {};
+class CinnRtConfig : public ConfigBase {};
 
-class CinnrtPredictor {
+class CinnRtPredictor {
  public:
-  CinnrtPredictor();
-  ~CinnrtPredictor();
+  CinnRtPredictor();
+  ~CinnRtPredictor();
   void Run();
-  int Init(const CinnrtConfig& config);
+  int Init(const CinnRtConfig& config);
   int GetInputNum();
   tensor::DenseHostTensor* GetInput(int i);
   int GetOutputNum();
@@ -43,6 +43,6 @@ class CinnrtPredictor {
   std::unique_ptr<Impl> impl_;
 };
 
-std::shared_ptr<CinnrtPredictor> CreateCinnrtPredictor(const CinnrtConfig& config);
+std::shared_ptr<CinnRtPredictor> CreateCinnRtPredictor(const CinnRtConfig& config);
 
 }  // namespace cinnrt

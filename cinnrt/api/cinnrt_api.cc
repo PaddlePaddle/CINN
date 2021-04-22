@@ -147,23 +147,23 @@ class PredictExecutor : public MlirToRuntimeTranslator {
   llvm::SmallVector<ValueRef, 1> results_;
 };
 
-std::shared_ptr<CinnrtPredictor> CreateCinnrtPredictor(const CinnrtConfig& config) {
-  auto x = std::make_shared<CinnrtPredictor>();
+std::shared_ptr<CinnRtPredictor> CreateCinnRtPredictor(const CinnRtConfig& config) {
+  auto x = std::make_shared<CinnRtPredictor>();
   x->Init(config);
   return x;
 }
 
-struct CinnrtPredictor::Impl {
+struct CinnRtPredictor::Impl {
   mlir::OwningModuleRef module_ref;
   PredictExecutor* executor;
 };
 
-CinnrtPredictor::CinnrtPredictor() : impl_(new Impl) {}
-CinnrtPredictor::~CinnrtPredictor() {}
+CinnRtPredictor::CinnRtPredictor() : impl_(new Impl) {}
+CinnRtPredictor::~CinnRtPredictor() {}
 
-void CinnrtPredictor::Run() { impl_->executor->Run(); }
+void CinnRtPredictor::Run() { impl_->executor->Run(); }
 
-int CinnrtPredictor::Init(const CinnrtConfig& config) {
+int CinnRtPredictor::Init(const CinnRtConfig& config) {
   mlir::MLIRContext* context = cinnrt::Global::getMLIRContext();
   auto module_ref            = dialect::LoadMlirFile(config.mlir_path(), context);
 
@@ -199,12 +199,12 @@ int CinnrtPredictor::Init(const CinnrtConfig& config) {
   return 0;
 }
 
-int CinnrtPredictor::GetInputNum() { return impl_->executor->GetInputNum(); }
+int CinnRtPredictor::GetInputNum() { return impl_->executor->GetInputNum(); }
 
-DenseHostTensor* CinnrtPredictor::GetInput(int i) { return impl_->executor->GetInput(i); }
+DenseHostTensor* CinnRtPredictor::GetInput(int i) { return impl_->executor->GetInput(i); }
 
-int CinnrtPredictor::GetOutputNum() { return impl_->executor->GetOutputNum(); }
+int CinnRtPredictor::GetOutputNum() { return impl_->executor->GetOutputNum(); }
 
-DenseHostTensor* CinnrtPredictor::GetOutput(int i) { return impl_->executor->GetOutput(i); }
+DenseHostTensor* CinnRtPredictor::GetOutput(int i) { return impl_->executor->GetOutput(i); }
 
 }  // namespace cinnrt

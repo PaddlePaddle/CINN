@@ -5,15 +5,15 @@
 #include "cinnrt/common/dtype.h"
 #include "llvm/Support/raw_ostream.h"
 
-using cinnrt::CinnrtConfig;
-using cinnrt::CinnrtPredictor;
-using cinnrt::CreateCinnrtPredictor;
+using cinnrt::CinnRtConfig;
+using cinnrt::CinnRtPredictor;
+using cinnrt::CreateCinnRtPredictor;
 
 int main() {
   std::vector<std::string> shared_libs;
   shared_libs.push_back("/cinn/paddle/libexternal_kernels.so");
 
-  CinnrtConfig config;
+  CinnRtConfig config;
   // set external shared libraries that contain kernels.
   config.set_shared_libs(shared_libs);
   // set model dir
@@ -21,7 +21,7 @@ int main() {
   // set mlir path
   config.set_mlir_path("/cinn/cinnrt/dialect/mlir_tests/tensor_map_predictor.mlir");
 
-  std::shared_ptr<CinnrtPredictor> predictor = CreateCinnrtPredictor(config);
+  std::shared_ptr<CinnRtPredictor> predictor = CreateCinnRtPredictor(config);
 
   // std::cout << "input num: " << predictor->GetInputNum() << std::endl;
   // std::cout << "output num: " << predictor->GetOutputNum() << std::endl;

@@ -216,17 +216,6 @@ static ParseResult parseSetTensorOp(OpAsmParser &parser, OperationState &result)
                  parser.parseAttribute(value_attr, "values", result.attributes));
 }
 
-// static ParseResult parseLoadParamsOp(OpAsmParser &parser, OperationState &result) {
-//  SmallVector<OpAsmParser::OperandType, 1> operands;
-//  if (parser.parseOperandList(operands, 1)) return failure();
-//
-//  auto tensor_type = getTensorType(result.getContext());
-//
-//  Attribute value_attr;
-//  return failure(parser.resolveOperand(operands[0], tensor_type, result.operands) ||
-//                 parser.parseAttribute(value_attr, "values", result.attributes));
-//}
-
 template <typename SetTensorOp>
 static void printSetTensorOp(OpAsmPrinter &p, SetTensorOp op) {
   p << SetTensorOp::getOperationName() << " ";
