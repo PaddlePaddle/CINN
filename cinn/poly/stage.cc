@@ -13,6 +13,7 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute.h"
 #include "cinn/optim/ir_replace.h"
+#include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/replace_var_with_expr.h"
 #include "cinn/poly/compute_at_transform.h"
 #include "cinn/poly/isl_utils.h"
@@ -202,11 +203,89 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
     LockAxis(i);
   }
 }
+// Replace tensor's index in compute body and Add for loop
+void Stage::TestChange2(Stage *other) {
+  auto indices = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
+  RemoveDuplicate(indices);
+  if (indices.empty()) {
+    return;
+  }
+  if (indices.size() == 2) {
+    EditCode(indices);
+  }
+  this->tensor()->new_indices = indices[0];
 
+  std::vector<Var> axis_var = common::GenDefaultAxis(indices[0].size());
+  for (int i = 0; i < axis_var.size(); i++) {
+    optim::ReplaceVarWithExpr(&(this->expr_), axis_var[i], indices[0][i]);
+  }
+  LOG(INFO) << "For loop info size is :" << forloop_infos_.size();
+  return;
+}
+
+void Stage::EditCode(std::vector<std::vector<Expr>> &indices) {
+  for (int i = 0; i < indices[0].size(); i++) {
+    Expr range = ir::Sub::Make(indices[0][i], indices[1][i]);
+    optim::Simplify(&range);
+    // CHECK(range.is_constant());
+    // int int_temp = range.as_int32();
+    LOG(INFO) << "The range is : " << utils::GetStreamCnt(range);
+    if (range.is_constant()) {
+      LOG(INFO) << "Range is constant";
+    } else {
+      LOG(INFO) << "Range is not constant";
+      continue;
+    }
+    int int_range = range.as_int32();
+    if (int_range == 0) continue;
+    if (int_range < 0) {
+      Expr temp     = indices[0][i];
+      indices[0][i] = indices[1][i];
+      indices[1][i] = temp;
+      int_range     = -int_range;
+    }
+    std::string dim_name = common::axis_name(i) + "_at";
+    Var dim_var(dim_name);
+    indices[0][i]              = ir::Add::Make(indices[1][i], Expr(dim_var));
+    std::string this_domain    = isl_set_to_str(domain_.get());
+    std::string this_transform = isl_map_to_str(transform_.get());
+    LOG(INFO) << "this domain is: " << this_domain;
+    LOG(INFO) << "this transform is: " << this_transform;
+    isl::ctx this_ctx = domain_.ctx();
+    isl::set domain2(this_ctx, this_domain);
+    std::string tuple_name = isl_set_get_tuple_name(domain_.get());
+    domain2                = isl::manage(isl_set_add_dims(domain2.release(), isl_dim_out, 1));
+    int dim_size           = isl_set_dim(domain2.get(), isl_dim_out);
+    LOG(INFO) << "dim_size is : " << dim_size;
+    LOG(INFO) << "Now the domain is : " << isl_set_to_str(domain2.get());
+
+    domain2 = isl::manage(isl_set_set_dim_name(domain2.release(), isl_dim_out, dim_size - 1, dim_name.c_str()));
+    domain2 = isl::manage(isl_set_set_tuple_name(domain2.release(), tuple_name.c_str()));
+    std::string domain2_str = isl_set_to_str(domain2.get());
+    domain2_str             = domain2_str.substr(0, domain2_str.size() - 1) + "and 0 <= " + dim_name +
+                  " <= " + std::to_string(int_range) + " }";
+    LOG(INFO) << "Edited domain is: " << domain2_str;
+    isl::set domain_res(this_ctx, domain2_str);
+    domain_ = domain_res;
+
+    isl::map transform2(this_ctx, this_transform);
+    transform2 = isl::manage(isl_map_add_dims(transform2.release(), isl_dim_in, 1));
+    dim_size   = isl_map_dim(transform2.get(), isl_dim_in);
+    transform2 = isl::manage(isl_map_set_dim_name(transform2.release(), isl_dim_in, dim_size - 1, dim_name.c_str()));
+    transform2 = isl::manage(isl_map_set_tuple_name(transform2.release(), isl_dim_in, tuple_name.c_str()));
+    std::string transform2_str = isl_map_to_str(transform2.get());
+    int found_index            = transform2_str.find_last_of("]");
+    transform2_str             = transform2_str.substr(0, found_index) + ", " + dim_name + "' = " + dim_name +
+                     transform2_str.substr(found_index, transform2_str.size() - found_index);
+    LOG(INFO) << "Edited transform is: " << transform2_str;
+    isl::map trans_res(this_ctx, transform2_str);
+    transform_ = trans_res;
+  }
+  return;
+}
 // Do 2 things: replace this tensor's compute index and change its domain to be consistent with other's domain.
 void Stage::TestChange(Stage *other, int level) {
   auto indices = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
-  RemoveDuplicate(indices);
   if (indices.empty()) {
     return;
   }
@@ -253,7 +332,7 @@ void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
   this->TestChange(other, level);
   this->CopyTransform(other, level);
-
+  this->TestChange2(other);
   CHECK(tensor_);
   ComputeAtRelation relation;
   relation.stage = other;
@@ -822,9 +901,14 @@ void Stage::CopyTransform(Stage *other, int level) {
   std::string str_target_trans   = isl_map_to_str(target_transform.get());
   std::string str_this_trans     = isl_map_to_str(transform_.get());
   std::string str_this_domain    = isl_set_to_str(domain_.get());
+  std::string str_target_domain  = isl_set_to_str(target_domain.get());
   std::string target_tensor_name = isl_map_get_tuple_name(target_transform.get(), isl_dim_in);
   std::string this_tensor_name   = isl_set_get_tuple_name(domain_.get());
   isl::map temp_transform_       = target_transform;
+  LOG(INFO) << "this domain is : " << str_this_domain;
+  LOG(INFO) << "target domain is : " << str_target_domain;
+  LOG(INFO) << "this trans is : " << str_this_trans;
+  LOG(INFO) << "target trans is : " << str_target_trans;
   //! Check the dim range in this domain and target domain. Correspoding dim's range must be equal.
   auto dim_names = isl_get_dim_names(domain_.get());
   std::set<std::string> this_dim_names;
@@ -873,7 +957,8 @@ void Stage::CopyTransform(Stage *other, int level) {
   isl::map res_map(this_ctx, res_trans);
   isl_map_set_tuple_name(res_map.get(), isl_dim_in, this_tensor_name.c_str());
   isl_map_set_tuple_name(res_map.get(), isl_dim_out, this_tensor_name.c_str());
-  VLOG(2) << "The final result trans is : " << isl_map_to_str(res_map.get());
+  LOG(INFO) << "After Copytransform result trans is : " << isl_map_to_str(res_map.get());
+  LOG(INFO) << "After Copytransform result domain is : " << isl_set_to_str(domain_.get());
   transform_ = res_map;
 }
 

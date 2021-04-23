@@ -117,6 +117,8 @@ class Stage : public Object {
   const Expr& expr() const { return expr_; }
 
   void TestChange(Stage* other, int level);
+
+  void TestChange2(Stage* other);
   //! Get the i-th axis.
   Iterator axis(int i) const;
   //! Get the axis named \p i.
@@ -236,6 +238,7 @@ class Stage : public Object {
 
   void ComputeAt2(Stage* other, int level, ComputeAtKind kind = kComputeAtBefore);
 
+  void EditCode(std::vector<std::vector<Expr>>& indices);
   /**
    * Create a cache for write to the original tensor.
    * @param tensor the tensor to create the cache for.
