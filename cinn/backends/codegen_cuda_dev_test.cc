@@ -1383,7 +1383,7 @@ void TestElementwiseAddPrecisionBasic(
 
 TEST(CodeGenCUDA2, compute_at2_test) {
   Expr M(100);
-  Expr N(60);
+  Expr P(50);
 
   Target target;
 
@@ -1394,16 +1394,17 @@ TEST(CodeGenCUDA2, compute_at2_test) {
   auto B = Compute(
       {M, M}, [&](Var i, Var j) { return A(i, j); }, "B");
   auto C = Compute(
-      {M, M}, [&](Var i, Var j) { return A(i, j) + B(i, j); }, "C");
+      {P, P}, [&](Var i, Var j) { return B(i + Expr(20), j + Expr(20)) + B(i, j); }, "C");
 
   auto stages = CreateStages({A, B, C});
-  stages[C]->Split(1, 10);
-  stages[C]->Split(0, 10);
+  /*   stages[C]->Split(1, 10);
+    stages[C]->Split(0, 10); */
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
   stages[B]->ComputeAt2(stages[C], 1);
   /*   stages[B]->Bind(0, "blockIdx.x");
     stages[B]->Bind(1, "threadIdx.x"); */
-  stages[C]->Bind(0, "blockIdx.x");
-  stages[C]->Bind(1, "threadIdx.x");
+
   CodeGenCUDA_Dev codegen(target);
 
   auto func = Lower("elementwise_add3", stages, {A, B, C});

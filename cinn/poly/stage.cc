@@ -210,7 +210,7 @@ void Stage::TestChange2(Stage *other) {
   if (indices.empty()) {
     return;
   }
-  if (indices.size() == 2) {
+  if (indices.size() >= 2) {
     EditCode(indices);
   }
   this->tensor()->new_indices = indices[0];
@@ -288,12 +288,6 @@ void Stage::TestChange(Stage *other, int level) {
   auto indices = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
   if (indices.empty()) {
     return;
-  }
-  this->tensor()->new_indices = indices[0];
-
-  std::vector<Var> axis_var = common::GenDefaultAxis(indices[0].size());
-  for (int i = 0; i < axis_var.size(); i++) {
-    optim::ReplaceVarWithExpr(&(this->expr_), axis_var[i], indices[0][i]);
   }
   std::string target_set = isl_set_to_str(other->domain().get());
   isl::ctx this_ctx      = domain_.ctx();
