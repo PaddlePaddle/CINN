@@ -702,7 +702,14 @@ ir::Tensor Stage::CacheWrite2(const std::string &memory_type, StageMap stages) {
   stages->Insert(write_stage, CreateStage(write_stage).get());
 
   stages[write_stage]->CtrlDepend(my_tensor);
-
+  std::vector<ir::Tensor> temp;
+  for (auto i : stages) {
+    if (i.second->tensor()->name == original_name || i.second->tensor()->name == cache_name) continue;
+    if (i.second->tensor()->is_compute_node()) {
+      temp.push_back(ir::Tensor(i.second->tensor()));
+    }
+  }
+  CacheReadWriteReplace(temp, write_stage, cache_name);
   return write_stage;
 }
 
