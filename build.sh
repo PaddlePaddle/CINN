@@ -99,12 +99,11 @@ function prepare_model {
     if [[ ! -f "libexternal_kernels.so.tgz" ]]; then
         wget https://github.com/T8T9/files/raw/main/libexternal_kernels.so.tgz
     fi
-    tar -xvf libexternal_kernels.so.tgz
+    tar -zxvf libexternal_kernels.so.tgz
     if [[ ! -f "paddle_1.8_fc_model.tgz" ]]; then
         wget https://github.com/T8T9/files/raw/main/paddle_1.8_fc_model.tgz
     fi
     tar -zxvf paddle_1.8_fc_model.tgz
-    tar -xvf mkldnn.tgz
     if [[ ! -f "mkldnn.tgz" ]]; then
         wget https://github.com/T8T9/files/raw/main/mkldnn.tgz
     fi
