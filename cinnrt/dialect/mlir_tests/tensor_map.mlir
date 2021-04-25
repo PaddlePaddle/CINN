@@ -1,3 +1,4 @@
+// CHECK-LABEL: @predict
 func @predict(%input:!cinn.tensor<X86, NCHW, F32>, %map: !cinn.tensor_map) -> (!cinn.tensor<X86, NCHW, F32>) {
   %w = dt.get_param(%map, "create_parameter_0.w_0") -> !cinn.tensor<X86, NCHW, F32>
   %bias = dt.get_param(%map, "create_parameter_1.w_0") -> !cinn.tensor<X86, NCHW, F32>
@@ -13,16 +14,19 @@ func @predict(%input:!cinn.tensor<X86, NCHW, F32>, %map: !cinn.tensor_map) -> (!
   cinn.return %out : !cinn.tensor<X86, NCHW, F32>
 }
 
-// CHECK-LABEL: main
+// CHECK-LABEL: @main
 func @main() {
   %input = dt.create_uninit_tensor.f32 [3, 3] -> !cinn.tensor<X86, NCHW, F32>
   dt.fill_tensor_with_constant.f32 (%input : !cinn.tensor<X86, NCHW, F32>) {value=1.0:f32}
 
-  %path = cinn.get_string("/cinn/benchmark/paddle-inference/Paddle-Inference-Demo/c++/fc/fc_1.8")
+  %path = cinn.get_string("/cinn/build/paddle/paddle_1.8_fc_model")
+  // CHECK-LABEL: loading params from: /cinn/build/paddle/paddle_1.8_fc_model
   %map = dt.load_params(%path)
 
   %out = cinn.call @predict(%input, %map): (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor_map) -> (!cinn.tensor<X86, NCHW, F32>)
+  //CHECK-LABEL: tensor: shape=shape[3,3], values=[0.428458, 0.244493, 0.572342, 0.572008, 0.509771, 0.495599, 0.651287, 0.326426, 0.404649]
   dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
 
   cinn.return
 }
+

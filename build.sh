@@ -94,6 +94,17 @@ function prepare_model {
         wget http://paddle-inference-dist.bj.bcebos.com/CINN/EfficientNet.tar
         tar -xvf EfficientNet.tar
     fi
+    mkdir -p $build_dir/paddle
+    cd $build_dir/paddle
+    if [[ ! -f "libexternal_kernels.so.tgz" ]]; then
+        wget https://github.com/T8T9/files/raw/main/libexternal_kernels.so.tgz
+    fi
+    tar -xvf libexternal_kernels.so.tgz
+    if [[ ! -f "paddle_1.8_fc_model.tgz" ]]; then
+        wget https://github.com/T8T9/files/raw/main/paddle_1.8_fc_model.tgz
+    fi
+    tar -zxvf paddle_1.8_fc_model.tgz
+
     python3 $workspace/python/tests/fake_model/naive_mul.py
     python3 $workspace/python/tests/fake_model/naive_multi_fc.py
     python3 $workspace/python/tests/fake_model/resnet_model.py
