@@ -6,13 +6,13 @@
 
 namespace cinnrt {
 
-class ConfigBase {
+class CinnRtConfig {
   std::string model_dir_;
   std::string mlir_path_;
   std::vector<std::string> shared_libs_;
 
  public:
-  ConfigBase() = default;
+  CinnRtConfig() = default;
   void set_model_dir(const std::string& model_dir) { model_dir_ = model_dir; };
   const std::string& model_dir() const { return model_dir_; }
 
@@ -22,10 +22,8 @@ class ConfigBase {
   void set_shared_libs(const std::vector<std::string>& shared_libs) { shared_libs_ = shared_libs; };
   const std::vector<std::string>& shared_libs() const { return shared_libs_; }
 
-  virtual ~ConfigBase() = default;
+  virtual ~CinnRtConfig() = default;
 };
-
-class CinnRtConfig : public ConfigBase {};
 
 class CinnRtPredictor {
  public:
