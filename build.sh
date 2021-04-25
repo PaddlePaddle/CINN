@@ -108,7 +108,7 @@ function prepare_model {
         wget https://github.com/T8T9/files/raw/main/mkldnn.tgz
     fi
     tar -zxvf mkldnn.tgz
-    export LD_LIBRARY_PATH=$build_dir/paddle/mkldnn:$LD_LIBRARY_PATH
+    export LD_LIBRARY_PATH=$build_dir/paddle/mkldnn:$build_dir/thirds/install/mklml/lib:$LD_LIBRARY_PATH
     cd -
     python3 $workspace/python/tests/fake_model/naive_mul.py
     python3 $workspace/python/tests/fake_model/naive_multi_fc.py
