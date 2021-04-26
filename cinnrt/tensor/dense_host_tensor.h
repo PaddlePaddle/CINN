@@ -24,6 +24,8 @@ class Tensor {
   const TensorMetadata& metadata() const { return metadata_; }
 
  protected:
+  Tensor() = default;
+  void setTensorMetadata(TensorMetadata& metadata) { metadata_ = metadata; }
   explicit Tensor(const TensorMetadata& metadata) : metadata_(metadata) {}
   explicit Tensor(TensorMetadata&& metadata) : metadata_(std::move(metadata)) {}
 
@@ -36,6 +38,7 @@ class HostTensor : public Tensor {
   bool IsHostTensor() const override { return true; }
 
  protected:
+  HostTensor() = default;
   explicit HostTensor(const TensorMetadata& metadata) : Tensor(metadata) {}
   explicit HostTensor(TensorMetadata&& metadata) : Tensor(std::move(metadata)) {}
 };
@@ -46,8 +49,10 @@ class HostTensor : public Tensor {
  */
 class DenseHostTensor : public HostTensor {
  public:
+  DenseHostTensor() = default;
   DenseHostTensor(const TensorShape& shape, DType dtype);
 
+  void Init(const std::vector<int64_t>& shape, DType dtype);
   const TensorShape& shape() const;
 
   const cinn::hlir::framework::Buffer* buffer() const;

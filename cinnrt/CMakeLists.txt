@@ -1,3 +1,4 @@
+add_subdirectory(api)
 add_subdirectory(common)
 add_subdirectory(dialect)
 add_subdirectory(host_context)

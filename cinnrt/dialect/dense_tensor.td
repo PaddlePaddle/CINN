@@ -81,6 +81,38 @@ class SetTensorOp<string dtype> :
   let printer = [{ return cinnrt::dt::printSetTensorOp(p, *this); }];
 }
 
+def LoadParamsOp : DT_Op<"load_params", [NoSideEffect]> {
+  let summary = "dt.load_params operation";
+
+  let description = [{
+    An operation that can load tensors to TensorMap.
+  }];
+
+  // input path of model params.
+  let arguments = (ins StringType:$path);
+  let results = (outs TensorMapType);
+
+  let assemblyFormat = "`(` operands `)` attr-dict";
+  let verifier = ?;
+}
+
+def GetParamOp : DT_Op<"get_param", [NoSideEffect]> {
+  let summary = "dt.get_param operation";
+
+  let description = [{
+    An operation that can get a tensor from TensorMap.
+  }];
+
+  // input path of model params.
+  let arguments = (ins
+          TensorMapType:$map,
+          StrAttr:$name
+          );
+  let results = (outs TensorType:$output);
+  let assemblyFormat = "`(` $map `,` $name `)` attr-dict `->` type($output)";
+  let verifier = ?;
+}
+
 def GetTensorShapeOp : DT_Op<"get_tensor_shape", [NoSideEffect]> {
   let summary = "dt.get_tensor_shape operation";
 

@@ -112,4 +112,28 @@ class PrintOp<string suffix, Type type> : CINN_Op<"print." # suffix> {
 def PrintF32Op : PrintOp<"f32", F32>;
 //def PrintF64Op : PrintOp<"f64", F64>;
 
+def GetStringOp : CINN_Op<"get_string"> {
+  let summary = "cinn.get_string";
+  let description = [{
+    Get a !cinn.string value from the given string attribute.
+  }];
+
+  let arguments = (ins StrAttr:$value);
+  let results = (outs StringType);
+  let assemblyFormat = "`(` $value `)` attr-dict";
+  let verifier = ?;
+}
+
+def PrintStringOp : CINN_Op<"print_string"> {
+  let summary = "cinn.print_string";
+  let description = [{
+      An operation that prints a string.
+  }];
+
+  let arguments = (ins StringType:$input);
+  let results = (outs);
+  let assemblyFormat = "`(` $input `)` attr-dict";
+  let verifier = ?;
+}
+
 #endif  // basic kernels

@@ -12,6 +12,7 @@
 #include "cinnrt/support/variant.h"
 #include "cinnrt/tensor/dense_host_tensor.h"
 #include "cinnrt/tensor/dense_tensor_view.h"
+#include "cinnrt/tensor/tensor_map.h"
 #include "cinnrt/tensor/tensor_shape.h"
 
 namespace cinnrt {
@@ -29,6 +30,7 @@ using ValueVariantType = cinnrt::Variant<int16_t,
                                          tensor::TensorShape,
                                          tensor::DenseHostTensor,
                                          MlirFunctionExecutable*,
+                                         tensor::TensorMap,
                                          std::vector<int16_t>,
                                          std::vector<int32_t>,
                                          std::vector<int64_t>,
@@ -52,6 +54,7 @@ class Value : public cinnrt::common::Object {
   explicit Value(double x) : data(x) {}
   explicit Value(bool x) : data(x) {}
   explicit Value(std::string x) : data(x) {}
+  explicit Value(tensor::TensorMap&& x) : data(x) {}
   explicit Value(std::vector<int16_t>&& x) : data(x) {}
   explicit Value(std::vector<int32_t>&& x) : data(x) {}
   explicit Value(std::vector<int64_t>&& x) : data(x) {}

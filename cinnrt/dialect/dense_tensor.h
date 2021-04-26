@@ -36,6 +36,20 @@ class TensorType : public mlir::Type::TypeBase<TensorType, mlir::Type, detail::T
 
 raw_ostream &operator<<(raw_ostream &os, TensorType tensorType);
 
+class TensorMapType : public mlir::Type::TypeBase<TensorMapType, mlir::Type, mlir::TypeStorage> {
+ public:
+  using Base::Base;
+  static TensorMapType get();
+  static TensorMapType get(mlir::MLIRContext *context);
+};
+
+class StringType : public mlir::Type::TypeBase<StringType, mlir::Type, mlir::TypeStorage> {
+ public:
+  using Base::Base;
+  static StringType get();
+  static StringType get(mlir::MLIRContext *context);
+};
+
 #include "cinnrt/dialect/dense_tensor_dialect.hpp.inc"
 
 #define GET_OP_CLASSES

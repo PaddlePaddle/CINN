@@ -1,5 +1,6 @@
 #pragma once
 
+#include "cinnrt/tensor/dense_host_tensor.h"
 #include "mlir/IR/MLIRContext.h"
 
 namespace cinnrt {

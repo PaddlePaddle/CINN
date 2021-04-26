@@ -15,10 +15,16 @@ def CINN_Dialect : Dialect {
 }
 
 // Type definitions
-def StringType : OpaqueType<"cinn", "string", "!cinn.string type">;
+def StringType :
+    Type<CPred<"$_self.isa<::cinnrt::dt::StringType>()">, "!cinn.string type">,
+    BuildableType<"$_builder.getType<::cinnrt::dt::StringType>()">;
 
 def TensorType :
     Type<CPred<"$_self.isa<::cinnrt::dt::TensorType>()">, "!cinn.tensor type">;
+
+def TensorMapType :
+    Type<CPred<"$_self.isa<::cinnrt::dt::TensorMapType>()">, "!cinn.tensor_map type">,
+    BuildableType<"$_builder.getType<::cinnrt::dt::TensorMapType>()">;
 
 def BufferType : OpaqueType<"b", "buffer", "buffer">;
 

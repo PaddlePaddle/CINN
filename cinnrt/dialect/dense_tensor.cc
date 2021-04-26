@@ -91,6 +91,14 @@ raw_ostream &operator<<(raw_ostream &os, TensorType tensorType) {
   return os;
 }
 
+TensorMapType TensorMapType::get() { return Base::get(::cinnrt::Global::getMLIRContext()); }
+
+TensorMapType TensorMapType::get(mlir::MLIRContext *context) { return Base::get(context); }
+
+StringType StringType::get() { return Base::get(::cinnrt::Global::getMLIRContext()); }
+
+StringType StringType::get(mlir::MLIRContext *context) { return Base::get(context); }
+
 raw_ostream &operator<<(raw_ostream &os, TargetType type) {
   switch (type) {
     case (TargetType::X86):
