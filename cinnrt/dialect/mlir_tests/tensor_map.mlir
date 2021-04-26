@@ -24,7 +24,7 @@ func @main() {
   %map = dt.load_params(%path)
 
   %out = cinn.call @predict(%input, %map): (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor_map) -> (!cinn.tensor<X86, NCHW, F32>)
-  //CHECK-LABEL: shape=shape[3,3], values=[0.428458, 0.244493, 0.572342, 0.572008, 0.509771, 0.495599, 0.651287, 0.326426, 0.404649]
+  //CHECK-LABEL: shape=shape[3,3], values=
   dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
 
   cinn.return
