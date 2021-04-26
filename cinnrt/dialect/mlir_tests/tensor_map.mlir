@@ -20,11 +20,10 @@ func @main() {
   dt.fill_tensor_with_constant.f32 (%input : !cinn.tensor<X86, NCHW, F32>) {value=1.0:f32}
 
   %path = cinn.get_string("/cinn/build/paddle/paddle_1.8_fc_model")
-  // CHECK-LABEL: loading params from: /cinn/build/paddle/paddle_1.8_fc_model
+  // CHECK-LABEL: loading params
   %map = dt.load_params(%path)
 
   %out = cinn.call @predict(%input, %map): (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor_map) -> (!cinn.tensor<X86, NCHW, F32>)
-  //CHECK-LABEL: shape=shape[3,3], values=
   dt.print_tensor (%out : !cinn.tensor<X86, NCHW, F32>)
 
   cinn.return
