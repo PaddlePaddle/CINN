@@ -140,7 +140,9 @@ The schedule transform is applied between the lowering from HLIR to CINN IR.
 
 The overall architecture is as follows
 
-![CINN architecture](./docs/images/cinn-architecutre.png)
+
+![image](https://user-images.githubusercontent.com/328693/116195497-dfe7a300-a764-11eb-9770-1716a42c3236.png)
+
 
 
 ##  Getting Started
