@@ -330,6 +330,7 @@ class Stage : public Object {
   //! this api will apply `Split(0,1)` on itself.
   void CopyTransform(Stage* other, int level = -1);
 
+  void EditTempTensor(Stage* other, int level);
   //! Copy other stage's LoopInfo.
   //! For example, if the target_forloop_infos is `Bind(0,"threadIdx.x")`,
   //! this api will apply `Bind(0,"threadIdx.x")` on itself.

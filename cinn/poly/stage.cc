@@ -1,5 +1,6 @@
 #include "cinn/poly/stage.h"
 
+#include <algorithm>
 #include <set>
 #include <unordered_set>
 #include <utility>
@@ -12,6 +13,7 @@
 #include "cinn/ir/operation.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute.h"
+#include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_replace.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/replace_var_with_expr.h"
@@ -223,30 +225,35 @@ void Stage::TestChange2(Stage *other) {
   return;
 }
 
+int Minus(const Expr &a, const Expr &b) {
+  Expr diff = ir::Sub::Make(a, b);
+  optim::Simplify(&diff);
+  if (!diff.is_constant()) {
+    LOG(ERROR) << "Range is not constant";
+  }
+  int int_range = diff.as_int32();
+  return int_range;
+}
+
+int GetRange(std::vector<std::vector<Expr>> &indices, int axis) {
+  Expr max_expr = indices[0][axis];
+  Expr min_expr = indices[0][axis];
+  for (auto i = 1; i < indices.size(); i++) {
+    if (Minus(indices[i][axis], min_expr) < 0) min_expr = indices[i][axis];
+    if (Minus(max_expr, indices[i][axis]) < 0) max_expr = indices[i][axis];
+  }
+  indices[0][axis] = min_expr;
+  return Minus(max_expr, min_expr);
+}
+
 void Stage::EditCode(std::vector<std::vector<Expr>> &indices) {
   for (int i = 0; i < indices[0].size(); i++) {
-    Expr range = ir::Sub::Make(indices[0][i], indices[1][i]);
-    optim::Simplify(&range);
-    // CHECK(range.is_constant());
-    // int int_temp = range.as_int32();
-    LOG(INFO) << "The range is : " << utils::GetStreamCnt(range);
-    if (range.is_constant()) {
-      LOG(INFO) << "Range is constant";
-    } else {
-      LOG(INFO) << "Range is not constant";
-      continue;
-    }
-    int int_range = range.as_int32();
+    int int_range = GetRange(indices, i);
     if (int_range == 0) continue;
-    if (int_range < 0) {
-      Expr temp     = indices[0][i];
-      indices[0][i] = indices[1][i];
-      indices[1][i] = temp;
-      int_range     = -int_range;
-    }
+
     std::string dim_name = common::axis_name(i) + "_at";
     Var dim_var(dim_name);
-    indices[0][i]              = ir::Add::Make(indices[1][i], Expr(dim_var));
+    indices[0][i]              = ir::Add::Make(indices[0][i], Expr(dim_var));
     std::string this_domain    = isl_set_to_str(domain_.get());
     std::string this_transform = isl_map_to_str(transform_.get());
     LOG(INFO) << "this domain is: " << this_domain;
@@ -322,6 +329,76 @@ void Stage::TestChange(Stage *other, int level) {
   return;
 }
 
+void Stage::EditTempTensor(Stage *other, int level) {
+  auto bind_info = other->forloop_infos();
+  auto temp_name = axis_names();
+  std::set<std::string> erase_var;
+  std::string tensor_name = this->tensor()->name;
+  for (int i = 0; i <= level; i++) {
+    LOG(INFO) << i << "-th axis name is : " << temp_name[i];
+    if (bind_info.count(i) != 0) {
+      if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kShared)) {
+        LOG(INFO) << "Skip the erase";
+        continue;
+      }
+    }
+    LOG(INFO) << "Erase " << temp_name[i];
+    erase_var.insert(temp_name[i].substr(0, 1));
+  }
+  for (int i = level + 1; i < temp_name.size(); i++) {
+    LOG(INFO) << i << "-th axis name is : " << temp_name[i];
+    if (bind_info.count(i) != 0) {
+      if (bind_info[i].for_type == ir::ForType::GPUBlock &&
+          (this->scope() == ScopeKind::kShared || this->scope() == ScopeKind::kLocal)) {
+        erase_var.insert(temp_name[i].substr(0, 1));
+      } else if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
+        erase_var.insert(temp_name[i].substr(0, 1));
+      }
+    }
+  }
+  std::vector<std::string> erase_var_vec;
+  for (auto &i : erase_var) {
+    erase_var_vec.push_back(i);
+  }
+
+  for (auto &j : erase_var_vec) {
+    Var dim_var(j);
+    for (auto &i : this->tensor()->new_indices) {
+      optim::ReplaceTensorVar(&i, dim_var, Expr(0), tensor_name);
+    }
+    optim::ReplaceTensorVar(&(other->expr_), dim_var, Expr(0), tensor_name);
+  }
+
+  std::map<std::string, int> dim_to_range;
+  std::vector<std::string> this_dim_names = isl_get_dim_names(domain_);
+  for (int i = 0; i < this_dim_names.size(); i++) {
+    auto [minv, maxv] = isl_set_get_axis_range(domain_.get(), i);
+    int min_iv        = minv.get_num_si();
+    int max_iv        = maxv.get_num_si();
+    LOG(INFO) << "min_iv of range " << this_dim_names[i] << "is " << min_iv << "and it should be 0.";
+    LOG(INFO) << "max_iv of range " << this_dim_names[i] << "is " << max_iv;
+    dim_to_range[this_dim_names[i]] = max_iv;
+  }
+
+  std::vector<Expr> new_shape;
+  for (auto &i : this->tensor()->new_indices) {
+    new_shape.push_back(optim::IRCopy(i));
+  }
+  for (auto &i : new_shape) {
+    for (auto &j : dim_to_range) {
+      Var dim_var(j.first);
+      optim::ReplaceTensorVar(&i, dim_var, Expr(j.second), tensor_name);
+    }
+    i = ir::Add::Make(i, Expr(1));
+    optim::Simplify(&i);
+  }
+  this->tensor()->shape  = new_shape;
+  this->tensor()->domain = new_shape;
+  CHECK(this->tensor()->buffer.defined());
+  this->tensor()->buffer->shape = new_shape;
+  return;
+}
+
 void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
   this->TestChange(other, level);
@@ -334,6 +411,35 @@ void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
 
   CHECK(relation.IsCompatible(this));
   compute_ats_[other->id()] = relation;
+  LOG(INFO) << "In the end of ComputeAt2, ";
+  LOG(INFO) << "this stage's domain_ is : " << isl_set_to_str(domain().get());
+  LOG(INFO) << "this stage's transform_ is : " << isl_map_to_str(transform().get());
+  LOG(INFO) << "this stage's transed_domain_ is : " << isl_set_to_str(transformed_domain().get());
+  LOG(INFO) << "It's axis names are: ";
+  for (auto &i : axis_names()) {
+    LOG(INFO) << i << ", ";
+  }
+  LOG(INFO) << "this tensor's name is : " << tensor()->name;
+  LOG(INFO) << "this tensor's forloop_infos_ size is : " << forloop_infos_.size();
+  LOG(INFO) << "target tensor's forloop_infos_ size is : " << other->forloop_infos().size();
+  LOG(INFO) << "this tensor's shape is : ";
+  for (auto &i : tensor()->shape) {
+    LOG(INFO) << utils::GetStreamCnt(i) << ", ";
+  }
+  LOG(INFO) << "this tensor's domain is : ";
+  for (auto &i : tensor()->domain) {
+    LOG(INFO) << utils::GetStreamCnt(i) << ", ";
+  }
+  LOG(INFO) << "this tensor's body is : " << utils::GetStreamCnt(tensor()->body());
+  LOG(INFO) << "this tensor's store body is : " << utils::GetStreamCnt(tensor()->tensor_store_expanded_body());
+  if (this->tensor()->buffer.defined()) {
+    std::string t_name = this->tensor()->name;
+    LOG(INFO) << "tensor name is: " << t_name;
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_outtest123")) {
+      EditTempTensor(other, level);
+    }
+  }
+  LOG(INFO) << "target tensor's compute body is : " << utils::GetStreamCnt(other->expr_);
 }
 
 void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {

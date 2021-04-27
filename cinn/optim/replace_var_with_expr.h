@@ -9,6 +9,8 @@
 namespace cinn {
 namespace optim {
 
+void ReplaceTensorVar(Expr *source, const Var &var, const Expr &expr, const std::string &tensor_name);
+
 /**
  * Replace the variable with a expression.
  * @param var The variable to replace.

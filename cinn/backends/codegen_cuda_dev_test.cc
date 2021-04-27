@@ -151,7 +151,7 @@ typedef char int8_t;
 __global__
 void elementwise_add3(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
 {
-  float _Y_read_cache [ ((1 * (((1 * 100) * 200) / 10)) / 10) ];
+  float _Y_read_cache [ 1 * 200 ];
   float* Y_read_cache = _Y_read_cache;
   if ((blockIdx.x < 10)) {
     if ((threadIdx.x < 10)) {
@@ -859,8 +859,44 @@ TEST(elementwise_add1, share_local_cache) {
 
   // compile with device code
   CodeGenCUDA_Dev codegen(common::DefaultNVGPUTarget());
-  auto source_code = codegen.Compile(builder.Build());
+  auto source_code          = codegen.Compile(builder.Build());
+  std::string source_target = R"ROC(
+extern "C" {
 
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void elementwise_add1(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
+{
+  float _A_read_cache_read_cache [ 1 * 1 ];
+  float _A_read_cache [ ((1 * (((1 * 100) * 200) / 100)) / 200) ];
+  float* A_read_cache = _A_read_cache;
+  float* A_read_cache_read_cache = _A_read_cache_read_cache;
+  if ((blockIdx.x < 100)) {
+    if ((threadIdx.x < 200)) {
+      A_read_cache[0] = A[((200 * blockIdx.x) + threadIdx.x)];
+    };
+  };
+  if ((blockIdx.x < 100)) {
+    if ((threadIdx.x < 200)) {
+    {
+      A_read_cache_read_cache[0] = A_read_cache[0];
+      C[((200 * blockIdx.x) + threadIdx.x)] = (A_read_cache_read_cache[0] + B[((200 * blockIdx.x) + threadIdx.x)]);
+    }
+    };
+  };
+}
+
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(source_target), source_code);
   backends::NVRTC_Compiler compiler;
 
   common::CudaModuleTester tester;
@@ -1117,7 +1153,7 @@ typedef char int8_t;
 __global__
 void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _A_read_cache [ ((1 * (((1 * 100) * 200) / 10)) / 10) ];
+  float _A_read_cache [ 1 * 200 ];
   float* A_read_cache = _A_read_cache;
   if ((threadIdx.x < 10)) {
     if ((blockIdx.x < 10)) {
@@ -1192,12 +1228,11 @@ TEST(ElementwiseAdd, cache_read1) {
     auto C = Compute(
         {M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
 
-    auto stages = CreateStages({C});
-    auto AL     = stages[A]->CacheRead("local", {C}, stages);
-
+    std::vector<ir::Tensor> temp{C};
+    auto stages = CreateStages(temp);
+    auto AL     = stages[A]->CacheRead2("local", temp, stages);
     stages[C]->Split(1, 10);
-    stages[AL]->Split(1, 10);
-    stages[AL]->ComputeAt(stages[C], 1, poly::Stage::ComputeAtKind::kComputeAtAuto, A->name);
+    stages[AL]->ComputeAt2(stages[C], 2);
 
     return std::make_tuple(A, B, C, AL, stages);
   };
@@ -1226,7 +1261,7 @@ TEST(ElementwiseAdd, cache_read1) {
   builder.AddFunction(fn);
 
   auto source_code = codegen.Compile(builder.Build());
-  std::cout << "CUDA source:\n" << source_code << std::endl;
+  std::cout << "CUDA source of ComputeAt2 & CacheRead2:\n" << source_code << std::endl;
 
   std::string source_target = R"ROC(
 extern "C" {
@@ -1243,22 +1278,16 @@ typedef char int8_t;
 __global__
 void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _A_read_cache [ 3 * 10 ];
+  float _A_read_cache [ 3 * 1 ];
   float* A_read_cache = _A_read_cache;
   if ((threadIdx.x < 98)) {
     if ((blockIdx.x < 20)) {
-    {
-      if (((((threadIdx.x >= 0) && (threadIdx.x <= 97)) && (blockIdx.x >= 0)) && (blockIdx.x <= 19))) {
-        for (int32_t i = 0; i < 3; i += 1) {
-          for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-            A_read_cache[((10 * i) + j_inner)] = A[((10 * blockIdx.x) + ((200 * i) + ((200 * threadIdx.x) + j_inner)))];
-          };
+      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+        for (int32_t i_at = 0; i_at < 3; i_at += 1) {
+          A_read_cache[i_at] = A[((10 * blockIdx.x) + ((200 * i_at) + ((200 * threadIdx.x) + j_inner)))];
         };
+        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))] = (A_read_cache[0] + (A_read_cache[1] + (A_read_cache[2] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))])));
       };
-      for (int32_t i = 0; i < 10; i += 1) {
-        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))] = (A_read_cache[i] + (A_read_cache[(10 + i)] + (A_read_cache[(20 + i)] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + i))])));
-      };
-    }
     };
   };
 }
@@ -1304,7 +1333,7 @@ void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       ASSERT_NEAR(C_target_mem[i * N.as_int32() + j],
                   A_mem[i * N.as_int32() + j] + A_mem[(i + 1) * N.as_int32() + j] + A_mem[(i + 2) * N.as_int32() + j] +
                       B_mem[i * N.as_int32() + j],
-                  1e-5);
+                  1e-4);
     }
   }
 
@@ -1383,31 +1412,34 @@ void TestElementwiseAddPrecisionBasic(
 
 TEST(CodeGenCUDA2, compute_at2_test) {
   Expr M(100);
-  Expr P(50);
+  Expr N(95);
 
   Target target;
 
-  Placeholder<float> A("A", {M, M});
+  Placeholder<float> A("AA", {M, M});
 
-  /*   auto B = Compute(
-        {M, N}, [&](Var i, Var j) { return A(i, j) + A(i, j); }, "B"); */
-  auto B = Compute(
-      {M, M}, [&](Var i, Var j) { return A(i, j); }, "B");
   auto C = Compute(
-      {P, P}, [&](Var i, Var j) { return B(i + Expr(20), j + Expr(20)) + B(i, j); }, "C");
+      {N, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 2, j + 2) + A(i + 5, j + 5); }, "C");
 
-  auto stages = CreateStages({A, B, C});
+  auto stages = CreateStages({A, C});
+  // stages[C]->Split(1, 5);
   /*   stages[C]->Split(1, 10);
     stages[C]->Split(0, 10); */
+  std::vector<ir::Tensor> temp{C};
+  auto B                = stages[A]->CacheRead2("shared", temp, stages);
+  std::string temp_name = B->name;
+  LOG(INFO) << "B's name is : " << temp_name;
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
   stages[B]->ComputeAt2(stages[C], 1);
+  /* CHECK(B->buffer.defined());
+  B->buffer->name = "_AA_read_cache_"; */
   /*   stages[B]->Bind(0, "blockIdx.x");
     stages[B]->Bind(1, "threadIdx.x"); */
 
   CodeGenCUDA_Dev codegen(target);
 
-  auto func = Lower("elementwise_add3", stages, {A, B, C});
+  auto func = Lower("elementwise_add3", stages, {A, C});
 
   Module::Builder builder("module", target);
   builder.AddFunction(func);
@@ -1435,7 +1467,6 @@ TEST(ElementwiseAdd, cache_read_shared) {
     std::vector<ir::Tensor> temp{C};
     auto AL = stages[A]->CacheRead2("shared", temp, stages);
 
-    stages[C]->Split(0, 10);
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");
     stages[AL]->ComputeAt2(stages[C], 1);
@@ -1470,17 +1501,13 @@ typedef char int8_t;
 __global__
 void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  __shared__ float _A_read_cache [ (((1 * 100) * 200) / 10) ];
+  __shared__ float _A_read_cache [ 1 * 200 ];
   float* A_read_cache = _A_read_cache;
-  if ((blockIdx.x < 10)) {
-    if ((threadIdx.x < 10)) {
+  if ((blockIdx.x < 100)) {
+    if ((threadIdx.x < 200)) {
     {
-      for (int32_t j = 0; j < 200; j += 1) {
-        A_read_cache[((200 * threadIdx.x) + j)] = A[((2000 * blockIdx.x) + ((200 * threadIdx.x) + j))];
-      };
-      for (int32_t j = 0; j < 200; j += 1) {
-        C[((2000 * blockIdx.x) + ((200 * threadIdx.x) + j))] = A_read_cache[((200 * threadIdx.x) + j)];
-      };
+      A_read_cache[threadIdx.x] = A[((200 * blockIdx.x) + threadIdx.x)];
+      C[((200 * blockIdx.x) + threadIdx.x)] = A_read_cache[threadIdx.x];
     }
     };
   };

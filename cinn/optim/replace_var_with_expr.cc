@@ -10,6 +10,67 @@
 namespace cinn {
 namespace optim {
 
+struct ReplaceTensorVarMutator : public ir::IRMutator<> {
+  ReplaceTensorVarMutator(const Var& var, const Expr& expr, const std::string& tensor_name)
+      : var_(var), expr_(expr), tensor_name_(tensor_name) {}
+
+  void operator()(Expr* expr) {
+    if (tensor_name_ == "") {
+      spec_tensor = false;
+    }
+    IRMutator::Visit(expr, expr);
+  }
+
+ private:
+  void Visit(const ir::_Var_* expr, Expr* op) override {
+    if (expr->name == var_->name && (do_replace_ || !spec_tensor)) {
+      auto copied = IRCopy(expr_);
+      *op         = copied;
+    }
+  }
+
+  void Visit(const ir::Store* op, Expr* expr) override {
+    auto* node   = expr->As<ir::Store>();
+    auto* tensor = node->tensor.as_tensor();
+    VLOG(2) << "Store 's tensor name is : " << tensor->name;
+
+    if (tensor->name == tensor_name_) {
+      do_replace_ = true;
+    } else {
+      do_replace_ = false;
+    }
+    for (auto& index : node->indices) {
+      ir::IRMutator<>::Visit(&index, &index);
+    }
+    do_replace_ = false;
+    ir::IRMutator<>::Visit(&node->value, &node->value);
+  }
+
+  void Visit(const ir::Load* expr, Expr* op) override {
+    auto* node   = op->As<ir::Load>();
+    auto* tensor = node->tensor.as_tensor();
+    if (tensor->name == tensor_name_) {
+      do_replace_ = true;
+    } else {
+      do_replace_ = false;
+    }
+    for (auto& idx : node->indices) ir::IRMutator<>::Visit(&idx, &idx);
+    do_replace_ = false;
+  }
+
+ private:
+  bool do_replace_{true};
+  bool spec_tensor{true};
+  const Var& var_;
+  const Expr& expr_;
+  const std::string& tensor_name_;
+};
+
+void ReplaceTensorVar(Expr* source, const Var& var, const Expr& expr, const std::string& tensor_name) {
+  ReplaceTensorVarMutator mutator(var, expr, tensor_name);
+  mutator(source);
+}
+
 struct ReplaceVarWithExprMutator : public ir::IRMutator<> {
   ReplaceVarWithExprMutator(const Var& var, const Expr& expr) : var_(var), expr_(expr) {}
 
