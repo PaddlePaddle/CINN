@@ -1342,7 +1342,7 @@ void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
-TEST(ElementwiseAdd, cache_read_compute_at) {
+TEST(ElementwiseAdd, cache_read_compute_at1) {
   Expr M(100);
   Expr N(95);
   Context::Global().ResetNameId();
@@ -1361,12 +1361,12 @@ TEST(ElementwiseAdd, cache_read_compute_at) {
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
-  auto fn = Lower("fn_cacheread_computeat", stages, {A, C});
+  auto fn = Lower("fn_cacheread_computeat1", stages, {A, C});
   Module::Builder builder("module", common::DefaultHostTarget());
   builder.AddFunction(fn);
 
   auto source_code = codegen.Compile(builder.Build());
-  LOG(INFO) << "CUDA source of ComputeAt2 latest:\n" << source_code << std::endl;
+  LOG(INFO) << "CUDA source of cache_read_compute_at1:\n" << source_code << std::endl;
 
   std::string source_target = R"ROC(
 extern "C" {
@@ -1381,7 +1381,7 @@ typedef char int8_t;
 
 
 __global__
-void fn_cacheread_computeat(const float* __restrict__ AA, float* __restrict__ C)
+void fn_cacheread_computeat1(const float* __restrict__ AA, float* __restrict__ C)
 {
   __shared__ float _AA_read_cache [ 6 * 100 ];
   float* AA_read_cache = _AA_read_cache;
@@ -1421,7 +1421,7 @@ void fn_cacheread_computeat(const float* __restrict__ AA, float* __restrict__ C)
   auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
-  tester("fn_cacheread_computeat", args.data(), args.size());
+  tester("fn_cacheread_computeat1", args.data(), args.size());
   CUDA_CALL(cudaDeviceSynchronize());
 
   CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->memory),
@@ -1437,6 +1437,107 @@ void fn_cacheread_computeat(const float* __restrict__ AA, float* __restrict__ C)
           C_target_mem[i * N.as_int32() + j],
           (A_mem[i * M.as_int32() + j] + A_mem[(i + 2) * M.as_int32() + j + 2] + A_mem[(i + 5) * M.as_int32() + j + 5]),
           1e-4);
+    }
+  }
+  cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
+  cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
+}
+
+TEST(ElementwiseAdd, cache_read_compute_at2) {
+  Expr M(100);
+  Expr N(50);
+  Context::Global().ResetNameId();
+  Placeholder<float> A("AA", {M, M});
+
+  auto C = Compute(
+      {N, N}, [&](Expr i, Expr j) { return A(i + 50, j) + A(i, j + 50); }, "C");
+
+  auto stages = CreateStages({A, C});
+  std::vector<ir::Tensor> temp{C};
+  auto AL = stages[A]->CacheRead2("local", temp, stages);
+  stages[C]->Split(1, 10);
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
+  stages[AL]->ComputeAt2(stages[C], 2);
+
+  Target target;
+  CodeGenCUDA_Dev codegen(target);
+
+  auto fn = Lower("fn_cacheread_computeat2", stages, {A, C});
+  Module::Builder builder("module", common::DefaultHostTarget());
+  builder.AddFunction(fn);
+
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "CUDA source of cache_read_compute_at2:\n" << source_code << std::endl;
+
+  std::string source_target = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C)
+{
+  float _AA_read_cache [ 51 * 51 ];
+  float* AA_read_cache = _AA_read_cache;
+  if ((blockIdx.x < 50)) {
+    if ((threadIdx.x < 5)) {
+      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
+        for (int32_t i_at = 0; i_at < 51; i_at += 1) {
+          for (int32_t j_at = 0; j_at < 51; j_at += 1) {
+            AA_read_cache[((51 * i_at) + j_at)] = AA[((100 * blockIdx.x) + ((100 * i_at) + ((10 * threadIdx.x) + (j_at + j_inner))))];
+          };
+        };
+        C[((50 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (AA_read_cache[2550] + AA_read_cache[50]);
+      };
+    };
+  };
+}
+
+}
+)ROC";
+
+  ASSERT_EQ(utils::Trim(source_target), source_code);
+
+  common::CudaModuleTester tester;
+  tester.Compile(builder.Build());
+
+  auto* A_host        = common::BufferBuilder(Float(32), {M.as_int32(), M.as_int32()}).set_random().Build();
+  auto* C_host        = common::BufferBuilder(Float(32), {N.as_int32(), N.as_int32()}).set_zero().Build();
+  auto* C_target_host = common::BufferBuilder(Float(32), {N.as_int32(), N.as_int32()}).set_zero().Build();
+
+  auto* A_dev = tester.CreateDeviceBuffer(A_host);
+  auto* C_dev = tester.CreateDeviceBuffer(C_host);
+
+  cinn_buffer_t* dev_bufs[2];
+  for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
+
+  CUDA_CALL(cudaDeviceSynchronize());
+  tester("fn_cacheread_computeat2", args.data(), args.size());
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(C_target_host->memory),
+                       C_dev,
+                       C_target_host->num_elements() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+
+  auto* C_target_mem = reinterpret_cast<float*>(C_target_host->memory);
+  auto* A_mem        = reinterpret_cast<float*>(A_host->memory);
+  for (int i = 0; i < N.as_int32(); i++) {
+    for (int j = 0; j < N.as_int32(); j++) {
+      ASSERT_NEAR(C_target_mem[i * N.as_int32() + j],
+                  (A_mem[(i + 50) * M.as_int32() + j] + A_mem[i * M.as_int32() + j + 50]),
+                  1e-4);
     }
   }
   cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));

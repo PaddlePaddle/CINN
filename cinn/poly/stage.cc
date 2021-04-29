@@ -205,7 +205,7 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
     LockAxis(i);
   }
 }
-// Add for loop in transform and replace tensor's index in compute body
+
 void Stage::ChangeIndex(Stage *other) {
   auto indices = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
   RemoveDuplicate(indices);
@@ -224,6 +224,7 @@ void Stage::ChangeIndex(Stage *other) {
   return;
 }
 
+// Return a - b as integer.
 int Minus(const Expr &a, const Expr &b) {
   Expr diff = ir::Sub::Make(a, b);
   optim::Simplify(&diff);
@@ -234,6 +235,7 @@ int Minus(const Expr &a, const Expr &b) {
   return int_range;
 }
 
+// Return the range = max - min among all indices[i][axis](i = 0,1,2,...)
 int GetRange(std::vector<std::vector<Expr>> &indices, int axis) {
   Expr max_expr = indices[0][axis];
   Expr min_expr = indices[0][axis];
@@ -285,7 +287,7 @@ void Stage::AddForLoopInTransform(std::vector<std::vector<Expr>> &indices) {
   }
   return;
 }
-// Change its domain to be consistent with other's domain.
+
 void Stage::ChangeDomain(Stage *other, int level) {
   auto indices = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
   if (indices.empty()) {
@@ -355,9 +357,9 @@ void Stage::EditTempTensor(Stage *other, int level) {
   for (auto &j : erase_var_vec) {
     Var dim_var(j);
     for (auto &i : this->tensor()->new_indices) {
-      optim::ReplaceTensorVar(&i, dim_var, Expr(0), tensor_name);
+      optim::ReplaceVarWithExpr(&i, dim_var, Expr(0));
     }
-    optim::ReplaceTensorVar(&(other->expr_), dim_var, Expr(0), tensor_name);
+    optim::ReplaceVarWithExpr(&(other->expr_), dim_var, Expr(0), tensor_name);
   }
 
   std::map<std::string, int> dim_to_range;
@@ -376,7 +378,7 @@ void Stage::EditTempTensor(Stage *other, int level) {
   for (auto &i : new_shape) {
     for (auto &j : dim_to_range) {
       Var dim_var(j.first);
-      optim::ReplaceTensorVar(&i, dim_var, Expr(j.second), tensor_name);
+      optim::ReplaceVarWithExpr(&i, dim_var, Expr(j.second));
     }
     i = ir::Add::Make(i, Expr(1));
     optim::Simplify(&i);
@@ -397,6 +399,7 @@ void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
   ComputeAtRelation relation;
   relation.stage = other;
   relation.level = level;
+  other->CtrlDepend(ir::Tensor(tensor()));
 
   CHECK(relation.IsCompatible(this));
   compute_ats_[other->id()] = relation;
