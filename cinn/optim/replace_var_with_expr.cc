@@ -32,7 +32,6 @@ struct ReplaceTensorVarMutator : public ir::IRMutator<> {
   void Visit(const ir::Store* op, Expr* expr) override {
     auto* node   = expr->As<ir::Store>();
     auto* tensor = node->tensor.as_tensor();
-    VLOG(2) << "Store 's tensor name is : " << tensor->name;
 
     if (tensor->name == tensor_name_) {
       do_replace_ = true;
