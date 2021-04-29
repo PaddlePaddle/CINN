@@ -290,7 +290,7 @@ void Stage::EditCode(std::vector<std::vector<Expr>> &indices) {
   }
   return;
 }
-// Do 2 things: replace this tensor's compute index and change its domain to be consistent with other's domain.
+// Change its domain to be consistent with other's domain.
 void Stage::TestChange(Stage *other, int level) {
   auto indices = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
   if (indices.empty()) {
@@ -1010,18 +1010,23 @@ void Stage::CopyTransform(Stage *other, int level) {
   LOG(INFO) << "this trans is : " << str_this_trans;
   LOG(INFO) << "target trans is : " << str_target_trans;
   //! Check the dim range in this domain and target domain. Correspoding dim's range must be equal.
+
   auto dim_names = isl_get_dim_names(domain_.get());
   std::set<std::string> this_dim_names;
   std::vector<std::string> erase_dim_names;
   for (int i = 0; i < isl_set_dim(domain_.get(), isl_dim_set); i++) {
     this_dim_names.insert(isl_set_get_dim_name(domain_.get(), isl_dim_set, i));
   }
+  // Delete redundant input dims in transform_ (e,g. B[i,j] -> CopyTransform(C[i,j,k]) , Redundant dim k will be
+  // deleted.)
   for (int i = 0; i < isl_map_dim(temp_transform_.get(), isl_dim_in); i++) {
     if (this_dim_names.count(isl_map_get_dim_name(temp_transform_.get(), isl_dim_in, i)) == 0) {
       temp_transform_ = isl::manage(isl_map_remove_dims(temp_transform_.release(), isl_dim_in, i, 1));
       i--;
     }
   }
+  // Check related output dims in transform_ and delete them (e,g. C[i,j,k] -> C[i,j,k1,k2] , Redundant output dim k1
+  // nad k2 will be deleted.)
   std::string new_target_trans = isl_map_to_str(temp_transform_.get());
   for (int i = 0; i < isl_map_dim(temp_transform_.get(), isl_dim_out); i++) {
     std::string temp_dim = isl_map_get_dim_name(temp_transform_.get(), isl_dim_out, i);
@@ -1030,7 +1035,7 @@ void Stage::CopyTransform(Stage *other, int level) {
       i--;
     }
   }
-
+  // Add dims
   if (level >= 0) {
     std::set<std::string> keep_names;
     std::string res_trans = isl_map_to_str(temp_transform_.get());
