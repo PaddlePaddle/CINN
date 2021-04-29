@@ -126,6 +126,18 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     mutator(&e);
   }
 
+  // mark parallel.
+  {
+    std::map<std::string, std::set<int>> parallels;
+    for (auto& node : group.nodes) {
+      if (!node->stage->parallel_info().empty()) {
+        parallels[node->stage->id()] = node->stage->parallel_info();
+      }
+    }
+    MarkParallelMutator mutator(parallels);
+    mutator(&e);
+  }
+
   // mark gpu threads
 #ifdef CINN_WITH_CUDA
   {

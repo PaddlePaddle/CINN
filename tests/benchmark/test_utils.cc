@@ -1,5 +1,6 @@
 #include "tests/benchmark/test_utils.h"
 
+#include "cinn/backends/llvm/codegen_x86.h"
 #include "cinn/common/cas.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/op.h"
@@ -11,7 +12,7 @@ namespace tests {
 using ir::Tensor;
 std::unique_ptr<backends::ExecutionEngine> OpBenchmarkTester::CreateExecutionEngine(const cinn::ir::Module& module) {
   auto engine = backends::ExecutionEngine::Create({});
-  engine->Link(module);
+  engine->Link<backends::CodeGenX86>(module);
   return engine;
 }
 

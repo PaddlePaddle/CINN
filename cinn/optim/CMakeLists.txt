@@ -27,6 +27,7 @@ core_gather_srcs(SRCS
     if_simplify.cc
     lower_intrin.cc
     cast_bool_to_int8.cc
+    collect_undefined_vars.cc
     )
 
 if (WITH_CUDA)

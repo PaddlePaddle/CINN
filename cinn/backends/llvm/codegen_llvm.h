@@ -184,6 +184,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   llvm::Value *CreateVecSlice(llvm::Value *vec, int begin, int lanes);
 
   llvm::Value *DenseVectorLoad(const ir::Load *load);
+  llvm::Value *CreateSerialFor(const ir::For *op, int stride = 1);
 
   /**
    * Mark a load or store with type-based-alias-analysis metadata so that LLVM can optimize by reordering loads and
@@ -195,6 +196,8 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   llvm::Module *m_;
   llvm::IRBuilder<> *b_;
+  // Current function
+  llvm::Function *f_;
 
   std::unique_ptr<llvm::MDBuilder> md_builder_;
 
