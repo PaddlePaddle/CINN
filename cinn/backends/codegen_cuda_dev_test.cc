@@ -121,9 +121,11 @@ TEST(CodeGenCUDA2, compile_run_jit2) {
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
   auto B_cache = stages[B]->CacheRead2("local", readers, stages);
+  auto A_cache = stages[A]->CacheRead2("local", readers, stages);
   stages[C]->Split(0, 10);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
+  stages[A_cache]->ComputeAt2(stages[C], 1);
   stages[B_cache]->ComputeAt2(stages[C], 1);
   CodeGenCUDA_Dev codegen(target);
 
@@ -135,41 +137,6 @@ TEST(CodeGenCUDA2, compile_run_jit2) {
   auto source_code = codegen.Compile(builder.Build());
 
   LOG(INFO) << "compiled CacheRead2 sync code:\n\n\n" << source_code;
-
-  std::string source_target = R"ROC(
-extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
-
-__global__
-void elementwise_add3(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
-{
-  float _Y_read_cache [ 1 * 200 ];
-  float* Y_read_cache = _Y_read_cache;
-  if ((blockIdx.x < 10)) {
-    if ((threadIdx.x < 10)) {
-    {
-      for (int32_t j = 0; j < 200; j += 1) {
-        Y_read_cache[j] = Y[((2000 * blockIdx.x) + ((200 * threadIdx.x) + j))];
-      };
-      for (int32_t j = 0; j < 200; j += 1) {
-        C[((2000 * blockIdx.x) + ((200 * threadIdx.x) + j))] = (X[((2000 * blockIdx.x) + ((200 * threadIdx.x) + j))] * Y_read_cache[j]);
-      };
-    }
-    };
-  };
-}
-
-}
-)ROC";
-  ASSERT_EQ(utils::Trim(source_target), source_code);
 
   using runtime::cuda::CUDAModule;
 
