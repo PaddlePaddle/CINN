@@ -189,7 +189,7 @@ static bool IsReturn(mlir::Operation* op) { return op->getName().getStringRef() 
 bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
   auto loc = op->getLoc();
   CHECK(impl_->runtime);
-  impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
+  impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str());
 
   VLOG(3) << "processing general op : " << op->getName().getStringRef().str();
 
@@ -359,7 +359,7 @@ bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, function_defs_t* f
   CHECK(function_table);
   if (op->getName().getStringRef() != "cinn.call") return false;
 
-  impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
+  impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str());
 
   auto callee      = op->getAttr("callee");
   auto callee_name = callee.dyn_cast<mlir::FlatSymbolRefAttr>();
@@ -476,19 +476,6 @@ class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
 
  private:
   KernelRegistry* registry{};
-};
-
-class MlirProgramExecutor : public MlirToRuntimeTranslator {
- public:
-  CoreRuntimeBuilder runtime_builder;
-  mlir::ModuleOp module;
-
-  MlirProgramExecutor(mlir::ModuleOp module, KernelRegistry* registry) : runtime_builder(registry), module(module) {}
-
-  // Build functions and generate executables.
-  void BuildFunctions();
-
-  MlirFunctionExecutable*  LookupFunc(const std::string& name);
 };
 
 void TestMlir(mlir::ModuleOp module, KernelRegistry* registry) {

@@ -35,7 +35,7 @@ class CreateUninitTensorOp<string dtype>
 }
 
 
-def ShadowCopyTensorOp
+def ShallowCopyTensorOp
       : DT_Op<"shallow_copy_tensor", [NoSideEffect]> {
   let summary = "dt.shallow_copy_tensor operation";
 

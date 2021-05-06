@@ -30,9 +30,11 @@ class CoreRuntime : public std::enable_shared_from_this<CoreRuntime> {
   llvm::SmallVector<ValueRef, 4>  //
   GetResults(llvm::ArrayRef<std::string_view> arg_names);
 
-  ~CoreRuntime();
-
   std::shared_ptr<CoreRuntime> getptr() { return std::shared_ptr<CoreRuntime>(this); }
+
+  KernelRegistry* kernel_registry() const;
+
+  ~CoreRuntime();
 
  protected:
   //! Get the symbol table.
@@ -59,7 +61,7 @@ class CoreRuntimeBuilder : public CoreRuntime {
 
   llvm::ArrayRef<std::string_view> attr_names() const;
 
-  OpExecutableBuilder* NewOpExecutable(std::string_view op_name, const std::string& fn_name);
+  OpExecutableBuilder* NewOpExecutable(std::string_view op_name);
 };
 
 }  // namespace cinnrt::host_context

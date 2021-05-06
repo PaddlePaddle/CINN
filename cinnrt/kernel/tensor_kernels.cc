@@ -39,9 +39,7 @@ DenseHostTensor GetParam(TensorMap map, Attribute<std::string> nameAttr) {
   return *(map[name]);
 }
 
-DenseHostTensor ShallowCopyTensor(DenseHostTensor v) {
-  return v;
-}
+DenseHostTensor ShallowCopyTensor(DenseHostTensor v) { return v; }
 
 /// ===== Kernel end ====
 

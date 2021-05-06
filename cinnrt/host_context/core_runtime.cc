@@ -31,13 +31,15 @@ void CoreRuntime::Execute() {
   }
 }
 
+KernelRegistry* CoreRuntime::kernel_registry() const { return impl_->kernel_registry; }
+
 size_t CoreRuntime::num_ops() const { return impl_->op_executables.size(); }
 
 CoreRuntimeBuilder::CoreRuntimeBuilder(KernelRegistry* kernel_registry) : CoreRuntime(new Impl) {
   impl_->kernel_registry = kernel_registry ? kernel_registry : GetCpuKernelRegistry();
 }
 
-OpExecutableBuilder* CoreRuntimeBuilder::NewOpExecutable(std::string_view op_name, const std::string& fn_name) {
+OpExecutableBuilder* CoreRuntimeBuilder::NewOpExecutable(std::string_view op_name) {
   CHECK(impl_.get());
   impl_->op_executables.emplace_back(op_name, symbol_table(), impl_->kernel_registry);
   return &impl_->op_executables.back();

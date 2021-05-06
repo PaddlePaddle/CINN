@@ -13,7 +13,9 @@ struct OpExecutable::Impl {
   Impl(std::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry)
       : name(op_name),
         symbol_table(symbol_table),
-        kernel_registry(kernel_registry ? kernel_registry : GetCpuKernelRegistry()) {}
+        kernel_registry(kernel_registry ? kernel_registry : GetCpuKernelRegistry()) {
+    CHECK(kernel_registry);
+  }
 
   std::string name;
   SymbolTable* symbol_table{};
@@ -33,6 +35,7 @@ OpExecutableBuilder::OpExecutableBuilder(std::string_view op_name,
                                          SymbolTable* symbol_table,
                                          KernelRegistry* kernel_registry)
     : OpExecutable(new Impl(op_name, symbol_table, kernel_registry)) {
+  CHECK(impl_);
   // Cpu kernel registry is the default KernelRegistry.
   impl_->kernel_impl = impl_->kernel_registry->GetKernel(std::string(op_name.data(), op_name.size()));
   // TODO(Superjomn) support other device other than CPU.

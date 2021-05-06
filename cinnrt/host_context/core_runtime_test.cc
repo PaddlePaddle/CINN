@@ -25,13 +25,13 @@ TEST(CoreRuntime, basic) {
   table->Register("d", 4);
 
   // c = a + b
-  auto* op0 = builder.NewOpExecutable("cinn.test.addi32", "main");
+  auto* op0 = builder.NewOpExecutable("cinn.test.addi32");
   op0->AppendArgument("a");
   op0->AppendArgument("b");
   op0->SetResults({"c"});
 
   // e = c - d
-  auto* op1 = builder.NewOpExecutable("cinn.test.subi32", "main");
+  auto* op1 = builder.NewOpExecutable("cinn.test.subi32");
   op1->AppendArgument("c");
   op1->AppendArgument("d");
   op1->SetResults({"e"});
@@ -64,7 +64,7 @@ TEST(CoreRuntime, function) {
   ASSERT_EQ(table->Get<int>("b"), 2);
   ASSERT_EQ(table->size(), 2UL);
 
-  auto* op = builder.NewOpExecutable("cinn.test.addi32", "main");
+  auto* op = builder.NewOpExecutable("cinn.test.addi32");
   op->AppendArgument("a");
   op->AppendArgument("b");
   op->SetResults({"c"});

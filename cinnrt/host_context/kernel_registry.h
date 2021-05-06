@@ -24,6 +24,8 @@ class KernelRegistry {
   KernelImplementation GetKernel(const std::string &key) const;
   std::vector<std::string> GetKernelList() const;
 
+  size_t size() const;
+
   ~KernelRegistry();
 
  private:
