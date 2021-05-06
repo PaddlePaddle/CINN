@@ -330,7 +330,7 @@ class Stage : public Object {
   //! For example, if the target_transform is `Split(0,1)`,
   //! this api will apply `Split(0,1)` on itself.
   void CopyTransform(Stage* other, int level = -1);
-  //! Edit temp tensor's shape, its buffer's shape and index when doing ComputeAt.
+  //! Edit temp tensor's shape, its buffer's shape and index when doing ComputeAt2.
   void EditTempTensor(Stage* other, int level);
   //! Copy other stage's LoopInfo.
   //! For example, if the target_forloop_infos is `Bind(0,"threadIdx.x")`,

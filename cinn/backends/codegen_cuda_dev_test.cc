@@ -826,44 +826,7 @@ TEST(elementwise_add1, share_local_cache) {
 
   // compile with device code
   CodeGenCUDA_Dev codegen(common::DefaultNVGPUTarget());
-  auto source_code          = codegen.Compile(builder.Build());
-  std::string source_target = R"ROC(
-extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
-
-__global__
-void elementwise_add1(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
-{
-  float _A_read_cache_read_cache [ 1 * 1 ];
-  float _A_read_cache [ ((1 * (((1 * 100) * 200) / 100)) / 200) ];
-  float* A_read_cache = _A_read_cache;
-  float* A_read_cache_read_cache = _A_read_cache_read_cache;
-  if ((blockIdx.x < 100)) {
-    if ((threadIdx.x < 200)) {
-      A_read_cache[0] = A[((200 * blockIdx.x) + threadIdx.x)];
-    };
-  };
-  if ((blockIdx.x < 100)) {
-    if ((threadIdx.x < 200)) {
-    {
-      A_read_cache_read_cache[0] = A_read_cache[0];
-      C[((200 * blockIdx.x) + threadIdx.x)] = (A_read_cache_read_cache[0] + B[((200 * blockIdx.x) + threadIdx.x)]);
-    }
-    };
-  };
-}
-
-}
-)ROC";
-  ASSERT_EQ(utils::Trim(source_target), source_code);
+  auto source_code = codegen.Compile(builder.Build());
   backends::NVRTC_Compiler compiler;
 
   common::CudaModuleTester tester;
@@ -926,14 +889,10 @@ TEST(elementwise_add0, share_local_cache) {
   auto AA = stages[A]->CacheRead2("shared", temp, stages);
   // NOTE here, the CC replace the C as the output the function.
 
+  stages[C]->ComputeAt2(stages[CC], 1);
+  stages[AA]->ComputeAt2(stages[CC], 1);
   stages[CC]->Bind(0, "blockIdx.x");
   stages[CC]->Bind(1, "threadIdx.x");
-
-  stages[C]->Bind(0, "blockIdx.x");
-  stages[C]->Bind(1, "threadIdx.x");
-
-  stages[AA]->Bind(0, "blockIdx.x");
-  stages[AA]->Bind(1, "threadIdx.x");
 
   Module::Builder builder("gpu_module", common::DefaultNVGPUTarget());
 
@@ -1793,7 +1752,7 @@ typedef char int8_t;
 __global__
 void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _C_cache_write_out [ ((1 * (((1 * 40) * 40) / 40)) / 40) ];
+  float _C_cache_write_out [ 1 * 1 ];
   float* C_cache_write_out = _C_cache_write_out;
   if ((blockIdx.x < 40)) {
     if ((threadIdx.x < 40)) {

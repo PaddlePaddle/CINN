@@ -287,7 +287,13 @@ void Stage::AddForLoopInTransform(std::vector<std::vector<Expr>> &indices) {
   }
   return;
 }
-
+/**
+ * Change this stage's domain to be consistent with other's domain.
+ * @param level Change the domain lower than level to be consistent with other's domain.
+ * For example, when this->domain_ is "{ [i0, i1] : 0 <= i0 <= 9 and 0 <= i1 <= 9 }",
+ * other->domain_ is "{ [i0, i1] : 0 <= i0 <= 4 and 0 <= i1 <= 4 }" and level = 1.
+ * Then this->domain_ whill be changed to "{ [i0, i1] : 0 <= i0 <= 4 and 0 <= i1 <= 4 }".
+ */
 void Stage::ChangeDomain(Stage *other, int level) {
   auto indices = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
   if (indices.empty()) {
@@ -298,6 +304,7 @@ void Stage::ChangeDomain(Stage *other, int level) {
   isl::set res_set(this_ctx, target_set);
   int index = isl_set_dim(domain_.get(), isl_dim_set);
   int num   = isl_set_dim(res_set.get(), isl_dim_set) - isl_set_dim(domain_.get(), isl_dim_set);
+  // When other's dims is more than this dims, remove redundant dims.
   if (num > 0) {
     res_set = isl::manage(isl_set_remove_dims(res_set.get(), isl_dim_param, index, num));
   }
@@ -316,6 +323,8 @@ void Stage::ChangeDomain(Stage *other, int level) {
     auto [minv2, maxv2] = isl_set_get_axis_range(other->domain().get(), i);
     int min_tar         = minv2.get_num_si();
     int max_tar         = maxv2.get_num_si();
+    // Change each dim's range.
+    // e.g., from "0 <= i0 <= 9" to "0 <= i0 <= 4"
     utils::Replace(&new_res_str,
                    std::to_string(min_tar) + " <= " + common::axis_name(i) + " <= " + std::to_string(max_tar),
                    std::to_string(min_iv) + " <= " + common::axis_name(i) + " <= " + std::to_string(max_iv));
@@ -326,6 +335,12 @@ void Stage::ChangeDomain(Stage *other, int level) {
   return;
 }
 
+/**
+ * Edit temp tensor's shape, its buffer's shape and index when doing ComputeAt2.
+ * @param level The level of dims to be changed.
+ * For example, when this->domain_ is "{ [i0, i1] : 0 <= i0 <= 9 and 0 <= i1 <= 9 }",
+ * and 1st loop is binded to threadIdx.x, then i0 will be erased in this temp tensor's axes.
+ */
 void Stage::EditTempTensor(Stage *other, int level) {
   auto bind_info = other->forloop_infos();
   auto temp_name = axis_names();
@@ -337,8 +352,10 @@ void Stage::EditTempTensor(Stage *other, int level) {
         continue;
       }
     }
+    // First level loops iterator will be erased.
     erase_var.insert(temp_name[i].substr(0, 1));
   }
+  // Beyond level, if the loop is binded to certain thread/block, it will also be earsed.
   for (int i = level + 1; i < temp_name.size(); i++) {
     if (bind_info.count(i) != 0) {
       if (bind_info[i].for_type == ir::ForType::GPUBlock &&
@@ -353,7 +370,7 @@ void Stage::EditTempTensor(Stage *other, int level) {
   for (auto &i : erase_var) {
     erase_var_vec.push_back(i);
   }
-
+  // Erase loop iterators.
   for (auto &j : erase_var_vec) {
     Var dim_var(j);
     for (auto &i : this->tensor()->new_indices) {
@@ -361,7 +378,7 @@ void Stage::EditTempTensor(Stage *other, int level) {
     }
     optim::ReplaceVarWithExpr(&(other->expr_), dim_var, Expr(0), tensor_name);
   }
-
+  // Store each loop's range.
   std::map<std::string, int> dim_to_range;
   std::vector<std::string> this_dim_names = isl_get_dim_names(domain_);
   for (int i = 0; i < this_dim_names.size(); i++) {
@@ -383,6 +400,7 @@ void Stage::EditTempTensor(Stage *other, int level) {
     i = ir::Add::Make(i, Expr(1));
     optim::Simplify(&i);
   }
+  // Set new shape.
   this->tensor()->shape  = new_shape;
   this->tensor()->domain = new_shape;
   CHECK(this->tensor()->buffer.defined());
@@ -405,7 +423,7 @@ void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
   compute_ats_[other->id()] = relation;
   if (this->tensor()->buffer.defined()) {
     std::string t_name = this->tensor()->name;
-    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_outtest123")) {
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
       EditTempTensor(other, level);
     }
   }
