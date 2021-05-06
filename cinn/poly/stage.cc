@@ -1,5 +1,6 @@
 #include "cinn/poly/stage.h"
 
+#include <algorithm>
 #include <set>
 #include <unordered_set>
 #include <utility>
@@ -12,7 +13,10 @@
 #include "cinn/ir/operation.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute.h"
+#include "cinn/optim/ir_copy.h"
 #include "cinn/optim/ir_replace.h"
+#include "cinn/optim/ir_simplify.h"
+#include "cinn/optim/replace_var_with_expr.h"
 #include "cinn/poly/compute_at_transform.h"
 #include "cinn/poly/isl_utils.h"
 #include "cinn/utils/functional.h"
@@ -20,6 +24,21 @@
 
 namespace cinn {
 namespace poly {
+void RemoveDuplicate(std::vector<std::vector<Expr>> &indices) {
+  std::set<std::string> temp;
+  for (int i = 0; i < indices.size(); i++) {
+    std::string index_str = "";
+    for (auto &j : indices[i]) {
+      index_str += utils::GetStreamCnt(j) + ",";
+    }
+    if (temp.count(index_str) == 0) {
+      temp.insert(index_str);
+    } else {
+      indices.erase(indices.begin() + i);
+      i--;
+    }
+  }
+}
 
 std::vector<Iterator> NamesToIterators(const std::vector<std::string> &names) {
   std::vector<Iterator> res;
@@ -187,16 +206,227 @@ void Stage::ComputeAtSchedule(Stage *other, int level, ComputeAtKind kind) {
   }
 }
 
+void Stage::ChangeIndex(Stage *other) {
+  auto indices = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
+  RemoveDuplicate(indices);
+  if (indices.empty()) {
+    return;
+  }
+  if (indices.size() >= 2) {
+    AddForLoopInTransform(indices);
+  }
+  this->tensor()->new_indices = indices[0];
+
+  std::vector<Var> axis_var = common::GenDefaultAxis(indices[0].size());
+  for (int i = 0; i < axis_var.size(); i++) {
+    optim::ReplaceVarWithExpr(&(this->expr_), axis_var[i], indices[0][i]);
+  }
+  return;
+}
+
+// Return a - b as integer.
+int Minus(const Expr &a, const Expr &b) {
+  Expr diff = ir::Sub::Make(a, b);
+  optim::Simplify(&diff);
+  if (!diff.is_constant()) {
+    LOG(ERROR) << "Range is not constant";
+  }
+  int int_range = diff.as_int32();
+  return int_range;
+}
+
+// Return the range = max - min among all indices[i][axis](i = 0,1,2,...)
+int GetRange(std::vector<std::vector<Expr>> &indices, int axis) {
+  Expr max_expr = indices[0][axis];
+  Expr min_expr = indices[0][axis];
+  for (auto i = 1; i < indices.size(); i++) {
+    if (Minus(indices[i][axis], min_expr) < 0) min_expr = indices[i][axis];
+    if (Minus(max_expr, indices[i][axis]) < 0) max_expr = indices[i][axis];
+  }
+  indices[0][axis] = min_expr;
+  return Minus(max_expr, min_expr);
+}
+
+void Stage::AddForLoopInTransform(std::vector<std::vector<Expr>> &indices) {
+  for (int i = 0; i < indices[0].size(); i++) {
+    int int_range = GetRange(indices, i);
+    if (int_range == 0) continue;
+
+    std::string dim_name = common::axis_name(i) + "_at";
+    Var dim_var(dim_name);
+    indices[0][i]              = ir::Add::Make(indices[0][i], Expr(dim_var));
+    std::string this_domain    = isl_set_to_str(domain_.get());
+    std::string this_transform = isl_map_to_str(transform_.get());
+    isl::ctx this_ctx          = domain_.ctx();
+    isl::set domain2(this_ctx, this_domain);
+    std::string tuple_name = isl_set_get_tuple_name(domain_.get());
+    domain2                = isl::manage(isl_set_add_dims(domain2.release(), isl_dim_out, 1));
+    int dim_size           = isl_set_dim(domain2.get(), isl_dim_out);
+
+    domain2 = isl::manage(isl_set_set_dim_name(domain2.release(), isl_dim_out, dim_size - 1, dim_name.c_str()));
+    domain2 = isl::manage(isl_set_set_tuple_name(domain2.release(), tuple_name.c_str()));
+    std::string domain2_str = isl_set_to_str(domain2.get());
+    domain2_str             = domain2_str.substr(0, domain2_str.size() - 1) + "and 0 <= " + dim_name +
+                  " <= " + std::to_string(int_range) + " }";
+    VLOG(2) << "Edited domain is: " << domain2_str;
+    isl::set domain_res(this_ctx, domain2_str);
+    domain_ = domain_res;
+
+    isl::map transform2(this_ctx, this_transform);
+    transform2 = isl::manage(isl_map_add_dims(transform2.release(), isl_dim_in, 1));
+    dim_size   = isl_map_dim(transform2.get(), isl_dim_in);
+    transform2 = isl::manage(isl_map_set_dim_name(transform2.release(), isl_dim_in, dim_size - 1, dim_name.c_str()));
+    transform2 = isl::manage(isl_map_set_tuple_name(transform2.release(), isl_dim_in, tuple_name.c_str()));
+    std::string transform2_str = isl_map_to_str(transform2.get());
+    int found_index            = transform2_str.find_last_of("]");
+    transform2_str             = transform2_str.substr(0, found_index) + ", " + dim_name + "' = " + dim_name +
+                     transform2_str.substr(found_index, transform2_str.size() - found_index);
+    VLOG(2) << "Edited transform is: " << transform2_str;
+    isl::map trans_res(this_ctx, transform2_str);
+    transform_ = trans_res;
+  }
+  return;
+}
+/**
+ * Change this stage's domain to be consistent with other's domain.
+ * @param level Change the domain lower than level to be consistent with other's domain.
+ * For example, when this->domain_ is "{ [i0, i1] : 0 <= i0 <= 9 and 0 <= i1 <= 9 }",
+ * other->domain_ is "{ [i0, i1] : 0 <= i0 <= 4 and 0 <= i1 <= 4 }" and level = 1.
+ * Then this->domain_ whill be changed to "{ [i0, i1] : 0 <= i0 <= 4 and 0 <= i1 <= 4 }".
+ */
+void Stage::ChangeDomain(Stage *other, int level) {
+  auto indices = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
+  if (indices.empty()) {
+    return;
+  }
+  std::string target_set = isl_set_to_str(other->domain().get());
+  isl::ctx this_ctx      = domain_.ctx();
+  isl::set res_set(this_ctx, target_set);
+  int index = isl_set_dim(domain_.get(), isl_dim_set);
+  int num   = isl_set_dim(res_set.get(), isl_dim_set) - isl_set_dim(domain_.get(), isl_dim_set);
+  // When other's dims is more than this dims, remove redundant dims.
+  if (num > 0) {
+    res_set = isl::manage(isl_set_remove_dims(res_set.get(), isl_dim_param, index, num));
+  }
+  std::string new_res_str = isl_set_to_str(res_set.get());
+  std::string str_name    = isl_set_get_tuple_name(domain_.get());
+
+  auto map_names = isl_get_dim_names(other->transform().get(), isl_dim_out);
+  std::set<std::string> uniq_names;
+  for (int i = 0; i <= level; i++) {
+    uniq_names.insert(map_names[i].substr(0, 1));
+  }
+  for (int i = uniq_names.size(); i < isl_set_dim(res_set.get(), isl_dim_set); i++) {
+    auto [minv, maxv]   = isl_set_get_axis_range(domain_.get(), i);
+    int min_iv          = minv.get_num_si();
+    int max_iv          = maxv.get_num_si();
+    auto [minv2, maxv2] = isl_set_get_axis_range(other->domain().get(), i);
+    int min_tar         = minv2.get_num_si();
+    int max_tar         = maxv2.get_num_si();
+    // Change each dim's range.
+    // e.g., from "0 <= i0 <= 9" to "0 <= i0 <= 4"
+    utils::Replace(&new_res_str,
+                   std::to_string(min_tar) + " <= " + common::axis_name(i) + " <= " + std::to_string(max_tar),
+                   std::to_string(min_iv) + " <= " + common::axis_name(i) + " <= " + std::to_string(max_iv));
+    isl::set res_set2(this_ctx, new_res_str);
+    res_set = res_set2;
+  }
+  domain_ = isl::manage(isl_set_set_tuple_name(res_set.release(), str_name.c_str()));
+  return;
+}
+
+/**
+ * Edit temp tensor's shape, its buffer's shape and index when doing ComputeAt2.
+ * @param level The level of dims to be changed.
+ * For example, when this->domain_ is "{ [i0, i1] : 0 <= i0 <= 9 and 0 <= i1 <= 9 }",
+ * and 1st loop is binded to threadIdx.x, then i0 will be erased in this temp tensor's axes.
+ */
+void Stage::EditTempTensor(Stage *other, int level) {
+  auto bind_info = other->forloop_infos();
+  auto temp_name = axis_names();
+  std::set<std::string> erase_var;
+  std::string tensor_name = this->tensor()->name;
+  for (int i = 0; i <= level; i++) {
+    if (bind_info.count(i) != 0) {
+      if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kShared)) {
+        continue;
+      }
+    }
+    // First level loops iterator will be erased.
+    erase_var.insert(temp_name[i].substr(0, 1));
+  }
+  // Beyond level, if the loop is binded to certain thread/block, it will also be earsed.
+  for (int i = level + 1; i < temp_name.size(); i++) {
+    if (bind_info.count(i) != 0) {
+      if (bind_info[i].for_type == ir::ForType::GPUBlock &&
+          (this->scope() == ScopeKind::kShared || this->scope() == ScopeKind::kLocal)) {
+        erase_var.insert(temp_name[i].substr(0, 1));
+      } else if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
+        erase_var.insert(temp_name[i].substr(0, 1));
+      }
+    }
+  }
+  std::vector<std::string> erase_var_vec;
+  for (auto &i : erase_var) {
+    erase_var_vec.push_back(i);
+  }
+  // Erase loop iterators.
+  for (auto &j : erase_var_vec) {
+    Var dim_var(j);
+    for (auto &i : this->tensor()->new_indices) {
+      optim::ReplaceVarWithExpr(&i, dim_var, Expr(0));
+    }
+    optim::ReplaceVarWithExpr(&(other->expr_), dim_var, Expr(0), tensor_name);
+  }
+  // Store each loop's range.
+  std::map<std::string, int> dim_to_range;
+  std::vector<std::string> this_dim_names = isl_get_dim_names(domain_);
+  for (int i = 0; i < this_dim_names.size(); i++) {
+    auto [minv, maxv]               = isl_set_get_axis_range(domain_.get(), i);
+    int min_iv                      = minv.get_num_si();
+    int max_iv                      = maxv.get_num_si();
+    dim_to_range[this_dim_names[i]] = max_iv;
+  }
+
+  std::vector<Expr> new_shape;
+  for (auto &i : this->tensor()->new_indices) {
+    new_shape.push_back(optim::IRCopy(i));
+  }
+  for (auto &i : new_shape) {
+    for (auto &j : dim_to_range) {
+      Var dim_var(j.first);
+      optim::ReplaceVarWithExpr(&i, dim_var, Expr(j.second));
+    }
+    i = ir::Add::Make(i, Expr(1));
+    optim::Simplify(&i);
+  }
+  // Set new shape.
+  this->tensor()->shape  = new_shape;
+  this->tensor()->domain = new_shape;
+  CHECK(this->tensor()->buffer.defined());
+  this->tensor()->buffer->shape = new_shape;
+  return;
+}
+
 void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
-
+  this->ChangeDomain(other, level);
+  this->CopyTransform(other, level);
+  this->ChangeIndex(other);
   CHECK(tensor_);
   ComputeAtRelation relation;
   relation.stage = other;
   relation.level = level;
+  other->CtrlDepend(ir::Tensor(tensor()));
 
   CHECK(relation.IsCompatible(this));
   compute_ats_[other->id()] = relation;
+  if (this->tensor()->buffer.defined()) {
+    std::string t_name = this->tensor()->name;
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
+      EditTempTensor(other, level);
+    }
+  }
 }
 
 void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
@@ -583,18 +813,6 @@ struct CacheReplaceMutator : public ir::IRMutator<> {
   void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
  private:
-  void Visit(const ir::Store *op, Expr *expr) override {
-    LOG(INFO) << "void Visit(const ir::Store* op, Expr* expr) ";
-    auto *node            = expr->As<ir::Store>();
-    auto read_cache_match = op->tensor.as_tensor();
-    LOG(INFO) << "And the tensor's name is: " << op->tensor.as_tensor()->name;
-    for (auto &index : node->indices) {
-      ir::IRMutator<>::Visit(&index, &index);
-    }
-    ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
-    ir::IRMutator<>::Visit(&node->value, &node->value);
-  }
-
   void Visit(const ir::_Tensor_ *op, Expr *expr) override {
     if (to_mutate_ && tensor_name == op->name) {
       *expr = cache;
@@ -707,6 +925,14 @@ ir::Tensor Stage::CacheWrite2(const std::string &memory_type, StageMap stages) {
   stages->Insert(write_stage, CreateStage(write_stage).get());
 
   stages[write_stage]->CtrlDepend(my_tensor);
+  std::vector<ir::Tensor> temp;
+  for (auto i : stages) {
+    if (i.second->tensor()->name == original_name || i.second->tensor()->name == cache_name) continue;
+    if (i.second->tensor()->is_compute_node()) {
+      temp.push_back(ir::Tensor(i.second->tensor()));
+    }
+  }
+  CacheReadWriteReplace(temp, write_stage, cache_name);
 
   return write_stage;
 }
@@ -761,34 +987,30 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
   forloop_infos_[level] = info;
 }
 
-void Stage::CopyTransform(const isl::map &target_transform, const isl::set target_domain) {
-  std::string str_target_trans   = isl_map_to_str(target_transform.get());
-  std::string str_this_domain    = isl_set_to_str(domain_.get());
-  std::string target_tensor_name = isl_map_get_tuple_name(target_transform.get(), isl_dim_in);
-  std::string this_tensor_name   = isl_set_get_tuple_name(domain_.get());
-  isl::map temp_transform_       = target_transform;
+void Stage::CopyTransform(Stage *other, int level) {
+  auto target_transform        = other->transform();
+  auto target_domain           = other->domain();
+  std::string str_target_trans = isl_map_to_str(target_transform.get());
+  std::string this_tensor_name = isl_set_get_tuple_name(domain_.get());
+  isl::map temp_transform_     = target_transform;
   //! Check the dim range in this domain and target domain. Correspoding dim's range must be equal.
+
   auto dim_names = isl_get_dim_names(domain_.get());
-  for (int i = 0; i < dim_names.size(); i++) {
-    auto [origin_min, origin_max] = poly::isl_set_get_axis_range_by_name(domain_.get(), dim_names[i]);
-    auto [target_min, target_max] = poly::isl_set_get_axis_range_by_name(target_domain.get(), dim_names[i]);
-    CHECK_EQ(origin_min.get_num_si(), target_min.get_num_si())
-        << "The range of two stages' corrsponding axis is not the same! Please check.";
-    CHECK_EQ(origin_max.get_num_si(), target_max.get_num_si())
-        << "The range of two stages' corrsponding axis is not the same! Please check.";
-  }
-  VLOG(2) << "In CopyTransform, the target_transform is : " << str_target_trans;
   std::set<std::string> this_dim_names;
   std::vector<std::string> erase_dim_names;
   for (int i = 0; i < isl_set_dim(domain_.get(), isl_dim_set); i++) {
     this_dim_names.insert(isl_set_get_dim_name(domain_.get(), isl_dim_set, i));
   }
+  // Delete redundant input dims in transform_ (e,g. B[i,j] -> CopyTransform(C[i,j,k]) , Redundant dim k will be
+  // deleted.)
   for (int i = 0; i < isl_map_dim(temp_transform_.get(), isl_dim_in); i++) {
     if (this_dim_names.count(isl_map_get_dim_name(temp_transform_.get(), isl_dim_in, i)) == 0) {
       temp_transform_ = isl::manage(isl_map_remove_dims(temp_transform_.release(), isl_dim_in, i, 1));
       i--;
     }
   }
+  // Check related output dims in transform_ and delete them (e,g. C[i,j,k] -> C[i,j,k1,k2] , Redundant output dim k1
+  // nad k2 will be deleted.)
   std::string new_target_trans = isl_map_to_str(temp_transform_.get());
   for (int i = 0; i < isl_map_dim(temp_transform_.get(), isl_dim_out); i++) {
     std::string temp_dim = isl_map_get_dim_name(temp_transform_.get(), isl_dim_out, i);
@@ -797,12 +1019,35 @@ void Stage::CopyTransform(const isl::map &target_transform, const isl::set targe
       i--;
     }
   }
+  // Add dims
+  if (level >= 0) {
+    std::set<std::string> keep_names;
+    std::string res_trans = isl_map_to_str(temp_transform_.get());
+    isl::ctx this_ctx     = domain_.ctx();
+    isl::map res_map(this_ctx, res_trans);
+    int dim_size = isl_map_dim(res_map.get(), isl_dim_out);
+    for (int i = level + 1; i < dim_size; i++) {
+      std::string temp = isl_map_get_dim_name(res_map.get(), isl_dim_out, i);
+      temp             = temp.substr(0, 1);
+      temp             = temp + "' = " + temp;
+      keep_names.insert(temp);
+    }
+    res_map = isl::manage(isl_map_remove_dims(res_map.release(), isl_dim_out, level + 1, dim_size - level - 1));
+    for (auto i : keep_names) {
+      res_map = isl::manage(isl_map_add_dims(res_map.release(), isl_dim_out, 1));
+      res_map = isl::manage(isl_map_set_dim_name(res_map.release(), isl_dim_out, level + 1, i.c_str()));
+      level++;
+    }
+    temp_transform_ = res_map;
+  }
+
   std::string res_trans = isl_map_to_str(temp_transform_.get());
   isl::ctx this_ctx     = domain_.ctx();
   isl::map res_map(this_ctx, res_trans);
   isl_map_set_tuple_name(res_map.get(), isl_dim_in, this_tensor_name.c_str());
   isl_map_set_tuple_name(res_map.get(), isl_dim_out, this_tensor_name.c_str());
-  VLOG(2) << "The final result trans is : " << isl_map_to_str(res_map.get());
+  VLOG(2) << "After Copytransform result trans is : " << isl_map_to_str(res_map.get());
+  VLOG(2) << "After Copytransform result domain is : " << isl_set_to_str(domain_.get());
   transform_ = res_map;
 }
 

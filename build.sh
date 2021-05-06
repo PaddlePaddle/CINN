@@ -127,7 +127,7 @@ function build {
     make test_codegen_c -j $JOBS
     if [[ $cuda_config == "ON" ]]; then
         make test_codegen_cuda_dev -j $JOBS
-        ctest -R test_codegen_cuda_dev
+        ctest -R test_codegen_cuda_dev -V
     fi
 
     ctest -R test01_elementwise_add_main

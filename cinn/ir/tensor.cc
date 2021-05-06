@@ -4,6 +4,7 @@
 
 #include "cinn/cinn.h"
 #include "cinn/common/arithmatic.h"
+#include "cinn/common/axis.h"
 #include "cinn/common/cas.h"
 #include "cinn/common/common.h"
 #include "cinn/common/ir_util.h"
@@ -13,6 +14,7 @@
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
 #include "cinn/lang/compute.h"
+#include "cinn/poly/isl_utils.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -234,8 +236,17 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
       shape, [=](const std::vector<Expr> &axis) { return GetReduceInitVal(); }, init_reduce_tensor_name);
   stages->InsertLazily(init_tensor);
   if (target.arch == Target::Arch::NVGPU) {
-    stages[init_tensor]->CopyTransform(stages[this]->transform(), stages[this]->domain());
-    stages[init_tensor]->ComputeAt2(stages[this], stages[init_tensor]->axis_names().size() - 1);
+    int init_axis             = stages[init_tensor]->axis_names().size();
+    std::string axis_name_str = common::axis_name(init_axis - 1);
+    auto map_names            = poly::isl_get_dim_names(stages[this]->transform().get(), isl_dim_out);
+    int compute_at_axis       = -1;
+    for (int i = map_names.size() - 1; i >= 0; i--) {
+      if (map_names[i].substr(0, 1) == axis_name_str) {
+        compute_at_axis = i;
+        break;
+      }
+    }
+    stages[init_tensor]->ComputeAt2(stages[this], compute_at_axis);
   }
   stages[this]->CtrlDepend(init_tensor);
   stages[this]->ShareBufferWith(stages[init_tensor]);
@@ -253,6 +264,9 @@ Expr _Tensor_::tensor_store_expanded_body() {
   if (shape.empty()) return final_body;
 
   std::vector<Expr> g_axis = common::GenDefaultAxisAsExpr(shape.size());
+  if (!new_indices.empty()) {
+    g_axis = new_indices;
+  }
 
   auto *reduce_node = body().As<ir::Reduce>();
   if (reduce_node) {

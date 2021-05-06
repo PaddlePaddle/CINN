@@ -54,10 +54,11 @@ void ReplaceIslCallWithExpr(Expr *e,
     auto *store = copied.As<ir::Store>();
     for (int i = 0; i < store->indices.size(); i++) {
       auto indice = store->indices[i];
-      CHECK(indice.is_var() || indice.is_constant());
-      if (!axis_map.count(std::to_string(i))) continue;
-      if (!indice.is_constant()) {
-        local_axis[indice.as_var()->name] = axis_map.at(std::to_string(i));
+      if (indice.is_var() || indice.is_constant()) {
+        if (!axis_map.count(std::to_string(i))) continue;
+        if (!indice.is_constant()) {
+          local_axis[indice.as_var()->name] = axis_map.at(std::to_string(i));
+        }
       }
     }
     // the store indices just contains the ones of transform's domain, not the range.

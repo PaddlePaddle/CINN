@@ -115,7 +115,11 @@ class Stage : public Object {
 
   //! Expression contained in this stage.
   const Expr& expr() const { return expr_; }
-
+  //! Change this stage's domain to be consistent with other's domain.
+  void ChangeDomain(Stage* other, int level);
+  //! Add for loop in this stage's transform and replace this tensor's index in
+  //! this tensor's compute body.
+  void ChangeIndex(Stage* other);
   //! Get the i-th axis.
   Iterator axis(int i) const;
   //! Get the axis named \p i.
@@ -241,6 +245,7 @@ class Stage : public Object {
 
   void ComputeAt2(Stage* other, int level, ComputeAtKind kind = kComputeAtBefore);
 
+  void AddForLoopInTransform(std::vector<std::vector<Expr>>& indices);
   /**
    * Create a cache for write to the original tensor.
    * @param tensor the tensor to create the cache for.
@@ -331,8 +336,9 @@ class Stage : public Object {
   //! Copy other stage's transform.
   //! For example, if the target_transform is `Split(0,1)`,
   //! this api will apply `Split(0,1)` on itself.
-  void CopyTransform(const isl::map& target_transform, const isl::set target_domain);
-
+  void CopyTransform(Stage* other, int level = -1);
+  //! Edit temp tensor's shape, its buffer's shape and index when doing ComputeAt2.
+  void EditTempTensor(Stage* other, int level);
   //! Copy other stage's LoopInfo.
   //! For example, if the target_forloop_infos is `Bind(0,"threadIdx.x")`,
   //! this api will apply `Bind(0,"threadIdx.x")` on itself.
