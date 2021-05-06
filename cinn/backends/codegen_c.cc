@@ -131,10 +131,10 @@ void CodeGenC::Visit(const ir::Not *op) {
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
   if (op->is_parallel()) {
-    os() << "parallel for (";
-  } else {
-    os() << "for (";
+    os() << "#pragma omp parallel\n";
+    DoIndent();
   }
+  os() << "for (";
   os() << GetTypeRepr(Int(32));
   os() << " " << op->loop_var->name;
   os() << " = ";
@@ -153,10 +153,10 @@ void CodeGenC::Visit(const ir::For *op) {
 }
 void CodeGenC::Visit(const ir::PolyFor *op) {
   if (op->is_parallel()) {
-    os() << "parallel poly_for (";
-  } else {
-    os() << "poly_for (";
+    os() << "#pragma omp parallel\n";
+    DoIndent();
   }
+  os() << "for (";
   os() << GetTypeRepr(Int(32));
   os() << " " << op->iterator->name;
   os() << " = ";

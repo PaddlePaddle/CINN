@@ -23,7 +23,7 @@ TEST(test01_elementwise_add, basic) {
   Module::Builder builder("module1", target);
 
   auto stages = CreateStages({A, B, C});
-  auto func   = Lower("add1", stages, {A, B, C});
+  auto func = Lower("add1", stages, {A, B, C});
 
   builder.AddFunction(func);
 
@@ -86,6 +86,7 @@ TEST(elementwise_add, compute_at) {
 
   auto stages = CreateStages({A, B, A_cache, C});
   stages[A_cache]->ComputeAt(stages[C], 0);
+  stages[C]->Parallel(0);
 
   Module::Builder builder("module3", common::DefaultHostTarget());
 

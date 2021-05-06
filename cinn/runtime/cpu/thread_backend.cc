@@ -32,7 +32,6 @@ int cinn_backend_parallel_launch(FCINNParallelLambda flambda, void* datas, int n
 #pragma omp parallel num_threads(num_task)
   {
     int thread_num = omp_get_thread_num();
-    // cinn_print_debug_string("omp_get_thread_num: %d\n", thread_num);
     (*flambda)(thread_num, num_task, datas);
   }
   return 0;

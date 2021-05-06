@@ -1,8 +1,6 @@
 #include "cinn/optim/collect_undefined_vars.h"
 
 #include <set>
-#include <string>
-#include <vector>
 
 #include "cinn/ir/ir_mutator.h"
 
