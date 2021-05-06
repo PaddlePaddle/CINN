@@ -1,5 +1,8 @@
 #include "cinnrt/kernel/test_kernels.h"
 
+#include <llvm/ADT/FunctionExtras.h>
+#include <llvm/Support/raw_ostream.h>
+
 #include <cassert>
 #include <chrono>
 #include <ctime>
@@ -10,8 +13,7 @@
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/kernel_utils.h"
 #include "cinnrt/host_context/mlir_function_executable.h"
-#include "llvm/ADT/FunctionExtras.h"
-#include "llvm/Support/raw_ostream.h"
+#include "cinnrt/tensor/dense_host_tensor.h"
 
 using cinnrt::host_context::Attribute;
 using cinnrt::host_context::MlirFunctionExecutable;
@@ -143,8 +145,12 @@ static void benchmark(RemainingArguments args,
   bm_stats.Summarize();
 }
 
+// Just copy the input to the result.
+tensor::DenseHostTensor ShadowCopyTensor(tensor::DenseHostTensor src) { return src; }
+
 void RegisterTestKernels(host_context::KernelRegistry *registry) {
   registry->AddKernel("cinn.benchmark", CINN_KERNEL(benchmark));
+  registry->AddKernel("cinn.test.shadow_copy_tensor", CINN_KERNEL(ShadowCopyTensor));
 }
 
 }  // namespace cinnrt::kernel

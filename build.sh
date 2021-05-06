@@ -80,20 +80,21 @@ function cmake_ {
     sed -i 's/0git/0/g' $build_dir/cinn/backends/llvm/cinn_runtime_llvm_ir.h
 }
 
+function _download_and_untar {
+    local tar_file=$1
+    if [[ ! -f "ResNet18.tar" ]]; then
+        wget http://paddle-inference-dist.bj.bcebos.com/CINN/$tar_file
+        tar -xvf $tar_file
+    fi
+}
+
 function prepare_model {
     cd $build_dir/thirds
-    if [[ ! -f "ResNet18.tar" ]]; then
-        wget http://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar
-        tar -xvf ResNet18.tar
-    fi
-    if [[ ! -f "MobileNetV2.tar" ]]; then
-        wget http://paddle-inference-dist.bj.bcebos.com/CINN/MobileNetV2.tar
-        tar -xvf MobileNetV2.tar
-    fi
-    if [[ ! -f "EfficientNet.tar" ]]; then
-        wget http://paddle-inference-dist.bj.bcebos.com/CINN/EfficientNet.tar
-        tar -xvf EfficientNet.tar
-    fi
+
+    _download_and_untar ResNet18.tar
+    _download_and_untar MobileNetV2.tar
+    _download_and_untar EfficientNet.tar
+
     mkdir -p $build_dir/paddle
     cd $build_dir/paddle
     if [[ ! -f "libexternal_kernels.so.tgz" ]]; then

@@ -415,7 +415,7 @@ void MlirToRuntimeTranslate(mlir::ModuleOp module, CoreRuntimeBuilder* runtime) 
 }
 
 /**
- * Execute the mlir program in test mode -- print some debug infomation to stdout.
+ * Execute the mlir program in test mode -- print some debug information to stdout.
  */
 class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
  public:
@@ -476,6 +476,19 @@ class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
 
  private:
   KernelRegistry* registry{};
+};
+
+class MlirProgramExecutor : public MlirToRuntimeTranslator {
+ public:
+  CoreRuntimeBuilder runtime_builder;
+  mlir::ModuleOp module;
+
+  MlirProgramExecutor(mlir::ModuleOp module, KernelRegistry* registry) : runtime_builder(registry), module(module) {}
+
+  // Build functions and generate executables.
+  void BuildFunctions();
+
+  MlirFunctionExecutable*  LookupFunc(const std::string& name);
 };
 
 void TestMlir(mlir::ModuleOp module, KernelRegistry* registry) {

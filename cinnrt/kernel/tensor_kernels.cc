@@ -39,6 +39,10 @@ DenseHostTensor GetParam(TensorMap map, Attribute<std::string> nameAttr) {
   return *(map[name]);
 }
 
+DenseHostTensor ShallowCopyTensor(DenseHostTensor v) {
+  return v;
+}
+
 /// ===== Kernel end ====
 
 void RegisterTensorKernels(host_context::KernelRegistry *registry) {
@@ -49,6 +53,7 @@ void RegisterTensorKernels(host_context::KernelRegistry *registry) {
   registry->AddKernel("dt.fill_tensor_with_constant.f64", CINN_KERNEL(FillTensorWithConstant<double>));
   registry->AddKernel("dt.load_params", CINN_KERNEL(LoadParams));
   registry->AddKernel("dt.get_param", CINN_KERNEL(GetParam));
+  registry->AddKernel("dt.shallow_copy_tensor", CINN_KERNEL(ShallowCopyTensor));
 }
 
 }  // namespace cinnrt::kernel
