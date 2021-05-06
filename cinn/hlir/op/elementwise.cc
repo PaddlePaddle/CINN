@@ -69,12 +69,10 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
         stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
       }
     } else if (target.arch == Target::Arch::X86) {
-#ifndef CINN_WITH_MKL_CBLAS
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
       pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.back(), target);
-#endif
     }
     *ret = arg_pack;
   });
@@ -98,16 +96,6 @@ std::vector<Type> InferDtypeForElementwise(const std::vector<Type> &inputs_type,
   return res;
 }
 
-#ifdef CINN_WITH_MKL_CBLAS
-StrategyForUnary(exp, ExpMKL);
-StrategyForUnary(erf, ErfMKL);
-StrategyForUnary(sqrt, SqrtMKL);
-StrategyForUnary(log, LogMKL);
-StrategyForUnary(floor, FloorMKL);
-StrategyForUnary(ceil, CeilMKL);
-StrategyForUnary(round, RoundMKL);
-StrategyForUnary(tanh, TanhMKL);
-#else
 StrategyForUnary(exp, Exp);
 StrategyForUnary(erf, Erf);
 StrategyForUnary(sqrt, Sqrt);
@@ -116,8 +104,6 @@ StrategyForUnary(floor, Floor);
 StrategyForUnary(ceil, Ceil);
 StrategyForUnary(round, Round);
 StrategyForUnary(tanh, Tanh);
-#endif
-
 StrategyForUnary(log2, Log2);
 StrategyForUnary(log10, Log10);
 StrategyForUnary(trunc, Trunc);
@@ -156,16 +142,6 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)  \
       .set_support_level(4);
 
-#ifdef CINN_WITH_MKL_CBLAS
-  CINN_REGISTER_UNARY(exp, ExpMKL);
-  CINN_REGISTER_UNARY(erf, ErfMKL);
-  CINN_REGISTER_UNARY(sqrt, SqrtMKL);
-  CINN_REGISTER_UNARY(log, LogMKL);
-  CINN_REGISTER_UNARY(floor, FloorMKL);
-  CINN_REGISTER_UNARY(ceil, CeilMKL);
-  CINN_REGISTER_UNARY(round, RoundMKL);
-  CINN_REGISTER_UNARY(tanh, TanhMKL);
-#else
   CINN_REGISTER_UNARY(exp, Exp);
   CINN_REGISTER_UNARY(erf, Erf);
   CINN_REGISTER_UNARY(sqrt, Sqrt);
@@ -174,8 +150,6 @@ CINN_REGISTER_HELPER(elementwise_ops) {
   CINN_REGISTER_UNARY(ceil, Ceil);
   CINN_REGISTER_UNARY(round, Round);
   CINN_REGISTER_UNARY(tanh, Tanh);
-#endif
-
   CINN_REGISTER_UNARY(log2, Log2);
   CINN_REGISTER_UNARY(log10, Log10);
   CINN_REGISTER_UNARY(trunc, Trunc);

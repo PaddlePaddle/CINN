@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include "cinn/backends/llvm/codegen_llvm.h"
+#include "cinn/backends/llvm/codegen_x86.h"
 #include "cinn/backends/llvm/execution_engine.h"
 #include "cinn/cinn.h"
 #include "cinn/common/ir_util.h"
@@ -9,6 +11,7 @@
 #include "cinn/hlir/pe/reduction.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
+#include "cinn/utils/timer.h"
 
 namespace cinn {
 namespace hlir {
@@ -18,9 +21,10 @@ template <typename FuncOp, typename FuncRuntime>
 void TestElementwisePE(const std::string &fn_name,
                        const FuncOp &func_op,
                        const FuncRuntime &fn_runtime,
-                       Type type     = Float(32),
-                       int set_value = 0) {
-  Expr M(100), N(32);
+                       Type type           = Float(32),
+                       int set_value       = 0,
+                       bool test_benchmark = true) {
+  Expr M(1024), N(2048);
 
   Placeholder<float> A("A", {M, N});
 
@@ -28,6 +32,8 @@ void TestElementwisePE(const std::string &fn_name,
   std::vector<ir::Tensor> tensor_args{A};
   tensor_args.insert(tensor_args.end(), A_out.begin(), A_out.end());
   auto stages = CreateStages(tensor_args);
+
+  stages[A_out[0]]->Parallel(0);
 
   Target target = common::DefaultHostTarget();
   Module::Builder builder("module0", target);
@@ -41,7 +47,7 @@ void TestElementwisePE(const std::string &fn_name,
   auto jit    = backends::ExecutionEngine::Create({});
   auto module = builder.Build();
 
-  jit->Link(module);
+  jit->Link<backends::CodeGenX86>(module);
   auto fn = jit->Lookup("fn");
   CHECK(fn);
   auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
@@ -56,7 +62,23 @@ void TestElementwisePE(const std::string &fn_name,
 
   cinn_pod_value_t a_arg(A_buf), b_arg(B_buf);
   cinn_pod_value_t args[] = {a_arg, b_arg};
-  fn_(args, 2);
+
+  if (test_benchmark) {
+    cinn::utils::Timer timer;
+    timer.Start();
+    fn_(args, 2);
+    double test_op_time = timer.Stop();
+    LOG(INFO) << "kernel warmup run time: " << test_op_time << " ms";
+    timer.Start();
+    int repeat_ = 10;
+    for (int i = 0; i < repeat_; i++) {
+      fn_(args, 2);
+    }
+    test_op_time = timer.Stop() / repeat_;
+    LOG(INFO) << "repeat times: " << repeat_ << ", kernel run time: " << test_op_time << " ms";
+  } else {
+    fn_(args, 2);
+  }
 
   auto *ad = reinterpret_cast<float *>(A_buf->memory);
   if (type.is_bool()) {

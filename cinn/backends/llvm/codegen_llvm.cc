@@ -408,7 +408,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
   return value;
 }
 
-llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
+llvm::Value *CodeGenLLVM::CreateSerialFor(const ir::For *op, int stride) {
   SymbolTableGuard symbol_table_guard(*symbol_table_);
 
   do {
@@ -438,7 +438,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
       symbol_table_->Erase(op->loop_var->name);
     }
 
-    auto loop_next = Add(loop_value, llvm::ConstantInt::get(b_->getInt32Ty(), 1), "indvar.inc", true, true);
+    auto loop_next = Add(loop_value, llvm::ConstantInt::get(b_->getInt32Ty(), stride), "indvar.inc", true, true);
     loop_value->addIncoming(loop_next, b_->GetInsertBlock());
 
     Br(for_begin);
@@ -496,8 +496,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
 
   // loop_body
   b_->SetInsertPoint(body_bb);
-  // TODO(fc500110) support step > 1
-  llvm::Value *step = llvm::ConstantInt::get(b_->getInt32Ty(), 1);
+  llvm::Value *step = llvm::ConstantInt::get(b_->getInt32Ty(), stride);
 
   Visit(&op->body);
   llvm::Value *indvar_inc = Add(indvar,
@@ -538,7 +537,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
   auto loop_id = llvm::MDNode::get(ctx, loop_metadata);
   loop_id->replaceOperandWith(0, loop_id);
   back_branch->setMetadata(llvm::LLVMContext::MD_loop, loop_id);
-   */
+  */
 
   if (old_var) {
     SetVar(op->loop_var->name, old_var);
@@ -549,6 +548,8 @@ llvm::Value *CodeGenLLVM::Visit(const ir::For *op) {
   b_->SetInsertPoint(exit_bb);
   return nullptr;
 }
+
+llvm::Value *CodeGenLLVM::Visit(const ir::For *op) { return CreateSerialFor(op); }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::PolyFor *op) {
   CINN_NOT_IMPLEMENTED
@@ -884,24 +885,23 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
       /*isVarArg=*/false);
   CHECK(m_->getFunction(op->name) == nullptr) << "function[" << op->name << "] exists";
 
-  llvm::Function *function = llvm::Function::Create(
+  f_ = llvm::Function::Create(
       /*FunctionType=*/function_type,
       /*LinkageTypes=*/llvm::Function::ExternalLinkage,
       /*Name=*/op->name,
       /*Module=*/m_);
-  function->setCallingConv(llvm::CallingConv::C);
-  function->setHasUWTable();  // GDB
+  f_->setCallingConv(llvm::CallingConv::C);
+  f_->setHasUWTable();  // GDB
 
   std::vector<llvm::Value *> args;
-  args.reserve(function->arg_size());
-  std::transform(function->arg_begin(), function->arg_end(), std::back_inserter(args), [](auto &arg) {
-    return std::addressof(arg);
-  });
+  args.reserve(f_->arg_size());
+  std::transform(
+      f_->arg_begin(), f_->arg_end(), std::back_inserter(args), [](auto &arg) { return std::addressof(arg); });
 
   llvm::BasicBlock *entry = llvm::BasicBlock::Create(
       /*Context=*/b_->getContext(),
       /*Name=*/"entry",
-      /*Parent=*/function,
+      /*Parent=*/f_,
       /*InsertBefore=*/nullptr);
 
   SetVar("_args", args[0]);
@@ -909,8 +909,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
   Visit(&function_body);
   symbol_table_->Erase("_args");
   RetVoid();
-
-  return function;
+  return f_;
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Let *op) {
@@ -1242,7 +1241,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferGetDataConstHandle *
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferCreate *op) {
-  auto *callee     = m_->getFunction("cinn_buffer_new_default");
+  auto *callee     = m_->getFunction(runtime::intrisic::buffer_create_default);
   auto buffer_node = op->buffer.as_buffer();
   CHECK(buffer_node);
   std::vector<llvm::Value *> args({ll_const_int32(buffer_node->target.runtime_arch())});

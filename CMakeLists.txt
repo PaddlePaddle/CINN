@@ -58,6 +58,7 @@ include(cmake/llvm.cmake)
 include(cmake/external/protobuf.cmake)
 include(cmake/external/mklml.cmake)
 include(cmake/external/mkldnn.cmake)
+include(cmake/external/openmp.cmake)
 find_package(Threads REQUIRED)
 
 include_directories(${ISL_HOME}/include)

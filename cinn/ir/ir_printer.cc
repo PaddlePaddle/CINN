@@ -62,7 +62,11 @@ void IrPrinter::Visit(const Minus *x) {
   os_ << ")";
 }
 void IrPrinter::Visit(const For *x) {
-  os_ << "for (";
+  if (x->is_parallel()) {
+    os() << "parallel for (";
+  } else {
+    os() << "for (";
+  }
   Print(x->loop_var);
   os_ << ", ";
   Print(x->min);
@@ -75,7 +79,11 @@ void IrPrinter::Visit(const For *x) {
 }
 
 void IrPrinter::Visit(const PolyFor *x) {
-  os_ << "poly_for (";
+  if (x->is_parallel()) {
+    os() << "parallel poly_for (";
+  } else {
+    os() << "poly_for (";
+  }
   Print(x->iterator);
   os_ << ", ";
   Print(x->init);

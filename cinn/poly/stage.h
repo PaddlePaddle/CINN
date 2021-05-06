@@ -181,6 +181,12 @@ class Stage : public Object {
   void Vectorize(const Iterator& axis, int factor);
 
   /**
+   * Parallel a for-loop.
+   * @param level
+   */
+  void Parallel(int level);
+
+  /**
    * Unroll a for-loop.
    */
   void Unroll(int level);
@@ -299,6 +305,7 @@ class Stage : public Object {
 
   inline const ir::VectorizeInfo& vectorize_info() const { return vectorize_info_; }
   inline const std::set<int>& unroll_info() const { return unroll_info_; }
+  inline const std::set<int>& parallel_info() const { return parallel_info_; }
 
   /*
   const std::set<std::string>& extra_depend_stages() const { return extra_depend_stages_; }
@@ -361,6 +368,8 @@ class Stage : public Object {
   ir::VectorizeInfo vectorize_info_;
   //! The for-loop levels to unroll.
   std::set<int> unroll_info_;
+  //! The for-loop levels to parallel.
+  std::set<int> parallel_info_;
   //! Record some forloop levels' information.
   std::map<int /*level*/, StageForloopInfo> forloop_infos_;
   //! A weak reference to the tensor.

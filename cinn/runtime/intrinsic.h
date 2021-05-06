@@ -26,8 +26,9 @@ static const char* buffer_destroy = "cinn_buffer_t::delete_";
 
 static const char* buffer_load = "cinn_buffer_load";
 
-static const char* buffer_malloc = "cinn_buffer_malloc";
-static const char* buffer_free   = "cinn_buffer_free";
+static const char* buffer_malloc         = "cinn_buffer_malloc";
+static const char* buffer_free           = "cinn_buffer_free";
+static const char* buffer_create_default = "cinn_buffer_new_default";
 
 static const char* buffer_get_data_handle       = "cinn_buffer_get_data_handle";
 static const char* buffer_get_data_const_handle = "cinn_buffer_get_data_const_handle";
@@ -66,6 +67,8 @@ static const char* builtin_intrin_repr = "cinn_builtin_intrin";
 static const char* debug_log_repr = "cinn_print_debug_string";
 
 static const char* cuda_sync_threads = "__syncthreads";
+
+static const char* parallel_launch = "cinn_backend_parallel_launch";
 
 }  // namespace intrisic
 

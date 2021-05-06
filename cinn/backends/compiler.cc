@@ -92,7 +92,7 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
 #endif
 }
 
-void Compiler::CompileX86Module(const Module& module) { engine_->Link(module); }
+void Compiler::CompileX86Module(const Module& module) { engine_->Link<CodeGenX86>(module); }
 
 lower_func_ptr_t Compiler::Lookup(std::string_view fn_name) {
   CHECK(engine_);

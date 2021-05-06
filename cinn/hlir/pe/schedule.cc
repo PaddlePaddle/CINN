@@ -57,6 +57,9 @@ void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_sha
       stage->Vectorize(j_inner, split_factor);
     }
   }
+  if (stage->n_out_dims() > 1) {
+    stage->Parallel(0);
+  }
   return;
 }
 

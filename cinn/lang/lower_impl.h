@@ -242,6 +242,40 @@ struct MarkUnrollMutator : public ir::IRMutator<Expr*> {
   std::vector<ir::PolyFor*> stack;
 };
 
+/**
+ * Mark the PolyFor as Parallel if is called Parallel in Stage.
+ */
+struct MarkParallelMutator : public ir::IRMutator<Expr*> {
+  std::map<std::string, std::set<int> /*level*/> parallels;
+
+  explicit MarkParallelMutator(const std::map<std::string, std::set<int>>& parallels) : parallels(parallels) {}
+
+  void operator()(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+  void Visit(const ir::PolyFor* op, Expr* expr) override {
+    auto* node = expr->As<ir::PolyFor>();
+    stack.push_back(node);
+    ir::IRMutator<>::Visit(op, expr);
+    stack.pop_back();
+  }
+
+  // each statement in ISL is bound to a Store node.
+  void Visit(const ir::Store* op, Expr* expr) override {
+    auto* tensor_n = op->tensor.As<ir::_Tensor_>();
+    CHECK(tensor_n);
+    auto it = parallels.find(tensor_n->name);
+    if (it != parallels.end()) {
+      for (int level : it->second) {
+        VLOG(1) << "Mark " << level << " Paralled";
+        CHECK_LT(level, stack.size());
+        stack[level]->set_parallel();
+      }
+    }
+  }
+
+  std::vector<ir::PolyFor*> stack;
+};
+
 }  // namespace detail
 }  // namespace lang
 }  // namespace cinn

@@ -412,6 +412,11 @@ void Stage::Vectorize(const std::string &axis, int factor) {
 
 void Stage::Vectorize(const Iterator &axis, int factor) { return Vectorize(axis.id, factor); }
 
+void Stage::Parallel(int level) {
+  AssertAxisIsNotLocked(level);
+  parallel_info_.insert(level);
+}
+
 void Stage::Unroll(int level) {
   AssertAxisIsNotLocked(level);
   unroll_info_.insert(level);
