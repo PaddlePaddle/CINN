@@ -30,8 +30,6 @@ TEST(CinnRtPredictor, predictor) {
 
   std::shared_ptr<CinnRtPredictor> predictor = CreateCinnRtPredictor(config);
 
-  // std::cout << "input num: " << predictor->GetInputNum() << std::endl;
-  // std::cout << "output num: " << predictor->GetOutputNum() << std::endl;
   auto* input                = predictor->GetInput(0);
   std::vector<int64_t> shape = {3, 3};
   input->Init(shape, cinnrt::GetDType<float>());

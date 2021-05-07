@@ -3,8 +3,8 @@
 #include <gtest/gtest.h>
 #include <llvm/Support/FormatVariadic.h>
 
-#include "cinnrt/common/global.h"
 #include "cinn/utils/string.h"
+#include "cinnrt/common/global.h"
 #include "cinnrt/dialect/mlir_loader.h"
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/kernel_registry.h"
@@ -87,7 +87,7 @@ cinn.return %a0, %b0: !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>
 
   std::stringstream ss;
   ss << head;
-  for (int i = 0; i < 200; i++) {
+  for (int i = 0; i < 2000; i++) {
     ss << llvm::formatv(tpl0, i).str() << "\n";
     ss << llvm::formatv(tpl1, i).str() << "\n";
   }
@@ -119,7 +119,7 @@ cinn.return %a0, %b0: !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>
       {ValueRef(new Value(tensor::DenseHostTensor())), ValueRef(new Value(tensor::DenseHostTensor()))});
 
   auto create_tensor = [] {
-    tensor::DenseHostTensor a(tensor::TensorShape{{2, 3}}, DType(DType::Kind::F32));
+    tensor::DenseHostTensor a(tensor::TensorShape{{200, 3000}}, DType(DType::Kind::F32));
     auto* data = reinterpret_cast<float*>(a.raw_data());
     for (int i = 0; i < a.shape().GetNumElements(); i++) {
       data[i] = i;
@@ -130,7 +130,7 @@ cinn.return %a0, %b0: !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>
   std::vector<ValueRef> inputs({ValueRef(new Value(create_tensor())), ValueRef(new Value(create_tensor()))});
   in_args.assign({inputs[0].get(), inputs[1].get()});
 
-  for (int i = 0; i < 1000; i++) {
+  for (int i = 0; i < 500; i++) {
     func->Execute(llvm::ArrayRef(in_args.data(), in_args.size()),
                   llvm::MutableArrayRef(out_args.data(), out_args.size()));
   }
