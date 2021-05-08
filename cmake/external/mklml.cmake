@@ -70,8 +70,14 @@ ExternalProject_Add(
         ${CMAKE_COMMAND} -E copy_directory ${MKLML_DOWNLOAD_DIR}/lib ${MKLML_LIB_DIR}
 )
 
+
 INCLUDE_DIRECTORIES(${MKLML_INC_DIR})
 
-ADD_LIBRARY(mklml SHARED IMPORTED GLOBAL)
-SET_PROPERTY(TARGET mklml PROPERTY IMPORTED_LOCATION ${MKLML_LIB})
+SET(dummyfile ${CMAKE_CURRENT_BINARY_DIR}/mklml_dummy.c)
+
+FILE(WRITE ${dummyfile} "const char * dummy = \"${dummyfile}\";")
+ADD_LIBRARY(mklml STATIC ${dummyfile})
+
+TARGET_LINK_LIBRARIES(mklml ${MKLML_LIB} ${MKLML_IOMP_LIB})
 ADD_DEPENDENCIES(mklml ${MKLML_PROJECT})
+
