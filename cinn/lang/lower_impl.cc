@@ -38,7 +38,9 @@ void BindBuffer(StageMap& stages) {
     if (!stage.second->tensor()->buffer.defined() && !stage.second->meta.tensors_to_share_buffer_with.empty()) {
       for (auto& str : stage.second->meta.tensors_to_share_buffer_with) {
         if (tensor_map[str]->buffer.defined()) {
+          auto edited_shape = tensor_map[str]->buffer->shape;
           stage.second->tensor()->Bind(tensor_map[str]->buffer);
+          tensor_map[str]->buffer->shape = edited_shape;
           VLOG(3) << "Tensor " << stage.second->tensor()->name << " bind buffer to " << tensor_map[str]->name << " , "
                   << tensor_map[str]->buffer->name;
         }

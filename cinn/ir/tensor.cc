@@ -233,7 +233,7 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
 
   // create a new init tensor.
   auto init_tensor = lang::Compute(
-      shape, [=](const std::vector<Expr> &axis) { return GetReduceInitVal(); }, init_reduce_tensor_name);
+      domain, [=](const std::vector<Expr> &axis) { return GetReduceInitVal(); }, init_reduce_tensor_name);
   stages->InsertLazily(init_tensor);
   if (target.arch == Target::Arch::NVGPU) {
     int init_axis             = stages[init_tensor]->axis_names().size();
@@ -248,8 +248,9 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
     }
     stages[init_tensor]->ComputeAt2(stages[this], compute_at_axis);
   }
+  init_tensor->new_indices = this->new_indices;
   stages[this]->CtrlDepend(init_tensor);
-  stages[this]->ShareBufferWith(stages[init_tensor]);
+  stages[init_tensor]->ShareBufferWith(stages[this]);
   return init_tensor;
 }
 

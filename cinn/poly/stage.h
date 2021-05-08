@@ -253,7 +253,7 @@ class Stage : public Object {
    */
   ir::Tensor CacheWrite(const std::string& memory_type, poly::StageMap stages);
 
-  ir::Tensor CacheWrite2(const std::string& memory_type, poly::StageMap stages);
+  ir::Tensor CacheWrite2(const std::string& memory_type, poly::StageMap stages, ir::Tensor& key_tensor);
 
   /**
    * Generate the `syncthreads()` code to sync all threads on CUDA backends.
