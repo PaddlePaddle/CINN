@@ -45,7 +45,7 @@ TEST(Vectorize, replace_var) {
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
 
-  lang::Module::Builder builder("module1", target);
+  ir::Module::Builder builder("module1", target);
   builder.AddFunction(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
 
   CodeGenC codegen(target);
@@ -65,7 +65,7 @@ void matmul(void* _args, int32_t num_args)
   const float* B = ((const float*)(_B->memory));
   float* C = ((float*)(_C->memory));
   for (int32_t i = 0; i < 100; i += 1) {
-    for (int32_t j = 0; j < 31; j += 1) {
+    for (int32_t j = 0; j < 32; j += 1) {
       C[StackVec<16,int32_t>::Ramp(((500 * i) + (16 * j)), 1, 16)] = (StackedVec<float,16>::Load(A,((500 * i) + (16 * j))) * StackedVec<float,16>::Load(B,((500 * i) + (16 * j))));
     };
   };
@@ -115,7 +115,7 @@ TEST(Vectorize, TestMarkVectorize) {
   optim::VectorizeLoops(&func->body, target);
   optim::Simplify(&func->body);
 
-  lang::Module::Builder builder("module1", target);
+  ir::Module::Builder builder("module1", target);
   builder.AddFunction(func);
 
   CodeGenC codegen(target);
@@ -136,11 +136,13 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
   float* D = (float*)(_C->memory);
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j_outer = 0; j_outer < 31; j_outer += 1) {
-      C[StackVec<16,int32_t>::Ramp(((500 * i) + (16 * j_outer)), 1, 16)] = (StackedVec<float,16>::Load(A,((500 * i) + (16 * j_outer))) * StackedVec<float,16>::Load(B,((500 * i) + (16 * j_outer))));
+      C[StackVec<16,int32_t>::Ramp(((500 * i) + (16 * j_outer)), 1, 16)] = (StackedVec<float,16>::Load(A,((500 * i) +
+      (16 * j_outer))) * StackedVec<float,16>::Load(B,((500 * i) + (16 * j_outer))));
     };
     for (int32_t j_outer = 31; j_outer < 32; j_outer += 1) {
       for (int32_t j_inner = 0; j_inner < (500 + (-16 * j_outer)); j_inner += 1) {
-        C[((500 * i) + ((16 * j_outer) + j_inner))] = (A[((500 * i) + ((16 * j_outer) + j_inner))] * B[((500 * i) + ((16 * j_outer) + j_inner))]);
+        C[((500 * i) + ((16 * j_outer) + j_inner))] = (A[((500 * i) + ((16 * j_outer) + j_inner))] * B[((500 * i) +
+        ((16 * j_outer) + j_inner))]);
       };
     };
   };

@@ -7,10 +7,10 @@
 
 #include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/module.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
-#include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
@@ -18,9 +18,9 @@
 namespace cinn {
 namespace backends {
 
+using ir::Module;
 using lang::Compute;
 using lang::Lower;
-using lang::Module;
 using lang::Placeholder;
 using utils::StringFormat;
 using utils::Trim;
@@ -55,7 +55,6 @@ TEST(CodeGenC, module) {
   auto func   = Lower("add1", stages, {A, B, C});
 
   builder.AddFunction(func);
-  builder.AddBuffer(C_buf.buffer());
 
   {
     CodeGenC codegen(target);
@@ -67,7 +66,6 @@ TEST(CodeGenC, module) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 }, 32/*align*/);
 void add1(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
@@ -161,7 +159,6 @@ TEST(CodeGenC, module_with_transform) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 20 }, 32/*align*/);
 void add1(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
@@ -177,15 +174,15 @@ void add1(void* _args, int32_t num_args)
   for (int32_t i_outer = 0; i_outer < 25; i_outer += 1) {
     for (int32_t i_inner = 0; i_inner < 4; i_inner += 1) {
       for (int32_t j = 0; j < 20; j += 1) {
-        C[((20 * i_inner) + ((80 * i_outer) + j))] = (1 + ((3 * A[((20 * i_inner) + ((80 * i_outer) + j))]) + B[((20 * i_inner) + ((80 * i_outer) + j))]));
+        C[((20 * i_inner) + ((80 * i_outer) + j))] = (1 + fma(3, A[((20 * i_inner) + ((80 * i_outer) + j))], B[((20 * i_inner) + ((80 * i_outer) + j))]));
       };
     };
   };
   for (int32_t i_outer = 0; i_outer < 25; i_outer += 1) {
     for (int32_t i_inner = 0; i_inner < 4; i_inner += 1) {
       for (int32_t j_outer = 0; j_outer < 2; j_outer += 1) {
-        for (int32_t j_inner = 0; j_inner < (1 + ((int32_t)(cinn_min(15, (19 + (-16 * j_outer)))))); j_inner += 1) {
-          D[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] = ((2 * C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]) + (4 * (C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] * A[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))])));
+        for (int32_t j_inner = 0; j_inner < cinn_min(16, (20 + (-16 * j_outer))); j_inner += 1) {
+          D[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] = fma(4, (C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] * A[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]), (2 * C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]));
         };
       };
     };
@@ -248,7 +245,6 @@ TEST(CodeGenC, matmul) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 50 });
 void matmul(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
@@ -283,7 +279,7 @@ void main(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   const float* B = ((const float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  {
+  for (int32_t i = 0; i < 1; i += 1) {
     cinn_pod_value_t _pod_val_;
     buffer_p_to_cinn_pod_value(_A, &_pod_val_);
     cinn_pod_value_t _pod_val__0;
@@ -292,7 +288,7 @@ void main(void* _args, int32_t num_args)
     buffer_p_to_cinn_pod_value(_C, &_pod_val__1);
     cinn_pod_value_t _pod_arr[3];
     cinn_args_construct(_pod_arr, 3, &_pod_val_, &_pod_val__0, &_pod_val__1);
-    matmul(_pod_arr, 5);
+    matmul(_pod_arr, 3);
   };
   cinn_buffer_free((void*)(0), _C);
 }
@@ -354,7 +350,6 @@ TEST(CodeGenC, matmul_tile) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 }, 32/*align*/);
 void matmul(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
@@ -373,12 +368,12 @@ void matmul(void* _args, int32_t num_args)
   };
   for (int32_t i_outer = 0; i_outer < 4; i_outer += 1) {
     for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < (1 + ((int32_t)(cinn_min(31, (99 + (-32 * i_outer)))))); i_inner += 1) {
-        for (int32_t j_inner = 0; j_inner < (1 + ((int32_t)(cinn_min(31, (499 + (-32 * j_outer)))))); j_inner += 1) {
+      for (int32_t i_inner = 0; i_inner < cinn_min(32, (100 + (-32 * i_outer))); i_inner += 1) {
+        for (int32_t j_inner = 0; j_inner < cinn_min(32, (500 + (-32 * j_outer))); j_inner += 1) {
           C_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0;
           for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
             for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * B[((32 * j_outer) + ((500 * k0_inner) + ((2000 * k0_outer) + j_inner)))]));
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = fma(A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))], B[((32 * j_outer) + ((500 * k0_inner) + ((2000 * k0_outer) + j_inner)))], C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))]);
             };
           };
         };
@@ -434,8 +429,6 @@ TEST(CodeGenC, matmul_packed) {
 #include <cinn_runtime.h>
 #include <stdio.h>
 
-cinn_buffer_t* _C = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 100, 500 }, 32/*align*/);
-cinn_buffer_t* _PackedB = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 15, 200, 32 }, 32/*align*/);
 void matmul_with_packing(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
@@ -463,11 +456,11 @@ void matmul_with_packing(void* _args, int32_t num_args)
   };
   for (int32_t i_outer = 0; i_outer < 4; i_outer += 1) {
     for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
-      for (int32_t i_inner = 0; i_inner < (1 + ((int32_t)(cinn_min(31, (99 + (-32 * i_outer)))))); i_inner += 1) {
-        for (int32_t j_inner = 0; j_inner < (1 + ((int32_t)(cinn_min(31, (499 + (-32 * j_outer)))))); j_inner += 1) {
+      for (int32_t i_inner = 0; i_inner < cinn_min(32, (100 + (-32 * i_outer))); i_inner += 1) {
+        for (int32_t j_inner = 0; j_inner < cinn_min(32, (500 + (-32 * j_outer))); j_inner += 1) {
           for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
             for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))] * PackedB[((j_inner % 32) + ((6400 * (j_inner / 32)) + ((6400 * j_outer) + ((32 * k0_inner) + (128 * k0_outer)))))]));
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = fma(A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))], PackedB[((6400 * (j_inner / 32)) + ((j_inner % 32) + ((6400 * j_outer) + ((32 * k0_inner) + (128 * k0_outer)))))], C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))]);
             };
           };
         };
@@ -488,7 +481,7 @@ TEST(CodeGenC, call_extern) {
   Placeholder<float> x("x", {M});
 
   ir::Tensor y = Compute(
-      {M}, [=](Var i) -> Expr { return lang::CallExtern("cinn_cpu_tanh_fp32", {x(i)}); }, "y");
+      {M}, [=](Var i) -> Expr { return lang::CallExtern("tanh", {x(i)}); }, "y");
 
   auto stages = CreateStages({y});
 

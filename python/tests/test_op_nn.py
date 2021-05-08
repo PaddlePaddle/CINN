@@ -493,7 +493,7 @@ class OpTest_softmax_0(SingleOpTester):
         attrs = framework.NodeAttr()
         attrs.set_attr("axis", 1)
         self.to_test_op([[12, 224, 224]], [[12, 224, 224], [12, 224, 224]],
-                        "softmax", attrs)
+                        "softmax", attrs, 0)
 
 
 class OpTest_softmax_1(SingleOpTester):
@@ -509,7 +509,7 @@ class OpTest_softmax_1(SingleOpTester):
         attrs = framework.NodeAttr()
         attrs.set_attr("axis", -1)
         self.to_test_op([[12, 224, 224]], [[12, 224, 224], [12, 224, 224]],
-                        "softmax", attrs)
+                        "softmax", attrs, 0)
 
 
 class OpTest_softmax_2(SingleOpTester):
@@ -525,7 +525,7 @@ class OpTest_softmax_2(SingleOpTester):
         attrs = framework.NodeAttr()
         attrs.set_attr("axis", 0)
         self.to_test_op([[12, 224, 224]], [[12, 224, 224], [12, 224, 224]],
-                        "softmax", attrs)
+                        "softmax", attrs, 0)
 
 
 class OpTest_sigmoid(SingleOpTester):

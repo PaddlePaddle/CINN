@@ -142,7 +142,7 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
   return builder.Build();
 }
 
-lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
+ir::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
   target.arch = Target::Arch::X86;
   target.bits = Target::Bit::k32;
   target.os   = Target::OS::Linux;
@@ -179,7 +179,7 @@ lang::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
   return builder.Build();
 }
 
-lang::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
+ir::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
   auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k_));
 
   Placeholder<float> A("A", {M, K});
@@ -189,17 +189,13 @@ lang::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
 
   Expr bn(32);
 
-  auto C_init = Compute(
-      {M, N}, [&](Var i, Var j) { return Expr(0.f); }, "C_init");
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
   auto C = Compute(
       {M, N}, [&](Expr i, Expr j) { return ReduceSum(A(i, k) * packedB(j / bn, k, j % bn), {k}); }, "C");
 
-  auto stages = CreateStages({C_init, C});
+  auto stages = CreateStages({C});
 
-  stages[C]->ShareBufferWith(stages[C_init]);
-  stages[C]->CtrlDepend(C_init);
   stages[packedB]->Vectorize(2, 8);
 
   {
@@ -238,13 +234,13 @@ auto CreateCinnMatmulModule(const std::string &name, Target target, int m, int n
   { CINN_NOT_IMPLEMENTED }
 }
 
-auto CreateExecutionEngine(const cinn::lang::Module &module) {
+auto CreateExecutionEngine(const cinn::ir::Module &module) {
   auto engine = cinn::backends::ExecutionEngine::Create({});
   engine->Link(module);
   return engine;
 }
 
-auto CreateSimpleJit(const cinn::lang::Module &module) {
+auto CreateSimpleJit(const cinn::ir::Module &module) {
   auto jit = cinn::backends::SimpleJIT::Create();
   jit->Link(module, true);
 

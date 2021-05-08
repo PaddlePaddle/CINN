@@ -38,7 +38,7 @@ class _Tensor_ : public Object {
  public:
   _Tensor_() : buffer_(std::make_shared<Buffer>()) {}
 
-  const Shape& shape() const { return shape_; }
+  Shape& shape() { return shape_; }
 
   void Resize(const Shape& shape) {
     shape_ = shape;
@@ -48,7 +48,12 @@ class _Tensor_ : public Object {
   template <typename T>
   inline T* mutable_data(const Target& target) {
     set_type(type_of<T>());
-    buffer_->ResizeLazy(shape_.numel() * sizeof(T), target);
+    if (target == common::DefaultHostTarget()) {
+      int alignment = type_of<T>().ElementOf().bits();
+      buffer_->ResizeLazy(alignment, shape_.numel() * sizeof(T), target);
+    } else {
+      buffer_->ResizeLazy(shape_.numel() * sizeof(T), target);
+    }
     return reinterpret_cast<T*>(buffer_->data()->memory);
   }
 

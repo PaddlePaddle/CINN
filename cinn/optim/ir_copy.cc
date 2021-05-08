@@ -2,6 +2,7 @@
 
 #include <z3.h>
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -10,7 +11,7 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
-#include "cinn/lang/module.h"
+#include "cinn/ir/module.h"
 
 namespace cinn {
 namespace optim {
@@ -62,7 +63,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   Expr Visit(const Call* op) override {
     auto read_args  = Visit(op->read_args);
     auto write_args = Visit(op->write_args);
-    return Call::Make(op->type(), op->name, read_args, write_args, op->call_type, FunctionRef(), 0);
+    return Call::Make(op->type(), op->name, read_args, write_args, op->call_type, FunctionRef(), 0, op->attrs);
   }
 
   Expr Visit(const _Var_* op) override {
@@ -127,6 +128,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
 
     auto new_node            = _Buffer_::Make(name, shape);
     new_node->strides        = strides;
+    new_node->dtype          = op->dtype;  // copy data element's type.
     new_node->name           = name;
     new_node->scope          = scope;
     new_node->data_alignment = data_alignment;
@@ -164,6 +166,7 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     tensor->reduce_axis = op->reduce_axis;
     tensor->operation   = operaion;
     tensor->name        = name;
+    tensor->set_type(op->type());
 
     tensor_map[tensor->name] = tensor;
 
@@ -329,6 +332,20 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     return Expr(n);
   }
 
+#define __(x__) Expr Visit(const ir::intrinsics::x__* op);
+  INTRINSIC_KIND_FOR_EACH(__)
+#undef __
+
+  Expr Visit(const ir::IntrinsicOp* op) override {
+    switch (op->getKind()) {
+#define __(x__)                   \
+  case ir::IntrinsicKind::k##x__: \
+    return Visit(llvm::dyn_cast<ir::intrinsics::x__>(op));
+      INTRINSIC_KIND_FOR_EACH(__)
+#undef __
+    }
+  }
+
 #define OP_BINARY_HANDLE(op__)               \
   Expr Visit(const ir::op__* op) override {  \
     auto a = IRVisitorBase::Visit(&op->a()); \
@@ -355,14 +372,33 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
   }
 };
 
+Expr IRCopyVisitor::Visit(const ir::intrinsics::BufferGetDataHandle* op) {
+  return intrinsics::BufferGetDataHandle::Make(Visit(&op->buffer));
+}
+Expr IRCopyVisitor::Visit(const ir::intrinsics::BufferGetDataConstHandle* op) {
+  return intrinsics::BufferGetDataConstHandle::Make(Visit(&op->buffer));
+}
+Expr IRCopyVisitor::Visit(const ir::intrinsics::PodValueToX* op) {
+  return intrinsics::PodValueToX::Make(Visit(&op->pod_value_ptr), op->GetOutputType(0));
+}
+Expr IRCopyVisitor::Visit(const ir::intrinsics::BufferCreate* op) {
+  return intrinsics::BufferCreate::Make(Visit(&op->buffer));
+}
+Expr IRCopyVisitor::Visit(const ir::intrinsics::GetAddr* op) { return intrinsics::GetAddr::Make(Visit(&op->data)); }
+Expr IRCopyVisitor::Visit(const ir::intrinsics::ArgsConstruct* op) {
+  llvm::SmallVector<Expr, 7> args;
+  for (auto& arg : op->args) {
+    args.push_back(Visit(&arg));
+  }
+  return intrinsics::ArgsConstruct::Make(op->var, args);
+}
+Expr IRCopyVisitor::Visit(const ir::intrinsics::BuiltinIntrin* op) {
+  return intrinsics::BuiltinIntrin::Make(op->name, op->args, op->id, op->arg_nums, op->type());
+}
+
 Expr IRCopy(Expr x) {
   IRCopyVisitor visitor;
-
   auto copied = visitor.Visit(&x);
-
-  // common::CheckTensorUniqueInExpr(copied);
-  // common::CheckBufferUniqueInExpr(copied);
-
   return copied;
 }
 

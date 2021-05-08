@@ -16,9 +16,10 @@
 
 #include "cinn/backends/llvm/ir_builder_mixin.h"
 #include "cinn/backends/llvm/llvm_util.h"
+#include "cinn/ir/intrinsic_ops.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/lowered_func.h"
-#include "cinn/lang/module.h"
+#include "cinn/ir/module.h"
 
 namespace cinn {
 namespace backends {
@@ -81,7 +82,7 @@ class SymbolTable {
 };
 
 struct SymbolTableGuard {
-  SymbolTableGuard(SymbolTable &symbol_table) : symbol_table_(symbol_table) { symbol_table.PushScope(); }
+  explicit SymbolTableGuard(SymbolTable &symbol_table) : symbol_table_(symbol_table) { symbol_table.PushScope(); }
 
   ~SymbolTableGuard() { symbol_table_.PopScope(); }
 
@@ -96,7 +97,8 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
  public:
   explicit CodeGenLLVM(llvm::Module *m,
                        llvm::IRBuilder<> *b,
-                       const std::shared_ptr<SymbolTable> &symbol_table = nullptr);
+                       const std::shared_ptr<SymbolTable> &symbol_table = nullptr,
+                       const Target &target                             = common::DefaultHostTarget());
 
   // Common llvm types
   // @{
@@ -117,6 +119,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   // Common methods to get a constant
   // @{
   inline llvm::Constant *ll_const_int32(int v) const { return llvm::ConstantInt::get(b_->getInt32Ty(), v); }
+  inline llvm::Constant *ll_const_int64(int v) const { return llvm::ConstantInt::get(b_->getInt64Ty(), v); }
   // @}
 
   //! Get the bound LLVM module.
@@ -124,12 +127,16 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   //! Get the bound LLVM ir builder.
   llvm::IRBuilder<> *b() { return b_; }
 
-  void Compile(const lang::Module &module);
+  void Compile(const ir::Module &module);
 
   using LLVMIRVisitor::Visit;
 
 #define __(op__) llvm::Value *Visit(const ir::op__ *) override;
   NODETY_FORALL(__)
+#undef __
+
+#define __(op__) llvm::Value *Visit(const ir::intrinsics::op__ *);
+  INTRINSIC_KIND_FOR_EACH(__)
 #undef __
 
   //! Used for the ExternFuncEmitter to store temporary result.
@@ -140,6 +147,10 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   llvm::FunctionType *GenFunctionTypeFromCinnFunction(const ir::_LoweredFunc_ *func, bool with_buffer_type);
 
   virtual llvm::Value *GetVar(const std::string &name, bool lazy = true);
+
+  llvm::Function *GetIntrinsicDecl(llvm::Intrinsic::ID id,
+                                   llvm::Type *ret_type,
+                                   llvm::ArrayRef<llvm::Type *> arg_types);
 
   // Constants
   // @{
@@ -173,6 +184,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   llvm::Value *CreateVecSlice(llvm::Value *vec, int begin, int lanes);
 
   llvm::Value *DenseVectorLoad(const ir::Load *load);
+  llvm::Value *CreateSerialFor(const ir::For *op, int stride = 1);
 
   /**
    * Mark a load or store with type-based-alias-analysis metadata so that LLVM can optimize by reordering loads and
@@ -184,6 +196,8 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   llvm::Module *m_;
   llvm::IRBuilder<> *b_;
+  // Current function
+  llvm::Function *f_;
 
   std::unique_ptr<llvm::MDBuilder> md_builder_;
 
@@ -195,6 +209,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
   llvm::MDNode *md_tbaa_alias_set_{nullptr};
 
   int naive_vec_alignment_{0};
+  Target target_;
 };
 namespace detail {
 Expr StridedRampBase(Expr e, int stride);

@@ -22,6 +22,29 @@ class Operator;
 using shape_t = std::vector<int32_t>;
 using dim_t   = shape_t ::value_type;
 
+/*! \brief operator pattern used in graph fusion */
+enum OpPatternKind {
+  // Elementwise operation
+  kElemWise = 0,
+  // Broadcasting operator, can always map output axis to the input in order.
+  // for example :code:`out[i, ax1, j, ax2] = input[i, j]`.
+  // Note that the axis need to be in order so transpose is not a bcast operator.
+  kBroadcast = 1,
+  // Injective operator, can always injectively map output axis to a single input axis.
+  // All injective operator can still be safely fused to injective and reduction.
+  kInjective = 2,
+  // Communicative reduction operator.
+  kCommReduce = 3,
+  // Complex operation, can still fuse elemwise operations into its output.
+  // but cannot chain another complex op
+  kOutEWiseFusable = 4,
+  // The pattern for tuple nodes. Can fuse into subsequent injective ops,
+  // but treated specially
+  kTuple = 7,
+  // Opaque operation, cannot fuse anything.
+  kOpaque = 8
+};
+
 struct OpRegistry : public Registry<Operator> {
   std::recursive_mutex mutex;
   std::atomic<int> op_counter{0};

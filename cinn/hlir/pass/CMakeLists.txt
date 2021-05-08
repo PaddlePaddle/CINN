@@ -1,9 +1,6 @@
-set(srcs
-infershape.cc
-  )
+core_gather_headers()
 
-foreach(cpp ${srcs})
-  set(core_src
-    "${core_src};cinn/hlir/pass/${cpp}"
-    CACHE INTERNAL "")
-endforeach()
+core_gather_srcs(SRCS
+    infershape.cc
+    opfusion.cc
+    )

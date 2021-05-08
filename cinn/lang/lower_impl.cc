@@ -29,11 +29,32 @@ void CheckNoIslCallRemains(Expr* expr) {
   }
 }
 
+void BindBuffer(StageMap& stages) {
+  std::unordered_map<std::string, ir::_Tensor_*> tensor_map;
+  for (auto& stage : stages) {
+    tensor_map[stage.second->tensor()->name] = stage.second->tensor();
+  }
+  for (auto& stage : stages) {
+    if (!stage.second->tensor()->buffer.defined() && !stage.second->meta.tensors_to_share_buffer_with.empty()) {
+      for (auto& str : stage.second->meta.tensors_to_share_buffer_with) {
+        if (tensor_map[str]->buffer.defined()) {
+          stage.second->tensor()->Bind(tensor_map[str]->buffer);
+          VLOG(3) << "Tensor " << stage.second->tensor()->name << " bind buffer to " << tensor_map[str]->name << " , "
+                  << tensor_map[str]->buffer->name;
+        }
+      }
+    }
+  }
+  return;
+}
+
 Expr LowerGroup(const poly::ScheduleGroup& group,
                 const std::map<std::string, Expr>& tuple_to_expr,
                 std::map<std::string, ir::Tensor>* global_tensor_map,
+                std::unordered_set<std::string>& resized_buffer,
                 StageMap stage_map,
                 ir::CudaAxisInfo* cuda_axis_info) {
+  BindBuffer(stage_map);
   std::vector<poly::Stage*> stages;
   for (auto& node : group.nodes) {
     if (node->stage->has_expression()) {
@@ -105,7 +126,19 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     mutator(&e);
   }
 
-  // mark gpu
+  // mark parallel.
+  {
+    std::map<std::string, std::set<int>> parallels;
+    for (auto& node : group.nodes) {
+      if (!node->stage->parallel_info().empty()) {
+        parallels[node->stage->id()] = node->stage->parallel_info();
+      }
+    }
+    MarkParallelMutator mutator(parallels);
+    mutator(&e);
+  }
+
+  // mark gpu threads
 #ifdef CINN_WITH_CUDA
   {
     optim::forloop_infos_t forloop_infos;
@@ -120,7 +153,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
 
       forloop_infos[stage->id()] = for_infos;
     }
-    optim::TransformGpuForloops(forloop_infos, &e);
+    optim::TransformGpuForloops(forloop_infos, global_tensor_map, resized_buffer, &e);
     auto axis_info = optim::GatherAxisInfoFromStages(stages);
     if (axis_info.valid()) cuda_axis_info->ExtendWith(axis_info);
   }
@@ -429,7 +462,7 @@ ir::LoweredFunc LowerImpl::operator()() {
   auto func = ir::_LoweredFunc_::Make(fn_name_, func_args, func_body, temp_buffers);
 
   // some necessary modification.
-  optim::ComputeInlineExpand(&func->body, stages_);
+  optim::ComputeInlineExpand(&func->body, stages_, &all_tensor_map);
   Target target = cuda_axis_info_.valid() ? common::DefaultNVGPUTarget() : common::DefaultHostTarget();
   auto res      = optim::Optimize(func, target, FLAGS_cinn_runtime_display_debug_info);
 
@@ -474,6 +507,7 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
   CHECK(!schedule->groups.empty()) << "no group is generated";
 
   std::map<std::string, ir::Tensor> global_tensor_map;
+  std::unordered_set<std::string> resized_buffer;
   for (auto& group : schedule->groups) {
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
     for (auto& node : group.nodes) {
@@ -483,7 +517,7 @@ Expr LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule) {
       tuple_to_expr[tensor->name] = tensor->tensor_store_expanded_body();
     }
 
-    Expr group_expr = LowerGroup(group, tuple_to_expr, &global_tensor_map, stages_, &cuda_axis_info_);
+    Expr group_expr = LowerGroup(group, tuple_to_expr, &global_tensor_map, resized_buffer, stages_, &cuda_axis_info_);
     if (group_expr.defined()) {
       VLOG(3) << "group expr:\n" << group_expr;
       exprs.push_back(group_expr);

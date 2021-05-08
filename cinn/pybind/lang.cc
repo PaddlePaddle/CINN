@@ -1,3 +1,4 @@
+
 #include <pybind11/functional.h>
 
 #include <memory>
@@ -5,12 +6,12 @@
 
 #include "cinn/backends/codegen_c.h"
 #include "cinn/common/target.h"
+#include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/buffer.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
-#include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/pybind/bind_utils.h"
@@ -85,28 +86,32 @@ void BindCompute(py::module *m) {
   m->def("call_lowered",
          py::overload_cast<const std::string &, const std::vector<ir::Expr> &, const std::vector<lang::ReturnType> &>(
              &lang::CallLowered));
-  m->def("call_extern", py::overload_cast<const std::string &, const std::vector<ir::Expr> &>(&lang::CallExtern));
+  m->def(
+      "call_extern",
+      py::overload_cast<const std::string &,
+                        const std::vector<ir::Expr> &,
+                        const std::map<std::string, std::variant<int, float, bool, std::string>> &>(&lang::CallExtern));
 }
 
 void BindModule(py::module *m) {
-  py::class_<lang::Module /*, ir::IrNodeRef*/> module(*m, "Module");
+  py::class_<ir::Module /*, ir::IrNodeRef*/> module(*m, "Module");
 
-  module.def("target", &lang::Module::target)
-      .def("buffers", &lang::Module::buffers)
-      .def("functions", &lang::Module::functions)
-      .def("submodules", &lang::Module::submodules)
-      .def("compile", &lang::Module::Compile)
-      .def("get_c_code", [](const lang::Module &self) -> std::string {
+  module.def("target", &ir::Module::target)
+      .def("buffers", &ir::Module::buffers)
+      .def("functions", &ir::Module::functions)
+      .def("submodules", &ir::Module::submodules)
+      .def("compile", &ir::Module::Compile)
+      .def("get_c_code", [](const ir::Module &self) -> std::string {
         backends::CodeGenC codegen(common::DefaultHostTarget());
         codegen.SetInlineBuiltinCodes(false);
         return codegen.Compile(self, backends::CodeGenC::OutputKind::CImpl);
       });
 
-  py::class_<lang::Module::Builder> builder(module, "Builder");
+  py::class_<ir::Module::Builder> builder(module, "Builder");
   builder.def(py::init<const std::string &, const common::Target &>())
-      .def("add_function", &lang::Module::Builder::AddFunction)
-      .def("add_buffer", &lang::Module::Builder::AddBuffer)
-      .def("build", &lang::Module::Builder::Build);
+      .def("add_function", &ir::Module::Builder::AddFunction)
+      .def("add_buffer", &ir::Module::Builder::AddBuffer)
+      .def("build", &ir::Module::Builder::Build);
 }
 
 class PlaceholderWrapper {

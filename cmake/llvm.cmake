@@ -2,8 +2,10 @@ if (${CMAKE_CXX_COMPILER} STREQUAL "clang++")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++ -lc++abi")
 endif()
 
-find_package(LLVM REQUIRED CONFIG)
-find_package(MLIR REQUIRED CONFIG)
+message(STATUS "set LLVM_DIR: ${LLVM_DIR}")
+message(STATUS "set MLIR_DIR: ${MLIR_DIR}")
+find_package(LLVM REQUIRED CONFIG HINTS ${LLVM_DIR})
+find_package(MLIR REQUIRED CONFIG HINTS ${MLIR_DIR})
 find_package(ZLIB REQUIRED)
 
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
@@ -72,6 +74,6 @@ endfunction()
 # @script: path to the mlir script file
 function (cinn_exec_check name script)
   add_test(NAME ${name}
-    COMMAND sh -c "${CMAKE_BINARY_DIR}/cinn/host_context/cinn-exec -i ${CMAKE_CURRENT_SOURCE_DIR}/${script}| FileCheck-10  ${CMAKE_CURRENT_SOURCE_DIR}/${script}")
+    COMMAND sh -c "${CMAKE_BINARY_DIR}/cinnrt/host_context/cinn-exec -i ${CMAKE_CURRENT_SOURCE_DIR}/${script}| FileCheck-10  ${CMAKE_CURRENT_SOURCE_DIR}/${script}")
 endfunction()
 

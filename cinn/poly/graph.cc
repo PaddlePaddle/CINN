@@ -39,6 +39,7 @@ int DataFlowGraphNode::group_height() const {
   auto* p = this;
   while (p) {
     ++h;
+    if (p->group_parent == p) break;
     p = p->group_parent;
   }
   return h;

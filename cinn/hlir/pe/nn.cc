@@ -1,5 +1,7 @@
 #include "cinn/hlir/pe/nn.h"
 
+#include <functional>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -21,19 +23,6 @@ using ir::Max;
 using ir::Min;
 using ir::Select;
 using ir::Tensor;
-
-void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape) {
-  if (output_shape.size() > 1 && output_shape[1] >= 512) {
-    int temp_split = 1;
-    int temp_num   = output_shape[1];
-    while (temp_num >= 512) {
-      temp_split = temp_split * 2;
-      temp_num   = temp_num / 2;
-    }
-    stage->Split(1, temp_split);
-  }
-  return;
-}
 
 Tensor LeakyRelu(const Tensor &A, double alpha, const std::string &output_name) {
   return Compute(
@@ -86,7 +75,7 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
   auto weights_dilation = Compute(
       new_weights_shape,
       [=](Expr nn, Expr cc, Expr yy, Expr xx) {
-        auto cond = lang::logic_and({(xx) % dilation_h == 0, yy % dilation_w == 0});
+        auto cond = lang::logic_and({(yy) % dilation_h == 0, xx % dilation_w == 0});
         return ir::Select::Make(
             cond, weights(nn, cc, yy / dilation_h, xx / dilation_w), common::make_const(weights->type(), 0));
       },
@@ -111,6 +100,52 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
       },
       output_name);
   return {input_pad, weights_dilation, res};
+}
+
+std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
+                                           const ir::Tensor &weights,
+                                           int pad_h,
+                                           int pad_w,
+                                           int stride_h,
+                                           int stride_w,
+                                           int dilation_h,
+                                           int dilation_w,
+                                           const std::string &output_name) {
+  CHECK_EQ(input->shape.size(), 4U) << "Input's dimension of Conv2d_NCHW op is not 4! Please check.";
+  CHECK_EQ(weights->shape.size(), 4U) << "Weight's dimension of Conv2d_NCHW op is not 4! Please check.";
+  std::vector<Expr> output_shape;
+  std::vector<Expr> new_weights_shape;
+  std::vector<Expr> input_pad_shape;
+  int group = input->shape[1].as_int32() / weights->shape[1].as_int32();
+  CHECK_EQ(input->shape[1].as_int32(), weights->shape[1].as_int32() * group)
+      << "input channel should be divisible by filter channel";
+  auto call = Compute(
+      {Expr(1)},
+      [=]() -> Expr {
+        return lang::CallExtern("cinn_cpu_mkldnn_conv2d_nchw_fp32",
+                                {
+                                    Expr(input->shape[0]),    // batch_size
+                                    Expr(input->shape[1]),    // c_in
+                                    Expr(input->shape[2]),    // input_h
+                                    Expr(input->shape[3]),    // input_w
+                                    Expr(weights->shape[0]),  // c_out
+                                    Expr(group),              // group
+                                    Expr(weights->shape[2]),  // filter_h
+                                    Expr(weights->shape[3]),  // filter_w
+                                    Expr(pad_h),              // pad_h
+                                    Expr(pad_w),              // pad_w
+                                    Expr(stride_h),           // stride_h
+                                    Expr(stride_w),           // stride_w
+                                    Expr(dilation_h),         // dilation_h
+                                    Expr(dilation_w),         // dilation_w
+                                    input,                    // input
+                                    weights                   // weights
+                                });
+      },
+      UniqName("conv2d_nchw_mkldnn_out"));
+  auto out = call->TupleGet(0);
+  out->WithBuffer(input->type());
+  return {out, call};
 }
 
 std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
@@ -151,7 +186,7 @@ std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
   auto weights_dilation = Compute(
       new_weights_shape,
       [=](Expr nn, Expr cc, Expr yy, Expr xx) {
-        auto cond = lang::logic_and({(xx) % dilation_h == 0, yy % dilation_w == 0});
+        auto cond = lang::logic_and({(yy) % dilation_h == 0, xx % dilation_w == 0});
         return ir::Select::Make(
             cond, weights(nn, cc, yy / dilation_h, xx / dilation_w), common::make_const(weights->type(), 0));
       },
@@ -199,7 +234,7 @@ std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
       (input->shape[3] - weight->shape[3] + 2 * pad_w) / stride_w + 1   // W
   };
   auto input_pad =
-      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
+      (pad_h == 0 && pad_w == 0) ? Identity(input).front() : Pad(input, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
 
   Var kernel_h = Var(weight->shape[2], "kh");
   Var kernel_w = Var(weight->shape[3], "kw");
@@ -236,7 +271,7 @@ std::vector<Tensor> Depthwise_Conv2d_NHWC(const Tensor &input,
   };
 
   auto input_pad =
-      (pad_h == 0 && pad_w == 0) ? Identity(input) : Pad(input, {Expr(0), Expr(pad_h), Expr(pad_w), Expr(0)});
+      (pad_h == 0 && pad_w == 0) ? Identity(input).front() : Pad(input, {Expr(0), Expr(pad_h), Expr(pad_w), Expr(0)});
 
   Var kernel_h = Var(weight->shape[2], "kh");
   Var kernel_w = Var(weight->shape[3], "kw");
@@ -290,20 +325,74 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
  * @return The calculated output tensor.
  */
 std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string &output_name) {
-  Var axis_j(A->shape[axis], UniqName("axis_j"));
+  if (axis == -1) {
+    axis = A->shape.size() - 1;
+  }
+  Var reduce_axis(A->shape[axis], UniqName("reduce_axis"));
+  std::vector<Expr> new_shapes;
+  for (size_t i = 0; i < A->shape.size(); i++) {
+    if (static_cast<int>(i) != axis) {
+      new_shapes.push_back(A->shape[i]);
+    }
+  }
   auto temp = Compute(
-      A->shape,
+      new_shapes,
       [=](const std::vector<Expr> &indice) {
-        std::vector<Expr> new_indice = indice;
-        new_indice[axis]             = axis_j;
-        return lang::ReduceSum(lang::Exp(A(new_indice)), {axis_j});
+        std::vector<Expr> new_indice;
+        int count = 0;
+        for (size_t i = 0; i < A->shape.size(); i++) {
+          if (static_cast<int>(i) != axis) {
+            new_indice.push_back(indice[count++]);
+          } else {
+            new_indice.push_back(reduce_axis);
+          }
+        }
+        return lang::ReduceSum(lang::Exp(A(new_indice)), {reduce_axis});
       },
       UniqName("softmax_temp_out"));
+
   ir::Tensor out = Compute(
       A->shape,
-      [=](const std::vector<Expr> &indice) { return lang::Exp(A(indice)) / temp(indice); },
+      [=](const std::vector<Expr> &indice) {
+        std::vector<Expr> new_indice;
+        for (size_t i = 0; i < indice.size(); i++) {
+          if (static_cast<int>(i) != axis) {
+            new_indice.push_back(indice[i]);
+          }
+        }
+        return lang::Exp(A(indice)) / temp(new_indice);
+      },
       UniqName("softmax_out"));
-  return {temp, out};
+  return {out, temp};
+}
+
+std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A, int axis, const std::string &output_name) {
+  CHECK_LE(A->shape.size(), 4U) << "Input's dimension of mkldnn softmax op is less than 4! Please check.";
+  if (axis == -1) {
+    axis = A->shape.size() - 1;
+  }
+  auto shape = A->shape;
+  for (size_t i = shape.size(); i < 4; i++) {
+    shape.push_back(Expr(1));
+  }
+
+  auto call = Compute(
+      {Expr(1)},
+      [=]() -> Expr {
+        return lang::CallExtern("cinn_cpu_mkldnn_softmax_fp32",
+                                {
+                                    shape[0],    // batch_size
+                                    shape[1],    // c_in
+                                    shape[2],    // h
+                                    shape[3],    // w
+                                    Expr(axis),  // axis
+                                    A,           // input
+                                });
+      },
+      UniqName("softmax_mkldnn_out"));
+  auto out = call->TupleGet(0);
+  out->WithBuffer(A->type());
+  return {out, call};
 }
 
 ir::Tensor Slice(const ir::Tensor &A,
@@ -459,10 +548,6 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
                              bool ceil_mode,
                              bool exclusive,
                              const std::string &output_name) {
-  LOG(INFO) << "kernel_size length is: " << kernel_size.size();
-  LOG(INFO) << "kernel_size is: " << kernel_size[0];
-  LOG(INFO) << "padding_size length is: " << padding_size.size();
-  LOG(INFO) << "padding_size is: " << padding_size[0];
   CHECK(!kernel_size.empty()) << "Pooling kernel_size should not be empty\n";
   int k_size = kernel_size.size();
   int x_size = tensor->shape.size();
@@ -658,7 +743,7 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
   if (dropout_implementation == "downgrade_in_infer") {
     return Multiply(tensor, Expr(1 - dropout_prob));
   } else if (dropout_implementation == "upscale_in_train") {
-    return Identity(tensor);
+    return Identity(tensor).front();
   } else {
     LOG(FATAL) << "dropout_implementation attr must be 'downgrade_in_infer' or 'upscale_in_train'\n";
   }

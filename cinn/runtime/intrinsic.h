@@ -26,8 +26,9 @@ static const char* buffer_destroy = "cinn_buffer_t::delete_";
 
 static const char* buffer_load = "cinn_buffer_load";
 
-static const char* buffer_malloc = "cinn_buffer_malloc";
-static const char* buffer_free   = "cinn_buffer_free";
+static const char* buffer_malloc         = "cinn_buffer_malloc";
+static const char* buffer_free           = "cinn_buffer_free";
+static const char* buffer_create_default = "cinn_buffer_new_default";
 
 static const char* buffer_get_data_handle       = "cinn_buffer_get_data_handle";
 static const char* buffer_get_data_const_handle = "cinn_buffer_get_data_const_handle";
@@ -58,16 +59,16 @@ static const char* pod_values_to_array_repr = "pod_values_to_array";
 
 static const char* get_address_repr = "get_address";
 
-// static const char* args_create  = "cinn_args_create";
-// static const char* args_set     = "cinn_args_set";
-// static const char* args_destroy = "cinn_args_destroy";
-
 static const char* args_construct_repr = "cinn_args_construct";
+
+static const char* builtin_intrin_repr = "cinn_builtin_intrin";
 
 //! Name of the helper intrinsic used to display debug string.
 static const char* debug_log_repr = "cinn_print_debug_string";
 
 static const char* cuda_sync_threads = "__syncthreads";
+
+static const char* parallel_launch = "cinn_backend_parallel_launch";
 
 }  // namespace intrisic
 
@@ -82,27 +83,6 @@ Expr IntrinsicCall(Type type,
                    const std::string& fn_name,
                    const std::vector<Expr>& args,
                    const std::vector<Expr>& write_args = {});
-
-Expr GetAddr(Type type, Expr arg);
-
-ir::Expr BufferCreate(ir::Buffer buffer);
-/**
- * Get an expression to load an element from a buffer.
- * @param buffer
- * @param shape
- * @param indices
- */
-ir::Expr BufferLoad(ir::Buffer buffer, const std::vector<ir::Expr>& indices);
-
-/**
- * Get an expression to malloc a buffer.
- * @param buffer
- * @return
- */
-ir::Expr BufferMalloc(ir::Buffer buffer);
-ir::Expr BufferMalloc(ir::Var buffer_var);
-
-ir::Expr BufferGetDataHandle(ir::Buffer buffer, bool is_const = true);
 
 //! Convert the Type in compile time to runtime type.
 cinn_type_t ToRuntimeType(Type type);

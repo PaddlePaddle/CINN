@@ -1,4 +1,4 @@
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -mavx -Wno-write-strings -Wno-psabi")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -mavx -mfma -Wno-write-strings -Wno-psabi")
 
 set(PADDLE_RESOURCE_URL "http://paddle-inference-dist.bj.bcebos.com" CACHE STRING "inference download url")
 
@@ -70,7 +70,7 @@ function(cc_test TARGET_NAME)
       set_property(TEST ${TARGET_NAME} PROPERTY RUN_SERIAL 1)
     endif()
     # No unit test should exceed 10 minutes.
-    set_tests_properties(${TARGET_NAME} PROPERTIES TIMEOUT 600)
+    set_tests_properties(${TARGET_NAME} PROPERTIES TIMEOUT 6000)
   endif()
 endfunction()
 
@@ -350,4 +350,29 @@ function(download_and_uncompress INSTALL_DIR URL FILENAME)
     UPDATE_COMMAND        ""
     INSTALL_COMMAND       ""
     )
+endfunction()
+
+# Add a source file to cinncore library.
+# @param src_names: a list of strings
+# usage:
+# core_gather_srcs(SRCS a.cc b.cc c.cc)
+function(core_gather_srcs)
+  set(options)
+  set(oneValueArgs)
+  set(multiValueArgs "SRCS")
+  cmake_parse_arguments(prefix "" "" "${multiValueArgs}" ${ARGN})
+  foreach(cpp ${prefix_SRCS})
+    set(core_src
+      "${core_src};${CMAKE_CURRENT_SOURCE_DIR}/${cpp}"
+      CACHE INTERNAL "")
+  endforeach()
+
+endfunction()
+
+function(core_gather_headers)
+  file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
+
+  foreach(header ${includes})
+    set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
+  endforeach()
 endfunction()

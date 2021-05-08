@@ -2,7 +2,8 @@
 set -ex
 
 workspace=$PWD
-build_dir=$workspace/build
+build_dir_name=${cinn_build:-build}
+build_dir=$workspace/${build_dir_name}
 
 JOBS=8
 
@@ -14,7 +15,6 @@ function gpu_on {
 
 function check_style {
     export PATH=/usr/bin:$PATH
-    #pre-commit install
     clang-format --version
 
     if ! pre-commit run -a ; then
@@ -26,6 +26,9 @@ function check_style {
 function prepare {
     mkdir -p $build_dir
     cd $build_dir
+
+    python3 -m pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 --trusted-host mirrors.aliyun.com
+    apt install doxygen -y
 
     mkdir -p tests
     mkdir -p cinn/backends
@@ -41,6 +44,26 @@ function prepare_llvm {
     export PATH=${LLVM11_DIR}/bin:$PATH
 }
 
+function make_doc {
+    cd $workspace/tutorials
+    if [[ -f "ResNet18.tar" ]]; then
+        echo "model file for tutorials already downloaded."
+    elif [[ -f "$build_dir/thirds/ResNet18.tar" ]]; then
+        rm -rf $workspace/tutorials/ResNet18
+        ln -s $build_dir/thirds/ResNet18 $workspace/tutorials/ResNet18
+    else
+        wget http://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar
+        tar -xvf ResNet18.tar
+    fi
+    cd $build_dir
+    rm -f $workspace/python/cinn/core_api.so
+    ln -s $build_dir/cinn/pybind/core_api.so $workspace/python/cinn/
+    cd $workspace/docs
+    mkdir -p docs/source/cpp
+    cat $workspace/tutorials/matmul.cc | python $workspace/tools/gen_c++_tutorial.py  > $workspace/docs/source/matmul.md
+    make html
+}
+
 function cmake_ {
     prepare
     mkdir -p $build_dir
@@ -50,7 +73,7 @@ function cmake_ {
     echo "set(WITH_CUDA $cuda_config)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
-    cmake .. -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir
+    cmake .. -DLLVM11_DIR=${LLVM11_DIR} -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir -DPUBLISH_LIBS=ON
 
     make GEN_LLVM_RUNTIME_IR_HEADER
     # make the code generated compilable
@@ -71,9 +94,25 @@ function prepare_model {
         wget http://paddle-inference-dist.bj.bcebos.com/CINN/EfficientNet.tar
         tar -xvf EfficientNet.tar
     fi
-    python $workspace/python/tests/fake_model/naive_mul.py
-    python $workspace/python/tests/fake_model/naive_multi_fc.py
-    python $workspace/python/tests/fake_model/resnet_model.py
+    mkdir -p $build_dir/paddle
+    cd $build_dir/paddle
+    if [[ ! -f "libexternal_kernels.so.tgz" ]]; then
+        wget https://github.com/T8T9/files/raw/main/libexternal_kernels.so.tgz
+    fi
+    tar -zxvf libexternal_kernels.so.tgz
+    if [[ ! -f "paddle_1.8_fc_model.tgz" ]]; then
+        wget https://github.com/T8T9/files/raw/main/paddle_1.8_fc_model.tgz
+    fi
+    tar -zxvf paddle_1.8_fc_model.tgz
+    if [[ ! -f "mkldnn.tgz" ]]; then
+        wget https://github.com/T8T9/files/raw/main/mkldnn.tgz
+    fi
+    tar -zxvf mkldnn.tgz
+    export LD_LIBRARY_PATH=$build_dir/paddle/mkldnn:$build_dir/thirds/install/mklml/lib:$LD_LIBRARY_PATH
+    cd -
+    python3 $workspace/python/tests/fake_model/naive_mul.py
+    python3 $workspace/python/tests/fake_model/naive_multi_fc.py
+    python3 $workspace/python/tests/fake_model/resnet_model.py
 }
 
 function build {
@@ -88,7 +127,7 @@ function build {
     make test_codegen_c -j $JOBS
     if [[ $cuda_config == "ON" ]]; then
         make test_codegen_cuda_dev -j $JOBS
-        ctest -R test_codegen_cuda_dev
+        ctest -R test_codegen_cuda_dev -V
     fi
 
     ctest -R test01_elementwise_add_main
@@ -97,6 +136,15 @@ function build {
     ctest -R "test_codegen_c$"
 
     make -j $JOBS
+}
+
+function run_demo {
+    cd $build_dir/dist
+    export LD_LIBRARY_PATH=$build_dir/thirds/install/mkldnn/lib:$LD_LIBRARY_PATH
+    bash build_demo.sh
+    ./demo
+    rm ./demo
+    cd -
 }
 
 function run_test {
@@ -111,8 +159,11 @@ function CI {
     prepare_llvm
     cmake_
     build
+    run_demo
     prepare_model
     run_test
+
+    make_doc
 }
 
 
@@ -146,6 +197,10 @@ function main {
                 ;;
             prepare_model)
                 prepare_model
+                shift
+                ;;
+            make_doc)
+                make_doc
                 shift
                 ;;
             prepare_llvm)

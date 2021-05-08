@@ -1,4 +1,7 @@
 #pragma once
+
+#include <vector>
+
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
@@ -34,10 +37,7 @@ EXTERN_CALL_DCL(Asin);
 EXTERN_CALL_DCL(Asinh);
 EXTERN_CALL_DCL(Atan);
 EXTERN_CALL_DCL(Atanh);
-EXTERN_CALL_DCL(Isnan);
 EXTERN_CALL_DCL(Tanh);
-EXTERN_CALL_DCL(Isfinite);
-EXTERN_CALL_DCL(Isinf);
 
 inline Expr Sigmoid(Expr e) {
   auto one = common::make_const(e->type(), 1);
@@ -53,7 +53,7 @@ inline Expr Sign(Expr e) {
   return ret2;
 }
 
-inline Expr Abs(Expr e) { return ir::Select::Make(e > make_const(e->type(), 0), e, -e); }
+Expr Abs(Expr e);
 
 inline Expr Rsqrt(Expr e) {
   auto one = make_const(e->type(), 1);
@@ -64,6 +64,11 @@ inline Expr Negative(Expr e) { return -e; }
 inline Expr Identity(Expr e) { return e; }
 inline Expr LogicalNot(Expr e) { return !e; }
 inline Expr BitwiseNot(Expr e) { return ~e; }
+inline Expr BitwiseAnd(Expr a, Expr b) { return a & b; }
+inline Expr BitwiseOr(Expr a, Expr b) { return a | b; }
+inline Expr BitwiseXor(Expr a, Expr b) { return a ^ b; }
+inline Expr LeftShift(Expr a, Expr b) { return a << b; }
+inline Expr RightShift(Expr a, Expr b) { return a >> b; }
 
 template <typename T>
 inline Expr Relu(Expr e, T threshold = static_cast<T>(0)) {
@@ -114,6 +119,14 @@ inline Expr ReduceMin(Expr e, const std::vector<Var>& reduce_axis, Expr initial 
   }
   return ir::Reduce::Make(ir::Reduce::kMin, initial, e, reduce_axis);
 }
+
+Expr IsNan(Expr e);
+
+Expr Infinity(const Type& type);
+
+Expr IsInf(Expr e);
+
+Expr IsFinite(Expr e);
 
 }  // namespace lang
 }  // namespace cinn

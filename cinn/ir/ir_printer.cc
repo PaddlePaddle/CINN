@@ -4,8 +4,9 @@
 #include <vector>
 
 #include "cinn/ir/lowered_func.h"
+#include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
-#include "cinn/lang/module.h"
+#include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -61,8 +62,14 @@ void IrPrinter::Visit(const Minus *x) {
   os_ << ")";
 }
 void IrPrinter::Visit(const For *x) {
-  os_ << "for (";
+  if (x->is_parallel()) {
+    os() << "parallel for (";
+  } else {
+    os() << "for (";
+  }
   Print(x->loop_var);
+  os_ << ", ";
+  Print(x->min);
   os_ << ", ";
   Print(x->extent);
   os_ << ")\n";
@@ -72,7 +79,11 @@ void IrPrinter::Visit(const For *x) {
 }
 
 void IrPrinter::Visit(const PolyFor *x) {
-  os_ << "poly_for (";
+  if (x->is_parallel()) {
+    os() << "parallel poly_for (";
+  } else {
+    os() << "poly_for (";
+  }
   Print(x->iterator);
   os_ << ", ";
   Print(x->init);
@@ -114,12 +125,12 @@ void IrPrinter::Visit(const Block *x) {
   os_ << "{\n";
 
   IncIndent();
-  for (int i = 0; i < x->stmts.size() - 1; i++) {
+  for (int i = 0; !x->stmts.empty() && i < x->stmts.size() - 1; i++) {
     DoIndent();
     Print(x->stmts[i]);
     os_ << "\n";
   }
-  if (x->stmts.size() >= 1) {
+  if (!x->stmts.empty()) {
     DoIndent();
     Print(x->stmts.back());
   }
@@ -232,7 +243,6 @@ void IrPrinter::Visit(const _Buffer_ *x) {
   os_ << "_Buffer_<" << x->type() << ": " << utils::Join(dim_names, ",") << ">(" << x->name << ")";
 }
 void IrPrinter::Visit(const _Tensor_ *x) {
-  CHECK(!x->shape.empty());
   os_ << "Tensor(";
   os() << x->name << ", ";
   os() << "[";
@@ -364,6 +374,64 @@ void IrPrinter::Visit(const PrimitiveNode *x) {
   os() << ")";
 }
 
+void IrPrinter::Visit(const IntrinsicOp *x) {
+  switch (x->getKind()) {
+#define __(op__)                                \
+  case IntrinsicKind::k##op__:                  \
+    Visit(llvm::dyn_cast<intrinsics::op__>(x)); \
+    break;
+
+    INTRINSIC_KIND_FOR_EACH(__)
+#undef __
+  }
+}
+void IrPrinter::Visit(const intrinsics::BufferGetDataHandle *x) {
+  os() << runtime::intrisic::buffer_get_data_handle;
+  Print(x->buffer);
+  os() << ")";
+}
+void IrPrinter::Visit(const intrinsics::BufferGetDataConstHandle *x) {
+  os() << runtime::intrisic::buffer_get_data_const_handle;
+  Print(x->buffer);
+  os() << ")";
+}
+void IrPrinter::Visit(const intrinsics::PodValueToX *x) {
+  os() << "pod_value_to_";
+  os() << x->GetOutputType(0);
+  os() << "(";
+  Print(x->pod_value_ptr);
+  os() << ")";
+}
+void IrPrinter::Visit(const intrinsics::BufferCreate *x) {
+  os() << runtime::intrisic::buffer_create;
+  os() << "()";
+}
+void IrPrinter::Visit(const intrinsics::GetAddr *x) {
+  os() << "get_addr(";
+  Print(x->data);
+  os() << ")";
+}
+void IrPrinter::Visit(const intrinsics::ArgsConstruct *x) {
+  os() << runtime::intrisic::args_construct_repr;
+  os() << "(";
+  Print(std::vector<Expr>(x->args.begin(), x->args.end()));
+  os() << ")";
+}
+
+void IrPrinter::Visit(const intrinsics::BuiltinIntrin *x) {
+  os_ << runtime::intrisic::builtin_intrin_repr << "_";
+  os_ << x->name << "(";
+  if (!x->args.empty()) {
+    for (int i = 0; i < x->args.size() - 1; i++) {
+      Print(x->args[i]);
+      os_ << ", ";
+    }
+    Print(x->args.back());
+  }
+
+  os_ << ")";
+}
+
 std::ostream &operator<<(std::ostream &os, Expr a) {
   std::stringstream ss;
   IrPrinter printer(ss);
@@ -380,15 +448,12 @@ std::ostream &operator<<(std::ostream &os, const std::vector<Expr> &a) {
   return os;
 }
 
-std::ostream &operator<<(std::ostream &os, const lang::Module &m) {
+std::ostream &operator<<(std::ostream &os, const ir::Module &m) {
   os << "Module " << m->name << " {\n\n";
-
   for (auto &fn : m->functions) {
     os << fn << '\n';
   }
-
   os << "\n\n}";
-
   return os;
 }
 

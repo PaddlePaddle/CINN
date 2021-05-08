@@ -12,8 +12,6 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
-void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape);
-
 /**
  * @brief Rectified Linear Unit.
  *
@@ -102,6 +100,16 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                     int dilation_h,
                                     int dilation_w,
                                     const std::string &output_name = UniqName("T_Conv2d_NCHW_out"));
+
+std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
+                                           const ir::Tensor &weights,
+                                           int pad_h,
+                                           int pad_w,
+                                           int stride_h,
+                                           int stride_w,
+                                           int dilation_h,
+                                           int dilation_w,
+                                           const std::string &output_name = UniqName("T_Conv2d_NCHW_out"));
 
 /**
  * @brief Perform a 2-D convolution with an NHWC-layout and support group and depthwise convolution.
@@ -216,7 +224,13 @@ ir::Tensor Pad(const ir::Tensor &tensor,
                const std::string &name     = UniqName("T_pad_out"),
                const std::string &pad_mode = "constant");
 
-std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string &output_name);
+std::vector<ir::Tensor> Softmax(const ir::Tensor &A,
+                                int axis                       = -1,
+                                const std::string &output_name = UniqName("T_softmax_out"));
+
+std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A,
+                                      int axis                       = -1,
+                                      const std::string &output_name = UniqName("T_softmax_out"));
 
 ir::Tensor Slice(const ir::Tensor &A,
                  const std::vector<int> &starts,

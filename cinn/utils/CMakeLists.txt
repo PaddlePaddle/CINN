@@ -1,10 +1,12 @@
-set(srcs string.cc functional.cc dot_lang.cc timer.cc error.cc
-        small_vector.cc)
+core_gather_headers()
 
-cc_test(test_string SRCS string_test.cc DEPS core)
+core_gather_srcs(SRCS
+  string.cc
+  functional.cc
+  dot_lang.cc
+  timer.cc
+  error.cc
+  small_vector.cc
+  )
 
-foreach(cpp ${srcs})
-  set(core_src
-      "${core_src};cinn/utils/${cpp}"
-      CACHE INTERNAL "")
-endforeach()
+cc_test(test_string SRCS string_test.cc DEPS cinncore)

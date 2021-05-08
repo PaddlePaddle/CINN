@@ -5,7 +5,8 @@
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
-#include "cinn/ir/node.h"
+#include "cinn/hlir/pe/schedule.h"
+#include "cinn/ir/ir_base.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -23,7 +24,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
                                             const std::vector<Type> &out_type,
                                             const std::vector<std::vector<int>> &output_shapes,
                                             const Target &target) {
-  framework::CINNCompute relu_compute([](lang::Args args, lang::RetValue *ret) {
+  framework::CINNCompute relu_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of relu compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK(!a.empty()) << "at least one input tensor for relu compute\n";
@@ -39,12 +40,15 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
+      Expr out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      CHECK(out.as_tensor());
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });
@@ -93,12 +97,15 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
+      Expr out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      CHECK(out.as_tensor());
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      Expr out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(out.as_tensor());
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });
@@ -146,17 +153,34 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
     CHECK_EQ(dilation.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
     std::vector<ir::Tensor> out;
+    bool use_mkldnn = false;
+#ifdef CINN_WITH_MKLDNN
+    use_mkldnn = true;
+#endif
+    use_mkldnn = use_mkldnn && target.arch == Target::Arch::X86;
     if (data_format == "NCHW") {
       // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
-      out = pe::Conv2d_NCHW(A.as_tensor_ref(),
-                            B.as_tensor_ref(),
-                            padding[0],
-                            padding[1],
-                            stride[0],
-                            stride[1],
-                            dilation[0],
-                            dilation[1],
-                            UniqName("Conv2d_nchw_out"));
+      if (use_mkldnn) {
+        out = pe::Conv2d_NCHW_MKLDNN(A.as_tensor_ref(),
+                                     B.as_tensor_ref(),
+                                     padding[0],
+                                     padding[1],
+                                     stride[0],
+                                     stride[1],
+                                     dilation[0],
+                                     dilation[1],
+                                     UniqName("Conv2d_nchw_out"));
+      } else {
+        out = pe::Conv2d_NCHW(A.as_tensor_ref(),
+                              B.as_tensor_ref(),
+                              padding[0],
+                              padding[1],
+                              stride[0],
+                              stride[1],
+                              dilation[0],
+                              dilation[1],
+                              UniqName("Conv2d_nchw_out"));
+      }
     } else if (data_format == "NHWC") {
       // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
       out = pe::Conv2d_NHWC(A.as_tensor_ref(),
@@ -179,7 +203,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
       stages->InsertLazily(t);
       res.push_back(CINNValue(t));
     }
-    CHECK_EQ(out.size(), 3U) << "The output tensor sizes of depthwise_conv op in depthwise_conv op should be 3\n";
+    CHECK(out.size() == 3U || out.size() == 2U)
+        << "The output tensor sizes of conv2d op in conv2d op should be 2 or 3\n";
 
     res.push_back(CINNValue(stages));
     *ret = CINNValuePack{res};
@@ -188,23 +213,29 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   framework::CINNSchedule conv2d_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 4UL);
-    poly::StageMap stages = arg_pack[3];
-    Expr input_pad        = arg_pack[0];
-    CHECK(input_pad.as_tensor());
-    stages[input_pad.as_tensor_ref()]->ComputeInline();
-    Expr weights_dilation = arg_pack[1];
-    CHECK(weights_dilation.as_tensor());
-    stages[weights_dilation.as_tensor_ref()]->ComputeInline();
-
+    CHECK(arg_pack.size() == 4UL || arg_pack.size() == 3UL);
+    poly::StageMap stages = arg_pack.back();
+    if (arg_pack.size() == 4UL) {
+      Expr input_pad = arg_pack[0];
+      CHECK(input_pad.as_tensor());
+      stages[input_pad.as_tensor_ref()]->ComputeInline();
+      Expr weights_dilation = arg_pack[1];
+      CHECK(weights_dilation.as_tensor());
+      stages[weights_dilation.as_tensor_ref()]->ComputeInline();
+    }
     if (target.arch == Target::Arch::NVGPU) {
       Expr Out = arg_pack[2];
       CHECK(Out.as_tensor());
-      stages[Out.as_tensor_ref()]->Split(1, 2);
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "blockIdx.y");
+      stages[Out.as_tensor_ref()]->Bind(2, "blockIdx.z");
+      stages[Out.as_tensor_ref()]->Bind(3, "threadIdx.x");
     }
-    *ret = CINNValuePack{{arg_pack[2], CINNValue(stages)}};
+    if (arg_pack.size() == 4UL) {
+      *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
+    } else {
+      *ret = arg_pack;
+    }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -341,9 +372,10 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
       stages[input_pad.as_tensor_ref()]->ComputeInline();
     }
     if (target.arch == Target::Arch::NVGPU) {
-      stages[Out.as_tensor_ref()]->Split(1, 2);
       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      stages[Out.as_tensor_ref()]->Bind(1, "blockIdx.y");
+      stages[Out.as_tensor_ref()]->Bind(2, "blockIdx.z");
+      stages[Out.as_tensor_ref()]->Bind(3, "threadIdx.x");
     }
 
     *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
@@ -444,9 +476,7 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });
@@ -991,9 +1021,10 @@ std::shared_ptr<OpStrategy> StrategyForSigmoid(const framework::NodeAttr &attrs,
     CHECK(!a.empty()) << "at least one input tensor for sigmoid compute\n";
     Expr A = a[0];
     CHECK(A.as_tensor());
-    auto out    = pe::Sigmoid(A.as_tensor_ref(), UniqName("Sigmoid_output"));
+    auto out = pe::Sigmoid(A.as_tensor_ref(), UniqName("Sigmoid_output"));
+    CHECK(!out.empty());
     auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+    *ret        = CINNValuePack{{CINNValue(Expr(out.front())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule sigmoid_schedule([=](lang::Args args, lang::RetValue *ret) {
@@ -1004,9 +1035,7 @@ std::shared_ptr<OpStrategy> StrategyForSigmoid(const framework::NodeAttr &attrs,
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });
@@ -1052,15 +1081,31 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     Expr A_expr = a[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
+    auto stages  = CreateStages({A});
     int new_axis = axis;
     if (axis == -1) {
       new_axis = A->shape.size() - 1;
     }
-    auto out    = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
-    auto stages = CreateStages(out);
+    std::vector<ir::Tensor> out;
+    bool use_mkldnn = false;
+#ifdef CINN_WITH_MKLDNN
+    use_mkldnn = true;
+#endif
+    use_mkldnn = use_mkldnn && (target.arch == Target::Arch::X86);
+    if (use_mkldnn) {
+      out = pe::SoftmaxMKLDNN(A, new_axis, UniqName("Softmax_mkldnn_output"));
+    } else {
+      out = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
+    }
+    std::vector<CINNValue> res;
+    for (auto &t : out) {
+      stages->InsertLazily(t);
+      res.push_back(CINNValue(t));
+    }
     CHECK_EQ(out.size(), 2U) << "The size of pe::Softmax's output should be 2.";
     CHECK(!out_type.empty()) << "Output type of Softmax is empty! Please check.\n";
-    *ret = CINNValuePack{{CINNValue(out[0]), CINNValue(out[1]), CINNValue(stages)}};
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
   });
 
   framework::CINNSchedule softmax_schedule([=](lang::Args args, lang::RetValue *ret) {
@@ -1069,17 +1114,24 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     CHECK_EQ(arg_pack.size(), 3UL) << "The input tensor's size of softmax schedule is " << arg_pack.size()
                                    << "and it should be equal to 3! Please check.";
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out1             = arg_pack[0];
-      Expr Out2             = arg_pack[1];
+      Expr out1             = arg_pack[0];
+      Expr out2             = arg_pack[1];
       poly::StageMap stages = arg_pack[2];
-      CHECK(Out1.as_tensor());
-      CHECK(Out2.as_tensor());
-      stages[Out1.as_tensor_ref()]->Split(1, 2);
-      stages[Out2.as_tensor_ref()]->Split(1, 2);
-      stages[Out1.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out1.as_tensor_ref()]->Bind(1, "threadIdx.x");
-      stages[Out2.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out2.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      CHECK(out1.as_tensor());
+      CHECK(out2.as_tensor());
+      ir::Tensor tensor_a = out1.as_tensor_ref();
+      ir::Tensor tensor_b = out2.as_tensor_ref();
+      if (tensor_a->shape.size() > 1) {
+        stages[tensor_a]->Split(1, 2);
+        stages[tensor_a]->Bind(0, "blockIdx.x");
+        stages[tensor_a]->Bind(1, "threadIdx.x");
+      }
+      if (tensor_b->shape.size() > 1) {
+        stages[tensor_b]->Split(1, 2);
+        stages[tensor_b]->Bind(0, "blockIdx.x");
+        stages[tensor_b]->Bind(1, "threadIdx.x");
+      }
+      stages[tensor_b]->SyncThreads({tensor_a}, stages);
     }
     *ret = arg_pack;
   });
@@ -1159,8 +1211,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
       Expr Out              = arg_pack[0];
       poly::StageMap stages = arg_pack[1];
       CHECK(Out.as_tensor());
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });
@@ -1313,6 +1364,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRelu)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(relu6)
@@ -1322,6 +1374,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRelu6)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(conv2d)
@@ -1331,6 +1384,12 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
+#ifdef CINN_WITH_CUDNN
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+#else
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+#endif
       .set_support_level(4);
 
   CINN_REGISTER_OP(depthwise_conv2d)
@@ -1340,6 +1399,12 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDepthwiseConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDepthwiseConv2d))
+#ifdef CINN_WITH_CUDNN
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+#else
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
+                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+#endif
       .set_support_level(4);
 
   CINN_REGISTER_OP(batchnorm)
@@ -1349,6 +1414,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBatchNorm)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBatchNorm))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBatchNorm))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(pool1d)
@@ -1358,6 +1424,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool1d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool1d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(pool2d)
@@ -1367,6 +1434,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(pool3d)
@@ -1376,6 +1444,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool3d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool3d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(sigmoid)
@@ -1385,6 +1454,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSigmoid)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSigmoid))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSigmoid))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(softmax)
@@ -1394,6 +1464,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSoftmax)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSoftmax))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSoftmax))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(slice)
@@ -1403,6 +1474,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSlice)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSlice))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSlice))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(dropout_infer)
@@ -1412,6 +1484,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDropoutInfer)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDropoutInfer))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDropoutInfer))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   return true;

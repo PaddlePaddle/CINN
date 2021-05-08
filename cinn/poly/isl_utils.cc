@@ -181,10 +181,41 @@ isl_map *isl_rename_axis(isl_map *map, isl_dim_type dim_type, int offset, const 
   return isl_map_set_dim_name(map, dim_type, offset, name);
 }
 
-isl_set *isl_simplify(isl_set *set) {
+isl_set *isl_simplify(isl_set __isl_take *set) {
   set = isl_set_coalesce(set);
   set = isl_set_remove_redundancies(set);
   return set;
+}
+
+isl::union_set isl_union_set_from_sets(llvm::ArrayRef<isl::set> sets) {
+  CHECK(!sets.empty());
+  isl::union_set res = isl::manage(isl_union_set_from_set(sets.front().copy()));
+  for (int i = 1; i < sets.size(); i++) {
+    res = isl::manage(isl_union_set_add_set(res.release(), sets[i].copy()));
+  }
+  return res;
+}
+
+std::tuple<isl::val, isl::val> isl_set_get_axis_range_by_name(isl_set *set, std::string axis_name) {
+  std::vector<std::string> from_iters;
+  for (int i = 0; i < isl_set_dim(set, isl_dim_set); i++) {
+    auto *name = isl_set_get_dim_name(set, isl_dim_set, i);
+    if (name) {
+      from_iters.push_back(name);
+    } else {
+      from_iters.push_back("__emp__" + std::to_string(i));
+    }
+  }
+
+  isl::aff aff(
+      isl_set_get_ctx(set),
+      utils::StringFormat(
+          "{ %s[%s] -> [%s] }", isl_set_get_tuple_name(set), utils::Join(from_iters, ",").c_str(), axis_name.c_str()));
+
+  isl::val max_val = isl::manage(isl_set_max_val(set, aff.get()));
+  isl::val min_val = isl::manage(isl_set_min_val(set, aff.get()));
+
+  return std::make_tuple(min_val, max_val);
 }
 
 std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
@@ -204,14 +235,63 @@ std::tuple<isl::val, isl::val> isl_set_get_axis_range(isl_set *set, int pos) {
 
   isl::aff aff(isl_set_get_ctx(set),
                utils::StringFormat("{ %s[%s] -> [%s] }",
-                                   isl_set_get_tuple_name(set),           // tuple
-                                   utils::Join(from_iters, ",").c_str(),  // [...]
+                                   isl_set_get_tuple_name(set),
+                                   utils::Join(from_iters, ",").c_str(),
                                    target_axis_name.c_str()));
 
   isl::val max_val = isl::manage(isl_set_max_val(set, aff.get()));
   isl::val min_val = isl::manage(isl_set_min_val(set, aff.get()));
 
   return std::make_tuple(min_val, max_val);
+}
+
+bool isl_set_axis_has_noparam_constant_bound(isl_set __isl_keep *set, int pos) {
+  if (!isl_set_dim_is_bounded(set, isl_dim_set, pos)) return false;
+  set = isl_simplify(isl_set_copy(set));
+  set = isl_set_drop_unused_params(set);
+
+  isl_pw_aff *min_val = isl_set_dim_min(isl_set_copy(set), pos);
+  isl_pw_aff *max_val = isl_set_dim_max(isl_set_copy(set), pos);
+  VLOG(3) << "set: " << isl_set_to_str(set);
+  VLOG(3) << "min_val: " << isl_pw_aff_to_str(min_val);
+  VLOG(3) << "max_val: " << isl_pw_aff_to_str(max_val);
+
+  isl::set context(isl_set_get_ctx(set), "{:}");
+  auto is_dim_a_constant = [&](isl_pw_aff *__isl_give val) {
+    val = isl_pw_aff_drop_unused_params(val);
+    val = isl_pw_aff_align_params(val, isl_space_copy(context.space().get()));
+
+    bool is_param_involved = false;
+    isl_pw_aff_foreach_piece(
+        val,
+        [](isl_set *__isl_give set, isl_aff *__isl_give aff, void *user) -> isl_stat {
+          // Ignore the set piece, e.g. [_cp_C_0, _cp_C_1] -> { cache[0, 0] : _cp_C_0 = 0 and _cp_C_1 = 0 }
+          // will get a set [_cp_C_0, _cp_C_1] -> {  : _cp_C_0 = 0 and _cp_C_1 = 0 }
+          if (set) {
+            // ignore
+          }
+
+          CHECK(aff);
+          auto &is_param_involved = *reinterpret_cast<bool *>(user);
+          if (is_param_involved) return isl_stat_ok;
+
+          // drop unused params, so the Aff [n]->{ [(0)] } will be []->{ [(0)] }
+          auto *pw_aff = isl_pw_aff_from_aff(aff);
+          pw_aff       = isl_pw_aff_drop_unused_params(pw_aff);
+
+          // check if some params is involved.
+          isl::set params   = isl::manage(isl_pw_aff_params(pw_aff));
+          is_param_involved = isl_set_dim(params.get(), isl_dim_param) > 0;
+
+          isl_set_free(set);
+          return isl_stat_ok;
+        },
+        reinterpret_cast<void *>(&is_param_involved));
+
+    return !is_param_involved;
+  };
+
+  return is_dim_a_constant(max_val) && is_dim_a_constant(min_val);
 }
 
 isl::map isl_set_dim_name_if_null(isl_map *map, std::function<std::string(isl_dim_type, int)> namer) {

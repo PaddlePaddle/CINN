@@ -18,13 +18,13 @@ namespace cpu {
 TEST(tanh, basic) {
   Expr M(10), N(20);
   Placeholder<float> x("x", {M, N});
-  auto y = Compute({M, N}, [&](Expr i, Expr j) { return CallExtern("cinn_cpu_tanh_fp32", {x(i, j)}); });
+  auto y = Compute({M, N}, [&](Expr i, Expr j) { return CallExtern("tanh", {x(i, j)}); });
 
   auto stages = CreateStages({y});
 
   auto jit = backends::SimpleJIT::Create();
 
-  lang::Module::Builder builder("module1", common::DefaultHostTarget());
+  ir::Module::Builder builder("module1", common::DefaultHostTarget());
 
   auto fn = Lower("fn", stages, {x, y});
   LOG(INFO) << "fn:\n" << fn;

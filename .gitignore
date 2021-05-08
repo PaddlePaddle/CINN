@@ -1,4 +1,7 @@
 *~
+*.swp
+*.swo
+*.swn
 *.pyc
 *.o
 *.a
@@ -11,3 +14,8 @@ build*
 *.rej
 *.orig
 *.patch
+gen_modules
+*.ipynb
+docs/source/cpp
+docs/source/doxygen_output
+docs/source/tutorials

@@ -3,6 +3,7 @@
 #include <string>
 
 #include "cinn/backends/codegen_c.h"
+#include "cinn/ir/intrinsic_ops.h"
 
 namespace cinn {
 namespace backends {
@@ -45,10 +46,10 @@ class CodeGenCX86 : public CodeGenC {
   void Visit(const ir::GE *op) override { CodeGenC::Visit(op); }
   void Visit(const ir::And *op) override { CodeGenC::Visit(op); }
   void Visit(const ir::Or *op) override { CodeGenC::Visit(op); }
-
   void Visit(const ir::Load *op) override;
   void Visit(const ir::Store *op) override;
   void Visit(const ir::Broadcast *op) override;
+  void Visit(const ir::intrinsics::BuiltinIntrin *op);
 
   //! Check the features.
   // @{
@@ -95,22 +96,20 @@ void CodeGenCX86::VisitBinaryOp(const Op *op, Expr a, Expr b, const std::string 
 
   // TODO(Superjomn) Consider support BLAS.
   int bits = a.type().bits() * a.type().lanes();
-  if (SupportsAVX512()) {
-    CHECK_EQ(bits, 512) << "the bits of computation should be times of 512";
+  if (SupportsAVX512() && bits == 512) {
     os() << "cinn_avx512_" << op_repr << "(";
     PrintVecInputArgument(&a);
     os() << ", ";
     PrintVecInputArgument(&b);
     os() << ")";
-  } else if (SupportsAVX256()) {
-    CHECK_EQ(bits, 256) << "the bits of computation should be times of 256";
+  } else if (SupportsAVX256() && bits == 256) {
     os() << "cinn_avx256_" << op_repr << "(";
     PrintVecInputArgument(&a);
     os() << ", ";
     PrintVecInputArgument(&b);
     os() << ")";
   } else {
-    CINN_NOT_IMPLEMENTED
+    CodeGenC::Visit(op);
   }
 }
 

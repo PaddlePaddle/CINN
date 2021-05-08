@@ -7,6 +7,7 @@
 
 #include "cinn/backends/cuda_util.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/ir/ir.h"
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/optim/replace_var_with_expr.h"
@@ -127,17 +128,26 @@ void RemoveGpuForloopsAxis(Expr *expr) {
 
 void MarkGpuForloop(const std::string &statement,
                     const std::map<std::string, poly::StageForloopInfo> &forloop_infos,
+                    std::map<std::string, ir::Tensor> *global_tensor_map,
+                    std::unordered_set<std::string> &resized_buffer,
                     Expr *expr) {
   struct Mutator : public ir::IRMutator<Expr *> {
     const std::string &statement;
     const std::map<std::string, poly::StageForloopInfo> forloop_infos;
-
+    std::map<std::string, ir::Tensor> *global_tensor_map;
+    std::unordered_set<std::string> &resized_buffer;
     /**
      * @param statement the tuple name.
      * @param forloop_infos the axis.
      */
-    Mutator(const std::string &statement, const std::map<std::string, poly::StageForloopInfo> &forloop_infos)
-        : statement(statement), forloop_infos(forloop_infos) {}
+    Mutator(const std::string &statement,
+            const std::map<std::string, poly::StageForloopInfo> &forloop_infos,
+            std::map<std::string, ir::Tensor> *global_tensor_map,
+            std::unordered_set<std::string> &resized_buffer)
+        : statement(statement),
+          forloop_infos(forloop_infos),
+          global_tensor_map(global_tensor_map),
+          resized_buffer(resized_buffer) {}
 
     void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
@@ -170,16 +180,25 @@ void MarkGpuForloop(const std::string &statement,
           }
 
           auto &forloop_info = forloop_infos.at(iterator_name);
+          VLOG(2) << "Statement of for loop is : " << statement;
           if (it->second.for_type == ir::ForType::GPUThread) {
             Var cuda_var(backends::cuda_thread_axis_name(forloop_info.offset));
             Expr var_expr(cuda_var);
-            VLOG(3) << "gpu replacing var " << axis_var << " to " << var_expr;
+            VLOG(2) << "gpu replacing var " << axis_var->name << " to " << cuda_var->name;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
+            Expr extent = for_ ? for_->extent : poly_for->ExtractExtent();
+            VLOG(2) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
+            optim::CUDAReplaceIndexOfCachePass(
+                expr, var_expr, ir::Expr(0), global_tensor_map, resized_buffer, false, extent);
           } else if (it->second.for_type == ir::ForType::GPUBlock) {
             Var cuda_var(backends::cuda_block_axis_name(forloop_info.offset));
             Expr var_expr(cuda_var);
-            VLOG(3) << "gpu replacing var " << axis_var << " to " << var_expr;
+            VLOG(2) << "gpu replacing var " << axis_var->name << " to " << cuda_var->name;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
+            Expr extent = for_ ? for_->extent : poly_for->ExtractExtent();
+            VLOG(3) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
+            optim::CUDAReplaceIndexOfCachePass(
+                expr, var_expr, ir::Expr(0), global_tensor_map, resized_buffer, true, extent);
           } else {
             CINN_NOT_IMPLEMENTED
           }
@@ -201,13 +220,16 @@ void MarkGpuForloop(const std::string &statement,
     std::vector<Expr *> forloop_stack;
   };
 
-  Mutator mutator(statement, forloop_infos);
+  Mutator mutator(statement, forloop_infos, global_tensor_map, resized_buffer);
   mutator(expr);
 }
 
-void TransformGpuForloops(const forloop_infos_t &forloop_infos, Expr *expr) {
+void TransformGpuForloops(const forloop_infos_t &forloop_infos,
+                          std::map<std::string, ir::Tensor> *global_tensor_map,
+                          std::unordered_set<std::string> &resized_buffer,
+                          Expr *expr) {
   for (auto &item : forloop_infos) {
-    MarkGpuForloop(item.first, item.second, expr);
+    MarkGpuForloop(item.first, item.second, global_tensor_map, resized_buffer, expr);
   }
 }
 

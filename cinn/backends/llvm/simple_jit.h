@@ -28,7 +28,7 @@
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/llvm_util.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
-#include "cinn/lang/module.h"
+#include "cinn/ir/module.h"
 #include "cinn/runtime/intrinsic.h"
 
 namespace cinn {
@@ -45,7 +45,7 @@ class SimpleJIT {
    * @param optimize whether to optimize.
    */
   template <typename CodeGenT = CodeGenLLVM>
-  void Link(lang::Module module, bool optimize = true);
+  void Link(ir::Module module, bool optimize = true);
 
   void Link(llvm::orc::ThreadSafeModule m, bool optimize = true) { llvm::cantFail(jit_->addIRModule(std::move(m))); }
 

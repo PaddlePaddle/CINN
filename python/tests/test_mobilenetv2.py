@@ -13,6 +13,7 @@ from cinn.common import *
 import numpy as np
 import paddle.fluid as fluid
 import sys
+import time
 
 enable_gpu = sys.argv.pop()
 model_dir = sys.argv.pop()
@@ -25,7 +26,7 @@ class TestLoadResnetModel(unittest.TestCase):
         else:
             self.target = DefaultHostTarget()
         self.model_dir = model_dir
-        self.x_shape = [2, 3, 224, 224]
+        self.x_shape = [1, 3, 224, 224]
         self.target_tensor = 'save_infer_model/scale_0'
         self.input_tensor = 'image'
 
@@ -43,17 +44,32 @@ class TestLoadResnetModel(unittest.TestCase):
         return get_tensor
 
     def apply_test(self):
+        start = time.time()
         x_data = np.random.random(self.x_shape).astype("float32")
         self.executor = Interpreter([self.input_tensor], [self.x_shape])
         print("self.mode_dir is:", self.model_dir)
         # True means load combined model
         self.executor.load_paddle_model(self.model_dir, self.target, True)
+        end1 = time.time()
+        print("load_paddle_model time is: %.3f sec" % (end1 - start))
         a_t = self.executor.get_tensor(self.input_tensor)
         a_t.from_numpy(x_data, self.target)
-
         out = self.executor.get_tensor(self.target_tensor)
         out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
 
+        for i in range(10):
+            self.executor.run()
+
+        repeat = 1000
+        end4 = time.perf_counter()
+        for i in range(repeat):
+            self.executor.run()
+        end5 = time.perf_counter()
+        print("Repeat %d times, average Executor.run() time is: %.3f ms" %
+              (repeat, (end5 - end4) * 1000 / repeat))
+
+        a_t.from_numpy(x_data, self.target)
+        out.from_numpy(np.zeros(out.shape(), dtype='float32'), self.target)
         self.executor.run()
 
         out = out.numpy(self.target)

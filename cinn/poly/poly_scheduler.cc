@@ -151,6 +151,60 @@ bool IsBetween(const common::GraphNode* x, const common::GraphNode* a, const com
   return false;
 }
 
+std::vector<Group> TopoSortGroups(std::vector<Group>& groups) {
+  // collect indegree.
+  std::unordered_map<Group*, int> group_indegree;
+  std::vector<Group*> start_groups;
+  std::deque<Group*> queue;
+  std::vector<Group> group_order;
+  std::unordered_map<std::string, Group*> node2group;
+  for (int i = 0; i < groups.size(); i++) {
+    Group* group  = &groups[i];
+    int in_degree = 0;
+    for (auto& node : group->nodes) {
+      node2group[node->id()] = group;
+      in_degree += node->inlinks().size();
+      for (auto& node2 : group->nodes) {
+        if (node2->as<common::GraphNode>()->IsLinkedTo(node->as<common::GraphNode>())) {
+          in_degree--;
+        }
+      }
+    }
+    group_indegree[group] = in_degree;
+    if (in_degree == 0) {
+      start_groups.push_back(group);
+    }
+  }
+
+  // insert start points first.
+  for (auto* n : start_groups) {
+    queue.push_back(n);
+  }
+
+  // start to visit
+  while (!queue.empty()) {
+    auto* top_group = queue.front();
+    group_order.push_back(*top_group);
+
+    queue.pop_front();
+    std::set<std::string> all_nodes;
+
+    for (auto& node : top_group->nodes) {
+      all_nodes.insert(node->id());
+    }
+    for (auto& node : top_group->nodes) {
+      for (auto& edge : node->outlinks()) {
+        CHECK_EQ(edge->source()->id(), node->id());
+        auto* sink = edge->sink();
+        if (all_nodes.count(sink->id()) == 0 && (--group_indegree[node2group[sink->id()]]) == 0) {
+          queue.push_back(node2group[sink->id()]);
+        }
+      }
+    }
+  }
+  return group_order;
+}
+
 /**
  * Naive idea to split a graph.
  *
@@ -207,24 +261,12 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
     }
     groups.push_back(std::move(group));
   }
-
-  // Sort between groups.
-  std::sort(groups.begin(), groups.end(), [&](const Group& a, const Group& b) {
-    uint32_t min_score0 = std::numeric_limits<uint32_t>::max();
-    uint32_t min_score1 = min_score0;
-    for (auto& node : a.nodes) {
-      min_score0 = std::min(min_score0, node2score[node.get()]);
-    }
-    for (auto& node : b.nodes) {
-      min_score1 = std::min(min_score1, node2score[node.get()]);
-    }
-    return min_score0 < min_score1;
-  });
+  auto group_order = TopoSortGroups(groups);
 
 #ifdef CINN_DEBUG
   VLOG(2) << "Group Partition result:";
   int graph_node_count = 0;
-  for (auto& group : groups) {
+  for (auto& group : group_order) {
     std::stringstream ss;
     for (auto& node : group.nodes) {
       ss << node->id() << " ";
@@ -236,7 +278,7 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
   CHECK_EQ(graph_node_count, graph->nodes().size()) << "the groups should contain all the nodes in the graph";
 #endif
 
-  return groups;
+  return group_order;
 }
 
 }  // namespace detail

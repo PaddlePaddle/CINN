@@ -73,13 +73,40 @@ void* cinn_buffer_get_data_const_handle(const struct cinn_buffer_t* buf) {
   return buf->memory;
 }
 
+cinn_buffer_t* cinn_buffer_new_default(int target, uint64_t memory_size, int align) {
+  struct cinn_buffer_t* buf = (struct cinn_buffer_t*)malloc(sizeof(struct cinn_buffer_t));
+  buf->type                 = cinn_float32_t();
+  buf->device               = (cinn_device_kind_t)target;
+  buf->memory               = nullptr;
+  buf->memory_size          = memory_size;
+  buf->align                = align;
+  buf->lazy                 = true;
+  // NOTE set device_interface for each buffer.
+  switch (buf->device) {
+    case cinn_x86_device:
+      buf->device_interface = cinn_x86_device_interface();
+      break;
+    case cinn_unk_device:
+      fprintf(stderr, "Device type of buffer should be set, found Unk");
+      abort();
+      break;
+    default:
+      fprintf(stderr, "Not supported device type");
+      abort();
+  }
+  cinn_buffer_malloc((void*)(0), buf);
+  return buf;
+}
+
 cinn_type_t cinn_unk_t() { return cinn_type_t(cinn_type_unk, 0); }
-cinn_type_t cinn_int32_t() { return cinn_type_t(cinn_type_int, 32); }
-cinn_type_t cinn_int64_t() { return cinn_type_t(cinn_type_int, 64); }
-cinn_type_t cinn_uint32_t() { return cinn_type_t(cinn_type_uint, 32); }
-cinn_type_t cinn_uint64_t() { return cinn_type_t(cinn_type_uint, 64); }
-cinn_type_t cinn_float32_t() { return cinn_type_t(cinn_type_float, 32); }
-cinn_type_t cinn_float64_t() { return cinn_type_t(cinn_type_float, 64); }
+cinn_type_t cinn_bool_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 8, num_asterisks); }
+cinn_type_t cinn_int8_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 8, num_asterisks); }
+cinn_type_t cinn_int32_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 32, num_asterisks); }
+cinn_type_t cinn_int64_t(int num_asterisks) { return cinn_type_t(cinn_type_int, 64, num_asterisks); }
+cinn_type_t cinn_uint32_t(int num_asterisks) { return cinn_type_t(cinn_type_uint, 32, num_asterisks); }
+cinn_type_t cinn_uint64_t(int num_asterisks) { return cinn_type_t(cinn_type_uint, 64, num_asterisks); }
+cinn_type_t cinn_float32_t(int num_asterisks) { return cinn_type_t(cinn_type_float, 32, num_asterisks); }
+cinn_type_t cinn_float64_t(int num_asterisks) { return cinn_type_t(cinn_type_float, 64, num_asterisks); }
 
 }  // extern "C"
 
@@ -135,6 +162,7 @@ __m(void*, 4);
 __m(char*, 5);
 __m(char const*, 6);
 __m(cinn_buffer_t*, 7);
+__m(int8_t, 8);
 #undef __m
 //@}
 
@@ -145,6 +173,10 @@ cinn_pod_value_t::operator double() const {
 cinn_pod_value_t::operator float() const {
   CINN_CHECK_EQ(type_code_, type_code<float>());
   return value_.v_float64;
+}
+cinn_pod_value_t::operator int8_t() const {
+  CINN_CHECK_EQ(type_code_, type_code<int8_t>());
+  return value_.v_int64;
 }
 cinn_pod_value_t::operator int32_t() const {
   CINN_CHECK_EQ(type_code_, type_code<int32_t>());
@@ -171,6 +203,7 @@ cinn_pod_value_t::cinn_pod_value_t(cinn_value_t value, int type_code) : value_(v
 cinn_pod_value_t::cinn_pod_value_t(cinn_buffer_t* value) : type_code_(type_code<cinn_buffer_t*>()) {
   value_.v_handle = value;
 }
+cinn_pod_value_t::cinn_pod_value_t(int8_t value) : type_code_(type_code<int8_t>()) { value_.v_int64 = value; }
 cinn_pod_value_t::cinn_pod_value_t(int32_t value) : type_code_(type_code<int32_t>()) { value_.v_int64 = value; }
 cinn_pod_value_t::cinn_pod_value_t(int64_t value) : type_code_(type_code<int64_t>()) { value_.v_int64 = value; }
 cinn_pod_value_t::cinn_pod_value_t(float value) : type_code_(type_code<float>()) { value_.v_float64 = value; }
@@ -185,6 +218,7 @@ float cinn_pod_value_to_float(cinn_pod_value_t* value) { return *value; }
 double cinn_pod_value_to_double(cinn_pod_value_t* value) { return *value; }
 int64_t cinn_pod_value_to_int64(cinn_pod_value_t* value) { return *value; }
 int32_t cinn_pod_value_to_int32(cinn_pod_value_t* value) { return *value; }
+int8_t cinn_pod_value_to_int8(cinn_pod_value_t* value) { return *value; }
 void* cinn_pod_value_to_void_p(cinn_pod_value_t* value) { return *value; }
 cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value) { return *value; }
 // @}
@@ -262,6 +296,7 @@ void cinn_args_construct(cinn_pod_value_t* arr, int count, ...) {
 
 void* cinn_pod_value_t::data_addr() const {
   switch (type_code()) {
+    case cinn_pod_value_t::type_code<int8_t>():
     case cinn_pod_value_t::type_code<int32_t>():
     case cinn_pod_value_t::type_code<int64_t>():
       return (void*)&value_.v_int64;  // NOLINT
@@ -279,6 +314,10 @@ void* cinn_pod_value_t::data_addr() const {
 }
 
 template <>
+cinn_type_t cinn_type_of<int8_t>() {
+  return cinn_int8_t();
+}
+template <>
 cinn_type_t cinn_type_of<int32_t>() {
   return cinn_int32_t();
 }
@@ -292,6 +331,10 @@ cinn_type_t cinn_type_of<float>() {
 }
 template <>
 cinn_type_t cinn_type_of<double>() {
+  return cinn_float64_t();
+}
+template <>
+cinn_type_t cinn_type_of<float*>() {
   return cinn_float64_t();
 }
 

@@ -1,5 +1,7 @@
 #include "cinn/frontend/paddle_model_to_program.h"
 
+#include <algorithm>
+
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/frontend/paddle/pb/program_desc.h"
 #include "cinn/hlir/framework/node.h"
@@ -8,6 +10,36 @@ namespace cinn {
 namespace frontend {
 using utils::Join;
 using utils::TransValidVarName;
+
+void MoveData(float* data, int i, int M, int N) {
+  float temp = data[i];
+  int cur    = i;  // current data index
+  int pre    = (cur % M) * N + cur / M;
+  while (pre != i) {
+    data[cur] = data[pre];
+    cur       = pre;
+    pre       = (cur % M) * N + cur / M;
+  }
+  data[cur] = temp;
+}
+
+void TransposeData(float* data, int M, int N) {
+  for (int i = 0; i < M * N; i++) {
+    int next = (i % N) * M + i / N;
+    while (next > i)  // next < 1 implies duplicate
+      next = (next % N) * M + next / N;
+    if (next == i)  // process current ring
+      MoveData(data, i, M, N);
+  }
+}
+
+void ReverseHWData(float* data, std::vector<int> shape) {
+  CHECK_EQ(shape.size(), 4UL);
+  for (int i = 0; i < shape[0] * shape[1]; i++) {
+    int num = shape[2] * shape[3];
+    std::reverse(data + (i * num), data + (i * num + num));
+  }
+}
 
 void PaddleModelToProgram::AddOpMapper_feed() {
   op_mappers_["feed"] = [&](const paddle::cpp::OpDesc& op_desc) {
@@ -65,11 +97,13 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Input("Y").size(), 1UL);
-    auto y_name        = op_desc.Input("Y").front();
-    auto x             = GetVar(utils::TransValidVarName(x_name));
+    auto y_name = op_desc.Input("Y").front();
+    auto x      = GetVar(utils::TransValidVarName(x_name));
+    TransposeVar(TransValidVarName(y_name));
     auto y             = GetVar(utils::TransValidVarName(y_name));
     int x_num_col_dims = op_desc.GetAttr<int>("x_num_col_dims");
     int y_num_col_dims = op_desc.GetAttr<int>("y_num_col_dims");
+    CHECK_EQ(y_num_col_dims, 1) << "The y_num_col_dims of mul is not 1! Please check.";
     VLOG(4) << "Mul x_num_col_dims: " << x_num_col_dims;
     VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
@@ -179,6 +213,11 @@ void PaddleModelToProgram::AddOpMapper_depthwise_conv2d() {
     auto x_name = op_desc.Input("Input").front();
     CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
     auto y_name = op_desc.Input("Filter").front();
+#ifdef CINN_WITH_CUDNN
+    if (target_.arch == Target::Arch::NVGPU) {
+      ReverseHWVar(TransValidVarName(y_name));
+    }
+#endif
     CHECK_EQ(op_desc.Output("Output").size(), 1UL);
     auto out_name = op_desc.Output("Output").front();
 
@@ -206,6 +245,11 @@ void PaddleModelToProgram::AddOpMapper_conv2d() {
     auto x_name = op_desc.Input("Input").front();
     CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
     auto y_name = op_desc.Input("Filter").front();
+#ifdef CINN_WITH_CUDNN
+    if (target_.arch == Target::Arch::NVGPU) {
+      ReverseHWVar(TransValidVarName(y_name));
+    }
+#endif
     CHECK_EQ(op_desc.Output("Output").size(), 1UL);
     auto out_name = op_desc.Output("Output").front();
 
@@ -364,6 +408,72 @@ void PaddleModelToProgram::AddOp(const paddle::cpp::OpDesc& op_desc) {
   LOG(FATAL) << "Not supported op [" << op_desc.Type() << "] found";
 }
 
+void PaddleModelToProgram::TransposeVar(const std::string& name) {
+  CheckVarNameValid(name);
+  auto* var = scope_->FindVar(name);
+  if (var) {
+    auto& tensor = std::get<hlir::framework::Tensor>(*var);
+    if (target_.arch == Target::Arch::X86) {
+      float* data = tensor->mutable_data<float>(target_);
+      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
+      TransposeData(data, tensor->shape().data()[0], tensor->shape().data()[1]);
+    } else if (target_.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
+      // To use cublas mul api, there is no need to transpose data.
+#else
+      LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
+    } else {
+      CINN_NOT_IMPLEMENTED
+    }
+
+    Variable var;
+    var.set_id(name);
+    std::vector<int> reverse_shape = tensor->shape().data();
+    std::reverse(reverse_shape.begin(), reverse_shape.end());
+    tensor->shape().SetData(reverse_shape);
+    var->shape = tensor->shape().data();
+    // TODO(Superjomn) Make this determined by model.
+    var->type = Float(32);
+    AddVar(name, var, true);
+  } else {
+    LOG(FATAL) << "No var called [" << name << "] exists";
+  }
+}
+
+void PaddleModelToProgram::ReverseHWVar(const std::string& name) {
+  CheckVarNameValid(name);
+  auto* var = scope_->FindVar(name);
+  if (var) {
+    auto& tensor = std::get<hlir::framework::Tensor>(*var);
+    if (target_.arch == Target::Arch::X86) {
+      float* data = tensor->mutable_data<float>(target_);
+      CHECK(tensor->shape().size() == 4) << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
+      ReverseHWData(data, tensor->shape().data());
+    } else if (target_.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
+      std::vector<float> data(tensor->shape().numel());
+      CUDA_CALL(cudaMemcpy(data.data(),
+                           reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
+                           tensor->shape().numel() * sizeof(float),
+                           cudaMemcpyDeviceToHost));
+      CHECK(tensor->shape().size() == 4) << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
+      ReverseHWData(data.data(), tensor->shape().data());
+      CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(target_)),
+                           data.data(),
+                           tensor->shape().numel() * sizeof(float),
+                           cudaMemcpyHostToDevice));
+#else
+      LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
+    } else {
+      CINN_NOT_IMPLEMENTED
+    }
+  } else {
+    LOG(FATAL) << "No var called [" << name << "] exists";
+  }
+}
+
 Variable PaddleModelToProgram::GetVar(const std::string& name) {
   CheckVarNameValid(name);
 
@@ -399,9 +509,11 @@ std::unique_ptr<Program> PaddleModelToProgram::operator()(const std::string& mod
   return std::move(program_);
 }
 
-void PaddleModelToProgram::AddVar(const std::string& name, const Variable& var) {
+void PaddleModelToProgram::AddVar(const std::string& name, const Variable& var, bool replace) {
   CheckVarNameValid(name);
-  CHECK(!var_map_.count(name)) << "Duplicate variable [" << name << "] found";
+  if (replace == false) {
+    CHECK(!var_map_.count(name)) << "Duplicate variable [" << name << "] found";
+  }
   var_map_[name] = var;
 }
 

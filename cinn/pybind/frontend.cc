@@ -12,6 +12,7 @@
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/utils/string.h"
+#include "cinn/utils/timer.h"
 
 namespace cinn::pybind {
 using common::Type;
@@ -67,11 +68,16 @@ void BindFrontend(pybind11::module *m) {
       .def("__getitem__", [](Program &self, int idx) { return self[idx]; })
       .def("add", &Program::add)
       .def("mul", &Program::mul)
+      .def("mulbias", &Program::mulbias)
       .def("elementwise_add", &Program::elementwise_add)
       .def("relu", &Program::relu)
       .def("relu6", &Program::relu6)
+      .def("sigmoid", &Program::sigmoid)
+      .def("dropout_infer", &Program::dropout_infer)
       .def("scale", &Program::scale)
+      .def("slice", &Program::slice)
       .def("conv2d", &Program::conv2d)
+      .def("depthwise_conv2d", &Program::depthwise_conv2d)
       .def("batchnorm", &Program::batchnorm)
       .def("softmax", &Program::softmax)
       .def("pool2d", &Program::pool2d)
@@ -83,6 +89,9 @@ void BindFrontend(pybind11::module *m) {
               const Variable &tensor_out) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
              hlir::framework::ApplyPass(g.get(), "InferShape");
+             if (target.arch == Target::Arch::NVGPU) {
+               hlir::framework::ApplyPass(g.get(), "OpFusion");
+             }
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();
@@ -112,6 +121,119 @@ void BindFrontend(pybind11::module *m) {
              program->Execute();
              auto out = scope->GetTensor(tensor_out->id);
              return out;
+           })
+      /**
+       * @brief Test the performance of a single-op program
+       * @param self The program built with only one op
+       * @param target The Target that controls the backends to execute on
+       * @param tensor_inputs The vector that contains all input Variables. Must be on CPU
+       * @param input_data The vector that contains each input Variable's data(stored as py::array)
+       * @param tensor_out The output Variable.
+       * @param repeat_ The number of executing time. Increase it to avoid testing noise.
+       * @param info The string to be print before testing. Usually it implyies the kind of op and
+       *  input variable's shape.
+       *
+       * @return The output tensor after executing the op.
+       *
+       * @note
+       *  This function is for user to test single op performance on python.
+       *  To learn more about how to test op's benchmark, see '/python/tests/test_op_benchmark.py'
+       *
+       */
+      .def("test_benchmark",
+           [](Program &self,
+              const common::Target &target,
+              const std::vector<Variable> &tensor_inputs,
+              const std::vector<py::array> &input_data,
+              const Variable &tensor_out,
+              int repeat_,
+              const std::string &info) {
+             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
+             hlir::framework::ApplyPass(g.get(), "InferShape");
+             std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
+             hlir::framework::GraphCompiler gc(target, scope, g);
+             auto program = gc.Build();
+             for (size_t i = 0; i < tensor_inputs.size(); i++) {
+               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
+               auto *data     = in_tensor->mutable_data<float>(target);
+               CHECK_EQ(input_data[i].size(), in_tensor->shape().numel())
+                   << "The size of tensor [" << tensor_inputs[i]->id
+                   << "] is different with the input data's size! Please check.";
+               if (target.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
+                 CUDA_CALL(cudaMemcpy(reinterpret_cast<void *>(data),
+                                      input_data[i].data(),
+                                      in_tensor->shape().numel() * sizeof(float),
+                                      cudaMemcpyHostToDevice));
+#else
+                 LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
+               } else if (target.arch == Target::Arch::X86) {
+                 for (size_t j = 0; j < in_tensor->shape().numel(); j++) {
+                   data[j] = reinterpret_cast<const float *>(input_data[i].data())[j];  // All random data
+                 }
+               } else {
+                 CINN_NOT_IMPLEMENTED
+               }
+             }
+             LOG(INFO) << info;
+             program->ExecuteTest(repeat_);
+             auto out = scope->GetTensor(tensor_out->id);
+             return out;
+           })
+      .def("test_benchmark_with_code",
+           [](Program &self,
+              const common::Target &target,
+              const std::vector<Variable> &tensor_inputs,
+              const std::vector<py::array> &input_data,
+              const Variable &tensor_out,
+              int repeat_,
+              const std::string &info,
+              const std::string &code) {
+             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
+             hlir::framework::ApplyPass(g.get(), "InferShape");
+             std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
+             hlir::framework::GraphCompiler gc(target, scope, g);
+             auto program = gc.Build(code);
+             for (size_t i = 0; i < tensor_inputs.size(); i++) {
+               auto in_tensor = scope->GetTensor(tensor_inputs[i]->id);
+               auto *data     = in_tensor->mutable_data<float>(target);
+               CHECK_EQ(input_data[i].size(), in_tensor->shape().numel())
+                   << "The size of tensor [" << tensor_inputs[i]->id
+                   << "] is different with the input data's size! Please check.";
+               if (target.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
+                 CUDA_CALL(cudaMemcpy(reinterpret_cast<void *>(data),
+                                      input_data[i].data(),
+                                      in_tensor->shape().numel() * sizeof(float),
+                                      cudaMemcpyHostToDevice));
+#else
+                 LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
+#endif
+               } else if (target.arch == Target::Arch::X86) {
+                 for (size_t j = 0; j < in_tensor->shape().numel(); j++) {
+                   data[j] = reinterpret_cast<const float *>(input_data[i].data())[j];  // All random data
+                 }
+               } else {
+                 CINN_NOT_IMPLEMENTED
+               }
+             }
+             LOG(INFO) << info;
+             program->ExecuteTest(repeat_);
+             auto out = scope->GetTensor(tensor_out->id);
+             return out;
+           })
+      .def("test_generate_code",
+           [](Program &self,
+              const common::Target &target,
+              const std::vector<Variable> &tensor_inputs,
+              const std::vector<py::array> &input_data,
+              const Variable &tensor_out) {
+             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
+             hlir::framework::ApplyPass(g.get(), "InferShape");
+             std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
+             hlir::framework::GraphCompiler gc(target, scope, g);
+             return gc.GenSourceCode();
            });
 
   py::class_<frontend::Interpreter>(*m, "Interpreter")

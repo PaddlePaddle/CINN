@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "cinn/backends/extern_func_emitter.h"
+#include "cinn/ir/ir_verify.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/runtime/intrinsic.h"
@@ -14,7 +15,9 @@ using namespace utils;  // NOLINT
 
 const char *kCKeywordRestrict = "__restrict__";
 
-void CodeGenC::Compile(const lang::Module &module, const Outputs &outputs) {
+void CodeGenC::Compile(const ir::Module &module, const Outputs &outputs) {
+  ir::IrVerify(Expr(module));
+
   if (!outputs.c_header_name.empty()) {
     auto source = Compile(module, OutputKind::CHeader);
     std::ofstream file(outputs.c_header_name);
@@ -36,7 +39,7 @@ void CodeGenC::Compile(const lang::Module &module, const Outputs &outputs) {
 
 CodeGenC::CodeGenC(Target target) : ir::IrPrinter(ss_) {}
 
-std::string CodeGenC::Compile(const lang::Module &module, OutputKind output_kind) {
+std::string CodeGenC::Compile(const ir::Module &module, OutputKind output_kind) {
   ss_.str("");
   if (output_kind == OutputKind::CHeader) {
     GenerateHeaderFile(module);
@@ -49,8 +52,6 @@ std::string CodeGenC::Compile(const lang::Module &module, OutputKind output_kind
     for (auto &buffer : module->buffers) {
       buffers.emplace_back(buffer.as_buffer_ref());
     }
-
-    PrintBufferCreation(buffers);
 
     for (auto &func : module.functions()) {
       Compile(func);
@@ -97,7 +98,7 @@ std::string CodeGenC::GetTypeRepr(Type type) {
 
   if (type.is_cpp_handle()) {
     str += "*";
-  } else if (type.is_cpp_handle_handle()) {
+  } else if (type.is_cpp_handle2()) {
     str += "**";
   }
   return str;
@@ -129,6 +130,10 @@ void CodeGenC::Visit(const ir::Not *op) {
 }
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
+  if (op->is_parallel()) {
+    os() << "#pragma omp parallel\n";
+    DoIndent();
+  }
   os() << "for (";
   os() << GetTypeRepr(Int(32));
   os() << " " << op->loop_var->name;
@@ -147,6 +152,10 @@ void CodeGenC::Visit(const ir::For *op) {
   Print(op->body);
 }
 void CodeGenC::Visit(const ir::PolyFor *op) {
+  if (op->is_parallel()) {
+    os() << "#pragma omp parallel\n";
+    DoIndent();
+  }
   os() << "for (";
   os() << GetTypeRepr(Int(32));
   os() << " " << op->iterator->name;
@@ -225,21 +234,11 @@ void CodeGenC::Visit(const ir::Block *op) {
   os() << "}";
 }
 void CodeGenC::Visit(const ir::Call *op) {
-  if (op->name == runtime::intrisic::buffer_create) {
-    PrintCall_buffer_create(op);
-  } else if (op->is_intrinsic_call() && utils::Startswith(op->name, "cinn_pod_value_to_")) {
-    PrintCall_cinn_pod_value_to_(op);
-  } else if (op->name == runtime::intrisic::buffer_malloc) {
+  if (op->name == runtime::intrisic::buffer_malloc) {
     PrintCall_buffer_malloc(op);
-  } else if (op->name == runtime::intrisic::buffer_get_data_handle ||
-             op->name == runtime::intrisic::buffer_get_data_const_handle) {
-    PrintCall_buffer_get_data_handle(op);
-  } else if (op->name == runtime::intrisic::get_address_repr) {
-    PrintCall_get_address(op);
   } else if (op->name == runtime::intrisic::pod_values_to_array_repr) {
     PrintCall_pod_values_to_array(op);
   } else if (op->is_intrinsic_call()) {
-    // CHECK(!op->read_args.empty() || !op->write_args.empty());
     os() << op->name << "(";
     PrintCallArgs(op);
     os() << ")";
@@ -282,25 +281,6 @@ void CodeGenC::PrintCallArgs(const ir::Call *op) {
   }
 }
 
-void CodeGenC::PrintCall_buffer_create(const ir::Call *op) {
-  CHECK_EQ(op->read_args.size(), 2UL);
-  const ir::_Buffer_ *buffer_arg = op->read_args.front().as_buffer();
-  CHECK(buffer_arg);
-
-  os() << "cinn_buffer_t* " << buffer_arg->name;
-  os() << " = " << op->name;
-  os() << "(";
-  PrintCastExpr("cinn_device_kind_t", op->read_args[1]);
-  os() << "/*target*/, ";
-  PrintRuntimeType(runtime::ToRuntimeType(op->read_args.front().type().ElementOf()));
-  os() << ", ";
-  PrintShape(op->read_args[0].As<ir::_Buffer_>()->shape);
-  if (buffer_arg->data_alignment > 0) {
-    os() << ", " << buffer_arg->data_alignment << "/*align*/";
-  }
-  os() << ")";
-}
-
 void CodeGenC::PrintCall_buffer_malloc(const ir::Call *op) {
   CHECK_EQ(op->read_args.size(), 2UL);
   os() << op->name << "(";
@@ -317,14 +297,6 @@ void CodeGenC::PrintCall_cinn_pod_value_to_(const ir::Call *op) {
   Print(op->read_args[0]);
   os() << ")";
   os() << ")";
-}
-
-void CodeGenC::PrintCall_buffer_get_data_handle(const ir::Call *op) {
-  CHECK_EQ(op->read_args.size(), 1UL);
-  auto *buffer = op->read_args[0].As<ir::_Buffer_>();
-  os() << buffer->name;
-  os() << "->";
-  os() << "memory";
 }
 
 void CodeGenC::PrintCall_get_address(const ir::Call *op) {
@@ -516,13 +488,17 @@ void CodeGenC::Visit(const ir::_LoweredFunc_ *op) {
 
   std::vector<Expr> new_body;
 
-  auto alloca_temp_buffers = op->PrepareAllocTempBufferExprs();
+  std::vector<Expr> create_temp_buffers   = op->PrepareCreateTempBufferExprs();
+  std::vector<Expr> alloca_temp_buffers   = op->PrepareAllocTempBufferExprs();
+  std::vector<Expr> dealloca_temp_buffers = op->PrepareDeallocTempBufferExprs();
 #define APPEND_TO_NEW_BODY(field__) new_body.insert(std::end(new_body), std::begin(op->field__), std::end(op->field__));
   APPEND_TO_NEW_BODY(argument_prepare_exprs)
+  new_body.insert(std::end(new_body), std::begin(create_temp_buffers), std::end(create_temp_buffers));
   APPEND_TO_NEW_BODY(alloc_output_buffer_exprs)
   new_body.insert(std::end(new_body), std::begin(alloca_temp_buffers), std::end(alloca_temp_buffers));
   APPEND_TO_NEW_BODY(buffer_data_cast_exprs)
   new_body.push_back(op->body);
+  new_body.insert(std::end(new_body), std::begin(dealloca_temp_buffers), std::end(dealloca_temp_buffers));
   APPEND_TO_NEW_BODY(dealloc_output_buffer_exprs)
 
   Expr func_body = ir::Block::Make(new_body);
@@ -551,7 +527,10 @@ void CodeGenC::PrintBufferCreation(const std::vector<ir::Buffer> &buffers) {
     // Ignore the buffer in other devices.
     if (!buffer->is_on_host()) continue;
     DoIndent();
-    auto expr = runtime::BufferCreate(buffer);
+    auto buffer_ptr_type = Type().set_customized_type(common::customized_type::kbuffer_t).set_cpp_handle();
+    Var variable         = ir::_Var_::Make(buffer->name, buffer_ptr_type);
+    auto expr            = ir::intrinsics::BufferCreate::Make(buffer);
+    expr                 = ir::Let::Make(variable, expr);
     Print(expr);
     os() << ";\n";
   }
@@ -565,7 +544,7 @@ void CodeGenC::PrintBufferDestroy(const std::vector<ir::Buffer> &buffers) {
   }
 }
 
-void CodeGenC::GenerateHeaderFile(const lang::Module &module) {
+void CodeGenC::GenerateHeaderFile(const ir::Module &module) {
   PrintFileGuardOpen(module.name());
   PrintIncludes();
 
@@ -612,7 +591,109 @@ void CodeGenC::PrintStackVecType(Type type, int lanes) {
   os() << "StackedVec<" << GetTypeRepr(type) << "," << lanes << ">";
 }
 
-void CodeGenC::Visit(const ir::PrimitiveNode *op) { CINN_NOT_IMPLEMENTED; }
+void CodeGenC::Visit(const ir::PrimitiveNode *op) { CINN_NOT_IMPLEMENTED }
+
+void CodeGenC::Visit(const ir::IntrinsicOp *op) {
+  switch (op->getKind()) {
+#define __(x)                                     \
+  case ir::IntrinsicKind::k##x:                   \
+    Visit(llvm::dyn_cast<ir::intrinsics::x>(op)); \
+    break;
+
+    INTRINSIC_KIND_FOR_EACH(__)
+#undef __
+  }
+}
+
+void CodeGenC::Visit(const ir::intrinsics::BufferGetDataHandle *op) {
+  os() << op->buffer.as_buffer()->name;
+  os() << "->";
+  os() << "memory";
+}
+
+void CodeGenC::Visit(const ir::intrinsics::BufferGetDataConstHandle *op) {
+  os() << op->buffer.as_buffer()->name;
+  os() << "->";
+  os() << "memory";
+}
+
+void CodeGenC::Visit(const ir::intrinsics::PodValueToX *op) {
+  auto to_type = op->GetOutputType(0);
+  if (to_type == type_of<float>()) {
+    os() << runtime::intrisic::pod_value_to_float;
+  } else if (to_type == type_of<double>()) {
+    os() << runtime::intrisic::pod_value_to_double;
+  } else if (to_type == type_of<int32_t>()) {
+    os() << runtime::intrisic::pod_value_to_int32;
+  } else if (to_type == type_of<int64_t>()) {
+    os() << runtime::intrisic::pod_value_to_int64;
+  } else if (to_type == type_of<void *>()) {
+    os() << runtime::intrisic::pod_value_to_void_p;
+  } else if (to_type == type_of<cinn_buffer_t *>()) {
+    os() << runtime::intrisic::pod_value_to_buffer_p;
+  } else {
+    LOG(FATAL) << "Not supported type: " << to_type;
+  }
+
+  os() << "(";
+  Print(op->pod_value_ptr);
+  os() << ")";
+}
+
+void CodeGenC::Visit(const ir::intrinsics::BufferCreate *op) {
+  const ir::_Buffer_ *buffer_arg = op->buffer.as_buffer();
+  CHECK(buffer_arg);
+
+  os() << runtime::intrisic::buffer_create;
+  os() << "(";
+  PrintCastExpr("cinn_device_kind_t", Expr(buffer_arg->target.runtime_arch()));
+  os() << "/*target*/, ";
+  PrintRuntimeType(runtime::ToRuntimeType(buffer_arg->dtype.ElementOf()));
+  os() << ", ";
+  PrintShape(buffer_arg->shape);
+  if (buffer_arg->data_alignment > 0) {
+    os() << ", " << buffer_arg->data_alignment << "/*align*/";
+  }
+  os() << ")";
+}
+
+void CodeGenC::Visit(const ir::intrinsics::GetAddr *op) {
+  if (op->data.as_buffer()) {
+    os() << "&" << op->data.as_buffer()->name;
+  } else if (op->data.as_var()) {
+    os() << "&" << op->data.as_var()->name;
+  } else {
+    os() << "&(";
+    Print(op->data);
+    os() << ")";
+  }
+}
+
+void CodeGenC::Visit(const ir::intrinsics::ArgsConstruct *op) {
+  os() << runtime::intrisic::args_construct_repr << "(";
+  os() << op->var->name << ", ";
+  os() << op->args.size() << ", ";
+  for (int i = 0; i < op->args.size() - 1; i++) {
+    Print(op->args[i]);
+    os() << ", ";
+  }
+  if (!op->args.empty()) {
+    Print(op->args.back());
+  }
+  os() << ")";
+}
+
+void CodeGenC::Visit(const ir::intrinsics::BuiltinIntrin *op) {
+  os() << op->name << "(";
+  if (!op->args.empty()) {
+    for (int i = 0; i < op->args.size() - 1; i++) {
+      Print(op->args[i]);
+      os() << ", ";
+    }
+    Print(op->args.back());
+  }
+  os() << ")";
+}
 
 std::string ReadWholeFile(const std::string &path) {
   CHECK(!path.empty());

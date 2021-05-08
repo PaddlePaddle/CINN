@@ -40,10 +40,10 @@ void BindPE(py::module* m) {
   BIND_UNARY(asinh, Asinh);
   BIND_UNARY(atan, Atan);
   BIND_UNARY(atanh, Atanh);
-  BIND_UNARY(isnan, Isnan);
+  BIND_UNARY(isnan, IsNan);
   BIND_UNARY(tanh, Tanh);
-  BIND_UNARY(isfinite, Isfinite);
-  BIND_UNARY(isinf, Isinf);
+  BIND_UNARY(isfinite, IsFinite);
+  BIND_UNARY(isinf, IsInf);
 
   BIND_UNARY(negative, Negative);
   BIND_UNARY(identity, Identity);
@@ -81,11 +81,20 @@ void BindPE(py::module* m) {
          &hlir::pe::Matmul,
          py::arg("tensor_a"),
          py::arg("tensor_b"),
-         py::arg("trans_a"),
-         py::arg("trans_b"),
-         py::arg("x_num_col_dims"),
-         py::arg("y_num_col_dims"),
-         py::arg("out") = "T_Matmul_out");
+         py::arg("trans_a") = false,
+         py::arg("trans_b") = false,
+         py::arg("alpha")   = 1,
+         py::arg("out")     = "T_Matmul_out");
+
+  m->def("matmul_mkl",
+         &hlir::pe::MatmulMKL,
+         py::arg("tensor_a"),
+         py::arg("tensor_b"),
+         py::arg("trans_a") = false,
+         py::arg("trans_b") = false,
+         py::arg("alpha")   = 1,
+         py::arg("out")     = "T_Matmul_mkl_out",
+         py::arg("target")  = common::DefaultHostTarget());
 }
 
 }  // namespace pybind

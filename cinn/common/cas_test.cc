@@ -314,7 +314,129 @@ TEST(SolveInequality, basic) {
   TEST_SOLVE(x * -1 < -1, "(x > 1)");
   TEST_SOLVE(Expr(2) * x * -1 - x < x + 200, "(x > -50)");
   TEST_SOLVE(Expr(2) * x + 30 - x * 3 + y * 23 < 2, "(x > int32((28 + (23 * y))))");
-  TEST_SOLVE(x + ir::Min::Make(Expr(2), Expr(3) * y) < 100, "(x < int32((100 - cinn_min(2, (3 * y)))))");
+  TEST_SOLVE(x + ir::Min::Make(Expr(2), Expr(3) * y) < 100, "(x < int32(cinn_max((100 + (-3 * y)), 98)))");
+}
+
+TEST(CAS, SimplifyCompoundMod) {
+  {  // (-a % 4) * (-1)
+    Var x   = ir::_Var_::Make("x", Int(32));
+    auto p0 = ir::Product::Make({ir::Mod::Make(-x, Expr(4)), Expr(-1)});
+    LOG(INFO) << "p0 " << p0;
+    auto p2 = AutoSimplify(p0);
+    LOG(INFO) << "simplified " << p2;
+    EXPECT_EQ(GetStreamCnt(p2), "(-1 * ((-1 * x) % 4))");
+  }
+  {  // (33 + x % 34) + -33
+    Var x   = ir::_Var_::Make("x", Int(32));
+    auto p0 = ir::Sum::Make({Expr(33), ir::Sum::Make({ir::Mod::Make(x, Expr(4)), Expr(-33)})});
+    LOG(INFO) << "p0 " << p0;
+    auto p2 = AutoSimplify(p0);
+    LOG(INFO) << "simplified " << p2;
+    EXPECT_EQ(GetStreamCnt(p2), "(x % 4)");
+  }
+  {  // 33 + (x % 2 + (-16))
+    Var x = ir::_Var_::Make("x", Int(32));
+    auto p0 =
+        ir::Sum::Make({Expr(33), ir::Sum::Make({ir::Mod::Make(x, Expr(2)), ir::Product::Make({Expr(-1), Expr(16)})})});
+    LOG(INFO) << "p0 " << p0;
+    auto p2 = AutoSimplify(p0);
+    LOG(INFO) << "simplified " << p2;
+    EXPECT_EQ(GetStreamCnt(p2), "(17 + (x % 2))");
+  }
+  {  // (32- x1 - 16 * x2) % 33
+    Var x1  = ir::_Var_::Make("x1", Int(32));
+    Var x2  = ir::_Var_::Make("x2", Int(32));
+    auto p0 = ir::Mod::Make(ir::Sum::Make({Expr(32), -x1, Expr(16) * -x2}), Expr(33));
+    LOG(INFO) << "p0 " << p0;
+    std::unordered_map<std::string, CasInterval> var_intervals;
+    var_intervals.emplace("x1", CasInterval{0, 15});
+    var_intervals.emplace("x2", CasInterval{0, 1});
+    auto p2 = AutoSimplify(p0, var_intervals);
+    LOG(INFO) << "simplified " << p2;
+#ifdef CINN_WITH_CUDA
+    EXPECT_EQ(GetStreamCnt(p2), "((32 + ((-1 * x1) + (-16 * x2))) % 33)");
+#else
+    EXPECT_EQ(GetStreamCnt(p2), "(32 + (((-1 * x1) + (-16 * x2)) % 33))");
+#endif
+  }
+}
+TEST(CAS, SimplifyNegtive) {
+  {  // (-1*x) /2
+    Var x   = ir::_Var_::Make("x", Int(32));
+    auto p0 = ir::FracOp::Make(-x, Expr(2));
+    LOG(INFO) << "p0 " << p0;
+    auto p2 = AutoSimplify(p0);
+    LOG(INFO) << "simplified " << p2;
+    EXPECT_EQ(GetStreamCnt(p2), "((-1 * x) / 2)");
+  }
+  {  // minus(1)
+    auto p0 = ir::Minus::Make(Expr(1));
+    LOG(INFO) << "p0 " << p0;
+    auto p2 = AutoSimplify(p0);
+    LOG(INFO) << "simplified " << p2;
+    EXPECT_EQ(GetStreamCnt(p2), "-1");
+  }
+}
+
+TEST(CAS, SimplifyMinMax) {
+  {  // 1+cinn_min(15, x)
+    Var x   = ir::_Var_::Make("x", Int(32));
+    auto p0 = ir::Sum::Make({Expr(1), ir::Min::Make(Expr(15), x)});
+    LOG(INFO) << "p0 " << p0;
+    auto p2 = CasSimplify(p0);
+    LOG(INFO) << "simplified " << p2;
+    EXPECT_EQ(GetStreamCnt(p2), "cinn_min(16, (1 + x))");
+  }
+  {  // 2*cinn_min(15, x)
+    Var x   = ir::_Var_::Make("x", Int(32));
+    auto p0 = ir::Product::Make({Expr(2), ir::Min::Make(Expr(15), x)});
+    LOG(INFO) << "p0 " << p0;
+    auto p2 = CasSimplify(p0);
+    LOG(INFO) << "simplified " << p2;
+    EXPECT_EQ(GetStreamCnt(p2), "cinn_min(30, (2 * x))");
+  }
+  {  // cinn_min(15, x)/2
+    Var x   = ir::_Var_::Make("x", Int(32));
+    auto p0 = ir::FracOp::Make(ir::Min::Make(Expr(15), x), Expr(2));
+    LOG(INFO) << "p0 " << p0;
+    auto p2 = CasSimplify(p0);
+    LOG(INFO) << "simplified " << p2;
+    EXPECT_EQ(GetStreamCnt(p2), "cinn_min(7, ((x) / (2)))");
+  }
+  {  // -(cinn_min(16, 3400-x-1)-1)/2 + x
+    Var x   = ir::_Var_::Make("x", Int(32));
+    auto p0 = ir::FracOp::Make(ir::Min::Make(Expr(16), 3400 - x - 1) - 1, Expr(2));
+    p0      = -p0 + x;
+    LOG(INFO) << "p0 " << p0;
+    auto p2 = AutoSimplify(p0);
+    LOG(INFO) << "simplified " << p2;
+    EXPECT_EQ(GetStreamCnt(p2), "cinn_max((-1699 + ((-1 * ((-1 * x) / 2)) + x)), (-7 + x))");
+  }
+  {  // cinn_max((-1 * (3399 + (-16 * i_j_fused_outer))), -15)
+    Var x   = ir::_Var_::Make("x", Int(32));
+    auto p0 = ir::Max::Make(ir::Product::Make({Expr(-1), ir::Sum::Make({Expr(3399), Expr(-16) * x})}), Expr(-15));
+    LOG(INFO) << "p0 " << p0;
+    auto p2 = AutoSimplify(p0);
+    LOG(INFO) << "simplified " << p2;
+    EXPECT_EQ(GetStreamCnt(p2), "cinn_max((-3399 + (16 * x)), -15)");
+  }
+}
+
+TEST(CAS, cond) {
+  {
+    Expr cond = Expr(2) > Expr(1);
+    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "1");
+  }
+  {
+    Var a("a");
+    Expr cond = (Expr(2) > Expr(1)) && (a < 20);
+    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "(a < 20)");
+  }
+  {
+    Var a("a");
+    Expr cond = (Expr(2) < Expr(1)) && (a < 20);
+    EXPECT_EQ(GetStreamCnt(CasSimplify(cond)), "0");
+  }
 }
 
 }  // namespace common

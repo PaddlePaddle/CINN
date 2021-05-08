@@ -1,5 +1,7 @@
 #include "cinn/poly/ast_gen.h"
 
+#include <llvm/Support/FormatVariadic.h>
+
 #include <utility>
 
 #include "cinn/common/common.h"
@@ -59,6 +61,58 @@ isl::ctx AstGen::Impl::ctx() const {
   return stages_.front()->domain().ctx();
 }
 
+isl::set TransIdentityExtentToContextId(isl::set set) {
+  std::vector<std::tuple<int, int>> iden_dim_offsets;
+  for (int i = 0; i < isl_set_dim(set.get(), isl_dim_set); i++) {
+    if (isl_set_axis_has_noparam_constant_bound(set.get(), i)) {
+      auto [minv, maxv] = isl_set_get_axis_range(set.get(), i);
+      int min_iv        = minv.get_num_si();
+      int max_iv        = maxv.get_num_si();
+      if (max_iv == min_iv) {
+        iden_dim_offsets.emplace_back(i, max_iv);
+      }
+    }
+  }
+
+  isl::set res_set = set;
+  for (auto [offset, val] : iden_dim_offsets) {
+    res_set = isl::manage(isl_set_drop_constraints_involving_dims(res_set.copy(), isl_dim_set, offset, 1));
+
+    std::string const_param_name = llvm::formatv("{0}{1}", kIslParamConstPrefix, val);
+
+    std::string cond_str = llvm::formatv(
+        "{0} <= {1} <= {2}", val, isl_set_get_dim_name(res_set.get(), isl_dim_set, offset), const_param_name);
+    std::string param_cond_str = llvm::formatv("{0} <= {1} < {2}", val, const_param_name, val + 2);
+
+    std::string set_repr = llvm::formatv("[{0}] -> { {1}[{2}]: {3} and {4} }",
+                                         const_param_name,
+                                         isl_set_get_tuple_name(res_set.get()),
+                                         utils::Join(isl_get_dim_names(res_set.get()), ","),
+                                         cond_str,
+                                         param_cond_str);
+
+    VLOG(4) << "repr: " << set_repr;
+
+    isl::set new_set(res_set.ctx(), set_repr);
+
+    res_set = res_set.intersect(new_set);
+  }
+  return res_set;
+}
+
+isl::union_set TransIdentityExtentToContextId(isl::union_set set) {
+  auto* set_list = isl_union_set_get_set_list(set.release());
+  llvm::SmallVector<isl::set, 4> sets;
+  for (int i = 0; i < isl_set_list_n_set(set_list); i++) {
+    auto set = isl::manage(isl_set_list_get_set(set_list, i));
+    set      = TransIdentityExtentToContextId(set);
+    sets.push_back(set);
+  }
+  isl_set_list_free(set_list);
+
+  return isl_union_set_from_sets(sets);
+}
+
 isl::ast_node AstGen::Build() {
   // Collect schedule from scheduler.
   auto schedule_map = CollectScheduleMapFromGroup(impl_->schedule_group_);
@@ -77,7 +131,6 @@ isl::ast_node AstGen::Build() {
     ast_build = isl::manage(isl_ast_build_set_options(ast_build.release(), impl_->build_options_.release()));
 
   // Set iterators names for readable code.
-  // CHECK(!schedule_group_.dimension_names.empty());
   auto iterator_names =
       impl_->iterator_names_.empty() ? impl_->schedule_group_.dimension_names : impl_->iterator_names_;
   iterator_names   = SchedulerBase::WrapIteratorNames(iterator_names);
@@ -104,9 +157,11 @@ isl::ast_node AstGen::Build() {
 
   ast_build = ast_build.set_at_each_domain(collect);
 
+  isl::union_set new_domain = TransIdentityExtentToContextId(impl_->domain());
+
   isl::union_map transformed_schedule = impl_->transform().apply_range(schedule);
   VLOG(4) << "transformed_schedule: " << transformed_schedule;
-  auto schedule_domain = transformed_schedule.intersect_domain(impl_->domain());
+  auto schedule_domain = transformed_schedule.intersect_domain(new_domain);
   VLOG(4) << "domain: " << impl_->domain();
   VLOG(4) << "transform schedule " << impl_->stages()[0]->transform();
   VLOG(4) << "schedule: " << schedule;

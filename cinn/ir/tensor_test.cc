@@ -41,9 +41,9 @@ TEST(Tensor, inlined) {
   EXPECT_EQ(Trim(out), Trim(R"ROC(
 function func_C (_A, _B, _D)
 {
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 20)
+    for (j, 0, 20)
     {
       D[i, j] = (1 + ((2 * A[i, j]) + (2 * B[i, j])))
     }
@@ -77,7 +77,7 @@ TEST(Tensor, Reshape) {
 
   auto func = lang::Lower("fn", stages, {A, B});
 
-  lang::Module::Builder builder("some_modue", common::DefaultHostTarget());
+  ir::Module::Builder builder("some_modue", common::DefaultHostTarget());
   builder.AddFunction(func);
 
   backends::CodeGenC codegenc(common::DefaultHostTarget());
@@ -123,7 +123,7 @@ TEST(Tensor, ReshapeCopied) {
 
   stages->InsertLazily(B);
 
-  lang::Module::Builder builder("some_modue", common::DefaultHostTarget());
+  ir::Module::Builder builder("some_modue", common::DefaultHostTarget());
   auto func = lang::Lower("fn", stages, {A, B}, {}, {}, &builder);
 
   backends::CodeGenC codegenc(common::DefaultHostTarget());
@@ -139,7 +139,9 @@ void fn(void* _args, int32_t num_args)
 {
   const cinn_buffer_t* _A = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[0]));
   cinn_buffer_t* _tensor = cinn_pod_value_to_buffer_p(&(((cinn_pod_value_t*)(_args))[1]));
+  cinn_buffer_t* _A_copied_reshape = cinn_buffer_t::new_((cinn_device_kind_t)(0)/*target*/, cinn_float32_t(), { 10, 10, 100 }, 32/*align*/);
   cinn_buffer_malloc((void*)(0), _tensor);
+  cinn_buffer_malloc((void*)(0), _A_copied_reshape);
   const float* A = ((const float*)(_A->memory));
   float* A_copied = ((float*)(_A_copied_reshape->memory));
   const float* A_copied_reshape = ((const float*)(_A_copied_reshape->memory));
@@ -156,6 +158,7 @@ void fn(void* _args, int32_t num_args)
       };
     };
   };
+  cinn_buffer_free((void*)(0), _A_copied_reshape);
   cinn_buffer_free((void*)(0), _tensor);
 }
 )ROC";

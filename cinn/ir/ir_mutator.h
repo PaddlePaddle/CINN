@@ -3,6 +3,7 @@
  */
 #pragma once
 
+#include "cinn/ir/intrinsic_ops.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_visitor.h"
 
@@ -246,6 +247,31 @@ void IRMutator<T>::Visit(const PrimitiveNode *expr, T op) {
     for (auto &arg : args) {
       IRVisitorBase<void, T>::Visit(&arg, &arg);
     }
+  }
+}
+
+template <typename T>
+void IRMutator<T>::Visit(const IntrinsicOp *expr, T op) {
+  auto *node = op->template As<IntrinsicOp>();
+  switch (node->getKind()) {
+    case ir::IntrinsicKind::kBufferGetDataHandle: {
+      auto *n = llvm::dyn_cast<intrinsics::BufferGetDataHandle>(node);
+      Visit(&n->buffer, &n->buffer);
+    } break;
+    case ir::IntrinsicKind::kBufferGetDataConstHandle: {
+      auto *n = llvm::dyn_cast<intrinsics::BufferGetDataConstHandle>(node);
+      Visit(&n->buffer, &n->buffer);
+    } break;
+    case ir::IntrinsicKind::kPodValueToX: {
+      auto *n = llvm::dyn_cast<intrinsics::PodValueToX>(node);
+      Visit(&n->pod_value_ptr, &n->pod_value_ptr);
+    } break;
+    case ir::IntrinsicKind::kBuiltinIntrin: {
+      auto *n = llvm::dyn_cast<intrinsics::BuiltinIntrin>(node);
+      for (auto &expr : n->args) {
+        Visit(&expr, &expr);
+      }
+    } break;
   }
 }
 

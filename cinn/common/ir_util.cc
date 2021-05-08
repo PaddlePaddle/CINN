@@ -1,5 +1,6 @@
 #include "cinn/common/ir_util.h"
 
+#include <algorithm>
 #include <unordered_set>
 
 #include "cinn/common/cas.h"
@@ -22,7 +23,7 @@ Expr RampRelatedMul(ir::Ramp *ramp, Expr other) {
     CHECK_EQ(ramp->lanes, other_broadcast->lanes);
     other = other_broadcast->value;
   }
-  return ir::Ramp::Make(ramp->base, ramp->stride * other, ramp->lanes);
+  return ir::Ramp::Make(ramp->base * other, ramp->stride * other, ramp->lanes);
 }
 
 Expr RampRelatedMul(ir::Broadcast *broadcast, Expr other) {
@@ -49,8 +50,17 @@ Expr RampRelatedAdd(ir::Broadcast *broadcast, Expr other) {
   CHECK_EQ(other.type().lanes(), 1);
   return ir::Broadcast::Make(broadcast->value + other, broadcast->lanes);
 }
-// ramp * ramp
+// ramp + ramp
 Expr RampRelatedAdd(ir::Ramp *ramp, ir::Ramp *other) {
+  CHECK(ramp);
+  CHECK(other);
+  if (ramp->lanes == other->lanes) {
+    Expr base_add   = common::AutoSimplify(ramp->base + other->base);
+    Expr stride_add = common::AutoSimplify(ramp->stride + other->stride);
+    VLOG(2) << base_add;
+    VLOG(2) << stride_add;
+    return ir::Ramp::Make(base_add, stride_add, ramp->lanes);
+  }
   CINN_NOT_IMPLEMENTED
   return Expr();
 }
@@ -125,7 +135,7 @@ Expr IndiceToAbsOffset(const std::vector<Expr> &shape, const std::vector<Expr> &
     }
   }
 
-  return res;
+  return common::AutoSimplify(res);
 }
 
 Expr IndiceToAbsOffset(const std::vector<int> &shape, const std::vector<Expr> &indices) {

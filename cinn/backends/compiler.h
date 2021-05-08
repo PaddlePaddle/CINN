@@ -24,7 +24,11 @@ class Compiler final {
   /**
    * Compile and link to a CINN module.
    */
-  void Build(const lang::Module& module);
+  void Build(const ir::Module& module, const std::string& code = "");
+
+  std::string GetSourceCode(const ir::Module& module);
+
+  void BuildDefault(const ir::Module& module);
 
   /**
    * Retrieve a function by \p fn_name.
@@ -33,9 +37,9 @@ class Compiler final {
   lower_func_ptr_t Lookup(std::string_view fn_name);
 
  private:
-  void CompileCudaModule(const lang::Module& module);
+  void CompileCudaModule(const ir::Module& module, const std::string& code = "");
 
-  void CompileX86Module(const lang::Module& module);
+  void CompileX86Module(const ir::Module& module);
 
   explicit Compiler(const Target& target) : target_(target), engine_(ExecutionEngine::Create(ExecutionOptions())) {}
 

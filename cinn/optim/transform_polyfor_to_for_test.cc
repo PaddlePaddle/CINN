@@ -38,7 +38,7 @@ TEST(Expr, basic) {
   target.os   = Target::OS ::Linux;
 
   {
-    lang::Module::Builder builder("module1", target);
+    ir::Module::Builder builder("module1", target);
     builder.AddFunction(func);
 
     CodeGenC codegen(target);
@@ -50,7 +50,7 @@ TEST(Expr, basic) {
   optim::TransformPolyForToFor(&func->body);
 
   {
-    lang::Module::Builder builder("module1", target);
+    ir::Module::Builder builder("module1", target);
     builder.AddFunction(func);
 
     CodeGenC codegen(target);
@@ -80,9 +80,9 @@ void matmul(void* _args, int32_t num_args)
   for (int32_t i_outer = 0; i_outer < 64; i_outer += 1) {
     for (int32_t i_inner = 0; i_inner < 8; i_inner += 1) {
       for (int32_t j_outer = 0; j_outer < 63; j_outer += 1) {
-        for (int32_t j_inner = 0; j_inner < (1 + ((int32_t)(cinn_min(7, (499 + (-8 * j_outer)))))); j_inner += 1) {
+        for (int32_t j_inner = 0; j_inner < cinn_min(8, (500 + (-8 * j_outer))); j_inner += 1) {
           for (int32_t k0 = 0; k0 < 200; k0 += 1) {
-            C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] = (C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] + (A[((200 * i_inner) + ((1600 * i_outer) + k0))] * B[((8 * j_outer) + ((500 * k0) + j_inner))]));
+            C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))] = fma(A[((200 * i_inner) + ((1600 * i_outer) + k0))], B[((8 * j_outer) + ((500 * k0) + j_inner))], C[((500 * i_inner) + ((4000 * i_outer) + ((8 * j_outer) + j_inner)))]);
           };
         };
       };

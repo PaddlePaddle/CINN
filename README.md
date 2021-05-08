@@ -89,7 +89,7 @@ outputs = outputs.c_header("./test02_matmul_block.h").c_source("./test02_matmul_
 compiler.Compile(builder.Build(), outputs);
 ```
 
-This can genrate the optimized C source code like
+This can generate the optimized C source code like
 
 ```c++
 void matmul_block(void* _args, int32_t num_args)
@@ -140,7 +140,9 @@ The schedule transform is applied between the lowering from HLIR to CINN IR.
 
 The overall architecture is as follows
 
-![CINN architecture](./docs/images/cinn-architecutre.png)
+
+![image](https://user-images.githubusercontent.com/328693/116195497-dfe7a300-a764-11eb-9770-1716a42c3236.png)
+
 
 
 ##  Getting Started
@@ -162,8 +164,11 @@ Then start a docker container, and compile the code inside it
 # compile and install isl
 sh tools/ci_build.sh
 
-# compile the tests and python library
+# compile the tests and python library with X86 backends
 ./build.sh ci
+
+# compile the tests and python library with NVGPU(CUDA) backends
+./build.sh gpu_on ci
 ```
 
 After compilation, you can launch the C++ and python tests
@@ -181,9 +186,9 @@ In HLIR
 - `frontend::Interpreter`, the container to execute a model (of PaddlePaddle),
 - `frontend::Program`, the program helps to define a machine learning computation,
 - `hlir::framework::Tensor`, multi-dimensional arrays helps to manage a memory buffer.
-- 'hlir::framework::Program', the final executable program in runtime. It holds many basic executable elements. 
-- 'hlir::framework::Graph', the graph that represents the structure of a model. Each node in the graph represents an operator (conv2d, relu, mul, etc.).
-- 'hlir::framework::GraphCompiler', the compiler that transforms the graph representation(hlir::framework::Graph) of a model into an executable program(hlir::framework::Program).
+- `hlir::framework::Program`, the final executable program in runtime. It holds many basic executable elements. 
+- `hlir::framework::Graph`, the graph that represents the structure of a model. Each node in the graph represents an operator (conv2d, relu, mul, etc.).
+- `hlir::framework::GraphCompiler`, the compiler that transforms the graph representation(hlir::framework::Graph) of a model into an executable program(hlir::framework::Program).
 In CINN IR
 
 - `Compute`, the method to define a computation,
@@ -202,4 +207,4 @@ The C++ API locates in `cinn/*/*_test.cc`, the high level API locates in `hlir/f
 
 ## License
 
-CINN is licensed under the Apache 2.0 License.
+CINN is licensed under the [Apache 2.0 license](LICENSE).

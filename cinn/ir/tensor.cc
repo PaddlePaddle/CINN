@@ -4,6 +4,7 @@
 
 #include "cinn/cinn.h"
 #include "cinn/common/arithmatic.h"
+#include "cinn/common/axis.h"
 #include "cinn/common/cas.h"
 #include "cinn/common/common.h"
 #include "cinn/common/ir_util.h"
@@ -13,6 +14,7 @@
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/operation.h"
 #include "cinn/lang/compute.h"
+#include "cinn/poly/isl_utils.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -234,13 +236,25 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
       shape, [=](const std::vector<Expr> &axis) { return GetReduceInitVal(); }, init_reduce_tensor_name);
   stages->InsertLazily(init_tensor);
   if (target.arch == Target::Arch::NVGPU) {
-    stages[init_tensor]->Split(1, 2);
-    stages[init_tensor]->Bind(0, "blockIdx.x");
-    stages[init_tensor]->Bind(1, "threadIdx.x");
+    int init_axis             = stages[init_tensor]->axis_names().size();
+    std::string axis_name_str = common::axis_name(init_axis - 1);
+    auto map_names            = poly::isl_get_dim_names(stages[this]->transform().get(), isl_dim_out);
+    int compute_at_axis       = -1;
+    for (int i = map_names.size() - 1; i >= 0; i--) {
+      if (map_names[i].substr(0, 1) == axis_name_str) {
+        compute_at_axis = i;
+        break;
+      }
+    }
+    stages[init_tensor]->ComputeAt2(stages[this], compute_at_axis);
   }
   stages[this]->CtrlDepend(init_tensor);
   stages[this]->ShareBufferWith(stages[init_tensor]);
   return init_tensor;
+}
+
+ir::Tensor _Tensor_::GetInitTensor(poly::StageMap stages, const Target &target) const {
+  return InitReduction(stages, target);
 }
 
 Expr _Tensor_::tensor_store_expanded_body() {
@@ -250,6 +264,9 @@ Expr _Tensor_::tensor_store_expanded_body() {
   if (shape.empty()) return final_body;
 
   std::vector<Expr> g_axis = common::GenDefaultAxisAsExpr(shape.size());
+  if (!new_indices.empty()) {
+    g_axis = new_indices;
+  }
 
   auto *reduce_node = body().As<ir::Reduce>();
   if (reduce_node) {
@@ -306,9 +323,9 @@ void _Tensor_::WithBuffer(const Type &type) {
   Bind(buf);
 }
 
-void _Tensor_::WithBuffer(const std::string &memory_type, const Type &type) {
+void _Tensor_::WithBuffer(const std::string &memory_type, const std::string &buffer_name, const Type &type) {
   Type buf_type = type.is_void() ? type_ : type;
-  lang::Buffer buf(buf_type);
+  lang::Buffer buf(buf_type, buffer_name);
   buf->target = common::DefaultHostTarget();
   Bind(buf);
 
@@ -411,7 +428,7 @@ std::vector<Var> _Tensor_::axis_with_reduce() const {
   return axis;
 }
 
-bool _Tensor_::Uses(const Tensor &other) {
+bool _Tensor_::Uses(const Tensor &other) const {
   auto loads = ir::CollectIRNodes(body(), [&](const Expr *x) {
     auto *loadn = x->As<ir::Load>();
     if (!loadn) return false;
@@ -485,6 +502,12 @@ Expr _Tensor_::GetReduceInitVal() const {
 }
 
 bool _Tensor_::IsReduceInited(poly::StageMap stages) const { return stages->Lookup(GenReduceInitTensorNameOf(name)); }
+
+void _Tensor_::Verify() const {
+  CHECK(!shape.empty());
+  CHECK(!domain.empty());
+  CHECK(!name.empty()) << "Name of tensor should be set";
+}
 
 }  // namespace ir
 }  // namespace cinn

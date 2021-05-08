@@ -1,9 +1,12 @@
 #include "cinn/backends/codegen_cuda_dev.h"
 
+#include <cinn/utils/string.h>
+
 #include <fstream>
 #include <set>
 #include <unordered_set>
 
+#include "cinn/ir/ir_verify.h"
 #include "cinn/optim/remove_nested_block.h"
 
 namespace cinn {
@@ -11,14 +14,16 @@ namespace backends {
 
 CodeGenCUDA_Dev::CodeGenCUDA_Dev(Target target) : CodeGenC(target) {}
 
-std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, bool for_nvrtc) {
+std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, bool for_nvrtc) {
   for_nvrtc_  = for_nvrtc;
   auto source = Compile(module, OutputKind::CImpl);
 
   return source;
 }
 
-void CodeGenCUDA_Dev::Compile(const lang::Module &module, const Outputs &outputs) {
+void CodeGenCUDA_Dev::Compile(const ir::Module &module, const Outputs &outputs) {
+  ir::IrVerify(Expr(module));
+
   CodeGenC::inline_builtin_codes_ = false;
   if (!outputs.c_header_name.empty()) {
     auto source = Compile(module, OutputKind::CHeader);
@@ -49,8 +54,9 @@ std::vector<Expr> CodeGenCUDA_Dev::GenerateBufferAliasExprs(const ir::_LoweredFu
   std::set<ir::Buffer> temp_buffer_set(temp_buffers.begin(), temp_buffers.end());
   // prepare temp buffer alias
   std::vector<Expr> buffer_alias;
-  auto tensors = ir::CollectIRNodes(
-      op->body, [&](const Expr *x) { return x->as_tensor() && temp_buffer_set.count(x->as_tensor()->buffer); });
+  auto tensors = ir::CollectIRNodes(op->body, [&](const Expr *x) {
+    return x->as_tensor() && x->as_tensor()->buffer.defined() && temp_buffer_set.count(x->as_tensor()->buffer);
+  });
 
   // unique tensors
   std::set<ir::Tensor> unique_tensors;
@@ -95,6 +101,10 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   Expr func_body = ir::Block::Make(new_body);
 
   optim::RemoveNestedBlock(&func_body);
+  // Make sure that the function's body is wrapped by a block
+  if (!func_body.As<ir::Block>()) {
+    func_body = ir::Block::Make({func_body});
+  }
 
   Print(func_body);
 }
@@ -138,10 +148,8 @@ void CodeGenCUDA_Dev::PrintFuncArg(const ir::Argument &arg) {
   if (arg.is_buffer()) {
     // In CUDA kernel, only primitive type is supported, so we replace the buffer with T*j
     if (arg.is_input()) os() << "const ";
-    os() << GetTypeRepr(arg.type());
-    if (!arg.type().is_cpp_handle()) {
-      os() << "* ";
-    }
+    os() << GetTypeRepr(arg.buffer_arg()->dtype);
+    os() << "* ";
     os() << kCKeywordRestrict << " ";
     os() << ir::BufferGetTensorName(arg.buffer_arg().As<ir::_Buffer_>());
   } else if (arg.is_var()) {
@@ -160,7 +168,7 @@ void CodeGenCUDA_Dev::PrintBuiltinCodes() {
 )ROC";
 }
 
-std::string CodeGenCUDA_Dev::Compile(const lang::Module &module, CodeGenC::OutputKind output_kind) {
+std::string CodeGenCUDA_Dev::Compile(const ir::Module &module, CodeGenC::OutputKind output_kind) {
   ss_.str("");
 
   if (for_nvrtc_) {
@@ -201,7 +209,7 @@ void CodeGenCUDA_Dev::PrintIncludes() {
 void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {
   CHECK_NE(buffer->type(), Void());
   auto print_gpu_memory = [&](const std::string &mark) {
-    os() << mark << GetTypeRepr(buffer->type()) << " " << buffer->name << " ";
+    os() << mark << GetTypeRepr(buffer->dtype) << " " << buffer->name << " ";
 
     os() << "[ ";
     for (int i = 0; i < buffer->shape.size() - 1; i++) {
@@ -223,13 +231,50 @@ void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {
       break;
 
     default:
-      LOG(FATAL) << "CUDA device codegen not support memory type " << buffer->memory_type;
+      LOG(FATAL) << "CUDA device codegen not support memory " << buffer->name << ", type " << buffer->memory_type;
   }
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Call *op) {
   os() << op->name + "(";
-  Print(op->read_args);
+
+  if (!op->read_args.empty()) {
+    for (int i = 0; i < op->read_args.size() - 1; i++) {
+      auto &arg = op->read_args[i];
+      if (arg.as_tensor()) {
+        os() << arg.as_tensor()->name;
+        os() << ", ";
+      } else {
+        Print(arg);
+        os() << ", ";
+      }
+    }
+    if (op->read_args.back().as_tensor()) {
+      os() << op->read_args.back().as_tensor()->name;
+    } else {
+      Print(op->read_args.back());
+    }
+  }
+
+  if (!op->write_args.empty()) {
+    os() << ", ";
+    for (int i = 0; i < op->write_args.size() - 1; i++) {
+      auto &arg = op->write_args[i];
+      if (arg.as_tensor()) {
+        os() << arg.as_tensor()->name;
+        os() << ", ";
+      } else {
+        Print(arg);
+        os() << ", ";
+      }
+    }
+    if (op->write_args.back().as_tensor()) {
+      os() << op->write_args.back().as_tensor()->name;
+    } else {
+      Print(op->write_args.back());
+    }
+  }
+
   os() << ")";
 }
 

@@ -12,9 +12,34 @@
 
 namespace cinn {
 namespace backends {
-using lang::Module;
+using ir::Module;
 
-void Compiler::Build(const Module& module) {
+void Compiler::Build(const Module& module, const std::string& code) {
+  if (target_.arch == Target::Arch::NVGPU) {
+    CompileCudaModule(module, code);
+  } else if (target_.arch == Target::Arch::X86) {
+    CompileX86Module(module);
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+}
+
+std::string Compiler::GetSourceCode(const ir::Module& module) {
+  if (target_.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDA
+    auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+    CodeGenCUDA_Dev codegen(target_);
+    auto source_code = codegen.Compile(device_module);
+    return source_code;
+#else
+    CINN_NOT_IMPLEMENTED
+#endif
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+}
+
+void Compiler::BuildDefault(const Module& module) {
   if (target_.arch == Target::Arch::NVGPU) {
     CompileCudaModule(module);
   } else if (target_.arch == Target::Arch::X86) {
@@ -24,7 +49,7 @@ void Compiler::Build(const Module& module) {
   }
 }
 
-void Compiler::CompileCudaModule(const Module& module) {
+void Compiler::CompileCudaModule(const Module& module, const std::string& code) {
 #ifdef CINN_WITH_CUDA
   auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
   LOG(INFO) << "[CUDA] host module:\n" << host_module;
@@ -33,6 +58,7 @@ void Compiler::CompileCudaModule(const Module& module) {
     LOG(INFO) << "[CUDA] device module:\n" << device_module;
     CodeGenCUDA_Dev codegen(target_);
     auto source_code = codegen.Compile(device_module);
+    if (!code.empty()) source_code = code;
     LOG(INFO) << "[CUDA] source code:\n" << source_code;
     using runtime::cuda::CUDAModule;
 
@@ -66,7 +92,7 @@ void Compiler::CompileCudaModule(const Module& module) {
 #endif
 }
 
-void Compiler::CompileX86Module(const Module& module) { engine_->Link(module); }
+void Compiler::CompileX86Module(const Module& module) { engine_->Link<CodeGenX86>(module); }
 
 lower_func_ptr_t Compiler::Lookup(std::string_view fn_name) {
   CHECK(engine_);

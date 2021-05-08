@@ -9,13 +9,14 @@
 namespace cinn {
 namespace backends {
 
-llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
+llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m, bool is_vec) {
   llvm::Type *ir_type = nullptr;
   if (type.is_cpp_const()) {
     // TODO(fc500110) support it latter.
   }
 
   llvm::Type *v   = llvm::Type::getVoidTy(m->getContext());
+  llvm::Type *i1  = llvm::Type::getInt1Ty(m->getContext());
   llvm::Type *i8  = llvm::Type::getInt8Ty(m->getContext());
   llvm::Type *u8  = llvm::Type::getInt8Ty(m->getContext());
   llvm::Type *i32 = llvm::Type::getInt32Ty(m->getContext());
@@ -26,7 +27,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
   if (type.is_void() && type.is_cpp_handle()) {
     return llvm::PointerType::getUnqual(i8);
   }
-  if (type.is_void() && type.is_cpp_handle_handle()) {
+  if (type.is_void() && type.is_cpp_handle2()) {
     return llvm::PointerType::getUnqual(llvm::PointerType::getUnqual(i8));
   }
 
@@ -37,7 +38,7 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
   } else if (type.is_int(64)) {
     ir_type = i64;
   } else if (type.is_bool()) {
-    ir_type = i8;
+    ir_type = i1;
   } else if (type.is_float(32)) {
     ir_type = f32;
   } else if (type.is_float(64)) {
@@ -50,16 +51,20 @@ llvm::Type *CinnTypeToLLVMType(common::Type type, llvm::Module *m) {
   }
   CHECK(ir_type) << "LLVM can't convert type: " << type;
 
-  // C array.
+  // C array / vector.
   if (type.lanes() > 1) {
-    ir_type = llvm::ArrayType::get(ir_type, type.lanes());
+    if (is_vec) {
+      ir_type = llvm::FixedVectorType::get(ir_type, type.lanes());
+    } else {
+      ir_type = llvm::ArrayType::get(ir_type, type.lanes());
+    }
   }
 
   if (type.is_cpp_handle()) {
     ir_type = llvm::PointerType::getUnqual(ir_type);
   }
 
-  if (type.is_cpp_handle_handle()) {
+  if (type.is_cpp_handle2()) {
     ir_type = llvm::PointerType::getUnqual(ir_type);
     ir_type = llvm::PointerType::getUnqual(ir_type);
   }

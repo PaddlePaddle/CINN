@@ -4,4 +4,5 @@
 
 CINN_USE_REGISTER(nn_ops)
 CINN_USE_REGISTER(broadcast_ops)
+CINN_USE_REGISTER(elementwise_ops)
 CINN_USE_REGISTER(transform_ops)

@@ -30,7 +30,12 @@ cinn_type_t NumpyTypeToCinn(py::dtype dt) {
     return cinn_float32_t();
   } else if (dt.is(py::dtype::of<double>())) {
     return cinn_float64_t();
+  } else if (dt.is(py::dtype::of<bool>())) {
+    return cinn_bool_t();
+  } else if (dt.is(py::dtype::of<int8_t>())) {
+    return cinn_int8_t();
   }
+
   return cinn_unk_t();
 }
 
@@ -59,6 +64,10 @@ py::array BufferHostMemoryToNumpy(cinn_buffer_t &buffer) {  // NOLINT
     dt = py::dtype::of<float>();
   } else if (buffer.type == cinn_float64_t()) {
     dt = py::dtype::of<double>();
+  } else if (buffer.type == cinn_int8_t()) {
+    dt = py::dtype::of<int8_t>();
+  } else if (buffer.type == cinn_bool_t()) {
+    dt = py::dtype::of<bool>();
   } else {
     LOG(FATAL) << "Not supported type found";
   }
@@ -118,6 +127,8 @@ void BindCinnRuntime(py::module *m) {
       .def("bytes", &cinn_type_t::bytes);
 
   m->def("cinn_unk_t", &cinn_unk_t)
+      .def("cinn_int8_t", &cinn_int8_t)
+      .def("cinn_bool_t", &cinn_bool_t)
       .def("cinn_int32_t", &cinn_int32_t)
       .def("cinn_int64_t", &cinn_int64_t)
       .def("cinn_uint32_t", &cinn_uint32_t)
@@ -214,6 +225,8 @@ void BindCinnRuntime(py::module *m) {
   cinn_pod_value.def(py::init<>())
       .def(py::init<cinn_value_t, int>())
       .def(py::init<cinn_buffer_t *>())
+      .def(py::init<bool>())
+      .def(py::init<int8_t>())
       .def(py::init<int32_t>())
       .def(py::init<int64_t>())
       .def(py::init<float>())
@@ -222,6 +235,7 @@ void BindCinnRuntime(py::module *m) {
       .def(py::init<const char *>())
       .def("to_double", &cinn_pod_value_t::operator double)
       .def("to_float", &cinn_pod_value_t::operator float)
+      .def("to_int8", &cinn_pod_value_t::operator int8_t)
       .def("to_int32", &cinn_pod_value_t::operator int32_t)
       .def("to_int64", &cinn_pod_value_t::operator int64_t)
       .def("to_void_p", &cinn_pod_value_t::operator void *)
@@ -234,6 +248,7 @@ void BindCinnRuntime(py::module *m) {
       .def("cinn_pod_value_to_double", &cinn_pod_value_to_double)
       .def("cinn_pod_value_to_int64", &cinn_pod_value_to_int64)
       .def("cinn_pod_value_to_int32", &cinn_pod_value_to_int32)
+      .def("cinn_pod_value_to_int8", &cinn_pod_value_to_int8)
       .def("cinn_pod_value_to_void_p", &cinn_pod_value_to_void_p)
       .def("cinn_pod_value_to_buffer_p", &cinn_pod_value_to_buffer_p);
 }

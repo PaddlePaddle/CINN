@@ -7,16 +7,15 @@
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/lowered_func.h"
-#include "cinn/lang/module.h"
+#include "cinn/ir/module.h"
 #include "cinn/lang/packed_func.h"
 #include "cinn/runtime/cinn_runtime.h"
 
-namespace cinn {
-
-namespace lang {
+namespace cinn::ir {
 class Module;
-}  // namespace lang
+}  // namespace cinn::ir
 
+namespace cinn {
 namespace backends {
 
 /**
@@ -33,10 +32,10 @@ class CodeGenCUDA_Dev : public CodeGenC {
   /**
    * Compile the \p module to \p outputs.
    */
-  void Compile(const lang::Module& module, const Outputs& outputs);
+  void Compile(const ir::Module& module, const Outputs& outputs);
 
   //! Compile on NVRTC.
-  std::string Compile(const lang::Module& module, bool for_nvrtc = true);
+  std::string Compile(const ir::Module& module, bool for_nvrtc = true);
 
   std::string Compile(const ir::LoweredFunc& func);
 
@@ -54,7 +53,7 @@ class CodeGenCUDA_Dev : public CodeGenC {
    */
   void PrintFuncArg(const ir::Argument& arg);
 
-  std::string Compile(const lang::Module& module, OutputKind output_kind);
+  std::string Compile(const ir::Module& module, OutputKind output_kind);
 
  protected:
   void Visit(const ir::_LoweredFunc_* op) override;
@@ -81,8 +80,7 @@ class CodeGenCUDA_Dev : public CodeGenC {
 
  private:
   Target target_;
-
-  bool for_nvrtc_ = false;
+  bool for_nvrtc_{false};
 };
 
 }  // namespace backends

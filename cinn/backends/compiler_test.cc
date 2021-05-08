@@ -9,12 +9,13 @@
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/runtime/use_extern_funcs.h"
+#include "cinn/utils/timer.h"
 
 namespace cinn {
 namespace backends {
 
 TEST(Compiler, x86) {
-  Expr M(10), N(20);
+  Expr M(1024), N(1024);
 
   auto create_module = [&]() {
     Placeholder<float> A("A", {M, N});
@@ -32,7 +33,7 @@ TEST(Compiler, x86) {
 
     auto fn = Lower("fn", stages, {A, B, C});
 
-    lang::Module::Builder builder("some_module", common::DefaultHostTarget());
+    ir::Module::Builder builder("some_module", common::DefaultHostTarget());
     builder.AddFunction(fn);
 
     auto compiler = Compiler::Create(common::DefaultHostTarget());
@@ -56,8 +57,21 @@ TEST(Compiler, x86) {
       ASSERT_NEAR(Ad[i] + Bd[i], Cd[i], 1e-5);
     }
   }
+}
 
 #ifdef CINN_WITH_CUDA
+TEST(Compiler, cuda) {
+  Expr M(1024), N(1024);
+
+  auto create_module = [&]() {
+    Placeholder<float> A("A", {M, N});
+    Placeholder<float> B("B", {M, N});
+
+    auto C = Compute(
+        {M, N}, [=](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+    return std::make_tuple(A, B, C);
+  };
+
   {                                    // cuda
     auto [A, B, C] = create_module();  // NOLINT
     auto stages    = CreateStages({C});
@@ -67,7 +81,7 @@ TEST(Compiler, x86) {
 
     auto fn = Lower("fn", stages, {A, B, C});
 
-    lang::Module::Builder builder("some_module", common::DefaultHostTarget());
+    ir::Module::Builder builder("some_module", common::DefaultHostTarget());
     builder.AddFunction(fn);
 
     auto compiler = Compiler::Create(common::DefaultNVGPUTarget());
@@ -99,7 +113,16 @@ TEST(Compiler, x86) {
     Cbb.memory = reinterpret_cast<uint8_t*>(Cg);
 
     auto args = common::ArgsBuilder().Add(&Abb).Add(&Bbb).Add(&Cbb).Build();
-    fnp(args.data(), args.size());
+
+    utils::Timer timer;
+    timer.Start();
+    for (int i = 0; i < 1000; i++) {
+      fnp(args.data(), args.size());
+    }
+
+    CUDA_CALL(cudaDeviceSynchronize());
+    float latency = timer.Stop();
+    LOG(INFO) << "latency: " << latency / 1000;
 
     std::vector<float> ch(M.as_int32() * N.as_int32(), 0.f);
     CUDA_CALL(cudaMemcpy(ch.data(), Cg, ch.size() * sizeof(float), cudaMemcpyDeviceToHost));
@@ -110,8 +133,8 @@ TEST(Compiler, x86) {
       ASSERT_NEAR(Ad[i] + Bd[i], ch[i], 1e-5);
     }
   }
-#endif
 }
+#endif
 
 TEST(Compiler, sqrt) {
   Expr N(100);

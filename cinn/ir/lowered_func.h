@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "cinn/ir/buffer.h"
-#include "cinn/ir/node.h"
+#include "cinn/ir/ir_base.h"
 
 namespace cinn {
 namespace ir {
@@ -149,13 +149,18 @@ struct _LoweredFunc_ : ExprNode<_LoweredFunc_> {
 
   bool is_gpu_host() const { return cuda_axis_info.valid(); }
 
+  void Verify() const override {}
+
   std::vector<Expr*> expr_fields() override;
   std::vector<const Expr*> expr_fields() const override;
 
   static const IrNodeTy _node_type_ = IrNodeTy::_LoweredFunc_;
 
+  std::vector<Expr> PrepareCreateTempBufferExprs() const;
   //! Prepare the expressions for `alloc_tmp_buffer_exprs`.
   std::vector<Expr> PrepareAllocTempBufferExprs() const;
+  std::vector<Expr> PrepareDeallocTempBufferExprs() const;
+  std::vector<Expr> CudaPrepareAllocTempBufferExprs() const;
   std::vector<Expr> CudaAliasVarExprs() const;
 
  private:

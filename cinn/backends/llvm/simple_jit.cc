@@ -15,6 +15,7 @@
 #include <llvm/Transforms/Scalar/Reassociate.h>
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
 
+#include <string>
 #include <utility>
 
 #include "cinn/backends/codegen_cuda_host.h"
@@ -95,7 +96,7 @@ SimpleJIT::SimpleJIT() : context_(std::make_unique<llvm::LLVMContext>()) {
 }
 
 template <typename CodeGenT>
-void SimpleJIT::Link(lang::Module module, bool optimize) {
+void SimpleJIT::Link(ir::Module module, bool optimize) {
   std::string runtime_ir(backends::kRuntimeLlvmIr);
   llvm::SMDiagnostic error;
   auto m = llvm::parseAssemblyString(runtime_ir, error, context());
@@ -103,24 +104,15 @@ void SimpleJIT::Link(lang::Module module, bool optimize) {
   auto b = std::make_unique<llvm::IRBuilder<>>(context());
 
   auto ir_emitter = std::make_unique<CodeGenT>(m.get(), b.get());
-  for (auto &buffer : module->buffers) {
-    auto expr = runtime::BufferCreate(buffer.as_buffer_ref());
-    ir_emitter->Visit(&expr);
-  }
+  ir_emitter->Compile(module);
 
-  for (auto &fn : module.functions()) {
-    VLOG(1) << "JIT Linking function [" << fn->name << "]";
-    ir::Expr fn_expr(fn);
-    auto fnll = ir_emitter->Visit(&fn_expr);
-
-    VLOG(5) << "fn llvm:\n" << DumpToString(*fnll);
-  }
+  CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module found";
 
   AddModule(std::move(m), optimize);
 }
 
-template void SimpleJIT::Link<CodeGenLLVM>(lang::Module module, bool optimize);
-template void SimpleJIT::Link<CodeGenCUDA_Host>(lang::Module module, bool optimize);
+template void SimpleJIT::Link<CodeGenLLVM>(ir::Module module, bool optimize);
+template void SimpleJIT::Link<CodeGenCUDA_Host>(ir::Module module, bool optimize);
 
 }  // namespace backends
 

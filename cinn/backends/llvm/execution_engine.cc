@@ -135,24 +135,15 @@ std::unique_ptr<llvm::MemoryBuffer> NaiveObjectCache::getObject(const llvm::Modu
 }
 
 template <typename CodeGenT>
-void ExecutionEngine::Link(const lang::Module &module) {
+void ExecutionEngine::Link(const ir::Module &module) {
   llvm::SMDiagnostic error;
-  auto ctx     = std::make_unique<llvm::LLVMContext>();
-  auto m       = llvm::parseAssemblyString(AsStringRef(backends::kRuntimeLlvmIr), error, *ctx);
-  auto b       = std::make_unique<llvm::IRBuilder<>>(*ctx);
-  auto emitter = std::make_unique<CodeGenT>(m.get(), b.get());
-
-  for (auto &buffer : module->buffers) {
-    auto expr = runtime::BufferCreate(buffer.as_buffer_ref());
-    emitter->Visit(&expr);
-  }
-
-  for (auto &function : module.functions()) {
-    ir::Expr expr(function);
-    auto *f = emitter->Visit(&expr);
-    CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module detected";
-  }
-
+  auto ctx        = std::make_unique<llvm::LLVMContext>();
+  auto m          = llvm::parseAssemblyString(AsStringRef(backends::kRuntimeLlvmIr), error, *ctx);
+  auto b          = std::make_unique<llvm::IRBuilder<>>(*ctx);
+  auto ir_emitter = std::make_unique<CodeGenT>(m.get(), b.get());
+  VLOG(3) << "ir_emitter->Compile(module) Begin";
+  ir_emitter->Compile(module);
+  VLOG(3) << "ir_emitter->Compile(module) Succeed!";
   CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module found";
 
   auto machine =
@@ -213,8 +204,8 @@ void ExecutionEngine::RegisterRuntimeSymbols() {
   }
 }
 
-template void ExecutionEngine::Link<CodeGenLLVM>(const lang::Module &module);
-template void ExecutionEngine::Link<CodeGenX86>(const lang::Module &module);
-template void ExecutionEngine::Link<CodeGenCUDA_Host>(const lang::Module &module);
+template void ExecutionEngine::Link<CodeGenLLVM>(const ir::Module &module);
+template void ExecutionEngine::Link<CodeGenX86>(const ir::Module &module);
+template void ExecutionEngine::Link<CodeGenCUDA_Host>(const ir::Module &module);
 
 }  // namespace cinn::backends

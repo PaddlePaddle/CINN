@@ -53,10 +53,13 @@ typedef struct cinn_type_t {
   //! Number of elements in a vector, 1 for scalar.
   uint16_t lanes;
 
+  //! Number of '*', e.g. for `float*`, the num_asterisks is 1, `float**` it is 2.
+  uint8_t num_asterisks{0};
+
 #ifdef __cplusplus
   CINN_ALWAYS_INLINE cinn_type_t() : code(cinn_type_int), bits(0), lanes(0) {}
-  CINN_ALWAYS_INLINE cinn_type_t(cinn_type_code_t code, uint8_t bits, uint16_t lanes = 1)
-      : code(code), bits(bits), lanes(lanes) {}
+  CINN_ALWAYS_INLINE cinn_type_t(cinn_type_code_t code, uint8_t bits, uint16_t lanes = 1, uint8_t num_asterisks = 0)
+      : code(code), bits(bits), lanes(lanes), num_asterisks(num_asterisks) {}
   CINN_ALWAYS_INLINE bool operator==(const cinn_type_t& other) const {
     return code == other.code && bits == other.bits && lanes == other.lanes;
   }
@@ -68,12 +71,14 @@ typedef struct cinn_type_t {
 //! Some primitive types.
 // @{
 extern cinn_type_t cinn_unk_t();
-extern cinn_type_t cinn_int32_t();
-extern cinn_type_t cinn_int64_t();
-extern cinn_type_t cinn_uint32_t();
-extern cinn_type_t cinn_uint64_t();
-extern cinn_type_t cinn_float32_t();
-extern cinn_type_t cinn_float64_t();
+extern cinn_type_t cinn_bool_t(int num_asterisks = 0);
+extern cinn_type_t cinn_int8_t(int num_asterisks = 0);
+extern cinn_type_t cinn_int32_t(int num_asterisks = 0);
+extern cinn_type_t cinn_int64_t(int num_asterisks = 0);
+extern cinn_type_t cinn_uint32_t(int num_asterisks = 0);
+extern cinn_type_t cinn_uint64_t(int num_asterisks = 0);
+extern cinn_type_t cinn_float32_t(int num_asterisks = 0);
+extern cinn_type_t cinn_float64_t(int num_asterisks = 0);
 // @}
 
 //! Help to define the size of a dimension, due to polyhedral representation, we no need to record the extend or
@@ -141,6 +146,9 @@ extern int cinn_buffer_free(void* context, struct cinn_buffer_t* buf);
 extern void* cinn_buffer_get_data_handle(struct cinn_buffer_t* buf);
 extern void* cinn_buffer_get_data_const_handle(const struct cinn_buffer_t* buf);
 
+//! Create a new default cinn_buffer.
+extern cinn_buffer_t* cinn_buffer_new_default(int target, uint64_t memory_size, int align = 32);
+
 //! The raw representation of a buffer,used in the generated code/lib.
 #define CINN_BUFFER_MAX_DIMS 8
 typedef struct cinn_buffer_t {
@@ -179,9 +187,9 @@ typedef struct cinn_buffer_t {
         flag(0UL),
         type(cinn_type_t()),
         dimensions(0),
+        lazy(true),
         memory_size(0),
-        align(0),
-        lazy(true) {}
+        align(0) {}
 
   static struct cinn_buffer_t* new_(cinn_device_kind_t device,
                                     cinn_type_t type,
@@ -200,8 +208,8 @@ typedef struct cinn_buffer_t {
     memcpy(this->dims, dims, dimensions * sizeof(cinn_dimension_t));
   }
 
-  CINN_ALWAYS_INLINE int num_elements() const {
-    int res = 1;
+  CINN_ALWAYS_INLINE uint64_t num_elements() const {
+    uint64_t res = 1;
     for (int i = 0; i < dimensions; i++) {
       res *= dims[i];
     }
@@ -339,6 +347,7 @@ struct cinn_pod_value_t {
 
   cinn_pod_value_t(cinn_value_t value, int type_code);
   explicit cinn_pod_value_t(cinn_buffer_t* value);
+  explicit cinn_pod_value_t(int8_t value);
   explicit cinn_pod_value_t(int32_t value);
   explicit cinn_pod_value_t(int64_t value);
   explicit cinn_pod_value_t(float value);
@@ -350,6 +359,7 @@ struct cinn_pod_value_t {
   //@{
   operator double() const;
   operator float() const;
+  operator int8_t() const;
   operator int32_t() const;
   operator int64_t() const;
   operator void*() const;
@@ -388,6 +398,7 @@ float cinn_pod_value_to_float(cinn_pod_value_t* value);
 double cinn_pod_value_to_double(cinn_pod_value_t* value);
 int64_t cinn_pod_value_to_int64(cinn_pod_value_t* value);
 int32_t cinn_pod_value_to_int32(cinn_pod_value_t* value);
+int8_t cinn_pod_value_to_int8(cinn_pod_value_t* value);
 void* cinn_pod_value_to_void_p(cinn_pod_value_t* value);
 cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value);
 // @}

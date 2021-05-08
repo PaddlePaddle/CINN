@@ -26,19 +26,15 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
 
       // Declare pod_array.
       oprs.push_back(ir::Let::Make(pod_array_var, Expr()));
+      oprs.push_back(ir::intrinsics::ArgsConstruct::Make(pod_array_var, args));
 
-      args.insert(args.begin(), common::make_const(Int(32), op->total_args_count()));
-      args.insert(args.begin(), runtime::GetAddr(type_of<cinn_pod_value_t*>(), pod_array_var));
-      oprs.push_back(runtime::IntrinsicCall(Void(), runtime::intrisic::args_construct_repr, args));
-
-      auto new_call = ir::Call::Make(
-          Void(),
-          op->name,
-          {runtime::GetAddr(type_of<cinn_pod_value_t*>(), pod_array_var), common::make_const(Int(32), args.size())},
-          {},
-          ir::CallType::CINN,
-          op->func,
-          op->value_index);
+      auto new_call = ir::Call::Make(Void(),
+                                     op->name,
+                                     {pod_array_var, common::make_const(Int(32), args.size())},
+                                     {},
+                                     ir::CallType::CINN,
+                                     op->func,
+                                     op->value_index);
 
       oprs.push_back(new_call);
 
@@ -56,7 +52,7 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
       // declare the array.
       exprs.push_back(ir::Let::Make(pod_var, Expr()));
 
-      auto pod_val_addr_expr = runtime::GetAddr(type_of<cinn_pod_value_t*>(), pod_var);
+      auto pod_val_addr_expr = ir::intrinsics::GetAddr::Make(pod_var);
 
       Expr cast;
       if (arg.As<ir::_Buffer_>()) {
@@ -74,7 +70,6 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
       }
 
       exprs.push_back(cast);
-
       args.push_back(pod_val_addr_expr);
     };
 

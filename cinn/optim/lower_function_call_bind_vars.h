@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cinn/ir/ir.h"
-#include "cinn/lang/module.h"
+#include "cinn/ir/module.h"
 
 namespace cinn {
 namespace optim {

@@ -1,14 +1,14 @@
-set(srcs
-        host_intrinsics.cc
-        mkl_math.cc
-        cblas.cc
-        )
+core_gather_headers()
 
-cc_test(test_mkl_math SRCS mkl_math_test.cc mkl_math.cc DEPS core)
-cc_test(test_host_intrinsics SRCS host_intrinsics_test.cc DEPS core)
-
-foreach(cpp ${srcs})
-    set(core_src
-            "${core_src};cinn/runtime/cpu/${cpp}"
-            CACHE INTERNAL "")
-endforeach()
+core_gather_srcs(SRCS
+    host_intrinsics.cc
+    mkl_math.cc
+    cblas.cc
+    mkldnn_math.cc
+    thread_backend.cc
+)
+if (NOT WITH_CUDA)
+cc_test(test_mkl_math SRCS mkl_math_test.cc mkl_math.cc DEPS cinncore)
+endif()
+cc_test(test_host_intrinsics SRCS host_intrinsics_test.cc DEPS cinncore)
+cc_test(test_mkldnn_math SRCS mkldnn_math_test.cc mkldnn_math.cc DEPS cinncore)

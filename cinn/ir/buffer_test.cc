@@ -7,11 +7,11 @@
 #include "cinn/backends/codegen_c.h"
 #include "cinn/cinn.h"
 #include "cinn/common/common.h"
+#include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/buffer.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
-#include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 
 namespace cinn {
@@ -26,6 +26,9 @@ TEST(Buffer, basic) {
 
   // Check shared
   ASSERT_EQ(ref_count(buffer.get()).val(), 1);
+
+  ASSERT_EQ(buffer->type(), type_of<cinn_buffer_t*>());
+  ASSERT_EQ(buffer->dtype, ptr->type());
 
   {
     auto buffer1 = buffer;
@@ -55,11 +58,12 @@ TEST(Buffer, bind_to_multiple_tensors) {
   target.bits = Target::Bit ::k32;
   target.os   = Target::OS ::Linux;
 
-  lang::Module::Builder builder("module1", target);
+  ir::Module::Builder builder("module1", target);
   builder.AddFunction(funcs);
   builder.AddBuffer(A->buffer);
 
   backends::CodeGenC codegen(target);
+  codegen.SetInlineBuiltinCodes(false);
   auto out = codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
   std::cout << "codegen C:" << std::endl << out << std::endl;
 }

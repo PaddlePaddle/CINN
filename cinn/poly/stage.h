@@ -27,6 +27,7 @@ struct ComputeAtRelation;
 enum class ScopeKind {
   kLocal  = 0,
   kShared = 1,
+  kGlobal = 2,
 };
 
 class StageMap;
@@ -114,7 +115,11 @@ class Stage : public Object {
 
   //! Expression contained in this stage.
   const Expr& expr() const { return expr_; }
-
+  //! Change this stage's domain to be consistent with other's domain.
+  void ChangeDomain(Stage* other, int level);
+  //! Add for loop in this stage's transform and replace this tensor's index in
+  //! this tensor's compute body.
+  void ChangeIndex(Stage* other);
   //! Get the i-th axis.
   Iterator axis(int i) const;
   //! Get the axis named \p i.
@@ -156,6 +161,7 @@ class Stage : public Object {
    * @param order the order of all the iterators.
    */
   void Reorder(const std::vector<Iterator>& order);
+  void Reorder(const std::vector<int>& order);
 
   /**
    * Tile the two loop levels \p level0 and \p level1 with rectangular tiling.
@@ -177,6 +183,12 @@ class Stage : public Object {
   void Vectorize(int level, int factor);
   void Vectorize(const std::string& axis, int factor);
   void Vectorize(const Iterator& axis, int factor);
+
+  /**
+   * Parallel a for-loop.
+   * @param level
+   */
+  void Parallel(int level);
 
   /**
    * Unroll a for-loop.
@@ -229,12 +241,28 @@ class Stage : public Object {
    */
   ir::Tensor CacheRead(const std::string& memory_type, const std::vector<ir::Tensor>& readers, poly::StageMap stages);
 
+  ir::Tensor CacheRead2(const std::string& memory_type, std::vector<ir::Tensor>& readers, poly::StageMap stages);
+
+  void ComputeAt2(Stage* other, int level, ComputeAtKind kind = kComputeAtBefore);
+
+  void AddForLoopInTransform(std::vector<std::vector<Expr>>& indices);
   /**
    * Create a cache for write to the original tensor.
    * @param tensor the tensor to create the cache for.
    * @param memory_type "share" for CUDA share memory, "local" for CUDA local memory.
    */
   ir::Tensor CacheWrite(const std::string& memory_type, poly::StageMap stages);
+
+  ir::Tensor CacheWrite2(const std::string& memory_type, poly::StageMap stages);
+
+  /**
+   * Generate the `syncthreads()` code to sync all threads on CUDA backends.
+   * For other backends like Opencl, generate corresponding code to sync multi threads.
+   * @param tensor the exact tensor computed just before syncthreads.
+   * @param after_tensors the tensors computed after syncthreads.
+   * @param stages the stagemap of all tensor.
+   */
+  void SyncThreads(const std::vector<ir::Tensor>& after_tensors, StageMap stages);
 
   /**
    * Set thread scope.
@@ -282,6 +310,7 @@ class Stage : public Object {
 
   inline const ir::VectorizeInfo& vectorize_info() const { return vectorize_info_; }
   inline const std::set<int>& unroll_info() const { return unroll_info_; }
+  inline const std::set<int>& parallel_info() const { return parallel_info_; }
 
   /*
   const std::set<std::string>& extra_depend_stages() const { return extra_depend_stages_; }
@@ -298,6 +327,22 @@ class Stage : public Object {
   void ComputeAtSchedule(Stage* other, int level, ComputeAtKind kind = kComputeAtAuto);
 
   ir::Tensor LookupCtrlDepend(const std::string& tensor_name) const;
+
+  //! Get number of transform output dimensions, this equals to the number of forloops in generated code.
+  inline int n_in_dims() const { return isl_map_dim(transform_.get(), isl_dim_in); }
+  //! Get number of transform output dimensions, this equals to the number of dimensions of corresponding tensor.
+  inline int n_out_dims() const { return isl_map_dim(transform_.get(), isl_dim_out); }
+
+  //! Copy other stage's transform.
+  //! For example, if the target_transform is `Split(0,1)`,
+  //! this api will apply `Split(0,1)` on itself.
+  void CopyTransform(Stage* other, int level = -1);
+  //! Edit temp tensor's shape, its buffer's shape and index when doing ComputeAt2.
+  void EditTempTensor(Stage* other, int level);
+  //! Copy other stage's LoopInfo.
+  //! For example, if the target_forloop_infos is `Bind(0,"threadIdx.x")`,
+  //! this api will apply `Bind(0,"threadIdx.x")` on itself.
+  void CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::map& target_transform);
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
@@ -318,11 +363,6 @@ class Stage : public Object {
   //! Assert that the axis is not locked, abort if fail.
   void AssertAxisIsNotLocked(uint32_t level);
 
-  //! Get number of transform output dimensions, this equals to the number of forloops in generated code.
-  inline int n_in_dims() const { return isl_map_dim(transform_.get(), isl_dim_in); }
-  //! Get number of transform output dimensions, this equals to the number of dimensions of corresponding tensor.
-  inline int n_out_dims() const { return isl_map_dim(transform_.get(), isl_dim_out); }
-
   static constexpr char* __type_info__ = "Stage";
 
  private:
@@ -334,13 +374,14 @@ class Stage : public Object {
   ir::VectorizeInfo vectorize_info_;
   //! The for-loop levels to unroll.
   std::set<int> unroll_info_;
+  //! The for-loop levels to parallel.
+  std::set<int> parallel_info_;
   //! Record some forloop levels' information.
   std::map<int /*level*/, StageForloopInfo> forloop_infos_;
   //! A weak reference to the tensor.
   ir::_Tensor_* tensor_{};
   //! Thread scope.
-  ScopeKind scope_{ScopeKind::kLocal};
-
+  ScopeKind scope_{ScopeKind::kGlobal};
   std::set<ir::Tensor> ctrl_depends_;
 
   std::set<int> locked_axis_;
@@ -392,6 +433,8 @@ class _StageMap_ : public Object {
   Stage* Insert(const ir::Tensor& key, Stage* stage);
   //! Insert a stage only if not exists.
   Stage* InsertLazily(const ir::Tensor& key);
+
+  Stage* InsertLazily(const ir::Tensor& key, Stage* stage);
 
   //! Lookup a tensor from the map, return nullptr if not exists.
   Stage* Lookup(const std::string& name) const;

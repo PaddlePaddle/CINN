@@ -11,7 +11,7 @@ namespace cinn {
 namespace common {
 
 #ifdef CINN_WITH_CUDA
-void CudaModuleTester::Compile(const lang::Module& m, const std::string& rewrite_cuda_code) {
+void CudaModuleTester::Compile(const ir::Module& m, const std::string& rewrite_cuda_code) {
   auto [host_module, device_module] = backends::SplitCudaAndHostModule(m);  // NOLINT
   CHECK(!host_module.functions().empty());
   CHECK(!device_module.functions().empty());

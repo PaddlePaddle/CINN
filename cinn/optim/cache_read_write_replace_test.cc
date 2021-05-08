@@ -32,24 +32,24 @@ TEST(CacheReadWriteReplace, basic) {
   auto target = R"ROC(
 function fn (_A, _B, _C)
 {
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 20)
+    for (j, 0, 20)
     {
       A_read_cache[i, j] = A[i, j]
     }
   }
   __syncthreads()
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 20)
+    for (j, 0, 20)
     {
       C[i, j] = (A_read_cache[i, j] + B[i, j])
     }
   }
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 20)
+    for (j, 0, 20)
     {
       C_cache_write_out[i, j] = C[i, j]
     }
@@ -89,16 +89,16 @@ TEST(CacheReadWriteReplace, cache_write) {
   auto target_source = R"ROC(
 function fn (_A, _B, _C1_cache_write_out)
 {
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 100)
+    for (j, 0, 100)
     {
       C1[i, j] = (3 + A[i, j])
     }
   }
-  for (i, 100)
+  for (i, 0, 100)
   {
-    for (j, 100)
+    for (j, 0, 100)
     {
       C1_cache_write_out[i, j] = C1[i, j]
     }

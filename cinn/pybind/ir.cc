@@ -1,5 +1,6 @@
 #include "cinn/ir/ir.h"
 
+#include <llvm/Support/FormatVariadic.h>
 #include <pybind11/functional.h>
 #include <pybind11/operators.h>
 #include <pybind11/stl.h>
@@ -7,11 +8,11 @@
 #include <string>
 #include <type_traits>
 
+#include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/lowered_func.h"
-#include "cinn/ir/node.h"
 #include "cinn/ir/operation.h"
 #include "cinn/ir/registry.h"
 #include "cinn/ir/tensor.h"
@@ -23,13 +24,15 @@
 namespace py = pybind11;
 
 namespace cinn::pybind {
-using cinn::ir::IrNode;
-using cinn::ir::IrNodeRef;
-using cinn::ir::IrNodeTy;
+using ir::IrNode;
+using ir::IrNodeRef;
+using ir::IrNodeTy;
 
 // lowered_func.h
 using ir::Argument;
+using ir::Expr;
 using ir::LoweredFunc;
+using ir::Var;
 
 namespace {
 void BindLoweredFunc(py::module *);
@@ -65,7 +68,7 @@ void BindLoweredFunc(py::module *m) {
       .def(py::init<IrNode *>())
       .def("__str__", [](const ir::LoweredFunc &self) -> std::string { return utils::GetStreamCnt(Expr(self)); })
       .def("__repr__", [](const ir::LoweredFunc &self) -> std::string {
-        return utils::StringFormat("<LoweredFunc %s>", self->name.c_str());
+        return llvm::formatv("<LoweredFunc {0}>", self.get(), self->name.c_str());
       });
 }
 
@@ -82,7 +85,6 @@ void BindNode(py::module *m) {
   ir_node.def(py::init<>())
       .def(py::init<ir::Type>())
       .def_readwrite("operands", &ir::IrNode::operands)
-      .def("accept", &ir::IrNode::Accept)
       .def("node_type", &ir::IrNode::node_type)
       .def("type", &ir::IrNode::type)
       .def("set_type", &ir::IrNode::set_type)
@@ -98,8 +100,7 @@ void BindNode(py::module *m) {
   ir_node_ref.def(py::init<>())
       .def(py::init<const ir::IrNodeRef &>())
       .def(py::init<ir::IrNode *>())
-      .def("node_type", &ir::IrNodeRef::node_type)
-      .def("accept", &ir::IrNodeRef::Accept);
+      .def("node_type", &ir::IrNodeRef::node_type);
 
   // struct IntImm : ExprNode<IntImm>
   DefineExprNode<ir::IntImm>(m, "IntImm");
@@ -107,7 +108,8 @@ void BindNode(py::module *m) {
   int_imm.def_readwrite("value", &ir::IntImm::value)
       .def(py::init<Type, int64_t>())
       .def("__str__", [](const ir::IntImm &self) { return std::to_string(self.value); })
-      .def("__repr__", [](const ir::IntImm &self) { return utils::StringFormat("<IntImm %d>", self.value); });
+      .def("__repr__",
+           [](ir::IntImm &self) -> std::string { return llvm::formatv("<IntImm {0}>", self.self(), self.value); });
 
   // struct UIntImm : ExprNode<UIntImm>
   DefineExprNode<ir::UIntImm>(m, "UIntImm");
@@ -141,9 +143,15 @@ void BindNode(py::module *m) {
   expr.def("as_int32", &ir::Expr::as_int32)
       .def("as_int64", &ir::Expr::as_int64)
       .def("as_float", &ir::Expr::as_float)
-      .def("as_double", &ir::Expr::as_double);
+      .def("as_double", &ir::Expr::as_double)
+      .def("int", [](ir::Expr &self) { return self.As<ir::IntImm>()->value; })
+      .def("float", [](ir::Expr &self) { return self.As<ir::FloatImm>()->value; })
 
-  expr.def("__str__", [](const Expr &self) { return utils::GetStreamCnt(self); });
+      .def("__str__", [](const Expr &self) { return utils::GetStreamCnt(self); })
+      .def("__repr__", [](const Expr &self) -> std::string {
+        std::string content = self.get() ? utils::GetStreamCnt(self) : "";
+        return llvm::formatv("<cinn.ir.Expr {0}>", content);
+      });
 
   expr.def("as_var_mutable", py::overload_cast<>(&ir::Expr::as_var), py::return_value_policy::reference)
       .def("as_var_const", py::overload_cast<>(&ir::Expr::as_var, py::const_), py::return_value_policy::reference)
@@ -211,8 +219,7 @@ void BindIrIr(py::module *m) {
   py::class_<ir::Cast, ExprNode<ir::Cast>> cast(*m, "Cast");
   cast.def(py::init<>())
       .def("v_mutable", py::overload_cast<>(&ir::Cast::v), py::return_value_policy::reference)
-      .def("v_const", py::overload_cast<>(&ir::Cast::v, py::const_), py::return_value_policy::reference)
-      .def("accept", &ir::Cast::Accept);
+      .def("v_const", py::overload_cast<>(&ir::Cast::v, py::const_), py::return_value_policy::reference);
 
   // struct Let : ExprNode<Let>
   DefineExprNode<ir::Let>(m, "Let");
@@ -373,6 +380,8 @@ void BindIrIr(py::module *m) {
       .def("get_const", py::overload_cast<>(&Var::get, py::const_), py::return_value_policy::reference)
       .def("to_expr_mutable", py::overload_cast<>(&Var::operator ir::Expr))
       .def("to_expr_const", py::overload_cast<>(&Var::operator ir::Expr, py::const_))
+      .def("__repr__", [](Var &self) -> std::string { return llvm::formatv("<cinn.ir.Var {0}>", self->name); })
+      .def("expr", [](Var &self) -> Expr { return Expr(self->self()); })
 
           BIND_POD_BINARY_OP(int())  //
       BIND_POD_BINARY_OP(int32_t())  //
@@ -472,7 +481,13 @@ void BindOperation(py::module *m) {
 
 void BindIrTensor(py::module *m) {
   py::class_<ir::Tensor, ir::IrNodeRef> tensor(*m, "Tensor");
-  tensor.def(py::init<>()).def(py::init<ir::IrNode *>()).def("ndims", &ir::Tensor::ndims);
+  tensor.def(py::init<>())
+      .def(py::init<ir::IrNode *>())
+      .def("ndims", &ir::Tensor::ndims)
+      .def("__call__", [](ir::Tensor &self, Expr a) { return self(a); })
+      .def("__call__", [](ir::Tensor &self, Expr a, Expr b) { return self(a, b); })
+      .def("__call__", [](ir::Tensor &self, Expr a, Expr b, Expr c) { return self(a, b, c); })
+      .def("__call__", [](ir::Tensor &self, Expr a, Expr b, Expr c, Expr d) { return self(a, b, c, d); });
 
   DefineExprNode<ir::_Tensor_>(m, "_Tensor_");
   py::class_<ir::_Tensor_, ir::ExprNode<ir::_Tensor_>> _tensor_(*m, "_Tensor_");
@@ -517,9 +532,10 @@ void BindIrTensor(py::module *m) {
            py::overload_cast<const ir::Type &>(&ir::_Tensor_::WithBuffer),
            py::arg("type") = Type::type_t::Void)
       .def("with_buffer",
-           py::overload_cast<const std::string &, const ir::Type &>(&ir::_Tensor_::WithBuffer),
+           py::overload_cast<const std::string &, const std::string &, const ir::Type &>(&ir::_Tensor_::WithBuffer),
            py::arg("memory_type"),
-           py::arg("type") = Type::type_t::Void)
+           py::arg("buffer_name") = "",
+           py::arg("type")        = Type::type_t::Void)
       .def("bind", py::overload_cast<lang::Buffer &>(&ir::_Tensor_::Bind))
       .def("bind", py::overload_cast<const ir::Buffer &>(&ir::_Tensor_::Bind))
       .def("__str__", [](const ir::Tensor &self) { return "<Tensor " + self->name + ">"; });

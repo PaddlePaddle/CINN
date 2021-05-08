@@ -5,6 +5,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "cinn/common/common.h"
@@ -14,6 +15,7 @@
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/optim/tensor_write_tell.h"
 #include "cinn/runtime/intrinsic.h"
+#include "cinn/utils/string.h"
 
 namespace cinn {
 namespace ir {
@@ -33,10 +35,12 @@ LoweredFunc _LoweredFunc_::Make(const std::string& name,
 
   n->CheckValid();
   n->PrepareAllocOutputBufferExprs();
+  n->PrepareCreateTempBufferExprs();
   n->PrepareAllocTempBufferExprs();
   n->AllocTempBuffer();
   n->PrepareBufferCastExprs();
   n->PrepareArgumentExprs();
+  n->PrepareDeallocTempBufferExprs();
   n->PrepareDeallocOutputBufferExprs();
   return LoweredFunc(n);
 }
@@ -72,8 +76,45 @@ void _LoweredFunc_::PrepareAllocOutputBufferExprs() {
 }
 
 std::vector<Expr> _LoweredFunc_::PrepareAllocTempBufferExprs() const {
-  std::vector<Expr> alloc_output_buffer_exprs;
+  std::vector<Expr> alloc_temp_buffer_exprs;
   for (auto& temp_buf : temp_bufs) {
+    if (!temp_buf->shape.empty() && temp_buf->type() != Void()) {
+      alloc_temp_buffer_exprs.push_back(Alloc::Make(temp_buf, temp_buf->type(), temp_buf->shape, Expr(), Expr()));
+    }
+  }
+  return alloc_temp_buffer_exprs;
+}
+
+std::vector<Expr> _LoweredFunc_::PrepareDeallocTempBufferExprs() const {
+  std::vector<Expr> dealloc_temp_buffer_exprs;
+  for (auto& temp_buf : temp_bufs) {
+    if (!temp_buf->shape.empty() && temp_buf->type() != Void()) {
+      dealloc_temp_buffer_exprs.push_back(Free::Make(temp_buf));
+    }
+  }
+  return dealloc_temp_buffer_exprs;
+}
+
+std::vector<Expr> _LoweredFunc_::PrepareCreateTempBufferExprs() const {
+  std::vector<Expr> create_temp_buffer_exprs;
+  for (auto& temp_buf : temp_bufs) {
+    if (!temp_buf->shape.empty() && temp_buf->type() != Void()) {
+      auto expr            = ir::intrinsics::BufferCreate::Make(temp_buf);
+      auto buffer_ptr_type = Type().set_customized_type(common::customized_type::kbuffer_t).set_cpp_handle();
+      Var variable         = ir::_Var_::Make(temp_buf->name, buffer_ptr_type);
+      expr                 = ir::Let::Make(variable, expr);
+      create_temp_buffer_exprs.push_back(expr);
+    }
+  }
+  return create_temp_buffer_exprs;
+}
+
+std::vector<Expr> _LoweredFunc_::CudaPrepareAllocTempBufferExprs() const {
+  std::vector<Expr> alloc_output_buffer_exprs;
+  for (auto temp_buf : temp_bufs) {
+    if (utils::Startswith(temp_buf->name, "_")) {
+      temp_buf->name = temp_buf->name.substr(1);
+    }
     if (!temp_buf->shape.empty() && temp_buf->type() != Void()) {
       alloc_output_buffer_exprs.push_back(Alloc::Make(temp_buf, temp_buf->type(), temp_buf->shape, Expr(), Expr()));
     }
@@ -117,15 +158,22 @@ void _LoweredFunc_::PrepareBufferCastExprs() {
     value_type.set_cpp_const(is_const);
     Var variable = _Var_::Make(tensor->name, value_type);
 
-    Expr body = runtime::BufferGetDataHandle(tensor->buffer, is_const);
+    Expr body = is_const ? ir::intrinsics::BufferGetDataConstHandle::Make(tensor->buffer)
+                         : ir::intrinsics::BufferGetDataHandle::Make(tensor->buffer);
 
-    auto let = Let::Make(variable, body);
+    Type target_type = is_const ? tensor->buffer->dtype.PointerOf().ConstOf() : tensor->buffer->dtype.PointerOf();
+    body             = ir::Cast::Make(target_type, body);
+    auto let         = Let::Make(variable, body);
 
     buffer_data_cast_exprs.push_back(let);
   }
 }
 
 std::vector<Expr> _LoweredFunc_::CudaAliasVarExprs() const {
+  std::unordered_set<std::string> args_buffer;
+  for (auto arg : args) {
+    args_buffer.insert(arg.name());
+  }
   // collect write.
   std::vector<Expr> res;
   optim::TensorWriteTeller write_teller;
@@ -140,7 +188,7 @@ std::vector<Expr> _LoweredFunc_::CudaAliasVarExprs() const {
     if (!tensor->buffer.defined()) {
       continue;
     }
-    if (tensor->name == tensor->buffer->name.substr(1)) {
+    if (tensor->name == tensor->buffer->name.substr(1) || args_buffer.count(tensor->buffer->name) == 0) {
       continue;
     }
     Type value_type = tensor->type().ElementOf();
@@ -193,6 +241,8 @@ void _LoweredFunc_::PrepareArgumentExprs() {
 
     // something like `_args[0]`
     Expr load_expr = Load::Make(pod_value_ptr, {common::make_const(i)});
+    CHECK_EQ(load_expr.type(), type_of<cinn_pod_value_t>());
+    load_expr = ir::intrinsics::GetAddr::Make(load_expr);
 
     Var _arg;
     bool is_const = arg.is_input();
@@ -211,17 +261,15 @@ void _LoweredFunc_::PrepareArgumentExprs() {
     Expr pod_cast_expr;
 
     if (arg.is_buffer()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_buffer_p, {load_expr});
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<cinn_buffer_t*>());
     } else if (arg.type() == type_of<int32_t>()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_int32, {load_expr});
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<int32_t>());
     } else if (arg.type() == type_of<int64_t>()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_int64, {load_expr});
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<int64_t>());
     } else if (arg.type() == type_of<float>()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_float, {load_expr});
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<float>());
     } else if (arg.type() == type_of<double>()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_double, {load_expr});
-    } else if (arg.type() == type_of<cinn_pod_value_t*>()) {
-      pod_cast_expr = runtime::IntrinsicCall(arg.type(), runtime::intrisic::pod_value_to_buffer_p, {load_expr});
+      pod_cast_expr = ir::intrinsics::PodValueToX::Make(load_expr, type_of<double>());
     } else {
       LOG(ERROR) << "Not supported type [" << arg.type() << "]";
       CINN_NOT_IMPLEMENTED

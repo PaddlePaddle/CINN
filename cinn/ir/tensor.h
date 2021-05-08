@@ -126,6 +126,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   //! The bound buffer, for each tensor if it is not inline.
   Buffer buffer;
 
+  std::vector<Expr> new_indices{};
   std::vector<Expr> domain_with_reduce_axis() const;
   const std::vector<Expr>& domain_without_reduce_axis() const { return domain; }
 
@@ -136,6 +137,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
                      const std::vector<Expr>& domain,
                      FunctionRef fn,
                      const std::vector<Var>& reduce_axis = {});
+
+  void Verify() const override;
 
   bool IsReduceInited(poly::StageMap stages) const;
 
@@ -238,7 +241,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
   /**
    * Tell if this tensor uses other tensors in the body.
    */
-  bool Uses(const ir::Tensor& other);
+  bool Uses(const ir::Tensor& other) const;
 
   //! Bind to a buffer, will persist data to the buffer in runtime.
   void Bind(lang::Buffer& buffer);  // NOLINT
@@ -247,7 +250,8 @@ class _Tensor_ : public ExprNode<_Tensor_> {
 
   //! Create a buffer belong to this tensor.
   void WithBuffer(const Type& type = Void());
-  void WithBuffer(const std::string& memory_type, const Type& type = Void());
+  void WithBuffer(const std::string& memory_type, const std::string& buffer_name = "", const Type& type = Void());
+  Tensor GetInitTensor(poly::StageMap stages, const Target& target = common::DefaultHostTarget()) const;
 
  private:
   //! Initialize the axis field after the shape field is assigned.
@@ -300,8 +304,9 @@ class _Operation_ : public ir::FunctionBase {
   //! Additional attributes of the operation.
   std::map<std::string, IrNodeRef> attrs;
 
-  void Accept(IRVisitor* v) const override {}
   const std::string& func_name() const final { return name; }
+
+  void Verify() const override {}
 
   //! The function type.
   virtual const char* func_type() const = 0;

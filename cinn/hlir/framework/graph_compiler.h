@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cinn/backends/compiler.h"
+#include "cinn/backends/cuda_util.h"
 #include "cinn/common/macros.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/instruction.h"
@@ -13,6 +14,7 @@
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/lang/packed_func.h"
+#include "cinn/utils/timer.h"
 
 namespace cinn {
 namespace hlir {
@@ -36,20 +38,36 @@ class Program {
    */
   void Execute() {
     for (auto& ins : instrs_) {
-      auto in_args  = ins->GetInArgs();
-      auto out_args = ins->GetOutArgs();
-      VLOG(3) << "Op in args: ";
-      for (auto& in : in_args) {
-        VLOG(3) << in << " ";
-      }
-      VLOG(3) << "Op out args: ";
-      for (auto& out : out_args) {
-        VLOG(3) << out << " ";
-      }
       ins->Run();
     }
+#ifdef CINN_WITH_CUDA
+    if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+      CUDA_CALL(cudaDeviceSynchronize());
+    }
+#endif
   }
 
+  void ExecuteTest(int repeat_) {
+    cinn::utils::Timer timer1;
+    for (int i = 0; i < 100; i++) {
+      for (auto& ins : instrs_) {
+        ins->Run();
+      }
+    }
+    timer1.Start();
+    for (int i = 0; i < repeat_; i++) {
+      for (auto& ins : instrs_) {
+        ins->Run();
+      }
+    }
+#ifdef CINN_WITH_CUDA
+    if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+      CUDA_CALL(cudaDeviceSynchronize());
+    }
+#endif
+    double test_op_time = timer1.Stop() / repeat_;
+    LOG(INFO) << "Repeat times: [" << repeat_ << "], average op time: [" << test_op_time << "] ms";
+  }
   /**
    * Get the number of instructions.
    */
@@ -69,13 +87,17 @@ class GraphCompiler final {
   GraphCompiler(Target target, const std::shared_ptr<Scope>& scope, const std::shared_ptr<Graph>& graph)
       : target_(std::move(target)), scope_(scope), graph_(graph), m_builder_(UniqName("module"), target) {}
 
-  std::unique_ptr<Program> Build();
+  std::unique_ptr<Program> Build(const std::string& code = "");
+
+  std::string GenSourceCode();
 
   void PrintFunc();
 
   const std::shared_ptr<Scope>& GetScope() const { return scope_; }
 
  private:
+  ir::LoweredFunc GetOpFunc(const std::vector<Node*>& nodes);
+
   ir::LoweredFunc GetOpFunc(const Node* node);
 
   std::string GenOpFuncName(const Node* node) const { return "fn_" + node->id(); }
@@ -94,7 +116,7 @@ class GraphCompiler final {
 
   std::unique_ptr<backends::Compiler> compiler_;
 
-  lang::Module::Builder m_builder_;
+  ir::Module::Builder m_builder_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(GraphCompiler);
 };

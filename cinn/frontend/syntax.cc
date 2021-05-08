@@ -100,7 +100,7 @@ Variable Program::softmax(const Variable& a, const std::unordered_map<std::strin
     instr.SetAttr(iter.first, iter.second);
   }
   AppendInstruction(instr);
-  return instr.GetOutput(1);
+  return instr.GetOutput(0);
 }
 
 Variable Program::sigmoid(const Variable& a) {
@@ -208,6 +208,15 @@ Variable Program::mul(const Variable& a, const Variable& b, int x_num_col_dims, 
   instr.SetAttr("y_num_col_dims", y_num_col_dims);
   AppendInstruction(instr);
   return instr.GetOutput(0);
+}
+
+Variable Program::mulbias(
+    const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims, int y_num_col_dims) {
+  Instruction instr("mulbias", {a, b, c});
+  instr.SetAttr("x_num_col_dims", x_num_col_dims);
+  instr.SetAttr("y_num_col_dims", y_num_col_dims);
+  AppendInstruction(instr);
+  return instr.GetOutput(1);
 }
 
 std::string _Instruction_::debug_string() const {

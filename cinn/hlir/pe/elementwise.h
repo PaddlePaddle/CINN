@@ -1,5 +1,8 @@
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "cinn/ir/ir.h"
 
 namespace cinn {
@@ -13,8 +16,9 @@ namespace pe {
  *
  * @return The result Tensor.
  */
-#define HLIR_DCL_UNARY_PE(name__) \
-  ir::Tensor name__(const ir::Tensor& A, const std::string& output_name = "T_" #name__ "_out");
+#define HLIR_DCL_UNARY_PE(name__)                                                                            \
+  std::vector<ir::Tensor> name__(const ir::Tensor& A, const std::string& output_name = "T_" #name__ "_out"); \
+  std::vector<ir::Tensor> name__##MKL(const ir::Tensor& A, const std::string& output_name = "T_" #name__ "_mkl_out");
 
 HLIR_DCL_UNARY_PE(Exp);
 HLIR_DCL_UNARY_PE(Erf);
@@ -37,10 +41,10 @@ HLIR_DCL_UNARY_PE(Asin);
 HLIR_DCL_UNARY_PE(Asinh);
 HLIR_DCL_UNARY_PE(Atan);
 HLIR_DCL_UNARY_PE(Atanh);
-HLIR_DCL_UNARY_PE(Isnan);
+HLIR_DCL_UNARY_PE(IsNan);
 HLIR_DCL_UNARY_PE(Tanh);
-HLIR_DCL_UNARY_PE(Isfinite);
-HLIR_DCL_UNARY_PE(Isinf);
+HLIR_DCL_UNARY_PE(IsFinite);
+HLIR_DCL_UNARY_PE(IsInf);
 
 HLIR_DCL_UNARY_PE(Negative);
 HLIR_DCL_UNARY_PE(Identity);

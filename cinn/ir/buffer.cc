@@ -47,7 +47,7 @@ Buffer _Buffer_::Make(Var data,
   node->data_alignment = data_alignment;
   node->offset_factor  = offset_factor;
   node->target         = target;
-  node->set_type(dtype);
+  node->dtype          = dtype;
   return Buffer(node);
 }
 
@@ -55,15 +55,16 @@ Buffer _Buffer_::Make(const std::string &name, const std::vector<Expr> &shape) {
   auto *node  = common::make_shared<_Buffer_>();
   node->name  = name;
   node->shape = shape;
+  node->dtype = Void();
   return Buffer(node);
 }
 
 Buffer _Buffer_::Make() {
-  auto *node = common::make_shared<_Buffer_>();
+  auto *node  = common::make_shared<_Buffer_>();
+  node->dtype = Void();
   return Buffer(node);
 }
 
-void _Buffer_::Accept(IRVisitor *v) const { v->Visit(this); }
 IrNodeTy _Buffer_::node_type() const { return _node_type_; }
 
 void _Buffer_::BindTo(const Tensor &tensor) { BindTo(tensor.As<_Tensor_>()); }
@@ -80,6 +81,12 @@ Var _Buffer_::buffer_addr() const {
   auto thetype = type().ElementOf();
   thetype.set_cpp_handle();
   return _Var_::Make(name, thetype);
+}
+
+void _Buffer_::Verify() const {
+  CHECK(!shape.empty());
+  CHECK(!name.empty());
+  CHECK(dtype.valid());
 }
 
 Expr Buffer::DestroyExpr() const {

@@ -28,9 +28,9 @@
 #include "cinn/cinn.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/ir/module.h"
 #include "cinn/lang/compute.h"
 #include "cinn/lang/lower.h"
-#include "cinn/lang/module.h"
 #include "cinn/lang/placeholder.h"
 #include "cinn/optim/optimize.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
@@ -92,7 +92,7 @@ auto CreateTestCinnModule() {
   target.arch = common::Target::Arch::X86;
   target.bits = common::Target::Bit::k32;
   target.os   = common::Target::OS::Linux;
-  lang::Module::Builder builder("module1", target);
+  ir::Module::Builder builder("module1", target);
 
   auto stages = CreateStages({C});
   auto funcs  = lang::Lower("elementwise_add", stages, {A, B, C});
@@ -131,7 +131,7 @@ TEST(llvm_test01, elementwise_add) {
 }
 
 TEST(llvm, module_call_lowered_func) {
-  lang::Module::Builder builder("some_module", common::DefaultHostTarget());
+  ir::Module::Builder builder("some_module", common::DefaultHostTarget());
   ir::Expr M(kM);
   ir::Expr N(kN);
   {  // define fn
@@ -268,7 +268,7 @@ TEST(ExecutionEngine, call_extern) {
       {M, N}, [=](Var i, Var j) { return x(i, j) + y(i, j); }, "add_out");
 
   ir::Tensor res = Compute(
-      {M, N}, [&](Var i, Var j) -> Expr { return lang::CallExtern("cinn_cpu_tanh_fp32", {add_out(i, j)}); }, "res");
+      {M, N}, [&](Var i, Var j) -> Expr { return lang::CallExtern("tanh", {add_out(i, j)}); }, "res");
 
   auto stages = CreateStages({add_out, res});
 
@@ -297,7 +297,7 @@ TEST(ExecutionEngine, call_extern) {
   auto *cd = reinterpret_cast<float *>(cb->memory);
   for (int m = 0; m < kM; m++) {
     for (int n = 0; n < kN; n++) {
-      ASSERT_NEAR(cd[m * kN + n], cinn_cpu_tanh_fp32(ad[m * kN + n] + bd[m * kN + n]), 1e-5);
+      ASSERT_NEAR(cd[m * kN + n], tanh(ad[m * kN + n] + bd[m * kN + n]), 1e-5);
     }
   }
 }

@@ -1,10 +1,12 @@
 import numpy
 import sys, os
 import numpy as np
+import paddle
 import paddle.fluid as fluid
 from paddle.fluid.backward import append_backward
 
 size = 30
+paddle.enable_static()
 
 a = fluid.data(name="A", shape=[-1, size], dtype='float32')
 label = fluid.layers.data(name="label", shape=[size], dtype='float32')

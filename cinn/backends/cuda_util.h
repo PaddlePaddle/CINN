@@ -3,6 +3,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <cudnn.h>
 
 #include <string>
 #include <tuple>
@@ -25,6 +26,13 @@
   {                                                                                                \
     cudaError_t e = (func);                                                                        \
     CHECK(e == cudaSuccess || e == cudaErrorCudartUnloading) << "CUDA: " << cudaGetErrorString(e); \
+  }
+
+#define CUDNN_CALL(f)                                                                                       \
+  {                                                                                                         \
+    cudnnStatus_t err = (f);                                                                                \
+    CHECK(err == CUDNN_STATUS_SUCCESS) << "    Error occurred: " << cudnnGetErrorString(err) << " on line " \
+                                       << __LINE__ << std::endl;                                            \
   }
 
 #define NVRTC_CALL(x)                                                                         \
