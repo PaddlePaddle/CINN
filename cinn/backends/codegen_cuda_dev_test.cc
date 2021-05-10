@@ -221,14 +221,14 @@ void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, f
   if ((blockIdx.x < 100)) {
     if ((threadIdx.x < 200)) {
       B_read_cache[0] = B[((200 * blockIdx.x) + threadIdx.x)];
-    };
-  };
+    }
+  }
   __syncthreads();
   if ((blockIdx.x < 100)) {
     if ((threadIdx.x < 200)) {
       C[((200 * blockIdx.x) + threadIdx.x)] = (A[((200 * blockIdx.x) + threadIdx.x)] * B_read_cache[0]);
-    };
-  };
+    }
+  }
 }
 
 }
@@ -330,17 +330,17 @@ void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1,
         C1_cache_write_out__reduce_init[j_inner] = 0;
         for (int32_t k1 = 0; k1 < 32; k1 += 1) {
           C1_cache_write_out[j_inner] = (C1_cache_write_out[j_inner] + (A1[((32 * blockIdx.x) + k1)] * B1[((32 * j_inner) + ((64 * threadIdx.x) + k1))]));
-        };
-      };
-    };
-  };
+        }
+      }
+    }
+  }
   if ((blockIdx.x < 32)) {
     if ((threadIdx.x < 16)) {
       for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
         C1[((32 * blockIdx.x) + ((2 * threadIdx.x) + j_inner))] = C1_cache_write_out[j_inner];
-      };
-    };
-  };
+      }
+    }
+  }
 }
 
 }
@@ -1086,13 +1086,13 @@ void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __rest
     {
       for (int32_t j = 0; j < 200; j += 1) {
         A_read_cache[j] = A[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))];
-      };
+      }
       for (int32_t j = 0; j < 200; j += 1) {
         C[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))] = (A_read_cache[j] + B[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))]);
-      };
+      }
     }
-    };
-  };
+    }
+  }
 }
 
 }
@@ -1211,11 +1211,11 @@ void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         for (int32_t i_at = 0; i_at < 3; i_at += 1) {
           A_read_cache[i_at] = A[((10 * blockIdx.x) + ((200 * i_at) + ((200 * threadIdx.x) + j_inner)))];
-        };
+        }
         C[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))] = (A_read_cache[0] + (A_read_cache[1] + (A_read_cache[2] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))])));
-      };
-    };
-  };
+      }
+    }
+  }
 }
 
 }
@@ -1317,12 +1317,12 @@ void fn_cacheread_computeat1(const float* __restrict__ AA, float* __restrict__ C
       for (int32_t i_at = 0; i_at < 6; i_at += 1) {
         for (int32_t j_at = 0; j_at < 6; j_at += 1) {
           AA_read_cache[((100 * i_at) + (j_at + threadIdx.x))] = AA[((100 * blockIdx.x) + ((100 * i_at) + (j_at + threadIdx.x)))];
-        };
-      };
+        }
+      }
       C[((95 * blockIdx.x) + threadIdx.x)] = (AA_read_cache[threadIdx.x] + (AA_read_cache[(202 + threadIdx.x)] + AA_read_cache[(505 + threadIdx.x)]));
     }
-    };
-  };
+    }
+  }
 }
 
 }
@@ -1419,12 +1419,12 @@ void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C
         for (int32_t i_at = 0; i_at < 51; i_at += 1) {
           for (int32_t j_at = 0; j_at < 51; j_at += 1) {
             AA_read_cache[((51 * i_at) + j_at)] = AA[((100 * blockIdx.x) + ((100 * i_at) + ((10 * threadIdx.x) + (j_at + j_inner))))];
-          };
-        };
+          }
+        }
         C[((50 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (AA_read_cache[2550] + AA_read_cache[50]);
-      };
-    };
-  };
+      }
+    }
+  }
 }
 
 }
@@ -1598,8 +1598,8 @@ void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       A_read_cache[threadIdx.x] = A[((200 * blockIdx.x) + threadIdx.x)];
       C[((200 * blockIdx.x) + threadIdx.x)] = A_read_cache[threadIdx.x];
     }
-    };
-  };
+    }
+  }
 }
 
 }
@@ -1676,16 +1676,16 @@ void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __rest
     if ((threadIdx.x < 4)) {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         A_read_cache[((10 * threadIdx.x) + j_inner)] = A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
-      };
-    };
-  };
+      }
+    }
+  }
   if ((blockIdx.x < 40)) {
     if ((threadIdx.x < 4)) {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = A_read_cache[((10 * threadIdx.x) + j_inner)];
-      };
-    };
-  };
+      }
+    }
+  }
 }
 
 }
@@ -1760,8 +1760,8 @@ void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __rest
       C_cache_write_out[0] = A[((40 * blockIdx.x) + threadIdx.x)];
       C[((40 * blockIdx.x) + threadIdx.x)] = C_cache_write_out[0];
     }
-    };
-  };
+    }
+  }
 }
 
 }
@@ -1828,9 +1828,9 @@ void fn5(const float* __restrict__ A, const float* __restrict__ B, float* __rest
     if ((threadIdx.x < 4)) {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (cinn_nvgpu_tanh_fp32(A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]) + cinn_nvgpu_cos_fp32(B[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]));
-      };
-    };
-  };
+      }
+    }
+  }
 }
 
 }

@@ -84,15 +84,15 @@ void fn0(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 200; j += 1) {
       tensor__reduce_init[((200 * i) + j)] = 0;
-    };
-  };
+    }
+  }
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 200; j += 1) {
       for (int32_t k0 = 0; k0 < 50; k0 += 1) {
         tensor[((200 * i) + j)] = (tensor[((200 * i) + j)] + (A[((50 * i) + k0)] * B[((200 * k0) + j)]));
-      };
-    };
-  };
+      }
+    }
+  }
   cinn_buffer_free((void*)(0), _tensor);
 }
   )ROC";

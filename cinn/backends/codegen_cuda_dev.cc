@@ -112,6 +112,7 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
 void CodeGenCUDA_Dev::Visit(const ir::Alloc *op) {
   CHECK(op->destination.as_buffer());
   PrintTempBufferCreation(op->destination.as_buffer_ref());
+  os() << ";";
 }
 
 void CodeGenCUDA_Dev::Visit(const ir::Min *op) {
@@ -275,7 +276,7 @@ void CodeGenCUDA_Dev::Visit(const ir::Call *op) {
     }
   }
 
-  os() << ")";
+  os() << ");";
 }
 
 }  // namespace backends

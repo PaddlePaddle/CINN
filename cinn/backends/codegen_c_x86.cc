@@ -59,13 +59,13 @@ void CodeGenCX86::Visit(const ir::Store *op) {
     PrintAbsAddr(op);
     os() << ", ";
     Print(op->value);
-    os() << ")";
+    os() << ");";
   } else if (SupportsAVX256() && bits == 256) {
     os() << "cinn_avx256_store(";
     PrintAbsAddr(op);
     os() << ", ";
     Print(op->value);
-    os() << ")";
+    os() << ");";
   } else {
     CodeGenC::Visit(op);
   }

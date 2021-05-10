@@ -100,9 +100,9 @@ void fn(void* _args, int32_t num_args)
     for (int32_t j = 0; j < 10; j += 1) {
       for (int32_t k = 0; k < 100; k += 1) {
         tensor[((1000 * i) + ((100 * j) + k))] = (2 * A_reshape[((1000 * i) + ((100 * j) + k))]);
-      };
-    };
-  };
+      }
+    }
+  }
   cinn_buffer_free((void*)(0), _tensor);
 }
 )ROC";
@@ -149,15 +149,15 @@ void fn(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 100; j += 1) {
       A_copied[((100 * i) + j)] = A[((100 * i) + j)];
-    };
-  };
+    }
+  }
   for (int32_t i = 0; i < 10; i += 1) {
     for (int32_t j = 0; j < 10; j += 1) {
       for (int32_t k = 0; k < 100; k += 1) {
         tensor[((1000 * i) + ((100 * j) + k))] = (2 * A_copied_reshape[((1000 * i) + ((100 * j) + k))]);
-      };
-    };
-  };
+      }
+    }
+  }
   cinn_buffer_free((void*)(0), _A_copied_reshape);
   cinn_buffer_free((void*)(0), _tensor);
 }

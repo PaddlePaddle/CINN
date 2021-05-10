@@ -3,9 +3,11 @@
 #include <fstream>
 
 #include "cinn/backends/extern_func_emitter.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_verify.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/optim/remove_nested_block.h"
+#include "cinn/runtime/cpu/thread_backend.h"
 #include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"
 
@@ -130,19 +132,43 @@ void CodeGenC::Visit(const ir::Not *op) {
 }
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
+  Expr extent = op->extent;
+  Expr min    = op->min;
   if (op->is_parallel()) {
-    os() << "#pragma omp parallel\n";
+    int num_task = max_concurrency();
+    os() << "omp_set_num_threads(" << num_task << ");\n";
+    os() << "#pragma omp parallel num_threads(" << num_task << ")\n";
+    DoIndent();
+    os() << "{\n";
+    IncIndent();
+    DoIndent();
+    os() << "int task_id = omp_get_thread_num();\n";
+    DoIndent();
+    os() << "int n_per_task = ";
+    Print((op->extent + num_task - 1) / num_task);
+    os() << ";\n";
+    CHECK_EQ(min.as_int32(), 0);
+    auto task_id    = Var("task_id");
+    auto n_per_task = Var("n_per_task");
+    min             = task_id * n_per_task;
+    extent          = (task_id + 1) * n_per_task;
     DoIndent();
   }
   os() << "for (";
   os() << GetTypeRepr(Int(32));
   os() << " " << op->loop_var->name;
   os() << " = ";
-  Print(op->min);
+  Print(min);
   os() << "; ";
   os() << op->loop_var->name;
   os() << " < ";
   Print(op->extent);
+  if (op->is_parallel()) {
+    os() << " && ";
+    os() << op->loop_var->name;
+    os() << " < ";
+    Print(extent);
+  }
   os() << "; ";
 
   os() << op->loop_var->name;
@@ -150,12 +176,14 @@ void CodeGenC::Visit(const ir::For *op) {
   os() << ") ";
 
   Print(op->body);
+  if (op->is_parallel()) {
+    os() << "\n";
+    DecIndent();
+    DoIndent();
+    os() << "}";
+  }
 }
 void CodeGenC::Visit(const ir::PolyFor *op) {
-  if (op->is_parallel()) {
-    os() << "#pragma omp parallel\n";
-    DoIndent();
-  }
   os() << "for (";
   os() << GetTypeRepr(Int(32));
   os() << " " << op->iterator->name;
@@ -190,7 +218,6 @@ void CodeGenC::Visit(const ir::IfThenElse *op) {
   if (!op->true_case.As<ir::Block>()) IncIndent();
   DoIndent();
   Print(op->true_case);
-  if (!op->true_case.As<ir::Block>()) os() << ";";
   os() << "\n";
 
   if (!op->true_case.As<ir::Block>()) DecIndent();
@@ -204,7 +231,6 @@ void CodeGenC::Visit(const ir::IfThenElse *op) {
     if (!op->true_case.As<ir::Block>()) IncIndent();
     DoIndent();
     Print(op->false_case);
-    if (!op->false_case.As<ir::Block>()) os() << ";";
     os() << "\n";
     if (!op->true_case.As<ir::Block>()) DecIndent();
 
@@ -220,12 +246,11 @@ void CodeGenC::Visit(const ir::Block *op) {
   for (int i = 0; i < op->stmts.size() - 1; i++) {
     DoIndent();
     Print(op->stmts[i]);
-    os() << ";\n";
+    os() << "\n";
   }
   if (op->stmts.size() >= 1) {
     DoIndent();
     Print(op->stmts.back());
-    os() << ";";
   }
 
   DecIndent();
@@ -261,6 +286,7 @@ void CodeGenC::Visit(const ir::Call *op) {
   } else {
     CINN_NOT_IMPLEMENTED
   }
+  os() << ";";
 }
 void CodeGenC::PrintCallArgs(const ir::Call *op) {
   if (!op->read_args.empty()) {
@@ -379,6 +405,7 @@ void CodeGenC::Visit(const ir::Store *op) {
   os() << "]";
   os() << " = ";
   Print(op->value);
+  os() << ";";
 }
 void CodeGenC::Visit(const ir::Alloc *op) {
   os() << runtime::intrisic::buffer_malloc;
@@ -387,7 +414,7 @@ void CodeGenC::Visit(const ir::Alloc *op) {
 
   auto *buffer = op->destination.As<ir::_Buffer_>();
   os() << buffer->name;
-  os() << ")";
+  os() << ");";
 }
 
 void CodeGenC::Visit(const ir::Free *op) {
@@ -397,7 +424,7 @@ void CodeGenC::Visit(const ir::Free *op) {
 
   auto *buffer = op->destination.As<ir::_Buffer_>();
   os() << buffer->name;
-  os() << ")";
+  os() << ");";
 }
 
 void CodeGenC::Visit(const ir::_Buffer_ *op) { os() << op->name; }
@@ -424,6 +451,7 @@ void CodeGenC::Visit(const ir::Let *op) {
     os() << " = ";
     Print(op->body);
   }
+  os() << ";";
 }
 
 void CodeGenC::Visit(const ir::Reduce *op) {
@@ -680,7 +708,7 @@ void CodeGenC::Visit(const ir::intrinsics::ArgsConstruct *op) {
   if (!op->args.empty()) {
     Print(op->args.back());
   }
-  os() << ")";
+  os() << ");";
 }
 
 void CodeGenC::Visit(const ir::intrinsics::BuiltinIntrin *op) {
