@@ -3,9 +3,11 @@
 #include <fstream>
 
 #include "cinn/backends/extern_func_emitter.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_verify.h"
 #include "cinn/ir/lowered_func.h"
 #include "cinn/optim/remove_nested_block.h"
+#include "cinn/runtime/cpu/thread_backend.h"
 #include "cinn/runtime/intrinsic.h"
 #include "cinn/utils/string.h"
 
@@ -130,19 +132,42 @@ void CodeGenC::Visit(const ir::Not *op) {
 }
 void CodeGenC::Visit(const ir::Cast *op) { PrintCastExpr(op->type(), op->v()); }
 void CodeGenC::Visit(const ir::For *op) {
+  Expr extent  = op->extent;
+  Expr min     = op->min;
+  int num_task = 1;
   if (op->is_parallel()) {
-    os() << "#pragma omp parallel\n";
+    num_task = max_concurrency();
+    os() << "omp_set_num_threads(" << num_task << ");\n";
+    DoIndent();
+    os() << "auto flambda = [=](int task_id, int num_task) -> int {\n";
+    IncIndent();
+    DoIndent();
+    os() << "int n_per_task = ";
+    Expr num_task_var = Var("num_task");
+    Print((op->extent + num_task_var - 1) / num_task_var);
+    os() << ";\n";
+    CHECK_EQ(min.as_int32(), 0);
+    auto task_id    = Var("task_id");
+    auto n_per_task = Var("n_per_task");
+    min             = task_id * n_per_task;
+    extent          = (task_id + 1) * n_per_task;
     DoIndent();
   }
   os() << "for (";
   os() << GetTypeRepr(Int(32));
   os() << " " << op->loop_var->name;
   os() << " = ";
-  Print(op->min);
+  Print(min);
   os() << "; ";
   os() << op->loop_var->name;
   os() << " < ";
   Print(op->extent);
+  if (op->is_parallel()) {
+    os() << " && ";
+    os() << op->loop_var->name;
+    os() << " < ";
+    Print(extent);
+  }
   os() << "; ";
 
   os() << op->loop_var->name;
@@ -150,12 +175,27 @@ void CodeGenC::Visit(const ir::For *op) {
   os() << ") ";
 
   Print(op->body);
+  if (op->is_parallel()) {
+    os() << "\n";
+    DoIndent();
+    os() << "return 0;\n";
+    DecIndent();
+    DoIndent();
+    os() << "};\n";
+    os() << "#pragma omp parallel num_threads(" << num_task << ")\n";
+    DoIndent();
+    os() << "{\n";
+    IncIndent();
+    DoIndent();
+    os() << "int task_id = omp_get_thread_num();\n";
+    DoIndent();
+    os() << "flambda(task_id, " << num_task << ");\n";
+    DecIndent();
+    DoIndent();
+    os() << "}";
+  }
 }
 void CodeGenC::Visit(const ir::PolyFor *op) {
-  if (op->is_parallel()) {
-    os() << "#pragma omp parallel\n";
-    DoIndent();
-  }
   os() << "for (";
   os() << GetTypeRepr(Int(32));
   os() << " " << op->iterator->name;

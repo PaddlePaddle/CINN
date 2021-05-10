@@ -68,13 +68,21 @@ TEST(test01, compute_at) {
     }
   };
 
+  auto reset = [&]() {
+    for (int i = 0; i < M; i++) {
+      for (int j = 0; j < N; j++) {
+        Cd[i * N + j] = 0.f;
+      }
+    }
+  };
+
   auto args = common::ArgsBuilder().Add(A).Add(B).Add(C).Build();
 
   LOG(INFO) << "test1 basic";
   add1(args.data(), args.size());
   check_add();
-
-  LOG(INFO) << "test1 vectorize";
+  reset();
+  LOG(INFO) << "test1 compute_at";
   fn_compute_at(args.data(), args.size());
   check_compute();
 
@@ -120,7 +128,7 @@ TEST(test01, compute_at_level1) {
   add1(args.data(), args.size());
   check_add();
 
-  LOG(INFO) << "test1 vectorize";
+  LOG(INFO) << "test1 compute_at_level1";
   fn_compute_at_level1(args.data(), args.size());
   check_compute();
 
