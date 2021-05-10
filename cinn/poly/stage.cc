@@ -346,9 +346,10 @@ void Stage::EditTempTensor(Stage *other, int level) {
         continue;
       }
     }
-    // First level loops iterator will be erased.
+    // Iterators of loop within level will be erased.
     erase_var.insert(temp_name[i].substr(0, 1));
   }
+  std::set<std::string> undo_erase_var;
   // Beyond level, if the loop is binded to certain thread/block, it will also be earsed.
   for (int i = level + 1; i < temp_name.size(); i++) {
     if (bind_info.count(i) != 0) {
@@ -357,12 +358,18 @@ void Stage::EditTempTensor(Stage *other, int level) {
         erase_var.insert(temp_name[i].substr(0, 1));
       } else if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
         erase_var.insert(temp_name[i].substr(0, 1));
+      } else {
+        undo_erase_var.insert(temp_name[i]);
       }
+    } else {
+      undo_erase_var.insert(temp_name[i]);
     }
   }
   std::vector<std::string> erase_var_vec;
   for (auto &i : erase_var) {
-    erase_var_vec.push_back(i);
+    if (undo_erase_var.count(i + "_inner") == 0 && undo_erase_var.count(i + "_outer") == 0) {
+      erase_var_vec.push_back(i);
+    }
   }
   // Erase loop iterators.
   for (auto &j : erase_var_vec) {
@@ -991,6 +998,32 @@ void Stage::CopyTransform(Stage *other, int level) {
 
   auto this_map_dims   = isl_get_dim_names(transform_.get(), isl_dim_in);
   auto target_map_dims = isl_get_dim_names(target_transform.get(), isl_dim_in);
+
+  // Edit level. e.g. if A->Split(0,10) and B->CopyTransform(A,0), level should increase to 1.
+  isl::map temp_target_trans(this_ctx, str_target_trans);
+  if (level + 1 < isl_map_dim(temp_target_trans.get(), isl_dim_out)) {
+    std::string pivot_dim_out = isl_map_get_dim_name(temp_target_trans.get(), isl_dim_out, level + 1);
+    temp_target_trans = isl::manage(isl_map_remove_dims(temp_target_trans.release(), isl_dim_out, 0, level + 1));
+    std::string map_after_deletion = isl_map_to_str(temp_target_trans.get());
+
+    std::string pivot_dim_in;
+    for (int i = 0; i < target_map_dims.size(); i++) {
+      if (utils::Count(&map_after_deletion, target_map_dims[i]) > 1) {
+        pivot_dim_in = target_map_dims[i];
+        break;
+      }
+    }
+    if (utils::Count(&str_target_trans, pivot_dim_in) != utils::Count(&map_after_deletion, pivot_dim_in) ||
+        utils::Count(&str_target_trans, pivot_dim_out) != utils::Count(&map_after_deletion, pivot_dim_out)) {
+      this->CopyTransform(other, level + 1);
+      return;
+    }
+  } else if (level >= isl_map_dim(temp_target_trans.get(), isl_dim_out)) {
+    LOG(ERROR) << "ComputeAt level: " << level
+               << " is not less than the axis number : " << isl_map_dim(temp_target_trans.get(), isl_dim_out)
+               << ", please check.";
+  }
+
   //! When this->tensor's dim is more than other->tensor, we need to supplment dims.
   std::vector<std::string> sup_dims;
   for (int i = target_map_dims.size(); i < this_map_dims.size(); i++) {
