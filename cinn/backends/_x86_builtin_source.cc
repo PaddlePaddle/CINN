@@ -9,6 +9,8 @@
 
 #include <vector>
 
+#include "cinn/runtime/cpu/thread_backend.h"
+
 #ifndef _CINN_X86_BUILTIN_SOURCE_
 #define _CINN_X86_BUILTIN_SOURCE_
 //! Vector in stack, this can only used in generated .cc file.
