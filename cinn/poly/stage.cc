@@ -291,32 +291,26 @@ void Stage::AddForLoopInTransform(std::vector<std::vector<Expr>> &indices) {
  * Change this stage's domain to be consistent with other's domain.
  * @param level Change the domain lower than level to be consistent with other's domain.
  * For example, when this->domain_ is "{ [i0, i1] : 0 <= i0 <= 9 and 0 <= i1 <= 9 }",
- * other->domain_ is "{ [i0, i1] : 0 <= i0 <= 4 and 0 <= i1 <= 4 }" and level = 1.
- * Then this->domain_ whill be changed to "{ [i0, i1] : 0 <= i0 <= 4 and 0 <= i1 <= 4 }".
+ * other->domain_ is "{ [i0, i1] : 0 <= i0 <= 4 and 0 <= i1 <= 4 }" and level = 0.
+ * Then this->domain_ whill be changed to "{ [i0, i1] : 0 <= i0 <= 4 and 0 <= i1 <= 9 }".
  */
 void Stage::ChangeDomain(Stage *other, int level) {
   auto indices = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
   if (indices.empty()) {
     return;
   }
-  std::string target_set = isl_set_to_str(other->domain().get());
-  isl::ctx this_ctx      = domain_.ctx();
-  isl::set res_set(this_ctx, target_set);
-  int index = isl_set_dim(domain_.get(), isl_dim_set);
-  int num   = isl_set_dim(res_set.get(), isl_dim_set) - isl_set_dim(domain_.get(), isl_dim_set);
-  // When other's dims is more than this dims, remove redundant dims.
-  if (num > 0) {
-    res_set = isl::manage(isl_set_remove_dims(res_set.get(), isl_dim_param, index, num));
-  }
-  std::string new_res_str = isl_set_to_str(res_set.get());
-  std::string str_name    = isl_set_get_tuple_name(domain_.get());
-
-  auto map_names = isl_get_dim_names(other->transform().get(), isl_dim_out);
+  std::string this_domain = isl_set_to_str(this->domain().get());
+  isl::ctx this_ctx       = domain_.ctx();
+  auto dim_names          = isl_get_dim_names(domain_.get());
+  auto map_names          = isl_get_dim_names(other->transform().get(), isl_dim_out);
   std::set<std::string> uniq_names;
   for (int i = 0; i <= level; i++) {
     uniq_names.insert(map_names[i].substr(0, 1));
   }
-  for (int i = uniq_names.size(); i < isl_set_dim(res_set.get(), isl_dim_set); i++) {
+  // The new level is the compute level of original domain axis(i, j, k, ...)
+  // instead of transformed axis(i_outer, i_inner, j, k, ...)
+  level = uniq_names.size() - 1;
+  for (int i = 0; i <= level; i++) {
     auto [minv, maxv]   = isl_set_get_axis_range(domain_.get(), i);
     int min_iv          = minv.get_num_si();
     int max_iv          = maxv.get_num_si();
@@ -325,13 +319,13 @@ void Stage::ChangeDomain(Stage *other, int level) {
     int max_tar         = maxv2.get_num_si();
     // Change each dim's range.
     // e.g., from "0 <= i0 <= 9" to "0 <= i0 <= 4"
-    utils::Replace(&new_res_str,
-                   std::to_string(min_tar) + " <= " + common::axis_name(i) + " <= " + std::to_string(max_tar),
-                   std::to_string(min_iv) + " <= " + common::axis_name(i) + " <= " + std::to_string(max_iv));
-    isl::set res_set2(this_ctx, new_res_str);
-    res_set = res_set2;
+    utils::Replace(&this_domain,
+                   std::to_string(min_iv) + " <= " + dim_names[i] + " <= " + std::to_string(max_iv),
+                   std::to_string(min_tar) + " <= " + dim_names[i] + " <= " + std::to_string(max_tar));
   }
-  domain_ = isl::manage(isl_set_set_tuple_name(res_set.release(), str_name.c_str()));
+  VLOG(3) << "Final changed domain is: " << this_domain;
+  isl::set res_set(this_ctx, this_domain);
+  domain_ = res_set;
   return;
 }
 
@@ -352,9 +346,10 @@ void Stage::EditTempTensor(Stage *other, int level) {
         continue;
       }
     }
-    // First level loops iterator will be erased.
+    // Iterators of loop within level will be erased.
     erase_var.insert(temp_name[i].substr(0, 1));
   }
+  std::set<std::string> undo_erase_var;
   // Beyond level, if the loop is binded to certain thread/block, it will also be earsed.
   for (int i = level + 1; i < temp_name.size(); i++) {
     if (bind_info.count(i) != 0) {
@@ -363,12 +358,18 @@ void Stage::EditTempTensor(Stage *other, int level) {
         erase_var.insert(temp_name[i].substr(0, 1));
       } else if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
         erase_var.insert(temp_name[i].substr(0, 1));
+      } else {
+        undo_erase_var.insert(temp_name[i]);
       }
+    } else {
+      undo_erase_var.insert(temp_name[i]);
     }
   }
   std::vector<std::string> erase_var_vec;
   for (auto &i : erase_var) {
-    erase_var_vec.push_back(i);
+    if (undo_erase_var.count(i + "_inner") == 0 && undo_erase_var.count(i + "_outer") == 0) {
+      erase_var_vec.push_back(i);
+    }
   }
   // Erase loop iterators.
   for (auto &j : erase_var_vec) {
@@ -401,8 +402,7 @@ void Stage::EditTempTensor(Stage *other, int level) {
     optim::Simplify(&i);
   }
   // Set new shape.
-  this->tensor()->shape  = new_shape;
-  this->tensor()->domain = new_shape;
+  this->tensor()->shape = new_shape;
   CHECK(this->tensor()->buffer.defined());
   this->tensor()->buffer->shape = new_shape;
   return;
@@ -905,7 +905,7 @@ ir::Tensor Stage::CacheWrite(const std::string &memory_type, StageMap stages) {
 /*
  * Replace the tensor's name to cache_name, and create a cache_stage to copy content from cache to original tensor.
  */
-ir::Tensor Stage::CacheWrite2(const std::string &memory_type, StageMap stages) {
+ir::Tensor Stage::CacheWrite2(const std::string &memory_type, StageMap stages, ir::Tensor &key_tensor) {
   CHECK(tensor_);
   CHECK(!tensor_->buffer.defined()) << "This tensor is already binded to a buffer, cannot cache write";
   CHECK(!meta.compute_inline) << "Cannot create a write cache on an inlined tensor";
@@ -934,7 +934,8 @@ ir::Tensor Stage::CacheWrite2(const std::string &memory_type, StageMap stages) {
   }
   CacheReadWriteReplace(temp, write_stage, cache_name);
 
-  return write_stage;
+  key_tensor = write_stage;
+  return my_tensor;
 }
 
 void Stage::ComputeInline() {
@@ -992,7 +993,42 @@ void Stage::CopyTransform(Stage *other, int level) {
   auto target_domain           = other->domain();
   std::string str_target_trans = isl_map_to_str(target_transform.get());
   std::string this_tensor_name = isl_set_get_tuple_name(domain_.get());
-  isl::map temp_transform_     = target_transform;
+  isl::ctx this_ctx            = domain_.ctx();
+  isl::map temp_transform_(this_ctx, str_target_trans);
+
+  auto this_map_dims   = isl_get_dim_names(transform_.get(), isl_dim_in);
+  auto target_map_dims = isl_get_dim_names(target_transform.get(), isl_dim_in);
+
+  // Edit level. e.g. if A->Split(0,10) and B->CopyTransform(A,0), level should increase to 1.
+  isl::map temp_target_trans(this_ctx, str_target_trans);
+  if (level + 1 < isl_map_dim(temp_target_trans.get(), isl_dim_out)) {
+    std::string pivot_dim_out = isl_map_get_dim_name(temp_target_trans.get(), isl_dim_out, level + 1);
+    temp_target_trans = isl::manage(isl_map_remove_dims(temp_target_trans.release(), isl_dim_out, 0, level + 1));
+    std::string map_after_deletion = isl_map_to_str(temp_target_trans.get());
+
+    std::string pivot_dim_in;
+    for (int i = 0; i < target_map_dims.size(); i++) {
+      if (utils::Count(&map_after_deletion, target_map_dims[i]) > 1) {
+        pivot_dim_in = target_map_dims[i];
+        break;
+      }
+    }
+    if (utils::Count(&str_target_trans, pivot_dim_in) != utils::Count(&map_after_deletion, pivot_dim_in) ||
+        utils::Count(&str_target_trans, pivot_dim_out) != utils::Count(&map_after_deletion, pivot_dim_out)) {
+      this->CopyTransform(other, level + 1);
+      return;
+    }
+  } else if (level >= isl_map_dim(temp_target_trans.get(), isl_dim_out)) {
+    LOG(ERROR) << "ComputeAt level: " << level
+               << " is not less than the axis number : " << isl_map_dim(temp_target_trans.get(), isl_dim_out)
+               << ", please check.";
+  }
+
+  //! When this->tensor's dim is more than other->tensor, we need to supplment dims.
+  std::vector<std::string> sup_dims;
+  for (int i = target_map_dims.size(); i < this_map_dims.size(); i++) {
+    sup_dims.push_back(this_map_dims[i]);
+  }
   //! Check the dim range in this domain and target domain. Correspoding dim's range must be equal.
 
   auto dim_names = isl_get_dim_names(domain_.get());
@@ -1001,16 +1037,16 @@ void Stage::CopyTransform(Stage *other, int level) {
   for (int i = 0; i < isl_set_dim(domain_.get(), isl_dim_set); i++) {
     this_dim_names.insert(isl_set_get_dim_name(domain_.get(), isl_dim_set, i));
   }
-  // Delete redundant input dims in transform_ (e,g. B[i,j] -> CopyTransform(C[i,j,k]) , Redundant dim k will be
-  // deleted.)
+  //! Delete redundant input dims in transform_ (e,g. B[i,j] -> CopyTransform(C[i,j,k]) , Redundant dim k will be
+  //! deleted.)
   for (int i = 0; i < isl_map_dim(temp_transform_.get(), isl_dim_in); i++) {
     if (this_dim_names.count(isl_map_get_dim_name(temp_transform_.get(), isl_dim_in, i)) == 0) {
       temp_transform_ = isl::manage(isl_map_remove_dims(temp_transform_.release(), isl_dim_in, i, 1));
       i--;
     }
   }
-  // Check related output dims in transform_ and delete them (e,g. C[i,j,k] -> C[i,j,k1,k2] , Redundant output dim k1
-  // nad k2 will be deleted.)
+  //! Check related output dims in transform_ and delete them (e,g. C[i,j,k] -> C[i,j,k1,k2] , Redundant output dim k1
+  //! nad k2 will be deleted.)
   std::string new_target_trans = isl_map_to_str(temp_transform_.get());
   for (int i = 0; i < isl_map_dim(temp_transform_.get(), isl_dim_out); i++) {
     std::string temp_dim = isl_map_get_dim_name(temp_transform_.get(), isl_dim_out, i);
@@ -1019,35 +1055,45 @@ void Stage::CopyTransform(Stage *other, int level) {
       i--;
     }
   }
-  // Add dims
+  //! Add dims
   if (level >= 0) {
     std::set<std::string> keep_names;
-    std::string res_trans = isl_map_to_str(temp_transform_.get());
-    isl::ctx this_ctx     = domain_.ctx();
-    isl::map res_map(this_ctx, res_trans);
-    int dim_size = isl_map_dim(res_map.get(), isl_dim_out);
+    int dim_size = isl_map_dim(temp_transform_.get(), isl_dim_out);
     for (int i = level + 1; i < dim_size; i++) {
-      std::string temp = isl_map_get_dim_name(res_map.get(), isl_dim_out, i);
+      std::string temp = isl_map_get_dim_name(temp_transform_.get(), isl_dim_out, i);
       temp             = temp.substr(0, 1);
       temp             = temp + "' = " + temp;
       keep_names.insert(temp);
     }
-    res_map = isl::manage(isl_map_remove_dims(res_map.release(), isl_dim_out, level + 1, dim_size - level - 1));
+    temp_transform_ =
+        isl::manage(isl_map_remove_dims(temp_transform_.release(), isl_dim_out, level + 1, dim_size - level - 1));
     for (auto i : keep_names) {
-      res_map = isl::manage(isl_map_add_dims(res_map.release(), isl_dim_out, 1));
-      res_map = isl::manage(isl_map_set_dim_name(res_map.release(), isl_dim_out, level + 1, i.c_str()));
+      VLOG(3) << "i in keep_names is: " << i;
+      temp_transform_ = isl::manage(isl_map_add_dims(temp_transform_.release(), isl_dim_out, 1));
+      temp_transform_ = isl::manage(isl_map_set_dim_name(temp_transform_.release(), isl_dim_out, level + 1, i.c_str()));
       level++;
     }
-    temp_transform_ = res_map;
   }
-
+  if (sup_dims.size() > 0) {
+    int level_in  = isl_map_dim(temp_transform_.get(), isl_dim_in);
+    int level_out = isl_map_dim(temp_transform_.get(), isl_dim_out);
+    for (auto i : sup_dims) {
+      VLOG(3) << "i in sup_dims is: " << i;
+      temp_transform_ = isl::manage(isl_map_add_dims(temp_transform_.release(), isl_dim_in, 1));
+      temp_transform_ = isl::manage(isl_map_set_dim_name(temp_transform_.release(), isl_dim_in, level_in, i.c_str()));
+      level_in++;
+      std::string i_dim_out = i + "' = " + i;
+      temp_transform_       = isl::manage(isl_map_add_dims(temp_transform_.release(), isl_dim_out, 1));
+      temp_transform_ =
+          isl::manage(isl_map_set_dim_name(temp_transform_.release(), isl_dim_out, level_out, i_dim_out.c_str()));
+      level_out++;
+    }
+  }
+  isl_map_set_tuple_name(temp_transform_.get(), isl_dim_in, this_tensor_name.c_str());
+  isl_map_set_tuple_name(temp_transform_.get(), isl_dim_out, this_tensor_name.c_str());
   std::string res_trans = isl_map_to_str(temp_transform_.get());
-  isl::ctx this_ctx     = domain_.ctx();
   isl::map res_map(this_ctx, res_trans);
-  isl_map_set_tuple_name(res_map.get(), isl_dim_in, this_tensor_name.c_str());
-  isl_map_set_tuple_name(res_map.get(), isl_dim_out, this_tensor_name.c_str());
   VLOG(2) << "After Copytransform result trans is : " << isl_map_to_str(res_map.get());
-  VLOG(2) << "After Copytransform result domain is : " << isl_set_to_str(domain_.get());
   transform_ = res_map;
 }
 

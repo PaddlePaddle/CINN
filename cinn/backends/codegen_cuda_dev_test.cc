@@ -279,21 +279,18 @@ TEST(CodeGenCUDA3, compile_run_jit3) {
   Placeholder<float> B("B1", {N, K});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto CC = Compute(
+  auto C  = Compute(
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(j, k1), {k1}); }, "C1");
 
-  auto stages = CreateStages({CC});
-  std::vector<ir::Tensor> readers{CC};
+  auto stages = CreateStages({C});
 
-  auto C = stages[CC]->CacheWrite2("local", stages);
+  auto C_WC = stages[C]->CacheWrite2("local", stages, C);
 
-  stages[C]->Split(1, 2);
+  stages[C]->Split(0, 4);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
 
-  stages[CC]->Split(1, 2);
-  stages[CC]->Bind(0, "blockIdx.x");
-  stages[CC]->Bind(1, "threadIdx.x");
+  stages[C_WC]->ComputeAt2(stages[C], 2);
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -321,23 +318,17 @@ typedef char int8_t;
 __global__
 void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1, float* __restrict__ C1)
 {
-  float _C1_cache_write_out [ ((1 * (((1 * 32) * 32) / 32)) / 16) ];
+  float _C1_cache_write_out [ 1 * 1 ];
   float* C1_cache_write_out = _C1_cache_write_out;
   float* C1_cache_write_out__reduce_init = _C1_cache_write_out;
-  if ((blockIdx.x < 32)) {
-    if ((threadIdx.x < 16)) {
-      for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-        C1_cache_write_out__reduce_init[j_inner] = 0;
+  if ((blockIdx.x < 8)) {
+    if ((threadIdx.x < 4)) {
+      for (int32_t j = 0; j < 32; j += 1) {
+        C1_cache_write_out__reduce_init[0] = 0;
         for (int32_t k1 = 0; k1 < 32; k1 += 1) {
-          C1_cache_write_out[j_inner] = (C1_cache_write_out[j_inner] + (A1[((32 * blockIdx.x) + k1)] * B1[((32 * j_inner) + ((64 * threadIdx.x) + k1))]));
+          C1_cache_write_out[0] = (C1_cache_write_out[0] + (A1[((128 * blockIdx.x) + ((32 * threadIdx.x) + k1))] * B1[((32 * j) + k1)]));
         };
-      };
-    };
-  };
-  if ((blockIdx.x < 32)) {
-    if ((threadIdx.x < 16)) {
-      for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-        C1[((32 * blockIdx.x) + ((2 * threadIdx.x) + j_inner))] = C1_cache_write_out[j_inner];
+        C1[((128 * blockIdx.x) + ((32 * threadIdx.x) + j))] = C1_cache_write_out[0];
       };
     };
   };
@@ -362,8 +353,117 @@ void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1,
 
   void* args[] = {&Ad, &Bd, &Cd};
 
-  dim3 grid(32, 1, 1);
-  dim3 block(16, 1, 1);
+  dim3 grid(8, 1, 1);
+  dim3 block(4, 1, 1);
+  cuda_module.LaunchKernel(0, "mul_cache_write", grid, block, args);
+
+  CUDA_CALL(cudaMemcpy(host_data3.data(),
+                       reinterpret_cast<void*>(Cd),
+                       M.as_int32() * N.as_int32() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+  std::vector<float> res(1024, 0.0);
+  for (int i = 0; i < M.as_int32(); i++) {
+    for (int j = 0; j < N.as_int32(); j++) {
+      for (int k = 0; k < N.as_int32(); k++) {
+        res[i * 32 + j] += host_data1[i * 32 + k] * host_data2[j * 32 + k];
+      }
+      int offset = i * 32 + j;
+      EXPECT_NEAR(host_data3[offset], res[offset], 1e-3);
+    }
+  }
+}
+
+TEST(CodeGenCUDA3, test_reduce_cachewrite) {
+  Context::Global().ResetNameId();
+  Expr M(32);
+  Expr N(32);
+  Expr K(32);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("A1", {M, K});
+  Placeholder<float> B("B1", {N, K});
+
+  auto k1 = Var(K.as_int32(), "k1");
+  auto C  = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(j, k1), {k1}); }, "C1");
+
+  auto stages = CreateStages({C});
+
+  auto C_WC = stages[C]->CacheWrite2("local", stages, C);
+  stages[C]->Split(1, 2);
+  stages[C]->Split(0, 4);
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
+  stages[C_WC]->ComputeAt2(stages[C], 2);
+
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func = Lower("mul_cache_write", stages, {A, B, C}, {}, {}, nullptr, target);
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled CacheWrite and Reduce code:\n\n\n" << source_code;
+
+  std::string source_target = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1, float* __restrict__ C1)
+{
+  float _C1_cache_write_out [ 1 * 32 ];
+  float* C1_cache_write_out = _C1_cache_write_out;
+  float* C1_cache_write_out__reduce_init = _C1_cache_write_out;
+  if ((blockIdx.x < 8)) {
+    if ((threadIdx.x < 4)) {
+      for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
+        for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
+          C1_cache_write_out__reduce_init[((2 * j_outer) + j_inner)] = 0;
+          for (int32_t k1 = 0; k1 < 32; k1 += 1) {
+            C1_cache_write_out[((2 * j_outer) + j_inner)] = (C1_cache_write_out[((2 * j_outer) + j_inner)] + (A1[((128 * blockIdx.x) + ((32 * threadIdx.x) + k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
+          };
+        };
+        for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
+          C1[((128 * blockIdx.x) + ((2 * j_outer) + ((32 * threadIdx.x) + j_inner)))] = C1_cache_write_out[((2 * j_outer) + j_inner)];
+        };
+      };
+    };
+  };
+}
+
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(source_target), source_code);
+
+  using runtime::cuda::CUDAModule;
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+
+  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+
+  // launch the kernel
+
+  void* args[] = {&Ad, &Bd, &Cd};
+
+  dim3 grid(8, 1, 1);
+  dim3 block(4, 1, 1);
   cuda_module.LaunchKernel(0, "mul_cache_write", grid, block, args);
 
   CUDA_CALL(cudaMemcpy(host_data3.data(),
@@ -884,19 +984,19 @@ TEST(elementwise_add0, share_local_cache) {
 
   auto stages = CreateStages({C});
 
-  auto CC = stages[C]->CacheWrite2("local", stages);
-  std::vector<ir::Tensor> temp{C};
+  auto CC = stages[C]->CacheWrite2("local", stages, C);
+  std::vector<ir::Tensor> temp{CC};
   auto AA = stages[A]->CacheRead2("shared", temp, stages);
   // NOTE here, the CC replace the C as the output the function.
 
-  stages[C]->ComputeAt2(stages[CC], 1);
-  stages[AA]->ComputeAt2(stages[CC], 1);
-  stages[CC]->Bind(0, "blockIdx.x");
-  stages[CC]->Bind(1, "threadIdx.x");
+  stages[CC]->ComputeAt2(stages[C], 1);
+  stages[AA]->ComputeAt2(stages[C], 1);
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
 
   Module::Builder builder("gpu_module", common::DefaultNVGPUTarget());
 
-  auto fn = Lower("elementwise_add0", stages, {A, B, CC}, {}, {AA, C});
+  auto fn = Lower("elementwise_add0", stages, {A, B, C}, {}, {AA, CC});
 
   ASSERT_EQ(fn->temp_bufs.size(), 2UL);
   builder.AddFunction(fn);
@@ -995,7 +1095,7 @@ TEST(Conv, optimize) {
 
   auto stages = CreateStages({B});
   std::vector<ir::Tensor> temp{B};
-  auto BL = stages[B]->CacheWrite2("local", stages);
+  auto BL = stages[B]->CacheWrite2("local", stages, B);
   auto AA = stages[Apad]->CacheRead2("shared", temp, stages);
   auto WW = stages[W]->CacheRead2("shared", temp, stages);
   auto AL = stages[AA]->CacheRead2("local", temp, stages);
@@ -1010,24 +1110,24 @@ TEST(Conv, optimize) {
   const int step         = 8;
   const int vthread      = 2;
 
-  auto hi = stages[B]->axis(0);
-  auto wi = stages[B]->axis(1);
-  auto fi = stages[B]->axis(2);
-  auto ni = stages[B]->axis(3);
-  auto bz = stages[B]->Fuse(hi, wi);
+  auto hi = stages[BL]->axis(0);
+  auto wi = stages[BL]->axis(1);
+  auto fi = stages[BL]->axis(2);
+  auto ni = stages[BL]->axis(3);
+  auto bz = stages[BL]->Fuse(hi, wi);
 
   poly::Iterator by, bx, ty, tx;
-  std::tie(by, fi) = stages[B]->Split(fi, block_factor);  // NOLINT
-  std::tie(bx, ni) = stages[B]->Split(ni, block_factor);  // NOLINT
+  std::tie(by, fi) = stages[BL]->Split(fi, block_factor);  // NOLINT
+  std::tie(bx, ni) = stages[BL]->Split(ni, block_factor);  // NOLINT
 
   poly::Iterator tyz, txz;
-  std::tie(tyz, fi) = stages[B]->Split(fi, vthread);
-  std::tie(txz, ni) = stages[B]->Split(ni, vthread);
-  std::tie(ty, fi)  = stages[B]->Split(fi, num_thread);
-  std::tie(tx, ni)  = stages[B]->Split(ni, num_thread);
-  stages[B]->Reorder({bz, by, bx, tyz, txz, ty, tx, fi, ni});
+  std::tie(tyz, fi) = stages[BL]->Split(fi, vthread);
+  std::tie(txz, ni) = stages[BL]->Split(ni, vthread);
+  std::tie(ty, fi)  = stages[BL]->Split(fi, num_thread);
+  std::tie(tx, ni)  = stages[BL]->Split(ni, num_thread);
+  stages[BL]->Reorder({bz, by, bx, tyz, txz, ty, tx, fi, ni});
 
-  LOG(INFO) << Lower("conv", stages, {A, W, BL}, {}, {AA, WW, AL, WL, B});
+  LOG(INFO) << Lower("conv", stages, {A, W, B}, {}, {AA, WW, AL, WL, BL});
 }
 
 TEST(ElementwiseAdd, cache_read_local) {
@@ -1714,13 +1814,16 @@ TEST(ElementwiseAdd, cache_write_local) {
 
     auto stages = CreateStages({A, B, C});
 
-    auto Co = stages[C]->CacheWrite2("local", stages);
+    auto Co = stages[C]->CacheWrite2("local", stages, C);
 
     // Cache write local, the local memory can just share in a single thread, so it must ComputeAt(inside) the innermost
     // thread.
-    stages[C]->ComputeAt2(stages[Co], 1);
-    stages[Co]->Bind(0, "blockIdx.x");
-    stages[Co]->Bind(1, "threadIdx.x");
+    stages[C]->Split(1, 4);
+    stages[C]->Split(0, 4);
+    stages[Co]->ComputeAt2(stages[C], 1);
+    stages[Co]->Split(2, 5);
+    stages[C]->Bind(0, "blockIdx.x");
+    stages[C]->Bind(1, "threadIdx.x");
 
     return std::make_tuple(A, B, C, Co, stages);
   };
@@ -1729,7 +1832,7 @@ TEST(ElementwiseAdd, cache_write_local) {
 
   CodeGenCUDA_Dev codegen(common::DefaultNVGPUTarget());
 
-  auto fn = Lower("fn4", stages, {A, B, Co}, {}, {C});
+  auto fn = Lower("fn4", stages, {A, B, C}, {}, {Co});
 
   Module::Builder builder("module", common::DefaultNVGPUTarget());
   builder.AddFunction(fn);
@@ -1752,13 +1855,21 @@ typedef char int8_t;
 __global__
 void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _C_cache_write_out [ 1 * 1 ];
+  float _C_cache_write_out [ 1 * 40 ];
   float* C_cache_write_out = _C_cache_write_out;
-  if ((blockIdx.x < 40)) {
-    if ((threadIdx.x < 40)) {
+  if ((blockIdx.x < 10)) {
+    if ((threadIdx.x < 4)) {
     {
-      C_cache_write_out[0] = A[((40 * blockIdx.x) + threadIdx.x)];
-      C[((40 * blockIdx.x) + threadIdx.x)] = C_cache_write_out[0];
+      for (int32_t j_outer = 0; j_outer < 8; j_outer += 1) {
+        for (int32_t j_inner = 0; j_inner < 5; j_inner += 1) {
+          C_cache_write_out[((5 * j_outer) + j_inner)] = A[((160 * blockIdx.x) + ((5 * j_outer) + ((40 * threadIdx.x) + j_inner)))];
+        };
+      };
+      for (int32_t j_outer = 0; j_outer < 10; j_outer += 1) {
+        for (int32_t j_inner = 0; j_inner < 4; j_inner += 1) {
+          C[((160 * blockIdx.x) + ((4 * j_outer) + ((40 * threadIdx.x) + j_inner)))] = C_cache_write_out[((4 * j_outer) + j_inner)];
+        };
+      };
     }
     };
   };
