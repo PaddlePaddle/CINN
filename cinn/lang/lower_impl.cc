@@ -582,7 +582,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
       stages[sync_threads]->CtrlDepend(ir::Tensor(stage->tensor()));
 
       for (auto& compute_at : stage->compute_ats()) {
-        stages[sync_threads]->ComputeAt(compute_at.stage.get(), compute_at.level);
+        stages[sync_threads]->ComputeAt2(compute_at.stage.get(), compute_at.level);
       }
 
       temp_tensor_args_.push_back(sync_threads);
