@@ -1068,7 +1068,7 @@ void Stage::CopyTransform(Stage *other, int level) {
     temp_transform_ =
         isl::manage(isl_map_remove_dims(temp_transform_.release(), isl_dim_out, level + 1, dim_size - level - 1));
     for (auto i : keep_names) {
-      LOG(INFO) << "i in keep_names is: " << i;
+      VLOG(3) << "i in keep_names is: " << i;
       temp_transform_ = isl::manage(isl_map_add_dims(temp_transform_.release(), isl_dim_out, 1));
       temp_transform_ = isl::manage(isl_map_set_dim_name(temp_transform_.release(), isl_dim_out, level + 1, i.c_str()));
       level++;
@@ -1078,7 +1078,7 @@ void Stage::CopyTransform(Stage *other, int level) {
     int level_in  = isl_map_dim(temp_transform_.get(), isl_dim_in);
     int level_out = isl_map_dim(temp_transform_.get(), isl_dim_out);
     for (auto i : sup_dims) {
-      LOG(INFO) << "i in sup_dims is: " << i;
+      VLOG(3) << "i in sup_dims is: " << i;
       temp_transform_ = isl::manage(isl_map_add_dims(temp_transform_.release(), isl_dim_in, 1));
       temp_transform_ = isl::manage(isl_map_set_dim_name(temp_transform_.release(), isl_dim_in, level_in, i.c_str()));
       level_in++;
@@ -1093,6 +1093,7 @@ void Stage::CopyTransform(Stage *other, int level) {
   isl_map_set_tuple_name(temp_transform_.get(), isl_dim_out, this_tensor_name.c_str());
   std::string res_trans = isl_map_to_str(temp_transform_.get());
   isl::map res_map(this_ctx, res_trans);
+  VLOG(2) << "After Copytransform result trans is : " << isl_map_to_str(res_map.get());
   transform_ = res_map;
 }
 
