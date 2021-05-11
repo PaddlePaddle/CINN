@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <string>
+#include <utility>
 
 #include "cinn/common/arithmatic.h"
 #include "cinn/common/ir_util.h"
@@ -452,59 +454,16 @@ bool ExprPosCmp::operator()(const Expr& a, const Expr& b) {
   return false;
 }
 
-std::vector<Expr> CasSimplifyMutator::MergeProduct(const std::vector<Expr>& _p, const std::vector<Expr>& _q) {
-  std::vector<Expr> p, q;
-  for (auto& e : _p) p.push_back(CasSimplify(e, var_intervals));
-  for (auto& e : _q) q.push_back(CasSimplify(e, var_intervals));
-
-  // MPRD-1,2
-  if (p.empty()) return q;
-  if (q.empty()) return p;
-
-  // MPRD-3
-  auto& p1 = p[0];
-  auto& q1 = q[0];
-  auto h   = SimplifyProductRec({p1, q1});
-
-  // case 1
-  if (h.empty()) {
-    return MergeProduct(Rest(p), Rest(q));
-  }
-
-  // case 2
-  if (h.size() == 1) {
-    auto rest = MergeProduct(Rest(p), Rest(q));
-    rest.insert(std::begin(rest), h[0]);
-    return rest;
-  }
-
-  // case 3
-  if (h.size() == 2 && h[0] == p1 && h[1] == q1) {
-    auto rest = MergeProduct(Rest(p), q);
-    rest.insert(std::begin(rest), p1);
-    return rest;
-  }
-
-  // case 4
-  if (h.size() == 2 && h[0] == q1 && h[1] == p1) {
-    auto rest = MergeProduct(p, Rest(q));
-    rest.insert(std::begin(rest), q1);
-    return rest;
-  }
-
-  // rest
-  return Concat(p, q);
+std::vector<Expr> CasSimplifyMutator::MergeProduct(const std::vector<Expr>& p, const std::vector<Expr>& q) {
+  return MergeExprs(
+      p, q, std::bind(&CasSimplifyMutator::SimplifyBinaryProduct, this, std::placeholders::_1, std::placeholders::_2));
 }
 
-std::vector<Expr> CasSimplifyMutator::CasSimplifyMutator::SimplifyProductRec(const std::vector<Expr>& _operands) {
-  CHECK_GE(_operands.size(), 2);
-  std::vector<Expr> operands;
-  for (auto& e : _operands) operands.push_back(CasSimplify(e, var_intervals));
-
+std::vector<Expr> CasSimplifyMutator::SimplifyBinaryProduct(Expr left, Expr right) {
   // SPRDREC-1
-  if (operands.size() == 2 && !operands[0].As<Product>() && !operands[1].As<Product>()) {
-    auto a = operands[0];
-    auto b = operands[1];
+  if (!left.As<Product>() && !right.As<Product>()) {
+    auto a = left;
+    auto b = right;
 
     auto* ai = a.As<IntImm>();
     auto* af = a.As<FloatImm>();
@@ -643,9 +602,7 @@ std::vector<Expr> CasSimplifyMutator::CasSimplifyMutator::SimplifyProductRec(con
       }
     }
 
-    if (operands.size() == 2) {  // as sum
-      auto a      = CasSimplify(operands[0], var_intervals);
-      auto b      = CasSimplify(operands[1], var_intervals);
+    {
       auto* a_sum = a.As<Sum>();
       auto* b_sum = b.As<Sum>();
 
@@ -673,14 +630,13 @@ std::vector<Expr> CasSimplifyMutator::CasSimplifyMutator::SimplifyProductRec(con
       }
     }
 
-    // case 5
-    return operands;
+    return {left, right};
   }
 
   // SPRDREC-2, Page 101
-  if (operands.size() == 2 && (operands[0].As<Product>() || operands[1].As<Product>())) {
-    auto a = CasSimplify(operands[0], var_intervals);
-    auto b = CasSimplify(operands[1], var_intervals);
+  if (left.As<Product>() || right.As<Product>()) {
+    auto a = left;
+    auto b = right;
 
     auto* a_product = a.As<Product>();
     auto* b_product = b.As<Product>();
@@ -700,18 +656,15 @@ std::vector<Expr> CasSimplifyMutator::CasSimplifyMutator::SimplifyProductRec(con
     }
   }
 
-  // SPRDREC-3
-  if (operands.size() > 2) {
-    auto p0 = CasSimplify(operands[0], var_intervals);
-    auto w  = SimplifyProductRec(Rest(operands));
-    if (p0.As<Product>()) {
-      return MergeProduct(p0->operands, w);
-    } else {
-      return MergeProduct({p0}, w);
-    }
-  }
+  return {left, right};
+}
 
-  return operands;
+std::vector<Expr> CasSimplifyMutator::SimplifyProductRec(const std::vector<Expr>& operands) {
+  if (operands.size() < 2) return {CasSimplify(operands.front(), var_intervals)};
+  auto mid_it  = operands.begin() + operands.size() / 2;
+  auto&& left  = SimplifyProductRec(std::vector<Expr>(operands.begin(), mid_it));
+  auto&& right = SimplifyProductRec(std::vector<Expr>(mid_it, operands.end()));
+  return MergeProduct(left, right);
 }
 
 Expr CasSimplifyMutator::SimplifyProduct(Expr a) {
@@ -770,16 +723,35 @@ Expr CasSimplifyMutator::SimplifySum(Expr u) {
   return Sum::Make(args);
 }
 
-// This implementation is similar to MergeProduct
-std::vector<Expr> CasSimplifyMutator::MergeSum(const std::vector<Expr>& _p, const std::vector<Expr>& _q) {
-  std::vector<Expr> p, q;
-  for (auto& e : _p) {
-    p.push_back(CasSimplify(e, var_intervals));
-  }
-  for (auto& e : _q) {
-    q.push_back(CasSimplify(e, var_intervals));
+std::vector<Expr> CasSimplifyMutator::MergeExprs(const std::vector<Expr>& p,
+                                                 const std::vector<Expr>& q,
+                                                 const std::function<std::vector<Expr>(Expr, Expr)>& binary_merge) {
+  std::vector<Expr> res;
+  int li = 0, lj = 0, append_size = 0;
+  while (li < p.size() && lj < q.size()) {
+    auto&& p1 = p[li];
+    auto&& q1 = q[lj];
+    auto&& h  = binary_merge(p1, q1);
+    if (h.size() == 2 && h[0] == p1 && h[1] == q1) {
+      ++li;
+      res.emplace_back(std::move(h.front()));
+    } else if (h.size() == 2 && h[0] == q1 && h[1] == p1) {
+      ++lj;
+      res.emplace_back(std::move(h.front()));
+    } else {
+      ++li;
+      ++lj;
+      std::move(h.begin(), h.end(), std::back_inserter(res));
+    }
   }
 
+  if (li < p.size()) res.insert(res.end(), p.begin() + li, p.end());
+  if (lj < q.size()) res.insert(res.end(), q.begin() + lj, q.end());
+  return std::move(res);
+}
+
+// This implementation is similar to MergeProduct
+std::vector<Expr> CasSimplifyMutator::MergeSum(const std::vector<Expr>& p, const std::vector<Expr>& q) {
 #ifdef CINN_DEBUG
   {
     std::stringstream ss;
@@ -793,67 +765,19 @@ std::vector<Expr> CasSimplifyMutator::MergeSum(const std::vector<Expr>& _p, cons
     ss.str("");
   }
 #endif
-  // MPRD-1,2
-  if (p.empty()) return q;
-  if (q.empty()) return p;
 
-  // MPRD-3
-  auto p1 = p[0];
-  auto q1 = q[0];
-  auto h  = SimplifySumRec({p1, q1});
-
-  // case 1
-  if (h.empty()) {
-    return MergeSum(Rest(p), Rest(q));
-  }
-
-  // case 2
-  if (h.size() == 1) {
-    auto rest = MergeSum(Rest(p), Rest(q));
-    if (h[0].is_constant() && h[0].get_constant() == 0) return rest;
-    rest.insert(std::begin(rest), h[0]);
-    return rest;
-  }
-
-  // case 3
-  if (h.size() == 2 && h[0] == p1 && h[1] == q1) {
-    auto rest = MergeSum(Rest(p), q);
-    rest.insert(std::begin(rest), p1);
-    return rest;
-  }
-
-  // case 4
-  if (h.size() == 2 && h[0] == q1 && h[1] == p1) {
-    auto rest = MergeSum(p, Rest(q));
-    rest.insert(std::begin(rest), q1);
-    return rest;
-  }
-
-  // rest
-  return Concat(p, q);
+  return MergeExprs(p, q, [this](Expr left, Expr right) -> std::vector<Expr> {
+    auto&& h = SimplifyBinarySum(std::move(left), std::move(right));
+    if (h.size() == 1 && h[0].is_constant() && h[0].get_constant() == 0) {return {};}
+    else {return std::move(h);}
+  });
 }
 
-// The implementation is similar to SimpifyProductRec
-std::vector<Expr> CasSimplifyMutator::SimplifySumRec(const std::vector<Expr>& _operands) {
-  CHECK_GE(_operands.size(), 2UL);
-
-  std::vector<Expr> operands;
-  for (auto& e : _operands) operands.push_back(CasSimplify(e, var_intervals));
-
-#ifdef CINN_DEBUG
-  {
-    std::stringstream ss;
-    for (auto& o : operands) {
-      ss << o.node_type() << " " << o << " ";
-    }
-    VLOG(6) << "SimplifySumRec operands: " << ss.str();
-  }
-#endif
-
+std::vector<Expr> CasSimplifyMutator::SimplifyBinarySum(Expr left, Expr right) {
   // SPRDREC-1
-  if (operands.size() == 2 && !operands[0].As<Sum>() && !operands[1].As<Sum>()) {
-    auto a = operands[0];
-    auto b = operands[1];
+  if (!left.As<Sum>() && !right.As<Sum>()) {
+    auto a = left;
+    auto b = right;
 
     auto* ai = a.As<IntImm>();
     auto* af = a.As<FloatImm>();
@@ -931,14 +855,13 @@ std::vector<Expr> CasSimplifyMutator::SimplifySumRec(const std::vector<Expr>& _o
       }
     }
 
-    // case 5
-    return operands;
+    return {left, right};
   }
 
   // SPRDREC-2, Page 101
-  if (operands.size() == 2 && (operands[0].As<Sum>() || operands[1].As<Sum>())) {
-    auto a = operands[0];
-    auto b = operands[1];
+  if (left.As<Sum>() || right.As<Sum>()) {
+    auto a = left;
+    auto b = right;
 
     auto* a_sum = a.As<Sum>();
     auto* b_sum = b.As<Sum>();
@@ -959,18 +882,26 @@ std::vector<Expr> CasSimplifyMutator::SimplifySumRec(const std::vector<Expr>& _o
     }
   }
 
-  // SPRDREC-3
-  if (operands.size() > 2) {
-    auto p0 = operands[0];
-    auto w  = SimplifySumRec(Rest(operands));
-    if (p0.As<Sum>()) {
-      return MergeSum(p0->operands, w);
-    } else {
-      return MergeSum({p0}, w);
-    }
-  }
+  return {left, right};
+}
 
-  return operands;
+// The implementation is similar to SimplifyProductRec
+std::vector<Expr> CasSimplifyMutator::SimplifySumRec(const std::vector<Expr>& operands) {
+#ifdef CINN_DEBUG
+  {
+    std::stringstream ss;
+    for (auto& o : operands) {
+      ss << o.node_type() << " " << o << " ";
+    }
+    VLOG(6) << "SimplifySumRec operands: " << ss.str();
+  }
+#endif
+
+  if (operands.size() < 2) return {CasSimplify(operands.front(), var_intervals)};
+  auto mid_it  = operands.begin() + operands.size() / 2;
+  auto&& left  = SimplifySumRec(std::vector<Expr>(operands.begin(), mid_it));
+  auto&& right = SimplifySumRec(std::vector<Expr>(mid_it, operands.end()));
+  return MergeSum(left, right);
 }
 
 void CasSimplifyMutator::AddBaseAndSimplify(Expr* base, Expr bound) {
