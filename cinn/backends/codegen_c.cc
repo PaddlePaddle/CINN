@@ -136,8 +136,9 @@ void CodeGenC::Visit(const ir::For *op) {
   Expr min     = op->min;
   int num_task = 1;
   if (op->is_parallel()) {
-    num_task = max_concurrency();
-    os() << "omp_set_num_threads(" << num_task << ");\n";
+    os() << "int num_task = max_concurrency();\n";
+    DoIndent();
+    os() << "omp_set_num_threads(num_task);\n";
     DoIndent();
     os() << "auto flambda = [=](int task_id, int num_task) -> int {\n";
     IncIndent();
@@ -182,14 +183,14 @@ void CodeGenC::Visit(const ir::For *op) {
     DecIndent();
     DoIndent();
     os() << "};\n";
-    os() << "#pragma omp parallel num_threads(" << num_task << ")\n";
+    os() << "#pragma omp parallel num_threads(num_task)\n";
     DoIndent();
     os() << "{\n";
     IncIndent();
     DoIndent();
     os() << "int task_id = omp_get_thread_num();\n";
     DoIndent();
-    os() << "flambda(task_id, " << num_task << ");\n";
+    os() << "flambda(task_id, num_task);\n";
     DecIndent();
     DoIndent();
     os() << "}";

@@ -137,6 +137,7 @@ TEST(CodeGenC, module_with_transform) {
   auto [i_outer, i_inner] = stages[C]->Split(0, 4);
 
   stages[D]->Tile(0, 1, 4, 16);
+  stages[D]->Parallel(0);
 
   stages[inlined0]->ComputeInline();
 
@@ -178,14 +179,25 @@ void add1(void* _args, int32_t num_args)
       };
     };
   };
-  for (int32_t i_outer = 0; i_outer < 25; i_outer += 1) {
-    for (int32_t i_inner = 0; i_inner < 4; i_inner += 1) {
-      for (int32_t j_outer = 0; j_outer < 2; j_outer += 1) {
-        for (int32_t j_inner = 0; j_inner < cinn_min(16, (20 + (-16 * j_outer))); j_inner += 1) {
-          D[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] = fma(4, (C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] * A[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]), (2 * C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]));
+  int num_task = max_concurrency();
+  omp_set_num_threads(num_task);
+  auto flambda = [=](int task_id, int num_task) -> int {
+    int n_per_task = (((25 + num_task) - 1) / num_task);
+    for (int32_t i_outer = (task_id * n_per_task); i_outer < 25 && i_outer < ((task_id + 1) * n_per_task); i_outer += 1) {
+      for (int32_t i_inner = 0; i_inner < 4; i_inner += 1) {
+        for (int32_t j_outer = 0; j_outer < 2; j_outer += 1) {
+          for (int32_t j_inner = 0; j_inner < cinn_min(16, (20 + (-16 * j_outer))); j_inner += 1) {
+            D[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] = fma(4, (C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))] * A[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]), (2 * C[((20 * i_inner) + ((80 * i_outer) + ((16 * j_outer) + j_inner)))]));
+          };
         };
       };
-    };
+    }
+    return 0;
+  };
+#pragma omp parallel num_threads(num_task)
+  {
+    int task_id = omp_get_thread_num();
+    flambda(task_id, num_task);
   };
   cinn_buffer_free((void*)(0), _C);
   cinn_buffer_free((void*)(0), _D);
