@@ -331,17 +331,17 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Cast *op) {
       op->v().type().customized_type() == common::customized_type::kpod_value_t) {  // pod_value_t operator
     llvm::Function *callee{};
     if (op->type().is_int(32)) {
-      callee = m_->getFunction(runtime::intrisic::pod_value_to_int32);
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_int32);
     } else if (op->type().is_int(64)) {
-      callee = m_->getFunction(runtime::intrisic::pod_value_to_int64);
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_int64);
     } else if (op->type().is_float(32)) {
-      callee = m_->getFunction(runtime::intrisic::pod_value_to_float);
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_float);
     } else if (op->type().is_float(64)) {
-      callee = m_->getFunction(runtime::intrisic::pod_value_to_double);
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_double);
     } else if (op->type() == type_of<void *>()) {
-      callee = m_->getFunction(runtime::intrisic::pod_value_to_void_p);
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_void_p);
     } else if (op->type() == type_of<cinn_buffer_t *>() || op->type() == type_of<const cinn_buffer_t *>()) {
-      callee = m_->getFunction(runtime::intrisic::pod_value_to_buffer_p);
+      callee = m_->getFunction(runtime::intrinsic::pod_value_to_buffer_p);
     } else {
       LOG(ERROR) << "can't cast cinn_pod_value_t to " << op->type();
       CINN_NOT_IMPLEMENTED
@@ -618,7 +618,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Block *op) {
 llvm::Value *CodeGenLLVM::Visit(const ir::PrimitiveNode *) { CINN_NOT_IMPLEMENTED return nullptr; }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::Call *op) {
-  if (op->name == runtime::intrisic::debug_log_repr) {
+  if (op->name == runtime::intrinsic::debug_log_repr) {
     return EmitCall_debug_info(op);
   } else if (op->is_extern_call()) {
     auto emitter_id = ExternFuncID{backend_llvm_host, op->name.c_str()};
@@ -854,7 +854,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
                    create_temp_buffers.size() + alloca_temp_buffers.size() + dealloca_temp_buffers.size() +
                    op->buffer_data_cast_exprs.size() + 1 /*op->body*/ + op->dealloc_output_buffer_exprs.size());
 
-  auto new_body_append = [&new_body](auto &&... v) {
+  auto new_body_append = [&new_body](auto &&...v) {
     auto append = [&new_body](auto &&v) {
       if constexpr (std::is_same<const ir::Expr &, decltype(v)>::value) {
         new_body.push_back(v);
@@ -1013,7 +1013,7 @@ llvm::Value *CodeGenLLVM::EmitCall_get_address(const ir::Call *op) {
 }
 
 llvm::Value *CodeGenLLVM::EmitCall_debug_info(const ir::Call *op) {
-  auto callee = m_->getFunction(runtime::intrisic::debug_log_repr);
+  auto callee = m_->getFunction(runtime::intrinsic::debug_log_repr);
   CHECK_GE(op->read_args.size(), 1UL);
   std::vector<llvm::Value *> args;
   for (auto &arg : op->read_args) {
@@ -1241,7 +1241,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferGetDataConstHandle *
 }
 
 llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::BufferCreate *op) {
-  auto *callee     = m_->getFunction(runtime::intrisic::buffer_create_default);
+  auto *callee     = m_->getFunction(runtime::intrinsic::buffer_create_default);
   auto buffer_node = op->buffer.as_buffer();
   CHECK(buffer_node);
   std::vector<llvm::Value *> args({ll_const_int32(buffer_node->target.runtime_arch())});
@@ -1288,7 +1288,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::ArgsConstruct *op) {
     args.push_back(Visit(&arg));
   }
 
-  auto *callee = m_->getFunction(runtime::intrisic::args_construct_repr);
+  auto *callee = m_->getFunction(runtime::intrinsic::args_construct_repr);
   return Call(callee, std::move(args));
 }
 
@@ -1395,17 +1395,17 @@ llvm::Value *CodeGenLLVM::Visit(const ir::intrinsics::PodValueToX *op) {
   llvm::Function *callee{};
 
   if (to_type == type_of<float>()) {
-    callee = m_->getFunction(runtime::intrisic::pod_value_to_float);
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_float);
   } else if (to_type == type_of<double>()) {
-    callee = m_->getFunction(runtime::intrisic::pod_value_to_double);
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_double);
   } else if (to_type == type_of<int32_t>()) {
-    callee = m_->getFunction(runtime::intrisic::pod_value_to_int32);
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_int32);
   } else if (to_type == type_of<int64_t>()) {
-    callee = m_->getFunction(runtime::intrisic::pod_value_to_int64);
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_int64);
   } else if (to_type == type_of<void *>()) {
-    callee = m_->getFunction(runtime::intrisic::pod_value_to_void_p);
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_void_p);
   } else if (to_type == type_of<cinn_buffer_t *>()) {
-    callee = m_->getFunction(runtime::intrisic::pod_value_to_buffer_p);
+    callee = m_->getFunction(runtime::intrinsic::pod_value_to_buffer_p);
   } else {
     LOG(FATAL) << "Not supported type: " << to_type;
   }

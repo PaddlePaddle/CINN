@@ -41,7 +41,7 @@ CINN_REGISTER_HELPER(cinn_backend_parallel) {
   using namespace cinn;  // NOLINT
   using backends::FunctionProto;
   auto host_target = common::DefaultHostTarget();
-  backends::RuntimeSymbolRegistry::Global().RegisterFn(runtime::intrisic::parallel_launch,
+  backends::RuntimeSymbolRegistry::Global().RegisterFn(runtime::intrinsic::parallel_launch,
                                                        reinterpret_cast<void*>(&cinn_backend_parallel_launch));
   return true;
 }

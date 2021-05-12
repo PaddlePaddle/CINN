@@ -73,7 +73,7 @@ void CodeGenX86::CreateParallelLaunch(Expr body, int num_task) {
   auto ftype_parallel_launch = llvm::FunctionType::get(
       ll_int32_ty(), {ftype_parallel_lambda->getPointerTo(), ll_type_of(Float(32).PointerOf()), ll_int32_ty()}, false);
   auto* launch_callee = llvm::dyn_cast<llvm::Function>(
-      m_->getOrInsertFunction(runtime::intrisic::parallel_launch, ftype_parallel_launch).getCallee());
+      m_->getOrInsertFunction(runtime::intrinsic::parallel_launch, ftype_parallel_launch).getCallee());
   launch_callee->setCallingConv(llvm::CallingConv::C);
   auto* launch_end = CheckCallSuccess(b_->CreateCall(
       launch_callee,

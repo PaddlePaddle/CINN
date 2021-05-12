@@ -222,7 +222,7 @@ void _LoweredFunc_::PrepareArgumentExprs() {
 
   if (FLAGS_cinn_runtime_display_debug_info) {
     argument_prepare_exprs.push_back(runtime::IntrinsicCall(
-        Void(), runtime::intrisic::print_debug_args_repr, {pod_value_ptr, common::make_const(Int(32), args.size())}));
+        Void(), runtime::intrinsic::print_debug_args_repr, {pod_value_ptr, common::make_const(Int(32), args.size())}));
   }
 
   /*
