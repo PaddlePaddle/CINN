@@ -386,12 +386,12 @@ void IrPrinter::Visit(const IntrinsicOp *x) {
   }
 }
 void IrPrinter::Visit(const intrinsics::BufferGetDataHandle *x) {
-  os() << runtime::intrisic::buffer_get_data_handle;
+  os() << runtime::intrinsic::buffer_get_data_handle;
   Print(x->buffer);
   os() << ")";
 }
 void IrPrinter::Visit(const intrinsics::BufferGetDataConstHandle *x) {
-  os() << runtime::intrisic::buffer_get_data_const_handle;
+  os() << runtime::intrinsic::buffer_get_data_const_handle;
   Print(x->buffer);
   os() << ")";
 }
@@ -403,7 +403,7 @@ void IrPrinter::Visit(const intrinsics::PodValueToX *x) {
   os() << ")";
 }
 void IrPrinter::Visit(const intrinsics::BufferCreate *x) {
-  os() << runtime::intrisic::buffer_create;
+  os() << runtime::intrinsic::buffer_create;
   os() << "()";
 }
 void IrPrinter::Visit(const intrinsics::GetAddr *x) {
@@ -412,14 +412,14 @@ void IrPrinter::Visit(const intrinsics::GetAddr *x) {
   os() << ")";
 }
 void IrPrinter::Visit(const intrinsics::ArgsConstruct *x) {
-  os() << runtime::intrisic::args_construct_repr;
+  os() << runtime::intrinsic::args_construct_repr;
   os() << "(";
   Print(std::vector<Expr>(x->args.begin(), x->args.end()));
   os() << ")";
 }
 
 void IrPrinter::Visit(const intrinsics::BuiltinIntrin *x) {
-  os_ << runtime::intrisic::builtin_intrin_repr << "_";
+  os_ << runtime::intrinsic::builtin_intrin_repr << "_";
   os_ << x->name << "(";
   if (!x->args.empty()) {
     for (int i = 0; i < x->args.size() - 1; i++) {

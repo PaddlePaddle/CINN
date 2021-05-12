@@ -20,13 +20,13 @@ void MapExternCall(Expr *e, Target target) {
       CHECK(node);
 
       if (target.arch == Target::Arch::NVGPU) {
-        DealWithNvGpuIntrisics(node, expr);
+        DealWithNvGpuintrinsics(node, expr);
       } else {
-        DealWithCpuIntrisics(node, expr);
+        DealWithCpuintrinsics(node, expr);
       }
     }
 
-    void DealWithCpuIntrisics(ir::Call *node, Expr *expr) {
+    void DealWithCpuintrinsics(ir::Call *node, Expr *expr) {
       if (kExternFp32CallsCPU.count(node->name)) {
         CHECK_GE(node->read_args.size(), 1UL);
         CHECK_EQ(node->read_args.front().type(), Float(32));
@@ -35,13 +35,13 @@ void MapExternCall(Expr *e, Target target) {
       }
     }
 
-    void DealWithNvGpuIntrisics(ir::Call *node, Expr *expr) {
+    void DealWithNvGpuintrinsics(ir::Call *node, Expr *expr) {
       if (kExternFp32CallsGPU.count(node->name)) {
         CHECK_GE(node->read_args.size(), 1UL);
         CHECK_EQ(node->read_args.front().type(), Float(32));
         *expr = lang::CallExtern("cinn_nvgpu_" + node->name + "_fp32", node->read_args);
       }
-      // TODO(Superjomn) deal with int64 intrisics.
+      // TODO(Superjomn) deal with int64 intrinsics.
     }
   };
 

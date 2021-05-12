@@ -91,7 +91,8 @@ void _Buffer_::Verify() const {
 
 Expr Buffer::DestroyExpr() const {
   auto *node = operator->();
-  return runtime::IntrinsicCall(Void(), runtime::intrisic::buffer_destroy, {ir::_Var_::Make(node->name, node->type())});
+  return runtime::IntrinsicCall(
+      Void(), runtime::intrinsic::buffer_destroy, {ir::_Var_::Make(node->name, node->type())});
 }
 
 }  // namespace ir

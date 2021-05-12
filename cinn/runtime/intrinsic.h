@@ -17,7 +17,7 @@ class Expr;
 
 namespace runtime {
 
-namespace intrisic {
+namespace intrinsic {
 
 //! cinn_buffer_t::new_(buffer)
 static const char* buffer_create = "cinn_buffer_t::new_";
@@ -70,7 +70,7 @@ static const char* cuda_sync_threads = "__syncthreads";
 
 static const char* parallel_launch = "cinn_backend_parallel_launch";
 
-}  // namespace intrisic
+}  // namespace intrinsic
 
 /**
  * Call an intrnsic function.

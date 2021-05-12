@@ -276,7 +276,7 @@ void CudaSyncThreadsDropIfThenElse(Expr *expr) {
     }
 
     void Visit(const ir::Call *op, Expr *expr) override {
-      if (op->name == runtime::intrisic::cuda_sync_threads) {
+      if (op->name == runtime::intrinsic::cuda_sync_threads) {
         if (!blocked_statement_stack.empty()) {
           auto *last_for = blocked_statement_stack.back()->As<ir::IfThenElse>();
           if (auto *eq_n = last_for->condition.As<ir::EQ>()) {

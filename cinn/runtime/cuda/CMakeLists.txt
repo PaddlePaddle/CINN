@@ -7,7 +7,7 @@ core_gather_headers()
 core_gather_srcs(SRCS
   cuda_module.cc
   cuda_util.cc
-  cuda_intrisics.cc
+  cuda_intrinsics.cc
   )
 
 nv_test(test_cuda_module SRCS cuda_module_test.cc DEPS cinncore)
