@@ -297,7 +297,7 @@ std::unique_ptr<Schedule> PolyScheduler::BuildSchedule() {
   for (auto& dfg_group : dfg_groups) {
     ScheduleGroup group;
     for (auto& node : dfg_group.nodes) {
-      auto* schedule_node = schedule_graph_.RetriveNode(node->id());
+      auto* schedule_node = schedule_graph_.RetrieveNode(node->id());
       CHECK(schedule_node) << "missing node " << node->id() << " in schedule graph";
       group.nodes.push_back(schedule_node->safe_as<ScheduleGraphNode>());
     }

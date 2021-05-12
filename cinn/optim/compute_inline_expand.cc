@@ -85,14 +85,14 @@ struct SSABuilder : public ir::IRMutator<> {
   void Visit(const ir::Store *op, Expr *expr) override {
     auto *node = expr->As<ir::Store>();
 
-    auto *cur_graph_node = graph.RetriveNode(node->tensor.as_tensor()->name);
+    auto *cur_graph_node = graph.RetrieveNode(node->tensor.as_tensor()->name);
     if (!cur_graph_node) {
       cur_graph_node = graph.RegisterNode(node->tensor.as_tensor()->name, new SSANode(node->tensor.as_tensor()->name));
     }
 
     auto deps_tensor_names = node->tensor.as_tensor()->GetDependTensorNames();
     for (auto &t : deps_tensor_names) {
-      auto *n = graph.RetriveNode(t);
+      auto *n = graph.RetrieveNode(t);
       if (!n) {
         n = graph.RegisterNode(t, new SSANode(t));
       }

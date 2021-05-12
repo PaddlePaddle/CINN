@@ -166,8 +166,8 @@ class Graph {
 
   //! Retrive a node.
   //! @{
-  GraphNode* RetriveNode(size_t key) const;
-  GraphNode* RetriveNode(const std::string& key) const;
+  GraphNode* RetrieveNode(size_t key) const;
+  GraphNode* RetrieveNode(const std::string& key) const;
   //! @}
 
   //! Get the start point of the graph (the nodes those has no inlinks).

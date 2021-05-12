@@ -196,7 +196,7 @@ void CreateCompGraphWithInlineTensors(common::Graph* graph,
                                       StageMap stages,
                                       std::set<ir::Tensor>* visited) {
   if (visited->count(t)) return;
-  common::GraphNode* t_node = graph->RetriveNode(t->name);
+  common::GraphNode* t_node = graph->RetrieveNode(t->name);
   if (!t_node) {
     t_node = graph->RegisterNode(t->name, new CompuGraphNode(t));
   }
@@ -209,7 +209,7 @@ void CreateCompGraphWithInlineTensors(common::Graph* graph,
   auto deps = ir::CollectLoadTensors(t->body(), [](const Expr* x) { return x->as_tensor(); });
   for (const auto& dep : deps) {
     auto e_tensor = dep.as_tensor_ref();
-    auto* e_node  = graph->RetriveNode(e_tensor->name);
+    auto* e_node  = graph->RetrieveNode(e_tensor->name);
     if (!e_node) {
       e_node = graph->RegisterNode(e_tensor->name, new CompuGraphNode(e_tensor));
     }
@@ -280,7 +280,7 @@ void CompuGraphAddCtrlDepLinks(common::Graph* graph, StageMap stages) {
     auto* node = x->safe_as<CompuGraphNode>();
     CHECK(node);
     for (auto& dep : stages[node->tensor]->ctrl_depends()) {
-      auto* dep_node = graph->RetriveNode(dep->name);
+      auto* dep_node = graph->RetrieveNode(dep->name);
       if (dep_node) {
         VLOG(3) << "Add control link: " << dep << " -> " << node->id();
         dep_node->LinkTo(node);

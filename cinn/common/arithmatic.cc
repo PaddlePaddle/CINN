@@ -24,7 +24,7 @@ using namespace ir;  // NOLINT
 #undef As
 #endif
 
-std::string ExprToGinacConerter::Repr(const ir::Expr& expr) {
+std::string ExprToGinacConverter::Repr(const ir::Expr& expr) {
   auto* load_n      = expr.As<Load>();
   auto* var_n       = expr.As<_Var_>();
   auto* broadcast_n = expr.As<Broadcast>();
@@ -54,9 +54,9 @@ std::string ExprToGinacConerter::Repr(const ir::Expr& expr) {
   return "";
 }
 
-void ExprToGinacConerter::RecordExpr(const ir::Expr& expr) { repr_to_expr_[Repr(expr)] = expr; }
+void ExprToGinacConverter::RecordExpr(const ir::Expr& expr) { repr_to_expr_[Repr(expr)] = expr; }
 
-GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
+GiNaC::ex ExprToGinacConverter::BuildHelper(ir::Expr expr) {
   auto* load_n      = expr.As<Load>();
   auto* var_n       = expr.As<_Var_>();
   auto* int_n       = expr.As<IntImm>();
@@ -105,7 +105,7 @@ GiNaC::ex ExprToGinacConerter::BuildHelper(ir::Expr expr) {
   }
 }
 
-GiNaC::ex ExprToGinacConerter::operator()(Expr expr) {
+GiNaC::ex ExprToGinacConverter::operator()(Expr expr) {
   // TODO(Superjomn) Replace this with common::IsPureMath(
   auto complex_nodes = CollectIRNodes(expr, [](const Expr* n) {
     return n->As<Block>() ||    //
@@ -134,7 +134,7 @@ GiNaC::ex ExprToGinacConerter::operator()(Expr expr) {
   return BuildHelper(expr);
 }
 
-GiNaC::symbol ExprToGinacConerter::CreateGinacSymbol(const std::string& repr) {
+GiNaC::symbol ExprToGinacConverter::CreateGinacSymbol(const std::string& repr) {
   CHECK(!repr.empty());
   auto it = repr_to_ginac_.find(repr);
   if (it != repr_to_ginac_.end()) return it->second;
@@ -144,7 +144,7 @@ GiNaC::symbol ExprToGinacConerter::CreateGinacSymbol(const std::string& repr) {
   return x;
 }
 
-GiNaC::symbol ExprToGinacConerter::CreateGinacSymbol(const ir::Expr& var) {
+GiNaC::symbol ExprToGinacConverter::CreateGinacSymbol(const ir::Expr& var) {
   CHECK(var.As<_Var_>());
   return CreateGinacSymbol(Repr(var));
 }
@@ -218,7 +218,7 @@ class GiNaCToExprVisitor : public GiNaC::symbol::visitor,
   void visit(const GiNaC::basic& basic) override { CINN_NOT_IMPLEMENTED }
 };
 
-Expr ExprToGinacConerter::GinacToExpr(const GiNaC::ex& ex) {
+Expr ExprToGinacConverter::GinacToExpr(const GiNaC::ex& ex) {
   GiNaCToExprVisitor visitor(repr_to_expr_);
   return visitor(ex);
 }
@@ -251,7 +251,7 @@ bool IsPureMath(Expr expr) {
 
 bool MathContainsSymbol(Expr expr, Var symbol) {
   // Use diff(expr, x) and check the result is not zero.
-  ExprToGinacConerter expr_converter;
+  ExprToGinacConverter expr_converter;
   auto expr_ex = expr_converter(expr);
   if (!expr_converter.HasSymbol(symbol->name)) return false;
   return !ginac::diff(expr_ex, expr_converter.GetSymbol(symbol->name)).is_zero();
@@ -260,7 +260,7 @@ bool MathContainsSymbol(Expr expr, Var symbol) {
 // lhs >= rhs.
 std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
   VLOG(4) << "Solve: " << lhs << "=" << rhs << " in " << var;
-  ExprToGinacConerter converter;
+  ExprToGinacConverter converter;
   auto lhs_ex = converter(lhs);
   auto rhs_ex = converter(rhs);
   ginac::lst eqs{lhs_ex == rhs_ex};
@@ -284,7 +284,7 @@ std::tuple<Expr, bool /*positive*/> Solve(Expr lhs, Expr rhs, Var var) {
 
 bool MathIsZero(Expr expr) {
   if (!IsPureMath(expr)) return false;
-  ExprToGinacConerter converter;
+  ExprToGinacConverter converter;
 
   auto ex = converter(expr);
   return ex.is_zero();

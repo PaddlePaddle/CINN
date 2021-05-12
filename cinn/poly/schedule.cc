@@ -173,7 +173,7 @@ void SchedulerBase::FinishStageAdd() {
   for (auto *node : schedule_graph_.nodes()) {
     auto *schedule_node = node->safe_as<ScheduleGraphNode>();
     for (auto &depend : schedule_node->stage->ctrl_depends()) {
-      auto *depend_node = schedule_graph_.RetriveNode(depend->name);
+      auto *depend_node = schedule_graph_.RetrieveNode(depend->name);
       if (depend_node) {            // some dependencies might be in another graph.
         depend_node->LinkTo(node);  // Add link from extra depend statment to current node.
       }
@@ -202,8 +202,8 @@ std::vector<std::string> SchedulerBase::WrapIteratorNames(const std::vector<std:
 
 SchedulerBase &SchedulerBase::After(const Stage &a, const Stage &b, int level) {
   CHECK_LT(level, space_size_);
-  auto *a_node = schedule_graph_.RetriveNode(a.id())->safe_as<ScheduleGraphNode>();
-  auto *b_node = schedule_graph_.RetriveNode(b.id())->safe_as<ScheduleGraphNode>();
+  auto *a_node = schedule_graph_.RetrieveNode(a.id())->safe_as<ScheduleGraphNode>();
+  auto *b_node = schedule_graph_.RetrieveNode(b.id())->safe_as<ScheduleGraphNode>();
   CHECK(a_node) << "no node called " << a.id() << " registered in the graph";
   CHECK(b_node) << "no node called " << b.id() << " registered in the graph";
 

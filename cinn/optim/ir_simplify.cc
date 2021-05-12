@@ -20,7 +20,7 @@
 namespace cinn {
 namespace optim {
 using namespace ir;  // NOLINT
-using common::ExprToGinacConerter;
+using common::ExprToGinacConverter;
 using utils::GetStreamCnt;
 using utils::Replace;
 

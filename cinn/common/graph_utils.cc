@@ -121,12 +121,12 @@ GraphNode *Graph::RegisterNode(const std::string &key, GraphNode *node) {
   return RegisterNode(std::hash<std::string>{}(key), node);
 }
 
-GraphNode *Graph::RetriveNode(size_t key) const {
+GraphNode *Graph::RetrieveNode(size_t key) const {
   auto it = registry_.find(key);
   return it == registry_.end() ? nullptr : it->second;
 }
 
-GraphNode *Graph::RetriveNode(const std::string &key) const { return RetriveNode(std::hash<std::string>()(key)); }
+GraphNode *Graph::RetrieveNode(const std::string &key) const { return RetrieveNode(std::hash<std::string>()(key)); }
 
 std::string Graph::Visualize() const {
   utils::DotLang dot;

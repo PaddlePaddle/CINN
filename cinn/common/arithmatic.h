@@ -41,7 +41,7 @@ int gcd(int a, int b);
 /**
  * Helper to convert cinn::Expr to GiNaC::expr for some symbolic math analysis.
  */
-struct ExprToGinacConerter {
+struct ExprToGinacConverter {
   //! Convert CINN expression \p expr to GiNaC ex.
   ginac::ex operator()(Expr expr);
 

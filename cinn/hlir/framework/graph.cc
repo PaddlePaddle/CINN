@@ -15,7 +15,7 @@ Graph::Graph(const frontend::Program& prog) {
     std::shared_ptr<Node> node_ptr(node_tmp);
     node_tmp->attrs.attr_store = temp->attrs;
     for (auto& input_v : temp->inputs) {
-      common::GraphNode* graph_node = this->RetriveNode(input_v->id);
+      common::GraphNode* graph_node = this->RetrieveNode(input_v->id);
       if (!graph_node) {
         dtype_dict[input_v->id] = input_v->type;
         shape_dict[input_v->id] = input_v->shape;
