@@ -9,7 +9,7 @@ namespace cinn {
 namespace lang {
 namespace detail {
 
-#define CREATE_GNODE(k__) auto* n##k__ = graph->RetriveNode(#k__);
+#define CREATE_GNODE(k__) auto* n##k__ = graph->RetrieveNode(#k__);
 #define ASSERT_LINKED(a__, b__) ASSERT_TRUE(n##a__->IsLinkedTo(n##b__));
 
 TEST(CreateCompGraph, single_layer) {
