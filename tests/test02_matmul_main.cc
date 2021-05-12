@@ -178,11 +178,10 @@ TEST(matmul, varient_shape) {
   auto C = Compute(
       {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k) * B(k, j), {k}); }, "C");
 
-  auto stages = CreateStages({C});
-
   Target target = common::DefaultHostTarget();
 
   {
+    auto stages = CreateStages({C});
     Module::Builder builder("matmul_dynamic_shape", target);
     auto func = Lower("matmul_dynamic_shape", stages, {A, B, C}, {M});
 
@@ -195,6 +194,7 @@ TEST(matmul, varient_shape) {
   }
 
   {
+    auto stages                               = CreateStages({C});
     int bn                                    = 32;
     auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
 
