@@ -246,7 +246,8 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   std::string deleted_transform = isl_map_to_str(temp_transform.get());
   int compute_at_axis           = -1;
   int deleted_dim               = 0;
-
+  //! Check If the reduce axies is behind the normal axies.
+  //! If true, do ComputeAt. Otherwise, just copy transform, don't do ComputeAt.
   for (int i = 0; i < dim_out_names.size(); i++) {
     if (utils::Count(&deleted_transform, dim_out_names[i]) == utils::Count(&this_transform, dim_out_names[i])) {
       compute_at_axis++;
@@ -262,6 +263,7 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
       deleted_dim++;
     }
   }
+  //! When reduce axies are the last axies, do ComputeAt.
   if (deleted_dim + compute_at_axis + 1 == dim_out_names.size()) {
     stages[init_tensor]->ComputeAt2(stages[this], compute_at_axis);
     init_tensor->new_indices = this->new_indices;
@@ -269,7 +271,8 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
     stages[init_tensor]->ShareBufferWith(stages[this]);
     return init_tensor;
   }
-
+  //! When reduce axies are reordered to front, ComputeAt is illegal.
+  //! So we just copy transform and forloopInfo.
   isl_map_set_tuple_name(temp_transform.get(), isl_dim_in, init_reduce_tensor_name.c_str());
   isl_map_set_tuple_name(temp_transform.get(), isl_dim_out, init_reduce_tensor_name.c_str());
   stages[init_tensor]->SetTransform(temp_transform);
