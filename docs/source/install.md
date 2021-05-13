@@ -65,9 +65,9 @@ ninja install -j8
 export PATH="$PWD/../install/llvmorg-9e42/bin:$PATH"
 ```
 
-*project directory related configuration.*
+*add llvm project directory to environment variables.*
 ```
-export LLVM11_DIR="$PWD"
+export LLVM11_DIR="/path/to/llvm_directory/"
 ```
 
 *check the llvm version*
