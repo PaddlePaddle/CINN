@@ -3,11 +3,11 @@
 
 #include "cinn/runtime/cinn_runtime.h"
 #include "cinn/utils/timer.h"
-#include "tests/test03_convolution_schedule1.h"
+#include "tests/test03_convolution.h"
 
-TEST(test03, schedule) {}
+TEST(test03, basic) {}
 
 // include the generated C source code:
 // @{
-#include "tests/test03_convolution_schedule1.cc"
+#include "tests/test03_convolution.cc"
 // @}
