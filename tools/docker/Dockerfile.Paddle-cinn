@@ -37,19 +37,17 @@ WORKDIR /usr/bin
 
 RUN apt-get update && \
   apt-get install -y python2.7 python2.7-dev \
-  python3.5 python3.5-dev \
   python3.6 python3.6-dev \
   python3.7 python3.7-dev \
   python3.8 python3.8-dev && \
   curl https://bootstrap.pypa.io/ez_setup.py -o - | python2.7 && easy_install pip && \
-  curl https://bootstrap.pypa.io/ez_setup.py -o - | python3.5 && easy_install pip && \
   curl https://bootstrap.pypa.io/ez_setup.py -o - | python3.6 && easy_install pip && \
   curl https://bootstrap.pypa.io/ez_setup.py -o - | python3.7 && easy_install pip && \
   curl https://bootstrap.pypa.io/ez_setup.py -o - | python3.8 && easy_install pip && \
   rm /usr/bin/python && ln -s /usr/bin/python2.7 /usr/bin/python && \
-  rm /usr/bin/python3 && ln -s /usr/bin/python3.5 /usr/bin/python3 && \
+  rm /usr/bin/python3 && ln -s /usr/bin/python3.6 /usr/bin/python3 && \
   rm /usr/local/bin/pip && ln -s /usr/local/bin/pip2.7 /usr/local/bin/pip && \
-  rm /usr/local/bin/pip3 && ln -s /usr/local/bin/pip3.5 /usr/local/bin/pip3
+  rm /usr/local/bin/pip3 && ln -s /usr/local/bin/pip3.6 /usr/local/bin/pip3
 
 
 # install cmake
@@ -85,8 +83,6 @@ RUN localedef -i en_US -f UTF-8 en_US.UTF-8
 
 RUN pip3 --no-cache-dir install pre-commit==1.10.4 ipython==5.3.0 && \
     pip3 --no-cache-dir install ipykernel==4.6.0 wheel && \
-    pip3.6 --no-cache-dir install pre-commit==1.10.4 ipython==5.3.0 && \
-    pip3.6 --no-cache-dir install ipykernel==4.6.0 wheel && \
     pip3.7 --no-cache-dir install pre-commit==1.10.4 ipython==5.3.0 && \
     pip3.7 --no-cache-dir install ipykernel==4.6.0 wheel && \
     pip3.8 --no-cache-dir install pre-commit==1.10.4 ipython==5.3.0 && \
@@ -96,14 +92,12 @@ RUN pip3 --no-cache-dir install pre-commit==1.10.4 ipython==5.3.0 && \
 
 #For docstring checker
 RUN pip3 --no-cache-dir install pylint pytest astroid isort && \
-    pip3.6 --no-cache-dir install pylint pytest astroid isort && \
     pip3.7 --no-cache-dir install pylint pytest astroid isort && \
     pip3.8 --no-cache-dir install pylint pytest astroid isort && \
     pip --no-cache-dir install pylint pytest astroid isort
 
 COPY ./python/requirements.txt /root/
 RUN pip3 --no-cache-dir install -r /root/requirements.txt && \
-    pip3.6 --no-cache-dir install -r /root/requirements.txt && \
     pip3.7 --no-cache-dir install -r /root/requirements.txt && \
     pip3.8 --no-cache-dir install -r /root/requirements.txt && \
     pip --no-cache-dir install -r /root/requirements.txt
@@ -146,7 +140,7 @@ RUN ln -s /usr/bin/llvm-config-6.0 /usr/bin/llvm-config
 RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|apt-key add -
 
 RUN apt update
-RUN apt install libclang-dev llvm-10 llvm-10-dev libclang-10-dev -y
+RUN apt install libclang-dev llvm-12 llvm-12-dev libclang-10-dev -y
 
 
 EXPOSE 22

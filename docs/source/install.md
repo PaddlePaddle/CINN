@@ -44,7 +44,7 @@ The git of the llvm-project is huge and git cloning in China is quite slow, use 
 
 ```sh
 cd llvm-project
-mkdir build
+mkdir build && cd build
 
 cmake -G Ninja ../llvm \
   -DLLVM_ENABLE_PROJECTS=mlir \
@@ -63,6 +63,11 @@ ninja install -j8
 
 ```sh
 export PATH="$PWD/../install/llvmorg-9e42/bin:$PATH"
+```
+
+*project directory related configuration.*
+```
+export LLVM11_DIR="$PWD"
 ```
 
 *check the llvm version*
