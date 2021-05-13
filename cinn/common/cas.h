@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -96,9 +97,14 @@ struct CasSimplifyMutator {
   Expr SimplifySpecificSum(Expr u);
 
  private:
-  std::vector<Expr> MergeProduct(const std::vector<Expr>& _p, const std::vector<Expr>& _q);
+  std::vector<Expr> SimplifyBinaryProduct(Expr left, Expr right);
+  std::vector<Expr> MergeProduct(const std::vector<Expr>& p, const std::vector<Expr>& q);
 
-  std::vector<Expr> MergeSum(const std::vector<Expr>& _p, const std::vector<Expr>& _q);
+  std::vector<Expr> SimplifyBinarySum(Expr left, Expr right);
+  std::vector<Expr> MergeSum(const std::vector<Expr>& p, const std::vector<Expr>& q);
+  std::vector<Expr> MergeExprs(const std::vector<Expr>& p,
+                               const std::vector<Expr>& q,
+                               const std::function<std::vector<Expr>(Expr, Expr)>& binary_merge);
 
   const std::unordered_map<std::string, CasInterval> var_intervals;
 
