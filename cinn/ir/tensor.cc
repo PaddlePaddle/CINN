@@ -246,8 +246,7 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   std::string deleted_transform = isl_map_to_str(temp_transform.get());
   int compute_at_axis           = -1;
   int deleted_dim               = 0;
-  //! Check If the reduce axies is behind the normal axies.
-  //! If true, do ComputeAt. Otherwise, just copy transform, don't do ComputeAt.
+  //! Get the ComputeAt level. It increases until reduce_axis.
   for (int i = 0; i < dim_out_names.size(); i++) {
     if (utils::Count(&deleted_transform, dim_out_names[i]) == utils::Count(&this_transform, dim_out_names[i])) {
       compute_at_axis++;
@@ -257,14 +256,13 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   }
 
   for (int i = 0; i < dim_out_names.size(); i++) {
-    if (utils::Count(&deleted_transform, dim_out_names[i]) == utils::Count(&this_transform, dim_out_names[i])) {
-    } else {
+    if (utils::Count(&deleted_transform, dim_out_names[i]) != utils::Count(&this_transform, dim_out_names[i])) {
       temp_transform = isl::manage(isl_map_remove_dims(temp_transform.release(), isl_dim_out, i - deleted_dim, 1));
       deleted_dim++;
     }
   }
-  //! When reduce axies are the last axies, do ComputeAt.
-  if (deleted_dim + compute_at_axis + 1 == dim_out_names.size()) {
+  //! When the first axis is not reduce axis, do ComputeAt.
+  if (compute_at_axis >= 0) {
     stages[init_tensor]->ComputeAt2(stages[this], compute_at_axis);
     init_tensor->new_indices = this->new_indices;
     stages[this]->CtrlDepend(init_tensor);

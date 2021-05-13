@@ -66,5 +66,23 @@ isl_set* __isl_give isl_set_port_to_other(isl_set* __isl_give from,
 //! e.g. { s[i,j,k]: 0<i,j,k<100}, get {0,2} dims, get { s[i,k]: 0<i,k<100 }
 isl::set SetGetDims(isl::set set, const std::vector<int>& dims);
 
+/**
+ * Given an isl::map and a vector of names of dim_in,
+ * remove the input dims in vector and related output dims.
+ * @param x The map to edit.
+ * @param dim_in_names The names of input dims to remove.
+ * @return The edited map.
+ */
+isl::map RemoveAxiesByNames(const isl::map& x, const std::vector<std::string>& dim_in_names);
+
+/**
+ * Given an isl::map and the name of an output dim,
+ * get the names of related input dims.
+ * @param x The input map.
+ * @param dim_in_names The name of an output dim.
+ * @return The vector of names of related input dims.
+ */
+std::vector<std::string> GetRelatedAxies(const isl::map& x, const std::string& dim_out_name);
+
 }  // namespace poly
 }  // namespace cinn

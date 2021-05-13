@@ -124,6 +124,8 @@ class Stage : public Object {
   Iterator axis(int i) const;
   //! Get the axis named \p i.
   Iterator axis(const std::string& i) const;
+  //! Get the original reduce axis names.
+  std::vector<std::string> origin_reduce_axis_names();
 
   std::vector<std::string> axis_names() const;
 
