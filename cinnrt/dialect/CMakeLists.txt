@@ -35,10 +35,10 @@ add_dependencies(print-ir pd_ops_inc)
 
 # MLIR opt tests
 # %{
-add_test(test_mlir_opt_on_basic ${CMAKE_BINARY_DIR}/cinnrt/dialect/cinn-opt
-        ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/basic.mlir)
-
 set(cinn_opt_path ${CMAKE_BINARY_DIR}/cinnrt/dialect/cinn-opt)
+
+add_test(test_mlir_opt_on_basic ${cinn_opt_path}
+        ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/basic.mlir)
 add_test(test_mlir_opt_on_tensor_shape ${cinn_opt_path}
         ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/tensor_shape.mlir)
 add_test(test_mlir_opt_on_paddle_ops
@@ -52,3 +52,8 @@ cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS cinncore ${MLIR_IR_LIBS})
 cinn_exec_check(run_and_check_tensor_type mlir_tests/tensor_type.mlir)
 cinn_exec_check(run_and_check_basic mlir_tests/basic.mlir)
 cinn_exec_check(run_and_check_benchmark mlir_tests/benchmark.mlir)
+#cinn_exec_check(run_and_check_dense_tensor mlir_tests/dense_tensor.mlir)
+add_test(test_mlir_dense_tensor
+        ${CMAKE_BINARY_DIR}/cinnrt/host_context/cinn-exec
+        -i
+        ${CMAKE_CURRENT_SOURCE_DIR}/mlir_tests/dense_tensor.mlir)

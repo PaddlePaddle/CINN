@@ -40,6 +40,8 @@ std::vector<std::string> KernelRegistry::GetKernelList() const {
 
 KernelRegistry::~KernelRegistry() {}
 
+size_t KernelRegistry::size() const { return impl_->data.size(); }
+
 KernelRegistry *GetCpuKernelRegistry() {
   static auto registry = std::make_unique<KernelRegistry>();
   return registry.get();

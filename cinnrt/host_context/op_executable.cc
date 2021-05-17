@@ -13,7 +13,12 @@ struct OpExecutable::Impl {
   Impl(std::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry)
       : name(op_name),
         symbol_table(symbol_table),
-        kernel_registry(kernel_registry ? kernel_registry : GetCpuKernelRegistry()) {}
+        kernel_registry(kernel_registry ? kernel_registry : GetCpuKernelRegistry()) {
+    CHECK(kernel_registry);
+  }
+
+  inline bool to_execute() const { return !run_once || run_once && !has_executed; }
+  inline void MarkRun() { has_executed = true; }
 
   std::string name;
   SymbolTable* symbol_table{};
@@ -23,6 +28,11 @@ struct OpExecutable::Impl {
   std::unique_ptr<MlirFunctionExecutable> mlir_function_executable;
 
   KernelImplementation kernel_impl{};
+
+  //! Tell whether this Op should be executed only once.
+  bool run_once{};
+  //! Tell whether this op has been executed.
+  bool has_executed{};
 };
 
 OpExecutable::OpExecutable(OpExecutable::Impl* impl) : impl_(impl) {}
@@ -33,10 +43,15 @@ OpExecutableBuilder::OpExecutableBuilder(std::string_view op_name,
                                          SymbolTable* symbol_table,
                                          KernelRegistry* kernel_registry)
     : OpExecutable(new Impl(op_name, symbol_table, kernel_registry)) {
-  // Cpu kernel registry is the default KernelRegistry.
+  CHECK(impl_);
+  // CPU kernel registry is the default KernelRegistry.
   impl_->kernel_impl = impl_->kernel_registry->GetKernel(std::string(op_name.data(), op_name.size()));
   // TODO(Superjomn) support other device other than CPU.
   CHECK(impl_->kernel_impl) << "No CPU kernel called " << op_name;
+
+  if (op_name == "dt.get_param") {
+    impl_->run_once = true;
+  }
 }
 
 void OpExecutableBuilder::AppendArgument(std::string_view name) {
@@ -85,7 +100,6 @@ MlirFunctionExecutable* OpExecutableBuilder::CreateFunctionExecutable(mlir::Regi
 }
 
 void OpExecutable::Execute() {
-  // std::cout << "OpExecutable::Execute" << std::endl;
 #ifndef NDEBUG
   VLOG(3) << "execute " << name() << " --- frame args: " << impl_->frame.GetNumArgs() << " results "
           << impl_->frame.GetNumResults() << " attributes " << impl_->frame.GetNumAttributes();
@@ -97,7 +111,10 @@ void OpExecutable::Execute() {
   }
 #endif
 
-  impl_->kernel_impl(&impl_->frame);
+  if (impl_->to_execute()) {
+    impl_->kernel_impl(&impl_->frame);
+    impl_->MarkRun();
+  }
 }
 
 OpExecutable::~OpExecutable() {}

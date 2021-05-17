@@ -11,6 +11,7 @@ core_gather_srcs(SRCS
     mlir_to_runtime_translate.cc
     function.cc
     mlir_function_executable.cc
+    mlir_program_executor.cc
     )
 
 cc_test(test_host_context_value SRCS value_test.cc DEPS cinncore ${MLIR_IR_LIBS})

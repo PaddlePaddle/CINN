@@ -2,6 +2,10 @@
 
 #include <vector>
 
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/DynamicLibrary.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/Parser.h>
 #include "cinnrt/common/global.h"
 #include "cinnrt/dialect/dense_tensor.h"
 #include "cinnrt/dialect/mlir_loader.h"
@@ -17,10 +21,6 @@
 #include "cinnrt/kernel/tensor_shape_kernels.h"
 #include "cinnrt/kernel/test_kernels.h"
 #include "cinnrt/tensor/tensor_map.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/DynamicLibrary.h"
-#include "mlir/Dialect/StandardOps/IR/Ops.h"
-#include "mlir/Parser.h"
 
 using namespace cinnrt::host_context;
 using namespace cinnrt::tensor;
@@ -43,6 +43,7 @@ struct MlirToRuntimeTranslator::Impl {
   mlir::ModuleOp module;
   // The runtime for a function call.
   CoreRuntimeBuilder* runtime{};
+
   // The current working op, the translator process the ops one by one, each time it updates `cur_op` here to current op
   // working on.
   OpExecutableBuilder* cur_op{};
@@ -155,7 +156,7 @@ std::shared_ptr<CinnRtPredictor> CreateCinnRtPredictor(const CinnRtConfig& confi
 
 struct CinnRtPredictor::Impl {
   mlir::OwningModuleRef module_ref;
-  PredictExecutor* executor;
+  std::unique_ptr<PredictExecutor> executor;
 };
 
 CinnRtPredictor::CinnRtPredictor() : impl_(new Impl) {}
@@ -192,10 +193,12 @@ int CinnRtPredictor::Init(const CinnRtConfig& config) {
       llvm::outs() << "Symbol \"RegisterKernels\" not found in \"" << lib_path << "\". Skip.\n";
     }
   }
+
   // Load params
-  TensorMap* map = LoadParams(config.model_dir());
+  TensorMap* tensor_map = LoadParams(config.model_dir());
+
   // Create PredictExecutor
-  impl_->executor = new PredictExecutor(impl_->module_ref.get(), registry, map);
+  impl_->executor.reset(new PredictExecutor(impl_->module_ref.get(), registry, tensor_map));
   return 0;
 }
 

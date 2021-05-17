@@ -45,7 +45,7 @@ class MlirFunctionExecutable : public Function, public MlirToRuntimeTranslator {
   void BuildExecutables(llvm::ArrayRef<Value*> arguments, llvm::MutableArrayRef<ValueRef> results, bool is_region);
 
  private:
-  mlir::Region* region_;
+  mlir::Region* region_{};
   CoreRuntimeBuilder core_runtime_builder_;
   MlirToRuntimeTranslator::function_defs_t& function_table_;
   std::function<void()> copy_res_fn_;

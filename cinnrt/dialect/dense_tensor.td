@@ -34,6 +34,22 @@ class CreateUninitTensorOp<string dtype>
   let printer = [{ return cinnrt::dt::printCreateUninitTensorOp(p, *this); }];
 }
 
+
+def ShallowCopyTensorOp
+      : DT_Op<"shallow_copy_tensor", [NoSideEffect]> {
+  let summary = "dt.shallow_copy_tensor operation";
+
+  let description = [{
+      An operation that copy a tensor shallowly.
+  }];
+
+  let arguments = (ins TensorType:$input);
+  let results = (outs TensorType:$output);
+
+  let assemblyFormat = "$input attr-dict `:` type($input) `->` type($output)";
+}
+
+
 class FillTensorWithConstantOp<string dtype> :
       DT_Op<"fill_tensor_with_constant." # dtype> {
   let summary = "dt.fill_tensor_with_constant operation";

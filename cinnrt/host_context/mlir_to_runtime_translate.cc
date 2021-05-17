@@ -189,7 +189,7 @@ static bool IsReturn(mlir::Operation* op) { return op->getName().getStringRef() 
 bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
   auto loc = op->getLoc();
   CHECK(impl_->runtime);
-  impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
+  impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str());
 
   VLOG(3) << "processing general op : " << op->getName().getStringRef().str();
 
@@ -359,7 +359,7 @@ bool MlirToRuntimeTranslator::EmitCallOp(mlir::Operation* op, function_defs_t* f
   CHECK(function_table);
   if (op->getName().getStringRef() != "cinn.call") return false;
 
-  impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str(), impl_->cur_func_name);
+  impl_->cur_op = impl_->runtime->NewOpExecutable(op->getName().getStringRef().str());
 
   auto callee      = op->getAttr("callee");
   auto callee_name = callee.dyn_cast<mlir::FlatSymbolRefAttr>();
@@ -415,7 +415,7 @@ void MlirToRuntimeTranslate(mlir::ModuleOp module, CoreRuntimeBuilder* runtime) 
 }
 
 /**
- * Execute the mlir program in test mode -- print some debug infomation to stdout.
+ * Execute the mlir program in test mode -- print some debug information to stdout.
  */
 class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
  public:
