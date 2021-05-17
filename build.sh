@@ -82,7 +82,7 @@ function cmake_ {
 
 function _download_and_untar {
     local tar_file=$1
-    if [[ ! -f "ResNet18.tar" ]]; then
+    if [[ ! -f $tar_file ]]; then
         wget http://paddle-inference-dist.bj.bcebos.com/CINN/$tar_file
         tar -xvf $tar_file
     fi
