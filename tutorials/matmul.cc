@@ -38,12 +38,6 @@ function fn0 (_A, _B, _tensor)
     for (j, 0, 200)
     {
       tensor__reduce_init[i, j] = 0
-    }
-  }
-  for (i, 0, 100)
-  {
-    for (j, 0, 200)
-    {
       for (k0, 0, 50)
       {
         tensor[i, j] = (tensor[i, j] + (A[i, k0] * B[k0, j]))
@@ -84,10 +78,6 @@ void fn0(void* _args, int32_t num_args)
   for (int32_t i = 0; i < 100; i += 1) {
     for (int32_t j = 0; j < 200; j += 1) {
       tensor__reduce_init[((200 * i) + j)] = 0;
-    };
-  };
-  for (int32_t i = 0; i < 100; i += 1) {
-    for (int32_t j = 0; j < 200; j += 1) {
       for (int32_t k0 = 0; k0 < 50; k0 += 1) {
         tensor[((200 * i) + j)] = (tensor[((200 * i) + j)] + (A[((50 * i) + k0)] * B[((200 * k0) + j)]));
       };
@@ -120,13 +110,6 @@ void fn0(void* _args, int32_t num_args)
   target_source = R"ROC(
 function fn1 (_A, _B, _tensor)
 {
-  for (i, 0, 100)
-  {
-    for (j, 0, 200)
-    {
-      tensor__reduce_init[i, j] = 0
-    }
-  }
   for (i_outer, 0, 25)
   {
     for (i_inner, 0, 4)
@@ -135,6 +118,7 @@ function fn1 (_A, _B, _tensor)
       {
         for (j_inner, 0, 4)
         {
+          tensor__reduce_init[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] = 0
           for (k0, 0, 50)
           {
             tensor[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] = (tensor[((4 * i_outer) + i_inner), ((4 * j_outer) + j_inner)] + (A[((4 * i_outer) + i_inner), k0] * B[k0, ((4 * j_outer) + j_inner)]))

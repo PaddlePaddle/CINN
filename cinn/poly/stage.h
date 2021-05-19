@@ -124,6 +124,8 @@ class Stage : public Object {
   Iterator axis(int i) const;
   //! Get the axis named \p i.
   Iterator axis(const std::string& i) const;
+  //! Get the original reduce axis names.
+  std::vector<std::string> origin_reduce_axis_names();
 
   std::vector<std::string> axis_names() const;
 
@@ -343,6 +345,10 @@ class Stage : public Object {
   //! For example, if the target_forloop_infos is `Bind(0,"threadIdx.x")`,
   //! this api will apply `Bind(0,"threadIdx.x")` on itself.
   void CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::map& target_transform);
+  //! Set stage's transform_
+  void SetTransform(isl::map new_transform) { transform_ = new_transform; }
+  //! Set stage's forloop_infos_
+  void SetForloopInfo(std::map<int, StageForloopInfo> forloop_infos) { forloop_infos_ = forloop_infos; }
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);

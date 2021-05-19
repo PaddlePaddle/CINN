@@ -97,6 +97,20 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
 }
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
+                   std::function<Expr(Expr, Expr, Expr, Expr, Expr, Expr)> fn,
+                   const std::string &name,
+                   const std::vector<Expr> &shape) {
+  return Compute(
+      domain,
+      [fn](const std::vector<Expr> &axis) -> Expr {
+        CHECK_EQ(axis.size(), 6);
+        return fn(axis[0], axis[1], axis[2], axis[3], axis[4], axis[5]);
+      },
+      name,
+      shape);
+}
+
+ir::Tensor Compute(const std::vector<Expr> &domain,
                    std::function<Expr(const std::vector<Expr> &)> fn,
                    const std::string &name,
                    const std::vector<Expr> &shape) {

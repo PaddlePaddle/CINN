@@ -336,8 +336,8 @@ void Stage::ChangeDomain(Stage *other, int level) {
  * and 1st loop is binded to threadIdx.x, then i0 will be erased in this temp tensor's axes.
  */
 void Stage::EditTempTensor(Stage *other, int level) {
-  auto bind_info = other->forloop_infos();
-  auto temp_name = axis_names();
+  auto bind_info              = other->forloop_infos();
+  auto transform_domain_names = axis_names();
   std::set<std::string> erase_var;
   std::string tensor_name = this->tensor()->name;
   for (int i = 0; i <= level; i++) {
@@ -347,27 +347,42 @@ void Stage::EditTempTensor(Stage *other, int level) {
       }
     }
     // Iterators of loop within level will be erased.
-    erase_var.insert(temp_name[i].substr(0, 1));
+    auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+    for (auto &j : related_dim_in) {
+      erase_var.insert(j);
+    }
   }
   std::set<std::string> undo_erase_var;
   // Beyond level, if the loop is binded to certain thread/block, it will also be earsed.
-  for (int i = level + 1; i < temp_name.size(); i++) {
+  for (int i = level + 1; i < transform_domain_names.size(); i++) {
     if (bind_info.count(i) != 0) {
       if (bind_info[i].for_type == ir::ForType::GPUBlock &&
           (this->scope() == ScopeKind::kShared || this->scope() == ScopeKind::kLocal)) {
-        erase_var.insert(temp_name[i].substr(0, 1));
+        auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+        for (auto &j : related_dim_in) {
+          erase_var.insert(j);
+        }
       } else if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
-        erase_var.insert(temp_name[i].substr(0, 1));
+        auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+        for (auto &j : related_dim_in) {
+          erase_var.insert(j);
+        }
       } else {
-        undo_erase_var.insert(temp_name[i]);
+        auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+        for (auto &j : related_dim_in) {
+          undo_erase_var.insert(j);
+        }
       }
     } else {
-      undo_erase_var.insert(temp_name[i]);
+      auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+      for (auto &j : related_dim_in) {
+        undo_erase_var.insert(j);
+      }
     }
   }
   std::vector<std::string> erase_var_vec;
   for (auto &i : erase_var) {
-    if (undo_erase_var.count(i + "_inner") == 0 && undo_erase_var.count(i + "_outer") == 0) {
+    if (undo_erase_var.count(i) == 0) {
       erase_var_vec.push_back(i);
     }
   }
@@ -696,6 +711,15 @@ void Stage::Unroll(const Iterator &level) {
 
 std::vector<std::string> Stage::axis_names() const { return isl_get_dim_names(transformed_domain()); }
 
+std::vector<std::string> Stage::origin_reduce_axis_names() {
+  auto reduce_axis_var = this->tensor()->reduce_axis;
+  std::vector<std::string> reduce_axis_names;
+  for (auto &i : reduce_axis_var) {
+    reduce_axis_names.push_back(i->name);
+  }
+  return reduce_axis_names;
+}
+
 void Stage::Bind(int level, const std::string &axis) {
   CHECK_LT(level, n_out_dims());
   LockAxis(level);
@@ -989,8 +1013,7 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
 }
 
 void Stage::CopyTransform(Stage *other, int level) {
-  auto target_transform        = other->transform();
-  auto target_domain           = other->domain();
+  auto target_transform        = RemoveAxiesByNames(other->transform(), other->origin_reduce_axis_names());
   std::string str_target_trans = isl_map_to_str(target_transform.get());
   std::string this_tensor_name = isl_set_get_tuple_name(domain_.get());
   isl::ctx this_ctx            = domain_.ctx();
@@ -1093,7 +1116,10 @@ void Stage::CopyTransform(Stage *other, int level) {
   isl_map_set_tuple_name(temp_transform_.get(), isl_dim_out, this_tensor_name.c_str());
   std::string res_trans = isl_map_to_str(temp_transform_.get());
   isl::map res_map(this_ctx, res_trans);
-  VLOG(2) << "After Copytransform result trans is : " << isl_map_to_str(res_map.get());
+  VLOG(2) << "This domain is: " << isl_set_to_str(domain_.get());
+  VLOG(2) << "After Copytransform this trans is : " << isl_map_to_str(res_map.get());
+  VLOG(2) << "Target transform is : " << isl_map_to_str(other->transform().get());
+  VLOG(2) << "CopyTransform Level is : " << level;
   transform_ = res_map;
 }
 

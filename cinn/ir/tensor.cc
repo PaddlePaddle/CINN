@@ -235,19 +235,56 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   auto init_tensor = lang::Compute(
       domain, [=](const std::vector<Expr> &axis) { return GetReduceInitVal(); }, init_reduce_tensor_name);
   stages->InsertLazily(init_tensor);
-  if (target.arch == Target::Arch::NVGPU) {
-    int init_axis             = stages[init_tensor]->axis_names().size();
-    std::string axis_name_str = common::axis_name(init_axis - 1);
-    auto map_names            = poly::isl_get_dim_names(stages[this]->transform().get(), isl_dim_out);
-    int compute_at_axis       = -1;
-    for (int i = map_names.size() - 1; i >= 0; i--) {
-      if (map_names[i].substr(0, 1) == axis_name_str) {
-        compute_at_axis = i;
-        break;
+  std::string this_transform = isl_map_to_str(stages[this]->transform().get());
+  isl::ctx this_ctx          = stages[this]->transform().ctx();
+  isl::map temp_transform(this_ctx, this_transform);
+  int reduce_axis_num = this->reduce_axis.size();
+  auto dim_out_names  = poly::isl_get_dim_names(stages[this]->transform(), isl_dim_out);
+  auto dim_in_size    = isl_map_dim(stages[this]->transform().get(), isl_dim_in);
+  temp_transform      = isl::manage(
+      isl_map_remove_dims(temp_transform.release(), isl_dim_in, dim_in_size - reduce_axis_num, reduce_axis_num));
+  std::string deleted_transform = isl_map_to_str(temp_transform.get());
+  int compute_at_axis           = -1;
+  int deleted_dim               = 0;
+  //! Get the ComputeAt level. It increases until reduce_axis.
+  for (int i = 0; i < dim_out_names.size(); i++) {
+    if (utils::Count(&deleted_transform, dim_out_names[i]) == utils::Count(&this_transform, dim_out_names[i])) {
+      compute_at_axis++;
+    } else {
+      break;
+    }
+  }
+
+  for (int i = 0; i < dim_out_names.size(); i++) {
+    if (utils::Count(&deleted_transform, dim_out_names[i]) != utils::Count(&this_transform, dim_out_names[i])) {
+      temp_transform = isl::manage(isl_map_remove_dims(temp_transform.release(), isl_dim_out, i - deleted_dim, 1));
+      deleted_dim++;
+    }
+  }
+  //! When the first axis is not reduce axis, do ComputeAt.
+  if (compute_at_axis >= 0) {
+    stages[init_tensor]->ComputeAt2(stages[this], compute_at_axis);
+    init_tensor->new_indices = this->new_indices;
+    stages[this]->CtrlDepend(init_tensor);
+    stages[init_tensor]->ShareBufferWith(stages[this]);
+    return init_tensor;
+  }
+  //! When reduce axies are reordered to front, ComputeAt is illegal.
+  //! So we just copy transform and forloopInfo.
+  isl_map_set_tuple_name(temp_transform.get(), isl_dim_in, init_reduce_tensor_name.c_str());
+  isl_map_set_tuple_name(temp_transform.get(), isl_dim_out, init_reduce_tensor_name.c_str());
+  stages[init_tensor]->SetTransform(temp_transform);
+  auto init_dim_out_names                                 = poly::isl_get_dim_names(temp_transform, isl_dim_out);
+  std::map<int, poly::StageForloopInfo> temp_forloop_info = stages[this]->forloop_infos();
+  std::map<int, poly::StageForloopInfo> init_forloop_info;
+  for (auto &i : temp_forloop_info) {
+    for (int j = 0; j < init_dim_out_names.size(); j++) {
+      if (dim_out_names[i.first] == init_dim_out_names[j]) {
+        init_forloop_info[j] = i.second;
       }
     }
-    stages[init_tensor]->ComputeAt2(stages[this], compute_at_axis);
   }
+  stages[init_tensor]->SetForloopInfo(init_forloop_info);
   init_tensor->new_indices = this->new_indices;
   stages[this]->CtrlDepend(init_tensor);
   stages[init_tensor]->ShareBufferWith(stages[this]);
