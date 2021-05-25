@@ -204,7 +204,7 @@ TEST(Vectorize, single_for) {
                           {Expr(loop_var)});
   body      = ir::Block::Make({body});
 
-  VectorizeInfo vectorize_info(0, 16);
+  VectorizeInfo vectorize_info("k0", 16);
   auto forloop = ir::For::Make(loop_var,
                                common::make_const(0),
                                common::make_const(16),

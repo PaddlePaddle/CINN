@@ -593,16 +593,16 @@ enum class ForType : int {
 
 struct VectorizeInfo {
   VectorizeInfo() = default;
-  VectorizeInfo(int level, int factor) : level(level), factor(factor) {}
+  VectorizeInfo(const std::string& axis, int factor) : axis(axis), factor(factor) {}
 
-  int level{-1};
+  std::string axis{""};
   int factor{-1};
 
-  inline void set(int level, int factor) {
-    this->level  = level;
+  inline void set(const std::string& axis, int factor) {
+    this->axis   = axis;
     this->factor = factor;
   }
-  inline bool valid() const { return level >= 0 && factor > 0; }
+  inline bool valid() const { return !axis.empty() && factor > 0; }
 };
 
 struct ForBase {
@@ -618,7 +618,7 @@ struct ForBase {
   void reset_vectorize_info() {
     set_vectorized(false);
     vectorize_info_.factor = -1;
-    vectorize_info_.level  = -1;
+    vectorize_info_.axis   = "";
   }
 
   void set_serial() { for_type_ = ForType::Serial; }

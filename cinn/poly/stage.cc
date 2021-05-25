@@ -341,8 +341,8 @@ void Stage::EditTempTensor(Stage *other, int level) {
   std::set<std::string> erase_var;
   std::string tensor_name = this->tensor()->name;
   for (int i = 0; i <= level; i++) {
-    if (bind_info.count(i) != 0) {
-      if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kShared)) {
+    if (bind_info.count(ith_dim_name(i)) != 0) {
+      if (bind_info[ith_dim_name(i)].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kShared)) {
         continue;
       }
     }
@@ -355,14 +355,15 @@ void Stage::EditTempTensor(Stage *other, int level) {
   std::set<std::string> undo_erase_var;
   // Beyond level, if the loop is binded to certain thread/block, it will also be earsed.
   for (int i = level + 1; i < transform_domain_names.size(); i++) {
-    if (bind_info.count(i) != 0) {
-      if (bind_info[i].for_type == ir::ForType::GPUBlock &&
+    if (bind_info.count(ith_dim_name(i)) != 0) {
+      if (bind_info[ith_dim_name(i)].for_type == ir::ForType::GPUBlock &&
           (this->scope() == ScopeKind::kShared || this->scope() == ScopeKind::kLocal)) {
         auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
         for (auto &j : related_dim_in) {
           erase_var.insert(j);
         }
-      } else if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
+      } else if (bind_info[ith_dim_name(i)].for_type == ir::ForType::GPUThread &&
+                 (this->scope() == ScopeKind::kLocal)) {
         auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
         for (auto &j : related_dim_in) {
           erase_var.insert(j);
@@ -641,18 +642,18 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
 }
 
 void Stage::Vectorize(int level, int factor) {
-  AssertAxisIsNotLocked(level);
   CHECK_LT(level, n_out_dims());
   CHECK_GT(factor, 0);
   auto dim_name = ith_dim_name(level);
-  vectorize_info_.set(level /*inner*/, factor);
+  Vectorize(dim_name, factor);
 }
 
 void Stage::Vectorize(const std::string &axis, int factor) {
   auto dims = isl_get_dim_names(transformed_domain());
   auto it   = std::find(dims.begin(), dims.end(), axis);
   CHECK(it != dims.end()) << "No dimension called " << axis;
-  Vectorize(std::distance(dims.begin(), it), factor);
+  AssertAxisIsNotLocked(std::distance(dims.begin(), it));
+  vectorize_info_.set(axis /*inner*/, factor);
 }
 
 void Stage::Vectorize(const Iterator &axis, int factor) { return Vectorize(axis.id, factor); }
@@ -1009,7 +1010,8 @@ isl_map *__isl_give GatherAccesses(Stage *stage, const std::string &tensor_name)
 void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
   int num_levels = isl_map_dim(transform_.get(), isl_dim_out);
   CHECK_LT(level, num_levels);
-  forloop_infos_[level] = info;
+  auto dim_name            = ith_dim_name(level);
+  forloop_infos_[dim_name] = info;
 }
 
 void Stage::CopyTransform(Stage *other, int level) {
@@ -1123,13 +1125,13 @@ void Stage::CopyTransform(Stage *other, int level) {
   transform_ = res_map;
 }
 
-void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::map &target_transform) {
+void Stage::CopyLoopInfo(std::map<std::string, StageForloopInfo> target_forloop_infos,
+                         const isl::map &target_transform) {
   std::map<std::string, StageForloopInfo> dim_forloop_infos;
   std::vector<std::string> this_dim_names = isl_get_dim_names(transform_, isl_dim_out);
   for (int i = 0; i < this_dim_names.size(); i++) {
-    int index = isl_map_find_dim_by_name(target_transform.get(), isl_dim_out, this_dim_names[i].c_str());
-    if (target_forloop_infos.count(index) != 0) {
-      forloop_infos_[i] = target_forloop_infos[index];
+    if (target_forloop_infos.count(this_dim_names[i]) != 0) {
+      forloop_infos_[this_dim_names[i]] = target_forloop_infos[this_dim_names[i]];
     }
   }
 }

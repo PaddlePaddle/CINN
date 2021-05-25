@@ -320,7 +320,7 @@ class Stage : public Object {
   void add_extra_depend_stage(const std::string& statement) { extra_depend_stages_.insert(statement); }
    */
 
-  const std::map<int /*level*/, StageForloopInfo>& forloop_infos() const { return forloop_infos_; }
+  const std::map<std::string /*level*/, StageForloopInfo>& forloop_infos() const { return forloop_infos_; }
 
   bool has_expression() const;
 
@@ -344,11 +344,11 @@ class Stage : public Object {
   //! Copy other stage's LoopInfo.
   //! For example, if the target_forloop_infos is `Bind(0,"threadIdx.x")`,
   //! this api will apply `Bind(0,"threadIdx.x")` on itself.
-  void CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::map& target_transform);
+  void CopyLoopInfo(std::map<std::string, StageForloopInfo> target_forloop_infos, const isl::map& target_transform);
   //! Set stage's transform_
   void SetTransform(isl::map new_transform) { transform_ = new_transform; }
   //! Set stage's forloop_infos_
-  void SetForloopInfo(std::map<int, StageForloopInfo> forloop_infos) { forloop_infos_ = forloop_infos; }
+  void SetForloopInfo(std::map<std::string, StageForloopInfo> forloop_infos) { forloop_infos_ = forloop_infos; }
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
@@ -383,7 +383,7 @@ class Stage : public Object {
   //! The for-loop levels to parallel.
   std::set<int> parallel_info_;
   //! Record some forloop levels' information.
-  std::map<int /*level*/, StageForloopInfo> forloop_infos_;
+  std::map<std::string /*level*/, StageForloopInfo> forloop_infos_;
   //! A weak reference to the tensor.
   ir::_Tensor_* tensor_{};
   //! Thread scope.

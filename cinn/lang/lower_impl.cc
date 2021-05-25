@@ -149,8 +149,14 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
       auto iters = common::GatherItersToTensorProducer(stage->id(), &e);
       std::map<std::string, poly::StageForloopInfo> for_infos;
       for (auto& item : stage->forloop_infos()) {
-        CHECK_LT(item.first, iters.size());
-        for_infos[iters[item.first]] = item.second;
+        bool exist_check = false;
+        LOG(INFO) << "forloop info is : " << item.first;
+        for (auto& i : iters) {
+          LOG(INFO) << "In iters, i is : " << i;
+          if (i == item.first) exist_check = true;
+        }
+        if (!exist_check) continue;
+        for_infos[item.first] = item.second;
       }
 
       forloop_infos[stage->id()] = for_infos;

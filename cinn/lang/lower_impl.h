@@ -188,10 +188,10 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
 
   // NOTE This mutator takes PolyFor as input, not For.
   void Visit(const ir::PolyFor* op, Expr* expr) override {
-    auto* node = expr->As<ir::PolyFor>();
-    forloop_stack.push_back(node);
+    auto* node                          = expr->As<ir::PolyFor>();
+    forloop_stack[node->iterator->name] = node;
     ir::IRMutator<ir::Expr*>::Visit(op, expr);
-    forloop_stack.pop_back();
+    forloop_stack.erase(node->iterator->name);
   }
 
   // each statement in ISL is bound to a Store node.
@@ -200,12 +200,12 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
     CHECK(tensor_n);
     auto it = vectorizes.find(tensor_n->name);
     if (it != vectorizes.end()) {
-      forloop_stack[it->second.level]->set_vectorize_info(it->second);
+      forloop_stack[it->second.axis]->set_vectorize_info(it->second);
       CHECK(it->second.valid());
     }
   }
 
-  std::vector<ir::PolyFor*> forloop_stack;
+  std::map<std::string, ir::PolyFor*> forloop_stack;
 };
 
 /**

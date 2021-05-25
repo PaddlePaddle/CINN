@@ -157,7 +157,8 @@ isl::ast_node AstGen::Build() {
 
   ast_build = ast_build.set_at_each_domain(collect);
 
-  isl::union_set new_domain = TransIdentityExtentToContextId(impl_->domain());
+  // isl::union_set new_domain = TransIdentityExtentToContextId(impl_->domain());
+  isl::union_set new_domain = impl_->domain();
 
   isl::union_map transformed_schedule = impl_->transform().apply_range(schedule);
   VLOG(4) << "transformed_schedule: " << transformed_schedule;

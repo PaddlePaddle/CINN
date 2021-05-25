@@ -287,7 +287,7 @@ void main(void* _args, int32_t num_args)
   const float* A = ((const float*)(_A->memory));
   const float* B = ((const float*)(_B->memory));
   float* C = ((float*)(_C->memory));
-  for (int32_t i = 0; i < 1; i += 1) {
+  {
     cinn_pod_value_t _pod_val_;
     buffer_p_to_cinn_pod_value(_A, &_pod_val_);
     cinn_pod_value_t _pod_val__0;

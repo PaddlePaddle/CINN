@@ -274,13 +274,13 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   isl_map_set_tuple_name(temp_transform.get(), isl_dim_in, init_reduce_tensor_name.c_str());
   isl_map_set_tuple_name(temp_transform.get(), isl_dim_out, init_reduce_tensor_name.c_str());
   stages[init_tensor]->SetTransform(temp_transform);
-  auto init_dim_out_names                                 = poly::isl_get_dim_names(temp_transform, isl_dim_out);
-  std::map<int, poly::StageForloopInfo> temp_forloop_info = stages[this]->forloop_infos();
-  std::map<int, poly::StageForloopInfo> init_forloop_info;
+  auto init_dim_out_names = poly::isl_get_dim_names(temp_transform, isl_dim_out);
+  std::map<std::string, poly::StageForloopInfo> temp_forloop_info = stages[this]->forloop_infos();
+  std::map<std::string, poly::StageForloopInfo> init_forloop_info;
   for (auto &i : temp_forloop_info) {
     for (int j = 0; j < init_dim_out_names.size(); j++) {
-      if (dim_out_names[i.first] == init_dim_out_names[j]) {
-        init_forloop_info[j] = i.second;
+      if (i.first == init_dim_out_names[j]) {
+        init_forloop_info[init_dim_out_names[j]] = i.second;
       }
     }
   }
