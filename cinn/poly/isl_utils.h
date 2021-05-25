@@ -73,16 +73,34 @@ isl::set SetGetDims(isl::set set, const std::vector<int>& dims);
  * @param dim_in_names The names of input dims to remove.
  * @return The edited map.
  */
-isl::map RemoveAxiesByNames(const isl::map& x, const std::vector<std::string>& dim_in_names);
+isl::map RemoveAxiesByInputNames(const isl::map& x, const std::vector<std::string>& dim_in_names);
 
 /**
- * Given an isl::map and the name of an output dim,
+ * Given an isl::map and a vector of names of dim_out,
+ * remove the output dims in vector and related input dims.
+ * @param x The map to edit.
+ * @param dim_in_names The names of output dims to remove.
+ * @return The edited map.
+ */
+isl::map RemoveAxiesByOutputNames(const isl::map& x, const std::vector<std::string>& dim_out_names);
+
+/**
+ * Given an isl::map and a vector of names of dim_out,
  * get the names of related input dims.
  * @param x The input map.
- * @param dim_in_names The name of an output dim.
+ * @param dim_out_names The names of output dims.
  * @return The vector of names of related input dims.
  */
-std::vector<std::string> GetRelatedAxies(const isl::map& x, const std::string& dim_out_name);
+std::vector<std::string> GetRelatedInputAxies(const isl::map& x, const std::vector<std::string>& dim_out_names);
+
+/**
+ * Given an isl::map and a vector of names of dim_in,
+ * get the names of related output dims.
+ * @param x The input map.
+ * @param dim_in_names The names of input dims.
+ * @return The vector of names of related output dims.
+ */
+std::vector<std::string> GetRelatedOutputAxies(const isl::map& x, const std::vector<std::string>& dim_in_names);
 
 }  // namespace poly
 }  // namespace cinn

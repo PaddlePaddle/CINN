@@ -50,8 +50,8 @@ class TestFrontend(unittest.TestCase):
         exe = fluid.Executor(fluid.CPUPlace())
         exe.run(fluid.default_startup_program())
 
-        x = np.array(result[0]).reshape((2, 24, 56, 56)).astype("float32")
-        y = np.array(result[1]).reshape((2, 24, 56, 56)).astype("float32")
+        x = np.array(result[0]).reshape((1, 24, 56, 56)).astype("float32")
+        y = np.array(result[1]).reshape((1, 24, 56, 56)).astype("float32")
         output = exe.run(feed={"A": x, "B": y}, fetch_list=[res])
         output = np.array(output).reshape(-1)
         print("result in paddle_verify: \n")
@@ -66,8 +66,8 @@ class TestFrontend(unittest.TestCase):
     def test_basic(self):
         prog = Program()
 
-        a = Variable("A").set_type(Float(32)).set_shape([2, 24, 56, 56])
-        b = Variable("B").set_type(Float(32)).set_shape([2, 24, 56, 56])
+        a = Variable("A").set_type(Float(32)).set_shape([1, 24, 56, 56])
+        b = Variable("B").set_type(Float(32)).set_shape([1, 24, 56, 56])
         c = prog.add(a, b)
         d = prog.relu(c)
         e = Variable("E").set_type(Float(32)).set_shape([144, 24, 1, 1])
@@ -84,11 +84,10 @@ class TestFrontend(unittest.TestCase):
         for i in range(prog.size()):
             print(prog[i])
         tensor_data = [
-            np.random.random([2, 24, 56, 56]).astype("float32"),
-            np.random.random([2, 24, 56, 56]).astype("float32"),
+            np.random.random([1, 24, 56, 56]).astype("float32"),
+            np.random.random([1, 24, 56, 56]).astype("float32"),
             np.random.random([144, 24, 1, 1]).astype("float32")
         ]
-
         result = prog.build_and_get_output(self.target, [a, b, e], tensor_data,
                                            h)
         result = result.numpy(self.target).reshape(-1)

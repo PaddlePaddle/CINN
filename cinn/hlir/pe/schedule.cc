@@ -6,11 +6,39 @@
 #include <numeric>
 #include <utility>
 
+#include "cinn/optim/ir_simplify.h"
 #include "cinn/poly/isl_utils.h"
-
 namespace cinn {
 namespace hlir {
 namespace pe {
+
+int GetInnerSplitter(int origin, int other_axis) {
+  int two_exp = 1;
+  while (origin % two_exp == 0) {
+    two_exp *= 2;
+  }
+  two_exp = two_exp / 2;
+  int a   = SplitEven(two_exp);
+  int b   = two_exp / a;
+  while (a * other_axis >= 1024 || b * other_axis >= 1024) {
+    two_exp = two_exp / 2;
+    a       = SplitEven(two_exp);
+    b       = two_exp / a;
+  }
+  if (origin == two_exp) {
+    return 2;
+  }
+  return origin / two_exp;
+}
+
+int SplitEven(int origin) {
+  int res = 1;
+  while (origin % res == 0 && res * res < origin) {
+    res *= 2;
+  }
+  res = res / 2;
+  return res;
+}
 
 int GetBasicFactor(const Type &type, const common::Target &target) {
   int target_native_vector_bits = target.get_target_bits() * 8;
@@ -225,15 +253,71 @@ void MulScheduleCPU(poly::StageMap stages,
 }
 
 void CudaScheduleConv(poly::StageMap stages,
-                      ir::Tensor input_pad,
-                      ir::Tensor kernel_dilation,
-                      ir::Tensor output,
+                      ir::Tensor &input_pad,
+                      ir::Tensor &kernel_dilation,
+                      ir::Tensor &output,
                       const common::Target &target) {
-  int num_thread = target.max_num_threads();
-  stages[output]->Fuse(0, 1);
-  auto [Block_x, Thread_x] = stages[output]->Split(0, num_thread);
-  stages[output]->Bind(0, "blockIdx.x");
-  stages[output]->Bind(1, "threadIdx.x");
+  LOG(INFO) << "Begin CudaScheduleConv";
+  int n = output->shape[0].as_int32();
+  int c = output->shape[1].as_int32();
+  optim::Simplify(&(output->shape[2]));
+  int h = output->shape[2].as_int32();
+  optim::Simplify(&(output->shape[3]));
+  int w  = output->shape[3].as_int32();
+  int rc = kernel_dilation->shape[1].as_int32();
+  int ry = kernel_dilation->shape[2].as_int32();
+  int rx = kernel_dilation->shape[3].as_int32();
+
+  int f_inner  = GetInnerSplitter(c, h);
+  int block_z  = SplitEven(c / f_inner);
+  int thread_z = c / f_inner / block_z;
+  LOG(INFO) << "C is : " << c;
+  LOG(INFO) << "f_inner is: " << f_inner;
+  LOG(INFO) << "block_z is: " << block_z;
+  LOG(INFO) << "thread_z is: " << thread_z;
+
+  int rc_factor = SplitEven(rc);
+
+  auto OL = stages[output]->CacheWrite2("local", stages, output);
+  LOG(INFO) << "Stage1";
+
+  auto tx        = stages[output]->axis(3);
+  auto by        = stages[output]->axis(2);
+  auto [tem, fi] = stages[output]->Split(1, f_inner);
+  auto [bz, tz]  = stages[output]->Split(1, thread_z);
+  LOG(INFO) << "Stage2";
+  stages[output]->Reorder({bz, by, tz, tx, fi});
+  LOG(INFO) << "Stage3";
+  stages[output]->Bind(1, "blockIdx.z");
+  stages[output]->Bind(2, "blockIdx.y");
+  stages[output]->Bind(3, "threadIdx.z");
+  stages[output]->Bind(4, "threadIdx.x");
+  LOG(INFO) << "Stage4";
+  stages[OL]->ComputeAt3(stages[output], 4);
+  LOG(INFO) << "Stage5";
+  auto on  = stages[OL]->axis(0);
+  auto obz = stages[OL]->axis(1);
+  auto oby = stages[OL]->axis(2);
+  auto otz = stages[OL]->axis(3);
+  auto otx = stages[OL]->axis(4);
+  auto ofi = stages[OL]->axis(5);
+  auto orc = stages[OL]->axis(6);
+  auto ory = stages[OL]->axis(7);
+  auto orx = stages[OL]->axis(8);
+  LOG(INFO) << "In OL reorder";
+  stages[OL]->Reorder({orc, ory, orx, on, obz, oby, otz, otx, ofi});
+  if (rc_factor > 1) {
+    stages[OL]->Split(0, rc_factor);
+    stages[OL]->Bind(5, "blockIdx.z");
+    stages[OL]->Bind(6, "blockIdx.y");
+    stages[OL]->Bind(7, "threadIdx.z");
+    stages[OL]->Bind(8, "threadIdx.x");
+  } else {
+    stages[OL]->Bind(4, "blockIdx.z");
+    stages[OL]->Bind(5, "blockIdx.y");
+    stages[OL]->Bind(6, "threadIdx.z");
+    stages[OL]->Bind(7, "threadIdx.x");
+  }
 
   return;
 }
