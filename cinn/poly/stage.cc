@@ -323,7 +323,7 @@ void Stage::ChangeDomain(Stage *other, int level) {
                    std::to_string(min_iv) + " <= " + dim_names[i] + " <= " + std::to_string(max_iv),
                    std::to_string(min_tar) + " <= " + dim_names[i] + " <= " + std::to_string(max_tar));
   }
-  VLOG(3) << "Final changed domain is: " << this_domain;
+  LOG(INFO) << "Final changed domain is: " << this_domain;
   isl::set res_set(this_ctx, this_domain);
   domain_ = res_set;
   return;
@@ -347,7 +347,7 @@ void Stage::EditTempTensor(Stage *other, int level) {
       }
     }
     // Iterators of loop within level will be erased.
-    auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+    auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
     for (auto &j : related_dim_in) {
       erase_var.insert(j);
     }
@@ -358,24 +358,23 @@ void Stage::EditTempTensor(Stage *other, int level) {
     if (bind_info.count(ith_dim_name(i)) != 0) {
       if (bind_info[ith_dim_name(i)].for_type == ir::ForType::GPUBlock &&
           (this->scope() == ScopeKind::kShared || this->scope() == ScopeKind::kLocal)) {
-        auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+        auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           erase_var.insert(j);
         }
-      } else if (bind_info[ith_dim_name(i)].for_type == ir::ForType::GPUThread &&
-                 (this->scope() == ScopeKind::kLocal)) {
-        auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+      } else if (bind_info[ith_dim_name(i)].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
+        auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           erase_var.insert(j);
         }
       } else {
-        auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+        auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           undo_erase_var.insert(j);
         }
       }
     } else {
-      auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+      auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
       for (auto &j : related_dim_in) {
         undo_erase_var.insert(j);
       }
@@ -418,18 +417,26 @@ void Stage::EditTempTensor(Stage *other, int level) {
     optim::Simplify(&i);
   }
   // Set new shape.
+  LOG(INFO) << "Tensor is : " << this->tensor()->name;
+  for (auto &i : new_shape) {
+    LOG(INFO) << "In Temp Buffer, shape is: " << utils::GetStreamCnt(i);
+  }
   this->tensor()->shape = new_shape;
   CHECK(this->tensor()->buffer.defined());
   this->tensor()->buffer->shape = new_shape;
   return;
 }
 
-void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
+void Stage::ComputeAt4(Stage *other, int level) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
-  this->ChangeDomain(other, level);
-  this->CopyTransform(other, level);
-  this->ChangeIndex(other);
   CHECK(tensor_);
+  other->CtrlDepend(ir::Tensor(tensor()));
+  if (this->tensor()->buffer.defined()) {
+    std::string t_name = this->tensor()->buffer->name;
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
+      EditTempTensor(other, level);
+    }
+  }
   ComputeAtRelation relation;
   relation.stage = other;
   relation.level = level;
@@ -437,12 +444,45 @@ void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
 
   CHECK(relation.IsCompatible(this));
   compute_ats_[other->id()] = relation;
+  return;
+}
+
+void Stage::ComputeAt2(Stage *other, int level) {
+  // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
+  this->ChangeDomain(other, level);
+  this->CopyTransform(other, level);
+  this->ChangeIndex(other);
+  CHECK(tensor_);
+  other->CtrlDepend(ir::Tensor(tensor()));
   if (this->tensor()->buffer.defined()) {
-    std::string t_name = this->tensor()->name;
+    std::string t_name = this->tensor()->buffer->name;
     if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
       EditTempTensor(other, level);
     }
   }
+  ComputeAtRelation relation;
+  relation.stage = other;
+  relation.level = level;
+  other->CtrlDepend(ir::Tensor(tensor()));
+
+  CHECK(relation.IsCompatible(this));
+  compute_ats_[other->id()] = relation;
+}
+
+void Stage::ComputeAt3(Stage *other, int level) {
+  // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
+  this->ChangeDomain(other, level);
+  this->CopyTransform(other, level);
+  this->ChangeIndex(other);
+  CHECK(tensor_);
+  other->CtrlDepend(ir::Tensor(tensor()));
+  if (this->tensor()->buffer.defined()) {
+    std::string t_name = this->tensor()->buffer->name;
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
+      EditTempTensor(other, level);
+    }
+  }
+  return;
 }
 
 void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
@@ -606,6 +646,11 @@ std::vector<ComputeAtRelation> Stage::compute_ats() const {
   return xs;
 }
 
+void Stage::ShowISL() {
+  LOG(INFO) << "Tensor " << tensor()->name << " transformed_domain is: " << isl_set_to_str(transformed_domain().get());
+  LOG(INFO) << "transform is: " << isl_map_to_str(transform().get());
+}
+
 bool ComputeAtRelation::IsCompatible(Stage *self) {
   CHECK_GE(level, 0);
   CHECK(!self->domain().is_null());
@@ -618,9 +663,14 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
   for (int i = 0; i <= level; i++) {
     selected_dims.push_back(i);
   }
+  LOG(INFO) << "before stage_partial_set is : " << isl_set_to_str(stage->transformed_domain().get());
+  LOG(INFO) << "before self_partial_set is : " << isl_set_to_str(self->transformed_domain().get());
 
   auto stage_partial_set = SetGetDims(stage->transformed_domain(), selected_dims);
   auto self_partial_set  = SetGetDims(self->transformed_domain(), selected_dims);
+
+  LOG(INFO) << "stage_partial_set is : " << isl_set_to_str(stage_partial_set.get());
+  LOG(INFO) << "self_partial_set is : " << isl_set_to_str(self_partial_set.get());
 
   stage_partial_set = isl::manage(isl_set_set_tuple_name(stage_partial_set.release(), ""));
   self_partial_set  = isl::manage(isl_set_set_tuple_name(self_partial_set.release(), ""));
@@ -636,8 +686,8 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
   remove_params(stage_partial_set);
   remove_params(self_partial_set);
 
-  VLOG(3) << "stage0.partial_set " << stage_partial_set;
-  VLOG(3) << "stage1.partial_set " << self_partial_set;
+  LOG(INFO) << "stage0.partial_set " << stage_partial_set;
+  LOG(INFO) << "stage1.partial_set " << self_partial_set;
   return isl_set_is_equal(stage_partial_set.get(), self_partial_set.get());
 }
 
@@ -1015,7 +1065,7 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
 }
 
 void Stage::CopyTransform(Stage *other, int level) {
-  auto target_transform        = RemoveAxiesByNames(other->transform(), other->origin_reduce_axis_names());
+  auto target_transform        = RemoveAxiesByInputNames(other->transform(), other->origin_reduce_axis_names());
   std::string str_target_trans = isl_map_to_str(target_transform.get());
   std::string this_tensor_name = isl_set_get_tuple_name(domain_.get());
   isl::ctx this_ctx            = domain_.ctx();
@@ -1118,11 +1168,12 @@ void Stage::CopyTransform(Stage *other, int level) {
   isl_map_set_tuple_name(temp_transform_.get(), isl_dim_out, this_tensor_name.c_str());
   std::string res_trans = isl_map_to_str(temp_transform_.get());
   isl::map res_map(this_ctx, res_trans);
-  VLOG(2) << "This domain is: " << isl_set_to_str(domain_.get());
-  VLOG(2) << "After Copytransform this trans is : " << isl_map_to_str(res_map.get());
-  VLOG(2) << "Target transform is : " << isl_map_to_str(other->transform().get());
-  VLOG(2) << "CopyTransform Level is : " << level;
+  LOG(INFO) << "This domain is: " << isl_set_to_str(domain_.get());
+  LOG(INFO) << "After Copytransform this trans is : " << isl_map_to_str(res_map.get());
+  LOG(INFO) << "Target transform is : " << isl_map_to_str(other->transform().get());
+  LOG(INFO) << "CopyTransform Level is : " << level;
   transform_ = res_map;
+  return;
 }
 
 void Stage::CopyLoopInfo(std::map<std::string, StageForloopInfo> target_forloop_infos,

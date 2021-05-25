@@ -267,6 +267,7 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
     init_tensor->new_indices = this->new_indices;
     stages[this]->CtrlDepend(init_tensor);
     stages[init_tensor]->ShareBufferWith(stages[this]);
+    init_tensor->shape = shape;
     return init_tensor;
   }
   //! When reduce axies are reordered to front, ComputeAt is illegal.
@@ -288,6 +289,7 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   init_tensor->new_indices = this->new_indices;
   stages[this]->CtrlDepend(init_tensor);
   stages[init_tensor]->ShareBufferWith(stages[this]);
+  init_tensor->shape = shape;
   return init_tensor;
 }
 

@@ -8,9 +8,15 @@ build_dir=$workspace/${build_dir_name}
 JOBS=8
 
 cuda_config=OFF
+cudnn_config=OFF
 
 function gpu_on {
     cuda_config=ON
+    cudnn_config=ON
+}
+
+function cudnn_off {
+    cudnn_config=OFF
 }
 
 function check_style {
@@ -71,6 +77,7 @@ function cmake_ {
     echo "set(ISL_HOME /usr/local)" >> $build_dir/config.cmake
     # To enable Cuda backend, set(WITH_CUDA ON)
     echo "set(WITH_CUDA $cuda_config)" >> $build_dir/config.cmake
+    echo "set(WITH_CUDNN $cudnn_config)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
     cmake .. -DLLVM11_DIR=${LLVM11_DIR} -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir -DPUBLISH_LIBS=ON
@@ -174,6 +181,10 @@ function main {
         case $i in
             gpu_on)
                 gpu_on
+                shift
+                ;;
+            cudnn_off)
+                cudnn_off
                 shift
                 ;;
             check_style)

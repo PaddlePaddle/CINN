@@ -10,12 +10,12 @@ paddle.enable_static()
 resnet_input = fluid.layers.data(
     name="resnet_input",
     append_batch_size=False,
-    shape=[2, 160, 7, 7],
+    shape=[1, 160, 7, 7],
     dtype='float32')
 label = fluid.layers.data(
     name="label",
     append_batch_size=False,
-    shape=[2, 960, 7, 7],
+    shape=[1, 960, 7, 7],
     dtype='float32')
 d = fluid.layers.relu6(resnet_input)
 f = fluid.layers.conv2d(
