@@ -363,7 +363,7 @@ void Stage::EditTempTensor(Stage *other, int level) {
           erase_var.insert(j);
         }
       } else if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
-        auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+        auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           erase_var.insert(j);
         }
