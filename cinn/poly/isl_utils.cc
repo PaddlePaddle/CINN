@@ -366,11 +366,24 @@ std::vector<std::string> GetRelatedOutputAxies(const isl::map &x, const std::vec
   }
   std::string deleted_map = isl_map_to_str(temp_transform.get());
   std::vector<std::string> res;
+  std::set<std::string> res_set;
   for (auto &i : dim_out_names) {
     if (utils::Count(&map_str, i) != utils::Count(&deleted_map, i)) {
       res.push_back(i);
+      res_set.insert(i);
     }
   }
+
+  for (auto &i : dim_out_names) {
+    if (utils::Count(&map_str, i) == utils::Count(&deleted_map, i)) {
+      if (utils::Endswith(i, "_outer") && res_set.count(i.substr(0, i.size() - 6) + "_inner") > 0) {
+        res.push_back(res);
+      } else if (utils::Endswith(i, "_inner") && res_set.count(i.substr(0, i.size() - 6) + "_outer") > 0) {
+        res.push_back(res);
+      }
+    }
+  }
+
   return res;
 }
 
@@ -384,11 +397,20 @@ std::vector<std::string> GetRelatedInputAxies(const isl::map &x, const std::vect
   }
   std::string deleted_map = isl_map_to_str(temp_transform.get());
   std::vector<std::string> res;
+  std::set<std::string> out_set;
+  for (auto &i : dim_out_names) {
+    if (utils::Endswith(i, "_inner") || utils::Endswith(i, "_outer")) {
+      out_set.push_back(i);
+    }
+  }
   for (auto &i : dim_in_names) {
     if (utils::Count(&map_str, i) != utils::Count(&deleted_map, i)) {
       res.push_back(i);
+    } else if (out_set.count(i + "_outer") > 0 || out_set.count(i + "_inner") > 0) {
+      res.push_back(i);
     }
   }
+
   return res;
 }
 }  // namespace poly
