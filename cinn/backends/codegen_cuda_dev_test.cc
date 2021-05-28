@@ -196,25 +196,6 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
 
   auto OL = stages[conv]->CacheWrite2("local", stages, conv);
 
-  /*   std::vector<ir::Tensor> readers{OL};
-    auto AA = stages[pad_data]->CacheRead2("shared", readers, stages);
-    auto WW = stages[kernel]->CacheRead2("shared", readers, stages);
-    stages[AA]->Fuse(0,1);
-    stages[AA]->Fuse(0,1);
-    stages[AA]->Fuse(0,1);
-
-    stages[WW]->Fuse(0,1);
-    stages[WW]->Fuse(0,1);
-    stages[WW]->Fuse(0,1);
-
-    stages[AA]->Split(0,6272);
-    stages[WW]->Split(0,2048); */
-
-  auto axis_names = stages[OL]->axis_names();
-  for (auto& i : axis_names) {
-    LOG(INFO) << "axis name of OL is : " << i;
-  }
-
   auto tx        = stages[conv]->axis(3);
   auto by        = stages[conv]->axis(2);
   auto [tem, fi] = stages[conv]->Split(1, 2);
@@ -229,7 +210,6 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
 
   stages[OL]->ComputeAt3(stages[conv], 4);
 
-  LOG(INFO) << "Before OL reorder";
   auto on  = stages[OL]->axis(0);
   auto obz = stages[OL]->axis(1);
   auto oby = stages[OL]->axis(2);
@@ -239,7 +219,7 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
   auto orc = stages[OL]->axis(6);
   auto ory = stages[OL]->axis(7);
   auto orx = stages[OL]->axis(8);
-  LOG(INFO) << "In OL reorder";
+
   stages[OL]->Reorder({orc, ory, orx, on, obz, oby, otz, otx, ofi});
   stages[OL]->Split(0, 8);
 
@@ -248,28 +228,6 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
   stages[OL]->Bind(7, "threadIdx.z");
   stages[OL]->Bind(8, "threadIdx.x");
 
-  /*   stages[WW]->ShowISL();
-    auto [Atemp3, aby] = stages[AA]->Split(1,8);
-    auto [Atemp4, abz] = stages[AA]->Split(1,14);
-
-    auto [Wtemp3, wby] = stages[WW]->Split(1,8);
-    stages[WW]->ShowISL();
-    auto [Wtemp4, wbz] = stages[WW]->Split(1,14);
-    stages[WW]->ShowISL();
-    //stages[AA]->Reorder({atz, atx, aout});
-    stages[AA]->Bind(2, "blockIdx.y");
-    stages[AA]->Bind(3, "blockIdx.z");
-
-    stages[WW]->Bind(2, "blockIdx.y");
-    stages[WW]->Bind(3, "blockIdx.z");
-
-    LOG(INFO) << "before AA ComputeAt2(stages[OL],0) ";
-    stages[AA]->ComputeAt4(stages[OL],0);
-    LOG(INFO) << "before WW ComputeAt2(stages[OL],0) ";
-    stages[WW]->ComputeAt4(stages[OL],0);
-    LOG(INFO) << "After WW ComputeAt2(stages[OL],0) "; */
-
-  LOG(INFO) << "After OL reorder";
   CodeGenCUDA_Dev codegen(target);
 
   auto func = Lower("schedule_conv2d_0", stages, {A, B, conv}, {}, {}, nullptr, target);
@@ -321,117 +279,11 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
   for (int i = 0; i < repeat; i++) {
     cuda_module.LaunchKernel(0, "schedule_conv2d_0", grid, block, args);
   }
-  LOG(INFO) << "Schedule conv2d origin repeat " << repeat
+  LOG(INFO) << "Conv2d op with schedule repeats " << repeat
             << " times, average time cost is : " << time1.Stop() / float(repeat) << "ms. ";
   CUDA_CALL(cudaMemcpy(
       host_data3.data(), reinterpret_cast<void*>(Cd), 256 * 14 * 14 * sizeof(float), cudaMemcpyDeviceToHost));
 }
-
-/* TEST(CodeGenCUDA2, test_conv2d_schedule) {
-  Target target;
-
-  CodeGenCUDA_Dev codegen(target);
-
-  std::string source_target = R"ROC(
-extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
-
-__global__ void schedule_conv2d(float* __restrict__ placeholder, float* __restrict__ placeholder1, float* __restrict__
-compute) { float compute_local[2];
-  __shared__ float pad_temp_shared[216];
-  __shared__ float placeholder_shared[256];
-  for (int ff_c_init = 0; ff_c_init < 2; ++ff_c_init) {
-    compute_local[(ff_c_init)] = 0.000000e+00f;
-  }
-  for (int rc_outer = 0; rc_outer < 16; ++rc_outer) {
-    __syncthreads();
-    if (((((int)threadIdx.z) * 14) + ((int)threadIdx.x)) < 216) {
-      pad_temp_shared[(((((int)threadIdx.z) * 14) + ((int)threadIdx.x)))] = placeholder[(((((rc_outer * 6272) +
-((((((int)threadIdx.z) * 14) + ((int)threadIdx.x)) / 27) * 784)) + (((int)blockIdx.y) * 56)) + (((((int)threadIdx.z) *
-14) + ((int)threadIdx.x)) % 27)))];
-    }
-    for (int ax0_ax1_fused_ax2_fused_ax3_fused_inner_inner_inner = 0;
-ax0_ax1_fused_ax2_fused_ax3_fused_inner_inner_inner < 2; ++ax0_ax1_fused_ax2_fused_ax3_fused_inner_inner_inner) { if
-(((((int)threadIdx.z) * 2) + (((((int)threadIdx.x) * 2) + ax0_ax1_fused_ax2_fused_ax3_fused_inner_inner_inner) >> 3)) <
-32) { if ((((((int)threadIdx.z) * 16) + (((int)threadIdx.x) * 2)) + ax0_ax1_fused_ax2_fused_ax3_fused_inner_inner_inner)
-< 256) { if (((((int)threadIdx.x) * 2) + ax0_ax1_fused_ax2_fused_ax3_fused_inner_inner_inner) < 16) {
-            placeholder_shared[((((((int)threadIdx.z) * 16) + (((int)threadIdx.x) * 2)) +
-ax0_ax1_fused_ax2_fused_ax3_fused_inner_inner_inner))] = placeholder1[((((((((int)blockIdx.z) * 4096) +
-(((int)threadIdx.z) * 256)) + ((((((int)threadIdx.x) * 2) + ax0_ax1_fused_ax2_fused_ax3_fused_inner_inner_inner) >> 3) *
-128)) + (rc_outer * 8)) + (((((int)threadIdx.x) * 2) + ax0_ax1_fused_ax2_fused_ax3_fused_inner_inner_inner) & 7)))];
-          }
-        }
-      }
-    }
-    __syncthreads();
-    for (int rc_inner = 0; rc_inner < 8; ++rc_inner) {
-      for (int ff_c = 0; ff_c < 2; ++ff_c) {
-        compute_local[(ff_c)] = (compute_local[(ff_c)] + (pad_temp_shared[(((rc_inner * 27) + (((int)threadIdx.x) *
-2)))] * placeholder_shared[((((((int)threadIdx.z) * 16) + (ff_c * 8)) + rc_inner))]));
-      }
-    }
-  }
-  for (int ff_inner_inner_inner = 0; ff_inner_inner_inner < 2; ++ff_inner_inner_inner) {
-    compute[((((((((int)blockIdx.z) * 6272) + (((int)threadIdx.z) * 392)) + (ff_inner_inner_inner * 196)) +
-(((int)blockIdx.y) * 14)) + ((int)threadIdx.x)))] = compute_local[(ff_inner_inner_inner)];
-  }
-}
-
-}
-)ROC";
-
-  using runtime::cuda::CUDAModule;
-
-  backends::NVRTC_Compiler compiler;
-
-  auto ptx = compiler(source_target);
-  CHECK(!ptx.empty());
-
-  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
-
-  CUDA_CALL(cudaDeviceSynchronize());
-
-  CUdeviceptr Ad, Bd, Cd;
-  cuMemAlloc(&Ad, 128 * 28 * 28 * sizeof(float));
-  cuMemAlloc(&Bd, 256 * 128 * sizeof(float));
-  cuMemAlloc(&Cd, 256 * 14 * 14 * sizeof(float));
-
-  std::vector<float> host_data1(128 * 28 * 28, 0);
-  std::vector<float> host_data2(256 * 128, 0);
-  std::vector<float> host_data3(256 * 14 * 14, 0);
-  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
-  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
-
-  CUDA_CALL(
-      cudaMemcpy(reinterpret_cast<void*>(Ad), host_data1.data(), 128 * 28 * 28 * sizeof(float),
-cudaMemcpyHostToDevice)); CUDA_CALL( cudaMemcpy(reinterpret_cast<void*>(Bd), host_data2.data(), 256 * 128 *
-sizeof(float), cudaMemcpyHostToDevice));
-
-  // launch the kernel
-
-  void* args[] = {&Ad, &Bd, &Cd};
-
-  dim3 grid(1, 14, 9);
-  dim3 block(14, 1, 16);
-  int repeat  = 100;
-
-  utils::Timer time1;
-  time1.Start();
-  for (int i = 0; i < repeat; i++) {
-    cuda_module.LaunchKernel(0, "schedule_conv2d", grid, block, args);
-  }
-  LOG(INFO)<<"Schedule conv2d repeat " << repeat << " times, average time cost is : " << time1.Stop()/float(repeat) <<
-"ms. "; CUDA_CALL(cudaMemcpy(host_data3.data(), reinterpret_cast<void*>(Cd), 256 * 14 * 14 * sizeof(float),
-                       cudaMemcpyDeviceToHost));
-} */
 
 TEST(CodeGenCUDA, compile_run_jit) {
   Expr M(100);

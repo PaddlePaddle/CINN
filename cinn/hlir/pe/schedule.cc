@@ -257,7 +257,6 @@ void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor &kernel_dilation,
                       ir::Tensor &output,
                       const common::Target &target) {
-  LOG(INFO) << "Begin CudaScheduleConv";
   int n = output->shape[0].as_int32();
   int c = output->shape[1].as_int32();
   optim::Simplify(&(output->shape[2]));
@@ -271,30 +270,21 @@ void CudaScheduleConv(poly::StageMap stages,
   int f_inner  = GetInnerSplitter(c, h);
   int block_z  = SplitEven(c / f_inner);
   int thread_z = c / f_inner / block_z;
-  LOG(INFO) << "C is : " << c;
-  LOG(INFO) << "f_inner is: " << f_inner;
-  LOG(INFO) << "block_z is: " << block_z;
-  LOG(INFO) << "thread_z is: " << thread_z;
 
   int rc_factor = SplitEven(rc);
 
   auto OL = stages[output]->CacheWrite2("local", stages, output);
-  LOG(INFO) << "Stage1";
 
   auto tx        = stages[output]->axis(3);
   auto by        = stages[output]->axis(2);
   auto [tem, fi] = stages[output]->Split(1, f_inner);
   auto [bz, tz]  = stages[output]->Split(1, thread_z);
-  LOG(INFO) << "Stage2";
   stages[output]->Reorder({bz, by, tz, tx, fi});
-  LOG(INFO) << "Stage3";
   stages[output]->Bind(1, "blockIdx.z");
   stages[output]->Bind(2, "blockIdx.y");
   stages[output]->Bind(3, "threadIdx.z");
   stages[output]->Bind(4, "threadIdx.x");
-  LOG(INFO) << "Stage4";
   stages[OL]->ComputeAt3(stages[output], 4);
-  LOG(INFO) << "Stage5";
   auto on  = stages[OL]->axis(0);
   auto obz = stages[OL]->axis(1);
   auto oby = stages[OL]->axis(2);
@@ -304,7 +294,6 @@ void CudaScheduleConv(poly::StageMap stages,
   auto orc = stages[OL]->axis(6);
   auto ory = stages[OL]->axis(7);
   auto orx = stages[OL]->axis(8);
-  LOG(INFO) << "In OL reorder";
   stages[OL]->Reorder({orc, ory, orx, on, obz, oby, otz, otx, ofi});
   if (rc_factor > 1) {
     stages[OL]->Split(0, rc_factor);

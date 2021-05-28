@@ -231,14 +231,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
       ir::Tensor input_t    = input_pad.as_tensor_ref();
       ir::Tensor weights_t  = weights_dilation.as_tensor_ref();
       CHECK(Out.as_tensor());
-      LOG(INFO) << "Before CudaScheduleConv, out_t name is: " << out_t->name;
       pe::CudaScheduleConv(stages, input_t, weights_t, out_t, target);
-      LOG(INFO) << "After CudaScheduleConv, out_t name is: " << out_t->name;
       arg_pack[2] = Expr(out_t);
-      /*       stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-            stages[Out.as_tensor_ref()]->Bind(1, "blockIdx.y");
-            stages[Out.as_tensor_ref()]->Bind(2, "blockIdx.z");
-            stages[Out.as_tensor_ref()]->Bind(3, "threadIdx.x"); */
     }
     if (arg_pack.size() == 4UL) {
       *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
