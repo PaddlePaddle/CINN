@@ -17,11 +17,13 @@
 #include "cinn/common/cuda_test_helper.h"
 #include "cinn/common/ir_util.h"
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/pe/nn.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/cuda/cuda_util.h"
 #include "cinn/runtime/use_extern_funcs.h"
+#include "cinn/utils/timer.h"
 
 namespace cinn {
 namespace backends {
@@ -168,6 +170,119 @@ TEST(CodeGenCUDA2, compile_run_jit2) {
       EXPECT_NEAR(host_data3[offset], host_data1[offset] * host_data2[offset], 1e-5);
     }
   }
+}
+
+TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
+  Expr N(1);
+  Expr C(128);
+  Expr H(28);
+  Expr W(256);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("X", {N, C, H, H});
+  Placeholder<float> B("Y", {W, C, N, N});
+
+  auto res = hlir::pe::Conv2d_NCHW(A, B, 0, 0, 2, 2, 1, 1, "COD");
+
+  auto stages = CreateStages(res);
+
+  auto pad_data = res[0];
+  auto kernel   = res[1];
+  auto conv     = res[2];
+
+  stages[pad_data]->ComputeInline();
+  stages[kernel]->ComputeInline();
+
+  auto OL = stages[conv]->CacheWrite2("local", stages, conv);
+
+  auto tx        = stages[conv]->axis(3);
+  auto by        = stages[conv]->axis(2);
+  auto [tem, fi] = stages[conv]->Split(1, 2);
+  auto [bz, tz]  = stages[conv]->Split(1, 16);
+
+  stages[conv]->Reorder({bz, by, tz, tx, fi});
+
+  stages[conv]->Bind(1, "blockIdx.z");
+  stages[conv]->Bind(2, "blockIdx.y");
+  stages[conv]->Bind(3, "threadIdx.z");
+  stages[conv]->Bind(4, "threadIdx.x");
+
+  stages[OL]->ComputeAt3(stages[conv], 4);
+
+  auto on  = stages[OL]->axis(0);
+  auto obz = stages[OL]->axis(1);
+  auto oby = stages[OL]->axis(2);
+  auto otz = stages[OL]->axis(3);
+  auto otx = stages[OL]->axis(4);
+  auto ofi = stages[OL]->axis(5);
+  auto orc = stages[OL]->axis(6);
+  auto ory = stages[OL]->axis(7);
+  auto orx = stages[OL]->axis(8);
+
+  stages[OL]->Reorder({orc, ory, orx, on, obz, oby, otz, otx, ofi});
+  stages[OL]->Split(0, 8);
+
+  stages[OL]->Bind(5, "blockIdx.z");
+  stages[OL]->Bind(6, "blockIdx.y");
+  stages[OL]->Bind(7, "threadIdx.z");
+  stages[OL]->Bind(8, "threadIdx.x");
+
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func = Lower("schedule_conv2d_0", stages, {A, B, conv}, {}, {}, nullptr, target);
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled schedule_conv2d_0 code:\n\n\n" << source_code;
+
+  using runtime::cuda::CUDAModule;
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr Ad, Bd, Cd;
+  cuMemAlloc(&Ad, 128 * 28 * 28 * sizeof(float));
+  cuMemAlloc(&Bd, 256 * 128 * sizeof(float));
+  cuMemAlloc(&Cd, 256 * 14 * 14 * sizeof(float));
+
+  std::vector<float> host_data1(128 * 28 * 28, 0);
+  std::vector<float> host_data2(256 * 128, 0);
+  std::vector<float> host_data3(256 * 14 * 14, 0);
+  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Ad), host_data1.data(), 128 * 28 * 28 * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(
+      cudaMemcpy(reinterpret_cast<void*>(Bd), host_data2.data(), 256 * 128 * sizeof(float), cudaMemcpyHostToDevice));
+
+  // launch the kernel
+
+  void* args[] = {&Ad, &Bd, &Cd};
+
+  dim3 grid(1, 14, 8);
+  dim3 block(14, 1, 16);
+  int repeat = 100;
+
+  utils::Timer time1;
+  time1.Start();
+  for (int i = 0; i < repeat; i++) {
+    cuda_module.LaunchKernel(0, "schedule_conv2d_0", grid, block, args);
+  }
+  LOG(INFO) << "Conv2d op with schedule repeats " << repeat
+            << " times, average time cost is : " << time1.Stop() / float(repeat) << "ms. ";
+  CUDA_CALL(cudaMemcpy(
+      host_data3.data(), reinterpret_cast<void*>(Cd), 256 * 14 * 14 * sizeof(float), cudaMemcpyDeviceToHost));
 }
 
 TEST(CodeGenCUDA, compile_run_jit) {
@@ -1954,7 +2069,7 @@ void fn5(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   TestElementwiseAddPrecisionBasic(
       builder.Build(), "fn5", M, N, [](float a, float b) { return std::tanh(a) + std::cos(b); });
 }
-
+#ifdef CINN_WITH_CUDNN
 TEST(Cudnn, external_function_cudnn) {
   Context::Global().ResetNameId();
 
@@ -2017,6 +2132,6 @@ TEST(Cudnn, external_function_cudnn3) {
 
   runtime::cuda::cinn_gpu_cudnn_softmax({2, 1000, -1}, dev_bufs[0], dev_bufs[1]);
 }
-
+#endif
 }  // namespace backends
 }  // namespace cinn

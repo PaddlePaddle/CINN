@@ -347,7 +347,7 @@ void Stage::EditTempTensor(Stage *other, int level) {
       }
     }
     // Iterators of loop within level will be erased.
-    auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+    auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
     for (auto &j : related_dim_in) {
       erase_var.insert(j);
     }
@@ -358,23 +358,23 @@ void Stage::EditTempTensor(Stage *other, int level) {
     if (bind_info.count(i) != 0) {
       if (bind_info[i].for_type == ir::ForType::GPUBlock &&
           (this->scope() == ScopeKind::kShared || this->scope() == ScopeKind::kLocal)) {
-        auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+        auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           erase_var.insert(j);
         }
       } else if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
-        auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+        auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           erase_var.insert(j);
         }
       } else {
-        auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+        auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           undo_erase_var.insert(j);
         }
       }
     } else {
-      auto related_dim_in = GetRelatedAxies(this->transform(), transform_domain_names[i]);
+      auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
       for (auto &j : related_dim_in) {
         undo_erase_var.insert(j);
       }
@@ -417,18 +417,29 @@ void Stage::EditTempTensor(Stage *other, int level) {
     optim::Simplify(&i);
   }
   // Set new shape.
+  VLOG(3) << "Tensor is : " << this->tensor()->name;
+  for (auto &i : new_shape) {
+    VLOG(3) << "In Temp Buffer, shape is: " << utils::GetStreamCnt(i);
+  }
   this->tensor()->shape = new_shape;
   CHECK(this->tensor()->buffer.defined());
   this->tensor()->buffer->shape = new_shape;
   return;
 }
 
-void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
+void Stage::ComputeAt2(Stage *other, int level) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
   this->ChangeDomain(other, level);
   this->CopyTransform(other, level);
   this->ChangeIndex(other);
   CHECK(tensor_);
+  other->CtrlDepend(ir::Tensor(tensor()));
+  if (this->tensor()->buffer.defined()) {
+    std::string t_name = this->tensor()->buffer->name;
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
+      EditTempTensor(other, level);
+    }
+  }
   ComputeAtRelation relation;
   relation.stage = other;
   relation.level = level;
@@ -436,12 +447,21 @@ void Stage::ComputeAt2(Stage *other, int level, ComputeAtKind kind) {
 
   CHECK(relation.IsCompatible(this));
   compute_ats_[other->id()] = relation;
+}
+
+void Stage::ComputeAt3(Stage *other, int level) {
+  this->ChangeDomain(other, level);
+  this->CopyTransform(other, level);
+  this->ChangeIndex(other);
+  CHECK(tensor_);
+  other->CtrlDepend(ir::Tensor(tensor()));
   if (this->tensor()->buffer.defined()) {
-    std::string t_name = this->tensor()->name;
+    std::string t_name = this->tensor()->buffer->name;
     if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
       EditTempTensor(other, level);
     }
   }
+  return;
 }
 
 void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
@@ -603,6 +623,12 @@ std::vector<ComputeAtRelation> Stage::compute_ats() const {
   std::vector<ComputeAtRelation> xs;
   for (auto &item : compute_ats_) xs.push_back(item.second);
   return xs;
+}
+
+void Stage::ShowISL() {
+  LOG(INFO) << "Tensor " << tensor()->name << " domain is: " << isl_set_to_str(domain().get());
+  LOG(INFO) << "transformed_domain is: " << isl_set_to_str(transformed_domain().get());
+  LOG(INFO) << "transform is: " << isl_map_to_str(transform().get());
 }
 
 bool ComputeAtRelation::IsCompatible(Stage *self) {
@@ -1013,7 +1039,7 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
 }
 
 void Stage::CopyTransform(Stage *other, int level) {
-  auto target_transform        = RemoveAxiesByNames(other->transform(), other->origin_reduce_axis_names());
+  auto target_transform        = RemoveAxiesByInputNames(other->transform(), other->origin_reduce_axis_names());
   std::string str_target_trans = isl_map_to_str(target_transform.get());
   std::string this_tensor_name = isl_set_get_tuple_name(domain_.get());
   isl::ctx this_ctx            = domain_.ctx();
@@ -1121,6 +1147,7 @@ void Stage::CopyTransform(Stage *other, int level) {
   VLOG(2) << "Target transform is : " << isl_map_to_str(other->transform().get());
   VLOG(2) << "CopyTransform Level is : " << level;
   transform_ = res_map;
+  return;
 }
 
 void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::map &target_transform) {

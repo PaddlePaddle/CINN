@@ -10,6 +10,9 @@
 namespace cinn {
 namespace hlir {
 namespace pe {
+int GetInnerSplitter(int origin, int other_axis);
+
+int SplitEven(int origin);
 
 int GetBasicFactor(const Type &type, const common::Target &target);
 
@@ -35,9 +38,9 @@ void CudaScheduleMul(poly::StageMap stages,
                      const common::Target &target);
 
 void CudaScheduleConv(poly::StageMap stages,
-                      ir::Tensor input_pad,
-                      ir::Tensor kernel_dilation,
-                      ir::Tensor output,
+                      ir::Tensor &input_pad,
+                      ir::Tensor &kernel_dilation,
+                      ir::Tensor &output,
                       const common::Target &target);
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);

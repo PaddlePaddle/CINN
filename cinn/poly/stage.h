@@ -245,7 +245,11 @@ class Stage : public Object {
 
   ir::Tensor CacheRead2(const std::string& memory_type, std::vector<ir::Tensor>& readers, poly::StageMap stages);
 
-  void ComputeAt2(Stage* other, int level, ComputeAtKind kind = kComputeAtBefore);
+  void ComputeAt2(Stage* other, int level);
+
+  void ComputeAt3(Stage* other, int level);
+
+  void ShowISL();
 
   void AddForLoopInTransform(std::vector<std::vector<Expr>>& indices);
   /**
