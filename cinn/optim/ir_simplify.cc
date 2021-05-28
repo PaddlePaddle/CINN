@@ -34,8 +34,8 @@ void PartialSimplify(Expr* expr, const std::unordered_map<std::string, common::C
 
 //! Simplify the expression but Load.
 struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
-  const common::cas_intervals_t& var_intervals;
-  explicit SimplifyButStoreLoadMutator(const common::cas_intervals_t& var_intervals) : var_intervals(var_intervals) {}
+  common::cas_intervals_t& var_intervals;
+  explicit SimplifyButStoreLoadMutator(common::cas_intervals_t& var_intervals) : var_intervals(var_intervals) {}
 
   void operator()(Expr* x) { ir::IRMutator<ir::Expr*>::Visit(x, x); }
 
@@ -48,6 +48,8 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
   __(Mul)
   __(Sub)
   __(Div)
+  __(Min)
+  __(Max)
 #undef __
 
   void Visit(const Ramp* op, Expr* expr) override {
@@ -72,8 +74,20 @@ struct SimplifyButStoreLoadMutator : public ir::IRMutator<ir::Expr*> {
 
   void Visit(const For* op, Expr* expr) override {
     auto* node = expr->As<ir::For>();
+    Visit(&node->min, &node->min);
     Visit(&node->extent, &node->extent);
+    auto* min_i    = op->min.As<IntImm>();
+    auto* extent_i = op->extent.As<IntImm>();
+    if (min_i && extent_i && extent_i->value > min_i->value) {
+      var_intervals.emplace(op->loop_var->name, common::CasInterval{min_i->value, extent_i->value - 1});
+    } else {
+      var_intervals.emplace(op->loop_var->name, common::CasInterval{op->min, op->extent - 1});
+    }
+
     Visit(&node->body, &node->body);
+    if (min_i && extent_i) {
+      var_intervals.erase(op->loop_var->name);
+    }
   }
 
   void Visit(const _Tensor_* op, Expr* expr) override {

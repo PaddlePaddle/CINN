@@ -407,12 +407,14 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
       if (extent_min || extent_max || !vectorizable_) {
         // not vectorize if has tail blocks, for llvm to optimize
         node->reset_vectorize_info();
+        var_intervals.erase(forloop->loop_var->name);
         return;
       }
 
       auto _new_forloop = SplitForLoop(node, forloop->vectorize_info().factor);
       if (!_new_forloop.defined()) {
         IRMutator<>::Visit(&node->body, &node->body);
+        var_intervals.erase(forloop->loop_var->name);
         return;
       }
 
@@ -426,6 +428,7 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
 
       if (!extent_int) {
         IRMutator<>::Visit(&node->body, &node->body);
+        var_intervals.erase(forloop->loop_var->name);
         return;
       }
 
@@ -445,6 +448,7 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     } else {
       IRMutator::Visit(forloop, expr);
     }
+    var_intervals.erase(forloop->loop_var->name);
   }
 
   //! unroll the forloop if its' extent is min type by solving the condition extent
