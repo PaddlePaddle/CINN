@@ -172,17 +172,30 @@ Expr Divide(const Sum* a, int b) {
   return Sum::Make(args);
 }
 Expr Divide(const Product* a, int b) {
-  auto* a_first_i = a->operand(0).As<IntImm>();
-  CHECK(a_first_i);
-  int times = a_first_i->value / b;
-  if (times == 1) {
-    return Product::Make(Rest(a->operands()));
-  } else {
-    auto args = Rest(a->operands());
-    args.insert(std::begin(args), make_const(a->type(), times));
-    return Product::Make(args);
+  std::vector<Expr> args;
+  int i             = 0;
+  int times         = -1;
+  bool is_divisible = false;
+  for (i = 0; i < a->operands().size(); i++) {
+    auto* a_i = a->operand(i).As<IntImm>();
+    if (a_i && a_i->value % b == 0) {
+      times        = a_i->value / b;
+      is_divisible = true;
+      break;
+    }
   }
+  // NOTE that a should be divisible by b.
+  CHECK(is_divisible) << "a should be divisible by b";
+  if (times != 1) {
+    args.push_back(make_const(a->type(), times));
+  }
+  for (int j = 0; j < a->operands().size(); j++) {
+    if (j == i) continue;
+    args.push_back(a->operand(j));
+  }
+  return Product::Make(args);
 }
+
 // @}
 
 inline int Iquot(int n, int d) { return n / d; }
@@ -768,8 +781,11 @@ std::vector<Expr> CasSimplifyMutator::MergeSum(const std::vector<Expr>& p, const
 
   return MergeExprs(p, q, [this](Expr left, Expr right) -> std::vector<Expr> {
     auto&& h = SimplifyBinarySum(std::move(left), std::move(right));
-    if (h.size() == 1 && h[0].is_constant() && h[0].get_constant() == 0) {return {};}
-    else {return std::move(h);}
+    if (h.size() == 1 && h[0].is_constant() && h[0].get_constant() == 0) {
+      return {};
+    } else {
+      return std::move(h);
+    }
   });
 }
 
@@ -946,6 +962,7 @@ bool CasSimplifyMutator::GetVarBound(Expr* lower_bound, Expr* upper_bound, Expr 
   CHECK(upper_bound);
   auto v_var     = var.As<_Var_>();
   auto v_product = var.As<Product>();
+  auto v_frac    = var.As<FracOp>();
   if (v_var && (var_intervals.count(v_var->name) || !unfold_const_bound)) {
     UnfoldBound(lower_bound, upper_bound, var, unfold_const_bound);
     return true;
@@ -967,6 +984,29 @@ bool CasSimplifyMutator::GetVarBound(Expr* lower_bound, Expr* upper_bound, Expr 
       } else {
         p_lower_bound = Product::Make({const_oper, v_upper});
         p_upper_bound = Product::Make({const_oper, v_lower});
+      }
+      AddBaseAndSimplify(lower_bound, p_lower_bound);
+      AddBaseAndSimplify(upper_bound, p_upper_bound);
+      return true;
+    }
+  } else if (v_frac) {
+    // only deal with x/2
+    Expr p_lower_bound;
+    Expr p_upper_bound;
+    Expr non_const_oper = v_frac->a();
+    Expr const_oper     = v_frac->b();
+    auto v_var          = non_const_oper.As<_Var_>();
+    if (v_var && var_intervals.count(v_var->name)) {
+      Expr v_lower, v_upper;
+      UnfoldBound(&v_lower, &v_upper, non_const_oper, unfold_const_bound);
+      auto const_v = const_oper.get_constant();
+      CHECK(v_lower.defined() && v_upper.defined());
+      if (const_v > 0) {
+        p_lower_bound = FracOp::Make(v_lower, const_oper);
+        p_upper_bound = FracOp::Make(v_upper, const_oper);
+      } else {
+        p_lower_bound = FracOp::Make(v_upper, const_oper);
+        p_upper_bound = FracOp::Make(v_lower, const_oper);
       }
       AddBaseAndSimplify(lower_bound, p_lower_bound);
       AddBaseAndSimplify(upper_bound, p_upper_bound);
@@ -1221,19 +1261,101 @@ Expr CasSimplifyMutator::SimplifyMinAndMax(Expr u) {
   auto* u_max = u.As<Max>();
   auto* u_min = u.As<Min>();
   if (u_max) {
-    Expr a = CasSimplify(u_max->a(), var_intervals);
-    Expr b = CasSimplify(u_max->b(), var_intervals);
-    if (a.is_constant() && b.is_constant()) {
+    Expr a          = CasSimplify(u_max->a(), var_intervals);
+    Expr b          = CasSimplify(u_max->b(), var_intervals);
+    bool is_a_const = a.is_constant();
+    bool is_b_const = b.is_constant();
+    if (is_a_const && is_b_const) {
       return a.get_constant() >= b.get_constant() ? a : b;
+    }
+    Expr lower_bound, upper_bound;
+    Expr const_operand, non_const_operand;
+    if (is_a_const) {
+      const_operand     = a;
+      non_const_operand = b;
+    }
+    if (is_b_const) {
+      const_operand     = b;
+      non_const_operand = a;
+    }
+    if (const_operand.defined() && non_const_operand.defined()) {
+      auto const_size = const_operand.get_constant();
+      // unfold var with bounds
+      if (GetExprBound(&lower_bound, &upper_bound, non_const_operand, true)) {
+        // if non_const_operand's lower_bound is larger than const_operand, then non_const_operand must be larger than
+        // const_operand
+        if (lower_bound.is_constant() && const_size <= lower_bound.get_constant()) {
+          return non_const_operand;
+        }
+        // if non_const_operand's upper_bound is smaller than a, then const_operand must be larger than
+        // non_const_operand
+        if (upper_bound.is_constant() && const_size >= upper_bound.get_constant()) {
+          return const_operand;
+        }
+      }
+      // not unfold var for var may be eliminated in the caculation
+      if (GetExprBound(&lower_bound, &upper_bound, non_const_operand, false)) {
+        // if non_const_operand's lower_bound is larger than const_operand, then non_const_operand must be larger than
+        // const_operand
+        lower_bound = CasSimplify(lower_bound, var_intervals);
+        upper_bound = CasSimplify(upper_bound, var_intervals);
+        if (lower_bound.is_constant() && const_size <= lower_bound.get_constant()) {
+          return non_const_operand;
+        }
+        // if non_const_operand's upper_bound is smaller than a, then const_operand must be larger than
+        // non_const_operand
+        if (upper_bound.is_constant() && const_size >= upper_bound.get_constant()) {
+          return const_operand;
+        }
+      }
     }
     return ir::Max::Make(a, b);
   }
 
   if (u_min) {
-    Expr a = CasSimplify(u_min->a(), var_intervals);
-    Expr b = CasSimplify(u_min->b(), var_intervals);
-    if (a.is_constant() && b.is_constant()) {
+    Expr a          = CasSimplify(u_min->a(), var_intervals);
+    Expr b          = CasSimplify(u_min->b(), var_intervals);
+    bool is_a_const = a.is_constant();
+    bool is_b_const = b.is_constant();
+    if (is_a_const && is_b_const) {
       return a.get_constant() <= b.get_constant() ? a : b;
+    }
+    Expr lower_bound, upper_bound;
+    Expr const_operand, non_const_operand;
+    if (is_a_const) {
+      const_operand     = a;
+      non_const_operand = b;
+    }
+    if (is_b_const) {
+      const_operand     = b;
+      non_const_operand = a;
+    }
+    if (const_operand.defined() && non_const_operand.defined()) {
+      auto const_size = const_operand.get_constant();
+      if (GetExprBound(&lower_bound, &upper_bound, non_const_operand, true)) {
+        // if non_const_operand's lower_bound is larger than const_operand, then non_const_operand must be larger than
+        // const_operand
+        if (lower_bound.is_constant() && const_size <= lower_bound.get_constant()) {
+          return const_operand;
+        }
+        // if non_const_operand's upper_bound is smaller than a, then const_operand must be larger than
+        // non_const_operand
+        if (upper_bound.is_constant() && const_size >= upper_bound.get_constant()) {
+          return non_const_operand;
+        }
+      }
+      if (GetExprBound(&lower_bound, &upper_bound, non_const_operand, false)) {
+        // if non_const_operand's lower_bound is larger than const_operand, then non_const_operand must be larger than
+        // const_operand
+        if (lower_bound.is_constant() && const_size <= lower_bound.get_constant()) {
+          return const_operand;
+        }
+        // if non_const_operand's upper_bound is smaller than a, then const_operand must be larger than
+        // non_const_operand
+        if (upper_bound.is_constant() && const_size >= upper_bound.get_constant()) {
+          return non_const_operand;
+        }
+      }
     }
     return ir::Min::Make(a, b);
   }
