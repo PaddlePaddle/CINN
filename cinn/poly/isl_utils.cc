@@ -4,6 +4,7 @@
 #include <isl/cpp.h>
 
 #include <algorithm>
+#include <set>
 
 #include "cinn/utils/string.h"
 
@@ -377,9 +378,9 @@ std::vector<std::string> GetRelatedOutputAxies(const isl::map &x, const std::vec
   for (auto &i : dim_out_names) {
     if (utils::Count(&map_str, i) == utils::Count(&deleted_map, i)) {
       if (utils::Endswith(i, "_outer") && res_set.count(i.substr(0, i.size() - 6) + "_inner") > 0) {
-        res.push_back(res);
+        res.push_back(i);
       } else if (utils::Endswith(i, "_inner") && res_set.count(i.substr(0, i.size() - 6) + "_outer") > 0) {
-        res.push_back(res);
+        res.push_back(i);
       }
     }
   }
@@ -400,7 +401,7 @@ std::vector<std::string> GetRelatedInputAxies(const isl::map &x, const std::vect
   std::set<std::string> out_set;
   for (auto &i : dim_out_names) {
     if (utils::Endswith(i, "_inner") || utils::Endswith(i, "_outer")) {
-      out_set.push_back(i);
+      out_set.insert(i);
     }
   }
   for (auto &i : dim_in_names) {
