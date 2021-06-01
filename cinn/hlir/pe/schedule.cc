@@ -8,6 +8,9 @@
 
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/poly/isl_utils.h"
+#include "cinn/common/cas.h"
+#include "cinn/poly/isl_utils.h"
+
 namespace cinn {
 namespace hlir {
 namespace pe {
@@ -88,17 +91,6 @@ void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_sha
   if (stage->n_out_dims() > 1) {
     stage->Parallel(0);
   }
-  return;
-}
-
-void CudaScheduleMul(poly::StageMap stages,
-                     ir::Tensor output,
-                     const std::vector<int> &output_shape,
-                     const common::Target &target) {
-  stages[output]->Split(1, 2);
-  stages[output]->Bind(0, "blockIdx.x");
-  stages[output]->Bind(1, "threadIdx.x");
-
   return;
 }
 
@@ -250,6 +242,340 @@ void MulScheduleCPU(poly::StageMap stages,
   if (reduce_first_last_shape > 1) {
     stages[output]->Unroll(out_dims - 1);
   }
+}
+
+void GetConv2dFactors(std::unordered_map<std::string, int>* factors, int oc, int ic, int ow, const Type &type, const common::Target &target) {
+  int bn_base = GetBasicFactor(type, target);
+  int oc_bn = 1;
+  for (int i = bn_base; i > 1; i--) {
+    if(oc < 1) break;
+    if (oc % i == 0) {
+      oc_bn = i;
+      break;
+    }
+  }
+  int ic_bn = 1;
+  // from oc_bn?
+  for (int i = oc_bn; i > 1; i--) {
+    if(ic < 1) break;
+    if (ic % i == 0) {
+      ic_bn = i;
+      break;
+    }
+  }
+  // opt
+  int ow_bn = 1;
+  // bn_base -1?
+  for (int i = bn_base; i > 1; i--) {
+    if(ow < 1) break;
+    if (ow % i == 0) {
+      ow_bn = i;
+      break;
+    }
+  }
+
+  (*factors)["oc_bn"] = oc_bn;
+  (*factors)["ic_bn"] = ic_bn;
+  (*factors)["ow_bn"] = ow_bn;
+}
+
+void GetConv2d1x1Factors(std::unordered_map<std::string, int>* factors, int oc, int ic, int oh, int ow, const Type &type, const common::Target &target) {
+  int bn_base = GetBasicFactor(type, target);
+  int oc_bn = 1;
+  for (int i = bn_base; i > 1; i--) {
+    if(oc < 1) break;
+    if (oc % i == 0) {
+      oc_bn = i;
+      break;
+    }
+  }
+  int ic_bn = 1;
+  // from oc_bn?
+  for (int i = oc_bn; i > 1; i--) {
+    if(ic < 1) break;
+    if (ic % i == 0) {
+      ic_bn = i;
+      break;
+    }
+  }
+  (*factors)["oc_bn"] = oc_bn;
+  (*factors)["ic_bn"] = ic_bn;
+  // opt
+  int ow_bn = 1;
+  int oh_bn = 1;
+  int begin = std::min(ow, bn_base);
+  for (int i = begin; i >= 1; i--) {
+    if(ow < 1) break;
+    if (ow % i == 0) {
+      ow_bn = i;
+      for (int j = oh; j >= 1; j--) {
+        // 32 or 16?
+        if (oh % j == 0 && j * ow_bn <= 16) {
+        // if (oh % j == 0 && j * ow_bn < 32) {
+          oh_bn = j;
+          (*factors)["oh_bn"] = oh_bn;
+          (*factors)["ow_bn"] = ow_bn;
+          return;
+        }
+      }
+    }
+  }
+}
+
+void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
+                       const ir::Tensor &res,
+                       ir::Tensor packed_out,
+                       const ir::Tensor &input_pad,
+                       const ir::Tensor &weights_dilation,
+                       const ir::Tensor &data,
+                       const common::Target &target) {
+  CHECK(target.arch == Target::Arch::X86)<<"Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
+  auto type = res->type();
+  std::unordered_map<std::string, int> conv2d_factors;
+  CHECK_EQ(res->shape.size(), 4U)<<"res's shape size should be 4";
+  CHECK_EQ(data->shape.size(), 5U)<<"data's shape size should be 5";
+  Expr h_out = common::AutoSimplify(res->shape[2]);
+  Expr w_out = common::AutoSimplify(res->shape[3]);
+  int oh = h_out.as_int32();
+  int ow = w_out.as_int32();
+  int basic_split_factor = GetBasicFactor(type, target);
+  GetConv2d1x1Factors(&conv2d_factors, -1, -1, oh, ow, type, target);
+  int oh_bn_size = conv2d_factors["oh_bn"];
+  int ow_bn_size = conv2d_factors["ow_bn"];
+  // ow_bn_size = 14;
+
+  auto kernel_shape = weights_dilation->shape;
+  int shape_size = kernel_shape.size();
+  CHECK_EQ(shape_size, 6U)<<"kernel_dialtion shape size should be 6";
+  CHECK(is_zero(kernel_shape[2]-1))<<"kernel_h should be 1 in this schedule";
+  CHECK(is_zero(kernel_shape[3]-1))<<"kernel_w should be 1 in this schedule";
+  Expr oc_bn = common::AutoSimplify(kernel_shape.back());
+  Expr ic_bn = common::AutoSimplify(kernel_shape[shape_size - 2]);
+  int oc_bn_size = oc_bn.as_int32();
+  int ic_bn_size = ic_bn.as_int32();
+// ic_bn_size =28;
+ // data
+  CHECK_GE(stages[data]->n_out_dims(), 3U)<<"data's out_dims should be more than 3";
+  stages[data]->Fuse({0, 1, 2});
+  stages[data]->ComputeInline();
+  LOG(INFO)<<"data->shape.back().as_int32(): "<<data->shape.back().as_int32();
+  // test
+  LOG(INFO)<<"stages[data]->n_out_dims()-1 "<<stages[data]->n_out_dims()-1;
+  // stages[data]->Vectorize(stages[data]->n_out_dims()-1, data->shape.back().as_int32()); // to opt
+  
+  // weights
+  CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U)<<"weights_dilation's out_dims should be more than 3";
+  // oc_outer, ic_outer, oh, ow, ic_inner, oc_inner -> oc_outer, oh, ic_outer, ow, ic_inner, oc_inner
+  stages[weights_dilation]->Reorder({2, 1});
+  stages[weights_dilation]->Fuse({0, 1});
+
+  // input_pad
+  CHECK_GE(stages[input_pad]->n_out_dims(), 3U)<<"input_pad's out_dims should be more than 3";
+  stages[input_pad]->Fuse({0, 1, 2});
+// vectorize?
+
+  // packed_out
+  auto CC = stages[packed_out]->CacheWrite2("local",stages, packed_out);
+  LOG(INFO)<<"ow_bn_size"<<ow_bn_size;
+  // packed_out: [batch, oc_outer, oh, ow, oc_block]
+  // split oh, ow
+  // next split after split
+  stages[packed_out]->Split(2, oh_bn_size);
+  stages[packed_out]->Split(4, ow_bn_size);
+  LOG(INFO)<<"stages[packed_out]->transformed_domain()"<<stages[packed_out]->transformed_domain();
+
+  // reorder: [batch, oc_outer, oh_outer, oh_inner, ow_outer, ow_inner, oc_inner] ->
+  // [batch, oc_outer, oh_outer, ow_outer, oh_inner, ow_inner, oc_inner]
+  stages[packed_out]->Reorder({4, 3});
+  stages[packed_out]->Fuse({0, 1, 2});
+  LOG(INFO)<<"packed_out->shape.back().as_int32(): "<<packed_out->shape.back().as_int32();
+  // test
+  LOG(INFO)<<"stages[packed_out]->n_out_dims()-1 "<<stages[packed_out]->n_out_dims()-1;
+  stages[packed_out]->Vectorize(stages[packed_out]->n_out_dims()-1, packed_out->shape.back().as_int32());
+  LOG(INFO)<<"stages[packed_out]->transformed_domain()"<<stages[packed_out]->transformed_domain();
+  
+  // CC: [batch_oc_outer_oh_outer_fused, ow_outer, oh_inner, ow_inner, oc_inner, ic, kh, kw]
+  LOG(INFO)<<"stages[CC]->transformed_domain()"<<stages[CC]->transformed_domain();
+  stages[CC]->Split(2, oh_bn_size);
+  stages[CC]->Split(4, ow_bn_size);
+  stages[CC]->Reorder({4, 3});
+  stages[CC]->Fuse({0, 1, 2});
+  LOG(INFO)<<"stages[CC]->transformed_domain()"<<stages[CC]->transformed_domain();
+
+  stages[CC]->ComputeAt2(stages[packed_out], 0);
+  LOG(INFO)<<"stages[packed_out]->transformed_domain()"<<stages[packed_out]->transformed_domain();
+  LOG(INFO)<<"stages[CC]->transformed_domain()"<<stages[CC]->transformed_domain();
+
+  LOG(INFO)<<"ic_bn_size"<<ic_bn_size;
+  // split ic
+  // CC: [batch_oc_outer_oh_outer_fused, ow_outer, oh_inner, ow_inner, oc_inner, ic, kh, kw]
+  stages[CC]->Split(5, ic_bn_size);
+  // reorder: [batch_oc_outer_oh_outer_fused, ow_outer, oh_inner, ow_inner, oc_inner, ic_outer, ic_inner, kh, kw] ->
+  // [batch_oc_outer_oh_outer_fused, ow_outer, ic_outer, ic_inner, oh_inner, ow_inner, oc_inner, kh, kw]
+  // kh, kw?
+  stages[CC]->Reorder({5, 6, 2, 3, 4});
+  LOG(INFO)<<"CC->shape.back().as_int32(): "<<CC->shape.back().as_int32();
+  LOG(INFO)<<"stages[CC]->n_out_dims()-1 "<<stages[CC]->n_out_dims()-1;
+  // test
+  LOG(INFO)<<"stages[CC]->transformed_domain()"<<stages[CC]->transformed_domain();
+  // stages[CC]->Vectorize(6, CC->shape.back().as_int32());
+  stages[CC]->Vectorize(stages[CC]->n_out_dims()-1, CC->shape.back().as_int32());
+  
+  // check
+  // unroll ow_inner, oh_inner
+  LOG(INFO)<<stages[CC]->transformed_domain();
+  // stages[CC]->Unroll(5);
+  // stages[CC]->Unroll(4);
+  stages[CC]->Unroll(3);
+  // CC_init
+  auto CC_init    = CC->GetInitTensor(stages, target);
+  LOG(INFO)<<"CC_init->shape.back().as_int32(): "<<CC_init->shape.back().as_int32();
+  // test
+  LOG(INFO)<<"stages[CC_init]->n_out_dims()-1 "<<stages[CC_init]->n_out_dims()-1;
+  // stages[CC_init]->Vectorize(stages[CC_init]->n_out_dims()-1, CC_init->shape.back().as_int32());
+
+  // res
+  // n, oc, oh, ow
+  stages[res]->Split(1, oc_bn_size);
+  stages[res]->Split(3, oh_bn_size);
+  stages[res]->Split(5, ow_bn_size);
+  // reorder: n, oc_outer, oc_inner, oh_outer, oh_inner, ow_outer, ow_inner -> 
+  // n, oc_outer, oh_outer, ow_outer, oh_inner, ow_inner, oc_inner
+  stages[res]->Reorder({3, 5, 4, 6, 2});
+  stages[res]->Fuse({0, 1, 2});
+
+  // test
+  LOG(INFO)<<"stages[res]->n_out_dims()-1 "<<stages[res]->n_out_dims()-1;
+  stages[res]->Vectorize(stages[res]->n_out_dims()-1, oc_bn_size);
+
+  // stages[packed_out]->ComputeAt2(stages[res], 0);
+  // stages[res]->Vectorize(stages[res]->n_out_dims()-1, oc_bn_size);
+  // stages[res]->Vectorize(2, 8);
+  // parallel?
+}
+
+void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
+                       const ir::Tensor &res,
+                       ir::Tensor packed_out,
+                       const ir::Tensor &input_pad,
+                       const ir::Tensor &weights_dilation,
+                       const ir::Tensor &data,
+                       const common::Target &target) {
+  CHECK(target.arch == Target::Arch::X86)<<"Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
+  auto type = res->type();
+  std::unordered_map<std::string, int> conv2d_factors;
+  CHECK_EQ(res->shape.size(), 4U)<<"res's shape size should be 4";
+  CHECK_EQ(data->shape.size(), 5U)<<"data's shape size should be 5";
+  Expr w_out = common::AutoSimplify(res->shape[3]);
+  int ow = w_out.as_int32();
+  int basic_split_factor = GetBasicFactor(type, target);
+  GetConv2dFactors(&conv2d_factors, -1, -1, ow, type, target);
+  int ow_bn_size = conv2d_factors["ow_bn"];
+  // ow_bn_size = 8;
+
+  std::vector<Expr> weights_dilation_shape = weights_dilation->shape;
+  int shape_size = weights_dilation_shape.size();
+  CHECK_EQ(shape_size, 6U)<<"weights_dilation'shape should be 6";
+  Expr oc_bn = common::AutoSimplify(weights_dilation_shape.back());
+  Expr ic_bn = common::AutoSimplify(weights_dilation_shape[shape_size - 2]);
+  int oc_bn_size = oc_bn.as_int32();
+  int ic_bn_size = ic_bn.as_int32();
+
+  // data
+  CHECK_GE(stages[data]->n_out_dims(), 3U)<<"data's out_dims should be more than 3";
+  stages[data]->Fuse({0, 1, 2});
+  //test performance
+  stages[data]->ComputeInline();
+  LOG(INFO)<<"data->shape.back().as_int32(): "<<data->shape.back().as_int32();
+  // test
+  LOG(INFO)<<"stages[data]->n_out_dims()-1 "<<stages[data]->n_out_dims()-1;
+  // stages[data]->Vectorize(stages[data]->n_out_dims()-1, data->shape.back().as_int32()); // to opt
+  
+  // weights
+  CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U)<<"weights_dilation's out_dims should be more than 3";
+  // oc_outer, ic_outer, oh, ow, ic_block, oc_block -> oc_outer, oh, ic_outer, ow, ic_block, oc_block
+  stages[weights_dilation]->Reorder({2, 1});
+  stages[weights_dilation]->Fuse({0, 1});
+
+  // input_pad
+  CHECK_GE(stages[input_pad]->n_out_dims(), 3U)<<"input_pad's out_dims should be more than 3";
+  stages[input_pad]->Fuse({0, 1, 2});
+  // vectorize?
+
+  // packed_out
+  auto CC = stages[packed_out]->CacheWrite2("local",stages, packed_out);
+
+  // stages[packed_out]->Split(3, 8);
+  LOG(INFO)<<"ow_bn_size"<<ow_bn_size;
+  // packed_out: [batch, oc_outer, oh, ow, oc_block]
+  // split ow
+  stages[packed_out]->Split(3, ow_bn_size);
+  int packed_out_dim = packed_out->shape.size();
+
+  stages[packed_out]->Fuse({0, 1, 2});
+  
+  LOG(INFO)<<"packed_out->shape.back().as_int32(): "<<packed_out->shape.back().as_int32();
+  // test
+  LOG(INFO)<<"stages[packed_out]->n_out_dims()-1 "<<stages[packed_out]->n_out_dims()-1;
+  stages[packed_out]->Vectorize(stages[packed_out]->n_out_dims()-1, packed_out->shape.back().as_int32());
+  LOG(INFO)<<"stages[packed_out]->transformed_domain()"<<stages[packed_out]->transformed_domain();
+  LOG(INFO)<<"stages[packed_out]->transforme_d"<<stages[packed_out]->transformed_domain();
+
+  // CC
+  stages[CC]->ComputeAt2(stages[packed_out], 1);
+  LOG(INFO)<<"stages[CC]->transformed_domain() first"<<stages[CC]->transformed_domain();
+  LOG(INFO)<<"ic_bn_size"<<ic_bn_size;
+  // CC: [batch_oc_outer_oh_fused, ow_outer, ow_block, oc_block, ic, kh, kw]
+  // split ic
+  stages[CC]->Split(4, ic_bn_size);
+  
+  // reorder: [batch_oc_outer_oh_fused, ow_outer, ow_block, oc_block, ic_outer, ic_block, kh, kw] ->
+  // [batch_oc_outer_oh_fused, ow_outer, ic_outer, kh, kw, ic_block, ow_block, oc_block]
+  stages[CC]->Reorder({4,6,7,5,2,3});
+  LOG(INFO)<<"CC->shape.back().as_int32(): "<<CC->shape.back().as_int32();
+  LOG(INFO)<<"stages[CC]->n_out_dims()-1 "<<stages[CC]->n_out_dims()-1;
+  // test
+  // to fix: wrong eliminate for1
+  // stages[CC]->Vectorize(6, CC->shape.back().as_int32());
+
+  LOG(INFO)<<"stages[CC]->transformed_domain()"<<stages[CC]->transformed_domain();
+  // LOG(INFO)<<"stages[CC]->transform_"<<stages[CC]->transform_;
+
+  stages[CC]->Vectorize(stages[CC]->n_out_dims()-1, CC->shape.back().as_int32());
+  // stages[CC]->Unroll(5);
+  // CC_init
+  auto CC_init    = CC->GetInitTensor(stages, target);
+  LOG(INFO)<<"CC_init->shape.back().as_int32(): "<<CC_init->shape.back().as_int32();
+  // test
+  LOG(INFO)<<"stages[CC_init]->n_out_dims()-1 "<<stages[CC_init]->n_out_dims()-1;
+  int vectorize_dim = stages[CC_init]->n_out_dims()-1;
+  // stages[CC_init]->Vectorize(vectorize_dim, CC_init->shape.back().as_int32());
+
+  // res
+  // n, oc, oh, ow
+  stages[res]->Split(1, oc_bn_size);
+  stages[res]->Split(4, ow_bn_size);
+  // n, oc_outer, oc_block, oh, ow_outer, ow_block -> n, oc_outer, oh, ow_outer, ow_block, oc_block
+  stages[res]->Reorder({3, 4, 5, 2});
+  // test
+  LOG(INFO)<<"stages[res]->n_out_dims()-1 "<<stages[res]->n_out_dims()-1;
+  stages[res]->Fuse({0, 1, 2});
+  // stages[res]->Vectorize(stages[res]->n_out_dims()-1, oc_bn_size);
+
+  // stages[packed_out]->ComputeAt2(stages[res], 1);
+  // stages[res]->Vectorize(stages[res]->n_out_dims()-1, oc_bn_size);
+  // stages[res]->Vectorize(2, 8);
+}
+
+void CudaScheduleMul(poly::StageMap stages,
+                     ir::Tensor output,
+                     const std::vector<int> &output_shape,
+                     const common::Target &target) {
+  stages[output]->Split(1, 2);
+  stages[output]->Bind(0, "blockIdx.x");
+  stages[output]->Bind(1, "threadIdx.x");
+
+  return;
 }
 
 void CudaScheduleConv(poly::StageMap stages,

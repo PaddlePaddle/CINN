@@ -69,7 +69,7 @@ isl::set TransIdentityExtentToContextId(isl::set set) {
       int min_iv        = minv.get_num_si();
       int max_iv        = maxv.get_num_si();
       if (max_iv == min_iv) {
-        iden_dim_offsets.emplace_back(i, max_iv);
+        // iden_dim_offsets.emplace_back(i, max_iv);
       }
     }
   }

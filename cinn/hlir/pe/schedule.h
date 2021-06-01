@@ -22,6 +22,25 @@ int GetArrayPackingFactor(int shape, const Type &type, const common::Target &tar
 
 void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
 
+void GetConv2dFactors(std::unordered_map<std::string, int>* factors, int oc, int ic, int ow, const Type &type, const common::Target &target);
+void GetConv2d1x1Factors(std::unordered_map<std::string, int>* factors, int oc, int ic, int oh, int ow, const Type &type, const common::Target &target);
+
+void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
+                       const ir::Tensor &res,
+                       ir::Tensor packed_out,
+                       const ir::Tensor &input_pad,
+                       const ir::Tensor &weights_dilation,
+                       const ir::Tensor &data,
+                       const common::Target &target);
+
+void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
+                       const ir::Tensor &res,
+                       ir::Tensor packed_out,
+                       const ir::Tensor &input_pad,
+                       const ir::Tensor &weights_dilation,
+                       const ir::Tensor &data,
+                       const common::Target &target);
+                       
 void MatmulScheduleCPU(poly::StageMap stage,
                        const ir::Tensor &output,
                        const ir::Tensor &packedB,
