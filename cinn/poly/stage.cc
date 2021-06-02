@@ -429,6 +429,9 @@ void Stage::EditTempTensor(Stage *other, int level) {
 
 void Stage::ComputeAt2(Stage *other, int level) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
+  LOG(INFO) << "The ComputeAt2 is : " << this->id() << "->ComputeAt2 " << other->id();
+  other->ShowISL();
+  this->ShowISL();
   this->ChangeDomain(other, level);
   LOG(INFO) << "Stage1";
   this->ShowISL();
@@ -646,7 +649,8 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
 
   CHECK_LE(level, isl_set_dim(self->transformed_domain().get(), isl_dim_set));
   CHECK_LE(level, isl_set_dim(stage->transformed_domain().get(), isl_dim_set));
-
+  LOG(INFO) << "In IsCompatible, self->transformed_domain() is : " << self->transformed_domain();
+  LOG(INFO) << "In IsCompatible, stage->transformed_domain() is : " << stage->transformed_domain();
   std::vector<int> selected_dims;
   for (int i = 0; i <= level; i++) {
     selected_dims.push_back(i);
@@ -669,8 +673,8 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
   remove_params(stage_partial_set);
   remove_params(self_partial_set);
 
-  VLOG(3) << "stage0.partial_set " << stage_partial_set;
-  VLOG(3) << "stage1.partial_set " << self_partial_set;
+  LOG(INFO) << "stage0.partial_set " << stage_partial_set;
+  LOG(INFO) << "stage1.partial_set " << self_partial_set;
   return isl_set_is_equal(stage_partial_set.get(), self_partial_set.get());
 }
 
@@ -1115,8 +1119,8 @@ void Stage::CopyTransform(Stage *other, int level) {
       i--;
     }
   }
-  LOG(INFO) << "temp_transform_ is : " << temp_transform_;
-  //! Add dims
+  LOG(INFO) << "temp_transform_ is : in CopyTansform " << temp_transform_;
+  //! Add dimsd
   if (level >= 0) {
     std::set<std::string> keep_names;
     int dim_size = isl_map_dim(temp_transform_.get(), isl_dim_out);

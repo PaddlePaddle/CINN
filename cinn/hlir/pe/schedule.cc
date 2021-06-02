@@ -398,7 +398,6 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
 
   // reorder: [batch, oc_outer, oh_outer, oh_inner, ow_outer, ow_inner, oc_inner] ->
   // [batch, oc_outer, oh_outer, ow_outer, oh_inner, ow_inner, oc_inner]
-  stages[packed_out]->Reorder({4, 3});
   stages[packed_out]->Fuse(0, 1);
   stages[packed_out]->Fuse(0, 1);
   LOG(INFO) << "packed_out->shape.back().as_int32(): " << packed_out->shape.back().as_int32();
@@ -409,11 +408,6 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
 
   // CC: [batch_oc_outer_oh_outer_fused, ow_outer, oh_inner, ow_inner, oc_inner, ic, kh, kw]
   LOG(INFO) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
-  stages[CC]->Split(2, oh_bn_size);
-  stages[CC]->Split(4, ow_bn_size);
-  stages[CC]->Reorder({4, 3});
-  stages[CC]->Fuse(0, 1);
-  stages[CC]->Fuse(0, 1);
   LOG(INFO) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
 
   stages[CC]->ComputeAt2(stages[packed_out], 0);
@@ -421,6 +415,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   LOG(INFO) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
 
   LOG(INFO) << "ic_bn_size" << ic_bn_size;
+  stages[packed_out]->Reorder({2, 1});
   // split ic
   // CC: [batch_oc_outer_oh_outer_fused, ow_outer, oh_inner, ow_inner, oc_inner, ic, kh, kw]
   stages[CC]->Split(5, ic_bn_size);
@@ -462,8 +457,12 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   // test
   LOG(INFO) << "stages[res]->n_out_dims()-1 " << stages[res]->n_out_dims() - 1;
   stages[res]->Vectorize(stages[res]->n_out_dims() - 1, oc_bn_size);
-
-  // stages[packed_out]->ComputeAt2(stages[res], 0);
+  LOG(INFO) << "packed_out is : ";
+  stages[packed_out]->ShowISL();
+  LOG(INFO) << "res is : ";
+  stages[res]->ShowISL();
+  stages[packed_out]->ComputeAt2(stages[res], 0);
+  stages[packed_out]->ShowISL();
   // stages[res]->Vectorize(stages[res]->n_out_dims()-1, oc_bn_size);
   // stages[res]->Vectorize(2, 8);
   // parallel?
