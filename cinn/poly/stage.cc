@@ -430,8 +430,14 @@ void Stage::EditTempTensor(Stage *other, int level) {
 void Stage::ComputeAt2(Stage *other, int level) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
   this->ChangeDomain(other, level);
+  LOG(INFO) << "Stage1";
+  this->ShowISL();
   this->CopyTransform(other, level);
+  LOG(INFO) << "Stage2";
+  this->ShowISL();
   this->ChangeIndex(other);
+  LOG(INFO) << "Stage3";
+  this->ShowISL();
   CHECK(tensor_);
   other->CtrlDepend(ir::Tensor(tensor()));
   if (this->tensor()->buffer.defined()) {
@@ -440,6 +446,8 @@ void Stage::ComputeAt2(Stage *other, int level) {
       EditTempTensor(other, level);
     }
   }
+  LOG(INFO) << "Stage4";
+  this->ShowISL();
   ComputeAtRelation relation;
   relation.stage = other;
   relation.level = level;
@@ -1050,8 +1058,13 @@ void Stage::CopyTransform(Stage *other, int level) {
 
   // Edit level. e.g. if A->Split(0,10) and B->CopyTransform(A,0), level should increase to 1.
   isl::map temp_target_trans(this_ctx, str_target_trans);
+  LOG(INFO) << "Origin Target transform is : " << other->transform();
+  LOG(INFO) << "Target transform is : " << target_transform;
+  LOG(INFO) << "CopyTransform level is : " << level;
+  LOG(INFO) << "This stage is : " << this_tensor_name;
   if (level + 1 < isl_map_dim(temp_target_trans.get(), isl_dim_out)) {
     std::string pivot_dim_out = isl_map_get_dim_name(temp_target_trans.get(), isl_dim_out, level + 1);
+    LOG(INFO) << "pivot_dim_out is : " << pivot_dim_out;
     std::vector<std::string> dim_out_level;
     for (int i = 0; i <= level; i++) {
       dim_out_level.push_back(isl_map_get_dim_name(temp_target_trans.get(), isl_dim_out, i));
@@ -1059,6 +1072,7 @@ void Stage::CopyTransform(Stage *other, int level) {
     auto related_dim_in  = GetRelatedInputAxies(temp_target_trans, dim_out_level);
     auto related_dim_out = GetRelatedOutputAxies(temp_target_trans, related_dim_in);
     for (auto &i : related_dim_out) {
+      LOG(INFO) << "Related dim out is: " << i;
       if (i == pivot_dim_out) {
         this->CopyTransform(other, level + 1);
         return;
@@ -1069,7 +1083,7 @@ void Stage::CopyTransform(Stage *other, int level) {
                << " is not less than the axis number : " << isl_map_dim(temp_target_trans.get(), isl_dim_out)
                << ", please check.";
   }
-
+  LOG(INFO) << "temp_transform_ is : " << temp_transform_;
   //! When this->tensor's dim is more than other->tensor, we need to supplment dims.
   std::vector<std::string> sup_dims;
   for (int i = target_map_dims.size(); i < this_map_dims.size(); i++) {
@@ -1101,6 +1115,7 @@ void Stage::CopyTransform(Stage *other, int level) {
       i--;
     }
   }
+  LOG(INFO) << "temp_transform_ is : " << temp_transform_;
   //! Add dims
   if (level >= 0) {
     std::set<std::string> keep_names;
@@ -1120,6 +1135,7 @@ void Stage::CopyTransform(Stage *other, int level) {
       level++;
     }
   }
+  LOG(INFO) << "temp_transform_ is : " << temp_transform_;
   if (sup_dims.size() > 0) {
     int level_in  = isl_map_dim(temp_transform_.get(), isl_dim_in);
     int level_out = isl_map_dim(temp_transform_.get(), isl_dim_out);
@@ -1140,7 +1156,7 @@ void Stage::CopyTransform(Stage *other, int level) {
   std::string res_trans = isl_map_to_str(temp_transform_.get());
   isl::map res_map(this_ctx, res_trans);
   VLOG(2) << "This domain is: " << isl_set_to_str(domain_.get());
-  VLOG(2) << "After Copytransform this trans is : " << isl_map_to_str(res_map.get());
+  LOG(INFO) << "After Copytransform this trans is : " << isl_map_to_str(res_map.get());
   VLOG(2) << "Target transform is : " << isl_map_to_str(other->transform().get());
   VLOG(2) << "CopyTransform Level is : " << level;
   transform_ = res_map;
