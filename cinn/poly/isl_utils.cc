@@ -138,6 +138,35 @@ isl_set *isl_get_precending_aixs(isl_set *set, int level, bool with_tuple_name) 
   return isl_set_apply(set, transform.release());
 }
 
+int isl_get_precending_removed_axes_counts(isl_set __isl_keep *a, int level) {
+  int removed_axes_counts = 0;
+  std::vector<std::tuple<int, int>> iden_dim_offsets;
+  for (int i = 0; i < level; i++) {
+    if (isl_set_axis_has_noparam_constant_bound(a, i)) {
+      auto [minv, maxv] = isl_set_get_axis_range(a, i);
+      int min_iv        = minv.get_num_si();
+      int max_iv        = maxv.get_num_si();
+      if (max_iv == min_iv) {
+        removed_axes_counts++;
+      }
+    }
+  }
+  return removed_axes_counts;
+}
+
+bool is_isl_removed_axis(isl_set __isl_keep *a, int level) {
+  std::vector<std::tuple<int, int>> iden_dim_offsets;
+  if (isl_set_axis_has_noparam_constant_bound(a, level)) {
+    auto [minv, maxv] = isl_set_get_axis_range(a, level);
+    int min_iv        = minv.get_num_si();
+    int max_iv        = maxv.get_num_si();
+    if (max_iv == min_iv) {
+      return true;
+    }
+  }
+  return false;
+}
+
 int isl_max_level_compatible(isl_set *a, isl_set *b) {
   int an = isl_set_dim(a, isl_dim_set);
   int bn = isl_set_dim(b, isl_dim_set);

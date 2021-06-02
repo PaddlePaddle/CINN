@@ -668,10 +668,21 @@ bool ComputeAtRelation::IsCompatible(Stage *self) {
 
 void Stage::Vectorize(int level, int factor) {
   AssertAxisIsNotLocked(level);
+  CHECK_GE(level, 0);
   CHECK_LT(level, n_out_dims());
   CHECK_GT(factor, 0);
-  auto dim_name = ith_dim_name(level);
-  vectorize_info_.set(level /*inner*/, factor);
+  if (factor == 1) {
+    LOG(INFO) << "Vectorize-factor 1 has no sense, skip it";
+    return;
+  }
+  auto transformed_domain = this->transformed_domain();
+  if (is_isl_removed_axis(transformed_domain.get(), level)) {
+    LOG(INFO) << "Vectorizing for-1 has no sense, skip it";
+    return;
+  }
+  int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
+  VLOG(3) << "removed_axes_counts are " << removed_axes_counts << " before axis " << ith_dim_name(level);
+  vectorize_info_.set(level - removed_axes_counts /*inner*/, factor);
 }
 
 void Stage::Vectorize(const std::string &axis, int factor) {
@@ -684,13 +695,30 @@ void Stage::Vectorize(const std::string &axis, int factor) {
 void Stage::Vectorize(const Iterator &axis, int factor) { return Vectorize(axis.id, factor); }
 
 void Stage::Parallel(int level) {
+  CHECK_GE(level, 0);
   AssertAxisIsNotLocked(level);
-  parallel_info_.insert(level);
+  auto transformed_domain = this->transformed_domain();
+  LOG(INFO) << "transformed_domain" << transformed_domain;
+  if (is_isl_removed_axis(transformed_domain.get(), level)) {
+    LOG(INFO) << "Paralleling for-1 has no sense, skip it";
+    return;
+  }
+  int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
+  VLOG(3) << "removed_axes_counts are " << removed_axes_counts << " before axis " << ith_dim_name(level);
+  parallel_info_.insert(level - removed_axes_counts);
 }
 
 void Stage::Unroll(int level) {
+  CHECK_GE(level, 0);
   AssertAxisIsNotLocked(level);
-  unroll_info_.insert(level);
+  auto transformed_domain = this->transformed_domain();
+  if (is_isl_removed_axis(transformed_domain.get(), level)) {
+    LOG(INFO) << "Unrolling for-1 has no sense, skip it";
+    return;
+  }
+  int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
+  VLOG(3) << "removed_axes_counts are " << removed_axes_counts << " before axis " << ith_dim_name(level);
+  unroll_info_.insert(level - removed_axes_counts);
 }
 
 std::string Stage::ith_dim_name(int level) {
@@ -1034,8 +1062,16 @@ isl_map *__isl_give GatherAccesses(Stage *stage, const std::string &tensor_name)
 
 void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
   int num_levels = isl_map_dim(transform_.get(), isl_dim_out);
+  CHECK_GE(level, 0);
   CHECK_LT(level, num_levels);
-  forloop_infos_[level] = info;
+  auto transformed_domain = this->transformed_domain();
+  if (is_isl_removed_axis(transformed_domain.get(), level)) {
+    LOG(INFO) << "for-1 has no sense, skip it";
+    return;
+  }
+  int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
+  VLOG(3) << "removed_axes_counts are " << removed_axes_counts << " before axis " << ith_dim_name(level);
+  forloop_infos_[level - removed_axes_counts] = info;
 }
 
 void Stage::CopyTransform(Stage *other, int level) {
@@ -1150,10 +1186,18 @@ void Stage::CopyTransform(Stage *other, int level) {
 void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::map &target_transform) {
   std::map<std::string, StageForloopInfo> dim_forloop_infos;
   std::vector<std::string> this_dim_names = isl_get_dim_names(transform_, isl_dim_out);
+  int removed_axes_counts                 = 0;
   for (int i = 0; i < this_dim_names.size(); i++) {
+    auto transformed_domain = this->transformed_domain();
+    if (is_isl_removed_axis(transformed_domain.get(), i)) {
+      LOG(INFO) << "for-1 has no sense, skip it";
+      removed_axes_counts++;
+      continue;
+    }
     int index = isl_map_find_dim_by_name(target_transform.get(), isl_dim_out, this_dim_names[i].c_str());
     if (target_forloop_infos.count(index) != 0) {
-      forloop_infos_[i] = target_forloop_infos[index];
+      // Isl ast build will remove for-1 axes, so we decrease the level correspondingly.
+      forloop_infos_[i - removed_axes_counts] = target_forloop_infos[index];
     }
   }
 }
