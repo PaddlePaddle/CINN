@@ -359,32 +359,29 @@ isl::map RemoveAxiesByOutputNames(const isl::map &x, const std::vector<std::stri
 
 std::vector<std::string> GetRelatedOutputAxies(const isl::map &x, const std::vector<std::string> &dim_in_names) {
   std::string map_str = isl_map_to_str(x.get());
-  isl::ctx this_ctx   = x.ctx();
+  LOG(INFO) << "GetRelatedOutputAxies map_str is : " << map_str;
+  isl::ctx this_ctx = x.ctx();
   isl::map temp_transform(this_ctx, map_str);
   auto dim_out_names = isl_get_dim_names(temp_transform, isl_dim_out);
+  std::set<std::string> dim_in_set;
   for (auto &i : dim_in_names) {
-    temp_transform = isl::manage(isl_remove_axis_by_name(temp_transform.release(), isl_dim_in, i.c_str()));
+    LOG(INFO) << "GetRelatedOutputAxies dim_in_names is : " << i;
+    dim_in_set.insert(i);
   }
-  std::string deleted_map = isl_map_to_str(temp_transform.get());
-  std::vector<std::string> res;
   std::set<std::string> res_set;
   for (auto &i : dim_out_names) {
-    if (utils::Count(&map_str, i) != utils::Count(&deleted_map, i)) {
-      res.push_back(i);
-      res_set.insert(i);
-    }
-  }
-
-  for (auto &i : dim_out_names) {
-    if (utils::Count(&map_str, i) == utils::Count(&deleted_map, i)) {
-      if (utils::Endswith(i, "_outer") && res_set.count(i.substr(0, i.size() - 6) + "_inner") > 0) {
-        res.push_back(i);
-      } else if (utils::Endswith(i, "_inner") && res_set.count(i.substr(0, i.size() - 6) + "_outer") > 0) {
-        res.push_back(i);
+    auto related_in_dim = GetRelatedInputAxies(temp_transform, {i});
+    for (auto &j : related_in_dim) {
+      if (dim_in_set.count(j) > 0) {
+        res_set.insert(i);
       }
     }
   }
-
+  std::vector<std::string> res;
+  for (auto &i : res_set) {
+    LOG(INFO) << "GetRelatedOutputAxies res is : " << i;
+    res.push_back(i);
+  }
   return res;
 }
 
@@ -394,6 +391,7 @@ std::vector<std::string> GetRelatedInputAxies(const isl::map &x, const std::vect
   isl::map temp_transform(this_ctx, map_str);
   auto dim_in_names = isl_get_dim_names(temp_transform, isl_dim_in);
   for (auto &i : dim_out_names) {
+    LOG(INFO) << "GetRelatedInputAxies dim_out_names is : " << i;
     temp_transform = isl::manage(isl_remove_axis_by_name(temp_transform.release(), isl_dim_out, i.c_str()));
   }
   std::string deleted_map = isl_map_to_str(temp_transform.get());
@@ -411,7 +409,9 @@ std::vector<std::string> GetRelatedInputAxies(const isl::map &x, const std::vect
       res.push_back(i);
     }
   }
-
+  for (auto &i : res) {
+    LOG(INFO) << "GetRelatedInputAxies res is : " << i;
+  }
   return res;
 }
 }  // namespace poly
