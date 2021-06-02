@@ -359,13 +359,13 @@ isl::map RemoveAxiesByOutputNames(const isl::map &x, const std::vector<std::stri
 
 std::vector<std::string> GetRelatedOutputAxies(const isl::map &x, const std::vector<std::string> &dim_in_names) {
   std::string map_str = isl_map_to_str(x.get());
-  LOG(INFO) << "GetRelatedOutputAxies map_str is : " << map_str;
+  VLOG(1) << "GetRelatedOutputAxies map_str is : " << map_str;
   isl::ctx this_ctx = x.ctx();
   isl::map temp_transform(this_ctx, map_str);
   auto dim_out_names = isl_get_dim_names(temp_transform, isl_dim_out);
   std::set<std::string> dim_in_set;
   for (auto &i : dim_in_names) {
-    LOG(INFO) << "GetRelatedOutputAxies dim_in_names is : " << i;
+    VLOG(1) << "GetRelatedOutputAxies dim_in_names is : " << i;
     dim_in_set.insert(i);
   }
   std::set<std::string> res_set;
@@ -379,7 +379,7 @@ std::vector<std::string> GetRelatedOutputAxies(const isl::map &x, const std::vec
   }
   std::vector<std::string> res;
   for (auto &i : res_set) {
-    LOG(INFO) << "GetRelatedOutputAxies res is : " << i;
+    VLOG(1) << "GetRelatedOutputAxies res is : " << i;
     res.push_back(i);
   }
   return res;
@@ -387,11 +387,12 @@ std::vector<std::string> GetRelatedOutputAxies(const isl::map &x, const std::vec
 
 std::vector<std::string> GetRelatedInputAxies(const isl::map &x, const std::vector<std::string> &dim_out_names) {
   std::string map_str = isl_map_to_str(x.get());
-  isl::ctx this_ctx   = x.ctx();
+  VLOG(1) << "GetRelatedInputAxies map_str is : " << map_str;
+  isl::ctx this_ctx = x.ctx();
   isl::map temp_transform(this_ctx, map_str);
   auto dim_in_names = isl_get_dim_names(temp_transform, isl_dim_in);
   for (auto &i : dim_out_names) {
-    LOG(INFO) << "GetRelatedInputAxies dim_out_names is : " << i;
+    VLOG(1) << "GetRelatedInputAxies dim_out_names is : " << i;
     temp_transform = isl::manage(isl_remove_axis_by_name(temp_transform.release(), isl_dim_out, i.c_str()));
   }
   std::string deleted_map = isl_map_to_str(temp_transform.get());
@@ -404,13 +405,12 @@ std::vector<std::string> GetRelatedInputAxies(const isl::map &x, const std::vect
   }
   for (auto &i : dim_in_names) {
     if (utils::Count(&map_str, i) != utils::Count(&deleted_map, i)) {
+      VLOG(1) << "GetRelatedInputAxies res is : " << i;
       res.push_back(i);
     } else if (out_set.count(i + "_outer") > 0 || out_set.count(i + "_inner") > 0) {
+      VLOG(1) << "GetRelatedInputAxies res is : " << i;
       res.push_back(i);
     }
-  }
-  for (auto &i : res) {
-    LOG(INFO) << "GetRelatedInputAxies res is : " << i;
   }
   return res;
 }
