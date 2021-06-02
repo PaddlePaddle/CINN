@@ -1052,20 +1052,17 @@ void Stage::CopyTransform(Stage *other, int level) {
   isl::map temp_target_trans(this_ctx, str_target_trans);
   if (level + 1 < isl_map_dim(temp_target_trans.get(), isl_dim_out)) {
     std::string pivot_dim_out = isl_map_get_dim_name(temp_target_trans.get(), isl_dim_out, level + 1);
-    temp_target_trans = isl::manage(isl_map_remove_dims(temp_target_trans.release(), isl_dim_out, 0, level + 1));
-    std::string map_after_deletion = isl_map_to_str(temp_target_trans.get());
-
-    std::string pivot_dim_in;
-    for (int i = 0; i < target_map_dims.size(); i++) {
-      if (utils::Count(&map_after_deletion, target_map_dims[i]) > 1) {
-        pivot_dim_in = target_map_dims[i];
-        break;
-      }
+    std::vector<std::string> dim_out_level;
+    for (int i = 0; i <= level; i++) {
+      dim_out_level.push_back(isl_map_get_dim_name(temp_target_trans.get(), isl_dim_out, i));
     }
-    if (utils::Count(&str_target_trans, pivot_dim_in) != utils::Count(&map_after_deletion, pivot_dim_in) ||
-        utils::Count(&str_target_trans, pivot_dim_out) != utils::Count(&map_after_deletion, pivot_dim_out)) {
-      this->CopyTransform(other, level + 1);
-      return;
+    auto related_dim_in  = GetRelatedInputAxies(temp_target_trans, dim_out_level);
+    auto related_dim_out = GetRelatedOutputAxies(temp_target_trans, related_dim_in);
+    for (auto &i : related_dim_out) {
+      if (i == pivot_dim_out) {
+        this->CopyTransform(other, level + 1);
+        return;
+      }
     }
   } else if (level >= isl_map_dim(temp_target_trans.get(), isl_dim_out)) {
     LOG(ERROR) << "ComputeAt level: " << level
