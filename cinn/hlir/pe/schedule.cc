@@ -461,7 +461,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   stages[packed_out]->ShowISL();
   LOG(INFO) << "res is : ";
   stages[res]->ShowISL();
-  stages[packed_out]->ComputeAt2(stages[res], 0);
+  stages[packed_out]->ComputeAt4(stages[res], 0);
   stages[packed_out]->ShowISL();
   // stages[res]->Vectorize(stages[res]->n_out_dims()-1, oc_bn_size);
   // stages[res]->Vectorize(2, 8);

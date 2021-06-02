@@ -460,6 +460,20 @@ void Stage::ComputeAt2(Stage *other, int level) {
   compute_ats_[other->id()] = relation;
 }
 
+
+void Stage::ComputeAt4(Stage *other, int level) {
+  // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
+  CHECK(tensor_);
+  other->CtrlDepend(ir::Tensor(tensor()));
+  ComputeAtRelation relation;
+  relation.stage = other;
+  relation.level = level;
+  other->CtrlDepend(ir::Tensor(tensor()));
+
+  CHECK(relation.IsCompatible(this));
+  compute_ats_[other->id()] = relation;
+}
+
 void Stage::ComputeAt3(Stage *other, int level) {
   this->ChangeDomain(other, level);
   this->CopyTransform(other, level);
