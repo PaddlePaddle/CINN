@@ -154,7 +154,7 @@ int isl_get_precending_removed_axes_counts(isl_set __isl_keep *a, int level) {
   return removed_axes_counts;
 }
 
-bool is_isl_removed_axis(isl_set __isl_keep *a, int level) {
+bool isl_is_removed_axis(isl_set __isl_keep *a, int level) {
   std::vector<std::tuple<int, int>> iden_dim_offsets;
   if (isl_set_axis_has_noparam_constant_bound(a, level)) {
     auto [minv, maxv] = isl_set_get_axis_range(a, level);

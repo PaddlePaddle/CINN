@@ -41,7 +41,7 @@ int isl_get_precending_removed_axes_counts(isl_set __isl_keep* a, int level);
 
 //! If the min and max bounds of the axis are same, isl will remove this axis after ast_build. Judge whether or not the
 //! axis will be removed by isl.
-bool is_isl_removed_axis(isl_set __isl_keep* a, int level);
+bool isl_is_removed_axis(isl_set __isl_keep* a, int level);
 
 //! Get the maximum level of axis that is has the same domain.
 int isl_max_level_compatible(isl_set* __isl_keep a, isl_set* __isl_keep b);

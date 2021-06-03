@@ -676,7 +676,7 @@ void Stage::Vectorize(int level, int factor) {
     return;
   }
   auto transformed_domain = this->transformed_domain();
-  if (is_isl_removed_axis(transformed_domain.get(), level)) {
+  if (isl_is_removed_axis(transformed_domain.get(), level)) {
     LOG(INFO) << "Vectorizing for-1 has no sense, skip it";
     return;
   }
@@ -699,7 +699,7 @@ void Stage::Parallel(int level) {
   AssertAxisIsNotLocked(level);
   auto transformed_domain = this->transformed_domain();
   LOG(INFO) << "transformed_domain" << transformed_domain;
-  if (is_isl_removed_axis(transformed_domain.get(), level)) {
+  if (isl_is_removed_axis(transformed_domain.get(), level)) {
     LOG(INFO) << "Paralleling for-1 has no sense, skip it";
     return;
   }
@@ -712,7 +712,7 @@ void Stage::Unroll(int level) {
   CHECK_GE(level, 0);
   AssertAxisIsNotLocked(level);
   auto transformed_domain = this->transformed_domain();
-  if (is_isl_removed_axis(transformed_domain.get(), level)) {
+  if (isl_is_removed_axis(transformed_domain.get(), level)) {
     LOG(INFO) << "Unrolling for-1 has no sense, skip it";
     return;
   }
@@ -1065,7 +1065,7 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
   CHECK_GE(level, 0);
   CHECK_LT(level, num_levels);
   auto transformed_domain = this->transformed_domain();
-  if (is_isl_removed_axis(transformed_domain.get(), level)) {
+  if (isl_is_removed_axis(transformed_domain.get(), level)) {
     LOG(INFO) << "for-1 has no sense, skip it";
     return;
   }
@@ -1189,7 +1189,7 @@ void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, c
   int removed_axes_counts                 = 0;
   for (int i = 0; i < this_dim_names.size(); i++) {
     auto transformed_domain = this->transformed_domain();
-    if (is_isl_removed_axis(transformed_domain.get(), i)) {
+    if (isl_is_removed_axis(transformed_domain.get(), i)) {
       LOG(INFO) << "for-1 has no sense, skip it";
       removed_axes_counts++;
       continue;
