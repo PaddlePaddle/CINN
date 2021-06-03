@@ -200,6 +200,7 @@ struct MarkVectorizeMutator : public ir::IRMutator<Expr*> {
     CHECK(tensor_n);
     auto it = vectorizes.find(tensor_n->name);
     if (it != vectorizes.end()) {
+      CHECK_LT(it->second.level, forloop_stack.size());
       forloop_stack[it->second.level]->set_vectorize_info(it->second);
       CHECK(it->second.valid());
     }
