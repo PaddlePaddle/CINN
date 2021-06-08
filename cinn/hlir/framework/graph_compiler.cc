@@ -146,113 +146,115 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
     } else if (node) {
       auto instr = std::unique_ptr<Instruction>(
           new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), node->op()->name));
-      if (node->op()->name == "conv2d") {
-        auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
-        for (auto& in_node : node->inlinks_in_order()) {
-          std::string in_id = in_node->source()->safe_as<NodeData>()->id();
-          auto in_shape     = shape_dict.at(in_id);
-          instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
-        }
-        AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
-        if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
-          auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
-          instr->attrs.push_back(groups);
-        } else {
-          instr->attrs.push_back(1);
-        }
-        for (auto& out_node : node->outlinks_in_order()) {
-          std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
-          auto out_shape     = shape_dict.at(out_id);
-          instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
-        }
-        CHECK_EQ(instr->attrs.size(), 19UL);
-      } else if (node->op()->name == "depthwise_conv2d") {
-        auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
-        for (auto& in_node : node->inlinks_in_order()) {
-          std::string in_id = in_node->source()->safe_as<NodeData>()->id();
-          auto in_shape     = shape_dict.at(in_id);
-          instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
-        }
-        AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
-        if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
-          auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
-          instr->attrs.push_back(groups);
-        } else {
-          instr->attrs.push_back(instr->attrs[1]);
-        }
-        for (auto& out_node : node->outlinks_in_order()) {
-          std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
-          auto out_shape     = shape_dict.at(out_id);
-          instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
-        }
-        CHECK_EQ(instr->attrs.size(), 19UL);
-      } else if (node->op()->name == "pool2d") {
-        auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
-        for (auto& in_node : node->inlinks_in_order()) {
-          std::string in_id = in_node->source()->safe_as<NodeData>()->id();
-          auto in_shape     = shape_dict.at(in_id);
-          CHECK_EQ(in_shape.size(), 4UL);
-          instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
-        }
-        bool global_pooling = false;
-        if (node->attrs.attr_store.find("global_pooling") != node->attrs.attr_store.end()) {
-          global_pooling = std::get<bool>(node->attrs.attr_store.at("global_pooling"));
-        }
-        if (node->attrs.attr_store.find("kernel_size") != node->attrs.attr_store.end()) {
-          if (global_pooling == false) {
-            auto padding = std::get<std::vector<int>>(node->attrs.attr_store.at("kernel_size"));
-            instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
-          } else {
-            instr->attrs.push_back(instr->attrs[2]);
-            instr->attrs.push_back(instr->attrs[3]);
+      if (target_.arch == Target::Arch::NVGPU) {
+        if (node->op()->name == "conv2d") {
+          auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          for (auto& in_node : node->inlinks_in_order()) {
+            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+            auto in_shape     = shape_dict.at(in_id);
+            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
           }
-        }
-        if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
-          if (global_pooling == false) {
-            auto stride = std::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
-            instr->attrs.insert(instr->attrs.end(), stride.begin(), stride.end());
+          AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
+          if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
+            auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
+            instr->attrs.push_back(groups);
           } else {
-            instr->attrs.push_back(0);
-            instr->attrs.push_back(0);
-            instr->attrs.push_back(0);
-            instr->attrs.push_back(0);
+            instr->attrs.push_back(1);
           }
-        }
-        AddAttrs(node->attrs.attr_store, {"stride_size", "pool_type"}, instr.get());
+          for (auto& out_node : node->outlinks_in_order()) {
+            std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+            auto out_shape     = shape_dict.at(out_id);
+            instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
+          }
+          CHECK_EQ(instr->attrs.size(), 19UL);
+        } else if (node->op()->name == "depthwise_conv2d") {
+          auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          for (auto& in_node : node->inlinks_in_order()) {
+            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+            auto in_shape     = shape_dict.at(in_id);
+            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+          }
+          AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
+          if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
+            auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
+            instr->attrs.push_back(groups);
+          } else {
+            instr->attrs.push_back(instr->attrs[1]);
+          }
+          for (auto& out_node : node->outlinks_in_order()) {
+            std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+            auto out_shape     = shape_dict.at(out_id);
+            instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
+          }
+          CHECK_EQ(instr->attrs.size(), 19UL);
+        } else if (node->op()->name == "pool2d") {
+          auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          for (auto& in_node : node->inlinks_in_order()) {
+            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+            auto in_shape     = shape_dict.at(in_id);
+            CHECK_EQ(in_shape.size(), 4UL);
+            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+          }
+          bool global_pooling = false;
+          if (node->attrs.attr_store.find("global_pooling") != node->attrs.attr_store.end()) {
+            global_pooling = std::get<bool>(node->attrs.attr_store.at("global_pooling"));
+          }
+          if (node->attrs.attr_store.find("kernel_size") != node->attrs.attr_store.end()) {
+            if (global_pooling == false) {
+              auto padding = std::get<std::vector<int>>(node->attrs.attr_store.at("kernel_size"));
+              instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
+            } else {
+              instr->attrs.push_back(instr->attrs[2]);
+              instr->attrs.push_back(instr->attrs[3]);
+            }
+          }
+          if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
+            if (global_pooling == false) {
+              auto stride = std::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
+              instr->attrs.insert(instr->attrs.end(), stride.begin(), stride.end());
+            } else {
+              instr->attrs.push_back(0);
+              instr->attrs.push_back(0);
+              instr->attrs.push_back(0);
+              instr->attrs.push_back(0);
+            }
+          }
+          AddAttrs(node->attrs.attr_store, {"stride_size", "pool_type"}, instr.get());
 
-        for (auto& out_node : node->outlinks_in_order()) {
-          std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
-          auto out_shape     = shape_dict.at(out_id);
-          instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
-        }
-        CHECK_EQ(instr->attrs.size(), 16UL);
-        CHECK_EQ(instr->str_attrs.size(), 1UL);
-      } else if (node->op()->name == "softmax") {
-        auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
-        for (auto& in_node : node->inlinks_in_order()) {
-          std::string in_id = in_node->source()->safe_as<NodeData>()->id();
-          auto in_shape     = shape_dict.at(in_id);
-          instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
-        }
-        AddAttrs(node->attrs.attr_store, {"axis"}, instr.get());
-      } else if (node->op()->name == "mul") {
-        auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
-        for (auto& in_node : node->inlinks_in_order()) {
-          std::string in_id = in_node->source()->safe_as<NodeData>()->id();
-          auto in_shape     = shape_dict.at(in_id);
-          instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
-        }
-        if (node->attrs.attr_store.find("x_num_col_dims") != node->attrs.attr_store.end()) {
-          auto axis = std::get<int>(node->attrs.attr_store.at("x_num_col_dims"));
-          instr->attrs.push_back(axis);
-        } else {
-          instr->attrs.push_back(1);
-        }
-        if (node->attrs.attr_store.find("y_num_col_dims") != node->attrs.attr_store.end()) {
-          auto axis = std::get<int>(node->attrs.attr_store.at("y_num_col_dims"));
-          instr->attrs.push_back(axis);
-        } else {
-          instr->attrs.push_back(1);
+          for (auto& out_node : node->outlinks_in_order()) {
+            std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+            auto out_shape     = shape_dict.at(out_id);
+            instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
+          }
+          CHECK_EQ(instr->attrs.size(), 16UL);
+          CHECK_EQ(instr->str_attrs.size(), 1UL);
+        } else if (node->op()->name == "softmax") {
+          auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          for (auto& in_node : node->inlinks_in_order()) {
+            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+            auto in_shape     = shape_dict.at(in_id);
+            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+          }
+          AddAttrs(node->attrs.attr_store, {"axis"}, instr.get());
+        } else if (node->op()->name == "mul") {
+          auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          for (auto& in_node : node->inlinks_in_order()) {
+            std::string in_id = in_node->source()->safe_as<NodeData>()->id();
+            auto in_shape     = shape_dict.at(in_id);
+            instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
+          }
+          if (node->attrs.attr_store.find("x_num_col_dims") != node->attrs.attr_store.end()) {
+            auto axis = std::get<int>(node->attrs.attr_store.at("x_num_col_dims"));
+            instr->attrs.push_back(axis);
+          } else {
+            instr->attrs.push_back(1);
+          }
+          if (node->attrs.attr_store.find("y_num_col_dims") != node->attrs.attr_store.end()) {
+            auto axis = std::get<int>(node->attrs.attr_store.at("y_num_col_dims"));
+            instr->attrs.push_back(axis);
+          } else {
+            instr->attrs.push_back(1);
+          }
         }
       }
       auto* fn = compiler_->Lookup(GenOpFuncName(node));

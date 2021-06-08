@@ -22,6 +22,8 @@ using StrategyFunction = std::function<std::shared_ptr<OpStrategy>(const NodeAtt
                                                                    const std::vector<Type>&,
                                                                    const std::vector<std::vector<int>>&,
                                                                    const common::Target&)>;
+using InferShapeFunction =
+    std::function<std::vector<std::vector<int>>(const std::vector<std::vector<int>>&, const NodeAttr&)>;
 
 //! Operator implementation that includes compute and schedule function.
 class OpImpl : public common::Object {

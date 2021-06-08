@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "cinn/ir/ir.h"
@@ -31,6 +32,52 @@ void MulScheduleCPU(poly::StageMap stage,
                     const ir::Tensor &output,
                     const ir::Tensor &input_tensor,
                     const common::Target &target);
+
+void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
+                      int oc,
+                      int ic,
+                      int ow,
+                      const Type &type,
+                      const common::Target &target);
+void GetConv2d1x1Factors(std::unordered_map<std::string, int> *factors,
+                         int oc,
+                         int ic,
+                         int oh,
+                         int ow,
+                         const Type &type,
+                         const common::Target &target);
+
+void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
+                               const ir::Tensor &res,
+                               ir::Tensor packed_out,
+                               const ir::Tensor &input_pad,
+                               const ir::Tensor &weights_dilation,
+                               const ir::Tensor &data,
+                               const common::Target &target);
+
+void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
+                                      const ir::Tensor &res,
+                                      ir::Tensor packed_out,
+                                      const ir::Tensor &input_pad,
+                                      const ir::Tensor &weights_dilation,
+                                      const ir::Tensor &data,
+                                      const common::Target &target);
+
+void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
+                                   const ir::Tensor &res,
+                                   ir::Tensor packed_out,
+                                   const ir::Tensor &input_pad,
+                                   const ir::Tensor &weights_dilation,
+                                   const ir::Tensor &data,
+                                   const common::Target &target);
+
+void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
+                                          const ir::Tensor &res,
+                                          ir::Tensor packed_out,
+                                          const ir::Tensor &input_pad,
+                                          const ir::Tensor &weights_dilation,
+                                          const ir::Tensor &data,
+                                          const common::Target &target);
 
 void CudaScheduleMul(poly::StageMap stages,
                      ir::Tensor output,
