@@ -4,7 +4,8 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-Graph::Graph(const frontend::Program& prog) {
+Graph::Graph(const frontend::Program& prog, const Target& target) {
+  target_ = target;
   std::unordered_map<std::string, shape_t> shape_dict;
   std::unordered_map<std::string, common::Type> dtype_dict;
   int counter = 0;

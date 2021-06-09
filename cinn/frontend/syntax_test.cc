@@ -52,13 +52,13 @@ void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
 }
 
 TEST(syntax, program_execute_multi_elementwise_add) {
-  auto program = CreateAddProgram();
-  auto graph   = std::make_shared<hlir::framework::Graph>(*program);
+  auto program  = CreateAddProgram();
+  Target target = common::DefaultHostTarget();
+  auto graph    = std::make_shared<hlir::framework::Graph>(*program, target);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
-  Target target = common::DefaultHostTarget();
-  auto scope    = BuildScope(target, graph);
+  auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
@@ -75,13 +75,13 @@ TEST(syntax, program_execute_multi_elementwise_add) {
 }
 
 TEST(syntax, program_execute_multi_elementwise_add2) {
-  auto program = CreateAddProgram();
-  auto graph   = std::make_shared<hlir::framework::Graph>(*program);
+  auto program  = CreateAddProgram();
+  Target target = common::DefaultHostTarget();
+  auto graph    = std::make_shared<hlir::framework::Graph>(*program, target);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
-  Target target = common::DefaultHostTarget();
-  auto scope    = BuildScope(target, graph);
+  auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
@@ -113,11 +113,11 @@ TEST(syntax, program_execute_fc) {
   program.SetInputs({a, w, b});
   program.Validate();
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program);
+  Target target = common::DefaultHostTarget();
+  auto graph    = std::make_shared<hlir::framework::Graph>(program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
-  Target target = common::DefaultHostTarget();
-  auto scope    = BuildScope(target, graph);
+  auto scope = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
@@ -151,11 +151,11 @@ TEST(load_paddle_model, fc_execute) {
 
   LOG(INFO) << "program:\n" << *program;
 
-  auto graph = std::make_shared<hlir::framework::Graph>(*program);
+  Target target = common::DefaultHostTarget();
+  auto graph    = std::make_shared<hlir::framework::Graph>(*program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
-  Target target = common::DefaultHostTarget();
-  scope         = BuildScope(target, graph, scope);
+  scope = BuildScope(target, graph, scope);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
@@ -205,10 +205,10 @@ TEST(Frontend, conv) {
   program.SetInputs({A, B, E});
   program.Validate();
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program);
+  Target target = common::DefaultHostTarget();
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
-  Target target = common::DefaultHostTarget();
   auto scope    = BuildScope(target, graph);
 
   hlir::framework::GraphCompiler gc(target, scope, graph);

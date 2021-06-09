@@ -87,7 +87,7 @@ void BindFrontend(pybind11::module *m) {
               const std::vector<Variable> &tensor_inputs,
               const std::vector<py::array> &input_data,
               const Variable &tensor_out) {
-             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
+             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
              if (target.arch == Target::Arch::NVGPU) {
                hlir::framework::ApplyPass(g.get(), "OpFusion");
@@ -148,7 +148,7 @@ void BindFrontend(pybind11::module *m) {
               const Variable &tensor_out,
               int repeat_,
               const std::string &info) {
-             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
+             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
@@ -190,7 +190,7 @@ void BindFrontend(pybind11::module *m) {
               int repeat_,
               const std::string &info,
               const std::string &code) {
-             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
+             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
@@ -229,7 +229,7 @@ void BindFrontend(pybind11::module *m) {
               const std::vector<Variable> &tensor_inputs,
               const std::vector<py::array> &input_data,
               const Variable &tensor_out) {
-             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self));
+             std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
