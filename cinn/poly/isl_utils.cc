@@ -354,16 +354,13 @@ isl::map RemoveAxiesByInputNames(const isl::map &x, const std::vector<std::strin
   std::string map_str = isl_map_to_str(x.get());
   isl::ctx this_ctx   = x.ctx();
   isl::map temp_transform(this_ctx, map_str);
+  auto related_output_names = GetRelatedOutputAxies(x, dim_in_names);
   if (dim_in_names.empty()) return temp_transform;
-  auto dim_out_names = isl_get_dim_names(temp_transform, isl_dim_out);
   for (auto &i : dim_in_names) {
     temp_transform = isl::manage(isl_remove_axis_by_name(temp_transform.release(), isl_dim_in, i.c_str()));
   }
-  std::string deleted_map = isl_map_to_str(temp_transform.get());
-  for (auto &i : dim_out_names) {
-    if (utils::Count(&map_str, i) != utils::Count(&deleted_map, i)) {
-      temp_transform = isl::manage(isl_remove_axis_by_name(temp_transform.release(), isl_dim_out, i.c_str()));
-    }
+  for (auto &i : related_output_names) {
+    temp_transform = isl::manage(isl_remove_axis_by_name(temp_transform.release(), isl_dim_out, i.c_str()));
   }
   return temp_transform;
 }
@@ -372,16 +369,13 @@ isl::map RemoveAxiesByOutputNames(const isl::map &x, const std::vector<std::stri
   std::string map_str = isl_map_to_str(x.get());
   isl::ctx this_ctx   = x.ctx();
   isl::map temp_transform(this_ctx, map_str);
+  auto related_input_names = GetRelatedInputAxies(x, dim_out_names);
   if (dim_out_names.empty()) return temp_transform;
-  auto dim_in_names = isl_get_dim_names(temp_transform, isl_dim_in);
   for (auto &i : dim_out_names) {
     temp_transform = isl::manage(isl_remove_axis_by_name(temp_transform.release(), isl_dim_out, i.c_str()));
   }
-  std::string deleted_map = isl_map_to_str(temp_transform.get());
-  for (auto &i : dim_in_names) {
-    if (utils::Count(&map_str, i) != utils::Count(&deleted_map, i)) {
-      temp_transform = isl::manage(isl_remove_axis_by_name(temp_transform.release(), isl_dim_in, i.c_str()));
-    }
+  for (auto &i : related_input_names) {
+    temp_transform = isl::manage(isl_remove_axis_by_name(temp_transform.release(), isl_dim_in, i.c_str()));
   }
   return temp_transform;
 }

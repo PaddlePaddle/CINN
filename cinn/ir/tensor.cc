@@ -241,26 +241,27 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   int reduce_axis_num = this->reduce_axis.size();
   auto dim_out_names  = poly::isl_get_dim_names(stages[this]->transform(), isl_dim_out);
   auto dim_in_size    = isl_map_dim(stages[this]->transform().get(), isl_dim_in);
-  temp_transform      = isl::manage(
-      isl_map_remove_dims(temp_transform.release(), isl_dim_in, dim_in_size - reduce_axis_num, reduce_axis_num));
-  std::string deleted_transform = isl_map_to_str(temp_transform.get());
-  int compute_at_axis           = -1;
-  int deleted_dim               = 0;
-  //! Get the ComputeAt level. It increases until reduce_axis.
-  for (int i = 0; i < dim_out_names.size(); i++) {
-    if (utils::Count(&deleted_transform, dim_out_names[i]) == utils::Count(&this_transform, dim_out_names[i])) {
+  auto dim_in_names   = poly::isl_get_dim_names(stages[this]->transform(), isl_dim_in);
+  std::vector<std::string> reduce_axis_input;
+  for (int i = dim_in_size - reduce_axis_num; i < dim_in_size; i++) {
+    reduce_axis_input.push_back(dim_in_names[i]);
+  }
+  auto reduce_axis_output = poly::GetRelatedOutputAxies(temp_transform, reduce_axis_input);
+  std::set<std::string> reduce_axis_output_set;
+  for (auto &i : reduce_axis_output) {
+    reduce_axis_output_set.insert(i);
+  }
+  int compute_at_axis = -1;
+  for (auto &i : dim_out_names) {
+    if (reduce_axis_output_set.count(i) == 0) {
       compute_at_axis++;
     } else {
       break;
     }
   }
 
-  for (int i = 0; i < dim_out_names.size(); i++) {
-    if (utils::Count(&deleted_transform, dim_out_names[i]) != utils::Count(&this_transform, dim_out_names[i])) {
-      temp_transform = isl::manage(isl_map_remove_dims(temp_transform.release(), isl_dim_out, i - deleted_dim, 1));
-      deleted_dim++;
-    }
-  }
+  temp_transform = poly::RemoveAxiesByOutputNames(temp_transform, reduce_axis_output);
+
   //! When the first axis is not reduce axis, do ComputeAt.
   if (compute_at_axis >= 0) {
     stages[init_tensor]->ComputeAt2(stages[this], compute_at_axis);

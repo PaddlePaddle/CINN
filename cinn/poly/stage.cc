@@ -519,6 +519,18 @@ std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j,
   return std::make_tuple(i_new, j_new);
 }
 
+Iterator Stage::Fuse(const std::vector<int> &levels) {
+  CHECK_GE(levels.size(), 2);
+  if (levels.size() == 2) {
+    return Fuse(levels[0], levels[1]);
+  } else {
+    for (int i = 0; i < levels.size() - 1; i++) {
+      auto temp = Fuse(levels[0], levels[1]);
+      if (i == levels.size() - 2) return temp;
+    }
+  }
+}
+
 Iterator Stage::Fuse(int level0, int level1) {
   AssertAxisIsNotLocked(level0);
   AssertAxisIsNotLocked(level1);
