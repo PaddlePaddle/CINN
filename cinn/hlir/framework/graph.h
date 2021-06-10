@@ -19,8 +19,9 @@ namespace framework {
  */
 class Graph : public cinn::common::Graph {
  public:
-  explicit Graph(const frontend::Program& prog);
+  Graph(const frontend::Program& prog, const Target& target);
 
+  Target target_;
   /** \brief outputs of the computation graph. */
   std::vector<NodeData*> outputs;
 

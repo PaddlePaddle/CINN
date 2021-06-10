@@ -213,7 +213,8 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<int>> &inputs_shape,
-                                                  const framework::NodeAttr &attrs) {
+                                                  const framework::NodeAttr &attrs,
+                                                  const Target &target) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   std::vector<int> output_shape;
   std::vector<int> new_shape_A;
@@ -250,7 +251,9 @@ std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<
   return res;
 }
 
-std::vector<Type> InferDtypeForMatMul(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+std::vector<Type> InferDtypeForMatMul(const std::vector<Type> &inputs_type,
+                                      const framework::NodeAttr &attrs,
+                                      const Target &target) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0], inputs_type[0]};
   return res;
@@ -463,7 +466,8 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int>> &inputs_shape,
-                                               const framework::NodeAttr &attrs) {
+                                               const framework::NodeAttr &attrs,
+                                               const Target &target) {
   // CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
@@ -511,14 +515,17 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   return res;
 }
 
-std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type,
+                                   const framework::NodeAttr &attrs,
+                                   const Target &target) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
 }
 
 std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector<int>> &inputs_shape,
-                                                   const framework::NodeAttr &attrs) {
+                                                   const framework::NodeAttr &attrs,
+                                                   const Target &target) {
   // CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
@@ -560,7 +567,9 @@ std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector
   return res;
 }
 
-std::vector<Type> InferDtypeForMulBias(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+std::vector<Type> InferDtypeForMulBias(const std::vector<Type> &inputs_type,
+                                       const framework::NodeAttr &attrs,
+                                       const Target &target) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;

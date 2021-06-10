@@ -68,7 +68,7 @@ class OpTest_conv2d_nchw(SingleOpTester):
     def test_op(self):
         self.init_testcase()
         self.to_test_op([self.input_size, self.filter_size], None, "conv2d",
-                        self.attrs)
+                        self.attrs, 0, True)
 
 
 class OpTest_conv2d_nchw_1(SingleOpTester):
@@ -98,7 +98,7 @@ class OpTest_conv2d_nchw_1(SingleOpTester):
     def test_op(self):
         self.init_testcase()
         self.to_test_op([self.input_size, self.filter_size], None, "conv2d",
-                        self.attrs)
+                        self.attrs, 0, True)
 
 
 class OpTest_conv2d_nchw_group(SingleOpTester):
@@ -128,7 +128,7 @@ class OpTest_conv2d_nchw_group(SingleOpTester):
     def test_op(self):
         self.init_testcase()
         self.to_test_op([self.input_size, self.filter_size], None, "conv2d",
-                        self.attrs)
+                        self.attrs, 0, True)
 
 
 class OpTest_conv2d_nchw_depthwise(SingleOpTester):
@@ -158,7 +158,7 @@ class OpTest_conv2d_nchw_depthwise(SingleOpTester):
     def test_op(self):
         self.init_testcase()
         self.to_test_op([self.input_size, self.filter_size], None, "conv2d",
-                        self.attrs)
+                        self.attrs, 0, True)
 
 
 class OpTest_conv2d_nhwc_group(SingleOpTester):
@@ -188,7 +188,7 @@ class OpTest_conv2d_nhwc_group(SingleOpTester):
     def test_op(self):
         self.init_testcase()
         self.to_test_op([self.input_size, self.filter_size], None, "conv2d",
-                        self.attrs)
+                        self.attrs, 0, True)
 
 
 class OpTest_conv2d_nhwc_depthwise(SingleOpTester):
@@ -218,7 +218,7 @@ class OpTest_conv2d_nhwc_depthwise(SingleOpTester):
     def test_op(self):
         self.init_testcase()
         self.to_test_op([self.input_size, self.filter_size], None, "conv2d",
-                        self.attrs)
+                        self.attrs, 0, True)
 
 
 # test channel multiplier format
@@ -249,7 +249,7 @@ class OpTest_depthwise_conv2d_nchw(SingleOpTester):
     def test_op(self):
         self.init_testcase()
         self.to_test_op([self.input_size, self.filter_size], None,
-                        "depthwise_conv2d", self.attrs)
+                        "depthwise_conv2d", self.attrs, 0, True)
 
 
 # test channel multiplier format
@@ -280,7 +280,7 @@ class OpTest_depthwise_conv2d_nhwc(SingleOpTester):
     def test_op(self):
         self.init_testcase()
         self.to_test_op([self.input_size, self.filter_size], None,
-                        "depthwise_conv2d", self.attrs)
+                        "depthwise_conv2d", self.attrs, 0, True)
 
 
 class OpTest_pool1d(SingleOpTester):

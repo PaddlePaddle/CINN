@@ -104,10 +104,10 @@ TEST(GraphCompiler, RunModel) {
   attr_store["bias"]  = 0.5f;
   auto o              = prog.scale(e, attr_store);
   ASSERT_EQ(prog.size(), 4UL);
-  auto g = std::make_shared<Graph>(prog);
+  Target target(Target::OS::Linux, Target::Arch::NVGPU, Target::Bit::k64, {});
+  auto g = std::make_shared<Graph>(prog, target);
   ApplyPass(g.get(), "InferShape");
 
-  Target target(Target::OS::Linux, Target::Arch::NVGPU, Target::Bit::k64, {});
   auto scope = BuildScope(target, g);
 
   GraphCompiler gc(target, scope, g);

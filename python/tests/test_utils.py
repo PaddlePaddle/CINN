@@ -50,7 +50,8 @@ class SingleOpTester(unittest.TestCase):
                    output_shapes,
                    op_name,
                    attrs,
-                   out_index=None):
+                   out_index=None,
+                   do_infer_shape=False):
         '''
         Test the operator.
         '''
@@ -99,6 +100,16 @@ class SingleOpTester(unittest.TestCase):
                 runtime.cinn_buffer_t(
                     np.zeros(out_shape).astype("float32"),
                     runtime.cinn_x86_device, alignment))
+        if do_infer_shape:
+            infer_shapes = framework.Operator.get_op_shape_attrs("infershape")
+            out_shapes = infer_shapes.infer_shape(op_name, input_shapes, attrs,
+                                                  self.target)
+            print("out_shapes", out_shapes)
+            for out_shape in out_shapes[1:]:
+                out.append(
+                    runtime.cinn_buffer_t(
+                        np.zeros(out_shape).astype("float32"),
+                        runtime.cinn_x86_device, alignment))
 
         for out_data in out:
             args.append(runtime.cinn_pod_value_t(out_data))
@@ -107,7 +118,6 @@ class SingleOpTester(unittest.TestCase):
         out_result = out[len(out) - 1].numpy()
         if out_index != None:
             out_result = out[out_index].numpy()
-
         self.assertTrue(np.allclose(out_result, correct_result, atol=1e-4))
 
     def __codegen(self, op_name, inputs, output_shapes, attrs):

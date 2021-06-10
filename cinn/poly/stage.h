@@ -9,6 +9,7 @@
 #include <set>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -286,9 +287,9 @@ class Stage : public Object {
    * @param level1 the second level.
    * @return the new level.
    */
-  Iterator Fuse(const std::vector<int>& levels);
   Iterator Fuse(const Iterator& level0, const Iterator& level1);
   Iterator Fuse(int level0, int level1);
+  Iterator Fuse(const std::vector<int>& levels);
   Iterator Fuse(const std::string& level0, const std::string& level1);
 
   const isl::set& domain() const { return domain_; }

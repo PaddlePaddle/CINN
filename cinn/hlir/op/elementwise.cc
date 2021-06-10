@@ -84,13 +84,16 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
 }
 
 std::vector<shape_t> InferShapeForElementwise(const std::vector<shape_t> &inputs_shape,
-                                              const framework::NodeAttr &attrs) {
+                                              const framework::NodeAttr &attrs,
+                                              const Target &target) {
   CHECK_EQ(inputs_shape.size(), 1UL);
   std::vector<shape_t> res{inputs_shape[0]};
   return res;
 }
 
-std::vector<Type> InferDtypeForElementwise(const std::vector<Type> &inputs_type, const framework::NodeAttr &attrs) {
+std::vector<Type> InferDtypeForElementwise(const std::vector<Type> &inputs_type,
+                                           const framework::NodeAttr &attrs,
+                                           const Target &target) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;

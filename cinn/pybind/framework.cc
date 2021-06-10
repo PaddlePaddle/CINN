@@ -16,11 +16,10 @@ namespace cinn::pybind {
 
 namespace py = pybind11;
 using namespace cinn::hlir::framework;  // NOLINT
-
 void BindFramework(pybind11::module *m) {
-  py::class_<Operator>(*m, "Operator").def("get_op_attrs", [](const std::string &key) {
-    return Operator::GetAttrs<StrategyFunction>(key);
-  });
+  py::class_<Operator>(*m, "Operator")
+      .def("get_op_attrs", [](const std::string &key) { return Operator::GetAttrs<StrategyFunction>(key); })
+      .def("get_op_shape_attrs", [](const std::string &key) { return Operator::GetAttrs<InferShapeFunction>(key); });
 
   py::class_<OpValueType<StrategyFunction>>(*m, "OpValueType")
       .def("apply_strategy",
@@ -53,6 +52,18 @@ void BindFramework(pybind11::module *m) {
              }
              auto func = Lower(key, stages, res);
              return func;
+           });
+
+  py::class_<OpValueType<InferShapeFunction>>(*m, "OpValueType1")
+      .def("infer_shape",
+           [](OpValueType<InferShapeFunction> &self,
+              const std::string &key,
+              const std::vector<std::vector<int>> &input_shapes,
+              const NodeAttr &attrs,
+              const Target &target) {
+             const Operator *op_ptr = Operator::Get(key);
+             auto shapes            = self[op_ptr](input_shapes, attrs, target);
+             return shapes;
            });
 
   py::class_<NodeAttr>(*m, "NodeAttr")

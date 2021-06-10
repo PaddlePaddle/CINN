@@ -20,10 +20,10 @@ void InferShapePass(Graph* graph) {
   auto& dtype_dict    = graph->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
   auto store_nodes    = std::get<0>(graph->topological_order());
   auto& op_infershape = Operator::GetAttrs<std::function<std::vector<framework::shape_t>(
-      const std::vector<framework::shape_t>&, const framework::NodeAttr&)>>("infershape");
-  auto& op_inferdtype =
-      Operator::GetAttrs<std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&)>>(
-          "inferdtype");
+      const std::vector<framework::shape_t>&, const framework::NodeAttr&, const Target&)>>("infershape");
+  auto& op_inferdtype = Operator::GetAttrs<
+      std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&, const Target&)>>(
+      "inferdtype");
 
   for (auto& n : store_nodes) {
     auto node = n->safe_as<Node>();
@@ -39,15 +39,17 @@ void InferShapePass(Graph* graph) {
         inputs_dtype.push_back(dtype_dict[source_node->id()]);
       }
 
-      auto out_shape = op_infershape[node->safe_as<Node>()->op()](inputs_shape, node->safe_as<Node>()->attrs);
-      auto out_dtype = op_inferdtype[node->safe_as<Node>()->op()](inputs_dtype, node->safe_as<Node>()->attrs);
-      CHECK_EQ(node->outlinks_in_order().size(), out_shape.size())
+      auto out_shape =
+          op_infershape[node->safe_as<Node>()->op()](inputs_shape, node->safe_as<Node>()->attrs, graph->target_);
+      auto out_dtype =
+          op_inferdtype[node->safe_as<Node>()->op()](inputs_dtype, node->safe_as<Node>()->attrs, graph->target_);
+      CHECK_GE(node->outlinks_in_order().size(), out_shape.size())
           << "The output number of node " << node->id() << " is " << node->outlinks_in_order().size()
-          << " , which is different with the output shape size " << out_shape.size() << " . And the op type is "
+          << " , which is smaller than the output shape size " << out_shape.size() << " . And the op type is "
           << node->safe_as<Node>()->op()->name;
-      CHECK_EQ(node->outlinks_in_order().size(), out_dtype.size())
+      CHECK_GE(node->outlinks_in_order().size(), out_dtype.size())
           << "The output number of node " << node->id() << " is " << node->outlinks_in_order().size()
-          << " , which is different with the output dtype size " << out_dtype.size() << " . And the op type is "
+          << " , which is smaller than the output dtype size " << out_dtype.size() << " . And the op type is "
           << node->safe_as<Node>()->op()->name;
 
       int counter = 0;

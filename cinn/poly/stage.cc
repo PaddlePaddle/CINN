@@ -519,18 +519,6 @@ std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j,
   return std::make_tuple(i_new, j_new);
 }
 
-Iterator Stage::Fuse(const std::vector<int> &levels) {
-  CHECK_GE(levels.size(), 2);
-  if (levels.size() == 2) {
-    return Fuse(levels[0], levels[1]);
-  } else {
-    for (int i = 0; i < levels.size() - 1; i++) {
-      auto temp = Fuse(levels[0], levels[1]);
-      if (i == levels.size() - 2) return temp;
-    }
-  }
-}
-
 Iterator Stage::Fuse(int level0, int level1) {
   AssertAxisIsNotLocked(level0);
   AssertAxisIsNotLocked(level1);
@@ -542,6 +530,15 @@ Iterator Stage::Fuse(int level0, int level1) {
   Iterator iter1(dims[level1]);
 
   return Fuse(iter0, iter1);
+}
+
+Iterator Stage::Fuse(const std::vector<int> &levels) {
+  auto dims = isl_get_dim_names(transformed_domain());
+  Iterator fused_axis(dims[levels[0]]);
+  for (size_t i = 1; i < levels.size(); i++) {
+    fused_axis = Fuse(fused_axis, Iterator(dims[levels[i]]));
+  }
+  return fused_axis;
 }
 
 Iterator Stage::Fuse(const std::string &level0, const std::string &level1) {
@@ -710,7 +707,7 @@ void Stage::Parallel(int level) {
   CHECK_GE(level, 0);
   AssertAxisIsNotLocked(level);
   auto transformed_domain = this->transformed_domain();
-  LOG(INFO) << "transformed_domain" << transformed_domain;
+  VLOG(3) << "transformed_domain" << transformed_domain;
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
     LOG(INFO) << "Paralleling for-1 has no sense, skip it";
     return;
