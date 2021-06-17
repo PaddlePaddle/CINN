@@ -162,7 +162,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
             instr->attrs.push_back(1);
           }
           CHECK(!node->outlinks_in_order().empty());
-          auto& out_node = node->outlinks_in_order().front();
+          auto& out_node     = node->outlinks_in_order().front();
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
@@ -387,7 +387,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
   for (auto& s : stages) {
     if (s.second->tensor()->is_reduce_tensor()) {
       stages[inputs.back()]->CopyTransform(s.second.get());
-      stages[inputs.back()]->CopyLoopInfo(s.second->forloop_infos(), s.second->transform());
+      stages[inputs.back()]->CopyLoopInfo(s.second->forloop_infos(), s.second->transformed_domain());
     }
   }
   auto func = Lower(GenOpFuncName(nodes[0]) + "_fused", stages, inputs, {}, {}, nullptr, this->target_);

@@ -1366,23 +1366,20 @@ void Stage::CopyTransform(Stage *other, int level) {
   return;
 }
 
-void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::map &target_transform) {
-  std::map<std::string, StageForloopInfo> dim_forloop_infos;
-  std::vector<std::string> this_dim_names = isl_get_dim_names(transform_, isl_dim_out);
-  int removed_axes_counts                 = 0;
-  for (int i = 0; i < this_dim_names.size(); i++) {
-    auto transformed_domain = this->transformed_domain();
-    if (isl_is_removed_axis(transformed_domain.get(), i)) {
-      LOG(INFO) << "for-1 has no sense, skip it";
-      removed_axes_counts++;
-      continue;
-    }
-    int index = isl_map_find_dim_by_name(target_transform.get(), isl_dim_out, this_dim_names[i].c_str());
-    if (target_forloop_infos.count(index) != 0) {
-      // Isl ast build will remove for-1 axes, so we decrease the level correspondingly.
-      forloop_infos_[i - removed_axes_counts] = target_forloop_infos[index];
+void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos,
+                         const isl::set &target_transformed_domain) {
+  std::vector<std::string> this_dim_names   = isl_get_dim_names(transformed_domain());
+  std::vector<std::string> target_dim_names = isl_get_dim_names(target_transformed_domain);
+
+  for (auto &i : target_forloop_infos) {
+    for (int j = 0; j < this_dim_names.size(); j++) {
+      int new_i = poly::isl_get_original_axes_from_optimized_level(target_transformed_domain.get(), i.first);
+      if (target_dim_names[new_i] == this_dim_names[j]) {
+        this->AddForloopInfo(j, i.second);
+      }
     }
   }
+  return;
 }
 
 void Stage::LockAxis(uint32_t level) {

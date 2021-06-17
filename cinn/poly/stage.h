@@ -354,7 +354,7 @@ class Stage : public Object {
   //! Copy other stage's LoopInfo.
   //! For example, if the target_forloop_infos is `Bind(0,"threadIdx.x")`,
   //! this api will apply `Bind(0,"threadIdx.x")` on itself.
-  void CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::map& target_transform);
+  void CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::set& target_transformed_domain);
   //! Set stage's transform_
   void SetTransform(isl::map new_transform) { transform_ = new_transform; }
   //! Set stage's forloop_infos_
