@@ -250,6 +250,10 @@ class Stage : public Object {
 
   void ComputeAt3(Stage* other, int level);
 
+  void ComputeAt4(Stage* other, int level);
+
+  void ComputeAt5(Stage* other, int level);
+
   void ShowISL();
 
   void AddForLoopInTransform(std::vector<std::vector<Expr>>& indices);
