@@ -345,8 +345,12 @@ void Stage::EditTempTensor(Stage *other, int level) {
   std::set<std::string> erase_var;
   std::string tensor_name = this->tensor()->name;
   for (int i = 0; i <= level; i++) {
-    if (bind_info.count(i) != 0) {
-      if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kShared)) {
+    if (isl_is_removed_axis(this->transformed_domain().get(), i)) {
+      continue;
+    }
+    int new_i = i - isl_get_precending_removed_axes_counts(this->transformed_domain().get(), i);
+    if (bind_info.count(new_i) != 0) {
+      if (bind_info[new_i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kShared)) {
         continue;
       }
     }
@@ -359,14 +363,18 @@ void Stage::EditTempTensor(Stage *other, int level) {
   std::set<std::string> undo_erase_var;
   // Beyond level, if the loop is binded to certain thread/block, it will also be earsed.
   for (int i = level + 1; i < transform_domain_names.size(); i++) {
-    if (bind_info.count(i) != 0) {
-      if (bind_info[i].for_type == ir::ForType::GPUBlock &&
+    if (isl_is_removed_axis(this->transformed_domain().get(), i)) {
+      continue;
+    }
+    int new_i = i - isl_get_precending_removed_axes_counts(this->transformed_domain().get(), i);
+    if (bind_info.count(new_i) != 0) {
+      if (bind_info[new_i].for_type == ir::ForType::GPUBlock &&
           (this->scope() == ScopeKind::kShared || this->scope() == ScopeKind::kLocal)) {
         auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           erase_var.insert(j);
         }
-      } else if (bind_info[i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
+      } else if (bind_info[new_i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
         auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           erase_var.insert(j);

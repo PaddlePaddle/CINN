@@ -282,10 +282,6 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   for (auto &i : temp_forloop_info) {
     for (int j = 0; j < init_dim_out_names.size(); j++) {
       int new_i = poly::isl_get_original_axes_from_optimized_level(stages[this]->transformed_domain().get(), i.first);
-      LOG(INFO) << "new_i is : " << new_i;
-      LOG(INFO) << "dim_out_names[new_i] is : " << dim_out_names[new_i];
-      LOG(INFO) << "j is : " << j;
-      LOG(INFO) << "init_dim_out_names[j] is : " << init_dim_out_names[j];
       if (dim_out_names[new_i] == init_dim_out_names[j]) {
         stages[init_tensor]->AddForloopInfo(j, i.second);
       }

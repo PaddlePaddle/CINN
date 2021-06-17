@@ -147,10 +147,11 @@ int isl_get_original_axes_from_optimized_level(isl_set __isl_keep *a, int level)
       auto [minv, maxv] = isl_set_get_axis_range(a, original_level);
       int min_iv        = minv.get_num_si();
       int max_iv        = maxv.get_num_si();
-      if (max_iv != min_iv) {
-        i++;
+      if (max_iv == min_iv) {
+        i--;
       }
     }
+    i++;
   }
   return original_level;
 }

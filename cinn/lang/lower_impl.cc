@@ -9,6 +9,7 @@
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute_at_postprocess.h"
 #include "cinn/optim/cache_read_write_replace.h"
+#include "cinn/poly/isl_utils.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
