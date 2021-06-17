@@ -112,6 +112,34 @@ std::vector<ir::Tensor> Conv2d_NCHW_5D(const ir::Tensor &input,
                                        const std::string &output_name = UniqName("T_Conv2d_NCHW_5D_out"),
                                        const common::Target &target   = common::DefaultHostTarget());
 
+/**
+ * @brief Perform a 2-D convolution with an NCHWc-layout.
+ *
+ * @param input The 5-D input tensor {N, C_in_outer, H, W, C_in_inner}
+ * @param weight The 6-D weight tensor {C_out_outer, C_filter_outer, filter_h, filter_w, C_filter_inner, C_out_inner}
+ * @param pad_h padding applied to the height of the image, default is 0
+ * @param pad_w padding applied to the width of the image, default is 0
+ * @param stride_h striding applied to the height of the image, default is 1
+ * @param stride_w striding applied to the width of the image, default is 1
+ * @param dilation_h dilation applied to the height of the image, default is 1
+ * @param dilation_w dilation applied to the width of the image, default is 1
+ * @param output_shapes The shape of the output tensors
+ * @param output_name The name of the output tensors
+ *
+ * @return the output tensor
+ */
+std::vector<ir::Tensor> Conv2d_NCHWc(const ir::Tensor &input,
+                                       const ir::Tensor &weights,
+                                       int pad_h,
+                                       int pad_w,
+                                       int stride_h,
+                                       int stride_w,
+                                       int dilation_h,
+                                       int dilation_w,
+                                       const std::string &output_name = UniqName("T_Conv2d_NCHWc_out"),
+                                       const common::Target &target   = common::DefaultHostTarget());
+
+
 std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
                                            const ir::Tensor &weights,
                                            int pad_h,
