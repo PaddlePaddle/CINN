@@ -359,6 +359,7 @@ class Stage : public Object {
   void SetTransform(isl::map new_transform) { transform_ = new_transform; }
   //! Set stage's forloop_infos_
   void SetForloopInfo(std::map<int, StageForloopInfo> forloop_infos) { forloop_infos_ = forloop_infos; }
+  void AddForloopInfo(int level, const StageForloopInfo& info);
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
@@ -367,8 +368,6 @@ class Stage : public Object {
    * Initialize with an identity schedule.
    */
   void InitTransform();
-
-  void AddForloopInfo(int level, const StageForloopInfo& info);
 
   //! Lock the \p level-th axis and disallow the futher schedules on this axis.
   void LockAxis(uint32_t level);

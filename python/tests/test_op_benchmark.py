@@ -74,26 +74,6 @@ class TestBenchmark(unittest.TestCase):
         tensor_data.append(result)
         self.paddle_verify(tensor_data)
 
-    def test_conv2d(self):
-        prog = Program()
-        a = Variable("A").set_type(Float(32)).set_shape([1, 128, 28, 28])
-        b = Variable("E").set_type(Float(32)).set_shape([256, 128, 1, 1])
-        c = prog.conv2d(a, b, {
-            "stride": [2, 2],
-            "dilation": [1, 1],
-            "padding": [0, 0]
-        })
-        tensor_data = [
-            np.random.random([1, 128, 28, 28]).astype("float32"),
-            np.random.random([256, 128, 1, 1]).astype("float32")
-        ]
-        result = prog.test_benchmark(
-            self.target, [a, b], tensor_data, c, 20000,
-            "TESTING [conv2d] time cost with shape [1, 128, 28, 28]...")
-        result = result.numpy(self.target).reshape(-1)
-        tensor_data.append(result)
-        self.paddle_verify(tensor_data)
-
     def atest_conv2d3(self):
         prog = Program()
         a = Variable("X").set_type(Float(32)).set_shape([1, 128, 28, 28])

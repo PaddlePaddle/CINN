@@ -138,6 +138,23 @@ isl_set *isl_get_precending_aixs(isl_set *set, int level, bool with_tuple_name) 
   return isl_set_apply(set, transform.release());
 }
 
+int isl_get_original_axes_from_optimized_level(isl_set __isl_keep *a, int level) {
+  int original_level = -1;
+  std::vector<std::tuple<int, int>> iden_dim_offsets;
+  for (int i = 0; i <= level;) {
+    original_level++;
+    if (isl_set_axis_has_noparam_constant_bound(a, original_level)) {
+      auto [minv, maxv] = isl_set_get_axis_range(a, original_level);
+      int min_iv        = minv.get_num_si();
+      int max_iv        = maxv.get_num_si();
+      if (max_iv != min_iv) {
+        i++;
+      }
+    }
+  }
+  return original_level;
+}
+
 int isl_get_precending_removed_axes_counts(isl_set __isl_keep *a, int level) {
   int removed_axes_counts = 0;
   std::vector<std::tuple<int, int>> iden_dim_offsets;
