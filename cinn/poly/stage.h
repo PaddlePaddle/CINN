@@ -248,7 +248,14 @@ class Stage : public Object {
 
   void ComputeAt2(Stage* other, int level);
 
+  // Do ComputeAt2 except for setting the ComputeAt level, which is moving the computations together.
   void ComputeAt3(Stage* other, int level);
+
+  // Just set the ComputeAt level.
+  void ComputeAt4(Stage* other, int level);
+
+  // Reconstructed version of ComputeAt2.
+  void ComputeAt5(Stage* other, int level);
 
   void ShowISL();
 

@@ -66,14 +66,20 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                        dilation_w * (weights->shape[3] - 1) + 1};
   input_pad_shape   = {input->shape[0], input->shape[1], input->shape[2] + 2 * pad_h, input->shape[3] + 2 * pad_w};
 
-  auto input_pad = Compute(
-      input_pad_shape,
-      [=](Expr nn, Expr cc, Expr yy, Expr xx) {
-        auto cond =
-            lang::logic_and({yy >= pad_h, yy - pad_h < input->shape[2], xx >= pad_w, xx - pad_w < input->shape[3]});
-        return ir::Select::Make(cond, input(nn, cc, yy - pad_h, xx - pad_w), ir::Zero(input->type()));
-      },
-      UniqName("input_pad"));
+  ir::Tensor input_pad;
+  if (pad_h == 0 && pad_w == 0) {
+    input_pad = Compute(
+        input->shape, [=](Expr nn, Expr cc, Expr yy, Expr xx) { return input(nn, cc, yy, xx); }, UniqName("input_pad"));
+  } else {
+    input_pad = Compute(
+        input_pad_shape,
+        [=](Expr nn, Expr cc, Expr yy, Expr xx) {
+          auto cond =
+              lang::logic_and({yy >= pad_h, yy < input->shape[2] + pad_h, xx >= pad_w, xx < input->shape[3] + pad_w});
+          return ir::Select::Make(cond, input(nn, cc, yy - pad_h, xx - pad_w), ir::Zero(input->type()));
+        },
+        UniqName("input_pad"));
+  }
   auto weights_dilation = Compute(
       new_weights_shape,
       [=](Expr nn, Expr cc, Expr yy, Expr xx) {
@@ -83,25 +89,21 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
       },
       UniqName("weights_dilation"));
 
-  Var fc(weights->shape[1], UniqName("fc"));
-  Var fy(weights_dilation->shape[2], UniqName("fy"));
-  Var fx(weights_dilation->shape[3], UniqName("fx"));
+  Var rc(weights->shape[1], UniqName("rc"));
+  Var ry(weights->shape[2], UniqName("ry"));
+  Var rx(weights->shape[3], UniqName("rx"));
 
   CHECK(MathEqual((weights->shape[0] * weights->shape[1]) % input->shape[1], Expr(0)))
       << "filter's output channel size must be divisible by group\n";
   auto res = Compute(
       output_shape,
       [=](Expr nn, Expr ff, Expr yy, Expr xx) {
-        return lang::ReduceSum(
-            input_pad(nn,
-                      ff / (weights->shape[0] * weights->shape[1] / input->shape[1]) * weights->shape[1] + fc,
-                      yy * stride_h + fy,
-                      xx * stride_w + fx) *
-                weights_dilation(ff, fc, fy, fx),
-            {fc, fy, fx});
+        return lang::ReduceSum(input_pad(nn, rc, yy * stride_h + ry * dilation_h, xx * stride_w + rx * dilation_w) *
+                                   weights(ff, rc, ry, rx),
+                               {rc, ry, rx});
       },
       output_name);
-  return {input_pad, weights_dilation, res};
+  return {input_pad, res};
 }
 
 std::vector<ir::Tensor> Conv2d_NCHW_5D(const ir::Tensor &input,

@@ -73,6 +73,7 @@ void CUDAReplaceIndexOfCachePass(Expr *source,
                                  std::map<std::string, ir::Tensor> *global_tensor_map,
                                  std::unordered_set<std::string> &resized_buffer,
                                  bool blockidx,
-                                 const Expr &extent);
+                                 const Expr &extent,
+                                 std::string tensor_name = "");
 }  // namespace optim
 }  // namespace cinn

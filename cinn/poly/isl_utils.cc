@@ -159,7 +159,7 @@ int isl_get_original_axes_from_optimized_level(isl_set __isl_keep *a, int level)
 int isl_get_precending_removed_axes_counts(isl_set __isl_keep *a, int level) {
   int removed_axes_counts = 0;
   std::vector<std::tuple<int, int>> iden_dim_offsets;
-  for (int i = 0; i < level; i++) {
+  for (int i = 0; i <= level; i++) {
     if (isl_set_axis_has_noparam_constant_bound(a, i)) {
       auto [minv, maxv] = isl_set_get_axis_range(a, i);
       int min_iv        = minv.get_num_si();

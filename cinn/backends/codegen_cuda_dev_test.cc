@@ -18,7 +18,9 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/pe/nn.h"
+#include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/ir_simplify.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
 #include "cinn/runtime/cuda/cuda_module.h"
 #include "cinn/runtime/cuda/cuda_util.h"
@@ -127,8 +129,8 @@ TEST(CodeGenCUDA2, compile_run_jit2) {
   stages[C]->Split(0, 10);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
-  stages[A_cache]->ComputeAt2(stages[C], 1);
-  stages[B_cache]->ComputeAt2(stages[C], 1);
+  stages[A_cache]->ComputeAt5(stages[C], 1);
+  stages[B_cache]->ComputeAt5(stages[C], 1);
   CodeGenCUDA_Dev codegen(target);
 
   auto func = Lower("elementwise_add3", stages, {A, B, C});
@@ -188,11 +190,11 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
   auto stages = CreateStages(res);
 
   auto pad_data = res[0];
-  auto kernel   = res[1];
-  auto conv     = res[2];
+  auto conv     = res[1];
 
   stages[pad_data]->ComputeInline();
-  stages[kernel]->ComputeInline();
+  optim::Simplify(&(conv->shape[2]));
+  optim::Simplify(&(conv->shape[3]));
 
   auto OL = stages[conv]->CacheWrite2("local", stages, conv);
 
@@ -210,18 +212,19 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
 
   stages[OL]->ComputeAt3(stages[conv], 4);
 
-  auto on  = stages[OL]->axis(0);
-  auto obz = stages[OL]->axis(1);
-  auto oby = stages[OL]->axis(2);
-  auto otz = stages[OL]->axis(3);
-  auto otx = stages[OL]->axis(4);
-  auto ofi = stages[OL]->axis(5);
-  auto orc = stages[OL]->axis(6);
-  auto ory = stages[OL]->axis(7);
-  auto orx = stages[OL]->axis(8);
+  stages[OL]->Split(6, 8);
+  auto on   = stages[OL]->axis(0);
+  auto obz  = stages[OL]->axis(1);
+  auto oby  = stages[OL]->axis(2);
+  auto otz  = stages[OL]->axis(3);
+  auto otx  = stages[OL]->axis(4);
+  auto ofi  = stages[OL]->axis(5);
+  auto orc  = stages[OL]->axis(6);
+  auto orci = stages[OL]->axis(7);
+  auto ory  = stages[OL]->axis(8);
+  auto orx  = stages[OL]->axis(9);
 
-  stages[OL]->Reorder({orc, ory, orx, on, obz, oby, otz, otx, ofi});
-  stages[OL]->Split(0, 8);
+  stages[OL]->Reorder({orc, ory, orx, orci, on, obz, oby, otz, otx, ofi});
 
   stages[OL]->Bind(5, "blockIdx.z");
   stages[OL]->Bind(6, "blockIdx.y");
@@ -331,7 +334,7 @@ typedef char int8_t;
 __global__
 void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _B_read_cache [ ((1 * (((1 * 100) * 200) / 100)) / 200) ];
+  float _B_read_cache [ 1 ];
   float* B_read_cache = _B_read_cache;
   if ((blockIdx.x < 100)) {
     if ((threadIdx.x < 200)) {
@@ -405,7 +408,7 @@ TEST(CodeGenCUDA3, compile_run_jit3) {
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
 
-  stages[C_WC]->ComputeAt2(stages[C], 2);
+  stages[C_WC]->ComputeAt5(stages[C], 2);
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -433,7 +436,7 @@ typedef char int8_t;
 __global__
 void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1, float* __restrict__ C1)
 {
-  float _C1_cache_write_out [ 1 * 1 ];
+  float _C1_cache_write_out [ 1 ];
   float* C1_cache_write_out = _C1_cache_write_out;
   float* C1_cache_write_out__reduce_init = _C1_cache_write_out;
   if ((blockIdx.x < 8)) {
@@ -510,7 +513,7 @@ TEST(CodeGenCUDA3, test_reduce_cachewrite) {
   stages[C]->Split(0, 4);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
-  stages[C_WC]->ComputeAt2(stages[C], 2);
+  stages[C_WC]->ComputeAt5(stages[C], 2);
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -538,20 +541,20 @@ typedef char int8_t;
 __global__
 void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1, float* __restrict__ C1)
 {
-  float _C1_cache_write_out [ 1 * 32 ];
+  float _C1_cache_write_out [ 2 ];
   float* C1_cache_write_out = _C1_cache_write_out;
   float* C1_cache_write_out__reduce_init = _C1_cache_write_out;
   if ((blockIdx.x < 8)) {
     if ((threadIdx.x < 4)) {
       for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-          C1_cache_write_out__reduce_init[((2 * j_outer) + j_inner)] = 0;
+          C1_cache_write_out__reduce_init[j_inner] = 0;
           for (int32_t k1 = 0; k1 < 32; k1 += 1) {
-            C1_cache_write_out[((2 * j_outer) + j_inner)] = (C1_cache_write_out[((2 * j_outer) + j_inner)] + (A1[((128 * blockIdx.x) + ((32 * threadIdx.x) + k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
+            C1_cache_write_out[j_inner] = (C1_cache_write_out[j_inner] + (A1[((128 * blockIdx.x) + ((32 * threadIdx.x) + k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
           };
         };
         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-          C1[((128 * blockIdx.x) + ((2 * j_outer) + ((32 * threadIdx.x) + j_inner)))] = C1_cache_write_out[((2 * j_outer) + j_inner)];
+          C1[((128 * blockIdx.x) + ((2 * j_outer) + ((32 * threadIdx.x) + j_inner)))] = C1_cache_write_out[j_inner];
         };
       };
     };
@@ -1030,7 +1033,7 @@ TEST(elementwise_add1, share_local_cache) {
   stages[C]->Bind(1, "threadIdx.x");
   stages[AA]->Bind(0, "blockIdx.x");
   stages[AA]->Bind(1, "threadIdx.x");
-  stages[AL]->ComputeAt2(stages[C], 1);
+  stages[AL]->ComputeAt5(stages[C], 1);
 
   Module::Builder builder("gpu_module", common::DefaultNVGPUTarget());
 
@@ -1042,6 +1045,7 @@ TEST(elementwise_add1, share_local_cache) {
   // compile with device code
   CodeGenCUDA_Dev codegen(common::DefaultNVGPUTarget());
   auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "source code of share_local_cache is: " << source_code;
   backends::NVRTC_Compiler compiler;
 
   common::CudaModuleTester tester;
@@ -1104,8 +1108,8 @@ TEST(elementwise_add0, share_local_cache) {
   auto AA = stages[A]->CacheRead2("shared", temp, stages);
   // NOTE here, the CC replace the C as the output the function.
 
-  stages[CC]->ComputeAt2(stages[C], 1);
-  stages[AA]->ComputeAt2(stages[C], 1);
+  stages[CC]->ComputeAt5(stages[C], 1);
+  stages[AA]->ComputeAt5(stages[C], 1);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
 
@@ -1263,7 +1267,7 @@ TEST(ElementwiseAdd, cache_read_local) {
 
   auto AL = stages[A]->CacheRead2("local", temp, stages);
   stages[C]->Split(0, 10);
-  stages[AL]->ComputeAt2(stages[C], 1);
+  stages[AL]->ComputeAt5(stages[C], 1);
   stages[C]->Bind(0, "threadIdx.x");
   stages[C]->Bind(1, "blockIdx.x");
 
@@ -1294,7 +1298,7 @@ typedef char int8_t;
 __global__
 void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _A_read_cache [ 1 * 200 ];
+  float _A_read_cache [ 200 ];
   float* A_read_cache = _A_read_cache;
   if ((threadIdx.x < 10)) {
     if ((blockIdx.x < 10)) {
@@ -1685,24 +1689,6 @@ void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C
   cuMemFree(reinterpret_cast<CUdeviceptr>(C_dev));
 }
 
-TEST(GetTransformedLevel, basic) {
-  Expr M(10), N(10);
-
-  Placeholder<float> A("A", {M, N});
-  Placeholder<float> B("B", {M, N});
-
-  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j); });
-  auto D = Compute({M, N}, [&](Expr i, Expr j) { return C(i, j); });
-
-  auto stages = CreateStages({C, D});
-
-  // No ComputeAt, the GetTransformedLevel just returns the level without change.
-  ASSERT_EQ(stages[C]->GetTransformedLevel(0), 0);
-
-  stages[C]->ComputeAt2(stages[D], 1);
-  ASSERT_EQ(stages[C]->GetTransformedLevel(0), 0 + 1 + 1);
-}
-
 // JIT test precision for the basic elementwise add
 void TestElementwiseAddPrecisionBasic(
     const ir::Module& module,
@@ -1773,7 +1759,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
 
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");
-    stages[AL]->ComputeAt2(stages[C], 1);
+    stages[AL]->ComputeAt5(stages[C], 1);
 
     return std::make_tuple(A, B, C, AL, stages);
   };
@@ -1805,13 +1791,13 @@ typedef char int8_t;
 __global__
 void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  __shared__ float _A_read_cache [ 1 * 200 ];
+  __shared__ float _A_read_cache [ 1 ];
   float* A_read_cache = _A_read_cache;
   if ((blockIdx.x < 100)) {
     if ((threadIdx.x < 200)) {
     {
-      A_read_cache[threadIdx.x] = A[((200 * blockIdx.x) + threadIdx.x)];
-      C[((200 * blockIdx.x) + threadIdx.x)] = A_read_cache[threadIdx.x];
+      A_read_cache[0] = A[((200 * blockIdx.x) + threadIdx.x)];
+      C[((200 * blockIdx.x) + threadIdx.x)] = A_read_cache[0];
     }
     };
   };
@@ -1885,7 +1871,7 @@ typedef char int8_t;
 __global__
 void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  __shared__ float _A_read_cache [ (((1 * 40) * 40) / 40) ];
+  __shared__ float _A_read_cache [ 40 ];
   float* A_read_cache = _A_read_cache;
   if ((blockIdx.x < 40)) {
     if ((threadIdx.x < 4)) {
@@ -1935,7 +1921,7 @@ TEST(ElementwiseAdd, cache_write_local) {
     // thread.
     stages[C]->Split(1, 4);
     stages[C]->Split(0, 4);
-    stages[Co]->ComputeAt2(stages[C], 1);
+    stages[Co]->ComputeAt5(stages[C], 1);
     stages[Co]->Split(2, 5);
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");
@@ -1970,7 +1956,7 @@ typedef char int8_t;
 __global__
 void fn4(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _C_cache_write_out [ 1 * 40 ];
+  float _C_cache_write_out [ 40 ];
   float* C_cache_write_out = _C_cache_write_out;
   if ((blockIdx.x < 10)) {
     if ((threadIdx.x < 4)) {
