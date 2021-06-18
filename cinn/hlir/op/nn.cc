@@ -496,8 +496,9 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
     }
     LOG(INFO)<<packed_out_tensor;
     LOG(INFO)<<packed_out_tensor->name;
-    // *ret = CINNValuePack{{arg_pack[0], arg_pack[1], CINNValue(stages)}};
-    *ret = arg_pack;
+    *ret = CINNValuePack{{CINNValue(Expr(packed_out_tensor.get())), arg_pack[1], CINNValue(stages)}};
+    //*ret = CINNValuePack{{arg_pack[0], arg_pack[1], CINNValue(stages)}};
+    //*ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
