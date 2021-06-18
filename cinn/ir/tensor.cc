@@ -281,12 +281,12 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   std::map<int, poly::StageForloopInfo> init_forloop_info;
   for (auto &i : temp_forloop_info) {
     for (int j = 0; j < init_dim_out_names.size(); j++) {
-      if (dim_out_names[i.first] == init_dim_out_names[j]) {
-        init_forloop_info[j] = i.second;
+      int new_i = poly::isl_get_original_axes_from_optimized_level(stages[this]->transformed_domain().get(), i.first);
+      if (dim_out_names[new_i] == init_dim_out_names[j]) {
+        stages[init_tensor]->AddForloopInfo(j, i.second);
       }
     }
   }
-  stages[init_tensor]->SetForloopInfo(init_forloop_info);
   init_tensor->new_indices = this->new_indices;
   stages[this]->CtrlDepend(init_tensor);
   stages[init_tensor]->ShareBufferWith(stages[this]);
