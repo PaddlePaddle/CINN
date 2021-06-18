@@ -39,6 +39,7 @@ isl_set* __isl_give isl_get_precending_aixs(isl_set* set, int level, bool with_t
 //! before the given axis.
 int isl_get_precending_removed_axes_counts(isl_set __isl_keep* a, int level);
 
+//! Get the original level from the level after removing axes.
 int isl_get_original_axes_from_optimized_level(isl_set __isl_keep* a, int level);
 
 //! If the min and max bounds of the axis are same, isl will remove this axis after ast_build. Judge whether or not the

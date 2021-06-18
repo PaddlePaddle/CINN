@@ -287,8 +287,6 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
       }
     }
   }
-  stages[this]->ShowISL();
-  LOG(INFO) << "temp_transform is : " << temp_transform;
   init_tensor->new_indices = this->new_indices;
   stages[this]->CtrlDepend(init_tensor);
   stages[init_tensor]->ShareBufferWith(stages[this]);
