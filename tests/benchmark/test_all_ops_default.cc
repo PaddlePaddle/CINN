@@ -166,6 +166,16 @@ std::unordered_map<std::string, AttrType> attr_store_conv2d7 = {
     {"padding", padding_conv2d7}, {"stride", stride_conv2d7}, {"dilation", dilation_conv2d7}};
 TEST_DEFAULT1(conv2d, conv2d_nchw7, type1, type7, attr_store_conv2d7)
 
+// conv2d_NCHWc
+// resnet18
+std::vector<std::vector<int>> shapes_conv2d_nchwc = {{1, 1, 224, 224, 3}, {4, 1, 7, 7, 3, 16}};
+std::vector<int> padding_conv2d_nchwc({3, 3});
+std::vector<int> stride_conv2d_nchwc({2, 2});
+std::vector<int> dilation_conv2d_nchwc({1, 1});
+std::unordered_map<std::string, AttrType> attr_store_conv2d_nchwc = {
+    {"padding", padding_conv2d_nchwc}, {"stride", stride_conv2d_nchwc}, {"dilation", dilation_conv2d_nchwc}};
+TEST_DEFAULT1(conv2d_NCHWc, conv2d_nchwc, type1, type1, attr_store_conv2d_nchwc)
+
 // depthwise_conv2d nchw
 std::vector<std::vector<int>> shapes_depthwise_conv2d_nchw            = {{2, 32, 112, 112}, {32, 1, 3, 3}};
 std::vector<int> stride_depthwise_conv2d                              = {1, 1};
