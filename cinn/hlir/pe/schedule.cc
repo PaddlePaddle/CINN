@@ -328,18 +328,19 @@ void GetConv2d1x1Factors(std::unordered_map<std::string, int> *factors,
 
 void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
                                    const ir::Tensor &res,
-                                   ir::Tensor packed_out,
+                                   ir::Tensor &packed_out,
                                    const ir::Tensor &input_pad,
                                    const ir::Tensor &weights_dilation,
                                    const ir::Tensor &data,
                                    const common::Target &target) {
   CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
-  auto type = res->type();
+  CHECK(packed_out.defined());
+  CHECK(input_pad.defined());
+  auto type = packed_out->type();
   std::unordered_map<std::string, int> conv2d_factors;
-  CHECK_EQ(res->shape.size(), 4U) << "res's shape size should be 4";
-  CHECK_EQ(data->shape.size(), 5U) << "data's shape size should be 5";
-  Expr h_out             = common::AutoSimplify(res->shape[2]);
-  Expr w_out             = common::AutoSimplify(res->shape[3]);
+  CHECK_EQ(packed_out->shape.size(), 5U) << "packed_out's shape size should be 5";
+  Expr h_out             = common::AutoSimplify(packed_out->shape[2]);
+  Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
   int oh                 = h_out.as_int32();
   int ow                 = w_out.as_int32();
   int basic_split_factor = GetBasicFactor(type, target);
@@ -347,13 +348,10 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   int oh_bn_size = conv2d_factors["oh_bn"];
   int ow_bn_size = conv2d_factors["ow_bn"];
 
-  auto kernel_shape = weights_dilation->shape;
-  int shape_size    = kernel_shape.size();
-  CHECK_EQ(shape_size, 6U) << "kernel_dialtion shape size should be 6";
-  CHECK(is_zero(kernel_shape[2] - 1)) << "kernel_h should be 1 in this schedule";
-  CHECK(is_zero(kernel_shape[3] - 1)) << "kernel_w should be 1 in this schedule";
-  Expr oc_bn     = common::AutoSimplify(kernel_shape.back());
-  Expr ic_bn     = common::AutoSimplify(kernel_shape[shape_size - 2]);
+  auto input_shape = input_pad->shape;
+  CHECK_EQ(input_shape.size(), 5U) << "input shape size should be 5";
+  Expr oc_bn     = common::AutoSimplify(packed_out->shape.back());
+  Expr ic_bn     = common::AutoSimplify(input_shape.back());
   int oc_bn_size = oc_bn.as_int32();
   int ic_bn_size = ic_bn.as_int32();
   VLOG(4) << "ow_bn_size" << ow_bn_size;
@@ -361,19 +359,22 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   VLOG(4) << "ic_bn_size" << ic_bn_size;
 
   // data
-  CHECK_GE(stages[data]->n_out_dims(), 3U) << "data's out_dims should be more than 3";
-  stages[data]->Fuse({0, 1, 2});
-  VLOG(4) << "stages[data]->n_out_dims()-1 " << stages[data]->n_out_dims() - 1;
+  if (data.defined()) {
+    CHECK_GE(stages[data]->n_out_dims(), 3U) << "data's out_dims should be more than 3";
+    stages[data]->Fuse({0, 1, 2});
+    stages[data]->ComputeInline();
+  }
   // input_pad
   CHECK_GE(stages[input_pad]->n_out_dims(), 3U) << "input_pad's out_dims should be more than 3";
   stages[input_pad]->Fuse({0, 1, 2});
-  stages[data]->ComputeInline();
 
   // weights
-  CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U) << "weights_dilation's out_dims should be more than 3";
-  // oc_outer, ic_outer, oh, ow, ic_inner, oc_inner -> oc_outer, oh, ic_outer, ow, ic_inner, oc_inner
-  stages[weights_dilation]->Reorder({2, 1});
-  stages[weights_dilation]->Fuse({0, 1});
+  if (weights_dilation.defined()) {
+    CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U) << "weights_dilation's out_dims should be more than 3";
+    // oc_outer, ic_outer, oh, ow, ic_inner, oc_inner -> oc_outer, oh, ic_outer, ow, ic_inner, oc_inner
+    stages[weights_dilation]->Reorder({2, 1});
+    stages[weights_dilation]->Fuse({0, 1});
+  }
 
   // packed_out
   auto CC = stages[packed_out]->CacheWrite2("local", stages, packed_out);
@@ -427,35 +428,38 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
 
   // res
   // n, oc, oh, ow
-  stages[res]->Split(1, oc_bn_size);
-  stages[res]->Split(3, oh_bn_size);
-  stages[res]->Split(5, ow_bn_size);
-  // reorder: [n, oc_outer, oc_inner, oh_outer, oh_inner, ow_outer, ow_inner] ->
-  // [n, oc_outer, oh_outer, ow_outer, oh_inner, ow_inner, oc_inner]
-  auto oc_inner1 = stages[res]->axis(2);
-  auto oh_outer1 = stages[res]->axis(3);
-  auto oh_inner1 = stages[res]->axis(4);
-  auto ow_outer1 = stages[res]->axis(5);
-  auto ow_inner1 = stages[res]->axis(6);
-  stages[res]->Reorder({oh_outer1, ow_outer1, oh_inner1, ow_inner1, oc_inner1});
-  stages[res]->Fuse({0, 1, 2});
-  VLOG(4) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
+  if (res.defined()) {
+    stages[res]->Split(1, oc_bn_size);
+    stages[res]->Split(3, oh_bn_size);
+    stages[res]->Split(5, ow_bn_size);
+    // reorder: [n, oc_outer, oc_inner, oh_outer, oh_inner, ow_outer, ow_inner] ->
+    // [n, oc_outer, oh_outer, ow_outer, oh_inner, ow_inner, oc_inner]
+    auto oc_inner1 = stages[res]->axis(2);
+    auto oh_outer1 = stages[res]->axis(3);
+    auto oh_inner1 = stages[res]->axis(4);
+    auto ow_outer1 = stages[res]->axis(5);
+    auto ow_inner1 = stages[res]->axis(6);
+    stages[res]->Reorder({oh_outer1, ow_outer1, oh_inner1, ow_inner1, oc_inner1});
+    stages[res]->Fuse({0, 1, 2});
+    VLOG(4) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
+  }
 }
 
 void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
                                           const ir::Tensor &res,
-                                          ir::Tensor packed_out,
+                                          ir::Tensor &packed_out,
                                           const ir::Tensor &input_pad,
                                           const ir::Tensor &weights_dilation,
                                           const ir::Tensor &data,
                                           const common::Target &target) {
   CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
-  auto type = res->type();
+  CHECK(packed_out.defined());
+  CHECK(input_pad.defined());
+  auto type = packed_out->type();
   std::unordered_map<std::string, int> conv2d_factors;
-  CHECK_EQ(res->shape.size(), 4U) << "res's shape size should be 4";
-  CHECK_EQ(data->shape.size(), 5U) << "data's shape size should be 5";
-  Expr h_out             = common::AutoSimplify(res->shape[2]);
-  Expr w_out             = common::AutoSimplify(res->shape[3]);
+  CHECK_EQ(packed_out->shape.size(), 5U) << "packed_out's shape size should be 5";
+  Expr h_out             = common::AutoSimplify(packed_out->shape[2]);
+  Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
   int oh                 = h_out.as_int32();
   int ow                 = w_out.as_int32();
   int basic_split_factor = GetBasicFactor(type, target);
@@ -463,13 +467,11 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
   int oh_bn_size = conv2d_factors["oh_bn"];
   int ow_bn_size = conv2d_factors["ow_bn"];
 
-  auto kernel_shape = weights_dilation->shape;
-  int shape_size    = kernel_shape.size();
-  CHECK_EQ(shape_size, 6U) << "kernel_dialtion shape size should be 6";
-  CHECK(is_zero(kernel_shape[2] - 1)) << "kernel_h should be 1 in this schedule";
-  CHECK(is_zero(kernel_shape[3] - 1)) << "kernel_w should be 1 in this schedule";
-  Expr oc_bn     = common::AutoSimplify(kernel_shape.back());
-  Expr ic_bn     = common::AutoSimplify(kernel_shape[shape_size - 2]);
+  auto input_shape = input_pad->shape;
+  int shape_size   = input_shape.size();
+  CHECK_EQ(shape_size, 5U) << "input shape size should be 5";
+  Expr oc_bn     = common::AutoSimplify(packed_out->shape.back());
+  Expr ic_bn     = common::AutoSimplify(input_shape.back());
   int oc_bn_size = oc_bn.as_int32();
   int ic_bn_size = ic_bn.as_int32();
   VLOG(4) << "ow_bn_size" << ow_bn_size;
@@ -477,12 +479,16 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
   VLOG(4) << "ic_bn_size" << ic_bn_size;
 
   // data
-  stages[data]->ComputeInline();
+  if (data.defined()) {
+    stages[data]->ComputeInline();
+  }
   // weights
-  CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U) << "weights_dilation's out_dims should be more than 3";
-  // Reorder: [oc_outer, ic_outer, oh, ow, ic_inner, oc_inner] ->
-  // [oc_outer, oh, ic_outer, ow, ic_inner, oc_inner]
-  stages[weights_dilation]->Reorder({2, 1});
+  if (weights_dilation.defined()) {
+    CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U) << "weights_dilation's out_dims should be more than 3";
+    // Reorder: [oc_outer, ic_outer, oh, ow, ic_inner, oc_inner] ->
+    // [oc_outer, oh, ic_outer, ow, ic_inner, oc_inner]
+    stages[weights_dilation]->Reorder({2, 1});
+  }
 
   // packed_out
   auto CC = stages[packed_out]->CacheWrite2("local", stages, packed_out);
@@ -528,43 +534,46 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
 
   // res
   // n, oc, oh, ow
-  stages[res]->Split(1, oc_bn_size);
-  stages[res]->Split(3, oh_bn_size);
-  stages[res]->Split(5, ow_bn_size);
-  // reorder: [n, oc_outer, oc_inner, oh_outer, oh_inner, ow_outer, ow_inner] ->
-  // [n, oc_outer, oh_outer, ow_outer, oh_inner, ow_inner, oc_inner]
-  auto oc_inner1 = stages[res]->axis(2);
-  auto oh_outer1 = stages[res]->axis(3);
-  auto oh_inner1 = stages[res]->axis(4);
-  auto ow_outer1 = stages[res]->axis(5);
-  auto ow_inner1 = stages[res]->axis(6);
-  stages[res]->Reorder({oh_outer1, ow_outer1, oh_inner1, ow_inner1, oc_inner1});
-  VLOG(4) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
+  if (res.defined()) {
+    stages[res]->Split(1, oc_bn_size);
+    stages[res]->Split(3, oh_bn_size);
+    stages[res]->Split(5, ow_bn_size);
+    // reorder: [n, oc_outer, oc_inner, oh_outer, oh_inner, ow_outer, ow_inner] ->
+    // [n, oc_outer, oh_outer, ow_outer, oh_inner, ow_inner, oc_inner]
+    auto oc_inner1 = stages[res]->axis(2);
+    auto oh_outer1 = stages[res]->axis(3);
+    auto oh_inner1 = stages[res]->axis(4);
+    auto ow_outer1 = stages[res]->axis(5);
+    auto ow_inner1 = stages[res]->axis(6);
+    stages[res]->Reorder({oh_outer1, ow_outer1, oh_inner1, ow_inner1, oc_inner1});
+    VLOG(4) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
+  }
 }
 
 void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
                                       const ir::Tensor &res,
-                                      ir::Tensor packed_out,
+                                      ir::Tensor &packed_out,
                                       const ir::Tensor &input_pad,
                                       const ir::Tensor &weights_dilation,
                                       const ir::Tensor &data,
                                       const common::Target &target) {
   CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
-  auto type = res->type();
+  CHECK(packed_out.defined());
+  CHECK(input_pad.defined());
+  auto type = packed_out->type();
   std::unordered_map<std::string, int> conv2d_factors;
-  CHECK_EQ(res->shape.size(), 4U) << "res's shape size should be 4";
-  CHECK_EQ(data->shape.size(), 5U) << "data's shape size should be 5";
-  Expr w_out             = common::AutoSimplify(res->shape[3]);
+  CHECK_EQ(packed_out->shape.size(), 5U) << "packed_out's shape size should be 5";
+  Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
   int ow                 = w_out.as_int32();
   int basic_split_factor = GetBasicFactor(type, target);
   GetConv2dFactors(&conv2d_factors, -1, -1, ow, type, target);
   int ow_bn_size = conv2d_factors["ow_bn"];
 
-  std::vector<Expr> weights_dilation_shape = weights_dilation->shape;
-  int shape_size                           = weights_dilation_shape.size();
-  CHECK_EQ(shape_size, 6U) << "weights_dilation'shape should be 6";
-  Expr oc_bn     = common::AutoSimplify(weights_dilation_shape.back());
-  Expr ic_bn     = common::AutoSimplify(weights_dilation_shape[shape_size - 2]);
+  auto input_shape = input_pad->shape;
+  int shape_size   = input_shape.size();
+  CHECK_EQ(shape_size, 5U) << "input shape size should be 5";
+  Expr oc_bn     = common::AutoSimplify(packed_out->shape.back());
+  Expr ic_bn     = common::AutoSimplify(input_shape.back());
   int oc_bn_size = oc_bn.as_int32();
   int ic_bn_size = ic_bn.as_int32();
   VLOG(4) << "ow_bn_size " << ow_bn_size;
@@ -572,13 +581,16 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   VLOG(4) << "ic_bn_size " << ic_bn_size;
 
   // data
-  stages[data]->ComputeInline();
+  if (data.defined()) {
+    stages[data]->ComputeInline();
+  }
   // weights
-  CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U) << "weights_dilation's out_dims should be more than 3";
-  // Reorder: [oc_outer, ic_outer, oh, ow, ic_inner, oc_inner] ->
-  // [oc_outer, oh, ic_outer, ow, ic_inner, oc_inner]
-  stages[weights_dilation]->Reorder({2, 1});
-
+  if (weights_dilation.defined()) {
+    CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U) << "weights_dilation's out_dims should be more than 3";
+    // Reorder: [oc_outer, ic_outer, oh, ow, ic_inner, oc_inner] ->
+    // [oc_outer, oh, ic_outer, ow, ic_inner, oc_inner]
+    stages[weights_dilation]->Reorder({2, 1});
+  }
   // packed_out
   auto CC = stages[packed_out]->CacheWrite2("local", stages, packed_out);
   VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
@@ -616,41 +628,44 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
 
   // res
   // n, oc, oh, ow
-  stages[res]->Split(1, oc_bn_size);
-  stages[res]->Split(4, ow_bn_size);
-  // Reorder: [n, oc_outer, oc_inner, oh, ow_outer, ow_inner] ->
-  // [n, oc_outer, oh, ow_outer, ow_inner, oc_inner]
-  auto oc_inner1 = stages[res]->axis(2);
-  auto oh1       = stages[res]->axis(3);
-  auto ow_outer1 = stages[res]->axis(4);
-  auto ow_inner1 = stages[res]->axis(5);
-  stages[res]->Reorder({oh1, ow_outer1, ow_inner1, oc_inner1});
-  VLOG(4) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
+  if (res.defined()) {
+    stages[res]->Split(1, oc_bn_size);
+    stages[res]->Split(4, ow_bn_size);
+    // Reorder: [n, oc_outer, oc_inner, oh, ow_outer, ow_inner] ->
+    // [n, oc_outer, oh, ow_outer, ow_inner, oc_inner]
+    auto oc_inner1 = stages[res]->axis(2);
+    auto oh1       = stages[res]->axis(3);
+    auto ow_outer1 = stages[res]->axis(4);
+    auto ow_inner1 = stages[res]->axis(5);
+    stages[res]->Reorder({oh1, ow_outer1, ow_inner1, oc_inner1});
+    VLOG(4) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
+  }
 }
 
 void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
                                const ir::Tensor &res,
-                               ir::Tensor packed_out,
+                               ir::Tensor &packed_out,
                                const ir::Tensor &input_pad,
                                const ir::Tensor &weights_dilation,
                                const ir::Tensor &data,
                                const common::Target &target) {
   CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
-  auto type = res->type();
+  CHECK(packed_out.defined());
+  CHECK(input_pad.defined());
+  auto type = packed_out->type();
   std::unordered_map<std::string, int> conv2d_factors;
-  CHECK_EQ(res->shape.size(), 4U) << "res's shape size should be 4";
-  CHECK_EQ(data->shape.size(), 5U) << "data's shape size should be 5";
-  Expr w_out             = common::AutoSimplify(res->shape[3]);
+  CHECK_EQ(packed_out->shape.size(), 5U) << "packed_out's shape size should be 5";
+  Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
   int ow                 = w_out.as_int32();
   int basic_split_factor = GetBasicFactor(type, target);
   GetConv2dFactors(&conv2d_factors, -1, -1, ow, type, target);
   int ow_bn_size = conv2d_factors["ow_bn"];
 
-  std::vector<Expr> weights_dilation_shape = weights_dilation->shape;
-  int shape_size                           = weights_dilation_shape.size();
-  CHECK_EQ(shape_size, 6U) << "weights_dilation'shape should be 6";
-  Expr oc_bn     = common::AutoSimplify(weights_dilation_shape.back());
-  Expr ic_bn     = common::AutoSimplify(weights_dilation_shape[shape_size - 2]);
+  auto input_shape = input_pad->shape;
+  int shape_size   = input_shape.size();
+  CHECK_EQ(shape_size, 5U) << "input shape size should be 5";
+  Expr oc_bn     = common::AutoSimplify(packed_out->shape.back());
+  Expr ic_bn     = common::AutoSimplify(input_shape.back());
   int oc_bn_size = oc_bn.as_int32();
   int ic_bn_size = ic_bn.as_int32();
   VLOG(4) << "ow_bn_size" << ow_bn_size;
@@ -658,18 +673,21 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
   VLOG(4) << "ic_bn_size" << ic_bn_size;
 
   // data
-  CHECK_GE(stages[data]->n_out_dims(), 3U) << "data's out_dims should be more than 3";
-  stages[data]->Fuse({0, 1, 2});
+  if (data.defined()) {
+    CHECK_GE(stages[data]->n_out_dims(), 3U) << "data's out_dims should be more than 3";
+    stages[data]->Fuse({0, 1, 2});
+    stages[data]->ComputeInline();
+  }
   // input_pad
   CHECK_GE(stages[input_pad]->n_out_dims(), 3U) << "input_pad's out_dims should be more than 3";
   stages[input_pad]->Fuse({0, 1, 2});
-  stages[data]->ComputeInline();
   // weights
-  CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U) << "weights_dilation's out_dims should be more than 3";
-  // oc_outer, ic_outer, oh, ow, ic_inner, oc_inner -> oc_outer, oh, ic_outer, ow, ic_inner, oc_inner
-  stages[weights_dilation]->Reorder({2, 1});
-  stages[weights_dilation]->Fuse({0, 1});
-
+  if (weights_dilation.defined()) {
+    CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U) << "weights_dilation's out_dims should be more than 3";
+    // oc_outer, ic_outer, oh, ow, ic_inner, oc_inner -> oc_outer, oh, ic_outer, ow, ic_inner, oc_inner
+    stages[weights_dilation]->Reorder({2, 1});
+    stages[weights_dilation]->Fuse({0, 1});
+  }
   // packed_out
   auto CC = stages[packed_out]->CacheWrite2("local", stages, packed_out);
   VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
@@ -705,16 +723,18 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
 
   // res
   // n, oc, oh, ow
-  stages[res]->Split(1, oc_bn_size);
-  stages[res]->Split(4, ow_bn_size);
-  // Reorder: [n, oc_outer, oc_inner, oh, ow_outer, ow_inner] ->
-  // [n, oc_outer, oh, ow_outer, ow_inner, oc_inner]
-  auto oc_inner1 = stages[res]->axis(2);
-  auto oh1       = stages[res]->axis(3);
-  auto ow_outer1 = stages[res]->axis(4);
-  auto ow_inner1 = stages[res]->axis(5);
-  stages[res]->Reorder({oh1, ow_outer1, ow_inner1, oc_inner1});
-  stages[res]->Fuse({0, 1, 2});
+  if (res.defined()) {
+    stages[res]->Split(1, oc_bn_size);
+    stages[res]->Split(4, ow_bn_size);
+    // Reorder: [n, oc_outer, oc_inner, oh, ow_outer, ow_inner] ->
+    // [n, oc_outer, oh, ow_outer, ow_inner, oc_inner]
+    auto oc_inner1 = stages[res]->axis(2);
+    auto oh1       = stages[res]->axis(3);
+    auto ow_outer1 = stages[res]->axis(4);
+    auto ow_inner1 = stages[res]->axis(5);
+    stages[res]->Reorder({oh1, ow_outer1, ow_inner1, oc_inner1});
+    stages[res]->Fuse({0, 1, 2});
+  }
 }
 
 void CudaScheduleMul(poly::StageMap stages,

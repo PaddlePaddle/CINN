@@ -270,11 +270,12 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
         CHECK_EQ(kernel_shape.size(), 6U) << "kernel_dialtion shape size should be 6";
         bool is_1x1 = (is_zero(kernel_shape[2] - 1)) && (is_zero(kernel_shape[3] - 1));
         // Todo: 1*1 schedule is not so much good, may need to optimize schedule further.
-        is_1x1 = false;
+        is_1x1                       = false;
+        ir::Tensor packed_out_tensor = packed_out.as_tensor_ref();
         if (is_1x1) {
           pe::Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(stages,
                                                    res.as_tensor_ref(),
-                                                   packed_out.as_tensor_ref(),
+                                                   packed_out_tensor,
                                                    input_pad.as_tensor_ref(),
                                                    weights_dilation.as_tensor_ref(),
                                                    data.as_tensor_ref(),
@@ -282,13 +283,13 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
         } else {
           pe::Conv2d_NCHWc_Schedule_CPU_Nofuse(stages,
                                                res.as_tensor_ref(),
-                                               packed_out.as_tensor_ref(),
+                                               packed_out_tensor,
                                                input_pad.as_tensor_ref(),
                                                weights_dilation.as_tensor_ref(),
                                                data.as_tensor_ref(),
                                                target);
         }
-        *ret = CINNValuePack{{arg_pack[0], arg_pack[1], arg_pack[2], arg_pack[3], CINNValue(stages)}};
+        *ret = CINNValuePack{{arg_pack[0], CINNValue(packed_out), arg_pack[2], arg_pack[3], CINNValue(stages)}};
         return;
       }
     }
@@ -382,6 +383,175 @@ std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type,
                                       const Target &target) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0]};
+  return res;
+}
+
+std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &attrs,
+                                                   const std::vector<ir::Tensor> &inputs,
+                                                   const std::vector<Type> &out_type,
+                                                   const std::vector<std::vector<int>> &output_shapes,
+                                                   const Target &target) {
+  std::vector<int> padding({0, 0});
+  std::vector<int> stride({1, 1});
+  std::vector<int> dilation({1, 1});
+  std::string data_format = "NCHWc";
+  int groups              = 1;
+  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
+    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  }
+  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
+    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  }
+  if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
+    dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
+  }
+  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
+    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+  }
+  if (attrs.attr_store.find("groups") != attrs.attr_store.end()) {
+    groups = std::get<int>(attrs.attr_store.at("groups"));
+  }
+  CHECK(data_format == "NCHWc") << "conv2d_NCHWc op's data_format should be NCHWc";
+  framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of conv2d_NCHWc compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for conv2d_NCHWc compute\n";
+    Expr A = a[0];
+    Expr B = a[1];
+    CHECK(A.as_tensor());
+    CHECK(B.as_tensor());
+    auto tensor_a = A.as_tensor_ref();
+    auto tensor_b = B.as_tensor_ref();
+    CHECK_EQ(tensor_a->shape.size(), 5) << "input's shape should be 5";
+    CHECK_EQ(tensor_b->shape.size(), 6) << "weight's shape should be 6";
+    CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d_NCHWc op is not 2! Please check.";
+    CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d_NCHWc op is not 2! Please check.";
+    CHECK_EQ(dilation.size(), 2) << "The size of stride in conv2d_NCHWc op is not 2! Please check.";
+    std::vector<ir::Tensor> out;
+    CHECK(target.arch == Target::Arch::X86) << "conv2d_NCHWc op is only used in x86";
+    // A is input: [N, C_in_outer, H, W, C_in_inner], B is filter: [C_out, C_in_group_outer, filter_h, filter_w,
+    // C_in_group_inner]
+    out = pe::Conv2d_NCHWc(tensor_a,
+                           tensor_b,
+                           padding[0],
+                           padding[1],
+                           stride[0],
+                           stride[1],
+                           dilation[0],
+                           dilation[1],
+                           UniqName("T_conv2d_NCHWc_out"),
+                           target);
+
+    auto stages = CreateStages({tensor_a, tensor_b});
+
+    std::vector<CINNValue> res;
+    CHECK(out.size() == 2U) << "The output tensor sizes of conv2d_NCHWc op should be 2\n";
+    for (auto &t : out) {
+      stages->InsertLazily(t);
+      res.push_back(CINNValue(t));
+    }
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule conv2d_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of conv2d_NCHWc schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 3UL);
+    poly::StageMap stages = arg_pack.back();
+    Expr packed_out       = arg_pack[0];
+    Expr input_pad        = arg_pack[1];
+    CHECK(packed_out.as_tensor());
+    CHECK(input_pad.as_tensor());
+    std::vector<Expr> kernel_shape = inputs[1]->shape;
+    // kernel_h == 1 && kernel_w == 1
+    CHECK_EQ(kernel_shape.size(), 6U) << "kernel_dialtion shape size should be 6";
+    bool is_1x1 = (is_zero(kernel_shape[2] - 1)) && (is_zero(kernel_shape[3] - 1));
+    // Todo: 1*1 schedule is not so much good, may need to optimize schedule further.
+    is_1x1 = false;
+    ir::Tensor res;
+    ir::Tensor data;
+    ir::Tensor weights;
+    ir::Tensor packed_out_tensor = packed_out.as_tensor_ref();
+    if (is_1x1) {
+      pe::Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(
+          stages, res, packed_out_tensor, input_pad.as_tensor_ref(), weights, data, target);
+    } else {
+      pe::Conv2d_NCHWc_Schedule_CPU_Nofuse(
+          stages, res, packed_out_tensor, input_pad.as_tensor_ref(), weights, data, target);
+    }
+    *ret = CINNValuePack{{CINNValue(packed_out_tensor), arg_pack[1], CINNValue(stages)}};
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  CHECK(out_type.size()) << "Out_type of conv2d_NCHWc op is empty! Please check.";
+  if (out_type[0] == Float(32)) {
+    strategy->AddImpl(conv2d_compute, conv2d_schedule, "strategy.conv2d_NCHWc.x86", 1);
+  } else {
+    LOG(FATAL) << "conv2d_NCHWc op with dtype != float32 is not implemented yet!";
+  }
+  return strategy;
+}
+
+std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs_shape,
+                                              const framework::NodeAttr &attrs,
+                                              const Target &target) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  std::vector<int> padding({0, 0});
+  std::vector<int> stride({1, 1});
+  std::vector<int> dilation({1, 1});
+  std::string data_format = "NCHWc";
+  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
+    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  }
+  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
+    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  }
+  if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
+    dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
+  }
+  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
+    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+  }
+  CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d_NCHWc op is not 2! Please check.";
+  CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d_NCHWc op is not 2! Please check.";
+  CHECK_EQ(inputs_shape[0].size(), 5)
+      << "The first input tensor's shape size of conv2d_NCHWc op should be 5! Please check.";
+  CHECK_EQ(inputs_shape[1].size(), 6)
+      << "The second input tensor's shape size of conv2d_NCHWc op should be 6! Please check.";
+
+  std::vector<shape_t> res;
+  CHECK(data_format == "NCHWc") << "NCHWc op's data_format should be NCHWc";
+  int out_shape_h =
+      (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
+  int out_shape_w =
+      (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
+
+  std::unordered_map<std::string, int> conv2d_factors;
+  // A: NCHWc, B: OIHWio
+  int batch                         = inputs_shape[0][0];
+  int h_in                          = inputs_shape[0][2];
+  int w_in                          = inputs_shape[0][3];
+  int oc                            = inputs_shape[1][0];
+  int h_f                           = inputs_shape[1][2];
+  int w_f                           = inputs_shape[1][3];
+  int pad_h                         = padding[0];
+  int pad_w                         = padding[1];
+  int ic_bn                         = inputs_shape[0][4];
+  int ic_chunk                      = inputs_shape[0][1];
+  int oc_bn                         = inputs_shape[1][5];
+  int oc_chunk                      = inputs_shape[1][0];
+  std::vector<int> packed_out_shape = {batch, oc_chunk, out_shape_h, out_shape_w, oc_bn};
+  std::vector<int> input_pad_shape  = {batch, ic_chunk, h_in + 2 * pad_h, w_in + 2 * pad_w, ic_bn};
+  LOG(INFO) << "packed_out_shape: " << utils::Join(packed_out_shape, ", ");
+  return {packed_out_shape, input_pad_shape};
+}
+
+std::vector<Type> InferDtypeForConv2dNCHWc(const std::vector<Type> &inputs_type,
+                                           const framework::NodeAttr &attrs,
+                                           const Target &target) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
 }
 
@@ -1500,6 +1670,16 @@ CINN_REGISTER_HELPER(nn_ops) {
 #else
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
 #endif
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(conv2d_NCHWc)
+      .describe("Do a 2-D convolution with an NCHWc layout. Input is 5D tensor and weight is 6D tensor.")
+      .set_num_inputs(2)  // here we consider filter as another input
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2dNCHWc)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2dNCHWc))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2dNCHWc))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(depthwise_conv2d)
