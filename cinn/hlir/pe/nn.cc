@@ -75,7 +75,11 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
         input_pad_shape,
         [=](Expr nn, Expr cc, Expr yy, Expr xx) {
           auto cond =
+<<<<<<< HEAD
               lang::logic_and({yy >= pad_h, yy < input->shape[2] + pad_h, xx >= pad_w, xx < input->shape[3] + pad_w});
+=======
+              lang::logic_and({yy >= pad_h, yy - pad_h < input->shape[2], xx >= pad_w, xx - pad_w < input->shape[3]});
+>>>>>>> 15728973... fix bugs
           return ir::Select::Make(cond, input(nn, cc, yy - pad_h, xx - pad_w), ir::Zero(input->type()));
         },
         UniqName("input_pad"));

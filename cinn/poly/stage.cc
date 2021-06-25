@@ -147,8 +147,10 @@ void Stage::Reorder(const std::vector<Iterator> &order) {
   CHECK_EQ(range_iters.size(), in_names.size());
 
   Map transform(domain().ctx(), id(), domain_iters, range_iters, {}, id());
-  VLOG(3) << "reorder transform: " << transform.__str__();
+  LOG(INFO) << "reorder transform: " << transform.__str__();
+  LOG(INFO) << "Before Reorder: " << transform_;
   transform_ = transform_.apply_range(transform.to_isl());
+  LOG(INFO) << "After Reorder: " << transform_;
 }
 
 void Stage::Reorder(const std::vector<int> &order) {
@@ -452,7 +454,7 @@ void Stage::ComputeAt5(Stage *other, int level) {
   auto indices    = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
   RemoveDuplicate(indices);
   if (indices.empty()) {
-    return;
+    LOG(ERROR) << "No Access Relation between [" << other->id() << "] and [" << this->id() << "]! Please check.";
   }
   CHECK_EQ(indices.size(), 1) << "indices.size > 1 is not supported yet";
   std::vector<std::string> target_dims = isl_get_dim_names(other->domain());
@@ -558,6 +560,27 @@ void Stage::ComputeAt5(Stage *other, int level) {
     trans_res = temp_trans;
   }
 
+  VLOG(3) << "trans_res is : " << trans_res;
+
+  {
+    auto trans_dim_out   = isl_get_dim_names(trans_res.get(), isl_dim_out);
+    auto transformed_res = domain_.apply(trans_res);
+    for (int i = level + 1; i < trans_dim_out.size(); i++) {
+      auto [minv, maxv]       = isl_set_get_axis_range(transformed_res.get(), i);
+      int max_iv              = maxv.get_num_si();
+      int min_iv              = minv.get_num_si();
+      auto related_input_dims = GetRelatedInputAxies(trans_res, {trans_dim_out[i]});
+      if (max_iv != min_iv && related_input_dims.empty()) {
+        trans_res = isl::manage(isl_remove_axis_by_name(trans_res.release(), isl_dim_out, trans_dim_out[i].c_str()));
+      }
+      VLOG(3) << "Input axis related to output axis [" << trans_dim_out[i] << "] (from " << min_iv << " to " << max_iv
+              << ") is : ";
+      for (auto &j : related_input_dims) {
+        VLOG(3) << j << ", ";
+      }
+    }
+  }
+  VLOG(3) << "After removing redundant output axis, trans_res is : " << trans_res;
   transform_ = trans_res;
   CHECK(tensor_);
 
@@ -1035,7 +1058,15 @@ void Stage::SyncThreads(const std::vector<ir::Tensor> &after_tensors, StageMap s
   stages[sync_threads]->CtrlDepend(this_tensor);
 
   for (auto &compute_at : this->compute_ats()) {
-    stages[sync_threads]->ComputeAt(compute_at.stage.get(), compute_at.level);
+    isl::set sync_domain(compute_at.stage->domain().ctx(),
+                         isl_set_to_str(compute_at.stage->transformed_domain().get()));
+    int dim_num = isl_set_dim(sync_domain.get(), isl_dim_set);
+    sync_domain = isl::manage(
+        isl_set_remove_dims(sync_domain.release(), isl_dim_set, compute_at.level + 1, dim_num - compute_at.level - 1));
+    sync_domain = isl::manage(isl_set_set_tuple_name(sync_domain.release(), sync_threads->name.c_str()));
+    stages[sync_threads]->domain_ = sync_domain;
+    stages[sync_threads]->InitTransform();
+    stages[sync_threads]->compute_ats_[compute_at.stage->id()] = compute_at;
   }
 
   for (auto &other : after_tensors) {
@@ -1043,6 +1074,38 @@ void Stage::SyncThreads(const std::vector<ir::Tensor> &after_tensors, StageMap s
       stages[other]->CtrlDepend(sync_threads);
     }
   }
+}
+
+void Stage::SyncThreads(int level, const std::vector<ir::Tensor> &before_tensors, StageMap stages) {
+  CHECK(tensor_);
+  auto this_tensor = ir::Tensor(tensor_);
+
+  auto sync_threads = lang::Compute(
+      {},
+      [](const std::vector<Expr> &axis) { return runtime::IntrinsicCall(Void(), "__syncthreads", {}); },
+      Context::Global().NewName("syncthreads"));
+
+  stages->Insert(sync_threads, ir::CreateStage(sync_threads).get());
+  CHECK_EQ(sync_threads->type(), Void());
+  this->CtrlDepend(sync_threads);
+
+  for (auto &other : before_tensors) {
+    stages[sync_threads]->CtrlDepend(other);
+  }
+
+  isl::set sync_domain(domain().ctx(), isl_set_to_str(transformed_domain().get()));
+  int dim_num = isl_set_dim(sync_domain.get(), isl_dim_set);
+  sync_domain = isl::manage(isl_set_remove_dims(sync_domain.release(), isl_dim_set, level + 1, dim_num - level - 1));
+  sync_domain = isl::manage(isl_set_set_tuple_name(sync_domain.release(), sync_threads->name.c_str()));
+  stages[sync_threads]->domain_ = sync_domain;
+  stages[sync_threads]->InitTransform();
+
+  ComputeAtRelation relation;
+  relation.stage = this;
+  relation.level = level;
+
+  CHECK(relation.IsCompatible(this));
+  stages[sync_threads]->compute_ats_[this->id()] = relation;
 }
 
 namespace {

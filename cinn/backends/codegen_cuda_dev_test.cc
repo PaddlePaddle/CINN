@@ -175,6 +175,7 @@ TEST(CodeGenCUDA2, compile_run_jit2) {
 }
 
 TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
+  Context::Global().ResetNameId();
   Expr N(1);
   Expr C(128);
   Expr H(28);
@@ -196,6 +197,9 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
   optim::Simplify(&(conv->shape[2]));
   optim::Simplify(&(conv->shape[3]));
 
+  std::vector<ir::Tensor> readers{conv};
+  auto PR = stages[pad_data]->CacheRead2("shared", readers, stages);
+  auto KR = stages[B]->CacheRead2("shared", readers, stages);
   auto OL = stages[conv]->CacheWrite2("local", stages, conv);
 
   auto tx        = stages[conv]->axis(3);
@@ -211,7 +215,6 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
   stages[conv]->Bind(4, "threadIdx.x");
 
   stages[OL]->ComputeAt3(stages[conv], 4);
-
   stages[OL]->Split(6, 8);
   auto on   = stages[OL]->axis(0);
   auto obz  = stages[OL]->axis(1);
@@ -230,6 +233,24 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
   stages[OL]->Bind(6, "blockIdx.y");
   stages[OL]->Bind(7, "threadIdx.z");
   stages[OL]->Bind(8, "threadIdx.x");
+
+  stages[KR]->ComputeAt5(stages[OL], 2);
+  auto OL_init = OL->GetInitTensor(stages, target);
+
+  stages[PR]->ComputeAt5(stages[OL], 2);
+
+  stages[PR]->SyncThreads({OL}, stages);
+  stages[PR]->SyncThreads(2, {OL_init}, stages);
+
+  stages[KR]->Split(5, 32);
+  stages[KR]->Split(6, 14);
+  stages[KR]->Bind(5, "blockIdx.z");
+  stages[KR]->Bind(7, "threadIdx.x");
+  stages[KR]->Bind(3, "threadIdx.z");
+
+  stages[PR]->Bind(5, "blockIdx.y");
+  stages[PR]->Bind(3, "threadIdx.z");
+  stages[PR]->Bind(6, "threadIdx.x");
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -1092,6 +1113,7 @@ TEST(elementwise_add1, share_local_cache) {
 }
 
 TEST(elementwise_add0, share_local_cache) {
+  Context::Global().ResetNameId();
   Expr M(100);
   Expr N(20);
 
@@ -1109,7 +1131,7 @@ TEST(elementwise_add0, share_local_cache) {
   // NOTE here, the CC replace the C as the output the function.
 
   stages[CC]->ComputeAt5(stages[C], 1);
-  stages[AA]->ComputeAt5(stages[C], 1);
+  stages[AA]->ComputeAt5(stages[CC], 1);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
 
@@ -1746,8 +1768,6 @@ TEST(ElementwiseAdd, cache_read_shared) {
   Expr N(200);
 
   auto create_module = [&] {
-    Context::Global().ResetNameId();
-
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 

@@ -279,6 +279,25 @@ class Stage : public Object {
   void SyncThreads(const std::vector<ir::Tensor>& after_tensors, StageMap stages);
 
   /**
+   * Generate the `syncthreads()` code to sync all threads on CUDA backends.
+   * For other backends like Opencl, generate corresponding code to sync multi threads.
+   * @param level the ComputeAt level of syncthreads in this tensor's computation.
+   * @param before_tensors the tensors computed before syncthreads.
+   * @param stages the stagemap of all tensor.
+   * Example Code :
+   * for (i = 0:9)
+   *   for (j = 0:9)
+   *     A[i,j]
+   *
+   * After stages[A]->SyncThreads(0, {}, stages), The Code is :
+   * for (i = 0:9)
+   *   syncthreads()
+   *   for (j = 0:9)
+   *     A[i,j]
+   */
+  void SyncThreads(int level, const std::vector<ir::Tensor>& before_tensors, StageMap stages);
+
+  /**
    * Set thread scope.
    */
   void SetScope(ScopeKind scope) { scope_ = scope; }

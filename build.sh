@@ -129,14 +129,16 @@ function build {
     # build gtest first, it tends to broke the CI
     make extern_gtest
 
-    make test01_elementwise_add_main -j $JOBS
-    make test02_matmul_main -j $JOBS
-    make test03_conv_main -j $JOBS
-    make test_codegen_c -j $JOBS
     if [[ $cuda_config == "ON" ]]; then
         make test_codegen_cuda_dev -j $JOBS
         ctest -R test_codegen_cuda_dev -V
     fi
+
+    make test01_elementwise_add_main -j $JOBS
+    make test02_matmul_main -j $JOBS
+    make test03_conv_main -j $JOBS
+    make test_codegen_c -j $JOBS
+
 
     ctest -R test01_elementwise_add_main
     ctest -R test02_matmul_main
