@@ -435,6 +435,165 @@ void Stage::EditTempTensor(Stage *other, int level) {
   return;
 }
 
+void Stage::ComputeAt5(Stage *other, int level) {
+  isl::set this_domain(domain().ctx(), isl_set_to_str(domain().get()));
+  isl::set target_domain(other->domain().ctx(), isl_set_to_str(other->domain().get()));
+
+  auto reduce_axes = origin_reduce_axis_names();
+  for (auto &i : reduce_axes) {
+    this_domain = isl::manage(isl_remove_axis_by_name(this_domain.release(), i.c_str()));
+  }
+  isl::map write_access = isl::manage(isl_set_identity(this_domain.release()));
+  isl::map read_access  = isl::manage(isl_set_identity(target_domain.release()));
+  read_access =
+      isl::manage(isl_map_set_tuple_name(read_access.release(), isl_dim_out, isl_set_get_tuple_name(domain().get())));
+  int num_out_dim = isl_map_dim(read_access.get(), isl_dim_out);
+  read_access     = isl::manage(isl_map_remove_dims(read_access.release(), isl_dim_out, 0, num_out_dim));
+  auto indices    = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
+  RemoveDuplicate(indices);
+  if (indices.empty()) {
+    return;
+  }
+  CHECK_EQ(indices.size(), 1) << "indices.size > 1 is not supported yet";
+  std::vector<std::string> target_dims = isl_get_dim_names(other->domain());
+  std::set<std::string> target_dims_set;
+  for (auto &i : target_dims) {
+    target_dims_set.insert(i);
+  }
+  std::vector<std::string> index_names;
+  for (auto &i : indices[0]) {
+    std::string str_name = utils::GetStreamCnt(i);
+    if (target_dims_set.count(str_name) > 0) {
+      target_dims_set.erase(str_name);
+      str_name = str_name + "' = " + str_name;
+    }
+    index_names.push_back(str_name);
+  }
+
+  // New Transform = W.(R^-1).S
+  // W is the write access relation
+  // R is the read access relation
+  // S is the original schedule of Stage *other
+  read_access = isl::manage(isl_map_add_dims(read_access.release(), isl_dim_out, index_names.size()));
+  isl_set_dim_names(&read_access, isl_dim_out, index_names);
+  read_access =
+      isl::manage(isl_map_set_tuple_name(read_access.release(), isl_dim_out, isl_set_get_tuple_name(domain().get())));
+  std::string read_access_str = isl_map_to_str(read_access.get());
+  isl::map read_access2(read_access.ctx(), read_access_str);
+  read_access2 = isl::manage(isl_map_reverse(read_access2.release()));
+
+  auto new_map = isl::manage(isl_map_apply_range(write_access.release(), read_access2.release()));
+  isl::map new_target_transform(other->transform().ctx(), isl_map_to_str(other->transform().get()));
+  auto target_map_dims    = isl_get_dim_names(new_target_transform.get(), isl_dim_out);
+  auto target_map_dims_in = isl_get_dim_names(new_target_transform.get(), isl_dim_in);
+  // For axis out of the level, we don't copy their transform except for they are related to axis within the level.
+  std::vector<std::string> level_out_dims;
+  for (int i = 0; i <= level; i++) {
+    level_out_dims.push_back(target_map_dims[i]);
+  }
+  auto related_input_dims  = GetRelatedInputAxies(new_target_transform, level_out_dims);
+  auto related_output_dims = GetRelatedOutputAxies(new_target_transform, related_input_dims);
+  std::set<std::string> related_output_dims_set;
+  for (auto &i : related_output_dims) {
+    related_output_dims_set.insert(i);
+  }
+  std::set<std::string> related_input_dims_set;
+  for (auto &i : related_input_dims) {
+    related_input_dims_set.insert(i);
+  }
+  for (auto &i : target_map_dims) {
+    if (related_output_dims_set.count(i) == 0) {
+      new_target_transform =
+          isl::manage(isl_remove_axis_by_name(new_target_transform.release(), isl_dim_out, i.c_str()));
+    }
+  }
+
+  for (auto &i : target_map_dims_in) {
+    if (related_input_dims_set.count(i) == 0) {
+      new_target_transform     = isl::manage(isl_map_add_dims(new_target_transform.release(), isl_dim_out, 1));
+      int level                = isl_map_dim(new_target_transform.get(), isl_dim_out);
+      std::string dim_name_add = i + "' = " + i;
+      new_target_transform     = isl::manage(
+          isl_map_set_dim_name(new_target_transform.release(), isl_dim_out, level - 1, dim_name_add.c_str()));
+    }
+  }
+  new_target_transform = isl::manage(isl_map_set_tuple_name(new_target_transform.release(), isl_dim_out, other->id()));
+
+  isl::map f_target_transform(other->transform().ctx(), isl_map_to_str(new_target_transform.get()));
+  auto trans_res = isl::manage(isl_map_apply_range(new_map.release(), f_target_transform.release()));
+  trans_res      = isl::manage(isl_map_set_tuple_name(trans_res.release(), isl_dim_out, this->id()));
+
+  // When there are reduce axes, we need to add these axes manually
+  if (!reduce_axes.empty()) {
+    std::vector<std::string> reduce_axes_out;
+    for (auto &i : reduce_axes) {
+      reduce_axes_out.push_back(i + "' = " + i);
+    }
+    int map_dim_in  = isl_map_dim(trans_res.get(), isl_dim_in);
+    int map_dim_out = isl_map_dim(trans_res.get(), isl_dim_out);
+
+    trans_res = isl::manage(isl_map_add_dims(trans_res.release(), isl_dim_in, reduce_axes.size()));
+    for (int i = 0; i < reduce_axes.size(); i++) {
+      trans_res =
+          isl::manage(isl_map_set_dim_name(trans_res.release(), isl_dim_in, map_dim_in + i, reduce_axes[i].c_str()));
+    }
+    trans_res = isl::manage(isl_map_add_dims(trans_res.release(), isl_dim_out, reduce_axes_out.size()));
+    for (int i = 0; i < reduce_axes_out.size(); i++) {
+      trans_res = isl::manage(
+          isl_map_set_dim_name(trans_res.release(), isl_dim_out, map_dim_out + i, reduce_axes_out[i].c_str()));
+    }
+    trans_res = isl::manage(isl_map_set_tuple_name(trans_res.release(), isl_dim_in, this->id()));
+    trans_res = isl::manage(isl_map_set_tuple_name(trans_res.release(), isl_dim_out, this->id()));
+
+    std::string trans_res_str = isl_map_to_str(trans_res.get());
+    for (int i = 0; i < reduce_axes.size(); i++) {
+      auto [minv, maxv] = isl_set_get_axis_range(domain_.get(), i + map_dim_in);
+      int min_iv        = minv.get_num_si();
+      int max_iv        = maxv.get_num_si();
+
+      trans_res_str = trans_res_str.substr(0, trans_res_str.size() - 1) + "and " + std::to_string(min_iv) +
+                      " <= " + reduce_axes[i] + " <= " + std::to_string(max_iv) + " }";
+    }
+    isl::map temp_trans(trans_res.ctx(), trans_res_str);
+    trans_res = temp_trans;
+  }
+
+  transform_ = trans_res;
+  CHECK(tensor_);
+
+  ComputeAtRelation relation;
+  relation.stage   = other;
+  int removing_num = isl_get_precending_removed_axes_counts(other->transformed_domain().get(), level);
+  relation.level   = level - removing_num;
+  other->CtrlDepend(ir::Tensor(tensor()));
+
+  CHECK(relation.IsCompatible(this));
+  compute_ats_[other->id()] = relation;
+  for (int i = 0; i <= level; i++) {
+    AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, i});
+  }
+  return;
+}
+
+void Stage::ComputeAt4(Stage *other, int level) {
+  // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
+  CHECK(tensor_);
+  other->CtrlDepend(ir::Tensor(tensor()));
+  if (this->tensor()->buffer.defined()) {
+    std::string t_name = this->tensor()->buffer->name;
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
+      EditTempTensor(other, level);
+    }
+  }
+  ComputeAtRelation relation;
+  relation.stage = other;
+  relation.level = level;
+  other->CtrlDepend(ir::Tensor(tensor()));
+
+  CHECK(relation.IsCompatible(this));
+  compute_ats_[other->id()] = relation;
+}
+
 void Stage::ComputeAt2(Stage *other, int level) {
   // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
   this->ChangeDomain(other, level);

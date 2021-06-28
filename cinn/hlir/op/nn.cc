@@ -244,15 +244,14 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
       stages[weights_dilation.as_tensor_ref()]->ComputeInline();
     }
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[2];
-      Expr input_pad        = arg_pack[0];
-      Expr weights_dilation = arg_pack[1];
-      ir::Tensor out_t      = Out.as_tensor_ref();
-      ir::Tensor input_t    = input_pad.as_tensor_ref();
-      ir::Tensor weights_t  = weights_dilation.as_tensor_ref();
+      Expr Out           = arg_pack[1];
+      Expr input_pad     = arg_pack[0];
+      ir::Tensor out_t   = Out.as_tensor_ref();
+      ir::Tensor input_t = input_pad.as_tensor_ref();
       CHECK(Out.as_tensor());
-      pe::CudaScheduleConv(stages, input_t, weights_t, out_t, target);
-      arg_pack[2] = Expr(out_t);
+      pe::CudaScheduleConv(stages, input_t, out_t, target);
+      arg_pack[1] = Expr(out_t);
+      arg_pack[0] = Expr(input_t);
     } else if (target.arch == Target::Arch::X86) {
       if (arg_pack.size() == 6UL) {
         Expr res              = arg_pack[0];
@@ -293,7 +292,9 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
         return;
       }
     }
-    if (arg_pack.size() == 4UL) {
+    if (target.arch == Target::Arch::NVGPU) {
+      *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
+    } else if (arg_pack.size() == 4UL) {
       *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
     } else {
       *ret = arg_pack;

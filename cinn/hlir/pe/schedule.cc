@@ -748,20 +748,15 @@ void CudaScheduleMul(poly::StageMap stages,
   return;
 }
 
-void CudaScheduleConv(poly::StageMap stages,
-                      ir::Tensor &input_pad,
-                      ir::Tensor &kernel_dilation,
-                      ir::Tensor &output,
-                      const common::Target &target) {
+void CudaScheduleConv(poly::StageMap stages, ir::Tensor &input_pad, ir::Tensor &output, const common::Target &target) {
+  stages[input_pad]->ComputeInline();
   int n = output->shape[0].as_int32();
   int c = output->shape[1].as_int32();
   optim::Simplify(&(output->shape[2]));
   int h = output->shape[2].as_int32();
   optim::Simplify(&(output->shape[3]));
   int w  = output->shape[3].as_int32();
-  int rc = kernel_dilation->shape[1].as_int32();
-  int ry = kernel_dilation->shape[2].as_int32();
-  int rx = kernel_dilation->shape[3].as_int32();
+  int rc = input_pad->shape[1].as_int32();
 
   int f_inner  = GetInnerSplitter(c, h);
   int block_z  = SplitEven(c / f_inner);

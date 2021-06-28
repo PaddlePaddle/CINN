@@ -157,13 +157,18 @@ void MarkGpuForloop(const std::string &statement,
     void Visit(const ir::Store *op, Expr *expr) override {
       auto *tensor = op->tensor.As<ir::_Tensor_>();
       if (tensor->name == statement) {
-        MarkForloop();
+        if (tensor->buffer.defined()) {
+          MarkForloop(tensor->buffer->name);
+        } else {
+          MarkForloop("not_defined");
+        }
       }
     }
 
-    void MarkForloop() {
+    void MarkForloop(const std::string &tensor_name) {
       // start from 0, threadIdx.x
       for (auto *expr : forloop_stack) {
+        LOG(INFO) << "expr in forloop_stack is : " << *expr;
         auto *for_     = expr->As<ir::For>();
         auto *poly_for = expr->As<ir::PolyFor>();
         Var axis_var   = for_ ? for_->loop_var : poly_for->iterator;
@@ -200,6 +205,11 @@ void MarkGpuForloop(const std::string &statement,
             VLOG(3) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
             optim::CUDAReplaceIndexOfCachePass(
                 expr, var_expr, ir::Expr(0), global_tensor_map, resized_buffer, true, extent);
+          } else if (it->second.for_type == ir::ForType::Default) {
+            Expr extent = for_ ? for_->extent : poly_for->ExtractExtent();
+            VLOG(3) << "ComputeAt5 replacing var " << axis_var->name << " to Expr(0)";
+            optim::CUDAReplaceIndexOfCachePass(
+                expr, axis_var, ir::Expr(0), global_tensor_map, resized_buffer, false, extent, tensor_name);
           } else {
             CINN_NOT_IMPLEMENTED
           }
@@ -253,6 +263,8 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
         break;
       case ir::ForType::GPUThread:
         info.set_block_dim(item.first.second, item.second);
+        break;
+      case ir::ForType::Default:
         break;
       default:
         CINN_NOT_IMPLEMENTED

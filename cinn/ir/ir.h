@@ -589,6 +589,7 @@ enum class ForType : int {
   GPUThread  = 1 << 3,  //! GPU Thread.
   GPUBlock   = 1 << 4,  //! GPU Block.
   GPULane    = 1 << 5,  //! GPU Lane.
+  Default    = 1 << 6,
 };
 
 struct VectorizeInfo {

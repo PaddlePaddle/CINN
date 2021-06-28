@@ -5,6 +5,7 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/optim/ir_copy.h"
+#include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/replace_const_param_to_integer.h"
 
 namespace cinn {
@@ -130,7 +131,13 @@ struct CollectTensorIndexMutator : public ir::IRMutator<> {
 
 std::vector<std::vector<Expr>> CollectTensorIndex(Expr* source, const std::string& tensor_name) {
   CollectTensorIndexMutator mutator(tensor_name);
-  return mutator(source);
+  std::vector<std::vector<Expr>> result = mutator(source);
+  for (auto& i : result) {
+    for (auto& j : i) {
+      Simplify(&j);
+    }
+  }
+  return result;
 }
 
 struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
@@ -139,13 +146,15 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
                                 std::map<std::string, ir::Tensor>* global_tensor_map,
                                 std::unordered_set<std::string>& resized_buffer,
                                 bool blockidx,
-                                const Expr& extent)
+                                const Expr& extent,
+                                std::string tensor_name)
       : var_(var),
         expr_(expr),
         global_tensor_map_(global_tensor_map),
         resized_buffer_(resized_buffer),
         blockidx_(blockidx),
-        extent_(extent) {}
+        extent_(extent),
+        tensor_name_(tensor_name) {}
 
   void Execute(Expr* expr) {
     auto* for_     = expr->As<ir::For>();
@@ -167,6 +176,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         prod = ir::Mul::Make(prod, i);
       }
       prod = ir::Div::Make(prod, extent_);
+      Simplify(&prod);
       ReplaceConstParamToInteger(&prod);
       std::vector<Expr> new_shape{prod};
       (*global_tensor_map_)[tensor_name]->buffer->shape = new_shape;
@@ -192,7 +202,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
     auto* node   = expr->As<ir::Store>();
     auto* tensor = node->tensor.as_tensor();
     VLOG(2) << "Store 's tensor name is : " << tensor->name;
-    if (tensor->buffer.defined() &&
+    if (tensor_name_.empty() && tensor->buffer.defined() &&
         (utils::Endswith(tensor->buffer->name, "_read_cache") ||
          utils::Endswith(tensor->buffer->name, "_cache_write_out") ||
          utils::Endswith(tensor->buffer->name, "_temp_buffer")) &&
@@ -207,6 +217,37 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
       do_replace_ = temp_replace;
       ir::IRMutator<>::Visit(&node->value, &node->value);
+      for (int i = 0; i < node->indices.size(); i++) {
+        Expr index = node->indices[i];
+        if (index.is_constant()) break;
+        Simplify(&index);
+        if (index.is_constant() && index.get_constant() == 0.0f) {
+          std::vector<Expr> new_shape                   = (*global_tensor_map_).at(tensor->name)->shape;
+          new_shape[i]                                  = Expr(1);
+          (*global_tensor_map_).at(tensor->name)->shape = new_shape;
+        }
+      }
+    } else if (tensor->buffer.defined() && !tensor_name_.empty() && tensor->buffer->name == tensor_name_) {
+      bool temp_replace = do_replace_;
+      do_replace_       = true;
+      find_replace_     = false;
+      for (auto& index : node->indices) {
+        ir::IRMutator<>::Visit(&index, &index);
+      }
+      if (find_replace_ == true) ResizeTempMemory(tensor->name);
+      ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+      do_replace_ = temp_replace;
+      ir::IRMutator<>::Visit(&node->value, &node->value);
+      for (int i = 0; i < node->indices.size(); i++) {
+        Expr index = node->indices[i];
+        if (index.is_constant()) break;
+        Simplify(&index);
+        if (index.is_constant() && index.get_constant() == 0.0f) {
+          std::vector<Expr> new_shape                   = (*global_tensor_map_).at(tensor->name)->shape;
+          new_shape[i]                                  = Expr(1);
+          (*global_tensor_map_).at(tensor->name)->shape = new_shape;
+        }
+      }
     } else {
       for (auto& index : node->indices) {
         ir::IRMutator<>::Visit(&index, &index);
@@ -220,11 +261,17 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
     auto* node   = op->As<ir::Load>();
     auto* tensor = node->tensor.as_tensor();
     VLOG(2) << "Load's tensor name is : " << tensor->name;
-    if (tensor->buffer.defined() &&
+    if (tensor_name_.empty() && tensor->buffer.defined() &&
         (utils::Endswith(tensor->buffer->name, "_read_cache") ||
          utils::Endswith(tensor->buffer->name, "_cache_write_out") ||
          utils::Endswith(tensor->buffer->name, "_temp_buffer")) &&
         ((*global_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::GPULocal || blockidx_)) {
+      bool temp_replace = do_replace_;
+      do_replace_       = true;
+      ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+      for (auto& idx : node->indices) ir::IRMutator<>::Visit(&idx, &idx);
+      do_replace_ = temp_replace;
+    } else if (tensor->buffer.defined() && !tensor_name_.empty() && tensor->buffer->name == tensor_name_) {
       bool temp_replace = do_replace_;
       do_replace_       = true;
       ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
@@ -245,6 +292,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
   bool do_replace_{false};
   bool find_replace_{false};
   const Expr& extent_;
+  std::string tensor_name_;
 };
 
 void CUDAReplaceIndexOfCachePass(Expr* source,
@@ -253,8 +301,9 @@ void CUDAReplaceIndexOfCachePass(Expr* source,
                                  std::map<std::string, ir::Tensor>* global_tensor_map,
                                  std::unordered_set<std::string>& resized_buffer,
                                  bool blockidx,
-                                 const Expr& extent) {
-  ReplaceVarIndexOfCacheMutator mutator(var, expr, global_tensor_map, resized_buffer, blockidx, extent);
+                                 const Expr& extent,
+                                 std::string tensor_name) {
+  ReplaceVarIndexOfCacheMutator mutator(var, expr, global_tensor_map, resized_buffer, blockidx, extent, tensor_name);
   mutator.Execute(source);
 }
 
