@@ -160,6 +160,21 @@ class Stage : public Object {
   // @}
 
   /**
+   * Split the loop level of into two new loop levels.
+   * @param level the level to split.
+   * @param nparts the extent(size) of the outer loop created after splitting.
+   * @return the new outer and inner iterators.
+   */
+  // @{
+  std::tuple<Iterator, Iterator>  //
+  SplitOuter(const Iterator& level, int nparts);
+  std::tuple<Iterator, Iterator>  //
+  SplitOuter(const std::string& level, int nparts);
+  std::tuple<Iterator, Iterator>  //
+  SplitOuter(int level, int nparts);
+  // @}
+
+  /**
    * Reorder the iterators.
    * @param order the order of all the iterators.
    */

@@ -126,11 +126,11 @@ void fn_conv2d_0_kernel(const float* __restrict__ A, const float* __restrict__ E
   for (int32_t rc_outer = 0; rc_outer < 16; rc_outer += 1) {
     {
       __syncthreads();
-      if ((threadIdx.z < 8)) {
-        if ((blockIdx.z < 8)) {
-          for (int32_t k = 0; k < 3; k += 1) {
-            if ((threadIdx.x < cinn_nvgpu_min_fp32(14, (32 + (-14 * k))))) {
-              YY_read_cache[((112 * k) + ((8 * threadIdx.x) + threadIdx.z))] = E[((4096 * blockIdx.z) + ((1792 * k) + ((8 * rc_outer) + ((128 * threadIdx.x) + threadIdx.z))))];
+      if ((blockIdx.z < 8)) {
+        if ((threadIdx.z < 16)) {
+          for (int32_t j_outer_outer = 0; j_outer_outer < 2; j_outer_outer += 1) {
+            if ((threadIdx.x < 8)) {
+              YY_read_cache[((threadIdx.x / 2) + ((8 * (threadIdx.x % 2)) + ((4 * j_outer_outer) + (16 * threadIdx.z))))] = E[((threadIdx.x / 2) + ((128 * (threadIdx.x % 2)) + ((4096 * blockIdx.z) + ((4 * j_outer_outer) + ((8 * rc_outer) + (256 * threadIdx.z))))))];
             };
           };
         };

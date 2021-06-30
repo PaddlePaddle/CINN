@@ -1,5 +1,7 @@
 #include "cinn/poly/stage.h"
 
+#include <math.h>
+
 #include <algorithm>
 #include <set>
 #include <unordered_set>
@@ -68,6 +70,29 @@ Stage::Stage(const isl::set &domain, Expr expr, ir::_Tensor_ *tensor) : domain_(
   CHECK(!domain_.is_null());
   CHECK(!domain_.is_empty());
   InitTransform();
+}
+
+std::tuple<Iterator, Iterator> Stage::SplitOuter(const std::string &level, int nparts) {
+  return std::move(SplitOuter(Iterator(level), nparts));
+}
+
+std::tuple<Iterator, Iterator> Stage::SplitOuter(int level, int nparts) {
+  AssertAxisIsNotLocked(level);
+  auto dim_names = isl_get_dim_names(transform_, isl_dim_out);
+  auto axis_name = dim_names.at(level);
+  return SplitOuter(axis_name, nparts);
+}
+
+std::tuple<Iterator, Iterator> Stage::SplitOuter(const Iterator &level, int nparts) {
+  int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level.id.c_str());
+  CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
+  AssertAxisIsNotLocked(offset);
+  auto [minv, maxv] = isl_set_get_axis_range(transformed_domain().get(), offset);
+  int max_iv        = maxv.get_num_si();
+  auto dim_names    = isl_get_dim_names(transform_, isl_dim_out);
+  double temp       = double(max_iv + 1.0) / double(nparts);
+  int factor_inner  = ceil(temp);
+  return Split(level, factor_inner);
 }
 
 std::tuple<Iterator, Iterator> Stage::Split(int level, int factor) {

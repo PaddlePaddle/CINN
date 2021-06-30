@@ -236,8 +236,8 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         auto& temp = node->indices[i];
         // When eliminating axis 'j_inner' in index '10 * j_outer + j_inner' (j_inner's extent is 10)
         // Divide '10 * j_outer' by 10, and get new index 'j_outer + j_inner'
-        if (temp.As<ir::Add>() && temp.As<ir::Add>()->a().As<ir::Mul>() && temp.As<ir::Add>()->b().as_var() &&
-            temp.As<ir::Add>()->b().as_var()->name == var_->name) {
+        if (extent_.defined() && temp.As<ir::Add>() && temp.As<ir::Add>()->a().As<ir::Mul>() &&
+            temp.As<ir::Add>()->b().as_var() && temp.As<ir::Add>()->b().as_var()->name == var_->name) {
           temp.As<ir::Add>()->a() = ir::Div::Make(temp.As<ir::Add>()->a(), extent_);
         }
         Simplify(&temp);
@@ -272,8 +272,8 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         auto& temp = node->indices[i];
         // When eliminating axis 'j_inner' in index '10 * j_outer + j_inner' (j_inner's extent is 10)
         // Divide '10 * j_outer' by 10, and get new index 'j_outer + j_inner'
-        if (temp.As<ir::Add>() && temp.As<ir::Add>()->a().As<ir::Mul>() && temp.As<ir::Add>()->b().as_var() &&
-            temp.As<ir::Add>()->b().as_var()->name == var_->name) {
+        if (extent_.defined() && temp.As<ir::Add>() && temp.As<ir::Add>()->a().As<ir::Mul>() &&
+            temp.As<ir::Add>()->b().as_var() && temp.As<ir::Add>()->b().as_var()->name == var_->name) {
           temp.As<ir::Add>()->a() = ir::Div::Make(temp.As<ir::Add>()->a(), extent_);
         }
         Simplify(&temp);
