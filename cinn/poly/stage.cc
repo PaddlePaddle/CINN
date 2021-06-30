@@ -147,10 +147,7 @@ void Stage::Reorder(const std::vector<Iterator> &order) {
   CHECK_EQ(range_iters.size(), in_names.size());
 
   Map transform(domain().ctx(), id(), domain_iters, range_iters, {}, id());
-  LOG(INFO) << "reorder transform: " << transform.__str__();
-  LOG(INFO) << "Before Reorder: " << transform_;
   transform_ = transform_.apply_range(transform.to_isl());
-  LOG(INFO) << "After Reorder: " << transform_;
 }
 
 void Stage::Reorder(const std::vector<int> &order) {
