@@ -31,7 +31,7 @@ def main():
     for i in range(0, 500):
         predictor.zero_copy_run()
     time2 = time.time()
-    total_inference_cost = (time2 - time1) * 1000  # 总时延，ms
+    total_inference_cost = (time2 - time1) * 1000  # total time cost(ms)
     print("Average latency : {} ms".format(total_inference_cost / 500))
     output_names = predictor.get_output_names()
     output_tensor = predictor.get_output_tensor(output_names[0])
