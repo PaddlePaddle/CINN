@@ -215,7 +215,6 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     } else {
       LOG(FATAL) << "Only support NCHW and NHWC data layout\n";
     }
-
     auto stages = CreateStages({A.as_tensor_ref(), B.as_tensor_ref()});
 
     std::vector<CINNValue> res;

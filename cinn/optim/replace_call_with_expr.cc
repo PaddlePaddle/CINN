@@ -50,14 +50,35 @@ void ReplaceIslCallWithExpr(Expr *e,
 
   // we treat the Store node as the normal statement, the others like Call node has no axis.
   std::map<std::string, Expr> local_axis;
+  std::vector<std::string> origin_axes;
+  std::map<std::string, Expr> new_axis_map = axis_map;
+  for (auto &item : axis_map) {
+    origin_axes.push_back(item.first);
+  }
+  // Add '_after' to the transformed var's name to avoid duplicating transforming.
+  // For example, given indices [i,j], if we want to switch 'i' and 'j'(i->j, j->i)
+  // When we don't add '_after', the processing will be :
+  // 1. [i,j] to [j,j]
+  // 2. [j,j] to [i,i]
+  // Then we get result [i,i], which is different form the correct result [j,i]
+  // If we add '_after', the processing will be:
+  // 1. [i,j] to [j_after,j]
+  // 2. [j_after,j] to [j_after,i_after]
+  // 3. [j_after,i_after] to [j, i]
+  // Mission Complete!
+  for (auto &item : new_axis_map) {
+    for (auto &axis : origin_axes) {
+      ReplaceVarWithExpr(&item.second, Var(axis), Expr(Var(axis + "_after")));
+    }
+  }
   if (copied.As<ir::Store>()) {
     auto *store = copied.As<ir::Store>();
     for (int i = 0; i < store->indices.size(); i++) {
       auto indice = store->indices[i];
       if (indice.is_var() || indice.is_constant()) {
-        if (!axis_map.count(std::to_string(i))) continue;
+        if (!new_axis_map.count(std::to_string(i))) continue;
         if (!indice.is_constant()) {
-          local_axis[indice.as_var()->name] = axis_map.at(std::to_string(i));
+          local_axis[indice.as_var()->name] = new_axis_map.at(std::to_string(i));
         }
       }
     }
@@ -67,16 +88,22 @@ void ReplaceIslCallWithExpr(Expr *e,
   }
 
   for (auto &laxis : local_axis) {
-    VLOG(4) << "replacing axis: " << laxis.first << " " << laxis.second;
+    VLOG(3) << "local_axis Replacing axis: " << laxis.first << " to " << laxis.second;
     ReplaceVarWithExpr(&copied, Var(laxis.first), laxis.second);
   }
   // replace the remaining axis(in the transform's range)
-  for (auto &item : axis_map) {
+  for (auto &item : new_axis_map) {
     if (!local_axis.count(item.first)) {
+      VLOG(3) << "new_axis_map Replacing axis: " << item.first << " to " << item.second;
       ReplaceVarWithExpr(&copied, Var(item.first), item.second);
     }
   }
 
+  for (auto &axis : origin_axes) {
+    ReplaceVarWithExpr(&copied, Var(axis + "_after"), Expr(Var(axis)));
+  }
+
+  VLOG(3) << "After replacing, the statement [" << statement << "] is : " << copied;
   ReplaceCallWithExpr(e, statement, copied);
 }
 

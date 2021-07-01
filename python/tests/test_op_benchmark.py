@@ -54,7 +54,7 @@ class TestBenchmark(unittest.TestCase):
         self.assertTrue(
             np.allclose(result[len(result) - 1], output, atol=1e-4))
 
-    def test_conv2d(self):
+    def atest_conv2d_cinn(self):
         prog = Program()
         a = Variable("A").set_type(Float(32)).set_shape([1, 128, 28, 28])
         b = Variable("E").set_type(Float(32)).set_shape([256, 128, 1, 1])
@@ -74,7 +74,7 @@ class TestBenchmark(unittest.TestCase):
         tensor_data.append(result)
         self.paddle_verify(tensor_data)
 
-    def atest_conv2d3(self):
+    def atest_conv2d_cinn_code(self):
         prog = Program()
         a = Variable("X").set_type(Float(32)).set_shape([1, 128, 28, 28])
         b = Variable("Y").set_type(Float(32)).set_shape([256, 128, 1, 1])
@@ -87,9 +87,6 @@ class TestBenchmark(unittest.TestCase):
             np.random.random([1, 128, 28, 28]).astype("float32"),
             np.random.random([256, 128, 1, 1]).astype("float32")
         ]
-        result = prog.test_benchmark(
-            self.target, [a, b], tensor_data, c, 10000,
-            "TESTING [conv2d] time cost with shape [1, 128, 28, 28]...")
         result = prog.test_benchmark_with_code(
             self.target, [a, b], tensor_data, c, 20000,
             "TESTING [conv2d of tvm schedule] time cost with shape [1, 128, 28, 28]...",
@@ -106,38 +103,54 @@ typedef char int8_t;
 
 
 __global__
-void fn_conv2d_0_kernel(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ Conv2d_nchw_out)
+void fn_conv2d_0_kernel(const float* __restrict__ A, const float* __restrict__ E, float* __restrict__ COD)
 {
-  float _COD_cache_write_out [ ((1 * (((((1 * 1) * 256) * 1) * 1) / 8)) / 16) ];
+  __shared__ float _YY_read_cache [ 256 ];
+  __shared__ float _input_pad_read_cache [ 448 ];
+  float _COD_cache_write_out [ 2 ];
   float* COD_cache_write_out = _COD_cache_write_out;
   float* COD_cache_write_out__reduce_init = _COD_cache_write_out;
-  for (int32_t i = 0; i < 1; i += 1) {
-    if ((blockIdx.z < 8)) {
-      if ((blockIdx.y < 14)) {
-        if ((threadIdx.z < 16)) {
-          if ((threadIdx.x < 14)) {
-            for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-              COD_cache_write_out__reduce_init[j_inner] = 0;
-            };
+  float* YY_read_cache = _YY_read_cache;
+  float* input_pad_read_cache = _input_pad_read_cache;
+  if ((blockIdx.z < 8)) {
+    if ((blockIdx.y < 14)) {
+      if ((threadIdx.z < 16)) {
+        if ((threadIdx.x < 14)) {
+          for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
+            COD_cache_write_out__reduce_init[j_inner] = 0;
           };
         };
       };
     };
   };
-  for (int32_t fc_outer = 0; fc_outer < 16; fc_outer += 1) {
-    for (int32_t fc_inner = 0; fc_inner < 8; fc_inner += 1) {
-      for (int32_t fy = 0; fy < 1; fy += 1) {
-        for (int32_t fx = 0; fx < 1; fx += 1) {
-          for (int32_t i = 0; i < 1; i += 1) {
-            if ((blockIdx.z < 8)) {
-              if ((blockIdx.y < 14)) {
-                if ((threadIdx.z < 16)) {
-                  if ((threadIdx.x < 14)) {
-                    for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-                      COD_cache_write_out[j_inner] = (COD_cache_write_out[j_inner] + (((((((((blockIdx.y * 2) + fy) >= 0) && (((blockIdx.y * 2) + fy) < 28)) && (((threadIdx.x * 2) + fx) >= 0)) && (((threadIdx.x * 2) + fx) < 28))) ? X[((784 * ((((32 * blockIdx.z) + ((2 * threadIdx.z) + j_inner)) / 256) * 128)) + ((56 * blockIdx.y) + ((784 * fc_inner) + ((6272 * fc_outer) + ((28 * fy) + ((100352 * i) + ((2 * threadIdx.x) + fx)))))))] : 0) * (((((fy % 1) == 0) && ((fx % 1) == 0))) ? Y[((4096 * blockIdx.z) + ((8 * fc_outer) + ((128 * j_inner) + ((256 * threadIdx.z) + fc_inner))))] : 0)));
-                    };
-                  };
-                };
+  for (int32_t rc_outer = 0; rc_outer < 16; rc_outer += 1) {
+    {
+      __syncthreads();
+      if ((blockIdx.z < 8)) {
+        if ((threadIdx.z < 16)) {
+          for (int32_t j_outer_outer = 0; j_outer_outer < 2; j_outer_outer += 1) {
+            if ((threadIdx.x < 8)) {
+              YY_read_cache[((threadIdx.x / 2) + ((8 * (threadIdx.x % 2)) + ((4 * j_outer_outer) + (16 * threadIdx.z))))] = E[((threadIdx.x / 2) + ((128 * (threadIdx.x % 2)) + ((4096 * blockIdx.z) + ((4 * j_outer_outer) + ((8 * rc_outer) + (256 * threadIdx.z))))))];
+            };
+          };
+        };
+      };
+    };
+    if ((threadIdx.z < 8)) {
+      if ((blockIdx.y < 14)) {
+        if ((threadIdx.x < 14)) {
+          input_pad_read_cache[((2 * threadIdx.x) + (28 * threadIdx.z))] = A[((56 * blockIdx.y) + ((6272 * rc_outer) + ((2 * threadIdx.x) + (784 * threadIdx.z))))];
+        };
+      };
+    };
+    __syncthreads();
+    for (int32_t rc_inner = 0; rc_inner < 8; rc_inner += 1) {
+      if ((blockIdx.z < 8)) {
+        if ((blockIdx.y < 14)) {
+          if ((threadIdx.z < 16)) {
+            if ((threadIdx.x < 14)) {
+              for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
+                COD_cache_write_out[j_inner] = (COD_cache_write_out[j_inner] + (input_pad_read_cache[((28 * rc_inner) + (2 * threadIdx.x))] * YY_read_cache[((8 * j_inner) + ((16 * threadIdx.z) + rc_inner))]));
               };
             };
           };
@@ -145,14 +158,12 @@ void fn_conv2d_0_kernel(const float* __restrict__ X, const float* __restrict__ Y
       };
     };
   };
-  for (int32_t i = 0; i < 1; i += 1) {
-    if ((blockIdx.z < 8)) {
-      if ((blockIdx.y < 14)) {
-        if ((threadIdx.z < 16)) {
-          if ((threadIdx.x < 14)) {
-            for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-              Conv2d_nchw_out[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((50176 * i) + ((196 * j_inner) + ((392 * threadIdx.z) + threadIdx.x)))))] = COD_cache_write_out[j_inner];
-            };
+  if ((blockIdx.z < 8)) {
+    if ((blockIdx.y < 14)) {
+      if ((threadIdx.z < 16)) {
+        if ((threadIdx.x < 14)) {
+          for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
+            COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * j_inner) + ((392 * threadIdx.z) + threadIdx.x))))] = COD_cache_write_out[j_inner];
           };
         };
       };
@@ -166,7 +177,7 @@ void fn_conv2d_0_kernel(const float* __restrict__ X, const float* __restrict__ Y
         tensor_data.append(result)
         self.paddle_verify(tensor_data)
 
-    def atest_conv2d2(self):
+    def atest_conv2d_tvm_code(self):
         prog = Program()
         a = Variable("placeholder").set_type(Float(32)).set_shape(
             [1, 128, 28, 28])

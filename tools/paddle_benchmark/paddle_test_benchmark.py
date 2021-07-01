@@ -3,6 +3,7 @@ import time
 import numpy as np
 from paddle.fluid.core import AnalysisConfig
 from paddle.fluid.core import create_paddle_predictor
+import paddle.inference as paddle_infer
 
 
 def main():
@@ -25,8 +26,13 @@ def main():
 
     for _ in range(0, 10):
         predictor.zero_copy_run()
+
+    time1 = time.time()
     for i in range(0, 500):
         predictor.zero_copy_run()
+    time2 = time.time()
+    total_inference_cost = (time2 - time1) * 1000  # total time cost(ms)
+    print("Average latency : {} ms".format(total_inference_cost / 500))
     output_names = predictor.get_output_names()
     output_tensor = predictor.get_output_tensor(output_names[0])
     output_data = output_tensor.copy_to_cpu()
@@ -43,6 +49,15 @@ def set_config(args):
     config = AnalysisConfig(args.model_dir)
     config.enable_profile()
     config.enable_use_gpu(1000, 1)
+    # Enable TensorRT
+    config.enable_tensorrt_engine(
+        workspace_size=1 << 30,
+        max_batch_size=1,
+        min_subgraph_size=3,
+        precision_mode=paddle_infer.PrecisionType.Float32,
+        use_static=False,
+        use_calib_mode=False)
+    config.enable_memory_optim()
     config.gpu_device_id()
     config.switch_use_feed_fetch_ops(False)
     config.switch_specify_input_names(True)

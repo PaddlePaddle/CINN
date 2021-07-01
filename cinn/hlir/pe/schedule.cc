@@ -786,18 +786,12 @@ void CudaScheduleConv(poly::StageMap stages, ir::Tensor &input_pad, ir::Tensor &
   auto ory = stages[OL]->axis(7);
   auto orx = stages[OL]->axis(8);
   stages[OL]->Reorder({orc, ory, orx, on, obz, oby, otz, otx, ofi});
-  if (rc_factor > 1) {
-    stages[OL]->Split(0, rc_factor);
-    stages[OL]->Bind(5, "blockIdx.z");
-    stages[OL]->Bind(6, "blockIdx.y");
-    stages[OL]->Bind(7, "threadIdx.z");
-    stages[OL]->Bind(8, "threadIdx.x");
-  } else {
-    stages[OL]->Bind(4, "blockIdx.z");
-    stages[OL]->Bind(5, "blockIdx.y");
-    stages[OL]->Bind(6, "threadIdx.z");
-    stages[OL]->Bind(7, "threadIdx.x");
-  }
+  stages[OL]->Split(0, rc_factor);
+  stages[OL]->Reorder({0, 2, 3, 1});
+  stages[OL]->Bind(5, "blockIdx.z");
+  stages[OL]->Bind(6, "blockIdx.y");
+  stages[OL]->Bind(7, "threadIdx.z");
+  stages[OL]->Bind(8, "threadIdx.x");
 
   return;
 }

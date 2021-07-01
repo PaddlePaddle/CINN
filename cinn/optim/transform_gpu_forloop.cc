@@ -168,25 +168,29 @@ void MarkGpuForloop(const std::string &statement,
     void MarkForloop(const std::string &tensor_name) {
       // start from 0, threadIdx.x
       for (auto *expr : forloop_stack) {
-        LOG(INFO) << "expr in forloop_stack is : " << *expr;
+        VLOG(2) << "expr in forloop_stack is : \n" << *expr;
         auto *for_     = expr->As<ir::For>();
         auto *poly_for = expr->As<ir::PolyFor>();
         Var axis_var   = for_ ? for_->loop_var : poly_for->iterator;
         auto it        = forloop_infos.find(axis_var->name);
+        VLOG(2) << "Poly_for/For iterator name is : " << axis_var->name;
         std::string iterator_name;
         if (it != forloop_infos.end()) {
           if (for_) {
             for_->set_for_type(it->second.for_type);
             for_->device_api = it->second.device;
             iterator_name    = for_->loop_var->name;
+            VLOG(2) << "In this for loop, extent is : " << for_->extent;
+            VLOG(2) << "In this for loop, body is : " << for_->body;
           } else {
             poly_for->set_for_type(it->second.for_type);
             poly_for->device_api = it->second.device;
             iterator_name        = poly_for->iterator->name;
+            VLOG(2) << "In this poly_for loop, condition is : " << poly_for->condition;
+            VLOG(2) << "In this poly_for loop, body is : " << poly_for->body;
           }
 
           auto &forloop_info = forloop_infos.at(iterator_name);
-          VLOG(2) << "Statement of for loop is : " << statement;
           if (it->second.for_type == ir::ForType::GPUThread) {
             Var cuda_var(backends::cuda_thread_axis_name(forloop_info.offset));
             Expr var_expr(cuda_var);
@@ -201,13 +205,15 @@ void MarkGpuForloop(const std::string &statement,
             Expr var_expr(cuda_var);
             VLOG(2) << "gpu replacing var " << axis_var->name << " to " << cuda_var->name;
             optim::ReplaceVarWithExpr(expr, axis_var, var_expr);
+            VLOG(2) << "After that, expr is : " << *expr;
             Expr extent = for_ ? for_->extent : poly_for->ExtractExtent();
-            VLOG(3) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
+            VLOG(2) << "gpu replacing var " << cuda_var->name << " to Expr(0)";
             optim::CUDAReplaceIndexOfCachePass(
                 expr, var_expr, ir::Expr(0), global_tensor_map, resized_buffer, true, extent);
+            VLOG(2) << "After that, expr is : " << *expr;
           } else if (it->second.for_type == ir::ForType::Default) {
             Expr extent = for_ ? for_->extent : poly_for->ExtractExtent();
-            VLOG(3) << "ComputeAt5 replacing var " << axis_var->name << " to Expr(0)";
+            VLOG(2) << "ComputeAt5 replacing var " << axis_var->name << " to Expr(0)";
             optim::CUDAReplaceIndexOfCachePass(
                 expr, axis_var, ir::Expr(0), global_tensor_map, resized_buffer, false, extent, tensor_name);
           } else {

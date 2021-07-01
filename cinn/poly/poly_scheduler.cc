@@ -377,11 +377,12 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
       compute_at_links[stage->tensor_->name] = item;
     }
   }
-
+  std::map<std::string, int> stage_level;
   for (auto& link : compute_at_links) {
     auto* a = stage_map.at(link.first);
     auto* b = stage_map.at(link.second.stage->tensor_->name);
     After(*a, *b, link.second.level);
+    stage_level[a->id()] = link.second.level;
   }
 
   for (int i = 0; i < stages_.size() - 1; i++) {
@@ -394,8 +395,12 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
     // a -> b not in the compute_at_links
     if (!compute_at_links.count(a->tensor_->name) ||
         compute_at_links[a->tensor_->name].stage->tensor_->name != b->tensor_->name) {
-      int max_precending_level = std::max(isl_max_level_compatible(a_set.get(), b_set.get()), 0);
-      After(*a, *b, max_precending_level);
+      int min_level = INT_MAX;
+      if (stage_level.count(a->id())) min_level = std::min(min_level, stage_level[a->id()]);
+      if (stage_level.count(b->id())) min_level = std::min(min_level, stage_level[b->id()]);
+      if (min_level < INT_MAX) {
+        After(*a, *b, min_level);
+      }
     }
   }
 

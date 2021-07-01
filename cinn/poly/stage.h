@@ -160,6 +160,21 @@ class Stage : public Object {
   // @}
 
   /**
+   * Split the loop level of into two new loop levels.
+   * @param level the level to split.
+   * @param nparts the extent(size) of the outer loop created after splitting.
+   * @return the new outer and inner iterators.
+   */
+  // @{
+  std::tuple<Iterator, Iterator>  //
+  SplitOuter(const Iterator& level, int nparts);
+  std::tuple<Iterator, Iterator>  //
+  SplitOuter(const std::string& level, int nparts);
+  std::tuple<Iterator, Iterator>  //
+  SplitOuter(int level, int nparts);
+  // @}
+
+  /**
    * Reorder the iterators.
    * @param order the order of all the iterators.
    */
@@ -277,6 +292,25 @@ class Stage : public Object {
    * @param stages the stagemap of all tensor.
    */
   void SyncThreads(const std::vector<ir::Tensor>& after_tensors, StageMap stages);
+
+  /**
+   * Generate the `syncthreads()` code to sync all threads on CUDA backends.
+   * For other backends like Opencl, generate corresponding code to sync multi threads.
+   * @param level the ComputeAt level of syncthreads in this tensor's computation.
+   * @param before_tensors the tensors computed before syncthreads.
+   * @param stages the stagemap of all tensor.
+   * Example Code :
+   * for (i = 0:9)
+   *   for (j = 0:9)
+   *     A[i,j]
+   *
+   * After stages[A]->SyncThreads(0, {}, stages), The Code is :
+   * for (i = 0:9)
+   *   syncthreads()
+   *   for (j = 0:9)
+   *     A[i,j]
+   */
+  void SyncThreads(int level, const std::vector<ir::Tensor>& before_tensors, StageMap stages);
 
   /**
    * Set thread scope.
