@@ -41,7 +41,7 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
       inline_code = false;
     } else if (inline_code && tensor->buffer.defined() &&
                (utils::Endswith(tensor->buffer->name, "_read_cache") ||
-                utils::Endswith(tensor->buffer->name, "_cache_write_out") ||
+                utils::Endswith(tensor->buffer->name, "_write_cache") ||
                 utils::Endswith(tensor->buffer->name, "_temp_buffer"))) {
       bool keep_buffer       = temp_buffer;
       temp_buffer            = true;

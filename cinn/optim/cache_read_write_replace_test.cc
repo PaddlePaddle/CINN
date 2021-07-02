@@ -42,14 +42,14 @@ function fn (_A, _B, _C)
   {
     for (j, 0, 20)
     {
-      C_cache_write_out[i, j] = (A_read_cache[i, j] + B[i, j])
+      C_write_cache[i, j] = (A_read_cache[i, j] + B[i, j])
     }
   }
   for (i, 0, 100)
   {
     for (j, 0, 20)
     {
-      C[i, j] = C_cache_write_out[i, j]
+      C[i, j] = C_write_cache[i, j]
     }
   }
 }
@@ -85,20 +85,20 @@ TEST(CacheReadWriteReplace, cache_write) {
   LOG(INFO) << "\n" << fn;
 
   auto target_source = R"ROC(
-function fn (_A, _B, _C1_cache_write_out)
+function fn (_A, _B, _C1_write_cache)
 {
   for (i, 0, 100)
   {
     for (j, 0, 100)
     {
-      C1_cache_write_out[i, j] = (3 + A[i, j])
+      C1_write_cache[i, j] = (3 + A[i, j])
     }
   }
   for (i, 0, 100)
   {
     for (j, 0, 100)
     {
-      C1[i, j] = C1_cache_write_out[i, j]
+      C1[i, j] = C1_write_cache[i, j]
     }
   }
 }

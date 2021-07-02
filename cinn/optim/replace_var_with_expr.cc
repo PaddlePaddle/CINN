@@ -226,7 +226,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
     VLOG(2) << "Store 's tensor name is : " << tensor->name;
     if (tensor_name_.empty() && tensor->buffer.defined() &&
         (utils::Endswith(tensor->buffer->name, "_read_cache") ||
-         utils::Endswith(tensor->buffer->name, "_cache_write_out") ||
+         utils::Endswith(tensor->buffer->name, "_write_cache") ||
          utils::Endswith(tensor->buffer->name, "_temp_buffer")) &&
         ((*global_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::GPULocal || blockidx_)) {
       bool temp_replace = do_replace_;
@@ -315,7 +315,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
     VLOG(2) << "Load's tensor name is : " << tensor->name;
     if (tensor_name_.empty() && tensor->buffer.defined() &&
         (utils::Endswith(tensor->buffer->name, "_read_cache") ||
-         utils::Endswith(tensor->buffer->name, "_cache_write_out") ||
+         utils::Endswith(tensor->buffer->name, "_write_cache") ||
          utils::Endswith(tensor->buffer->name, "_temp_buffer")) &&
         ((*global_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::GPULocal || blockidx_)) {
       bool temp_replace = do_replace_;

@@ -626,7 +626,7 @@ void Stage::ComputeAt4(Stage *other, int level) {
   other->CtrlDepend(ir::Tensor(tensor()));
   if (this->tensor()->buffer.defined()) {
     std::string t_name = this->tensor()->buffer->name;
-    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_write_cache")) {
       EditTempTensor(other, level);
     }
   }
@@ -648,7 +648,7 @@ void Stage::ComputeAt2(Stage *other, int level) {
   other->CtrlDepend(ir::Tensor(tensor()));
   if (this->tensor()->buffer.defined()) {
     std::string t_name = this->tensor()->buffer->name;
-    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_write_cache")) {
       EditTempTensor(other, level);
     }
   }
@@ -669,7 +669,7 @@ void Stage::ComputeAt3(Stage *other, int level) {
   other->CtrlDepend(ir::Tensor(tensor()));
   if (this->tensor()->buffer.defined()) {
     std::string t_name = this->tensor()->buffer->name;
-    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_write_cache")) {
       EditTempTensor(other, level);
     }
   }
@@ -1151,7 +1151,7 @@ void CacheReadWriteReplace(std::vector<ir::Tensor> &readers, ir::Tensor cache_te
 ir::Tensor Stage::CacheRead(const std::string &memory_type, std::vector<ir::Tensor> &readers, StageMap stages) {
   CHECK(tensor_);
   auto my_tensor         = ir::Tensor(tensor_);
-  std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
+  std::string cache_name = Context::Global().NewName(tensor_->name) + "_read_cache";
   VLOG(4) << "cache_name " << cache_name;
   auto cache_tensor = lang::Compute(
       tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
@@ -1186,7 +1186,7 @@ ir::Tensor Stage::CacheWrite(const std::string &memory_type, StageMap stages, ir
   CHECK(!tensor_->buffer.defined()) << "This tensor is already binded to a buffer, cannot cache write";
   CHECK(!meta.compute_inline) << "Cannot create a write cache on an inlined tensor";
   auto ctrl_depend       = stages[tensor_]->ctrl_depends();
-  std::string cache_name = Context::Global().NewName(tensor_->name + "_cache_write_out");
+  std::string cache_name = Context::Global().NewName(tensor_->name) + "_write_cache";
   auto original_name     = tensor_->name;
   tensor_->name          = cache_name;
   auto my_tensor         = ir::Tensor(tensor_);
