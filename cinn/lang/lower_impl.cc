@@ -8,7 +8,6 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute_at_postprocess.h"
-#include "cinn/optim/cache_read_write_replace.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -99,7 +98,12 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   }
   CheckNoIslCallRemains(&e);
 
-  optim::CacheReadWriteReplace(&e, stage_map, global_tensor_map);
+  // Update global_tensor_map
+  for (auto& e : stage_map) {
+    if (!global_tensor_map->count(e.second->id())) {
+      (*global_tensor_map)[e.second->id()] = ir::Tensor(e.second->tensor());
+    }
+  }
 
   // deal with the compute_at relations
   ProcessComputeAtInfo(&e, stage_map);
@@ -558,17 +562,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
   for (auto* stage : all_stages) {
     named_stages[stage->id()] = stage;
   }
-  for (auto* stage : all_stages) {
-    if (stage->meta.read_cache_relation) {
-      read_caches[stage->id()] = named_stages[stage->meta.read_cache_relation->cache_name];
-      read_caches_rev[stage->meta.read_cache_relation->cache_name] = stage;
-    }
-    if (stage->meta.write_cache_relation) {
-      write_caches[stage->id()] = named_stages[stage->meta.write_cache_relation->cache_name];
-      write_caches_rev[stage->meta.write_cache_relation->cache_name] = stage;
-    }
-  }
-
+  // Here insert syncthreads()
   for (auto* stage : all_stages) {
     if (stage->tensor()->buffer.get() && (read_caches_rev.count(stage->id()) || write_caches_rev.count(stage->id())) &&
         stage->tensor()->buffer->memory_type == ir::MemoryType::GPUShared) {

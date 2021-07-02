@@ -1027,45 +1027,6 @@ bool Stage::has_expression() const {
   return tensor_->has_expression();
 }
 
-/*
- * To create a read cache:
- * 1. create a cache write stage for cache assign.
- * 2. add extra deps between cache and tensor to keep SSA order
- * 3. register the readers of the cache to the \p tensor, replace latter in Lower
- */
-ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir::Tensor> &readers, StageMap stages) {
-  CHECK(tensor_);
-  auto my_tensor         = ir::Tensor(tensor_);
-  std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
-  VLOG(4) << "cache_name " << cache_name;
-  auto cache_tensor = lang::Compute(
-      tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
-  cache_tensor->WithBuffer(memory_type);
-
-  stages->Insert(cache_tensor, CreateStage(cache_tensor).get());
-
-  for (auto &reader : readers) {
-    stages[reader]->CtrlDepend(cache_tensor);
-  }
-
-  std::vector<std::string> reader_names;
-  std::transform(
-      readers.begin(), readers.end(), std::back_inserter(reader_names), [](const ir::Tensor &x) { return x->name; });
-
-  CHECK(!meta.read_cache_relation) << "Duplicate read cache found, just one is allowed";
-  meta.read_cache_relation.reset(new ReadCacheRelation{cache_name, reader_names});
-
-  if (memory_type == "shared") {
-    stages[cache_tensor]->SetScope(ScopeKind::kShared);
-  } else if (memory_type == "local") {
-    stages[cache_tensor]->SetScope(ScopeKind::kLocal);
-  } else {
-    CINN_NOT_IMPLEMENTED
-  }
-
-  return cache_tensor;
-}
-
 void Stage::SyncThreads(const std::vector<ir::Tensor> &after_tensors, StageMap stages) {
   CHECK(tensor_);
   auto this_tensor = ir::Tensor(tensor_);
@@ -1215,30 +1176,6 @@ ir::Tensor Stage::CacheRead2(const std::string &memory_type, std::vector<ir::Ten
   }
 
   return cache_tensor;
-}
-
-/*
- * Replace the tensor's name to cache_name, and create a cache_stage to copy content from cache to original tensor.
- */
-ir::Tensor Stage::CacheWrite(const std::string &memory_type, StageMap stages) {
-  CHECK(tensor_);
-  CHECK(!tensor_->buffer.defined()) << "This tensor is already binded to a buffer, cannot cache write";
-  CHECK(!meta.compute_inline) << "Cannot create a write cache on an inlined tensor";
-  auto my_tensor         = ir::Tensor(tensor_);
-  std::string cache_name = Context::Global().NewName(tensor_->name + "_cache_write_out");
-  // make my_tensor a cache
-  my_tensor->WithBuffer(memory_type);
-
-  auto write_stage = lang::Compute(
-      tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
-  stages->Insert(write_stage, CreateStage(write_stage).get());
-
-  stages[write_stage]->CtrlDepend(my_tensor);
-
-  CHECK(!meta.write_cache_relation) << "Duplicate write cache found, just one is allowed";
-  meta.write_cache_relation.reset(new WriteCacheRelation{cache_name});
-
-  return write_stage;
 }
 
 /*

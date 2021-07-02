@@ -1,5 +1,3 @@
-#include "cinn/optim/cache_read_write_replace.h"
-
 #include <gtest/gtest.h>
 
 #include "cinn/cinn.h"
@@ -22,8 +20,9 @@ TEST(CacheReadWriteReplace, basic) {
   auto stages = CreateStages({C});
 
   // AA cache
-  auto AA = stages[A]->CacheRead("shared", {C}, stages);
-  auto CC = stages[C]->CacheWrite("local", stages);
+  std::vector<ir::Tensor> readers{C};
+  auto AA = stages[A]->CacheRead2("shared", readers, stages);
+  auto CC = stages[C]->CacheWrite2("local", stages, C);
 
   auto fn = Lower("fn", stages, {A, B, C}, {}, {AA, CC});
 
@@ -39,19 +38,18 @@ function fn (_A, _B, _C)
       A_read_cache[i, j] = A[i, j]
     }
   }
-  __syncthreads()
   for (i, 0, 100)
   {
     for (j, 0, 20)
     {
-      C[i, j] = (A_read_cache[i, j] + B[i, j])
+      C_cache_write_out[i, j] = (A_read_cache[i, j] + B[i, j])
     }
   }
   for (i, 0, 100)
   {
     for (j, 0, 20)
     {
-      C_cache_write_out[i, j] = C[i, j]
+      C[i, j] = C_cache_write_out[i, j]
     }
   }
 }
@@ -81,7 +79,7 @@ TEST(CacheReadWriteReplace, cache_write) {
   stages[C]->ComputeInline();
   stages[C0]->ComputeInline();
 
-  auto Co = stages[C1]->CacheWrite("shared", stages);
+  auto Co = stages[C1]->CacheWrite2("shared", stages, C1);
 
   auto fn = Lower("fn", stages, {A, B, Co}, {}, {C, C0, C1});
   LOG(INFO) << "\n" << fn;
@@ -93,14 +91,14 @@ function fn (_A, _B, _C1_cache_write_out)
   {
     for (j, 0, 100)
     {
-      C1[i, j] = (3 + A[i, j])
+      C1_cache_write_out[i, j] = (3 + A[i, j])
     }
   }
   for (i, 0, 100)
   {
     for (j, 0, 100)
     {
-      C1_cache_write_out[i, j] = C1[i, j]
+      C1[i, j] = C1_cache_write_out[i, j]
     }
   }
 }

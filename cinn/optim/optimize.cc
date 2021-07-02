@@ -1,7 +1,6 @@
 #include "cinn/optim/optimize.h"
 
 #include "cinn/ir/ir_printer.h"
-#include "cinn/optim/cache_read_write_replace.h"
 #include "cinn/optim/call_arg_list_to_pod_value.h"
 #include "cinn/optim/cast_bool_to_int8.h"
 #include "cinn/optim/cast_simplify.h"
@@ -40,7 +39,6 @@ Expr Optimize(Expr e, Target target, bool runtime_debug_info) {
   RemoveGpuForloopsAxis(&copied);
   CudaSyncThreadsDropIfThenElse(&copied);
 #endif
-  // CacheReadWriteReplace(&copied);
 
   RemoveNestedBlock(&copied);
 
