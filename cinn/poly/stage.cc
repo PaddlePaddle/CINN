@@ -607,9 +607,8 @@ void Stage::ComputeAt5(Stage *other, int level) {
   CHECK(tensor_);
 
   ComputeAtRelation relation;
-  relation.stage   = other;
-  int removing_num = isl_get_precending_removed_axes_counts(other->transformed_domain().get(), level);
-  relation.level   = level - removing_num;
+  relation.stage = other;
+  relation.level = level;
   other->CtrlDepend(ir::Tensor(tensor()));
 
   CHECK(relation.IsCompatible(this));
@@ -1027,7 +1026,7 @@ bool Stage::has_expression() const {
   return tensor_->has_expression();
 }
 
-void Stage::SyncThreads(const std::vector<ir::Tensor> &after_tensors, StageMap stages) {
+void Stage::SyncThreads(StageMap stages) {
   CHECK(tensor_);
   auto this_tensor = ir::Tensor(tensor_);
 
@@ -1039,7 +1038,7 @@ void Stage::SyncThreads(const std::vector<ir::Tensor> &after_tensors, StageMap s
   stages->Insert(sync_threads, ir::CreateStage(sync_threads).get());
   CHECK_EQ(sync_threads->type(), Void());
   stages[sync_threads]->CtrlDepend(this_tensor);
-
+  CHECK_LE(this->compute_ats().size(), 1);
   for (auto &compute_at : this->compute_ats()) {
     isl::set sync_domain(compute_at.stage->domain().ctx(),
                          isl_set_to_str(compute_at.stage->transformed_domain().get()));
@@ -1049,12 +1048,19 @@ void Stage::SyncThreads(const std::vector<ir::Tensor> &after_tensors, StageMap s
     sync_domain = isl::manage(isl_set_set_tuple_name(sync_domain.release(), sync_threads->name.c_str()));
     stages[sync_threads]->domain_ = sync_domain;
     stages[sync_threads]->InitTransform();
-    stages[sync_threads]->compute_ats_[compute_at.stage->id()] = compute_at;
+
+    ComputeAtRelation relation;
+    relation.stage = compute_at.stage.get();
+    relation.level = compute_at.level;
+    relation.stage->CtrlDepend(sync_threads);
+
+    CHECK(relation.IsCompatible(stages[sync_threads]));
+    stages[sync_threads]->compute_ats_[relation.stage->id()] = relation;
   }
 
-  for (auto &other : after_tensors) {
-    if (other->Uses(this_tensor)) {
-      stages[other]->CtrlDepend(sync_threads);
+  for (auto &s : stages) {
+    if (s.second->id() != this->id() && s.second->tensor()->Uses(this_tensor)) {
+      s.second->CtrlDepend(sync_threads);
     }
   }
 }
@@ -1202,7 +1208,7 @@ ir::Tensor Stage::CacheWrite(const std::string &memory_type, StageMap stages, ir
 
   stages[write_stage]->CtrlDepend(my_tensor);
   std::vector<ir::Tensor> temp;
-  for (auto i : stages) {
+  for (auto &i : stages) {
     if (i.second->tensor()->name == original_name || i.second->tensor()->name == cache_name) continue;
     if (i.second->tensor()->is_compute_node()) {
       temp.push_back(ir::Tensor(i.second->tensor()));

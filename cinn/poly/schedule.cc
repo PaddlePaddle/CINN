@@ -67,7 +67,7 @@ TimeSchedule::TimeSchedule(const std::string &id, const std::vector<std::string>
 
 void TimeSchedule::OrderAfter(const TimeSchedule &other, int level) {
   CHECK_EQ(space_size(), other.space_size()) << "space not match";
-  CHECK_LT(level, other.space_size());
+  CHECK_LT(level, other.space_size()) << other.__str__();
   CHECK_GE(level, 0);
   CHECK(!time_dims_.empty());
 

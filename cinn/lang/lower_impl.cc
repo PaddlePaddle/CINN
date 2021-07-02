@@ -553,44 +553,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
     VLOG(1) << "compu_graph:\n" << compu_graph_->Visualize();
   }
 
-  std::vector<poly::Stage*> all_stages;
-  for (auto& item : stages_) {
-    if (!item.second->inlined()) all_stages.push_back(item.second.get());
-  }
-
-  std::map<std::string, poly::Stage*> named_stages, read_caches, write_caches, read_caches_rev, write_caches_rev;
-  for (auto* stage : all_stages) {
-    named_stages[stage->id()] = stage;
-  }
-  // Here insert syncthreads()
-  for (auto* stage : all_stages) {
-    if (stage->tensor()->buffer.get() && (read_caches_rev.count(stage->id()) || write_caches_rev.count(stage->id())) &&
-        stage->tensor()->buffer->memory_type == ir::MemoryType::GPUShared) {
-      auto sync_threads = Compute(
-          {},
-          [](const std::vector<Expr>& axis) { return runtime::IntrinsicCall(Void(), "__syncthreads", {}); },
-          Context::Global().NewName("syncthreads"));
-
-      stages->Insert(sync_threads, ir::CreateStage(sync_threads).get());
-      CHECK_EQ(sync_threads->type(), Void());
-      stages[sync_threads]->CtrlDepend(ir::Tensor(stage->tensor()));
-
-      for (auto& compute_at : stage->compute_ats()) {
-        stages[sync_threads]->ComputeAt2(compute_at.stage.get(), compute_at.level);
-      }
-
-      temp_tensor_args_.push_back(sync_threads);
-
-      ir::Tensor this_tensor(read_caches_rev.count(stage->id()) ? read_caches_rev.at(stage->id())->tensor()
-                                                                : write_caches_rev.at(stage->id())->tensor());
-
-      for (auto* other : all_stages) {
-        if (other->id() != stage->id() && other->tensor()->Uses(this_tensor)) {
-          other->CtrlDepend(sync_threads);
-        }
-      }
-    }
-  }
+  // Todo: Here insert auto syncthreads() @haoze
 
   {  // update schedule.
     std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());

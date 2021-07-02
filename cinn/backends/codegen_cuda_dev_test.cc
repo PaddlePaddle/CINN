@@ -332,7 +332,7 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
 
   stages[PR]->ComputeAt5(stages[OL], 2);
 
-  stages[PR]->SyncThreads({OL}, stages);
+  stages[PR]->SyncThreads(stages);
   stages[PR]->SyncThreads(2, {OL_init}, stages);
 
   stages[KR]->Split(5, 32);
@@ -512,7 +512,7 @@ TEST(CodeGenCUDA, test_of_syncthreads) {
   stages[B_cache]->Bind(1, "threadIdx.x");
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
-  stages[B_cache]->SyncThreads({C}, stages);
+  stages[B_cache]->SyncThreads(stages);
   CodeGenCUDA_Dev codegen(target);
 
   auto func = Lower("elementwise_add", stages, {A, B, C});
@@ -1103,12 +1103,10 @@ TEST(Conv, basic) {
 
   auto stages = CreateStages({A, W, Apad, B});
   stages[Apad]->ComputeInline();
-  std::vector<ir::Tensor> temp;
-  auto B_cache = stages[B]->CacheRead("shared", temp, stages);
 
-  auto fn = Lower("fn", stages, {A, W, B, B_cache});
+  auto fn = Lower("Conv2d_basic", stages, {A, W, B});
 
-  LOG(INFO) << "fn:\n" << fn;
+  LOG(INFO) << "Conv2d_basic:\n" << fn;
 }
 
 TEST(elementwise_add1, share_local_cache) {
