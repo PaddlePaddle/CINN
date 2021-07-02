@@ -21,8 +21,8 @@ TEST(CacheReadWriteReplace, basic) {
 
   // AA cache
   std::vector<ir::Tensor> readers{C};
-  auto AA = stages[A]->CacheRead2("shared", readers, stages);
-  auto CC = stages[C]->CacheWrite2("local", stages, C);
+  auto AA = stages[A]->CacheRead("shared", readers, stages);
+  auto CC = stages[C]->CacheWrite("local", stages, C);
 
   auto fn = Lower("fn", stages, {A, B, C}, {}, {AA, CC});
 
@@ -79,7 +79,7 @@ TEST(CacheReadWriteReplace, cache_write) {
   stages[C]->ComputeInline();
   stages[C0]->ComputeInline();
 
-  auto Co = stages[C1]->CacheWrite2("shared", stages, C1);
+  auto Co = stages[C1]->CacheWrite("shared", stages, C1);
 
   auto fn = Lower("fn", stages, {A, B, Co}, {}, {C, C0, C1});
   LOG(INFO) << "\n" << fn;

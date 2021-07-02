@@ -1148,7 +1148,7 @@ void CacheReadWriteReplace(std::vector<ir::Tensor> &readers, ir::Tensor cache_te
  * 2. add extra deps between cache and tensor to keep SSA order
  * 3. register the readers of the cache to the \p tensor, replace latter in Lower
  */
-ir::Tensor Stage::CacheRead2(const std::string &memory_type, std::vector<ir::Tensor> &readers, StageMap stages) {
+ir::Tensor Stage::CacheRead(const std::string &memory_type, std::vector<ir::Tensor> &readers, StageMap stages) {
   CHECK(tensor_);
   auto my_tensor         = ir::Tensor(tensor_);
   std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
@@ -1181,7 +1181,7 @@ ir::Tensor Stage::CacheRead2(const std::string &memory_type, std::vector<ir::Ten
 /*
  * Replace the tensor's name to cache_name, and create a cache_stage to copy content from cache to original tensor.
  */
-ir::Tensor Stage::CacheWrite2(const std::string &memory_type, StageMap stages, ir::Tensor &key_tensor) {
+ir::Tensor Stage::CacheWrite(const std::string &memory_type, StageMap stages, ir::Tensor &key_tensor) {
   CHECK(tensor_);
   CHECK(!tensor_->buffer.defined()) << "This tensor is already binded to a buffer, cannot cache write";
   CHECK(!meta.compute_inline) << "Cannot create a write cache on an inlined tensor";

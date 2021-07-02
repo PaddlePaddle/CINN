@@ -124,8 +124,8 @@ TEST(CodeGenCUDA2, compile_run_jit2) {
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
-  auto B_cache = stages[B]->CacheRead2("local", readers, stages);
-  auto A_cache = stages[A]->CacheRead2("local", readers, stages);
+  auto B_cache = stages[B]->CacheRead("local", readers, stages);
+  auto A_cache = stages[A]->CacheRead("local", readers, stages);
   stages[C]->Split(0, 10);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
@@ -140,7 +140,7 @@ TEST(CodeGenCUDA2, compile_run_jit2) {
 
   auto source_code = codegen.Compile(builder.Build());
 
-  LOG(INFO) << "compiled CacheRead2 sync code:\n\n\n" << source_code;
+  LOG(INFO) << "compiled CacheReadsync code:\n\n\n" << source_code;
 
   using runtime::cuda::CUDAModule;
 
@@ -290,9 +290,9 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
   optim::Simplify(&(conv->shape[3]));
 
   std::vector<ir::Tensor> readers{conv};
-  auto PR = stages[pad_data]->CacheRead2("shared", readers, stages);
-  auto KR = stages[B]->CacheRead2("shared", readers, stages);
-  auto OL = stages[conv]->CacheWrite2("local", stages, conv);
+  auto PR = stages[pad_data]->CacheRead("shared", readers, stages);
+  auto KR = stages[B]->CacheRead("shared", readers, stages);
+  auto OL = stages[conv]->CacheWrite("local", stages, conv);
 
   auto tx        = stages[conv]->axis(3);
   auto by        = stages[conv]->axis(2);
@@ -505,7 +505,7 @@ TEST(CodeGenCUDA, compile_run_jit) {
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
-  auto B_cache = stages[B]->CacheRead2("local", readers, stages);
+  auto B_cache = stages[B]->CacheRead("local", readers, stages);
   stages[B_cache]->Bind(0, "blockIdx.x");
   stages[B_cache]->Bind(1, "threadIdx.x");
   stages[C]->Bind(0, "blockIdx.x");
@@ -520,7 +520,7 @@ TEST(CodeGenCUDA, compile_run_jit) {
 
   auto source_code = codegen.Compile(builder.Build());
 
-  LOG(INFO) << "compiled CacheRead2 code:\n\n\n" << source_code;
+  LOG(INFO) << "compiled CacheReadcode:\n\n\n" << source_code;
 
   std::string source_target = R"ROC(
 extern "C" {
@@ -605,7 +605,7 @@ TEST(CodeGenCUDA3, compile_run_jit3) {
 
   auto stages = CreateStages({C});
 
-  auto C_WC = stages[C]->CacheWrite2("local", stages, C);
+  auto C_WC = stages[C]->CacheWrite("local", stages, C);
 
   stages[C]->Split(0, 4);
   stages[C]->Bind(0, "blockIdx.x");
@@ -711,7 +711,7 @@ TEST(CodeGenCUDA3, test_reduce_cachewrite) {
 
   auto stages = CreateStages({C});
 
-  auto C_WC = stages[C]->CacheWrite2("local", stages, C);
+  auto C_WC = stages[C]->CacheWrite("local", stages, C);
   stages[C]->Split(1, 2);
   stages[C]->Split(0, 4);
   stages[C]->Bind(0, "blockIdx.x");
@@ -1207,7 +1207,7 @@ TEST(Conv, basic) {
   auto stages = CreateStages({A, W, Apad, B});
   stages[Apad]->ComputeInline();
   std::vector<ir::Tensor> temp;
-  auto B_cache = stages[B]->CacheRead2("shared", temp, stages);
+  auto B_cache = stages[B]->CacheRead("shared", temp, stages);
 
   auto fn = Lower("fn", stages, {A, W, B, B_cache});
 
@@ -1229,8 +1229,8 @@ TEST(elementwise_add1, share_local_cache) {
   auto stages = CreateStages({C});
 
   std::vector<ir::Tensor> temp{C};
-  auto AA = stages[A]->CacheRead2("local", temp, stages);
-  auto AL = stages[AA]->CacheRead2("local", temp, stages);
+  auto AA = stages[A]->CacheRead("local", temp, stages);
+  auto AL = stages[AA]->CacheRead("local", temp, stages);
   // NOTE here, the CC replace the C as the output the function.
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
@@ -1307,9 +1307,9 @@ TEST(elementwise_add0, share_local_cache) {
 
   auto stages = CreateStages({C});
 
-  auto CC = stages[C]->CacheWrite2("local", stages, C);
+  auto CC = stages[C]->CacheWrite("local", stages, C);
   std::vector<ir::Tensor> temp{CC};
-  auto AA = stages[A]->CacheRead2("shared", temp, stages);
+  auto AA = stages[A]->CacheRead("shared", temp, stages);
   // NOTE here, the CC replace the C as the output the function.
 
   stages[CC]->ComputeAt5(stages[C], 1);
@@ -1418,11 +1418,11 @@ TEST(Conv, optimize) {
 
   auto stages = CreateStages({B});
   std::vector<ir::Tensor> temp{B};
-  auto BL = stages[B]->CacheWrite2("local", stages, B);
-  auto AA = stages[Apad]->CacheRead2("shared", temp, stages);
-  auto WW = stages[W]->CacheRead2("shared", temp, stages);
-  auto AL = stages[AA]->CacheRead2("local", temp, stages);
-  auto WL = stages[WW]->CacheRead2("local", temp, stages);
+  auto BL = stages[B]->CacheWrite("local", stages, B);
+  auto AA = stages[Apad]->CacheRead("shared", temp, stages);
+  auto WW = stages[W]->CacheRead("shared", temp, stages);
+  auto AL = stages[AA]->CacheRead("local", temp, stages);
+  auto WL = stages[WW]->CacheRead("local", temp, stages);
 
   stages[Apad]->ComputeInline();
 
@@ -1469,7 +1469,7 @@ TEST(ElementwiseAdd, cache_read_local) {
 
   std::vector<ir::Tensor> temp{C};
 
-  auto AL = stages[A]->CacheRead2("local", temp, stages);
+  auto AL = stages[A]->CacheRead("local", temp, stages);
   stages[C]->Split(0, 10);
   stages[AL]->ComputeAt5(stages[C], 1);
   stages[C]->Bind(0, "threadIdx.x");
@@ -1579,7 +1579,7 @@ TEST(ElementwiseAdd, cache_read1) {
 
     std::vector<ir::Tensor> temp{C};
     auto stages = CreateStages(temp);
-    auto AL     = stages[A]->CacheRead2("local", temp, stages);
+    auto AL     = stages[A]->CacheRead("local", temp, stages);
     stages[C]->Split(1, 10);
     stages[AL]->ComputeAt2(stages[C], 2);
 
@@ -1610,7 +1610,7 @@ TEST(ElementwiseAdd, cache_read1) {
   builder.AddFunction(fn);
 
   auto source_code = codegen.Compile(builder.Build());
-  std::cout << "CUDA source of ComputeAt2 & CacheRead2:\n" << source_code << std::endl;
+  std::cout << "CUDA source of ComputeAt2 & CacheRead\n" << source_code << std::endl;
 
   std::string source_target = R"ROC(
 extern "C" {
@@ -1702,7 +1702,7 @@ TEST(ElementwiseAdd, cache_read_compute_at1) {
 
   auto stages = CreateStages({A, C});
   std::vector<ir::Tensor> temp{C};
-  auto AL = stages[A]->CacheRead2("shared", temp, stages);
+  auto AL = stages[A]->CacheRead("shared", temp, stages);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
   stages[AL]->ComputeAt2(stages[C], 1);
@@ -1803,7 +1803,7 @@ TEST(ElementwiseAdd, cache_read_compute_at2) {
 
   auto stages = CreateStages({A, C});
   std::vector<ir::Tensor> temp{C};
-  auto AL = stages[A]->CacheRead2("local", temp, stages);
+  auto AL = stages[A]->CacheRead("local", temp, stages);
   stages[C]->Split(1, 10);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
@@ -1957,7 +1957,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
         {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
     auto stages = CreateStages({A, B, C});
     std::vector<ir::Tensor> temp{C};
-    auto AL = stages[A]->CacheRead2("shared", temp, stages);
+    auto AL = stages[A]->CacheRead("shared", temp, stages);
 
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");
@@ -2033,7 +2033,7 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
 
     auto stages = CreateStages({A, B, C});
     std::vector<ir::Tensor> temp{C};
-    auto AL = stages[A]->CacheRead2("shared", temp, stages);
+    auto AL = stages[A]->CacheRead("shared", temp, stages);
 
     stages[C]->Split(1, 10);
     stages[AL]->Split(1, 10);
@@ -2117,7 +2117,7 @@ TEST(ElementwiseAdd, cache_write_local) {
 
     auto stages = CreateStages({A, B, C});
 
-    auto Co = stages[C]->CacheWrite2("local", stages, C);
+    auto Co = stages[C]->CacheWrite("local", stages, C);
 
     // Cache write local, the local memory can just share in a single thread, so it must ComputeAt(inside) the innermost
     // thread.

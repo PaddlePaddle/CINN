@@ -240,7 +240,7 @@ class Stage : public Object {
    * @param memory_type the memory type, "share" for CUDA share memory, "local" for CUDA local memory.
    * @param readers the readers of the \p tensor
    */
-  ir::Tensor CacheRead2(const std::string& memory_type, std::vector<ir::Tensor>& readers, poly::StageMap stages);
+  ir::Tensor CacheRead(const std::string& memory_type, std::vector<ir::Tensor>& readers, poly::StageMap stages);
 
   void ComputeAt2(Stage* other, int level);
 
@@ -261,7 +261,7 @@ class Stage : public Object {
    * @param tensor the tensor to create the cache for.
    * @param memory_type "share" for CUDA share memory, "local" for CUDA local memory.
    */
-  ir::Tensor CacheWrite2(const std::string& memory_type, poly::StageMap stages, ir::Tensor& key_tensor);
+  ir::Tensor CacheWrite(const std::string& memory_type, poly::StageMap stages, ir::Tensor& key_tensor);
 
   /**
    * Generate the `syncthreads()` code to sync all threads on CUDA backends.

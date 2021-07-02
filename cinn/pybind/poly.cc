@@ -76,8 +76,8 @@ void BindStage(py::module *m) {
       .def("compute_at", &Stage::ComputeAtSchedule, arg("other"), arg("level"), arg("kind") = Stage::kComputeAtAuto)
       .def("skew", &Stage::Skew)
       .def("ctrl_depend", &Stage::CtrlDepend)
-      .def("cache_read", &Stage::CacheRead2)
-      .def("cache_write", &Stage::CacheWrite2);
+      .def("cache_read", &Stage::CacheRead)
+      .def("cache_write", &Stage::CacheWrite);
 }
 
 void BindStageMap(py::module *m) {
