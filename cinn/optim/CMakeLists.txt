@@ -19,7 +19,6 @@ core_gather_srcs(SRCS
     lower_function_call_bind_vars.cc
     extern_call_process.cc
     map_extern_call.cc
-    cache_read_write_replace.cc
     compute_inline_expand.cc
     buffer_assign.cc
     replace_const_param_to_integer.cc

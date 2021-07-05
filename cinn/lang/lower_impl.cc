@@ -8,7 +8,6 @@
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/compute_at_postprocess.h"
-#include "cinn/optim/cache_read_write_replace.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -99,7 +98,12 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   }
   CheckNoIslCallRemains(&e);
 
-  optim::CacheReadWriteReplace(&e, stage_map, global_tensor_map);
+  // Update global_tensor_map
+  for (auto& e : stage_map) {
+    if (!global_tensor_map->count(e.second->id())) {
+      (*global_tensor_map)[e.second->id()] = ir::Tensor(e.second->tensor());
+    }
+  }
 
   // deal with the compute_at relations
   ProcessComputeAtInfo(&e, stage_map);
@@ -549,54 +553,7 @@ LowerImpl::LowerImpl(const std::string& fn_name,
     VLOG(1) << "compu_graph:\n" << compu_graph_->Visualize();
   }
 
-  std::vector<poly::Stage*> all_stages;
-  for (auto& item : stages_) {
-    if (!item.second->inlined()) all_stages.push_back(item.second.get());
-  }
-
-  std::map<std::string, poly::Stage*> named_stages, read_caches, write_caches, read_caches_rev, write_caches_rev;
-  for (auto* stage : all_stages) {
-    named_stages[stage->id()] = stage;
-  }
-  for (auto* stage : all_stages) {
-    if (stage->meta.read_cache_relation) {
-      read_caches[stage->id()] = named_stages[stage->meta.read_cache_relation->cache_name];
-      read_caches_rev[stage->meta.read_cache_relation->cache_name] = stage;
-    }
-    if (stage->meta.write_cache_relation) {
-      write_caches[stage->id()] = named_stages[stage->meta.write_cache_relation->cache_name];
-      write_caches_rev[stage->meta.write_cache_relation->cache_name] = stage;
-    }
-  }
-
-  for (auto* stage : all_stages) {
-    if (stage->tensor()->buffer.get() && (read_caches_rev.count(stage->id()) || write_caches_rev.count(stage->id())) &&
-        stage->tensor()->buffer->memory_type == ir::MemoryType::GPUShared) {
-      auto sync_threads = Compute(
-          {},
-          [](const std::vector<Expr>& axis) { return runtime::IntrinsicCall(Void(), "__syncthreads", {}); },
-          Context::Global().NewName("syncthreads"));
-
-      stages->Insert(sync_threads, ir::CreateStage(sync_threads).get());
-      CHECK_EQ(sync_threads->type(), Void());
-      stages[sync_threads]->CtrlDepend(ir::Tensor(stage->tensor()));
-
-      for (auto& compute_at : stage->compute_ats()) {
-        stages[sync_threads]->ComputeAt2(compute_at.stage.get(), compute_at.level);
-      }
-
-      temp_tensor_args_.push_back(sync_threads);
-
-      ir::Tensor this_tensor(read_caches_rev.count(stage->id()) ? read_caches_rev.at(stage->id())->tensor()
-                                                                : write_caches_rev.at(stage->id())->tensor());
-
-      for (auto* other : all_stages) {
-        if (other->id() != stage->id() && other->tensor()->Uses(this_tensor)) {
-          other->CtrlDepend(sync_threads);
-        }
-      }
-    }
-  }
+  // Todo: Here insert auto syncthreads() @haoze
 
   {  // update schedule.
     std::vector<ir::Tensor> tensors(tensor_args.begin(), tensor_args.end());

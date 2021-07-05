@@ -1403,7 +1403,7 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
         stages[tensor_b]->Bind(0, "blockIdx.x");
         stages[tensor_b]->Bind(1, "threadIdx.x");
       }
-      stages[tensor_b]->SyncThreads({tensor_a}, stages);
+      stages[tensor_b]->SyncThreads(stages);
     }
     *ret = arg_pack;
   });

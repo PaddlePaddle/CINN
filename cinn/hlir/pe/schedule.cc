@@ -377,7 +377,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   }
 
   // packed_out
-  auto CC = stages[packed_out]->CacheWrite2("local", stages, packed_out);
+  auto CC = stages[packed_out]->CacheWrite("local", stages, packed_out);
   VLOG(4) << "ow_bn_size" << ow_bn_size;
   // packed_out: [batch, oc_outer, oh, ow, oc_inner]
   // split oh, ow
@@ -491,7 +491,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
   }
 
   // packed_out
-  auto CC = stages[packed_out]->CacheWrite2("local", stages, packed_out);
+  auto CC = stages[packed_out]->CacheWrite("local", stages, packed_out);
   VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
   VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // packed_out: [batch, oc_outer, oh, ow, oc_inner]
@@ -592,7 +592,7 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
     stages[weights_dilation]->Reorder({2, 1});
   }
   // packed_out
-  auto CC = stages[packed_out]->CacheWrite2("local", stages, packed_out);
+  auto CC = stages[packed_out]->CacheWrite("local", stages, packed_out);
   VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
   VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // packed_out: [batch, oc_outer, oh, ow, oc_inner]
@@ -689,7 +689,7 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
     stages[weights_dilation]->Fuse({0, 1});
   }
   // packed_out
-  auto CC = stages[packed_out]->CacheWrite2("local", stages, packed_out);
+  auto CC = stages[packed_out]->CacheWrite("local", stages, packed_out);
   VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
   VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // packed_out: [batch, oc_outer, oh, ow, oc_inner]
@@ -764,7 +764,7 @@ void CudaScheduleConv(poly::StageMap stages, ir::Tensor &input_pad, ir::Tensor &
 
   int rc_factor = SplitEven(rc);
 
-  auto OL = stages[output]->CacheWrite2("local", stages, output);
+  auto OL = stages[output]->CacheWrite("local", stages, output);
 
   auto tx        = stages[output]->axis(3);
   auto by        = stages[output]->axis(2);

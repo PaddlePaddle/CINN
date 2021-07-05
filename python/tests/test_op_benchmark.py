@@ -107,9 +107,9 @@ void fn_conv2d_0_kernel(const float* __restrict__ A, const float* __restrict__ E
 {
   __shared__ float _YY_read_cache [ 256 ];
   __shared__ float _input_pad_read_cache [ 448 ];
-  float _COD_cache_write_out [ 2 ];
-  float* COD_cache_write_out = _COD_cache_write_out;
-  float* COD_cache_write_out__reduce_init = _COD_cache_write_out;
+  float _COD_write_cache [ 2 ];
+  float* COD_write_cache = _COD_write_cache;
+  float* COD_write_cache__reduce_init = _COD_write_cache;
   float* YY_read_cache = _YY_read_cache;
   float* input_pad_read_cache = _input_pad_read_cache;
   if ((blockIdx.z < 8)) {
@@ -117,7 +117,7 @@ void fn_conv2d_0_kernel(const float* __restrict__ A, const float* __restrict__ E
       if ((threadIdx.z < 16)) {
         if ((threadIdx.x < 14)) {
           for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-            COD_cache_write_out__reduce_init[j_inner] = 0;
+            COD_write_cache__reduce_init[j_inner] = 0;
           };
         };
       };
@@ -150,7 +150,7 @@ void fn_conv2d_0_kernel(const float* __restrict__ A, const float* __restrict__ E
           if ((threadIdx.z < 16)) {
             if ((threadIdx.x < 14)) {
               for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-                COD_cache_write_out[j_inner] = (COD_cache_write_out[j_inner] + (input_pad_read_cache[((28 * rc_inner) + (2 * threadIdx.x))] * YY_read_cache[((8 * j_inner) + ((16 * threadIdx.z) + rc_inner))]));
+                COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_read_cache[((28 * rc_inner) + (2 * threadIdx.x))] * YY_read_cache[((8 * j_inner) + ((16 * threadIdx.z) + rc_inner))]));
               };
             };
           };
@@ -163,7 +163,7 @@ void fn_conv2d_0_kernel(const float* __restrict__ A, const float* __restrict__ E
       if ((threadIdx.z < 16)) {
         if ((threadIdx.x < 14)) {
           for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-            COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * j_inner) + ((392 * threadIdx.z) + threadIdx.x))))] = COD_cache_write_out[j_inner];
+            COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * j_inner) + ((392 * threadIdx.z) + threadIdx.x))))] = COD_write_cache[j_inner];
           };
         };
       };

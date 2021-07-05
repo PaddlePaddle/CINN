@@ -44,18 +44,6 @@ struct StageForloopInfo {
   ir::DeviceAPI device;
 };
 
-struct ReadCacheRelation {
-  //! Name of the cache tensor.
-  std::string cache_name;
-  //! Names of the reading tensors.
-  std::vector<std::string> readers;
-};
-
-struct WriteCacheRelation {
-  //! Name of the cache tensor.
-  std::string cache_name;
-};
-
 //! Store the infomations about some other tensor `compute_at` this tensor.
 struct ComputeAtInfo {
   ComputeAtInfo(const std::string& consumer_tensor_name,
@@ -85,11 +73,6 @@ struct ComputeAtInfo {
  * Meta infomation for tensor.
  */
 struct TensorScheduleMeta {
-  //! read cache relation if has one.
-  std::unique_ptr<ReadCacheRelation> read_cache_relation;
-  //! write cache relation if has one.
-  std::unique_ptr<WriteCacheRelation> write_cache_relation;
-
   //! Store the information of all the other producer tensors `compute_at` this tensor.
   std::vector<ComputeAtInfo> compute_at_infos;
 
@@ -257,9 +240,7 @@ class Stage : public Object {
    * @param memory_type the memory type, "share" for CUDA share memory, "local" for CUDA local memory.
    * @param readers the readers of the \p tensor
    */
-  ir::Tensor CacheRead(const std::string& memory_type, const std::vector<ir::Tensor>& readers, poly::StageMap stages);
-
-  ir::Tensor CacheRead2(const std::string& memory_type, std::vector<ir::Tensor>& readers, poly::StageMap stages);
+  ir::Tensor CacheRead(const std::string& memory_type, std::vector<ir::Tensor>& readers, poly::StageMap stages);
 
   void ComputeAt2(Stage* other, int level);
 
@@ -280,18 +261,15 @@ class Stage : public Object {
    * @param tensor the tensor to create the cache for.
    * @param memory_type "share" for CUDA share memory, "local" for CUDA local memory.
    */
-  ir::Tensor CacheWrite(const std::string& memory_type, poly::StageMap stages);
-
-  ir::Tensor CacheWrite2(const std::string& memory_type, poly::StageMap stages, ir::Tensor& key_tensor);
+  ir::Tensor CacheWrite(const std::string& memory_type, poly::StageMap stages, ir::Tensor& key_tensor);
 
   /**
    * Generate the `syncthreads()` code to sync all threads on CUDA backends.
    * For other backends like Opencl, generate corresponding code to sync multi threads.
    * @param tensor the exact tensor computed just before syncthreads.
-   * @param after_tensors the tensors computed after syncthreads.
    * @param stages the stagemap of all tensor.
    */
-  void SyncThreads(const std::vector<ir::Tensor>& after_tensors, StageMap stages);
+  void SyncThreads(StageMap stages);
 
   /**
    * Generate the `syncthreads()` code to sync all threads on CUDA backends.

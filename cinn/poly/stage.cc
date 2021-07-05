@@ -607,9 +607,8 @@ void Stage::ComputeAt5(Stage *other, int level) {
   CHECK(tensor_);
 
   ComputeAtRelation relation;
-  relation.stage   = other;
-  int removing_num = isl_get_precending_removed_axes_counts(other->transformed_domain().get(), level);
-  relation.level   = level - removing_num;
+  relation.stage = other;
+  relation.level = level;
   other->CtrlDepend(ir::Tensor(tensor()));
 
   CHECK(relation.IsCompatible(this));
@@ -626,7 +625,7 @@ void Stage::ComputeAt4(Stage *other, int level) {
   other->CtrlDepend(ir::Tensor(tensor()));
   if (this->tensor()->buffer.defined()) {
     std::string t_name = this->tensor()->buffer->name;
-    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_write_cache")) {
       EditTempTensor(other, level);
     }
   }
@@ -648,7 +647,7 @@ void Stage::ComputeAt2(Stage *other, int level) {
   other->CtrlDepend(ir::Tensor(tensor()));
   if (this->tensor()->buffer.defined()) {
     std::string t_name = this->tensor()->buffer->name;
-    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_write_cache")) {
       EditTempTensor(other, level);
     }
   }
@@ -669,7 +668,7 @@ void Stage::ComputeAt3(Stage *other, int level) {
   other->CtrlDepend(ir::Tensor(tensor()));
   if (this->tensor()->buffer.defined()) {
     std::string t_name = this->tensor()->buffer->name;
-    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_cache_write_out")) {
+    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_write_cache")) {
       EditTempTensor(other, level);
     }
   }
@@ -1027,46 +1026,7 @@ bool Stage::has_expression() const {
   return tensor_->has_expression();
 }
 
-/*
- * To create a read cache:
- * 1. create a cache write stage for cache assign.
- * 2. add extra deps between cache and tensor to keep SSA order
- * 3. register the readers of the cache to the \p tensor, replace latter in Lower
- */
-ir::Tensor Stage::CacheRead(const std::string &memory_type, const std::vector<ir::Tensor> &readers, StageMap stages) {
-  CHECK(tensor_);
-  auto my_tensor         = ir::Tensor(tensor_);
-  std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
-  VLOG(4) << "cache_name " << cache_name;
-  auto cache_tensor = lang::Compute(
-      tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
-  cache_tensor->WithBuffer(memory_type);
-
-  stages->Insert(cache_tensor, CreateStage(cache_tensor).get());
-
-  for (auto &reader : readers) {
-    stages[reader]->CtrlDepend(cache_tensor);
-  }
-
-  std::vector<std::string> reader_names;
-  std::transform(
-      readers.begin(), readers.end(), std::back_inserter(reader_names), [](const ir::Tensor &x) { return x->name; });
-
-  CHECK(!meta.read_cache_relation) << "Duplicate read cache found, just one is allowed";
-  meta.read_cache_relation.reset(new ReadCacheRelation{cache_name, reader_names});
-
-  if (memory_type == "shared") {
-    stages[cache_tensor]->SetScope(ScopeKind::kShared);
-  } else if (memory_type == "local") {
-    stages[cache_tensor]->SetScope(ScopeKind::kLocal);
-  } else {
-    CINN_NOT_IMPLEMENTED
-  }
-
-  return cache_tensor;
-}
-
-void Stage::SyncThreads(const std::vector<ir::Tensor> &after_tensors, StageMap stages) {
+void Stage::SyncThreads(StageMap stages) {
   CHECK(tensor_);
   auto this_tensor = ir::Tensor(tensor_);
 
@@ -1078,7 +1038,7 @@ void Stage::SyncThreads(const std::vector<ir::Tensor> &after_tensors, StageMap s
   stages->Insert(sync_threads, ir::CreateStage(sync_threads).get());
   CHECK_EQ(sync_threads->type(), Void());
   stages[sync_threads]->CtrlDepend(this_tensor);
-
+  CHECK_LE(this->compute_ats().size(), 1);
   for (auto &compute_at : this->compute_ats()) {
     isl::set sync_domain(compute_at.stage->domain().ctx(),
                          isl_set_to_str(compute_at.stage->transformed_domain().get()));
@@ -1088,12 +1048,19 @@ void Stage::SyncThreads(const std::vector<ir::Tensor> &after_tensors, StageMap s
     sync_domain = isl::manage(isl_set_set_tuple_name(sync_domain.release(), sync_threads->name.c_str()));
     stages[sync_threads]->domain_ = sync_domain;
     stages[sync_threads]->InitTransform();
-    stages[sync_threads]->compute_ats_[compute_at.stage->id()] = compute_at;
+
+    ComputeAtRelation relation;
+    relation.stage = compute_at.stage.get();
+    relation.level = compute_at.level;
+    relation.stage->CtrlDepend(sync_threads);
+
+    CHECK(relation.IsCompatible(stages[sync_threads]));
+    stages[sync_threads]->compute_ats_[relation.stage->id()] = relation;
   }
 
-  for (auto &other : after_tensors) {
-    if (other->Uses(this_tensor)) {
-      stages[other]->CtrlDepend(sync_threads);
+  for (auto &s : stages) {
+    if (s.second->id() != this->id() && s.second->tensor()->Uses(this_tensor)) {
+      s.second->CtrlDepend(sync_threads);
     }
   }
 }
@@ -1187,10 +1154,10 @@ void CacheReadWriteReplace(std::vector<ir::Tensor> &readers, ir::Tensor cache_te
  * 2. add extra deps between cache and tensor to keep SSA order
  * 3. register the readers of the cache to the \p tensor, replace latter in Lower
  */
-ir::Tensor Stage::CacheRead2(const std::string &memory_type, std::vector<ir::Tensor> &readers, StageMap stages) {
+ir::Tensor Stage::CacheRead(const std::string &memory_type, std::vector<ir::Tensor> &readers, StageMap stages) {
   CHECK(tensor_);
   auto my_tensor         = ir::Tensor(tensor_);
-  std::string cache_name = Context::Global().NewName(tensor_->name + "_read_cache");
+  std::string cache_name = Context::Global().NewName(tensor_->name) + "_read_cache";
   VLOG(4) << "cache_name " << cache_name;
   auto cache_tensor = lang::Compute(
       tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
@@ -1220,36 +1187,12 @@ ir::Tensor Stage::CacheRead2(const std::string &memory_type, std::vector<ir::Ten
 /*
  * Replace the tensor's name to cache_name, and create a cache_stage to copy content from cache to original tensor.
  */
-ir::Tensor Stage::CacheWrite(const std::string &memory_type, StageMap stages) {
-  CHECK(tensor_);
-  CHECK(!tensor_->buffer.defined()) << "This tensor is already binded to a buffer, cannot cache write";
-  CHECK(!meta.compute_inline) << "Cannot create a write cache on an inlined tensor";
-  auto my_tensor         = ir::Tensor(tensor_);
-  std::string cache_name = Context::Global().NewName(tensor_->name + "_cache_write_out");
-  // make my_tensor a cache
-  my_tensor->WithBuffer(memory_type);
-
-  auto write_stage = lang::Compute(
-      tensor_->shape, [=](const std::vector<Expr> &dims) { return my_tensor(dims); }, cache_name);
-  stages->Insert(write_stage, CreateStage(write_stage).get());
-
-  stages[write_stage]->CtrlDepend(my_tensor);
-
-  CHECK(!meta.write_cache_relation) << "Duplicate write cache found, just one is allowed";
-  meta.write_cache_relation.reset(new WriteCacheRelation{cache_name});
-
-  return write_stage;
-}
-
-/*
- * Replace the tensor's name to cache_name, and create a cache_stage to copy content from cache to original tensor.
- */
-ir::Tensor Stage::CacheWrite2(const std::string &memory_type, StageMap stages, ir::Tensor &key_tensor) {
+ir::Tensor Stage::CacheWrite(const std::string &memory_type, StageMap stages, ir::Tensor &key_tensor) {
   CHECK(tensor_);
   CHECK(!tensor_->buffer.defined()) << "This tensor is already binded to a buffer, cannot cache write";
   CHECK(!meta.compute_inline) << "Cannot create a write cache on an inlined tensor";
   auto ctrl_depend       = stages[tensor_]->ctrl_depends();
-  std::string cache_name = Context::Global().NewName(tensor_->name + "_cache_write_out");
+  std::string cache_name = Context::Global().NewName(tensor_->name) + "_write_cache";
   auto original_name     = tensor_->name;
   tensor_->name          = cache_name;
   auto my_tensor         = ir::Tensor(tensor_);
@@ -1265,7 +1208,7 @@ ir::Tensor Stage::CacheWrite2(const std::string &memory_type, StageMap stages, i
 
   stages[write_stage]->CtrlDepend(my_tensor);
   std::vector<ir::Tensor> temp;
-  for (auto i : stages) {
+  for (auto &i : stages) {
     if (i.second->tensor()->name == original_name || i.second->tensor()->name == cache_name) continue;
     if (i.second->tensor()->is_compute_node()) {
       temp.push_back(ir::Tensor(i.second->tensor()));
