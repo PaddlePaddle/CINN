@@ -16,6 +16,7 @@
 
 #include "cinn/common/object.h"
 #include "cinn/common/shared.h"
+#include "cinn/common/type.h"
 
 namespace cinn {
 namespace common {
@@ -198,6 +199,10 @@ class Graph {
 
   //! Get a string representation to visualize a graph.
   std::string Visualize() const;
+
+  void ClearUnlinkedNodes(std::unordered_map<std::string, std::vector<int>>* shape_dict,
+                          std::unordered_map<std::string, common::Type>* type_dict,
+                          std::unordered_map<std::string, std::string>* layout_dict);
 
   size_t num_nodes() const { return nodes_.size(); }
 

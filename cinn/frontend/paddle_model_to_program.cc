@@ -229,10 +229,21 @@ void PaddleModelToProgram::AddOpMapper_depthwise_conv2d() {
     CHECK(op_desc.HasAttr("dilations"));
     attrs["dilation"] = op_desc.GetAttr<std::vector<int>>("dilations");
     CHECK(op_desc.HasAttr("groups"));
-    attrs["groups"] = op_desc.GetAttr<int>("groups");
-    auto x          = GetVar(TransValidVarName(x_name));
-    auto y          = GetVar(TransValidVarName(y_name));
-    auto out        = program_->depthwise_conv2d(x, y, attrs);
+    attrs["groups"]         = op_desc.GetAttr<int>("groups");
+    std::string data_format = op_desc.GetAttr<std::string>("data_format");
+    if (data_format == "AnyLayout") {
+      data_format = "NCHW";
+    }
+    attrs["data_format"] = data_format;
+    auto x               = GetVar(TransValidVarName(x_name));
+    auto y               = GetVar(TransValidVarName(y_name));
+    Variable out;
+    if (target_.arch == Target::Arch::X86) {
+      out = program_->conv2d(x, y, attrs);
+    } else {
+      out = program_->depthwise_conv2d(x, y, attrs);
+    }
+    // auto out        = program_->depthwise_conv2d(x, y, attrs);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
@@ -261,10 +272,16 @@ void PaddleModelToProgram::AddOpMapper_conv2d() {
     CHECK(op_desc.HasAttr("dilations"));
     attrs["dilation"] = op_desc.GetAttr<std::vector<int>>("dilations");
     CHECK(op_desc.HasAttr("groups"));
-    attrs["groups"] = op_desc.GetAttr<int>("groups");
-    auto x          = GetVar(TransValidVarName(x_name));
-    auto y          = GetVar(TransValidVarName(y_name));
-    auto out        = program_->conv2d(x, y, attrs);
+    attrs["groups"]         = op_desc.GetAttr<int>("groups");
+    std::string data_format = op_desc.GetAttr<std::string>("data_format");
+    if (data_format == "AnyLayout") {
+      data_format = "NCHW";
+    }
+    attrs["data_format"] = data_format;
+
+    auto x   = GetVar(TransValidVarName(x_name));
+    auto y   = GetVar(TransValidVarName(y_name));
+    auto out = program_->conv2d(x, y, attrs);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
