@@ -120,7 +120,7 @@ TEST(ComputeAt, Before) {
 
   auto stages = CreateStages({A_cache, C});
 
-  stages[A_cache]->ComputeAt(stages[C], 1);
+  stages[A_cache]->ComputeAt2(stages[C], 1);
 
   auto fn = Lower("fn", stages, {A, B, A_cache, C});
   LOG(INFO) << "fn:\n" << fn;
@@ -128,154 +128,18 @@ TEST(ComputeAt, Before) {
   auto target = R"ROC(
 function fn (_A, _B, _cache, _C)
 {
-  for (po0, 0, 10)
+  for (i, 0, 10)
   {
-    for (po1, 0, 10)
+    for (j, 0, 10)
     {
-      if (((((po0 >= 0) and (po0 <= 9)) and (po1 >= 0)) and (po1 <= 9))) {
-        cache[0, 0] = A[po0, po1]
-      }
-      C[po0, po1] = (cache[0, 0] + B[po0, po1])
+      cache[i, j] = A[i, j]
+      C[i, j] = (cache[i, j] + B[i, j])
     }
   }
 }
 )ROC";
 
   ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
-}
-
-TEST(ComputeAt, level0) {
-  Expr M(30), N(25);
-  Expr bs(10);
-  Placeholder<float> A("A", {bs, M, N});
-
-  auto A_cache = Compute(
-      {bs, M, N}, [&](Expr k, Expr i, Expr j) { return A(k, i, j); }, "cache");
-  auto C = Compute(
-      {bs, Expr(10), Expr(10)},
-      [&](Expr k, Expr i, Expr j) {
-        return common::select(i < 10 - 1, A_cache(k, i, j) + A_cache(k, i + 1, j), Expr(0.f));
-      },
-      "C");
-
-  auto stages = CreateStages({C});
-  stages[A_cache]->ComputeAt(stages[C], 0);
-
-  auto fn = Lower("fn", stages, {A, A_cache, C});
-  LOG(INFO) << "fn:\n" << fn;
-
-  auto target = R"ROC(
-function fn (_A, _cache, _C)
-{
-  for (po0, 0, 10)
-  {
-    if (((po0 >= 0) and (po0 <= 9))) {
-      for (j, 0, 11)
-      {
-        for (k, 0, 10)
-        {
-          cache[0, j, k] = A[po0, j, k]
-        }
-      }
-    }
-    for (i, 0, 10)
-    {
-      for (j, 0, 10)
-      {
-        C[po0, i, j] = select((i < 9), (cache[0, i, j] + cache[0, (1 + i), j]), 0)
-      }
-    }
-  }
-}
-)ROC";
-  ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
-
-  Module::Builder builder("module", common::DefaultHostTarget());
-  builder.AddFunction(fn);
-
-  CodeGenC codegen(common::DefaultHostTarget());
-  codegen.SetInlineBuiltinCodes(false);
-  LOG(INFO) << "C code:\n" << codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
-
-  auto jit = backends::SimpleJIT::Create();
-  jit->Link(builder.Build(), false);
-
-  auto _fn_handler = jit->Lookup("fn");
-  auto* fn_handler = reinterpret_cast<lower_func_ptr_t>(_fn_handler);
-
-  // create buffer and args
-  auto A_buf = common::BufferBuilder(Float(32), {10, M.as_int32(), N.as_int32()}).set_random().Build();
-  // auto B_buf     = common::BufferBuilder(Float(32), {10, M.as_int32(), N.as_int32()}).set_random().Build();
-  auto C_buf     = common::BufferBuilder(Float(32), {10, 10, 10}).set_zero().Build();
-  auto Cache_buf = common::BufferBuilder(Float(32), {1, 11, 10}).set_zero().Build();
-  auto arg_pack  = common::ArgsBuilder().Add(A_buf).Add(Cache_buf).Add(C_buf).Build();
-
-  fn_handler(arg_pack.data(), arg_pack.size());
-
-  auto* C_data = reinterpret_cast<float*>(C_buf->memory);
-  auto* A_data = reinterpret_cast<float*>(A_buf->memory);
-
-  for (int k = 0; k < 10; k++) {
-    for (int i = 0; i < 10; i++) {
-      for (int j = 0; j < 10; j++) {
-        float val = i < 9 ? A_data[k * (M.as_int32() * N.as_int32()) + i * N.as_int32() + j] +
-                                A_data[k * (M.as_int32() * N.as_int32()) + (i + 1) * N.as_int32() + j]
-                          : 0.f;
-        ASSERT_NEAR(val, C_data[k * 100 + i * 10 + j], 1e-5);
-      }
-    }
-  }
-}
-
-TEST(ComputeAt, level1) {
-  Context::Global().ResetNameId();
-
-  Expr M(100), N(200);
-  Placeholder<float> A("A", {M, N});
-  Placeholder<float> B("B", {M, N});
-
-  auto A_cache = Compute(
-      {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "cache");
-  auto C = Compute(
-      {Expr(10), Expr(10)},
-      [&](Expr i, Expr j) {
-        return common::select(i < 10, A_cache(i - 1, j) + A_cache(i, j) + A_cache(i + 1, j) + B(i, j), Expr(0.f));
-      },
-      "C");
-
-  auto stages = CreateStages({C});
-  stages[A_cache]->ComputeAt(stages[C], 1);
-
-  auto fn = Lower("fn", stages, {A, B, A_cache, C});
-  LOG(INFO) << "fn:\n" << fn;
-
-  auto target = R"ROC(
-function fn (_A, _B, _cache, _C)
-{
-  for (po0, 10)
-  {
-    for (po1, 10)
-    {
-      if (((((po0 >= 0) and (po0 <= 9)) and (po1 >= 0)) and (po1 <= 9))) {
-        for (i, (1 + int32((1 + (po0 - cinn_max(0, (po0 - 1)))))))
-        {
-          cache[i, 0] = A[(i + cinn_max(0, (po0 - 1))), po1]
-        }
-      }
-      C[po0, po1] = select((po0 < 10), (cache[-1, 0] + (cache[0, 0] + (cache[1, 0] + B[po0, po1]))), 0)
-    }
-  }
-}
-)ROC";
-
-  Module::Builder builder("module", common::DefaultHostTarget());
-  builder.AddFunction(fn);
-
-  CodeGenC codegen(common::DefaultHostTarget());
-  codegen.SetInlineBuiltinCodes(false);
-  LOG(INFO) << "source:\n" << codegen.Compile(builder.Build(), backends::CodeGenC::OutputKind::CImpl);
-
-  // ASSERT_EQ(utils::Trim(target), utils::GetStreamCnt(fn));
 }
 
 TEST(ComputeAt, simple) {
@@ -307,7 +171,7 @@ TEST(ComputeAt, simple) {
 
     auto stages = CreateStages({B});
     stages[B]->Split(0, 16);
-    stages[A1]->ComputeAt(stages[B], 1);
+    stages[A1]->ComputeAt2(stages[B], 1);
 
     auto fn = Lower("fn", stages, {A, A1, B});
     LOG(INFO) << "fn:\n" << fn;
@@ -315,22 +179,20 @@ TEST(ComputeAt, simple) {
     auto target = R"ROC(
 function fn (_A, _A1, _B)
 {
-  for (po0, 0, 2)
+  for (i_outer, 0, 2)
   {
-    for (po1, 0, 16)
+    for (i_inner, 0, 16)
     {
-      if (((((po1 >= 0) and (((16 * po0) + po1) >= 0)) and (po1 <= 15)) and (((16 * po0) + po1) <= 31))) {
-        for (i, 0, 3)
+      for (j, 0, 64)
+      {
+        for (i_at, 0, 3)
         {
-          for (j, 0, 32)
-          {
-            A1[i, j] = A[(i + ((16 * po0) + po1)), j]
-          }
+          A1[((16 * i_outer) + (i_at + i_inner)), j] = A[((16 * i_outer) + (i_at + i_inner)), j]
         }
       }
-      for (i, 0, 32)
+      for (j, 0, 32)
       {
-        B[((16 * po0) + po1), i] = (A1[0, i] + (A1[1, i] + A1[2, i]))
+        B[((16 * i_outer) + i_inner), j] = (A1[((16 * i_outer) + i_inner), j] + (A1[(1 + ((16 * i_outer) + i_inner)), j] + A1[(2 + ((16 * i_outer) + i_inner)), j]))
       }
     }
   }
@@ -366,11 +228,11 @@ TEST(ComputeAt, Before1) {
     auto [cache_prepare, transformed_compute] = create_module();
 
     auto stages = CreateStages({cache_prepare, transformed_compute});
-    stages[cache_prepare]->ComputeAt(stages[transformed_compute], 1, Stage::kComputeAtBefore);
+    stages[cache_prepare]->ComputeAt2(stages[transformed_compute], 1);
 
     // codegen and compare
     auto fn = Lower("fn", stages, {A, cache_prepare, transformed_compute});
-    LOG(INFO) << "fn:\n" << fn;
+    LOG(INFO) << "fn1 :\n" << fn;
 
     auto target = utils::Trim(R"ROC(
 function fn (_A, _cache, _transformed)
@@ -379,14 +241,8 @@ function fn (_A, _cache, _transformed)
   {
     for (j, 0, 200)
     {
-      transformed[i, j] = 1
-    }
-  }
-  for (i, 0, 100)
-  {
-    for (j, 0, 200)
-    {
       cache[i] = A[i, j]
+      transformed[i, j] = 1
     }
   }
 }
@@ -398,11 +254,11 @@ function fn (_A, _cache, _transformed)
     auto [cache_prepare, transformed_compute] = create_module();
 
     auto stages = CreateStages({cache_prepare, transformed_compute});
-    stages[cache_prepare]->ComputeAt(stages[transformed_compute], 1, Stage::kComputeAtAfter);
+    stages[transformed_compute]->ComputeAt2(stages[cache_prepare], 1);
 
     // codegen and compare
     auto fn = Lower("fn", stages, {A, cache_prepare, transformed_compute});
-
+    LOG(INFO) << "fn2 :\n" << fn;
     auto target = utils::Trim(R"ROC(
 function fn (_A, _cache, _transformed)
 {
@@ -411,12 +267,6 @@ function fn (_A, _cache, _transformed)
     for (j, 0, 200)
     {
       transformed[i, j] = 1
-    }
-  }
-  for (i, 0, 100)
-  {
-    for (j, 0, 200)
-    {
       cache[i] = A[i, j]
     }
   }

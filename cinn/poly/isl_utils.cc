@@ -368,11 +368,13 @@ isl::set isl_set_dim_name_if_null(isl_set *set, std::function<std::string(isl_di
   return isl::manage(set);
 }
 
-isl::map RemoveAxiesByInputNames(const isl::map &x, const std::vector<std::string> &dim_in_names) {
+isl::map RemoveAxiesByInputNames(const isl::map &x,
+                                 const isl::set &origin_domain,
+                                 const std::vector<std::string> &dim_in_names) {
   std::string map_str = isl_map_to_str(x.get());
   isl::ctx this_ctx   = x.ctx();
   isl::map temp_transform(this_ctx, map_str);
-  auto related_output_names = GetRelatedOutputAxies(x, dim_in_names);
+  auto related_output_names = GetRelatedOutputAxies(x, origin_domain, dim_in_names);
   if (dim_in_names.empty()) return temp_transform;
   for (auto &i : dim_in_names) {
     temp_transform = isl::manage(isl_remove_axis_by_name(temp_transform.release(), isl_dim_in, i.c_str()));
@@ -383,11 +385,13 @@ isl::map RemoveAxiesByInputNames(const isl::map &x, const std::vector<std::strin
   return temp_transform;
 }
 
-isl::map RemoveAxiesByOutputNames(const isl::map &x, const std::vector<std::string> &dim_out_names) {
+isl::map RemoveAxiesByOutputNames(const isl::map &x,
+                                  const isl::set &origin_domain,
+                                  const std::vector<std::string> &dim_out_names) {
   std::string map_str = isl_map_to_str(x.get());
   isl::ctx this_ctx   = x.ctx();
   isl::map temp_transform(this_ctx, map_str);
-  auto related_input_names = GetRelatedInputAxies(x, dim_out_names);
+  auto related_input_names = GetRelatedInputAxies(x, origin_domain, dim_out_names);
   if (dim_out_names.empty()) return temp_transform;
   for (auto &i : dim_out_names) {
     temp_transform = isl::manage(isl_remove_axis_by_name(temp_transform.release(), isl_dim_out, i.c_str()));
@@ -398,7 +402,9 @@ isl::map RemoveAxiesByOutputNames(const isl::map &x, const std::vector<std::stri
   return temp_transform;
 }
 
-std::vector<std::string> GetRelatedOutputAxies(const isl::map &x, const std::vector<std::string> &dim_in_names) {
+std::vector<std::string> GetRelatedOutputAxies(const isl::map &x,
+                                               const isl::set &origin_domain,
+                                               const std::vector<std::string> &dim_in_names) {
   std::string map_str = isl_map_to_str(x.get());
   VLOG(1) << "GetRelatedOutputAxies map_str is : " << map_str;
   isl::ctx this_ctx = x.ctx();
@@ -411,7 +417,7 @@ std::vector<std::string> GetRelatedOutputAxies(const isl::map &x, const std::vec
   }
   std::set<std::string> res_set;
   for (auto &i : dim_out_names) {
-    auto related_in_dim = GetRelatedInputAxies(temp_transform, {i});
+    auto related_in_dim = GetRelatedInputAxies(temp_transform, origin_domain, {i});
     for (auto &j : related_in_dim) {
       if (dim_in_set.count(j) > 0) {
         res_set.insert(i);
@@ -426,7 +432,9 @@ std::vector<std::string> GetRelatedOutputAxies(const isl::map &x, const std::vec
   return res;
 }
 
-std::vector<std::string> GetRelatedInputAxies(const isl::map &x, const std::vector<std::string> &dim_out_names) {
+std::vector<std::string> GetRelatedInputAxies(const isl::map &x,
+                                              const isl::set &origin_domain,
+                                              const std::vector<std::string> &dim_out_names) {
   std::string map_str = isl_map_to_str(x.get());
   VLOG(1) << "GetRelatedInputAxies map_str is : " << map_str;
   isl::ctx this_ctx = x.ctx();
@@ -439,10 +447,12 @@ std::vector<std::string> GetRelatedInputAxies(const isl::map &x, const std::vect
   std::string deleted_map = isl_map_to_str(temp_transform.get());
   std::vector<std::string> res;
   std::set<std::string> out_set;
+  std::string set_str = isl_set_to_str(origin_domain.get());
+  isl::ctx set_ctx    = origin_domain.ctx();
+  isl::set temp_set(this_ctx, set_str);
+  auto transformed_domain = temp_set.apply(x);
   for (auto &i : dim_out_names) {
-    if (utils::Endswith(i, "_inner") || utils::Endswith(i, "_outer")) {
-      out_set.insert(i);
-    }
+    out_set.insert(i);
   }
   for (auto &i : dim_in_names) {
     if (utils::Count(&map_str, i) != utils::Count(&deleted_map, i)) {
@@ -451,6 +461,16 @@ std::vector<std::string> GetRelatedInputAxies(const isl::map &x, const std::vect
     } else if (out_set.count(i + "_outer") > 0 || out_set.count(i + "_inner") > 0) {
       VLOG(1) << "GetRelatedInputAxies res is : " << i;
       res.push_back(i);
+    } else if (out_set.count(i) > 0) {
+      auto [minv1, maxv1] = isl_set_get_axis_range_by_name(origin_domain.get(), i);
+      auto [minv2, maxv2] = isl_set_get_axis_range_by_name(transformed_domain.get(), i);
+      int min_iv1         = minv1.get_num_si();
+      int max_iv1         = maxv1.get_num_si();
+      int min_iv2         = minv2.get_num_si();
+      int max_iv2         = maxv2.get_num_si();
+      if (min_iv1 == max_iv1 && min_iv2 == max_iv2) {
+        res.push_back(i);
+      }
     }
   }
   return res;

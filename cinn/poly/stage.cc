@@ -375,7 +375,7 @@ void Stage::EditTempTensor(Stage *other, int level) {
       }
     }
     // Iterators of loop within level will be erased.
-    auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
+    auto related_dim_in = GetRelatedInputAxies(this->transform(), this->domain(), {transform_domain_names[i]});
     for (auto &j : related_dim_in) {
       erase_var.insert(j);
     }
@@ -390,23 +390,23 @@ void Stage::EditTempTensor(Stage *other, int level) {
     if (bind_info.count(new_i) != 0) {
       if (bind_info[new_i].for_type == ir::ForType::GPUBlock &&
           (this->scope() == ScopeKind::kShared || this->scope() == ScopeKind::kLocal)) {
-        auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
+        auto related_dim_in = GetRelatedInputAxies(this->transform(), this->domain(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           erase_var.insert(j);
         }
       } else if (bind_info[new_i].for_type == ir::ForType::GPUThread && (this->scope() == ScopeKind::kLocal)) {
-        auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
+        auto related_dim_in = GetRelatedInputAxies(this->transform(), this->domain(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           erase_var.insert(j);
         }
       } else {
-        auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
+        auto related_dim_in = GetRelatedInputAxies(this->transform(), this->domain(), {transform_domain_names[i]});
         for (auto &j : related_dim_in) {
           undo_erase_var.insert(j);
         }
       }
     } else {
-      auto related_dim_in = GetRelatedInputAxies(this->transform(), {transform_domain_names[i]});
+      auto related_dim_in = GetRelatedInputAxies(this->transform(), this->domain(), {transform_domain_names[i]});
       for (auto &j : related_dim_in) {
         undo_erase_var.insert(j);
       }
@@ -515,8 +515,8 @@ void Stage::ComputeAt5(Stage *other, int level) {
   for (int i = 0; i <= level; i++) {
     level_out_dims.push_back(target_map_dims[i]);
   }
-  auto related_input_dims  = GetRelatedInputAxies(new_target_transform, level_out_dims);
-  auto related_output_dims = GetRelatedOutputAxies(new_target_transform, related_input_dims);
+  auto related_input_dims  = GetRelatedInputAxies(new_target_transform, other->domain(), level_out_dims);
+  auto related_output_dims = GetRelatedOutputAxies(new_target_transform, other->domain(), related_input_dims);
   std::set<std::string> related_output_dims_set;
   for (auto &i : related_output_dims) {
     related_output_dims_set.insert(i);
@@ -591,7 +591,7 @@ void Stage::ComputeAt5(Stage *other, int level) {
       auto [minv, maxv]       = isl_set_get_axis_range(transformed_res.get(), i);
       int max_iv              = maxv.get_num_si();
       int min_iv              = minv.get_num_si();
-      auto related_input_dims = GetRelatedInputAxies(trans_res, {trans_dim_out[i]});
+      auto related_input_dims = GetRelatedInputAxies(trans_res, domain_, {trans_dim_out[i]});
       if (max_iv != min_iv && related_input_dims.empty()) {
         trans_res = isl::manage(isl_remove_axis_by_name(trans_res.release(), isl_dim_out, trans_dim_out[i].c_str()));
       }
@@ -617,25 +617,6 @@ void Stage::ComputeAt5(Stage *other, int level) {
     AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, i});
   }
   return;
-}
-
-void Stage::ComputeAt4(Stage *other, int level) {
-  // TODO(Superjomn) Check there are data dependency between `self` and `other`, or the `ComputeAt` is meaningless.
-  CHECK(tensor_);
-  other->CtrlDepend(ir::Tensor(tensor()));
-  if (this->tensor()->buffer.defined()) {
-    std::string t_name = this->tensor()->buffer->name;
-    if (utils::Endswith(t_name, "_read_cache") || utils::Endswith(t_name, "_write_cache")) {
-      EditTempTensor(other, level);
-    }
-  }
-  ComputeAtRelation relation;
-  relation.stage = other;
-  relation.level = level;
-  other->CtrlDepend(ir::Tensor(tensor()));
-
-  CHECK(relation.IsCompatible(this));
-  compute_ats_[other->id()] = relation;
 }
 
 void Stage::ComputeAt2(Stage *other, int level) {
@@ -673,53 +654,6 @@ void Stage::ComputeAt3(Stage *other, int level) {
     }
   }
   return;
-}
-
-void Stage::ComputeAt(Stage *other, int level, Stage::ComputeAtKind kind, const std::string &cached_tensor_name) {
-  isl::map access;
-  isl_map *access_raw{};
-  // For cache_read schedule, it will replace the producer tensor with cache in consumer, so replace the tuple name to
-  // cache's in access.
-  if (cached_tensor_name.empty())
-    access_raw = GatherAccesses(other, tensor_->name);
-  else
-    access_raw = GatherAccesses(other, cached_tensor_name);
-
-  if (!access_raw) {
-    LOG(ERROR) << "ComputeAt: " << other->tensor_->name << " has no access to " << tensor_->name << ", skipped it";
-    return;
-  }
-
-  if (!cached_tensor_name.empty()) {
-    access_raw = isl_map_set_tuple_name(access_raw, isl_dim_out, tensor_->name.c_str());
-  }
-  access     = isl::manage(access_raw);
-  access_raw = nullptr;
-
-  ComputeAtTransform transform(domain_, other->domain(), access, transform_, other->transform(), level);
-  transform();
-
-  domain_    = transform.adjusted_pdomain();
-  transform_ = transform.adjusted_ptransform();
-
-  // set name of the dimensions if not exists, or it will go wrong in the following process.
-  domain_    = isl_set_dim_name_if_null(domain_.release(),
-                                     [](isl_dim_type dim_type, int i) { return "pp" + std::to_string(i); });
-  transform_ = isl_set_dim_name_if_null(transform_.release(), [](isl_dim_type dim_type, int i) {
-    return (dim_type == isl_dim_in ? "pi" : "po") + std::to_string(i);
-  });
-
-  auto indice_mins = transform.GetAccessesPrecedingIndicesMinAssumingParamsZero();
-  std::vector<int> offsets;
-  std::transform(indice_mins.begin(), indice_mins.end(), std::back_inserter(offsets), [&](int x) { return -x; });
-
-  other->meta.compute_at_infos.emplace_back(other->tensor_->name,                  // consumer_tensor_name,
-                                            tensor_->name,                         // producer_tensor_name
-                                            transform.GetProducerAdjustedShape(),  // adjusted_producer_shape,
-                                            indice_mins,                           // preceding_offset_for_producer_load
-                                            level);
-
-  ComputeAtSchedule(other, level, kind);
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
@@ -1279,7 +1213,12 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
 }
 
 void Stage::CopyTransform(Stage *other, int level) {
-  auto target_transform        = RemoveAxiesByInputNames(other->transform(), other->origin_reduce_axis_names());
+  auto target_transform =
+      RemoveAxiesByInputNames(other->transform(), other->domain(), other->origin_reduce_axis_names());
+  isl::set target_origin_domain(other->domain().ctx(), isl_set_to_str(other->domain().get()));
+  for (auto &i : other->origin_reduce_axis_names()) {
+    target_origin_domain = isl::manage(isl_remove_axis_by_name(target_origin_domain.release(), i.c_str()));
+  }
   std::string str_target_trans = isl_map_to_str(target_transform.get());
   std::string this_tensor_name = isl_set_get_tuple_name(domain_.get());
   isl::ctx this_ctx            = domain_.ctx();
@@ -1296,8 +1235,8 @@ void Stage::CopyTransform(Stage *other, int level) {
     for (int i = 0; i <= level; i++) {
       dim_out_level.push_back(isl_map_get_dim_name(temp_target_trans.get(), isl_dim_out, i));
     }
-    auto related_dim_in  = GetRelatedInputAxies(temp_target_trans, dim_out_level);
-    auto related_dim_out = GetRelatedOutputAxies(temp_target_trans, related_dim_in);
+    auto related_dim_in  = GetRelatedInputAxies(temp_target_trans, target_origin_domain, dim_out_level);
+    auto related_dim_out = GetRelatedOutputAxies(temp_target_trans, target_origin_domain, related_dim_in);
     for (auto &i : related_dim_out) {
       if (i == pivot_dim_out) {
         this->CopyTransform(other, level + 1);

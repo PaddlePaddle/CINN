@@ -96,7 +96,7 @@ Module OpBenchmarkTester::CreateCinnModule(const std::vector<Tensor>& input_tens
     }
   }
   auto func = Lower(op_name_, stages, rets);
-  LOG(INFO) << func;
+  LOG(INFO) << "After Lower, func is: \n" << func;
   Module::Builder builder("module_" + op_name_, target_);
   builder.AddFunction(func);
   CodeGenC compiler(target_);
