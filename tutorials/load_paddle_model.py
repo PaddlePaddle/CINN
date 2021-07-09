@@ -27,18 +27,15 @@ import numpy as np
 #
 # - :code:`x_shape` is the input tensor's shape of the model
 
-enable_gpu = "OFF"
 model_dir = "./ResNet18"
 input_tensor = 'image'
 target_tensor = 'save_infer_model/scale_0'
-x_shape = [2, 3, 224, 224]
+x_shape = [1, 3, 224, 224]
 
 ##################################################################
 # Set the target backend
-if enable_gpu == "ON":
-    target = DefaultNVGPUTarget()
-else:
-    target = DefaultHostTarget()
+
+target = DefaultHostTarget()
 
 ##################################################################
 # Set the input tensor and init interpreter
