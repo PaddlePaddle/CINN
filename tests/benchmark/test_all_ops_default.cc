@@ -155,7 +155,7 @@ std::vector<int> stride_conv2d6({2, 2});
 std::vector<int> dilation_conv2d6({1, 1});
 std::unordered_map<std::string, AttrType> attr_store_conv2d6 = {
     {"padding", padding_conv2d6}, {"stride", stride_conv2d6}, {"dilation", dilation_conv2d6}};
-TEST_DEFAULT1(conv2d, conv2d_nchw6, type1, type7, attr_store_conv2d5)
+TEST_DEFAULT1(conv2d, conv2d_nchw6, type1, type7, attr_store_conv2d6)
 
 // test_op_nn
 std::vector<std::vector<int>> shapes_conv2d_nchw7 = {{1, 3, 10, 10}, {2, 3, 2, 2}};

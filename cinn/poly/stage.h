@@ -227,6 +227,16 @@ class Stage : public Object {
    */
   ir::Tensor CacheRead(const std::string& memory_type, std::vector<ir::Tensor>& readers, poly::StageMap stages);
 
+  /**
+   * \brief Mark the stage compute at the level of some other stage. Usually used when there is no access relation
+   * between two tensors.
+   *
+   * The difference bewteen ComputeAt2 and ComputeAt is that ComputeAt2 can be used when there is no access relation
+   * between two tensors.
+   *
+   * @param other the target stage to compute at.
+   * @param level the level of \p other's forloop to compute at
+   */
   void ComputeAt2(Stage* other, int level);
 
   // Do ComputeAt2 except for setting the ComputeAt level, which is moving the computations together.
@@ -240,9 +250,8 @@ class Stage : public Object {
    *
    * @param other the target stage to compute at.
    * @param level the level of \p other's forloop to compute at
-   * @param kind the position compared to other, can be Before, After or Unknown.
    */
-  void ComputeAt5(Stage* other, int level);
+  void ComputeAt(Stage* other, int level);
 
   void ShowISL();
 

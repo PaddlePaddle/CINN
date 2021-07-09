@@ -459,7 +459,7 @@ void Stage::EditTempTensor(Stage *other, int level) {
   return;
 }
 
-void Stage::ComputeAt5(Stage *other, int level) {
+void Stage::ComputeAt(Stage *other, int level) {
   isl::set this_domain(domain().ctx(), isl_set_to_str(domain().get()));
   isl::set target_domain(other->domain().ctx(), isl_set_to_str(other->domain().get()));
 
