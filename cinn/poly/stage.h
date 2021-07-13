@@ -207,21 +207,6 @@ class Stage : public Object {
   };
 
   /**
-   * \brief Mark the stage compute at the level of some other stage.
-   *
-   * NOTE This can only be called after all transformations are preformed, and once called, no further transform can
-   * perform for that if the iterators are changed, the original `ComputeAt` level will become invalid.
-   *
-   * @param other the target stage to compute at.
-   * @param level the level of \p other's forloop to compute at
-   * @param kind the position compared to other, can be Before, After or Unknown.
-   */
-  void ComputeAt(Stage* other,
-                 int level,
-                 ComputeAtKind kind                    = kComputeAtAuto,
-                 const std::string& cached_tensor_name = "");
-
-  /**
    * Apply loop skewing on the loop levels \p i and \p j with a skewing factor of \p factor.
    * TODO(Superjomn) Refine this transform.
    */
@@ -242,16 +227,31 @@ class Stage : public Object {
    */
   ir::Tensor CacheRead(const std::string& memory_type, std::vector<ir::Tensor>& readers, poly::StageMap stages);
 
+  /**
+   * \brief Mark the stage compute at the level of some other stage. Usually used when there is no access relation
+   * between two tensors.
+   *
+   * The difference bewteen ComputeAt2 and ComputeAt is that ComputeAt2 can be used when there is no access relation
+   * between two tensors.
+   *
+   * @param other the target stage to compute at.
+   * @param level the level of \p other's forloop to compute at
+   */
   void ComputeAt2(Stage* other, int level);
 
   // Do ComputeAt2 except for setting the ComputeAt level, which is moving the computations together.
   void ComputeAt3(Stage* other, int level);
 
-  // Just set the ComputeAt level.
-  void ComputeAt4(Stage* other, int level);
-
-  // Reconstructed version of ComputeAt2.
-  void ComputeAt5(Stage* other, int level);
+  /**
+   * \brief Mark the stage compute at the level of some other stage.
+   *
+   * NOTE This can only be called after all transformations are preformed, and once called, no further transform can
+   * perform for that if the iterators are changed, the original `ComputeAt` level will become invalid.
+   *
+   * @param other the target stage to compute at.
+   * @param level the level of \p other's forloop to compute at
+   */
+  void ComputeAt(Stage* other, int level);
 
   void ShowISL();
 

@@ -238,15 +238,13 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   std::string this_transform = isl_map_to_str(stages[this]->transform().get());
   isl::ctx this_ctx          = stages[this]->transform().ctx();
   isl::map temp_transform(this_ctx, this_transform);
-  int reduce_axis_num = this->reduce_axis.size();
-  auto dim_out_names  = poly::isl_get_dim_names(stages[this]->transform(), isl_dim_out);
-  auto dim_in_size    = isl_map_dim(stages[this]->transform().get(), isl_dim_in);
-  auto dim_in_names   = poly::isl_get_dim_names(stages[this]->transform(), isl_dim_in);
-  std::vector<std::string> reduce_axis_input;
-  for (int i = dim_in_size - reduce_axis_num; i < dim_in_size; i++) {
-    reduce_axis_input.push_back(dim_in_names[i]);
-  }
-  auto reduce_axis_output = poly::GetRelatedOutputAxies(temp_transform, reduce_axis_input);
+  int reduce_axis_num                        = this->reduce_axis.size();
+  auto dim_out_names                         = poly::isl_get_dim_names(stages[this]->transform(), isl_dim_out);
+  auto dim_in_size                           = isl_map_dim(stages[this]->transform().get(), isl_dim_in);
+  auto dim_in_names                          = poly::isl_get_dim_names(stages[this]->transform(), isl_dim_in);
+  std::vector<std::string> reduce_axis_input = stages[this]->origin_reduce_axis_names();
+  auto origin_domain                         = stages[this]->domain();
+  auto reduce_axis_output = poly::GetRelatedOutputAxies(temp_transform, origin_domain, reduce_axis_input);
   std::set<std::string> reduce_axis_output_set;
   for (auto &i : reduce_axis_output) {
     reduce_axis_output_set.insert(i);
@@ -260,7 +258,7 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
     }
   }
 
-  temp_transform = poly::RemoveAxiesByOutputNames(temp_transform, reduce_axis_output);
+  temp_transform = poly::RemoveAxiesByOutputNames(temp_transform, origin_domain, reduce_axis_output);
 
   //! When the first axis is not reduce axis, do ComputeAt.
   if (compute_at_axis >= 0) {

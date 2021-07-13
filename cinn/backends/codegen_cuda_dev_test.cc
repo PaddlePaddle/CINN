@@ -130,8 +130,8 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
   stages[C]->Split(0, 10);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
-  stages[A_cache]->ComputeAt5(stages[C], 1);
-  stages[B_cache]->ComputeAt5(stages[C], 1);
+  stages[A_cache]->ComputeAt(stages[C], 1);
+  stages[B_cache]->ComputeAt(stages[C], 1);
   CodeGenCUDA_Dev codegen(target);
 
   auto func = Lower("elementwise_add", stages, {A, B, C});
@@ -309,28 +309,18 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
 
   stages[OL]->ComputeAt3(stages[conv], 4);
   stages[OL]->Split(6, 8);
-  auto on   = stages[OL]->axis(0);
-  auto obz  = stages[OL]->axis(1);
-  auto oby  = stages[OL]->axis(2);
-  auto otz  = stages[OL]->axis(3);
-  auto otx  = stages[OL]->axis(4);
-  auto ofi  = stages[OL]->axis(5);
-  auto orc  = stages[OL]->axis(6);
-  auto orci = stages[OL]->axis(7);
-  auto ory  = stages[OL]->axis(8);
-  auto orx  = stages[OL]->axis(9);
 
-  stages[OL]->Reorder({orc, ory, orx, orci, on, obz, oby, otz, otx, ofi});
+  stages[OL]->Reorder({6, 8, 9, 7, 0, 1, 2, 3, 4, 5});
 
   stages[OL]->Bind(5, "blockIdx.z");
   stages[OL]->Bind(6, "blockIdx.y");
   stages[OL]->Bind(7, "threadIdx.z");
   stages[OL]->Bind(8, "threadIdx.x");
 
-  stages[KR]->ComputeAt5(stages[OL], 2);
+  stages[KR]->ComputeAt(stages[OL], 2);
   auto OL_init = OL->GetInitTensor(stages, target);
 
-  stages[PR]->ComputeAt5(stages[OL], 2);
+  stages[PR]->ComputeAt(stages[OL], 2);
 
   stages[PR]->SyncThreads(stages);
   stages[PR]->SyncThreads(2, {OL_init}, stages);
@@ -613,7 +603,7 @@ TEST(CodeGenCUDA3, test_of_mul_cachewrite) {
   stages[C]->Split(0, 4);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
-  stages[C_WC]->ComputeAt5(stages[C], 2);
+  stages[C_WC]->ComputeAt(stages[C], 2);
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -1132,7 +1122,7 @@ TEST(elementwise_add1, share_local_cache) {
   stages[C]->Bind(1, "threadIdx.x");
   stages[AA]->Bind(0, "blockIdx.x");
   stages[AA]->Bind(1, "threadIdx.x");
-  stages[AL]->ComputeAt5(stages[C], 1);
+  stages[AL]->ComputeAt(stages[C], 1);
 
   Module::Builder builder("gpu_module", common::DefaultNVGPUTarget());
 
@@ -1208,8 +1198,8 @@ TEST(elementwise_add0, share_local_cache) {
   auto AA = stages[A]->CacheRead("shared", temp, stages);
   // NOTE here, the CC replace the C as the output the function.
 
-  stages[CC]->ComputeAt5(stages[C], 1);
-  stages[AA]->ComputeAt5(stages[CC], 1);
+  stages[CC]->ComputeAt(stages[C], 1);
+  stages[AA]->ComputeAt(stages[CC], 1);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
 
@@ -1368,7 +1358,7 @@ TEST(ElementwiseAdd, cache_read_local) {
 
   auto AL = stages[A]->CacheRead("local", temp, stages);
   stages[C]->Split(0, 10);
-  stages[AL]->ComputeAt5(stages[C], 1);
+  stages[AL]->ComputeAt(stages[C], 1);
   stages[C]->Bind(0, "threadIdx.x");
   stages[C]->Bind(1, "blockIdx.x");
 
@@ -1860,7 +1850,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
 
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");
-    stages[AL]->ComputeAt5(stages[C], 1);
+    stages[AL]->ComputeAt(stages[C], 1);
 
     return std::make_tuple(A, B, C, AL, stages);
   };
@@ -2024,7 +2014,7 @@ TEST(ElementwiseAdd, cache_write_local) {
     // thread.
     stages[C]->Split(1, 4);
     stages[C]->Split(0, 4);
-    stages[Co]->ComputeAt5(stages[C], 1);
+    stages[Co]->ComputeAt(stages[C], 1);
     stages[Co]->Split(2, 5);
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");
