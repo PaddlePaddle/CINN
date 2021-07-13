@@ -369,8 +369,8 @@ TEST(CodeGenLLVM, Statement) {
     tensor_op->buffer = CreateIrBuffer(common::Int(32), "", {2, 3});
 
     // ir::Alloc
-    auto alloc_op         = std::make_unique<ir::Alloc>();
-    alloc_op->destination = ir::Expr(tensor_op->buffer);
+    auto alloc_op    = std::make_unique<ir::Alloc>();
+    alloc_op->buffer = ir::Expr(tensor_op->buffer);
 
     // ir::Store
     auto store_op    = std::make_unique<ir::Store>();
@@ -391,8 +391,8 @@ TEST(CodeGenLLVM, Statement) {
     }
 
     // ir::Free
-    auto free_op         = std::make_unique<ir::Free>();
-    free_op->destination = ir::Expr(tensor_op->buffer);
+    auto free_op    = std::make_unique<ir::Free>();
+    free_op->buffer = ir::Expr(tensor_op->buffer);
 
     // ir::Call
     auto call_op  = std::make_unique<ir::Call>(common::Int(32));

@@ -107,10 +107,10 @@ struct IRCopyVisitor : public ir::IRVisitorBase<Expr> {
     if (op->condition.defined()) condition = Visit(&op->condition);
     if (op->body.defined()) body = Visit(&op->body);
 
-    return Alloc::Make(op->destination, op->type(), extents, condition, body);
+    return Alloc::Make(op->buffer, op->type(), extents, condition, body);
   }
 
-  Expr Visit(const Free* op) override { return Free::Make(op->destination); }
+  Expr Visit(const Free* op) override { return Free::Make(op->buffer); }
 
   Expr Visit(const _Buffer_* op) override {
     if (buffer_map.count(op->name)) {
