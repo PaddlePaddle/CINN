@@ -77,10 +77,10 @@ class Node : public common::GraphNode {
   NodeAttr attrs;
 
   //! Get the input tensors in order to match tensors correctly.
-  const std::vector<common::Shared<common::GraphEdge>> &inlinks_in_order() const;
+  const std::vector<common::Shared<common::GraphEdge>> &inlinks_in_order(bool refresh = false) const;
 
   //! Get the output tensors in order to match tensors correctly.
-  const std::vector<common::Shared<common::GraphEdge>> &outlinks_in_order() const;
+  const std::vector<common::Shared<common::GraphEdge>> &outlinks_in_order(bool refresh = false) const;
 
   inline const Operator *op() const { return this->attrs.op; }
 
@@ -168,6 +168,13 @@ class NodeData : public common::GraphNode {
    */
   std::string id_;
 };
+
+void ReplaceGraphOpNode(common::Graph *graph,
+                        hlir::framework::Node *old_node,
+                        hlir::framework::Node *new_node,
+                        int new_out_nums);
+NodeData *InsertGraphOpNode(common::Graph *graph, Node *insert_node, NodeData *input_nodedata, Node *dst_node);
+void DeleteGraphOpNode(common::Graph *graph, Node *op_node, NodeData *input_nodedata, NodeData *out_nodedata);
 
 }  // namespace framework
 }  // namespace hlir

@@ -227,6 +227,13 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
                           float epsilon,
                           const std::string &output_name = UniqName("T_BatchNorm_NCHW_out"));
 
+ir::Tensor BatchNorm_NCHWc(const ir::Tensor &input,
+                           const ir::Tensor &scale,
+                           const ir::Tensor &bias,
+                           const ir::Tensor &mean,
+                           const ir::Tensor &variance,
+                           float epsilon,
+                           const std::string &output_name = UniqName("T_BatchNorm_NCHWc_out"));
 /**
  * @brief Perform padding operation.
  * @param tensor The input tensor.

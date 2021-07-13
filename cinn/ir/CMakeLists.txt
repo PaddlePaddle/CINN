@@ -18,6 +18,7 @@ core_gather_srcs(SRCS
     tensor.cc
     module.cc
     intrinsic_ops.cc
+    layout.cc
     )
 
 # cc_test(test_ir SRCS ir_test.cc DEPS core)
