@@ -129,25 +129,25 @@ TEST(test02, basic) {
   compare();                                                                   \
   reset();
 
-  TEST_FUNC(matmul)
+  // TEST_FUNC(matmul)
 
-  TEST_FUNC(matmul_tile)
+  // TEST_FUNC(matmul_tile)
 
-  TEST_FUNC(matmul_split)
+  // TEST_FUNC(matmul_split)
 
-  TEST_FUNC(matmul_block)
+  // TEST_FUNC(matmul_block)
 
-  TEST_FUNC(matmul_vectorize)
+  // TEST_FUNC(matmul_vectorize)
 
-  TEST_FUNC(matmul_loop_permutation)
+  // TEST_FUNC(matmul_loop_permutation)
 
-  TEST_FUNC1(matmul_array_packing, 1e-5)
+  // TEST_FUNC1(matmul_array_packing, 1e-5)
 
-  TEST_FUNC2(matmul_dynamic_shape, 1e-5);
+  // TEST_FUNC2(matmul_dynamic_shape, 1e-5);
 
-  TEST_FUNC2(matmul_dynamic_shape_tile, 1e-5);
+  // TEST_FUNC2(matmul_dynamic_shape_tile, 1e-5);
 
-  TEST_FUNC3(matmul_array_packing_dynamic_shape, 1e-5);
+  // TEST_FUNC3(matmul_array_packing_dynamic_shape, 1e-5);
 
   // Currently, the execution of a LoweredFunc is scheduled by the outer framework, so no need to Call inside another
   // LoweredFunc.
@@ -175,34 +175,34 @@ TEST(test02, basic) {
   target.bits = cinn::Target::Bit::k32;
   target.os   = cinn::Target::OS::Linux;
 
-  TEST_LLVM_MATMUL(basic, target);
-  TEST_LLVM_MATMUL(tile, target);
-  TEST_LLVM_MATMUL(block, target);
-  TEST_LLVM_MATMUL(vectorize, target);
-  TEST_LLVM_MATMUL(loop_permutation, target);
+  // TEST_LLVM_MATMUL(basic, target);
+  // TEST_LLVM_MATMUL(tile, target);
+  // TEST_LLVM_MATMUL(block, target);
+  // TEST_LLVM_MATMUL(vectorize, target);
+  // TEST_LLVM_MATMUL(loop_permutation, target);
   TEST_LLVM_MATMUL1(array_packing, target);
 
-  {
-    auto module    = cinn::tests::CreateMatmulBasicModule(target, 1024, 1024, 1024);
-    auto jit       = cinn::tests::CreateSimpleJit(module);
-    auto matmul_fn = reinterpret_cast<void (*)(void**, int32_t)>(jit->Lookup("matmul_basic"));
-    TEST_FUNC(matmul_fn);
-  }
+  // {
+  //   auto module    = cinn::tests::CreateMatmulBasicModule(target, 1024, 1024, 1024);
+  //   auto jit       = cinn::tests::CreateSimpleJit(module);
+  //   auto matmul_fn = reinterpret_cast<void (*)(void**, int32_t)>(jit->Lookup("matmul_basic"));
+  //   TEST_FUNC(matmul_fn);
+  // }
 
 #undef TEST_LLVM_MATMUL
 }
 
 // include the generated C source code:
 // @{
-#include "tests/test02_matmul.cc"
-#include "tests/test02_matmul_array_packing.cc"
-#include "tests/test02_matmul_array_packing_dynamic_shape.cc"
-#include "tests/test02_matmul_block.cc"
-#include "tests/test02_matmul_call.cc"
-#include "tests/test02_matmul_loop_permutation.cc"
-#include "tests/test02_matmul_split.cc"
-#include "tests/test02_matmul_tile.cc"
-#include "tests/test02_matmul_varient_shape.cc"
-#include "tests/test02_matmul_varient_shape_tile.cc"
-#include "tests/test02_matmul_vectorize.cc"
+// #include "tests/test02_matmul.cc"
+// #include "tests/test02_matmul_array_packing.cc"
+// #include "tests/test02_matmul_array_packing_dynamic_shape.cc"
+// #include "tests/test02_matmul_block.cc"
+// #include "tests/test02_matmul_call.cc"
+// #include "tests/test02_matmul_loop_permutation.cc"
+// #include "tests/test02_matmul_split.cc"
+// #include "tests/test02_matmul_tile.cc"
+// #include "tests/test02_matmul_varient_shape.cc"
+// #include "tests/test02_matmul_varient_shape_tile.cc"
+// #include "tests/test02_matmul_vectorize.cc"
 // @}
