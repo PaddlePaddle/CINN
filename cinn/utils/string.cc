@@ -26,6 +26,14 @@ std::string StringFormat(const std::string &fmt_str, ...) {
   return std::string(formatted.get());
 }
 
+std::string RemoveSuffix(const std::string &name) {
+  std::string res = name;
+  while (Endswith(res, "_outer") || Endswith(res, "_inner")) {
+    res = res.substr(0, res.size() - 6);
+  }
+  return res;
+}
+
 std::string Trim(const std::string &s, const char *empty) {
   if (s.empty()) return s;
   auto start = s.find_first_not_of(empty);

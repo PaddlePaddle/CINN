@@ -459,9 +459,9 @@ void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y,
   for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
 
   CUDA_CALL(cudaMemcpy(
-      reinterpret_cast<void*>(Ad), host_data1.data(), 128 * 28 * 28 * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(
-      cudaMemcpy(reinterpret_cast<void*>(Bd), host_data2.data(), 256 * 128 * sizeof(float), cudaMemcpyHostToDevice));
+      reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
 
   // launch the kernel
 
@@ -480,6 +480,288 @@ void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y,
             << " times, average time cost is : " << time1.Stop() / float(repeat) << "ms. ";
   CUDA_CALL(cudaMemcpy(
       host_data3.data(), reinterpret_cast<void*>(Cd), 256 * 14 * 14 * sizeof(float), cudaMemcpyDeviceToHost));
+}
+
+TEST(CodeGenCUDA2, test_schedule_conv2d_1) {
+  Context::Global().ResetNameId();
+  Expr N(1);
+  Expr C(3);
+  Expr H(224);
+  Expr W(64);
+  Expr K(7);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("X", {N, C, H, H});
+  Placeholder<float> B("Y", {W, C, K, K});
+
+  auto res = hlir::pe::Conv2d_NCHW(A, B, 3, 3, 2, 2, 1, 1, "Conv2d_out");
+
+  auto stages = CreateStages(res);
+
+  auto pad_data = res[0];
+  auto conv     = res[1];
+
+  stages[pad_data]->ComputeInline();
+  optim::Simplify(&(conv->shape[2]));
+  optim::Simplify(&(conv->shape[3]));
+
+  std::vector<ir::Tensor> readers{conv};
+  auto PR = stages[pad_data]->CacheRead("shared", readers, stages);
+  auto KR = stages[B]->CacheRead("shared", readers, stages);
+  auto OL = stages[conv]->CacheWrite("local", stages, conv);
+
+  // x param is :  [1, 7, 16, 1]
+  stages[conv]->Split(3, 1);
+  stages[conv]->Split(3, 16);
+  stages[conv]->Split(3, 7);
+  // y param is :  [112, 1, 1, 1]
+  stages[conv]->Split(2, 1);
+  stages[conv]->Split(2, 1);
+  stages[conv]->Split(2, 1);
+  // f param is :  [1, 4, 8, 2]
+  stages[conv]->Split(1, 2);
+  stages[conv]->Split(1, 8);
+  stages[conv]->Split(1, 4);
+
+  stages[conv]->Reorder({0, 1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12});
+  stages[conv]->Bind(1, "blockIdx.z");
+  stages[conv]->Bind(2, "blockIdx.y");
+  stages[conv]->Bind(3, "blockIdx.x");
+  stages[conv]->Bind(7, "threadIdx.z");
+  stages[conv]->Bind(8, "threadIdx.y");
+  stages[conv]->Bind(9, "threadIdx.x");
+
+  stages[OL]->ComputeAt(stages[conv], 9);
+
+  // rx param is :  [1, 7]
+  stages[OL]->Split(15, 7);
+  // ry param is :  [7, 1]
+  stages[OL]->Split(14, 1);
+  // rc param is :  [3, 1]
+  stages[OL]->Split(13, 1);
+
+  stages[OL]->Reorder({13, 15, 17, 14, 16, 18, 10, 11, 12});
+
+  auto OL_init = OL->GetInitTensor(stages, target);
+  stages[PR]->ComputeAt(stages[OL], 12);
+  stages[KR]->ComputeAt(stages[OL], 12);
+
+  stages[PR]->SyncThreads(12, {OL_init}, stages);
+  stages[KR]->CtrlDepend(PR);
+  stages[KR]->SyncThreads(stages);
+
+  stages[PR]->Fuse({13, 14, 15, 16, 17});
+  stages[KR]->Fuse({13, 14, 15, 16, 17, 18});
+  stages[PR]->Bind(13, "threadIdx.z");
+  stages[KR]->Bind(13, "threadIdx.x");
+
+  LOG(INFO) << "PR is : ";
+  stages[PR]->ShowISL();
+  LOG(INFO) << "KR is : ";
+  stages[KR]->ShowISL();
+
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func = Lower("schedule_conv2d_1", stages, {A, B, conv}, {}, {}, nullptr, target);
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled schedule_conv2d_1 code:\n\n\n" << source_code;
+
+  std::string source_target        = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ Conv2d_out)
+{
+  float _Conv2d_out_write_cache [ 2 ];
+  __shared__ float _Y_read_cache [ 112 ];
+  __shared__ float _input_pad_0_read_cache [ 76 ];
+  float* Conv2d_out_write_cache = _Conv2d_out_write_cache;
+  float* Conv2d_out_write_cache__reduce_init = _Conv2d_out_write_cache;
+  float* Y_read_cache = _Y_read_cache;
+  float* input_pad_0_read_cache = _input_pad_0_read_cache;
+  if ((blockIdx.y < 112)) {
+    for (int32_t j_outer_outer_inner = 0; j_outer_outer_inner < 4; j_outer_outer_inner += 1) {
+      for (int32_t a_outer_outer_inner = 0; a_outer_outer_inner < 7; a_outer_outer_inner += 1) {
+        if ((threadIdx.z < 8)) {
+          if ((threadIdx.x < 16)) {
+          {
+            for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
+              Conv2d_out_write_cache__reduce_init[rc_outer] = 0;
+            };
+            for (int32_t rc_outer = 0; rc_outer < 3; rc_outer += 1) {
+              for (int32_t ry_outer = 0; ry_outer < 7; ry_outer += 1) {
+                {
+                  __syncthreads();
+                  if ((threadIdx.z < 7)) {
+                    input_pad_0_read_cache[((2 * threadIdx.x) + threadIdx.z)] = ((((((((2 * blockIdx.y) + ry_outer) >= 3) && (((2 * blockIdx.y) + ry_outer) < 227)) && (((32 * a_outer_outer_inner) + ((2 * threadIdx.x) + threadIdx.z)) >= 3)) && (((32 * a_outer_outer_inner) + ((2 * threadIdx.x) + threadIdx.z)) < 227))) ? X[(-675 + ((32 * a_outer_outer_inner) + ((448 * blockIdx.y) + ((50176 * rc_outer) + ((224 * ry_outer) + ((2 * threadIdx.x) + threadIdx.z))))))] : 0);
+                  };
+                };
+                if ((threadIdx.x < 14)) {
+                  Y_read_cache[((threadIdx.x / 2) + ((7 * (threadIdx.x % 2)) + (14 * threadIdx.z)))] = Y[((threadIdx.x / 2) + ((147 * (threadIdx.x % 2)) + ((2352 * j_outer_outer_inner) + ((49 * rc_outer) + ((7 * ry_outer) + (294 * threadIdx.z))))))];
+                };
+                __syncthreads();
+                for (int32_t rx_inner = 0; rx_inner < 7; rx_inner += 1) {
+                  for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
+                    Conv2d_out_write_cache[j_inner] = (Conv2d_out_write_cache[j_inner] + (input_pad_0_read_cache[((2 * threadIdx.x) + rx_inner)] * Y_read_cache[((7 * j_inner) + ((14 * threadIdx.z) + rx_inner))]));
+                  };
+                };
+              };
+            };
+            for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
+              Conv2d_out[((16 * a_outer_outer_inner) + ((112 * blockIdx.y) + ((200704 * j_outer_outer_inner) + ((12544 * rc_outer) + ((25088 * threadIdx.z) + threadIdx.x)))))] = Conv2d_out_write_cache[rc_outer];
+            };
+          }
+          };
+        };
+      };
+    };
+  };
+}
+
+}
+)ROC";
+  std::string trimed_source_target = utils::Trim(source_target);
+  int start_target                 = trimed_source_target.find("blockIdx");
+  int start_source                 = source_code.find("blockIdx");
+  ASSERT_EQ(trimed_source_target.substr(start_target), source_code.substr(start_source));
+  using runtime::cuda::CUDAModule;
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr Ad, Bd, Cd;
+  cuMemAlloc(&Ad, 1 * 3 * 224 * 224 * sizeof(float));
+  cuMemAlloc(&Bd, 64 * 3 * 7 * 7 * sizeof(float));
+  cuMemAlloc(&Cd, 1 * 64 * 112 * 112 * sizeof(float));
+
+  std::vector<float> host_data1(1 * 3 * 224 * 224, 0);
+  std::vector<float> host_data2(64 * 3 * 7 * 7, 0);
+  std::vector<float> host_data3(1 * 64 * 112 * 112, 0);
+  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
+
+  // launch the kernel
+
+  void* args[] = {&Ad, &Bd, &Cd};
+
+  dim3 grid(1, 112, 1);
+  dim3 block(16, 1, 8);
+  int repeat = 5000;
+
+  utils::Timer time1;
+  time1.Start();
+  for (int i = 0; i < repeat; i++) {
+    cuda_module.LaunchKernel(0, "schedule_conv2d_1", grid, block, args);
+  }
+  auto time_average1 = time1.Stop() / float(repeat);
+  LOG(INFO) << "Conv2d op1_CINN with schedule repeats " << repeat << " times, average time cost is : " << time_average1
+            << "ms. ";
+  CUDA_CALL(cudaMemcpy(
+      host_data3.data(), reinterpret_cast<void*>(Cd), host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
+
+  std::string source_tvm = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+__global__ void schedule_conv2d_1(float* __restrict__ placeholder, float* __restrict__ placeholder1, float* __restrict__ Conv2d_out) {
+  float compute[2];
+  __shared__ float pad_temp_shared[37];
+  __shared__ float placeholder_shared[112];
+  for (int ax1_inner_outer = 0; ax1_inner_outer < 4; ++ax1_inner_outer) {
+    for (int ax3_inner_outer = 0; ax3_inner_outer < 7; ++ax3_inner_outer) {
+      for (int ff_init = 0; ff_init < 2; ++ff_init) {
+        compute[(ff_init)] = 0.000000e+00f;
+      }
+      for (int rc_outer = 0; rc_outer < 3; ++rc_outer) {
+        for (int ry_outer = 0; ry_outer < 7; ++ry_outer) {
+          __syncthreads();
+          if (((((int)threadIdx.z) * 5) + ((int)threadIdx.x)) < 37) {
+            if (((int)threadIdx.x) < 5) {
+              pad_temp_shared[(((((int)threadIdx.z) * 5) + ((int)threadIdx.x)))] = (((((3 <= ((((int)blockIdx.y) * 2) + ry_outer)) && (((((int)blockIdx.y) * 2) + ry_outer) < 227)) && (3 <= (((ax3_inner_outer * 32) + (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)))) && ((((ax3_inner_outer * 32) + (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) < 227)) ? placeholder[((((((((rc_outer * 50176) + (((int)blockIdx.y) * 448)) + (ry_outer * 224)) + (ax3_inner_outer * 32)) + (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) - 675))] : 0.000000e+00f);
+            }
+          }
+          if (((((int)threadIdx.z) * 2) + (((int)threadIdx.x) / 7)) < 16) {
+            if (((((int)threadIdx.z) * 14) + ((int)threadIdx.x)) < 112) {
+              if (((int)threadIdx.x) < 14) {
+                placeholder_shared[(((((int)threadIdx.z) * 14) + ((int)threadIdx.x)))] = placeholder1[(((((((ax1_inner_outer * 2352) + (((int)threadIdx.z) * 294)) + ((((int)threadIdx.x) / 7) * 147)) + (rc_outer * 49)) + (ry_outer * 7)) + (((int)threadIdx.x) % 7)))];
+              }
+            }
+          }
+          __syncthreads();
+          for (int rx_inner = 0; rx_inner < 7; ++rx_inner) {
+            for (int ff = 0; ff < 2; ++ff) {
+              compute[(ff)] = (compute[(ff)] + (pad_temp_shared[(((((int)threadIdx.x) * 2) + rx_inner))] * placeholder_shared[((((((int)threadIdx.z) * 14) + (ff * 7)) + rx_inner))]));
+            }
+          }
+        }
+      }
+      for (int ax1_inner_inner_inner = 0; ax1_inner_inner_inner < 2; ++ax1_inner_inner_inner) {
+        Conv2d_out[(((((((ax1_inner_outer * 200704) + (((int)threadIdx.z) * 25088)) + (ax1_inner_inner_inner * 12544)) + (((int)blockIdx.y) * 112)) + (ax3_inner_outer * 16)) + ((int)threadIdx.x)))] = compute[(ax1_inner_inner_inner)];
+      }
+    }
+  }
+}
+}
+)ROC";
+
+  backends::NVRTC_Compiler compiler_tvm;
+
+  auto ptx_tvm = compiler_tvm(source_tvm);
+  CHECK(!ptx_tvm.empty());
+
+  CUDAModule cuda_module_tvm(ptx_tvm, CUDAModule::Kind::PTX);
+
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  std::vector<float> host_data4(1 * 64 * 112 * 112, 0);
+  // launch the kernel
+
+  utils::Timer time2;
+  time2.Start();
+  for (int i = 0; i < repeat; i++) {
+    cuda_module_tvm.LaunchKernel(0, "schedule_conv2d_1", grid, block, args);
+  }
+  auto time_average2 = time2.Stop() / float(repeat);
+  LOG(INFO) << "Conv2d op1_TVM with schedule repeats " << repeat << " times, average time cost is : " << time_average2
+            << "ms. ";
+  CUDA_CALL(cudaMemcpy(
+      host_data4.data(), reinterpret_cast<void*>(Cd), host_data4.size() * sizeof(float), cudaMemcpyDeviceToHost));
+  for (int offset = 0; offset < host_data4.size(); offset++) {
+    EXPECT_NEAR(host_data3[offset], host_data4[offset], 1e-5);
+  }
 }
 
 TEST(CodeGenCUDA, test_of_syncthreads) {

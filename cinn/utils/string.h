@@ -20,6 +20,13 @@ std::string GetStreamCnt(const T& x);
 std::string StringFormat(const std::string& fmt_str, ...);
 
 /**
+ * Delete the '_outer' and '_inner' suffix of a var's name.
+ * @param name The input string.
+ * @return The edited string.
+ */
+std::string RemoveSuffix(const std::string& name);
+
+/**
  * Join multiple fields to a single string. Similar to Python's str.join method.
  */
 template <typename T = std::string>

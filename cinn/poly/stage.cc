@@ -512,12 +512,13 @@ void Stage::ComputeAt(Stage *other, int level) {
   auto target_map_dims_in = isl_get_dim_names(new_target_transform.get(), isl_dim_in);
   // For axis out of the level, we don't copy their transform except for they are related to axis within the level.
   std::vector<std::string> level_out_dims;
+  std::set<std::string> related_output_dims_set;
   for (int i = 0; i <= level; i++) {
     level_out_dims.push_back(target_map_dims[i]);
+    related_output_dims_set.insert(target_map_dims[i]);
   }
   auto related_input_dims  = GetRelatedInputAxies(new_target_transform, other->domain(), level_out_dims);
   auto related_output_dims = GetRelatedOutputAxies(new_target_transform, other->domain(), related_input_dims);
-  std::set<std::string> related_output_dims_set;
   for (auto &i : related_output_dims) {
     related_output_dims_set.insert(i);
   }
@@ -591,7 +592,7 @@ void Stage::ComputeAt(Stage *other, int level) {
       auto [minv, maxv]       = isl_set_get_axis_range(transformed_res.get(), i);
       int max_iv              = maxv.get_num_si();
       int min_iv              = minv.get_num_si();
-      auto related_input_dims = GetRelatedInputAxies(trans_res, domain_, {trans_dim_out[i]});
+      auto related_input_dims = GetRelatedInputAxies(trans_res, domain_, {trans_dim_out[i]}, true);
       if (max_iv != min_iv && related_input_dims.empty()) {
         trans_res = isl::manage(isl_remove_axis_by_name(trans_res.release(), isl_dim_out, trans_dim_out[i].c_str()));
       }
@@ -779,8 +780,8 @@ std::vector<ComputeAtRelation> Stage::compute_ats() const {
   return xs;
 }
 
-void Stage::ShowISL() {
-  LOG(INFO) << "Tensor " << tensor()->name << " domain is: " << isl_set_to_str(domain().get());
+void Stage::ShowISL() const {
+  LOG(INFO) << "Tensor " << id() << " domain is: " << isl_set_to_str(domain().get());
   LOG(INFO) << "transformed_domain is: " << isl_set_to_str(transformed_domain().get());
   LOG(INFO) << "transform is: " << isl_map_to_str(transform().get());
 }
