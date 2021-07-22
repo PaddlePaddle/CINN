@@ -239,10 +239,10 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       bool temp_replace = do_replace_;
       do_replace_       = true;
       find_replace_     = false;
-      LOG(INFO) << tensor->name << " Store's indices size is : " << node->indices.size();
+      VLOG(2) << tensor->name << " Store's indices size is : " << node->indices.size();
       for (int i = 0; i < node->indices.size(); i++) {
         auto& temp = node->indices[i];
-        LOG(INFO) << temp;
+        VLOG(2) << temp;
       }
       for (int i = 0; i < node->indices.size(); i++) {
         auto& temp      = node->indices[i];
@@ -257,7 +257,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         // Eliminate var 'j_inner' and get the final index 'j_outer'
         ir::IRMutator<>::Visit(&temp, &temp);
         if (find_replace_ == true) {
-          LOG(INFO) << "Find " << var_->name << " in indice: " << store_temp;
+          VLOG(3) << "Find " << var_->name << " in indice: " << store_temp;
           // If we replaced var 'j_inner'(the axis to be eliminated) to 0 in indices[i], edit tensor's shape[i] and
           // buffer's shape
           ResizeTempMemory(tensor->name, i);

@@ -437,7 +437,7 @@ std::vector<std::string> GetRelatedInputAxies(const isl::map &x,
                                               const std::vector<std::string> &dim_out_names,
                                               bool strict) {
   std::string map_str = isl_map_to_str(x.get());
-  LOG(INFO) << "GetRelatedInputAxies map_str is : " << map_str;
+  VLOG(1) << "GetRelatedInputAxies map_str is : " << map_str;
   isl::ctx this_ctx = x.ctx();
   isl::map temp_transform(this_ctx, map_str);
   auto dim_in_names = isl_get_dim_names(temp_transform, isl_dim_in);

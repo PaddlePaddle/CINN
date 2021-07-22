@@ -147,11 +147,8 @@ bool IsLinkTo(const common::GraphNode* a, const common::GraphNode* b) {
 }
 
 bool IsBetween(const common::GraphNode* x, const common::GraphNode* a, const common::GraphNode* b) {
-  LOG(INFO) << "Begin IsBetween";
   if (IsLinkTo(a, x) && IsLinkTo(x, b)) return true;
-  LOG(INFO) << "Begin IsBetween 2";
   if (IsLinkTo(x, a) && IsLinkTo(b, x)) return true;
-  LOG(INFO) << "Begin IsBetween 3";
   return false;
 }
 
@@ -217,7 +214,6 @@ std::vector<Group> TopoSortGroups(std::vector<Group>& groups) {
  * relative order.
  */
 std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
-  LOG(INFO) << "Begin NaivePartitionGraph";
   std::map<DataFlowGraphNode*, std::vector<DataFlowGraphNode*>> node_groups;
   auto [nodes_in_order, edges_in_order] = graph->topological_order();  // NOLINT
 
@@ -237,31 +233,25 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
       // check the endpoints of compute_at has data dependency.
       auto* node0 = node;
       auto* node1 = name2node[compute_at.stage->id()];
-      LOG(INFO) << "a -> b: " << node0->id() << " -> " << node1->id();
+      VLOG(3) << "a -> b: " << node0->id() << " -> " << node1->id();
 
       DataFlowGraphNode::MergeGroup(node0, node1);
-      LOG(INFO) << "End of MergeGroup";
       // process single level of outlinks
       for (auto& outlink : node0->outlinks()) {
-        LOG(INFO) << "IsBetween of " << outlink->sink()->id() << ", " << node0->id() << ", " << node1->id();
         if (IsBetween(outlink->sink(), node0, node1)) {
-          LOG(INFO) << "Begin MergeGroup";
           DataFlowGraphNode::MergeGroup(node0, outlink->sink()->safe_as<DataFlowGraphNode>());
-          LOG(INFO) << "End MergeGroup";
         }
       }
 
       // TODO(Superjomn) Consider the case node1 is a parent.
     }
   }
-  LOG(INFO) << "Stage0";
   // generate final groups.
   std::unordered_map<DataFlowGraphNode* /*ancestor*/, std::vector<DataFlowGraphNode*>> clusters;
   for (auto* n : nodes_in_order) {
     auto* node = n->safe_as<DataFlowGraphNode>();
     clusters[node->group_ancestor()].push_back(node);
   }
-  LOG(INFO) << "Stage1";
   std::vector<Group> groups;
   for (auto& item : clusters) {
     Group group;
@@ -270,9 +260,7 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
     }
     groups.push_back(std::move(group));
   }
-  LOG(INFO) << "Stage2";
   auto group_order = TopoSortGroups(groups);
-  LOG(INFO) << "Stage3";
 #ifdef CINN_DEBUG
   VLOG(2) << "Group Partition result:";
   int graph_node_count = 0;
@@ -391,7 +379,6 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
   for (auto& link : compute_at_links) {
     auto* a = stage_map.at(link.first);
     auto* b = stage_map.at(link.second.stage->tensor_->name);
-    LOG(INFO) << "Compute_at_links: ";
     After(*a, *b, link.second.level);
     stage_level[a->id()] = link.second.level;
   }
@@ -424,7 +411,7 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
     auto* node1 = edge->sink()->safe_as<ScheduleGraphNode>();
     int level   = edge->as<ScheduleGraphEdge>()->level;
     if (level > 40 || level < 0) continue;
-    LOG(INFO) << "schedule " << node0->id() << " -> " << node1->id() << " level " << level;
+    VLOG(2) << "schedule " << node0->id() << " -> " << node1->id() << " level " << level;
     node1->time_schedule.OrderAfter(node0->time_schedule, level);
   }
 
