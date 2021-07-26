@@ -91,7 +91,6 @@ void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_sha
   if (stage->n_out_dims() > 1) {
     stage->Parallel(0);
   }
-  return;
 }
 
 int GetArrayPackingFactor(int shape, const Type &type, const common::Target &target) {
@@ -744,8 +743,6 @@ void CudaScheduleMul(poly::StageMap stages,
   stages[output]->Split(1, 2);
   stages[output]->Bind(0, "blockIdx.x");
   stages[output]->Bind(1, "threadIdx.x");
-
-  return;
 }
 
 void CudaScheduleConv(poly::StageMap stages, ir::Tensor &input_pad, ir::Tensor &output, const common::Target &target) {
@@ -792,8 +789,6 @@ void CudaScheduleConv(poly::StageMap stages, ir::Tensor &input_pad, ir::Tensor &
   stages[OL]->Bind(6, "blockIdx.y");
   stages[OL]->Bind(7, "threadIdx.z");
   stages[OL]->Bind(8, "threadIdx.x");
-
-  return;
 }
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
@@ -822,7 +817,6 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
       stage->Bind(0, "threadIdx.x");
     }
   }
-  return;
 }
 
 void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape) {
@@ -835,7 +829,6 @@ void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape)
     }
     stage->Split(1, temp_split);
   }
-  return;
 }
 
 }  // namespace pe

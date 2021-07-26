@@ -26,7 +26,6 @@ struct ReplaceVarWithExprMutator : public ir::IRMutator<> {
       auto copied = IRCopy(expr_);
       *op         = copied;
     }
-    return;
   }
 
   void Visit(const ir::For* op, Expr* expr) override {
@@ -213,7 +212,6 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
     } else {
       VLOG(3) << "extent not defined";
     }
-    return;
   }
 
  private:

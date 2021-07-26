@@ -83,7 +83,6 @@ class Vectorizer : public IRMutator<Expr *> {
   void Visit(const _Var_ *op, Expr *expr) override {
     if (op->name == var->name) {
       *expr = Expr(ramp_);
-      return;
     }
   }
 
@@ -379,7 +378,6 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     if (it != op->attrs.end()) {
       vectorizable_ = std::get<bool>(it->second);
     }
-    return;
   }
 
   void Visit(const For *forloop, Expr *expr) {

@@ -245,7 +245,6 @@ void Stage::ChangeIndex(Stage *other) {
   for (int i = 0; i < axis_var.size(); i++) {
     optim::ReplaceVarWithExpr(&(this->expr_), axis_var[i], indices[0][i]);
   }
-  return;
 }
 
 // Return a - b as integer.
@@ -309,7 +308,6 @@ void Stage::AddForLoopInTransform(std::vector<std::vector<Expr>> &indices) {
     isl::map trans_res(this_ctx, transform2_str);
     transform_ = trans_res;
   }
-  return;
 }
 /**
  * Change this stage's domain to be consistent with other's domain.
@@ -350,7 +348,6 @@ void Stage::ChangeDomain(Stage *other, int level) {
   VLOG(3) << "Final changed domain is: " << this_domain;
   isl::set res_set(this_ctx, this_domain);
   domain_ = res_set;
-  return;
 }
 
 /**
@@ -456,7 +453,6 @@ void Stage::EditTempTensor(Stage *other, int level) {
   this->tensor()->shape = new_shape;
   CHECK(this->tensor()->buffer.defined());
   this->tensor()->buffer->shape = new_shape;
-  return;
 }
 
 void Stage::ComputeAt(Stage *other, int level) {
@@ -617,7 +613,6 @@ void Stage::ComputeAt(Stage *other, int level) {
   for (int i = 0; i <= level; i++) {
     AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, i});
   }
-  return;
 }
 
 void Stage::ComputeAt2(Stage *other, int level) {
@@ -654,7 +649,6 @@ void Stage::ComputeAt3(Stage *other, int level) {
       EditTempTensor(other, level);
     }
   }
-  return;
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
@@ -1324,7 +1318,6 @@ void Stage::CopyTransform(Stage *other, int level) {
   VLOG(2) << "Target transform is : " << isl_map_to_str(other->transform().get());
   VLOG(2) << "CopyTransform Level is : " << level;
   transform_ = res_map;
-  return;
 }
 
 void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos,
@@ -1340,7 +1333,6 @@ void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos,
       }
     }
   }
-  return;
 }
 
 void Stage::LockAxis(uint32_t level) {
