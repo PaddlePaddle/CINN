@@ -83,9 +83,7 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
   auto graph = std::make_shared<hlir::framework::Graph>(*program_, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
-  if (target.arch == Target::Arch::NVGPU) {
-    hlir::framework::ApplyPass(graph.get(), "OpFusion");
-  }
+  hlir::framework::ApplyPass(graph.get(), "OpFusion");
   // Target target = common::DefaultHostTarget();
   scope_ = hlir::framework::BuildScope(target, graph, scope_);
   graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph));

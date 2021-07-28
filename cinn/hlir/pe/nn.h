@@ -27,7 +27,7 @@ ir::Tensor Relu(const ir::Tensor &A,
                 T threshold                    = static_cast<T>(0),
                 const std::string &output_name = UniqName("T_Relu_out")) {
   return lang::Compute(
-      A->shape, [&](const std::vector<Expr> &indice) { return lang::Relu(A(indice), threshold); }, output_name);
+      A->shape, [=](const std::vector<Expr> &indice) { return lang::Relu(A(indice), threshold); }, output_name);
 }
 
 /**

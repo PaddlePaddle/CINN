@@ -72,9 +72,12 @@ std::tuple<std::vector<GraphNode *>, std::vector<GraphEdge *>> Graph::topologica
   }
 
   // start to visit
+  int count = 0;
   while (!queue.empty()) {
     auto *top_node = queue.front();
+    top_node->set_index(count);
     node_order.push_back(top_node);
+    count++;
 
     queue.pop_front();
 

@@ -600,8 +600,7 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMul)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMul))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMul))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
   CINN_REGISTER_OP(mulbias)
