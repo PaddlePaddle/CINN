@@ -46,7 +46,6 @@ void BindBuffer(StageMap& stages) {
       }
     }
   }
-  return;
 }
 
 Expr LowerGroup(const poly::ScheduleGroup& group,

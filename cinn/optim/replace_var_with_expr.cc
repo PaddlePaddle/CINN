@@ -26,7 +26,6 @@ struct ReplaceVarWithExprMutator : public ir::IRMutator<> {
       auto copied = IRCopy(expr_);
       *op         = copied;
     }
-    return;
   }
 
   void Visit(const ir::For* op, Expr* expr) override {
@@ -180,33 +179,39 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       for (auto& i : buffer_shape) {
         VLOG(3) << i;
       }
-      tensor_shape[index] = ir::Div::Make(tensor_shape[index], extent_);
-      Simplify(&tensor_shape[index]);
+      if (tensor_shape[index].is_constant() && extent_.is_constant()) {
+        int shape_i  = tensor_shape[index].get_constant();
+        int extent_i = extent_.get_constant();
+        int res;
+        if (extent_i > shape_i) {
+          res = 1;
+        } else {
+          res = shape_i / extent_i + shape_i % extent_i;
+        }
+        tensor_shape[index] = Expr(res);
+      } else {
+        tensor_shape[index] = ir::Div::Make(tensor_shape[index], extent_);
+        Simplify(&tensor_shape[index]);
+      }
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
 
-      Expr prod(1);
-      for (auto i : buffer_shape) {
-        prod = ir::Mul::Make(prod, i);
-      }
-      prod = ir::Div::Make(prod, extent_);
-      VLOG(3) << buffer_id << "'s buffer New Shape is : " << prod;
-      Simplify(&prod);
-      ReplaceConstParamToInteger(&prod);
-      std::vector<Expr> new_shape{prod};
-      (*global_tensor_map_)[tensor_name]->buffer->shape = new_shape;
       resized_buffer_.insert(buffer_id);
       VLOG(3) << tensor_name << " tensor's New Shape is : ";
+      Expr prod_new(1);
       for (auto& i : tensor_shape) {
         VLOG(3) << i;
+        if (i.is_constant() && i.get_constant() != 0.f) {
+          prod_new = ir::Mul::Make(prod_new, i);
+        }
       }
-      VLOG(3) << buffer_id << " buffer's New Shape is : ";
-      for (auto& i : new_shape) {
-        VLOG(3) << i;
-      }
+      Simplify(&prod_new);
+      ReplaceConstParamToInteger(&prod_new);
+      std::vector<Expr> new_shape{prod_new};
+      (*global_tensor_map_)[tensor_name]->buffer->shape = new_shape;
+      VLOG(3) << buffer_id << " buffer's New Shape prod_new is : " << prod_new;
     } else {
       VLOG(3) << "extent not defined";
     }
-    return;
   }
 
  private:
@@ -232,8 +237,14 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       bool temp_replace = do_replace_;
       do_replace_       = true;
       find_replace_     = false;
+      VLOG(2) << tensor->name << " Store's indices size is : " << node->indices.size();
       for (int i = 0; i < node->indices.size(); i++) {
         auto& temp = node->indices[i];
+        VLOG(2) << temp;
+      }
+      for (int i = 0; i < node->indices.size(); i++) {
+        auto& temp      = node->indices[i];
+        Expr store_temp = node->indices[i];
         // When eliminating axis 'j_inner' in index '10 * j_outer + j_inner' (j_inner's extent is 10)
         // Divide '10 * j_outer' by 10, and get new index 'j_outer + j_inner'
         if (extent_.defined() && temp.As<ir::Add>() && temp.As<ir::Add>()->a().As<ir::Mul>() &&
@@ -244,7 +255,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         // Eliminate var 'j_inner' and get the final index 'j_outer'
         ir::IRMutator<>::Visit(&temp, &temp);
         if (find_replace_ == true) {
-          VLOG(3) << "Find " << var_->name << " in indice: " << temp;
+          VLOG(3) << "Find " << var_->name << " in indice: " << store_temp;
           // If we replaced var 'j_inner'(the axis to be eliminated) to 0 in indices[i], edit tensor's shape[i] and
           // buffer's shape
           ResizeTempMemory(tensor->name, i);

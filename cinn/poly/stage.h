@@ -253,7 +253,7 @@ class Stage : public Object {
    */
   void ComputeAt(Stage* other, int level);
 
-  void ShowISL();
+  void ShowISL() const;
 
   void AddForLoopInTransform(std::vector<std::vector<Expr>>& indices);
   /**

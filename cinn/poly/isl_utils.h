@@ -105,11 +105,14 @@ isl::map RemoveAxiesByOutputNames(const isl::map& x,
  * get the names of related input dims.
  * @param x The input map.
  * @param dim_out_names The names of output dims.
+ * @param strict Indicates whether computes the strictly related input axies.
+ * For example, if strict == true, then input 'j' is related to output 'j_outer_inner_outer'
  * @return The vector of names of related input dims.
  */
 std::vector<std::string> GetRelatedInputAxies(const isl::map& x,
                                               const isl::set& origin_domain,
-                                              const std::vector<std::string>& dim_out_names);
+                                              const std::vector<std::string>& dim_out_names,
+                                              bool strict = false);
 
 /**
  * Given an isl::map and a vector of names of dim_in,

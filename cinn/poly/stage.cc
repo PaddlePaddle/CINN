@@ -245,7 +245,6 @@ void Stage::ChangeIndex(Stage *other) {
   for (int i = 0; i < axis_var.size(); i++) {
     optim::ReplaceVarWithExpr(&(this->expr_), axis_var[i], indices[0][i]);
   }
-  return;
 }
 
 // Return a - b as integer.
@@ -309,7 +308,6 @@ void Stage::AddForLoopInTransform(std::vector<std::vector<Expr>> &indices) {
     isl::map trans_res(this_ctx, transform2_str);
     transform_ = trans_res;
   }
-  return;
 }
 /**
  * Change this stage's domain to be consistent with other's domain.
@@ -350,7 +348,6 @@ void Stage::ChangeDomain(Stage *other, int level) {
   VLOG(3) << "Final changed domain is: " << this_domain;
   isl::set res_set(this_ctx, this_domain);
   domain_ = res_set;
-  return;
 }
 
 /**
@@ -456,7 +453,6 @@ void Stage::EditTempTensor(Stage *other, int level) {
   this->tensor()->shape = new_shape;
   CHECK(this->tensor()->buffer.defined());
   this->tensor()->buffer->shape = new_shape;
-  return;
 }
 
 void Stage::ComputeAt(Stage *other, int level) {
@@ -512,12 +508,13 @@ void Stage::ComputeAt(Stage *other, int level) {
   auto target_map_dims_in = isl_get_dim_names(new_target_transform.get(), isl_dim_in);
   // For axis out of the level, we don't copy their transform except for they are related to axis within the level.
   std::vector<std::string> level_out_dims;
+  std::set<std::string> related_output_dims_set;
   for (int i = 0; i <= level; i++) {
     level_out_dims.push_back(target_map_dims[i]);
+    related_output_dims_set.insert(target_map_dims[i]);
   }
   auto related_input_dims  = GetRelatedInputAxies(new_target_transform, other->domain(), level_out_dims);
   auto related_output_dims = GetRelatedOutputAxies(new_target_transform, other->domain(), related_input_dims);
-  std::set<std::string> related_output_dims_set;
   for (auto &i : related_output_dims) {
     related_output_dims_set.insert(i);
   }
@@ -591,7 +588,7 @@ void Stage::ComputeAt(Stage *other, int level) {
       auto [minv, maxv]       = isl_set_get_axis_range(transformed_res.get(), i);
       int max_iv              = maxv.get_num_si();
       int min_iv              = minv.get_num_si();
-      auto related_input_dims = GetRelatedInputAxies(trans_res, domain_, {trans_dim_out[i]});
+      auto related_input_dims = GetRelatedInputAxies(trans_res, domain_, {trans_dim_out[i]}, true);
       if (max_iv != min_iv && related_input_dims.empty()) {
         trans_res = isl::manage(isl_remove_axis_by_name(trans_res.release(), isl_dim_out, trans_dim_out[i].c_str()));
       }
@@ -616,7 +613,6 @@ void Stage::ComputeAt(Stage *other, int level) {
   for (int i = 0; i <= level; i++) {
     AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, i});
   }
-  return;
 }
 
 void Stage::ComputeAt2(Stage *other, int level) {
@@ -653,7 +649,6 @@ void Stage::ComputeAt3(Stage *other, int level) {
       EditTempTensor(other, level);
     }
   }
-  return;
 }
 
 std::tuple<Iterator, Iterator> Stage::Skew(const Iterator &i, const Iterator &j, int factor) {
@@ -779,8 +774,8 @@ std::vector<ComputeAtRelation> Stage::compute_ats() const {
   return xs;
 }
 
-void Stage::ShowISL() {
-  LOG(INFO) << "Tensor " << tensor()->name << " domain is: " << isl_set_to_str(domain().get());
+void Stage::ShowISL() const {
+  LOG(INFO) << "Tensor " << id() << " domain is: " << isl_set_to_str(domain().get());
   LOG(INFO) << "transformed_domain is: " << isl_set_to_str(transformed_domain().get());
   LOG(INFO) << "transform is: " << isl_map_to_str(transform().get());
 }
@@ -1323,7 +1318,6 @@ void Stage::CopyTransform(Stage *other, int level) {
   VLOG(2) << "Target transform is : " << isl_map_to_str(other->transform().get());
   VLOG(2) << "CopyTransform Level is : " << level;
   transform_ = res_map;
-  return;
 }
 
 void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos,
@@ -1339,7 +1333,6 @@ void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos,
       }
     }
   }
-  return;
 }
 
 void Stage::LockAxis(uint32_t level) {

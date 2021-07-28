@@ -434,7 +434,8 @@ std::vector<std::string> GetRelatedOutputAxies(const isl::map &x,
 
 std::vector<std::string> GetRelatedInputAxies(const isl::map &x,
                                               const isl::set &origin_domain,
-                                              const std::vector<std::string> &dim_out_names) {
+                                              const std::vector<std::string> &dim_out_names,
+                                              bool strict) {
   std::string map_str = isl_map_to_str(x.get());
   VLOG(1) << "GetRelatedInputAxies map_str is : " << map_str;
   isl::ctx this_ctx = x.ctx();
@@ -447,18 +448,22 @@ std::vector<std::string> GetRelatedInputAxies(const isl::map &x,
   std::string deleted_map = isl_map_to_str(temp_transform.get());
   std::vector<std::string> res;
   std::set<std::string> out_set;
+  std::set<std::string> out_set_without_suffix;
   std::string set_str = isl_set_to_str(origin_domain.get());
   isl::ctx set_ctx    = origin_domain.ctx();
   isl::set temp_set(this_ctx, set_str);
   auto transformed_domain = temp_set.apply(x);
   for (auto &i : dim_out_names) {
     out_set.insert(i);
+    if (utils::Endswith(i, "_inner") || utils::Endswith(i, "_outer")) {
+      out_set_without_suffix.insert(utils::RemoveSuffix(i));
+    }
   }
   for (auto &i : dim_in_names) {
     if (utils::Count(&map_str, i) != utils::Count(&deleted_map, i)) {
       VLOG(1) << "GetRelatedInputAxies res is : " << i;
       res.push_back(i);
-    } else if (out_set.count(i + "_outer") > 0 || out_set.count(i + "_inner") > 0) {
+    } else if (out_set_without_suffix.count(i) > 0 && !strict) {
       VLOG(1) << "GetRelatedInputAxies res is : " << i;
       res.push_back(i);
     } else if (out_set.count(i) > 0) {
