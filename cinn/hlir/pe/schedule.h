@@ -79,6 +79,14 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
                                           const ir::Tensor &data,
                                           const common::Target &target);
 
+void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
+                                                const ir::Tensor &res,
+                                                ir::Tensor &packed_out,
+                                                const ir::Tensor &input_pad,
+                                                const ir::Tensor &weights_dilation,
+                                                const ir::Tensor &data,
+                                                const common::Target &target);
+
 void CudaScheduleMul(poly::StageMap stages,
                      ir::Tensor output,
                      const std::vector<int> &output_shape,

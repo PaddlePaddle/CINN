@@ -184,7 +184,7 @@ std::vector<int> dilation_depthwise_conv2d                            = {1, 1};
 std::unordered_map<std::string, AttrType> attr_store_depthwise_conv2d = {{"padding", padding_depthwise_conv2d},
                                                                          {"stride", stride_depthwise_conv2d},
                                                                          {"dilation", dilation_depthwise_conv2d}};
-TEST_DEFAULT1(depthwise_conv2d, depthwise_conv2d_nchw, type1, type, attr_store_depthwise_conv2d)
+TEST_DEFAULT1(depthwise_conv2d, depthwise_conv2d_nchw, type1, type7, attr_store_depthwise_conv2d)
 
 // pool2d
 hlir::framework::NodeAttr attrs;

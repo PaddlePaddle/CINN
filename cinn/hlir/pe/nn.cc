@@ -131,14 +131,17 @@ std::vector<ir::Tensor> Conv2d_NCHW_5D(const ir::Tensor &input,
   int oc      = c_out.as_int32();
   int ic      = c_in.as_int32();
   int fc_size = c_filter.as_int32();
-  GetConv2dFactors(&conv2d_factors, oc, fc_size, -1, type, target);
+  GetConv2dFactors(&conv2d_factors, oc, ic, -1, type, target);
   int ic_bn_size = conv2d_factors["ic_bn"];
   int oc_bn_size = conv2d_factors["oc_bn"];
+  GetConv2dFactors(&conv2d_factors, oc, fc_size, -1, type, target);
+  int fc_bn_size = conv2d_factors["ic_bn"];
   Expr ic_bn     = Expr(ic_bn_size);
   Expr oc_bn     = Expr(oc_bn_size);
+  Expr fc_bn     = Expr(fc_bn_size);
   Expr ic_chunk  = c_in / ic_bn;
   Expr oc_chunk  = c_out / oc_bn;
-  Expr fc_chunk  = c_filter / ic_bn;
+  Expr fc_chunk  = c_filter / fc_bn;
 
   // pack data, 4D->5D
   Expr batch = shape_input[0];
@@ -152,7 +155,7 @@ std::vector<ir::Tensor> Conv2d_NCHW_5D(const ir::Tensor &input,
       UniqName("data_vec"));
   // pack kernel, 4D->6D
   std::vector<Expr> new_weights_shape;
-  new_weights_shape = {oc_chunk, fc_chunk, shape_weights[2], shape_weights[3], ic_bn, oc_bn};
+  new_weights_shape = {oc_chunk, fc_chunk, shape_weights[2], shape_weights[3], fc_bn, oc_bn};
 
   auto weights_dilation = Compute(
       new_weights_shape,
@@ -397,7 +400,7 @@ std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
                                {kernel_h, kernel_w});
       },
       output_name);
-  return {input_pad, res};
+  return {res, input_pad};
 }
 
 std::vector<Tensor> Depthwise_Conv2d_NHWC(const Tensor &input,
@@ -434,7 +437,7 @@ std::vector<Tensor> Depthwise_Conv2d_NHWC(const Tensor &input,
                                {kernel_h, kernel_w});
       },
       output_name);
-  return {input_pad, res};
+  return {res, input_pad};
 }
 
 /**

@@ -181,11 +181,10 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           } else {
             instr->attrs.push_back(instr->attrs[1]);
           }
-          for (auto& out_node : node->outlinks_in_order()) {
-            std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
-            auto out_shape     = shape_dict.at(out_id);
-            instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
-          }
+          auto& out_node     = node->outlinks_in_order().front();
+          std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
+          auto out_shape     = shape_dict.at(out_id);
+          instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           CHECK_EQ(instr->attrs.size(), 19UL);
         } else if (node->op()->name == "pool2d") {
           auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
