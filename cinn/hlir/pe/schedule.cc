@@ -736,6 +736,92 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
   }
 }
 
+void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
+                                                const ir::Tensor &res,
+                                                ir::Tensor &packed_out,
+                                                const ir::Tensor &input_pad,
+                                                const ir::Tensor &weights_dilation,
+                                                const ir::Tensor &data,
+                                                const common::Target &target) {
+  CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
+  CHECK(packed_out.defined());
+  CHECK(input_pad.defined());
+  auto type = packed_out->type();
+  std::unordered_map<std::string, int> conv2d_factors;
+  CHECK_EQ(packed_out->shape.size(), 5U) << "packed_out's shape size should be 5";
+  Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
+  int ow                 = w_out.as_int32();
+  int basic_split_factor = GetBasicFactor(type, target);
+  GetConv2dFactors(&conv2d_factors, -1, -1, ow, type, target);
+  int ow_bn_size = conv2d_factors["ow_bn"];
+
+  auto input_shape = input_pad->shape;
+  int shape_size   = input_shape.size();
+  CHECK_EQ(shape_size, 5U) << "input shape size should be 5";
+  Expr oc_bn     = common::AutoSimplify(packed_out->shape.back());
+  Expr ic_bn     = common::AutoSimplify(input_shape.back());
+  int oc_bn_size = oc_bn.as_int32();
+  int ic_bn_size = ic_bn.as_int32();
+  VLOG(4) << "ow_bn_size " << ow_bn_size;
+  VLOG(4) << "oc_bn_size " << oc_bn_size;
+  VLOG(4) << "ic_bn_size " << ic_bn_size;
+
+  // data
+  if (data.defined()) {
+    stages[data]->ComputeInline();
+  }
+  // weights
+  if (weights_dilation.defined()) {
+    CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U) << "weights_dilation's out_dims should be more than 3";
+    // Reorder: [oc_outer, ic_outer, oh, ow, ic_inner, oc_inner] ->
+    // [oc_outer, oh, ic_outer, ow, ic_inner, oc_inner]
+    stages[weights_dilation]->Reorder({2, 1});
+  }
+  // packed_out
+  auto CC = stages[packed_out]->CacheWrite("local", stages, packed_out);
+  VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
+  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  // packed_out: [batch, oc_outer, oh, ow, oc_inner]
+  // split ow
+  stages[packed_out]->Split(3, ow_bn_size);
+  stages[packed_out]->Vectorize(stages[packed_out]->n_out_dims() - 1, packed_out->shape.back().as_int32());
+
+  // CC: [batch, oc_outer, oh, ow, oc_inner]
+  // packed_out: [batch, oc_outer, oh, ow_outer, ow_inner, oc_inner]
+  stages[CC]->ComputeAt2(stages[packed_out], 3);
+  VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
+  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+
+  // CC: [batch, oc_outer, oh, ow_outer, ow_inner, oc_inner, fc, kh, kw]
+  // batch, oc_outer, oh, ow_outer, kh, kw, ow_inner, oc_inner
+  auto CC_ow_inner = stages[CC]->axis(4);
+  auto CC_oc_inner = stages[CC]->axis(5);
+  auto CC_fc       = stages[CC]->axis(6);
+  auto CC_kh       = stages[CC]->axis(7);
+  auto CC_kw       = stages[CC]->axis(8);
+  stages[CC]->Reorder({CC_fc, CC_kh, CC_kw, CC_ow_inner, CC_oc_inner});
+  stages[CC]->Vectorize(stages[CC]->n_out_dims() - 1, CC->shape.back().as_int32());
+  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  // CC_init
+  auto CC_init = CC->GetInitTensor(stages, target);
+  stages[CC_init]->Vectorize(stages[CC_init]->n_out_dims() - 1, CC_init->shape.back().as_int32());
+
+  // res
+  // n, oc, oh, ow
+  if (res.defined()) {
+    stages[res]->Split(1, oc_bn_size);
+    stages[res]->Split(4, ow_bn_size);
+    // Reorder: [n, oc_outer, oc_inner, oh, ow_outer, ow_inner] ->
+    // [n, oc_outer, oh, ow_outer, ow_inner, oc_inner]
+    auto oc_inner1 = stages[res]->axis(2);
+    auto oh1       = stages[res]->axis(3);
+    auto ow_outer1 = stages[res]->axis(4);
+    auto ow_inner1 = stages[res]->axis(5);
+    stages[res]->Reorder({oh1, ow_outer1, ow_inner1, oc_inner1});
+    VLOG(4) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
+  }
+}
+
 void CudaScheduleMul(poly::StageMap stages,
                      ir::Tensor output,
                      const std::vector<int> &output_shape,

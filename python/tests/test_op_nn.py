@@ -227,7 +227,7 @@ class OpTest_depthwise_conv2d_nchw(SingleOpTester):
         self.input_size = [2, 8, 10, 10]
         self.groups = self.input_size[1]
         assert np.mod(self.input_size[1], self.groups) == 0
-        channel_multiplier = 4
+        channel_multiplier = 1
         self.filter_size = [self.input_size[1], channel_multiplier, 7, 7]
         self.data_format = "NCHW"
         self.attrs = framework.NodeAttr()
