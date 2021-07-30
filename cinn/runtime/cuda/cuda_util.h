@@ -38,11 +38,11 @@ class SerialData {
     static SerialData instance;
     return instance;
   }
-  std::unordered_map<int, int>& GetMap() { return get_algo; }
+  std::unordered_map<std::string, int>& GetMap() { return get_algo; }
 
  private:
   SerialData();
-  std::unordered_map<int, int> get_algo;
+  std::unordered_map<std::string, int> get_algo;
 };
 
 class CudnnHandle {

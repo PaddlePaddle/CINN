@@ -1459,7 +1459,9 @@ Expr CasSimplifyMutator::SimplifySpecificSum(Expr tmp) {
       tmp = mod_left;
     }
   }
-
+  for (int i = 2; i < sum->operands().size(); i++) {
+    tmp = tmp + sum->operand(i);
+  }
   return tmp;
 }
 
@@ -1527,7 +1529,6 @@ bool CASasSymbol(Expr expr) {
 
 Expr ConvertCinnToCAS(Expr expr) {
   Expr copied = optim::IRCopy(expr);
-
   struct Mutator : public ir::IRMutator<ir::Expr*> {
     void operator()(Expr* expr) { Visit(expr); }
     void Visit(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
@@ -2158,7 +2159,6 @@ Expr SolveInequality(Expr inequality, Var val) {
   __(gt_n)
   __(ge_n)
 #undef __
-
   Expr all = AutoSimplify(a - b);
 
   // if (common::IsPureMath(a) && common::IsPureMath(b)) {

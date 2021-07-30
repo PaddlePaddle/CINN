@@ -163,7 +163,6 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     if (axis_info.valid()) cuda_axis_info->ExtendWith(axis_info);
   }
 #endif  // CINN_WITH_CUDA
-
   return e;
 }
 
@@ -470,7 +469,6 @@ ir::LoweredFunc LowerImpl::operator()() {
   optim::ComputeInlineExpand(&func->body, stages_, &all_tensor_map);
   Target target = cuda_axis_info_.valid() ? common::DefaultNVGPUTarget() : common::DefaultHostTarget();
   auto res      = optim::Optimize(func, target, FLAGS_cinn_runtime_display_debug_info);
-
   UpdateComputeAtBufferShape(&res, stages_);
 
   if (cuda_axis_info_.valid()) {

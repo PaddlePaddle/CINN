@@ -6,7 +6,9 @@
 #include <set>
 #include <unordered_set>
 
+#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_verify.h"
+#include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/remove_nested_block.h"
 
 namespace cinn {
@@ -212,13 +214,12 @@ void CodeGenCUDA_Dev::PrintTempBufferCreation(const ir::Buffer &buffer) {
     os() << mark << GetTypeRepr(buffer->dtype) << " " << buffer->name << " ";
 
     os() << "[ ";
-    for (int i = 0; i < buffer->shape.size() - 1; i++) {
-      Print(buffer->shape[i]);
-      os() << " * ";
+    Expr buffer_size(1);
+    for (int i = 0; i < buffer->shape.size(); i++) {
+      buffer_size = buffer_size * buffer->shape[i];
     }
-    if (!buffer->shape.empty()) {
-      Print(buffer->shape.back());
-    }
+    optim::Simplify(&buffer_size);
+    Print(buffer_size);
     os() << " ]";
   };
   switch (buffer->memory_type) {

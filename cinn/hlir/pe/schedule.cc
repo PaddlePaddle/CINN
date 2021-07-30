@@ -3,8 +3,11 @@
 #include <isl/cpp.h>
 
 #include <algorithm>
+#include <fstream>
 #include <functional>
+#include <iostream>
 #include <numeric>
+#include <unordered_map>
 #include <utility>
 
 #include "cinn/common/cas.h"
@@ -14,6 +17,10 @@
 namespace cinn {
 namespace hlir {
 namespace pe {
+
+ScheduleParam::ScheduleParam() {}
+
+ScheduleParam::~ScheduleParam() {}
 
 int GetInnerSplitter(int origin, int other_axis) {
   int two_exp = 1;
@@ -241,6 +248,14 @@ void MulScheduleCPU(poly::StageMap stages,
   if (reduce_first_last_shape > 1) {
     stages[output]->Unroll(out_dims - 1);
   }
+}
+
+void PoolScheduleGPU(poly::StageMap stages, ir::Tensor &output, const common::Target &target) {
+  CHECK_GE(stages[output]->axis_names().size(), 4);
+  stages[output]->Fuse({0, 1, 2, 3});
+  stages[output]->Split(0, 1024);
+  stages[output]->Bind(0, "blockIdx.x");
+  stages[output]->Bind(1, "threadIdx.x");
 }
 
 void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
@@ -831,8 +846,136 @@ void CudaScheduleMul(poly::StageMap stages,
   stages[output]->Bind(1, "threadIdx.x");
 }
 
-void CudaScheduleConv(poly::StageMap stages, ir::Tensor &input_pad, ir::Tensor &output, const common::Target &target) {
-  stages[input_pad]->ComputeInline();
+inline void InputParam(std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
+                       const std::string &key,
+                       const std::vector<std::vector<int>> &int_data) {
+  std::unordered_map<std::string, std::vector<int>> schedule_data;
+  schedule_data["rc"] = int_data[0];
+  schedule_data["ry"] = int_data[1];
+  schedule_data["rx"] = int_data[2];
+  schedule_data["f"]  = int_data[3];
+  schedule_data["y"]  = int_data[4];
+  schedule_data["x"]  = int_data[5];
+  model_data[key]     = schedule_data;
+}
+
+void CreateSerialData(const std::string &file_name) {
+  std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> model_data;
+  // The format of serial data is:
+  // hash_key: string = name of schedule + shape of input_pad + shape of weights + shape of output
+  // value: vector of params
+  InputParam(model_data,
+             "CudaScheduleConv 1 3 230 230 64 3 7 7 1 64 112 112",
+             {{3, 1}, {7, 1}, {1, 7}, {1, 4, 8, 2}, {112, 1, 1, 1}, {1, 7, 16, 1}});
+  InputParam(model_data,
+             "CudaScheduleConv 1 64 56 56 64 64 1 1 1 64 56 56",
+             {{4, 16}, {1, 1}, {1, 1}, {1, 8, 8, 1}, {56, 1, 1, 1}, {1, 2, 28, 1}});
+  InputParam(model_data,
+             "CudaScheduleConv 1 64 58 58 128 64 3 3 1 128 28 28",
+             {{32, 2}, {1, 3}, {1, 3}, {4, 2, 16, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
+  InputParam(model_data,
+             "CudaScheduleConv 1 64 56 56 128 64 1 1 1 128 28 28",
+             {{4, 16}, {1, 1}, {1, 1}, {2, 2, 32, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
+  InputParam(model_data,
+             "CudaScheduleConv 1 128 30 30 256 128 3 3 1 256 14 14",
+             {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 2}, {7, 1, 2, 1}, {1, 1, 7, 2}});
+  InputParam(model_data,
+             "CudaScheduleConv 1 128 28 28 256 128 1 1 1 256 14 14",
+             {{16, 8}, {1, 1}, {1, 1}, {8, 1, 16, 2}, {14, 1, 1, 1}, {1, 1, 14, 1}});
+  InputParam(model_data,
+             "CudaScheduleConv 1 256 16 16 512 256 3 3 1 512 7 7",
+             {{64, 4}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+  InputParam(model_data,
+             "CudaScheduleConv 1 256 14 14 512 256 1 1 1 512 7 7",
+             {{16, 16}, {1, 1}, {1, 1}, {16, 1, 32, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+
+  // winograd
+  InputParam(model_data,
+             "CudaScheduleConv 1 64 58 58 64 64 3 3 1 64 56 56",
+             {{32, 2}, {1, 3}, {1, 3}, {8, 1, 8, 1}, {28, 1, 2, 1}, {1, 4, 14, 1}});
+  // winograd
+  InputParam(model_data,
+             "CudaScheduleConv 1 512 9 9 512 512 3 3 1 512 7 7",
+             {{64, 8}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+  // winograd
+  InputParam(model_data,
+             "CudaScheduleConv 1 256 16 16 256 256 3 3 1 256 14 14",
+             {{64, 4}, {1, 3}, {1, 3}, {16, 1, 16, 1}, {14, 1, 1, 1}, {1, 1, 14, 1}});
+  // winograd
+  InputParam(model_data,
+             "CudaScheduleConv 1 128 30 30 128 128 3 3 1 128 28 28",
+             {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 1}, {14, 1, 2, 1}, {1, 1, 7, 4}});
+
+  proto::ModelData write_model_data;
+  for (auto &i : model_data) {
+    proto::ScheduleData write_schedule_data;
+    for (auto &j : i.second) {
+      proto::StringData write_vector_data;
+      for (auto &k : j.second) {
+        write_vector_data.add_data(std::to_string(k));
+      }
+      auto data_map        = write_schedule_data.mutable_data();
+      (*data_map)[j.first] = write_vector_data;
+    }
+    auto model_map        = write_model_data.mutable_data();
+    (*model_map)[i.first] = write_schedule_data;
+    std::string test_write1;
+    write_schedule_data.SerializeToString(&test_write1);
+  }
+  std::fstream output(file_name, std::ios::out | std::ios::trunc | std::ios::binary);
+  std::string test_write;
+  write_model_data.SerializeToString(&test_write);
+  if (!write_model_data.SerializeToOstream(&output)) {
+    std::cerr << "Failed to write test_serial.log" << std::endl;
+    exit(-1);
+  }
+  output.close();
+}
+
+int GetMaxSplitter(int a, int b) {
+  while (a % b > 0) {
+    b--;
+  }
+  return b;
+}
+
+void LoadSerialData(const std::string &file_name) {
+  proto::ModelData read_model_data;
+  std::fstream input(file_name, std::ios::in | std::ios::binary);
+  if (!read_model_data.ParseFromIstream(&input)) {
+    std::cerr << "Failed to parse address book." << std::endl;
+    exit(-1);
+  }
+  input.close();
+  std::string test_write3;
+  read_model_data.SerializeToString(&test_write3);
+  auto read_model_map = read_model_data.data();
+  auto &res           = ScheduleParam::get_instance().GetParam();
+  for (auto &i : read_model_map) {
+    auto read_schedule_map = i.second.data();
+    std::unordered_map<std::string, std::vector<int>> param_data;
+    for (auto &j : read_schedule_map) {
+      std::vector<int> temp_data;
+      for (int k = 0; k < j.second.data_size(); k++) {
+        temp_data.push_back(std::stoi(j.second.data(k)));
+      }
+      param_data[j.first] = temp_data;
+    }
+    res[i.first] = param_data;
+  }
+}
+
+void CudaScheduleConv(poly::StageMap stages,
+                      ir::Tensor &input_pad,
+                      ir::Tensor &weights,
+                      ir::Tensor &output,
+                      const common::Target &target) {
+  auto &res = ScheduleParam::get_instance().GetParam();
+  if (res.empty()) {
+    CreateSerialData();
+    LoadSerialData();
+  }
+
   int n = output->shape[0].as_int32();
   int c = output->shape[1].as_int32();
   optim::Simplify(&(output->shape[2]));
@@ -841,6 +984,22 @@ void CudaScheduleConv(poly::StageMap stages, ir::Tensor &input_pad, ir::Tensor &
   int w  = output->shape[3].as_int32();
   int rc = input_pad->shape[1].as_int32();
 
+  std::string key =
+      "CudaScheduleConv " + std::to_string(input_pad->shape[0].as_int32()) + " " +
+      std::to_string(input_pad->shape[1].as_int32()) + " " + std::to_string(input_pad->shape[2].as_int32()) + " " +
+      std::to_string(input_pad->shape[3].as_int32()) + " " + std::to_string(weights->shape[0].as_int32()) + " " +
+      std::to_string(weights->shape[1].as_int32()) + " " + std::to_string(weights->shape[2].as_int32()) + " " +
+      std::to_string(weights->shape[3].as_int32()) + " " + std::to_string(output->shape[0].as_int32()) + " " +
+      std::to_string(output->shape[1].as_int32()) + " " + std::to_string(output->shape[2].as_int32()) + " " +
+      std::to_string(output->shape[3].as_int32());
+  if (res.count(key) == 0) {
+    LOG(INFO) << "Didn't find saved param, key is: " << key;
+  } else {
+    LOG(INFO) << "Find saved param! key is: " << key;
+    CudaScheduleConv2(stages, input_pad, weights, output, target, key);
+    return;
+  }
+  stages[input_pad]->ComputeInline();
   int f_inner  = GetInnerSplitter(c, h);
   int block_z  = SplitEven(c / f_inner);
   int thread_z = c / f_inner / block_z;
@@ -875,6 +1034,102 @@ void CudaScheduleConv(poly::StageMap stages, ir::Tensor &input_pad, ir::Tensor &
   stages[OL]->Bind(6, "blockIdx.y");
   stages[OL]->Bind(7, "threadIdx.z");
   stages[OL]->Bind(8, "threadIdx.x");
+}
+
+void CudaScheduleConv2(poly::StageMap stages,
+                       ir::Tensor &input_pad,
+                       ir::Tensor &weights,
+                       ir::Tensor &output,
+                       const common::Target &target,
+                       const std::string &key) {
+  auto &res = ScheduleParam::get_instance().GetParam();
+  stages[input_pad]->ComputeInline();
+  optim::Simplify(&(output->shape[2]));
+  optim::Simplify(&(output->shape[3]));
+
+  std::vector<ir::Tensor> readers{output};
+  auto PR = stages[input_pad]->CacheRead("shared", readers, stages);
+  auto KR = stages[weights]->CacheRead("shared", readers, stages);
+  auto OL = stages[output]->CacheWrite("local", stages, output);
+
+  auto &x_param  = res[key]["x"];
+  auto &y_param  = res[key]["y"];
+  auto &f_param  = res[key]["f"];
+  auto &rx_param = res[key]["rx"];
+  auto &ry_param = res[key]["ry"];
+  auto &rc_param = res[key]["rc"];
+
+  // x param is :  [1, 7, 16, 1]
+  stages[output]->Split(3, x_param[3]);
+  stages[output]->Split(3, x_param[2]);
+  stages[output]->Split(3, x_param[1]);
+
+  // y param is :  [112, 1, 1, 1]
+  stages[output]->Split(2, y_param[3]);
+  stages[output]->Split(2, y_param[2]);
+  stages[output]->Split(2, y_param[1]);
+
+  // f param is :  [1, 4, 8, 2]
+  stages[output]->Split(1, f_param[3]);
+  stages[output]->Split(1, f_param[2]);
+  stages[output]->Split(1, f_param[1]);
+
+  stages[output]->Reorder({0, 1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12});
+  stages[output]->Bind(1, "blockIdx.z");
+  stages[output]->Bind(2, "blockIdx.y");
+  stages[output]->Bind(3, "blockIdx.x");
+  stages[output]->Bind(7, "threadIdx.z");
+  stages[output]->Bind(8, "threadIdx.y");
+  stages[output]->Bind(9, "threadIdx.x");
+
+  stages[OL]->ComputeAt(stages[output], 9);
+
+  // rx param is :  [1, 7]
+  stages[OL]->Split(15, rx_param[1]);
+  // ry param is :  [7, 1]
+  stages[OL]->Split(14, ry_param[1]);
+  // rc param is :  [3, 1]
+  stages[OL]->Split(13, rc_param[1]);
+
+  stages[OL]->Reorder({13, 15, 17, 14, 16, 18, 10, 11, 12});
+
+  auto OL_init = OL->GetInitTensor(stages, target);
+  stages[PR]->ComputeAt(stages[OL], 12);
+  stages[KR]->ComputeAt(stages[OL], 12);
+
+  stages[PR]->SyncThreads(12, {OL_init}, stages);
+  stages[KR]->CtrlDepend(PR);
+  stages[KR]->SyncThreads(stages);
+
+  if (stages[PR]->n_out_dims() == 18) {
+    stages[PR]->Fuse({13, 14, 15, 16, 17});
+  } else if (stages[PR]->n_out_dims() == 19) {
+    stages[PR]->Fuse({13, 14, 15, 16, 17, 18});
+  } else {
+    LOG(FATAL) << "PR number of output dims is wrong: " << stages[PR]->n_out_dims();
+  }
+
+  if (stages[KR]->n_out_dims() == 18) {
+    stages[KR]->Fuse({13, 14, 15, 16, 17});
+  } else if (stages[KR]->n_out_dims() == 19) {
+    stages[KR]->Fuse({13, 14, 15, 16, 17, 18});
+  } else {
+    LOG(FATAL) << "KR number of output dims is wrong: " << stages[KR]->n_out_dims();
+  }
+  int thread_z = f_param[2];
+  int thread_x = x_param[2];
+  if (stages[PR]->GetDimRange(13) <= thread_z) {
+    stages[PR]->Bind(13, "threadIdx.z");
+  } else {
+    stages[PR]->Split(13, GetMaxSplitter(stages[PR]->GetDimRange(13), thread_z));
+    stages[PR]->Bind(14, "threadIdx.z");
+  }
+  if (stages[KR]->GetDimRange(13) <= thread_x) {
+    stages[KR]->Bind(13, "threadIdx.x");
+  } else {
+    stages[KR]->Split(13, GetMaxSplitter(stages[KR]->GetDimRange(13), thread_x));
+    stages[KR]->Bind(14, "threadIdx.x");
+  }
 }
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {

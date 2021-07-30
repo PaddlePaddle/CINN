@@ -150,6 +150,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     groups = std::get<int>(attrs.attr_store.at("groups"));
   }
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
+    std::vector<CINNValue> res;
     CHECK(!args.empty()) << "The input argument of conv2d compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK_GE(a.size(), 2U) << "at least 2 input tensors for conv2d compute\n";
@@ -201,6 +202,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                               dilation[0],
                               dilation[1],
                               UniqName("Conv2d_nhwc_out"));
+        out.push_back(B.as_tensor_ref());
       }
     } else if (data_format == "NHWC") {
       // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
@@ -218,7 +220,6 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     }
     auto stages = CreateStages({A.as_tensor_ref(), B.as_tensor_ref()});
 
-    std::vector<CINNValue> res;
     for (auto &t : out) {
       stages->InsertLazily(t);
       res.push_back(CINNValue(t));
@@ -235,23 +236,19 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 4UL || arg_pack.size() == 3UL || arg_pack.size() == 6UL);
     poly::StageMap stages = arg_pack.back();
-    if (arg_pack.size() == 4UL) {
-      Expr input_pad = arg_pack[0];
-      CHECK(input_pad.as_tensor());
-      stages[input_pad.as_tensor_ref()]->ComputeInline();
-      Expr weights_dilation = arg_pack[1];
-      CHECK(weights_dilation.as_tensor());
-      stages[weights_dilation.as_tensor_ref()]->ComputeInline();
-    }
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out           = arg_pack[1];
-      Expr input_pad     = arg_pack[0];
-      ir::Tensor out_t   = Out.as_tensor_ref();
-      ir::Tensor input_t = input_pad.as_tensor_ref();
+      Expr Out             = arg_pack[0];
+      Expr input_pad       = arg_pack[1];
+      Expr weights         = arg_pack[2];
+      ir::Tensor out_t     = Out.as_tensor_ref();
+      ir::Tensor input_t   = input_pad.as_tensor_ref();
+      ir::Tensor weights_t = weights.as_tensor_ref();
       CHECK(Out.as_tensor());
-      pe::CudaScheduleConv(stages, input_t, out_t, target);
-      arg_pack[1] = Expr(out_t);
-      arg_pack[0] = Expr(input_t);
+      pe::CudaScheduleConv(stages, input_t, weights_t, out_t, target);
+      arg_pack[0] = Expr(out_t);
+      arg_pack[1] = Expr(input_t);
+      arg_pack[2] = Expr(weights_t);
+      *ret        = CINNValuePack{{arg_pack[0], CINNValue(stages)}};
     } else if (target.arch == Target::Arch::X86) {
       if (arg_pack.size() == 6UL) {
         Expr res              = arg_pack[0];
@@ -291,12 +288,17 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
         *ret =
             CINNValuePack{{CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], arg_pack[3], CINNValue(stages)}};
         return;
+      } else if (arg_pack.size() == 4UL) {
+        Expr input_pad = arg_pack[1];
+        CHECK(input_pad.as_tensor());
+        stages[input_pad.as_tensor_ref()]->ComputeInline();
+        Expr weights_dilation = arg_pack[2];
+        CHECK(weights_dilation.as_tensor());
+        stages[weights_dilation.as_tensor_ref()]->ComputeInline();
+        *ret = CINNValuePack{{arg_pack[0], CINNValue(stages)}};
+      } else {
+        *ret = arg_pack;
       }
-    }
-    if (target.arch == Target::Arch::NVGPU) {
-      *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
-    } else if (arg_pack.size() == 4UL) {
-      *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
     } else {
       *ret = arg_pack;
     }
@@ -1116,9 +1118,9 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     }
     if (target.arch == Target::Arch::NVGPU) {
       CHECK(Out.as_tensor());
-      stages[Out.as_tensor_ref()]->Split(1, 2);
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      ir::Tensor temp_out = Out.as_tensor_ref();
+      pe::PoolScheduleGPU(stages, temp_out, target);
+      arg_pack[arg_pack.size() - 2] = Expr(temp_out);
     }
     *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
   });

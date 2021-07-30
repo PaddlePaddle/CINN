@@ -232,6 +232,10 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
       CHECK(compute_at.IsCompatible(node->stage.get())) << "The registered ComputeAt is not compatible";
       // check the endpoints of compute_at has data dependency.
       auto* node0 = node;
+      if (name2node.count(compute_at.stage->id()) == 0) {
+        continue;
+        LOG(FATAL) << "Didn't find node with name " << compute_at.stage->id() << " !";
+      }
       auto* node1 = name2node[compute_at.stage->id()];
       VLOG(3) << "a -> b: " << node0->id() << " -> " << node1->id();
 
@@ -377,6 +381,7 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
   }
   std::map<std::string, int> stage_level;
   for (auto& link : compute_at_links) {
+    if (stage_map.count(link.first) == 0 || stage_map.count(link.second.stage->tensor_->name) == 0) continue;
     auto* a = stage_map.at(link.first);
     auto* b = stage_map.at(link.second.stage->tensor_->name);
     After(*a, *b, link.second.level);
