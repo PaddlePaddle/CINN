@@ -1106,6 +1106,8 @@ ir::Tensor Stage::CacheRead(const std::string &memory_type, std::vector<ir::Tens
     stages[cache_tensor]->SetScope(ScopeKind::kShared);
   } else if (memory_type == "local") {
     stages[cache_tensor]->SetScope(ScopeKind::kLocal);
+  } else if (memory_type == "global") {
+    stages[cache_tensor]->SetScope(ScopeKind::kGlobal);
   } else {
     CINN_NOT_IMPLEMENTED
   }
@@ -1146,6 +1148,7 @@ ir::Tensor Stage::CacheWrite(const std::string &memory_type, StageMap stages, ir
   CacheReadWriteReplace(temp, write_stage, cache_name);
 
   key_tensor = write_stage;
+
   return my_tensor;
 }
 

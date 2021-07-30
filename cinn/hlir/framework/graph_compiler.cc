@@ -127,6 +127,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
   std::unordered_set<NodeData*> in_vars;
   std::unordered_set<NodeData*> out_vars;
   std::unordered_map<NodeData*, Expr> temp_var_map;
+  ir::Tensor first_out_tensor;
   for (auto& node : nodes) {
     std::vector<ir::Tensor> temp_inputs;
     std::vector<common::CINNValue> cinn_inputs;
@@ -177,9 +178,12 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
     if (index == 0) {
       // use the first op's schedule as the fused ops' schedule as complex op like conv appear in the first.
       C = impl->fschedule(C);
+      CHECK(!C.empty());
+      Expr out         = C[0];
+      first_out_tensor = out.as_tensor_ref();
     }
     CHECK_GE(C.size(), 2);
-    CHECK_EQ(C.size() - 1, node->outlinks_in_order().size());
+    CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
     for (int i = 0; i < C.size() - 1; i++) {
       temp_var_map[temp_outvars[i]] = C[i];
     }
@@ -218,14 +222,11 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
   }
   fuse_name += "fused";
   VLOG(3) << "fuse_name: " << fuse_name;
-
-  for (auto& s : stages) {
-    if (s.second->tensor()->is_reduce_tensor()) {
-      stages[inputs.back()]->CopyTransform(s.second.get());
-      stages[inputs.back()]->CopyLoopInfo(s.second->forloop_infos(), s.second->transformed_domain());
-    }
-  }
   inputs.insert(inputs.end(), outputs.begin(), outputs.end());
+
+  stages[inputs.back()]->CopyTransform(stages[first_out_tensor]);
+  stages[inputs.back()]->CopyLoopInfo(stages[first_out_tensor]->forloop_infos(),
+                                      stages[first_out_tensor]->transformed_domain());
   auto func = Lower(fuse_name, stages, inputs, {}, {}, nullptr, this->target_);
   VLOG(3) << "The function of fused node [" << func->name << "] is:\n" << func;
   return func;
@@ -320,10 +321,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           } else {
             instr->attrs.push_back(instr->attrs[1]);
           }
-<<<<<<< HEAD
-=======
           CHECK(!node->outlinks_in_order().empty());
->>>>>>> enhance opfusion
           auto& out_node     = node->outlinks_in_order().front();
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);

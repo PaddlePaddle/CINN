@@ -35,9 +35,10 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
   }
 
   void Visit(const ir::_Tensor_ *op, Expr *expr) override {
-    if (inline_code && utils::Endswith(op->name, "_write_cache")) {
+    if (inline_code && utils::Endswith(op->name, "_write_cache") &&
+        (*all_tensor_map_).at(op->name)->buffer->memory_type == ir::MemoryType::Heap) {
       auto no_cache_name = op->name.substr(0, op->name.size() - 12);
-      VLOG(4) << "no_cache_name: " << no_cache_name;
+      VLOG(2) << "no_cache_name: " << no_cache_name;
       CHECK(all_tensor_map_->count(no_cache_name));
       *expr = (*all_tensor_map_)[no_cache_name];
     }
@@ -52,10 +53,12 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
       ir::IRMutator<>::Visit(expr, expr);
       inline_code = false;
     } else if (inline_code && tensor->buffer.defined()) {
-      if (utils::Endswith(tensor->buffer->name, "_write_cache")) {
+      bool is_heap = (*all_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::Heap;
+      if (utils::Endswith(tensor->buffer->name, "_write_cache") && is_heap) {
         // temp fix: cache_write will change the tensor to the cache tensor wrongly
         ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
-      } else if (utils::Endswith(tensor->buffer->name, "_read_cache") ||
+      } else if (utils::Endswith(tensor->buffer->name, "_write_cache") ||
+                 utils::Endswith(tensor->buffer->name, "_read_cache") ||
                  utils::Endswith(tensor->buffer->name, "_temp_buffer")) {
         bool keep_buffer       = temp_buffer;
         temp_buffer            = true;
