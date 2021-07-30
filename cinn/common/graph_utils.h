@@ -61,6 +61,8 @@ class GraphNode : public Object {
  public:
   //! The unique identifier of the node.
   virtual std::string id() const = 0;
+  inline int get_index() { return index; }
+  inline void set_index(int index) { this->index = index; }
 
   //! Links from this to other.
   template <typename EdgeT = GraphEdge>
@@ -148,6 +150,7 @@ class GraphNode : public Object {
   //! used to mark the index of node's input/output tensors
   int index_inlinks{0};
   int index_outlinks{0};
+  int index{0};
 };
 
 /**

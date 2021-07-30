@@ -28,6 +28,8 @@ class Graph : public cinn::common::Graph {
   /** \brief attributes of a graph */
   std::unordered_map<std::string, std::shared_ptr<std::any>> attrs;
 
+  std::vector<std::vector<Node*>> groups;
+
   void RegisterNode(size_t key, Node* node) { this->common::Graph::RegisterNode(key, node->as<common::GraphNode>()); }
   void RegisterNode(size_t key, NodeData* node) {
     this->common::Graph::RegisterNode(key, node->as<common::GraphNode>());

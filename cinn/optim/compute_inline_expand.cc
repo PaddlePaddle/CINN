@@ -1,5 +1,8 @@
 #include "cinn/optim/compute_inline_expand.h"
 
+#include <map>
+#include <string>
+
 #include "cinn/common/graph_utils.h"
 #include "cinn/ir/ir_mutator.h"
 
@@ -31,6 +34,16 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
     }
   }
 
+  void Visit(const ir::_Tensor_ *op, Expr *expr) override {
+    if (inline_code && utils::Endswith(op->name, "_write_cache") &&
+        (*all_tensor_map_).at(op->name)->buffer->memory_type == ir::MemoryType::Heap) {
+      auto no_cache_name = op->name.substr(0, op->name.size() - 12);
+      VLOG(2) << "no_cache_name: " << no_cache_name;
+      CHECK(all_tensor_map_->count(no_cache_name));
+      *expr = (*all_tensor_map_)[no_cache_name];
+    }
+  }
+
   void Visit(const ir::Load *op, Expr *expr) override {
     auto *node   = expr->As<ir::Load>();
     auto *tensor = node->tensor.as_tensor();
@@ -39,20 +52,28 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
       inline_code = true;
       ir::IRMutator<>::Visit(expr, expr);
       inline_code = false;
-    } else if (inline_code && tensor->buffer.defined() &&
-               (utils::Endswith(tensor->buffer->name, "_read_cache") ||
-                utils::Endswith(tensor->buffer->name, "_write_cache") ||
-                utils::Endswith(tensor->buffer->name, "_temp_buffer"))) {
-      bool keep_buffer       = temp_buffer;
-      temp_buffer            = true;
-      bool keep_memory_local = memory_local;
-      if ((*all_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::GPULocal) {
-        memory_local = true;
+    } else if (inline_code && tensor->buffer.defined()) {
+      bool is_heap = (*all_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::Heap;
+      if (utils::Endswith(tensor->buffer->name, "_write_cache") && is_heap) {
+        // temp fix: cache_write will change the tensor to the cache tensor wrongly
+        ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+      } else if (utils::Endswith(tensor->buffer->name, "_write_cache") ||
+                 utils::Endswith(tensor->buffer->name, "_read_cache") ||
+                 utils::Endswith(tensor->buffer->name, "_temp_buffer")) {
+        bool keep_buffer       = temp_buffer;
+        temp_buffer            = true;
+        bool keep_memory_local = memory_local;
+        if ((*all_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::GPULocal) {
+          memory_local = true;
+        }
+        ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+        for (auto &idx : node->indices) ir::IRMutator<>::Visit(&idx, &idx);
+        temp_buffer  = keep_buffer;
+        memory_local = keep_memory_local;
+      } else {
+        ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+        for (auto &idx : node->indices) ir::IRMutator<>::Visit(&idx, &idx);
       }
-      ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
-      for (auto &idx : node->indices) ir::IRMutator<>::Visit(&idx, &idx);
-      temp_buffer  = keep_buffer;
-      memory_local = keep_memory_local;
     } else {
       ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
       for (auto &idx : node->indices) ir::IRMutator<>::Visit(&idx, &idx);
@@ -63,7 +84,7 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
 struct SSANode : public common::GraphNode {
   std::string id_;
 
-  SSANode(const std::string &id) : id_(id) {}
+  explicit SSANode(const std::string &id) : id_(id) {}
 
   std::string id() const override { return id_; }
 

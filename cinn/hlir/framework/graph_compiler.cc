@@ -1,6 +1,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 
 #include <unordered_map>
+#include <unordered_set>
 
 #include "cinn/backends/codegen_cuda_dev.h"
 #include "cinn/hlir/framework/instruction.h"
@@ -64,34 +65,199 @@ std::string GraphCompiler::GenSourceCode() {
   return compiler_->GetSourceCode(build_module);
 }
 
+ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
+  auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+  auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  std::vector<ir::Tensor> inputs;
+  std::vector<common::CINNValue> cinn_inputs;
+  std::vector<std::vector<int>> output_shapes;
+  VLOG(3) << "GetOpFunc of op " << node->id();
+  for (auto& i : node->inlinks_in_order()) {
+    std::string input_id = i->source()->as<NodeData>()->id();
+    auto in_shape        = shape_dict.at(input_id);
+    Type dtype           = dtype_dict.at(input_id);
+    CHECK_EQ(dtype, Float(32)) << "The dtype of node " << input_id
+                               << " is not float! Other dtype is not implemented yet.";
+    lang::Placeholder<float> temp(input_id, in_shape);
+    inputs.push_back(temp);
+    cinn_inputs.push_back(common::CINNValue(temp));
+  }
+  std::vector<Type> out_types;
+  for (auto& out : node->outlinks_in_order()) {
+    std::string out_id = out->sink()->safe_as<NodeData>()->id();
+    auto out_shape     = shape_dict.at(out_id);
+    Type dtype         = dtype_dict.at(out_id);
+    output_shapes.push_back(out_shape);
+    out_types.push_back(dtype);
+  }
+  auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, output_shapes, target_));
+
+  common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
+  poly::StageMap stages   = C.back();
+  // make sure all the tensors in the stages before schedule launch.
+  for (int i = 0; i < C->size() - 1; i++) {
+    ir::Expr temp = C[i];
+    stages->InsertLazily(temp.as_tensor_ref());
+  }
+
+  C = impl->fschedule(C);
+  for (int i = 0; i < C->size() - 1; i++) {
+    ir::Expr temp = C[i];
+    inputs.push_back(temp.as_tensor_ref());
+  }
+
+  auto func = Lower(GenOpFuncName(node), stages, inputs, {}, {}, nullptr, this->target_);
+  VLOG(3) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
+  return func;
+}
+
+ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
+  CHECK_GT(nodes.size(), 1) << "fuse nodes number must be greater than 1";
+  auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+  auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  int fuse_number  = nodes.size();
+  VLOG(3) << "fuse begin: " << nodes[0]->id();
+  std::vector<ir::Tensor> inputs;
+  std::vector<ir::Tensor> outputs;
+  poly::StageMap stages;
+  int index             = 0;
+  std::string fuse_name = "fn_";
+  std::unordered_set<NodeData*> in_vars;
+  std::unordered_set<NodeData*> out_vars;
+  std::unordered_map<NodeData*, Expr> temp_var_map;
+  ir::Tensor first_out_tensor;
+  for (auto& node : nodes) {
+    std::vector<ir::Tensor> temp_inputs;
+    std::vector<common::CINNValue> cinn_inputs;
+    std::vector<std::vector<int>> output_shapes;
+    fuse_name += node->id() + "_";
+    for (auto& link : node->inlinks_in_order()) {
+      auto source = link->source();
+      CHECK(source);
+      auto source_data = source->as<NodeData>();
+      CHECK(source_data);
+      if (temp_var_map.count(source_data)) {
+        VLOG(3) << "fuse var: " << source_data->id();
+        Expr fuse_out = temp_var_map[source_data];
+        cinn_inputs.push_back(common::CINNValue(fuse_out));
+        temp_inputs.push_back(fuse_out.as_tensor_ref());
+      } else {
+        std::string input_id = source_data->id();
+        auto in_shape        = shape_dict.at(input_id);
+        Type dtype           = dtype_dict.at(input_id);
+        CHECK_EQ(dtype, Float(32)) << "The dtype of node " << input_id
+                                   << " is not float! Other dtype is not implemented yet.";
+        lang::Placeholder<float> temp_in(input_id, in_shape);
+        inputs.push_back(temp_in);
+        temp_inputs.push_back(temp_in);
+        cinn_inputs.push_back(common::CINNValue(temp_in));
+        temp_var_map[source_data] = Expr(temp_in);
+      }
+      in_vars.insert(source_data);
+    }
+    std::vector<Type> out_types;
+    std::vector<NodeData*> temp_outvars;
+    for (auto& out : node->outlinks_in_order()) {
+      auto out_var = out->sink()->safe_as<NodeData>();
+      CHECK(out_var);
+      out_vars.insert(out_var);
+      temp_outvars.push_back(out_var);
+      std::string out_id = out_var->id();
+      VLOG(3) << "out_id " << out_id;
+      auto out_shape = shape_dict.at(out_id);
+      Type dtype     = dtype_dict.at(out_id);
+      output_shapes.push_back(out_shape);
+      out_types.push_back(dtype);
+    }
+    auto impl =
+        OpStrategy::SelectImpl(strategy[node->op()](node->attrs, temp_inputs, out_types, output_shapes, target_));
+
+    common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
+    if (index == 0) {
+      // use the first op's schedule as the fused ops' schedule as complex op like conv appear in the first.
+      C = impl->fschedule(C);
+      CHECK(!C.empty());
+      Expr out         = C[0];
+      first_out_tensor = out.as_tensor_ref();
+    }
+    CHECK_GE(C.size(), 2);
+    CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
+    for (int i = 0; i < C.size() - 1; i++) {
+      temp_var_map[temp_outvars[i]] = C[i];
+    }
+    poly::StageMap temp_stages = C.back();
+
+    for (auto& i : temp_stages) {
+      auto tensor = ir::Tensor(i.second->tensor());
+      stages->InsertLazily(tensor, i.second.get());
+    }
+    for (int i = 0; i < C->size() - 1; i++) {
+      ir::Expr temp = C[i];
+      stages->InsertLazily(temp.as_tensor_ref(), temp_stages[temp.as_tensor_ref()]);
+      if (index < fuse_number - 1 && !temp.as_tensor_ref()->is_reduce_tensor()) {
+        // assume that only the first out_var links to other op node which will compute inline
+        if (i == 0) {
+          VLOG(3) << "inline " << temp.as_tensor_ref()->name;
+          stages[temp.as_tensor_ref()]->ComputeInline();
+        } else {
+          VLOG(3) << "add middle op's other out_vars: " << temp.as_tensor_ref()->name;
+          outputs.push_back(temp.as_tensor_ref());
+        }
+      } else if (index < fuse_number - 1 && temp.as_tensor_ref()->is_reduce_tensor()) {
+        VLOG(3) << "temp buffer " << temp.as_tensor_ref()->name;
+        if (target_.arch == Target::Arch::X86) {
+          CHECK_NE(i, 0);
+          outputs.push_back(temp.as_tensor_ref());
+        } else {
+          temp.as_tensor_ref()->WithBuffer("local", "_" + temp.as_tensor_ref()->name + "_temp_buffer");
+          stages[temp.as_tensor_ref()]->SetScope(poly::ScopeKind::kLocal);
+        }
+      } else {
+        outputs.push_back(temp.as_tensor_ref());
+      }
+    }
+    index++;
+  }
+  fuse_name += "fused";
+  VLOG(3) << "fuse_name: " << fuse_name;
+  inputs.insert(inputs.end(), outputs.begin(), outputs.end());
+
+  stages[inputs.back()]->CopyTransform(stages[first_out_tensor]);
+  stages[inputs.back()]->CopyLoopInfo(stages[first_out_tensor]->forloop_infos(),
+                                      stages[first_out_tensor]->transformed_domain());
+  auto func = Lower(fuse_name, stages, inputs, {}, {}, nullptr, this->target_);
+  VLOG(3) << "The function of fused node [" << func->name << "] is:\n" << func;
+  return func;
+}
+
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   auto [nodes, edges] = graph_->topological_order();
-  for (int i = 0; i < nodes.size(); i++) {
-    auto* node = nodes[i]->safe_as<Node>();
-    if (node && node->attrs.attr_store.count("FuseNumber") > 0) {
-      int fuse_number = std::get<int>(node->attrs.attr_store["FuseNumber"]);
-      std::vector<Node*> fuse_nodes;
-      for (int j = 0; j < fuse_number; j++) {
-        CHECK_LT(i, nodes.size());
-        auto* temp_node = nodes[i]->safe_as<Node>();
-        CHECK(temp_node) << "Temp node null Error!!";
-        fuse_nodes.push_back(temp_node);
-        // Here nodes holds both op node and tensor node. Since a op node is
-        // connnected to a tensor node, in order to visit only the op node,
-        // we use i = i + 2 instead of i = i + 1.
-        i = i + 2;
+  auto& groups        = graph_->groups;
+
+  if (!groups.empty()) {
+    for (int i = 0; i < groups.size(); i++) {
+      ir::LoweredFunc lowered_func;
+      if (groups[i].size() == 1) {
+        lowered_func = GetOpFunc(groups[i][0]);
+      } else {
+        lowered_func = GetOpFunc(groups[i]);
       }
-      // When jump out of the previous loop, we did one more time of i = i + 2.
-      // So to ensure each node is traversed, we do i = i - 2.
-      i                 = i - 2;
-      auto lowered_func = GetOpFunc(fuse_nodes);
-      m_builder_.AddFunction(lowered_func);
-      continue;
-    } else if (node) {
-      auto lowered_func = GetOpFunc(node);
       m_builder_.AddFunction(lowered_func);
     }
+  } else {
+    VLOG(3) << "not run opfusion pass";
+    for (auto& node : nodes) {
+      auto op_node = node->safe_as<Node>();
+      if (op_node) {
+        auto lowered_func = GetOpFunc(op_node);
+        m_builder_.AddFunction(lowered_func);
+        graph_->groups.push_back({op_node});
+      }
+    }
   }
+
   // compile the module
   if (!compiler_) {
     compiler_ = backends::Compiler::Create(target_);
@@ -103,7 +269,7 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
     CodeGenCX86 codegen(this->target_, CodeGenCX86::Feature::AVX512);
     codegen.SetInlineBuiltinCodes(false);
     auto out = codegen.Compile(build_module, CodeGenC::OutputKind::CImpl);
-    LOG(INFO) << "[X86] C Code is:\n" << out;
+    VLOG(3) << "[X86] C Code is:\n" << out;
   }
 
   compiler_->Build(build_module, code);
@@ -113,37 +279,11 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   std::vector<std::unique_ptr<Instruction>> instructions;
-
   auto [nodes, edges] = graph_->topological_order();
-  for (int i = 0; i < nodes.size(); i++) {
-    auto* node = nodes[i]->safe_as<Node>();
-    if (node && node->attrs.attr_store.count("FuseNumber") > 0) {
-      int fuse_number = std::get<int>(node->attrs.attr_store["FuseNumber"]);
-      std::vector<std::string> inputNames;
-      std::vector<std::string> outputNames;
-      for (int j = 0; j < fuse_number; j++) {
-        auto* temp_node = nodes[i + 2 * j]->safe_as<Node>();
-        CHECK(temp_node);
-        auto temp_inputnames = OpGetInputNames(temp_node);
-        if (j == 0) {
-          inputNames.insert(inputNames.end(), temp_inputnames.begin(), temp_inputnames.end());
-        } else {
-          inputNames.insert(inputNames.end(), temp_inputnames.begin() + 1, temp_inputnames.end());
-        }
-        if (j == fuse_number - 1) {
-          auto temp_outputnames = OpGetOutputNames(temp_node);
-          outputNames.insert(outputNames.end(), temp_outputnames.begin(), temp_outputnames.end());
-        }
-      }
-      auto instr = std::unique_ptr<Instruction>(
-          new Instruction(target_, scope_.get(), inputNames, outputNames, node->op()->name + "_fused"));
-      auto* fn = compiler_->Lookup(GenOpFuncName(node) + "_fused");
-      CHECK(fn);
-      instr->SetLoweredFunc(fn);
-      instructions.push_back(std::move(instr));
-      i = i + 2 * fuse_number - 2;
-      continue;
-    } else if (node) {
+  auto& groups        = graph_->groups;
+  for (auto& group : groups) {
+    if (group.size() == 1) {
+      auto node  = group[0];
       auto instr = std::unique_ptr<Instruction>(
           new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), node->op()->name));
       if (target_.arch == Target::Arch::NVGPU) {
@@ -181,6 +321,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           } else {
             instr->attrs.push_back(instr->attrs[1]);
           }
+          CHECK(!node->outlinks_in_order().empty());
           auto& out_node     = node->outlinks_in_order().front();
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
@@ -260,138 +401,45 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       CHECK(fn);
       instr->SetLoweredFunc(fn);
       instructions.push_back(std::move(instr));
+    } else {
+      CHECK_GT(group.size(), 1U) << "fuse number should be greater than 1";
+      std::vector<std::string> inputNames;
+      std::vector<std::string> outputNames;
+      std::unordered_set<std::string> names_set;
+      int count             = 0;
+      std::string fuse_name = "fn_";
+      for (int i = 0; i < group.size(); i++) {
+        auto node = group[i];
+        CHECK(node);
+        fuse_name += node->id() + "_";
+        auto temp_inputnames = OpGetInputNames(node);
+        for (int j = 0; j < temp_inputnames.size(); j++) {
+          if (!names_set.count(temp_inputnames[j])) {
+            inputNames.push_back(temp_inputnames[j]);
+            names_set.insert(temp_inputnames[j]);
+          }
+        }
+        auto temp_outputnames = OpGetOutputNames(node);
+        for (int j = 0; j < temp_outputnames.size(); j++) {
+          if (!names_set.count(temp_outputnames[j])) {
+            names_set.insert(temp_outputnames[j]);
+            // assume that the first out_var of the op node is the fused var
+            if (j == 0 && i != group.size() - 1) continue;
+            outputNames.push_back(temp_outputnames[j]);
+          }
+        }
+      }
+      fuse_name += "fused";
+      VLOG(3) << fuse_name;
+      auto instr =
+          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_name));
+      auto* fn = compiler_->Lookup(fuse_name);
+      CHECK(fn);
+      instr->SetLoweredFunc(fn);
+      instructions.push_back(std::move(instr));
     }
   }
   return instructions;
-}
-
-ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
-  auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-  auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
-  auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
-  std::vector<ir::Tensor> inputs;
-  std::vector<common::CINNValue> cinn_inputs;
-  std::vector<std::vector<int>> output_shapes;
-  VLOG(2) << "GetOpFunc of op " << node->id();
-  for (auto& i : node->inlinks_in_order()) {
-    std::string input_id = i->source()->as<NodeData>()->id();
-    auto in_shape        = shape_dict.at(input_id);
-    Type dtype           = dtype_dict.at(input_id);
-    CHECK_EQ(dtype, Float(32)) << "The dtype of node " << input_id
-                               << " is not float! Other dtype is not implemented yet.";
-    lang::Placeholder<float> temp(input_id, in_shape);
-    inputs.push_back(temp);
-    cinn_inputs.push_back(common::CINNValue(temp));
-  }
-  std::vector<Type> out_types;
-  for (auto& out : node->outlinks_in_order()) {
-    std::string out_id = out->sink()->safe_as<NodeData>()->id();
-    auto out_shape     = shape_dict.at(out_id);
-    Type dtype         = dtype_dict.at(out_id);
-    output_shapes.push_back(out_shape);
-    out_types.push_back(dtype);
-  }
-  auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, output_shapes, target_));
-
-  common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
-  poly::StageMap stages   = C.back();
-  // make sure all the tensors in the stages before schedule launch.
-  for (int i = 0; i < C->size() - 1; i++) {
-    ir::Expr temp = C[i];
-    stages->InsertLazily(temp.as_tensor_ref());
-  }
-
-  C = impl->fschedule(C);
-  for (int i = 0; i < C->size() - 1; i++) {
-    ir::Expr temp = C[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-
-  auto func = Lower(GenOpFuncName(node), stages, inputs, {}, {}, nullptr, this->target_);
-  VLOG(2) << "The function of node [" << node->attrs.node_name << "] is:\n" << func;
-  return func;
-}
-
-ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
-  auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-  auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
-  auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
-  VLOG(2) << "GetOpFunc of fused op " << nodes[0]->id();
-  std::vector<ir::Tensor> inputs;
-  poly::StageMap stages;
-  std::vector<int> init_shape{1};
-  int fuse_number = nodes.size();
-  lang::Placeholder<float> temp_out_ph("init", init_shape);
-  ir::Expr temp_out(temp_out_ph);
-  int index = 0;
-  for (auto& node : nodes) {
-    std::vector<ir::Tensor> temp_inputs;
-    std::vector<common::CINNValue> cinn_inputs;
-    std::vector<std::vector<int>> output_shapes;
-    int input_index = 0;
-    for (auto& i : node->inlinks_in_order()) {
-      if (index > 0 && input_index == 0) {
-        cinn_inputs.push_back(common::CINNValue(temp_out));
-        temp_inputs.push_back(temp_out.as_tensor_ref());
-      } else {
-        std::string input_id = i->source()->as<NodeData>()->id();
-        auto in_shape        = shape_dict.at(input_id);
-        Type dtype           = dtype_dict.at(input_id);
-        CHECK_EQ(dtype, Float(32)) << "The dtype of node " << input_id
-                                   << " is not float! Other dtype is not implemented yet.";
-        lang::Placeholder<float> temp(input_id, in_shape);
-        inputs.push_back(temp);
-        temp_inputs.push_back(temp);
-        cinn_inputs.push_back(common::CINNValue(temp));
-      }
-      input_index++;
-    }
-    std::vector<Type> out_types;
-    for (auto& out : node->outlinks_in_order()) {
-      std::string out_id = out->sink()->safe_as<NodeData>()->id();
-      auto out_shape     = shape_dict.at(out_id);
-      Type dtype         = dtype_dict.at(out_id);
-      output_shapes.push_back(out_shape);
-      out_types.push_back(dtype);
-    }
-    auto impl =
-        OpStrategy::SelectImpl(strategy[node->op()](node->attrs, temp_inputs, out_types, output_shapes, target_));
-
-    common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
-    C                       = impl->fschedule(C);
-    CHECK_GE(C.size(), 2);
-    ir::Expr temp0             = C[0];
-    temp_out                   = temp0;
-    poly::StageMap temp_stages = C.back();
-
-    for (auto& i : temp_stages) {
-      stages->InsertLazily(ir::Tensor(i.second->tensor()), i.second.get());
-    }
-
-    for (int i = 0; i < C->size() - 1; i++) {
-      ir::Expr temp = C[i];
-      stages->InsertLazily(temp.as_tensor_ref(), temp_stages[temp.as_tensor_ref()]);
-      if (index < fuse_number - 1 && !temp.as_tensor_ref()->is_reduce_tensor()) {
-        stages[temp.as_tensor_ref()]->ComputeInline();
-      } else if (index < fuse_number - 1 && temp.as_tensor_ref()->is_reduce_tensor()) {
-        temp.as_tensor_ref()->WithBuffer("local", "_" + temp.as_tensor_ref()->name + "_temp_buffer");
-        stages[temp.as_tensor_ref()]->SetScope(poly::ScopeKind::kLocal);
-      } else {
-        inputs.push_back(temp.as_tensor_ref());
-      }
-    }
-    index++;
-  }
-
-  for (auto& s : stages) {
-    if (s.second->tensor()->is_reduce_tensor()) {
-      stages[inputs.back()]->CopyTransform(s.second.get());
-      stages[inputs.back()]->CopyLoopInfo(s.second->forloop_infos(), s.second->transformed_domain());
-    }
-  }
-  auto func = Lower(GenOpFuncName(nodes[0]) + "_fused", stages, inputs, {}, {}, nullptr, this->target_);
-  VLOG(3) << "The function of fused node [" << func->name << "] is:\n" << func;
-  return func;
 }
 
 std::vector<std::string> GraphCompiler::OpGetInputNames(const Node* node) const {

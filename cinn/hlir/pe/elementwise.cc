@@ -17,7 +17,7 @@ using ir::Tensor;
 #define HLIR_IMP_UNARY_PE(name__)                                                                          \
   std::vector<ir::Tensor> name__(const Tensor& A, const std::string& output_name) {                        \
     return {Compute(                                                                                       \
-        A->shape, [&](const std::vector<Expr>& indice) { return lang::name__(A(indice)); }, output_name)}; \
+        A->shape, [=](const std::vector<Expr>& indice) { return lang::name__(A(indice)); }, output_name)}; \
   }
 
 #define HLIR_MKL_IMP_UNARY_PE(name__, ex_name__)                                                     \
@@ -25,7 +25,7 @@ using ir::Tensor;
     CHECK(A->type().is_float()) << "type should be float or double but get " << A->type();           \
     std::string fn_name = "cinn_mkl_" #ex_name__ "_v_fp" + std::to_string(A->type().bits());         \
     auto call           = Compute(                                                                   \
-        {Expr(1)}, [&]() -> Expr { return lang::CallExtern(fn_name, {A}); }, output_name); \
+        {Expr(1)}, [=]() -> Expr { return lang::CallExtern(fn_name, {A}); }, output_name); \
     auto out = call->TupleGet(0);                                                                    \
     out->WithBuffer(A->type());                                                                      \
     return {out, call};                                                                              \
