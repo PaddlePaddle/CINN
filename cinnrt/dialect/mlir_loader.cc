@@ -13,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include "cinn/frontend/syntax.h"
 #include "cinnrt/dialect/diagnostic_utils.h"
 #include "cinnrt/dialect/init_cinn_dialects.h"
 
@@ -94,10 +93,10 @@ class Translator {
   std::unordered_map<std::string, int> subgraph_index_map_;
 };
 
-std::unique_ptr<cinn::frontend::Program> MlirToFrontend(mlir::ModuleOp module) {
+std::unique_ptr<cinnrt::paddle::Program> MlirToFrontend(mlir::ModuleOp module) {
   Translator translator(module);
   translator.Build();
-  return std::unique_ptr<cinn::frontend::Program>();
+  return std::unique_ptr<cinnrt::paddle::Program>();
 }
 
 }  // namespace cinnrt::dialect

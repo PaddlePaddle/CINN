@@ -3,8 +3,6 @@
 
 #include <string>
 
-#include "cinn/common/macros.h"
-
 namespace cinnrt {
 namespace host_context {
 

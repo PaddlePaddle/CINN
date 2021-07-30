@@ -5,7 +5,7 @@
 #include <iostream>
 #include <vector>
 
-#include "cinn/hlir/framework/buffer.h"
+#include "cinnrt/cinn/buffer.h"
 #include "cinnrt/common/dtype.h"
 #include "llvm/Support/raw_ostream.h"
 

@@ -6,9 +6,9 @@
 #include "cinnrt/tensor/tensor_metadata.h"
 #include "cinnrt/tensor/tensor_shape.h"
 
-namespace cinn::hlir::framework {
+namespace cinnrt {
 class Buffer;
-}  // namespace cinn::hlir::framework
+}  // namespace cinnrt
 
 namespace cinnrt::tensor {
 
@@ -55,7 +55,7 @@ class DenseHostTensor : public HostTensor {
   void Init(const std::vector<int64_t>& shape, DType dtype);
   const TensorShape& shape() const;
 
-  const cinn::hlir::framework::Buffer* buffer() const;
+  const cinnrt::Buffer* buffer() const;
 
   void* raw_data() const;
 
@@ -65,7 +65,7 @@ class DenseHostTensor : public HostTensor {
 
  private:
   // TODO(Superjomn) Discard the dependency of the Buffer in cinncore or create a general buffer in common.
-  std::shared_ptr<cinn::hlir::framework::Buffer> buffer_;
+  std::shared_ptr<cinnrt::Buffer> buffer_;
 };
 
 }  // namespace cinnrt::tensor

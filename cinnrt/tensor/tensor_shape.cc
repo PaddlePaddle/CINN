@@ -6,8 +6,6 @@
 #include <algorithm>
 #include <functional>
 
-#include "cinn/utils/string.h"
-
 namespace cinnrt {
 namespace tensor {
 

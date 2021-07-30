@@ -8,7 +8,6 @@
 
 #include <string>
 
-#include "cinn/backends/llvm/llvm_util.h"
 #include "cinnrt/dialect/init_cinn_dialects.h"
 
 namespace cinnrt::dialect {
