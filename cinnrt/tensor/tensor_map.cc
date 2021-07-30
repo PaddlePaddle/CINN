@@ -8,7 +8,7 @@
 #include "cinnrt/paddle/model_parser.h"
 
 using Scope       = cinnrt::paddle::Scope;
-using ProgramDesc = cinn::frontend::paddle::cpp::ProgramDesc;
+using ProgramDesc = cinnrt::paddle::cpp::ProgramDesc;
 using Target      = cinnrt::common::Target;
 using Type        = cinnrt::common::Type;
 

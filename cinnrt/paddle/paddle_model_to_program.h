@@ -9,7 +9,7 @@
 #include <variant>
 #include <vector>
 
-#include "cinn/frontend/paddle/cpp/program_desc.h"
+#include "cinnrt/paddle/cpp/program_desc.h"
 #include "cinnrt/cinn/string.h"
 #include "cinnrt/common/common.h"
 #include "cinnrt/common/context.h"
@@ -51,7 +51,7 @@ class PaddleModelToProgram {
   std::unique_ptr<Program> operator()(const std::string& model_dir, bool is_combined);
 
   // Add an Instruction to a program given a Paddle-format \p op_desc.
-  void AddOp(const ::cinn::frontend::paddle::cpp::OpDesc& op_desc);
+  void AddOp(const ::cinnrt::paddle::cpp::OpDesc& op_desc);
 
   // @{
   void AddOpMapper_feed();
@@ -85,7 +85,7 @@ class PaddleModelToProgram {
   void ReverseHWVar(const std::string& name);
 
  private:
-  std::unordered_map<std::string, std::function<void(const ::cinn::frontend::paddle::cpp::OpDesc&)>> op_mappers_;
+  std::unordered_map<std::string, std::function<void(const ::cinnrt::paddle::cpp::OpDesc&)>> op_mappers_;
   std::unique_ptr<Program> program_;
   std::unordered_map<std::string, Variable> var_map_;
   // map from var in Paddle model to var name in program.

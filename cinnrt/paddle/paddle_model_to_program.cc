@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-#include "cinn/frontend/paddle/pb/program_desc.h"
+#include "cinnrt/paddle/pb/program_desc.h"
 #include "cinnrt/cinn/string.h"
 #include "cinnrt/paddle/model_parser.h"
 
@@ -45,7 +45,7 @@ void ReverseHWData(float* data, std::vector<int> shape) {
 }
 
 void PaddleModelToProgram::AddOpMapper_feed() {
-  op_mappers_["feed"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["feed"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     auto outs = op_desc.Output("Out");
     CHECK_EQ(outs.size(), 1UL);
     VLOG(2) << "Model get feed [" << outs[0] << "]";
@@ -55,7 +55,7 @@ void PaddleModelToProgram::AddOpMapper_feed() {
 }
 
 void PaddleModelToProgram::AddOpMapper_fetch() {
-  op_mappers_["fetch"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["fetch"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto output_name = op_desc.Input("X").front();
     LOG(INFO) << "detect model output: [" << output_name << "]";
@@ -63,7 +63,7 @@ void PaddleModelToProgram::AddOpMapper_fetch() {
 }
 
 void PaddleModelToProgram::AddOpMapper_scale() {
-  op_mappers_["scale"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["scale"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     auto x      = GetVar(cinnrt::cinn::TransValidVarName(x_name));
@@ -96,7 +96,7 @@ void PaddleModelToProgram::AddOpMapper_scale() {
 }
 
 void PaddleModelToProgram::AddOpMapper_mul() {
-  op_mappers_["mul"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["mul"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Input("Y").size(), 1UL);
@@ -120,7 +120,7 @@ void PaddleModelToProgram::AddOpMapper_mul() {
 }
 
 void PaddleModelToProgram::AddOpMapper_relu() {
-  op_mappers_["relu"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["relu"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -134,7 +134,7 @@ void PaddleModelToProgram::AddOpMapper_relu() {
 }
 
 void PaddleModelToProgram::AddOpMapper_softmax() {
-  op_mappers_["softmax"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["softmax"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -154,7 +154,7 @@ void PaddleModelToProgram::AddOpMapper_softmax() {
 }
 
 void PaddleModelToProgram::AddOpMapper_elementwise_add() {
-  op_mappers_["elementwise_add"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["elementwise_add"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Input("Y").size(), 1UL);
@@ -173,7 +173,7 @@ void PaddleModelToProgram::AddOpMapper_elementwise_add() {
 }
 
 void PaddleModelToProgram::AddOpMapper_elementwise_mul() {
-  op_mappers_["elementwise_mul"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["elementwise_mul"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Input("Y").size(), 1UL);
@@ -192,7 +192,7 @@ void PaddleModelToProgram::AddOpMapper_elementwise_mul() {
 }
 
 void PaddleModelToProgram::AddOpMapper_relu6() {
-  op_mappers_["relu6"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["relu6"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -211,7 +211,7 @@ void PaddleModelToProgram::AddOpMapper_relu6() {
   };
 }
 void PaddleModelToProgram::AddOpMapper_depthwise_conv2d() {
-  op_mappers_["depthwise_conv2d"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["depthwise_conv2d"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("Input").size(), 1UL);
     auto x_name = op_desc.Input("Input").front();
     CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
@@ -243,7 +243,7 @@ void PaddleModelToProgram::AddOpMapper_depthwise_conv2d() {
 }
 
 void PaddleModelToProgram::AddOpMapper_conv2d() {
-  op_mappers_["conv2d"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["conv2d"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("Input").size(), 1UL);
     auto x_name = op_desc.Input("Input").front();
     CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
@@ -275,7 +275,7 @@ void PaddleModelToProgram::AddOpMapper_conv2d() {
 }
 
 void PaddleModelToProgram::AddOpMapper_pool2d() {
-  op_mappers_["pool2d"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["pool2d"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -314,7 +314,7 @@ void PaddleModelToProgram::AddOpMapper_pool2d() {
 }
 
 void PaddleModelToProgram::AddOpMapper_batchnorm() {
-  op_mappers_["batch_norm"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["batch_norm"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Input("Scale").size(), 1UL);
@@ -344,7 +344,7 @@ void PaddleModelToProgram::AddOpMapper_batchnorm() {
 }
 
 void PaddleModelToProgram::AddOpMapper_sigmoid() {
-  op_mappers_["sigmoid"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["sigmoid"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -359,7 +359,7 @@ void PaddleModelToProgram::AddOpMapper_sigmoid() {
 }
 
 void PaddleModelToProgram::AddOpMapper_slice() {
-  op_mappers_["slice"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["slice"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("Input").size(), 1UL);
     auto x_name = op_desc.Input("Input").front();
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -381,7 +381,7 @@ void PaddleModelToProgram::AddOpMapper_slice() {
 }
 
 void PaddleModelToProgram::AddOpMapper_dropout_infer() {
-  op_mappers_["dropout"] = [&](const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+  op_mappers_["dropout"] = [&](const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
     auto x_name = op_desc.Input("X").front();
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -400,7 +400,7 @@ void PaddleModelToProgram::AddOpMapper_dropout_infer() {
   };
 }
 
-void PaddleModelToProgram::AddOp(const ::cinn::frontend::paddle::cpp::OpDesc& op_desc) {
+void PaddleModelToProgram::AddOp(const ::cinnrt::paddle::cpp::OpDesc& op_desc) {
   const auto& op_type = op_desc.Type();
   auto it             = op_mappers_.find(op_type);
   if (it != op_mappers_.end()) {
@@ -500,13 +500,13 @@ Variable PaddleModelToProgram::GetVar(const std::string& name) {
 }
 
 std::unique_ptr<Program> PaddleModelToProgram::operator()(const std::string& model_dir, bool is_combined) {
-  ::cinn::frontend::paddle::cpp::ProgramDesc program_desc;
+  ::cinnrt::paddle::cpp::ProgramDesc program_desc;
   cinnrt::paddle::LoadModelPb(model_dir, "__model__", "", scope_, &program_desc, is_combined, false, target_);
   CHECK_EQ(program_desc.BlocksSize(), 1) << "CINN can only support the model with a single block";
-  auto* block_desc = program_desc.GetBlock<::cinn::frontend::paddle::cpp::BlockDesc>(0);
+  auto* block_desc = program_desc.GetBlock<::cinnrt::paddle::cpp::BlockDesc>(0);
 
   for (int i = 0; i < block_desc->OpsSize(); i++) {
-    auto* op_desc = block_desc->GetOp<::cinn::frontend::paddle::cpp::OpDesc>(i);
+    auto* op_desc = block_desc->GetOp<::cinnrt::paddle::cpp::OpDesc>(i);
     AddOp(*op_desc);
   }
   return std::move(program_);

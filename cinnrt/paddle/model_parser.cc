@@ -149,10 +149,10 @@ void LoadParam(const std::string &path, cinnrt::paddle::_Variable *out, const ci
   LoadLoDTensor(fin, out, target);
 }
 
-bool IsPersistable(const ::cinn::frontend::paddle::cpp::VarDesc &var) {
-  if (var.Persistable() && var.GetType() != ::cinn::frontend::paddle::cpp::VarDescAPI::Type::FEED_MINIBATCH &&
-      var.GetType() != ::cinn::frontend::paddle::cpp::VarDescAPI::Type::FETCH_LIST &&
-      var.GetType() != ::cinn::frontend::paddle::cpp::VarDescAPI::Type::RAW) {
+bool IsPersistable(const ::cinnrt::paddle::cpp::VarDesc &var) {
+  if (var.Persistable() && var.GetType() != ::cinnrt::paddle::cpp::VarDescAPI::Type::FEED_MINIBATCH &&
+      var.GetType() != ::cinnrt::paddle::cpp::VarDescAPI::Type::FETCH_LIST &&
+      var.GetType() != ::cinnrt::paddle::cpp::VarDescAPI::Type::RAW) {
     return true;
   }
   return false;
@@ -160,17 +160,17 @@ bool IsPersistable(const ::cinn::frontend::paddle::cpp::VarDesc &var) {
 
 void LoadCombinedParamsPb(const std::string &path,
                           cinnrt::paddle::Scope *scope,
-                          const ::cinn::frontend::paddle::cpp::ProgramDesc &cpp_prog,
+                          const ::cinnrt::paddle::cpp::ProgramDesc &cpp_prog,
                           bool params_from_memory,
                           const cinnrt::common::Target &target) {
   CHECK(scope);
   auto prog             = cpp_prog;
-  auto &main_block_desc = *prog.GetBlock<::cinn::frontend::paddle::cpp::BlockDesc>(0);
+  auto &main_block_desc = *prog.GetBlock<::cinnrt::paddle::cpp::BlockDesc>(0);
 
   // Get vars
   std::vector<std::string> paramlist;
   for (size_t i = 0; i < main_block_desc.VarsSize(); ++i) {
-    auto &var = *main_block_desc.GetVar<::cinn::frontend::paddle::cpp::VarDesc>(i);
+    auto &var = *main_block_desc.GetVar<::cinnrt::paddle::cpp::VarDesc>(i);
     if (!IsPersistable(var)) continue;
     paramlist.push_back(var.Name());
   }
@@ -203,7 +203,7 @@ void LoadModelPb(const std::string &model_dir,
                  const std::string &model_file,
                  const std::string &param_file,
                  cinnrt::paddle::Scope *scope,
-                 ::cinn::frontend::paddle::cpp::ProgramDesc *cpp_prog,
+                 ::cinnrt::paddle::cpp::ProgramDesc *cpp_prog,
                  bool combined,
                  bool model_from_memory,
                  const cinnrt::common::Target &target) {
@@ -222,8 +222,8 @@ void LoadModelPb(const std::string &model_dir,
     param_file_temp = model_dir + "/params";
   }
   framework_proto::ProgramDesc pb_proto_prog = *LoadProgram(prog_path, model_from_memory);
-  ::cinn::frontend::paddle::pb::ProgramDesc pb_prog(&pb_proto_prog);
-  // Transform to ::cinn::frontend::paddle::cpp::ProgramDesc
+  ::cinnrt::paddle::pb::ProgramDesc pb_prog(&pb_proto_prog);
+  // Transform to ::cinnrt::paddle::cpp::ProgramDesc
   TransformProgramDescAnyToCpp(pb_prog, cpp_prog);
 
   // Load Params

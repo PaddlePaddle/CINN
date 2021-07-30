@@ -4,11 +4,11 @@
 #include <string>
 #include <vector>
 
-#include "cinn/frontend/paddle/cpp/program_desc.h"
-#include "cinn/frontend/paddle/framework.pb.h"
-#include "cinn/frontend/paddle/pb/block_desc.h"
-#include "cinn/frontend/paddle/pb/op_desc.h"
-#include "cinn/frontend/paddle/pb/program_desc.h"
+#include "cinnrt/paddle/cpp/program_desc.h"
+#include "cinnrt/paddle/framework.pb.h"
+#include "cinnrt/paddle/pb/block_desc.h"
+#include "cinnrt/paddle/pb/op_desc.h"
+#include "cinnrt/paddle/pb/program_desc.h"
 #include "cinnrt/paddle/scope.h"
 #include "cinnrt/paddle/tensor.h"
 
@@ -20,7 +20,7 @@ void LoadModelPb(const std::string& model_dir,
                  const std::string& model_file,
                  const std::string& param_file,
                  cinnrt::paddle::Scope* scope,
-                 ::cinn::frontend::paddle::cpp::ProgramDesc* cpp_prog,
+                 ::cinnrt::paddle::cpp::ProgramDesc* cpp_prog,
                  bool combined                        = true,
                  bool model_from_memory               = false,
                  const cinnrt::common::Target& target = cinnrt::common::DefaultHostTarget());
@@ -38,7 +38,7 @@ void LoadParam(const std::string& path, cinnrt::paddle::_Variable* out, const ci
 
 void LoadCombinedParamsPb(const std::string& path,
                           cinnrt::paddle::Scope* scope,
-                          const ::cinn::frontend::paddle::pb::ProgramDesc& prog,
+                          const ::cinnrt::paddle::pb::ProgramDesc& prog,
                           bool params_from_memory              = false,
                           const cinnrt::common::Target& target = cinnrt::common::DefaultHostTarget());
 
