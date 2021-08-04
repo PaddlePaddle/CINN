@@ -4,7 +4,6 @@
 #include <iostream>
 
 #include "cinnrt/cinn/string.h"
-#include "cinnrt/paddle/compatible_pb.h"
 #include "cinnrt/paddle/model_parser.h"
 
 using Scope       = cinnrt::paddle::Scope;

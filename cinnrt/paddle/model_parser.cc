@@ -7,7 +7,6 @@
 #include "cinnrt/common/common.h"
 #include "cinnrt/common/target.h"
 #include "cinnrt/common/type.h"
-#include "cinnrt/paddle/compatible_pb.h"
 #include "cinnrt/paddle/scope.h"
 #include "cinnrt/paddle/tensor.h"
 
@@ -197,63 +196,6 @@ void LoadCombinedParamsPb(const std::string &path,
     CHECK(fin.is_open());
     load_var_func(fin);
   }
-}
-
-void LoadModelPb(const std::string &model_dir,
-                 const std::string &model_file,
-                 const std::string &param_file,
-                 cinnrt::paddle::Scope *scope,
-                 ::cinnrt::paddle::cpp::ProgramDesc *cpp_prog,
-                 bool combined,
-                 bool model_from_memory,
-                 const cinnrt::common::Target &target) {
-  CHECK(cpp_prog);
-  CHECK(scope);
-  cpp_prog->ClearBlocks();
-  LOG(INFO) << "model_dir is: " << model_dir;
-  LOG(INFO) << "model_file is: " << model_file;
-  LOG(INFO) << "param_file is: " << param_file;
-  // Load model
-  VLOG(4) << "Start load model program...";
-  std::string prog_path       = model_dir + "/__model__";
-  std::string param_file_temp = param_file;
-  if (combined) {
-    // prog_path = model_file;
-    param_file_temp = model_dir + "/params";
-  }
-  framework_proto::ProgramDesc pb_proto_prog = *LoadProgram(prog_path, model_from_memory);
-  ::cinnrt::paddle::pb::ProgramDesc pb_prog(&pb_proto_prog);
-  // Transform to ::cinnrt::paddle::cpp::ProgramDesc
-  TransformProgramDescAnyToCpp(pb_prog, cpp_prog);
-
-  // Load Params
-  // NOTE: Only main block be used now.
-  VLOG(4) << "Start load model params...";
-  CHECK(!(!combined && model_from_memory)) << "If you want use the model_from_memory,"
-                                           << " you should load the combined model using cfg.set_model_buffer "
-                                              "interface.";
-  if (combined) {
-    LoadCombinedParamsPb(param_file_temp, scope, *cpp_prog, model_from_memory, target);
-  } else {
-    auto main_block = pb_proto_prog.blocks(0);
-    for (auto &var : main_block.vars()) {
-      if (var.name() == "feed" || var.name() == "fetch" || !var.persistable()) continue;
-
-      std::string file_path = model_dir + "/" + var.name();
-      VLOG(4) << "reading weight " << var.name();
-
-      std::ifstream file(file_path, std::ios::binary);
-      switch (var.type().type()) {
-        case framework_proto::VarType_Type_LOD_TENSOR:
-          LoadLoDTensor(file, scope->Var<cinnrt::paddle::Tensor>(cinnrt::cinn::TransValidVarName(var.name())), target);
-          break;
-        default:
-          LOG(FATAL) << "unknown weight type";
-      }
-    }
-  }
-
-  VLOG(4) << "Load protobuf model in [" << model_dir << "] successfully";
 }
 
 }  // namespace cinnrt::paddle

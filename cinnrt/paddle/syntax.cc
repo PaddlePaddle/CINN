@@ -147,15 +147,6 @@ std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
   return os;
 }
 
-std::tuple<std::unique_ptr<Program>,
-           std::unordered_map<std::string, Variable>,
-           std::unordered_map<std::string, std::string>>
-LoadPaddleProgram(const std::string& model_dir, Scope* scope, bool is_combined, const cinnrt::common::Target& target) {
-  LOG(INFO) << "Loading Paddle model from " << model_dir;
-  cinnrt::paddle::PaddleModelToProgram _(scope, target);
-  return std::make_tuple(_(model_dir, is_combined), _.var_map(), _.var_model_to_program_map());
-}
-
 void Program::SetInputs(const std::vector<Variable>& xs) {
   CHECK(!xs.empty()) << "At least one input is needed for a program!";
   for (int i = 0; i < xs.size(); i++) {

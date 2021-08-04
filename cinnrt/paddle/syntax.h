@@ -264,21 +264,6 @@ struct Program {
   std::vector<Variable> inputs_;
 };
 
-/**
- * Load a Paddle model and return a frontend program.
- * @param model_dir The directory of the model.
- * @param is_combined Whether the parameters in the Paddle model is combined.
- * @returns program, a map from name to variable and a map from variable name in Paddle model to the corresponding in
- * program
- */
-std::tuple<std::unique_ptr<Program>,
-           std::unordered_map<std::string, Variable>,
-           std::unordered_map<std::string, std::string>>
-LoadPaddleProgram(const std::string& model_dir,
-                  cinnrt::paddle::Scope* scope,
-                  bool is_combined,
-                  const cinnrt::common::Target& target = cinnrt::common::DefaultHostTarget());
-
 std::ostream& operator<<(std::ostream& os, const Variable& x);
 std::ostream& operator<<(std::ostream& os, const Instruction& instr);
 std::ostream& operator<<(std::ostream& os, const Program& program);

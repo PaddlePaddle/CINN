@@ -4,7 +4,6 @@ core_gather_headers()
 
 core_gather_srcs(SRCS
     model_parser.cc
-    compatible_pb.cc
     syntax.cc
     scope.cc
     tensor.cc
