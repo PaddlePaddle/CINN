@@ -8,7 +8,6 @@ core_gather_srcs(SRCS
     scope.cc
     tensor.cc
     node.cc
-    paddle_model_to_program.cc
     )
 
 foreach(cpp ${SRCS})

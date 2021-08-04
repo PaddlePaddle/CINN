@@ -1,10 +1,6 @@
 core_gather_headers()
 
 core_gather_srcs(SRCS
-    var_desc.cc
-    op_desc.cc
-    block_desc.cc
-    program_desc.cc
     )
 
 foreach(cpp ${SRCS})

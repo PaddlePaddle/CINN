@@ -7,7 +7,6 @@
 #include "cinnrt/paddle/model_parser.h"
 
 using Scope       = cinnrt::paddle::Scope;
-using ProgramDesc = cinnrt::paddle::cpp::ProgramDesc;
 using Target      = cinnrt::common::Target;
 using Type        = cinnrt::common::Type;
 
@@ -34,7 +33,6 @@ TensorMap *LoadParams(const std::string &path) {
   std::cout << "loading params from: " << path << std::endl;
   TensorMap *map = new TensorMap();
   Scope scope;
-  ProgramDesc cpp_prog;
   const Target &target = cinnrt::common::DefaultHostTarget();
 
   std::string model_path = path + "/__model__";

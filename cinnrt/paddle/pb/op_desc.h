@@ -1,7 +1,8 @@
 #pragma once
+#include <glog/logging.h>
 #include <variant>
 
-#include "cinnrt/paddle/cpp/op_desc.h"
+#include "cinnrt/paddle/cpp/desc_api.h"
 #include "cinnrt/paddle/framework.pb.h"
 
 namespace cinnrt::paddle::pb {

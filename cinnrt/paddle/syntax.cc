@@ -11,7 +11,6 @@
 #include "cinnrt/cinn/string.h"
 #include "cinnrt/paddle/model_parser.h"
 #include "cinnrt/paddle/op.h"
-#include "cinnrt/paddle/paddle_model_to_program.h"
 #include "cinnrt/paddle/scope.h"
 
 namespace cinnrt {
