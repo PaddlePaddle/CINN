@@ -4,7 +4,6 @@ core_gather_srcs(SRCS
     buffer.cc 
     memory.cc 
     string.cc
-    dot_lang.cc
     )
 
 foreach(cpp ${SRCS})
