@@ -93,10 +93,4 @@ class Translator {
   std::unordered_map<std::string, int> subgraph_index_map_;
 };
 
-std::unique_ptr<cinnrt::paddle::Program> MlirToFrontend(mlir::ModuleOp module) {
-  Translator translator(module);
-  translator.Build();
-  return std::unique_ptr<cinnrt::paddle::Program>();
-}
-
 }  // namespace cinnrt::dialect

@@ -7,8 +7,6 @@
 #include "cinnrt/common/common.h"
 #include "cinnrt/common/target.h"
 #include "cinnrt/common/type.h"
-#include "cinnrt/paddle/scope.h"
-#include "cinnrt/paddle/tensor.h"
 
 namespace cinnrt::paddle {
 

@@ -38,8 +38,6 @@ func @main() -> f32 {
       LOG(INFO) << "arg: " << func.getArgument(i).getArgNumber();
     }
   }
-
-  MlirToFrontend(module.release());
 }
 
 }  // namespace cinnrt::dialect

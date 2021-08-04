@@ -7,9 +7,7 @@
 
 #include "cinnrt/cinn/buffer.h"
 #include "cinnrt/common/common.h"
-#include "cinnrt/common/macros.h"
 #include "cinnrt/common/object.h"
-//#include "cinnrt/cinn/string.h"
 
 namespace cinnrt {
 namespace paddle {

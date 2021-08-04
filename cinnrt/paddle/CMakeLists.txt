@@ -4,7 +4,6 @@ core_gather_headers()
 
 core_gather_srcs(SRCS
     model_parser.cc
-    syntax.cc
     scope.cc
     tensor.cc
     node.cc
