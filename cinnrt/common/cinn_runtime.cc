@@ -338,4 +338,3 @@ cinn_type_t cinn_type_of<float*>() {
   return cinn_float64_t();
 }
 
-#include "cinnrt/common/cinn_x86_device_impl.cc"
