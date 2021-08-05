@@ -60,9 +60,6 @@ struct Target {
 
   bool defined() const { return os != OS::Unk && arch != Arch::Unk && bits != Bit::Unk; }
 
-  //! Get the Runtime architecture, it is casted to integer to avoid header file depending.
-  int runtime_arch() const;
-
   int max_num_threads() const;
 
   int get_target_bits() const;

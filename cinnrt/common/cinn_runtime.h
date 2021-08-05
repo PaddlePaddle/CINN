@@ -68,19 +68,6 @@ typedef struct cinn_type_t {
 #endif  // __cplusplus
 } cinn_type_t;
 
-//! Some primitive types.
-// @{
-extern cinn_type_t cinn_unk_t();
-extern cinn_type_t cinn_bool_t(int num_asterisks = 0);
-extern cinn_type_t cinn_int8_t(int num_asterisks = 0);
-extern cinn_type_t cinn_int32_t(int num_asterisks = 0);
-extern cinn_type_t cinn_int64_t(int num_asterisks = 0);
-extern cinn_type_t cinn_uint32_t(int num_asterisks = 0);
-extern cinn_type_t cinn_uint64_t(int num_asterisks = 0);
-extern cinn_type_t cinn_float32_t(int num_asterisks = 0);
-extern cinn_type_t cinn_float64_t(int num_asterisks = 0);
-// @}
-
 //! Help to define the size of a dimension, due to polyhedral representation, we no need to record the extend or
 //! min(default to 0).
 typedef int cinn_dimension_t;
@@ -92,12 +79,6 @@ typedef enum cinn_device_kind_t {
   cinn_opencl_device = 1,   // OpenCL device
   cinn_arm_device    = 2    // ARM device
 } cinn_device_kind_t;
-
-//! Help to tell where the buffer locates.
-typedef enum cinn_buffer_kind_t {
-  cinn_buffer_on_host   = 0,      //! buffer on host
-  cinn_buffer_on_device = 1 << 1  // ! buffer on device e.g. GPU.
-} cinn_buffer_kind_t;
 
 struct cinn_buffer_t;
 
@@ -116,38 +97,6 @@ struct cinn_device_interface_t {
   int (*buffer_copy)(void* context, struct cinn_buffer_t* src, struct cinn_buffer_t* dst);
   struct cinn_device_interface_impl_t* impl;
 };
-
-/**
- * Release all data associated with the given interface.
- */
-extern int cinn_device_release(void* context, const struct cinn_device_interface_t* device_interface);
-
-/*
- * Copy image data from device to host memory.
- */
-extern int cinn_buffer_copy_to_host(void* context, struct cinn_buffer_t* buf);
-
-//! Copy data from host to device memory.
-extern int cinn_buffer_copy_to_device(void* context, struct cinn_buffer_t* buf);
-
-//! Copy data from one buffer to another.
-extern int cinn_buffer_copy(void* context, struct cinn_buffer_t* src, struct cinn_buffer_t* dst);
-
-//! Wait for current device operations to complete.
-extern int cinn_device_sync(void* context, struct cinn_buffer_t* buf);
-
-//! Allocate device memory.
-extern int cinn_buffer_malloc(void* context, struct cinn_buffer_t* buf);
-
-//! Free device memory.
-extern int cinn_buffer_free(void* context, struct cinn_buffer_t* buf);
-
-//! Get the memory address in buffer.
-extern void* cinn_buffer_get_data_handle(struct cinn_buffer_t* buf);
-extern void* cinn_buffer_get_data_const_handle(const struct cinn_buffer_t* buf);
-
-//! Create a new default cinn_buffer.
-extern cinn_buffer_t* cinn_buffer_new_default(int target, uint64_t memory_size, int align = 32);
 
 //! The raw representation of a buffer,used in the generated code/lib.
 #define CINN_BUFFER_MAX_DIMS 8
@@ -216,11 +165,6 @@ typedef struct cinn_buffer_t {
     return res;
   }
 
-  CINN_ALWAYS_INLINE bool on_host() const { return get_flag(cinn_buffer_on_host); }
-  CINN_ALWAYS_INLINE bool on_device() const { return get_flag(cinn_buffer_on_device); }
-  CINN_ALWAYS_INLINE void set_on_host(bool x = true) { set_flag(cinn_buffer_on_host, x); }
-  CINN_ALWAYS_INLINE void set_on_device(bool x = true) { set_flag(cinn_buffer_on_device, x); }
-
   CINN_ALWAYS_INLINE int device_sync(void* ctx = NULL) {
     if (device_interface && device_interface->sync) {
       return device_interface->sync(ctx, this);
@@ -231,24 +175,10 @@ typedef struct cinn_buffer_t {
   CINN_ALWAYS_INLINE uint8_t* begin() const { return 0; }
   CINN_ALWAYS_INLINE uint8_t* end() const { return memory + num_elements() * type.bytes(); }
 
-  CINN_ALWAYS_INLINE bool get_flag(cinn_buffer_kind_t flag) const { return (this->flag & flag) != 0; }
-  CINN_ALWAYS_INLINE void set_flag(cinn_buffer_kind_t flag, bool value) {
-    if (value)
-      this->flag |= flag;
-    else
-      this->flag &= ~flag;
-  }
-
 #endif  // __cplusplus
 } cinn_buffer_t;
 
 #ifdef __cplusplus
-//! Create a new cinn_buffer.
-cinn_buffer_t* cinn_buffer_new(cinn_device_kind_t device,
-                               cinn_type_t type,
-                               const std::vector<int>& shape,
-                               int align = 0);
-
 struct cinn_device_interface_impl_t {
   int (*malloc)(void* context, struct cinn_buffer_t* buf);
   int (*free)(void* context, struct cinn_buffer_t* buf);
@@ -261,45 +191,12 @@ struct cinn_device_interface_impl_t {
 
 // The device implementations
 extern struct cinn_device_interface_t* cinn_x86_device_interface();
-
-inline float cinn_buffer_load_float32(struct cinn_buffer_t* buf, uint32_t index) {
-  return ((float*)buf->memory)[index];  // NOLINT
-}
-inline double cinn_buffer_load_float64(struct cinn_buffer_t* buf, uint32_t index) {
-  return ((double*)buf->memory)[index];  // NOLINT
-}
 #endif  // __cplusplus
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-CINN_ALWAYS_INLINE void* cinn_buffer_slice(struct cinn_buffer_t* buf, uint32_t offset);
-
-#ifdef __cplusplus
-}
-#endif
-
-static inline int32_t cinn_min(int32_t a, int32_t b) { return a < b ? a : b; }
-static inline int32_t cinn_max(int32_t a, int32_t b) { return a > b ? a : b; }
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#ifndef CINN_RUNTIME_NOT_IMPLEMENTED
-#define CINN_RUNTIME_NOT_IMPLEMENTED     \
-  do {                                   \
-    fprintf(stderr, "Not Implemented!"); \
-    abort();                             \
-  } while (false);
-#endif
-
-#define ASSERT_NOT_NULL(v__)          \
-  if (!v__) {                         \
-    fprintf(stderr, #v__ " is null"); \
-    return -1;                        \
-  }
 #define CINN_LOG(fmt, ...)                                                          \
   do {                                                                              \
     fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); \
@@ -310,125 +207,5 @@ static inline int32_t cinn_max(int32_t a, int32_t b) { return a > b ? a : b; }
     CINN_LOG("check %s failed", #cond); \
     abort();                            \
   }
-#define CINN_CHECK_LT(a, b)                                \
-  if (!(a < b)) {                                          \
-    cinn_print_debug_string("check %d > %d failed", a, b); \
-    abort();                                               \
-  }
-#define CINN_CHECKP(cond, ...) \
-  if (!(cond)) {               \
-    CINN_LOG(__VA_ARGS__);     \
-    abort();                   \
-  }
-#define CINN_CHECK_EQ(a, b)                                        \
-  {                                                                \
-    if ((a) != (b)) {                                              \
-      CINN_LOG("check %s == %s failed, %d != %d", #a, #b, (a), b); \
-      abort();                                                     \
-    }                                                              \
-  }                                                                \
-  while (false)                                                    \
-    ;  // NOLINT
 
 #endif  // CINN_RUNTIME_CINN_RUNTIME_H_
-
-union cinn_value_t {
-  int64_t v_int64;
-  double v_float64;
-  void* v_handle;
-  char* v_str;
-};
-
-struct cinn_pod_value_t {
-#ifdef __cplusplus
-  // @{ PodValue
-
-  cinn_pod_value_t() = default;
-
-  cinn_pod_value_t(cinn_value_t value, int type_code);
-  explicit cinn_pod_value_t(cinn_buffer_t* value);
-  explicit cinn_pod_value_t(int8_t value);
-  explicit cinn_pod_value_t(int32_t value);
-  explicit cinn_pod_value_t(int64_t value);
-  explicit cinn_pod_value_t(float value);
-  explicit cinn_pod_value_t(double value);
-  explicit cinn_pod_value_t(void* value);
-  explicit cinn_pod_value_t(const char* value);
-
-  //! The value getters for the supported types.
-  //@{
-  operator double() const;
-  operator float() const;
-  operator int8_t() const;
-  operator int32_t() const;
-  operator int64_t() const;
-  operator void*() const;
-  operator cinn_buffer_t*() const;
-  operator char*() const;
-  //@}
-
-  int type_code() const { return type_code_; }
-
-  void* data_addr() const;
-
-  template <typename T>
-  static int type_code();
-
-  void set_type_code(int x) { type_code_ = x; }
-  void set_value(union cinn_value_t x) { value_ = x; }
-
- protected:
-  // @}
-#endif  // __cplusplus
-  int type_code_;
-  union cinn_value_t value_;
-};
-
-typedef struct cinn_pod_value_t cinn_pod_value_t;
-
-// the LoweredFunc pointer type for JIT usage.
-typedef void (*lower_func_ptr_t)(void*, int32_t);
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-//! cinn_pod_value to specific types.
-// @{
-float cinn_pod_value_to_float(cinn_pod_value_t* value);
-double cinn_pod_value_to_double(cinn_pod_value_t* value);
-int64_t cinn_pod_value_to_int64(cinn_pod_value_t* value);
-int32_t cinn_pod_value_to_int32(cinn_pod_value_t* value);
-int8_t cinn_pod_value_to_int8(cinn_pod_value_t* value);
-void* cinn_pod_value_to_void_p(cinn_pod_value_t* value);
-cinn_buffer_t* cinn_pod_value_to_buffer_p(cinn_pod_value_t* value);
-// @}
-
-//! other specific types to cinn_pod_value
-// @{
-void float_to_cinn_pod_value(float v, cinn_pod_value_t* out);
-void int32_to_cinn_pod_value(int32_t v, cinn_pod_value_t* out);
-void handle_to_cinn_pod_value(void* v, cinn_pod_value_t* out);
-void buffer_p_to_cinn_pod_value(const struct cinn_buffer_t* v, cinn_pod_value_t* out);
-// @}
-
-void cinn_print_debug_string(const char* s, ...);
-
-void cinn_print_debug_args(cinn_pod_value_t* args, int count);
-
-/**
- * Construct a Args for LoweredFunc with a list of `cinn_pod_value_t*`
- * @param arr An array of `cinn_pod_value_t`
- * @param count Count of elements in the arg list.
- * @param ... variadic args of `cinn_pod_value_t*`
- */
-void cinn_args_construct(cinn_pod_value_t* arr, int count, ...);
-
-#ifdef __cplusplus
-}  // extern "C"
-#endif
-
-#ifdef __cplusplus
-template <typename T>
-cinn_type_t cinn_type_of();
-
-#endif  // __cplusplus

@@ -14,20 +14,6 @@ bool Target::operator==(const Target &other) const {
          features == other.features;
 }
 
-int Target::runtime_arch() const {
-  switch (arch) {
-    case Arch::Unk:
-      return cinn_unk_device;
-    case Arch::X86:
-      return cinn_x86_device;
-    case Arch::ARM:
-      return cinn_arm_device;
-    default:
-      LOG(FATAL) << "Not supported arch";
-  }
-  return -1;
-}
-
 int Target::max_num_threads() const {
   CHECK(arch == Arch::NVGPU) << "The target is not NVGPU! Cannot get max number of threads.";
   return 1024;

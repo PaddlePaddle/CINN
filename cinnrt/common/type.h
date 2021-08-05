@@ -218,14 +218,6 @@ template <>
 inline Type type_of<const cinn_buffer_t*>() {
   return Type().set_customized_type(customized_type::kbuffer_t).set_cpp_handle().set_cpp_const();
 }
-template <>
-inline Type type_of<cinn_pod_value_t>() {
-  return Type().set_customized_type(customized_type::kpod_value_t);
-}
-template <>
-inline Type type_of<cinn_pod_value_t*>() {
-  return Type().set_customized_type(customized_type::kpod_value_t).set_cpp_handle();
-}
 
 }  // namespace common
 }  // namespace cinnrt
