@@ -1,31 +1,12 @@
 #include <set>
 
-#include "cinnrt/common/axis.h"
-
 #include <glog/logging.h>
 
+#include "cinnrt/common/axis.h"
 #include "cinnrt/common/common.h"
 
 namespace cinnrt {
 namespace common {
-
-// std::vector<ir::Var> GenDefaultAxis(int naxis) {
-//  std::vector<ir::Var> axis;
-//  for (int i = 0; i < naxis; i++) {
-//    axis.emplace_back(common::axis_name(i));
-//    CHECK(axis.back()->type().valid());
-//  }
-//  return axis;
-//}
-//
-// std::vector<ir::Expr> GenDefaultAxisAsExpr(int naxis) {
-//  auto vars = GenDefaultAxis(naxis);
-//  std::vector<Expr> res;
-//  for (auto& v : vars) {
-//    res.push_back(Expr(v));
-//  }
-//  return res;
-//}
 
 const std::vector<std::string> kAxises({
     "i",  // level 0
