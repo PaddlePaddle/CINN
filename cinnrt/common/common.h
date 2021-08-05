@@ -1,7 +1,6 @@
 #pragma once
 
 #include "cinnrt/common/axis.h"
-#include "cinnrt/common/context.h"
 #include "cinnrt/common/macros.h"
 #include "cinnrt/common/shared.h"
 #include "cinnrt/common/target.h"
@@ -10,12 +9,10 @@
 namespace cinnrt {
 
 // export some general concepts.
-using common::Context;
 using common::make_shared;
 using common::Object;
 using common::ref_count;
 using common::Shared;
-using common::UniqName;
 
 // Type related.
 using common::Bool;

@@ -1,3 +1,5 @@
+#include <set>
+
 #include "cinnrt/common/axis.h"
 
 #include <glog/logging.h>

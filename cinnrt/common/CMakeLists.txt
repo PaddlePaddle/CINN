@@ -10,5 +10,4 @@ core_gather_srcs(SRCS
     object.cc
     cinn_runtime.cc
     axis.cc
-    context.cc
     )
