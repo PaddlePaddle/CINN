@@ -6,7 +6,6 @@ core_gather_srcs(SRCS
     model_parser.cc
     scope.cc
     tensor.cc
-    node.cc
     )
 
 foreach(cpp ${SRCS})
