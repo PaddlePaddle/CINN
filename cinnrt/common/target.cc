@@ -2,8 +2,6 @@
 
 #include <glog/logging.h>
 
-#include "cinnrt/common/cinn_runtime.h"
-
 namespace cinnrt {
 namespace common {
 
