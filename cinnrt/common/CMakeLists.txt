@@ -8,7 +8,6 @@ core_gather_srcs(SRCS
     type.cc
     shared.cc
     object.cc
-    cinn_runtime.cc
     axis.cc
     string.cc
     buffer.cc
