@@ -14,7 +14,7 @@
 #include <utility>
 #include <vector>
 
-#include "cinnrt/cinn/string.h"
+#include "cinnrt/common/string.h"
 #include "cinnrt/dialect/mlir_loader.h"
 #include "cinnrt/dialect/tensor_shape.h"
 #include "cinnrt/host_context/core_runtime.h"

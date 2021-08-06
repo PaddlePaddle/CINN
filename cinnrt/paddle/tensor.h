@@ -5,7 +5,7 @@
 #include <numeric>
 #include <vector>
 
-#include "cinnrt/cinn/buffer.h"
+#include "cinnrt/common/buffer.h"
 #include "cinnrt/common/common.h"
 #include "cinnrt/common/object.h"
 

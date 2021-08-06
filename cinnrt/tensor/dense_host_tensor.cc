@@ -2,7 +2,7 @@
 
 #include <llvm/Support/raw_os_ostream.h>
 
-#include "cinnrt/cinn/buffer.h"
+#include "cinnrt/common/buffer.h"
 
 namespace cinnrt::tensor {
 

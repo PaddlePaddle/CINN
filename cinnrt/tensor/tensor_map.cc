@@ -3,7 +3,7 @@
 #include <fstream>
 #include <iostream>
 
-#include "cinnrt/cinn/string.h"
+#include "cinnrt/common/string.h"
 #include "cinnrt/paddle/model_parser.h"
 
 using Scope       = cinnrt::paddle::Scope;

@@ -10,4 +10,7 @@ core_gather_srcs(SRCS
     object.cc
     cinn_runtime.cc
     axis.cc
+    string.cc
+    buffer.cc
+    memory.cc
     )
