@@ -4,7 +4,6 @@
 #include <memory>
 #include <string>
 
-#include "cinnrt/common/cinn_runtime.h"
 #include "cinnrt/common/macros.h"
 
 //! Much of the concepts are borrowed from Halide project.
@@ -205,19 +204,6 @@ static const char* kbuffer_t           = "cinn_buffer_t";
 static const char* kpod_value_t        = "cinn_pod_value_t";
 
 }  // namespace customized_type
-
-template <>
-inline Type type_of<cinn_buffer_t>() {
-  return Type().set_customized_type(customized_type::kbuffer_t);
-}
-template <>
-inline Type type_of<cinn_buffer_t*>() {
-  return Type().set_customized_type(customized_type::kbuffer_t).set_cpp_handle();
-}
-template <>
-inline Type type_of<const cinn_buffer_t*>() {
-  return Type().set_customized_type(customized_type::kbuffer_t).set_cpp_handle().set_cpp_const();
-}
 
 }  // namespace common
 }  // namespace cinnrt
