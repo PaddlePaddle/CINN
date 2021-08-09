@@ -15,14 +15,15 @@ def main():
 
     input_names = predictor.get_input_names()
     input_tensor = predictor.get_input_tensor(input_names[0])
-    fake_input = np.random.randn(512, 512).astype("float32")
-    input_tensor.reshape([512, 512])
+    fake_input = np.random.randn(1, 3, 224, 224).astype("float32")
+    input_tensor.reshape([1, 3, 224, 224])
     input_tensor.copy_from_cpu(fake_input)
 
-    input_tensor2 = predictor.get_input_tensor(input_names[1])
-    fake_input2 = np.random.randn(512, 512).astype("float32")
-    input_tensor2.reshape([512, 512])
-    input_tensor2.copy_from_cpu(fake_input2)
+    if len(input_names) > 1:
+        input_tensor2 = predictor.get_input_tensor(input_names[1])
+        fake_input2 = np.random.randn(512, 512).astype("float32")
+        input_tensor2.reshape([512, 512])
+        input_tensor2.copy_from_cpu(fake_input2)
 
     for _ in range(0, 10):
         predictor.zero_copy_run()
@@ -46,7 +47,8 @@ def parse_args():
 
 
 def set_config(args):
-    config = AnalysisConfig(args.model_dir)
+    config = AnalysisConfig(args.model_dir + '/__model__',
+                            args.model_dir + '/params')
     config.enable_profile()
     config.enable_use_gpu(1000, 1)
     # Enable TensorRT
@@ -63,6 +65,7 @@ def set_config(args):
     config.switch_specify_input_names(True)
     config.switch_ir_optim(False)
     #To test cpu backend, just uncomment the following 2 lines.
+    # config.switch_ir_optim(True)
     #config.disable_gpu()
     #config.enable_mkldnn()
     return config

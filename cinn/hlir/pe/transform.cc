@@ -397,6 +397,142 @@ std::vector<ir::Tensor> MulBias(const Tensor& A,
   return {temp, res};
 }
 
+void GetLayoutTransformInfo(const ir::Layout& src_layout,
+                            const ir::Layout& dst_layout,
+                            std::unordered_map<int, std::vector<int>>* split_index_map) {
+  CHECK_GT(dst_layout.ndims(), src_layout.ndims());
+  int offset = 'A' - 'a';
+  CHECK_EQ(dst_layout.axis_names().size(), dst_layout.ndims());
+  for (int i = dst_layout.ndims() - 1; i >= 0; i--) {
+    char axis_name      = dst_layout.axis_names(i);
+    char prim_axis_name = axis_name;
+    if (axis_name >= 'a' && axis_name <= 'z') {
+      prim_axis_name += offset;
+      int factor = dst_layout[i]->upper_bound.as_int32();
+
+      CHECK_GT(factor, 0) << "sub-axis factor should be larger than 0";
+      int src_primal_index = src_layout.axis_names().find(prim_axis_name);
+      int dst_primal_index = dst_layout.axis_names().find(prim_axis_name);
+      CHECK(src_primal_index != src_layout.axis_names().npos);
+      CHECK(dst_primal_index != dst_layout.axis_names().npos);
+      (*split_index_map)[src_primal_index] = {dst_primal_index, i, factor};
+    } else {
+      int src_primal_index = src_layout.axis_names().find(prim_axis_name);
+      if (split_index_map->find(src_primal_index) != split_index_map->end()) continue;
+      CHECK(src_primal_index != src_layout.axis_names().npos);
+      (*split_index_map)[src_primal_index] = {i};
+    }
+  }
+}
+
+std::vector<Expr> InferShapeLayoutTransform(const std::vector<Expr>& input_shapes,
+                                            const ir::Layout& old_layout,
+                                            const ir::Layout& new_layout,
+                                            std::unordered_map<int, std::vector<int>>* split_index_map) {
+  int src_dim = old_layout.ndims();
+  int dst_dim = new_layout.ndims();
+  std::vector<Expr> output_shape(dst_dim);
+  CHECK_EQ(input_shapes.size(), src_dim);
+
+  if (src_dim == dst_dim) {
+    CHECK_EQ(old_layout.name(), new_layout.name());
+    return input_shapes;
+  } else if (src_dim < dst_dim) {
+    GetLayoutTransformInfo(old_layout, new_layout, split_index_map);
+    for (int i = 0; i < src_dim; i++) {
+      CHECK(split_index_map->find(i) != split_index_map->end());
+      if ((*split_index_map)[i].size() == 3) {
+        int dst_prim_index           = (*split_index_map)[i][0];
+        int dst_sub_index            = (*split_index_map)[i][1];
+        int factor                   = (*split_index_map)[i][2];
+        Expr chunk_shape             = common::AutoSimplify(input_shapes[i] / factor);
+        Expr block_shape             = Expr(factor);
+        output_shape[dst_prim_index] = chunk_shape;
+        output_shape[dst_sub_index]  = block_shape;
+      } else if ((*split_index_map)[i].size() == 1) {
+        int dst_prim_index           = (*split_index_map)[i][0];
+        output_shape[dst_prim_index] = input_shapes[i];
+      }
+    }
+  } else {
+    GetLayoutTransformInfo(new_layout, old_layout, split_index_map);
+    for (int i = 0; i < dst_dim; i++) {
+      CHECK(split_index_map->find(i) != split_index_map->end());
+      if ((*split_index_map)[i].size() == 3) {
+        int src_prim_index = (*split_index_map)[i][0];
+        int src_sub_index  = (*split_index_map)[i][1];
+        int factor         = (*split_index_map)[i][2];
+        CHECK_GE(input_shapes.size(), src_sub_index);
+        CHECK_EQ(input_shapes[src_sub_index].as_int32(), factor);
+        output_shape[i] = common::AutoSimplify(input_shapes[src_prim_index] * factor);
+      } else if ((*split_index_map)[i].size() == 1) {
+        int src_prim_index = (*split_index_map)[i][0];
+        output_shape[i]    = input_shapes[src_prim_index];
+      }
+    }
+  }
+  LOG(INFO) << "output_shape: " << output_shape;
+  return output_shape;
+}
+
+ir::Tensor LayoutTransform(const Tensor& input,
+                           const std::string& src_layout,
+                           const std::string& dst_layout,
+                           const std::string& name) {
+  CHECK(src_layout != dst_layout) << "dst_layout is same with src_layout, should not do layout transform";
+  // NCHW -> NCHWxc
+  // NCHWxc -> NCHW
+  // OIHW -> OIHWxixo
+  // OIHWxixo -> OIHW
+  CHECK_GE(src_layout.size(), 4U);
+  CHECK_GE(dst_layout.size(), 4U);
+  std::unordered_map<int, std::vector<int>> split_index_map;
+  // transform shape
+  int offset = 'A' - 'a';
+  ir::Layout old_layout(src_layout);
+  ir::Layout new_layout(dst_layout);
+  int src_dim                    = old_layout.ndims();
+  int dst_dim                    = new_layout.ndims();
+  std::vector<Expr> output_shape = InferShapeLayoutTransform(input->shape, old_layout, new_layout, &split_index_map);
+  CHECK_EQ(output_shape.size(), dst_dim);
+
+  auto res = Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indice) {
+        // transform indice
+        std::vector<Expr> new_indice(src_dim);
+        int min_dim = std::min(src_dim, dst_dim);
+        for (int i = 0; i < min_dim; i++) {
+          CHECK(split_index_map.find(i) != split_index_map.end());
+          std::vector<int> split_infos = split_index_map.at(i);
+          if (split_infos.size() == 3) {
+            int prim_index = split_infos[0];
+            int sub_index  = split_infos[1];
+            int factor     = split_infos[2];
+            if (dst_dim > src_dim) {
+              new_indice[i] = common::AutoSimplify(indice[prim_index] * factor + indice[sub_index]);
+            } else {
+              new_indice[prim_index] = common::AutoSimplify(indice[i] / factor);
+              new_indice[sub_index]  = common::AutoSimplify(indice[i] % factor);
+            }
+
+          } else if (split_infos.size() == 1) {
+            int prim_index = split_infos[0];
+            if (dst_dim > src_dim) {
+              new_indice[i] = indice[prim_index];
+            } else {
+              new_indice[prim_index] = indice[i];
+            }
+          }
+        }
+        LOG(INFO) << "new_indice: " << new_indice;
+
+        return input(new_indice);
+      },
+      name);
+  return {res};
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

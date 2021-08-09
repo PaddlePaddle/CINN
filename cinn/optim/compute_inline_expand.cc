@@ -56,7 +56,21 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
       bool is_heap = (*all_tensor_map_).at(tensor->name)->buffer->memory_type == ir::MemoryType::Heap;
       if (utils::Endswith(tensor->buffer->name, "_write_cache") && is_heap) {
         // temp fix: cache_write will change the tensor to the cache tensor wrongly
-        ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+        auto no_cache_name = tensor->buffer->name.substr(1, tensor->buffer->name.size() - 13);
+        if (all_tensor_map_->count(no_cache_name)) {
+          ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
+        } else {
+        auto *tensor = node->tensor.as_tensor();
+          CHECK(tensor);
+          // fix computeAt case
+          auto shapes = tensor->shape;
+          CHECK_EQ(shapes.size(), node->indices.size());
+          for (int i = 0; i < shapes.size(); i++) {
+            if (common::is_zero(shapes[i] - 1)) {
+              node->indices[i] = Expr(0);
+            }
+          }
+        }
       } else if (utils::Endswith(tensor->buffer->name, "_write_cache") ||
                  utils::Endswith(tensor->buffer->name, "_read_cache") ||
                  utils::Endswith(tensor->buffer->name, "_temp_buffer")) {

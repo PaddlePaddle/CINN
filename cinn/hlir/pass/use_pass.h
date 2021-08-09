@@ -4,3 +4,4 @@
 
 CINN_USE_REGISTER(InferShape)
 CINN_USE_REGISTER(OpFusion)
+CINN_USE_REGISTER(AlterLayout)

@@ -1,8 +1,10 @@
 #pragma once
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/layout.h"
 
 namespace cinn {
 namespace hlir {
@@ -81,6 +83,16 @@ std::vector<ir::Tensor> MulBias(const ir::Tensor& A,
                                 const std::vector<ir::Expr>& output_shape,
                                 const ir::Var& axis_k,
                                 const std::string& name);
+
+ir::Tensor LayoutTransform(const ir::Tensor& input,
+                           const std::string& src_layout,
+                           const std::string& dst_layout,
+                           const std::string& name = UniqName("T_LayoutTransform_out"));
+
+std::vector<ir::Expr> InferShapeLayoutTransform(const std::vector<Expr>& input_shapes,
+                                                const ir::Layout& old_layout,
+                                                const ir::Layout& new_layout,
+                                                std::unordered_map<int, std::vector<int>>* split_index_map);
 
 }  // namespace pe
 }  // namespace hlir

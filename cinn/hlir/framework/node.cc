@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "cinn/common/context.h"
+
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -56,8 +58,11 @@ bool edge_index_compare(const common::Shared<common::GraphEdge>& a, const common
   return a->index() < b->index();
 }
 
-const std::vector<common::Shared<common::GraphEdge>>& Node::inlinks_in_order() const {
-  if (inlinks_in_order_.empty()) {
+const std::vector<common::Shared<common::GraphEdge>>& Node::inlinks_in_order(bool refresh) const {
+  if (inlinks_in_order_.empty() || refresh) {
+    if (refresh) {
+      inlinks_in_order_.clear();
+    }
     for (auto& in_edge : this->inlinks()) {
       inlinks_in_order_.push_back(in_edge);
       CHECK_GE(in_edge->index(), 0) << "The index of a node's inlinks should be >= 0! Now index is: "
@@ -68,8 +73,11 @@ const std::vector<common::Shared<common::GraphEdge>>& Node::inlinks_in_order() c
   return inlinks_in_order_;
 }
 
-const std::vector<common::Shared<common::GraphEdge>>& Node::outlinks_in_order() const {
-  if (outlinks_in_order_.empty()) {
+const std::vector<common::Shared<common::GraphEdge>>& Node::outlinks_in_order(bool refresh) const {
+  if (outlinks_in_order_.empty() || refresh) {
+    if (refresh) {
+      outlinks_in_order_.clear();
+    }
     for (auto& out_edge : this->outlinks()) {
       outlinks_in_order_.push_back(out_edge);
       CHECK_GE(out_edge->index(), 0) << "The index of a node's outlinks should be >= 0! Now index is: "
@@ -78,6 +86,74 @@ const std::vector<common::Shared<common::GraphEdge>>& Node::outlinks_in_order() 
     std::sort(outlinks_in_order_.begin(), outlinks_in_order_.end(), edge_index_compare);
   }
   return outlinks_in_order_;
+}
+
+NodeData* InsertGraphOpNodeAfter(
+    common::Graph* graph, Node* insert_node, NodeData* input_nodedata, Node* out_node, int pos) {
+  CHECK(graph);
+  CHECK(insert_node);
+  CHECK(input_nodedata);
+  input_nodedata->LinkTo(insert_node);
+  std::shared_ptr<Node> node_ptr(insert_node);
+  auto* out_nodedata = new NodeData(node_ptr, 0, 0, common::UniqName(insert_node->id() + "_out"));
+  insert_node->LinkTo(out_nodedata);
+  std::vector<common::GraphNode*> old_sources;
+  auto input_links = out_node->inlinks_in_order(true);
+
+  if (out_node) {
+    for (auto& link : input_links) {
+      auto* source = link->source();
+      // unlink and relink afterwards to make sure the order
+      source->UnLinkTo(out_node);
+      old_sources.push_back(source);
+    }
+    for (int i = 0; i < old_sources.size(); i++) {
+      auto* source = old_sources[i];
+      if (i == pos) {
+        out_nodedata->LinkTo(out_node);
+      } else {
+        source->LinkTo(out_node);
+      }
+    }
+  }
+
+  graph->RegisterNode(insert_node->id(), insert_node);
+  graph->RegisterNode(out_nodedata->id(), out_nodedata);
+  return out_nodedata;
+}
+
+NodeData* InsertGraphOpNodeBefore(
+    common::Graph* graph, Node* insert_node, Node* input_node, NodeData* dst_data, int pos) {
+  CHECK(graph);
+  CHECK(insert_node);
+  CHECK(input_node);
+  CHECK(dst_data);
+  std::shared_ptr<Node> node_ptr = dst_data->source_node;
+  auto* input_node_out           = new NodeData(node_ptr, 0, 0, common::UniqName(input_node->id() + "_out"));
+  std::vector<common::GraphNode*> old_sinks;
+  auto& old_outlinks = input_node->outlinks_in_order(true);
+  for (auto& link : old_outlinks) {
+    auto sink = link->sink();
+    // unlink and relink afterwards to make sure the right outputs order
+    input_node->UnLinkTo(sink);
+    old_sinks.push_back(sink);
+  }
+  input_node_out->LinkTo(insert_node);
+  insert_node->LinkTo(dst_data);
+  dst_data->source_node = std::shared_ptr<Node>(insert_node);
+
+  for (int i = 0; i < old_sinks.size(); i++) {
+    if (i == pos) {
+      input_node->LinkTo(input_node_out);
+    } else {
+      auto outdata = old_sinks[i]->safe_as<NodeData>();
+      input_node->LinkTo(outdata);
+    }
+  }
+
+  graph->RegisterNode(input_node_out->id(), input_node_out);
+  graph->RegisterNode(insert_node->id(), insert_node);
+  return input_node_out;
 }
 
 }  // namespace framework

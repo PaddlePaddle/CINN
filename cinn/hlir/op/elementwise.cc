@@ -99,6 +99,14 @@ std::vector<Type> InferDtypeForElementwise(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForElementwise(const std::vector<framework::shape_t> &input_shapes,
+                                                                const std::vector<std::string> &input_layouts,
+                                                                const framework::NodeAttr &attrs,
+                                                                const Target &target) {
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layouts size is not 1! Please check again.";
+  return {input_layouts, input_layouts};
+}
+
 StrategyForUnary(exp, Exp);
 StrategyForUnary(erf, Erf);
 StrategyForUnary(sqrt, Sqrt);

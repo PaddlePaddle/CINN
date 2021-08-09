@@ -7,6 +7,7 @@
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_base.h"
+#include "cinn/ir/layout.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -391,6 +392,15 @@ std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForConv2d(const std::vector<framework::shape_t> &input_shapes,
+                                                           const std::vector<std::string> &input_layouts,
+                                                           const framework::NodeAttr &attrs,
+                                                           const Target &target) {
+  CHECK_EQ(input_layouts.size(), 2U) << "The input's layouts size is not 2! Please check again.";
+  ir::Layout weight_layout(input_layouts[1]);
+  return {{input_layouts[0], input_layouts[0], input_layouts[0], input_layouts[0]}, input_layouts};
+}
+
 std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &attrs,
                                                    const std::vector<ir::Tensor> &inputs,
                                                    const std::vector<Type> &out_type,
@@ -550,6 +560,20 @@ std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs
   std::vector<int> input_pad_shape  = {batch, ic_chunk, h_in + 2 * pad_h, w_in + 2 * pad_w, ic_bn};
   LOG(INFO) << "packed_out_shape: " << utils::Join(packed_out_shape, ", ");
   return {packed_out_shape, input_pad_shape};
+}
+
+std::vector<std::vector<std::string>> InferLayoutForConv2dNCHWc(const std::vector<framework::shape_t> &input_shapes,
+                                                                const std::vector<std::string> &input_layouts,
+                                                                const framework::NodeAttr &attrs,
+                                                                const Target &target) {
+  CHECK_EQ(input_layouts.size(), 2U) << "The input's layouts size is not 2! Please check again.";
+  ir::Layout weight_layout(input_layouts[1]);
+  CHECK_EQ(weight_layout.ndims(), 6U);
+  auto var   = weight_layout.axes().back();
+  int factor = var->upper_bound.as_int32();
+  CHECK_GE(factor, 1) << "factor should be larger than 1";
+  std::string outlayout = "NCHW" + std::to_string(factor) + "c";
+  return {{outlayout, input_layouts[0]}, input_layouts};
 }
 
 std::vector<Type> InferDtypeForConv2dNCHWc(const std::vector<Type> &inputs_type,
@@ -746,8 +770,12 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
                                                  const std::vector<std::vector<int>> &output_shapes,
                                                  const Target &target) {
   float epsilon = 0.00001f;
+  std::vector<std::string> input_layouts;
   if (attrs.attr_store.find("epsilon") != attrs.attr_store.end()) {
     epsilon = std::get<float>(attrs.attr_store.at("epsilon"));
+  }
+  if (attrs.attr_store.find("input_layouts") != attrs.attr_store.end()) {
+    input_layouts = std::get<std::vector<std::string>>(attrs.attr_store.at("input_layouts"));
   }
   framework::CINNCompute batchnorm_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of batchnorm compute is empty! Please check.\n";
@@ -764,13 +792,30 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
     CHECK(Bias.as_tensor());
     CHECK(Mean.as_tensor());
     CHECK(Variance.as_tensor());
-    auto out    = pe::BatchNorm_NCHW(A.as_tensor_ref(),
-                                  Scale.as_tensor_ref(),
-                                  Bias.as_tensor_ref(),
-                                  Mean.as_tensor_ref(),
-                                  Variance.as_tensor_ref(),
-                                  epsilon,
-                                  UniqName("BatchNorm_output"));
+    ir::Tensor out;
+    auto tensor_input = A.as_tensor_ref();
+    if (tensor_input->shape.size() != 4 && target.arch == Target::Arch::X86) {
+      CHECK_EQ(input_layouts.size(), 5U) << "batch_norm_NCHWc's input layout should be 5";
+      std::string input_layout = input_layouts[0];
+      CHECK_GE(input_layout.size(), 5U);
+      CHECK_EQ(input_layout.substr(0, 4), "NCHW");
+      CHECK_EQ(tensor_input->shape.size(), 5U);
+      out = pe::BatchNorm_NCHWc(tensor_input,
+                                Scale.as_tensor_ref(),
+                                Bias.as_tensor_ref(),
+                                Mean.as_tensor_ref(),
+                                Variance.as_tensor_ref(),
+                                epsilon,
+                                UniqName("BatchNorm_NCHWc_output"));
+    } else {
+      out = pe::BatchNorm_NCHW(tensor_input,
+                               Scale.as_tensor_ref(),
+                               Bias.as_tensor_ref(),
+                               Mean.as_tensor_ref(),
+                               Variance.as_tensor_ref(),
+                               epsilon,
+                               UniqName("BatchNorm_output"));
+    }
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
@@ -812,6 +857,16 @@ std::vector<Type> InferDtypeForBatchNorm(const std::vector<Type> &inputs_type,
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
+}
+
+std::vector<std::vector<std::string>> InferLayoutForBatchNorm(const std::vector<framework::shape_t> &input_shapes,
+                                                              const std::vector<std::string> &input_layouts,
+                                                              const framework::NodeAttr &attrs,
+                                                              const Target &target) {
+  CHECK_EQ(input_layouts.size(), 5U) << "The input's layouts size is not 5! Please check again.";
+  std::string input_layout = input_layouts[0];
+  CHECK_GE(input_layout.size(), 4) << "batchnorm's first input layout size should be >= 4";
+  return {{input_layout}, input_layouts};
 }
 
 std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
@@ -881,10 +936,10 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of pool1d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-    Expr Out              = arg_pack[arg_pack.size() - 2];
+    Expr Out              = arg_pack[0];
     poly::StageMap stages = arg_pack[arg_pack.size() - 1];
     if (arg_pack.size() == 3UL) {
-      Expr input_pad = arg_pack[0];
+      Expr input_pad = arg_pack[1];
       CHECK(input_pad.as_tensor());
       stages[input_pad.as_tensor_ref()]->ComputeInline();
     }
@@ -997,8 +1052,6 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
         data_format = std::get<std::string>(iter.second);
       } else if (iter.first == "global_pooling") {
         global_pooling = std::get<bool>(iter.second);
-      } else {
-        LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
     }
     CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
@@ -1006,7 +1059,8 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     CHECK(!padding_size.empty()) << "padding_size for pool2d is empty. Please check.\n";
 
     ir::Tensor A_tensor = A.as_tensor_ref();
-    CHECK_EQ(A_tensor->shape.size(), 4U) << "pool2d's input tensor size should be 4. Please check.\n";
+    CHECK(A_tensor->shape.size() == 4U || A_tensor->shape.size() == 5U)
+        << "pool2d requires tensor's shape_size to be 4 or 5\n";
     if (global_pooling) {
       int height_index = -1;
       int width_index  = -1;
@@ -1053,10 +1107,10 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of pool2d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-    Expr Out              = arg_pack[arg_pack.size() - 2];
+    Expr Out              = arg_pack[0];
     poly::StageMap stages = arg_pack[arg_pack.size() - 1];
     if (arg_pack.size() == 3UL) {
-      Expr input_pad = arg_pack[0];
+      Expr input_pad = arg_pack[1];
       CHECK(input_pad.as_tensor());
       stages[input_pad.as_tensor_ref()]->ComputeInline();
     }
@@ -1078,8 +1132,8 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
 std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::NodeAttr &attrs,
                                                   const Target &target) {
-  CHECK(!inputs_shape.empty() && inputs_shape[0].size() == 4)
-      << "The input's shape size of pool2d should be 4! Please check again.";
+  CHECK(inputs_shape[0].size() == 4 || inputs_shape[0].size() == 5)
+      << "The input's shape size of pool2d should be 4 or 5! Please check again.";
   auto attr_store = attrs.attr_store;
   std::vector<int> kernel_size;
   std::vector<int> stride_size;
@@ -1220,10 +1274,10 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
     CHECK(!args.empty()) << "The input argument of pool3d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
-    Expr Out              = arg_pack[arg_pack.size() - 2];
+    Expr Out              = arg_pack[0];
     poly::StageMap stages = arg_pack[arg_pack.size() - 1];
     if (arg_pack.size() == 3UL) {
-      Expr input_pad = arg_pack[0];
+      Expr input_pad = arg_pack[1];
       CHECK(input_pad.as_tensor());
       stages[input_pad.as_tensor_ref()]->ComputeInline();
     }
@@ -1323,6 +1377,14 @@ std::vector<Type> InferDtypeForPool(const std::vector<Type> &inputs_type,
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
+}
+
+std::vector<std::vector<std::string>> InferLayoutForPool(const std::vector<framework::shape_t> &input_shapes,
+                                                         const std::vector<std::string> &input_layouts,
+                                                         const framework::NodeAttr &attrs,
+                                                         const Target &target) {
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  return {input_layouts, input_layouts};
 }
 
 std::shared_ptr<OpStrategy> StrategyForSigmoid(const framework::NodeAttr &attrs,
@@ -1476,6 +1538,18 @@ std::vector<Type> InferDtypeForSoftmax(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForSoftmax(const std::vector<framework::shape_t> &input_shapes,
+                                                            const std::vector<std::string> &input_layouts,
+                                                            const framework::NodeAttr &attrs,
+                                                            const Target &target) {
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  if (input_shapes[0].size() > 4) {
+    // input tensor needs to be transformed back to NCHW for mkldnn
+    return {{"NCHW", "NCHW"}, {"NCHW"}};
+  }
+  return {{input_layouts[0], input_layouts[0]}, input_layouts};
+}
+
 std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
                                              const std::vector<ir::Tensor> &inputs,
                                              const std::vector<Type> &out_type,
@@ -1599,6 +1673,40 @@ std::vector<Type> InferDtypeForSlice(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForSlice(const std::vector<framework::shape_t> &input_shapes,
+                                                          const std::vector<std::string> &input_layouts,
+                                                          const framework::NodeAttr &attrs,
+                                                          const Target &target) {
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
+  std::vector<int> starts;
+  std::vector<int> ends;
+  std::vector<int> axes;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "starts") {
+      starts = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "ends") {
+      ends = std::get<std::vector<int>>(iter.second);
+    } else if (iter.first == "axes") {
+      axes = std::get<std::vector<int>>(iter.second);
+    }
+  }
+  std::string new_input_layouts = input_layouts[0];
+  bool trans_back               = false;
+  if (input_shapes[0].size() > 4) {
+    for (int i = 0; i < axes.size(); i++) {
+      if (axes[i] == 1) {
+        trans_back = true;
+        break;
+      }
+    }
+  }
+  if (trans_back) {
+    return {{"NCHW"}, {"NCHW"}};
+  }
+  return {input_layouts, input_layouts};
+}
+
 std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &attrs,
                                                     const std::vector<ir::Tensor> &inputs,
                                                     const std::vector<Type> &out_type,
@@ -1679,6 +1787,14 @@ std::vector<Type> InferDtypeForDropoutInfer(const std::vector<Type> &inputs_type
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<framework::shape_t> &input_shapes,
+                                                          const std::vector<std::string> &input_layouts,
+                                                          const framework::NodeAttr &attrs,
+                                                          const Target &target) {
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  return {input_layouts, input_layouts};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -1691,6 +1807,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRelu)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
@@ -1701,6 +1818,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRelu6)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
@@ -1711,6 +1829,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForConv2d))
 #ifdef CINN_WITH_CUDA
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
 #else
@@ -1726,6 +1845,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2dNCHWc)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2dNCHWc))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2dNCHWc))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForConv2dNCHWc))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
                                                       cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
@@ -1737,6 +1857,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForConv2d))
 #ifdef CINN_WITH_CUDA
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
 #else
@@ -1752,6 +1873,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBatchNorm)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBatchNorm))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBatchNorm))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForBatchNorm))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
@@ -1762,6 +1884,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool1d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool1d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForPool))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
@@ -1772,6 +1895,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForPool))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
@@ -1782,6 +1906,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool3d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool3d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForPool))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
@@ -1792,6 +1917,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSigmoid)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSigmoid))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSigmoid))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
@@ -1802,6 +1928,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSoftmax)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSoftmax))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSoftmax))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForSoftmax))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
@@ -1812,6 +1939,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSlice)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSlice))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSlice))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForSlice))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
@@ -1822,6 +1950,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDropoutInfer)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDropoutInfer))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDropoutInfer))
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 

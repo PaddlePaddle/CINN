@@ -338,6 +338,8 @@ class Stage : public Object {
   inline const ir::VectorizeInfo& vectorize_info() const { return vectorize_info_; }
   inline const std::set<int>& unroll_info() const { return unroll_info_; }
   inline const std::set<int>& parallel_info() const { return parallel_info_; }
+  inline std::map<std::string, ComputeAtRelation>& GetComputeAts() { return compute_ats_; }
+  inline void SetComputeAts(const std::map<std::string, ComputeAtRelation>& compute_ats) { compute_ats_ = compute_ats; }
 
   /*
   const std::set<std::string>& extra_depend_stages() const { return extra_depend_stages_; }
@@ -369,7 +371,7 @@ class Stage : public Object {
   //! Copy other stage's LoopInfo.
   //! For example, if the target_forloop_infos is `Bind(0,"threadIdx.x")`,
   //! this api will apply `Bind(0,"threadIdx.x")` on itself.
-  void CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos, const isl::set& target_transformed_domain);
+  void CopyLoopInfo(Stage* other);
   //! Set stage's transform_
   void SetTransform(isl::map new_transform) { transform_ = new_transform; }
   //! Set stage's forloop_infos_
