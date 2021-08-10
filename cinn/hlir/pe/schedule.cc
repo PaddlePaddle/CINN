@@ -500,7 +500,8 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
 
   // CC: [batch, oc_outer, oh, ow, oc_inner]
   // packed_out: [batch, oc_outer, oh_outer, oh_inner, ow_outer, ow_inner, oc_inner]
-  stages[CC]->ComputeAt(stages[packed_out], 2);
+  stages[CC]->ComputeAt2(stages[packed_out], 2);
+  // stages[CC]->ComputeAt(stages[packed_out], 2);
   VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
   VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // tempory solution because reordering before computeAt may be wrong
