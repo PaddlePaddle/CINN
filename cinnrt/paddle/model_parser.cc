@@ -75,7 +75,7 @@ void TensorFromStream(std::istream &is, cinnrt::paddle::_Tensor_ *tensor, const 
     // tensor->set_persistable(true);
     is.read(static_cast<char *>(buf), size);
   } else if (target.arch == cinnrt::common::Target::Arch::NVGPU) {
-#ifdef CINN_WITH_CUDA
+#ifdef CINNRT_WITH_CUDA
     if (desc.data_type() != Type::VarType_Type_FP32) LOG(FATAL) << "[CUDA] The type is not fp32!!";
     auto *data = tensor->mutable_data<float>(target);
     tensor->set_type(cinnrt::common::Float(32));
