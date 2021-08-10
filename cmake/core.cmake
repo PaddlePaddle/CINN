@@ -312,7 +312,6 @@ endfunction()
 
 
 function(proto_library TARGET_NAME)
-  message(STATUS "proto_library: SRCS: ${SRCS}, DEPS: ${DEPS}")
   set(oneValueArgs "")
   set(multiValueArgs SRCS DEPS)
   cmake_parse_arguments(proto_library "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
@@ -320,7 +319,6 @@ function(proto_library TARGET_NAME)
   set(proto_hdrs)
   paddle_protobuf_generate_cpp(proto_srcs proto_hdrs ${proto_library_SRCS})
   cc_library(${TARGET_NAME} SRCS ${proto_srcs} DEPS ${proto_library_DEPS} protobuf)
-  message(STATUS "proto_library: proto_hdrs: ${proto_hdrs}, proto_srcs: ${proto_srcs}, proto_library_DEPS: ${proto_library_DEPS}")
 endfunction()
 
 function(common_link TARGET_NAME)
