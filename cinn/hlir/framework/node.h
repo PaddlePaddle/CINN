@@ -76,10 +76,10 @@ class Node : public common::GraphNode {
    */
   NodeAttr attrs;
 
-  //! Get the input tensors in order to match tensors correctly.
+  //! Get the input tensors in order to match tensors correctly. If do refresh, we will update the links.
   const std::vector<common::Shared<common::GraphEdge>> &inlinks_in_order(bool refresh = false) const;
 
-  //! Get the output tensors in order to match tensors correctly.
+  //! Get the output tensors in order to match tensors correctly. If do refresh, we will update the links.
   const std::vector<common::Shared<common::GraphEdge>> &outlinks_in_order(bool refresh = false) const;
 
   inline const Operator *op() const { return this->attrs.op; }

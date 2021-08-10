@@ -471,7 +471,7 @@ std::vector<Expr> InferShapeLayoutTransform(const std::vector<Expr>& input_shape
       }
     }
   }
-  LOG(INFO) << "output_shape: " << output_shape;
+  VLOG(4) << "output_shape: " << output_shape;
   return output_shape;
 }
 
@@ -525,7 +525,7 @@ ir::Tensor LayoutTransform(const Tensor& input,
             }
           }
         }
-        LOG(INFO) << "new_indice: " << new_indice;
+        VLOG(4) << "new_indice: " << new_indice;
 
         return input(new_indice);
       },

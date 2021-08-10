@@ -60,7 +60,7 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
         if (all_tensor_map_->count(no_cache_name)) {
           ir::IRMutator<>::Visit(&node->tensor, &node->tensor);
         } else {
-        auto *tensor = node->tensor.as_tensor();
+          auto *tensor = node->tensor.as_tensor();
           CHECK(tensor);
           // fix computeAt case
           auto shapes = tensor->shape;

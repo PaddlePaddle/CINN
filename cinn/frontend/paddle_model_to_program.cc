@@ -229,7 +229,8 @@ void PaddleModelToProgram::AddOpMapper_depthwise_conv2d() {
     CHECK(op_desc.HasAttr("dilations"));
     attrs["dilation"] = op_desc.GetAttr<std::vector<int>>("dilations");
     CHECK(op_desc.HasAttr("groups"));
-    attrs["groups"]         = op_desc.GetAttr<int>("groups");
+    attrs["groups"] = op_desc.GetAttr<int>("groups");
+    CHECK(op_desc.HasAttr("data_format"));
     std::string data_format = op_desc.GetAttr<std::string>("data_format");
     if (data_format == "AnyLayout") {
       data_format = "NCHW";
@@ -271,7 +272,8 @@ void PaddleModelToProgram::AddOpMapper_conv2d() {
     CHECK(op_desc.HasAttr("dilations"));
     attrs["dilation"] = op_desc.GetAttr<std::vector<int>>("dilations");
     CHECK(op_desc.HasAttr("groups"));
-    attrs["groups"]         = op_desc.GetAttr<int>("groups");
+    attrs["groups"] = op_desc.GetAttr<int>("groups");
+    CHECK(op_desc.HasAttr("data_format"));
     std::string data_format = op_desc.GetAttr<std::string>("data_format");
     if (data_format == "AnyLayout") {
       data_format = "NCHW";

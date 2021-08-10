@@ -150,6 +150,7 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForElementwise))                               \
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForElementwise))                               \
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForElementwise))                             \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)  \
       .set_support_level(4);
 

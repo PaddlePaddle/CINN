@@ -8,4 +8,6 @@ core_gather_srcs(SRCS
 
 
 cc_test(test_opfusion SRCS opfusion_test.cc DEPS cinncore)
+if (NOT WITH_CUDA)
 cc_test(test_alterlayout SRCS alterlayout_test.cc DEPS cinncore)
+endif()

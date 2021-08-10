@@ -235,7 +235,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
       CHECK_EQ(compute_ats.size(), 1U);
       auto new_stage = stages[inputs.back()];
       for (auto& compute_at : compute_ats) {
-        auto& old_relation = compute_at.second;
+        auto& old_relation     = compute_at.second;
         auto old_target_tensor = old_relation.stage->tensor();
         if (stages[old_target_tensor]->inlined()) {
           new_relation.stage = new_stage;

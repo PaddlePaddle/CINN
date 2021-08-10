@@ -663,7 +663,7 @@ std::vector<shape_t> InferShapeForLayoutTransform(const std::vector<shape_t> &in
   std::unordered_map<int, std::vector<int>> split_index_map;
   std::vector<Expr> out_shapes = pe::InferShapeLayoutTransform(
       input_shapes_expr, ir::Layout(src_layout), ir::Layout(dst_layout), &split_index_map);
-  LOG(INFO) << "out_shapes: " << out_shapes;
+  VLOG(4) << "out_shapes: " << out_shapes;
   std::vector<int> output_shapes;
   for (auto &shape : out_shapes) {
     output_shapes.push_back(shape.as_int32());
@@ -720,7 +720,9 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMul)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMul))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMul))
+#ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForMul))
+#endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
@@ -742,7 +744,9 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForLayoutTransform)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForLayoutTransform))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForLayoutTransform))
+#ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForLayoutTransform))
+#endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
   return true;
