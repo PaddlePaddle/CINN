@@ -1,5 +1,8 @@
 proto_library(paddle_framework_proto SRCS framework.proto)
 
+add_subdirectory(cpp)
+add_subdirectory(pb)
+
 core_gather_headers()
 
 core_gather_srcs(SRCS
@@ -19,6 +22,3 @@ file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
 foreach(header ${includes})
   set(core_includes "${core_includes};${header}" CACHE INTERNAL "")
 endforeach()
-
-add_subdirectory(cpp)
-add_subdirectory(pb)

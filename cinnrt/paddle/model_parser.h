@@ -4,12 +4,12 @@
 #include <string>
 #include <vector>
 
-#include "cinnrt/paddle/framework.pb.h"
 #include "cinnrt/paddle/pb/block_desc.h"
 #include "cinnrt/paddle/pb/op_desc.h"
 #include "cinnrt/paddle/pb/program_desc.h"
 #include "cinnrt/paddle/scope.h"
 #include "cinnrt/paddle/tensor.h"
+#include "cinnrt/paddle/framework.pb.h"
 
 namespace cinnrt::paddle {
 namespace framework_proto = ::paddle::framework::proto;
