@@ -83,7 +83,7 @@ add_subdirectory(cinnrt)
 add_subdirectory(tests)
 add_subdirectory(tutorials)
 
-cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto ${MLIR_ALL_LIBS})
+cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto paddle_framework_proto ${MLIR_ALL_LIBS})
 if (TARGET LLVM)
   target_link_libraries(cinncore LLVM)
 else()
