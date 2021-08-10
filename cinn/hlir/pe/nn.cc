@@ -895,7 +895,10 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
                     const std::string &dropout_implementation,
                     const std::string &output_name) {
   if (dropout_implementation == "downgrade_in_infer") {
-    return Multiply(tensor, Expr(1 - dropout_prob));
+    return Compute(
+        tensor->shape,
+        [=](const std::vector<Expr> &indice) { return tensor(indice) * (1 - dropout_prob); },
+        output_name);
   } else if (dropout_implementation == "upscale_in_train") {
     return Identity(tensor).front();
   } else {

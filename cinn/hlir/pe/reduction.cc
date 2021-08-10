@@ -2,6 +2,8 @@
 
 #include <cinn/ir/ir_base.h>
 
+#include <algorithm>
+
 #include "cinn/common/ir_util.h"
 #include "cinn/hlir/pe/broadcast.h"
 #include "cinn/ir/ir_operators.h"
@@ -13,9 +15,8 @@ namespace cinn {
 namespace hlir {
 namespace pe {
 
+using ir::Tensor;
 using lang::Compute;
-using poly::StageMap;
-using namespace ir;
 
 /**
  * @brief transform reduction axes which could be empty or have negative elements into real axes with valid dimension
@@ -28,7 +29,7 @@ using namespace ir;
  * @notes If the input axes are empty, the result will be axes including all dimensions. If any input element is
  * negative, it will be treated as an offset from the last dimension (same as python indexing rules).
  */
-void GetRealAxes(int ndim, const std::vector<Expr>& axes, std::vector<int>* real_axes) {
+void GetRealAxes(int ndim, const std::vector<int>& axes, std::vector<int>* real_axes) {
   CHECK(real_axes);
   if (axes.empty()) {
     for (int i = 0; i < ndim; ++i) {
@@ -36,13 +37,12 @@ void GetRealAxes(int ndim, const std::vector<Expr>& axes, std::vector<int>* real
     }
   } else {
     for (auto axis : axes) {
-      auto val = axis.as_int32();
-      if (val < 0) {
-        val += ndim;
+      if (axis < 0) {
+        axis += ndim;
       }
-      CHECK_LE(val, ndim) << "exceeds the maximum dimension: " << ndim << std::endl;
-      CHECK_GE(val, 0);
-      real_axes->push_back(val);
+      CHECK_LE(axis, ndim) << "exceeds the maximum dimension: " << ndim << std::endl;
+      CHECK_GE(axis, 0);
+      real_axes->push_back(axis);
     }
     real_axes->resize(std::unique(real_axes->begin(), real_axes->end()) - real_axes->begin());
     std::sort(real_axes->begin(), real_axes->end());
@@ -99,7 +99,6 @@ void GetOutputShape(const std::vector<int>& real_axes,
  */
 template <typename FuncOp>
 Tensor DoReduce(const Tensor& tensor,
-                poly::StageMap stages,
                 const FuncOp& fn,
                 const std::vector<Expr>& output_shape,
                 const std::vector<int>& real_axes,
@@ -131,7 +130,6 @@ Tensor DoReduce(const Tensor& tensor,
   };
 
   Tensor C = Compute(output_shape, compute, output_name);
-  stages->InsertLazily(C);
   return C;
 }
 
@@ -148,8 +146,7 @@ Tensor DoReduce(const Tensor& tensor,
  */
 template <typename FuncOp>
 Tensor Reduce(const Tensor& tensor,
-              poly::StageMap stages,
-              const std::vector<Expr>& axes,
+              const std::vector<int>& axes,
               const FuncOp& fn,
               bool keep_dims,
               const ir::Expr& initial,
@@ -161,35 +158,31 @@ Tensor Reduce(const Tensor& tensor,
   std::vector<Expr> output_shapes;
   GetOutputShape(real_axes, &output_shapes, tensor, keep_dims);
   return DoReduce(
-      tensor, stages, fn, output_shapes, real_axes, keep_dims ? std::vector<int>() : real_axes, initial, output_name);
+      tensor, fn, output_shapes, real_axes, keep_dims ? std::vector<int>() : real_axes, initial, output_name);
 }
 
-Tensor Sum(const Tensor& A,
-           poly::StageMap stages,
-           const std::vector<Expr>& axes,
-           bool keep_dims,
-           const ir::Expr& initial,
-           const std::string& output_name) {
-  return Reduce(A, stages, axes, lang::ReduceSum, keep_dims, initial, output_name);
+Tensor ReduceSum(const Tensor& A,
+                 const std::vector<int>& axes,
+                 bool keep_dims,
+                 const ir::Expr& initial,
+                 const std::string& output_name) {
+  return Reduce(A, axes, lang::ReduceSum, keep_dims, initial, output_name);
 }
 
-Tensor Prod(const Tensor& A,
-            poly::StageMap stages,
-            const std::vector<Expr>& axes,
-            bool keep_dims,
-            const ir::Expr& initial,
-            const std::string& output_name) {
-  return Reduce(A, stages, axes, lang::ReduceMul, keep_dims, initial, output_name);
+Tensor ReduceProd(const Tensor& A,
+                  const std::vector<int>& axes,
+                  bool keep_dims,
+                  const ir::Expr& initial,
+                  const std::string& output_name) {
+  return Reduce(A, axes, lang::ReduceMul, keep_dims, initial, output_name);
 }
 
-Tensor Max(
-    const Tensor& A, StageMap stages, const std::vector<Expr>& axes, bool keep_dims, const std::string& output_name) {
-  return Reduce(A, stages, axes, lang::ReduceMax, keep_dims, Expr(), output_name);
+Tensor ReduceMax(const Tensor& A, const std::vector<int>& axes, bool keep_dims, const std::string& output_name) {
+  return Reduce(A, axes, lang::ReduceMax, keep_dims, Expr(), output_name);
 }
 
-Tensor Min(
-    const Tensor& A, StageMap stages, const std::vector<Expr>& axes, bool keep_dims, const std::string& output_name) {
-  return Reduce(A, stages, axes, lang::ReduceMin, keep_dims, Expr(), output_name);
+Tensor ReduceMin(const Tensor& A, const std::vector<int>& axes, bool keep_dims, const std::string& output_name) {
+  return Reduce(A, axes, lang::ReduceMin, keep_dims, Expr(), output_name);
 }
 
 }  // namespace pe

@@ -1,4 +1,5 @@
 #include "cinn/common/target.h"
+#include "cinn/hlir/pe/broadcast.h"
 #include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/reduction.h"
 #include "cinn/hlir/pe/transform.h"
@@ -54,28 +55,54 @@ void BindPE(py::module* m) {
   BIND_UNARY(abs, Abs);
   BIND_UNARY(rsqrt, Rsqrt);
 
+#define BIND_BINARY(name__, fn__) \
+  m->def(#name__, &hlir::pe::fn__, py::arg("x"), py::arg("y"), py::arg("out"), py::arg("axis") = Expr(-1))
+
+  BIND_BINARY(add, Add);
+  BIND_BINARY(substract, Substract);
+  BIND_BINARY(multiply, Multiply);
+  BIND_BINARY(divide, Divide);
+  BIND_BINARY(floor_divide, FloorDivide);
+  BIND_BINARY(mod, Mod);
+  BIND_BINARY(floor_mod, FloorMod);
+  BIND_BINARY(max, Maximum);
+  BIND_BINARY(min, Minimum);
+  BIND_BINARY(power, Power);
+  BIND_BINARY(left_shift, LeftShift);
+  BIND_BINARY(right_shift, RightShift);
+  BIND_BINARY(logical_and, LogicaAnd);
+  BIND_BINARY(logical_or, LogicalOr);
+  BIND_BINARY(logical_xor, LogicalXOr);
+  BIND_BINARY(bitwise_and, BitwiseAnd);
+  BIND_BINARY(bitwise_or, BitwiseOr);
+  BIND_BINARY(bitwise_xor, BitwiseXor);
+  BIND_BINARY(greater, Greater);
+  BIND_BINARY(less, Less);
+  BIND_BINARY(equal, Equal);
+  BIND_BINARY(not_equal, NotEqual);
+  BIND_BINARY(greater_equal, GreaterEqual);
+  BIND_BINARY(less_equal, LessEqual);
+
 #define BIND_REDUCE(name__, fn__)      \
   m->def(#name__,                      \
          &hlir::pe::fn__,              \
          py::arg("x"),                 \
-         py::arg("stages"),            \
          py::arg("axes"),              \
          py::arg("keep_dims") = false, \
          py::arg("initial"),           \
          py::arg("out") = "T_" #name__ "_out")
-  BIND_REDUCE(sum, Sum);
-  BIND_REDUCE(prod, Prod);
+  BIND_REDUCE(reduce_sum, ReduceSum);
+  BIND_REDUCE(reduce_prod, ReduceProd);
 
 #define BIND_REDUCE1(name__, fn__)     \
   m->def(#name__,                      \
          &hlir::pe::fn__,              \
          py::arg("x"),                 \
-         py::arg("stages"),            \
          py::arg("axes"),              \
          py::arg("keep_dims") = false, \
          py::arg("out")       = "T_" #name__ "_out")
-  BIND_REDUCE1(max, Max);
-  BIND_REDUCE1(min, Min);
+  BIND_REDUCE1(reduce_max, ReduceMax);
+  BIND_REDUCE1(reduce_min, ReduceMin);
 
   m->def("matmul",
          &hlir::pe::Matmul,
