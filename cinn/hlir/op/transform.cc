@@ -280,8 +280,6 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
         x_num_col_dims = std::get<int>(iter.second);
       } else if (iter.first == "y_num_col_dims") {
         y_num_col_dims = std::get<int>(iter.second);
-      } else {
-        LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
     }
     auto A_tensor = A.as_tensor_ref();
@@ -523,6 +521,22 @@ std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForMul(const std::vector<framework::shape_t> &input_shapes,
+                                                        const std::vector<std::string> &input_layouts,
+                                                        const framework::NodeAttr &attrs,
+                                                        const Target &target) {
+  CHECK_EQ(input_layouts.size(), 2U) << "The input's layouts size is not 2! Please check again.";
+  CHECK_EQ(input_shapes.size(), 2U) << "mul should have 2 input shapes";
+  std::vector<std::string> new_input_layouts = input_layouts;
+  for (int i = 0; i < input_shapes.size(); i++) {
+    if (input_shapes[i].size() > 4) {
+      new_input_layouts[i] = "NCHW";
+    }
+  }
+
+  return {{"", ""}, new_input_layouts};
+}
+
 std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector<int>> &inputs_shape,
                                                    const framework::NodeAttr &attrs,
                                                    const Target &target) {
@@ -575,6 +589,112 @@ std::vector<Type> InferDtypeForMulBias(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr &attrs,
+                                                       const std::vector<ir::Tensor> &inputs,
+                                                       const std::vector<Type> &out_type,
+                                                       const std::vector<std::vector<int>> &output_shapes,
+                                                       const Target &target) {
+  framework::CINNCompute layout_transform_compute([=](lang::Args args, lang::RetValue *ret) {
+    std::string src_layout;
+    std::string dst_layout;
+    if (attrs.attr_store.find("src_layout") != attrs.attr_store.end()) {
+      src_layout = std::get<std::string>(attrs.attr_store.at("src_layout"));
+    }
+    if (attrs.attr_store.find("dst_layout") != attrs.attr_store.end()) {
+      dst_layout = std::get<std::string>(attrs.attr_store.at("dst_layout"));
+    }
+    CHECK(!args.empty()) << "The input argument of layout_transform compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "at least one input tensor for layout_transform compute\n";
+    Expr A = a[0];
+    CHECK(A.as_tensor());
+
+    auto out    = pe::LayoutTransform(A.as_tensor_ref(), src_layout, dst_layout, UniqName("layout_transform_output"));
+    auto stages = CreateStages({A.as_tensor_ref()});
+    std::vector<CINNValue> res;
+    stages->InsertLazily(out);
+    res  = {CINNValue(out), CINNValue(stages)};
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule layout_transform_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of layout_transform schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    Expr out              = arg_pack[0];
+    poly::StageMap stages = arg_pack[1];
+    CHECK(out.as_tensor());
+    auto tensor_out = out.as_tensor_ref();
+    std::vector<int> out_shape;
+    for (auto shape : tensor_out->shape) {
+      out_shape.push_back(shape.as_int32());
+    }
+
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  CHECK(out_type.size()) << "Out_type of layout_transform op is empty! Please check.";
+  if (out_type[0] == Float(32)) {
+    strategy->AddImpl(layout_transform_compute, layout_transform_schedule, "strategy.layout_transform.x86", 1);
+  } else {
+    LOG(FATAL) << "layout_transform op with dtype != float32 is not implemented yet!";
+  }
+  return strategy;
+}
+
+std::vector<shape_t> InferShapeForLayoutTransform(const std::vector<shape_t> &inputs_shape,
+                                                  const framework::NodeAttr &attrs,
+                                                  const Target &target) {
+  std::string src_layout;
+  std::string dst_layout;
+  if (attrs.attr_store.find("src_layout") != attrs.attr_store.end()) {
+    src_layout = std::get<std::string>(attrs.attr_store.at("src_layout"));
+  }
+  if (attrs.attr_store.find("dst_layout") != attrs.attr_store.end()) {
+    dst_layout = std::get<std::string>(attrs.attr_store.at("dst_layout"));
+  }
+  CHECK_EQ(inputs_shape.size(), 1UL);
+
+  std::vector<Expr> input_shapes_expr;
+  for (int shape : inputs_shape[0]) {
+    input_shapes_expr.push_back(Expr(shape));
+  }
+  std::unordered_map<int, std::vector<int>> split_index_map;
+  std::vector<Expr> out_shapes = pe::InferShapeLayoutTransform(
+      input_shapes_expr, ir::Layout(src_layout), ir::Layout(dst_layout), &split_index_map);
+  VLOG(4) << "out_shapes: " << out_shapes;
+  std::vector<int> output_shapes;
+  for (auto &shape : out_shapes) {
+    output_shapes.push_back(shape.as_int32());
+  }
+  return {output_shapes};
+}
+
+std::vector<Type> InferDtypeForLayoutTransform(const std::vector<Type> &inputs_type,
+                                               const framework::NodeAttr &attrs,
+                                               const Target &target) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
+std::vector<std::vector<std::string>> InferLayoutForLayoutTransform(const std::vector<framework::shape_t> &input_shapes,
+                                                                    const std::vector<std::string> &input_layouts,
+                                                                    const framework::NodeAttr &attrs,
+                                                                    const Target &target) {
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layouts size is not 1! Please check again.";
+  std::string dst_layout;
+  std::string src_layout;
+  if (attrs.attr_store.find("dst_layout") != attrs.attr_store.end()) {
+    dst_layout = std::get<std::string>(attrs.attr_store.at("dst_layout"));
+  }
+  if (attrs.attr_store.find("src_layout") != attrs.attr_store.end()) {
+    src_layout = std::get<std::string>(attrs.attr_store.at("src_layout"));
+  }
+  return {{dst_layout}, {src_layout}};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -600,6 +720,9 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMul)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMul))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMul))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForMul))
+#endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
@@ -612,6 +735,19 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMulBias))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
                                                       cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(layout_transform)
+      .describe("This operator is used to transform op's layouts")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForLayoutTransform)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForLayoutTransform))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForLayoutTransform))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForLayoutTransform))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
   return true;
 }

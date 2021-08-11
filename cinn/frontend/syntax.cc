@@ -48,6 +48,28 @@ Variable Program::conv2d(const Variable& a,
   return instr.GetOutput(0);
 }
 
+Variable Program::layout_transform(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
+  Instruction instr("layout_transform");
+  instr.SetInputs({a});
+  for (auto& iter : attr_store) {
+    instr.SetAttr(iter.first, iter.second);
+  }
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable Program::conv2d_NCHWc(const Variable& a,
+                               const Variable& b,
+                               const std::unordered_map<std::string, attr_t>& attr_store) {
+  Instruction instr("conv2d_NCHWc");
+  instr.SetInputs({a, b});
+  for (auto& iter : attr_store) {
+    instr.SetAttr(iter.first, iter.second);
+  }
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable Program::depthwise_conv2d(const Variable& a,
                                    const Variable& b,
                                    const std::unordered_map<std::string, attr_t>& attr_store) {

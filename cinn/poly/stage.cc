@@ -831,6 +831,7 @@ void Stage::Vectorize(int level, int factor) {
   }
   int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
   VLOG(3) << "removed_axes_counts are " << removed_axes_counts << " before axis " << ith_dim_name(level);
+  VLOG(3) << "vectorize level: " << level - removed_axes_counts << ", factor: " << factor;
   vectorize_info_.set(level - removed_axes_counts /*inner*/, factor);
 }
 
@@ -1323,8 +1324,10 @@ void Stage::CopyTransform(Stage *other, int level) {
   transform_ = res_map;
 }
 
-void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos,
-                         const isl::set &target_transformed_domain) {
+void Stage::CopyLoopInfo(Stage *other) {
+  // copy other stage's forloop_infos
+  auto &target_forloop_infos                = other->forloop_infos();
+  auto target_transformed_domain            = other->transformed_domain();
   std::vector<std::string> this_dim_names   = isl_get_dim_names(transformed_domain());
   std::vector<std::string> target_dim_names = isl_get_dim_names(target_transformed_domain);
 
@@ -1336,6 +1339,13 @@ void Stage::CopyLoopInfo(std::map<int, StageForloopInfo> target_forloop_infos,
       }
     }
   }
+  // copy other stage's vectorize/unroll/parallel info
+  auto &target_vectorize_info = other->vectorize_info();
+  auto &target_unroll_info    = other->unroll_info();
+  auto &target_parallel_info  = other->parallel_info();
+  vectorize_info_             = target_vectorize_info;
+  unroll_info_                = target_unroll_info;
+  parallel_info_              = target_parallel_info;
 }
 
 void Stage::LockAxis(uint32_t level) {

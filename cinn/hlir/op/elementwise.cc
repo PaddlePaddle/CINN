@@ -99,6 +99,14 @@ std::vector<Type> InferDtypeForElementwise(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForElementwise(const std::vector<framework::shape_t> &input_shapes,
+                                                                const std::vector<std::string> &input_layouts,
+                                                                const framework::NodeAttr &attrs,
+                                                                const Target &target) {
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layouts size is not 1! Please check again.";
+  return {input_layouts, input_layouts};
+}
+
 StrategyForUnary(exp, Exp);
 StrategyForUnary(erf, Erf);
 StrategyForUnary(sqrt, Sqrt);
@@ -142,6 +150,7 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForElementwise))                               \
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForElementwise))                               \
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForElementwise))                             \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)  \
       .set_support_level(4);
 

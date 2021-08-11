@@ -471,6 +471,30 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
   return res;
 }
 
+ir::Tensor BatchNorm_NCHWc(const ir::Tensor &input,
+                           const ir::Tensor &scale,
+                           const ir::Tensor &bias,
+                           const ir::Tensor &mean,
+                           const ir::Tensor &variance,
+                           float epsilon,
+                           const std::string &output_name) {
+  CHECK_EQ(input->shape.size(), 5U) << "Input's dimension of BatchNorm op is not 5! Please check.";
+  CHECK_EQ(scale->shape.size(), 1U) << "Scale's dimension of BatchNorm op is not 1! Please check.";
+  CHECK_EQ(bias->shape.size(), 1U) << "Bias's dimension of BatchNorm op is not 1! Please check.";
+  CHECK_EQ(mean->shape.size(), 1U) << "Mean's dimension of BatchNorm op is not 1! Please check.";
+  CHECK_EQ(variance->shape.size(), 1U) << "Variance's dimension of BatchNorm op is not 1! Please check.";
+  Expr ic_bn = input->shape.back();
+  auto res   = Compute(
+      input->shape,
+      [=](Expr n, Expr icc, Expr h, Expr w, Expr icb) {
+        Expr new_c = icc * ic_bn + icb;
+        return (input(n, icc, h, w, icb) - mean(new_c)) * scale(new_c) / lang::Sqrt(variance(new_c) + Expr(epsilon)) +
+               bias(new_c);
+      },
+      UniqName(output_name));
+  return res;
+}
+
 /**
  * This operator implements the softmax layer.
  * @param A The input tensor.
@@ -803,7 +827,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
     LOG(ERROR) << "Unrecognized pool_type: " << pool_type;
   }
   if (do_pad) {
-    return {temp, res};
+    return {res, temp};
   } else {
     return {res};
   }
@@ -855,7 +879,8 @@ std::vector<Tensor> Pool2d(const Tensor &tensor,
   } else {
     LOG(FATAL) << "Unsupported data format: " << data_format << std::endl;
   }
-  CHECK_EQ(tensor->shape.size(), 4U) << "pool1d requires tensor's shape_size to be 4\n";
+  CHECK(tensor->shape.size() == 4U || tensor->shape.size() == 5U)
+      << "pool2d requires tensor's shape_size to be 4 or 5\n";
   std::vector<int> axis = {height_axis, width_axis};
   return PoolImpl(
       tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, UniqName(output_name));

@@ -73,7 +73,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
   std::vector<common::CINNValue> cinn_inputs;
   std::vector<std::vector<int>> output_shapes;
   VLOG(3) << "GetOpFunc of op " << node->id();
-  for (auto& i : node->inlinks_in_order()) {
+  for (auto& i : node->inlinks_in_order(true)) {
     std::string input_id = i->source()->as<NodeData>()->id();
     auto in_shape        = shape_dict.at(input_id);
     Type dtype           = dtype_dict.at(input_id);
@@ -84,7 +84,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const Node* node) {
     cinn_inputs.push_back(common::CINNValue(temp));
   }
   std::vector<Type> out_types;
-  for (auto& out : node->outlinks_in_order()) {
+  for (auto& out : node->outlinks_in_order(true)) {
     std::string out_id = out->sink()->safe_as<NodeData>()->id();
     auto out_shape     = shape_dict.at(out_id);
     Type dtype         = dtype_dict.at(out_id);
@@ -133,7 +133,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
     std::vector<common::CINNValue> cinn_inputs;
     std::vector<std::vector<int>> output_shapes;
     fuse_name += node->id() + "_";
-    for (auto& link : node->inlinks_in_order()) {
+    for (auto& link : node->inlinks_in_order(true)) {
       auto source = link->source();
       CHECK(source);
       auto source_data = source->as<NodeData>();
@@ -159,7 +159,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
     }
     std::vector<Type> out_types;
     std::vector<NodeData*> temp_outvars;
-    for (auto& out : node->outlinks_in_order()) {
+    for (auto& out : node->outlinks_in_order(true)) {
       auto out_var = out->sink()->safe_as<NodeData>();
       CHECK(out_var);
       out_vars.insert(out_var);
@@ -225,8 +225,29 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
   inputs.insert(inputs.end(), outputs.begin(), outputs.end());
 
   stages[inputs.back()]->CopyTransform(stages[first_out_tensor]);
-  stages[inputs.back()]->CopyLoopInfo(stages[first_out_tensor]->forloop_infos(),
-                                      stages[first_out_tensor]->transformed_domain());
+  stages[inputs.back()]->CopyLoopInfo(stages[first_out_tensor]);
+
+  for (auto& s : stages) {
+    auto& compute_ats = s.second->GetComputeAts();
+    auto tensor       = s.second->tensor();
+    if (tensor->is_reduce_tensor() && !compute_ats.empty()) {
+      poly::ComputeAtRelation new_relation;
+      CHECK_EQ(compute_ats.size(), 1U);
+      auto new_stage = stages[inputs.back()];
+      for (auto& compute_at : compute_ats) {
+        auto& old_relation     = compute_at.second;
+        auto old_target_tensor = old_relation.stage->tensor();
+        if (stages[old_target_tensor]->inlined()) {
+          new_relation.stage = new_stage;
+          new_relation.level = old_relation.level;
+
+          compute_ats.clear();
+          compute_ats[new_stage->id()] = new_relation;
+        }
+      }
+    }
+  }
+
   auto func = Lower(fuse_name, stages, inputs, {}, {}, nullptr, this->target_);
   VLOG(3) << "The function of fused node [" << func->name << "] is:\n" << func;
   return func;

@@ -149,6 +149,31 @@ std::string Graph::Visualize() const {
   return dot();
 }
 
+void Graph::ClearUnlinkedNodes(std::unordered_map<std::string, std::vector<int>> *shape_dict,
+                               std::unordered_map<std::string, Type> *type_dict,
+                               std::unordered_map<std::string, std::string> *layout_dict) {
+  CHECK(shape_dict);
+  CHECK(type_dict);
+  CHECK(layout_dict);
+  for (auto it = nodes_.begin(); it < nodes_.end(); ++it) {
+    auto node = *it;
+    if (node->inlinks().empty() && node->outlinks().empty()) {
+      VLOG(2) << "delete unlinked node: " << node->id();
+      nodes_.erase(it);
+      if (shape_dict->count(node->id())) {
+        shape_dict->erase(node->id());
+      }
+      if (type_dict->count(node->id())) {
+        type_dict->erase(node->id());
+      }
+      if (layout_dict->count(node->id())) {
+        layout_dict->erase(node->id());
+      }
+      --it;
+    }
+  }
+}
+
 const char *GraphNode::__type_info__ = "GraphNode";
 
 bool GraphEdgeCompare::operator()(const Shared<GraphEdge> &a, const Shared<GraphEdge> &b) const {

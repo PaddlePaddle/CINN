@@ -76,11 +76,11 @@ class Node : public common::GraphNode {
    */
   NodeAttr attrs;
 
-  //! Get the input tensors in order to match tensors correctly.
-  const std::vector<common::Shared<common::GraphEdge>> &inlinks_in_order() const;
+  //! Get the input tensors in order to match tensors correctly. If do refresh, we will update the links.
+  const std::vector<common::Shared<common::GraphEdge>> &inlinks_in_order(bool refresh = false) const;
 
-  //! Get the output tensors in order to match tensors correctly.
-  const std::vector<common::Shared<common::GraphEdge>> &outlinks_in_order() const;
+  //! Get the output tensors in order to match tensors correctly. If do refresh, we will update the links.
+  const std::vector<common::Shared<common::GraphEdge>> &outlinks_in_order(bool refresh = false) const;
 
   inline const Operator *op() const { return this->attrs.op; }
 
@@ -168,6 +168,13 @@ class NodeData : public common::GraphNode {
    */
   std::string id_;
 };
+
+// insert op_node after input_data
+NodeData *InsertGraphOpNodeAfter(
+    common::Graph *graph, Node *insert_node, NodeData *input_nodedata, Node *dst_node, int pos);
+// insert op_node before out_data
+NodeData *InsertGraphOpNodeBefore(
+    common::Graph *graph, Node *insert_node, Node *input_node, NodeData *dst_data, int pos);
 
 }  // namespace framework
 }  // namespace hlir

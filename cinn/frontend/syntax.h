@@ -8,6 +8,7 @@
 #include <string>
 #include <tuple>
 #include <unordered_map>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -208,6 +209,10 @@ struct Program {
    * @return The result.
    */
   Variable conv2d(const Variable& a, const Variable& b, const std::unordered_map<std::string, attr_t>& attr_store);
+  Variable layout_transform(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+  Variable conv2d_NCHWc(const Variable& a,
+                        const Variable& b,
+                        const std::unordered_map<std::string, attr_t>& attr_store);
   Variable depthwise_conv2d(const Variable& a,
                             const Variable& b,
                             const std::unordered_map<std::string, attr_t>& attr_store);

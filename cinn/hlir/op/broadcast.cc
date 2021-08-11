@@ -8,6 +8,7 @@
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_operators.h"
+#include "cinn/ir/layout.h"
 
 namespace cinn {
 namespace hlir {
@@ -52,8 +53,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
     for (auto &iter : attrs.attr_store) {
       if (iter.first == "axis") {
         axis = Expr(std::get<int>(iter.second));
-      } else if (iter.first != "FuseNumber") {
-        LOG(ERROR) << "unsupported attr_store: " << iter.first << std::endl;
+        break;
       }
     }
     auto out    = pe_func(A, B, UniqName(op_name + "_Out"), axis);
@@ -98,6 +98,43 @@ std::vector<Type> InferDtypeForBroadcast(const std::vector<Type> &inputs_type,
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
+}
+
+std::vector<std::vector<std::string>> InferLayoutForBroadcast(const std::vector<std::vector<int>> &input_shapes,
+                                                              const std::vector<std::string> &input_layouts,
+                                                              const framework::NodeAttr &attrs,
+                                                              const Target &target) {
+  int input_size = input_layouts.size();
+  CHECK(input_size == 2U || input_size == 3U) << "The input's layouts size is not 2 or 3! Please check again.";
+  int axis = -1;
+  if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
+    axis = std::get<int>(attrs.attr_store.at("axis"));
+  }
+  std::vector<std::string> out_layouts = input_layouts;
+  if (input_layouts[0].empty() && input_layouts[1].empty()) {
+    return {{input_layouts[0]}, input_layouts};
+  } else if (input_layouts[0].empty() || input_layouts[1].empty()) {
+    int undef_idx = input_layouts[0] == "" ? 0 : 1;
+    int def_idx   = 1 - undef_idx;
+    CHECK_GE(input_shapes[def_idx].size(), input_shapes[undef_idx].size());
+    auto ret = out_layouts[def_idx];
+    if (input_size == 2) {
+      return {{ret}, {ret, ret}};
+    } else {
+      return {{ret}, {ret, ret, ret}};
+    }
+  } else {
+    // e.g. NCHWxc + NCHW
+    ir::Layout layout0(input_layouts[0]);
+    ir::Layout layout1(input_layouts[1]);
+    int large_idx = layout0.ndims() >= layout1.ndims() ? 0 : 1;
+    auto ret      = input_layouts[large_idx];
+    if (input_size == 2) {
+      return {{ret}, {ret, ret}};
+    } else {
+      return {{ret}, {ret, ret, ret}};
+    }
+  }
 }
 
 std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
@@ -171,6 +208,14 @@ std::vector<Type> InferDtypeForScale(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForScale(const std::vector<framework::shape_t> &input_shapes,
+                                                          const std::vector<std::string> &input_layouts,
+                                                          const framework::NodeAttr &attrs,
+                                                          const Target &target) {
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layouts size is not 1! Please check again.";
+  return {input_layouts, input_layouts};
+}
+
 StrategyForBinary(elementwise_add, Add);
 StrategyForBinary(elementwise_mul, Multiply);
 
@@ -195,6 +240,7 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBroadcast))                                 \
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBroadcast))                                 \
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForBroadcast))                               \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast) \
       .set_support_level(4);
 
@@ -214,8 +260,11 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScale)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForScale))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForScale))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast)
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBroadcast))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForScale))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   return true;
