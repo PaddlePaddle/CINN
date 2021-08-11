@@ -8,7 +8,6 @@
 
 #include <string>
 
-#include "cinn/backends/llvm/llvm_util.h"
 #include "cinnrt/dialect/init_cinn_dialects.h"
 
 namespace cinnrt::dialect {
@@ -39,8 +38,6 @@ func @main() -> f32 {
       LOG(INFO) << "arg: " << func.getArgument(i).getArgNumber();
     }
   }
-
-  MlirToFrontend(module.release());
 }
 
 }  // namespace cinnrt::dialect

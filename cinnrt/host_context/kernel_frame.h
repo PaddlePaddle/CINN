@@ -4,8 +4,8 @@
 
 #include <utility>
 
-#include "cinn/utils/small_vector.h"
 #include "cinnrt/host_context/value.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace cinnrt::host_context {
 

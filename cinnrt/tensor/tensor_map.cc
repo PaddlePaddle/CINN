@@ -3,17 +3,17 @@
 #include <fstream>
 #include <iostream>
 
-#include "cinn/frontend/paddle/compatible_pb.h"
-#include "cinn/frontend/paddle/model_parser.h"
+#include "cinnrt/common/string.h"
+#include "cinnrt/paddle/model_parser.h"
 
-using Scope       = cinn::hlir::framework::Scope;
-using ProgramDesc = cinn::frontend::paddle::cpp::ProgramDesc;
-using Target      = cinn::common::Target;
+using Scope       = cinnrt::paddle::Scope;
+using Target      = cinnrt::common::Target;
+using Type        = cinnrt::common::Type;
 
 namespace cinnrt {
 namespace tensor {
 
-cinnrt::DType CinnType2DType_(cinn::common::Type type) {
+cinnrt::DType CinnType2DType_(Type type) {
   if (type.is_bool()) return GetDType<bool>();
   if (type.is_int(8)) return GetDType<int8_t>();
   if (type.is_int(16)) return GetDType<int16_t>();
@@ -33,11 +33,11 @@ TensorMap *LoadParams(const std::string &path) {
   std::cout << "loading params from: " << path << std::endl;
   TensorMap *map = new TensorMap();
   Scope scope;
-  ProgramDesc cpp_prog;
-  const Target &target = cinn::common::DefaultHostTarget();
+  const Target &target = cinnrt::common::DefaultHostTarget();
 
-  std::string model_path                              = path + "/__model__";
-  paddle::framework::proto::ProgramDesc pb_proto_prog = *cinn::frontend::paddle::LoadProgram(model_path);
+  std::string model_path = path + "/__model__";
+  // paddle::framework::proto::ProgramDesc pb_proto_prog = *cinn::frontend::paddle::LoadProgram(model_path);
+  auto pb_proto_prog = *cinnrt::paddle::LoadProgram(model_path);
   // cinn::frontend::paddle::pb::ProgramDesc pb_prog_desc(&pb_proto_prog);
   // cinn::frontend::paddle::TransformProgramDescAnyToCpp(pb_prog_desc, cpp_prog);
   auto main_block = pb_proto_prog.blocks(0);
@@ -46,13 +46,11 @@ TensorMap *LoadParams(const std::string &path) {
     std::string param_path = path + "/" + var.name();
     std::ifstream param_file(param_path, std::ios::binary);
     switch (var.type().type()) {
-      case paddle::framework::proto::VarType_Type_LOD_TENSOR: {
-        using CinnTensor = cinn::hlir::framework::Tensor;
-        using namespace cinn::utils;
-        auto var_name = TransValidVarName(var.name());
+      case ::paddle::framework::proto::VarType_Type_LOD_TENSOR: {
+        auto var_name = cinnrt::cinn::TransValidVarName(var.name());
         // std::cout << "var name: " << var.name() << " " << var_name << std::endl;
-        auto *_var = scope.Var<CinnTensor>(var_name);
-        cinn::frontend::paddle::LoadLoDTensor(param_file, _var, target);
+        auto *_var = scope.Var<cinnrt::paddle::Tensor>(var_name);
+        cinnrt::paddle::LoadLoDTensor(param_file, _var, target);
         auto tensor     = scope.GetTensor(var_name);
         auto *src_data  = tensor->data<float>();
         auto &cinn_type = tensor->type();

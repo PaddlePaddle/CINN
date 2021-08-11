@@ -2,13 +2,13 @@
 
 #include <llvm/Support/raw_os_ostream.h>
 
-#include "cinn/hlir/framework/buffer.h"
+#include "cinnrt/common/buffer.h"
 
 namespace cinnrt::tensor {
 
 DenseHostTensor::DenseHostTensor(const TensorShape& shape, DType dtype) : HostTensor(TensorMetadata{dtype, shape}) {
   CHECK(metadata().IsValid()) << "Tensor construct get invalid metadata";
-  buffer_.reset(new cinn::hlir::framework::Buffer(cinn::common::DefaultHostTarget()));
+  buffer_.reset(new cinnrt::Buffer(cinnrt::common::DefaultHostTarget()));
   buffer_->ResizeLazy(dtype.GetHostSize() * shape.GetNumElements());
 }
 
@@ -18,11 +18,11 @@ void DenseHostTensor::Init(const std::vector<int64_t>& shape, DType dtype) {
   auto shape_array = llvm::ArrayRef<int64_t>(shape.data(), shape.size());
   auto metadata    = TensorMetadata(dtype, shape_array);
   setTensorMetadata(metadata);
-  buffer_.reset(new cinn::hlir::framework::Buffer(cinn::common::DefaultHostTarget()));
+  buffer_.reset(new cinnrt::Buffer(cinnrt::common::DefaultHostTarget()));
   buffer_->ResizeLazy(dtype.GetHostSize() * metadata.shape.GetNumElements());
 }
 
-const cinn::hlir::framework::Buffer* DenseHostTensor::buffer() const { return buffer_.get(); }
+const cinnrt::Buffer* DenseHostTensor::buffer() const { return buffer_.get(); }
 
 template <typename T>
 void DisplayArray(std::ostream& os, T* data, int num_elements) {

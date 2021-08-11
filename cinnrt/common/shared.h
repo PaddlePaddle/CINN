@@ -40,7 +40,7 @@ struct Shared {
   using object_ptr = T*;
 
   Shared() = default;
-  explicit Shared(T* p) : p_(p) {
+  Shared(T* p) : p_(p) {
     if (p) IncRef(p);
   }
   Shared(const Shared& other) : p_(other.p_) { IncRef(p_); }
