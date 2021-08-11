@@ -33,7 +33,7 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
     int axis_val = axis.as_int32();
     CHECK_GE(axis_val, -1) << "wrong axis: " << axis_val << std::endl;
     CHECK_GE(shape1.size(), shape2.size()) << "A's shape should be no less than B's when axis is defined\n";
-    CHECK_LE(axis_val, int(shape1.size() - shape2.size()))
+    CHECK_LE(axis_val, static_cast<int>(shape1.size() - shape2.size()))
         << "wrong axis: " << axis_val << " is not <= " << shape1.size() - shape2.size() << std::endl;
     if (axis_val >= 0) {
       *axis_offset = shape1.size() - shape2.size() - axis_val;
@@ -165,18 +165,7 @@ Tensor Broadcast(const FuncOp& op,
   Tensor name__(const Tensor& A, const Tensor& B, const std::string& output_name, const Expr& axis) { \
     auto fn = [&](const Expr& a, const Expr& b) { compute__ };                                        \
     return Broadcast(fn, A, B, output_name, axis);                                                    \
-  }                                                                                                   \
-  Tensor name__(const Tensor& A, const Expr& B, const std::string& output_name) {                     \
-    auto fn = [&](const Expr& a, const Expr& b) { compute__ };                                        \
-    return Compute(                                                                                   \
-        A->shape, [&](const std::vector<Expr>& indice) { return fn(A(indice), B); }, output_name);    \
-  }                                                                                                   \
-  Tensor name__(const Expr& A, const Tensor& B, const std::string& output_name) {                     \
-    auto fn = [&](const Expr& a, const Expr& b) { compute__ };                                        \
-    return Compute(                                                                                   \
-        B->shape, [&](const std::vector<Expr>& indice) { return fn(A, B(indice)); }, output_name);    \
-  }                                                                                                   \
-  Expr name__(const Expr& a, const Expr& b) { compute__ }
+  }
 
 HLIR_IMP_BC_PE(Add, return a + b;);
 HLIR_IMP_BC_PE(Substract, return a - b;);

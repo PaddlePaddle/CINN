@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 #include <vector>
 
 #include "cinn/ir/ir.h"
@@ -20,12 +21,11 @@ namespace pe {
  *
  * @return The result Tensors.
  */
-ir::Tensor Sum(const ir::Tensor& A,
-               poly::StageMap stages,
-               const std::vector<Expr>& axis,
-               bool keep_dims                 = false,
-               const Expr& initial            = Expr(0),
-               const std::string& output_name = "T_Reduce_Sum_out");
+ir::Tensor ReduceSum(const ir::Tensor& A,
+                     const std::vector<int>& axis,
+                     bool keep_dims                 = false,
+                     const Expr& initial            = Expr(0),
+                     const std::string& output_name = "T_Reduce_Sum_out");
 
 /**
  * @brief product array elements over a given axis
@@ -41,12 +41,11 @@ ir::Tensor Sum(const ir::Tensor& A,
  *
  * @return The result Tensors.
  */
-ir::Tensor Prod(const ir::Tensor& A,
-                poly::StageMap stages,
-                const std::vector<Expr>& axis,
-                bool keep_dims                 = false,
-                const Expr& initial            = Expr(1),
-                const std::string& output_name = "T_Reduce_Prod_out");
+ir::Tensor ReduceProd(const ir::Tensor& A,
+                      const std::vector<int>& axis,
+                      bool keep_dims                 = false,
+                      const Expr& initial            = Expr(1),
+                      const std::string& output_name = "T_Reduce_Prod_out");
 
 /**
  * @brief find the maxium of array elements over a given axis
@@ -61,11 +60,10 @@ ir::Tensor Prod(const ir::Tensor& A,
  *
  * @return The result Tensor.
  */
-ir::Tensor Max(const ir::Tensor& A,
-               poly::StageMap stages,
-               const std::vector<Expr>& axis,
-               bool keep_dims                 = false,
-               const std::string& output_name = "T_Reduce_Max_out");
+ir::Tensor ReduceMax(const ir::Tensor& A,
+                     const std::vector<int>& axis,
+                     bool keep_dims                 = false,
+                     const std::string& output_name = "T_Reduce_Max_out");
 
 /**
  * @brief find the minimum of array elements over a given axis
@@ -80,11 +78,10 @@ ir::Tensor Max(const ir::Tensor& A,
  *
  * @return The result Tensor.
  */
-ir::Tensor Min(const ir::Tensor& A,
-               poly::StageMap stages,
-               const std::vector<Expr>& axis,
-               bool keep_dims                 = false,
-               const std::string& output_name = "T_Reduce_Min_out");
+ir::Tensor ReduceMin(const ir::Tensor& A,
+                     const std::vector<int>& axis,
+                     bool keep_dims                 = false,
+                     const std::string& output_name = "T_Reduce_Min_out");
 
 }  // namespace pe
 }  // namespace hlir
