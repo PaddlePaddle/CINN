@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace cinnrt {
-namespace cinn {
+namespace common {
 
 //! Get the content of a stream.
 template <typename T>
