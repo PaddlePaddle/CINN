@@ -61,6 +61,10 @@ function make_doc {
         wget http://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar
         tar -xvf ResNet18.tar
     fi
+    if [[ $cuda_config == "ON" ]]; then
+        mkdir is_cuda
+    fi
+
     cd $build_dir
     rm -f $workspace/python/cinn/core_api.so
     ln -s $build_dir/cinn/pybind/core_api.so $workspace/python/cinn/

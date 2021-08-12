@@ -1,5 +1,6 @@
 #include "cinn/optim/transform_gpu_forloop.h"
 
+#include <algorithm>
 #include <map>
 #include <stack>
 #include <string>
@@ -242,11 +243,12 @@ void MarkGpuForloop(const std::string &statement,
 }
 
 void TransformGpuForloops(const forloop_infos_t &forloop_infos,
+                          const std::vector<std::string> &traverse_order,
                           std::map<std::string, ir::Tensor> *global_tensor_map,
                           std::unordered_set<std::string> &resized_buffer,
                           Expr *expr) {
-  for (auto &item : forloop_infos) {
-    MarkGpuForloop(item.first, item.second, global_tensor_map, resized_buffer, expr);
+  for (auto &i : traverse_order) {
+    MarkGpuForloop(i, forloop_infos.at(i), global_tensor_map, resized_buffer, expr);
   }
 }
 

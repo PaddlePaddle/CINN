@@ -1,3 +1,4 @@
+
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -18,11 +19,31 @@ namespace frontend {
 using hlir::framework::Scope;
 using utils::Join;
 
+Target GetTarget() {
+#ifdef CINN_WITH_CUDA
+  return common::DefaultNVGPUTarget();
+#else
+  return common::DefaultHostTarget();
+#endif
+}
+
 void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
+#ifdef CINN_WITH_CUDA
+  auto* data = tensor->mutable_data<float>(target);
+  std::vector<float> host_memory(tensor->shape().numel(), 0);
+  for (float& v : host_memory) {
+    v = (rand() * 1.f) / RAND_MAX;  // All random data
+  }
+  CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(data),
+                       host_memory.data(),
+                       tensor->shape().numel() * sizeof(float),
+                       cudaMemcpyHostToDevice));
+#else
   auto* data = tensor->mutable_data<float>(target);
   for (size_t j = 0; j < tensor->shape().numel(); j++) {
     data[j] = (rand() * 1.f) / RAND_MAX;  // All random data
   }
+#endif
 }
 
 // add+relu
@@ -34,7 +55,7 @@ TEST(fuse_add_relu, fuse_add_relu) {
   auto c = program.elementwise_add(A, B, 1);
   auto d = program.relu(c);
 
-  Target target = common::DefaultHostTarget();
+  Target target = GetTarget();
   program.SetInputs({A, B});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
@@ -72,7 +93,7 @@ TEST(fuse_add, fuse_add) {
   auto c = program.elementwise_add(A, B, 1);
   auto d = program.elementwise_add(c, C, 1);
 
-  Target target = common::DefaultHostTarget();
+  Target target = GetTarget();
   program.SetInputs({A, B, C});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
@@ -130,7 +151,7 @@ TEST(conv_bn_conv, conv_bn_conv) {
   auto f = program.elementwise_mul(e, D);
   auto g = program.relu(f);
 
-  Target target = common::DefaultHostTarget();
+  Target target = GetTarget();
   program.SetInputs({A, B, C, D, E});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
@@ -181,7 +202,7 @@ TEST(fuse_conv_add, fuse_conv_add) {
   auto c = program.conv2d(A, B, attrs);
   auto d = program.elementwise_add(c, C, 1);
 
-  Target target = common::DefaultHostTarget();
+  Target target = GetTarget();
   program.SetInputs({A, B, C});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
@@ -239,7 +260,7 @@ TEST(conv_add_mul, conv_add_mul) {
   auto d = program.elementwise_add(c, Scale);
   auto e = program.elementwise_mul(d, Bias, 1);
 
-  Target target = common::DefaultHostTarget();
+  Target target = GetTarget();
   program.SetInputs({A, B, D});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
@@ -306,7 +327,7 @@ TEST(complex1, complex1) {
   auto e = program.relu(c);
   auto f = program.elementwise_add(d, e);
 
-  Target target = common::DefaultHostTarget();
+  Target target = GetTarget();
   program.SetInputs({A, B, C, D, E});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;
@@ -362,7 +383,7 @@ TEST(complex2, complex2) {
   auto e = program.relu(c);
   auto f = program.elementwise_add(d, e);
 
-  Target target = common::DefaultHostTarget();
+  Target target = GetTarget();
   program.SetInputs({A, B, C, D, E});
   program.Validate();
   LOG(INFO) << "Program:\n" << program;

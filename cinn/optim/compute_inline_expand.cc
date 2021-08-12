@@ -5,6 +5,7 @@
 
 #include "cinn/common/graph_utils.h"
 #include "cinn/ir/ir_mutator.h"
+#include "cinn/optim/replace_var_with_expr.h"
 
 namespace cinn {
 namespace optim {
@@ -15,14 +16,17 @@ namespace {
  * Replace a tensor(marked as compute_inline) to the expanded expression.
  */
 struct TensorInlineExpandMutator : public ir::IRMutator<> {
-  const std::string &tensor_name;
+  const std::string &tensor_name_;
   std::map<std::string, ir::Tensor> *all_tensor_map_;
+  poly::StageMap stages_;
   bool inline_code{false};
   bool temp_buffer{false};
   bool memory_local{false};
 
-  TensorInlineExpandMutator(const std::string &tensor_name, std::map<std::string, ir::Tensor> *all_tensor_map)
-      : tensor_name(tensor_name), all_tensor_map_(all_tensor_map) {}
+  TensorInlineExpandMutator(const std::string &tensor_name,
+                            std::map<std::string, ir::Tensor> *all_tensor_map,
+                            poly::StageMap stages)
+      : tensor_name_(tensor_name), all_tensor_map_(all_tensor_map), stages_(stages) {}
 
   void operator()(Expr *expr) { ir::IRMutator<>::Visit(expr, expr); }
 
@@ -47,7 +51,7 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
   void Visit(const ir::Load *op, Expr *expr) override {
     auto *node   = expr->As<ir::Load>();
     auto *tensor = node->tensor.as_tensor();
-    if (tensor && tensor->name == tensor_name) {
+    if (tensor && tensor->name == tensor_name_) {
       *expr       = tensor->inline_expanded(op->indices);
       inline_code = true;
       ir::IRMutator<>::Visit(expr, expr);
@@ -74,6 +78,19 @@ struct TensorInlineExpandMutator : public ir::IRMutator<> {
       } else if (utils::Endswith(tensor->buffer->name, "_write_cache") ||
                  utils::Endswith(tensor->buffer->name, "_read_cache") ||
                  utils::Endswith(tensor->buffer->name, "_temp_buffer")) {
+        auto axis_names  = stages_[tensor]->axis_names();
+        auto compute_ats = stages_[tensor]->GetComputeAts();
+        if (compute_ats.size() == 1) {
+          int level_tmp;
+          for (auto &i : compute_ats) {
+            level_tmp = i.second.level;
+          }
+          for (int i = 0; i < node->indices.size(); i++) {
+            for (int j = 0; j <= level_tmp; j++) {
+              ReplaceVarWithExpr(&(node->indices[i]), Var(axis_names[j]), Expr(0));
+            }
+          }
+        }
         bool keep_buffer       = temp_buffer;
         temp_buffer            = true;
         bool keep_memory_local = memory_local;
@@ -151,7 +168,7 @@ void ComputeInlineExpand(Expr *expr, poly::StageMap stages, std::map<std::string
   while (!inline_tensors.empty()) {
     for (const auto &t : inline_tensors) {
       auto *tensor = t.as_tensor();
-      TensorInlineExpandMutator(tensor->name, all_tensor_map)(expr);
+      TensorInlineExpandMutator(tensor->name, all_tensor_map, stages)(expr);
     }
 
     inline_tensors = ir::CollectLoadTensors(

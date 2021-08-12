@@ -372,7 +372,11 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
         oc_chunk, fc_chunk, dilation[0] * (h_f - 1) + 1, dilation[1] * (w_f - 1) + 1, fc_bn, oc_bn};
     std::vector<int> data_shape = {batch, ic_chunk, h_in, w_in, ic_bn};
     std::vector<int> res_shape  = {batch, oc, out_shape_h, out_shape_w};
+#ifdef CINN_WITH_CUDA
+    return {res_shape};
+#else
     return {res_shape, packed_out_shape, input_pad_shape, weights_dilation_shape};
+#endif
   } else if (data_format == "NHWC") {
     // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
     int out_shape_h =
@@ -390,7 +394,11 @@ std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type,
                                       const framework::NodeAttr &attrs,
                                       const Target &target) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+#ifdef CINN_WITH_CUDA
+  std::vector<Type> res{inputs_type[0]};
+#else
   std::vector<Type> res{inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0]};
+#endif
   return res;
 }
 
@@ -1831,14 +1839,18 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(conv2d)
       .describe("Do a 2-D convolution with an NCHW/NHWC layout.")
       .set_num_inputs(2)  // here we consider filter as another input
+#ifdef CINN_WITH_CUDA
+      .set_num_outputs(1)
+#else
       .set_num_outputs(4)
+#endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForConv2d))
 #endif
-#ifdef CINN_WITH_CUDA
+#ifdef CINN_WITH_CUDNN
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
 #else
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
@@ -1863,14 +1875,18 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(depthwise_conv2d)
       .describe("Do a 2-D depthwise convolution with an NCHW/NHWC layout.")
       .set_num_inputs(2)  // here we consider filter as another input
+#ifdef CINN_WITH_CUDA
+      .set_num_outputs(1)
+#else
       .set_num_outputs(4)
+#endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForConv2d))
 #endif
-#ifdef CINN_WITH_CUDA
+#ifdef CINN_WITH_CUDNN
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
 #else
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
