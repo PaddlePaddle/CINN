@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cinn/hlir/pe/schedule_param.pb.h"
 #include "cinn/ir/ir.h"
 #include "cinn/lang/compute.h"
 #include "cinn/poly/stage.h"
@@ -11,6 +12,24 @@
 namespace cinn {
 namespace hlir {
 namespace pe {
+class ScheduleParam {
+ public:
+  ~ScheduleParam();
+  ScheduleParam(const ScheduleParam &) = delete;
+  ScheduleParam &operator=(const ScheduleParam &) = delete;
+  static ScheduleParam &get_instance() {
+    static ScheduleParam instance;
+    return instance;
+  }
+  std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &GetParam() { return param_data; }
+  std::unordered_map<std::string, std::vector<int>> &operator[](const std::string &key) { return param_data[key]; }
+  int Count(const std::string &key) { return param_data.count(key); }
+
+ private:
+  ScheduleParam();
+  std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> param_data;
+};
+
 int GetInnerSplitter(int origin, int other_axis);
 
 int SplitEven(int origin);
@@ -55,6 +74,8 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
                                const ir::Tensor &data,
                                const common::Target &target);
 
+void PoolScheduleGPU(poly::StageMap stages, ir::Tensor &output, const common::Target &target);
+
 void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
                                       const ir::Tensor &res,
                                       ir::Tensor &packed_out,
@@ -92,12 +113,28 @@ void CudaScheduleMul(poly::StageMap stages,
                      const std::vector<int> &output_shape,
                      const common::Target &target);
 
-void CudaScheduleConv(poly::StageMap stages, ir::Tensor &input_pad, ir::Tensor &output, const common::Target &target);
+void CudaScheduleConv(poly::StageMap stages,
+                      ir::Tensor &input_pad,
+                      ir::Tensor &weights,
+                      ir::Tensor &output,
+                      const common::Target &target);
+
+void CudaScheduleConv2(poly::StageMap stages,
+                       ir::Tensor &input_pad,
+                       ir::Tensor &weights,
+                       ir::Tensor &output,
+                       const common::Target &target,
+                       const std::string &key);
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
 
 void CudaSplitSchedule(poly::Stage *stage, const std::vector<int> &output_shape);
 
+void CreateSerialData(const std::string &file_name = "default_serial.log");
+
+void LoadSerialData(const std::string &file_name = "default_serial.log");
+
+int GetMaxSplitter(int a, int b);
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

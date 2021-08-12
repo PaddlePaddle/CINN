@@ -83,6 +83,14 @@ std::tuple<Iterator, Iterator> Stage::SplitOuter(int level, int nparts) {
   return SplitOuter(axis_name, nparts);
 }
 
+int Stage::GetDimRange(int level) {
+  auto [minv, maxv] = isl_set_get_axis_range(transformed_domain().get(), level);
+  int max_iv        = maxv.get_num_si();
+  int min_iv        = minv.get_num_si();
+  CHECK_EQ(0, min_iv) << "The min range of level " << level << " in " << id() << " is not 0!";
+  return max_iv + 1;
+}
+
 std::tuple<Iterator, Iterator> Stage::SplitOuter(const Iterator &level, int nparts) {
   int offset = isl_set_find_dim_by_name(transformed_domain().get(), isl_dim_set, level.id.c_str());
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
@@ -674,6 +682,10 @@ Iterator Stage::Fuse(int level0, int level1) {
 
 Iterator Stage::Fuse(const std::vector<int> &levels) {
   auto dims = isl_get_dim_names(transformed_domain());
+  for (auto i : levels) {
+    AssertAxisIsNotLocked(i);
+    CHECK_LT(i, dims.size());
+  }
   Iterator fused_axis(dims[levels[0]]);
   for (size_t i = 1; i < levels.size(); i++) {
     fused_axis = Fuse(fused_axis, Iterator(dims[levels[i]]));
@@ -1203,7 +1215,7 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
   CHECK_LT(level, num_levels);
   auto transformed_domain = this->transformed_domain();
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
-    LOG(INFO) << "for-1 has no sense, skip it";
+    VLOG(3) << "for-1 has no sense, skip it";
     return;
   }
   int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);

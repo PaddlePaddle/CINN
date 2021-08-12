@@ -1,0 +1,15 @@
+syntax ="proto3";
+
+package cinn.hlir.proto;
+
+message StringData {
+  repeated string data = 1;
+}
+
+message ScheduleData {
+  map<string, StringData> data = 1;
+}
+
+message ModelData {
+  map<string, ScheduleData> data = 1;
+}

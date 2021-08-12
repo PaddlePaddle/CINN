@@ -103,68 +103,46 @@ typedef char int8_t;
 
 
 __global__
-void fn_conv2d_0_kernel(const float* __restrict__ A, const float* __restrict__ E, float* __restrict__ COD)
+void fn_conv2d_0_kernel(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ COD)
 {
-  __shared__ float _YY_read_cache [ 256 ];
-  __shared__ float _input_pad_read_cache [ 448 ];
+  __shared__ float _input_pad_0_read_cache [ 224 ];
   float _COD_write_cache [ 2 ];
+  __shared__ float _Y_read_cache [ 256 ];
   float* COD_write_cache = _COD_write_cache;
   float* COD_write_cache__reduce_init = _COD_write_cache;
-  float* YY_read_cache = _YY_read_cache;
-  float* input_pad_read_cache = _input_pad_read_cache;
+  float* Y_read_cache = _Y_read_cache;
+  float* input_pad_0_read_cache = _input_pad_0_read_cache;
   if ((blockIdx.z < 8)) {
     if ((blockIdx.y < 14)) {
       if ((threadIdx.z < 16)) {
         if ((threadIdx.x < 14)) {
-          for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-            COD_write_cache__reduce_init[j_inner] = 0;
+        {
+          for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
+            COD_write_cache__reduce_init[rc_outer] = 0;
           };
-        };
-      };
-    };
-  };
-  for (int32_t rc_outer = 0; rc_outer < 16; rc_outer += 1) {
-    {
-      __syncthreads();
-      if ((blockIdx.z < 8)) {
-        if ((threadIdx.z < 16)) {
-          for (int32_t j_outer_outer = 0; j_outer_outer < 2; j_outer_outer += 1) {
-            if ((threadIdx.x < 8)) {
-              YY_read_cache[((threadIdx.x / 2) + ((8 * (threadIdx.x % 2)) + ((4 * j_outer_outer) + (16 * threadIdx.z))))] = E[((threadIdx.x / 2) + ((128 * (threadIdx.x % 2)) + ((4096 * blockIdx.z) + ((4 * j_outer_outer) + ((8 * rc_outer) + (256 * threadIdx.z))))))];
+          for (int32_t rc_outer = 0; rc_outer < 16; rc_outer += 1) {
+            {
+              __syncthreads();
+              if ((threadIdx.z < 8)) {
+                input_pad_0_read_cache[((2 * threadIdx.x) + (28 * threadIdx.z))] = X[((56 * blockIdx.y) + ((6272 * rc_outer) + ((2 * threadIdx.x) + (784 * threadIdx.z))))];
+              };
             };
-          };
-        };
-      };
-    };
-    if ((threadIdx.z < 8)) {
-      if ((blockIdx.y < 14)) {
-        if ((threadIdx.x < 14)) {
-          input_pad_read_cache[((2 * threadIdx.x) + (28 * threadIdx.z))] = A[((56 * blockIdx.y) + ((6272 * rc_outer) + ((2 * threadIdx.x) + (784 * threadIdx.z))))];
-        };
-      };
-    };
-    __syncthreads();
-    for (int32_t rc_inner = 0; rc_inner < 8; rc_inner += 1) {
-      if ((blockIdx.z < 8)) {
-        if ((blockIdx.y < 14)) {
-          if ((threadIdx.z < 16)) {
-            if ((threadIdx.x < 14)) {
+            for (int32_t rc_inner = 0; rc_inner < 2; rc_inner += 1) {
+              if ((threadIdx.x < 8)) {
+                Y_read_cache[((threadIdx.x / 2) + ((8 * (threadIdx.x % 2)) + ((4 * rc_inner) + (16 * threadIdx.z))))] = Y[((threadIdx.x / 2) + ((128 * (threadIdx.x % 2)) + ((4096 * blockIdx.z) + ((4 * rc_inner) + ((8 * rc_outer) + (256 * threadIdx.z))))))];
+              };
+            };
+            __syncthreads();
+            for (int32_t rc_inner = 0; rc_inner < 8; rc_inner += 1) {
               for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-                COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_read_cache[((28 * rc_inner) + (2 * threadIdx.x))] * YY_read_cache[((8 * j_inner) + ((16 * threadIdx.z) + rc_inner))]));
+                COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2 * threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * threadIdx.z) + rc_inner))]));
               };
             };
           };
-        };
-      };
-    };
-  };
-  if ((blockIdx.z < 8)) {
-    if ((blockIdx.y < 14)) {
-      if ((threadIdx.z < 16)) {
-        if ((threadIdx.x < 14)) {
-          for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-            COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * j_inner) + ((392 * threadIdx.z) + threadIdx.x))))] = COD_write_cache[j_inner];
+          for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
+            COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * rc_outer) + ((392 * threadIdx.z) + threadIdx.x))))] = COD_write_cache[rc_outer];
           };
+        }
         };
       };
     };

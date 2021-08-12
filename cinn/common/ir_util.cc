@@ -127,14 +127,12 @@ Expr IndiceToAbsOffset(const std::vector<Expr> &shape, const std::vector<Expr> &
     for (int j = i + 1; j < shape.size(); j++) {
       indice_prod = RampRelatedMul(indice_prod, shape[j]);
     }
-
     if (res.defined()) {
       res = RampRelatedAdd(res, indice_prod);
     } else {
       res = indice_prod;
     }
   }
-
   return common::AutoSimplify(res);
 }
 
@@ -225,7 +223,6 @@ Expr or_all(const std::vector<Expr> &conds) {
 
 void CheckTensorUniqueInExpr(Expr expr) {
   auto tensor_uniq = ir::CollectIRNodes(expr, [](const Expr *x) { return x->as_tensor(); });
-  for (auto &t : tensor_uniq) LOG(INFO) << "found tensor: " << t << " " << t.as_tensor();
   std::unordered_map<std::string, const ir::_Tensor_ *> tensor_names;
   for (auto &t : tensor_uniq) {
     auto *tp = t.as_tensor();

@@ -283,8 +283,8 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
 
   auto stages = CreateStages(res);
 
-  auto pad_data = res[0];
-  auto conv     = res[1];
+  auto pad_data = res[1];
+  auto conv     = res[0];
 
   stages[pad_data]->ComputeInline();
   optim::Simplify(&(conv->shape[2]));
@@ -295,48 +295,74 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
   auto KR = stages[B]->CacheRead("shared", readers, stages);
   auto OL = stages[conv]->CacheWrite("local", stages, conv);
 
-  auto tx        = stages[conv]->axis(3);
-  auto by        = stages[conv]->axis(2);
-  auto [tem, fi] = stages[conv]->Split(1, 2);
-  auto [bz, tz]  = stages[conv]->Split(1, 16);
+  // x param is :  [1, 1, 14, 1]
+  stages[conv]->Split(3, 1);
+  stages[conv]->Split(3, 14);
+  stages[conv]->Split(3, 1);
+  // y param is :  [14, 1, 1, 1]
+  stages[conv]->Split(2, 1);
+  stages[conv]->Split(2, 1);
+  stages[conv]->Split(2, 1);
+  // f param is :  [8, 1, 16, 2]
+  stages[conv]->Split(1, 2);
+  stages[conv]->Split(1, 16);
+  stages[conv]->Split(1, 1);
 
-  stages[conv]->Reorder({bz, by, tz, tx, fi});
-
+  stages[conv]->Reorder({0, 1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12});
   stages[conv]->Bind(1, "blockIdx.z");
   stages[conv]->Bind(2, "blockIdx.y");
-  stages[conv]->Bind(3, "threadIdx.z");
-  stages[conv]->Bind(4, "threadIdx.x");
+  stages[conv]->Bind(3, "blockIdx.x");
+  stages[conv]->Bind(7, "threadIdx.z");
+  stages[conv]->Bind(8, "threadIdx.y");
+  stages[conv]->Bind(9, "threadIdx.x");
 
-  stages[OL]->ComputeAt3(stages[conv], 4);
-  stages[OL]->Split(6, 8);
+  stages[OL]->ComputeAt(stages[conv], 9);
 
-  stages[OL]->Reorder({6, 8, 9, 7, 0, 1, 2, 3, 4, 5});
+  // rx param is :  [1, 1]
+  stages[OL]->Split(15, 1);
+  // ry param is :  [1, 1]
+  stages[OL]->Split(14, 1);
+  // rc param is :  [16, 8]
+  stages[OL]->Split(13, 8);
 
-  stages[OL]->Bind(5, "blockIdx.z");
-  stages[OL]->Bind(6, "blockIdx.y");
-  stages[OL]->Bind(7, "threadIdx.z");
-  stages[OL]->Bind(8, "threadIdx.x");
+  stages[OL]->Reorder({13, 15, 17, 14, 16, 18, 10, 11, 12});
 
-  stages[KR]->ComputeAt(stages[OL], 2);
   auto OL_init = OL->GetInitTensor(stages, target);
+  stages[PR]->ComputeAt(stages[OL], 12);
+  stages[KR]->ComputeAt(stages[OL], 12);
 
-  stages[PR]->ComputeAt(stages[OL], 2);
+  stages[PR]->SyncThreads(12, {OL_init}, stages);
+  stages[KR]->CtrlDepend(PR);
+  stages[KR]->SyncThreads(stages);
 
-  stages[PR]->SyncThreads(stages);
-  stages[PR]->SyncThreads(2, {OL_init}, stages);
+  if (stages[PR]->n_out_dims() == 18) {
+    stages[PR]->Fuse({13, 14, 15, 16, 17});
+  } else {
+    LOG(ERROR) << "PR number of output dims is wrong!";
+  }
 
-  stages[KR]->Split(5, 32);
-  stages[KR]->Split(6, 2);
-  stages[KR]->Reorder({5, 6, 3, 4, 7});
-  stages[KR]->Fuse({5, 6, 7});
-  stages[KR]->Split(5, 8);
-  stages[KR]->Bind(3, "blockIdx.z");
-  stages[KR]->Bind(4, "threadIdx.z");
-  stages[KR]->Bind(6, "threadIdx.x");
+  if (stages[KR]->n_out_dims() == 18) {
+    stages[KR]->Fuse({13, 14, 15, 16, 17});
+  } else if (stages[KR]->n_out_dims() == 19) {
+    stages[KR]->Fuse({13, 14, 15, 16, 17, 18});
+  } else {
+    LOG(ERROR) << "KR number of output dims is wrong!";
+  }
+  int thread_z = 16;
+  int thread_x = 8;
+  if (stages[PR]->GetDimRange(13) <= thread_z) {
+    stages[PR]->Bind(13, "threadIdx.z");
+  } else {
+    stages[PR]->Split(13, thread_z);
+    stages[PR]->Bind(14, "threadIdx.z");
+  }
 
-  stages[PR]->Bind(5, "blockIdx.y");
-  stages[PR]->Bind(3, "threadIdx.z");
-  stages[PR]->Bind(6, "threadIdx.x");
+  if (stages[KR]->GetDimRange(13) <= thread_x) {
+    stages[KR]->Bind(13, "threadIdx.x");
+  } else {
+    stages[KR]->Split(13, thread_x);
+    stages[KR]->Bind(14, "threadIdx.x");
+  }
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -364,9 +390,9 @@ typedef char int8_t;
 __global__
 void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ COD)
 {
+  __shared__ float _input_pad_0_read_cache [ 224 ];
   float _COD_write_cache [ 2 ];
   __shared__ float _Y_read_cache [ 256 ];
-  __shared__ float _input_pad_0_read_cache [ 448 ];
   float* COD_write_cache = _COD_write_cache;
   float* COD_write_cache__reduce_init = _COD_write_cache;
   float* Y_read_cache = _Y_read_cache;
@@ -375,55 +401,33 @@ void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y,
     if ((blockIdx.y < 14)) {
       if ((threadIdx.z < 16)) {
         if ((threadIdx.x < 14)) {
-          for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-            COD_write_cache__reduce_init[j_inner] = 0;
+        {
+          for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
+            COD_write_cache__reduce_init[rc_outer] = 0;
           };
-        };
-      };
-    };
-  };
-  for (int32_t rc_outer = 0; rc_outer < 16; rc_outer += 1) {
-    {
-      __syncthreads();
-      if ((blockIdx.z < 8)) {
-        if ((threadIdx.z < 16)) {
-          for (int32_t j_outer_outer = 0; j_outer_outer < 2; j_outer_outer += 1) {
-            if ((threadIdx.x < 8)) {
-              Y_read_cache[((threadIdx.x / 2) + ((8 * (threadIdx.x % 2)) + ((4 * j_outer_outer) + (16 * threadIdx.z))))] = Y[((threadIdx.x / 2) + ((128 * (threadIdx.x % 2)) + ((4096 * blockIdx.z) + ((4 * j_outer_outer) + ((8 * rc_outer) + (256 * threadIdx.z))))))];
+          for (int32_t rc_outer = 0; rc_outer < 16; rc_outer += 1) {
+            {
+              __syncthreads();
+              if ((threadIdx.z < 8)) {
+                input_pad_0_read_cache[((2 * threadIdx.x) + (28 * threadIdx.z))] = X[((56 * blockIdx.y) + ((6272 * rc_outer) + ((2 * threadIdx.x) + (784 * threadIdx.z))))];
+              };
             };
-          };
-        };
-      };
-    };
-    if ((threadIdx.z < 8)) {
-      if ((blockIdx.y < 14)) {
-        if ((threadIdx.x < 14)) {
-          input_pad_0_read_cache[((2 * threadIdx.x) + (28 * threadIdx.z))] = X[((56 * blockIdx.y) + ((6272 * rc_outer) + ((2 * threadIdx.x) + (784 * threadIdx.z))))];
-        };
-      };
-    };
-    __syncthreads();
-    for (int32_t rc_inner = 0; rc_inner < 8; rc_inner += 1) {
-      if ((blockIdx.z < 8)) {
-        if ((blockIdx.y < 14)) {
-          if ((threadIdx.z < 16)) {
-            if ((threadIdx.x < 14)) {
+            for (int32_t rc_inner = 0; rc_inner < 2; rc_inner += 1) {
+              if ((threadIdx.x < 8)) {
+                Y_read_cache[((threadIdx.x / 2) + ((8 * (threadIdx.x % 2)) + ((4 * rc_inner) + (16 * threadIdx.z))))] = Y[((threadIdx.x / 2) + ((128 * (threadIdx.x % 2)) + ((4096 * blockIdx.z) + ((4 * rc_inner) + ((8 * rc_outer) + (256 * threadIdx.z))))))];
+              };
+            };
+            __syncthreads();
+            for (int32_t rc_inner = 0; rc_inner < 8; rc_inner += 1) {
               for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
                 COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2 * threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * threadIdx.z) + rc_inner))]));
               };
             };
           };
-        };
-      };
-    };
-  };
-  if ((blockIdx.z < 8)) {
-    if ((blockIdx.y < 14)) {
-      if ((threadIdx.z < 16)) {
-        if ((threadIdx.x < 14)) {
-          for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-            COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * j_inner) + ((392 * threadIdx.z) + threadIdx.x))))] = COD_write_cache[j_inner];
+          for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
+            COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * rc_outer) + ((392 * threadIdx.z) + threadIdx.x))))] = COD_write_cache[rc_outer];
           };
+        }
         };
       };
     };
@@ -499,8 +503,8 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_1) {
 
   auto stages = CreateStages(res);
 
-  auto pad_data = res[0];
-  auto conv     = res[1];
+  auto pad_data = res[1];
+  auto conv     = res[0];
 
   stages[pad_data]->ComputeInline();
   optim::Simplify(&(conv->shape[2]));
@@ -551,15 +555,33 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_1) {
   stages[KR]->CtrlDepend(PR);
   stages[KR]->SyncThreads(stages);
 
-  stages[PR]->Fuse({13, 14, 15, 16, 17});
-  stages[KR]->Fuse({13, 14, 15, 16, 17, 18});
-  stages[PR]->Bind(13, "threadIdx.z");
-  stages[KR]->Bind(13, "threadIdx.x");
+  if (stages[PR]->n_out_dims() == 18) {
+    stages[PR]->Fuse({13, 14, 15, 16, 17});
+  } else {
+    LOG(ERROR) << "PR number of output dims is wrong!";
+  }
 
-  LOG(INFO) << "PR is : ";
-  stages[PR]->ShowISL();
-  LOG(INFO) << "KR is : ";
-  stages[KR]->ShowISL();
+  if (stages[KR]->n_out_dims() == 18) {
+    stages[KR]->Fuse({13, 14, 15, 16, 17});
+  } else if (stages[KR]->n_out_dims() == 19) {
+    stages[KR]->Fuse({13, 14, 15, 16, 17, 18});
+  } else {
+    LOG(ERROR) << "KR number of output dims is wrong!";
+  }
+  int thread_z = 8;
+  int thread_x = 16;
+  if (stages[PR]->GetDimRange(13) <= thread_z) {
+    stages[PR]->Bind(13, "threadIdx.z");
+  } else {
+    stages[PR]->Split(13, hlir::pe::GetMaxSplitter(stages[PR]->GetDimRange(13), thread_z));
+    stages[PR]->Bind(14, "threadIdx.z");
+  }
+  if (stages[KR]->GetDimRange(13) <= thread_x) {
+    stages[KR]->Bind(13, "threadIdx.x");
+  } else {
+    stages[KR]->Split(13, hlir::pe::GetMaxSplitter(stages[KR]->GetDimRange(13), thread_x));
+    stages[KR]->Bind(14, "threadIdx.x");
+  }
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -588,8 +610,8 @@ __global__
 void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ Conv2d_out)
 {
   float _Conv2d_out_write_cache [ 2 ];
-  __shared__ float _Y_read_cache [ 112 ];
   __shared__ float _input_pad_0_read_cache [ 76 ];
+  __shared__ float _Y_read_cache [ 112 ];
   float* Conv2d_out_write_cache = _Conv2d_out_write_cache;
   float* Conv2d_out_write_cache__reduce_init = _Conv2d_out_write_cache;
   float* Y_read_cache = _Y_read_cache;
@@ -634,7 +656,7 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
 }
 
 }
-)ROC";
+  )ROC";
   std::string trimed_source_target = utils::Trim(source_target);
   int start_target                 = trimed_source_target.find("blockIdx");
   int start_source                 = source_code.find("blockIdx");
@@ -678,6 +700,7 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
   time1.Start();
   for (int i = 0; i < repeat; i++) {
     cuda_module.LaunchKernel(0, "schedule_conv2d_1", grid, block, args);
+    CUDA_CALL(cudaDeviceSynchronize());
   }
   auto time_average1 = time1.Stop() / float(repeat);
   LOG(INFO) << "Conv2d op1_CINN with schedule repeats " << repeat << " times, average time cost is : " << time_average1
@@ -686,56 +709,64 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
       host_data3.data(), reinterpret_cast<void*>(Cd), host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
 
   std::string source_tvm = R"ROC(
-extern "C" {
+  extern "C" {
 
-#include "cinn_cuda_runtime_source.cuh"
+  #include "cinn_cuda_runtime_source.cuh"
 
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
+  #ifdef __CUDACC_RTC__
+  typedef int int32_t;
+  typedef char int8_t;
+  #endif
 
 
-__global__ void schedule_conv2d_1(float* __restrict__ placeholder, float* __restrict__ placeholder1, float* __restrict__ Conv2d_out) {
-  float compute[2];
-  __shared__ float pad_temp_shared[37];
-  __shared__ float placeholder_shared[112];
-  for (int ax1_inner_outer = 0; ax1_inner_outer < 4; ++ax1_inner_outer) {
-    for (int ax3_inner_outer = 0; ax3_inner_outer < 7; ++ax3_inner_outer) {
-      for (int ff_init = 0; ff_init < 2; ++ff_init) {
-        compute[(ff_init)] = 0.000000e+00f;
-      }
-      for (int rc_outer = 0; rc_outer < 3; ++rc_outer) {
-        for (int ry_outer = 0; ry_outer < 7; ++ry_outer) {
-          __syncthreads();
-          if (((((int)threadIdx.z) * 5) + ((int)threadIdx.x)) < 37) {
-            if (((int)threadIdx.x) < 5) {
-              pad_temp_shared[(((((int)threadIdx.z) * 5) + ((int)threadIdx.x)))] = (((((3 <= ((((int)blockIdx.y) * 2) + ry_outer)) && (((((int)blockIdx.y) * 2) + ry_outer) < 227)) && (3 <= (((ax3_inner_outer * 32) + (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)))) && ((((ax3_inner_outer * 32) + (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) < 227)) ? placeholder[((((((((rc_outer * 50176) + (((int)blockIdx.y) * 448)) + (ry_outer * 224)) + (ax3_inner_outer * 32)) + (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) - 675))] : 0.000000e+00f);
+  __global__ void schedule_conv2d_1(float* __restrict__ placeholder, float* __restrict__ placeholder1, float*
+  __restrict__ Conv2d_out) { float compute[2];
+    __shared__ float pad_temp_shared[37];
+    __shared__ float placeholder_shared[112];
+    for (int ax1_inner_outer = 0; ax1_inner_outer < 4; ++ax1_inner_outer) {
+      for (int ax3_inner_outer = 0; ax3_inner_outer < 7; ++ax3_inner_outer) {
+        for (int ff_init = 0; ff_init < 2; ++ff_init) {
+          compute[(ff_init)] = 0.000000e+00f;
+        }
+        for (int rc_outer = 0; rc_outer < 3; ++rc_outer) {
+          for (int ry_outer = 0; ry_outer < 7; ++ry_outer) {
+            __syncthreads();
+            if (((((int)threadIdx.z) * 5) + ((int)threadIdx.x)) < 37) {
+              if (((int)threadIdx.x) < 5) {
+                pad_temp_shared[(((((int)threadIdx.z) * 5) + ((int)threadIdx.x)))] = (((((3 <= ((((int)blockIdx.y) * 2)
+  + ry_outer)) && (((((int)blockIdx.y) * 2) + ry_outer) < 227)) && (3 <= (((ax3_inner_outer * 32) + (((int)threadIdx.z)
+  * 5)) + ((int)threadIdx.x)))) && ((((ax3_inner_outer * 32) + (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) < 227)) ?
+  placeholder[((((((((rc_outer * 50176) + (((int)blockIdx.y) * 448)) + (ry_outer * 224)) + (ax3_inner_outer * 32)) +
+  (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) - 675))] : 0.000000e+00f);
+              }
             }
-          }
-          if (((((int)threadIdx.z) * 2) + (((int)threadIdx.x) / 7)) < 16) {
-            if (((((int)threadIdx.z) * 14) + ((int)threadIdx.x)) < 112) {
-              if (((int)threadIdx.x) < 14) {
-                placeholder_shared[(((((int)threadIdx.z) * 14) + ((int)threadIdx.x)))] = placeholder1[(((((((ax1_inner_outer * 2352) + (((int)threadIdx.z) * 294)) + ((((int)threadIdx.x) / 7) * 147)) + (rc_outer * 49)) + (ry_outer * 7)) + (((int)threadIdx.x) % 7)))];
+            if (((((int)threadIdx.z) * 2) + (((int)threadIdx.x) / 7)) < 16) {
+              if (((((int)threadIdx.z) * 14) + ((int)threadIdx.x)) < 112) {
+                if (((int)threadIdx.x) < 14) {
+                  placeholder_shared[(((((int)threadIdx.z) * 14) + ((int)threadIdx.x)))] =
+  placeholder1[(((((((ax1_inner_outer * 2352) + (((int)threadIdx.z) * 294)) + ((((int)threadIdx.x) / 7) * 147)) +
+  (rc_outer * 49)) + (ry_outer * 7)) + (((int)threadIdx.x) % 7)))];
+                }
+              }
+            }
+            __syncthreads();
+            for (int rx_inner = 0; rx_inner < 7; ++rx_inner) {
+              for (int ff = 0; ff < 2; ++ff) {
+                compute[(ff)] = (compute[(ff)] + (pad_temp_shared[(((((int)threadIdx.x) * 2) + rx_inner))] *
+  placeholder_shared[((((((int)threadIdx.z) * 14) + (ff * 7)) + rx_inner))]));
               }
             }
           }
-          __syncthreads();
-          for (int rx_inner = 0; rx_inner < 7; ++rx_inner) {
-            for (int ff = 0; ff < 2; ++ff) {
-              compute[(ff)] = (compute[(ff)] + (pad_temp_shared[(((((int)threadIdx.x) * 2) + rx_inner))] * placeholder_shared[((((((int)threadIdx.z) * 14) + (ff * 7)) + rx_inner))]));
-            }
-          }
         }
-      }
-      for (int ax1_inner_inner_inner = 0; ax1_inner_inner_inner < 2; ++ax1_inner_inner_inner) {
-        Conv2d_out[(((((((ax1_inner_outer * 200704) + (((int)threadIdx.z) * 25088)) + (ax1_inner_inner_inner * 12544)) + (((int)blockIdx.y) * 112)) + (ax3_inner_outer * 16)) + ((int)threadIdx.x)))] = compute[(ax1_inner_inner_inner)];
+        for (int ax1_inner_inner_inner = 0; ax1_inner_inner_inner < 2; ++ax1_inner_inner_inner) {
+          Conv2d_out[(((((((ax1_inner_outer * 200704) + (((int)threadIdx.z) * 25088)) + (ax1_inner_inner_inner * 12544))
+  + (((int)blockIdx.y) * 112)) + (ax3_inner_outer * 16)) + ((int)threadIdx.x)))] = compute[(ax1_inner_inner_inner)];
+        }
       }
     }
   }
-}
-}
-)ROC";
+  }
+  )ROC";
 
   backends::NVRTC_Compiler compiler_tvm;
 
@@ -753,6 +784,7 @@ __global__ void schedule_conv2d_1(float* __restrict__ placeholder, float* __rest
   time2.Start();
   for (int i = 0; i < repeat; i++) {
     cuda_module_tvm.LaunchKernel(0, "schedule_conv2d_1", grid, block, args);
+    CUDA_CALL(cudaDeviceSynchronize());
   }
   auto time_average2 = time2.Stop() / float(repeat);
   LOG(INFO) << "Conv2d op1_TVM with schedule repeats " << repeat << " times, average time cost is : " << time_average2
@@ -1797,7 +1829,7 @@ typedef char int8_t;
 __global__
 void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  float _A_read_cache [ 3 * 1 ];
+  float _A_read_cache [ 3 ];
   float* A_read_cache = _A_read_cache;
   if ((threadIdx.x < 98)) {
     if ((blockIdx.x < 20)) {
@@ -1903,7 +1935,7 @@ typedef char int8_t;
 __global__
 void fn_cacheread_computeat1(const float* __restrict__ AA, float* __restrict__ C)
 {
-  __shared__ float _AA_read_cache [ 6 * 100 ];
+  __shared__ float _AA_read_cache [ 600 ];
   float* AA_read_cache = _AA_read_cache;
   if ((blockIdx.x < 95)) {
     if ((threadIdx.x < 95)) {
@@ -2005,7 +2037,7 @@ typedef char int8_t;
 __global__
 void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C)
 {
-  float _AA_read_cache [ 6 * 6 ];
+  float _AA_read_cache [ 36 ];
   float* AA_read_cache = _AA_read_cache;
   if ((blockIdx.x < 50)) {
     if ((threadIdx.x < 5)) {

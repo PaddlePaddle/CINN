@@ -83,7 +83,7 @@ add_subdirectory(cinnrt)
 add_subdirectory(tests)
 add_subdirectory(tutorials)
 
-cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto paddle_framework_proto ${MLIR_ALL_LIBS})
+cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto ${MLIR_ALL_LIBS})
 if (TARGET LLVM)
   target_link_libraries(cinncore LLVM)
 else()
@@ -119,6 +119,7 @@ if (PUBLISH_LIBS)
         COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/build_demo.sh ${CMAKE_BINARY_DIR}/dist/build_demo.sh
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/libcinncore.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libcinncore.a
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/frontend/paddle/libframework_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libframework_proto.a
+        COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/hlir/pe/libparam_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libparam_proto.a
         COMMAND cmake -E copy_directory ${LLVM11_DIR} ${CMAKE_BINARY_DIR}/dist/third_party/llvm11
         COMMAND cmake -E copy_directory ${CMAKE_BINARY_DIR}/thirds/install ${CMAKE_BINARY_DIR}/dist/third_party
         COMMENT "distribute libcinncore.a and related header files."

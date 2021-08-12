@@ -154,18 +154,23 @@ void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs,
 
   float *out_data = reinterpret_cast<float *>(output->memory);
 
-  std::unordered_map<int, int> &algo_map = SerialData::get_instance().GetMap();
-  int hash_size = weights_n * weights_c * weights_h * weights_w + input_n * input_c * input_h * input_w -
-                  output_n * output_c * output_h * output_w;
+  std::unordered_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
+
+  std::string hash_str = std::to_string(input_n) + "," + std::to_string(input_c) + "," + std::to_string(input_h) + "," +
+                         std::to_string(input_w) + "," + std::to_string(weights_n) + "," + std::to_string(weights_c) +
+                         "," + std::to_string(weights_h) + "," + std::to_string(weights_w) + "," +
+                         std::to_string(output_n) + "," + std::to_string(output_c) + "," + std::to_string(output_h) +
+                         "," + std::to_string(output_w);
+
   cudnnConvolutionFwdAlgo_t algo;
-  if (algo_map.count(hash_size) != 0) {
-    algo = cudnnConvolutionFwdAlgo_t(algo_map[hash_size]);
+  if (algo_map.count(hash_str) != 0) {
+    algo = cudnnConvolutionFwdAlgo_t(algo_map[hash_str]);
   } else {
     cudnnConvolutionFwdAlgoPerf_t algo_perf;
     int count;
     cudnnFindConvolutionForwardAlgorithm(cudnn, in_desc, filt_desc, conv_desc, out_desc, 1, &count, &algo_perf);
-    algo_map[hash_size] = int(algo_perf.algo);
-    algo                = algo_perf.algo;
+    algo_map[hash_str] = int(algo_perf.algo);
+    algo               = algo_perf.algo;
   }
   size_t ws_size;
   CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(cudnn, in_desc, filt_desc, conv_desc, out_desc, algo, &ws_size));

@@ -168,7 +168,11 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
   void ResizeTempMemory(const std::string& tensor_name, int index) {
     if (extent_.defined()) {
       std::string buffer_id = (*global_tensor_map_)[tensor_name]->buffer->name + var_->name;
-      if (resized_buffer_.count(buffer_id) != 0) return;
+      if (resized_buffer_.count(buffer_id) != 0) {
+        std::vector<Expr> buffer_shape               = (*global_tensor_map_)[tensor_name]->buffer->shape;
+        (*global_tensor_map_).at(tensor_name)->shape = buffer_shape;
+        return;
+      }
       auto buffer_shape              = (*global_tensor_map_)[tensor_name]->buffer->shape;
       std::vector<Expr> tensor_shape = (*global_tensor_map_).at(tensor_name)->shape;
       VLOG(3) << tensor_name << " tensor's Original Shape is : ";
@@ -196,21 +200,10 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
 
       resized_buffer_.insert(buffer_id);
-      VLOG(3) << tensor_name << " tensor's New Shape is : ";
-      Expr prod_new(1);
-      for (auto& i : tensor_shape) {
-        VLOG(3) << i;
-        if (i.is_constant() && i.get_constant() != 0.f) {
-          prod_new = ir::Mul::Make(prod_new, i);
-        }
-      }
-      Simplify(&prod_new);
-      ReplaceConstParamToInteger(&prod_new);
-      std::vector<Expr> new_shape{prod_new};
+      std::vector<Expr> new_shape                       = tensor_shape;
       (*global_tensor_map_)[tensor_name]->buffer->shape = new_shape;
-      VLOG(3) << buffer_id << " buffer's New Shape prod_new is : " << prod_new;
     } else {
-      VLOG(3) << "extent not defined";
+      LOG(INFO) << "extent not defined";
     }
   }
 

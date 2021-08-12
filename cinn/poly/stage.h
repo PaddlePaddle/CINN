@@ -177,6 +177,8 @@ class Stage : public Object {
   std::tuple<Iterator, Iterator, Iterator, Iterator>  //
   Tile(int level0, int level1, int factor0, int factor1);
 
+  int GetDimRange(int level);
+
   /**
    * Vectorize the stage in \p level.
    * @param level

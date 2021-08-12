@@ -80,14 +80,6 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
         },
         UniqName("input_pad"));
   }
-  auto weights_dilation = Compute(
-      new_weights_shape,
-      [=](Expr nn, Expr cc, Expr yy, Expr xx) {
-        auto cond = lang::logic_and({(yy) % dilation_h == 0, xx % dilation_w == 0});
-        return ir::Select::Make(
-            cond, weights(nn, cc, yy / dilation_h, xx / dilation_w), common::make_const(weights->type(), 0));
-      },
-      UniqName("weights_dilation"));
 
   Var rc(weights->shape[1], UniqName("rc"));
   Var ry(weights->shape[2], UniqName("ry"));
@@ -103,7 +95,7 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                                {rc, ry, rx});
       },
       output_name);
-  return {input_pad, res};
+  return {res, input_pad};
 }
 
 std::vector<ir::Tensor> Conv2d_NCHW_5D(const ir::Tensor &input,
@@ -364,7 +356,7 @@ std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
             {fy, fx, fc});
       },
       output_name);
-  return {input_pad, weights_dilation, res};
+  return {res, input_pad, weights_dilation};
 }
 
 std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
