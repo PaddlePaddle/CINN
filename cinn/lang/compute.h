@@ -51,6 +51,11 @@ ir::Tensor Compute(const std::vector<Expr> &domain,
                    const std::vector<Expr> &shape = {});
 
 ir::Tensor Compute(const std::vector<Expr> &domain,
+                   std::function<Expr(Expr, Expr, Expr, Expr, Expr, Expr, Expr)> fn,
+                   const std::string &name        = "",
+                   const std::vector<Expr> &shape = {});
+
+ir::Tensor Compute(const std::vector<Expr> &domain,
                    compute_handler_t fn,
                    const std::string &name        = "",
                    const std::vector<Expr> &shape = {});

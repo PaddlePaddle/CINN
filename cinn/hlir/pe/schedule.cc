@@ -13,6 +13,7 @@
 #include "cinn/common/cas.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/poly/isl_utils.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace hlir {
@@ -21,6 +22,39 @@ namespace pe {
 ScheduleParam::ScheduleParam() {}
 
 ScheduleParam::~ScheduleParam() {}
+
+poly::StageMap PrepareStages(const std::vector<ir::Tensor> &tensor_args, std::vector<ir::Tensor> &other_tensors) {
+  std::vector<ir::Tensor> all_tensors = other_tensors;
+  for (auto &i : tensor_args) {
+    all_tensors.push_back(i);
+  }
+  auto stages            = poly::CreateStages(all_tensors);
+  bool has_reduce_tensor = false;
+  ir::Tensor temp_reduce;
+  for (auto &i : other_tensors) {
+    if (!i->is_reduce_tensor())
+      stages[i]->ComputeInline();
+    else {
+      has_reduce_tensor  = true;
+      auto i_cache_write = stages[i]->CacheWrite("local", stages, i);
+      temp_reduce        = i_cache_write;
+      stages[i]->ComputeInline();
+    }
+  }
+  if (!has_reduce_tensor) {
+    for (auto &i : tensor_args) {
+      if (i->is_compute_node()) {
+        std::vector<int> tmp_shape;
+        for (auto &j : i->shape) {
+          LOG(INFO) << "output shape is : " << j;
+          tmp_shape.push_back(j.as_int32());
+        }
+        ScheduleInjectiveCPU(stages[i], tmp_shape, common::DefaultHostTarget());
+      }
+    }
+  }
+  return stages;
+}
 
 int GetInnerSplitter(int origin, int other_axis) {
   int two_exp = 1;

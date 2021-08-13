@@ -71,7 +71,7 @@ void _Buffer_::BindTo(const Tensor &tensor) { BindTo(tensor.As<_Tensor_>()); }
 void _Buffer_::BindTo(const _Tensor_ *tensor) {
   if (name.empty()) name = TensorGetBufferName(tensor);
   if (type().is_unk()) set_type(tensor->type());
-  CHECK(!tensor->shape.empty()) << "Tensor should have shape to bind to a Buffer";
+  CHECK(!tensor->shape.empty()) << "Tensor " << tensor->name << " should have shape to bind to a Buffer";
   shape = tensor->shape;
   binded_tensors_names_.insert(tensor->name);
 }

@@ -22,10 +22,10 @@ namespace pe {
  * shape(A) = (2, 3, 4, 5), shape(B) = (2), with axis=0
  * shape(A) = (2, 3, 4, 5), shape(B) = (2, 1), with axis=0
  */
-#define HLIR_DCL_BC_PE(name__)                                         \
-  ir::Tensor name__(const ir::Tensor& A,                               \
-                    const ir::Tensor& B,                               \
-                    const std::string& out_name = "T_" #name__ "_out", \
+#define HLIR_DCL_BC_PE(name__)                                                   \
+  ir::Tensor name__(const ir::Tensor& A,                                         \
+                    const ir::Tensor& B,                                         \
+                    const std::string& out_name = UniqName("T_" #name__ "_out"), \
                     const Expr& axis            = Expr());
 
 //! Compute A + B with auto-broadcasting.
