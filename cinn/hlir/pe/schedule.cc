@@ -52,6 +52,18 @@ poly::StageMap PrepareStages(const std::vector<ir::Tensor> &tensor_args, std::ve
         ScheduleInjectiveCPU(stages[i], tmp_shape, common::DefaultHostTarget());
       }
     }
+  } else {
+    for (auto &i : tensor_args) {
+      if (i->is_compute_node()) {
+        std::map<std::string, poly::ComputeAtRelation> compute_ats;
+        poly::ComputeAtRelation relation;
+        relation.stage               = stages[i];
+        relation.level               = 3;
+        compute_ats[stages[i]->id()] = relation;
+        stages[i]->CtrlDepend(temp_reduce);
+        stages[temp_reduce]->SetComputeAts(compute_ats);
+      }
+    }
   }
   return stages;
 }
