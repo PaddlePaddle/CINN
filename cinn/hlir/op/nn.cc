@@ -9,7 +9,7 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/layout.h"
 #include "cinn/poly/stage.h"
-
+#include <iostream>
 namespace cinn {
 namespace hlir {
 namespace op {
@@ -209,74 +209,74 @@ std::shared_ptr<OpStrategy> StrategyForConv2d_winograd(const framework::NodeAttr
   });
 
   framework::CINNSchedule conv2d_winograd_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
-    CINNValuePack arg_pack = args[0];
-    poly::StageMap stages = arg_pack.back();
-    if (arg_pack.size() == 4UL) {
-      Expr input_pad = arg_pack[0];
-      CHECK(input_pad.as_tensor());
-      stages[input_pad.as_tensor_ref()]->ComputeInline();
-      Expr weights_dilation = arg_pack[1];
-      CHECK(weights_dilation.as_tensor());
-      stages[weights_dilation.as_tensor_ref()]->ComputeInline();
-    }
-    if (target.arch == Target::Arch::NVGPU) {
-      Expr Out           = arg_pack[1];
-      Expr input_pad     = arg_pack[0];
-      ir::Tensor out_t   = Out.as_tensor_ref();
-      ir::Tensor input_t = input_pad.as_tensor_ref();
-      CHECK(Out.as_tensor());
-      pe::CudaScheduleConv(stages, input_t, out_t, target);
-      arg_pack[1] = Expr(out_t);
-      arg_pack[0] = Expr(input_t);
-    } else if (target.arch == Target::Arch::X86) {
-      if (arg_pack.size() == 6UL) {
-        Expr res              = arg_pack[0];
-        Expr packed_out       = arg_pack[1];
-        Expr input_pad        = arg_pack[2];
-        Expr weights_dilation = arg_pack[3];
-        Expr data             = arg_pack[4];
-        CHECK(res.as_tensor());
-        CHECK(packed_out.as_tensor());
-        CHECK(input_pad.as_tensor());
-        CHECK(weights_dilation.as_tensor());
-        CHECK(data.as_tensor());
-        std::vector<Expr> kernel_shape = weights_dilation.as_tensor_ref()->shape;
-        // kernel_h == 1 && kernel_w == 1
-        CHECK_EQ(kernel_shape.size(), 6U) << "kernel_dialtion shape size should be 6";
-        bool is_1x1 = (is_zero(kernel_shape[2] - 1)) && (is_zero(kernel_shape[3] - 1));
-        // Todo: 1*1 schedule is not so much good, may need to optimize schedule further.
-        is_1x1                       = false;
-        ir::Tensor packed_out_tensor = packed_out.as_tensor_ref();
-        if (is_1x1) {
-          pe::Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(stages,
-                                                   res.as_tensor_ref(),
-                                                   packed_out_tensor,
-                                                   input_pad.as_tensor_ref(),
-                                                   weights_dilation.as_tensor_ref(),
-                                                   data.as_tensor_ref(),
-                                                   target);
-        } else {
-          pe::Conv2d_NCHWc_Schedule_CPU_Nofuse(stages,
-                                               res.as_tensor_ref(),
-                                               packed_out_tensor,
-                                               input_pad.as_tensor_ref(),
-                                               weights_dilation.as_tensor_ref(),
-                                               data.as_tensor_ref(),
-                                               target);
-        }
-        *ret =
-            CINNValuePack{{CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], arg_pack[3], CINNValue(stages)}};
-        return;
-      }
-    }
-    if (target.arch == Target::Arch::NVGPU) {
-      *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
-    } else if (arg_pack.size() == 4UL) {
-      *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
-    } else {
-      *ret = arg_pack;
-    }
+    // CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
+    // CINNValuePack arg_pack = args[0];
+    // poly::StageMap stages = arg_pack.back();
+    // if (arg_pack.size() == 4UL) {
+    //   Expr input_pad = arg_pack[0];
+    //   CHECK(input_pad.as_tensor());
+    //   stages[input_pad.as_tensor_ref()]->ComputeInline();
+    //   Expr weights_dilation = arg_pack[1];
+    //   CHECK(weights_dilation.as_tensor());
+    //   stages[weights_dilation.as_tensor_ref()]->ComputeInline();
+    // }
+    // if (target.arch == Target::Arch::NVGPU) {
+    //   Expr Out           = arg_pack[1];
+    //   Expr input_pad     = arg_pack[0];
+    //   ir::Tensor out_t   = Out.as_tensor_ref();
+    //   ir::Tensor input_t = input_pad.as_tensor_ref();
+    //   CHECK(Out.as_tensor());
+    //   pe::CudaScheduleConv(stages, input_t, out_t, target);
+    //   arg_pack[1] = Expr(out_t);
+    //   arg_pack[0] = Expr(input_t);
+    // } else if (target.arch == Target::Arch::X86) {
+    //   if (arg_pack.size() == 6UL) {
+    //     Expr res              = arg_pack[0];
+    //     Expr packed_out       = arg_pack[1];
+    //     Expr input_pad        = arg_pack[2];
+    //     Expr weights_dilation = arg_pack[3];
+    //     Expr data             = arg_pack[4];
+    //     CHECK(res.as_tensor());
+    //     CHECK(packed_out.as_tensor());
+    //     CHECK(input_pad.as_tensor());
+    //     CHECK(weights_dilation.as_tensor());
+    //     CHECK(data.as_tensor());
+    //     std::vector<Expr> kernel_shape = weights_dilation.as_tensor_ref()->shape;
+    //     // kernel_h == 1 && kernel_w == 1
+    //     CHECK_EQ(kernel_shape.size(), 6U) << "kernel_dialtion shape size should be 6";
+    //     bool is_1x1 = (is_zero(kernel_shape[2] - 1)) && (is_zero(kernel_shape[3] - 1));
+    //     // Todo: 1*1 schedule is not so much good, may need to optimize schedule further.
+    //     is_1x1                       = false;
+    //     ir::Tensor packed_out_tensor = packed_out.as_tensor_ref();
+    //     if (is_1x1) {
+    //       pe::Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(stages,
+    //                                                res.as_tensor_ref(),
+    //                                                packed_out_tensor,
+    //                                                input_pad.as_tensor_ref(),
+    //                                                weights_dilation.as_tensor_ref(),
+    //                                                data.as_tensor_ref(),
+    //                                                target);
+    //     } else {
+    //       pe::Conv2d_NCHWc_Schedule_CPU_Nofuse(stages,
+    //                                            res.as_tensor_ref(),
+    //                                            packed_out_tensor,
+    //                                            input_pad.as_tensor_ref(),
+    //                                            weights_dilation.as_tensor_ref(),
+    //                                            data.as_tensor_ref(),
+    //                                            target);
+    //     }
+    //     *ret =
+    //         CINNValuePack{{CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], arg_pack[3], CINNValue(stages)}};
+    //     return;
+    //   }
+    // }
+    // if (target.arch == Target::Arch::NVGPU) {
+    //   *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
+    // } else if (arg_pack.size() == 4UL) {
+    //   *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
+    // } else {
+    //   *ret = arg_pack;
+    // }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
