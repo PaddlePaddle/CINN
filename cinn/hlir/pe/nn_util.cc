@@ -1,4 +1,5 @@
 #include "cinn/hlir/pe/nn_util.h"
+#include "cinn/common/ir_util.h"
 #include<iostream>
 
 namespace cinn {
@@ -95,20 +96,18 @@ std::vector<std::vector<std::vector<float>>> get_winograd_val(const int &tile_si
 }
 
 ir::Tensor const_matrix(const std::vector<std::vector<float>>& input, const std::string& name){
-    std::vector<Expr> tensor_shape = {Expr(input.size()), Expr(input[0].size())};
+    std::vector<Expr> tensor_shape = {Expr((int)input.size()), Expr((int)input[0].size())};
     int row = input.size();
     int col = input[0].size();
     auto result = Compute(
         tensor_shape,
         [=](Expr yy, Expr xx) { 
-            auto now = cinn::common::make_const(0.0f);
             for(int ii = 0; ii< row;ii++){ 
                 for(int jj =0; jj< col; jj++){
-                    auto cond = lang::logic_and({(yy) % ii == 0, (xx) % jj == 0});
-                    return ir::Select::Make(cond, cinn::common::make_const(input[ii][jj]), now);
+                    if (common::is_zero(Expr(ii)-yy) && common::is_zero(Expr(jj)-xx)) return Expr(input[ii][jj]);
                 }
             }
-            return now;
+            return Expr(0.f);
         }, name);
     return result;
 }
