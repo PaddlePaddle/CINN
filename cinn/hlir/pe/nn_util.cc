@@ -104,9 +104,8 @@ ir::Tensor const_matrix(const std::vector<std::vector<float>>& input, const std:
             auto now = cinn::common::make_const(0.0f);
             for(int ii = 0; ii< row;ii++){ 
                 for(int jj =0; jj< col; jj++){
-                    if(yy == Expr(ii) && xx == Expr(jj)){
-                        now = cinn::common::make_const(input[ii][jj]);
-                    }
+                    auto cond = lang::logic_and({(yy) % ii == 0, (xx) % jj == 0});
+                    return ir::Select::Make(cond, cinn::common::make_const(input[ii][jj]), now);
                 }
             }
             return now;

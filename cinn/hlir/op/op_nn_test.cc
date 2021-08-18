@@ -80,7 +80,7 @@ TEST(Operator, Operator_winograd_Test0) {
   auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
 
   Expr N(1), C(3), H(8), W(8), CO(10), KH(3);
-  Placeholder<float> A("A", {N, C, H, W});
+  Placeholder<float> input("input", {N, C, H, W});
   Placeholder<float> weight("weight", {CO, C, KH, KH});
 
   NodeAttr attrs;
@@ -89,12 +89,12 @@ TEST(Operator, Operator_winograd_Test0) {
   attrs.attr_store["stride"]  = stride_size;
   attrs.attr_store["padding"]  = padding_size;
 
-  std::vector<ir::Tensor> inputs{A.tensor(), weight.tensor()};
+  std::vector<ir::Tensor> inputs{input.tensor(), weight.tensor()};
   std::vector<Type> type{Float(32)};
   static Target target_(Target::OS::Linux, Target::Arch::NVGPU, Target::Bit::k64, {}, {});
   common::Target target = target_;
-  auto impl = OpStrategy::SelectImpl(strategy[conv2d_winograd](attrs, inputs, type, {{1, 3, 10, 10}, {1, 3, 5, 5}}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A),common::CINNValue(weight)}};
+  auto impl = OpStrategy::SelectImpl(strategy[conv2d_winograd](attrs, inputs, type, {{1, 3, 8, 8}, {10, 3, 3, 3}}, target));
+  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(input),common::CINNValue(weight)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   // rets                             = impl->fschedule(rets);
   // the last element is a StageMap

@@ -73,10 +73,6 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
       },
       UniqName("weights_dilation"));
 
-  Var rc(weights->shape[1], UniqName("rc"));
-  Var ry(weights->shape[2], UniqName("ry"));
-  Var rx(weights->shape[3], UniqName("rx"));
-
   CHECK(MathEqual((weights->shape[0] * weights->shape[1]) % input->shape[1], Expr(0)))
       << "filter's output channel size must be divisible by group\n";
   
@@ -110,7 +106,7 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
       common::AutoSimplify((input->shape[3] - ((weights->shape[3] - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1)   // W
   };
 
-  std::vector<ir::Tensor>winograd_transform = winograd_transform_matrices(m, r);
+  std::vector<ir::Tensor> winograd_transform = winograd_transform_matrices(m, r);
   ir::Tensor A = winograd_transform[0];
   ir::Tensor B = winograd_transform[1];
   ir::Tensor G = winograd_transform[2];
@@ -120,8 +116,9 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
   int nW = (common::AutoSimplify(output_shape[3]).as_int32() + m - 1) / m;
 
   int P = input->shape[0].as_int32() * nH * nW;
-  std::cout<<nH<<" "<<nW<<" "<<P<<std::endl;
+  std::cout<<"nH,NW,P : "<<nH<<" "<<nW<<" "<<P<<std::endl;
   std::cout<<"here is ok 2"<<std::endl;
+
   Var r_kh(weights_dilation->shape[2], UniqName("r_kh"));
   Var r_kw(weights_dilation->shape[3], UniqName("r_kw"));
   std::vector<Expr> kernel_shape ={Expr(alpha), Expr(alpha), weights->shape[1], weights->shape[0]};
@@ -165,7 +162,7 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
   auto inverse = Compute(
       inverse_shape,
       [=]( Expr co, Expr p, Expr vh, Expr vw){ return lang::ReduceSum(
-          bgemm(r_a, r_b, co, p) * A(r_a, vh) * A(r_b, vw), {r_g_a, r_g_b});
+          bgemm(r_g_a, r_g_b, co, p) * A(r_g_a, vh) * A(r_g_b, vw), {r_g_a, r_g_b});
       }, "inverse");
 
   auto res = Compute(

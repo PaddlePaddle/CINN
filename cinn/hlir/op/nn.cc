@@ -158,10 +158,10 @@ std::shared_ptr<OpStrategy> StrategyForConv2d_winograd(const framework::NodeAttr
     CHECK(!args.empty()) << "The input argument of conv2d winogrid compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK_GE(a.size(), 2U) << "at least 2 input tensors for conv2d winograd compute\n";
-    Expr A = a[0];
-    Expr B = a[1];
-    CHECK(A.as_tensor());
-    CHECK(B.as_tensor());
+    Expr input = a[0];
+    Expr weight = a[1];
+    CHECK(input.as_tensor());
+    CHECK(weight.as_tensor());
     CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d winograd op is not 2! Please check.";
     CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d winograd op is not 2! Please check.";
     CHECK_EQ(dilation.size(), 2) << "The size of stride in conv2d winongrad op is not 2! Please check.";
@@ -176,8 +176,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d_winograd(const framework::NodeAttr
       if (target.arch == Target::Arch::X86) {
         LOG(FATAL) << "Not implement now\n";
       } else {
-        out = pe::Conv2d_winograd_NCHW(A.as_tensor_ref(),
-                              B.as_tensor_ref(),
+        out = pe::Conv2d_winograd_NCHW(input.as_tensor_ref(),
+                              weight.as_tensor_ref(),
                               padding[0],
                               padding[1],
                               stride[0],
@@ -192,7 +192,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d_winograd(const framework::NodeAttr
     } else {
       LOG(FATAL) << "Only support NCHW and NHWC data layout\n";
     }
-    auto stages = CreateStages({A.as_tensor_ref(), B.as_tensor_ref()});
+    auto stages = CreateStages({input.as_tensor_ref(), weight.as_tensor_ref()});
 
     std::vector<CINNValue> res;
     for (auto &t : out) {
