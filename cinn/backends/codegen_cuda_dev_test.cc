@@ -2163,7 +2163,6 @@ TEST(ElementwiseAdd, cache_read_shared) {
     auto AL = stages[A]->CacheRead("shared", temp, stages);
 
     stages[C]->Bind(0, "blockIdx.x");
-    stages[C]->Bind(1, "threadIdx.x");
     stages[AL]->ComputeAt(stages[C], 1);
 
     return std::make_tuple(A, B, C, AL, stages);
@@ -2199,11 +2198,9 @@ void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   __shared__ float _A_read_cache [ 1 ];
   float* A_read_cache = _A_read_cache;
   if ((blockIdx.x < 100)) {
-    if ((threadIdx.x < 200)) {
-    {
-      A_read_cache[0] = A[((200 * blockIdx.x) + threadIdx.x)];
-      C[((200 * blockIdx.x) + threadIdx.x)] = A_read_cache[0];
-    }
+    for (int32_t j = 0; j < 200; j += 1) {
+      A_read_cache[0] = A[((200 * blockIdx.x) + j)];
+      C[((200 * blockIdx.x) + j)] = A_read_cache[0];
     };
   };
 }

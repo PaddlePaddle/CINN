@@ -8,6 +8,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
 #include "cinn/lang/compute.h"
+#include "cinn/optim/ir_copy.h"
 
 namespace cinn {
 namespace hlir {
