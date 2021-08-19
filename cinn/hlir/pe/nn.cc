@@ -116,7 +116,8 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
   int nW = (common::AutoSimplify(output_shape[3]).as_int32() + m - 1) / m;
 
   int P = input->shape[0].as_int32() * nH * nW;
-  std::cout<<"nH,NW,P : "<<nH<<" "<<nW<<" "<<P<<std::endl;
+  std::cout<<"r, m : "<<r<<" "<<m<<std::endl;
+  std::cout<<"nH, NW, P : "<<nH<<" "<<nW<<" "<<P<<std::endl;
   std::cout<<"here is ok 2"<<std::endl;
 
   Var r_kh(weights_dilation->shape[2], UniqName("r_kh"));
@@ -145,7 +146,7 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
         [=](Expr eps, Expr nu, Expr ci, Expr p){ return lang::ReduceSum(
             input_tile(ci, p, r_a, r_b) * B(r_a, eps) * B(r_b, nu), {r_a, r_b});
         }, "data_pack");
-
+  
   // do batch gemm
   std::vector<Expr> bgemm_shape ={Expr(alpha), Expr(alpha), weights_dilation->shape[0], Expr(P)};
   Var ci(kernel_pack->shape[2], UniqName("ci"));
