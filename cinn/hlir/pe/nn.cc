@@ -102,8 +102,8 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
   output_shape = {
       input->shape[0],                                                                                  // B
       weights->shape[0],                                                                                // O
-      common::AutoSimplify((input->shape[2] - ((weights->shape[2] - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1),  // H
-      common::AutoSimplify((input->shape[3] - ((weights->shape[3] - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1)   // W
+      common::AutoSimplify((input->shape[2] - ((weights_dilation->shape[2] - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1),  // H
+      common::AutoSimplify((input->shape[3] - ((weights_dilation->shape[3] - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1)   // W
   };
 
   std::vector<ir::Tensor> winograd_transform = winograd_transform_matrices(m, r);
@@ -121,7 +121,7 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
 
   Var r_kh(weights_dilation->shape[2], UniqName("r_kh"));
   Var r_kw(weights_dilation->shape[3], UniqName("r_kw"));
-  std::vector<Expr> kernel_shape ={Expr(alpha), Expr(alpha), weights->shape[1], weights->shape[0]};
+  std::vector<Expr> kernel_shape ={Expr(alpha), Expr(alpha), weights_dilation->shape[1], weights_dilation->shape[0]};
   auto kernel_pack = Compute(
           kernel_shape,
           [=](Expr eps, Expr nu, Expr ci, Expr co){ return lang::ReduceSum(
@@ -130,14 +130,14 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
           "kernel_pack");
   std::cout<<"here is ok 3"<<std::endl;
   //pack input tile
-  std::vector<Expr> input_tile_shape = {weights->shape[1], Expr(P), Expr(alpha), Expr(alpha)};
+  std::vector<Expr> input_tile_shape = {weights_dilation->shape[1], Expr(P), Expr(alpha), Expr(alpha)};
   auto input_tile = Compute(
       input_tile_shape,
       [=](Expr c, Expr p, Expr eps, Expr nu){ return input_pad(p / (nH * nW), c,
           ((p / nW) % nH) * m + eps, (p % nW) * m + nu);},
         "input_tile");
 
-  std::vector<Expr> data_pack_shape ={Expr(alpha), Expr(alpha), weights->shape[1], Expr(P)};
+  std::vector<Expr> data_pack_shape ={Expr(alpha), Expr(alpha), weights_dilation->shape[1], Expr(P)};
   Var r_a(input_tile->shape[2], UniqName("r_a"));
   Var r_b(input_tile->shape[3], UniqName("r_b"));
   auto data_pack = Compute(
@@ -147,7 +147,7 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
         }, "data_pack");
 
   // do batch gemm
-  std::vector<Expr> bgemm_shape ={Expr(alpha), Expr(alpha), weights->shape[0], Expr(P)};
+  std::vector<Expr> bgemm_shape ={Expr(alpha), Expr(alpha), weights_dilation->shape[0], Expr(P)};
   Var ci(kernel_pack->shape[2], UniqName("ci"));
   auto bgemm = Compute(
       bgemm_shape,
@@ -156,7 +156,7 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
       }, "bgemm");
   
   // # inverse transform
-  std::vector<Expr> inverse_shape ={weights->shape[0], Expr(P), Expr(m), Expr(m)};
+  std::vector<Expr> inverse_shape ={weights_dilation->shape[0], Expr(P), Expr(m), Expr(m)};
   Var r_g_a(bgemm->shape[0], UniqName("r_g_a"));
   Var r_g_b(bgemm->shape[1], UniqName("r_g_b"));
   auto inverse = Compute(

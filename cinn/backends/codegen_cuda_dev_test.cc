@@ -486,6 +486,277 @@ void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y,
       host_data3.data(), reinterpret_cast<void*>(Cd), 256 * 14 * 14 * sizeof(float), cudaMemcpyDeviceToHost));
 }
 
+
+TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
+  LOG(INFO) << "Yeliang check";
+  Context::Global().ResetNameId();
+  Expr N(1);
+  Expr C(3);
+  Expr H(224);
+  Expr W(64);
+  Expr K(7);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("X", {N, C, H, H});
+  Placeholder<float> B("Y", {W, C, K, K});
+
+  auto res = hlir::pe::Conv2d_NCHW(A, B, 3, 3, 2, 2, 1, 1, "Conv2d_out");
+
+  auto stages = CreateStages(res);
+
+  auto pad_data = res[1];
+  auto conv     = res[0];
+
+
+  // auto func_before = Lower("schedule_before_conv2d", stages, {A, B, res[0]}, {}, {}, nullptr, target);
+  // LOG(INFO) <<"before: \n"<< func_before;
+
+  // Module::Builder builder1("module", target);
+  // builder1.AddFunction(func_before);
+
+  // CodeGenCUDA_Dev codegen1(target);
+  // auto source_code1 = codegen1.Compile(builder1.Build());
+
+  // LOG(INFO) << "compiled schedule_conv2d_1 code 1:\n\n\n" << source_code1;
+
+  stages[pad_data]->ComputeInline();
+  optim::Simplify(&(conv->shape[2]));
+  optim::Simplify(&(conv->shape[3]));
+
+  std::vector<ir::Tensor> readers{conv};
+  auto PR = stages[pad_data]->CacheRead("shared", readers, stages);
+  auto KR = stages[B]->CacheRead("shared", readers, stages);
+  auto OL = stages[conv]->CacheWrite("local", stages, conv);
+
+  // x param is :  [1, 7, 16, 1]
+  stages[conv]->Split(3, 1);
+  stages[conv]->Split(3, 16);
+  stages[conv]->Split(3, 7);
+  // y param is :  [112, 1, 1, 1]
+  stages[conv]->Split(2, 1);
+  stages[conv]->Split(2, 1);
+  stages[conv]->Split(2, 1);
+  // f param is :  [1, 4, 8, 2]
+  stages[conv]->Split(1, 2);
+  stages[conv]->Split(1, 8);
+  stages[conv]->Split(1, 4);
+
+  stages[conv]->Reorder({0, 1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12});
+  stages[conv]->Bind(1, "blockIdx.z");
+  stages[conv]->Bind(2, "blockIdx.y");
+  stages[conv]->Bind(3, "blockIdx.x");
+  stages[conv]->Bind(7, "threadIdx.z");
+  stages[conv]->Bind(8, "threadIdx.y");
+  stages[conv]->Bind(9, "threadIdx.x");
+
+  stages[OL]->ComputeAt(stages[conv], 9);
+
+  // rx param is :  [1, 7]
+  stages[OL]->Split(15, 7);
+  // ry param is :  [7, 1]
+  stages[OL]->Split(14, 1);
+  // rc param is :  [3, 1]
+  stages[OL]->Split(13, 1);
+
+  stages[OL]->Reorder({13, 15, 17, 14, 16, 18, 10, 11, 12});
+
+  auto OL_init = OL->GetInitTensor(stages, target);
+  stages[PR]->ComputeAt(stages[OL], 12);
+  stages[KR]->ComputeAt(stages[OL], 12);
+
+  stages[PR]->SyncThreads(12, {OL_init}, stages);
+  stages[KR]->CtrlDepend(PR);
+  stages[KR]->SyncThreads(stages);
+
+  if (stages[PR]->n_out_dims() == 18) {
+    stages[PR]->Fuse({13, 14, 15, 16, 17});
+  } else {
+    LOG(ERROR) << "PR number of output dims is wrong!";
+  }
+
+  if (stages[KR]->n_out_dims() == 18) {
+    stages[KR]->Fuse({13, 14, 15, 16, 17});
+  } else if (stages[KR]->n_out_dims() == 19) {
+    stages[KR]->Fuse({13, 14, 15, 16, 17, 18});
+  } else {
+    LOG(ERROR) << "KR number of output dims is wrong!";
+  }
+  int thread_z = 8;
+  int thread_x = 16;
+  if (stages[PR]->GetDimRange(13) <= thread_z) {
+    stages[PR]->Bind(13, "threadIdx.z");
+  } else {
+    stages[PR]->Split(13, hlir::pe::GetMaxSplitter(stages[PR]->GetDimRange(13), thread_z));
+    stages[PR]->Bind(14, "threadIdx.z");
+  }
+  if (stages[KR]->GetDimRange(13) <= thread_x) {
+    stages[KR]->Bind(13, "threadIdx.x");
+  } else {
+    stages[KR]->Split(13, hlir::pe::GetMaxSplitter(stages[KR]->GetDimRange(13), thread_x));
+    stages[KR]->Bind(14, "threadIdx.x");
+  }
+
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func = Lower("schedule_conv2d_1", stages, {A, B, conv}, {}, {}, nullptr, target);
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled schedule_conv2d_1 code:\n\n\n" << source_code;
+  
+  using runtime::cuda::CUDAModule;
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr Ad, Bd, Cd;
+  cuMemAlloc(&Ad, 1 * 3 * 224 * 224 * sizeof(float));
+  cuMemAlloc(&Bd, 64 * 3 * 7 * 7 * sizeof(float));
+  cuMemAlloc(&Cd, 1 * 64 * 112 * 112 * sizeof(float));
+
+  std::vector<float> host_data1(1 * 3 * 224 * 224, 0);
+  std::vector<float> host_data2(64 * 3 * 7 * 7, 0);
+  std::vector<float> host_data3(1 * 64 * 112 * 112, 0);
+  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
+
+  // launch the kernel
+
+  void* args[] = {&Ad, &Bd, &Cd};
+
+  dim3 grid(1, 112, 1);
+  dim3 block(16, 1, 8);
+  int repeat = 5000;
+
+  utils::Timer time1;
+  time1.Start();
+  for (int i = 0; i < repeat; i++) {
+    cuda_module.LaunchKernel(0, "schedule_conv2d_1", grid, block, args);
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+  auto time_average1 = time1.Stop() / float(repeat);
+  LOG(INFO) << "Conv2d op1_CINN with schedule repeats " << repeat << " times, average time cost is : " << time_average1
+            << "ms. ";
+  CUDA_CALL(cudaMemcpy(
+      host_data3.data(), reinterpret_cast<void*>(Cd), host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
+
+  Placeholder<float> Wino_A("X", {N, C, H, H});
+  Placeholder<float> Wino_B("Y", {W, C, K, K});
+
+  auto wino_res = hlir::pe::Conv2d_winograd_NCHW(Wino_A, Wino_B, 3, 3, 2, 2, 1, 1, "Winograd_Conv2d_out");
+  auto wino_stages = CreateStages(wino_res);
+
+  auto wino_weights_dilation = wino_res[0];
+  auto wino_input_pad     = wino_res[1];
+  auto wino_A = wino_res[2];
+  auto wino_B = wino_res[3];
+  auto wino_G = wino_res[4];
+  auto kernel_pack = wino_res[5];
+  auto input_tile = wino_res[6];
+  auto data_pack = wino_res[7];
+  auto bgemm = wino_res[8];
+  auto inverse = wino_res[9];
+  auto wino_conv     = wino_res[10];
+
+  // wino_stages[wino_weights_dilation]->ComputeInline();
+  // wino_stages[wino_input_pad]->ComputeInline();
+  // wino_stages[wino_A]->ComputeInline();
+  // wino_stages[wino_B]->ComputeInline();
+  // wino_stages[wino_G]->ComputeInline();
+  // wino_stages[input_tile]->ComputeInline();
+  // wino_stages[bgemm]->ComputeInline();
+  // wino_stages[kernel_pack]->ComputeInline();
+  // wino_stages[data_pack]->ComputeInline();
+  // wino_stages[inverse]->ComputeInline();
+
+
+  wino_stages[wino_B]->ComputeInline();
+  
+  auto data_l = wino_stages[data_pack]->CacheWrite("local", wino_stages, data_pack);
+  // wino_stages[data_l]->Unroll(0);
+  // wino_stages[data_l]->Unroll(1);
+  // wino_stages[data_l]->Unroll(4);
+  // wino_stages[data_l]->Unroll(5);
+
+  // wino_stages[data_pack]->Fuse({2,3});
+  // wino_stages[data_pack]->Split(2,128);
+  // wino_stages[data_pack]->Reorder({2,3,0,1});
+  wino_stages[data_pack]->Bind(0,"blockIdx.x");
+  wino_stages[data_pack]->Bind(1,"threadIdx.x");
+
+  wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 2);
+  // wino_stages[input_tile]->ComputeAt(wino_stages[data_pack], 2);
+  // wino_stages[wino_input_pad]->ComputeInline();
+  
+  wino_stages[wino_G]->ComputeInline();
+  // wino_stages[kernel_pack]->Unroll(0);
+  // wino_stages[kernel_pack]->Unroll(1);
+  // wino_stages[kernel_pack]->Unroll(4);
+  // wino_stages[kernel_pack]->Unroll(5);
+  // wino_stages[kernel_pack]->Fuse({2,3});
+  // wino_stages[kernel_pack]->Split(2,128);
+  // wino_stages[kernel_pack]->Reorder({2,3,0,1});
+  wino_stages[kernel_pack]->Bind(0,"blockIdx.x");
+  wino_stages[kernel_pack]->Bind(1,"threadIdx.x");
+
+  
+  // std::vector<ir::Tensor> readers_gemm{bgemm};
+  // auto bgemm_PR = stages[kernel_pack]->CacheRead("shared", readers_gemm, wino_stages);
+  // auto bgemm_KR = stages[data_pack]->CacheRead("shared", readers_gemm, wino_stages);
+  // auto bgemm_ol = wino_stages[bgemm]->CacheWrite("local", wino_stages, bgemm);
+
+  // wino_stages[bgemm]->Bind(0,"blockIdx.x");
+  // wino_stages[bgemm]->Bind(1,"threadIdx.x");
+  // wino_stages[bgemm_ol]->ComputeAt(wino_stages[bgemm], 2);
+  // wino_stages[bgemm_PR]->ComputeAt(wino_stages[bgemm_ol], 2);
+  // wino_stages[bgemm_KR]->ComputeAt(wino_stages[bgemm_ol], 2);
+
+
+  wino_stages[wino_conv]->Bind(0,"blockIdx.x");
+  wino_stages[wino_conv]->Bind(1,"threadIdx.x");
+
+  wino_stages[inverse]->ComputeAt(wino_stages[wino_conv], 2);
+
+  wino_stages[wino_A]->ComputeInline();
+  // wino_stages[wino_weights_dilation]->ComputeInline();
+
+  // for (auto &t : wino_res) {
+  //   std::cout<<t<<std::endl;
+  //   LOG(INFO)<<t;
+  //   wino_stages->InsertLazily(t);
+  // }
+
+  LOG(INFO)<< "Yeliang : winograd conv2d";
+  CodeGenCUDA_Dev wino_codegen(target);
+
+  auto wino_func = Lower("schedule_wino_conv2d", wino_stages, {Wino_A, Wino_B, wino_conv}, {}, {}, nullptr, target);
+  LOG(INFO) << wino_func;
+  Module::Builder wino_builder("wino_module", target);
+  wino_builder.AddFunction(wino_func);
+
+  auto wino_source_code = wino_codegen.Compile(wino_builder.Build());
+
+  LOG(INFO) << "compiled schedule_wino_conv2d code:\n\n\n" << wino_source_code;
+
+
+
+}
+
 TEST(CodeGenCUDA2, test_schedule_conv2d_1) {
   Context::Global().ResetNameId();
   Expr N(1);

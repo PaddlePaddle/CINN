@@ -96,18 +96,22 @@ std::vector<std::vector<std::vector<float>>> get_winograd_val(const int &tile_si
 }
 
 ir::Tensor const_matrix(const std::vector<std::vector<float>>& input, const std::string& name){
-    std::vector<Expr> tensor_shape = {Expr((int)input.size()), Expr((int)input[0].size())};
+    std::vector<Expr> tensor_shape = {Expr(static_cast<int>(input.size())), Expr(static_cast<int>(input[0].size()))};
     int row = input.size();
     int col = input[0].size();
     auto result = Compute(
         tensor_shape,
-        [=](Expr yy, Expr xx) { 
-            for(int ii = 0; ii< row;ii++){ 
-                for(int jj =0; jj< col; jj++){
-                    if (common::is_zero(Expr(ii)-yy) && common::is_zero(Expr(jj)-xx)) return Expr(input[ii][jj]);
-                }
-            }
-            return Expr(0.f);
+        [&](Expr yy, Expr xx) { 
+            auto now = cinn::common::make_const(1.f);
+            // for(int ii = 0; ii< row;ii++){ 
+            //     for(int jj =0; jj< col; jj++){
+            //         // if (common::is_zero(Expr(ii)-yy) && common::is_zero(Expr(jj)-xx)) now =  cinn::common::make_const(input[ii][jj]);
+            //         if(Expr(ii)==yy && Expr(jj) == xx){
+            //             now =  cinn::common::make_const(input[ii][jj]);
+            //         }
+            //     }
+            // }
+            return now;
         }, name);
     return result;
 }
