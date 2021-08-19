@@ -673,58 +673,31 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   auto inverse = wino_res[9];
   auto wino_conv     = wino_res[10];
 
-  // wino_stages[wino_weights_dilation]->ComputeInline();
-  // wino_stages[wino_input_pad]->ComputeInline();
-  // wino_stages[wino_A]->ComputeInline();
-  // wino_stages[wino_B]->ComputeInline();
-  // wino_stages[wino_G]->ComputeInline();
-  // wino_stages[input_tile]->ComputeInline();
-  // wino_stages[bgemm]->ComputeInline();
-  // wino_stages[kernel_pack]->ComputeInline();
-  // wino_stages[data_pack]->ComputeInline();
-  // wino_stages[inverse]->ComputeInline();
+   wino_stages[wino_weights_dilation]->ComputeInline();
+   wino_stages[wino_input_pad]->ComputeInline();
+   wino_stages[wino_A]->ComputeInline();
+   wino_stages[wino_B]->ComputeInline();
+   wino_stages[wino_G]->ComputeInline();
+   wino_stages[input_tile]->ComputeInline();
 
 
-  wino_stages[wino_B]->ComputeInline();
+/*   wino_stages[wino_B]->ComputeInline();
   
   auto data_l = wino_stages[data_pack]->CacheWrite("local", wino_stages, data_pack);
-  // wino_stages[data_l]->Unroll(0);
-  // wino_stages[data_l]->Unroll(1);
-  // wino_stages[data_l]->Unroll(4);
-  // wino_stages[data_l]->Unroll(5);
 
-  // wino_stages[data_pack]->Fuse({2,3});
-  // wino_stages[data_pack]->Split(2,128);
-  // wino_stages[data_pack]->Reorder({2,3,0,1});
   wino_stages[data_pack]->Bind(0,"blockIdx.x");
   wino_stages[data_pack]->Bind(1,"threadIdx.x");
 
   wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 2);
-  // wino_stages[input_tile]->ComputeAt(wino_stages[data_pack], 2);
-  // wino_stages[wino_input_pad]->ComputeInline();
+
   
   wino_stages[wino_G]->ComputeInline();
-  // wino_stages[kernel_pack]->Unroll(0);
-  // wino_stages[kernel_pack]->Unroll(1);
-  // wino_stages[kernel_pack]->Unroll(4);
-  // wino_stages[kernel_pack]->Unroll(5);
-  // wino_stages[kernel_pack]->Fuse({2,3});
-  // wino_stages[kernel_pack]->Split(2,128);
-  // wino_stages[kernel_pack]->Reorder({2,3,0,1});
+
   wino_stages[kernel_pack]->Bind(0,"blockIdx.x");
   wino_stages[kernel_pack]->Bind(1,"threadIdx.x");
 
   
-  // std::vector<ir::Tensor> readers_gemm{bgemm};
-  // auto bgemm_PR = stages[kernel_pack]->CacheRead("shared", readers_gemm, wino_stages);
-  // auto bgemm_KR = stages[data_pack]->CacheRead("shared", readers_gemm, wino_stages);
-  // auto bgemm_ol = wino_stages[bgemm]->CacheWrite("local", wino_stages, bgemm);
 
-  // wino_stages[bgemm]->Bind(0,"blockIdx.x");
-  // wino_stages[bgemm]->Bind(1,"threadIdx.x");
-  // wino_stages[bgemm_ol]->ComputeAt(wino_stages[bgemm], 2);
-  // wino_stages[bgemm_PR]->ComputeAt(wino_stages[bgemm_ol], 2);
-  // wino_stages[bgemm_KR]->ComputeAt(wino_stages[bgemm_ol], 2);
 
 
   wino_stages[wino_conv]->Bind(0,"blockIdx.x");
@@ -732,19 +705,13 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 
   wino_stages[inverse]->ComputeAt(wino_stages[wino_conv], 2);
 
-  wino_stages[wino_A]->ComputeInline();
-  // wino_stages[wino_weights_dilation]->ComputeInline();
+  wino_stages[wino_A]->ComputeInline(); */
 
-  // for (auto &t : wino_res) {
-  //   std::cout<<t<<std::endl;
-  //   LOG(INFO)<<t;
-  //   wino_stages->InsertLazily(t);
-  // }
 
   LOG(INFO)<< "Yeliang : winograd conv2d";
   CodeGenCUDA_Dev wino_codegen(target);
 
-  auto wino_func = Lower("schedule_wino_conv2d", wino_stages, {Wino_A, Wino_B, wino_conv}, {}, {}, nullptr, target);
+  auto wino_func = Lower("schedule_wino_conv2d", wino_stages, {Wino_A, Wino_B, kernel_pack, data_pack, bgemm, inverse, wino_conv}, {}, {}, nullptr, target);
   LOG(INFO) << wino_func;
   Module::Builder wino_builder("wino_module", target);
   wino_builder.AddFunction(wino_func);
@@ -752,9 +719,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   auto wino_source_code = wino_codegen.Compile(wino_builder.Build());
 
   LOG(INFO) << "compiled schedule_wino_conv2d code:\n\n\n" << wino_source_code;
-
-
-
 }
 
 TEST(CodeGenCUDA2, test_schedule_conv2d_1) {
