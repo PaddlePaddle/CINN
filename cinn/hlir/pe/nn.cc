@@ -458,8 +458,7 @@ ir::Tensor BatchNorm_NCHW(const ir::Tensor &input,
   auto res = Compute(
       input->shape,
       [=](Expr n, Expr c, Expr h, Expr w) {
-        Expr temp = optim::IRCopy(c);
-        return (input(n, c, h, w) - mean(temp)) * scale(temp) / lang::Sqrt(variance(temp) + Expr(epsilon)) + bias(temp);
+        return (input(n, c, h, w) - mean(c)) * scale(c) / lang::Sqrt(variance(c) + Expr(epsilon)) + bias(c);
       },
       UniqName(output_name));
   return res;

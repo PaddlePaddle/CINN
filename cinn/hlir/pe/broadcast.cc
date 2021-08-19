@@ -120,14 +120,12 @@ void GetBroadcastIndice(const std::vector<Expr>& indice,
     for (i = 0; i < flag_size; i++) {
       if (broadcast_flags1[flag_size - 1 - i]) {
         // broadcast indices are added from left to right
-        Expr temp = optim::IRCopy(indice[i]);
-        broadcast_indice1->push_back(temp);
+        broadcast_indice1->push_back(indice[i]);
       } else {
         broadcast_indice1->push_back(Expr(0));
       }
       if (broadcast_flags2[flag_size - 1 - i]) {
-        Expr temp = optim::IRCopy(indice[i]);
-        broadcast_indice2->push_back(temp);
+        broadcast_indice2->push_back(indice[i]);
       } else if (flag_size - i <= tensor_b->shape.size() + axis_offset &&
                  broadcast_indice2->size() < tensor_b->shape.size()) {
         // insert indice 0 when have not yet reached the dimension of tensor. Meanwhile we have to consider the case of
