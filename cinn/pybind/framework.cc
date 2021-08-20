@@ -59,7 +59,7 @@ void BindFramework(pybind11::module *m) {
            [](OpValueType<InferShapeFunction> &self,
               const std::string &key,
               const std::vector<std::vector<int>> &input_shapes,
-              const NodeAttr &attrs,
+              NodeAttr &attrs,
               const Target &target) {
              const Operator *op_ptr = Operator::Get(key);
              auto shapes            = self[op_ptr](input_shapes, attrs, target);

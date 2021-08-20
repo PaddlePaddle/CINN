@@ -84,7 +84,7 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
 }
 
 std::vector<shape_t> InferShapeForElementwise(const std::vector<shape_t> &inputs_shape,
-                                              const framework::NodeAttr &attrs,
+                                              framework::NodeAttr &attrs,
                                               const Target &target) {
   CHECK_EQ(inputs_shape.size(), 1UL);
   std::vector<shape_t> res{inputs_shape[0]};
