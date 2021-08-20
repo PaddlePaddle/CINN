@@ -493,15 +493,15 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   Expr N(1);
   Expr C(3);
   Expr H(224);
-  Expr W(64);
-  Expr K(7);
+  Expr W(8);
+  Expr K(3);
 
   Target target = common::DefaultNVGPUTarget();
 
   Placeholder<float> A("X", {N, C, H, H});
   Placeholder<float> B("Y", {W, C, K, K});
 
-  auto res = hlir::pe::Conv2d_NCHW(A, B, 3, 3, 2, 2, 1, 1, "Conv2d_out");
+  auto res = hlir::pe::Conv2d_NCHW(A, B, 1, 1, 1, 1, 1, 1, "Conv2d_out");
 
   auto stages = CreateStages(res);
 
@@ -621,12 +621,12 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 
   CUdeviceptr Ad, Bd, Cd;
   cuMemAlloc(&Ad, 1 * 3 * 224 * 224 * sizeof(float));
-  cuMemAlloc(&Bd, 64 * 3 * 7 * 7 * sizeof(float));
-  cuMemAlloc(&Cd, 1 * 64 * 112 * 112 * sizeof(float));
+  cuMemAlloc(&Bd, 8 * 3 * 3 * 3 * sizeof(float));
+  cuMemAlloc(&Cd, 1 * 8 * 224 * 224 * sizeof(float));
 
   std::vector<float> host_data1(1 * 3 * 224 * 224, 0);
-  std::vector<float> host_data2(64 * 3 * 7 * 7, 0);
-  std::vector<float> host_data3(1 * 64 * 112 * 112, 0);
+  std::vector<float> host_data2(8 * 3 * 3 * 3, 0);
+  std::vector<float> host_data3(1 * 8 * 224 * 224, 0);
   for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
   for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
 
@@ -638,9 +638,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   // launch the kernel
 
   void* args[] = {&Ad, &Bd, &Cd};
-
-  dim3 grid(1, 112, 1);
-  dim3 block(16, 1, 8);
+  dim3 grid(4, 225, 1);
+  dim3 block(18, 5, 6);
   int repeat = 5000;
 
   utils::Timer time1;
@@ -655,10 +654,15 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   CUDA_CALL(cudaMemcpy(
       host_data3.data(), reinterpret_cast<void*>(Cd), host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
 
+
+
+
+
+
   Placeholder<float> Wino_A("X", {N, C, H, H});
   Placeholder<float> Wino_B("Y", {W, C, K, K});
 
-  auto wino_res = hlir::pe::Conv2d_winograd_NCHW(Wino_A, Wino_B, 3, 3, 2, 2, 1, 1, "Winograd_Conv2d_out");
+  auto wino_res = hlir::pe::Conv2d_winograd_NCHW(Wino_A, Wino_B, 1, 1, 1, 1, 1, 1, "Winograd_Conv2d_out");
   auto wino_stages = CreateStages(wino_res);
 
   for (auto &t : wino_res) {
@@ -685,51 +689,23 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   wino_stages[input_tile]->ComputeInline();
 
 
-/*   wino_stages[wino_B]->ComputeInline();
-  
-  auto data_l = wino_stages[data_pack]->CacheWrite("local", wino_stages, data_pack);
-
-  wino_stages[data_pack]->Bind(0,"blockIdx.x");
-  wino_stages[data_pack]->Bind(1,"threadIdx.x");
-
-  wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 2);
-
-  
-  wino_stages[wino_G]->ComputeInline();
+  wino_stages[wino_conv]->Bind(0,"blockIdx.x");
+  wino_stages[wino_conv]->Bind(1,"threadIdx.x");
 
   wino_stages[kernel_pack]->Bind(0,"blockIdx.x");
   wino_stages[kernel_pack]->Bind(1,"threadIdx.x");
 
-  
-  wino_stages[wino_conv]->Bind(0,"blockIdx.x");
-  wino_stages[wino_conv]->Bind(1,"threadIdx.x");
-
-  wino_stages[inverse]->ComputeAt(wino_stages[wino_conv], 2);
-
-  wino_stages[wino_A]->ComputeInline(); */
-
-  wino_stages[wino_conv]->Bind(0,"blockIdx.x");
-  wino_stages[wino_conv]->Bind(1,"threadIdx.x");
-
-  // wino_stages[kernel_pack]->ComputeInline();
-  // wino_stages[kernel_pack]->ComputeAt(wino_stages[wino_conv], 2);
-  wino_stages[kernel_pack]->Bind(0,"blockIdx.x");
-  wino_stages[kernel_pack]->Bind(1,"threadIdx.x");
-  // wino_stages[data_pack]->ComputeInline();
-  // wino_stages[data_pack]->ComputeAt(wino_stages[wino_conv], 2);
   wino_stages[data_pack]->Bind(0,"blockIdx.x");
   wino_stages[data_pack]->Bind(1,"threadIdx.x");
-  // wino_stages[bgemm]->ComputeInline();
-  // wino_stages[bgemm]->ComputeAt(wino_stages[wino_conv], 2);
+  
   wino_stages[bgemm]->Bind(0,"blockIdx.x");
   wino_stages[bgemm]->Bind(1,"threadIdx.x");
-  // wino_stages[inverse]->ComputeInline();
-  wino_stages[inverse]->ComputeAt(wino_stages[wino_conv], 2);
 
   LOG(INFO)<< "Yeliang : winograd conv2d";
   CodeGenCUDA_Dev wino_codegen(target);
 
   auto wino_func = Lower("schedule_wino_conv2d", wino_stages, {Wino_A, Wino_B, kernel_pack, data_pack, bgemm, inverse, wino_conv}, {}, {}, nullptr, target);
+  // auto wino_func = Lower("schedule_wino_conv2d", wino_stages, {Wino_A, Wino_B, wino_weights_dilation, wino_input_pad, wino_A, wino_B, wino_G}, {}, {}, nullptr, target);
   LOG(INFO) << wino_func;
   Module::Builder wino_builder("wino_module", target);
   wino_builder.AddFunction(wino_func);
@@ -749,19 +725,16 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 
   CUdeviceptr wino_Ad, wino_Bd, wino_Cd;
   cuMemAlloc(&wino_Ad, 1 * 3 * 224 * 224 * sizeof(float));
-  cuMemAlloc(&wino_Bd, 64 * 3 * 7 * 7 * sizeof(float));
-  cuMemAlloc(&wino_Cd, 1 * 64 * 112 * 112 * sizeof(float));
+  cuMemAlloc(&wino_Bd, 8 * 3 * 3 * 3 * sizeof(float));
+  cuMemAlloc(&wino_Cd, 1 * 8 * 224 * 224 * sizeof(float));
 
   CUdeviceptr kernel_pack_Ad, data_pack_Ad, bgemm_Ad, inverse_Ad;
-  cuMemAlloc(&kernel_pack_Ad, 10 * 10 * 3 * 64 * sizeof(float));
-  cuMemAlloc(&data_pack_Ad, 10 * 10 * 3 * 784 * sizeof(float));
-  cuMemAlloc(&bgemm_Ad, 10 * 10 * 64 * 784 * sizeof(float));
-  cuMemAlloc(&inverse_Ad, 64 * 784 * 4 * 4 * sizeof(float));
+  cuMemAlloc(&kernel_pack_Ad, 6 * 6 * 3 * 8 * sizeof(float));
+  cuMemAlloc(&data_pack_Ad, 6 * 6 * 3 * 3136 * sizeof(float));
+  cuMemAlloc(&bgemm_Ad, 6 * 6 * 8 * 3136 * sizeof(float));
+  cuMemAlloc(&inverse_Ad, 8 * 3136 * 4 * 4 * sizeof(float));
 
-
-  std::vector<float> wino_host_data3(1 * 64 * 112 * 112, 0);
-
-  
+  std::vector<float> wino_host_data3(1 * 8 * 224 * 224, 0);
 
   CUDA_CALL(cudaMemcpy(
       reinterpret_cast<void*>(wino_Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
@@ -769,12 +742,11 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
       reinterpret_cast<void*>(wino_Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
 
   // launch the kernel
-
   void* wino_args[] = {&wino_Ad, &wino_Bd, &kernel_pack_Ad, &data_pack_Ad, &bgemm_Ad, &inverse_Ad, &wino_Cd};
 
-  dim3 wino_grid(1, 112, 1);
-  dim3 wino_block(16, 1, 8);
-  int wino_repeat = 5;
+  dim3 wino_grid(8);
+  dim3 wino_block(8);
+  int wino_repeat = 1;
 
   utils::Timer wino_time;
   wino_time.Start();
@@ -788,29 +760,41 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   CUDA_CALL(cudaMemcpy(
       wino_host_data3.data(), reinterpret_cast<void*>(wino_Cd), wino_host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
 
+
   LOG(INFO) << "test result is : ";
-  for (int i = 0; i < 1; i++) {
+  for (int i = 0; i < 10; i++) {
     for (int j = 0; j < 10; j++) {
       for (int k = 0; k < 1; k++) {
-        int offset = k * (112 * 112 ) + i * 112 + j;
-        // EXPECT_NEAR(host_data3[offset], res[offset], 1e-3);
-        LOG(INFO) <<"input: "<< host_data1[offset] << host_data2[offset];
-        LOG(INFO) <<"res: "<< wino_host_data3[offset] - host_data3[offset];
+        int offset = k * (224 * 224 ) + i * 224 + j;
+        LOG(INFO) <<"diff: "<<i<<" "<<j<<" "<<wino_host_data3[offset] - host_data3[offset];
       }
     }
   }
 
   float max_val = 0.0;
-  for (int i = 0; i < 112; i++) {
-    for (int j = 0; j < 112; j++) {
-      for (int k = 0; k < 64; k++) {
-        int offset = k * (112 * 112 ) + i * 112 + j;
+  float val_1 =0.0;
+  float val_2= 0.0;
+  int index1 = 0;
+  int index2= 0;
+  for (int i = 0; i < 224; i++) {
+    for (int j = 0; j < 224; j++) {
+      for (int k = 0; k < 1; k++) {
+        int offset = k * (224 * 224 ) + i * 224 + j;
         float diff = std::abs(wino_host_data3[offset] - host_data3[offset]);
-        if(max_val < diff)max_val = diff;
+        if(max_val < diff){
+          max_val = diff;
+          val_1 = wino_host_data3[offset];
+          val_2 = host_data3[offset];
+          index1 = i;
+          index2 = j;
+        }
+        if(diff > 1e-4){
+          LOG(INFO) << "max diff : "<< diff<<" "<<wino_host_data3[offset]<<" "<<host_data3[offset]<<" "<<i<<" "<<j;
+        }
       }
     }
   }
-  LOG(INFO) << "max diff : "<< max_val;
+  LOG(INFO) << "max diff : "<< max_val<<" "<<val_1<<" "<<val_2<<" "<<index1<<" "<<index2;
 
 }
 

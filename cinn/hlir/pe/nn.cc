@@ -69,7 +69,7 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
       [=](Expr nn, Expr cc, Expr yy, Expr xx) {
         auto cond = lang::logic_and({(yy) % dilation_h == 0, xx % dilation_w == 0});
         return ir::Select::Make(
-            cond, weights(nn, cc, yy / dilation_h, xx / dilation_w), common::make_const(weights->type(), 0));
+            cond, weights(nn, cc, (yy / dilation_h), (xx / dilation_w)), common::make_const(weights->type(), 0));
       },
       UniqName("weights_dilation"));
 
@@ -134,7 +134,7 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
   std::vector<Expr> input_tile_shape = {weights_dilation->shape[1], Expr(P), Expr(alpha), Expr(alpha)};
   auto input_tile = Compute(
       input_tile_shape,
-      [=](Expr c, Expr p, Expr eps, Expr nu){ return input_pad(p / (nH * nW), c,
+      [=](Expr c, Expr p, Expr eps, Expr nu){ return input_pad((p / (nH * nW)), c,
           ((p / nW) % nH) * m + eps, (p % nW) * m + nu);},
         "input_tile");
 
