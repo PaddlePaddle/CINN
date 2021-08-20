@@ -892,7 +892,7 @@ void CreateSerialData(const std::string &file_name) {
   // winograd
   InputParam(model_data,
              "CudaScheduleConv 1 64 58 58 64 64 3 3 1 64 56 56",
-             {{32, 2}, {1, 3}, {1, 3}, {8, 1, 8, 1}, {28, 1, 2, 1}, {1, 4, 14, 1}});
+             {{32, 2}, {1, 3}, {1, 3}, {4, 1, 8, 2}, {28, 1, 2, 1}, {1, 2, 7, 4}});
   // winograd
   InputParam(model_data,
              "CudaScheduleConv 1 512 9 9 512 512 3 3 1 512 7 7",
