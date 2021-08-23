@@ -4,8 +4,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cinn/common/target.h"
 #include "cinn/hlir/pe/schedule_param.pb.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/tensor.h"
 #include "cinn/lang/compute.h"
 #include "cinn/poly/stage.h"
 
@@ -29,6 +31,9 @@ class ScheduleParam {
   ScheduleParam();
   std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> param_data;
 };
+
+// Given tensors, generate schedules based on rules.
+poly::StageMap PrepareStages(const std::vector<ir::Tensor> &tensor_args, std::vector<ir::Tensor> &other_tensors);
 
 int GetInnerSplitter(int origin, int other_axis);
 

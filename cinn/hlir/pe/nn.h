@@ -235,6 +235,14 @@ ir::Tensor BatchNorm_NCHWc(const ir::Tensor &input,
                            float epsilon,
                            const std::string &output_name = UniqName("T_BatchNorm_NCHWc_out"));
 
+// A special kind of broadcast op, used to construct Conv2d op.
+ir::Tensor ConvBroadcast(const ir::Tensor &input_pad,
+                         const ir::Tensor &weights,
+                         Expr stride_h,
+                         Expr stride_w,
+                         Expr dilation_h,
+                         Expr dilation_w);
+
 /**
  * @brief Perform padding operation.
  * @param tensor The input tensor.
@@ -255,8 +263,8 @@ ir::Tensor BatchNorm_NCHWc(const ir::Tensor &input,
  *      pad(t(i, j, k), {1}, {1}) returns the equivalent operation for
  *          the following pseudocode:
  *              for i in [0, t.shape[0] + 2):
- *                  for j in [0, t.shape[0] + 2):
- *                      for k in [0, t.shape[0] + 2):
+ *                  for j in [0, t.shape[0]):
+ *                      for k in [0, t.shape[0]):
  *                         name(i,j,k) =
  *                             i < 1 ? 0 :
  *                               ((1 <= i < t.shape[0] + 1) ?

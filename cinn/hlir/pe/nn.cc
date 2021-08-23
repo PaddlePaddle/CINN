@@ -583,6 +583,25 @@ ir::Tensor Slice(const ir::Tensor &A,
       output_name);
 }
 
+Tensor ConvBroadcast(
+    const Tensor &input_pad, const Tensor &weights, Expr stride_h, Expr stride_w, Expr dilation_h, Expr dilation_w) {
+  auto output_shape = {input_pad->shape[0],
+                       weights->shape[0],
+                       Expr((input_pad->shape[2] - ((weights->shape[2] - 1) * dilation_h + 1)) / stride_h + 1),
+                       Expr((input_pad->shape[3] - ((weights->shape[3] - 1) * dilation_w + 1)) / stride_w + 1),
+                       weights->shape[1],
+                       weights->shape[2],
+                       weights->shape[3]};
+  auto output_name  = UniqName("ConvBroadcast_out");
+  return Compute(
+      output_shape,
+      [=](Expr nn, Expr ff, Expr yy, Expr xx, Expr rc, Expr ry, Expr rx) {
+        return input_pad(nn, rc, yy * stride_h + ry * dilation_h, xx * stride_w + rx * dilation_w) *
+               weights(ff, rc, ry, rx);
+      },
+      output_name);
+}
+
 /**
  * @brief Perform padding operation.
  * @param tensor The input tensor.
@@ -603,8 +622,8 @@ ir::Tensor Slice(const ir::Tensor &A,
  *      pad(t(i, j, k), {1}, {1}) returns the equivalent operation for
  *          the following pseudocode:
  *              for i in [0, t.shape[0] + 2):
- *                  for j in [0, t.shape[0] + 2):
- *                      for k in [0, t.shape[0] + 2):
+ *                  for j in [0, t.shape[0]):
+ *                      for k in [0, t.shape[0]):
  *                         name(i,j,k) =
  *                             i < 1 ? 0 :
  *                               ((1 <= i < t.shape[0] + 1) ?

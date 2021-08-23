@@ -480,7 +480,7 @@ void Stage::ComputeAt(Stage *other, int level) {
   auto indices    = optim::CollectTensorIndex(&(other->expr_), this->tensor()->name);
   RemoveDuplicate(indices);
   if (indices.empty()) {
-    LOG(ERROR) << "No Access Relation between [" << other->id() << "] and [" << this->id() << "]! Please check.";
+    LOG(FATAL) << "No Access Relation between [" << other->id() << "] and [" << this->id() << "]! Please check.";
   }
   CHECK_EQ(indices.size(), 1) << "indices.size > 1 is not supported yet";
   std::vector<std::string> target_dims = isl_get_dim_names(other->domain());
