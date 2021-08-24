@@ -727,6 +727,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
     stages[res]->Reorder({oh_outer1, ow_outer1, oh_inner1, ow_inner1, oc_inner1});
     // stages[res]->Fuse({0, 1, 2});
     // Todo: computeAt according to forloops' range
+    stages[packed_out]->ComputeAt2(stages[res], 2);
     VLOG(3) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
   }
 }
@@ -1035,6 +1036,7 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
     stages[res]->Reorder({oh1, ow_outer1, ow_inner1, oc_inner1});
     // stages[res]->Fuse({0, 1, 2});
     // Todo: computeAt according to forloops' range
+    stages[packed_out]->ComputeAt2(stages[res], 2);
   }
 }
 
