@@ -285,84 +285,9 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_0) {
 
   auto pad_data = res[1];
   auto conv     = res[0];
+  auto B_t      = B.tensor();
 
-  stages[pad_data]->ComputeInline();
-  optim::Simplify(&(conv->shape[2]));
-  optim::Simplify(&(conv->shape[3]));
-
-  std::vector<ir::Tensor> readers{conv};
-  auto PR = stages[pad_data]->CacheRead("shared", readers, stages);
-  auto KR = stages[B]->CacheRead("shared", readers, stages);
-  auto OL = stages[conv]->CacheWrite("local", stages, conv);
-
-  // x param is :  [1, 1, 14, 1]
-  stages[conv]->Split(3, 1);
-  stages[conv]->Split(3, 14);
-  stages[conv]->Split(3, 1);
-  // y param is :  [14, 1, 1, 1]
-  stages[conv]->Split(2, 1);
-  stages[conv]->Split(2, 1);
-  stages[conv]->Split(2, 1);
-  // f param is :  [8, 1, 16, 2]
-  stages[conv]->Split(1, 2);
-  stages[conv]->Split(1, 16);
-  stages[conv]->Split(1, 1);
-
-  stages[conv]->Reorder({0, 1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12});
-  stages[conv]->Bind(1, "blockIdx.z");
-  stages[conv]->Bind(2, "blockIdx.y");
-  stages[conv]->Bind(3, "blockIdx.x");
-  stages[conv]->Bind(7, "threadIdx.z");
-  stages[conv]->Bind(8, "threadIdx.y");
-  stages[conv]->Bind(9, "threadIdx.x");
-
-  stages[OL]->ComputeAt(stages[conv], 9);
-
-  // rx param is :  [1, 1]
-  stages[OL]->Split(15, 1);
-  // ry param is :  [1, 1]
-  stages[OL]->Split(14, 1);
-  // rc param is :  [16, 8]
-  stages[OL]->Split(13, 8);
-
-  stages[OL]->Reorder({13, 15, 17, 14, 16, 18, 10, 11, 12});
-
-  auto OL_init = OL->GetInitTensor(stages, target);
-  stages[PR]->ComputeAt(stages[OL], 12);
-  stages[KR]->ComputeAt(stages[OL], 12);
-
-  stages[PR]->SyncThreads(12, {OL_init}, stages);
-  stages[KR]->CtrlDepend(PR);
-  stages[KR]->SyncThreads(stages);
-
-  if (stages[PR]->n_out_dims() == 18) {
-    stages[PR]->Fuse({13, 14, 15, 16, 17});
-  } else {
-    LOG(ERROR) << "PR number of output dims is wrong!";
-  }
-
-  if (stages[KR]->n_out_dims() == 18) {
-    stages[KR]->Fuse({13, 14, 15, 16, 17});
-  } else if (stages[KR]->n_out_dims() == 19) {
-    stages[KR]->Fuse({13, 14, 15, 16, 17, 18});
-  } else {
-    LOG(ERROR) << "KR number of output dims is wrong!";
-  }
-  int thread_z = 16;
-  int thread_x = 8;
-  if (stages[PR]->GetDimRange(13) <= thread_z) {
-    stages[PR]->Bind(13, "threadIdx.z");
-  } else {
-    stages[PR]->Split(13, thread_z);
-    stages[PR]->Bind(14, "threadIdx.z");
-  }
-
-  if (stages[KR]->GetDimRange(13) <= thread_x) {
-    stages[KR]->Bind(13, "threadIdx.x");
-  } else {
-    stages[KR]->Split(13, thread_x);
-    stages[KR]->Bind(14, "threadIdx.x");
-  }
+  hlir::pe::CudaScheduleConv(stages, pad_data, B_t, conv, target);
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -414,7 +339,7 @@ void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y,
             };
             for (int32_t rc_inner = 0; rc_inner < 2; rc_inner += 1) {
               if ((threadIdx.x < 8)) {
-                Y_read_cache[((threadIdx.x / 2) + ((8 * (threadIdx.x % 2)) + ((4 * rc_inner) + (16 * threadIdx.z))))] = Y[((threadIdx.x / 2) + ((128 * (threadIdx.x % 2)) + ((4096 * blockIdx.z) + ((4 * rc_inner) + ((8 * rc_outer) + (256 * threadIdx.z))))))];
+                Y_read_cache[((threadIdx.x / 2) + ((8 * (threadIdx.x & 1)) + ((4 * rc_inner) + (16 * threadIdx.z))))] = Y[((threadIdx.x / 2) + ((128 * (threadIdx.x & 1)) + ((4096 * blockIdx.z) + ((4 * rc_inner) + ((8 * rc_outer) + (256 * threadIdx.z))))))];
               };
             };
             __syncthreads();
@@ -505,83 +430,9 @@ TEST(CodeGenCUDA2, test_schedule_conv2d_1) {
 
   auto pad_data = res[1];
   auto conv     = res[0];
+  auto B_t      = B.tensor();
 
-  stages[pad_data]->ComputeInline();
-  optim::Simplify(&(conv->shape[2]));
-  optim::Simplify(&(conv->shape[3]));
-
-  std::vector<ir::Tensor> readers{conv};
-  auto PR = stages[pad_data]->CacheRead("shared", readers, stages);
-  auto KR = stages[B]->CacheRead("shared", readers, stages);
-  auto OL = stages[conv]->CacheWrite("local", stages, conv);
-
-  // x param is :  [1, 7, 16, 1]
-  stages[conv]->Split(3, 1);
-  stages[conv]->Split(3, 16);
-  stages[conv]->Split(3, 7);
-  // y param is :  [112, 1, 1, 1]
-  stages[conv]->Split(2, 1);
-  stages[conv]->Split(2, 1);
-  stages[conv]->Split(2, 1);
-  // f param is :  [1, 4, 8, 2]
-  stages[conv]->Split(1, 2);
-  stages[conv]->Split(1, 8);
-  stages[conv]->Split(1, 4);
-
-  stages[conv]->Reorder({0, 1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12});
-  stages[conv]->Bind(1, "blockIdx.z");
-  stages[conv]->Bind(2, "blockIdx.y");
-  stages[conv]->Bind(3, "blockIdx.x");
-  stages[conv]->Bind(7, "threadIdx.z");
-  stages[conv]->Bind(8, "threadIdx.y");
-  stages[conv]->Bind(9, "threadIdx.x");
-
-  stages[OL]->ComputeAt(stages[conv], 9);
-
-  // rx param is :  [1, 7]
-  stages[OL]->Split(15, 7);
-  // ry param is :  [7, 1]
-  stages[OL]->Split(14, 1);
-  // rc param is :  [3, 1]
-  stages[OL]->Split(13, 1);
-
-  stages[OL]->Reorder({13, 15, 17, 14, 16, 18, 10, 11, 12});
-
-  auto OL_init = OL->GetInitTensor(stages, target);
-  stages[PR]->ComputeAt(stages[OL], 12);
-  stages[KR]->ComputeAt(stages[OL], 12);
-
-  stages[PR]->SyncThreads(12, {OL_init}, stages);
-  stages[KR]->CtrlDepend(PR);
-  stages[KR]->SyncThreads(stages);
-
-  if (stages[PR]->n_out_dims() == 18) {
-    stages[PR]->Fuse({13, 14, 15, 16, 17});
-  } else {
-    LOG(ERROR) << "PR number of output dims is wrong!";
-  }
-
-  if (stages[KR]->n_out_dims() == 18) {
-    stages[KR]->Fuse({13, 14, 15, 16, 17});
-  } else if (stages[KR]->n_out_dims() == 19) {
-    stages[KR]->Fuse({13, 14, 15, 16, 17, 18});
-  } else {
-    LOG(ERROR) << "KR number of output dims is wrong!";
-  }
-  int thread_z = 8;
-  int thread_x = 16;
-  if (stages[PR]->GetDimRange(13) <= thread_z) {
-    stages[PR]->Bind(13, "threadIdx.z");
-  } else {
-    stages[PR]->Split(13, hlir::pe::GetMaxSplitter(stages[PR]->GetDimRange(13), thread_z));
-    stages[PR]->Bind(14, "threadIdx.z");
-  }
-  if (stages[KR]->GetDimRange(13) <= thread_x) {
-    stages[KR]->Bind(13, "threadIdx.x");
-  } else {
-    stages[KR]->Split(13, hlir::pe::GetMaxSplitter(stages[KR]->GetDimRange(13), thread_x));
-    stages[KR]->Bind(14, "threadIdx.x");
-  }
+  hlir::pe::CudaScheduleConv(stages, pad_data, B_t, conv, target);
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -634,7 +485,7 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
                   };
                 };
                 if ((threadIdx.x < 14)) {
-                  Y_read_cache[((threadIdx.x / 2) + ((7 * (threadIdx.x % 2)) + (14 * threadIdx.z)))] = Y[((threadIdx.x / 2) + ((147 * (threadIdx.x % 2)) + ((2352 * j_outer_outer_inner) + ((49 * rc_outer) + ((7 * ry_outer) + (294 * threadIdx.z))))))];
+                  Y_read_cache[((threadIdx.x / 2) + ((7 * (threadIdx.x & 1)) + (14 * threadIdx.z)))] = Y[((threadIdx.x / 2) + ((147 * (threadIdx.x & 1)) + ((2352 * j_outer_outer_inner) + ((49 * rc_outer) + ((7 * ry_outer) + (294 * threadIdx.z))))))];
                 };
                 __syncthreads();
                 for (int32_t rx_inner = 0; rx_inner < 7; rx_inner += 1) {
