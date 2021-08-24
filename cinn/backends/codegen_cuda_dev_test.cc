@@ -215,8 +215,6 @@ CreateNVMemory(int M, int N) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void elementwise_add_splitouter(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
 // {
@@ -224,7 +222,9 @@ CreateNVMemory(int M, int N) {
 //     if ((threadIdx.x < 5)) {
 //       for (int32_t j_outer = 0; j_outer < 17; j_outer += 1) {
 //         for (int32_t j_inner = 0; j_inner < cinn_nvgpu_min_fp32(6, (100 + (-6 * j_outer))); j_inner += 1) {
-//           C[((500 * blockIdx.x) + ((6 * j_outer) + ((100 * threadIdx.x) + j_inner)))] = (X[((500 * blockIdx.x) + ((6 * j_outer) + ((100 * threadIdx.x) + j_inner)))] * Y[((500 * blockIdx.x) + ((6 * j_outer) + ((100 * threadIdx.x) + j_inner)))]);
+//           C[((500 * blockIdx.x) + ((6 * j_outer) + ((100 * threadIdx.x) + j_inner)))] = (X[((500 * blockIdx.x) + ((6
+//           * j_outer) + ((100 * threadIdx.x) + j_inner)))] * Y[((500 * blockIdx.x) + ((6 * j_outer) + ((100 *
+//           threadIdx.x) + j_inner)))]);
 //         };
 //       };
 //     };
@@ -385,8 +385,6 @@ CreateNVMemory(int M, int N) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ COD)
 // {
@@ -409,23 +407,28 @@ CreateNVMemory(int M, int N) {
 //             {
 //               __syncthreads();
 //               if ((threadIdx.z < 8)) {
-//                 input_pad_0_read_cache[((2 * threadIdx.x) + (28 * threadIdx.z))] = X[((56 * blockIdx.y) + ((6272 * rc_outer) + ((2 * threadIdx.x) + (784 * threadIdx.z))))];
+//                 input_pad_0_read_cache[((2 * threadIdx.x) + (28 * threadIdx.z))] = X[((56 * blockIdx.y) + ((6272 *
+//                 rc_outer) + ((2 * threadIdx.x) + (784 * threadIdx.z))))];
 //               };
 //             };
 //             for (int32_t rc_inner = 0; rc_inner < 2; rc_inner += 1) {
 //               if ((threadIdx.x < 8)) {
-//                 Y_read_cache[((threadIdx.x / 2) + ((8 * (threadIdx.x % 2)) + ((4 * rc_inner) + (16 * threadIdx.z))))] = Y[((threadIdx.x / 2) + ((128 * (threadIdx.x % 2)) + ((4096 * blockIdx.z) + ((4 * rc_inner) + ((8 * rc_outer) + (256 * threadIdx.z))))))];
+//                 Y_read_cache[((threadIdx.x / 2) + ((8 * (threadIdx.x % 2)) + ((4 * rc_inner) + (16 * threadIdx.z))))]
+//                 = Y[((threadIdx.x / 2) + ((128 * (threadIdx.x % 2)) + ((4096 * blockIdx.z) + ((4 * rc_inner) + ((8 *
+//                 rc_outer) + (256 * threadIdx.z))))))];
 //               };
 //             };
 //             __syncthreads();
 //             for (int32_t rc_inner = 0; rc_inner < 8; rc_inner += 1) {
 //               for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-//                 COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2 * threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * threadIdx.z) + rc_inner))]));
+//                 COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2
+//                 * threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * threadIdx.z) + rc_inner))]));
 //               };
 //             };
 //           };
 //           for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
-//             COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * rc_outer) + ((392 * threadIdx.z) + threadIdx.x))))] = COD_write_cache[rc_outer];
+//             COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * rc_outer) + ((392 * threadIdx.z) +
+//             threadIdx.x))))] = COD_write_cache[rc_outer];
 //           };
 //         }
 //         };
@@ -486,15 +489,19 @@ CreateNVMemory(int M, int N) {
 //       host_data3.data(), reinterpret_cast<void*>(Cd), 256 * 14 * 14 * sizeof(float), cudaMemcpyDeviceToHost));
 // }
 
-
 TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   LOG(INFO) << "Yeliang check";
   Context::Global().ResetNameId();
-  Expr N(1);
-  Expr C(3);
-  Expr H(224);
-  Expr W(8);
-  Expr K(3);
+  int ni = 1;
+  int ci = 128;
+  int hi = 28;
+  int wi = 128;
+  int ki = 3;
+  Expr N(ni);
+  Expr C(ci);
+  Expr H(hi);
+  Expr W(wi);
+  Expr K(ki);
 
   Target target = common::DefaultNVGPUTarget();
 
@@ -508,94 +515,9 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   auto pad_data = res[1];
   auto conv     = res[0];
 
+  auto B_t = B.tensor();
 
-  // auto func_before = Lower("schedule_before_conv2d", stages, {A, B, res[0]}, {}, {}, nullptr, target);
-  // LOG(INFO) <<"before: \n"<< func_before;
-
-  // Module::Builder builder1("module", target);
-  // builder1.AddFunction(func_before);
-
-  // CodeGenCUDA_Dev codegen1(target);
-  // auto source_code1 = codegen1.Compile(builder1.Build());
-
-  // LOG(INFO) << "compiled schedule_conv2d_1 code 1:\n\n\n" << source_code1;
-
-  stages[pad_data]->ComputeInline();
-  optim::Simplify(&(conv->shape[2]));
-  optim::Simplify(&(conv->shape[3]));
-
-  std::vector<ir::Tensor> readers{conv};
-  auto PR = stages[pad_data]->CacheRead("shared", readers, stages);
-  auto KR = stages[B]->CacheRead("shared", readers, stages);
-  auto OL = stages[conv]->CacheWrite("local", stages, conv);
-
-  // x param is :  [1, 7, 16, 1]
-  stages[conv]->Split(3, 1);
-  stages[conv]->Split(3, 16);
-  stages[conv]->Split(3, 7);
-  // y param is :  [112, 1, 1, 1]
-  stages[conv]->Split(2, 1);
-  stages[conv]->Split(2, 1);
-  stages[conv]->Split(2, 1);
-  // f param is :  [1, 4, 8, 2]
-  stages[conv]->Split(1, 2);
-  stages[conv]->Split(1, 8);
-  stages[conv]->Split(1, 4);
-
-  stages[conv]->Reorder({0, 1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12});
-  stages[conv]->Bind(1, "blockIdx.z");
-  stages[conv]->Bind(2, "blockIdx.y");
-  stages[conv]->Bind(3, "blockIdx.x");
-  stages[conv]->Bind(7, "threadIdx.z");
-  stages[conv]->Bind(8, "threadIdx.y");
-  stages[conv]->Bind(9, "threadIdx.x");
-
-  stages[OL]->ComputeAt(stages[conv], 9);
-
-  // rx param is :  [1, 7]
-  stages[OL]->Split(15, 7);
-  // ry param is :  [7, 1]
-  stages[OL]->Split(14, 1);
-  // rc param is :  [3, 1]
-  stages[OL]->Split(13, 1);
-
-  stages[OL]->Reorder({13, 15, 17, 14, 16, 18, 10, 11, 12});
-
-  auto OL_init = OL->GetInitTensor(stages, target);
-  stages[PR]->ComputeAt(stages[OL], 12);
-  stages[KR]->ComputeAt(stages[OL], 12);
-
-  stages[PR]->SyncThreads(12, {OL_init}, stages);
-  stages[KR]->CtrlDepend(PR);
-  stages[KR]->SyncThreads(stages);
-
-  if (stages[PR]->n_out_dims() == 18) {
-    stages[PR]->Fuse({13, 14, 15, 16, 17});
-  } else {
-    LOG(ERROR) << "PR number of output dims is wrong!";
-  }
-
-  if (stages[KR]->n_out_dims() == 18) {
-    stages[KR]->Fuse({13, 14, 15, 16, 17});
-  } else if (stages[KR]->n_out_dims() == 19) {
-    stages[KR]->Fuse({13, 14, 15, 16, 17, 18});
-  } else {
-    LOG(ERROR) << "KR number of output dims is wrong!";
-  }
-  int thread_z = 8;
-  int thread_x = 16;
-  if (stages[PR]->GetDimRange(13) <= thread_z) {
-    stages[PR]->Bind(13, "threadIdx.z");
-  } else {
-    stages[PR]->Split(13, hlir::pe::GetMaxSplitter(stages[PR]->GetDimRange(13), thread_z));
-    stages[PR]->Bind(14, "threadIdx.z");
-  }
-  if (stages[KR]->GetDimRange(13) <= thread_x) {
-    stages[KR]->Bind(13, "threadIdx.x");
-  } else {
-    stages[KR]->Split(13, hlir::pe::GetMaxSplitter(stages[KR]->GetDimRange(13), thread_x));
-    stages[KR]->Bind(14, "threadIdx.x");
-  }
+  hlir::pe::CudaScheduleConv(stages, pad_data, B_t, conv, target);
 
   CodeGenCUDA_Dev codegen(target);
 
@@ -607,7 +529,7 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   auto source_code = codegen.Compile(builder.Build());
 
   LOG(INFO) << "compiled schedule_conv2d_1 code:\n\n\n" << source_code;
-  
+
   using runtime::cuda::CUDAModule;
 
   backends::NVRTC_Compiler compiler;
@@ -620,15 +542,18 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   CUDA_CALL(cudaDeviceSynchronize());
 
   CUdeviceptr Ad, Bd, Cd;
-  cuMemAlloc(&Ad, 1 * 3 * 224 * 224 * sizeof(float));
-  cuMemAlloc(&Bd, 8 * 3 * 3 * 3 * sizeof(float));
-  cuMemAlloc(&Cd, 1 * 8 * 224 * 224 * sizeof(float));
+  cuMemAlloc(&Ad, ni * ci * hi * hi * sizeof(float));
+  cuMemAlloc(&Bd, wi * ci * ki * ki * sizeof(float));
+  cuMemAlloc(&Cd, ni * wi * hi * hi * sizeof(float));
 
-  std::vector<float> host_data1(1 * 3 * 224 * 224, 0);
-  std::vector<float> host_data2(8 * 3 * 3 * 3, 0);
-  std::vector<float> host_data3(1 * 8 * 224 * 224, 0);
-  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
-  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+  std::vector<float> host_data1(ni * ci * hi * hi, 0);
+  std::vector<float> host_data2(wi * ci * ki * ki, 0);
+  std::vector<float> host_data3(ni * wi * hi * hi, 0);
+  /*   for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+    for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT */
+
+  for (float& v : host_data1) v = 1.f;  // NOLINT
+  for (float& v : host_data2) v = 1.f;  // NOLINT
 
   CUDA_CALL(cudaMemcpy(
       reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
@@ -638,8 +563,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   // launch the kernel
 
   void* args[] = {&Ad, &Bd, &Cd};
-  dim3 grid(4, 225, 1);
-  dim3 block(18, 5, 6);
+  dim3 grid(1, 14, 8);
+  dim3 block(7, 2, 16);
   int repeat = 5000;
 
   utils::Timer time1;
@@ -654,32 +579,29 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   CUDA_CALL(cudaMemcpy(
       host_data3.data(), reinterpret_cast<void*>(Cd), host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
 
-
-
-
-
-
   Placeholder<float> Wino_A("X", {N, C, H, H});
   Placeholder<float> Wino_B("Y", {W, C, K, K});
 
-  auto wino_res = hlir::pe::Conv2d_winograd_NCHW(Wino_A, Wino_B, 1, 1, 1, 1, 1, 1, "Winograd_Conv2d_out");
+  auto wino_res    = hlir::pe::Conv2d_winograd_NCHW(Wino_A, Wino_B, 1, 1, 1, 1, 1, 1, "Winograd_Conv2d_out");
   auto wino_stages = CreateStages(wino_res);
 
-  for (auto &t : wino_res) {
-      LOG(INFO)<<t;
+  for (auto& t : wino_res) {
+    LOG(INFO) << t;
   }
 
   auto wino_weights_dilation = wino_res[0];
-  auto wino_input_pad     = wino_res[1];
-  auto wino_A = wino_res[2];
-  auto wino_B = wino_res[3];
-  auto wino_G = wino_res[4];
-  auto kernel_pack = wino_res[5];
-  auto input_tile = wino_res[6];
-  auto data_pack = wino_res[7];
-  auto bgemm = wino_res[8];
-  auto inverse = wino_res[9];
-  auto wino_conv     = wino_res[10];
+  auto wino_input_pad        = wino_res[1];
+  auto wino_A                = wino_res[2];
+  auto wino_B                = wino_res[3];
+  auto wino_G                = wino_res[4];
+  auto kernel_pack           = wino_res[5];
+  auto input_tile            = wino_res[6];
+  auto data_pack             = wino_res[7];
+  auto bgemm                 = wino_res[8];
+  auto inverse               = wino_res[9];
+  auto wino_conv             = wino_res[10];
+  LOG(INFO) << "stage 1";
+  wino_stages[bgemm]->ShowISL();
 
   wino_stages[wino_weights_dilation]->ComputeInline();
   wino_stages[wino_input_pad]->ComputeInline();
@@ -688,24 +610,31 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   wino_stages[wino_G]->ComputeInline();
   wino_stages[input_tile]->ComputeInline();
 
+  /*
+    wino_stages[wino_conv]->Bind(0,"blockIdx.x");
+    wino_stages[wino_conv]->Bind(1,"threadIdx.x");
 
-  wino_stages[wino_conv]->Bind(0,"blockIdx.x");
-  wino_stages[wino_conv]->Bind(1,"threadIdx.x");
+    wino_stages[kernel_pack]->Bind(0,"blockIdx.x");
+    wino_stages[kernel_pack]->Bind(1,"threadIdx.x");
 
-  wino_stages[kernel_pack]->Bind(0,"blockIdx.x");
-  wino_stages[kernel_pack]->Bind(1,"threadIdx.x");
+    wino_stages[data_pack]->Bind(0,"blockIdx.x");
+    wino_stages[data_pack]->Bind(1,"threadIdx.x");
 
-  wino_stages[data_pack]->Bind(0,"blockIdx.x");
-  wino_stages[data_pack]->Bind(1,"threadIdx.x");
-  
-  wino_stages[bgemm]->Bind(0,"blockIdx.x");
-  wino_stages[bgemm]->Bind(1,"threadIdx.x");
+    wino_stages[bgemm]->Bind(0,"blockIdx.x");
+    wino_stages[bgemm]->Bind(1,"threadIdx.x"); */
 
-  LOG(INFO)<< "Yeliang : winograd conv2d";
+  LOG(INFO) << "Yeliang : winograd conv2d";
   CodeGenCUDA_Dev wino_codegen(target);
 
-  auto wino_func = Lower("schedule_wino_conv2d", wino_stages, {Wino_A, Wino_B, kernel_pack, data_pack, bgemm, inverse, wino_conv}, {}, {}, nullptr, target);
-  // auto wino_func = Lower("schedule_wino_conv2d", wino_stages, {Wino_A, Wino_B, wino_weights_dilation, wino_input_pad, wino_A, wino_B, wino_G}, {}, {}, nullptr, target);
+  auto wino_func = Lower("schedule_wino_conv2d",
+                         wino_stages,
+                         {Wino_A, Wino_B, kernel_pack, data_pack, bgemm, inverse, wino_conv},
+                         {},
+                         {},
+                         nullptr,
+                         target);
+  // auto wino_func = Lower("schedule_wino_conv2d", wino_stages, {Wino_A, Wino_B, wino_weights_dilation, wino_input_pad,
+  // wino_A, wino_B, wino_G}, {}, {}, nullptr, target);
   LOG(INFO) << wino_func;
   Module::Builder wino_builder("wino_module", target);
   wino_builder.AddFunction(wino_func);
@@ -724,17 +653,17 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   CUDA_CALL(cudaDeviceSynchronize());
 
   CUdeviceptr wino_Ad, wino_Bd, wino_Cd;
-  cuMemAlloc(&wino_Ad, 1 * 3 * 224 * 224 * sizeof(float));
-  cuMemAlloc(&wino_Bd, 8 * 3 * 3 * 3 * sizeof(float));
-  cuMemAlloc(&wino_Cd, 1 * 8 * 224 * 224 * sizeof(float));
+  cuMemAlloc(&wino_Ad, ni * ci * hi * hi * sizeof(float));
+  cuMemAlloc(&wino_Bd, wi * ci * ki * ki * sizeof(float));
+  cuMemAlloc(&wino_Cd, ni * wi * hi * hi * sizeof(float));
 
   CUdeviceptr kernel_pack_Ad, data_pack_Ad, bgemm_Ad, inverse_Ad;
-  cuMemAlloc(&kernel_pack_Ad, 6 * 6 * 3 * 8 * sizeof(float));
-  cuMemAlloc(&data_pack_Ad, 6 * 6 * 3 * 3136 * sizeof(float));
-  cuMemAlloc(&bgemm_Ad, 6 * 6 * 8 * 3136 * sizeof(float));
-  cuMemAlloc(&inverse_Ad, 8 * 3136 * 4 * 4 * sizeof(float));
+  cuMemAlloc(&kernel_pack_Ad, 4 * 4 * 128 * 128 * sizeof(float));
+  cuMemAlloc(&data_pack_Ad, 4 * 4 * 128 * 196 * sizeof(float));
+  cuMemAlloc(&bgemm_Ad, 4 * 4 * 128 * 196 * sizeof(float));
+  cuMemAlloc(&inverse_Ad, 128 * 196 * 2 * 2 * sizeof(float));
 
-  std::vector<float> wino_host_data3(1 * 8 * 224 * 224, 0);
+  std::vector<float> wino_host_data3(ni * wi * hi * hi, 0);
 
   CUDA_CALL(cudaMemcpy(
       reinterpret_cast<void*>(wino_Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
@@ -744,8 +673,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   // launch the kernel
   void* wino_args[] = {&wino_Ad, &wino_Bd, &kernel_pack_Ad, &data_pack_Ad, &bgemm_Ad, &inverse_Ad, &wino_Cd};
 
-  dim3 wino_grid(8);
-  dim3 wino_block(8);
+  dim3 wino_grid(1, 1, 1);
+  dim3 wino_block(1, 1, 1);
   int wino_repeat = 1;
 
   utils::Timer wino_time;
@@ -755,47 +684,27 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
     CUDA_CALL(cudaDeviceSynchronize());
   }
   auto wino_time_average = wino_time.Stop() / float(wino_repeat);
-  LOG(INFO) << "Conv2d winograd CINN with schedule repeats " << wino_repeat << " times, average time cost is : " << wino_time_average
-            << "ms. ";
-  CUDA_CALL(cudaMemcpy(
-      wino_host_data3.data(), reinterpret_cast<void*>(wino_Cd), wino_host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
-
+  LOG(INFO) << "Conv2d winograd CINN with schedule repeats " << wino_repeat
+            << " times, average time cost is : " << wino_time_average << "ms. ";
+  CUDA_CALL(cudaMemcpy(wino_host_data3.data(),
+                       reinterpret_cast<void*>(wino_Cd),
+                       wino_host_data3.size() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
 
   LOG(INFO) << "test result is : ";
-  for (int i = 0; i < 10; i++) {
-    for (int j = 0; j < 10; j++) {
-      for (int k = 0; k < 1; k++) {
-        int offset = k * (224 * 224 ) + i * 224 + j;
-        LOG(INFO) <<"diff: "<<i<<" "<<j<<" "<<wino_host_data3[offset] - host_data3[offset];
-      }
+  for (int offset = 0; offset < ni * wi * hi * hi; offset++) {
+    if (wino_host_data3[offset] - host_data3[offset] > 1e-3 || wino_host_data3[offset] - host_data3[offset] < -(1e-3)) {
+      LOG(INFO) << "wino_host_data3[" << offset << "]: " << wino_host_data3[offset];
+      LOG(INFO) << "host_data3[" << offset << "]: " << host_data3[offset];
+      LOG(INFO) << "diff: [" << offset << "] " << wino_host_data3[offset] - host_data3[offset];
     }
+    EXPECT_NEAR(wino_host_data3[offset], host_data3[offset], 1e-3);
   }
-
-  float max_val = 0.0;
-  float val_1 =0.0;
-  float val_2= 0.0;
-  int index1 = 0;
-  int index2= 0;
-  for (int i = 0; i < 224; i++) {
-    for (int j = 0; j < 224; j++) {
-      for (int k = 0; k < 1; k++) {
-        int offset = k * (224 * 224 ) + i * 224 + j;
-        float diff = std::abs(wino_host_data3[offset] - host_data3[offset]);
-        if(max_val < diff){
-          max_val = diff;
-          val_1 = wino_host_data3[offset];
-          val_2 = host_data3[offset];
-          index1 = i;
-          index2 = j;
-        }
-        if(diff > 1e-4){
-          LOG(INFO) << "max diff : "<< diff<<" "<<wino_host_data3[offset]<<" "<<host_data3[offset]<<" "<<i<<" "<<j;
-        }
-      }
-    }
+  for (int offset = 0; offset < 10; offset++) {
+    LOG(INFO) << "wino_host_data3[" << offset << "]: " << wino_host_data3[offset];
+    LOG(INFO) << "host_data3[" << offset << "]: " << host_data3[offset];
+    LOG(INFO) << "diff: [" << offset << "] " << wino_host_data3[offset] - host_data3[offset];
   }
-  LOG(INFO) << "max diff : "<< max_val<<" "<<val_1<<" "<<val_2<<" "<<index1<<" "<<index2;
-
 }
 
 // TEST(CodeGenCUDA2, test_schedule_conv2d_1) {
@@ -916,8 +825,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ Conv2d_out)
 // {
@@ -942,22 +849,30 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //                 {
 //                   __syncthreads();
 //                   if ((threadIdx.z < 7)) {
-//                     input_pad_0_read_cache[((2 * threadIdx.x) + threadIdx.z)] = ((((((((2 * blockIdx.y) + ry_outer) >= 3) && (((2 * blockIdx.y) + ry_outer) < 227)) && (((32 * a_outer_outer_inner) + ((2 * threadIdx.x) + threadIdx.z)) >= 3)) && (((32 * a_outer_outer_inner) + ((2 * threadIdx.x) + threadIdx.z)) < 227))) ? X[(-675 + ((32 * a_outer_outer_inner) + ((448 * blockIdx.y) + ((50176 * rc_outer) + ((224 * ry_outer) + ((2 * threadIdx.x) + threadIdx.z))))))] : 0);
+//                     input_pad_0_read_cache[((2 * threadIdx.x) + threadIdx.z)] = ((((((((2 * blockIdx.y) + ry_outer)
+//                     >= 3) && (((2 * blockIdx.y) + ry_outer) < 227)) && (((32 * a_outer_outer_inner) + ((2 *
+//                     threadIdx.x) + threadIdx.z)) >= 3)) && (((32 * a_outer_outer_inner) + ((2 * threadIdx.x) +
+//                     threadIdx.z)) < 227))) ? X[(-675 + ((32 * a_outer_outer_inner) + ((448 * blockIdx.y) + ((50176 *
+//                     rc_outer) + ((224 * ry_outer) + ((2 * threadIdx.x) + threadIdx.z))))))] : 0);
 //                   };
 //                 };
 //                 if ((threadIdx.x < 14)) {
-//                   Y_read_cache[((threadIdx.x / 2) + ((7 * (threadIdx.x % 2)) + (14 * threadIdx.z)))] = Y[((threadIdx.x / 2) + ((147 * (threadIdx.x % 2)) + ((2352 * j_outer_outer_inner) + ((49 * rc_outer) + ((7 * ry_outer) + (294 * threadIdx.z))))))];
+//                   Y_read_cache[((threadIdx.x / 2) + ((7 * (threadIdx.x % 2)) + (14 * threadIdx.z)))] =
+//                   Y[((threadIdx.x / 2) + ((147 * (threadIdx.x % 2)) + ((2352 * j_outer_outer_inner) + ((49 *
+//                   rc_outer) + ((7 * ry_outer) + (294 * threadIdx.z))))))];
 //                 };
 //                 __syncthreads();
 //                 for (int32_t rx_inner = 0; rx_inner < 7; rx_inner += 1) {
 //                   for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-//                     Conv2d_out_write_cache[j_inner] = (Conv2d_out_write_cache[j_inner] + (input_pad_0_read_cache[((2 * threadIdx.x) + rx_inner)] * Y_read_cache[((7 * j_inner) + ((14 * threadIdx.z) + rx_inner))]));
+//                     Conv2d_out_write_cache[j_inner] = (Conv2d_out_write_cache[j_inner] + (input_pad_0_read_cache[((2
+//                     * threadIdx.x) + rx_inner)] * Y_read_cache[((7 * j_inner) + ((14 * threadIdx.z) + rx_inner))]));
 //                   };
 //                 };
 //               };
 //             };
 //             for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
-//               Conv2d_out[((16 * a_outer_outer_inner) + ((112 * blockIdx.y) + ((200704 * j_outer_outer_inner) + ((12544 * rc_outer) + ((25088 * threadIdx.z) + threadIdx.x)))))] = Conv2d_out_write_cache[rc_outer];
+//               Conv2d_out[((16 * a_outer_outer_inner) + ((112 * blockIdx.y) + ((200704 * j_outer_outer_inner) +
+//               ((12544 * rc_outer) + ((25088 * threadIdx.z) + threadIdx.x)))))] = Conv2d_out_write_cache[rc_outer];
 //             };
 //           }
 //           };
@@ -1015,7 +930,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //     CUDA_CALL(cudaDeviceSynchronize());
 //   }
 //   auto time_average1 = time1.Stop() / float(repeat);
-//   LOG(INFO) << "Conv2d op1_CINN with schedule repeats " << repeat << " times, average time cost is : " << time_average1
+//   LOG(INFO) << "Conv2d op1_CINN with schedule repeats " << repeat << " times, average time cost is : " <<
+//   time_average1
 //             << "ms. ";
 //   CUDA_CALL(cudaMemcpy(
 //       host_data3.data(), reinterpret_cast<void*>(Cd), host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
@@ -1029,7 +945,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //   typedef int int32_t;
 //   typedef char int8_t;
 //   #endif
-
 
 //   __global__ void schedule_conv2d_1(float* __restrict__ placeholder, float* __restrict__ placeholder1, float*
 //   __restrict__ Conv2d_out) { float compute[2];
@@ -1045,10 +960,13 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //             __syncthreads();
 //             if (((((int)threadIdx.z) * 5) + ((int)threadIdx.x)) < 37) {
 //               if (((int)threadIdx.x) < 5) {
-//                 pad_temp_shared[(((((int)threadIdx.z) * 5) + ((int)threadIdx.x)))] = (((((3 <= ((((int)blockIdx.y) * 2)
-//   + ry_outer)) && (((((int)blockIdx.y) * 2) + ry_outer) < 227)) && (3 <= (((ax3_inner_outer * 32) + (((int)threadIdx.z)
-//   * 5)) + ((int)threadIdx.x)))) && ((((ax3_inner_outer * 32) + (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) < 227)) ?
-//   placeholder[((((((((rc_outer * 50176) + (((int)blockIdx.y) * 448)) + (ry_outer * 224)) + (ax3_inner_outer * 32)) +
+//                 pad_temp_shared[(((((int)threadIdx.z) * 5) + ((int)threadIdx.x)))] = (((((3 <= ((((int)blockIdx.y) *
+//                 2)
+//   + ry_outer)) && (((((int)blockIdx.y) * 2) + ry_outer) < 227)) && (3 <= (((ax3_inner_outer * 32) +
+//   (((int)threadIdx.z)
+//   * 5)) + ((int)threadIdx.x)))) && ((((ax3_inner_outer * 32) + (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) <
+//   227)) ? placeholder[((((((((rc_outer * 50176) + (((int)blockIdx.y) * 448)) + (ry_outer * 224)) + (ax3_inner_outer *
+//   32)) +
 //   (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) - 675))] : 0.000000e+00f);
 //               }
 //             }
@@ -1071,7 +989,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //           }
 //         }
 //         for (int ax1_inner_inner_inner = 0; ax1_inner_inner_inner < 2; ++ax1_inner_inner_inner) {
-//           Conv2d_out[(((((((ax1_inner_outer * 200704) + (((int)threadIdx.z) * 25088)) + (ax1_inner_inner_inner * 12544))
+//           Conv2d_out[(((((((ax1_inner_outer * 200704) + (((int)threadIdx.z) * 25088)) + (ax1_inner_inner_inner *
+//           12544))
 //   + (((int)blockIdx.y) * 112)) + (ax3_inner_outer * 16)) + ((int)threadIdx.x)))] = compute[(ax1_inner_inner_inner)];
 //         }
 //       }
@@ -1099,7 +1018,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //     CUDA_CALL(cudaDeviceSynchronize());
 //   }
 //   auto time_average2 = time2.Stop() / float(repeat);
-//   LOG(INFO) << "Conv2d op1_TVM with schedule repeats " << repeat << " times, average time cost is : " << time_average2
+//   LOG(INFO) << "Conv2d op1_TVM with schedule repeats " << repeat << " times, average time cost is : " <<
+//   time_average2
 //             << "ms. ";
 //   CUDA_CALL(cudaMemcpy(
 //       host_data4.data(), reinterpret_cast<void*>(Cd), host_data4.size() * sizeof(float), cudaMemcpyDeviceToHost));
@@ -1149,8 +1069,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 // typedef int int32_t;
 // typedef char int8_t;
 // #endif
-
-
 
 // __global__
 // void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -1252,8 +1170,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1, float* __restrict__ C1)
 // {
@@ -1266,7 +1182,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
 //           C1_write_cache__reduce_init[j_inner] = 0;
 //           for (int32_t k1 = 0; k1 < 32; k1 += 1) {
-//             C1_write_cache[j_inner] = (C1_write_cache[j_inner] + (A1[((128 * blockIdx.x) + ((32 * threadIdx.x) + k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
+//             C1_write_cache[j_inner] = (C1_write_cache[j_inner] + (A1[((128 * blockIdx.x) + ((32 * threadIdx.x) +
+//             k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
 //           };
 //         };
 //         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
@@ -2010,8 +1927,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 // {
@@ -2024,7 +1939,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //         A_read_cache[j] = A[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))];
 //       };
 //       for (int32_t j = 0; j < 200; j += 1) {
-//         C[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))] = (A_read_cache[j] + B[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))]);
+//         C[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))] = (A_read_cache[j] + B[((200 * blockIdx.x) + ((2000 *
+//         threadIdx.x) + j))]);
 //       };
 //     }
 //     };
@@ -2136,8 +2052,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 // {
@@ -2149,7 +2063,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //         for (int32_t i_at = 0; i_at < 3; i_at += 1) {
 //           A_read_cache[i_at] = A[((10 * blockIdx.x) + ((200 * i_at) + ((200 * threadIdx.x) + j_inner)))];
 //         };
-//         C[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))] = (A_read_cache[0] + (A_read_cache[1] + (A_read_cache[2] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))])));
+//         C[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))] = (A_read_cache[0] + (A_read_cache[1] +
+//         (A_read_cache[2] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))])));
 //       };
 //     };
 //   };
@@ -2194,7 +2109,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //   for (int i = 0; i < M.as_int32() - 2; i++) {
 //     for (int j = 0; j < N.as_int32(); j++) {
 //       ASSERT_NEAR(C_target_mem[i * N.as_int32() + j],
-//                   A_mem[i * N.as_int32() + j] + A_mem[(i + 1) * N.as_int32() + j] + A_mem[(i + 2) * N.as_int32() + j] +
+//                   A_mem[i * N.as_int32() + j] + A_mem[(i + 1) * N.as_int32() + j] + A_mem[(i + 2) * N.as_int32() + j]
+//                   +
 //                       B_mem[i * N.as_int32() + j],
 //                   1e-4);
 //     }
@@ -2242,8 +2158,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void fn_cacheread_computeat1(const float* __restrict__ AA, float* __restrict__ C)
 // {
@@ -2254,10 +2168,12 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //     {
 //       for (int32_t i_at = 0; i_at < 6; i_at += 1) {
 //         for (int32_t j_at = 0; j_at < 6; j_at += 1) {
-//           AA_read_cache[((100 * i_at) + (j_at + threadIdx.x))] = AA[((100 * blockIdx.x) + ((100 * i_at) + (j_at + threadIdx.x)))];
+//           AA_read_cache[((100 * i_at) + (j_at + threadIdx.x))] = AA[((100 * blockIdx.x) + ((100 * i_at) + (j_at +
+//           threadIdx.x)))];
 //         };
 //       };
-//       C[((95 * blockIdx.x) + threadIdx.x)] = (AA_read_cache[threadIdx.x] + (AA_read_cache[(202 + threadIdx.x)] + AA_read_cache[(505 + threadIdx.x)]));
+//       C[((95 * blockIdx.x) + threadIdx.x)] = (AA_read_cache[threadIdx.x] + (AA_read_cache[(202 + threadIdx.x)] +
+//       AA_read_cache[(505 + threadIdx.x)]));
 //     }
 //     };
 //   };
@@ -2299,8 +2215,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //     for (int j = 0; j < N.as_int32(); j++) {
 //       ASSERT_NEAR(
 //           C_target_mem[i * N.as_int32() + j],
-//           (A_mem[i * M.as_int32() + j] + A_mem[(i + 2) * M.as_int32() + j + 2] + A_mem[(i + 5) * M.as_int32() + j + 5]),
-//           1e-4);
+//           (A_mem[i * M.as_int32() + j] + A_mem[(i + 2) * M.as_int32() + j + 2] + A_mem[(i + 5) * M.as_int32() + j +
+//           5]), 1e-4);
 //     }
 //   }
 //   cuMemFree(reinterpret_cast<CUdeviceptr>(A_dev));
@@ -2344,8 +2260,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C)
 // {
@@ -2356,7 +2270,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
 //         for (int32_t i_at = 0; i_at < 6; i_at += 1) {
 //           for (int32_t j_at = 0; j_at < 6; j_at += 1) {
-//             AA_read_cache[((6 * i_at) + j_at)] = AA[((100 * blockIdx.x) + ((100 * i_at) + ((10 * threadIdx.x) + (j_at + j_inner))))];
+//             AA_read_cache[((6 * i_at) + j_at)] = AA[((100 * blockIdx.x) + ((100 * i_at) + ((10 * threadIdx.x) + (j_at
+//             + j_inner))))];
 //           };
 //         };
 //         C[((50 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (AA_read_cache[30] + AA_read_cache[5]);
@@ -2449,7 +2364,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //   for (int i = 0; i < M.as_int32() - 2; i++) {
 //     for (int j = 0; j < N.as_int32(); j++) {
 //       ASSERT_NEAR(
-//           C_target_mem[i * N.as_int32() + j], elem_cal(A_mem[i * N.as_int32() + j], B_mem[i * N.as_int32() + j]), 1e-5);
+//           C_target_mem[i * N.as_int32() + j], elem_cal(A_mem[i * N.as_int32() + j], B_mem[i * N.as_int32() + j]),
+//           1e-5);
 //     }
 //   }
 
@@ -2503,8 +2419,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 // {
@@ -2530,7 +2444,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //   TestElementwiseAddPrecisionBasic(builder.Build(), "fn2", M, N);
 // }
 
-// // This test is meaningless for a cache read, we just check that the syncthreads is automatically inserted even without
+// // This test is meaningless for a cache read, we just check that the syncthreads is automatically inserted even
+// without
 // // ComputeAt.
 // TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
 //   Context::Global().ResetNameId();
@@ -2584,8 +2499,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 // {
@@ -2636,7 +2549,8 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 
 //     auto Co = stages[C]->CacheWrite("local", stages, C);
 
-//     // Cache write local, the local memory can just share in a single thread, so it must ComputeAt(inside) the innermost
+//     // Cache write local, the local memory can just share in a single thread, so it must ComputeAt(inside) the
+//     innermost
 //     // thread.
 //     stages[C]->Split(1, 4);
 //     stages[C]->Split(0, 4);
@@ -2670,8 +2584,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void cache_write_local(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 // {
@@ -2682,12 +2594,14 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 //     {
 //       for (int32_t j_outer = 0; j_outer < 8; j_outer += 1) {
 //         for (int32_t j_inner = 0; j_inner < 5; j_inner += 1) {
-//           C_write_cache[((5 * j_outer) + j_inner)] = A[((160 * blockIdx.x) + ((5 * j_outer) + ((40 * threadIdx.x) + j_inner)))];
+//           C_write_cache[((5 * j_outer) + j_inner)] = A[((160 * blockIdx.x) + ((5 * j_outer) + ((40 * threadIdx.x) +
+//           j_inner)))];
 //         };
 //       };
 //       for (int32_t j_outer = 0; j_outer < 10; j_outer += 1) {
 //         for (int32_t j_inner = 0; j_inner < 4; j_inner += 1) {
-//           C[((160 * blockIdx.x) + ((4 * j_outer) + ((40 * threadIdx.x) + j_inner)))] = C_write_cache[((4 * j_outer) + j_inner)];
+//           C[((160 * blockIdx.x) + ((4 * j_outer) + ((40 * threadIdx.x) + j_inner)))] = C_write_cache[((4 * j_outer) +
+//           j_inner)];
 //         };
 //       };
 //     }
@@ -2751,15 +2665,14 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 // typedef char int8_t;
 // #endif
 
-
-
 // __global__
 // void external_function(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 // {
 //   if ((blockIdx.x < 40)) {
 //     if ((threadIdx.x < 4)) {
 //       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-//         C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (cinn_nvgpu_tanh_fp32(A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]) + cinn_nvgpu_cos_fp32(B[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]));
+//         C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (cinn_nvgpu_tanh_fp32(A[((40 * blockIdx.x) + ((10 *
+//         threadIdx.x) + j_inner))]) + cinn_nvgpu_cos_fp32(B[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]));
 //       };
 //     };
 //   };
