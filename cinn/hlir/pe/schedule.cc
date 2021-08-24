@@ -261,9 +261,50 @@ void PoolScheduleGPU(poly::StageMap stages, ir::Tensor &output, const common::Ta
 void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
                       int oc,
                       int ic,
+                      int fc,
+                      int oh,
                       int ow,
                       const Type &type,
-                      const common::Target &target) {
+                      const common::Target &target,
+                      const std::string &key,
+                      bool import_params) {
+  if (import_params) {
+    auto &params = ScheduleParam::get_instance().GetParam();
+    if (params.empty()) {
+      CreateX86SerialData();
+      LoadSerialData();
+    }
+    if (params.count(key)) {
+      CHECK(!params[key]["oc_bn"].empty());
+      CHECK(!params[key]["ic_bn"].empty());
+      CHECK(!params[key]["ow_bn"].empty());
+      (*factors)["oc_bn"] = params[key]["oc_bn"].back();
+      (*factors)["ic_bn"] = params[key]["ic_bn"].back();
+      (*factors)["ow_bn"] = params[key]["ow_bn"].back();
+      if (!params[key]["oh_bn"].empty()) {
+        (*factors)["oh_bn"] = params[key]["oh_bn"].back();
+      }
+      if (!params[key]["unroll_kw"].empty()) {
+        (*factors)["unroll_kw"] = params[key]["unroll_kw"].back();
+      }
+      if (ic == fc) {
+        (*factors)["fc_bn"] = (*factors)["ic_bn"];
+      } else {
+        int fc_bn = 1;
+        for (int i = (*factors)["oc_bn"]; i > 1; i--) {
+          if (fc < 1) break;
+          if (fc % i == 0) {
+            fc_bn = i;
+            break;
+          }
+        }
+        (*factors)["fc_bn"] = fc_bn;
+      }
+      return;
+    } else {
+      VLOG(3) << "Can not find saved param, key is: " << key;
+    }
+  }
   int bn_base = GetBasicFactor(type, target);
   int oc_bn   = 1;
   for (int i = bn_base; i > 1; i--) {
@@ -281,18 +322,46 @@ void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
       break;
     }
   }
-  int ow_bn = 1;
-  for (int i = bn_base; i > 1; i--) {
-    if (ow < 1) break;
-    if (ow % i == 0) {
-      ow_bn = i;
+  int fc_bn = 1;
+  for (int i = oc_bn; i > 1; i--) {
+    if (fc < 1) break;
+    if (fc % i == 0) {
+      fc_bn = i;
       break;
     }
   }
-
   (*factors)["oc_bn"] = oc_bn;
   (*factors)["ic_bn"] = ic_bn;
-  (*factors)["ow_bn"] = ow_bn;
+  (*factors)["fc_bn"] = fc_bn;
+  int ow_bn           = 1;
+
+  if (oh < 1) {
+    for (int i = bn_base; i > 1; i--) {
+      if (ow < 1) break;
+      if (ow % i == 0) {
+        ow_bn = i;
+        break;
+      }
+    }
+    (*factors)["ow_bn"] = ow_bn;
+  } else {
+    int oh_bn = 1;
+    int begin = std::min(ow, bn_base);
+    for (int i = begin; i >= 1; i--) {
+      if (ow < 1) break;
+      if (ow % i == 0) {
+        ow_bn = i;
+        for (int j = oh; j >= 1; j--) {
+          if (oh % j == 0 && j * ow_bn <= 16) {
+            oh_bn               = j;
+            (*factors)["oh_bn"] = oh_bn;
+            (*factors)["ow_bn"] = ow_bn;
+            return;
+          }
+        }
+      }
+    }
+  }
 }
 
 void GetConv2d1x1Factors(std::unordered_map<std::string, int> *factors,
@@ -340,13 +409,210 @@ void GetConv2d1x1Factors(std::unordered_map<std::string, int> *factors,
   }
 }
 
+std::string GenerateX86ConvKey(const std::vector<Expr> &input_shape,
+                               const std::vector<Expr> &weight_shape,
+                               const std::vector<int> &strides,
+                               const std::vector<int> &paddings,
+                               const std::vector<int> &dilations) {
+  // format: schedule_name + input_shape + weight_shape + strides + paddings + dilations
+  // e.g. X86ScheduleConv input 1 3 224 224 weight 64 3 7 7 stride 2 2 padding 3 3 dilation 1 1
+  std::string key = "X86ScheduleConv";
+  key += " input";
+  for (auto &shape : input_shape) {
+    key += " " + std::to_string(shape.as_int32());
+  }
+  key += " weight";
+  for (auto &shape : weight_shape) {
+    key += " " + std::to_string(shape.as_int32());
+  }
+  key += " stride";
+  for (auto &stride : strides) {
+    key += " " + std::to_string(stride);
+  }
+  key += " padding";
+  for (auto &padding : paddings) {
+    key += " " + std::to_string(padding);
+  }
+  key += " dilation";
+  for (auto &dilation : dilations) {
+    key += " " + std::to_string(dilation);
+  }
+  VLOG(3) << "key: " << key;
+  return key;
+}
+
+std::string GenerateX86ConvKey(const std::vector<int> &input_shape,
+                               const std::vector<int> &weight_shape,
+                               const std::vector<int> &strides,
+                               const std::vector<int> &paddings,
+                               const std::vector<int> &dilations) {
+  // format: schedule_name + input_shape + weight_shape + strides + paddings + dilations
+  std::string key = "X86ScheduleConv";
+  key += " input";
+  for (auto &shape : input_shape) {
+    key += " " + std::to_string(shape);
+  }
+  key += " weight";
+  for (auto &shape : weight_shape) {
+    key += " " + std::to_string(shape);
+  }
+  key += " stride";
+  for (auto &stride : strides) {
+    key += " " + std::to_string(stride);
+  }
+  key += " padding";
+  for (auto &padding : paddings) {
+    key += " " + std::to_string(padding);
+  }
+  key += " dilation";
+  for (auto &dilation : dilations) {
+    key += " " + std::to_string(dilation);
+  }
+  VLOG(3) << "key: " << key;
+  return key;
+}
+
+void InputX86Param(std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
+                   const std::string &key,
+                   const std::unordered_map<std::string, std::vector<int>> &schedule_data) {
+  model_data[key] = schedule_data;
+}
+
+void CreateX86SerialData(const std::string &file_name) {
+  std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> model_data;
+  /** The format of serial data is:
+   * hash_key: schedule_name + shape of input + shape of weights + stride + padding + dilation
+   * value: vector of params
+   */
+  // resnet 1
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 3 224 224 weight 64 3 7 7 stride 2 2 padding 3 3 dilation 1 1",
+                {{"ic_bn", {1, 3}}, {"oc_bn", {2, 32}}, {"ow_bn", {14, 8}}, {"unroll_kw", {0}}});
+  // resnet 3 4 5 6
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 64 56 56 weight 64 64 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {1, 64}}, {"oc_bn", {2, 32}}, {"ow_bn", {8, 7}}, {"unroll_kw", {1}}});
+  // resnet 8
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 64 56 56 weight 128 64 3 3 stride 2 2 padding 1 1 dilation 1 1",
+                {{"ic_bn", {2, 32}}, {"oc_bn", {2, 64}}, {"ow_bn", {7, 4}}, {"unroll_kw", {0}}});
+  // resnet 9 10 11
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 128 28 28 weight 128 128 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {1, 128}}, {"oc_bn", {4, 32}}, {"ow_bn", {4, 7}}, {"unroll_kw", {1}}});
+  // resnet 7
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 64 56 56 weight 128 64 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                {{"ic_bn", {8, 8}}, {"oc_bn", {4, 32}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
+  // resnet 13
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 128 28 28 weight 256 128 3 3 stride 2 2 padding 1 1 dilation 1 1",
+                {{"ic_bn", {16, 8}}, {"oc_bn", {8, 32}}, {"ow_bn", {2, 7}}, {"unroll_kw", {1}}});
+  // resnet 14 15 16
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 256 14 14 weight 256 256 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {2, 128}}, {"oc_bn", {16, 16}}, {"ow_bn", {1, 14}}, {"unroll_kw", {1}}});
+  // resnet 12
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 128 28 28 weight 256 128 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                {{"ic_bn", {2, 64}}, {"oc_bn", {16, 16}}, {"ow_bn", {1, 14}}, {"oh_bn", {1}}});
+  // resnet 18
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 256 14 14 weight 512 256 3 3 stride 2 2 padding 1 1 dilation 1 1",
+                {{"ic_bn", {32, 8}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"unroll_kw", {1}}});
+  // resnet 19 20 21
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 512 7 7 weight 512 512 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {1, 512}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"unroll_kw", {1}}});
+  // resnet 17
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 256 14 14 weight 512 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                {{"ic_bn", {2, 128}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
+  // resnet 2
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 64 56 56 weight 64 64 1 1 stride 1 1 padding 0 0 dilation 1 1",
+                {{"ic_bn", {4, 16}}, {"oc_bn", {2, 32}}, {"ow_bn", {4, 14}}, {"oh_bn", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 64 56 56 weight 256 64 1 1 stride 1 1 padding 0 0 dilation 1 1",
+                {{"ic_bn", {16, 4}}, {"oc_bn", {8, 32}}, {"ow_bn", {8, 7}}, {"oh_bn", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 256 56 56 weight 64 256 1 1 stride 1 1 padding 0 0 dilation 1 1",
+                {{"ic_bn", {1, 256}}, {"oc_bn", {2, 32}}, {"ow_bn", {8, 7}}, {"oh_bn", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 256 56 56 weight 128 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                {{"ic_bn", {1, 256}}, {"oc_bn", {4, 32}}, {"ow_bn", {4, 7}}, {"oh_bn", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 256 56 56 weight 512 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                {{"ic_bn", {1, 256}}, {"oc_bn", {8, 64}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 128 28 28 weight 512 128 1 1 stride 1 1 padding 0 0 dilation 1 1",
+                {{"ic_bn", {32, 4}}, {"oc_bn", {16, 32}}, {"ow_bn", {4, 7}}, {"oh_bn", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 512 28 28 weight 128 512 1 1 stride 1 1 padding 0 0 dilation 1 1",
+                {{"ic_bn", {1, 512}}, {"oc_bn", {2, 64}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 512 28 28 weight 256 512 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                {{"ic_bn", {8, 64}}, {"oc_bn", {4, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 512 28 28 weight 1024 512 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                {{"ic_bn", {1, 512}}, {"oc_bn", {16, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 256 14 14 weight 1024 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                {{"ic_bn", {1, 256}}, {"oc_bn", {16, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 1024 14 14 weight 256 1024 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                {{"ic_bn", {2, 512}}, {"oc_bn", {4, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 1024 14 14 weight 512 1024 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                {{"ic_bn", {2, 512}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 1024 14 14 weight 2048 1024 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                {{"ic_bn", {1, 1024}}, {"oc_bn", {64, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 512 7 7 weight 2048 512 1 1 stride 1 1 padding 0 0 dilation 1 1",
+                {{"ic_bn", {128, 4}}, {"oc_bn", {64, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 2048 7 7 weight 512 2048 1 1 stride 1 1 padding 0 0 dilation 1 1",
+                {{"ic_bn", {512, 4}}, {"oc_bn", {16, 32}}, {"ow_bn", {1, 7}}, {"oh_bn", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 3 224 224 weight 64 3 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {1, 3}}, {"oc_bn", {2, 32}}, {"ow_bn", {28, 8}}, {"unroll_kw", {0}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 64 224 224 weight 64 64 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {4, 16}}, {"oc_bn", {2, 32}}, {"ow_bn", {28, 8}}, {"unroll_kw", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 64 112 112 weight 128 64 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {2, 32}}, {"oc_bn", {2, 64}}, {"ow_bn", {28, 4}}, {"unroll_kw", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 128 112 112 weight 128 128 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {2, 64}}, {"oc_bn", {2, 64}}, {"ow_bn", {28, 4}}, {"unroll_kw", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 128 56 56 weight 256 128 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {4, 32}}, {"oc_bn", {8, 32}}, {"ow_bn", {7, 8}}, {"unroll_kw", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 256 56 56 weight 256 256 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {1, 256}}, {"oc_bn", {8, 32}}, {"ow_bn", {7, 8}}, {"unroll_kw", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 256 28 28 weight 512 256 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {1, 256}}, {"oc_bn", {16, 32}}, {"ow_bn", {4, 7}}, {"unroll_kw", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 512 28 28 weight 512 512 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {1, 512}}, {"oc_bn", {32, 16}}, {"ow_bn", {2, 14}}, {"unroll_kw", {1}}});
+  InputX86Param(model_data,
+                "X86ScheduleConv input 1 512 14 14 weight 512 512 3 3 stride 1 1 padding 1 1 dilation 1 1",
+                {{"ic_bn", {1, 512}}, {"oc_bn", {32, 16}}, {"ow_bn", {1, 14}}, {"unroll_kw", {1}}});
+  SaveSerialData(model_data, file_name);
+}
+
 void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
                                    const ir::Tensor &res,
                                    ir::Tensor &packed_out,
                                    const ir::Tensor &input_pad,
                                    const ir::Tensor &weights_dilation,
                                    const ir::Tensor &data,
-                                   const common::Target &target) {
+                                   const common::Target &target,
+                                   const std::string &key,
+                                   bool do_padding) {
   CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
   CHECK(packed_out.defined());
   CHECK(input_pad.defined());
@@ -358,7 +624,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   int oh                 = h_out.as_int32();
   int ow                 = w_out.as_int32();
   int basic_split_factor = GetBasicFactor(type, target);
-  GetConv2d1x1Factors(&conv2d_factors, -1, -1, oh, ow, type, target);
+  GetConv2dFactors(&conv2d_factors, -1, -1, -1, oh, ow, type, target, key);
   int oh_bn_size = conv2d_factors["oh_bn"];
   int ow_bn_size = conv2d_factors["ow_bn"];
 
@@ -368,9 +634,10 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   Expr ic_bn     = common::AutoSimplify(input_shape.back());
   int oc_bn_size = oc_bn.as_int32();
   int ic_bn_size = ic_bn.as_int32();
-  VLOG(4) << "ow_bn_size" << ow_bn_size;
-  VLOG(4) << "oc_bn_size" << oc_bn_size;
-  VLOG(4) << "ic_bn_size" << ic_bn_size;
+  VLOG(3) << "oh_bn_size " << oh_bn_size;
+  VLOG(3) << "ow_bn_size " << ow_bn_size;
+  VLOG(3) << "oc_bn_size " << oc_bn_size;
+  VLOG(3) << "ic_bn_size " << ic_bn_size;
 
   // data
   if (data.defined()) {
@@ -379,8 +646,12 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
     stages[data]->ComputeInline();
   }
   // input_pad
-  CHECK_GE(stages[input_pad]->n_out_dims(), 3U) << "input_pad's out_dims should be more than 3";
-  stages[input_pad]->Fuse({0, 1, 2});
+  if (do_padding) {
+    CHECK_GE(stages[input_pad]->n_out_dims(), 3U) << "input_pad's out_dims should be more than 3";
+    stages[input_pad]->Fuse({0, 1, 2});
+  } else {
+    stages[input_pad]->ComputeInline();
+  }
 
   // weights
   if (weights_dilation.defined()) {
@@ -392,7 +663,6 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
 
   // packed_out
   auto CC = stages[packed_out]->CacheWrite("global", stages, packed_out);
-  VLOG(4) << "ow_bn_size" << ow_bn_size;
   // packed_out: [batch, oc_outer, oh, ow, oc_inner]
   // split oh, ow
   stages[packed_out]->Split(2, oh_bn_size);
@@ -400,7 +670,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   // [batch, oc_outer, oh_outer, oh_inner, ow_outer, ow_inner, oc_inner] ->
   // [batch_oc_outer_oh_outer_fused, oh_inner, ow_outer, ow_inner, oc_inner]
   stages[packed_out]->Fuse({0, 1, 2});
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
 
   // CC: [batch, oh, ow, oc, ic, kh, kw] -> [batch_oc_outer_oh_outer_fused, oh_inner, ow, oc_inner, ic, kh, kw]
   stages[CC]->ComputeAt2(stages[packed_out], 0);
@@ -409,8 +679,8 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   // [batch_oc_outer_oh_outer_fused, ow_outer, oh_inner, ow_inner, oc_inner]
   stages[packed_out]->Reorder({2, 1});
   stages[packed_out]->Vectorize(stages[packed_out]->n_out_dims() - 1, packed_out->shape.back().as_int32());
-  VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
 
   // CC: [batch_oc_outer_oh_outer_fused, oh_inner, ow, oc_inner, ic, kh, kw]
   // split ow
@@ -430,15 +700,16 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   auto ic_outer = stages[CC]->axis(5);
   auto ic_inner = stages[CC]->axis(6);
   stages[CC]->Reorder({ic_outer, ic_inner, oh_inner, ow_inner, oc_inner});
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   stages[CC]->Vectorize(stages[CC]->n_out_dims() - 3, CC->shape.back().as_int32());
   // unroll ow_inner, oh_inner
-  VLOG(4) << stages[CC]->transformed_domain();
-  stages[CC]->Unroll(stages[CC]->n_out_dims() - 1);
-  stages[CC]->Unroll(stages[CC]->n_out_dims() - 2);
+  VLOG(3) << stages[CC]->transformed_domain();
   // CC_init
   auto CC_init = CC->GetInitTensor(stages, target);
   stages[CC_init]->Vectorize(stages[CC_init]->n_out_dims() - 1, CC_init->shape.back().as_int32());
+  stages[CC]->Unroll(stages[CC]->n_out_dims() - 4);
+  stages[CC]->Unroll(stages[CC]->n_out_dims() - 5);
+  stages[CC_init]->Unroll(stages[CC_init]->n_out_dims() - 2);
 
   // res
   // n, oc, oh, ow
@@ -454,8 +725,9 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
     auto ow_outer1 = stages[res]->axis(5);
     auto ow_inner1 = stages[res]->axis(6);
     stages[res]->Reorder({oh_outer1, ow_outer1, oh_inner1, ow_inner1, oc_inner1});
-    stages[res]->Fuse({0, 1, 2});
-    VLOG(4) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
+    // stages[res]->Fuse({0, 1, 2});
+    // Todo: computeAt according to forloops' range
+    VLOG(3) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
   }
 }
 
@@ -488,9 +760,9 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
   Expr ic_bn     = common::AutoSimplify(input_shape.back());
   int oc_bn_size = oc_bn.as_int32();
   int ic_bn_size = ic_bn.as_int32();
-  VLOG(4) << "ow_bn_size" << ow_bn_size;
-  VLOG(4) << "oc_bn_size" << oc_bn_size;
-  VLOG(4) << "ic_bn_size" << ic_bn_size;
+  VLOG(3) << "ow_bn_size" << ow_bn_size;
+  VLOG(3) << "oc_bn_size" << oc_bn_size;
+  VLOG(3) << "ic_bn_size" << ic_bn_size;
 
   // data
   if (data.defined()) {
@@ -506,8 +778,8 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
 
   // packed_out
   auto CC = stages[packed_out]->CacheWrite("global", stages, packed_out);
-  VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // packed_out: [batch, oc_outer, oh, ow, oc_inner]
   // split oh, ow
   stages[packed_out]->Split(2, oh_bn_size);
@@ -516,8 +788,8 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
   // CC: [batch, oc_outer, oh, ow, oc_inner]
   // packed_out: [batch, oc_outer, oh_outer, oh_inner, ow_outer, ow_inner, oc_inner]
   stages[CC]->ComputeAt2(stages[packed_out], 2);
-  VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // tempory solution because reordering before computeAt may be wrong
   // reorder: [batch, oc_outer, oh_outer, oh_inner, ow_outer, ow_inner, oc_inner] ->
   // [batch, oc_outer, oh_outer, ow_outer, oh_inner, ow_inner, oc_inner]
@@ -541,7 +813,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
   auto ic_inner = stages[CC]->axis(8);
   stages[CC]->Reorder({ow_outer, ic_outer, ic_inner, oh_inner, ow_inner, oc_inner});
   stages[CC]->Vectorize(stages[CC]->n_out_dims() - 3, CC->shape.back().as_int32());
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // CC_init
   auto CC_init = CC->GetInitTensor(stages, target);
   stages[CC_init]->Vectorize(stages[CC_init]->n_out_dims() - 1, CC_init->shape.back().as_int32());
@@ -560,7 +832,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
     auto ow_outer1 = stages[res]->axis(5);
     auto ow_inner1 = stages[res]->axis(6);
     stages[res]->Reorder({oh_outer1, ow_outer1, oh_inner1, ow_inner1, oc_inner1});
-    VLOG(4) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
+    VLOG(3) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
   }
 }
 
@@ -580,7 +852,7 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
   int ow                 = w_out.as_int32();
   int basic_split_factor = GetBasicFactor(type, target);
-  GetConv2dFactors(&conv2d_factors, -1, -1, ow, type, target);
+  GetConv2dFactors(&conv2d_factors, -1, -1, -1, -1, ow, type, target);
   int ow_bn_size = conv2d_factors["ow_bn"];
 
   auto input_shape = input_pad->shape;
@@ -590,9 +862,9 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   Expr ic_bn     = common::AutoSimplify(input_shape.back());
   int oc_bn_size = oc_bn.as_int32();
   int ic_bn_size = ic_bn.as_int32();
-  VLOG(4) << "ow_bn_size " << ow_bn_size;
-  VLOG(4) << "oc_bn_size " << oc_bn_size;
-  VLOG(4) << "ic_bn_size " << ic_bn_size;
+  VLOG(3) << "ow_bn_size " << ow_bn_size;
+  VLOG(3) << "oc_bn_size " << oc_bn_size;
+  VLOG(3) << "ic_bn_size " << ic_bn_size;
 
   // data
   if (data.defined()) {
@@ -607,8 +879,8 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   }
   // packed_out
   auto CC = stages[packed_out]->CacheWrite("global", stages, packed_out);
-  VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // packed_out: [batch, oc_outer, oh, ow, oc_inner]
   // split ow
   stages[packed_out]->Split(3, ow_bn_size);
@@ -618,8 +890,8 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   // packed_out: [batch, oc_outer, oh, ow_outer, ow_inner, oc_inner]
   // not computeAt ow_outer but oh
   stages[CC]->ComputeAt2(stages[packed_out], 2);
-  VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // split ow
   stages[CC]->Split(3, ow_bn_size);
   // CC: [batch, oc_outer, oh, ow_outer, ow_inner, oc_inner, ic, kh, kw]
@@ -635,7 +907,7 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   auto kw       = stages[CC]->axis(9);
   stages[CC]->Reorder({ic_outer, kh, kw, ic_inner, ow_inner, oc_inner});
   stages[CC]->Vectorize(stages[CC]->n_out_dims() - 1, CC->shape.back().as_int32());
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // CC_init
   auto CC_init = CC->GetInitTensor(stages, target);
   stages[CC_init]->Vectorize(stages[CC_init]->n_out_dims() - 1, CC_init->shape.back().as_int32());
@@ -652,7 +924,7 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
     auto ow_outer1 = stages[res]->axis(4);
     auto ow_inner1 = stages[res]->axis(5);
     stages[res]->Reorder({oh1, ow_outer1, ow_inner1, oc_inner1});
-    VLOG(4) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
+    VLOG(3) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
   }
 }
 
@@ -662,19 +934,16 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
                                const ir::Tensor &input_pad,
                                const ir::Tensor &weights_dilation,
                                const ir::Tensor &data,
-                               const common::Target &target) {
+                               const common::Target &target,
+                               const std::string &key,
+                               bool do_padding) {
   CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
   CHECK(packed_out.defined());
   CHECK(input_pad.defined());
   auto type = packed_out->type();
-  std::unordered_map<std::string, int> conv2d_factors;
   CHECK_EQ(packed_out->shape.size(), 5U) << "packed_out's shape size should be 5";
-  Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
-  int ow                 = w_out.as_int32();
-  int basic_split_factor = GetBasicFactor(type, target);
-  GetConv2dFactors(&conv2d_factors, -1, -1, ow, type, target);
-  int ow_bn_size = conv2d_factors["ow_bn"];
-
+  Expr w_out       = common::AutoSimplify(packed_out->shape[3]);
+  int ow           = w_out.as_int32();
   auto input_shape = input_pad->shape;
   int shape_size   = input_shape.size();
   CHECK_EQ(shape_size, 5U) << "input shape size should be 5";
@@ -682,10 +951,18 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
   Expr ic_bn     = common::AutoSimplify(input_shape.back());
   int oc_bn_size = oc_bn.as_int32();
   int ic_bn_size = ic_bn.as_int32();
-  VLOG(4) << "ow_bn_size" << ow_bn_size;
-  VLOG(4) << "oc_bn_size" << oc_bn_size;
-  VLOG(4) << "ic_bn_size" << ic_bn_size;
 
+  std::unordered_map<std::string, int> conv2d_factors;
+  GetConv2dFactors(&conv2d_factors, -1, -1, -1, -1, ow, type, target, key);
+  int ow_bn_size = conv2d_factors["ow_bn"];
+  VLOG(3) << "ow_bn_size " << ow_bn_size;
+  VLOG(3) << "oc_bn_size " << oc_bn_size;
+  VLOG(3) << "ic_bn_size " << ic_bn_size;
+  int unroll_kw = 0;
+  if (conv2d_factors.count("unroll_kw")) {
+    unroll_kw = conv2d_factors["unroll_kw"];
+  }
+  VLOG(3) << "unroll_kw " << unroll_kw;
   // data
   if (data.defined()) {
     CHECK_GE(stages[data]->n_out_dims(), 3U) << "data's out_dims should be more than 3";
@@ -693,8 +970,12 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
     stages[data]->ComputeInline();
   }
   // input_pad
-  CHECK_GE(stages[input_pad]->n_out_dims(), 3U) << "input_pad's out_dims should be more than 3";
-  stages[input_pad]->Fuse({0, 1, 2});
+  if (do_padding) {
+    CHECK_GE(stages[input_pad]->n_out_dims(), 3U) << "input_pad's out_dims should be more than 3";
+    stages[input_pad]->Fuse({0, 1, 2});
+  } else {
+    stages[input_pad]->ComputeInline();
+  }
   // weights
   if (weights_dilation.defined()) {
     CHECK_GE(stages[weights_dilation]->n_out_dims(), 3U) << "weights_dilation's out_dims should be more than 3";
@@ -704,8 +985,8 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
   }
   // packed_out
   auto CC = stages[packed_out]->CacheWrite("global", stages, packed_out);
-  VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // packed_out: [batch, oc_outer, oh, ow, oc_inner]
   // split ow
   stages[packed_out]->Split(3, ow_bn_size);
@@ -714,8 +995,8 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
 
   // CC
   stages[CC]->ComputeAt2(stages[packed_out], 1);
-  VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // CC: [batch_oc_outer_oh_fused, ow_outer, ow_inner, oc_inner, ic, kh, kw]
   // for fused_axes' copy transform, not split ow again
   // split ic
@@ -728,9 +1009,14 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
   auto ic_inner = stages[CC]->axis(5);
   auto kh       = stages[CC]->axis(6);
   auto kw       = stages[CC]->axis(7);
-  stages[CC]->Reorder({ic_outer, kh, kw, ic_inner, ow_inner, oc_inner});
+  if (unroll_kw) {
+    stages[CC]->Reorder({ic_outer, kh, ic_inner, kw, ow_inner, oc_inner});
+    stages[CC]->Unroll(kw);
+  } else {
+    stages[CC]->Reorder({ic_outer, kh, kw, ic_inner, ow_inner, oc_inner});
+  }
   stages[CC]->Vectorize(stages[CC]->n_out_dims() - 1, CC->shape.back().as_int32());
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // CC_init
   auto CC_init = CC->GetInitTensor(stages, target);
   stages[CC_init]->Vectorize(stages[CC_init]->n_out_dims() - 1, CC_init->shape.back().as_int32());
@@ -747,7 +1033,8 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
     auto ow_outer1 = stages[res]->axis(4);
     auto ow_inner1 = stages[res]->axis(5);
     stages[res]->Reorder({oh1, ow_outer1, ow_inner1, oc_inner1});
-    stages[res]->Fuse({0, 1, 2});
+    // stages[res]->Fuse({0, 1, 2});
+    // Todo: computeAt according to forloops' range
   }
 }
 
@@ -757,7 +1044,8 @@ void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
                                                 const ir::Tensor &input_pad,
                                                 const ir::Tensor &weights_dilation,
                                                 const ir::Tensor &data,
-                                                const common::Target &target) {
+                                                const common::Target &target,
+                                                bool do_padding) {
   CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
   CHECK(packed_out.defined());
   CHECK(input_pad.defined());
@@ -767,7 +1055,7 @@ void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
   int ow                 = w_out.as_int32();
   int basic_split_factor = GetBasicFactor(type, target);
-  GetConv2dFactors(&conv2d_factors, -1, -1, ow, type, target);
+  GetConv2dFactors(&conv2d_factors, -1, -1, -1, -1, ow, type, target);
   int ow_bn_size = conv2d_factors["ow_bn"];
 
   auto input_shape = input_pad->shape;
@@ -777,13 +1065,17 @@ void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   Expr ic_bn     = common::AutoSimplify(input_shape.back());
   int oc_bn_size = oc_bn.as_int32();
   int ic_bn_size = ic_bn.as_int32();
-  VLOG(4) << "ow_bn_size " << ow_bn_size;
-  VLOG(4) << "oc_bn_size " << oc_bn_size;
-  VLOG(4) << "ic_bn_size " << ic_bn_size;
+  VLOG(3) << "ow_bn_size " << ow_bn_size;
+  VLOG(3) << "oc_bn_size " << oc_bn_size;
+  VLOG(3) << "ic_bn_size " << ic_bn_size;
 
   // data
   if (data.defined()) {
     stages[data]->ComputeInline();
+  }
+  // input_pad
+  if (!do_padding) {
+    stages[input_pad]->ComputeInline();
   }
   // weights
   if (weights_dilation.defined()) {
@@ -792,10 +1084,11 @@ void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
     // [oc_outer, oh, ic_outer, ow, ic_inner, oc_inner]
     stages[weights_dilation]->Reorder({2, 1});
   }
+
   // packed_out
   auto CC = stages[packed_out]->CacheWrite("global", stages, packed_out);
-  VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // packed_out: [batch, oc_outer, oh, ow, oc_inner]
   // split ow
   stages[packed_out]->Split(3, ow_bn_size);
@@ -804,8 +1097,8 @@ void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   // CC: [batch, oc_outer, oh, ow, oc_inner]
   // packed_out: [batch, oc_outer, oh, ow_outer, ow_inner, oc_inner]
   stages[CC]->ComputeAt2(stages[packed_out], 3);
-  VLOG(4) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
 
   // CC: [batch, oc_outer, oh, ow_outer, ow_inner, oc_inner, fc, kh, kw]
   // batch, oc_outer, oh, ow_outer, kh, kw, ow_inner, oc_inner
@@ -816,7 +1109,7 @@ void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   auto CC_kw       = stages[CC]->axis(8);
   stages[CC]->Reorder({CC_fc, CC_kh, CC_kw, CC_ow_inner, CC_oc_inner});
   stages[CC]->Vectorize(stages[CC]->n_out_dims() - 1, CC->shape.back().as_int32());
-  VLOG(4) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
+  VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // CC_init
   auto CC_init = CC->GetInitTensor(stages, target);
   stages[CC_init]->Vectorize(stages[CC_init]->n_out_dims() - 1, CC_init->shape.back().as_int32());
@@ -833,7 +1126,7 @@ void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
     auto ow_outer1 = stages[res]->axis(4);
     auto ow_inner1 = stages[res]->axis(5);
     stages[res]->Reorder({oh1, ow_outer1, ow_inner1, oc_inner1});
-    VLOG(4) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
+    VLOG(3) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
   }
 }
 
@@ -846,9 +1139,10 @@ void CudaScheduleMul(poly::StageMap stages,
   stages[output]->Bind(1, "threadIdx.x");
 }
 
-inline void InputParam(std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
-                       const std::string &key,
-                       const std::vector<std::vector<int>> &int_data) {
+inline void InputCudaParam(
+    std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
+    const std::string &key,
+    const std::vector<std::vector<int>> &int_data) {
   std::unordered_map<std::string, std::vector<int>> schedule_data;
   schedule_data["rc"] = int_data[0];
   schedule_data["ry"] = int_data[1];
@@ -859,77 +1153,54 @@ inline void InputParam(std::unordered_map<std::string, std::unordered_map<std::s
   model_data[key]     = schedule_data;
 }
 
-void CreateSerialData(const std::string &file_name) {
+void CreateCudaSerialData(const std::string &file_name) {
   std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> model_data;
   // The format of serial data is:
   // hash_key: string = name of schedule + shape of input_pad + shape of weights + shape of output
   // value: vector of params
-  InputParam(model_data,
-             "CudaScheduleConv 1 3 230 230 64 3 7 7 1 64 112 112",
-             {{3, 1}, {7, 1}, {1, 7}, {1, 4, 8, 2}, {112, 1, 1, 1}, {1, 7, 16, 1}});
-  InputParam(model_data,
-             "CudaScheduleConv 1 64 56 56 64 64 1 1 1 64 56 56",
-             {{4, 16}, {1, 1}, {1, 1}, {1, 8, 8, 1}, {56, 1, 1, 1}, {1, 2, 28, 1}});
-  InputParam(model_data,
-             "CudaScheduleConv 1 64 58 58 128 64 3 3 1 128 28 28",
-             {{32, 2}, {1, 3}, {1, 3}, {4, 2, 16, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
-  InputParam(model_data,
-             "CudaScheduleConv 1 64 56 56 128 64 1 1 1 128 28 28",
-             {{4, 16}, {1, 1}, {1, 1}, {2, 2, 32, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
-  InputParam(model_data,
-             "CudaScheduleConv 1 128 30 30 256 128 3 3 1 256 14 14",
-             {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 2}, {7, 1, 2, 1}, {1, 1, 7, 2}});
-  InputParam(model_data,
-             "CudaScheduleConv 1 128 28 28 256 128 1 1 1 256 14 14",
-             {{16, 8}, {1, 1}, {1, 1}, {8, 1, 16, 2}, {14, 1, 1, 1}, {1, 1, 14, 1}});
-  InputParam(model_data,
-             "CudaScheduleConv 1 256 16 16 512 256 3 3 1 512 7 7",
-             {{64, 4}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
-  InputParam(model_data,
-             "CudaScheduleConv 1 256 14 14 512 256 1 1 1 512 7 7",
-             {{16, 16}, {1, 1}, {1, 1}, {16, 1, 32, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+  InputCudaParam(model_data,
+                 "CudaScheduleConv 1 3 230 230 64 3 7 7 1 64 112 112",
+                 {{3, 1}, {7, 1}, {1, 7}, {1, 4, 8, 2}, {112, 1, 1, 1}, {1, 7, 16, 1}});
+  InputCudaParam(model_data,
+                 "CudaScheduleConv 1 64 56 56 64 64 1 1 1 64 56 56",
+                 {{4, 16}, {1, 1}, {1, 1}, {1, 8, 8, 1}, {56, 1, 1, 1}, {1, 2, 28, 1}});
+  InputCudaParam(model_data,
+                 "CudaScheduleConv 1 64 58 58 128 64 3 3 1 128 28 28",
+                 {{32, 2}, {1, 3}, {1, 3}, {4, 2, 16, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
+  InputCudaParam(model_data,
+                 "CudaScheduleConv 1 64 56 56 128 64 1 1 1 128 28 28",
+                 {{4, 16}, {1, 1}, {1, 1}, {2, 2, 32, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
+  InputCudaParam(model_data,
+                 "CudaScheduleConv 1 128 30 30 256 128 3 3 1 256 14 14",
+                 {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 2}, {7, 1, 2, 1}, {1, 1, 7, 2}});
+  InputCudaParam(model_data,
+                 "CudaScheduleConv 1 128 28 28 256 128 1 1 1 256 14 14",
+                 {{16, 8}, {1, 1}, {1, 1}, {8, 1, 16, 2}, {14, 1, 1, 1}, {1, 1, 14, 1}});
+  InputCudaParam(model_data,
+                 "CudaScheduleConv 1 256 16 16 512 256 3 3 1 512 7 7",
+                 {{64, 4}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+  InputCudaParam(model_data,
+                 "CudaScheduleConv 1 256 14 14 512 256 1 1 1 512 7 7",
+                 {{16, 16}, {1, 1}, {1, 1}, {16, 1, 32, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
 
   // winograd
-  InputParam(model_data,
+  InputCudaParam(model_data,
              "CudaScheduleConv 1 64 58 58 64 64 3 3 1 64 56 56",
              {{32, 2}, {1, 3}, {1, 3}, {4, 1, 8, 2}, {28, 1, 2, 1}, {1, 2, 7, 4}});
   // winograd
-  InputParam(model_data,
-             "CudaScheduleConv 1 512 9 9 512 512 3 3 1 512 7 7",
-             {{64, 8}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+  InputCudaParam(model_data,
+                 "CudaScheduleConv 1 512 9 9 512 512 3 3 1 512 7 7",
+                 {{64, 8}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
   // winograd
-  InputParam(model_data,
-             "CudaScheduleConv 1 256 16 16 256 256 3 3 1 256 14 14",
-             {{64, 4}, {1, 3}, {1, 3}, {16, 1, 16, 1}, {14, 1, 1, 1}, {1, 1, 14, 1}});
+  InputCudaParam(model_data,
+                 "CudaScheduleConv 1 256 16 16 256 256 3 3 1 256 14 14",
+                 {{64, 4}, {1, 3}, {1, 3}, {16, 1, 16, 1}, {14, 1, 1, 1}, {1, 1, 14, 1}});
   // winograd
-  InputParam(model_data,
-             "CudaScheduleConv 1 128 30 30 128 128 3 3 1 128 28 28",
-             {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 1}, {14, 1, 2, 1}, {1, 1, 7, 4}});
+  InputCudaParam(model_data,
+                 "CudaScheduleConv 1 128 30 30 128 128 3 3 1 128 28 28",
+                 {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 1}, {14, 1, 2, 1}, {1, 1, 7, 4}});
 
-  proto::ModelData write_model_data;
-  for (auto &i : model_data) {
-    proto::ScheduleData write_schedule_data;
-    for (auto &j : i.second) {
-      proto::StringData write_vector_data;
-      for (auto &k : j.second) {
-        write_vector_data.add_data(std::to_string(k));
-      }
-      auto data_map        = write_schedule_data.mutable_data();
-      (*data_map)[j.first] = write_vector_data;
-    }
-    auto model_map        = write_model_data.mutable_data();
-    (*model_map)[i.first] = write_schedule_data;
-    std::string test_write1;
-    write_schedule_data.SerializeToString(&test_write1);
-  }
-  std::fstream output(file_name, std::ios::out | std::ios::trunc | std::ios::binary);
-  std::string test_write;
-  write_model_data.SerializeToString(&test_write);
-  if (!write_model_data.SerializeToOstream(&output)) {
-    std::cerr << "Failed to write test_serial.log" << std::endl;
-    exit(-1);
-  }
-  output.close();
+  SaveSerialData(model_data, file_name);
 }
 
 int GetMaxSplitter(int a, int b) {
@@ -965,6 +1236,35 @@ void LoadSerialData(const std::string &file_name) {
   }
 }
 
+void SaveSerialData(
+    const std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
+    const std::string &file_name) {
+  proto::ModelData write_model_data;
+  for (auto &i : model_data) {
+    proto::ScheduleData write_schedule_data;
+    for (auto &j : i.second) {
+      proto::StringData write_vector_data;
+      for (auto &k : j.second) {
+        write_vector_data.add_data(std::to_string(k));
+      }
+      auto data_map        = write_schedule_data.mutable_data();
+      (*data_map)[j.first] = write_vector_data;
+    }
+    auto model_map        = write_model_data.mutable_data();
+    (*model_map)[i.first] = write_schedule_data;
+    std::string test_write1;
+    write_schedule_data.SerializeToString(&test_write1);
+  }
+  std::fstream output(file_name, std::ios::out | std::ios::trunc | std::ios::binary);
+  std::string test_write;
+  write_model_data.SerializeToString(&test_write);
+  if (!write_model_data.SerializeToOstream(&output)) {
+    std::cerr << "Failed to write test_serial.log" << std::endl;
+    exit(-1);
+  }
+  output.close();
+}
+
 void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor &input_pad,
                       ir::Tensor &weights,
@@ -972,7 +1272,7 @@ void CudaScheduleConv(poly::StageMap stages,
                       const common::Target &target) {
   auto &res = ScheduleParam::get_instance().GetParam();
   if (res.empty()) {
-    CreateSerialData();
+    CreateCudaSerialData();
     LoadSerialData();
   }
 
@@ -993,9 +1293,9 @@ void CudaScheduleConv(poly::StageMap stages,
       std::to_string(output->shape[1].as_int32()) + " " + std::to_string(output->shape[2].as_int32()) + " " +
       std::to_string(output->shape[3].as_int32());
   if (res.count(key) == 0) {
-    LOG(INFO) << "Didn't find saved param, key is: " << key;
+    VLOG(3) << "Didn't find saved param, key is: " << key;
   } else {
-    LOG(INFO) << "Find saved param! key is: " << key;
+    VLOG(3) << "Find saved param! key is: " << key;
     CudaScheduleConv2(stages, input_pad, weights, output, target, key);
     return;
   }

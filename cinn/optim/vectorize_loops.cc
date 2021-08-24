@@ -381,11 +381,12 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
   }
 
   void Visit(const For *forloop, Expr *expr) {
-    auto *node = expr->As<For>();
+    auto *node        = expr->As<For>();
+    auto loopvar_name = forloop->loop_var->name;
     if (forloop->extent.As<IntImm>()) {
-      var_intervals.emplace(forloop->loop_var->name, common::CasInterval{0, forloop->extent.as_int32() - 1});
+      var_intervals.emplace(loopvar_name, common::CasInterval{0, forloop->extent.as_int32() - 1});
     } else {
-      var_intervals.emplace(forloop->loop_var->name, common::CasInterval{Expr(0), forloop->extent - 1});
+      var_intervals.emplace(loopvar_name, common::CasInterval{Expr(0), forloop->extent - 1});
     }
     // the extent the forloops marked as Vectorized should be int constant
     if (forloop->is_vectorized()) {
@@ -442,11 +443,15 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
       VLOG(2) << "after vectorize body:\n" << node->body;
 
       // Remove the forloop, the new_forloop's body is vectorized to Ramp, so no forloop is needed.
-      node->body = new_forloop->body;
+      if (is_zero(forloop->extent - 1)) {
+        *expr = new_forloop->body;
+      } else {
+        node->body = new_forloop->body;
+      }
     } else {
       IRMutator::Visit(forloop, expr);
     }
-    var_intervals.erase(forloop->loop_var->name);
+    var_intervals.erase(loopvar_name);
   }
 
   //! unroll the forloop if its' extent is min type by solving the condition extent

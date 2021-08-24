@@ -792,13 +792,13 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
       auto *value  = Visit(&op->value);
 
       // fit the total_lanes in native_lanes(split into multiple native steps)
-      for (int offset = 0; offset < total_lanes; offset += step) {
-        int lanes = std::min(step, total_lanes - offset);
-        Expr base = common::AutoSimplify(ramp->base + offset);
-        auto *ptr = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&base));
-        auto *vtype =
-            llvm::VectorType::get(ll_type_of(op->type().ElementOf()), llvm::ElementCount(lanes, false /*Scalable*/))
-                ->getPointerTo();
+      for (int offset = 0; offset < total_lanes; offset += total_lanes) {
+        int lanes   = total_lanes;
+        Expr base   = common::AutoSimplify(ramp->base + offset);
+        auto *ptr   = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&base));
+        auto *vtype = llvm::VectorType::get(CinnTypeToLLVMType(op->type().ElementOf(), m_, true),
+                                            llvm::ElementCount(lanes, false /*Scalable*/))
+                          ->getPointerTo();
         int alignment = std::max(op->type().ElementOf().bits() / 8, 1);
         llvm::StoreInst *inst =
             b_->CreateAlignedStore(CreateVecSlice(value, offset, lanes), b_->CreatePointerCast(ptr, vtype), alignment);
@@ -854,7 +854,7 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
                    create_temp_buffers.size() + alloca_temp_buffers.size() + dealloca_temp_buffers.size() +
                    op->buffer_data_cast_exprs.size() + 1 /*op->body*/ + op->dealloc_output_buffer_exprs.size());
 
-  auto new_body_append = [&new_body](auto &&...v) {
+  auto new_body_append = [&new_body](auto &&... v) {
     auto append = [&new_body](auto &&v) {
       if constexpr (std::is_same<const ir::Expr &, decltype(v)>::value) {
         new_body.push_back(v);
@@ -1070,8 +1070,8 @@ llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
   llvm::Value *buffer = Visit(&op->tensor);
   buffer->setName("buffer");
 
-  for (int i = 0; i < load_lanes; i += native_lanes) {
-    int slice_lanes   = std::min(native_lanes, load_lanes - i);
+  for (int i = 0; i < load_lanes; i += load_lanes) {
+    int slice_lanes   = load_lanes;
     auto slice_base   = common::AutoSimplify(ramp->base + i);
     auto slide_stride = Expr(1);
     auto slide_index  = slice_base;
@@ -1082,7 +1082,7 @@ llvm::Value *CodeGenLLVM::DenseVectorLoad(const ir::Load *op) {
     const int elem_count = slice_lanes;
 #endif
 
-    llvm::Type *slice_type = llvm::VectorType::get(CinnTypeToLLVMType(op->type().ElementOf(), m_), elem_count);
+    llvm::Type *slice_type = llvm::VectorType::get(CinnTypeToLLVMType(op->type().ElementOf(), m_, true), elem_count);
 
     llvm::Value *elt_ptr = CreateBufferPtr(op->type().ElementOf(), buffer, Visit(&slice_base));
     llvm::Value *vec_ptr = b_->CreatePointerCast(elt_ptr, slice_type->getPointerTo(), "get_vec_ptr");

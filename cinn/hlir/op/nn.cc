@@ -65,7 +65,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
 }
 
 std::vector<framework::shape_t> InferShapeForRelu(const std::vector<framework::shape_t> &inputs_shape,
-                                                  const framework::NodeAttr &attrs,
+                                                  framework::NodeAttr &attrs,
                                                   const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<framework::shape_t> res{inputs_shape[0]};
@@ -134,6 +134,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   std::vector<int> dilation({1, 1});
   std::string data_format = "NCHW";
   int groups              = 1;
+  std::string key;
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
     padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
@@ -149,6 +150,10 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   if (attrs.attr_store.find("groups") != attrs.attr_store.end()) {
     groups = std::get<int>(attrs.attr_store.at("groups"));
   }
+  if (attrs.attr_store.find("key") != attrs.attr_store.end()) {
+    key = std::get<std::string>(attrs.attr_store.at("key"));
+  }
+
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
     std::vector<CINNValue> res;
     CHECK(!args.empty()) << "The input argument of conv2d compute is empty! Please check.\n";
@@ -167,6 +172,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     use_mkldnn = true;
 #endif
     use_mkldnn = use_mkldnn && target.arch == Target::Arch::X86;
+    VLOG(3) << "input shape: " << utils::Join(A.as_tensor_ref()->shape, ", ");
+    VLOG(3) << "weight shape: " << utils::Join(B.as_tensor_ref()->shape, ", ");
     if (data_format == "NCHW") {
       // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
       if (target.arch == Target::Arch::X86) {
@@ -179,6 +186,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                    stride[1],
                                    dilation[0],
                                    dilation[1],
+                                   key,
                                    UniqName("Conv2d_nchw_5d_out"),
                                    target);
         } else {
@@ -253,8 +261,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
       if (arg_pack.size() == 6UL) {
         Expr res              = arg_pack[0];
         Expr packed_out       = arg_pack[1];
-        Expr input_pad        = arg_pack[2];
-        Expr weights_dilation = arg_pack[3];
+        Expr weights_dilation = arg_pack[2];
+        Expr input_pad        = arg_pack[3];
         Expr data             = arg_pack[4];
         CHECK(res.as_tensor());
         CHECK(packed_out.as_tensor());
@@ -264,29 +272,37 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
         std::vector<Expr> kernel_shape = weights_dilation.as_tensor_ref()->shape;
         // kernel_h == 1 && kernel_w == 1
         CHECK_EQ(kernel_shape.size(), 6U) << "kernel_dialtion shape size should be 6";
-        bool is_1x1 = (is_zero(kernel_shape[2] - 1)) && (is_zero(kernel_shape[3] - 1));
-        // Todo: 1*1 schedule is not so much good, may need to optimize schedule further.
-        is_1x1                       = false;
+        bool is_1x1                  = (is_zero(kernel_shape[2] - 1)) && (is_zero(kernel_shape[3] - 1));
         ir::Tensor packed_out_tensor = packed_out.as_tensor_ref();
+        bool do_padding              = (padding[0] == 0 && padding[1] == 0) ? false : true;
+
         if (is_1x1) {
-          pe::Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(stages,
-                                                   res.as_tensor_ref(),
-                                                   packed_out_tensor,
-                                                   input_pad.as_tensor_ref(),
-                                                   weights_dilation.as_tensor_ref(),
-                                                   data.as_tensor_ref(),
-                                                   target);
+          pe::Conv2d_NCHWc_1X1_Schedule_CPU(stages,
+                                            res.as_tensor_ref(),
+                                            packed_out_tensor,
+                                            input_pad.as_tensor_ref(),
+                                            weights_dilation.as_tensor_ref(),
+                                            data.as_tensor_ref(),
+                                            target,
+                                            key,
+                                            do_padding);
         } else {
-          pe::Conv2d_NCHWc_Schedule_CPU_Nofuse(stages,
-                                               res.as_tensor_ref(),
-                                               packed_out_tensor,
-                                               input_pad.as_tensor_ref(),
-                                               weights_dilation.as_tensor_ref(),
-                                               data.as_tensor_ref(),
-                                               target);
+          pe::Conv2d_NCHWc_Schedule_CPU(stages,
+                                        res.as_tensor_ref(),
+                                        packed_out_tensor,
+                                        input_pad.as_tensor_ref(),
+                                        weights_dilation.as_tensor_ref(),
+                                        data.as_tensor_ref(),
+                                        target,
+                                        key,
+                                        do_padding);
         }
-        *ret =
-            CINNValuePack{{CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], arg_pack[3], CINNValue(stages)}};
+        if (do_padding) {
+          *ret = CINNValuePack{
+              {CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], arg_pack[3], CINNValue(stages)}};
+        } else {
+          *ret = CINNValuePack{{CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], CINNValue(stages)}};
+        }
         return;
       } else if (arg_pack.size() == 4UL) {
         Expr input_pad = arg_pack[1];
@@ -315,7 +331,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
 }
 
 std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shape,
-                                         const framework::NodeAttr &attrs,
+                                         framework::NodeAttr &attrs,
                                          const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
@@ -348,23 +364,28 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
     res = {{inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
 
     std::unordered_map<std::string, int> conv2d_factors;
-    int batch = inputs_shape[0][0];
-    int oc    = inputs_shape[1][0];
-    int ic    = inputs_shape[0][1];
-    int fc    = inputs_shape[1][1];
-    int h_in  = inputs_shape[0][2];
-    int w_in  = inputs_shape[0][3];
-    int h_f   = inputs_shape[1][2];
-    int w_f   = inputs_shape[1][3];
-    int pad_h = padding[0];
-    int pad_w = padding[1];
-    pe::GetConv2dFactors(&conv2d_factors, oc, ic, -1, Float(32), common::DefaultHostTarget());
-    int ic_bn    = conv2d_factors["ic_bn"];
-    int oc_bn    = conv2d_factors["oc_bn"];
-    int oc_chunk = oc / oc_bn;
-    int ic_chunk = ic / ic_bn;
-    pe::GetConv2dFactors(&conv2d_factors, oc, fc, -1, Float(32), common::DefaultHostTarget());
-    int fc_bn                               = conv2d_factors["ic_bn"];
+    int batch       = inputs_shape[0][0];
+    int oc          = inputs_shape[1][0];
+    int ic          = inputs_shape[0][1];
+    int fc          = inputs_shape[1][1];
+    int h_in        = inputs_shape[0][2];
+    int w_in        = inputs_shape[0][3];
+    int h_f         = inputs_shape[1][2];
+    int w_f         = inputs_shape[1][3];
+    int pad_h       = padding[0];
+    int pad_w       = padding[1];
+    std::string key = pe::GenerateX86ConvKey(inputs_shape[0], inputs_shape[1], stride, padding, dilation);
+    VLOG(3) << "key: " << key;
+    attrs.attr_store["key"] = key;
+    pe::GetConv2dFactors(&conv2d_factors, oc, ic, fc, -1, -1, Float(32), common::DefaultHostTarget(), key);
+    int ic_bn = conv2d_factors["ic_bn"];
+    int oc_bn = conv2d_factors["oc_bn"];
+    int fc_bn = conv2d_factors["fc_bn"];
+    VLOG(3) << "ic_bn: " << ic_bn;
+    VLOG(3) << "oc_bn: " << oc_bn;
+    VLOG(3) << "fc_bn: " << fc_bn;
+    int oc_chunk                            = oc / oc_bn;
+    int ic_chunk                            = ic / ic_bn;
     int fc_chunk                            = fc / fc_bn;
     std::vector<int> packed_out_shape       = {batch, oc_chunk, out_shape_h, out_shape_w, oc_bn};
     std::vector<int> input_pad_shape        = {batch, ic_chunk, h_in + 2 * pad_h, w_in + 2 * pad_w, ic_bn};
@@ -375,7 +396,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
 #ifdef CINN_WITH_CUDA
     return {res_shape};
 #else
-    return {res_shape, packed_out_shape, input_pad_shape, weights_dilation_shape};
+    return {res_shape, packed_out_shape, weights_dilation_shape, input_pad_shape};
 #endif
   } else if (data_format == "NHWC") {
     // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
@@ -456,6 +477,9 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
     CHECK(target.arch == Target::Arch::X86) << "conv2d_NCHWc op is only used in x86";
     // A is input: [N, C_in_outer, H, W, C_in_inner], B is filter: [C_out, C_in_group_outer, filter_h, filter_w,
     // C_in_group_inner]
+    std::string key;
+    VLOG(3) << "input shape: " << utils::Join(tensor_a->shape, ", ");
+    VLOG(3) << "weight shape: " << utils::Join(tensor_b->shape, ", ");
     out = pe::Conv2d_NCHWc(tensor_a,
                            tensor_b,
                            padding[0],
@@ -492,20 +516,27 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
     // kernel_h == 1 && kernel_w == 1
     CHECK_EQ(kernel_shape.size(), 6U) << "kernel_dialtion shape size should be 6";
     bool is_1x1 = (is_zero(kernel_shape[2] - 1)) && (is_zero(kernel_shape[3] - 1));
-    // Todo: 1*1 schedule is not so much good, may need to optimize schedule further.
-    is_1x1 = false;
     ir::Tensor res;
     ir::Tensor data;
     ir::Tensor weights;
     ir::Tensor packed_out_tensor = packed_out.as_tensor_ref();
-    if (is_1x1) {
-      pe::Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(
-          stages, res, packed_out_tensor, input_pad.as_tensor_ref(), weights, data, target);
-    } else {
-      pe::Conv2d_NCHWc_Schedule_CPU_Nofuse(
-          stages, res, packed_out_tensor, input_pad.as_tensor_ref(), weights, data, target);
+    std::string key;
+    bool do_padding = (padding[0] == 0 && padding[1] == 0) ? false : true;
+    if (attrs.attr_store.find("key") != attrs.attr_store.end()) {
+      key = std::get<std::string>(attrs.attr_store.at("key"));
     }
-    *ret = CINNValuePack{{CINNValue(packed_out_tensor), arg_pack[1], CINNValue(stages)}};
+    if (is_1x1) {
+      pe::Conv2d_NCHWc_1X1_Schedule_CPU(
+          stages, res, packed_out_tensor, input_pad.as_tensor_ref(), weights, data, target, key, do_padding);
+    } else {
+      pe::Conv2d_NCHWc_Schedule_CPU(
+          stages, res, packed_out_tensor, input_pad.as_tensor_ref(), weights, data, target, key, do_padding);
+    }
+    if (do_padding) {
+      *ret = CINNValuePack{{CINNValue(packed_out_tensor), arg_pack[1], CINNValue(stages)}};
+    } else {
+      *ret = CINNValuePack{{CINNValue(packed_out_tensor), CINNValue(stages)}};
+    }
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -519,7 +550,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
 }
 
 std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs_shape,
-                                              const framework::NodeAttr &attrs,
+                                              framework::NodeAttr &attrs,
                                               const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
@@ -552,7 +583,6 @@ std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs
   int out_shape_w =
       (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
 
-  std::unordered_map<std::string, int> conv2d_factors;
   // A: NCHWc, B: OIHWio
   int batch                         = inputs_shape[0][0];
   int h_in                          = inputs_shape[0][2];
@@ -568,7 +598,7 @@ std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs
   int oc_chunk                      = inputs_shape[1][0];
   std::vector<int> packed_out_shape = {batch, oc_chunk, out_shape_h, out_shape_w, oc_bn};
   std::vector<int> input_pad_shape  = {batch, ic_chunk, h_in + 2 * pad_h, w_in + 2 * pad_w, ic_bn};
-  VLOG(4) << "packed_out_shape: " << utils::Join(packed_out_shape, ", ");
+  VLOG(3) << "packed_out_shape: " << utils::Join(packed_out_shape, ", ");
   return {packed_out_shape, input_pad_shape};
 }
 
@@ -603,6 +633,7 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
   std::vector<int> stride   = {1, 1};
   std::vector<int> dilation = {1, 1};
   std::string data_format   = "NCHW";
+  std::string key;
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
     padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
@@ -614,6 +645,9 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
   }
   if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
     dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
+  }
+  if (attrs.attr_store.find("key") != attrs.attr_store.end()) {
+    key = std::get<std::string>(attrs.attr_store.at("key"));
   }
 
   framework::CINNCompute depthwise_conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -638,6 +672,7 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
                                  stride[1],
                                  dilation[0],
                                  dilation[1],
+                                 key,
                                  UniqName("T_depthwise_conv2d_nchw_5d_out"),
                                  target);
       } else {
@@ -694,8 +729,8 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
       if (arg_pack.size() == 6UL) {
         Expr res              = arg_pack[0];
         Expr packed_out       = arg_pack[1];
-        Expr input_pad        = arg_pack[2];
-        Expr weights_dilation = arg_pack[3];
+        Expr weights_dilation = arg_pack[2];
+        Expr input_pad        = arg_pack[3];
         Expr data             = arg_pack[4];
         CHECK(res.as_tensor());
         CHECK(packed_out.as_tensor());
@@ -703,15 +738,21 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
         CHECK(weights_dilation.as_tensor());
         CHECK(data.as_tensor());
         ir::Tensor packed_out_tensor = packed_out.as_tensor_ref();
+        bool do_padding              = (padding[0] == 0 && padding[1] == 0) ? false : true;
         pe::Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(stages,
                                                        res.as_tensor_ref(),
                                                        packed_out_tensor,
                                                        input_pad.as_tensor_ref(),
                                                        weights_dilation.as_tensor_ref(),
                                                        data.as_tensor_ref(),
-                                                       target);
-        *ret =
-            CINNValuePack{{CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], arg_pack[3], CINNValue(stages)}};
+                                                       target,
+                                                       do_padding);
+        if (do_padding) {
+          *ret = CINNValuePack{
+              {CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], arg_pack[3], CINNValue(stages)}};
+        } else {
+          *ret = CINNValuePack{{CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], CINNValue(stages)}};
+        }
         return;
       }
     }
@@ -724,13 +765,13 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
   if (out_type[0] == Float(32)) {
     strategy->AddImpl(depthwise_conv2d_compute, depthwise_conv2d_schedule, "strategy.depthwise_conv.x86", 1);
   } else {
-    LOG(INFO) << "depthwise_conv op with dtype != float32 is not implemented yet!";
+    VLOG(3) << "depthwise_conv op with dtype != float32 is not implemented yet!";
   }
   return strategy;
 }
 
 std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &inputs_shape,
-                                                  const framework::NodeAttr &attrs,
+                                                  framework::NodeAttr &attrs,
                                                   const Target &target) {
   CHECK_EQ(inputs_shape.size(), 2U) << "at least 2 input tensors for depthwise_conv2d op\n";
   CHECK_EQ(inputs_shape[0].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
@@ -854,7 +895,7 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
 }
 
 std::vector<shape_t> InferShapeForBatchNorm(const std::vector<shape_t> &inputs_shape,
-                                            const framework::NodeAttr &attrs,
+                                            framework::NodeAttr &attrs,
                                             const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<shape_t> res{inputs_shape[0]};
@@ -970,7 +1011,7 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  const framework::NodeAttr &attrs,
+                                                  framework::NodeAttr &attrs,
                                                   const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   auto attr_store = attrs.attr_store;
@@ -1140,7 +1181,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  const framework::NodeAttr &attrs,
+                                                  framework::NodeAttr &attrs,
                                                   const Target &target) {
   CHECK(inputs_shape[0].size() == 4 || inputs_shape[0].size() == 5)
       << "The input's shape size of pool2d should be 4 or 5! Please check again.";
@@ -1307,7 +1348,7 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  const framework::NodeAttr &attrs,
+                                                  framework::NodeAttr &attrs,
                                                   const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   auto attr_store = attrs.attr_store;
@@ -1438,7 +1479,7 @@ std::shared_ptr<OpStrategy> StrategyForSigmoid(const framework::NodeAttr &attrs,
 }
 
 std::vector<framework::shape_t> InferShapeForSigmoid(const std::vector<framework::shape_t> &inputs_shape,
-                                                     const framework::NodeAttr &attrs,
+                                                     framework::NodeAttr &attrs,
                                                      const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<framework::shape_t> res{inputs_shape[0]};
@@ -1533,7 +1574,7 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForSoftmax(const std::vector<std::vector<int>> &inputs_shape,
-                                                   const framework::NodeAttr &attrs,
+                                                   framework::NodeAttr &attrs,
                                                    const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<std::vector<int>> res{inputs_shape[0], inputs_shape[0]};
@@ -1628,7 +1669,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<int>> &inputs_shape,
-                                                 const framework::NodeAttr &attrs,
+                                                 framework::NodeAttr &attrs,
                                                  const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> starts;
@@ -1770,7 +1811,7 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
 }
 
 std::vector<std::vector<int>> InferShapeForDropoutInfer(const std::vector<std::vector<int>> &inputs_shape,
-                                                        const framework::NodeAttr &attrs,
+                                                        framework::NodeAttr &attrs,
                                                         const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   float dropout_prob                 = 0;

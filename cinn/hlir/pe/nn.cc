@@ -107,6 +107,7 @@ std::vector<ir::Tensor> Conv2d_NCHW_5D(const ir::Tensor &input,
                                        int stride_w,
                                        int dilation_h,
                                        int dilation_w,
+                                       std::string key,
                                        const std::string &output_name,
                                        const common::Target &target) {
   // input: 4D to 5D, NCHW->NCHWc
@@ -124,17 +125,23 @@ std::vector<ir::Tensor> Conv2d_NCHW_5D(const ir::Tensor &input,
   int oc      = c_out.as_int32();
   int ic      = c_in.as_int32();
   int fc_size = c_filter.as_int32();
-  GetConv2dFactors(&conv2d_factors, oc, ic, -1, type, target);
+  if (key.empty()) {
+    key =
+        GenerateX86ConvKey(shape_input, shape_weights, {stride_h, stride_w}, {pad_h, pad_w}, {dilation_h, dilation_w});
+  }
+  GetConv2dFactors(&conv2d_factors, oc, ic, fc_size, -1, -1, type, target, key);
   int ic_bn_size = conv2d_factors["ic_bn"];
   int oc_bn_size = conv2d_factors["oc_bn"];
-  GetConv2dFactors(&conv2d_factors, oc, fc_size, -1, type, target);
-  int fc_bn_size = conv2d_factors["ic_bn"];
-  Expr ic_bn     = Expr(ic_bn_size);
-  Expr oc_bn     = Expr(oc_bn_size);
-  Expr fc_bn     = Expr(fc_bn_size);
-  Expr ic_chunk  = c_in / ic_bn;
-  Expr oc_chunk  = c_out / oc_bn;
-  Expr fc_chunk  = c_filter / fc_bn;
+  int fc_bn_size = conv2d_factors["fc_bn"];
+  VLOG(3) << "oc_bn: " << oc_bn_size;
+  VLOG(3) << "ic_bn: " << ic_bn_size;
+  VLOG(3) << "fc_bn: " << fc_bn_size;
+  Expr ic_bn    = Expr(ic_bn_size);
+  Expr oc_bn    = Expr(oc_bn_size);
+  Expr fc_bn    = Expr(fc_bn_size);
+  Expr ic_chunk = c_in / ic_bn;
+  Expr oc_chunk = c_out / oc_bn;
+  Expr fc_chunk = c_filter / fc_bn;
 
   // pack data, 4D->5D
   Expr batch = shape_input[0];
@@ -172,7 +179,7 @@ std::vector<ir::Tensor> Conv2d_NCHW_5D(const ir::Tensor &input,
       output_shape,
       [=](Expr n, Expr c, Expr h, Expr w) { return packed_out(n, c / oc_bn, h, w, c % oc_bn); },
       UniqName("conv2d_nchw_out"));
-  return {res, packed_out, input_pad, weights_dilation, data};
+  return {res, packed_out, weights_dilation, input_pad, data};
 }
 
 std::vector<ir::Tensor> Conv2d_NCHWc(const ir::Tensor &input,
@@ -206,13 +213,22 @@ std::vector<ir::Tensor> Conv2d_NCHWc(const ir::Tensor &input,
   Expr c_filter_inner = common::AutoSimplify(shape_weights[4]);
   Expr c_out_inner    = common::AutoSimplify(shape_weights[5]);
 
-  auto input_pad = Compute(
-      {batch, c_in_outer, h_in + 2 * pad_h, w_in + 2 * pad_w, c_in_inner},
-      [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) {
-        auto cond = lang::logic_and({yy >= pad_h, yy - pad_h < h_in, xx >= pad_w, xx - pad_w < w_in});
-        return ir::Select::Make(cond, input(n, icc, yy - pad_h, xx - pad_w, icb), ir::Zero(type));
-      },
-      UniqName("input_pad"));
+  ir::Tensor input_pad;
+  if (pad_h == 0 && pad_w == 0) {
+    input_pad = Compute(
+        input->shape,
+        [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) { return input(n, icc, yy, xx, icb); },
+        UniqName("input_pad"));
+  } else {
+    input_pad = Compute(
+        {batch, c_in_outer, h_in + 2 * pad_h, w_in + 2 * pad_w, c_in_inner},
+        [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) {
+          auto cond = lang::logic_and({yy >= pad_h, yy - pad_h < h_in, xx >= pad_w, xx - pad_w < w_in});
+          return ir::Select::Make(cond, input(n, icc, yy - pad_h, xx - pad_w, icb), ir::Zero(type));
+        },
+        UniqName("input_pad"));
+  }
+
   Expr c_filter = common::AutoSimplify(c_filter_outer * c_filter_inner);
   Expr c_out    = common::AutoSimplify(c_out_outer * c_out_inner);
   Expr c_in     = common::AutoSimplify(c_in_outer * c_in_inner);
