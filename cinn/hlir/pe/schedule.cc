@@ -269,10 +269,10 @@ void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
                       const std::string &key,
                       bool import_params) {
   if (import_params) {
-    auto &params = ScheduleParam::get_instance().GetParam();
+    auto &params = ScheduleParam::get_x86_instance().GetParam();
     if (params.empty()) {
       CreateX86SerialData();
-      LoadSerialData();
+      LoadSerialData(&params);
     }
     if (params.count(key)) {
       CHECK(!params[key]["oc_bn"].empty());
@@ -727,6 +727,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
     stages[res]->Reorder({oh_outer1, ow_outer1, oh_inner1, ow_inner1, oc_inner1});
     // stages[res]->Fuse({0, 1, 2});
     // Todo: computeAt according to forloops' range
+    stages[packed_out]->ComputeAt2(stages[res], 2);
     VLOG(3) << "stages[res]->transformed_domain()" << stages[res]->transformed_domain();
   }
 }
@@ -1035,6 +1036,7 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
     stages[res]->Reorder({oh1, ow_outer1, ow_inner1, oc_inner1});
     // stages[res]->Fuse({0, 1, 2});
     // Todo: computeAt according to forloops' range
+    stages[packed_out]->ComputeAt2(stages[res], 2);
   }
 }
 
@@ -1210,7 +1212,8 @@ int GetMaxSplitter(int a, int b) {
   return b;
 }
 
-void LoadSerialData(const std::string &file_name) {
+void LoadSerialData(std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> *params,
+                    const std::string &file_name) {
   proto::ModelData read_model_data;
   std::fstream input(file_name, std::ios::in | std::ios::binary);
   if (!read_model_data.ParseFromIstream(&input)) {
@@ -1221,7 +1224,6 @@ void LoadSerialData(const std::string &file_name) {
   std::string test_write3;
   read_model_data.SerializeToString(&test_write3);
   auto read_model_map = read_model_data.data();
-  auto &res           = ScheduleParam::get_instance().GetParam();
   for (auto &i : read_model_map) {
     auto read_schedule_map = i.second.data();
     std::unordered_map<std::string, std::vector<int>> param_data;
@@ -1232,7 +1234,7 @@ void LoadSerialData(const std::string &file_name) {
       }
       param_data[j.first] = temp_data;
     }
-    res[i.first] = param_data;
+    (*params)[i.first] = param_data;
   }
 }
 
@@ -1270,10 +1272,10 @@ void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor &weights,
                       ir::Tensor &output,
                       const common::Target &target) {
-  auto &res = ScheduleParam::get_instance().GetParam();
-  if (res.empty() || res.count("CudaScheduleConv 1 3 230 230 64 3 7 7 1 64 112 112") == 0) {
+  auto &res = ScheduleParam::get_cuda_instance().GetParam();
+  if (res.empty()) {
     CreateCudaSerialData();
-    LoadSerialData();
+    LoadSerialData(&res);
   }
 
   int n = output->shape[0].as_int32();
@@ -1342,7 +1344,7 @@ void CudaScheduleConv2(poly::StageMap stages,
                        ir::Tensor &output,
                        const common::Target &target,
                        const std::string &key) {
-  auto &res = ScheduleParam::get_instance().GetParam();
+  auto &res = ScheduleParam::get_cuda_instance().GetParam();
   stages[input_pad]->ComputeInline();
   optim::Simplify(&(output->shape[2]));
   optim::Simplify(&(output->shape[3]));
