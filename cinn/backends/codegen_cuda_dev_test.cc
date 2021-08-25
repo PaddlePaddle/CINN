@@ -657,7 +657,6 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   // s[input_tile].compute_at(s[data_pack], pi)
   // s[pad_data].compute_inline()
   wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 1);
-
   // wino_stages[input_tile]->ComputeAt(wino_stages[data_pack], 1);
   wino_stages[wino_input_pad]->ComputeInline();
 
@@ -696,6 +695,9 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   auto BB = wino_stages[data_pack]->CacheRead("shared", wino_readers, wino_stages);
   auto wino_OL = wino_stages[bgemm]->CacheWrite("local", wino_stages, bgemm);
 
+  // b1, b2, y, x = s[bgemm].op.axis
+  // rc = s[bgemm].op.reduce_axis[0]
+  // alpha = get_const_int(b1.dom.extent)
   // b = s[bgemm].fuse(b1, b2)
   // # tile and bind spatial axes
   // bgemm_scope, b = s[bgemm].split(b, nparts=1)
