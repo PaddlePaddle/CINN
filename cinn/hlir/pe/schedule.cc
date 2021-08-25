@@ -1185,8 +1185,8 @@ void CreateCudaSerialData(const std::string &file_name) {
 
   // winograd
   InputCudaParam(model_data,
-             "CudaScheduleConv 1 64 58 58 64 64 3 3 1 64 56 56",
-             {{32, 2}, {1, 3}, {1, 3}, {4, 1, 8, 2}, {28, 1, 2, 1}, {1, 2, 7, 4}});
+                 "CudaScheduleConv 1 64 58 58 64 64 3 3 1 64 56 56",
+                 {{32, 2}, {1, 3}, {1, 3}, {4, 1, 8, 2}, {28, 1, 2, 1}, {1, 2, 7, 4}});
   // winograd
   InputCudaParam(model_data,
                  "CudaScheduleConv 1 512 9 9 512 512 3 3 1 512 7 7",
@@ -1271,7 +1271,7 @@ void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor &output,
                       const common::Target &target) {
   auto &res = ScheduleParam::get_instance().GetParam();
-  if (res.empty()) {
+  if (res.empty() || res.count("CudaScheduleConv 1 3 230 230 64 3 7 7 1 64 112 112") == 0) {
     CreateCudaSerialData();
     LoadSerialData();
   }
