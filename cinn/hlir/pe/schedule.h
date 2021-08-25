@@ -18,9 +18,13 @@ class ScheduleParam {
   ~ScheduleParam();
   ScheduleParam(const ScheduleParam &) = delete;
   ScheduleParam &operator=(const ScheduleParam &) = delete;
-  static ScheduleParam &get_instance() {
-    static ScheduleParam instance;
-    return instance;
+  static ScheduleParam &get_cuda_instance() {
+    static ScheduleParam cuda_instance;
+    return cuda_instance;
+  }
+  static ScheduleParam &get_x86_instance() {
+    static ScheduleParam x86_instance;
+    return x86_instance;
   }
   std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &GetParam() { return param_data; }
   std::unordered_map<std::string, std::vector<int>> &operator[](const std::string &key) { return param_data[key]; }
@@ -156,7 +160,8 @@ std::string GenerateX86ConvKey(const std::vector<int> &input_shape,
                                const std::vector<int> &dilations);
 void CreateX86SerialData(const std::string &file_name = "default_serial.log");
 
-void LoadSerialData(const std::string &file_name = "default_serial.log");
+void LoadSerialData(std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> *params,
+                    const std::string &file_name = "default_serial.log");
 
 void SaveSerialData(
     const std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
