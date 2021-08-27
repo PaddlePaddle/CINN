@@ -36,6 +36,7 @@ struct Interpreter::Impl {
   std::unordered_map<std::string, std::string> var_map_cinn_to_paddle_;
 
   std::unique_ptr<hlir::framework::Program> runtime_program_;
+  std::unique_ptr<hlir::framework::Program> prerun_program_;
 };
 
 void Interpreter::LoadPaddleModel(const std::string& model_dir, const Target& target, bool params_combined) {
@@ -94,6 +95,7 @@ void Interpreter::Impl::Build(const std::vector<std::string>& input_names,
   scope_ = hlir::framework::BuildScope(target, graph, scope_);
   graph_compiler_.reset(new hlir::framework::GraphCompiler(target, scope_, graph));
   runtime_program_ = graph_compiler_->Build();
+  runtime_program_->PreRun();
 }
 
 std::shared_ptr<hlir::framework::Scope> Interpreter::scope() {

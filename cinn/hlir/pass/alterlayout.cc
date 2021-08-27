@@ -242,6 +242,7 @@ void AlterLayoutPass(Graph* graph) {
                                                src_kernel_layout,
                                                dst_kernel_layout,
                                                common::UniqName(node->op()->name + "_weight_layout_tranform"));
+            weight_trans_node->attrs.attr_store["pre_run"] = true;
             updateInferInfos(weight_trans_node,
                              {weight_shape},
                              {weight_type},

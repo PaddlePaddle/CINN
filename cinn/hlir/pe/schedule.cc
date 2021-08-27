@@ -613,7 +613,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
                                    const common::Target &target,
                                    const std::string &key,
                                    bool do_padding) {
-  CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
+  CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_1X1_Schedule_CPU schedule only used in x86";
   CHECK(packed_out.defined());
   CHECK(input_pad.defined());
   auto type = packed_out->type();
@@ -674,6 +674,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
 
   // CC: [batch, oh, ow, oc, ic, kh, kw] -> [batch_oc_outer_oh_outer_fused, oh_inner, ow, oc_inner, ic, kh, kw]
   stages[CC]->ComputeAt2(stages[packed_out], 0);
+  VLOG(3) << "cache write shape: " << utils::Join(CC->shape, ", ");
   // tempory solution because reorder may be wrong before ComputeAt
   // reorder: [batch_oc_outer_oh_outer_fused, oh_inner, ow_outer, ow_inner, oc_inner] ->
   // [batch_oc_outer_oh_outer_fused, ow_outer, oh_inner, ow_inner, oc_inner]
@@ -739,7 +740,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
                                           const ir::Tensor &weights_dilation,
                                           const ir::Tensor &data,
                                           const common::Target &target) {
-  CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
+  CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse schedule only used in x86";
   CHECK(packed_out.defined());
   CHECK(input_pad.defined());
   auto type = packed_out->type();
@@ -844,7 +845,7 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
                                       const ir::Tensor &weights_dilation,
                                       const ir::Tensor &data,
                                       const common::Target &target) {
-  CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
+  CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU_Nofuse schedule only used in x86";
   CHECK(packed_out.defined());
   CHECK(input_pad.defined());
   auto type = packed_out->type();
@@ -996,6 +997,7 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
 
   // CC
   stages[CC]->ComputeAt2(stages[packed_out], 1);
+  VLOG(3) << "cache write shape: " << utils::Join(CC->shape, ", ");
   VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
   VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // CC: [batch_oc_outer_oh_fused, ow_outer, ow_inner, oc_inner, ic, kh, kw]
@@ -1048,7 +1050,7 @@ void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
                                                 const ir::Tensor &data,
                                                 const common::Target &target,
                                                 bool do_padding) {
-  CHECK(target.arch == Target::Arch::X86) << "Conv2d_NCHWc_Schedule_CPU schedule only used in x86";
+  CHECK(target.arch == Target::Arch::X86) << "Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse schedule only used in x86";
   CHECK(packed_out.defined());
   CHECK(input_pad.defined());
   auto type = packed_out->type();

@@ -175,7 +175,7 @@ std::vector<int> stride_conv2d_nchwc({2, 2});
 std::vector<int> dilation_conv2d_nchwc({1, 1});
 std::unordered_map<std::string, AttrType> attr_store_conv2d_nchwc = {
     {"padding", padding_conv2d_nchwc}, {"stride", stride_conv2d_nchwc}, {"dilation", dilation_conv2d_nchwc}};
-TEST_DEFAULT1(conv2d_NCHWc, conv2d_nchwc, type1, type1, attr_store_conv2d_nchwc)
+TEST_DEFAULT1(conv2d_NCHWc, conv2d_nchwc, type1, type8, attr_store_conv2d_nchwc)
 
 // depthwise_conv2d nchw
 std::vector<std::vector<int>> shapes_depthwise_conv2d_nchw            = {{2, 32, 112, 112}, {32, 1, 3, 3}};

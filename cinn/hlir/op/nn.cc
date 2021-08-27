@@ -533,9 +533,9 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
           stages, res, packed_out_tensor, input_pad.as_tensor_ref(), weights, data, target, key, do_padding);
     }
     if (do_padding) {
-      *ret = CINNValuePack{{CINNValue(packed_out_tensor), arg_pack[1], CINNValue(stages)}};
+      *ret = CINNValuePack{{CINNValue(packed_out_tensor), arg_pack[0], arg_pack[1], CINNValue(stages)}};
     } else {
-      *ret = CINNValuePack{{CINNValue(packed_out_tensor), CINNValue(stages)}};
+      *ret = CINNValuePack{{CINNValue(packed_out_tensor), arg_pack[0], CINNValue(stages)}};
     }
   });
 
@@ -599,7 +599,7 @@ std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs
   std::vector<int> packed_out_shape = {batch, oc_chunk, out_shape_h, out_shape_w, oc_bn};
   std::vector<int> input_pad_shape  = {batch, ic_chunk, h_in + 2 * pad_h, w_in + 2 * pad_w, ic_bn};
   VLOG(3) << "packed_out_shape: " << utils::Join(packed_out_shape, ", ");
-  return {packed_out_shape, input_pad_shape};
+  return {packed_out_shape, packed_out_shape, input_pad_shape};
 }
 
 std::vector<std::vector<std::string>> InferLayoutForConv2dNCHWc(const std::vector<framework::shape_t> &input_shapes,
@@ -613,14 +613,14 @@ std::vector<std::vector<std::string>> InferLayoutForConv2dNCHWc(const std::vecto
   int factor = var->upper_bound.as_int32();
   CHECK_GE(factor, 1) << "factor should be larger than 1";
   std::string outlayout = "NCHW" + std::to_string(factor) + "c";
-  return {{outlayout, input_layouts[0]}, input_layouts};
+  return {{outlayout, outlayout, input_layouts[0]}, input_layouts};
 }
 
 std::vector<Type> InferDtypeForConv2dNCHWc(const std::vector<Type> &inputs_type,
                                            const framework::NodeAttr &attrs,
                                            const Target &target) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0], inputs_type[0]};
+  std::vector<Type> res{inputs_type[0], inputs_type[0], inputs_type[0]};
   return res;
 }
 
@@ -1609,16 +1609,14 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
   std::vector<int> starts;
   std::vector<int> ends;
   std::vector<int> axes;
-  for (auto &iter : attrs.attr_store) {
-    if (iter.first == "starts") {
-      starts = std::get<std::vector<int>>(iter.second);
-    } else if (iter.first == "ends") {
-      ends = std::get<std::vector<int>>(iter.second);
-    } else if (iter.first == "axes") {
-      axes = std::get<std::vector<int>>(iter.second);
-    } else {
-      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
-    }
+  if (attrs.attr_store.find("starts") != attrs.attr_store.end()) {
+    starts = std::get<std::vector<int>>(attrs.attr_store.at("starts"));
+  }
+  if (attrs.attr_store.find("ends") != attrs.attr_store.end()) {
+    ends = std::get<std::vector<int>>(attrs.attr_store.at("ends"));
+  }
+  if (attrs.attr_store.find("axes") != attrs.attr_store.end()) {
+    axes = std::get<std::vector<int>>(attrs.attr_store.at("axes"));
   }
   CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
   CHECK(!ends.empty()) << "The Slice op doesn't find [ends] attrbute! It it a mandatory attribute, please check.";
@@ -1765,14 +1763,11 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
                                                     const Target &target) {
   float dropout_prob                 = 0;
   std::string dropout_implementation = "downgrade_in_infer";
-  for (auto &iter : attrs.attr_store) {
-    if (iter.first == "dropout_prob") {
-      dropout_prob = std::get<float>(iter.second);
-    } else if (iter.first == "dropout_implementation") {
-      dropout_implementation = std::get<std::string>(iter.second);
-    } else {
-      LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
-    }
+  if (attrs.attr_store.find("dropout_prob") != attrs.attr_store.end()) {
+    dropout_prob = std::get<float>(attrs.attr_store.at("dropout_prob"));
+  }
+  if (attrs.attr_store.find("dropout_implementation") != attrs.attr_store.end()) {
+    dropout_implementation = std::get<std::string>(attrs.attr_store.at("dropout_implementation"));
   }
 
   framework::CINNCompute dropout_infer_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -1902,7 +1897,7 @@ CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(conv2d_NCHWc)
       .describe("Do a 2-D convolution with an NCHWc layout. Input is 5D tensor and weight is 6D tensor.")
       .set_num_inputs(2)  // here we consider filter as another input
-      .set_num_outputs(2)
+      .set_num_outputs(3)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2dNCHWc)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2dNCHWc))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2dNCHWc))

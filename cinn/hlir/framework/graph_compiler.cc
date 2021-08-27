@@ -428,6 +428,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       auto* fn = compiler_->Lookup(GenOpFuncName(node));
       CHECK(fn);
       instr->SetLoweredFunc(fn);
+      if (node->attrs.attr_store.count("pre_run")) {
+        instr->pre_run = std::get<bool>(node->attrs.attr_store["pre_run"]);
+      }
       instructions.push_back(std::move(instr));
     } else {
       CHECK_GT(group.size(), 1U) << "fuse number should be greater than 1";
