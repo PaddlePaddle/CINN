@@ -30,9 +30,21 @@ class Program {
    * @param scope The scope containing all the runtime variables.
    * @param instrs The instructions belonging to this program.
    */
-  Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_ptr<Instruction>>&& instrs)
-      : scope_(scope), instrs_(std::move(instrs)) {}
+  Program(const std::shared_ptr<Scope>& scope, std::vector<std::unique_ptr<Instruction>>&& instrs) : scope_(scope) {
+    for (auto& ins : instrs) {
+      if (ins->pre_run) {
+        prerun_instrs_.push_back(std::move(ins));
+      } else {
+        instrs_.push_back(std::move(ins));
+      }
+    }
+  }
 
+  void PreRun() {
+    for (auto& ins : prerun_instrs_) {
+      ins->Run();
+    }
+  }
   /**
    * Execute the program -- that is running all the instructions inside it.
    */
@@ -76,6 +88,9 @@ class Program {
  private:
   // We need to hold scope to assure tensors alive used in instructions.
   std::shared_ptr<Scope> scope_;
+  // prerun instructions
+  std::vector<std::unique_ptr<Instruction>> prerun_instrs_;
+  // only runtime instructions
   std::vector<std::unique_ptr<Instruction>> instrs_;
 };
 
