@@ -91,7 +91,7 @@ void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_sha
         stage->Vectorize(fused, split_factor);
       }
     } else {
-      auto [j_outer, j_inner] = stage->Split(fused, split_factor);
+      auto[j_outer, j_inner] = stage->Split(fused, split_factor);
       stage->Vectorize(j_inner, split_factor);
     }
   }
@@ -210,7 +210,7 @@ void MatmulScheduleCPU(poly::StageMap stages,
   stages[output]->Reorder(all_axes);
   // vectorize output's last dimemsion
   auto out_domain = stages[output]->transformed_domain();
-  auto [min, max] = poly::isl_set_get_axis_range(out_domain.get(), out_axis_dims - 1);
+  auto[min, max] = poly::isl_set_get_axis_range(out_domain.get(), out_axis_dims - 1);
   CHECK_EQ(min.get_num_si(), 0) << "axis range should begin from zero";
   int out_last_dim        = max.get_num_si() + 1;
   int output_split_factor = GetBetterSplitFactor(out_last_dim, basic_split_factor);
@@ -1008,10 +1008,10 @@ void CudaScheduleConv(poly::StageMap stages,
 
   auto OL = stages[output]->CacheWrite("local", stages, output);
 
-  auto tx        = stages[output]->axis(3);
-  auto by        = stages[output]->axis(2);
-  auto [tem, fi] = stages[output]->Split(1, f_inner);
-  auto [bz, tz]  = stages[output]->Split(1, thread_z);
+  auto tx = stages[output]->axis(3);
+  auto by = stages[output]->axis(2);
+  auto[tem, fi] = stages[output]->Split(1, f_inner);
+  auto[bz, tz]  = stages[output]->Split(1, thread_z);
   stages[output]->Reorder({bz, by, tz, tx, fi});
   stages[output]->Bind(1, "blockIdx.z");
   stages[output]->Bind(2, "blockIdx.y");
@@ -1132,6 +1132,225 @@ void CudaScheduleConv2(poly::StageMap stages,
   }
 }
 
+void CudaScheduleWinogradConv(poly::StageMap wino_stages,
+                              ir::Tensor &wino_weights_dilation,
+                              ir::Tensor &wino_input_pad,
+                              ir::Tensor &wino_A,
+                              ir::Tensor &wino_B,
+                              ir::Tensor &wino_G,
+                              ir::Tensor &kernel_pack,
+                              ir::Tensor &input_tile,
+                              ir::Tensor &data_pack,
+                              ir::Tensor &bgemm,
+                              ir::Tensor &inverse,
+                              ir::Tensor &wino_conv,
+                              const common::Target &target) {
+  // s[B].compute_inline();
+  wino_stages[wino_B]->ComputeInline();
+
+  // data_l = s.cache_write(data_pack, "local")
+  // eps, nu, c, p = s[data_l].op.axis
+  // r_a, r_b = s[data_l].op.reduce_axis
+  // for axis in [eps, nu, r_a, r_b]:
+  //     s[data_l].unroll(axis)
+  auto data_l = wino_stages[data_pack]->CacheWrite("local", wino_stages, data_pack);
+  wino_stages[data_l]->Unroll(0);
+  wino_stages[data_l]->Unroll(1);
+  wino_stages[data_l]->Unroll(4);
+  wino_stages[data_l]->Unroll(5);
+
+  // eps, nu, c, p = s[data_pack].op.axis
+  // p, pi = s[data_pack].split(p, 1)
+  // fused = s[data_pack].fuse(c, p)
+  // bb, tt = s[data_pack].split(fused, 128)
+  // s[data_pack].reorder(bb, tt, pi, eps, nu)
+  // s[data_pack].bind(bb, te.thread_axis("blockIdx.x"))
+  // s[data_pack].bind(tt, te.thread_axis("threadIdx.x"))
+  wino_stages[data_pack]->Fuse({2, 3});
+  wino_stages[data_pack]->Split(2, 128);
+  wino_stages[data_pack]->Reorder({2, 3, 0, 1});
+  // wino_stages[data_pack]->Bind(0, "blockIdx.x");
+  wino_stages[data_pack]->Bind(1, "threadIdx.x");
+
+  // s[data_l].compute_at(s[data_pack], pi)
+  // s[input_tile].compute_at(s[data_pack], pi)
+  // s[pad_data].compute_inline()
+  wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 1);
+  wino_stages[input_tile]->ComputeAt(wino_stages[data_l], 1);
+  // wino_stages[input_tile]->SetBuffer("local");
+  // wino_stages[input_tile]->ComputeInline();
+  wino_stages[wino_input_pad]->ComputeInline();
+
+  // kernel, G = s[kernel_pack].op.input_tensors
+  // eps, nu, ci, co = s[kernel_pack].op.axis
+  // s[G].compute_inline()
+  // r_a, r_b = s[kernel_pack].op.reduce_axis
+  // for axis in [eps, nu, r_a, r_b]:
+  //     s[kernel_pack].unroll(axis)
+  // fused = s[kernel_pack].fuse(ci, co)
+  // bb, tt = s[kernel_pack].split(fused, 128)
+  // s[kernel_pack].reorder(bb, tt, eps, nu, r_a, r_b)
+  // s[kernel_pack].bind(bb, te.thread_axis("blockIdx.x"))
+  // s[kernel_pack].bind(tt, te.thread_axis("threadIdx.x"))
+  wino_stages[wino_G]->ComputeInline();
+  wino_stages[kernel_pack]->Reorder({2, 3, 0, 1, 4, 5});
+  wino_stages[kernel_pack]->Fuse({0, 1});
+  wino_stages[kernel_pack]->Split(0, 128);
+  wino_stages[kernel_pack]->Unroll(5);
+  wino_stages[kernel_pack]->Unroll(4);
+  wino_stages[kernel_pack]->Unroll(3);
+  wino_stages[kernel_pack]->Unroll(2);
+  wino_stages[kernel_pack]->Bind(0, "blockIdx.x");
+  wino_stages[kernel_pack]->Bind(1, "threadIdx.x");
+
+  // s[kernel].compute_inline()
+  wino_stages[wino_weights_dilation]->ComputeInline();
+
+  // C = bgemm
+  // A0, B0 = kernel_pack, data_pack
+  // OL = s.cache_write(C, "local")
+  // AA = s.cache_read(A0, "shared", [OL])
+  // BB = s.cache_read(B0, "shared", [OL])
+  // std::vector<ir::Tensor> wino_readers{bgemm};
+  // auto AA = wino_stages[kernel_pack]->CacheRead("shared", wino_readers, wino_stages);
+  // auto BB = wino_stages[data_pack]->CacheRead("shared", wino_readers, wino_stages);
+  auto wino_OL = wino_stages[bgemm]->CacheWrite("local", wino_stages, bgemm);
+
+  // b1, b2, y, x = s[bgemm].op.axis
+  // rc = s[bgemm].op.reduce_axis[0]
+  // alpha = get_const_int(b1.dom.extent)
+  // b = s[bgemm].fuse(b1, b2)
+  // # tile and bind spatial axes
+  // bgemm_scope, b = s[bgemm].split(b, nparts=1)
+  // bz, vz, tz, zi = cfg["tile_b"].apply(s, C, b)
+  // by, vy, ty, yi = cfg["tile_y"].apply(s, C, y)
+  // bx, vx, tx, xi = cfg["tile_x"].apply(s, C, x)
+  // s[C].bind(bz, te.thread_axis("blockIdx.z"))
+  // s[C].bind(by, te.thread_axis("blockIdx.y"))
+  // s[C].bind(bx, te.thread_axis("blockIdx.x"))
+  // s[C].bind(vz, te.thread_axis("vthread"))
+  // s[C].bind(vy, te.thread_axis("vthread"))
+  // s[C].bind(vx, te.thread_axis("vthread"))
+  // s[C].bind(tz, te.thread_axis("threadIdx.z"))
+  // s[C].bind(ty, te.thread_axis("threadIdx.y"))
+  // s[C].bind(tx, te.thread_axis("threadIdx.x"))
+  // s[C].reorder(bgemm_scope, bz, by, bx, vz, vy, vx, tz, ty, tx, zi, yi, xi)
+  wino_stages[bgemm]->Fuse({0, 1});
+
+  // x param is :  [1, 2, 98, 1]
+  wino_stages[bgemm]->Split(2, 1);
+  wino_stages[bgemm]->Split(2, 98);
+  wino_stages[bgemm]->Split(2, 2);
+  // y param is :  [2, 2, 2, 8]
+  wino_stages[bgemm]->Split(1, 8);
+  wino_stages[bgemm]->Split(1, 2);
+  wino_stages[bgemm]->Split(1, 2);
+  // b param is :  [36, 1, 1, 1]
+  wino_stages[bgemm]->Split(0, 1);
+  wino_stages[bgemm]->Split(0, 1);
+  wino_stages[bgemm]->Split(0, 1);
+
+  wino_stages[bgemm]->Reorder({0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11});
+  // wino_stages[bgemm]->Bind(0, "blockIdx.z");
+  // wino_stages[bgemm]->Bind(1, "blockIdx.y");
+  // wino_stages[bgemm]->Bind(2, "blockIdx.x");
+  // wino_stages[bgemm]->Bind(6, "threadIdx.z");
+  // wino_stages[bgemm]->Bind(7, "threadIdx.y");
+  // wino_stages[bgemm]->Bind(8, "threadIdx.x");
+  // wino_stages[bgemm]->SyncThreads(9, {wino_OL}, wino_stages);
+  // wino_stages[bgemm]->SyncThreads(9, {}, wino_stages);
+  // wino_stages[bgemm]->Bind(0, "blockIdx.x");
+  wino_stages[bgemm]->Bind(8, "threadIdx.x");
+
+  // # tile reduction axes
+  // s[OL].compute_at(s[C], tx)
+  // b1, b2, y, x = s[OL].op.axis
+  // b = s[OL].fuse(b1, b2)
+  // (rc,) = s[OL].op.reduce_axis
+  // rco, rci = cfg["tile_rc"].apply(s, OL, rc)
+  // s[OL].reorder(rco, rci, b, y, x)
+  // s[AA].compute_at(s[OL], rco)
+  // s[BB].compute_at(s[OL], rco)
+  // LOG(INFO) << "bgemm";
+  // wino_stages[bgemm]->ShowISL();
+  // LOG(INFO) << "wino_OL before ";
+  // wino_stages[wino_OL]->ShowISL();
+  wino_stages[wino_OL]->ComputeAt(wino_stages[bgemm], 8);
+  // LOG(INFO) << "wino_OL after ";
+  // wino_stages[wino_OL]->ShowISL();
+  // wino_stages[bgemm]->ShowISL();
+  wino_stages[wino_OL]->Fuse({9, 10});
+  // rc param is :  [8, 8]
+  wino_stages[wino_OL]->Split(10, 8);
+  wino_stages[wino_OL]->Reorder({10, 11, 9});
+  // wino_stages[AA]->ComputeAt(wino_stages[wino_OL], 8);
+  // wino_stages[BB]->ComputeAt(wino_stages[wino_OL], 8);
+
+  // for load in [AA, BB]:
+  //   fused = s[load].fuse(*list(s[load].op.axis))
+  //   fused, tx = s[load].split(fused, cfg["tile_x"].size[2])
+  //   fused, ty = s[load].split(fused, cfg["tile_y"].size[2])
+  //   fused, tz = s[load].split(fused, cfg["tile_b"].size[2])
+  //   s[load].bind(tz, te.thread_axis("threadIdx.z"))
+  //   s[load].bind(ty, te.thread_axis("threadIdx.y"))
+  //   s[load].bind(tx, te.thread_axis("threadIdx.x"))
+  // wino_stages[AA]->ShowISL();
+  // wino_stages[AA]->Fuse({8, 9, 10, 11});
+  // wino_stages[AA]->Split(8,20);
+  // wino_stages[AA]->Split(8,4);
+  // wino_stages[AA]->Split(8,2);
+  // wino_stages[AA]->Bind(9, "blockIdx.z");
+  // wino_stages[AA]->Bind(10, "blockIdx.y");
+  // wino_stages[AA]->Bind(11, "blockIdx.x");
+
+  // wino_stages[BB]->Fuse({8, 9, 10, 11});
+  // wino_stages[BB]->Split(8,20);
+  // wino_stages[BB]->Split(8,4);
+  // wino_stages[BB]->Split(8,2);
+  // wino_stages[BB]->Bind(9, "blockIdx.z");
+  // wino_stages[BB]->Bind(10, "blockIdx.y");
+  // wino_stages[BB]->Bind(11, "blockIdx.x");
+
+  // m = alpha - 3 + 1
+  // n, co, h, w = s[output].op.axis
+  // ho, wo, hi, wi = s[output].tile(h, w, m, m)
+  // inverse_scope, n = s[output].split(n, nparts=1)
+  // fused = s[output].fuse(n, co, ho, wo)
+  // bb, tt = s[output].split(fused, 128)
+  // s[output].bind(bb, te.thread_axis("blockIdx.x"))
+  // s[output].bind(tt, te.thread_axis("threadIdx.x"))
+  int m = 4;
+  wino_stages[wino_conv]->Tile(2, 3, m, m);
+  // wino_stages[wino_conv]->Reorder({0, 1, 2, 4, 3, 5});
+  wino_stages[wino_conv]->Fuse({0, 1, 2, 3});
+  wino_stages[wino_conv]->Split(0, 128);
+  // wino_stages[wino_conv]->Bind(0, "blockIdx.x");
+  wino_stages[wino_conv]->Bind(1, "threadIdx.x");
+
+  // s[A].compute_inline()
+  wino_stages[wino_A]->ComputeInline();
+  // LOG(INFO) << "inverse before ";
+  // wino_stages[inverse]->ShowISL();
+  // co, p, vh, vw = s[inverse].op.axis
+  // r_a, r_b = s[inverse].op.reduce_axis
+  // for axis in [vh, vw, r_a, r_b]:
+  //     s[inverse].unroll(axis)
+  // s[inverse].compute_at(s[output], tt)
+  // wino_stages[inverse]->Unroll(2);
+  // wino_stages[inverse]->Unroll(3);
+  // wino_stages[inverse]->Unroll(4);
+  // wino_stages[inverse]->Unroll(5);
+  // wino_stages[inverse]->ComputeAt(wino_stages[wino_conv], 1);
+  wino_stages[inverse]->Bind(1, "threadIdx.x");
+  // wino_stages[wino_conv]->SyncThreads(1, {inverse}, wino_stages);
+  LOG(INFO) << "inverse after ";
+  wino_stages[inverse]->ShowISL();
+  auto names = wino_stages[inverse]->axis_names();
+  for (auto x : names) {
+    LOG(INFO) << x;
+  }
+}
+
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
   CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
   int dims = stage->n_out_dims();
@@ -1144,8 +1363,8 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   int prod_size         = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
   bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
   if (need_block_split) {
-    auto [X_outer, X_inner]  = stage->Split(0, num_thread * num_block);
-    auto [Block_x, Thread_x] = stage->Split(X_inner, num_thread);
+    auto[X_outer, X_inner]  = stage->Split(0, num_thread * num_block);
+    auto[Block_x, Thread_x] = stage->Split(X_inner, num_thread);
     stage->Reorder({Block_x, Thread_x, X_outer});
     stage->Bind(0, "blockIdx.x");
     stage->Bind(1, "threadIdx.x");
