@@ -213,7 +213,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<int>> &inputs_shape,
-                                                  const framework::NodeAttr &attrs,
+                                                  framework::NodeAttr &attrs,
                                                   const Target &target) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   std::vector<int> output_shape;
@@ -464,7 +464,7 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int>> &inputs_shape,
-                                               const framework::NodeAttr &attrs,
+                                               framework::NodeAttr &attrs,
                                                const Target &target) {
   // CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
@@ -538,7 +538,7 @@ std::vector<std::vector<std::string>> InferLayoutForMul(const std::vector<framew
 }
 
 std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector<int>> &inputs_shape,
-                                                   const framework::NodeAttr &attrs,
+                                                   framework::NodeAttr &attrs,
                                                    const Target &target) {
   // CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
@@ -644,7 +644,7 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
 }
 
 std::vector<shape_t> InferShapeForLayoutTransform(const std::vector<shape_t> &inputs_shape,
-                                                  const framework::NodeAttr &attrs,
+                                                  framework::NodeAttr &attrs,
                                                   const Target &target) {
   std::string src_layout;
   std::string dst_layout;

@@ -20,7 +20,7 @@ using framework::Operator;
 using framework::OpValueType;
 
 using InferShapeFunc = std::function<std::vector<framework::shape_t>(
-    const std::vector<framework::shape_t>&, const framework::NodeAttr&, const Target&)>;
+    const std::vector<framework::shape_t>&, framework::NodeAttr&, const Target&)>;
 using InferTypeFunc =
     std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&, const Target&)>;
 using InferLayoutFunc = std::function<std::vector<std::vector<std::string>>(const std::vector<framework::shape_t>&,
@@ -169,13 +169,26 @@ void AlterLayoutPass(Graph* graph) {
           int oc = weight_shape[0];
           int fc = weight_shape[1];
           int ic = input_shape[1];
+
+          // get the original conv config stored in the key attr
+          CHECK(new_node->attrs.attr_store.count("key")) << "conv2d finds no key attr";
+          std::string key = std::get<std::string>(new_node->attrs.attr_store.at("key"));
+          VLOG(3) << "key: " << key;
+          pe::GetConv2dFactors(&conv2d_factors, oc, ic, fc, -1, -1, input_type, graph->target_, key);
+          CHECK(conv2d_factors.count("oc_bn"));
+          CHECK(conv2d_factors.count("ic_bn"));
+          CHECK(conv2d_factors.count("fc_bn"));
+          int oc_bn = conv2d_factors["oc_bn"];
+          int ic_bn = conv2d_factors["ic_bn"];
+          int fc_bn = conv2d_factors["fc_bn"];
+          VLOG(3) << "oc_bn: " << oc_bn;
+          VLOG(3) << "ic_bn: " << ic_bn;
+          VLOG(3) << "fc_bn: " << fc_bn;
+
           if (input_shape.size() == 4) {
-            pe::GetConv2dFactors(&conv2d_factors, oc, ic, -1, input_type, graph->target_);
-            int ic_bn                    = conv2d_factors["ic_bn"];
             std::string src_input_layout = "NCHW";
             std::string dst_input_layout = "NCHW" + std::to_string(ic_bn) + "c";
-            VLOG(2) << "dst_input_layout: " << dst_input_layout;
-
+            VLOG(3) << "dst_input_layout: " << dst_input_layout;
             // insert input layout_transform
             auto input_data = input_node->safe_as<NodeData>();
             CHECK(input_data);
@@ -214,12 +227,9 @@ void AlterLayoutPass(Graph* graph) {
             conv2d_NCHWc_inputlayouts.push_back(layout_dict[input_node->id()]);
           }
           if (weight_shape.size() == 4) {
-            pe::GetConv2dFactors(&conv2d_factors, oc, fc, -1, input_type, graph->target_);
-            int fc_bn                     = conv2d_factors["ic_bn"];
-            int oc_bn                     = conv2d_factors["oc_bn"];
             std::string src_kernel_layout = "OIHW";
             std::string dst_kernel_layout = "OIHW" + std::to_string(fc_bn) + "i" + std::to_string(oc_bn) + "o";
-            VLOG(2) << "dst_kernel_layout: " << dst_kernel_layout;
+            VLOG(3) << "dst_kernel_layout: " << dst_kernel_layout;
             // insert weight layout_transform
             auto weight_data = weight_node->safe_as<NodeData>();
             CHECK(weight_data);
@@ -232,6 +242,7 @@ void AlterLayoutPass(Graph* graph) {
                                                src_kernel_layout,
                                                dst_kernel_layout,
                                                common::UniqName(node->op()->name + "_weight_layout_tranform"));
+            weight_trans_node->attrs.attr_store["pre_run"] = true;
             updateInferInfos(weight_trans_node,
                              {weight_shape},
                              {weight_type},

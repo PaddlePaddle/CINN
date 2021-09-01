@@ -19,7 +19,6 @@ SET(BASIC_TEST_NAMES
     test_pe_elementwise
     test_pe_reduction
     test_pe_transform
-    test_op_nn
     test_op_broadcast
     test_op_transform
 )
@@ -30,6 +29,13 @@ foreach(basic_test_name ${BASIC_TEST_NAMES})
         python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/${basic_test_name}.py WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endforeach()
+
+if (NOT ${WITH_CUDA})
+    ADD_TEST(NAME test_op_nn
+        COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_op_nn.py WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    )
+endif()
 
 ADD_TEST(NAME test_cinn_frontend
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}

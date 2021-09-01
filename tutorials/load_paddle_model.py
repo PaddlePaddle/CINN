@@ -11,6 +11,7 @@ from cinn.frontend import *
 from cinn.framework import *
 from cinn.common import *
 import numpy as np
+import os
 
 ##################################################################
 # Prepare to Load Model
@@ -34,8 +35,10 @@ x_shape = [1, 3, 224, 224]
 
 ##################################################################
 # Set the target backend
-
-target = DefaultHostTarget()
+if os.path.exists("is_cuda"):
+    target = DefaultNVGPUTarget()
+else:
+    target = DefaultHostTarget()
 
 ##################################################################
 # Set the input tensor and init interpreter

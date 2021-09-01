@@ -460,7 +460,7 @@ void matmul_with_packing(void* _args, int32_t num_args)
           C__reduce_init[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = 0;
           for (int32_t k0_outer = 0; k0_outer < 50; k0_outer += 1) {
             for (int32_t k0_inner = 0; k0_inner < 4; k0_inner += 1) {
-              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = fma(A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))], PackedB[((6400 * (j_inner / 32)) + ((j_inner % 32) + ((6400 * j_outer) + ((32 * k0_inner) + (128 * k0_outer)))))], C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))]);
+              C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))] = fma(A[((200 * i_inner) + ((6400 * i_outer) + ((4 * k0_outer) + k0_inner)))], PackedB[((6400 * (j_inner / 32)) + ((j_inner & 31) + ((6400 * j_outer) + ((32 * k0_inner) + (128 * k0_outer)))))], C[((500 * i_inner) + ((16000 * i_outer) + ((32 * j_outer) + j_inner)))]);
             };
           };
         };

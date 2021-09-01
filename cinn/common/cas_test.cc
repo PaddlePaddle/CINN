@@ -180,7 +180,7 @@ TEST(CAS, SimplifyMod) {
       {Power::Make(x, Expr(3)), Mod::Make(x, Expr(5)), y, Expr(1), Mod::Make(Product::Make({x, Expr(4)}), Expr(5))}));
 
   EXPECT_EQ(GetStreamCnt(u1), "0");
-  EXPECT_EQ(GetStreamCnt(u2), "((x + y + z) % 2)");
+  EXPECT_EQ(GetStreamCnt(u2), "((x + y + z) & 1)");
   EXPECT_EQ(GetStreamCnt(u3), "1");
   EXPECT_EQ(GetStreamCnt(u4), "(1 + (x^3) + y)");
 }
@@ -266,7 +266,7 @@ TEST(CAS, Mod) {
   OUTPUT_EQUAL("x")
 
   u = AutoSimplify((x % 32) + ((32768 * (x / 32)) + ((32768 * y) + ((32 * z) + (128 * k)))));
-  OUTPUT_EQUAL("((32768 * (x / 32)) + ((x % 32) + ((128 * k) + ((32768 * y) + (32 * z)))))");
+  OUTPUT_EQUAL("((32768 * (x / 32)) + ((x & 31) + ((128 * k) + ((32768 * y) + (32 * z)))))");
 
   u = AutoSimplify((x % 32) + ((32768 * (x / 32)) + ((32768 * y) + ((32 * z) + (128 * k)))), var_intervals0);
   OUTPUT_EQUAL("((128 * k) + (x + ((32768 * y) + (32 * z))))")
@@ -324,7 +324,7 @@ TEST(CAS, SimplifyCompoundMod) {
     LOG(INFO) << "p0 " << p0;
     auto p2 = AutoSimplify(p0);
     LOG(INFO) << "simplified " << p2;
-    EXPECT_EQ(GetStreamCnt(p2), "(-1 * ((-1 * x) % 4))");
+    EXPECT_EQ(GetStreamCnt(p2), "(-1 * ((-1 * x) & 3))");
   }
   {  // (33 + x % 34) + -33
     Var x   = ir::_Var_::Make("x", Int(32));
@@ -332,7 +332,7 @@ TEST(CAS, SimplifyCompoundMod) {
     LOG(INFO) << "p0 " << p0;
     auto p2 = AutoSimplify(p0);
     LOG(INFO) << "simplified " << p2;
-    EXPECT_EQ(GetStreamCnt(p2), "(x % 4)");
+    EXPECT_EQ(GetStreamCnt(p2), "(x & 3)");
   }
   {  // 33 + (x % 2 + (-16))
     Var x = ir::_Var_::Make("x", Int(32));
@@ -341,7 +341,7 @@ TEST(CAS, SimplifyCompoundMod) {
     LOG(INFO) << "p0 " << p0;
     auto p2 = AutoSimplify(p0);
     LOG(INFO) << "simplified " << p2;
-    EXPECT_EQ(GetStreamCnt(p2), "(17 + (x % 2))");
+    EXPECT_EQ(GetStreamCnt(p2), "(17 + (x & 1))");
   }
   {  // (32- x1 - 16 * x2) % 33
     Var x1  = ir::_Var_::Make("x1", Int(32));

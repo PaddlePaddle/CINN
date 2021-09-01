@@ -74,6 +74,7 @@ class Instruction {
   std::vector<std::string> GetOutArgs() { return out_args_; }
   std::vector<int> attrs;
   std::vector<std::string> str_attrs;
+  bool pre_run = false;
   Target target_;
 
  protected:
