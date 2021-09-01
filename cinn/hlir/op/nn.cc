@@ -9,7 +9,7 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/layout.h"
 #include "cinn/poly/stage.h"
-#include <iostream>
+
 namespace cinn {
 namespace hlir {
 namespace op {
