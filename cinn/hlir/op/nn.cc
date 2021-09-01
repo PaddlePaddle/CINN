@@ -1,5 +1,6 @@
 #include "cinn/hlir/pe/nn.h"
 
+#include <iostream>
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -9,7 +10,6 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/layout.h"
 #include "cinn/poly/stage.h"
-#include <iostream>
 namespace cinn {
 namespace hlir {
 namespace op {
