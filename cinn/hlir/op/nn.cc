@@ -124,113 +124,6 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
   return strategy;
 }
 
-
-std::shared_ptr<OpStrategy> StrategyForConv2d_winograd(const framework::NodeAttr &attrs,
-                                                      const std::vector<ir::Tensor> &inputs,
-                                                      const std::vector<Type> &out_type,
-                                                      const std::vector<std::vector<int>> &output_shapes,
-                                                      const Target &target) {
-  std::vector<int> padding({0, 0});
-  std::vector<int> stride({1, 1});
-  std::vector<int> dilation({1, 1});
-  std::string data_format = "NCHW";
-  bool pre_computed = false;
-  int groups              = 1;
-  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
-  }
-  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
-  }
-  if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
-    dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
-  }
-  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
-  }
-  if (attrs.attr_store.find("groups") != attrs.attr_store.end()) {
-    groups = std::get<int>(attrs.attr_store.at("groups"));
-  }
-  if (attrs.attr_store.find("pre_computed") != attrs.attr_store.end()) {
-    pre_computed = std::get<bool>(attrs.attr_store.at("pre_computed"));
-  }
-  framework::CINNCompute conv2d_winograd_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of conv2d winogrid compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for conv2d winograd compute\n";
-    Expr input = a[0];
-    Expr weight = a[1];
-    CHECK(input.as_tensor());
-    CHECK(weight.as_tensor());
-    CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d winograd op is not 2! Please check.";
-    CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d winograd op is not 2! Please check.";
-    CHECK_EQ(dilation.size(), 2) << "The size of stride in conv2d winongrad op is not 2! Please check.";
-    std::vector<ir::Tensor> out;
-    bool use_mkldnn = false;
-#ifdef CINN_WITH_MKLDNN
-    use_mkldnn = true;
-#endif
-    use_mkldnn = use_mkldnn && target.arch == Target::Arch::X86;
-    if (data_format == "NCHW") {
-      // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
-      if (target.arch == Target::Arch::X86) {
-        LOG(FATAL) << "Not implement now\n";
-      } else {
-        out = pe::Conv2d_winograd_NCHW(input.as_tensor_ref(),
-                              weight.as_tensor_ref(),
-                              padding[0],
-                              padding[1],
-                              stride[0],
-                              stride[1],
-                              dilation[0],
-                              dilation[1],
-                              UniqName("Conv2d_winograd_nchw_out"));
-      }
-    } else if (data_format == "NHWC") {
-      // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
-      LOG(FATAL) << "Not implement now\n";
-    } else {
-      LOG(FATAL) << "Only support NCHW and NHWC data layout\n";
-    }
-    auto stages = CreateStages({input.as_tensor_ref(), weight.as_tensor_ref()});
-
-    std::vector<CINNValue> res;
-    CHECK_EQ(out.size(), 11);
-    for (auto &t : out) {
-      std::cout<<t<<std::endl;
-      LOG(INFO)<<t;
-      stages->InsertLazily(t);
-      std::cout<<"inset"<<std::endl;
-      res.push_back(CINNValue(t));
-      std::cout<<"inset ok"<<std::endl;
-    }
-
-    res.push_back(CINNValue(stages));
-    *ret = CINNValuePack{res};
-  });
-
-  framework::CINNSchedule conv2d_winograd_schedule([=](lang::Args args, lang::RetValue *ret) {
-     CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
-     CINNValuePack arg_pack = args[0];
-     poly::StageMap stages = arg_pack.back();
-     if (target.arch == Target::Arch::NVGPU) {
-       *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
-     } else {
-       LOG(FATAL) << "Not implement now\n";
-     }
-     
-  });
-
-  auto strategy = std::make_shared<framework::OpStrategy>();
-  CHECK(out_type.size()) << "Out_type of conv2d_winograd op is empty! Please check.";
-  if (out_type[0] == Float(32)) {
-    strategy->AddImpl(conv2d_winograd_compute, conv2d_winograd_schedule, "strategy.conv2d_winograd.x86", 1);
-  } else {
-    LOG(FATAL) << "Conv2d op with dtype != float32 is not implemented yet!";
-  }
-  return strategy;
-}
-
 std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
@@ -1977,21 +1870,6 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
-      .set_support_level(4);
-
-  CINN_REGISTER_OP(conv2d_winograd)
-      .describe("Do a 2-D convolution with an NCHW/NHWC layout.")
-      .set_num_inputs(2)  // here we consider filter as another input
-      .set_num_outputs(4)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d_winograd)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
-#ifdef CINN_WITH_CUDA
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
-#else
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
-                                                      cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
-#endif
       .set_support_level(4);
 
   CINN_REGISTER_OP(conv2d)

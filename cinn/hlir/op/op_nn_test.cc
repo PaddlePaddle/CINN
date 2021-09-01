@@ -73,57 +73,6 @@ TEST(Operator, Operator_Pool2d_Test0) {
   ASSERT_EQ(pool2d->description, "Do pooling on the height and width dimension of the input tensor.");
 }
 
-
-TEST(Operator, Operator_winograd_Test0) {
-  auto conv2d_winograd   = Operator::Get("conv2d_winograd");
-  Operator temp = *conv2d_winograd;
-  auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-
-  Expr N(1), C(3), H(8), W(8), CO(10), KH(3);
-  Placeholder<float> input("input", {N, C, H, W});
-  Placeholder<float> weight("weight", {CO, C, KH, KH});
-
-  NodeAttr attrs;
-  std::vector<int> stride_size     = {1, 1};
-  std::vector<int> padding_size    = {1, 1};
-  attrs.attr_store["stride"]  = stride_size;
-  attrs.attr_store["padding"]  = padding_size;
-
-  std::vector<ir::Tensor> inputs{input.tensor(), weight.tensor()};
-  std::vector<Type> type{Float(32)};
-  static Target target_(Target::OS::Linux, Target::Arch::NVGPU, Target::Bit::k64, {}, {});
-  common::Target target = target_;
-  auto impl = OpStrategy::SelectImpl(strategy[conv2d_winograd](attrs, inputs, type, {{1, 3, 8, 8}, {10, 3, 3, 3}}, target));
-  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(input),common::CINNValue(weight)}};
-  common::CINNValuePack rets       = impl->fcompute(cinn_input);
-  // rets                             = impl->fschedule(rets);
-  // the last element is a StageMap
-  for (int i = 0; i < rets->size() - 1; i++) {
-    Expr temp = rets[i];
-    inputs.push_back(temp.as_tensor_ref());
-  }
-  std::cout<<"here is ok!"<<std::endl;
-  auto func = Lower("winograd_conv2d", rets.back(), inputs);
-  LOG(INFO) << "Test Strategy Codegen:\n" << func;
-
-  // Module::Builder builder("module0", target);
-  // builder.AddFunction(func);
-  // auto jit    = backends::ExecutionEngine::Create({});
-  // auto module = builder.Build();
-
-  // jit->Link(module);
-  // auto fn = jit->Lookup("pool2d");
-  // CHECK(fn);
-  // auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
-
-  // cinn_buffer_t *A_buf = common::BufferBuilder(Float(32), {1, 3, 8, 8}).set_random().Build();
-  // cinn_buffer_t *B_buf = common::BufferBuilder(Float(32), {1, 3, 10, 10}).set_random().Build();
-  // cinn_buffer_t *C_buf = common::BufferBuilder(Float(32), {1, 3, 5, 5}).set_random().Build();
-  // cinn_pod_value_t a_arg(A_buf), b_arg(B_buf), c_arg(C_buf);
-  // cinn_pod_value_t args[] = {a_arg, b_arg, c_arg};
-  // fn_(args, 3);
-}
-
 TEST(Operator, Operator_Pool2d_Test1) {
   auto pool2d   = Operator::Get("pool2d");
   Operator temp = *pool2d;
