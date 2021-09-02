@@ -1,5 +1,4 @@
 #include "cinn/hlir/pe/nn_util.h"
-#include <iostream>
 #include "cinn/common/ir_util.h"
 
 namespace cinn {
@@ -253,7 +252,6 @@ std::vector<std::vector<std::vector<float>>> get_winograd_val(const int& tile_si
     all_vals[keys] = nums;
   }
   std::string keys = std::to_string(tile_size) + "+" + std::to_string(kernel_size);
-  std::cout << keys << std::endl;
   return all_vals[keys];
 }
 
@@ -261,7 +259,6 @@ ir::Tensor const_matrix(const std::vector<std::vector<float>>& input, const std:
   int row                        = input.size();
   int col                        = input[0].size();
   std::vector<Expr> tensor_shape = {Expr(row), Expr(col)};
-  std::cout << tensor_shape[0].as_int32() << " " << tensor_shape[1].as_int32() << std::endl;
   auto result = Compute(tensor_shape,
                         [=](Expr yy, Expr xx) {
                           auto now = cinn::common::make_const(1.0f);
@@ -283,15 +280,10 @@ ir::Tensor const_matrix(const std::vector<std::vector<float>>& input, const std:
 std::vector<ir::Tensor> winograd_transform_matrices(const int& tile_size, const int& kernel_size) {
   std::vector<std::vector<std::vector<float>>> vals = get_winograd_val(tile_size, kernel_size);
   CHECK_EQ(vals.size(), 3U) << "vals_size of winograd is not 3! Please check.";
-  std::cout << "yeliang check:" << std::endl;
-  for (auto& x : vals) {
-    std::cout << x.size() << " " << x[0].size() << std::endl;
-  }
 
   std::vector<std::vector<float>> A = vals[0];
   std::vector<std::vector<float>> B = vals[1];
   std::vector<std::vector<float>> G = vals[2];
-  std::cout << "here is ok util" << std::endl;
 
   std::string name_a = "A";
   auto tensor_a      = const_matrix(A, name_a);
@@ -302,7 +294,6 @@ std::vector<ir::Tensor> winograd_transform_matrices(const int& tile_size, const 
   std::string name_g = "G";
   auto tensor_g      = const_matrix(G, name_g);
 
-  std::cout << "here is ok util" << std::endl;
   return {tensor_a, tensor_b, tensor_g};
 }
 

@@ -112,7 +112,6 @@ std::vector<ir::Tensor> Conv2d_winograd_NCHW(const ir::Tensor &input,
   ir::Tensor B                               = winograd_transform[1];
   ir::Tensor G                               = winograd_transform[2];
 
-  std::cout << "here is ok 1" << std::endl;
   int nH = (common::AutoSimplify(output_shape[2]).as_int32() + m - 1) / m;
   int nW = (common::AutoSimplify(output_shape[3]).as_int32() + m - 1) / m;
 

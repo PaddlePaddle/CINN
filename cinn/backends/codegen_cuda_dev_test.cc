@@ -507,9 +507,9 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
   auto wino_res    = hlir::pe::Conv2d_winograd_NCHW(Wino_A, Wino_B, 1, 1, 1, 1, 1, 1, "Winograd_Conv2d_out");
   auto wino_stages = CreateStages(wino_res);
 
-  for (auto& t : wino_res) {
-    LOG(INFO) << t;
-  }
+  // for (auto& t : wino_res) {
+  //   LOG(INFO) << t;
+  // }
 
   auto wino_weights_dilation = wino_res[0];
   auto wino_input_pad        = wino_res[1];
