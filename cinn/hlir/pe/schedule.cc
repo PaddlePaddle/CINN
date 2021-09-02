@@ -1480,7 +1480,7 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[kernel_pack]->Unroll(4);
   wino_stages[kernel_pack]->Unroll(3);
   wino_stages[kernel_pack]->Unroll(2);
-  wino_stages[kernel_pack]->Bind(0, "blockIdx.x");
+  // wino_stages[kernel_pack]->Bind(0, "blockIdx.x");
   wino_stages[kernel_pack]->Bind(1, "threadIdx.x");
 
   

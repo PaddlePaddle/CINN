@@ -442,7 +442,7 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 
   dim3 wino_grid(196, 1, 1);
   dim3 wino_block(198, 2, 1);
-  int wino_repeat = 1;
+  int wino_repeat = 3;
 
   std::string source_target        = R"ROC(
  
