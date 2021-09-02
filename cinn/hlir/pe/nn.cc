@@ -305,10 +305,9 @@ std::vector<ir::Tensor> Conv2d_NCHW_5D(const ir::Tensor &input,
       common::AutoSimplify((h_in - ((h_f - 1) * dilation_h + 1) + 2 * pad_h) / stride_h + 1),  // H
       common::AutoSimplify((w_in - ((w_f - 1) * dilation_w + 1) + 2 * pad_w) / stride_w + 1)   // W
   };
-  auto res = Compute(
-      output_shape,
-      [=](Expr n, Expr c, Expr h, Expr w) { return packed_out(n, c / oc_bn, h, w, c % oc_bn); },
-      UniqName("conv2d_nchw_out"));
+  auto res = Compute(output_shape,
+                     [=](Expr n, Expr c, Expr h, Expr w) { return packed_out(n, c / oc_bn, h, w, c % oc_bn); },
+                     UniqName("conv2d_nchw_out"));
   return {res, packed_out, weights_dilation, input_pad, data};
 }
 
@@ -345,18 +344,16 @@ std::vector<ir::Tensor> Conv2d_NCHWc(const ir::Tensor &input,
 
   ir::Tensor input_pad;
   if (pad_h == 0 && pad_w == 0) {
-    input_pad = Compute(
-        input->shape,
-        [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) { return input(n, icc, yy, xx, icb); },
-        UniqName("input_pad"));
+    input_pad = Compute(input->shape,
+                        [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) { return input(n, icc, yy, xx, icb); },
+                        UniqName("input_pad"));
   } else {
-    input_pad = Compute(
-        {batch, c_in_outer, h_in + 2 * pad_h, w_in + 2 * pad_w, c_in_inner},
-        [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) {
-          auto cond = lang::logic_and({yy >= pad_h, yy - pad_h < h_in, xx >= pad_w, xx - pad_w < w_in});
-          return ir::Select::Make(cond, input(n, icc, yy - pad_h, xx - pad_w, icb), ir::Zero(type));
-        },
-        UniqName("input_pad"));
+    input_pad = Compute({batch, c_in_outer, h_in + 2 * pad_h, w_in + 2 * pad_w, c_in_inner},
+                        [=](Expr n, Expr icc, Expr yy, Expr xx, Expr icb) {
+                          auto cond = lang::logic_and({yy >= pad_h, yy - pad_h < h_in, xx >= pad_w, xx - pad_w < w_in});
+                          return ir::Select::Make(cond, input(n, icc, yy - pad_h, xx - pad_w, icb), ir::Zero(type));
+                        },
+                        UniqName("input_pad"));
   }
 
   Expr c_filter = common::AutoSimplify(c_filter_outer * c_filter_inner);
