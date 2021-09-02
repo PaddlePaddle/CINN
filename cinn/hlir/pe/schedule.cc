@@ -1461,7 +1461,7 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   
   wino_stages[data_pack]->Fuse({2, 3});
   wino_stages[data_pack]->Split(2, 128);
-  wino_stages[data_pack]->Reorder({2, 3, 0, 1});
+  // wino_stages[data_pack]->Reorder({2, 3, 0, 1});
   
   wino_stages[data_pack]->Bind(1, "threadIdx.x");
 

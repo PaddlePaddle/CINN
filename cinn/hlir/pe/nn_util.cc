@@ -259,7 +259,7 @@ ir::Tensor const_matrix(const std::vector<std::vector<float>>& input, const std:
   int row                        = input.size();
   int col                        = input[0].size();
   std::vector<Expr> tensor_shape = {Expr(row), Expr(col)};
-  auto result = Compute(tensor_shape,
+  auto result                    = Compute(tensor_shape,
                         [=](Expr yy, Expr xx) {
                           auto now = cinn::common::make_const(1.0f);
                           for (int ii = 0; ii < row; ii++) {
