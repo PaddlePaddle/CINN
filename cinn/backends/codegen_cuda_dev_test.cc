@@ -27,9 +27,6 @@
 #include "cinn/runtime/use_extern_funcs.h"
 #include "cinn/utils/timer.h"
 
-#include <fstream>
-#include <iostream>
-
 namespace cinn {
 namespace backends {
 
@@ -67,7 +64,8 @@ TEST(CodeGenCUDA, basic) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -92,7 +90,8 @@ TEST(CodeGenCUDA, Module_output) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -121,7 +120,8 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
   Placeholder<float> A("X", {M, N});
   Placeholder<float> B("Y", {M, N});
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
@@ -152,7 +152,7 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto[Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
 
   // launch the kernel
 
@@ -185,7 +185,8 @@ TEST(CodeGenCUDA2, test_of_splitouter) {
   Placeholder<float> A("X", {M, N});
   Placeholder<float> B("Y", {M, N});
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
@@ -214,6 +215,8 @@ typedef int int32_t;
 typedef char int8_t;
 #endif
 
+
+
 __global__
 void elementwise_add_splitouter(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
 {
@@ -221,9 +224,7 @@ void elementwise_add_splitouter(const float* __restrict__ X, const float* __rest
     if ((threadIdx.x < 5)) {
       for (int32_t j_outer = 0; j_outer < 17; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < cinn_nvgpu_min_fp32(6, (100 + (-6 * j_outer))); j_inner += 1) {
-          C[((500 * blockIdx.x) + ((6 * j_outer) + ((100 * threadIdx.x) + j_inner)))] = (X[((500 * blockIdx.x) + ((6
-          * j_outer) + ((100 * threadIdx.x) + j_inner)))] * Y[((500 * blockIdx.x) + ((6 * j_outer) + ((100 *
-          threadIdx.x) + j_inner)))]);
+          C[((500 * blockIdx.x) + ((6 * j_outer) + ((100 * threadIdx.x) + j_inner)))] = (X[((500 * blockIdx.x) + ((6 * j_outer) + ((100 * threadIdx.x) + j_inner)))] * Y[((500 * blockIdx.x) + ((6 * j_outer) + ((100 * threadIdx.x) + j_inner)))]);
         };
       };
     };
@@ -243,7 +244,7 @@ void elementwise_add_splitouter(const float* __restrict__ X, const float* __rest
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto[Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
 
   // launch the kernel
 
@@ -309,6 +310,8 @@ typedef int int32_t;
 typedef char int8_t;
 #endif
 
+
+
 __global__
 void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ COD)
 {
@@ -331,8 +334,7 @@ void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y,
             {
               __syncthreads();
               if ((threadIdx.z < 8)) {
-                input_pad_0_read_cache[((2 * threadIdx.x) + (28 * threadIdx.z))] = X[((56 * blockIdx.y) + ((6272 *
-                rc_outer) + ((2 * threadIdx.x) + (784 * threadIdx.z))))];
+                input_pad_0_read_cache[((2 * threadIdx.x) + (28 * threadIdx.z))] = X[((56 * blockIdx.y) + ((6272 * rc_outer) + ((2 * threadIdx.x) + (784 * threadIdx.z))))];
               };
             };
             for (int32_t rc_inner = 0; rc_inner < 2; rc_inner += 1) {
@@ -343,14 +345,12 @@ void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y,
             __syncthreads();
             for (int32_t rc_inner = 0; rc_inner < 8; rc_inner += 1) {
               for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-                COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2
-                * threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * threadIdx.z) + rc_inner))]));
+                COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2 * threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * threadIdx.z) + rc_inner))]));
               };
             };
           };
           for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
-            COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * rc_outer) + ((392 * threadIdx.z) +
-            threadIdx.x))))] = COD_write_cache[rc_outer];
+            COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * rc_outer) + ((392 * threadIdx.z) + threadIdx.x))))] = COD_write_cache[rc_outer];
           };
         }
         };
@@ -411,235 +411,6 @@ void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y,
       host_data3.data(), reinterpret_cast<void*>(Cd), 256 * 14 * 14 * sizeof(float), cudaMemcpyDeviceToHost));
 }
 
-TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
-  LOG(INFO) << "Yeliang check";
-  Context::Global().ResetNameId();
-  int ni = 1;
-  int ci = 128;
-  int hi = 28;
-  int wi = 128;
-  int ki = 3;
-  Expr N(ni);
-  Expr C(ci);
-  Expr H(hi);
-  Expr W(wi);
-  Expr K(ki);
-
-  Target target = common::DefaultNVGPUTarget();
-
-  Placeholder<float> A("X", {N, C, H, H});
-  Placeholder<float> B("Y", {W, C, K, K});
-
-  auto res = hlir::pe::Conv2d_NCHW(A, B, 1, 1, 1, 1, 1, 1, "Conv2d_out");
-
-  auto stages = CreateStages(res);
-
-  auto pad_data = res[1];
-  auto conv     = res[0];
-
-  auto B_t = B.tensor();
-
-  hlir::pe::CudaScheduleConv(stages, pad_data, B_t, conv, target);
-
-  CodeGenCUDA_Dev codegen(target);
-
-  auto func = Lower("schedule_conv2d_1", stages, {A, B, conv}, {}, {}, nullptr, target);
-
-  Module::Builder builder("module", target);
-  builder.AddFunction(func);
-
-  auto source_code = codegen.Compile(builder.Build());
-
-  LOG(INFO) << "compiled schedule_conv2d_1 code:\n\n\n" << source_code;
-
-  using runtime::cuda::CUDAModule;
-
-  backends::NVRTC_Compiler compiler;
-
-  auto ptx = compiler(source_code);
-  CHECK(!ptx.empty());
-
-  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
-
-  CUDA_CALL(cudaDeviceSynchronize());
-
-  CUdeviceptr Ad, Bd, Cd;
-  cuMemAlloc(&Ad, ni * ci * hi * hi * sizeof(float));
-  cuMemAlloc(&Bd, wi * ci * ki * ki * sizeof(float));
-  cuMemAlloc(&Cd, ni * wi * hi * hi * sizeof(float));
-
-  std::vector<float> host_data1(ni * ci * hi * hi, 0);
-  std::vector<float> host_data2(wi * ci * ki * ki, 0);
-  std::vector<float> host_data3(ni * wi * hi * hi, 0);
-  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
-  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
-
-  // for (float& v : host_data1) v = 1.f;  // NOLINT
-  // for (float& v : host_data2) v = 1.f;  // NOLINT
-
-  CUDA_CALL(cudaMemcpy(
-      reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(
-      reinterpret_cast<void*>(Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
-
-  // launch the kernel
-
-  void* args[] = {&Ad, &Bd, &Cd};
-  dim3 grid(1, 14, 8);
-  dim3 block(7, 2, 16);
-  int repeat = 1;
-
-  utils::Timer time1;
-  time1.Start();
-  for (int i = 0; i < repeat; i++) {
-    cuda_module.LaunchKernel(0, "schedule_conv2d_1", grid, block, args);
-    CUDA_CALL(cudaDeviceSynchronize());
-  }
-  auto time_average1 = time1.Stop() / float(repeat);
-  LOG(INFO) << "Conv2d op1_CINN with schedule repeats " << repeat << " times, average time cost is : " << time_average1
-            << "ms. ";
-  CUDA_CALL(cudaMemcpy(
-      host_data3.data(), reinterpret_cast<void*>(Cd), host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
-
-  Placeholder<float> Wino_A("X", {N, C, H, H});
-  Placeholder<float> Wino_B("Y", {W, C, K, K});
-
-  auto wino_res    = hlir::pe::Conv2d_winograd_NCHW(Wino_A, Wino_B, 1, 1, 1, 1, 1, 1, "Winograd_Conv2d_out");
-  auto wino_stages = CreateStages(wino_res);
-
-  // for (auto& t : wino_res) {
-  //   LOG(INFO) << t;
-  // }
-
-  auto wino_weights_dilation = wino_res[0];
-  auto wino_input_pad        = wino_res[1];
-  auto wino_A                = wino_res[2];
-  auto wino_B                = wino_res[3];
-  auto wino_G                = wino_res[4];
-  auto kernel_pack           = wino_res[5];
-  auto input_tile            = wino_res[6];
-  auto data_pack             = wino_res[7];
-  auto bgemm                 = wino_res[8];
-  auto inverse               = wino_res[9];
-  auto wino_conv             = wino_res[10];
-  hlir::pe::CudaScheduleWinogradConv(wino_stages,
-                                     wino_weights_dilation,
-                                     wino_input_pad,
-                                     wino_A,
-                                     wino_B,
-                                     wino_G,
-                                     kernel_pack,
-                                     input_tile,
-                                     data_pack,
-                                     bgemm,
-                                     inverse,
-                                     wino_conv,
-                                     target);
-
-  CodeGenCUDA_Dev wino_codegen(target);
-
-  auto wino_func = Lower("schedule_wino_conv2d",
-                         wino_stages,
-                         {Wino_A, Wino_B, kernel_pack, input_tile, data_pack, bgemm, inverse, wino_conv},
-                         {},
-                         {},
-                         nullptr,
-                         target);
-  LOG(INFO) << wino_func;
-  Module::Builder wino_builder("wino_module", target);
-  wino_builder.AddFunction(wino_func);
-
-  auto wino_source_code = wino_codegen.Compile(wino_builder.Build());
-
-  // LOG(INFO) << "Yeliang : compiled schedule_wino_conv2d code:\n\n\n" << wino_source_code;
-  // std::ofstream outfile("/media/test.txt");
-  // outfile << wino_source_code;
-  // outfile.close();
-
-  backends::NVRTC_Compiler wino_compiler;
-
-  auto wino_ptx = wino_compiler(wino_source_code);
-  CHECK(!wino_ptx.empty());
-
-  CUDAModule wino_cuda_module(wino_ptx, CUDAModule::Kind::PTX);
-
-  CUDA_CALL(cudaDeviceSynchronize());
-
-  CUdeviceptr wino_Ad, wino_Bd, wino_Cd;
-  cuMemAlloc(&wino_Ad, ni * ci * hi * hi * sizeof(float));
-  cuMemAlloc(&wino_Bd, wi * ci * ki * ki * sizeof(float));
-  cuMemAlloc(&wino_Cd, ni * wi * hi * hi * sizeof(float));
-
-  CUdeviceptr kernel_pack_Ad, input_tile_Ad, data_pack_Ad, bgemm_Ad, inverse_Ad;
-  cuMemAlloc(&kernel_pack_Ad, 4 * 4 * 128 * 128 * sizeof(float));
-  cuMemAlloc(&input_tile_Ad, 4 * 4 * 128 * 196 * sizeof(float));
-  cuMemAlloc(&data_pack_Ad, 4 * 4 * 128 * 196 * sizeof(float));
-  cuMemAlloc(&bgemm_Ad, 4 * 4 * 128 * 196 * sizeof(float));
-  cuMemAlloc(&inverse_Ad, 128 * 196 * 2 * 2 * sizeof(float));
-
-  std::vector<float> wino_host_data3(ni * wi * hi * hi, 0);
-
-  CUDA_CALL(cudaMemcpy(
-      reinterpret_cast<void*>(wino_Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(
-      reinterpret_cast<void*>(wino_Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
-
-  // launch the kernel
-  void* wino_args[] = {
-      &wino_Ad, &wino_Bd, &kernel_pack_Ad, &input_tile_Ad, &data_pack_Ad, &bgemm_Ad, &inverse_Ad, &wino_Cd};
-
-  dim3 wino_grid(196, 1, 1);
-  dim3 wino_block(198, 2, 1);
-  int wino_repeat = 1;
-
-  std::string source_target        = R"ROC(
- 
-    )ROC";
-  std::string trimed_source_target = utils::Trim(source_target);
-
-  backends::NVRTC_Compiler compiler_source;
-
-  auto ptx_source = compiler_source(trimed_source_target);
-  CHECK(!ptx_source.empty());
-
-  CUDAModule cuda_module_source(ptx_source, CUDAModule::Kind::PTX);
-
-  CUDA_CALL(cudaDeviceSynchronize());
-
-  utils::Timer wino_time;
-  wino_time.Start();
-  for (int i = 0; i < wino_repeat; i++) {
-    wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d", wino_grid, wino_block, wino_args);
-    // cuda_module_source.LaunchKernel(0, "schedule_wino_conv2d", wino_grid, wino_block, wino_args);
-    CUDA_CALL(cudaDeviceSynchronize());
-  }
-  auto wino_time_average = wino_time.Stop() / float(wino_repeat);
-  LOG(INFO) << "Conv2d winograd CINN with schedule repeats " << wino_repeat
-            << " times, average time cost is : " << wino_time_average << "ms. ";
-  CUDA_CALL(cudaMemcpy(wino_host_data3.data(),
-                       reinterpret_cast<void*>(wino_Cd),
-                       wino_host_data3.size() * sizeof(float),
-                       cudaMemcpyDeviceToHost));
-
-  LOG(INFO) << "test result is : ";
-  int nums = 0;
-  for (int offset = 0; offset < ni * wi * hi * hi; offset++) {
-    if (wino_host_data3[offset] - host_data3[offset] > 1e-3 || wino_host_data3[offset] - host_data3[offset] < -(1e-3)) {
-      LOG(INFO) << "wino_host_data3[" << offset << "]: " << wino_host_data3[offset];
-      LOG(INFO) << "host_data3[" << offset << "]: " << host_data3[offset];
-      LOG(INFO) << "diff: [" << offset << "] " << wino_host_data3[offset] - host_data3[offset];
-      nums++;
-    }
-    EXPECT_NEAR(wino_host_data3[offset], host_data3[offset], 1e-3);
-  }
-  LOG(INFO) << "total diff nums is : " << nums;
-  for (int offset = 0; offset < 10; offset++) {
-    LOG(INFO) << "wino_host_data3[" << offset << "]: " << wino_host_data3[offset];
-    LOG(INFO) << "host_data3[" << offset << "]: " << host_data3[offset];
-    LOG(INFO) << "diff: [" << offset << "] " << wino_host_data3[offset] - host_data3[offset];
-  }
-}
-
 TEST(CodeGenCUDA2, test_schedule_conv2d_1) {
   Context::Global().ResetNameId();
   Expr N(1);
@@ -684,6 +455,8 @@ typedef int int32_t;
 typedef char int8_t;
 #endif
 
+
+
 __global__
 void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ Conv2d_out)
 {
@@ -708,11 +481,7 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
                 {
                   __syncthreads();
                   if ((threadIdx.z < 7)) {
-                    input_pad_0_read_cache[((2 * threadIdx.x) + threadIdx.z)] = ((((((((2 * blockIdx.y) + ry_outer)
-                    >= 3) && (((2 * blockIdx.y) + ry_outer) < 227)) && (((32 * a_outer_outer_inner) + ((2 *
-                    threadIdx.x) + threadIdx.z)) >= 3)) && (((32 * a_outer_outer_inner) + ((2 * threadIdx.x) +
-                    threadIdx.z)) < 227))) ? X[(-675 + ((32 * a_outer_outer_inner) + ((448 * blockIdx.y) + ((50176 *
-                    rc_outer) + ((224 * ry_outer) + ((2 * threadIdx.x) + threadIdx.z))))))] : 0);
+                    input_pad_0_read_cache[((2 * threadIdx.x) + threadIdx.z)] = ((((((((2 * blockIdx.y) + ry_outer) >= 3) && (((2 * blockIdx.y) + ry_outer) < 227)) && (((32 * a_outer_outer_inner) + ((2 * threadIdx.x) + threadIdx.z)) >= 3)) && (((32 * a_outer_outer_inner) + ((2 * threadIdx.x) + threadIdx.z)) < 227))) ? X[(-675 + ((32 * a_outer_outer_inner) + ((448 * blockIdx.y) + ((50176 * rc_outer) + ((224 * ry_outer) + ((2 * threadIdx.x) + threadIdx.z))))))] : 0);
                   };
                 };
                 if ((threadIdx.x < 14)) {
@@ -721,15 +490,13 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
                 __syncthreads();
                 for (int32_t rx_inner = 0; rx_inner < 7; rx_inner += 1) {
                   for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-                    Conv2d_out_write_cache[j_inner] = (Conv2d_out_write_cache[j_inner] + (input_pad_0_read_cache[((2
-                    * threadIdx.x) + rx_inner)] * Y_read_cache[((7 * j_inner) + ((14 * threadIdx.z) + rx_inner))]));
+                    Conv2d_out_write_cache[j_inner] = (Conv2d_out_write_cache[j_inner] + (input_pad_0_read_cache[((2 * threadIdx.x) + rx_inner)] * Y_read_cache[((7 * j_inner) + ((14 * threadIdx.z) + rx_inner))]));
                   };
                 };
               };
             };
             for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
-              Conv2d_out[((16 * a_outer_outer_inner) + ((112 * blockIdx.y) + ((200704 * j_outer_outer_inner) +
-              ((12544 * rc_outer) + ((25088 * threadIdx.z) + threadIdx.x)))))] = Conv2d_out_write_cache[rc_outer];
+              Conv2d_out[((16 * a_outer_outer_inner) + ((112 * blockIdx.y) + ((200704 * j_outer_outer_inner) + ((12544 * rc_outer) + ((25088 * threadIdx.z) + threadIdx.x)))))] = Conv2d_out_write_cache[rc_outer];
             };
           }
           };
@@ -802,6 +569,7 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
   typedef char int8_t;
   #endif
 
+
   __global__ void schedule_conv2d_1(float* __restrict__ placeholder, float* __restrict__ placeholder1, float*
   __restrict__ Conv2d_out) { float compute[2];
     __shared__ float pad_temp_shared[37];
@@ -816,13 +584,10 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
             __syncthreads();
             if (((((int)threadIdx.z) * 5) + ((int)threadIdx.x)) < 37) {
               if (((int)threadIdx.x) < 5) {
-                pad_temp_shared[(((((int)threadIdx.z) * 5) + ((int)threadIdx.x)))] = (((((3 <= ((((int)blockIdx.y) *
-                2)
-  + ry_outer)) && (((((int)blockIdx.y) * 2) + ry_outer) < 227)) && (3 <= (((ax3_inner_outer * 32) +
-  (((int)threadIdx.z)
-  * 5)) + ((int)threadIdx.x)))) && ((((ax3_inner_outer * 32) + (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) <
-  227)) ? placeholder[((((((((rc_outer * 50176) + (((int)blockIdx.y) * 448)) + (ry_outer * 224)) + (ax3_inner_outer *
-  32)) +
+                pad_temp_shared[(((((int)threadIdx.z) * 5) + ((int)threadIdx.x)))] = (((((3 <= ((((int)blockIdx.y) * 2)
+  + ry_outer)) && (((((int)blockIdx.y) * 2) + ry_outer) < 227)) && (3 <= (((ax3_inner_outer * 32) + (((int)threadIdx.z)
+  * 5)) + ((int)threadIdx.x)))) && ((((ax3_inner_outer * 32) + (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) < 227)) ?
+  placeholder[((((((((rc_outer * 50176) + (((int)blockIdx.y) * 448)) + (ry_outer * 224)) + (ax3_inner_outer * 32)) +
   (((int)threadIdx.z) * 5)) + ((int)threadIdx.x)) - 675))] : 0.000000e+00f);
               }
             }
@@ -845,8 +610,7 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
           }
         }
         for (int ax1_inner_inner_inner = 0; ax1_inner_inner_inner < 2; ++ax1_inner_inner_inner) {
-          Conv2d_out[(((((((ax1_inner_outer * 200704) + (((int)threadIdx.z) * 25088)) + (ax1_inner_inner_inner *
-          12544))
+          Conv2d_out[(((((((ax1_inner_outer * 200704) + (((int)threadIdx.z) * 25088)) + (ax1_inner_inner_inner * 12544))
   + (((int)blockIdx.y) * 112)) + (ax3_inner_outer * 16)) + ((int)threadIdx.x)))] = compute[(ax1_inner_inner_inner)];
         }
       }
@@ -893,7 +657,8 @@ TEST(CodeGenCUDA, test_of_syncthreads) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
@@ -923,6 +688,8 @@ extern "C" {
 typedef int int32_t;
 typedef char int8_t;
 #endif
+
+
 
 __global__
 void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -956,7 +723,7 @@ void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, f
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto[Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
 
   // launch the kernel
 
@@ -991,7 +758,8 @@ TEST(CodeGenCUDA3, test_of_mul_cachewrite) {
   Placeholder<float> B("B1", {N, K});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto C  = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(j, k1), {k1}); }, "C1");
+  auto C  = Compute(
+      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(j, k1), {k1}); }, "C1");
 
   auto stages = CreateStages({C});
 
@@ -1023,6 +791,8 @@ typedef int int32_t;
 typedef char int8_t;
 #endif
 
+
+
 __global__
 void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1, float* __restrict__ C1)
 {
@@ -1035,8 +805,7 @@ void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1,
         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
           C1_write_cache__reduce_init[j_inner] = 0;
           for (int32_t k1 = 0; k1 < 32; k1 += 1) {
-            C1_write_cache[j_inner] = (C1_write_cache[j_inner] + (A1[((128 * blockIdx.x) + ((32 * threadIdx.x) +
-            k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
+            C1_write_cache[j_inner] = (C1_write_cache[j_inner] + (A1[((128 * blockIdx.x) + ((32 * threadIdx.x) + k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
           };
         };
         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
@@ -1060,7 +829,7 @@ void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1,
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto[Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
 
   // launch the kernel
 
@@ -1099,7 +868,8 @@ class ElementwiseTester {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+    auto C = Compute(
+        {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
     return std::make_tuple(A, B, C);
   }
@@ -1206,13 +976,15 @@ class ElementwiseTester {
 
 TEST(CodeGenCUDA, jit_dynamic_shape0) {
   ElementwiseTester tester("elementwise_base");
-  auto[A, B, C] = tester.BuildNet();  // NOLINT
+  auto [A, B, C] = tester.BuildNet();  // NOLINT
 
   auto stages = CreateStages({C});
 
-  auto[M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
   stages[C]->Reorder({
-      M_inner, stages[C]->axis(2), M_outer,
+      M_inner,
+      stages[C]->axis(2),
+      M_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -1223,14 +995,17 @@ TEST(CodeGenCUDA, jit_dynamic_shape0) {
 
 TEST(CodeGenCUDA, jit_dynamic_shape1) {
   ElementwiseTester tester("elementwise1");
-  auto[A, B, C] = tester.BuildNet();  // NOLINT
+  auto [A, B, C] = tester.BuildNet();  // NOLINT
 
   auto stages = CreateStages({C});
 
-  auto[M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
-  auto[N_outer, N_inner] = stages[C]->Split(2, 32);  // M/32, 32 NOLINT
+  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto [N_outer, N_inner] = stages[C]->Split(2, 32);  // M/32, 32 NOLINT
   stages[C]->Reorder({
-      M_inner, N_inner, M_outer, N_outer,
+      M_inner,
+      N_inner,
+      M_outer,
+      N_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -1242,14 +1017,17 @@ TEST(CodeGenCUDA, jit_dynamic_shape1) {
 TEST(CodeGenCUDA, jit_dynamic_shape2) {
   ElementwiseTester tester("elementwise2");
 
-  auto[A, B, C] = tester.BuildNet();  // NOLINT
+  auto [A, B, C] = tester.BuildNet();  // NOLINT
 
   auto stages = CreateStages({C});
 
-  auto[M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
-  auto[N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
+  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto [N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
   stages[C]->Reorder({
-      M_inner, N_inner, M_outer, N_outer,
+      M_inner,
+      N_inner,
+      M_outer,
+      N_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -1259,16 +1037,19 @@ TEST(CodeGenCUDA, jit_dynamic_shape2) {
 }
 
 TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
-  auto[Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(100, 200);
+  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(100, 200);
 
   ElementwiseTester tester("elementwise_host_test");
-  auto[A, B, C] = tester.BuildNet();  // NOLINT
-  auto stages = CreateStages({C});
+  auto [A, B, C] = tester.BuildNet();  // NOLINT
+  auto stages    = CreateStages({C});
 
-  auto[M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
-  auto[N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
+  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto [N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
   stages[C]->Reorder({
-      M_inner, N_inner, M_outer, N_outer,
+      M_inner,
+      N_inner,
+      M_outer,
+      N_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -1286,7 +1067,7 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
   auto module = builder.Build();
   Expr expr(module);
 
-  auto[host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
   for (auto& func : host_module.functions()) {
     LOG(INFO) << "host:\n" << func;
   }
@@ -1393,35 +1174,41 @@ TEST(depthwise_conv, test) {
   Placeholder<float> input("input", {Expr(batch), Expr(in_channel), Expr(in_height), Expr(in_width)});
   Placeholder<float> filter("filter", {Expr(in_channel), Expr(in_channel), Expr(filter_size), Expr(filter_size)});
 
-  auto padded_input =
-      Compute({Expr(batch), Expr(in_channel), Expr(height_padded), Expr(width_padded)},
-              [=](Expr b, Expr c, Expr i, Expr j) {
-                return common::select(common::and_all({
-                                          i >= pad_top, i - pad_top < in_height, j >= pad_left, j - pad_left < in_width,
-                                      }),
-                                      input(b, c, i, j),  // true value
-                                      Expr(0.f)           // false value
-                                      );                  // NOLINT
-              },
-              "padded_input");
+  auto padded_input = Compute(
+      {Expr(batch), Expr(in_channel), Expr(height_padded), Expr(width_padded)},
+      [=](Expr b, Expr c, Expr i, Expr j) {
+        return common::select(common::and_all({
+                                  i >= pad_top,
+                                  i - pad_top < in_height,
+                                  j >= pad_left,
+                                  j - pad_left < in_width,
+                              }),
+                              input(b, c, i, j),  // true value
+                              Expr(0.f)           // false value
+        );                                        // NOLINT
+      },
+      "padded_input");
 
   Var di(Expr(filter_size), "di");
   Var dj(Expr(filter_size), "dj");
 
   // cache
-  auto IS = Compute(padded_input->shape,
-                    [=](Expr b, Expr c, Expr i, Expr j) -> Expr { return padded_input(b, c, i, j); },
-                    "cache_paded_input");
-  auto FS = Compute(ir::Tensor(filter)->shape,
-                    [=](Expr c0, Expr c1, Expr w, Expr h) -> Expr { return filter(c0, c1, w, h); },
-                    "cache_filter");
+  auto IS = Compute(
+      padded_input->shape,
+      [=](Expr b, Expr c, Expr i, Expr j) -> Expr { return padded_input(b, c, i, j); },
+      "cache_paded_input");
+  auto FS = Compute(
+      ir::Tensor(filter)->shape,
+      [=](Expr c0, Expr c1, Expr w, Expr h) -> Expr { return filter(c0, c1, w, h); },
+      "cache_filter");
 
-  auto output = Compute({Expr(batch), Expr(in_channel), Expr(out_height), Expr(out_width)},
-                        [=](Var b, Var c, Var i, Var j) -> Expr {
-                          auto expr = IS(b, c, i * stride + di, j * stride + dj) * FS(c, c, di, dj);
-                          return lang::ReduceSum(expr, {di, dj});
-                        },
-                        "output");
+  auto output = Compute(
+      {Expr(batch), Expr(in_channel), Expr(out_height), Expr(out_width)},
+      [=](Var b, Var c, Var i, Var j) -> Expr {
+        auto expr = IS(b, c, i * stride + di, j * stride + dj) * FS(c, c, di, dj);
+        return lang::ReduceSum(expr, {di, dj});
+      },
+      "output");
 
   auto stages = CreateStages({output});
 
@@ -1449,14 +1236,14 @@ TEST(Conv, basic) {
   Placeholder<float> A("A", {in_size, in_size, in_channel, batch});
   Placeholder<float> W("W", {kernel, kernel, in_channel, out_channel});
 
-  auto Apad =
-      Compute({in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
-              [=](Expr yy, Expr xx, Expr cc, Expr nn) -> Expr {
-                return common::select(common::and_all({yy >= pad, yy - pad < in_size, xx >= pad, xx - pad < in_size}),
-                                      A(yy - pad, xx - pad, cc, nn),
-                                      common::make_const(Float(32), 0));
-              },
-              "Apad");
+  auto Apad = Compute(
+      {in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
+      [=](Expr yy, Expr xx, Expr cc, Expr nn) -> Expr {
+        return common::select(common::and_all({yy >= pad, yy - pad < in_size, xx >= pad, xx - pad < in_size}),
+                              A(yy - pad, xx - pad, cc, nn),
+                              common::make_const(Float(32), 0));
+      },
+      "Apad");
 
   Var rc(in_channel, "rc");
   Var ry(kernel, "ry");
@@ -1487,7 +1274,8 @@ TEST(elementwise_add1, share_local_cache) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -1528,10 +1316,10 @@ TEST(elementwise_add1, share_local_cache) {
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("elementwise_add", args.data(), args.size());
@@ -1565,7 +1353,8 @@ TEST(elementwise_add0, share_local_cache) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -1587,7 +1376,7 @@ TEST(elementwise_add0, share_local_cache) {
   builder.AddFunction(fn);
   auto module = builder.Build();
 
-  auto[host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
   for (auto& func : host_module.functions()) {
     LOG(INFO) << "host:\n" << func;
   }
@@ -1618,10 +1407,10 @@ TEST(elementwise_add0, share_local_cache) {
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("elementwise_add0", args.data(), args.size());
@@ -1660,13 +1449,13 @@ TEST(Conv, optimize) {
 
   Expr out_size((in_size.as_int32() - kernel.as_int32() + 2 * pad.as_int32()) / stride.as_int32() + 1);
 
-  auto Apad =
-      Compute({in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
-              [&](Expr yy, Expr xx, Expr cc, Expr nn) {
-                auto condition = common::and_all({yy >= pad, xx - pad < in_size, xx >= pad, xx - pad < in_size});
-                return common::select(condition, A(yy - pad, xx - pad, cc, nn), common::make_const(0.f));
-              },
-              "Apad");
+  auto Apad = Compute(
+      {in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
+      [&](Expr yy, Expr xx, Expr cc, Expr nn) {
+        auto condition = common::and_all({yy >= pad, xx - pad < in_size, xx >= pad, xx - pad < in_size});
+        return common::select(condition, A(yy - pad, xx - pad, cc, nn), common::make_const(0.f));
+      },
+      "Apad");
 
   auto rc = Var(in_channel, "rc");
   auto ry = Var(kernel, "ry");
@@ -1725,7 +1514,8 @@ TEST(ElementwiseAdd, cache_read_local) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+  auto C = Compute(
+      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -1759,6 +1549,8 @@ typedef int int32_t;
 typedef char int8_t;
 #endif
 
+
+
 __global__
 void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
@@ -1771,8 +1563,7 @@ void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __rest
         A_read_cache[j] = A[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))];
       };
       for (int32_t j = 0; j < 200; j += 1) {
-        C[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))] = (A_read_cache[j] + B[((200 * blockIdx.x) + ((2000 *
-        threadIdx.x) + j))]);
+        C[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))] = (A_read_cache[j] + B[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))]);
       };
     }
     };
@@ -1799,10 +1590,10 @@ void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __rest
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn0", args.data(), args.size());
@@ -1836,7 +1627,8 @@ TEST(ElementwiseAdd, cache_read1) {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute({M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
+    auto C = Compute(
+        {M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
 
     std::vector<ir::Tensor> temp{C};
     auto stages = CreateStages(temp);
@@ -1847,8 +1639,8 @@ TEST(ElementwiseAdd, cache_read1) {
     return std::make_tuple(A, B, C, AL, stages);
   };
   {
-    auto[A, B, C, AL, stages] = create_module();  // NOLINT
-    auto fn = Lower("fn1", stages, {A, B, C}, {}, {AL});
+    auto [A, B, C, AL, stages] = create_module();  // NOLINT
+    auto fn                    = Lower("fn1", stages, {A, B, C}, {}, {AL});
     CodeGenC codegen_c(common::DefaultHostTarget());
     codegen_c.SetInlineBuiltinCodes(false);
 
@@ -1859,7 +1651,7 @@ TEST(ElementwiseAdd, cache_read1) {
     std::cout << "C source code:\n" << c_source_code << std::endl;
   }
 
-  auto[A, B, C, AL, stages] = create_module();  // NOLINT
+  auto [A, B, C, AL, stages] = create_module();  // NOLINT
   stages[C]->Bind(0, "threadIdx.x");
   stages[C]->Bind(1, "blockIdx.x");
 
@@ -1883,6 +1675,8 @@ typedef int int32_t;
 typedef char int8_t;
 #endif
 
+
+
 __global__
 void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
@@ -1894,8 +1688,7 @@ void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __rest
         for (int32_t i_at = 0; i_at < 3; i_at += 1) {
           A_read_cache[i_at] = A[((10 * blockIdx.x) + ((200 * i_at) + ((200 * threadIdx.x) + j_inner)))];
         };
-        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))] = (A_read_cache[0] + (A_read_cache[1] +
-        (A_read_cache[2] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))])));
+        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))] = (A_read_cache[0] + (A_read_cache[1] + (A_read_cache[2] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))])));
       };
     };
   };
@@ -1920,10 +1713,10 @@ void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __rest
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn1", args.data(), args.size());
@@ -1958,7 +1751,8 @@ TEST(ElementwiseAdd, cache_read_compute_at1) {
   Context::Global().ResetNameId();
   Placeholder<float> A("AA", {M, M});
 
-  auto C = Compute({N, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 2, j + 2) + A(i + 5, j + 5); }, "C");
+  auto C = Compute(
+      {N, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 2, j + 2) + A(i + 5, j + 5); }, "C");
 
   auto stages = CreateStages({A, C});
   std::vector<ir::Tensor> temp{C};
@@ -1987,6 +1781,8 @@ typedef int int32_t;
 typedef char int8_t;
 #endif
 
+
+
 __global__
 void fn_cacheread_computeat1(const float* __restrict__ AA, float* __restrict__ C)
 {
@@ -1997,12 +1793,10 @@ void fn_cacheread_computeat1(const float* __restrict__ AA, float* __restrict__ C
     {
       for (int32_t i_at = 0; i_at < 6; i_at += 1) {
         for (int32_t j_at = 0; j_at < 6; j_at += 1) {
-          AA_read_cache[((100 * i_at) + (j_at + threadIdx.x))] = AA[((100 * blockIdx.x) + ((100 * i_at) + (j_at +
-          threadIdx.x)))];
+          AA_read_cache[((100 * i_at) + (j_at + threadIdx.x))] = AA[((100 * blockIdx.x) + ((100 * i_at) + (j_at + threadIdx.x)))];
         };
       };
-      C[((95 * blockIdx.x) + threadIdx.x)] = (AA_read_cache[threadIdx.x] + (AA_read_cache[(202 + threadIdx.x)] +
-      AA_read_cache[(505 + threadIdx.x)]));
+      C[((95 * blockIdx.x) + threadIdx.x)] = (AA_read_cache[threadIdx.x] + (AA_read_cache[(202 + threadIdx.x)] + AA_read_cache[(505 + threadIdx.x)]));
     }
     };
   };
@@ -2025,9 +1819,9 @@ void fn_cacheread_computeat1(const float* __restrict__ AA, float* __restrict__ C
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args                               = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn_cacheread_computeat1", args.data(), args.size());
@@ -2058,7 +1852,8 @@ TEST(ElementwiseAdd, cache_read_compute_at2) {
   Context::Global().ResetNameId();
   Placeholder<float> A("AA", {M, M});
 
-  auto C = Compute({N, N}, [&](Expr i, Expr j) { return A(i + 5, j) + A(i, j + 5); }, "C");
+  auto C = Compute(
+      {N, N}, [&](Expr i, Expr j) { return A(i + 5, j) + A(i, j + 5); }, "C");
 
   auto stages = CreateStages({A, C});
   std::vector<ir::Tensor> temp{C};
@@ -2088,6 +1883,8 @@ typedef int int32_t;
 typedef char int8_t;
 #endif
 
+
+
 __global__
 void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C)
 {
@@ -2098,8 +1895,7 @@ void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         for (int32_t i_at = 0; i_at < 6; i_at += 1) {
           for (int32_t j_at = 0; j_at < 6; j_at += 1) {
-            AA_read_cache[((6 * i_at) + j_at)] = AA[((100 * blockIdx.x) + ((100 * i_at) + ((10 * threadIdx.x) + (j_at
-            + j_inner))))];
+            AA_read_cache[((6 * i_at) + j_at)] = AA[((100 * blockIdx.x) + ((100 * i_at) + ((10 * threadIdx.x) + (j_at + j_inner))))];
           };
         };
         C[((50 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (AA_read_cache[30] + AA_read_cache[5]);
@@ -2125,9 +1921,9 @@ void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args                               = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn_cacheread_computeat2", args.data(), args.size());
@@ -2152,13 +1948,12 @@ void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C
 }
 
 // JIT test precision for the basic elementwise add
-void TestElementwiseAddPrecisionBasic(const ir::Module& module,
-                                      const std::string& fn_name,
-                                      Expr M,
-                                      Expr N,
-                                      std::function<float(float, float)> elem_cal = [](float a, float b) {
-                                        return a;
-                                      }) {
+void TestElementwiseAddPrecisionBasic(
+    const ir::Module& module,
+    const std::string& fn_name,
+    Expr M,
+    Expr N,
+    std::function<float(float, float)> elem_cal = [](float a, float b) { return a; }) {
   common::CudaModuleTester tester;
   tester.Compile(module);
 
@@ -2173,10 +1968,10 @@ void TestElementwiseAddPrecisionBasic(const ir::Module& module,
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
-  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester(fn_name, args.data(), args.size());
@@ -2212,7 +2007,8 @@ TEST(ElementwiseAdd, cache_read_shared) {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C      = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
+    auto C = Compute(
+        {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
     auto stages = CreateStages({A, B, C});
     std::vector<ir::Tensor> temp{C};
     auto AL = stages[A]->CacheRead("shared", temp, stages);
@@ -2223,7 +2019,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
     return std::make_tuple(A, B, C, AL, stages);
   };
 
-  auto[A, B, C, AL, stages] = create_module();  // NOLINT
+  auto [A, B, C, AL, stages] = create_module();  // NOLINT
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
@@ -2244,6 +2040,8 @@ extern "C" {
 typedef int int32_t;
 typedef char int8_t;
 #endif
+
+
 
 __global__
 void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -2268,8 +2066,7 @@ void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   TestElementwiseAddPrecisionBasic(builder.Build(), "fn2", M, N);
 }
 
-// This test is meaningless for a cache read, we just check that the syncthreads is automatically inserted even
-// without
+// This test is meaningless for a cache read, we just check that the syncthreads is automatically inserted even without
 // ComputeAt.
 TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
   Context::Global().ResetNameId();
@@ -2283,7 +2080,8 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
+    auto C = Compute(
+        {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
 
     auto stages = CreateStages({A, B, C});
     std::vector<ir::Tensor> temp{C};
@@ -2300,7 +2098,7 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
     return std::make_tuple(A, B, C, AL, stages);
   };
 
-  auto[A, B, C, AL, stages] = create_module();  // NOLINT
+  auto [A, B, C, AL, stages] = create_module();  // NOLINT
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
@@ -2321,6 +2119,8 @@ extern "C" {
 typedef int int32_t;
 typedef char int8_t;
 #endif
+
+
 
 __global__
 void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
@@ -2365,14 +2165,14 @@ TEST(ElementwiseAdd, cache_write_local) {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
+    auto C = Compute(
+        {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
 
     auto stages = CreateStages({A, B, C});
 
     auto Co = stages[C]->CacheWrite("local", stages, C);
 
-    // Cache write local, the local memory can just share in a single thread, so it must ComputeAt(inside) the
-    // innermost
+    // Cache write local, the local memory can just share in a single thread, so it must ComputeAt(inside) the innermost
     // thread.
     stages[C]->Split(1, 4);
     stages[C]->Split(0, 4);
@@ -2384,7 +2184,7 @@ TEST(ElementwiseAdd, cache_write_local) {
     return std::make_tuple(A, B, C, Co, stages);
   };
 
-  auto[A, B, C, Co, stages] = create_module();  // NOLINT
+  auto [A, B, C, Co, stages] = create_module();  // NOLINT
 
   CodeGenCUDA_Dev codegen(common::DefaultNVGPUTarget());
 
@@ -2406,6 +2206,8 @@ typedef int int32_t;
 typedef char int8_t;
 #endif
 
+
+
 __global__
 void cache_write_local(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
@@ -2416,14 +2218,12 @@ void cache_write_local(const float* __restrict__ A, const float* __restrict__ B,
     {
       for (int32_t j_outer = 0; j_outer < 8; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 5; j_inner += 1) {
-          C_write_cache[((5 * j_outer) + j_inner)] = A[((160 * blockIdx.x) + ((5 * j_outer) + ((40 * threadIdx.x) +
-          j_inner)))];
+          C_write_cache[((5 * j_outer) + j_inner)] = A[((160 * blockIdx.x) + ((5 * j_outer) + ((40 * threadIdx.x) + j_inner)))];
         };
       };
       for (int32_t j_outer = 0; j_outer < 10; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 4; j_inner += 1) {
-          C[((160 * blockIdx.x) + ((4 * j_outer) + ((40 * threadIdx.x) + j_inner)))] = C_write_cache[((4 * j_outer) +
-          j_inner)];
+          C[((160 * blockIdx.x) + ((4 * j_outer) + ((40 * threadIdx.x) + j_inner)))] = C_write_cache[((4 * j_outer) + j_inner)];
         };
       };
     }
@@ -2465,7 +2265,7 @@ TEST(Cuda, external_function) {
     return std::make_tuple(A, B, C, stages);
   };
 
-  auto[A, B, C, stages] = create_module();  // NOLINT
+  auto [A, B, C, stages] = create_module();  // NOLINT
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
@@ -2487,14 +2287,15 @@ typedef int int32_t;
 typedef char int8_t;
 #endif
 
+
+
 __global__
 void external_function(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
   if ((blockIdx.x < 40)) {
     if ((threadIdx.x < 4)) {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (cinn_nvgpu_tanh_fp32(A[((40 * blockIdx.x) + ((10 *
-        threadIdx.x) + j_inner))]) + cinn_nvgpu_cos_fp32(B[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]));
+        C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (cinn_nvgpu_tanh_fp32(A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]) + cinn_nvgpu_cos_fp32(B[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]));
       };
     };
   };
@@ -2526,9 +2327,9 @@ TEST(Cudnn, external_function_cudnn) {
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
 
   runtime::cuda::cinn_gpu_cudnn_conv2d(
       {2, 512, 7, 7, 512, 512, 3, 3, 1, 1, 1, 1, 1, 1, 1, 2, 512, 7, 7}, dev_bufs[0], dev_bufs[1], dev_bufs[2]);
@@ -2547,8 +2348,8 @@ TEST(Cudnn, external_function_cudnn2) {
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
 
   runtime::cuda::cinn_gpu_cudnn_pool2d(
       {2, 64, 112, 112, 3, 3, 1, 1, 1, 1, 2, 2, 2, 64, 56, 56}, {"max"}, dev_bufs[0], dev_bufs[1]);
@@ -2568,8 +2369,8 @@ TEST(Cudnn, external_function_cudnn3) {
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
 
   runtime::cuda::cinn_gpu_cudnn_softmax({2, 1000, -1}, dev_bufs[0], dev_bufs[1]);
 }
