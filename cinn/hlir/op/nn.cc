@@ -1,5 +1,6 @@
 #include "cinn/hlir/pe/nn.h"
 
+#include <iostream>
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
@@ -9,7 +10,6 @@
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/layout.h"
 #include "cinn/poly/stage.h"
-#include <iostream>
 namespace cinn {
 namespace hlir {
 namespace op {
@@ -124,17 +124,16 @@ std::shared_ptr<OpStrategy> StrategyForRelu6(const framework::NodeAttr &attrs,
   return strategy;
 }
 
-
 std::shared_ptr<OpStrategy> StrategyForConv2d_winograd(const framework::NodeAttr &attrs,
-                                                      const std::vector<ir::Tensor> &inputs,
-                                                      const std::vector<Type> &out_type,
-                                                      const std::vector<std::vector<int>> &output_shapes,
-                                                      const Target &target) {
+                                                       const std::vector<ir::Tensor> &inputs,
+                                                       const std::vector<Type> &out_type,
+                                                       const std::vector<std::vector<int>> &output_shapes,
+                                                       const Target &target) {
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
   std::vector<int> dilation({1, 1});
   std::string data_format = "NCHW";
-  bool pre_computed = false;
+  bool pre_computed       = false;
   int groups              = 1;
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
     padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
@@ -158,7 +157,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d_winograd(const framework::NodeAttr
     CHECK(!args.empty()) << "The input argument of conv2d winogrid compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK_GE(a.size(), 2U) << "at least 2 input tensors for conv2d winograd compute\n";
-    Expr input = a[0];
+    Expr input  = a[0];
     Expr weight = a[1];
     CHECK(input.as_tensor());
     CHECK(weight.as_tensor());
@@ -177,14 +176,14 @@ std::shared_ptr<OpStrategy> StrategyForConv2d_winograd(const framework::NodeAttr
         LOG(FATAL) << "Not implement now\n";
       } else {
         out = pe::Conv2d_winograd_NCHW(input.as_tensor_ref(),
-                              weight.as_tensor_ref(),
-                              padding[0],
-                              padding[1],
-                              stride[0],
-                              stride[1],
-                              dilation[0],
-                              dilation[1],
-                              UniqName("Conv2d_winograd_nchw_out"));
+                                       weight.as_tensor_ref(),
+                                       padding[0],
+                                       padding[1],
+                                       stride[0],
+                                       stride[1],
+                                       dilation[0],
+                                       dilation[1],
+                                       UniqName("Conv2d_winograd_nchw_out"));
       }
     } else if (data_format == "NHWC") {
       // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
@@ -197,12 +196,12 @@ std::shared_ptr<OpStrategy> StrategyForConv2d_winograd(const framework::NodeAttr
     std::vector<CINNValue> res;
     CHECK_EQ(out.size(), 11);
     for (auto &t : out) {
-      std::cout<<t<<std::endl;
-      LOG(INFO)<<t;
+      std::cout << t << std::endl;
+      LOG(INFO) << t;
       stages->InsertLazily(t);
-      std::cout<<"inset"<<std::endl;
+      std::cout << "inset" << std::endl;
       res.push_back(CINNValue(t));
-      std::cout<<"inset ok"<<std::endl;
+      std::cout << "inset ok" << std::endl;
     }
 
     res.push_back(CINNValue(stages));
@@ -210,15 +209,15 @@ std::shared_ptr<OpStrategy> StrategyForConv2d_winograd(const framework::NodeAttr
   });
 
   framework::CINNSchedule conv2d_winograd_schedule([=](lang::Args args, lang::RetValue *ret) {
-     CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
-     CINNValuePack arg_pack = args[0];
-     poly::StageMap stages = arg_pack.back();
-     if (target.arch == Target::Arch::NVGPU) {
-       *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
-     } else {
-       LOG(FATAL) << "Not implement now\n";
-     }
-     
+    CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    poly::StageMap stages  = arg_pack.back();
+    if (target.arch == Target::Arch::NVGPU) {
+      *ret = CINNValuePack{{arg_pack[arg_pack.size() - 2], CINNValue(stages)}};
+    } else {
+      LOG(FATAL) << "Not implement now\n";
+    }
+
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
