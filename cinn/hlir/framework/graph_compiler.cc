@@ -215,17 +215,24 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
           stages[temp.as_tensor_ref()]->SetScope(poly::ScopeKind::kLocal);
         }
       } else {
-        outputs.push_back(temp.as_tensor_ref());
+        if (index == fuse_number - 1) {
+          // final output tensor
+          outputs.insert(outputs.begin(), temp.as_tensor_ref());
+        } else {
+          outputs.push_back(temp.as_tensor_ref());
+        }
       }
     }
     index++;
   }
   fuse_name += "fused";
   VLOG(3) << "fuse_name: " << fuse_name;
+  // args order: inputs + final output + other no_fused outputs
   inputs.insert(inputs.end(), outputs.begin(), outputs.end());
 
-  stages[inputs.back()]->CopyTransform(stages[first_out_tensor]);
-  stages[inputs.back()]->CopyLoopInfo(stages[first_out_tensor]);
+  ir::Tensor final_out_tensor = outputs.front();
+  stages[final_out_tensor]->CopyTransform(stages[first_out_tensor]);
+  stages[final_out_tensor]->CopyLoopInfo(stages[first_out_tensor]);
 
   for (auto& s : stages) {
     auto& compute_ats = s.second->GetComputeAts();
@@ -233,7 +240,7 @@ ir::LoweredFunc GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
     if (tensor->is_reduce_tensor() && !compute_ats.empty()) {
       poly::ComputeAtRelation new_relation;
       CHECK_EQ(compute_ats.size(), 1U);
-      auto new_stage = stages[inputs.back()];
+      auto new_stage = stages[final_out_tensor];
       for (auto& compute_at : compute_ats) {
         auto& old_relation     = compute_at.second;
         auto old_target_tensor = old_relation.stage->tensor();
@@ -421,6 +428,9 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       auto* fn = compiler_->Lookup(GenOpFuncName(node));
       CHECK(fn);
       instr->SetLoweredFunc(fn);
+      if (node->attrs.attr_store.count("pre_run")) {
+        instr->pre_run = std::get<bool>(node->attrs.attr_store["pre_run"]);
+      }
       instructions.push_back(std::move(instr));
     } else {
       CHECK_GT(group.size(), 1U) << "fuse number should be greater than 1";
@@ -441,12 +451,17 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           }
         }
         auto temp_outputnames = OpGetOutputNames(node);
+        // fused output arg order: final output, ops no_fused outputs
         for (int j = 0; j < temp_outputnames.size(); j++) {
           if (!names_set.count(temp_outputnames[j])) {
             names_set.insert(temp_outputnames[j]);
             // assume that the first out_var of the op node is the fused var
             if (j == 0 && i != group.size() - 1) continue;
-            outputNames.push_back(temp_outputnames[j]);
+            if (j == 0 && i == group.size() - 1) {
+              outputNames.insert(outputNames.begin(), temp_outputnames[0]);
+            } else {
+              outputNames.push_back(temp_outputnames[j]);
+            }
           }
         }
       }
@@ -454,6 +469,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       VLOG(3) << fuse_name;
       auto instr =
           std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_name));
+      VLOG(3) << "input_names: " << utils::Join(inputNames, ", ");
+      VLOG(3) << "out_names: " << utils::Join(outputNames, ", ");
       auto* fn = compiler_->Lookup(fuse_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn);

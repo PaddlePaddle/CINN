@@ -3,6 +3,7 @@
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/hlir/pe/schedule.h"
 #include "cinn/utils/string.h"
 
 namespace cinn {
@@ -20,7 +21,7 @@ void InferShapePass(Graph* graph) {
   auto& dtype_dict    = graph->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
   auto store_nodes    = std::get<0>(graph->topological_order());
   auto& op_infershape = Operator::GetAttrs<std::function<std::vector<framework::shape_t>(
-      const std::vector<framework::shape_t>&, const framework::NodeAttr&, const Target&)>>("infershape");
+      const std::vector<framework::shape_t>&, framework::NodeAttr&, const Target&)>>("infershape");
   auto& op_inferdtype = Operator::GetAttrs<
       std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&, const Target&)>>(
       "inferdtype");
@@ -43,6 +44,7 @@ void InferShapePass(Graph* graph) {
           op_infershape[node->safe_as<Node>()->op()](inputs_shape, node->safe_as<Node>()->attrs, graph->target_);
       auto out_dtype =
           op_inferdtype[node->safe_as<Node>()->op()](inputs_dtype, node->safe_as<Node>()->attrs, graph->target_);
+
       CHECK_GE(node->outlinks_in_order().size(), out_shape.size())
           << "The output number of node " << node->id() << " is " << node->outlinks_in_order().size()
           << " , which is smaller than the output shape size " << out_shape.size() << " . And the op type is "

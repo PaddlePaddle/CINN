@@ -85,7 +85,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
 }
 
 std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_shape,
-                                            const framework::NodeAttr &attrs,
+                                            framework::NodeAttr &attrs,
                                             const Target &target) {
   CHECK_EQ(inputs_shape.size(), 2UL);
   std::vector<shape_t> res{inputs_shape[0]};
@@ -194,14 +194,14 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
 }
 
 std::vector<shape_t> InferShapeForScale(const std::vector<shape_t> &inputs_shape,
-                                        const framework::NodeAttr &attrs,
+                                        framework::NodeAttr &attrs,
                                         const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   return {{inputs_shape[0]}};
 }
 
 std::vector<Type> InferDtypeForScale(const std::vector<Type> &inputs_type,
-                                     const framework::NodeAttr &attrs,
+                                     framework::NodeAttr &attrs,
                                      const Target &target) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};

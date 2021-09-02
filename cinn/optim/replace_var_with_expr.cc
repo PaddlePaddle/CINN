@@ -2,6 +2,7 @@
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_mutator.h"
+#include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/optim/ir_copy.h"
@@ -165,7 +166,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
     }
   }
 
-  void ResizeTempMemory(const std::string& tensor_name, int index) {
+  void ResizeTempMemory(const std::string& tensor_name, int index, Expr* indice, const std::string& var_name) {
     if (extent_.defined()) {
       std::string buffer_id = (*global_tensor_map_)[tensor_name]->buffer->name + var_->name;
       if (resized_buffer_.count(buffer_id) != 0) {
@@ -183,25 +184,26 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       for (auto& i : buffer_shape) {
         VLOG(3) << i;
       }
-      if (tensor_shape[index].is_constant() && extent_.is_constant()) {
-        int shape_i  = tensor_shape[index].get_constant();
-        int extent_i = extent_.get_constant();
-        int res;
-        if (extent_i > shape_i) {
-          res = 1;
-        } else {
-          res = shape_i / extent_i + shape_i % extent_i;
-        }
-        tensor_shape[index] = Expr(res);
-      } else {
-        tensor_shape[index] = ir::Div::Make(tensor_shape[index], extent_);
-        Simplify(&tensor_shape[index]);
-      }
+      Simplify(&tensor_shape[index]);
+      CHECK(tensor_shape[index].is_constant());
+      CHECK(extent_.is_constant());
+      int extent_i = extent_.get_constant();
+      auto copy1   = IRCopy(*indice);
+      auto copy2   = IRCopy(*indice);
+      ReplaceVarWithExpr(&copy1, Var(var_name), Expr(extent_i - 1));
+      ReplaceVarWithExpr(&copy2, Var(var_name), Expr(0));
+      auto res            = copy1 - copy2;
+      tensor_shape[index] = tensor_shape[index] - res;
+      Simplify(&tensor_shape[index]);
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
 
       resized_buffer_.insert(buffer_id);
       std::vector<Expr> new_shape                       = tensor_shape;
       (*global_tensor_map_)[tensor_name]->buffer->shape = new_shape;
+      VLOG(3) << tensor_name << " tensor's New Shape is : ";
+      for (auto& i : tensor_shape) {
+        VLOG(3) << i;
+      }
     } else {
       LOG(INFO) << "extent not defined";
     }
@@ -236,8 +238,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         VLOG(2) << temp;
       }
       for (int i = 0; i < node->indices.size(); i++) {
-        auto& temp      = node->indices[i];
-        Expr store_temp = node->indices[i];
+        auto& temp = node->indices[i];
         // When eliminating axis 'j_inner' in index '10 * j_outer + j_inner' (j_inner's extent is 10)
         // Divide '10 * j_outer' by 10, and get new index 'j_outer + j_inner'
         if (extent_.defined() && temp.As<ir::Add>() && temp.As<ir::Add>()->a().As<ir::Mul>() &&
@@ -245,13 +246,14 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
           temp.As<ir::Add>()->a() = ir::Div::Make(temp.As<ir::Add>()->a(), extent_);
         }
         Simplify(&temp);
+        auto temp_copy = IRCopy(temp);
         // Eliminate var 'j_inner' and get the final index 'j_outer'
         ir::IRMutator<>::Visit(&temp, &temp);
         if (find_replace_ == true) {
-          VLOG(3) << "Find " << var_->name << " in indice: " << store_temp;
+          VLOG(3) << "Find " << var_->name << " in indice: " << temp_copy;
           // If we replaced var 'j_inner'(the axis to be eliminated) to 0 in indices[i], edit tensor's shape[i] and
           // buffer's shape
-          ResizeTempMemory(tensor->name, i);
+          ResizeTempMemory(tensor->name, i, &temp_copy, var_->name);
           find_replace_ = false;
         }
       }
@@ -281,13 +283,14 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
           temp.As<ir::Add>()->a() = ir::Div::Make(temp.As<ir::Add>()->a(), extent_);
         }
         Simplify(&temp);
+        auto temp_copy = IRCopy(temp);
         // Eliminate var 'j_inner' and get the final index 'j_outer'
         ir::IRMutator<>::Visit(&temp, &temp);
         if (find_replace_ == true) {
-          VLOG(3) << "find " << var_->name << " in indice: " << temp;
+          VLOG(3) << "find " << var_->name << " in indice: " << temp_copy;
           // If we replaced var 'j_inner'(the axis to be eliminated) to 0 in indices[i], edit tensor's shape[i] and
           // buffer's shape
-          ResizeTempMemory(tensor->name, i);
+          ResizeTempMemory(tensor->name, i, &temp_copy, var_->name);
           find_replace_ = false;
         }
       }
