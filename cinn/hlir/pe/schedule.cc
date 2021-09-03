@@ -1449,7 +1449,6 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
                               ir::Tensor &inverse,
                               ir::Tensor &wino_conv,
                               const common::Target &target) {
-  
   wino_stages[wino_B]->ComputeInline();
 
   auto data_l = wino_stages[data_pack]->CacheWrite("local", wino_stages, data_pack);
@@ -1458,20 +1457,16 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[data_l]->Unroll(4);
   wino_stages[data_l]->Unroll(5);
 
-  
   wino_stages[data_pack]->Fuse({2, 3});
   wino_stages[data_pack]->Split(2, 128);
-  // wino_stages[data_pack]->Reorder({2, 3, 0, 1});
-  
+  wino_stages[data_pack]->Reorder({2, 3, 0, 1});
+  // wino_stages[data_pack]->Bind(0, "blockIdx.x");
   wino_stages[data_pack]->Bind(1, "threadIdx.x");
 
-  
   wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 1);
   wino_stages[input_tile]->ComputeAt(wino_stages[data_l], 1);
-  
   wino_stages[wino_input_pad]->ComputeInline();
 
-  
   wino_stages[wino_G]->ComputeInline();
   wino_stages[kernel_pack]->Reorder({2, 3, 0, 1, 4, 5});
   wino_stages[kernel_pack]->Fuse({0, 1});
@@ -1483,13 +1478,10 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   // wino_stages[kernel_pack]->Bind(0, "blockIdx.x");
   wino_stages[kernel_pack]->Bind(1, "threadIdx.x");
 
-  
   wino_stages[wino_weights_dilation]->ComputeInline();
 
-  
   auto wino_OL = wino_stages[bgemm]->CacheWrite("local", wino_stages, bgemm);
 
-  
   wino_stages[bgemm]->Fuse({0, 1});
 
   // x param is :  [1, 2, 98, 1]
@@ -1506,17 +1498,16 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[bgemm]->Split(0, 1);
 
   wino_stages[bgemm]->Reorder({0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11});
-  
+
   wino_stages[bgemm]->Bind(8, "threadIdx.x");
 
-  
   wino_stages[wino_OL]->ComputeAt(wino_stages[bgemm], 8);
-  
+
   wino_stages[wino_OL]->Fuse({9, 10});
   // rc param is :  [8, 8]
   wino_stages[wino_OL]->Split(10, 8);
   wino_stages[wino_OL]->Reorder({10, 11, 9});
-  
+
   int m = 4;
   wino_stages[wino_conv]->Tile(2, 3, m, m);
   wino_stages[wino_conv]->Fuse({0, 1, 2, 3});
@@ -1524,9 +1515,8 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[wino_conv]->Bind(1, "threadIdx.x");
 
   wino_stages[wino_A]->ComputeInline();
-  
+
   wino_stages[inverse]->Bind(1, "threadIdx.x");
-  
 }
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
