@@ -21,6 +21,7 @@ using framework::Operator;
 using framework::OpPatternKind;
 
 auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+std::unordered_map<std::string, framework::shape_t> shape_dict;
 
 struct DomNode {
   GraphNode* ref_node{nullptr};
@@ -65,13 +66,12 @@ void GetBroadcastPattern(Node* op_node,
 
 class DomTree {
  public:
-  std::vector<DomNode*>& CreatePostDomTree(const std::vector<GraphNode*>& nodes,
-                                           const std::unordered_map<std::string, framework::shape_t>& shape_dict) {
+  std::vector<DomNode*>& CreatePostDomTree(const std::vector<GraphNode*>& nodes) {
     int size = nodes.size();
     dom_nodes_.resize(nodes.size());
     // construct postdom tree, reverse topological_order
     for (int i = size - 1; i >= 0; i--) {
-      auto* dom_node = CreateDomNode(nodes[i], shape_dict);
+      auto* dom_node = CreateDomNode(nodes[i]);
       CHECK(dom_node);
       VLOG(2) << "dom_node: " << dom_node->ref_node->id() << ", pattern: " << dom_node->pattern
               << ", depth: " << dom_node->depth;
@@ -106,9 +106,7 @@ class DomTree {
     return l;
   }
 
-  DomNode* FindLCA(GraphNode* graph_node,
-                   OpPatternKind* pattern,
-                   const std::unordered_map<std::string, framework::shape_t>& shape_dict) {
+  DomNode* FindLCA(GraphNode* graph_node, OpPatternKind* pattern) {
     CHECK(graph_node);
     CHECK(pattern);
     DomNode* parent = nullptr;
@@ -148,7 +146,6 @@ class DomTree {
         auto* op_node = sink->safe_as<Node>();
         CHECK(op_node);
         auto op_pattern = op_pattern_dict[op_node->op()];
-        GetBroadcastPattern(op_node, &op_pattern, shape_dict);
         VLOG(2) << sink->id() << "'s op pattern is " << op_pattern;
         *pattern = FusePattern(*pattern, op_pattern);
         count++;
@@ -156,7 +153,7 @@ class DomTree {
       return parent;
     }
   }
-  DomNode* CreateDomNode(GraphNode* graph_node, const std::unordered_map<std::string, framework::shape_t>& shape_dict) {
+  DomNode* CreateDomNode(GraphNode* graph_node) {
     CHECK(graph_node);
     DomNode* dom_node  = new DomNode();
     dom_node->ref_node = graph_node;
@@ -168,7 +165,7 @@ class DomTree {
       dom_node->depth   = 0;
     } else {
       OpPatternKind pattern{framework::kElemWise};
-      auto* parent      = FindLCA(graph_node, &pattern, shape_dict);
+      auto* parent      = FindLCA(graph_node, &pattern);
       dom_node->parent  = parent;
       dom_node->pattern = pattern;
       dom_node->depth   = parent ? parent->depth + 1 : 0;
@@ -204,12 +201,14 @@ struct GroupNode {
 class GraphPartition {
  public:
   std::vector<std::vector<Node*>> Partition(const std::vector<GraphNode*>& graph_nodes,
-                                            const std::vector<DomNode*>& dom_nodes,
-                                            const std::unordered_map<std::string, framework::shape_t>& shape_dict) {
+                                            const std::vector<DomNode*>& dom_nodes) {
     CHECK_EQ(graph_nodes.size(), dom_nodes.size());
-    InitGroups(graph_nodes, shape_dict);
+    InitGroups(graph_nodes);
     FuseGroups(graph_nodes, dom_nodes);
     SplitGroups(graph_nodes);
+#ifdef CINN_WITH_DEBUG
+    PrintGroups();
+#endif
     return groups_;
   }
 
@@ -217,8 +216,7 @@ class GraphPartition {
   std::vector<GroupNode*> group_nodes_;
   std::vector<std::vector<Node*>> groups_;
   std::unordered_set<GraphNode*> visited_nodes_;
-  void InitGroups(const std::vector<GraphNode*>& graph_nodes,
-                  const std::unordered_map<std::string, framework::shape_t>& shape_dict) {
+  void InitGroups(const std::vector<GraphNode*>& graph_nodes) {
     for (int i = 0; i < graph_nodes.size(); i++) {
       GroupNode* group_node = new GroupNode();
       GraphNode* graph_node = graph_nodes[i];
@@ -227,8 +225,7 @@ class GraphPartition {
       group_node->ref_node = graph_node;
       group_node->index    = graph_node->get_index();
       if (op_node) {
-        auto pattern = op_pattern_dict[op_node->op()];
-        GetBroadcastPattern(op_node, &pattern, shape_dict);
+        auto pattern               = op_pattern_dict[op_node->op()];
         group_node->pattern        = pattern;
         group_node->op_nodes_count = 1;
         if (pattern == framework::kOutEWiseFusable) {
@@ -245,7 +242,40 @@ class GraphPartition {
       group_nodes_.push_back(group_node);
     }
   }
-
+  bool IsSameShape(const std::vector<int>& shape1, const std::vector<int>& shape2) {
+    if (shape1.size() != shape2.size()) return false;
+    for (int i = 0; i < shape1.size(); i++) {
+      if (shape1[i] != shape2[i]) return false;
+    }
+    return true;
+  }
+  std::vector<int> GetOutshape(GraphNode* node) {
+    CHECK(node);
+    auto op_node = node->safe_as<Node>();
+    std::vector<int> out_shapes;
+    if (op_node) {
+      // first out var shape
+      CHECK(!op_node->outlinks_in_order().empty());
+      auto out_var = op_node->outlinks_in_order().front()->sink();
+      CHECK(shape_dict.count(out_var->id()));
+      out_shapes = shape_dict[out_var->id()];
+    } else {
+      CHECK(shape_dict.count(node->id()));
+      out_shapes = shape_dict[node->id()];
+    }
+    return out_shapes;
+  }
+  bool IsSameOutShape(GraphNode* node1, GraphNode* node2) {
+    auto out_shape1 = GetOutshape(node1);
+    auto out_shape2 = GetOutshape(node2);
+    if (out_shape1.size() != out_shape2.size()) return false;
+    VLOG(2) << node1->id() << ", out_shape1: " << utils::Join(out_shape1, ", ");
+    VLOG(2) << node2->id() << ", out_shape2: " << utils::Join(out_shape2, ", ");
+    for (int i = 0; i < out_shape1.size(); i++) {
+      if (out_shape1[i] != out_shape2[i]) return false;
+    }
+    return true;
+  }
   template <typename T>
   bool CanFuse(GraphNode* source, GraphNode* sink, T fn) {
     if (visited_nodes_.count(source)) return true;
@@ -283,6 +313,7 @@ class GraphPartition {
     auto op_node = source->safe_as<Node>();
     visited_nodes_.clear();
     CHECK(source != sink);
+    if (!IsSameOutShape(source, sink)) return false;
     if (op_node) {
       auto& outlinks = op_node->outlinks_in_order(true);
       for (int i = 0; i < outlinks.size(); i++) {
@@ -373,7 +404,7 @@ class GraphPartition {
       if (parent_group_node && parent_group_node->GetRootNode() == group_node->GetRootNode()) continue;
 
       if (group_node->pattern == framework::kOutEWiseFusable) {
-        if (dom_node->pattern <= framework::kElemWise) {
+        if (dom_node->pattern <= framework::kBroadcast) {
           auto fn       = [](OpPatternKind pattern, bool is_sink) { return pattern <= framework::kBroadcast; };
           auto lca_node = dom_node->parent->ref_node;
           if (VerifyFuse(graph_node, lca_node, fn)) {
@@ -399,65 +430,44 @@ class GraphPartition {
       }
     }
   }
-  void GetOpGroups(const std::vector<common::GraphNode*>& graph_nodes,
-                   int index,
-                   std::unordered_map<GroupNode*, std::vector<Node*>>* group_maps) {
-    CHECK_EQ(graph_nodes.size(), group_nodes_.size());
-    CHECK(group_maps);
-    CHECK(group_nodes_[index]);
-    std::vector<Node*> group;
-    auto root_node = group_nodes_[index]->GetRootNode();
-    CHECK(root_node);
-    if (group_maps->count(root_node)) return;
-    (*group_maps)[root_node] = group;
-    int root_index           = root_node->ref_node->get_index();
-    CHECK_LE(index, root_index);
-    int op_fuse_number = root_node->op_nodes_count;
-    VLOG(2) << "op_fuse_number: " << op_fuse_number;
-    for (int i = index; i <= root_index; i++) {
-      CHECK(graph_nodes[i]);
-      auto* op_node = graph_nodes[i]->safe_as<Node>();
-      if (!op_node) continue;
-      auto* group_node = group_nodes_[i];
-      CHECK(group_node);
-      auto* cur_root_node = group_node->GetRootNode();
-      CHECK(cur_root_node);
-
-      if (!group_maps->count(cur_root_node)) {
-        // start a new group
-        GetOpGroups(graph_nodes, i, group_maps);
-        CHECK(cur_root_node->ref_node);
-        i = cur_root_node->ref_node->get_index();
-      } else {
-        (*group_maps)[cur_root_node].push_back(op_node);
-      }
-    }
-    auto final_group = (*group_maps)[root_node];
-    CHECK_EQ(op_fuse_number, final_group.size());
-    groups_.push_back(final_group);
-  }
   void SplitGroups(const std::vector<common::GraphNode*>& graph_nodes) {
+    // split groups sorted by topo order
     CHECK_EQ(graph_nodes.size(), group_nodes_.size());
-    std::unordered_map<GroupNode*, std::vector<Node*>> group_maps;
+    std::unordered_map<int, std::vector<Node*>> group_maps;
+    std::set<int> root_indice;
     for (int i = 0; i < graph_nodes.size(); i++) {
       CHECK(graph_nodes[i]);
       auto* op_node = graph_nodes[i]->safe_as<Node>();
       if (!op_node) continue;
-      GetOpGroups(graph_nodes, i, &group_maps);
-      i = group_nodes_[i]->GetRootNode()->ref_node->get_index();
+      CHECK(group_nodes_[i]->GetRootNode());
+      int root_index = group_nodes_[i]->GetRootNode()->ref_node->get_index();
+      group_maps[root_index].push_back(op_node);
+      root_indice.insert(root_index);
+    }
+    for (auto index : root_indice) {
+      groups_.push_back(group_maps[index]);
+    }
+  }
+  void PrintGroups() {
+    for (int i = 0; i < groups_.size(); i++) {
+      VLOG(2) << "group " << i << ": ";
+      for (auto& node : groups_[i]) {
+        VLOG(2) << node->id() << " ";
+      }
     }
   }
 };
+
 void OpFusionPass(Graph* graph) {
-  auto& shape_dict = graph->GetMutableAttrs<std::unordered_map<std::string, framework::shape_t>>("infershape");
+  shape_dict       = graph->GetMutableAttrs<std::unordered_map<std::string, framework::shape_t>>("infershape");
   auto store_nodes = std::get<0>(graph->topological_order());
   int node_size    = store_nodes.size();
   // construct postdom tree, reverse topological_order
   DomTree tree;
-  auto& dom_nodes = tree.CreatePostDomTree(store_nodes, shape_dict);
+  auto& dom_nodes = tree.CreatePostDomTree(store_nodes);
   // graph partition
   GraphPartition partition;
-  graph->groups = partition.Partition(store_nodes, dom_nodes, shape_dict);
+  graph->groups = partition.Partition(store_nodes, dom_nodes);
 }
 
 }  // namespace pass

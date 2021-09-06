@@ -104,7 +104,7 @@ std::vector<framework::shape_t> updateInferInfos(Node* node,
     (*shape_dict)[sink->id()]  = infershapes[i];
     (*type_dict)[sink->id()]   = infertypes[i];
     (*layout_dict)[sink->id()] = inferlayouts[0][i];
-    VLOG(2) << "Infershape: " << sink->id() << " " << utils::Join(infershapes[i], ", ");
+    VLOG(3) << "Infershape: " << sink->id() << " " << utils::Join(infershapes[i], ", ");
   }
   node->attrs.attr_store["out_layouts"]   = inferlayouts[0];
   node->attrs.attr_store["input_layouts"] = inferlayouts[1];
@@ -328,20 +328,10 @@ void AlterLayoutPass(Graph* graph) {
               input_layouts.push_back("");
             }
           }
-          updateInferInfos(node,
-                           input_shapes,
-                           input_types,
-                           input_layouts,
-                           graph->target_,
-                           op_infershape,
-                           op_inferdtype,
-                           op_inferlayout,
-                           &shape_dict,
-                           &type_dict,
-                           &layout_dict);
+          auto inferlayouts = op_inferlayout[node->op()](input_shapes, input_layouts, node->attrs, graph->target_);
           // if input inferred layouts is different from original's, expand dims or do transformation.
-          CHECK(node->attrs.attr_store.count("input_layouts")) << node->id() << " find no input_layouts attr";
-          auto new_input_layouts = std::get<std::vector<std::string>>(node->attrs.attr_store["input_layouts"]);
+          CHECK_EQ(inferlayouts.size(), 2U);
+          auto new_input_layouts = inferlayouts[1];
           auto inlinks           = node->inlinks_in_order(true);
           CHECK_EQ(input_layouts.size(), inlinks.size());
           CHECK_EQ(input_layouts.size(), new_input_layouts.size());
@@ -464,6 +454,32 @@ void AlterLayoutPass(Graph* graph) {
           if (reset_axis) {
             node->attrs.attr_store["axis"] = -1;
           }
+          input_shapes.clear();
+          input_types.clear();
+          input_layouts.clear();
+          for (auto& link : node->inlinks_in_order(true)) {
+            auto* source = link->source();
+            CHECK(shape_dict.count(source->id())) << source->id() << " finds no infershape";
+            CHECK(type_dict.count(source->id())) << source->id() << " finds no infertype";
+            input_shapes.push_back(shape_dict[source->id()]);
+            input_types.push_back(type_dict[source->id()]);
+            if (layout_dict.count(source->id())) {
+              input_layouts.push_back(layout_dict[source->id()]);
+            } else {
+              input_layouts.push_back("");
+            }
+          }
+          updateInferInfos(node,
+                           input_shapes,
+                           input_types,
+                           input_layouts,
+                           graph->target_,
+                           op_infershape,
+                           op_inferdtype,
+                           op_inferlayout,
+                           &shape_dict,
+                           &type_dict,
+                           &layout_dict);
         }
       }
     }
