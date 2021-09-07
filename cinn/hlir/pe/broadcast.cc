@@ -1,7 +1,6 @@
 #include "cinn/hlir/pe/broadcast.h"
 
 #include <algorithm>
-#include <vector>
 
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_base.h"
@@ -100,6 +99,30 @@ void GetBroadcastShape(const std::vector<Expr>& shape1,
       var_l->emplace_back(true);
       var_s->emplace_back(false);
     }
+  }
+}
+
+void GetBroadcastOutShape(const std::vector<int>& input_shape1,
+                          const std::vector<int>& input_shape2,
+                          std::vector<int>* common_shape,
+                          int axis) {
+  std::vector<Expr> shape1;
+  std::vector<Expr> shape2;
+  auto fn_expr = [](const std::vector<int>& input_shape, std::vector<Expr>* shape) {
+    for (int i = 0; i < input_shape.size(); i++) {
+      shape->push_back(Expr(input_shape[i]));
+    }
+  };
+  fn_expr(input_shape1, &shape1);
+  fn_expr(input_shape2, &shape2);
+  std::vector<bool> broadcast_flags1;
+  std::vector<bool> broadcast_flags2;
+  int axis_offset = 0;
+  std::vector<Expr> out_shape;
+  GetBroadcastShape(shape1, shape2, &out_shape, &broadcast_flags1, &broadcast_flags2, &axis_offset, Expr(axis));
+  CHECK(common_shape);
+  for (auto& shape : out_shape) {
+    common_shape->push_back(shape.as_int32());
   }
 }
 

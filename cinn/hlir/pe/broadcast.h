@@ -1,11 +1,17 @@
 #pragma once
 #include <string>
+#include <vector>
 
 #include "cinn/ir/ir.h"
 
 namespace cinn {
 namespace hlir {
 namespace pe {
+
+void GetBroadcastOutShape(const std::vector<int>& input_shape1,
+                          const std::vector<int>& input_shape2,
+                          std::vector<int>* common_shape,
+                          int axis = -1);
 /**
  * @brief Compute A && B with auto-broadcasting.
  *

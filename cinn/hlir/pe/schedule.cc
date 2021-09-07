@@ -1023,6 +1023,9 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
   // CC_init
   auto CC_init = CC->GetInitTensor(stages, target);
   stages[CC_init]->Vectorize(stages[CC_init]->n_out_dims() - 1, CC_init->shape.back().as_int32());
+  // unroll ow_inner
+  stages[CC]->Unroll(stages[CC]->n_out_dims() - 2);
+  stages[CC_init]->Unroll(stages[CC_init]->n_out_dims() - 2);
 
   // res
   // n, oc, oh, ow
