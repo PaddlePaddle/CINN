@@ -64,8 +64,7 @@ TEST(CodeGenCUDA, basic) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -90,8 +89,7 @@ TEST(CodeGenCUDA, Module_output) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -120,8 +118,7 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
   Placeholder<float> A("X", {M, N});
   Placeholder<float> B("Y", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
@@ -152,7 +149,7 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto[Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
 
   // launch the kernel
 
@@ -185,8 +182,7 @@ TEST(CodeGenCUDA2, test_of_splitouter) {
   Placeholder<float> A("X", {M, N});
   Placeholder<float> B("Y", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
@@ -244,7 +240,7 @@ void elementwise_add_splitouter(const float* __restrict__ X, const float* __rest
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto[Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
 
   // launch the kernel
 
@@ -406,9 +402,321 @@ void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y,
     cuda_module.LaunchKernel(0, "schedule_conv2d_0", grid, block, args);
   }
   LOG(INFO) << "Conv2d op with schedule repeats " << repeat
-            << " times, average time cost is : " << time1.Stop() / float(repeat) << "ms. ";
+            << " times, average time cost is : " << time1.Stop() / static_cast<float>(repeat) << "ms. ";
   CUDA_CALL(cudaMemcpy(
       host_data3.data(), reinterpret_cast<void*>(Cd), 256 * 14 * 14 * sizeof(float), cudaMemcpyDeviceToHost));
+}
+
+TEST(CodeGenCUDA2, test_schedule_relu6) {
+  Context::Global().ResetNameId();
+  Expr N(1);
+  Expr C(3);
+  Expr H(224);
+  Expr W(64);
+  Expr K(3);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("X", {N, C, H, H});
+
+  auto res = hlir::pe::Relu6<float>(A, 0.0, UniqName("Relu6_output"));
+
+  auto stages = CreateStages({res});
+
+  auto stage = stages[res];
+  // hlir::pe::CudaScheduleInjective(stages[res], {1,3,224,224}, target);
+  std::vector<int> output_shape = {1, 3, 224, 224};
+  int dims                      = stage->n_out_dims();
+  LOG(INFO) << "dims:" << dims;
+  for (int i = 1; i < dims; i++) {
+    stage->Fuse(0, 1);
+  }
+  int num_thread = target.max_num_threads();
+  LOG(INFO) << "num_thread: " << num_thread;
+  int num_block         = 256;
+  int vector_width      = 1;
+  int prod_size         = 1 * 3 * 224 * 224;
+  bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
+  LOG(INFO) << "need_block_split: " << need_block_split;
+  LOG(INFO) << "nums: " << prod_size << "  " << num_thread;
+  if (need_block_split) {
+    auto[X_outer, X_inner]  = stage->Split(0, num_thread * num_block);
+    auto[Block_x, Thread_x] = stage->Split(X_inner, num_thread);
+    stage->Reorder({Block_x, Thread_x, X_outer});
+    stage->Bind(0, "blockIdx.x");
+    stage->Bind(1, "threadIdx.x");
+  } else {
+    if (prod_size > num_thread) {
+      stage->Split(0, num_thread);
+      stage->Bind(0, "blockIdx.x");
+      stage->Bind(1, "threadIdx.x");
+    } else {
+      stage->Bind(0, "threadIdx.x");
+    }
+  }
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func = Lower("schedule_1", stages, {A, res}, {}, {}, nullptr, target);
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled schedule_1 code:\n\n\n" << source_code;
+
+  using runtime::cuda::CUDAModule;
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr Ad, Bd, Cd;
+  cuMemAlloc(&Ad, 1 * 3 * 224 * 224 * sizeof(float));
+  cuMemAlloc(&Bd, 64 * 3 * 7 * 7 * sizeof(float));
+  cuMemAlloc(&Cd, 1 * 3 * 224 * 224 * sizeof(float));
+
+  std::vector<float> host_data1(1 * 3 * 224 * 224, 0);
+  std::vector<float> host_data2(64 * 3 * 7 * 7, 0);
+  std::vector<float> host_data3(1 * 3 * 224 * 224, 0);
+  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+
+  std::vector<float> host_data4(1 * 3 * 224 * 224, 0);
+  for (int i = 0; i < host_data1.size(); i++) {
+    if (host_data1[i] >= 0 && host_data1[i] <= 6) {
+      host_data4[i] = host_data1[i];
+    }
+  }
+
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
+
+  // launch the kernel
+
+  void* args[] = {&Ad, &Cd};
+
+  dim3 grid(147, 1, 1);
+  dim3 block(1024, 1, 1);
+  int repeat = 2000;
+
+  utils::Timer time1;
+  time1.Start();
+  for (int i = 0; i < repeat; i++) {
+    cuda_module.LaunchKernel(0, "schedule_1", grid, block, args);
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+  auto time_average1 = time1.Stop() / static_cast<float>(repeat);
+  LOG(INFO) << "Conv2d op1_CINN with schedule repeats " << repeat << " times, average time cost is : " << time_average1
+            << "ms. ";
+  CUDA_CALL(cudaMemcpy(
+      host_data3.data(), reinterpret_cast<void*>(Cd), host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
+
+  for (int offset = 0; offset < host_data4.size(); offset++) {
+    EXPECT_NEAR(host_data3[offset], host_data4[offset], 1e-5);
+  }
+
+  for (int offset = 0; offset < 10; offset++) {
+    LOG(INFO) << host_data3[offset];
+  }
+}
+
+TEST(CodeGenCUDA2, test_schedule_depthwise_conv2d) {
+  Context::Global().ResetNameId();
+  Expr N(1);
+  Expr C(3);
+  Expr H(224);
+  Expr W(63);
+  Expr K(3);
+
+  Expr WISE(1);
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("X", {N, C, H, H});
+  Placeholder<float> B("Y", {W, WISE, K, K});
+  LOG(INFO) << "test depthsize 1";
+  auto res = hlir::pe::Depthwise_Conv2d_NCHW(A, B, 1, 1, 1, 1, "DepthwiseConv2d_out");
+  LOG(INFO) << "test depthsize 2";
+  auto stages = CreateStages(res);
+
+  auto pad_data = res[1];
+  auto output   = res[0];
+  auto B_t      = B.tensor();
+  LOG(INFO) << "test depthsize 3";
+  // s[pad_data].compute_inline()
+  stages[pad_data]->ComputeInline();
+
+  // output = conv
+  // OL = s.cache_write(conv, "local")
+  // auto &output = conv;
+  // auto OL = stages[output]->CacheWrite("local", stages, output);
+
+  // AA = s.cache_read(pad_data, "shared", [OL])
+  // WW = s.cache_read(kernel, "shared", [OL])
+  // std::vector<ir::Tensor> readers{output};
+  // auto AA = stages[pad_data]->CacheRead("shared", readers, stages);
+  // auto WW = stages[B_t]->CacheRead("shared", readers, stages);
+
+  // n, f, y, x = s[output].op.axis
+  // kernel_scope, n = s[output].split(n, nparts=1)
+  // g, f = s[output].split(f, nparts=groups)
+  // bn, vn, tn, ni = cfg["tile_n"].apply(s, output, n)
+  // bg, vg = cfg["tile_g"].apply(s, output, g)
+  // bf, vf, tf, fi = cfg["tile_f"].apply(s, output, f)
+  // by, vy, ty, yi = cfg["tile_y"].apply(s, output, y)
+  // bx, vx, tx, xi = cfg["tile_x"].apply(s, output, x)
+
+  // x param is :  [-1, 1, 1, 1]
+  stages[output]->Split(3, 1);
+  stages[output]->Split(3, 1);
+  stages[output]->Split(3, 1);
+
+  // y param is :  [-1, 1, 1, 1]
+  stages[output]->Split(2, 1);
+  stages[output]->Split(2, 1);
+  stages[output]->Split(2, 1);
+
+  // g, f = s[output].split(f, nparts=groups)
+  int group_int = (pad_data->shape[1].as_int32() / B_t->shape[1].as_int32());
+  LOG(INFO) << "group_int: " << group_int;
+  stages[output]->Split(1, group_int);
+
+  // f param is :  [1, 1, 1, 1]
+  stages[output]->Split(2, 1);
+  stages[output]->Split(2, 1);
+  stages[output]->Split(2, 1);
+
+  // bg, vg = cfg["tile_g"].apply(s, output, g)
+  stages[output]->Split(1, 1);
+
+  // bn, vn, tn, ni = cfg["tile_n"].apply(s, output, n)
+  // n param is :  [-1, 1, 1, 1]
+  stages[output]->Split(0, 1);
+  stages[output]->Split(0, 1);
+  stages[output]->Split(0, 1);
+
+  // s[output].reorder(bn, bg, bf, by, bx, vn, vg, vf, vy, vx, tn, tf, ty, tx, ni, fi, yi, xi)
+  stages[output]->Reorder({0, 4, 6, 10, 14, 1, 4, 7, 11, 15, 2, 8, 12, 16, 3, 9, 13, 17});
+  LOG(INFO) << "output dims: " << stages[output]->n_out_dims();
+  // s[output].bind(bn, te.thread_axis("blockIdx.z"))
+  // s[output].bind(s[output].fuse(bg, bf), te.thread_axis("blockIdx.y"))
+  // s[output].bind(s[output].fuse(by, bx), te.thread_axis("blockIdx.x"))
+  // s[output].bind(vn, te.thread_axis("vthread"))
+  // s[output].bind(vg, te.thread_axis("vthread"))
+  // s[output].bind(vf, te.thread_axis("vthread"))
+  // s[output].bind(vy, te.thread_axis("vthread"))
+  // s[output].bind(vx, te.thread_axis("vthread"))
+  stages[output]->Fuse({3, 4});
+  // LOG(INFO)<<"output dims: "<<stages[output]->n_out_dims();
+  // // stages[output]->Fuse({1,2});
+  // LOG(INFO)<<"output dims: "<<stages[output]->n_out_dims();
+  // stages[output]->Bind(0, "blockIdx.z");
+  // stages[output]->Bind(1, "blockIdx.y");
+  // stages[output]->Bind(2, "blockIdx.x");
+  // LOG(INFO)<<"output dims: "<<stages[output]->n_out_dims();
+
+  // s[output].bind(s[output].fuse(tn, tf), te.thread_axis("threadIdx.z"))
+  // s[output].bind(ty, te.thread_axis("threadIdx.y"))
+  // s[output].bind(tx, te.thread_axis("threadIdx.x"))
+  // s[OL].compute_at(s[output], tx)
+  // stages[output]->Fuse({8,9});
+  // stages[output]->Bind(8, "threadIdx.z");
+  // stages[output]->Bind(9, "threadIdx.y");
+  // stages[output]->Bind(10, "threadIdx.x");
+  // stages[OL]->ComputeAt(stages[output], 10);
+
+  // n, f, y, x = s[OL].op.axis
+  // rc, ry, rx = s[OL].op.reduce_axis
+  // rco, rci = cfg["tile_rc"].apply(s, OL, rc)
+  // ryo, ryi = cfg["tile_rx"].apply(s, OL, ry)
+  // rxo, rxi = cfg["tile_ry"].apply(s, OL, rx)
+  // s[OL].reorder(rco, ryo, rxo, rci, ryi, rxi, n, f, y, x)
+  // // rx param is :  [1, 7]
+  // stages[OL]->Split(15, 7);
+  // // ry param is :  [7, 1]
+  // stages[OL]->Split(14, 1);
+  // // rc param is :  [3, 1]
+  // stages[OL]->Split(13, 1);
+
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func = Lower("schedule_1", stages, {A, B, output}, {}, {}, nullptr, target);
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled schedule_1 code:\n\n\n" << source_code;
+
+  using runtime::cuda::CUDAModule;
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr Ad, Bd, Cd;
+  cuMemAlloc(&Ad, 1 * 3 * 224 * 224 * sizeof(float));
+  cuMemAlloc(&Bd, 63 * 1 * 3 * 3 * sizeof(float));
+  cuMemAlloc(&Cd, 1 * 63 * 224 * 224 * sizeof(float));
+
+  std::vector<float> host_data1(1 * 3 * 224 * 224, 0);
+  std::vector<float> host_data2(63 * 1 * 3 * 3, 0);
+  std::vector<float> host_data3(1 * 63 * 224 * 224, 0);
+  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+
+  std::vector<float> host_data4(1 * 63 * 224 * 224, 0);
+  for (int i = 0; i < host_data1.size(); i++) {
+    if (host_data1[i] >= 0 && host_data1[i] <= 6) {
+      host_data4[i] = host_data1[i];
+    }
+  }
+
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
+
+  // launch the kernel
+
+  void* args[] = {&Ad, &Bd, &Cd};
+
+  dim3 grid(147, 1, 1);
+  dim3 block(1024, 1, 1);
+  int repeat = 2000;
+
+  utils::Timer time1;
+  time1.Start();
+  for (int i = 0; i < repeat; i++) {
+    cuda_module.LaunchKernel(0, "schedule_1", grid, block, args);
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+  auto time_average1 = time1.Stop() / static_cast<float>(repeat);
+  LOG(INFO) << "Conv2d op1_CINN with schedule repeats " << repeat << " times, average time cost is : " << time_average1
+            << "ms. ";
+  CUDA_CALL(cudaMemcpy(
+      host_data3.data(), reinterpret_cast<void*>(Cd), host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
+
+  for (int offset = 0; offset < host_data4.size(); offset++) {
+    EXPECT_NEAR(host_data3[offset], host_data4[offset], 1e-5);
+  }
+
+  for (int offset = 0; offset < 10; offset++) {
+    LOG(INFO) << host_data3[offset];
+  }
 }
 
 TEST(CodeGenCUDA2, test_schedule_conv2d_1) {
@@ -553,7 +861,7 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
     cuda_module.LaunchKernel(0, "schedule_conv2d_1", grid, block, args);
     CUDA_CALL(cudaDeviceSynchronize());
   }
-  auto time_average1 = time1.Stop() / float(repeat);
+  auto time_average1 = time1.Stop() / static_cast<float>(repeat);
   LOG(INFO) << "Conv2d op1_CINN with schedule repeats " << repeat << " times, average time cost is : " << time_average1
             << "ms. ";
   CUDA_CALL(cudaMemcpy(
@@ -637,7 +945,7 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
     cuda_module_tvm.LaunchKernel(0, "schedule_conv2d_1", grid, block, args);
     CUDA_CALL(cudaDeviceSynchronize());
   }
-  auto time_average2 = time2.Stop() / float(repeat);
+  auto time_average2 = time2.Stop() / static_cast<float>(repeat);
   LOG(INFO) << "Conv2d op1_TVM with schedule repeats " << repeat << " times, average time cost is : " << time_average2
             << "ms. ";
   CUDA_CALL(cudaMemcpy(
@@ -657,8 +965,7 @@ TEST(CodeGenCUDA, test_of_syncthreads) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+  auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
   auto stages = CreateStages({C});
   std::vector<ir::Tensor> readers{C};
@@ -723,7 +1030,7 @@ void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, f
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto[Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
 
   // launch the kernel
 
@@ -758,8 +1065,7 @@ TEST(CodeGenCUDA3, test_of_mul_cachewrite) {
   Placeholder<float> B("B1", {N, K});
 
   auto k1 = Var(K.as_int32(), "k1");
-  auto C  = Compute(
-      {M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(j, k1), {k1}); }, "C1");
+  auto C  = Compute({M, N}, [&](Var i, Var j) { return ReduceSum(A(i, k1) * B(j, k1), {k1}); }, "C1");
 
   auto stages = CreateStages({C});
 
@@ -829,7 +1135,7 @@ void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1,
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto[Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
 
   // launch the kernel
 
@@ -868,8 +1174,7 @@ class ElementwiseTester {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute(
-        {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+    auto C = Compute({M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
 
     return std::make_tuple(A, B, C);
   }
@@ -976,15 +1281,13 @@ class ElementwiseTester {
 
 TEST(CodeGenCUDA, jit_dynamic_shape0) {
   ElementwiseTester tester("elementwise_base");
-  auto [A, B, C] = tester.BuildNet();  // NOLINT
+  auto[A, B, C] = tester.BuildNet();  // NOLINT
 
   auto stages = CreateStages({C});
 
-  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto[M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
   stages[C]->Reorder({
-      M_inner,
-      stages[C]->axis(2),
-      M_outer,
+      M_inner, stages[C]->axis(2), M_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -995,17 +1298,14 @@ TEST(CodeGenCUDA, jit_dynamic_shape0) {
 
 TEST(CodeGenCUDA, jit_dynamic_shape1) {
   ElementwiseTester tester("elementwise1");
-  auto [A, B, C] = tester.BuildNet();  // NOLINT
+  auto[A, B, C] = tester.BuildNet();  // NOLINT
 
   auto stages = CreateStages({C});
 
-  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
-  auto [N_outer, N_inner] = stages[C]->Split(2, 32);  // M/32, 32 NOLINT
+  auto[M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto[N_outer, N_inner] = stages[C]->Split(2, 32);  // M/32, 32 NOLINT
   stages[C]->Reorder({
-      M_inner,
-      N_inner,
-      M_outer,
-      N_outer,
+      M_inner, N_inner, M_outer, N_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -1017,17 +1317,14 @@ TEST(CodeGenCUDA, jit_dynamic_shape1) {
 TEST(CodeGenCUDA, jit_dynamic_shape2) {
   ElementwiseTester tester("elementwise2");
 
-  auto [A, B, C] = tester.BuildNet();  // NOLINT
+  auto[A, B, C] = tester.BuildNet();  // NOLINT
 
   auto stages = CreateStages({C});
 
-  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
-  auto [N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
+  auto[M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto[N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
   stages[C]->Reorder({
-      M_inner,
-      N_inner,
-      M_outer,
-      N_outer,
+      M_inner, N_inner, M_outer, N_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -1037,19 +1334,16 @@ TEST(CodeGenCUDA, jit_dynamic_shape2) {
 }
 
 TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
-  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(100, 200);
+  auto[Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(100, 200);
 
   ElementwiseTester tester("elementwise_host_test");
-  auto [A, B, C] = tester.BuildNet();  // NOLINT
-  auto stages    = CreateStages({C});
+  auto[A, B, C] = tester.BuildNet();  // NOLINT
+  auto stages = CreateStages({C});
 
-  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
-  auto [N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
+  auto[M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto[N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
   stages[C]->Reorder({
-      M_inner,
-      N_inner,
-      M_outer,
-      N_outer,
+      M_inner, N_inner, M_outer, N_outer,
   });
 
   stages[C]->Bind(0, "blockIdx.x");
@@ -1067,7 +1361,7 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
   auto module = builder.Build();
   Expr expr(module);
 
-  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+  auto[host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
   for (auto& func : host_module.functions()) {
     LOG(INFO) << "host:\n" << func;
   }
@@ -1174,41 +1468,35 @@ TEST(depthwise_conv, test) {
   Placeholder<float> input("input", {Expr(batch), Expr(in_channel), Expr(in_height), Expr(in_width)});
   Placeholder<float> filter("filter", {Expr(in_channel), Expr(in_channel), Expr(filter_size), Expr(filter_size)});
 
-  auto padded_input = Compute(
-      {Expr(batch), Expr(in_channel), Expr(height_padded), Expr(width_padded)},
-      [=](Expr b, Expr c, Expr i, Expr j) {
-        return common::select(common::and_all({
-                                  i >= pad_top,
-                                  i - pad_top < in_height,
-                                  j >= pad_left,
-                                  j - pad_left < in_width,
-                              }),
-                              input(b, c, i, j),  // true value
-                              Expr(0.f)           // false value
-        );                                        // NOLINT
-      },
-      "padded_input");
+  auto padded_input =
+      Compute({Expr(batch), Expr(in_channel), Expr(height_padded), Expr(width_padded)},
+              [=](Expr b, Expr c, Expr i, Expr j) {
+                return common::select(common::and_all({
+                                          i >= pad_top, i - pad_top < in_height, j >= pad_left, j - pad_left < in_width,
+                                      }),
+                                      input(b, c, i, j),  // true value
+                                      Expr(0.f)           // false value
+                                      );                  // NOLINT
+              },
+              "padded_input");
 
   Var di(Expr(filter_size), "di");
   Var dj(Expr(filter_size), "dj");
 
   // cache
-  auto IS = Compute(
-      padded_input->shape,
-      [=](Expr b, Expr c, Expr i, Expr j) -> Expr { return padded_input(b, c, i, j); },
-      "cache_paded_input");
-  auto FS = Compute(
-      ir::Tensor(filter)->shape,
-      [=](Expr c0, Expr c1, Expr w, Expr h) -> Expr { return filter(c0, c1, w, h); },
-      "cache_filter");
+  auto IS = Compute(padded_input->shape,
+                    [=](Expr b, Expr c, Expr i, Expr j) -> Expr { return padded_input(b, c, i, j); },
+                    "cache_paded_input");
+  auto FS = Compute(ir::Tensor(filter)->shape,
+                    [=](Expr c0, Expr c1, Expr w, Expr h) -> Expr { return filter(c0, c1, w, h); },
+                    "cache_filter");
 
-  auto output = Compute(
-      {Expr(batch), Expr(in_channel), Expr(out_height), Expr(out_width)},
-      [=](Var b, Var c, Var i, Var j) -> Expr {
-        auto expr = IS(b, c, i * stride + di, j * stride + dj) * FS(c, c, di, dj);
-        return lang::ReduceSum(expr, {di, dj});
-      },
-      "output");
+  auto output = Compute({Expr(batch), Expr(in_channel), Expr(out_height), Expr(out_width)},
+                        [=](Var b, Var c, Var i, Var j) -> Expr {
+                          auto expr = IS(b, c, i * stride + di, j * stride + dj) * FS(c, c, di, dj);
+                          return lang::ReduceSum(expr, {di, dj});
+                        },
+                        "output");
 
   auto stages = CreateStages({output});
 
@@ -1236,14 +1524,14 @@ TEST(Conv, basic) {
   Placeholder<float> A("A", {in_size, in_size, in_channel, batch});
   Placeholder<float> W("W", {kernel, kernel, in_channel, out_channel});
 
-  auto Apad = Compute(
-      {in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
-      [=](Expr yy, Expr xx, Expr cc, Expr nn) -> Expr {
-        return common::select(common::and_all({yy >= pad, yy - pad < in_size, xx >= pad, xx - pad < in_size}),
-                              A(yy - pad, xx - pad, cc, nn),
-                              common::make_const(Float(32), 0));
-      },
-      "Apad");
+  auto Apad =
+      Compute({in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
+              [=](Expr yy, Expr xx, Expr cc, Expr nn) -> Expr {
+                return common::select(common::and_all({yy >= pad, yy - pad < in_size, xx >= pad, xx - pad < in_size}),
+                                      A(yy - pad, xx - pad, cc, nn),
+                                      common::make_const(Float(32), 0));
+              },
+              "Apad");
 
   Var rc(in_channel, "rc");
   Var ry(kernel, "ry");
@@ -1274,8 +1562,7 @@ TEST(elementwise_add1, share_local_cache) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -1316,10 +1603,10 @@ TEST(elementwise_add1, share_local_cache) {
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
-  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
+  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("elementwise_add", args.data(), args.size());
@@ -1353,8 +1640,7 @@ TEST(elementwise_add0, share_local_cache) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -1376,7 +1662,7 @@ TEST(elementwise_add0, share_local_cache) {
   builder.AddFunction(fn);
   auto module = builder.Build();
 
-  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+  auto[host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
   for (auto& func : host_module.functions()) {
     LOG(INFO) << "host:\n" << func;
   }
@@ -1407,10 +1693,10 @@ TEST(elementwise_add0, share_local_cache) {
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
-  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
+  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("elementwise_add0", args.data(), args.size());
@@ -1449,13 +1735,13 @@ TEST(Conv, optimize) {
 
   Expr out_size((in_size.as_int32() - kernel.as_int32() + 2 * pad.as_int32()) / stride.as_int32() + 1);
 
-  auto Apad = Compute(
-      {in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
-      [&](Expr yy, Expr xx, Expr cc, Expr nn) {
-        auto condition = common::and_all({yy >= pad, xx - pad < in_size, xx >= pad, xx - pad < in_size});
-        return common::select(condition, A(yy - pad, xx - pad, cc, nn), common::make_const(0.f));
-      },
-      "Apad");
+  auto Apad =
+      Compute({in_size + 2 * pad, in_size + 2 * pad, in_channel, batch},
+              [&](Expr yy, Expr xx, Expr cc, Expr nn) {
+                auto condition = common::and_all({yy >= pad, xx - pad < in_size, xx >= pad, xx - pad < in_size});
+                return common::select(condition, A(yy - pad, xx - pad, cc, nn), common::make_const(0.f));
+              },
+              "Apad");
 
   auto rc = Var(in_channel, "rc");
   auto ry = Var(kernel, "ry");
@@ -1514,8 +1800,7 @@ TEST(ElementwiseAdd, cache_read_local) {
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
 
-  auto C = Compute(
-      {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
+  auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
   auto stages = CreateStages({C});
 
@@ -1590,10 +1875,10 @@ void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __rest
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
-  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
+  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn0", args.data(), args.size());
@@ -1627,8 +1912,7 @@ TEST(ElementwiseAdd, cache_read1) {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute(
-        {M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
+    auto C = Compute({M - 2, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 1, j) + A(i + 2, j) + B(i, j); }, "C");
 
     std::vector<ir::Tensor> temp{C};
     auto stages = CreateStages(temp);
@@ -1639,8 +1923,8 @@ TEST(ElementwiseAdd, cache_read1) {
     return std::make_tuple(A, B, C, AL, stages);
   };
   {
-    auto [A, B, C, AL, stages] = create_module();  // NOLINT
-    auto fn                    = Lower("fn1", stages, {A, B, C}, {}, {AL});
+    auto[A, B, C, AL, stages] = create_module();  // NOLINT
+    auto fn = Lower("fn1", stages, {A, B, C}, {}, {AL});
     CodeGenC codegen_c(common::DefaultHostTarget());
     codegen_c.SetInlineBuiltinCodes(false);
 
@@ -1651,7 +1935,7 @@ TEST(ElementwiseAdd, cache_read1) {
     std::cout << "C source code:\n" << c_source_code << std::endl;
   }
 
-  auto [A, B, C, AL, stages] = create_module();  // NOLINT
+  auto[A, B, C, AL, stages] = create_module();  // NOLINT
   stages[C]->Bind(0, "threadIdx.x");
   stages[C]->Bind(1, "blockIdx.x");
 
@@ -1713,10 +1997,10 @@ void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __rest
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
-  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
+  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn1", args.data(), args.size());
@@ -1751,8 +2035,7 @@ TEST(ElementwiseAdd, cache_read_compute_at1) {
   Context::Global().ResetNameId();
   Placeholder<float> A("AA", {M, M});
 
-  auto C = Compute(
-      {N, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 2, j + 2) + A(i + 5, j + 5); }, "C");
+  auto C = Compute({N, N}, [&](Expr i, Expr j) { return A(i, j) + A(i + 2, j + 2) + A(i + 5, j + 5); }, "C");
 
   auto stages = CreateStages({A, C});
   std::vector<ir::Tensor> temp{C};
@@ -1819,9 +2102,9 @@ void fn_cacheread_computeat1(const float* __restrict__ AA, float* __restrict__ C
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(C_dev);
-  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
+  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
+  auto args                               = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn_cacheread_computeat1", args.data(), args.size());
@@ -1852,8 +2135,7 @@ TEST(ElementwiseAdd, cache_read_compute_at2) {
   Context::Global().ResetNameId();
   Placeholder<float> A("AA", {M, M});
 
-  auto C = Compute(
-      {N, N}, [&](Expr i, Expr j) { return A(i + 5, j) + A(i, j + 5); }, "C");
+  auto C = Compute({N, N}, [&](Expr i, Expr j) { return A(i + 5, j) + A(i, j + 5); }, "C");
 
   auto stages = CreateStages({A, C});
   std::vector<ir::Tensor> temp{C};
@@ -1921,9 +2203,9 @@ void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(C_dev);
-  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
+  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
+  auto args                               = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester("fn_cacheread_computeat2", args.data(), args.size());
@@ -1948,12 +2230,13 @@ void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C
 }
 
 // JIT test precision for the basic elementwise add
-void TestElementwiseAddPrecisionBasic(
-    const ir::Module& module,
-    const std::string& fn_name,
-    Expr M,
-    Expr N,
-    std::function<float(float, float)> elem_cal = [](float a, float b) { return a; }) {
+void TestElementwiseAddPrecisionBasic(const ir::Module& module,
+                                      const std::string& fn_name,
+                                      Expr M,
+                                      Expr N,
+                                      std::function<float(float, float)> elem_cal = [](float a, float b) {
+                                        return a;
+                                      }) {
   common::CudaModuleTester tester;
   tester.Compile(module);
 
@@ -1968,10 +2251,10 @@ void TestElementwiseAddPrecisionBasic(
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
-  auto args           = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
+  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
+  auto args = common::ArgsBuilder().Add(dev_bufs[0]).Add(dev_bufs[1]).Add(dev_bufs[2]).Build();
 
   CUDA_CALL(cudaDeviceSynchronize());
   tester(fn_name, args.data(), args.size());
@@ -2007,8 +2290,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute(
-        {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
+    auto C      = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
     auto stages = CreateStages({A, B, C});
     std::vector<ir::Tensor> temp{C};
     auto AL = stages[A]->CacheRead("shared", temp, stages);
@@ -2019,7 +2301,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
     return std::make_tuple(A, B, C, AL, stages);
   };
 
-  auto [A, B, C, AL, stages] = create_module();  // NOLINT
+  auto[A, B, C, AL, stages] = create_module();  // NOLINT
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
@@ -2080,8 +2362,7 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute(
-        {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
+    auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
 
     auto stages = CreateStages({A, B, C});
     std::vector<ir::Tensor> temp{C};
@@ -2098,7 +2379,7 @@ TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
     return std::make_tuple(A, B, C, AL, stages);
   };
 
-  auto [A, B, C, AL, stages] = create_module();  // NOLINT
+  auto[A, B, C, AL, stages] = create_module();  // NOLINT
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
@@ -2165,8 +2446,7 @@ TEST(ElementwiseAdd, cache_write_local) {
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
 
-    auto C = Compute(
-        {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
+    auto C = Compute({M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
 
     auto stages = CreateStages({A, B, C});
 
@@ -2184,7 +2464,7 @@ TEST(ElementwiseAdd, cache_write_local) {
     return std::make_tuple(A, B, C, Co, stages);
   };
 
-  auto [A, B, C, Co, stages] = create_module();  // NOLINT
+  auto[A, B, C, Co, stages] = create_module();  // NOLINT
 
   CodeGenCUDA_Dev codegen(common::DefaultNVGPUTarget());
 
@@ -2265,7 +2545,7 @@ TEST(Cuda, external_function) {
     return std::make_tuple(A, B, C, stages);
   };
 
-  auto [A, B, C, stages] = create_module();  // NOLINT
+  auto[A, B, C, stages] = create_module();  // NOLINT
   Target target;
   CodeGenCUDA_Dev codegen(target);
 
@@ -2327,9 +2607,9 @@ TEST(Cudnn, external_function_cudnn) {
 
   cinn_buffer_t* dev_bufs[3];
   for (int i = 0; i < 3; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
-  dev_bufs[2]->memory = reinterpret_cast<uint8_t*>(C_dev);
+  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[2]->memory                     = reinterpret_cast<uint8_t*>(C_dev);
 
   runtime::cuda::cinn_gpu_cudnn_conv2d(
       {2, 512, 7, 7, 512, 512, 3, 3, 1, 1, 1, 1, 1, 1, 1, 2, 512, 7, 7}, dev_bufs[0], dev_bufs[1], dev_bufs[2]);
@@ -2348,8 +2628,8 @@ TEST(Cudnn, external_function_cudnn2) {
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
 
   runtime::cuda::cinn_gpu_cudnn_pool2d(
       {2, 64, 112, 112, 3, 3, 1, 1, 1, 1, 2, 2, 2, 64, 56, 56}, {"max"}, dev_bufs[0], dev_bufs[1]);
@@ -2369,8 +2649,8 @@ TEST(Cudnn, external_function_cudnn3) {
 
   cinn_buffer_t* dev_bufs[2];
   for (int i = 0; i < 2; i++) dev_bufs[i] = new cinn_buffer_t;
-  dev_bufs[0]->memory = reinterpret_cast<uint8_t*>(A_dev);
-  dev_bufs[1]->memory = reinterpret_cast<uint8_t*>(B_dev);
+  dev_bufs[0]->memory                     = reinterpret_cast<uint8_t*>(A_dev);
+  dev_bufs[1]->memory                     = reinterpret_cast<uint8_t*>(B_dev);
 
   runtime::cuda::cinn_gpu_cudnn_softmax({2, 1000, -1}, dev_bufs[0], dev_bufs[1]);
 }
