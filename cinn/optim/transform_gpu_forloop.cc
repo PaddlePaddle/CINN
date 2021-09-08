@@ -254,7 +254,9 @@ void TransformGpuForloops(const forloop_infos_t &forloop_infos,
 
 ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stage_group) {
   std::map<std::pair<ir::ForType, uint8_t>, int> gpu_axis_range;
+  ir::CudaAxisInfo info;
   for (auto *stage : stage_group) {
+    if (stage->IfCudaBind()) info.set_valid(true);
     for (auto &item : stage->forloop_infos()) {
       int level = poly::isl_get_original_axes_from_optimized_level(stage->transformed_domain().get(), item.first);
       auto [min_val, max_val] = poly::isl_set_get_axis_range(stage->transformed_domain().get(), level);
@@ -262,8 +264,6 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
       gpu_axis_range[key]     = std::max(max_val.get_num_si() + 1, static_cast<int64_t>(gpu_axis_range[key]));
     }
   }
-
-  ir::CudaAxisInfo info;
   for (auto &item : gpu_axis_range) {
     switch (item.first.first) {
       case ir::ForType::GPUBlock:

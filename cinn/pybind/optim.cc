@@ -28,7 +28,7 @@ void BindSimplify(py::module* m) {
       },
       py::arg("expr"));
 
-  m->def("ir_copy", &optim::IRCopy);
+  m->def("ir_copy", py::overload_cast<Expr>(&optim::IRCopy));
 }
 
 }  // namespace

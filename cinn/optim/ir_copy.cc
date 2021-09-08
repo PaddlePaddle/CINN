@@ -402,5 +402,13 @@ Expr IRCopy(Expr x) {
   return copied;
 }
 
+std::vector<Expr> IRCopy(const std::vector<Expr>& x) {
+  std::vector<Expr> res;
+  for (auto& i : x) {
+    res.emplace_back(IRCopy(i));
+  }
+  return res;
+}
+
 }  // namespace optim
 }  // namespace cinn

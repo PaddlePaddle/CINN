@@ -89,40 +89,98 @@ ir::LoweredFunc Lower(const std::string& name,
   ctrl_deps.insert(temp_tensors.begin(), temp_tensors.end());
 
   auto lower_impl_instance = detail::LowerImpl(
-      name, stages, tensor_args, scalar_args, std::vector<Tensor>(ctrl_deps.begin(), ctrl_deps.end()));
+      name, stages, tensor_args, scalar_args, std::vector<Tensor>(ctrl_deps.begin(), ctrl_deps.end()), target);
 
-  auto res = lower_impl_instance();
-
-  auto temp_buffers = GetTempBuffers(tensor_args, stages, res->body);
-  if (b) {
-    for (auto& temp_buffer : temp_buffers) {
-      b->AddBuffer(temp_buffer);
-    }
-  }
-
-  {  // set function device_api
-    bool contains_gpu = false;
-    for (auto& t : tensor_args) {
-      if (contains_gpu = detail::TensorContainsGPUInfo(t, stages[t])) break;
-    }
-    if (!contains_gpu) {
-      for (auto& t : temp_tensors) {
-        if (contains_gpu = detail::TensorContainsGPUInfo(t, stages[t])) break;
+  auto result = lower_impl_instance();
+  std::vector<ir::LoweredFunc> return_value;
+  for (auto& res : result) {
+    auto temp_buffers = GetTempBuffers(tensor_args, stages, res->body);
+    if (b) {
+      for (auto& temp_buffer : temp_buffers) {
+        b->AddBuffer(temp_buffer);
       }
     }
 
-    if (contains_gpu) {
-      res->device_api = ir::DeviceAPI::GPU;
+    {  // set function device_api
+      bool contains_gpu = false;
+      for (auto& t : tensor_args) {
+        if (contains_gpu = detail::TensorContainsGPUInfo(t, stages[t])) break;
+      }
+      if (!contains_gpu) {
+        for (auto& t : temp_tensors) {
+          if (contains_gpu = detail::TensorContainsGPUInfo(t, stages[t])) break;
+        }
+      }
+
+      if (contains_gpu) {
+        res->device_api = ir::DeviceAPI::GPU;
+      }
     }
+
+    if (b) {
+      b->AddFunction(res);
+    }
+
+    res->temp_bufs = temp_buffers;
+
+    return_value.push_back(res);
   }
+  return return_value[0];
+}
 
-  if (b) {
-    b->AddFunction(res);
+std::vector<ir::LoweredFunc> LowerVec(const std::string& name,
+                                      StageMap stages,
+                                      const std::vector<Tensor>& tensor_args,
+                                      const std::vector<Var>& scalar_args,
+                                      const std::vector<Tensor>& temp_tensors,
+                                      Module::Builder* b,
+                                      const Target& target) {
+  // Init the reduce tensors first before any process.
+  for (auto& t : tensor_args) InitReduceTensor(stages, t, target);
+  for (auto& t : temp_tensors) InitReduceTensor(stages, t, target);
+
+  // Merge the ctrl_deps with the given temp_tensors ang get a new temp_tensors
+  auto ctrl_deps = CollectTempTensorsFromCtrlDepends(stages, tensor_args);
+  ctrl_deps.insert(temp_tensors.begin(), temp_tensors.end());
+
+  auto lower_impl_instance = detail::LowerImpl(
+      name, stages, tensor_args, scalar_args, std::vector<Tensor>(ctrl_deps.begin(), ctrl_deps.end()), target);
+  // return vectorof ir::LoweredFunc.
+  auto result = lower_impl_instance();
+  std::vector<ir::LoweredFunc> return_value;
+  for (auto& res : result) {
+    auto temp_buffers = GetTempBuffers(tensor_args, stages, res->body);
+    if (b) {
+      for (auto& temp_buffer : temp_buffers) {
+        b->AddBuffer(temp_buffer);
+      }
+    }
+
+    {  // set function device_api
+      bool contains_gpu = false;
+      for (auto& t : tensor_args) {
+        if (contains_gpu = detail::TensorContainsGPUInfo(t, stages[t])) break;
+      }
+      if (!contains_gpu) {
+        for (auto& t : temp_tensors) {
+          if (contains_gpu = detail::TensorContainsGPUInfo(t, stages[t])) break;
+        }
+      }
+
+      if (contains_gpu) {
+        res->device_api = ir::DeviceAPI::GPU;
+      }
+    }
+
+    if (b) {
+      b->AddFunction(res);
+    }
+
+    res->temp_bufs = temp_buffers;
+
+    return_value.push_back(res);
   }
-
-  res->temp_bufs = temp_buffers;
-
-  return res;
+  return return_value;
 }
 
 }  // namespace lang

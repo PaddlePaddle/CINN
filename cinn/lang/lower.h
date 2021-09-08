@@ -35,5 +35,24 @@ ir::LoweredFunc Lower(const std::string &name,
                       ir::Module::Builder *b                  = nullptr,
                       const Target &target                    = common::DefaultHostTarget());
 
+/**
+ * \brief Lower the computation of \p tensor_args and \p scalar_args to a vector of LoweredFuncs. Each schedule group
+ * forms a LoweredFunc.
+ * @param name The name of the function.
+ * @param tensor_args The tensor arguments, where the computation logic locates.
+ * @param scalar_args The scalar arguments, indicate some dimensions.
+ * @param temp_tensors The temporary tensors(buffers) used in the body.
+ * @param b The module this function belongs to.
+ * @return A vector of LoweredFuncs, whose name is \p name, name + "_1", name + "_2"... The argument list is deduced
+ * from the expression of each func.
+ */
+std::vector<ir::LoweredFunc> LowerVec(const std::string &name,
+                                      StageMap stages,
+                                      const std::vector<Tensor> &tensor_args,
+                                      const std::vector<Var> &scalar_args     = {},
+                                      const std::vector<Tensor> &temp_tensors = {},
+                                      ir::Module::Builder *b                  = nullptr,
+                                      const Target &target                    = common::DefaultHostTarget());
+
 }  // namespace lang
 }  // namespace cinn
