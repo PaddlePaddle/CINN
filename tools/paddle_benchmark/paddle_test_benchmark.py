@@ -29,11 +29,12 @@ def main():
         predictor.zero_copy_run()
 
     time1 = time.time()
-    for i in range(0, 500):
+    repeat = 10
+    for i in range(0, repeat):
         predictor.zero_copy_run()
     time2 = time.time()
     total_inference_cost = (time2 - time1) * 1000  # total time cost(ms)
-    print("Average latency : {} ms".format(total_inference_cost / 500))
+    print("Average latency : {} ms".format(total_inference_cost / repeat))
     output_names = predictor.get_output_names()
     output_tensor = predictor.get_output_tensor(output_names[0])
     output_data = output_tensor.copy_to_cpu()
@@ -66,8 +67,8 @@ def set_config(args):
     config.switch_ir_optim(False)
     #To test cpu backend, just uncomment the following 2 lines.
     # config.switch_ir_optim(True)
-    #config.disable_gpu()
-    #config.enable_mkldnn()
+    # config.disable_gpu()
+    # config.enable_mkldnn()
     return config
 
 

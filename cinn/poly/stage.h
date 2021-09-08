@@ -192,6 +192,8 @@ class Stage : public Object {
    * @param level
    */
   void Parallel(int level);
+  void Parallel(const std::string& axis);
+  void Parallel(const Iterator& axis);
 
   /**
    * Unroll a for-loop.

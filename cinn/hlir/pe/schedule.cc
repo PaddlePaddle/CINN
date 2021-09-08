@@ -65,6 +65,39 @@ int GetBetterSplitFactor(int shape, int split_factor) {
   return better_factor;
 }
 
+int GetVectorizeFactor(int shape, int split_factor) {
+  int better_factor = 1;
+  for (int i = split_factor; i > 1; i--) {
+    if (shape % i == 0) {
+      better_factor = i;
+      break;
+    }
+  }
+  return better_factor;
+}
+
+void ScheduleInjectiveCPU1(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
+  int dims             = stage->n_out_dims();
+  int factor           = GetBasicFactor(stage->tensor()->type(), target);
+  poly::Iterator fused = stage->axis(0);
+  if (dims >= 5) {
+    fused = stage->Fuse({0, 1, 2});
+  } else if (dims >= 3) {
+    fused = stage->Fuse({0, 1});
+  }
+  stage->Parallel(fused);
+  dims = stage->n_out_dims();
+  poly::Iterator lo;
+  poly::Iterator li;
+  int last_shape   = stage->GetDimRange(dims - 1);
+  factor           = GetVectorizeFactor(last_shape, factor);
+  std::tie(lo, li) = stage->Split(stage->axis(dims - 1), factor);
+  stage->Vectorize(li, factor);
+  if (dims == 1) {
+    stage->Parallel(0);
+  }
+}
+
 void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
   int dims = stage->n_out_dims();
   if (dims > 1) {
@@ -250,6 +283,25 @@ void MulScheduleCPU(poly::StageMap stages,
   }
 }
 
+void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir::Tensor &temp, int axis) {
+  if (axis == -1) {
+    axis += output->shape.size();
+  }
+  poly::Iterator fused = stage[output]->axis(0);
+  stage[output]->Parallel(fused);
+  for (int i = 1; i < axis; i++) {
+    fused = stage[output]->Fuse(0, 1);
+  }
+  CHECK_GT(stage[output]->n_out_dims(), 1);
+  stage[temp]->ComputeAt(stage[output], 0);
+}
+
+void PoolScheduleCPU(poly::StageMap stages, const ir::Tensor &output, const common::Target &target) {
+  CHECK_GE(stages[output]->n_out_dims(), 2);
+  stages[output]->Fuse({0, 1});
+  stages[output]->Parallel(0);
+}
+
 void PoolScheduleGPU(poly::StageMap stages, ir::Tensor &output, const common::Target &target) {
   CHECK_GE(stages[output]->axis_names().size(), 4);
   stages[output]->Fuse({0, 1, 2, 3});
@@ -275,6 +327,7 @@ void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
       LoadSerialData(&params);
     }
     if (params.count(key)) {
+      VLOG(3) << "find saved param, key is: " << key;
       CHECK(!params[key]["oc_bn"].empty());
       CHECK(!params[key]["ic_bn"].empty());
       CHECK(!params[key]["ow_bn"].empty());

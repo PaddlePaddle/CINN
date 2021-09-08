@@ -194,6 +194,8 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   void InitTarget(const Target &target);
 
+  void Scalarize(const Expr &e, std::function<void(int i, llvm::Value *v)> flambda);
+
   llvm::Module *m_;
   llvm::IRBuilder<> *b_;
   // Current function
