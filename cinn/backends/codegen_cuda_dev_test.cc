@@ -420,7 +420,6 @@ TEST(CodeGenCUDA2, test_elementsize_mul) {
   Placeholder<float> B("Y", {N, C, H, H});
 
   auto output = hlir::pe::Multiply(A, B, UniqName("Multiply_output"));
-  LOG(INFO) << "get func";
 
   auto stages = CreateStages({output});
 
@@ -503,8 +502,6 @@ TEST(CodeGenCUDA2, test_schedule_slice) {
   Expr N(1);
   Expr C(3);
   Expr H(224);
-  Expr W(64);
-  Expr K(3);
 
   Target target = common::DefaultNVGPUTarget();
 
@@ -546,16 +543,13 @@ TEST(CodeGenCUDA2, test_schedule_slice) {
 
   CUDA_CALL(cudaDeviceSynchronize());
 
-  CUdeviceptr Ad, Bd, Cd;
+  CUdeviceptr Ad, Cd;
   cuMemAlloc(&Ad, 1 * 3 * 224 * 224 * sizeof(float));
-  cuMemAlloc(&Bd, 64 * 3 * 7 * 7 * sizeof(float));
   cuMemAlloc(&Cd, 1 * 1 * 112 * 112 * sizeof(float));
 
   std::vector<float> host_data1(1 * 3 * 224 * 224, 0);
-  std::vector<float> host_data2(64 * 3 * 7 * 7, 0);
   std::vector<float> host_data3(1 * 1 * 112 * 112, 0);
   for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
-  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
 
   std::vector<float> host_data4(1 * 1 * 112 * 112, 0);
   for (int n = 0; n < 1; n++) {
@@ -570,11 +564,8 @@ TEST(CodeGenCUDA2, test_schedule_slice) {
 
   CUDA_CALL(cudaMemcpy(
       reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(
-      reinterpret_cast<void*>(Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
 
   // launch the kernel
-
   void* args[] = {&Ad, &Cd};
 
   dim3 grid(147, 1, 1);
@@ -607,8 +598,6 @@ TEST(CodeGenCUDA2, test_schedule_sigmod) {
   Expr N(1);
   Expr C(3);
   Expr H(224);
-  Expr W(64);
-  Expr K(3);
 
   Target target = common::DefaultNVGPUTarget();
 
@@ -619,8 +608,6 @@ TEST(CodeGenCUDA2, test_schedule_sigmod) {
   auto output = res[0];
 
   auto stages = CreateStages(res);
-
-  // auto stage = stages[res];
 
   hlir::pe::CudaScheduleInjective(stages[output], {1, 3, 224, 224}, target);
 
@@ -646,16 +633,13 @@ TEST(CodeGenCUDA2, test_schedule_sigmod) {
 
   CUDA_CALL(cudaDeviceSynchronize());
 
-  CUdeviceptr Ad, Bd, Cd;
+  CUdeviceptr Ad, Cd;
   cuMemAlloc(&Ad, 1 * 3 * 224 * 224 * sizeof(float));
-  cuMemAlloc(&Bd, 64 * 3 * 7 * 7 * sizeof(float));
   cuMemAlloc(&Cd, 1 * 3 * 224 * 224 * sizeof(float));
 
   std::vector<float> host_data1(1 * 3 * 224 * 224, 0);
-  std::vector<float> host_data2(64 * 3 * 7 * 7, 0);
   std::vector<float> host_data3(1 * 3 * 224 * 224, 0);
   for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
-  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
 
   std::vector<float> host_data4(1 * 3 * 224 * 224, 0);
   for (int i = 0; i < host_data1.size(); i++) {
@@ -664,11 +648,8 @@ TEST(CodeGenCUDA2, test_schedule_sigmod) {
 
   CUDA_CALL(cudaMemcpy(
       reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(
-      reinterpret_cast<void*>(Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
 
   // launch the kernel
-
   void* args[] = {&Ad, &Cd};
 
   dim3 grid(147, 1, 1);
@@ -701,8 +682,6 @@ TEST(CodeGenCUDA2, test_schedule_relu6) {
   Expr N(1);
   Expr C(3);
   Expr H(224);
-  Expr W(64);
-  Expr K(3);
 
   Target target = common::DefaultNVGPUTarget();
 
@@ -713,36 +692,9 @@ TEST(CodeGenCUDA2, test_schedule_relu6) {
   auto stages = CreateStages({res});
 
   auto stage = stages[res];
-  // hlir::pe::CudaScheduleInjective(stages[res], {1,3,224,224}, target);
-  std::vector<int> output_shape = {1, 3, 224, 224};
-  int dims                      = stage->n_out_dims();
-  LOG(INFO) << "dims:" << dims;
-  for (int i = 1; i < dims; i++) {
-    stage->Fuse(0, 1);
-  }
-  int num_thread = target.max_num_threads();
-  LOG(INFO) << "num_thread: " << num_thread;
-  int num_block         = 256;
-  int vector_width      = 1;
-  int prod_size         = 1 * 3 * 224 * 224;
-  bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
-  LOG(INFO) << "need_block_split: " << need_block_split;
-  LOG(INFO) << "nums: " << prod_size << "  " << num_thread;
-  if (need_block_split) {
-    auto[X_outer, X_inner]  = stage->Split(0, num_thread * num_block);
-    auto[Block_x, Thread_x] = stage->Split(X_inner, num_thread);
-    stage->Reorder({Block_x, Thread_x, X_outer});
-    stage->Bind(0, "blockIdx.x");
-    stage->Bind(1, "threadIdx.x");
-  } else {
-    if (prod_size > num_thread) {
-      stage->Split(0, num_thread);
-      stage->Bind(0, "blockIdx.x");
-      stage->Bind(1, "threadIdx.x");
-    } else {
-      stage->Bind(0, "threadIdx.x");
-    }
-  }
+
+  hlir::pe::CudaScheduleInjective(stages[res], {1, 3, 224, 224}, target);
+
   CodeGenCUDA_Dev codegen(target);
 
   auto func = Lower("schedule_relu6", stages, {A, res}, {}, {}, nullptr, target);
@@ -767,14 +719,11 @@ TEST(CodeGenCUDA2, test_schedule_relu6) {
 
   CUdeviceptr Ad, Bd, Cd;
   cuMemAlloc(&Ad, 1 * 3 * 224 * 224 * sizeof(float));
-  cuMemAlloc(&Bd, 64 * 3 * 7 * 7 * sizeof(float));
   cuMemAlloc(&Cd, 1 * 3 * 224 * 224 * sizeof(float));
 
   std::vector<float> host_data1(1 * 3 * 224 * 224, 0);
-  std::vector<float> host_data2(64 * 3 * 7 * 7, 0);
   std::vector<float> host_data3(1 * 3 * 224 * 224, 0);
   for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
-  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
 
   std::vector<float> host_data4(1 * 3 * 224 * 224, 0);
   for (int i = 0; i < host_data1.size(); i++) {
@@ -785,11 +734,8 @@ TEST(CodeGenCUDA2, test_schedule_relu6) {
 
   CUDA_CALL(cudaMemcpy(
       reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(
-      reinterpret_cast<void*>(Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
 
   // launch the kernel
-
   void* args[] = {&Ad, &Cd};
 
   dim3 grid(147, 1, 1);
