@@ -783,16 +783,14 @@ TEST(CodeGenCUDA2, test_schedule_depthwise_conv2d) {
 
   Placeholder<float> A("X", {N, C, H, H});
   Placeholder<float> B("Y", {O, WISE, K, K});
-  LOG(INFO) << "test depthsize 1";
+
   auto res = hlir::pe::Depthwise_Conv2d_NCHW(A, B, 1, 1, 1, 1, "DepthwiseConv2d_out");
 
-  LOG(INFO) << "test depthsize 2";
   auto stages        = CreateStages(res);
   auto pad_data      = res[1];
   auto output        = res[0];
   auto weight_tensor = B.tensor();
 
-  LOG(INFO) << "test depthsize 3";
   // s[pad_data].compute_inline()
   stages[pad_data]->ComputeInline();
 
@@ -921,17 +919,17 @@ TEST(CodeGenCUDA2, test_schedule_depthwise_conv2d) {
   CUDA_CALL(cudaDeviceSynchronize());
 
   CUdeviceptr Ad, Bd, Cd;
-  cuMemAlloc(&Ad, 1 * 3 * 224 * 224 * sizeof(float));
-  cuMemAlloc(&Bd, 63 * 1 * 3 * 3 * sizeof(float));
-  cuMemAlloc(&Cd, 1 * 63 * 224 * 224 * sizeof(float));
+  cuMemAlloc(&Ad, 1 * 64 * 224 * 224 * sizeof(float));
+  cuMemAlloc(&Bd, 64 * 1 * 3 * 3 * sizeof(float));
+  cuMemAlloc(&Cd, 1 * 64 * 224 * 224 * sizeof(float));
 
-  std::vector<float> host_data1(1 * 3 * 224 * 224, 0);
-  std::vector<float> host_data2(63 * 1 * 3 * 3, 0);
-  std::vector<float> host_data3(1 * 63 * 224 * 224, 0);
+  std::vector<float> host_data1(1 * 64 * 224 * 224, 0);
+  std::vector<float> host_data2(64 * 1 * 3 * 3, 0);
+  std::vector<float> host_data3(1 * 64 * 224 * 224, 0);
   for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
   for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
 
-  std::vector<float> host_data4(1 * 63 * 224 * 224, 0);
+  std::vector<float> host_data4(1 * 64 * 224 * 224, 0);
   for (int i = 0; i < host_data1.size(); i++) {
     if (host_data1[i] >= 0 && host_data1[i] <= 6) {
       host_data4[i] = host_data1[i];
