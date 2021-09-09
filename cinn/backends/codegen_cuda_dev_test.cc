@@ -797,17 +797,19 @@ TEST(CodeGenCUDA2, test_schedule_depthwise_conv2d) {
 
   // output = conv
   // OL = s.cache_write(conv, "local")
+
   // AA = s.cache_read(pad_data, "shared", [OL])
   // WW = s.cache_read(kernel, "shared", [OL])
-  // std::vector<ir::Tensor> readers{output};
-  // auto PR = stages[pad_data]->CacheRead("shared", readers, stages);
-  // auto KR = stages[B_t]->CacheRead("shared", readers, stages);
+  // AL = s.cache_read(AA, "local", [OL])
+  // WL = s.cache_read(WW, "local", [OL])
+  std::vector<ir::Tensor> readers{output};
+  auto AA = stages[pad_data]->CacheRead("shared", readers, stages);
+  auto WW = stages[B_t]->CacheRead("shared", readers, stages);
+  // auto AL = stages[AA]->CacheRead("local", readers, stages);
+  // auto WL = stages[WW]->CacheRead("local", readers, stages);
   auto OL = stages[output]->CacheWrite("local", stages, output);
+
   // n, f, y, x = s[output].op.axis
-  // kernel_scope, n = s[output].split(n, nparts=1)
-  // g, f = s[output].split(f, nparts=groups)
-  // bn, vn, tn, ni = cfg["tile_n"].apply(s, output, n)
-  // bg, vg = cfg["tile_g"].apply(s, output, g)
   // bf, vf, tf, fi = cfg["tile_f"].apply(s, output, f)
   // by, vy, ty, yi = cfg["tile_y"].apply(s, output, y)
   // bx, vx, tx, xi = cfg["tile_x"].apply(s, output, x)
@@ -822,93 +824,56 @@ TEST(CodeGenCUDA2, test_schedule_depthwise_conv2d) {
   stages[output]->Split(2, 1);
   stages[output]->Split(2, 1);
 
-  // g, f = s[output].split(f, nparts=groups)
-  int group_int = (pad_data->shape[1].as_int32() / B_t->shape[1].as_int32());
-  LOG(INFO) << "group_int: " << group_int;
-  stages[output]->Split(1, group_int);
-
-  // f param is :  [1, 1, 1, 1]
-  stages[output]->Split(2, 1);
-  stages[output]->Split(2, 1);
-  stages[output]->Split(2, 1);
-
-  // bg, vg = cfg["tile_g"].apply(s, output, g)
+  // f param is :  [-1, 1, 1, 1]
+  stages[output]->Split(1, 1);
+  stages[output]->Split(1, 1);
   stages[output]->Split(1, 1);
 
-  // bn, vn, tn, ni = cfg["tile_n"].apply(s, output, n)
-  // n param is :  [-1, 1, 1, 1]
-  stages[output]->Split(0, 1);
-  stages[output]->Split(0, 1);
-  stages[output]->Split(0, 1);
-
-  // s[output].reorder(bn, bg, bf, by, bx, vn, vg, vf, vy, vx, tn, tf, ty, tx, ni, fi, yi, xi)
-  stages[output]->Reorder({0, 4, 6, 10, 14, 1, 4, 7, 11, 15, 2, 8, 12, 16, 3, 9, 13, 17});
-  LOG(INFO) << "output dims: " << stages[output]->n_out_dims();
-  // s[output].bind(bn, te.thread_axis("blockIdx.z"))
-  // s[output].bind(s[output].fuse(bg, bf), te.thread_axis("blockIdx.y"))
-  // s[output].bind(s[output].fuse(by, bx), te.thread_axis("blockIdx.x"))
-  // s[output].bind(vn, te.thread_axis("vthread"))
-  // s[output].bind(vg, te.thread_axis("vthread"))
+  // kernel_scope, n = s[output].split(n, nparts=1)
+  // bf = s[output].fuse(n, bf)
+  stages[output]->Fuse({0, 1});
+  // s[output].bind(bf, te.thread_axis("blockIdx.z"))
+  // s[output].bind(by, te.thread_axis("blockIdx.y"))
+  // s[output].bind(bx, te.thread_axis("blockIdx.x"))
   // s[output].bind(vf, te.thread_axis("vthread"))
   // s[output].bind(vy, te.thread_axis("vthread"))
   // s[output].bind(vx, te.thread_axis("vthread"))
-  stages[output]->Fuse({3, 4});
-  LOG(INFO) << "output dims: " << stages[output]->n_out_dims();
-  // stages[output]->Fuse({1,2});
-  // LOG(INFO)<<"output dims: "<<stages[output]->n_out_dims();
-  // stages[output]->Bind(0, "blockIdx.z");
-  // stages[output]->Bind(1, "blockIdx.y");
-  // stages[output]->Bind(2, "blockIdx.x");
-  // LOG(INFO)<<"output dims: "<<stages[output]->n_out_dims();
+  // s[output].bind(tf, te.thread_axis("threadIdx.z"))
+  // s[output].bind(ty, te.thread_axis("threadIdx.y"))
+  // s[output].bind(tx, te.thread_axis("threadIdx.x"))
+  // s[output].reorder(bf, by, bx, vf, vy, vx, tf, ty, tx, fi, yi, xi)
+  stages[output]->Reorder({0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11});
+  stages[output]->Bind(0, "blockIdx.z");
+  stages[output]->Bind(1, "blockIdx.y");
+  stages[output]->Bind(2, "blockIdx.x");
+  stages[output]->Bind(6, "threadIdx.z");
+  stages[output]->Bind(7, "threadIdx.y");
+  stages[output]->Bind(8, "threadIdx.x");
 
-  // // s[output].bind(s[output].fuse(tn, tf), te.thread_axis("threadIdx.z"))
-  // // s[output].bind(ty, te.thread_axis("threadIdx.y"))
-  // // s[output].bind(tx, te.thread_axis("threadIdx.x"))
-  // // s[OL].compute_at(s[output], tx)
-  // stages[output]->Fuse({8,9});
-  // stages[output]->Bind(8, "threadIdx.z");
-  // stages[output]->Bind(9, "threadIdx.y");
-  // stages[output]->Bind(10, "threadIdx.x");
-  // LOG(INFO)<<"output dims: "<<stages[output]->n_out_dims();
-  // stages[OL]->ComputeAt(stages[output], 10);
-  // LOG(INFO)<<"OL dims: "<<stages[OL]->n_out_dims();
-  // stages[OL]->ShowISL();
+  // s[OL].compute_at(s[output], tx)
+  stages[OL]->ComputeAt(stages[output], 8);
+  LOG(INFO) << "OL compute";
+  // s[AA].compute_at(s[output], bx)
+  // s[WW].compute_at(s[output], bx)
+  // s[AL].compute_at(s[output], tx)
+  // s[WL].compute_at(s[output], tx)
+  stages[AA]->ComputeAt(stages[OL], 8);
+  LOG(INFO) << "AA compute";
+  stages[WW]->ComputeAt(stages[OL], 8);
+  LOG(INFO) << "WW compute";
+  // stages[AL]->ComputeAt(stages[OL], 8);
+  // LOG(INFO)<<"get here!";
+  // stages[WL]->ComputeAt(stages[OL], 8);
+  // LOG(INFO)<<"get here!";
 
-  // n, f, y, x = s[OL].op.axis
-  // rc, ry, rx = s[OL].op.reduce_axis
-  // rco, rci = cfg["tile_rc"].apply(s, OL, rc)
-  // ryo, ryi = cfg["tile_rx"].apply(s, OL, ry)
-  // rxo, rxi = cfg["tile_ry"].apply(s, OL, rx)
-  // s[OL].reorder(rco, ryo, rxo, rci, ryi, rxi, n, f, y, x)
-  // rx param is :  [1, 7]
-  // stages[OL]->Split(14, 1);
-  // // // // ry param is :  [7, 1]
-  // stages[OL]->Split(13, 1);
-  // // // // rc param is :  [3, 1]
-  // stages[OL]->Split(12, 1);
-  // // stages[OL]->Reorder({12, 14, 16, 13, 15, 17, 11});
-  // LOG(INFO)<<"OL dims: "<<stages[OL]->n_out_dims();
-
-  // // s[AA].compute_at(s[OL], rxo)
-  // // s[WW].compute_at(s[OL], rxo)
-  // // auto OL_init = OL->GetInitTensor(stages, target);
-  // stages[KR]->ComputeAt(stages[OL], 13);
-  // stages[PR]->ComputeAt(stages[OL], 13);
-  // // stages[AA]->SyncThreads(13, {OL_init}, stages);
-  // // stages[WW]->CtrlDepend(AA);
-  // // stages[WW]->SyncThreads(stages);
-  // LOG(INFO)<<"KR dims: "<<stages[KR]->n_out_dims();
-
-  // # cooperative fetching
   // for load in [AA, WW]:
-  //     n, f, y, x = s[load].op.axis
-  //     fused = s[load].fuse(n, f, y, x)
-  //     fused, tx = s[load].split(fused, factor=n_tx)
-  //     fused, ty = s[load].split(fused, factor=n_ty)
-  //     fused, tz = s[load].split(fused, factor=n_tz)
-  //     s[load].bind(tz, te.thread_axis("threadIdx.z"))
-  //     s[load].bind(ty, te.thread_axis("threadIdx.y"))
-  //     s[load].bind(tx, te.thread_axis("threadIdx.x"))
+  // fused = s[load].fuse(*list(s[load].op.axis))
+  // fused, tx = s[load].split(fused, cfg["tile_x"].size[2])
+  // fused, ty = s[load].split(fused, cfg["tile_y"].size[2])
+  // fused, tz = s[load].split(fused, cfg["tile_f"].size[2])
+  // s[load].bind(tz, te.thread_axis("threadIdx.z"))
+  // s[load].bind(ty, te.thread_axis("threadIdx.y"))
+  // s[load].bind(tx, te.thread_axis("threadIdx.x"))
   // stages[PR]->Fuse({14, 15, 16, 17});
   // stages[KR]->Fuse({14, 15, 16, 17});
   // int thread_z = 5;
@@ -982,7 +947,7 @@ TEST(CodeGenCUDA2, test_schedule_depthwise_conv2d) {
   utils::Timer time1;
   time1.Start();
   for (int i = 0; i < repeat; i++) {
-    cuda_module.LaunchKernel(0, "schedule_1", grid, block, args);
+    cuda_module.LaunchKernel(0, "schedule_depthwise_conv2d", grid, block, args);
     CUDA_CALL(cudaDeviceSynchronize());
   }
   auto time_average1 = time1.Stop() / static_cast<float>(repeat);
