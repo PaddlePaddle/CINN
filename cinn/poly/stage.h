@@ -220,6 +220,8 @@ class Stage : public Object {
   //! Get the tensors control depend on.
   const std::set<ir::Tensor>& ctrl_depends() const;
 
+  void SetBuffer(const std::string &memory_type);
+
   /**
    * Create a cache Tensor and load the \p source into this buffer, replace all the reading in the readers with the
    * cache.

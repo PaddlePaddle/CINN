@@ -91,7 +91,7 @@ void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_sha
         stage->Vectorize(fused, split_factor);
       }
     } else {
-      auto [j_outer, j_inner] = stage->Split(fused, split_factor);
+      auto[j_outer, j_inner] = stage->Split(fused, split_factor);
       stage->Vectorize(j_inner, split_factor);
     }
   }
@@ -210,7 +210,7 @@ void MatmulScheduleCPU(poly::StageMap stages,
   stages[output]->Reorder(all_axes);
   // vectorize output's last dimemsion
   auto out_domain = stages[output]->transformed_domain();
-  auto [min, max] = poly::isl_set_get_axis_range(out_domain.get(), out_axis_dims - 1);
+  auto[min, max] = poly::isl_set_get_axis_range(out_domain.get(), out_axis_dims - 1);
   CHECK_EQ(min.get_num_si(), 0) << "axis range should begin from zero";
   int out_last_dim        = max.get_num_si() + 1;
   int output_split_factor = GetBetterSplitFactor(out_last_dim, basic_split_factor);
@@ -1315,10 +1315,10 @@ void CudaScheduleConv(poly::StageMap stages,
 
   auto OL = stages[output]->CacheWrite("local", stages, output);
 
-  auto tx        = stages[output]->axis(3);
-  auto by        = stages[output]->axis(2);
-  auto [tem, fi] = stages[output]->Split(1, f_inner);
-  auto [bz, tz]  = stages[output]->Split(1, thread_z);
+  auto tx = stages[output]->axis(3);
+  auto by = stages[output]->axis(2);
+  auto[tem, fi] = stages[output]->Split(1, f_inner);
+  auto[bz, tz]  = stages[output]->Split(1, thread_z);
   stages[output]->Reorder({bz, by, tz, tx, fi});
   stages[output]->Bind(1, "blockIdx.z");
   stages[output]->Bind(2, "blockIdx.y");
@@ -1439,6 +1439,89 @@ void CudaScheduleConv2(poly::StageMap stages,
   }
 }
 
+void CudaScheduleWinogradConv(poly::StageMap wino_stages,
+                              ir::Tensor &wino_weights_dilation,
+                              ir::Tensor &wino_input_pad,
+                              ir::Tensor &wino_A,
+                              ir::Tensor &wino_B,
+                              ir::Tensor &wino_G,
+                              ir::Tensor &kernel_pack,
+                              ir::Tensor &input_tile,
+                              ir::Tensor &data_pack,
+                              ir::Tensor &bgemm,
+                              ir::Tensor &inverse,
+                              ir::Tensor &wino_conv,
+                              const common::Target &target) {
+  wino_stages[wino_B]->ComputeInline();
+
+  auto data_l = wino_stages[data_pack]->CacheWrite("local", wino_stages, data_pack);
+  wino_stages[data_l]->Unroll(0);
+  wino_stages[data_l]->Unroll(1);
+  wino_stages[data_l]->Unroll(4);
+  wino_stages[data_l]->Unroll(5);
+
+  wino_stages[data_pack]->Fuse({2, 3});
+  wino_stages[data_pack]->Split(2, 128);
+  wino_stages[data_pack]->Reorder({2, 3, 0, 1});
+  // wino_stages[data_pack]->Bind(0, "blockIdx.x");
+  wino_stages[data_pack]->Bind(1, "threadIdx.x");
+
+  wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 1);
+  wino_stages[input_tile]->ComputeAt(wino_stages[data_l], 1);
+  wino_stages[wino_input_pad]->ComputeInline();
+
+  wino_stages[wino_G]->ComputeInline();
+  wino_stages[kernel_pack]->Reorder({2, 3, 0, 1, 4, 5});
+  wino_stages[kernel_pack]->Fuse({0, 1});
+  wino_stages[kernel_pack]->Split(0, 128);
+  wino_stages[kernel_pack]->Unroll(5);
+  wino_stages[kernel_pack]->Unroll(4);
+  wino_stages[kernel_pack]->Unroll(3);
+  wino_stages[kernel_pack]->Unroll(2);
+  // wino_stages[kernel_pack]->Bind(0, "blockIdx.x");
+  wino_stages[kernel_pack]->Bind(1, "threadIdx.x");
+
+  wino_stages[wino_weights_dilation]->ComputeInline();
+
+  auto wino_OL = wino_stages[bgemm]->CacheWrite("local", wino_stages, bgemm);
+
+  wino_stages[bgemm]->Fuse({0, 1});
+
+  // x param is :  [1, 2, 98, 1]
+  wino_stages[bgemm]->Split(2, 1);
+  wino_stages[bgemm]->Split(2, 98);
+  wino_stages[bgemm]->Split(2, 2);
+  // y param is :  [2, 2, 2, 8]
+  wino_stages[bgemm]->Split(1, 8);
+  wino_stages[bgemm]->Split(1, 2);
+  wino_stages[bgemm]->Split(1, 2);
+  // b param is :  [36, 1, 1, 1]
+  wino_stages[bgemm]->Split(0, 1);
+  wino_stages[bgemm]->Split(0, 1);
+  wino_stages[bgemm]->Split(0, 1);
+
+  wino_stages[bgemm]->Reorder({0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11});
+
+  wino_stages[bgemm]->Bind(8, "threadIdx.x");
+
+  wino_stages[wino_OL]->ComputeAt(wino_stages[bgemm], 8);
+
+  wino_stages[wino_OL]->Fuse({9, 10});
+  // rc param is :  [8, 8]
+  wino_stages[wino_OL]->Split(10, 8);
+  wino_stages[wino_OL]->Reorder({10, 11, 9});
+
+  int m = 4;
+  wino_stages[wino_conv]->Tile(2, 3, m, m);
+  wino_stages[wino_conv]->Fuse({0, 1, 2, 3});
+  wino_stages[wino_conv]->Split(0, 128);
+  wino_stages[wino_conv]->Bind(1, "threadIdx.x");
+
+  wino_stages[wino_A]->ComputeInline();
+
+  wino_stages[inverse]->Bind(1, "threadIdx.x");
+}
+
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
   CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
   int dims = stage->n_out_dims();
@@ -1451,8 +1534,8 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   int prod_size         = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
   bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
   if (need_block_split) {
-    auto [X_outer, X_inner]  = stage->Split(0, num_thread * num_block);
-    auto [Block_x, Thread_x] = stage->Split(X_inner, num_thread);
+    auto[X_outer, X_inner]  = stage->Split(0, num_thread * num_block);
+    auto[Block_x, Thread_x] = stage->Split(X_inner, num_thread);
     stage->Reorder({Block_x, Thread_x, X_outer});
     stage->Bind(0, "blockIdx.x");
     stage->Bind(1, "threadIdx.x");

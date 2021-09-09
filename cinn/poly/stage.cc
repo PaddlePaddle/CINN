@@ -1090,6 +1090,27 @@ void CacheReadWriteReplace(std::vector<ir::Tensor> &readers, ir::Tensor cache_te
   }
 }
 
+
+void Stage::SetBuffer(const std::string &memory_type) {
+  tensor_->WithBuffer(memory_type,"_" + this->tensor_->name + "_temp_buffer");
+  if (memory_type == "shared") {
+    this->SetScope(ScopeKind::kShared);
+  } else if (memory_type == "local") {
+    this->SetScope(ScopeKind::kLocal);
+  } else if (memory_type == "global") {
+    this->SetScope(ScopeKind::kGlobal);
+  } else {
+    CINN_NOT_IMPLEMENTED
+  }
+  if (tensor_->buffer.defined()) {
+    LOG(INFO) << "Has tensor_->buffer";
+    LOG(INFO) << tensor_->buffer->name;
+  }
+  else {
+    LOG(INFO) << "No tensor_->buffer";
+  }
+}
+
 /*
  * To create a read cache:
  * 1. create a cache write stage for cache assign.

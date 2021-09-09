@@ -195,6 +195,11 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       auto res            = copy1 - copy2;
       tensor_shape[index] = tensor_shape[index] - res;
       Simplify(&tensor_shape[index]);
+      LOG(INFO) << "tensor_shape[index] - res is : " << tensor_shape[index];
+      if (!tensor_shape[index].is_constant()) {
+        resized_buffer_.insert(buffer_id);
+        return;
+      }
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
 
       resized_buffer_.insert(buffer_id);
@@ -241,8 +246,8 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         auto& temp = node->indices[i];
         // When eliminating axis 'j_inner' in index '10 * j_outer + j_inner' (j_inner's extent is 10)
         // Divide '10 * j_outer' by 10, and get new index 'j_outer + j_inner'
-        if (extent_.defined() && temp.As<ir::Add>() && temp.As<ir::Add>()->a().As<ir::Mul>() &&
-            temp.As<ir::Add>()->b().as_var() && temp.As<ir::Add>()->b().as_var()->name == var_->name) {
+        if (extent_.defined() && temp.As<ir::Add>() && temp.As<ir::Add>()->a().As<ir::Mul>() && (temp.As<ir::Add>()->a().As<ir::Mul>()->a() == extent_ || temp.As<ir::Add>()->a().As<ir::Mul>()->b() == extent_)
+           && temp.As<ir::Add>()->b().as_var() && temp.As<ir::Add>()->b().as_var()->name == var_->name) {
           temp.As<ir::Add>()->a() = ir::Div::Make(temp.As<ir::Add>()->a(), extent_);
         }
         Simplify(&temp);
@@ -278,8 +283,8 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
         auto& temp = node->indices[i];
         // When eliminating axis 'j_inner' in index '10 * j_outer + j_inner' (j_inner's extent is 10)
         // Divide '10 * j_outer' by 10, and get new index 'j_outer + j_inner'
-        if (extent_.defined() && temp.As<ir::Add>() && temp.As<ir::Add>()->a().As<ir::Mul>() &&
-            temp.As<ir::Add>()->b().as_var() && temp.As<ir::Add>()->b().as_var()->name == var_->name) {
+        if (extent_.defined() && temp.As<ir::Add>() && temp.As<ir::Add>()->a().As<ir::Mul>() && (temp.As<ir::Add>()->a().As<ir::Mul>()->a() == extent_ || temp.As<ir::Add>()->a().As<ir::Mul>()->b() == extent_)
+           && temp.As<ir::Add>()->b().as_var() && temp.As<ir::Add>()->b().as_var()->name == var_->name) {
           temp.As<ir::Add>()->a() = ir::Div::Make(temp.As<ir::Add>()->a(), extent_);
         }
         Simplify(&temp);

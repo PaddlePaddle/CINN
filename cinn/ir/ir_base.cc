@@ -5,6 +5,7 @@
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_visitor.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
 
@@ -53,6 +54,7 @@ Expr Zero(const Type &type) {
 Expr::Expr(const Var &var) { *static_cast<IrNodeRef *>(this) = *static_cast<const IrNodeRef *>(&var); }
 
 int32_t Expr::as_int32() const {
+  VLOG(3) << "In as_int32(), expr is : " << *this;
   CHECK(type().is_int(32));
   return As<IntImm>()->value;
 }
