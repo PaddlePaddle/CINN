@@ -384,25 +384,21 @@ std::vector<Tensor> Depthwise_Conv2d_NCHW(const Tensor &input,
 
   output_shape = {
       input->shape[0],                                                  // B
-      weight->shape[0],                                                 // O
+      weight->shape[1] * input->shape[1],                               // O
       (input->shape[2] - weight->shape[2] + 2 * pad_h) / stride_h + 1,  // H
       (input->shape[3] - weight->shape[3] + 2 * pad_w) / stride_w + 1   // W
   };
   auto input_pad =
       (pad_h == 0 && pad_w == 0) ? Identity(input).front() : Pad(input, {Expr(0), Expr(0), Expr(pad_h), Expr(pad_w)});
 
-  Expr group_expr = input->shape[1] / weight->shape[1];
-  Expr out_m      = weight->shape[0] / group_expr;
-  Var kernel_in   = Var(weight->shape[1], "kin");
-  Var kernel_h    = Var(weight->shape[2], "kh");
-  Var kernel_w    = Var(weight->shape[3], "kw");
+  Var kernel_h = Var(weight->shape[2], "kh");
+  Var kernel_w = Var(weight->shape[3], "kw");
   auto res =
       Compute(output_shape,
               [=](Expr nn, Expr ff, Expr yy, Expr xx) {
-                return lang::ReduceSum(
-                    input_pad(nn, ff / out_m * c_m + kernel_in, yy * stride_h + kernel_h, xx * stride_w + kernel_w) *
-                        weight(ff, kernel_in, kernel_h, kernel_w),
-                    {kernel_in, kernel_h, kernel_w});
+                return lang::ReduceSum(input_pad(nn, ff / c_m, yy * stride_h + kernel_h, xx * stride_w + kernel_w) *
+                                           weight(ff / c_m, ff % c_m, kernel_h, kernel_w),
+                                       {kernel_h, kernel_w});
               },
               output_name);
   return {res, input_pad};
