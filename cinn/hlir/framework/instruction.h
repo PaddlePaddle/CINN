@@ -37,21 +37,25 @@ class Instruction {
               const std::vector<std::string>& in_args,
               const std::vector<std::string>& out_args,
               const std::string& function_name = "")
-      : target_(target), scope_(scope), in_args_(in_args), out_args_(out_args), function_name_(function_name) {}
+      : target_(target), scope_(scope), in_args_({in_args}), out_args_({out_args}), function_name_(function_name) {}
 
   /**
    * Set compiled function address.
    * @param fn The JIT compiled function address.
    */
-  void SetLoweredFunc(lower_func_ptr_t fn) { fn_ = fn; }
+  void SetLoweredFunc(lower_func_ptr_t fn) { fn_.push_back(fn); }
 
   /**
    * Run the Instruction.
    */
   void Run() {
-    CHECK(fn_) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
-    auto& pod_args = PreparePodArgs();
+    if (fn_.size() > 1 && fn_.size() != in_args_.size()) {
+      out_args_.back()[0] = out_args_.front()[0];
+      out_args_.erase(out_args_.begin());
+      in_args_.erase(in_args_.begin());
+    }
 #ifdef CINN_WITH_CUDNN
+    auto& pod_args = PreparePodArgs(0);
     // Here conv2d and depthwise_conv2d are implemented by one cudnn api cudnnConvolutionForward
     if ((function_name_ == "conv2d" || function_name_ == "depthwise_conv2d") && target_.arch == Target::Arch::NVGPU) {
       runtime::cuda::cinn_gpu_cudnn_conv2d(attrs, pod_args[0], pod_args[1], pod_args[2]);
@@ -64,31 +68,45 @@ class Instruction {
       CHECK_EQ(pod_args.size(), 4);
       runtime::cuda::cinn_gpu_cublas_mul(attrs, pod_args[0], pod_args[1], pod_args[2]);
     } else {
-      fn_(pod_args.data(), pod_args.size());
+      int i = 0;
+      for (auto& it_fn : fn_) {
+        auto& pod_args = PreparePodArgs(i);
+        CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
+        it_fn(pod_args.data(), pod_args.size());
+        i++;
+      }
     }
 #else
-    fn_(pod_args.data(), pod_args.size());
+    int i = 0;
+    for (auto& it_fn : fn_) {
+      auto& pod_args = PreparePodArgs(i);
+      CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
+      it_fn(pod_args.data(), pod_args.size());
+      i++;
+    }
 #endif
   }
-  std::vector<std::string> GetInArgs() { return in_args_; }
-  std::vector<std::string> GetOutArgs() { return out_args_; }
+  std::vector<std::vector<std::string>> GetInArgs() { return in_args_; }
+  std::vector<std::vector<std::string>> GetOutArgs() { return out_args_; }
+  void AddInArgs(const std::vector<std::string>& in_args) { in_args_.push_back(in_args); }
+  void AddOutArgs(const std::vector<std::string>& out_args) { out_args_.push_back(out_args); }
   std::vector<int> attrs;
   std::vector<std::string> str_attrs;
   bool pre_run = false;
   Target target_;
 
  protected:
-  std::vector<cinn_pod_value_t>& PreparePodArgs();
+  std::vector<cinn_pod_value_t>& PreparePodArgs(int i);
 
  private:
   Scope* scope_{};
   std::string function_name_;
-  std::vector<std::string> in_args_;
-  std::vector<std::string> out_args_;
+  std::vector<std::vector<std::string>> in_args_;
+  std::vector<std::vector<std::string>> out_args_;
 
-  std::vector<cinn_pod_value_t> args_cached_;
+  std::vector<std::vector<cinn_pod_value_t>> args_cached_;
 
-  lower_func_ptr_t fn_{};
+  std::vector<lower_func_ptr_t> fn_{};
 };
 
 }  // namespace framework

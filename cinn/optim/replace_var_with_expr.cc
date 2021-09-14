@@ -170,12 +170,12 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
     if (extent_.defined()) {
       std::string buffer_id = (*global_tensor_map_)[tensor_name]->buffer->name + var_->name;
       if (resized_buffer_.count(buffer_id) != 0) {
-        std::vector<Expr> buffer_shape               = (*global_tensor_map_)[tensor_name]->buffer->shape;
+        std::vector<Expr> buffer_shape               = IRCopy((*global_tensor_map_)[tensor_name]->buffer->shape);
         (*global_tensor_map_).at(tensor_name)->shape = buffer_shape;
         return;
       }
-      auto buffer_shape              = (*global_tensor_map_)[tensor_name]->buffer->shape;
-      std::vector<Expr> tensor_shape = (*global_tensor_map_).at(tensor_name)->shape;
+      auto buffer_shape              = IRCopy((*global_tensor_map_)[tensor_name]->buffer->shape);
+      std::vector<Expr> tensor_shape = IRCopy((*global_tensor_map_).at(tensor_name)->shape);
       VLOG(3) << tensor_name << " tensor's Original Shape is : ";
       for (auto& i : tensor_shape) {
         VLOG(3) << i;
@@ -198,8 +198,7 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
 
       resized_buffer_.insert(buffer_id);
-      std::vector<Expr> new_shape                       = tensor_shape;
-      (*global_tensor_map_)[tensor_name]->buffer->shape = new_shape;
+      (*global_tensor_map_)[tensor_name]->buffer->shape = IRCopy(tensor_shape);
       VLOG(3) << tensor_name << " tensor's New Shape is : ";
       for (auto& i : tensor_shape) {
         VLOG(3) << i;

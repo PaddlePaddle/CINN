@@ -1210,7 +1210,8 @@ isl_map *__isl_give GatherAccesses(Stage *stage, const std::string &tensor_name)
 }
 
 void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
-  int num_levels = isl_map_dim(transform_.get(), isl_dim_out);
+  cuda_bind_info_ = true;
+  int num_levels  = isl_map_dim(transform_.get(), isl_dim_out);
   CHECK_GE(level, 0);
   CHECK_LT(level, num_levels);
   auto transformed_domain = this->transformed_domain();

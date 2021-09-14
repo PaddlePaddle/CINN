@@ -721,10 +721,10 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
       stages[input_pad.as_tensor_ref()]->ComputeInline();
     }
     if (target.arch == Target::Arch::NVGPU) {
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "blockIdx.y");
-      stages[Out.as_tensor_ref()]->Bind(2, "blockIdx.z");
-      stages[Out.as_tensor_ref()]->Bind(3, "threadIdx.x");
+      ir::Tensor output = Out.as_tensor_ref();
+      CHECK(Out.as_tensor());
+      pe::CudaScheduleDepthwiseConv(stages, output, target);
+      arg_pack[0] = Expr(output);
     } else if (target.arch == Target::Arch::X86) {
       if (arg_pack.size() == 6UL) {
         Expr res              = arg_pack[0];
@@ -757,7 +757,7 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
       }
     }
 
-    *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
+    *ret = CINNValuePack{{arg_pack[0], CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1556,13 +1556,9 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
         stages[tensor_a]->Split(1, 2);
         stages[tensor_a]->Bind(0, "blockIdx.x");
         stages[tensor_a]->Bind(1, "threadIdx.x");
+        int shape_size = tensor_a->shape.size();
+        stages[tensor_b]->ComputeAt(stages[tensor_a], shape_size);
       }
-      if (tensor_b->shape.size() > 1) {
-        stages[tensor_b]->Split(1, 2);
-        stages[tensor_b]->Bind(0, "blockIdx.x");
-        stages[tensor_b]->Bind(1, "threadIdx.x");
-      }
-      stages[tensor_b]->SyncThreads(stages);
     }
     *ret = arg_pack;
   });

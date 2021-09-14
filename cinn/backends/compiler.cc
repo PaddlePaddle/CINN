@@ -96,7 +96,10 @@ void Compiler::CompileX86Module(const Module& module) { engine_->Link<CodeGenX86
 
 lower_func_ptr_t Compiler::Lookup(std::string_view fn_name) {
   CHECK(engine_);
-  return reinterpret_cast<lower_func_ptr_t>(engine_->Lookup(fn_name));
+  if (engine_->Lookup(fn_name) != nullptr) {
+    return reinterpret_cast<lower_func_ptr_t>(engine_->Lookup(fn_name));
+  }
+  return nullptr;
 }
 
 }  // namespace backends

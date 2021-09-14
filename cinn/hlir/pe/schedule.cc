@@ -1272,6 +1272,15 @@ void SaveSerialData(
   output.close();
 }
 
+void CudaScheduleDepthwiseConv(poly::StageMap stages, ir::Tensor &output, const common::Target &target) {
+  auto OL = stages[output]->CacheWrite("local", stages, output);
+  stages[output]->Bind(0, "blockIdx.x");
+  stages[output]->Bind(1, "blockIdx.y");
+  stages[output]->Bind(2, "blockIdx.z");
+  stages[output]->Bind(3, "threadIdx.x");
+  stages[OL]->ComputeAt(stages[output], 3);
+}
+
 void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor &input_pad,
                       ir::Tensor &weights,
@@ -1324,23 +1333,8 @@ void CudaScheduleConv(poly::StageMap stages,
   stages[output]->Bind(2, "blockIdx.y");
   stages[output]->Bind(3, "threadIdx.z");
   stages[output]->Bind(4, "threadIdx.x");
-  stages[OL]->ComputeAt3(stages[output], 4);
-  auto on  = stages[OL]->axis(0);
-  auto obz = stages[OL]->axis(1);
-  auto oby = stages[OL]->axis(2);
-  auto otz = stages[OL]->axis(3);
-  auto otx = stages[OL]->axis(4);
-  auto ofi = stages[OL]->axis(5);
-  auto orc = stages[OL]->axis(6);
-  auto ory = stages[OL]->axis(7);
-  auto orx = stages[OL]->axis(8);
-  stages[OL]->Reorder({orc, ory, orx, on, obz, oby, otz, otx, ofi});
-  stages[OL]->Split(0, rc_factor);
-  stages[OL]->Reorder({0, 2, 3, 1});
-  stages[OL]->Bind(5, "blockIdx.z");
-  stages[OL]->Bind(6, "blockIdx.y");
-  stages[OL]->Bind(7, "threadIdx.z");
-  stages[OL]->Bind(8, "threadIdx.x");
+  stages[OL]->ComputeAt(stages[output], 4);
+  stages[OL]->Split(6, rc_factor);
 }
 
 void CudaScheduleConv2(poly::StageMap stages,

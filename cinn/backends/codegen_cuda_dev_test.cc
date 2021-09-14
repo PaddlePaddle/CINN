@@ -20,6 +20,7 @@
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/lang/lower.h"
 #include "cinn/optim/ir_simplify.h"
 #include "cinn/runtime/cpu/use_extern_funcs.h"
 #include "cinn/runtime/cuda/cuda_module.h"
@@ -59,7 +60,7 @@ TEST(CodeGenCUDA, basic) {
   Expr M(1);
   Expr N(200);
 
-  Target target;
+  Target target = common::DefaultNVGPUTarget();
 
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
@@ -85,7 +86,7 @@ TEST(CodeGenCUDA, Module_output) {
   Expr M(100);
   Expr N(200);
 
-  Target target;
+  Target target = common::DefaultNVGPUTarget();
 
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
@@ -115,7 +116,7 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
   Expr M(100);
   Expr N(200);
 
-  Target target;
+  Target target = common::DefaultNVGPUTarget();
 
   Placeholder<float> A("X", {M, N});
   Placeholder<float> B("Y", {M, N});
@@ -175,12 +176,87 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
   }
 }
 
+TEST(CodeGenCUDA2, test_of_splitcudakernel) {
+  Context::Global().ResetNameId();
+  Expr M(100);
+  Expr N(200);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("X", {M, N});
+  Placeholder<float> B("Y", {M, N});
+
+  auto C = Compute(
+      {M, N}, [&](Var i, Var j) { return A(i, j) * B(i, j); }, "C");
+
+  auto D = Compute(
+      {M, N}, [&](Var i, Var j) { return C(i, j) + B(i, j); }, "D");
+
+  auto stages = CreateStages({C, D});
+
+  stages[C]->Bind(0, "blockIdx.x");
+  stages[C]->Bind(1, "threadIdx.x");
+  stages[D]->Bind(0, "blockIdx.x");
+  stages[D]->Bind(1, "threadIdx.x");
+
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func = lang::LowerVec("elementwise_add", stages, {A, B, C, D}, {}, {}, nullptr, target);
+
+  Module::Builder builder("module", target);
+  for (auto& i : func) {
+    builder.AddFunction(i);
+  }
+
+  auto module = builder.Build();
+
+  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+
+  auto source_code = codegen.Compile(module);
+
+  LOG(INFO) << "compiled test_of_splitcudakernel code:\n\n\n" << source_code;
+
+  std::string source_target = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void elementwise_add(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
+{
+  if ((blockIdx.x < 100)) {
+    if ((threadIdx.x < 200)) {
+      C[((200 * blockIdx.x) + threadIdx.x)] = (X[((200 * blockIdx.x) + threadIdx.x)] * Y[((200 * blockIdx.x) + threadIdx.x)]);
+    };
+  };
+}__global__
+void elementwise_add_1(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ C, float* __restrict__ D)
+{
+  if ((blockIdx.x < 100)) {
+    if ((threadIdx.x < 200)) {
+      D[((200 * blockIdx.x) + threadIdx.x)] = (C[((200 * blockIdx.x) + threadIdx.x)] + Y[((200 * blockIdx.x) + threadIdx.x)]);
+    };
+  };
+}
+
+}
+)ROC";
+  ASSERT_EQ(utils::Trim(source_target), source_code);
+}
+
 TEST(CodeGenCUDA2, test_of_splitouter) {
   Context::Global().ResetNameId();
   Expr M(100);
   Expr N(100);
 
-  Target target;
+  Target target = common::DefaultNVGPUTarget();
 
   Placeholder<float> A("X", {M, N});
   Placeholder<float> B("Y", {M, N});
@@ -652,7 +728,7 @@ TEST(CodeGenCUDA, test_of_syncthreads) {
   Expr M(100);
   Expr N(200);
 
-  Target target;
+  Target target = common::DefaultNVGPUTarget();
 
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});
@@ -863,7 +939,7 @@ class ElementwiseTester {
   explicit ElementwiseTester(const std::string& fn_name) : fn_name_(fn_name) {}
 
   std::tuple<Placeholder<float>, Placeholder<float>, ir::Tensor> BuildNet() {
-    Target target;
+    Target target = common::DefaultNVGPUTarget();
 
     Placeholder<float> A("A", {M, N});
     Placeholder<float> B("B", {M, N});
@@ -884,7 +960,7 @@ class ElementwiseTester {
     auto func   = Lower(fn_name_, stages, {A, B, C}, {M});
     LOG(INFO) << "func:\n" << func;
 
-    Target target;
+    Target target = common::DefaultNVGPUTarget();
     Module::Builder builder("module", target);
     builder.AddFunction(func);
 
@@ -1060,7 +1136,7 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
 
   LOG(INFO) << "func:\n" << func;
 
-  Target target;
+  Target target = common::DefaultNVGPUTarget();
   Module::Builder builder("module", target);
   builder.AddFunction(func);
 
@@ -1285,9 +1361,8 @@ TEST(elementwise_add1, share_local_cache) {
   // NOTE here, the CC replace the C as the output the function.
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
-  stages[AA]->Bind(0, "blockIdx.x");
-  stages[AA]->Bind(1, "threadIdx.x");
   stages[AL]->ComputeAt(stages[C], 1);
+  stages[AA]->ComputeAt(stages[AL], 1);
 
   Module::Builder builder("gpu_module", common::DefaultNVGPUTarget());
 
@@ -1502,7 +1577,7 @@ TEST(Conv, optimize) {
   std::tie(tx, ni)  = stages[BL]->Split(ni, num_thread);
   stages[BL]->Reorder({bz, by, bx, tyz, txz, ty, tx, fi, ni});
 
-  LOG(INFO) << Lower("conv", stages, {A, W, B}, {}, {AA, WW, AL, WL, BL});
+  LOG(INFO) << "Conv.optimize function is:\n" << Lower("conv", stages, {A, W, B}, {}, {AA, WW, AL, WL, BL});
 }
 
 TEST(ElementwiseAdd, cache_read_local) {
@@ -1527,7 +1602,7 @@ TEST(ElementwiseAdd, cache_read_local) {
   stages[C]->Bind(0, "threadIdx.x");
   stages[C]->Bind(1, "blockIdx.x");
 
-  Target target;
+  Target target = common::DefaultNVGPUTarget();
   CodeGenCUDA_Dev codegen(target);
 
   auto fn = Lower("fn0", stages, {A, B, C}, {}, {AL});
@@ -1655,7 +1730,7 @@ TEST(ElementwiseAdd, cache_read1) {
   stages[C]->Bind(0, "threadIdx.x");
   stages[C]->Bind(1, "blockIdx.x");
 
-  Target target;
+  Target target = common::DefaultNVGPUTarget();
   CodeGenCUDA_Dev codegen(target);
 
   auto fn = Lower("fn1", stages, {A, B, C}, {}, {AL});
@@ -1761,7 +1836,7 @@ TEST(ElementwiseAdd, cache_read_compute_at1) {
   stages[C]->Bind(1, "threadIdx.x");
   stages[AL]->ComputeAt2(stages[C], 1);
 
-  Target target;
+  Target target = common::DefaultNVGPUTarget();
   CodeGenCUDA_Dev codegen(target);
 
   auto fn = Lower("fn_cacheread_computeat1", stages, {A, C});
@@ -1863,7 +1938,7 @@ TEST(ElementwiseAdd, cache_read_compute_at2) {
   stages[C]->Bind(1, "threadIdx.x");
   stages[AL]->ComputeAt2(stages[C], 2);
 
-  Target target;
+  Target target = common::DefaultNVGPUTarget();
   CodeGenCUDA_Dev codegen(target);
 
   auto fn = Lower("fn_cacheread_computeat2", stages, {A, C});
@@ -1953,7 +2028,7 @@ void TestElementwiseAddPrecisionBasic(
     const std::string& fn_name,
     Expr M,
     Expr N,
-    std::function<float(float, float)> elem_cal = [](float a, float b) { return a; }) {
+    std::function<float(float, float)> elem_cal = [](float a, float b) { return a + b; }) {
   common::CudaModuleTester tester;
   tester.Compile(module);
 
@@ -1985,7 +2060,7 @@ void TestElementwiseAddPrecisionBasic(
   auto* C_target_mem = reinterpret_cast<float*>(C_target_host->memory);
   auto* A_mem        = reinterpret_cast<float*>(A_host->memory);
   auto* B_mem        = reinterpret_cast<float*>(B_host->memory);
-  for (int i = 0; i < M.as_int32() - 2; i++) {
+  for (int i = 0; i < M.as_int32(); i++) {
     for (int j = 0; j < N.as_int32(); j++) {
       ASSERT_NEAR(
           C_target_mem[i * N.as_int32() + j], elem_cal(A_mem[i * N.as_int32() + j], B_mem[i * N.as_int32() + j]), 1e-5);
@@ -2008,7 +2083,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
     Placeholder<float> B("B", {M, N});
 
     auto C = Compute(
-        {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
+        {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
     auto stages = CreateStages({A, B, C});
     std::vector<ir::Tensor> temp{C};
     auto AL = stages[A]->CacheRead("shared", temp, stages);
@@ -2020,7 +2095,7 @@ TEST(ElementwiseAdd, cache_read_shared) {
   };
 
   auto [A, B, C, AL, stages] = create_module();  // NOLINT
-  Target target;
+  Target target              = common::DefaultNVGPUTarget();
   CodeGenCUDA_Dev codegen(target);
 
   auto fn = Lower("fn2", stages, {A, B, C}, {}, {AL});
@@ -2051,7 +2126,7 @@ void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   if ((blockIdx.x < 100)) {
     for (int32_t j = 0; j < 200; j += 1) {
       A_read_cache[0] = A[((200 * blockIdx.x) + j)];
-      C[((200 * blockIdx.x) + j)] = A_read_cache[0];
+      C[((200 * blockIdx.x) + j)] = (A_read_cache[0] + B[((200 * blockIdx.x) + j)]);
     };
   };
 }
@@ -2064,93 +2139,6 @@ void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __rest
   ASSERT_EQ(utils::Trim(target_source), source_code);
 
   TestElementwiseAddPrecisionBasic(builder.Build(), "fn2", M, N);
-}
-
-// This test is meaningless for a cache read, we just check that the syncthreads is automatically inserted even without
-// ComputeAt.
-TEST(ElementwiseAdd, cache_read_shared_no_compute_at) {
-  Context::Global().ResetNameId();
-  // Make a small shape, because the shared memory is small.
-  Expr M(40);
-  Expr N(40);
-
-  auto create_module = [&] {
-    Context::Global().ResetNameId();
-
-    Placeholder<float> A("A", {M, N});
-    Placeholder<float> B("B", {M, N});
-
-    auto C = Compute(
-        {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
-
-    auto stages = CreateStages({A, B, C});
-    std::vector<ir::Tensor> temp{C};
-    auto AL = stages[A]->CacheRead("shared", temp, stages);
-
-    stages[C]->Split(1, 10);
-    stages[AL]->Split(1, 10);
-
-    stages[C]->Bind(0, "blockIdx.x");
-    stages[C]->Bind(1, "threadIdx.x");
-    stages[AL]->Bind(0, "blockIdx.x");
-    stages[AL]->Bind(1, "threadIdx.x");
-
-    return std::make_tuple(A, B, C, AL, stages);
-  };
-
-  auto [A, B, C, AL, stages] = create_module();  // NOLINT
-  Target target;
-  CodeGenCUDA_Dev codegen(target);
-
-  auto fn = Lower("fn3", stages, {A, B, C}, {}, {AL});
-
-  Module::Builder builder("module", common::DefaultHostTarget());
-  builder.AddFunction(fn);
-
-  auto source_code = codegen.Compile(builder.Build());
-  std::cout << "CUDA source3:\n" << source_code << std::endl;
-
-  auto target_source = R"ROC(
-extern "C" {
-
-#include "cinn_cuda_runtime_source.cuh"
-
-#ifdef __CUDACC_RTC__
-typedef int int32_t;
-typedef char int8_t;
-#endif
-
-
-
-__global__
-void fn3(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
-{
-  __shared__ float _A_read_cache [ 40 ];
-  float* A_read_cache = _A_read_cache;
-  if ((blockIdx.x < 40)) {
-    if ((threadIdx.x < 4)) {
-      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        A_read_cache[((10 * threadIdx.x) + j_inner)] = A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))];
-      };
-    };
-  };
-  if ((blockIdx.x < 40)) {
-    if ((threadIdx.x < 4)) {
-      for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = A_read_cache[((10 * threadIdx.x) + j_inner)];
-      };
-    };
-  };
-}
-
-}
-)ROC";
-
-  LOG(INFO) << "GPU thread config: " << fn->cuda_axis_info;
-
-  ASSERT_EQ(utils::Trim(target_source), source_code);
-
-  TestElementwiseAddPrecisionBasic(builder.Build(), "fn3", M, N);
 }
 
 TEST(ElementwiseAdd, cache_write_local) {
@@ -2166,7 +2154,7 @@ TEST(ElementwiseAdd, cache_write_local) {
     Placeholder<float> B("B", {M, N});
 
     auto C = Compute(
-        {M, N}, [&](Expr i, Expr j) { return A(i, j); }, "C");
+        {M, N}, [&](Expr i, Expr j) { return A(i, j) + B(i, j); }, "C");
 
     auto stages = CreateStages({A, B, C});
 
@@ -2218,7 +2206,7 @@ void cache_write_local(const float* __restrict__ A, const float* __restrict__ B,
     {
       for (int32_t j_outer = 0; j_outer < 8; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 5; j_inner += 1) {
-          C_write_cache[((5 * j_outer) + j_inner)] = A[((160 * blockIdx.x) + ((5 * j_outer) + ((40 * threadIdx.x) + j_inner)))];
+          C_write_cache[((5 * j_outer) + j_inner)] = (A[((160 * blockIdx.x) + ((5 * j_outer) + ((40 * threadIdx.x) + j_inner)))] + B[((160 * blockIdx.x) + ((5 * j_outer) + ((40 * threadIdx.x) + j_inner)))]);
         };
       };
       for (int32_t j_outer = 0; j_outer < 10; j_outer += 1) {
@@ -2266,10 +2254,10 @@ TEST(Cuda, external_function) {
   };
 
   auto [A, B, C, stages] = create_module();  // NOLINT
-  Target target;
+  Target target          = common::DefaultNVGPUTarget();
   CodeGenCUDA_Dev codegen(target);
 
-  auto fn = Lower("external_function", stages, {A, B, C});
+  auto fn = Lower("external_function", stages, {A, B, C}, {}, {}, nullptr, target);
 
   Module::Builder builder("module", common::DefaultNVGPUTarget());
   builder.AddFunction(fn);

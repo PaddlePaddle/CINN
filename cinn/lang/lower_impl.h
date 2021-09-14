@@ -95,9 +95,10 @@ class LowerImpl {
             StageMap stages,
             const std::vector<Tensor>& tensor_args,
             const std::vector<Var>& scalar_args,
-            const std::vector<Tensor>& temp_tensor_args = {});
+            const std::vector<Tensor>& temp_tensor_args = {},
+            const Target& target                        = common::DefaultHostTarget());
 
-  ir::LoweredFunc operator()();
+  std::vector<ir::LoweredFunc> operator()();
 
   /**
    * Get the computational graph.
@@ -112,10 +113,12 @@ class LowerImpl {
    */
   std::vector<ir::Argument> GenerateFunctionArgumentList(Expr fn_body);
 
+  std::vector<ir::Argument> GenFuncArgForSplitKernel(Expr func_iterator, std::vector<ir::Tensor> temp_tensors);
+
   /**
    * \brief generate the body expression of the final output function.
    */
-  Expr GenerateFunctionBody(const poly::Schedule* schedule);
+  std::vector<Expr> GenerateFunctionBody(const poly::Schedule* schedule);
 
  private:
   /**
@@ -160,6 +163,7 @@ class LowerImpl {
   const std::vector<Tensor>& tensor_args_;
   const std::vector<Var>& scalar_args_;
   std::vector<Tensor> temp_tensor_args_;
+  Target target_;
 
   StageMap stages_;
 
@@ -167,7 +171,7 @@ class LowerImpl {
   std::unique_ptr<common::Graph> compu_graph_;
 
   //! CUDA axis info for this function.
-  ir::CudaAxisInfo cuda_axis_info_;
+  std::vector<ir::CudaAxisInfo> cuda_axis_info_;
 };
 
 /**
