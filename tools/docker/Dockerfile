@@ -11,11 +11,8 @@ ARG WITH_AVX
 ENV WITH_GPU=${WITH_GPU:-ON}
 ENV WITH_AVX=${WITH_AVX:-ON}
 ENV DEBIAN_FRONTEND=noninteractive
-
 ENV HOME /root
 # Add bash enhancements
-COPY docker/root/ /root/
-
 RUN apt-get update && \
     apt-get install -y software-properties-common && add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && \
@@ -26,6 +23,7 @@ RUN apt-get update && \
 # Downgrade gcc&&g++
 WORKDIR /usr/bin 
 RUN apt-get update --fix-missing
+COPY script_build /script_build
 RUN bash /script_build/install_gcc.sh gcc82 && rm -rf /script_build && \
     cp gcc gcc.bak && cp g++ g++.bak && rm gcc && rm g++ && \
     ln -s /usr/local/gcc-8.2/bin/gcc /usr/local/bin/gcc && \
