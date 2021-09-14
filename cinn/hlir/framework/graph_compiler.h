@@ -125,6 +125,7 @@ class GraphCompiler final {
   std::vector<std::unique_ptr<Instruction>> BuildInstructions();
 
  private:
+  void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
   Target target_;
   std::shared_ptr<Graph> graph_;
   std::shared_ptr<Scope> scope_;

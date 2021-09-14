@@ -270,6 +270,45 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   return func;
 }
 
+void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func) {
+  if (lowered_func.size() > 1) {
+    for (auto& i : lowered_func) {
+      VLOG(3) << "In lowered_func, its name is : " << i->name;
+      std::vector<std::string> input_args;
+      std::vector<std::string> output_args;
+      for (auto& j : i->args) {
+        std::string temp_arg = j.name();
+        if (temp_arg[0] == '_') temp_arg = temp_arg.substr(1);
+        if (j.io == ir::Argument::IO::kOutput)
+          output_args.push_back(temp_arg);
+        else if (j.io == ir::Argument::IO::kInput)
+          input_args.push_back(temp_arg);
+        auto* var = scope_->FindVar(temp_arg);
+        // For tensor not in scope, create it.
+        if (!var) {
+          auto* new_var = scope_->Var<Tensor>(temp_arg);
+          auto& tensor  = std::get<Tensor>(*new_var);
+          std::vector<Shape::dim_t> shape;
+          CHECK(j.is_buffer());
+          VLOG(3) << "Tensor " << temp_arg << " is not found in scope. Now create it with shape:";
+          for (auto& shape_dim : j.buffer_arg()->shape) {
+            VLOG(3) << shape_dim << ",";
+            CHECK(shape_dim.is_constant());
+            shape.push_back((int)(shape_dim.get_constant()));
+          }
+          tensor->Resize(Shape{shape});
+          tensor->mutable_data<float>(target_);
+        }
+      }
+      function2input_args_[i->name]  = input_args;
+      function2output_args_[i->name] = output_args;
+      m_builder_.AddFunction(i);
+    }
+  } else {
+    m_builder_.AddFunction(lowered_func[0]);
+  }
+}
+
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   auto [nodes, edges] = graph_->topological_order();
   auto& groups        = graph_->groups;
@@ -282,42 +321,7 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
       } else {
         lowered_func = GetOpFunc(groups[i]);
       }
-      if (lowered_func.size() > 1) {
-        for (auto& i : lowered_func) {
-          VLOG(3) << "In lowered_func, its name is : " << i->name;
-          std::vector<std::string> input_args;
-          std::vector<std::string> output_args;
-          for (auto& j : i->args) {
-            std::string temp_arg = j.name();
-            if (temp_arg[0] == '_') temp_arg = temp_arg.substr(1);
-            if (j.io == ir::Argument::IO::kOutput)
-              output_args.push_back(temp_arg);
-            else if (j.io == ir::Argument::IO::kInput)
-              input_args.push_back(temp_arg);
-            auto* var = scope_->FindVar(temp_arg);
-            // For tensor not in scope, create it.
-            if (!var) {
-              auto* new_var = scope_->Var<Tensor>(temp_arg);
-              auto& tensor  = std::get<Tensor>(*new_var);
-              std::vector<Shape::dim_t> shape;
-              CHECK(j.is_buffer());
-              VLOG(3) << "Tensor " << temp_arg << " is not found in scope. Now create it with shape:";
-              for (auto& shape_dim : j.buffer_arg()->shape) {
-                VLOG(3) << shape_dim << ",";
-                CHECK(shape_dim.is_constant());
-                shape.push_back((int)(shape_dim.get_constant()));
-              }
-              tensor->Resize(Shape{shape});
-              tensor->mutable_data<float>(target_);
-            }
-          }
-          function2input_args_[i->name]  = input_args;
-          function2output_args_[i->name] = output_args;
-          m_builder_.AddFunction(i);
-        }
-      } else {
-        m_builder_.AddFunction(lowered_func[0]);
-      }
+      this->ProcessFunction(lowered_func);
     }
   } else {
     VLOG(3) << "not run opfusion pass";
@@ -325,43 +329,7 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
       auto op_node = node->safe_as<Node>();
       if (op_node) {
         auto lowered_func = GetOpFunc(op_node);
-
-        if (lowered_func.size() > 1) {
-          for (auto& i : lowered_func) {
-            VLOG(3) << "In lowered_func, its name is : " << i->name;
-            std::vector<std::string> input_args;
-            std::vector<std::string> output_args;
-            for (auto& j : i->args) {
-              std::string temp_arg = j.name();
-              if (temp_arg[0] == '_') temp_arg = temp_arg.substr(1);
-              if (j.io == ir::Argument::IO::kOutput)
-                output_args.push_back(temp_arg);
-              else if (j.io == ir::Argument::IO::kInput)
-                input_args.push_back(temp_arg);
-              auto* var = scope_->FindVar(temp_arg);
-              // For tensor not in scope, create it.
-              if (!var) {
-                auto* new_var = scope_->Var<Tensor>(temp_arg);
-                auto& tensor  = std::get<Tensor>(*new_var);
-                std::vector<Shape::dim_t> shape;
-                CHECK(j.is_buffer());
-                VLOG(3) << "Tensor " << temp_arg << " is not found in scope. Now create it with shape:";
-                for (auto& shape_dim : j.buffer_arg()->shape) {
-                  VLOG(3) << shape_dim << ",";
-                  CHECK(shape_dim.is_constant());
-                  shape.push_back((int)(shape_dim.get_constant()));
-                }
-                tensor->Resize(Shape{shape});
-                tensor->mutable_data<float>(target_);
-              }
-            }
-            function2input_args_[i->name]  = input_args;
-            function2output_args_[i->name] = output_args;
-            m_builder_.AddFunction(i);
-          }
-        } else {
-          m_builder_.AddFunction(lowered_func[0]);
-        }
+        this->ProcessFunction(lowered_func);
         graph_->groups.push_back({op_node});
       }
     }

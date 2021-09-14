@@ -403,8 +403,8 @@ std::vector<ir::Argument> LowerImpl::GenerateFunctionArgumentList(Expr fn_body) 
   return args;
 }
 // Generate Function Arguments for splitted kernel.
-std::vector<ir::Argument> LowerImpl::GenerateFunctionArgument2(Expr func_iterator,
-                                                               std::vector<ir::Tensor> temp_tensors) {
+std::vector<ir::Argument> LowerImpl::GenFuncArgForSplitKernel(Expr func_iterator,
+                                                              std::vector<ir::Tensor> temp_tensors) {
   CheckArgsUnique();
 
   std::vector<ir::Argument> in_args;
@@ -609,7 +609,7 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
 
     ir::LoweredFunc func;
     if (target_ == common::DefaultNVGPUTarget()) {
-      auto func_args2 = GenerateFunctionArgument2(func_iterator, new_temp_tensors);
+      auto func_args2 = GenFuncArgForSplitKernel(func_iterator, new_temp_tensors);
       VLOG(3) << "Case: target = DefaultNVGPUTarget";
       std::string new_fn_name = fn_name_;
       if (num_func > 0) {

@@ -113,7 +113,7 @@ class LowerImpl {
    */
   std::vector<ir::Argument> GenerateFunctionArgumentList(Expr fn_body);
 
-  std::vector<ir::Argument> GenerateFunctionArgument2(Expr func_iterator, std::vector<ir::Tensor> temp_tensors);
+  std::vector<ir::Argument> GenFuncArgForSplitKernel(Expr func_iterator, std::vector<ir::Tensor> temp_tensors);
 
   /**
    * \brief generate the body expression of the final output function.
