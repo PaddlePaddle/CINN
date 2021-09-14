@@ -26,8 +26,7 @@ RUN apt-get update && \
 # Downgrade gcc&&g++
 WORKDIR /usr/bin 
 RUN apt-get update --fix-missing
-COPY build_scripts /build_scripts 
-RUN bash /build_scripts/install_gcc.sh gcc82 && rm -rf /build_scripts && \
+RUN bash /script_build/install_gcc.sh gcc82 && rm -rf /script_build && \
     cp gcc gcc.bak && cp g++ g++.bak && rm gcc && rm g++ && \
     ln -s /usr/local/gcc-8.2/bin/gcc /usr/local/bin/gcc && \
     ln -s /usr/local/gcc-8.2/bin/g++ /usr/local/bin/g++ && \
