@@ -89,6 +89,7 @@ std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_s
                                             const Target &target) {
   CHECK_EQ(inputs_shape.size(), 2UL);
   std::vector<int> out_shape;
+
   int axis = -1;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "axis") {
@@ -228,6 +229,24 @@ std::vector<std::vector<std::string>> InferLayoutForScale(const std::vector<fram
 StrategyForBinary(elementwise_add, Add);
 StrategyForBinary(elementwise_mul, Multiply);
 
+StrategyForBinary(substract, Substract);
+StrategyForBinary(divide, Divide);
+StrategyForBinary(floor_divide, FloorDivide);
+StrategyForBinary(mod, Mod);
+StrategyForBinary(floor_mod, FloorMod);
+StrategyForBinary(max, Maximum);
+StrategyForBinary(min, Minimum);
+StrategyForBinary(power, Power);
+StrategyForBinary(logical_and, LogicaAnd);
+StrategyForBinary(logical_or, LogicalOr);
+StrategyForBinary(logical_xor, LogicalXOr);
+StrategyForBinary(greater, Greater);
+StrategyForBinary(less, Less);
+StrategyForBinary(equal, Equal);
+StrategyForBinary(not_equal, NotEqual);
+StrategyForBinary(greater_equal, GreaterEqual);
+StrategyForBinary(less_equal, LessEqual);
+
 StrategyForBinary(bitwise_or, BitwiseOr);
 StrategyForBinary(bitwise_xor, BitwiseXor);
 StrategyForBinary(bitwise_and, BitwiseAnd);
@@ -255,6 +274,24 @@ CINN_REGISTER_HELPER(broadcast_ops) {
 
   CINN_REGISTER_BINARY(elementwise_add, Add);
   CINN_REGISTER_BINARY(elementwise_mul, Multiply);
+
+  CINN_REGISTER_BINARY(substract, Substract);
+  CINN_REGISTER_BINARY(divide, Divide);
+  CINN_REGISTER_BINARY(floor_divide, FloorDivide);
+  CINN_REGISTER_BINARY(mod, Mod);
+  CINN_REGISTER_BINARY(floor_mod, FloorMod);
+  CINN_REGISTER_BINARY(max, Maximum);
+  CINN_REGISTER_BINARY(min, Minimum);
+  CINN_REGISTER_BINARY(power, Power);
+  CINN_REGISTER_BINARY(logical_and, LogicaAnd);
+  CINN_REGISTER_BINARY(logical_or, LogicalOr);
+  CINN_REGISTER_BINARY(logical_not, LogicalXOr);
+  CINN_REGISTER_BINARY(greater, Greater);
+  CINN_REGISTER_BINARY(less, Less);
+  CINN_REGISTER_BINARY(equal, Equal);
+  CINN_REGISTER_BINARY(not_equal, NotEqual);
+  CINN_REGISTER_BINARY(greater_equal, GreaterEqual);
+  CINN_REGISTER_BINARY(less_equal, LessEqual);
 
   CINN_REGISTER_BINARY(bitwise_or, BitwiseOr);
   CINN_REGISTER_BINARY(bitwise_xor, BitwiseXor);

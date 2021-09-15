@@ -89,6 +89,11 @@ HLIR_IMP_UNARY_PE(Sign);
 HLIR_IMP_UNARY_PE(Abs);
 HLIR_IMP_UNARY_PE(Rsqrt);
 
+std::vector<ir::Tensor> CreateConstFloat(const Tensor& A, float value, const std::string& output_name) {
+  return {Compute(
+      A->shape, [=](const std::vector<Expr>& indice) { return Expr(value); }, output_name)};
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

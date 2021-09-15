@@ -61,6 +61,8 @@ HLIR_DCL_UNARY_PE(ElementwiseSum);
 HLIR_DCL_UNARY_PE(Full);
 HLIR_DCL_UNARY_PE(FullLike);
 
+std::vector<ir::Tensor> CreateConstFloat(const ir::Tensor& A, float value, const std::string& output_name);
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

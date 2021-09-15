@@ -875,11 +875,13 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
     CHECK(!args.empty()) << "The input argument of batchnorm schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
+    Expr Out              = arg_pack[0];
+    poly::StageMap stages = arg_pack[1];
+    CHECK(Out.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
       pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.back(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.back(), target);
     }
     *ret = arg_pack;
   });

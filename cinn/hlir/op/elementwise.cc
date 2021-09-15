@@ -107,6 +107,64 @@ std::vector<std::vector<std::string>> InferLayoutForElementwise(const std::vecto
   return {input_layouts, input_layouts};
 }
 
+std::shared_ptr<OpStrategy> StrategyForCreateConstFloat(const framework::NodeAttr &attrs,
+                                                        const std::vector<ir::Tensor> &inputs,
+                                                        const std::vector<Type> &out_type,
+                                                        const std::vector<std::vector<int>> &output_shapes,
+                                                        const Target &target) {
+  float value = 0;
+  std::vector<int> shapes;
+  if (attrs.attr_store.find("value") != attrs.attr_store.end()) {
+    value = std::get<float>(attrs.attr_store.at("value"));
+  }
+
+  framework::CINNCompute unary_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of create_const_float compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK_EQ(a.size(), 1U) << "1 input tensor for create_const_float compute";
+    Expr A_expr = a[0];
+    CHECK(A_expr.as_tensor());
+    ir::Tensor A = A_expr.as_tensor_ref();
+    std::vector<Expr> out_shapes;
+    auto out    = CreateConstFloat(A, value, UniqName("create_const_float_Out"));
+    auto stages = CreateStages({A});
+    std::vector<CINNValue> res;
+    for (auto &t : out) {
+      stages->InsertLazily(t);
+      res.push_back(CINNValue(t));
+    }
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule unary_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    if (target.arch == Target::Arch::NVGPU) {
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack.back();
+      CHECK(Out.as_tensor());
+      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
+      if (Out.as_tensor()->shape.size() > 1) {
+        stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
+        stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
+      }
+    } else if (target.arch == Target::Arch::X86) {
+      Expr Out              = arg_pack[0];
+      poly::StageMap stages = arg_pack[1];
+      CHECK(Out.as_tensor());
+      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.back(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(unary_compute, unary_schedule, "strategy.create_const_float.x86", 1);
+
+  return strategy;
+}
+
 StrategyForUnary(exp, Exp);
 StrategyForUnary(erf, Erf);
 StrategyForUnary(sqrt, Sqrt);
@@ -135,6 +193,13 @@ StrategyForUnary(isfinite, IsFinite);
 StrategyForUnary(isinf, IsInf);
 StrategyForUnary(bitwise_not, BitwiseNot);
 
+StrategyForUnary(negative, Negative);
+StrategyForUnary(identity, Identity);
+StrategyForUnary(logica_not, LogicalNot);
+StrategyForUnary(sign, Sign);
+StrategyForUnary(abs, Abs);
+StrategyForUnary(rsqrt, Rsqrt);
+
 #undef StrategyForUnary
 
 }  // namespace op
@@ -152,6 +217,19 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForElementwise))                               \
       .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForElementwise))                             \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)  \
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(create_const_float)
+      .describe("create const float tensor with the given value")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForCreateConstFloat)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForElementwise))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForElementwise))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForElementwise))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   CINN_REGISTER_UNARY(exp, Exp);
@@ -181,6 +259,14 @@ CINN_REGISTER_HELPER(elementwise_ops) {
   CINN_REGISTER_UNARY(isfinite, IsFinite)
   CINN_REGISTER_UNARY(isinf, IsInf)
   CINN_REGISTER_UNARY(bitwise_not, BitwiseNot)
+
+  CINN_REGISTER_UNARY(negative, Negative)
+  CINN_REGISTER_UNARY(identity, Identity)
+  CINN_REGISTER_UNARY(logica_not, LogicalNot)
+  CINN_REGISTER_UNARY(sign, Sign)
+  CINN_REGISTER_UNARY(abs, Abs)
+  CINN_REGISTER_UNARY(rsqrt, Rsqrt)
+
 #undef CINN_REGISTER_UNARY
 
   return true;

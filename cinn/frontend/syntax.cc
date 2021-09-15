@@ -107,6 +107,39 @@ Variable Program::batchnorm(const Variable& a,
   return instr.GetOutput(0);
 }
 
+Variable Program::create_const_float(float value, const std::vector<int>& shapes, const std::string& name) {
+  Instruction instr("create_const_float");
+  Placeholder const_var(Float(32), shapes, name);
+  instr.SetInputs({const_var});
+  instr.SetAttr("value", value);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable Program::fused_batchnorm_inference(const Variable& a,
+                                            const Variable& scale,
+                                            const Variable& bias,
+                                            const Variable& mean,
+                                            const Variable& variance,
+                                            const std::unordered_map<std::string, attr_t>& attr_store) {
+  float epsilon = 0.00001f;
+  if (attr_store.find("epsilon") != attr_store.end()) {
+    epsilon = std::get<float>(attr_store.at("epsilon"));
+  }
+  auto eps_var     = create_const_float(epsilon, scale->shape, common::UniqName("epsilon"));
+  auto var_add_eps = elementwise_add(eps_var, variance);
+  auto rsrqt_var   = primitive_rsqrt(var_add_eps);
+  auto new_scale   = elementwise_mul(rsrqt_var, scale);
+  auto neg_mean    = primitive_negative(mean);
+  auto new_shift   = elementwise_mul(new_scale, neg_mean);
+  auto shift_bias  = elementwise_add(new_shift, bias);
+
+  auto temp_out = elementwise_mul(a, new_scale, 1);
+  auto bn_out   = elementwise_add(temp_out, shift_bias, 1);
+
+  return bn_out;
+}
+
 Variable Program::scale(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
   Instruction instr("scale", {a});
   for (auto& iter : attr_store) {
@@ -197,6 +230,80 @@ Variable Program::add(const Variable& a, const Variable& b) {
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
+
+#define SYNTAX_UNARY_IMPL(name__)                           \
+  Variable Program::primitive_##name__(const Variable& a) { \
+    Instruction instr(#name__, {a});                        \
+    AppendInstruction(instr);                               \
+    return instr.GetOutput(0);                              \
+  }
+
+SYNTAX_UNARY_IMPL(exp);
+SYNTAX_UNARY_IMPL(erf);
+SYNTAX_UNARY_IMPL(sqrt);
+SYNTAX_UNARY_IMPL(log);
+SYNTAX_UNARY_IMPL(floor);
+SYNTAX_UNARY_IMPL(ceil);
+SYNTAX_UNARY_IMPL(round);
+SYNTAX_UNARY_IMPL(tanh);
+SYNTAX_UNARY_IMPL(log2);
+SYNTAX_UNARY_IMPL(log10);
+SYNTAX_UNARY_IMPL(trunc);
+SYNTAX_UNARY_IMPL(cos);
+SYNTAX_UNARY_IMPL(sin);
+SYNTAX_UNARY_IMPL(cosh);
+SYNTAX_UNARY_IMPL(tan);
+SYNTAX_UNARY_IMPL(sinh);
+SYNTAX_UNARY_IMPL(acos);
+SYNTAX_UNARY_IMPL(acosh);
+SYNTAX_UNARY_IMPL(asin);
+SYNTAX_UNARY_IMPL(asinh);
+SYNTAX_UNARY_IMPL(atan);
+SYNTAX_UNARY_IMPL(atanh);
+
+SYNTAX_UNARY_IMPL(isnan);
+SYNTAX_UNARY_IMPL(isfinite);
+SYNTAX_UNARY_IMPL(isinf);
+SYNTAX_UNARY_IMPL(bitwise_not);
+
+SYNTAX_UNARY_IMPL(negative);
+SYNTAX_UNARY_IMPL(identity);
+SYNTAX_UNARY_IMPL(logica_not);
+SYNTAX_UNARY_IMPL(sign);
+SYNTAX_UNARY_IMPL(abs);
+SYNTAX_UNARY_IMPL(rsqrt);
+
+#define SYNTAX_BINARY_IMPL(name__)                                                       \
+  Variable Program::primitive_##name__(const Variable& a, const Variable& b, int axis) { \
+    Instruction instr(#name__, {a, b});                                                  \
+    instr.SetAttr("axis", axis);                                                         \
+    AppendInstruction(instr);                                                            \
+    return instr.GetOutput(0);                                                           \
+  }
+
+SYNTAX_BINARY_IMPL(substract)
+SYNTAX_BINARY_IMPL(divide)
+SYNTAX_BINARY_IMPL(floor_divide)
+SYNTAX_BINARY_IMPL(mod)
+SYNTAX_BINARY_IMPL(floor_mod)
+SYNTAX_BINARY_IMPL(max)
+SYNTAX_BINARY_IMPL(min)
+SYNTAX_BINARY_IMPL(power)
+SYNTAX_BINARY_IMPL(logical_and)
+SYNTAX_BINARY_IMPL(logical_or)
+SYNTAX_BINARY_IMPL(logical_xor)
+SYNTAX_BINARY_IMPL(greater)
+SYNTAX_BINARY_IMPL(less)
+SYNTAX_BINARY_IMPL(equal)
+SYNTAX_BINARY_IMPL(not_equal)
+SYNTAX_BINARY_IMPL(greater_equal)
+SYNTAX_BINARY_IMPL(less_equal)
+
+SYNTAX_BINARY_IMPL(bitwise_or)
+SYNTAX_BINARY_IMPL(bitwise_xor)
+SYNTAX_BINARY_IMPL(bitwise_and)
+SYNTAX_BINARY_IMPL(left_shift)
+SYNTAX_BINARY_IMPL(right_shift)
 
 Variable Program::elementwise_add(const Variable& a, const Variable& b, int axis) {
   Instruction instr("elementwise_add", {a, b});
