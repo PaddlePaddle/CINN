@@ -195,6 +195,11 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       auto res            = copy1 - copy2;
       tensor_shape[index] = tensor_shape[index] - res;
       Simplify(&tensor_shape[index]);
+      LOG(INFO) << "tensor_shape[index] - res is : " << tensor_shape[index];
+      if (!tensor_shape[index].is_constant()) {
+        resized_buffer_.insert(buffer_id);
+        return;
+      }
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
 
       resized_buffer_.insert(buffer_id);
