@@ -9,7 +9,6 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
-#include "cinn/lang/compute_at_postprocess.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
