@@ -629,7 +629,9 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
     for (auto shape : tensor_out->shape) {
       out_shape.push_back(shape.as_int32());
     }
-
+    if (target.arch == Target::Arch::X86) {
+      pe::ScheduleInjectiveCPUFuse(stages[tensor_out], out_shape, target);
+    }
     *ret = arg_pack;
   });
 

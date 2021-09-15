@@ -395,7 +395,7 @@ TEST(conv_sigmoid_conv, conv_sigmoid_conv) {
 }
 
 TEST(conv_mul_conv, conv_mul_conv) {
-  Placeholder A(Float(32), {1, 3, 224, 224}, "A");
+  Placeholder A(Float(32), {3, 3, 224, 224}, "A");
   Placeholder B(Float(32), {64, 3, 7, 7}, "B");
   Placeholder C(Float(32), {1, 64, 112, 112}, "C");
   Placeholder D(Float(32), {64, 64, 7, 7}, "D");

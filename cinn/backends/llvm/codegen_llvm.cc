@@ -686,6 +686,21 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Var_ *op) {
   return result;
 }
 
+void CodeGenLLVM::Scalarize(const Expr &e, std::function<void(int i, llvm::Value *v)> flambda) {
+  if (const ir::Ramp *ramp = e.As<ir::Ramp>()) {
+    for (int i = 0; i < ramp->type().lanes(); ++i) {
+      Expr offset = ramp->base + (ramp->stride * i);
+      VLOG(3) << "offset: " << offset;
+      flambda(i, Visit(&offset));
+    }
+  } else {
+    llvm::Value *value = Visit(&e);
+    for (int i = 0; i < e->type().lanes(); ++i) {
+      flambda(i, b_->CreateExtractElement(value, i));
+    }
+  }
+}
+
 llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
   llvm::Value *array{nullptr};
   bool is_alias{false};
@@ -731,14 +746,25 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Load *op) {
     return load_inst;
   } else {  // vector load
     Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
+    llvm::Value *buffer     = Visit(&op->tensor);
     if (dense_strided_ramp.defined()) {
       CHECK(op->type().is_vector());
-
-      llvm::Value *buffer = Visit(&op->tensor);
       return DenseVectorLoad(op);
-    } else {
-      LOG(FATAL) << "unsupported Ramp index " << op->index();
     }
+    // scalarize load
+    Type type        = op->type();
+    int alignment    = type.bits() / 8;
+    llvm::Value *ret = llvm::UndefValue::get(CinnTypeToLLVMType(type, m_, true));
+    auto flambda     = [&](int i, llvm::Value *index) {
+      auto *ptr                 = CreateBufferPtr(type.ElementOf(), buffer, index);
+      llvm::LoadInst *load_inst = b_->CreateAlignedLoad(ptr, llvm::Align(alignment), "load_vec");
+      ret                       = b_->CreateInsertElement(ret, load_inst, ll_const_int32(i));
+      if (auto *load_tensor = op->tensor.as_tensor()) {
+        AddTbaaMetadata(load_inst, load_tensor->name, op->index());
+      }
+    };
+    Scalarize(op->index(), flambda);
+    return ret;
   }
 }
 
@@ -784,12 +810,12 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
     Expr dense_strided_ramp = detail::StridedRampBase(op->index(), 1);
     auto ramp_expr          = op->index();
     auto *ramp              = index.As<ir::Ramp>();
+    auto *buffer            = Visit(&op->tensor);
+    auto *value             = Visit(&op->value);
+
     if (dense_strided_ramp.defined()) {  // stride 1
       int total_lanes = op->type().lanes();
       int step        = naive_vec_alignment_ / op->type().ElementOf().bits();
-
-      auto *buffer = Visit(&op->tensor);
-      auto *value  = Visit(&op->value);
 
       // fit the total_lanes in native_lanes(split into multiple native steps)
       for (int offset = 0; offset < total_lanes; offset += total_lanes) {
@@ -805,9 +831,22 @@ llvm::Value *CodeGenLLVM::Visit(const ir::Store *op) {
         AddTbaaMetadata(inst, op->tensor.as_tensor()->name, base);
         return inst;
       }
-    } else {
-      LOG(FATAL) << "unsupported Ramp index " << ramp_expr;
     }
+    // scalarize store
+    Type type        = op->type();
+    int alignment    = type.bits() / 8;
+    llvm::Value *ret = llvm::UndefValue::get(CinnTypeToLLVMType(type, m_, true));
+    auto flambda     = [&](int i, llvm::Value *index) {
+      auto *ptr = CreateBufferPtr(type.ElementOf(), buffer, index);
+      llvm::StoreInst *store_inst =
+          b_->CreateAlignedStore(b_->CreateExtractElement(value, i), ptr, llvm::Align(alignment), "store_vec");
+      ret = b_->CreateInsertElement(ret, store_inst, ll_const_int32(i));
+      if (auto *store_tensor = op->tensor.as_tensor()) {
+        AddTbaaMetadata(store_inst, store_tensor->name, op->index());
+      }
+    };
+    Scalarize(op->index(), flambda);
+    return ret;
   }
   return nullptr;
 }

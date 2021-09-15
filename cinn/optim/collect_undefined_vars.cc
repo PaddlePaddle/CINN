@@ -19,6 +19,11 @@ struct Mutator : public ir::IRMutator<> {
     defined_vars.insert(var);
   }
 
+  void ClearVar(const std::string& var) {
+    defined_vars.erase(var);
+    used_vars.erase(var);
+  }
+
   void CollectVarUse(const std::string& var) {
     used_vars.insert(var);
     if (defined_vars.count(var) == 0) {
@@ -41,6 +46,7 @@ struct Mutator : public ir::IRMutator<> {
     Visit(&node->min, &node->min);
     Visit(&node->extent, &node->extent);
     Visit(&node->body, &node->body);
+    ClearVar(op->loop_var->name);
   }
 
   void Visit(const ir::Load* op, Expr* expr) final {
