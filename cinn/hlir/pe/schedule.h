@@ -46,7 +46,7 @@ int GetBetterSplitFactor(int shape, int split_factor);
 int GetArrayPackingFactor(int shape, const Type &type, const common::Target &target);
 
 void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
-void ScheduleInjectiveCPU1(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
+void ScheduleInjectiveCPUFuse(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
 
 void MatmulScheduleCPU(poly::StageMap stage,
                        const ir::Tensor &output,

@@ -1170,9 +1170,6 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     if (target.arch == Target::Arch::NVGPU) {
       pe::PoolScheduleGPU(stages, temp_out, target);
       arg_pack[arg_pack.size() - 2] = Expr(temp_out);
-    } else if (target.arch == Target::Arch::X86) {
-      // Not add PoolScheduleCPU temporily for the performance is not so that good
-      // pe::PoolScheduleCPU(stages, temp_out, target);
     }
     *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
   });

@@ -76,7 +76,7 @@ int GetVectorizeFactor(int shape, int split_factor) {
   return better_factor;
 }
 
-void ScheduleInjectiveCPU1(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
+void ScheduleInjectiveCPUFuse(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
   int dims             = stage->n_out_dims();
   int factor           = GetBasicFactor(stage->tensor()->type(), target);
   poly::Iterator fused = stage->axis(0);

@@ -630,7 +630,7 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
       out_shape.push_back(shape.as_int32());
     }
     if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU1(stages[tensor_out], out_shape, target);
+      pe::ScheduleInjectiveCPUFuse(stages[tensor_out], out_shape, target);
     }
     *ret = arg_pack;
   });
