@@ -107,9 +107,6 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
     }
   }
 
-  // deal with the compute_at relations
-  ProcessComputeAtInfo(&e, stage_map);
-
   // mark vectorize.
   {
     std::map<std::string, ir::VectorizeInfo> vectorizes;
@@ -625,7 +622,6 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
     optim::ComputeInlineExpand(&func->body, stages_, &all_tensor_map);
 
     auto res = optim::Optimize(func, target_, FLAGS_cinn_runtime_display_debug_info);
-    // UpdateComputeAtBufferShape(&res, stages_);
 
     if (cuda_axis_info_.size() > num_func && cuda_axis_info_[num_func].valid()) {
       auto* res_func           = res.as_lowered_func();
