@@ -856,6 +856,15 @@ void Stage::Vectorize(const std::string &axis, int factor) {
 
 void Stage::Vectorize(const Iterator &axis, int factor) { return Vectorize(axis.id, factor); }
 
+void Stage::Parallel(const std::string &axis) {
+  auto dims = isl_get_dim_names(transformed_domain());
+  auto it   = std::find(dims.begin(), dims.end(), axis);
+  CHECK(it != dims.end()) << "No dimension called " << axis;
+  Parallel(std::distance(dims.begin(), it));
+}
+
+void Stage::Parallel(const Iterator &axis) { return Parallel(axis.id); }
+
 void Stage::Parallel(int level) {
   CHECK_GE(level, 0);
   AssertAxisIsNotLocked(level);
@@ -1231,7 +1240,8 @@ isl_map *__isl_give GatherAccesses(Stage *stage, const std::string &tensor_name)
 }
 
 void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
-  int num_levels = isl_map_dim(transform_.get(), isl_dim_out);
+  cuda_bind_info_ = true;
+  int num_levels  = isl_map_dim(transform_.get(), isl_dim_out);
   CHECK_GE(level, 0);
   CHECK_LT(level, num_levels);
   auto transformed_domain = this->transformed_domain();

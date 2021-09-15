@@ -187,6 +187,21 @@ std::unordered_map<std::string, AttrType> attr_store_depthwise_conv2d = {{"paddi
                                                                          {"dilation", dilation_depthwise_conv2d}};
 TEST_DEFAULT1(depthwise_conv2d, depthwise_conv2d_nchw, type1, type7, attr_store_depthwise_conv2d)
 
+// layout_transform
+std::vector<std::vector<int>> shapes_layout_transform                 = {{512, 512, 3, 3}};
+std::string src_layout                                                = "OIHW";
+std::string dst_layout                                                = "OIHW16i16o";
+std::unordered_map<std::string, AttrType> attr_store_layout_transform = {{"src_layout", src_layout},
+                                                                         {"dst_layout", dst_layout}};
+TEST_DEFAULT1(layout_transform, layout_transform, type, type, attr_store_layout_transform)
+
+std::vector<std::vector<int>> shapes_layout_transform1                 = {{64, 3, 7, 7}};
+std::string src_layout1                                                = "OIHW";
+std::string dst_layout1                                                = "OIHW3i32o";
+std::unordered_map<std::string, AttrType> attr_store_layout_transform1 = {{"src_layout", src_layout1},
+                                                                          {"dst_layout", dst_layout1}};
+TEST_DEFAULT1(layout_transform, layout_transform1, type, type, attr_store_layout_transform1)
+
 // pool2d
 hlir::framework::NodeAttr attrs;
 std::vector<int> kernel_size                                = {3, 3};
@@ -205,9 +220,9 @@ TEST_DEFAULT1(pool2d, pool2d1, type, type, attr_store_pool2d)
 
 // softmax
 std::vector<std::vector<int>> shapes_softmax = {{1024, 2048}};
-TEST_DEFAULT(softmax, softmax, type, type6)
+TEST_DEFAULT(softmax, softmax, type, type1)
 std::vector<std::vector<int>> shapes_softmax1 = {{3, 1000}};
-TEST_DEFAULT(softmax, softmax1, type, type6)
+TEST_DEFAULT(softmax, softmax1, type, type1)
 
 // sigmoid
 std::vector<std::vector<int>> shapes_sigmoid = {{2, 672, 1, 1}};

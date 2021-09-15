@@ -72,13 +72,11 @@ TEST(TransformGpuForloops, multiple_thread_axis) {
 
   auto stages = CreateStages({C, D});
 
-  auto [i_outer, i_inner] = stages[C]->Split(0, 10);  // NOLINT
-  stages[C]->Bind(0, "blockIdx.x");
-  stages[C]->Bind(1, "threadIdx.x");
-  stages[C]->Bind(2, "threadIdx.y");
-
+  auto [i_outer, i_inner] = stages[D]->Split(0, 10);  // NOLINT
   stages[D]->Bind(0, "blockIdx.x");
-  stages[D]->Bind(1, "threadIdx.x");
+  stages[D]->Bind(1, "blockIdx.y");
+  stages[D]->Bind(2, "threadIdx.x");
+  stages[C]->ComputeAt(stages[D], 1);
 
   auto func = Lower("elementwise_add", stages, {A, B, C, D});
 
@@ -88,15 +86,16 @@ TEST(TransformGpuForloops, multiple_thread_axis) {
 function elementwise_add (_A, _B, _C, _D)
 {
   if ((blockIdx.x < 10)) {
-    if ((threadIdx.x < 10)) {
-      if ((threadIdx.y < 200)) {
-        C[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] = (A[((10 * blockIdx.x) + threadIdx.x), threadIdx.y] * B[((10 * blockIdx.x) + threadIdx.x), threadIdx.y])
+    if ((blockIdx.y < 10)) {
+      {
+        for (j, 0, 200)
+        {
+          C[((10 * blockIdx.x) + blockIdx.y), j] = (A[((10 * blockIdx.x) + blockIdx.y), j] * B[((10 * blockIdx.x) + blockIdx.y), j])
+        }
+        if ((threadIdx.x < 200)) {
+          D[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] = (C[((10 * blockIdx.x) + blockIdx.y), threadIdx.x] + A[((10 * blockIdx.x) + blockIdx.y), threadIdx.x])
+        }
       }
-    }
-  }
-  if ((blockIdx.x < 100)) {
-    if ((threadIdx.x < 200)) {
-      D[blockIdx.x, threadIdx.x] = (C[blockIdx.x, threadIdx.x] + A[blockIdx.x, threadIdx.x])
     }
   }
 }
@@ -104,11 +103,11 @@ function elementwise_add (_A, _B, _C, _D)
 
   LOG(INFO) << "cuda axis info: " << func->cuda_axis_info;
   ASSERT_TRUE(func->cuda_axis_info.valid());
-  EXPECT_EQ(func->cuda_axis_info.grid_dim(0), 100);   // x
-  EXPECT_EQ(func->cuda_axis_info.grid_dim(1), 1);     // y
+  EXPECT_EQ(func->cuda_axis_info.grid_dim(0), 10);    // x
+  EXPECT_EQ(func->cuda_axis_info.grid_dim(1), 10);    // y
   EXPECT_EQ(func->cuda_axis_info.grid_dim(2), 1);     // z
   EXPECT_EQ(func->cuda_axis_info.block_dim(0), 200);  // x
-  EXPECT_EQ(func->cuda_axis_info.block_dim(1), 200);  // y
+  EXPECT_EQ(func->cuda_axis_info.block_dim(1), 1);    // y
   EXPECT_EQ(func->cuda_axis_info.block_dim(2), 1);    // z
 
   ASSERT_EQ(utils::Trim(target_source), utils::GetStreamCnt(func));

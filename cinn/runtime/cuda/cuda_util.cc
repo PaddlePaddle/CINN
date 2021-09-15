@@ -79,7 +79,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                            int block_z,
                            void *stream) {
   // prepare void**
-  VLOG(3) << "In cinn_call_cuda_kernel grid xyz is : " << grid_x << ", " << grid_y << ", " << grid_z;
+  VLOG(3) << "In cinn_call_cuda_kernel,\ngrid xyz is : " << grid_x << ", " << grid_y << ", " << grid_z;
   VLOG(3) << "block xyz is : " << block_x << ", " << block_y << ", " << block_z;
   VLOG(3) << "num_args is : " << num_args;
   void *arr[20];

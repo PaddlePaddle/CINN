@@ -46,6 +46,7 @@ int GetBetterSplitFactor(int shape, int split_factor);
 int GetArrayPackingFactor(int shape, const Type &type, const common::Target &target);
 
 void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
+void ScheduleInjectiveCPUFuse(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target);
 
 void MatmulScheduleCPU(poly::StageMap stage,
                        const ir::Tensor &output,
@@ -56,6 +57,8 @@ void MulScheduleCPU(poly::StageMap stage,
                     const ir::Tensor &output,
                     const ir::Tensor &input_tensor,
                     const common::Target &target);
+
+void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir::Tensor &temp, int axis = -1);
 
 void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
                       int oc,
@@ -86,6 +89,7 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
                                const std::string &key,
                                bool do_padding);
 
+void PoolScheduleCPU(poly::StageMap stages, const ir::Tensor &output, const common::Target &target);
 void PoolScheduleGPU(poly::StageMap stages, ir::Tensor &output, const common::Target &target);
 
 void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
@@ -127,6 +131,8 @@ void CudaScheduleMul(poly::StageMap stages,
                      ir::Tensor output,
                      const std::vector<int> &output_shape,
                      const common::Target &target);
+
+void CudaScheduleDepthwiseConv(poly::StageMap stages, ir::Tensor &output, const common::Target &target);
 
 void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor &input_pad,

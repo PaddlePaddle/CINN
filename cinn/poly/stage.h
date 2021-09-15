@@ -192,6 +192,8 @@ class Stage : public Object {
    * @param level
    */
   void Parallel(int level);
+  void Parallel(const std::string& axis);
+  void Parallel(const Iterator& axis);
 
   /**
    * Unroll a for-loop.
@@ -381,6 +383,7 @@ class Stage : public Object {
   //! Set stage's forloop_infos_
   void SetForloopInfo(std::map<int, StageForloopInfo> forloop_infos) { forloop_infos_ = forloop_infos; }
   void AddForloopInfo(int level, const StageForloopInfo& info);
+  bool IfCudaBind() { return cuda_bind_info_; }
 
  private:
   explicit Stage(const isl::set& domain, Expr expr = Expr(), ir::_Tensor_* tensor = nullptr);
@@ -421,6 +424,7 @@ class Stage : public Object {
   std::set<ir::Tensor> ctrl_depends_;
 
   std::set<int> locked_axis_;
+  bool cuda_bind_info_{false};
 
   friend isl_map* __isl_give GatherAccesses(Stage* stage, const std::string& tensor_name);
   friend class PolyGroupScheduler;

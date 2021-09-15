@@ -65,6 +65,39 @@ int GetBetterSplitFactor(int shape, int split_factor) {
   return better_factor;
 }
 
+int GetVectorizeFactor(int shape, int split_factor) {
+  int better_factor = 1;
+  for (int i = split_factor; i > 1; i--) {
+    if (shape % i == 0) {
+      better_factor = i;
+      break;
+    }
+  }
+  return better_factor;
+}
+
+void ScheduleInjectiveCPUFuse(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
+  int dims             = stage->n_out_dims();
+  int factor           = GetBasicFactor(stage->tensor()->type(), target);
+  poly::Iterator fused = stage->axis(0);
+  if (dims >= 5) {
+    fused = stage->Fuse({0, 1, 2});
+  } else if (dims >= 3) {
+    fused = stage->Fuse({0, 1});
+  }
+  stage->Parallel(fused);
+  dims = stage->n_out_dims();
+  poly::Iterator lo;
+  poly::Iterator li;
+  int last_shape   = stage->GetDimRange(dims - 1);
+  factor           = GetVectorizeFactor(last_shape, factor);
+  std::tie(lo, li) = stage->Split(stage->axis(dims - 1), factor);
+  stage->Vectorize(li, factor);
+  if (dims == 1) {
+    stage->Parallel(0);
+  }
+}
+
 void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
   int dims = stage->n_out_dims();
   if (dims > 1) {
@@ -250,6 +283,25 @@ void MulScheduleCPU(poly::StageMap stages,
   }
 }
 
+void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir::Tensor &temp, int axis) {
+  if (axis == -1) {
+    axis += output->shape.size();
+  }
+  poly::Iterator fused = stage[output]->axis(0);
+  stage[output]->Parallel(fused);
+  for (int i = 1; i < axis; i++) {
+    fused = stage[output]->Fuse(0, 1);
+  }
+  CHECK_GT(stage[output]->n_out_dims(), 1);
+  stage[temp]->ComputeAt(stage[output], 0);
+}
+
+void PoolScheduleCPU(poly::StageMap stages, const ir::Tensor &output, const common::Target &target) {
+  CHECK_GE(stages[output]->n_out_dims(), 2);
+  stages[output]->Fuse({0, 1});
+  stages[output]->Parallel(0);
+}
+
 void PoolScheduleGPU(poly::StageMap stages, ir::Tensor &output, const common::Target &target) {
   CHECK_GE(stages[output]->axis_names().size(), 4);
   stages[output]->Fuse({0, 1, 2, 3});
@@ -275,6 +327,7 @@ void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
       LoadSerialData(&params);
     }
     if (params.count(key)) {
+      VLOG(3) << "find saved param, key is: " << key;
       CHECK(!params[key]["oc_bn"].empty());
       CHECK(!params[key]["ic_bn"].empty());
       CHECK(!params[key]["ow_bn"].empty());
@@ -1023,6 +1076,9 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
   // CC_init
   auto CC_init = CC->GetInitTensor(stages, target);
   stages[CC_init]->Vectorize(stages[CC_init]->n_out_dims() - 1, CC_init->shape.back().as_int32());
+  // unroll ow_inner
+  stages[CC]->Unroll(stages[CC]->n_out_dims() - 2);
+  stages[CC_init]->Unroll(stages[CC_init]->n_out_dims() - 2);
 
   // res
   // n, oc, oh, ow
@@ -1269,6 +1325,15 @@ void SaveSerialData(
   output.close();
 }
 
+void CudaScheduleDepthwiseConv(poly::StageMap stages, ir::Tensor &output, const common::Target &target) {
+  auto OL = stages[output]->CacheWrite("local", stages, output);
+  stages[output]->Bind(0, "blockIdx.x");
+  stages[output]->Bind(1, "blockIdx.y");
+  stages[output]->Bind(2, "blockIdx.z");
+  stages[output]->Bind(3, "threadIdx.x");
+  stages[OL]->ComputeAt(stages[output], 3);
+}
+
 void CudaScheduleConv(poly::StageMap stages,
                       ir::Tensor &input_pad,
                       ir::Tensor &weights,
@@ -1321,23 +1386,8 @@ void CudaScheduleConv(poly::StageMap stages,
   stages[output]->Bind(2, "blockIdx.y");
   stages[output]->Bind(3, "threadIdx.z");
   stages[output]->Bind(4, "threadIdx.x");
-  stages[OL]->ComputeAt3(stages[output], 4);
-  auto on  = stages[OL]->axis(0);
-  auto obz = stages[OL]->axis(1);
-  auto oby = stages[OL]->axis(2);
-  auto otz = stages[OL]->axis(3);
-  auto otx = stages[OL]->axis(4);
-  auto ofi = stages[OL]->axis(5);
-  auto orc = stages[OL]->axis(6);
-  auto ory = stages[OL]->axis(7);
-  auto orx = stages[OL]->axis(8);
-  stages[OL]->Reorder({orc, ory, orx, on, obz, oby, otz, otx, ofi});
-  stages[OL]->Split(0, rc_factor);
-  stages[OL]->Reorder({0, 2, 3, 1});
-  stages[OL]->Bind(5, "blockIdx.z");
-  stages[OL]->Bind(6, "blockIdx.y");
-  stages[OL]->Bind(7, "threadIdx.z");
-  stages[OL]->Bind(8, "threadIdx.x");
+  stages[OL]->ComputeAt(stages[output], 4);
+  stages[OL]->Split(6, rc_factor);
 }
 
 void CudaScheduleConv2(poly::StageMap stages,

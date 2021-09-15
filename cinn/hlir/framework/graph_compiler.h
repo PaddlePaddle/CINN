@@ -111,9 +111,9 @@ class GraphCompiler final {
   const std::shared_ptr<Scope>& GetScope() const { return scope_; }
 
  private:
-  ir::LoweredFunc GetOpFunc(const std::vector<Node*>& nodes);
+  std::vector<ir::LoweredFunc> GetOpFunc(const std::vector<Node*>& nodes);
 
-  ir::LoweredFunc GetOpFunc(const Node* node);
+  std::vector<ir::LoweredFunc> GetOpFunc(const Node* node);
 
   std::string GenOpFuncName(const Node* node) const { return "fn_" + node->id(); }
 
@@ -125,9 +125,14 @@ class GraphCompiler final {
   std::vector<std::unique_ptr<Instruction>> BuildInstructions();
 
  private:
+  void ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func);
   Target target_;
   std::shared_ptr<Graph> graph_;
   std::shared_ptr<Scope> scope_;
+  // mapping a function's name to its input artuments' names
+  std::map<std::string, std::vector<std::string>> function2input_args_;
+  // mapping a function's name to its output artuments' names
+  std::map<std::string, std::vector<std::string>> function2output_args_;
 
   std::unique_ptr<backends::Compiler> compiler_;
 

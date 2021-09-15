@@ -88,8 +88,17 @@ std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_s
                                             framework::NodeAttr &attrs,
                                             const Target &target) {
   CHECK_EQ(inputs_shape.size(), 2UL);
-  std::vector<shape_t> res{inputs_shape[0]};
-  return res;
+  std::vector<int> out_shape;
+  int axis = -1;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "axis") {
+      axis = std::get<int>(iter.second);
+      break;
+    }
+  }
+  pe::GetBroadcastOutShape(inputs_shape[0], inputs_shape[1], &out_shape, axis);
+  VLOG(3) << "broadcast out shape: " << utils::Join(out_shape, ", ");
+  return {out_shape};
 }
 
 std::vector<Type> InferDtypeForBroadcast(const std::vector<Type> &inputs_type,

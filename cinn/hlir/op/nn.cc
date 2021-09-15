@@ -478,8 +478,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
     // A is input: [N, C_in_outer, H, W, C_in_inner], B is filter: [C_out, C_in_group_outer, filter_h, filter_w,
     // C_in_group_inner]
     std::string key;
-    VLOG(3) << "input shape: " << utils::Join(tensor_a->shape, ", ");
-    VLOG(3) << "weight shape: " << utils::Join(tensor_b->shape, ", ");
+    VLOG(3) << "input[" << utils::Join(tensor_a->shape, ", ") << "], weight shape["
+            << utils::Join(tensor_b->shape, ", ") << "]";
     out = pe::Conv2d_NCHWc(tensor_a,
                            tensor_b,
                            padding[0],
@@ -721,10 +721,10 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
       stages[input_pad.as_tensor_ref()]->ComputeInline();
     }
     if (target.arch == Target::Arch::NVGPU) {
-      stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-      stages[Out.as_tensor_ref()]->Bind(1, "blockIdx.y");
-      stages[Out.as_tensor_ref()]->Bind(2, "blockIdx.z");
-      stages[Out.as_tensor_ref()]->Bind(3, "threadIdx.x");
+      ir::Tensor output = Out.as_tensor_ref();
+      CHECK(Out.as_tensor());
+      pe::CudaScheduleDepthwiseConv(stages, output, target);
+      arg_pack[0] = Expr(output);
     } else if (target.arch == Target::Arch::X86) {
       if (arg_pack.size() == 6UL) {
         Expr res              = arg_pack[0];
@@ -757,7 +757,7 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
       }
     }
 
-    *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
+    *ret = CINNValuePack{{arg_pack[0], CINNValue(stages)}};
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1165,9 +1165,9 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       CHECK(input_pad.as_tensor());
       stages[input_pad.as_tensor_ref()]->ComputeInline();
     }
+    CHECK(Out.as_tensor());
+    ir::Tensor temp_out = Out.as_tensor_ref();
     if (target.arch == Target::Arch::NVGPU) {
-      CHECK(Out.as_tensor());
-      ir::Tensor temp_out = Out.as_tensor_ref();
       pe::PoolScheduleGPU(stages, temp_out, target);
       arg_pack[arg_pack.size() - 2] = Expr(temp_out);
     }
@@ -1519,10 +1519,6 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     }
     std::vector<ir::Tensor> out;
     bool use_mkldnn = false;
-#ifdef CINN_WITH_MKLDNN
-    use_mkldnn = true;
-#endif
-    use_mkldnn = use_mkldnn && (target.arch == Target::Arch::X86);
     if (use_mkldnn) {
       out = pe::SoftmaxMKLDNN(A, new_axis, UniqName("Softmax_mkldnn_output"));
     } else {
@@ -1544,25 +1540,23 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 3UL) << "The input tensor's size of softmax schedule is " << arg_pack.size()
                                    << "and it should be equal to 3! Please check.";
+    Expr out1             = arg_pack[0];
+    Expr out2             = arg_pack[1];
+    poly::StageMap stages = arg_pack[2];
+    CHECK(out1.as_tensor());
+    CHECK(out2.as_tensor());
+    ir::Tensor tensor_a = out1.as_tensor_ref();
+    ir::Tensor tensor_b = out2.as_tensor_ref();
     if (target.arch == Target::Arch::NVGPU) {
-      Expr out1             = arg_pack[0];
-      Expr out2             = arg_pack[1];
-      poly::StageMap stages = arg_pack[2];
-      CHECK(out1.as_tensor());
-      CHECK(out2.as_tensor());
-      ir::Tensor tensor_a = out1.as_tensor_ref();
-      ir::Tensor tensor_b = out2.as_tensor_ref();
       if (tensor_a->shape.size() > 1) {
         stages[tensor_a]->Split(1, 2);
         stages[tensor_a]->Bind(0, "blockIdx.x");
         stages[tensor_a]->Bind(1, "threadIdx.x");
+        int shape_size = tensor_a->shape.size();
+        stages[tensor_b]->ComputeAt(stages[tensor_a], shape_size);
       }
-      if (tensor_b->shape.size() > 1) {
-        stages[tensor_b]->Split(1, 2);
-        stages[tensor_b]->Bind(0, "blockIdx.x");
-        stages[tensor_b]->Bind(1, "threadIdx.x");
-      }
-      stages[tensor_b]->SyncThreads(stages);
+    } else if (target.arch == Target::Arch::X86) {
+      pe::SoftmaxScheduleCPU(stages, tensor_a, tensor_b, axis);
     }
     *ret = arg_pack;
   });
