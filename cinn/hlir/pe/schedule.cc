@@ -1507,14 +1507,15 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[data_l]->Unroll(4);
   wino_stages[data_l]->Unroll(5);
 
+  wino_stages[data_pack]->Split(3, 1);
   wino_stages[data_pack]->Fuse({2, 3});
   wino_stages[data_pack]->Split(2, 128);
-  wino_stages[data_pack]->Reorder({2, 3, 0, 1});
-  // wino_stages[data_pack]->Bind(0, "blockIdx.x");
+  wino_stages[data_pack]->Reorder({2, 3, 4, 0, 1});
+  wino_stages[data_pack]->Bind(0, "blockIdx.x");
   wino_stages[data_pack]->Bind(1, "threadIdx.x");
 
-  wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 1);
-  wino_stages[input_tile]->ComputeAt(wino_stages[data_l], 1);
+  wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 2);
+  wino_stages[input_tile]->ComputeAt(wino_stages[data_l], 2);
   wino_stages[wino_input_pad]->ComputeInline();
 
   wino_stages[wino_G]->ComputeInline();
@@ -1525,48 +1526,63 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[kernel_pack]->Unroll(4);
   wino_stages[kernel_pack]->Unroll(3);
   wino_stages[kernel_pack]->Unroll(2);
-  // wino_stages[kernel_pack]->Bind(0, "blockIdx.x");
+  wino_stages[kernel_pack]->Bind(0, "blockIdx.x");
   wino_stages[kernel_pack]->Bind(1, "threadIdx.x");
 
-  wino_stages[wino_weights_dilation]->ComputeInline();
+  // wino_stages[wino_weights_dilation]->ComputeInline();
 
   auto wino_OL = wino_stages[bgemm]->CacheWrite("local", wino_stages, bgemm);
 
   wino_stages[bgemm]->Fuse({0, 1});
 
+  wino_stages[bgemm]->SplitOuter(0, 1);
+
   // x param is :  [1, 2, 98, 1]
-  wino_stages[bgemm]->Split(2, 1);
-  wino_stages[bgemm]->Split(2, 98);
-  wino_stages[bgemm]->Split(2, 2);
+  wino_stages[bgemm]->Split(3, 1);
+  wino_stages[bgemm]->Split(3, 98);
+  wino_stages[bgemm]->Split(3, 2);
   // y param is :  [2, 2, 2, 8]
-  wino_stages[bgemm]->Split(1, 8);
-  wino_stages[bgemm]->Split(1, 2);
-  wino_stages[bgemm]->Split(1, 2);
+  wino_stages[bgemm]->Split(3, 8);
+  wino_stages[bgemm]->Split(3, 2);
+  wino_stages[bgemm]->Split(3, 2);
   // b param is :  [36, 1, 1, 1]
-  wino_stages[bgemm]->Split(0, 1);
-  wino_stages[bgemm]->Split(0, 1);
-  wino_stages[bgemm]->Split(0, 1);
+  wino_stages[bgemm]->Split(1, 1);
+  wino_stages[bgemm]->Split(1, 1);
+  wino_stages[bgemm]->Split(1, 1);
 
-  wino_stages[bgemm]->Reorder({0, 4, 8, 1, 5, 9, 2, 6, 10, 3, 7, 11});
+  wino_stages[bgemm]->Reorder({0, 1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12});
 
-  wino_stages[bgemm]->Bind(8, "threadIdx.x");
+  wino_stages[bgemm]->Bind(1, "blockIdx.z");
+  wino_stages[bgemm]->Bind(2, "blockIdx.y");
+  wino_stages[bgemm]->Bind(3, "blockIdx.x");
+  wino_stages[bgemm]->Bind(7, "threadIdx.z");
+  wino_stages[bgemm]->Bind(8, "threadIdx.y");
+  wino_stages[bgemm]->Bind(9, "threadIdx.x");
 
-  wino_stages[wino_OL]->ComputeAt(wino_stages[bgemm], 8);
+  wino_stages[wino_OL]->ComputeAt(wino_stages[bgemm], 9);
 
-  wino_stages[wino_OL]->Fuse({9, 10});
+  wino_stages[wino_OL]->Fuse({10, 11});
   // rc param is :  [8, 8]
-  wino_stages[wino_OL]->Split(10, 8);
-  wino_stages[wino_OL]->Reorder({10, 11, 9});
+  wino_stages[wino_OL]->Split(11, 8);
+  wino_stages[wino_OL]->Reorder({11, 12, 10});
 
   int m = 4;
   wino_stages[wino_conv]->Tile(2, 3, m, m);
-  wino_stages[wino_conv]->Fuse({0, 1, 2, 3});
-  wino_stages[wino_conv]->Split(0, 128);
-  wino_stages[wino_conv]->Bind(1, "threadIdx.x");
+  wino_stages[wino_conv]->SplitOuter(0, 1);
+  wino_stages[wino_conv]->Fuse({1, 2, 3, 4});
+  wino_stages[wino_conv]->Split(1, 128);
+  wino_stages[wino_conv]->Bind(1, "blockIdx.x");
+  wino_stages[wino_conv]->Bind(2, "threadIdx.x");
 
+  // wino_stages[wino_OL]->ComputeAt(wino_stages[wino_conv], 2);
   wino_stages[wino_A]->ComputeInline();
 
-  wino_stages[inverse]->Bind(1, "threadIdx.x");
+  wino_stages[inverse]->Unroll(5);
+  wino_stages[inverse]->Unroll(4);
+  wino_stages[inverse]->Unroll(3);
+  wino_stages[inverse]->Unroll(2);
+  wino_stages[inverse]->ComputeAt(wino_stages[wino_conv], 2);
+  // wino_stages[inverse]->Bind(1, "threadIdx.x");
 }
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {

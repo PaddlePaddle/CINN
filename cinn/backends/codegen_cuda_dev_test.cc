@@ -466,16 +466,23 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
 
   CodeGenCUDA_Dev wino_codegen(target);
 
-  auto wino_func = Lower("schedule_wino_conv2d",
+  auto wino_func = lang::LowerVec("schedule_wino_conv2d",
                          wino_stages,
                          {Wino_A, Wino_B, kernel_pack, input_tile, data_pack, bgemm, inverse, wino_conv},
                          {},
                          {},
                          nullptr,
                          target);
-  LOG(INFO) << wino_func;
+  // LOG(INFO) << wino_func;
+  for (auto& i : wino_func) {
+    LOG(INFO) << i;
+  }
+
   Module::Builder wino_builder("wino_module", target);
-  wino_builder.AddFunction(wino_func);
+  // wino_builder.AddFunction(wino_func);
+  for (auto& i : wino_func) {
+    wino_builder.AddFunction(i);
+  }
 
   auto wino_source_code = wino_codegen.Compile(wino_builder.Build());
 
