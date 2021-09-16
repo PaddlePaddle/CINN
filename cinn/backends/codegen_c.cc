@@ -6,6 +6,7 @@
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_verify.h"
 #include "cinn/ir/lowered_func.h"
+#include "cinn/optim/ir_simplify.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/runtime/cpu/thread_backend.h"
 #include "cinn/runtime/intrinsic.h"
@@ -113,7 +114,22 @@ void CodeGenC::Visit(const ir::Add *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Sub *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Mul *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::Div *op) { IrPrinter::Visit(op); }
-void CodeGenC::Visit(const ir::Mod *op) { IrPrinter::Visit(op); }
+void CodeGenC::Visit(const ir::Mod *op) {
+  auto copied = op->b();
+  optim::Simplify(&copied);
+  if (copied.is_constant()) {
+    int temp = (int)(copied.get_constant());
+    if ((temp & (temp - 1)) == 0) {
+      os() << "(";
+      Print(op->a());
+      os() << " & ";
+      os() << std::to_string(temp - 1);
+      os() << ")";
+      return;
+    }
+  }
+  PrintBinaryOp("%", op);
+}
 void CodeGenC::Visit(const ir::EQ *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::NE *op) { IrPrinter::Visit(op); }
 void CodeGenC::Visit(const ir::LT *op) { IrPrinter::Visit(op); }
@@ -404,7 +420,9 @@ void CodeGenC::Visit(const ir::Load *op) {
     os() << ")";
   } else if (op->is_addr_tensor()) {
     auto *tensor = op->tensor.As<ir::_Tensor_>();
-    os() << tensor->name << "[" << op->index() << "]";
+    os() << tensor->name << "[";
+    Print(op->index());
+    os() << "]";
   } else {
     IrPrinter::Visit(op);
   }
