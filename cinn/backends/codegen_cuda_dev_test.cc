@@ -802,30 +802,30 @@ TEST(CodeGenCUDA2, test_schedule_depthwise_conv2d) {
   // AL = s.cache_read(AA, "local", [OL])
   // WL = s.cache_read(WW, "local", [OL])
   LOG(INFO) << "output dims: " << stages[output]->n_out_dims();
-  std::vector<ir::Tensor> readers{output};
+  auto OL = stages[output]->CacheWrite("local", stages, output);
+  std::vector<ir::Tensor> readers{OL};
   auto PR = stages[pad_data]->CacheRead("shared", readers, stages);
   auto KR = stages[weight_tensor]->CacheRead("shared", readers, stages);
-  auto OL = stages[output]->CacheWrite("local", stages, output);
-  // auto AL = stages[AA]->CacheRead("local", readers, stages);
-  // auto WL = stages[WW]->CacheRead("local", readers, stages);
+  auto PL = stages[PR]->CacheRead("local", readers, stages);
+  auto KL = stages[KR]->CacheRead("local", readers, stages);
 
   // n, f, y, x = s[output].op.axis
   // bf, vf, tf, fi = cfg["tile_f"].apply(s, output, f)
   // by, vy, ty, yi = cfg["tile_y"].apply(s, output, y)
   // bx, vx, tx, xi = cfg["tile_x"].apply(s, output, x)
-  // x param is :  [-1, 1, 1, 1]
-  stages[output]->Split(3, 1);
-  stages[output]->Split(3, 1);
+  // x param is :  [16,1,7,2]
+  stages[output]->Split(3, 2);
+  stages[output]->Split(3, 7);
   stages[output]->Split(3, 1);
 
-  // y param is :  [-1, 1, 1, 1]
-  stages[output]->Split(2, 1);
-  stages[output]->Split(2, 1);
-  stages[output]->Split(2, 1);
+  // y param is :  [14, 2, 4, 2]
+  stages[output]->Split(2, 2);
+  stages[output]->Split(2, 4);
+  stages[output]->Split(2, 2);
 
-  // f param is :  [-1, 1, 1, 1]
-  stages[output]->Split(1, 1);
-  stages[output]->Split(1, 1);
+  // f param is :  [16, 1, 7, 2]
+  stages[output]->Split(1, 2);
+  stages[output]->Split(1, 7);
   stages[output]->Split(1, 1);
 
   // kernel_scope, n = s[output].split(n, nparts=1)
@@ -853,23 +853,35 @@ TEST(CodeGenCUDA2, test_schedule_depthwise_conv2d) {
   // s[OL].compute_at(s[output], tx)
   stages[OL]->ComputeAt(stages[output], 9);
   LOG(INFO) << "OL dims: " << stages[OL]->n_out_dims();
+  stages[OL]->ShowISL();
   LOG(INFO) << "OL compute";
 
-  // s[AA].compute_at(s[output], bx)
-  // s[WW].compute_at(s[output], bx)
+  // sput],[AA].compute_at(s[output], bx)
+  // s[WW].compute_at(s[out bx)
   // s[AL].compute_at(s[output], tx)
   // s[WL].compute_at(s[output], tx)
-  stages[PR]->ComputeAt(stages[OL], 9);
-  LOG(INFO) << "PR dims: " << stages[PR]->n_out_dims();
-  LOG(INFO) << "PR compute";
-  stages[OL]->ShowISL();
-  stages[KR]->ShowISL();
-  stages[KR]->ComputeAt(stages[OL], 9);
-  LOG(INFO) << "KR compute";
-  // stages[AL]->ComputeAt(stages[output], 3);
-  LOG(INFO) << "get here!";
-  // stages[WL]->ComputeAt(stages[OL], 8);
-  // LOG(INFO)<<"get here!";
+  // stages[PR]->ComputeAt(stages[OL], 3);
+  // // LOG(INFO) << "AL dims: " << stages[AL]->n_out_dims();
+
+  // stages[KR]->ComputeAt(stages[OL], 3);
+  // // LOG(INFO) << "PR dims: " << stages[PR]->n_out_dims();
+  // // LOG(INFO) << "PR compute";
+  // // stages[OL]->ShowISL();
+  // // stages[KR]->ShowISL();
+  // stages[KR]->ComputeAt2(stages[OL], 3);
+  // stages[PR]->ComputeAt2(stages[OL], 3);
+  stages[KL]->ComputeAt(stages[OL], 9);
+  // // LOG(INFO) << "KL dims: " << stages[KL]->n_out_dims();
+  // LOG(INFO) << "KL compute";
+  
+  stages[PL]->ComputeAt(stages[OL], 9);
+
+  stages[KR]->ComputeAt(stages[KL], 3);
+  stages[PR]->ComputeAt(stages[PL], 3);
+  // // LOG(INFO) << "get here!";
+  // // stages[PR]->ComputeAt(stages[PL], 10);
+
+  // stages[KR]->ShowISL();
 
   // for load in [AA, WW]:
   // fused = s[load].fuse(*list(s[load].op.axis))
@@ -879,23 +891,43 @@ TEST(CodeGenCUDA2, test_schedule_depthwise_conv2d) {
   // s[load].bind(tz, te.thread_axis("threadIdx.z"))
   // s[load].bind(ty, te.thread_axis("threadIdx.y"))
   // s[load].bind(tx, te.thread_axis("threadIdx.x"))
-  // stages[PR]->Fuse({14, 15, 16, 17});
-  // stages[KR]->Fuse({14, 15, 16, 17});
+  LOG(INFO) << "PR dims: " << stages[PR]->n_out_dims();
+  LOG(INFO) << "KR dims: " << stages[KR]->n_out_dims();
+  
+  // stages[PR]->Fuse({10, 11, 12, 13, 14});
+  // stages[KR]->Fuse({10, 11, 12});
+  
+  // stages[PR]->Split(10, 7);
+  // stages[PR]->Split(10, 4);
+  // stages[PR]->Split(10, 7);
+
+  // stages[KR]->Split(10, 7);
+  // stages[KR]->Split(10, 4);
+  // stages[KR]->Split(10, 7);
+
+  LOG(INFO) << "PR dims: " << stages[PR]->n_out_dims();
+  LOG(INFO) << "KR dims: " << stages[KR]->n_out_dims();
+  // stages[PR]->Bind(13, "threadIdx.z");
+  // stages[PR]->Bind(12, "threadIdx.y");
+  // stages[PR]->Bind(11, "threadIdx.x");
+  // stages[KR]->Bind(13, "threadIdx.z");
+  // stages[KR]->Bind(12, "threadIdx.y");
+  // stages[KR]->Bind(11, "threadIdx.x");
   // int thread_z = 5;
   // int thread_x = 5;
-  // if (stages[PR]->GetDimRange(14) <= thread_z) {
+  // if (stages[PR]->GetDimRange(13) <= thread_z) {
+  //   stages[PR]->Bind(13, "threadIdx.z");
+  // } else {
+  //   stages[PR]->Split(13, GetMaxSplitter(stages[PR]->GetDimRange(13), thread_z));
   //   stages[PR]->Bind(14, "threadIdx.z");
-  // } else {
-  //   stages[PR]->Split(14, GetMaxSplitter(stages[PR]->GetDimRange(14), thread_z));
-  //   stages[PR]->Bind(15, "threadIdx.z");
   // }
-  // if (stages[KR]->GetDimRange(14) <= thread_x) {
+  // if (stages[KR]->GetDimRange(13) <= thread_x) {
+  //   stages[KR]->Bind(13, "threadIdx.x");
+  // } else {
+  //   stages[KR]->Split(13, GetMaxSplitter(stages[KR]->GetDimRange(13), thread_x));
   //   stages[KR]->Bind(14, "threadIdx.x");
-  // } else {
-  //   stages[KR]->Split(14, GetMaxSplitter(stages[KR]->GetDimRange(14), thread_x));
-  //   stages[KR]->Bind(15, "threadIdx.x");
   // }
-  // LOG(INFO)<<"OL dims: "<<stages[KR]->n_out_dims();
+  LOG(INFO)<<"PR dims: "<<stages[PR]->n_out_dims();
   CodeGenCUDA_Dev codegen(target);
 
   auto func = Lower("schedule_depthwise_conv2d", stages, {A, B, output}, {}, {}, nullptr, target);
