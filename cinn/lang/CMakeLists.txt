@@ -7,7 +7,6 @@ core_gather_srcs(SRCS
     lower.cc
     builtin.cc
     lower_impl.cc
-    compute_at_postprocess.cc
     packed_func.cc
     )
 
