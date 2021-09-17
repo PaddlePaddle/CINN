@@ -1532,6 +1532,10 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   // wino_stages[wino_weights_dilation]->ComputeInline();
 
   auto wino_OL = wino_stages[bgemm]->CacheWrite("local", wino_stages, bgemm);
+  std::vector<ir::Tensor> readers{wino_OL};
+  auto AA = wino_stages[kernel_pack]->CacheRead("shared", readers, wino_stages);
+  auto BB = wino_stages[data_pack]->CacheRead("shared", readers, wino_stages);
+
 
   wino_stages[bgemm]->Fuse({0, 1});
 
@@ -1542,9 +1546,9 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[bgemm]->Split(3, 98);
   wino_stages[bgemm]->Split(3, 2);
   // y param is :  [2, 2, 2, 8]
-  wino_stages[bgemm]->Split(3, 8);
-  wino_stages[bgemm]->Split(3, 2);
-  wino_stages[bgemm]->Split(3, 2);
+  wino_stages[bgemm]->Split(2, 8);
+  wino_stages[bgemm]->Split(2, 2);
+  wino_stages[bgemm]->Split(2, 2);
   // b param is :  [36, 1, 1, 1]
   wino_stages[bgemm]->Split(1, 1);
   wino_stages[bgemm]->Split(1, 1);
@@ -1560,11 +1564,14 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[bgemm]->Bind(9, "threadIdx.x");
 
   wino_stages[wino_OL]->ComputeAt(wino_stages[bgemm], 9);
-
+  LOG(INFO) << wino_stages[wino_OL]->n_out_dims();
   wino_stages[wino_OL]->Fuse({10, 11});
   // rc param is :  [8, 8]
   wino_stages[wino_OL]->Split(11, 8);
   wino_stages[wino_OL]->Reorder({11, 12, 10});
+
+  wino_stages[AA]->ComputeAt(wino_stages[wino_OL], 10);
+  wino_stages[AA]->ComputeAt(wino_stages[wino_OL], 10);
 
   int m = 4;
   wino_stages[wino_conv]->Tile(2, 3, m, m);
@@ -1577,12 +1584,12 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   // wino_stages[wino_OL]->ComputeAt(wino_stages[wino_conv], 2);
   wino_stages[wino_A]->ComputeInline();
 
-  wino_stages[inverse]->Unroll(5);
+  // wino_stages[inverse]->Unroll(5);
   wino_stages[inverse]->Unroll(4);
   wino_stages[inverse]->Unroll(3);
   wino_stages[inverse]->Unroll(2);
   wino_stages[inverse]->ComputeAt(wino_stages[wino_conv], 2);
-  // wino_stages[inverse]->Bind(1, "threadIdx.x");
+
 }
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {

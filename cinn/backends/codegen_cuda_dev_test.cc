@@ -463,7 +463,7 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
                                      inverse,
                                      wino_conv,
                                      target);
-
+  LOG(INFO) << "test here";
   CodeGenCUDA_Dev wino_codegen(target);
 
   auto wino_func = lang::LowerVec("schedule_wino_conv2d",
@@ -474,6 +474,7 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
                          nullptr,
                          target);
   // LOG(INFO) << wino_func;
+  LOG(INFO) << "test here LowerVec";
   for (auto& i : wino_func) {
     LOG(INFO) << i;
   }
@@ -484,7 +485,11 @@ TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
     wino_builder.AddFunction(i);
   }
 
-  auto wino_source_code = wino_codegen.Compile(wino_builder.Build());
+  auto wino_module = wino_builder.Build();
+  
+  auto [host_module, device_module] = SplitCudaAndHostModule(wino_module); 
+
+  auto wino_source_code = wino_codegen.Compile(wino_module);
 
   LOG(INFO) << "compiled schedule_wino_conv2d code:\n\n\n" << wino_source_code;
   // std::ofstream outfile("/media/test.txt");
