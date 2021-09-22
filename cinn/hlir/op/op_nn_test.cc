@@ -304,6 +304,57 @@ TEST(Operator, Operator_Pool1d_Test0) {
   ASSERT_EQ(pool1d->description, "Do pooling on the width dimension of the input tensor.");
 }
 
+TEST(Operator, Operator_Select_Test0) {
+  auto select   = Operator::Get("select");
+  Operator temp = *select;
+  auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+
+  Expr C(16), H(64), W(64);
+  Placeholder<bool> condition("condition", {C, H, W});
+  Placeholder<float> true_value("true_value", {C, H, W});
+  Placeholder<float> false_value("false_value", {C, H, W});
+
+  NodeAttr attrs;
+  std::vector<ir::Tensor> inputs{condition.tensor(), true_value.tensor(), false_value.tensor()};
+  std::vector<Type> type{Float(32)};
+  common::Target target = common::DefaultHostTarget();
+
+  auto impl =
+      OpStrategy::SelectImpl(strategy[select](attrs, inputs, type, {{16, 64, 64}, {16, 64, 64}, {16, 64, 64}}, target));
+  common::CINNValuePack cinn_input = common::CINNValuePack{
+      {common::CINNValue(condition), common::CINNValue(true_value), common::CINNValue(false_value)}};
+  common::CINNValuePack rets = impl->fcompute(cinn_input);
+  rets                       = impl->fschedule(rets);
+  ASSERT_EQ(rets.size(), 2UL);
+  // the last element is a StageMap
+  for (int i = 0; i < rets->size() - 1; i++) {
+    Expr temp = rets[i];
+    inputs.push_back(temp.as_tensor_ref());
+  }
+  auto func = Lower("select", rets.back(), inputs);
+  LOG(INFO) << "Test Strategy Codegen:\n" << func;
+
+  Module::Builder builder("module0", target);
+  builder.AddFunction(func);
+  auto jit    = backends::ExecutionEngine::Create({});
+  auto module = builder.Build();
+
+  jit->Link(module);
+  auto fn = jit->Lookup("select");
+  CHECK(fn);
+  auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
+
+  cinn_buffer_t *A_buf = common::BufferBuilder(Bool(), {16, 64, 64}).set_random().Build();
+  cinn_buffer_t *B_buf = common::BufferBuilder(Float(32), {16, 64, 64}).set_random().Build();
+  cinn_buffer_t *C_buf = common::BufferBuilder(Float(32), {16, 64, 64}).set_random().Build();
+  cinn_buffer_t *D_buf = common::BufferBuilder(Float(32), {16, 64, 64}).set_random().Build();
+  cinn_pod_value_t a_arg(A_buf), b_arg(B_buf), c_arg(C_buf), d_arg(D_buf);
+  cinn_pod_value_t args[] = {a_arg, b_arg, c_arg, d_arg};
+  fn_(args, 4);
+
+  ASSERT_EQ(impl->name, "strategy.select.x86");
+}
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn

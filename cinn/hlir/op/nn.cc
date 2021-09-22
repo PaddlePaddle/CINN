@@ -1834,11 +1834,11 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
                                               const Target &target) {
   framework::CINNCompute select_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of select compute is empty! Please check.\n";
-    CINNValuePack a = args[0];
-    CHECK(a.empty() >= 3) << "at least one input tensor for select compute\n";
-    Expr condition   = a[0];
-    Expr true_value  = a[1];
-    Expr false_value = a[2];
+    CINNValuePack arg = args[0];
+    CHECK(arg.size() >= 3) << "at least one input tensor for select compute\n";
+    Expr condition   = arg[0];
+    Expr true_value  = arg[1];
+    Expr false_value = arg[2];
     CHECK(condition.as_tensor());
     CHECK(true_value.as_tensor());
     CHECK(false_value.as_tensor());
@@ -1888,7 +1888,7 @@ std::vector<Type> InferDtypeForSelect(const std::vector<Type> &inputs_type,
                                       const framework::NodeAttr &attrs,
                                       const Target &target) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
+  std::vector<Type> res{inputs_type[1]};
   return res;
 }
 
