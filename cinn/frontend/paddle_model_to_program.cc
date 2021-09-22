@@ -350,7 +350,7 @@ void PaddleModelToProgram::AddOpMapper_batchnorm() {
     auto bias        = GetVar(TransValidVarName(bias_name));
     auto mean        = GetVar(TransValidVarName(mean_name));
     auto variance    = GetVar(TransValidVarName(variance_name));
-    auto out         = program_->batchnorm(x, scale, bias, mean, variance, attrs);
+    auto out         = program_->fused_batchnorm_inference(x, scale, bias, mean, variance, attrs);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;

@@ -160,7 +160,8 @@ struct Program {
   using attr_t = hlir::framework::NodeAttr::attr_t;
   void SetInputs(const std::vector<Variable>& xs);
 
-  Variable create_const_float(float value, const std::vector<int>& shapes, const std::string& name);
+  template <typename PrimType>
+  Variable primitive_const_scalar(PrimType value, const std::string& name);
   /**
    * Add two variables.
    *
@@ -169,6 +170,7 @@ struct Program {
    * @return The result.
    */
   Variable add(const Variable& a, const Variable& b);
+  Variable multiply(const Variable& a, const Variable& b);
 
   /**
    * Multiply two matrix.
@@ -181,67 +183,75 @@ struct Program {
   Variable mulbias(
       const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims = 1, int y_num_col_dims = 1);
 
-#define SYNTAX_UNARY_DECL(name__) Variable primitive_##name__(const Variable& a);
+#define SYNTAX_PRIM_UNARY_DECL(name__) Variable primitive_##name__(const Variable& a);
 
-  SYNTAX_UNARY_DECL(exp);
-  SYNTAX_UNARY_DECL(erf);
-  SYNTAX_UNARY_DECL(sqrt);
-  SYNTAX_UNARY_DECL(log);
-  SYNTAX_UNARY_DECL(floor);
-  SYNTAX_UNARY_DECL(ceil);
-  SYNTAX_UNARY_DECL(round);
-  SYNTAX_UNARY_DECL(tanh);
-  SYNTAX_UNARY_DECL(log2);
-  SYNTAX_UNARY_DECL(log10);
-  SYNTAX_UNARY_DECL(trunc);
-  SYNTAX_UNARY_DECL(cos);
-  SYNTAX_UNARY_DECL(sin);
-  SYNTAX_UNARY_DECL(cosh);
-  SYNTAX_UNARY_DECL(tan);
-  SYNTAX_UNARY_DECL(sinh);
-  SYNTAX_UNARY_DECL(acos);
-  SYNTAX_UNARY_DECL(acosh);
-  SYNTAX_UNARY_DECL(asin);
-  SYNTAX_UNARY_DECL(asinh);
-  SYNTAX_UNARY_DECL(atan);
-  SYNTAX_UNARY_DECL(atanh);
+  SYNTAX_PRIM_UNARY_DECL(exp);
+  SYNTAX_PRIM_UNARY_DECL(erf);
+  SYNTAX_PRIM_UNARY_DECL(sqrt);
+  SYNTAX_PRIM_UNARY_DECL(log);
+  SYNTAX_PRIM_UNARY_DECL(floor);
+  SYNTAX_PRIM_UNARY_DECL(ceil);
+  SYNTAX_PRIM_UNARY_DECL(round);
+  SYNTAX_PRIM_UNARY_DECL(tanh);
+  SYNTAX_PRIM_UNARY_DECL(log2);
+  SYNTAX_PRIM_UNARY_DECL(log10);
+  SYNTAX_PRIM_UNARY_DECL(trunc);
+  SYNTAX_PRIM_UNARY_DECL(cos);
+  SYNTAX_PRIM_UNARY_DECL(sin);
+  SYNTAX_PRIM_UNARY_DECL(cosh);
+  SYNTAX_PRIM_UNARY_DECL(tan);
+  SYNTAX_PRIM_UNARY_DECL(sinh);
+  SYNTAX_PRIM_UNARY_DECL(acos);
+  SYNTAX_PRIM_UNARY_DECL(acosh);
+  SYNTAX_PRIM_UNARY_DECL(asin);
+  SYNTAX_PRIM_UNARY_DECL(asinh);
+  SYNTAX_PRIM_UNARY_DECL(atan);
+  SYNTAX_PRIM_UNARY_DECL(atanh);
 
-  SYNTAX_UNARY_DECL(isnan);
-  SYNTAX_UNARY_DECL(isfinite);
-  SYNTAX_UNARY_DECL(isinf);
-  SYNTAX_UNARY_DECL(bitwise_not);
+  SYNTAX_PRIM_UNARY_DECL(isnan);
+  SYNTAX_PRIM_UNARY_DECL(isfinite);
+  SYNTAX_PRIM_UNARY_DECL(isinf);
+  SYNTAX_PRIM_UNARY_DECL(bitwise_not);
 
-  SYNTAX_UNARY_DECL(negative);
-  SYNTAX_UNARY_DECL(identity);
-  SYNTAX_UNARY_DECL(logica_not);
-  SYNTAX_UNARY_DECL(sign);
-  SYNTAX_UNARY_DECL(abs);
-  SYNTAX_UNARY_DECL(rsqrt);
+  SYNTAX_PRIM_UNARY_DECL(negative);
+  SYNTAX_PRIM_UNARY_DECL(identity);
+  SYNTAX_PRIM_UNARY_DECL(logica_not);
+  SYNTAX_PRIM_UNARY_DECL(sign);
+  SYNTAX_PRIM_UNARY_DECL(abs);
+  SYNTAX_PRIM_UNARY_DECL(rsqrt);
 
-#define SYNTAX_BINARY_DECL(name__) Variable primitive_##name__(const Variable& a, const Variable& b, int axis = -1);
-  SYNTAX_BINARY_DECL(substract)
-  SYNTAX_BINARY_DECL(divide)
-  SYNTAX_BINARY_DECL(floor_divide)
-  SYNTAX_BINARY_DECL(mod)
-  SYNTAX_BINARY_DECL(floor_mod)
-  SYNTAX_BINARY_DECL(max)
-  SYNTAX_BINARY_DECL(min)
-  SYNTAX_BINARY_DECL(power)
-  SYNTAX_BINARY_DECL(logical_and)
-  SYNTAX_BINARY_DECL(logical_or)
-  SYNTAX_BINARY_DECL(logical_xor)
-  SYNTAX_BINARY_DECL(greater)
-  SYNTAX_BINARY_DECL(less)
-  SYNTAX_BINARY_DECL(equal)
-  SYNTAX_BINARY_DECL(not_equal)
-  SYNTAX_BINARY_DECL(greater_equal)
-  SYNTAX_BINARY_DECL(less_equal)
+#define SYNTAX_PRIM_BINARY_DECL(name__) Variable primitive_##name__(const Variable& a, const Variable& b);
+  SYNTAX_PRIM_BINARY_DECL(substract)
+  SYNTAX_PRIM_BINARY_DECL(divide)
+  SYNTAX_PRIM_BINARY_DECL(floor_divide)
+  SYNTAX_PRIM_BINARY_DECL(mod)
+  SYNTAX_PRIM_BINARY_DECL(floor_mod)
+  SYNTAX_PRIM_BINARY_DECL(max)
+  SYNTAX_PRIM_BINARY_DECL(min)
+  SYNTAX_PRIM_BINARY_DECL(power)
+  SYNTAX_PRIM_BINARY_DECL(logical_and)
+  SYNTAX_PRIM_BINARY_DECL(logical_or)
+  SYNTAX_PRIM_BINARY_DECL(logical_xor)
+  SYNTAX_PRIM_BINARY_DECL(greater)
+  SYNTAX_PRIM_BINARY_DECL(less)
+  SYNTAX_PRIM_BINARY_DECL(equal)
+  SYNTAX_PRIM_BINARY_DECL(not_equal)
+  SYNTAX_PRIM_BINARY_DECL(greater_equal)
+  SYNTAX_PRIM_BINARY_DECL(less_equal)
 
-  SYNTAX_BINARY_DECL(bitwise_or)
-  SYNTAX_BINARY_DECL(bitwise_xor)
-  SYNTAX_BINARY_DECL(bitwise_and)
-  SYNTAX_BINARY_DECL(left_shift)
-  SYNTAX_BINARY_DECL(right_shift)
+  SYNTAX_PRIM_BINARY_DECL(bitwise_or)
+  SYNTAX_PRIM_BINARY_DECL(bitwise_xor)
+  SYNTAX_PRIM_BINARY_DECL(bitwise_and)
+  SYNTAX_PRIM_BINARY_DECL(left_shift)
+  SYNTAX_PRIM_BINARY_DECL(right_shift)
+
+  // broadcast one operand to the target shape
+  // broadcast axes: the target axis which a's ith axis is mapped to
+  // Notes: a's dim should be one or same with the output dim mapped to.
+  // e.g. if a[64] broadcasts to out[1, 64, 112, 112], then out_shape is {1, 64, 112, 112} and broadcast_axes are {1}
+  Variable primitive_broadcast_to(const Variable& a,
+                                  const std::vector<int>& out_shape,
+                                  const std::vector<int>& broadcast_axes);
 
   /**
    * Add two tensors element-wise.

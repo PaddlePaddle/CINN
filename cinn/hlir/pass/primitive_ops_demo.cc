@@ -46,7 +46,7 @@ void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
 #endif
 }
 
-// batch_norm meta
+// batch_norm primitives
 TEST(batch_norm_meta, batch_norm_meta) {
   Placeholder A(Float(32), {1, 64, 112, 112}, "C");
 
@@ -70,6 +70,9 @@ TEST(batch_norm_meta, batch_norm_meta) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
+#ifndef CINN_WITH_CUDA
+  hlir::framework::ApplyPass(graph.get(), "AlterLayout");
+#endif
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto scope = BuildScope(target, graph);
   LOG(INFO) << "graph:\n" << graph->Visualize();

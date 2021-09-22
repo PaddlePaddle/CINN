@@ -157,7 +157,7 @@ class DomTree {
     CHECK(graph_node);
     DomNode* dom_node  = new DomNode();
     dom_node->ref_node = graph_node;
-    if (graph_node->inlinks().empty()) {
+    if (graph_node->inlinks().empty() && graph_node->safe_as<NodeData>()) {
       CHECK(graph_node->safe_as<NodeData>());
       // extern input vars
       dom_node->parent  = nullptr;
