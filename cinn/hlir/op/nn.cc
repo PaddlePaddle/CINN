@@ -550,7 +550,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
 }
 
 std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs_shape,
-                                              const framework::NodeAttr &attrs,
+                                              framework::NodeAttr &attrs,
                                               const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
