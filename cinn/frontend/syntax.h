@@ -174,6 +174,16 @@ struct Program {
   Variable mul(const Variable& a, const Variable& b, int x_num_col_dims = 1, int y_num_col_dims = 1);
 
   /**
+   * Multiply two matrix.
+   */
+  Variable matmul(const Variable& a, const Variable& b, bool trans_a = false, bool trans_b = false, float alpha = 1);
+
+  /**
+   * Reshape a tensor.
+   */
+  Variable reshape2(const Variable& a, const std::vector<int>& shape);
+
+  /**
    * Multiply two matrix and add a bias.
    */
   Variable mulbias(

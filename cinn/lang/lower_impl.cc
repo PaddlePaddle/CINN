@@ -583,7 +583,6 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
     // TODO(Superjomn) write buffer latter.
 
     if (target_ == common::DefaultNVGPUTarget()) {
-      VLOG(3) << "Case: target = DefaultNVGPUTarget";
       for (auto& t : new_temp_tensors) {
         if (!tensor_map.count(t->name)) continue;
         auto& tt = tensor_map.at(t->name);
@@ -605,11 +604,17 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
 
     ir::LoweredFunc func;
     if (target_ == common::DefaultNVGPUTarget()) {
-      auto func_args2 = GenFuncArgForSplitKernel(func_iterator, new_temp_tensors);
-      VLOG(3) << "Case: target = DefaultNVGPUTarget";
+      auto func_args2         = GenFuncArgForSplitKernel(func_iterator, new_temp_tensors);
       std::string new_fn_name = fn_name_;
       if (num_func > 0) {
         new_fn_name += "_" + std::to_string(num_func);
+      }
+      VLOG(3) << "Making func :" << new_fn_name;
+      for (auto& i : func_args2) {
+        VLOG(3) << "func_args2 is : " << i.name();
+      }
+      for (auto& i : temp_buffers) {
+        VLOG(3) << "temp_buffers is : " << i->name;
       }
       func = ir::_LoweredFunc_::Make(new_fn_name, func_args2, func_iterator, temp_buffers);
     } else {

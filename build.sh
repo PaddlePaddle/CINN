@@ -94,7 +94,7 @@ function cmake_ {
 function _download_and_untar {
     local tar_file=$1
     if [[ ! -f $tar_file ]]; then
-        wget http://paddle-inference-dist.bj.bcebos.com/CINN/$tar_file
+        wget https://paddle-inference-dist.bj.bcebos.com/CINN/$tar_file
         tar -xvf $tar_file
     fi
 }
@@ -105,6 +105,8 @@ function prepare_model {
     _download_and_untar ResNet18.tar
     _download_and_untar MobileNetV2.tar
     _download_and_untar EfficientNet.tar
+    _download_and_untar MobilenetV1.tar
+    _download_and_untar ResNet50.tar
 
     mkdir -p $build_dir/paddle
     cd $build_dir/paddle
