@@ -78,6 +78,31 @@ std::vector<Tensor> Matmul(
   }
 }
 
+ir::Tensor Reshape2(const ir::Tensor& A, const std::vector<int>& new_shape, const std::string& name) {
+  std::vector<Expr> new_expr_shape;
+  std::vector<Expr> A_expr_shape = A->shape;
+  for (auto& i : new_shape) {
+    new_expr_shape.push_back(Expr(i));
+  }
+  auto res = Compute(
+      new_expr_shape,
+      [=](const std::vector<Expr>& indice) {
+        Expr offset = Expr((int)0);
+        for (int i = 0; i < indice.size(); i++) {
+          offset = offset * new_expr_shape[i] + indice[i];
+        }
+        std::vector<Expr> indice_a;
+        for (int i = A_expr_shape.size() - 1; i >= 0; i--) {
+          auto temp = offset % A_expr_shape[i];
+          indice_a.insert(indice_a.begin(), common::AutoSimplify(temp));
+          offset = (offset - temp) / A_expr_shape[i];
+        }
+        return A(indice_a);
+      },
+      name);
+  return res;
+}
+
 std::vector<Tensor> MatmulV2(const Tensor& A,
                              const Tensor& B,
                              bool trans_a,

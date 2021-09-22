@@ -4,6 +4,7 @@
 #include "cinn/common/common.h"
 #include "cinn/ir/buffer.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_printer.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/module.h"
 #include "cinn/ir/tensor.h"
@@ -83,7 +84,7 @@ Expr::operator Var() {
 bool Expr::is_constant() const { return As<IntImm>() || As<UIntImm>() || As<FloatImm>(); }
 
 double Expr::get_constant() const {
-  CHECK(is_constant());
+  CHECK(is_constant()) << *this << " is not constant! Please check.";
   auto *vi = As<IntImm>();
   auto *vf = As<FloatImm>();
   if (vi) return vi->value;
