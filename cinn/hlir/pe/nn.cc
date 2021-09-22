@@ -940,6 +940,18 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
   }
 }
 
+ir::Tensor Select(const ir::Tensor &condition,
+                  const ir::Tensor &true_value,
+                  const ir::Tensor &false_value,
+                  const std::string &output_name) {
+  return lang::Compute(
+      condition->shape,
+      [=](const std::vector<Expr> &indice) {
+        return lang::Select(condition(indice), true_value(indice), false_value(indice));
+      },
+      output_name);
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
