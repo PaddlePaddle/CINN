@@ -384,9 +384,9 @@ ir::Tensor DropoutInfer(const ir::Tensor &tensor,
  * @param axis reverse axis
  * @param output_name the name of the output tensor
  */
-std::vector<ir::Tensor> Reverse(const ir::Tensor &input,
-                                const std::vector<uint32_t> axis,
-                                const std::string &output_name = UniqName("T_Transform_Reverse_out"));
+ir::Tensor Reverse(const ir::Tensor &input,
+                   const std::vector<int> axis,
+                   const std::string &output_name = UniqName("T_Transform_Reverse_out"));
 
 }  // namespace pe
 }  // namespace hlir

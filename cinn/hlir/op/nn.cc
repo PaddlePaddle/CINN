@@ -1832,9 +1832,9 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
                                                const std::vector<Type> &out_type,
                                                const std::vector<std::vector<int>> &output_shapes,
                                                const Target &target) {
-  std::vector<uint32_t> axis;
+  std::vector<int> axis;
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
-    axis = std::get<std::vector<uint32_t>>(attrs.attr_store.at("axis"));
+    axis = std::get<std::vector<int>>(attrs.attr_store.at("axis"));
   }
   framework::CINNCompute reverse_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of relu compute is empty! Please check.\n";

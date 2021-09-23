@@ -940,14 +940,14 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
   }
 }
 
-std::vector<ir::Tensor> Reverse(const ir::Tensor &input, const std::vector<uint32_t> axis, const std::string &output_name) {
+ir::Tensor Reverse(const ir::Tensor &input, const std::vector<int> axis, const std::string &output_name) {
   std::vector<Expr> shape = input->shape;
   return lang::Compute(
       input->shape,
       [=](const std::vector<Expr> &indice) {
         std::vector<Expr> indexs(indice.begin(), indice.end());
-        for (auto index : indexs) {
-          indexs[ax] = shape[ax] - index;
+        for (auto idx : axis) {
+          indexs[idx] = shape[idx] - indexs[idx];
         };
         return input(indexs);
       },
