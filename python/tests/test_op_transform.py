@@ -44,7 +44,7 @@ class OpTest_matmul_0(SingleOpTester):
         self.output_shape = [[100, 100], [100, 100]]
         self.trans_a = False
         self.trans_b = False
-        self.alpha = 1
+        self.alpha = 1.0
         self.attrs = framework.NodeAttr()
         self.attrs.attr_store = {
             "trans_a": self.trans_a,
@@ -68,7 +68,7 @@ class OpTest_matmul_1(SingleOpTester):
         self.output_shape = [[100, 100], [100, 100], [2, 32, 50]]
         self.trans_a = False
         self.trans_b = True
-        self.alpha = 2
+        self.alpha = 2.0
         self.attrs = framework.NodeAttr()
         self.attrs.attr_store = {
             "trans_a": self.trans_a,
@@ -93,7 +93,7 @@ class OpTest_matmul_2(SingleOpTester):
                              [2, 3, 2, 100, 16]]
         self.trans_a = False
         self.trans_b = True
-        self.alpha = 2
+        self.alpha = 2.0
         self.attrs = framework.NodeAttr()
         self.attrs.attr_store = {
             "trans_a": self.trans_a,
@@ -117,7 +117,7 @@ class OpTest_matmul_3(SingleOpTester):
         self.output_shape = [[100, 100], [100, 100], [2, 100, 16]]
         self.trans_a = True
         self.trans_b = False
-        self.alpha = 2
+        self.alpha = 2.0
         self.attrs = framework.NodeAttr()
         self.attrs.attr_store = {
             "trans_a": self.trans_a,
@@ -141,7 +141,7 @@ class OpTest_matmul_4(SingleOpTester):
         self.output_shape = [[32], [32], [2, 100, 16]]
         self.trans_a = False
         self.trans_b = False
-        self.alpha = 2
+        self.alpha = 2.0
         self.attrs = framework.NodeAttr()
         self.attrs.attr_store = {
             "trans_a": self.trans_a,
@@ -165,7 +165,7 @@ class OpTest_matmul_5(SingleOpTester):
         self.output_shape = [[1], [1], [1, 100, 1]]
         self.trans_a = False
         self.trans_b = False
-        self.alpha = 2
+        self.alpha = 2.0
         self.attrs = framework.NodeAttr()
         self.attrs.attr_store = {
             "trans_a": self.trans_a,
@@ -189,7 +189,7 @@ class OpTest_matmul_6(SingleOpTester):
         self.output_shape = [[32, 100], [32, 100], [2, 1, 50]]
         self.trans_a = False
         self.trans_b = False
-        self.alpha = 2
+        self.alpha = 2.0
         self.attrs = framework.NodeAttr()
         self.attrs.attr_store = {
             "trans_a": self.trans_a,

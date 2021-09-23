@@ -184,6 +184,11 @@ struct Program {
   Variable reshape2(const Variable& a, const std::vector<int>& shape);
 
   /**
+   * Concat 2 tensors.
+   */
+  Variable concat(const Variable& a, const Variable& b, int axis = 0);
+
+  /**
    * Multiply two matrix and add a bias.
    */
   Variable mulbias(

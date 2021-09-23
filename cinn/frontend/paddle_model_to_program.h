@@ -46,6 +46,7 @@ class PaddleModelToProgram {
     AddOpMapper_dropout_infer();
     AddOpMapper_matmul();
     AddOpMapper_reshape2();
+    AddOpMapper_concat();
   }
 
   std::unique_ptr<Program> operator()(const std::string& model_dir, bool is_combined);
@@ -72,6 +73,7 @@ class PaddleModelToProgram {
   void AddOpMapper_dropout_infer();
   void AddOpMapper_matmul();
   void AddOpMapper_reshape2();
+  void AddOpMapper_concat();
   // @}
 
   const std::unordered_map<std::string, Variable>& var_map() const { return var_map_; }

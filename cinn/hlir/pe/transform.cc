@@ -103,6 +103,23 @@ ir::Tensor Reshape2(const ir::Tensor& A, const std::vector<int>& new_shape, cons
   return res;
 }
 
+ir::Tensor Concat(const ir::Tensor& A, const ir::Tensor& B, int axis, const std::string& name) {
+  if (axis < 0) axis += A->shape.size();
+  CHECK_EQ(A->shape.size(), B->shape.size()) << "Dimensions of inputs A and B in Concat should be equal! Please check.";
+  std::vector<Expr> output_shape = A->shape;
+  Expr pivot                     = A->shape[axis];
+  output_shape[axis]             = common::AutoSimplify(output_shape[axis] + B->shape[axis]);
+  auto res                       = Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indice) {
+        auto indice_B  = indice;
+        indice_B[axis] = indice_B[axis] - pivot;
+        return ir::Select::Make(indice[axis] < pivot, A(indice), B(indice_B));
+      },
+      name);
+  return res;
+}
+
 std::vector<Tensor> MatmulV2(const Tensor& A,
                              const Tensor& B,
                              bool trans_a,

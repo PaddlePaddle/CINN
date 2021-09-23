@@ -248,6 +248,13 @@ Variable Program::reshape2(const Variable& a, const std::vector<int>& shape) {
   return instr.GetOutput(0);
 }
 
+Variable Program::concat(const Variable& a, const Variable& b, int axis) {
+  Instruction instr("concat", {a, b});
+  instr.SetAttr("axis", axis);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable Program::mulbias(
     const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims, int y_num_col_dims) {
   Instruction instr("mulbias", {a, b, c});
