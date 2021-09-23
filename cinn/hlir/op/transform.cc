@@ -356,6 +356,87 @@ std::vector<Type> InferDtypeForReshape2(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
+                                              const std::vector<ir::Tensor> &inputs,
+                                              const std::vector<Type> &out_type,
+                                              const std::vector<std::vector<int>> &output_shapes,
+                                              const Target &target) {
+  framework::CINNCompute concat_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of Concat compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for Concat compute\n";
+    Expr A = a[0];
+    Expr B = a[1];
+    CHECK(A.as_tensor());
+    CHECK(B.as_tensor());
+    CHECK(!output_shapes.empty());
+    auto attr_store = attrs.attr_store;
+    int axis;
+    for (auto &iter : attrs.attr_store) {
+      if (iter.first == "axis") {
+        axis = std::get<int>(iter.second);
+      } else {
+        LOG(FATAL) << "Unsupported attr: " << iter.first << std::endl;
+      }
+    }
+    auto tensor_A = A.as_tensor_ref();
+    auto tensor_B = B.as_tensor_ref();
+    auto stages   = CreateStages({tensor_A, tensor_B});
+    ir::Tensor out;
+    out = pe::Concat(tensor_A, tensor_B, axis, UniqName("Concat_output"));
+    std::vector<CINNValue> res;
+    stages->InsertLazily(out);
+    res.push_back(CINNValue(out));
+    CHECK(!out_type.empty()) << "Output type of Concat is empty! Please check.\n";
+    res.push_back(CINNValue(stages));
+    *ret = CINNValuePack{res};
+  });
+
+  framework::CINNSchedule concat_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of concat schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    int arg_size           = arg_pack.size();
+    poly::StageMap stages  = arg_pack.back();
+    Expr out               = arg_pack[0];
+    CHECK(out.as_tensor());
+    if (target.arch == Target::Arch::NVGPU) {
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(concat_compute, concat_schedule, "strategy.concat.x86", 1);
+  return strategy;
+}
+
+std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<int>> &inputs_shape,
+                                                  framework::NodeAttr &attrs,
+                                                  const Target &target) {
+  CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
+  int axis;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "axis") {
+      axis = std::get<int>(iter.second);
+    }
+  }
+  if (axis < 0) axis += inputs_shape[0].size();
+  std::vector<int> output_shape = inputs_shape[0];
+  output_shape[axis] += inputs_shape[1][axis];
+  std::vector<std::vector<int>> res{output_shape};
+  return res;
+}
+
+std::vector<Type> InferDtypeForConcat(const std::vector<Type> &inputs_type,
+                                      const framework::NodeAttr &attrs,
+                                      const Target &target) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  std::vector<Type> res{inputs_type[0]};
+  return res;
+}
+
 std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
                                            const std::vector<ir::Tensor> &inputs,
                                            const std::vector<Type> &out_type,
@@ -818,6 +899,16 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReshape)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForReshape))
       .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForReshape))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(concat)
+      .describe("This operator is used to concat two input tensors X and Y on specified axis.")
+      .set_num_inputs(2)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConcat)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConcat))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConcat))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
