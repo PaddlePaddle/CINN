@@ -1837,18 +1837,18 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
     axis = std::get<std::vector<int>>(attrs.attr_store.at("axis"));
   }
   framework::CINNCompute reverse_compute([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of relu compute is empty! Please check.\n";
+    CHECK(!args.empty()) << "The input argument of reverse compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    CHECK(!a.empty()) << "at least one input tensor for relu compute\n";
+    CHECK(!a.empty()) << "at least one input tensor for reverse compute\n";
     Expr A = a[0];
     CHECK(A.as_tensor());
-    auto out    = pe::Reverse(A.as_tensor_ref(), axis, UniqName("Relu_output"));
+    auto out    = pe::Reverse(A.as_tensor_ref(), axis, UniqName("Reverse_output"));
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
   });
 
   framework::CINNSchedule reverse_schedule([=](lang::Args args, lang::RetValue *ret) {
-    CHECK(!args.empty()) << "The input argument of relu schedule is empty! Please check.\n";
+    CHECK(!args.empty()) << "The input argument of reverse schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
     if (target.arch == Target::Arch::NVGPU) {
@@ -1866,11 +1866,11 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
-  CHECK(out_type.size()) << "Out_type of relu op is empty! Please check.";
+  CHECK(out_type.size()) << "Out_type of reverse op is empty! Please check.";
   if (out_type[0] == Float(32)) {
     strategy->AddImpl(reverse_compute, reverse_schedule, "strategy.reverse.x86", 1);
   } else {
-    LOG(FATAL) << "Relu op with dtype != float32 is not implemented yet!";
+    LOG(FATAL) << "Reverse op with dtype != float32 is not implemented yet!";
   }
   return strategy;
 }
@@ -2093,7 +2093,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_support_level(4);
 
   CINN_REGISTER_OP(reverse)
-      .describe("Downgrade the outcome at inference or keep the same.")
+      .describe("This operator implements the meta op reverse.")
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReverse)
