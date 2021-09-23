@@ -378,6 +378,16 @@ ir::Tensor DropoutInfer(const ir::Tensor &tensor,
                         const std::string &dropout_implementation = "downgrade_in_infer",
                         const std::string &output_name            = UniqName("T_Dropout_infer_out"));
 
+/**
+ * @brief Perform meta op Reverse
+ * @param input The input tensor
+ * @param axis reverse axis
+ * @param output_name the name of the output tensor
+ */
+std::vector<ir::Tensor> Reverse(const ir::Tensor &input,
+                                const std::vector<uint32_t> axis,
+                                const std::string &output_name = UniqName("T_Transform_Reverse_out"));
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
