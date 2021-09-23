@@ -1,7 +1,7 @@
 #pragma once
-#include <any>
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
+#include "absl/types/any.h"
 
 namespace cinn {
 namespace common {
@@ -19,7 +19,7 @@ class InfoRegistry {
   void Clear() { data_.clear(); }
 
  private:
-  std::unordered_map<std::string, std::any> data_;
+  absl::flat_hash_map<std::string, absl::any> data_;
 };
 
 template <typename T>
@@ -28,7 +28,7 @@ T& InfoRegistry::Get(const std::string& key) {
   if (it == data_.end()) {
     data_[key] = T();
   }
-  return std::any_cast<T&>(data_[key]);
+  return absl::any_cast<T&>(data_[key]);
 }
 
 }  // namespace common

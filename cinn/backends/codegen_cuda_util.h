@@ -2,7 +2,7 @@
 
 #include <string>
 #include <tuple>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <vector>
 
 #include "cinn/cinn.h"

@@ -52,7 +52,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
     bool trans_a;
     for (auto &iter : attrs.attr_store) {
       if (iter.first == "axis") {
-        axis = Expr(std::get<int>(iter.second));
+        axis = Expr(absl::get<int>(iter.second));
         break;
       }
     }
@@ -92,7 +92,7 @@ std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_s
   int axis = -1;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "axis") {
-      axis = std::get<int>(iter.second);
+      axis = absl::get<int>(iter.second);
       break;
     }
   }
@@ -117,7 +117,7 @@ std::vector<std::vector<std::string>> InferLayoutForBroadcast(const std::vector<
   CHECK(input_size == 2U || input_size == 3U) << "The input's layouts size is not 2 or 3! Please check again.";
   int axis = -1;
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
-    axis = std::get<int>(attrs.attr_store.at("axis"));
+    axis = absl::get<int>(attrs.attr_store.at("axis"));
   }
   std::vector<std::string> out_layouts = input_layouts;
   if (input_layouts[0].empty() && input_layouts[1].empty()) {
@@ -156,11 +156,11 @@ std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
   bool bias_after_scale = true;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "scale") {
-      scale = std::get<float>(iter.second);
+      scale = absl::get<float>(iter.second);
     } else if (iter.first == "bias") {
-      bias = std::get<float>(iter.second);
+      bias = absl::get<float>(iter.second);
     } else if (iter.first == "bias_after_scale") {
-      bias_after_scale = std::get<bool>(iter.second);
+      bias_after_scale = absl::get<bool>(iter.second);
     }
   }
   framework::CINNCompute scale_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -240,6 +240,12 @@ StrategyForBinary(right_shift, RightShift);
 }  // namespace hlir
 }  // namespace cinn
 
+
+template <typename R, typename ...Args>
+inline auto make_function(R(*f)(Args...)) {
+  return std::function<R(Args...)>(f);
+}
+
 CINN_REGISTER_HELPER(broadcast_ops) {
 #define CINN_REGISTER_BINARY(op__, op_stragegy__)                                                                    \
   CINN_REGISTER_OP(op__)                                                                                             \
@@ -247,9 +253,9 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_num_inputs(1)                                                                                             \
       .set_num_outputs(1)                                                                                            \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBroadcast))                                 \
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBroadcast))                                 \
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForBroadcast))                               \
+      .set_attr("infershape", make_function(cinn::hlir::op::InferShapeForBroadcast))                                 \
+      .set_attr("inferdtype", make_function(cinn::hlir::op::InferDtypeForBroadcast))                                 \
+      .set_attr("inferlayout", make_function(cinn::hlir::op::InferLayoutForBroadcast))                               \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast) \
       .set_support_level(4);
 
@@ -268,10 +274,10 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScale)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForScale))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBroadcast))
+      .set_attr("infershape", make_function(cinn::hlir::op::InferShapeForScale))
+      .set_attr("inferdtype", make_function(cinn::hlir::op::InferDtypeForBroadcast))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForScale))
+      .set_attr("inferlayout", make_function(cinn::hlir::op::InferLayoutForScale))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);

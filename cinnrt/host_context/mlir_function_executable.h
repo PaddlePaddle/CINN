@@ -2,7 +2,7 @@
 #include <mlir/IR/Function.h>
 
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/function.h"
@@ -22,7 +22,7 @@ struct KernelRegistry;
  */
 class MlirFunctionExecutable : public Function, public MlirToRuntimeTranslator {
  public:
-  using function_defs_t = std::unordered_map<std::string, mlir::FuncOp>;
+  using function_defs_t = absl::flat_hash_map<std::string, mlir::FuncOp>;
 
   MlirFunctionExecutable(mlir::FuncOp func_op, KernelRegistry* kernel_registry, function_defs_t& function_table);
 

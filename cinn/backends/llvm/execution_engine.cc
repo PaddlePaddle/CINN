@@ -37,7 +37,7 @@
 #include <memory>
 #include <mutex>  // NOLINT
 #include <string>
-#include <string_view>
+#include "absl/strings/string_view.h"
 #include <utility>
 
 #include "cinn/backends/codegen_cuda_host.h"
@@ -185,7 +185,7 @@ bool ExecutionEngine::AddModule(std::unique_ptr<llvm::Module> module, std::uniqu
   return true;
 }
 
-void *ExecutionEngine::Lookup(std::string_view name) {
+void *ExecutionEngine::Lookup(absl::string_view name) {
   std::lock_guard<std::mutex> lock(mu_);
   if (auto symbol = jit_->lookup(AsStringRef(name))) {
     return reinterpret_cast<void *>(symbol->getAddress());

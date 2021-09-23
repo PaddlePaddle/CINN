@@ -2,10 +2,12 @@
 #include <memory>
 #include <string>
 #include <tuple>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <utility>
-#include <variant>
 #include <vector>
+
+#include "absl/types/variant.h"
+#include "absl/container/flat_hash_map.h"
 
 #include "cinn/common/graph_utils.h"
 #include "cinn/common/shared.h"
@@ -18,7 +20,7 @@ class Node;
 class NodeData;
 
 using NodePtr  = std::shared_ptr<Node>;
-using AttrType = std::variant<bool,
+using AttrType = absl::variant<bool,
                               float,
                               int,
                               std::string,
@@ -48,7 +50,7 @@ struct NodeAttr {
   /**
    * \brief The attributes stored as string in dictionary.
    */
-  std::unordered_map<std::string, attr_t> attr_store;
+  absl::flat_hash_map<std::string, attr_t> attr_store;
 };
 
 std::ostream &operator<<(std::ostream &os, const NodeAttr &node_attr);
@@ -124,7 +126,7 @@ class NodeData : public common::GraphNode {
       std::string node_name,
       std::vector<NodeData> inputs,
       std::string id                                = nullptr,
-      std::unordered_map<std::string, attr_t> attrs = std::unordered_map<std::string, attr_t>()) {
+      absl::flat_hash_map<std::string, attr_t> attrs = absl::flat_hash_map<std::string, attr_t>()) {
     auto res                           = std::make_shared<NodeData>();
     res->id_                           = std::move(id);
     res->source_node                   = Node::Create();

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <map>
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <vector>
 
 #include "cinn/common/cas.h"
@@ -48,13 +48,13 @@ class Vectorizer : public IRMutator<Expr *> {
 
   Expr ramp_;
 
-  std::unordered_map<std::string, common::CasInterval> var_intervals_;
+  absl::flat_hash_map<std::string, common::CasInterval> var_intervals_;
 
   //! A suffix to attach to widened variables.
   std::string widen_suffix;
 
  public:
-  Vectorizer(const Var &var, int lanes, const std::unordered_map<std::string, common::CasInterval> &var_intervals = {})
+  Vectorizer(const Var &var, int lanes, const absl::flat_hash_map<std::string, common::CasInterval> &var_intervals = {})
       : var(var), lanes_(lanes), var_intervals_(var_intervals) {
     // the identity ramp.
     ramp_ = Ramp::Make(make_zero(), make_one(), lanes_);
@@ -328,7 +328,7 @@ class Vectorizer : public IRMutator<Expr *> {
 
 struct VectorizeLoops_ : public IRMutator<Expr *> {
   const Target &target;
-  std::unordered_map<std::string, common::CasInterval> var_intervals;
+  absl::flat_hash_map<std::string, common::CasInterval> var_intervals;
   bool vectorizable_ = true;
 
   explicit VectorizeLoops_(const Target &t) : target(t) {}
@@ -376,7 +376,7 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
   void Visit(const Call *op, Expr *expr) override {
     auto it = op->attrs.find("vectorizable");
     if (it != op->attrs.end()) {
-      vectorizable_ = std::get<bool>(it->second);
+      vectorizable_ = absl::get<bool>(it->second);
     }
   }
 

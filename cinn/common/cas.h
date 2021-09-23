@@ -1,7 +1,7 @@
 #pragma once
 #include <functional>
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <vector>
 
 #include "cinn/ir/ir.h"
@@ -33,12 +33,12 @@ struct CasInterval {
   }
 };
 
-using cas_intervals_t = std::unordered_map<std::string, CasInterval>;
+using cas_intervals_t = absl::flat_hash_map<std::string, CasInterval>;
 
-Expr AutoSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var_intervals = {});
+Expr AutoSimplify(Expr u, const absl::flat_hash_map<std::string, CasInterval>& var_intervals = {});
 
 //! Simplify a CAS expression.
-Expr CasSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var_intervals = {});
+Expr CasSimplify(Expr u, const absl::flat_hash_map<std::string, CasInterval>& var_intervals = {});
 
 /**
  * \brief Solve an equality.
@@ -67,7 +67,7 @@ struct ExprPosCmp {
 };
 
 struct CasSimplifyMutator {
-  explicit CasSimplifyMutator(const std::unordered_map<std::string, CasInterval> var_intervals)
+  explicit CasSimplifyMutator(const absl::flat_hash_map<std::string, CasInterval> var_intervals)
       : var_intervals(var_intervals) {}
 
   Expr operator()(Expr u);
@@ -83,7 +83,7 @@ struct CasSimplifyMutator {
   Expr SimplifyMod(Expr u);
   Expr SimplifyFracOp(Expr expr);
   Expr SimplifyCond(Expr u);
-  Expr FurtherSimplifyFracWithInterval(Expr expr, const std::unordered_map<std::string, CasInterval>& var_intervals);
+  Expr FurtherSimplifyFracWithInterval(Expr expr, const absl::flat_hash_map<std::string, CasInterval>& var_intervals);
   Expr SimplifyIntegerPower(Expr u);
   void AddBaseAndSimplify(Expr* base, Expr bound);
   void UnfoldBound(Expr* lower_bound, Expr* upper_bound, Expr var, bool unfold_const_bound = true);
@@ -106,7 +106,7 @@ struct CasSimplifyMutator {
                                const std::vector<Expr>& q,
                                const std::function<std::vector<Expr>(Expr, Expr)>& binary_merge);
 
-  const std::unordered_map<std::string, CasInterval> var_intervals;
+  const absl::flat_hash_map<std::string, CasInterval> var_intervals;
 
   // Computation based on integer if set true(1/2 get 0), false if treat as rational number in mathematics(1/2 is still
   // 1/2), currently it only works with true.

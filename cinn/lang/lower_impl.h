@@ -5,7 +5,7 @@
 #include <set>
 #include <stack>
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -136,12 +136,12 @@ class LowerImpl {
   /**
    * \brief Get a map, for each tensor in the tensor_args, map from name to itself.
    */
-  inline std::unordered_map<std::string, Tensor> GenTensorArgMap();
+  inline absl::flat_hash_map<std::string, Tensor> GenTensorArgMap();
 
   /**
    * \brief Get a map, for each tensor in the computation graph, map from name to itself.
    */
-  inline std::unordered_map<std::string, Tensor> GenAllTensorMap();
+  inline absl::flat_hash_map<std::string, Tensor> GenAllTensorMap();
 
   /**
    * \brief Get all the tensors, including the input, output and temporary ones.

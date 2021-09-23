@@ -119,11 +119,11 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     float alpha     = 1;
     for (auto &iter : attrs.attr_store) {
       if (iter.first == "trans_a") {
-        trans_a = std::get<bool>(iter.second);
+        trans_a = absl::get<bool>(iter.second);
       } else if (iter.first == "trans_b") {
-        trans_b = std::get<bool>(iter.second);
+        trans_b = absl::get<bool>(iter.second);
       } else if (iter.first == "alpha") {
-        alpha = std::get<int>(iter.second);
+        alpha = absl::get<int>(iter.second);
       } else {
         LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
@@ -224,11 +224,11 @@ std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<
   float alpha  = 1;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "trans_a") {
-      trans_a = std::get<bool>(iter.second);
+      trans_a = absl::get<bool>(iter.second);
     } else if (iter.first == "trans_b") {
-      trans_b = std::get<bool>(iter.second);
+      trans_b = absl::get<bool>(iter.second);
     } else if (iter.first == "alpha") {
-      alpha = std::get<float>(iter.second);
+      alpha = absl::get<float>(iter.second);
     }
   }
   GetMatmulNewShapes(inputs_shape, trans_a, trans_b, &new_shape_A, &new_shape_B, &output_shape);
@@ -277,9 +277,9 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
     int y_num_col_dims = 1;
     for (auto &iter : attrs.attr_store) {
       if (iter.first == "x_num_col_dims") {
-        x_num_col_dims = std::get<int>(iter.second);
+        x_num_col_dims = absl::get<int>(iter.second);
       } else if (iter.first == "y_num_col_dims") {
-        y_num_col_dims = std::get<int>(iter.second);
+        y_num_col_dims = absl::get<int>(iter.second);
       }
     }
     auto A_tensor = A.as_tensor_ref();
@@ -389,9 +389,9 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
     int y_num_col_dims = 1;
     for (auto &iter : attrs.attr_store) {
       if (iter.first == "x_num_col_dims") {
-        x_num_col_dims = std::get<int>(iter.second);
+        x_num_col_dims = absl::get<int>(iter.second);
       } else if (iter.first == "y_num_col_dims") {
-        y_num_col_dims = std::get<int>(iter.second);
+        y_num_col_dims = absl::get<int>(iter.second);
       } else {
         LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
@@ -475,9 +475,9 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   int y_num_col_dims = 1;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "x_num_col_dims") {
-      x_num_col_dims = std::get<int>(iter.second);
+      x_num_col_dims = absl::get<int>(iter.second);
     } else if (iter.first == "y_num_col_dims") {
-      y_num_col_dims = std::get<int>(iter.second);
+      y_num_col_dims = absl::get<int>(iter.second);
     } else {
       LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
     }
@@ -549,9 +549,9 @@ std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector
   int y_num_col_dims = 1;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "x_num_col_dims") {
-      x_num_col_dims = std::get<int>(iter.second);
+      x_num_col_dims = absl::get<int>(iter.second);
     } else if (iter.first == "y_num_col_dims") {
-      y_num_col_dims = std::get<int>(iter.second);
+      y_num_col_dims = absl::get<int>(iter.second);
     } else {
       LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
     }
@@ -598,10 +598,10 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
     std::string src_layout;
     std::string dst_layout;
     if (attrs.attr_store.find("src_layout") != attrs.attr_store.end()) {
-      src_layout = std::get<std::string>(attrs.attr_store.at("src_layout"));
+      src_layout = absl::get<std::string>(attrs.attr_store.at("src_layout"));
     }
     if (attrs.attr_store.find("dst_layout") != attrs.attr_store.end()) {
-      dst_layout = std::get<std::string>(attrs.attr_store.at("dst_layout"));
+      dst_layout = absl::get<std::string>(attrs.attr_store.at("dst_layout"));
     }
     CHECK(!args.empty()) << "The input argument of layout_transform compute is empty! Please check.\n";
     CINNValuePack a = args[0];
@@ -651,10 +651,10 @@ std::vector<shape_t> InferShapeForLayoutTransform(const std::vector<shape_t> &in
   std::string src_layout;
   std::string dst_layout;
   if (attrs.attr_store.find("src_layout") != attrs.attr_store.end()) {
-    src_layout = std::get<std::string>(attrs.attr_store.at("src_layout"));
+    src_layout = absl::get<std::string>(attrs.attr_store.at("src_layout"));
   }
   if (attrs.attr_store.find("dst_layout") != attrs.attr_store.end()) {
-    dst_layout = std::get<std::string>(attrs.attr_store.at("dst_layout"));
+    dst_layout = absl::get<std::string>(attrs.attr_store.at("dst_layout"));
   }
   CHECK_EQ(inputs_shape.size(), 1UL);
 
@@ -662,7 +662,7 @@ std::vector<shape_t> InferShapeForLayoutTransform(const std::vector<shape_t> &in
   for (int shape : inputs_shape[0]) {
     input_shapes_expr.push_back(Expr(shape));
   }
-  std::unordered_map<int, std::vector<int>> split_index_map;
+  absl::flat_hash_map<int, std::vector<int>> split_index_map;
   std::vector<Expr> out_shapes = pe::InferShapeLayoutTransform(
       input_shapes_expr, ir::Layout(src_layout), ir::Layout(dst_layout), &split_index_map);
   VLOG(4) << "out_shapes: " << out_shapes;
@@ -689,10 +689,10 @@ std::vector<std::vector<std::string>> InferLayoutForLayoutTransform(const std::v
   std::string dst_layout;
   std::string src_layout;
   if (attrs.attr_store.find("dst_layout") != attrs.attr_store.end()) {
-    dst_layout = std::get<std::string>(attrs.attr_store.at("dst_layout"));
+    dst_layout = absl::get<std::string>(attrs.attr_store.at("dst_layout"));
   }
   if (attrs.attr_store.find("src_layout") != attrs.attr_store.end()) {
-    src_layout = std::get<std::string>(attrs.attr_store.at("src_layout"));
+    src_layout = absl::get<std::string>(attrs.attr_store.at("src_layout"));
   }
   return {{dst_layout}, {src_layout}};
 }
@@ -709,8 +709,8 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_num_inputs(2)
       .set_num_outputs(3)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMatMul)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMatMul))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMatMul))
+      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForMatMul))
+      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForMatMul))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
                                                       cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
@@ -720,10 +720,10 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_num_inputs(2)
       .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMul)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMul))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMul))
+      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForMul))
+      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForMul))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForMul))
+      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForMul))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -733,8 +733,8 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_num_inputs(3)
       .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMulBias)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForMulBias))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForMulBias))
+      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForMulBias))
+      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForMulBias))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
                                                       cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
@@ -744,10 +744,10 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForLayoutTransform)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForLayoutTransform))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForLayoutTransform))
+      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForLayoutTransform))
+      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForLayoutTransform))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForLayoutTransform))
+      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForLayoutTransform))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);

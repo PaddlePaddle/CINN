@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <stdlib.h>
 
-#include <any>
+#include "absl/types/any.h"
 #include <string>
 #include <tuple>
 #include <vector>
@@ -56,7 +56,7 @@ std::vector<float> test_mul(const std::vector<float>& A, const std::vector<float
 
 Tensor GetTensor(const std::shared_ptr<Scope>& scope, const std::string& name) {
   auto* var    = scope->Var<Tensor>(name);
-  auto& tensor = std::get<Tensor>(*var);
+  auto& tensor = absl::get<Tensor>(*var);
   return tensor;
 }
 
@@ -99,7 +99,7 @@ TEST(GraphCompiler, RunModel) {
   auto c   = prog.mul(a, b);
   auto d   = prog.add(c, b);  // N must = K
   auto e   = prog.relu(d);
-  std::unordered_map<std::string, attr_t> attr_store;
+  absl::flat_hash_map<std::string, attr_t> attr_store;
   attr_store["scale"] = 2.0f;
   attr_store["bias"]  = 0.5f;
   auto o              = prog.scale(e, attr_store);

@@ -343,7 +343,7 @@ void UpdateComputeAtBufferShape(Expr* expr, poly::StageMap stages) {
   auto tensor_map = ir::CollectTensorMap(
       *expr, [&](const Expr* x) { return !stages[x->as_tensor()]->inlined() && x->as_tensor()->buffer.defined(); });
 
-  std::unordered_map<std::string, poly::ComputeAtInfo*> buffer_to_compute_at_info;
+  absl::flat_hash_map<std::string, poly::ComputeAtInfo*> buffer_to_compute_at_info;
   for (auto& item : tensor_map) {
     auto& compute_at_infos = stages[item.second.as_tensor()]->meta.compute_at_infos;
     if (compute_at_infos.empty()) continue;

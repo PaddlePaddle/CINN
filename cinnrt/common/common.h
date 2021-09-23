@@ -1,10 +1,13 @@
 #pragma once
 
+#include "absl/strings/string_view.h"
+
 #include "cinnrt/common/axis.h"
 #include "cinnrt/common/macros.h"
 #include "cinnrt/common/shared.h"
 #include "cinnrt/common/target.h"
 #include "cinnrt/common/type.h"
+
 
 namespace cinnrt {
 
@@ -32,7 +35,7 @@ T& Reference(const T* x) {
   return *const_cast<T*>(x);
 }
 
-static void CheckVarNameValid(const std::string_view name) {
+static void CheckVarNameValid(const absl::string_view name) {
   CHECK(!name.empty());
   CHECK(name.find(' ') == std::string::npos &&   //
         name.find('.') == std::string::npos &&   //

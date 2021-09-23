@@ -1206,7 +1206,7 @@ bool LLVM_WillVarLowerAsPointer(const std::string &var_name) {
   return var_name == "_args" || utils::Endswith(var_name, "__ptr");
 }
 
-void CodeGenLLVM::AddTbaaMetadata(llvm::Instruction *inst, std::string_view buffer, Expr index) {
+void CodeGenLLVM::AddTbaaMetadata(llvm::Instruction *inst, absl::string_view buffer, Expr index) {
   // If the index is constant, generate some TBAA info that helps LLVM understand our loads/stores aren't aliased.
   bool constant_index = false;
   int base            = 0;

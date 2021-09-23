@@ -2,13 +2,14 @@
 
 #include <glog/logging.h>
 
-#include <any>
+#include "absl/types/any.h"
 #include <map>
 #include <mutex>  // NOLINT
 #include <string>
-#include <string_view>
-#include <variant>
+#include "absl/types/variant.h"
 #include <vector>
+
+#include "absl/strings/string_view.h"
 
 #include "cinn/common/macros.h"
 
@@ -48,7 +49,7 @@ class RuntimeSymbolRegistry {
    * @param name Name of the symbol.
    * @return The address if existes, or nullptr will return.
    */
-  void *Lookup(std::string_view name) const;
+  void *Lookup(absl::string_view name) const;
 
   /**
    * Get all the symbols.

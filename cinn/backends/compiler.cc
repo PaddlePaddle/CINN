@@ -94,7 +94,7 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
 
 void Compiler::CompileX86Module(const Module& module) { engine_->Link<CodeGenX86>(module); }
 
-lower_func_ptr_t Compiler::Lookup(std::string_view fn_name) {
+lower_func_ptr_t Compiler::Lookup(absl::string_view fn_name) {
   CHECK(engine_);
   if (engine_->Lookup(fn_name) != nullptr) {
     return reinterpret_cast<lower_func_ptr_t>(engine_->Lookup(fn_name));

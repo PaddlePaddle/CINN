@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 
 #include "cinnrt/host_context/value.h"
 
@@ -18,25 +18,25 @@ class SymbolTable {
   /**
    * Register a state called \p key.
    */
-  Value* Register(std::string_view key);
+  Value* Register(absl::string_view key);
 
-  Value* Register(std::string_view key, ValueRef value);
+  Value* Register(absl::string_view key, ValueRef value);
 
   /**
    * Register a state and set value.
    */
   template <typename T>
-  Value* Register(std::string_view key, T&& v);
+  Value* Register(absl::string_view key, T&& v);
 
   size_t size() const;
 
   /**
    * Get a state called \p key.
    */
-  Value* GetValue(std::string_view key) const;
+  Value* GetValue(absl::string_view key) const;
 
   template <typename T>
-  T Get(std::string_view key);
+  T Get(absl::string_view key);
 
   ~SymbolTable();
 

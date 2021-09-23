@@ -2,7 +2,7 @@
 #include <pybind11/functional.h>
 
 #include <memory>
-#include <variant>
+#include "absl/types/variant.h"
 
 #include "cinn/backends/codegen_c.h"
 #include "cinn/common/target.h"
@@ -90,7 +90,7 @@ void BindCompute(py::module *m) {
       "call_extern",
       py::overload_cast<const std::string &,
                         const std::vector<ir::Expr> &,
-                        const std::map<std::string, std::variant<int, float, bool, std::string>> &>(&lang::CallExtern));
+                        const std::map<std::string, absl::variant<int, float, bool, std::string>> &>(&lang::CallExtern));
 }
 
 void BindModule(py::module *m) {
@@ -125,58 +125,58 @@ class PlaceholderWrapper {
   DEFINE_PLACEHOLDER(float32, float); \
   DEFINE_PLACEHOLDER(float64, double)
 
-  PlaceholderWrapper(std::string_view dtype, const std::string &name, const std::vector<int> &shape) {
+  PlaceholderWrapper(absl::string_view dtype, const std::string &name, const std::vector<int> &shape) {
     INIT_PLACEHOLDER;
   }
 
-  PlaceholderWrapper(std::string_view dtype, const std::string &name, const std::vector<ir::Expr> &shape) {
+  PlaceholderWrapper(absl::string_view dtype, const std::string &name, const std::vector<ir::Expr> &shape) {
     INIT_PLACEHOLDER;
   }
 #undef INIT_PLACEHOLDER
 #undef DEFINE_PLACEHOLDER
 
   ir::Type type() const {
-    return std::visit([](auto &v) { return v->type(); }, placeholder_);
+    return absl::visit([](auto &v) { return v->type(); }, placeholder_);
   }
 
   ir::Tensor tensor() const {
-    return std::visit([](auto &v) { return v->tensor(); }, placeholder_);
+    return absl::visit([](auto &v) { return v->tensor(); }, placeholder_);
   }
 
   ir::Expr operator()(ir::Expr a) const {
-    return std::visit([&](auto &v) { return (*v)(a); }, placeholder_);
+    return absl::visit([&](auto &v) { return (*v)(a); }, placeholder_);
   }
 
   ir::Expr operator()(ir::Expr a, ir::Expr b) const {
-    return std::visit([&](auto &v) { return (*v)(a, b); }, placeholder_);
+    return absl::visit([&](auto &v) { return (*v)(a, b); }, placeholder_);
   }
 
   ir::Expr operator()(ir::Expr a, ir::Expr b, ir::Expr c) const {
-    return std::visit([&](auto &v) { return (*v)(a, b, c); }, placeholder_);
+    return absl::visit([&](auto &v) { return (*v)(a, b, c); }, placeholder_);
   }
 
   ir::Expr operator()(const std::vector<ir::Expr> &indices) const {
-    return std::visit([&](auto &v) { return (*v)(indices); }, placeholder_);
+    return absl::visit([&](auto &v) { return (*v)(indices); }, placeholder_);
   }
 
   operator ir::Tensor() {
-    return std::visit([&](auto &v) { return ir::Tensor(*v); }, placeholder_);
+    return absl::visit([&](auto &v) { return ir::Tensor(*v); }, placeholder_);
   }
   operator ir::Expr() {
-    return std::visit([&](auto &v) { return ir::Expr(*v); }, placeholder_);
+    return absl::visit([&](auto &v) { return ir::Expr(*v); }, placeholder_);
   }
 
  private:
   template <typename... Ts>
-  using PlaceholderVariant = std::variant<std::unique_ptr<Placeholder<Ts>>...>;
+  using PlaceholderVariant = absl::variant<std::unique_ptr<Placeholder<Ts>>...>;
 
   PlaceholderVariant<int, int64_t, float, double> placeholder_;
 };
 
 void BindPlaceholder(py::module *m) {
   py::class_<PlaceholderWrapper> placeholder(*m, "Placeholder");
-  placeholder.def(py::init<std::string_view, const std::string &, const std::vector<int> &>())
-      .def(py::init<std::string_view, const std::string &, const std::vector<ir::Expr> &>())
+  placeholder.def(py::init<absl::string_view, const std::string &, const std::vector<int> &>())
+      .def(py::init<absl::string_view, const std::string &, const std::vector<ir::Expr> &>())
       .def("type", &PlaceholderWrapper::type)
       .def("tensor", &PlaceholderWrapper::tensor)
       .def("__call__", [](PlaceholderWrapper &self, ir::Expr a) { return self(std::move(a)); })

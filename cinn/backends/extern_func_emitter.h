@@ -6,7 +6,7 @@
 #pragma once
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <utility>
 
 #include "cinn/backends/extern_func_protos.h"
@@ -109,7 +109,7 @@ class ExternFunctionEmitterRegistry {
   ExternFunctionEmitter* Lookup(const ExternFuncID& name) const;
 
  private:
-  std::unordered_map<ExternFuncID, std::unique_ptr<ExternFunctionEmitter>> data_;
+  absl::flat_hash_map<ExternFuncID, std::unique_ptr<ExternFunctionEmitter>> data_;
 
   ExternFunctionEmitterRegistry();
   CINN_DISALLOW_COPY_AND_ASSIGN(ExternFunctionEmitterRegistry);

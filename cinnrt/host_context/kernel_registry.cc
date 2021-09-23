@@ -1,6 +1,6 @@
 #include "cinnrt/host_context/kernel_registry.h"
 
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 
 #include "glog/logging.h"
 #include "llvm/ADT/SmallVector.h"
@@ -9,8 +9,8 @@ namespace cinnrt {
 namespace host_context {
 
 struct KernelRegistry::Impl {
-  std::unordered_map<std::string, KernelImplementation> data;
-  std::unordered_map<std::string, llvm::SmallVector<std::string, 4>> attr_names;
+  absl::flat_hash_map<std::string, KernelImplementation> data;
+  absl::flat_hash_map<std::string, llvm::SmallVector<std::string, 4>> attr_names;
 };
 
 KernelRegistry::KernelRegistry() : impl_(std::make_unique<Impl>()) {}

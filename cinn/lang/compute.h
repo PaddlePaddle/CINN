@@ -5,6 +5,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/types/variant.h"
+
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/placeholder.h"
@@ -14,7 +16,7 @@ namespace cinn {
 namespace lang {
 
 using compute_handler_t = std::function<Expr(const std::vector<Expr> &)>;
-using attr_t            = std::variant<int, float, bool, std::string>;
+using attr_t            = absl::variant<int, float, bool, std::string>;
 
 //! Compute methods for one to five Vars as arguments.
 // @{

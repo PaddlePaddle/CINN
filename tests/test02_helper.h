@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
-#include <string_view>
+#include "absl/strings/string_view.h"
 #include <tuple>
 #include <utility>
 #include <vector>

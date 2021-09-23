@@ -11,7 +11,7 @@
 #include <set>
 #include <string>
 #include <tuple>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <vector>
 
 #include "cinn/common/object.h"
@@ -203,9 +203,9 @@ class Graph {
   //! Get a string representation to visualize a graph.
   std::string Visualize() const;
 
-  void ClearUnlinkedNodes(std::unordered_map<std::string, std::vector<int>>* shape_dict,
-                          std::unordered_map<std::string, common::Type>* type_dict,
-                          std::unordered_map<std::string, std::string>* layout_dict);
+  void ClearUnlinkedNodes(absl::flat_hash_map<std::string, std::vector<int>>* shape_dict,
+                          absl::flat_hash_map<std::string, common::Type>* type_dict,
+                          absl::flat_hash_map<std::string, std::string>* layout_dict);
 
   size_t num_nodes() const { return nodes_.size(); }
 

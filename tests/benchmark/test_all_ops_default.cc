@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <vector>
 
 #include "cinn/cinn.h"
@@ -11,7 +11,7 @@
 
 namespace cinn {
 namespace tests {
-using AttrType = std::variant<bool,
+using AttrType = absl::variant<bool,
                               float,
                               int,
                               std::string,
@@ -114,7 +114,7 @@ std::vector<std::vector<int>> shapes_conv2d_nchw = {{2, 512, 7, 7}, {512, 512, 3
 std::vector<int> padding_conv2d({0, 0});
 std::vector<int> stride_conv2d({1, 1});
 std::vector<int> dilation_conv2d({1, 1});
-std::unordered_map<std::string, AttrType> attr_store_conv2d = {
+absl::flat_hash_map<std::string, AttrType> attr_store_conv2d = {
     {"padding", padding_conv2d}, {"stride", stride_conv2d}, {"dilation", dilation_conv2d}};
 TEST_DEFAULT1(conv2d, conv2d_nchw, type1, type8, attr_store_conv2d)
 std::vector<std::vector<int>> shapes_conv2d_nchw1 = {{2, 1024, 14, 14}, {256, 1024, 1, 1}};
@@ -127,7 +127,7 @@ std::vector<std::vector<int>> shapes_conv2d_nchw3 = {{1, 3, 224, 224}, {64, 3, 7
 std::vector<int> padding_conv2d1({3, 3});
 std::vector<int> stride_conv2d1({2, 2});
 std::vector<int> dilation_conv2d1({1, 1});
-std::unordered_map<std::string, AttrType> attr_store_conv2d1 = {
+absl::flat_hash_map<std::string, AttrType> attr_store_conv2d1 = {
     {"padding", padding_conv2d1}, {"stride", stride_conv2d1}, {"dilation", dilation_conv2d1}};
 TEST_DEFAULT1(conv2d, conv2d_nchw3, type1, type7, attr_store_conv2d1)
 
@@ -136,7 +136,7 @@ std::vector<std::vector<int>> shapes_conv2d_nchw4 = {{1, 64, 56, 56}, {64, 64, 1
 std::vector<int> padding_conv2d4({0, 0});
 std::vector<int> stride_conv2d4({1, 1});
 std::vector<int> dilation_conv2d4({1, 1});
-std::unordered_map<std::string, AttrType> attr_store_conv2d4 = {
+absl::flat_hash_map<std::string, AttrType> attr_store_conv2d4 = {
     {"padding", padding_conv2d4}, {"stride", stride_conv2d4}, {"dilation", dilation_conv2d4}};
 TEST_DEFAULT1(conv2d, conv2d_nchw4, type1, type8, attr_store_conv2d4)
 
@@ -145,7 +145,7 @@ std::vector<std::vector<int>> shapes_conv2d_nchw5 = {{1, 16, 112, 112}, {96, 16,
 std::vector<int> padding_conv2d5({0, 0});
 std::vector<int> stride_conv2d5({1, 1});
 std::vector<int> dilation_conv2d5({1, 1});
-std::unordered_map<std::string, AttrType> attr_store_conv2d5 = {
+absl::flat_hash_map<std::string, AttrType> attr_store_conv2d5 = {
     {"padding", padding_conv2d5}, {"stride", stride_conv2d5}, {"dilation", dilation_conv2d5}};
 TEST_DEFAULT1(conv2d, conv2d_nchw5, type1, type8, attr_store_conv2d5)
 
@@ -154,7 +154,7 @@ std::vector<std::vector<int>> shapes_conv2d_nchw6 = {{1, 3, 224, 224}, {32, 3, 3
 std::vector<int> padding_conv2d6({2, 2});
 std::vector<int> stride_conv2d6({2, 2});
 std::vector<int> dilation_conv2d6({1, 1});
-std::unordered_map<std::string, AttrType> attr_store_conv2d6 = {
+absl::flat_hash_map<std::string, AttrType> attr_store_conv2d6 = {
     {"padding", padding_conv2d6}, {"stride", stride_conv2d6}, {"dilation", dilation_conv2d6}};
 TEST_DEFAULT1(conv2d, conv2d_nchw6, type1, type7, attr_store_conv2d6)
 
@@ -163,7 +163,7 @@ std::vector<std::vector<int>> shapes_conv2d_nchw7 = {{1, 3, 10, 10}, {2, 3, 2, 2
 std::vector<int> padding_conv2d7({1, 1});
 std::vector<int> stride_conv2d7({2, 2});
 std::vector<int> dilation_conv2d7({2, 2});
-std::unordered_map<std::string, AttrType> attr_store_conv2d7 = {
+absl::flat_hash_map<std::string, AttrType> attr_store_conv2d7 = {
     {"padding", padding_conv2d7}, {"stride", stride_conv2d7}, {"dilation", dilation_conv2d7}};
 TEST_DEFAULT1(conv2d, conv2d_nchw7, type1, type7, attr_store_conv2d7)
 
@@ -173,7 +173,7 @@ std::vector<std::vector<int>> shapes_conv2d_nchwc = {{1, 1, 224, 224, 3}, {4, 1,
 std::vector<int> padding_conv2d_nchwc({3, 3});
 std::vector<int> stride_conv2d_nchwc({2, 2});
 std::vector<int> dilation_conv2d_nchwc({1, 1});
-std::unordered_map<std::string, AttrType> attr_store_conv2d_nchwc = {
+absl::flat_hash_map<std::string, AttrType> attr_store_conv2d_nchwc = {
     {"padding", padding_conv2d_nchwc}, {"stride", stride_conv2d_nchwc}, {"dilation", dilation_conv2d_nchwc}};
 TEST_DEFAULT1(conv2d_NCHWc, conv2d_nchwc, type1, type8, attr_store_conv2d_nchwc)
 
@@ -182,7 +182,7 @@ std::vector<std::vector<int>> shapes_depthwise_conv2d_nchw            = {{2, 32,
 std::vector<int> stride_depthwise_conv2d                              = {1, 1};
 std::vector<int> padding_depthwise_conv2d                             = {1, 1};
 std::vector<int> dilation_depthwise_conv2d                            = {1, 1};
-std::unordered_map<std::string, AttrType> attr_store_depthwise_conv2d = {{"padding", padding_depthwise_conv2d},
+absl::flat_hash_map<std::string, AttrType> attr_store_depthwise_conv2d = {{"padding", padding_depthwise_conv2d},
                                                                          {"stride", stride_depthwise_conv2d},
                                                                          {"dilation", dilation_depthwise_conv2d}};
 TEST_DEFAULT1(depthwise_conv2d, depthwise_conv2d_nchw, type1, type7, attr_store_depthwise_conv2d)
@@ -191,14 +191,14 @@ TEST_DEFAULT1(depthwise_conv2d, depthwise_conv2d_nchw, type1, type7, attr_store_
 std::vector<std::vector<int>> shapes_layout_transform                 = {{512, 512, 3, 3}};
 std::string src_layout                                                = "OIHW";
 std::string dst_layout                                                = "OIHW16i16o";
-std::unordered_map<std::string, AttrType> attr_store_layout_transform = {{"src_layout", src_layout},
+absl::flat_hash_map<std::string, AttrType> attr_store_layout_transform = {{"src_layout", src_layout},
                                                                          {"dst_layout", dst_layout}};
 TEST_DEFAULT1(layout_transform, layout_transform, type, type, attr_store_layout_transform)
 
 std::vector<std::vector<int>> shapes_layout_transform1                 = {{64, 3, 7, 7}};
 std::string src_layout1                                                = "OIHW";
 std::string dst_layout1                                                = "OIHW3i32o";
-std::unordered_map<std::string, AttrType> attr_store_layout_transform1 = {{"src_layout", src_layout1},
+absl::flat_hash_map<std::string, AttrType> attr_store_layout_transform1 = {{"src_layout", src_layout1},
                                                                           {"dst_layout", dst_layout1}};
 TEST_DEFAULT1(layout_transform, layout_transform1, type, type, attr_store_layout_transform1)
 
@@ -208,7 +208,7 @@ std::vector<int> kernel_size                                = {3, 3};
 std::vector<int> stride_size                                = {2, 2};
 std::vector<int> padding_size                               = {1, 1, 1, 1};
 std::string pool_type                                       = "max";
-std::unordered_map<std::string, AttrType> attr_store_pool2d = {{"kernel_size", kernel_size},
+absl::flat_hash_map<std::string, AttrType> attr_store_pool2d = {{"kernel_size", kernel_size},
                                                                {"stride_size", stride_size},
                                                                {"padding_size", padding_size},
                                                                {"pool_type", pool_type}};
@@ -275,7 +275,7 @@ std::vector<std::vector<int>> shapes_slice = {{2, 32, 113, 113}};
 std::vector<int> starts({1, 1});
 std::vector<int> ends({10000000, 10000000});
 std::vector<int> axes({2, 3});
-std::unordered_map<std::string, AttrType> attr_store_slice = {{"starts", starts}, {"ends", ends}, {"axes", axes}};
+absl::flat_hash_map<std::string, AttrType> attr_store_slice = {{"starts", starts}, {"ends", ends}, {"axes", axes}};
 TEST_DEFAULT1(slice, slice, type, type, attr_store_slice)
 
 // unary

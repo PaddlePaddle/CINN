@@ -8,8 +8,9 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <variant>
 #include <vector>
+
+#include "absl/types/variant.h"
 
 #include "cinn/common/shared.h"
 #include "cinn/common/type.h"
@@ -32,7 +33,7 @@ using common::Object;
 using common::Shared;
 // NOTE attr_t only support POD, can not contain Expr or other IR nodes, or the IRVisitor or IRCopy on PrimitiveNode
 // will result in undefined behavior.
-using attr_t = std::variant<int, float, bool, std::string>;
+using attr_t = absl::variant<int, float, bool, std::string>;
 
 /**
  * Cast a node to another type, can't change the width.

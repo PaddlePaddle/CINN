@@ -9,7 +9,7 @@
 #include <set>
 #include <string>
 #include <tuple>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <utility>
 #include <vector>
 
@@ -484,7 +484,7 @@ class _StageMap_ : public Object {
   static constexpr const char* __type_info__ = "StageMap";
 
  private:
-  std::unordered_map<std::string, Shared<Stage>> data_;
+  absl::flat_hash_map<std::string, Shared<Stage>> data_;
 
   friend class StageMap;
 };

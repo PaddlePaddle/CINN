@@ -31,7 +31,7 @@ void CheckNoIslCallRemains(Expr* expr) {
 }
 
 void BindBuffer(StageMap& stages) {
-  std::unordered_map<std::string, ir::_Tensor_*> tensor_map;
+  absl::flat_hash_map<std::string, ir::_Tensor_*> tensor_map;
   for (auto& stage : stages) {
     tensor_map[stage.second->tensor()->name] = stage.second->tensor();
   }
@@ -494,8 +494,8 @@ std::vector<ir::Argument> LowerImpl::GenFuncArgForSplitKernel(Expr func_iterator
 
 std::vector<Tensor> LowerImpl::CollectTemporaryTensors() {
   // a temporary should be in the comp_graph but not contained in the tensor_args.
-  std::unordered_map<std::string, Tensor> tensor_arg_map = GenTensorArgMap();
-  std::unordered_map<std::string, Tensor> temp_tensor_map;
+  absl::flat_hash_map<std::string, Tensor> tensor_arg_map = GenTensorArgMap();
+  absl::flat_hash_map<std::string, Tensor> temp_tensor_map;
 
   for (auto* node : compu_graph_->nodes()) {
     auto* cnode = node->safe_as<CompuGraphNode>();
@@ -513,16 +513,16 @@ std::vector<Tensor> LowerImpl::CollectTemporaryTensors() {
   return temp_tensors;
 }
 
-std::unordered_map<std::string, Tensor> LowerImpl::GenTensorArgMap() {
-  std::unordered_map<std::string, Tensor> map;
+absl::flat_hash_map<std::string, Tensor> LowerImpl::GenTensorArgMap() {
+  absl::flat_hash_map<std::string, Tensor> map;
   for (auto& t : tensor_args_) {
     map[t->name] = t;
   }
   return map;
 }
 
-std::unordered_map<std::string, Tensor> LowerImpl::GenAllTensorMap() {
-  std::unordered_map<std::string, Tensor> map;
+absl::flat_hash_map<std::string, Tensor> LowerImpl::GenAllTensorMap() {
+  absl::flat_hash_map<std::string, Tensor> map;
   for (auto& t : CollectAllTensors()) {
     map[t->name] = t;
   }

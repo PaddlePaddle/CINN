@@ -46,7 +46,7 @@ std::ostream& operator<<(std::ostream& os, const NodeAttr& node_attr) {
   for (auto& item : node_attr.attr_store) {
     std::stringstream os;
     PyBindNodeAttrVisitor visitor(os);
-    std::visit(visitor, item.second);
+    absl::visit(visitor, item.second);
     ss << "- " << os.str() << "\n";
   }
   os << ss.str();

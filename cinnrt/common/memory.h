@@ -3,7 +3,7 @@
 #include <glog/logging.h>
 
 #include <memory>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 
 #include "cinnrt/common/macros.h"
 #include "cinnrt/common/target.h"
@@ -51,7 +51,7 @@ class MemoryManager final {
  private:
   MemoryManager();
 
-  std::unordered_map<cinnrt::common::Target::Arch, std::unique_ptr<MemoryInterface>> memory_mngs_;
+  absl::flat_hash_map<cinnrt::common::Target::Arch, std::unique_ptr<MemoryInterface>> memory_mngs_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(MemoryManager);
 };

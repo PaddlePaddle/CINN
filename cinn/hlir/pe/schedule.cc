@@ -7,7 +7,7 @@
 #include <functional>
 #include <iostream>
 #include <numeric>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <utility>
 
 #include "cinn/common/cas.h"
@@ -310,7 +310,7 @@ void PoolScheduleGPU(poly::StageMap stages, ir::Tensor &output, const common::Ta
   stages[output]->Bind(1, "threadIdx.x");
 }
 
-void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
+void GetConv2dFactors(absl::flat_hash_map<std::string, int> *factors,
                       int oc,
                       int ic,
                       int fc,
@@ -417,7 +417,7 @@ void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
   }
 }
 
-void GetConv2d1x1Factors(std::unordered_map<std::string, int> *factors,
+void GetConv2d1x1Factors(absl::flat_hash_map<std::string, int> *factors,
                          int oc,
                          int ic,
                          int oh,
@@ -525,14 +525,14 @@ std::string GenerateX86ConvKey(const std::vector<int> &input_shape,
   return key;
 }
 
-void InputX86Param(std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
+void InputX86Param(absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &model_data,
                    const std::string &key,
-                   const std::unordered_map<std::string, std::vector<int>> &schedule_data) {
+                   const absl::flat_hash_map<std::string, std::vector<int>> &schedule_data) {
   model_data[key] = schedule_data;
 }
 
 void CreateX86SerialData(const std::string &file_name) {
-  std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> model_data;
+  absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> model_data;
   /** The format of serial data is:
    * hash_key: schedule_name + shape of input + shape of weights + stride + padding + dilation
    * value: vector of params
@@ -670,7 +670,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   CHECK(packed_out.defined());
   CHECK(input_pad.defined());
   auto type = packed_out->type();
-  std::unordered_map<std::string, int> conv2d_factors;
+  absl::flat_hash_map<std::string, int> conv2d_factors;
   CHECK_EQ(packed_out->shape.size(), 5U) << "packed_out's shape size should be 5";
   Expr h_out             = common::AutoSimplify(packed_out->shape[2]);
   Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
@@ -797,7 +797,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
   CHECK(packed_out.defined());
   CHECK(input_pad.defined());
   auto type = packed_out->type();
-  std::unordered_map<std::string, int> conv2d_factors;
+  absl::flat_hash_map<std::string, int> conv2d_factors;
   CHECK_EQ(packed_out->shape.size(), 5U) << "packed_out's shape size should be 5";
   Expr h_out             = common::AutoSimplify(packed_out->shape[2]);
   Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
@@ -902,7 +902,7 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   CHECK(packed_out.defined());
   CHECK(input_pad.defined());
   auto type = packed_out->type();
-  std::unordered_map<std::string, int> conv2d_factors;
+  absl::flat_hash_map<std::string, int> conv2d_factors;
   CHECK_EQ(packed_out->shape.size(), 5U) << "packed_out's shape size should be 5";
   Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
   int ow                 = w_out.as_int32();
@@ -1007,7 +1007,7 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
   int oc_bn_size = oc_bn.as_int32();
   int ic_bn_size = ic_bn.as_int32();
 
-  std::unordered_map<std::string, int> conv2d_factors;
+  absl::flat_hash_map<std::string, int> conv2d_factors;
   GetConv2dFactors(&conv2d_factors, -1, -1, -1, -1, ow, type, target, key);
   int ow_bn_size = conv2d_factors["ow_bn"];
   VLOG(3) << "ow_bn_size " << ow_bn_size;
@@ -1110,7 +1110,7 @@ void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   CHECK(packed_out.defined());
   CHECK(input_pad.defined());
   auto type = packed_out->type();
-  std::unordered_map<std::string, int> conv2d_factors;
+  absl::flat_hash_map<std::string, int> conv2d_factors;
   CHECK_EQ(packed_out->shape.size(), 5U) << "packed_out's shape size should be 5";
   Expr w_out             = common::AutoSimplify(packed_out->shape[3]);
   int ow                 = w_out.as_int32();
@@ -1200,10 +1200,10 @@ void CudaScheduleMul(poly::StageMap stages,
 }
 
 inline void InputCudaParam(
-    std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
+    absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &model_data,
     const std::string &key,
     const std::vector<std::vector<int>> &int_data) {
-  std::unordered_map<std::string, std::vector<int>> schedule_data;
+  absl::flat_hash_map<std::string, std::vector<int>> schedule_data;
   schedule_data["rc"] = int_data[0];
   schedule_data["ry"] = int_data[1];
   schedule_data["rx"] = int_data[2];
@@ -1214,7 +1214,7 @@ inline void InputCudaParam(
 }
 
 void CreateCudaSerialData(const std::string &file_name) {
-  std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> model_data;
+  absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> model_data;
   // The format of serial data is:
   // hash_key: string = name of schedule + shape of input_pad + shape of weights + shape of output
   // value: vector of params
@@ -1270,7 +1270,7 @@ int GetMaxSplitter(int a, int b) {
   return b;
 }
 
-void LoadSerialData(std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> *params,
+void LoadSerialData(absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> *params,
                     const std::string &file_name) {
   proto::ModelData read_model_data;
   std::fstream input(file_name, std::ios::in | std::ios::binary);
@@ -1284,7 +1284,7 @@ void LoadSerialData(std::unordered_map<std::string, std::unordered_map<std::stri
   auto read_model_map = read_model_data.data();
   for (auto &i : read_model_map) {
     auto read_schedule_map = i.second.data();
-    std::unordered_map<std::string, std::vector<int>> param_data;
+    absl::flat_hash_map<std::string, std::vector<int>> param_data;
     for (auto &j : read_schedule_map) {
       std::vector<int> temp_data;
       for (int k = 0; k < j.second.data_size(); k++) {
@@ -1297,7 +1297,7 @@ void LoadSerialData(std::unordered_map<std::string, std::unordered_map<std::stri
 }
 
 void SaveSerialData(
-    const std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
+    const absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &model_data,
     const std::string &file_name) {
   proto::ModelData write_model_data;
   for (auto &i : model_data) {

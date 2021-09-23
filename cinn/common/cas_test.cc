@@ -239,7 +239,7 @@ TEST(CAS, Mod) {
   Var z = ir::_Var_::Make("z", Int(32));
   Var k = ir::_Var_::Make("k", Int(32));
 
-  std::unordered_map<std::string, CasInterval> var_intervals0, var_intervals1;
+  absl::flat_hash_map<std::string, CasInterval> var_intervals0, var_intervals1;
   var_intervals0.emplace("x", CasInterval{0, 3});
   var_intervals0.emplace("y", CasInterval{0, 3});
   var_intervals0.emplace("z", CasInterval{0, 3});
@@ -289,7 +289,7 @@ TEST(CAS, IntConnerCase) {
   auto u4 = AutoSimplify(Expr(1) / 3);
   EXPECT_EQ(GetStreamCnt(u4), "0");
 
-  std::unordered_map<std::string, CasInterval> var_intervals0, var_intervals1;
+  absl::flat_hash_map<std::string, CasInterval> var_intervals0, var_intervals1;
   var_intervals0.emplace("y", CasInterval{2, 3});
   var_intervals1.emplace("y", CasInterval{0, 3});
 
@@ -348,7 +348,7 @@ TEST(CAS, SimplifyCompoundMod) {
     Var x2  = ir::_Var_::Make("x2", Int(32));
     auto p0 = ir::Mod::Make(ir::Sum::Make({Expr(32), -x1, Expr(16) * -x2}), Expr(33));
     LOG(INFO) << "p0 " << p0;
-    std::unordered_map<std::string, CasInterval> var_intervals;
+    absl::flat_hash_map<std::string, CasInterval> var_intervals;
     var_intervals.emplace("x1", CasInterval{0, 15});
     var_intervals.emplace("x2", CasInterval{0, 1});
     auto p2 = AutoSimplify(p0, var_intervals);

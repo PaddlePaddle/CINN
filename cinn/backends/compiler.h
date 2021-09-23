@@ -2,7 +2,7 @@
 
 #include <memory>
 #include <string>
-#include <string_view>
+#include "absl/strings/string_view.h"
 
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/execution_engine.h"
@@ -34,7 +34,7 @@ class Compiler final {
    * Retrieve a function by \p fn_name.
    * @return function address or null if not exists.
    */
-  lower_func_ptr_t Lookup(std::string_view fn_name);
+  lower_func_ptr_t Lookup(absl::string_view fn_name);
 
  private:
   void CompileCudaModule(const ir::Module& module, const std::string& code = "");

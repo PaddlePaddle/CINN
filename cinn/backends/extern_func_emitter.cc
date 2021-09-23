@@ -6,6 +6,8 @@
 #include <iostream>
 #include <string>
 
+#include "absl/hash/hash.h"
+
 #include "cinn/backends/extern_func_emitter_builtin.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"
 #include "cinn/runtime/cpu/host_intrinsics.h"
@@ -54,7 +56,7 @@ const FunctionProto& ExternFunctionEmitter::func_proto() const {
 namespace std {
 
 size_t hash<cinn::backends::ExternFuncID>::operator()(const cinn::backends::ExternFuncID& x) const {
-  return std::hash<std::string_view>{}(x.name) ^ std::hash<std::string_view>{}(x.backend_id);
+  return absl::Hash<absl::string_view>{}(x.name) ^ absl::Hash<absl::string_view>{}(x.backend_id);
 }
 
 }  // namespace std

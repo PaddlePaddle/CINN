@@ -2,8 +2,10 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <vector>
+
+#include "absl/strings/string_view.h"
 
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
@@ -100,14 +102,14 @@ struct FunctionProto {
 
 class FunctionProtoRegistry {
  public:
-  FunctionProto* Register(std::string_view name, FunctionProto* x);
+  FunctionProto* Register(absl::string_view name, FunctionProto* x);
 
   FunctionProto* Lookup(const std::string& name);
 
   std::string debug_string() const;
 
  private:
-  std::unordered_map<std::string, std::unique_ptr<FunctionProto>> data_;
+  absl::flat_hash_map<std::string, std::unique_ptr<FunctionProto>> data_;
 };
 
 }  // namespace backends

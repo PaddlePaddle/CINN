@@ -3,7 +3,7 @@
 #include <cudnn.h>
 
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 
 #include "cinn/runtime/cinn_runtime.h"
 #include "cublas_v2.h"
@@ -38,11 +38,11 @@ class SerialData {
     static SerialData instance;
     return instance;
   }
-  std::unordered_map<std::string, int>& GetMap() { return get_algo; }
+  absl::flat_hash_map<std::string, int>& GetMap() { return get_algo; }
 
  private:
   SerialData();
-  std::unordered_map<std::string, int> get_algo;
+  absl::flat_hash_map<std::string, int> get_algo;
 };
 
 class CudnnHandle {

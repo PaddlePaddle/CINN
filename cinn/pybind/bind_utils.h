@@ -3,8 +3,8 @@
 #include <pybind11/pybind11.h>
 
 #include <string>
-#include <string_view>
-#include <variant>
+#include "absl/strings/string_view.h"
+#include "absl/types/variant.h"
 
 #include "cinn/common/cinn_value.h"
 #include "cinn/common/shared.h"
@@ -22,15 +22,15 @@ using common::Type;
 using ir::Expr;
 using ir::ExprNode;
 
-template <class... Ts>
-struct Visitor : Ts... {
-  using Ts::operator()...;
-};
+// template <class... Ts>
+// struct Visitor : Ts... {
+//   using Ts::operator()...;
+// };
+// 
+// template <class... Ts>
+// Visitor(Ts...)->Visitor<Ts...>;
 
-template <class... Ts>
-Visitor(Ts...)->Visitor<Ts...>;
-
-using ExprOp   = std::variant<ir::IntImm,
+using ExprOp   = absl::variant<ir::IntImm,
                             ir::UIntImm,
                             ir::FloatImm,
                             ir::StringImm,
@@ -54,11 +54,11 @@ using ExprOp   = std::variant<ir::IntImm,
                             ir::Sum,
                             ir::Block,
                             ir::_Module_>;
-using BinaryOp = std::variant<>;
-using UnaryOp  = std::variant<>;
+using BinaryOp = absl::variant<>;
+using UnaryOp  = absl::variant<>;
 
 // hold CINNValue
-using ValueVar = std::variant<int32_t, int64_t, float, ir::Var, ir::Expr, std::nullptr_t>;
+using ValueVar = absl::variant<int32_t, int64_t, float, ir::Var, ir::Expr, std::nullptr_t>;
 
 inline ValueVar ConvertToVar(const CINNValue &value) {
   auto type_code = value.type_code();
@@ -81,7 +81,7 @@ inline ValueVar ConvertToVar(const CINNValue &value) {
 }
 
 template <typename T>
-auto DefineShared(py::module *m, std::string_view obj_name) {
+auto DefineShared(py::module *m, absl::string_view obj_name) {
   std::string name = "Shared" + std::string(obj_name);
   py::class_<Shared<T>> shared(*m, name.c_str());
 
@@ -90,7 +90,7 @@ auto DefineShared(py::module *m, std::string_view obj_name) {
 }
 
 template <typename NodeType>
-void DefineExprNode(py::module *m, std::string_view node_name) {
+void DefineExprNode(py::module *m, absl::string_view node_name) {
   using ExprNodeT = ExprNode<NodeType>;
 
   std::string prefix{"ExprNode"};
@@ -108,7 +108,7 @@ void DefineExprNode(py::module *m, std::string_view node_name) {
 }
 
 template <typename NodeType>
-void DefineBinaryOpNode(py::module *m, std::string_view node_name) {
+void DefineBinaryOpNode(py::module *m, absl::string_view node_name) {
   DefineExprNode<NodeType>(m, node_name);
   std::string prefix{"BinaryOpNode"};
   std::string name    = prefix + std::string(node_name);
@@ -126,7 +126,7 @@ void DefineBinaryOpNode(py::module *m, std::string_view node_name) {
 }
 
 template <typename NodeType>
-void DefineUnaryOpNode(py::module *m, std::string_view node_name) {
+void DefineUnaryOpNode(py::module *m, absl::string_view node_name) {
   using UnaryOpNodeT = ir::UnaryOpNode<NodeType>;
   DefineExprNode<NodeType>(m, node_name);
 

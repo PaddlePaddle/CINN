@@ -2,7 +2,7 @@
 #include <gflags/gflags.h>
 #include <isl/cpp.h>
 
-#include <any>
+#include "absl/types/any.h"
 #include <set>
 #include <string>
 #include <vector>
@@ -30,7 +30,7 @@ struct NameGenerator {
   void ResetID() { name_hint_idx_.clear(); }
 
  private:
-  std::unordered_map<std::string, uint32_t> name_hint_idx_;
+  absl::flat_hash_map<std::string, uint32_t> name_hint_idx_;
 };
 
 class Context {

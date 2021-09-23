@@ -138,7 +138,7 @@ void BindType(py::module *m) {
           py::arg("type"),
           py::arg("val"));
 
-  m->def("type_of", [](std::string_view dtype) {
+  m->def("type_of", [](absl::string_view dtype) {
     if (dtype == "float32") return common::type_of<float>();
     if (dtype == "float64") return common::type_of<double>();
     if (dtype == "uchar") return common::type_of<unsigned char>();
@@ -243,8 +243,8 @@ void BindCinnValue(py::module *m) {
   auto binary_op_visitor = [](CINNValue &v, auto lhs, auto rhs, auto fn) {
     using lhs_t = decltype(lhs);
     using rhs_t = decltype(rhs);
-    if constexpr (std::is_same_v<lhs_t, std::nullptr_t> || std::is_same_v<rhs_t, std::nullptr_t> ||
-                  !std::is_same_v<lhs_t, rhs_t>) {
+    if constexpr (std::is_same<lhs_t, std::nullptr_t>::value || std::is_same<rhs_t, std::nullptr_t>::value ||
+                  !std::is_same<lhs_t, rhs_t>::value) {
       v = CINNValue();
     } else {
       v.Set(fn(lhs, rhs));
@@ -253,8 +253,8 @@ void BindCinnValue(py::module *m) {
 
 #define DEFINE_BINARY_OP(__op, __fn)                                                         \
   auto __op##_fn = [&](auto x, auto y) {                                                     \
-    constexpr auto is_var_x = std::is_same_v<std::decay_t<decltype(x)>, ir::Var>;            \
-    constexpr auto is_var_y = std::is_same_v<std::decay_t<decltype(y)>, ir::Var>;            \
+    constexpr auto is_var_x = std::is_same<std::decay_t<decltype(x)>, ir::Var>::value;       \
+    constexpr auto is_var_y = std::is_same<std::decay_t<decltype(y)>, ir::Var>::value;       \
     if constexpr (is_var_x && is_var_y) {                                                    \
       return __fn(ir::Expr(x), ir::Expr(y)).as_var_ref();                                    \
     } else {                                                                                 \
@@ -263,7 +263,7 @@ void BindCinnValue(py::module *m) {
   };                                                                                         \
   cinn_value.def(#__op, [&](CINNValue &self, CINNValue &other) {                             \
     auto visitor = [&](auto x, auto y) { return binary_op_visitor(self, x, y, __op##_fn); }; \
-    std::visit(visitor, ConvertToVar(self), ConvertToVar(other));                            \
+    absl::visit(visitor, ConvertToVar(self), ConvertToVar(other));                            \
     return self;                                                                             \
   })
 

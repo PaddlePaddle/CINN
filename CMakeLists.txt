@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.0)
 project(CINN)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
+set(BUILD_SHARED_LIBS ON)
+add_subdirectory(abseil-cpp)
+include_directories(${CMAKE_SOURCE_DIR}/abseil-cpp)
+
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
 
 set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
@@ -84,6 +88,7 @@ add_subdirectory(tests)
 add_subdirectory(tutorials)
 
 cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto ${MLIR_ALL_LIBS})
+target_link_libraries(cinncore absl::hash absl::strings absl::any absl::flat_hash_map)
 if (TARGET LLVM)
   target_link_libraries(cinncore LLVM)
 else()

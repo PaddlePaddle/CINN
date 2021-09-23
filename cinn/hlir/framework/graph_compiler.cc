@@ -1,6 +1,6 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <unordered_set>
 
 #include "cinn/backends/codegen_cuda_dev.h"
@@ -14,20 +14,20 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 // Store params from node to instruction
-void AddAttrs(const std::unordered_map<std::string, AttrType>& attrs_store,
+void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
               const std::vector<std::string>& attrs_name,
               Instruction* instr) {
   for (auto& attr : attrs_name) {
     if (attrs_store.find(attr) != attrs_store.end()) {
       switch (attrs_store.at(attr).index()) {
         case 2:
-          instr->attrs.push_back(std::get<int>(attrs_store.at(attr)));
+          instr->attrs.push_back(absl::get<int>(attrs_store.at(attr)));
           break;
         case 3:
-          instr->str_attrs.push_back(std::get<std::string>(attrs_store.at(attr)));
+          instr->str_attrs.push_back(absl::get<std::string>(attrs_store.at(attr)));
           break;
         case 5:
-          auto temp = std::get<std::vector<int>>(attrs_store.at(attr));
+          auto temp = absl::get<std::vector<int>>(attrs_store.at(attr));
           instr->attrs.insert(instr->attrs.end(), temp.begin(), temp.end());
           break;
       }
@@ -58,7 +58,7 @@ std::string GraphCompiler::GenSourceCode() {
       }
     }
   }
-  // compile the module
+  // // compile the module
   if (!compiler_) {
     compiler_ = backends::Compiler::Create(target_);
   }
@@ -70,8 +70,8 @@ std::string GraphCompiler::GenSourceCode() {
 
 std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-  auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
-  auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+  auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   std::vector<ir::Tensor> inputs;
   std::vector<common::CINNValue> cinn_inputs;
   std::vector<std::vector<int>> output_shapes;
@@ -121,8 +121,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
 std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
   CHECK_GT(nodes.size(), 1) << "fuse nodes number must be greater than 1";
   auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
-  auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
-  auto& dtype_dict = graph_->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+  auto& dtype_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   int fuse_number  = nodes.size();
   VLOG(3) << "fuse begin: " << nodes[0]->id();
   std::vector<ir::Tensor> inputs;
@@ -132,7 +132,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   std::string fuse_name = "fn_";
   std::unordered_set<NodeData*> in_vars;
   std::unordered_set<NodeData*> out_vars;
-  std::unordered_map<NodeData*, Expr> temp_var_map;
+  absl::flat_hash_map<NodeData*, Expr> temp_var_map;
   ir::Tensor first_out_tensor;
   for (auto& node : nodes) {
     std::vector<ir::Tensor> temp_inputs;
@@ -287,7 +287,7 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
         // For tensor not in scope, create it.
         if (!var) {
           auto* new_var = scope_->Var<Tensor>(temp_arg);
-          auto& tensor  = std::get<Tensor>(*new_var);
+          auto& tensor  = absl::get<Tensor>(*new_var);
           std::vector<Shape::dim_t> shape;
           CHECK(j.is_buffer());
           VLOG(3) << "Tensor " << temp_arg << " is not found in scope. Now create it with shape:";
@@ -365,7 +365,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           new Instruction(target_, scope_.get(), OpGetInputNames(node), OpGetOutputNames(node), node->op()->name));
       if (target_.arch == Target::Arch::NVGPU) {
         if (node->op()->name == "conv2d") {
-          auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
             std::string in_id = in_node->source()->safe_as<NodeData>()->id();
             auto in_shape     = shape_dict.at(in_id);
@@ -373,7 +373,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           }
           AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
           if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
-            auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
+            auto groups = absl::get<int>(node->attrs.attr_store.at("groups"));
             instr->attrs.push_back(groups);
           } else {
             instr->attrs.push_back(1);
@@ -385,7 +385,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           CHECK_EQ(instr->attrs.size(), 19UL);
         } else if (node->op()->name == "depthwise_conv2d") {
-          auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
             std::string in_id = in_node->source()->safe_as<NodeData>()->id();
             auto in_shape     = shape_dict.at(in_id);
@@ -393,7 +393,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           }
           AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
           if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
-            auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
+            auto groups = absl::get<int>(node->attrs.attr_store.at("groups"));
             instr->attrs.push_back(groups);
           } else {
             instr->attrs.push_back(instr->attrs[1]);
@@ -405,7 +405,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           CHECK_EQ(instr->attrs.size(), 19UL);
         } else if (node->op()->name == "pool2d") {
-          auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
             std::string in_id = in_node->source()->safe_as<NodeData>()->id();
             auto in_shape     = shape_dict.at(in_id);
@@ -414,11 +414,11 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           }
           bool global_pooling = false;
           if (node->attrs.attr_store.find("global_pooling") != node->attrs.attr_store.end()) {
-            global_pooling = std::get<bool>(node->attrs.attr_store.at("global_pooling"));
+            global_pooling = absl::get<bool>(node->attrs.attr_store.at("global_pooling"));
           }
           if (node->attrs.attr_store.find("kernel_size") != node->attrs.attr_store.end()) {
             if (global_pooling == false) {
-              auto padding = std::get<std::vector<int>>(node->attrs.attr_store.at("kernel_size"));
+              auto padding = absl::get<std::vector<int>>(node->attrs.attr_store.at("kernel_size"));
               instr->attrs.insert(instr->attrs.end(), padding.begin(), padding.end());
             } else {
               instr->attrs.push_back(instr->attrs[2]);
@@ -427,7 +427,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           }
           if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
             if (global_pooling == false) {
-              auto stride = std::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
+              auto stride = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
               instr->attrs.insert(instr->attrs.end(), stride.begin(), stride.end());
             } else {
               instr->attrs.push_back(0);
@@ -446,7 +446,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           CHECK_EQ(instr->attrs.size(), 16UL);
           CHECK_EQ(instr->str_attrs.size(), 1UL);
         } else if (node->op()->name == "softmax") {
-          auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
             std::string in_id = in_node->source()->safe_as<NodeData>()->id();
             auto in_shape     = shape_dict.at(in_id);
@@ -454,20 +454,20 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           }
           AddAttrs(node->attrs.attr_store, {"axis"}, instr.get());
         } else if (node->op()->name == "mul") {
-          auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
             std::string in_id = in_node->source()->safe_as<NodeData>()->id();
             auto in_shape     = shape_dict.at(in_id);
             instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
           }
           if (node->attrs.attr_store.find("x_num_col_dims") != node->attrs.attr_store.end()) {
-            auto axis = std::get<int>(node->attrs.attr_store.at("x_num_col_dims"));
+            auto axis = absl::get<int>(node->attrs.attr_store.at("x_num_col_dims"));
             instr->attrs.push_back(axis);
           } else {
             instr->attrs.push_back(1);
           }
           if (node->attrs.attr_store.find("y_num_col_dims") != node->attrs.attr_store.end()) {
-            auto axis = std::get<int>(node->attrs.attr_store.at("y_num_col_dims"));
+            auto axis = absl::get<int>(node->attrs.attr_store.at("y_num_col_dims"));
             instr->attrs.push_back(axis);
           } else {
             instr->attrs.push_back(1);
@@ -495,7 +495,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
         new_op_func = op_func_name + "_" + std::to_string(i);
       }
       if (node->attrs.attr_store.count("pre_run")) {
-        instr->pre_run = std::get<bool>(node->attrs.attr_store["pre_run"]);
+        instr->pre_run = absl::get<bool>(node->attrs.attr_store["pre_run"]);
       }
       instructions.push_back(std::move(instr));
     } else {
@@ -563,12 +563,12 @@ std::vector<std::string> GraphCompiler::OpGetOutputNames(const Node* node) const
 }
 
 std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& graph, std::shared_ptr<Scope> scope) {
-  auto& shape_dict = graph->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
-  auto& dtype_dict = graph->GetAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  auto& shape_dict = graph->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
+  auto& dtype_dict = graph->GetAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   if (!scope) scope = std::make_shared<Scope>();
   for (auto& iter : shape_dict) {
     auto* var    = scope->Var<Tensor>(iter.first);
-    auto& tensor = std::get<Tensor>(*var);
+    auto& tensor = absl::get<Tensor>(*var);
     std::vector<Shape::dim_t> shape;
     for (auto& shape_dim : iter.second) {
       shape.push_back(Shape::dim_t(shape_dim));

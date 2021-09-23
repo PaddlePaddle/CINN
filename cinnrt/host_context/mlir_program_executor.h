@@ -7,7 +7,7 @@
 #include <mlir/IR/OperationSupport.h>
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/kernel_registry.h"
@@ -51,7 +51,7 @@ class MlirProgramExecutor : public MlirToRuntimeTranslator {
   }
 
  private:
-  std::unordered_map<std::string, std::unique_ptr<MlirFunctionExecutable>> func_executables_;
+  absl::flat_hash_map<std::string, std::unique_ptr<MlirFunctionExecutable>> func_executables_;
 };
 
 }  // namespace host_context

@@ -2,11 +2,11 @@
 #include <glog/logging.h>
 
 #include <algorithm>
-#include <any>
-#include <map>
 #include <string>
-#include <variant>
 #include <vector>
+
+#include "absl/types/variant.h"
+#include "absl/types/any.h"
 
 #include "cinn/frontend/paddle/cpp/desc_api.h"
 #include "cinn/frontend/paddle/framework.pb.h"
@@ -22,14 +22,14 @@ namespace cpp {
  */
 class OpDesc : public OpDescAPI {
  public:
-  using attrs_t      = std::map<std::string, std::any>;
+  using attrs_t      = std::map<std::string, absl::any>;
   using attr_types_t = std::map<std::string, AttrType>;
 
  protected:
   std::string type_;
   std::map<std::string, std::vector<std::string>> inputs_;
   std::map<std::string, std::vector<std::string>> outputs_;
-  std::map<std::string, std::any> attrs_;
+  std::map<std::string, absl::any> attrs_;
   std::map<std::string, AttrType> attr_types_;
 
  public:
@@ -87,7 +87,7 @@ class OpDesc : public OpDescAPI {
   template <typename T>
   T GetAttr(const std::string& name) const;
 
-  const std::map<std::string, std::any>& attrs() const { return attrs_; }
+  const std::map<std::string, absl::any>& attrs() const { return attrs_; }
   const std::map<std::string, AttrType>& attr_types() const { return attr_types_; }
 };
 

@@ -3,7 +3,8 @@
 
 #include <memory>
 #include <string>
-#include <string_view>
+#include "absl/strings/string_view.h"
+#include "absl/container/flat_hash_map.h"
 
 #include "mlir/IR/Function.h"
 #include "mlir/IR/Region.h"
@@ -33,7 +34,7 @@ class OpExecutable {
 
   void Execute();
 
-  std::string_view name() const;
+  absl::string_view name() const;
 
   ~OpExecutable();
 
@@ -49,12 +50,12 @@ class OpExecutable {
  */
 class OpExecutableBuilder : public OpExecutable {
  public:
-  using function_defs_t = std::unordered_map<std::string, mlir::FuncOp>;
+  using function_defs_t = absl::flat_hash_map<std::string, mlir::FuncOp>;
 
-  OpExecutableBuilder(std::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry = nullptr);
+  OpExecutableBuilder(absl::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry = nullptr);
   OpExecutableBuilder(OpExecutableBuilder&& other);
 
-  void AppendArgument(std::string_view name);
+  void AppendArgument(absl::string_view name);
   void AppendArgument(Value* value);
 
   void SetResults(llvm::ArrayRef<std::string> result_names);

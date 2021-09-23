@@ -36,7 +36,7 @@ void BindFrontend(pybind11::module *m) {
       });
 
   py::class_<Placeholder>(*m, "Placeholder")  //
-      .def(py::init<const common::Type &, const std::vector<int> &, std::string_view>(),
+      .def(py::init<const common::Type &, const std::vector<int> &, absl::string_view>(),
            py::arg("type"),
            py::arg("shape"),
            py::arg("id") = "")

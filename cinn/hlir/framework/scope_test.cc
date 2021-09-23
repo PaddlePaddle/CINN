@@ -9,7 +9,7 @@ namespace framework {
 TEST(Scope, basic) {
   Scope scope;
   auto* var    = scope.Var<Tensor>("key");
-  auto& tensor = std::get<Tensor>(*var);
+  auto& tensor = absl::get<Tensor>(*var);
   tensor->Resize(Shape{{3, 1}});
   auto* data = tensor->mutable_data<float>(common::DefaultHostTarget());
   data[0]    = 0.f;

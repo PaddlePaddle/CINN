@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <unordered_map>
+#include "absl/container/flat_hash_map.h"
 #include <vector>
 
 #include "cinn/hlir/framework/node.h"
@@ -26,13 +26,13 @@ class ScheduleParam {
     static ScheduleParam x86_instance;
     return x86_instance;
   }
-  std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &GetParam() { return param_data; }
-  std::unordered_map<std::string, std::vector<int>> &operator[](const std::string &key) { return param_data[key]; }
+  absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &GetParam() { return param_data; }
+  absl::flat_hash_map<std::string, std::vector<int>> &operator[](const std::string &key) { return param_data[key]; }
   int Count(const std::string &key) { return param_data.count(key); }
 
  private:
   ScheduleParam();
-  std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> param_data;
+  absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> param_data;
 };
 
 int GetInnerSplitter(int origin, int other_axis);
@@ -60,7 +60,7 @@ void MulScheduleCPU(poly::StageMap stage,
 
 void SoftmaxScheduleCPU(poly::StageMap stage, const ir::Tensor &output, const ir::Tensor &temp, int axis = -1);
 
-void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
+void GetConv2dFactors(absl::flat_hash_map<std::string, int> *factors,
                       int oc,
                       int ic,
                       int fc,
@@ -71,7 +71,7 @@ void GetConv2dFactors(std::unordered_map<std::string, int> *factors,
                       const std::string &key = "",
                       bool import_params     = true);
 
-void GetConv2d1x1Factors(std::unordered_map<std::string, int> *factors,
+void GetConv2d1x1Factors(absl::flat_hash_map<std::string, int> *factors,
                          int oc,
                          int ic,
                          int oh,
@@ -166,11 +166,11 @@ std::string GenerateX86ConvKey(const std::vector<int> &input_shape,
                                const std::vector<int> &dilations);
 void CreateX86SerialData(const std::string &file_name = "default_serial.log");
 
-void LoadSerialData(std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> *params,
+void LoadSerialData(absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> *params,
                     const std::string &file_name = "default_serial.log");
 
 void SaveSerialData(
-    const std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
+    const absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &model_data,
     const std::string &file_name = "default_serial.log");
 
 int GetMaxSplitter(int a, int b);
