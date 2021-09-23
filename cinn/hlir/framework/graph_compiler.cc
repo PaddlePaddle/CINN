@@ -118,6 +118,18 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   return func;
 }
 
+int GetMasterRefNode(const std::vector<Node*>& nodes) {
+  auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
+  int master_index      = 0;
+  int master_pattern    = op_pattern_dict[nodes[0]->op()];
+  for (int i = 1; i < nodes.size(); i++) {
+    int pattern  = op_pattern_dict[nodes[i]->op()];
+    master_index = pattern >= master_pattern ? i : master_index;
+  }
+  VLOG(3) << "master_index: " << master_index << ", master op: " << nodes[master_index]->op()->name;
+  return master_index;
+}
+
 std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& nodes) {
   CHECK_GT(nodes.size(), 1) << "fuse nodes number must be greater than 1";
   auto& strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
@@ -133,7 +145,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   std::unordered_set<NodeData*> in_vars;
   std::unordered_set<NodeData*> out_vars;
   std::unordered_map<NodeData*, Expr> temp_var_map;
-  ir::Tensor first_out_tensor;
+  ir::Tensor master_out_tensor;
+  int master_index = GetMasterRefNode(nodes);
   for (auto& node : nodes) {
     std::vector<ir::Tensor> temp_inputs;
     std::vector<common::CINNValue> cinn_inputs;
@@ -181,12 +194,12 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         OpStrategy::SelectImpl(strategy[node->op()](node->attrs, temp_inputs, out_types, output_shapes, target_));
 
     common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
-    if (index == 0) {
-      // use the first op's schedule as the fused ops' schedule as complex op like conv appear in the first.
+    if (index == master_index) {
+      // use the most complex op's schedule as the fused ops' schedule.
       C = impl->fschedule(C);
       CHECK(!C.empty());
-      Expr out         = C[0];
-      first_out_tensor = out.as_tensor_ref();
+      Expr out          = C[0];
+      master_out_tensor = out.as_tensor_ref();
     }
     CHECK_GE(C.size(), 2);
     CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
@@ -237,8 +250,10 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   inputs.insert(inputs.end(), outputs.begin(), outputs.end());
 
   ir::Tensor final_out_tensor = outputs.front();
-  stages[final_out_tensor]->CopyTransform(stages[first_out_tensor]);
-  stages[final_out_tensor]->CopyLoopInfo(stages[first_out_tensor]);
+  if (final_out_tensor->name != master_out_tensor->name) {
+    stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
+    stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
+  }
 
   for (auto& s : stages) {
     auto& compute_ats = s.second->GetComputeAts();
@@ -255,7 +270,9 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
           new_relation.level = old_relation.level;
 
           compute_ats.clear();
+          CHECK(new_relation.IsCompatible(s.second.get())) << "new computeAt should be compatible";
           compute_ats[new_stage->id()] = new_relation;
+          break;
         }
       }
     }

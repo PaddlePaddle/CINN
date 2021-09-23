@@ -142,18 +142,19 @@ Variable Program::fused_batchnorm_inference(const Variable& a,
   if (attr_store.find("epsilon") != attr_store.end()) {
     epsilon = std::get<float>(attr_store.at("epsilon"));
   }
-  auto eps_var       = primitive_const_scalar<float>(epsilon, common::UniqName("epsilon"));
+  auto eps_var = primitive_const_scalar<float>(epsilon, common::UniqName("epsilon"));
+  CHECK(!scale->shape.empty()) << "scale's shape is empty.";
   auto broadcast_eps = primitive_broadcast_to(eps_var, scale->shape, {0});
-  auto var_add_eps   = add(broadcast_eps, variance);
+  auto var_add_eps   = add(variance, broadcast_eps);
   auto rsrqt_var     = primitive_rsqrt(var_add_eps);
   auto new_scale     = multiply(rsrqt_var, scale);
   auto neg_mean      = primitive_negative(mean);
   auto new_shift     = multiply(new_scale, neg_mean);
   auto shift_bias    = add(new_shift, bias);
-
+  CHECK(!a->shape.empty()) << "variable a's shape is empty.";
   auto broadcast_new_scale  = primitive_broadcast_to(new_scale, a->shape, {1});
   auto broadcast_shift_bias = primitive_broadcast_to(shift_bias, a->shape, {1});
-  auto temp_out             = multiply(a, broadcast_new_scale);
+  auto temp_out             = multiply(broadcast_new_scale, a);
   auto bn_out               = add(temp_out, broadcast_shift_bias);
 
   return bn_out;
