@@ -304,6 +304,56 @@ TEST(Operator, Operator_Pool1d_Test0) {
   ASSERT_EQ(pool1d->description, "Do pooling on the width dimension of the input tensor.");
 }
 
+TEST(Operator, Operator_Reverse_Test0) {
+  auto reverse  = Operator::Get("reverse");
+  Operator temp = *reverse;
+  auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+
+  int c = 16, h = 64, w = 64;
+  Expr C(c), H(h), W(w);
+  Placeholder<float> A("A", {C, H, W});
+
+  NodeAttr attrs;
+  std::vector<int> axis    = {1, 2};
+  attrs.attr_store["axis"] = axis;
+  std::vector<ir::Tensor> inputs{A.tensor()};
+  std::vector<Type> type{Float(32)};
+  common::Target target = common::DefaultHostTarget();
+
+  auto impl = OpStrategy::SelectImpl(strategy[reverse](attrs, inputs, type, {{c, h, w}}, target));
+  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
+  common::CINNValuePack rets       = impl->fcompute(cinn_input);
+  rets                             = impl->fschedule(rets);
+  ASSERT_EQ(rets.size(), 2UL);
+
+  // the last element is a StageMap
+  for (int i = 0; i < rets->size() - 1; i++) {
+    Expr temp = rets[i];
+    inputs.push_back(temp.as_tensor_ref());
+  }
+  auto func = Lower("reverse", rets.back(), inputs);
+  LOG(INFO) << "Test Strategy Codegen:\n" << func;
+
+  Module::Builder builder("module0", target);
+  builder.AddFunction(func);
+  auto jit    = backends::ExecutionEngine::Create({});
+  auto module = builder.Build();
+
+  jit->Link(module);
+  auto fn = jit->Lookup("reverse");
+  CHECK(fn);
+  auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
+
+  cinn_buffer_t *A_buf = common::BufferBuilder(Float(32), {c, h, w}).set_random().Build();
+  cinn_buffer_t *B_buf = common::BufferBuilder(Float(32), {c, h, w}).set_random().Build();
+  cinn_pod_value_t a_arg(A_buf), b_arg(B_buf);
+  cinn_pod_value_t args[] = {a_arg, b_arg};
+  fn_(args, 2);
+
+  ASSERT_EQ(impl->name, "strategy.reverse.x86");
+  ASSERT_EQ(reverse->description, "This operator implements the meta op reverse.");
+}
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
