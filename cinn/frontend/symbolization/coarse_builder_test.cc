@@ -14,8 +14,6 @@
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
 
-DEFINE_string(model_dir, "", "");
-
 namespace cinn {
 namespace frontend {
 namespace symbolization {

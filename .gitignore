@@ -19,4 +19,4 @@ gen_modules
 docs/source/cpp
 docs/source/doxygen_output
 docs/source/tutorials
-.vscode
+.vscode*
