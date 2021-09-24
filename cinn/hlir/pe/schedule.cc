@@ -7,7 +7,7 @@
 #include <functional>
 #include <iostream>
 #include <numeric>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <utility>
 
 #include "cinn/common/cas.h"

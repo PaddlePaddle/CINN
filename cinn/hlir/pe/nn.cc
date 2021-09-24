@@ -3,7 +3,7 @@
 #include <functional>
 #include <numeric>
 #include <string>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <vector>
 
 #include "cinn/common/cas.h"

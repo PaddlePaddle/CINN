@@ -8,7 +8,7 @@
 #include "cinn/common/object.h"
 #include "cinn/common/type.h"
 #include "cinn/runtime/cinn_runtime.h"
-#include "absl/types/any.h"
+#include <absl/types/any.h>
 
 struct cinn_buffer_t;
 

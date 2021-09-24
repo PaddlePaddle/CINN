@@ -3,7 +3,7 @@
 #include <llvm/IR/LLVMContext.h>
 
 #include <algorithm>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <utility>
 
 #include "cinn/backends/llvm/codegen_llvm.h"

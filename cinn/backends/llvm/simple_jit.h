@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-#include "absl/strings/string_view.h"
+#include <absl/strings/string_view.h>
 
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/llvm_util.h"

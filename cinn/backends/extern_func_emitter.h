@@ -6,7 +6,7 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <utility>
 
 #include "cinn/backends/extern_func_protos.h"

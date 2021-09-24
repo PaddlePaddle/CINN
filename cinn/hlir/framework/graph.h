@@ -1,10 +1,10 @@
 #pragma once
 #include <memory>
 #include <string>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <vector>
 
-#include "absl/types/any.h"
+#include <absl/types/any.h>
 
 #include "cinn/common/graph_utils.h"
 #include "cinn/frontend/syntax.h"

@@ -9,7 +9,7 @@ def main():
     out_path = sys.argv[2]
 
     srcs = []
-    srcs.append('#include "absl/strings/string_view.h"')
+    srcs.append('#include <absl/strings/string_view.h>')
     #srcs.append('#include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"\n')
     srcs.append('namespace cinn::backends {')
     srcs.append("inline absl::string_view kRuntimeLlvmIr(")

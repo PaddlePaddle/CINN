@@ -2,10 +2,10 @@
 
 #include <memory>
 #include <string>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <vector>
 
-#include "absl/strings/string_view.h"
+#include <absl/strings/string_view.h>
 
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"

@@ -7,11 +7,11 @@
 #include <memory>
 #include <string>
 #include <tuple>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
 
-#include "absl/strings/string_view.h"
+#include <absl/strings/string_view.h>
 
 #include "cinn/common/common.h"
 #include "cinn/common/context.h"

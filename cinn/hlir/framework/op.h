@@ -6,11 +6,11 @@
 #include <memory>
 #include <mutex>  //NOLINT
 #include <string>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
 
-#include "absl/types/any.h"
+#include <absl/types/any.h>
 
 #include "cinn/common/macros.h"
 #include "cinn/utils/registry.h"

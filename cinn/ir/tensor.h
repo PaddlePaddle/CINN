@@ -6,11 +6,11 @@
 #include <memory>
 #include <set>
 #include <string>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
 
-#include "absl/strings/string_view.h"
+#include <absl/strings/string_view.h>
 
 #include "cinn/common/graph_utils.h"
 #include "cinn/ir/buffer.h"

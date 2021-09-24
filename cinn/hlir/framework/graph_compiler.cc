@@ -1,6 +1,6 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <unordered_set>
 
 #include "cinn/backends/codegen_cuda_dev.h"

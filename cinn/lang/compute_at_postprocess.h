@@ -2,7 +2,7 @@
 #pragma once
 #include <map>
 #include <string>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <vector>
 
 #include "cinn/ir/ir.h"

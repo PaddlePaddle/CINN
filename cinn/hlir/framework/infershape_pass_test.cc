@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "absl/types/any.h"
+#include <absl/types/any.h>
 #include <string>
 
 #include "cinn/hlir/framework/graph.h"

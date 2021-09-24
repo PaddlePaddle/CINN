@@ -1,5 +1,5 @@
 #pragma once
-#include "absl/types/variant.h"
+#include <absl/types/variant.h>
 
 #include "cinn/frontend/paddle/cpp/op_desc.h"
 #include "cinn/frontend/paddle/framework.pb.h"

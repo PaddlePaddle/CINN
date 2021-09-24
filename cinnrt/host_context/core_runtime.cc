@@ -1,7 +1,7 @@
 #include "cinnrt/host_context/core_runtime.h"
 
 #include <string>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <vector>
 
 #include "cinnrt/host_context/kernel_registry.h"

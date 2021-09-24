@@ -1,6 +1,6 @@
 #include "cinnrt/host_context/kernel_registry.h"
 
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 
 #include "glog/logging.h"
 #include "llvm/ADT/SmallVector.h"

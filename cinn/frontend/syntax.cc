@@ -6,7 +6,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include "absl/types/variant.h"
+#include <absl/types/variant.h>
 
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/frontend/paddle_model_to_program.h"

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include "absl/strings/string_view.h"
+#include <absl/strings/string_view.h>
 #include <vector>
 
 #include "cinn/lang/packed_func.h"

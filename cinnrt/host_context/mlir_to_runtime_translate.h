@@ -3,8 +3,8 @@
 #include <llvm/ADT/SmallVector.h>
 #include <memory>
 #include <string>
-#include "absl/container/flat_hash_map.h"
-#include "absl/types/optional.h"
+#include <absl/container/flat_hash_map.h>
+#include <absl/types/optional.h>
 
 namespace mlir {
 class FuncOp;

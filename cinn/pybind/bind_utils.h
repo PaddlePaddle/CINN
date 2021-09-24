@@ -3,8 +3,8 @@
 #include <pybind11/pybind11.h>
 
 #include <string>
-#include "absl/strings/string_view.h"
-#include "absl/types/variant.h"
+#include <absl/strings/string_view.h>
+#include <absl/types/variant.h>
 
 #include "cinn/common/cinn_value.h"
 #include "cinn/common/shared.h"

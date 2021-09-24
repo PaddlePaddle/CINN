@@ -37,7 +37,7 @@
 #include <memory>
 #include <mutex>  // NOLINT
 #include <string>
-#include "absl/strings/string_view.h"
+#include <absl/strings/string_view.h>
 #include <utility>
 
 #include "cinn/backends/codegen_cuda_host.h"

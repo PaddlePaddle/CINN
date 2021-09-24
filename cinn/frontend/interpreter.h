@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
-#include "absl/container/flat_hash_map.h"
+#include <absl/container/flat_hash_map.h>
 #include <vector>
 
 #include "cinn/frontend/syntax.h"

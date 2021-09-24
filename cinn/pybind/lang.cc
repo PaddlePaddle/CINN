@@ -2,7 +2,7 @@
 #include <pybind11/functional.h>
 
 #include <memory>
-#include "absl/types/variant.h"
+#include <absl/types/variant.h>
 
 #include "cinn/backends/codegen_c.h"
 #include "cinn/common/target.h"
