@@ -775,6 +775,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
     out_shape[ii] = out_dim;
   }
 
+  do_pad = do_pad || (ceil_mode && stride_size[0] > 1);
   Tensor temp;
   Tensor res;
   if (pool_type == "max") {

@@ -107,6 +107,7 @@ function prepare_model {
     _download_and_untar EfficientNet.tar
     _download_and_untar MobilenetV1.tar
     _download_and_untar ResNet50.tar
+    _download_and_untar SqueezeNet.tar
 
     mkdir -p $build_dir/paddle
     cd $build_dir/paddle

@@ -1134,6 +1134,9 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       kernel_size  = {A_tensor->shape[height_index].as_int32(), A_tensor->shape[width_index].as_int32()};
       padding_size = {0, 0, 0, 0};
     }
+    if (kernel_size.size() == padding_size.size()) {
+      padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
+    }
 
     auto out = pe::Pool2d(A_tensor,
                           kernel_size,
