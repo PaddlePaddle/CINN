@@ -30,22 +30,7 @@ void IrPrinter::Visit(const Add *x) { PrintBinaryOp("+", x); }
 void IrPrinter::Visit(const Sub *x) { PrintBinaryOp("-", x); }
 void IrPrinter::Visit(const Mul *x) { PrintBinaryOp("*", x); }
 void IrPrinter::Visit(const Div *x) { PrintBinaryOp("/", x); }
-void IrPrinter::Visit(const Mod *x) {
-  auto copied = x->b();
-  optim::Simplify(&copied);
-  if (copied.is_constant()) {
-    int temp = (int)(copied.get_constant());
-    if ((temp & (temp - 1)) == 0) {
-      os_ << "(";
-      Print(x->a());
-      os_ << " & ";
-      os_ << std::to_string(temp - 1);
-      os_ << ")";
-      return;
-    }
-  }
-  PrintBinaryOp("%", x);
-}
+void IrPrinter::Visit(const Mod *x) { PrintBinaryOp("%", x); }
 void IrPrinter::Visit(const EQ *x) { PrintBinaryOp("==", x); }
 void IrPrinter::Visit(const NE *x) { PrintBinaryOp("!=", x); }
 void IrPrinter::Visit(const LT *x) { PrintBinaryOp("<", x); }

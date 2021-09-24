@@ -17,7 +17,7 @@
 # CINN : a Compiler Infrastructure for Neural Networks
 
 
-[Install](./docs/install.md) | 
+[Installation Guide](./docs/guide.md) | 
 [Roadmap](./docs/roadmap.md)
 
 The project CINN is a machine learning compiler and executor for multiple hardwares. 
@@ -141,41 +141,12 @@ The schedule transform is applied between the lowering from HLIR to CINN IR.
 The overall architecture is as follows
 
 
-![image](https://user-images.githubusercontent.com/328693/116195497-dfe7a300-a764-11eb-9770-1716a42c3236.png)
-
+![image](./CINN_instructure.png)
 
 
 ##  Getting Started
-
 ### Compile and execute the code
-To compile the CINN's code, one need to build the docker image first
-
-```sh
-cd tools/docker
-ln -s Dockerfile.cpu Dockerfile
-docker build . -t cinn-dev
-```
-
-Then start a docker container, and compile the code inside it
-
-```sh
-# inside the docker container
-
-# compile and install isl
-sh tools/ci_build.sh
-
-# compile the tests and python library with X86 backends
-./build.sh ci
-
-# compile the tests and python library with NVGPU(CUDA) backends
-./build.sh gpu_on ci
-```
-
-After compilation, you can launch the C++ and python tests
-```sh
-cd build
-ctest -V
-```
+Please refer to [Installation Guidance](./docs/guide.md) and follow the guidance.
 
 ### Concepts
 There are two levels of APIs in CINN, the higher level is HLIR and the lower level is CINN IR, both contain some concepts.
