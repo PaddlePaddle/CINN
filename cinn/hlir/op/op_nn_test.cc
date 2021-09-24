@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <functional>
+#include <iostream>
 #include <string>
 
 #include "cinn/backends/llvm/execution_engine.h"
@@ -302,6 +303,61 @@ TEST(Operator, Operator_Pool1d_Test0) {
 
   ASSERT_EQ(impl->name, "strategy.pool1d.x86");
   ASSERT_EQ(pool1d->description, "Do pooling on the width dimension of the input tensor.");
+}
+
+TEST(Operator, Operator_Reshape_Test0) {
+  auto reshape          = Operator::Get("reshape");
+  Operator temp         = *reshape;
+  auto strategy         = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[reshape];
+
+  int c = 16, h = 64, w = 64;
+  Expr C(c), H(h), W(w);
+  Placeholder<float> A("A", {C, H, W});
+
+  NodeAttr attrs;
+  std::vector<int> shape    = {16, -1};
+  attrs.attr_store["shape"] = shape;
+  std::vector<ir::Tensor> inputs{A.tensor()};
+  std::vector<Type> type{Float(32)};
+  common::Target target = common::DefaultHostTarget();
+
+  auto impl = OpStrategy::SelectImpl(strategy[reshape](attrs, inputs, type, {{c, h, w}}, target));
+  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
+  common::CINNValuePack rets       = impl->fcompute(cinn_input);
+  rets                             = impl->fschedule(rets);
+  ASSERT_EQ(rets.size(), 2UL);
+
+  auto infer_shape = infer_shape_func({{c, h, w}}, attrs, target);
+  ASSERT_EQ(infer_shape[0][0], c);
+  ASSERT_EQ(infer_shape[0][1], h * w);
+
+  // the last element is a StageMap
+  for (int i = 0; i < rets->size() - 1; i++) {
+    Expr temp = rets[i];
+    inputs.push_back(temp.as_tensor_ref());
+  }
+  auto func = Lower("reshape", rets.back(), inputs);
+  LOG(INFO) << "Test Strategy Codegen:\n" << func;
+
+  Module::Builder builder("module0", target);
+  builder.AddFunction(func);
+  auto jit    = backends::ExecutionEngine::Create({});
+  auto module = builder.Build();
+
+  jit->Link(module);
+  auto fn = jit->Lookup("reshape");
+  CHECK(fn);
+  auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
+
+  cinn_buffer_t *A_buf = common::BufferBuilder(Float(32), {c, h, w}).set_random().Build();
+  cinn_buffer_t *B_buf = common::BufferBuilder(Float(32), {c, h * w}).set_random().Build();
+  cinn_pod_value_t a_arg(A_buf), b_arg(B_buf);
+  cinn_pod_value_t args[] = {a_arg, b_arg};
+  fn_(args, 2);
+
+  ASSERT_EQ(impl->name, "strategy.reshape.x86");
+  ASSERT_EQ(reshape->description, "This operator implements the meta op Reshape.");
 }
 
 }  // namespace framework
