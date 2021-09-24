@@ -19,31 +19,31 @@ void CopyTo(const Value& from, Value* to) {
   visit(
       [&](auto&& arg) {
         using T = std::decay_t<decltype(arg)>;
-        if constexpr (std::is_same<T, int16_t>::value)
+        if  (std::is_same<T, int16_t>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, int32_t>::value)
+        else if (std::is_same<T, int32_t>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, float>::value)
+        else if (std::is_same<T, float>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, double>::value)
+        else if (std::is_same<T, double>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, uint32_t>::value)
+        else if (std::is_same<T, uint32_t>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, uint64_t>::value)
+        else if (std::is_same<T, uint64_t>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, bool>::value)
+        else if (std::is_same<T, bool>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, tensor::TensorShape>::value)
+        else if (std::is_same<T, tensor::TensorShape>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, MlirFunctionExecutable*>::value)
+        else if (std::is_same<T, MlirFunctionExecutable*>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, tensor::DenseHostTensor>::value)
+        else if (std::is_same<T, tensor::DenseHostTensor>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, std::vector<int16_t>>::value)
+        else if (std::is_same<T, std::vector<int16_t>>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, std::vector<int64_t>>::value)
+        else if (std::is_same<T, std::vector<int64_t>>::value)
           to->data = arg;
-        else if constexpr (std::is_same<T, tensor::TensorMap>::value)
+        else if (std::is_same<T, tensor::TensorMap>::value)
           to->data = arg;
         else
           LOG(FATAL) << "Not supported Value copy: " << typeid(T).name();
