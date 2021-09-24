@@ -3,6 +3,7 @@
 #include <vector>
 
 #include "cinn/frontend/paddle/compatible_pb.h"
+#include "cinn/frontend/paddle/vartype_utils.h"
 #include "paddle/fluid/framework/block_desc.h"
 #include "paddle/fluid/framework/op_desc.h"
 #include "paddle/fluid/framework/program_desc.h"
@@ -11,99 +12,6 @@
 namespace cinn::frontend::paddle {
 namespace pb    = ::paddle::framework;
 using PbVarType = pb::proto::VarType;
-
-namespace utils {
-
-cpp::VarDescAPI::Type TransformVarTypePbToCpp(const PbVarType::Type &type) {
-#define SET_TYPE_CASE_ITEM(type__)        \
-  case PbVarType::type__:                 \
-    return cpp::VarDescAPI::Type::type__; \
-    break;
-
-  switch (type) {
-    SET_TYPE_CASE_ITEM(LOD_TENSOR);
-    SET_TYPE_CASE_ITEM(LOD_TENSOR_ARRAY);
-    SET_TYPE_CASE_ITEM(LOD_RANK_TABLE);
-    SET_TYPE_CASE_ITEM(SELECTED_ROWS);
-    SET_TYPE_CASE_ITEM(FEED_MINIBATCH);
-    SET_TYPE_CASE_ITEM(FETCH_LIST);
-    SET_TYPE_CASE_ITEM(STEP_SCOPES);
-    SET_TYPE_CASE_ITEM(PLACE_LIST);
-    SET_TYPE_CASE_ITEM(READER);
-    default:
-      LOG(FATAL) << "Unknown var type";
-  }
-#undef SET_TYPE_CASE_ITEM
-}
-
-PbVarType::Type TransformVarTypeCppToPb(const cpp::VarDescAPI::Type &type) {
-#define SET_TYPE_CASE_ITEM(type__)    \
-  case cpp::VarDescAPI::Type::type__: \
-    return PbVarType::type__;         \
-    break;
-
-  switch (type) {
-    SET_TYPE_CASE_ITEM(LOD_TENSOR);
-    SET_TYPE_CASE_ITEM(LOD_TENSOR_ARRAY);
-    SET_TYPE_CASE_ITEM(LOD_RANK_TABLE);
-    SET_TYPE_CASE_ITEM(SELECTED_ROWS);
-    SET_TYPE_CASE_ITEM(FEED_MINIBATCH);
-    SET_TYPE_CASE_ITEM(FETCH_LIST);
-    SET_TYPE_CASE_ITEM(STEP_SCOPES);
-    SET_TYPE_CASE_ITEM(PLACE_LIST);
-    SET_TYPE_CASE_ITEM(READER);
-    default:
-      LOG(FATAL) << "Unknown var type";
-  }
-#undef SET_TYPE_CASE_ITEM
-}
-
-cpp::VarDescAPI::Type TransformVarDataTypePbToCpp(const PbVarType::Type &type) {
-#define SET_DATA_TYPE_CASE_ITEM(type__)   \
-  case PbVarType::type__:                 \
-    return cpp::VarDescAPI::Type::type__; \
-    break;
-
-  switch (type) {
-    SET_DATA_TYPE_CASE_ITEM(BOOL);
-    SET_DATA_TYPE_CASE_ITEM(SIZE_T);
-    SET_DATA_TYPE_CASE_ITEM(UINT8);
-    SET_DATA_TYPE_CASE_ITEM(INT8);
-    SET_DATA_TYPE_CASE_ITEM(INT16);
-    SET_DATA_TYPE_CASE_ITEM(INT32);
-    SET_DATA_TYPE_CASE_ITEM(INT64);
-    SET_DATA_TYPE_CASE_ITEM(FP16);
-    SET_DATA_TYPE_CASE_ITEM(FP32);
-    SET_DATA_TYPE_CASE_ITEM(FP64);
-    default:
-      LOG(FATAL) << "Unknown var data type";
-  }
-#undef SET_DATA_TYPE_CASE_ITEM
-}
-
-PbVarType::Type TransformVarDataTypeCppToPb(const cpp::VarDescAPI::Type &type) {
-#define SET_DATA_TYPE_CASE_ITEM(type__) \
-  case cpp::VarDescAPI::Type::type__:   \
-    return PbVarType::type__;           \
-    break;
-
-  switch (type) {
-    SET_DATA_TYPE_CASE_ITEM(BOOL);
-    SET_DATA_TYPE_CASE_ITEM(SIZE_T);
-    SET_DATA_TYPE_CASE_ITEM(UINT8);
-    SET_DATA_TYPE_CASE_ITEM(INT8);
-    SET_DATA_TYPE_CASE_ITEM(INT16);
-    SET_DATA_TYPE_CASE_ITEM(INT32);
-    SET_DATA_TYPE_CASE_ITEM(INT64);
-    SET_DATA_TYPE_CASE_ITEM(FP16);
-    SET_DATA_TYPE_CASE_ITEM(FP32);
-    SET_DATA_TYPE_CASE_ITEM(FP64);
-    default:
-      LOG(FATAL) << "Unknown var data type";
-  }
-#undef SET_DATA_TYPE_CASE_ITEM
-}
-}  // namespace utils
 
 template <>
 void TransformVarDescAnyToCpp<pb::VarDesc>(pb::VarDesc *pb_desc, cpp::VarDesc *cpp_desc) {
@@ -118,6 +26,7 @@ void TransformVarDescAnyToCpp<pb::VarDesc>(pb::VarDesc *pb_desc, cpp::VarDesc *c
 
 template <>
 void TransformVarDescCppToAny<pb::VarDesc>(const cpp::VarDesc &cpp_desc, pb::VarDesc *pb_desc) {
+  pb_desc->Proto()->Clear();
   pb_desc->SetName(cpp_desc.Name());
   pb_desc->SetType(utils::TransformVarTypeCppToPb(cpp_desc.GetType()));
   pb_desc->SetPersistable(cpp_desc.Persistable());
@@ -129,24 +38,26 @@ void TransformVarDescCppToAny<pb::VarDesc>(const cpp::VarDesc &cpp_desc, pb::Var
 
 /// For OpDesc transform
 void OpInputsPbToCpp(pb::OpDesc *pb_desc, cpp::OpDesc *cpp_desc) {
-  for (const std::string &param : pb_desc->InputArgumentNames()) {
+  for (const std::string &param : pb_desc->InputNames()) {
     cpp_desc->SetInput(param, pb_desc->Input(param));
   }
 }
 
 void OpInputsCppToPb(const cpp::OpDesc &cpp_desc, pb::OpDesc *pb_desc) {
+  pb_desc->MutableInputs()->clear();
   for (const std::string &param : cpp_desc.InputArgumentNames()) {
     pb_desc->SetInput(param, cpp_desc.Input(param));
   }
 }
 
 void OpOutputsPbToCpp(pb::OpDesc *pb_desc, cpp::OpDesc *cpp_desc) {
-  for (const std::string &param : pb_desc->OutputArgumentNames()) {
+  for (const std::string &param : pb_desc->OutputNames()) {
     cpp_desc->SetOutput(param, pb_desc->Output(param));
   }
 }
 
 void OpOutputsCppToPb(const cpp::OpDesc &cpp_desc, pb::OpDesc *pb_desc) {
+  pb_desc->MutableOutputs()->clear();
   for (const std::string &param : cpp_desc.OutputArgumentNames()) {
     pb_desc->SetOutput(param, cpp_desc.Output(param));
   }
@@ -187,6 +98,7 @@ void OpAttrsPbToCpp(pb::OpDesc *pb_desc, cpp::OpDesc *cpp_desc) {
 }
 
 void OpAttrsCppToPb(const cpp::OpDesc &cpp_desc, pb::OpDesc *pb_desc) {
+  pb_desc->MutableAttrMap()->clear();
   using AttrType = cpp::OpDescAPI::AttrType;
   auto set_attr  = [&](const std::string &name, AttrType type) {
     switch (type) {
@@ -225,6 +137,7 @@ void TransformOpDescAnyToCpp<pb::OpDesc>(pb::OpDesc *pb_desc, cpp::OpDesc *cpp_d
 
 template <>
 void TransformOpDescCppToAny<pb::OpDesc>(const cpp::OpDesc &cpp_desc, pb::OpDesc *pb_desc) {
+  pb_desc->Proto()->Clear();
   pb_desc->SetType(cpp_desc.Type());
   OpInputsCppToPb(cpp_desc, pb_desc);
   OpOutputsCppToPb(cpp_desc, pb_desc);
@@ -242,7 +155,7 @@ void TransformBlockDescAnyToCpp<pb::BlockDesc>(pb::BlockDesc *pb_desc, cpp::Bloc
   const auto &all_ops = pb_desc->AllOps();
   for (const auto &op : all_ops) {
     auto *cpp_op_desc = cpp_desc->AddOp<cpp::OpDesc>();
-    TransformOpDescAnyToCpp(*op, cpp_op_desc);
+    TransformOpDescAnyToCpp(op, cpp_op_desc);
   }
 
   cpp_desc->ClearVars();
@@ -283,8 +196,8 @@ void TransformProgramDescAnyToCpp<pb::ProgramDesc>(pb::ProgramDesc *pb_desc, cpp
 
   cpp_desc->ClearBlocks();
   for (size_t i = 0; i < pb_desc->Size(); ++i) {
-    const auto &pb_block_desc = pb_desc->Block(i);
-    auto *cpp_block_desc      = cpp_desc->AddBlock<cpp::BlockDesc>();
+    auto *pb_block_desc  = pb_desc->MutableBlock(i);
+    auto *cpp_block_desc = cpp_desc->AddBlock<cpp::BlockDesc>();
     TransformBlockDescAnyToCpp(pb_block_desc, cpp_block_desc);
   }
 }
@@ -300,17 +213,20 @@ void TransformProgramDescCppToAny<pb::ProgramDesc>(const cpp::ProgramDesc &cpp_d
   // For paddle proto program, the only way to add block is invoke AppendBlock(),
   // the AppendBlock need one necessary parameter: const BlockDesc &parent,
   // but the only function of parent is set the block's parent_idx value.
-  // That's why here we create a fake block and only set it's id zero;
-  pb::ProgramDesc fake_prog;
-  pb::BlockDesc fake_block(&fake_prog, fake_prog.Proto()->add_blocks());
-  // In fact, the is is not important, because in TransformBlockDescCppToAny,
-  // the parent_idx will reset, so here all is fake.
-  fake_block.Proto()->set_idx(0);
+  // Meanwhile a program has at least one block, so we set block0 to all
+  // sub-block's parent in initial and cannot remove.
+  // Don't worry, it will be change in "TransformBlockDescCppToAny".
+  auto *block0 = pb_desc->MutableBlock(0);
 
   for (size_t i = 0; i < cpp_desc.BlocksSize(); ++i) {
-    const auto &cpp_block_desc = cpp_desc.GetConstBlock<cpp::BlockDesc>(i);
-    auto pb_block_desc         = pb_desc->AppendBlock(fake_block);
-    TransformBlockDescCppToAny(cpp_block_desc, &pb_block_desc);
+    const auto &cpp_block_desc   = cpp_desc.GetConstBlock<cpp::BlockDesc>(i);
+    pb::BlockDesc *pb_block_desc = nullptr;
+    if (i < pb_desc->Size()) {
+      pb_block_desc = pb_desc->MutableBlock(i);
+    } else {
+      pb_block_desc = pb_desc->AppendBlock(*block0);
+    }
+    TransformBlockDescCppToAny(cpp_block_desc, pb_block_desc);
   }
 }
 
