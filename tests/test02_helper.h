@@ -80,13 +80,13 @@ auto CreateMatmulSplitModule(Target target, int m, int n, int k) {
 
   auto stages = CreateStages({C});
 
-  auto c_poly_iterators = [&](auto &&... args) {
-    std::vector<poly::Iterator> iters;
-    (iters.push_back(stages[C]->ith_iterator(args)), ...);
-    return iters;
-  };
   stages[C]->Split(2, 16);
-  stages[C]->Reorder(c_poly_iterators(1, 0, 2, 3));
+
+  std::vector<poly::Iterator> polyIters;
+  for (auto idx : {1, 0, 2, 3}) {
+    polyIters.push_back(stages[C]->ith_iterator(idx));
+  }
+  stages[C]->Reorder(polyIters);
 
   Module::Builder builder("module_split", target);
 

@@ -40,6 +40,11 @@ function prepare {
     mkdir -p cinn/backends
 }
 
+function prepare_submodule {
+  git submodule init
+  git submodule update
+}
+
 function prepare_llvm {
     cd $workspace
     clang++ -mavx2 -masm=intel -S -emit-llvm cinn/runtime/cinn_runtime.cc -I$PWD
@@ -169,6 +174,7 @@ function CI {
     mkdir -p $build_dir
     cd $build_dir
 
+    prepare_submodule
     prepare_llvm
     cmake_
     build
