@@ -13,8 +13,6 @@ option(WITH_CUDA            "Compile with CUDA support"       OFF)
 option(WITH_DEBUG           "Compile with debug information"  OFF)
 option(PUBLISH_LIBS         "Whether to publish compiled libraries" OFF)
 
-SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -ggdb3")
-
 if (WITH_TESTING)
   add_definitions(-DCINN_WITH_TEST)
 endif()
