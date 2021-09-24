@@ -119,6 +119,10 @@ if (PUBLISH_LIBS)
         file(COPY ${header} DESTINATION ${CMAKE_BINARY_DIR}/dist/cinn/include/${prefix})
     endforeach()
 
+    file(GLOB ABSL_LIBS ${CMAKE_BINARY_DIR}/abseil-cpp/absl/*/*.so)
+    foreach (absl_lib ${ABSL_LIBS})
+        file(COPY ${absl_lib} DESTINATION ${CMAKE_BINARY_DIR}/dist/absl/libs)
+    endforeach()
     add_custom_command(TARGET cinncore POST_BUILD
         COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/demo.cc ${CMAKE_BINARY_DIR}/dist/demo.cc
         COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/build_demo.sh ${CMAKE_BINARY_DIR}/dist/build_demo.sh

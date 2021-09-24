@@ -39,14 +39,14 @@ std::vector<ir::Tensor> MatmulSplitTester::CreateSpecificStrategy(const std::vec
   for (auto &out : outs) {
     (*stages)->InsertLazily(out);
   }
-  auto out              = outs[0];
-  auto c_poly_iterators = [&](auto &&... args) {
-    std::vector<poly::Iterator> iters;
-    (iters.push_back((*stages)[out]->ith_iterator(args)), ...);
-    return iters;
-  };
+  auto out = outs[0];
   (*stages)[out]->Split(2, 16);
-  (*stages)[out]->Reorder(c_poly_iterators(1, 0, 2, 3));
+
+  std::vector<poly::Iterator> polyIters;
+  for (auto idx : {1, 0, 2, 3}) {
+     polyIters.push_back((*stages)[out]->ith_iterator(idx));
+  }
+  (*stages)[out]->Reorder(polyIters);
 
   return outs;
 }
