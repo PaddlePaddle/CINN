@@ -68,7 +68,9 @@ Registry::Registry(const std::string &name) : name_(name) {}
   auto *manager = Manager::Global();
   std::lock_guard<std::mutex> lock(manager->mu);
   std::vector<std::string> keys;
-  for (const auto &[k, v] : manager->functions) {
+  for (const auto &_k_v_ : manager->functions) {
+    auto &k = std::get<0>(_k_v_);
+    auto &v = std::get<1>(_k_v_);
     keys.push_back(k);
   }
   return keys;

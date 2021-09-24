@@ -82,7 +82,11 @@ auto BuildComputeAtExpr() {
 }
 
 TEST(elementwise_add, compute_at) {
-  auto [A, B, A_cache, C] = BuildComputeAtExpr();
+  auto _A_B_A_cache_C_ = BuildComputeAtExpr();
+  auto &A = std::get<0>(_A_B_A_cache_C_);
+  auto &B = std::get<1>(_A_B_A_cache_C_);
+  auto &A_cache = std::get<2>(_A_B_A_cache_C_);
+  auto &C = std::get<3>(_A_B_A_cache_C_);
 
   auto stages = CreateStages({A, B, A_cache, C});
   stages[A_cache]->ComputeAt2(stages[C], 0);
@@ -100,7 +104,11 @@ TEST(elementwise_add, compute_at) {
 }
 
 TEST(elementwise_add, compute_at1) {
-  auto [A, B, A_cache, C] = BuildComputeAtExpr();
+  auto _A_B_A_cache_C_ = BuildComputeAtExpr();
+  auto &A = std::get<0>(_A_B_A_cache_C_);
+  auto &B = std::get<1>(_A_B_A_cache_C_);
+  auto &A_cache = std::get<2>(_A_B_A_cache_C_);
+  auto &C = std::get<3>(_A_B_A_cache_C_);
 
   auto stages = CreateStages({A, B, A_cache, C});
   stages[A_cache]->ComputeAt2(stages[C], 1);

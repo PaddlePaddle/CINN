@@ -38,7 +38,10 @@ void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
 }
 
 void GraphCompiler::PrintFunc() {
-  auto [nodes, edges] = graph_->topological_order();
+  auto topo_order = graph_->topological_order();
+  auto &nodes = std::get<0>(topo_order);
+  auto &edges = std::get<1>(topo_order);
+
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
     if (node) {
@@ -48,7 +51,10 @@ void GraphCompiler::PrintFunc() {
 }
 
 std::string GraphCompiler::GenSourceCode() {
-  auto [nodes, edges] = graph_->topological_order();
+  auto topo_order = graph_->topological_order();
+  auto &nodes = std::get<0>(topo_order);
+  auto &edges = std::get<1>(topo_order);
+
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
     if (node) {
@@ -310,7 +316,10 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
 }
 
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
-  auto [nodes, edges] = graph_->topological_order();
+  auto topo_order = graph_->topological_order();
+  auto &nodes = std::get<0>(topo_order);
+  auto &edges = std::get<1>(topo_order);
+
   auto& groups        = graph_->groups;
 
   if (!groups.empty()) {
@@ -356,7 +365,10 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   std::vector<std::unique_ptr<Instruction>> instructions;
-  auto [nodes, edges] = graph_->topological_order();
+  auto topo_order = graph_->topological_order();
+  auto &nodes = std::get<0>(topo_order);
+  auto &edges = std::get<1>(topo_order);
+
   auto& groups        = graph_->groups;
   for (auto& group : groups) {
     if (group.size() == 1) {

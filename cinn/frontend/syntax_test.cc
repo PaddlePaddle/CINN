@@ -147,8 +147,11 @@ TEST(syntax, program_execute_fc) {
 TEST(load_paddle_model, fc_execute) {
   auto scope = std::make_shared<Scope>();
 
-  auto [program, var_map, var_map_paddle_to_program] =
-      LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
+  auto programTuple = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
+  auto &program = std::get<0>(programTuple);
+  auto &var_map = std::get<1>(programTuple);
+  auto &var_map_paddle_to_program = std::get<2>(programTuple);
+
   var_map["A"]->shape = {1, 30};
   program->SetInputs({var_map["A"]});
   program->Validate();

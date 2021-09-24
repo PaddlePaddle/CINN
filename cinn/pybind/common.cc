@@ -180,15 +180,6 @@ void BindShared(py::module *m) {
       .def("val", &common::RefCount::val);
 }
 
-// template <typename FT, typename FF>
-// auto conditional_eval(FT true_fn, FF false_fn, std::true_type) {
-//   return true_fn();
-// }
-// template <typename FT, typename FF>
-// auto conditional_eval(FT true_fn, FF false_fn, std::false_type) {
-//   return false_fn();
-// }
-
 // TODO(wanghaipeng03) using true_type or false_type as tag disptcher losses semantic context
 template <typename T1, typename T2, typename F>
 inline auto __binary_op_fn_dispatch(T1 x, T2 y, F fn, std::true_type) {

@@ -198,7 +198,9 @@ void *ExecutionEngine::Lookup(absl::string_view name) {
 void ExecutionEngine::RegisterRuntimeSymbols() {
   const auto &registry = RuntimeSymbolRegistry::Global();
   auto *session        = &jit_->getExecutionSession();
-  for (const auto &[name, addr] : registry.All()) {
+  for (const auto &_name_addr_ : registry.All()) {
+    auto &name = std::get<0>(_name_addr_);
+    auto &addr = std::get<1>(_name_addr_);
     llvm::cantFail(jit_->define(llvm::orc::absoluteSymbols(
         {{session->intern(name), {llvm::pointerToJITTargetAddress(addr), llvm::JITSymbolFlags::None}}})));
   }

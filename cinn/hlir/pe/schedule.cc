@@ -124,7 +124,9 @@ void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_sha
         stage->Vectorize(fused, split_factor);
       }
     } else {
-      auto [j_outer, j_inner] = stage->Split(fused, split_factor);
+      auto ssplit = stage->Split(fused, split_factor);
+      auto &j_outer = std::get<0>(ssplit);
+      auto &j_inner = std::get<1>(ssplit);
       stage->Vectorize(j_inner, split_factor);
     }
   }
@@ -243,7 +245,9 @@ void MatmulScheduleCPU(poly::StageMap stages,
   stages[output]->Reorder(all_axes);
   // vectorize output's last dimemsion
   auto out_domain = stages[output]->transformed_domain();
-  auto [min, max] = poly::isl_set_get_axis_range(out_domain.get(), out_axis_dims - 1);
+  auto range = poly::isl_set_get_axis_range(out_domain.get(), out_axis_dims - 1);
+  auto &min = std::get<0>(range);
+  auto &max = std::get<1>(range);
   CHECK_EQ(min.get_num_si(), 0) << "axis range should begin from zero";
   int out_last_dim        = max.get_num_si() + 1;
   int output_split_factor = GetBetterSplitFactor(out_last_dim, basic_split_factor);
@@ -1379,8 +1383,14 @@ void CudaScheduleConv(poly::StageMap stages,
 
   auto tx        = stages[output]->axis(3);
   auto by        = stages[output]->axis(2);
-  auto [tem, fi] = stages[output]->Split(1, f_inner);
-  auto [bz, tz]  = stages[output]->Split(1, thread_z);
+  auto tem_fi = stages[output]->Split(1, f_inner);
+  auto &tem = std::get<0>(tem_fi);
+  auto &fi = std::get<1>(tem_fi);
+
+  auto bz_tz = stages[output]->Split(1, thread_z);
+  auto &bz = std::get<0>(bz_tz);
+  auto &tz = std::get<1>(bz_tz);
+
   stages[output]->Reorder({bz, by, tz, tx, fi});
   stages[output]->Bind(1, "blockIdx.z");
   stages[output]->Bind(2, "blockIdx.y");
@@ -1498,8 +1508,14 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   int prod_size         = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
   bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
   if (need_block_split) {
-    auto [X_outer, X_inner]  = stage->Split(0, num_thread * num_block);
-    auto [Block_x, Thread_x] = stage->Split(X_inner, num_thread);
+    auto x_outer_inner = stage->Split(0, num_thread * num_block);
+    auto &X_outer = std::get<0>(x_outer_inner);
+    auto &X_inner = std::get<1>(x_outer_inner);
+
+    auto Block_x_Thread_x = stage->Split(X_inner, num_thread);
+    auto &Block_x = std::get<0>(Block_x_Thread_x);
+    auto &Thread_x = std::get<1>(Block_x_Thread_x);
+
     stage->Reorder({Block_x, Thread_x, X_outer});
     stage->Bind(0, "blockIdx.x");
     stage->Bind(1, "threadIdx.x");

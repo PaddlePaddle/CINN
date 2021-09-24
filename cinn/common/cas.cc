@@ -2163,7 +2163,9 @@ Expr SolveInequality(Expr inequality, Var val) {
 
   // if (common::IsPureMath(a) && common::IsPureMath(b)) {
   if (true) {
-    auto [res, positive] = common::Solve(a, b, val);  // NOLINT
+    auto _res_positive_ = common::Solve(a, b, val);  // NOLINT
+    auto &res = std::get<0>(_res_positive_);
+    auto &positive = std::get<1>(_res_positive_);
     // Simplify it with CAS to avoid random result from GiNac.
     res = AutoSimplify(res);
     res = common::cast(res, val->type());
