@@ -86,3 +86,9 @@ ADD_TEST(NAME test_cinn_real_resnet50
     python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_resnet50.py "${CMAKE_BINARY_DIR}/thirds/ResNet50" "${WITH_CUDA}"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+
+ADD_TEST(NAME test_cinn_real_squeezenet
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_squeezenet.py "${CMAKE_BINARY_DIR}/thirds/SqueezeNet" "${WITH_CUDA}"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
