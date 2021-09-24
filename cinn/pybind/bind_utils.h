@@ -13,6 +13,13 @@
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/tensor.h"
 
+namespace pybind11 {
+namespace detail {
+template <typename... Ts>
+struct type_caster<absl::variant<Ts...>> : variant_caster<absl::variant<Ts...>> {};
+}
+}
+
 namespace py = pybind11;
 
 namespace cinn::pybind {
