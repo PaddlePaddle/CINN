@@ -9,7 +9,6 @@
 #include "cinn/common/ir_util.h"
 #include "cinn/ir/ir_printer.h"
 #include "cinn/ir/tensor.h"
-#include "cinn/lang/compute_at_postprocess.h"
 #include "cinn/poly/stage.h"
 
 namespace cinn {
@@ -106,9 +105,6 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
       (*global_tensor_map)[e.second->id()] = ir::Tensor(e.second->tensor());
     }
   }
-
-  // deal with the compute_at relations
-  ProcessComputeAtInfo(&e, stage_map);
 
   // mark vectorize.
   {
@@ -625,7 +621,6 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
     optim::ComputeInlineExpand(&func->body, stages_, &all_tensor_map);
 
     auto res = optim::Optimize(func, target_, FLAGS_cinn_runtime_display_debug_info);
-    // UpdateComputeAtBufferShape(&res, stages_);
 
     if (cuda_axis_info_.size() > num_func && cuda_axis_info_[num_func].valid()) {
       auto* res_func           = res.as_lowered_func();
