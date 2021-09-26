@@ -1835,7 +1835,7 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
   framework::CINNCompute select_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of select compute is empty! Please check.\n";
     CINNValuePack arg = args[0];
-    CHECK(arg.size() >= 3) << "at least one input tensor for select compute\n";
+    CHECK(arg.size() >= 3) << "at least three input tensor for select compute\n";
     Expr condition   = arg[0];
     Expr true_value  = arg[1];
     Expr false_value = arg[2];
@@ -1845,23 +1845,21 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
     auto out = pe::Select(
         condition.as_tensor_ref(), true_value.as_tensor_ref(), false_value.as_tensor_ref(), UniqName("Select_output"));
     auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule select_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of select schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
+    Expr out              = arg_pack[0];
+    poly::StageMap stages = arg_pack[1];
+    CHECK(out.as_tensor());
+    CHECK_GE(output_shapes.size(), 1);
     if (target.arch == Target::Arch::NVGPU) {
-      Expr out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(out.as_tensor());
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
     } else if (target.arch == Target::Arch::X86) {
-      Expr out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(out.as_tensor());
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
     }
     *ret = arg_pack;
   });
@@ -1879,7 +1877,11 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
 std::vector<framework::shape_t> InferShapeForSelect(const std::vector<framework::shape_t> &inputs_shape,
                                                     framework::NodeAttr &attrs,
                                                     const Target &target) {
-  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  CHECK_GE(inputs_shape.size(), 3) << "The input's shape size is 0! Please check again.";
+  CHECK(inputs_shape[0].size() == inputs_shape[1].size() && inputs_shape[1].size() == inputs_shape[2].size())
+      << "input tensors n_dim is not equal!";
+  CHECK(inputs_shape[0] == inputs_shape[1] && inputs_shape[1] == inputs_shape[2])
+      << "input tensor shapes is not equal!";
   std::vector<framework::shape_t> res{inputs_shape[0]};
   return res;
 }
@@ -1887,7 +1889,8 @@ std::vector<framework::shape_t> InferShapeForSelect(const std::vector<framework:
 std::vector<Type> InferDtypeForSelect(const std::vector<Type> &inputs_type,
                                       const framework::NodeAttr &attrs,
                                       const Target &target) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  CHECK_GT(inputs_type.size(), 3) << "The input's type size is 0! Please check again.";
+  CHECK(inputs_type[0].is_bool()) << "The condition tensor type should be bool";
   std::vector<Type> res{inputs_type[1]};
   return res;
 }

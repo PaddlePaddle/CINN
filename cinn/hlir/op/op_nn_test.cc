@@ -305,9 +305,10 @@ TEST(Operator, Operator_Pool1d_Test0) {
 }
 
 TEST(Operator, Operator_Select_Test0) {
-  auto select   = Operator::Get("select");
-  Operator temp = *select;
-  auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto select           = Operator::Get("select");
+  Operator temp         = *select;
+  auto strategy         = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[select];
 
   Expr C(16), H(64), W(64);
   Placeholder<bool> condition("condition", {C, H, W});
@@ -317,10 +318,15 @@ TEST(Operator, Operator_Select_Test0) {
   NodeAttr attrs;
   std::vector<ir::Tensor> inputs{condition.tensor(), true_value.tensor(), false_value.tensor()};
   std::vector<Type> type{Float(32)};
-  common::Target target = common::DefaultHostTarget();
+  const common::Target target = common::DefaultHostTarget();
 
-  auto impl =
-      OpStrategy::SelectImpl(strategy[select](attrs, inputs, type, {{16, 64, 64}, {16, 64, 64}, {16, 64, 64}}, target));
+  const std::vector<framework::shape_t> input_shapes = {{16, 64, 64}, {16, 64, 64}, {16, 64, 64}};
+  auto infer_shape                                   = infer_shape_func(input_shapes, attrs, target);
+  ASSERT_EQ(infer_shape[0][0], 16);
+  ASSERT_EQ(infer_shape[0][1], 64);
+  ASSERT_EQ(infer_shape[0][2], 64);
+
+  auto impl = OpStrategy::SelectImpl(strategy[select](attrs, inputs, type, {{16, 64, 64}}, target));
   common::CINNValuePack cinn_input = common::CINNValuePack{
       {common::CINNValue(condition), common::CINNValue(true_value), common::CINNValue(false_value)}};
   common::CINNValuePack rets = impl->fcompute(cinn_input);
@@ -353,6 +359,7 @@ TEST(Operator, Operator_Select_Test0) {
   fn_(args, 4);
 
   ASSERT_EQ(impl->name, "strategy.select.x86");
+  ASSERT_EQ(select->description, "This operator implements the meta op 'Select'.");
 }
 
 }  // namespace framework
