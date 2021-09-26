@@ -160,6 +160,9 @@ struct Program {
   using attr_t = hlir::framework::NodeAttr::attr_t;
   void SetInputs(const std::vector<Variable>& xs);
 
+  /**
+   * create scalar with the specific value and type
+   */
   template <typename PrimType>
   Variable primitive_const_scalar(PrimType value, const std::string& name);
   /**
@@ -308,6 +311,9 @@ struct Program {
                      const Variable& variance,
                      const std::unordered_map<std::string, attr_t>& attr_store);
 
+  /**
+   *  batchnorm composed of primitive ops
+   */
   Variable fused_batchnorm_inference(const Variable& a,
                                      const Variable& scale,
                                      const Variable& bias,

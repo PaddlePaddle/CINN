@@ -118,6 +118,7 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   return func;
 }
 
+// get the most complex op's index in the fused groups according to the OpPattern. If the OpPattern is same, we will take the latter.
 int GetMasterRefNode(const std::vector<Node*>& nodes) {
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   int master_index      = 0;

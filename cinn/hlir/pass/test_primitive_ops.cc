@@ -48,7 +48,7 @@ void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
 
 // batch_norm primitives
 TEST(batch_norm_meta, batch_norm_meta) {
-  Placeholder A(Float(32), {1, 64, 112, 112}, "C");
+  Placeholder A(Float(32), {1, 64, 112, 112}, "A");
 
   Placeholder Scale(Float(32), {64}, "Scale");
   Placeholder Bias(Float(32), {64}, "Bias");
