@@ -68,4 +68,14 @@ class DenseHostTensor : public HostTensor {
   std::shared_ptr<cinnrt::Buffer> buffer_;
 };
 
+class DenseHostTensorRef : public DenseHostTensor {
+public:
+  DenseHostTensorRef(DenseHostTensor *tensor): _tensor(tensor) {}
+  DenseHostTensorRef(): _tensor(nullptr) {}
+  DenseHostTensor* get() { return _tensor; }
+  void set(DenseHostTensor* tensor) { _tensor = tensor; }
+private:
+  DenseHostTensor* _tensor;
+};
+
 }  // namespace cinnrt::tensor

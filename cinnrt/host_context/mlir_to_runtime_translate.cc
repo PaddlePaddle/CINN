@@ -222,6 +222,7 @@ bool MlirToRuntimeTranslator::EmitGeneralOp(mlir::Operation* op) {
   for (int i = 0, e = op->getNumResults(); i < e; i++) {
     auto res = op->getResult(i);
     res_values.push_back(AddValue(res));
+    std::cout << "Emit result: " << res_values.back() << std::endl;
 
     VLOG(3) << "* op mlir res: " << DumpToString(res) << " " << GetValue(res);
   }

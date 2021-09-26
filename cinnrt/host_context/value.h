@@ -29,6 +29,8 @@ using ValueVariantType = cinnrt::Variant<int16_t,
                                          std::string,
                                          tensor::TensorShape,
                                          tensor::DenseHostTensor,
+                                         tensor::DenseHostTensorRef,
+                                         tensor::DenseHostTensor*,
                                          MlirFunctionExecutable*,
                                          tensor::TensorMap,
                                          std::vector<int16_t>,
@@ -62,20 +64,37 @@ class Value : public cinnrt::common::Object {
   explicit Value(std::vector<double>&& x) : data(x) {}
   explicit Value(tensor::TensorShape&& x) : data(std::move(x)) {}
   explicit Value(tensor::DenseHostTensor&& x) : data(std::move(x)) {}
+  explicit Value(tensor::DenseHostTensorRef&& x) : data(std::move(x)) {}
+  explicit Value(tensor::DenseHostTensor* x) : data(std::move(x)) {}
   explicit Value(MlirFunctionExecutable* x) : data(x) {}
 
   template <typename T>
   const T& get() const {
     return data.get<T>();
   }
+
   template <typename T>
   T& get() {
     return data.get<T>();
   }
 
+  tensor::DenseHostTensor* get_tensor() {
+    return data.get<tensor::DenseHostTensor*>();
+  }
+
+  template <typename T>
+  bool is() const {
+    return data.is<T>();
+  }
+
   template <typename T>
   void set(T&& v) {
     data = std::move(v);
+  }
+
+  template <typename T>
+  void set(T* v) {
+    data = v;
   }
 
   void set(Value* v) { data = std::move(v->data); }

@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "cinnrt/tensor/dense_host_tensor.h"
 
 #include <llvm/Support/raw_os_ostream.h>
@@ -31,6 +33,7 @@ void DisplayArray(std::ostream& os, T* data, int num_elements) {
 }
 
 std::ostream& operator<<(std::ostream& os, const DenseHostTensor& instance) {
+  std::cout << "print DenseHostTensor" << std::endl;
   CHECK(instance.metadata().IsValid()) << "Cann't print tensor with invalid metadata";
   llvm::raw_os_ostream oos(os);
   oos << "tensor: ";
@@ -61,6 +64,39 @@ std::ostream& operator<<(std::ostream& os, const DenseHostTensor& instance) {
 
   return os;
 }
+
+//std::ostream& operator<<(std::ostream& os, const DenseHostTensor* instance) {
+//  std::cout << "print DenseHostTensor" << std::endl;
+//  CHECK(instance->metadata().IsValid()) << "Cann't print tensor with invalid metadata";
+//  llvm::raw_os_ostream oos(os);
+//  oos << "tensor: ";
+//  oos << "shape=";
+//  oos << instance->shape();
+//  oos << ", values=[";
+//
+//  oos.flush();
+//
+//  if (instance->metadata().dtype == GetDType<float>()) {
+//    auto* data = reinterpret_cast<float*>(instance->buffer()->data()->memory);
+//    DisplayArray(os, data, instance->shape().GetNumElements());
+//  } else if (instance->metadata().dtype == GetDType<double>()) {
+//    auto* data = reinterpret_cast<double*>(instance->buffer()->data()->memory);
+//    DisplayArray(os, data, instance->shape().GetNumElements());
+//  } else if (instance->metadata().dtype == GetDType<int32_t>()) {
+//    auto* data = reinterpret_cast<int32_t*>(instance->buffer()->data()->memory);
+//    DisplayArray(os, data, instance->shape().GetNumElements());
+//  } else if (instance->metadata().dtype == GetDType<int64_t>()) {
+//    auto* data = reinterpret_cast<int64_t*>(instance->buffer()->data()->memory);
+//    DisplayArray(os, data, instance->shape().GetNumElements());
+//  } else {
+//    LOG(FATAL) << "Not supported dtype [" << instance->metadata().dtype.name() << " "
+//               << static_cast<int>(instance->metadata().dtype.kind()) << "] in print";
+//  }
+//
+//  os << "]";
+//
+//  return os;
+//}
 
 DenseHostTensor::~DenseHostTensor() {}
 
