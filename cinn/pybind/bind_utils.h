@@ -3,22 +3,14 @@
 #include <pybind11/pybind11.h>
 
 #include <string>
-#include <absl/strings/string_view.h>
-#include <absl/types/variant.h>
 
+#include "cinn/pybind/bind.h"
 #include "cinn/common/cinn_value.h"
 #include "cinn/common/shared.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/tensor.h"
-
-namespace pybind11 {
-namespace detail {
-template <typename... Ts>
-struct type_caster<absl::variant<Ts...>> : variant_caster<absl::variant<Ts...>> {};
-}
-}
 
 namespace py = pybind11;
 
