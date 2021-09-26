@@ -146,16 +146,12 @@ struct KernelImpl<ReturnType (*)(Args...), impl_fn> {
   // bool _ is an unnecessary parameter to make compiler allow templace specific in non-namespace scope.
   template <typename T, bool _>
   struct KernelReturnHelper {
-    static void Invoke(KernelFrame* frame, const Args&... args) {
-        HandleReturn(frame, impl_fn(args...));
-    }
+    static void Invoke(KernelFrame* frame, const Args&... args) { HandleReturn(frame, impl_fn(args...)); }
   };
 
   template <bool _>
   struct KernelReturnHelper<void, _> {
-    static void Invoke(KernelFrame* frame, const Args&... args) {
-        impl_fn(args...); }
-  };
+    static void Invoke(KernelFrame* frame, const Args&... args) { impl_fn(args...); } };
 
   // Specialization to cast a single input argument(Head).
   template <typename Head, typename... Tail>
