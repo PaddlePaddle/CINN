@@ -119,10 +119,6 @@ if (PUBLISH_LIBS)
         file(COPY ${header} DESTINATION ${CMAKE_BINARY_DIR}/dist/cinn/include/${prefix})
     endforeach()
 
-    file(GLOB ABSL_LIBS ${CMAKE_BINARY_DIR}/abseil-cpp/absl/*/*.so)
-    foreach (absl_lib ${ABSL_LIBS})
-        file(COPY ${absl_lib} DESTINATION ${CMAKE_BINARY_DIR}/dist/absl/libs)
-    endforeach()
     add_custom_command(TARGET cinncore POST_BUILD
         COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/demo.cc ${CMAKE_BINARY_DIR}/dist/demo.cc
         COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/build_demo.sh ${CMAKE_BINARY_DIR}/dist/build_demo.sh
@@ -134,6 +130,11 @@ if (PUBLISH_LIBS)
         COMMENT "distribute libcinncore.a and related header files."
         DEPENDS cinncore
     )
+  add_custom_target(ABSL_LIBS DEPENDS absl::hash absl::strings absl::any absl::flat_hash_map)
+  add_custom_command(TARGET ABSL_LIBS POST_BUILD
+    COMMAND mkdir -p ${CMAKE_BINARY_DIR}/dist/absl/libs
+    COMMAND cp ${CMAKE_BINARY_DIR}/abseil-cpp/absl/*/*.so ${CMAKE_BINARY_DIR}/dist/absl/libs
+  )
 endif()
 # --------distribute cinncore lib and include end--------
 
