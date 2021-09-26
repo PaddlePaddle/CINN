@@ -1,4 +1,4 @@
-#include "cinn/frontend/symbolization/base_builder.h"
+#include "cinn/frontend/base_builder.h"
 
 #include <string>
 #include <utility>

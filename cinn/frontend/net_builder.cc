@@ -1,4 +1,4 @@
-#include "cinn/frontend/symbolization/net_builder.h"
+#include "cinn/frontend/net_builder.h"
 
 #include <string>
 #include <unordered_map>

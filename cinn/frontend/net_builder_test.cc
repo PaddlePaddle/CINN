@@ -1,4 +1,4 @@
-#include "cinn/frontend/symbolization/net_builder.h"
+#include "cinn/frontend/net_builder.h"
 
 #include <gtest/gtest.h>
 
@@ -15,6 +15,9 @@
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#ifdef CINN_WITH_CUDA
+#include <cuda_runtime.h>
+#endif
 
 namespace cinn {
 namespace frontend {

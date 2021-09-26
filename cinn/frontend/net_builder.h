@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "cinn/frontend/symbolization/base_builder.h"
+#include "cinn/frontend/base_builder.h"
 #include "cinn/frontend/syntax.h"
 
 namespace cinn {
