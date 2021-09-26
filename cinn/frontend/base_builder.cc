@@ -9,7 +9,11 @@
 namespace cinn {
 namespace frontend {
 
-Program BaseBuilder::Build() { return Program{std::move(instrs_), std::move(inputs_)}; }
+Program BaseBuilder::Build() {
+  Program program{std::move(instrs_), std::move(inputs_)};
+  program.Validate();
+  return program;
+}
 
 Placeholder BaseBuilder::CreateInput(const common::Type& type,
                                      const std::vector<int>& shape,

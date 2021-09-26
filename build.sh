@@ -4,8 +4,10 @@ set -ex
 workspace=$PWD
 build_dir_name=${cinn_build:-build}
 build_dir=$workspace/${build_dir_name}
+LLVM11_DIR=/work/opt/llvm
+# LLVM11_DIR=/work/Develop/llvm11-latest
 
-JOBS=8
+JOBS=32
 
 cuda_config=OFF
 cudnn_config=OFF
@@ -84,7 +86,7 @@ function cmake_ {
     echo "set(WITH_CUDNN $cudnn_config)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
-    cmake .. -DLLVM11_DIR=${LLVM11_DIR} -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir -DPUBLISH_LIBS=ON
+    cmake .. -DLLVM11_DIR=${LLVM11_DIR} -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir -DPUBLISH_LIBS=ON -DCMAKE_BUILD_TYPE=Debug
 
     make GEN_LLVM_RUNTIME_IR_HEADER
     # make the code generated compilable

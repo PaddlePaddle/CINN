@@ -32,7 +32,6 @@ Program CreateAddProgram() {
   auto c       = builder.add(a, b);
   auto d       = builder.add(a, c);
   auto program = builder.Build();
-  program.Validate();
 
   return program;
 }
@@ -104,7 +103,6 @@ TEST(net_build, program_execute_fc) {
   auto mul_out = builder.mul(a, w, 2, 1);
   auto add_out = builder.add(mul_out, b);
   auto program = builder.Build();
-  program.Validate();
 
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
