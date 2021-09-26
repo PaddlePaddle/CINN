@@ -137,6 +137,7 @@ function build {
 
     # build gtest first, it tends to broke the CI
     make extern_gtest
+    make ABSL_LIBS
 
     if [[ $cuda_config == "ON" ]]; then
         make test_codegen_cuda_dev -j $JOBS
