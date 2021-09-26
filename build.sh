@@ -137,7 +137,6 @@ function build {
 
     # build gtest first, it tends to broke the CI
     make extern_gtest
-    make ABSL_LIBS
 
     if [[ $cuda_config == "ON" ]]; then
         make test_codegen_cuda_dev -j $JOBS
@@ -159,6 +158,8 @@ function build {
 
 function run_demo {
     cd $build_dir/dist
+    mkdir -p absl/libs
+    cp -r ../abseil-cpp/absl/*/*.so absl/libs
     export LD_LIBRARY_PATH=$build_dir/dist/absl/libs:$build_dir/thirds/install/mkldnn/lib:$LD_LIBRARY_PATH
     bash build_demo.sh
     ./demo

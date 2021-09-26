@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.0)
 project(CINN)
 
 set(CMAKE_CXX_STANDARD 14)
+
 set(BUILD_SHARED_LIBS ON)
 add_subdirectory(abseil-cpp)
 include_directories(${CMAKE_SOURCE_DIR}/abseil-cpp)
@@ -130,11 +131,6 @@ if (PUBLISH_LIBS)
         COMMENT "distribute libcinncore.a and related header files."
         DEPENDS cinncore
     )
-  add_custom_target(ABSL_LIBS DEPENDS absl::hash absl::strings absl::any absl::flat_hash_map)
-  add_custom_command(TARGET ABSL_LIBS POST_BUILD
-    COMMAND mkdir -p ${CMAKE_BINARY_DIR}/dist/absl/libs
-    COMMAND cp ${CMAKE_BINARY_DIR}/abseil-cpp/absl/*/*.so ${CMAKE_BINARY_DIR}/dist/absl/libs
-  )
 endif()
 # --------distribute cinncore lib and include end--------
 
