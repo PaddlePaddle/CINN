@@ -69,6 +69,10 @@ struct Target {
 
   std::vector<Lib> get_target_libs() const;
 
+  struct Hash {
+    size_t operator()(const Target& key) const;
+  };
+
   bool operator==(const Target& other) const;
   bool operator!=(const Target& other) const { return !(*this == other); }
   friend std::ostream& operator<<(std::ostream& os, const Target& target);

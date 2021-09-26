@@ -5,6 +5,7 @@ core_gather_srcs(SRCS
     interpreter.cc
     base_builder.cc
     net_builder.cc
+    decomposer_registry.cc
     )
 
 if(NOT WITH_CUDA)
@@ -15,6 +16,9 @@ if(NOT WITH_CUDA)
   cc_test(test_frontend_interpreter
           ARGS --model_dir=${THIRD_PARTY_PATH}/naive_mul_model
           SRCS interpreter_test.cc DEPS cinncore)
+
+  cc_test(test_decomposer_registry
+          SRCS decomposer_registry_test.cc DEPS cinncore)
 else()
   nv_test(test_frontend_syntax
           ARGS "--model_dir=${THIRD_PARTY_PATH}/naive_mul_model"
