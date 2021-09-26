@@ -1,4 +1,7 @@
 #pragma once
+
+#include <vector>
+
 #include "cinn/frontend/paddle/cpp/desc_api.h"
 #include "cinn/frontend/paddle/cpp/op_desc.h"
 #include "cinn/frontend/paddle/cpp/var_desc.h"
@@ -29,6 +32,9 @@ class BlockDesc : public BlockDescAPI {
   T* GetVar(int32_t idx);
 
   template <typename T>
+  const T& GetConstVar(int32_t idx) const;
+
+  template <typename T>
   T* AddVar();
 
   size_t OpsSize() const override { return ops_.size(); }
@@ -37,6 +43,9 @@ class BlockDesc : public BlockDescAPI {
 
   template <typename T>
   T* GetOp(int32_t idx);
+
+  template <typename T>
+  const T& GetConstOp(int32_t idx) const;
 
   template <typename T>
   T* AddOp();

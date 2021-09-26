@@ -24,6 +24,9 @@ class ProgramDesc : public ProgramDescAPI {
   T* GetBlock(int32_t idx);
 
   template <typename T>
+  const T& GetConstBlock(int32_t idx) const;
+
+  template <typename T>
   T* AddBlock();
 
   // Just return default versoin
