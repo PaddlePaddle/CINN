@@ -1835,7 +1835,11 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
   std::vector<int> axis;
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
     axis = std::get<std::vector<int>>(attrs.attr_store.at("axis"));
+  } else {
+    LOG(FATAL) << "axis is not be set! Please check.";
   }
+
+  CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
   framework::CINNCompute reverse_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of reverse compute is empty! Please check.\n";
     CINNValuePack a = args[0];
@@ -1844,23 +1848,21 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
     CHECK(A.as_tensor());
     auto out    = pe::Reverse(A.as_tensor_ref(), axis, UniqName("Reverse_output"));
     auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule reverse_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of reverse schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
+    Expr out              = arg_pack[0];
+    poly::StageMap stages = arg_pack[1];
+    CHECK(out.as_tensor());
+    CHECK(!output_shapes.empty()) << "Output shape is empty! Please check.\n";
     if (target.arch == Target::Arch::NVGPU) {
-      Expr out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(out.as_tensor());
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
     } else if (target.arch == Target::Arch::X86) {
-      Expr out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(out.as_tensor());
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
     }
     *ret = arg_pack;
   });
