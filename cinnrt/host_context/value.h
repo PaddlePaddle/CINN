@@ -78,10 +78,6 @@ class Value : public cinnrt::common::Object {
     return data.get<T>();
   }
 
-  tensor::DenseHostTensor* get_tensor() {
-    return data.get<tensor::DenseHostTensor*>();
-  }
-
   template <typename T>
   bool is() const {
     return data.is<T>();

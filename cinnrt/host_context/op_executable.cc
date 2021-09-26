@@ -112,20 +112,9 @@ void OpExecutable::Execute() {
   }
 #endif
 
-  std::cout << "execute: " << name() << std::endl;
-  if(name() == "dt.fill_tensor.f32") {
-      for (int i = 0; i < impl_->frame.GetNumResults(); i++) {
-          std::cout << "before function result: " << impl_->frame.GetResults()[i]->get<tensor::DenseHostTensor*>() << std::endl;
-      }
-  }
   if (impl_->to_execute()) {
     impl_->kernel_impl(&impl_->frame);
     impl_->MarkRun();
-  }
-  if(name() == "dt.fill_tensor.f32") {
-      for (int i = 0; i < impl_->frame.GetNumResults(); i++) {
-          std::cout << "after function result: " << impl_->frame.GetResults()[i]->get<tensor::DenseHostTensor*>() << std::endl;
-      }
   }
 }
 

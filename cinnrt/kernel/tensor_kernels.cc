@@ -27,12 +27,10 @@ DenseHostTensor CreateUninitTensor(Attribute<std::vector<int64_t>> shape) {
 }
 
 void PrintTensor(const DenseHostTensor &tensor) {
-    std::cout << "print tensor ref: " << &tensor << std::endl;
     std::cout << tensor << std::endl;
 }
 
 void PrintTensorPointer(DenseHostTensor *tensor) {
-    std::cout << "print tensor pointer: " << tensor << std::endl;
     std::cout << *tensor << std::endl;
 }
 
@@ -42,18 +40,9 @@ void FillTensorWithConstant(DenseHostTensor *tensor, Attribute<T> v) {
 }
 
 template <typename T>
-void FillTensorAndReturn(DenseHostTensor* tensor, Attribute<T> v, ReturnNew<DenseHostTensorRef> ret_tensor) {
-  //DenseHostTensor* tensor = ret_tensor.get();
-  std::cout << "Kernel FillTensorAndReturn" << std::endl;
-  llvm::outs() << tensor->shape() << "\n";
+void FillTensorAndReturn(DenseHostTensor* tensor, Attribute<T> v, Return<DenseHostTensorRef> ret_tensor) {
   MutableDTArrayView<T>(tensor).Fill(v.get());
-  std::cout << "before tensor: " << tensor << " return tensor: " << ret_tensor.get().get() << std::endl;
   ret_tensor.Emplace(DenseHostTensorRef(tensor));
-  std::cout << "before tensor: " << tensor << " return tensor: " << ret_tensor.get().get() << std::endl;
- 
-  
-  //MutableDTArrayView<T>(tensor.get()).Fill(v.get());
-  //return *tensor;
 }
 
 TensorMap LoadParams(const std::string &path) { return *(cinnrt::tensor::LoadParams(path)); }
