@@ -1,4 +1,4 @@
-#include "cinn/frontend/symbolization/coarse_builder.h"
+#include "cinn/frontend/symbolization/net_builder.h"
 
 #include <gtest/gtest.h>
 
@@ -16,13 +16,12 @@
 
 namespace cinn {
 namespace frontend {
-namespace symbolization {
 
 Program CreateAddProgram() {
   constexpr int M = 32;
   constexpr int N = 24;
 
-  CoarseBuilder builder("coarse_builder");
+  NetBuilder builder("net_builder");
   auto a       = builder.CreateInput(Float(32), {M, N});
   auto b       = builder.CreateInput(Float(32), {M, N});
   auto c       = builder.add(a, b);
@@ -43,7 +42,7 @@ void SetRandData(hlir::framework::Tensor tensor, Target target) {
   }
 }
 
-TEST(coarse_build, basic) {
+TEST(net_build, basic) {
   auto program = CreateAddProgram();
   // output program
   for (int i = 0; i < program.size(); i++) {
@@ -51,10 +50,14 @@ TEST(coarse_build, basic) {
   }
 }
 
-TEST(coarse_build, program_execute_multi_elementwise_add) {
-  auto program  = CreateAddProgram();
+TEST(net_build, program_execute_multi_elementwise_add) {
+  auto program = CreateAddProgram();
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
-  auto graph    = std::make_shared<hlir::framework::Graph>(program, target);
+#endif
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
@@ -74,13 +77,13 @@ TEST(coarse_build, program_execute_multi_elementwise_add) {
   runtime_program->Execute();
 }
 
-TEST(coarse_build, program_execute_fc) {
+TEST(net_build, program_execute_fc) {
   constexpr int B = 10;  // batch size
   constexpr int M = 32;
   constexpr int K = 18;
   constexpr int N = 24;
 
-  CoarseBuilder builder("coarse_builder");
+  NetBuilder builder("net_builder");
   auto a = builder.CreateInput(Float(32), {B, M, K}, "A");
   auto w = builder.CreateInput(Float(32), {N, K}, "W");  // weight
   auto b = builder.CreateInput(Float(32), {N}, "B");     // bias
@@ -90,8 +93,12 @@ TEST(coarse_build, program_execute_fc) {
   auto program = builder.Build();
   program.Validate();
 
+#ifdef CINN_WITH_CUDA
+  Target target = common::DefaultNVGPUTarget();
+#else
   Target target = common::DefaultHostTarget();
-  auto graph    = std::make_shared<hlir::framework::Graph>(program, target);
+#endif
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   auto scope = BuildScope(target, graph);
@@ -116,6 +123,5 @@ TEST(coarse_build, program_execute_fc) {
   runtime_program->Execute();
 }
 
-}  // namespace symbolization
 }  // namespace frontend
 }  // namespace cinn

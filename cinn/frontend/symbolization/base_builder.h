@@ -6,15 +6,12 @@
 
 #include "cinn/common/type.h"
 #include "cinn/frontend/syntax.h"
-#include "cinn/hlir/framework/node.h"
 
 namespace cinn {
 namespace frontend {
-namespace symbolization {
+
 class BaseBuilder {
  public:
-  using AttrT = hlir::framework::NodeAttr::attr_t;
-
   explicit BaseBuilder(const std::string& name) : name_(name) {}
 
   Program Build();
@@ -34,6 +31,5 @@ class BaseBuilder {
   std::vector<Variable> inputs_;
 };
 
-}  // namespace symbolization
 }  // namespace frontend
 }  // namespace cinn
