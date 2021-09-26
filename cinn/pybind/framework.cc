@@ -2,8 +2,8 @@
 #include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
+#include "cinn/pybind/bind.h"
 #include "cinn/common/cinn_value.h"
 #include "cinn/frontend/interpreter.h"
 #include "cinn/hlir/framework/node.h"

@@ -14,7 +14,7 @@ template <typename... Ts>
 struct type_caster<absl::variant<Ts...>> : variant_caster<absl::variant<Ts...>> {};
 
 template <typename Key, typename Value, typename Hash, typename Equal, typename Alloc>
-struct type_caster<absl::flat_hash_map<Key, Value, Hash, Equal, Alloc>> : map_caster<std::unordered_map<Key, Value, Hash, Equal, Alloc>, Key, Value> {};
+struct type_caster<absl::flat_hash_map<Key, Value, Hash, Equal, Alloc>> : map_caster<absl::flat_hash_map<Key, Value, Hash, Equal, Alloc>, Key, Value> {};
 
 template <>
 struct type_caster<absl::string_view> : string_caster<absl::string_view, true> {};

@@ -15,8 +15,8 @@ RuntimeSymbolRegistry &RuntimeSymbolRegistry::Global() {
 
 void *RuntimeSymbolRegistry::Lookup(absl::string_view name) const {
   std::lock_guard<std::mutex> lock(mu_);
-
-  if (auto it = symbols_.find(std::string(name)); it != symbols_.end()) {
+  auto it = symbols_.find(std::string(name)); 
+  if (it != symbols_.end()) {
     return it->second;
   }
 
