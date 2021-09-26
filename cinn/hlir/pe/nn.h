@@ -378,6 +378,15 @@ ir::Tensor DropoutInfer(const ir::Tensor &tensor,
                         const std::string &dropout_implementation = "downgrade_in_infer",
                         const std::string &output_name            = UniqName("T_Dropout_infer_out"));
 
+/**
+ * @brief Perform reshape.
+ * @param tensor The input tenosr
+ * @param output_shape The output tensor shape
+ * @param output_name the name of the output tensor.
+ */
+ir::Tensor Reshape(const ir::Tensor &tensor,
+                   std::vector<Expr> &output_shape,
+                   const std::string &output_name = UniqName("T_Reshape_out"));
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn

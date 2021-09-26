@@ -1829,75 +1829,42 @@ std::vector<Type> InferDtypeForDropoutInfer(const std::vector<Type> &inputs_type
   return res;
 }
 
-std::vector<framework::shape_t> InferShapeForReshape(const std::vector<framework::shape_t> &inputs_shape,
-                                                     framework::NodeAttr &attrs,
-                                                     const Target &target);
-
 std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
                                                const std::vector<ir::Tensor> &inputs,
                                                const std::vector<Type> &out_type,
                                                const std::vector<std::vector<int>> &output_shapes,
                                                const Target &target) {
-  // accumulate input shape
-  auto input_shape = inputs[0]->shape;
-  std::vector<Expr> acc_input_shape(input_shape.size(), Expr(1));
-  for (int idx = input_shape.size() - 1; idx > 0; --idx) {
-    acc_input_shape[idx - 1] = acc_input_shape[idx] * input_shape[idx];
-  }
-
-  // get new shape
-  std::vector<Expr> output_shape;
-  for (auto v : output_shapes[0]) {
-    output_shape.push_back(Expr(v));
-  }
-
-  // accumulate output shape
-  std::vector<Expr> acc_output_shape(output_shape.size(), Expr(1));
-  for (int idx = output_shape.size() - 1; idx > 0; --idx) {
-    acc_output_shape[idx - 1] = acc_output_shape[idx] * output_shape[idx];
-  }
+  // checkout output_shapes
+  CHECK(!output_shapes.empty() && !output_shapes[0].empty()) << "output shape is not set! Please check!";
 
   framework::CINNCompute reshape_compute([=](lang::Args args, lang::RetValue *ret) {
+    // output shape with expr
+    std::vector<Expr> output_shape;
+    for (auto v : output_shapes[0]) {
+      output_shape.push_back(Expr(v));
+    }
+
     CHECK(!args.empty()) << "The input argument of reshape compute is empty! Please check.\n";
     CINNValuePack a = args[0];
     CHECK(!a.empty()) << "at least one input tensor for reshape compute\n";
     Expr A = a[0];
     CHECK(A.as_tensor());
-    auto out = lang::Compute(
-        output_shape,
-        [=](const std::vector<Expr> &indice) {
-          // compute the postion in flat vector
-          Expr position_inflat(0);
-          for (int idx = 0; idx < indice.size(); ++idx) {
-            position_inflat = position_inflat + acc_output_shape[idx] * indice[idx];
-          }
-          // get new indice
-          std::vector<Expr> new_indice;
-          for (auto value : acc_input_shape) {
-            new_indice.push_back(position_inflat / value);
-            position_inflat = position_inflat % value;
-          }
-          return A.as_tensor_ref()(new_indice);
-        },
-        "Reshape_output");
+    auto out    = pe::Reshape(A.as_tensor_ref(), output_shape, "Reshape_output");
     auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule reshape_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of reshape schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
     CHECK_EQ(arg_pack.size(), 2UL);
+    Expr out              = arg_pack[0];
+    poly::StageMap stages = arg_pack[1];
+    CHECK(out.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
-      Expr out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(out.as_tensor());
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
     } else if (target.arch == Target::Arch::X86) {
-      Expr out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(out.as_tensor());
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
     }
     *ret = arg_pack;
   });
@@ -1915,6 +1882,10 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
 std::vector<framework::shape_t> InferShapeForReshape(const std::vector<framework::shape_t> &inputs_shape,
                                                      framework::NodeAttr &attrs,
                                                      const Target &target) {
+  // check inputs shape
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "inputs_shape is empty! Please check!";
+
+  // get axis
   std::vector<int> shape;
   if (attrs.attr_store.find("shape") != attrs.attr_store.end()) {
     shape = std::get<std::vector<int>>(attrs.attr_store.at("shape"));
@@ -1944,14 +1915,6 @@ std::vector<framework::shape_t> InferShapeForReshape(const std::vector<framework
   }
 
   std::vector<framework::shape_t> res{shape};
-  return res;
-}
-
-std::vector<Type> InferDtypeForReshape(const std::vector<Type> &inputs_type,
-                                       const framework::NodeAttr &attrs,
-                                       const Target &target) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
   return res;
 }
 
@@ -2162,7 +2125,7 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReshape)
       .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForReshape))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForReshape))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
 #endif

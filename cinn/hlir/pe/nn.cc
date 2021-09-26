@@ -1,6 +1,7 @@
 #include "cinn/hlir/pe/nn.h"
 
 #include <functional>
+#include <iostream>
 #include <numeric>
 #include <string>
 #include <unordered_map>
@@ -938,6 +939,48 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
   } else {
     LOG(FATAL) << "dropout_implementation attr must be 'downgrade_in_infer' or 'upscale_in_train'\n";
   }
+}
+
+ir::Tensor Reshape(const ir::Tensor &tensor, std::vector<Expr> &output_shape, const std::string &output_name) {
+  // accumulate input shape
+  int acc_input_value = 1;
+  auto input_shape    = tensor->shape;
+  std::vector<Expr> acc_input_shape(input_shape.size(), Expr(1));
+  for (int idx = input_shape.size() - 1; idx > 0; --idx) {
+    acc_input_value *= input_shape[idx].as_int32();
+    acc_input_shape[idx - 1] = acc_input_shape[idx] * input_shape[idx];
+  }
+  acc_input_value *= input_shape[0].as_int32();
+
+  // accumulate output shape
+  int acc_output_value = 1;
+  std::vector<Expr> acc_output_shape(output_shape.size(), Expr(1));
+  for (int idx = output_shape.size() - 1; idx > 0; --idx) {
+    acc_output_value *= output_shape[idx].as_int32();
+    acc_output_shape[idx - 1] = acc_output_shape[idx] * output_shape[idx];
+  }
+  acc_output_value *= output_shape[0].as_int32();
+
+  // check input size and output size
+  CHECK_EQ(acc_input_value, acc_output_value) << "input tensor size is not equal to output tensor size!";
+
+  return lang::Compute(
+      output_shape,
+      [=](const std::vector<Expr> &indice) {
+        // compute the postion in flat vector
+        Expr position_inflat(0);
+        for (int idx = 0; idx < indice.size(); ++idx) {
+          position_inflat = position_inflat + acc_output_shape[idx] * indice[idx];
+        }
+        // get new indice
+        std::vector<Expr> new_indice;
+        for (auto value : acc_input_shape) {
+          new_indice.push_back(position_inflat / value);
+          position_inflat = position_inflat % value;
+        }
+        return tensor(new_indice);
+      },
+      output_name);
 }
 
 }  // namespace pe
