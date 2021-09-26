@@ -322,15 +322,15 @@ TEST(Operator, Operator_Reshape_Test0) {
   std::vector<Type> type{Float(32)};
   common::Target target = common::DefaultHostTarget();
 
-  auto impl = OpStrategy::SelectImpl(strategy[reshape](attrs, inputs, type, {{c, h, w}}, target));
+  auto infer_shape = infer_shape_func({{c, h, w}}, attrs, target);
+  ASSERT_EQ(infer_shape[0][0], c);
+  ASSERT_EQ(infer_shape[0][1], h * w);
+
+  auto impl = OpStrategy::SelectImpl(strategy[reshape](attrs, inputs, type, infer_shape, target));
   common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
   common::CINNValuePack rets       = impl->fcompute(cinn_input);
   rets                             = impl->fschedule(rets);
   ASSERT_EQ(rets.size(), 2UL);
-
-  auto infer_shape = infer_shape_func({{c, h, w}}, attrs, target);
-  ASSERT_EQ(infer_shape[0][0], c);
-  ASSERT_EQ(infer_shape[0][1], h * w);
 
   // the last element is a StageMap
   for (int i = 0; i < rets->size() - 1; i++) {
@@ -339,6 +339,7 @@ TEST(Operator, Operator_Reshape_Test0) {
   }
   auto func = Lower("reshape", rets.back(), inputs);
   LOG(INFO) << "Test Strategy Codegen:\n" << func;
+  exit(0);
 
   Module::Builder builder("module0", target);
   builder.AddFunction(func);

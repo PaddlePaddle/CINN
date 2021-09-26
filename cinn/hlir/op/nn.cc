@@ -1829,11 +1829,34 @@ std::vector<Type> InferDtypeForDropoutInfer(const std::vector<Type> &inputs_type
   return res;
 }
 
+std::vector<framework::shape_t> InferShapeForReshape(const std::vector<framework::shape_t> &inputs_shape,
+                                                     framework::NodeAttr &attrs,
+                                                     const Target &target);
+
 std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
                                                const std::vector<ir::Tensor> &inputs,
                                                const std::vector<Type> &out_type,
                                                const std::vector<std::vector<int>> &output_shapes,
                                                const Target &target) {
+  // accumulate input shape
+  auto input_shape = inputs[0]->shape;
+  std::vector<Expr> acc_input_shape(input_shape.size(), Expr(1));
+  for (int idx = input_shape.size() - 1; idx > 0; --idx) {
+    acc_input_shape[idx - 1] = acc_input_shape[idx] * input_shape[idx];
+  }
+
+  // get new shape
+  std::vector<Expr> output_shape;
+  for (auto v : output_shapes[0]) {
+    output_shape.push_back(Expr(v));
+  }
+
+  // accumulate output shape
+  std::vector<Expr> acc_output_shape(output_shape.size(), Expr(1));
+  for (int idx = output_shape.size() - 1; idx > 0; --idx) {
+    acc_output_shape[idx - 1] = acc_output_shape[idx] * output_shape[idx];
+  }
+
   framework::CINNCompute reshape_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of reshape compute is empty! Please check.\n";
     CINNValuePack a = args[0];
@@ -1841,8 +1864,21 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
     Expr A = a[0];
     CHECK(A.as_tensor());
     auto out = lang::Compute(
-        A.as_tensor_ref()->shape,
-        [=](const std::vector<Expr> &indice) { return A.as_tensor_ref()(indice); },
+        output_shape,
+        [=](const std::vector<Expr> &indice) {
+          // compute the postion in flat vector
+          Expr position_inflat(0);
+          for (int idx = 0; idx < indice.size(); ++idx) {
+            position_inflat = position_inflat + acc_output_shape[idx] * indice[idx];
+          }
+          // get new indice
+          std::vector<Expr> new_indice;
+          for (auto value : acc_input_shape) {
+            new_indice.push_back(position_inflat / value);
+            position_inflat = position_inflat % value;
+          }
+          return A.as_tensor_ref()(new_indice);
+        },
         "Reshape_output");
     auto stages = CreateStages({out});
     *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
