@@ -49,6 +49,12 @@ int Target::get_target_bits() const {
   return -1;
 }
 
+size_t Target::Hash::operator()(const Target &key) const {
+  int arch = static_cast<int>(key.arch);
+  std::hash<int> hasher;
+  return hasher(arch);
+}
+
 std::ostream &operator<<(std::ostream &os, const Target &target) {
   os << "Target<";
   switch (target.os) {
