@@ -87,6 +87,7 @@ class DomTree {
 
  private:
   OpPatternKind FusePattern(OpPatternKind p0, OpPatternKind p1) { return p0 > p1 ? p0 : p1; }
+
   DomNode* LCA(DomNode* l, DomNode* r, OpPatternKind* pattern) {
     while (l != r) {
       if (!l || !r) return nullptr;
@@ -153,6 +154,7 @@ class DomTree {
       return parent;
     }
   }
+
   DomNode* CreateDomNode(GraphNode* graph_node) {
     CHECK(graph_node);
     DomNode* dom_node  = new DomNode();
@@ -173,6 +175,7 @@ class DomTree {
     return dom_node;
   }
 };
+
 struct GroupNode {
   GroupNode* parent{nullptr};
   OpPatternKind pattern;
@@ -198,6 +201,7 @@ struct GroupNode {
     return root_node;
   }
 };
+
 class GraphPartition {
  public:
   std::vector<std::vector<Node*>> Partition(const std::vector<GraphNode*>& graph_nodes,
@@ -242,6 +246,7 @@ class GraphPartition {
       group_nodes_.push_back(group_node);
     }
   }
+
   bool IsSameShape(const std::vector<int>& shape1, const std::vector<int>& shape2) {
     if (shape1.size() != shape2.size()) return false;
     for (int i = 0; i < shape1.size(); i++) {
@@ -249,6 +254,7 @@ class GraphPartition {
     }
     return true;
   }
+
   std::vector<int> GetOutshape(GraphNode* node) {
     CHECK(node);
     auto op_node = node->safe_as<Node>();
@@ -265,6 +271,7 @@ class GraphPartition {
     }
     return out_shapes;
   }
+
   bool IsSameOutShape(GraphNode* node1, GraphNode* node2) {
     auto out_shape1 = GetOutshape(node1);
     auto out_shape2 = GetOutshape(node2);
@@ -276,6 +283,7 @@ class GraphPartition {
     }
     return true;
   }
+
   template <typename T>
   bool CanFuse(GraphNode* source, GraphNode* sink, T fn) {
     if (visited_nodes_.count(source)) return true;
@@ -307,6 +315,7 @@ class GraphPartition {
     }
     return true;
   }
+
   // check all the nodes between source and sink meet the function of fusion.
   template <typename T>
   bool VerifyFuse(GraphNode* source, GraphNode* sink, T fn) {
@@ -335,6 +344,7 @@ class GraphPartition {
     }
     return true;
   }
+
   void MergeNodes(GroupNode* child, GroupNode* parent) {
     child  = child->GetRootNode();
     parent = parent->GetRootNode();
@@ -354,6 +364,7 @@ class GraphPartition {
       }
     }
   }
+
   void Fuse(GraphNode* source, GraphNode* sink, GroupNode* target) {
     if (source == sink) return;
     if (visited_nodes_.count(source)) return;
@@ -380,6 +391,7 @@ class GraphPartition {
       }
     }
   }
+
   void DoFuse(GraphNode* source, GraphNode* sink) {
     auto* group_node = group_nodes_[sink->get_index()];
     CHECK(group_node);
@@ -387,6 +399,7 @@ class GraphPartition {
     CHECK(source != sink);
     Fuse(source, sink, group_node);
   }
+
   void FuseGroups(const std::vector<GraphNode*>& graph_nodes, const std::vector<DomNode*>& dom_nodes) {
     CHECK_EQ(graph_nodes.size(), dom_nodes.size());
     CHECK_EQ(group_nodes_.size(), dom_nodes.size());
@@ -430,6 +443,7 @@ class GraphPartition {
       }
     }
   }
+
   void SplitGroups(const std::vector<common::GraphNode*>& graph_nodes) {
     // split groups sorted by topo order
     CHECK_EQ(graph_nodes.size(), group_nodes_.size());
