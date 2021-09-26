@@ -11,14 +11,8 @@
 
 namespace cinn {
 namespace tests {
-using AttrType = absl::variant<bool,
-                              float,
-                              int,
-                              std::string,
-                              std::vector<bool>,
-                              std::vector<int>,
-                              std::vector<float>,
-                              std::vector<std::string>>;
+
+using cinn::hlir::framework::AttrType;
 
 #define TEST_DEFAULT(op_name__, shape_name__, input_types_, output_types_)                          \
   TEST(op_defualt, shape_name__) {                                                                  \
