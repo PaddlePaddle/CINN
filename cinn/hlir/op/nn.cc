@@ -1832,14 +1832,25 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
                                                const std::vector<Type> &out_type,
                                                const std::vector<std::vector<int>> &output_shapes,
                                                const Target &target) {
+  // check output shape
+  CHECK(!output_shapes.empty() && !output_shapes[0].empty()) << "Output shape is empty! Please check.\n";
+  // get axis[0, n_dim)
   std::vector<int> axis;
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
     axis = std::get<std::vector<int>>(attrs.attr_store.at("axis"));
+    CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
+    for (auto &e : axis) {
+      if (e >= output_shapes[0].size() || e < 0) {
+        LOG(FATAL) << "axis is not in [0, n_dim), Please check.";
+      }
+      if (e < 0) {
+        e += output_shapes[0].size();
+      }
+    }
   } else {
     LOG(FATAL) << "axis is not be set! Please check.";
   }
 
-  CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
   framework::CINNCompute reverse_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of reverse compute is empty! Please check.\n";
     CINNValuePack a = args[0];
@@ -1858,7 +1869,6 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
     Expr out              = arg_pack[0];
     poly::StageMap stages = arg_pack[1];
     CHECK(out.as_tensor());
-    CHECK(!output_shapes.empty()) << "Output shape is empty! Please check.\n";
     if (target.arch == Target::Arch::NVGPU) {
       pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
     } else if (target.arch == Target::Arch::X86) {
@@ -1875,22 +1885,6 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
     LOG(FATAL) << "Reverse op with dtype != float32 is not implemented yet!";
   }
   return strategy;
-}
-
-std::vector<framework::shape_t> InferShapeForReverse(const std::vector<framework::shape_t> &inputs_shape,
-                                                     framework::NodeAttr &attrs,
-                                                     const Target &target) {
-  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  std::vector<framework::shape_t> res{inputs_shape[0]};
-  return res;
-}
-
-std::vector<Type> InferDtypeForReverse(const std::vector<Type> &inputs_type,
-                                       const framework::NodeAttr &attrs,
-                                       const Target &target) {
-  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
-  std::vector<Type> res{inputs_type[0]};
-  return res;
 }
 
 std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<framework::shape_t> &input_shapes,
@@ -2099,8 +2093,8 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReverse)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForReverse))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForReverse))
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
 #endif
