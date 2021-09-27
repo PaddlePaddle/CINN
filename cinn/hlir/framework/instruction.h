@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "cinn/backends/cuda_util.h"
-#include "cinn/common/test_helper.h"
+// #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/scope.h"
 #ifdef CINN_WITH_CUDNN
 #include "cinn/runtime/cuda/cuda_util.h"

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include <any>
+#include <absl/types/any.h>
 #include <string>
 
 #include "cinn/hlir/framework/graph.h"
@@ -20,7 +20,7 @@ namespace framework {
 
 Tensor GetTensor(const std::shared_ptr<Scope>& scope, const std::string& name) {
   auto* var    = scope->Var<Tensor>(name);
-  auto& tensor = std::get<Tensor>(*var);
+  auto& tensor = absl::get<Tensor>(*var);
   return tensor;
 }
 

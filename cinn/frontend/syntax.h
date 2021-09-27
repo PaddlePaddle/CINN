@@ -7,10 +7,11 @@
 #include <memory>
 #include <string>
 #include <tuple>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <utility>
-#include <variant>
 #include <vector>
+
+#include <absl/strings/string_view.h>
 
 #include "cinn/common/common.h"
 #include "cinn/common/context.h"
@@ -42,7 +43,7 @@ struct Variable : public common::Shared<_Variable_> {
    * Constructor.
    * @param id_hint The identifier of the variable, if null, a random ID will be assigned.
    */
-  explicit Variable(std::string_view id_hint = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
+  explicit Variable(const std::string & id_hint = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
     if (!id_hint.empty()) CheckVarNameValid(id_hint);
     get()->id = id_hint.empty() ? common::Context::Global().NewName("var") : id_hint;
   }
@@ -63,9 +64,9 @@ class Placeholder {
    * @param shape Shape of the fed
    * @param id ID of the fed
    */
-  Placeholder(const common::Type& type, const std::vector<int>& shape, std::string_view id_hint = "") {
+  Placeholder(const common::Type& type, const std::vector<int>& shape, absl::string_view id_hint = "") {
     if (!id_hint.empty()) CheckVarNameValid(std::string(id_hint));
-    id_         = id_hint.empty() ? common::Context::Global().NewName("placeholder") : id_hint;
+    id_         = id_hint.empty() ? common::Context::Global().NewName("placeholder") : (std::string)id_hint;
     var_        = Variable(id_);
     var_->shape = shape;
     var_->type  = type;
@@ -80,7 +81,7 @@ class Placeholder {
 
   Type type() const { return var_->type; }
 
-  std::string_view id() const { return id_; }
+  absl::string_view id() const { return id_; }
 
   operator Variable() const;
 
@@ -99,7 +100,7 @@ struct _Instruction_ : public common::Object {
   using attr_t = hlir::framework::AttrType;
 
   std::string op_type;
-  std::unordered_map<std::string, attr_t> attrs;
+  absl::flat_hash_map<std::string, attr_t> attrs;
   std::vector<std::pair<std::string, attr_t>> attrs_ordered;
   std::vector<Variable> inputs;
   std::vector<Variable> outputs;
@@ -116,7 +117,7 @@ struct _Instruction_ : public common::Object {
  * Instruction is the basic computational unit of a Program, similar to the operator concept in a DNN platform.
  */
 struct Instruction : public common::Shared<_Instruction_> {
-  explicit Instruction(std::string_view op_type, const std::vector<Variable>& inputs = {}, Program* parent = nullptr);
+  explicit Instruction(absl::string_view op_type, const std::vector<Variable>& inputs = {}, Program* parent = nullptr);
 
   /**
    * Set the inputs of the instruction.
@@ -150,7 +151,7 @@ struct Instruction : public common::Shared<_Instruction_> {
   T GetAttrs(const std::string& key) {
     auto it = get()->attrs.find(key);
     CHECK(it != get()->attrs.end()) << "No attribute called [" << key << "]";
-    return std::get<T>(it->second);
+    return absl::get<T>(it->second);
   }
 
  private:
@@ -296,15 +297,15 @@ struct Program {
    * @param attr_store The params like padding, stride, dilation, etc.
    * @return The result.
    */
-  Variable conv2d(const Variable& a, const Variable& b, const std::unordered_map<std::string, attr_t>& attr_store);
-  Variable layout_transform(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+  Variable conv2d(const Variable& a, const Variable& b, const absl::flat_hash_map<std::string, attr_t>& attr_store);
+  Variable layout_transform(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);
   Variable conv2d_NCHWc(const Variable& a,
                         const Variable& b,
-                        const std::unordered_map<std::string, attr_t>& attr_store);
+                        const absl::flat_hash_map<std::string, attr_t>& attr_store);
   Variable depthwise_conv2d(const Variable& a,
                             const Variable& b,
-                            const std::unordered_map<std::string, attr_t>& attr_store);
-  Variable pool2d(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+                            const absl::flat_hash_map<std::string, attr_t>& attr_store);
+  Variable pool2d(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);
 
   /**
    * The batchnorm layer can be used as a normalizer function
@@ -320,7 +321,7 @@ struct Program {
                      const Variable& bias,
                      const Variable& mean,
                      const Variable& variance,
-                     const std::unordered_map<std::string, attr_t>& attr_store);
+                     const absl::flat_hash_map<std::string, attr_t>& attr_store);
 
   /**
    *  batchnorm composed of primitive ops
@@ -330,17 +331,17 @@ struct Program {
                                      const Variable& bias,
                                      const Variable& mean,
                                      const Variable& variance,
-                                     const std::unordered_map<std::string, attr_t>& attr_store);
+                                     const absl::flat_hash_map<std::string, attr_t>& attr_store);
 
-  Variable scale(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+  Variable scale(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);
 
-  Variable softmax(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+  Variable softmax(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);
 
   Variable sigmoid(const Variable& a);
 
-  Variable slice(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+  Variable slice(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);
 
-  Variable dropout_infer(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store);
+  Variable dropout_infer(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);
 
   /**
    * Get \p i-th instruction.
@@ -374,8 +375,8 @@ struct Program {
  * program
  */
 std::tuple<std::unique_ptr<Program>,
-           std::unordered_map<std::string, Variable>,
-           std::unordered_map<std::string, std::string>>
+           absl::flat_hash_map<std::string, Variable>,
+           absl::flat_hash_map<std::string, std::string>>
 LoadPaddleProgram(const std::string& model_dir,
                   hlir::framework::Scope* scope,
                   bool is_combined,

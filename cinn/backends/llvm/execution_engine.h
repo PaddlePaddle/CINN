@@ -56,7 +56,7 @@ class ExecutionEngine {
  public:
   static std::unique_ptr<ExecutionEngine> Create(const ExecutionOptions &config);
 
-  void *Lookup(std::string_view name);
+  void *Lookup(absl::string_view name);
 
   template <typename CodeGenT = CodeGenLLVM>
   void Link(const ir::Module &module);

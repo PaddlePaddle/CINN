@@ -46,11 +46,9 @@ class OpTest_matmul_0(SingleOpTester):
         self.trans_b = False
         self.alpha = 1
         self.attrs = framework.NodeAttr()
-        self.attrs.attr_store = {
-            "trans_a": self.trans_a,
-            "trans_b": self.trans_b,
-            "alpha": self.alpha
-        }
+        self.attrs.set_attr("trans_a", self.trans_a)
+        self.attrs.set_attr("trans_b", self.trans_b)
+        self.attrs.set_attr("alpha", self.alpha)
 
     def create_target_data(self, inputs_data, attrs):
         return matmul_util(inputs_data, self.input_shape, self.trans_a,
@@ -70,11 +68,9 @@ class OpTest_matmul_1(SingleOpTester):
         self.trans_b = True
         self.alpha = 2
         self.attrs = framework.NodeAttr()
-        self.attrs.attr_store = {
-            "trans_a": self.trans_a,
-            "trans_b": self.trans_b,
-            "alpha": self.alpha
-        }
+        self.attrs.set_attr("trans_a", self.trans_a)
+        self.attrs.set_attr("trans_b", self.trans_b)
+        self.attrs.set_attr("alpha", self.alpha)
 
     def create_target_data(self, inputs_data, attrs):
         return matmul_util(inputs_data, self.input_shape, self.trans_a,
@@ -95,11 +91,9 @@ class OpTest_matmul_2(SingleOpTester):
         self.trans_b = True
         self.alpha = 2
         self.attrs = framework.NodeAttr()
-        self.attrs.attr_store = {
-            "trans_a": self.trans_a,
-            "trans_b": self.trans_b,
-            "alpha": self.alpha
-        }
+        self.attrs.set_attr("trans_a", self.trans_a)
+        self.attrs.set_attr("trans_b", self.trans_b)
+        self.attrs.set_attr("alpha", self.alpha)
 
     def create_target_data(self, inputs_data, attrs):
         return matmul_util(inputs_data, self.input_shape, self.trans_a,
@@ -119,11 +113,9 @@ class OpTest_matmul_3(SingleOpTester):
         self.trans_b = False
         self.alpha = 2
         self.attrs = framework.NodeAttr()
-        self.attrs.attr_store = {
-            "trans_a": self.trans_a,
-            "trans_b": self.trans_b,
-            "alpha": self.alpha
-        }
+        self.attrs.set_attr("trans_a", self.trans_a)
+        self.attrs.set_attr("trans_b", self.trans_b)
+        self.attrs.set_attr("alpha", self.alpha)
 
     def create_target_data(self, inputs_data, attrs):
         return matmul_util(inputs_data, self.input_shape, self.trans_a,
@@ -143,11 +135,9 @@ class OpTest_matmul_4(SingleOpTester):
         self.trans_b = False
         self.alpha = 2
         self.attrs = framework.NodeAttr()
-        self.attrs.attr_store = {
-            "trans_a": self.trans_a,
-            "trans_b": self.trans_b,
-            "alpha": self.alpha
-        }
+        self.attrs.set_attr("trans_a", self.trans_a)
+        self.attrs.set_attr("trans_b", self.trans_b)
+        self.attrs.set_attr("alpha", self.alpha)
 
     def create_target_data(self, inputs_data, attrs):
         return matmul_util(inputs_data, self.input_shape, self.trans_a,
@@ -167,11 +157,9 @@ class OpTest_matmul_5(SingleOpTester):
         self.trans_b = False
         self.alpha = 2
         self.attrs = framework.NodeAttr()
-        self.attrs.attr_store = {
-            "trans_a": self.trans_a,
-            "trans_b": self.trans_b,
-            "alpha": self.alpha
-        }
+        self.attrs.set_attr("trans_a", self.trans_a)
+        self.attrs.set_attr("trans_b", self.trans_b)
+        self.attrs.set_attr("alpha", self.alpha)
 
     def create_target_data(self, inputs_data, attrs):
         return matmul_util(inputs_data, self.input_shape, self.trans_a,
@@ -191,11 +179,9 @@ class OpTest_matmul_6(SingleOpTester):
         self.trans_b = False
         self.alpha = 2
         self.attrs = framework.NodeAttr()
-        self.attrs.attr_store = {
-            "trans_a": self.trans_a,
-            "trans_b": self.trans_b,
-            "alpha": self.alpha
-        }
+        self.attrs.set_attr("trans_a", self.trans_a)
+        self.attrs.set_attr("trans_b", self.trans_b)
+        self.attrs.set_attr("alpha", self.alpha)
 
     def create_target_data(self, inputs_data, attrs):
         return matmul_util(inputs_data, self.input_shape, self.trans_a,

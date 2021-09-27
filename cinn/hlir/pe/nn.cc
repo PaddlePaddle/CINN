@@ -3,7 +3,7 @@
 #include <functional>
 #include <numeric>
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <vector>
 
 #include "cinn/common/cas.h"
@@ -121,7 +121,7 @@ std::vector<ir::Tensor> Conv2d_NCHW_5D(const ir::Tensor &input,
   Expr c_in     = common::AutoSimplify(shape_input[1]);
   Expr c_filter = common::AutoSimplify(shape_weights[1]);
   Expr c_out    = common::AutoSimplify(shape_weights[0]);
-  std::unordered_map<std::string, int> conv2d_factors;
+  absl::flat_hash_map<std::string, int> conv2d_factors;
   int oc      = c_out.as_int32();
   int ic      = c_in.as_int32();
   int fc_size = c_filter.as_int32();

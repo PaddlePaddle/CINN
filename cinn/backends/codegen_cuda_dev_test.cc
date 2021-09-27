@@ -153,7 +153,13 @@ TEST(CodeGenCUDA2, test_of_cacheread) {
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto _Ad_Bd_Cd_host_data1_host_data2_host_data3_ = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto &Ad = std::get<0>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &Bd = std::get<1>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &Cd = std::get<2>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data1 = std::get<3>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data2 = std::get<4>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data3 = std::get<5>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
 
   // launch the kernel
 
@@ -210,7 +216,9 @@ TEST(CodeGenCUDA2, test_of_splitcudakernel) {
 
   auto module = builder.Build();
 
-  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+  auto _host_module_device_module_ = SplitCudaAndHostModule(module);  // NOLINT
+  auto &host_module = std::get<0>(_host_module_device_module_);
+  auto &device_module = std::get<1>(_host_module_device_module_);
 
   auto source_code = codegen.Compile(module);
 
@@ -320,7 +328,13 @@ void elementwise_add_splitouter(const float* __restrict__ X, const float* __rest
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto _Ad_Bd_Cd_host_data1_host_data2_host_data3_ = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto &Ad = std::get<0>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &Bd = std::get<1>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &Cd = std::get<2>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data1 = std::get<3>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data2 = std::get<4>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data3 = std::get<5>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
 
   // launch the kernel
 
@@ -799,7 +813,13 @@ void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, f
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto _Ad_Bd_Cd_host_data1_host_data2_host_data3_ = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto &Ad = std::get<0>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &Bd = std::get<1>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &Cd = std::get<2>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data1 = std::get<3>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data2 = std::get<4>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data3 = std::get<5>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
 
   // launch the kernel
 
@@ -905,7 +925,13 @@ void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1,
 
   CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
 
-  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto _Ad_Bd_Cd_host_data1_host_data2_host_data3_ = CreateNVMemory(M.as_int32(), N.as_int32());
+  auto &Ad = std::get<0>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &Bd = std::get<1>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &Cd = std::get<2>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data1 = std::get<3>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data2 = std::get<4>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data3 = std::get<5>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
 
   // launch the kernel
 
@@ -1052,11 +1078,16 @@ class ElementwiseTester {
 
 TEST(CodeGenCUDA, jit_dynamic_shape0) {
   ElementwiseTester tester("elementwise_base");
-  auto [A, B, C] = tester.BuildNet();  // NOLINT
+  auto _A_B_C_ = tester.BuildNet();  // NOLINT
+  auto &A = std::get<0>(_A_B_C_);
+  auto &B = std::get<1>(_A_B_C_);
+  auto &C = std::get<2>(_A_B_C_);
 
   auto stages = CreateStages({C});
 
-  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto _M_outer_M_inner_ = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto &M_outer = std::get<0>(_M_outer_M_inner_);
+  auto &M_inner = std::get<1>(_M_outer_M_inner_);
   stages[C]->Reorder({
       M_inner,
       stages[C]->axis(2),
@@ -1071,12 +1102,19 @@ TEST(CodeGenCUDA, jit_dynamic_shape0) {
 
 TEST(CodeGenCUDA, jit_dynamic_shape1) {
   ElementwiseTester tester("elementwise1");
-  auto [A, B, C] = tester.BuildNet();  // NOLINT
+  auto _A_B_C_ = tester.BuildNet();  // NOLINT
+  auto &A = std::get<0>(_A_B_C_);
+  auto &B = std::get<1>(_A_B_C_);
+  auto &C = std::get<2>(_A_B_C_);
 
   auto stages = CreateStages({C});
 
-  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
-  auto [N_outer, N_inner] = stages[C]->Split(2, 32);  // M/32, 32 NOLINT
+  auto _M_outer_M_inner_ = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto &M_outer = std::get<0>(_M_outer_M_inner_);
+  auto &M_inner = std::get<1>(_M_outer_M_inner_);
+  auto _N_outer_N_inner_ = stages[C]->Split(2, 32);  // M/32, 32 NOLINT
+  auto &N_outer = std::get<0>(_N_outer_N_inner_);
+  auto &N_inner = std::get<1>(_N_outer_N_inner_);
   stages[C]->Reorder({
       M_inner,
       N_inner,
@@ -1093,12 +1131,19 @@ TEST(CodeGenCUDA, jit_dynamic_shape1) {
 TEST(CodeGenCUDA, jit_dynamic_shape2) {
   ElementwiseTester tester("elementwise2");
 
-  auto [A, B, C] = tester.BuildNet();  // NOLINT
+  auto _A_B_C_ = tester.BuildNet();  // NOLINT
+  auto &A = std::get<0>(_A_B_C_);
+  auto &B = std::get<1>(_A_B_C_);
+  auto &C = std::get<2>(_A_B_C_);
 
   auto stages = CreateStages({C});
 
-  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
-  auto [N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
+  auto _M_outer_M_inner_ = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto &M_outer = std::get<0>(_M_outer_M_inner_);
+  auto &M_inner = std::get<1>(_M_outer_M_inner_);
+  auto _N_outer_N_inner_ = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
+  auto &N_outer = std::get<0>(_N_outer_N_inner_);
+  auto &N_inner = std::get<1>(_N_outer_N_inner_);
   stages[C]->Reorder({
       M_inner,
       N_inner,
@@ -1113,14 +1158,27 @@ TEST(CodeGenCUDA, jit_dynamic_shape2) {
 }
 
 TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
-  auto [Ad, Bd, Cd, host_data1, host_data2, host_data3] = CreateNVMemory(100, 200);
+  auto _Ad_Bd_Cd_host_data1_host_data2_host_data3_ = CreateNVMemory(100, 200);
+  auto &Ad = std::get<0>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &Bd = std::get<1>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &Cd = std::get<2>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data1 = std::get<3>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data2 = std::get<4>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
+  auto &host_data3 = std::get<5>(_Ad_Bd_Cd_host_data1_host_data2_host_data3_);
 
   ElementwiseTester tester("elementwise_host_test");
-  auto [A, B, C] = tester.BuildNet();  // NOLINT
+  auto _A_B_C_ = tester.BuildNet();  // NOLINT
+  auto &A = std::get<0>(_A_B_C_);
+  auto &B = std::get<1>(_A_B_C_);
+  auto &C = std::get<2>(_A_B_C_);
   auto stages    = CreateStages({C});
 
-  auto [M_outer, M_inner] = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
-  auto [N_outer, N_inner] = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
+  auto _M_outer_M_inner_ = stages[C]->Split(0, 32);  // M/32, 32 NOLINT
+  auto &M_outer = std::get<0>(_M_outer_M_inner_);
+  auto &M_inner = std::get<1>(_M_outer_M_inner_);
+  auto _N_outer_N_inner_ = stages[C]->Split(2, 3);   // M/32, 32 NOLINT
+  auto &N_outer = std::get<0>(_N_outer_N_inner_);
+  auto &N_inner = std::get<1>(_N_outer_N_inner_);
   stages[C]->Reorder({
       M_inner,
       N_inner,
@@ -1143,7 +1201,9 @@ TEST(CodeGenCUDA, jit_host_call_cuda_kernel) {
   auto module = builder.Build();
   Expr expr(module);
 
-  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+  auto _host_module_device_module_ = SplitCudaAndHostModule(module);  // NOLINT
+  auto &host_module = std::get<0>(_host_module_device_module_);
+  auto &device_module = std::get<1>(_host_module_device_module_);
   for (auto& func : host_module.functions()) {
     LOG(INFO) << "host:\n" << func;
   }
@@ -1451,7 +1511,9 @@ TEST(elementwise_add0, share_local_cache) {
   builder.AddFunction(fn);
   auto module = builder.Build();
 
-  auto [host_module, device_module] = SplitCudaAndHostModule(module);  // NOLINT
+  auto _host_module_device_module_ = SplitCudaAndHostModule(module);  // NOLINT
+  auto &host_module = std::get<0>(_host_module_device_module_);
+  auto &device_module = std::get<1>(_host_module_device_module_);
   for (auto& func : host_module.functions()) {
     LOG(INFO) << "host:\n" << func;
   }
@@ -1714,7 +1776,12 @@ TEST(ElementwiseAdd, cache_read1) {
     return std::make_tuple(A, B, C, AL, stages);
   };
   {
-    auto [A, B, C, AL, stages] = create_module();  // NOLINT
+    auto _A_B_C_AL_stages_ = create_module();  // NOLINT
+    auto &A = std::get<0>(_A_B_C_AL_stages_);
+    auto &B = std::get<1>(_A_B_C_AL_stages_);
+    auto &C = std::get<2>(_A_B_C_AL_stages_);
+    auto &AL = std::get<3>(_A_B_C_AL_stages_);
+    auto &stages = std::get<4>(_A_B_C_AL_stages_);
     auto fn                    = Lower("fn1", stages, {A, B, C}, {}, {AL});
     CodeGenC codegen_c(common::DefaultHostTarget());
     codegen_c.SetInlineBuiltinCodes(false);
@@ -1726,7 +1793,12 @@ TEST(ElementwiseAdd, cache_read1) {
     std::cout << "C source code:\n" << c_source_code << std::endl;
   }
 
-  auto [A, B, C, AL, stages] = create_module();  // NOLINT
+  auto _A_B_C_AL_stages_ = create_module();  // NOLINT
+  auto &A = std::get<0>(_A_B_C_AL_stages_);
+  auto &B = std::get<1>(_A_B_C_AL_stages_);
+  auto &C = std::get<2>(_A_B_C_AL_stages_);
+  auto &AL = std::get<3>(_A_B_C_AL_stages_);
+  auto &stages = std::get<4>(_A_B_C_AL_stages_);
   stages[C]->Bind(0, "threadIdx.x");
   stages[C]->Bind(1, "blockIdx.x");
 
@@ -2094,7 +2166,12 @@ TEST(ElementwiseAdd, cache_read_shared) {
     return std::make_tuple(A, B, C, AL, stages);
   };
 
-  auto [A, B, C, AL, stages] = create_module();  // NOLINT
+  auto _A_B_C_AL_stages_ = create_module();  // NOLINT
+  auto &A = std::get<0>(_A_B_C_AL_stages_);
+  auto &B = std::get<1>(_A_B_C_AL_stages_);
+  auto &C = std::get<2>(_A_B_C_AL_stages_);
+  auto &AL = std::get<3>(_A_B_C_AL_stages_);
+  auto &stages = std::get<4>(_A_B_C_AL_stages_);
   Target target              = common::DefaultNVGPUTarget();
   CodeGenCUDA_Dev codegen(target);
 
@@ -2172,7 +2249,12 @@ TEST(ElementwiseAdd, cache_write_local) {
     return std::make_tuple(A, B, C, Co, stages);
   };
 
-  auto [A, B, C, Co, stages] = create_module();  // NOLINT
+  auto _A_B_C_Co_stages_ = create_module();  // NOLINT
+  auto &A = std::get<0>(_A_B_C_Co_stages_);
+  auto &B = std::get<1>(_A_B_C_Co_stages_);
+  auto &C = std::get<2>(_A_B_C_Co_stages_);
+  auto &Co = std::get<3>(_A_B_C_Co_stages_);
+  auto &stages = std::get<4>(_A_B_C_Co_stages_);
 
   CodeGenCUDA_Dev codegen(common::DefaultNVGPUTarget());
 
@@ -2253,7 +2335,11 @@ TEST(Cuda, external_function) {
     return std::make_tuple(A, B, C, stages);
   };
 
-  auto [A, B, C, stages] = create_module();  // NOLINT
+  auto _A_B_C_stages_ = create_module();  // NOLINT
+  auto &A = std::get<0>(_A_B_C_stages_);
+  auto &B = std::get<1>(_A_B_C_stages_);
+  auto &C = std::get<2>(_A_B_C_stages_);
+  auto &stages = std::get<3>(_A_B_C_stages_);
   Target target          = common::DefaultNVGPUTarget();
   CodeGenCUDA_Dev codegen(target);
 

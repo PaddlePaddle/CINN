@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
 
-#include <any>
 #include <string>
+
+#include <absl/types/any.h>
 
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/node.h"
@@ -27,7 +28,7 @@ void PrintGraphPass(Graph* src) {
       index++;
     }
   }
-  src->attrs["print_graph"] = std::make_shared<std::any>(res);
+  src->attrs["print_graph"] = std::make_shared<absl::any>(res);
 }
 
 CINN_REGISTER_PASS(PrintGraph)

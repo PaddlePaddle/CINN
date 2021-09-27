@@ -5,6 +5,8 @@
 #include <numeric>
 #include <vector>
 
+#include <absl/strings/string_view.h>
+
 #include "cinn/common/common.h"
 #include "cinn/common/macros.h"
 #include "cinn/hlir/framework/buffer.h"

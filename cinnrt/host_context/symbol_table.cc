@@ -6,24 +6,24 @@ namespace cinnrt {
 namespace host_context {
 
 struct SymbolTable::Impl {
-  std::unordered_map<std::string, ValueRef> data;
+  absl::flat_hash_map<std::string, ValueRef> data;
 };
 
 SymbolTable::SymbolTable() : impl_(new Impl) {}
 
-Value* SymbolTable::Register(std::string_view key) {
+Value* SymbolTable::Register(absl::string_view key) {
   auto it = impl_->data.try_emplace(std::string(key), ValueRef(new Value));
   CHECK(it.second) << "Duplicate register [" << key << "]";
   return it.first->second.get();
 }
 
-Value* SymbolTable::Register(std::string_view key, ValueRef value) {
+Value* SymbolTable::Register(absl::string_view key, ValueRef value) {
   auto it = impl_->data.try_emplace(std::string(key), value);
   CHECK(it.second) << "Duplicate register [" << key << "]";
   return it.first->second.get();
 }
 
-Value* SymbolTable::GetValue(std::string_view key) const {
+Value* SymbolTable::GetValue(absl::string_view key) const {
   auto it = impl_->data.find(std::string(key));
   return it != impl_->data.end() ? it->second.get() : nullptr;
 }
@@ -31,7 +31,7 @@ Value* SymbolTable::GetValue(std::string_view key) const {
 // @{
 #define REGISTER_TYPE__(T)                                       \
   template <>                                                    \
-  T SymbolTable::Get<T>(std::string_view key) {                  \
+  T SymbolTable::Get<T>(absl::string_view key) {                  \
     auto it = impl_->data.find(std::string(key));                \
     CHECK(it != impl_->data.end()) << "No value called " << key; \
     return it->second->get<T>();                                 \
@@ -50,7 +50,7 @@ size_t SymbolTable::size() const { return impl_->data.size(); }
 // @{
 #define REGISTER_TYPE__(T)                                            \
   template <>                                                         \
-  Value* SymbolTable::Register(std::string_view key, T&& v) {         \
+  Value* SymbolTable::Register(absl::string_view key, T&& v) {        \
     auto it = impl_->data.try_emplace(std::string(key), ValueRef(v)); \
     CHECK(it.second) << "Duplicate register [" << key << "]";         \
     return it.first->second.get();                                    \

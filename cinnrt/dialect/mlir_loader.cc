@@ -9,7 +9,7 @@
 
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
 
@@ -18,7 +18,7 @@
 
 namespace cinnrt::dialect {
 
-mlir::OwningModuleRef LoadMlirSource(mlir::MLIRContext* context, std::string_view mlir_source) {
+mlir::OwningModuleRef LoadMlirSource(mlir::MLIRContext* context, absl::string_view mlir_source) {
   context->allowUnregisteredDialects();
   RegisterCinnDialects(context->getDialectRegistry());
   context->getDialectRegistry().insert<mlir::StandardOpsDialect>();
@@ -29,12 +29,12 @@ mlir::OwningModuleRef LoadMlirSource(mlir::MLIRContext* context, std::string_vie
     return mlir::failure(true);
   });
 
-  auto res = mlir::parseSourceString(mlir_source, context);
+  auto res = mlir::parseSourceString(llvm::StringRef(mlir_source.data(), mlir_source.length()), context);
   CHECK(*res) << "failed to parse MLIR string";
   return res;
 }
 
-mlir::OwningModuleRef LoadMlirFile(std::string_view file_name, mlir::MLIRContext* context) {
+mlir::OwningModuleRef LoadMlirFile(absl::string_view file_name, mlir::MLIRContext* context) {
   context->allowUnregisteredDialects();
   RegisterCinnDialects(context->getDialectRegistry());
   context->getDialectRegistry().insert<mlir::StandardOpsDialect>();
@@ -45,7 +45,7 @@ mlir::OwningModuleRef LoadMlirFile(std::string_view file_name, mlir::MLIRContext
     return mlir::failure(true);
   });
 
-  return mlir::parseSourceFile(file_name, context);
+  return mlir::parseSourceFile(std::string(file_name), context);
 }
 
 class Translator {
@@ -90,7 +90,7 @@ class Translator {
   }
 
   mlir::ModuleOp module_;
-  std::unordered_map<std::string, int> subgraph_index_map_;
+  absl::flat_hash_map<std::string, int> subgraph_index_map_;
 };
 
 }  // namespace cinnrt::dialect

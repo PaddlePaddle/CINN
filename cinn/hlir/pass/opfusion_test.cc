@@ -135,14 +135,14 @@ TEST(conv_bn_conv, conv_bn_conv) {
   Placeholder Variance(Float(32), {64}, "Variance");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
   std::string src_layout = "NCHW";
   attrs["data_format"]   = src_layout;
 
-  std::unordered_map<std::string, Program::attr_t> attrs1;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs1;
   attrs1["epsilon"] = static_cast<float>(0.001);
 
   auto c = program.conv2d(A, B, attrs);
@@ -192,7 +192,7 @@ TEST(fuse_conv_add, fuse_conv_add) {
   Placeholder C(Float(32), {64}, "C");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
@@ -246,14 +246,14 @@ TEST(conv_add_mul, conv_add_mul) {
   Placeholder Variance(Float(32), {64}, "Variance");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
   std::string src_layout = "NCHW";
   attrs["data_format"]   = src_layout;
 
-  std::unordered_map<std::string, Program::attr_t> attrs1;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs1;
   attrs1["epsilon"] = static_cast<float>(0.001);
 
   auto c = program.conv2d(A, B, attrs);
@@ -312,14 +312,14 @@ TEST(complex1, complex1) {
   Placeholder Variance(Float(32), {64}, "Variance");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
   std::string src_layout = "NCHW";
   attrs["data_format"]   = src_layout;
 
-  std::unordered_map<std::string, Program::attr_t> attrs1;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs1;
   attrs1["epsilon"] = static_cast<float>(0.001);
 
   auto c = program.conv2d(A, B, attrs);
@@ -368,14 +368,14 @@ TEST(complex2, complex2) {
   Placeholder Variance(Float(32), {64}, "Variance");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
   std::string src_layout = "NCHW";
   attrs["data_format"]   = src_layout;
 
-  std::unordered_map<std::string, Program::attr_t> attrs1;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs1;
   attrs1["epsilon"] = static_cast<float>(0.001);
 
   auto c = program.depthwise_conv2d(A, B, attrs);
