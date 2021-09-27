@@ -1889,7 +1889,7 @@ std::vector<framework::shape_t> InferShapeForSelect(const std::vector<framework:
 std::vector<Type> InferDtypeForSelect(const std::vector<Type> &inputs_type,
                                       const framework::NodeAttr &attrs,
                                       const Target &target) {
-  CHECK_GT(inputs_type.size(), 3) << "The input's type size is 0! Please check again.";
+  CHECK_GE(inputs_type.size(), 3) << "The input's type size is less than three! Please check again.";
   CHECK(inputs_type[0].is_bool()) << "The condition tensor type should be bool";
   std::vector<Type> res{inputs_type[1]};
   return res;
