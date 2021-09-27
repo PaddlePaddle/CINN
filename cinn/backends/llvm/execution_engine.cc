@@ -146,6 +146,8 @@ void ExecutionEngine::Link(const ir::Module &module) {
   VLOG(3) << "ir_emitter->Compile(module) Succeed!";
   CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid module found";
 
+  // m->dump();
+
   auto machine =
       std::move(llvm::cantFail(llvm::cantFail(llvm::orc::JITTargetMachineBuilder::detectHost()).createTargetMachine()));
   LLVMModuleOptimizer optimize(machine.get(), 3, {}, true);

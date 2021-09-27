@@ -120,10 +120,6 @@ inline Expr ReduceMin(Expr e, const std::vector<Var>& reduce_axis, Expr initial 
   return ir::Reduce::Make(ir::Reduce::kMin, initial, e, reduce_axis);
 }
 
-inline Expr Select(Expr condition, Expr true_value, Expr false_value) {
-  return ir::Select::Make(condition, true_value, false_value);
-}
-
 Expr IsNan(Expr e);
 
 Expr Infinity(const Type& type);

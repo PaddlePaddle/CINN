@@ -950,7 +950,7 @@ ir::Tensor Select(const ir::Tensor &condition,
   return lang::Compute(
       condition->shape,
       [=](const std::vector<Expr> &indice) {
-        return lang::Select(condition(indice), true_value(indice), false_value(indice));
+        return common::select(condition(indice), true_value(indice), false_value(indice));
       },
       output_name);
 }
