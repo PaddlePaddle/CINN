@@ -107,6 +107,59 @@ Variable Program::batchnorm(const Variable& a,
   return instr.GetOutput(0);
 }
 
+template <typename PrimType>
+Variable Program::primitive_const_scalar(PrimType value, const std::string& name) {
+  Instruction instr("const_scalar");
+  instr.SetInputs({});
+  instr.SetAttr("value", value);
+  AppendInstruction(instr);
+  auto out = instr.GetOutput(0);
+  out.set_id(name);
+  auto out_type = type_of<PrimType>();
+  CHECK(out_type.is_float() || out_type.is_int()) << "no supported type: " << out_type;
+  out->type = out_type;
+  return out;
+}
+
+Variable Program::primitive_broadcast_to(const Variable& a,
+                                         const std::vector<int>& out_shape,
+                                         const std::vector<int>& broadcast_axes) {
+  Instruction instr("broadcast_to");
+  instr.SetInputs({a});
+  instr.SetAttr("out_shape", out_shape);
+  instr.SetAttr("broadcast_axes", broadcast_axes);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable Program::fused_batchnorm_inference(const Variable& a,
+                                            const Variable& scale,
+                                            const Variable& bias,
+                                            const Variable& mean,
+                                            const Variable& variance,
+                                            const std::unordered_map<std::string, attr_t>& attr_store) {
+  float epsilon = 0.00001f;
+  if (attr_store.find("epsilon") != attr_store.end()) {
+    epsilon = std::get<float>(attr_store.at("epsilon"));
+  }
+  auto eps_var = primitive_const_scalar<float>(epsilon, common::UniqName("epsilon"));
+  CHECK(!scale->shape.empty()) << "scale's shape is empty.";
+  auto broadcast_eps = primitive_broadcast_to(eps_var, scale->shape, {0});
+  auto var_add_eps   = add(variance, broadcast_eps);
+  auto rsrqt_var     = primitive_rsqrt(var_add_eps);
+  auto new_scale     = multiply(rsrqt_var, scale);
+  auto neg_mean      = primitive_negative(mean);
+  auto new_shift     = multiply(new_scale, neg_mean);
+  auto shift_bias    = add(new_shift, bias);
+  CHECK(!a->shape.empty()) << "variable a's shape is empty.";
+  auto broadcast_new_scale  = primitive_broadcast_to(new_scale, a->shape, {1});
+  auto broadcast_shift_bias = primitive_broadcast_to(shift_bias, a->shape, {1});
+  auto temp_out             = multiply(broadcast_new_scale, a);
+  auto bn_out               = add(temp_out, broadcast_shift_bias);
+
+  return bn_out;
+}
+
 Variable Program::scale(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
   Instruction instr("scale", {a});
   for (auto& iter : attr_store) {
@@ -197,6 +250,85 @@ Variable Program::add(const Variable& a, const Variable& b) {
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
+
+Variable Program::multiply(const Variable& a, const Variable& b) {
+  Instruction instr("elementwise_mul", {a, b});
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+#define SYNTAX_PRIM_UNARY_IMPL(name__)                      \
+  Variable Program::primitive_##name__(const Variable& a) { \
+    Instruction instr(#name__, {a});                        \
+    AppendInstruction(instr);                               \
+    return instr.GetOutput(0);                              \
+  }
+
+SYNTAX_PRIM_UNARY_IMPL(exp);
+SYNTAX_PRIM_UNARY_IMPL(erf);
+SYNTAX_PRIM_UNARY_IMPL(sqrt);
+SYNTAX_PRIM_UNARY_IMPL(log);
+SYNTAX_PRIM_UNARY_IMPL(floor);
+SYNTAX_PRIM_UNARY_IMPL(ceil);
+SYNTAX_PRIM_UNARY_IMPL(round);
+SYNTAX_PRIM_UNARY_IMPL(tanh);
+SYNTAX_PRIM_UNARY_IMPL(log2);
+SYNTAX_PRIM_UNARY_IMPL(log10);
+SYNTAX_PRIM_UNARY_IMPL(trunc);
+SYNTAX_PRIM_UNARY_IMPL(cos);
+SYNTAX_PRIM_UNARY_IMPL(sin);
+SYNTAX_PRIM_UNARY_IMPL(cosh);
+SYNTAX_PRIM_UNARY_IMPL(tan);
+SYNTAX_PRIM_UNARY_IMPL(sinh);
+SYNTAX_PRIM_UNARY_IMPL(acos);
+SYNTAX_PRIM_UNARY_IMPL(acosh);
+SYNTAX_PRIM_UNARY_IMPL(asin);
+SYNTAX_PRIM_UNARY_IMPL(asinh);
+SYNTAX_PRIM_UNARY_IMPL(atan);
+SYNTAX_PRIM_UNARY_IMPL(atanh);
+
+SYNTAX_PRIM_UNARY_IMPL(isnan);
+SYNTAX_PRIM_UNARY_IMPL(isfinite);
+SYNTAX_PRIM_UNARY_IMPL(isinf);
+SYNTAX_PRIM_UNARY_IMPL(bitwise_not);
+
+SYNTAX_PRIM_UNARY_IMPL(negative);
+SYNTAX_PRIM_UNARY_IMPL(identity);
+SYNTAX_PRIM_UNARY_IMPL(logica_not);
+SYNTAX_PRIM_UNARY_IMPL(sign);
+SYNTAX_PRIM_UNARY_IMPL(abs);
+SYNTAX_PRIM_UNARY_IMPL(rsqrt);
+
+#define SYNTAX_PRIM_BINARY_IMPL(name__)                                        \
+  Variable Program::primitive_##name__(const Variable& a, const Variable& b) { \
+    Instruction instr(#name__, {a, b});                                        \
+    AppendInstruction(instr);                                                  \
+    return instr.GetOutput(0);                                                 \
+  }
+
+SYNTAX_PRIM_BINARY_IMPL(substract)
+SYNTAX_PRIM_BINARY_IMPL(divide)
+SYNTAX_PRIM_BINARY_IMPL(floor_divide)
+SYNTAX_PRIM_BINARY_IMPL(mod)
+SYNTAX_PRIM_BINARY_IMPL(floor_mod)
+SYNTAX_PRIM_BINARY_IMPL(max)
+SYNTAX_PRIM_BINARY_IMPL(min)
+SYNTAX_PRIM_BINARY_IMPL(power)
+SYNTAX_PRIM_BINARY_IMPL(logical_and)
+SYNTAX_PRIM_BINARY_IMPL(logical_or)
+SYNTAX_PRIM_BINARY_IMPL(logical_xor)
+SYNTAX_PRIM_BINARY_IMPL(greater)
+SYNTAX_PRIM_BINARY_IMPL(less)
+SYNTAX_PRIM_BINARY_IMPL(equal)
+SYNTAX_PRIM_BINARY_IMPL(not_equal)
+SYNTAX_PRIM_BINARY_IMPL(greater_equal)
+SYNTAX_PRIM_BINARY_IMPL(less_equal)
+
+SYNTAX_PRIM_BINARY_IMPL(bitwise_or)
+SYNTAX_PRIM_BINARY_IMPL(bitwise_xor)
+SYNTAX_PRIM_BINARY_IMPL(bitwise_and)
+SYNTAX_PRIM_BINARY_IMPL(left_shift)
+SYNTAX_PRIM_BINARY_IMPL(right_shift)
 
 Variable Program::elementwise_add(const Variable& a, const Variable& b, int axis) {
   Instruction instr("elementwise_add", {a, b});
@@ -290,7 +422,7 @@ std::string _Instruction_::debug_string() const {
   ss << op_type;
   ss << "(";
   ss << utils::Join(input_names, ", ");
-  if (!attrs.empty()) ss << ", ";
+  if (!attrs.empty() && !input_names.empty()) ss << ", ";
 
   std::vector<std::string> attr_strs;
   for (auto& attr : attrs) {
