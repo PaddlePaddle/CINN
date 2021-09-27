@@ -180,6 +180,7 @@ ir::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
 }
 
 ir::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
+  m=n=k_=16;
   auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k_));
 
   Placeholder<float> A("A", {M, K});
@@ -187,7 +188,7 @@ ir::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
 
   Var k(K.as_int32(), "k0");
 
-  Expr bn(32);
+  Expr bn(16);
 
   auto packedB = Compute(
       {N / bn, K, bn}, [&](Expr x, Expr y, Expr z) { return B(y, x * bn + z); }, "packedB");
@@ -203,7 +204,7 @@ ir::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
     auto [k_outer, k_inner]                   = stages[C]->Split("k0", 4);                            // NOLINT
 
     stages[C]->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
-    stages[C]->Vectorize(j_inner, 8);
+    stages[C]->Vectorize(j_inner, 16);
   }
 
   Module::Builder builder("module_array_packing", target);
