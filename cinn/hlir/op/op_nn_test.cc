@@ -350,6 +350,19 @@ TEST(Operator, Operator_Reverse_Test0) {
   cinn_pod_value_t args[] = {a_arg, b_arg};
   fn_(args, 2);
 
+  auto input  = reinterpret_cast<float *>(A_buf->memory);
+  auto output = reinterpret_cast<float *>(B_buf->memory);
+
+  for (int ida = 0; ida < c; ++ida) {
+    for (int idb = 0; idb < h; ++idb) {
+      for (int idc = 0; idc < w; ++idc) {
+        int index  = ida * h * w + idb * h + idc;
+        int index_ = ida * h * w + (h - 1 - idb) * h + (w - 1 - idc);
+        ASSERT_EQ(output[index], input[index_]);
+      }
+    }
+  }
+
   ASSERT_EQ(impl->name, "strategy.reverse.x86");
   ASSERT_EQ(reverse->description, "This operator implements the meta op reverse.");
 }

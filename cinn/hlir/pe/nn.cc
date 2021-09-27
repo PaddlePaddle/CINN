@@ -947,7 +947,7 @@ ir::Tensor Reverse(const ir::Tensor &input, const std::vector<int> axis, const s
       [=](const std::vector<Expr> &indice) {
         std::vector<Expr> indexs(indice.begin(), indice.end());
         for (auto idx : axis) {
-          indexs[idx] = shape[idx] - indexs[idx];
+          indexs[idx] = shape[idx] - Expr(1) - indexs[idx];
         };
         return input(indexs);
       },
