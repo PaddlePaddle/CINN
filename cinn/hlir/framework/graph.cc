@@ -27,8 +27,8 @@ Graph::Graph(const frontend::Program& prog, const Target& target) {
         graph_node->as<NodeData>()->LinkTo(node_tmp);
       }
     }
+    int out_idx = 0;
     for (auto& output_v : temp->outputs) {
-      int out_idx       = 0;
       auto* output_data = new NodeData(node_ptr, out_idx++, 0, output_v->id);
       node_tmp->LinkTo(output_data);
       this->RegisterNode(output_v->id, output_data);

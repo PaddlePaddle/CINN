@@ -3,6 +3,8 @@ core_gather_srcs(SRCS
     syntax.cc
     paddle_model_to_program.cc
     interpreter.cc
+    base_builder.cc
+    net_builder.cc
     decomposer_registry.cc
     )
 
@@ -27,5 +29,6 @@ else()
           SRCS interpreter_test.cc DEPS cinncore)
 endif()
 
+cc_test(test_net_builder SRCS net_builder_test.cc DEPS cinncore)
 
 add_subdirectory(paddle)
