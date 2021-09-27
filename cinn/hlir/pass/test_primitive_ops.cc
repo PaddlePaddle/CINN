@@ -88,5 +88,43 @@ TEST(batch_norm_meta, batch_norm_meta) {
   runtime_program->Execute();
 }
 
+TEST(reduction, reduce) {
+  Placeholder A(Float(32), {1, 3, 224, 224}, "A");
+
+  Program program;
+  std::unordered_map<std::string, Program::attr_t> attrs;
+  std::vector<int> axis = {1};
+  bool keep_dim         = false;
+
+  auto a = program.reduce_max(A, axis, keep_dim);
+  auto b = program.reduce_min(A, axis, keep_dim);
+  auto c = program.reduce_prod(A, axis, keep_dim);
+  auto d = program.reduce_sum(A, axis, keep_dim);
+
+  Target target = GetTarget();
+  program.SetInputs({A});
+  program.Validate();
+  LOG(INFO) << "Program:\n" << program;
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+
+  hlir::framework::ApplyPass(graph.get(), "InferShape");
+#ifndef CINN_WITH_CUDA
+  hlir::framework::ApplyPass(graph.get(), "AlterLayout");
+#endif
+  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  auto scope = BuildScope(target, graph);
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>("A");
+
+  auto A1 = scope->GetTensor("A");
+  SetRandData(A1, target);
+
+  runtime_program->Execute();
+}
+
 }  // namespace frontend
 }  // namespace cinn

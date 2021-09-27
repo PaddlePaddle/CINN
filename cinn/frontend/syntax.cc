@@ -344,6 +344,20 @@ Variable Program::elementwise_mul(const Variable& a, const Variable& b, int axis
   return instr.GetOutput(0);
 }
 
+#define SYNTAX_PRIM_REDUCE_IMPL(name__)                                                              \
+  Variable Program::reduce_##name__(const Variable& a, const std::vector<int>& dim, bool keep_dim) { \
+    Instruction instr("reduce_" #name__, {a});                                                       \
+    instr.SetAttr("dim", dim);                                                                       \
+    instr.SetAttr("keep_dim", keep_dim);                                                             \
+    AppendInstruction(instr);                                                                        \
+    return instr.GetOutput(0);                                                                       \
+  }
+
+SYNTAX_PRIM_REDUCE_IMPL(sum)
+SYNTAX_PRIM_REDUCE_IMPL(prod)
+SYNTAX_PRIM_REDUCE_IMPL(min)
+SYNTAX_PRIM_REDUCE_IMPL(max)
+
 Variable Program::relu(const Variable& a) {
   Instruction instr("relu", {a});
   AppendInstruction(instr);
