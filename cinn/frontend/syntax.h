@@ -71,6 +71,11 @@ class Placeholder {
     var_->type  = type;
   }
 
+  explicit Placeholder(const Variable& var) {
+    id_  = var->id;
+    var_ = var;
+  }
+
   const std::vector<int>& shape() const { return var_->shape; }
 
   Type type() const { return var_->type; }
@@ -158,6 +163,12 @@ struct Instruction : public common::Shared<_Instruction_> {
  */
 struct Program {
   using attr_t = hlir::framework::NodeAttr::attr_t;
+
+  Program() = default;
+
+  Program(std::vector<Instruction>&& instrs, std::vector<Variable>&& inputs)
+      : instrs_(std::move(instrs)), inputs_(std::move(inputs)) {}
+
   void SetInputs(const std::vector<Variable>& xs);
 
   /**
