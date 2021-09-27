@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <vector>
 
 #include "cinn/ir/ir_base.h"
@@ -92,7 +92,7 @@ ir::Tensor LayoutTransform(const ir::Tensor& input,
 std::vector<ir::Expr> InferShapeLayoutTransform(const std::vector<Expr>& input_shapes,
                                                 const ir::Layout& old_layout,
                                                 const ir::Layout& new_layout,
-                                                std::unordered_map<int, std::vector<int>>* split_index_map);
+                                                absl::flat_hash_map<int, std::vector<int>>* split_index_map);
 
 }  // namespace pe
 }  // namespace hlir

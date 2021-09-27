@@ -48,7 +48,7 @@ TEST(conv, conv) {
   Placeholder C(Float(32), {1, 64, 112, 112}, "C");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
@@ -92,7 +92,7 @@ TEST(conv_relu_conv, conv_relu_conv) {
   Placeholder D(Float(32), {64, 64, 7, 7}, "D");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
@@ -141,7 +141,7 @@ TEST(conv_add_conv, conv_add_conv) {
   Placeholder D(Float(32), {64, 64, 7, 7}, "D");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
@@ -194,14 +194,14 @@ TEST(conv_bn_conv, conv_bn_conv) {
   Placeholder Variance(Float(32), {64}, "Variance");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
   std::string src_layout = "NCHW";
   attrs["data_format"]   = src_layout;
 
-  std::unordered_map<std::string, Program::attr_t> attrs1;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs1;
   attrs1["epsilon"] = (float)0.001;
 
   auto c = program.conv2d(A, B, attrs);
@@ -246,14 +246,14 @@ TEST(conv_pool2d_conv, conv_pool2d_conv) {
   Placeholder D(Float(32), {64, 64, 7, 7}, "D");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
   std::string src_layout = "NCHW";
   attrs["data_format"]   = src_layout;
 
-  std::unordered_map<std::string, Program::attr_t> attrs2;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs2;
   attrs2["stride_size"]  = std::vector<int>({2, 2});
   attrs2["padding_size"] = std::vector<int>({1, 1, 1, 1});
   attrs2["kernel_size"]  = std::vector<int>({3, 3});
@@ -301,14 +301,14 @@ TEST(conv_softmax_conv, conv_softmax_conv) {
   Placeholder D(Float(32), {64, 64, 7, 7}, "D");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
   std::string src_layout = "NCHW";
   attrs["data_format"]   = src_layout;
 
-  std::unordered_map<std::string, Program::attr_t> attrs1;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs1;
   attrs1["axis"] = (int)-1;
 
   auto c = program.conv2d(A, B, attrs);
@@ -352,7 +352,7 @@ TEST(conv_sigmoid_conv, conv_sigmoid_conv) {
   Placeholder D(Float(32), {64, 64, 7, 7}, "D");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
@@ -401,14 +401,14 @@ TEST(conv_mul_conv, conv_mul_conv) {
   Placeholder D(Float(32), {64, 64, 7, 7}, "D");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]        = std::vector<int>({2, 2});
   attrs["dilation"]      = std::vector<int>({1, 1});
   attrs["padding"]       = std::vector<int>({3, 3});
   std::string src_layout = "NCHW";
   attrs["data_format"]   = src_layout;
 
-  std::unordered_map<std::string, Program::attr_t> attrs1;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs1;
   attrs1["axis"] = (int)-1;
 
   auto c = program.conv2d(A, B, attrs);

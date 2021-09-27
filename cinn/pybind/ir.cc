@@ -127,18 +127,17 @@ void BindNode(py::module *m) {
   string_imm.def_readwrite("value", &ir::StringImm::value).def(py::init<const std::string &>());
 
   auto expr              = py::class_<ir::Expr, ir::IrNodeRef>(*m, "Expr");
-  auto bind_constructors = [&expr](auto &&... ts) { (expr.def(ts), ...); };
 
-  bind_constructors(py::init<ir::Expr &>(),
-                    py::init<ir::IrNode *>(),
-                    py::init<const ir::Var &>(),
-                    py::init<int32_t>(),
-                    py::init<uint32_t>(),
-                    py::init<int64_t>(),
-                    py::init<uint64_t>(),
-                    py::init<float>(),
-                    py::init<double>(),
-                    py::init<const std::string &>());
+  expr.def(py::init<ir::Expr &>());
+  expr.def(py::init<ir::IrNode *>());
+  expr.def(py::init<const ir::Var &>());
+  expr.def(py::init<int32_t>());
+  expr.def(py::init<uint32_t>());
+  expr.def(py::init<int64_t>());
+  expr.def(py::init<uint64_t>());
+  expr.def(py::init<float>());
+  expr.def(py::init<double>());
+  expr.def(py::init<const std::string &>());
 
   expr.def("as_int32", &ir::Expr::as_int32)
       .def("as_int64", &ir::Expr::as_int64)

@@ -6,9 +6,11 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
+
+#include <absl/strings/string_view.h>
 
 #include "cinn/common/graph_utils.h"
 #include "cinn/ir/buffer.h"
@@ -159,7 +161,7 @@ class _Tensor_ : public ExprNode<_Tensor_> {
    * @param statement The name of a statement(equivalent to the id of tensor).
    * @return A boolean.
    */
-  bool IsDependOnStatement(std::string_view statement);
+  bool IsDependOnStatement(absl::string_view statement);
 
   /**
    * Get the names of the tensors thouse this tensor depends on.

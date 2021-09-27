@@ -144,7 +144,10 @@ int isl_get_original_axes_from_optimized_level(isl_set __isl_keep *a, int level)
   for (int i = 0; i <= level;) {
     original_level++;
     if (isl_set_axis_has_noparam_constant_bound(a, original_level)) {
-      auto [minv, maxv] = isl_set_get_axis_range(a, original_level);
+      auto range = isl_set_get_axis_range(a, original_level);
+      auto &minv = std::get<0>(range);
+      auto &maxv = std::get<1>(range);
+
       int min_iv        = minv.get_num_si();
       int max_iv        = maxv.get_num_si();
       if (max_iv == min_iv) {
@@ -161,7 +164,10 @@ int isl_get_precending_removed_axes_counts(isl_set __isl_keep *a, int level) {
   std::vector<std::tuple<int, int>> iden_dim_offsets;
   for (int i = 0; i <= level; i++) {
     if (isl_set_axis_has_noparam_constant_bound(a, i)) {
-      auto [minv, maxv] = isl_set_get_axis_range(a, i);
+      auto range = isl_set_get_axis_range(a, i);
+      auto &minv = std::get<0>(range);
+      auto &maxv = std::get<1>(range);
+
       int min_iv        = minv.get_num_si();
       int max_iv        = maxv.get_num_si();
       if (max_iv == min_iv) {
@@ -175,7 +181,10 @@ int isl_get_precending_removed_axes_counts(isl_set __isl_keep *a, int level) {
 bool isl_is_removed_axis(isl_set __isl_keep *a, int level) {
   std::vector<std::tuple<int, int>> iden_dim_offsets;
   if (isl_set_axis_has_noparam_constant_bound(a, level)) {
-    auto [minv, maxv] = isl_set_get_axis_range(a, level);
+    auto range = isl_set_get_axis_range(a, level);
+    auto &minv = std::get<0>(range);
+    auto &maxv = std::get<1>(range);
+
     int min_iv        = minv.get_num_si();
     int max_iv        = maxv.get_num_si();
     if (max_iv == min_iv) {
@@ -467,8 +476,12 @@ std::vector<std::string> GetRelatedInputAxies(const isl::map &x,
       VLOG(1) << "GetRelatedInputAxies res is : " << i;
       res.push_back(i);
     } else if (out_set.count(i) > 0) {
-      auto [minv1, maxv1] = isl_set_get_axis_range_by_name(origin_domain.get(), i);
-      auto [minv2, maxv2] = isl_set_get_axis_range_by_name(transformed_domain.get(), i);
+      auto range1 = isl_set_get_axis_range_by_name(origin_domain.get(), i);
+      auto &minv1 = std::get<0>(range1);
+      auto &maxv1 = std::get<1>(range1);
+      auto range2 = isl_set_get_axis_range_by_name(transformed_domain.get(), i);
+      auto &minv2 = std::get<0>(range2);
+      auto &maxv2 = std::get<1>(range2);
       int min_iv1         = minv1.get_num_si();
       int max_iv1         = maxv1.get_num_si();
       int min_iv2         = minv2.get_num_si();

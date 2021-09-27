@@ -53,13 +53,11 @@ class OpTest_conv2d_nchw(SingleOpTester):
         self.padding = [1, 1]
         self.stride = [2, 2]
         self.dilation = [2, 2]
-        self.attrs.attr_store = {
-            "stride": self.stride,
-            "padding": self.padding,
-            "dilation": self.dilation,
-            "groups": self.groups,
-            "data_format": self.data_format
-        }
+        self.attrs.set_attr("stride", self.stride)
+        self.attrs.set_attr("padding", self.padding)
+        self.attrs.set_attr("dilation", self.dilation)
+        self.attrs.set_attr("groups", self.groups)
+        self.attrs.set_attr("data_format", self.data_format)
 
     def create_target_data(self, inputs_data, attrs):
         return conv2d_utils.conv2d_native(inputs_data, self.input_size,
@@ -83,13 +81,11 @@ class OpTest_conv2d_nchw_1(SingleOpTester):
         self.padding = [3, 3]
         self.stride = [2, 2]
         self.dilation = [1, 1]
-        self.attrs.attr_store = {
-            "stride": self.stride,
-            "padding": self.padding,
-            "dilation": self.dilation,
-            "groups": self.groups,
-            "data_format": self.data_format
-        }
+        self.attrs.set_attr("stride", self.stride)
+        self.attrs.set_attr("padding", self.padding)
+        self.attrs.set_attr("dilation", self.dilation)
+        self.attrs.set_attr("groups", self.groups)
+        self.attrs.set_attr("data_format", self.data_format)
 
     def create_target_data(self, inputs_data, attrs):
         return conv2d_utils.conv2d_native(inputs_data, self.input_size,
@@ -113,13 +109,11 @@ class OpTest_conv2d_nchw_group(SingleOpTester):
         self.padding = [1, 1]
         self.stride = [2, 2]
         self.dilation = [1, 1]
-        self.attrs.attr_store = {
-            "stride": self.stride,
-            "padding": self.padding,
-            "dilation": self.dilation,
-            "groups": self.groups,
-            "data_format": self.data_format
-        }
+        self.attrs.set_attr("stride", self.stride)
+        self.attrs.set_attr("padding", self.padding)
+        self.attrs.set_attr("dilation", self.dilation)
+        self.attrs.set_attr("groups", self.groups)
+        self.attrs.set_attr("data_format", self.data_format)
 
     def create_target_data(self, inputs_data, attrs):
         return conv2d_utils.conv2d_native(inputs_data, self.input_size,
@@ -143,13 +137,11 @@ class OpTest_conv2d_nchw_depthwise(SingleOpTester):
         self.padding = [1, 1]
         self.stride = [2, 2]
         self.dilation = [1, 1]
-        self.attrs.attr_store = {
-            "stride": self.stride,
-            "padding": self.padding,
-            "dilation": self.dilation,
-            "groups": self.groups,
-            "data_format": self.data_format
-        }
+        self.attrs.set_attr("stride", self.stride)
+        self.attrs.set_attr("padding", self.padding)
+        self.attrs.set_attr("dilation", self.dilation)
+        self.attrs.set_attr("groups", self.groups)
+        self.attrs.set_attr("data_format", self.data_format)
 
     def create_target_data(self, inputs_data, attrs):
         return conv2d_utils.conv2d_native(inputs_data, self.input_size,
@@ -173,13 +165,11 @@ class OpTest_conv2d_nhwc_group(SingleOpTester):
         self.padding = [2, 2]
         self.stride = [2, 2]
         self.dilation = [2, 2]
-        self.attrs.attr_store = {
-            "stride": self.stride,
-            "padding": self.padding,
-            "dilation": self.dilation,
-            "groups": self.groups,
-            "data_format": self.data_format
-        }
+        self.attrs.set_attr("stride", self.stride)
+        self.attrs.set_attr("padding", self.padding)
+        self.attrs.set_attr("dilation", self.dilation)
+        self.attrs.set_attr("groups", self.groups)
+        self.attrs.set_attr("data_format", self.data_format)
 
     def create_target_data(self, inputs_data, attrs):
         return conv2d_utils.conv2d_native(inputs_data, self.input_size,
@@ -203,13 +193,11 @@ class OpTest_conv2d_nhwc_depthwise(SingleOpTester):
         self.padding = [1, 1]
         self.stride = [2, 2]
         self.dilation = [1, 1]
-        self.attrs.attr_store = {
-            "stride": self.stride,
-            "padding": self.padding,
-            "dilation": self.dilation,
-            "groups": self.groups,
-            "data_format": self.data_format
-        }
+        self.attrs.set_attr("stride", self.stride)
+        self.attrs.set_attr("padding", self.padding)
+        self.attrs.set_attr("dilation", self.dilation)
+        self.attrs.set_attr("groups", self.groups)
+        self.attrs.set_attr("data_format", self.data_format)
 
     def create_target_data(self, inputs_data, attrs):
         return conv2d_utils.conv2d_native(inputs_data, self.input_size,
@@ -234,13 +222,11 @@ class OpTest_depthwise_conv2d_nchw(SingleOpTester):
         self.padding = [1, 1]
         self.stride = [2, 2]
         self.dilation = [1, 1]
-        self.attrs.attr_store = {
-            "stride": self.stride,
-            "padding": self.padding,
-            "dilation": self.dilation,
-            "groups": self.groups,
-            "data_format": self.data_format
-        }
+        self.attrs.set_attr("stride", self.stride)
+        self.attrs.set_attr("padding", self.padding)
+        self.attrs.set_attr("dilation", self.dilation)
+        self.attrs.set_attr("groups", self.groups)
+        self.attrs.set_attr("data_format", self.data_format)
 
     def create_target_data(self, inputs_data, attrs):
         return conv2d_utils.conv2d_native(inputs_data, self.input_size,
@@ -265,13 +251,11 @@ class OpTest_depthwise_conv2d_nhwc(SingleOpTester):
         self.padding = [1, 1]
         self.stride = [2, 2]
         self.dilation = [1, 1]
-        self.attrs.attr_store = {
-            "stride": self.stride,
-            "padding": self.padding,
-            "dilation": self.dilation,
-            "groups": self.groups,
-            "data_format": self.data_format
-        }
+        self.attrs.set_attr("stride", self.stride)
+        self.attrs.set_attr("padding", self.padding)
+        self.attrs.set_attr("dilation", self.dilation)
+        self.attrs.set_attr("groups", self.groups)
+        self.attrs.set_attr("data_format", self.data_format)
 
     def create_target_data(self, inputs_data, attrs):
         return conv2d_utils.conv2d_native(inputs_data, self.input_size,
@@ -285,15 +269,13 @@ class OpTest_depthwise_conv2d_nhwc(SingleOpTester):
 
 class OpTest_pool1d(SingleOpTester):
     attrs = framework.NodeAttr()
-    attrs.attr_store = {
-        "kernel_size": [2],
-        "stride_size": [2],
-        "padding_size": [1, 1],
-        "pool_type": "max",
-        "ceil_mode": False,
-        "exclusive": True,
-        "data_format": "NCW"
-    }
+    attrs.set_attr("kernel_size", [2])
+    attrs.set_attr("stride_size", [2])
+    attrs.set_attr("padding_size", [1, 1])
+    attrs.set_attr("pool_type", "max")
+    attrs.set_attr("ceil_mode", False)
+    attrs.set_attr("exclusive", True)
+    attrs.set_attr("data_format", "NCW")
 
     def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool1d(inputs_data[0], self.attrs)
@@ -305,15 +287,13 @@ class OpTest_pool1d(SingleOpTester):
 
 class OpTest_pool1d_1(SingleOpTester):
     attrs = framework.NodeAttr()
-    attrs.attr_store = {
-        "kernel_size": [2],
-        "stride_size": [2],
-        "padding_size": [2, 3],
-        "pool_type": "avg",
-        "ceil_mode": False,
-        "exclusive": True,
-        "data_format": "NCW"
-    }
+    attrs.set_attr("kernel_size", [2])
+    attrs.set_attr("stride_size", [2])
+    attrs.set_attr("padding_size", [2, 3])
+    attrs.set_attr("pool_type", "avg")
+    attrs.set_attr("ceil_mode", False)
+    attrs.set_attr("exclusive", True)
+    attrs.set_attr("data_format", "NCW")
 
     def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool1d(inputs_data[0], self.attrs)
@@ -325,15 +305,13 @@ class OpTest_pool1d_1(SingleOpTester):
 
 class OpTest_pool1d_2(SingleOpTester):
     attrs = framework.NodeAttr()
-    attrs.attr_store = {
-        "kernel_size": [2],
-        "stride_size": [3],
-        "padding_size": [4, 5],
-        "pool_type": "avg",
-        "ceil_mode": True,
-        "exclusive": False,
-        "data_format": "NWC"
-    }
+    attrs.set_attr("kernel_size", [2])
+    attrs.set_attr("stride_size", [3])
+    attrs.set_attr("padding_size", [4, 5])
+    attrs.set_attr("pool_type", "avg")
+    attrs.set_attr("ceil_mode", True)
+    attrs.set_attr("exclusive", False)
+    attrs.set_attr("data_format", "NWC")
 
     def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool1d(inputs_data[0], self.attrs)
@@ -345,15 +323,13 @@ class OpTest_pool1d_2(SingleOpTester):
 
 class OpTest_pool2d(SingleOpTester):
     attrs = framework.NodeAttr()
-    attrs.attr_store = {
-        "kernel_size": [2, 2],
-        "stride_size": [2, 2],
-        "padding_size": [1, 1, 1, 1],
-        "pool_type": "max",
-        "ceil_mode": False,
-        "exclusive": True,
-        "data_format": "NCHW"
-    }
+    attrs.set_attr("kernel_size", [2, 2])
+    attrs.set_attr("stride_size", [2, 2])
+    attrs.set_attr("padding_size", [1, 1, 1, 1])
+    attrs.set_attr("pool_type", "max")
+    attrs.set_attr("ceil_mode", False)
+    attrs.set_attr("exclusive", True)
+    attrs.set_attr("data_format", "NCHW")
 
     def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool2d(inputs_data[0], self.attrs)
@@ -365,15 +341,13 @@ class OpTest_pool2d(SingleOpTester):
 
 class OpTest_pool2d_1(SingleOpTester):
     attrs = framework.NodeAttr()
-    attrs.attr_store = {
-        "kernel_size": [2, 2],
-        "stride_size": [2, 2],
-        "padding_size": [2, 3, 4, 5],
-        "pool_type": "avg",
-        "ceil_mode": False,
-        "exclusive": True,
-        "data_format": "NCHW"
-    }
+    attrs.set_attr("kernel_size", [2, 2])
+    attrs.set_attr("stride_size", [2, 2])
+    attrs.set_attr("padding_size", [2, 3, 4, 5])
+    attrs.set_attr("pool_type", "avg")
+    attrs.set_attr("ceil_mode", False)
+    attrs.set_attr("exclusive", True)
+    attrs.set_attr("data_format", "NCHW")
 
     def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool2d(inputs_data[0], self.attrs)
@@ -385,15 +359,13 @@ class OpTest_pool2d_1(SingleOpTester):
 
 class OpTest_pool2d_2(SingleOpTester):
     attrs = framework.NodeAttr()
-    attrs.attr_store = {
-        "kernel_size": [2, 2],
-        "stride_size": [3, 3],
-        "padding_size": [2, 3, 4, 5],
-        "pool_type": "avg",
-        "ceil_mode": True,
-        "exclusive": False,
-        "data_format": "NHWC"
-    }
+    attrs.set_attr("kernel_size", [2, 2])
+    attrs.set_attr("stride_size", [3, 3])
+    attrs.set_attr("padding_size", [2, 3, 4, 5])
+    attrs.set_attr("pool_type", "avg")
+    attrs.set_attr("ceil_mode", True)
+    attrs.set_attr("exclusive", False)
+    attrs.set_attr("data_format", "NHWC")
 
     def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool2d(inputs_data[0], self.attrs)
@@ -427,15 +399,13 @@ class OpTest_pool2d_2(SingleOpTester):
 
 class OpTest_pool3d_1(SingleOpTester):
     attrs = framework.NodeAttr()
-    attrs.attr_store = {
-        "kernel_size": [2, 2, 2],
-        "stride_size": [2, 2, 2],
-        "padding_size": [1, 1, 1, 1, 1, 1],
-        "pool_type": "avg",
-        "ceil_mode": False,
-        "exclusive": True,
-        "data_format": "NCDHW"
-    }
+    attrs.set_attr("kernel_size", [2, 2, 2])
+    attrs.set_attr("stride_size", [2, 2, 2])
+    attrs.set_attr("padding_size", [1, 1, 1, 1, 1, 1])
+    attrs.set_attr("pool_type", "avg")
+    attrs.set_attr("ceil_mode", False)
+    attrs.set_attr("exclusive", True)
+    attrs.set_attr("data_format", "NCDHW")
 
     def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool3d(inputs_data[0], self.attrs)
@@ -447,15 +417,13 @@ class OpTest_pool3d_1(SingleOpTester):
 
 class OpTest_pool3d_2(SingleOpTester):
     attrs = framework.NodeAttr()
-    attrs.attr_store = {
-        "kernel_size": [2, 2, 2],
-        "stride_size": [2, 2, 2],
-        "padding_size": [1, 2, 3, 4, 5, 6],
-        "pool_type": "avg",
-        "ceil_mode": True,
-        "exclusive": False,
-        "data_format": "NDHWC"
-    }
+    attrs.set_attr("kernel_size", [2, 2, 2])
+    attrs.set_attr("stride_size", [2, 2, 2])
+    attrs.set_attr("padding_size", [1, 2, 3, 4, 5, 6])
+    attrs.set_attr("pool_type", "avg")
+    attrs.set_attr("ceil_mode", True)
+    attrs.set_attr("exclusive", False)
+    attrs.set_attr("data_format", "NDHWC")
 
     def create_target_data(self, inputs_data, attrs):
         return pool_utils.pool3d(inputs_data[0], self.attrs)
@@ -570,10 +538,8 @@ class OpTest_slice_1(SingleOpTester):
 class OpTest_dropout_infer_0(SingleOpTester):
     def init_testcase(self):
         self.attrs = framework.NodeAttr()
-        self.attrs.attr_store = {
-            "dropout_prob": 0.2,
-            "dropout_implementation": "downgrade_in_infer",
-        }
+        self.attrs.set_attr("dropout_prob", 0.2)
+        self.attrs.set_attr("dropout_implementation", "downgrade_in_infer")
 
     def create_target_data(self, inputs_data, attrs):
         [X] = inputs_data
@@ -593,10 +559,8 @@ class OpTest_dropout_infer_0(SingleOpTester):
 class OpTest_dropout_infer_1(SingleOpTester):
     def init_testcase(self):
         self.attrs = framework.NodeAttr()
-        self.attrs.attr_store = {
-            "dropout_prob": 0.2,
-            "dropout_implementation": "upscale_in_train",
-        }
+        self.attrs.set_attr("dropout_prob", 0.2)
+        self.attrs.set_attr("dropout_implementation", "upscale_in_train")
 
     def create_target_data(self, inputs_data, attrs):
         [X] = inputs_data

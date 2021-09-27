@@ -27,7 +27,10 @@ TEST(Compiler, x86) {
   };
 
   {                                    // test x86
-    auto [A, B, C] = create_module();  // NOLINT
+    auto _A_B_C_ = create_module();  // NOLINT
+    auto &A = std::get<0>(_A_B_C_);
+    auto &B = std::get<1>(_A_B_C_);
+    auto &C = std::get<2>(_A_B_C_);
 
     auto stages = CreateStages({C});
 
@@ -73,7 +76,10 @@ TEST(Compiler, cuda) {
   };
 
   {                                    // cuda
-    auto [A, B, C] = create_module();  // NOLINT
+    auto _A_B_C_ = create_module();  // NOLINT
+    auto &A = std::get<0>(_A_B_C_);
+    auto &B = std::get<1>(_A_B_C_);
+    auto &C = std::get<2>(_A_B_C_);
     auto stages    = CreateStages({C});
 
     stages[C]->Bind(0, "blockIdx.x");

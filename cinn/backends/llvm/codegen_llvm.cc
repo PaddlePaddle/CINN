@@ -878,6 +878,16 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Tensor_ *op) {
   return SetVar(buffer_op->name, Visit(buffer_op));
 }
 
+template <typename T, std::enable_if_t<std::is_same<const ir::Expr&, T>::value, int> = 0>
+void appendBody(std::vector<Expr> & new_body, T && v) {
+  new_body.push_back(v);
+}
+
+template <typename T, std::enable_if_t<!std::is_same<const ir::Expr&, T>::value, int> = 1>
+void appendBody(std::vector<Expr> & new_body, T && v) {
+  new_body.insert(new_body.end(), v.begin(), v.end());
+}
+
 llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
   auto init_function_state = [this]() { alias_vars_.clear(); };
   init_function_state();
@@ -893,25 +903,22 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
                    create_temp_buffers.size() + alloca_temp_buffers.size() + dealloca_temp_buffers.size() +
                    op->buffer_data_cast_exprs.size() + 1 /*op->body*/ + op->dealloc_output_buffer_exprs.size());
 
-  auto new_body_append = [&new_body](auto &&... v) {
-    auto append = [&new_body](auto &&v) {
-      if constexpr (std::is_same<const ir::Expr &, decltype(v)>::value) {
-        new_body.push_back(v);
-      } else {
-        new_body.insert(new_body.end(), v.begin(), v.end());
-      }
-    };
-    (append(v), ...);
-  };
+//  auto append = [&new_body](auto &&v) {
+//    if (std::is_same<const ir::Expr &, decltype(v)>::value) {
+//      new_body.push_back(v);
+//    } else {
+//      new_body.insert(new_body.end(), v.begin(), v.end());
+//    }
+//  };
 
-  new_body_append(op->argument_prepare_exprs,
-                  create_temp_buffers,
-                  alloca_temp_buffers,
-                  op->alloc_output_buffer_exprs,
-                  op->buffer_data_cast_exprs,
-                  op->body,
-                  dealloca_temp_buffers,
-                  op->dealloc_output_buffer_exprs);
+  appendBody(new_body, op->argument_prepare_exprs);
+  appendBody(new_body, create_temp_buffers);
+  appendBody(new_body, alloca_temp_buffers);
+  appendBody(new_body, op->alloc_output_buffer_exprs);
+  appendBody(new_body, op->buffer_data_cast_exprs);
+  appendBody(new_body, op->body);
+  appendBody(new_body, dealloca_temp_buffers);
+  appendBody(new_body, op->dealloc_output_buffer_exprs);
 
   ir::Expr function_body = ir::Block::Make(new_body);
 
@@ -1206,7 +1213,7 @@ bool LLVM_WillVarLowerAsPointer(const std::string &var_name) {
   return var_name == "_args" || utils::Endswith(var_name, "__ptr");
 }
 
-void CodeGenLLVM::AddTbaaMetadata(llvm::Instruction *inst, std::string_view buffer, Expr index) {
+void CodeGenLLVM::AddTbaaMetadata(llvm::Instruction *inst, absl::string_view buffer, Expr index) {
   // If the index is constant, generate some TBAA info that helps LLVM understand our loads/stores aren't aliased.
   bool constant_index = false;
   int base            = 0;

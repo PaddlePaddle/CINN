@@ -3,20 +3,24 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-
+// 
 #include "cinn/cinn.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
+#include "cinn/hlir/framework/scope.h"
 
 DEFINE_string(model_dir, "", "");
 
 namespace cinn {
 namespace frontend {
 
-using hlir::framework::Scope;
+using ::cinn::hlir::framework::Graph;
+using ::cinn::hlir::framework::Scope;
+
+// using hlir::framework::Scope;
 using utils::Join;
 
 std::unique_ptr<Program> CreateAddProgram() {
@@ -59,7 +63,7 @@ TEST(syntax, program_execute_multi_elementwise_add) {
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   auto scope = BuildScope(target, graph);
-
+//
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 
@@ -143,8 +147,11 @@ TEST(syntax, program_execute_fc) {
 TEST(load_paddle_model, fc_execute) {
   auto scope = std::make_shared<Scope>();
 
-  auto [program, var_map, var_map_paddle_to_program] =
-      LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
+  auto programTuple = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
+  auto &program = std::get<0>(programTuple);
+  auto &var_map = std::get<1>(programTuple);
+  auto &var_map_paddle_to_program = std::get<2>(programTuple);
+
   var_map["A"]->shape = {1, 30};
   program->SetInputs({var_map["A"]});
   program->Validate();
@@ -184,14 +191,14 @@ TEST(Frontend, conv) {
   Program program;
   auto c = program.elementwise_add(A, B);
   auto d = program.relu(c);
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["stride"]   = std::vector<int>({1, 1});
   attrs["dilation"] = std::vector<int>({1, 1});
   attrs["padding"]  = std::vector<int>({0, 0});
 
   auto f = program.conv2d(d, E, attrs);
 
-  std::unordered_map<std::string, Program::attr_t> attrs1, attrs2;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs1, attrs2;
 
   attrs1["scale"] = 2.0f;
   attrs1["bias"]  = 0.5f;

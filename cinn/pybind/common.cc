@@ -138,7 +138,7 @@ void BindType(py::module *m) {
           py::arg("type"),
           py::arg("val"));
 
-  m->def("type_of", [](std::string_view dtype) {
+  m->def("type_of", [](absl::string_view dtype) {
     if (dtype == "float32") return common::type_of<float>();
     if (dtype == "float64") return common::type_of<double>();
     if (dtype == "uchar") return common::type_of<unsigned char>();
@@ -178,6 +178,25 @@ void BindShared(py::module *m) {
       .def("is_zero", &common::RefCount::is_zero)
       .def("to_string", &common::RefCount::to_string)
       .def("val", &common::RefCount::val);
+}
+
+// TODO(wanghaipeng03) using true_type or false_type as tag disptcher losses semantic context
+template <typename T1, typename T2, typename F>
+inline auto __binary_op_fn_dispatch(T1 x, T2 y, F fn, std::true_type) {
+  return fn(ir::Expr(x), ir::Expr(y)).as_var_ref();
+}
+template <typename T1, typename T2, typename F>
+inline auto __binary_op_fn_dispatch(T1 x, T2 y, F fn, std::false_type) {
+  return fn(x, y);
+}
+
+template <typename T1, typename T2, typename F>
+inline void __binary_op_visitor_dispatch(CINNValue &v, T1 lhs, T2 rhs, F fn, std::true_type) {
+  v = CINNValue();
+}
+template <typename T1, typename T2, typename F>
+inline void __binary_op_visitor_dispatch(CINNValue &v, T1 lhs, T2 rhs, F fn, std::false_type) {
+  v.Set(fn(lhs, rhs));
 }
 
 void BindCinnValue(py::module *m) {
@@ -243,27 +262,24 @@ void BindCinnValue(py::module *m) {
   auto binary_op_visitor = [](CINNValue &v, auto lhs, auto rhs, auto fn) {
     using lhs_t = decltype(lhs);
     using rhs_t = decltype(rhs);
-    if constexpr (std::is_same_v<lhs_t, std::nullptr_t> || std::is_same_v<rhs_t, std::nullptr_t> ||
-                  !std::is_same_v<lhs_t, rhs_t>) {
-      v = CINNValue();
-    } else {
-      v.Set(fn(lhs, rhs));
-    }
+    using tag_t = std::conditional_t<
+                    std::is_same<lhs_t, std::nullptr_t>::value ||
+                    std::is_same<rhs_t, std::nullptr_t>::value ||
+                    !std::is_same<lhs_t, rhs_t>::value, std::true_type, std::false_type>;
+    __binary_op_visitor_dispatch(v, lhs, rhs, fn, tag_t{});
   };
+
 
 #define DEFINE_BINARY_OP(__op, __fn)                                                         \
   auto __op##_fn = [&](auto x, auto y) {                                                     \
-    constexpr auto is_var_x = std::is_same_v<std::decay_t<decltype(x)>, ir::Var>;            \
-    constexpr auto is_var_y = std::is_same_v<std::decay_t<decltype(y)>, ir::Var>;            \
-    if constexpr (is_var_x && is_var_y) {                                                    \
-      return __fn(ir::Expr(x), ir::Expr(y)).as_var_ref();                                    \
-    } else {                                                                                 \
-      return __fn(x, y);                                                                     \
-    }                                                                                        \
+    constexpr auto is_var_x = std::is_same<std::decay_t<decltype(x)>, ir::Var>::value;       \
+    constexpr auto is_var_y = std::is_same<std::decay_t<decltype(y)>, ir::Var>::value;       \
+    using tag_t = std::conditional_t<is_var_x && is_var_y, std::true_type, std::false_type>; \
+    return __binary_op_fn_dispatch(x, y, __fn, tag_t{});                                     \
   };                                                                                         \
   cinn_value.def(#__op, [&](CINNValue &self, CINNValue &other) {                             \
     auto visitor = [&](auto x, auto y) { return binary_op_visitor(self, x, y, __op##_fn); }; \
-    std::visit(visitor, ConvertToVar(self), ConvertToVar(other));                            \
+    absl::visit(visitor, ConvertToVar(self), ConvertToVar(other));                           \
     return self;                                                                             \
   })
 

@@ -399,7 +399,7 @@ std::vector<ir::Tensor> MulBias(const Tensor& A,
 
 void GetLayoutTransformInfo(const ir::Layout& src_layout,
                             const ir::Layout& dst_layout,
-                            std::unordered_map<int, std::vector<int>>* split_index_map) {
+                            absl::flat_hash_map<int, std::vector<int>>* split_index_map) {
   CHECK_GT(dst_layout.ndims(), src_layout.ndims());
   int offset = 'A' - 'a';
   CHECK_EQ(dst_layout.axis_names().size(), dst_layout.ndims());
@@ -428,7 +428,7 @@ void GetLayoutTransformInfo(const ir::Layout& src_layout,
 std::vector<Expr> InferShapeLayoutTransform(const std::vector<Expr>& input_shapes,
                                             const ir::Layout& old_layout,
                                             const ir::Layout& new_layout,
-                                            std::unordered_map<int, std::vector<int>>* split_index_map) {
+                                            absl::flat_hash_map<int, std::vector<int>>* split_index_map) {
   int src_dim = old_layout.ndims();
   int dst_dim = new_layout.ndims();
   std::vector<Expr> output_shape(dst_dim);
@@ -486,7 +486,7 @@ ir::Tensor LayoutTransform(const Tensor& input,
   // OIHWxixo -> OIHW
   CHECK_GE(src_layout.size(), 4U);
   CHECK_GE(dst_layout.size(), 4U);
-  std::unordered_map<int, std::vector<int>> split_index_map;
+  absl::flat_hash_map<int, std::vector<int>> split_index_map;
   // transform shape
   int offset = 'A' - 'a';
   ir::Layout old_layout(src_layout);

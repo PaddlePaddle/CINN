@@ -154,7 +154,9 @@ struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
           auto debug_info_node = CreateDebugStatement(msg);
           new_stmts.push_back(debug_info_node);
         } else {
-          auto [msg, args]     = StoreDebugInfo(e);
+          auto _msg_args_     = StoreDebugInfo(e);
+          auto &msg = std::get<0>(_msg_args_);
+          auto &args = std::get<1>(_msg_args_);
           auto debug_info_node = CreateDebugStatement("running: " + msg, std::move(args));
           new_stmts.push_back(debug_info_node);
         }
@@ -165,12 +167,16 @@ struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
       new_stmts.push_back(e);
 
       if (!IsDebugInfoNode(e) && e.As<ir::Store>()) {
-        auto [msg, args]     = StoreDebugInfo(e);
+        auto _msg_args_     = StoreDebugInfo(e);
+        auto &msg = std::get<0>(_msg_args_);
+        auto &args = std::get<1>(_msg_args_);
         auto debug_info_node = CreateDebugStatement(msg, std::move(args));
         new_stmts.push_back(debug_info_node);
 
         {  // detailed debug
-          auto [format, args] = StoreDebugInfoBuilder()(&e);
+          auto _format_args_ = StoreDebugInfoBuilder()(&e);
+          auto &format = std::get<0>(_format_args_);
+          auto &args = std::get<1>(_format_args_);
           new_stmts.push_back(CreateDebugStatement(format, std::move(args)));
         }
       }

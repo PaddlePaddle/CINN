@@ -16,7 +16,7 @@ TEST(load_x86_params, load_x86_params) {
   std::string key = "X86ScheduleConv input 1 3 224 224 weight 64 3 7 7 stride 2 2 padding 3 3 dilation 1 1";
   ASSERT_EQ(res.count(key), 1);
 
-  std::unordered_map<std::string, int> conv2d_factors;
+  absl::flat_hash_map<std::string, int> conv2d_factors;
   auto target                    = common::DefaultHostTarget();
   std::vector<int> shape_input   = {1, 64, 56, 56};
   std::vector<int> shape_weights = {64, 64, 3, 3};

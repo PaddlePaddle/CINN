@@ -6,7 +6,7 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include <variant>
+#include <absl/types/variant.h>
 
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/frontend/paddle_model_to_program.h"
@@ -26,9 +26,9 @@ void Instruction::PrepareOutputs() {
   }
 }
 
-Instruction::Instruction(std::string_view op_type, const std::vector<Variable>& inputs, Program* parent)
+Instruction::Instruction(absl::string_view op_type, const std::vector<Variable>& inputs, Program* parent)
     : common::Shared<_Instruction_>(common::make_shared<_Instruction_>()) {
-  get()->op_type        = op_type;
+  get()->op_type        = std::string(op_type);
   get()->parent_program = parent;
   get()->inputs         = inputs;
   PrepareOutputs();
@@ -38,7 +38,7 @@ Placeholder::operator Variable() const { return var_; }
 
 Variable Program::conv2d(const Variable& a,
                          const Variable& b,
-                         const std::unordered_map<std::string, attr_t>& attr_store) {
+                         const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   Instruction instr("conv2d");
   instr.SetInputs({a, b});
   for (auto& iter : attr_store) {
@@ -48,7 +48,7 @@ Variable Program::conv2d(const Variable& a,
   return instr.GetOutput(0);
 }
 
-Variable Program::layout_transform(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
+Variable Program::layout_transform(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   Instruction instr("layout_transform");
   instr.SetInputs({a});
   for (auto& iter : attr_store) {
@@ -60,7 +60,7 @@ Variable Program::layout_transform(const Variable& a, const std::unordered_map<s
 
 Variable Program::conv2d_NCHWc(const Variable& a,
                                const Variable& b,
-                               const std::unordered_map<std::string, attr_t>& attr_store) {
+                               const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   Instruction instr("conv2d_NCHWc");
   instr.SetInputs({a, b});
   for (auto& iter : attr_store) {
@@ -72,7 +72,7 @@ Variable Program::conv2d_NCHWc(const Variable& a,
 
 Variable Program::depthwise_conv2d(const Variable& a,
                                    const Variable& b,
-                                   const std::unordered_map<std::string, attr_t>& attr_store) {
+                                   const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   Instruction instr("depthwise_conv2d");
   instr.SetInputs({a, b});
   for (auto& iter : attr_store) {
@@ -82,7 +82,7 @@ Variable Program::depthwise_conv2d(const Variable& a,
   return instr.GetOutput(0);
 }
 
-Variable Program::pool2d(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
+Variable Program::pool2d(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   Instruction instr("pool2d");
   instr.SetInputs({a});
   for (auto& iter : attr_store) {
@@ -97,7 +97,7 @@ Variable Program::batchnorm(const Variable& a,
                             const Variable& bias,
                             const Variable& mean,
                             const Variable& variance,
-                            const std::unordered_map<std::string, attr_t>& attr_store) {
+                            const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   Instruction instr("batchnorm");
   instr.SetInputs({a, scale, bias, mean, variance});
   for (auto& iter : attr_store) {
@@ -137,10 +137,10 @@ Variable Program::fused_batchnorm_inference(const Variable& a,
                                             const Variable& bias,
                                             const Variable& mean,
                                             const Variable& variance,
-                                            const std::unordered_map<std::string, attr_t>& attr_store) {
+                                            const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   float epsilon = 0.00001f;
   if (attr_store.find("epsilon") != attr_store.end()) {
-    epsilon = std::get<float>(attr_store.at("epsilon"));
+    epsilon = absl::get<float>(attr_store.at("epsilon"));
   }
   auto eps_var = primitive_const_scalar<float>(epsilon, common::UniqName("epsilon"));
   CHECK(!scale->shape.empty()) << "scale's shape is empty.";
@@ -160,7 +160,7 @@ Variable Program::fused_batchnorm_inference(const Variable& a,
   return bn_out;
 }
 
-Variable Program::scale(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
+Variable Program::scale(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   Instruction instr("scale", {a});
   for (auto& iter : attr_store) {
     instr.SetAttr(iter.first, iter.second);
@@ -169,7 +169,7 @@ Variable Program::scale(const Variable& a, const std::unordered_map<std::string,
   return instr.GetOutput(0);
 }
 
-Variable Program::softmax(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
+Variable Program::softmax(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   Instruction instr("softmax", {a});
   for (auto& iter : attr_store) {
     instr.SetAttr(iter.first, iter.second);
@@ -184,7 +184,7 @@ Variable Program::sigmoid(const Variable& a) {
   return instr.GetOutput(0);
 }
 
-Variable Program::slice(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
+Variable Program::slice(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   Instruction instr("slice", {a});
   for (auto& iter : attr_store) {
     instr.SetAttr(iter.first, iter.second);
@@ -193,7 +193,7 @@ Variable Program::slice(const Variable& a, const std::unordered_map<std::string,
   return instr.GetOutput(0);
 }
 
-Variable Program::dropout_infer(const Variable& a, const std::unordered_map<std::string, attr_t>& attr_store) {
+Variable Program::dropout_infer(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store) {
   Instruction instr("dropout_infer", {a});
   for (auto& iter : attr_store) {
     instr.SetAttr(iter.first, iter.second);
@@ -223,8 +223,8 @@ std::ostream& operator<<(std::ostream& os, const Instruction& instr) {
 }
 
 std::tuple<std::unique_ptr<Program>,
-           std::unordered_map<std::string, Variable>,
-           std::unordered_map<std::string, std::string>>
+           absl::flat_hash_map<std::string, Variable>,
+           absl::flat_hash_map<std::string, std::string>>
 LoadPaddleProgram(const std::string& model_dir, Scope* scope, bool is_combined, const common::Target& target) {
   LOG(INFO) << "Loading Paddle model from " << model_dir;
   PaddleModelToProgram _(scope, target);
@@ -405,7 +405,7 @@ std::string _Instruction_::debug_string() const {
   for (auto& attr : attrs) {
     std::stringstream iss;
     iss << attr.first << "=";
-    std::visit(Visit{iss}, attr.second);
+    absl::visit(Visit{iss}, attr.second);
     attr_strs.push_back(iss.str());
   }
   ss << utils::Join(attr_strs, ", ");
