@@ -192,6 +192,28 @@ struct Program {
   Variable mul(const Variable& a, const Variable& b, int x_num_col_dims = 1, int y_num_col_dims = 1);
 
   /**
+   * Multiply two matrix.
+   */
+  Variable matmul(const Variable& a, const Variable& b, bool trans_a = false, bool trans_b = false, float alpha = 1);
+
+  /**
+   * Reshape a tensor.
+   * @param a The input tensor.
+   * @param shape The output tensor's shape we specified.
+   * @return The reshaped output tensor.
+   */
+  Variable reshape(const Variable& a, const std::vector<int>& shape);
+
+  /**
+   * Concat 2 tensors.
+   * @param a The first input tensor.
+   * @param b The second input tensor.
+   * @param axis The axis specified to do the concat operation.
+   * @return The concated output tensor.
+   */
+  Variable concat(const Variable& a, const Variable& b, int axis = 0);
+
+  /**
    * Multiply two matrix and add a bias.
    */
   Variable mulbias(

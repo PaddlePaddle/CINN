@@ -30,6 +30,15 @@ std::vector<ir::Tensor> Matmul(const ir::Tensor& A,
                                float alpha             = 1,
                                const std::string& name = UniqName("T_Transform_Matmul_out"));
 
+ir::Tensor Reshape(const ir::Tensor& A,
+                   const std::vector<int>& new_shape,
+                   const std::string& name = UniqName("T_Transform_Matmul_out"));
+
+ir::Tensor Concat(const ir::Tensor& A,
+                  const ir::Tensor& B,
+                  int axis                = 0,
+                  const std::string& name = UniqName("T_Transform_Concat_out"));
+
 std::vector<ir::Tensor> MatmulV2(const ir::Tensor& A,
                                  const ir::Tensor& B,
                                  bool trans_a                 = false,

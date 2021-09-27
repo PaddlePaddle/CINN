@@ -116,6 +116,60 @@ void PaddleModelToProgram::AddOpMapper_mul() {
   };
 }
 
+void PaddleModelToProgram::AddOpMapper_matmul() {
+  op_mappers_["matmul"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);
+    auto x_name = op_desc.Input("X").front();
+    CHECK_EQ(op_desc.Input("Y").size(), 1UL);
+    auto y_name  = op_desc.Input("Y").front();
+    auto x       = GetVar(utils::TransValidVarName(x_name));
+    auto y       = GetVar(utils::TransValidVarName(y_name));
+    bool trans_a = op_desc.GetAttr<bool>("transpose_X");
+    bool trans_b = op_desc.GetAttr<bool>("transpose_Y");
+    float alpha  = op_desc.GetAttr<float>("alpha");
+    VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
+    VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
+    auto out = program_->matmul(x, y, trans_a, trans_b, alpha);
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+    AddVar(utils::TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_reshape2() {
+  op_mappers_["reshape2"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);
+    auto x_name            = op_desc.Input("X").front();
+    auto x                 = GetVar(utils::TransValidVarName(x_name));
+    std::vector<int> shape = op_desc.GetAttr<std::vector<int>>("shape");
+    VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
+    auto out = program_->reshape(x, shape);
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+    AddVar(utils::TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_concat() {
+  op_mappers_["concat"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    // now only supports case: input tensor number is 2 .
+    CHECK_EQ(op_desc.Input("X").size(), 2UL);
+    auto x_name = op_desc.Input("X")[0];
+    auto x      = GetVar(utils::TransValidVarName(x_name));
+    auto y_name = op_desc.Input("X")[1];
+    auto y      = GetVar(utils::TransValidVarName(y_name));
+    int axis    = op_desc.GetAttr<int>("axis");
+    VLOG(4) << "axis in op concat is : " << axis;
+    auto out = program_->concat(x, y, axis);
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+    AddVar(utils::TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
 void PaddleModelToProgram::AddOpMapper_relu() {
   op_mappers_["relu"] = [&](const paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -318,6 +372,8 @@ void PaddleModelToProgram::AddOpMapper_pool2d() {
     attrs["data_format"] = op_desc.GetAttr<std::string>("data_format");
     CHECK(op_desc.HasAttr("global_pooling"));
     attrs["global_pooling"] = op_desc.GetAttr<bool>("global_pooling");
+    CHECK(op_desc.HasAttr("adaptive"));
+    attrs["adaptive"] = op_desc.GetAttr<bool>("adaptive");
 
     auto x   = GetVar(TransValidVarName(x_name));
     auto out = program_->pool2d(x, attrs);

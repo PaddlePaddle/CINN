@@ -364,6 +364,29 @@ Variable Program::mul(const Variable& a, const Variable& b, int x_num_col_dims, 
   return instr.GetOutput(0);
 }
 
+Variable Program::matmul(const Variable& a, const Variable& b, bool trans_a, bool trans_b, float alpha) {
+  Instruction instr("matmul", {a, b});
+  instr.SetAttr("trans_a", trans_a);
+  instr.SetAttr("trans_b", trans_b);
+  instr.SetAttr("alpha", alpha);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable Program::reshape(const Variable& a, const std::vector<int>& shape) {
+  Instruction instr("reshape", {a});
+  instr.SetAttr("shape", shape);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable Program::concat(const Variable& a, const Variable& b, int axis) {
+  Instruction instr("concat", {a, b});
+  instr.SetAttr("axis", axis);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable Program::mulbias(
     const Variable& a, const Variable& b, const Variable& c, int x_num_col_dims, int y_num_col_dims) {
   Instruction instr("mulbias", {a, b, c});
