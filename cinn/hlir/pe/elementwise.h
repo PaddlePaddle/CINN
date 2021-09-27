@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "cinn/ir/ir.h"
+#include "cinn/lang/compute.h"
 
 namespace cinn {
 namespace hlir {
