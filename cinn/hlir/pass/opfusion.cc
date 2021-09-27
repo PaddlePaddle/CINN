@@ -157,7 +157,7 @@ class DomTree {
     CHECK(graph_node);
     DomNode* dom_node  = new DomNode();
     dom_node->ref_node = graph_node;
-    if (graph_node->inlinks().empty()) {
+    if (graph_node->inlinks().empty() && graph_node->safe_as<NodeData>()) {
       CHECK(graph_node->safe_as<NodeData>());
       // extern input vars
       dom_node->parent  = nullptr;
@@ -265,9 +265,10 @@ class GraphPartition {
     }
     return out_shapes;
   }
-  bool IsSameOutShape(GraphNode* node1, GraphNode* node2) {
+  bool VerifyOutShape(GraphNode* node1, GraphNode* node2) {
     auto out_shape1 = GetOutshape(node1);
     auto out_shape2 = GetOutshape(node2);
+    if (out_shape1.size() == 1 || out_shape2.size() == 1) return true;
     if (out_shape1.size() != out_shape2.size()) return false;
     VLOG(2) << node1->id() << ", out_shape1: " << utils::Join(out_shape1, ", ");
     VLOG(2) << node2->id() << ", out_shape2: " << utils::Join(out_shape2, ", ");
@@ -313,7 +314,7 @@ class GraphPartition {
     auto op_node = source->safe_as<Node>();
     visited_nodes_.clear();
     CHECK(source != sink);
-    if (!IsSameOutShape(source, sink)) return false;
+    if (!VerifyOutShape(source, sink)) return false;
     if (op_node) {
       auto& outlinks = op_node->outlinks_in_order(true);
       for (int i = 0; i < outlinks.size(); i++) {

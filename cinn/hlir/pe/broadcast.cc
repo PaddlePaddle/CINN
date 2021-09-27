@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "cinn/common/ir_util.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
@@ -215,6 +216,33 @@ HLIR_IMP_BC_PE(Equal, return ir::EQ::Make(a, b););
 HLIR_IMP_BC_PE(NotEqual, return ir::NE::Make(a, b););
 HLIR_IMP_BC_PE(GreaterEqual, return a >= b;);
 HLIR_IMP_BC_PE(LessEqual, return a <= b;);
+
+Tensor BroadcastTo(const Tensor& A,
+                   const std::vector<int>& out_shape,
+                   const std::vector<int>& broadcast_axes,
+                   const std::string& out_name) {
+  auto A_shape = A->shape;
+  CHECK_EQ(A_shape.size(), broadcast_axes.size()) << "broadcast_axes's size should be same with the input shape's size";
+  CHECK_GE(out_shape.size(), broadcast_axes.size()) << "broadcast_axes's size should be no more than out_shape's size";
+
+  return Compute(
+      ToCinnExprs(out_shape),
+      [=](const std::vector<Expr>& indice) {
+        std::vector<Expr> broadcast_indice;
+        for (int i = 0; i < broadcast_axes.size(); i++) {
+          int a_shape_i = A_shape[i].as_int32();
+          CHECK(broadcast_axes[i] >= 0 && broadcast_axes[i] < out_shape.size())
+              << "broadcast_axis should be no less than 0 and no more than out_shape's dim. Current broadcast axis is "
+              << broadcast_axes[i];
+          CHECK(a_shape_i == 1 || a_shape_i == out_shape[broadcast_axes[i]])
+              << "broadcast_shape should be 1 or same with the target mapping dim, but get " << A_shape[i] << " and "
+              << out_shape[broadcast_axes[i]];
+          broadcast_indice.push_back(indice[broadcast_axes[i]]);
+        }
+        return A(broadcast_indice);
+      },
+      out_name);
+}
 
 }  // namespace pe
 }  // namespace hlir
