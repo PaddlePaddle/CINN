@@ -144,7 +144,7 @@ void PaddleModelToProgram::AddOpMapper_reshape2() {
     auto x                 = GetVar(utils::TransValidVarName(x_name));
     std::vector<int> shape = op_desc.GetAttr<std::vector<int>>("shape");
     VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
-    auto out = program_->reshape2(x, shape);
+    auto out = program_->reshape(x, shape);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);

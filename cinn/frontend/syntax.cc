@@ -241,8 +241,8 @@ Variable Program::matmul(const Variable& a, const Variable& b, bool trans_a, boo
   return instr.GetOutput(0);
 }
 
-Variable Program::reshape2(const Variable& a, const std::vector<int>& shape) {
-  Instruction instr("reshape2", {a});
+Variable Program::reshape(const Variable& a, const std::vector<int>& shape) {
+  Instruction instr("reshape", {a});
   instr.SetAttr("shape", shape);
   AppendInstruction(instr);
   return instr.GetOutput(0);
