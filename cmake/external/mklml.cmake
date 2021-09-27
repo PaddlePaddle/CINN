@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# IF(NOT ${WITH_MKLML})
-#   return()
-# ENDIF(NOT ${WITH_MKLML})
+IF(NOT ${WITH_MKLML})
+  return()
+ENDIF(NOT ${WITH_MKLML})
 
 # IF(APPLE)
 #     MESSAGE(WARNING "Mac is not supported with MKLML in Paddle yet. Force WITH_MKLML=OFF.")

@@ -57,12 +57,12 @@ class Instruction {
   bool pre_run = false;
   std::vector<int> attrs;
   std::vector<std::string> str_attrs;
+  Target target;
 
  protected:
   std::vector<cinn_pod_value_t>& PreparePodArgs(int i);
 
  private:
-  Target target_;
   Scope* scope_{};
   std::string function_name_;
   std::vector<std::vector<std::string>> in_args_;

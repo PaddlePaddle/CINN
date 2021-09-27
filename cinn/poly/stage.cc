@@ -619,7 +619,7 @@ void Stage::ComputeAt(Stage *other, int level) {
   CHECK(relation.IsCompatible(this));
   compute_ats_[other->id()] = relation;
   for (int i = 0; i <= level; i++) {
-    AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, i});
+    AddForloopInfo(i, StageForloopInfo{ir::ForType::Default, DeviceAPI::UNK, static_cast<uint8_t>(i)});
   }
 }
 

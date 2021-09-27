@@ -29,7 +29,7 @@ Instruction::Instruction(const Target& target,
                          const std::vector<std::string>& in_args,
                          const std::vector<std::string>& out_args,
                          const std::string& function_name)
-    : target_(target), scope_(scope), in_args_({in_args}), out_args_({out_args}), function_name_(function_name) {}
+    : target(target), scope_(scope), in_args_({in_args}), out_args_({out_args}), function_name_(function_name) {}
 
 void Instruction::Run() {
   if (fn_.size() > 1 && fn_.size() != in_args_.size()) {

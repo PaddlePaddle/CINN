@@ -53,7 +53,7 @@ class Program {
       ins->Run();
     }
 #ifdef CINN_WITH_CUDA
-    if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+    if (instrs_[0]->target.arch == Target::Arch::NVGPU) {
       CUDA_CALL(cudaDeviceSynchronize());
     }
 #endif
@@ -73,7 +73,7 @@ class Program {
       }
     }
 #ifdef CINN_WITH_CUDA
-    if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+    if (instrs_[0]->target.arch == Target::Arch::NVGPU) {
       CUDA_CALL(cudaDeviceSynchronize());
     }
 #endif
