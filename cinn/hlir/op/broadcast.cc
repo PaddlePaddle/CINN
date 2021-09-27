@@ -264,9 +264,9 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_num_inputs(1)                                                                                             \
       .set_num_outputs(1)                                                                                            \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForBroadcast))                                 \
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))                                 \
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForBroadcast))                               \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcast))                                 \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))                                 \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcast))                               \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast) \
       .set_support_level(4);
 
@@ -303,10 +303,10 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBroadcastTo)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForBroadcastTo))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcastTo))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForBroadcastTo))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcastTo))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);

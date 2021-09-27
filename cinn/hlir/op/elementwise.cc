@@ -284,9 +284,9 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_num_inputs(1)                                                                                             \
       .set_num_outputs(1)                                                                                            \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForElementwise))                               \
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForElementwise))                               \
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForElementwise))                             \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))                               \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))                               \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))                             \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)  \
       .set_support_level(4);
 
@@ -333,10 +333,10 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScale)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForElementwise))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForElementwise))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
@@ -346,10 +346,10 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_num_inputs(0)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConstScalar)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForConstScalar))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForConstScalar))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConstScalar))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConstScalar))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForConstScalar))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConstScalar))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);

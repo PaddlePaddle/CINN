@@ -709,8 +709,8 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_num_inputs(2)
       .set_num_outputs(3)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMatMul)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForMatMul))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForMatMul))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForMatMul))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForMatMul))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
                                                       cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
@@ -720,10 +720,10 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_num_inputs(2)
       .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMul)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForMul))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForMul))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForMul))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForMul))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForMul))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForMul))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -733,8 +733,8 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_num_inputs(3)
       .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMulBias)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForMulBias))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForMulBias))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForMulBias))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForMulBias))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
                                                       cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
       .set_support_level(4);
@@ -744,10 +744,10 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForLayoutTransform)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForLayoutTransform))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForLayoutTransform))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForLayoutTransform))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForLayoutTransform))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForLayoutTransform))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForLayoutTransform))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);

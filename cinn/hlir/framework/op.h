@@ -204,7 +204,7 @@ bool OpValueType<ValueType>::Find(const Operator* op) const {
 }
 
 template <typename R, typename ...Args>
-inline auto makeOpFunction(R(*func)(Args...)) {
+inline auto MakeOpFunction(R(*func)(Args...)) {
   return std::function<R(Args...)>(func);
 }
 

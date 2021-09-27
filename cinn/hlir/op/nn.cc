@@ -1795,10 +1795,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRelu)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForRelu))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForUnary))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
@@ -1808,10 +1808,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRelu6)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForRelu))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForUnary))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
@@ -1825,10 +1825,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_outputs(4)
 #endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForConv2d))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForConv2d))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2d))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2d))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForConv2d))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConv2d))
 #endif
 #ifdef CINN_WITH_CUDNN
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
@@ -1843,10 +1843,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(2)  // here we consider filter as another input
       .set_num_outputs(3)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2dNCHWc)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForConv2dNCHWc))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForConv2dNCHWc))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2dNCHWc))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2dNCHWc))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForConv2dNCHWc))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConv2dNCHWc))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
                                                       cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
@@ -1861,10 +1861,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_outputs(4)
 #endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForConv2d))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForConv2d))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2d))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2d))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForConv2d))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConv2d))
 #endif
 #ifdef CINN_WITH_CUDNN
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
@@ -1879,10 +1879,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(5)  // here we consider batchnorm's 4 attrs(mean, variance, scale, bias) as other 4 inputs
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBatchNorm)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForBatchNorm))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForBatchNorm))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBatchNorm))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBatchNorm))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForBatchNorm))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBatchNorm))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
@@ -1892,10 +1892,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool1d)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForPool1d))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForPool))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForPool1d))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForPool))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForPool))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForPool))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -1905,10 +1905,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool2d)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForPool2d))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForPool))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForPool2d))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForPool))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForPool))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForPool))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -1918,10 +1918,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool3d)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForPool3d))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForPool))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForPool3d))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForPool))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForPool))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForPool))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -1931,10 +1931,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSoftmax)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForSoftmax))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForSoftmax))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSoftmax))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSoftmax))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForSoftmax))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSoftmax))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -1944,10 +1944,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSlice)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForSlice))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForSlice))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSlice))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSlice))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForSlice))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSlice))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -1957,10 +1957,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDropoutInfer)
-      .set_attr("infershape", makeOpFunction(cinn::hlir::op::InferShapeForDropoutInfer))
-      .set_attr("inferdtype", makeOpFunction(cinn::hlir::op::InferDtypeForDropoutInfer))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForDropoutInfer))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForDropoutInfer))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", makeOpFunction(cinn::hlir::op::InferLayoutForUnary))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);

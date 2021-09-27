@@ -21,14 +21,6 @@ using common::Type;
 using ir::Expr;
 using ir::ExprNode;
 
-// template <class... Ts>
-// struct Visitor : Ts... {
-//   using Ts::operator()...;
-// };
-// 
-// template <class... Ts>
-// Visitor(Ts...)->Visitor<Ts...>;
-
 using ExprOp   = absl::variant<ir::IntImm,
                             ir::UIntImm,
                             ir::FloatImm,
