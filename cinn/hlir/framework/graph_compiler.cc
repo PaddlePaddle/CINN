@@ -39,8 +39,8 @@ void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
 
 void GraphCompiler::PrintFunc() {
   auto topo_order = graph_->topological_order();
-  auto &nodes = absl::get<0>(topo_order);
-  auto &edges = absl::get<1>(topo_order);
+  auto &nodes = std::get<0>(topo_order);
+  auto &edges = std::get<1>(topo_order);
 
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
@@ -52,8 +52,8 @@ void GraphCompiler::PrintFunc() {
 
 std::string GraphCompiler::GenSourceCode() {
   auto topo_order = graph_->topological_order();
-  auto &nodes = absl::get<0>(topo_order);
-  auto &edges = absl::get<1>(topo_order);
+  auto &nodes = std::get<0>(topo_order);
+  auto &edges = std::get<1>(topo_order);
 
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
@@ -335,8 +335,8 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
 
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   auto topo_order = graph_->topological_order();
-  auto &nodes = absl::get<0>(topo_order);
-  auto &edges = absl::get<1>(topo_order);
+  auto &nodes = std::get<0>(topo_order);
+  auto &edges = std::get<1>(topo_order);
 
   auto& groups        = graph_->groups;
 
@@ -384,8 +384,8 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   std::vector<std::unique_ptr<Instruction>> instructions;
   auto topo_order = graph_->topological_order();
-  auto &nodes = absl::get<0>(topo_order);
-  auto &edges = absl::get<1>(topo_order);
+  auto &nodes = std::get<0>(topo_order);
+  auto &edges = std::get<1>(topo_order);
 
   auto& groups        = graph_->groups;
   for (auto& group : groups) {
@@ -457,7 +457,6 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           }
           if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
             if (global_pooling == false) {
-              auto stride = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
               auto stride = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
               CHECK_EQ(stride.size(), 4UL);
               instr->attrs.insert(instr->attrs.end(), stride.begin(), stride.end());
