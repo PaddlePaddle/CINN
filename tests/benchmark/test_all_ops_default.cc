@@ -52,8 +52,8 @@ using AttrType = std::variant<bool,
     tester.TestOp(common::UniqName(#op_name__), input_tensors, attrs, input_types_, output_types_); \
   }
 
-std::vector<Type> type = {Float(32)};
-std::vector<Type> type1{Float(32), Float(32)};
+std::vector<Type> type  = {Float(32)};
+std::vector<Type> type1 = {Float(32), Float(32)};
 std::vector<Type> type2 = {Int(32)};
 std::vector<Type> type3 = {Bool()};
 std::vector<Type> type4 = {Float(32), Float(32), Float(32), Float(32), Float(32)};
@@ -61,6 +61,14 @@ std::vector<Type> type5 = {Int(32), Int(32)};
 std::vector<Type> type6 = {Float(32), Void()};
 std::vector<Type> type7 = {Float(32), Float(32), Float(32), Float(32)};
 std::vector<Type> type8 = {Float(32), Float(32), Float(32)};
+
+// broadcast_to
+std::vector<std::vector<int>> shapes_broadcast_to                 = {{32}};
+std::vector<int> out_shape                                        = {100, 32};
+std::vector<int> broadcast_axes                                   = {1};
+std::unordered_map<std::string, AttrType> attr_store_broadcast_to = {{"out_shape", out_shape},
+                                                                     {"broadcast_axes", broadcast_axes}};
+TEST_DEFAULT1(broadcast_to, broadcast_to, type, type, attr_store_broadcast_to)
 
 // add
 std::vector<std::vector<int>> shapes_add = {{1024, 1024, 1024}, {1024, 1024, 1024}};

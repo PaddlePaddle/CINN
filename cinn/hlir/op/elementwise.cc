@@ -58,21 +58,14 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
   framework::CINNSchedule unary_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
+    CHECK_EQ(arg_pack.size(), 2UL);
+    Expr Out              = arg_pack[0];
+    poly::StageMap stages = arg_pack[1];
+    CHECK(Out.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack.back();
-      CHECK(Out.as_tensor());
-      pe::CudaSplitSchedule(stages[Out.as_tensor_ref()], output_shapes.back());
-      if (Out.as_tensor()->shape.size() > 1) {
-        stages[Out.as_tensor_ref()]->Bind(0, "blockIdx.x");
-        stages[Out.as_tensor_ref()]->Bind(1, "threadIdx.x");
-      }
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
     } else if (target.arch == Target::Arch::X86) {
-      Expr Out              = arg_pack[0];
-      poly::StageMap stages = arg_pack[1];
-      CHECK(Out.as_tensor());
-      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.back(), target);
+      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
     }
     *ret = arg_pack;
   });
@@ -107,6 +100,141 @@ std::vector<std::vector<std::string>> InferLayoutForElementwise(const std::vecto
   return {input_layouts, input_layouts};
 }
 
+std::shared_ptr<OpStrategy> StrategyForScale(const framework::NodeAttr &attrs,
+                                             const std::vector<ir::Tensor> &inputs,
+                                             const std::vector<Type> &out_type,
+                                             const std::vector<std::vector<int>> &output_shapes,
+                                             const Target &target) {
+  float scale           = 1.f;
+  float bias            = 0.f;
+  bool bias_after_scale = true;
+  for (auto &iter : attrs.attr_store) {
+    if (iter.first == "scale") {
+      scale = std::get<float>(iter.second);
+    } else if (iter.first == "bias") {
+      bias = std::get<float>(iter.second);
+    } else if (iter.first == "bias_after_scale") {
+      bias_after_scale = std::get<bool>(iter.second);
+    }
+  }
+  framework::CINNCompute scale_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of scale compute is empty! Please check.";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "The input tensors of scale compute is empty! Please check.";
+    Expr A_expr = a[0];
+    CHECK(A_expr.as_tensor());
+    ir::Tensor A = A_expr.as_tensor_ref();
+    ir::Tensor out;
+    if (bias_after_scale) {
+      out = Compute(
+          A->shape, [=](const std::vector<Expr> &indice) { return scale * A(indice) + bias; }, UniqName("Scale_out"));
+    } else {
+      out = Compute(
+          A->shape, [=](const std::vector<Expr> &indice) { return scale * (A(indice) + bias); }, UniqName("Scale_out"));
+    }
+    auto stages = CreateStages({out});
+    *ret        = CINNValuePack{{CINNValue(Expr(out.get())), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule scale_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input arguments of scale schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL) << "The input tensor's size of scale schedule is " << arg_pack.size()
+                                   << "and it should be equal to 2! Please check.";
+    Expr Out              = arg_pack[0];
+    poly::StageMap stages = arg_pack[1];
+    CHECK(Out.as_tensor());
+    if (target.arch == Target::Arch::NVGPU) {
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(scale_compute, scale_schedule, "strategy.scale.x86", 1);
+
+  return strategy;
+}
+
+Expr GetScalarExpr(const framework::NodeAttr::attr_t &attr) {
+  Expr scalar;
+  struct Visitor {
+    Expr &scalar_;
+    explicit Visitor(Expr &scalar) : scalar_(scalar) {}
+    void operator()(float v) { scalar_ = Expr(v); }
+    void operator()(int v) { scalar_ = Expr(v); }
+    void operator()(bool v) { scalar_ = Expr(v); }
+    void operator()(const std::string &v) { scalar_ = Expr(v); }
+    void operator()(const std::vector<int> &) { LOG(FATAL) << "wrong type std::vector<int>"; }
+    void operator()(const std::vector<float> &) { LOG(FATAL) << "wrong type std::vector<float>"; }
+    void operator()(const std::vector<bool> &) { LOG(FATAL) << "wrong type std::vector<bool>"; }
+    void operator()(const std::vector<std::string> &) { LOG(FATAL) << "wrong type std::vector<std::string>"; }
+  };
+  std::visit(Visitor{scalar}, attr);
+  return scalar;
+}
+
+std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &attrs,
+                                                   const std::vector<ir::Tensor> &inputs,
+                                                   const std::vector<Type> &out_type,
+                                                   const std::vector<std::vector<int>> &output_shapes,
+                                                   const Target &target) {
+  framework::CINNCompute const_scalar_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of const_float compute is empty! Please check.";
+    auto scalar = GetScalarExpr(attrs.attr_store.at("value"));
+    auto out    = lang::Compute(
+        {Expr(1)}, [=](const std::vector<Expr> &indice) { return scalar; }, UniqName("const_scalar_Out"));
+    CHECK(out.defined()) << "can't create const scalar with the given type " << out_type[0];
+    auto stages = CreateStages({out});
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule const_scalar_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    Expr Out              = arg_pack[0];
+    poly::StageMap stages = arg_pack.back();
+    CHECK(Out.as_tensor());
+    if (target.arch == Target::Arch::NVGPU) {
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(const_scalar_compute, const_scalar_schedule, "strategy.const_scalar.x86", 1);
+
+  return strategy;
+}
+
+std::vector<shape_t> InferShapeForConstScalar(const std::vector<shape_t> &inputs_shape,
+                                              framework::NodeAttr &attrs,
+                                              const Target &target) {
+  return {{1}};
+}
+
+std::vector<Type> InferDtypeForConstScalar(const std::vector<Type> &inputs_type,
+                                           const framework::NodeAttr &attrs,
+                                           const Target &target) {
+  CHECK(attrs.attr_store.count("value"));
+  auto scalar   = GetScalarExpr(attrs.attr_store.at("value"));
+  auto out_type = scalar->type();
+  VLOG(3) << "scalar type: " << out_type;
+  return {out_type};
+}
+
+std::vector<std::vector<std::string>> InferLayoutForConstScalar(const std::vector<framework::shape_t> &input_shapes,
+                                                                const std::vector<std::string> &input_layouts,
+                                                                const framework::NodeAttr &attrs,
+                                                                const Target &target) {
+  return {{"C"}, input_layouts};
+}
+
 StrategyForUnary(exp, Exp);
 StrategyForUnary(erf, Erf);
 StrategyForUnary(sqrt, Sqrt);
@@ -134,6 +262,14 @@ StrategyForUnary(isnan, IsNan);
 StrategyForUnary(isfinite, IsFinite);
 StrategyForUnary(isinf, IsInf);
 StrategyForUnary(bitwise_not, BitwiseNot);
+
+StrategyForUnary(negative, Negative);
+StrategyForUnary(identity, Identity);
+StrategyForUnary(logica_not, LogicalNot);
+StrategyForUnary(sign, Sign);
+StrategyForUnary(abs, Abs);
+StrategyForUnary(rsqrt, Rsqrt);
+StrategyForUnary(sigmoid, Sigmoid);
 
 #undef StrategyForUnary
 
@@ -181,7 +317,42 @@ CINN_REGISTER_HELPER(elementwise_ops) {
   CINN_REGISTER_UNARY(isfinite, IsFinite)
   CINN_REGISTER_UNARY(isinf, IsInf)
   CINN_REGISTER_UNARY(bitwise_not, BitwiseNot)
+
+  CINN_REGISTER_UNARY(negative, Negative)
+  CINN_REGISTER_UNARY(identity, Identity)
+  CINN_REGISTER_UNARY(logica_not, LogicalNot)
+  CINN_REGISTER_UNARY(sign, Sign)
+  CINN_REGISTER_UNARY(abs, Abs)
+  CINN_REGISTER_UNARY(rsqrt, Rsqrt)
+  CINN_REGISTER_UNARY(sigmoid, Sigmoid)
+
 #undef CINN_REGISTER_UNARY
+
+  CINN_REGISTER_OP(scale)
+      .describe("Putting scale and bias to the input Tensor")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForScale)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForElementwise))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForElementwise))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForElementwise))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(const_scalar)
+      .describe("create const scalar with the given value")
+      .set_num_inputs(0)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConstScalar)
+      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConstScalar))
+      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConstScalar))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForConstScalar))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_support_level(4);
 
   return true;
 }
