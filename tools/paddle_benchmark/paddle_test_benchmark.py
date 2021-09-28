@@ -1,6 +1,7 @@
 import argparse
 import time
 import numpy as np
+import paddle
 from paddle.fluid.core import AnalysisConfig
 from paddle.fluid.core import create_paddle_predictor
 import paddle.inference as paddle_infer
@@ -25,19 +26,39 @@ def main():
         input_tensor2.reshape([512, 512])
         input_tensor2.copy_from_cpu(fake_input2)
 
-    for _ in range(0, 10):
+    for _ in range(0, 50):
         predictor.zero_copy_run()
+        output_names = predictor.get_output_names()
+        output_tensor = predictor.get_output_tensor(output_names[0])
+        output_data = output_tensor.copy_to_cpu()
 
     time1 = time.time()
-    repeat = 10
+    repeat = 1000
+    for i in range(0, repeat):
+        predictor.zero_copy_run()
+        output_names = predictor.get_output_names()
+        output_tensor = predictor.get_output_tensor(output_names[0])
+        output_data = output_tensor.copy_to_cpu()
+
+    time2 = time.time()
+    total_inference_cost = (time2 - time1) * 1000  # total time cost(ms)
+    print(
+        "In Paddle, ", args.model_dir,
+        "'s average [run+copy_to_cpu] latency is : {} ms".format(
+            total_inference_cost / repeat))
+
+    for _ in range(0, 50):
+        predictor.zero_copy_run()
+    time1 = time.time()
+    repeat = 1000
     for i in range(0, repeat):
         predictor.zero_copy_run()
     time2 = time.time()
     total_inference_cost = (time2 - time1) * 1000  # total time cost(ms)
-    print("Average latency : {} ms".format(total_inference_cost / repeat))
-    output_names = predictor.get_output_names()
-    output_tensor = predictor.get_output_tensor(output_names[0])
-    output_data = output_tensor.copy_to_cpu()
+    print(
+        "In Paddle, ", args.model_dir,
+        "'s average [run] latency is : {} ms".format(
+            total_inference_cost / repeat))
 
 
 def parse_args():
@@ -50,12 +71,12 @@ def parse_args():
 def set_config(args):
     config = AnalysisConfig(args.model_dir + '/__model__',
                             args.model_dir + '/params')
-    config.enable_profile()
+    # config.enable_profile()
     config.enable_use_gpu(1000, 1)
     # Enable TensorRT
     config.enable_tensorrt_engine(
         workspace_size=1 << 30,
-        max_batch_size=1,
+        max_batch_size=2,
         min_subgraph_size=3,
         precision_mode=paddle_infer.PrecisionType.Float32,
         use_static=False,
