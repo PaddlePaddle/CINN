@@ -31,17 +31,19 @@ struct Interpreter::Impl {
   std::unique_ptr<frontend::Program> program_;
   std::unique_ptr<hlir::framework::GraphCompiler> graph_compiler_;
 
-  std::unordered_map<std::string, Variable> var_map_;
-  std::unordered_map<std::string, std::string> var_map_paddle_to_cinn_;
-  std::unordered_map<std::string, std::string> var_map_cinn_to_paddle_;
+  absl::flat_hash_map<std::string, Variable> var_map_;
+  absl::flat_hash_map<std::string, std::string> var_map_paddle_to_cinn_;
+  absl::flat_hash_map<std::string, std::string> var_map_cinn_to_paddle_;
 
   std::unique_ptr<hlir::framework::Program> runtime_program_;
   std::unique_ptr<hlir::framework::Program> prerun_program_;
 };
 
 void Interpreter::LoadPaddleModel(const std::string& model_dir, const Target& target, bool params_combined) {
-  auto [program, var_map, var_map_paddle_to_program] =
-      LoadPaddleProgram(model_dir, impl_->scope_.get(), params_combined, target);
+  auto programTuple = LoadPaddleProgram(model_dir, impl_->scope_.get(), params_combined, target);
+  auto &program = std::get<0>(programTuple);
+  auto &var_map = std::get<1>(programTuple);
+  auto &var_map_paddle_to_program = std::get<2>(programTuple);
   impl_->program_.reset(program.release());
   impl_->var_map_                = var_map;
   impl_->var_map_paddle_to_cinn_ = var_map_paddle_to_program;

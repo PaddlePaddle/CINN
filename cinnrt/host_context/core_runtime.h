@@ -28,7 +28,7 @@ class CoreRuntime : public std::enable_shared_from_this<CoreRuntime> {
 
   //! Get the results of the execution.
   llvm::SmallVector<ValueRef, 4>  //
-  GetResults(llvm::ArrayRef<std::string_view> arg_names);
+  GetResults(llvm::ArrayRef<absl::string_view> arg_names);
 
   std::shared_ptr<CoreRuntime> getptr() { return std::shared_ptr<CoreRuntime>(this); }
 
@@ -59,9 +59,9 @@ class CoreRuntimeBuilder : public CoreRuntime {
   //! Feed the input arguments, each item is a pair of arg-name and arg-value.
   void FeedInArgs(llvm::ArrayRef<std::pair<std::string, ValueRef>> args);
 
-  llvm::ArrayRef<std::string_view> attr_names() const;
+  llvm::ArrayRef<absl::string_view> attr_names() const;
 
-  OpExecutableBuilder* NewOpExecutable(std::string_view op_name);
+  OpExecutableBuilder* NewOpExecutable(absl::string_view op_name);
 };
 
 }  // namespace cinnrt::host_context

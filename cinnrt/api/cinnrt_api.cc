@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include <absl/container/flat_hash_map.h>
+
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/DynamicLibrary.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
@@ -52,10 +54,10 @@ struct MlirToRuntimeTranslator::Impl {
   std::string cur_func_name;
 
   // Name to function definitions.
-  std::unordered_map<std::string, mlir::FuncOp> func_defs;
+  absl::flat_hash_map<std::string, mlir::FuncOp> func_defs;
 
   // Map from an operation to its results.
-  std::unordered_map<const mlir::Operation*, std::vector<ValueRef>> op_results;
+  absl::flat_hash_map<const mlir::Operation*, std::vector<ValueRef>> op_results;
   llvm::DenseMap<mlir::Value, ValueRef> value_map;
 };
 
@@ -132,7 +134,7 @@ class PredictExecutor : public MlirToRuntimeTranslator {
   }
 
  protected:
-  std::unordered_map<std::string, mlir::FuncOp> func_def_table;
+  absl::flat_hash_map<std::string, mlir::FuncOp> func_def_table;
 
   void EmitFunction(mlir::FuncOp op) override {
     auto it = impl_->func_defs.try_emplace(op.getName().str(), op);

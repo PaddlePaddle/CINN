@@ -1,7 +1,6 @@
 #pragma once
 #include <glog/logging.h>
 
-#include <any>
 #include <vector>
 
 #include "cinn/common/common.h"
@@ -9,6 +8,7 @@
 #include "cinn/common/object.h"
 #include "cinn/common/type.h"
 #include "cinn/runtime/cinn_runtime.h"
+#include <absl/types/any.h>
 
 struct cinn_buffer_t;
 
@@ -149,15 +149,31 @@ class CINNValue : public cinn_pod_value_t {
   CINNValue& operator=(const poly::StageMap& value);
   // @}
 
-  //! Set the value.
+//  //! Set the value.
+//  template <typename T>
+//  void Set(T v) {
+//    if constexpr (std::is_same_v<std::decay_t<T>, CINNValue>) {
+//      *this = v;
+//    } else {
+//      *this = CINNValue(v);
+//    }
+//  }
+
+  template <typename T>
+  inline void _Set(T v, std::true_type) {
+      *this = v;
+  }
+
+  template <typename T>
+  inline void _Set(T v, std::false_type) {
+      *this = CINNValue(v);
+  }
+  // using tag-dispatch instead of constexpr if
   template <typename T>
   void Set(T v) {
-    if constexpr (std::is_same_v<std::decay_t<T>, CINNValue>) {
-      *this = v;
-    } else {
-      *this = CINNValue(v);
-    }
+    _Set(v, std::is_same<std::decay_t<T>, CINNValue>{});
   }
+
 
   /**
    * Get the type code for a specific POD type.
@@ -168,7 +184,7 @@ class CINNValue : public cinn_pod_value_t {
   static int TypeCode();
 
  protected:
-  std::any shared_;
+  absl::any shared_;
 };
 
 }  // namespace common

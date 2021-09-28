@@ -131,8 +131,8 @@ cinn.return %a0, %b0: !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>
   in_args.assign({inputs[0].get(), inputs[1].get()});
 
   for (int i = 0; i < 500; i++) {
-    func->Execute(llvm::ArrayRef(in_args.data(), in_args.size()),
-                  llvm::MutableArrayRef(out_args.data(), out_args.size()));
+    func->Execute(llvm::ArrayRef<Value*>(in_args.data(), in_args.size()),
+                  llvm::MutableArrayRef<ValueRef>(out_args.data(), out_args.size()));
   }
 }
 

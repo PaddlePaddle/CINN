@@ -93,7 +93,7 @@ void TensorFromStream(std::istream &is, cinnrt::paddle::_Tensor_ *tensor, const 
 }
 
 void LoadLoDTensor(std::istream &is, cinnrt::paddle::_Variable *var, const cinnrt::common::Target &target) {
-  auto &tensor = std::get<cinnrt::paddle::Tensor>(*var);
+  auto &tensor = absl::get<cinnrt::paddle::Tensor>(*var);
   uint32_t version{};
   is.read(reinterpret_cast<char *>(&version), sizeof(version));
   VLOG(3) << "model version " << version;

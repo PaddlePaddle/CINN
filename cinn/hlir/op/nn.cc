@@ -1,3 +1,4 @@
+#include <functional>
 #include "cinn/hlir/pe/nn.h"
 
 #include "cinn/hlir/framework/node.h"
@@ -136,22 +137,22 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   int groups              = 1;
   std::string key;
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+    padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
   if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+    stride = absl::get<std::vector<int>>(attrs.attr_store.at("stride"));
   }
   if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
-    dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
+    dilation = absl::get<std::vector<int>>(attrs.attr_store.at("dilation"));
   }
   if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+    data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
   }
   if (attrs.attr_store.find("groups") != attrs.attr_store.end()) {
-    groups = std::get<int>(attrs.attr_store.at("groups"));
+    groups = absl::get<int>(attrs.attr_store.at("groups"));
   }
   if (attrs.attr_store.find("key") != attrs.attr_store.end()) {
-    key = std::get<std::string>(attrs.attr_store.at("key"));
+    key = absl::get<std::string>(attrs.attr_store.at("key"));
   }
 
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -339,16 +340,16 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   std::vector<int> dilation({1, 1});
   std::string data_format = "NCHW";
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+    padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
   if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+    stride = absl::get<std::vector<int>>(attrs.attr_store.at("stride"));
   }
   if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
-    dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
+    dilation = absl::get<std::vector<int>>(attrs.attr_store.at("dilation"));
   }
   if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+    data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
   }
   CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
   CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
@@ -363,7 +364,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
         (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
     res = {{inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
 
-    std::unordered_map<std::string, int> conv2d_factors;
+    absl::flat_hash_map<std::string, int> conv2d_factors;
     int batch       = inputs_shape[0][0];
     int oc          = inputs_shape[1][0];
     int ic          = inputs_shape[0][1];
@@ -443,19 +444,19 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
   std::string data_format = "NCHWc";
   int groups              = 1;
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+    padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
   if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+    stride = absl::get<std::vector<int>>(attrs.attr_store.at("stride"));
   }
   if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
-    dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
+    dilation = absl::get<std::vector<int>>(attrs.attr_store.at("dilation"));
   }
   if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+    data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
   }
   if (attrs.attr_store.find("groups") != attrs.attr_store.end()) {
-    groups = std::get<int>(attrs.attr_store.at("groups"));
+    groups = absl::get<int>(attrs.attr_store.at("groups"));
   }
   CHECK(data_format == "NCHWc") << "conv2d_NCHWc op's data_format should be NCHWc";
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -523,7 +524,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
     std::string key;
     bool do_padding = (padding[0] == 0 && padding[1] == 0) ? false : true;
     if (attrs.attr_store.find("key") != attrs.attr_store.end()) {
-      key = std::get<std::string>(attrs.attr_store.at("key"));
+      key = absl::get<std::string>(attrs.attr_store.at("key"));
     }
     if (is_1x1) {
       pe::Conv2d_NCHWc_1X1_Schedule_CPU(
@@ -558,16 +559,16 @@ std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs
   std::vector<int> dilation({1, 1});
   std::string data_format = "NCHWc";
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+    padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
   if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+    stride = absl::get<std::vector<int>>(attrs.attr_store.at("stride"));
   }
   if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
-    dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
+    dilation = absl::get<std::vector<int>>(attrs.attr_store.at("dilation"));
   }
   if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+    data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
   }
   CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d_NCHWc op is not 2! Please check.";
   CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d_NCHWc op is not 2! Please check.";
@@ -635,19 +636,19 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
   std::string data_format   = "NCHW";
   std::string key;
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+    padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
   if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+    stride = absl::get<std::vector<int>>(attrs.attr_store.at("stride"));
   }
   if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+    data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
   }
   if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
-    dilation = std::get<std::vector<int>>(attrs.attr_store.at("dilation"));
+    dilation = absl::get<std::vector<int>>(attrs.attr_store.at("dilation"));
   }
   if (attrs.attr_store.find("key") != attrs.attr_store.end()) {
-    key = std::get<std::string>(attrs.attr_store.at("key"));
+    key = absl::get<std::string>(attrs.attr_store.at("key"));
   }
 
   framework::CINNCompute depthwise_conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -780,13 +781,13 @@ std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &in
   std::vector<int> stride  = {1, 1};
   std::string data_format  = "NCHW";
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
+    padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
   if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = std::get<std::vector<int>>(attrs.attr_store.at("stride"));
+    stride = absl::get<std::vector<int>>(attrs.attr_store.at("stride"));
   }
   if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
+    data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
   }
   std::vector<shape_t> res;
   CHECK_EQ(padding.size(), 2U) << "The size of padding in depthwise_conv2d op is not 2! Please check.";
@@ -823,10 +824,10 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
   float epsilon = 0.00001f;
   std::vector<std::string> input_layouts;
   if (attrs.attr_store.find("epsilon") != attrs.attr_store.end()) {
-    epsilon = std::get<float>(attrs.attr_store.at("epsilon"));
+    epsilon = absl::get<float>(attrs.attr_store.at("epsilon"));
   }
   if (attrs.attr_store.find("input_layouts") != attrs.attr_store.end()) {
-    input_layouts = std::get<std::vector<std::string>>(attrs.attr_store.at("input_layouts"));
+    input_layouts = absl::get<std::vector<std::string>>(attrs.attr_store.at("input_layouts"));
   }
   framework::CINNCompute batchnorm_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of batchnorm compute is empty! Please check.\n";
@@ -943,19 +944,19 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
     std::string data_format = "NCW";
     for (auto &iter : attrs.attr_store) {
       if (iter.first == "kernel_size") {
-        kernel_size = std::get<std::vector<int>>(iter.second);
+        kernel_size = absl::get<std::vector<int>>(iter.second);
       } else if (iter.first == "stride_size") {
-        stride_size = std::get<std::vector<int>>(iter.second);
+        stride_size = absl::get<std::vector<int>>(iter.second);
       } else if (iter.first == "padding_size") {
-        padding_size = std::get<std::vector<int>>(iter.second);
+        padding_size = absl::get<std::vector<int>>(iter.second);
       } else if (iter.first == "pool_type") {
-        pool_type = std::get<std::string>(iter.second);
+        pool_type = absl::get<std::string>(iter.second);
       } else if (iter.first == "ceil_mode") {
-        ceil_mode = std::get<bool>(iter.second);
+        ceil_mode = absl::get<bool>(iter.second);
       } else if (iter.first == "exclusive") {
-        exclusive = std::get<bool>(iter.second);
+        exclusive = absl::get<bool>(iter.second);
       } else if (iter.first == "data_format") {
-        data_format = std::get<std::string>(iter.second);
+        data_format = absl::get<std::string>(iter.second);
       } else {
         LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
@@ -1026,17 +1027,17 @@ std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<
   std::string data_format = "NCW";
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "kernel_size") {
-      kernel_size = std::get<std::vector<int>>(iter.second);
+      kernel_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "stride_size") {
-      stride_size = std::get<std::vector<int>>(iter.second);
+      stride_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "padding_size") {
-      padding_size = std::get<std::vector<int>>(iter.second);
+      padding_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "ceil_mode") {
-      ceil_mode = std::get<bool>(iter.second);
+      ceil_mode = absl::get<bool>(iter.second);
     } else if (iter.first == "exclusive") {
-      exclusive = std::get<bool>(iter.second);
+      exclusive = absl::get<bool>(iter.second);
     } else if (iter.first == "data_format") {
-      data_format = std::get<std::string>(iter.second);
+      data_format = absl::get<std::string>(iter.second);
     }
   }
   CHECK_EQ(kernel_size.size(), 1U) << "kernel size for pool1d should be 1.\n";
@@ -1087,24 +1088,27 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
     bool ceil_mode          = false;
     bool exclusive          = true;
     bool global_pooling     = false;
+    bool adaptive           = false;
     std::string data_format = "NCHW";
     for (auto &iter : attrs.attr_store) {
       if (iter.first == "kernel_size") {
-        kernel_size = std::get<std::vector<int>>(iter.second);
+        kernel_size = absl::get<std::vector<int>>(iter.second);
       } else if (iter.first == "stride_size") {
-        stride_size = std::get<std::vector<int>>(iter.second);
+        stride_size = absl::get<std::vector<int>>(iter.second);
       } else if (iter.first == "padding_size") {
-        padding_size = std::get<std::vector<int>>(iter.second);
+        padding_size = absl::get<std::vector<int>>(iter.second);
       } else if (iter.first == "pool_type") {
-        pool_type = std::get<std::string>(iter.second);
+        pool_type = absl::get<std::string>(iter.second);
       } else if (iter.first == "ceil_mode") {
-        ceil_mode = std::get<bool>(iter.second);
+        ceil_mode = absl::get<bool>(iter.second);
       } else if (iter.first == "exclusive") {
-        exclusive = std::get<bool>(iter.second);
+        exclusive = absl::get<bool>(iter.second);
       } else if (iter.first == "data_format") {
-        data_format = std::get<std::string>(iter.second);
+        data_format = absl::get<std::string>(iter.second);
       } else if (iter.first == "global_pooling") {
-        global_pooling = std::get<bool>(iter.second);
+        global_pooling = absl::get<bool>(iter.second);
+      } else if (iter.first == "adaptive") {
+        adaptive = absl::get<bool>(iter.second);
       }
     }
     CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
@@ -1133,6 +1137,9 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       kernel_size  = {A_tensor->shape[height_index].as_int32(), A_tensor->shape[width_index].as_int32()};
       padding_size = {0, 0, 0, 0};
     }
+    if (kernel_size.size() == padding_size.size()) {
+      padding_size.insert(padding_size.end(), padding_size.begin(), padding_size.end());
+    }
 
     auto out = pe::Pool2d(A_tensor,
                           kernel_size,
@@ -1142,6 +1149,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
                           ceil_mode,
                           exclusive,
                           data_format,
+                          adaptive,
                           UniqName("T_Pool2d_out"));
 
     auto stages = CreateStages({A_tensor});
@@ -1196,21 +1204,24 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   bool exclusive          = true;
   std::string data_format = "NCHW";
   bool global_pooling     = false;
+  bool adaptive           = false;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "kernel_size") {
-      kernel_size = std::get<std::vector<int>>(iter.second);
+      kernel_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "stride_size") {
-      stride_size = std::get<std::vector<int>>(iter.second);
+      stride_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "padding_size") {
-      padding_size = std::get<std::vector<int>>(iter.second);
+      padding_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "ceil_mode") {
-      ceil_mode = std::get<bool>(iter.second);
+      ceil_mode = absl::get<bool>(iter.second);
     } else if (iter.first == "exclusive") {
-      exclusive = std::get<bool>(iter.second);
+      exclusive = absl::get<bool>(iter.second);
     } else if (iter.first == "global_pooling") {
-      global_pooling = std::get<bool>(iter.second);
+      global_pooling = absl::get<bool>(iter.second);
     } else if (iter.first == "data_format") {
-      data_format = std::get<std::string>(iter.second);
+      data_format = absl::get<std::string>(iter.second);
+    } else if (iter.first == "adaptive") {
+      adaptive = absl::get<bool>(iter.second);
     }
   }
   CHECK_EQ(kernel_size.size(), 2U) << "kernel size for pool2d should be 2.\n";
@@ -1254,6 +1265,13 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
         (inputs_shape[0][width_axis] - kernel_size[1] + padding_size[1] + padding_size[3]) / stride_size[1] + 1;
   }
 
+  if (adaptive) {
+    kernel_size = absl::get<std::vector<int>>(attr_store["kernel_size"]);
+    if (kernel_size.size() == 1UL) kernel_size.push_back(kernel_size[0]);
+    CHECK(kernel_size.size() >= 2UL) << "In pool2d, kernel_size's size should be >= 2, please check!";
+    output_shape1[height_axis] = kernel_size[0];
+    output_shape1[width_axis]  = kernel_size[1];
+  }
   std::vector<std::vector<int>> res{output_shape1};
   return res;
 }
@@ -1280,19 +1298,19 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
     std::string data_format = "NCDHW";
     for (auto &iter : attrs.attr_store) {
       if (iter.first == "kernel_size") {
-        kernel_size = std::get<std::vector<int>>(iter.second);
+        kernel_size = absl::get<std::vector<int>>(iter.second);
       } else if (iter.first == "stride_size") {
-        stride_size = std::get<std::vector<int>>(iter.second);
+        stride_size = absl::get<std::vector<int>>(iter.second);
       } else if (iter.first == "padding_size") {
-        padding_size = std::get<std::vector<int>>(iter.second);
+        padding_size = absl::get<std::vector<int>>(iter.second);
       } else if (iter.first == "pool_type") {
-        pool_type = std::get<std::string>(iter.second);
+        pool_type = absl::get<std::string>(iter.second);
       } else if (iter.first == "ceil_mode") {
-        ceil_mode = std::get<bool>(iter.second);
+        ceil_mode = absl::get<bool>(iter.second);
       } else if (iter.first == "exclusive") {
-        exclusive = std::get<bool>(iter.second);
+        exclusive = absl::get<bool>(iter.second);
       } else if (iter.first == "data_format") {
-        data_format = std::get<std::string>(iter.second);
+        data_format = absl::get<std::string>(iter.second);
       } else {
         LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
@@ -1364,17 +1382,17 @@ std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<
   std::string data_format = "NCDHW";
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "kernel_size") {
-      kernel_size = std::get<std::vector<int>>(iter.second);
+      kernel_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "stride_size") {
-      stride_size = std::get<std::vector<int>>(iter.second);
+      stride_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "padding_size") {
-      padding_size = std::get<std::vector<int>>(iter.second);
+      padding_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "ceil_mode") {
-      ceil_mode = std::get<bool>(iter.second);
+      ceil_mode = absl::get<bool>(iter.second);
     } else if (iter.first == "exclusive") {
-      exclusive = std::get<bool>(iter.second);
+      exclusive = absl::get<bool>(iter.second);
     } else if (iter.first == "data_format") {
-      data_format = std::get<std::string>(iter.second);
+      data_format = absl::get<std::string>(iter.second);
     }
   }
 
@@ -1448,7 +1466,7 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
   int axis = -1;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "axis") {
-      axis = std::get<int>(iter.second);
+      axis = absl::get<int>(iter.second);
     }
   }
   framework::CINNCompute softmax_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -1550,13 +1568,13 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
   std::vector<int> ends;
   std::vector<int> axes;
   if (attrs.attr_store.find("starts") != attrs.attr_store.end()) {
-    starts = std::get<std::vector<int>>(attrs.attr_store.at("starts"));
+    starts = absl::get<std::vector<int>>(attrs.attr_store.at("starts"));
   }
   if (attrs.attr_store.find("ends") != attrs.attr_store.end()) {
-    ends = std::get<std::vector<int>>(attrs.attr_store.at("ends"));
+    ends = absl::get<std::vector<int>>(attrs.attr_store.at("ends"));
   }
   if (attrs.attr_store.find("axes") != attrs.attr_store.end()) {
-    axes = std::get<std::vector<int>>(attrs.attr_store.at("axes"));
+    axes = absl::get<std::vector<int>>(attrs.attr_store.at("axes"));
   }
   CHECK(!starts.empty()) << "The Slice op doesn't find [starts] attrbute! It it a mandatory attribute, please check.";
   CHECK(!ends.empty()) << "The Slice op doesn't find [ends] attrbute! It it a mandatory attribute, please check.";
@@ -1617,11 +1635,11 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
   std::vector<int> axes;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "starts") {
-      starts = std::get<std::vector<int>>(iter.second);
+      starts = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "ends") {
-      ends = std::get<std::vector<int>>(iter.second);
+      ends = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "axes") {
-      axes = std::get<std::vector<int>>(iter.second);
+      axes = absl::get<std::vector<int>>(iter.second);
     } else {
       LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
     }
@@ -1675,11 +1693,11 @@ std::vector<std::vector<std::string>> InferLayoutForSlice(const std::vector<fram
   std::vector<int> axes;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "starts") {
-      starts = std::get<std::vector<int>>(iter.second);
+      starts = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "ends") {
-      ends = std::get<std::vector<int>>(iter.second);
+      ends = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "axes") {
-      axes = std::get<std::vector<int>>(iter.second);
+      axes = absl::get<std::vector<int>>(iter.second);
     }
   }
   std::string new_input_layouts = input_layouts[0];
@@ -1706,10 +1724,10 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
   float dropout_prob                 = 0;
   std::string dropout_implementation = "downgrade_in_infer";
   if (attrs.attr_store.find("dropout_prob") != attrs.attr_store.end()) {
-    dropout_prob = std::get<float>(attrs.attr_store.at("dropout_prob"));
+    dropout_prob = absl::get<float>(attrs.attr_store.at("dropout_prob"));
   }
   if (attrs.attr_store.find("dropout_implementation") != attrs.attr_store.end()) {
-    dropout_implementation = std::get<std::string>(attrs.attr_store.at("dropout_implementation"));
+    dropout_implementation = absl::get<std::string>(attrs.attr_store.at("dropout_implementation"));
   }
 
   framework::CINNCompute dropout_infer_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -1755,9 +1773,9 @@ std::vector<std::vector<int>> InferShapeForDropoutInfer(const std::vector<std::v
   std::string dropout_implementation = "downgrade_in_infer";
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "dropout_prob") {
-      dropout_prob = std::get<float>(iter.second);
+      dropout_prob = absl::get<float>(iter.second);
     } else if (iter.first == "dropout_implementation") {
-      dropout_implementation = std::get<std::string>(iter.second);
+      dropout_implementation = absl::get<std::string>(iter.second);
     } else {
       LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
     }
@@ -1787,16 +1805,17 @@ std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<fram
 }  // namespace hlir
 }  // namespace cinn
 
+
 CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(relu)
       .describe("Output 0 for each input element < 0. Output itself for each input element >= 0.")
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRelu)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
@@ -1806,10 +1825,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForRelu6)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
@@ -1823,10 +1842,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_outputs(4)
 #endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2d)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2d))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2d))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForConv2d))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConv2d))
 #endif
 #ifdef CINN_WITH_CUDNN
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
@@ -1841,10 +1860,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(2)  // here we consider filter as another input
       .set_num_outputs(3)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConv2dNCHWc)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2dNCHWc))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2dNCHWc))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2dNCHWc))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2dNCHWc))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForConv2dNCHWc))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConv2dNCHWc))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern",
                                                       cinn::hlir::framework::OpPatternKind::kOutEWiseFusable)
@@ -1859,10 +1878,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_outputs(4)
 #endif
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDepthwiseConv2d)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForConv2d))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForConv2d))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2d))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2d))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForConv2d))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConv2d))
 #endif
 #ifdef CINN_WITH_CUDNN
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
@@ -1877,10 +1896,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(5)  // here we consider batchnorm's 4 attrs(mean, variance, scale, bias) as other 4 inputs
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBatchNorm)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBatchNorm))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBatchNorm))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBatchNorm))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBatchNorm))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForBatchNorm))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBatchNorm))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
@@ -1890,10 +1909,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool1d)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool1d))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForPool1d))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForPool))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForPool))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForPool))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -1903,10 +1922,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool2d)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool2d))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForPool2d))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForPool))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForPool))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForPool))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -1916,10 +1935,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForPool3d)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForPool3d))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForPool))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForPool3d))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForPool))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForPool))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForPool))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -1929,10 +1948,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(2)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSoftmax)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSoftmax))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSoftmax))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSoftmax))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSoftmax))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForSoftmax))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSoftmax))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -1942,10 +1961,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSlice)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSlice))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSlice))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSlice))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSlice))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForSlice))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForSlice))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
@@ -1955,10 +1974,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForDropoutInfer)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForDropoutInfer))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForDropoutInfer))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForDropoutInfer))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForDropoutInfer))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);

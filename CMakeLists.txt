@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.0)
 project(CINN)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
+
 set(CMAKE_SKIP_INSTALL_ALL_DEPENDENCY TRUE)
 
 set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
@@ -61,6 +62,7 @@ include(cmake/external/pybind11.cmake)
 include(cmake/external/gflags.cmake)
 include(cmake/external/glog.cmake)
 include(cmake/external/gtest.cmake)
+include(cmake/external/absl.cmake)
 include(cmake/nvrtc.cmake)
 include(cmake/llvm.cmake)
 include(cmake/external/protobuf.cmake)
@@ -102,7 +104,7 @@ if (WITH_MKLDNN)
     set(cinn_extra_deps ${cinn_extra_deps} mkldnn)
 endif()
 
-cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} ${cinn_extra_deps} framework_proto param_proto paddle_framework_proto ${MLIR_ALL_LIBS})
+cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} ${cinn_extra_deps} framework_proto param_proto paddle_framework_proto ${MLIR_ALL_LIBS} ${ABSL_LIBS})
 
 if (TARGET LLVM)
   target_link_libraries(cinncore LLVM)

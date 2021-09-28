@@ -21,7 +21,7 @@ class OpTest_add_0(SingleOpTester):
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        attrs.attr_store = {"axis": 0}
+        attrs.set_attr("axis", 0)
         self.to_test_op([[100, 32], [100, 32]], [[100, 32]], "elementwise_add",
                         attrs)
 
@@ -33,7 +33,7 @@ class OpTest_add_1(SingleOpTester):
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        attrs.attr_store = {"axis": 1}
+        attrs.set_attr("axis", 1)
         self.to_test_op([[3, 2], [2]], [[3, 2]], "elementwise_add", attrs)
 
 
@@ -44,7 +44,7 @@ class OpTest_mul_0(SingleOpTester):
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        attrs.attr_store = {"axis": 0}
+        attrs.set_attr("axis", 0)
         self.to_test_op([[100, 32], [100, 32]], [[100, 32]], "elementwise_mul",
                         attrs)
 
@@ -56,7 +56,7 @@ class OpTest_mul_1(SingleOpTester):
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        attrs.attr_store = {"axis": 1}
+        attrs.set_attr("axis", 1)
         self.to_test_op([[3, 2], [2]], [[3, 2]], "elementwise_mul", attrs)
 
 
@@ -67,7 +67,8 @@ class OpTest_scale_0(SingleOpTester):
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        attrs.attr_store = {"scale": 0.7, "bias": 0.3}
+        attrs.set_attr("scale", 0.7)
+        attrs.set_attr("bias", 0.3)
         self.to_test_op([[100, 32]], [[100, 32]], "scale", attrs)
 
 
@@ -78,11 +79,9 @@ class OpTest_scale_1(SingleOpTester):
 
     def test_op(self):
         attrs = framework.NodeAttr()
-        attrs.attr_store = {
-            "scale": 0.6,
-            "bias": 0.4,
-            "bias_after_scale": False
-        }
+        attrs.set_attr("scale", 0.6)
+        attrs.set_attr("bias", 0.4)
+        attrs.set_attr("bias_after_scale", False)
         self.to_test_op([[100, 32]], [[100, 32]], "scale", attrs)
 
 

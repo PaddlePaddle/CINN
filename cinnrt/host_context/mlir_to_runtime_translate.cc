@@ -10,7 +10,8 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
+#include <absl/types/optional.h>
 #include <utility>
 #include <vector>
 
@@ -48,10 +49,10 @@ struct MlirToRuntimeTranslator::Impl {
   std::string cur_func_name;
 
   // Name to function definitions.
-  std::unordered_map<std::string, mlir::FuncOp> func_defs;
+  absl::flat_hash_map<std::string, mlir::FuncOp> func_defs;
 
   // Map from an operation to its results.
-  std::unordered_map<const mlir::Operation*, std::vector<ValueRef>> op_results;
+  absl::flat_hash_map<const mlir::Operation*, std::vector<ValueRef>> op_results;
   llvm::DenseMap<mlir::Value, ValueRef> value_map;
 };
 
@@ -89,8 +90,8 @@ bool MlirToRuntimeTranslator::EmitConstantOp(mlir::Operation* op) {
 }
 
 template <>
-std::optional<int32_t> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
-  if (!attr->isa<mlir::IntegerAttr>()) return std::nullopt;
+absl::optional<int32_t> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::IntegerAttr>()) return absl::nullopt;
   if (attr->isa<mlir::IntegerAttr>()) {
     auto val = attr->cast<mlir::IntegerAttr>();
     if (val.getType().isInteger(32)) {
@@ -99,8 +100,8 @@ std::optional<int32_t> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attrib
   }
 }
 template <>
-std::optional<int64_t> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
-  if (!attr->isa<mlir::IntegerAttr>()) return std::nullopt;
+absl::optional<int64_t> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::IntegerAttr>()) return absl::nullopt;
   if (attr->isa<mlir::IntegerAttr>()) {
     auto val = attr->cast<mlir::IntegerAttr>();
     if (val.getType().isInteger(64)) {
@@ -111,8 +112,8 @@ std::optional<int64_t> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attrib
 
 // TODO(Superjomn) Make double and float parsing share some thing.
 template <>
-std::optional<float> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
-  if (!attr->isa<mlir::FloatAttr>()) return std::nullopt;
+absl::optional<float> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::FloatAttr>()) return absl::nullopt;
   if (attr->isa<mlir::FloatAttr>()) {
     auto val = attr->cast<mlir::FloatAttr>();
     if (val.getType().isF32()) return val.getValueAsDouble();
@@ -120,8 +121,8 @@ std::optional<float> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribut
 }
 
 template <>
-std::optional<double> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
-  if (!attr->isa<mlir::FloatAttr>()) return std::nullopt;
+absl::optional<double> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::FloatAttr>()) return absl::nullopt;
   if (attr->isa<mlir::FloatAttr>()) {
     auto val = attr->cast<mlir::FloatAttr>();
     if (val.getType().isF64()) return val.getValueAsDouble();
@@ -129,19 +130,19 @@ std::optional<double> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribu
 }
 
 template <>
-std::optional<std::string> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
-  if (!attr->isa<mlir::StringAttr>()) return std::nullopt;
+absl::optional<std::string> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::StringAttr>()) return absl::nullopt;
   return attr->cast<mlir::StringAttr>().getValue().str();
 }
 
 #define PROCESS_ARRAY_INT(type__, bits__)                                                                  \
   template <>                                                                                              \
-  std::optional<std::vector<type__>> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) { \
-    if (!attr->isa<mlir::ArrayAttr>()) return std::nullopt;                                                \
+  absl::optional<std::vector<type__>> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) { \
+    if (!attr->isa<mlir::ArrayAttr>()) return absl::nullopt;                                                \
     auto array = attr->cast<mlir::ArrayAttr>();                                                            \
     CHECK(!array.empty());                                                                                 \
                                                                                                            \
-    if (!array[0].getType().isInteger(bits__)) return std::nullopt;                                        \
+    if (!array[0].getType().isInteger(bits__)) return absl::nullopt;                                        \
                                                                                                            \
     std::vector<type__> res;                                                                               \
     for (auto& v : array) {                                                                                \
@@ -155,12 +156,12 @@ PROCESS_ARRAY_INT(int32_t, 32);
 PROCESS_ARRAY_INT(int64_t, 64);
 
 template <>
-std::optional<std::vector<float>> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
-  if (!attr->isa<mlir::ArrayAttr>()) return std::nullopt;
+absl::optional<std::vector<float>> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::ArrayAttr>()) return absl::nullopt;
   auto array = attr->cast<mlir::ArrayAttr>();
   CHECK(!array.empty());
 
-  if (!array[0].getType().isF32()) return std::nullopt;
+  if (!array[0].getType().isF32()) return absl::nullopt;
 
   std::vector<float> res;
   for (auto& v : array) {
@@ -170,12 +171,12 @@ std::optional<std::vector<float>> MlirToRuntimeTranslator::EmitAttribute(const m
 }
 
 template <>
-std::optional<std::vector<double>> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
-  if (!attr->isa<mlir::ArrayAttr>()) return std::nullopt;
+absl::optional<std::vector<double>> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) {
+  if (!attr->isa<mlir::ArrayAttr>()) return absl::nullopt;
   auto array = attr->cast<mlir::ArrayAttr>();
   CHECK(!array.empty());
 
-  if (!array[0].getType().isF64()) return std::nullopt;
+  if (!array[0].getType().isF64()) return absl::nullopt;
 
   std::vector<double> res;
   for (auto& v : array) {
@@ -330,7 +331,7 @@ Value* MlirToRuntimeTranslator::AddValue(mlir::Value value) {
 
 MlirToRuntimeTranslator::~MlirToRuntimeTranslator() {}
 
-void MlirToRuntimeTranslator::UpdateCurFuncName(std::string_view name) { impl_->cur_func_name = name; }
+void MlirToRuntimeTranslator::UpdateCurFuncName(absl::string_view name) { impl_->cur_func_name = std::string(name); }
 
 MlirToRuntimeTranslator::MlirToRuntimeTranslator(mlir::ModuleOp module, CoreRuntimeBuilder* runtime) : impl_(new Impl) {
   CHECK(runtime);
@@ -437,7 +438,7 @@ class MlirProgramTestExecutor : public MlirToRuntimeTranslator {
   }
 
  protected:
-  std::unordered_map<std::string, mlir::FuncOp> func_def_table;
+  absl::flat_hash_map<std::string, mlir::FuncOp> func_def_table;
 
   void EmitFunction(mlir::FuncOp op) override {
     auto it = impl_->func_defs.try_emplace(op.getName().str(), op);
