@@ -138,11 +138,11 @@ void AlterLayoutPass(Graph* graph) {
           dilation = absl::get<std::vector<int>>(node->attrs.attr_store.at("dilation"));
         }
         auto& conv_inlinks = node->inlinks_in_order(true);
-        CHECK_EQ(conv_inlinks.size(), 2U)<<"conv2d should have 2 inputs";
+        CHECK_EQ(conv_inlinks.size(), 2U) << "conv2d should have 2 inputs";
         std::vector<std::vector<int>> inputs_shape;
         for (auto& link : conv_inlinks) {
           auto* source = link->source();
-          CHECK(shape_dict.count(source->id()))<<source->id()<<" finds no infershape";
+          CHECK(shape_dict.count(source->id())) << source->id() << " finds no infershape";
           inputs_shape.push_back(shape_dict.at(source->id()));
         }
         std::string key = pe::GenerateX86ConvKey(inputs_shape[0], inputs_shape[1], stride, padding, dilation);

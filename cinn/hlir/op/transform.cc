@@ -321,18 +321,19 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForReshape(const std::vector<std::vector<int>> &inputs_shape,
-                                                   framework::NodeAttr &attrs,
-                                                   const Target &target) {
+                                                   framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
   std::vector<int> output_shape;
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "shape") {
       output_shape = absl::get<std::vector<int>>(iter.second);
       break;
     }
   }
   int tensor_size = 1;
-  for (auto i : inputs_shape[0]) tensor_size *= i;
+  for (auto i : inputs_shape[0]) {
+    tensor_size *= i;
+  }
   CHECK(!output_shape.empty()) << "infer_shape for reshape turns out to be empty. Please check\n";
   int flag_index = -1;
   for (int i = 0; i < output_shape.size(); i++) {
@@ -361,9 +362,7 @@ std::vector<std::vector<int>> InferShapeForReshape(const std::vector<std::vector
   return res;
 }
 
-std::vector<Type> InferDtypeForReshape(const std::vector<Type> &inputs_type,
-                                       const framework::NodeAttr &attrs,
-                                       const Target &target) {
+std::vector<Type> InferDtypeForReshape(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -444,11 +443,10 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<int>> &inputs_shape,
-                                                  framework::NodeAttr &attrs,
-                                                  const Target &target) {
+                                                  framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   int axis = 0;
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "axis") {
       axis = absl::get<int>(iter.second);
       break;
@@ -465,9 +463,7 @@ std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<
   return res;
 }
 
-std::vector<Type> InferDtypeForConcat(const std::vector<Type> &inputs_type,
-                                      const framework::NodeAttr &attrs,
-                                      const Target &target) {
+std::vector<Type> InferDtypeForConcat(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;

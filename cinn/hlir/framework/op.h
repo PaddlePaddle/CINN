@@ -14,6 +14,11 @@
 #include "cinn/common/macros.h"
 #include "cinn/utils/registry.h"
 
+template <typename R, typename... Args>
+inline auto MakeOpFunction(R (*func)(Args...)) {
+  return std::function<R(Args...)>(func);
+}
+
 namespace cinn {
 namespace hlir {
 namespace framework {
@@ -202,11 +207,6 @@ bool OpValueType<ValueType>::Find(const Operator* op) const {
   if (!op) return false;
   const uint32_t idx = op->index;
   return idx < data.size();
-}
-
-template <typename R, typename... Args>
-inline auto MakeOpFunction(R (*func)(Args...)) {
-  return std::function<R(Args...)>(func);
 }
 
 // internal macros to make
