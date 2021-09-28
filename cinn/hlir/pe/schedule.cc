@@ -598,9 +598,13 @@ void CreateX86SerialData(const std::string &file_name) {
   InputX86Param(model_data,
                 "X86ScheduleConv input 1 256 56 56 weight 128 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
                 {{"ic_bn", {1, 256}}, {"oc_bn", {4, 32}}, {"ow_bn", {4, 7}}, {"oh_bn", {1}}});
+  // resnet 50
   InputX86Param(model_data,
                 "X86ScheduleConv input 1 256 56 56 weight 512 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
-                {{"ic_bn", {1, 256}}, {"oc_bn", {8, 64}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
+                // Todo: tempory fix, enhance alterlayout and test performance
+                {{"ic_bn", {1, 256}}, {"oc_bn", {16, 32}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
+  // {{"ic_bn", {1, 256}}, {"oc_bn", {8, 64}}, {"ow_bn", {7, 4}}, {"oh_bn", {1}}});
+  // resnet50
   InputX86Param(model_data,
                 "X86ScheduleConv input 1 128 28 28 weight 512 128 1 1 stride 1 1 padding 0 0 dilation 1 1",
                 {{"ic_bn", {32, 4}}, {"oc_bn", {16, 32}}, {"ow_bn", {4, 7}}, {"oh_bn", {1}}});
@@ -610,11 +614,13 @@ void CreateX86SerialData(const std::string &file_name) {
   InputX86Param(model_data,
                 "X86ScheduleConv input 1 512 28 28 weight 256 512 1 1 stride 2 2 padding 0 0 dilation 1 1",
                 {{"ic_bn", {8, 64}}, {"oc_bn", {4, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
+  // resnet 50
   InputX86Param(model_data,
                 "X86ScheduleConv input 1 512 28 28 weight 1024 512 1 1 stride 2 2 padding 0 0 dilation 1 1",
                 {{"ic_bn", {1, 512}}, {"oc_bn", {16, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
+  // resnet 50
   InputX86Param(model_data,
-                "X86ScheduleConv input 1 256 14 14 weight 1024 256 1 1 stride 2 2 padding 0 0 dilation 1 1",
+                "X86ScheduleConv input 1 256 14 14 weight 1024 256 1 1 stride 1 1 padding 0 0 dilation 1 1",
                 {{"ic_bn", {1, 256}}, {"oc_bn", {16, 64}}, {"ow_bn", {7, 2}}, {"oh_bn", {2}}});
   InputX86Param(model_data,
                 "X86ScheduleConv input 1 1024 14 14 weight 256 1024 1 1 stride 2 2 padding 0 0 dilation 1 1",

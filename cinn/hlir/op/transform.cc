@@ -117,17 +117,16 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
     bool trans_a    = false;
     bool trans_b    = false;
     float alpha     = 1;
-    for (auto &iter : attrs.attr_store) {
-      if (iter.first == "trans_a") {
-        trans_a = absl::get<bool>(iter.second);
-      } else if (iter.first == "trans_b") {
-        trans_b = absl::get<bool>(iter.second);
-      } else if (iter.first == "alpha") {
-        alpha = absl::get<float>(iter.second);
-      } else {
-        LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
-      }
+    if (attr_store.count("trans_a")) {
+      trans_a = absl::get<bool>(attr_store.at("trans_a"));
     }
+    if (attr_store.count("trans_b")) {
+      trans_b = absl::get<bool>(attr_store.at("trans_b"));
+    }
+    if (attr_store.count("alpha")) {
+      alpha = absl::get<float>(attr_store.at("alpha"));
+    }
+
     auto tensor_A = A.as_tensor_ref();
     auto tensor_B = B.as_tensor_ref();
     auto stages   = CreateStages({tensor_A, tensor_B});
@@ -259,6 +258,23 @@ std::vector<Type> InferDtypeForMatMul(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForMatMul(const std::vector<framework::shape_t> &input_shapes,
+                                                           const std::vector<std::string> &input_layouts,
+                                                           const framework::NodeAttr &attrs,
+                                                           const Target &target) {
+  CHECK_EQ(input_layouts.size(), 2U) << "The input's layouts size is not 2! Please check again.";
+  CHECK_EQ(input_shapes.size(), 2U) << "mul should have 2 input shapes";
+  std::vector<std::string> new_input_layouts = input_layouts;
+  for (int i = 0; i < input_shapes.size(); i++) {
+    if (input_shapes[i].size() > 4) {
+      // alter input layout back
+      new_input_layouts[i] = "NCHW";
+    }
+  }
+
+  return {{"", "", ""}, new_input_layouts};
+}
+
 std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
                                                const std::vector<ir::Tensor> &inputs,
                                                const std::vector<Type> &out_type,
@@ -272,18 +288,13 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
     CHECK(A.as_tensor());
     CHECK(!output_shapes.empty());
     auto attr_store = attrs.attr_store;
-    std::vector<int> new_shape;
-    for (auto &iter : attrs.attr_store) {
-      if (iter.first == "shape") {
-        new_shape = absl::get<std::vector<int>>(iter.second);
-      } else {
-        LOG(FATAL) << "Unsupported attr: " << iter.first << std::endl;
-      }
-    }
-    auto tensor_A = A.as_tensor_ref();
-    auto stages   = CreateStages({tensor_A});
-    ir::Tensor out;
-    out = pe::Reshape(tensor_A, output_shapes.back(), UniqName("Reshape_output"));
+    CHECK(attr_store.count("shape")) << "find no attr of shape";
+    std::vector<int> new_shape = absl::get<std::vector<int>>(attr_store.at("shape"));
+    auto tensor_A              = A.as_tensor_ref();
+    auto stages                = CreateStages({tensor_A});
+    VLOG(3) << "A shape: " << utils::Join(tensor_A->shape, ", ")
+            << ", output_shapes: " << utils::Join(output_shapes[0], ", ");
+    ir::Tensor out = pe::Reshape(tensor_A, output_shapes[0], stages, UniqName("Reshape_out"));
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -300,9 +311,9 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
     Expr out               = arg_pack[0];
     CHECK(out.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
-      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
     } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
     }
     *ret = arg_pack;
   });
@@ -361,6 +372,28 @@ std::vector<Type> InferDtypeForReshape(const std::vector<Type> &inputs_type,
   return res;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForReshape(const std::vector<framework::shape_t> &input_shapes,
+                                                            const std::vector<std::string> &input_layouts,
+                                                            const framework::NodeAttr &attrs,
+                                                            const Target &target) {
+  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  std::vector<int> output_shape;
+  CHECK(attrs.attr_store.count("shape")) << "find no attr of shape";
+  std::vector<std::string> new_input_layouts = input_layouts;
+  if (input_shapes[0].size() > 4) {
+    // alter input layout back
+    new_input_layouts[0] = "NCHW";
+    VLOG(3) << "alter input layout from " << input_layouts[0] << " to " << new_input_layouts[0];
+  }
+  output_shape = absl::get<std::vector<int>>(attrs.attr_store.at("shape"));
+  if (input_shapes[0].size() == output_shape.size()) {
+    return {new_input_layouts, new_input_layouts};
+  } else {
+    return {{""}, new_input_layouts};
+  }
+}
+
 std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
@@ -375,15 +408,11 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
     CHECK(A.as_tensor());
     CHECK(B.as_tensor());
     CHECK(!output_shapes.empty());
-    auto attr_store = attrs.attr_store;
-    int axis;
-    for (auto &iter : attrs.attr_store) {
-      if (iter.first == "axis") {
-        axis = absl::get<int>(iter.second);
-      } else {
-        LOG(FATAL) << "Unsupported attr: " << iter.first << std::endl;
-      }
+    int axis = 0;
+    if (attrs.attr_store.count("axis")) {
+      axis = absl::get<int>(attrs.attr_store.at("axis"));
     }
+
     auto tensor_A = A.as_tensor_ref();
     auto tensor_B = B.as_tensor_ref();
     auto stages   = CreateStages({tensor_A, tensor_B});
@@ -421,7 +450,7 @@ std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<
                                                   framework::NodeAttr &attrs,
                                                   const Target &target) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
-  int axis;
+  int axis = 0;
   for (auto &iter : attrs.attr_store) {
     if (iter.first == "axis") {
       axis = absl::get<int>(iter.second);
@@ -445,6 +474,14 @@ std::vector<Type> InferDtypeForConcat(const std::vector<Type> &inputs_type,
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
+}
+
+std::vector<std::vector<std::string>> InferLayoutForConcat(const std::vector<framework::shape_t> &input_shapes,
+                                                           const std::vector<std::string> &input_layouts,
+                                                           const framework::NodeAttr &attrs,
+                                                           const Target &target) {
+  CHECK_EQ(input_layouts.size(), 2U) << "The input's layout size is not 1! Please check again.";
+  return {{input_layouts[0]}, input_layouts};
 }
 
 std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
@@ -718,6 +755,7 @@ std::vector<std::vector<std::string>> InferLayoutForMul(const std::vector<framew
   std::vector<std::string> new_input_layouts = input_layouts;
   for (int i = 0; i < input_shapes.size(); i++) {
     if (input_shapes[i].size() > 4) {
+      // alter input layout back
       new_input_layouts[i] = "NCHW";
     }
   }
@@ -899,6 +937,9 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForMatMul)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForMatMul))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForMatMul))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForMatMul))
+#endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
@@ -909,6 +950,9 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReshape)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReshape))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReshape))
+#endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 
@@ -919,6 +963,19 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForConcat)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConcat))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConcat))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForConcat))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(reshape)
+      .describe("This operator is used to reshape input tensor X.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReshape)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReshape))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
       .set_support_level(4);
 

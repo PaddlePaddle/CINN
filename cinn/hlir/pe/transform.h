@@ -5,6 +5,7 @@
 
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/layout.h"
+#include "cinn/poly/stage.h"
 
 namespace cinn {
 namespace hlir {
@@ -29,6 +30,12 @@ std::vector<ir::Tensor> Matmul(const ir::Tensor& A,
                                bool trans_b            = false,
                                float alpha             = 1,
                                const std::string& name = UniqName("T_Transform_Matmul_out"));
+
+// realized by sharing buffer
+ir::Tensor Reshape(const ir::Tensor& A,
+                   const std::vector<int>& new_shape,
+                   poly::StageMap stages,
+                   const std::string& name);
 
 ir::Tensor Reshape(const ir::Tensor& A,
                    const std::vector<int>& new_shape,

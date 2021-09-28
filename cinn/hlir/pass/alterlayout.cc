@@ -329,6 +329,7 @@ void AlterLayoutPass(Graph* graph) {
               input_layouts.push_back("");
             }
           }
+          CHECK(op_inferlayout[node->op()]) << "find no InferLayout function for op " << node->op()->name;
           auto inferlayouts = op_inferlayout[node->op()](input_shapes, input_layouts, node->attrs, graph->target_);
           // if input inferred layouts is different from original's, expand dims or do transformation.
           CHECK_EQ(inferlayouts.size(), 2U);
