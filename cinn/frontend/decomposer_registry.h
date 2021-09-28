@@ -10,98 +10,67 @@
 namespace cinn {
 namespace frontend {
 
-/*
-using Decomposer = std::function<void(
-    const Instruction& instr, frontend::Program* progam, std::unordered_map<std::string, Variable>* outs_map)>;
-
-using TargetMap = std::unordered_map<common::Target, Decomposer, common::Target::Hash>;
-
-class InstrDecomposerMap {
- public:
-  static InstrDecomposerMap& Instance() {
-    static InstrDecomposerMap g_instr_decomposer_map;
-    return g_instr_decomposer_map;
-  }
-
-  bool Has(const std::string& op_type, const common::Target& target) const {
-    return map_.find(op_type) != map_.end() && map_.at(op_type).find(target) != map_.at(op_type).end();
-  }
-
-  void Insert(const std::string& op_type, const common::Target& target, Decomposer func) {
-    map_[op_type][target] = func;
-  }
-
-  const Decomposer& Get(const std::string& op_type, const common::Target& target) const {
-    auto decomposer_ptr = GetNullable(op_type, target);
-    CHECK(decomposer_ptr) << "The decomposer for [" << op_type << ", " << target << "] "
-                          << " is not registered.";
-    return *decomposer_ptr;
-  }
-
-  const Decomposer* GetNullable(const std::string& op_type, const common::Target& target) const {
-    auto it_target = map_.find(op_type);
-    if (it_target == map_.end()) {
-      return nullptr;
-    }
-    auto decomposer_map = it_target->second;
-    auto it_decomposer  = decomposer_map.find(target);
-    if (it_decomposer == decomposer_map.end()) {
-      return nullptr;
-    }
-    return &it_decomposer->second;
-  }
-
- private:
-  std::unordered_map<std::string, TargetMap> map_;
-};
-
-class InstrDecomposerRegistry final {
- public:
-  static void RegisterDecomposer(const std::string& op_type, const common::Target& target, Decomposer func);
-};
-
-#define CINN_REGISTER_INSTR_DECOMPOSER(op_type, target, decomposer) \
-  InstrDecomposerRegistry::RegisterDecomposer(op_type, target, decomposer)
-*/
-
-class DecomposerRegistry;
-
-class Decomposer : public Registry<DecomposerRegistry> {
- public:
-  /**
-   * \brief Get an Decomposer for a given operator name.
-   *  Will raise an error if the Decomposer has not been registered.
-   * @param op_name Name of the operator.
-   * @return Pointer to a Op, valid throughout program lifetime.
-   */
-
-  inline const DecomposerRegistry *Find(const std::string &name, const common::Target &target) {
-    return Registry<DecomposerRegistry>::Find(name + "_" + target.hash_str());
-  }
-
-  inline DecomposerRegistry &__REGISTER__(const std::string &name, const common::Target &target) {
-    return Registry<DecomposerRegistry>::__REGISTER__(name + "_" + target.hash_str());
-  }
-
-  static Decomposer *Global() {
-    static Decomposer inst;
-    return &inst;
-  }
-};
+class Decomposer;
 
 class DecomposerContext {
+ public:
+  DecomposerContext(const Instruction& instr, const common::Target& target, Program* program)
+      : instr_(instr), target_(target), program_(program) {}
+
  private:
-  Program program_;
-  Instruction instr_;
+  const Instruction& instr_;
+  const common::Target& target_;
+  Program* program_{nullptr};
 };
 
-typedef std::function<void(DecomposerContext *context)> DecomposerFunction;
+class InstrDecomposerRegistry : public Registry<Decomposer> {
+ public:
+  InstrDecomposerRegistry() = default;
 
-struct DecomposerRegistry : public FunctionRegEntryBase<DecomposerRegistry, DecomposerFunction> {};
+  static InstrDecomposerRegistry* Global() {
+    static InstrDecomposerRegistry x;
+    return &x;
+  }
 
-#define CINN_DECOMPOSER_REGISTER(name, target)                                              \
-  static DecomposerRegistry &CINN_STR_CONCAT(__make_DecomposerRegistry_name, __COUNTER__) = \
-      Decomposer::Global()->__REGISTER__(#name, target)
+  inline const Decomposer* Find(const std::string& name, const common::Target& target) {
+    return Registry<Decomposer>::Find(name + "_" + target.hash_str());
+  }
+
+  inline Decomposer& __REGISTER__(const std::string& name, const common::Target& target) {
+    return Registry<Decomposer>::__REGISTER__(name + "_" + target.hash_str());
+  }
+
+ private:
+  CINN_DISALLOW_COPY_AND_ASSIGN(InstrDecomposerRegistry);
+};
+
+class Decomposer {
+ public:
+  using DecomposerKernel = std::function<void(const DecomposerContext&)>;
+
+  static const Decomposer* Get(const std::string& op_name, const common::Target& target) {
+    const Decomposer* decomposer = InstrDecomposerRegistry::Global()->Find(op_name, target);
+    CHECK(decomposer) << "Decomposer for [" << op_name << ", " << target << "] is not registered";
+    return decomposer;
+  }
+
+  Decomposer& Set(const DecomposerKernel& kernel) {
+    kernel_ = kernel;
+    return *this;
+  }
+
+  void Run(const DecomposerContext& context) { kernel_(context); }
+
+  std::string name;
+
+ private:
+  // friend class Registry<Decomposer>;
+  DecomposerKernel kernel_;
+};
+
+#define CINN_DECOMPOSER_REGISTER(name, target)                                                \
+  static ::cinn::frontend::Decomposer& CINN_STR_CONCAT(__make_Decomposer_name, __COUNTER__) = \
+      ::cinn::frontend::InstrDecomposerRegistry::Global()->__REGISTER__(name, target)
 
 }  // namespace frontend
 }  // namespace cinn
