@@ -6,8 +6,8 @@ namespace framework {
 
 Graph::Graph(const frontend::Program& prog, const Target& target) {
   target_ = target;
-  std::unordered_map<std::string, shape_t> shape_dict;
-  std::unordered_map<std::string, common::Type> dtype_dict;
+  absl::flat_hash_map<std::string, shape_t> shape_dict;
+  absl::flat_hash_map<std::string, common::Type> dtype_dict;
   int counter = 0;
   for (size_t i = 0; i < prog.size(); i++) {
     auto temp = prog[i];
@@ -37,8 +37,8 @@ Graph::Graph(const frontend::Program& prog, const Target& target) {
     }
     this->RegisterNode(node_tmp->id(), node_tmp);
   }
-  this->attrs["infershape"] = std::make_shared<std::any>(shape_dict);
-  this->attrs["inferdtype"] = std::make_shared<std::any>(dtype_dict);
+  this->attrs["infershape"] = std::make_shared<absl::any>(shape_dict);
+  this->attrs["inferdtype"] = std::make_shared<absl::any>(dtype_dict);
 }
 
 }  // namespace framework

@@ -259,7 +259,9 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
     if (stage->IfCudaBind()) info.set_valid(true);
     for (auto &item : stage->forloop_infos()) {
       int level = poly::isl_get_original_axes_from_optimized_level(stage->transformed_domain().get(), item.first);
-      auto [min_val, max_val] = poly::isl_set_get_axis_range(stage->transformed_domain().get(), level);
+      auto _min_val_max_val_ = poly::isl_set_get_axis_range(stage->transformed_domain().get(), level);
+      auto &min_val = std::get<0>(_min_val_max_val_);
+      auto &max_val = std::get<1>(_min_val_max_val_);
       auto key                = std::make_pair(item.second.for_type, item.second.offset);
       gpu_axis_range[key]     = std::max(max_val.get_num_si() + 1, static_cast<int64_t>(gpu_axis_range[key]));
     }

@@ -9,10 +9,12 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <unordered_set>
 #include <utility>
 #include <vector>
+
+#include <absl/strings/string_view.h>
 
 #include "cinn/backends/llvm/ir_builder_mixin.h"
 #include "cinn/backends/llvm/llvm_util.h"
@@ -76,7 +78,7 @@ class SymbolTable {
   size_t num_scopes() const { return scopes_.size(); }
 
  private:
-  std::vector<std::unordered_map<std::string, llvm::Value *>> scopes_;
+  std::vector<absl::flat_hash_map<std::string, llvm::Value *>> scopes_;
 
   SymbolTable(const SymbolTable &) = delete;
 };
@@ -190,7 +192,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
    * Mark a load or store with type-based-alias-analysis metadata so that LLVM can optimize by reordering loads and
    * stores accross different buffers.
    */
-  void AddTbaaMetadata(llvm::Instruction *inst, std::string_view buffer, Expr index);
+  void AddTbaaMetadata(llvm::Instruction *inst, absl::string_view buffer, Expr index);
 
   void InitTarget(const Target &target);
 
@@ -203,7 +205,7 @@ class CodeGenLLVM : public LLVMIRVisitor, public IrBuilderMixin<CodeGenLLVM> {
 
   std::unique_ptr<llvm::MDBuilder> md_builder_;
 
-  // std::shared_ptr<std::unordered_map<std::string, llvm::Value *>> named_vars_;
+  // std::shared_ptr<absl::flat_hash_map<std::string, llvm::Value *>> named_vars_;
   std::shared_ptr<SymbolTable> symbol_table_;
   std::unordered_set<ir::_Var_ *> alias_vars_;
 

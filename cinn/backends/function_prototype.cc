@@ -92,7 +92,7 @@ FunctionProto *FunctionProtoRegistry::Lookup(const std::string &name) {
   return nullptr;
 }
 
-FunctionProto *FunctionProtoRegistry::Register(std::string_view name, FunctionProto *x) {
+FunctionProto *FunctionProtoRegistry::Register(absl::string_view name, FunctionProto *x) {
 #ifdef CINN_WITH_DEBUG
   RAW_LOG_INFO("Register function prototype  [%s]", name.data());
 #endif  // CINN_WITH_DEBUG

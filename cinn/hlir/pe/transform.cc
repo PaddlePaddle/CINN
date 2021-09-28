@@ -6,6 +6,7 @@
 #include "cinn/common/cas.h"
 #include "cinn/common/context.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
@@ -76,6 +77,79 @@ std::vector<Tensor> Matmul(
   } else {
     return {temp};
   }
+}
+
+ir::Tensor Reshape(const ir::Tensor& A,
+                   const std::vector<int>& new_shape,
+                   poly::StageMap stages,
+                   const std::string& name) {
+  std::vector<Expr> new_expr_shape;
+  std::vector<Expr> A_expr_shape = A->shape;
+  int input_total_size           = 1;
+  int output_total_size          = 1;
+  for (auto& i : A_expr_shape) {
+    CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+    input_total_size *= static_cast<int>(i.get_constant());
+  }
+  for (auto& i : new_shape) {
+    output_total_size *= i;
+    new_expr_shape.push_back(Expr(i));
+  }
+  CHECK_EQ(input_total_size, output_total_size)
+      << "In op reshape, the input tensor and output tensor's total size should be equal, please check!";
+  auto out = Identity(A->Reshape(new_expr_shape, stages), name).front();
+  return out;
+}
+
+ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const std::string& name) {
+  std::vector<Expr> new_expr_shape;
+  std::vector<Expr> A_expr_shape = A->shape;
+  int input_total_size           = 1;
+  int output_total_size          = 1;
+  for (auto& i : A_expr_shape) {
+    CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+    input_total_size *= static_cast<int>(i.get_constant());
+  }
+  for (auto& i : new_shape) {
+    output_total_size *= i;
+    new_expr_shape.push_back(Expr(i));
+  }
+  CHECK_EQ(input_total_size, output_total_size)
+      << "In op reshape, the input tensor and output tensor's total size should be equal, please check!";
+  auto res = Compute(
+      new_expr_shape,
+      [=](const std::vector<Expr>& indice) {
+        Expr offset = Expr(0);
+        for (int i = 0; i < indice.size(); i++) {
+          offset = offset * new_expr_shape[i] + indice[i];
+        }
+        std::vector<Expr> indice_a;
+        for (int i = A_expr_shape.size() - 1; i >= 0; i--) {
+          auto temp = offset % A_expr_shape[i];
+          indice_a.insert(indice_a.begin(), common::AutoSimplify(temp));
+          offset = (offset - temp) / A_expr_shape[i];
+        }
+        return A(indice_a);
+      },
+      name);
+  return res;
+}
+
+ir::Tensor Concat(const ir::Tensor& A, const ir::Tensor& B, int axis, const std::string& name) {
+  if (axis < 0) axis += A->shape.size();
+  CHECK_EQ(A->shape.size(), B->shape.size()) << "Dimensions of inputs A and B in Concat should be equal! Please check.";
+  std::vector<Expr> output_shape = A->shape;
+  Expr pivot                     = A->shape[axis];
+  output_shape[axis]             = common::AutoSimplify(output_shape[axis] + B->shape[axis]);
+  auto res                       = Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indice) {
+        auto indice_B  = indice;
+        indice_B[axis] = indice_B[axis] - pivot;
+        return ir::Select::Make(indice[axis] < pivot, A(indice), B(indice_B));
+      },
+      name);
+  return res;
 }
 
 std::vector<Tensor> MatmulV2(const Tensor& A,
@@ -399,7 +473,7 @@ std::vector<ir::Tensor> MulBias(const Tensor& A,
 
 void GetLayoutTransformInfo(const ir::Layout& src_layout,
                             const ir::Layout& dst_layout,
-                            std::unordered_map<int, std::vector<int>>* split_index_map) {
+                            absl::flat_hash_map<int, std::vector<int>>* split_index_map) {
   CHECK_GT(dst_layout.ndims(), src_layout.ndims());
   int offset = 'A' - 'a';
   CHECK_EQ(dst_layout.axis_names().size(), dst_layout.ndims());
@@ -428,7 +502,7 @@ void GetLayoutTransformInfo(const ir::Layout& src_layout,
 std::vector<Expr> InferShapeLayoutTransform(const std::vector<Expr>& input_shapes,
                                             const ir::Layout& old_layout,
                                             const ir::Layout& new_layout,
-                                            std::unordered_map<int, std::vector<int>>* split_index_map) {
+                                            absl::flat_hash_map<int, std::vector<int>>* split_index_map) {
   int src_dim = old_layout.ndims();
   int dst_dim = new_layout.ndims();
   std::vector<Expr> output_shape(dst_dim);
@@ -486,7 +560,7 @@ ir::Tensor LayoutTransform(const Tensor& input,
   // OIHWxixo -> OIHW
   CHECK_GE(src_layout.size(), 4U);
   CHECK_GE(dst_layout.size(), 4U);
-  std::unordered_map<int, std::vector<int>> split_index_map;
+  absl::flat_hash_map<int, std::vector<int>> split_index_map;
   // transform shape
   int offset = 'A' - 'a';
   ir::Layout old_layout(src_layout);

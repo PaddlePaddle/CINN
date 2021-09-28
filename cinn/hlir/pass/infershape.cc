@@ -17,8 +17,8 @@ using framework::NodeData;
 using framework::Operator;
 
 void InferShapePass(Graph* graph) {
-  auto& shape_dict    = graph->GetMutableAttrs<std::unordered_map<std::string, framework::shape_t>>("infershape");
-  auto& dtype_dict    = graph->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+  auto& shape_dict    = graph->GetMutableAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
+  auto& dtype_dict    = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto store_nodes    = std::get<0>(graph->topological_order());
   auto& op_infershape = Operator::GetAttrs<std::function<std::vector<framework::shape_t>(
       const std::vector<framework::shape_t>&, const framework::AttrMapType&)>>("infershape");

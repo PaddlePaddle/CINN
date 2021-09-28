@@ -30,7 +30,7 @@ void CheckNoIslCallRemains(Expr* expr) {
 }
 
 void BindBuffer(StageMap& stages) {
-  std::unordered_map<std::string, ir::_Tensor_*> tensor_map;
+  absl::flat_hash_map<std::string, ir::_Tensor_*> tensor_map;
   for (auto& stage : stages) {
     tensor_map[stage.second->tensor()->name] = stage.second->tensor();
   }
@@ -490,8 +490,8 @@ std::vector<ir::Argument> LowerImpl::GenFuncArgForSplitKernel(Expr func_iterator
 
 std::vector<Tensor> LowerImpl::CollectTemporaryTensors() {
   // a temporary should be in the comp_graph but not contained in the tensor_args.
-  std::unordered_map<std::string, Tensor> tensor_arg_map = GenTensorArgMap();
-  std::unordered_map<std::string, Tensor> temp_tensor_map;
+  absl::flat_hash_map<std::string, Tensor> tensor_arg_map = GenTensorArgMap();
+  absl::flat_hash_map<std::string, Tensor> temp_tensor_map;
 
   for (auto* node : compu_graph_->nodes()) {
     auto* cnode = node->safe_as<CompuGraphNode>();
@@ -509,16 +509,16 @@ std::vector<Tensor> LowerImpl::CollectTemporaryTensors() {
   return temp_tensors;
 }
 
-std::unordered_map<std::string, Tensor> LowerImpl::GenTensorArgMap() {
-  std::unordered_map<std::string, Tensor> map;
+absl::flat_hash_map<std::string, Tensor> LowerImpl::GenTensorArgMap() {
+  absl::flat_hash_map<std::string, Tensor> map;
   for (auto& t : tensor_args_) {
     map[t->name] = t;
   }
   return map;
 }
 
-std::unordered_map<std::string, Tensor> LowerImpl::GenAllTensorMap() {
-  std::unordered_map<std::string, Tensor> map;
+absl::flat_hash_map<std::string, Tensor> LowerImpl::GenAllTensorMap() {
+  absl::flat_hash_map<std::string, Tensor> map;
   for (auto& t : CollectAllTensors()) {
     map[t->name] = t;
   }
@@ -583,7 +583,6 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
     // TODO(Superjomn) write buffer latter.
 
     if (target_ == common::DefaultNVGPUTarget()) {
-      VLOG(3) << "Case: target = DefaultNVGPUTarget";
       for (auto& t : new_temp_tensors) {
         if (!tensor_map.count(t->name)) continue;
         auto& tt = tensor_map.at(t->name);
@@ -605,11 +604,17 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
 
     ir::LoweredFunc func;
     if (target_ == common::DefaultNVGPUTarget()) {
-      auto func_args2 = GenFuncArgForSplitKernel(func_iterator, new_temp_tensors);
-      VLOG(3) << "Case: target = DefaultNVGPUTarget";
+      auto func_args2         = GenFuncArgForSplitKernel(func_iterator, new_temp_tensors);
       std::string new_fn_name = fn_name_;
       if (num_func > 0) {
         new_fn_name += "_" + std::to_string(num_func);
+      }
+      VLOG(3) << "Making func :" << new_fn_name;
+      for (auto& i : func_args2) {
+        VLOG(3) << "func_args2 is : " << i.name();
+      }
+      for (auto& i : temp_buffers) {
+        VLOG(3) << "temp_buffers is : " << i->name;
       }
       func = ir::_LoweredFunc_::Make(new_fn_name, func_args2, func_iterator, temp_buffers);
     } else {
@@ -634,7 +639,9 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
 
 std::vector<Tensor> LowerImpl::CollectAllTensors() {
   std::vector<Tensor> tensors;
-  auto [nodes, edges] = compu_graph_->topological_order();  // NOLINT
+  auto topo_order = compu_graph_->topological_order();  // NOLINT
+  auto &nodes = std::get<0>(topo_order);
+  auto &edges = std::get<1>(topo_order);
   for (auto* node : nodes) {
     auto* cnode = node->safe_as<CompuGraphNode>();
     CHECK(cnode);

@@ -11,9 +11,10 @@
 #include <llvm/IR/Value.h>
 
 #include <string>
-#include <string_view>
 #include <type_traits>
 #include <utility>
+
+#include <absl/strings/string_view.h>
 
 #include "cinn/common/type.h"
 
@@ -30,7 +31,7 @@ std::string DumpToString(const T &entity) {
   // return "\033[33m" + buffer + "\033[0m"; // Green
 }
 
-inline llvm::StringRef AsStringRef(std::string_view str) { return llvm::StringRef(str.data(), str.size()); }
+inline llvm::StringRef AsStringRef(absl::string_view str) { return llvm::StringRef(str.data(), str.size()); }
 
 llvm::Type *CinnTypeToLLVMType(common::Type t, llvm::Module *m, bool is_vec = false);
 

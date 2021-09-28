@@ -40,7 +40,7 @@ Expr Add::Make(Expr a, Expr b) {
 
 Add::Add(Expr a, Expr b) : BinaryOpNode<Add>(a.type(), a, b) {}
 
-void BinaryNodeVerify(const Expr &a, const Expr &b, std::string_view ir_name) {
+void BinaryNodeVerify(const Expr &a, const Expr &b, absl::string_view ir_name) {
   CHECK(a.defined());
   CHECK(b.defined());
   CHECK_EQ(a.type(), b.type()) << "The operands' types of the node [" << ir_name << "] don't match";

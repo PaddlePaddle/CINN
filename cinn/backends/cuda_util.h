@@ -7,7 +7,6 @@
 
 #include <string>
 #include <tuple>
-#include <unordered_map>
 #include <vector>
 
 #include "cinn/runtime/cinn_runtime.h"

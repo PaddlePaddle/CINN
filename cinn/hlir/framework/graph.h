@@ -1,9 +1,10 @@
 #pragma once
-#include <any>
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <vector>
+
+#include <absl/types/any.h>
 
 #include "cinn/common/graph_utils.h"
 #include "cinn/frontend/syntax.h"
@@ -26,7 +27,7 @@ class Graph : public cinn::common::Graph {
   std::vector<NodeData*> outputs;
 
   /** \brief attributes of a graph */
-  std::unordered_map<std::string, std::shared_ptr<std::any>> attrs;
+  absl::flat_hash_map<std::string, std::shared_ptr<absl::any>> attrs;
 
   std::vector<std::vector<Node*>> groups;
 
@@ -51,7 +52,7 @@ class Graph : public cinn::common::Graph {
   inline const T& GetAttrs(const std::string& attr_name) const {
     auto it = attrs.find(attr_name);
     CHECK(it != attrs.end()) << "Cannot find attribute [" << attr_name << "] in the graph";
-    return std::any_cast<const T&>(*it->second);
+    return absl::any_cast<const T&>(*it->second);
   }
 
   /**
@@ -64,7 +65,7 @@ class Graph : public cinn::common::Graph {
   inline T& GetMutableAttrs(const std::string& attr_name) {
     auto it = attrs.find(attr_name);
     CHECK(it != attrs.end()) << "Cannot find attribute [" << attr_name << "] in the graph";
-    return std::any_cast<T&>(*it->second);
+    return absl::any_cast<T&>(*it->second);
   }
 
   /**

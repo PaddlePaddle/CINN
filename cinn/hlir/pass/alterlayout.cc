@@ -76,9 +76,9 @@ std::vector<framework::shape_t> updateInferInfos(Node* node,
                                                  const OpValueType<InferShapeFunc>& op_infershape,
                                                  const OpValueType<InferTypeFunc>& op_infertype,
                                                  const OpValueType<InferLayoutFunc>& op_inferlayout,
-                                                 std::unordered_map<std::string, framework::shape_t>* shape_dict,
-                                                 std::unordered_map<std::string, Type>* type_dict,
-                                                 std::unordered_map<std::string, std::string>* layout_dict) {
+                                                 absl::flat_hash_map<std::string, framework::shape_t>* shape_dict,
+                                                 absl::flat_hash_map<std::string, Type>* type_dict,
+                                                 absl::flat_hash_map<std::string, std::string>* layout_dict) {
   CHECK(shape_dict);
   CHECK(type_dict);
   CHECK(layout_dict);
@@ -104,7 +104,8 @@ std::vector<framework::shape_t> updateInferInfos(Node* node,
     (*shape_dict)[sink->id()]  = infershapes[i];
     (*type_dict)[sink->id()]   = infertypes[i];
     (*layout_dict)[sink->id()] = inferlayouts[0][i];
-    VLOG(3) << "Infershape: " << sink->id() << " " << utils::Join(infershapes[i], ", ");
+    VLOG(3) << "Infershape: " << node->op()->name << "'s " << i << "-th outlink " << sink->id() << ": "
+            << utils::Join(infershapes[i], ", ");
   }
   node->attrs.attr_store["out_layouts"]   = inferlayouts[0];
   node->attrs.attr_store["input_layouts"] = inferlayouts[1];
@@ -115,12 +116,12 @@ void AlterLayoutPass(Graph* graph) {
   // alterlayout only in X86 for it's specific layout requirements
   if (graph->target_.arch == Target::Arch::X86) {
     auto store_nodes     = std::get<0>(graph->topological_order());
-    auto& shape_dict     = graph->GetMutableAttrs<std::unordered_map<std::string, framework::shape_t>>("infershape");
-    auto& type_dict      = graph->GetMutableAttrs<std::unordered_map<std::string, Type>>("inferdtype");
+    auto& shape_dict     = graph->GetMutableAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
+    auto& type_dict      = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
     auto& op_infershape  = Operator::GetAttrs<InferShapeFunc>("infershape");
     auto& op_inferdtype  = Operator::GetAttrs<InferTypeFunc>("inferdtype");
     auto& op_inferlayout = Operator::GetAttrs<InferLayoutFunc>("inferlayout");
-    std::unordered_map<std::string, std::string> layout_dict;
+    absl::flat_hash_map<std::string, std::string> layout_dict;
 
     bool has_altered = false;
     for (int i = 0; i < store_nodes.size(); i++) {
@@ -128,7 +129,7 @@ void AlterLayoutPass(Graph* graph) {
       if (node) {
         if (node->op()->name == "conv2d") {
           CHECK(node->attrs.attr_store.count("data_format")) << node->op()->name << " op has no data_format attr";
-          std::string data_format = std::get<std::string>(node->attrs.attr_store.at("data_format"));
+          std::string data_format = absl::get<std::string>(node->attrs.attr_store.at("data_format"));
           if (data_format != "NCHW") {
             // not NCHW such as NHWC or has already been altered layout
             continue;
@@ -165,14 +166,14 @@ void AlterLayoutPass(Graph* graph) {
           std::vector<Type> conv2d_NCHWc_inputtypes;
           std::vector<std::string> conv2d_NCHWc_inputlayouts;
           CHECK(weight_shape.size() == 4) << "old conv2d's weight shape should be 4";
-          std::unordered_map<std::string, int> conv2d_factors;
+          absl::flat_hash_map<std::string, int> conv2d_factors;
           int oc = weight_shape[0];
           int fc = weight_shape[1];
           int ic = input_shape[1];
 
           // get the original conv config stored in the key attr
           CHECK(new_node->attrs.attr_store.count("key")) << "conv2d finds no key attr";
-          std::string key = std::get<std::string>(new_node->attrs.attr_store.at("key"));
+          std::string key = absl::get<std::string>(new_node->attrs.attr_store.at("key"));
           VLOG(3) << "key: " << key;
           pe::GetConv2dFactors(&conv2d_factors, oc, ic, fc, -1, -1, input_type, graph->target_, key);
           CHECK(conv2d_factors.count("oc_bn"));
@@ -328,6 +329,7 @@ void AlterLayoutPass(Graph* graph) {
               input_layouts.push_back("");
             }
           }
+          CHECK(op_inferlayout[node->op()]) << "find no InferLayout function for op " << node->op()->name;
           auto inferlayouts = op_inferlayout[node->op()](input_shapes, input_layouts, node->attrs, graph->target_);
           // if input inferred layouts is different from original's, expand dims or do transformation.
           CHECK_EQ(inferlayouts.size(), 2U);
@@ -345,7 +347,7 @@ void AlterLayoutPass(Graph* graph) {
                 // C -> NCHWxc: 1. C -> NCHW 2. layout transform from NCHW to NCHWxc
                 int axis = -1;
                 CHECK(node->attrs.attr_store.count("axis")) << node->id() << " find no axis attr";
-                axis = std::get<int>(node->attrs.attr_store["axis"]);
+                axis = absl::get<int>(node->attrs.attr_store["axis"]);
                 CHECK(new_input_layouts[i].substr(0, 4) == "NCHW") << "only support NCHWxc";
                 if (axis == -1) {
                   axis += 4;
@@ -490,7 +492,7 @@ void AlterLayoutPass(Graph* graph) {
         auto* node = store_nodes[i]->safe_as<Node>();
         if (node) {
           CHECK(node->attrs.attr_store.count("out_layouts")) << node->id() << " finds no out_layouts attr";
-          auto out_layouts = std::get<std::vector<std::string>>(node->attrs.attr_store.at("out_layouts"));
+          auto out_layouts = absl::get<std::vector<std::string>>(node->attrs.attr_store.at("out_layouts"));
           CHECK(!out_layouts.empty());
           if (out_layouts[0].size() > 4) {
             // recover the layout finally, NCHWxc->NCHW, only first output
@@ -535,9 +537,9 @@ void AlterLayoutPass(Graph* graph) {
         }
       }
       graph->ClearUnlinkedNodes(&shape_dict, &type_dict, &layout_dict);
-      graph->attrs["infershape"]  = std::make_shared<std::any>(shape_dict);
-      graph->attrs["inferdtype"]  = std::make_shared<std::any>(type_dict);
-      graph->attrs["inferlayout"] = std::make_shared<std::any>(layout_dict);
+      graph->attrs["infershape"]  = std::make_shared<absl::any>(shape_dict);
+      graph->attrs["inferdtype"]  = std::make_shared<absl::any>(type_dict);
+      graph->attrs["inferlayout"] = std::make_shared<absl::any>(layout_dict);
     }
   }
 }

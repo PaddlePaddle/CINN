@@ -1,5 +1,5 @@
 // This file implements the variant data structure similar to
-// std::variant in C++17.
+// absl::variant in C++17.
 
 #pragma once
 
@@ -12,7 +12,7 @@
 
 namespace cinnrt {
 
-// A Variant similar to std::variant in C++17.
+// A Variant similar to absl::variant in C++17.
 //
 // Example usage:
 //

@@ -1,10 +1,11 @@
 #pragma once
+#include <absl/container/flat_hash_map.h>
+#include <absl/types/variant.h>
+
 #include <memory>
 #include <string>
 #include <tuple>
-#include <unordered_map>
 #include <utility>
-#include <variant>
 #include <vector>
 
 #include "cinn/common/graph_utils.h"
@@ -18,14 +19,14 @@ class Node;
 class NodeData;
 
 using NodePtr     = std::shared_ptr<Node>;
-using AttrType    = std::variant<bool,
-                              float,
-                              int,
-                              std::string,
-                              std::vector<bool>,
-                              std::vector<int>,
-                              std::vector<float>,
-                              std::vector<std::string>>;
+using AttrType    = absl::variant<bool,
+                               float,
+                               int,
+                               std::string,
+                               std::vector<bool>,
+                               std::vector<int>,
+                               std::vector<float>,
+                               std::vector<std::string>>;
 using AttrMapType = std::unordered_map<std::string, AttrType>;
 
 /**
@@ -49,7 +50,7 @@ struct NodeAttr {
   /**
    * \brief The attributes stored as string in dictionary.
    */
-  std::unordered_map<std::string, attr_t> attr_store;
+  absl::flat_hash_map<std::string, attr_t> attr_store;
 };
 
 std::ostream &operator<<(std::ostream &os, const NodeAttr &node_attr);
@@ -124,8 +125,8 @@ class NodeData : public common::GraphNode {
       const char *op_name,
       std::string node_name,
       std::vector<NodeData> inputs,
-      std::string id                                = nullptr,
-      std::unordered_map<std::string, attr_t> attrs = std::unordered_map<std::string, attr_t>()) {
+      std::string id                                 = nullptr,
+      absl::flat_hash_map<std::string, attr_t> attrs = absl::flat_hash_map<std::string, attr_t>()) {
     auto res                           = std::make_shared<NodeData>();
     res->id_                           = std::move(id);
     res->source_node                   = Node::Create();

@@ -52,7 +52,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
     bool trans_a;
     for (auto &iter : attrs.attr_store) {
       if (iter.first == "axis") {
-        axis = Expr(std::get<int>(iter.second));
+        axis = Expr(absl::get<int>(iter.second));
         break;
       }
     }
@@ -88,10 +88,12 @@ std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_s
   int axis = -1;
   for (auto &iter : attrs) {
     if (iter.first == "axis") {
-      axis = std::get<int>(iter.second);
+      axis = absl::get<int>(iter.second);
       break;
     }
   }
+  VLOG(3) << "broadcast input shapes are : " << utils::Join(inputs_shape[0], ", ") << "; "
+          << utils::Join(inputs_shape[1], ", ");
   pe::GetBroadcastOutShape(inputs_shape[0], inputs_shape[1], &out_shape, axis);
   VLOG(3) << "broadcast out shape: " << utils::Join(out_shape, ", ");
   return {out_shape};
@@ -111,7 +113,7 @@ std::vector<std::vector<std::string>> InferLayoutForBroadcast(const std::vector<
   CHECK(input_size == 2U || input_size == 3U) << "The input's layouts size is not 2 or 3! Please check again.";
   int axis = -1;
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
-    axis = std::get<int>(attrs.attr_store.at("axis"));
+    axis = absl::get<int>(attrs.attr_store.at("axis"));
   }
   std::vector<std::string> out_layouts = input_layouts;
   if (input_layouts[0].empty() && input_layouts[1].empty()) {
@@ -148,10 +150,10 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
   std::vector<int> out_shape;
   std::vector<int> broadcast_axes;
   if (attrs.attr_store.count("out_shape")) {
-    out_shape = std::get<std::vector<int>>(attrs.attr_store.at("out_shape"));
+    out_shape = absl::get<std::vector<int>>(attrs.attr_store.at("out_shape"));
   }
   if (attrs.attr_store.count("broadcast_axes")) {
-    broadcast_axes = std::get<std::vector<int>>(attrs.attr_store.at("broadcast_axes"));
+    broadcast_axes = absl::get<std::vector<int>>(attrs.attr_store.at("broadcast_axes"));
   }
 
   framework::CINNCompute broadcast_to_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -193,8 +195,8 @@ std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs
   std::vector<int> out_shape;
   CHECK(attrs.count("broadcast_axes"));
   CHECK(attrs.count("out_shape"));
-  out_shape      = std::get<std::vector<int>>(attrs.at("out_shape"));
-  broadcast_axes = std::get<std::vector<int>>(attrs.at("broadcast_axes"));
+  out_shape      = absl::get<std::vector<int>>(attrs.at("out_shape"));
+  broadcast_axes = absl::get<std::vector<int>>(attrs.at("broadcast_axes"));
 
   CHECK_EQ(inputs_shape[0].size(), broadcast_axes.size())
       << "broadcast_axes's size should be same with the input shape's size";
@@ -211,7 +213,7 @@ std::vector<std::vector<std::string>> InferLayoutForBroadcastTo(const std::vecto
   CHECK(input_layouts.size() == 1U) << "The input's layouts size is not 1! Please check again.";
   std::vector<std::string> out_layouts = {""};
   if (attrs.attr_store.count("out_layouts")) {
-    out_layouts = std::get<std::vector<std::string>>(attrs.attr_store.at("out_layouts"));
+    out_layouts = absl::get<std::vector<std::string>>(attrs.attr_store.at("out_layouts"));
   }
   return {out_layouts, input_layouts};
 }
@@ -256,9 +258,9 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_num_inputs(1)                                                                                             \
       .set_num_outputs(1)                                                                                            \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBroadcast))                                 \
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBroadcast))                                 \
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForBroadcast))                               \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcast))                                \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))                                \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcast))                              \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast) \
       .set_support_level(4);
 
@@ -295,10 +297,10 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBroadcastTo)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForBroadcastTo))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForBroadcast))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcastTo))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForBroadcastTo))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcastTo))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);

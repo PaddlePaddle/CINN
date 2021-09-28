@@ -3,7 +3,7 @@
 #include <glog/logging.h>
 
 #include <memory>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 
 #include "cinn/common/macros.h"
 #include "cinn/common/target.h"

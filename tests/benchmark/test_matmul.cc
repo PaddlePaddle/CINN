@@ -39,14 +39,14 @@ std::vector<ir::Tensor> MatmulSplitTester::CreateSpecificStrategy(const std::vec
   for (auto &out : outs) {
     (*stages)->InsertLazily(out);
   }
-  auto out              = outs[0];
-  auto c_poly_iterators = [&](auto &&... args) {
-    std::vector<poly::Iterator> iters;
-    (iters.push_back((*stages)[out]->ith_iterator(args)), ...);
-    return iters;
-  };
+  auto out = outs[0];
   (*stages)[out]->Split(2, 16);
-  (*stages)[out]->Reorder(c_poly_iterators(1, 0, 2, 3));
+
+  std::vector<poly::Iterator> polyIters;
+  for (auto idx : {1, 0, 2, 3}) {
+     polyIters.push_back((*stages)[out]->ith_iterator(idx));
+  }
+  (*stages)[out]->Reorder(polyIters);
 
   return outs;
 }
@@ -67,8 +67,14 @@ std::vector<ir::Tensor> MatmulBlockTester::CreateSpecificStrategy(const std::vec
       "C");
   (*stages)->InsertLazily(C);
   int bn                                    = 32;
-  auto [i_outer, i_inner, j_outer, j_inner] = (*stages)[C]->Tile(0, 1, bn, bn);  // NOLINT
-  auto [k_outer, k_inner]                   = (*stages)[C]->Split(k1->name, 4);  // NOLINT
+  auto _i_outer_i_inner_j_outer_j_inner_ = (*stages)[C]->Tile(0, 1, bn, bn);  // NOLINT
+  auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+  auto _k_outer_k_inner_                   = (*stages)[C]->Split(k1->name, 4);  // NOLINT
+  auto &k_outer = std::get<0>(_k_outer_k_inner_);
+  auto &k_inner = std::get<1>(_k_outer_k_inner_);
   (*stages)[C]->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
 
   outs.push_back(C);
@@ -91,8 +97,14 @@ std::vector<ir::Tensor> MatmulVectorizeTester::CreateSpecificStrategy(const std:
       "C");
   (*stages)->InsertLazily(C);
   int bn                                    = 32;
-  auto [i_outer, i_inner, j_outer, j_inner] = (*stages)[C]->Tile(0, 1, bn, bn);  // NOLINT
-  auto [k_outer, k_inner]                   = (*stages)[C]->Split(k1->name, 4);  // NOLINT
+  auto _i_outer_i_inner_j_outer_j_inner_ = (*stages)[C]->Tile(0, 1, bn, bn);  // NOLINT
+  auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+  auto _k_outer_k_inner_                   = (*stages)[C]->Split(k1->name, 4);  // NOLINT
+  auto &k_outer = std::get<0>(_k_outer_k_inner_);
+  auto &k_inner = std::get<1>(_k_outer_k_inner_);
   (*stages)[C]->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
   (*stages)[C]->Vectorize(j_inner, 8);
 
@@ -116,8 +128,14 @@ std::vector<ir::Tensor> MatmulLoopPermutationTester::CreateSpecificStrategy(cons
       "C");
   (*stages)->InsertLazily(C);
   int bn                                    = 32;
-  auto [i_outer, i_inner, j_outer, j_inner] = (*stages)[C]->Tile(0, 1, bn, bn);  // NOLINT
-  auto [k_outer, k_inner]                   = (*stages)[C]->Split(k1->name, 4);  // NOLINT
+  auto _i_outer_i_inner_j_outer_j_inner_ = (*stages)[C]->Tile(0, 1, bn, bn);  // NOLINT
+  auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+  auto _k_outer_k_inner_                   = (*stages)[C]->Split(k1->name, 4);  // NOLINT
+  auto &k_outer = std::get<0>(_k_outer_k_inner_);
+  auto &k_inner = std::get<1>(_k_outer_k_inner_);
   (*stages)[C]->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
   (*stages)[C]->Vectorize(j_inner, 8);
   (*stages)[C]->Unroll(5);
@@ -154,8 +172,14 @@ std::vector<ir::Tensor> MatmulArrayPackingTester::CreateSpecificStrategy(const s
   (*stages)[packedB]->Vectorize(2, 8);
 
   {
-    auto [i_outer, i_inner, j_outer, j_inner] = (*stages)[C]->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
-    auto [k_outer, k_inner]                   = (*stages)[C]->Split("k0", 4);                            // NOLINT
+    auto _i_outer_i_inner_j_outer_j_inner_ = (*stages)[C]->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
+    auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+    auto _k_outer_k_inner_                   = (*stages)[C]->Split("k0", 4);                            // NOLINT
+    auto &k_outer = std::get<0>(_k_outer_k_inner_);
+    auto &k_inner = std::get<1>(_k_outer_k_inner_);
 
     (*stages)[C]->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
     (*stages)[C]->Vectorize(j_inner, 8);

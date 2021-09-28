@@ -5,7 +5,7 @@
 
 #include <map>
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 
 #include "cinn/common/arithmatic.h"
 #include "cinn/common/cas.h"
@@ -28,7 +28,7 @@ namespace {
 
 //! Simplify some sub-expression in the `expr`. Due to the simplify strategy just fit several kinds of IR noedes, we
 //! partition the original expression to several sub-expression those supported by simplify, and process each of them.
-void PartialSimplify(Expr* expr, const std::unordered_map<std::string, common::CasInterval>& var_intervals = {}) {
+void PartialSimplify(Expr* expr, const absl::flat_hash_map<std::string, common::CasInterval>& var_intervals = {}) {
   *expr = common::AutoSimplify(*expr, var_intervals);
 }
 
