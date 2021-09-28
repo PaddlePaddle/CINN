@@ -51,13 +51,7 @@ int Target::get_target_bits() const {
   return -1;
 }
 
-size_t Target::Hash::operator()(const Target &key) const {
-  int arch = static_cast<int>(key.arch);
-  std::hash<int> hasher;
-  return hasher(arch);
-}
-
-std::string Target::hash_str() const {
+std::string Target::arch_str() const {
   std::ostringstream oss;
   oss << arch;
   std::string arch_str = oss.str();

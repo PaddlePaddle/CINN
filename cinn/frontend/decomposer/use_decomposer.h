@@ -2,4 +2,4 @@
 
 #include "cinn/common/macros.h"
 
-CINN_USE_REGISTER(decomposer)
+CINN_USE_REGISTER(activation)

@@ -70,11 +70,7 @@ struct Target {
 
   std::vector<Lib> get_target_libs() const;
 
-  struct Hash {
-    size_t operator()(const Target& key) const;
-  };
-
-  std::string hash_str() const;
+  std::string arch_str() const;
 
   bool operator==(const Target& other) const;
   bool operator!=(const Target& other) const { return !(*this == other); }
