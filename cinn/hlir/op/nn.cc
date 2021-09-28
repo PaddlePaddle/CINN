@@ -1106,9 +1106,9 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
       } else if (iter.first == "data_format") {
         data_format = absl::get<std::string>(iter.second);
       } else if (iter.first == "global_pooling") {
-        global_pooling = std::get<bool>(iter.second);
+        global_pooling = absl::get<bool>(iter.second);
       } else if (iter.first == "adaptive") {
-        adaptive = std::get<bool>(iter.second);
+        adaptive = absl::get<bool>(iter.second);
       }
     }
     CHECK(!kernel_size.empty()) << "kernel_size for pool2d is empty. Please check.\n";
@@ -1219,9 +1219,9 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
     } else if (iter.first == "global_pooling") {
       global_pooling = absl::get<bool>(iter.second);
     } else if (iter.first == "data_format") {
-      data_format = std::get<std::string>(iter.second);
+      data_format = absl::get<std::string>(iter.second);
     } else if (iter.first == "adaptive") {
-      adaptive = std::get<bool>(iter.second);
+      adaptive = absl::get<bool>(iter.second);
     }
   }
   CHECK_EQ(kernel_size.size(), 2U) << "kernel size for pool2d should be 2.\n";
@@ -1266,7 +1266,7 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   }
 
   if (adaptive) {
-    kernel_size = std::get<std::vector<int>>(attr_store["kernel_size"]);
+    kernel_size = absl::get<std::vector<int>>(attr_store["kernel_size"]);
     if (kernel_size.size() == 1UL) kernel_size.push_back(kernel_size[0]);
     CHECK(kernel_size.size() >= 2UL) << "In pool2d, kernel_size's size should be >= 2, please check!";
     output_shape1[height_axis] = kernel_size[0];
