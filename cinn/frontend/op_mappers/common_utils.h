@@ -55,7 +55,7 @@ inline Variable GetVar(const std::string& name, const OpMapperContext& ctx) {
 
   auto* var = ctx.scope_->FindVar(name);
   if (var) {
-    auto& tensor = std::get<hlir::framework::Tensor>(*var);
+    auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     Variable var;
     var.set_id(name);
     var->shape = tensor->shape().data();
@@ -73,7 +73,7 @@ void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
   CheckVarNameValid(name);
   auto* var = ctx.scope_->FindVar(name);
   if (var) {
-    auto& tensor = std::get<hlir::framework::Tensor>(*var);
+    auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     if (ctx.target_.arch == Target::Arch::X86) {
       float* data = tensor->mutable_data<float>(ctx.target_);
       CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";

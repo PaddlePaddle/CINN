@@ -18,7 +18,7 @@ void ReverseHWVar(const std::string& name, const OpMapperContext& ctx) {
   CheckVarNameValid(name);
   auto* var = ctx.scope_->FindVar(name);
   if (var) {
-    auto& tensor = std::get<hlir::framework::Tensor>(*var);
+    auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     if (ctx.target_.arch == Target::Arch::X86) {
       float* data = tensor->mutable_data<float>(ctx.target_);
       CHECK(tensor->shape().size() == 4) << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";

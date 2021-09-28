@@ -25,13 +25,13 @@ class PaddleModelToNetBuilder {
 
   std::unique_ptr<NetBuilder> operator()(const std::string& model_dir, bool is_combined);
 
-  const std::unordered_map<std::string, Variable>& var_map() const { return var_map_; }
-  const std::unordered_map<std::string, std::string>& var_model_to_program_map() { return var_model_to_program_map_; }
+  const absl::flat_hash_map<std::string, Variable>& var_map() const { return var_map_; }
+  const absl::flat_hash_map<std::string, std::string>& var_model_to_program_map() { return var_model_to_program_map_; }
 
  private:
-  std::unordered_map<std::string, Variable> var_map_;
+  absl::flat_hash_map<std::string, Variable> var_map_;
   // map from var in Paddle model to var name in program.
-  std::unordered_map<std::string, std::string> var_model_to_program_map_;
+  absl::flat_hash_map<std::string, std::string> var_model_to_program_map_;
   hlir::framework::Scope* scope_{};
   const common::Target& target_;
 };
