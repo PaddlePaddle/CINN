@@ -56,7 +56,7 @@ TEST(batch_norm_meta, batch_norm_meta) {
   Placeholder Variance(Float(32), {64}, "Variance");
 
   Program program;
-  std::unordered_map<std::string, Program::attr_t> attrs;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
   attrs["epsilon"] = static_cast<float>(0.001);
 
   auto a = program.batchnorm(A, Scale, Bias, Mean, Variance, attrs);

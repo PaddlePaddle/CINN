@@ -4,7 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <string>
-#include <string_view>
+#include <absl/strings/string_view.h>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -18,7 +18,10 @@ namespace cinn {
 namespace tests {
 
 auto CreateMatmulBasicModule(Target target, int m, int n, int k) {
-  auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k));
+  auto _M_N_K_ = std::make_tuple(Expr(m), Expr(n), Expr(k));
+  auto &M = std::get<0>(_M_N_K_);
+  auto &N = std::get<1>(_M_N_K_);
+  auto &K = std::get<2>(_M_N_K_);
 
   auto A = Placeholder<float>("A", {M, K});
   auto B = Placeholder<float>("B", {K, N});
@@ -38,7 +41,10 @@ auto CreateMatmulBasicModule(Target target, int m, int n, int k) {
 }
 
 auto CreateMatmulTileModule(Target target, int m, int n, int k) {
-  auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k));
+  auto _M_N_K_ = std::make_tuple(Expr(m), Expr(n), Expr(k));
+  auto &M = std::get<0>(_M_N_K_);
+  auto &N = std::get<1>(_M_N_K_);
+  auto &K = std::get<2>(_M_N_K_);
 
   auto A = Placeholder<float>("A", {M, K});
   auto B = Placeholder<float>("B", {K, N});
@@ -60,7 +66,10 @@ auto CreateMatmulTileModule(Target target, int m, int n, int k) {
 }
 
 auto CreateMatmulSplitModule(Target target, int m, int n, int k) {
-  auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k));
+  auto _M_N_K_ = std::make_tuple(Expr(m), Expr(n), Expr(k));
+  auto &M = std::get<0>(_M_N_K_);
+  auto &N = std::get<1>(_M_N_K_);
+  auto &K = std::get<2>(_M_N_K_);
 
   auto A = Placeholder<float>("A", {M, K});
   auto B = Placeholder<float>("B", {K, N});
@@ -71,13 +80,13 @@ auto CreateMatmulSplitModule(Target target, int m, int n, int k) {
 
   auto stages = CreateStages({C});
 
-  auto c_poly_iterators = [&](auto &&... args) {
-    std::vector<poly::Iterator> iters;
-    (iters.push_back(stages[C]->ith_iterator(args)), ...);
-    return iters;
-  };
   stages[C]->Split(2, 16);
-  stages[C]->Reorder(c_poly_iterators(1, 0, 2, 3));
+
+  std::vector<poly::Iterator> polyIters;
+  for (auto idx : {1, 0, 2, 3}) {
+    polyIters.push_back(stages[C]->ith_iterator(idx));
+  }
+  stages[C]->Reorder(polyIters);
 
   Module::Builder builder("module_split", target);
 
@@ -88,7 +97,10 @@ auto CreateMatmulSplitModule(Target target, int m, int n, int k) {
 }
 
 auto CreateMatmulBlockModule(Target target, int m, int n, int k) {
-  auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k));
+  auto _M_N_K_ = std::make_tuple(Expr(m), Expr(n), Expr(k));
+  auto &M = std::get<0>(_M_N_K_);
+  auto &N = std::get<1>(_M_N_K_);
+  auto &K = std::get<2>(_M_N_K_);
 
   auto A = Placeholder<float>("A", {M, K});
   auto B = Placeholder<float>("B", {K, N});
@@ -100,8 +112,14 @@ auto CreateMatmulBlockModule(Target target, int m, int n, int k) {
   auto stages = CreateStages({C});
 
   constexpr int bn                          = 32;
-  auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
-  auto [k_outer, k_inner]                   = stages[C]->Split(k1->name, 4);  // NOLINT
+  auto _i_outer_i_inner_j_outer_j_inner_ = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
+  auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+  auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+  auto _k_outer_k_inner_                   = stages[C]->Split(k1->name, 4);  // NOLINT
+  auto &k_outer = std::get<0>(_k_outer_k_inner_);
+  auto &k_inner = std::get<1>(_k_outer_k_inner_);
   stages[C]->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
 
   Module::Builder builder("module_block", target);
@@ -113,7 +131,10 @@ auto CreateMatmulBlockModule(Target target, int m, int n, int k) {
 }
 
 auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
-  auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k));
+  auto _M_N_K_ = std::make_tuple(Expr(m), Expr(n), Expr(k));
+  auto &M = std::get<0>(_M_N_K_);
+  auto &N = std::get<1>(_M_N_K_);
+  auto &K = std::get<2>(_M_N_K_);
 
   auto A = Placeholder<float>("A", {M, K});
   auto B = Placeholder<float>("B", {K, N});
@@ -128,8 +149,14 @@ auto CreateMatmulVectorizeModule(Target target, int m, int n, int k) {
   auto stages = CreateStages({C});
 
   {
-    auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);
-    auto [k_outer, k_inner]                   = stages[C]->Split("k0", 4);
+    auto _i_outer_i_inner_j_outer_j_inner_ = stages[C]->Tile(0, 1, bn, bn);
+    auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+    auto _k_outer_k_inner_                   = stages[C]->Split("k0", 4);
+    auto &k_outer = std::get<0>(_k_outer_k_inner_);
+    auto &k_inner = std::get<1>(_k_outer_k_inner_);
     stages[C]->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
     stages[C]->Vectorize(j_inner, 8);
   }
@@ -147,7 +174,10 @@ ir::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
   target.bits = Target::Bit::k32;
   target.os   = Target::OS::Linux;
 
-  auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k_));
+  auto _M_N_K_ = std::make_tuple(Expr(m), Expr(n), Expr(k_));
+  auto &M = std::get<0>(_M_N_K_);
+  auto &N = std::get<1>(_M_N_K_);
+  auto &K = std::get<2>(_M_N_K_);
 
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
@@ -163,8 +193,14 @@ ir::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
 
   // Blocking by loop tiling.
   {
-    auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
-    auto [k_outer, k_inner]                   = stages[C]->Split("k0", 4);      // NOLINT
+    auto _i_outer_i_inner_j_outer_j_inner_ = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
+    auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+    auto _k_outer_k_inner_                   = stages[C]->Split("k0", 4);      // NOLINT
+    auto &k_outer = std::get<0>(_k_outer_k_inner_);
+    auto &k_inner = std::get<1>(_k_outer_k_inner_);
 
     stages[C]->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
 
@@ -180,7 +216,10 @@ ir::Module CreateMatmulLoopPermutation(Target target, int m, int n, int k_) {
 }
 
 ir::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
-  auto [M, N, K] = std::make_tuple(Expr(m), Expr(n), Expr(k_));
+  auto _M_N_K_ = std::make_tuple(Expr(m), Expr(n), Expr(k_));
+  auto &M = std::get<0>(_M_N_K_);
+  auto &N = std::get<1>(_M_N_K_);
+  auto &K = std::get<2>(_M_N_K_);
 
   Placeholder<float> A("A", {M, K});
   Placeholder<float> B("B", {K, N});
@@ -199,8 +238,14 @@ ir::Module CreateMatmulArrayPacking(Target target, int m, int n, int k_) {
   stages[packedB]->Vectorize(2, 8);
 
   {
-    auto [i_outer, i_inner, j_outer, j_inner] = stages[C]->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
-    auto [k_outer, k_inner]                   = stages[C]->Split("k0", 4);                            // NOLINT
+    auto _i_outer_i_inner_j_outer_j_inner_ = stages[C]->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
+    auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+    auto _k_outer_k_inner_                   = stages[C]->Split("k0", 4);                            // NOLINT
+    auto &k_outer = std::get<0>(_k_outer_k_inner_);
+    auto &k_inner = std::get<1>(_k_outer_k_inner_);
 
     stages[C]->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
     stages[C]->Vectorize(j_inner, 8);

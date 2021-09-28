@@ -3,7 +3,8 @@
 #include <llvm/ADT/SmallVector.h>
 #include <memory>
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
+#include <absl/types/optional.h>
 
 namespace mlir {
 class FuncOp;
@@ -27,7 +28,7 @@ class KernelRegistry;
 class MlirToRuntimeTranslator {
  public:
   //! Holds all the function definitions.
-  using function_defs_t = std::unordered_map<std::string, mlir::FuncOp>;
+  using function_defs_t = absl::flat_hash_map<std::string, mlir::FuncOp>;
 
   MlirToRuntimeTranslator(CoreRuntimeBuilder* runtime);
   MlirToRuntimeTranslator(mlir::ModuleOp module, CoreRuntimeBuilder* runtime);
@@ -54,7 +55,7 @@ class MlirToRuntimeTranslator {
   bool EmitCallOp(mlir::Operation* op, function_defs_t* function_table);
 
   template <typename T>
-  std::optional<T> EmitAttribute(const mlir::Attribute* attr);
+  absl::optional<T> EmitAttribute(const mlir::Attribute* attr);
 
   Value* GetOpResult(mlir::Operation* op);
 
@@ -64,7 +65,7 @@ class MlirToRuntimeTranslator {
 
   Value* AddValue(mlir::Value mlir_value, Value* value);
 
-  void UpdateCurFuncName(std::string_view name);
+  void UpdateCurFuncName(absl::string_view name);
 
  protected:
   struct Impl;

@@ -1,15 +1,16 @@
 #pragma once
 #include <glog/logging.h>
 
-#include <any>
 #include <atomic>
 #include <functional>
 #include <memory>
 #include <mutex>  //NOLINT
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
+
+#include <absl/types/any.h>
 
 #include "cinn/common/macros.h"
 #include "cinn/utils/registry.h"
@@ -48,7 +49,7 @@ enum OpPatternKind {
 struct OpRegistry : public Registry<Operator> {
   std::recursive_mutex mutex;
   std::atomic<int> op_counter{0};
-  std::unordered_map<std::string, std::unique_ptr<std::any>> attrs;
+  absl::flat_hash_map<std::string, std::unique_ptr<absl::any>> attrs;
 
   static OpRegistry* Global() {
     static OpRegistry x;
@@ -117,13 +118,13 @@ class Operator {
 
   template <typename ValueType>
   inline Operator& set_attr(const std::string& attr_name, const ValueType& value) {
-    UpdateAttrMap(attr_name, [this, attr_name, value](std::any* pmap) {
+    UpdateAttrMap(attr_name, [this, attr_name, value](absl::any* pmap) {
       if (!pmap->has_value()) {
         OpValueType<ValueType> pm;
         pm.attr_name = attr_name;
         *pmap        = std::move(pm);
       }
-      std::vector<ValueType>& vec = std::any_cast<OpValueType<ValueType>&>(*pmap).data;
+      std::vector<ValueType>& vec = absl::any_cast<OpValueType<ValueType>&>(*pmap).data;
       // resize the value type.
       if (vec.size() <= index) {
         vec.resize(index + 1, ValueType());
@@ -134,10 +135,10 @@ class Operator {
   }
   template <typename ValueType>
   static const OpValueType<ValueType>& GetAttrs(const std::string& attr_name) {
-    const std::any* ref = GetAttrMap(attr_name);
+    const absl::any* ref = GetAttrMap(attr_name);
     if (ref == nullptr) {
       //! update the attribute map of the key by creating new empty OpMap
-      UpdateAttrMap(attr_name, [attr_name](std::any* pmap) {
+      UpdateAttrMap(attr_name, [attr_name](absl::any* pmap) {
         if (!pmap->has_value()) {
           OpValueType<ValueType> pm;
           pm.attr_name = attr_name;
@@ -146,7 +147,7 @@ class Operator {
       });
       ref = GetAttrMap(attr_name);
     }
-    return std::any_cast<const OpValueType<ValueType>&>(*ref);
+    return absl::any_cast<const OpValueType<ValueType>&>(*ref);
   }
 
   auto get_index() const { return index; }
@@ -157,7 +158,7 @@ class Operator {
   friend class Registry<Operator>;
   uint32_t index{0};
   Operator() { index = OpRegistry::Global()->op_counter++; }
-  static const std::any* GetAttrMap(const std::string& key) {
+  static const absl::any* GetAttrMap(const std::string& key) {
     auto& dict = OpRegistry::Global()->attrs;
     auto it    = dict.find(key);
     if (it != dict.end()) {
@@ -167,11 +168,11 @@ class Operator {
     }
   }
   //! update the attribute OpValueType
-  static void UpdateAttrMap(const std::string& key, std::function<void(std::any*)> updater) {
+  static void UpdateAttrMap(const std::string& key, std::function<void(absl::any*)> updater) {
     OpRegistry* reg = OpRegistry::Global();
     std::lock_guard<std::recursive_mutex>(reg->mutex);
-    std::unique_ptr<std::any>& value = reg->attrs[key];
-    if (value.get() == nullptr) value.reset(new std::any());
+    std::unique_ptr<absl::any>& value = reg->attrs[key];
+    if (value.get() == nullptr) value.reset(new absl::any());
     if (updater != nullptr) updater(value.get());
   }
 };
@@ -202,6 +203,11 @@ bool OpValueType<ValueType>::Find(const Operator* op) const {
   return idx < data.size();
 }
 
+template <typename R, typename ...Args>
+inline auto MakeOpFunction(R(*func)(Args...)) {
+  return std::function<R(Args...)>(func);
+}
+
 // internal macros to make
 #define CINN_REGISTER_VAR_DEF(OpName) static ::cinn::hlir::framework::Operator& __make_##HlirOp##_##OpName
 
@@ -221,6 +227,8 @@ bool OpValueType<ValueType>::Find(const Operator* op) const {
 #define CINN_REGISTER_OP(OpName)                                \
   CINN_STR_CONCAT(CINN_REGISTER_VAR_DEF(OpName), __COUNTER__) = \
       ::cinn::hlir::framework::OpRegistry::Global()->__REGISTER_OR_GET__(#OpName)
+
+
 
 }  // namespace framework
 }  // namespace hlir

@@ -2,8 +2,8 @@
 #include <pybind11/numpy.h>
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
 
+#include "cinn/pybind/bind.h"
 #include "cinn/common/common.h"
 #include "cinn/frontend/interpreter.h"
 #include "cinn/frontend/syntax.h"
@@ -36,7 +36,7 @@ void BindFrontend(pybind11::module *m) {
       });
 
   py::class_<Placeholder>(*m, "Placeholder")  //
-      .def(py::init<const common::Type &, const std::vector<int> &, std::string_view>(),
+      .def(py::init<const common::Type &, const std::vector<int> &, absl::string_view>(),
            py::arg("type"),
            py::arg("shape"),
            py::arg("id") = "")

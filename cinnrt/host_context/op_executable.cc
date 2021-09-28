@@ -10,7 +10,7 @@
 namespace cinnrt::host_context {
 
 struct OpExecutable::Impl {
-  Impl(std::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry)
+  Impl(absl::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry)
       : name(op_name),
         symbol_table(symbol_table),
         kernel_registry(kernel_registry ? kernel_registry : GetCpuKernelRegistry()) {
@@ -37,9 +37,9 @@ struct OpExecutable::Impl {
 
 OpExecutable::OpExecutable(OpExecutable::Impl* impl) : impl_(impl) {}
 
-std::string_view OpExecutable::name() const { return impl_->name; }
+absl::string_view OpExecutable::name() const { return impl_->name; }
 
-OpExecutableBuilder::OpExecutableBuilder(std::string_view op_name,
+OpExecutableBuilder::OpExecutableBuilder(absl::string_view op_name,
                                          SymbolTable* symbol_table,
                                          KernelRegistry* kernel_registry)
     : OpExecutable(new Impl(op_name, symbol_table, kernel_registry)) {
@@ -54,7 +54,7 @@ OpExecutableBuilder::OpExecutableBuilder(std::string_view op_name,
   }
 }
 
-void OpExecutableBuilder::AppendArgument(std::string_view name) {
+void OpExecutableBuilder::AppendArgument(absl::string_view name) {
   if (!impl_->symbol_table->GetValue(name)) {
     impl_->symbol_table->Register(name);
   }

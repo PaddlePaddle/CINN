@@ -3,6 +3,7 @@
  */
 #pragma once
 
+#include "cinn/ir/ir.h"
 #include <ginac/ginac.h>
 
 #include <limits>
@@ -11,7 +12,6 @@
 #include <string>
 #include <tuple>
 
-#include "cinn/ir/ir.h"
 
 #ifdef As
 #undef As

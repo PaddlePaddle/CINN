@@ -1,3 +1,4 @@
+#include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/instruction.h"
 
 namespace cinn {
@@ -15,7 +16,7 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(int i) {
     CHECK(var) << "Argument [" << arg << "] not found in the scope";
 
     // TODO(Superjomn) Support other types.
-    auto& tensor = std::get<Tensor>(*var);
+    auto& tensor = absl::get<Tensor>(*var);
     builder.Add(tensor->buffer());
   }
 

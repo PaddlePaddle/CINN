@@ -207,7 +207,9 @@ SchedulerBase &SchedulerBase::After(const Stage &a, const Stage &b, int level) {
   CHECK(a_node) << "no node called " << a.id() << " registered in the graph";
   CHECK(b_node) << "no node called " << b.id() << " registered in the graph";
 
-  auto [a_edge, b_edge]                  = a_node->LinkTo<ScheduleGraphEdge>(b_node);  // NOLINT
+  auto _a_edge_b_edge_                  = a_node->LinkTo<ScheduleGraphEdge>(b_node);  // NOLINT
+  auto &a_edge = std::get<0>(_a_edge_b_edge_);
+  auto &b_edge = std::get<1>(_a_edge_b_edge_);
   a_edge->as<ScheduleGraphEdge>()->level = level;
   b_edge->as<ScheduleGraphEdge>()->level = level;
   return *this;

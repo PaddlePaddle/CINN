@@ -157,7 +157,7 @@ void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs,
 
   float *out_data = reinterpret_cast<float *>(output->memory);
 
-  std::unordered_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
+  absl::flat_hash_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
 
   std::string hash_str = std::to_string(input_n) + "," + std::to_string(input_c) + "," + std::to_string(input_h) + "," +
                          std::to_string(input_w) + "," + std::to_string(weights_n) + "," + std::to_string(weights_c) +
