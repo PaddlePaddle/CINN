@@ -104,7 +104,8 @@ std::vector<framework::shape_t> updateInferInfos(Node* node,
     (*shape_dict)[sink->id()]  = infershapes[i];
     (*type_dict)[sink->id()]   = infertypes[i];
     (*layout_dict)[sink->id()] = inferlayouts[0][i];
-    VLOG(3) << "Infershape: " << sink->id() << " " << utils::Join(infershapes[i], ", ");
+    VLOG(3) << "Infershape: " << node->op()->name << "'s " << i << "-th outlink " << sink->id() << ": "
+            << utils::Join(infershapes[i], ", ");
   }
   node->attrs.attr_store["out_layouts"]   = inferlayouts[0];
   node->attrs.attr_store["input_layouts"] = inferlayouts[1];
@@ -328,6 +329,7 @@ void AlterLayoutPass(Graph* graph) {
               input_layouts.push_back("");
             }
           }
+          CHECK(op_inferlayout[node->op()]) << "find no InferLayout function for op " << node->op()->name;
           auto inferlayouts = op_inferlayout[node->op()](input_shapes, input_layouts, node->attrs, graph->target_);
           // if input inferred layouts is different from original's, expand dims or do transformation.
           CHECK_EQ(inferlayouts.size(), 2U);

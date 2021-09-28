@@ -95,6 +95,8 @@ std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_s
       break;
     }
   }
+  VLOG(3) << "broadcast input shapes are : " << utils::Join(inputs_shape[0], ", ") << "; "
+          << utils::Join(inputs_shape[1], ", ");
   pe::GetBroadcastOutShape(inputs_shape[0], inputs_shape[1], &out_shape, axis);
   VLOG(3) << "broadcast out shape: " << utils::Join(out_shape, ", ");
   return {out_shape};

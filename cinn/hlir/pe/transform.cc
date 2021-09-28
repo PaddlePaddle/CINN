@@ -6,6 +6,7 @@
 #include "cinn/common/cas.h"
 #include "cinn/common/context.h"
 #include "cinn/common/ir_util.h"
+#include "cinn/hlir/pe/elementwise.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/tensor.h"
 #include "cinn/lang/builtin.h"
@@ -76,6 +77,79 @@ std::vector<Tensor> Matmul(
   } else {
     return {temp};
   }
+}
+
+ir::Tensor Reshape(const ir::Tensor& A,
+                   const std::vector<int>& new_shape,
+                   poly::StageMap stages,
+                   const std::string& name) {
+  std::vector<Expr> new_expr_shape;
+  std::vector<Expr> A_expr_shape = A->shape;
+  int input_total_size           = 1;
+  int output_total_size          = 1;
+  for (auto& i : A_expr_shape) {
+    CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+    input_total_size *= static_cast<int>(i.get_constant());
+  }
+  for (auto& i : new_shape) {
+    output_total_size *= i;
+    new_expr_shape.push_back(Expr(i));
+  }
+  CHECK_EQ(input_total_size, output_total_size)
+      << "In op reshape, the input tensor and output tensor's total size should be equal, please check!";
+  auto out = Identity(A->Reshape(new_expr_shape, stages), name).front();
+  return out;
+}
+
+ir::Tensor Reshape(const ir::Tensor& A, const std::vector<int>& new_shape, const std::string& name) {
+  std::vector<Expr> new_expr_shape;
+  std::vector<Expr> A_expr_shape = A->shape;
+  int input_total_size           = 1;
+  int output_total_size          = 1;
+  for (auto& i : A_expr_shape) {
+    CHECK(i.is_constant()) << "Input tensor's shape should be constant value.";
+    input_total_size *= static_cast<int>(i.get_constant());
+  }
+  for (auto& i : new_shape) {
+    output_total_size *= i;
+    new_expr_shape.push_back(Expr(i));
+  }
+  CHECK_EQ(input_total_size, output_total_size)
+      << "In op reshape, the input tensor and output tensor's total size should be equal, please check!";
+  auto res = Compute(
+      new_expr_shape,
+      [=](const std::vector<Expr>& indice) {
+        Expr offset = Expr(0);
+        for (int i = 0; i < indice.size(); i++) {
+          offset = offset * new_expr_shape[i] + indice[i];
+        }
+        std::vector<Expr> indice_a;
+        for (int i = A_expr_shape.size() - 1; i >= 0; i--) {
+          auto temp = offset % A_expr_shape[i];
+          indice_a.insert(indice_a.begin(), common::AutoSimplify(temp));
+          offset = (offset - temp) / A_expr_shape[i];
+        }
+        return A(indice_a);
+      },
+      name);
+  return res;
+}
+
+ir::Tensor Concat(const ir::Tensor& A, const ir::Tensor& B, int axis, const std::string& name) {
+  if (axis < 0) axis += A->shape.size();
+  CHECK_EQ(A->shape.size(), B->shape.size()) << "Dimensions of inputs A and B in Concat should be equal! Please check.";
+  std::vector<Expr> output_shape = A->shape;
+  Expr pivot                     = A->shape[axis];
+  output_shape[axis]             = common::AutoSimplify(output_shape[axis] + B->shape[axis]);
+  auto res                       = Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indice) {
+        auto indice_B  = indice;
+        indice_B[axis] = indice_B[axis] - pivot;
+        return ir::Select::Make(indice[axis] < pivot, A(indice), B(indice_B));
+      },
+      name);
+  return res;
 }
 
 std::vector<Tensor> MatmulV2(const Tensor& A,
