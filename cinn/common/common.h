@@ -11,7 +11,6 @@
 #include "cinn/common/target.h"
 #include "cinn/common/type.h"
 
-
 namespace cinn {
 
 // export some general concepts.

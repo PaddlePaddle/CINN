@@ -26,11 +26,11 @@ TEST(Compiler, x86) {
     return std::make_tuple(A, B, C);
   };
 
-  {                                    // test x86
+  {                                  // test x86
     auto _A_B_C_ = create_module();  // NOLINT
-    auto &A = std::get<0>(_A_B_C_);
-    auto &B = std::get<1>(_A_B_C_);
-    auto &C = std::get<2>(_A_B_C_);
+    auto& A      = std::get<0>(_A_B_C_);
+    auto& B      = std::get<1>(_A_B_C_);
+    auto& C      = std::get<2>(_A_B_C_);
 
     auto stages = CreateStages({C});
 
@@ -75,12 +75,12 @@ TEST(Compiler, cuda) {
     return std::make_tuple(A, B, C);
   };
 
-  {                                    // cuda
+  {                                  // cuda
     auto _A_B_C_ = create_module();  // NOLINT
-    auto &A = std::get<0>(_A_B_C_);
-    auto &B = std::get<1>(_A_B_C_);
-    auto &C = std::get<2>(_A_B_C_);
-    auto stages    = CreateStages({C});
+    auto& A      = std::get<0>(_A_B_C_);
+    auto& B      = std::get<1>(_A_B_C_);
+    auto& C      = std::get<2>(_A_B_C_);
+    auto stages  = CreateStages({C});
 
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");

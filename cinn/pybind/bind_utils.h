@@ -4,13 +4,13 @@
 
 #include <string>
 
-#include "cinn/pybind/bind.h"
 #include "cinn/common/cinn_value.h"
 #include "cinn/common/shared.h"
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_base.h"
 #include "cinn/ir/ir_visitor.h"
 #include "cinn/ir/tensor.h"
+#include "cinn/pybind/bind.h"
 
 namespace py = pybind11;
 
@@ -22,29 +22,29 @@ using ir::Expr;
 using ir::ExprNode;
 
 using ExprOp   = absl::variant<ir::IntImm,
-                            ir::UIntImm,
-                            ir::FloatImm,
-                            ir::StringImm,
-                            ir::Cast,
-                            ir::Let,
-                            ir::Reduce,
-                            ir::Call,
-                            ir::_Var_,
-                            ir::Select,
-                            ir::Load,
-                            ir::Store,
-                            ir::Alloc,
-                            ir::Free,
-                            ir::IfThenElse,
-                            ir::For,
-                            ir::PolyFor,
-                            ir::Ramp,
-                            ir::Broadcast,
-                            ir::Power,
-                            ir::Product,
-                            ir::Sum,
-                            ir::Block,
-                            ir::_Module_>;
+                             ir::UIntImm,
+                             ir::FloatImm,
+                             ir::StringImm,
+                             ir::Cast,
+                             ir::Let,
+                             ir::Reduce,
+                             ir::Call,
+                             ir::_Var_,
+                             ir::Select,
+                             ir::Load,
+                             ir::Store,
+                             ir::Alloc,
+                             ir::Free,
+                             ir::IfThenElse,
+                             ir::For,
+                             ir::PolyFor,
+                             ir::Ramp,
+                             ir::Broadcast,
+                             ir::Power,
+                             ir::Product,
+                             ir::Sum,
+                             ir::Block,
+                             ir::_Module_>;
 using BinaryOp = absl::variant<>;
 using UnaryOp  = absl::variant<>;
 

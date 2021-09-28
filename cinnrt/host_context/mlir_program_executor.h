@@ -1,5 +1,6 @@
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/Function.h>
@@ -7,7 +8,6 @@
 #include <mlir/IR/OperationSupport.h>
 #include <memory>
 #include <string>
-#include <absl/container/flat_hash_map.h>
 
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/kernel_registry.h"

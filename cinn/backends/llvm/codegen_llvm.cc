@@ -878,13 +878,13 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_Tensor_ *op) {
   return SetVar(buffer_op->name, Visit(buffer_op));
 }
 
-template <typename T, std::enable_if_t<std::is_same<const ir::Expr&, T>::value, int> = 0>
-void appendBody(std::vector<Expr> & new_body, T && v) {
+template <typename T, std::enable_if_t<std::is_same<const ir::Expr &, T>::value, int> = 0>
+void appendBody(std::vector<Expr> &new_body, T &&v) {
   new_body.push_back(v);
 }
 
-template <typename T, std::enable_if_t<!std::is_same<const ir::Expr&, T>::value, int> = 1>
-void appendBody(std::vector<Expr> & new_body, T && v) {
+template <typename T, std::enable_if_t<!std::is_same<const ir::Expr &, T>::value, int> = 1>
+void appendBody(std::vector<Expr> &new_body, T &&v) {
   new_body.insert(new_body.end(), v.begin(), v.end());
 }
 
@@ -903,13 +903,13 @@ llvm::Value *CodeGenLLVM::Visit(const ir::_LoweredFunc_ *op) {
                    create_temp_buffers.size() + alloca_temp_buffers.size() + dealloca_temp_buffers.size() +
                    op->buffer_data_cast_exprs.size() + 1 /*op->body*/ + op->dealloc_output_buffer_exprs.size());
 
-//  auto append = [&new_body](auto &&v) {
-//    if (std::is_same<const ir::Expr &, decltype(v)>::value) {
-//      new_body.push_back(v);
-//    } else {
-//      new_body.insert(new_body.end(), v.begin(), v.end());
-//    }
-//  };
+  //  auto append = [&new_body](auto &&v) {
+  //    if (std::is_same<const ir::Expr &, decltype(v)>::value) {
+  //      new_body.push_back(v);
+  //    } else {
+  //      new_body.insert(new_body.end(), v.begin(), v.end());
+  //    }
+  //  };
 
   appendBody(new_body, op->argument_prepare_exprs);
   appendBody(new_body, create_temp_buffers);

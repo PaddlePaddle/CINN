@@ -4,10 +4,10 @@
  */
 #include <glog/logging.h>
 
+#include <absl/container/flat_hash_map.h>
 #include <memory>
 #include <string>
 #include <tuple>
-#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
 
@@ -43,7 +43,7 @@ struct Variable : public common::Shared<_Variable_> {
    * Constructor.
    * @param id_hint The identifier of the variable, if null, a random ID will be assigned.
    */
-  explicit Variable(const std::string & id_hint = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
+  explicit Variable(const std::string& id_hint = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
     if (!id_hint.empty()) CheckVarNameValid(id_hint);
     get()->id = id_hint.empty() ? common::Context::Global().NewName("var") : id_hint;
   }

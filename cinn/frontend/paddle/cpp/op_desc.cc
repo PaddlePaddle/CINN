@@ -38,7 +38,7 @@ std::pair<OpDesc::attrs_t::const_iterator, OpDesc::attr_types_t::const_iterator>
     CHECK(pair.second->second == AttrType::repr__)                                             \
         << "The attrbute [" << pair.second->first << "]'s type doesn't match the target type!" \
         << "Its type should be " << #repr__ << ". Please check.";                              \
-    return absl::any_cast<T>(pair.first->second);                                               \
+    return absl::any_cast<T>(pair.first->second);                                              \
   }
 
 GET_IMPL_ONE(int32_t, INT)

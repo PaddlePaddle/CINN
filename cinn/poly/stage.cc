@@ -85,10 +85,10 @@ std::tuple<Iterator, Iterator> Stage::SplitOuter(int level, int nparts) {
 
 int Stage::GetDimRange(int level) {
   auto _minv_maxv_ = isl_set_get_axis_range(transformed_domain().get(), level);
-  auto &minv = std::get<0>(_minv_maxv_);
-  auto &maxv = std::get<1>(_minv_maxv_);
-  int max_iv        = maxv.get_num_si();
-  int min_iv        = minv.get_num_si();
+  auto &minv       = std::get<0>(_minv_maxv_);
+  auto &maxv       = std::get<1>(_minv_maxv_);
+  int max_iv       = maxv.get_num_si();
+  int min_iv       = minv.get_num_si();
   CHECK_EQ(0, min_iv) << "The min range of level " << level << " in " << id() << " is not 0!";
   return max_iv + 1;
 }
@@ -98,12 +98,12 @@ std::tuple<Iterator, Iterator> Stage::SplitOuter(const Iterator &level, int npar
   CHECK_GE(offset, 0) << "iterator " << level << " not in " << domain_;
   AssertAxisIsNotLocked(offset);
   auto _minv_maxv_ = isl_set_get_axis_range(transformed_domain().get(), offset);
-  auto &minv = std::get<0>(_minv_maxv_);
-  auto &maxv = std::get<1>(_minv_maxv_);
-  int max_iv        = maxv.get_num_si();
-  auto dim_names    = isl_get_dim_names(transform_, isl_dim_out);
-  double temp       = double(max_iv + 1.0) / double(nparts);
-  int factor_inner  = ceil(temp);
+  auto &minv       = std::get<0>(_minv_maxv_);
+  auto &maxv       = std::get<1>(_minv_maxv_);
+  int max_iv       = maxv.get_num_si();
+  auto dim_names   = isl_get_dim_names(transform_, isl_dim_out);
+  double temp      = double(max_iv + 1.0) / double(nparts);
+  int factor_inner = ceil(temp);
   return Split(level, factor_inner);
 }
 
@@ -207,11 +207,11 @@ std::tuple<Iterator, Iterator, Iterator, Iterator> Stage::Tile(const Iterator &l
                                                                int factor0,
                                                                int factor1) {
   auto _level0_outer_level0_inner_ = Split(level0, factor0);  // NOLINT
-  auto &level0_outer = std::get<0>(_level0_outer_level0_inner_);
-  auto &level0_inner = std::get<1>(_level0_outer_level0_inner_);
+  auto &level0_outer               = std::get<0>(_level0_outer_level0_inner_);
+  auto &level0_inner               = std::get<1>(_level0_outer_level0_inner_);
   auto _level1_outer_level1_inner_ = Split(level1, factor1);  // NOLINT
-  auto &level1_outer = std::get<0>(_level1_outer_level1_inner_);
-  auto &level1_inner = std::get<1>(_level1_outer_level1_inner_);
+  auto &level1_outer               = std::get<0>(_level1_outer_level1_inner_);
+  auto &level1_inner               = std::get<1>(_level1_outer_level1_inner_);
   return std::make_tuple(level0_outer, level0_inner, level1_outer, level1_inner);
 }
 
@@ -350,15 +350,15 @@ void Stage::ChangeDomain(Stage *other, int level) {
   level = uniq_names.size() - 1;
   for (int i = 0; i <= level; i++) {
     auto _minv_maxv_   = isl_set_get_axis_range(domain_.get(), i);
-    auto &minv = std::get<0>(_minv_maxv_);
-    auto &maxv = std::get<1>(_minv_maxv_);
-    int min_iv          = minv.get_num_si();
-    int max_iv          = maxv.get_num_si();
+    auto &minv         = std::get<0>(_minv_maxv_);
+    auto &maxv         = std::get<1>(_minv_maxv_);
+    int min_iv         = minv.get_num_si();
+    int max_iv         = maxv.get_num_si();
     auto _minv2_maxv2_ = isl_set_get_axis_range(other->domain().get(), i);
-    auto &minv2 = std::get<0>(_minv2_maxv2_);
-    auto &maxv2 = std::get<1>(_minv2_maxv2_);
-    int min_tar         = minv2.get_num_si();
-    int max_tar         = maxv2.get_num_si();
+    auto &minv2        = std::get<0>(_minv2_maxv2_);
+    auto &maxv2        = std::get<1>(_minv2_maxv2_);
+    int min_tar        = minv2.get_num_si();
+    int max_tar        = maxv2.get_num_si();
     // Change each dim's range.
     // e.g., from "0 <= i0 <= 9" to "0 <= i0 <= 4"
     utils::Replace(&this_domain,
@@ -447,9 +447,9 @@ void Stage::EditTempTensor(Stage *other, int level) {
   std::map<std::string, int> dim_to_range;
   std::vector<std::string> this_dim_names = isl_get_dim_names(domain_);
   for (int i = 0; i < this_dim_names.size(); i++) {
-    auto _minv_maxv_               = isl_set_get_axis_range(domain_.get(), i);
-    auto &minv = std::get<0>(_minv_maxv_);
-    auto &maxv = std::get<1>(_minv_maxv_);
+    auto _minv_maxv_                = isl_set_get_axis_range(domain_.get(), i);
+    auto &minv                      = std::get<0>(_minv_maxv_);
+    auto &maxv                      = std::get<1>(_minv_maxv_);
     int min_iv                      = minv.get_num_si();
     int max_iv                      = maxv.get_num_si();
     dim_to_range[this_dim_names[i]] = max_iv;
@@ -591,10 +591,10 @@ void Stage::ComputeAt(Stage *other, int level) {
     std::string trans_res_str = isl_map_to_str(trans_res.get());
     for (int i = 0; i < reduce_axes.size(); i++) {
       auto _minv_maxv_ = isl_set_get_axis_range(domain_.get(), i + map_dim_in);
-      auto &minv = std::get<0>(_minv_maxv_);
-      auto &maxv = std::get<1>(_minv_maxv_);
-      int min_iv        = minv.get_num_si();
-      int max_iv        = maxv.get_num_si();
+      auto &minv       = std::get<0>(_minv_maxv_);
+      auto &maxv       = std::get<1>(_minv_maxv_);
+      int min_iv       = minv.get_num_si();
+      int max_iv       = maxv.get_num_si();
 
       trans_res_str = trans_res_str.substr(0, trans_res_str.size() - 1) + "and " + std::to_string(min_iv) +
                       " <= " + reduce_axes[i] + " <= " + std::to_string(max_iv) + " }";
@@ -609,9 +609,9 @@ void Stage::ComputeAt(Stage *other, int level) {
     auto trans_dim_out   = isl_get_dim_names(trans_res.get(), isl_dim_out);
     auto transformed_res = domain_.apply(trans_res);
     for (int i = level + 1; i < trans_dim_out.size(); i++) {
-      auto _minv_maxv_       = isl_set_get_axis_range(transformed_res.get(), i);
-      auto &minv = std::get<0>(_minv_maxv_);
-      auto &maxv = std::get<1>(_minv_maxv_);
+      auto _minv_maxv_        = isl_set_get_axis_range(transformed_res.get(), i);
+      auto &minv              = std::get<0>(_minv_maxv_);
+      auto &maxv              = std::get<1>(_minv_maxv_);
       int max_iv              = maxv.get_num_si();
       int min_iv              = minv.get_num_si();
       auto related_input_dims = GetRelatedInputAxies(trans_res, domain_, {trans_dim_out[i]}, true);

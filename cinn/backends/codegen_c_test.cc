@@ -135,8 +135,8 @@ TEST(CodeGenC, module_with_transform) {
   auto stages = CreateStages({C, D});
 
   auto _i_outer_i_inner_ = stages[C]->Split(0, 4);
-  auto &i_outer = std::get<0>(_i_outer_i_inner_);
-  auto &i_inner = std::get<1>(_i_outer_i_inner_);
+  auto &i_outer          = std::get<0>(_i_outer_i_inner_);
+  auto &i_inner          = std::get<1>(_i_outer_i_inner_);
 
   stages[D]->Tile(0, 1, 4, 16);
   stages[D]->Parallel(0);
@@ -331,22 +331,22 @@ TEST(CodeGenC, matmul_tile) {
 
   {
     auto _i_outer_i_inner_j_outer_j_inner_ = stages[C_init]->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
-    auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_outer                          = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_inner                          = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_outer                          = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_inner                          = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
     stages[C_init]->Reorder({i_outer, j_outer, i_inner, j_inner});
   }
 
   {
     auto _i_outer_i_inner_j_outer_j_inner_ = stages[C]->Tile(0, 1, bn.as_int32(), bn.as_int32());  // NOLINT
-    auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
-    auto _k_outer_k_inner_                   = stages[C]->Split(poly::Iterator("k0"), 4);            // NOLINT
-    auto &k_outer = std::get<0>(_k_outer_k_inner_);
-    auto &k_inner = std::get<1>(_k_outer_k_inner_);
+    auto &i_outer                          = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_inner                          = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_outer                          = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_inner                          = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+    auto _k_outer_k_inner_                 = stages[C]->Split(poly::Iterator("k0"), 4);  // NOLINT
+    auto &k_outer                          = std::get<0>(_k_outer_k_inner_);
+    auto &k_inner                          = std::get<1>(_k_outer_k_inner_);
     stages[C]->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
   }
 
@@ -422,13 +422,13 @@ TEST(CodeGenC, matmul_packed) {
 
   {
     auto _i_outer_i_inner_j_outer_j_inner_ = stages[C]->Tile(0, 1, bn.as_int32(), bn.as_int32());
-    auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
-    auto _k_outer_k_inner_                   = stages[C]->Split(poly::Iterator("k0"), 4);
-    auto &k_outer = std::get<0>(_k_outer_k_inner_);
-    auto &k_inner = std::get<1>(_k_outer_k_inner_);
+    auto &i_outer                          = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_inner                          = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_outer                          = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_inner                          = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+    auto _k_outer_k_inner_                 = stages[C]->Split(poly::Iterator("k0"), 4);
+    auto &k_outer                          = std::get<0>(_k_outer_k_inner_);
+    auto &k_inner                          = std::get<1>(_k_outer_k_inner_);
     stages[C]->Reorder({i_outer, j_outer, i_inner, j_inner, k_outer, k_inner});
   }
 

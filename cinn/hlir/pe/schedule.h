@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string>
 #include <absl/container/flat_hash_map.h>
+#include <string>
 #include <vector>
 
 #include "cinn/hlir/framework/node.h"
@@ -26,7 +26,9 @@ class ScheduleParam {
     static ScheduleParam x86_instance;
     return x86_instance;
   }
-  absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &GetParam() { return param_data; }
+  absl::flat_hash_map<std::string, absl::flat_hash_map<std::string, std::vector<int>>> &GetParam() {
+    return param_data;
+  }
   absl::flat_hash_map<std::string, std::vector<int>> &operator[](const std::string &key) { return param_data[key]; }
   int Count(const std::string &key) { return param_data.count(key); }
 

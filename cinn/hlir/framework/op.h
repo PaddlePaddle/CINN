@@ -1,12 +1,12 @@
 #pragma once
 #include <glog/logging.h>
 
+#include <absl/container/flat_hash_map.h>
 #include <atomic>
 #include <functional>
 #include <memory>
 #include <mutex>  //NOLINT
 #include <string>
-#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
 
@@ -203,8 +203,8 @@ bool OpValueType<ValueType>::Find(const Operator* op) const {
   return idx < data.size();
 }
 
-template <typename R, typename ...Args>
-inline auto MakeOpFunction(R(*func)(Args...)) {
+template <typename R, typename... Args>
+inline auto MakeOpFunction(R (*func)(Args...)) {
   return std::function<R(Args...)>(func);
 }
 
@@ -227,8 +227,6 @@ inline auto MakeOpFunction(R(*func)(Args...)) {
 #define CINN_REGISTER_OP(OpName)                                \
   CINN_STR_CONCAT(CINN_REGISTER_VAR_DEF(OpName), __COUNTER__) = \
       ::cinn::hlir::framework::OpRegistry::Global()->__REGISTER_OR_GET__(#OpName)
-
-
 
 }  // namespace framework
 }  // namespace hlir

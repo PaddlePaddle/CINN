@@ -348,17 +348,17 @@ TEST(CodeGenLLVM, Statement) {
   llvm::raw_string_ostream ss(outs);
 
   do {
-    auto _m_b_context_emitter_     = CreateCodeGenLLVMTestLLVM();    // NOLINT
-    auto &m = std::get<0>(_m_b_context_emitter_);
-    auto &b = std::get<1>(_m_b_context_emitter_);
-    auto &context = std::get<2>(_m_b_context_emitter_);
-    auto &emitter = std::get<3>(_m_b_context_emitter_);
-    auto _i8_i32_i64_u32_f32_     = CreateLLVMType(context.get());  // NOLINT
-    auto &i8 = std::get<0>(_i8_i32_i64_u32_f32_);
-    auto &i32 = std::get<1>(_i8_i32_i64_u32_f32_);
-    auto &i64 = std::get<2>(_i8_i32_i64_u32_f32_);
-    auto &u32 = std::get<3>(_i8_i32_i64_u32_f32_);
-    auto &f32 = std::get<4>(_i8_i32_i64_u32_f32_);
+    auto _m_b_context_emitter_        = CreateCodeGenLLVMTestLLVM();  // NOLINT
+    auto &m                           = std::get<0>(_m_b_context_emitter_);
+    auto &b                           = std::get<1>(_m_b_context_emitter_);
+    auto &context                     = std::get<2>(_m_b_context_emitter_);
+    auto &emitter                     = std::get<3>(_m_b_context_emitter_);
+    auto _i8_i32_i64_u32_f32_         = CreateLLVMType(context.get());  // NOLINT
+    auto &i8                          = std::get<0>(_i8_i32_i64_u32_f32_);
+    auto &i32                         = std::get<1>(_i8_i32_i64_u32_f32_);
+    auto &i64                         = std::get<2>(_i8_i32_i64_u32_f32_);
+    auto &u32                         = std::get<3>(_i8_i32_i64_u32_f32_);
+    auto &f32                         = std::get<4>(_i8_i32_i64_u32_f32_);
     llvm::FunctionType *function_type = llvm::FunctionType::get(i32, {}, false);
     llvm::Function *function          = llvm::Function::Create(
         function_type, llvm::Function::ExternalLinkage, "codegen_llvm_test.Alloc_Store_Load_Free", m.get());
@@ -454,16 +454,16 @@ TEST(CodeGenLLVM, LowerFunc) {
     auto emitter = std::make_unique<CodeGenLLVM>(m.get(), b.get());
 
     auto _i8_i32_i64_u32_f32_ = CreateLLVMType(context.get());  // NOLINT
-    auto &i8 = std::get<0>(_i8_i32_i64_u32_f32_);
-    auto &i32 = std::get<1>(_i8_i32_i64_u32_f32_);
-    auto &i64 = std::get<2>(_i8_i32_i64_u32_f32_);
-    auto &u32 = std::get<3>(_i8_i32_i64_u32_f32_);
-    auto &f32 = std::get<4>(_i8_i32_i64_u32_f32_);
-    auto _x_y_z_z_buf_         = CreateTensor();                 // NOLINT
-    auto &x = std::get<0>(_x_y_z_z_buf_);
-    auto &y = std::get<1>(_x_y_z_z_buf_);
-    auto &z = std::get<2>(_x_y_z_z_buf_);
-    auto &z_buf = std::get<3>(_x_y_z_z_buf_);
+    auto &i8                  = std::get<0>(_i8_i32_i64_u32_f32_);
+    auto &i32                 = std::get<1>(_i8_i32_i64_u32_f32_);
+    auto &i64                 = std::get<2>(_i8_i32_i64_u32_f32_);
+    auto &u32                 = std::get<3>(_i8_i32_i64_u32_f32_);
+    auto &f32                 = std::get<4>(_i8_i32_i64_u32_f32_);
+    auto _x_y_z_z_buf_        = CreateTensor();  // NOLINT
+    auto &x                   = std::get<0>(_x_y_z_z_buf_);
+    auto &y                   = std::get<1>(_x_y_z_z_buf_);
+    auto &z                   = std::get<2>(_x_y_z_z_buf_);
+    auto &z_buf               = std::get<3>(_x_y_z_z_buf_);
 
     z->Bind(z_buf);
 

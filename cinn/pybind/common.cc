@@ -262,25 +262,25 @@ void BindCinnValue(py::module *m) {
   auto binary_op_visitor = [](CINNValue &v, auto lhs, auto rhs, auto fn) {
     using lhs_t = decltype(lhs);
     using rhs_t = decltype(rhs);
-    using tag_t = std::conditional_t<
-                    std::is_same<lhs_t, std::nullptr_t>::value ||
-                    std::is_same<rhs_t, std::nullptr_t>::value ||
-                    !std::is_same<lhs_t, rhs_t>::value, std::true_type, std::false_type>;
+    using tag_t =
+        std::conditional_t<std::is_same<lhs_t, std::nullptr_t>::value || std::is_same<rhs_t, std::nullptr_t>::value ||
+                               !std::is_same<lhs_t, rhs_t>::value,
+                           std::true_type,
+                           std::false_type>;
     __binary_op_visitor_dispatch(v, lhs, rhs, fn, tag_t{});
   };
 
-
-#define DEFINE_BINARY_OP(__op, __fn)                                                         \
-  auto __op##_fn = [&](auto x, auto y) {                                                     \
-    constexpr auto is_var_x = std::is_same<std::decay_t<decltype(x)>, ir::Var>::value;       \
-    constexpr auto is_var_y = std::is_same<std::decay_t<decltype(y)>, ir::Var>::value;       \
-    using tag_t = std::conditional_t<is_var_x && is_var_y, std::true_type, std::false_type>; \
-    return __binary_op_fn_dispatch(x, y, __fn, tag_t{});                                     \
-  };                                                                                         \
-  cinn_value.def(#__op, [&](CINNValue &self, CINNValue &other) {                             \
-    auto visitor = [&](auto x, auto y) { return binary_op_visitor(self, x, y, __op##_fn); }; \
-    absl::visit(visitor, ConvertToVar(self), ConvertToVar(other));                           \
-    return self;                                                                             \
+#define DEFINE_BINARY_OP(__op, __fn)                                                                     \
+  auto __op##_fn = [&](auto x, auto y) {                                                                 \
+    constexpr auto is_var_x = std::is_same<std::decay_t<decltype(x)>, ir::Var>::value;                   \
+    constexpr auto is_var_y = std::is_same<std::decay_t<decltype(y)>, ir::Var>::value;                   \
+    using tag_t             = std::conditional_t<is_var_x && is_var_y, std::true_type, std::false_type>; \
+    return __binary_op_fn_dispatch(x, y, __fn, tag_t{});                                                 \
+  };                                                                                                     \
+  cinn_value.def(#__op, [&](CINNValue &self, CINNValue &other) {                                         \
+    auto visitor = [&](auto x, auto y) { return binary_op_visitor(self, x, y, __op##_fn); };             \
+    absl::visit(visitor, ConvertToVar(self), ConvertToVar(other));                                       \
+    return self;                                                                                         \
   })
 
   DEFINE_BINARY_OP(__add__, [](auto x, auto y) { return x + y; });

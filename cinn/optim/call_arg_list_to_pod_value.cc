@@ -20,8 +20,8 @@ struct CallArgListToPodValueMutator : ir::IRMutator<> {
   void Visit(const ir::Call* op, Expr* expr) override {
     if (op->is_cinn_call()) {
       auto _oprs_args_ = pack_arg_exprs(op);  // NOLINT
-      auto &oprs = std::get<0>(_oprs_args_);
-      auto &args = std::get<1>(_oprs_args_);
+      auto& oprs       = std::get<0>(_oprs_args_);
+      auto& args       = std::get<1>(_oprs_args_);
 
       Var pod_array_var(Context::Global().NewName("_pod_arr"),
                         type_of<cinn_pod_value_t>().with_lanes(op->total_args_count()));

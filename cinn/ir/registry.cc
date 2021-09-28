@@ -46,7 +46,7 @@ Registry::Registry(const std::string &name) : name_(name) {}
 /*static*/ bool Registry::Remove(const std::string &name) {
   auto manager = Manager::Global();
   std::lock_guard<std::mutex> lock(manager->mu);
-  auto it = manager->functions.find(name); 
+  auto it = manager->functions.find(name);
   if (it != manager->functions.end()) {
     manager->functions.erase(it);
     return true;

@@ -26,9 +26,9 @@ int run() {
 
   // test x86
   auto module = create_module();  // NOLINT
-  auto &A = std::get<0>(module);
-  auto &B = std::get<1>(module);
-  auto &C = std::get<2>(module);
+  auto& A     = std::get<0>(module);
+  auto& B     = std::get<1>(module);
+  auto& C     = std::get<2>(module);
 
   auto stages = CreateStages({C});
 

@@ -3,14 +3,14 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-// 
+//
 #include "cinn/cinn.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
+#include "cinn/hlir/framework/scope.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
-#include "cinn/hlir/framework/scope.h"
 
 DEFINE_string(model_dir, "", "");
 
@@ -63,7 +63,7 @@ TEST(syntax, program_execute_multi_elementwise_add) {
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   auto scope = BuildScope(target, graph);
-//
+  //
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 
@@ -147,10 +147,10 @@ TEST(syntax, program_execute_fc) {
 TEST(load_paddle_model, fc_execute) {
   auto scope = std::make_shared<Scope>();
 
-  auto programTuple = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
-  auto &program = std::get<0>(programTuple);
-  auto &var_map = std::get<1>(programTuple);
-  auto &var_map_paddle_to_program = std::get<2>(programTuple);
+  auto programTuple               = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
+  auto& program                   = std::get<0>(programTuple);
+  auto& var_map                   = std::get<1>(programTuple);
+  auto& var_map_paddle_to_program = std::get<2>(programTuple);
 
   var_map["A"]->shape = {1, 30};
   program->SetInputs({var_map["A"]});

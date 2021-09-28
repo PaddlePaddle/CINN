@@ -1,5 +1,5 @@
-#include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/instruction.h"
+#include "cinn/common/test_helper.h"
 
 #include <gtest/gtest.h>
 

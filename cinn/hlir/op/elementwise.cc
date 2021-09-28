@@ -284,9 +284,9 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_num_inputs(1)                                                                                             \
       .set_num_outputs(1)                                                                                            \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))                               \
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))                               \
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))                             \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))                              \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))                              \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))                            \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)  \
       .set_support_level(4);
 

@@ -32,7 +32,7 @@ void BindExecutionEngine(py::module *m) {
     auto function_wrapper = [function_ptr](std::vector<cinn_pod_value_t> &args) {
       function_ptr(reinterpret_cast<void **>(args.data()), args.size());
     };
-    return std::function<void(std::vector<cinn_pod_value_t>&)>(function_wrapper);
+    return std::function<void(std::vector<cinn_pod_value_t> &)>(function_wrapper);
   };
 
   py::class_<ExecutionEngine> engine(*m, "ExecutionEngine");
@@ -47,7 +47,7 @@ void BindExecutionEngine(py::module *m) {
       auto function_wrapper = [function_ptr](std::vector<cinn_pod_value_t> &args) {
         function_ptr(reinterpret_cast<void **>(args.data()), args.size());
       };
-      return std::function<void(std::vector<cinn_pod_value_t>&)>(function_wrapper);
+      return std::function<void(std::vector<cinn_pod_value_t> &)>(function_wrapper);
     };
 
     py::class_<Compiler> compiler(*m, "Compiler");

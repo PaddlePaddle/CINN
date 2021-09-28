@@ -109,9 +109,9 @@ TEST(llvm_test01, elementwise_add) {
   auto engine = backends::ExecutionEngine::Create({1});
 
   auto _a_b_c_ = CreateTestBuffer();  // NOLINT
-  auto &a = std::get<0>(_a_b_c_);
-  auto &b = std::get<1>(_a_b_c_);
-  auto &c = std::get<2>(_a_b_c_);
+  auto &a      = std::get<0>(_a_b_c_);
+  auto &b      = std::get<1>(_a_b_c_);
+  auto &c      = std::get<2>(_a_b_c_);
 
   auto module = CreateTestCinnModule();
 
@@ -169,10 +169,10 @@ TEST(llvm, module_call_lowered_func) {
   }
 
   auto _ab_bb_cb_ = CreateTestBuffer();  // NOLINT
-  auto &ab = std::get<0>(_ab_bb_cb_);
-  auto &bb = std::get<1>(_ab_bb_cb_);
-  auto &cb = std::get<2>(_ab_bb_cb_);
-  do {                                     // call the function
+  auto &ab        = std::get<0>(_ab_bb_cb_);
+  auto &bb        = std::get<1>(_ab_bb_cb_);
+  auto &cb        = std::get<2>(_ab_bb_cb_);
+  do {  // call the function
     auto engine = backends::ExecutionEngine::Create({1});
 
     LOG(INFO) << "JIT Link the module";
@@ -289,9 +289,9 @@ TEST(ExecutionEngine, call_extern) {
   engine->Link(builder.Build());
 
   auto _ab_bb_cb_ = CreateTestBuffer();  // NOLINT
-  auto &ab = std::get<0>(_ab_bb_cb_);
-  auto &bb = std::get<1>(_ab_bb_cb_);
-  auto &cb = std::get<2>(_ab_bb_cb_);
+  auto &ab        = std::get<0>(_ab_bb_cb_);
+  auto &bb        = std::get<1>(_ab_bb_cb_);
+  auto &cb        = std::get<2>(_ab_bb_cb_);
 
   auto comp_addr = engine->Lookup("comp");
   auto comp      = reinterpret_cast<void (*)(void *, int32_t)>(comp_addr);

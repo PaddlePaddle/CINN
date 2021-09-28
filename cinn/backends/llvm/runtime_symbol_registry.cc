@@ -2,8 +2,8 @@
 
 #include <glog/raw_logging.h>
 
-#include <iostream>
 #include <absl/strings/string_view.h>
+#include <iostream>
 
 namespace cinn {
 namespace backends {
@@ -15,7 +15,7 @@ RuntimeSymbolRegistry &RuntimeSymbolRegistry::Global() {
 
 void *RuntimeSymbolRegistry::Lookup(absl::string_view name) const {
   std::lock_guard<std::mutex> lock(mu_);
-  auto it = symbols_.find(std::string(name)); 
+  auto it = symbols_.find(std::string(name));
   if (it != symbols_.end()) {
     return it->second;
   }

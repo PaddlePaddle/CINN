@@ -3,15 +3,14 @@
  */
 #pragma once
 
-#include "cinn/ir/ir.h"
 #include <ginac/ginac.h>
+#include "cinn/ir/ir.h"
 
 #include <limits>
 #include <map>
 #include <set>
 #include <string>
 #include <tuple>
-
 
 #ifdef As
 #undef As

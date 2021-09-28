@@ -91,8 +91,9 @@ class CustomPassManager : public PassManagerT {
   }
 
  private:
-  static constexpr bool is_function_pass_manager_ = std::is_same<llvm::legacy::FunctionPassManager, PassManagerT>::value;
-  static constexpr bool is_module_pass_manager_   = std::is_same<llvm::legacy::PassManager, PassManagerT>::value;
+  static constexpr bool is_function_pass_manager_ =
+      std::is_same<llvm::legacy::FunctionPassManager, PassManagerT>::value;
+  static constexpr bool is_module_pass_manager_ = std::is_same<llvm::legacy::PassManager, PassManagerT>::value;
   bool print_passes_;
 };
 

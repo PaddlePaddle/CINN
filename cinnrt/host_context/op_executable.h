@@ -1,10 +1,10 @@
 #pragma once
 #include <llvm/ADT/ArrayRef.h>
 
+#include <absl/container/flat_hash_map.h>
+#include <absl/strings/string_view.h>
 #include <memory>
 #include <string>
-#include <absl/strings/string_view.h>
-#include <absl/container/flat_hash_map.h>
 
 #include "mlir/IR/Function.h"
 #include "mlir/IR/Region.h"

@@ -1,13 +1,13 @@
 #pragma once
+#include <absl/container/flat_hash_map.h>
 #include <memory>
 #include <string>
 #include <tuple>
-#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
 
-#include <absl/types/variant.h>
 #include <absl/container/flat_hash_map.h>
+#include <absl/types/variant.h>
 
 #include "cinn/common/graph_utils.h"
 #include "cinn/common/shared.h"
@@ -21,13 +21,13 @@ class NodeData;
 
 using NodePtr  = std::shared_ptr<Node>;
 using AttrType = absl::variant<bool,
-                              float,
-                              int,
-                              std::string,
-                              std::vector<bool>,
-                              std::vector<int>,
-                              std::vector<float>,
-                              std::vector<std::string>>;
+                               float,
+                               int,
+                               std::string,
+                               std::vector<bool>,
+                               std::vector<int>,
+                               std::vector<float>,
+                               std::vector<std::string>>;
 
 /**
  * \brief Attributes of each node in graph.
@@ -125,7 +125,7 @@ class NodeData : public common::GraphNode {
       const char *op_name,
       std::string node_name,
       std::vector<NodeData> inputs,
-      std::string id                                = nullptr,
+      std::string id                                 = nullptr,
       absl::flat_hash_map<std::string, attr_t> attrs = absl::flat_hash_map<std::string, attr_t>()) {
     auto res                           = std::make_shared<NodeData>();
     res->id_                           = std::move(id);

@@ -19,7 +19,7 @@ void CopyTo(const Value& from, Value* to) {
   visit(
       [&](auto&& arg) {
         using T = std::decay_t<decltype(arg)>;
-        if  (std::is_same<T, int16_t>::value)
+        if (std::is_same<T, int16_t>::value)
           to->data = arg;
         else if (std::is_same<T, int32_t>::value)
           to->data = arg;

@@ -126,7 +126,7 @@ void BindNode(py::module *m) {
   py::class_<ir::StringImm, ir::ExprNode<ir::StringImm>> string_imm(*m, "StringImm");
   string_imm.def_readwrite("value", &ir::StringImm::value).def(py::init<const std::string &>());
 
-  auto expr              = py::class_<ir::Expr, ir::IrNodeRef>(*m, "Expr");
+  auto expr = py::class_<ir::Expr, ir::IrNodeRef>(*m, "Expr");
 
   expr.def(py::init<ir::Expr &>());
   expr.def(py::init<ir::IrNode *>());

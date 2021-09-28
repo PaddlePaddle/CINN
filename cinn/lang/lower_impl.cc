@@ -640,8 +640,8 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
 std::vector<Tensor> LowerImpl::CollectAllTensors() {
   std::vector<Tensor> tensors;
   auto topo_order = compu_graph_->topological_order();  // NOLINT
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
   for (auto* node : nodes) {
     auto* cnode = node->safe_as<CompuGraphNode>();
     CHECK(cnode);

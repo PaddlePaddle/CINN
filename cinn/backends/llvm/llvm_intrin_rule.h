@@ -3,8 +3,8 @@
 #include <glog/logging.h>
 #include <llvm/IR/Intrinsics.h>
 
-#include <string>
 #include <absl/container/flat_hash_map.h>
+#include <string>
 #include <utility>
 #include <vector>
 

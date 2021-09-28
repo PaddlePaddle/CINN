@@ -3,7 +3,6 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
-#include "cinn/pybind/bind.h"
 #include "cinn/common/common.h"
 #include "cinn/frontend/interpreter.h"
 #include "cinn/frontend/syntax.h"
@@ -11,6 +10,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/op/use_ops.h"
+#include "cinn/pybind/bind.h"
 #include "cinn/utils/string.h"
 #include "cinn/utils/timer.h"
 

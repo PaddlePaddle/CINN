@@ -66,8 +66,8 @@ TEST(matmul, Split) {
   Target target = common::DefaultHostTarget();
 
   auto _i0_i1_ = stages[C]->Split(2, 16);
-  auto &i0 = std::get<0>(_i0_i1_);
-  auto &i1 = std::get<1>(_i0_i1_);
+  auto &i0     = std::get<0>(_i0_i1_);
+  auto &i1     = std::get<1>(_i0_i1_);
   std::vector<Iterator> iterators(
       {stages[C]->ith_iterator(1), stages[C]->ith_iterator(0), stages[C]->ith_iterator(2), stages[C]->ith_iterator(3)});
   stages[C]->Reorder(iterators);
@@ -101,13 +101,13 @@ TEST(matmul, Blocking) {
   // Blocking by loop tiling.
   {
     auto _i_outer_i_inner_j_outer_j_inner_ = stages[C]->Tile(0, 1, bn, bn);
-    auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
-    auto _k_outer_k_inner_                   = stages[C]->Split("k0", 4);
-    auto &k_outer = std::get<0>(_k_outer_k_inner_);
-    auto &k_inner = std::get<1>(_k_outer_k_inner_);
+    auto &i_outer                          = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_inner                          = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_outer                          = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_inner                          = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+    auto _k_outer_k_inner_                 = stages[C]->Split("k0", 4);
+    auto &k_outer                          = std::get<0>(_k_outer_k_inner_);
+    auto &k_inner                          = std::get<1>(_k_outer_k_inner_);
     stages[C]->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
   }
 
@@ -140,13 +140,13 @@ TEST(matmul, Vectorization) {
   // Blocking by loop tiling.
   {
     auto _i_outer_i_inner_j_outer_j_inner_ = stages[C]->Tile(0, 1, bn, bn);
-    auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
-    auto _k_outer_k_inner_                   = stages[C]->Split("k0", 4);
-    auto &k_outer = std::get<0>(_k_outer_k_inner_);
-    auto &k_inner = std::get<1>(_k_outer_k_inner_);
+    auto &i_outer                          = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_inner                          = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_outer                          = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_inner                          = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+    auto _k_outer_k_inner_                 = stages[C]->Split("k0", 4);
+    auto &k_outer                          = std::get<0>(_k_outer_k_inner_);
+    auto &k_inner                          = std::get<1>(_k_outer_k_inner_);
     stages[C]->Reorder({i_outer, j_outer, k_outer, k_inner, i_inner, j_inner});
     stages[C]->Vectorize(j_inner, 8);
   }
@@ -208,13 +208,13 @@ TEST(matmul, varient_shape) {
   }
 
   {
-    auto stages                               = CreateStages({C});
-    int bn                                    = 32;
+    auto stages                            = CreateStages({C});
+    int bn                                 = 32;
     auto _i_outer_i_inner_j_outer_j_inner_ = stages[C]->Tile(0, 1, bn, bn);  // NOLINT
-    auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_outer                          = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_inner                          = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_outer                          = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_inner                          = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
 
     Module::Builder builder("matmul_dynamic_shape_tile", target);
     auto func = Lower("matmul_dynamic_shape_tile", stages, {A, B, C} /*tensors*/, {M} /*scalars*/);
@@ -257,13 +257,13 @@ TEST(matmul, ArrayPacking_dynamic_shape) {
 
   {
     auto _i_outer_i_inner_j_outer_j_inner_ = stages[C]->Tile(0, 1, bn.as_int32(), bn.as_int32());
-    auto &i_outer = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &i_inner = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_outer = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
-    auto &j_inner = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
-    auto _k_outer_k_inner_                   = stages[C]->Split("k0", 4);
-    auto &k_outer = std::get<0>(_k_outer_k_inner_);
-    auto &k_inner = std::get<1>(_k_outer_k_inner_);
+    auto &i_outer                          = std::get<0>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &i_inner                          = std::get<1>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_outer                          = std::get<2>(_i_outer_i_inner_j_outer_j_inner_);
+    auto &j_inner                          = std::get<3>(_i_outer_i_inner_j_outer_j_inner_);
+    auto _k_outer_k_inner_                 = stages[C]->Split("k0", 4);
+    auto &k_outer                          = std::get<0>(_k_outer_k_inner_);
+    auto &k_inner                          = std::get<1>(_k_outer_k_inner_);
 
     stages[C]->Reorder({i_outer, j_outer, k_outer, i_inner, k_inner, j_inner});
     stages[C]->Vectorize(j_inner, 8);

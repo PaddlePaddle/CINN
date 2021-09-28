@@ -7,9 +7,9 @@
 #include <mlir/IR/OperationSupport.h>
 #include <mlir/Parser.h>
 
+#include <absl/container/flat_hash_map.h>
 #include <memory>
 #include <string>
-#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
 

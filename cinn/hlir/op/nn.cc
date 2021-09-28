@@ -1,5 +1,5 @@
-#include <functional>
 #include "cinn/hlir/pe/nn.h"
+#include <functional>
 
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
@@ -1804,7 +1804,6 @@ std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<fram
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
-
 
 CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(relu)

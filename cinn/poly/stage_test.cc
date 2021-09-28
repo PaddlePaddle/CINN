@@ -26,10 +26,10 @@ TEST(Stage, split) {
   isl::ctx ctx(isl_ctx_alloc());
   isl::set domain(ctx, "{ S[i,j]: 0<=i,j<=100 }");
 
-  auto ele            = Stage::New(domain);
+  auto ele           = Stage::New(domain);
   auto _outer_inner_ = ele->Split(Iterator("i"), 4);  // NOLINT
-  auto &outer = std::get<0>(_outer_inner_);
-  auto &inner = std::get<1>(_outer_inner_);
+  auto& outer        = std::get<0>(_outer_inner_);
+  auto& inner        = std::get<1>(_outer_inner_);
   LOG(INFO) << ele->transform();
   EXPECT_EQ(utils::GetStreamCnt(ele->transform()),
             "{ S[i, j] -> S[i_outer, i_inner, j' = j] : (-i + i_inner) mod 4 = 0 and -3 + i <= 4i_outer <= i and 0 <= "
@@ -45,10 +45,10 @@ TEST(Stage, tile) {
   auto ele = Stage::New(domain);
 
   auto _outer0_inner0_outer1_inner1_ = ele->Tile(Iterator("i"), Iterator("j"), 4, 6);  // NOLINT
-  auto &outer0 = std::get<0>(_outer0_inner0_outer1_inner1_);
-  auto &inner0 = std::get<1>(_outer0_inner0_outer1_inner1_);
-  auto &outer1 = std::get<2>(_outer0_inner0_outer1_inner1_);
-  auto &inner1 = std::get<3>(_outer0_inner0_outer1_inner1_);
+  auto& outer0                       = std::get<0>(_outer0_inner0_outer1_inner1_);
+  auto& inner0                       = std::get<1>(_outer0_inner0_outer1_inner1_);
+  auto& outer1                       = std::get<2>(_outer0_inner0_outer1_inner1_);
+  auto& inner1                       = std::get<3>(_outer0_inner0_outer1_inner1_);
   LOG(INFO) << ele->transform();
   EXPECT_EQ(outer0.id, "i_outer");
   EXPECT_EQ(outer1.id, "j_outer");
@@ -72,10 +72,10 @@ TEST(Stage, reorder) {
 TEST(Stage, split_reorder) {
   isl::ctx ctx(isl_ctx_alloc());
   isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
-  auto ele            = Stage::New(domain);
+  auto ele           = Stage::New(domain);
   auto _outer_inner_ = ele->Split(Iterator("i"), 4);  // NOLINT
-  auto &outer = std::get<0>(_outer_inner_);
-  auto &inner = std::get<1>(_outer_inner_);
+  auto& outer        = std::get<0>(_outer_inner_);
+  auto& inner        = std::get<1>(_outer_inner_);
 
   Iterator i("i"), j("j"), k("k");
   ele->Reorder(std::vector<Iterator>{{outer, k, inner, j}});
@@ -99,10 +99,10 @@ TEST(ComputeAtRelation, basic) {
 TEST(Stage, Fuse) {
   isl::ctx ctx(isl_ctx_alloc());
   isl::set domain(ctx, "{ S[i,j,k]: 0<=i,j,k<=100 }");
-  auto ele            = Stage::New(domain);
+  auto ele           = Stage::New(domain);
   auto _outer_inner_ = ele->Split(Iterator("i"), 4);  // NOLINT
-  auto &outer = std::get<0>(_outer_inner_);
-  auto &inner = std::get<1>(_outer_inner_);
+  auto& outer        = std::get<0>(_outer_inner_);
+  auto& inner        = std::get<1>(_outer_inner_);
   LOG(INFO) << "split: " << ele->transform();
   ele->Fuse(outer, inner);
   LOG(INFO) << "fused: " << ele->transform();
@@ -236,8 +236,8 @@ TEST(ComputeAt, Before1) {
 
   {  // C_init Before C
     auto _cache_prepare_transformed_compute_ = create_module();
-    auto &cache_prepare = std::get<0>(_cache_prepare_transformed_compute_);
-    auto &transformed_compute = std::get<1>(_cache_prepare_transformed_compute_);
+    auto& cache_prepare                      = std::get<0>(_cache_prepare_transformed_compute_);
+    auto& transformed_compute                = std::get<1>(_cache_prepare_transformed_compute_);
 
     auto stages = CreateStages({cache_prepare, transformed_compute});
     stages[cache_prepare]->ComputeAt2(stages[transformed_compute], 1);
@@ -264,8 +264,8 @@ function fn (_A, _cache, _transformed)
   }
   {  // C_init After C
     auto _cache_prepare_transformed_compute_ = create_module();
-    auto &cache_prepare = std::get<0>(_cache_prepare_transformed_compute_);
-    auto &transformed_compute = std::get<1>(_cache_prepare_transformed_compute_);
+    auto& cache_prepare                      = std::get<0>(_cache_prepare_transformed_compute_);
+    auto& transformed_compute                = std::get<1>(_cache_prepare_transformed_compute_);
 
     auto stages = CreateStages({cache_prepare, transformed_compute});
     stages[transformed_compute]->ComputeAt2(stages[cache_prepare], 1);
@@ -344,8 +344,8 @@ TEST(Fuse, jit_precision_test) {
 TEST(Fuse, jit_precision_test2) {
   TestElementwiseAddJitPrecession([](ir::Tensor* C, StageMap stages) {
     auto _i_outer_i_inner_ = stages[(*C)]->Split(0, 4);
-    auto &i_outer = std::get<0>(_i_outer_i_inner_);
-    auto &i_inner = std::get<1>(_i_outer_i_inner_);
+    auto& i_outer          = std::get<0>(_i_outer_i_inner_);
+    auto& i_inner          = std::get<1>(_i_outer_i_inner_);
     stages[(*C)]->Fuse(i_outer, i_inner);
   });
 }

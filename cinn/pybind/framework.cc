@@ -3,7 +3,6 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 
-#include "cinn/pybind/bind.h"
 #include "cinn/common/cinn_value.h"
 #include "cinn/frontend/interpreter.h"
 #include "cinn/hlir/framework/node.h"
@@ -11,6 +10,7 @@
 #include "cinn/hlir/framework/op_strategy.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/hlir/op/use_ops.h"
+#include "cinn/pybind/bind.h"
 
 namespace cinn::pybind {
 

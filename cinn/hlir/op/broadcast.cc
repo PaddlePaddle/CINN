@@ -258,7 +258,6 @@ StrategyForBinary(right_shift, RightShift);
 }  // namespace hlir
 }  // namespace cinn
 
-
 CINN_REGISTER_HELPER(broadcast_ops) {
 #define CINN_REGISTER_BINARY(op__, op_stragegy__)                                                                    \
   CINN_REGISTER_OP(op__)                                                                                             \
@@ -266,9 +265,9 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_num_inputs(1)                                                                                             \
       .set_num_outputs(1)                                                                                            \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcast))                                 \
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))                                 \
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcast))                               \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcast))                                \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcast))                                \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcast))                              \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast) \
       .set_support_level(4);
 

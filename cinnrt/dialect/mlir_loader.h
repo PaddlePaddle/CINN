@@ -4,8 +4,8 @@
 
 #include <mlir/IR/Module.h>
 
-#include <memory>
 #include <absl/strings/string_view.h>
+#include <memory>
 
 namespace cinnrt::dialect {
 

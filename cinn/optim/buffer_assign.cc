@@ -85,8 +85,8 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
   // of the computational graph, and find out which tensor comes first in a cluster.
 
   auto _topo_order_topo_edges_ = comp_graph->topological_order();
-  auto &topo_order = std::get<0>(_topo_order_topo_edges_);
-  auto &topo_edges = std::get<1>(_topo_order_topo_edges_);
+  auto& topo_order             = std::get<0>(_topo_order_topo_edges_);
+  auto& topo_edges             = std::get<1>(_topo_order_topo_edges_);
   for (common::GraphNode* n : topo_order) {
     auto nn = n->safe_as<lang::detail::CompuGraphNode>();
     CHECK(nn);

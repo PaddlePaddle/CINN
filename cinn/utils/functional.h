@@ -16,7 +16,7 @@ std::vector<OutValT> Map(const InT &in, std::function<OutValT(const typename InT
 }
 
 template <typename T>
-auto Min(T && t) {
+auto Min(T &&t) {
   return t;
 }
 
@@ -26,7 +26,7 @@ auto Min(T &&t, Ts &&... ts) {
 }
 
 template <typename T>
-auto Max(T && t) {
+auto Max(T &&t) {
   return t;
 }
 

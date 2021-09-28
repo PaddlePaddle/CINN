@@ -6,10 +6,10 @@
 #include <llvm/IR/MDBuilder.h>
 #include <llvm/IR/Module.h>
 
+#include <absl/container/flat_hash_map.h>
 #include <memory>
 #include <stdexcept>
 #include <string>
-#include <absl/container/flat_hash_map.h>
 #include <unordered_set>
 #include <utility>
 #include <vector>

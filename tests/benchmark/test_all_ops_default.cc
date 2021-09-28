@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include <string>
 #include <absl/container/flat_hash_map.h>
+#include <string>
 #include <vector>
 
 #include "cinn/cinn.h"
@@ -57,11 +57,11 @@ std::vector<Type> type7 = {Float(32), Float(32), Float(32), Float(32)};
 std::vector<Type> type8 = {Float(32), Float(32), Float(32)};
 
 // broadcast_to
-std::vector<std::vector<int>> shapes_broadcast_to                 = {{32}};
-std::vector<int> out_shape                                        = {100, 32};
-std::vector<int> broadcast_axes                                   = {1};
+std::vector<std::vector<int>> shapes_broadcast_to                  = {{32}};
+std::vector<int> out_shape                                         = {100, 32};
+std::vector<int> broadcast_axes                                    = {1};
 absl::flat_hash_map<std::string, AttrType> attr_store_broadcast_to = {{"out_shape", out_shape},
-                                                                     {"broadcast_axes", broadcast_axes}};
+                                                                      {"broadcast_axes", broadcast_axes}};
 TEST_DEFAULT1(broadcast_to, broadcast_to, type, type, attr_store_broadcast_to)
 
 // add
@@ -180,40 +180,40 @@ absl::flat_hash_map<std::string, AttrType> attr_store_conv2d_nchwc = {
 TEST_DEFAULT1(conv2d_NCHWc, conv2d_nchwc, type1, type8, attr_store_conv2d_nchwc)
 
 // depthwise_conv2d nchw
-std::vector<std::vector<int>> shapes_depthwise_conv2d_nchw            = {{2, 32, 112, 112}, {32, 1, 3, 3}};
-std::vector<int> stride_depthwise_conv2d                              = {1, 1};
-std::vector<int> padding_depthwise_conv2d                             = {1, 1};
-std::vector<int> dilation_depthwise_conv2d                            = {1, 1};
+std::vector<std::vector<int>> shapes_depthwise_conv2d_nchw             = {{2, 32, 112, 112}, {32, 1, 3, 3}};
+std::vector<int> stride_depthwise_conv2d                               = {1, 1};
+std::vector<int> padding_depthwise_conv2d                              = {1, 1};
+std::vector<int> dilation_depthwise_conv2d                             = {1, 1};
 absl::flat_hash_map<std::string, AttrType> attr_store_depthwise_conv2d = {{"padding", padding_depthwise_conv2d},
-                                                                         {"stride", stride_depthwise_conv2d},
-                                                                         {"dilation", dilation_depthwise_conv2d}};
+                                                                          {"stride", stride_depthwise_conv2d},
+                                                                          {"dilation", dilation_depthwise_conv2d}};
 TEST_DEFAULT1(depthwise_conv2d, depthwise_conv2d_nchw, type1, type7, attr_store_depthwise_conv2d)
 
 // layout_transform
-std::vector<std::vector<int>> shapes_layout_transform                 = {{512, 512, 3, 3}};
-std::string src_layout                                                = "OIHW";
-std::string dst_layout                                                = "OIHW16i16o";
+std::vector<std::vector<int>> shapes_layout_transform                  = {{512, 512, 3, 3}};
+std::string src_layout                                                 = "OIHW";
+std::string dst_layout                                                 = "OIHW16i16o";
 absl::flat_hash_map<std::string, AttrType> attr_store_layout_transform = {{"src_layout", src_layout},
-                                                                         {"dst_layout", dst_layout}};
+                                                                          {"dst_layout", dst_layout}};
 TEST_DEFAULT1(layout_transform, layout_transform, type, type, attr_store_layout_transform)
 
-std::vector<std::vector<int>> shapes_layout_transform1                 = {{64, 3, 7, 7}};
-std::string src_layout1                                                = "OIHW";
-std::string dst_layout1                                                = "OIHW3i32o";
+std::vector<std::vector<int>> shapes_layout_transform1                  = {{64, 3, 7, 7}};
+std::string src_layout1                                                 = "OIHW";
+std::string dst_layout1                                                 = "OIHW3i32o";
 absl::flat_hash_map<std::string, AttrType> attr_store_layout_transform1 = {{"src_layout", src_layout1},
-                                                                          {"dst_layout", dst_layout1}};
+                                                                           {"dst_layout", dst_layout1}};
 TEST_DEFAULT1(layout_transform, layout_transform1, type, type, attr_store_layout_transform1)
 
 // pool2d
 hlir::framework::NodeAttr attrs;
-std::vector<int> kernel_size                                = {3, 3};
-std::vector<int> stride_size                                = {2, 2};
-std::vector<int> padding_size                               = {1, 1, 1, 1};
-std::string pool_type                                       = "max";
+std::vector<int> kernel_size                                 = {3, 3};
+std::vector<int> stride_size                                 = {2, 2};
+std::vector<int> padding_size                                = {1, 1, 1, 1};
+std::string pool_type                                        = "max";
 absl::flat_hash_map<std::string, AttrType> attr_store_pool2d = {{"kernel_size", kernel_size},
-                                                               {"stride_size", stride_size},
-                                                               {"padding_size", padding_size},
-                                                               {"pool_type", pool_type}};
+                                                                {"stride_size", stride_size},
+                                                                {"padding_size", padding_size},
+                                                                {"pool_type", pool_type}};
 
 std::vector<std::vector<int>> shapes_pool2d = {{2, 64, 112, 112}};
 TEST_DEFAULT1(pool2d, pool2d, type, type, attr_store_pool2d)

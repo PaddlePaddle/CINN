@@ -3,10 +3,10 @@
 #include <glog/logging.h>
 
 #include <absl/types/any.h>
+#include <absl/types/variant.h>
 #include <map>
 #include <mutex>  // NOLINT
 #include <string>
-#include <absl/types/variant.h>
 #include <vector>
 
 #include <absl/strings/string_view.h>
