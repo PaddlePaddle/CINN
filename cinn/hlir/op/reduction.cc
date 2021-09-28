@@ -43,10 +43,10 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   std::vector<int> dim;
   bool keep_dim = false;
   if (attrs.attr_store.count("dim")) {
-    dim = std::get<std::vector<int>>(attrs.attr_store.at("dim"));
+    dim = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
   }
   if (attrs.attr_store.count("keep_dim")) {
-    keep_dim = std::get<bool>(attrs.attr_store.at("keep_dim"));
+    keep_dim = absl::get<bool>(attrs.attr_store.at("keep_dim"));
   }
   framework::CINNCompute reduction_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " compute is empty! Please check.";
@@ -91,10 +91,10 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
   std::vector<int> dim;
   bool keep_dim = false;
   if (attrs.attr_store.find("dim") != attrs.attr_store.end()) {
-    dim = std::get<std::vector<int>>(attrs.attr_store.at("dim"));
+    dim = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
   }
   if (attrs.attr_store.find("keep_dim") != attrs.attr_store.end()) {
-    keep_dim = std::get<bool>(attrs.attr_store.at("keep_dim"));
+    keep_dim = absl::get<bool>(attrs.attr_store.at("keep_dim"));
   }
   std::vector<shape_t> res{inputs_shape[0]};
   return res;
@@ -134,9 +134,9 @@ CINN_REGISTER_HELPER(reduce_ops) {
       .set_num_inputs(1)                                                                                              \
       .set_num_outputs(1)                                                                                             \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)  \
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForReduction))                                  \
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForReduction))                                  \
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForReduction))                                \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                  \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                  \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                                \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kCommReduce) \
       .set_support_level(4);
 
