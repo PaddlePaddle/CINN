@@ -123,11 +123,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
       } else if (iter.first == "trans_b") {
         trans_b = absl::get<bool>(iter.second);
       } else if (iter.first == "alpha") {
-<<<<<<< HEAD
         alpha = absl::get<int>(iter.second);
-=======
-        alpha = std::get<float>(iter.second);
->>>>>>> add mobilenetV1 and resnet50
       } else {
         LOG(ERROR) << "Unsupported attr: " << iter.first << std::endl;
       }
