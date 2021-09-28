@@ -124,7 +124,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   return func;
 }
 
-// get the most complex op's index in the fused groups according to the OpPattern. If the OpPattern is same, we will take the latter.
+// get the most complex op's index in the fused groups according to the OpPattern. If the OpPattern is same, we will
+// take the latter.
 int GetMasterRefNode(const std::vector<Node*>& nodes) {
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   int master_index      = 0;
@@ -458,6 +459,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
             if (global_pooling == false) {
               auto stride = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
+              CHECK_EQ(stride.size(), 4UL);
               instr->attrs.insert(instr->attrs.end(), stride.begin(), stride.end());
             } else {
               instr->attrs.push_back(0);
@@ -473,7 +475,14 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
             auto out_shape     = shape_dict.at(out_id);
             instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           }
-          CHECK_EQ(instr->attrs.size(), 16UL);
+          if (node->attrs.attr_store.find("adaptive") != node->attrs.attr_store.end()) {
+            bool adaptive = absl::get<bool>(node->attrs.attr_store.at("adaptive"));
+            if (adaptive)
+              instr->attrs.push_back(1);
+            else
+              instr->attrs.push_back(0);
+          }
+          CHECK_EQ(instr->attrs.size(), 17UL);
           CHECK_EQ(instr->str_attrs.size(), 1UL);
         } else if (node->op()->name == "softmax") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
