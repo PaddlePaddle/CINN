@@ -20,15 +20,14 @@ using common::CINNValuePack;
 using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
-using namespace pe;
 
-#define StrategyForBinary(op_name__, pe__)                                                          \
-  std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                   \
-                                                const std::vector<ir::Tensor> &inputs,              \
-                                                const std::vector<Type> &out_type,                  \
-                                                const std::vector<std::vector<int>> &output_shapes, \
-                                                const Target &target) {                             \
-    return StrategyForBroadcast(attrs, inputs, out_type, output_shapes, target, #op_name__, pe__);  \
+#define StrategyForBinary(op_name__, pe__)                                                             \
+  std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                      \
+                                                const std::vector<ir::Tensor> &inputs,                 \
+                                                const std::vector<Type> &out_type,                     \
+                                                const std::vector<std::vector<int>> &output_shapes,    \
+                                                const Target &target) {                                \
+    return StrategyForBroadcast(attrs, inputs, out_type, output_shapes, target, #op_name__, pe::pe__); \
   }
 
 std::shared_ptr<OpStrategy> StrategyForBroadcast(
@@ -82,14 +81,12 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_shape,
-                                            framework::NodeAttr &attrs,
-                                            const Target &target) {
+std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_shape, framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2UL);
   std::vector<int> out_shape;
 
   int axis = -1;
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "axis") {
       axis = std::get<int>(iter.second);
       break;
@@ -100,9 +97,7 @@ std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_s
   return {out_shape};
 }
 
-std::vector<Type> InferDtypeForBroadcast(const std::vector<Type> &inputs_type,
-                                         const framework::NodeAttr &attrs,
-                                         const Target &target) {
+std::vector<Type> InferDtypeForBroadcast(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -166,7 +161,7 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
     Expr A_expr = a[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
-    auto out     = BroadcastTo(A, out_shape, broadcast_axes, UniqName("broadcast_to_Out"));
+    auto out     = pe::BroadcastTo(A, out_shape, broadcast_axes, UniqName("broadcast_to_Out"));
     auto stages  = CreateStages({A, out});
     *ret         = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
@@ -192,16 +187,14 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs_shape,
-                                              framework::NodeAttr &attrs,
-                                              const Target &target) {
+std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs_shape, framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1UL) << "input_shape size should be one. Please Check.";
   std::vector<int> broadcast_axes;
   std::vector<int> out_shape;
-  CHECK(attrs.attr_store.count("broadcast_axes"));
-  CHECK(attrs.attr_store.count("out_shape"));
-  out_shape      = std::get<std::vector<int>>(attrs.attr_store.at("out_shape"));
-  broadcast_axes = std::get<std::vector<int>>(attrs.attr_store.at("broadcast_axes"));
+  CHECK(attrs.count("broadcast_axes"));
+  CHECK(attrs.count("out_shape"));
+  out_shape      = std::get<std::vector<int>>(attrs.at("out_shape"));
+  broadcast_axes = std::get<std::vector<int>>(attrs.at("broadcast_axes"));
 
   CHECK_EQ(inputs_shape[0].size(), broadcast_axes.size())
       << "broadcast_axes's size should be same with the input shape's size";

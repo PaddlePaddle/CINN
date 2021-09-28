@@ -17,8 +17,8 @@ namespace framework {
 class Node;
 class NodeData;
 
-using NodePtr  = std::shared_ptr<Node>;
-using AttrType = std::variant<bool,
+using NodePtr     = std::shared_ptr<Node>;
+using AttrType    = std::variant<bool,
                               float,
                               int,
                               std::string,
@@ -26,6 +26,7 @@ using AttrType = std::variant<bool,
                               std::vector<int>,
                               std::vector<float>,
                               std::vector<std::string>>;
+using AttrMapType = std::unordered_map<std::string, AttrType>;
 
 /**
  * \brief Attributes of each node in graph.
@@ -91,7 +92,7 @@ class Node : public common::GraphNode {
   inline uint32_t num_inputs() { return is_variable() ? 1 : this->op()->num_inputs; }
 
   template <class... Args>
-  static NodePtr Create(Args &&... args) {
+  static NodePtr Create(Args &&...args) {
     return std::make_shared<Node>(std::forward<Args>(args)...);
   }
 

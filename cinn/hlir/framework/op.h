@@ -20,7 +20,7 @@ namespace framework {
 class Operator;
 
 using shape_t = std::vector<int32_t>;
-using dim_t   = shape_t ::value_type;
+using dim_t   = shape_t::value_type;
 
 /*! \brief operator pattern used in graph fusion */
 enum OpPatternKind {
@@ -68,6 +68,8 @@ class OpValueType {
   inline const ValueType& Get(const Operator* op, const ValueType& def_value) const;
 
   inline bool Find(const Operator* op) const;
+
+  size_t Size() const { return data.size(); }
 
  private:
   friend class Operator;

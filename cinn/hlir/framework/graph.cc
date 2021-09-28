@@ -29,7 +29,9 @@ Graph::Graph(const frontend::Program& prog, const Target& target) {
     }
     int out_idx = 0;
     for (auto& output_v : temp->outputs) {
-      auto* output_data = new NodeData(node_ptr, out_idx++, 0, output_v->id);
+      dtype_dict[output_v->id] = output_v->type;
+      shape_dict[output_v->id] = output_v->shape;
+      auto* output_data        = new NodeData(node_ptr, out_idx++, 0, output_v->id);
       node_tmp->LinkTo(output_data);
       this->RegisterNode(output_v->id, output_data);
     }
