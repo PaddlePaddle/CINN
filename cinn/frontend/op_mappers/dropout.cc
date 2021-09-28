@@ -25,4 +25,4 @@ void dropout_infer_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_OPMAPPER(dropout, cinn::frontend::op_mappers::dropout_infer_kernel)
+CINN_REGISTER_HELPER(dropout) { CINN_REGISTER_OPMAPPER(dropout, cinn::frontend::op_mappers::dropout_infer_kernel) }

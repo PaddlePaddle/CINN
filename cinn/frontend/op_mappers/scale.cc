@@ -29,4 +29,4 @@ void scale_kernel(const paddle::cpp::OpDesc& op_desc, const cinn::frontend::OpMa
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_OPMAPPER(scale, cinn::frontend::op_mappers::scale_kernel)
+CINN_REGISTER_HELPER(scale) { CINN_REGISTER_OPMAPPER(scale, cinn::frontend::op_mappers::scale_kernel) }

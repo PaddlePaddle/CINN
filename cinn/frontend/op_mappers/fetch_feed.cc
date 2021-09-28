@@ -1,3 +1,4 @@
+#include "cinn/common/macros.h"
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
 
@@ -23,5 +24,7 @@ void feed_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_OPMAPPER(fetch, cinn::frontend::op_mappers::fetch_kernel)
-CINN_REGISTER_OPMAPPER(feed, cinn::frontend::op_mappers::feed_kernel)
+CINN_REGISTER_HELPER(fetch_feed) {
+  CINN_REGISTER_OPMAPPER(fetch, cinn::frontend::op_mappers::fetch_kernel)
+  CINN_REGISTER_OPMAPPER(feed, cinn::frontend::op_mappers::feed_kernel)
+}

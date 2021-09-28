@@ -23,7 +23,7 @@ class PaddleModelToNetBuilder {
 
   static void RunOp(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx);
 
-  std::unique_ptr<NetBuilder> operator()(const std::string& model_dir, bool is_combined);
+  std::unique_ptr<NetBuilder> operator()(const std::string& model_dir, bool is_combined = false);
 
   const absl::flat_hash_map<std::string, Variable>& var_map() const { return var_map_; }
   const absl::flat_hash_map<std::string, std::string>& var_model_to_program_map() { return var_model_to_program_map_; }

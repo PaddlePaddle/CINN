@@ -22,4 +22,4 @@ void sigmoid_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_OPMAPPER(sigmoid, cinn::frontend::op_mappers::sigmoid_kernel)
+CINN_REGISTER_HELPER(sigmoid) { CINN_REGISTER_OPMAPPER(sigmoid, cinn::frontend::op_mappers::sigmoid_kernel) }

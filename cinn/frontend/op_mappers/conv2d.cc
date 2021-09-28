@@ -120,5 +120,7 @@ void depthwise_conv2d_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperC
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_OPMAPPER(conv2d, cinn::frontend::op_mappers::conv2d_kernel)
-CINN_REGISTER_OPMAPPER(depthwise_conv2d, cinn::frontend::op_mappers::depthwise_conv2d_kernel)
+CINN_REGISTER_HELPER(conv2d) {
+  CINN_REGISTER_OPMAPPER(conv2d, cinn::frontend::op_mappers::conv2d_kernel)
+  CINN_REGISTER_OPMAPPER(depthwise_conv2d, cinn::frontend::op_mappers::depthwise_conv2d_kernel)
+}

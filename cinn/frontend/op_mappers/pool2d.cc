@@ -51,4 +51,4 @@ void pool2d_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_OPMAPPER(pool2d, cinn::frontend::op_mappers::pool2d_kernel)
+CINN_REGISTER_HELPER(pool2d) { CINN_REGISTER_OPMAPPER(pool2d, cinn::frontend::op_mappers::pool2d_kernel) }

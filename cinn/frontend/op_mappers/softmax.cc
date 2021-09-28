@@ -24,4 +24,4 @@ void softmax_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_OPMAPPER(softmax, cinn::frontend::op_mappers::softmax_kernel)
+CINN_REGISTER_HELPER(softmax) { CINN_REGISTER_OPMAPPER(softmax, cinn::frontend::op_mappers::softmax_kernel) }

@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <variant>
 
+#include "cinn/common/macros.h"
 #include "cinn/common/target.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/paddle/cpp/op_desc.h"
@@ -70,10 +71,8 @@ class OpMapperRegistry : public Registry<OpMapperKernel> {
 
 #define UNIQUE_OPMAPPER_NAME(OpName) static ::cinn::frontend::OpMapperKernel& __op_mapper_registrar_##OpName
 
-#define CINN_REGISTER_OPMAPPER(OpName, Kernel)                                                 \
-  STATIC_ASSERT_GLOBAL_NAMESPACE(__reg_cinn_opmapper_##OpName,                                 \
-                                 "CINN_REGISTER_OPMAPPER must be called in global namespace"); \
-  CINN_STR_CONCAT(UNIQUE_OPMAPPER_NAME(OpName), __COUNTER__) =                                 \
+#define CINN_REGISTER_OPMAPPER(OpName, Kernel)                 \
+  CINN_STR_CONCAT(UNIQUE_OPMAPPER_NAME(OpName), __COUNTER__) = \
       ::cinn::frontend::OpMapperRegistry::Global()->__REGISTER_OR_GET__(#OpName).Set(Kernel);
 
 }  // namespace frontend

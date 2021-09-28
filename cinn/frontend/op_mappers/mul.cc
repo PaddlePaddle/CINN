@@ -32,4 +32,4 @@ void mul_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) 
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_OPMAPPER(mul, cinn::frontend::op_mappers::mul_kernel)
+CINN_REGISTER_HELPER(mul) { CINN_REGISTER_OPMAPPER(mul, cinn::frontend::op_mappers::mul_kernel) }

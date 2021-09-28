@@ -69,7 +69,7 @@ inline Variable GetVar(const std::string& name, const OpMapperContext& ctx) {
   return Variable();
 }
 
-void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
+inline void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
   CheckVarNameValid(name);
   auto* var = ctx.scope_->FindVar(name);
   if (var) {
@@ -116,7 +116,7 @@ void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
 }
 
 template <typename T>
-T GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::string& name, const T& default_value = T{}) {
+inline T GetAttrOrDefault(const paddle::cpp::OpDesc& op_desc, const std::string& name, const T& default_value = T{}) {
   if (op_desc.HasAttr(name)) {
     return op_desc.GetAttr<T>(name);
   }

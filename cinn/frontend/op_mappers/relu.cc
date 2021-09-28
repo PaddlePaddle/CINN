@@ -35,5 +35,7 @@ void relu6_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_OPMAPPER(relu, cinn::frontend::op_mappers::relu_kernel)
-CINN_REGISTER_OPMAPPER(relu6, cinn::frontend::op_mappers::relu6_kernel)
+CINN_REGISTER_HELPER(relu) {
+  CINN_REGISTER_OPMAPPER(relu, cinn::frontend::op_mappers::relu_kernel)
+  CINN_REGISTER_OPMAPPER(relu6, cinn::frontend::op_mappers::relu6_kernel)
+}

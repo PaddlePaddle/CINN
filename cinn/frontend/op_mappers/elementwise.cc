@@ -45,5 +45,7 @@ void elementwise_mul_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_OPMAPPER(elementwise_add, cinn::frontend::op_mappers::elementwise_add_kernel)
-CINN_REGISTER_OPMAPPER(elementwise_mul, cinn::frontend::op_mappers::elementwise_mul_kernel)
+CINN_REGISTER_HELPER(elementwise) {
+  CINN_REGISTER_OPMAPPER(elementwise_add, cinn::frontend::op_mappers::elementwise_add_kernel)
+  CINN_REGISTER_OPMAPPER(elementwise_mul, cinn::frontend::op_mappers::elementwise_mul_kernel)
+}

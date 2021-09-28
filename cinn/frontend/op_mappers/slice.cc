@@ -31,4 +31,4 @@ void slice_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_OPMAPPER(slice, cinn::frontend::op_mappers::slice_kernel)
+CINN_REGISTER_HELPER(slice) { CINN_REGISTER_OPMAPPER(slice, cinn::frontend::op_mappers::slice_kernel) }
