@@ -1246,7 +1246,7 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   }
 
   if (adaptive) {
-    kernel_size = absl::get<std::vector<int>>(attr_store["kernel_size"]);
+    kernel_size = absl::get<std::vector<int>>(attrs["kernel_size"]);
     if (kernel_size.size() == 1UL) kernel_size.push_back(kernel_size[0]);
     CHECK(kernel_size.size() >= 2UL) << "In pool2d, kernel_size's size should be >= 2, please check!";
     output_shape1[height_axis] = kernel_size[0];

@@ -45,7 +45,7 @@ Placeholder BaseBuilder::CreateInput(const Type& type, const std::vector<int>& s
 }
 
 void BaseBuilder::InferShape(Instruction instr) const {
-  using shape_func_t        = std::function<std::vector<shape_t>(const std::vector<shape_t>&, const AttrMapType&)>;
+  using shape_func_t        = std::function<std::vector<shape_t>(const std::vector<shape_t>&, AttrMapType&)>;
   using type_func_t         = std::function<std::vector<Type>(const std::vector<Type>&, const AttrMapType&)>;
   const auto& op_infershape = Operator::GetAttrs<shape_func_t>("infershape");
   const auto& op_inferdtype = Operator::GetAttrs<type_func_t>("inferdtype");
