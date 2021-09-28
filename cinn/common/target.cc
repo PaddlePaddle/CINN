@@ -2,6 +2,8 @@
 
 #include <glog/logging.h>
 
+#include <sstream>
+
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
@@ -53,6 +55,13 @@ size_t Target::Hash::operator()(const Target &key) const {
   int arch = static_cast<int>(key.arch);
   std::hash<int> hasher;
   return hasher(arch);
+}
+
+std::string Target::hash_str() const {
+  std::ostringstream oss;
+  oss << arch;
+  std::string arch_str = oss.str();
+  return arch_str;
 }
 
 std::ostream &operator<<(std::ostream &os, const Target &target) {

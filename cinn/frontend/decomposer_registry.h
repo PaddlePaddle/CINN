@@ -10,6 +10,7 @@
 namespace cinn {
 namespace frontend {
 
+/*
 using Decomposer = std::function<void(
     const Instruction& instr, frontend::Program* progam, std::unordered_map<std::string, Variable>* outs_map)>;
 
@@ -61,6 +62,46 @@ class InstrDecomposerRegistry final {
 
 #define CINN_REGISTER_INSTR_DECOMPOSER(op_type, target, decomposer) \
   InstrDecomposerRegistry::RegisterDecomposer(op_type, target, decomposer)
+*/
+
+class DecomposerRegistry;
+
+class Decomposer : public Registry<DecomposerRegistry> {
+ public:
+  /**
+   * \brief Get an Decomposer for a given operator name.
+   *  Will raise an error if the Decomposer has not been registered.
+   * @param op_name Name of the operator.
+   * @return Pointer to a Op, valid throughout program lifetime.
+   */
+
+  inline const DecomposerRegistry *Find(const std::string &name, const common::Target &target) {
+    return Registry<DecomposerRegistry>::Find(name + "_" + target.hash_str());
+  }
+
+  inline DecomposerRegistry &__REGISTER__(const std::string &name, const common::Target &target) {
+    return Registry<DecomposerRegistry>::__REGISTER__(name + "_" + target.hash_str());
+  }
+
+  static Decomposer *Global() {
+    static Decomposer inst;
+    return &inst;
+  }
+};
+
+class DecomposerContext {
+ private:
+  Program program_;
+  Instruction instr_;
+};
+
+typedef std::function<void(DecomposerContext *context)> DecomposerFunction;
+
+struct DecomposerRegistry : public FunctionRegEntryBase<DecomposerRegistry, DecomposerFunction> {};
+
+#define CINN_DECOMPOSER_REGISTER(name, target)                                              \
+  static DecomposerRegistry &CINN_STR_CONCAT(__make_DecomposerRegistry_name, __COUNTER__) = \
+      Decomposer::Global()->__REGISTER__(#name, target)
 
 }  // namespace frontend
 }  // namespace cinn

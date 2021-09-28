@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ostream>
+#include <string>
 #include <vector>
 
 namespace cinn {
@@ -72,6 +73,8 @@ struct Target {
   struct Hash {
     size_t operator()(const Target& key) const;
   };
+
+  std::string hash_str() const;
 
   bool operator==(const Target& other) const;
   bool operator!=(const Target& other) const { return !(*this == other); }

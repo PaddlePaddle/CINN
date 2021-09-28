@@ -6,6 +6,7 @@ core_gather_srcs(SRCS
     base_builder.cc
     net_builder.cc
     decomposer_registry.cc
+    op_decomposer.cc
     )
 
 if(NOT WITH_CUDA)
