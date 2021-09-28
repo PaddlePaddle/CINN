@@ -5,6 +5,7 @@ core_gather_srcs(SRCS
     interpreter.cc
     base_builder.cc
     net_builder.cc
+    paddle_model_to_netbuilder.cc
     )
 
 if(NOT WITH_CUDA)
@@ -28,3 +29,4 @@ endif()
 cc_test(test_net_builder SRCS net_builder_test.cc DEPS cinncore)
 
 add_subdirectory(paddle)
+add_subdirectory(op_mappers)
