@@ -27,7 +27,7 @@ using AttrType    = absl::variant<bool,
                                std::vector<int>,
                                std::vector<float>,
                                std::vector<std::string>>;
-using AttrMapType = std::unordered_map<std::string, AttrType>;
+using AttrMapType = absl::flat_hash_map<std::string, AttrType>;
 
 /**
  * \brief Attributes of each node in graph.
