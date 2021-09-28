@@ -282,10 +282,19 @@ struct Program {
   SYNTAX_PRIM_BINARY_DECL(left_shift)
   SYNTAX_PRIM_BINARY_DECL(right_shift)
 
-  // broadcast one operand to the target shape
-  // broadcast axes: the target axis which a's ith axis is mapped to
-  // Notes: a's dim should be one or same with the output dim mapped to.
-  // e.g. if a[64] broadcasts to out[1, 64, 112, 112], then out_shape is {1, 64, 112, 112} and broadcast_axes are {1}
+#define SYNTAX_PRIM_REDUCE_DECL(name__) \
+  Variable reduce_##name__(const Variable& a, const std::vector<int>& dim, bool keep_dim = false);
+
+  SYNTAX_PRIM_REDUCE_DECL(sum)
+  SYNTAX_PRIM_REDUCE_DECL(prod)
+  SYNTAX_PRIM_REDUCE_DECL(min)
+  SYNTAX_PRIM_REDUCE_DECL(max)
+
+  /** broadcast one operand to the target shape
+   * broadcast axes: the target axis which a's ith axis is mapped to
+   * Notes: a's dim should be one or same with the output dim mapped to.
+   * e.g. if a[64] broadcasts to out[1, 64, 112, 112], then out_shape is {1, 64, 112, 112} and broadcast_axes are {1}
+   */
   Variable primitive_broadcast_to(const Variable& a,
                                   const std::vector<int>& out_shape,
                                   const std::vector<int>& broadcast_axes);
