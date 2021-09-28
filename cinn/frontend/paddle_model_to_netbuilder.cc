@@ -7,6 +7,7 @@
 #include "cinn/frontend/op_mappers/use_op_mappers.h"
 #include "cinn/frontend/paddle/cpp/program_desc.h"
 #include "cinn/frontend/paddle/model_parser.h"
+#include "cinn/hlir/op/use_ops.h"
 
 namespace cinn {
 namespace frontend {
