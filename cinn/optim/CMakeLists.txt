@@ -29,8 +29,38 @@ core_gather_srcs(SRCS
     collect_undefined_vars.cc
     )
 
+gather_srcs(cinnapi_src SRCS
+    remove_nested_block.cc
+    replace_call_with_expr.cc
+    ir_copy.cc
+    ir_replace.cc
+    replace_var_with_expr.cc
+    tensor_write_tell.cc
+    ir_simplify.cc
+    optimize.cc
+    vectorize_loops.cc
+    unroll_loops.cc
+    transform_polyfor_to_for.cc
+    eliminate_broadcast_in_forloop.cc
+    fold_cinn_call_arguments.cc
+    call_arg_list_to_pod_value.cc
+    insert_debug_log_callee.cc
+    lower_function_call_bind_vars.cc
+    extern_call_process.cc
+    map_extern_call.cc
+    compute_inline_expand.cc
+    buffer_assign.cc
+    replace_const_param_to_integer.cc
+    cast_simplify.cc
+    if_simplify.cc
+    lower_intrin.cc
+    cast_bool_to_int8.cc
+    collect_undefined_vars.cc
+    )
+
 if (WITH_CUDA)
   core_gather_srcs(SRCS transform_gpu_forloop.cc)
+  gather_srcs(cinnapi_src SRCS transform_gpu_forloop.cc)
 endif()
 
 

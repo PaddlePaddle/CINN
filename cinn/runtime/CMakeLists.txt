@@ -6,6 +6,13 @@ core_gather_srcs(SRCS
   intrinsic_types.cc
   )
 
+gather_srcs(cinnapi_src SRCS
+  intrinsic.cc
+  cinn_runtime.cc
+  #cinn_x86_device_impl.cc
+  intrinsic_types.cc
+  )
+
 cc_library(cinn_runtime SRCS cinn_runtime.cc buffer.cc
         #cinn_x86_device_impl.cc
         )

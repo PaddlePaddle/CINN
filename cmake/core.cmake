@@ -352,15 +352,27 @@ function(download_and_uncompress INSTALL_DIR URL FILENAME)
     )
 endfunction()
 
+function(gather_srcs SRC_GROUP)
+  set(options)
+  set(oneValueArgs)
+  set(multiValueArgs "SRCS")
+  cmake_parse_arguments(prefix "" "" "${multiValueArgs}" ${ARGN})
+  foreach(cpp ${prefix_SRCS})
+    set(${SRC_GROUP} "${${SRC_GROUP}};${CMAKE_CURRENT_SOURCE_DIR}/${cpp}" CACHE INTERNAL "")
+  endforeach()
+endfunction()
+
 # Add a source file to cinncore library.
 # @param src_names: a list of strings
 # usage:
 # core_gather_srcs(SRCS a.cc b.cc c.cc)
+
 function(core_gather_srcs)
   set(options)
   set(oneValueArgs)
   set(multiValueArgs "SRCS")
   cmake_parse_arguments(prefix "" "" "${multiValueArgs}" ${ARGN})
+
   foreach(cpp ${prefix_SRCS})
     set(core_src
       "${core_src};${CMAKE_CURRENT_SOURCE_DIR}/${cpp}"

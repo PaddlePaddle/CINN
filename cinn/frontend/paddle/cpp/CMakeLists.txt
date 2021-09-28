@@ -11,6 +11,12 @@ foreach(cpp ${srcs})
     CACHE INTERNAL "")
 endforeach()
 
+foreach(cpp ${srcs})
+  set(cinnapi_src
+    "${cinnapi_src};cinn/frontend/paddle/cpp/${cpp}"
+    CACHE INTERNAL "")
+endforeach()
+
 file(GLOB includes LIST_DIRECTORIES false RELATIVE ${CMAKE_SOURCE_DIR} *.h)
 
 foreach(header ${includes})

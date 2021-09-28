@@ -14,6 +14,20 @@ core_gather_srcs(SRCS
     op_strategy.cc
     )
 
+gather_srcs(cinnapi_src SRCS
+    tensor.cc
+    scope.cc
+    variable.cc
+    buffer.cc
+    memory.cc
+    instruction.cc
+    graph_compiler.cc
+    graph.cc
+    node.cc
+    pass.cc
+    op_strategy.cc
+    )
+
 if(WITH_CUDA)
   nv_test(test_hlir_framework_buffer SRCS buffer_test.cc DEPS cinncore)
   nv_test(test_hlir_framework_infershape_pass SRCS infershape_pass_test.cc DEPS cinncore)

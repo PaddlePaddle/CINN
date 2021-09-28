@@ -19,6 +19,25 @@ core_gather_srcs(SRCS
     union_find.cc
     )
 
+gather_srcs(cinnapi_src SRCS
+    shared.cc
+    cinn_value.cc
+    type.cc
+    target.cc
+    object.cc
+    debug_manager.cc
+    info_registry.cc
+    graph_utils.cc
+    context.cc
+    axis.cc
+    ir_util.cc
+    test_helper.cc
+    # cuda_test_helper.cc
+    arithmatic.cc
+    cas.cc
+    union_find.cc
+    )
+
  message(STATUS "srcs: ${core_src}")
 
 cc_test(test_cinn_value SRCS cinn_value_test.cc DEPS cinncore)

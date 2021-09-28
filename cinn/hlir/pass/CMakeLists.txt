@@ -6,6 +6,12 @@ core_gather_srcs(SRCS
     alterlayout.cc
     )
 
+gather_srcs(cinnapi_src SRCS
+    infershape.cc
+    opfusion.cc
+    alterlayout.cc
+    )
+
 
 cc_test(test_opfusion SRCS opfusion_test.cc DEPS cinncore)
 cc_test(test_primitive_ops SRCS test_primitive_ops.cc DEPS cinncore)

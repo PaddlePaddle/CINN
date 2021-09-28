@@ -4,7 +4,21 @@ core_gather_srcs(SRCS
     outputs.cc
     codegen_c.cc
     codegen_c_x86.cc
-    codegen_c_x86_test.cc
+    codegen_cuda_dev.cc
+    codegen_cuda_host.cc
+    extern_func_emitter.cc
+    extern_func_emitter_builtin.cc
+    function_prototype.cc
+    extern_func_protos.cc
+    extern_func_jit_register.cc
+    modular.cc
+    compiler.cc
+)
+
+gather_srcs(cinnapi_src SRCS
+    outputs.cc
+    codegen_c.cc
+    codegen_c_x86.cc
     codegen_cuda_dev.cc
     codegen_cuda_host.cc
     extern_func_emitter.cc
@@ -50,6 +64,12 @@ endif()
 foreach(cpp ${srcs})
   set(core_src
           "${core_src};cinn/backends/${cpp}"
+          CACHE INTERNAL "")
+endforeach()
+
+foreach(cpp ${srcs})
+  set(cinnapi_src
+          "${cinnapi_src};cinn/backends/${cpp}"
           CACHE INTERNAL "")
 endforeach()
 

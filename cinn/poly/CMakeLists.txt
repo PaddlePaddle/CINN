@@ -14,6 +14,19 @@ core_gather_srcs(SRCS
     compute_at_transform.cc
     )
 
+gather_srcs(cinnapi_src SRCS
+    dim.cc
+    domain.cc
+    map.cc
+    stage.cc
+    isl_utils.cc
+    schedule.cc
+    naive_scheduler.cc
+    poly_scheduler.cc
+    ast_gen.cc
+    graph.cc
+    compute_at_transform.cc
+    )
 
 # cc_test(test_graph SRCS graph_test.cc DEPS core)
 cc_test(test_schedule SRCS schedule_test.cc DEPS cinncore)
