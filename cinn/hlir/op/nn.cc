@@ -373,7 +373,6 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
     int pad_w       = padding[1];
     std::string key = pe::GenerateX86ConvKey(inputs_shape[0], inputs_shape[1], stride, padding, dilation);
     VLOG(3) << "key: " << key;
-    attrs["key"] = key;
     pe::GetConv2dFactors(&conv2d_factors, oc, ic, fc, -1, -1, Float(32), common::DefaultHostTarget(), key);
     int ic_bn = conv2d_factors["ic_bn"];
     int oc_bn = conv2d_factors["oc_bn"];
