@@ -95,7 +95,7 @@ void TensorFromStream(std::istream &is, hlir::framework::_Tensor_ *tensor, const
 }
 
 void LoadLoDTensor(std::istream &is, hlir::framework::Variable *var, const common::Target &target) {
-  auto &tensor = std::get<hlir::framework::Tensor>(*var);
+  auto &tensor = absl::get<hlir::framework::Tensor>(*var);
   uint32_t version{};
   is.read(reinterpret_cast<char *>(&version), sizeof(version));
   VLOG(3) << "model version " << version;

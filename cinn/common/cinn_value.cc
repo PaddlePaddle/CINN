@@ -75,19 +75,19 @@ cinn_value_t ToValue<char const *>(char const *v) {
 
 CINNValue::operator ir::Var() const {
   CHECK_EQ(type_code_, TypeCode<ir::Var>());
-  return std::any_cast<ir::Var>(shared_);
+  return absl::any_cast<ir::Var>(shared_);
 }
 CINNValue::operator ir::Expr() const {
   CHECK_EQ(type_code_, TypeCode<ir::Expr>());
-  return std::any_cast<Expr>(shared_);
+  return absl::any_cast<Expr>(shared_);
 }
 CINNValue::operator CINNValuePack() const {
   CHECK_EQ(type_code_, TypeCode<CINNValuePack>());
-  return std::any_cast<CINNValuePack>(shared_);
+  return absl::any_cast<CINNValuePack>(shared_);
 }
 CINNValue::operator poly::StageMap() const {
   CHECK_EQ(type_code(), TypeCode<poly::StageMap>());
-  return std::any_cast<poly::StageMap>(shared_);
+  return absl::any_cast<poly::StageMap>(shared_);
 }
 CINNValue::CINNValue(char *value) : cinn_pod_value_t(ToValue(value), TypeCode<char *>()) {}
 

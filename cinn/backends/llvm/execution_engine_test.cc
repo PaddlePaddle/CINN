@@ -108,7 +108,10 @@ TEST(llvm_test01, elementwise_add) {
   return;
   auto engine = backends::ExecutionEngine::Create({1});
 
-  auto [a, b, c] = CreateTestBuffer();  // NOLINT
+  auto _a_b_c_ = CreateTestBuffer();  // NOLINT
+  auto &a = std::get<0>(_a_b_c_);
+  auto &b = std::get<1>(_a_b_c_);
+  auto &c = std::get<2>(_a_b_c_);
 
   auto module = CreateTestCinnModule();
 
@@ -165,7 +168,10 @@ TEST(llvm, module_call_lowered_func) {
     LOG(INFO) << "module:\n" << codegen.Compile(builder.Build(), CodeGenC::OutputKind::CImpl);
   }
 
-  auto [ab, bb, cb] = CreateTestBuffer();  // NOLINT
+  auto _ab_bb_cb_ = CreateTestBuffer();  // NOLINT
+  auto &ab = std::get<0>(_ab_bb_cb_);
+  auto &bb = std::get<1>(_ab_bb_cb_);
+  auto &cb = std::get<2>(_ab_bb_cb_);
   do {                                     // call the function
     auto engine = backends::ExecutionEngine::Create({1});
 
@@ -282,7 +288,10 @@ TEST(ExecutionEngine, call_extern) {
 
   engine->Link(builder.Build());
 
-  auto [ab, bb, cb] = CreateTestBuffer();  // NOLINT
+  auto _ab_bb_cb_ = CreateTestBuffer();  // NOLINT
+  auto &ab = std::get<0>(_ab_bb_cb_);
+  auto &bb = std::get<1>(_ab_bb_cb_);
+  auto &cb = std::get<2>(_ab_bb_cb_);
 
   auto comp_addr = engine->Lookup("comp");
   auto comp      = reinterpret_cast<void (*)(void *, int32_t)>(comp_addr);

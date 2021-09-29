@@ -182,7 +182,9 @@ std::vector<int> ComputeAtTransform::GetProducerAdjustedShape() const {
   std::vector<int> shape;
   // collect the min and max and get the num elements for each axis.
   for (int i = 0; i < isl_set_dim(domain.get(), isl_dim_set); i++) {
-    auto [minv, maxv] = isl_set_get_axis_range(domain.get(), i);
+    auto _minv_maxv_ = isl_set_get_axis_range(domain.get(), i);
+    auto &minv = std::get<0>(_minv_maxv_);
+    auto &maxv = std::get<1>(_minv_maxv_);
     int num_elements  = maxv.num_si() - minv.num_si() + 1;
     shape.push_back(num_elements);
   }
@@ -215,7 +217,9 @@ std::vector<int> ComputeAtTransform::GetAccessesPrecedingIndicesMinAssumingParam
   VLOG(3) << "access_with_param: " << access_domain;
 
   for (int i = 0; i < level_ + 1; i++) {
-    auto [minv, maxv] = isl_set_get_axis_range(access_domain.get(), i);
+    auto _minv_maxv_ = isl_set_get_axis_range(access_domain.get(), i);
+    auto &minv = std::get<0>(_minv_maxv_);
+    auto &maxv = std::get<1>(_minv_maxv_);
     res.push_back(minv.get_num_si());
   }
 

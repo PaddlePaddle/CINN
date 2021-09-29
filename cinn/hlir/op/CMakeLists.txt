@@ -5,6 +5,8 @@ core_gather_srcs(SRCS
     broadcast.cc
     transform.cc
     elementwise.cc
+    reduction.cc
+    op_util.cc
     )
 
 cc_test(test_cinn_op_broadcast SRCS op_broadcast_test.cc DEPS cinncore)

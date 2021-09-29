@@ -15,14 +15,24 @@ std::vector<OutValT> Map(const InT &in, std::function<OutValT(const typename InT
   return res;
 }
 
+template <typename T>
+auto Min(T && t) {
+  return t;
+}
+
 template <typename T, typename... Ts>
 auto Min(T &&t, Ts &&... ts) {
-  return ((t = std::min(t, ts)), ...);
+  return std::min(t, Min(ts...));
+}
+
+template <typename T>
+auto Max(T && t) {
+  return t;
 }
 
 template <typename T, typename... Ts>
 auto Max(T &&t, Ts &&... ts) {
-  return ((t = std::max(t, ts)), ...);
+  return std::max(t, Max(ts...));
 }
 }  // namespace utils
 }  // namespace cinn

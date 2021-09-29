@@ -149,9 +149,9 @@ std::string Graph::Visualize() const {
   return dot();
 }
 
-void Graph::ClearUnlinkedNodes(std::unordered_map<std::string, std::vector<int>> *shape_dict,
-                               std::unordered_map<std::string, Type> *type_dict,
-                               std::unordered_map<std::string, std::string> *layout_dict) {
+void Graph::ClearUnlinkedNodes(absl::flat_hash_map<std::string, std::vector<int>> *shape_dict,
+                               absl::flat_hash_map<std::string, Type> *type_dict,
+                               absl::flat_hash_map<std::string, std::string> *layout_dict) {
   CHECK(shape_dict);
   CHECK(type_dict);
   CHECK(layout_dict);

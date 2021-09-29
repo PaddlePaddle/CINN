@@ -93,16 +93,8 @@ void BindPE(py::module* m) {
          py::arg("out") = "T_" #name__ "_out")
   BIND_REDUCE(reduce_sum, ReduceSum);
   BIND_REDUCE(reduce_prod, ReduceProd);
-
-#define BIND_REDUCE1(name__, fn__)     \
-  m->def(#name__,                      \
-         &hlir::pe::fn__,              \
-         py::arg("x"),                 \
-         py::arg("axes"),              \
-         py::arg("keep_dims") = false, \
-         py::arg("out")       = "T_" #name__ "_out")
-  BIND_REDUCE1(reduce_max, ReduceMax);
-  BIND_REDUCE1(reduce_min, ReduceMin);
+  BIND_REDUCE(reduce_max, ReduceMax);
+  BIND_REDUCE(reduce_min, ReduceMin);
 
   m->def("matmul",
          &hlir::pe::Matmul,

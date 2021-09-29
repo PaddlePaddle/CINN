@@ -335,6 +335,7 @@ std::vector<ir::Tensor> Pool2d(const ir::Tensor &tensor,
                                bool ceil_mode                 = false,
                                bool exclusive                 = true,
                                const std::string &data_format = "NCHW",
+                               bool adaptive                  = false,
                                const std::string &output_name = UniqName("T_Pool2d_out"));
 
 /**

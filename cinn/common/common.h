@@ -1,5 +1,7 @@
 #pragma once
 
+#include <absl/strings/string_view.h>
+
 #include "cinn/common/axis.h"
 #include "cinn/common/cinn_value.h"
 #include "cinn/common/context.h"
@@ -8,6 +10,7 @@
 #include "cinn/common/shared.h"
 #include "cinn/common/target.h"
 #include "cinn/common/type.h"
+
 
 namespace cinn {
 
@@ -37,7 +40,7 @@ T& Reference(const T* x) {
   return *const_cast<T*>(x);
 }
 
-static void CheckVarNameValid(const std::string_view name) {
+static void CheckVarNameValid(const absl::string_view name) {
   CHECK(!name.empty());
   CHECK(name.find(' ') == std::string::npos &&   //
         name.find('.') == std::string::npos &&   //
