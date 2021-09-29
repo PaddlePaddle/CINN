@@ -70,6 +70,29 @@ class FillTensorWithConstantOp<string dtype> :
   let assemblyFormat = "`(` $input `:` type($input) `)`  attr-dict";
 }
 
+class FillTensorAndReturnOp<string dtype> :
+      DT_Op<"fill_tensor_and_return." # dtype> {
+  let summary = "dt.fill_tensor_and_return operation";
+
+  let description = [{
+      An operation that fills an input tensor with a value.
+  }];
+
+  let arguments = (ins
+      TensorType:$input,
+      AnyAttr:$value
+  );
+  let results = (outs TensorType:$output);
+  //let results = (outs );
+
+  // TODO: can be removed?
+  //let parser  = [{ return cinnrt::dt::parseFillTensorWithConstantOp(parser, result); }];
+  //let printer = [{ return cinnrt::dt::printFillTensorWithConstantOp(p, *this); }];
+  let assemblyFormat = "`(` $input `:` type($input) `)`  attr-dict `->` type($output)";
+  //let assemblyFormat = "`(` `)`  attr-dict `->` type($output)";
+  //let assemblyFormat = "`(` $input `:` type($input) `)`  attr-dict";
+}
+
 def PrintTensorOp : DT_Op<"print_tensor"> {
   let summary = "dt.print_tensor operation";
 
@@ -144,6 +167,7 @@ def GetTensorShapeOp : DT_Op<"get_tensor_shape", [NoSideEffect]> {
 foreach dtype = ["ui8", "ui16", "ui32", "ui64", "i32", "f32", "f64", "i64"] in {
   def DT_CreateUninitTensorOp_#dtype : CreateUninitTensorOp<dtype>;
   def DT_FillTensorOp_#dtype : FillTensorWithConstantOp<dtype>;
+  def DT_FillTensorAndReturnOp_#dtype : FillTensorAndReturnOp<dtype>;
   def DT_SetTensorOp_#dtype : SetTensorOp<dtype>;
 }
 

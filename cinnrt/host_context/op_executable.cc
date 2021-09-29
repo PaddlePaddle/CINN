@@ -6,6 +6,7 @@
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/mlir_function_executable.h"
 #include "cinnrt/host_context/symbol_table.h"
+#include "cinnrt/tensor/dense_host_tensor.h"
 
 namespace cinnrt::host_context {
 

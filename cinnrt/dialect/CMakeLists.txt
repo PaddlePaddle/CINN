@@ -52,6 +52,7 @@ cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS cinncore ${MLIR_IR_LIBS})
 cinn_exec_check(run_and_check_tensor_type mlir_tests/tensor_type.mlir)
 cinn_exec_check(run_and_check_basic mlir_tests/basic.mlir)
 cinn_exec_check(run_and_check_benchmark mlir_tests/benchmark.mlir)
+cinn_exec_check(run_and_check_return_tensor_pointer mlir_tests/return_tensor_pointer.mlir)
 #cinn_exec_check(run_and_check_dense_tensor mlir_tests/dense_tensor.mlir)
 add_test(test_mlir_dense_tensor
         ${CMAKE_BINARY_DIR}/cinnrt/host_context/cinn-exec

@@ -1,3 +1,5 @@
+#include <iostream>
+
 #include "cinnrt/tensor/dense_host_tensor.h"
 
 #include <llvm/Support/raw_os_ostream.h>

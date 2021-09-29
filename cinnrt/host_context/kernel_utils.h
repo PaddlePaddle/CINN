@@ -25,6 +25,19 @@ class Argument {
   ValueRef value_;
 };
 
+template <typename T>
+class Return {
+ public:
+  explicit Return(Value* value) : value_(value) {}
+
+  T& get() { return value_->get<T>(); }
+  void Emplace(T&& t) {
+    value_->set<T>(std::forward<T>(t));
+  }
+ private:
+  Value* value_;
+};
+
 /**
  * RemainingArguments collects all remaining arguments in an ArrayRef.
  */
@@ -118,9 +131,11 @@ struct TypeTag {};
 
 #define CINN_KERNEL(...) ::cinnrt::host_context::KernelImpl<decltype(&__VA_ARGS__), &__VA_ARGS__>::Invoke
 
-template <typename Return, typename... Args, Return (*impl_fn)(Args...)>
-struct KernelImpl<Return (*)(Args...), impl_fn> {
-  static void Invoke(KernelFrame* frame) { KernelCallHelper<Args..., TypeTag<int>>::template Invoke<0, 0, 0>(frame); }
+template <typename ReturnType, typename... Args, ReturnType (*impl_fn)(Args...)>
+struct KernelImpl<ReturnType (*)(Args...), impl_fn> {
+  static void Invoke(KernelFrame* frame) {
+      KernelCallHelper<Args..., TypeTag<int>>::template Invoke<0, 0, 0, 0>(frame);
+  }
 
   // Helper that introspects the arguments to derive the signature and cast
   // parts of the KernelFrame to their type before passing them to impl_fn.
@@ -136,69 +151,91 @@ struct KernelImpl<Return (*)(Args...), impl_fn> {
 
   template <bool _>
   struct KernelReturnHelper<void, _> {
-    static void Invoke(KernelFrame* frame, const Args&... args) { impl_fn(args...); }
-  };
+    static void Invoke(KernelFrame* frame, const Args&... args) { impl_fn(args...); } };
 
   // Specialization to cast a single input argument(Head).
   template <typename Head, typename... Tail>
   struct KernelCallHelper<Argument<Head>, Tail...> {
-    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    template <int in_idx, int out_idx, int const_idx, int return_idx, typename... PreviousArgs>
     static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
       static_assert(in_idx != -1, "Do not place Arguments after RemainingArguments");
       static_assert(out_idx == 0, "Arguments should appear before results");
       static_assert(const_idx == 0, "Arguments and results should appear before attributes.");
+      static_assert(return_idx == 0, "Arguments, results and attributes should appear before returns.");
 
       Argument<Head> arg(frame->GetArgAt(in_idx));
-      KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx>(frame, pargs..., arg);
+      KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx, return_idx>(frame, pargs..., arg);
     }
   };
 
   template <typename Head, typename... Tail>
   struct KernelCallHelper<ArgumentView<Head>, Tail...> {
-    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    template <int in_idx, int out_idx, int const_idx, int return_idx, typename... PreviousArgs>
     static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
       static_assert(in_idx != -1, "Do not place Arguments after RemainingArguments");
       static_assert(out_idx == 0, "Arguments should appear before results");
       static_assert(const_idx == 0, "Arguments and results should appear before attributes.");
+      static_assert(return_idx == 0, "Arguments, results and attributes should appear before returns.");
 
       ArgumentView<Head> arg(frame->GetArgAt(in_idx));
-      KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx>(frame, pargs..., arg);
+      KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx, return_idx>(frame, pargs..., arg);
     }
   };
 
   // Specialization to cast a single result argument (Head).
   template <typename Head, typename... Tail>
   struct KernelCallHelper<Result<Head>, Tail...> {
-    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    template <int in_idx, int out_idx, int const_idx, int return_idx, typename... PreviousArgs>
     static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
       static_assert(out_idx != -1, "Do not place Results after RemainingResults");
       static_assert(const_idx == 0, "Arguments and results should appear before attributes");
+      static_assert(return_idx == 0, "Arguments, results and attributes should appear before returns.");
       Result<Head> arg(&frame->GetResults()[out_idx]);
-      KernelCallHelper<Tail...>::template Invoke<in_idx, out_idx + 1, const_idx>(frame, pargs..., arg);
+      KernelCallHelper<Tail...>::template Invoke<in_idx, out_idx + 1, const_idx, return_idx>(frame, pargs..., arg);
     }
   };
 
   // Specialization to cast a single attribute.
   template <typename Head, typename... Tail>
   struct KernelCallHelper<Attribute<Head>, Tail...> {
-    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    template <int in_idx, int out_idx, int const_idx, int return_idx, typename... PreviousArgs>
     static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
       static_assert(const_idx != -1, "Do not place Attributes after RemainingAttributes");
+      static_assert(return_idx == 0, "Arguments, results and attributes should appear before returns.");
       Attribute<Head> arg(frame->GetAttributeAt(const_idx));
-      KernelCallHelper<Tail...>::template Invoke<in_idx, out_idx, const_idx + 1>(frame, pargs..., arg);
+      KernelCallHelper<Tail...>::template Invoke<in_idx, out_idx, const_idx + 1, return_idx>(frame, pargs..., arg);
     }
   };
+
+  // Specialization to cast a single result.
+  template <typename Head, typename... Tail>
+  struct KernelCallHelper<Return<Head>, Tail...> {
+    template <int in_idx, int out_idx, int const_idx, int return_idx, typename... PreviousArgs>
+    static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
+      static_assert(return_idx != -1, "Do not place Attributes after RemainingAttributes");
+      Return<Head> arg(frame->GetResults()[return_idx]);
+      KernelCallHelper<Tail...>::template Invoke<in_idx, out_idx, const_idx, return_idx + 1>(frame, pargs..., arg);
+    }
+  };
+
 
   // Treat other pointer as an Argument.
   template <typename Head, typename... Tail>
   struct KernelCallHelper<Head*, Tail...> {
-    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    template <int in_idx, int out_idx, int const_idx, int return_idx, typename... PreviousArgs>
     static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
       static_assert(in_idx != -1, "Do not place Arguments after RemainingArguments");
       static_assert(out_idx == 0, "Arguments should appear before results");
       static_assert(const_idx == 0, "Arguments and results should appear before attributes.");
-      auto* arg = &frame->GetArgAt<Head>(in_idx);
-      KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx>(frame, pargs..., arg);
+      static_assert(return_idx == 0, "Arguments, results and attributes should appear before returns.");
+      auto* value = frame->GetArgAt(in_idx);
+      if (value->is<tensor::DenseHostTensorRef>()) {
+          auto* arg = value->get<tensor::DenseHostTensorRef>().get();
+          KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx, return_idx>(frame, pargs..., arg);
+      } else {
+          auto* arg = &frame->GetArgAt<Head>(in_idx);
+          KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx, return_idx>(frame, pargs..., arg);
+      }
     }
   };
 
@@ -207,16 +244,17 @@ struct KernelImpl<Return (*)(Args...), impl_fn> {
   struct KernelCallHelper<Head, Tail...> {
     using ArgT = std::decay_t<Head>;
 
-    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    template <int in_idx, int out_idx, int const_idx, int return_idx, typename... PreviousArgs>
     static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
       static_assert(in_idx != -1, "Do not place Arguments after RemainingArguments");
       static_assert(out_idx == 0, "Arguments should appear before results");
       static_assert(const_idx == 0, "Arguments and results should appear before attributes.");
+      static_assert(return_idx == 0, "Arguments, results and attributes should appear before returns.");
 
       auto* value = frame->GetArgAt(in_idx);
       auto&& arg  = value->get<ArgT>();
 
-      KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx>(frame, pargs..., arg);
+      KernelCallHelper<Tail...>::template Invoke<in_idx + 1, out_idx, const_idx, return_idx>(frame, pargs..., arg);
     }
   };
 
@@ -224,40 +262,42 @@ struct KernelImpl<Return (*)(Args...), impl_fn> {
   // kernels.
   template <typename... Tail>
   struct KernelCallHelper<RemainingArguments, Tail...> {
-    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    template <int in_idx, int out_idx, int const_idx, int return_idx, typename... PreviousArgs>
     static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
       static_assert(in_idx != -1, "Do not use more than one RemainingArguments");
       static_assert(out_idx == 0, "Arguments should appear before results.");
       static_assert(const_idx == 0, "Arguments and results should appear before attributes");
+      static_assert(return_idx == 0, "Arguments, results and attributes should appear before returns.");
       RemainingArguments remaining_arguments(frame->GetArguments().drop_front(in_idx));
 
-      KernelCallHelper<Tail...>::template Invoke<-1, out_idx, const_idx>(frame, pargs..., remaining_arguments);
+      KernelCallHelper<Tail...>::template Invoke<-1, out_idx, const_idx, return_idx>(frame, pargs..., remaining_arguments);
     }
   };
 
   // RemainingResults provides an MutableArrayRef<AsyncValue*> containing all remaining results.
   template <typename... Tail>
   struct KernelCallHelper<RemainingResults, Tail...> {
-    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    template <int in_idx, int out_idx, int const_idx, int return_idx, typename... PreviousArgs>
     static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
       static_assert(out_idx != -1, "Do not use more than one RemainingResults");
       static_assert(const_idx == 0, "Arguments and results should appear before attributes");
+      static_assert(return_idx == 0, "Arguments, results and attributes should appear before returns.");
       llvm::MutableArrayRef<Value*> returned_results = frame->GetResults().drop_front(out_idx);
 
       llvm::SmallVector<ValueRef, 4> result_values;
       for (int i = 0; i < returned_results.size(); i++) result_values.emplace_back(returned_results[i]);
 
       RemainingResults remaining_results(result_values);
-      KernelCallHelper<Tail...>::template Invoke<in_idx, -1, const_idx>(frame, pargs..., remaining_results);
+      KernelCallHelper<Tail...>::template Invoke<in_idx, -1, const_idx, return_idx>(frame, pargs..., remaining_results);
     }
   };
 
   // No arguments left.
   template <typename T>
   struct KernelCallHelper<TypeTag<T>> {
-    template <int in_idx, int out_idx, int const_idx, typename... PreviousArgs>
+    template <int in_idx, int out_idx, int const_idx, int return_idx, typename... PreviousArgs>
     static void Invoke(KernelFrame* frame, const PreviousArgs&... pargs) {
-      KernelReturnHelper<Return, false>::Invoke(frame, pargs...);
+      KernelReturnHelper<ReturnType, false>::Invoke(frame, pargs...);
     }
   };
 

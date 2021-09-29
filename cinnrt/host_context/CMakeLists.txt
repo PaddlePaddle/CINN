@@ -27,3 +27,4 @@ cinn_exec_check(test_mlir_exec_on_dense_tensor mlir_tests/dense_tensor.mlir)
 
 add_executable(cinn-exec mlir_exec.cc)
 target_link_libraries(cinn-exec cinncore ${MLIR_IR_LIBS})
+target_link_libraries(paddle-mlir cinncore ${MLIR_IR_LIBS})
