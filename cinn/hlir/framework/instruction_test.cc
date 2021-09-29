@@ -78,6 +78,8 @@ TEST(Instruction, basic) {
   }
 }
 
+#ifdef CINN_WITH_CUDNN
+
 class TestInstruction : public Instruction {
  public:
   TestInstruction(const Target& target,
@@ -106,8 +108,6 @@ class TestInstruction : public Instruction {
  private:
   std::vector<cinn_pod_value_t> pod_args;
 };
-
-#ifdef CINN_WITH_CUDNN
 
 TEST(Instruction, CONV_FORWARD) {
   int in = 32, ic = 32, ih = 128, iw = 128;
