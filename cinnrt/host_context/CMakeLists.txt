@@ -1,6 +1,6 @@
 core_gather_headers()
 
-core_gather_srcs(SRCS
+gather_srcs(cinnrt_src SRCS
     kernel_frame.cc
     kernel_registry.cc
     value.cc

@@ -1,13 +1,5 @@
 core_gather_headers()
 
-core_gather_srcs(SRCS
-  string.cc
-  functional.cc
-  dot_lang.cc
-  timer.cc
-  error.cc
-  small_vector.cc
-  )
 
 gather_srcs(cinnapi_src SRCS
   string.cc

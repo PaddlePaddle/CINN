@@ -24,7 +24,7 @@ function install_ginac {
     cd $workspace
     if [ ! -d gmp-6.2.1 ]; then
       wget https://gmplib.org/download/gmp/gmp-6.2.1.tar.xz
-      tar xf gmp-6.2.1
+      tar xf gmp-6.2.1.tar.xz
       cd gmp-6.2.1
       CFLAGS="-fPIC -DPIC" CXXFLAGS="-fPIC -DPIC" ./configure --enable-shared=yes --enable-static=yes
       make -j install

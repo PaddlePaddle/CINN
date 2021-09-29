@@ -1,15 +1,5 @@
 core_gather_headers()
 
-core_gather_srcs(TARGET cinnapi_src SRCS
-    buffer.cc
-    compute.cc
-    placeholder.cc
-    lower.cc
-    builtin.cc
-    lower_impl.cc
-    packed_func.cc
-    )
-
 gather_srcs(cinnapi_src SRCS
     buffer.cc
     compute.cc

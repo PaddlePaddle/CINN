@@ -1,10 +1,5 @@
 core_gather_headers()
 
-core_gather_srcs(SRCS
-    infershape.cc
-    opfusion.cc
-    alterlayout.cc
-    )
 
 gather_srcs(cinnapi_src SRCS
     infershape.cc

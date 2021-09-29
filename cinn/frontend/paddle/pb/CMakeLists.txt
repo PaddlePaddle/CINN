@@ -6,10 +6,6 @@ set(srcs
   )
 
 foreach(cpp ${srcs})
-  set(core_src "${core_src};cinn/frontend/paddle/pb/${cpp}" CACHE INTERNAL "")
-endforeach()
-
-foreach(cpp ${srcs})
   set(cinnapi_src "${cinnapi_src};cinn/frontend/paddle/pb/${cpp}" CACHE INTERNAL "")
 endforeach()
 

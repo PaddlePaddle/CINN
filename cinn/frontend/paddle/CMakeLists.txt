@@ -12,10 +12,6 @@ cc_test(test_model_parser SRCS model_parser_test.cc DEPS cinncore
   ARGS --model_dir=${THIRD_PARTY_PATH}/model/lite_naive_model)
 
 foreach(cpp ${srcs})
-  set(core_src "${core_src};cinn/frontend/paddle/${cpp}" CACHE INTERNAL "")
-endforeach()
-
-foreach(cpp ${srcs})
   set(cinnapi_src "${cinnapi_src};cinn/frontend/paddle/${cpp}" CACHE INTERNAL "")
 endforeach()
 

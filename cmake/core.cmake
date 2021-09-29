@@ -40,7 +40,7 @@ function(cc_library TARGET_NAME)
   (NOT ("${TARGET_NAME}" STREQUAL "utils")) AND
   (NOT ("${TARGET_NAME}" STREQUAL "cinn_lib"))
   )
-    target_link_libraries(${TARGET_NAME} ${isl_lib} ${ginac_lib} Threads::Threads)
+    target_link_libraries(${TARGET_NAME} Threads::Threads)
 
   endif (
   (NOT ("${TARGET_NAME}" STREQUAL "cinn_gtest_main"))  AND
@@ -132,7 +132,7 @@ function(nv_test TARGET_NAME)
     cuda_add_executable(${TARGET_NAME} ${nv_test_SRCS})
     get_property(os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
     target_link_libraries(${TARGET_NAME} ${nv_test_DEPS} cinn_gtest_main gtest
-gflags glog ${os_dependency_modules} ${CUDNN_LIBRARY} ${CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+      gflags glog ${os_dependency_modules} ${CUDNN_LIBRARY} ${CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
     add_dependencies(${TARGET_NAME} ${nv_test_DEPS} cinn_gtest_main gtest gflags glog)
     common_link(${TARGET_NAME})
     # add_test(${TARGET_NAME} ${TARGET_NAME})
@@ -360,25 +360,6 @@ function(gather_srcs SRC_GROUP)
   foreach(cpp ${prefix_SRCS})
     set(${SRC_GROUP} "${${SRC_GROUP}};${CMAKE_CURRENT_SOURCE_DIR}/${cpp}" CACHE INTERNAL "")
   endforeach()
-endfunction()
-
-# Add a source file to cinncore library.
-# @param src_names: a list of strings
-# usage:
-# core_gather_srcs(SRCS a.cc b.cc c.cc)
-
-function(core_gather_srcs)
-  set(options)
-  set(oneValueArgs)
-  set(multiValueArgs "SRCS")
-  cmake_parse_arguments(prefix "" "" "${multiValueArgs}" ${ARGN})
-
-  foreach(cpp ${prefix_SRCS})
-    set(core_src
-      "${core_src};${CMAKE_CURRENT_SOURCE_DIR}/${cpp}"
-      CACHE INTERNAL "")
-  endforeach()
-
 endfunction()
 
 function(core_gather_headers)

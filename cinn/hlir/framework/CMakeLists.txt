@@ -1,19 +1,5 @@
 core_gather_headers()
 
-core_gather_srcs(SRCS
-    tensor.cc
-    scope.cc
-    variable.cc
-    buffer.cc
-    memory.cc
-    instruction.cc
-    graph_compiler.cc
-    graph.cc
-    node.cc
-    pass.cc
-    op_strategy.cc
-    )
-
 gather_srcs(cinnapi_src SRCS
     tensor.cc
     scope.cc
