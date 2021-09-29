@@ -1,9 +1,10 @@
 #include "cinn/hlir/pe/nn.h"
 
+#include <absl/container/flat_hash_map.h>
+
 #include <functional>
 #include <numeric>
 #include <string>
-#include <absl/container/flat_hash_map.h>
 #include <vector>
 
 #include "cinn/common/cas.h"
@@ -1006,7 +1007,22 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
   }
 }
 
+ir::Tensor Select(const ir::Tensor &condition,
+                  const ir::Tensor &true_value,
+                  const ir::Tensor &false_value,
+                  const std::string &output_name) {
+  CHECK(condition->type().is_bool()) << "The condtion tensor type should be bool!";
+  CHECK(condition->shape == true_value->shape && true_value->shape == false_value->shape)
+      << "The input tensor shape is not equal!";
+  return lang::Compute(condition->shape, [=](const std::vector<Expr> &indice) {
+    return common::select(condition(indice), true_value(indice), false_value(indice));
+  });
+}
+
 ir::Tensor Reverse(const ir::Tensor &input, const std::vector<int> axis, const std::string &output_name) {
+  for (auto &val : axis) {
+    CHECK(val >= 0 && val < input->shape.size()) << "axis should be [0,n_dim)";
+  }
   std::vector<Expr> shape = input->shape;
   return lang::Compute(
       input->shape,
