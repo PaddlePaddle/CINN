@@ -12,7 +12,6 @@
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
-#include "cinn/hlir/op/use_ops.h"
 
 namespace cinn {
 namespace frontend {

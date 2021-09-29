@@ -19,10 +19,9 @@ using framework::NodeData;
 using framework::Operator;
 using framework::OpValueType;
 
-using InferShapeFunc = std::function<std::vector<framework::shape_t>(
-    const std::vector<framework::shape_t>&, framework::NodeAttr&, const Target&)>;
-using InferTypeFunc =
-    std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&, const Target&)>;
+using InferShapeFunc  = std::function<std::vector<framework::shape_t>(const std::vector<framework::shape_t>&,
+                                                                     const framework::AttrMapType&)>;
+using InferTypeFunc   = std::function<std::vector<Type>(const std::vector<Type>&, const framework::AttrMapType&)>;
 using InferLayoutFunc = std::function<std::vector<std::vector<std::string>>(const std::vector<framework::shape_t>&,
                                                                             const std::vector<std::string>&,
                                                                             const framework::NodeAttr&,
@@ -85,8 +84,8 @@ std::vector<framework::shape_t> UpdateInferInfos(Node* node,
   CHECK(op_infershape[node->op()]) << "find no InferShape function for op " << node->op()->name;
   CHECK(op_infertype[node->op()]) << "find no InferDtype function for op " << node->op()->name;
   CHECK(op_inferlayout[node->op()]) << "find no InferLayout function for op " << node->op()->name;
-  auto infershapes  = op_infershape[node->op()](input_shapes, node->attrs, target);
-  auto infertypes   = op_infertype[node->op()](input_types, node->attrs, target);
+  auto infershapes  = op_infershape[node->op()](input_shapes, node->attrs.attr_store);
+  auto infertypes   = op_infertype[node->op()](input_types, node->attrs.attr_store);
   auto inferlayouts = op_inferlayout[node->op()](input_shapes, input_layouts, node->attrs, target);
 
   CHECK(!infershapes.empty()) << node->op()->name << " finds no infershape";
@@ -298,7 +297,7 @@ void AlterLayoutPass(Graph* graph) {
             conv2d_NCHWc_inputlayouts.push_back(layout_dict[weight_node->id()]);
           }
           // replace conv2d to conv2d_NCHWc
-          auto infershapes   = op_infershape[new_node->op()](conv2d_NCHWc_inputshapes, new_node->attrs, graph->target_);
+          auto infershapes   = op_infershape[new_node->op()](conv2d_NCHWc_inputshapes, new_node->attrs.attr_store);
           auto& old_inlinks  = node->inlinks_in_order(true);
           auto& old_outlinks = node->outlinks_in_order(true);
           for (auto& link : old_inlinks) {
