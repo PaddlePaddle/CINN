@@ -1,5 +1,6 @@
-#include <functional>
 #include "cinn/hlir/pe/nn.h"
+
+#include <functional>
 
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
@@ -1873,7 +1874,6 @@ std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<fram
 }  // namespace hlir
 }  // namespace cinn
 
-
 CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(relu)
       .describe("Output 0 for each input element < 0. Output itself for each input element >= 0.")
@@ -2055,10 +2055,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(3)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSelect)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForSelect))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForSelect))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSelect))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSelect))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
