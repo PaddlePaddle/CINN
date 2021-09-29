@@ -104,12 +104,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                                   nullptr))
 }
 
-void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs,
-                           cinn_buffer_t *input,
-                           cinn_buffer_t *weights,
-                           cinn_buffer_t *output) {
-  cudnnHandle_t &cudnn = CudnnHandle::get_instance().GetCudnnHandle();
-  float alpha          = 1.f;
+void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs, cinn_buffer_t *x, cinn_buffer_t *w, cinn_buffer_t *y) {
   CHECK_EQ(attrs.size(), 19);
   int input_n    = attrs[0];
   int input_c    = attrs[1];
@@ -130,19 +125,21 @@ void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs,
   int output_c   = attrs[16];
   int output_h   = attrs[17];
   int output_w   = attrs[18];
-  cudnnTensorDescriptor_t in_desc;
-  CUDNN_CALL(cudnnCreateTensorDescriptor(&in_desc));
+
+  cudnnHandle_t &handle = CudnnHandle::get_instance().GetCudnnHandle();
+  float *_x             = reinterpret_cast<float *>(x->memory);
+  float *_w             = reinterpret_cast<float *>(w->memory);
+  float *_y             = reinterpret_cast<float *>(y->memory);
+
+  cudnnTensorDescriptor_t x_desc;
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
   CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(in_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
 
-  float *in_data = reinterpret_cast<float *>(input->memory);
-
-  cudnnFilterDescriptor_t filt_desc;
-  CUDNN_CALL(cudnnCreateFilterDescriptor(&filt_desc));
+  cudnnFilterDescriptor_t w_desc;
+  CUDNN_CALL(cudnnCreateFilterDescriptor(&w_desc));
   CUDNN_CALL(cudnnSetFilter4dDescriptor(
-      filt_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, weights_n, weights_c, weights_h, weights_w));
-
-  float *filt_data = reinterpret_cast<float *>(weights->memory);
+      w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, weights_n, weights_c, weights_h, weights_w));
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
@@ -150,15 +147,12 @@ void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs,
       conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CONVOLUTION, CUDNN_DATA_FLOAT));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
 
-  cudnnTensorDescriptor_t out_desc;
-  CUDNN_CALL(cudnnCreateTensorDescriptor(&out_desc));
-  CUDNN_CALL(cudnnSetTensor4dDescriptor(
-      out_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
-
-  float *out_data = reinterpret_cast<float *>(output->memory);
+  cudnnTensorDescriptor_t y_desc;
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
+  CUDNN_CALL(
+      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   absl::flat_hash_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
-
   std::string hash_str = "conv2d forward," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
                          std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
                          "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
@@ -171,41 +165,29 @@ void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs,
   } else {
     cudnnConvolutionFwdAlgoPerf_t algo_perf;
     int count = 0;
-    CUDNN_CALL(
-        cudnnFindConvolutionForwardAlgorithm(cudnn, in_desc, filt_desc, conv_desc, out_desc, 1, &count, &algo_perf));
+    CUDNN_CALL(cudnnFindConvolutionForwardAlgorithm(handle, x_desc, w_desc, conv_desc, y_desc, 1, &count, &algo_perf));
     algo_map[hash_str] = int(algo_perf.algo);
     algo               = algo_perf.algo;
   }
   size_t ws_size = 0;
-  CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(cudnn, in_desc, filt_desc, conv_desc, out_desc, algo, &ws_size));
+  CUDNN_CALL(cudnnGetConvolutionForwardWorkspaceSize(handle, x_desc, w_desc, conv_desc, y_desc, algo, &ws_size));
 
-  float *ws_data = nullptr;
-  ws_data        = CudnnHandle::get_instance().GetWorkSpace(ws_size);
+  float *ws_data = CudnnHandle::get_instance().GetWorkSpace(ws_size);
 
-  float beta = 0.f;
+  float alpha[] = {1.f}, beta[] = {0.f};
 
-  CUDNN_CALL(cudnnConvolutionForward(cudnn,
-                                     &alpha,
-                                     in_desc,
-                                     in_data,
-                                     filt_desc,
-                                     filt_data,
-                                     conv_desc,
-                                     algo,
-                                     ws_data,
-                                     ws_size,
-                                     &beta,
-                                     out_desc,
-                                     out_data));
-  CUDNN_CALL(cudnnDestroyTensorDescriptor(out_desc));
+  CUDNN_CALL(cudnnConvolutionForward(
+      handle, alpha, x_desc, _x, w_desc, _w, conv_desc, algo, ws_data, ws_size, beta, y_desc, _y));
+
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
+  CUDNN_CALL(cudnnDestroyFilterDescriptor(w_desc));
   CUDNN_CALL(cudnnDestroyConvolutionDescriptor(conv_desc));
-  CUDNN_CALL(cudnnDestroyFilterDescriptor(filt_desc));
-  CUDNN_CALL(cudnnDestroyTensorDescriptor(in_desc));
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
 }
 
 void cinn_gpu_cudnn_conv2d_backward_data(const std::vector<int> &attrs,
-                                         cinn_buffer_t *dy,
                                          cinn_buffer_t *w,
+                                         cinn_buffer_t *dy,
                                          cinn_buffer_t *dx) {
   CHECK_EQ(attrs.size(), 19);
   int input_n    = attrs[0];
@@ -228,21 +210,20 @@ void cinn_gpu_cudnn_conv2d_backward_data(const std::vector<int> &attrs,
   int output_h   = attrs[17];
   int output_w   = attrs[18];
 
-  auto handle = CudnnHandle::get_instance().GetCudnnHandle();
+  cudnnHandle_t &handle = CudnnHandle::get_instance().GetCudnnHandle();
+  float *_w             = reinterpret_cast<float *>(w->memory);
+  float *_dy            = reinterpret_cast<float *>(dy->memory);
+  float *_dx            = reinterpret_cast<float *>(dx->memory);
 
-  auto _dy = reinterpret_cast<float *>(dy->memory);
-  auto _w  = reinterpret_cast<float *>(w->memory);
-  auto _dx = reinterpret_cast<float *>(dx->memory);
+  cudnnTensorDescriptor_t x_desc;
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
+  CUDNN_CALL(
+      cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
 
   cudnnFilterDescriptor_t w_desc;
   CUDNN_CALL(cudnnCreateFilterDescriptor(&w_desc));
   CUDNN_CALL(cudnnSetFilter4dDescriptor(
       w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, weights_n, weights_c, weights_h, weights_w));
-
-  cudnnTensorDescriptor_t dy_desc;
-  CUDNN_CALL(cudnnCreateTensorDescriptor(&dy_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(dy_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
@@ -250,10 +231,10 @@ void cinn_gpu_cudnn_conv2d_backward_data(const std::vector<int> &attrs,
       conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CONVOLUTION, CUDNN_DATA_FLOAT));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
 
-  cudnnTensorDescriptor_t dx_desc;
-  CUDNN_CALL(cudnnCreateTensorDescriptor(&dx_desc));
+  cudnnTensorDescriptor_t y_desc;
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
   CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(dx_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   absl::flat_hash_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
   std::string hash_str = "conv2d backward data," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
@@ -269,31 +250,29 @@ void cinn_gpu_cudnn_conv2d_backward_data(const std::vector<int> &attrs,
     int count = 0;
     cudnnConvolutionBwdDataAlgoPerf_t algo_perf;
     CUDNN_CALL(
-        cudnnFindConvolutionBackwardDataAlgorithm(handle, w_desc, dy_desc, conv_desc, dx_desc, 1, &count, &algo_perf));
+        cudnnFindConvolutionBackwardDataAlgorithm(handle, w_desc, y_desc, conv_desc, x_desc, 1, &count, &algo_perf));
     algo_map[hash_str] = int(algo_perf.algo);
     algo               = algo_perf.algo;
   }
 
   size_t ws_size = 0;
-  CUDNN_CALL(cudnnGetConvolutionBackwardDataWorkspaceSize(handle, w_desc, dy_desc, conv_desc, dx_desc, algo, &ws_size));
+  CUDNN_CALL(cudnnGetConvolutionBackwardDataWorkspaceSize(handle, w_desc, y_desc, conv_desc, x_desc, algo, &ws_size));
 
-  float *ws_data = nullptr;
-  ws_data        = CudnnHandle::get_instance().GetWorkSpace(ws_size);
+  float *ws_data = CudnnHandle::get_instance().GetWorkSpace(ws_size);
 
   float alpha[] = {1.0f}, beta[] = {0.0f};
-
   CUDNN_CALL(cudnnConvolutionBackwardData(
-      handle, alpha, w_desc, _w, dy_desc, _dy, conv_desc, algo, ws_data, ws_size, beta, dx_desc, dx));
+      handle, alpha, w_desc, _w, y_desc, _dy, conv_desc, algo, ws_data, ws_size, beta, x_desc, _dx));
 
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
   CUDNN_CALL(cudnnDestroyFilterDescriptor(w_desc));
-  CUDNN_CALL(cudnnDestroyTensorDescriptor(dy_desc));
   CUDNN_CALL(cudnnDestroyConvolutionDescriptor(conv_desc));
-  CUDNN_CALL(cudnnDestroyTensorDescriptor(dx_desc));
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
 }
 
 void cinn_gpu_cudnn_conv2d_backward_filter(const std::vector<int> &attrs,
-                                           cinn_buffer_t *dy,
                                            cinn_buffer_t *x,
+                                           cinn_buffer_t *dy,
                                            cinn_buffer_t *dw) {
   CHECK_EQ(attrs.size(), 19);
   int input_n    = attrs[0];
@@ -316,21 +295,21 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const std::vector<int> &attrs,
   int output_h   = attrs[17];
   int output_w   = attrs[18];
 
-  auto handle = CudnnHandle::get_instance().GetCudnnHandle();
+  cudnnHandle_t &handle = CudnnHandle::get_instance().GetCudnnHandle();
 
-  auto _dy = reinterpret_cast<float *>(dy->memory);
-  auto _x  = reinterpret_cast<float *>(x->memory);
-  auto _dw = reinterpret_cast<float *>(dw->memory);
-
-  cudnnTensorDescriptor_t dy_desc;
-  CUDNN_CALL(cudnnCreateTensorDescriptor(&dy_desc));
-  CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(dy_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
+  float *_x  = reinterpret_cast<float *>(x->memory);
+  float *_dy = reinterpret_cast<float *>(dy->memory);
+  float *_dw = reinterpret_cast<float *>(dw->memory);
 
   cudnnTensorDescriptor_t x_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&x_desc));
   CUDNN_CALL(
       cudnnSetTensor4dDescriptor(x_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
+
+  cudnnFilterDescriptor_t w_desc;
+  CUDNN_CALL(cudnnCreateFilterDescriptor(&w_desc));
+  CUDNN_CALL(cudnnSetFilter4dDescriptor(
+      w_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, weights_n, weights_c, weights_h, weights_w));
 
   cudnnConvolutionDescriptor_t conv_desc;
   CUDNN_CALL(cudnnCreateConvolutionDescriptor(&conv_desc));
@@ -338,10 +317,10 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const std::vector<int> &attrs,
       conv_desc, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, CUDNN_CONVOLUTION, CUDNN_DATA_FLOAT));
   CUDNN_CALL(cudnnSetConvolutionGroupCount(conv_desc, groups));
 
-  cudnnFilterDescriptor_t dw_desc;
-  CUDNN_CALL(cudnnCreateFilterDescriptor(&dw_desc));
-  CUDNN_CALL(cudnnSetFilter4dDescriptor(
-      dw_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, weights_n, weights_c, weights_h, weights_w));
+  cudnnTensorDescriptor_t y_desc;
+  CUDNN_CALL(cudnnCreateTensorDescriptor(&y_desc));
+  CUDNN_CALL(
+      cudnnSetTensor4dDescriptor(y_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, output_n, output_c, output_h, output_w));
 
   absl::flat_hash_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
   std::string hash_str = "conv2d backward filter," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
@@ -356,46 +335,25 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const std::vector<int> &attrs,
   } else {
     int count = 0;
     cudnnConvolutionBwdFilterAlgoPerf_t algo_perf;
-    CUDNN_CALL(cudnnFindConvolutionBackwardFilterAlgorithm(
-        handle, x_desc, dy_desc, conv_desc, dw_desc, 1, &count, &algo_perf));
+    CUDNN_CALL(
+        cudnnFindConvolutionBackwardFilterAlgorithm(handle, x_desc, y_desc, conv_desc, w_desc, 1, &count, &algo_perf));
     algo_map[hash_str] = int(algo_perf.algo);
     algo               = algo_perf.algo;
   }
 
   size_t ws_size = 0;
-  CUDNN_CALL(
-      cudnnGetConvolutionBackwardFilterWorkspaceSize(handle, x_desc, dy_desc, conv_desc, dw_desc, algo, &ws_size));
+  CUDNN_CALL(cudnnGetConvolutionBackwardFilterWorkspaceSize(handle, x_desc, y_desc, conv_desc, w_desc, algo, &ws_size));
 
-  float *ws_data = nullptr;
-  if (ws_size > 0) {
-    ws_data = CudnnHandle::get_instance().GetWorkSpace(ws_size);
-  }
+  float *ws_data = ws_data = CudnnHandle::get_instance().GetWorkSpace(ws_size);
 
-  /*
-  cudnnStatus_t cudnnConvolutionBackwardFilter(
-    cudnnHandle_t                       handle,
-    const void                         *alpha,
-    const cudnnTensorDescriptor_t       xDesc,
-    const void                         *x,
-    const cudnnTensorDescriptor_t       dyDesc,
-    const void                         *dy,
-    const cudnnConvolutionDescriptor_t  convDesc,
-    cudnnConvolutionBwdFilterAlgo_t     algo,
-    void                               *workSpace,
-    size_t                              workSpaceSizeInBytes,
-    const void                         *beta,
-    const cudnnFilterDescriptor_t       dwDesc,
-    void                               *dw)
-  */
-
-  float alpha[] = {1.0f}, beta[] = {0.0f};
+  float alpha[] = {1.0}, beta[] = {0.0};
   CUDNN_CALL(cudnnConvolutionBackwardFilter(
-      handle, alpha, x_desc, _x, dy_desc, _dy, conv_desc, algo, ws_data, ws_size, beta, dw_desc, dw));
+      handle, alpha, x_desc, _x, y_desc, _dy, conv_desc, algo, ws_data, ws_size, beta, w_desc, _dw));
 
   CUDNN_CALL(cudnnDestroyTensorDescriptor(x_desc));
-  CUDNN_CALL(cudnnDestroyTensorDescriptor(dy_desc));
+  CUDNN_CALL(cudnnDestroyFilterDescriptor(w_desc));
   CUDNN_CALL(cudnnDestroyConvolutionDescriptor(conv_desc));
-  CUDNN_CALL(cudnnDestroyFilterDescriptor(dw_desc));
+  CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
 }
 
 void cinn_gpu_cudnn_pool2d(const std::vector<int> &attrs,

@@ -1,4 +1,3 @@
-#include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/instruction.h"
 
 #include <gtest/gtest.h>
@@ -9,6 +8,7 @@
 #include <vector>
 
 #include "cinn/backends/llvm/simple_jit.h"
+#include "cinn/common/test_helper.h"
 
 namespace cinn {
 namespace hlir {
@@ -109,132 +109,10 @@ class TestInstruction : public Instruction {
 
 #ifdef CINN_WITH_CUDNN
 
-TEST(Instruction, CONV_BACKWARD_FILTER) {
-  int in = 32, ic = 32, ih = 32, iw = 32;
-  int fn = 32, fc = 32, fh = 3, fw = 3;
-  int on = 32, oc = 32, oh = 32, ow = 32;
-
-  int ph = 1, pw = 1;
-  int sh = 1, sw = 1;
-  int dila_h = 1, dila_w = 1;
-
-  int group = 1;
-
-  std::vector<int> attrs = {in, ic, ih, iw, fn, fc, fh, fw, ph, pw, sh, sw, dila_h, dila_w, group, on, oc, oh, ow};
-
-  CUDA_CALL(cudaSetDevice(0));
-  auto buffer_x = common::BufferBuilder(Float(32), {in, ic, ih, iw}).set_random().Build();
-  auto buffer_w = common::BufferBuilder(Float(32), {fn, fc, fh, fw}).set_random().Build();
-  auto buffer_y = common::BufferBuilder(Float(32), {on, oc, oh, ow}).set_random().Build();
-
-  void *dev_x = nullptr, *dev_w = nullptr, *dev_y = nullptr;
-  CUDA_CALL(cudaMalloc(&dev_x, buffer_x->memory_size));
-  CUDA_CALL(cudaMalloc(&dev_w, buffer_w->memory_size));
-  CUDA_CALL(cudaMalloc(&dev_y, buffer_y->memory_size));
-
-  CUDA_CALL(cudaMemcpy(dev_x, buffer_x->memory, buffer_x->memory_size, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dev_w, buffer_w->memory, buffer_w->memory_size, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dev_y, buffer_y->memory, buffer_y->memory_size, cudaMemcpyHostToDevice));
-
-  cinn_buffer_t _x;
-  cinn_buffer_t _w;
-  cinn_buffer_t _y;
-
-  _x.memory = static_cast<uint8_t*>(dev_x);
-  _w.memory = static_cast<uint8_t*>(dev_w);
-  _y.memory = static_cast<uint8_t*>(dev_y);
-
-  _x.memory_size = buffer_x->memory_size;
-  _w.memory_size = buffer_w->memory_size;
-  _y.memory_size = buffer_y->memory_size;
-
-  cinn_pod_value_t x(&_x);
-  cinn_pod_value_t w(&_w);
-  cinn_pod_value_t y(&_y);
-
-  Scope scope;
-  auto target = common::DefaultNVGPUTarget();
-  std::vector<std::string> in_args, out_args;
-  TestInstruction instr(target, &scope, in_args, out_args, "conv2d");
-
-  std::vector<cinn_pod_value_t> args = {y, x, w};
-  std::vector<std::string> str_attrs = {"backward_filter"};
-  instr.SetAttr(attrs);
-  instr.SetStrAttr(str_attrs);
-  instr.SetArgs(args);
-
-  instr.RunX();
-
-  CUDA_CALL(cudaFree(dev_x));
-  CUDA_CALL(cudaFree(dev_w));
-  CUDA_CALL(cudaFree(dev_y));
-}
-
-TEST(Instruction, CONV_BACKWARD_DATA) {
-  int in = 32, ic = 64, ih = 128, iw = 128;
-  int fn = 32, fc = 64, fh = 3, fw = 3;
-  int on = 32, oc = 32, oh = 128, ow = 128;
-
-  int ph = 1, pw = 1;
-  int sh = 1, sw = 1;
-  int dila_h = 1, dila_w = 1;
-
-  int group = 1;
-
-  std::vector<int> attrs = {in, ic, ih, iw, fn, fc, fh, fw, ph, pw, sh, sw, dila_h, dila_w, group, on, oc, oh, ow};
-
-  CUDA_CALL(cudaSetDevice(0));
-  auto buffer_x = common::BufferBuilder(Float(32), {in, ic, ih, iw}).set_random().Build();
-  auto buffer_w = common::BufferBuilder(Float(32), {fn, fc, fh, fw}).set_random().Build();
-  auto buffer_y = common::BufferBuilder(Float(32), {on, oc, oh, ow}).set_random().Build();
-
-  void *dev_x = nullptr, *dev_w = nullptr, *dev_y = nullptr;
-  CUDA_CALL(cudaMalloc(&dev_x, buffer_x->memory_size));
-  CUDA_CALL(cudaMalloc(&dev_w, buffer_w->memory_size));
-  CUDA_CALL(cudaMalloc(&dev_y, buffer_y->memory_size));
-
-  CUDA_CALL(cudaMemcpy(dev_x, buffer_x->memory, buffer_x->memory_size, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dev_w, buffer_w->memory, buffer_w->memory_size, cudaMemcpyHostToDevice));
-  CUDA_CALL(cudaMemcpy(dev_y, buffer_y->memory, buffer_y->memory_size, cudaMemcpyHostToDevice));
-
-  cinn_buffer_t _x;
-  cinn_buffer_t _w;
-  cinn_buffer_t _y;
-
-  _x.memory = static_cast<uint8_t*>(dev_x);
-  _w.memory = static_cast<uint8_t*>(dev_w);
-  _y.memory = static_cast<uint8_t*>(dev_y);
-
-  _x.memory_size = buffer_x->memory_size;
-  _w.memory_size = buffer_w->memory_size;
-  _y.memory_size = buffer_y->memory_size;
-
-  cinn_pod_value_t x(&_x);
-  cinn_pod_value_t w(&_w);
-  cinn_pod_value_t y(&_y);
-
-  Scope scope;
-  auto target = common::DefaultNVGPUTarget();
-  std::vector<std::string> in_args, out_args;
-  TestInstruction instr(target, &scope, in_args, out_args, "conv2d");
-
-  std::vector<cinn_pod_value_t> args = {y, w, x};
-  std::vector<std::string> str_attrs = {"backward_data"};
-  instr.SetAttr(attrs);
-  instr.SetStrAttr(str_attrs);
-  instr.SetArgs(args);
-
-  instr.RunX();
-
-  CUDA_CALL(cudaFree(dev_x));
-  CUDA_CALL(cudaFree(dev_w));
-  CUDA_CALL(cudaFree(dev_y));
-}
-
 TEST(Instruction, CONV_FORWARD) {
-  int in = 32, ic = 64, ih = 128, iw = 128;
-  int fn = 32, fc = 64, fh = 3, fw = 3;
-  int on = 32, oc = 32, oh = 128, ow = 128;
+  int in = 32, ic = 32, ih = 128, iw = 128;
+  int fn = 64, fc = 32, fh = 3, fw = 3;
+  int on = 32, oc = 64, oh = 128, ow = 128;
 
   int ph = 1, pw = 1;
   int sh = 1, sw = 1;
@@ -281,6 +159,128 @@ TEST(Instruction, CONV_FORWARD) {
 
   std::vector<cinn_pod_value_t> args = {x, w, y};
   std::vector<std::string> str_attrs = {"forward"};
+  instr.SetAttr(attrs);
+  instr.SetStrAttr(str_attrs);
+  instr.SetArgs(args);
+
+  instr.RunX();
+
+  CUDA_CALL(cudaFree(dev_x));
+  CUDA_CALL(cudaFree(dev_w));
+  CUDA_CALL(cudaFree(dev_y));
+}
+
+TEST(Instruction, CONV_BACKWARD_DATA) {
+  int in = 32, ic = 32, ih = 128, iw = 128;
+  int fn = 64, fc = 32, fh = 3, fw = 3;
+  int on = 32, oc = 64, oh = 128, ow = 128;
+
+  int ph = 1, pw = 1;
+  int sh = 1, sw = 1;
+  int dila_h = 1, dila_w = 1;
+
+  int group = 1;
+
+  std::vector<int> attrs = {in, ic, ih, iw, fn, fc, fh, fw, ph, pw, sh, sw, dila_h, dila_w, group, on, oc, oh, ow};
+
+  CUDA_CALL(cudaSetDevice(0));
+  auto buffer_x = common::BufferBuilder(Float(32), {in, ic, ih, iw}).set_random().Build();
+  auto buffer_w = common::BufferBuilder(Float(32), {fn, fc, fh, fw}).set_random().Build();
+  auto buffer_y = common::BufferBuilder(Float(32), {on, oc, oh, ow}).set_random().Build();
+
+  void *dev_x = nullptr, *dev_w = nullptr, *dev_y = nullptr;
+  CUDA_CALL(cudaMalloc(&dev_x, buffer_x->memory_size));
+  CUDA_CALL(cudaMalloc(&dev_w, buffer_w->memory_size));
+  CUDA_CALL(cudaMalloc(&dev_y, buffer_y->memory_size));
+
+  CUDA_CALL(cudaMemcpy(dev_x, buffer_x->memory, buffer_x->memory_size, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dev_w, buffer_w->memory, buffer_w->memory_size, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dev_y, buffer_y->memory, buffer_y->memory_size, cudaMemcpyHostToDevice));
+
+  cinn_buffer_t _x;
+  cinn_buffer_t _w;
+  cinn_buffer_t _y;
+
+  _x.memory = static_cast<uint8_t*>(dev_x);
+  _w.memory = static_cast<uint8_t*>(dev_w);
+  _y.memory = static_cast<uint8_t*>(dev_y);
+
+  _x.memory_size = buffer_x->memory_size;
+  _w.memory_size = buffer_w->memory_size;
+  _y.memory_size = buffer_y->memory_size;
+
+  cinn_pod_value_t x(&_x);
+  cinn_pod_value_t w(&_w);
+  cinn_pod_value_t y(&_y);
+
+  Scope scope;
+  auto target = common::DefaultNVGPUTarget();
+  std::vector<std::string> in_args, out_args;
+  TestInstruction instr(target, &scope, in_args, out_args, "conv2d");
+
+  std::vector<cinn_pod_value_t> args = {w, y, x};
+  std::vector<std::string> str_attrs = {"backward_data"};
+  instr.SetAttr(attrs);
+  instr.SetStrAttr(str_attrs);
+  instr.SetArgs(args);
+
+  instr.RunX();
+
+  CUDA_CALL(cudaFree(dev_x));
+  CUDA_CALL(cudaFree(dev_w));
+  CUDA_CALL(cudaFree(dev_y));
+}
+
+TEST(Instruction, CONV_BACKWARD_FILTER) {
+  int in = 32, ic = 32, ih = 128, iw = 128;
+  int fn = 64, fc = 32, fh = 3, fw = 3;
+  int on = 32, oc = 64, oh = 128, ow = 128;
+
+  int ph = 1, pw = 1;
+  int sh = 1, sw = 1;
+  int dila_h = 1, dila_w = 1;
+
+  int group = 1;
+
+  std::vector<int> attrs = {in, ic, ih, iw, fn, fc, fh, fw, ph, pw, sh, sw, dila_h, dila_w, group, on, oc, oh, ow};
+
+  CUDA_CALL(cudaSetDevice(0));
+  auto buffer_x = common::BufferBuilder(Float(32), {in, ic, ih, iw}).set_random().Build();
+  auto buffer_w = common::BufferBuilder(Float(32), {fn, fc, fh, fw}).set_random().Build();
+  auto buffer_y = common::BufferBuilder(Float(32), {on, oc, oh, ow}).set_random().Build();
+
+  void *dev_x = nullptr, *dev_w = nullptr, *dev_y = nullptr;
+  CUDA_CALL(cudaMalloc(&dev_x, buffer_x->memory_size));
+  CUDA_CALL(cudaMalloc(&dev_w, buffer_w->memory_size));
+  CUDA_CALL(cudaMalloc(&dev_y, buffer_y->memory_size));
+
+  CUDA_CALL(cudaMemcpy(dev_x, buffer_x->memory, buffer_x->memory_size, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dev_w, buffer_w->memory, buffer_w->memory_size, cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(dev_y, buffer_y->memory, buffer_y->memory_size, cudaMemcpyHostToDevice));
+
+  cinn_buffer_t _x;
+  cinn_buffer_t _w;
+  cinn_buffer_t _y;
+
+  _x.memory = static_cast<uint8_t*>(dev_x);
+  _w.memory = static_cast<uint8_t*>(dev_w);
+  _y.memory = static_cast<uint8_t*>(dev_y);
+
+  _x.memory_size = buffer_x->memory_size;
+  _w.memory_size = buffer_w->memory_size;
+  _y.memory_size = buffer_y->memory_size;
+
+  cinn_pod_value_t x(&_x);
+  cinn_pod_value_t w(&_w);
+  cinn_pod_value_t y(&_y);
+
+  Scope scope;
+  auto target = common::DefaultNVGPUTarget();
+  std::vector<std::string> in_args, out_args;
+  TestInstruction instr(target, &scope, in_args, out_args, "conv2d");
+
+  std::vector<cinn_pod_value_t> args = {x, y, w};
+  std::vector<std::string> str_attrs = {"backward_filter"};
   instr.SetAttr(attrs);
   instr.SetStrAttr(str_attrs);
   instr.SetArgs(args);
