@@ -37,4 +37,3 @@ endif()
 cc_test(test_net_builder SRCS net_builder_test.cc DEPS cinncore)
 
 add_subdirectory(paddle)
-add_subdirectory(op_mappers)
