@@ -2,6 +2,8 @@
 
 #include <glog/logging.h>
 
+#include <sstream>
+
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
@@ -47,6 +49,12 @@ int Target::get_target_bits() const {
       LOG(FATAL) << "Not supported Bit";
   }
   return -1;
+}
+
+std::string Target::arch_str() const {
+  std::ostringstream oss;
+  oss << arch;
+  return oss.str();
 }
 
 std::ostream &operator<<(std::ostream &os, const Target &target) {

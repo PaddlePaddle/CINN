@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ostream>
+#include <string>
 #include <vector>
 
 namespace cinn {
@@ -68,6 +69,8 @@ struct Target {
   int get_target_bits() const;
 
   std::vector<Lib> get_target_libs() const;
+
+  std::string arch_str() const;
 
   bool operator==(const Target& other) const;
   bool operator!=(const Target& other) const { return !(*this == other); }
