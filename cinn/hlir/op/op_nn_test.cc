@@ -364,7 +364,6 @@ TEST(Operator, Operator_Select_Test0) {
   auto true_value_  = reinterpret_cast<float *>(B_buf->memory);
   auto false_value_ = reinterpret_cast<float *>(C_buf->memory);
   auto output_      = reinterpret_cast<float *>(D_buf->memory);
-
   for (int idx = 0; idx < 64 * 64; ++idx) {
     auto value = static_cast<int16_t>(*condition_);
     for (int idy = 0; idy < 16; ++idy) {
@@ -373,7 +372,6 @@ TEST(Operator, Operator_Select_Test0) {
       } else {
         ASSERT_EQ(*output_, *false_value_);
       }
-
       ++true_value_;
       ++false_value_;
       ++output_;
@@ -385,6 +383,69 @@ TEST(Operator, Operator_Select_Test0) {
 
   ASSERT_EQ(impl->name, "strategy.select.x86");
   ASSERT_EQ(select->description, "This operator implements the meta op 'Select'.");
+}
+
+TEST(Operator, Operator_Reverse_Test0) {
+  auto reverse  = Operator::Get("reverse");
+  Operator temp = *reverse;
+  auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+
+  int c = 16, h = 64, w = 64;
+  Expr C(c), H(h), W(w);
+  Placeholder<float> A("A", {C, H, W});
+
+  NodeAttr attrs;
+  std::vector<int> axis    = {1, 2};
+  attrs.attr_store["axis"] = axis;
+  std::vector<ir::Tensor> inputs{A.tensor()};
+  std::vector<Type> type{Float(32)};
+  common::Target target = common::DefaultHostTarget();
+
+  auto impl = OpStrategy::SelectImpl(strategy[reverse](attrs, inputs, type, {{c, h, w}}, target));
+  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
+  common::CINNValuePack rets       = impl->fcompute(cinn_input);
+  rets                             = impl->fschedule(rets);
+  ASSERT_EQ(rets.size(), 2UL);
+
+  // the last element is a StageMap
+  for (int i = 0; i < rets->size() - 1; i++) {
+    Expr temp = rets[i];
+    inputs.push_back(temp.as_tensor_ref());
+  }
+  auto func = Lower("reverse", rets.back(), inputs);
+  LOG(INFO) << "Test Strategy Codegen:\n" << func;
+
+  Module::Builder builder("module0", target);
+  builder.AddFunction(func);
+  auto jit    = backends::ExecutionEngine::Create({});
+  auto module = builder.Build();
+
+  jit->Link(module);
+  auto fn = jit->Lookup("reverse");
+  CHECK(fn);
+  auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
+
+  cinn_buffer_t *A_buf = common::BufferBuilder(Float(32), {c, h, w}).set_random().Build();
+  cinn_buffer_t *B_buf = common::BufferBuilder(Float(32), {c, h, w}).set_random().Build();
+  cinn_pod_value_t a_arg(A_buf), b_arg(B_buf);
+  cinn_pod_value_t args[] = {a_arg, b_arg};
+  fn_(args, 2);
+
+  auto input  = reinterpret_cast<float *>(A_buf->memory);
+  auto output = reinterpret_cast<float *>(B_buf->memory);
+
+  for (int ida = 0; ida < c; ++ida) {
+    for (int idb = 0; idb < h; ++idb) {
+      for (int idc = 0; idc < w; ++idc) {
+        int index  = ida * h * w + idb * h + idc;
+        int index_ = ida * h * w + (h - 1 - idb) * h + (w - 1 - idc);
+        ASSERT_EQ(output[index], input[index_]);
+      }
+    }
+  }
+
+  ASSERT_EQ(impl->name, "strategy.reverse.x86");
+  ASSERT_EQ(reverse->description, "This operator implements the meta op reverse.");
 }
 
 }  // namespace framework

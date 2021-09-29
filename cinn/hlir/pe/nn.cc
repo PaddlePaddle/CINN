@@ -1,9 +1,10 @@
 #include "cinn/hlir/pe/nn.h"
 
+#include <absl/container/flat_hash_map.h>
+
 #include <functional>
 #include <numeric>
 #include <string>
-#include <absl/container/flat_hash_map.h>
 #include <vector>
 
 #include "cinn/common/cas.h"
@@ -1013,10 +1014,24 @@ ir::Tensor Select(const ir::Tensor &condition,
   CHECK(condition->type().is_bool()) << "The condtion tensor type should be bool!";
   CHECK(condition->shape == true_value->shape && true_value->shape == false_value->shape)
       << "The input tensor shape is not equal!";
+  return lang::Compute(condition->shape, [=](const std::vector<Expr> &indice) {
+    return common::select(condition(indice), true_value(indice), false_value(indice));
+  });
+}
+
+ir::Tensor Reverse(const ir::Tensor &input, const std::vector<int> axis, const std::string &output_name) {
+  for (auto &val : axis) {
+    CHECK(val >= 0 && val < input->shape.size()) << "axis should be [0,n_dim)";
+  }
+  std::vector<Expr> shape = input->shape;
   return lang::Compute(
-      condition->shape,
+      input->shape,
       [=](const std::vector<Expr> &indice) {
-        return common::select(condition(indice), true_value(indice), false_value(indice));
+        std::vector<Expr> indexs(indice.begin(), indice.end());
+        for (auto idx : axis) {
+          indexs[idx] = shape[idx] - Expr(1) - indexs[idx];
+        };
+        return input(indexs);
       },
       output_name);
 }
