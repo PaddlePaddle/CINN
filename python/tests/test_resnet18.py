@@ -76,9 +76,9 @@ class TestLoadResnetModel(unittest.TestCase):
         if enable_gpu == "ON" and enable_cudnn == "ON":
             benchmark = 2.4
         elif enable_gpu == "ON" and enable_cudnn == "OFF":
-            benchmark = 6.0
+            benchmark = 6.1
         else:
-            benchmark = 40
+            benchmark = 44
         self.assertGreater(
             benchmark, cost_time,
             "The cost time of ResNet18 increases! Please check if there is performance degradation."

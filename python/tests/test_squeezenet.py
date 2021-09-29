@@ -76,7 +76,7 @@ class TestLoadSqueezeNetModel(unittest.TestCase):
         elif enable_gpu == "ON" and enable_cudnn == "OFF":
             benchmark = 3.5
         else:
-            benchmark = 26
+            benchmark = 28
         self.assertGreater(
             benchmark, cost_time,
             "The cost time of SqueezeNet increases! Please check if there is performance degradation."

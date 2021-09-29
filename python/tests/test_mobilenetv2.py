@@ -76,11 +76,11 @@ class TestLoadResnetModel(unittest.TestCase):
 
         benchmark = 0.0
         if enable_gpu == "ON" and enable_cudnn == "ON":
-            benchmark = 1.6
+            benchmark = 1.7
         elif enable_gpu == "ON" and enable_cudnn == "OFF":
-            benchmark = 3.7
+            benchmark = 3.8
         else:
-            benchmark = 21
+            benchmark = 26
         self.assertGreater(
             benchmark, cost_time,
             "The cost time of MobileNetV2 increases! Please check if there is performance degradation."
