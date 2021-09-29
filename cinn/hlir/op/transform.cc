@@ -920,7 +920,7 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
     axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
     CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
     for (auto &e : axis) {
-      if (e >= output_shapes[0].size() || e < 0) {
+      if (e >= output_shapes[0].size() || e < -1 * static_cast<int>(output_shapes[0].size())) {
         LOG(FATAL) << "axis is not in [0, n_dim), Please check.";
       }
       if (e < 0) {
@@ -972,7 +972,40 @@ std::vector<framework::shape_t> InferShapeForReverse(const std::vector<framework
                                                      const Target &target) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<framework::shape_t> res{inputs_shape[0]};
+  if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
+    auto axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
+    CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
+    for (auto &e : axis) {
+      if (e >= inputs_shape[0].size() || e < -1 * static_cast<int>(inputs_shape[0].size())) {
+        LOG(FATAL) << "axis is not in [-n_dim, n_dim), Please check.";
+      }
+      if (e < 0) {
+        e += inputs_shape[0].size();
+      }
+    }
+  } else {
+    LOG(FATAL) << "axis is not be set! Please check.";
+  }
   return res;
+}
+
+std::vector<std::vector<std::string>> InferLayoutForReverse(const std::vector<framework::shape_t> &input_shapes,
+                                                            const std::vector<std::string> &input_layouts,
+                                                            const framework::NodeAttr &attrs,
+                                                            const Target &target) {
+  if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
+    auto axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
+    CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
+    for (auto &e : axis) {
+      if (e >= input_shapes[0].size() || e < -1 * static_cast<int>(input_shapes[0].size())) {
+        LOG(FATAL) << "axis is not in [-n_dim, n_dim), Please check.";
+      }
+    }
+  } else {
+    LOG(FATAL) << "axis is not be set! Please check.";
+  }
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  return {input_layouts, input_layouts};
 }
 
 std::vector<std::vector<std::string>> InferLayoutForLayoutTransform(const std::vector<framework::shape_t> &input_shapes,
@@ -1054,6 +1087,9 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReverse)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReverse))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReverse))
+#endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
