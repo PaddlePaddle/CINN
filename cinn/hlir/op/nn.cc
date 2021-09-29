@@ -67,16 +67,13 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
 }
 
 std::vector<framework::shape_t> InferShapeForRelu(const std::vector<framework::shape_t> &inputs_shape,
-                                                  framework::NodeAttr &attrs,
-                                                  const Target &target) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<framework::shape_t> res{inputs_shape[0]};
   return res;
 }
 
-std::vector<Type> InferDtypeForRelu(const std::vector<Type> &inputs_type,
-                                    const framework::NodeAttr &attrs,
-                                    const Target &target) {
+std::vector<Type> InferDtypeForRelu(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -333,24 +330,23 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
 }
 
 std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shape,
-                                         framework::NodeAttr &attrs,
-                                         const Target &target) {
+                                         const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
   std::vector<int> dilation({1, 1});
   std::string data_format = "NCHW";
-  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  if (attrs.find("padding") != attrs.end()) {
+    padding = absl::get<std::vector<int>>(attrs.at("padding"));
   }
-  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = absl::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  if (attrs.find("stride") != attrs.end()) {
+    stride = absl::get<std::vector<int>>(attrs.at("stride"));
   }
-  if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
-    dilation = absl::get<std::vector<int>>(attrs.attr_store.at("dilation"));
+  if (attrs.find("dilation") != attrs.end()) {
+    dilation = absl::get<std::vector<int>>(attrs.at("dilation"));
   }
-  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
+  if (attrs.find("data_format") != attrs.end()) {
+    data_format = absl::get<std::string>(attrs.at("data_format"));
   }
   CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
   CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
@@ -378,7 +374,6 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
     int pad_w       = padding[1];
     std::string key = pe::GenerateX86ConvKey(inputs_shape[0], inputs_shape[1], stride, padding, dilation);
     VLOG(3) << "key: " << key;
-    attrs.attr_store["key"] = key;
     pe::GetConv2dFactors(&conv2d_factors, oc, ic, fc, -1, -1, Float(32), common::DefaultHostTarget(), key);
     int ic_bn = conv2d_factors["ic_bn"];
     int oc_bn = conv2d_factors["oc_bn"];
@@ -413,9 +408,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   return res;
 }
 
-std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type,
-                                      const framework::NodeAttr &attrs,
-                                      const Target &target) {
+std::vector<Type> InferDtypeForConv2d(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
 #ifdef CINN_WITH_CUDA
   std::vector<Type> res{inputs_type[0]};
@@ -552,24 +545,23 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
 }
 
 std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs_shape,
-                                              framework::NodeAttr &attrs,
-                                              const Target &target) {
+                                              const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
   std::vector<int> dilation({1, 1});
   std::string data_format = "NCHWc";
-  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  if (attrs.find("padding") != attrs.end()) {
+    padding = absl::get<std::vector<int>>(attrs.at("padding"));
   }
-  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = absl::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  if (attrs.find("stride") != attrs.end()) {
+    stride = absl::get<std::vector<int>>(attrs.at("stride"));
   }
-  if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
-    dilation = absl::get<std::vector<int>>(attrs.attr_store.at("dilation"));
+  if (attrs.find("dilation") != attrs.end()) {
+    dilation = absl::get<std::vector<int>>(attrs.at("dilation"));
   }
-  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
+  if (attrs.find("data_format") != attrs.end()) {
+    data_format = absl::get<std::string>(attrs.at("data_format"));
   }
   CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d_NCHWc op is not 2! Please check.";
   CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d_NCHWc op is not 2! Please check.";
@@ -618,9 +610,7 @@ std::vector<std::vector<std::string>> InferLayoutForConv2dNCHWc(const std::vecto
   return {{outlayout, outlayout, input_layouts[0]}, input_layouts};
 }
 
-std::vector<Type> InferDtypeForConv2dNCHWc(const std::vector<Type> &inputs_type,
-                                           const framework::NodeAttr &attrs,
-                                           const Target &target) {
+std::vector<Type> InferDtypeForConv2dNCHWc(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0], inputs_type[0]};
   return res;
@@ -773,22 +763,21 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
 }
 
 std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &inputs_shape,
-                                                  framework::NodeAttr &attrs,
-                                                  const Target &target) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "at least 2 input tensors for depthwise_conv2d op\n";
   CHECK_EQ(inputs_shape[0].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
   CHECK_EQ(inputs_shape[1].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
   std::vector<int> padding = {0, 0};
   std::vector<int> stride  = {1, 1};
   std::string data_format  = "NCHW";
-  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  if (attrs.find("padding") != attrs.end()) {
+    padding = absl::get<std::vector<int>>(attrs.at("padding"));
   }
-  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = absl::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  if (attrs.find("stride") != attrs.end()) {
+    stride = absl::get<std::vector<int>>(attrs.at("stride"));
   }
-  if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
-    data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
+  if (attrs.find("data_format") != attrs.end()) {
+    data_format = absl::get<std::string>(attrs.at("data_format"));
   }
   std::vector<shape_t> res;
   CHECK_EQ(padding.size(), 2U) << "The size of padding in depthwise_conv2d op is not 2! Please check.";
@@ -810,8 +799,7 @@ std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &in
 }
 
 std::vector<Type> InferDtypeForDepthwiseConv2d(const std::vector<Type> &inputs_type,
-                                               const framework::NodeAttr &attrs,
-                                               const Target &target) {
+                                               const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -899,16 +887,13 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
 }
 
 std::vector<shape_t> InferShapeForBatchNorm(const std::vector<shape_t> &inputs_shape,
-                                            framework::NodeAttr &attrs,
-                                            const Target &target) {
+                                            const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<shape_t> res{inputs_shape[0]};
   return res;
 }
 
-std::vector<Type> InferDtypeForBatchNorm(const std::vector<Type> &inputs_type,
-                                         const framework::NodeAttr &attrs,
-                                         const Target &target) {
+std::vector<Type> InferDtypeForBatchNorm(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -1015,10 +1000,8 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  framework::NodeAttr &attrs,
-                                                  const Target &target) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  auto attr_store = attrs.attr_store;
   std::vector<int> kernel_size;   // [kernel_w]
   std::vector<int> stride_size;   // [stride_w]
   std::vector<int> padding_size;  // [padding_left, padding_right]
@@ -1026,7 +1009,7 @@ std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<
   bool ceil_mode          = false;
   bool exclusive          = true;
   std::string data_format = "NCW";
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "kernel_size") {
       kernel_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "stride_size") {
@@ -1192,11 +1175,9 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  framework::NodeAttr &attrs,
-                                                  const Target &target) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(inputs_shape[0].size() == 4 || inputs_shape[0].size() == 5)
       << "The input's shape size of pool2d should be 4 or 5! Please check again.";
-  auto attr_store = attrs.attr_store;
   std::vector<int> kernel_size;
   std::vector<int> stride_size;
   std::vector<int> padding_size;
@@ -1206,7 +1187,7 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   std::string data_format = "NCHW";
   bool global_pooling     = false;
   bool adaptive           = false;
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "kernel_size") {
       kernel_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "stride_size") {
@@ -1267,7 +1248,7 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   }
 
   if (adaptive) {
-    kernel_size = absl::get<std::vector<int>>(attr_store["kernel_size"]);
+    kernel_size = absl::get<std::vector<int>>(attrs.at("kernel_size"));
     if (kernel_size.size() == 1UL) kernel_size.push_back(kernel_size[0]);
     CHECK(kernel_size.size() >= 2UL) << "In pool2d, kernel_size's size should be >= 2, please check!";
     output_shape1[height_axis] = kernel_size[0];
@@ -1369,10 +1350,8 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  framework::NodeAttr &attrs,
-                                                  const Target &target) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  auto attr_store = attrs.attr_store;
   std::vector<int> kernel_size;  // [kernel_d, kernel_h, kernel_w]
   std::vector<int> stride_size;  // [stride_d, stride_h, stride_w]
   std::vector<int>
@@ -1381,7 +1360,7 @@ std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<
   bool ceil_mode          = false;
   bool exclusive          = true;
   std::string data_format = "NCDHW";
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "kernel_size") {
       kernel_size = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "stride_size") {
@@ -1443,9 +1422,7 @@ std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<
   return res;
 }
 
-std::vector<Type> InferDtypeForPool(const std::vector<Type> &inputs_type,
-                                    const framework::NodeAttr &attrs,
-                                    const Target &target) {
+std::vector<Type> InferDtypeForPool(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -1533,16 +1510,13 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForSoftmax(const std::vector<std::vector<int>> &inputs_shape,
-                                                   framework::NodeAttr &attrs,
-                                                   const Target &target) {
+                                                   const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<std::vector<int>> res{inputs_shape[0], inputs_shape[0]};
   return res;
 }
 
-std::vector<Type> InferDtypeForSoftmax(const std::vector<Type> &inputs_type,
-                                       const framework::NodeAttr &attrs,
-                                       const Target &target) {
+std::vector<Type> InferDtypeForSoftmax(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
@@ -1628,13 +1602,12 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<int>> &inputs_shape,
-                                                 framework::NodeAttr &attrs,
-                                                 const Target &target) {
+                                                 const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> starts;
   std::vector<int> ends;
   std::vector<int> axes;
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "starts") {
       starts = absl::get<std::vector<int>>(iter.second);
     } else if (iter.first == "ends") {
@@ -1675,9 +1648,7 @@ std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<i
   return res;
 }
 
-std::vector<Type> InferDtypeForSlice(const std::vector<Type> &inputs_type,
-                                     const framework::NodeAttr &attrs,
-                                     const Target &target) {
+std::vector<Type> InferDtypeForSlice(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -1767,12 +1738,11 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
 }
 
 std::vector<std::vector<int>> InferShapeForDropoutInfer(const std::vector<std::vector<int>> &inputs_shape,
-                                                        framework::NodeAttr &attrs,
-                                                        const Target &target) {
+                                                        const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   float dropout_prob                 = 0;
   std::string dropout_implementation = "downgrade_in_infer";
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "dropout_prob") {
       dropout_prob = absl::get<float>(iter.second);
     } else if (iter.first == "dropout_implementation") {
@@ -1786,9 +1756,7 @@ std::vector<std::vector<int>> InferShapeForDropoutInfer(const std::vector<std::v
   return res;
 }
 
-std::vector<Type> InferDtypeForDropoutInfer(const std::vector<Type> &inputs_type,
-                                            const framework::NodeAttr &attrs,
-                                            const Target &target) {
+std::vector<Type> InferDtypeForDropoutInfer(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -1842,8 +1810,7 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
 }
 
 std::vector<framework::shape_t> InferShapeForSelect(const std::vector<framework::shape_t> &inputs_shape,
-                                                    framework::NodeAttr &attrs,
-                                                    const Target &target) {
+                                                    const framework::AttrMapType &attrs) {
   CHECK_GE(inputs_shape.size(), 3) << "The input's shape size is 0! Please check again.";
   CHECK(inputs_shape[0].size() == inputs_shape[1].size() && inputs_shape[1].size() == inputs_shape[2].size())
       << "input tensors n_dim is not equal!";
@@ -1853,9 +1820,7 @@ std::vector<framework::shape_t> InferShapeForSelect(const std::vector<framework:
   return res;
 }
 
-std::vector<Type> InferDtypeForSelect(const std::vector<Type> &inputs_type,
-                                      const framework::NodeAttr &attrs,
-                                      const Target &target) {
+std::vector<Type> InferDtypeForSelect(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK_GE(inputs_type.size(), 3) << "The input's type size is less than three! Please check again.";
   CHECK(inputs_type[0].is_bool()) << "The condition tensor type should be bool";
   std::vector<Type> res{inputs_type[1]};

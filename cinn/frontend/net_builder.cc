@@ -1,8 +1,8 @@
 #include "cinn/frontend/net_builder.h"
 
 #include <string>
-#include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "cinn/frontend/syntax.h"
 
@@ -11,6 +11,7 @@ namespace frontend {
 
 Variable NetBuilder::add(const Variable& a, const Variable& b) {
   Instruction instr("elementwise_add", {a, b});
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -19,6 +20,7 @@ Variable NetBuilder::mul(const Variable& a, const Variable& b, int x_num_col_dim
   Instruction instr("mul", {a, b});
   instr.SetAttr("x_num_col_dims", x_num_col_dims);
   instr.SetAttr("y_num_col_dims", y_num_col_dims);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -28,6 +30,7 @@ Variable NetBuilder::mulbias(
   Instruction instr("mulbias", {a, b, c});
   instr.SetAttr("x_num_col_dims", x_num_col_dims);
   instr.SetAttr("y_num_col_dims", y_num_col_dims);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(1);
 }
@@ -35,6 +38,7 @@ Variable NetBuilder::mulbias(
 Variable NetBuilder::elementwise_add(const Variable& a, const Variable& b, int axis) {
   Instruction instr("elementwise_add", {a, b});
   instr.SetAttr("axis", axis);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -42,12 +46,14 @@ Variable NetBuilder::elementwise_add(const Variable& a, const Variable& b, int a
 Variable NetBuilder::elementwise_mul(const Variable& a, const Variable& b, int axis) {
   Instruction instr("elementwise_mul", {a, b});
   instr.SetAttr("axis", axis);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
 
 Variable NetBuilder::relu(const Variable& a) {
   Instruction instr("relu", {a});
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -55,6 +61,7 @@ Variable NetBuilder::relu(const Variable& a) {
 Variable NetBuilder::relu6(const Variable& a, float threshold) {
   Instruction instr("relu6", {a});
   instr.SetAttr("threshold", threshold);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -75,6 +82,7 @@ Variable NetBuilder::conv2d(const Variable& a,
   instr.SetAttr("groups", groups);
   instr.SetAttr("data_format", data_format);
   instr.SetAttr("padding_algorithm", padding_algorithm);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -95,6 +103,7 @@ Variable NetBuilder::depthwise_conv2d(const Variable& a,
   instr.SetAttr("groups", groups);
   instr.SetAttr("data_format", data_format);
   instr.SetAttr("padding_algorithm", padding_algorithm);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -122,6 +131,7 @@ Variable NetBuilder::pool2d(const Variable& a,
   instr.SetAttr("data_format", data_format);
   instr.SetAttr("adaptive", adaptive);
   instr.SetAttr("padding_algorithm", padding_algorithm);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -139,6 +149,7 @@ Variable NetBuilder::batchnorm(const Variable& a,
   instr.SetAttr("epsilon", epsilon);
   instr.SetAttr("momentum", momentum);
   instr.SetAttr("data_layout", data_layout);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -148,6 +159,7 @@ Variable NetBuilder::scale(const Variable& a, float scale, float bias, bool bias
   instr.SetAttr("scale", scale);
   instr.SetAttr("bias", bias);
   instr.SetAttr("bias_after_scale", bias_after_scale);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -156,12 +168,14 @@ Variable NetBuilder::softmax(const Variable& a, int axis, const std::string& dat
   Instruction instr("softmax", {a});
   instr.SetAttr("axis", axis);
   instr.SetAttr("data_format", data_format);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
 
 Variable NetBuilder::sigmoid(const Variable& a) {
   Instruction instr("sigmoid", {a});
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -178,6 +192,7 @@ Variable NetBuilder::slice(const Variable& a,
   instr.SetAttr("ends", ends);
   instr.SetAttr("infer_flags", infer_flags);
   instr.SetAttr("decrease_axis", decrease_axis);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
@@ -186,6 +201,7 @@ Variable NetBuilder::dropout_infer(const Variable& a, float dropout_prob, const 
   Instruction instr("dropout_infer", {a});
   instr.SetAttr("dropout_prob", dropout_prob);
   instr.SetAttr("dropout_implementation", dropout_implementation);
+  InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
