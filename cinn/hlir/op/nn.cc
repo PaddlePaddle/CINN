@@ -1,5 +1,6 @@
-#include <functional>
 #include "cinn/hlir/pe/nn.h"
+
+#include <functional>
 
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
@@ -1803,7 +1804,7 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
   // get axis[0, n_dim)
   std::vector<int> axis;
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
-    axis = std::get<std::vector<int>>(attrs.attr_store.at("axis"));
+    axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
     CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
     for (auto &e : axis) {
       if (e >= output_shapes[0].size() || e < 0) {
@@ -1864,7 +1865,6 @@ std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<fram
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
-
 
 CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(relu)
@@ -2047,10 +2047,10 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_num_inputs(1)
       .set_num_outputs(1)
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReverse)
-      .set_attr("infershape", std::function(cinn::hlir::op::InferShapeForRelu))
-      .set_attr("inferdtype", std::function(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", std::function(cinn::hlir::op::InferLayoutForUnary))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
