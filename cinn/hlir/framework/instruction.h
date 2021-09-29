@@ -58,7 +58,16 @@ class Instruction {
     auto& pod_args = PreparePodArgs(0);
     // Here conv2d and depthwise_conv2d are implemented by one cudnn api cudnnConvolutionForward
     if ((function_name_ == "conv2d" || function_name_ == "depthwise_conv2d") && target_.arch == Target::Arch::NVGPU) {
-      runtime::cuda::cinn_gpu_cudnn_conv2d(attrs, pod_args[0], pod_args[1], pod_args[2]);
+      if (str_attrs[0] == "forward") {
+        // input weight output
+        runtime::cuda::cinn_gpu_cudnn_conv2d(attrs, pod_args[0], pod_args[1], pod_args[2]);
+      } else if (str_attrs[0] == "backward_data") {
+        // weight dy dx
+        runtime::cuda::cinn_gpu_cudnn_conv2d_backward_data(attrs, pod_args[0], pod_args[1], pod_args[2]);
+      } else {
+        // input dy dx
+        runtime::cuda::cinn_gpu_cudnn_conv2d_backward_filter(attrs, pod_args[0], pod_args[1], pod_args[2]);
+      }
     } else if (function_name_ == "pool2d" && target_.arch == Target::Arch::NVGPU) {
       runtime::cuda::cinn_gpu_cudnn_pool2d(attrs, str_attrs, pod_args[0], pod_args[1]);
     } else if (function_name_ == "softmax" && target_.arch == Target::Arch::NVGPU) {

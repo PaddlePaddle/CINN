@@ -86,6 +86,16 @@ void cinn_gpu_cudnn_conv2d(const std::vector<int>& attrs,
                            cinn_buffer_t* weights,
                            cinn_buffer_t* output);
 
+void cinn_gpu_cudnn_conv2d_backward_data(const std::vector<int>& attrs,
+                                         cinn_buffer_t* dy,
+                                         cinn_buffer_t* w,
+                                         cinn_buffer_t* dx);
+
+void cinn_gpu_cudnn_conv2d_backward_filter(const std::vector<int>& attrs,
+                                           cinn_buffer_t* dy,
+                                           cinn_buffer_t* x,
+                                           cinn_buffer_t* dw);
+
 void cinn_gpu_cudnn_pool2d(const std::vector<int>& attrs,
                            const std::vector<std::string>& str_attrs,
                            cinn_buffer_t* input,

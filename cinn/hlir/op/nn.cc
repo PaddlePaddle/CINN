@@ -338,6 +338,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   std::vector<int> stride({1, 1});
   std::vector<int> dilation({1, 1});
   std::string data_format = "NCHW";
+  std::string conv_type   = "";
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
     padding = std::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
@@ -350,17 +351,41 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
     data_format = std::get<std::string>(attrs.attr_store.at("data_format"));
   }
+  if (attrs.attr_store.find("conv_type") != attrs.attr_store.end()) {
+    conv_type = std::get<std::string>(attrs.attr_store.at("conv_type"));
+  } else {
+    conv_type = "forward";
+  }
+
   CHECK_EQ(padding.size(), 2) << "The size of padding in conv2d op is not 2! Please check.";
   CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
   CHECK_GE(inputs_shape[0].size(), 3) << "The first input tensor's shape size of conv2d op is < 3! Please check.";
+  CHECK(conv_type == "forward" || conv_type == "backward_data" || conv_type == "backward_filter")
+      << "The conv type should be one of {forward, backward_data, backward_filter}.";
 
   std::vector<shape_t> res;
   if (data_format == "NCHW") {
     // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
-    int out_shape_h =
-        (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
-    int out_shape_w =
-        (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
+    int out_shape_h = 0, out_shape_w = 0;
+    if (conv_type == "forward") {
+      out_shape_h =
+          (inputs_shape[0][2] - ((inputs_shape[1][2] - 1) * dilation[0] + 1) + 2 * padding[0]) / stride[0] + 1;
+      out_shape_w =
+          (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
+    } else if (conv_type == "backward_data") {
+      out_shape_h =
+          (inputs_shape[0][2] - 1) * stride[0] - 2 * padding[0] + ((inputs_shape[1][2] - 1) * dilation[0] + 1);
+      out_shape_w =
+          (inputs_shape[0][3] - 1) * stride[0] - 2 * padding[0] + ((inputs_shape[1][3] - 1) * dilation[1] + 1);
+    } else if (conv_type == "backward_filter") {
+      CHECK(attrs.attr_store.find("filter_shape") != attrs.attr_store.end())
+          << "The shape of filter is not found! Please check.";
+      auto filter_shape = std::get<std::vector<int>>(attrs.attr_store.at("filter_shape"));
+      CHECK_EQ(filter_shape.size(), 2) << "The size of filter shape is not 2(fh,fw)!Please check";
+      out_shape_h = filter_shape[0];
+      out_shape_w = filter_shape[1];
+    }
+
     res = {{inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
 
     std::unordered_map<std::string, int> conv2d_factors;
@@ -392,7 +417,16 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
     std::vector<int> weights_dilation_shape = {
         oc_chunk, fc_chunk, dilation[0] * (h_f - 1) + 1, dilation[1] * (w_f - 1) + 1, fc_bn, oc_bn};
     std::vector<int> data_shape = {batch, ic_chunk, h_in, w_in, ic_bn};
-    std::vector<int> res_shape  = {batch, oc, out_shape_h, out_shape_w};
+
+    // output shape
+    std::vector<int> res_shape = {};
+    if (conv_type == "forward") {
+      res_shape = {batch, oc, out_shape_h, out_shape_w};
+    } else if (conv_type == "backward_data") {
+      res_shape = {batch, inputs_shape[1][1], out_shape_h, out_shape_w};
+    } else if (conv_type == "backward_filter") {
+      res_shape = {inputs_shape[0][1], inputs_shape[1][1], out_shape_h, out_shape_w};
+    }
 #ifdef CINN_WITH_CUDA
     return {res_shape};
 #else

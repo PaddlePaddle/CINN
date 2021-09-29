@@ -118,7 +118,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   return func;
 }
 
-// get the most complex op's index in the fused groups according to the OpPattern. If the OpPattern is same, we will take the latter.
+// get the most complex op's index in the fused groups according to the OpPattern. If the OpPattern is same, we will
+// take the latter.
 int GetMasterRefNode(const std::vector<Node*>& nodes) {
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   int master_index      = 0;
@@ -384,11 +385,13 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       if (target_.arch == Target::Arch::NVGPU) {
         if (node->op()->name == "conv2d") {
           auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          // input/kernel shape
           for (auto& in_node : node->inlinks_in_order()) {
             std::string in_id = in_node->source()->safe_as<NodeData>()->id();
             auto in_shape     = shape_dict.at(in_id);
             instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
           }
+          // padding stride dilation  group
           AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
           if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
             auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
@@ -396,19 +399,26 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           } else {
             instr->attrs.push_back(1);
           }
+          // output shape
           CHECK(!node->outlinks_in_order().empty());
           auto& out_node     = node->outlinks_in_order().front();
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           CHECK_EQ(instr->attrs.size(), 19UL);
+          // conv type {forward, backward_data, backward_filter}
+          CHECK(node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end());
+          auto type = std::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          instr->str_attrs.push_back(type);
         } else if (node->op()->name == "depthwise_conv2d") {
           auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
+          // input shape/weght shape
           for (auto& in_node : node->inlinks_in_order()) {
             std::string in_id = in_node->source()->safe_as<NodeData>()->id();
             auto in_shape     = shape_dict.at(in_id);
             instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
           }
+          // conv
           AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
           if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
             auto groups = std::get<int>(node->attrs.attr_store.at("groups"));
@@ -416,12 +426,17 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           } else {
             instr->attrs.push_back(instr->attrs[1]);
           }
+          // output shape
           CHECK(!node->outlinks_in_order().empty());
           auto& out_node     = node->outlinks_in_order().front();
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           CHECK_EQ(instr->attrs.size(), 19UL);
+          // conv type {forward, backward_data, backward_filter}
+          CHECK(node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end());
+          auto type = std::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          instr->str_attrs.push_back(type);
         } else if (node->op()->name == "pool2d") {
           auto& shape_dict = graph_->GetAttrs<std::unordered_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
