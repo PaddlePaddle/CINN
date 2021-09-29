@@ -17,28 +17,6 @@ namespace cinn {
 namespace frontend {
 namespace utils {
 
-inline void MoveData(float* data, int i, int M, int N) {
-  float temp = data[i];
-  int cur    = i;  // current data index
-  int pre    = (cur % M) * N + cur / M;
-  while (pre != i) {
-    data[cur] = data[pre];
-    cur       = pre;
-    pre       = (cur % M) * N + cur / M;
-  }
-  data[cur] = temp;
-}
-
-inline void TransposeData(float* data, int M, int N) {
-  for (int i = 0; i < M * N; i++) {
-    int next = (i % N) * M + i / N;
-    while (next > i)  // next < 1 implies duplicate
-      next = (next % N) * M + next / N;
-    if (next == i)  // process current ring
-      MoveData(data, i, M, N);
-  }
-}
-
 inline void AddVar(const std::string& name, const Variable& var, const OpMapperContext& ctx, bool replace = false) {
   CheckVarNameValid(name);
   if (replace == false) {
