@@ -5,6 +5,7 @@ core_gather_srcs(SRCS
     broadcast.cc
     transform.cc
     elementwise.cc
+    reduction.cc
     op_util.cc
     )
 

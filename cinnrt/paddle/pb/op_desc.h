@@ -1,6 +1,6 @@
 #pragma once
 #include <glog/logging.h>
-#include <variant>
+#include <absl/types/variant.h>
 
 #include "cinnrt/paddle/cpp/desc_api.h"
 #include "cinnrt/paddle/framework.pb.h"
@@ -9,7 +9,7 @@ namespace cinnrt::paddle::pb {
 
 namespace framework_proto = ::paddle::framework::proto;
 
-using Attribute       = std::variant<int, float, bool, std::vector<std::string>, std::vector<int>>;
+using Attribute       = absl::variant<int, float, bool, std::vector<std::string>, std::vector<int>>;
 using VariableNameMap = std::map<std::string, std::vector<std::string>>;
 
 /*

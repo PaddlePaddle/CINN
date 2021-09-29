@@ -103,7 +103,7 @@ Tensor DoReduce(const Tensor& tensor,
                 const std::vector<Expr>& output_shape,
                 const std::vector<int>& real_axes,
                 const std::vector<int>& squeeze_axes,
-                const ir::Expr& initial,
+                Expr initial,
                 const std::string& output_name) {
   std::vector<Var> reduce_axes;
   for (auto& axis : real_axes) {
@@ -149,7 +149,7 @@ Tensor Reduce(const Tensor& tensor,
               const std::vector<int>& axes,
               const FuncOp& fn,
               bool keep_dims,
-              const ir::Expr& initial,
+              ir::Expr initial,
               const std::string& output_name) {
   auto ndim = tensor->shape.size();
   CHECK_NE(ndim, 0) << "Reduce tensor's dim must be more than 0";
@@ -161,27 +161,29 @@ Tensor Reduce(const Tensor& tensor,
       tensor, fn, output_shapes, real_axes, keep_dims ? std::vector<int>() : real_axes, initial, output_name);
 }
 
-Tensor ReduceSum(const Tensor& A,
-                 const std::vector<int>& axes,
-                 bool keep_dims,
-                 const ir::Expr& initial,
-                 const std::string& output_name) {
+Tensor ReduceSum(
+    const Tensor& A, const std::vector<int>& axes, bool keep_dims, ir::Expr initial, const std::string& output_name) {
+  if (!initial.defined()) {
+    initial = common::make_const(A->type(), 0);
+  }
   return Reduce(A, axes, lang::ReduceSum, keep_dims, initial, output_name);
 }
 
-Tensor ReduceProd(const Tensor& A,
-                  const std::vector<int>& axes,
-                  bool keep_dims,
-                  const ir::Expr& initial,
-                  const std::string& output_name) {
+Tensor ReduceProd(
+    const Tensor& A, const std::vector<int>& axes, bool keep_dims, ir::Expr initial, const std::string& output_name) {
+  if (!initial.defined()) {
+    initial = common::make_const(A->type(), 1);
+  }
   return Reduce(A, axes, lang::ReduceMul, keep_dims, initial, output_name);
 }
 
-Tensor ReduceMax(const Tensor& A, const std::vector<int>& axes, bool keep_dims, const std::string& output_name) {
+Tensor ReduceMax(
+    const Tensor& A, const std::vector<int>& axes, bool keep_dims, Expr initial, const std::string& output_name) {
   return Reduce(A, axes, lang::ReduceMax, keep_dims, Expr(), output_name);
 }
 
-Tensor ReduceMin(const Tensor& A, const std::vector<int>& axes, bool keep_dims, const std::string& output_name) {
+Tensor ReduceMin(
+    const Tensor& A, const std::vector<int>& axes, bool keep_dims, Expr initial, const std::string& output_name) {
   return Reduce(A, axes, lang::ReduceMin, keep_dims, Expr(), output_name);
 }
 

@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <vector>
 
 #include "cinn/cinn.h"
@@ -37,7 +37,7 @@ class Schedule : public common::Object {
   std::vector<poly::Stage> stages;
 
   //! map of original operation to the stages
-  std::unordered_map<std::string, ir::Tensor> stage_map;
+  absl::flat_hash_map<std::string, ir::Tensor> stage_map;
 
  private:
   static constexpr char* __type_info__ = "CINNSchedule";

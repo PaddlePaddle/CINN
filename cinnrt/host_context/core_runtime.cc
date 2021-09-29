@@ -1,7 +1,7 @@
 #include "cinnrt/host_context/core_runtime.h"
 
 #include <string>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <vector>
 
 #include "cinnrt/host_context/kernel_registry.h"
@@ -39,7 +39,7 @@ CoreRuntimeBuilder::CoreRuntimeBuilder(KernelRegistry* kernel_registry) : CoreRu
   impl_->kernel_registry = kernel_registry ? kernel_registry : GetCpuKernelRegistry();
 }
 
-OpExecutableBuilder* CoreRuntimeBuilder::NewOpExecutable(std::string_view op_name) {
+OpExecutableBuilder* CoreRuntimeBuilder::NewOpExecutable(absl::string_view op_name) {
   CHECK(impl_.get());
   impl_->op_executables.emplace_back(op_name, symbol_table(), impl_->kernel_registry);
   return &impl_->op_executables.back();
@@ -56,7 +56,7 @@ void CoreRuntimeBuilder::SetKernelRegistry(KernelRegistry* x) {
   impl_->kernel_registry = x;
 }
 
-llvm::SmallVector<ValueRef, 4> CoreRuntime::GetResults(llvm::ArrayRef<std::string_view> arg_names) {
+llvm::SmallVector<ValueRef, 4> CoreRuntime::GetResults(llvm::ArrayRef<absl::string_view> arg_names) {
   llvm::SmallVector<ValueRef, 4> results;
   for (auto& name : arg_names) {
     results.push_back(ValueRef(symbol_table()->GetValue(name)));

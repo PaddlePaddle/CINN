@@ -21,9 +21,10 @@
 
 #include <functional>
 #include <memory>
-#include <string_view>
 #include <utility>
 #include <vector>
+
+#include <absl/strings/string_view.h>
 
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/llvm_util.h"
@@ -49,7 +50,7 @@ class SimpleJIT {
 
   void Link(llvm::orc::ThreadSafeModule m, bool optimize = true) { llvm::cantFail(jit_->addIRModule(std::move(m))); }
 
-  llvm::JITTargetAddress Lookup(std::string_view name) {
+  llvm::JITTargetAddress Lookup(absl::string_view name) {
     return llvm::cantFail(jit_->lookup(AsStringRef(name))).getAddress();
   }
 

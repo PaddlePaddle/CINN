@@ -73,7 +73,7 @@ void PaddleModelToProgram::AddOpMapper_scale() {
       CHECK_EQ(op_desc.Input("ScaleTensor").size(), 1UL);
       auto* scale_tensor_var = scope_->FindVar(op_desc.Input("ScaleTensor").front());
       CHECK(scale_tensor_var) << "No scale tensor found in the scope";
-      auto& scale_tensor = std::get<hlir::framework::Tensor>(*scale_tensor_var);
+      auto& scale_tensor = absl::get<hlir::framework::Tensor>(*scale_tensor_var);
       scale              = scale_tensor->mutable_data<float>(common::DefaultHostTarget())[0];
     }
     if (op_desc.HasAttr("bias")) {  // the old model format
@@ -81,7 +81,7 @@ void PaddleModelToProgram::AddOpMapper_scale() {
     } else {
       LOG(FATAL) << "Didn't find [bias] attr in Scale operator!!";
     }
-    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     attrs["scale"] = scale;
     attrs["bias"]  = bias;
     auto out       = program_->scale(x, attrs);
@@ -116,6 +116,60 @@ void PaddleModelToProgram::AddOpMapper_mul() {
   };
 }
 
+void PaddleModelToProgram::AddOpMapper_matmul() {
+  op_mappers_["matmul"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);
+    auto x_name = op_desc.Input("X").front();
+    CHECK_EQ(op_desc.Input("Y").size(), 1UL);
+    auto y_name  = op_desc.Input("Y").front();
+    auto x       = GetVar(utils::TransValidVarName(x_name));
+    auto y       = GetVar(utils::TransValidVarName(y_name));
+    bool trans_a = op_desc.GetAttr<bool>("transpose_X");
+    bool trans_b = op_desc.GetAttr<bool>("transpose_Y");
+    float alpha  = op_desc.GetAttr<float>("alpha");
+    VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
+    VLOG(4) << "y shape: " << utils::Join(y->shape, ",");
+    auto out = program_->matmul(x, y, trans_a, trans_b, alpha);
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+    AddVar(utils::TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_reshape2() {
+  op_mappers_["reshape2"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);
+    auto x_name            = op_desc.Input("X").front();
+    auto x                 = GetVar(utils::TransValidVarName(x_name));
+    std::vector<int> shape = op_desc.GetAttr<std::vector<int>>("shape");
+    VLOG(4) << "x shape: " << utils::Join(x->shape, ",");
+    auto out = program_->reshape(x, shape);
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+    AddVar(utils::TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_concat() {
+  op_mappers_["concat"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    // now only supports case: input tensor number is 2 .
+    CHECK_EQ(op_desc.Input("X").size(), 2UL);
+    auto x_name = op_desc.Input("X")[0];
+    auto x      = GetVar(utils::TransValidVarName(x_name));
+    auto y_name = op_desc.Input("X")[1];
+    auto y      = GetVar(utils::TransValidVarName(y_name));
+    int axis    = op_desc.GetAttr<int>("axis");
+    VLOG(4) << "axis in op concat is : " << axis;
+    auto out = program_->concat(x, y, axis);
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+    AddVar(utils::TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
 void PaddleModelToProgram::AddOpMapper_relu() {
   op_mappers_["relu"] = [&](const paddle::cpp::OpDesc& op_desc) {
     CHECK_EQ(op_desc.Input("X").size(), 1UL);
@@ -137,7 +191,7 @@ void PaddleModelToProgram::AddOpMapper_softmax() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
 
-    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     if (op_desc.HasAttr("axis")) {
       attrs["axis"] = op_desc.GetAttr<int>("axis");
     } else {
@@ -195,7 +249,7 @@ void PaddleModelToProgram::AddOpMapper_relu6() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
 
-    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("threshold"));
     CHECK_EQ(op_desc.GetAttr<float>("threshold"), 6.0f) << "Threshold of Relu6 is not 6! To be implemented.";
     attrs["threshold"] = op_desc.GetAttr<float>("threshold");
@@ -221,7 +275,7 @@ void PaddleModelToProgram::AddOpMapper_depthwise_conv2d() {
     CHECK_EQ(op_desc.Output("Output").size(), 1UL);
     auto out_name = op_desc.Output("Output").front();
 
-    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("paddings"));
     attrs["padding"] = op_desc.GetAttr<std::vector<int>>("paddings");
     CHECK(op_desc.HasAttr("strides"));
@@ -264,7 +318,7 @@ void PaddleModelToProgram::AddOpMapper_conv2d() {
     CHECK_EQ(op_desc.Output("Output").size(), 1UL);
     auto out_name = op_desc.Output("Output").front();
 
-    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("paddings"));
     attrs["padding"] = op_desc.GetAttr<std::vector<int>>("paddings");
     CHECK(op_desc.HasAttr("strides"));
@@ -295,7 +349,7 @@ void PaddleModelToProgram::AddOpMapper_pool2d() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
 
-    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("pooling_type"));
     attrs["pool_type"] = op_desc.GetAttr<std::string>("pooling_type");
     CHECK(op_desc.HasAttr("ksize"));
@@ -318,6 +372,8 @@ void PaddleModelToProgram::AddOpMapper_pool2d() {
     attrs["data_format"] = op_desc.GetAttr<std::string>("data_format");
     CHECK(op_desc.HasAttr("global_pooling"));
     attrs["global_pooling"] = op_desc.GetAttr<bool>("global_pooling");
+    CHECK(op_desc.HasAttr("adaptive"));
+    attrs["adaptive"] = op_desc.GetAttr<bool>("adaptive");
 
     auto x   = GetVar(TransValidVarName(x_name));
     auto out = program_->pool2d(x, attrs);
@@ -342,7 +398,7 @@ void PaddleModelToProgram::AddOpMapper_batchnorm() {
     CHECK(!op_desc.Output("Y").empty());
     auto out_name = op_desc.Output("Y").front();
 
-    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("epsilon"));
     attrs["epsilon"] = op_desc.GetAttr<float>("epsilon");
     auto x           = GetVar(TransValidVarName(x_name));
@@ -379,7 +435,7 @@ void PaddleModelToProgram::AddOpMapper_slice() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
 
-    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("starts"));
     attrs["starts"] = op_desc.GetAttr<std::vector<int>>("starts");
     CHECK(op_desc.HasAttr("ends"));
@@ -401,7 +457,7 @@ void PaddleModelToProgram::AddOpMapper_dropout_infer() {
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
 
-    std::unordered_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
+    absl::flat_hash_map<std::string, hlir::framework::NodeAttr::attr_t> attrs;
     CHECK(op_desc.HasAttr("dropout_prob"));
     attrs["dropout_prob"] = op_desc.GetAttr<float>("dropout_prob");
     CHECK(op_desc.HasAttr("dropout_implementation"));
@@ -429,7 +485,7 @@ void PaddleModelToProgram::TransposeVar(const std::string& name) {
   CheckVarNameValid(name);
   auto* var = scope_->FindVar(name);
   if (var) {
-    auto& tensor = std::get<hlir::framework::Tensor>(*var);
+    auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     if (target_.arch == Target::Arch::X86) {
       float* data = tensor->mutable_data<float>(target_);
       CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
@@ -475,7 +531,7 @@ void PaddleModelToProgram::ReverseHWVar(const std::string& name) {
   CheckVarNameValid(name);
   auto* var = scope_->FindVar(name);
   if (var) {
-    auto& tensor = std::get<hlir::framework::Tensor>(*var);
+    auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     if (target_.arch == Target::Arch::X86) {
       float* data = tensor->mutable_data<float>(target_);
       CHECK(tensor->shape().size() == 4) << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
@@ -512,7 +568,7 @@ Variable PaddleModelToProgram::GetVar(const std::string& name) {
 
   auto* var = scope_->FindVar(name);
   if (var) {
-    auto& tensor = std::get<hlir::framework::Tensor>(*var);
+    auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     Variable var;
     var.set_id(name);
     var->shape = tensor->shape().data();

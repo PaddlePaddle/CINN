@@ -1,3 +1,4 @@
+#include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/instruction.h"
 
 #include <gtest/gtest.h>
@@ -42,7 +43,7 @@ TEST(Instruction, basic) {
 
   auto get_tensor = [&](const std::string& name) {
     auto* var    = scope.Var<Tensor>(name);
-    auto& tensor = std::get<Tensor>(*var);
+    auto& tensor = absl::get<Tensor>(*var);
     return tensor;
   };
 

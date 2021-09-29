@@ -19,9 +19,9 @@ namespace cinn {
 namespace common {
 using namespace ir;  // NOLINT
 
-Expr AutoSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var_intervals) {
+Expr AutoSimplify(Expr u, const absl::flat_hash_map<std::string, CasInterval>& var_intervals) {
   u = detail::ConvertCinnToCAS(u);
-  std::unordered_map<std::string, CasInterval> s_var_intervals;
+  absl::flat_hash_map<std::string, CasInterval> s_var_intervals;
   for (auto& item : var_intervals) {
     if (item.second.e_l.defined() && item.second.e_r.defined()) {
       Expr e_l = detail::ConvertCinnToCAS(item.second.e_l);
@@ -1819,7 +1819,7 @@ bool IsMonotonical(Expr u, Var v) {
 
 // Should be called after SimplifyFracOp. If y is integer and $y\in \[0, 3\]$, then y/4=0
 Expr CasSimplifyMutator::FurtherSimplifyFracWithInterval(
-    Expr expr, const std::unordered_map<std::string, CasInterval>& var_intervals) {
+    Expr expr, const absl::flat_hash_map<std::string, CasInterval>& var_intervals) {
   auto* node = expr.As<FracOp>();
   if (!node) return expr;
   auto a = CasSimplify(node->a(), var_intervals);
@@ -2135,7 +2135,7 @@ Expr CasSimplifyMutator::SimplifyCond(Expr u) {
 
 }  // namespace detail
 
-Expr CasSimplify(Expr u, const std::unordered_map<std::string, CasInterval>& var_intervals) {
+Expr CasSimplify(Expr u, const absl::flat_hash_map<std::string, CasInterval>& var_intervals) {
   return detail::CasSimplifyMutator(var_intervals)(u);
 }
 
@@ -2163,7 +2163,9 @@ Expr SolveInequality(Expr inequality, Var val) {
 
   // if (common::IsPureMath(a) && common::IsPureMath(b)) {
   if (true) {
-    auto [res, positive] = common::Solve(a, b, val);  // NOLINT
+    auto _res_positive_ = common::Solve(a, b, val);  // NOLINT
+    auto &res = std::get<0>(_res_positive_);
+    auto &positive = std::get<1>(_res_positive_);
     // Simplify it with CAS to avoid random result from GiNac.
     res = AutoSimplify(res);
     res = common::cast(res, val->type());

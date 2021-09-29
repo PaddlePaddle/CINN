@@ -21,7 +21,7 @@ using framework::Operator;
 using framework::OpPatternKind;
 
 auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
-std::unordered_map<std::string, framework::shape_t> shape_dict;
+absl::flat_hash_map<std::string, framework::shape_t> shape_dict;
 
 struct DomNode {
   GraphNode* ref_node{nullptr};
@@ -32,7 +32,7 @@ struct DomNode {
 
 void GetBroadcastPattern(Node* op_node,
                          OpPatternKind* pattern,
-                         const std::unordered_map<std::string, framework::shape_t>& shape_dict) {
+                         const absl::flat_hash_map<std::string, framework::shape_t>& shape_dict) {
   if (*pattern == framework::kBroadcast) {
     auto inlinks  = op_node->inlinks();
     auto outlinks = op_node->outlinks();
@@ -434,7 +434,7 @@ class GraphPartition {
   void SplitGroups(const std::vector<common::GraphNode*>& graph_nodes) {
     // split groups sorted by topo order
     CHECK_EQ(graph_nodes.size(), group_nodes_.size());
-    std::unordered_map<int, std::vector<Node*>> group_maps;
+    absl::flat_hash_map<int, std::vector<Node*>> group_maps;
     std::set<int> root_indice;
     for (int i = 0; i < graph_nodes.size(); i++) {
       CHECK(graph_nodes[i]);
@@ -460,7 +460,7 @@ class GraphPartition {
 };
 
 void OpFusionPass(Graph* graph) {
-  shape_dict       = graph->GetMutableAttrs<std::unordered_map<std::string, framework::shape_t>>("infershape");
+  shape_dict       = graph->GetMutableAttrs<absl::flat_hash_map<std::string, framework::shape_t>>("infershape");
   auto store_nodes = std::get<0>(graph->topological_order());
   int node_size    = store_nodes.size();
   // construct postdom tree, reverse topological_order
