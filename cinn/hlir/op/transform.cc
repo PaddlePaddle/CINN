@@ -953,12 +953,11 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
 }
 
 std::vector<framework::shape_t> InferShapeForReverse(const std::vector<framework::shape_t> &inputs_shape,
-                                                     framework::NodeAttr &attrs,
-                                                     const Target &target) {
+                                                     const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<framework::shape_t> res{inputs_shape[0]};
-  if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
-    auto axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
+  if (attrs.find("axis") != attrs.end()) {
+    auto axis = absl::get<std::vector<int>>(attrs.at("axis"));
     CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
     for (auto &e : axis) {
       if (e >= inputs_shape[0].size() || e < -1 * static_cast<int>(inputs_shape[0].size())) {

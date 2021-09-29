@@ -1810,8 +1810,7 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
 }
 
 std::vector<framework::shape_t> InferShapeForSelect(const std::vector<framework::shape_t> &inputs_shape,
-                                                    framework::NodeAttr &attrs,
-                                                    const Target &target) {
+                                                    const framework::AttrMapType &attrs) {
   CHECK_GE(inputs_shape.size(), 3) << "The input's shape size is 0! Please check again.";
   CHECK(inputs_shape[0].size() == inputs_shape[1].size() && inputs_shape[1].size() == inputs_shape[2].size())
       << "input tensors n_dim is not equal!";
@@ -1821,9 +1820,7 @@ std::vector<framework::shape_t> InferShapeForSelect(const std::vector<framework:
   return res;
 }
 
-std::vector<Type> InferDtypeForSelect(const std::vector<Type> &inputs_type,
-                                      const framework::NodeAttr &attrs,
-                                      const Target &target) {
+std::vector<Type> InferDtypeForSelect(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK_GE(inputs_type.size(), 3) << "The input's type size is less than three! Please check again.";
   CHECK(inputs_type[0].is_bool()) << "The condition tensor type should be bool";
   std::vector<Type> res{inputs_type[1]};
