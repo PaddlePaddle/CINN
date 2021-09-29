@@ -1,6 +1,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 
 #include <absl/container/flat_hash_map.h>
+
 #include <unordered_set>
 
 #include "cinn/backends/codegen_cuda_dev.h"
@@ -39,8 +40,8 @@ void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
 
 void GraphCompiler::PrintFunc() {
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
@@ -52,8 +53,8 @@ void GraphCompiler::PrintFunc() {
 
 std::string GraphCompiler::GenSourceCode() {
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
@@ -336,10 +337,10 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
 
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
-  auto& groups        = graph_->groups;
+  auto& groups = graph_->groups;
 
   if (!groups.empty()) {
     for (int i = 0; i < groups.size(); i++) {
@@ -385,10 +386,10 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   std::vector<std::unique_ptr<Instruction>> instructions;
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
-  auto& groups        = graph_->groups;
+  auto& groups = graph_->groups;
   for (auto& group : groups) {
     if (group.size() == 1) {
       auto node  = group[0];
@@ -418,8 +419,10 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           CHECK_EQ(instr->attrs.size(), 19UL);
           // conv type {forward, backward_data, backward_filter}
-          CHECK(node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end());
-          auto type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          std::string type = "forward";
+          if (node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end()) {
+            type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          }
           instr->str_attrs.push_back(type);
         } else if (node->op()->name == "depthwise_conv2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
@@ -444,8 +447,10 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           CHECK_EQ(instr->attrs.size(), 19UL);
           // conv type {forward, backward_data, backward_filter}
-          CHECK(node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end());
-          auto type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          std::string type = "forward";
+          if (node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end()) {
+            type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          }
           instr->str_attrs.push_back(type);
         } else if (node->op()->name == "pool2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
