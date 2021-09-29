@@ -1006,6 +1006,21 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
   }
 }
 
+ir::Tensor Select(const ir::Tensor &condition,
+                  const ir::Tensor &true_value,
+                  const ir::Tensor &false_value,
+                  const std::string &output_name) {
+  CHECK(condition->type().is_bool()) << "The condtion tensor type should be bool!";
+  CHECK(condition->shape == true_value->shape && true_value->shape == false_value->shape)
+      << "The input tensor shape is not equal!";
+  return lang::Compute(
+      condition->shape,
+      [=](const std::vector<Expr> &indice) {
+        return common::select(condition(indice), true_value(indice), false_value(indice));
+      },
+      output_name);
+}
+
 }  // namespace pe
 }  // namespace hlir
 }  // namespace cinn
