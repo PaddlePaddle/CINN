@@ -54,8 +54,7 @@ int Target::get_target_bits() const {
 std::string Target::arch_str() const {
   std::ostringstream oss;
   oss << arch;
-  std::string arch_str = oss.str();
-  return arch_str;
+  return oss.str();
 }
 
 std::ostream &operator<<(std::ostream &os, const Target &target) {
