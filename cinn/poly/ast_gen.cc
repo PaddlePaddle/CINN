@@ -65,7 +65,10 @@ isl::set TransIdentityExtentToContextId(isl::set set) {
   std::vector<std::tuple<int, int>> iden_dim_offsets;
   for (int i = 0; i < isl_set_dim(set.get(), isl_dim_set); i++) {
     if (isl_set_axis_has_noparam_constant_bound(set.get(), i)) {
-      auto [minv, maxv] = isl_set_get_axis_range(set.get(), i);
+      auto range = isl_set_get_axis_range(set.get(), i);
+      auto &minv = std::get<0>(range);
+      auto &maxv = std::get<1>(range);
+
       int min_iv        = minv.get_num_si();
       int max_iv        = maxv.get_num_si();
       if (max_iv == min_iv) {
@@ -75,7 +78,9 @@ isl::set TransIdentityExtentToContextId(isl::set set) {
   }
 
   isl::set res_set = set;
-  for (auto [offset, val] : iden_dim_offsets) {
+  for (auto offset_val : iden_dim_offsets) {
+    auto &offset = std::get<0>(offset_val);
+    auto &val = std::get<1>(offset_val);
     res_set = isl::manage(isl_set_drop_constraints_involving_dims(res_set.copy(), isl_dim_set, offset, 1));
 
     std::string const_param_name = llvm::formatv("{0}{1}", kIslParamConstPrefix, val);

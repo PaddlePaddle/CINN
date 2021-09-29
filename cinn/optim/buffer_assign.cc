@@ -84,7 +84,9 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
   // determine which tensor to have the initial buffer, and will share accross the cluser, we take a topological order
   // of the computational graph, and find out which tensor comes first in a cluster.
 
-  auto [topo_order, topo_edges] = comp_graph->topological_order();
+  auto _topo_order_topo_edges_ = comp_graph->topological_order();
+  auto &topo_order = std::get<0>(_topo_order_topo_edges_);
+  auto &topo_edges = std::get<1>(_topo_order_topo_edges_);
   for (common::GraphNode* n : topo_order) {
     auto nn = n->safe_as<lang::detail::CompuGraphNode>();
     CHECK(nn);

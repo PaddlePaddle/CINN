@@ -157,7 +157,7 @@ void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs,
 
   float *out_data = reinterpret_cast<float *>(output->memory);
 
-  std::unordered_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
+  absl::flat_hash_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
 
   std::string hash_str = std::to_string(input_n) + "," + std::to_string(input_c) + "," + std::to_string(input_h) + "," +
                          std::to_string(input_w) + "," + std::to_string(weights_n) + "," + std::to_string(weights_c) +
@@ -207,7 +207,7 @@ void cinn_gpu_cudnn_pool2d(const std::vector<int> &attrs,
                            cinn_buffer_t *input,
                            cinn_buffer_t *output) {
   cudnnHandle_t &cudnn = CudnnHandle::get_instance().GetCudnnHandle();
-  CHECK_EQ(attrs.size(), 16);
+  CHECK_EQ(attrs.size(), 17);
   // Here the input paddings are pad_top, pad_bottom, pad_left, pad_right.
   // Since pad_top==pad_bottom and pad_left==pad_rifht, we only take pad_top and pad_left.
   int input_n           = attrs[0];
@@ -224,6 +224,7 @@ void cinn_gpu_cudnn_pool2d(const std::vector<int> &attrs,
   int output_c          = attrs[13];
   int output_h          = attrs[14];
   int output_w          = attrs[15];
+  int adaptive          = attrs[16];
   std::string pool_type = str_attrs[0];
   cudnnPoolingDescriptor_t pooling_desc;
   CUDNN_CALL(cudnnCreatePoolingDescriptor(&pooling_desc));
@@ -234,6 +235,12 @@ void cinn_gpu_cudnn_pool2d(const std::vector<int> &attrs,
     pool_mode = CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
   } else {
     LOG(ERROR) << "Unrecognized pool_type: " << pool_type;
+  }
+  if (adaptive == 1) {
+    stride_h = input_h / output_h;
+    stride_w = input_w / output_w;
+    kernel_h = input_h - (output_h - 1) * stride_h;
+    kernel_w = input_w - (output_w - 1) * stride_w;
   }
 
   CUDNN_CALL(cudnnSetPooling2dDescriptor(

@@ -1,9 +1,12 @@
 #pragma once
 #include <memory>
 #include <string>
-#include <unordered_map>
-#include <variant>
+#include <absl/container/flat_hash_map.h>
 #include <vector>
+
+#include <absl/types/any.h>
+#include <absl/types/variant.h>
+#include <absl/strings/string_view.h>
 
 #include "cinn/common/macros.h"
 #include "cinn/hlir/framework/tensor.h"
@@ -12,7 +15,7 @@ namespace cinn {
 namespace hlir {
 namespace framework {
 
-using Variable = std::variant<Tensor>;
+using Variable = absl::variant<Tensor>;
 
 struct _Tensor_;
 
@@ -30,12 +33,12 @@ class Scope {
   Tensor GetTensor(const std::string& name) const;
 
   //! Get variable names.
-  std::vector<std::string_view> var_names() const;
+  std::vector<absl::string_view> var_names() const;
 
   Scope() = default;
 
  private:
-  std::unordered_map<std::string, std::unique_ptr<Variable>> data_;
+  absl::flat_hash_map<std::string, std::unique_ptr<Variable>> data_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Scope);
 };

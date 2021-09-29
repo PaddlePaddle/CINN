@@ -1,5 +1,5 @@
 #pragma once
-#include <variant>
+#include <absl/types/variant.h>
 
 #include "cinn/frontend/paddle/cpp/op_desc.h"
 #include "cinn/frontend/paddle/framework.pb.h"
@@ -8,7 +8,7 @@ namespace cinn::frontend::paddle::pb {
 
 namespace framework_proto = ::paddle::framework::proto;
 
-using Attribute       = std::variant<int, float, bool, std::vector<std::string>, std::vector<int>>;
+using Attribute       = absl::variant<int, float, bool, std::vector<std::string>, std::vector<int>>;
 using VariableNameMap = std::map<std::string, std::vector<std::string>>;
 
 /*

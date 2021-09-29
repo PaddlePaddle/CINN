@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <sstream>
 #include <string>
-#include <variant>
+#include <absl/types/variant.h>
 #include <vector>
 
 namespace cinnrt::paddle::cpp {

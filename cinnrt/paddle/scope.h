@@ -1,8 +1,8 @@
 #pragma once
 #include <memory>
 #include <string>
-#include <unordered_map>
-#include <variant>
+#include <absl/container/flat_hash_map.h>
+#include <absl/types/variant.h>
 #include <vector>
 
 #include "cinnrt/common/macros.h"
@@ -11,7 +11,7 @@
 namespace cinnrt {
 namespace paddle {
 
-using _Variable = std::variant<Tensor>;
+using _Variable = absl::variant<Tensor>;
 
 struct _Tensor_;
 
@@ -29,12 +29,12 @@ class Scope {
   Tensor GetTensor(const std::string& name) const;
 
   //! Get variable names.
-  std::vector<std::string_view> var_names() const;
+  std::vector<absl::string_view> var_names() const;
 
   Scope() = default;
 
  private:
-  std::unordered_map<std::string, std::unique_ptr<_Variable>> data_;
+  absl::flat_hash_map<std::string, std::unique_ptr<_Variable>> data_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(Scope);
 };

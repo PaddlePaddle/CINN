@@ -37,7 +37,7 @@
 #include <memory>
 #include <mutex>  // NOLINT
 #include <string>
-#include <string_view>
+#include <absl/strings/string_view.h>
 #include <utility>
 
 #include "cinn/backends/codegen_cuda_host.h"
@@ -187,7 +187,7 @@ bool ExecutionEngine::AddModule(std::unique_ptr<llvm::Module> module, std::uniqu
   return true;
 }
 
-void *ExecutionEngine::Lookup(std::string_view name) {
+void *ExecutionEngine::Lookup(absl::string_view name) {
   std::lock_guard<std::mutex> lock(mu_);
   if (auto symbol = jit_->lookup(AsStringRef(name))) {
     return reinterpret_cast<void *>(symbol->getAddress());
@@ -200,7 +200,9 @@ void *ExecutionEngine::Lookup(std::string_view name) {
 void ExecutionEngine::RegisterRuntimeSymbols() {
   const auto &registry = RuntimeSymbolRegistry::Global();
   auto *session        = &jit_->getExecutionSession();
-  for (const auto &[name, addr] : registry.All()) {
+  for (const auto &_name_addr_ : registry.All()) {
+    auto &name = std::get<0>(_name_addr_);
+    auto &addr = std::get<1>(_name_addr_);
     llvm::cantFail(jit_->define(llvm::orc::absoluteSymbols(
         {{session->intern(name), {llvm::pointerToJITTargetAddress(addr), llvm::JITSymbolFlags::None}}})));
   }

@@ -9,10 +9,10 @@ def main():
     out_path = sys.argv[2]
 
     srcs = []
-    srcs.append('#include <string_view>')
+    srcs.append('#include <absl/strings/string_view.h>')
     #srcs.append('#include "cinn/backends/llvm/cinn_runtime_llvm_ir.h"\n')
     srcs.append('namespace cinn::backends {')
-    srcs.append("inline std::string_view kRuntimeLlvmIr(")
+    srcs.append("static const absl::string_view kRuntimeLlvmIr(")
     srcs.append('R"ROC(')
     with open(path, 'r') as fr:
         srcs.append(fr.read())

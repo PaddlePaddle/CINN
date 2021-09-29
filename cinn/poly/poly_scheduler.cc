@@ -80,7 +80,11 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
   std::vector<DataFlowGraphNode*> groups_in_topo_order;
 
   std::map<DataFlowGraphNode*, std::vector<DataFlowGraphNode*>> node_groups;
-  auto [nodes_in_order, edges_in_order] = graph->topological_order();
+
+  auto topo_order = graph->topological_order();
+  auto &nodes_in_order = std::get<0>(topo_order);
+  auto &edges_in_order = std::get<1>(topo_order);
+
   for (auto* n : nodes_in_order) {
     auto* node     = n->safe_as<DataFlowGraphNode>();
     auto* ancestor = node->group_ancestor();
@@ -154,11 +158,11 @@ bool IsBetween(const common::GraphNode* x, const common::GraphNode* a, const com
 
 std::vector<Group> TopoSortGroups(std::vector<Group>& groups) {
   // collect indegree.
-  std::unordered_map<Group*, int> group_indegree;
+  absl::flat_hash_map<Group*, int> group_indegree;
   std::vector<Group*> start_groups;
   std::deque<Group*> queue;
   std::vector<Group> group_order;
-  std::unordered_map<std::string, Group*> node2group;
+  absl::flat_hash_map<std::string, Group*> node2group;
   for (int i = 0; i < groups.size(); i++) {
     Group* group  = &groups[i];
     int in_degree = 0;
@@ -215,7 +219,9 @@ std::vector<Group> TopoSortGroups(std::vector<Group>& groups) {
  */
 std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
   std::map<DataFlowGraphNode*, std::vector<DataFlowGraphNode*>> node_groups;
-  auto [nodes_in_order, edges_in_order] = graph->topological_order();  // NOLINT
+  auto topo_order = graph->topological_order();
+  auto &nodes_in_order = std::get<0>(topo_order);
+  auto &edges_in_order = std::get<1>(topo_order);
 
   std::map<std::string, DataFlowGraphNode*> name2node;
   for (auto* n : graph->nodes()) {
@@ -223,7 +229,7 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
   }
 
   // process compute_at
-  std::unordered_map<const common::GraphNode*, uint32_t> node2score;  // record each node's score for sorting.
+  absl::flat_hash_map<const common::GraphNode*, uint32_t> node2score;  // record each node's score for sorting.
   int score = 0;
   for (auto* n : nodes_in_order) {
     auto* node       = n->safe_as<DataFlowGraphNode>();
@@ -251,7 +257,7 @@ std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
     }
   }
   // generate final groups.
-  std::unordered_map<DataFlowGraphNode* /*ancestor*/, std::vector<DataFlowGraphNode*>> clusters;
+  absl::flat_hash_map<DataFlowGraphNode* /*ancestor*/, std::vector<DataFlowGraphNode*>> clusters;
   for (auto* n : nodes_in_order) {
     auto* node = n->safe_as<DataFlowGraphNode>();
     clusters[node->group_ancestor()].push_back(node);
@@ -410,7 +416,9 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
     }
   }
 
-  auto [nodes_in_order, edges_in_order] = schedule_graph_.topological_order();
+  auto topo_order = schedule_graph_.topological_order();
+  auto &nodes_in_order = std::get<0>(topo_order);
+  auto &edges_in_order = std::get<1>(topo_order);
   std::vector<Shared<ScheduleGraphNode>> res;
 
   // update the time schedule info.

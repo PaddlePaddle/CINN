@@ -59,11 +59,11 @@ class CustomPassManager : public PassManagerT {
 
   void add(llvm::Pass *pass) override {
     if (print_passes_) {
-      if constexpr (is_function_pass_manager_) {
+      if (is_function_pass_manager_) {
         VLOG(1) << "llvm run function pass[" << std::string(pass->getPassName()) << "]";
       }
 
-      if constexpr (is_module_pass_manager_) {
+      if (is_module_pass_manager_) {
         VLOG(1) << "llvm run module pass[" << std::string(pass->getPassName()) << "]";
       }
     }
@@ -79,20 +79,20 @@ class CustomPassManager : public PassManagerT {
   }
 
   void run(llvm::Function &f) {  // NOLINT
-    if constexpr (is_function_pass_manager_) {
+    if (is_function_pass_manager_) {
       PassManagerT::run(f);
     }
   }
 
   void run(llvm::Module &m) {  // NOLINT
-    if constexpr (is_module_pass_manager_) {
+    if (is_module_pass_manager_) {
       PassManagerT::run(m);
     }
   }
 
  private:
-  static constexpr bool is_function_pass_manager_ = std::is_same_v<llvm::legacy::FunctionPassManager, PassManagerT>;
-  static constexpr bool is_module_pass_manager_   = std::is_same_v<llvm::legacy::PassManager, PassManagerT>;
+  static constexpr bool is_function_pass_manager_ = std::is_same<llvm::legacy::FunctionPassManager, PassManagerT>::value;
+  static constexpr bool is_module_pass_manager_   = std::is_same<llvm::legacy::PassManager, PassManagerT>::value;
   bool print_passes_;
 };
 

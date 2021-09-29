@@ -22,7 +22,9 @@ TEST(TransformGpuForloops, basic) {
 
   auto stages = CreateStages({C});
 
-  auto [i_outer, i_inner] = stages[C]->Split(0, 10);  // NOLINT
+  auto _i_outer_i_inner_ = stages[C]->Split(0, 10);  // NOLINT
+  auto &i_outer = std::get<0>(_i_outer_i_inner_);
+  auto &i_inner = std::get<1>(_i_outer_i_inner_);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
   stages[C]->Bind(2, "threadIdx.y");
@@ -72,7 +74,9 @@ TEST(TransformGpuForloops, multiple_thread_axis) {
 
   auto stages = CreateStages({C, D});
 
-  auto [i_outer, i_inner] = stages[D]->Split(0, 10);  // NOLINT
+  auto _i_outer_i_inner_ = stages[D]->Split(0, 10);  // NOLINT
+  auto &i_outer = std::get<0>(_i_outer_i_inner_);
+  auto &i_inner = std::get<1>(_i_outer_i_inner_);
   stages[D]->Bind(0, "blockIdx.x");
   stages[D]->Bind(1, "blockIdx.y");
   stages[D]->Bind(2, "threadIdx.x");

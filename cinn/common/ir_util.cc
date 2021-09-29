@@ -223,7 +223,7 @@ Expr or_all(const std::vector<Expr> &conds) {
 
 void CheckTensorUniqueInExpr(Expr expr) {
   auto tensor_uniq = ir::CollectIRNodes(expr, [](const Expr *x) { return x->as_tensor(); });
-  std::unordered_map<std::string, const ir::_Tensor_ *> tensor_names;
+  absl::flat_hash_map<std::string, const ir::_Tensor_ *> tensor_names;
   for (auto &t : tensor_uniq) {
     auto *tp = t.as_tensor();
     if (!tensor_names.count(tp->name)) {
@@ -243,7 +243,7 @@ void CheckBufferUniqueInExpr(Expr expr) {
   auto tensors = ir::CollectIRNodes(expr, [](const Expr *x) { return x->as_tensor(); });
   auto funcs   = ir::CollectIRNodes(expr, [](const Expr *x) { return x->as_lowered_func(); });
 
-  std::unordered_map<std::string, const ir::_Buffer_ *> buffer_name;
+  absl::flat_hash_map<std::string, const ir::_Buffer_ *> buffer_name;
   auto check_buffer_uniq = [&](const ir::_Buffer_ *b) {
     if (buffer_name.count(b->name)) {
       CHECK_EQ(buffer_name[b->name], b);

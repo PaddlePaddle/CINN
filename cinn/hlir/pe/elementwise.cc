@@ -4,15 +4,14 @@
 
 #include "cinn/ir/ir_operators.h"
 #include "cinn/lang/builtin.h"
-#include "cinn/lang/compute.h"
 
 namespace cinn {
 namespace hlir {
 namespace pe {
 
-using cinn::lang::Compute;
 using ir::Expr;
 using ir::Tensor;
+using lang::Compute;
 
 #define HLIR_IMP_UNARY_PE(name__)                                                                          \
   std::vector<ir::Tensor> name__(const Tensor& A, const std::string& output_name) {                        \
