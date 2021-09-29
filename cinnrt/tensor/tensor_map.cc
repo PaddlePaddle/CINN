@@ -47,7 +47,7 @@ TensorMap *LoadParams(const std::string &path) {
     std::ifstream param_file(param_path, std::ios::binary);
     switch (var.type().type()) {
       case ::paddle::framework::proto::VarType_Type_LOD_TENSOR: {
-        auto var_name = cinnrt::cinn::TransValidVarName(var.name());
+        auto var_name = cinnrt::common::TransValidVarName(var.name());
         // std::cout << "var name: " << var.name() << " " << var_name << std::endl;
         auto *_var = scope.Var<cinnrt::paddle::Tensor>(var_name);
         cinnrt::paddle::LoadLoDTensor(param_file, _var, target);
