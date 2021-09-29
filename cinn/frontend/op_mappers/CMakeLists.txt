@@ -1,0 +1,14 @@
+core_gather_headers()
+core_gather_srcs(SRCS
+    sigmoid.cc
+    fetch_feed.cc
+    scale.cc
+    mul.cc
+    relu.cc
+    softmax.cc
+    elementwise.cc
+    conv2d.cc
+    pool2d.cc
+    batchnorm.cc
+    slice.cc
+    dropout.cc)
