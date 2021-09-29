@@ -255,7 +255,7 @@ void cinn_gpu_cudnn_conv2d_backward_data(const std::vector<int> &attrs,
   CUDNN_CALL(
       cudnnSetTensor4dDescriptor(dx_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, input_n, input_c, input_h, input_w));
 
-  std::unordered_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
+  absl::flat_hash_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
   std::string hash_str = "conv2d backward data," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
                          std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
                          "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +
@@ -343,7 +343,7 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const std::vector<int> &attrs,
   CUDNN_CALL(cudnnSetFilter4dDescriptor(
       dw_desc, CUDNN_DATA_FLOAT, CUDNN_TENSOR_NCHW, weights_n, weights_c, weights_h, weights_w));
 
-  std::unordered_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
+  absl::flat_hash_map<std::string, int> &algo_map = SerialData::get_instance().GetMap();
   std::string hash_str = "conv2d backward filter," + std::to_string(input_n) + "," + std::to_string(input_c) + "," +
                          std::to_string(input_h) + "," + std::to_string(input_w) + "," + std::to_string(weights_n) +
                          "," + std::to_string(weights_c) + "," + std::to_string(weights_h) + "," +

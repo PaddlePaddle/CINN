@@ -419,7 +419,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           CHECK_EQ(instr->attrs.size(), 19UL);
           // conv type {forward, backward_data, backward_filter}
           CHECK(node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end());
-          auto type = std::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          auto type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
           instr->str_attrs.push_back(type);
         } else if (node->op()->name == "depthwise_conv2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
@@ -445,7 +445,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           CHECK_EQ(instr->attrs.size(), 19UL);
           // conv type {forward, backward_data, backward_filter}
           CHECK(node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end());
-          auto type = std::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          auto type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
           instr->str_attrs.push_back(type);
         } else if (node->op()->name == "pool2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
