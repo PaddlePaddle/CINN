@@ -75,7 +75,8 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForElementwise(const std::vector<shape_t> &inputs_shape, framework::AttrMapType &attrs) {
+std::vector<shape_t> InferShapeForElementwise(const std::vector<shape_t> &inputs_shape,
+                                              const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1UL);
   std::vector<shape_t> res{inputs_shape[0]};
   return res;
@@ -207,7 +208,8 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForConstScalar(const std::vector<shape_t> &inputs_shape, framework::AttrMapType &attrs) {
+std::vector<shape_t> InferShapeForConstScalar(const std::vector<shape_t> &inputs_shape,
+                                              const framework::AttrMapType &attrs) {
   return {{1}};
 }
 

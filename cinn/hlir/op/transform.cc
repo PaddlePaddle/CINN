@@ -212,7 +212,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<int>> &inputs_shape,
-                                                  framework::AttrMapType &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   std::vector<int> output_shape;
   std::vector<int> new_shape_A;
@@ -321,7 +321,7 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForReshape(const std::vector<std::vector<int>> &inputs_shape,
-                                                   framework::AttrMapType &attrs) {
+                                                   const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
   std::vector<int> output_shape;
   for (auto &iter : attrs) {
@@ -443,7 +443,7 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<int>> &inputs_shape,
-                                                  framework::AttrMapType &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   int axis = 0;
   for (auto &iter : attrs) {
@@ -682,7 +682,7 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int>> &inputs_shape,
-                                               framework::AttrMapType &attrs) {
+                                               const framework::AttrMapType &attrs) {
   // CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
@@ -754,7 +754,7 @@ std::vector<std::vector<std::string>> InferLayoutForMul(const std::vector<framew
 }
 
 std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector<int>> &inputs_shape,
-                                                   framework::AttrMapType &attrs) {
+                                                   const framework::AttrMapType &attrs) {
   // CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
@@ -859,7 +859,7 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
 }
 
 std::vector<shape_t> InferShapeForLayoutTransform(const std::vector<shape_t> &inputs_shape,
-                                                  framework::AttrMapType &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   std::string src_layout;
   std::string dst_layout;
   if (attrs.find("src_layout") != attrs.end()) {

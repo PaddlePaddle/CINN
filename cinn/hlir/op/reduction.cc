@@ -84,7 +84,8 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_shape, framework::AttrMapType &attrs) {
+std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_shape,
+                                            const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1UL);
   std::vector<int> dim;
   bool keep_dim = false;

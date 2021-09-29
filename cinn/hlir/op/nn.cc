@@ -67,7 +67,7 @@ std::shared_ptr<OpStrategy> StrategyForRelu(const framework::NodeAttr &attrs,
 }
 
 std::vector<framework::shape_t> InferShapeForRelu(const std::vector<framework::shape_t> &inputs_shape,
-                                                  framework::AttrMapType &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<framework::shape_t> res{inputs_shape[0]};
   return res;
@@ -329,7 +329,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shape, framework::AttrMapType &attrs) {
+std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shape,
+                                         const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
@@ -543,7 +544,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2dNCHWc(const framework::NodeAttr &at
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs_shape, framework::AttrMapType &attrs) {
+std::vector<shape_t> InferShapeForConv2dNCHWc(const std::vector<shape_t> &inputs_shape,
+                                              const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
@@ -761,7 +763,7 @@ std::shared_ptr<OpStrategy> StrategyForDepthwiseConv2d(const framework::NodeAttr
 }
 
 std::vector<shape_t> InferShapeForDepthwiseConv2d(const std::vector<shape_t> &inputs_shape,
-                                                  framework::AttrMapType &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "at least 2 input tensors for depthwise_conv2d op\n";
   CHECK_EQ(inputs_shape[0].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
   CHECK_EQ(inputs_shape[1].size(), 4U) << "The input tensor's shape should be 4! Please check again.";
@@ -884,7 +886,8 @@ std::shared_ptr<OpStrategy> StrategyForBatchNorm(const framework::NodeAttr &attr
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForBatchNorm(const std::vector<shape_t> &inputs_shape, framework::AttrMapType &attrs) {
+std::vector<shape_t> InferShapeForBatchNorm(const std::vector<shape_t> &inputs_shape,
+                                            const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<shape_t> res{inputs_shape[0]};
   return res;
@@ -997,7 +1000,7 @@ std::shared_ptr<OpStrategy> StrategyForPool1d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool1d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  framework::AttrMapType &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> kernel_size;   // [kernel_w]
   std::vector<int> stride_size;   // [stride_w]
@@ -1172,7 +1175,7 @@ std::shared_ptr<OpStrategy> StrategyForPool2d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  framework::AttrMapType &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(inputs_shape[0].size() == 4 || inputs_shape[0].size() == 5)
       << "The input's shape size of pool2d should be 4 or 5! Please check again.";
   std::vector<int> kernel_size;
@@ -1245,7 +1248,7 @@ std::vector<std::vector<int>> InferShapeForPool2d(const std::vector<std::vector<
   }
 
   if (adaptive) {
-    kernel_size = absl::get<std::vector<int>>(attrs["kernel_size"]);
+    kernel_size = absl::get<std::vector<int>>(attrs.at("kernel_size"));
     if (kernel_size.size() == 1UL) kernel_size.push_back(kernel_size[0]);
     CHECK(kernel_size.size() >= 2UL) << "In pool2d, kernel_size's size should be >= 2, please check!";
     output_shape1[height_axis] = kernel_size[0];
@@ -1347,7 +1350,7 @@ std::shared_ptr<OpStrategy> StrategyForPool3d(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForPool3d(const std::vector<std::vector<int>> &inputs_shape,
-                                                  framework::AttrMapType &attrs) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> kernel_size;  // [kernel_d, kernel_h, kernel_w]
   std::vector<int> stride_size;  // [stride_d, stride_h, stride_w]
@@ -1507,7 +1510,7 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForSoftmax(const std::vector<std::vector<int>> &inputs_shape,
-                                                   framework::AttrMapType &attrs) {
+                                                   const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<std::vector<int>> res{inputs_shape[0], inputs_shape[0]};
   return res;
@@ -1599,7 +1602,7 @@ std::shared_ptr<OpStrategy> StrategyForSlice(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForSlice(const std::vector<std::vector<int>> &inputs_shape,
-                                                 framework::AttrMapType &attrs) {
+                                                 const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   std::vector<int> starts;
   std::vector<int> ends;
@@ -1735,7 +1738,7 @@ std::shared_ptr<OpStrategy> StrategyForDropoutInfer(const framework::NodeAttr &a
 }
 
 std::vector<std::vector<int>> InferShapeForDropoutInfer(const std::vector<std::vector<int>> &inputs_shape,
-                                                        framework::AttrMapType &attrs) {
+                                                        const framework::AttrMapType &attrs) {
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
   float dropout_prob                 = 0;
   std::string dropout_implementation = "downgrade_in_infer";

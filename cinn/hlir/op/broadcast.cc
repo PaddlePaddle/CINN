@@ -81,7 +81,8 @@ std::shared_ptr<OpStrategy> StrategyForBroadcast(
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_shape, framework::AttrMapType &attrs) {
+std::vector<shape_t> InferShapeForBroadcast(const std::vector<shape_t> &inputs_shape,
+                                            const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2UL);
   std::vector<int> out_shape;
 
@@ -189,7 +190,8 @@ std::shared_ptr<OpStrategy> StrategyForBroadcastTo(const framework::NodeAttr &at
   return strategy;
 }
 
-std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs_shape, framework::AttrMapType &attrs) {
+std::vector<shape_t> InferShapeForBroadcastTo(const std::vector<shape_t> &inputs_shape,
+                                              const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1UL) << "input_shape size should be one. Please Check.";
   std::vector<int> broadcast_axes;
   std::vector<int> out_shape;
