@@ -17,13 +17,13 @@ using CINNSchedule = lang::PackedFunc;
 
 class OpStrategy;
 
-using StrategyFunction   = std::function<std::shared_ptr<OpStrategy>(const NodeAttr&,
+using StrategyFunction = std::function<std::shared_ptr<OpStrategy>(const NodeAttr&,
                                                                    const std::vector<ir::Tensor>&,
                                                                    const std::vector<Type>&,
                                                                    const std::vector<std::vector<int>>&,
                                                                    const common::Target&)>;
-using InferShapeFunction = std::function<std::vector<std::vector<int>>(
-    const std::vector<std::vector<int>>&, NodeAttr&, const common::Target&)>;
+using InferShapeFunction =
+    std::function<std::vector<std::vector<int>>(const std::vector<std::vector<int>>&, const AttrMapType&)>;
 
 //! Operator implementation that includes compute and schedule function.
 class OpImpl : public common::Object {
