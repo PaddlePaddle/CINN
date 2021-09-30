@@ -1,6 +1,6 @@
 core_gather_headers()
 
-core_gather_srcs(SRCS
+gather_srcs(cinnapi_src SRCS
     dim.cc
     domain.cc
     map.cc
@@ -13,7 +13,6 @@ core_gather_srcs(SRCS
     graph.cc
     compute_at_transform.cc
     )
-
 
 # cc_test(test_graph SRCS graph_test.cc DEPS core)
 cc_test(test_schedule SRCS schedule_test.cc DEPS cinncore)

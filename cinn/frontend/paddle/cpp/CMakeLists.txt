@@ -6,8 +6,8 @@ set(srcs
   )
 
 foreach(cpp ${srcs})
-  set(core_src
-    "${core_src};cinn/frontend/paddle/cpp/${cpp}"
+  set(cinnapi_src
+    "${cinnapi_src};cinn/frontend/paddle/cpp/${cpp}"
     CACHE INTERNAL "")
 endforeach()
 
