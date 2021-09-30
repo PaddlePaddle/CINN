@@ -2,7 +2,7 @@ proto_library(param_proto SRCS schedule_param.proto)
 
 core_gather_headers()
 
-core_gather_srcs(SRCS
+gather_srcs(cinnapi_src SRCS
     broadcast.cc
     elementwise.cc
     nn.cc

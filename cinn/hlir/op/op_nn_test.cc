@@ -322,7 +322,7 @@ TEST(Operator, Operator_Select_Test0) {
   const common::Target target = common::DefaultHostTarget();
 
   const std::vector<framework::shape_t> input_shapes = {{16, 64, 64}, {16, 64, 64}, {16, 64, 64}};
-  auto infer_shape                                   = infer_shape_func(input_shapes, attrs, target);
+  auto infer_shape                                   = infer_shape_func(input_shapes, attrs.attr_store);
   ASSERT_EQ(infer_shape[0][0], 16);
   ASSERT_EQ(infer_shape[0][1], 64);
   ASSERT_EQ(infer_shape[0][2], 64);

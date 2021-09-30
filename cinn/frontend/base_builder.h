@@ -1,18 +1,18 @@
 #pragma once
 
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "cinn/common/type.h"
 #include "cinn/frontend/syntax.h"
+#include "cinn/hlir/framework/op.h"
 
 namespace cinn {
 namespace frontend {
 
 class BaseBuilder {
  public:
-  explicit BaseBuilder(const std::string& name) : name_(name) {}
+  explicit BaseBuilder(const std::string& name);
 
   Program Build();
 
@@ -25,6 +25,8 @@ class BaseBuilder {
 
  protected:
   void AppendInstruction(const Instruction& instr) { instrs_.push_back(instr); }
+
+  void InferShape(Instruction instr) const;
 
   std::string name_;
   std::vector<Instruction> instrs_;
