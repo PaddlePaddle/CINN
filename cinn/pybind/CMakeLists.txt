@@ -14,7 +14,7 @@ else()
       DEPS cinncore cinn_runtime pybind ${llvm_libs})
 endif()
 
-target_link_libraries(core_api ${MKLML_LIB})
+target_link_libraries(core_api ${MKLML_LIB} isl ginac cln gmp)
 if (USE_OPENMP STREQUAL "gnu")
   target_link_libraries(core_api ${OpenMP_CXX_LIBRARIES})
   message(STATUS "OpenMP lib: ${OpenMP_CXX_LIBRARIES}")

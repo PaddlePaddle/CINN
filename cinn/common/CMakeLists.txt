@@ -1,6 +1,6 @@
 core_gather_headers()
 
-core_gather_srcs(SRCS
+gather_srcs(cinnapi_src SRCS
     shared.cc
     cinn_value.cc
     type.cc
@@ -19,7 +19,7 @@ core_gather_srcs(SRCS
     union_find.cc
     )
 
- message(STATUS "srcs: ${core_src}")
+ message(STATUS "srcs: ${cinnapi_src}")
 
 cc_test(test_cinn_value SRCS cinn_value_test.cc DEPS cinncore)
 cc_test(test_shared SRCS shared_test.cc DEPS cinncore)
