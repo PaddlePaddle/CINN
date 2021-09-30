@@ -466,7 +466,7 @@ TEST(Operator, Operator_Transpose_Test0) {
   std::vector<Type> type{Float(32)};
   common::Target target = common::DefaultHostTarget();
 
-  auto infer_shape = infer_shape_func({{n, c, h, w}}, attrs, target);
+  auto infer_shape = infer_shape_func({{n, c, h, w}}, attrs.attr_store);
   ASSERT_EQ(infer_shape[0][0], n);
   ASSERT_EQ(infer_shape[0][1], h);
   ASSERT_EQ(infer_shape[0][2], w);

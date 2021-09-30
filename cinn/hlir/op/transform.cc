@@ -1072,12 +1072,11 @@ std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attr
 }
 
 std::vector<framework::shape_t> InferShapeForTranspose(const std::vector<framework::shape_t> &inputs_shape,
-                                                       const framework::NodeAttr &attrs,
-                                                       const Target &target) {
+                                                       const framework::AttrMapType &attrs) {
   std::vector<framework::shape_t> result;
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
-  if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
-    auto axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
+  if (attrs.find("axis") != attrs.end()) {
+    auto axis = absl::get<std::vector<int>>(attrs.at("axis"));
     CHECK_EQ(axis.size(), inputs_shape[0].size()) << "input size and axis size is not equal!";
     std::vector<int> output_shape;
     for (int idx = 0; idx < axis.size(); ++idx) {
