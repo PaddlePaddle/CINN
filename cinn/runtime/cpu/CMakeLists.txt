@@ -1,12 +1,13 @@
 core_gather_headers()
 
-core_gather_srcs(SRCS
+
+gather_srcs(cinnapi_src SRCS
     host_intrinsics.cc
     mkl_math.cc
     cblas.cc
     mkldnn_math.cc
-    thread_backend.cc
-)
+    thread_backend.cc)
+
 if (NOT WITH_CUDA)
 cc_test(test_mkl_math SRCS mkl_math_test.cc mkl_math.cc DEPS cinncore)
 endif()

@@ -102,8 +102,8 @@ class SingleOpTester(unittest.TestCase):
                     runtime.cinn_x86_device, alignment))
         if do_infer_shape:
             infer_shapes = framework.Operator.get_op_shape_attrs("infershape")
-            out_shapes = infer_shapes.infer_shape(op_name, input_shapes, attrs,
-                                                  self.target)
+            out_shapes = infer_shapes.infer_shape(op_name, input_shapes,
+                                                  attrs.attr_store)
             print("out_shapes", out_shapes)
             for out_shape in out_shapes[1:]:
                 out.append(

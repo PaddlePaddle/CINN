@@ -7,8 +7,8 @@ set(srcs
   )
 
 foreach(cpp ${srcs})
-  set(core_src
-    "${core_src};cinnrt/tensor/${cpp}"
+  set(cinnrt_src
+    "${cinnrt_src};cinnrt/tensor/${cpp}"
     CACHE INTERNAL "")
 endforeach()
 

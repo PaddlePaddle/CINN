@@ -18,16 +18,15 @@ using common::CINNValuePack;
 using framework::OpStrategy;
 using framework::shape_t;
 using framework::StrategyFunction;
-using namespace pe;
 using PeFunc = std::function<std::vector<ir::Tensor>(const ir::Tensor &A, const std::string &out_name)>;
 
-#define StrategyForUnary(op_name__, pe__)                                                            \
-  std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                    \
-                                                const std::vector<ir::Tensor> &inputs,               \
-                                                const std::vector<Type> &out_type,                   \
-                                                const std::vector<std::vector<int>> &output_shapes,  \
-                                                const Target &target) {                              \
-    return StrategyForElementwise(attrs, inputs, out_type, output_shapes, target, #op_name__, pe__); \
+#define StrategyForUnary(op_name__, pe__)                                                                \
+  std::shared_ptr<OpStrategy> StrategyFor##pe__(const framework::NodeAttr &attrs,                        \
+                                                const std::vector<ir::Tensor> &inputs,                   \
+                                                const std::vector<Type> &out_type,                       \
+                                                const std::vector<std::vector<int>> &output_shapes,      \
+                                                const Target &target) {                                  \
+    return StrategyForElementwise(attrs, inputs, out_type, output_shapes, target, #op_name__, pe::pe__); \
   }
 
 std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &attrs,
@@ -77,16 +76,13 @@ std::shared_ptr<OpStrategy> StrategyForElementwise(const framework::NodeAttr &at
 }
 
 std::vector<shape_t> InferShapeForElementwise(const std::vector<shape_t> &inputs_shape,
-                                              framework::NodeAttr &attrs,
-                                              const Target &target) {
+                                              const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1UL);
   std::vector<shape_t> res{inputs_shape[0]};
   return res;
 }
 
-std::vector<Type> InferDtypeForElementwise(const std::vector<Type> &inputs_type,
-                                           const framework::NodeAttr &attrs,
-                                           const Target &target) {
+std::vector<Type> InferDtypeForElementwise(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -213,16 +209,13 @@ std::shared_ptr<OpStrategy> StrategyForConstScalar(const framework::NodeAttr &at
 }
 
 std::vector<shape_t> InferShapeForConstScalar(const std::vector<shape_t> &inputs_shape,
-                                              framework::NodeAttr &attrs,
-                                              const Target &target) {
+                                              const framework::AttrMapType &attrs) {
   return {{1}};
 }
 
-std::vector<Type> InferDtypeForConstScalar(const std::vector<Type> &inputs_type,
-                                           const framework::NodeAttr &attrs,
-                                           const Target &target) {
-  CHECK(attrs.attr_store.count("value"));
-  auto scalar   = GetScalarExpr(attrs.attr_store.at("value"));
+std::vector<Type> InferDtypeForConstScalar(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(attrs.count("value"));
+  auto scalar   = GetScalarExpr(attrs.at("value"));
   auto out_type = scalar->type();
   VLOG(3) << "scalar type: " << out_type;
   return {out_type};
@@ -284,9 +277,9 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_num_inputs(1)                                                                                             \
       .set_num_outputs(1)                                                                                            \
       .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))                               \
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))                               \
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))                             \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForElementwise))                              \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForElementwise))                              \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForElementwise))                            \
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)  \
       .set_support_level(4);
 

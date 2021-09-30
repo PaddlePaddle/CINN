@@ -212,8 +212,7 @@ std::shared_ptr<OpStrategy> StrategyForMatMul(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<int>> &inputs_shape,
-                                                  framework::NodeAttr &attrs,
-                                                  const Target &target) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   std::vector<int> output_shape;
   std::vector<int> new_shape_A;
@@ -221,7 +220,7 @@ std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<
   bool trans_a = false;
   bool trans_b = false;
   float alpha  = 1;
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "trans_a") {
       trans_a = absl::get<bool>(iter.second);
     } else if (iter.first == "trans_b") {
@@ -250,9 +249,7 @@ std::vector<std::vector<int>> InferShapeForMatMul(const std::vector<std::vector<
   return res;
 }
 
-std::vector<Type> InferDtypeForMatMul(const std::vector<Type> &inputs_type,
-                                      const framework::NodeAttr &attrs,
-                                      const Target &target) {
+std::vector<Type> InferDtypeForMatMul(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0], inputs_type[0]};
   return res;
@@ -324,18 +321,19 @@ std::shared_ptr<OpStrategy> StrategyForReshape(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForReshape(const std::vector<std::vector<int>> &inputs_shape,
-                                                   framework::NodeAttr &attrs,
-                                                   const Target &target) {
+                                                   const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 1U) << "The input's shape size should be 1! Please check again.";
   std::vector<int> output_shape;
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "shape") {
       output_shape = absl::get<std::vector<int>>(iter.second);
       break;
     }
   }
   int tensor_size = 1;
-  for (auto i : inputs_shape[0]) tensor_size *= i;
+  for (auto i : inputs_shape[0]) {
+    tensor_size *= i;
+  }
   CHECK(!output_shape.empty()) << "infer_shape for reshape turns out to be empty. Please check\n";
   int flag_index = -1;
   for (int i = 0; i < output_shape.size(); i++) {
@@ -364,9 +362,7 @@ std::vector<std::vector<int>> InferShapeForReshape(const std::vector<std::vector
   return res;
 }
 
-std::vector<Type> InferDtypeForReshape(const std::vector<Type> &inputs_type,
-                                       const framework::NodeAttr &attrs,
-                                       const Target &target) {
+std::vector<Type> InferDtypeForReshape(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -447,11 +443,10 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<int>> &inputs_shape,
-                                                  framework::NodeAttr &attrs,
-                                                  const Target &target) {
+                                                  const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   int axis = 0;
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "axis") {
       axis = absl::get<int>(iter.second);
       break;
@@ -468,9 +463,7 @@ std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<
   return res;
 }
 
-std::vector<Type> InferDtypeForConcat(const std::vector<Type> &inputs_type,
-                                      const framework::NodeAttr &attrs,
-                                      const Target &target) {
+std::vector<Type> InferDtypeForConcat(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
@@ -689,8 +682,7 @@ std::shared_ptr<OpStrategy> StrategyForMulBias(const framework::NodeAttr &attrs,
 }
 
 std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int>> &inputs_shape,
-                                               framework::NodeAttr &attrs,
-                                               const Target &target) {
+                                               const framework::AttrMapType &attrs) {
   // CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
@@ -698,7 +690,7 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   std::vector<int> output_shape;
   int x_num_col_dims = 1;
   int y_num_col_dims = 1;
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "x_num_col_dims") {
       x_num_col_dims = absl::get<int>(iter.second);
     } else if (iter.first == "y_num_col_dims") {
@@ -738,9 +730,7 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
   return res;
 }
 
-std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type,
-                                   const framework::NodeAttr &attrs,
-                                   const Target &target) {
+std::vector<Type> InferDtypeForMul(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
@@ -764,8 +754,7 @@ std::vector<std::vector<std::string>> InferLayoutForMul(const std::vector<framew
 }
 
 std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector<int>> &inputs_shape,
-                                                   framework::NodeAttr &attrs,
-                                                   const Target &target) {
+                                                   const framework::AttrMapType &attrs) {
   // CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
   CHECK_GE(inputs_shape[0].size(), 2U) << "Input matrix X's dim should be >= 2! Please check.";
   CHECK_GE(inputs_shape[1].size(), 2U) << "Input matrix Y's dim should be >= 2! Please check.";
@@ -773,7 +762,7 @@ std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector
   std::vector<int> output_shape;
   int x_num_col_dims = 1;
   int y_num_col_dims = 1;
-  for (auto &iter : attrs.attr_store) {
+  for (auto &iter : attrs) {
     if (iter.first == "x_num_col_dims") {
       x_num_col_dims = absl::get<int>(iter.second);
     } else if (iter.first == "y_num_col_dims") {
@@ -807,9 +796,7 @@ std::vector<std::vector<int>> InferShapeForMulBias(const std::vector<std::vector
   return res;
 }
 
-std::vector<Type> InferDtypeForMulBias(const std::vector<Type> &inputs_type,
-                                       const framework::NodeAttr &attrs,
-                                       const Target &target) {
+std::vector<Type> InferDtypeForMulBias(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0], inputs_type[0]};
   return res;
@@ -872,15 +859,14 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
 }
 
 std::vector<shape_t> InferShapeForLayoutTransform(const std::vector<shape_t> &inputs_shape,
-                                                  framework::NodeAttr &attrs,
-                                                  const Target &target) {
+                                                  const framework::AttrMapType &attrs) {
   std::string src_layout;
   std::string dst_layout;
-  if (attrs.attr_store.find("src_layout") != attrs.attr_store.end()) {
-    src_layout = absl::get<std::string>(attrs.attr_store.at("src_layout"));
+  if (attrs.find("src_layout") != attrs.end()) {
+    src_layout = absl::get<std::string>(attrs.at("src_layout"));
   }
-  if (attrs.attr_store.find("dst_layout") != attrs.attr_store.end()) {
-    dst_layout = absl::get<std::string>(attrs.attr_store.at("dst_layout"));
+  if (attrs.find("dst_layout") != attrs.end()) {
+    dst_layout = absl::get<std::string>(attrs.at("dst_layout"));
   }
   CHECK_EQ(inputs_shape.size(), 1UL);
 
@@ -900,11 +886,110 @@ std::vector<shape_t> InferShapeForLayoutTransform(const std::vector<shape_t> &in
 }
 
 std::vector<Type> InferDtypeForLayoutTransform(const std::vector<Type> &inputs_type,
-                                               const framework::NodeAttr &attrs,
-                                               const Target &target) {
+                                               const framework::AttrMapType &attrs) {
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
+}
+
+std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
+                                               const std::vector<ir::Tensor> &inputs,
+                                               const std::vector<Type> &out_type,
+                                               const std::vector<std::vector<int>> &output_shapes,
+                                               const Target &target) {
+  // check output shape
+  CHECK(!output_shapes.empty() && !output_shapes[0].empty()) << "Output shape is empty! Please check.\n";
+  // get axis[0, n_dim)
+  std::vector<int> axis;
+  if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
+    axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
+    CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
+    for (auto &e : axis) {
+      if (e >= output_shapes[0].size() || e < -1 * static_cast<int>(output_shapes[0].size())) {
+        LOG(FATAL) << "axis is not in [0, n_dim), Please check.";
+      }
+      if (e < 0) {
+        e += output_shapes[0].size();
+      }
+    }
+  } else {
+    LOG(FATAL) << "axis is not be set! Please check.";
+  }
+
+  framework::CINNCompute reverse_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of reverse compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "at least one input tensor for reverse compute\n";
+    Expr A = a[0];
+    CHECK(A.as_tensor());
+    auto out    = pe::Reverse(A.as_tensor_ref(), axis, UniqName("Reverse_output"));
+    auto stages = CreateStages({out});
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule reverse_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of reverse schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    Expr out              = arg_pack[0];
+    poly::StageMap stages = arg_pack[1];
+    CHECK(out.as_tensor());
+    if (target.arch == Target::Arch::NVGPU) {
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
+    } else if (target.arch == Target::Arch::X86) {
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  CHECK(out_type.size()) << "Out_type of reverse op is empty! Please check.";
+  if (out_type[0] == Float(32)) {
+    strategy->AddImpl(reverse_compute, reverse_schedule, "strategy.reverse.x86", 1);
+  } else {
+    LOG(FATAL) << "Reverse op with dtype != float32 is not implemented yet!";
+  }
+  return strategy;
+}
+
+std::vector<framework::shape_t> InferShapeForReverse(const std::vector<framework::shape_t> &inputs_shape,
+                                                     const framework::AttrMapType &attrs) {
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  std::vector<framework::shape_t> res{inputs_shape[0]};
+  if (attrs.find("axis") != attrs.end()) {
+    auto axis = absl::get<std::vector<int>>(attrs.at("axis"));
+    CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
+    for (auto &e : axis) {
+      if (e >= inputs_shape[0].size() || e < -1 * static_cast<int>(inputs_shape[0].size())) {
+        LOG(FATAL) << "axis is not in [-n_dim, n_dim), Please check.";
+      }
+      if (e < 0) {
+        e += inputs_shape[0].size();
+      }
+    }
+  } else {
+    LOG(FATAL) << "axis is not be set! Please check.";
+  }
+  return res;
+}
+
+std::vector<std::vector<std::string>> InferLayoutForReverse(const std::vector<framework::shape_t> &input_shapes,
+                                                            const std::vector<std::string> &input_layouts,
+                                                            const framework::NodeAttr &attrs,
+                                                            const Target &target) {
+  if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
+    auto axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
+    CHECK(!axis.empty()) << "axis is empty! Please check setting.\n";
+    for (auto &e : axis) {
+      if (e >= input_shapes[0].size() || e < -1 * static_cast<int>(input_shapes[0].size())) {
+        LOG(FATAL) << "axis is not in [-n_dim, n_dim), Please check.";
+      }
+    }
+  } else {
+    LOG(FATAL) << "axis is not be set! Please check.";
+  }
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+  return {input_layouts, input_layouts};
 }
 
 std::vector<std::vector<std::string>> InferLayoutForLayoutTransform(const std::vector<framework::shape_t> &input_shapes,
@@ -977,6 +1062,19 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReshape))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(reverse)
+      .describe("This operator implements the meta op reverse.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForReverse)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReverse))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReverse))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
   CINN_REGISTER_OP(mul)
