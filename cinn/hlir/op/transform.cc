@@ -1072,7 +1072,7 @@ std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attr
 }
 
 std::vector<framework::shape_t> InferShapeForTranspose(const std::vector<framework::shape_t> &inputs_shape,
-                                                       framework::NodeAttr &attrs,
+                                                       const framework::NodeAttr &attrs,
                                                        const Target &target) {
   std::vector<framework::shape_t> result;
   CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
