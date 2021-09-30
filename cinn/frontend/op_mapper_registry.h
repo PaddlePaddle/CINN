@@ -66,7 +66,7 @@ class OpMapperRegistry : public Registry<OpMapperKernel> {
 
 #define UNIQUE_OPMAPPER_NAME(OpName) static ::cinn::frontend::OpMapperKernel& __op_mapper_registrar_##OpName
 
-#define CINN_REGISTER_OPMAPPER(OpName, Kernel)                 \
+#define CINN_REGISTER_OP_MAPPER(OpName, Kernel)                \
   CINN_STR_CONCAT(UNIQUE_OPMAPPER_NAME(OpName), __COUNTER__) = \
       ::cinn::frontend::OpMapperRegistry::Global()->__REGISTER_OR_GET__(#OpName).Set(Kernel);
 
