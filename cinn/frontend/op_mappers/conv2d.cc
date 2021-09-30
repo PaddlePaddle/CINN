@@ -47,7 +47,7 @@ void ReverseHWVar(const std::string& name, const OpMapperContext& ctx) {
   }
 }
 
-void conv2d_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void Conv2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("Input").size(), 1UL);
   auto x_name = op_desc.Input("Input").front();
   CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
@@ -79,7 +79,7 @@ void conv2d_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 
-void depthwise_conv2d_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void DepthwiseConv2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("Input").size(), 1UL);
   auto x_name = op_desc.Input("Input").front();
   CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
@@ -121,6 +121,6 @@ void depthwise_conv2d_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperC
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(conv2d) {
-  CINN_REGISTER_OPMAPPER(conv2d, cinn::frontend::op_mappers::conv2d_kernel)
-  CINN_REGISTER_OPMAPPER(depthwise_conv2d, cinn::frontend::op_mappers::depthwise_conv2d_kernel)
+  CINN_REGISTER_OP_MAPPER(conv2d, cinn::frontend::op_mappers::Conv2dKernel)
+  CINN_REGISTER_OP_MAPPER(depthwise_conv2d, cinn::frontend::op_mappers::DepthwiseConv2dKernel)
 }

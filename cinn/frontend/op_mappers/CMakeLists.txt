@@ -1,5 +1,5 @@
 core_gather_headers()
-core_gather_srcs(SRCS
+gather_srcs(cinnapi_src SRCS
     sigmoid.cc
     fetch_feed.cc
     scale.cc

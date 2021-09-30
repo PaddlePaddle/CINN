@@ -5,7 +5,7 @@ namespace cinn {
 namespace frontend {
 namespace op_mappers {
 
-void add_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void AddKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("Y").size(), 1UL);
@@ -21,7 +21,7 @@ void add_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) 
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 
-void elementwise_add_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void ElementwiseAddKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("Y").size(), 1UL);
@@ -39,7 +39,7 @@ void elementwise_add_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 
-void elementwise_mul_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void ElementwiseMulKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("Y").size(), 1UL);
@@ -62,7 +62,7 @@ void elementwise_mul_kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(elementwise) {
-  CINN_REGISTER_OPMAPPER(add, cinn::frontend::op_mappers::add_kernel)
-  CINN_REGISTER_OPMAPPER(elementwise_add, cinn::frontend::op_mappers::elementwise_add_kernel)
-  CINN_REGISTER_OPMAPPER(elementwise_mul, cinn::frontend::op_mappers::elementwise_mul_kernel)
+  CINN_REGISTER_OP_MAPPER(add, cinn::frontend::op_mappers::AddKernel)
+  CINN_REGISTER_OP_MAPPER(elementwise_add, cinn::frontend::op_mappers::ElementwiseAddKernel)
+  CINN_REGISTER_OP_MAPPER(elementwise_mul, cinn::frontend::op_mappers::ElementwiseMulKernel)
 }
