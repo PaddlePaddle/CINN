@@ -402,8 +402,18 @@ ir::Tensor Select(const ir::Tensor &condition,
  * @param output_name the name of the output tensor
  */
 ir::Tensor Reverse(const ir::Tensor &input,
-                   const std::vector<int> axis,
-                   const std::string &output_name = UniqName("T_Transform_Reverse_out"));
+                   const std::vector<int> &axis,
+                   const std::string &output_name = UniqName("T_Reverse_out"));
+
+/**
+ * @brief Perform meta op Transpose
+ * @param input The input tensor
+ * @param axis tranpsoe axis
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor Transpose(const ir::Tensor &input,
+                     const std::vector<int> &axis,
+                     const std::string &output_name = UniqName("T_Transpose_out"));
 
 }  // namespace pe
 }  // namespace hlir

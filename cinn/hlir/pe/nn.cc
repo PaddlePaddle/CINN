@@ -839,7 +839,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
     LOG(ERROR) << "Unrecognized pool_type: " << pool_type;
   }
   if (adaptive) {
-    CHECK(pool_type == "avg");
+    CHECK_EQ(pool_type, "avg");
     std::vector<Expr> out_shape = tensor->shape;
     CHECK_EQ(k_size, 2);
     CHECK_EQ(k_size, (int)axis.size());
@@ -852,8 +852,8 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
     std::vector<Var> reduce_axis;
 
     for (int i = 0; i < k_size; i++) {
-      reduce_axis.emplace_back(
-          Var(Expr((int)tensor->shape[axis[i]].get_constant() / kernel_size[i]), UniqName("adaptive_reduce")));
+      reduce_axis.emplace_back(Var(Expr(static_cast<int>(tensor->shape[axis[i]].get_constant()) / kernel_size[i]),
+                                   UniqName("adaptive_reduce")));
     }
 
     res = Compute(
@@ -864,12 +864,13 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
 
           for (int i = 0; i < k_size; i++) {
             indices[axis[i]] =
-                output[axis[i]] * Expr((int)tensor->shape[axis[i]].get_constant() / kernel_size[i]) + reduce_axis[i];
+                output[axis[i]] * Expr(static_cast<int>(tensor->shape[axis[i]].get_constant()) / kernel_size[i]) +
+                reduce_axis[i];
           }
 
           auto temp_factor = make_const(Int(32), 1);
           for (int i = 0; i < k_size; i++) {
-            temp_factor = temp_factor * Expr((int)tensor->shape[axis[i]].get_constant() / kernel_size[i]);
+            temp_factor = temp_factor * Expr(static_cast<int>(tensor->shape[axis[i]].get_constant()) / kernel_size[i]);
           }
           common::AutoSimplify(temp_factor);
           Expr divide_factor = Max::Make(temp_factor, make_const(Int(32), 1));
@@ -1019,7 +1020,7 @@ ir::Tensor Select(const ir::Tensor &condition,
   });
 }
 
-ir::Tensor Reverse(const ir::Tensor &input, const std::vector<int> axis, const std::string &output_name) {
+ir::Tensor Reverse(const ir::Tensor &input, const std::vector<int> &axis, const std::string &output_name) {
   for (auto &val : axis) {
     CHECK(val >= 0 && val < input->shape.size()) << "axis should be [0,n_dim)";
   }
@@ -1030,7 +1031,45 @@ ir::Tensor Reverse(const ir::Tensor &input, const std::vector<int> axis, const s
         std::vector<Expr> indexs(indice.begin(), indice.end());
         for (auto idx : axis) {
           indexs[idx] = shape[idx] - Expr(1) - indexs[idx];
-        };
+        }
+        return input(indexs);
+      },
+      output_name);
+}
+
+ir::Tensor Transpose(const ir::Tensor &input, const std::vector<int> &axis, const std::string &output_name) {
+  CHECK_EQ(input->shape.size(), axis.size()) << "input shape size and axis size is not equal!";
+  for (int idx = 0; idx < axis.size(); ++idx) {
+    CHECK(axis[idx] >= 0 && axis[idx] < axis.size()) << "axis value should be among [0,axis.size())";
+    for (int idy = idx + 1; idy < axis.size(); ++idy) {
+      CHECK_NE(axis[idx], axis[idy]) << "axis value can't repeat!";
+    }
+  }
+  // compute output shape
+  std::vector<Expr> shape = input->shape;
+  std::vector<Expr> output_shape;
+  for (auto idx = 0; idx < axis.size(); ++idx) {
+    output_shape.push_back(shape[axis[idx]]);
+  }
+
+  // tranpose axis to map output to input
+  // new_axis = axis(T)
+  std::vector<int> new_axis;
+  for (int idx = 0; idx < axis.size(); ++idx) {
+    for (int idy = 0; idy < axis.size(); ++idy) {
+      if (idx == axis[idy]) {
+        new_axis.push_back(idy);
+      }
+    }
+  }
+
+  return lang::Compute(
+      output_shape,
+      [=](const std::vector<Expr> &indice) {
+        std::vector<Expr> indexs;
+        for (auto idx : new_axis) {
+          indexs.push_back(indice[idx]);
+        }
         return input(indexs);
       },
       output_name);
