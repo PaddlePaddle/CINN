@@ -13,7 +13,7 @@ namespace frontend {
 TEST(OpMapperRegistryTest, basic) {
   auto kernel = OpMapperRegistry::Global()->Find("sigmoid");
   ASSERT_NE(kernel, nullptr);
-  ASSERT_EQ(typeid(*kernel), typeid(OpMapperKernel));
+  ASSERT_EQ(typeid(*kernel), typeid(OpMapper));
   ASSERT_EQ(kernel->name, "sigmoid");
 }
 

@@ -38,13 +38,13 @@ class OpMapperContext {
   absl::flat_hash_map<std::string, std::string>* var_model_to_program_map_{nullptr};
 };
 
-class OpMapperKernel {
+class OpMapper {
  public:
   using KernelFunc = std::function<void(const paddle::cpp::OpDesc&, const OpMapperContext&)>;
 
-  OpMapperKernel() = default;
+  OpMapper() = default;
 
-  OpMapperKernel& Set(const KernelFunc& kernel) {
+  OpMapper& Set(const KernelFunc& kernel) {
     kernel_ = kernel;
     return *this;
   }
@@ -56,7 +56,7 @@ class OpMapperKernel {
   KernelFunc kernel_;
 };
 
-class OpMapperRegistry : public Registry<OpMapperKernel> {
+class OpMapperRegistry : public Registry<OpMapper> {
  public:
   OpMapperRegistry() = default;
 
@@ -64,7 +64,7 @@ class OpMapperRegistry : public Registry<OpMapperKernel> {
   CINN_DISALLOW_COPY_AND_ASSIGN(OpMapperRegistry);
 };
 
-#define UNIQUE_OPMAPPER_NAME(OpName) static ::cinn::frontend::OpMapperKernel& __op_mapper_registrar_##OpName
+#define UNIQUE_OPMAPPER_NAME(OpName) static ::cinn::frontend::OpMapper& __op_mapper_registrar_##OpName
 
 #define CINN_REGISTER_OP_MAPPER(OpName, Kernel)                \
   CINN_STR_CONCAT(UNIQUE_OPMAPPER_NAME(OpName), __COUNTER__) = \
