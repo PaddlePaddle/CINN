@@ -30,7 +30,7 @@ void Pool2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   auto data_format       = utils::GetAttrOrDefault<std::string>(op_desc, "data_format", "NCHW");
   auto adaptive          = utils::GetAttrOrDefault<bool>(op_desc, "adaptive", false);
   auto padding_algorithm = utils::GetAttrOrDefault<std::string>(op_desc, "padding_algorithm", "EXPLICIT");
-  auto x                 = utils::GetVar(cinn::utils::TransValidVarName(x_name), ctx);
+  auto x                 = ctx.GetVar(x_name);
   auto out               = ctx.builder_->pool2d(x,
                                   pooling_type,
                                   ksize,
@@ -43,7 +43,7 @@ void Pool2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
                                   adaptive,
                                   padding_algorithm);
 
-  utils::AddVar(cinn::utils::TransValidVarName(out_name), out, ctx);
+  ctx.AddVar(out_name, out);
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 

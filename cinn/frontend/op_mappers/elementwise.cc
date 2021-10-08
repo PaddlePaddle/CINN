@@ -13,11 +13,11 @@ void AddKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
 
-  auto x   = utils::GetVar(cinn::utils::TransValidVarName(x_name), ctx);
-  auto y   = utils::GetVar(cinn::utils::TransValidVarName(y_name), ctx);
+  auto x   = ctx.GetVar(x_name);
+  auto y   = ctx.GetVar(y_name);
   auto out = ctx.builder_->add(x, y);
 
-  utils::AddVar(cinn::utils::TransValidVarName(out_name), out, ctx);
+  ctx.AddVar(out_name, out);
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 
@@ -31,11 +31,11 @@ void ElementwiseAddKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
 
   auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
 
-  auto x   = utils::GetVar(cinn::utils::TransValidVarName(x_name), ctx);
-  auto y   = utils::GetVar(cinn::utils::TransValidVarName(y_name), ctx);
+  auto x   = ctx.GetVar(x_name);
+  auto y   = ctx.GetVar(y_name);
   auto out = ctx.builder_->elementwise_add(x, y, axis);
 
-  utils::AddVar(cinn::utils::TransValidVarName(out_name), out, ctx);
+  ctx.AddVar(out_name, out);
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 
@@ -49,11 +49,11 @@ void ElementwiseMulKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
 
   auto axis = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
 
-  auto x   = utils::GetVar(cinn::utils::TransValidVarName(x_name), ctx);
-  auto y   = utils::GetVar(cinn::utils::TransValidVarName(y_name), ctx);
+  auto x   = ctx.GetVar(x_name);
+  auto y   = ctx.GetVar(y_name);
   auto out = ctx.builder_->elementwise_mul(x, y, axis);
 
-  utils::AddVar(cinn::utils::TransValidVarName(out_name), out, ctx);
+  ctx.AddVar(out_name, out);
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 

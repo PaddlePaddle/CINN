@@ -68,7 +68,7 @@ void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
     var->shape = tensor->shape().data();
     // TODO(Superjomn) Make this determined by model.
     var->type = Float(32);
-    utils::AddVar(name, var, ctx, true);
+    ctx.AddVar(name, var, true);
   } else {
     LOG(FATAL) << "No var called [" << name << "] exists";
   }
@@ -79,9 +79,9 @@ void MulKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("Y").size(), 1UL);
   auto y_name = op_desc.Input("Y").front();
-  auto x      = utils::GetVar(cinn::utils::TransValidVarName(x_name), ctx);
-  TransposeVar(cinn::utils::TransValidVarName(y_name), ctx);
-  auto y = utils::GetVar(cinn::utils::TransValidVarName(y_name), ctx);
+  auto x      = ctx.GetVar(x_name);
+  TransposeVar(y_name, ctx);
+  auto y = ctx.GetVar(y_name);
 
   auto x_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "x_num_col_dims", 1);
   auto y_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "y_num_col_dims", 1);
@@ -93,7 +93,7 @@ void MulKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   auto out = ctx.builder_->mul(x, y, x_num_col_dims, y_num_col_dims);
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
-  utils::AddVar(cinn::utils::TransValidVarName(out_name), out, ctx);
+  ctx.AddVar(out_name, out);
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 
@@ -105,10 +105,10 @@ void MulBiasKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   CHECK_EQ(op_desc.Input("Z").size(), 1UL);
   auto z_name = op_desc.Input("Z").front();
 
-  auto x = utils::GetVar(cinn::utils::TransValidVarName(x_name), ctx);
-  TransposeVar(cinn::utils::TransValidVarName(y_name), ctx);
-  auto y = utils::GetVar(cinn::utils::TransValidVarName(y_name), ctx);
-  auto z = utils::GetVar(cinn::utils::TransValidVarName(z_name), ctx);
+  auto x = ctx.GetVar(x_name);
+  TransposeVar(y_name, ctx);
+  auto y = ctx.GetVar(y_name);
+  auto z = ctx.GetVar(z_name);
 
   auto x_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "x_num_col_dims", 1);
   auto y_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "y_num_col_dims", 1);
@@ -122,7 +122,7 @@ void MulBiasKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
 
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
-  utils::AddVar(cinn::utils::TransValidVarName(out_name), out, ctx);
+  ctx.AddVar(out_name, out);
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 

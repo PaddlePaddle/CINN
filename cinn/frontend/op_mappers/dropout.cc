@@ -14,10 +14,10 @@ void DropoutInferKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   auto dropout_prob = utils::GetAttrOrDefault<float>(op_desc, "dropout_prob", 0.5f);
   auto dropout_implementation =
       utils::GetAttrOrDefault<std::string>(op_desc, "dropout_implementation", "downgrade_in_infer");
-  auto x   = utils::GetVar(cinn::utils::TransValidVarName(x_name), ctx);
+  auto x   = ctx.GetVar(x_name);
   auto out = ctx.builder_->dropout_infer(x, dropout_prob, dropout_implementation);
 
-  utils::AddVar(cinn::utils::TransValidVarName(out_name), out, ctx);
+  ctx.AddVar(out_name, out);
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 

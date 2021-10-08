@@ -17,7 +17,7 @@ void FeedKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) 
   CHECK_EQ(outs.size(), 1UL);
   VLOG(2) << "Model get feed [" << outs[0] << "]";
   Placeholder input(common::Float(32), {}, outs[0]);
-  utils::AddVar(outs[0], input, ctx);
+  ctx.AddVar(outs[0], input);
 }
 
 }  // namespace op_mappers

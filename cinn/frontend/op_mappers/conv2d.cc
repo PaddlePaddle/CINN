@@ -54,7 +54,7 @@ void Conv2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   auto y_name = op_desc.Input("Filter").front();
 #ifdef CINN_WITH_CUDNN
   if (ctx.target_.arch == Target::Arch::NVGPU) {
-    ReverseHWVar(cinn::utils::TransValidVarName(y_name), ctx);
+    ReverseHWVar(y_name, ctx);
   }
 #endif
   CHECK_EQ(op_desc.Output("Output").size(), 1UL);
@@ -71,11 +71,11 @@ void Conv2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   }
 
   auto padding_algorithm = utils::GetAttrOrDefault<std::string>(op_desc, "padding_algorithm", "EXPLICIT");
-  auto x                 = utils::GetVar(cinn::utils::TransValidVarName(x_name), ctx);
-  auto y                 = utils::GetVar(cinn::utils::TransValidVarName(y_name), ctx);
+  auto x                 = ctx.GetVar(x_name);
+  auto y                 = ctx.GetVar(y_name);
   auto out = ctx.builder_->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
 
-  utils::AddVar(cinn::utils::TransValidVarName(out_name), out, ctx);
+  ctx.AddVar(out_name, out);
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 
@@ -86,7 +86,7 @@ void DepthwiseConv2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   auto y_name = op_desc.Input("Filter").front();
 #ifdef CINN_WITH_CUDNN
   if (ctx.target_.arch == Target::Arch::NVGPU) {
-    ReverseHWVar(cinn::utils::TransValidVarName(y_name), ctx);
+    ReverseHWVar(y_name, ctx);
   }
 #endif
   CHECK_EQ(op_desc.Output("Output").size(), 1UL);
@@ -103,8 +103,8 @@ void DepthwiseConv2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   }
 
   auto padding_algorithm = utils::GetAttrOrDefault<std::string>(op_desc, "padding_algorithm", "EXPLICIT");
-  auto x                 = utils::GetVar(cinn::utils::TransValidVarName(x_name), ctx);
-  auto y                 = utils::GetVar(cinn::utils::TransValidVarName(y_name), ctx);
+  auto x                 = ctx.GetVar(x_name);
+  auto y                 = ctx.GetVar(y_name);
   Variable out;
   if (ctx.target_.arch == Target::Arch::X86) {
     out = ctx.builder_->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
@@ -112,7 +112,7 @@ void DepthwiseConv2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
     out = ctx.builder_->depthwise_conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
   }
 
-  utils::AddVar(cinn::utils::TransValidVarName(out_name), out, ctx);
+  ctx.AddVar(out_name, out);
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 

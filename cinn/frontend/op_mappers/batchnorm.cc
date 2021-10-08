@@ -22,14 +22,14 @@ void BatchnormKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   auto epsilon     = utils::GetAttrOrDefault<float>(op_desc, "epsilon", 1e-5f);
   auto momentum    = utils::GetAttrOrDefault<float>(op_desc, "momentum", 0.9f);
   auto data_layout = utils::GetAttrOrDefault<std::string>(op_desc, "data_layout", "NCHW");
-  auto x           = utils::GetVar(cinn::utils::TransValidVarName(x_name), ctx);
-  auto scale       = utils::GetVar(cinn::utils::TransValidVarName(scale_name), ctx);
-  auto bias        = utils::GetVar(cinn::utils::TransValidVarName(bias_name), ctx);
-  auto mean        = utils::GetVar(cinn::utils::TransValidVarName(mean_name), ctx);
-  auto variance    = utils::GetVar(cinn::utils::TransValidVarName(variance_name), ctx);
+  auto x           = ctx.GetVar(x_name);
+  auto scale       = ctx.GetVar(scale_name);
+  auto bias        = ctx.GetVar(bias_name);
+  auto mean        = ctx.GetVar(mean_name);
+  auto variance    = ctx.GetVar(variance_name);
   auto out         = ctx.builder_->batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout);
 
-  utils::AddVar(cinn::utils::TransValidVarName(out_name), out, ctx);
+  ctx.AddVar(out_name, out);
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 

@@ -14,9 +14,9 @@ void SoftmaxKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   auto axis        = utils::GetAttrOrDefault<int>(op_desc, "axis", -1);
   auto data_format = utils::GetAttrOrDefault<std::string>(op_desc, "data_format", "AnyLayout");
 
-  auto x   = utils::GetVar(cinn::utils::TransValidVarName(x_name), ctx);
+  auto x   = ctx.GetVar(x_name);
   auto out = ctx.builder_->softmax(x, axis, data_format);
-  utils::AddVar(cinn::utils::TransValidVarName(out_name), out, ctx);
+  ctx.AddVar(out_name, out);
   (*ctx.var_model_to_program_map_)[out_name] = out->id;
 }
 
