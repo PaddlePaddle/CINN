@@ -1,12 +1,13 @@
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
+#include <cublas_v2.h>
 #include <cudnn.h>
 
 #include <string>
-#include <absl/container/flat_hash_map.h>
+#include <vector>
 
 #include "cinn/runtime/cinn_runtime.h"
-#include "cublas_v2.h"
 
 namespace cinn {
 namespace runtime {
@@ -81,17 +82,17 @@ void cinn_call_cuda_kernel(void* kernel_fn,
                            int block_z,
                            void* stream);
 
-void cinn_gpu_cudnn_conv2d(const std::vector<int>& attrs,
+void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int>& attr,
                            cinn_buffer_t* input,
                            cinn_buffer_t* weights,
                            cinn_buffer_t* output);
 
-void cinn_gpu_cudnn_conv2d_backward_data(const std::vector<int>& attrs,
+void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, int>& attr,
                                          cinn_buffer_t* dy,
                                          cinn_buffer_t* w,
                                          cinn_buffer_t* dx);
 
-void cinn_gpu_cudnn_conv2d_backward_filter(const std::vector<int>& attrs,
+void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string, int>& attr,
                                            cinn_buffer_t* dy,
                                            cinn_buffer_t* x,
                                            cinn_buffer_t* dw);

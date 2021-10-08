@@ -3,6 +3,7 @@
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <vector>
 
 #include "cinn/backends/cuda_util.h"
 #include "cinn/backends/extern_func_jit_register.h"
@@ -56,7 +57,7 @@ void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
   float *y_data          = reinterpret_cast<float *>(input2->memory);
   float *out_data        = reinterpret_cast<float *>(output->memory);
   int M                  = 1;
-  CHECK(attrs.size() >= 6);
+  CHECK_GE(attrs.size(), 6);
   for (int i = 0; i < attrs[attrs.size() - 2]; i++) {
     M *= attrs[i];
   }
@@ -86,7 +87,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
   CHECK_LT(num_args, 20);
   for (int i = 0; i < num_args; i++) {
     if (args[i].type_code() == cinn_pod_value_t::type_code<cinn_buffer_t *>()) {
-      arr[i] = &((cinn_buffer_t *)args[i])->memory;
+      arr[i] = &((cinn_buffer_t*)(args[i]))->memory;
     } else {
       arr[i] = args[i].data_addr();
     }
@@ -104,27 +105,39 @@ void cinn_call_cuda_kernel(void *kernel_fn,
                                   nullptr))
 }
 
-void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs, cinn_buffer_t *x, cinn_buffer_t *w, cinn_buffer_t *y) {
-  CHECK_EQ(attrs.size(), 19);
-  int input_n    = attrs[0];
-  int input_c    = attrs[1];
-  int input_h    = attrs[2];
-  int input_w    = attrs[3];
-  int weights_n  = attrs[4];
-  int weights_c  = attrs[5];
-  int weights_h  = attrs[6];
-  int weights_w  = attrs[7];
-  int pad_h      = attrs[8];
-  int pad_w      = attrs[9];
-  int stride_h   = attrs[10];
-  int stride_w   = attrs[11];
-  int dilation_h = attrs[12];
-  int dilation_w = attrs[13];
-  int groups     = attrs[14];
-  int output_n   = attrs[15];
-  int output_c   = attrs[16];
-  int output_h   = attrs[17];
-  int output_w   = attrs[18];
+#define GetAttrValue(attr_map, key_name, default_value)      \
+  int key_name = 0;                                          \
+  if (attr_map.count(#key_name) != 0) {                      \
+    key_name = attr_map.find(#key_name)->second;             \
+  } else if (default_value >= 0) {                           \
+    key_name = default_value;                                \
+  } else {                                                   \
+    LOG(FATAL) << #key_name << " is not exist in attr_map!"; \
+  }
+
+void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int> &attr,
+                           cinn_buffer_t *x,
+                           cinn_buffer_t *w,
+                           cinn_buffer_t *y) {
+  GetAttrValue(attr, input_n, -1);
+  GetAttrValue(attr, input_c, -1);
+  GetAttrValue(attr, input_h, -1);
+  GetAttrValue(attr, input_w, -1);
+  GetAttrValue(attr, weights_n, -1);
+  GetAttrValue(attr, weights_c, -1);
+  GetAttrValue(attr, weights_h, -1);
+  GetAttrValue(attr, weights_w, -1);
+  GetAttrValue(attr, pad_h, 0);
+  GetAttrValue(attr, pad_w, 0);
+  GetAttrValue(attr, stride_h, 1);
+  GetAttrValue(attr, stride_w, 1);
+  GetAttrValue(attr, dilation_h, 1);
+  GetAttrValue(attr, dilation_w, 1);
+  GetAttrValue(attr, groups, 1);
+  GetAttrValue(attr, output_n, -1);
+  GetAttrValue(attr, output_c, -1);
+  GetAttrValue(attr, output_h, -1);
+  GetAttrValue(attr, output_w, -1);
 
   cudnnHandle_t &handle = CudnnHandle::get_instance().GetCudnnHandle();
   float *_x             = reinterpret_cast<float *>(x->memory);
@@ -166,7 +179,7 @@ void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs, cinn_buffer_t *x, cinn
     cudnnConvolutionFwdAlgoPerf_t algo_perf;
     int count = 0;
     CUDNN_CALL(cudnnFindConvolutionForwardAlgorithm(handle, x_desc, w_desc, conv_desc, y_desc, 1, &count, &algo_perf));
-    algo_map[hash_str] = int(algo_perf.algo);
+    algo_map[hash_str] = static_cast<int>(algo_perf.algo);
     algo               = algo_perf.algo;
   }
   size_t ws_size = 0;
@@ -185,30 +198,29 @@ void cinn_gpu_cudnn_conv2d(const std::vector<int> &attrs, cinn_buffer_t *x, cinn
   CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
 }
 
-void cinn_gpu_cudnn_conv2d_backward_data(const std::vector<int> &attrs,
+void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, int> &attr,
                                          cinn_buffer_t *w,
                                          cinn_buffer_t *dy,
                                          cinn_buffer_t *dx) {
-  CHECK_EQ(attrs.size(), 19);
-  int input_n    = attrs[0];
-  int input_c    = attrs[1];
-  int input_h    = attrs[2];
-  int input_w    = attrs[3];
-  int weights_n  = attrs[4];
-  int weights_c  = attrs[5];
-  int weights_h  = attrs[6];
-  int weights_w  = attrs[7];
-  int pad_h      = attrs[8];
-  int pad_w      = attrs[9];
-  int stride_h   = attrs[10];
-  int stride_w   = attrs[11];
-  int dilation_h = attrs[12];
-  int dilation_w = attrs[13];
-  int groups     = attrs[14];
-  int output_n   = attrs[15];
-  int output_c   = attrs[16];
-  int output_h   = attrs[17];
-  int output_w   = attrs[18];
+  GetAttrValue(attr, input_n, -1);
+  GetAttrValue(attr, input_c, -1);
+  GetAttrValue(attr, input_h, -1);
+  GetAttrValue(attr, input_w, -1);
+  GetAttrValue(attr, weights_n, -1);
+  GetAttrValue(attr, weights_c, -1);
+  GetAttrValue(attr, weights_h, -1);
+  GetAttrValue(attr, weights_w, -1);
+  GetAttrValue(attr, pad_h, 0);
+  GetAttrValue(attr, pad_w, 0);
+  GetAttrValue(attr, stride_h, 1);
+  GetAttrValue(attr, stride_w, 1);
+  GetAttrValue(attr, dilation_h, 1);
+  GetAttrValue(attr, dilation_w, 1);
+  GetAttrValue(attr, groups, 1);
+  GetAttrValue(attr, output_n, -1);
+  GetAttrValue(attr, output_c, -1);
+  GetAttrValue(attr, output_h, -1);
+  GetAttrValue(attr, output_w, -1);
 
   cudnnHandle_t &handle = CudnnHandle::get_instance().GetCudnnHandle();
   float *_w             = reinterpret_cast<float *>(w->memory);
@@ -251,7 +263,7 @@ void cinn_gpu_cudnn_conv2d_backward_data(const std::vector<int> &attrs,
     cudnnConvolutionBwdDataAlgoPerf_t algo_perf;
     CUDNN_CALL(
         cudnnFindConvolutionBackwardDataAlgorithm(handle, w_desc, y_desc, conv_desc, x_desc, 1, &count, &algo_perf));
-    algo_map[hash_str] = int(algo_perf.algo);
+    algo_map[hash_str] = static_cast<int>(algo_perf.algo);
     algo               = algo_perf.algo;
   }
 
@@ -270,30 +282,29 @@ void cinn_gpu_cudnn_conv2d_backward_data(const std::vector<int> &attrs,
   CUDNN_CALL(cudnnDestroyTensorDescriptor(y_desc));
 }
 
-void cinn_gpu_cudnn_conv2d_backward_filter(const std::vector<int> &attrs,
+void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string, int> &attr,
                                            cinn_buffer_t *x,
                                            cinn_buffer_t *dy,
                                            cinn_buffer_t *dw) {
-  CHECK_EQ(attrs.size(), 19);
-  int input_n    = attrs[0];
-  int input_c    = attrs[1];
-  int input_h    = attrs[2];
-  int input_w    = attrs[3];
-  int weights_n  = attrs[4];
-  int weights_c  = attrs[5];
-  int weights_h  = attrs[6];
-  int weights_w  = attrs[7];
-  int pad_h      = attrs[8];
-  int pad_w      = attrs[9];
-  int stride_h   = attrs[10];
-  int stride_w   = attrs[11];
-  int dilation_h = attrs[12];
-  int dilation_w = attrs[13];
-  int groups     = attrs[14];
-  int output_n   = attrs[15];
-  int output_c   = attrs[16];
-  int output_h   = attrs[17];
-  int output_w   = attrs[18];
+  GetAttrValue(attr, input_n, -1);
+  GetAttrValue(attr, input_c, -1);
+  GetAttrValue(attr, input_h, -1);
+  GetAttrValue(attr, input_w, -1);
+  GetAttrValue(attr, weights_n, -1);
+  GetAttrValue(attr, weights_c, -1);
+  GetAttrValue(attr, weights_h, -1);
+  GetAttrValue(attr, weights_w, -1);
+  GetAttrValue(attr, pad_h, 0);
+  GetAttrValue(attr, pad_w, 0);
+  GetAttrValue(attr, stride_h, 1);
+  GetAttrValue(attr, stride_w, 1);
+  GetAttrValue(attr, dilation_h, 1);
+  GetAttrValue(attr, dilation_w, 1);
+  GetAttrValue(attr, groups, 1);
+  GetAttrValue(attr, output_n, -1);
+  GetAttrValue(attr, output_c, -1);
+  GetAttrValue(attr, output_h, -1);
+  GetAttrValue(attr, output_w, -1);
 
   cudnnHandle_t &handle = CudnnHandle::get_instance().GetCudnnHandle();
 
@@ -337,7 +348,7 @@ void cinn_gpu_cudnn_conv2d_backward_filter(const std::vector<int> &attrs,
     cudnnConvolutionBwdFilterAlgoPerf_t algo_perf;
     CUDNN_CALL(
         cudnnFindConvolutionBackwardFilterAlgorithm(handle, x_desc, y_desc, conv_desc, w_desc, 1, &count, &algo_perf));
-    algo_map[hash_str] = int(algo_perf.algo);
+    algo_map[hash_str] = static_cast<int>(algo_perf.algo);
     algo               = algo_perf.algo;
   }
 

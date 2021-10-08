@@ -1,5 +1,6 @@
-#include <functional>
 #include "cinn/hlir/pe/nn.h"
+
+#include <functional>
 
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
@@ -135,7 +136,8 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   std::vector<int> dilation({1, 1});
   std::string data_format = "NCHW";
   int groups              = 1;
-  std::string key;
+  std::string key         = "";
+  std::string conv_type   = "";
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
     padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
@@ -153,6 +155,16 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   }
   if (attrs.attr_store.find("key") != attrs.attr_store.end()) {
     key = absl::get<std::string>(attrs.attr_store.at("key"));
+  }
+  // get conv type
+  if (attrs.attr_store.find("conv_type") != attrs.attr_store.end()) {
+    conv_type = absl::get<std::string>(attrs.attr_store.at("conv_type"));
+  } else {
+    conv_type = "forward";
+  }
+  // if target arch == x86
+  if (target.arch == common::Target::Arch::X86) {
+    CHECK_EQ(conv_type, "forward") << "arch x86 only support conv_type == forward.";
   }
 
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -363,6 +375,10 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   CHECK_GE(inputs_shape[0].size(), 3) << "The first input tensor's shape size of conv2d op is < 3! Please check.";
   CHECK(conv_type == "forward" || conv_type == "backward_data" || conv_type == "backward_filter")
       << "The conv type should be one of {forward, backward_data, backward_filter}.";
+  // if target arch == x86
+  if (target.arch == common::Target::Arch::X86) {
+    CHECK_EQ(conv_type, "forward") << "arch x86 only support conv_type == forward.";
+  }
 
   std::vector<shape_t> res;
   if (data_format == "NCHW") {
@@ -1838,7 +1854,6 @@ std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<fram
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
-
 
 CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(relu)
