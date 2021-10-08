@@ -126,16 +126,7 @@ TEST(Instruction, CONV_FORWARD) {
   int dila_h = 1, dila_w = 1;
 
   int group = 1;
-
   std::vector<int> attrs = {in, ic, ih, iw, fn, fc, fh, fw, ph, pw, sh, sw, dila_h, dila_w, group, on, oc, oh, ow};
-  /*
-  absl::flat_hash_map<std::string, int> attrs = {
-      {"input_n", in},   {"input_c", ic},   {"input_h", ih},        {"input_w", iw},        {"weights_n", fn},
-      {"weights_c", fc}, {"weights_h", fh}, {"weights_w", fw},      {"pad_h", ph},          {"pad_w", pw},
-      {"stride_h", sh},  {"stride_w", sw},  {"dilation_h", dila_h}, {"dilation_w", dila_w}, {"groups", group},
-      {"output_n", on},  {"output_c", oc},  {"output_h", oh},       {"output_w", ow},
-  };
-  */
 
   CUDA_CALL(cudaSetDevice(0));
   auto buffer_x = common::BufferBuilder(Float(32), {in, ic, ih, iw}).set_random().Build();
@@ -195,16 +186,7 @@ TEST(Instruction, CONV_BACKWARD_DATA) {
   int dila_h = 1, dila_w = 1;
 
   int group = 1;
-
   std::vector<int> attrs = {in, ic, ih, iw, fn, fc, fh, fw, ph, pw, sh, sw, dila_h, dila_w, group, on, oc, oh, ow};
-  /*
-  absl::flat_hash_map<std::string, int> attrs = {
-      {"input_n", in},   {"input_c", ic},   {"input_h", ih},        {"input_w", iw},        {"weights_n", fn},
-      {"weights_c", fc}, {"weights_h", fh}, {"weights_w", fw},      {"pad_h", ph},          {"pad_w", pw},
-      {"stride_h", sh},  {"stride_w", sw},  {"dilation_h", dila_h}, {"dilation_w", dila_w}, {"groups", group},
-      {"output_n", on},  {"output_c", oc},  {"output_h", oh},       {"output_w", ow},
-  };
-  */
 
   CUDA_CALL(cudaSetDevice(0));
   auto buffer_x = common::BufferBuilder(Float(32), {in, ic, ih, iw}).set_random().Build();
@@ -264,16 +246,7 @@ TEST(Instruction, CONV_BACKWARD_FILTER) {
   int dila_h = 1, dila_w = 1;
 
   int group = 1;
-
   std::vector<int> attrs = {in, ic, ih, iw, fn, fc, fh, fw, ph, pw, sh, sw, dila_h, dila_w, group, on, oc, oh, ow};
-  /*
-  absl::flat_hash_map<std::string, int> attrs = {
-      {"input_n", in},   {"input_c", ic},   {"input_h", ih},        {"input_w", iw},        {"weights_n", fn},
-      {"weights_c", fc}, {"weights_h", fh}, {"weights_w", fw},      {"pad_h", ph},          {"pad_w", pw},
-      {"stride_h", sh},  {"stride_w", sw},  {"dilation_h", dila_h}, {"dilation_w", dila_w}, {"groups", group},
-      {"output_n", on},  {"output_c", oc},  {"output_h", oh},       {"output_w", ow},
-  };
-  */
 
   CUDA_CALL(cudaSetDevice(0));
   auto buffer_x = common::BufferBuilder(Float(32), {in, ic, ih, iw}).set_random().Build();
