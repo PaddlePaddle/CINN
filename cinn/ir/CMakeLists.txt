@@ -1,6 +1,6 @@
 core_gather_headers()
 
-core_gather_srcs(SRCS
+gather_srcs(cinnapi_src SRCS
     ir.cc
     ir_base.cc
     ir_visitor.cc

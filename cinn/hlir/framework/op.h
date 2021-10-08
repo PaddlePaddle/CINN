@@ -1,4 +1,6 @@
 #pragma once
+#include <absl/container/flat_hash_map.h>
+#include <absl/types/any.h>
 #include <glog/logging.h>
 
 #include <atomic>
@@ -6,14 +8,16 @@
 #include <memory>
 #include <mutex>  //NOLINT
 #include <string>
-#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
 
-#include <absl/types/any.h>
-
 #include "cinn/common/macros.h"
 #include "cinn/utils/registry.h"
+
+template <typename R, typename... Args>
+inline auto MakeOpFunction(R (*func)(Args...)) {
+  return std::function<R(Args...)>(func);
+}
 
 namespace cinn {
 namespace hlir {
@@ -21,7 +25,7 @@ namespace framework {
 class Operator;
 
 using shape_t = std::vector<int32_t>;
-using dim_t   = shape_t ::value_type;
+using dim_t   = shape_t::value_type;
 
 /*! \brief operator pattern used in graph fusion */
 enum OpPatternKind {
@@ -69,6 +73,8 @@ class OpValueType {
   inline const ValueType& Get(const Operator* op, const ValueType& def_value) const;
 
   inline bool Find(const Operator* op) const;
+
+  size_t Size() const { return data.size(); }
 
  private:
   friend class Operator;
@@ -203,11 +209,6 @@ bool OpValueType<ValueType>::Find(const Operator* op) const {
   return idx < data.size();
 }
 
-template <typename R, typename ...Args>
-inline auto MakeOpFunction(R(*func)(Args...)) {
-  return std::function<R(Args...)>(func);
-}
-
 // internal macros to make
 #define CINN_REGISTER_VAR_DEF(OpName) static ::cinn::hlir::framework::Operator& __make_##HlirOp##_##OpName
 
@@ -227,8 +228,6 @@ inline auto MakeOpFunction(R(*func)(Args...)) {
 #define CINN_REGISTER_OP(OpName)                                \
   CINN_STR_CONCAT(CINN_REGISTER_VAR_DEF(OpName), __COUNTER__) = \
       ::cinn::hlir::framework::OpRegistry::Global()->__REGISTER_OR_GET__(#OpName)
-
-
 
 }  // namespace framework
 }  // namespace hlir

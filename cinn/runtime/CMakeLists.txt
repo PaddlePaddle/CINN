@@ -1,8 +1,8 @@
 core_gather_headers()
-core_gather_srcs(SRCS
+
+gather_srcs(cinnapi_src SRCS
   intrinsic.cc
   cinn_runtime.cc
-  #cinn_x86_device_impl.cc
   intrinsic_types.cc
   )
 
