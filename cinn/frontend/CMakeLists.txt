@@ -31,3 +31,6 @@ cc_test(test_decomposer_registry
 
 add_subdirectory(paddle)
 add_subdirectory(decomposer)
+add_subdirectory(op_mappers)
+
+cc_test(test_op_mapper_registry SRCS op_mapper_registry_test.cc DEPS cinncore)
