@@ -1,7 +1,7 @@
 #pragma once
 
+#include <map>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -49,8 +49,7 @@ class Instruction {
   /**
    * Run the Instruction.
    */
-  void Run();
-  void Run(const std::unordered_map<std::string, cinn_pod_value_t>& name2podargs);
+  void Run(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr);
 
   std::vector<cinn_pod_value_t>& PreparePodArgs(int i);
   std::vector<std::vector<std::string>> GetInArgs() { return in_args_; }
@@ -63,9 +62,7 @@ class Instruction {
   Target target_;
 
  protected:
-  std::vector<cinn_pod_value_t>& PreparePodArgs(int i);
-  void AlignArgs();
-  void RunInOrder(std::vector<std::vector<cinn_pod_value_t>>* arguments_array);
+  std::vector<cinn_pod_value_t>& PreparePodArgs(int i, const std::map<std::string, cinn_pod_value_t>* name2podargs);
 
  private:
   Scope* scope_{};

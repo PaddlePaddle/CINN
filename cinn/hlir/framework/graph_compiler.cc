@@ -37,25 +37,6 @@ void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
   }
 }
 
-void Program::Execute(const std::unordered_map<std::string, cinn_pod_value_t>& name2podargs) {
-  // PreRun
-  for (auto& ins : prerun_instrs_) {
-    ins->Run(name2podargs);
-  }
-
-  // Run
-  for (auto& ins : instrs_) {
-    ins->Run(name2podargs);
-  }
-
-  // Cuda Synchronize
-#ifdef CINN_WITH_CUDA
-  if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
-    CUDA_CALL(cudaDeviceSynchronize());
-  }
-#endif
-}
-
 void GraphCompiler::PrintFunc() {
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
