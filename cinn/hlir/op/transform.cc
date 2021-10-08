@@ -1094,16 +1094,16 @@ std::vector<framework::shape_t> InferShapeForTranspose(const std::vector<framewo
 }
 
 std::vector<std::vector<std::string>> InferLayoutForTranspose(const std::vector<framework::shape_t> &input_shapes,
-                                                            const std::vector<std::string> &input_layouts,
-                                                            const framework::NodeAttr &attrs,
-                                                            const Target &target) {
+                                                              const std::vector<std::string> &input_layouts,
+                                                              const framework::NodeAttr &attrs,
+                                                              const Target &target) {
   CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
   CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
 
   std::vector<int> axis;
-  if (attrs.find("axis") != attrs.end()) {
-    axis = absl::get<std::vector<int>>(attrs.at("axis"));
-    CHECK_EQ(axis.size(), inputs_shape[0].size()) << "input size and axis size is not equal!";
+  if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
+    axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
+    CHECK_EQ(axis.size(), input_shapes[0].size()) << "input size and axis size is not equal!";
     for (int idx = 0; idx < axis.size(); ++idx) {
       CHECK(axis[idx] >= 0 && axis[idx] < axis.size());
       for (int idy = idx + 1; idy < axis.size(); ++idy) {
@@ -1115,11 +1115,11 @@ std::vector<std::vector<std::string>> InferLayoutForTranspose(const std::vector<
   }
 
   std::string output_layout = input_layouts[0];
-  for(int idx = 0 ; idx < axis.size() ; ++ idx) {
+  for (int idx = 0; idx < axis.size(); ++idx) {
     output_layout[idx] = input_layouts[0][axis[idx]];
   }
 
-  return {output_layout};
+  return {{output_layout}};
 }
 
 }  // namespace op

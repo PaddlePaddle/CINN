@@ -472,6 +472,17 @@ TEST(Operator, Operator_Transpose_Test0) {
   ASSERT_EQ(infer_shape[0][2], w);
   ASSERT_EQ(infer_shape[0][3], c);
 
+#ifndef CINN_WITH_CUDA
+  using InferLayoutFunction =
+      std::function<std::vector<std::vector<std::string>>(const std::vector<framework::shape_t> &,
+                                                          const std::vector<std::string> &,
+                                                          const framework::NodeAttr &,
+                                                          const Target &target)>;
+  auto infer_layout_func = Operator::GetAttrs<InferLayoutFunction>("inferlayout")[transpose];
+  auto infer_layout      = infer_layout_func({{n, c, h, w}}, {"NCHW"}, attrs, target);
+  ASSERT_EQ(infer_layout[0][0], "NHWC");
+#endif
+
   auto input_shape  = {n, c, h, w};
   auto output_shape = {n, h, w, c};
 
