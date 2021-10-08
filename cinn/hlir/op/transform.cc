@@ -1093,6 +1093,35 @@ std::vector<framework::shape_t> InferShapeForTranspose(const std::vector<framewo
   return result;
 }
 
+std::vector<std::vector<std::string>> InferLayoutForTranspose(const std::vector<framework::shape_t> &input_shapes,
+                                                            const std::vector<std::string> &input_layouts,
+                                                            const framework::NodeAttr &attrs,
+                                                            const Target &target) {
+  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+
+  std::vector<int> axis;
+  if (attrs.find("axis") != attrs.end()) {
+    axis = absl::get<std::vector<int>>(attrs.at("axis"));
+    CHECK_EQ(axis.size(), inputs_shape[0].size()) << "input size and axis size is not equal!";
+    for (int idx = 0; idx < axis.size(); ++idx) {
+      CHECK(axis[idx] >= 0 && axis[idx] < axis.size());
+      for (int idy = idx + 1; idy < axis.size(); ++idy) {
+        CHECK_NE(axis[idx], axis[idy]) << "axis can't repeat!";
+      }
+    }
+  } else {
+    LOG(FATAL) << "axis is not be set! Please check.";
+  }
+
+  std::string output_layout = input_layouts[0];
+  for(int idx = 0 ; idx < axis.size() ; ++ idx) {
+    output_layout[idx] = input_layouts[0][axis[idx]];
+  }
+
+  return {output_layout};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -1170,7 +1199,7 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForTranspose))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
 #ifndef CINN_WITH_CUDA
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReverse))
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForTranspose))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
