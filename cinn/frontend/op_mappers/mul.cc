@@ -68,7 +68,7 @@ void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
     var->shape = tensor->shape().data();
     // TODO(Superjomn) Make this determined by model.
     var->type = Float(32);
-    AddVar(name, var, ctx, true);
+    utils::AddVar(name, var, ctx, true);
   } else {
     LOG(FATAL) << "No var called [" << name << "] exists";
   }
