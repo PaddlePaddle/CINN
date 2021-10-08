@@ -334,7 +334,7 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
 }
 
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
-  CompileOptions options;
+  GraphCompiler::CompileOptions options;
   options.attached_code              = code;
   options.with_instantiate_variables = true;
 
@@ -342,7 +342,7 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   return std::move(result.runtime_program);
 }
 
-CompilationResult GraphCompiler::Build(const CompileOptions& options) {
+GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options) {
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
   auto& edges     = std::get<1>(topo_order);
@@ -396,7 +396,7 @@ CompilationResult GraphCompiler::Build(const CompileOptions& options) {
     }
   }
 
-  CompilationResult result;
+  GraphCompiler::CompilationResult result;
   result.runtime_program.reset(new Program(scope_, BuildInstructions()));
   return result;
 }
