@@ -389,7 +389,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
     } else if (conv_type == "backward_filter") {
       CHECK(attrs.find("weights_shape") != attrs.end()) << "The shape of weights is not found! Please check.";
       auto weights_shape = absl::get<std::vector<int>>(attrs.at("weights_shape"));
-      CHECK_EQ(filter_shape.size(), 4) << "The size of filter shape is not 2(fh,fw)!Please check";
+      CHECK_EQ(weights_shape.size(), 4) << "The size of filter shape is not 2(fh,fw)!Please check";
       out_shape_h = weights_shape[2];
       out_shape_w = weights_shape[3];
     }
@@ -432,7 +432,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       res_shape = {batch, inputs_shape[1][0], out_shape_h, out_shape_w};
     } else if (conv_type == "backward_data") {
       // w dy dx
-      res_shape = {batch, inputs_shape[0][1], out_shape_h, out_shape_w};
+      res_shape = {inputs_shape[1][0], inputs_shape[0][1], out_shape_h, out_shape_w};
     } else if (conv_type == "backward_filter") {
       // x dy dx
       res_shape = {inputs_shape[1][1], inputs_shape[0][1], out_shape_h, out_shape_w};

@@ -9,6 +9,10 @@
 
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/op.h"
+#include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/use_ops.h"
 
 namespace cinn {
 namespace hlir {
@@ -21,8 +25,7 @@ std::unique_ptr<backends::SimpleJIT> GetLoweredFunc(int M, int N) {
   Placeholder<float> x("x", {m, n});
   Placeholder<float> y("y", {m, n});
 
-  auto z = Compute(
-      {m, n}, [=](Expr i, Expr j) { return x(i, j) + y(i, j); }, "z");
+  auto z = Compute({m, n}, [=](Expr i, Expr j) { return x(i, j) + y(i, j); }, "z");
 
   auto stages = CreateStages({z});
   auto fn     = Lower("fn", stages, {x, y, z});
@@ -125,8 +128,27 @@ TEST(Instruction, CONV_FORWARD) {
   int sh = 1, sw = 1;
   int dila_h = 1, dila_w = 1;
 
-  int group = 1;
+  int group              = 1;
   std::vector<int> attrs = {in, ic, ih, iw, fn, fc, fh, fw, ph, pw, sh, sw, dila_h, dila_w, group, on, oc, oh, ow};
+
+  // infer shape
+  auto conv2d           = Operator::Get("conv2d");
+  auto strategy         = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
+
+  absl::flat_hash_map<std::string, AttrType> attrs_map;
+  attrs_map["padding"]       = std::vector<int>({ph, pw});
+  attrs_map["stride"]        = std::vector<int>({sh, sw});
+  attrs_map["dilation"]      = std::vector<int>({dila_h, dila_w});
+  attrs_map["data_format"]   = std::string("NCHW");
+  attrs_map["conv_type"]     = std::string("forward");
+  attrs_map["weights_shape"] = std::vector<int>({fn, fc, fh, fw});
+
+  auto infer_shape = infer_shape_func({{in, ic, ih, iw}, {fn, fc, fh, fw}}, attrs_map);
+  ASSERT_EQ(infer_shape[0][0], on);
+  ASSERT_EQ(infer_shape[0][1], oc);
+  ASSERT_EQ(infer_shape[0][2], oh);
+  ASSERT_EQ(infer_shape[0][3], ow);
 
   CUDA_CALL(cudaSetDevice(0));
   auto buffer_x = common::BufferBuilder(Float(32), {in, ic, ih, iw}).set_random().Build();
@@ -185,8 +207,27 @@ TEST(Instruction, CONV_BACKWARD_DATA) {
   int sh = 1, sw = 1;
   int dila_h = 1, dila_w = 1;
 
-  int group = 1;
+  int group              = 1;
   std::vector<int> attrs = {in, ic, ih, iw, fn, fc, fh, fw, ph, pw, sh, sw, dila_h, dila_w, group, on, oc, oh, ow};
+
+  // infer shape
+  auto conv2d           = Operator::Get("conv2d");
+  auto strategy         = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
+
+  absl::flat_hash_map<std::string, AttrType> attrs_map;
+  attrs_map["padding"]       = std::vector<int>({ph, pw});
+  attrs_map["stride"]        = std::vector<int>({sh, sw});
+  attrs_map["dilation"]      = std::vector<int>({dila_h, dila_w});
+  attrs_map["data_format"]   = std::string("NCHW");
+  attrs_map["conv_type"]     = std::string("backward_data");
+  attrs_map["weights_shape"] = std::vector<int>({fn, fc, fh, fw});
+
+  auto infer_shape = infer_shape_func({{fn, fc, fh, fw}, {on, oc, oh, ow}}, attrs_map);
+  ASSERT_EQ(infer_shape[0][0], in);
+  ASSERT_EQ(infer_shape[0][1], ic);
+  ASSERT_EQ(infer_shape[0][2], ih);
+  ASSERT_EQ(infer_shape[0][3], iw);
 
   CUDA_CALL(cudaSetDevice(0));
   auto buffer_x = common::BufferBuilder(Float(32), {in, ic, ih, iw}).set_random().Build();
@@ -245,8 +286,27 @@ TEST(Instruction, CONV_BACKWARD_FILTER) {
   int sh = 1, sw = 1;
   int dila_h = 1, dila_w = 1;
 
-  int group = 1;
+  int group              = 1;
   std::vector<int> attrs = {in, ic, ih, iw, fn, fc, fh, fw, ph, pw, sh, sw, dila_h, dila_w, group, on, oc, oh, ow};
+
+  // infer shape
+  auto conv2d           = Operator::Get("conv2d");
+  auto strategy         = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
+
+  absl::flat_hash_map<std::string, AttrType> attrs_map;
+  attrs_map["padding"]       = std::vector<int>({ph, pw});
+  attrs_map["stride"]        = std::vector<int>({sh, sw});
+  attrs_map["dilation"]      = std::vector<int>({dila_h, dila_w});
+  attrs_map["data_format"]   = std::string("NCHW");
+  attrs_map["conv_type"]     = std::string("backward_filter");
+  attrs_map["weights_shape"] = std::vector<int>({fn, fc, fh, fw});
+
+  auto infer_shape = infer_shape_func({{in, ic, ih, iw}, {on, oc, oh, ow}}, attrs_map);
+  ASSERT_EQ(infer_shape[0][0], fn);
+  ASSERT_EQ(infer_shape[0][1], fc);
+  ASSERT_EQ(infer_shape[0][2], fh);
+  ASSERT_EQ(infer_shape[0][3], fw);
 
   CUDA_CALL(cudaSetDevice(0));
   auto buffer_x = common::BufferBuilder(Float(32), {in, ic, ih, iw}).set_random().Build();
