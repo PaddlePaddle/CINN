@@ -18,7 +18,7 @@ void DropoutInferKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   auto out = ctx.builder_->dropout_infer(x, dropout_prob, dropout_implementation);
 
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 }  // namespace op_mappers

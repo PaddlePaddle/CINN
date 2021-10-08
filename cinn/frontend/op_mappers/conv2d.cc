@@ -76,7 +76,7 @@ void Conv2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   auto out = ctx.builder_->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
 
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 void DepthwiseConv2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -113,7 +113,7 @@ void DepthwiseConv2dKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   }
 
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 }  // namespace op_mappers

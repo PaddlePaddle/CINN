@@ -18,7 +18,7 @@ void AddKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   auto out = ctx.builder_->add(x, y);
 
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 void ElementwiseAddKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -36,7 +36,7 @@ void ElementwiseAddKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   auto out = ctx.builder_->elementwise_add(x, y, axis);
 
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 void ElementwiseMulKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -54,7 +54,7 @@ void ElementwiseMulKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   auto out = ctx.builder_->elementwise_mul(x, y, axis);
 
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 }  // namespace op_mappers

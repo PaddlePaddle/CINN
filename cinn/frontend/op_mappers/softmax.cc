@@ -17,7 +17,7 @@ void SoftmaxKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   auto x   = ctx.GetVar(x_name);
   auto out = ctx.builder_->softmax(x, axis, data_format);
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 }  // namespace op_mappers

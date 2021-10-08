@@ -94,7 +94,7 @@ void MulKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 void MulBiasKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -123,7 +123,7 @@ void MulBiasKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 }  // namespace op_mappers

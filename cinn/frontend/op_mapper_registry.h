@@ -35,11 +35,8 @@ class OpMapperContext {
   hlir::framework::Scope* scope_{nullptr};
   const common::Target& target_;
   NetBuilder* builder_{nullptr};
-  absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
-  // map from var in Paddle model to var name in program.
-  absl::flat_hash_map<std::string, std::string>* var_model_to_program_map_{nullptr};
 
-  inline void AddVar(const std::string& origin_name, const Variable& var, bool replace = false) const {
+  void AddVar(const std::string& origin_name, const Variable& var, bool replace = false) const {
     const auto& name = cinn::utils::TransValidVarName(origin_name);
     CheckVarNameValid(name);
     if (replace == false) {
@@ -48,7 +45,11 @@ class OpMapperContext {
     (*var_map_)[name] = var;
   }
 
-  inline Variable GetVar(const std::string& origin_name) const {
+  void AddVarModelToProgramMap(const std::string& name, const std::string& id) const {
+    (*var_model_to_program_map_)[name] = id;
+  }
+
+  Variable GetVar(const std::string& origin_name) const {
     const auto& name = cinn::utils::TransValidVarName(origin_name);
     CheckVarNameValid(name);
 
@@ -70,6 +71,11 @@ class OpMapperContext {
     LOG(FATAL) << "No var called [" << name << "] exists";
     return Variable();
   }
+
+ private:
+  absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
+  // map from var in Paddle model to var name in program.
+  absl::flat_hash_map<std::string, std::string>* var_model_to_program_map_{nullptr};
 };
 
 class OpMapper {

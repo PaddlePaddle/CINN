@@ -30,7 +30,7 @@ void BatchnormKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   auto out         = ctx.builder_->batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout);
 
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 }  // namespace op_mappers

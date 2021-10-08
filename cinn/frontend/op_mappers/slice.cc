@@ -24,7 +24,7 @@ void SliceKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   auto out           = ctx.builder_->slice(x, axes, starts, ends, infer_flags, decrease_axis);
 
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 }  // namespace op_mappers

@@ -14,7 +14,7 @@ void ReluKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) 
   auto out      = ctx.builder_->relu(x);
 
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 void Relu6Kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -28,7 +28,7 @@ void Relu6Kernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   auto out       = ctx.builder_->relu6(x, threshold);
 
   ctx.AddVar(out_name, out);
-  (*ctx.var_model_to_program_map_)[out_name] = out->id;
+  ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
 }  // namespace op_mappers
