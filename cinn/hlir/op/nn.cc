@@ -383,15 +383,15 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
           (inputs_shape[0][3] - ((inputs_shape[1][3] - 1) * dilation[1] + 1) + 2 * padding[1]) / stride[1] + 1;
     } else if (conv_type == "backward_data") {
       out_shape_h =
-          (inputs_shape[0][2] - 1) * stride[0] - 2 * padding[0] + ((inputs_shape[1][2] - 1) * dilation[0] + 1);
+          (inputs_shape[1][2] - 1) * stride[0] - 2 * padding[0] + ((inputs_shape[0][2] - 1) * dilation[0] + 1);
       out_shape_w =
-          (inputs_shape[0][3] - 1) * stride[0] - 2 * padding[0] + ((inputs_shape[1][3] - 1) * dilation[1] + 1);
+          (inputs_shape[1][3] - 1) * stride[0] - 2 * padding[0] + ((inputs_shape[0][3] - 1) * dilation[1] + 1);
     } else if (conv_type == "backward_filter") {
-      CHECK(attrs.find("filter_shape") != attrs.end()) << "The shape of filter is not found! Please check.";
-      auto filter_shape = absl::get<std::vector<int>>(attrs.at("filter_shape"));
-      CHECK_EQ(filter_shape.size(), 2) << "The size of filter shape is not 2(fh,fw)!Please check";
-      out_shape_h = filter_shape[0];
-      out_shape_w = filter_shape[1];
+      CHECK(attrs.find("weights_shape") != attrs.end()) << "The shape of weights is not found! Please check.";
+      auto weights_shape = absl::get<std::vector<int>>(attrs.at("weights_shape"));
+      CHECK_EQ(filter_shape.size(), 4) << "The size of filter shape is not 2(fh,fw)!Please check";
+      out_shape_h = weights_shape[2];
+      out_shape_w = weights_shape[3];
     }
 
     res = {{inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
@@ -428,11 +428,14 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
     // output shape
     std::vector<int> res_shape = {};
     if (conv_type == "forward") {
-      res_shape = {batch, oc, out_shape_h, out_shape_w};
+      // x w y
+      res_shape = {batch, inputs_shape[1][0], out_shape_h, out_shape_w};
     } else if (conv_type == "backward_data") {
-      res_shape = {batch, inputs_shape[1][1], out_shape_h, out_shape_w};
+      // w dy dx
+      res_shape = {batch, inputs_shape[0][1], out_shape_h, out_shape_w};
     } else if (conv_type == "backward_filter") {
-      res_shape = {inputs_shape[0][1], inputs_shape[1][1], out_shape_h, out_shape_w};
+      // x dy dx
+      res_shape = {inputs_shape[1][1], inputs_shape[0][1], out_shape_h, out_shape_w};
     }
 #ifdef CINN_WITH_CUDA
     return {res_shape};

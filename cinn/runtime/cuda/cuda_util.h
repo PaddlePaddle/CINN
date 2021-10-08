@@ -83,18 +83,18 @@ void cinn_call_cuda_kernel(void* kernel_fn,
                            void* stream);
 
 void cinn_gpu_cudnn_conv2d(const absl::flat_hash_map<std::string, int>& attr,
-                           cinn_buffer_t* input,
-                           cinn_buffer_t* weights,
-                           cinn_buffer_t* output);
+                           cinn_buffer_t* x,
+                           cinn_buffer_t* w,
+                           cinn_buffer_t* y);
 
 void cinn_gpu_cudnn_conv2d_backward_data(const absl::flat_hash_map<std::string, int>& attr,
-                                         cinn_buffer_t* dy,
                                          cinn_buffer_t* w,
+                                         cinn_buffer_t* dy,
                                          cinn_buffer_t* dx);
 
 void cinn_gpu_cudnn_conv2d_backward_filter(const absl::flat_hash_map<std::string, int>& attr,
-                                           cinn_buffer_t* dy,
                                            cinn_buffer_t* x,
+                                           cinn_buffer_t* dy,
                                            cinn_buffer_t* dw);
 
 void cinn_gpu_cudnn_pool2d(const std::vector<int>& attrs,
