@@ -1,6 +1,6 @@
 core_gather_headers()
 
-core_gather_srcs(SRCS
+gather_srcs(cinnrt_src SRCS
     basic_kernels.cc
     test_kernels.cc
     tensor_shape_kernels.cc
