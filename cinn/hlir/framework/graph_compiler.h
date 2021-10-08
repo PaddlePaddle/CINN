@@ -1,7 +1,9 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -58,6 +60,8 @@ class Program {
     }
 #endif
   }
+
+  void Execute(const std::unordered_map<std::string, cinn_pod_value_t>& name2podargs);
 
   void ExecuteTest(int repeat_) {
     cinn::utils::Timer timer1;

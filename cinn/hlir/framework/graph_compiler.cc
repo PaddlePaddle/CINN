@@ -37,10 +37,29 @@ void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
   }
 }
 
+void Program::Execute(const std::unordered_map<std::string, cinn_pod_value_t>& name2podargs) {
+  // PreRun
+  for (auto& ins : prerun_instrs_) {
+    ins->Run(name2podargs);
+  }
+
+  // Run
+  for (auto& ins : instrs_) {
+    ins->Run(name2podargs);
+  }
+
+  // Cuda Synchronize
+#ifdef CINN_WITH_CUDA
+  if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+#endif
+}
+
 void GraphCompiler::PrintFunc() {
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
@@ -52,8 +71,8 @@ void GraphCompiler::PrintFunc() {
 
 std::string GraphCompiler::GenSourceCode() {
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
@@ -319,7 +338,7 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
           for (auto& shape_dim : j.buffer_arg()->shape) {
             VLOG(3) << shape_dim << ",";
             CHECK(shape_dim.is_constant());
-            shape.push_back((int)(shape_dim.get_constant()));
+            shape.push_back(static_cast<int>(shape_dim.get_constant()));
           }
           tensor->Resize(Shape{shape});
           tensor->mutable_data<float>(target_);
@@ -336,10 +355,10 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
 
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
-  auto& groups        = graph_->groups;
+  auto& groups = graph_->groups;
 
   if (!groups.empty()) {
     for (int i = 0; i < groups.size(); i++) {
@@ -385,10 +404,10 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   std::vector<std::unique_ptr<Instruction>> instructions;
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
-  auto& groups        = graph_->groups;
+  auto& groups = graph_->groups;
   for (auto& group : groups) {
     if (group.size() == 1) {
       auto node  = group[0];
@@ -520,7 +539,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
       int i                   = 1;
       std::string new_op_func = op_func_name + "_" + std::to_string(i);
       if (function2input_args_.count(new_op_func) != 0) {
-        CHECK(function2input_args_.count(op_func_name) > 0);
+        CHECK_GT(function2input_args_.count(op_func_name), 0);
         instr->AddInArgs(function2input_args_[op_func_name]);
         instr->AddOutArgs(function2output_args_[op_func_name]);
       }
