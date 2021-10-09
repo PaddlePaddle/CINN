@@ -6,6 +6,10 @@
 #include <vector>
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/common/test_helper.h"
+#include "cinn/hlir/framework/node.h"
+#include "cinn/hlir/framework/op.h"
+#include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/use_ops.h"
 #include "cinn/runtime/cinn_runtime.h"
 
 namespace cinn {
