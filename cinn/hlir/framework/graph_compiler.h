@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -101,6 +102,18 @@ class GraphCompiler final {
  public:
   GraphCompiler(Target target, const std::shared_ptr<Scope>& scope, const std::shared_ptr<Graph>& graph)
       : target_(std::move(target)), scope_(scope), graph_(graph), m_builder_(UniqName("module"), target) {}
+
+  struct CompilationResult {
+    std::unique_ptr<Program> runtime_program;
+  };
+
+  struct CompileOptions {
+    std::string attached_code       = "";
+    bool with_instantiate_variables = false;
+  };
+
+  // Compile with a packing option and result, to be extended easily.
+  CompilationResult Build(const CompileOptions& options);
 
   std::unique_ptr<Program> Build(const std::string& code = "");
 
