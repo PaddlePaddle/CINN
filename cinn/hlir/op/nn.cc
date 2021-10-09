@@ -346,6 +346,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
   std::vector<int> dilation({1, 1});
+  int group               = 1;
   std::string data_format = "NCHW";
   std::string conv_type   = "";
   if (attrs.find("padding") != attrs.end()) {
@@ -356,6 +357,9 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   }
   if (attrs.find("dilation") != attrs.end()) {
     dilation = absl::get<std::vector<int>>(attrs.at("dilation"));
+  }
+  if (attrs.find("group") != attrs.end()) {
+    group = absl::get<int>(attrs.at("group"));
   }
   if (attrs.find("data_format") != attrs.end()) {
     data_format = absl::get<std::string>(attrs.at("data_format"));
@@ -385,7 +389,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       out_shape_h =
           (inputs_shape[1][2] - 1) * stride[0] - 2 * padding[0] + ((inputs_shape[0][2] - 1) * dilation[0] + 1);
       out_shape_w =
-          (inputs_shape[1][3] - 1) * stride[0] - 2 * padding[0] + ((inputs_shape[0][3] - 1) * dilation[1] + 1);
+          (inputs_shape[1][3] - 1) * stride[1] - 2 * padding[1] + ((inputs_shape[0][3] - 1) * dilation[1] + 1);
     } else if (conv_type == "backward_filter") {
       CHECK(attrs.find("weights_shape") != attrs.end()) << "The shape of weights is not found! Please check.";
       auto weights_shape = absl::get<std::vector<int>>(attrs.at("weights_shape"));
@@ -429,13 +433,13 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
     std::vector<int> res_shape = {};
     if (conv_type == "forward") {
       // x w y
-      res_shape = {batch, inputs_shape[1][0], out_shape_h, out_shape_w};
+      res_shape = {batch, oc, out_shape_h, out_shape_w};
     } else if (conv_type == "backward_data") {
-      // w dy dx
-      res_shape = {inputs_shape[1][0], inputs_shape[0][1], out_shape_h, out_shape_w};
+      // w(C_out, C_in/group, h, w) dy(Batch, C_out, h, w) dx(batch, C_in, h, w)
+      res_shape = {inputs_shape[1][0], inputs_shape[0][1] * group, out_shape_h, out_shape_w};
     } else if (conv_type == "backward_filter") {
-      // x dy dx
-      res_shape = {inputs_shape[1][1], inputs_shape[0][1], out_shape_h, out_shape_w};
+      // x(batch, C_in, h, w) dy(batch, C_out, h, w) dw (C_out, C_in/group, h, w)
+      res_shape = {inputs_shape[1][1], inputs_shape[0][1] / group, out_shape_h, out_shape_w};
     }
 #ifdef CINN_WITH_CUDA
     return {res_shape};
