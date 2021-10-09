@@ -193,6 +193,28 @@ struct Program {
   Variable mul(const Variable& a, const Variable& b, int x_num_col_dims = 1, int y_num_col_dims = 1);
 
   /**
+   * Multiply two matrix.
+   */
+  Variable matmul(const Variable& a, const Variable& b, bool trans_a = false, bool trans_b = false, float alpha = 1);
+
+  /**
+   * Reshape a tensor.
+   * @param a The input tensor.
+   * @param shape The output tensor's shape we specified.
+   * @return The reshaped output tensor.
+   */
+  Variable reshape(const Variable& a, const std::vector<int>& shape);
+
+  /**
+   * Concat 2 tensors.
+   * @param a The first input tensor.
+   * @param b The second input tensor.
+   * @param axis The axis specified to do the concat operation.
+   * @return The concated output tensor.
+   */
+  Variable concat(const Variable& a, const Variable& b, int axis = 0);
+
+  /**
    * Multiply two matrix and add a bias.
    */
   Variable mulbias(
@@ -260,10 +282,19 @@ struct Program {
   SYNTAX_PRIM_BINARY_DECL(left_shift)
   SYNTAX_PRIM_BINARY_DECL(right_shift)
 
-  // broadcast one operand to the target shape
-  // broadcast axes: the target axis which a's ith axis is mapped to
-  // Notes: a's dim should be one or same with the output dim mapped to.
-  // e.g. if a[64] broadcasts to out[1, 64, 112, 112], then out_shape is {1, 64, 112, 112} and broadcast_axes are {1}
+#define SYNTAX_PRIM_REDUCE_DECL(name__) \
+  Variable reduce_##name__(const Variable& a, const std::vector<int>& dim, bool keep_dim = false);
+
+  SYNTAX_PRIM_REDUCE_DECL(sum)
+  SYNTAX_PRIM_REDUCE_DECL(prod)
+  SYNTAX_PRIM_REDUCE_DECL(min)
+  SYNTAX_PRIM_REDUCE_DECL(max)
+
+  /** broadcast one operand to the target shape
+   * broadcast axes: the target axis which a's ith axis is mapped to
+   * Notes: a's dim should be one or same with the output dim mapped to.
+   * e.g. if a[64] broadcasts to out[1, 64, 112, 112], then out_shape is {1, 64, 112, 112} and broadcast_axes are {1}
+   */
   Variable primitive_broadcast_to(const Variable& a,
                                   const std::vector<int>& out_shape,
                                   const std::vector<int>& broadcast_axes);

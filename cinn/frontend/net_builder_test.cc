@@ -69,12 +69,11 @@ TEST(net_build, program_execute_multi_elementwise_add) {
 #else
   Target target = common::DefaultHostTarget();
 #endif
+
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   LOG(INFO) << "graph:\n" << graph->Visualize();
 
-  hlir::framework::ApplyPass(graph.get(), "InferShape");
   auto scope = BuildScope(target, graph);
-
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 
@@ -109,11 +108,9 @@ TEST(net_build, program_execute_fc) {
 #else
   Target target = common::DefaultHostTarget();
 #endif
+
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-
-  hlir::framework::ApplyPass(graph.get(), "InferShape");
   auto scope = BuildScope(target, graph);
-
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 

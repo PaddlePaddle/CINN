@@ -19,10 +19,9 @@ using framework::NodeData;
 using framework::Operator;
 using framework::OpValueType;
 
-using InferShapeFunc = std::function<std::vector<framework::shape_t>(
-    const std::vector<framework::shape_t>&, framework::NodeAttr&, const Target&)>;
-using InferTypeFunc =
-    std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&, const Target&)>;
+using InferShapeFunc  = std::function<std::vector<framework::shape_t>(const std::vector<framework::shape_t>&,
+                                                                     const framework::AttrMapType&)>;
+using InferTypeFunc   = std::function<std::vector<Type>(const std::vector<Type>&, const framework::AttrMapType&)>;
 using InferLayoutFunc = std::function<std::vector<std::vector<std::string>>(const std::vector<framework::shape_t>&,
                                                                             const std::vector<std::string>&,
                                                                             const framework::NodeAttr&,
@@ -68,7 +67,7 @@ std::tuple<Node*, NodeData*> InsertLayoutTransformNodeBefore(Graph* graph,
   return std::make_tuple(trans_node, temp_outdata);
 }
 
-std::vector<framework::shape_t> updateInferInfos(Node* node,
+std::vector<framework::shape_t> UpdateInferInfos(Node* node,
                                                  const std::vector<framework::shape_t>& input_shapes,
                                                  const std::vector<Type>& input_types,
                                                  const std::vector<std::string>& input_layouts,
@@ -85,15 +84,14 @@ std::vector<framework::shape_t> updateInferInfos(Node* node,
   CHECK(op_infershape[node->op()]) << "find no InferShape function for op " << node->op()->name;
   CHECK(op_infertype[node->op()]) << "find no InferDtype function for op " << node->op()->name;
   CHECK(op_inferlayout[node->op()]) << "find no InferLayout function for op " << node->op()->name;
-  auto infershapes  = op_infershape[node->op()](input_shapes, node->attrs, target);
-  auto infertypes   = op_infertype[node->op()](input_types, node->attrs, target);
+  auto infershapes  = op_infershape[node->op()](input_shapes, node->attrs.attr_store);
+  auto infertypes   = op_infertype[node->op()](input_types, node->attrs.attr_store);
   auto inferlayouts = op_inferlayout[node->op()](input_shapes, input_layouts, node->attrs, target);
 
   CHECK(!infershapes.empty()) << node->op()->name << " finds no infershape";
   CHECK(!infertypes.empty()) << node->op()->name << " finds no infertype";
   CHECK(!inferlayouts.empty()) << node->op()->name << " finds no inferlayout";
   auto outlinks = node->outlinks_in_order(true);
-  // check opt
   CHECK_EQ(infershapes.size(), infertypes.size());
   CHECK_EQ(inferlayouts.size(), 2U);
   CHECK_EQ(infertypes.size(), inferlayouts[0].size());
@@ -104,7 +102,8 @@ std::vector<framework::shape_t> updateInferInfos(Node* node,
     (*shape_dict)[sink->id()]  = infershapes[i];
     (*type_dict)[sink->id()]   = infertypes[i];
     (*layout_dict)[sink->id()] = inferlayouts[0][i];
-    VLOG(3) << "Infershape: " << sink->id() << " " << utils::Join(infershapes[i], ", ");
+    VLOG(3) << "Infershape: " << node->op()->name << "'s " << i << "-th outlink " << sink->id() << ": "
+            << utils::Join(infershapes[i], ", ");
   }
   node->attrs.attr_store["out_layouts"]   = inferlayouts[0];
   node->attrs.attr_store["input_layouts"] = inferlayouts[1];
@@ -121,6 +120,35 @@ void AlterLayoutPass(Graph* graph) {
     auto& op_inferdtype  = Operator::GetAttrs<InferTypeFunc>("inferdtype");
     auto& op_inferlayout = Operator::GetAttrs<InferLayoutFunc>("inferlayout");
     absl::flat_hash_map<std::string, std::string> layout_dict;
+    // collect all convs' original input config before altering layout for loading tune params afterwards
+    for (int i = 0; i < store_nodes.size(); i++) {
+      auto node = store_nodes[i]->safe_as<Node>();
+      if (node && node->op()->name == "conv2d") {
+        std::vector<int> padding({0, 0});
+        std::vector<int> stride({1, 1});
+        std::vector<int> dilation({1, 1});
+        if (node->attrs.attr_store.find("padding") != node->attrs.attr_store.end()) {
+          padding = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding"));
+        }
+        if (node->attrs.attr_store.find("stride") != node->attrs.attr_store.end()) {
+          stride = absl::get<std::vector<int>>(node->attrs.attr_store.at("stride"));
+        }
+        if (node->attrs.attr_store.find("dilation") != node->attrs.attr_store.end()) {
+          dilation = absl::get<std::vector<int>>(node->attrs.attr_store.at("dilation"));
+        }
+        auto& conv_inlinks = node->inlinks_in_order(true);
+        CHECK_EQ(conv_inlinks.size(), 2U) << "conv2d should have 2 inputs";
+        std::vector<std::vector<int>> inputs_shape;
+        for (auto& link : conv_inlinks) {
+          auto* source = link->source();
+          CHECK(shape_dict.count(source->id())) << source->id() << " finds no infershape";
+          inputs_shape.push_back(shape_dict.at(source->id()));
+        }
+        std::string key = pe::GenerateX86ConvKey(inputs_shape[0], inputs_shape[1], stride, padding, dilation);
+        VLOG(3) << "key: " << key;
+        node->attrs.attr_store["key"] = key;
+      }
+    }
 
     bool has_altered = false;
     for (int i = 0; i < store_nodes.size(); i++) {
@@ -201,7 +229,7 @@ void AlterLayoutPass(Graph* graph) {
                                                src_input_layout,
                                                dst_input_layout,
                                                common::UniqName(node->op()->name + "_input_layout_tranform"));
-            updateInferInfos(input_trans_node,
+            UpdateInferInfos(input_trans_node,
                              {input_shape},
                              {input_type},
                              {src_input_layout},
@@ -243,7 +271,7 @@ void AlterLayoutPass(Graph* graph) {
                                                dst_kernel_layout,
                                                common::UniqName(node->op()->name + "_weight_layout_tranform"));
             weight_trans_node->attrs.attr_store["pre_run"] = true;
-            updateInferInfos(weight_trans_node,
+            UpdateInferInfos(weight_trans_node,
                              {weight_shape},
                              {weight_type},
                              {src_kernel_layout},
@@ -269,7 +297,7 @@ void AlterLayoutPass(Graph* graph) {
             conv2d_NCHWc_inputlayouts.push_back(layout_dict[weight_node->id()]);
           }
           // replace conv2d to conv2d_NCHWc
-          auto infershapes   = op_infershape[new_node->op()](conv2d_NCHWc_inputshapes, new_node->attrs, graph->target_);
+          auto infershapes   = op_infershape[new_node->op()](conv2d_NCHWc_inputshapes, new_node->attrs.attr_store);
           auto& old_inlinks  = node->inlinks_in_order(true);
           auto& old_outlinks = node->outlinks_in_order(true);
           for (auto& link : old_inlinks) {
@@ -300,7 +328,7 @@ void AlterLayoutPass(Graph* graph) {
           }
           graph->RegisterNode(new_node->id(), new_node);
           // update conv2d_NCHWc's infershape, infertype, inferlayout and set attrs
-          updateInferInfos(new_node,
+          UpdateInferInfos(new_node,
                            conv2d_NCHWc_inputshapes,
                            conv2d_NCHWc_inputtypes,
                            conv2d_NCHWc_inputlayouts,
@@ -328,6 +356,7 @@ void AlterLayoutPass(Graph* graph) {
               input_layouts.push_back("");
             }
           }
+          CHECK(op_inferlayout[node->op()]) << "find no InferLayout function for op " << node->op()->name;
           auto inferlayouts = op_inferlayout[node->op()](input_shapes, input_layouts, node->attrs, graph->target_);
           // if input inferred layouts is different from original's, expand dims or do transformation.
           CHECK_EQ(inferlayouts.size(), 2U);
@@ -377,7 +406,7 @@ void AlterLayoutPass(Graph* graph) {
                                                    src_layout,
                                                    new_input_layouts[i],
                                                    common::UniqName(source->id() + "_layout_tranform"));
-                updateInferInfos(trans_node,
+                UpdateInferInfos(trans_node,
                                  {new_shapes},
                                  {input_types[i]},
                                  {src_layout},
@@ -407,7 +436,7 @@ void AlterLayoutPass(Graph* graph) {
                                                    src_layout,
                                                    new_input_layouts[i],
                                                    common::UniqName(source->id() + "_layout_tranform"));
-                updateInferInfos(trans_node,
+                UpdateInferInfos(trans_node,
                                  {input_shapes[i]},
                                  {input_types[i]},
                                  {src_layout},
@@ -437,7 +466,7 @@ void AlterLayoutPass(Graph* graph) {
                                                    src_layout,
                                                    new_input_layouts[i],
                                                    common::UniqName(source->id() + "_layout_tranform"));
-                updateInferInfos(trans_node,
+                UpdateInferInfos(trans_node,
                                  {input_shapes[i]},
                                  {input_types[i]},
                                  {src_layout},
@@ -469,7 +498,7 @@ void AlterLayoutPass(Graph* graph) {
               input_layouts.push_back("");
             }
           }
-          updateInferInfos(node,
+          UpdateInferInfos(node,
                            input_shapes,
                            input_types,
                            input_layouts,
@@ -519,7 +548,7 @@ void AlterLayoutPass(Graph* graph) {
             shape_dict[temp_out->id()]  = shape;
             type_dict[temp_out->id()]   = type;
             layout_dict[temp_out->id()] = src_layout;
-            updateInferInfos(trans_node,
+            UpdateInferInfos(trans_node,
                              {shape},
                              {type},
                              {src_layout},

@@ -1,12 +1,11 @@
 core_gather_headers()
-core_gather_srcs(SRCS
-    syntax.cc
-    paddle_model_to_program.cc
-    interpreter.cc
-    base_builder.cc
-    net_builder.cc
-    paddle_model_to_netbuilder.cc
-    )
+gather_srcs(cinnapi_src SRCS
+  syntax.cc
+  paddle_model_to_program.cc
+  interpreter.cc
+  base_builder.cc
+  net_builder.cc
+  paddle_model_to_netbuilder.cc)
 
 if(NOT WITH_CUDA)
   cc_test(test_frontend_syntax
@@ -35,5 +34,11 @@ else()
 endif()
 
 cc_test(test_net_builder SRCS net_builder_test.cc DEPS cinncore)
+cc_test(test_decomposer_registry
+        SRCS decomposer_registry_test.cc DEPS cinncore)
 
 add_subdirectory(paddle)
+add_subdirectory(decomposer)
+add_subdirectory(op_mappers)
+
+cc_test(test_op_mapper_registry SRCS op_mapper_registry_test.cc DEPS cinncore)

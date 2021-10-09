@@ -1,6 +1,7 @@
 core_gather_headers()
 
-core_gather_srcs(SRCS
+
+gather_srcs(cinnapi_src SRCS
   string.cc
   functional.cc
   dot_lang.cc

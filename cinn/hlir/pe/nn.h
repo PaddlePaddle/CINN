@@ -335,6 +335,7 @@ std::vector<ir::Tensor> Pool2d(const ir::Tensor &tensor,
                                bool ceil_mode                 = false,
                                bool exclusive                 = true,
                                const std::string &data_format = "NCHW",
+                               bool adaptive                  = false,
                                const std::string &output_name = UniqName("T_Pool2d_out"));
 
 /**
@@ -377,6 +378,32 @@ ir::Tensor DropoutInfer(const ir::Tensor &tensor,
                         float dropout_prob,
                         const std::string &dropout_implementation = "downgrade_in_infer",
                         const std::string &output_name            = UniqName("T_Dropout_infer_out"));
+
+/**
+ * @brief Perform Select for meta op 'Select'.
+ * @param condition : the condition tensor for select value.
+ * @param true_value : value for condition value = true.
+ * @param false_value : value for condition value = false.
+ * 1. condition expr = true
+ *     out = true_value
+ * 2. condition expr = false
+ *     out = false_value
+ * @param ouput_name : the name of the output tensor.
+ */
+ir::Tensor Select(const ir::Tensor &condition,
+                  const ir::Tensor &true_value,
+                  const ir::Tensor &false_value,
+                  const std::string &output_name = UniqName("T_Select_out"));
+
+/**
+ * @brief Perform meta op Reverse
+ * @param input The input tensor
+ * @param axis reverse axis
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor Reverse(const ir::Tensor &input,
+                   const std::vector<int> axis,
+                   const std::string &output_name = UniqName("T_Transform_Reverse_out"));
 
 }  // namespace pe
 }  // namespace hlir

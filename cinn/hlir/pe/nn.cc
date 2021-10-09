@@ -1,9 +1,10 @@
 #include "cinn/hlir/pe/nn.h"
 
+#include <absl/container/flat_hash_map.h>
+
 #include <functional>
 #include <numeric>
 #include <string>
-#include <absl/container/flat_hash_map.h>
 #include <vector>
 
 #include "cinn/common/cas.h"
@@ -734,6 +735,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
                              const std::vector<int> &axis,
                              bool ceil_mode,
                              bool exclusive,
+                             bool adaptive,
                              const std::string &output_name) {
   CHECK(!kernel_size.empty()) << "Pooling kernel_size should not be empty\n";
   int k_size = kernel_size.size();
@@ -774,6 +776,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
     out_shape[ii] = out_dim;
   }
 
+  do_pad = do_pad || (ceil_mode && stride_size[0] > 1);
   Tensor temp;
   Tensor res;
   if (pool_type == "max") {
@@ -811,29 +814,68 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
           if (exclusive) {
             std::vector<Expr> start(k_size);
             std::vector<Expr> end(k_size);
-            auto kernel_size = make_const(Int(32), 1);
+            auto temp_factor = make_const(Int(32), 1);
             for (int i = 0; i < k_size; i++) {
               int ii      = axis[i];
               start[i]    = common::AutoSimplify(output[ii] * stride[i] - pad_head[i]);
               end[i]      = Min::Make(start[i] + kernel[i], tensor->shape[ii]);
               start[i]    = Max::Make(start[i], make_const(Int(32), 0));
-              kernel_size = kernel_size * (end[i] - start[i]);
+              temp_factor = temp_factor * (end[i] - start[i]);
             }
-            common::AutoSimplify(kernel_size);
-            Expr divide_factor = Max::Make(kernel_size, make_const(Int(32), 1));
+            common::AutoSimplify(temp_factor);
+            Expr divide_factor = Max::Make(temp_factor, make_const(Int(32), 1));
             return lang::ReduceSum(ir::Div::Make(temp(indices), cast(divide_factor, Float(32))), {daxis});
           } else {
-            auto kernel_size = make_const(Int(32), 1);
+            auto temp_factor = make_const(Int(32), 1);
             for (int i = 0; i < k_size; i++) {
-              kernel_size = kernel_size * kernel[i];
+              temp_factor = temp_factor * kernel[i];
             }
-            common::AutoSimplify(kernel_size);
-            return lang::ReduceSum(ir::Div::Make(temp(indices), cast(kernel_size, Float(32))), daxis);
+            common::AutoSimplify(temp_factor);
+            return lang::ReduceSum(ir::Div::Make(temp(indices), cast(temp_factor, Float(32))), daxis);
           }
         },
         UniqName(output_name));
   } else {
     LOG(ERROR) << "Unrecognized pool_type: " << pool_type;
+  }
+  if (adaptive) {
+    CHECK(pool_type == "avg");
+    std::vector<Expr> out_shape = tensor->shape;
+    CHECK_EQ(k_size, 2);
+    CHECK_EQ(k_size, (int)axis.size());
+    for (int i = 0; i < k_size; i++) {
+      out_shape[axis[i]] = Expr(kernel_size[i]);
+    }
+    VLOG(4) << "PoolImpl out_shape: " << utils::Join(out_shape, ",");
+    CHECK(!do_pad);
+    temp = do_pad ? Pad(tensor, pad_before, pad_after, 0, UniqName("pad_temp")) : tensor;
+    std::vector<Var> reduce_axis;
+
+    for (int i = 0; i < k_size; i++) {
+      reduce_axis.emplace_back(
+          Var(Expr((int)tensor->shape[axis[i]].get_constant() / kernel_size[i]), UniqName("adaptive_reduce")));
+    }
+
+    res = Compute(
+        out_shape,
+        [=](const std::vector<Expr> &output) {
+          std::vector<Expr> indices;
+          for (const Expr &var : output) indices.push_back(var);
+
+          for (int i = 0; i < k_size; i++) {
+            indices[axis[i]] =
+                output[axis[i]] * Expr((int)tensor->shape[axis[i]].get_constant() / kernel_size[i]) + reduce_axis[i];
+          }
+
+          auto temp_factor = make_const(Int(32), 1);
+          for (int i = 0; i < k_size; i++) {
+            temp_factor = temp_factor * Expr((int)tensor->shape[axis[i]].get_constant() / kernel_size[i]);
+          }
+          common::AutoSimplify(temp_factor);
+          Expr divide_factor = Max::Make(temp_factor, make_const(Int(32), 1));
+          return lang::ReduceSum(ir::Div::Make(temp(indices), cast(divide_factor, Float(32))), {reduce_axis});
+        },
+        UniqName(output_name));
   }
   if (do_pad) {
     return {res, temp};
@@ -861,8 +903,16 @@ std::vector<Tensor> Pool1d(const Tensor &tensor,
   }
   CHECK_EQ(tensor->shape.size(), 3U) << "pool1d requires tensor's shape_size to be 3\n";
   std::vector<int> axis = {width_axis};
-  return PoolImpl(
-      tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, UniqName(output_name));
+  return PoolImpl(tensor,
+                  kernel_size,
+                  stride_size,
+                  padding_size,
+                  pool_type,
+                  axis,
+                  ceil_mode,
+                  exclusive,
+                  false,
+                  UniqName(output_name));
 }
 
 std::vector<Tensor> Pool2d(const Tensor &tensor,
@@ -873,6 +923,7 @@ std::vector<Tensor> Pool2d(const Tensor &tensor,
                            bool ceil_mode,
                            bool exclusive,
                            const std::string &data_format,
+                           bool adaptive,
                            const std::string &output_name) {
   int height_axis = -1;
   int width_axis  = -1;
@@ -891,8 +942,16 @@ std::vector<Tensor> Pool2d(const Tensor &tensor,
   CHECK(tensor->shape.size() == 4U || tensor->shape.size() == 5U)
       << "pool2d requires tensor's shape_size to be 4 or 5\n";
   std::vector<int> axis = {height_axis, width_axis};
-  return PoolImpl(
-      tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, UniqName(output_name));
+  return PoolImpl(tensor,
+                  kernel_size,
+                  stride_size,
+                  padding_size,
+                  pool_type,
+                  axis,
+                  ceil_mode,
+                  exclusive,
+                  adaptive,
+                  UniqName(output_name));
 }
 
 std::vector<Tensor> Pool3d(const Tensor &tensor,
@@ -920,8 +979,16 @@ std::vector<Tensor> Pool3d(const Tensor &tensor,
   }
   CHECK_EQ(tensor->shape.size(), 5U) << "pool1d requires tensor's shape_size to be 5\n";
   std::vector<int> axis = {depth_axis, height_axis, width_axis};
-  return PoolImpl(
-      tensor, kernel_size, stride_size, padding_size, pool_type, axis, ceil_mode, exclusive, UniqName(output_name));
+  return PoolImpl(tensor,
+                  kernel_size,
+                  stride_size,
+                  padding_size,
+                  pool_type,
+                  axis,
+                  ceil_mode,
+                  exclusive,
+                  false,
+                  UniqName(output_name));
 }
 
 Tensor DropoutInfer(const ir::Tensor &tensor,
@@ -938,6 +1005,35 @@ Tensor DropoutInfer(const ir::Tensor &tensor,
   } else {
     LOG(FATAL) << "dropout_implementation attr must be 'downgrade_in_infer' or 'upscale_in_train'\n";
   }
+}
+
+ir::Tensor Select(const ir::Tensor &condition,
+                  const ir::Tensor &true_value,
+                  const ir::Tensor &false_value,
+                  const std::string &output_name) {
+  CHECK(condition->type().is_bool()) << "The condtion tensor type should be bool!";
+  CHECK(condition->shape == true_value->shape && true_value->shape == false_value->shape)
+      << "The input tensor shape is not equal!";
+  return lang::Compute(condition->shape, [=](const std::vector<Expr> &indice) {
+    return common::select(condition(indice), true_value(indice), false_value(indice));
+  });
+}
+
+ir::Tensor Reverse(const ir::Tensor &input, const std::vector<int> axis, const std::string &output_name) {
+  for (auto &val : axis) {
+    CHECK(val >= 0 && val < input->shape.size()) << "axis should be [0,n_dim)";
+  }
+  std::vector<Expr> shape = input->shape;
+  return lang::Compute(
+      input->shape,
+      [=](const std::vector<Expr> &indice) {
+        std::vector<Expr> indexs(indice.begin(), indice.end());
+        for (auto idx : axis) {
+          indexs[idx] = shape[idx] - Expr(1) - indexs[idx];
+        };
+        return input(indexs);
+      },
+      output_name);
 }
 
 }  // namespace pe

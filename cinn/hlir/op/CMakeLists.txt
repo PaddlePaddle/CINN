@@ -1,10 +1,11 @@
 core_gather_headers()
 
-core_gather_srcs(SRCS
+gather_srcs(cinnapi_src SRCS
     nn.cc
     broadcast.cc
     transform.cc
     elementwise.cc
+    reduction.cc
     op_util.cc
     )
 

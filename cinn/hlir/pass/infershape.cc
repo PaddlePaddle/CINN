@@ -21,10 +21,10 @@ void InferShapePass(Graph* graph) {
   auto& dtype_dict    = graph->GetMutableAttrs<absl::flat_hash_map<std::string, Type>>("inferdtype");
   auto store_nodes    = std::get<0>(graph->topological_order());
   auto& op_infershape = Operator::GetAttrs<std::function<std::vector<framework::shape_t>(
-      const std::vector<framework::shape_t>&, framework::NodeAttr&, const Target&)>>("infershape");
-  auto& op_inferdtype = Operator::GetAttrs<
-      std::function<std::vector<Type>(const std::vector<Type>&, const framework::NodeAttr&, const Target&)>>(
-      "inferdtype");
+      const std::vector<framework::shape_t>&, const framework::AttrMapType&)>>("infershape");
+  auto& op_inferdtype =
+      Operator::GetAttrs<std::function<std::vector<Type>(const std::vector<Type>&, const framework::AttrMapType&)>>(
+          "inferdtype");
 
   for (auto& n : store_nodes) {
     auto node = n->safe_as<Node>();
@@ -41,9 +41,9 @@ void InferShapePass(Graph* graph) {
       }
 
       auto out_shape =
-          op_infershape[node->safe_as<Node>()->op()](inputs_shape, node->safe_as<Node>()->attrs, graph->target_);
+          op_infershape[node->safe_as<Node>()->op()](inputs_shape, node->safe_as<Node>()->attrs.attr_store);
       auto out_dtype =
-          op_inferdtype[node->safe_as<Node>()->op()](inputs_dtype, node->safe_as<Node>()->attrs, graph->target_);
+          op_inferdtype[node->safe_as<Node>()->op()](inputs_dtype, node->safe_as<Node>()->attrs.attr_store);
 
       CHECK_GE(node->outlinks_in_order().size(), out_shape.size())
           << "The output number of node " << node->id() << " is " << node->outlinks_in_order().size()
@@ -66,8 +66,6 @@ void InferShapePass(Graph* graph) {
       }
     }
   }
-  graph->attrs["infershape"] = std::make_shared<absl::any>(shape_dict);
-  graph->attrs["inferdtype"] = std::make_shared<absl::any>(dtype_dict);
 }
 
 }  // namespace pass

@@ -1,6 +1,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 
 #include <absl/container/flat_hash_map.h>
+
 #include <unordered_set>
 
 #include "cinn/backends/codegen_cuda_dev.h"
@@ -39,8 +40,8 @@ void AddAttrs(const absl::flat_hash_map<std::string, AttrType>& attrs_store,
 
 void GraphCompiler::PrintFunc() {
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
@@ -52,8 +53,8 @@ void GraphCompiler::PrintFunc() {
 
 std::string GraphCompiler::GenSourceCode() {
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
   for (auto& n : nodes) {
     auto* node = n->safe_as<Node>();
@@ -124,7 +125,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
   return func;
 }
 
-// get the most complex op's index in the fused groups according to the OpPattern. If the OpPattern is same, we will take the latter.
+// get the most complex op's index in the fused groups according to the OpPattern. If the OpPattern is same, we will
+// take the latter.
 int GetMasterRefNode(const std::vector<Node*>& nodes) {
   auto& op_pattern_dict = Operator::GetAttrs<OpPatternKind>("OpPattern");
   int master_index      = 0;
@@ -335,10 +337,10 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
 
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
-  auto& groups        = graph_->groups;
+  auto& groups = graph_->groups;
 
   if (!groups.empty()) {
     for (int i = 0; i < groups.size(); i++) {
@@ -384,10 +386,10 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
   std::vector<std::unique_ptr<Instruction>> instructions;
   auto topo_order = graph_->topological_order();
-  auto &nodes = std::get<0>(topo_order);
-  auto &edges = std::get<1>(topo_order);
+  auto& nodes     = std::get<0>(topo_order);
+  auto& edges     = std::get<1>(topo_order);
 
-  auto& groups        = graph_->groups;
+  auto& groups = graph_->groups;
   for (auto& group : groups) {
     if (group.size() == 1) {
       auto node  = group[0];
@@ -401,6 +403,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
             auto in_shape     = shape_dict.at(in_id);
             instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
           }
+          // padding stride dilation  group
           AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
           if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
             auto groups = absl::get<int>(node->attrs.attr_store.at("groups"));
@@ -408,12 +411,19 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           } else {
             instr->attrs.push_back(1);
           }
+          // output shape
           CHECK(!node->outlinks_in_order().empty());
           auto& out_node     = node->outlinks_in_order().front();
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           CHECK_EQ(instr->attrs.size(), 19UL);
+          // conv type {forward, backward_data, backward_filter}
+          std::string type = "forward";
+          if (node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end()) {
+            type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          }
+          instr->str_attrs.push_back(type);
         } else if (node->op()->name == "depthwise_conv2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
@@ -421,6 +431,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
             auto in_shape     = shape_dict.at(in_id);
             instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
           }
+          // conv
           AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
           if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
             auto groups = absl::get<int>(node->attrs.attr_store.at("groups"));
@@ -428,12 +439,19 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           } else {
             instr->attrs.push_back(instr->attrs[1]);
           }
+          // output shape
           CHECK(!node->outlinks_in_order().empty());
           auto& out_node     = node->outlinks_in_order().front();
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           CHECK_EQ(instr->attrs.size(), 19UL);
+          // conv type {forward, backward_data, backward_filter}
+          std::string type = "forward";
+          if (node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end()) {
+            type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          }
+          instr->str_attrs.push_back(type);
         } else if (node->op()->name == "pool2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
@@ -458,6 +476,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           if (node->attrs.attr_store.find("padding_size") != node->attrs.attr_store.end()) {
             if (global_pooling == false) {
               auto stride = absl::get<std::vector<int>>(node->attrs.attr_store.at("padding_size"));
+              CHECK_EQ(stride.size(), 4UL);
               instr->attrs.insert(instr->attrs.end(), stride.begin(), stride.end());
             } else {
               instr->attrs.push_back(0);
@@ -473,7 +492,14 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
             auto out_shape     = shape_dict.at(out_id);
             instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           }
-          CHECK_EQ(instr->attrs.size(), 16UL);
+          if (node->attrs.attr_store.find("adaptive") != node->attrs.attr_store.end()) {
+            bool adaptive = absl::get<bool>(node->attrs.attr_store.at("adaptive"));
+            if (adaptive)
+              instr->attrs.push_back(1);
+            else
+              instr->attrs.push_back(0);
+          }
+          CHECK_EQ(instr->attrs.size(), 17UL);
           CHECK_EQ(instr->str_attrs.size(), 1UL);
         } else if (node->op()->name == "softmax") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
