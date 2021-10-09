@@ -52,14 +52,14 @@ function prepare_llvm {
 
 function make_doc {
     cd $workspace/tutorials
-    if [[ -f "ResNet18.tar" ]]; then
+    if [[ -f "ResNet18.tar.gz" ]]; then
         echo "model file for tutorials already downloaded."
-    elif [[ -f "$build_dir/thirds/ResNet18.tar" ]]; then
+    elif [[ -f "$build_dir/thirds/ResNet18.tar.gz" ]]; then
         rm -rf $workspace/tutorials/ResNet18
         ln -s $build_dir/thirds/ResNet18 $workspace/tutorials/ResNet18
     else
-        wget http://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar
-        tar -xvf ResNet18.tar
+        wget http://paddle-inference-dist.bj.bcebos.com/CINN/ResNet18.tar.gz
+        tar -zxvf ResNet18.tar.gz
     fi
     if [[ $cuda_config == "ON" ]]; then
         mkdir is_cuda
@@ -95,19 +95,19 @@ function _download_and_untar {
     local tar_file=$1
     if [[ ! -f $tar_file ]]; then
         wget https://paddle-inference-dist.bj.bcebos.com/CINN/$tar_file
-        tar -xvf $tar_file
+        tar -zxvf $tar_file
     fi
 }
 
 function prepare_model {
     cd $build_dir/thirds
 
-    _download_and_untar ResNet18.tar
-    _download_and_untar MobileNetV2.tar
-    _download_and_untar EfficientNet.tar
-    _download_and_untar MobilenetV1.tar
-    _download_and_untar ResNet50.tar
-    _download_and_untar SqueezeNet.tar
+    _download_and_untar ResNet18.tar.gz
+    _download_and_untar MobileNetV2.tar.gz
+    _download_and_untar EfficientNet.tar.gz
+    _download_and_untar MobilenetV1.tar.gz
+    _download_and_untar ResNet50.tar.gz
+    _download_and_untar SqueezeNet.tar.gz
 
     mkdir -p $build_dir/paddle
     cd $build_dir/paddle
