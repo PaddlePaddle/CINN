@@ -36,7 +36,10 @@ class CinnBuilder : public BaseBuilder {
   using BaseBuilder::BaseBuilder;
 
   /**
-   * Create scalar with the specific value and type
+   * @brief Create scalar with the specific value and type.
+   * @param value The scalar value to be set.
+   * @param name The name of output variable.
+   * @return The result variable.
    */
   template <typename T>
   Variable ConstScalar(T value, const std::string& name) {
@@ -53,7 +56,7 @@ class CinnBuilder : public BaseBuilder {
     return out;
   }
 
-#define UNARY_OP_DECL(name__) Variable name__(const Variable& operand);
+#define UNARY_OP_DECL(func_name__) Variable func_name__(const Variable& operand);
   UNARY_OP_DECL(Exp)
   UNARY_OP_DECL(Erf)
   UNARY_OP_DECL(Sqrt)
@@ -77,11 +80,9 @@ class CinnBuilder : public BaseBuilder {
   UNARY_OP_DECL(Asinh)
   UNARY_OP_DECL(Acosh)
   UNARY_OP_DECL(Atanh)
-
   UNARY_OP_DECL(IsNan)
   UNARY_OP_DECL(IsFinite)
   UNARY_OP_DECL(IsInf)
-
   UNARY_OP_DECL(LogicalNot)
   UNARY_OP_DECL(BitwiseNot)
   UNARY_OP_DECL(Negative)
@@ -90,7 +91,7 @@ class CinnBuilder : public BaseBuilder {
   UNARY_OP_DECL(Identity)
 #undef UNARY_OP_DECL
 
-#define BINARY_OP_DECL(name__) Variable name__(const Variable& lhs, const Variable& rhs);
+#define BINARY_OP_DECL(func_name__) Variable func_name__(const Variable& lhs, const Variable& rhs);
   BINARY_OP_DECL(Dot)
   BINARY_OP_DECL(Add)
   BINARY_OP_DECL(Sub)
@@ -123,9 +124,20 @@ class CinnBuilder : public BaseBuilder {
                 const std::string& data_format       = "NCHW",
                 const std::string& padding_algorithm = "EXPLICIT");
 
-  Variable Compare(ComparisonKind kind, const Variable& lhs, const Variable& rhs);
+  Variable Compare(const Variable& lhs, const Variable& rhs, ComparisonKind kind);
 
-  Variable Reduce(ReduceKind kind, const Variable& operand, const std::vector<int>& dim, bool keep_dim = false);
+  /**
+   * @brief Reduce array elements over the given dims.
+   *
+   * @param operand The input variable.
+   * @param dim The dims along which a sum is performed. If dim is empty, the operation will sum over all elements
+   * of the input array. If the dim has negative value, it should count from the last dim to the first.
+   * @param keep_dim If it is set true, the axes which are reduced are left in the result as dimensions with size one.
+   * With this option, the result will broadcast correctly against the input array.
+   *
+   * @return The result variable.
+   */
+  Variable Reduce(const Variable& operand, ReduceKind kind, const std::vector<int>& dim, bool keep_dim = false);
 
   Variable BroadcastTo(const Variable& operand,
                        const std::vector<int>& out_shape,
@@ -142,12 +154,9 @@ class CinnBuilder : public BaseBuilder {
 
   Variable Reverse(const Variable& operand, const std::vector<int>& axis);
 
- private:
   Variable UnaryOp(const std::string& op_type, const Variable& operand);
 
   Variable BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs);
-
-  Variable ReduceOp(const std::string& op_type, const Variable& operand, const std::vector<int>& dim, bool keep_dim);
 };
 
 }  // namespace frontend

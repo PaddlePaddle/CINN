@@ -11,110 +11,63 @@
 namespace cinn {
 namespace frontend {
 
-#define UNARY_OP_DEF(name__) Variable CinnBuilder::name__(const Variable& operand)
-UNARY_OP_DEF(Exp) { return UnaryOp("exp", operand); }
-
-UNARY_OP_DEF(Erf) { return UnaryOp("erf", operand); }
-
-UNARY_OP_DEF(Sqrt) { return UnaryOp("sqrt", operand); }
-
-UNARY_OP_DEF(Rsqrt) { return UnaryOp("rsqrt", operand); }
-
-UNARY_OP_DEF(Log) { return UnaryOp("log", operand); }
-
-UNARY_OP_DEF(Log2) { return UnaryOp("log2", operand); }
-
-UNARY_OP_DEF(Log10) { return UnaryOp("log10", operand); }
-
-UNARY_OP_DEF(Floor) { return UnaryOp("floor", operand); }
-
-UNARY_OP_DEF(Ceil) { return UnaryOp("ceil", operand); }
-
-UNARY_OP_DEF(Round) { return UnaryOp("round", operand); }
-
-UNARY_OP_DEF(Trunc) { return UnaryOp("trunc", operand); }
-
-UNARY_OP_DEF(Sin) { return UnaryOp("sin", operand); }
-
-UNARY_OP_DEF(Cos) { return UnaryOp("cos", operand); }
-
-UNARY_OP_DEF(Tan) { return UnaryOp("tan", operand); }
-
-UNARY_OP_DEF(Sinh) { return UnaryOp("sinh", operand); }
-
-UNARY_OP_DEF(Cosh) { return UnaryOp("cosh", operand); }
-
-UNARY_OP_DEF(Tanh) { return UnaryOp("tanh", operand); }
-
-UNARY_OP_DEF(Asin) { return UnaryOp("asin", operand); }
-
-UNARY_OP_DEF(Acos) { return UnaryOp("acos", operand); }
-
-UNARY_OP_DEF(Atan) { return UnaryOp("atan", operand); }
-
-UNARY_OP_DEF(Asinh) { return UnaryOp("asinh", operand); }
-
-UNARY_OP_DEF(Acosh) { return UnaryOp("acosh", operand); }
-
-UNARY_OP_DEF(Atanh) { return UnaryOp("atanh", operand); }
-
-UNARY_OP_DEF(IsNan) { return UnaryOp("isnan", operand); }
-
-UNARY_OP_DEF(IsFinite) { return UnaryOp("isfinite", operand); }
-
-UNARY_OP_DEF(IsInf) { return UnaryOp("isinf", operand); }
-
-UNARY_OP_DEF(LogicalNot) { return UnaryOp("logical_not", operand); }
-
-UNARY_OP_DEF(BitwiseNot) { return UnaryOp("bitwise_not", operand); }
-
-UNARY_OP_DEF(Negative) { return UnaryOp("negative", operand); }
-
-UNARY_OP_DEF(Sign) { return UnaryOp("sign", operand); }
-
-UNARY_OP_DEF(Abs) { return UnaryOp("abs", operand); }
-
-UNARY_OP_DEF(Identity) { return UnaryOp("identity", operand); }
+#define UNARY_OP_DEF(func_name__, op_type__) \
+  Variable CinnBuilder::func_name__(const Variable& operand) { return UnaryOp(#op_type__, operand); }
+UNARY_OP_DEF(Exp, exp)
+UNARY_OP_DEF(Erf, erf)
+UNARY_OP_DEF(Sqrt, sqrt)
+UNARY_OP_DEF(Rsqrt, rsqrt)
+UNARY_OP_DEF(Log, log)
+UNARY_OP_DEF(Log2, log2)
+UNARY_OP_DEF(Log10, log10)
+UNARY_OP_DEF(Floor, floor)
+UNARY_OP_DEF(Ceil, ceil)
+UNARY_OP_DEF(Round, round)
+UNARY_OP_DEF(Trunc, trunc)
+UNARY_OP_DEF(Sin, sin)
+UNARY_OP_DEF(Cos, cos)
+UNARY_OP_DEF(Tan, tan)
+UNARY_OP_DEF(Sinh, sinh)
+UNARY_OP_DEF(Cosh, cosh)
+UNARY_OP_DEF(Tanh, tanh)
+UNARY_OP_DEF(Asin, asin)
+UNARY_OP_DEF(Acos, acos)
+UNARY_OP_DEF(Atan, atan)
+UNARY_OP_DEF(Asinh, asinh)
+UNARY_OP_DEF(Acosh, acosh)
+UNARY_OP_DEF(Atanh, atanh)
+UNARY_OP_DEF(IsNan, isnan)
+UNARY_OP_DEF(IsFinite, isfinite)
+UNARY_OP_DEF(IsInf, isinf)
+UNARY_OP_DEF(LogicalNot, logical_not)
+UNARY_OP_DEF(BitwiseNot, bitwise_not)
+UNARY_OP_DEF(Negative, negative)
+UNARY_OP_DEF(Sign, sign)
+UNARY_OP_DEF(Abs, abs)
+UNARY_OP_DEF(Identity, identity)
 #undef UNARY_OP_DEF
 
-#define BINARY_OP_DEF(name__) Variable CinnBuilder::name__(const Variable& lhs, const Variable& rhs)
-BINARY_OP_DEF(Dot) { return BinaryOp("matmul", lhs, rhs); }
-
-BINARY_OP_DEF(Add) { return BinaryOp("elementwise_add", lhs, rhs); }
-
-BINARY_OP_DEF(Sub) { return BinaryOp("substract", lhs, rhs); }
-
-BINARY_OP_DEF(Mul) { return BinaryOp("elementwise_mul", lhs, rhs); }
-
-BINARY_OP_DEF(Div) { return BinaryOp("divide", lhs, rhs); }
-
-BINARY_OP_DEF(FloorDiv) { return BinaryOp("floor_divide", lhs, rhs); }
-
-BINARY_OP_DEF(Mod) { return BinaryOp("mod", lhs, rhs); }
-
-BINARY_OP_DEF(FloorMod) { return BinaryOp("floor_mod", lhs, rhs); }
-
-BINARY_OP_DEF(Max) { return BinaryOp("max", lhs, rhs); }
-
-BINARY_OP_DEF(Min) { return BinaryOp("min", lhs, rhs); }
-
-BINARY_OP_DEF(Power) { return BinaryOp("power", lhs, rhs); }
-
-BINARY_OP_DEF(LogicalAnd) { return BinaryOp("logical_and", lhs, rhs); }
-
-BINARY_OP_DEF(LogicalOr) { return BinaryOp("logical_or", lhs, rhs); }
-
-BINARY_OP_DEF(LogicalXor) { return BinaryOp("logical_xor", lhs, rhs); }
-
-BINARY_OP_DEF(BitwiseAnd) { return BinaryOp("bitwise_and", lhs, rhs); }
-
-BINARY_OP_DEF(BitwiseOr) { return BinaryOp("bitwise_or", lhs, rhs); }
-
-BINARY_OP_DEF(BitwiseXor) { return BinaryOp("bitwise_xor", lhs, rhs); }
-
-BINARY_OP_DEF(LeftShift) { return BinaryOp("left_shift", lhs, rhs); }
-
-BINARY_OP_DEF(RightShift) { return BinaryOp("right_shift", lhs, rhs); }
+#define BINARY_OP_DEF(func_name__, op_type__) \
+  Variable CinnBuilder::func_name__(const Variable& lhs, const Variable& rhs) { return BinaryOp(#op_type__, lhs, rhs); }
+BINARY_OP_DEF(Dot, matmul)
+BINARY_OP_DEF(Add, elementwise_add)
+BINARY_OP_DEF(Sub, substract)
+BINARY_OP_DEF(Mul, elementwise_mul)
+BINARY_OP_DEF(Div, divide)
+BINARY_OP_DEF(FloorDiv, floor_divide)
+BINARY_OP_DEF(Mod, mod)
+BINARY_OP_DEF(FloorMod, floor_mod)
+BINARY_OP_DEF(Max, max)
+BINARY_OP_DEF(Min, min)
+BINARY_OP_DEF(Power, power)
+BINARY_OP_DEF(LogicalAnd, logical_and)
+BINARY_OP_DEF(LogicalOr, logical_or)
+BINARY_OP_DEF(LogicalXor, logical_xor)
+BINARY_OP_DEF(BitwiseAnd, bitwise_and)
+BINARY_OP_DEF(BitwiseOr, bitwise_or)
+BINARY_OP_DEF(BitwiseXor, bitwise_xor)
+BINARY_OP_DEF(LeftShift, left_shift)
+BINARY_OP_DEF(RightShift, right_shift)
 #undef BINARY_OP_DEF
 
 Variable CinnBuilder::Concat(const Variable& lhs, const Variable& rhs, int axis) {
@@ -146,7 +99,7 @@ Variable CinnBuilder::Conv(const Variable& lhs,
   return instr.GetOutput(0);
 }
 
-Variable CinnBuilder::Compare(ComparisonKind kind, const Variable& lhs, const Variable& rhs) {
+Variable CinnBuilder::Compare(const Variable& lhs, const Variable& rhs, ComparisonKind kind) {
   switch (kind) {
     case ComparisonKind::kEq:
       return BinaryOp("equal", lhs, rhs);
@@ -165,16 +118,25 @@ Variable CinnBuilder::Compare(ComparisonKind kind, const Variable& lhs, const Va
   }
 }
 
-Variable CinnBuilder::Reduce(ReduceKind kind, const Variable& operand, const std::vector<int>& dim, bool keep_dim) {
+Variable CinnBuilder::Reduce(const Variable& operand, ReduceKind kind, const std::vector<int>& dim, bool keep_dim) {
+  auto reduce_func = [&](const std::string& op_type) {
+    Instruction instr(op_type, {operand});
+    instr.SetAttr("dim", dim);
+    instr.SetAttr("keep_dim", keep_dim);
+    InferShape(instr);
+    AppendInstruction(instr);
+    return instr.GetOutput(0);
+  };
+
   switch (kind) {
     case ReduceKind::kSum:
-      return ReduceOp("reduce_sum", operand, dim, keep_dim);
+      return reduce_func("reduce_sum");
     case ReduceKind::kProd:
-      return ReduceOp("reduce_prod", operand, dim, keep_dim);
+      return reduce_func("reduce_prod");
     case ReduceKind::kMax:
-      return ReduceOp("reduce_max", operand, dim, keep_dim);
+      return reduce_func("reduce_max");
     case ReduceKind::kMin:
-      return ReduceOp("reduce_min", operand, dim, keep_dim);
+      return reduce_func("reduce_min");
     default:
       LOG(FATAL) << "unknown reduction kind";
   }
@@ -237,18 +199,6 @@ Variable CinnBuilder::UnaryOp(const std::string& op_type, const Variable& operan
 
 Variable CinnBuilder::BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs) {
   Instruction instr(op_type, {lhs, rhs});
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-Variable CinnBuilder::ReduceOp(const std::string& op_type,
-                               const Variable& operand,
-                               const std::vector<int>& dim,
-                               bool keep_dim) {
-  Instruction instr(op_type, {operand});
-  instr.SetAttr("dim", dim);
-  instr.SetAttr("keep_dim", keep_dim);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
