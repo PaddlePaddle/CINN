@@ -5,7 +5,7 @@ namespace cinn {
 namespace frontend {
 namespace op_mappers {
 
-void ReluOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void ReluOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -17,7 +17,7 @@ void ReluOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
-void Relu6OpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void Relu6OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -36,6 +36,6 @@ void Relu6OpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(relu) {
-  CINN_REGISTER_OP_MAPPER(relu, cinn::frontend::op_mappers::ReluOpMaker)
-  CINN_REGISTER_OP_MAPPER(relu6, cinn::frontend::op_mappers::Relu6OpMaker)
+  CINN_REGISTER_OP_MAPPER(relu, cinn::frontend::op_mappers::ReluOpMapper)
+  CINN_REGISTER_OP_MAPPER(relu6, cinn::frontend::op_mappers::Relu6OpMapper)
 }

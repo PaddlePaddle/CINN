@@ -80,11 +80,11 @@ class OpMapperContext {
 
 class OpMapper {
  public:
-  using OpMakerFunc = std::function<void(const paddle::cpp::OpDesc&, const OpMapperContext&)>;
+  using OpMapperFunc = std::function<void(const paddle::cpp::OpDesc&, const OpMapperContext&)>;
 
   OpMapper() = default;
 
-  OpMapper& Set(const OpMakerFunc& kernel) {
+  OpMapper& Set(const OpMapperFunc& kernel) {
     kernel_ = kernel;
     return *this;
   }
@@ -93,7 +93,7 @@ class OpMapper {
   std::string name;
 
  private:
-  OpMakerFunc kernel_;
+  OpMapperFunc kernel_;
 };
 
 class OpMapperRegistry : public Registry<OpMapper> {

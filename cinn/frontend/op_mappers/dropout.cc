@@ -5,7 +5,7 @@ namespace cinn {
 namespace frontend {
 namespace op_mappers {
 
-void DropoutInferOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void DropoutInferOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -25,4 +25,4 @@ void DropoutInferOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperConte
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(dropout) { CINN_REGISTER_OP_MAPPER(dropout, cinn::frontend::op_mappers::DropoutInferOpMaker) }
+CINN_REGISTER_HELPER(dropout) { CINN_REGISTER_OP_MAPPER(dropout, cinn::frontend::op_mappers::DropoutInferOpMapper) }

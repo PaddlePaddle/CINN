@@ -8,7 +8,7 @@ namespace cinn {
 namespace frontend {
 namespace op_mappers {
 
-void ScaleOpMaker(const paddle::cpp::OpDesc& op_desc, const cinn::frontend::OpMapperContext& ctx) {
+void ScaleOpMapper(const paddle::cpp::OpDesc& op_desc, const cinn::frontend::OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   auto x      = ctx.GetVar(x_name);
@@ -28,4 +28,4 @@ void ScaleOpMaker(const paddle::cpp::OpDesc& op_desc, const cinn::frontend::OpMa
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(scale) { CINN_REGISTER_OP_MAPPER(scale, cinn::frontend::op_mappers::ScaleOpMaker) }
+CINN_REGISTER_HELPER(scale) { CINN_REGISTER_OP_MAPPER(scale, cinn::frontend::op_mappers::ScaleOpMapper) }

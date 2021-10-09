@@ -5,7 +5,7 @@ namespace cinn {
 namespace frontend {
 namespace op_mappers {
 
-void SliceOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void SliceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("Input").size(), 1UL);
   auto x_name = op_desc.Input("Input").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -31,4 +31,4 @@ void SliceOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(slice) { CINN_REGISTER_OP_MAPPER(slice, cinn::frontend::op_mappers::SliceOpMaker) }
+CINN_REGISTER_HELPER(slice) { CINN_REGISTER_OP_MAPPER(slice, cinn::frontend::op_mappers::SliceOpMapper) }
