@@ -78,7 +78,7 @@ TEST(Instruction, basic) {
 TEST(Instruction, RunWithRawPodArgs) {
   const int M       = 10;
   const int N       = 20;
-  const auto& shape = Shape({{M, N}});
+  const auto& shape = Shape({M, N});
 
   std::map<std::string, cinn_pod_value_t> name2podargs;
   // case 1: create cinn_pod_value_t arguments dicrectly
