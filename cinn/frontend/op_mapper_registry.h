@@ -6,8 +6,10 @@
 #include <unordered_map>
 #include <variant>
 
+#include "cinn/common/common.h"
 #include "cinn/common/macros.h"
 #include "cinn/common/target.h"
+#include "cinn/common/type.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/paddle/cpp/op_desc.h"
 #include "cinn/frontend/syntax.h"
@@ -33,6 +35,44 @@ class OpMapperContext {
   hlir::framework::Scope* scope_{nullptr};
   const common::Target& target_;
   NetBuilder* builder_{nullptr};
+
+  void AddVar(const std::string& origin_name, const Variable& var, bool replace = false) const {
+    const auto& name = cinn::utils::TransValidVarName(origin_name);
+    CheckVarNameValid(name);
+    if (replace == false) {
+      CHECK(!var_map_->count(name)) << "Duplicate variable [" << name << "] found";
+    }
+    (*var_map_)[name] = var;
+  }
+
+  void AddVarModelToProgramMap(const std::string& name, const std::string& id) const {
+    (*var_model_to_program_map_)[name] = id;
+  }
+
+  Variable GetVar(const std::string& origin_name) const {
+    const auto& name = cinn::utils::TransValidVarName(origin_name);
+    CheckVarNameValid(name);
+
+    auto it = var_map_->find(name);
+    if (it != var_map_->end()) return it->second;
+
+    auto* var = scope_->FindVar(name);
+    if (var) {
+      auto& tensor = absl::get<hlir::framework::Tensor>(*var);
+      Variable var;
+      var.set_id(name);
+      var->shape = tensor->shape().data();
+      // TODO(Superjomn) Make this determined by model.
+      var->type = Float(32);
+      AddVar(name, var);
+      return var;
+    }
+
+    LOG(FATAL) << "No var called [" << name << "] exists";
+    return Variable();
+  }
+
+ private:
   absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
   // map from var in Paddle model to var name in program.
   absl::flat_hash_map<std::string, std::string>* var_model_to_program_map_{nullptr};
@@ -40,11 +80,11 @@ class OpMapperContext {
 
 class OpMapper {
  public:
-  using KernelFunc = std::function<void(const paddle::cpp::OpDesc&, const OpMapperContext&)>;
+  using OpMapperFunc = std::function<void(const paddle::cpp::OpDesc&, const OpMapperContext&)>;
 
   OpMapper() = default;
 
-  OpMapper& Set(const KernelFunc& kernel) {
+  OpMapper& Set(const OpMapperFunc& kernel) {
     kernel_ = kernel;
     return *this;
   }
@@ -53,7 +93,7 @@ class OpMapper {
   std::string name;
 
  private:
-  KernelFunc kernel_;
+  OpMapperFunc kernel_;
 };
 
 class OpMapperRegistry : public Registry<OpMapper> {
