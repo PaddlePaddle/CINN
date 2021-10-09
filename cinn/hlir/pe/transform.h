@@ -1,6 +1,7 @@
 #pragma once
-#include <string>
 #include <absl/container/flat_hash_map.h>
+
+#include <string>
 #include <vector>
 
 #include "cinn/ir/ir_base.h"
@@ -109,6 +110,26 @@ std::vector<ir::Expr> InferShapeLayoutTransform(const std::vector<Expr>& input_s
                                                 const ir::Layout& old_layout,
                                                 const ir::Layout& new_layout,
                                                 absl::flat_hash_map<int, std::vector<int>>* split_index_map);
+
+/**
+ * @brief Perform meta op Reverse
+ * @param input The input tensor
+ * @param axis reverse axis
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor Reverse(const ir::Tensor& input,
+                   const std::vector<int>& axis,
+                   const std::string& output_name = UniqName("T_Reverse_out"));
+
+/**
+ * @brief Perform meta op Transpose
+ * @param input The input tensor
+ * @param axis tranpsoe axis
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor Transpose(const ir::Tensor& input,
+                     const std::vector<int>& axis,
+                     const std::string& output_name = UniqName("T_Transpose_out"));
 
 }  // namespace pe
 }  // namespace hlir

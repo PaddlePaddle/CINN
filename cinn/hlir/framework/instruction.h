@@ -51,7 +51,6 @@ class Instruction {
    */
   void Run(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr);
 
-  std::vector<cinn_pod_value_t>& PreparePodArgs(int i);
   std::vector<std::vector<std::string>> GetInArgs() { return in_args_; }
   std::vector<std::vector<std::string>> GetOutArgs() { return out_args_; }
   void AddInArgs(const std::vector<std::string>& in_args) { in_args_.push_back(in_args); }

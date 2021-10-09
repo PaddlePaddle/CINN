@@ -1,6 +1,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 
 #include <absl/container/flat_hash_map.h>
+
 #include <unordered_set>
 
 #include "cinn/backends/codegen_cuda_dev.h"
@@ -322,7 +323,6 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
             shape.push_back(static_cast<int>(shape_dim.get_constant()));
           }
           tensor->Resize(Shape{shape});
-          tensor->mutable_data<float>(target_);
         }
       }
       function2input_args_[i->name]  = input_args;
@@ -335,6 +335,15 @@ void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_
 }
 
 std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
+  GraphCompiler::CompileOptions options;
+  options.attached_code              = code;
+  options.with_instantiate_variables = true;
+
+  auto&& result = Build(options);
+  return std::move(result.runtime_program);
+}
+
+GraphCompiler::CompilationResult GraphCompiler::Build(const GraphCompiler::CompileOptions& options) {
   auto topo_order = graph_->topological_order();
   auto& nodes     = std::get<0>(topo_order);
   auto& edges     = std::get<1>(topo_order);
@@ -377,9 +386,20 @@ std::unique_ptr<Program> GraphCompiler::Build(const std::string& code) {
     VLOG(3) << "[X86] C Code is:\n" << out;
   }
 
-  compiler_->Build(build_module, code);
+  compiler_->Build(build_module, options.attached_code);
+  if (options.with_instantiate_variables) {
+    VLOG(3) << "Initantiate all variables on compile-time";
+    // All variables reside in scope_, so traverse it to instantiate each one
+    for (auto& name : scope_->var_names()) {
+      auto* var    = scope_->Var<Tensor>(std::string({name.data(), name.size()}));
+      auto& tensor = absl::get<Tensor>(*var);
+      tensor->mutable_data<float>(target_);
+    }
+  }
 
-  return std::unique_ptr<Program>(new Program(scope_, BuildInstructions()));
+  GraphCompiler::CompilationResult result;
+  result.runtime_program.reset(new Program(scope_, BuildInstructions()));
+  return result;
 }
 
 std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
@@ -402,6 +422,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
             auto in_shape     = shape_dict.at(in_id);
             instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
           }
+          // padding stride dilation  group
           AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
           if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
             auto groups = absl::get<int>(node->attrs.attr_store.at("groups"));
@@ -409,12 +430,19 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           } else {
             instr->attrs.push_back(1);
           }
+          // output shape
           CHECK(!node->outlinks_in_order().empty());
           auto& out_node     = node->outlinks_in_order().front();
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           CHECK_EQ(instr->attrs.size(), 19UL);
+          // conv type {forward, backward_data, backward_filter}
+          std::string type = "forward";
+          if (node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end()) {
+            type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          }
+          instr->str_attrs.push_back(type);
         } else if (node->op()->name == "depthwise_conv2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
@@ -422,6 +450,7 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
             auto in_shape     = shape_dict.at(in_id);
             instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
           }
+          // conv
           AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
           if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
             auto groups = absl::get<int>(node->attrs.attr_store.at("groups"));
@@ -429,12 +458,19 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           } else {
             instr->attrs.push_back(instr->attrs[1]);
           }
+          // output shape
           CHECK(!node->outlinks_in_order().empty());
           auto& out_node     = node->outlinks_in_order().front();
           std::string out_id = out_node->sink()->safe_as<NodeData>()->id();
           auto out_shape     = shape_dict.at(out_id);
           instr->attrs.insert(instr->attrs.end(), out_shape.begin(), out_shape.end());
           CHECK_EQ(instr->attrs.size(), 19UL);
+          // conv type {forward, backward_data, backward_filter}
+          std::string type = "forward";
+          if (node->attrs.attr_store.find("conv_type") != node->attrs.attr_store.end()) {
+            type = absl::get<std::string>(node->attrs.attr_store.at("conv_type"));
+          }
+          instr->str_attrs.push_back(type);
         } else if (node->op()->name == "pool2d") {
           auto& shape_dict = graph_->GetAttrs<absl::flat_hash_map<std::string, shape_t>>("infershape");
           for (auto& in_node : node->inlinks_in_order()) {
@@ -616,7 +652,6 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     tensor->Resize(Shape{shape});
     CHECK_EQ(dtype_dict.at(iter.first), Float(32))
         << "The dtype of node " << iter.first << " is not float! Other dtype is not implemented yet.";
-    tensor->mutable_data<float>(target);
   }
   return scope;
 }
