@@ -74,7 +74,7 @@ void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
   }
 }
 
-void MulKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void MulOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("Y").size(), 1UL);
@@ -97,7 +97,7 @@ void MulKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   ctx.AddVarModelToProgramMap(out_name, out->id);
 }
 
-void MulBiasKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void MulBiasOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("Y").size(), 1UL);
@@ -131,6 +131,6 @@ void MulBiasKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(mul) {
-  CINN_REGISTER_OP_MAPPER(mul, cinn::frontend::op_mappers::MulKernel)
-  CINN_REGISTER_OP_MAPPER(mulbias, cinn::frontend::op_mappers::MulBiasKernel)
+  CINN_REGISTER_OP_MAPPER(mul, cinn::frontend::op_mappers::MulOpMaker)
+  CINN_REGISTER_OP_MAPPER(mulbias, cinn::frontend::op_mappers::MulBiasOpMaker)
 }

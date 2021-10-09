@@ -5,7 +5,7 @@ namespace cinn {
 namespace frontend {
 namespace op_mappers {
 
-void SigmoidKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void SigmoidOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
@@ -22,4 +22,4 @@ void SigmoidKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(sigmoid) { CINN_REGISTER_OP_MAPPER(sigmoid, cinn::frontend::op_mappers::SigmoidKernel) }
+CINN_REGISTER_HELPER(sigmoid) { CINN_REGISTER_OP_MAPPER(sigmoid, cinn::frontend::op_mappers::SigmoidOpMaker) }

@@ -5,7 +5,7 @@ namespace cinn {
 namespace frontend {
 namespace op_mappers {
 
-void BatchnormKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void BatchnormOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("Scale").size(), 1UL);
@@ -37,4 +37,4 @@ void BatchnormKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(batchnorm) { CINN_REGISTER_OP_MAPPER(batchnorm, cinn::frontend::op_mappers::BatchnormKernel) }
+CINN_REGISTER_HELPER(batchnorm) { CINN_REGISTER_OP_MAPPER(batchnorm, cinn::frontend::op_mappers::BatchnormOpMaker) }

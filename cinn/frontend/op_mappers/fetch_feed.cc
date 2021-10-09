@@ -6,13 +6,13 @@ namespace cinn {
 namespace frontend {
 namespace op_mappers {
 
-void FetchKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void FetchOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto output_name = op_desc.Input("X").front();
   LOG(INFO) << "detect model output: [" << output_name << "]";
 }
 
-void FeedKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void FeedOpMaker(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   auto outs = op_desc.Output("Out");
   CHECK_EQ(outs.size(), 1UL);
   VLOG(2) << "Model get feed [" << outs[0] << "]";
@@ -25,6 +25,6 @@ void FeedKernel(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) 
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(fetch_feed) {
-  CINN_REGISTER_OP_MAPPER(fetch, cinn::frontend::op_mappers::FetchKernel)
-  CINN_REGISTER_OP_MAPPER(feed, cinn::frontend::op_mappers::FeedKernel)
+  CINN_REGISTER_OP_MAPPER(fetch, cinn::frontend::op_mappers::FetchOpMaker)
+  CINN_REGISTER_OP_MAPPER(feed, cinn::frontend::op_mappers::FeedOpMaker)
 }
