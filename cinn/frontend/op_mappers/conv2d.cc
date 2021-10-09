@@ -14,7 +14,8 @@ inline void ReverseHWData(float* data, std::vector<int> shape) {
   }
 }
 
-void ReverseHWVar(const std::string& name, const OpMapperContext& ctx) {
+void ReverseHWVar(const std::string& origin_name, const OpMapperContext& ctx) {
+  const auto& name = cinn::utils::TransValidVarName(origin_name);
   CheckVarNameValid(name);
   auto* var = ctx.scope_->FindVar(name);
   if (var) {

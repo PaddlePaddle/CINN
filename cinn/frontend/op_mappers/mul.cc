@@ -28,14 +28,16 @@ void TransposeData(float* data, int M, int N) {
   }
 }
 
-void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
+void TransposeVar(const std::string& origin_name, const OpMapperContext& ctx) {
+  const auto& name = cinn::utils::TransValidVarName(origin_name);
   CheckVarNameValid(name);
   auto* var = ctx.scope_->FindVar(name);
   if (var) {
     auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     if (ctx.target_.arch == Target::Arch::X86) {
       float* data = tensor->mutable_data<float>(ctx.target_);
-      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
+      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is " << tensor->shape().size()
+                                         << " not equal to 2! Which name is " << name;
       TransposeData(data, tensor->shape().data()[0], tensor->shape().data()[1]);
     } else if (ctx.target_.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
@@ -46,7 +48,8 @@ void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
                            reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.target_)),
                            tensor->shape().numel() * sizeof(float),
                            cudaMemcpyDeviceToHost));
-      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
+      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is " << tensor->shape().size()
+                                         << " not equal to 2! Which name is " << name;
       TransposeData(data.data(), tensor->shape().data()[0], tensor->shape().data()[1]);
       CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.target_)),
                            data.data(),

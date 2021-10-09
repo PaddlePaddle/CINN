@@ -14,6 +14,11 @@
 namespace cinn {
 namespace frontend {
 
+// Transform paddle model to CINN NetBuilder object.
+// The paddle model is readed from __model__ file in model_dir, the PaddleModelToNetBuilder
+// will run each op's kernel registered in OpMapper, each kernel will add instruction in
+// NetBuilder, after running all op in model, it will return the complete NetBuilder object.
+// Note that if anyone op not registered, the program will failed and aborted.
 class PaddleModelToNetBuilder {
  public:
   explicit PaddleModelToNetBuilder(hlir::framework::Scope* scope, const common::Target& target)
@@ -21,11 +26,16 @@ class PaddleModelToNetBuilder {
     CHECK(scope_);
   }
 
+  // RunOp accept OpDesc and global run context then run it's kernel registered in OpMapper.
   static void RunOp(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx);
 
+  // operator() accept the modle's directory, and return the NetBuilder object.
   std::unique_ptr<NetBuilder> operator()(const std::string& model_dir, bool is_combined = false);
 
+  // return the internal variable map
   const absl::flat_hash_map<std::string, Variable>& var_map() const { return var_map_; }
+
+  // return the map from the variable name in paddle model to cinn program.
   const absl::flat_hash_map<std::string, std::string>& var_model_to_program_map() { return var_model_to_program_map_; }
 
  private:
