@@ -1055,8 +1055,6 @@ std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attr
     CHECK(out.as_tensor());
     if (target.arch == Target::Arch::NVGPU) {
       pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
-    } else if (target.arch == Target::Arch::X86) {
-      // pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
     }
     *ret = arg_pack;
   });
@@ -1114,12 +1112,20 @@ std::vector<std::vector<std::string>> InferLayoutForTranspose(const std::vector<
     LOG(FATAL) << "axis is not be set! Please check.";
   }
 
-  std::string output_layout = input_layouts[0];
-  for (int idx = 0; idx < axis.size(); ++idx) {
-    output_layout[idx] = input_layouts[0][axis[idx]];
+  std::vector<std::string> new_input_layouts = input_layouts;
+  for (int i = 0; i < input_shapes.size(); i++) {
+    if (input_shapes[i].size() > 4) {
+      // alter input layout back
+      new_input_layouts[i] = input_layouts[0].substr(0, 4);
+    }
   }
 
-  return {{output_layout}};
+  std::string output_layout = new_input_layouts[0];
+  for (int idx = 0; idx < axis.size(); ++idx) {
+    output_layout[idx] = new_input_layouts[0][axis[idx]];
+  }
+
+  return {{output_layout}, new_input_layouts};
 }
 
 }  // namespace op
