@@ -154,6 +154,7 @@ class CinnBuilder : public BaseBuilder {
 
   Variable Reverse(const Variable& operand, const std::vector<int>& axis);
 
+ private:
   Variable UnaryOp(const std::string& op_type, const Variable& operand);
 
   Variable BinaryOp(const std::string& op_type, const Variable& lhs, const Variable& rhs);
