@@ -1,9 +1,12 @@
 #include "cinn/hlir/framework/instruction.h"
+
 #include <gtest/gtest.h>
+
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
+
 #include "cinn/backends/llvm/simple_jit.h"
 #include "cinn/common/test_helper.h"
 #include "cinn/hlir/framework/node.h"
@@ -23,7 +26,8 @@ std::unique_ptr<backends::SimpleJIT> GetLoweredFunc(int M, int N) {
   Placeholder<float> x("x", {m, n});
   Placeholder<float> y("y", {m, n});
 
-  auto z = Compute({m, n}, [=](Expr i, Expr j) { return x(i, j) + y(i, j); }, "z");
+  auto z = Compute(
+      {m, n}, [=](Expr i, Expr j) { return x(i, j) + y(i, j); }, "z");
 
   auto stages = CreateStages({z});
   auto fn     = Lower("fn", stages, {x, y, z});
@@ -83,19 +87,19 @@ TEST(Instruction, RunWithRawPodArgs) {
 
   std::map<std::string, cinn_pod_value_t> name2podargs;
   // case 1: create cinn_pod_value_t arguments dicrectly
-  std::vector<cinn_buffer_t> args_buffer;  // store the buffer objects
+  std::vector<cinn_buffer_t> args_buffer(3);  // store {"x", "y", "z"} buffer objects
   auto* default_memory_mng = MemoryManager::Global().RetrieveSafely(common::DefaultHostTarget().arch);
 
-  for (auto& name : std::vector<std::string>({"x", "y", "z"})) {
-    args_buffer.emplace_back();
-    auto& buffer = args_buffer.back();
-    buffer.resize(reinterpret_cast<const cinn_dimension_t*>(shape.data().data()), shape.size());
-    buffer.memory = reinterpret_cast<uint8_t*>(default_memory_mng->malloc(shape.numel() * sizeof(float)));
-    auto* data    = buffer.memory;
+  int count = 0;
+  for (const auto& name : std::vector<std::string>({"x", "y", "z"})) {
+    auto* buffer = &args_buffer.at(count++);
+    buffer->resize(reinterpret_cast<const cinn_dimension_t*>(shape.data().data()), shape.size());
+    buffer->memory = reinterpret_cast<uint8_t*>(default_memory_mng->malloc(shape.numel() * sizeof(float)));
+    auto* data     = reinterpret_cast<float*>(buffer->memory);
     for (int i = 0; i < M * N; i++) {
       data[i] = (rand() * 1.f) / RAND_MAX;  // NOLINT
     }
-    name2podargs.emplace(name, &buffer);
+    name2podargs.emplace(name, buffer);
   }
 
   // create Instruction
@@ -105,17 +109,19 @@ TEST(Instruction, RunWithRawPodArgs) {
 
   Instruction instr(common::DefaultHostTarget(), nullptr, {"x", "y"}, {"z"});  // empty scope
   instr.SetLoweredFunc(reinterpret_cast<lower_func_ptr_t>(fn_addr));
-  instr.Run(&name2podargs);  // run with a arguments map passed
 
-  auto check_equal_by_element = [&name2podargs]() {
+  auto check_equal_by_element = [&]() {
     auto xd = reinterpret_cast<float*>(cinn_pod_value_to_buffer_p(&name2podargs.at("x"))->memory);
     auto yd = reinterpret_cast<float*>(cinn_pod_value_to_buffer_p(&name2podargs.at("y"))->memory);
     auto zd = reinterpret_cast<float*>(cinn_pod_value_to_buffer_p(&name2podargs.at("z"))->memory);
     for (int i = 0; i < M * N; ++i) {
+      LOG_FIRST_N(INFO, 3) << "data: " << xd[i] << " + " << yd[i] << " = " << zd[i];
       ASSERT_NEAR(xd[i] + yd[i], zd[i], 1e-5);
     }
   };
 
+  // run with a arguments map passed
+  instr.Run(&name2podargs);
   // check instruction run correctly
   check_equal_by_element();
 

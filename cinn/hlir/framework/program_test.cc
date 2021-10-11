@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
+
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/scope.h"
+#include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
 
 namespace cinn {
@@ -32,7 +34,7 @@ TEST(Program, ExecuteWithRawArgs) {
   auto scope = BuildScope(target, g);
   GraphCompiler gc(target, scope, g);
   GraphCompiler::CompileOptions options;
-  options.with_instantiate_variables = true;
+  options.with_instantiate_variables = false;
   auto&& compilation_result          = gc.Build(options);
   auto&& program                     = compilation_result.runtime_program;
 
