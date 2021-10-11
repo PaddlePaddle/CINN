@@ -37,4 +37,7 @@ void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(batchnorm) { CINN_REGISTER_OP_MAPPER(batchnorm, cinn::frontend::op_mappers::BatchnormOpMapper) }
+CINN_REGISTER_HELPER(batchnorm) {
+  CINN_REGISTER_OP_MAPPER(batchnorm, cinn::frontend::op_mappers::BatchnormOpMapper)
+  return true;
+}

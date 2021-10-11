@@ -28,4 +28,7 @@ void ScaleOpMapper(const paddle::cpp::OpDesc& op_desc, const cinn::frontend::OpM
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(scale) { CINN_REGISTER_OP_MAPPER(scale, cinn::frontend::op_mappers::ScaleOpMapper) }
+CINN_REGISTER_HELPER(scale) {
+  CINN_REGISTER_OP_MAPPER(scale, cinn::frontend::op_mappers::ScaleOpMapper)
+  return true;
+}

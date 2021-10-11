@@ -27,4 +27,5 @@ void FeedOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
 CINN_REGISTER_HELPER(fetch_feed) {
   CINN_REGISTER_OP_MAPPER(fetch, cinn::frontend::op_mappers::FetchOpMapper)
   CINN_REGISTER_OP_MAPPER(feed, cinn::frontend::op_mappers::FeedOpMapper)
+  return true;
 }

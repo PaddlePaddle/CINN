@@ -38,4 +38,5 @@ void Relu6OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
 CINN_REGISTER_HELPER(relu) {
   CINN_REGISTER_OP_MAPPER(relu, cinn::frontend::op_mappers::ReluOpMapper)
   CINN_REGISTER_OP_MAPPER(relu6, cinn::frontend::op_mappers::Relu6OpMapper)
+  return true;
 }
