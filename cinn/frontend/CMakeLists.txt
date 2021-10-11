@@ -5,7 +5,8 @@ gather_srcs(cinnapi_src SRCS
   paddle_model_to_program.cc
   interpreter.cc
   base_builder.cc
-  net_builder.cc)
+  net_builder.cc
+  cinn_builder.cc)
 
 if(NOT WITH_CUDA)
   cc_test(test_frontend_syntax
@@ -26,6 +27,7 @@ else()
 endif()
 
 cc_test(test_net_builder SRCS net_builder_test.cc DEPS cinncore)
+cc_test(test_cinn_builder SRCS cinn_builder_test.cc DEPS cinncore)
 cc_test(test_decomposer_registry
         SRCS decomposer_registry_test.cc DEPS cinncore)
 
