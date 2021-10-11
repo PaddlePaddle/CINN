@@ -45,3 +45,15 @@ repos:
     hooks:
     - id: yapf
       args: ['--parallel', '--in-place']
+
+-   repo: local
+    hooks:
+    -   id: copyright_checker
+        name: copyright_checker
+        entry: python ./tools/codestyle/copyright.hook
+        language: system
+        files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx|proto|py|sh)$
+        exclude: |
+            (?x)^(
+                cinnrt/.*
+            )$
