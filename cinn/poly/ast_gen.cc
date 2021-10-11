@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/poly/ast_gen.h"
 
 #include <llvm/Support/FormatVariadic.h>
@@ -66,11 +80,11 @@ isl::set TransIdentityExtentToContextId(isl::set set) {
   for (int i = 0; i < isl_set_dim(set.get(), isl_dim_set); i++) {
     if (isl_set_axis_has_noparam_constant_bound(set.get(), i)) {
       auto range = isl_set_get_axis_range(set.get(), i);
-      auto &minv = std::get<0>(range);
-      auto &maxv = std::get<1>(range);
+      auto& minv = std::get<0>(range);
+      auto& maxv = std::get<1>(range);
 
-      int min_iv        = minv.get_num_si();
-      int max_iv        = maxv.get_num_si();
+      int min_iv = minv.get_num_si();
+      int max_iv = maxv.get_num_si();
       if (max_iv == min_iv) {
         iden_dim_offsets.emplace_back(i, max_iv);
       }
@@ -79,9 +93,9 @@ isl::set TransIdentityExtentToContextId(isl::set set) {
 
   isl::set res_set = set;
   for (auto offset_val : iden_dim_offsets) {
-    auto &offset = std::get<0>(offset_val);
-    auto &val = std::get<1>(offset_val);
-    res_set = isl::manage(isl_set_drop_constraints_involving_dims(res_set.copy(), isl_dim_set, offset, 1));
+    auto& offset = std::get<0>(offset_val);
+    auto& val    = std::get<1>(offset_val);
+    res_set      = isl::manage(isl_set_drop_constraints_involving_dims(res_set.copy(), isl_dim_set, offset, 1));
 
     std::string const_param_name = llvm::formatv("{0}{1}", kIslParamConstPrefix, val);
 

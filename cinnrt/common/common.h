@@ -8,7 +8,6 @@
 #include "cinnrt/common/target.h"
 #include "cinnrt/common/type.h"
 
-
 namespace cinnrt {
 
 // export some general concepts.

@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/optim/insert_debug_log_callee.h"
 
 #include <sstream>
@@ -154,9 +168,9 @@ struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
           auto debug_info_node = CreateDebugStatement(msg);
           new_stmts.push_back(debug_info_node);
         } else {
-          auto _msg_args_     = StoreDebugInfo(e);
-          auto &msg = std::get<0>(_msg_args_);
-          auto &args = std::get<1>(_msg_args_);
+          auto _msg_args_      = StoreDebugInfo(e);
+          auto &msg            = std::get<0>(_msg_args_);
+          auto &args           = std::get<1>(_msg_args_);
           auto debug_info_node = CreateDebugStatement("running: " + msg, std::move(args));
           new_stmts.push_back(debug_info_node);
         }
@@ -167,16 +181,16 @@ struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
       new_stmts.push_back(e);
 
       if (!IsDebugInfoNode(e) && e.As<ir::Store>()) {
-        auto _msg_args_     = StoreDebugInfo(e);
-        auto &msg = std::get<0>(_msg_args_);
-        auto &args = std::get<1>(_msg_args_);
+        auto _msg_args_      = StoreDebugInfo(e);
+        auto &msg            = std::get<0>(_msg_args_);
+        auto &args           = std::get<1>(_msg_args_);
         auto debug_info_node = CreateDebugStatement(msg, std::move(args));
         new_stmts.push_back(debug_info_node);
 
         {  // detailed debug
           auto _format_args_ = StoreDebugInfoBuilder()(&e);
-          auto &format = std::get<0>(_format_args_);
-          auto &args = std::get<1>(_format_args_);
+          auto &format       = std::get<0>(_format_args_);
+          auto &args         = std::get<1>(_format_args_);
           new_stmts.push_back(CreateDebugStatement(format, std::move(args)));
         }
       }

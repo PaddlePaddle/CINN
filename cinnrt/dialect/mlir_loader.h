@@ -1,11 +1,10 @@
 #pragma once
 
+#include <absl/strings/string_view.h>
 #include <glog/logging.h>
-
 #include <mlir/IR/Module.h>
 
 #include <memory>
-#include <absl/strings/string_view.h>
 
 namespace cinnrt::dialect {
 

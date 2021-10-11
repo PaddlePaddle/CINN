@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/poly/poly_scheduler.h"
 
 #include <glog/logging.h>
@@ -81,9 +95,9 @@ std::vector<Group> PartitionGraphByIterationDomain(common::Graph* graph) {
 
   std::map<DataFlowGraphNode*, std::vector<DataFlowGraphNode*>> node_groups;
 
-  auto topo_order = graph->topological_order();
-  auto &nodes_in_order = std::get<0>(topo_order);
-  auto &edges_in_order = std::get<1>(topo_order);
+  auto topo_order      = graph->topological_order();
+  auto& nodes_in_order = std::get<0>(topo_order);
+  auto& edges_in_order = std::get<1>(topo_order);
 
   for (auto* n : nodes_in_order) {
     auto* node     = n->safe_as<DataFlowGraphNode>();
@@ -219,9 +233,9 @@ std::vector<Group> TopoSortGroups(std::vector<Group>& groups) {
  */
 std::vector<Group> NaivePartitionGraph(common::Graph* graph) {
   std::map<DataFlowGraphNode*, std::vector<DataFlowGraphNode*>> node_groups;
-  auto topo_order = graph->topological_order();
-  auto &nodes_in_order = std::get<0>(topo_order);
-  auto &edges_in_order = std::get<1>(topo_order);
+  auto topo_order      = graph->topological_order();
+  auto& nodes_in_order = std::get<0>(topo_order);
+  auto& edges_in_order = std::get<1>(topo_order);
 
   std::map<std::string, DataFlowGraphNode*> name2node;
   for (auto* n : graph->nodes()) {
@@ -416,9 +430,9 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
     }
   }
 
-  auto topo_order = schedule_graph_.topological_order();
-  auto &nodes_in_order = std::get<0>(topo_order);
-  auto &edges_in_order = std::get<1>(topo_order);
+  auto topo_order      = schedule_graph_.topological_order();
+  auto& nodes_in_order = std::get<0>(topo_order);
+  auto& edges_in_order = std::get<1>(topo_order);
   std::vector<Shared<ScheduleGraphNode>> res;
 
   // update the time schedule info.
