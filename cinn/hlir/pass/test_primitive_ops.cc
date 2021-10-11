@@ -106,13 +106,13 @@ TEST(reduction, reduce) {
 
   Program program;
   std::unordered_map<std::string, Program::attr_t> attrs;
-  std::vector<int> axis = {1};
+  std::vector<int> axis = {1, 2};
   bool keep_dim         = false;
 
   auto a = program.reduce_max(A, axis, keep_dim);
   auto b = program.reduce_min(A, axis, keep_dim);
   auto c = program.reduce_prod(A, axis, keep_dim);
-  auto d = program.reduce_sum(A, axis, keep_dim);
+  auto d = program.reduce_sum(A, {0, 1, 2, 3}, keep_dim);
 
   Target target = GetTarget();
   program.SetInputs({A});
