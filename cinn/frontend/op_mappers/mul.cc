@@ -133,4 +133,5 @@ void MulBiasOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
 CINN_REGISTER_HELPER(mul) {
   CINN_REGISTER_OP_MAPPER(mul, cinn::frontend::op_mappers::MulOpMapper)
   CINN_REGISTER_OP_MAPPER(mulbias, cinn::frontend::op_mappers::MulBiasOpMapper)
+  return true;
 }

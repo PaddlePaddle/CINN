@@ -1,12 +1,13 @@
 #include "cinn/frontend/syntax.h"
 
+#include <absl/types/variant.h>
+
 #include <iomanip>
 #include <memory>
 #include <sstream>
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include <absl/types/variant.h>
 
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/frontend/paddle_model_to_program.h"
@@ -294,7 +295,7 @@ SYNTAX_PRIM_UNARY_IMPL(bitwise_not);
 
 SYNTAX_PRIM_UNARY_IMPL(negative);
 SYNTAX_PRIM_UNARY_IMPL(identity);
-SYNTAX_PRIM_UNARY_IMPL(logica_not);
+SYNTAX_PRIM_UNARY_IMPL(logical_not);
 SYNTAX_PRIM_UNARY_IMPL(sign);
 SYNTAX_PRIM_UNARY_IMPL(abs);
 SYNTAX_PRIM_UNARY_IMPL(rsqrt);

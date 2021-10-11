@@ -204,7 +204,7 @@ HLIR_IMP_BC_PE(Minimum, return ir::Min::Make(a, b););
 HLIR_IMP_BC_PE(Power, return ir::Power::Make(a, b););
 HLIR_IMP_BC_PE(LeftShift, return a << b;);
 HLIR_IMP_BC_PE(RightShift, return a >> b;);
-HLIR_IMP_BC_PE(LogicaAnd, return a && b;);
+HLIR_IMP_BC_PE(LogicalAnd, return a && b;);
 HLIR_IMP_BC_PE(LogicalOr, return a || b;);
 HLIR_IMP_BC_PE(LogicalXOr, return a ^ b;);
 HLIR_IMP_BC_PE(BitwiseAnd, return a & b;);

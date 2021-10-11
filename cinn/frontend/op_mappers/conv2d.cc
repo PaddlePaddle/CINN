@@ -123,4 +123,5 @@ void DepthwiseConv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperC
 CINN_REGISTER_HELPER(conv2d) {
   CINN_REGISTER_OP_MAPPER(conv2d, cinn::frontend::op_mappers::Conv2dOpMapper)
   CINN_REGISTER_OP_MAPPER(depthwise_conv2d, cinn::frontend::op_mappers::DepthwiseConv2dOpMapper)
+  return true;
 }

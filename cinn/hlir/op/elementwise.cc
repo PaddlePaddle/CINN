@@ -258,7 +258,7 @@ StrategyForUnary(bitwise_not, BitwiseNot);
 
 StrategyForUnary(negative, Negative);
 StrategyForUnary(identity, Identity);
-StrategyForUnary(logica_not, LogicalNot);
+StrategyForUnary(logical_not, LogicalNot);
 StrategyForUnary(sign, Sign);
 StrategyForUnary(abs, Abs);
 StrategyForUnary(rsqrt, Rsqrt);
@@ -313,7 +313,7 @@ CINN_REGISTER_HELPER(elementwise_ops) {
 
   CINN_REGISTER_UNARY(negative, Negative)
   CINN_REGISTER_UNARY(identity, Identity)
-  CINN_REGISTER_UNARY(logica_not, LogicalNot)
+  CINN_REGISTER_UNARY(logical_not, LogicalNot)
   CINN_REGISTER_UNARY(sign, Sign)
   CINN_REGISTER_UNARY(abs, Abs)
   CINN_REGISTER_UNARY(rsqrt, Rsqrt)

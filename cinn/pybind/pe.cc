@@ -70,7 +70,7 @@ void BindPE(py::module* m) {
   BIND_BINARY(power, Power);
   BIND_BINARY(left_shift, LeftShift);
   BIND_BINARY(right_shift, RightShift);
-  BIND_BINARY(logical_and, LogicaAnd);
+  BIND_BINARY(logical_and, LogicalAnd);
   BIND_BINARY(logical_or, LogicalOr);
   BIND_BINARY(logical_xor, LogicalXOr);
   BIND_BINARY(bitwise_and, BitwiseAnd);
