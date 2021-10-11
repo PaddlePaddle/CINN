@@ -38,7 +38,8 @@ std::unique_ptr<backends::SimpleJIT> GetLoweredFunc(int M, int N) {
 
 void InstantiateScope(int M, int N, Scope* scope) {
   for (auto& name : std::vector<std::string>({"x", "y", "z"})) {
-    auto&& tensor = scope->GetTensor(name);
+    auto* var    = scope->Var<Tensor>(name);
+    auto& tensor = absl::get<Tensor>(*var);
     tensor->Resize(Shape{{M, N}});
     auto* data = tensor->mutable_data<float>(common::DefaultHostTarget());
     for (int i = 0; i < M * N; i++) {
