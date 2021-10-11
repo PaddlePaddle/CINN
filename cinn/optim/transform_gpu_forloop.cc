@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/optim/transform_gpu_forloop.h"
 
 #include <algorithm>
@@ -260,10 +274,10 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
     for (auto &item : stage->forloop_infos()) {
       int level = poly::isl_get_original_axes_from_optimized_level(stage->transformed_domain().get(), item.first);
       auto _min_val_max_val_ = poly::isl_set_get_axis_range(stage->transformed_domain().get(), level);
-      auto &min_val = std::get<0>(_min_val_max_val_);
-      auto &max_val = std::get<1>(_min_val_max_val_);
-      auto key                = std::make_pair(item.second.for_type, item.second.offset);
-      gpu_axis_range[key]     = std::max(max_val.get_num_si() + 1, static_cast<int64_t>(gpu_axis_range[key]));
+      auto &min_val          = std::get<0>(_min_val_max_val_);
+      auto &max_val          = std::get<1>(_min_val_max_val_);
+      auto key               = std::make_pair(item.second.for_type, item.second.offset);
+      gpu_axis_range[key]    = std::max(max_val.get_num_si() + 1, static_cast<int64_t>(gpu_axis_range[key]));
     }
   }
   for (auto &item : gpu_axis_range) {

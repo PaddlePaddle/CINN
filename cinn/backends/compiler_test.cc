@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/backends/compiler.h"
 
 #include <gtest/gtest.h>
@@ -26,11 +40,11 @@ TEST(Compiler, x86) {
     return std::make_tuple(A, B, C);
   };
 
-  {                                    // test x86
+  {                                  // test x86
     auto _A_B_C_ = create_module();  // NOLINT
-    auto &A = std::get<0>(_A_B_C_);
-    auto &B = std::get<1>(_A_B_C_);
-    auto &C = std::get<2>(_A_B_C_);
+    auto& A      = std::get<0>(_A_B_C_);
+    auto& B      = std::get<1>(_A_B_C_);
+    auto& C      = std::get<2>(_A_B_C_);
 
     auto stages = CreateStages({C});
 
@@ -75,12 +89,12 @@ TEST(Compiler, cuda) {
     return std::make_tuple(A, B, C);
   };
 
-  {                                    // cuda
+  {                                  // cuda
     auto _A_B_C_ = create_module();  // NOLINT
-    auto &A = std::get<0>(_A_B_C_);
-    auto &B = std::get<1>(_A_B_C_);
-    auto &C = std::get<2>(_A_B_C_);
-    auto stages    = CreateStages({C});
+    auto& A      = std::get<0>(_A_B_C_);
+    auto& B      = std::get<1>(_A_B_C_);
+    auto& C      = std::get<2>(_A_B_C_);
+    auto stages  = CreateStages({C});
 
     stages[C]->Bind(0, "blockIdx.x");
     stages[C]->Bind(1, "threadIdx.x");

@@ -6,9 +6,9 @@
 #include "cinnrt/common/string.h"
 #include "cinnrt/paddle/model_parser.h"
 
-using Scope       = cinnrt::paddle::Scope;
-using Target      = cinnrt::common::Target;
-using Type        = cinnrt::common::Type;
+using Scope  = cinnrt::paddle::Scope;
+using Target = cinnrt::common::Target;
+using Type   = cinnrt::common::Type;
 
 namespace cinnrt {
 namespace tensor {
