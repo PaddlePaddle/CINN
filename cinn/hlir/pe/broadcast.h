@@ -59,7 +59,7 @@ HLIR_DCL_BC_PE(LeftShift);
 //! Compute A >> B with auto-broadcasting.
 HLIR_DCL_BC_PE(RightShift);
 //! Compute A && B with auto-broadcasting.
-HLIR_DCL_BC_PE(LogicaAnd);
+HLIR_DCL_BC_PE(LogicalAnd);
 //! Compute A || B with auto-broadcasting.
 HLIR_DCL_BC_PE(LogicalOr);
 //! Compute A ^ B with auto-broadcasting.
