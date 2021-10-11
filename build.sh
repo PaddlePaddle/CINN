@@ -145,6 +145,14 @@ function prepare_model {
     python3 $workspace/python/tests/fake_model/resnet_model.py
 }
 
+function codestyle_check {
+    pre-commit run -a
+    if [[ `git status --porcelain`  ]]; then
+        echo "Please run 'pre-commit run -a' to reformat the code changes"
+        exit -1
+    fi
+}
+
 function build {
     cd $build_dir
 
@@ -184,6 +192,8 @@ function run_test {
 }
 
 function CI {
+    codestyle_check
+
     mkdir -p $build_dir
     cd $build_dir
 
