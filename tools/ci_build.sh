@@ -74,9 +74,6 @@ function run_test {
     ctest -V
 }
 
-install_isl
-install_ginac
-
-#compile_cinn
-
-#run_test
+# Install the following packages only if they don't exist in current system.
+[[ -z `ldconfig -p | grep isl` ]] && install_isl
+[[ -z `ldconfig -p | grep ginac` ]] && install_ginac
