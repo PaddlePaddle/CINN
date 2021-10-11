@@ -14,21 +14,20 @@
 
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
+#include <absl/strings/string_view.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/MDBuilder.h>
 #include <llvm/IR/Module.h>
 
-#include <absl/container/flat_hash_map.h>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-
-#include <absl/strings/string_view.h>
 
 #include "cinn/backends/llvm/ir_builder_mixin.h"
 #include "cinn/backends/llvm/llvm_util.h"

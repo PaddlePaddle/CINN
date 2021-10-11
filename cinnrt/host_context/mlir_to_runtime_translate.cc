@@ -1,5 +1,7 @@
 #include "cinnrt/host_context/mlir_to_runtime_translate.h"
 
+#include <absl/container/flat_hash_map.h>
+#include <absl/types/optional.h>
 #include <llvm/Support/SourceMgr.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Diagnostics.h>
@@ -7,8 +9,6 @@
 #include <mlir/IR/OperationSupport.h>
 #include <mlir/Parser.h>
 
-#include <absl/container/flat_hash_map.h>
-#include <absl/types/optional.h>
 #include <iostream>
 #include <memory>
 #include <string>

@@ -14,17 +14,16 @@
 
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
+#include <absl/strings/string_view.h>
 #include <isl/cpp.h>
 
-#include <absl/container/flat_hash_map.h>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <absl/strings/string_view.h>
 
 #include "cinn/common/graph_utils.h"
 #include "cinn/ir/buffer.h"

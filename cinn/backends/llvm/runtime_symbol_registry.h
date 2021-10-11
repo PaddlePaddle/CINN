@@ -14,16 +14,15 @@
 
 #pragma once
 
-#include <glog/logging.h>
-
+#include <absl/strings/string_view.h>
 #include <absl/types/any.h>
 #include <absl/types/variant.h>
+#include <glog/logging.h>
+
 #include <map>
 #include <mutex>  // NOLINT
 #include <string>
 #include <vector>
-
-#include <absl/strings/string_view.h>
 
 #include "cinn/common/macros.h"
 

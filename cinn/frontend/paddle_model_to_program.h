@@ -14,10 +14,10 @@
 
 #pragma once
 
-#include <glog/logging.h>
-
 #include <absl/container/flat_hash_map.h>
 #include <absl/types/variant.h>
+#include <glog/logging.h>
+
 #include <memory>
 #include <string>
 #include <utility>

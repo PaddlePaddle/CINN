@@ -14,9 +14,9 @@
 
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
 #include <glog/logging.h>
 
-#include <absl/container/flat_hash_map.h>
 #include <memory>
 
 #include "cinn/common/macros.h"

@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <absl/types/any.h>
 #include <gtest/gtest.h>
 
 #include <string>
-
-#include <absl/types/any.h>
 
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/node.h"

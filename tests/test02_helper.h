@@ -14,9 +14,9 @@
 
 #pragma once
 
+#include <absl/strings/string_view.h>
 #include <gtest/gtest.h>
 
-#include <absl/strings/string_view.h>
 #include <string>
 #include <tuple>
 #include <utility>

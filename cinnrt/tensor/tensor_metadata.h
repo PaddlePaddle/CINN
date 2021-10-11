@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glog/logging.h>
+
 #include "cinnrt/common/dtype.h"
 #include "cinnrt/tensor/tensor_shape.h"
 

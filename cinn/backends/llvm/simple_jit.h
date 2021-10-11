@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <absl/strings/string_view.h>
 #include <llvm/AsmParser/Parser.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/JITSymbol.h>
@@ -37,8 +38,6 @@
 #include <memory>
 #include <utility>
 #include <vector>
-
-#include <absl/strings/string_view.h>
 
 #include "cinn/backends/llvm/codegen_llvm.h"
 #include "cinn/backends/llvm/llvm_util.h"

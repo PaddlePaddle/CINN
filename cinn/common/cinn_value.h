@@ -13,11 +13,11 @@
 // limitations under the License.
 
 #pragma once
+#include <absl/types/any.h>
 #include <glog/logging.h>
 
 #include <vector>
 
-#include <absl/types/any.h>
 #include "cinn/common/common.h"
 #include "cinn/common/macros.h"
 #include "cinn/common/object.h"

@@ -14,13 +14,12 @@
 
 #include "cinn/backends/extern_func_emitter.h"
 
+#include <absl/hash/hash.h>
 #include <glog/raw_logging.h>
 
 #include <functional>
 #include <iostream>
 #include <string>
-
-#include <absl/hash/hash.h>
 
 #include "cinn/backends/extern_func_emitter_builtin.h"
 #include "cinn/backends/llvm/runtime_symbol_registry.h"

@@ -14,6 +14,7 @@
 
 #include "cinn/backends/llvm/execution_engine.h"
 
+#include <absl/strings/string_view.h>
 #include <llvm/ADT/Triple.h>
 #include <llvm/AsmParser/Parser.h>
 #include <llvm/Config/llvm-config.h>
@@ -47,7 +48,6 @@
 #include <llvm/Transforms/Scalar/Reassociate.h>
 #include <llvm/Transforms/Scalar/SimplifyCFG.h>
 
-#include <absl/strings/string_view.h>
 #include <cmath>
 #include <memory>
 #include <mutex>  // NOLINT

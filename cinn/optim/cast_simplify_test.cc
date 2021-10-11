@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include "cinn/optim/cast_simplify.h"
+
 #include <gtest/gtest.h>
+
 #include "cinn/ir/ir_operators.h"
 #include "cinn/ir/ir_printer.h"
 

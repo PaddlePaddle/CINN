@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cinn/optim/replace_const_param_to_integer.h"
+
 #include "cinn/ir/ir_mutator.h"
 #include "cinn/poly/ast_gen.h"
 #include "cinn/utils/string.h"

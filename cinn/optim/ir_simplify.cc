@@ -14,10 +14,10 @@
 
 #include "cinn/optim/ir_simplify.h"
 
+#include <absl/container/flat_hash_map.h>
 #include <ginac/ginac.h>
 #include <glog/logging.h>
 
-#include <absl/container/flat_hash_map.h>
 #include <map>
 #include <string>
 

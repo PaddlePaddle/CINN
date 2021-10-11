@@ -14,10 +14,10 @@
 
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
 #include <glog/logging.h>
 #include <llvm/IR/Intrinsics.h>
 
-#include <absl/container/flat_hash_map.h>
 #include <string>
 #include <utility>
 #include <vector>

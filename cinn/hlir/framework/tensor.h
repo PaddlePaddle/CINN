@@ -14,12 +14,12 @@
 
 #pragma once
 
+#include <absl/strings/string_view.h>
+
 #include <functional>
 #include <memory>
 #include <numeric>
 #include <vector>
-
-#include <absl/strings/string_view.h>
 
 #include "cinn/common/common.h"
 #include "cinn/common/macros.h"

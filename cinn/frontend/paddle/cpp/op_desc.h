@@ -13,14 +13,13 @@
 // limitations under the License.
 
 #pragma once
+#include <absl/types/any.h>
+#include <absl/types/variant.h>
 #include <glog/logging.h>
 
 #include <algorithm>
 #include <string>
 #include <vector>
-
-#include <absl/types/any.h>
-#include <absl/types/variant.h>
 
 #include "cinn/frontend/paddle/cpp/desc_api.h"
 #include "cinn/frontend/paddle/framework.pb.h"

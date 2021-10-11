@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <absl/types/variant.h>
 #include <pybind11/functional.h>
 
-#include <absl/types/variant.h>
 #include <memory>
 
 #include "cinn/backends/codegen_c.h"

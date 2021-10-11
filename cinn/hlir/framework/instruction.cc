@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cinn/hlir/framework/instruction.h"
+
 #include "cinn/common/test_helper.h"
 
 namespace cinn {

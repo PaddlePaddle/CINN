@@ -14,9 +14,9 @@
 
 #include "cinn/hlir/pe/schedule.h"
 
+#include <absl/container/flat_hash_map.h>
 #include <isl/cpp.h>
 
-#include <absl/container/flat_hash_map.h>
 #include <algorithm>
 #include <fstream>
 #include <functional>

@@ -13,13 +13,13 @@
 // limitations under the License.
 
 #pragma once
+#include <absl/types/variant.h>
+
 #include <functional>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <absl/types/variant.h>
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_operators.h"

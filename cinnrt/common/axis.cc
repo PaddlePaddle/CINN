@@ -1,8 +1,9 @@
-#include <set>
+#include "cinnrt/common/axis.h"
 
 #include <glog/logging.h>
 
-#include "cinnrt/common/axis.h"
+#include <set>
+
 #include "cinnrt/common/common.h"
 
 namespace cinnrt {

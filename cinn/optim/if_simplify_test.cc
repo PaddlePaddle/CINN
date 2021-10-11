@@ -13,8 +13,11 @@
 // limitations under the License.
 
 #include "cinn/optim/if_simplify.h"
+
 #include <gtest/gtest.h>
+
 #include <string>
+
 #include "cinn/ir/ir_printer.h"
 
 namespace cinn::optim {

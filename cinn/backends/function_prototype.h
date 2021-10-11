@@ -15,11 +15,11 @@
 #pragma once
 
 #include <absl/container/flat_hash_map.h>
+#include <absl/strings/string_view.h>
+
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <absl/strings/string_view.h>
 
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"

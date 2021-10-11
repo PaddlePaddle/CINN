@@ -2,10 +2,10 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/raw_os_ostream.h>
 
 #include <iostream>
 
-#include <llvm/Support/raw_os_ostream.h>
 #include "cinnrt/host_context/kernel_registry.h"
 #include "cinnrt/host_context/kernel_utils.h"
 #include "cinnrt/tensor/tensor_shape.h"

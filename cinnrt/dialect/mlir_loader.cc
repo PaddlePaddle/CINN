@@ -1,5 +1,6 @@
 #include "cinnrt/dialect/mlir_loader.h"
 
+#include <absl/container/flat_hash_map.h>
 #include <llvm/Support/SourceMgr.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Diagnostics.h>
@@ -7,7 +8,6 @@
 #include <mlir/IR/OperationSupport.h>
 #include <mlir/Parser.h>
 
-#include <absl/container/flat_hash_map.h>
 #include <memory>
 #include <string>
 #include <utility>

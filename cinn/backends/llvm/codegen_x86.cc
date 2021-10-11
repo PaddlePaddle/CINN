@@ -14,9 +14,9 @@
 
 #include "cinn/backends/llvm/codegen_x86.h"
 
+#include <absl/container/flat_hash_map.h>
 #include <llvm/IR/LLVMContext.h>
 
-#include <absl/container/flat_hash_map.h>
 #include <algorithm>
 #include <utility>
 

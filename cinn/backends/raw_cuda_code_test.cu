@@ -14,6 +14,7 @@
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
+
 #include "cinn/backends/cuda_util.h"
 #include "cinn/utils/timer.h"
 

@@ -17,14 +17,14 @@
  */
 #pragma once
 
+#include <absl/types/variant.h>
+
 #include <algorithm>
 #include <map>
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
-
-#include <absl/types/variant.h>
 
 #include "cinn/common/shared.h"
 #include "cinn/common/type.h"

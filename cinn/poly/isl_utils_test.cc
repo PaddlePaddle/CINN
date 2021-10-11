@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cinn/poly/isl_utils.h"
+
 #include <gtest/gtest.h>
 
 namespace cinn::poly {

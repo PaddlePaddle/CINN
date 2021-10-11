@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <absl/strings/string_view.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/Argument.h>
@@ -27,8 +28,6 @@
 #include <string>
 #include <type_traits>
 #include <utility>
-
-#include <absl/strings/string_view.h>
 
 #include "cinn/common/type.h"
 

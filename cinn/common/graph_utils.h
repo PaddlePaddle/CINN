@@ -15,9 +15,9 @@
 #pragma once
 //! \file This file contains the utilities of graph.
 
+#include <absl/container/flat_hash_map.h>
 #include <glog/logging.h>
 
-#include <absl/container/flat_hash_map.h>
 #include <algorithm>
 #include <functional>
 #include <list>

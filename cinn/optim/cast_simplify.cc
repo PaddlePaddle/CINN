@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "cinn/optim/cast_simplify.h"
+
 #include "cinn/ir/ir_mutator.h"
 
 namespace cinn::optim {
