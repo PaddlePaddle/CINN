@@ -147,8 +147,8 @@ function prepare_model {
 
 function codestyle_check {
     pre-commit run -a
-    if [[ `git status --porcelain`  ]]; then
-        echo "Please run 'pre-commit run -a' to reformat the code changes"
+    if [[ git diff-index --quite HEAD ]]; then
+        echo "Code is dirty, please run 'pre-commit run -a' to reformat the code changes"
         exit -1
     fi
 }
