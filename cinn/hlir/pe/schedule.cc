@@ -1,13 +1,27 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/hlir/pe/schedule.h"
 
 #include <isl/cpp.h>
 
+#include <absl/container/flat_hash_map.h>
 #include <algorithm>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <numeric>
-#include <absl/container/flat_hash_map.h>
 #include <utility>
 
 #include "cinn/common/cas.h"
@@ -124,7 +138,7 @@ void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_sha
         stage->Vectorize(fused, split_factor);
       }
     } else {
-      auto ssplit = stage->Split(fused, split_factor);
+      auto ssplit   = stage->Split(fused, split_factor);
       auto &j_outer = std::get<0>(ssplit);
       auto &j_inner = std::get<1>(ssplit);
       stage->Vectorize(j_inner, split_factor);
@@ -245,9 +259,9 @@ void MatmulScheduleCPU(poly::StageMap stages,
   stages[output]->Reorder(all_axes);
   // vectorize output's last dimemsion
   auto out_domain = stages[output]->transformed_domain();
-  auto range = poly::isl_set_get_axis_range(out_domain.get(), out_axis_dims - 1);
-  auto &min = std::get<0>(range);
-  auto &max = std::get<1>(range);
+  auto range      = poly::isl_set_get_axis_range(out_domain.get(), out_axis_dims - 1);
+  auto &min       = std::get<0>(range);
+  auto &max       = std::get<1>(range);
   CHECK_EQ(min.get_num_si(), 0) << "axis range should begin from zero";
   int out_last_dim        = max.get_num_si() + 1;
   int output_split_factor = GetBetterSplitFactor(out_last_dim, basic_split_factor);
@@ -1387,15 +1401,15 @@ void CudaScheduleConv(poly::StageMap stages,
 
   auto OL = stages[output]->CacheWrite("local", stages, output);
 
-  auto tx        = stages[output]->axis(3);
-  auto by        = stages[output]->axis(2);
+  auto tx     = stages[output]->axis(3);
+  auto by     = stages[output]->axis(2);
   auto tem_fi = stages[output]->Split(1, f_inner);
-  auto &tem = std::get<0>(tem_fi);
-  auto &fi = std::get<1>(tem_fi);
+  auto &tem   = std::get<0>(tem_fi);
+  auto &fi    = std::get<1>(tem_fi);
 
   auto bz_tz = stages[output]->Split(1, thread_z);
-  auto &bz = std::get<0>(bz_tz);
-  auto &tz = std::get<1>(bz_tz);
+  auto &bz   = std::get<0>(bz_tz);
+  auto &tz   = std::get<1>(bz_tz);
 
   stages[output]->Reorder({bz, by, tz, tx, fi});
   stages[output]->Bind(1, "blockIdx.z");
@@ -1515,12 +1529,12 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
   if (need_block_split) {
     auto x_outer_inner = stage->Split(0, num_thread * num_block);
-    auto &X_outer = std::get<0>(x_outer_inner);
-    auto &X_inner = std::get<1>(x_outer_inner);
+    auto &X_outer      = std::get<0>(x_outer_inner);
+    auto &X_inner      = std::get<1>(x_outer_inner);
 
     auto Block_x_Thread_x = stage->Split(X_inner, num_thread);
-    auto &Block_x = std::get<0>(Block_x_Thread_x);
-    auto &Thread_x = std::get<1>(Block_x_Thread_x);
+    auto &Block_x         = std::get<0>(Block_x_Thread_x);
+    auto &Thread_x        = std::get<1>(Block_x_Thread_x);
 
     stage->Reorder({Block_x, Thread_x, X_outer});
     stage->Bind(0, "blockIdx.x");

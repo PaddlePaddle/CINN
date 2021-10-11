@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include <gtest/gtest.h>
 
 #include "cinn/cinn.h"
@@ -83,10 +97,10 @@ auto BuildComputeAtExpr() {
 
 TEST(elementwise_add, compute_at) {
   auto _A_B_A_cache_C_ = BuildComputeAtExpr();
-  auto &A = std::get<0>(_A_B_A_cache_C_);
-  auto &B = std::get<1>(_A_B_A_cache_C_);
-  auto &A_cache = std::get<2>(_A_B_A_cache_C_);
-  auto &C = std::get<3>(_A_B_A_cache_C_);
+  auto &A              = std::get<0>(_A_B_A_cache_C_);
+  auto &B              = std::get<1>(_A_B_A_cache_C_);
+  auto &A_cache        = std::get<2>(_A_B_A_cache_C_);
+  auto &C              = std::get<3>(_A_B_A_cache_C_);
 
   auto stages = CreateStages({A, B, A_cache, C});
   stages[A_cache]->ComputeAt2(stages[C], 0);
@@ -105,10 +119,10 @@ TEST(elementwise_add, compute_at) {
 
 TEST(elementwise_add, compute_at1) {
   auto _A_B_A_cache_C_ = BuildComputeAtExpr();
-  auto &A = std::get<0>(_A_B_A_cache_C_);
-  auto &B = std::get<1>(_A_B_A_cache_C_);
-  auto &A_cache = std::get<2>(_A_B_A_cache_C_);
-  auto &C = std::get<3>(_A_B_A_cache_C_);
+  auto &A              = std::get<0>(_A_B_A_cache_C_);
+  auto &B              = std::get<1>(_A_B_A_cache_C_);
+  auto &A_cache        = std::get<2>(_A_B_A_cache_C_);
+  auto &C              = std::get<3>(_A_B_A_cache_C_);
 
   auto stages = CreateStages({A, B, A_cache, C});
   stages[A_cache]->ComputeAt2(stages[C], 1);

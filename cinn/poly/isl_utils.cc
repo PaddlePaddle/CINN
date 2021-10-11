@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/poly/isl_utils.h"
 
 #include <glog/logging.h>
@@ -148,8 +162,8 @@ int isl_get_original_axes_from_optimized_level(isl_set __isl_keep *a, int level)
       auto &minv = std::get<0>(range);
       auto &maxv = std::get<1>(range);
 
-      int min_iv        = minv.get_num_si();
-      int max_iv        = maxv.get_num_si();
+      int min_iv = minv.get_num_si();
+      int max_iv = maxv.get_num_si();
       if (max_iv == min_iv) {
         i--;
       }
@@ -168,8 +182,8 @@ int isl_get_precending_removed_axes_counts(isl_set __isl_keep *a, int level) {
       auto &minv = std::get<0>(range);
       auto &maxv = std::get<1>(range);
 
-      int min_iv        = minv.get_num_si();
-      int max_iv        = maxv.get_num_si();
+      int min_iv = minv.get_num_si();
+      int max_iv = maxv.get_num_si();
       if (max_iv == min_iv) {
         removed_axes_counts++;
       }
@@ -185,8 +199,8 @@ bool isl_is_removed_axis(isl_set __isl_keep *a, int level) {
     auto &minv = std::get<0>(range);
     auto &maxv = std::get<1>(range);
 
-    int min_iv        = minv.get_num_si();
-    int max_iv        = maxv.get_num_si();
+    int min_iv = minv.get_num_si();
+    int max_iv = maxv.get_num_si();
     if (max_iv == min_iv) {
       return true;
     }
@@ -482,10 +496,10 @@ std::vector<std::string> GetRelatedInputAxies(const isl::map &x,
       auto range2 = isl_set_get_axis_range_by_name(transformed_domain.get(), i);
       auto &minv2 = std::get<0>(range2);
       auto &maxv2 = std::get<1>(range2);
-      int min_iv1         = minv1.get_num_si();
-      int max_iv1         = maxv1.get_num_si();
-      int min_iv2         = minv2.get_num_si();
-      int max_iv2         = maxv2.get_num_si();
+      int min_iv1 = minv1.get_num_si();
+      int max_iv1 = maxv1.get_num_si();
+      int min_iv2 = minv2.get_num_si();
+      int max_iv2 = maxv2.get_num_si();
       if (min_iv1 == max_iv1 && min_iv2 == max_iv2) {
         res.push_back(i);
       }

@@ -1,3 +1,17 @@
+# Copyright (c) 2021 CINN Authors. All Rights Reserved.
+# 
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # build with gpu
 ABSL_INCLUDE_FLAG=-I../thirds/install/absl/include
 g++ demo.cc -o demo -fPIC -mavx -Wno-write-strings -Wno-psabi   -D_GNU_SOURCE -D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -D_GNU_SOURCE -D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -std=c++14 ${ABSL_INCLUDE_FLAG} -I./cinn/include -I./third_party/llvm11/include -I./third_party/glog/include -I./third_party/gflags/include -I./third_party/protobuf/include -I./third_party/mklml/include cinn/lib/libcinnapi.so -lpthread -ldl

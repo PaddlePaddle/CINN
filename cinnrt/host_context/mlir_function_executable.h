@@ -1,8 +1,8 @@
 #pragma once
 #include <mlir/IR/Function.h>
 
-#include <string>
 #include <absl/container/flat_hash_map.h>
+#include <string>
 
 #include "cinnrt/host_context/core_runtime.h"
 #include "cinnrt/host_context/function.h"
