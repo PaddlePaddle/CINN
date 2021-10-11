@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/hlir/pe/transform.h"
 
 #include "cinn/common/cas.h"
@@ -1008,6 +1022,126 @@ std::vector<std::vector<std::string>> InferLayoutForLayoutTransform(const std::v
   return {{dst_layout}, {src_layout}};
 }
 
+std::shared_ptr<OpStrategy> StrategyForTranspose(const framework::NodeAttr &attrs,
+                                                 const std::vector<ir::Tensor> &inputs,
+                                                 const std::vector<Type> &out_type,
+                                                 const std::vector<std::vector<int>> &output_shapes,
+                                                 const Target &target) {
+  // check output shape
+  CHECK(!output_shapes.empty() && !output_shapes[0].empty()) << "Output shape is empty! Please check.\n";
+
+  std::vector<int> axis;
+  auto input_shape = inputs[0]->shape;
+  if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
+    axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
+    CHECK_EQ(axis.size(), output_shapes[0].size())
+        << "axis size is not equal output_shapes size! Please check setting.\n";
+    // check axis and shape
+    for (int idx = 0; idx < axis.size(); ++idx) {
+      CHECK(axis[idx] >= 0 && axis[idx] < axis.size());
+      for (int idy = idx + 1; idy < axis.size(); ++idy) {
+        CHECK_NE(axis[idx], axis[idy]) << "axis can't repeat!";
+      }
+      CHECK_EQ(output_shapes[0][idx], input_shape[axis[idx]].as_int32())
+          << "output shape is not equal! Please check!\n";
+    }
+  } else {
+    LOG(FATAL) << "axis is not be set! Please check.";
+  }
+
+  framework::CINNCompute transpose_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of transpose compute is empty! Please check.\n";
+    CINNValuePack a = args[0];
+    CHECK(!a.empty()) << "at least one input tensor for transpose compute\n";
+    Expr A = a[0];
+    CHECK(A.as_tensor());
+    auto out    = pe::Transpose(A.as_tensor_ref(), axis, UniqName("Transpose_output"));
+    auto stages = CreateStages({out});
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule transpose_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of transpose schedule is empty! Please check.\n";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    Expr out              = arg_pack[0];
+    poly::StageMap stages = arg_pack[1];
+    CHECK(out.as_tensor());
+    if (target.arch == Target::Arch::NVGPU) {
+      pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  CHECK(out_type.size()) << "Out_type of transpose op is empty! Please check.";
+  if (out_type[0] == Float(32)) {
+    strategy->AddImpl(transpose_compute, transpose_schedule, "strategy.transpose.x86", 1);
+  } else {
+    LOG(FATAL) << "Transpose op with dtype != float32 is not implemented yet!";
+  }
+  return strategy;
+}
+
+std::vector<framework::shape_t> InferShapeForTranspose(const std::vector<framework::shape_t> &inputs_shape,
+                                                       const framework::AttrMapType &attrs) {
+  std::vector<framework::shape_t> result;
+  CHECK(!inputs_shape.empty() && !inputs_shape[0].empty()) << "The input's shape size is 0! Please check again.";
+  if (attrs.find("axis") != attrs.end()) {
+    auto axis = absl::get<std::vector<int>>(attrs.at("axis"));
+    CHECK_EQ(axis.size(), inputs_shape[0].size()) << "input size and axis size is not equal!";
+    std::vector<int> output_shape;
+    for (int idx = 0; idx < axis.size(); ++idx) {
+      CHECK(axis[idx] >= 0 && axis[idx] < axis.size());
+      for (int idy = idx + 1; idy < axis.size(); ++idy) {
+        CHECK_NE(axis[idx], axis[idy]) << "axis can't repeat!";
+      }
+      output_shape.push_back(inputs_shape[0][axis[idx]]);
+    }
+    result.push_back(output_shape);
+  } else {
+    LOG(FATAL) << "axis is not be set! Please check.";
+  }
+  return result;
+}
+
+std::vector<std::vector<std::string>> InferLayoutForTranspose(const std::vector<framework::shape_t> &input_shapes,
+                                                              const std::vector<std::string> &input_layouts,
+                                                              const framework::NodeAttr &attrs,
+                                                              const Target &target) {
+  CHECK_EQ(input_shapes.size(), 1U) << "The input's shape size is not 1! Please check again.";
+  CHECK_EQ(input_layouts.size(), 1U) << "The input's layout size is not 1! Please check again.";
+
+  std::vector<int> axis;
+  if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
+    axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
+    CHECK_EQ(axis.size(), input_shapes[0].size()) << "input size and axis size is not equal!";
+    for (int idx = 0; idx < axis.size(); ++idx) {
+      CHECK(axis[idx] >= 0 && axis[idx] < axis.size());
+      for (int idy = idx + 1; idy < axis.size(); ++idy) {
+        CHECK_NE(axis[idx], axis[idy]) << "axis can't repeat!";
+      }
+    }
+  } else {
+    LOG(FATAL) << "axis is not be set! Please check.";
+  }
+
+  std::vector<std::string> new_input_layouts = input_layouts;
+  for (int i = 0; i < input_shapes.size(); i++) {
+    if (input_shapes[i].size() > 4) {
+      // alter input layout back
+      new_input_layouts[i] = input_layouts[0].substr(0, 4);
+    }
+  }
+
+  std::string output_layout = new_input_layouts[0];
+  for (int idx = 0; idx < axis.size(); ++idx) {
+    output_layout[idx] = new_input_layouts[0][axis[idx]];
+  }
+
+  return {{output_layout}, new_input_layouts};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -1073,6 +1207,19 @@ CINN_REGISTER_HELPER(transform_ops) {
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
 #ifndef CINN_WITH_CUDA
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReverse))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(transpose)
+      .describe("This operator implements the meta op transpose.")
+      .set_num_inputs(1)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForTranspose)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForTranspose))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReshape))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForTranspose))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);

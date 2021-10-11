@@ -21,14 +21,15 @@ repos:
         entry: bash ./tools/codestyle/clang_format.hook -i
         language: system
         files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx)$
--   repo: local
-    hooks:
-    -   id: cpplint-cpp-source
-        name: cpplint
-        description: Check C++ code style using cpplint.py.
-        entry: bash ./tools/codestyle/cpplint_pre_commit.hook
-        language: system
-        files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx)$
+#-   repo: local
+#    hooks:
+#    -   id: cpplint-cpp-source
+#        name: cpplint
+#        description: Check C++ code style using cpplint.py.
+#        entry: bash ./tools/codestyle/cpplint_pre_commit.hook
+#        language: system
+#        files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx)$
+
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v2.5.0
     hooks:
@@ -45,3 +46,15 @@ repos:
     hooks:
     - id: yapf
       args: ['--parallel', '--in-place']
+
+-   repo: local
+    hooks:
+    -   id: copyright_checker
+        name: copyright_checker
+        entry: python ./tools/codestyle/copyright.hook
+        language: system
+        files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx|proto|py|sh)$
+        exclude: |
+            (?x)^(
+                cinnrt/.*
+            )$

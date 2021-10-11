@@ -1,17 +1,30 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 /**
  * \file This file defines some basic elements of CINN frontend syntax.
  */
+#include <absl/container/flat_hash_map.h>
+#include <absl/strings/string_view.h>
 #include <glog/logging.h>
 
 #include <memory>
 #include <string>
 #include <tuple>
-#include <absl/container/flat_hash_map.h>
 #include <utility>
 #include <vector>
-
-#include <absl/strings/string_view.h>
 
 #include "cinn/common/common.h"
 #include "cinn/common/context.h"
@@ -43,7 +56,7 @@ struct Variable : public common::Shared<_Variable_> {
    * Constructor.
    * @param id_hint The identifier of the variable, if null, a random ID will be assigned.
    */
-  explicit Variable(const std::string & id_hint = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
+  explicit Variable(const std::string& id_hint = "") : common::Shared<_Variable_>(common::make_shared<_Variable_>()) {
     if (!id_hint.empty()) CheckVarNameValid(id_hint);
     get()->id = id_hint.empty() ? common::Context::Global().NewName("var") : id_hint;
   }
@@ -252,7 +265,7 @@ struct Program {
 
   SYNTAX_PRIM_UNARY_DECL(negative);
   SYNTAX_PRIM_UNARY_DECL(identity);
-  SYNTAX_PRIM_UNARY_DECL(logica_not);
+  SYNTAX_PRIM_UNARY_DECL(logical_not);
   SYNTAX_PRIM_UNARY_DECL(sign);
   SYNTAX_PRIM_UNARY_DECL(abs);
   SYNTAX_PRIM_UNARY_DECL(rsqrt);

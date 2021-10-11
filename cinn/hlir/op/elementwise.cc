@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/hlir/pe/elementwise.h"
 
 #include <iostream>
@@ -258,7 +272,7 @@ StrategyForUnary(bitwise_not, BitwiseNot);
 
 StrategyForUnary(negative, Negative);
 StrategyForUnary(identity, Identity);
-StrategyForUnary(logica_not, LogicalNot);
+StrategyForUnary(logical_not, LogicalNot);
 StrategyForUnary(sign, Sign);
 StrategyForUnary(abs, Abs);
 StrategyForUnary(rsqrt, Rsqrt);
@@ -313,7 +327,7 @@ CINN_REGISTER_HELPER(elementwise_ops) {
 
   CINN_REGISTER_UNARY(negative, Negative)
   CINN_REGISTER_UNARY(identity, Identity)
-  CINN_REGISTER_UNARY(logica_not, LogicalNot)
+  CINN_REGISTER_UNARY(logical_not, LogicalNot)
   CINN_REGISTER_UNARY(sign, Sign)
   CINN_REGISTER_UNARY(abs, Abs)
   CINN_REGISTER_UNARY(rsqrt, Rsqrt)

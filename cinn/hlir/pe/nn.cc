@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/hlir/pe/nn.h"
 
 #include <absl/container/flat_hash_map.h>
@@ -839,7 +853,7 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
     LOG(ERROR) << "Unrecognized pool_type: " << pool_type;
   }
   if (adaptive) {
-    CHECK(pool_type == "avg");
+    CHECK_EQ(pool_type, "avg");
     std::vector<Expr> out_shape = tensor->shape;
     CHECK_EQ(k_size, 2);
     CHECK_EQ(k_size, (int)axis.size());
@@ -852,8 +866,8 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
     std::vector<Var> reduce_axis;
 
     for (int i = 0; i < k_size; i++) {
-      reduce_axis.emplace_back(
-          Var(Expr((int)tensor->shape[axis[i]].get_constant() / kernel_size[i]), UniqName("adaptive_reduce")));
+      reduce_axis.emplace_back(Var(Expr(static_cast<int>(tensor->shape[axis[i]].get_constant()) / kernel_size[i]),
+                                   UniqName("adaptive_reduce")));
     }
 
     res = Compute(
@@ -864,12 +878,13 @@ std::vector<Tensor> PoolImpl(const Tensor &tensor,
 
           for (int i = 0; i < k_size; i++) {
             indices[axis[i]] =
-                output[axis[i]] * Expr((int)tensor->shape[axis[i]].get_constant() / kernel_size[i]) + reduce_axis[i];
+                output[axis[i]] * Expr(static_cast<int>(tensor->shape[axis[i]].get_constant()) / kernel_size[i]) +
+                reduce_axis[i];
           }
 
           auto temp_factor = make_const(Int(32), 1);
           for (int i = 0; i < k_size; i++) {
-            temp_factor = temp_factor * Expr((int)tensor->shape[axis[i]].get_constant() / kernel_size[i]);
+            temp_factor = temp_factor * Expr(static_cast<int>(tensor->shape[axis[i]].get_constant()) / kernel_size[i]);
           }
           common::AutoSimplify(temp_factor);
           Expr divide_factor = Max::Make(temp_factor, make_const(Int(32), 1));
@@ -1017,23 +1032,6 @@ ir::Tensor Select(const ir::Tensor &condition,
   return lang::Compute(condition->shape, [=](const std::vector<Expr> &indice) {
     return common::select(condition(indice), true_value(indice), false_value(indice));
   });
-}
-
-ir::Tensor Reverse(const ir::Tensor &input, const std::vector<int> axis, const std::string &output_name) {
-  for (auto &val : axis) {
-    CHECK(val >= 0 && val < input->shape.size()) << "axis should be [0,n_dim)";
-  }
-  std::vector<Expr> shape = input->shape;
-  return lang::Compute(
-      input->shape,
-      [=](const std::vector<Expr> &indice) {
-        std::vector<Expr> indexs(indice.begin(), indice.end());
-        for (auto idx : axis) {
-          indexs[idx] = shape[idx] - Expr(1) - indexs[idx];
-        };
-        return input(indexs);
-      },
-      output_name);
 }
 
 }  // namespace pe

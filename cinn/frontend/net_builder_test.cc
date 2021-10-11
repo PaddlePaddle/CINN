@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/frontend/net_builder.h"
 
 #include <gtest/gtest.h>
@@ -11,10 +25,8 @@
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
-#include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
-#include "cinn/hlir/pass/use_pass.h"
 #ifdef CINN_WITH_CUDA
 #include <cuda_runtime.h>
 #endif
@@ -22,13 +34,16 @@
 namespace cinn {
 namespace frontend {
 
+using hlir::framework::OpRegistry;
+
+namespace {
 Program CreateAddProgram() {
   constexpr int M = 32;
   constexpr int N = 24;
 
   NetBuilder builder("net_builder");
-  auto a       = builder.CreateInput(Float(32), {M, N});
-  auto b       = builder.CreateInput(Float(32), {M, N});
+  auto a       = builder.CreateInput(Float(32), {M, N}, "A");
+  auto b       = builder.CreateInput(Float(32), {M, N}, "B");
   auto c       = builder.add(a, b);
   auto d       = builder.add(a, c);
   auto program = builder.Build();
@@ -54,7 +69,20 @@ void SetRandData(hlir::framework::Tensor tensor, Target target) {
 #endif
 }
 
+template <typename T, typename Alloc = std::allocator<T>>
+std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
+  os << "{ ";
+  for (auto e : vec) {
+    os << e << " ";
+  }
+  os << "}\n";
+  return os;
+}
+}  // namespace
+
 TEST(net_build, basic) {
+  LOG(INFO) << "The size of registered operators: " << OpRegistry::Global()->ListAllNames().size();
+  LOG(INFO) << "Registered operators:\n" << OpRegistry::Global()->ListAllNames();
   auto program = CreateAddProgram();
   // output program
   for (int i = 0; i < program.size(); i++) {

@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/hlir/pe/broadcast.h"
 
 #include <iostream>
@@ -231,7 +245,7 @@ StrategyForBinary(floor_mod, FloorMod);
 StrategyForBinary(max, Maximum);
 StrategyForBinary(min, Minimum);
 StrategyForBinary(power, Power);
-StrategyForBinary(logical_and, LogicaAnd);
+StrategyForBinary(logical_and, LogicalAnd);
 StrategyForBinary(logical_or, LogicalOr);
 StrategyForBinary(logical_xor, LogicalXOr);
 StrategyForBinary(greater, Greater);
@@ -277,9 +291,9 @@ CINN_REGISTER_HELPER(broadcast_ops) {
   CINN_REGISTER_BINARY(max, Maximum);
   CINN_REGISTER_BINARY(min, Minimum);
   CINN_REGISTER_BINARY(power, Power);
-  CINN_REGISTER_BINARY(logical_and, LogicaAnd);
+  CINN_REGISTER_BINARY(logical_and, LogicalAnd);
   CINN_REGISTER_BINARY(logical_or, LogicalOr);
-  CINN_REGISTER_BINARY(logical_not, LogicalXOr);
+  CINN_REGISTER_BINARY(logical_xor, LogicalXOr);
   CINN_REGISTER_BINARY(greater, Greater);
   CINN_REGISTER_BINARY(less, Less);
   CINN_REGISTER_BINARY(equal, Equal);

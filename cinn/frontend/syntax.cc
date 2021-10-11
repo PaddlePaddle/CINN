@@ -1,4 +1,20 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/frontend/syntax.h"
+
+#include <absl/types/variant.h>
 
 #include <iomanip>
 #include <memory>
@@ -6,7 +22,6 @@
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include <absl/types/variant.h>
 
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/frontend/paddle_model_to_program.h"
@@ -294,7 +309,7 @@ SYNTAX_PRIM_UNARY_IMPL(bitwise_not);
 
 SYNTAX_PRIM_UNARY_IMPL(negative);
 SYNTAX_PRIM_UNARY_IMPL(identity);
-SYNTAX_PRIM_UNARY_IMPL(logica_not);
+SYNTAX_PRIM_UNARY_IMPL(logical_not);
 SYNTAX_PRIM_UNARY_IMPL(sign);
 SYNTAX_PRIM_UNARY_IMPL(abs);
 SYNTAX_PRIM_UNARY_IMPL(rsqrt);

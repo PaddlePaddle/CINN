@@ -1,6 +1,21 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
-#include <string>
 #include <absl/container/flat_hash_map.h>
+
+#include <string>
 #include <vector>
 
 #include "cinn/ir/ir_base.h"
@@ -109,6 +124,26 @@ std::vector<ir::Expr> InferShapeLayoutTransform(const std::vector<Expr>& input_s
                                                 const ir::Layout& old_layout,
                                                 const ir::Layout& new_layout,
                                                 absl::flat_hash_map<int, std::vector<int>>* split_index_map);
+
+/**
+ * @brief Perform meta op Reverse
+ * @param input The input tensor
+ * @param axis reverse axis
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor Reverse(const ir::Tensor& input,
+                   const std::vector<int>& axis,
+                   const std::string& output_name = UniqName("T_Reverse_out"));
+
+/**
+ * @brief Perform meta op Transpose
+ * @param input The input tensor
+ * @param axis tranpsoe axis
+ * @param output_name the name of the output tensor
+ */
+ir::Tensor Transpose(const ir::Tensor& input,
+                     const std::vector<int>& axis,
+                     const std::string& output_name = UniqName("T_Transpose_out"));
 
 }  // namespace pe
 }  // namespace hlir

@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/optim/buffer_assign.h"
 
 #include "cinn/common/union_find.h"
@@ -85,8 +99,8 @@ std::map<std::string, ir::Tensor> InitialAssignBuffer(Expr* expr,
   // of the computational graph, and find out which tensor comes first in a cluster.
 
   auto _topo_order_topo_edges_ = comp_graph->topological_order();
-  auto &topo_order = std::get<0>(_topo_order_topo_edges_);
-  auto &topo_edges = std::get<1>(_topo_order_topo_edges_);
+  auto& topo_order             = std::get<0>(_topo_order_topo_edges_);
+  auto& topo_edges             = std::get<1>(_topo_order_topo_edges_);
   for (common::GraphNode* n : topo_order) {
     auto nn = n->safe_as<lang::detail::CompuGraphNode>();
     CHECK(nn);

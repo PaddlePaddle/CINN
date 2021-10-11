@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/hlir/pe/transform.h"
 
 #include <algorithm>
@@ -605,6 +619,61 @@ ir::Tensor LayoutTransform(const Tensor& input,
       },
       name);
   return {res};
+}
+
+ir::Tensor Reverse(const ir::Tensor& input, const std::vector<int>& axis, const std::string& output_name) {
+  for (auto& val : axis) {
+    CHECK(val >= 0 && val < input->shape.size()) << "axis should be [0,n_dim)";
+  }
+  std::vector<Expr> shape = input->shape;
+  return lang::Compute(
+      input->shape,
+      [=](const std::vector<Expr>& indice) {
+        std::vector<Expr> indexs(indice.begin(), indice.end());
+        for (auto idx : axis) {
+          indexs[idx] = shape[idx] - Expr(1) - indexs[idx];
+        }
+        return input(indexs);
+      },
+      output_name);
+}
+
+ir::Tensor Transpose(const ir::Tensor& input, const std::vector<int>& axis, const std::string& output_name) {
+  CHECK_EQ(input->shape.size(), axis.size()) << "input shape size and axis size is not equal!";
+  for (int idx = 0; idx < axis.size(); ++idx) {
+    CHECK(axis[idx] >= 0 && axis[idx] < axis.size()) << "axis value should be among [0,axis.size())";
+    for (int idy = idx + 1; idy < axis.size(); ++idy) {
+      CHECK_NE(axis[idx], axis[idy]) << "axis value can't repeat!";
+    }
+  }
+  // compute output shape
+  std::vector<Expr> shape = input->shape;
+  std::vector<Expr> output_shape;
+  for (auto idx = 0; idx < axis.size(); ++idx) {
+    output_shape.push_back(shape[axis[idx]]);
+  }
+
+  // tranpose axis to map output to input
+  // new_axis = axis(T)
+  std::vector<int> new_axis;
+  for (int idx = 0; idx < axis.size(); ++idx) {
+    for (int idy = 0; idy < axis.size(); ++idy) {
+      if (idx == axis[idy]) {
+        new_axis.push_back(idy);
+      }
+    }
+  }
+
+  return lang::Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indice) {
+        std::vector<Expr> indexs;
+        for (auto idx : new_axis) {
+          indexs.push_back(indice[idx]);
+        }
+        return input(indexs);
+      },
+      output_name);
 }
 
 }  // namespace pe

@@ -31,7 +31,7 @@ Value* SymbolTable::GetValue(absl::string_view key) const {
 // @{
 #define REGISTER_TYPE__(T)                                       \
   template <>                                                    \
-  T SymbolTable::Get<T>(absl::string_view key) {                  \
+  T SymbolTable::Get<T>(absl::string_view key) {                 \
     auto it = impl_->data.find(std::string(key));                \
     CHECK(it != impl_->data.end()) << "No value called " << key; \
     return it->second->get<T>();                                 \

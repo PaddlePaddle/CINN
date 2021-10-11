@@ -1,6 +1,21 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include <gtest/gtest.h>
 
 #include <functional>
+#include <iostream>
 #include <string>
 
 #include "cinn/backends/llvm/execution_engine.h"
@@ -446,6 +461,94 @@ TEST(Operator, Operator_Reverse_Test0) {
 
   ASSERT_EQ(impl->name, "strategy.reverse.x86");
   ASSERT_EQ(reverse->description, "This operator implements the meta op reverse.");
+}
+
+TEST(Operator, Operator_Transpose_Test0) {
+  auto transpose        = Operator::Get("transpose");
+  Operator temp         = *transpose;
+  auto strategy         = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+  auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[transpose];
+
+  int n = 16, c = 3, h = 32, w = 32;
+  Expr N(n), C(c), H(h), W(w);
+  Placeholder<float> A("A", {N, C, H, W});
+
+  NodeAttr attrs;
+  std::vector<int> axis    = {0, 2, 3, 1};
+  attrs.attr_store["axis"] = axis;
+  std::vector<ir::Tensor> inputs{A.tensor()};
+  std::vector<Type> type{Float(32)};
+  common::Target target = common::DefaultHostTarget();
+
+  auto infer_shape = infer_shape_func({{n, c, h, w}}, attrs.attr_store);
+  ASSERT_EQ(infer_shape[0][0], n);
+  ASSERT_EQ(infer_shape[0][1], h);
+  ASSERT_EQ(infer_shape[0][2], w);
+  ASSERT_EQ(infer_shape[0][3], c);
+
+#ifndef CINN_WITH_CUDA
+  using InferLayoutFunction =
+      std::function<std::vector<std::vector<std::string>>(const std::vector<framework::shape_t> &,
+                                                          const std::vector<std::string> &,
+                                                          const framework::NodeAttr &,
+                                                          const Target &target)>;
+  auto infer_layout_func = Operator::GetAttrs<InferLayoutFunction>("inferlayout")[transpose];
+  auto infer_layout      = infer_layout_func({{n, c, h, w}}, {"NCHW"}, attrs, target);
+  ASSERT_EQ(infer_layout[0][0], "NHWC");
+#endif
+
+  auto input_shape  = {n, c, h, w};
+  auto output_shape = {n, h, w, c};
+
+  auto impl = OpStrategy::SelectImpl(strategy[transpose](attrs, inputs, type, {output_shape}, target));
+  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(A)}};
+  common::CINNValuePack rets       = impl->fcompute(cinn_input);
+  rets                             = impl->fschedule(rets);
+  ASSERT_EQ(rets.size(), 2UL);
+
+  // the last element is a StageMap
+  for (int i = 0; i < rets->size() - 1; i++) {
+    Expr temp = rets[i];
+    inputs.push_back(temp.as_tensor_ref());
+  }
+  auto func = Lower("transpose", rets.back(), inputs);
+  LOG(INFO) << "Test Strategy Codegen:\n" << func;
+
+  Module::Builder builder("module0", target);
+  builder.AddFunction(func);
+  auto jit    = backends::ExecutionEngine::Create({});
+  auto module = builder.Build();
+
+  jit->Link(module);
+  auto fn = jit->Lookup("transpose");
+  CHECK(fn);
+  auto fn_ = reinterpret_cast<void (*)(void *, int32_t)>(fn);
+
+  cinn_buffer_t *A_buf = common::BufferBuilder(Float(32), input_shape).set_random().Build();
+  cinn_buffer_t *B_buf = common::BufferBuilder(Float(32), output_shape).set_random().Build();
+  cinn_pod_value_t a_arg(A_buf), b_arg(B_buf);
+  cinn_pod_value_t args[] = {a_arg, b_arg};
+  fn_(args, 2);
+
+  auto input  = reinterpret_cast<float *>(A_buf->memory);
+  auto output = reinterpret_cast<float *>(B_buf->memory);
+
+  for (int idx = 0; idx < n; ++idx) {
+    for (int idy = 0; idy < h; ++idy) {
+      for (int idz = 0; idz < w; ++idz) {
+        for (int id = 0; id < c; ++id) {
+          // (n, h, w, c) (idx, idy, idz, id)
+          int index = idx * (h * w * c) + idy * (w * c) + idz * c + id;
+          // (n, c, h, w) (idx, id, idy, idz)
+          int _index = idx * (c * h * w) + id * (h * w) + idy * h + idz;
+          CHECK_EQ(output[index], input[_index]);
+        }
+      }
+    }
+  }
+
+  ASSERT_EQ(impl->name, "strategy.transpose.x86");
+  ASSERT_EQ(transpose->description, "This operator implements the meta op transpose.");
 }
 
 }  // namespace framework

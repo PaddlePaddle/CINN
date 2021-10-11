@@ -1,9 +1,9 @@
 #pragma once
 
+#include <absl/container/flat_hash_map.h>
 #include <glog/logging.h>
 
 #include <memory>
-#include <absl/container/flat_hash_map.h>
 
 #include "cinnrt/common/macros.h"
 #include "cinnrt/common/target.h"
