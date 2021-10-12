@@ -50,8 +50,7 @@ void TransposeVar(const std::string& origin_name, const OpMapperContext& ctx) {
     auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     if (ctx.target_.arch == Target::Arch::X86) {
       float* data = tensor->mutable_data<float>(ctx.target_);
-      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is " << tensor->shape().size()
-                                         << " not equal to 2! Which name is " << name;
+      CHECK_EQ(tensor->shape().size(), 2UL) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
       TransposeData(data, tensor->shape().data()[0], tensor->shape().data()[1]);
     } else if (ctx.target_.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
@@ -62,8 +61,7 @@ void TransposeVar(const std::string& origin_name, const OpMapperContext& ctx) {
                            reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.target_)),
                            tensor->shape().numel() * sizeof(float),
                            cudaMemcpyDeviceToHost));
-      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is " << tensor->shape().size()
-                                         << " not equal to 2! Which name is " << name;
+      CHECK_EQ(tensor->shape().size(), 2UL) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
       TransposeData(data.data(), tensor->shape().data()[0], tensor->shape().data()[1]);
       CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.target_)),
                            data.data(),
@@ -83,8 +81,7 @@ void TransposeVar(const std::string& origin_name, const OpMapperContext& ctx) {
     std::reverse(reverse_shape.begin(), reverse_shape.end());
     tensor->shape().SetData(reverse_shape);
     var->shape = tensor->shape().data();
-    // TODO(Superjomn) Make this determined by model.
-    var->type = Float(32);
+    var->type  = tensor->type();
     ctx.AddVar(name, var, true);
   } else {
     LOG(FATAL) << "No var called [" << name << "] exists";

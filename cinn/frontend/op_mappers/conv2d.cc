@@ -36,7 +36,8 @@ void ReverseHWVar(const std::string& origin_name, const OpMapperContext& ctx) {
     auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     if (ctx.target_.arch == Target::Arch::X86) {
       float* data = tensor->mutable_data<float>(ctx.target_);
-      CHECK(tensor->shape().size() == 4) << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
+      CHECK_EQ(tensor->shape().size(), 4UL)
+          << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
       ReverseHWData(data, tensor->shape().data());
     } else if (ctx.target_.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
@@ -45,7 +46,8 @@ void ReverseHWVar(const std::string& origin_name, const OpMapperContext& ctx) {
                            reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.target_)),
                            tensor->shape().numel() * sizeof(float),
                            cudaMemcpyDeviceToHost));
-      CHECK(tensor->shape().size() == 4) << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
+      CHECK_EQ(tensor->shape().size(), 4UL)
+          << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
       ReverseHWData(data.data(), tensor->shape().data());
       CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.target_)),
                            data.data(),

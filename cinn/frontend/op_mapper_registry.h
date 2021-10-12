@@ -77,8 +77,7 @@ class OpMapperContext {
       Variable var;
       var.set_id(name);
       var->shape = tensor->shape().data();
-      // TODO(Superjomn) Make this determined by model.
-      var->type = Float(32);
+      var->type  = tensor->type();
       AddVar(name, var);
       return var;
     }
@@ -87,12 +86,7 @@ class OpMapperContext {
     return Variable();
   }
 
-  void AddVarDesc(const std::string& name, paddle::cpp::VarDesc* desc, bool replace = false) {
-    if (replace == false) {
-      CHECK(!var_desc_map_.count(name)) << "Duplicate VarDesc [" << name << "] found";
-    }
-    var_desc_map_[name] = desc;
-  }
+  void AddVarDesc(const std::string& name, paddle::cpp::VarDesc* desc) { var_desc_map_[name] = desc; }
 
   paddle::cpp::VarDesc* GetVarDesc(const std::string& name) const {
     if (var_desc_map_.count(name)) {

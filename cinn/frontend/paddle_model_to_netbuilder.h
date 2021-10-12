@@ -31,7 +31,7 @@ namespace frontend {
 // Transform paddle model to CINN NetBuilder object.
 // The paddle model is readed from __model__ file in model_dir, the PaddleModelToNetBuilder
 // will run each op's kernel registered in OpMapper, each kernel will add instruction in
-// NetBuilder, after running all op in model, it will return the complete NetBuilder object.
+// NetBuilder, after running all op of model, it will return the complete NetBuilder object.
 // Note that if anyone op not registered, the program will failed and aborted.
 class PaddleModelToNetBuilder {
  public:
