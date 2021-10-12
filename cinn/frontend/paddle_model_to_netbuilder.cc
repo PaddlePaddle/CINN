@@ -30,6 +30,7 @@ void PaddleModelToNetBuilder::RunOp(const paddle::cpp::OpDesc& op_desc, const Op
   const auto& op_type = op_desc.Type();
   auto kernel         = OpMapperRegistry::Global()->Find(op_type);
   CHECK(kernel) << "Not supported op [" << op_type << "] found";
+  VLOG(4) << "Running Op " << op_type;
   kernel->Run(op_desc, ctx);
 }
 
@@ -47,9 +48,15 @@ std::unique_ptr<NetBuilder> PaddleModelToNetBuilder::operator()(const std::strin
   builder_name.append("_of_");
   static uint64_t unique_invoke_number = 0;
   builder_name.append(std::to_string(unique_invoke_number++));
+  VLOG(4) << "NetBuilder Name " << builder_name;
 
   std::unique_ptr<NetBuilder> builder = std::make_unique<NetBuilder>(builder_name);
   OpMapperContext ctx(scope_, target_, builder.get(), &var_map_, &var_model_to_program_map_);
+
+  for (int i = 0; i < block_desc->VarsSize(); i++) {
+    auto* var_desc = block_desc->GetVar<paddle::cpp::VarDesc>(i);
+    ctx.AddVarDesc(var_desc->Name(), var_desc);
+  }
 
   for (int i = 0; i < block_desc->OpsSize(); i++) {
     auto* op_desc = block_desc->GetOp<paddle::cpp::OpDesc>(i);

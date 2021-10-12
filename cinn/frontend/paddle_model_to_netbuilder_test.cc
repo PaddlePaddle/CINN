@@ -36,7 +36,6 @@ TEST(PaddleModelToNetBuilder, basic) {
 
   ASSERT_FALSE(var_map.empty());
   ASSERT_FALSE(var_model_to_program_map.empty());
-  LOG(INFO) << builder->name();
 }
 
 }  // namespace frontend

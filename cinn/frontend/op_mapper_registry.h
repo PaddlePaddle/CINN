@@ -26,6 +26,7 @@
 #include "cinn/common/type.h"
 #include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/paddle/cpp/op_desc.h"
+#include "cinn/frontend/paddle/cpp/var_desc.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/scope.h"
 #include "cinn/utils/registry.h"
@@ -86,10 +87,26 @@ class OpMapperContext {
     return Variable();
   }
 
+  void AddVarDesc(const std::string& name, paddle::cpp::VarDesc* desc, bool replace = false) {
+    if (replace == false) {
+      CHECK(!var_desc_map_.count(name)) << "Duplicate VarDesc [" << name << "] found";
+    }
+    var_desc_map_[name] = desc;
+  }
+
+  paddle::cpp::VarDesc* GetVarDesc(const std::string& name) const {
+    if (var_desc_map_.count(name)) {
+      return var_desc_map_.at(name);
+    }
+    return nullptr;
+  }
+
  private:
   absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
   // map from var in Paddle model to var name in program.
   absl::flat_hash_map<std::string, std::string>* var_model_to_program_map_{nullptr};
+  // map from var name to var desc
+  absl::flat_hash_map<std::string, paddle::cpp::VarDesc*> var_desc_map_;
 };
 
 class OpMapper {
