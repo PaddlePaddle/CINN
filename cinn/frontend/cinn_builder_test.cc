@@ -53,6 +53,10 @@ Program CreateTestProgram() {
   auto i = builder.Max(e, h);
   auto j = builder.Min(e, h);
   auto k = builder.Mul(i, j);
+  auto l = builder.ConstScalar<bool>(1, "condition");
+  auto m = builder.BroadcastTo(l, {B, M, N}, {0});
+  auto n = builder.Select(m, j, k);
+  auto o = builder.Reduce(n, ReduceKind::kSum, {0, 1, 2});
 
   auto program = builder.Build();
   return program;

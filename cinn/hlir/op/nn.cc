@@ -1844,8 +1844,9 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
     CHECK(false_value.as_tensor());
     auto out = pe::Select(
         condition.as_tensor_ref(), true_value.as_tensor_ref(), false_value.as_tensor_ref(), UniqName("Select_output"));
-    auto stages = CreateStages({out});
-    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+    auto stages =
+        CreateStages({condition.as_tensor_ref(), true_value.as_tensor_ref(), false_value.as_tensor_ref(), out});
+    *ret = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
   framework::CINNSchedule select_schedule([=](lang::Args args, lang::RetValue *ret) {

@@ -139,5 +139,40 @@ TEST(reduction, reduce) {
   runtime_program->Execute();
 }
 
+TEST(Compare, Compare) {
+  Placeholder A(Float(32), {1, 3, 224, 224}, "A");
+  Placeholder B(Float(32), {1, 3, 224, 224}, "B");
+
+  Program program;
+  auto a = program.primitive_equal(A, B);
+
+  Target target = GetTarget();
+  program.SetInputs({A, B});
+  program.Validate();
+  LOG(INFO) << "Program:\n" << program;
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+
+  hlir::framework::ApplyPass(graph.get(), "InferShape");
+#ifndef CINN_WITH_CUDA
+  hlir::framework::ApplyPass(graph.get(), "AlterLayout");
+#endif
+  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  auto scope = BuildScope(target, graph);
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>("A");
+  scope->Var<hlir::framework::Tensor>("B");
+
+  auto A1 = scope->GetTensor("A");
+  auto B1 = scope->GetTensor("B");
+  SetRandData(A1, target);
+  SetRandData(B1, target);
+
+  runtime_program->Execute();
+}
+
 }  // namespace frontend
 }  // namespace cinn

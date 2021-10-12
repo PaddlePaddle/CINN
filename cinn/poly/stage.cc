@@ -1261,8 +1261,8 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
     // For scalar case, forloop info will be lost after for-1 and reduce-axis elimination. We record the forloop info in
     // the -1th level for backup.
-    if (level == 0 && n_out_dims() == removed_axes_counts + tensor()->reduce_axis.size() + 1) {
-      VLOG(3) << "get scalar tensor, add forloop_infos in the -1 level";
+    if (level == 0) {
+      VLOG(3) << "add forloop_infos in the -1 level for backup";
       forloop_infos_[-1] = info;
     }
     VLOG(3) << "for-1 has no sense, skip it";
