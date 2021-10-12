@@ -55,17 +55,17 @@ class Program {
     }
   }
 
-  void PreRun() {
+  void PreRun(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr) {
     for (auto& ins : prerun_instrs_) {
-      ins->Run();
+      ins->Run(name2podargs);
     }
   }
   /**
    * Execute the program -- that is running all the instructions inside it.
    */
-  void Execute() {
+  void Execute(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr) {
     for (auto& ins : instrs_) {
-      ins->Run();
+      ins->Run(name2podargs);
     }
 #ifdef CINN_WITH_CUDA
     if (instrs_[0]->target_.arch == Target::Arch::NVGPU) {
