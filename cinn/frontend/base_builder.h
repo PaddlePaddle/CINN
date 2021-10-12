@@ -31,15 +31,16 @@ class BaseBuilder {
   Program Build();
 
   Placeholder CreateInput(const common::Type& type, const std::vector<int>& shape, const std::string& id_hint = "");
+  void SetInputs(const std::vector<Variable>& inputs);
 
   // name of this builder
   const std::string& name() { return name_; }
 
   virtual ~BaseBuilder() {}
 
- protected:
   void AppendInstruction(const Instruction& instr) { instrs_.push_back(instr); }
 
+ protected:
   void InferShape(Instruction instr) const;
 
   std::string name_;

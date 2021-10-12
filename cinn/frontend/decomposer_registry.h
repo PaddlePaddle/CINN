@@ -19,6 +19,7 @@
 #include <unordered_map>
 
 #include "cinn/common/target.h"
+#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/syntax.h"
 
 namespace cinn {
@@ -28,9 +29,9 @@ class Decomposer;
 
 class DecomposerContext {
  public:
-  explicit DecomposerContext(Program* prog) : program(prog) {}
+  explicit DecomposerContext(CinnBuilder* builder) : builder_(builder) {}
 
-  Program* program{nullptr};
+  CinnBuilder* builder_{nullptr};
 };
 
 class InstrDecomposerRegistry : public Registry<Decomposer> {
@@ -63,12 +64,12 @@ class Decomposer {
  public:
   using DecomposerKernel = std::function<void(const Instruction& instr, const DecomposerContext&)>;
 
-  Decomposer& set_body(const DecomposerKernel& kernel) {
+  Decomposer& SetBody(const DecomposerKernel& kernel) {
     kernel_ = kernel;
     return *this;
   }
 
-  void Run(const Instruction& instr, const DecomposerContext& context) { kernel_(instr, context); }
+  void Run(const Instruction& instr, const DecomposerContext& context) const { kernel_(instr, context); }
 
   std::string name;
 

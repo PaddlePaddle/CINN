@@ -57,6 +57,16 @@ Placeholder BaseBuilder::CreateInput(const Type& type, const std::vector<int>& s
   return Placeholder(var);
 }
 
+void BaseBuilder::SetInputs(const std::vector<Variable>& inputs) {
+  CHECK(inputs_.empty()) << "The original inputs is not empty, which doesn't support to be set.";
+  CHECK(!inputs.empty()) << "At least one input is needed for building a program!";
+  for (int i = 0; i < inputs.size(); i++) {
+    CHECK(!inputs[i]->shape.empty()) << "Found " << i << "-th input's shape is not set yet";
+    CHECK(!inputs[i]->type.is_unk()) << "Found " << i << "-th input's type is not set yet";
+    inputs_.push_back(inputs[i]);
+  }
+}
+
 void BaseBuilder::InferShape(Instruction instr) const {
   using shape_func_t        = std::function<std::vector<shape_t>(const std::vector<shape_t>&, const AttrMapType&)>;
   using type_func_t         = std::function<std::vector<Type>(const std::vector<Type>&, const AttrMapType&)>;
