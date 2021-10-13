@@ -159,6 +159,8 @@ class CinnBuilder : public BaseBuilder {
 
   Variable Reshape(const Variable& operand, const std::vector<int>& shape);
 
+  Variable Transpose(const Variable& operand, std::vector<int> axis);
+
   Variable Slice(const Variable& operand,
                  const std::vector<int>& axes,
                  const std::vector<int>& starts = {},

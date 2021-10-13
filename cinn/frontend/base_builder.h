@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "cinn/common/macros.h"
 #include "cinn/common/type.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/op.h"
@@ -45,6 +46,8 @@ class BaseBuilder {
   std::string name_;
   std::vector<Instruction> instrs_;
   std::vector<Variable> inputs_;
+
+  CINN_DISALLOW_COPY_AND_ASSIGN(BaseBuilder);
 };
 
 }  // namespace frontend

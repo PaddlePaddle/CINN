@@ -176,6 +176,14 @@ Variable CinnBuilder::Reshape(const Variable& operand, const std::vector<int>& s
   return instr.GetOutput(0);
 }
 
+Variable CinnBuilder::Transpose(const Variable& operand, std::vector<int> axis) {
+  Instruction instr("transpose", {operand});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable CinnBuilder::Slice(const Variable& operand,
                             const std::vector<int>& axes,
                             const std::vector<int>& starts,

@@ -43,7 +43,9 @@ Program CreateTestProgram() {
   CinnBuilder builder("cinn_builder");
   auto a = builder.CreateInput(Float(32), {M, N / 2}, "A");
   auto b = builder.CreateInput(Float(32), {M, N / 2}, "B");
-  auto c = builder.Add(a, b);
+  auto m = builder.Transpose(b, {1, 0});
+  auto n = builder.Reshape(m, {M, N / 2});
+  auto c = builder.Add(a, n);
   auto x = builder.Div(a, b);
   auto d = builder.Concat(c, x, 1);
   auto e = builder.BroadcastTo(d, {B, M, N}, {1, 2});
