@@ -30,8 +30,9 @@ void relu(const Instruction& instr, const DecomposerContext& context) {
   auto bcast_zero = builder->BroadcastTo(zero_var, x->shape, {0});
   auto out        = builder->Max(x, bcast_zero);
 
-  // out needs to be mapped to origin out_id
-  out.set_id(output->id);
+  // set the original output to the output of decomposed operator.
+  auto max_instr        = builder->GetInstruction(builder->NumInstructions() - 1);
+  max_instr->outputs[0] = output;
 }
 
 }  // namespace decomposer

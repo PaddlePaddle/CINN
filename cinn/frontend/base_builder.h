@@ -40,6 +40,18 @@ class BaseBuilder {
 
   void AppendInstruction(const Instruction& instr) { instrs_.push_back(instr); }
 
+  /**
+   * Get \p i-th instruction.
+   */
+  Instruction& GetInstruction(size_t i);
+
+  const Instruction& GetInstruction(size_t i) const;
+
+  /**
+   * Get number of instructions in the program.
+   */
+  inline size_t NumInstructions() const { return instrs_.size(); }
+
  protected:
   void InferShape(Instruction instr) const;
 

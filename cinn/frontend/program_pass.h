@@ -27,6 +27,8 @@ namespace frontend {
 
 class ProgramPass {
  public:
+  ProgramPass(const std::string& name) : name_(name) {}
+
   /**
    * \brief Apply a sequence of passes on a program.
    * @param prog The input program to apply passes on.
@@ -36,7 +38,10 @@ class ProgramPass {
   static void Apply(Program* prog, const common::Target& target, const std::vector<std::string>& passes);
   virtual void ApplyImpl(Program* prog, const common::Target& target) const {}
 
-  std::string name;
+  const std::string& name() { return name_; }
+
+ private:
+  std::string name_;
 };
 
 class ProgramPassRegistry : public Registry<ProgramPass> {
@@ -53,17 +58,23 @@ class ProgramPassRegistry : public Registry<ProgramPass> {
   }
 
   inline ProgramPass* __REGISTER__(const std::string& name, ProgramPass* pass) {
-    RAW_LOG(INFO, "Register %s program pass", name.c_str());
     std::lock_guard<std::mutex> guard(registering_mutex);
     if (fmap_.count(name)) {
       return fmap_[name];
     }
 
-    pass->name  = name;
     fmap_[name] = pass;
     const_list_.push_back(pass);
     entry_list_.push_back(pass);
     return pass;
+  }
+
+  inline ProgramPass* __REGISTER_OR_GET__(const std::string& name, ProgramPass* pass) {
+    if (!fmap_.count(name)) {
+      return __REGISTER__(name, pass);
+    } else {
+      return fmap_.at(name);
+    }
   }
 
  private:
@@ -84,7 +95,7 @@ class ProgramPassRegistry : public Registry<ProgramPass> {
  */
 #define CINN_REGISTER_PROGRAM_PASS(PassType, PassClass)         \
   static ::cinn::frontend::ProgramPass* __make_##PassType##__ = \
-      ::cinn::frontend::ProgramPassRegistry::Global()->__REGISTER__(#PassType, new PassClass)
+      ::cinn::frontend::ProgramPassRegistry::Global()->__REGISTER_OR_GET__(#PassType, new PassClass{#PassType})
 
 }  // namespace frontend
 }  // namespace cinn

@@ -92,5 +92,15 @@ void BaseBuilder::InferShape(Instruction instr) const {
   }
 }
 
+Instruction& BaseBuilder::GetInstruction(size_t i) {
+  CHECK_LT(i, instrs_.size());
+  return instrs_[i];
+}
+
+const Instruction& BaseBuilder::GetInstruction(size_t i) const {
+  CHECK_LT(i, instrs_.size());
+  return instrs_[i];
+}
+
 }  // namespace frontend
 }  // namespace cinn

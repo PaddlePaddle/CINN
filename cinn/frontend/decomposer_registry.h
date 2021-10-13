@@ -51,10 +51,6 @@ class InstrDecomposerRegistry : public Registry<Decomposer> {
     return Registry<Decomposer>::Find(name + "_" + target.arch_str());
   }
 
-  inline Decomposer& __REGISTER__(const std::string& name, const common::Target& target) {
-    return Registry<Decomposer>::__REGISTER__(name + "_" + target.arch_str());
-  }
-
  private:
   InstrDecomposerRegistry() = default;
   CINN_DISALLOW_COPY_AND_ASSIGN(InstrDecomposerRegistry);
@@ -77,9 +73,10 @@ class Decomposer {
   DecomposerKernel kernel_;
 };
 
-#define CINN_DECOMPOSER_REGISTER(name, target)                                                \
-  static ::cinn::frontend::Decomposer& CINN_STR_CONCAT(__make_Decomposer_name, __COUNTER__) = \
-      ::cinn::frontend::InstrDecomposerRegistry::Global()->__REGISTER__(#name, target)
+#define CINN_DECOMPOSER_REGISTER(name, target)                                                            \
+  static ::cinn::frontend::Decomposer& CINN_STR_CONCAT(__make_Decomposer_name, __COUNTER__) =             \
+      ::cinn::frontend::InstrDecomposerRegistry::Global()->__REGISTER_OR_GET__(std::string(#name) + "_" + \
+                                                                               target.arch_str())
 
 }  // namespace frontend
 }  // namespace cinn

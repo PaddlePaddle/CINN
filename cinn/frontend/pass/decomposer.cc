@@ -21,6 +21,8 @@ namespace pass {
 
 class DecomposerPass : public ProgramPass {
  public:
+  using ProgramPass::ProgramPass;
+
   void ApplyImpl(Program* prog, const common::Target& target) const {
     // step 1: set the inputs of the origin program to the new program
     CinnBuilder builder("decomposer_builder");
