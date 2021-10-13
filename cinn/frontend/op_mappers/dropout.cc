@@ -29,10 +29,10 @@ void DropoutInferOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCont
   auto dropout_implementation =
       utils::GetAttrOrDefault<std::string>(op_desc, "dropout_implementation", "downgrade_in_infer");
   auto x   = ctx.GetVar(x_name);
-  auto out = ctx.builder_->dropout_infer(x, dropout_prob, dropout_implementation);
+  auto out = ctx.Builder()->dropout_infer(x, dropout_prob, dropout_implementation);
 
   ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgramMap(out_name, out->id);
+  ctx.AddVarModelToProgram(out_name, out->id);
 }
 
 }  // namespace op_mappers

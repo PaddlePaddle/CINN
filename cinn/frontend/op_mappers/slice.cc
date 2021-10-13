@@ -35,10 +35,10 @@ void SliceOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   auto infer_flags   = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "infer_flags");
   auto decrease_axis = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "decrease_axis");
   auto x             = ctx.GetVar(x_name);
-  auto out           = ctx.builder_->slice(x, axes, starts, ends, infer_flags, decrease_axis);
+  auto out           = ctx.Builder()->slice(x, axes, starts, ends, infer_flags, decrease_axis);
 
   ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgramMap(out_name, out->id);
+  ctx.AddVarModelToProgram(out_name, out->id);
 }
 
 }  // namespace op_mappers
