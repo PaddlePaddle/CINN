@@ -1,34 +1,30 @@
-find_program(AUTORECONF autoreconf)
-if(NOT AUTORECONF)
-	message(SEND_ERROR "Can not build GiNaC, missing binary for autoreconf")
-endif()
+include(ExternalProject)
 
-find_program(PYTHON2 python2)
-if(NOT PYTHON2)
-	message(SEND_ERROR "Can not build GiNaC, missing binary for python2")
-endif()
+# gmp-6.2.1 https://gmplib.org/download/gmp/gmp-6.2.1.tar.xz 
+# cln-1.3.6 https://www.ginac.de/CLN/cln-1.3.6.tar.bz2
+# ginac-1.8.1 https://www.ginac.de/ginac-1.8.1.tar.bz2
+#  all build with CFLAGS="-fPIC -DPIC" CXXFLAGS="-fPIC -DPIC" --enable-static=yes
 
-ExternalProject_Add(
-    GiNaC-EP
-    GIT_REPOSITORY "git://www.ginac.de/ginac.git"
-	GIT_TAG "release_1-7-8"
-	DOWNLOAD_NO_PROGRESS 1
-	UPDATE_COMMAND ""
-	CONFIGURE_COMMAND ${AUTORECONF} -iv <SOURCE_DIR> 
-		COMMAND <SOURCE_DIR>/configure --quiet --prefix=<INSTALL_DIR> PYTHON=${PYTHON2} PKG_CONFIG_PATH=<INSTALL_DIR>/lib/pkgconfig/
-	BUILD_COMMAND ${CMAKE_MAKE_PROGRAM} -C ginac
-	INSTALL_COMMAND ${CMAKE_MAKE_PROGRAM} -C ginac install
-	LOG_INSTALL 1
+set(GINAC_DOWNLOAD_URL https://paddle-inference-dist.bj.bcebos.com/CINN/ginac-1.8.1_cln-1.3.6_gmp-6.2.1.tar.gz)
+set(GINAC_MD5 ebc3e4b7770dd604777ac3f01bfc8b06)
+
+ExternalProject_Add(external_ginac
+  ${EXTERNAL_PROJECT_LOG_ARGS}
+  URL ${GINAC_DOWNLOAD_URL}
+  URL_MD5 ${GINAC_MD5}
+  PREFIX ${THIRD_PARTY_PATH}/ginac
+  SOURCE_DIR ${THIRD_PARTY_PATH}/install/ginac
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  UPDATE_COMMAND ""
+  INSTALL_COMMAND ""
 )
 
-ExternalProject_Get_Property(GiNaC-EP INSTALL_DIR)
-
-add_library(GINAC SHARED "${INSTALL_DIR}/lib/libginac${DYNAMIC_EXT}" "${INSTALL_DIR}/include")
-add_library(GINAC STATIC "${INSTALL_DIR}/lib/libginac${STATIC_EXT}" "${INSTALL_DIR}/include")
-
-add_dependencies(GiNaC-EP CLN_SHARED CLN_STATIC)
-add_dependencies(GINAC_SHARED GiNaC-EP)
-add_dependencies(GINAC_STATIC GiNaC-EP)
-add_dependencies(resources GINAC_SHARED GINAC_STATIC)
-
-mark_as_advanced(AUTORECONF)
+add_library(ginac STATIC IMPORTED GLOBAL)
+add_dependencies(ginac external_ginac)
+set_property(TARGET ginac
+             PROPERTY IMPORTED_LOCATION ${THIRD_PARTY_PATH}/install/ginac/lib/libginac.a)
+target_link_libraries(ginac INTERFACE
+                            ${THIRD_PARTY_PATH}/install/ginac/lib/libcln.a
+                            ${THIRD_PARTY_PATH}/install/ginac/lib/libgmp.a)
+include_directories(${THIRD_PARTY_PATH}/install/ginac/include)
