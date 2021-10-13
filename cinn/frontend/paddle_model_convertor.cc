@@ -45,7 +45,7 @@ VarInfo GetVarInfoFromDesc(paddle::cpp::VarDesc* desc) {
 void PaddleModelConvertor::PrepareRun(paddle::cpp::BlockDesc* block_desc, const OpMapperContext& ctx) {
   // preserve var desc info lik shape and dtype
   absl::flat_hash_map<std::string, utils::VarInfo> var_info_map;
-  for (int i = 9; i < block_desc->VarsSize(); i++) {
+  for (int i = 0; i < block_desc->VarsSize(); i++) {
     auto* var_desc                 = block_desc->GetVar<paddle::cpp::VarDesc>(i);
     var_info_map[var_desc->Name()] = utils::GetVarInfoFromDesc(var_desc);
   }
@@ -59,15 +59,10 @@ void PaddleModelConvertor::PrepareRun(paddle::cpp::BlockDesc* block_desc, const 
       // so that we can pass the shape and dtype info into CINN
       const auto& var_names = op_desc->output_vars();
       for (const auto& var_name : var_names) {
-        if (var_info_map.count(var_name)) {
-          const auto& var = var_info_map.at(var_name);
-          auto input      = ctx.Builder()->CreateInput(var.type, var.shape, var_name);
-          ctx.AddVar(var_name, input);
-        } else {
-          LOG(WARNING) << "Var [" << var_name << "] not found in block, using default value";
-          auto input = ctx.Builder()->CreateInput(common::Float(32), {}, var_name);
-          ctx.AddVar(var_name, input);
-        }
+        CHECK(var_info_map.count(var_name)) << "Feed Var [" << var_name << "] not found in block";
+        const auto& var = var_info_map.at(var_name);
+        auto input      = ctx.Builder()->CreateInput(var.type, var.shape, var_name);
+        ctx.AddVar(var_name, input);
         VLOG(4) << "Add feed variable [" << var_name << "]";
       }
     }
@@ -77,7 +72,7 @@ void PaddleModelConvertor::PrepareRun(paddle::cpp::BlockDesc* block_desc, const 
 void PaddleModelConvertor::RunOp(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   const auto& op_type = op_desc.Type();
   auto kernel         = OpMapperRegistry::Global()->Find(op_type);
-  CHECK(kernel) << "Not supported op [" << op_type << "] found";
+  CHECK(kernel) << "Op [" << op_type << "] Not supported in OpMapper";
   VLOG(4) << "Running Op " << op_type;
   kernel->Run(op_desc, ctx);
 }

@@ -29,6 +29,7 @@ void OpMapperContext::AddVar(const std::string& origin_name, const Variable& var
 
 void OpMapperContext::AddVarModelToProgram(const std::string& name, const std::string& id) const {
   (*var_model_to_program_map_)[name] = id;
+  VLOG(4) << "Paddle name [" << name << "] map to program id " << id;
 }
 
 Variable OpMapperContext::GetVar(const std::string& origin_name) const {

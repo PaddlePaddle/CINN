@@ -28,10 +28,11 @@
 namespace cinn {
 namespace frontend {
 
-// Transform paddle model to CINN NetBuilder object.
+// Transform paddle model to CINN fronted::Program object.
 // The paddle model is readed from __model__ file in model_dir, the PaddleModelConvertor
 // will run each op's kernel registered in OpMapper, each kernel will add instruction in
-// NetBuilder, after running all op of model, it will return the complete NetBuilder object.
+// NetBuilder, after running all op of model, it will invoke its Build function and
+// finally return the complete fronted::Program object.
 // Note that if anyone op not registered, the program will failed and aborted.
 class PaddleModelConvertor {
  public:
@@ -46,7 +47,7 @@ class PaddleModelConvertor {
   // RunOp accept OpDesc and global run context then run it's kernel registered in OpMapper.
   static void RunOp(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx);
 
-  // operator() accept the modle's directory, and return the NetBuilder object.
+  // operator() accept the modle's directory, and return the fronted::Program object.
   Program operator()(const std::string& model_dir, bool is_combined = false);
 
   // return the internal variable map

@@ -102,8 +102,8 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 
   VLOG(4) << "Mul x_num_col_dims: " << x_num_col_dims;
   VLOG(4) << "Mul y_num_col_dims: " << y_num_col_dims;
-  VLOG(4) << "x [" << x_name << "] shape: " << cinn::utils::Join(x->shape, ",");
-  VLOG(4) << "y [" << y_name << "] shape: " << cinn::utils::Join(y->shape, ",");
+  VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
+  VLOG(4) << "y shape: " << cinn::utils::Join(y->shape, ",");
   auto out = ctx.Builder()->mul(x, y, x_num_col_dims, y_num_col_dims);
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
