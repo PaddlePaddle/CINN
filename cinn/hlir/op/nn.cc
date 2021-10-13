@@ -1860,7 +1860,7 @@ std::shared_ptr<OpStrategy> StrategyForSelect(const framework::NodeAttr &attrs,
     if (target.arch == Target::Arch::NVGPU) {
       pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes[0], target);
     } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target);
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes[0], target, false);
     }
     *ret = arg_pack;
   });

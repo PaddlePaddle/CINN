@@ -374,27 +374,18 @@ TEST(Operator, Operator_Select_Test0) {
   cinn_pod_value_t args[] = {a_arg, b_arg, c_arg, d_arg};
   fn_(args, 4);
 
-  /*
-  auto condition_   = reinterpret_cast<int16_t *>(A_buf->memory);
+  auto condition_   = reinterpret_cast<int8_t *>(A_buf->memory);
   auto true_value_  = reinterpret_cast<float *>(B_buf->memory);
   auto false_value_ = reinterpret_cast<float *>(C_buf->memory);
   auto output_      = reinterpret_cast<float *>(D_buf->memory);
-  for (int idx = 0; idx < 64 * 64; ++idx) {
-    auto value = static_cast<int16_t>(*condition_);
-    for (int idy = 0; idy < 16; ++idy) {
-      if ((value & 0x01)) {
-        ASSERT_EQ(*output_, *true_value_);
-      } else {
-        ASSERT_EQ(*output_, *false_value_);
-      }
-      ++true_value_;
-      ++false_value_;
-      ++output_;
-      value = value >> 1;
+
+  for (int i = 0; i < A_buf->num_elements(); i++) {
+    if (static_cast<bool>(condition_[i])) {
+      ASSERT_EQ(output_[i], true_value_[i]);
+    } else {
+      ASSERT_EQ(output_[i], false_value_[i]);
     }
-    ++condition_;
   }
-  */
 
   ASSERT_EQ(impl->name, "strategy.select.x86");
   ASSERT_EQ(select->description, "This operator implements the meta op 'Select'.");
