@@ -42,26 +42,26 @@ Variable OpMapperContext::GetVar(const std::string& origin_name) const {
   auto* var = scope_.FindVar(name);
   if (var) {
     auto& tensor = absl::get<hlir::framework::Tensor>(*var);
-    Variable var;
-    var.set_id(name);
-    var->shape = tensor->shape().data();
-    var->type  = tensor->type();
-    AddVar(name, var);
-    return var;
+    Variable local_var;
+    local_var.set_id(name);
+    local_var->shape = tensor->shape().data();
+    local_var->type  = tensor->type();
+    AddVar(name, local_var);
+    return local_var;
   }
 
   LOG(FATAL) << "No var called [" << name << "] exists";
   return Variable();
 }
 
-void OpMapperContext::AddVarInfo(const std::string& name, const VarInfo& info) {
-  CHECK(!var_info_map_.count(name)) << "Duplicate variable info [" << name << "] found";
-  var_info_map_[name] = info;
+void OpMapperContext::AddFeedInfo(const std::string& name, const FeedInfo& info) {
+  CHECK(!feed_info_map_.count(name)) << "Duplicate variable info [" << name << "] found";
+  feed_info_map_[name] = info;
 }
 
-const OpMapperContext::VarInfo& OpMapperContext::GetVarInfo(const std::string& name) const {
-  CHECK(var_info_map_.count(name)) << "No variable info called [" << name << "] exists";
-  return var_info_map_.at(name);
+const OpMapperContext::FeedInfo& OpMapperContext::GetFeedInfo(const std::string& name) const {
+  CHECK(feed_info_map_.count(name)) << "No variable info called [" << name << "] exists";
+  return feed_info_map_.at(name);
 }
 
 }  // namespace frontend

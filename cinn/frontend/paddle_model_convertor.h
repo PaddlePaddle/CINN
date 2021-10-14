@@ -42,7 +42,7 @@ class PaddleModelConvertor {
   }
 
   // prepare feed variable before run CINN op
-  void PrepareRun(OpMapperContext* ctx, paddle::cpp::BlockDesc* block_desc);
+  void PrepareRun(const paddle::cpp::BlockDesc& block_desc, OpMapperContext* ctx);
 
   // RunOp accept OpDesc and global run context then run it's kernel registered in OpMapper.
   static void RunOp(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx);

@@ -61,14 +61,14 @@ class OpMapperContext {
   // add map from paddle name to cinn name into var_model_to_program_map
   void AddVarModelToProgram(const std::string& name, const std::string& id) const;
 
-  struct VarInfo {
+  struct FeedInfo {
     std::vector<int> shape;
     common::Type type;
   };
 
-  void AddVarInfo(const std::string& name, const VarInfo& info);
+  void AddFeedInfo(const std::string& name, const FeedInfo& info);
 
-  const VarInfo& GetVarInfo(const std::string& name) const;
+  const FeedInfo& GetFeedInfo(const std::string& name) const;
 
  private:
   const hlir::framework::Scope& scope_;
@@ -79,7 +79,7 @@ class OpMapperContext {
   // map from var in Paddle model to var name in program.
   absl::flat_hash_map<std::string, std::string>* var_model_to_program_map_{nullptr};
 
-  absl::flat_hash_map<std::string, VarInfo> var_info_map_;
+  absl::flat_hash_map<std::string, FeedInfo> feed_info_map_;
 };
 
 class OpMapper {

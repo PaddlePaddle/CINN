@@ -31,8 +31,8 @@ void FeedOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   auto feed_name = op_desc.Output("Out").front();
   VLOG(4) << "Model get feed [" << feed_name << "]";
 
-  const auto& var = ctx.GetVarInfo(feed_name);
-  auto input      = ctx.Builder()->CreateInput(var.type, var.shape, feed_name);
+  const auto& feed_info = ctx.GetFeedInfo(feed_name);
+  auto input            = ctx.Builder()->CreateInput(feed_info.type, feed_info.shape, feed_name);
   ctx.AddVar(feed_name, input);
 }
 

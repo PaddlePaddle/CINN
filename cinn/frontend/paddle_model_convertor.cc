@@ -27,11 +27,23 @@
 namespace cinn {
 namespace frontend {
 
-void PaddleModelConvertor::PrepareRun(OpMapperContext* ctx, paddle::cpp::BlockDesc* block_desc) {
+void PaddleModelConvertor::PrepareRun(const paddle::cpp::BlockDesc& block_desc, OpMapperContext* ctx) {
+  absl::flat_hash_map<std::string, const paddle::cpp::VarDesc*> var_desc_map;
   // preserve var desc info lik shape and dtype
-  for (int i = 0; i < block_desc->VarsSize(); i++) {
-    auto* var_desc = block_desc->GetVar<paddle::cpp::VarDesc>(i);
-    ctx->AddVarInfo(var_desc->Name(), utils::GetVarInfoFromDesc(var_desc));
+  for (int i = 0; i < block_desc.VarsSize(); i++) {
+    const auto& var_desc          = block_desc.GetConstVar<paddle::cpp::VarDesc>(i);
+    var_desc_map[var_desc.Name()] = &var_desc;
+  }
+
+  for (int i = 0; i < block_desc.OpsSize(); i++) {
+    const auto& op_desc = block_desc.GetConstOp<paddle::cpp::OpDesc>(i);
+
+    if (op_desc.Type() == "feed") {
+      for (const auto& var_name : op_desc.output_vars()) {
+        CHECK(var_desc_map.count(var_name)) << "Feed var [" << var_name << "] Not found in block";
+        ctx->AddFeedInfo(var_name, utils::GetFeedInfoFromDesc(*var_desc_map[var_name]));
+      }
+    }
   }
 }
 
@@ -62,7 +74,7 @@ Program PaddleModelConvertor::operator()(const std::string& model_dir, bool is_c
   NetBuilder builder(builder_name);
   OpMapperContext ctx(*scope_, target_, &builder, &var_map_, &var_model_to_program_map_);
 
-  PrepareRun(&ctx, block_desc);
+  PrepareRun(*block_desc, &ctx);
   for (int i = 0; i < block_desc->OpsSize(); i++) {
     auto* op_desc = block_desc->GetOp<paddle::cpp::OpDesc>(i);
     RunOp(*op_desc, ctx);

@@ -7,7 +7,7 @@ gather_srcs(cinnapi_src SRCS
   net_builder.cc
   cinn_builder.cc
   op_mapper_registry.cc
-  paddle_model_to_netbuilder.cc
+  paddle_model_convertor.cc
   program_pass.cc)
 
 if(NOT WITH_CUDA)

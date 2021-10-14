@@ -75,14 +75,14 @@ void TransposeVar(const std::string& origin_name, const OpMapperContext& ctx) {
       CINN_NOT_IMPLEMENTED
     }
 
-    Variable var;
-    var.set_id(name);
+    Variable local_var;
+    local_var.set_id(name);
     std::vector<int> reverse_shape = tensor->shape().data();
     std::reverse(reverse_shape.begin(), reverse_shape.end());
     tensor->shape().SetData(reverse_shape);
-    var->shape = tensor->shape().data();
-    var->type  = tensor->type();
-    ctx.AddVar(name, var, true);
+    local_var->shape = tensor->shape().data();
+    local_var->type  = tensor->type();
+    ctx.AddVar(name, local_var, true);
   } else {
     LOG(FATAL) << "No var called [" << name << "] exists";
   }

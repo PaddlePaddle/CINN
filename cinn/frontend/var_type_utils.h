@@ -47,12 +47,12 @@ common::Type CppVarType2CommonType(paddle::cpp::VarDescAPI::Type type) {
   return common::Void();
 }
 
-OpMapperContext::VarInfo GetVarInfoFromDesc(paddle::cpp::VarDesc* desc) {
-  OpMapperContext::VarInfo info;
-  for (auto num : desc->GetShape()) {
+OpMapperContext::FeedInfo GetFeedInfoFromDesc(const paddle::cpp::VarDesc& desc) {
+  OpMapperContext::FeedInfo info;
+  for (auto num : desc.GetShape()) {
     info.shape.emplace_back(static_cast<int>(num));
   }
-  info.type = CppVarType2CommonType(desc->GetDataType());
+  info.type = CppVarType2CommonType(desc.GetDataType());
   return info;
 }
 
