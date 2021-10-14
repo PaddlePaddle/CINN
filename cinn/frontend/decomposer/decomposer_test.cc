@@ -31,7 +31,6 @@
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
 
-
 namespace cinn {
 namespace frontend {
 namespace {
@@ -49,14 +48,14 @@ TEST(nn, BATCH_NORM_TRAIN) {
   instr.SetAttr<std::string>("layout", "NCHW");
   instr.SetAttr<float>("factor", 0.99f);
 
-  //CinnBuilder cinn_builder;
-  //absl::flat_hash_map<std::string, Variable> variable_map;
-  //DecomposerContext context(&cinn_builder, &variable_map);
+  // CinnBuilder cinn_builder;
+  // absl::flat_hash_map<std::string, Variable> variable_map;
+  // DecomposerContext context(&cinn_builder, &variable_map);
   auto decomposer = InstrDecomposerRegistry::Global()->Get("batch_norm_train", ::cinn::common::DefaultNVGPUTarget());
 
-  //decomposer.run(instr, context);
+  // decomposer.run(instr, context);
 
-  //auto program = cinn_builder.Build();
+  // auto program = cinn_builder.Build();
 }
 
 TEST(nn, BATCH_NORM_GRAD) {
@@ -70,14 +69,14 @@ TEST(nn, BATCH_NORM_GRAD) {
   Instruction instr("batch_norm_grad", {x, dy, scale, save_mean, save_var});
   instr.SetAttr<std::string>("layout", "NCHW");
 
-  //CinnBuilder cinn_builder;
-  //absl::flat_hash_map<std::string, Variable> variable_map;
-  //DecomposerContext context(&cinn_builder, &variable_map);
+  // CinnBuilder cinn_builder;
+  // absl::flat_hash_map<std::string, Variable> variable_map;
+  // DecomposerContext context(&cinn_builder, &variable_map);
   auto decomposer = InstrDecomposerRegistry::Global()->Get("batch_norm_grad", ::cinn::common::DefaultNVGPUTarget());
 
-  //decomposer.run(instr, context);
+  // decomposer.run(instr, context);
 
-  //auto program = cinn_builder.Build();
+  // auto program = cinn_builder.Build();
 }
 
 TEST(nn, CONV_GRAD) {
@@ -104,14 +103,14 @@ TEST(nn, CONV_GRAD) {
   instr.SetAttr<std::string>("data_format", data_format);
   instr.SetAttr<std::string>("padding_algorithm", padding_algorithm);
 
-  //CinnBuilder cinn_builder;
-  //absl::flat_hash_map<std::string, Variable> variable_map;
-  //DecomposerContext context(&cinn_builder, &variable_map);
+  // CinnBuilder cinn_builder;
+  // absl::flat_hash_map<std::string, Variable> variable_map;
+  // DecomposerContext context(&cinn_builder, &variable_map);
   auto decomposer = InstrDecomposerRegistry::Global()->Get("conv2d_grad", cinn::common::DefaultNVGPUTarget());
 
-  //decomposer.run(instr, context);
+  // decomposer.run(instr, context);
 
-  //auto program = cinn_builder.Build();
+  // auto program = cinn_builder.Build();
 }
 
 }  // namespace
