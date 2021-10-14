@@ -3,14 +3,14 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-// 
+//
 #include "cinn/cinn.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
+#include "cinn/hlir/framework/scope.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/hlir/pass/use_pass.h"
-#include "cinn/hlir/framework/scope.h"
 
 DEFINE_string(model_dir, "", "");
 
@@ -51,8 +51,51 @@ TEST(syntax, basic) {
 void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
   auto* data = tensor->mutable_data<float>(target);
   for (size_t j = 0; j < tensor->shape().numel(); j++) {
-    data[j] = (rand() * 1.f) / RAND_MAX;  // All random data
+    data[j] = (rand_r() * 1.f) / RAND_MAX;  // All random data
   }
+}
+
+TEST(syntax, reverse) {
+  const int M = 16;
+  const int N = 16;
+
+  Placeholder a(Float(32), {M, N});
+  std::unique_ptr<Program> program(new Program);
+
+  std::vector<int> axis = {0};
+  auto b                = program->reverse(a, axis);
+
+  program->SetInputs({a});
+  program->Validate();
+}
+
+TEST(syntax, select) {
+  const int M = 16;
+  const int N = 16;
+
+  Placeholder condition(Bool(), {M, N});
+  Placeholder true_value(Float(32), {M, N});
+  Placeholder false_value(Float(32), {M, N});
+
+  std::unique_ptr<Program> program(new Program);
+  auto b = program->select(condition, true_value, false_value);
+
+  program->SetInputs({condition, true_value, false_value});
+  program->Validate();
+}
+
+TEST(syntax, transpose) {
+  const int M = 16;
+  const int N = 16;
+
+  Placeholder a(Float(32), {M, N});
+  std::unique_ptr<Program> program(new Program);
+
+  std::vector<int> axis = {1, 0};
+  auto b                = program->transpose(a, axis);
+
+  program->SetInputs({a});
+  program->Validate();
 }
 
 TEST(syntax, program_execute_multi_elementwise_add) {
@@ -63,7 +106,7 @@ TEST(syntax, program_execute_multi_elementwise_add) {
 
   hlir::framework::ApplyPass(graph.get(), "InferShape");
   auto scope = BuildScope(target, graph);
-//
+  //
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
 
@@ -147,10 +190,10 @@ TEST(syntax, program_execute_fc) {
 TEST(load_paddle_model, fc_execute) {
   auto scope = std::make_shared<Scope>();
 
-  auto programTuple = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
-  auto &program = std::get<0>(programTuple);
-  auto &var_map = std::get<1>(programTuple);
-  auto &var_map_paddle_to_program = std::get<2>(programTuple);
+  auto programTuple               = LoadPaddleProgram(FLAGS_model_dir, scope.get(), false /*is_combined*/);
+  auto& program                   = std::get<0>(programTuple);
+  auto& var_map                   = std::get<1>(programTuple);
+  auto& var_map_paddle_to_program = std::get<2>(programTuple);
 
   var_map["A"]->shape = {1, 30};
   program->SetInputs({var_map["A"]});

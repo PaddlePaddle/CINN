@@ -373,6 +373,12 @@ struct Program {
 
   Variable dropout_infer(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);
 
+  Variable reverse(const Variable& a, const std::vector<int>& axis);
+
+  Variable select(const Variable& condition, const Variable& true_value, const Variable& false_value);
+
+  Variable transpose(const Variable& a, const std::vector<int>& axis);
+
   /**
    * Get \p i-th instruction.
    */

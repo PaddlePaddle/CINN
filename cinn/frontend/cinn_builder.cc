@@ -84,6 +84,7 @@ Variable CinnBuilder::Conv(const Variable& lhs,
                            const std::vector<int>& paddings,
                            const std::vector<int>& dilations,
                            int groups,
+                           const std::string& conv_type,
                            const std::string& data_format,
                            const std::string& padding_algorithm) {
   Instruction instr("conv2d");
@@ -92,6 +93,7 @@ Variable CinnBuilder::Conv(const Variable& lhs,
   instr.SetAttr("paddings", paddings);
   instr.SetAttr("dilations", dilations);
   instr.SetAttr("groups", groups);
+  instr.SetAttr("conv_type", conv_type);
   instr.SetAttr("data_format", data_format);
   instr.SetAttr("padding_algorithm", padding_algorithm);
   InferShape(instr);
@@ -184,6 +186,14 @@ Variable CinnBuilder::Select(const Variable& condition, const Variable& true_val
 
 Variable CinnBuilder::Reverse(const Variable& operand, const std::vector<int>& axis) {
   Instruction instr("reverse", {operand});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable CinnBuilder::Transpose(const Variable& operand, const std::vector<int>& axis) {
+  Instruction instr("transpose", {operand});
   instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);

@@ -14,9 +14,9 @@ class Decomposer;
 
 class DecomposerContext {
  public:
-  explicit DecomposerContext(Program* prog) : program(prog) {}
+  explicit DecomposerContext(CinnBuilder* builder) : builder_(builder) {}
 
-  Program* program{nullptr};
+  CinnBuilder* builder_{nullptr};
 };
 
 class InstrDecomposerRegistry : public Registry<Decomposer> {

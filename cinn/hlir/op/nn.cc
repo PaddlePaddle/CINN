@@ -2079,5 +2079,23 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
+  CINN_REGISTER_OP(batchnormtrain)
+      .describe("This operator implements the batch normalization training forward.")
+      .set_num_inputs(5)
+      .set_num_outputs(5)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(batchnormgrad)
+      .describe("This operator implements the batch normalization backward.")
+      .set_num_inputs(5)
+      .set_num_outputs(3)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(convgrad)
+      .describe("This operator implements the convolution backward.")
+      .set_num_inputs(3)
+      .set_num_outputs(2)
+      .set_support_level(4);
+
   return true;
 }
