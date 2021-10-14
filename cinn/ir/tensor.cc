@@ -293,6 +293,7 @@ ir::Tensor _Tensor_::InitReduction(poly::StageMap stages, const Target &target) 
   std::map<int, poly::StageForloopInfo> init_forloop_info;
   for (auto &i : temp_forloop_info) {
     for (int j = 0; j < init_dim_out_names.size(); j++) {
+      if (i.first < 0) continue;
       int new_i = poly::isl_get_original_axes_from_optimized_level(stages[this]->transformed_domain().get(), i.first);
       if (dim_out_names[new_i] == init_dim_out_names[j]) {
         stages[init_tensor]->AddForloopInfo(j, i.second);
