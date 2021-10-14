@@ -131,7 +131,7 @@ Variable Program::primitive_const_scalar(PrimType value, const std::string& name
   auto out = instr.GetOutput(0);
   out.set_id(name);
   auto out_type = type_of<PrimType>();
-  CHECK(out_type.is_float() || out_type.is_int()) << "no supported type: " << out_type;
+  CHECK(out_type.is_float() || out_type.is_int() || out_type.is_bool()) << "no supported type: " << out_type;
   out->type = out_type;
   return out;
 }

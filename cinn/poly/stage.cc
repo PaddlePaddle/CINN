@@ -116,7 +116,7 @@ std::tuple<Iterator, Iterator> Stage::SplitOuter(const Iterator &level, int npar
   auto &maxv       = std::get<1>(_minv_maxv_);
   int max_iv       = maxv.get_num_si();
   auto dim_names   = isl_get_dim_names(transform_, isl_dim_out);
-  double temp      = double(max_iv + 1.0) / double(nparts);
+  double temp      = static_cast<double>(max_iv + 1.0) / static_cast<double>(nparts);
   int factor_inner = ceil(temp);
   return Split(level, factor_inner);
 }
@@ -1256,11 +1256,18 @@ void Stage::AddForloopInfo(int level, const StageForloopInfo &info) {
   CHECK_GE(level, 0);
   CHECK_LT(level, num_levels);
   auto transformed_domain = this->transformed_domain();
+  int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
+
   if (isl_is_removed_axis(transformed_domain.get(), level)) {
+    // For scalar case, forloop info will be lost after for-1 and reduce-axis elimination. We record the forloop info in
+    // the -1th level for backup.
+    if (level == 0) {
+      VLOG(3) << "add forloop_infos in the -1 level for backup";
+      forloop_infos_[-1] = info;
+    }
     VLOG(3) << "for-1 has no sense, skip it";
     return;
   }
-  int removed_axes_counts = isl_get_precending_removed_axes_counts(transformed_domain.get(), level);
   VLOG(3) << "removed_axes_counts are " << removed_axes_counts << " before axis " << ith_dim_name(level);
   forloop_infos_[level - removed_axes_counts] = info;
 }
