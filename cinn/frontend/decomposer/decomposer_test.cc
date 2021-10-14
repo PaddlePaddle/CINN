@@ -68,12 +68,32 @@ TEST(nn, CONV_GRAD) {
   int fh = 3, fw = 3;
   int oc = 32;
 
-  std::vector<int> strides   = {1, 1};
-  std::vector<int> paddings  = {1, 1};
-  std::vector<int> dilations = {1, 1};
-  int groups                 = 1;
-  std::string data_format    = "NCHW";
-  std::string padding_algorithm =
+  std::vector<int> strides      = {1, 1};
+  std::vector<int> paddings     = {1, 1};
+  std::vector<int> dilations    = {1, 1};
+  int groups                    = 1;
+  std::string data_format       = "NCHW";
+  std::string padding_algorithm = "EXPLICIT";
+
+  Placeholder x(Float(32), {n, ic, h, w});
+  Placeholder w(Float(32), {oc, ic / groups, fh, fw});
+  Placeholder dy(Float(32), {n, oc, h, w});
+
+  instruction instr("convgrad", (x, w, dy));
+  instr.SetAttr<std::vector<int>>("strides", strides);
+  instr.SetAttr<std::vector<int>>("paddings", paddings);
+  instr.SetAttr<std::vector<int>>("dilations", dilations);
+  instr.SetAttr<int>("groups", groups);
+  instr.SetAttr<std::string>("data_format", data_format);
+  instr.SetAttr<std::string>("padding_algorithm", padding_algorithm);
+
+  CinnBuilder cinn_builder;
+  DecomposerContext context(&cinn_builder);
+  auto decomposer = InstrDecomposerRegistry::Get("convgrad", cinn::common::DefaultNVGPUTarget());
+
+  decomposer.run(instr, context);
+
+  auto program = cinn_builder.Build();
 }
 
 }  // namespace

@@ -121,7 +121,6 @@ class CinnBuilder : public BaseBuilder {
                 const std::vector<int>& paddings     = {0, 0},
                 const std::vector<int>& dilations    = {1, 1},
                 int groups                           = 1,
-                const std::string& conv_type         = "forward",
                 const std::string& data_format       = "NCHW",
                 const std::string& padding_algorithm = "EXPLICIT");
 

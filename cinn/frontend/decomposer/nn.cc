@@ -137,7 +137,7 @@ void batch_norm_grad(const Instruction* instr, const DecomposerContext& context)
   grad_bias.set_id(instr->outputs(2)->id);
 }
 
-void conv_grad(const Instruction* instr, const DecomposerContext& context) {
+void conv2d_grad(const Instruction* instr, const DecomposerContext& context) {
   auto& x  = instr->inputs(0);
   auto& w  = instr->inputs(1);
   auto& dy = instr->inputs(2);
@@ -184,10 +184,10 @@ CINN_REGISTER_HELPER(nn) {
   CINN_DECOMPOSER_REGISTER(batch_norm_grad, ::cinn::common::DefaultNVGPUTarget())
       .set_body(cinn::frontend::decomposer::batch_norm_grad);
 
-  CINN_DECOMPOSER_REGISTER(conv_grad, ::cinn::common::DefaultHostTarget())
-      .set_body(cinn::frontend::decomposer::conv_grad);
-  CINN_DECOMPOSER_REGISTER(conv_grad, ::cinn::common::DefaultNVGPUTarget())
-      .set_body(cinn::frontend::decomposer::conv_grad);
+  CINN_DECOMPOSER_REGISTER(conv2d_grad, ::cinn::common::DefaultHostTarget())
+      .set_body(cinn::frontend::decomposer::conv2d_grad);
+  CINN_DECOMPOSER_REGISTER(conv2d_grad, ::cinn::common::DefaultNVGPUTarget())
+      .set_body(cinn::frontend::decomposer::conv2d_grad);
 
   return true;
 }
