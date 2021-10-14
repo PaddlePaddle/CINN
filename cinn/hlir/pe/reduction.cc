@@ -166,7 +166,7 @@ Tensor Reduce(const Tensor& tensor,
               ir::Expr initial,
               const std::string& output_name) {
   auto ndim = tensor->shape.size();
-  CHECK_NE(ndim, 0) << "Reduce tensor's dim must be more than 0";
+  CHECK_GT(ndim, 0) << "Reduce tensor's dim must be more than 0";
   std::vector<int> real_axes;
   GetRealAxes(static_cast<int>(ndim), axes, &real_axes);
   std::vector<Expr> output_shapes;

@@ -90,7 +90,10 @@ int GetVectorizeFactor(int shape, int split_factor) {
   return better_factor;
 }
 
-void ScheduleInjectiveCPUFuse(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
+void ScheduleInjectiveCPUFuse(poly::Stage *stage,
+                              const std::vector<int> &output_shape,
+                              const common::Target &target,
+                              bool vectorizable) {
   int dims             = stage->n_out_dims();
   int factor           = GetBasicFactor(stage->tensor()->type(), target);
   poly::Iterator fused = stage->axis(0);
@@ -101,18 +104,24 @@ void ScheduleInjectiveCPUFuse(poly::Stage *stage, const std::vector<int> &output
   }
   stage->Parallel(fused);
   dims = stage->n_out_dims();
-  poly::Iterator lo;
-  poly::Iterator li;
-  int last_shape   = stage->GetDimRange(dims - 1);
-  factor           = GetVectorizeFactor(last_shape, factor);
-  std::tie(lo, li) = stage->Split(stage->axis(dims - 1), factor);
-  stage->Vectorize(li, factor);
-  if (dims == 1) {
-    stage->Parallel(0);
+
+  if (vectorizable) {
+    poly::Iterator lo;
+    poly::Iterator li;
+    int last_shape   = stage->GetDimRange(dims - 1);
+    factor           = GetVectorizeFactor(last_shape, factor);
+    std::tie(lo, li) = stage->Split(stage->axis(dims - 1), factor);
+    stage->Vectorize(li, factor);
+    if (dims == 1) {
+      stage->Parallel(0);
+    }
   }
 }
 
-void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
+void ScheduleInjectiveCPU(poly::Stage *stage,
+                          const std::vector<int> &output_shape,
+                          const common::Target &target,
+                          bool vectorizable) {
   int dims = stage->n_out_dims();
   if (dims > 1) {
     CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";
@@ -132,16 +141,18 @@ void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_sha
       }
     }
     int split_factor = target_native_vector_bits / type_bits;
-    if (prod_size <= split_factor) {
-      split_factor = GetBetterSplitFactor(prod_size, split_factor);
-      if (split_factor >= 8) {
-        stage->Vectorize(fused, split_factor);
+    if (vectorizable) {
+      if (prod_size <= split_factor) {
+        split_factor = GetBetterSplitFactor(prod_size, split_factor);
+        if (split_factor >= 8) {
+          stage->Vectorize(fused, split_factor);
+        }
+      } else {
+        auto ssplit   = stage->Split(fused, split_factor);
+        auto &j_outer = std::get<0>(ssplit);
+        auto &j_inner = std::get<1>(ssplit);
+        stage->Vectorize(j_inner, split_factor);
       }
-    } else {
-      auto ssplit   = stage->Split(fused, split_factor);
-      auto &j_outer = std::get<0>(ssplit);
-      auto &j_inner = std::get<1>(ssplit);
-      stage->Vectorize(j_inner, split_factor);
     }
   }
   if (stage->n_out_dims() > 1) {

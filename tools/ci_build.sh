@@ -30,7 +30,7 @@ function install_isl {
 
     find /usr -name "SourceLocation.h"
 
-    CFLAGS="-fPIC -DPIC" CXXFLAGS="-fPIC -DPIC" ./configure --with-clang=system --enable-shared=yes --enable-static=yes
+    CFLAGS="-fPIC -DPIC" CPPFLAGS="-fPIC -DPIC" ./configure --with-clang=system --enable-shared=yes --enable-static=yes
     make -j install
     cd $workspace
 }
@@ -74,9 +74,9 @@ function run_test {
     ctest -V
 }
 
-install_isl
-install_ginac
-
+#install_isl
+#install_ginac
+#
 #compile_cinn
 
 #run_test

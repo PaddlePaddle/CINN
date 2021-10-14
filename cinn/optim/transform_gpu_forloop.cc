@@ -272,6 +272,7 @@ ir::CudaAxisInfo GatherAxisInfoFromStages(const std::vector<poly::Stage *> &stag
   for (auto *stage : stage_group) {
     if (stage->IfCudaBind()) info.set_valid(true);
     for (auto &item : stage->forloop_infos()) {
+      if (item.first < 0) continue;
       int level = poly::isl_get_original_axes_from_optimized_level(stage->transformed_domain().get(), item.first);
       auto _min_val_max_val_ = poly::isl_set_get_axis_range(stage->transformed_domain().get(), level);
       auto &min_val          = std::get<0>(_min_val_max_val_);

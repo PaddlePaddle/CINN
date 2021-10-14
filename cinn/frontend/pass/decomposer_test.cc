@@ -12,55 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/frontend/cinn_builder.h"
-
 #include <gtest/gtest.h>
 
-#include <algorithm>
-#include <memory>
 #include <random>
-#include <vector>
 
-#include "cinn/common/target.h"
-#include "cinn/frontend/syntax.h"
+#include "cinn/frontend/decomposer/use_decomposer.h"
+#include "cinn/frontend/decomposer_registry.h"
+#include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/pass/use_program_pass.h"
+#include "cinn/frontend/program_pass.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
+#include "cinn/hlir/framework/pass.h"
 #include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
-#ifdef CINN_WITH_CUDA
-#include <cuda_runtime.h>
-#endif
+#include "cinn/hlir/pass/use_pass.h"
 
-namespace cinn {
-namespace frontend {
-namespace {
+namespace cinn::frontend {
 
-Program CreateTestProgram() {
-  constexpr int B = 8;
+Program CreateAddProgram() {
   constexpr int M = 32;
   constexpr int N = 24;
 
-  CinnBuilder builder("cinn_builder");
-  auto a = builder.CreateInput(Float(32), {M, N / 2}, "A");
-  auto b = builder.CreateInput(Float(32), {M, N / 2}, "B");
-  auto m = builder.Transpose(b, {1, 0});
-  auto n = builder.Reshape(m, {M, N / 2});
-  auto c = builder.Add(a, n);
-  auto x = builder.Div(a, b);
-  auto d = builder.Concat(c, x, 1);
-  auto e = builder.BroadcastTo(d, {B, M, N}, {1, 2});
-  auto f = builder.Concat(a, b, 1);
-  auto g = builder.BroadcastTo(f, {B, M, N}, {1, 2});
-  auto h = builder.Sub(e, g);
-  auto i = builder.Max(e, h);
-  auto j = builder.Min(e, h);
-  auto k = builder.Mul(i, j);
-  auto l = builder.ConstScalar<bool>(1, "condition");
-  auto m = builder.BroadcastTo(l, {B, M, N}, {0});
-  auto n = builder.Select(m, j, k);
-  auto o = builder.Reduce(n, ReduceKind::kSum, {0, 1, 2});
-
+  NetBuilder builder("net_builder");
+  auto a       = builder.CreateInput(Float(32), {M, N});
+  auto b       = builder.CreateInput(Float(32), {M, N});
+  auto c       = builder.relu(a);
+  auto d       = builder.add(b, c);
   auto program = builder.Build();
+
   return program;
 }
 
@@ -68,7 +48,7 @@ void SetRandData(hlir::framework::Tensor tensor, Target target) {
   auto* data = tensor->mutable_data<float>(target);
   std::random_device seed;
   std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(1.f, 2.f);
+  std::uniform_real_distribution<float> dist(0.f, 1.f);
   size_t num_ele = tensor->shape().numel();
   std::vector<float> random_data(num_ele);
   for (size_t i = 0; i < num_ele; i++) {
@@ -82,27 +62,30 @@ void SetRandData(hlir::framework::Tensor tensor, Target target) {
 #endif
 }
 
-}  // namespace
-
-TEST(cinn_build, basic) {
-  auto program = CreateTestProgram();
-  // output program
-  for (int i = 0; i < program.size(); i++) {
-    LOG(INFO) << "instruction: " << program[i];
-  }
+TEST(DecomposePassRegistry, basic) {
+  ASSERT_NE(cinn::frontend::ProgramPassRegistry::Global()->Find("Decomposer"), nullptr);
+  ASSERT_EQ(cinn::frontend::ProgramPassRegistry::Global()->Find("Test"), nullptr);
 }
 
-TEST(cinn_build, execution) {
-  auto program = CreateTestProgram();
+TEST(DecomposePass, basic) {
+  auto prog = CreateAddProgram();
+  for (int i = 0; i < prog.size(); i++) {
+    LOG(INFO) << "instruction: " << prog[i];
+  }
+
 #ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
   Target target = common::DefaultHostTarget();
 #endif
 
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
+  ProgramPass::Apply(&prog, target, {"Decomposer"});
+  for (int i = 0; i < prog.size(); i++) {
+    LOG(INFO) << "new instruction: " << prog[i];
+  }
 
+  auto graph = std::make_shared<hlir::framework::Graph>(prog, target);
+  hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto runtime_program = gc.Build();
@@ -118,5 +101,4 @@ TEST(cinn_build, execution) {
   runtime_program->Execute();
 }
 
-}  // namespace frontend
-}  // namespace cinn
+}  // namespace cinn::frontend
