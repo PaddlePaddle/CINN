@@ -11,7 +11,7 @@
 #include "mlir/IR/Types.h"
 
 namespace mlir {
-namespace PD {
+namespace pd {
 
 class PaddleType : public Type {
  public:
@@ -38,5 +38,5 @@ class PaddleTypeImpl : public Type::TypeBase<Derived, PaddleType, TypeStorage> {
     using PDBase::PDBase;                                            \
   };
 
-}  // namespace PD
+}  // namespace pd
 }  // namespace mlir

@@ -58,6 +58,8 @@ def PD_ElementwiseAdd : PD_Op<"ElementwiseAdd", [NoSideEffect]> {
 
   let arguments = (ins PD_Tensor:$x, PD_Tensor:$y, I32Attr:$axis);
   let results = (outs PD_Tensor:$out);
+
+  let hasCanonicalizer = 1;
 }
 
 def PD_ElementwiseMul : PD_Op<"ElementwiseMul", [NoSideEffect]> {
@@ -83,4 +85,15 @@ def PD_MatmulOp : PD_Op<"Matmul", [NoSideEffect]> {
   //let hasCanonicalizer = 1;
 }
 
+def PD_FcOp : PD_Op<"Fc", [NoSideEffect]> {
+  let summary = "Computes the fully connect result of three tensors";
+  let description = [{
+  }];
+
+  let arguments = (ins PD_Tensor:$x, PD_Tensor:$y, PD_Tensor:$bias,
+                   DefaultValuedAttr<I32Attr, "1">:$in_num_col_dims);
+  let results = (outs PD_Tensor:$out);
+
+  //let hasCanonicalizer = 1;
+}
 #endif  // PD_OPS

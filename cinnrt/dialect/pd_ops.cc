@@ -1,7 +1,7 @@
 #include "cinnrt/dialect/pd_ops.h"
 
 namespace mlir {
-namespace PD {
+namespace pd {
 
 #define GET_OP_CLASSES
 #include "cinnrt/dialect/pd_ops.hpp.inc"
@@ -15,12 +15,12 @@ PaddleDialect::PaddleDialect(MLIRContext *context) : Dialect("pd", context, Type
 #undef GET_OP_LIST
 
   // Support unknown operations because not all Paddle operations are registered.
-  allowUnknownOperations();
+  // allowUnknownOperations();
 }
 
 #define GET_OP_CLASSES
 #include "cinnrt/dialect/pd_ops.cpp.inc"
 #undef GET_OP_CLASSES
 
-}  // namespace PD
+}  // namespace pd
 }  // namespace mlir

@@ -13,6 +13,7 @@ gather_srcs(cinnrt_src SRCS
     diagnostic_utils.cc
     pd_types.cc
     pd_ops.cc
+    pass/elementwise_add_pass.cc
     )
 
 mlir_tablegen_on(ops)
@@ -23,6 +24,11 @@ mlir_tablegen_on(tensor_shape DIALECT ts)
 mlir_tablegen_on(dense_tensor DIALECT dt)
 mlir_tablegen_on(pd_op_base DIALECT pd)
 mlir_tablegen_on(pd_ops)
+
+set(LLVM_TARGET_DEFINITIONS patterns/fc_fuse_pattern.td)
+mlir_tablegen(fc_fuse_pattern.inc -gen-rewriters)
+add_public_tablegen_target(fc_fuse_pattern)
+set(core_deps ${core_deps} fc_fuse_pattern CACHE INTERNAL "")
 
 # TODO(Superjomn) add a cmake function cc_executable to ecapsulate the following code
 add_executable(cinn-opt opt.cc)
