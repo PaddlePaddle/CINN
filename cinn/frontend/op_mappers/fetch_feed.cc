@@ -31,9 +31,9 @@ void FeedOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   auto feed_name = op_desc.Output("Out").front();
   VLOG(4) << "Model get feed [" << feed_name << "]";
 
-  auto feed_var = ctx.GetVar(feed_name);
-  CHECK(!feed_var->type.is_unk()) << "Feed var [" << feed_name << "]'s type not set";
-  CHECK(!feed_var->shape.empty()) << "Feed var [" << feed_name << "]'s shape should not empty";
+  const auto& var = ctx.GetVarInfo(feed_name);
+  auto input      = ctx.Builder()->CreateInput(var.type, var.shape, feed_name);
+  ctx.AddVar(feed_name, input);
 }
 
 }  // namespace op_mappers

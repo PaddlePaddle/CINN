@@ -42,7 +42,7 @@ class PaddleModelConvertor {
   }
 
   // prepare feed variable before run CINN op
-  void PrepareRun(paddle::cpp::BlockDesc* block_desc, const OpMapperContext& ctx);
+  void PrepareRun(OpMapperContext* ctx, paddle::cpp::BlockDesc* block_desc);
 
   // RunOp accept OpDesc and global run context then run it's kernel registered in OpMapper.
   static void RunOp(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx);
@@ -51,10 +51,10 @@ class PaddleModelConvertor {
   Program operator()(const std::string& model_dir, bool is_combined = false);
 
   // return the internal variable map
-  const absl::flat_hash_map<std::string, Variable>& var_map() const { return var_map_; }
+  const auto& var_map() const { return var_map_; }
 
   // return the map from the variable name in paddle model to cinn program.
-  const absl::flat_hash_map<std::string, std::string>& var_model_to_program_map() { return var_model_to_program_map_; }
+  const auto& var_model_to_program_map() const { return var_model_to_program_map_; }
 
  private:
   absl::flat_hash_map<std::string, Variable> var_map_;

@@ -39,7 +39,7 @@ Variable OpMapperContext::GetVar(const std::string& origin_name) const {
   auto it = var_map_->find(name);
   if (it != var_map_->end()) return it->second;
 
-  auto* var = scope_->FindVar(name);
+  auto* var = scope_.FindVar(name);
   if (var) {
     auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     Variable var;
@@ -52,6 +52,16 @@ Variable OpMapperContext::GetVar(const std::string& origin_name) const {
 
   LOG(FATAL) << "No var called [" << name << "] exists";
   return Variable();
+}
+
+void OpMapperContext::AddVarInfo(const std::string& name, const VarInfo& info) {
+  CHECK(!var_info_map_.count(name)) << "Duplicate variable info [" << name << "] found";
+  var_info_map_[name] = info;
+}
+
+const OpMapperContext::VarInfo& OpMapperContext::GetVarInfo(const std::string& name) const {
+  CHECK(var_info_map_.count(name)) << "No variable info called [" << name << "] exists";
+  return var_info_map_.at(name);
 }
 
 }  // namespace frontend

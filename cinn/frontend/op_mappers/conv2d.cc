@@ -31,7 +31,7 @@ inline void ReverseHWData(float* data, std::vector<int> shape) {
 void ReverseHWVar(const std::string& origin_name, const OpMapperContext& ctx) {
   const auto& name = cinn::utils::TransValidVarName(origin_name);
   CheckVarNameValid(name);
-  auto* var = ctx.Scope()->FindVar(name);
+  auto* var = ctx.Scope().FindVar(name);
   if (var) {
     auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     if (ctx.Target().arch == Target::Arch::X86) {

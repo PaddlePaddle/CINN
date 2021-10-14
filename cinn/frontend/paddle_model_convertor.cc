@@ -26,46 +26,12 @@
 
 namespace cinn {
 namespace frontend {
-namespace utils {
-struct VarInfo {
-  std::vector<int> shape;
-  common::Type type;
-};
 
-VarInfo GetVarInfoFromDesc(paddle::cpp::VarDesc* desc) {
-  VarInfo info;
-  for (auto num : desc->GetShape()) {
-    info.shape.emplace_back(static_cast<int>(num));
-  }
-  info.type = CppVarType2CommonType(desc->GetDataType());
-  return info;
-}
-}  // namespace utils
-
-void PaddleModelConvertor::PrepareRun(paddle::cpp::BlockDesc* block_desc, const OpMapperContext& ctx) {
+void PaddleModelConvertor::PrepareRun(OpMapperContext* ctx, paddle::cpp::BlockDesc* block_desc) {
   // preserve var desc info lik shape and dtype
-  absl::flat_hash_map<std::string, utils::VarInfo> var_info_map;
   for (int i = 0; i < block_desc->VarsSize(); i++) {
-    auto* var_desc                 = block_desc->GetVar<paddle::cpp::VarDesc>(i);
-    var_info_map[var_desc->Name()] = utils::GetVarInfoFromDesc(var_desc);
-  }
-
-  for (int i = 0; i < block_desc->OpsSize(); i++) {
-    auto* op_desc       = block_desc->GetOp<paddle::cpp::OpDesc>(i);
-    const auto& op_type = op_desc->Type();
-
-    if (op_type == "feed") {
-      // if the op is feed op, create output variable here instead of in feed mapper
-      // so that we can pass the shape and dtype info into CINN
-      const auto& var_names = op_desc->output_vars();
-      for (const auto& var_name : var_names) {
-        CHECK(var_info_map.count(var_name)) << "Feed Var [" << var_name << "] not found in block";
-        const auto& var = var_info_map.at(var_name);
-        auto input      = ctx.Builder()->CreateInput(var.type, var.shape, var_name);
-        ctx.AddVar(var_name, input);
-        VLOG(4) << "Add feed variable [" << var_name << "]";
-      }
-    }
+    auto* var_desc = block_desc->GetVar<paddle::cpp::VarDesc>(i);
+    ctx->AddVarInfo(var_desc->Name(), utils::GetVarInfoFromDesc(var_desc));
   }
 }
 
@@ -94,9 +60,9 @@ Program PaddleModelConvertor::operator()(const std::string& model_dir, bool is_c
   VLOG(4) << "NetBuilder Name " << builder_name;
 
   NetBuilder builder(builder_name);
-  OpMapperContext ctx(scope_, target_, &builder, &var_map_, &var_model_to_program_map_);
+  OpMapperContext ctx(*scope_, target_, &builder, &var_map_, &var_model_to_program_map_);
 
-  PrepareRun(block_desc, ctx);
+  PrepareRun(&ctx, block_desc);
   for (int i = 0; i < block_desc->OpsSize(); i++) {
     auto* op_desc = block_desc->GetOp<paddle::cpp::OpDesc>(i);
     RunOp(*op_desc, ctx);

@@ -35,7 +35,7 @@ namespace frontend {
 
 class OpMapperContext {
  public:
-  OpMapperContext(const hlir::framework::Scope* scope,
+  OpMapperContext(const hlir::framework::Scope& scope,
                   const common::Target& target,
                   NetBuilder* builder,
                   absl::flat_hash_map<std::string, Variable>* var_map,
@@ -46,9 +46,9 @@ class OpMapperContext {
         var_map_(var_map),
         var_model_to_program_map_(var_model_to_program_map) {}
 
-  const hlir::framework::Scope* Scope() const { return scope_; }
+  const auto& Scope() const { return scope_; }
 
-  const common::Target& Target() const { return target_; }
+  const auto& Target() const { return target_; }
 
   NetBuilder* Builder() const { return builder_; }
 
@@ -61,14 +61,25 @@ class OpMapperContext {
   // add map from paddle name to cinn name into var_model_to_program_map
   void AddVarModelToProgram(const std::string& name, const std::string& id) const;
 
+  struct VarInfo {
+    std::vector<int> shape;
+    common::Type type;
+  };
+
+  void AddVarInfo(const std::string& name, const VarInfo& info);
+
+  const VarInfo& GetVarInfo(const std::string& name) const;
+
  private:
-  const hlir::framework::Scope* scope_{nullptr};
+  const hlir::framework::Scope& scope_;
   const common::Target& target_;
   NetBuilder* builder_{nullptr};
 
   absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
   // map from var in Paddle model to var name in program.
   absl::flat_hash_map<std::string, std::string>* var_model_to_program_map_{nullptr};
+
+  absl::flat_hash_map<std::string, VarInfo> var_info_map_;
 };
 
 class OpMapper {
