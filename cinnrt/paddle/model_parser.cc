@@ -3,8 +3,8 @@
 #include <fstream>
 #include <vector>
 
-#include "cinnrt/common/string.h"
 #include "cinnrt/common/common.h"
+#include "cinnrt/common/string.h"
 #include "cinnrt/common/target.h"
 #include "cinnrt/common/type.h"
 

@@ -1,5 +1,7 @@
 #include "cinnrt/host_context/mlir_to_runtime_translate.h"
 
+#include <absl/container/flat_hash_map.h>
+#include <absl/types/optional.h>
 #include <llvm/Support/SourceMgr.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Diagnostics.h>
@@ -10,8 +12,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <absl/container/flat_hash_map.h>
-#include <absl/types/optional.h>
 #include <utility>
 #include <vector>
 
@@ -135,20 +135,20 @@ absl::optional<std::string> MlirToRuntimeTranslator::EmitAttribute(const mlir::A
   return attr->cast<mlir::StringAttr>().getValue().str();
 }
 
-#define PROCESS_ARRAY_INT(type__, bits__)                                                                  \
-  template <>                                                                                              \
+#define PROCESS_ARRAY_INT(type__, bits__)                                                                   \
+  template <>                                                                                               \
   absl::optional<std::vector<type__>> MlirToRuntimeTranslator::EmitAttribute(const mlir::Attribute* attr) { \
     if (!attr->isa<mlir::ArrayAttr>()) return absl::nullopt;                                                \
-    auto array = attr->cast<mlir::ArrayAttr>();                                                            \
-    CHECK(!array.empty());                                                                                 \
-                                                                                                           \
+    auto array = attr->cast<mlir::ArrayAttr>();                                                             \
+    CHECK(!array.empty());                                                                                  \
+                                                                                                            \
     if (!array[0].getType().isInteger(bits__)) return absl::nullopt;                                        \
-                                                                                                           \
-    std::vector<type__> res;                                                                               \
-    for (auto& v : array) {                                                                                \
-      res.push_back(v.cast<mlir::IntegerAttr>().getInt());                                                 \
-    }                                                                                                      \
-    return res;                                                                                            \
+                                                                                                            \
+    std::vector<type__> res;                                                                                \
+    for (auto& v : array) {                                                                                 \
+      res.push_back(v.cast<mlir::IntegerAttr>().getInt());                                                  \
+    }                                                                                                       \
+    return res;                                                                                             \
   }
 
 PROCESS_ARRAY_INT(int16_t, 16);

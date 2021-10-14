@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/poly/schedule.h"
 
 #include <deque>
@@ -207,9 +221,9 @@ SchedulerBase &SchedulerBase::After(const Stage &a, const Stage &b, int level) {
   CHECK(a_node) << "no node called " << a.id() << " registered in the graph";
   CHECK(b_node) << "no node called " << b.id() << " registered in the graph";
 
-  auto _a_edge_b_edge_                  = a_node->LinkTo<ScheduleGraphEdge>(b_node);  // NOLINT
-  auto &a_edge = std::get<0>(_a_edge_b_edge_);
-  auto &b_edge = std::get<1>(_a_edge_b_edge_);
+  auto _a_edge_b_edge_                   = a_node->LinkTo<ScheduleGraphEdge>(b_node);  // NOLINT
+  auto &a_edge                           = std::get<0>(_a_edge_b_edge_);
+  auto &b_edge                           = std::get<1>(_a_edge_b_edge_);
   a_edge->as<ScheduleGraphEdge>()->level = level;
   b_edge->as<ScheduleGraphEdge>()->level = level;
   return *this;

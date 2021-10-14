@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/hlir/pe/reduction.h"
 
 #include <iostream>
@@ -73,6 +87,10 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         stages[out]->Split(1, 2);
         stages[out]->Bind(0, "blockIdx.x");
         stages[out]->Bind(1, "threadIdx.x");
+      } else {
+        stages[out]->Split(0, 2);
+        stages[out]->Bind(0, "blockIdx.x");
+        stages[out]->Bind(1, "threadIdx.x");
       }
     }
     *ret = arg_pack;
@@ -95,8 +113,29 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
   if (attrs.find("keep_dim") != attrs.end()) {
     keep_dim = absl::get<bool>(attrs.at("keep_dim"));
   }
-  std::vector<shape_t> res{inputs_shape[0]};
-  return res;
+  CHECK(!dim.empty()) << "should have reduce dim, please check!";
+  CHECK_LE(dim.size(), inputs_shape[0].size()) << "reduce dim should no more than the input size";
+  std::vector<int> out_shapes;
+  auto ndim = inputs_shape[0].size();
+  if (keep_dim) {
+    for (size_t i = 0; i < ndim; ++i) {
+      if (std::find(dim.begin(), dim.end(), i) != dim.end()) {
+        out_shapes.push_back(1);
+      } else {
+        out_shapes.push_back(inputs_shape[0][i]);
+      }
+    }
+  } else {
+    for (size_t i = 0; i < ndim; ++i) {
+      if (std::find(dim.begin(), dim.end(), i) == dim.end()) {
+        out_shapes.push_back(inputs_shape[0][i]);
+      }
+    }
+  }
+  if (out_shapes.empty()) {
+    out_shapes.push_back(1);
+  }
+  return {out_shapes};
 }
 
 std::vector<Type> InferDtypeForReduction(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
@@ -110,7 +149,14 @@ std::vector<std::vector<std::string>> InferLayoutForReduction(const std::vector<
                                                               const framework::NodeAttr &attrs,
                                                               const Target &target) {
   CHECK_EQ(input_layouts.size(), 1U) << "The input's layouts size is not 1! Please check again.";
-  return {input_layouts, input_layouts};
+  std::vector<std::string> new_input_layouts = input_layouts;
+  if (input_shapes[0].size() > 4) {
+    // alter input layout back
+    new_input_layouts[0] = "NCHW";
+    VLOG(3) << "alter input layout from " << input_layouts[0] << " to " << new_input_layouts[0];
+  }
+
+  return {{""}, new_input_layouts};
 }
 
 StrategyForReduction(reduce_sum, ReduceSum, PeFunc);

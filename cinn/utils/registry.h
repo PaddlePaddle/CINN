@@ -111,7 +111,7 @@ class Registry {
     }
   }
 
- private:
+ protected:
   /** \brief list of entry types */
   std::vector<EntryType *> entry_list_;
   /** \brief list of entry types */

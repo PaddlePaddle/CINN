@@ -1,3 +1,16 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include <gtest/gtest.h>
 
@@ -93,13 +106,13 @@ TEST(reduction, reduce) {
 
   Program program;
   std::unordered_map<std::string, Program::attr_t> attrs;
-  std::vector<int> axis = {1};
+  std::vector<int> axis = {1, 2};
   bool keep_dim         = false;
 
   auto a = program.reduce_max(A, axis, keep_dim);
   auto b = program.reduce_min(A, axis, keep_dim);
   auto c = program.reduce_prod(A, axis, keep_dim);
-  auto d = program.reduce_sum(A, axis, keep_dim);
+  auto d = program.reduce_sum(A, {0, 1, 2, 3}, keep_dim);
 
   Target target = GetTarget();
   program.SetInputs({A});
@@ -122,6 +135,41 @@ TEST(reduction, reduce) {
 
   auto A1 = scope->GetTensor("A");
   SetRandData(A1, target);
+
+  runtime_program->Execute();
+}
+
+TEST(Compare, Compare) {
+  Placeholder A(Float(32), {1, 3, 224, 224}, "A");
+  Placeholder B(Float(32), {1, 3, 224, 224}, "B");
+
+  Program program;
+  auto a = program.primitive_equal(A, B);
+
+  Target target = GetTarget();
+  program.SetInputs({A, B});
+  program.Validate();
+  LOG(INFO) << "Program:\n" << program;
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+
+  hlir::framework::ApplyPass(graph.get(), "InferShape");
+#ifndef CINN_WITH_CUDA
+  hlir::framework::ApplyPass(graph.get(), "AlterLayout");
+#endif
+  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  auto scope = BuildScope(target, graph);
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>("A");
+  scope->Var<hlir::framework::Tensor>("B");
+
+  auto A1 = scope->GetTensor("A");
+  auto B1 = scope->GetTensor("B");
+  SetRandData(A1, target);
+  SetRandData(B1, target);
 
   runtime_program->Execute();
 }

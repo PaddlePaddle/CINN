@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/hlir/pe/broadcast.h"
 
 #include <iostream>
@@ -104,6 +118,11 @@ std::vector<Type> InferDtypeForBroadcast(const std::vector<Type> &inputs_type, c
   CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
   std::vector<Type> res{inputs_type[0]};
   return res;
+}
+
+std::vector<Type> InferDtypeForBroadcastCmp(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  return {Bool()};
 }
 
 std::vector<std::vector<std::string>> InferLayoutForBroadcast(const std::vector<std::vector<int>> &input_shapes,
@@ -266,6 +285,18 @@ CINN_REGISTER_HELPER(broadcast_ops) {
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast) \
       .set_support_level(4);
 
+#define CINN_REGISTER_BINARY_CMP(op__, op_stragegy__)                                                                \
+  CINN_REGISTER_OP(op__)                                                                                             \
+      .describe(#op__ " function")                                                                                   \
+      .set_num_inputs(1)                                                                                             \
+      .set_num_outputs(1)                                                                                            \
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcast))                                \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcastCmp))                             \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForBroadcast))                              \
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kBroadcast) \
+      .set_support_level(4);
+
   CINN_REGISTER_BINARY(elementwise_add, Add);
   CINN_REGISTER_BINARY(elementwise_mul, Multiply);
 
@@ -277,15 +308,16 @@ CINN_REGISTER_HELPER(broadcast_ops) {
   CINN_REGISTER_BINARY(max, Maximum);
   CINN_REGISTER_BINARY(min, Minimum);
   CINN_REGISTER_BINARY(power, Power);
-  CINN_REGISTER_BINARY(logical_and, LogicalAnd);
-  CINN_REGISTER_BINARY(logical_or, LogicalOr);
-  CINN_REGISTER_BINARY(logical_xor, LogicalXOr);
-  CINN_REGISTER_BINARY(greater, Greater);
-  CINN_REGISTER_BINARY(less, Less);
-  CINN_REGISTER_BINARY(equal, Equal);
-  CINN_REGISTER_BINARY(not_equal, NotEqual);
-  CINN_REGISTER_BINARY(greater_equal, GreaterEqual);
-  CINN_REGISTER_BINARY(less_equal, LessEqual);
+
+  CINN_REGISTER_BINARY_CMP(logical_and, LogicalAnd);
+  CINN_REGISTER_BINARY_CMP(logical_or, LogicalOr);
+  CINN_REGISTER_BINARY_CMP(logical_xor, LogicalXOr);
+  CINN_REGISTER_BINARY_CMP(greater, Greater);
+  CINN_REGISTER_BINARY_CMP(less, Less);
+  CINN_REGISTER_BINARY_CMP(equal, Equal);
+  CINN_REGISTER_BINARY_CMP(not_equal, NotEqual);
+  CINN_REGISTER_BINARY_CMP(greater_equal, GreaterEqual);
+  CINN_REGISTER_BINARY_CMP(less_equal, LessEqual);
 
   CINN_REGISTER_BINARY(bitwise_or, BitwiseOr);
   CINN_REGISTER_BINARY(bitwise_xor, BitwiseXor);

@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/hlir/framework/graph_compiler.h"
 
 #include <absl/container/flat_hash_map.h>
@@ -87,9 +101,14 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     std::string input_id = i->source()->as<NodeData>()->id();
     auto in_shape        = shape_dict.at(input_id);
     Type dtype           = dtype_dict.at(input_id);
-    CHECK_EQ(dtype, Float(32)) << "The dtype of node " << input_id
-                               << " is not float! Other dtype is not implemented yet.";
-    lang::Placeholder<float> temp(input_id, in_shape);
+    CHECK(dtype == Float(32) || dtype.is_bool())
+        << "The dtype of node " << input_id << " is not float or bool! Other dtype is not implemented yet.";
+    ir::Tensor temp;
+    if (dtype == Float(32)) {
+      temp = lang::Placeholder<float>(input_id, in_shape);
+    } else if (dtype.is_bool()) {
+      temp = lang::Placeholder<bool>(input_id, in_shape);
+    }
     inputs.push_back(temp);
     cinn_inputs.push_back(common::CINNValue(temp));
   }
@@ -175,9 +194,14 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         std::string input_id = source_data->id();
         auto in_shape        = shape_dict.at(input_id);
         Type dtype           = dtype_dict.at(input_id);
-        CHECK_EQ(dtype, Float(32)) << "The dtype of node " << input_id
-                                   << " is not float! Other dtype is not implemented yet.";
-        lang::Placeholder<float> temp_in(input_id, in_shape);
+        CHECK(dtype == Float(32) || dtype.is_bool())
+            << "The dtype of node " << input_id << " is not float or bool! Other dtype is not implemented yet.";
+        ir::Tensor temp_in;
+        if (dtype == Float(32)) {
+          temp_in = lang::Placeholder<float>(input_id, in_shape);
+        } else if (dtype.is_bool()) {
+          temp_in = lang::Placeholder<bool>(input_id, in_shape);
+        }
         inputs.push_back(temp_in);
         temp_inputs.push_back(temp_in);
         cinn_inputs.push_back(common::CINNValue(temp_in));
@@ -650,8 +674,8 @@ std::shared_ptr<Scope> BuildScope(Target target, const std::shared_ptr<Graph>& g
     }
     VLOG(3) << "Tensor [" << iter.first << "] resize to " << utils::Join(shape, ",");
     tensor->Resize(Shape{shape});
-    CHECK_EQ(dtype_dict.at(iter.first), Float(32))
-        << "The dtype of node " << iter.first << " is not float! Other dtype is not implemented yet.";
+    CHECK(dtype_dict.at(iter.first) == Float(32) || dtype_dict.at(iter.first).is_bool())
+        << "The dtype of node " << iter.first << " is not float or bool! Other dtype is not implemented yet.";
   }
   return scope;
 }

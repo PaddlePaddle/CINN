@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/runtime/cuda/cuda_util.h"
 
 #include <glog/logging.h>
@@ -87,7 +101,7 @@ void cinn_call_cuda_kernel(void *kernel_fn,
   CHECK_LT(num_args, 20);
   for (int i = 0; i < num_args; i++) {
     if (args[i].type_code() == cinn_pod_value_t::type_code<cinn_buffer_t *>()) {
-      arr[i] = &((cinn_buffer_t *)(args[i]))->memory;
+      arr[i] = &((cinn_buffer_t *)(args[i]))->memory;  // NOLINT
     } else {
       arr[i] = args[i].data_addr();
     }

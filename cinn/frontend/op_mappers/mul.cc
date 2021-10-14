@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/backends/cuda_util.h"
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/op_mappers/common_utils.h"
@@ -28,14 +42,15 @@ void TransposeData(float* data, int M, int N) {
   }
 }
 
-void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
+void TransposeVar(const std::string& origin_name, const OpMapperContext& ctx) {
+  const auto& name = cinn::utils::TransValidVarName(origin_name);
   CheckVarNameValid(name);
   auto* var = ctx.scope_->FindVar(name);
   if (var) {
     auto& tensor = absl::get<hlir::framework::Tensor>(*var);
     if (ctx.target_.arch == Target::Arch::X86) {
       float* data = tensor->mutable_data<float>(ctx.target_);
-      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
+      CHECK_EQ(tensor->shape().size(), 2UL) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
       TransposeData(data, tensor->shape().data()[0], tensor->shape().data()[1]);
     } else if (ctx.target_.arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
@@ -46,7 +61,7 @@ void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
                            reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.target_)),
                            tensor->shape().numel() * sizeof(float),
                            cudaMemcpyDeviceToHost));
-      CHECK(tensor->shape().size() == 2) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
+      CHECK_EQ(tensor->shape().size(), 2UL) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
       TransposeData(data.data(), tensor->shape().data()[0], tensor->shape().data()[1]);
       CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.target_)),
                            data.data(),
@@ -66,8 +81,7 @@ void TransposeVar(const std::string& name, const OpMapperContext& ctx) {
     std::reverse(reverse_shape.begin(), reverse_shape.end());
     tensor->shape().SetData(reverse_shape);
     var->shape = tensor->shape().data();
-    // TODO(Superjomn) Make this determined by model.
-    var->type = Float(32);
+    var->type  = tensor->type();
     ctx.AddVar(name, var, true);
   } else {
     LOG(FATAL) << "No var called [" << name << "] exists";
@@ -133,4 +147,5 @@ void MulBiasOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
 CINN_REGISTER_HELPER(mul) {
   CINN_REGISTER_OP_MAPPER(mul, cinn::frontend::op_mappers::MulOpMapper)
   CINN_REGISTER_OP_MAPPER(mulbias, cinn::frontend::op_mappers::MulBiasOpMapper)
+  return true;
 }

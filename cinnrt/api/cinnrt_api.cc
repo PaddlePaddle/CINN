@@ -1,13 +1,13 @@
 #include "cinnrt/api/cinnrt_api.h"
 
-#include <vector>
-
 #include <absl/container/flat_hash_map.h>
-
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/DynamicLibrary.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Parser.h>
+
+#include <vector>
+
 #include "cinnrt/common/global.h"
 #include "cinnrt/dialect/dense_tensor.h"
 #include "cinnrt/dialect/mlir_loader.h"

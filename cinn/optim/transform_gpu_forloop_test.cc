@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/optim/transform_gpu_forloop.h"
 
 #include <gtest/gtest.h>
@@ -23,8 +37,8 @@ TEST(TransformGpuForloops, basic) {
   auto stages = CreateStages({C});
 
   auto _i_outer_i_inner_ = stages[C]->Split(0, 10);  // NOLINT
-  auto &i_outer = std::get<0>(_i_outer_i_inner_);
-  auto &i_inner = std::get<1>(_i_outer_i_inner_);
+  auto &i_outer          = std::get<0>(_i_outer_i_inner_);
+  auto &i_inner          = std::get<1>(_i_outer_i_inner_);
   stages[C]->Bind(0, "blockIdx.x");
   stages[C]->Bind(1, "threadIdx.x");
   stages[C]->Bind(2, "threadIdx.y");
@@ -75,8 +89,8 @@ TEST(TransformGpuForloops, multiple_thread_axis) {
   auto stages = CreateStages({C, D});
 
   auto _i_outer_i_inner_ = stages[D]->Split(0, 10);  // NOLINT
-  auto &i_outer = std::get<0>(_i_outer_i_inner_);
-  auto &i_inner = std::get<1>(_i_outer_i_inner_);
+  auto &i_outer          = std::get<0>(_i_outer_i_inner_);
+  auto &i_inner          = std::get<1>(_i_outer_i_inner_);
   stages[D]->Bind(0, "blockIdx.x");
   stages[D]->Bind(1, "blockIdx.y");
   stages[D]->Bind(2, "threadIdx.x");

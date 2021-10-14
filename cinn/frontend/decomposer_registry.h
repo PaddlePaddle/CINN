@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #pragma once
 
 #include <functional>
@@ -5,6 +19,7 @@
 #include <unordered_map>
 
 #include "cinn/common/target.h"
+#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/syntax.h"
 
 namespace cinn {
@@ -14,9 +29,16 @@ class Decomposer;
 
 class DecomposerContext {
  public:
-  explicit DecomposerContext(CinnBuilder* builder) : builder_(builder) {}
+  explicit DecomposerContext(CinnBuilder* builder, absl::flat_hash_map<std::string, Variable>* var_map)
+      : builder_(builder), var_map_(var_map) {}
 
   CinnBuilder* builder_{nullptr};
+
+  // Map the new var to the original var.
+  void MapVarToOrigin(const Variable& new_var, const Variable& ori_var) const { (*var_map_)[new_var->id] = ori_var; }
+
+ private:
+  absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
 };
 
 class InstrDecomposerRegistry : public Registry<Decomposer> {
@@ -36,10 +58,6 @@ class InstrDecomposerRegistry : public Registry<Decomposer> {
     return Registry<Decomposer>::Find(name + "_" + target.arch_str());
   }
 
-  inline Decomposer& __REGISTER__(const std::string& name, const common::Target& target) {
-    return Registry<Decomposer>::__REGISTER__(name + "_" + target.arch_str());
-  }
-
  private:
   InstrDecomposerRegistry() = default;
   CINN_DISALLOW_COPY_AND_ASSIGN(InstrDecomposerRegistry);
@@ -49,12 +67,12 @@ class Decomposer {
  public:
   using DecomposerKernel = std::function<void(const Instruction& instr, const DecomposerContext&)>;
 
-  Decomposer& set_body(const DecomposerKernel& kernel) {
+  Decomposer& SetBody(const DecomposerKernel& kernel) {
     kernel_ = kernel;
     return *this;
   }
 
-  void Run(const Instruction& instr, const DecomposerContext& context) { kernel_(instr, context); }
+  void Run(const Instruction& instr, const DecomposerContext& context) const { kernel_(instr, context); }
 
   std::string name;
 
@@ -62,9 +80,35 @@ class Decomposer {
   DecomposerKernel kernel_;
 };
 
-#define CINN_DECOMPOSER_REGISTER(name, target)                                                \
-  static ::cinn::frontend::Decomposer& CINN_STR_CONCAT(__make_Decomposer_name, __COUNTER__) = \
-      ::cinn::frontend::InstrDecomposerRegistry::Global()->__REGISTER__(#name, target)
+#define CINN_DECOMPOSER_REGISTER_CORE(name, target, kernel)        \
+  ::cinn::frontend::InstrDecomposerRegistry::Global()              \
+      ->__REGISTER__(std::string(#name) + "_" + target.arch_str()) \
+      .SetBody(kernel)
+
+#define CINN_DECOMPOSER_REGISTER_ALL(name, kernel)                                                  \
+  for (auto& target : {::cinn::common::DefaultHostTarget(),::cinn::common::DefaultNVGPUTarget() }) {\
+    ::cinn::frontend::InstrDecomposerRegistry::Global()                                             \
+        ->__REGISTER__(std::string(#name) + "_" + target.arch_str())                                \
+        .SetBody(kernel);                                                                           \
+  }
+
+/**
+ * @def CINN_DECOMPOSER_REGISTER
+ * \brief Register a decomposer kernel
+ *
+ * Register a decomposer on the specific target:
+ * \code
+ *  CINN_DECOMPOSER_REGISTER(name, target, kernel);
+ * \endcode
+ *
+ * Register a decomposer on all default targets:
+ * \code
+ * CINN_DECOMPOSER_REGISTER(name, kernel);
+ * \endcode
+ */
+#define GET_MACRO(_0, _1, _2, FUNC, ...) FUNC
+#define CINN_DECOMPOSER_REGISTER(...) \
+  GET_MACRO(__VA_ARGS__, CINN_DECOMPOSER_REGISTER_CORE, CINN_DECOMPOSER_REGISTER_ALL)(__VA_ARGS__)
 
 }  // namespace frontend
 }  // namespace cinn

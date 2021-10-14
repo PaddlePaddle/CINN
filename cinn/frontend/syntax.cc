@@ -1,3 +1,17 @@
+// Copyright (c) 2021 CINN Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 #include "cinn/frontend/syntax.h"
 
 #include <absl/types/variant.h>
@@ -117,7 +131,7 @@ Variable Program::primitive_const_scalar(PrimType value, const std::string& name
   auto out = instr.GetOutput(0);
   out.set_id(name);
   auto out_type = type_of<PrimType>();
-  CHECK(out_type.is_float() || out_type.is_int()) << "no supported type: " << out_type;
+  CHECK(out_type.is_float() || out_type.is_int() || out_type.is_bool()) << "no supported type: " << out_type;
   out->type = out_type;
   return out;
 }
