@@ -6,7 +6,8 @@ gather_srcs(cinnapi_src SRCS
   base_builder.cc
   net_builder.cc
   cinn_builder.cc
-  paddle_model_to_netbuilder.cc)
+  paddle_model_to_netbuilder.cc
+  program_pass.cc)
 
 if(NOT WITH_CUDA)
   cc_test(test_frontend_syntax
@@ -42,5 +43,6 @@ cc_test(test_decomposer_registry
 add_subdirectory(paddle)
 add_subdirectory(decomposer)
 add_subdirectory(op_mappers)
+add_subdirectory(pass)
 
 cc_test(test_op_mapper_registry SRCS op_mapper_registry_test.cc DEPS cinncore)

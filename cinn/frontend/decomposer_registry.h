@@ -19,6 +19,7 @@
 #include <unordered_map>
 
 #include "cinn/common/target.h"
+#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/syntax.h"
 
 namespace cinn {
@@ -28,9 +29,16 @@ class Decomposer;
 
 class DecomposerContext {
  public:
-  explicit DecomposerContext(Program* prog) : program(prog) {}
+  explicit DecomposerContext(CinnBuilder* builder, absl::flat_hash_map<std::string, Variable>* var_map)
+      : builder_(builder), var_map_(var_map) {}
 
-  Program* program{nullptr};
+  CinnBuilder* builder_{nullptr};
+
+  // Map the new var to the original var.
+  void MapVarToOrigin(const Variable& new_var, const Variable& ori_var) const { (*var_map_)[new_var->id] = ori_var; }
+
+ private:
+  absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
 };
 
 class InstrDecomposerRegistry : public Registry<Decomposer> {
@@ -50,10 +58,6 @@ class InstrDecomposerRegistry : public Registry<Decomposer> {
     return Registry<Decomposer>::Find(name + "_" + target.arch_str());
   }
 
-  inline Decomposer& __REGISTER__(const std::string& name, const common::Target& target) {
-    return Registry<Decomposer>::__REGISTER__(name + "_" + target.arch_str());
-  }
-
  private:
   InstrDecomposerRegistry() = default;
   CINN_DISALLOW_COPY_AND_ASSIGN(InstrDecomposerRegistry);
@@ -63,12 +67,12 @@ class Decomposer {
  public:
   using DecomposerKernel = std::function<void(const Instruction& instr, const DecomposerContext&)>;
 
-  Decomposer& set_body(const DecomposerKernel& kernel) {
+  Decomposer& SetBody(const DecomposerKernel& kernel) {
     kernel_ = kernel;
     return *this;
   }
 
-  void Run(const Instruction& instr, const DecomposerContext& context) { kernel_(instr, context); }
+  void Run(const Instruction& instr, const DecomposerContext& context) const { kernel_(instr, context); }
 
   std::string name;
 
@@ -76,9 +80,37 @@ class Decomposer {
   DecomposerKernel kernel_;
 };
 
-#define CINN_DECOMPOSER_REGISTER(name, target)                                                \
-  static ::cinn::frontend::Decomposer& CINN_STR_CONCAT(__make_Decomposer_name, __COUNTER__) = \
-      ::cinn::frontend::InstrDecomposerRegistry::Global()->__REGISTER__(#name, target)
+#define CINN_DECOMPOSER_REGISTER_CORE(name, target, kernel)        \
+  ::cinn::frontend::InstrDecomposerRegistry::Global()              \
+      ->__REGISTER__(std::string(#name) + "_" + target.arch_str()) \
+      .SetBody(kernel)
+
+#define CINN_DECOMPOSER_REGISTER_ALL(name, kernel)                                                 \
+  static std::vector<::cinn::common::Target> all_targets = {::cinn::common::DefaultHostTarget(),   \
+                                                            ::cinn::common::DefaultNVGPUTarget()}; \
+  for (auto& target : all_targets) {                                                               \
+    ::cinn::frontend::InstrDecomposerRegistry::Global()                                            \
+        ->__REGISTER__(std::string(#name) + "_" + target.arch_str())                               \
+        .SetBody(kernel);                                                                          \
+  }
+
+/**
+ * @def CINN_DECOMPOSER_REGISTER
+ * \brief Register a decomposer kernel
+ *
+ * Register a decomposer on the specific target:
+ * \code
+ *  CINN_DECOMPOSER_REGISTER(name, target, kernel);
+ * \endcode
+ *
+ * Register a decomposer on all default targets:
+ * \code
+ * CINN_DECOMPOSER_REGISTER(name, kernel);
+ * \endcode
+ */
+#define GET_MACRO(_0, _1, _2, FUNC, ...) FUNC
+#define CINN_DECOMPOSER_REGISTER(...) \
+  GET_MACRO(__VA_ARGS__, CINN_DECOMPOSER_REGISTER_CORE, CINN_DECOMPOSER_REGISTER_ALL)(__VA_ARGS__)
 
 }  // namespace frontend
 }  // namespace cinn
