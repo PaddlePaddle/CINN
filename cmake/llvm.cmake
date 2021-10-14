@@ -55,19 +55,38 @@ set(MLIR_IR_LIBS MLIRAnalysis MLIRStandardOps MLIRPass MLIRParser MLIRDialect ML
 # tb_base is the name of a xxx.td file (without the .td suffix)
 function(mlir_tablegen_on td_base)
   set(options)
-  set(oneValueArgs DIALECT)
+  set(oneValueArgs DIALECT REWRITE)
   cmake_parse_arguments(mlir_tablegen_on "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   set(LLVM_TARGET_DEFINITIONS ${td_base}.td)
-  mlir_tablegen(${td_base}.hpp.inc -gen-op-decls "-I${ONNX_MLIR_SRC_ROOT}/compiler/pass")
-  mlir_tablegen(${td_base}.cpp.inc -gen-op-defs "-I${ONNX_MLIR_SRC_ROOT}/compiler/pass")
+
+  if (NOT mlir_tablegen_on_REWRITE)
+      mlir_tablegen(${td_base}.hpp.inc -gen-op-decls "-I${ONNX_MLIR_SRC_ROOT}/compiler/pass")
+      mlir_tablegen(${td_base}.cpp.inc -gen-op-defs "-I${ONNX_MLIR_SRC_ROOT}/compiler/pass")
+  endif()
+
+  # generate a dialect
   if (mlir_tablegen_on_DIALECT)
     mlir_tablegen(${td_base}_dialect.hpp.inc --gen-dialect-decls -dialect=${mlir_tablegen_on_DIALECT}
        "-I${ONNX_MLIR_SRC_ROOT}/compiler/pass")
+
   endif()
+
+  # generate a pattern rewrite
+  if (mlir_tablegen_on_REWRITE)
+    mlir_tablegen(${td_base}.hpp.inc -gen-rewriters "-I${ONNX_MLIR_SRC_ROOT}/compiler/pass")
+  endif()
+
   add_public_tablegen_target(${td_base}_IncGen)
   add_custom_target(${td_base}_inc DEPENDS ${td_base}_IncGen)
 endfunction()
+
+function(add_mlir_rewriter rewriter)
+  set(LLVM_TARGET_DEFINITIONS ${rewriter}.td)
+  mlir_tablegen(ONNX${rewriter}.inc -gen-rewriters "-I${ONNX_MLIR_SRC_ROOT}")
+  add_public_tablegen_target(OMONNX${rewriter}IncGen)
+endfunction()
+
 
 # Execute the mlir script with cinn-exec program.
 # @name: name of the test

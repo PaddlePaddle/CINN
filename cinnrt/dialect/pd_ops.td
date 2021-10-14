@@ -58,6 +58,8 @@ def PD_ElementwiseAdd : PD_Op<"ElementwiseAdd", [NoSideEffect]> {
 
   let arguments = (ins PD_Tensor:$x, PD_Tensor:$y, I32Attr:$axis);
   let results = (outs PD_Tensor:$out);
+
+  let hasCanonicalizer = 1;
 }
 
 def PD_ElementwiseMul : PD_Op<"ElementwiseMul", [NoSideEffect]> {
@@ -81,6 +83,15 @@ def PD_MatmulOp : PD_Op<"Matmul", [NoSideEffect]> {
   let results = (outs PD_Tensor:$out);
 
   //let hasCanonicalizer = 1;
+}
+
+def PD_FusedFC : PD_Op<"FC", [NoSideEffect]> {
+    let summary = "Computes the Fully Connected result of two tensors";
+    let description = [{
+    }];
+
+    let arguments = (ins PD_Tensor:$input, PD_Tensor:$w, PD_Tensor:$bias, DefaultValuedAttr<I32Attr, "1">:$in_num_col_dims);
+    let results = (outs PD_Tensor:$out);
 }
 
 #endif  // PD_OPS

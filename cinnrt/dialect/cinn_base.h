@@ -1,7 +1,12 @@
 #pragma once
 
+#include <mlir/IR/Builders.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/IR/DialectImplementation.h>
+#include <mlir/IR/MLIRContext.h>
+#include <mlir/IR/StandardTypes.h>
+#include <mlir/IR/TypeUtilities.h>
+#include <mlir/IR/Types.h>
 
 #include "cinnrt/dialect/cinn_base.hpp.inc"
 
@@ -26,3 +31,12 @@ class CINNDialect : public ::mlir::Dialect {
 };
 
 }  // namespace cinnrt::dialect
+
+namespace mlir {
+
+template <typename T>
+static mlir::IntegerAttr createI32Attr(mlir::OpBuilder &b, mlir::Location loc, T constant) {
+  return b.getIntegerAttr(b.getI32Type(), constant);
+}
+
+}  // namespace mlir

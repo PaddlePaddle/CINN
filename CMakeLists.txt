@@ -112,7 +112,9 @@ if (WITH_CUDA)
 endif()
 
 cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto ${mlir_libs} ${ABSL_LIBS} isl ginac cln gmp)
-#target_link_libraries(cinncore ${ginac_lib} ${cln_lib} ${gmp_lib})
+
+cc_library(cinnrt SRCS ${cinnrt_src} DEPS glog ${ABSL_LIBS} ${mlir_libs})
+
 if (TARGET LLVM)
   target_link_libraries(cinncore LLVM)
 else()

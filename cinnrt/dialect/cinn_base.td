@@ -28,4 +28,7 @@ def TensorMapType :
 
 def BufferType : OpaqueType<"b", "buffer", "buffer">;
 
+class CINN_createI32Attr<string value> : NativeCodeCall<
+    "mlir::createI32Attr($_builder, $_loc, " # value # ")">;
+
 #endif  // CINN_BASE

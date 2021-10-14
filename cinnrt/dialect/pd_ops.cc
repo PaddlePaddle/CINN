@@ -1,5 +1,9 @@
 #include "cinnrt/dialect/pd_ops.h"
 
+#include "cinnrt/dialect/cinn_base.h"
+#include "mlir/IR/Matchers.h"
+#include "mlir/IR/PatternMatch.h"
+
 namespace mlir {
 namespace PD {
 
@@ -21,6 +25,13 @@ PaddleDialect::PaddleDialect(MLIRContext *context) : Dialect("pd", context, Type
 #define GET_OP_CLASSES
 #include "cinnrt/dialect/pd_ops.cpp.inc"
 #undef GET_OP_CLASSES
+
+#include "cinnrt/dialect/rewrite.hpp.inc"
+
+void ElementwiseAdd::getCanonicalizationPatterns(::mlir::OwningRewritePatternList &results,
+                                                 ::mlir::MLIRContext *context) {
+  results.insert<FuseMulAdd>(context);
+}
 
 }  // namespace PD
 }  // namespace mlir
