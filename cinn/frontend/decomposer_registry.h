@@ -29,9 +29,16 @@ class Decomposer;
 
 class DecomposerContext {
  public:
-  explicit DecomposerContext(CinnBuilder* builder) : builder_(builder) {}
+  explicit DecomposerContext(CinnBuilder* builder, absl::flat_hash_map<std::string, Variable>* var_map)
+      : builder_(builder), var_map_(var_map) {}
 
   CinnBuilder* builder_{nullptr};
+
+  // Map the new var to the original var.
+  void MapVarToOrigin(const Variable& new_var, const Variable& ori_var) const { (*var_map_)[new_var->id] = ori_var; }
+
+ private:
+  absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
 };
 
 class InstrDecomposerRegistry : public Registry<Decomposer> {
@@ -73,10 +80,37 @@ class Decomposer {
   DecomposerKernel kernel_;
 };
 
-#define CINN_DECOMPOSER_REGISTER(name, target)                                                            \
-  static ::cinn::frontend::Decomposer& CINN_STR_CONCAT(__make_Decomposer_name, __COUNTER__) =             \
-      ::cinn::frontend::InstrDecomposerRegistry::Global()->__REGISTER_OR_GET__(std::string(#name) + "_" + \
-                                                                               target.arch_str())
+#define CINN_DECOMPOSER_REGISTER_CORE(name, target, kernel)        \
+  ::cinn::frontend::InstrDecomposerRegistry::Global()              \
+      ->__REGISTER__(std::string(#name) + "_" + target.arch_str()) \
+      .SetBody(kernel)
+
+#define CINN_DECOMPOSER_REGISTER_ALL(name, kernel)                                                 \
+  static std::vector<::cinn::common::Target> all_targets = {::cinn::common::DefaultHostTarget(),   \
+                                                            ::cinn::common::DefaultNVGPUTarget()}; \
+  for (auto& target : all_targets) {                                                               \
+    ::cinn::frontend::InstrDecomposerRegistry::Global()                                            \
+        ->__REGISTER__(std::string(#name) + "_" + target.arch_str())                               \
+        .SetBody(kernel);                                                                          \
+  }
+
+/**
+ * @def CINN_DECOMPOSER_REGISTER
+ * \brief Register a decomposer kernel
+ *
+ * Register a decomposer on the specific target:
+ * \code
+ *  CINN_DECOMPOSER_REGISTER(name, target, kernel);
+ * \endcode
+ *
+ * Register a decomposer on all default targets:
+ * \code
+ * CINN_DECOMPOSER_REGISTER(name, kernel);
+ * \endcode
+ */
+#define GET_MACRO(_0, _1, _2, FUNC, ...) FUNC
+#define CINN_DECOMPOSER_REGISTER(...) \
+  GET_MACRO(__VA_ARGS__, CINN_DECOMPOSER_REGISTER_CORE, CINN_DECOMPOSER_REGISTER_ALL)(__VA_ARGS__)
 
 }  // namespace frontend
 }  // namespace cinn

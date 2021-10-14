@@ -31,7 +31,7 @@ class BaseBuilder {
   Program Build();
 
   Placeholder CreateInput(const common::Type& type, const std::vector<int>& shape, const std::string& id_hint = "");
-  void SetInputs(const std::vector<Variable>& inputs);
+  Placeholder CreateInput(const Variable& input);
 
   // name of this builder
   const std::string& name() { return name_; }
@@ -39,18 +39,6 @@ class BaseBuilder {
   virtual ~BaseBuilder() {}
 
   void AppendInstruction(const Instruction& instr) { instrs_.push_back(instr); }
-
-  /**
-   * Get \p i-th instruction.
-   */
-  Instruction& GetInstruction(size_t i);
-
-  const Instruction& GetInstruction(size_t i) const;
-
-  /**
-   * Get number of instructions in the program.
-   */
-  inline size_t NumInstructions() const { return instrs_.size(); }
 
  protected:
   void InferShape(Instruction instr) const;

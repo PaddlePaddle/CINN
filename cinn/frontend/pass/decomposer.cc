@@ -26,11 +26,14 @@ class DecomposerPass : public ProgramPass {
   void ApplyImpl(Program* prog, const common::Target& target) const {
     // step 1: set the inputs of the origin program to the new program
     CinnBuilder builder("decomposer_builder");
-    builder.SetInputs(prog->GetInputs());
+    for (auto& var : prog->GetInputs()) {
+      builder.CreateInput(var);
+    }
 
     // step 2: use primitive instructions to build the new program
-    DecomposerContext context(&builder);
-    for (int i = 0; i < prog->size(); i++) {
+    absl::flat_hash_map<std::string, Variable> var_map;
+    DecomposerContext context(&builder, &var_map);
+    for (size_t i = 0; i < prog->size(); i++) {
       auto instr      = (*prog)[i];
       auto decomposer = InstrDecomposerRegistry::Global()->Find(instr->op_type, target);
       if (decomposer) {
@@ -40,6 +43,17 @@ class DecomposerPass : public ProgramPass {
       }
     }
     *prog = builder.Build();
+
+    // step 3: set the origin output to the output of decomposed operator.
+    for (size_t i = 0; i < prog->size(); i++) {
+      auto& outputs = (*prog)[i]->outputs;
+      for (size_t j = 0; j < outputs.size(); j++) {
+        auto it = var_map.find(outputs[j]->id);
+        if (it != var_map.end()) {
+          outputs[j] = it->second;
+        }
+      }
+    }
   }
 };
 

@@ -22,17 +22,16 @@ namespace decomposer {
 void relu(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->inputs.size(), 1UL) << " 1 input tensor for " << instr->op_type;
   CHECK_EQ(instr->outputs.size(), 1UL) << "1 output tensor for " << instr->op_type;
-  auto x       = instr->inputs[0];
-  auto output  = instr->outputs[0];
-  auto builder = context.builder_;
+  auto x        = instr->inputs[0];
+  auto output   = instr->outputs[0];
+  auto* builder = context.builder_;
 
   auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
   auto bcast_zero = builder->BroadcastTo(zero_var, x->shape, {0});
   auto out        = builder->Max(x, bcast_zero);
 
-  // set the original output to the output of decomposed operator.
-  auto max_instr        = builder->GetInstruction(builder->NumInstructions() - 1);
-  max_instr->outputs[0] = output;
+  // map the the output of decomposed operator to the original.
+  context.MapVarToOrigin(out, output);
 }
 
 }  // namespace decomposer
@@ -40,8 +39,7 @@ void relu(const Instruction& instr, const DecomposerContext& context) {
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(activation) {
-  CINN_DECOMPOSER_REGISTER(relu, ::cinn::common::DefaultHostTarget()).SetBody(cinn::frontend::decomposer::relu);
-  CINN_DECOMPOSER_REGISTER(relu, ::cinn::common::DefaultNVGPUTarget()).SetBody(cinn::frontend::decomposer::relu);
+  CINN_DECOMPOSER_REGISTER(relu, cinn::frontend::decomposer::relu);
 
   return true;
 }
