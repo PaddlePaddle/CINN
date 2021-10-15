@@ -5,7 +5,7 @@
 #include "mlir/IR/PatternMatch.h"
 
 namespace mlir {
-namespace PD {
+namespace pd {
 
 #define GET_OP_CLASSES
 #include "cinnrt/dialect/pd_ops.hpp.inc"
@@ -33,5 +33,5 @@ void ElementwiseAdd::getCanonicalizationPatterns(::mlir::OwningRewritePatternLis
   results.insert<FuseMulAdd>(context);
 }
 
-}  // namespace PD
+}  // namespace pd
 }  // namespace mlir

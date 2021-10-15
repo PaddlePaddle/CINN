@@ -23,12 +23,20 @@ mlir_tablegen_on(tensor_shape DIALECT ts)
 mlir_tablegen_on(dense_tensor DIALECT dt)
 mlir_tablegen_on(pd_op_base DIALECT pd)
 mlir_tablegen_on(pd_ops)
-mlir_tablegen_on(rewrite REWRITE true)
+mlir_add_rewriter(rewrite)
+
+set(MLIR_INC_DEPS
+    ops_inc
+    basic_kernels_inc
+    tensor_shape_inc
+    dense_tensor_inc
+    pd_ops_inc
+    rewrite_inc)
 
 # TODO(Superjomn) add a cmake function cc_executable to ecapsulate the following code
 add_executable(cinnopt opt.cc)
 target_link_libraries(cinnopt cinnrt ${mlir_libs})
-add_dependencies(cinnopt pd_ops_inc rewrite_inc)
+add_dependencies(cinnopt ${MLIR_INC_DEPS})
 
 add_executable(print-ir print_ir.cc)
 target_link_libraries(print-ir cinncore ${mlir_libs})
