@@ -31,7 +31,7 @@ target_link_libraries(cinnopt cinnrt ${mlir_libs})
 add_dependencies(cinnopt cinnrt)
 
 add_executable(print-ir print_ir.cc)
-target_link_libraries(print-ir cinncore ${mlir_libs})
+target_link_libraries(print-ir cinnrt ${mlir_libs})
 add_dependencies(print-ir pd_ops_inc)
 
 
@@ -48,7 +48,7 @@ add_test(test_mlir_opt_on_paddle_ops
         ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/paddle_ops.mlir)
 # %}
 
-cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS cinncore ${MLIR_IR_LIBS})
+cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS cinnrt ${MLIR_IR_LIBS})
 
 # execute mlir and run FileCheck
 cinn_exec_check(run_and_check_tensor_type mlir_tests/tensor_type.mlir)

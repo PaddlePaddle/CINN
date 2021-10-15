@@ -20,7 +20,7 @@
 
 int main(int argc, char **argv) {
   mlir::MLIRContext *context = cinnrt::Global::getMLIRContext();
-  // context->allowUnregisteredDialects();
+
   auto &registry = context->getDialectRegistry();
   cinnrt::RegisterCinnDialects(registry);
 

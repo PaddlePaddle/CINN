@@ -105,11 +105,6 @@ set(cinnrt_mlir_incs
 
 cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} mklml framework_proto param_proto paddle_framework_proto ${mlir_libs} ${ABSL_LIBS} isl ginac)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
-add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER
-        # MLIR td file generations
-        ${cinnrt_mlir_incs}
-        ${core_deps}
-        )
 if (WITH_CUDA)
   target_link_libraries(cinnapi ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
 endif()
@@ -127,13 +122,7 @@ endif()
 add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER
         # MLIR td file generations
-        ops_inc
-        basic_kernels_inc
-        test_kernels_inc
-        cinn_base_inc
-        tensor_shape_inc
-        dense_tensor_inc
-        pd_ops_inc
+        ${cinnrt_mlir_incs}
         ${core_deps}
         )
 
