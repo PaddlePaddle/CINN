@@ -19,7 +19,7 @@ PaddleDialect::PaddleDialect(MLIRContext *context) : Dialect("pd", context, Type
 #undef GET_OP_LIST
 
   // Support unknown operations because not all Paddle operations are registered.
-  allowUnknownOperations();
+  // allowUnknownOperations();
 }
 
 #define GET_OP_CLASSES

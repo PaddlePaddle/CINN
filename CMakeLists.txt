@@ -94,10 +94,7 @@ add_subdirectory(tutorials)
 
 set(core_src "${cinnapi_src};${cinnrt_src}")
 
-cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto ${mlir_libs} ${ABSL_LIBS} isl ginac cln gmp)
-add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
-add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER
-        # MLIR td file generations
+set(cinnrt_mlir_incs
         ops_inc
         basic_kernels_inc
         test_kernels_inc
@@ -105,6 +102,15 @@ add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER
         tensor_shape_inc
         dense_tensor_inc
         pd_ops_inc
+        rewrite_inc
+        )
+
+
+cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto ${mlir_libs} ${ABSL_LIBS} isl ginac cln gmp)
+add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
+add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER
+        # MLIR td file generations
+        ${cinnrt_mlir_incs}
         ${core_deps}
         )
 if (WITH_CUDA)
@@ -114,6 +120,7 @@ endif()
 cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto ${mlir_libs} ${ABSL_LIBS} isl ginac cln gmp)
 
 cc_library(cinnrt SRCS ${cinnrt_src} DEPS glog ${ABSL_LIBS} ${mlir_libs})
+add_dependencies(cinnrt ${cinnrt_mlir_incs})
 
 if (TARGET LLVM)
   target_link_libraries(cinncore LLVM)

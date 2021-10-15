@@ -32,7 +32,7 @@ class PD_PaddleAttr <string name, string description> :
 // PaddlePaddle type definitions
 //===----------------------------------------------------------------------===//
 
-def PD_PDDialectType : Type<CPred<"$_self.isa<mlir::PD::PDType>()">, "PaddlePaddle type">;
+def PD_PDDialectType : Type<CPred<"$_self.isa<mlir::pd::PDType>()">, "PaddlePaddle type">;
 
 class PD_PaddleType <string name, string description> :
       Type<CPred<"$_self.isa<mlir::pd::" # name #"Type>()">,

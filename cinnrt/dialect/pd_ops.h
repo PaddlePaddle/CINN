@@ -17,7 +17,7 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
 namespace mlir {
-namespace PD {
+namespace pd {
 
 class PaddleDialect : public Dialect {
  public:
@@ -29,5 +29,5 @@ class PaddleDialect : public Dialect {
   void printType(Type type, DialectAsmPrinter& printer) const override { Dialect::printType(type, printer); }
 };
 
-}  // namespace PD
+}  // namespace pd
 }  // namespace mlir
