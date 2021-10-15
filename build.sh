@@ -47,6 +47,7 @@ function proxy_on {
 }
 
 function prepare_ci {
+  cd $workspace
   apt update
   echo "the current user EUID=$EUID: $(whoami)"
   if ! command -v doxygen &> /dev/null; then
@@ -155,6 +156,7 @@ function prepare_model {
 
 function codestyle_check {
     proxy_on
+    cd $workspace
     pre-commit run -a
     if ! git diff-index --quiet HEAD --; then
 
