@@ -59,6 +59,125 @@ void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
 #endif
 }
 
+/**
+ *  complex case: diamond structure
+ *         conv
+ *        /     \
+ *      add    relu
+ *        \     /
+ *          add
+ */
+TEST(complex2, complex2) {
+  Placeholder A(Float(32), {1, 3, 224, 224}, "A");
+  Placeholder B(Float(32), {3, 1, 7, 7}, "B");
+  Placeholder C(Float(32), {1, 3, 112, 112}, "C");
+  Placeholder D(Float(32), {1, 3, 1, 1}, "D");
+  Placeholder E(Float(32), {1, 3, 1, 1}, "E");
+
+  Placeholder Scale(Float(32), {64}, "Scale");
+  Placeholder Bias(Float(32), {64}, "Bias");
+  Placeholder Mean(Float(32), {64}, "Mean");
+  Placeholder Variance(Float(32), {64}, "Variance");
+
+  Program program;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
+  attrs["stride"]        = std::vector<int>({2, 2});
+  attrs["dilation"]      = std::vector<int>({1, 1});
+  attrs["padding"]       = std::vector<int>({3, 3});
+  std::string src_layout = "NCHW";
+  attrs["data_format"]   = src_layout;
+
+  absl::flat_hash_map<std::string, Program::attr_t> attrs1;
+  attrs1["epsilon"] = static_cast<float>(0.001);
+
+  auto c = program.depthwise_conv2d(A, B, attrs);
+  auto d = program.elementwise_add(c, C);
+  auto e = program.relu(c);
+  auto f = program.elementwise_add(d, e);
+
+  Target target = GetTarget();
+  program.SetInputs({A, B, C, D, E});
+  program.Validate();
+  LOG(INFO) << "Program:\n" << program;
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+
+  hlir::framework::ApplyPass(graph.get(), "InferShape");
+  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  auto scope = BuildScope(target, graph);
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>("A");
+  scope->Var<hlir::framework::Tensor>("B");
+  scope->Var<hlir::framework::Tensor>("C");
+
+  auto A1 = scope->GetTensor("A");
+  auto B1 = scope->GetTensor("B");
+  auto C1 = scope->GetTensor("C");
+  SetRandData(A1, target);
+  SetRandData(B1, target);
+  SetRandData(C1, target);
+
+  runtime_program->Execute();
+}
+TEST(complex1, complex1) {
+  Placeholder A(Float(32), {1, 3, 224, 224}, "A");
+  Placeholder B(Float(32), {64, 3, 7, 7}, "B");
+  Placeholder C(Float(32), {1, 64, 112, 112}, "C");
+  Placeholder D(Float(32), {1, 64, 1, 1}, "D");
+  Placeholder E(Float(32), {1, 64, 1, 1}, "E");
+
+  Placeholder Scale(Float(32), {64}, "Scale");
+  Placeholder Bias(Float(32), {64}, "Bias");
+  Placeholder Mean(Float(32), {64}, "Mean");
+  Placeholder Variance(Float(32), {64}, "Variance");
+
+  Program program;
+  absl::flat_hash_map<std::string, Program::attr_t> attrs;
+  attrs["stride"]        = std::vector<int>({2, 2});
+  attrs["dilation"]      = std::vector<int>({1, 1});
+  attrs["padding"]       = std::vector<int>({3, 3});
+  std::string src_layout = "NCHW";
+  attrs["data_format"]   = src_layout;
+
+  absl::flat_hash_map<std::string, Program::attr_t> attrs1;
+  attrs1["epsilon"] = static_cast<float>(0.001);
+
+  auto c = program.conv2d(A, B, attrs);
+  auto d = program.elementwise_add(c, C);
+  auto e = program.relu(c);
+  auto f = program.elementwise_add(d, e);
+
+  Target target = GetTarget();
+  program.SetInputs({A, B, C, D, E});
+  program.Validate();
+  LOG(INFO) << "Program:\n" << program;
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
+
+  hlir::framework::ApplyPass(graph.get(), "InferShape");
+  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  auto scope = BuildScope(target, graph);
+  LOG(INFO) << "graph:\n" << graph->Visualize();
+
+  hlir::framework::GraphCompiler gc(target, scope, graph);
+  auto runtime_program = gc.Build();
+
+  scope->Var<hlir::framework::Tensor>("A");
+  scope->Var<hlir::framework::Tensor>("B");
+  scope->Var<hlir::framework::Tensor>("C");
+
+  auto A1 = scope->GetTensor("A");
+  auto B1 = scope->GetTensor("B");
+  auto C1 = scope->GetTensor("C");
+  SetRandData(A1, target);
+  SetRandData(B1, target);
+  SetRandData(C1, target);
+
+  runtime_program->Execute();
+}
+
 // add+relu
 TEST(fuse_add_relu, fuse_add_relu) {
   Placeholder A(Float(32), {1, 64, 112, 112}, "A");
@@ -300,126 +419,6 @@ TEST(conv_add_mul, conv_add_mul) {
   SetRandData(B1, target);
   SetRandData(C1, target);
   SetRandData(D1, target);
-
-  runtime_program->Execute();
-}
-
-/**
- *  complex case: diamond structure
- *         conv
- *        /     \
- *      add    relu
- *        \     /
- *          add
- */
-TEST(complex1, complex1) {
-  Placeholder A(Float(32), {1, 3, 224, 224}, "A");
-  Placeholder B(Float(32), {64, 3, 7, 7}, "B");
-  Placeholder C(Float(32), {1, 64, 112, 112}, "C");
-  Placeholder D(Float(32), {1, 64, 1, 1}, "D");
-  Placeholder E(Float(32), {1, 64, 1, 1}, "E");
-
-  Placeholder Scale(Float(32), {64}, "Scale");
-  Placeholder Bias(Float(32), {64}, "Bias");
-  Placeholder Mean(Float(32), {64}, "Mean");
-  Placeholder Variance(Float(32), {64}, "Variance");
-
-  Program program;
-  absl::flat_hash_map<std::string, Program::attr_t> attrs;
-  attrs["stride"]        = std::vector<int>({2, 2});
-  attrs["dilation"]      = std::vector<int>({1, 1});
-  attrs["padding"]       = std::vector<int>({3, 3});
-  std::string src_layout = "NCHW";
-  attrs["data_format"]   = src_layout;
-
-  absl::flat_hash_map<std::string, Program::attr_t> attrs1;
-  attrs1["epsilon"] = static_cast<float>(0.001);
-
-  auto c = program.conv2d(A, B, attrs);
-  auto d = program.elementwise_add(c, C);
-  auto e = program.relu(c);
-  auto f = program.elementwise_add(d, e);
-
-  Target target = GetTarget();
-  program.SetInputs({A, B, C, D, E});
-  program.Validate();
-  LOG(INFO) << "Program:\n" << program;
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-
-  hlir::framework::ApplyPass(graph.get(), "InferShape");
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
-  auto scope = BuildScope(target, graph);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
-
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
-
-  scope->Var<hlir::framework::Tensor>("A");
-  scope->Var<hlir::framework::Tensor>("B");
-  scope->Var<hlir::framework::Tensor>("C");
-
-  auto A1 = scope->GetTensor("A");
-  auto B1 = scope->GetTensor("B");
-  auto C1 = scope->GetTensor("C");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
-  SetRandData(C1, target);
-
-  runtime_program->Execute();
-}
-
-TEST(complex2, complex2) {
-  Placeholder A(Float(32), {1, 3, 224, 224}, "A");
-  Placeholder B(Float(32), {3, 1, 7, 7}, "B");
-  Placeholder C(Float(32), {1, 3, 112, 112}, "C");
-  Placeholder D(Float(32), {1, 3, 1, 1}, "D");
-  Placeholder E(Float(32), {1, 3, 1, 1}, "E");
-
-  Placeholder Scale(Float(32), {64}, "Scale");
-  Placeholder Bias(Float(32), {64}, "Bias");
-  Placeholder Mean(Float(32), {64}, "Mean");
-  Placeholder Variance(Float(32), {64}, "Variance");
-
-  Program program;
-  absl::flat_hash_map<std::string, Program::attr_t> attrs;
-  attrs["stride"]        = std::vector<int>({2, 2});
-  attrs["dilation"]      = std::vector<int>({1, 1});
-  attrs["padding"]       = std::vector<int>({3, 3});
-  std::string src_layout = "NCHW";
-  attrs["data_format"]   = src_layout;
-
-  absl::flat_hash_map<std::string, Program::attr_t> attrs1;
-  attrs1["epsilon"] = static_cast<float>(0.001);
-
-  auto c = program.depthwise_conv2d(A, B, attrs);
-  auto d = program.elementwise_add(c, C);
-  auto e = program.relu(c);
-  auto f = program.elementwise_add(d, e);
-
-  Target target = GetTarget();
-  program.SetInputs({A, B, C, D, E});
-  program.Validate();
-  LOG(INFO) << "Program:\n" << program;
-  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-
-  hlir::framework::ApplyPass(graph.get(), "InferShape");
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
-  auto scope = BuildScope(target, graph);
-  LOG(INFO) << "graph:\n" << graph->Visualize();
-
-  hlir::framework::GraphCompiler gc(target, scope, graph);
-  auto runtime_program = gc.Build();
-
-  scope->Var<hlir::framework::Tensor>("A");
-  scope->Var<hlir::framework::Tensor>("B");
-  scope->Var<hlir::framework::Tensor>("C");
-
-  auto A1 = scope->GetTensor("A");
-  auto B1 = scope->GetTensor("B");
-  auto C1 = scope->GetTensor("C");
-  SetRandData(A1, target);
-  SetRandData(B1, target);
-  SetRandData(C1, target);
 
   runtime_program->Execute();
 }

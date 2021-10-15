@@ -41,10 +41,10 @@ void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   auto bias        = ctx.GetVar(bias_name);
   auto mean        = ctx.GetVar(mean_name);
   auto variance    = ctx.GetVar(variance_name);
-  auto out         = ctx.builder_->batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout);
+  auto out         = ctx.Builder()->batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout);
 
   ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgramMap(out_name, out->id);
+  ctx.AddVarModelToProgram(out_name, out->id);
 }
 
 }  // namespace op_mappers

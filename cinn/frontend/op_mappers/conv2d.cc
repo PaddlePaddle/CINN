@@ -28,25 +28,28 @@ inline void ReverseHWData(float* data, std::vector<int> shape) {
   }
 }
 
-void ReverseHWVar(const std::string& name, const OpMapperContext& ctx) {
+void ReverseHWVar(const std::string& origin_name, const OpMapperContext& ctx) {
+  const auto& name = cinn::utils::TransValidVarName(origin_name);
   CheckVarNameValid(name);
-  auto* var = ctx.scope_->FindVar(name);
+  auto* var = ctx.Scope().FindVar(name);
   if (var) {
     auto& tensor = absl::get<hlir::framework::Tensor>(*var);
-    if (ctx.target_.arch == Target::Arch::X86) {
-      float* data = tensor->mutable_data<float>(ctx.target_);
-      CHECK(tensor->shape().size() == 4) << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
+    if (ctx.Target().arch == Target::Arch::X86) {
+      float* data = tensor->mutable_data<float>(ctx.Target());
+      CHECK_EQ(tensor->shape().size(), 4UL)
+          << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
       ReverseHWData(data, tensor->shape().data());
-    } else if (ctx.target_.arch == Target::Arch::NVGPU) {
+    } else if (ctx.Target().arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
       std::vector<float> data(tensor->shape().numel());
       CUDA_CALL(cudaMemcpy(data.data(),
-                           reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.target_)),
+                           reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.Target())),
                            tensor->shape().numel() * sizeof(float),
                            cudaMemcpyDeviceToHost));
-      CHECK(tensor->shape().size() == 4) << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
+      CHECK_EQ(tensor->shape().size(), 4UL)
+          << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
       ReverseHWData(data.data(), tensor->shape().data());
-      CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.target_)),
+      CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.Target())),
                            data.data(),
                            tensor->shape().numel() * sizeof(float),
                            cudaMemcpyHostToDevice));
@@ -67,7 +70,7 @@ void Conv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
   auto y_name = op_desc.Input("Filter").front();
 #ifdef CINN_WITH_CUDNN
-  if (ctx.target_.arch == Target::Arch::NVGPU) {
+  if (ctx.Target().arch == Target::Arch::NVGPU) {
     ReverseHWVar(y_name, ctx);
   }
 #endif
@@ -87,10 +90,10 @@ void Conv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
   auto padding_algorithm = utils::GetAttrOrDefault<std::string>(op_desc, "padding_algorithm", "EXPLICIT");
   auto x                 = ctx.GetVar(x_name);
   auto y                 = ctx.GetVar(y_name);
-  auto out = ctx.builder_->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
+  auto out = ctx.Builder()->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
 
   ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgramMap(out_name, out->id);
+  ctx.AddVarModelToProgram(out_name, out->id);
 }
 
 void DepthwiseConv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -99,7 +102,7 @@ void DepthwiseConv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperC
   CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
   auto y_name = op_desc.Input("Filter").front();
 #ifdef CINN_WITH_CUDNN
-  if (ctx.target_.arch == Target::Arch::NVGPU) {
+  if (ctx.Target().arch == Target::Arch::NVGPU) {
     ReverseHWVar(y_name, ctx);
   }
 #endif
@@ -120,14 +123,14 @@ void DepthwiseConv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperC
   auto x                 = ctx.GetVar(x_name);
   auto y                 = ctx.GetVar(y_name);
   Variable out;
-  if (ctx.target_.arch == Target::Arch::X86) {
-    out = ctx.builder_->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
+  if (ctx.Target().arch == Target::Arch::X86) {
+    out = ctx.Builder()->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
   } else {
-    out = ctx.builder_->depthwise_conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
+    out = ctx.Builder()->depthwise_conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
   }
 
   ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgramMap(out_name, out->id);
+  ctx.AddVarModelToProgram(out_name, out->id);
 }
 
 }  // namespace op_mappers

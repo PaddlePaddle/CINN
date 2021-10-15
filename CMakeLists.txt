@@ -9,9 +9,11 @@ set(THIRD_PARTY_PATH "${CMAKE_BINARY_DIR}/thirds")
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(DOWNLOAD_MODEL_DIR "${THIRD_PARTY_PATH}/model")
 
-option(WITH_TESTING         "Compile with Unittests"          ON)
-option(WITH_CUDA            "Compile with CUDA support"       OFF)
-option(WITH_DEBUG           "Compile with debug information"  OFF)
+option(WITH_TESTING         "Compile with Unittests"                OFF)
+option(WITH_MKL_CBLAS       "Compile MKL with CBLAS support"        ON)
+option(WITH_CUDA            "Compile with CUDA support"             OFF)
+option(WITH_CUDNN           "Compile with CUDNN support"            OFF)
+option(WITH_DEBUG           "Compile with debug information"        OFF)
 option(PUBLISH_LIBS         "Whether to publish compiled libraries" OFF)
 
 if (WITH_TESTING)
@@ -22,7 +24,9 @@ if (WITH_DEBUG)
 endif()
 
 # include the customized configures
-include(${CMAKE_BINARY_DIR}/config.cmake)
+if (EXISTS ${CMAKE_BINARY_DIR}/config.cmake)
+  include(${CMAKE_BINARY_DIR}/config.cmake)
+endif()
 
 if (WITH_CUDA)
   message(STATUS "Enable CUDA")
@@ -37,6 +41,10 @@ if (WITH_CUDA)
   include_directories(${CMAKE_SOURCE_DIR}/cinn/runtime/cuda)
   include_directories(/usr/lib/x86_64-linux-gnu)
   set(CUDA_SEPARABLE_COMPILATION ON)
+
+  find_library(CUDASTUB libcuda.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/ REQUIRED)
+  find_library(CUBLAS libcublas.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)
+  find_library(CUDNN libcudnn.so HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib64 /usr/lib REQUIRED)
 endif()
 
 if (WITH_MKL_CBLAS)
@@ -44,7 +52,6 @@ if (WITH_MKL_CBLAS)
 endif()
 
 find_package(Threads REQUIRED)
-
 
 set(cinnapi_src CACHE INTERNAL "" FORCE)
 set(cinnrt_src CACHE INTERNAL "" FORCE)
@@ -55,32 +62,21 @@ include(cmake/core.cmake)
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_BINARY_DIR})
 
+include(cmake/llvm.cmake)
 include(cmake/external/pybind11.cmake)
 include(cmake/external/gflags.cmake)
 include(cmake/external/glog.cmake)
 include(cmake/external/gtest.cmake)
 include(cmake/external/absl.cmake)
 include(cmake/nvrtc.cmake)
-include(cmake/llvm.cmake)
+include(cmake/external/llvm.cmake)
+include(cmake/external/isl.cmake)
+include(cmake/external/ginac.cmake)
 include(cmake/external/protobuf.cmake)
 include(cmake/external/mklml.cmake)
 include(cmake/external/mkldnn.cmake)
 include(cmake/external/openmp.cmake)
 find_package(Threads REQUIRED)
-
-include_directories(${ISL_HOME}/include)
-add_library(isl STATIC IMPORTED GLOBAL)
-SET_PROPERTY(TARGET isl PROPERTY IMPORTED_LOCATION "${ISL_HOME}/lib/libisl.a")
-
-include_directories("/usr/local/include")
-add_library(gmp STATIC IMPORTED GLOBAL)
-SET_PROPERTY(TARGET gmp PROPERTY IMPORTED_LOCATION /usr/local/lib/libgmp.a)
-
-add_library(cln STATIC IMPORTED GLOBAL)
-SET_PROPERTY(TARGET cln PROPERTY IMPORTED_LOCATION /usr/local/lib/libcln.a)
-
-add_library(ginac STATIC IMPORTED GLOBAL)
-SET_PROPERTY(TARGET ginac PROPERTY IMPORTED_LOCATION /usr/local/lib/libginac.a)
 
 set(LINK_FLAGS "-Wl,--version-script ${CMAKE_CURRENT_SOURCE_DIR}/cmake/export.map" CACHE INTERNAL "")
 set(global_test_args "--cinn_x86_builtin_code_root=${CMAKE_SOURCE_DIR}/cinn/backends")
@@ -94,6 +90,7 @@ add_subdirectory(tutorials)
 
 set(core_src "${cinnapi_src};${cinnrt_src}")
 
+# MLIR td file generations
 set(cinnrt_mlir_incs
         ops_inc
         basic_kernels_inc
@@ -106,7 +103,7 @@ set(cinnrt_mlir_incs
         )
 
 
-cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto ${mlir_libs} ${ABSL_LIBS} isl ginac cln gmp)
+cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} mklml framework_proto param_proto paddle_framework_proto ${mlir_libs} ${ABSL_LIBS} isl ginac)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER
         # MLIR td file generations
@@ -114,10 +111,10 @@ add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER
         ${core_deps}
         )
 if (WITH_CUDA)
-  target_link_libraries(cinnapi ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/libcuda.so /usr/local/cuda/lib64/libcudnn.so  /usr/lib/x86_64-linux-gnu/libcublas.so)
+  target_link_libraries(cinnapi ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
 endif()
 
-cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto ${mlir_libs} ${ABSL_LIBS} isl ginac cln gmp)
+cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml framework_proto param_proto paddle_framework_proto ${mlir_libs} ${ABSL_LIBS} isl ginac)
 
 cc_library(cinnrt SRCS ${cinnrt_src} DEPS glog ${ABSL_LIBS} ${mlir_libs})
 add_dependencies(cinnrt ${cinnrt_mlir_incs})
@@ -141,7 +138,7 @@ add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER
         )
 
 if (WITH_CUDA)
-  target_link_libraries(cinncore ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/libcuda.so /usr/local/cuda/lib64/libcudnn.so  /usr/lib/x86_64-linux-gnu/libcublas.so)
+  target_link_libraries(cinncore ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
 endif()
 
 # --------distribute cinncore lib and include begin--------
@@ -161,7 +158,6 @@ if (PUBLISH_LIBS)
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/libcinncore.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libcinncore.a
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/frontend/paddle/libframework_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libframework_proto.a
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/hlir/pe/libparam_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libparam_proto.a
-        COMMAND cmake -E copy_directory ${LLVM11_DIR} ${CMAKE_BINARY_DIR}/dist/third_party/llvm11
         COMMAND cmake -E copy_directory ${CMAKE_BINARY_DIR}/thirds/install ${CMAKE_BINARY_DIR}/dist/third_party
         COMMENT "distribute libcinncore.a and related header files."
         DEPENDS cinncore

@@ -16,12 +16,13 @@ include(ExternalProject)
 
 set(PYBIND_SOURCE_DIR ${THIRD_PARTY_PATH}/pybind)
 
-find_package(Python COMPONENTS Development)
+find_package(Python 3.8 COMPONENTS Development)
 include_directories(${Python_INCLUDE_DIRS})
 
 message(STATUS "pybind path: ${PYBIND_SOURCE_DIR}/src/extern_pybind/include")
 include_directories(${PYBIND_SOURCE_DIR}/src/extern_pybind/include)
 
+# TODO build pybind11 at config time
 ExternalProject_Add(
         extern_pybind
         ${EXTERNAL_PROJECT_LOG_ARGS}
@@ -41,5 +42,4 @@ if(${CMAKE_VERSION} VERSION_LESS "3.3.0")
 else()
     add_library(pybind INTERFACE)
 endif()
-
 add_dependencies(pybind extern_pybind)

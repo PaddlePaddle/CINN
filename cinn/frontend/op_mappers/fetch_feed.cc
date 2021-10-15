@@ -27,11 +27,13 @@ void FetchOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
 }
 
 void FeedOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  auto outs = op_desc.Output("Out");
-  CHECK_EQ(outs.size(), 1UL);
-  VLOG(2) << "Model get feed [" << outs[0] << "]";
-  Placeholder input(common::Float(32), {}, outs[0]);
-  ctx.AddVar(outs[0], input);
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto feed_name = op_desc.Output("Out").front();
+  VLOG(4) << "Model get feed [" << feed_name << "]";
+
+  const auto& feed_info = ctx.GetFeedInfo(feed_name);
+  auto input            = ctx.Builder()->CreateInput(feed_info.type, feed_info.shape, feed_name);
+  ctx.AddVar(feed_name, input);
 }
 
 }  // namespace op_mappers

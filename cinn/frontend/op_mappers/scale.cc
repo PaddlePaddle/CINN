@@ -31,11 +31,11 @@ void ScaleOpMapper(const paddle::cpp::OpDesc& op_desc, const cinn::frontend::OpM
   auto bias             = utils::GetAttrOrDefault<float>(op_desc, "bias", 0.0f);
   auto bias_after_scale = utils::GetAttrOrDefault<bool>(op_desc, "bias_after_scale", true);
 
-  auto out = ctx.builder_->scale(x, scale, bias, bias_after_scale);
+  auto out = ctx.Builder()->scale(x, scale, bias, bias_after_scale);
   CHECK_EQ(op_desc.Output("Out").size(), 1UL);
   auto out_name = op_desc.Output("Out").front();
   ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgramMap(out_name, out->id);
+  ctx.AddVarModelToProgram(out_name, out->id);
 }
 
 }  // namespace op_mappers

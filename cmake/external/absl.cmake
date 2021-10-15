@@ -1,17 +1,15 @@
-INCLUDE(ExternalProject)
+include(ExternalProject)
 
-SET(ABSL_SOURCES_DIR ${THIRD_PARTY_PATH}/absl)
-SET(ABSL_INSTALL_DIR ${THIRD_PARTY_PATH}/install/absl)
-SET(ABSL_INCLUDE_DIR "${ABSL_INSTALL_DIR}/include" CACHE PATH "absl include directory." FORCE)
+set(ABSL_SOURCES_DIR ${THIRD_PARTY_PATH}/absl)
+set(ABSL_INSTALL_DIR ${THIRD_PARTY_PATH}/install/absl)
 
-SET(ABSL_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+set(ABSL_CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 
-INCLUDE_DIRECTORIES(${ABSL_INCLUDE_DIR})
 
-SET(ABSL_REPOSITORY "https://github.com/abseil/abseil-cpp.git")
-SET(ABSL_TAG "20210324.2")
+set(ABSL_REPOSITORY "https://github.com/abseil/abseil-cpp.git")
+set(ABSL_TAG "20210324.2")
 
-SET(OPTIONAL_ARGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+set(OPTIONAL_ARGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
         "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
         "-DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}"
         "-DCMAKE_CXX_FLAGS_RELEASE=${CMAKE_CXX_FLAGS_RELEASE}"
@@ -21,7 +19,7 @@ SET(OPTIONAL_ARGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
         "-DCMAKE_C_FLAGS_RELEASE=${CMAKE_C_FLAGS_RELEASE}")
 
 ExternalProject_Add(
-        extern_absl
+        external_absl
         ${EXTERNAL_PROJECT_LOG_ARGS}
         DEPENDS gflags
         GIT_REPOSITORY  ${ABSL_REPOSITORY}
@@ -43,16 +41,8 @@ ExternalProject_Add(
         -DCMAKE_BUILD_TYPE:STRING=${THIRD_PARTY_BUILD_TYPE}
 )
 
-
-function(ABSL_IMPORT_LIB lib_name)
-    ADD_LIBRARY("absl_${lib_name}" STATIC IMPORTED GLOBAL)
-    SET_PROPERTY(TARGET "absl_${lib_name}" PROPERTY IMPORTED_LOCATION ${ABSL_INSTALL_DIR}/lib/libabsl_${lib_name}.a)
-    ADD_DEPENDENCIES("absl_${lib_name}" extern_absl)
-endfunction(ABSL_IMPORT_LIB)
-
 # It may be more convinent if we just include all absl libs
 set(ABSL_LIB_NAMES
-  base
   hash
   wyhash
   city
@@ -64,8 +54,14 @@ set(ABSL_LIB_NAMES
   raw_hash_set
   )
 set(ABSL_LIBS "")
-foreach(lib_name ${ABSL_LIB_NAMES})
-  ABSL_IMPORT_LIB(${lib_name})
-  list(APPEND ABSL_LIBS "absl_${lib_name}")
-endforeach()
 
+add_library(absl STATIC IMPORTED GLOBAL)
+set_property(TARGET absl PROPERTY IMPORTED_LOCATION ${ABSL_INSTALL_DIR}/lib/libabsl_base.a)
+
+if (NOT USE_PREBUILD_EXTERNAL)
+  add_dependencies(absl external_absl)
+endif()
+foreach(lib_name ${ABSL_LIB_NAMES})
+  target_link_libraries(absl INTERFACE ${ABSL_INSTALL_DIR}/lib/libabsl_${lib_name}.a)
+endforeach()
+include_directories(${ABSL_INSTALL_DIR}/include)

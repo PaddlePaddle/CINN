@@ -29,10 +29,10 @@ void AddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
 
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
-  auto out = ctx.builder_->add(x, y);
+  auto out = ctx.Builder()->add(x, y);
 
   ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgramMap(out_name, out->id);
+  ctx.AddVarModelToProgram(out_name, out->id);
 }
 
 void ElementwiseAddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -47,10 +47,10 @@ void ElementwiseAddOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
 
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
-  auto out = ctx.builder_->elementwise_add(x, y, axis);
+  auto out = ctx.Builder()->elementwise_add(x, y, axis);
 
   ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgramMap(out_name, out->id);
+  ctx.AddVarModelToProgram(out_name, out->id);
 }
 
 void ElementwiseMulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -65,10 +65,10 @@ void ElementwiseMulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCo
 
   auto x   = ctx.GetVar(x_name);
   auto y   = ctx.GetVar(y_name);
-  auto out = ctx.builder_->elementwise_mul(x, y, axis);
+  auto out = ctx.Builder()->elementwise_mul(x, y, axis);
 
   ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgramMap(out_name, out->id);
+  ctx.AddVarModelToProgram(out_name, out->id);
 }
 
 }  // namespace op_mappers

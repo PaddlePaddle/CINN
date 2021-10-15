@@ -12,31 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/frontend/op_mapper_registry.h"
-#include "cinn/frontend/op_mappers/common_utils.h"
+#include "cinn/frontend/paddle_model_convertor.h"
+
+#include <glog/logging.h>
+#include <gtest/gtest.h>
+
+#include "cinn/runtime/use_extern_funcs.h"
+
+DEFINE_string(model_dir, "", "");
 
 namespace cinn {
 namespace frontend {
-namespace op_mappers {
 
-void SigmoidOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  CHECK_EQ(op_desc.Input("X").size(), 1UL);
-  auto x_name = op_desc.Input("X").front();
-  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
-  auto out_name = op_desc.Output("Out").front();
+TEST(PaddleModelConvertor, basic) {
+  auto scope  = hlir::framework::Scope::Create();
+  auto target = common::DefaultHostTarget();
 
-  auto x   = ctx.GetVar(x_name);
-  auto out = ctx.Builder()->sigmoid(x);
+  PaddleModelConvertor model_transform(scope.get(), target);
+  auto program = model_transform(FLAGS_model_dir);
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
+  const auto& var_map                  = model_transform.var_map();
+  const auto& var_model_to_program_map = model_transform.var_model_to_program_map();
+
+  ASSERT_FALSE(var_map.empty());
+  ASSERT_FALSE(var_model_to_program_map.empty());
+  ASSERT_GT(program.size(), 0);
 }
 
-}  // namespace op_mappers
 }  // namespace frontend
 }  // namespace cinn
-
-CINN_REGISTER_HELPER(sigmoid) {
-  CINN_REGISTER_OP_MAPPER(sigmoid, cinn::frontend::op_mappers::SigmoidOpMapper)
-  return true;
-}

@@ -35,7 +35,7 @@ namespace frontend {
 
 class OpMapperContext {
  public:
-  OpMapperContext(hlir::framework::Scope* scope,
+  OpMapperContext(const hlir::framework::Scope& scope,
                   const common::Target& target,
                   NetBuilder* builder,
                   absl::flat_hash_map<std::string, Variable>* var_map,
@@ -46,50 +46,40 @@ class OpMapperContext {
         var_map_(var_map),
         var_model_to_program_map_(var_model_to_program_map) {}
 
-  hlir::framework::Scope* scope_{nullptr};
+  const auto& Scope() const { return scope_; }
+
+  const auto& Target() const { return target_; }
+
+  NetBuilder* Builder() const { return builder_; }
+
+  // add Variable into local var_map
+  void AddVar(const std::string& name, const Variable& var, bool replace = false) const;
+
+  // get Variable from local var_map or scope
+  Variable GetVar(const std::string& name) const;
+
+  // add map from paddle name to cinn name into var_model_to_program_map
+  void AddVarModelToProgram(const std::string& name, const std::string& id) const;
+
+  struct FeedInfo {
+    std::vector<int> shape;
+    common::Type type;
+  };
+
+  void AddFeedInfo(const std::string& name, const FeedInfo& info);
+
+  const FeedInfo& GetFeedInfo(const std::string& name) const;
+
+ private:
+  const hlir::framework::Scope& scope_;
   const common::Target& target_;
   NetBuilder* builder_{nullptr};
 
-  void AddVar(const std::string& origin_name, const Variable& var, bool replace = false) const {
-    const auto& name = cinn::utils::TransValidVarName(origin_name);
-    CheckVarNameValid(name);
-    if (replace == false) {
-      CHECK(!var_map_->count(name)) << "Duplicate variable [" << name << "] found";
-    }
-    (*var_map_)[name] = var;
-  }
-
-  void AddVarModelToProgramMap(const std::string& name, const std::string& id) const {
-    (*var_model_to_program_map_)[name] = id;
-  }
-
-  Variable GetVar(const std::string& origin_name) const {
-    const auto& name = cinn::utils::TransValidVarName(origin_name);
-    CheckVarNameValid(name);
-
-    auto it = var_map_->find(name);
-    if (it != var_map_->end()) return it->second;
-
-    auto* var = scope_->FindVar(name);
-    if (var) {
-      auto& tensor = absl::get<hlir::framework::Tensor>(*var);
-      Variable var;
-      var.set_id(name);
-      var->shape = tensor->shape().data();
-      // TODO(Superjomn) Make this determined by model.
-      var->type = Float(32);
-      AddVar(name, var);
-      return var;
-    }
-
-    LOG(FATAL) << "No var called [" << name << "] exists";
-    return Variable();
-  }
-
- private:
   absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
   // map from var in Paddle model to var name in program.
   absl::flat_hash_map<std::string, std::string>* var_model_to_program_map_{nullptr};
+
+  absl::flat_hash_map<std::string, FeedInfo> feed_info_map_;
 };
 
 class OpMapper {
