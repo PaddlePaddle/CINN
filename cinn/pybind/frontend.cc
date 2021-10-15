@@ -18,6 +18,7 @@
 #include <pybind11/pybind11.h>
 
 #include "cinn/common/common.h"
+#include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/interpreter.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
@@ -34,9 +35,28 @@ using frontend::Placeholder;
 namespace py = pybind11;
 using namespace cinn::frontend;  // NOLINT
 
+// this function is a helper function, not threadsafe,
+// used in this file only for py function register
+static const char *SnakeName(const char *name) {
+  static char buf[256];
+  char *p       = buf;
+  const char *q = name;
+  for (; *q; q++, p++) {
+    if ((*q >= 'A') && (*q <= 'Z')) {
+      if (p > buf) *p++ = '_';
+      *p = *q - 'A' + 'a';
+    } else {
+      *p = *q;
+    }
+  }
+  *p = 0;
+  return buf;
+}
+
 void BindFrontend(pybind11::module *m) {
   py::class_<Variable>(*m, "Variable")  //
       .def(py::init<const std::string &>(), py::arg("id") = "")
+      .def(py::init([](const Placeholder &p) { return new Variable(p); }))
       .def("__str__", [](Variable &self) { return self->id; })
       .def("__repr__", [](Variable &self) { return utils::GetStreamCnt(self); })
       .def("set_type",
@@ -57,6 +77,8 @@ void BindFrontend(pybind11::module *m) {
       .def("shape", &Placeholder::shape)
       .def("id", &Placeholder::id)
       .def("__str__", [](const Placeholder &self) { return self.id(); });
+
+  py::implicitly_convertible<Placeholder, Variable>();
 
   py::class_<Instruction>(*m, "Instruction")  //
       .def("set_attr", [](Instruction &self, const std::string &key, int x) { self.SetAttr(key, x); })
@@ -258,6 +280,65 @@ void BindFrontend(pybind11::module *m) {
       .def("run", &frontend::Interpreter::Run)
       .def("get_tensor", &frontend::Interpreter::GetTensor)
       .def("scope", &frontend::Interpreter::scope);
+
+  py::class_<BaseBuilder>(*m, "BaseBuilder")
+      .def(py::init<const std::string &>(), py::arg("name") = "")
+      .def("create_input",
+           static_cast<Placeholder (BaseBuilder::*)(
+               const common::Type &, const std::vector<int> &, const std::string &)>(&BaseBuilder::CreateInput),
+           py::arg("type"),
+           py::arg("shape"),
+           py::arg("id_hint") = "")
+      .def("create_input", static_cast<Placeholder (BaseBuilder::*)(const Variable &)>(&BaseBuilder::CreateInput))
+      .def("build", &BaseBuilder::Build)
+      .def("name", &BaseBuilder::name)
+      .def("append_instruction", &BaseBuilder::AppendInstruction);
+
+  py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
+      .def(py::init<const std::string &>(), py::arg("name") = "")
+      .def("const_scalar", &CinnBuilder::ConstScalar<bool>)
+      .def("const_scalar", &CinnBuilder::ConstScalar<float>)
+      .def("const_scalar", &CinnBuilder::ConstScalar<int>)
+  // clang-format off
+#define PY_REGISTER_FUNC(func_name__) .def(SnakeName(#func_name__), &CinnBuilder::func_name__)
+          UNARY_OP_FOREACH(PY_REGISTER_FUNC)
+          BINARY_OP_FOREACH(PY_REGISTER_FUNC)
+#undef PY_REGISTER_FUNC
+      // clang-format on
+      .def("concat", &CinnBuilder::Concat, py::arg("lhs"), py::arg("rhs"), py::arg("axis") = 0)
+      .def("conv",
+           &CinnBuilder::Conv,
+           py::arg("lhs"),
+           py::arg("rhs"),
+           py::arg("strides")           = std::vector<int>{1, 1},
+           py::arg("paddings")          = std::vector<int>{0, 0},
+           py::arg("dilations")         = std::vector<int>{1, 1},
+           py::arg("groups")            = 1,
+           py::arg("data_format")       = "NCHW",
+           py::arg("padding_algorithm") = "EXPLICIT")
+      .def("compare", &CinnBuilder::Compare, py::arg("lhs"), py::arg("rhs"), py::arg("kind"))
+      .def("reduce",
+           &CinnBuilder::Reduce,
+           py::arg("operand"),
+           py::arg("kind"),
+           py::arg("dim"),
+           py::arg("keep_dim") = false)
+      .def("broadcast_to",
+           &CinnBuilder::BroadcastTo,
+           py::arg("operand"),
+           py::arg("out_shape"),
+           py::arg("broadcast_axes"))
+      .def("reshape", &CinnBuilder::Reshape, py::arg("operand"), py::arg("shape"))
+      .def("slice",
+           &CinnBuilder::Slice,
+           py::arg("operand"),
+           py::arg("axes"),
+           py::arg("starts") = std::vector<int>{},
+           py::arg("ends")   = std::vector<int>{})
+      .def("select", &CinnBuilder::Select, py::arg("condition"), py::arg("true_value"), py::arg("false_value"))
+      .def("reverse", &CinnBuilder::Reverse, py::arg("operand"), py::arg("axis"))
+      .def("__str__", [](CinnBuilder &self) { return self.name(); });
+
 }  // namespace frontend
 
 }  // namespace cinn::pybind
