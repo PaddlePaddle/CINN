@@ -62,7 +62,6 @@ include(cmake/core.cmake)
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_BINARY_DIR})
 
-include(cmake/llvm.cmake)
 include(cmake/external/pybind11.cmake)
 include(cmake/external/gflags.cmake)
 include(cmake/external/glog.cmake)
@@ -109,9 +108,9 @@ if (WITH_CUDA)
   target_link_libraries(cinnapi ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
 endif()
 
-cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml framework_proto param_proto paddle_framework_proto ${mlir_libs} ${ABSL_LIBS} isl ginac)
+cc_library(cinncore SRCS ${core_src} DEPS glog ${llvm_libs} mklml param_proto paddle_framework_proto ${mlir_libs} ${ABSL_LIBS} isl ginac)
 
-cc_library(cinnrt SRCS ${cinnrt_src} DEPS glog ${ABSL_LIBS} ${mlir_libs})
+cc_library(cinnrt SRCS ${cinnrt_src} DEPS glog ${ABSL_LIBS} ${mlir_libs} absl paddle_framework_proto)
 add_dependencies(cinnrt ${cinnrt_mlir_incs})
 
 if (TARGET LLVM)

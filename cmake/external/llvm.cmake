@@ -95,6 +95,13 @@ function(mlir_tablegen_on td_base)
   add_custom_target(${td_base}_inc DEPENDS ${td_base}_IncGen)
 endfunction()
 
+function(mlir_add_rewriter td_base)
+  set(LLVM_TARGET_DEFINITIONS ${td_base}.td)
+  mlir_tablegen(${td_base}.hpp.inc -gen-rewriters "-I${CMAKE_SOURCE_DIR}/cinnrt/dialect/pass")
+  add_public_tablegen_target(${td_base}_IncGen)
+  add_custom_target(${td_base}_inc DEPENDS ${td_base}_IncGen)
+endfunction()
+
 # Execute the mlir script with cinn-exec program.
 # @name: name of the test
 # @script: path to the mlir script file
