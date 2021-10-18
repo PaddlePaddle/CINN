@@ -30,7 +30,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
 
   float epsilon        = instr.GetAttrs<float>("epsilon");
   std::string layout   = instr.GetAttrs<std::string>("layout");
-  float average_factor = instr.GetAttrs<float>("factor");
+  float running_factor = instr.GetAttrs<float>("running_factor");
 
   CinnBuilder* builder   = context.builder_;
   std::vector<int> r_dim = {};
@@ -72,16 +72,17 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto mean      = builder->BroadcastTo(save_mean, x->shape, {c_dim});
   // diff
   auto diff = builder->Sub(x, mean);
+  auto _diff = builder->Identity(diff);
   // diff2
-  auto diff2 = builder->Mul(diff, diff);
+  auto diff2 = builder->Mul(diff, _diff);
 
   // sum variance, shape = [c]
   auto sum_diff2 = builder->Reduce(diff2, ReduceKind::kSum, r_dim);
   // variance, shape[c]
   auto var2 = builder->Div(sum_diff2, v_element_count);
   // standard variance, shape[c] -> [n, c, h, w]
-  auto save_var = builder->Add(builder->Sqrt(var2), v_epsilon);
-  auto var      = builder->BroadcastTo(save_var, x->shape, {c_dim});
+  auto save_var = builder->Sqrt(var2);
+  auto var      = builder->BroadcastTo(builder->Add(save_var, v_epsilon), x->shape, {c_dim});
 
   auto v_scale = builder->BroadcastTo(scale, x->shape, {c_dim});
   auto v_bias  = builder->BroadcastTo(bias, x->shape, {c_dim});
@@ -90,9 +91,9 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
 
   // shape = [c]
   auto factor_0 = builder->BroadcastTo(
-      builder->ConstScalar<float>(average_factor, common::UniqName("factor_0")), running_mean->shape, {0});
+      builder->ConstScalar<float>(running_factor, common::UniqName("factor_0")), running_mean->shape, {0});
   auto factor_1 = builder->BroadcastTo(
-      builder->ConstScalar<float>(1.0f - average_factor, common::UniqName("factor_1")), running_var->shape, {0});
+      builder->ConstScalar<float>(1.0f - running_factor, common::UniqName("factor_1")), running_var->shape, {0});
   auto new_mean = builder->Add(builder->Mul(running_mean, factor_0), builder->Mul(save_mean, factor_1));
   auto new_var  = builder->Add(builder->Mul(running_var, factor_0), builder->Mul(save_var, factor_1));
 
@@ -117,7 +118,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto layout = instr.GetAttrs<std::string>("layout");
 
   CinnBuilder* builder = context.builder_;
-  ;
+
   std::vector<int> r_dim = {};
   float element_count    = 0;
   int c_dim              = 0;
@@ -157,9 +158,10 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
 
   // grad [diff=(x - mean)] = dstd/var, shape = [n,c,h,w]
   auto grad_diff0 = builder->Div(grad_std, var);
+  auto _var = builder->Identity(var); 
   // grad var = Negative((grad_std * diff) / (save_var*save_var)), shape = [c]
   auto grad_var = builder->Negative(
-      builder->Reduce(builder->Div(builder->Mul(grad_std, diff), builder->Mul(var, var)), ReduceKind::kSum, r_dim));
+      builder->Reduce(builder->Div(builder->Mul(grad_std, diff), builder->Mul(var, _var)), ReduceKind::kSum, r_dim));
   // grad diff2 = (1.0f / ( 2 * num_element)) * (grad_var / save_var), shape[n,c,h,w]
   auto v_element_count = builder->BroadcastTo(
       builder->ConstScalar(1.0f / element_count, common::UniqName("element_count")), grad_var->shape, {0});
@@ -190,25 +192,26 @@ void conv2d_grad(const Instruction& instr, const DecomposerContext& context) {
   // create backward data
   auto dx = builder->Conv(w,
                           dy,
-                          instr.GetAttrs<std::vector<int>>("strides"),
-                          instr.GetAttrs<std::vector<int>>("paddings"),
-                          instr.GetAttrs<std::vector<int>>("dilations"),
+                          instr.GetAttrs<std::vector<int>>("stride"),
+                          instr.GetAttrs<std::vector<int>>("padding"),
+                          instr.GetAttrs<std::vector<int>>("dilation"),
                           instr.GetAttrs<int>("groups"),
                           "backward_data",
-                          instr.GetAttrs<std::string>("data_format"),
+                          instr.GetAttrs<std::string>("layout"),
                           instr.GetAttrs<std::string>("padding_algorithm"));
   context.MapVarToOrigin(dx, instr->outputs[0]);
 
   // create backward filter
   auto dw = builder->Conv(x,
                           dy,
-                          instr.GetAttrs<std::vector<int>>("strides"),
-                          instr.GetAttrs<std::vector<int>>("paddings"),
-                          instr.GetAttrs<std::vector<int>>("dilations"),
+                          instr.GetAttrs<std::vector<int>>("stride"),
+                          instr.GetAttrs<std::vector<int>>("padding"),
+                          instr.GetAttrs<std::vector<int>>("dilation"),
                           instr.GetAttrs<int>("groups"),
                           "backward_filter",
-                          instr.GetAttrs<std::string>("data_format"),
-                          instr.GetAttrs<std::string>("padding_algorithm"));
+                          instr.GetAttrs<std::string>("layout"),
+                          instr.GetAttrs<std::string>("padding_algorithm"),
+                          w->shape);
   context.MapVarToOrigin(dw, instr->outputs[1]);
 }
 
