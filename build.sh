@@ -47,6 +47,14 @@ function proxy_on {
 }
 
 function prepare_ci {
+  cd $workspace
+  if [[ $(command -v python) == $build_dir/ci-env/bin/python ]]; then
+    return
+  elif [[ -e $build_dir/ci-env/bin/activate ]]; then
+    source $build_dir/ci-env/bin/activate
+    return
+  fi
+
   apt update
   echo "the current user EUID=$EUID: $(whoami)"
   if ! command -v doxygen &> /dev/null; then
@@ -61,8 +69,6 @@ function prepare_ci {
     apt install -y python3.8-venv
     python3.8 -m venv $build_dir/ci-env
   fi
-  ## if [[ $? != 0 ]]; then
-  ## fi
   proxy_off
   source $build_dir/ci-env/bin/activate
   pip install -U pip --trusted-host mirrors.aliyun.com --index-url https://mirrors.aliyun.com/pypi/simple/
@@ -72,7 +78,6 @@ function prepare_ci {
   pip install clang-format==9.0
   pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib
   pip install paddlepaddle-gpu==2.1.2.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
-  export runtime_include_dir=$workspace/cinn/runtime/cuda
 }
 
 function make_doc {
@@ -155,6 +160,7 @@ function prepare_model {
 
 function codestyle_check {
     proxy_on
+    cd $workspace
     pre-commit run -a
     if ! git diff-index --quiet HEAD --; then
 
@@ -203,6 +209,7 @@ function run_test {
 function CI {
     mkdir -p $build_dir
     cd $build_dir
+    export runtime_include_dir=$workspace/cinn/runtime/cuda
 
     prepare_ci
     codestyle_check

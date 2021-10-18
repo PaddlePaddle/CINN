@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cinn/frontend/paddle_model_to_netbuilder.h"
+#include "cinn/frontend/paddle_model_convertor.h"
 
 #include <glog/logging.h>
 
@@ -21,20 +21,41 @@
 #include "cinn/frontend/op_mappers/use_op_mappers.h"
 #include "cinn/frontend/paddle/cpp/program_desc.h"
 #include "cinn/frontend/paddle/model_parser.h"
+#include "cinn/frontend/var_type_utils.h"
 #include "cinn/hlir/op/use_ops.h"
 
 namespace cinn {
 namespace frontend {
 
-void PaddleModelToNetBuilder::RunOp(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+void PaddleModelConvertor::PrepareRun(const paddle::cpp::BlockDesc& block_desc, OpMapperContext* ctx) {
+  absl::flat_hash_map<std::string, const paddle::cpp::VarDesc*> var_desc_map;
+  // preserve var desc info lik shape and dtype
+  for (int i = 0; i < block_desc.VarsSize(); i++) {
+    const auto& var_desc          = block_desc.GetConstVar<paddle::cpp::VarDesc>(i);
+    var_desc_map[var_desc.Name()] = &var_desc;
+  }
+
+  for (int i = 0; i < block_desc.OpsSize(); i++) {
+    const auto& op_desc = block_desc.GetConstOp<paddle::cpp::OpDesc>(i);
+
+    if (op_desc.Type() == "feed") {
+      for (const auto& var_name : op_desc.output_vars()) {
+        CHECK(var_desc_map.count(var_name)) << "Feed var [" << var_name << "] Not found in block";
+        ctx->AddFeedInfo(var_name, utils::GetFeedInfoFromDesc(*var_desc_map[var_name]));
+      }
+    }
+  }
+}
+
+void PaddleModelConvertor::RunOp(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   const auto& op_type = op_desc.Type();
   auto kernel         = OpMapperRegistry::Global()->Find(op_type);
-  CHECK(kernel) << "Not supported op [" << op_type << "] found";
+  CHECK(kernel) << "Op [" << op_type << "] Not supported in OpMapper";
   VLOG(4) << "Running Op " << op_type;
   kernel->Run(op_desc, ctx);
 }
 
-std::unique_ptr<NetBuilder> PaddleModelToNetBuilder::operator()(const std::string& model_dir, bool is_combined) {
+Program PaddleModelConvertor::operator()(const std::string& model_dir, bool is_combined) {
   paddle::cpp::ProgramDesc program_desc;
   paddle::LoadModelPb(model_dir, "__model__", "", scope_, &program_desc, is_combined, false, target_);
   CHECK_EQ(program_desc.BlocksSize(), 1) << "CINN can only support the model with a single block";
@@ -50,19 +71,15 @@ std::unique_ptr<NetBuilder> PaddleModelToNetBuilder::operator()(const std::strin
   builder_name.append(std::to_string(unique_invoke_number++));
   VLOG(4) << "NetBuilder Name " << builder_name;
 
-  std::unique_ptr<NetBuilder> builder = std::make_unique<NetBuilder>(builder_name);
-  OpMapperContext ctx(scope_, target_, builder.get(), &var_map_, &var_model_to_program_map_);
+  NetBuilder builder(builder_name);
+  OpMapperContext ctx(*scope_, target_, &builder, &var_map_, &var_model_to_program_map_);
 
-  for (int i = 0; i < block_desc->VarsSize(); i++) {
-    auto* var_desc = block_desc->GetVar<paddle::cpp::VarDesc>(i);
-    ctx.AddVarDesc(var_desc->Name(), var_desc);
-  }
-
+  PrepareRun(*block_desc, &ctx);
   for (int i = 0; i < block_desc->OpsSize(); i++) {
     auto* op_desc = block_desc->GetOp<paddle::cpp::OpDesc>(i);
     RunOp(*op_desc, ctx);
   }
-  return std::move(builder);
+  return builder.Build();
 }
 
 }  // namespace frontend
