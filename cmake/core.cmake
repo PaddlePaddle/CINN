@@ -52,6 +52,13 @@ endfunction(cc_library)
 
 list(APPEND CMAKE_CTEST_ARGUMENTS )
 
+function(remove_gflags TARGET_NAME)
+  get_target_property(TARGET_LIBRARIES ${TARGET_NAME} LINK_LIBRARIES)
+  LIST(REMOVE_ITEM TARGET_LIBRARIES glog)
+  LIST(REMOVE_ITEM TARGET_LIBRARIES gflags)
+  set_property(TARGET ${TARGET_NAME} PROPERTY LINK_LIBRARIES ${TARGET_LIBRARIES})
+endfunction()
+
 function(cc_test TARGET_NAME)
   if(WITH_TESTING)
     set(options SERIAL)
@@ -60,8 +67,8 @@ function(cc_test TARGET_NAME)
     cmake_parse_arguments(cc_test "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
     add_executable(${TARGET_NAME} ${cc_test_SRCS})
     get_property(os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
-    target_link_libraries(${TARGET_NAME} ${cc_test_DEPS} ${os_dependency_modules} cinn_gtest_main gtest gflags glog)
-    add_dependencies(${TARGET_NAME} ${cc_test_DEPS} gtest_main gtest gflags glog extern_gtest)
+    target_link_libraries(${TARGET_NAME} ${cc_test_DEPS} ${os_dependency_modules} cinn_gtest_main gtest )
+    add_dependencies(${TARGET_NAME} ${cc_test_DEPS} gtest_main gtest extern_gtest)
 
     add_test(NAME ${TARGET_NAME}
       COMMAND ${TARGET_NAME} "${cc_test_ARGS}"
@@ -72,6 +79,8 @@ function(cc_test TARGET_NAME)
     # No unit test should exceed 10 minutes.
     set_tests_properties(${TARGET_NAME} PROPERTIES TIMEOUT 6000)
   endif()
+
+  remove_gflags(${TARGET_NAME})
 endfunction()
 
 function(nv_library TARGET_NAME)
@@ -132,8 +141,8 @@ function(nv_test TARGET_NAME)
     cuda_add_executable(${TARGET_NAME} ${nv_test_SRCS})
     get_property(os_dependency_modules GLOBAL PROPERTY OS_DEPENDENCY_MODULES)
     target_link_libraries(${TARGET_NAME} ${nv_test_DEPS} cinn_gtest_main gtest
-      gflags glog ${os_dependency_modules} ${CUDNN_LIBRARY} ${CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
-    add_dependencies(${TARGET_NAME} ${nv_test_DEPS} cinn_gtest_main gtest gflags glog)
+      ${os_dependency_modules} ${CUDNN_LIBRARY} ${CUBLAS_LIBRARIES} ${CUDA_LIBRARIES})
+    add_dependencies(${TARGET_NAME} ${nv_test_DEPS} cinn_gtest_main gtest)
     common_link(${TARGET_NAME})
     # add_test(${TARGET_NAME} ${TARGET_NAME})
     add_test(NAME ${TARGET_NAME}
@@ -146,6 +155,7 @@ function(nv_test TARGET_NAME)
       ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/libcuda.so
       )
   endif()
+  remove_gflags(${TARGET_NAME})
 endfunction(nv_test)
 
 
