@@ -48,6 +48,7 @@ function proxy_on {
 
 function prepare_ci {
   cd $workspace
+  proxy_off
   if [[ $(command -v python) == $build_dir/ci-env/bin/python ]]; then
     return
   elif [[ -e $build_dir/ci-env/bin/activate ]]; then
@@ -69,7 +70,6 @@ function prepare_ci {
     apt install -y python3.8-venv
     python3.8 -m venv $build_dir/ci-env
   fi
-  proxy_off
   source $build_dir/ci-env/bin/activate
   pip install -U pip --trusted-host mirrors.aliyun.com --index-url https://mirrors.aliyun.com/pypi/simple/
   pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
