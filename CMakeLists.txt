@@ -106,23 +106,32 @@ if (WITH_CUDA)
   target_link_libraries(cinnapi ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
 endif()
 
-cc_library(cinncore STATIC SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto ${mlir_libs} absl isl ginac)
-add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
-add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER
-        # MLIR td file generations
-        ops_inc
-        basic_kernels_inc
-        test_kernels_inc
-        cinn_base_inc
-        tensor_shape_inc
-        dense_tensor_inc
-        pd_ops_inc
-        ${core_deps}
-        )
+function(gen_cinncore LINKTYPE)
+  set(CINNCORE_TARGET cinncore)
+  if (${LINKTYPE} STREQUAL "STATIC")
+    set(CINNCORE_TARGET cinncore_static)
+  endif()
+  cc_library(${CINNCORE_TARGET} ${LINKTYPE} SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto ${mlir_libs} absl isl ginac)
+  add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
+  add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER
+          # MLIR td file generations
+          ops_inc
+          basic_kernels_inc
+          test_kernels_inc
+          cinn_base_inc
+          tensor_shape_inc
+          dense_tensor_inc
+          pd_ops_inc
+          ${core_deps}
+          )
 
-if (WITH_CUDA)
-  target_link_libraries(cinncore ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
-endif()
+  if (WITH_CUDA)
+    target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
+  endif()
+endfunction()
+
+gen_cinncore(STATIC)
+gen_cinncore(SHARED)
 
 # --------distribute cinncore lib and include begin--------
 if (PUBLISH_LIBS)
@@ -135,15 +144,15 @@ if (PUBLISH_LIBS)
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/libcinnapi.so ${CMAKE_BINARY_DIR}/dist/cinn/lib/libcinnapi.so
         DEPENDS cinnapi
     )
-    add_custom_command(TARGET cinncore POST_BUILD
+    add_custom_command(TARGET cinncore_static POST_BUILD
         COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/demo.cc ${CMAKE_BINARY_DIR}/dist/demo.cc
         COMMAND cmake -E copy ${CMAKE_SOURCE_DIR}/tutorials/build_demo.sh ${CMAKE_BINARY_DIR}/dist/build_demo.sh
-        COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/libcinncore.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libcinncore.a
+        COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/libcinncore_static.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libcinncore_static.a
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/frontend/paddle/libframework_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libframework_proto.a
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/hlir/pe/libparam_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libparam_proto.a
         COMMAND cmake -E copy_directory ${CMAKE_BINARY_DIR}/thirds/install ${CMAKE_BINARY_DIR}/dist/third_party
-        COMMENT "distribute libcinncore.a and related header files."
-        DEPENDS cinncore
+        COMMENT "distribute libcinncore_static.a and related header files."
+        DEPENDS cinncore_static
     )
 endif()
 # --------distribute cinncore lib and include end--------
