@@ -159,8 +159,7 @@ Variable CinnBuilder::Reduce(const Variable& operand, ReduceKind kind, const std
 Variable CinnBuilder::BroadcastTo(const Variable& operand,
                                   const std::vector<int>& out_shape,
                                   const std::vector<int>& broadcast_axes) {
-  Instruction instr("broadcast_to");
-  instr.SetInputs({operand});
+  Instruction instr("broadcast_to", {operand});
   instr.SetAttr("out_shape", out_shape);
   instr.SetAttr("broadcast_axes", broadcast_axes);
   InferShape(instr);
@@ -171,6 +170,14 @@ Variable CinnBuilder::BroadcastTo(const Variable& operand,
 Variable CinnBuilder::Reshape(const Variable& operand, const std::vector<int>& shape) {
   Instruction instr("reshape", {operand});
   instr.SetAttr("shape", shape);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable CinnBuilder::Transpose(const Variable& operand, const std::vector<int>& axis) {
+  Instruction instr("transpose", {operand});
+  instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
