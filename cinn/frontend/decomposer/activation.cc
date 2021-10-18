@@ -24,23 +24,23 @@ void relu(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->outputs.size(), 1UL) << "1 output tensor for " << instr->op_type;
   auto x        = instr->inputs[0];
   auto output   = instr->outputs[0];
-  auto* builder = context.builder_;
+  auto* builder = context.builder();
 
   auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
   auto bcast_zero = builder->BroadcastTo(zero_var, x->shape, {0});
   auto out        = builder->Max(x, bcast_zero);
 
   // map the the output of decomposed operator to the original.
-  context.MapVarToOrigin(out, output);
+  context.MapOutToOrigin(out, output);
 }
 
 void relu_grad(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->inputs.size(), 2UL) << " 2 input tensors for " << instr->op_type;
   CHECK_EQ(instr->outputs.size(), 1UL) << "1 output tensor for " << instr->op_type;
-  auto dout    = instr->inputs[0];
-  auto out     = instr->inputs[1];
-  auto dx      = instr->outputs[0];
-  auto builder = context.builder_;
+  auto dout     = instr->inputs[0];
+  auto out      = instr->inputs[1];
+  auto dx       = instr->outputs[0];
+  auto* builder = context.builder();
 
   auto zero_var   = builder->ConstScalar<float>(0.f, common::UniqName("zero"));
   auto bcast_zero = builder->BroadcastTo(zero_var, out->shape, {0});
@@ -48,7 +48,7 @@ void relu_grad(const Instruction& instr, const DecomposerContext& context) {
   auto res        = builder->Select(condition, dout, bcast_zero);
 
   // map the the output of decomposed operator to the original.
-  context.MapVarToOrigin(res, dx);
+  context.MapOutToOrigin(res, dx);
 }
 
 }  // namespace decomposer
