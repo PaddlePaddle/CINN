@@ -1901,6 +1901,15 @@ std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<fram
   return {input_layouts, input_layouts};
 }
 
+std::shared_ptr<OpStrategy> StrategyForGradOp(const framework::NodeAttr &attrs,
+                                              const std::vector<ir::Tensor> &inputs,
+                                              const std::vector<Type> &out_type,
+                                              const std::vector<std::vector<int>> &output_shapes,
+                                              const Target &target) {
+  LOG(FATAL)
+      << "Gradient operator will be decomposed into several primitive operators. Please Use Decomposer Program Pass.";
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -1920,12 +1929,13 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_support_level(4);
 
   CINN_REGISTER_OP(relu_grad)
-      .describe("Output 0 for each input element < 0. Output itself for each input element >= 0.")
+      .describe("The gradient of relu.")
       .set_num_inputs(2)
       .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGradOp)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
-      .set_support_level(4);
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise);
 
   CINN_REGISTER_OP(relu6)
       .describe("Output 0 for each input element < 0. Output itself for each input element >= 0 and <=6.")
