@@ -161,7 +161,7 @@ struct Instruction : public common::Shared<_Instruction_> {
    * @return The attribute value.
    */
   template <typename T>
-  T GetAttrs(const std::string& key) {
+  T GetAttrs(const std::string& key) const {
     auto it = get()->attrs.find(key);
     CHECK(it != get()->attrs.end()) << "No attribute called [" << key << "]";
     return absl::get<T>(it->second);

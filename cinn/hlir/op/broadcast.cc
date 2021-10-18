@@ -239,6 +239,34 @@ std::vector<std::vector<std::string>> InferLayoutForBroadcastTo(const std::vecto
   return {out_layouts, input_layouts};
 }
 
+std::vector<Type> InferDtypeForBroadcastGrad(const std::vector<Type> &inputs_type,
+                                             const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_type.size(), 3UL);
+  // inputs_type = {dout.type, x.type, y.type}
+  // out_type = {dx.type, dy.type}
+  std::vector<Type> out_type{inputs_type[1], inputs_type[2]};
+  return out_type;
+}
+
+std::vector<shape_t> InferShapeForBroadcastGrad(const std::vector<shape_t> &inputs_shape,
+                                                const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 3UL);
+  // inputs_shape = {dout.shape, x.shape, y.shape}
+  // out_shape = {dx.shape, dy.shape}
+  std::vector<shape_t> out_shape{inputs_shape[1], inputs_shape[2]};
+
+  return out_shape;
+}
+
+std::shared_ptr<OpStrategy> StrategyForBroadcastGrad(const framework::NodeAttr &attrs,
+                                                     const std::vector<ir::Tensor> &inputs,
+                                                     const std::vector<Type> &out_type,
+                                                     const std::vector<std::vector<int>> &output_shapes,
+                                                     const Target &target) {
+  LOG(FATAL)
+      << "Gradient operator will be decomposed into several primitive operators. Please Use Decomposer Program Pass.";
+}
+
 StrategyForBinary(elementwise_add, Add);
 StrategyForBinary(elementwise_mul, Multiply);
 
@@ -338,6 +366,18 @@ CINN_REGISTER_HELPER(broadcast_ops) {
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
+
+  return true;
+}
+
+CINN_REGISTER_HELPER(broadcast_grad_ops) {
+  CINN_REGISTER_OP(elementwise_add_grad)
+      .describe("The gradient of elementwise_add operator.")
+      .set_num_inputs(3)
+      .set_num_outputs(2)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForBroadcastGrad)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBroadcastGrad))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBroadcastGrad));
 
   return true;
 }

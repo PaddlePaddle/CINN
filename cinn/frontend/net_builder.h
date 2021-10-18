@@ -49,6 +49,14 @@ class NetBuilder : public BaseBuilder {
   Variable elementwise_add(const Variable& a, const Variable& b, int axis = -1);
 
   /**
+   * The gradient of elementwise_add.
+   */
+  const std::vector<Variable>& elementwise_add_grad(const Variable& dout,
+                                                    const Variable& x,
+                                                    const Variable& y,
+                                                    int axis = -1);
+
+  /**
    * Multiply two tensors element-wise.
    */
   Variable elementwise_mul(const Variable& a, const Variable& b, int axis = -1);
