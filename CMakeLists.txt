@@ -120,7 +120,6 @@ else()
 endif()
 add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
 add_dependencies(cinncore GEN_LLVM_RUNTIME_IR_HEADER
-        # MLIR td file generations
         ${cinnrt_mlir_incs}
         ${core_deps}
         )
