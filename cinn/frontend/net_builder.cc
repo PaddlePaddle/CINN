@@ -97,9 +97,9 @@ Variable NetBuilder::conv2d(const Variable& a,
                             const std::string& padding_algorithm) {
   Instruction instr("conv2d");
   instr.SetInputs({a, b});
-  instr.SetAttr("strides", strides);
-  instr.SetAttr("paddings", paddings);
-  instr.SetAttr("dilations", dilations);
+  instr.SetAttr("stride", strides);
+  instr.SetAttr("padding", paddings);
+  instr.SetAttr("dilation", dilations);
   instr.SetAttr("groups", groups);
   instr.SetAttr("data_format", data_format);
   instr.SetAttr("padding_algorithm", padding_algorithm);

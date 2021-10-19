@@ -24,6 +24,62 @@
 #include "cinn/frontend/base_builder.h"
 #include "cinn/frontend/syntax.h"
 
+// clang-format off
+#define UNARY_OP_FOREACH(macro__)         \
+    macro__(Exp)                          \
+    macro__(Erf)                          \
+    macro__(Sqrt)                         \
+    macro__(Rsqrt)                        \
+    macro__(Log)                          \
+    macro__(Log2)                         \
+    macro__(Log10)                        \
+    macro__(Floor)                        \
+    macro__(Ceil)                         \
+    macro__(Round)                        \
+    macro__(Trunc)                        \
+    macro__(Sin)                          \
+    macro__(Cos)                          \
+    macro__(Tan)                          \
+    macro__(Sinh)                         \
+    macro__(Cosh)                         \
+    macro__(Tanh)                         \
+    macro__(Asin)                         \
+    macro__(Acos)                         \
+    macro__(Atan)                         \
+    macro__(Asinh)                        \
+    macro__(Acosh)                        \
+    macro__(Atanh)                        \
+    macro__(IsNan)                        \
+    macro__(IsFinite)                     \
+    macro__(IsInf)                        \
+    macro__(LogicalNot)                   \
+    macro__(BitwiseNot)                   \
+    macro__(Negative)                     \
+    macro__(Sign)                         \
+    macro__(Abs)                          \
+    macro__(Identity)
+
+#define BINARY_OP_FOREACH(macro__)        \
+    macro__(Dot)                          \
+    macro__(Add)                          \
+    macro__(Sub)                          \
+    macro__(Mul)                          \
+    macro__(Div)                          \
+    macro__(FloorDiv)                     \
+    macro__(Mod)                          \
+    macro__(FloorMod)                     \
+    macro__(Max)                          \
+    macro__(Min)                          \
+    macro__(Power)                        \
+    macro__(LogicalAnd)                   \
+    macro__(LogicalOr)                    \
+    macro__(LogicalXor)                   \
+    macro__(BitwiseAnd)                   \
+    macro__(BitwiseOr)                    \
+    macro__(BitwiseXor)                   \
+    macro__(LeftShift)                    \
+    macro__(RightShift)
+// clang-format on
 namespace cinn {
 namespace frontend {
 
@@ -71,60 +127,11 @@ class CinnBuilder : public BaseBuilder {
   }
 
 #define UNARY_OP_DECL(func_name__) Variable func_name__(const Variable& operand);
-  UNARY_OP_DECL(Exp)
-  UNARY_OP_DECL(Erf)
-  UNARY_OP_DECL(Sqrt)
-  UNARY_OP_DECL(Rsqrt)
-  UNARY_OP_DECL(Log)
-  UNARY_OP_DECL(Log2)
-  UNARY_OP_DECL(Log10)
-  UNARY_OP_DECL(Floor)
-  UNARY_OP_DECL(Ceil)
-  UNARY_OP_DECL(Round)
-  UNARY_OP_DECL(Trunc)
-  UNARY_OP_DECL(Sin)
-  UNARY_OP_DECL(Cos)
-  UNARY_OP_DECL(Tan)
-  UNARY_OP_DECL(Sinh)
-  UNARY_OP_DECL(Cosh)
-  UNARY_OP_DECL(Tanh)
-  UNARY_OP_DECL(Asin)
-  UNARY_OP_DECL(Acos)
-  UNARY_OP_DECL(Atan)
-  UNARY_OP_DECL(Asinh)
-  UNARY_OP_DECL(Acosh)
-  UNARY_OP_DECL(Atanh)
-  UNARY_OP_DECL(IsNan)
-  UNARY_OP_DECL(IsFinite)
-  UNARY_OP_DECL(IsInf)
-  UNARY_OP_DECL(LogicalNot)
-  UNARY_OP_DECL(BitwiseNot)
-  UNARY_OP_DECL(Negative)
-  UNARY_OP_DECL(Sign)
-  UNARY_OP_DECL(Abs)
-  UNARY_OP_DECL(Identity)
+  UNARY_OP_FOREACH(UNARY_OP_DECL)
 #undef UNARY_OP_DECL
 
 #define BINARY_OP_DECL(func_name__) Variable func_name__(const Variable& lhs, const Variable& rhs);
-  BINARY_OP_DECL(Dot)
-  BINARY_OP_DECL(Add)
-  BINARY_OP_DECL(Sub)
-  BINARY_OP_DECL(Mul)
-  BINARY_OP_DECL(Div)
-  BINARY_OP_DECL(FloorDiv)
-  BINARY_OP_DECL(Mod)
-  BINARY_OP_DECL(FloorMod)
-  BINARY_OP_DECL(Max)
-  BINARY_OP_DECL(Min)
-  BINARY_OP_DECL(Power)
-  BINARY_OP_DECL(LogicalAnd)
-  BINARY_OP_DECL(LogicalOr)
-  BINARY_OP_DECL(LogicalXor)
-  BINARY_OP_DECL(BitwiseAnd)
-  BINARY_OP_DECL(BitwiseOr)
-  BINARY_OP_DECL(BitwiseXor)
-  BINARY_OP_DECL(LeftShift)
-  BINARY_OP_DECL(RightShift)
+  BINARY_OP_FOREACH(BINARY_OP_DECL)
 #undef BINARY_OP_DECL
 
   Variable Concat(const Variable& lhs, const Variable& rhs, int axis = 0);
