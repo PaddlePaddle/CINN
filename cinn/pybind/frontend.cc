@@ -20,6 +20,7 @@
 #include "cinn/common/common.h"
 #include "cinn/frontend/cinn_builder.h"
 #include "cinn/frontend/interpreter.h"
+#include "cinn/frontend/net_builder.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -293,6 +294,92 @@ void BindFrontend(pybind11::module *m) {
       .def("build", &BaseBuilder::Build)
       .def("name", &BaseBuilder::name)
       .def("append_instruction", &BaseBuilder::AppendInstruction);
+
+  py::class_<NetBuilder, BaseBuilder>(*m, "NetBuilder")
+      .def(py::init<const std::string &>(), py::arg("name") = "")
+      .def("add", &NetBuilder::add, py::arg("a"), py::arg("b"))
+      .def("mul",
+           &NetBuilder::mul,
+           py::arg("a"),
+           py::arg("b"),
+           py::arg("x_num_col_dims") = 1,
+           py::arg("y_num_col_dims") = 1)
+      .def("mulbias",
+           &NetBuilder::mulbias,
+           py::arg("a"),
+           py::arg("b"),
+           py::arg("c"),
+           py::arg("x_num_col_dims") = 1,
+           py::arg("y_num_col_dims") = 1)
+      .def("elementwise_add", &NetBuilder::elementwise_add, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
+      .def("elementwise_mul", &NetBuilder::elementwise_mul, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
+      .def("relu", &NetBuilder::relu, py::arg("a"))
+      .def("relu_grad", &NetBuilder::relu_grad, py::arg("dout"), py::arg("out"))
+      .def("relu6", &NetBuilder::relu6, py::arg("a"), py::arg("threshold") = 6.0f)
+      .def("conv2d",
+           &NetBuilder::conv2d,
+           py::arg("a"),
+           py::arg("b"),
+           py::arg("strides")           = std::vector<int>{1, 1},
+           py::arg("paddings")          = std::vector<int>{0, 0},
+           py::arg("dilations")         = std::vector<int>{1, 1},
+           py::arg("groups")            = 1,
+           py::arg("data_format")       = "NCHW",
+           py::arg("padding_algorithm") = "EXPLICIT")
+      .def("depthwise_conv2d",
+           &NetBuilder::depthwise_conv2d,
+           py::arg("a"),
+           py::arg("b"),
+           py::arg("strides")           = std::vector<int>{1, 1},
+           py::arg("paddings")          = std::vector<int>{0, 0},
+           py::arg("dilations")         = std::vector<int>{1, 1},
+           py::arg("groups")            = 1,
+           py::arg("data_format")       = "NCHW",
+           py::arg("padding_algorithm") = "EXPLICIT")
+      .def("pool2d",
+           &NetBuilder::pool2d,
+           py::arg("a"),
+           py::arg("polling_type"),
+           py::arg("ksize"),
+           py::arg("strides")           = std::vector<int>{1, 1},
+           py::arg("paddings")          = std::vector<int>{0, 0},
+           py::arg("ceil_mode")         = false,
+           py::arg("exclusive")         = true,
+           py::arg("global_pooling")    = false,
+           py::arg("data_format")       = "HCHW",
+           py::arg("adaptive")          = false,
+           py::arg("padding_algorithm") = "EXPLICIT")
+      .def("batchnorm",
+           &NetBuilder::batchnorm,
+           py::arg("a"),
+           py::arg("scale"),
+           py::arg("bias"),
+           py::arg("mean"),
+           py::arg("variance"),
+           py::arg("epsilon")     = 1e-5f,
+           py::arg("momentum")    = 0.9f,
+           py::arg("data_layout") = "NCHW")
+      .def("scale",
+           &NetBuilder::scale,
+           py::arg("a"),
+           py::arg("scale")            = 1.0f,
+           py::arg("bias")             = 0.0f,
+           py::arg("bias_after_scale") = true)
+      .def("softmax", &NetBuilder::softmax, py::arg("a"), py::arg("axis") = -1, py::arg("data_format") = "AnyLayout")
+      .def("sigmoid", &NetBuilder::sigmoid, py::arg("a"))
+      .def("slice",
+           &NetBuilder::slice,
+           py::arg("a"),
+           py::arg("axes"),
+           py::arg("starts")        = std::vector<int>{},
+           py::arg("ends")          = std::vector<int>{},
+           py::arg("infer_flags")   = std::vector<int>(),
+           py::arg("decrease_axis") = std::vector<int>())
+      .def("dropout_infer",
+           &NetBuilder::dropout_infer,
+           py::arg("a"),
+           py::arg("dropout_prob")           = 0.5f,
+           py::arg("dropout_implementation") = "downgrade_in_infer");
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
