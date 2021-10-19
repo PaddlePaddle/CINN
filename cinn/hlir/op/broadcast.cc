@@ -242,8 +242,6 @@ std::vector<std::vector<std::string>> InferLayoutForBroadcastTo(const std::vecto
 std::vector<Type> InferDtypeForBroadcastGrad(const std::vector<Type> &inputs_type,
                                              const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_type.size(), 3UL);
-  // inputs_type = {dout.type, x.type, y.type}
-  // out_type = {dx.type, dy.type}
   std::vector<Type> out_type{inputs_type[1], inputs_type[2]};
   return out_type;
 }
@@ -251,8 +249,6 @@ std::vector<Type> InferDtypeForBroadcastGrad(const std::vector<Type> &inputs_typ
 std::vector<shape_t> InferShapeForBroadcastGrad(const std::vector<shape_t> &inputs_shape,
                                                 const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 3UL);
-  // inputs_shape = {dout.shape, x.shape, y.shape}
-  // out_shape = {dx.shape, dy.shape}
   std::vector<shape_t> out_shape{inputs_shape[1], inputs_shape[2]};
 
   return out_shape;

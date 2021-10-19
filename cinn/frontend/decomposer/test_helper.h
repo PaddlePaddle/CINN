@@ -120,6 +120,18 @@ void CheckOutputs(const std::vector<std::vector<T>>& input_vecs,
   }
 }
 
+void RunDecomposer(Program* prog, const Target& target) {
+  LOG(INFO) << "===================== Before Decomposition =====================";
+  for (int i = 0; i < prog->size(); i++) {
+    LOG(INFO) << "instruction: " << (*prog)[i];
+  }
+  ProgramPass::Apply(prog, target, {"Decomposer"});
+  LOG(INFO) << "===================== After Decomposition =====================";
+  for (int i = 0; i < prog->size(); i++) {
+    LOG(INFO) << "instruction: " << (*prog)[i];
+  }
+}
+
 template <typename T>
 void RunAndCheck(NetBuilder& builder,
                  const std::vector<std::string>& input_names,
@@ -127,15 +139,7 @@ void RunAndCheck(NetBuilder& builder,
                  CPUKernelFunc cpu_kernel_func) {
   auto prog     = builder.Build();
   Target target = GetTarget();
-  LOG(INFO) << "===================== Before Decomposition =====================";
-  for (int i = 0; i < prog.size(); i++) {
-    LOG(INFO) << "instruction: " << prog[i];
-  }
-  ProgramPass::Apply(&prog, target, {"Decomposer"});
-  LOG(INFO) << "===================== After Decomposition =====================";
-  for (int i = 0; i < prog.size(); i++) {
-    LOG(INFO) << "instruction: " << prog[i];
-  }
+  RunDecomposer(&prog, target);
   auto graph = std::make_shared<hlir::framework::Graph>(prog, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto scope = BuildScope(target, graph);

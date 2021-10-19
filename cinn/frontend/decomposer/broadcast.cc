@@ -19,6 +19,36 @@ namespace cinn {
 namespace frontend {
 namespace decomposer {
 
+void GetReduceDimsForX(const std::vector<int>& dx_shape,
+                       const std::vector<int>& dout_shape,
+                       std::vector<int>* reduce_dims) {
+  // e.g., dx_shape = [4, 1, 3], dout_shape = [4, 2, 3], reduce_dims=[1]
+  for (size_t i = 0; i < dout_shape.size(); ++i) {
+    if (dx_shape[i] == 1 && dout_shape[i] != 1) {
+      reduce_dims->push_back(i);
+    }
+  }
+  VLOG(3) << "The reduce_dims for X: " << utils::Join(*reduce_dims, ",");
+}
+
+void GetReduceDimsForY(const std::vector<int>& dy_shape,
+                       const std::vector<int>& dout_shape,
+                       int axis,
+                       std::vector<int>* reduce_dims) {
+  // e.g., dy_shape = [3, 1, 4], dx_shape = [2, 3, 4, 4, 5], axis = 1
+  // reduce_dims=[0, 2, 4]
+  for (size_t i = 0; i < dout_shape.size(); ++i) {
+    if (i < axis || i >= axis + dy_shape.size()) {
+      reduce_dims->push_back(i);
+    } else {
+      if (dy_shape[i - axis] == 1 && dout_shape[i] != 1) {
+        reduce_dims->push_back(i);
+      }
+    }
+  }
+  VLOG(3) << "The reduce_dims for Y: " << utils::Join(*reduce_dims, ",");
+}
+
 void elementwise_add(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->inputs.size(), 2UL) << " 2 input tensors for " << instr->op_type;
   CHECK_EQ(instr->outputs.size(), 1UL) << "1 output tensor for " << instr->op_type;
@@ -30,13 +60,18 @@ void elementwise_add(const Instruction& instr, const DecomposerContext& context)
   auto* builder = context.builder();
 
   Variable out;
-  if (x->shape == y->shape) {
+  if (x->shape == output->shape) {
     out = builder->Add(x, y);
   } else {
-    std::vector<int> bcast_axes(y->shape.size());
-    std::iota(bcast_axes.begin(), bcast_axes.end(), axis);
-    auto bcast_y = builder->BroadcastTo(y, x->shape, bcast_axes);
-    out          = builder->Add(x, bcast_y);
+    // e.g., x.shape = [4, 1, 3], out.shape = [4, 2, 3], bcast_axes_x = [0, 1, 2]
+    std::vector<int> bcast_axes_x(x->shape.size());
+    std::iota(bcast_axes_x.begin(), bcast_axes_x.end(), 0);
+    auto bcast_x = builder->BroadcastTo(x, output->shape, bcast_axes_x);
+    // e.g., aixs = 1, y.shape = [2, 3], bcast_axes_y = [1, 2]
+    std::vector<int> bcast_axes_y(y->shape.size());
+    std::iota(bcast_axes_y.begin(), bcast_axes_y.end(), axis);
+    auto bcast_y = builder->BroadcastTo(y, output->shape, bcast_axes_y);
+    out          = builder->Add(bcast_x, bcast_y);
   }
 
   // map the the output of decomposed operator to the original.
@@ -50,22 +85,26 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
   auto dx       = instr->outputs[0];
   auto dy       = instr->outputs[1];
   int axis      = instr.GetAttrs<int>("axis");
-  axis          = axis > 0 ? axis : axis + dx->shape.size();
+  axis          = axis > 0 ? axis : dx->shape.size() - dy->shape.size();
   auto* builder = context.builder();
 
-  auto dx_t = builder->Identity(dout);
+  Variable dx_t;
+  if (dx->shape == dout->shape) {
+    dx_t = builder->Identity(dout);
+  } else {
+    std::vector<int> x_reduce_dims;
+    GetReduceDimsForX(dx->shape, dout->shape, &x_reduce_dims);
+    dx_t = builder->Reduce(dout, ReduceKind::kSum, x_reduce_dims, true);
+  }
+
   Variable dy_t;
-  if (dx->shape == dy->shape) {
+  if (dy->shape == dout->shape) {
     dy_t = builder->Identity(dout);
   } else {
-    // e.g., dx.shape = [2, 3, 4, 5], dy.shape = [3, 4], axis = 1, reduce_dims=[0, 3]
-    std::vector<int> reduce_dims;
-    for (size_t i = 0; i < dx->shape.size(); ++i) {
-      if (i < axis || i >= axis + dy->shape.size()) {
-        reduce_dims.push_back(i);
-      }
-    }
-    dy_t = builder->Reduce(dout, ReduceKind::kSum, reduce_dims);
+    std::vector<int> y_reduce_dims;
+    GetReduceDimsForY(dy->shape, dout->shape, axis, &y_reduce_dims);
+    auto dy_res = builder->Reduce(dout, ReduceKind::kSum, y_reduce_dims, true);
+    dy_t        = builder->Reshape(dy_res, dy->shape);
   }
 
   // map the the output of decomposed operator to the original.
