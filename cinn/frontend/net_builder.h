@@ -153,9 +153,9 @@ class NetBuilder : public BaseBuilder {
   std::vector<Variable> conv2d_grad(const Variable& x,
                                     const Variable& w,
                                     const Variable& dy,
-                                    const std::vector<int>& stride      = {1, 1},
-                                    const std::vector<int>& padding     = {0, 0},
-                                    const std::vector<int>& dilation    = {1, 1},
+                                    const std::vector<int>& stride       = {1, 1},
+                                    const std::vector<int>& padding      = {0, 0},
+                                    const std::vector<int>& dilation     = {1, 1},
                                     const int groups                     = 1,
                                     const std::string& layout            = "NCHW",
                                     const std::string& padding_algorithm = "EXPLICIT");

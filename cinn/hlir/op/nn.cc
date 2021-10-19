@@ -225,7 +225,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                        UniqName("Conv2d_nhwc_out"));
         }
       } else {
-        if(conv_type == "forward") {
+        if (conv_type == "forward") {
           out = pe::Conv2d_NCHW(A.as_tensor_ref(),
                                 B.as_tensor_ref(),
                                 padding[0],
@@ -275,10 +275,10 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     poly::StageMap stages = arg_pack.back();
     if (target.arch == Target::Arch::NVGPU) {
       // using a fake schedule
-      if(conv_type != "forward") {
-        Expr Out             = arg_pack[0];
+      if (conv_type != "forward") {
+        Expr Out = arg_pack[0];
         std::vector<int> shape;
-        for(auto& expr : inputs[0]->shape) {
+        for (auto &expr : inputs[0]->shape) {
           shape.push_back(expr.as_int32());
         }
         pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], shape, target);
@@ -1964,10 +1964,11 @@ std::shared_ptr<OpStrategy> StrategyForGradOp(const framework::NodeAttr &attrs,
                                               const Target &target) {
   LOG(FATAL)
       << "Gradient operator will be decomposed into several primitive operators. Please Use Decomposer Program Pass.";
+}
 
 }  // namespace op
+}  // namespace op
 }  // namespace hlir
-}  // namespace cinn
 
 CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(relu)

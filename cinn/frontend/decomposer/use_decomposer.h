@@ -18,4 +18,3 @@
 
 CINN_USE_REGISTER(nn)
 CINN_USE_REGISTER(activation)
-CINN_USE_REGISTER(activation_grad)

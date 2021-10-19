@@ -76,8 +76,8 @@ struct StackVec {
   inline value_type& operator[](size_t i) { return data_[i]; }
   inline value_type operator[](size_t i) const { return data_[i]; }
 
-  // binary operator between two vectors
-  // @{
+// binary operator between two vectors
+// @{
 #define __(op__)                                                           \
   friend self_type operator op__(const self_type& a, const self_type& b) { \
     self_type res;                                                         \
@@ -91,11 +91,11 @@ struct StackVec {
   __(*)
   __(/)
   __(%)
-  // @}
+// @}
 #undef __
 
-  // binary operator between a vector and a scalar
-  // @{
+// binary operator between a vector and a scalar
+// @{
 #define __(op__)                                                            \
   friend self_type operator op__(const self_type& a, const value_type& b) { \
     self_type res;                                                          \

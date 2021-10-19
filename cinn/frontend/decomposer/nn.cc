@@ -71,7 +71,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto save_mean = builder->Div(sum, v_element_count);
   auto mean      = builder->BroadcastTo(save_mean, x->shape, {c_dim});
   // diff
-  auto diff = builder->Sub(x, mean);
+  auto diff  = builder->Sub(x, mean);
   auto _diff = builder->Identity(diff);
   // diff2
   auto diff2 = builder->Mul(diff, _diff);
@@ -135,13 +135,13 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   }
 
   /*****************batch norm train********************
-  * mean = reduce_mean(x)
-  * diff = x - mean
-  * diff2 = diff * diff
-  * var = reduce_mean(diff2)
-  * std_var = sqrtf(var)
-  * y = diff/std_var * scale + bias
-  */
+   * mean = reduce_mean(x)
+   * diff = x - mean
+   * diff2 = diff * diff
+   * var = reduce_mean(diff2)
+   * std_var = sqrtf(var)
+   * y = diff/std_var * scale + bias
+   */
 
   // grad bias = reduce(dy), shape = [c]
   auto grad_bias = builder->Reduce(dy, ReduceKind::kSum, r_dim);
@@ -158,7 +158,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
 
   // grad [diff=(x - mean)] = dstd/var, shape = [n,c,h,w]
   auto grad_diff0 = builder->Div(grad_std, var);
-  auto _var = builder->Identity(var); 
+  auto _var       = builder->Identity(var);
   // grad var = Negative((grad_std * diff) / (save_var*save_var)), shape = [c]
   auto grad_var = builder->Negative(
       builder->Reduce(builder->Div(builder->Mul(grad_std, diff), builder->Mul(var, _var)), ReduceKind::kSum, r_dim));

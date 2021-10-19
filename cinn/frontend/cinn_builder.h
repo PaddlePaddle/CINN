@@ -1,11 +1,11 @@
 // Copyright (c) 2021 CINN Authors. All Rights Reserved.
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -131,14 +131,14 @@ class CinnBuilder : public BaseBuilder {
 
   Variable Conv(const Variable& lhs,
                 const Variable& rhs,
-                const std::vector<int>& stride      = {1, 1},
-                const std::vector<int>& padding     = {0, 0},
-                const std::vector<int>& dilation    = {1, 1},
+                const std::vector<int>& stride       = {1, 1},
+                const std::vector<int>& padding      = {0, 0},
+                const std::vector<int>& dilation     = {1, 1},
                 int groups                           = 1,
                 const std::string& conv_type         = "forward",
                 const std::string& data_format       = "NCHW",
                 const std::string& padding_algorithm = "EXPLICIT",
-                const std::vector<int>& filter = {});
+                const std::vector<int>& filter       = {});
 
   Variable Compare(const Variable& lhs, const Variable& rhs, ComparisonKind kind);
 
@@ -171,8 +171,6 @@ class CinnBuilder : public BaseBuilder {
   Variable Select(const Variable& condition, const Variable& true_value, const Variable& false_value);
 
   Variable Reverse(const Variable& operand, const std::vector<int>& axis);
-
-  Variable Transpose(const Variable& operand, const std::vector<int>& axis);
 
  private:
   Variable UnaryOp(const std::string& op_type, const Variable& operand);

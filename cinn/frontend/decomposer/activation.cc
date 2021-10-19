@@ -61,4 +61,3 @@ CINN_REGISTER_HELPER(activation) {
 
   return true;
 }
-

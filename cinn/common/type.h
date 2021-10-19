@@ -137,11 +137,11 @@ struct Type {
   std::unique_ptr<Storage> storage_;
 };  // namespace common
 
-inline Type Void() { return Type(Type::type_t ::Void, 1, 0); }
-inline Type Int(int bits, int lanes = 1) { return Type(Type::type_t ::Int, bits, lanes); }
-inline Type UInt(int bits, int lanes = 1) { return Type(Type::type_t ::UInt, bits, lanes); }
-inline Type Float(int bits, int lanes = 1) { return Type(Type::type_t ::Float, bits, lanes); }
-inline Type Bool(int lanes = 1) { return Type(Type::type_t ::UInt, 1, lanes); }
+inline Type Void() { return Type(Type::type_t::Void, 1, 0); }
+inline Type Int(int bits, int lanes = 1) { return Type(Type::type_t::Int, bits, lanes); }
+inline Type UInt(int bits, int lanes = 1) { return Type(Type::type_t::UInt, bits, lanes); }
+inline Type Float(int bits, int lanes = 1) { return Type(Type::type_t::Float, bits, lanes); }
+inline Type Bool(int lanes = 1) { return Type(Type::type_t::UInt, 1, lanes); }
 inline Type String() { return Type(Type::type_t::String, 1, 1); }
 
 //! Builtin native types as global singletons.

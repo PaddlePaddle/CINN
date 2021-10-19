@@ -111,7 +111,7 @@ Variable CinnBuilder::Conv(const Variable& lhs,
   instr.SetAttr("conv_type", conv_type);
   instr.SetAttr("data_format", data_format);
   instr.SetAttr("padding_algorithm", padding_algorithm);
-  //for backward filter
+  // for backward filter
   instr.SetAttr("filter", filter);
 
   InferShape(instr);
@@ -217,13 +217,6 @@ Variable CinnBuilder::Reverse(const Variable& operand, const std::vector<int>& a
   return instr.GetOutput(0);
 }
 
-Variable CinnBuilder::Transpose(const Variable& operand, const std::vector<int>& axis) {
-  Instruction instr("transpose", {operand});
-  instr.SetAttr("axis", axis);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
 
 Variable CinnBuilder::UnaryOp(const std::string& op_type, const Variable& operand) {
   Instruction instr(op_type, {operand});

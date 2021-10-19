@@ -392,7 +392,7 @@ struct cinn_pod_value_t {
   void set_value(union cinn_value_t x) { value_ = x; }
 
  protected:
-  // @}
+// @}
 #endif  // __cplusplus
   int type_code_;
   union cinn_value_t value_;

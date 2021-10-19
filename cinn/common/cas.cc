@@ -2082,34 +2082,34 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
 
 Expr CasSimplifyMutator::SimplifyCond(Expr u) {
   switch (u->node_type()) {
-      // -------------------------- NOT -----------------------------
+    // -------------------------- NOT -----------------------------
     case ir::IrNodeTy::Not: {
       auto* node = u.As<ir::Not>();
       Expr v     = operator()(node->v());
       switch (v.node_type()) {
-          // Not 1 = (1 == 0)
+        // Not 1 = (1 == 0)
         case ir::IrNodeTy::IntImm:
           return Expr(v.As<IntImm>()->value == 0);
-          // Not Not v = v
+        // Not Not v = v
         case ir::IrNodeTy::Not:
           return v;
-          // Not <= is >
+        // Not <= is >
         case ir::IrNodeTy::LE:
           return ir::GT::Make(v->operand(0), v->operand(1));
-          // Not < is >=
+        // Not < is >=
         case ir::IrNodeTy::LT:
           return ir::GE::Make(v->operand(0), v->operand(1));
-          // Not >= is <
+        // Not >= is <
         case ir::IrNodeTy::GE:
           return ir::LT::Make(v->operand(0), v->operand(1));
-          // Not > is <=
+        // Not > is <=
         case ir::IrNodeTy::GT:
           return ir::LE::Make(v->operand(0), v->operand(1));
         default:
           return ir::Not::Make(v);
       }
     } break;
-      // -------------------------- AND OR -----------------------------
+    // -------------------------- AND OR -----------------------------
     case ir::IrNodeTy::And:
     case ir::IrNodeTy::Or: {
       Expr a = operator()(u->operand(0));

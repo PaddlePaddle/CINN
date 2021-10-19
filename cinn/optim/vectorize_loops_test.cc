@@ -55,9 +55,9 @@ TEST(Vectorize, replace_var) {
   Expr func = optim::Optimize(funcs, common::DefaultHostTarget());
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   ir::Module::Builder builder("module1", target);
   builder.AddFunction(ir::LoweredFunc(func.As<ir::_LoweredFunc_>()));
@@ -99,9 +99,9 @@ TEST(Vectorize, TestMarkVectorize) {
   Expr N(500);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});

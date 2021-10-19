@@ -198,7 +198,7 @@ Type &Type::set_cpp_const(bool is_const) {
   return *this;
 }
 Type &Type::set_customized_type(const std::string &t) {
-  GetStorage().type_            = type_t ::Customized;
+  GetStorage().type_            = type_t::Customized;
   GetStorage().customized_type_ = t;
 
   return *this;

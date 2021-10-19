@@ -86,11 +86,11 @@ class Decomposer {
       ->__REGISTER__(std::string(#name) + "_" + target.arch_str()) \
       .SetBody(kernel)
 
-#define CINN_DECOMPOSER_REGISTER_ALL(name, kernel)                                                  \
-  for (auto& target : {::cinn::common::DefaultHostTarget(),::cinn::common::DefaultNVGPUTarget() }) {\
-    ::cinn::frontend::InstrDecomposerRegistry::Global()                                             \
-        ->__REGISTER__(std::string(#name) + "_" + target.arch_str())                                \
-        .SetBody(kernel);                                                                           \
+#define CINN_DECOMPOSER_REGISTER_ALL(name, kernel)                                                   \
+  for (auto& target : {::cinn::common::DefaultHostTarget(), ::cinn::common::DefaultNVGPUTarget()}) { \
+    ::cinn::frontend::InstrDecomposerRegistry::Global()                                              \
+        ->__REGISTER__(std::string(#name) + "_" + target.arch_str())                                 \
+        .SetBody(kernel);                                                                            \
   }
 
 /**

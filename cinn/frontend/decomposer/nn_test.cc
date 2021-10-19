@@ -17,6 +17,7 @@
 #include <cuda_runtime.h>
 #endif
 #include <gtest/gtest.h>
+
 #include <memory>
 #include <random>
 #include <vector>
@@ -164,9 +165,9 @@ TEST(nn, CONV_GRAD) {
   NetBuilder net_builder("net_builder");
   {
     // create input
-    auto x = net_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
+    auto x      = net_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
     auto weight = net_builder.CreateInput(Float(32), {oc, ic, fh, fw}, "weight");
-    auto dy = net_builder.CreateInput(Float(32), {n, oc, h, w}, "y");
+    auto dy     = net_builder.CreateInput(Float(32), {n, oc, h, w}, "y");
     // add batch norm train
     auto outputs = net_builder.conv2d_grad(x, weight, dy, strides, paddings, dilations);
   }
@@ -177,9 +178,9 @@ TEST(nn, CONV_GRAD) {
   CinnBuilder cinn_builder("cinn_builder");
   {
     // create input
-    auto x = cinn_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
+    auto x      = cinn_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
     auto weight = cinn_builder.CreateInput(Float(32), {oc, ic, fh, fw}, "weight");
-    auto dy = cinn_builder.CreateInput(Float(32), {n, oc, h, w}, "dy");
+    auto dy     = cinn_builder.CreateInput(Float(32), {n, oc, h, w}, "dy");
   }
 
   absl::flat_hash_map<std::string, Variable> variable_map;
