@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Copyright (c) 2021 CINN Authors. All Rights Reserved.
 # 
@@ -15,10 +15,11 @@
 # limitations under the License.
 
 set -ex
-
 workspace=$PWD
 build_dir_name=${cinn_build:-build}
 build_dir=$workspace/${build_dir_name}
+
+#export LLVM11_DIR=${workspace}/THIRDS/usr
 
 JOBS=8
 
@@ -34,38 +35,53 @@ function cudnn_off {
     cudnn_config=OFF
 }
 
-function check_style {
-    export PATH=/usr/bin:$PATH
-    clang-format --version
-
-    if ! pre-commit run -a ; then
-        git diff
-        exit 1
-    fi
+OLD_HTTP_PROXY=$http_proxy
+OLD_HTTPS_PROXY=$https_proxy
+function proxy_off {
+  unset http_proxy
+  unset https_proxy
+}
+function proxy_on {
+  export http_proxy=$OLD_HTTP_PROXY
+  export https_proxy=$OLD_HTTPS_PROXY
 }
 
-function prepare {
-    mkdir -p $build_dir
-    cd $build_dir
+function prepare_ci {
+  cd $workspace
+  if [[ $(command -v python) == $build_dir/ci-env/bin/python ]]; then
+    return
+  elif [[ -e $build_dir/ci-env/bin/activate ]]; then
+    source $build_dir/ci-env/bin/activate
+    return
+  fi
 
-    python3 -m pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 --trusted-host mirrors.aliyun.com
-    apt install doxygen -y
+  apt update
+  echo "the current user EUID=$EUID: $(whoami)"
+  if ! command -v doxygen &> /dev/null; then
+    apt install -y doxygen
+  fi
 
-    mkdir -p tests
-    mkdir -p cinn/backends
-}
+  if ! command -v python3.8-config &> /dev/null; then
+    apt install -y python3.8-dev
+  fi
 
-function prepare_llvm {
-    cd $workspace
-    clang++ -mavx2 -masm=intel -S -emit-llvm cinn/runtime/cinn_runtime.cc -I$PWD
-    cd -
-
-    export runtime_include_dir=$workspace/cinn/runtime/cuda
-
-    export PATH=${LLVM11_DIR}/bin:$PATH
+  if ! python3.8 -m venv $build_dir/ci-env &> /dev/null; then
+    apt install -y python3.8-venv
+    python3.8 -m venv $build_dir/ci-env
+  fi
+  proxy_off
+  source $build_dir/ci-env/bin/activate
+  pip install -U pip --trusted-host mirrors.aliyun.com --index-url https://mirrors.aliyun.com/pypi/simple/
+  pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
+  pip config set global.trusted-host mirrors.aliyun.com
+  pip install pre-commit
+  pip install clang-format==9.0
+  pip install sphinx==3.3.1 sphinx_gallery==0.8.1 recommonmark==0.6.0 exhale scipy breathe==4.24.0 matplotlib
+  pip install paddlepaddle-gpu==2.1.2.post101 -f https://www.paddlepaddle.org.cn/whl/linux/mkl/avx/stable.html
 }
 
 function make_doc {
+    proxy_off
     cd $workspace/tutorials
     if [[ -f "ResNet18.tar.gz" ]]; then
         echo "model file for tutorials already downloaded."
@@ -90,23 +106,19 @@ function make_doc {
 }
 
 function cmake_ {
-    prepare
+    proxy_off
     mkdir -p $build_dir
     cp $workspace/cmake/config.cmake $build_dir
-    echo "set(ISL_HOME /usr/local)" >> $build_dir/config.cmake
     # To enable Cuda backend, set(WITH_CUDA ON)
     echo "set(WITH_CUDA $cuda_config)" >> $build_dir/config.cmake
     echo "set(WITH_CUDNN $cudnn_config)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
-    cmake .. -DLLVM11_DIR=${LLVM11_DIR} -DLLVM_DIR=${LLVM11_DIR}/lib/cmake/llvm -DMLIR_DIR=${LLVM11_DIR}/lib/cmake/mlir -DPUBLISH_LIBS=ON
-
-    make GEN_LLVM_RUNTIME_IR_HEADER
-    # make the code generated compilable
-    sed -i 's/0git/0/g' $build_dir/cinn/backends/llvm/cinn_runtime_llvm_ir.h
+    cmake .. -DPUBLISH_LIBS=ON -DWITH_TESTING=ON
 }
 
 function _download_and_untar {
+    proxy_off
     local tar_file=$1
     if [[ ! -f $tar_file ]]; then
         wget https://paddle-inference-dist.bj.bcebos.com/CINN/$tar_file
@@ -115,6 +127,7 @@ function _download_and_untar {
 }
 
 function prepare_model {
+    proxy_off
     cd $build_dir/thirds
 
     _download_and_untar ResNet18.tar.gz
@@ -124,6 +137,7 @@ function prepare_model {
     _download_and_untar ResNet50.tar.gz
     _download_and_untar SqueezeNet.tar.gz
 
+    proxy_on
     mkdir -p $build_dir/paddle
     cd $build_dir/paddle
     if [[ ! -f "libexternal_kernels.so.tgz" ]]; then
@@ -138,14 +152,15 @@ function prepare_model {
         wget https://github.com/T8T9/files/raw/main/mkldnn.tgz
     fi
     tar -zxvf mkldnn.tgz
-    export LD_LIBRARY_PATH=$build_dir/paddle/mkldnn:$build_dir/thirds/install/mklml/lib:$LD_LIBRARY_PATH
-    cd -
+    cd $build_dir/thirds
     python3 $workspace/python/tests/fake_model/naive_mul.py
     python3 $workspace/python/tests/fake_model/naive_multi_fc.py
     python3 $workspace/python/tests/fake_model/resnet_model.py
 }
 
 function codestyle_check {
+    proxy_on
+    cd $workspace
     pre-commit run -a
     if ! git diff-index --quiet HEAD --; then
 
@@ -155,10 +170,8 @@ function codestyle_check {
 }
 
 function build {
+    proxy_on
     cd $build_dir
-
-    # build gtest first, it tends to broke the CI
-    make extern_gtest
 
     if [[ $cuda_config == "ON" ]]; then
         make test_codegen_cuda_dev -j $JOBS
@@ -189,16 +202,18 @@ function run_demo {
 
 function run_test {
     cd $build_dir
+    export LD_LIBRARY_PATH=$build_dir/paddle/mkldnn:$build_dir/thirds/install/mklml/lib:$LD_LIBRARY_PATH
     ctest --parallel 10 -V
 }
 
 function CI {
-    codestyle_check
-
     mkdir -p $build_dir
     cd $build_dir
+    export runtime_include_dir=$workspace/cinn/runtime/cuda
 
-    prepare_llvm
+    prepare_ci
+    codestyle_check
+
     cmake_
     build
     run_demo
@@ -222,7 +237,7 @@ function main {
                 shift
                 ;;
             check_style)
-                check_style
+                codestyle_check
                 shift
                 ;;
             cmake)
@@ -248,9 +263,6 @@ function main {
             make_doc)
                 make_doc
                 shift
-                ;;
-            prepare_llvm)
-                prepare_llvm
                 ;;
         esac
     done

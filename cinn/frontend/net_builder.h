@@ -59,6 +59,12 @@ class NetBuilder : public BaseBuilder {
    */
   Variable relu(const Variable& a);
 
+  /**
+   * The gradient of Rectified Linear Unit.
+   * Actually apply: dx = dout * (out > 0)
+   */
+  Variable relu_grad(const Variable& dout, const Variable& out);
+
   Variable relu6(const Variable& a, float threshold = 6.0f);
 
   /**

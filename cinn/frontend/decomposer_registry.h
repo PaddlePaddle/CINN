@@ -32,12 +32,13 @@ class DecomposerContext {
   explicit DecomposerContext(CinnBuilder* builder, absl::flat_hash_map<std::string, Variable>* var_map)
       : builder_(builder), var_map_(var_map) {}
 
-  CinnBuilder* builder_{nullptr};
+  CinnBuilder* builder() const { return builder_; };
 
   // Map the new var to the original var.
-  void MapVarToOrigin(const Variable& new_var, const Variable& ori_var) const { (*var_map_)[new_var->id] = ori_var; }
+  void MapOutToOrigin(const Variable& new_var, const Variable& ori_var) const { (*var_map_)[new_var->id] = ori_var; }
 
  private:
+  CinnBuilder* builder_{nullptr};
   absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
 };
 

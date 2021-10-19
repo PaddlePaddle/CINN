@@ -72,6 +72,13 @@ Variable NetBuilder::relu(const Variable& a) {
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::relu_grad(const Variable& dout, const Variable& out) {
+  Instruction instr("relu_grad", {dout, out});
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::relu6(const Variable& a, float threshold) {
   Instruction instr("relu6", {a});
   instr.SetAttr("threshold", threshold);

@@ -32,7 +32,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   std::string layout   = instr.GetAttrs<std::string>("layout");
   float running_factor = instr.GetAttrs<float>("running_factor");
 
-  CinnBuilder* builder   = context.builder_;
+  CinnBuilder* builder   = context.builder();
   std::vector<int> r_dim = {};
   float element_count    = 0;
   int c_dim              = 0;
@@ -98,11 +98,11 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto new_var  = builder->Add(builder->Mul(running_var, factor_0), builder->Mul(save_var, factor_1));
 
   // map output id
-  context.MapVarToOrigin(y, instr->outputs[0]);
-  context.MapVarToOrigin(save_mean, instr->outputs[1]);
-  context.MapVarToOrigin(save_var, instr->outputs[2]);
-  context.MapVarToOrigin(new_mean, instr->outputs[3]);
-  context.MapVarToOrigin(new_var, instr->outputs[4]);
+  context.MapOutToOrigin(y, instr->outputs[0]);
+  context.MapOutToOrigin(save_mean, instr->outputs[1]);
+  context.MapOutToOrigin(save_var, instr->outputs[2]);
+  context.MapOutToOrigin(new_mean, instr->outputs[3]);
+  context.MapOutToOrigin(new_var, instr->outputs[4]);
 }
 
 void batch_norm_grad(const Instruction& instr, const DecomposerContext& context) {
@@ -117,7 +117,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
 
   auto layout = instr.GetAttrs<std::string>("layout");
 
-  CinnBuilder* builder = context.builder_;
+  CinnBuilder* builder = context.builder();
 
   std::vector<int> r_dim = {};
   float element_count    = 0;
@@ -178,9 +178,9 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto grad_x = builder->Add(grad_diff, builder->BroadcastTo(grad_sum, x->shape, {c_dim}));
 
   // set output
-  context.MapVarToOrigin(grad_x, instr->outputs[0]);
-  context.MapVarToOrigin(grad_scale, instr->outputs[1]);
-  context.MapVarToOrigin(grad_bias, instr->outputs[2]);
+  context.MapOutToOrigin(grad_x, instr->outputs[0]);
+  context.MapOutToOrigin(grad_scale, instr->outputs[1]);
+  context.MapOutToOrigin(grad_bias, instr->outputs[2]);
 }
 
 void conv2d_grad(const Instruction& instr, const DecomposerContext& context) {
@@ -188,7 +188,7 @@ void conv2d_grad(const Instruction& instr, const DecomposerContext& context) {
   auto& w  = instr->inputs[1];
   auto& dy = instr->inputs[2];
 
-  CinnBuilder* builder = context.builder_;
+  CinnBuilder* builder = context.builder();
   // create backward data
   auto dx = builder->Conv(w,
                           dy,
@@ -199,7 +199,7 @@ void conv2d_grad(const Instruction& instr, const DecomposerContext& context) {
                           "backward_data",
                           instr.GetAttrs<std::string>("layout"),
                           instr.GetAttrs<std::string>("padding_algorithm"));
-  context.MapVarToOrigin(dx, instr->outputs[0]);
+  context.MapOutToOrigin(dx, instr->outputs[0]);
 
   // create backward filter
   auto dw = builder->Conv(x,
@@ -212,7 +212,7 @@ void conv2d_grad(const Instruction& instr, const DecomposerContext& context) {
                           instr.GetAttrs<std::string>("layout"),
                           instr.GetAttrs<std::string>("padding_algorithm"),
                           w->shape);
-  context.MapVarToOrigin(dw, instr->outputs[1]);
+  context.MapOutToOrigin(dw, instr->outputs[1]);
 }
 
 }  // namespace decomposer

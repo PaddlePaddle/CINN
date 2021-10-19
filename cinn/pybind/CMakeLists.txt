@@ -14,7 +14,7 @@ else()
       DEPS cinncore cinn_runtime pybind ${llvm_libs})
 endif()
 
-target_link_libraries(core_api ${MKLML_LIB} isl ginac cln gmp)
+target_link_libraries(core_api ${MKLML_LIB} isl ginac)
 if (USE_OPENMP STREQUAL "gnu")
   target_link_libraries(core_api ${OpenMP_CXX_LIBRARIES})
   message(STATUS "OpenMP lib: ${OpenMP_CXX_LIBRARIES}")
@@ -22,10 +22,5 @@ elseif(USE_OPENMP STREQUAL "intel")
   target_link_libraries(core_api ${MKLML_IOMP_LIB})
   message(STATUS "OpenMP lib: ${MKLML_IOMP_LIB}")
 endif()
-
-execute_process(COMMAND python3 -m pybind11 --includes OUTPUT_VARIABLE pybind_includes)
-string(REGEX REPLACE "\n$" "" pybind_includes "${pybind_includes}")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${pybind_includes}")
-
 
 SET_TARGET_PROPERTIES(core_api PROPERTIES PREFIX "")

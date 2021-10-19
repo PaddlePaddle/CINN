@@ -16,6 +16,7 @@
 
 #include "cinn/common/macros.h"
 #include "cinn/common/type.h"
+#include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/paddle/cpp/desc_api.h"
 
 namespace cinn {
@@ -44,6 +45,15 @@ common::Type CppVarType2CommonType(paddle::cpp::VarDescAPI::Type type) {
   }
 #undef SET_DATA_TYPE_CASE_ITEM
   return common::Void();
+}
+
+OpMapperContext::FeedInfo GetFeedInfoFromDesc(const paddle::cpp::VarDesc& desc) {
+  OpMapperContext::FeedInfo info;
+  for (auto num : desc.GetShape()) {
+    info.shape.emplace_back(static_cast<int>(num));
+  }
+  info.type = CppVarType2CommonType(desc.GetDataType());
+  return info;
 }
 
 }  // namespace utils

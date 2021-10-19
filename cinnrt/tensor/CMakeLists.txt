@@ -24,5 +24,5 @@ message(STATUS "tensor_map_mlir: ${tensor_map_mlir}")
 message(STATUS "external_kernels_lib: ${external_kernels_lib}")
 add_test(
     NAME run_and_check_tensor_map
-    COMMAND sh -c "${CMAKE_BINARY_DIR}/cinnrt/host_context/cinn-exec -i ${tensor_map_mlir} --shared_libs=${external_kernels_lib} | FileCheck-10 ${tensor_map_mlir}"
+    COMMAND sh -c "sed -e 's|/cinn/build|${CMAKE_BINARY_DIR}|' ${tensor_map_mlir} > /tmp/tensor_map.mlir && ${CMAKE_BINARY_DIR}/cinnrt/host_context/cinn-exec -i /tmp/tensor_map.mlir --shared_libs=${external_kernels_lib} | ${LLVM_PATH}/bin/FileCheck ${tensor_map_mlir}"
 )

@@ -31,15 +31,19 @@ cc_test(test_codegen_c SRCS codegen_c_test.cc DEPS cinncore ARGS ${global_test_a
 cc_test(test_codegen_c_x86 SRCS codegen_c_x86_test.cc DEPS cinncore ARGS ${global_test_args})
 cc_test(test_generated1 SRCS generated_module1.cc DEPS cinn_runtime)
 include_directories(${CMAKE_SOURCE_DIR}/cinn/runtime)
-add_dependencies(test_generated1 test_codegen_c)
+if (TARGET test_generated1)
+  add_dependencies(test_generated1 test_codegen_c)
+endif()
 
 
 if (WITH_CUDA)
   nv_test(test_codegen_cuda_dev SRCS codegen_cuda_dev_test.cc ../common/cuda_test_helper.cc DEPS cinncore)
   nv_test(test_nvrtc_util SRCS nvrtc_util_test.cc DEPS cinncore)
 
-  cc_library(generated1_cuda SRCS generated1.cu DEPS cinncore)
-  add_dependencies(generated1_cuda test_codegen_cuda_dev)
+  if (WITH_TESTING)
+    cc_library(generated1_cuda SRCS generated1.cu DEPS cinncore)
+    add_dependencies(generated1_cuda test_codegen_cuda_dev)
+  endif()
 
   nv_test(test_compiler SRCS compiler_test.cc DEPS cinncore)
 else()

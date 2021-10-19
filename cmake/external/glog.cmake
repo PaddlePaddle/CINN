@@ -29,7 +29,7 @@ ENDIF(WIN32)
 INCLUDE_DIRECTORIES(${GLOG_INCLUDE_DIR})
 
 SET(GLOG_REPOSITORY "https://github.com/google/glog.git")
-SET(GLOG_TAG "v0.3.5")
+SET(GLOG_TAG "v0.4.0")
 
 SET(OPTIONAL_ARGS "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
                   "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
@@ -61,8 +61,7 @@ ExternalProject_Add(
                     -DCMAKE_INSTALL_PREFIX=${GLOG_INSTALL_DIR}
                     -DCMAKE_INSTALL_LIBDIR=${GLOG_INSTALL_DIR}/lib
                     -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-                    -DWITH_GFLAGS=ON
-                    -Dgflags_DIR=${GFLAGS_INSTALL_DIR}/lib/cmake/gflags
+                    -DWITH_GFLAGS=OFF
                     -DBUILD_TESTING=OFF
                     -DCMAKE_BUILD_TYPE=${THIRD_PARTY_BUILD_TYPE}
                     ${EXTERNAL_OPTIONAL_ARGS}

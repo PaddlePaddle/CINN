@@ -1,4 +1,6 @@
-cc_library(cinn_gtest_main SRCS gtest_main.cc DEPS gtest)
+if (WITH_TESTING)
+  cc_library(cinn_gtest_main SRCS gtest_main.cc DEPS gtest)
+endif()
 
 add_subdirectory(common)
 add_subdirectory(utils)
