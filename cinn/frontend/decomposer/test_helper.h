@@ -32,7 +32,7 @@
 
 namespace cinn::frontend {
 
-using CPUKernelFunc = std::function<void(std::vector<size_t> lengths, std::vector<void*> ptrs)>;
+using CPUKernelFunc = std::function<void(const std::vector<size_t>& lengths, const std::vector<void*>& ptrs)>;
 
 Target GetTarget() {
 #ifdef CINN_WITH_CUDA

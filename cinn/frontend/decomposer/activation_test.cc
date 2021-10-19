@@ -21,7 +21,7 @@ TEST(Decomposer, relu) {
   auto x   = builder.CreateInput(Float(32), {20, 10});
   auto out = builder.relu(x);
 
-  auto relu_cpu = [](std::vector<size_t> lengths, std::vector<void*> ptrs) -> void {
+  auto relu_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n   = lengths[0];
     float* x   = static_cast<float*>(ptrs[0]);
     float* out = static_cast<float*>(ptrs[1]);
@@ -42,7 +42,7 @@ TEST(Decomposer, relu_grad) {
   auto out  = builder.CreateInput(Float(32), {20, 10});
   auto dx   = builder.relu_grad(dout, out);
 
-  auto relu_grad_cpu = [](std::vector<size_t> lengths, std::vector<void*> ptrs) -> void {
+  auto relu_grad_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
     size_t n    = lengths[0];
     float* dout = static_cast<float*>(ptrs[0]);
     float* out  = static_cast<float*>(ptrs[1]);
