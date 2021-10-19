@@ -15,6 +15,7 @@
 #pragma once
 
 #include <gtest/gtest.h>
+
 #include <random>
 
 #include "cinn/frontend/decomposer/use_decomposer.h"
@@ -31,6 +32,8 @@
 
 namespace cinn::frontend {
 
+using CPUKernelFunc = std::function<void(std::vector<size_t> lengths, std::vector<void*> ptrs)>;
+
 Target GetTarget() {
 #ifdef CINN_WITH_CUDA
   return common::DefaultNVGPUTarget();
@@ -40,7 +43,7 @@ Target GetTarget() {
 }
 
 template <typename T>
-void InitRandomVector(std::vector<T> *vec, size_t numel) {
+void InitRandomVector(std::vector<T>* vec, size_t numel) {
   std::random_device seed;
   std::default_random_engine engine(seed());
   std::uniform_real_distribution<float> dist(-1.0, 1.0);
@@ -52,7 +55,7 @@ void InitRandomVector(std::vector<T> *vec, size_t numel) {
 }
 
 template <typename T>
-void CopyFromVector(const std::vector<T> &vec, hlir::framework::Tensor tensor, Target target) {
+void CopyFromVector(const std::vector<T>& vec, hlir::framework::Tensor tensor, Target target) {
   auto* data = tensor->mutable_data<T>(target);
 
   size_t numel = tensor->shape().numel();
@@ -66,7 +69,62 @@ void CopyFromVector(const std::vector<T> &vec, hlir::framework::Tensor tensor, T
 }
 
 template <typename T>
-void RunProgram(NetBuilder& builder, const std::vector<std::string>& input_names) {
+void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
+  auto* data = tensor->data<T>();
+
+  size_t numel = tensor->shape().numel();
+  vec->resize(numel);
+
+#ifdef CINN_WITH_CUDA
+  cudaMemcpy(vec->data(), data, numel * sizeof(T), cudaMemcpyDeviceToHost);
+#else
+  for (size_t i = 0; i < numel; ++i) {
+    vec->at(i) = data[i];
+  }
+#endif
+}
+
+template <typename T>
+void CheckOutputs(const std::vector<std::vector<T>>& input_vecs,
+                  const std::vector<std::vector<T>>& output_vecs,
+                  CPUKernelFunc cpu_kernel_func) {
+  std::vector<std::vector<T>> output_refs;
+  output_refs.resize(output_vecs.size());
+  for (size_t i = 0; i < output_vecs.size(); ++i) {
+    output_refs[i].resize(output_vecs[i].size());
+  }
+
+  // Prepare the arguments for reference.
+  // For different operations, the needed parameters maybe different.
+  size_t n = input_vecs[0].size();
+  std::vector<size_t> lengths;
+  lengths.push_back(n);
+
+  std::vector<void*> ptrs(input_vecs.size() + output_refs.size());
+  for (size_t i = 0; i < input_vecs.size(); ++i) {
+    ptrs[i] = const_cast<void*>(static_cast<const void*>(input_vecs[i].data()));
+  }
+  for (size_t i = 0; i < output_refs.size(); ++i) {
+    ptrs[input_vecs.size() + i] = output_refs[i].data();
+  }
+  cpu_kernel_func(lengths, ptrs);
+
+  for (size_t i = 0; i < output_vecs.size(); ++i) {
+    auto* dev_ptr = output_vecs[i].data();
+    auto* ref_ptr = output_refs[i].data();
+    size_t numel  = output_vecs[i].size();
+    LOG(INFO) << "Check the " << i << "-th output...";
+    for (size_t j = 0; j < numel; ++j) {
+      EXPECT_NEAR(dev_ptr[j], ref_ptr[j], 1.E-05);
+    }
+  }
+}
+
+template <typename T>
+void RunAndCheck(NetBuilder& builder,
+                 const std::vector<std::string>& input_names,
+                 const std::vector<std::string>& output_names,
+                 CPUKernelFunc cpu_kernel_func) {
   auto prog     = builder.Build();
   Target target = GetTarget();
   LOG(INFO) << "===================== Before Decomposition =====================";
@@ -84,15 +142,28 @@ void RunProgram(NetBuilder& builder, const std::vector<std::string>& input_names
   hlir::framework::GraphCompiler gc(target, scope, graph);
 
   auto runtime_program = gc.Build();
-  for (auto& name : input_names) {
-    scope->Var<hlir::framework::Tensor>(name);
-    auto tensor = scope->GetTensor(name);
-  
+  std::vector<std::vector<T>> input_vecs;
+  for (size_t i = 0; i < input_names.size(); ++i) {
+    scope->Var<hlir::framework::Tensor>(input_names[i]);
+    auto tensor = scope->GetTensor(input_names[i]);
+
     std::vector<T> vec;
     InitRandomVector<T>(&vec, tensor->shape().numel());
     CopyFromVector<T>(vec, tensor, target);
+    input_vecs.push_back(vec);
   }
   runtime_program->Execute();
+
+  std::vector<std::vector<T>> output_vecs;
+  for (auto& name : output_names) {
+    auto tensor = scope->GetTensor(name);
+
+    std::vector<T> vec;
+    CopyToVector<T>(tensor, &vec);
+    output_vecs.push_back(vec);
+  }
+
+  CheckOutputs<T>(input_vecs, output_vecs, cpu_kernel_func);
 }
 
 }  // namespace cinn::frontend

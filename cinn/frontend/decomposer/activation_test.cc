@@ -21,8 +21,19 @@ TEST(Decomposer, relu) {
   auto x   = builder.CreateInput(Float(32), {20, 10});
   auto out = builder.relu(x);
 
-  std::vector<std::string> input_names = {"X"};
-  RunProgram<float>(builder, input_names);
+  auto relu_cpu = [](std::vector<size_t> lengths, std::vector<void*> ptrs) -> void {
+    size_t n   = lengths[0];
+    float* x   = static_cast<float*>(ptrs[0]);
+    float* out = static_cast<float*>(ptrs[1]);
+    for (size_t i = 0; i < n; ++i) {
+      float tmp_0 = x[i];
+      out[i]      = tmp_0 > 0 ? tmp_0 : 0;
+    }
+  };
+
+  std::vector<std::string> input_names  = {x.id().data()};
+  std::vector<std::string> output_names = {out->id};
+  RunAndCheck<float>(builder, input_names, output_names, relu_cpu);
 }
 
 TEST(Decomposer, relu_grad) {
@@ -31,8 +42,19 @@ TEST(Decomposer, relu_grad) {
   auto out  = builder.CreateInput(Float(32), {20, 10});
   auto dx   = builder.relu_grad(dout, out);
 
-  std::vector<std::string> input_names = {"Dout", "Out"};
-  RunProgram<float>(builder, input_names);
+  auto relu_grad_cpu = [](std::vector<size_t> lengths, std::vector<void*> ptrs) -> void {
+    size_t n    = lengths[0];
+    float* dout = static_cast<float*>(ptrs[0]);
+    float* out  = static_cast<float*>(ptrs[1]);
+    float* dx   = static_cast<float*>(ptrs[2]);
+    for (size_t i = 0; i < n; ++i) {
+      dx[i] = out[i] > 0 ? dout[i] : 0;
+    }
+  };
+
+  std::vector<std::string> input_names  = {dout.id().data(), out.id().data()};
+  std::vector<std::string> output_names = {dx->id};
+  RunAndCheck<float>(builder, input_names, output_names, relu_grad_cpu);
 }
 
 }  // namespace cinn::frontend
