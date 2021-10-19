@@ -48,7 +48,12 @@ function proxy_on {
 
 function prepare_ci {
   cd $workspace
-  proxy_off
+  proxy_on
+  if [[ ! -z ${PULL_ID} ]]; then
+    # in ci environment, we use aliyun ubuntu mirror, thus turn off proxy
+    proxy_off
+  fi
+
   if [[ $(command -v python) == $build_dir/ci-env/bin/python ]]; then
     return
   elif [[ -e $build_dir/ci-env/bin/activate ]]; then
@@ -62,14 +67,15 @@ function prepare_ci {
     apt install -y doxygen
   fi
 
-  if ! command -v python3.8-config &> /dev/null; then
-    apt install -y python3.8-dev
+  if ! command -v python3.6-config &> /dev/null; then
+    apt install -y python3.6-dev
   fi
 
-  if ! python3.8 -m venv $build_dir/ci-env &> /dev/null; then
-    apt install -y python3.8-venv
-    python3.8 -m venv $build_dir/ci-env
+  if ! python3.6 -m venv $build_dir/ci-env &> /dev/null; then
+    apt install -y python3.6-venv
+    python3.6 -m venv $build_dir/ci-env
   fi
+  proxy_off
   source $build_dir/ci-env/bin/activate
   pip install -U pip --trusted-host mirrors.aliyun.com --index-url https://mirrors.aliyun.com/pypi/simple/
   pip config set global.index-url https://mirrors.aliyun.com/pypi/simple/
