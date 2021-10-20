@@ -78,6 +78,15 @@ absl::flat_hash_map<std::string, AttrType> attr_store_broadcast_to = {{"out_shap
                                                                       {"broadcast_axes", broadcast_axes}};
 TEST_DEFAULT1(broadcast_to, broadcast_to, type, type, attr_store_broadcast_to)
 
+// concat
+std::vector<std::vector<int>> shapes_concat                  = {{2, 2, 3}, {2, 4, 3}};
+absl::flat_hash_map<std::string, AttrType> attr_store_concat = {{"axis", 1}};
+TEST_DEFAULT1(concat, concat, type1, type, attr_store_concat)
+
+std::vector<std::vector<int>> shapes_concat1                  = {{2, 2, 3}, {2, 4, 3}, {2, 5, 3}};
+absl::flat_hash_map<std::string, AttrType> attr_store_concat1 = {{"axis", -2}};
+TEST_DEFAULT1(concat, concat1, type8, type, attr_store_concat1)
+
 // add
 std::vector<std::vector<int>> shapes_add = {{1024, 1024, 1024}, {1024, 1024, 1024}};
 TEST_DEFAULT(elementwise_add, add, type1, type)

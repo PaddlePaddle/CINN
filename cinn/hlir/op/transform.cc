@@ -412,22 +412,24 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
   framework::CINNCompute concat_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of Concat compute is empty! Please check.\n";
     CINNValuePack a = args[0];
-    CHECK_GE(a.size(), 2U) << "at least 2 input tensors for Concat compute\n";
-    Expr A = a[0];
-    Expr B = a[1];
-    CHECK(A.as_tensor());
-    CHECK(B.as_tensor());
+    int input_size  = a.size();
+    CHECK_GE(input_size, 2U) << "at least 2 input tensors for Concat compute\n";
     CHECK(!output_shapes.empty());
     int axis = 0;
     if (attrs.attr_store.count("axis")) {
       axis = absl::get<int>(attrs.attr_store.at("axis"));
     }
 
-    auto tensor_A = A.as_tensor_ref();
-    auto tensor_B = B.as_tensor_ref();
-    auto stages   = CreateStages({tensor_A, tensor_B});
+    std::vector<ir::Tensor> input_tensors;
+    for (int i = 0; i < input_size; i++) {
+      Expr tensor = a[i];
+      CHECK(tensor.as_tensor());
+      input_tensors.push_back(tensor.as_tensor_ref());
+    }
+
+    auto stages = CreateStages(input_tensors);
     ir::Tensor out;
-    out = pe::Concat(tensor_A, tensor_B, axis, UniqName("Concat_output"));
+    out = pe::Concat(input_tensors, axis, UniqName("Concat_output"));
     std::vector<CINNValue> res;
     stages->InsertLazily(out);
     res.push_back(CINNValue(out));
@@ -458,7 +460,7 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
 
 std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<int>> &inputs_shape,
                                                   const framework::AttrMapType &attrs) {
-  CHECK_EQ(inputs_shape.size(), 2U) << "The input's shape size should be 2! Please check again.";
+  CHECK_GE(inputs_shape.size(), 2U) << "The input's shape size should be no less than 2! Please check again.";
   int axis = 0;
   for (auto &iter : attrs) {
     if (iter.first == "axis") {
@@ -466,13 +468,18 @@ std::vector<std::vector<int>> InferShapeForConcat(const std::vector<std::vector<
       break;
     }
   }
+
   if (axis < 0) axis += inputs_shape[0].size();
   std::vector<int> output_shape = inputs_shape[0];
-  CHECK_EQ(inputs_shape[0].size(), inputs_shape[1].size())
-      << "In Concat op, the 2 input tensors' shape should be the same, please check!";
   CHECK(axis >= 0 && axis < inputs_shape[0].size())
       << "In Concat op, the attribute `axis` should be >= 0 and < input shape's size, please check!";
-  output_shape[axis] += inputs_shape[1][axis];
+
+  int input_dim = inputs_shape[0].size();
+  for (int i = 1; i < inputs_shape.size(); i++) {
+    CHECK_EQ(inputs_shape[i].size(), input_dim)
+        << "Dimensions of inputs tensors in Concat should be equal! Please check.";
+    output_shape[axis] += inputs_shape[i][axis];
+  }
   std::vector<std::vector<int>> res{output_shape};
   return res;
 }
@@ -487,7 +494,7 @@ std::vector<std::vector<std::string>> InferLayoutForConcat(const std::vector<fra
                                                            const std::vector<std::string> &input_layouts,
                                                            const framework::NodeAttr &attrs,
                                                            const Target &target) {
-  CHECK_EQ(input_layouts.size(), 2U) << "The input's layout size is not 1! Please check again.";
+  CHECK_GE(input_layouts.size(), 2U) << "The input's layout size is less than 2! Please check again.";
   return {{input_layouts[0]}, input_layouts};
 }
 
@@ -1115,7 +1122,6 @@ std::vector<std::vector<std::string>> InferLayoutForTranspose(const std::vector<
   std::vector<int> axis;
   if (attrs.attr_store.find("axis") != attrs.attr_store.end()) {
     axis = absl::get<std::vector<int>>(attrs.attr_store.at("axis"));
-    CHECK_EQ(axis.size(), input_shapes[0].size()) << "input size and axis size is not equal!";
     for (int idx = 0; idx < axis.size(); ++idx) {
       CHECK(axis[idx] >= 0 && axis[idx] < axis.size());
       for (int idy = idx + 1; idy < axis.size(); ++idy) {

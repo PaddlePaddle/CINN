@@ -192,6 +192,48 @@ struct Program {
   template <typename PrimType>
   Variable primitive_const_scalar(PrimType value, const std::string& name);
   /**
+   * create tensor with the specific shape, type and value
+   */
+  template <typename PrimType>
+  Variable fill_constant(const std::vector<int>& shape,
+                         float float_value,
+                         const std::string& str_value,
+                         bool force_cpu,
+                         const std::string& name) {
+    Instruction instr("fill_constant");
+    PrimType value;
+    if (str_value.empty()) {
+      value = static_cast<PrimType>(float_value);
+    } else {
+      if (str_value == "inf") {
+        value = static_cast<PrimType>(std::numeric_limits<double>::infinity());
+      } else if (str_value == "-inf") {
+        value = static_cast<PrimType>(-std::numeric_limits<double>::infinity());
+      } else if (str_value == "nan") {
+        value = static_cast<PrimType>(std::numeric_limits<double>::quiet_NaN());
+      } else {
+        std::stringstream convert_stream(str_value);
+        if (std::is_same<int64_t, PrimType>::value) {
+          int64_t tmp_value;
+          convert_stream >> tmp_value;
+          value = static_cast<PrimType>(tmp_value);
+        } else {
+          double tmp_value;
+          convert_stream >> tmp_value;
+          value = static_cast<PrimType>(tmp_value);
+        }
+      }
+    }
+    instr.SetInputs({});
+    instr.SetAttr("shape", shape);
+    instr.SetAttr("value", value);
+    instr.SetAttr("force_cpu", force_cpu);
+    AppendInstruction(instr);
+    auto out = instr.GetOutput(0);
+    out.set_id(name);
+    return out;
+  }
+  /**
    * Add two variables.
    *
    * @param a The first variable.
@@ -227,6 +269,16 @@ struct Program {
    * @return The concated output tensor.
    */
   Variable concat(const Variable& a, const Variable& b, int axis = 0);
+
+  /**
+   * Concat tensors.
+   * @param input_vars The input tensors.
+   * @param axis The axis specified to do the concat operation.
+   * @return The concated output tensor.
+   */
+  Variable concat(const std::vector<Variable>& input_vars, int axis = 0);
+
+  Variable transpose(const Variable& input_vars, const std::vector<int>& axis);
 
   /**
    * Multiply two matrix and add a bias.
@@ -322,6 +374,19 @@ struct Program {
    * Multiply two tensors element-wise.
    */
   Variable elementwise_mul(const Variable& a, const Variable& b, int axis = -1);
+
+  /**
+   * Divide two tensors element-wise.
+   */
+  Variable elementwise_div(const Variable& a, const Variable& b, int axis = -1);
+
+  /**
+   * Substract two tensors element-wise.
+   */
+  Variable elementwise_sub(const Variable& a, const Variable& b, int axis = -1);
+
+  // copy the tensor
+  Variable assign(const Variable& a);
 
   /**
    * Apply Rectified Linear Unit on input Variable.
