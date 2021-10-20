@@ -16,6 +16,11 @@ option(WITH_CUDNN           "Compile with CUDNN support"            OFF)
 option(WITH_DEBUG           "Compile with debug information"        OFF)
 option(PUBLISH_LIBS         "Whether to publish compiled libraries" OFF)
 
+set(PY_VERSION CACHE STRING FORCE)
+if (NOT PY_VERSION)
+  set(PY_VERSION 3.6)
+endif()
+
 if (WITH_TESTING)
   add_definitions(-DCINN_WITH_TEST)
 endif()

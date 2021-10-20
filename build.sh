@@ -120,7 +120,7 @@ function cmake_ {
     echo "set(WITH_CUDNN $cudnn_config)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
     cd $build_dir
-    cmake .. -DPUBLISH_LIBS=ON -DWITH_TESTING=ON
+    cmake .. -DPUBLISH_LIBS=ON -DWITH_TESTING=ON -DPY_VERSION=3.6
 }
 
 function _download_and_untar {
