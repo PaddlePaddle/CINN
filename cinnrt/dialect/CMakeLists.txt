@@ -23,19 +23,21 @@ mlir_tablegen_on(tensor_shape DIALECT ts)
 mlir_tablegen_on(dense_tensor DIALECT dt)
 mlir_tablegen_on(pd_op_base DIALECT pd)
 mlir_tablegen_on(pd_ops)
+mlir_add_rewriter(rewrite)
 
 # TODO(Superjomn) add a cmake function cc_executable to ecapsulate the following code
-add_executable(cinn-opt opt.cc)
-target_link_libraries(cinn-opt cinncore ${mlir_libs})
-add_dependencies(cinn-opt pd_ops_inc)
+add_executable(cinnopt opt.cc)
+target_link_libraries(cinnopt cinnrt ${mlir_libs})
+add_dependencies(cinnopt cinnrt)
+
 add_executable(print-ir print_ir.cc)
-target_link_libraries(print-ir cinncore ${mlir_libs})
+target_link_libraries(print-ir cinnrt ${mlir_libs})
 add_dependencies(print-ir pd_ops_inc)
 
 
 # MLIR opt tests
 # %{
-set(cinn_opt_path ${CMAKE_BINARY_DIR}/cinnrt/dialect/cinn-opt)
+set(cinn_opt_path ${CMAKE_BINARY_DIR}/cinnrt/dialect/cinnopt)
 
 add_test(test_mlir_opt_on_basic ${cinn_opt_path}
         ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/basic.mlir)
@@ -46,7 +48,7 @@ add_test(test_mlir_opt_on_paddle_ops
         ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/paddle_ops.mlir)
 # %}
 
-cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS cinncore ${MLIR_IR_LIBS})
+cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS cinnrt ${MLIR_IR_LIBS})
 
 # execute mlir and run FileCheck
 cinn_exec_check(run_and_check_tensor_type mlir_tests/tensor_type.mlir)

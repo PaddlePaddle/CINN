@@ -39,6 +39,7 @@ def PD_ReluOp : PD_Op<"Relu", [NoSideEffect]> {
 
   let arguments = (ins PD_Tensor:$x);
   let results = (outs PD_Tensor:$y);
+  let hasCanonicalizer = 1;
 }
 
 def PD_Relu6Op : PD_Op<"Relu6", [NoSideEffect]> {
@@ -58,6 +59,8 @@ def PD_ElementwiseAdd : PD_Op<"ElementwiseAdd", [NoSideEffect]> {
 
   let arguments = (ins PD_Tensor:$x, PD_Tensor:$y, I32Attr:$axis);
   let results = (outs PD_Tensor:$out);
+
+  let hasCanonicalizer = 1;
 }
 
 def PD_ElementwiseMul : PD_Op<"ElementwiseMul", [NoSideEffect]> {
@@ -81,6 +84,24 @@ def PD_MatmulOp : PD_Op<"Matmul", [NoSideEffect]> {
   let results = (outs PD_Tensor:$out);
 
   //let hasCanonicalizer = 1;
+}
+
+def PD_FusedFC : PD_Op<"FC", [NoSideEffect]> {
+    let summary = "Computes the Fully Connected result of two tensors";
+    let description = [{
+    }];
+
+    let arguments = (ins PD_Tensor:$input, PD_Tensor:$w, PD_Tensor:$bias, DefaultValuedAttr<I32Attr, "1">:$in_num_col_dims);
+    let results = (outs PD_Tensor:$out);
+}
+
+def PD_FusedRepeatedFCRelu : PD_Op<"RepeatedFCRelu", [SameVariadicOperandSize, NoSideEffect]> {
+    let summary = "";
+    let description = [{ }];
+
+    let arguments = (ins PD_Tensor:$input, Variadic<PD_Tensor>:$w, Variadic<PD_Tensor>:$bias);
+    let results = (outs PD_Tensor:$out);
+    let hasCanonicalizer = 1;
 }
 
 #endif  // PD_OPS

@@ -88,21 +88,12 @@ add_subdirectory(cinnrt)
 add_subdirectory(tests)
 add_subdirectory(tutorials)
 
-set(core_src "${cinnapi_src};${cinnrt_src}")
+set(core_src "${cinnapi_src}")
 
 cc_library(cinnapi SHARED SRCS ${cinnapi_src} DEPS glog ${llvm_libs} mkldnn framework_proto param_proto paddle_framework_proto absl isl ginac)
 add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
-add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER
-        # MLIR td file generations
-        ops_inc
-        basic_kernels_inc
-        test_kernels_inc
-        cinn_base_inc
-        tensor_shape_inc
-        dense_tensor_inc
-        pd_ops_inc
-        ${core_deps}
-        )
+add_dependencies(cinnapi GEN_LLVM_RUNTIME_IR_HEADER ${core_deps})
+
 if (WITH_CUDA)
   target_link_libraries(cinnapi ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
 endif()
@@ -112,19 +103,9 @@ function(gen_cinncore LINKTYPE)
   if (${LINKTYPE} STREQUAL "STATIC")
     set(CINNCORE_TARGET cinncore_static)
   endif()
-  cc_library(${CINNCORE_TARGET} ${LINKTYPE} SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto ${mlir_libs} absl isl ginac)
+  cc_library(${CINNCORE_TARGET} ${LINKTYPE} SRCS ${core_src} DEPS glog ${llvm_libs} mklml mkldnn framework_proto param_proto paddle_framework_proto absl isl ginac)
   add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER ZLIB::ZLIB)
-  add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER
-          # MLIR td file generations
-          ops_inc
-          basic_kernels_inc
-          test_kernels_inc
-          cinn_base_inc
-          tensor_shape_inc
-          dense_tensor_inc
-          pd_ops_inc
-          ${core_deps}
-          )
+  add_dependencies(${CINNCORE_TARGET} GEN_LLVM_RUNTIME_IR_HEADER ${core_deps})
 
   if (WITH_CUDA)
     target_link_libraries(${CINNCORE_TARGET} ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDASTUB} ${CUBLAS} ${CUDNN})
@@ -134,6 +115,20 @@ endfunction()
 gen_cinncore(STATIC)
 gen_cinncore(SHARED)
 
+# MLIR td file generations
+set(cinnrt_mlir_incs
+        ops_inc
+        basic_kernels_inc
+        test_kernels_inc
+        cinn_base_inc
+        tensor_shape_inc
+        dense_tensor_inc
+        pd_ops_inc
+        rewrite_inc
+        )
+
+cc_library(cinnrt SRCS ${cinnrt_src} DEPS glog absl framework_proto ${mlir_libs})
+add_dependencies(cinnrt ${cinnrt_mlir_incs})
 
 # --------distribute cinncore lib and include begin--------
 if (PUBLISH_LIBS)
