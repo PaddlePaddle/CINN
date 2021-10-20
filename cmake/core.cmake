@@ -78,9 +78,9 @@ function(cc_test TARGET_NAME)
     endif()
     # No unit test should exceed 10 minutes.
     set_tests_properties(${TARGET_NAME} PROPERTIES TIMEOUT 6000)
+    remove_gflags(${TARGET_NAME})
   endif()
 
-  remove_gflags(${TARGET_NAME})
 endfunction()
 
 function(nv_library TARGET_NAME)
@@ -154,8 +154,8 @@ function(nv_test TARGET_NAME)
     target_link_libraries(${TARGET_NAME} Threads::Threads ${CUDA_NVRTC_LIB} ${CUDA_LIBRARIES} ${CUDA_cudart_static_LIBRARY}
       ${CUDA_TOOLKIT_ROOT_DIR}/lib64/stubs/libcuda.so
       )
+    remove_gflags(${TARGET_NAME})
   endif()
-  remove_gflags(${TARGET_NAME})
 endfunction(nv_test)
 
 
