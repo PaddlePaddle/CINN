@@ -5,7 +5,9 @@ gather_srcs(cinnapi_src SRCS
     nn.cc
     )
 
-cc_test(test_activation_decomposer SRCS activation_test.cc DEPS cinncore)
+if(WITH_CUDA)
+  nv_test(test_activation_decomposer SRCS activation_test.cc DEPS cinncore)
+endif()
 
 cc_test(test_nn_decomposer
         SRCS nn_test.cc DEPS cinncore)

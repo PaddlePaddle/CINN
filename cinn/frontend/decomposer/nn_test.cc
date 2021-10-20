@@ -17,7 +17,6 @@
 #include <cuda_runtime.h>
 #endif
 #include <gtest/gtest.h>
-
 #include <memory>
 #include <random>
 #include <vector>
@@ -38,6 +37,110 @@
 namespace cinn {
 namespace frontend {
 namespace {
+
+template<typename FuncType>
+void loop(FuncType func, const int n, const int c, const int h, const int w) {
+  for(int idx = 0 ; idx < n ; ++idx) {
+    for(int idy = 0 ; idy < c ; ++idy) {
+      for(int idz = 0 ; idz < h ; ++idz) {
+        for(int ida = 0; ida < w ; ++ida) {
+          func(idx, idy, idz, ida);
+        }
+      }
+    }
+  }
+}
+
+template<typename T>
+void cpu_run_batch_norm_train(const T* x,
+                              const T* scale,
+                              const T* bias,
+                              const T* running_mean,
+                              const T* running_var,
+                              const int n, const int c,
+                              const int h, const int w,
+                              T*& y,
+                              T*& new_running_mean,
+                              T*& new_running_var,
+                              const float epsilon = 1e-6,
+                              const float running_factor = 0.99f) {
+  //sum
+  T* sum = new T[c];
+  memcpy(sum, 0, sizeof(T) * c);
+  auto func_sum = [=](int idx, int idy, int idz, int ida) {
+    sum[idy] += x[idx * c * h * w + idy * h * w + idz * w + ida];
+  };
+  loop(func_sum, n, c, h, w);
+
+  //mean
+  T* mean = new T[c];
+  for(int idx = 0; idx < c ; ++idx) {
+    mean[idx] = sum[idx] / float(n * h * w);
+  }
+  delete sum;
+
+  // diff
+  T* diff = new T[n * c * h *w];
+  auto func_diff = [=](int idx, int idy, int idz, int ida) {
+    diff[idx * c * h * w + idy * h * w + idz * w + ida] = 
+       x[idx * c * h * w + idy * h * w + idz * w + ida] - sum[idy];
+  };
+  loop(func_diff, n, c, h, w);
+
+  // diff2
+  T* diff2 = new T[n * c * h * w];
+  auto func_diff2 = [=](int idx, int idy, int idz, int ida) {
+    diff2[ idx * c * h * w + idy * h * w + idz * w + ida] = 
+      diff[idx * c * h * w + idy * h * w + idz * w + ida] *
+      diff[idx * c * h * w + idy * h * w + idz * w + ida];
+  };
+  loop(func_diff2, n, c, h, w);
+
+  // sum diff2
+  T* sum_diff2 = new T[c];
+  memcpy(sum_diff2, 0, sizeof(T) * c);
+  auto func_sum_diff2 = [=](int idx, int idy, int idz, int ida) {
+    sum_diff2[idy] += diff2[idx * c * h * w + idy * h * w + idz * w + ida];
+  };
+  loop(sum_diff2, n, c, h, w);
+  delete diff2;
+
+  //var
+  T* var = new T[c];
+  memcpy(var, 0, sizeof(T) * c);
+  for(int idx = 0 ; idx < c ; ++idx) {
+    var[idx] = sqrt(sum_diff2[idx]/float(n * h * w));
+  }
+  delete sum_diff2;
+
+  // compute output
+  y = new T[n * c * h * w];
+  auto func_y = [=](int idx, int idy, int idz, int ida) {
+    y[idx * c * h * w + idy * h * w + idz * w + ida]
+    = diff[idx * c * h * w + idy * h * w + idz * w + ida]/(var[idy] + epsilon) * scale[idy] + bias[idy];
+  };
+  loop(func_y, n, c, h, w);
+
+  // update runnning
+  new_running_mean = new T[c];
+  new_running_var = new T[c];
+
+  for(int idx = 0 ; idx < c ; ++idx) {
+    new_running_mean[idx] = running_mean[idx] * running_factor + mean[idx] * (1 - running_factor);
+    new_running_var[idx] = running_var[idx] * running_factor + var[idx] * (1 - running_factor);
+  }
+
+  delete mean;
+  delete diff;
+  delete var;
+}
+
+template<typename T>
+void random(T* value, int num) {
+  for(int idx = 0 ; idx < num ; ++idx) {
+    *value ++ = rand()/ 1000.0f;
+  }
+}
 
 TEST(nn, BATCH_NORM_TRAIN) {
   // parameter
@@ -76,25 +179,60 @@ TEST(nn, BATCH_NORM_TRAIN) {
   auto new_program = cinn_builder.Build();
 
   auto graph = std::make_shared<hlir::framework::Graph>(new_program, target);
-  auto nodes = graph->nodes();
-
+  auto nodes = std::get<0>(graph->topological_order());
   /*
-  for(auto node : nodes) {
+  for(auto& node : nodes) {
+    std::cerr << node->id() << " -> ";
     for(auto link : node->outlinks()) {
-      std::cout<<" " << link.get()->sink()->id();
+      std::cerr<<link->sink()->id()<<" ";
     }
-    std::cout << " -> ";
-    std::cout << node->id() << " -> ";
-    for(auto link : node->inlinks()) {
-      std::cout<<" " << link.get()->source()->id();
-    }
-    std::cout << std::endl;
+    std::cerr << std::endl;
   }
   */
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
 
   auto run_program = gc.Build();
+
+  //set input
+  float *x = new float[n * c * h * w], *scale = new float[c],
+        *bias = new float[c], *running_mean = new float[c],
+        *running_var = new float[c];
+  float *y = nullptr, *new_running_mean = nullptr, *new_running_var = nullptr;
+
+  random(x, n * c * h * w);
+  random(scale, c);
+  random(bias, c);
+  random(running_mean, c);
+  random(running_var, c);
+
+  cpu_run_batch_norm_train(x, scale, bias, running_mean, running_var, n, c, h, w, y, new_running_mean, new_running_var);
+
+  std::vector<std::pair<std::string, float*>> inputs = {{"x",x},
+                                                        {"scale", scale},
+                                                        {"bias", bias},
+                                                        {"running_mean", running_mean},
+                                                        {"running_var", running_var}};
+  for(auto& input : inputs) {
+    scope->Var<hlir::framework::Tensor>(input.first);
+    auto tensor = scope->GetTensor(input.first);
+    auto *data = tensor->mutable_data<float>(target);
+    memcpy(data, input.second, tensor->shape().numel());
+
+    LOG(INFO) << input.first << " " << tensor->shape().numel();
+  }
+  std::vector<std::pair<std::string, float*>> outputs = {{"var_33", y},
+                                                         {"var_40", new_running_mean},
+                                                         {"var_43", new_running_var}};
+
+  run_program->Execute();
+
+  for(auto& output : outputs) {
+    auto tensor = scope->GetTensor(output.first);
+    auto *data = tensor->data<float>();
+
+    LOG(INFO) << output.first << " " << tensor->shape().numel();
+  }
 }
 
 TEST(nn, BATCH_NORM_GRAD) {
@@ -165,9 +303,9 @@ TEST(nn, CONV_GRAD) {
   NetBuilder net_builder("net_builder");
   {
     // create input
-    auto x      = net_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
+    auto x = net_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
     auto weight = net_builder.CreateInput(Float(32), {oc, ic, fh, fw}, "weight");
-    auto dy     = net_builder.CreateInput(Float(32), {n, oc, h, w}, "y");
+    auto dy = net_builder.CreateInput(Float(32), {n, oc, h, w}, "y");
     // add batch norm train
     auto outputs = net_builder.conv2d_grad(x, weight, dy, strides, paddings, dilations);
   }
@@ -178,9 +316,9 @@ TEST(nn, CONV_GRAD) {
   CinnBuilder cinn_builder("cinn_builder");
   {
     // create input
-    auto x      = cinn_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
+    auto x = cinn_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
     auto weight = cinn_builder.CreateInput(Float(32), {oc, ic, fh, fw}, "weight");
-    auto dy     = cinn_builder.CreateInput(Float(32), {n, oc, h, w}, "dy");
+    auto dy = cinn_builder.CreateInput(Float(32), {n, oc, h, w}, "dy");
   }
 
   absl::flat_hash_map<std::string, Variable> variable_map;
@@ -196,6 +334,9 @@ TEST(nn, CONV_GRAD) {
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto run_program = gc.Build();
+
+
+
 }
 
 }  // namespace
