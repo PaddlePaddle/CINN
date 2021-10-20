@@ -329,6 +329,8 @@ function(proto_library TARGET_NAME)
   set(proto_hdrs)
   paddle_protobuf_generate_cpp(proto_srcs proto_hdrs ${proto_library_SRCS})
   cc_library(${TARGET_NAME} SRCS ${proto_srcs} DEPS ${proto_library_DEPS} protobuf)
+  set("${TARGET_NAME}_HDRS" ${proto_hdrs} PARENT_SCOPE)
+  set("${TARGET_NAME}_SRCS" ${proto_srcs} PARENT_SCOPE)
 endfunction()
 
 function(common_link TARGET_NAME)
