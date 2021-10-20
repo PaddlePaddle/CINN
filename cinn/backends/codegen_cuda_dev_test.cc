@@ -70,6 +70,7 @@ CreateNVMemory(int M, int N) {
   return std::make_tuple(Ad, Bd, Cd, host_data1, host_data2, host_data3);
 }
 
+
 TEST(CodeGenCUDA, basic) {
   Expr M(1);
   Expr N(200);
