@@ -69,6 +69,49 @@ void SetRandData(const hlir::framework::Tensor& tensor, Target target) {
   }
 }
 
+TEST(syntax, reverse) {
+  const int M = 16;
+  const int N = 16;
+
+  Placeholder a(Float(32), {M, N});
+  std::unique_ptr<Program> program(new Program);
+
+  std::vector<int> axis = {0};
+  auto b                = program->reverse(a, axis);
+
+  program->SetInputs({a});
+  program->Validate();
+}
+
+TEST(syntax, select) {
+  const int M = 16;
+  const int N = 16;
+
+  Placeholder condition(Bool(), {M, N});
+  Placeholder true_value(Float(32), {M, N});
+  Placeholder false_value(Float(32), {M, N});
+
+  std::unique_ptr<Program> program(new Program);
+  auto b = program->select(condition, true_value, false_value);
+
+  program->SetInputs({condition, true_value, false_value});
+  program->Validate();
+}
+
+TEST(syntax, transpose) {
+  const int M = 16;
+  const int N = 16;
+
+  Placeholder a(Float(32), {M, N});
+  std::unique_ptr<Program> program(new Program);
+
+  std::vector<int> axis = {1, 0};
+  auto b                = program->transpose(a, axis);
+
+  program->SetInputs({a});
+  program->Validate();
+}
+
 TEST(syntax, program_execute_multi_elementwise_add) {
   auto program  = CreateAddProgram();
   Target target = common::DefaultHostTarget();

@@ -225,16 +225,21 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                        UniqName("Conv2d_nhwc_out"));
         }
       } else {
-        out = pe::Conv2d_NCHW(A.as_tensor_ref(),
-                              B.as_tensor_ref(),
-                              padding[0],
-                              padding[1],
-                              stride[0],
-                              stride[1],
-                              dilation[0],
-                              dilation[1],
-                              UniqName("Conv2d_nhwc_out"));
-        out.push_back(B.as_tensor_ref());
+        if (conv_type == "forward") {
+          out = pe::Conv2d_NCHW(A.as_tensor_ref(),
+                                B.as_tensor_ref(),
+                                padding[0],
+                                padding[1],
+                                stride[0],
+                                stride[1],
+                                dilation[0],
+                                dilation[1],
+                                UniqName("Conv2d_nchw_out"));
+          out.push_back(B.as_tensor_ref());
+        } else {
+          // use a fake op for conv_grad, let out = input[0]
+          out = pe::Identity(A.as_tensor_ref(), UniqName("Conv2d_nchw_out"));
+        }
       }
     } else if (data_format == "NHWC") {
       // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
@@ -256,7 +261,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
       stages->InsertLazily(t);
       res.push_back(CINNValue(t));
     }
-    CHECK(out.size() == 3U || out.size() == 2U || out.size() == 5U)
+    CHECK(out.size() == 3U || out.size() == 2U || out.size() == 5U || out.size() == 1)
         << "The output tensor sizes of conv2d op in conv2d op should be 2 or 3 or 5\n";
 
     res.push_back(CINNValue(stages));
@@ -266,15 +271,28 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   framework::CINNSchedule conv2d_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of conv2d schedule is empty! Please check.\n";
     CINNValuePack arg_pack = args[0];
-    CHECK(arg_pack.size() == 4UL || arg_pack.size() == 3UL || arg_pack.size() == 6UL);
+    CHECK(arg_pack.size() == 4UL || arg_pack.size() == 3UL || arg_pack.size() == 6UL || arg_pack.size() == 2UL);
     poly::StageMap stages = arg_pack.back();
     if (target.arch == Target::Arch::NVGPU) {
+      // using a fake schedule
+      if (conv_type != "forward") {
+        Expr Out = arg_pack[0];
+        std::vector<int> shape;
+        for (auto &expr : inputs[0]->shape) {
+          shape.push_back(expr.as_int32());
+        }
+        pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], shape, target);
+        *ret = CINNValuePack{{CINNValue(Out), CINNValue(stages)}};
+        return;
+      }
+
       Expr Out             = arg_pack[0];
       Expr input_pad       = arg_pack[1];
       Expr weights         = arg_pack[2];
       ir::Tensor out_t     = Out.as_tensor_ref();
       ir::Tensor input_t   = input_pad.as_tensor_ref();
       ir::Tensor weights_t = weights.as_tensor_ref();
+
       CHECK(Out.as_tensor());
       pe::CudaScheduleConv(stages, input_t, weights_t, out_t, target);
       arg_pack[0] = Expr(out_t);
@@ -405,11 +423,11 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       out_shape_w =
           (inputs_shape[1][3] - 1) * stride[1] - 2 * padding[1] + ((inputs_shape[0][3] - 1) * dilation[1] + 1);
     } else if (conv_type == "backward_filter") {
-      CHECK(attrs.find("weights_shape") != attrs.end()) << "The shape of weights is not found! Please check.";
-      auto weights_shape = absl::get<std::vector<int>>(attrs.at("weights_shape"));
-      CHECK_EQ(weights_shape.size(), 4) << "The size of filter shape is not 2(fh,fw)!Please check";
-      out_shape_h = weights_shape[2];
-      out_shape_w = weights_shape[3];
+      CHECK(attrs.find("filter") != attrs.end()) << "The shape of filter is not found! Please check.";
+      auto filter = absl::get<std::vector<int>>(attrs.at("filter"));
+      CHECK_EQ(filter.size(), 4) << "The size of filter shape is not 2(fh,fw)!Please check";
+      out_shape_h = filter[2];
+      out_shape_w = filter[3];
     }
 
     res = {{inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
@@ -1901,6 +1919,44 @@ std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<fram
   return {input_layouts, input_layouts};
 }
 
+// batch norm train
+std::vector<framework::shape_t> InferShapeForBatchNormTrain(const std::vector<framework::shape_t> &inputs_shape,
+                                                            const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 5U) << "The input's layout size is not 5! Please check again.";
+  return inputs_shape;
+}
+
+std::vector<Type> InferDtypeForBatchNormTrain(const std::vector<Type> &inputs_type,
+                                              const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  return {inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0]};
+}
+
+// batch norm grad
+std::vector<framework::shape_t> InferShapeForBatchNormGrad(const std::vector<framework::shape_t> &inputs_shape,
+                                                           const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 5U) << "The input's layout size is not 5! Please check again.";
+  return {inputs_shape[0], inputs_shape[1], inputs_shape[1]};
+}
+
+std::vector<Type> InferDtypeForBatchNormGrad(const std::vector<Type> &inputs_type,
+                                             const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  return {inputs_type[0], inputs_type[0], inputs_type[0]};
+}
+
+// conv2d grad
+std::vector<framework::shape_t> InferShapeForConv2dGrad(const std::vector<framework::shape_t> &inputs_shape,
+                                                        const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 3U) << "The input's layout size is not 3! Please check again.";
+  return {inputs_shape[0], inputs_shape[1]};
+}
+
+std::vector<Type> InferDtypeForConv2dGrad(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  return {inputs_type[0], inputs_type[0]};
+}
+
 std::shared_ptr<OpStrategy> StrategyForGradOp(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
@@ -1911,8 +1967,8 @@ std::shared_ptr<OpStrategy> StrategyForGradOp(const framework::NodeAttr &attrs,
 }
 
 }  // namespace op
+}  // namespace op
 }  // namespace hlir
-}  // namespace cinn
 
 CINN_REGISTER_HELPER(nn_ops) {
   CINN_REGISTER_OP(relu)
@@ -2110,6 +2166,30 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForUnary))
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(batch_norm_train)
+      .describe("This operator implements the batch normalization training forward.")
+      .set_num_inputs(5)
+      .set_num_outputs(5)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBatchNormTrain))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBatchNormTrain))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(batch_norm_grad)
+      .describe("This operator implements the batch normalization backward.")
+      .set_num_inputs(5)
+      .set_num_outputs(3)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBatchNormGrad))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBatchNormGrad))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(conv2d_grad)
+      .describe("This operator implements the convolution backward.")
+      .set_num_inputs(3)
+      .set_num_outputs(2)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2dGrad))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2dGrad))
       .set_support_level(4);
 
   return true;

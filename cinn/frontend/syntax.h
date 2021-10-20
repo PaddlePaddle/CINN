@@ -161,7 +161,7 @@ struct Instruction : public common::Shared<_Instruction_> {
    * @return The attribute value.
    */
   template <typename T>
-  T GetAttrs(const std::string& key) {
+  T GetAttrs(const std::string& key) const {
     auto it = get()->attrs.find(key);
     CHECK(it != get()->attrs.end()) << "No attribute called [" << key << "]";
     return absl::get<T>(it->second);
@@ -387,6 +387,12 @@ struct Program {
   Variable slice(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);
 
   Variable dropout_infer(const Variable& a, const absl::flat_hash_map<std::string, attr_t>& attr_store);
+
+  Variable reverse(const Variable& a, const std::vector<int>& axis);
+
+  Variable select(const Variable& condition, const Variable& true_value, const Variable& false_value);
+
+  Variable transpose(const Variable& a, const std::vector<int>& axis);
 
   /**
    * Get \p i-th instruction.

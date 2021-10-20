@@ -15,6 +15,7 @@
 #include "cinn/hlir/framework/graph_compiler.h"
 
 #include <absl/container/flat_hash_map.h>
+#include <stdio.h>
 
 #include <unordered_set>
 
@@ -121,16 +122,16 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     out_types.push_back(dtype);
   }
   auto impl = OpStrategy::SelectImpl(strategy[node->op()](node->attrs, inputs, out_types, output_shapes, target_));
-
   common::CINNValuePack C = impl->fcompute(common::CINNValuePack{cinn_inputs});
-  poly::StageMap stages   = C.back();
+
+  poly::StageMap stages = C.back();
   // make sure all the tensors in the stages before schedule launch.
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
     stages->InsertLazily(temp.as_tensor_ref());
   }
-
   C = impl->fschedule(C);
+
   for (int i = 0; i < C->size() - 1; i++) {
     ir::Expr temp = C[i];
     inputs.push_back(temp.as_tensor_ref());

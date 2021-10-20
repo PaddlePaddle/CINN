@@ -264,7 +264,7 @@ struct InsertDebugLogCalleeMutator : public ir::IRMutator<> {
   Expr CreateDebugStatement(const std::string &msg, std::vector<Expr> &&args = {}) {
     args.insert(args.begin(), Expr(msg));
     return ir::Call::Make(
-        Void(), runtime::intrinsic::debug_log_repr, args, {}, ir::CallType ::Intrinsic, ir::FunctionRef(), 0);
+        Void(), runtime::intrinsic::debug_log_repr, args, {}, ir::CallType::Intrinsic, ir::FunctionRef(), 0);
   }
 };
 

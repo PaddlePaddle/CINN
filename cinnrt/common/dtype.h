@@ -10,7 +10,7 @@ class DType {
   enum class Kind : uint8_t {
     Unk = 0,
 
-  // Automatically generate the enum definition
+// Automatically generate the enum definition
 #define CINNRT_DTYPE(enum__, value__) enum__ = value__,
 #include "cinnrt/common/dtype.def"
 #undef CINNRT_DTYPE

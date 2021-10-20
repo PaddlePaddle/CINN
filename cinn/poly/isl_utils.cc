@@ -336,7 +336,8 @@ bool isl_set_axis_has_noparam_constant_bound(isl_set __isl_keep *set, int pos) {
     isl_pw_aff_foreach_piece(
         val,
         [](isl_set *__isl_give set, isl_aff *__isl_give aff, void *user) -> isl_stat {
-          // Ignore the set piece, e.g. [_cp_C_0, _cp_C_1] -> { cache[0, 0] : _cp_C_0 = 0 and _cp_C_1 = 0 }
+          // Ignore the set piece, e.g. [_cp_C_0, _cp_C_1] -> { cache[0, 0] : _cp_C_0 = 0 and
+          // _cp_C_1 = 0 }
           // will get a set [_cp_C_0, _cp_C_1] -> {  : _cp_C_0 = 0 and _cp_C_1 = 0 }
           if (set) {
             // ignore

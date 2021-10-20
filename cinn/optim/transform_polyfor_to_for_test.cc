@@ -47,9 +47,9 @@ TEST(Expr, basic) {
   auto func = Lower("matmul", stages, {A, B, C});
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   {
     ir::Module::Builder builder("module1", target);

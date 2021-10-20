@@ -227,5 +227,62 @@ Variable NetBuilder::dropout_infer(const Variable& a, float dropout_prob, const 
   return instr.GetOutput(0);
 }
 
+// batch norm training, output{y, new_running_mean, new_running_var, save_mean, save_var}
+std::vector<Variable> NetBuilder::batch_norm_train(const Variable& x,
+                                                   const Variable& scale,
+                                                   const Variable& bias,
+                                                   const Variable& running_mean,
+                                                   const Variable& running_var,
+                                                   const float epsilon,
+                                                   const float running_factor,
+                                                   const std::string& layout) {
+  Instruction instr("batch_norm_train", {x, scale, bias, running_mean, running_var});
+  instr.SetAttr("epsilon", epsilon);
+  instr.SetAttr("running_factor", running_factor);
+  instr.SetAttr("layout", layout);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
+}
+
+// batch norm grad, output(grad_x, grad_scale, grad_bias)
+std::vector<Variable> NetBuilder::batch_norm_grad(const Variable& x,
+                                                  const Variable& dy,
+                                                  const Variable& scale,
+                                                  const Variable& save_mean,
+                                                  const Variable& save_var,
+                                                  const std::string& layout) {
+  Instruction instr("batch_norm_grad", {x, dy, scale, save_mean, save_var});
+  instr.SetAttr("layout", layout);
+
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
+}
+
+// conv2d grad, output(grad_x, grad_w)
+std::vector<Variable> NetBuilder::conv2d_grad(const Variable& x,
+                                              const Variable& w,
+                                              const Variable& dy,
+                                              const std::vector<int>& stride,
+                                              const std::vector<int>& padding,
+                                              const std::vector<int>& dilation,
+                                              const int groups,
+                                              const std::string& layout,
+                                              const std::string& padding_algorithm) {
+  Instruction instr("conv2d_grad", {x, w, dy});
+
+  instr.SetAttr<std::vector<int>>("stride", stride);
+  instr.SetAttr<std::vector<int>>("padding", padding);
+  instr.SetAttr<std::vector<int>>("dilation", dilation);
+  instr.SetAttr<int>("groups", groups);
+  instr.SetAttr<std::string>("layout", layout);
+  instr.SetAttr<std::string>("padding_algorithm", padding_algorithm);
+
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
+}
+
 }  // namespace frontend
 }  // namespace cinn

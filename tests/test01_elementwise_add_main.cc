@@ -31,9 +31,9 @@ TEST(test01_elementwise_add, basic) {
   C->Bind(C_buf);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
   Module::Builder builder("module1", target);
 
   auto stages = CreateStages({A, B, C});
@@ -60,9 +60,9 @@ TEST(test01_elementwise_add, vectorize) {
   stages[C]->Vectorize(1, 8);
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
   Module::Builder builder("module2", target);
 
   auto func = Lower("add1_vectorize", stages, {A, B, C});

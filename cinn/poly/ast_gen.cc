@@ -378,7 +378,7 @@ void EatFor(const isl::ast_node& node, ir::Expr* expr) {
   ir::Var ir_iter(iter_name);
 
   *expr = ir::PolyFor::Make(
-      ir::Var(iter_name), ir_initializer, ir_condition, ir_inc, ir::ForType::Serial, ir::DeviceAPI ::Host, ir_body);
+      ir::Var(iter_name), ir_initializer, ir_condition, ir_inc, ir::ForType::Serial, ir::DeviceAPI::Host, ir_body);
 }
 
 void EatIf(const isl::ast_node& node, ir::Expr* expr) {

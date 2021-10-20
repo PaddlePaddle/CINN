@@ -68,9 +68,9 @@ TEST(Buffer, bind_to_multiple_tensors) {
   auto funcs = lang::Lower("func1", stages, {A, B});
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   ir::Module::Builder builder("module1", target);
   builder.AddFunction(funcs);

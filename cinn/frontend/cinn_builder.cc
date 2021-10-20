@@ -94,20 +94,26 @@ Variable CinnBuilder::Concat(const Variable& lhs, const Variable& rhs, int axis)
 
 Variable CinnBuilder::Conv(const Variable& lhs,
                            const Variable& rhs,
-                           const std::vector<int>& strides,
-                           const std::vector<int>& paddings,
-                           const std::vector<int>& dilations,
+                           const std::vector<int>& stride,
+                           const std::vector<int>& padding,
+                           const std::vector<int>& dilation,
                            int groups,
+                           const std::string& conv_type,
                            const std::string& data_format,
-                           const std::string& padding_algorithm) {
+                           const std::string& padding_algorithm,
+                           const std::vector<int>& filter) {
   Instruction instr("conv2d");
   instr.SetInputs({lhs, rhs});
-  instr.SetAttr("stride", strides);
-  instr.SetAttr("padding", paddings);
-  instr.SetAttr("dilation", dilations);
+  instr.SetAttr("stride", stride);
+  instr.SetAttr("padding", padding);
+  instr.SetAttr("dilation", dilation);
   instr.SetAttr("groups", groups);
+  instr.SetAttr("conv_type", conv_type);
   instr.SetAttr("data_format", data_format);
   instr.SetAttr("padding_algorithm", padding_algorithm);
+  // for backward filter
+  instr.SetAttr("filter", filter);
+
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
@@ -210,6 +216,7 @@ Variable CinnBuilder::Reverse(const Variable& operand, const std::vector<int>& a
   AppendInstruction(instr);
   return instr.GetOutput(0);
 }
+
 
 Variable CinnBuilder::UnaryOp(const std::string& op_type, const Variable& operand) {
   Instruction instr(op_type, {operand});

@@ -57,11 +57,6 @@ void relu_grad(const Instruction& instr, const DecomposerContext& context) {
 
 CINN_REGISTER_HELPER(activation) {
   CINN_DECOMPOSER_REGISTER(relu, cinn::frontend::decomposer::relu);
-
-  return true;
-}
-
-CINN_REGISTER_HELPER(activation_grad) {
   CINN_DECOMPOSER_REGISTER(relu_grad, cinn::frontend::decomposer::relu_grad);
 
   return true;

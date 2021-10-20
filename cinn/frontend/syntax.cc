@@ -425,6 +425,29 @@ Variable Program::mulbias(
   return instr.GetOutput(1);
 }
 
+Variable Program::reverse(const Variable& a, const std::vector<int>& axis) {
+  Instruction instr("reverse", {a});
+  instr.SetAttr("axis", axis);
+
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable Program::select(const Variable& condition, const Variable& true_value, const Variable& false_value) {
+  Instruction instr("select", {condition, true_value, false_value});
+
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable Program::transpose(const Variable& a, const std::vector<int>& axis) {
+  Instruction instr("transpose", {a});
+  instr.SetAttr("axis", axis);
+
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 std::string _Instruction_::debug_string() const {
   struct Visit {
     std::stringstream& s_;

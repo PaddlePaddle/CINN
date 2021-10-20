@@ -54,7 +54,7 @@ void TransposeVar(const std::string& origin_name, const OpMapperContext& ctx) {
       TransposeData(data, tensor->shape().data()[0], tensor->shape().data()[1]);
     } else if (ctx.Target().arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDA
-      // To use cublas mul api, there is no need to transpose data.
+// To use cublas mul api, there is no need to transpose data.
 #ifndef CINN_WITH_CUDNN
       std::vector<float> data(tensor->shape().numel());
       CUDA_CALL(cudaMemcpy(data.data(),

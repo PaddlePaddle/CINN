@@ -239,19 +239,19 @@ Expr ExprToGinacConverter::GinacToExpr(const GiNaC::ex& ex) {
 
 bool IsPureMath(Expr expr) {
   std::set<IrNodeTy> valid_node_tys({
-      IrNodeTy ::_Var_,
-      IrNodeTy ::IntImm,
-      IrNodeTy ::Sum,
-      IrNodeTy ::Product,
-      IrNodeTy ::FracOp,
-      IrNodeTy ::Power,
-      IrNodeTy ::FloatImm,
-      IrNodeTy ::Add,
-      IrNodeTy ::Sub,
-      IrNodeTy ::Div,
-      IrNodeTy ::Mul,
+      IrNodeTy::_Var_,
+      IrNodeTy::IntImm,
+      IrNodeTy::Sum,
+      IrNodeTy::Product,
+      IrNodeTy::FracOp,
+      IrNodeTy::Power,
+      IrNodeTy::FloatImm,
+      IrNodeTy::Add,
+      IrNodeTy::Sub,
+      IrNodeTy::Div,
+      IrNodeTy::Mul,
       IrNodeTy::Mod,
-      IrNodeTy ::Minus,
+      IrNodeTy::Minus,
   });
 
   auto complex_nodes = ir::CollectIRNodes(expr, [&](const Expr* n) { return !valid_node_tys.count(n->node_type()); });

@@ -41,9 +41,9 @@ TEST(CodeGenCX86, basic) {
   const int bn = 32;
 
   Target target;
-  target.arch = Target::Arch ::X86;
-  target.bits = Target::Bit ::k32;
-  target.os   = Target::OS ::Linux;
+  target.arch = Target::Arch::X86;
+  target.bits = Target::Bit::k32;
+  target.os   = Target::OS::Linux;
 
   Placeholder<float> A("A", {M, N});
   Placeholder<float> B("B", {M, N});

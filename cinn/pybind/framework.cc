@@ -109,7 +109,7 @@ void BindFramework(pybind11::module *m) {
                                     t->shape().numel() * sizeof(float),
                                     cudaMemcpyDeviceToHost));
 #else
-               LOG(FATAL) <<"To use CUDA backends, you need to set WITH_CUDA ON!";
+               LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
 #endif
              } else {
                CINN_NOT_IMPLEMENTED
