@@ -57,6 +57,7 @@ set(cinnapi_src CACHE INTERNAL "" FORCE)
 set(cinnrt_src CACHE INTERNAL "" FORCE)
 set(core_src CACHE INTERNAL "" FORCE)
 set(core_includes CACHE INTERNAL "" FORCE)
+set(core_proto_includes CACHE INTERNAL "" FORCE)
 include(cmake/core.cmake)
 
 include_directories(${CMAKE_SOURCE_DIR})
@@ -133,11 +134,21 @@ endfunction()
 gen_cinncore(STATIC)
 gen_cinncore(SHARED)
 
+
 # --------distribute cinncore lib and include begin--------
 if (PUBLISH_LIBS)
     foreach(header ${core_includes})
         get_filename_component(prefix ${header} DIRECTORY)
         file(COPY ${header} DESTINATION ${CMAKE_BINARY_DIR}/dist/cinn/include/${prefix})
+    endforeach()
+
+    foreach(proto_header ${core_proto_includes})
+      string(REPLACE ${CMAKE_BINARY_DIR}/ "" relname ${proto_header})
+      get_filename_component(prefix ${relname} DIRECTORY)
+      set(target_name ${CMAKE_BINARY_DIR}/dist/cinn/include/${relname})
+      add_custom_command(TARGET cinncore_static POST_BUILD
+        COMMENT "copy generated proto header '${relname}' to dist"
+        COMMAND cmake -E copy ${proto_header} ${target_name} DEPENDS cinncore_static)
     endforeach()
 
     add_custom_command(TARGET cinnapi POST_BUILD
