@@ -28,7 +28,7 @@ namespace cinn {
 namespace frontend {
 
 void PaddleModelConvertor::PrepareRun(const paddle::cpp::BlockDesc& block_desc, OpMapperContext* ctx) {
-  absl::flat_hash_map<std::string, const paddle::cpp::VarDesc*> var_desc_map;
+  std::unordered_map<std::string, const paddle::cpp::VarDesc*> var_desc_map;
   // preserve var desc info lik shape and dtype
   for (int i = 0; i < block_desc.VarsSize(); i++) {
     const auto& var_desc          = block_desc.GetConstVar<paddle::cpp::VarDesc>(i);

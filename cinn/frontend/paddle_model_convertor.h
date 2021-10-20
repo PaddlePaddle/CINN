@@ -57,9 +57,9 @@ class PaddleModelConvertor {
   const auto& var_model_to_program_map() const { return var_model_to_program_map_; }
 
  private:
-  absl::flat_hash_map<std::string, Variable> var_map_;
+  std::unordered_map<std::string, Variable> var_map_;
   // map from var in Paddle model to var name in program.
-  absl::flat_hash_map<std::string, std::string> var_model_to_program_map_;
+  std::unordered_map<std::string, std::string> var_model_to_program_map_;
   hlir::framework::Scope* scope_{};
   const common::Target& target_;
 };

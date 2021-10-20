@@ -38,8 +38,8 @@ class OpMapperContext {
   OpMapperContext(const hlir::framework::Scope& scope,
                   const common::Target& target,
                   NetBuilder* builder,
-                  absl::flat_hash_map<std::string, Variable>* var_map,
-                  absl::flat_hash_map<std::string, std::string>* var_model_to_program_map)
+                  std::unordered_map<std::string, Variable>* var_map,
+                  std::unordered_map<std::string, std::string>* var_model_to_program_map)
       : scope_(scope),
         target_(target),
         builder_(builder),
@@ -75,11 +75,11 @@ class OpMapperContext {
   const common::Target& target_;
   NetBuilder* builder_{nullptr};
 
-  absl::flat_hash_map<std::string, Variable>* var_map_{nullptr};
+  std::unordered_map<std::string, Variable>* var_map_{nullptr};
   // map from var in Paddle model to var name in program.
-  absl::flat_hash_map<std::string, std::string>* var_model_to_program_map_{nullptr};
+  std::unordered_map<std::string, std::string>* var_model_to_program_map_{nullptr};
 
-  absl::flat_hash_map<std::string, FeedInfo> feed_info_map_;
+  std::unordered_map<std::string, FeedInfo> feed_info_map_;
 };
 
 class OpMapper {
