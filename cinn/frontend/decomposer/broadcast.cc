@@ -35,7 +35,7 @@ void GetReduceDimsForY(const std::vector<int>& dy_shape,
                        const std::vector<int>& dout_shape,
                        int axis,
                        std::vector<int>* reduce_dims) {
-  // e.g., dy_shape = [3, 1, 4], dx_shape = [2, 3, 4, 4, 5], axis = 1
+  // e.g., dy_shape = [3, 1, 4], dout_shape = [2, 3, 4, 4, 5], axis = 1
   // reduce_dims=[0, 2, 4]
   for (size_t i = 0; i < dout_shape.size(); ++i) {
     if (i < axis || i >= axis + dy_shape.size()) {
@@ -60,19 +60,25 @@ void elementwise_add(const Instruction& instr, const DecomposerContext& context)
   auto* builder = context.builder();
 
   Variable out;
-  if (x->shape == output->shape) {
-    out = builder->Add(x, y);
-  } else {
-    // e.g., x.shape = [4, 1, 3], out.shape = [4, 2, 3], bcast_axes_x = [0, 1, 2]
+  Variable bcast_x = x;
+  Variable bcast_y = y;
+
+  // e.g., x.shape = [4, 1, 3], y.shape = [2, 3], aixs = 1 out.shape = [4, 2, 3]
+  // bcast_axes_x = [0, 1, 2], bcast_axes_y = [1, 2]
+  if (x->shape != output->shape) {
     std::vector<int> bcast_axes_x(x->shape.size());
     std::iota(bcast_axes_x.begin(), bcast_axes_x.end(), 0);
-    auto bcast_x = builder->BroadcastTo(x, output->shape, bcast_axes_x);
-    // e.g., aixs = 1, y.shape = [2, 3], bcast_axes_y = [1, 2]
+    bcast_x = builder->BroadcastTo(x, output->shape, bcast_axes_x);
+  }
+
+  // if y.shape=[1], y does not need to be broadcast
+  if (y->shape != output->shape && y->shape != std::vector<int>(1, 1)) {
     std::vector<int> bcast_axes_y(y->shape.size());
     std::iota(bcast_axes_y.begin(), bcast_axes_y.end(), axis);
-    auto bcast_y = builder->BroadcastTo(y, output->shape, bcast_axes_y);
-    out          = builder->Add(bcast_x, bcast_y);
+    bcast_y = builder->BroadcastTo(y, output->shape, bcast_axes_y);
   }
+
+  out = builder->Add(bcast_x, bcast_y);
 
   // map the the output of decomposed operator to the original.
   context.MapOutToOrigin(out, output);
@@ -94,6 +100,7 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
   } else {
     std::vector<int> x_reduce_dims;
     GetReduceDimsForX(dx->shape, dout->shape, &x_reduce_dims);
+    // The rank of dx is same as dout, so set keep_dim = true
     dx_t = builder->Reduce(dout, ReduceKind::kSum, x_reduce_dims, true);
   }
 
@@ -103,6 +110,9 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
   } else {
     std::vector<int> y_reduce_dims;
     GetReduceDimsForY(dy->shape, dout->shape, axis, &y_reduce_dims);
+    // The rank of dy is less or equal to dout, after reduce_sum, there
+    // may be some extra "1" in the front or back of dy_res's shape. So
+    // the dt_res needs to be reshaped.
     auto dy_res = builder->Reduce(dout, ReduceKind::kSum, y_reduce_dims, true);
     dy_t        = builder->Reshape(dy_res, dy->shape);
   }
