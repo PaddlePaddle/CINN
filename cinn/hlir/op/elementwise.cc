@@ -242,6 +242,41 @@ std::vector<std::vector<std::string>> InferLayoutForConstScalar(const std::vecto
   return {{"C"}, input_layouts};
 }
 
+std::shared_ptr<OpStrategy> StrategyForSum(const framework::NodeAttr &attrs,
+                                           const std::vector<ir::Tensor> &inputs,
+                                           const std::vector<Type> &out_type,
+                                           const std::vector<std::vector<int>> &output_shapes,
+                                           const Target &target) {
+  LOG(FATAL) << "The operator will be decomposed into several primitive operators. Please Use Decomposer Program Pass.";
+}
+
+std::vector<shape_t> InferShapeForSum(const std::vector<shape_t> &inputs_shape, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_shape.empty()) << "At least 1 input tensor for sum operator.";
+  auto shape = inputs_shape[0];
+  for (size_t i = 1; i < inputs_shape.size(); ++i) {
+    if (inputs_shape[i] != shape) {
+      LOG(FATAL) << "The input shapes must be the same. But received: the i-th(" << i << ") input shape is "
+                 << utils::Join(inputs_shape[i], ",") << " and the first input shape is " << utils::Join(shape, ",");
+    }
+  }
+  std::vector<shape_t> out_shape{shape};
+
+  return out_shape;
+}
+
+std::vector<Type> InferDtypeForSum(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "At least 1 input tensor for sum operator.";
+  auto type = inputs_type[0];
+  for (size_t i = 1; i < inputs_type.size(); ++i) {
+    if (inputs_type[i] != type) {
+      LOG(FATAL) << "The input types must be the same. But received: the i-th(" << i << ") input type is "
+                 << inputs_type[i] << " and the first input type is " << type;
+    }
+  }
+  std::vector<Type> res{type};
+  return res;
+}
+
 StrategyForUnary(exp, Exp);
 StrategyForUnary(erf, Erf);
 StrategyForUnary(sqrt, Sqrt);
@@ -360,6 +395,14 @@ CINN_REGISTER_HELPER(elementwise_ops) {
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
+
+  CINN_REGISTER_OP(sum)
+      .describe("Sum the input tensors.")
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForSum)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSum))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSum))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise);
 
   return true;
 }

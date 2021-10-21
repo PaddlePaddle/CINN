@@ -130,6 +130,8 @@ class NetBuilder : public BaseBuilder {
   Variable dropout_infer(const Variable& a,
                          float dropout_prob                        = 0.5f,
                          const std::string& dropout_implementation = "downgrade_in_infer");
+
+  Variable sum(const std::vector<Variable>& inputs);
 };
 
 }  // namespace frontend

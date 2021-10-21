@@ -22,7 +22,6 @@
 
 namespace cinn {
 namespace frontend {
-
 Variable NetBuilder::add(const Variable& a, const Variable& b) {
   Instruction instr("elementwise_add", {a, b});
   InferShape(instr);
@@ -222,6 +221,13 @@ Variable NetBuilder::dropout_infer(const Variable& a, float dropout_prob, const 
   Instruction instr("dropout_infer", {a});
   instr.SetAttr("dropout_prob", dropout_prob);
   instr.SetAttr("dropout_implementation", dropout_implementation);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::sum(const std::vector<Variable>& inputs) {
+  Instruction instr("sum", inputs);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
