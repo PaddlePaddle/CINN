@@ -1,5 +1,4 @@
-#ifdef CINN_BASE
-#else
+#ifndef CINN_BASE
 #define CINN_BASE
 
 include "mlir/IR/OpBase.td"
@@ -28,4 +27,16 @@ def TensorMapType :
 
 def BufferType : OpaqueType<"b", "buffer", "buffer">;
 
+class CINN_createI32Attr<string value> : NativeCodeCall<
+    "mlir::createI32Attr($_builder, $_loc, " # value # ")">;
+
+def CINN_cvtValueToValueRange : NativeCodeCall<
+    "mlir::cvtValueToValueRange($0)">;
+
+def CINN_concatTwoValueRange : NativeCodeCall<
+    "mlir::concatTwoValueRange($0, $1)">;
+
+class IsBoolAttrEq<string value> : Constraint<
+    CPred<"($0.getValue() ==" # value # ")">,
+    "Bool attrbute value constraint">;
 #endif  // CINN_BASE

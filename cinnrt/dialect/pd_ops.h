@@ -17,17 +17,17 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 
 namespace mlir {
-namespace PD {
+namespace pd {
 
 class PaddleDialect : public Dialect {
  public:
   explicit PaddleDialect(MLIRContext* context);
 
-  static StringRef getDialectNamespace() { return "PD"; }
+  static StringRef getDialectNamespace() { return "pd"; }
 
   Type parseType(DialectAsmParser& parser) const override { return Dialect::parseType(parser); }
   void printType(Type type, DialectAsmPrinter& printer) const override { Dialect::printType(type, printer); }
 };
 
-}  // namespace PD
+}  // namespace pd
 }  // namespace mlir
