@@ -236,6 +236,10 @@ class Stage : public Object {
   //! Get the tensors control depend on.
   const std::set<ir::Tensor>& ctrl_depends() const;
 
+  void SetBuffer(const std::string& memory_type);
+
+  void SimpleComputeAt(Stage* other, int level);
+
   /**
    * Create a cache Tensor and load the \p source into this buffer, replace all the reading in the readers with the
    * cache.
@@ -327,6 +331,7 @@ class Stage : public Object {
   Iterator Fuse(const Iterator& level0, const Iterator& level1);
   Iterator Fuse(int level0, int level1);
   Iterator Fuse(const std::vector<int>& levels);
+  Iterator Fuse(const std::vector<Iterator>& levels);
   Iterator Fuse(const std::string& level0, const std::string& level1);
 
   const isl::set& domain() const { return domain_; }

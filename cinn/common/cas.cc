@@ -141,6 +141,12 @@ bool IsDivisible(int64_t a, int64_t b) {
   return a % b == 0;
 }
 bool IsDivisible(const Sum* a, int b);
+bool IsDivisible(int a, const Product* b) {
+  for (auto& item : b->operands()) {
+    if (item.As<IntImm>() && IsDivisible(a, item.As<IntImm>()->value)) return true;
+  }
+  return false;
+}
 bool IsDivisible(const Product* a, int b) {
   for (auto& item : a->operands()) {
     if (item.As<IntImm>() && IsDivisible(item.As<IntImm>()->value, b)) return true;
@@ -198,14 +204,26 @@ Expr Divide(const Product* a, int b) {
       break;
     }
   }
-  // NOTE that a should be divisible by b.
-  CHECK(is_divisible) << "a should be divisible by b";
-  if (times != 1) {
-    args.push_back(make_const(a->type(), times));
-  }
-  for (int j = 0; j < a->operands().size(); j++) {
-    if (j == i) continue;
-    args.push_back(a->operand(j));
+  if (is_divisible) {
+    // NOTE that a should be divisible by b.
+    if (times != 1) {
+      args.push_back(make_const(a->type(), times));
+    }
+    for (int j = 0; j < a->operands().size(); j++) {
+      if (j == i) continue;
+      args.push_back(a->operand(j));
+    }
+    return Product::Make(args);
+  } else {
+    for (i = 0; i < a->operands().size(); i++) {
+      auto* a_i = a->operand(i).As<IntImm>();
+      if (a_i && b % a_i->value == 0) {
+        b = b / a_i->value;
+      } else {
+        args.push_back(a->operand(i));
+      }
+    }
+    return FracOp::Make(Product::Make(args), Expr(b));
   }
   return Product::Make(args);
 }
@@ -1117,16 +1135,39 @@ bool CasSimplifyMutator::GetMaxBound(Expr* lower_bound, Expr* upper_bound, Expr 
 }
 
 bool CasSimplifyMutator::SimplifySpecificSumMod(Expr* result, Expr a, Expr b) {
-// case1: (32+(-x))%33 = 32-x%33 (0<=x<=32)
-// case2: (x-32))%33 = x%33 - 32%33 (0<=x<=32)
-#ifdef CINN_WITH_CUDA
-  return false;
-#else
+  // case1: (32+(-x))%33 = 32-x%33 (0<=x<=32)
+  // case2: (x-32))%33 = x%33 - 32%33 (0<=x<=32)
   auto a_sum = a.As<Sum>();
   auto b_i   = b.As<IntImm>();
   if (!a_sum || !b_i) {
     return false;
   }
+  // if 0 < b < 3, (3a+b) % 6 = (3a % 6) + (b % 6)
+  if (a_sum->operands().size() == 2) {
+    a_sum->operands()[0] = CasSimplify(a_sum->operands()[0], var_intervals);
+    auto sum_a_prod      = a_sum->operands()[0].As<Product>();
+    auto sum_b_var       = a_sum->operands()[1].As<_Var_>();
+    if (sum_a_prod && sum_b_var && var_intervals.count(sum_b_var->name)) {
+      auto sum_a_prod_b_int = sum_a_prod->operand(1).As<IntImm>();
+      if (sum_a_prod_b_int) std::swap(sum_a_prod->operand(0), sum_a_prod->operand(1));
+      auto sum_a_prod_a_int = sum_a_prod->operand(0).As<IntImm>();
+      auto& interval        = var_intervals.at(sum_b_var->name);
+      int b_abs             = std::abs(b_i->value);
+      int sum_prod_a_abs    = std::abs(sum_a_prod_a_int->value);
+      if (sum_a_prod_a_int && (b_abs % sum_prod_a_abs == 0)) {
+        if (std::abs(interval.l) < sum_prod_a_abs && std::abs(interval.r) < sum_prod_a_abs) {
+          *result = CasSimplify(Sum::Make({CasSimplify(Mod::Make(a_sum->operands()[0], b), var_intervals),
+                                           CasSimplify(Mod::Make(a_sum->operands()[1], b), var_intervals)}),
+                                var_intervals);
+          return true;
+        }
+      }
+    }
+  }
+#ifdef CINN_WITH_CUDA
+  return false;
+#else
+
   int const_value = 0;
   Expr lower_bound;
   Expr upper_bound;
@@ -1216,9 +1257,24 @@ Expr CasSimplifyMutator::SimplifyMod(Expr u) {
   // x % 1 = 0
   if (b_i && b_i->value == 1) return make_const(b_i->type(), 0);
 
-  // 2x % 2 = 0
+  // 4x % 2 = 0
+  // 2x % 4 = 2 * (x % 2)
   if (b_i && a_product && a_product->operand(0).As<IntImm>()) {
     if (a_product->operand(0).As<IntImm>()->value % b_i->value == 0) return make_const(a_product->type(), 0);
+    if (b_i->value % a_product->operand(0).As<IntImm>()->value == 0) {
+      int a_product_int = a_product->operand(0).As<IntImm>()->value;
+      int new_b         = b_i->value / a_product_int;
+      return Product::Make({Expr(a_product_int), SimplifyMod(Mod::Make(a_product->operand(1), Expr(new_b)))});
+    }
+  }
+
+  if (b_i && a_product && a_product->operand(1).As<IntImm>()) {
+    if (a_product->operand(1).As<IntImm>()->value % b_i->value == 0) return make_const(a_product->type(), 0);
+    if (b_i->value % a_product->operand(1).As<IntImm>()->value == 0) {
+      int a_product_int = a_product->operand(1).As<IntImm>()->value;
+      int new_b         = b_i->value / a_product_int;
+      return Product::Make({Expr(a_product_int), SimplifyMod(Mod::Make(a_product->operand(0), Expr(new_b)))});
+    }
   }
 
   // 0 % x = 1, 1 % x = 1
@@ -1650,6 +1706,64 @@ Expr ConvertCinnToCAS(Expr expr) {
   return copied;
 }
 
+Expr ReplaceMinToConstant(Expr expr) {
+  Expr copied = optim::IRCopy(expr);
+  struct Mutator : public ir::IRMutator<ir::Expr*> {
+    void operator()(Expr* expr) { Visit(expr); }
+    void Visit(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+   private:
+    void Visit(const Min* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
+      auto min_a = op->a();
+      auto min_b = op->b();
+      if (min_a.is_constant() && !min_b.is_constant()) {
+        CHECK(min_a->type().is_integer());
+        *expr = optim::IRCopy(min_a);
+      } else if (min_b.is_constant() && !min_a.is_constant()) {
+        CHECK(min_b->type().is_integer());
+        *expr = optim::IRCopy(min_b);
+      }
+    }
+  };
+  Mutator()(&copied);
+  return copied;
+}
+
+Expr ReplaceMaxToConstant(Expr expr) {
+  Expr copied = optim::IRCopy(expr);
+  struct Mutator : public ir::IRMutator<ir::Expr*> {
+    void operator()(Expr* expr) { Visit(expr); }
+    void Visit(Expr* expr) { ir::IRMutator<>::Visit(expr, expr); }
+
+   private:
+    void Visit(const Max* op, Expr* expr) override {
+      auto a = op->a();
+      auto b = op->b();
+
+      Visit(&a);
+      Visit(&b);
+
+      auto max_a = op->a();
+      auto max_b = op->b();
+      if (max_a.is_constant() && !max_b.is_constant()) {
+        CHECK(max_a->type().is_integer());
+        *expr = optim::IRCopy(max_a);
+      } else if (max_b.is_constant() && !max_a.is_constant()) {
+        CHECK(max_b->type().is_integer());
+        *expr = optim::IRCopy(max_b);
+      }
+    }
+  };
+  Mutator()(&copied);
+  return copied;
+}
+
 Expr ConvertCasToCinn(Expr expr) {
   Expr copied = optim::IRCopy(expr);
 
@@ -1800,7 +1914,7 @@ Expr DividePartially(Sum* a, int b) {
   std::vector<Expr> external_sum_args, sum_args;
 
   for (auto& item : a->operands()) {
-    if (item.As<Product>() && IsDivisible(item.As<Product>(), b)) {
+    if (item.As<Product>() && (IsDivisible(item.As<Product>(), b) || IsDivisible(b, item.As<Product>()))) {
       external_sum_args.push_back(Divide(item.As<Product>(), b));
     } else if (item.As<IntImm>() && IsDivisible(item.As<IntImm>()->value, b)) {
       external_sum_args.push_back(make_const(item.type(), item.As<IntImm>()->value / b));
@@ -1930,12 +2044,35 @@ Expr CasSimplifyMutator::SimplifyFracOp(Expr expr) {
     // disiviable
     if (a_sum && IsDivisible(a_sum, bi->value)) return Divide(a_sum, bi->value);
     if (a_product) {
-      if (IsDivisible(a_product, bi->value)) {
+      if (IsDivisible(a_product, bi->value) || IsDivisible(bi->value, a_product)) {
         return Divide(a_product, bi->value);
       } else {
         return FracOp::Make(a, b);
       }
     }
+
+    // if 0 < b < 3, (3a+b) / 6 = (3a / 6) + (b / 6)
+    if (a_sum && a_sum->operands().size() == 2) {
+      a_sum->operands()[0] = CasSimplify(a_sum->operands()[0], var_intervals);
+      auto sum_a_prod      = a_sum->operands()[0].As<Product>();
+      auto sum_b_var       = a_sum->operands()[1].As<_Var_>();
+      if (sum_a_prod && sum_b_var && var_intervals.count(sum_b_var->name)) {
+        auto sum_a_prod_b_int = sum_a_prod->operand(1).As<IntImm>();
+        if (sum_a_prod_b_int) std::swap(sum_a_prod->operand(0), sum_a_prod->operand(1));
+        auto sum_a_prod_a_int = sum_a_prod->operand(0).As<IntImm>();
+        auto& interval        = var_intervals.at(sum_b_var->name);
+        int b_abs             = std::abs(bi->value);
+        int sum_prod_a_abs    = std::abs(sum_a_prod_a_int->value);
+        if (sum_a_prod_a_int && (b_abs % sum_prod_a_abs == 0)) {
+          if (std::abs(interval.l) < sum_prod_a_abs && std::abs(interval.r) < sum_prod_a_abs) {
+            return CasSimplify(Sum::Make({CasSimplify(FracOp::Make(a_sum->operands()[0], b), var_intervals),
+                                          CasSimplify(FracOp::Make(a_sum->operands()[1], b), var_intervals)}),
+                               var_intervals);
+          }
+        }
+      }
+    }
+
     // not divisiable
     /*
     if (a_sum) {

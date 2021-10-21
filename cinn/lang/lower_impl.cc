@@ -350,7 +350,7 @@ std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& te
 void LowerImpl::CheckArgsUnique() {
   std::unordered_set<std::string> arg_names;
   for (auto& tensor : tensor_args_) {
-    CHECK(!stages_[tensor]->inlined()) << "Inline tensor cannot be argument of function";
+    CHECK(!stages_[tensor]->inlined()) << "Inline tensor " << tensor->name << " cannot be argument of function";
     CHECK(!arg_names.count(tensor->name))
         << "The argument of the function, tensor [" << tensor->name << "] duplicates in function " << fn_name_;
     arg_names.insert(tensor->name);
