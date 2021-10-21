@@ -39,7 +39,7 @@ def main():
         cmd, shell=True).decode('utf-8').strip().split('.')
     srcs.append("struct llvm_version {")
     for v, n in zip(["major", "minor", "micro"], version):
-        srcs.append(f"  static constexpr int k{v.title()} = {n};")
+        srcs.append("  static constexpr int k{} = {};".format(v.title(), n))
     srcs.append("};")
 
     srcs.append('}  // namespace cinn::backends')

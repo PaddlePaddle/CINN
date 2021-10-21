@@ -56,6 +56,7 @@ ExternalProject_Add(
                     -DCMAKE_POSITION_INDEPENDENT_CODE=ON
                     -DBUILD_TESTING=OFF
                     -DCMAKE_BUILD_TYPE=${THIRD_PARTY_BUILD_TYPE}
+                    -DNAMESPACE=cinn_gflags
                     ${OPTIONAL_ARGS}
                     ${EXTERNAL_OPTIONAL_ARGS}
     CMAKE_CACHE_ARGS -DCMAKE_INSTALL_PREFIX:PATH=${GFLAGS_INSTALL_DIR}
