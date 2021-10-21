@@ -168,7 +168,9 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
 
   void ResizeTempMemory(const std::string& tensor_name, int index, Expr* indice, const std::string& var_name) {
     if (extent_.defined()) {
-      std::string buffer_id = (*global_tensor_map_)[tensor_name]->buffer->name + var_->name;
+      LOG(INFO) << "ResizeTempMemory tensor_name [" << tensor_name << "], index [" << index << "], indice [" << *indice
+                << "], var_name [" << var_name << "].";
+      std::string buffer_id = (*global_tensor_map_)[tensor_name]->buffer->name + std::to_string(index) + var_->name;
       if (resized_buffer_.count(buffer_id) != 0) {
         std::vector<Expr> buffer_shape               = IRCopy((*global_tensor_map_)[tensor_name]->buffer->shape);
         (*global_tensor_map_).at(tensor_name)->shape = buffer_shape;
@@ -176,13 +178,13 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       }
       auto buffer_shape              = IRCopy((*global_tensor_map_)[tensor_name]->buffer->shape);
       std::vector<Expr> tensor_shape = IRCopy((*global_tensor_map_).at(tensor_name)->shape);
-      VLOG(3) << tensor_name << " tensor's Original Shape is : ";
+      LOG(INFO) << tensor_name << " tensor's Original Shape is : ";
       for (auto& i : tensor_shape) {
-        VLOG(3) << i;
+        LOG(INFO) << i;
       }
-      VLOG(3) << buffer_id << " buffer's Original Shape is : ";
+      LOG(INFO) << buffer_id << " buffer's Original Shape is : ";
       for (auto& i : buffer_shape) {
-        VLOG(3) << i;
+        LOG(INFO) << i;
       }
       Simplify(&tensor_shape[index]);
       CHECK(tensor_shape[index].is_constant());
@@ -192,21 +194,27 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       auto copy2   = IRCopy(*indice);
       ReplaceVarWithExpr(&copy1, Var(var_name), Expr(extent_i - 1));
       ReplaceVarWithExpr(&copy2, Var(var_name), Expr(0));
+      LOG(INFO) << "copy1 is : " << copy1;
+      LOG(INFO) << "copy2 is : " << copy2;
       auto res            = copy1 - copy2;
       tensor_shape[index] = tensor_shape[index] - res;
       Simplify(&tensor_shape[index]);
       LOG(INFO) << "tensor_shape[index] - res is : " << tensor_shape[index];
-      if (!tensor_shape[index].is_constant()) {
-        resized_buffer_.insert(buffer_id);
-        return;
+      if (tensor_shape[index].is_constant() && tensor_shape[index].get_constant() <= 0) {
+        tensor_shape[index] = Expr(1);
+      } else if (!tensor_shape[index].is_constant()) {
+        /*         resized_buffer_.insert(buffer_id);
+                return; */
+        LOG(INFO) << "Index is not constant: " << tensor_shape[index];
+        tensor_shape[index] = Expr(1);
       }
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
 
       resized_buffer_.insert(buffer_id);
       (*global_tensor_map_)[tensor_name]->buffer->shape = IRCopy(tensor_shape);
-      VLOG(3) << tensor_name << " tensor's New Shape is : ";
+      LOG(INFO) << tensor_name << " tensor's New Shape is : ";
       for (auto& i : tensor_shape) {
-        VLOG(3) << i;
+        LOG(INFO) << i;
       }
     } else {
       LOG(INFO) << "extent not defined";

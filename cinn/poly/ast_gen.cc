@@ -6,6 +6,7 @@
 
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_printer.h"
 
 namespace cinn {
 namespace poly {
@@ -182,8 +183,15 @@ std::map<std::string, isl::ast_expr> AstGen::Impl::ExtractIslTransformedIndiceMa
   isl::map identity = isl::manage(isl_set_identity(iterator_domain.copy()));
   isl::map schedule = identity;
 
-  identity                = identity.apply_domain(schedule);
-  isl::ast_expr idx_expr  = CreateIslAstIndexExpression(build, identity);
+  identity               = identity.apply_domain(schedule);
+  isl::ast_expr idx_expr = CreateIslAstIndexExpression(build, identity);
+  // LOG(INFO) << "In ExtractIslTransformedIndiceMap, build domain is : " << *(build->domain);
+  // LOG(INFO) << "In ExtractIslTransformedIndiceMap, build pending is : " << *(build->pending);
+  // LOG(INFO) << "In ExtractIslTransformedIndiceMap, build generated is : " << *(build->generated);
+  LOG(INFO) << "In ExtractIslTransformedIndiceMap, build schedule_map is : "
+            << isl_union_map_to_str(isl_ast_build_get_schedule(build));
+  LOG(INFO) << "In ExtractIslTransformedIndiceMap, identity is : " << identity;
+  VLOG(4) << "idx_expr is : " << isl_ast_expr_to_C_str(idx_expr.get());
   isl::space domain_space = iterator_domain.space();
 
   for (int i = 1; i < isl_ast_expr_get_op_n_arg(idx_expr.get()); i++) {
@@ -387,6 +395,7 @@ void EatIf(const isl::ast_node& node, ir::Expr* expr) {
 }
 
 void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
+  VLOG(4) << "In IslAstExprToCinnExpr, ast_expr is: " << isl_ast_expr_to_C_str(node.get());
   switch (isl_ast_expr_get_type(node.get())) {
     case isl_ast_expr_int: {
       isl::val val = isl::manage(isl_ast_expr_get_val(node.get()));
@@ -480,7 +489,18 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
         case isl_ast_op_fdiv_q:
           *expr = ir::Div::Make(ops[0], ops[1]);
           break;
+        case isl_ast_op_select:
+          VLOG(4) << "In IslAstExprToCinnExpr with isl_ast_op_select, ast_expr is: "
+                  << isl_ast_expr_to_C_str(node.get());
+          for (auto& i : ops) {
+            VLOG(4) << "Ops has expr:" << i;
+          }
+          ops[0]->set_type(Bool());
+          *expr = ir::Select::Make(ops[0], ops[1], ops[2]);
+          break;
         default:
+          VLOG(4) << "In IslAstExprToCinnExpr with isl_ast_expr_op, ast_expr is: " << isl_ast_expr_to_C_str(node.get())
+                  << " and it is ";
           LOG(FATAL) << "unsupported op " << op_type;
       }
     } break;

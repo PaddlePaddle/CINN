@@ -222,7 +222,7 @@ class Stage : public Object {
   //! Get the tensors control depend on.
   const std::set<ir::Tensor>& ctrl_depends() const;
 
-  void SetBuffer(const std::string &memory_type);
+  void SetBuffer(const std::string& memory_type);
 
   /**
    * Create a cache Tensor and load the \p source into this buffer, replace all the reading in the readers with the
@@ -244,6 +244,8 @@ class Stage : public Object {
    * @param level the level of \p other's forloop to compute at
    */
   void ComputeAt2(Stage* other, int level);
+
+  void SimpleComputeAt(Stage* other, int level);
 
   // Do ComputeAt2 except for setting the ComputeAt level, which is moving the computations together.
   void ComputeAt3(Stage* other, int level);
@@ -315,8 +317,9 @@ class Stage : public Object {
   Iterator Fuse(const Iterator& level0, const Iterator& level1);
   Iterator Fuse(int level0, int level1);
   Iterator Fuse(const std::vector<int>& levels);
+  Iterator Fuse(const std::vector<Iterator>& levels);
   Iterator Fuse(const std::string& level0, const std::string& level1);
-
+  void SetSchedule(const std::string& new_schedule);
   const isl::set& domain() const { return domain_; }
   const isl::map& transform() const { return transform_; }
   isl::set transformed_domain() const;

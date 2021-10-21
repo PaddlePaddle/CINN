@@ -92,6 +92,10 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   auto alloca_temp_buffers = op->PrepareAllocTempBufferExprs();
   auto temp_buffer_alias   = GenerateBufferAliasExprs(op, op->temp_bufs);
   auto alis_var_exprs      = op->CudaAliasVarExprs();
+  LOG(INFO) << "Op is : " << op->name;
+  for (auto &i : alloca_temp_buffers) {
+    LOG(INFO) << "alloca_temp_buffers is : " << i;
+  }
 
 #define APPEND_TO_NEW_BODY(field__) new_body.insert(std::end(new_body), std::begin(field__), std::end(field__));
   APPEND_TO_NEW_BODY(alloca_temp_buffers)

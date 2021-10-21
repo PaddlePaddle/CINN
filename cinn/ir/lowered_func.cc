@@ -78,6 +78,7 @@ void _LoweredFunc_::PrepareAllocOutputBufferExprs() {
 std::vector<Expr> _LoweredFunc_::PrepareAllocTempBufferExprs() const {
   std::vector<Expr> alloc_temp_buffer_exprs;
   for (auto& temp_buf : temp_bufs) {
+    LOG(INFO) << "Temp_bufs is : " << temp_buf->name;
     if (!temp_buf->shape.empty() && temp_buf->type() != Void()) {
       alloc_temp_buffer_exprs.push_back(Alloc::Make(temp_buf, temp_buf->type(), temp_buf->shape, Expr(), Expr()));
     }

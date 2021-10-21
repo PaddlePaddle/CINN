@@ -335,7 +335,7 @@ std::unique_ptr<common::Graph> CreateCompGraph(const std::vector<ir::Tensor>& te
 void LowerImpl::CheckArgsUnique() {
   std::unordered_set<std::string> arg_names;
   for (auto& tensor : tensor_args_) {
-    CHECK(!stages_[tensor]->inlined()) << "Inline tensor cannot be argument of function";
+    CHECK(!stages_[tensor]->inlined()) << "Inline tensor " << tensor->name << " cannot be argument of function";
     CHECK(!arg_names.count(tensor->name))
         << "The argument of the function, tensor [" << tensor->name << "] duplicates in function " << fn_name_;
     arg_names.insert(tensor->name);
@@ -540,6 +540,7 @@ std::vector<ir::LoweredFunc> LowerImpl::operator()() {
 
   std::vector<ir::LoweredFunc> result;
   int num_func = 0;
+  LOG(INFO) << "func_body size is : " << func_body.size();
   for (auto& func_iterator : func_body) {
     std::set<std::string> temp_tensor_names;
     for (auto& t : temp_tensor_args_) temp_tensor_names.insert(t->name);
@@ -665,10 +666,12 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
 
   std::map<std::string, ir::Tensor> global_tensor_map;
   std::unordered_set<std::string> resized_buffer;
-
+  LOG(INFO) << "schedule->groups size is : " << schedule->groups.size();
   for (auto& group : schedule->groups) {
     CHECK_GT(group.nodes.size(), 0) << "group is empty";
+    LOG(INFO) << "group begin: ";
     for (auto& node : group.nodes) {
+      LOG(INFO) << "group.nodes has : " << node->id();
       if (!tensor_map.count(node->id())) {
         VLOG(2) << "tensor_map doesn't count " << node->id();
         continue;
@@ -688,6 +691,7 @@ std::vector<Expr> LowerImpl::GenerateFunctionBody(const poly::Schedule* schedule
         exprs.push_back(group_expr);
         Expr body = ir::Block::Make(exprs);
         result.push_back(body);
+        LOG(INFO) << "This body is : " << body;
         exprs.clear();
       } else {
         exprs.push_back(group_expr);

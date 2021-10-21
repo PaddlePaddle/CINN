@@ -109,6 +109,9 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     ir::Expr temp = C[i];
     inputs.push_back(temp.as_tensor_ref());
   }
+  for (auto& i : inputs) {
+    LOG(INFO) << "In inputs, it has: " << i->name;
+  }
 
   auto func = lang::LowerVec(GenOpFuncName(node), stages, inputs, {}, {}, nullptr, this->target_);
   VLOG(3) << "The [" << func.size() << "] functions of node [" << node->attrs.node_name << "] are:\n";
@@ -259,6 +262,10 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         }
       }
     }
+  }
+
+  for (auto& i : inputs) {
+    LOG(INFO) << "In inputs, it has: " << i->name;
   }
 
   auto func = lang::LowerVec(fuse_name, stages, inputs, {}, {}, nullptr, this->target_);

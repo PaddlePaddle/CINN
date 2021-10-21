@@ -124,7 +124,7 @@ void ScheduleInjectiveCPU(poly::Stage *stage, const std::vector<int> &output_sha
         stage->Vectorize(fused, split_factor);
       }
     } else {
-      auto[j_outer, j_inner] = stage->Split(fused, split_factor);
+      auto [j_outer, j_inner] = stage->Split(fused, split_factor);
       stage->Vectorize(j_inner, split_factor);
     }
   }
@@ -243,7 +243,7 @@ void MatmulScheduleCPU(poly::StageMap stages,
   stages[output]->Reorder(all_axes);
   // vectorize output's last dimemsion
   auto out_domain = stages[output]->transformed_domain();
-  auto[min, max] = poly::isl_set_get_axis_range(out_domain.get(), out_axis_dims - 1);
+  auto [min, max] = poly::isl_set_get_axis_range(out_domain.get(), out_axis_dims - 1);
   CHECK_EQ(min.get_num_si(), 0) << "axis range should begin from zero";
   int out_last_dim        = max.get_num_si() + 1;
   int output_split_factor = GetBetterSplitFactor(out_last_dim, basic_split_factor);
@@ -1377,10 +1377,10 @@ void CudaScheduleConv(poly::StageMap stages,
 
   auto OL = stages[output]->CacheWrite("local", stages, output);
 
-  auto tx = stages[output]->axis(3);
-  auto by = stages[output]->axis(2);
-  auto[tem, fi] = stages[output]->Split(1, f_inner);
-  auto[bz, tz]  = stages[output]->Split(1, thread_z);
+  auto tx        = stages[output]->axis(3);
+  auto by        = stages[output]->axis(2);
+  auto [tem, fi] = stages[output]->Split(1, f_inner);
+  auto [bz, tz]  = stages[output]->Split(1, thread_z);
   stages[output]->Reorder({bz, by, tz, tx, fi});
   stages[output]->Bind(1, "blockIdx.z");
   stages[output]->Bind(2, "blockIdx.y");
@@ -1502,10 +1502,10 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[wino_B]->ComputeInline();
 
   auto data_l = wino_stages[data_pack]->CacheWrite("local", wino_stages, data_pack);
-  wino_stages[data_l]->Unroll(0);
-  wino_stages[data_l]->Unroll(1);
-  wino_stages[data_l]->Unroll(4);
-  wino_stages[data_l]->Unroll(5);
+  /*   wino_stages[data_l]->Unroll(0);
+    wino_stages[data_l]->Unroll(1);
+    wino_stages[data_l]->Unroll(4);
+    wino_stages[data_l]->Unroll(5); */
 
   wino_stages[data_pack]->Split(3, 1);
   wino_stages[data_pack]->Fuse({2, 3});
@@ -1513,43 +1513,46 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[data_pack]->Reorder({2, 3, 4, 0, 1});
   wino_stages[data_pack]->Bind(0, "blockIdx.x");
   wino_stages[data_pack]->Bind(1, "threadIdx.x");
-
+  wino_stages[input_tile]->SetBuffer("local");
   wino_stages[data_l]->ComputeAt(wino_stages[data_pack], 2);
   wino_stages[input_tile]->ComputeAt(wino_stages[data_l], 2);
   wino_stages[wino_input_pad]->ComputeInline();
 
   wino_stages[wino_G]->ComputeInline();
-  wino_stages[kernel_pack]->Reorder({2, 3, 0, 1, 4, 5});
-  wino_stages[kernel_pack]->Fuse({0, 1});
-  wino_stages[kernel_pack]->Split(0, 128);
-  wino_stages[kernel_pack]->Unroll(5);
-  wino_stages[kernel_pack]->Unroll(4);
-  wino_stages[kernel_pack]->Unroll(3);
-  wino_stages[kernel_pack]->Unroll(2);
+  LOG(INFO) << "Kernel pack schedule is : ";
+  wino_stages[kernel_pack]->ShowISL();
+
+  wino_stages[kernel_pack]->Fuse({2, 3});
+  wino_stages[kernel_pack]->Split(2, 128);
+  wino_stages[kernel_pack]->Reorder({2, 3, 0, 1});
+  /*   wino_stages[kernel_pack]->Unroll(5);
+    wino_stages[kernel_pack]->Unroll(4);
+    wino_stages[kernel_pack]->Unroll(3);
+    wino_stages[kernel_pack]->Unroll(2); */
+
   wino_stages[kernel_pack]->Bind(0, "blockIdx.x");
   wino_stages[kernel_pack]->Bind(1, "threadIdx.x");
 
-  // wino_stages[wino_weights_dilation]->ComputeInline();
+  wino_stages[wino_weights_dilation]->ComputeInline();
 
   auto wino_OL = wino_stages[bgemm]->CacheWrite("local", wino_stages, bgemm);
   std::vector<ir::Tensor> readers{wino_OL};
   auto AA = wino_stages[kernel_pack]->CacheRead("shared", readers, wino_stages);
   auto BB = wino_stages[data_pack]->CacheRead("shared", readers, wino_stages);
 
-
   wino_stages[bgemm]->Fuse({0, 1});
 
   wino_stages[bgemm]->SplitOuter(0, 1);
 
-  // x param is :  [1, 2, 98, 1]
-  wino_stages[bgemm]->Split(3, 1);
-  wino_stages[bgemm]->Split(3, 98);
+  // x param is :  [1, 1, 8, 2]
   wino_stages[bgemm]->Split(3, 2);
-  // y param is :  [2, 2, 2, 8]
-  wino_stages[bgemm]->Split(2, 8);
-  wino_stages[bgemm]->Split(2, 2);
-  wino_stages[bgemm]->Split(2, 2);
-  // b param is :  [36, 1, 1, 1]
+  wino_stages[bgemm]->Split(3, 8);
+  wino_stages[bgemm]->Split(3, 1);
+  // y param is :  [8, 1, 16, 4]
+  wino_stages[bgemm]->Split(2, 4);
+  wino_stages[bgemm]->Split(2, 16);
+  wino_stages[bgemm]->Split(2, 1);
+  // b param is :  [16, 1, 1, 1]
   wino_stages[bgemm]->Split(1, 1);
   wino_stages[bgemm]->Split(1, 1);
   wino_stages[bgemm]->Split(1, 1);
@@ -1564,32 +1567,69 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[bgemm]->Bind(9, "threadIdx.x");
 
   wino_stages[wino_OL]->ComputeAt(wino_stages[bgemm], 9);
-  LOG(INFO) << wino_stages[wino_OL]->n_out_dims();
-  wino_stages[wino_OL]->Fuse({10, 11});
-  // rc param is :  [8, 8]
-  wino_stages[wino_OL]->Split(11, 8);
-  wino_stages[wino_OL]->Reorder({11, 12, 10});
+  LOG(INFO) << "wino_stages[wino_OL]1: " << wino_stages[wino_OL]->n_out_dims();
+  wino_stages[wino_OL]->ShowISL();
+  LOG(INFO) << "wino_stages[bgemm]: ";
+  wino_stages[bgemm]->ShowISL();
+  // wino_stages[wino_OL]->Fuse({10, 11});
+  // rc param is :  [32, 16]
+  wino_stages[wino_OL]->Split(12, 16);
 
-  wino_stages[AA]->ComputeAt(wino_stages[wino_OL], 10);
-  wino_stages[AA]->ComputeAt(wino_stages[wino_OL], 10);
+  wino_stages[wino_OL]->Reorder({12, 13, 10, 11});
 
-  int m = 4;
+  LOG(INFO) << "wino_stages[wino_OL]2: " << wino_stages[wino_OL]->n_out_dims();
+  wino_stages[wino_OL]->ShowISL();
+  auto bgemm_init = wino_OL->GetInitTensor(wino_stages, target);
+  wino_stages[AA]->ComputeAt(wino_stages[wino_OL], 10);
+  wino_stages[BB]->ComputeAt(wino_stages[wino_OL], 10);
+  /*   LOG(INFO) << "wino_stages[AA]2: " << wino_stages[AA]->n_out_dims();
+    wino_stages[AA]->ShowISL();
+    wino_stages[BB]->ShowISL(); */
+  wino_stages[AA]->SyncThreads(10, {bgemm_init}, wino_stages);
+  wino_stages[BB]->SyncThreads(wino_stages);
+
+  int m = 2;
+
+  LOG(INFO) << "wino_stages[wino_conv0]: ";
+  wino_stages[wino_conv]->ShowISL();
   wino_stages[wino_conv]->Tile(2, 3, m, m);
-  wino_stages[wino_conv]->SplitOuter(0, 1);
-  wino_stages[wino_conv]->Fuse({1, 2, 3, 4});
-  wino_stages[wino_conv]->Split(1, 128);
-  wino_stages[wino_conv]->Bind(1, "blockIdx.x");
-  wino_stages[wino_conv]->Bind(2, "threadIdx.x");
-
+  wino_stages[wino_conv]->Reorder({2, 4, 3, 5});
+  LOG(INFO) << "wino_stages[wino_conv1]: ";
+  wino_stages[wino_conv]->ShowISL();
+  // wino_stages[wino_conv]->SplitOuter(0, 1);
+  wino_stages[wino_conv]->Fuse({0, 1, 2, 3});
+  LOG(INFO) << "wino_stages[wino_conv2]: ";
+  wino_stages[wino_conv]->ShowISL();
+  wino_stages[wino_conv]->SplitOuter(0, 64);
+  LOG(INFO) << "wino_stages[wino_conv3]: ";
+  wino_stages[wino_conv]->ShowISL();
+  wino_stages[wino_conv]->Bind(0, "threadIdx.x");
+  // wino_stages[wino_conv]->Bind(1, "threadIdx.x");
+  LOG(INFO) << "wino_stages[wino_conv4]: ";
+  wino_stages[wino_conv]->ShowISL();
   // wino_stages[wino_OL]->ComputeAt(wino_stages[wino_conv], 2);
   wino_stages[wino_A]->ComputeInline();
 
   // wino_stages[inverse]->Unroll(5);
-  wino_stages[inverse]->Unroll(4);
-  wino_stages[inverse]->Unroll(3);
-  wino_stages[inverse]->Unroll(2);
-  wino_stages[inverse]->ComputeAt(wino_stages[wino_conv], 2);
+  /*   wino_stages[inverse]->Unroll(4);
+    wino_stages[inverse]->Unroll(3);
+    wino_stages[inverse]->Unroll(2); */
 
+  wino_stages[inverse]->SetBuffer("local");
+  wino_stages[inverse]->Fuse({0, 1});
+  wino_stages[inverse]->Split(0, 128);
+  wino_stages[inverse]->Bind(0, "threadIdx.x");
+  // wino_stages[inverse]->Bind(1, "threadIdx.x");
+
+  LOG(INFO) << "wino_stages[wino_conv]: wino_conv";
+  wino_stages[wino_conv]->ShowISL();
+  LOG(INFO) << "wino_stages[inverse]: inverse";
+  wino_stages[inverse]->ShowISL();
+
+  wino_stages[inverse]->SimpleComputeAt(wino_stages[wino_conv], 0);
+
+  LOG(INFO) << "wino_stages[inverse]: ";
+  wino_stages[inverse]->ShowISL();
 }
 
 void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_shape, const common::Target &target) {
@@ -1604,8 +1644,8 @@ void CudaScheduleInjective(poly::Stage *stage, const std::vector<int> &output_sh
   int prod_size         = std::accumulate(output_shape.begin(), output_shape.end(), 1, std::multiplies<int>());
   bool need_block_split = prod_size > num_thread * num_block * vector_width ? true : false;
   if (need_block_split) {
-    auto[X_outer, X_inner]  = stage->Split(0, num_thread * num_block);
-    auto[Block_x, Thread_x] = stage->Split(X_inner, num_thread);
+    auto [X_outer, X_inner]  = stage->Split(0, num_thread * num_block);
+    auto [Block_x, Thread_x] = stage->Split(X_inner, num_thread);
     stage->Reorder({Block_x, Thread_x, X_outer});
     stage->Bind(0, "blockIdx.x");
     stage->Bind(1, "threadIdx.x");

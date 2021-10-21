@@ -6,9 +6,15 @@
 
 #include "cinn/ir/ir.h"
 #include "cinn/ir/ir_printer.h"
+#include "cinn/optim/ir_simplify.h"
 
 namespace cinn {
 namespace common {
+
+namespace detail {
+Expr ReplaceMinToConstant(Expr expr);
+Expr ReplaceMaxToConstant(Expr expr);
+}  // namespace detail
 
 /**
  * Interval of a _Var_.
@@ -18,16 +24,33 @@ struct CasInterval {
   CasInterval(T l, T r) : l(l), r(r) {
     CHECK_LE(l, r) << "left shoud not be larger than right";
   }
-  CasInterval(Expr e_l, Expr e_r) : e_l(e_l), e_r(e_r) {}
+  CasInterval(Expr expr_l, Expr expr_r) {
+    LOG(INFO) << "CasInterval is : [" << expr_l << ", " << expr_r << "].";
+    expr_r = detail::ReplaceMinToConstant(expr_r);
+    expr_l = detail::ReplaceMaxToConstant(expr_l);
+    optim::Simplify(&expr_l);
+    optim::Simplify(&expr_r);
+    LOG(INFO) << "After simplify, CasInterval is : [" << expr_l << ", " << expr_r << "].";
+
+    if (expr_l.is_constant() && expr_r.is_constant()) {
+      CHECK(expr_l->type().is_integer());
+      CHECK(expr_r->type().is_integer());
+      l = expr_l.as_int32();
+      r = expr_r.as_int32();
+      return;
+    }
+    e_l = expr_l;
+    e_r = expr_r;
+  }
   int l, r;
   // Note: not verify l <= r and (e_l, e_r) has higher priority than (l, r)
   Expr e_l, e_r;
 
   friend std::ostream& operator<<(std::ostream& os, const CasInterval& i) {
     if (i.e_l.defined() && i.e_r.defined()) {
-      os << "Interval[" << i.e_l << ", " << i.e_r << "]";
+      os << "Expr e_l Interval[" << i.e_l << ", " << i.e_r << "]";
     } else {
-      os << "Interval[" << i.l << ", " << i.r << "]";
+      os << "Int l Interval[" << i.l << ", " << i.r << "]";
     }
     return os;
   }
