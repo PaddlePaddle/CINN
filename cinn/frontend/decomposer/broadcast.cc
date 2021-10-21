@@ -116,13 +116,13 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
 }  // namespace frontend
 }  // namespace cinn
 
-CINN_REGISTER_HELPER(broadcast) {
+CINN_REGISTER_HELPER(broadcast_decomposers) {
   CINN_DECOMPOSER_REGISTER(elementwise_add, cinn::frontend::decomposer::elementwise_add);
 
   return true;
 }
 
-CINN_REGISTER_HELPER(broadcast_grad) {
+CINN_REGISTER_HELPER(broadcast_grad_decomposers) {
   CINN_DECOMPOSER_REGISTER(elementwise_add_grad, cinn::frontend::decomposer::elementwise_add_grad);
 
   return true;
