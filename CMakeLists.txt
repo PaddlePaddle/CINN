@@ -142,6 +142,7 @@ gen_cinncore(SHARED)
 
 # --------distribute cinncore lib and include begin--------
 if (PUBLISH_LIBS)
+    set(core_includes "${core_includes};cinn/runtime/cuda/cinn_cuda_runtime_source.cuh")
     foreach(header ${core_includes})
         get_filename_component(prefix ${header} DIRECTORY)
         file(COPY ${header} DESTINATION ${CMAKE_BINARY_DIR}/dist/cinn/include/${prefix})
@@ -151,13 +152,14 @@ if (PUBLISH_LIBS)
       string(REPLACE ${CMAKE_BINARY_DIR}/ "" relname ${proto_header})
       get_filename_component(prefix ${relname} DIRECTORY)
       set(target_name ${CMAKE_BINARY_DIR}/dist/cinn/include/${relname})
-      add_custom_command(TARGET cinncore_static POST_BUILD
+      add_custom_command(TARGET cinnapi POST_BUILD
         COMMENT "copy generated proto header '${relname}' to dist"
-        COMMAND cmake -E copy ${proto_header} ${target_name} DEPENDS cinncore_static)
+        COMMAND cmake -E copy ${proto_header} ${target_name} DEPENDS cinnapi)
     endforeach()
 
     add_custom_command(TARGET cinnapi POST_BUILD
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/libcinnapi.so ${CMAKE_BINARY_DIR}/dist/cinn/lib/libcinnapi.so
+        COMMAND cmake -E copy_directory ${CMAKE_BINARY_DIR}/thirds/install ${CMAKE_BINARY_DIR}/dist/third_party
         DEPENDS cinnapi
     )
     add_custom_command(TARGET cinncore_static POST_BUILD
@@ -166,7 +168,6 @@ if (PUBLISH_LIBS)
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/libcinncore_static.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libcinncore_static.a
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/frontend/paddle/libframework_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libframework_proto.a
         COMMAND cmake -E copy ${CMAKE_BINARY_DIR}/cinn/hlir/pe/libparam_proto.a ${CMAKE_BINARY_DIR}/dist/cinn/lib/libparam_proto.a
-        COMMAND cmake -E copy_directory ${CMAKE_BINARY_DIR}/thirds/install ${CMAKE_BINARY_DIR}/dist/third_party
         COMMENT "distribute libcinncore_static.a and related header files."
         DEPENDS cinncore_static
     )
