@@ -90,10 +90,10 @@ int GetVectorizeFactor(int shape, int split_factor) {
   return better_factor;
 }
 
-void ScheduleInjectiveCPUFuse(poly::Stage *stage,
-                              const std::vector<int> &output_shape,
-                              const common::Target &target,
-                              bool vectorizable) {
+void ScheduleInjectiveCPU(poly::Stage *stage,
+                          const std::vector<int> &output_shape,
+                          const common::Target &target,
+                          bool vectorizable) {
   int dims             = stage->n_out_dims();
   int factor           = GetBasicFactor(stage->tensor()->type(), target);
   poly::Iterator fused = stage->axis(0);
@@ -118,10 +118,10 @@ void ScheduleInjectiveCPUFuse(poly::Stage *stage,
   }
 }
 
-void ScheduleInjectiveCPU(poly::Stage *stage,
-                          const std::vector<int> &output_shape,
-                          const common::Target &target,
-                          bool vectorizable) {
+void ScheduleInjectiveCPU1(poly::Stage *stage,
+                           const std::vector<int> &output_shape,
+                           const common::Target &target,
+                           bool vectorizable) {
   int dims = stage->n_out_dims();
   if (dims > 1) {
     CHECK_EQ(stage->n_out_dims(), stage->n_in_dims()) << "The dims of op are not equal";

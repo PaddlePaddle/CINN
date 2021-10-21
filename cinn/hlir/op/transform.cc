@@ -446,7 +446,7 @@ std::shared_ptr<OpStrategy> StrategyForConcat(const framework::NodeAttr &attrs,
     if (target.arch == Target::Arch::NVGPU) {
       pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.back(), target);
     } else if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target);
+      pe::ScheduleInjectiveCPU(stages[out.as_tensor_ref()], output_shapes.back(), target, false);
     }
     *ret = arg_pack;
   });
@@ -857,7 +857,7 @@ std::shared_ptr<OpStrategy> StrategyForLayoutTransform(const framework::NodeAttr
       out_shape.push_back(shape.as_int32());
     }
     if (target.arch == Target::Arch::X86) {
-      pe::ScheduleInjectiveCPUFuse(stages[tensor_out], out_shape, target);
+      pe::ScheduleInjectiveCPU(stages[tensor_out], out_shape, target);
     }
     *ret = arg_pack;
   });
