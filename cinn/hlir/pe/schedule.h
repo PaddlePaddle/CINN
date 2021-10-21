@@ -66,6 +66,7 @@ void ScheduleInjectiveCPU(poly::Stage *stage,
                           const std::vector<int> &output_shape,
                           const common::Target &target,
                           bool vectorizable = true);
+// to deprecate
 void ScheduleInjectiveCPU1(poly::Stage *stage,
                            const std::vector<int> &output_shape,
                            const common::Target &target,
