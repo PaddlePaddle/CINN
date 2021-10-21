@@ -35,7 +35,14 @@ class DecomposerContext {
   CinnBuilder* builder() const { return builder_; };
 
   // Map the new var to the original var.
-  void MapOutToOrigin(const Variable& new_var, const Variable& ori_var) const { (*var_map_)[new_var->id] = ori_var; }
+  void MapOutToOrigin(const Variable& new_var, const Variable& ori_var) const {
+    if (new_var->shape != ori_var->shape) {
+      LOG(FATAL) << "The output shape shoule be equal to the original. But received : " << new_var->id << ".shape=["
+                 << utils::Join(new_var->shape, ", ") << "] and the original var " << ori_var->id << ".shape=["
+                 << utils::Join(ori_var->shape, ", ") << "].";
+    }
+    (*var_map_)[new_var->id] = ori_var;
+  }
 
  private:
   CinnBuilder* builder_{nullptr};

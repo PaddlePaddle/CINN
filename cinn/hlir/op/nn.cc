@@ -1928,15 +1928,6 @@ CINN_REGISTER_HELPER(nn_ops) {
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
 
-  CINN_REGISTER_OP(relu_grad)
-      .describe("The gradient of relu.")
-      .set_num_inputs(2)
-      .set_num_outputs(1)
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGradOp)
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu))
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise);
-
   CINN_REGISTER_OP(relu6)
       .describe("Output 0 for each input element < 0. Output itself for each input element >= 0 and <=6.")
       .set_num_inputs(1)
@@ -2111,6 +2102,19 @@ CINN_REGISTER_HELPER(nn_ops) {
 #endif
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
       .set_support_level(4);
+
+  return true;
+}
+
+CINN_REGISTER_HELPER(nn_grad_ops) {
+  CINN_REGISTER_OP(relu_grad)
+      .describe("The gradient of relu.")
+      .set_num_inputs(2)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForGradOp)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise);
 
   return true;
 }

@@ -24,6 +24,7 @@ namespace cinn {
 namespace frontend {
 Variable NetBuilder::add(const Variable& a, const Variable& b) {
   Instruction instr("elementwise_add", {a, b});
+  instr.SetAttr("axis", -1);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
@@ -54,6 +55,17 @@ Variable NetBuilder::elementwise_add(const Variable& a, const Variable& b, int a
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
+}
+
+const std::vector<Variable>& NetBuilder::elementwise_add_grad(const Variable& dout,
+                                                              const Variable& x,
+                                                              const Variable& y,
+                                                              int axis) {
+  Instruction instr("elementwise_add_grad", {dout, x, y});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
 }
 
 Variable NetBuilder::elementwise_mul(const Variable& a, const Variable& b, int axis) {

@@ -17,7 +17,9 @@
 #include "cinn/common/macros.h"
 
 CINN_USE_REGISTER(nn_ops)
+CINN_USE_REGISTER(nn_grad_ops)
 CINN_USE_REGISTER(broadcast_ops)
+CINN_USE_REGISTER(broadcast_grad_ops)
 CINN_USE_REGISTER(elementwise_ops)
 CINN_USE_REGISTER(transform_ops)
 CINN_USE_REGISTER(reduce_ops)
