@@ -196,13 +196,15 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
         std::string input_id = source_data->id();
         auto in_shape        = shape_dict.at(input_id);
         Type dtype           = dtype_dict.at(input_id);
-        CHECK(dtype == Float(32) || dtype.is_bool())
-            << "The dtype of node " << input_id << " is not float or bool! Other dtype is not implemented yet.";
+        CHECK(dtype == Float(32) || dtype.is_bool() || dtype == Int(32))
+            << "The dtype of node " << input_id << " is not float or bool or int! Other dtype is not implemented yet.";
         ir::Tensor temp_in;
         if (dtype == Float(32)) {
           temp_in = lang::Placeholder<float>(input_id, in_shape);
         } else if (dtype.is_bool()) {
           temp_in = lang::Placeholder<bool>(input_id, in_shape);
+        } else if (dtype == Int(32)) {
+          temp_in = lang::Placeholder<int>(input_id, in_shape);
         }
         inputs.push_back(temp_in);
         temp_inputs.push_back(temp_in);

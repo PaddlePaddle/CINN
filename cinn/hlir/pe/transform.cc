@@ -174,7 +174,6 @@ ir::Tensor Concat(const std::vector<ir::Tensor>& input_tensors, int axis, const 
   CHECK(axis >= -input_dim && axis < input_dim) << "Concat's axis should be in [-R, R)"
                                                 << ", but get axis: " << axis << ", R: " << input_dim;
   if (axis < 0) axis += output_shape.size();
-  Expr pivot = input_tensors[0]->shape[axis];
 
   for (int i = 1; i < input_size; i++) {
     CHECK_EQ(input_tensors[i]->shape.size(), input_dim)
@@ -185,11 +184,13 @@ ir::Tensor Concat(const std::vector<ir::Tensor>& input_tensors, int axis, const 
   auto res = Compute(
       output_shape,
       [=](const std::vector<Expr>& indice) {
-        auto ret        = input_tensors[0](indice);
-        auto new_indice = indice;
+        auto ret              = input_tensors[0](indice);
+        Expr accumulate_shape = Expr(0);
         for (int i = 0; i < input_size - 1; i++) {
-          new_indice[axis] = new_indice[axis] - input_tensors[i]->shape[axis];
-          ret              = ir::Select::Make(new_indice[axis] >= 0, input_tensors[i + 1](new_indice), ret);
+          accumulate_shape             = common::AutoSimplify(accumulate_shape + input_tensors[i]->shape[axis]);
+          std::vector<Expr> new_indice = indice;
+          new_indice[axis]             = indice[axis] - accumulate_shape;
+          ret = ir::Select::Make(indice[axis] < accumulate_shape, ret, input_tensors[i + 1](new_indice));
         }
         return ret;
       },

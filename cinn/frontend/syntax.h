@@ -262,15 +262,6 @@ struct Program {
   Variable reshape(const Variable& a, const std::vector<int>& shape);
 
   /**
-   * Concat 2 tensors.
-   * @param a The first input tensor.
-   * @param b The second input tensor.
-   * @param axis The axis specified to do the concat operation.
-   * @return The concated output tensor.
-   */
-  Variable concat(const Variable& a, const Variable& b, int axis = 0);
-
-  /**
    * Concat tensors.
    * @param input_vars The input tensors.
    * @param axis The axis specified to do the concat operation.
