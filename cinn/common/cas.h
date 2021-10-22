@@ -39,6 +39,15 @@ struct CasInterval {
   CasInterval(T l, T r) : l(l), r(r) {
     CHECK_LE(l, r) << "left shoud not be larger than right";
   }
+
+  /**
+   * @brief When iterator's upper_bound is an ir::Min of a constant value and a inconstant value, choose the constant
+   * value. When iterator's lower_bound is an ir::Max of a constant value and a inconstant value, choose the constant
+   * value. E.g: expr_l = max(x, 1) and expr_r = min(y,5): max(x, 1) <= iterator_i <= min(y,5)
+   *
+   * the bounds will be simplified to e_l = 1 and e_r = 5:
+   * 1 <= iterator_i <= 5
+   */
   CasInterval(Expr expr_l, Expr expr_r) {
     VLOG(2) << "CasInterval is : [" << expr_l << ", " << expr_r << "].";
     expr_r = detail::ReplaceMinToConstant(expr_r);

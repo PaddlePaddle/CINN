@@ -914,8 +914,8 @@ typedef char int8_t;
 __global__
 void schedule_wino_conv2d(const float* __restrict__ X, float* __restrict__ data_pack)
 {
-  float _data_pack_write_cache [ 16 ];
   float _input_tile_temp_buffer [ 16 ];
+  float _data_pack_write_cache [ 16 ];
   float* data_pack_write_cache = _data_pack_write_cache;
   float* data_pack_write_cache__reduce_init = _data_pack_write_cache;
   float* input_tile = _input_tile_temp_buffer;
@@ -970,9 +970,9 @@ void schedule_wino_conv2d_1(const float* __restrict__ Y, float* __restrict__ ker
 }__global__
 void schedule_wino_conv2d_2(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ kernel_pack, const float* __restrict__ data_pack, float* __restrict__ bgemm)
 {
-  __shared__ float _kernel_pack_read_cache [ 1024 ];
-  __shared__ float _data_pack_read_cache [ 256 ];
   float _bgemm_write_cache [ 8 ];
+  __shared__ float _data_pack_read_cache [ 256 ];
+  __shared__ float _kernel_pack_read_cache [ 1024 ];
   float _input_tile_temp_buffer [ 16 ];
   float _data_pack_write_cache [ 16 ];
   float* bgemm_write_cache = _bgemm_write_cache;
@@ -1027,9 +1027,9 @@ void schedule_wino_conv2d_2(const float* __restrict__ X, const float* __restrict
 }__global__
 void schedule_wino_conv2d_3(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ kernel_pack, const float* __restrict__ data_pack, const float* __restrict__ bgemm, float* __restrict__ Winograd_Conv2d_out)
 {
+  float _inverse_temp_buffer [ 4 ];
   float _input_tile_temp_buffer [ 16 ];
   float _data_pack_write_cache [ 16 ];
-  float _inverse_temp_buffer [ 4 ];
   float _bgemm_write_cache [ 8 ];
   __shared__ float _kernel_pack_read_cache [ 1024 ];
   __shared__ float _data_pack_read_cache [ 256 ];

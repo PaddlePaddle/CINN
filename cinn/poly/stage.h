@@ -236,8 +236,17 @@ class Stage : public Object {
   //! Get the tensors control depend on.
   const std::set<ir::Tensor>& ctrl_depends() const;
 
+  /**
+   * Set the memory type of this stage's tensor.
+   * @param memory_type the memory type of this tensor. For example, memory_type="shared".
+   */
   void SetBuffer(const std::string& memory_type);
 
+  /**
+   * Given two stages already satisfy ComputeAtRelation.IsCompatible, set compute_ats_ for them.
+   * @param other the other stage to set compute_ats_.
+   * @param level the level of ComputeAtRelation.
+   */
   void SimpleComputeAt(Stage* other, int level);
 
   /**

@@ -141,6 +141,8 @@ bool IsDivisible(int64_t a, int64_t b) {
   return a % b == 0;
 }
 bool IsDivisible(const Sum* a, int b);
+
+// If int a Divisiable to any operands of product b
 bool IsDivisible(int a, const Product* b) {
   for (auto& item : b->operands()) {
     if (item.As<IntImm>() && IsDivisible(a, item.As<IntImm>()->value)) return true;
@@ -204,6 +206,8 @@ Expr Divide(const Product* a, int b) {
       break;
     }
   }
+  // Case is_divisible : a = 8x and b = 4 and a/b = 2x
+  // Case !is_divisible : a = 2x and b = 8 and a/b = x/4
   if (is_divisible) {
     // NOTE that a should be divisible by b.
     if (times != 1) {
@@ -1706,6 +1710,10 @@ Expr ConvertCinnToCAS(Expr expr) {
   return copied;
 }
 
+/**
+ * @brief Given an expr, visit it. If there is an ir::Min and its operands are 1 constant value and 1 inconstant value,
+ * return the constant min value.
+ */
 Expr ReplaceMinToConstant(Expr expr) {
   Expr copied = optim::IRCopy(expr);
   struct Mutator : public ir::IRMutator<ir::Expr*> {
@@ -1735,6 +1743,10 @@ Expr ReplaceMinToConstant(Expr expr) {
   return copied;
 }
 
+/**
+ * @brief Given an expr, visit it. If there is an ir::Max and its operands are 1 constant value and 1 inconstant value,
+ * return the constant max value.
+ */
 Expr ReplaceMaxToConstant(Expr expr) {
   Expr copied = optim::IRCopy(expr);
   struct Mutator : public ir::IRMutator<ir::Expr*> {
