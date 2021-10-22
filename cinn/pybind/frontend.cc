@@ -19,8 +19,12 @@
 
 #include "cinn/common/common.h"
 #include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/decomposer/use_decomposer.h"
+#include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/interpreter.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/pass/use_program_pass.h"
+#include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
@@ -161,6 +165,8 @@ void BindFrontend(pybind11::module *m) {
              auto out = scope->GetTensor(tensor_out->id);
              return out;
            })
+      .def("apply_pass", &ProgramPass::Apply)
+
       /**
        * @brief Test the performance of a single-op program
        * @param self The program built with only one op
