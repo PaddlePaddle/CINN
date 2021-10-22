@@ -128,6 +128,43 @@ TEST(Operator, Operator_ElementWise_Add_Test1) {
   ASSERT_EQ(add->description, "elementwise_add function");
 }
 
+TEST(Operator, Operator_BroadcastTo) {
+  auto broadcast_to      = Operator::Get("broadcast_to");
+  Operator temp = *broadcast_to;
+  auto strategy = Operator::GetAttrs<StrategyFunction>("CINNStrategy");
+
+  Expr N(1);
+  Placeholder<float> B("B", {N});
+
+  NodeAttr attrs;
+  std::vector<int> out_shape = {16};
+  attrs.attr_store["out_shape"] = out_shape;
+
+  std::vector<int> broadcast_axes = {0};
+  attrs.attr_store["broadcast_axes"] = broadcast_axes;
+
+  std::vector<ir::Tensor> inputs{B.tensor()};
+  std::vector<Type> type{Float(32)};
+  common::Target target            = common::DefaultHostTarget();
+
+  auto impl                        = OpStrategy::SelectImpl(strategy[broadcast_to](attrs, inputs, type, {out_shape}, target));
+  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(B)}};
+  common::CINNValuePack rets       = impl->fcompute(cinn_input);
+
+  ASSERT_EQ(rets.size(), 2UL);
+  rets = impl->fschedule(rets);
+  ASSERT_EQ(rets.size(), 2UL);
+  // the last element is a StageMap
+  for (int i = 0; i < rets->size() - 1; i++) {
+    Expr temp = rets[i];
+    inputs.push_back(temp.as_tensor_ref());
+  }
+
+  auto func = Lower("broadcast_to", rets.back(), inputs);
+  LOG(INFO) << "Test Strategy Codegen:\n" << func;
+  std::cout << func;
+}
+
 }  // namespace framework
 }  // namespace hlir
 }  // namespace cinn
