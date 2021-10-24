@@ -168,7 +168,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
   // CinnBuilder cinn_builder;
   absl::flat_hash_map<std::string, Variable> variable_map;
   DecomposerContext context(&cinn_builder, &variable_map);
-  auto decomposer = InstrDecomposerRegistry::Global()->Get("batch_norm_train_decomposer", target);
+  auto decomposer = InstrDecomposerRegistry::Global()->Get("batch_norm_train", target);
 
   decomposer->Run(program[0], context);
   auto new_program = cinn_builder.Build();
