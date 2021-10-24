@@ -251,7 +251,7 @@ Tensor BroadcastTo(const Tensor& A,
           CHECK(a_shape_i == 1 || a_shape_i == out_shape[broadcast_axes[i]])
               << "broadcast_shape should be 1 or same with the target mapping dim, but get " << A_shape[i] << " and "
               << out_shape[broadcast_axes[i]];
-          broadcast_indice.push_back(indice[broadcast_axes[i]]);
+          broadcast_indice.push_back(indice[broadcast_axes[i]] % A_shape[i]);
         }
         return A(broadcast_indice);
       },
