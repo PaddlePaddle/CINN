@@ -154,8 +154,8 @@ TEST(nn, BATCH_NORM_TRAIN) {
   // build program
   auto program = net_builder.Build();
 
-  // auto target = ::cinn::common::DefaultHostTarget();
-  auto target = ::cinn::common::DefaultNVGPUTarget();
+  auto target = ::cinn::common::DefaultHostTarget();
+  // auto target = ::cinn::common::DefaultNVGPUTarget();
   // ProgramPass::Apply(&program, target, {"Decomposer"});
   CinnBuilder cinn_builder("cinn_builder_batch_norm_train");
   {
@@ -177,6 +177,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto nodes = std::get<0>(graph->topological_order());
 
+  /*
   for (auto& node : nodes) {
     for (auto link : node->inlinks()) {
       std::cerr << link->source()->id() << " ";
@@ -187,6 +188,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
     }
     std::cerr << std::endl;
   }
+  */
 
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
