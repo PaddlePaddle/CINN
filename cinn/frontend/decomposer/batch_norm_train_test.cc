@@ -147,8 +147,10 @@ TEST(nn, BATCH_NORM_TRAIN) {
   // build program
   auto program = net_builder.Build();
 
-  auto target = ::cinn::common::DefaultHostTarget();
+  // auto target = ::cinn::common::DefaultHostTarget();
   // auto target = ::cinn::common::DefaultNVGPUTarget();
+  auto target = GetTarget();
+
   CinnBuilder cinn_builder("cinn_builder_batch_norm_train");
   {
     auto x            = cinn_builder.CreateInput(Float(32), {n, c, h, w}, "x");
@@ -226,9 +228,9 @@ TEST(nn, BATCH_NORM_TRAIN) {
     scope->Var<hlir::framework::Tensor>(input.first);
     auto tensor = scope->GetTensor(input.first);
     auto* data  = tensor->mutable_data<float>(target);
-    memcpy(data, input.second.data(), tensor->shape().numel() * sizeof(float));
-    // LOG(INFO) << input.first << " " << tensor->shape().numel();
+    CopyFromVector(input.second, tensor, target);
   }
+
   std::vector<std::pair<std::string, std::vector<float>>> outputs = {{"var_18", sum},
                                                                      {"var_19", mean},
                                                                      {"var_21", diff},
@@ -245,7 +247,8 @@ TEST(nn, BATCH_NORM_TRAIN) {
 
   for (auto& output : outputs) {
     auto tensor = scope->GetTensor(output.first);
-    auto* data  = tensor->data<float>();
+    std::vector<float> data(tensor->shape().numel());
+    CopyToVector(tensor, &data);
 
     LOG(INFO) << output.first << " " << tensor->shape().numel();
     for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
