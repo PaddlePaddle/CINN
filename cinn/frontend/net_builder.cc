@@ -245,5 +245,20 @@ Variable NetBuilder::sum(const std::vector<Variable>& inputs) {
   return instr.GetOutput(0);
 }
 
+// batch norm grad, output(grad_x, grad_scale, grad_bias)
+std::vector<Variable> NetBuilder::batch_norm_grad(const Variable& x,
+                                                  const Variable& dy,
+                                                  const Variable& scale,
+                                                  const Variable& save_mean,
+                                                  const Variable& save_var,
+                                                  const std::string& layout) {
+  Instruction instr("batch_norm_grad", {x, dy, scale, save_mean, save_var});
+  instr.SetAttr("layout", layout);
+
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
+}
+
 }  // namespace frontend
 }  // namespace cinn

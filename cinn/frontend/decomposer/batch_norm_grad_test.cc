@@ -111,7 +111,7 @@ void batch_norm_grad(const std::vector<T>& x,
   loop(func_diff_0, n, c, h, w);
 
   // grad_var
-  memset(dvar, 0, sizeof(float) * c);
+  memset(dvar->data(), 0, sizeof(float) * c);
   auto func_dvar = [=](int idx, int idy, int idz, int ida) {
     dvar->at(idy) += -1 * dstd->at(idx * c * h * w + idy * h * w + idz * w + ida) / (save_var[idy] * save_var[idy]) *
                      (x[idx * c * h * w + idy * h * w + idz * w + ida] - save_mean[idy]);
@@ -188,6 +188,7 @@ TEST(nn, BATCH_NORM_GRAD) {
   auto graph = std::make_shared<hlir::framework::Graph>(new_program, target);
   auto nodes = std::get<0>(graph->topological_order());
 
+  /*
   for (auto& node : nodes) {
     for (auto link : node->inlinks()) {
       std::cerr << link->source()->id() << " ";
@@ -198,6 +199,7 @@ TEST(nn, BATCH_NORM_GRAD) {
     }
     std::cerr << std::endl;
   }
+  */
 
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
@@ -206,11 +208,11 @@ TEST(nn, BATCH_NORM_GRAD) {
 
   // set input
   std::vector<float> x(num), dy(num), scale(c), save_mean(c), save_var(c);
-  InitRandomVector(x, num);
-  InitRandomVector(dy, num);
-  InitRandomVector(scale, c);
-  InitRandomVector(save_mean, c);
-  InitRandomVector(save_var, c);
+  InitRandomVector(&x, num);
+  InitRandomVector(&dy, num);
+  InitRandomVector(&scale, c);
+  InitRandomVector(&save_mean, c);
+  InitRandomVector(&save_var, c);
 
   std::vector<std::pair<std::string, std::vector<float>>> inputs = {
       {"x", x}, {"dy", dy}, {"scale", scale}, {"save_mean", save_mean}, {"save_var", save_var}};
@@ -224,6 +226,7 @@ TEST(nn, BATCH_NORM_GRAD) {
 
   std::vector<float> dx(num), dscale(c), dbias(c);
   std::vector<float> dstd(num), ddiff_0(num), dvar(c), ddiff2(c), ddiff_1(num), ddiff(num), dmean(c);
+
   batch_norm_grad(x,
                   dy,
                   scale,
