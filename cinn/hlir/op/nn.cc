@@ -1556,7 +1556,7 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     ir::Tensor tensor_b = out2.as_tensor_ref();
     if (target.arch == Target::Arch::NVGPU) {
       if (tensor_a->shape.size() > 1) {
-        stages[tensor_a]->Split(1, 2);
+        stages[tensor_a]->Split(1, 5);
         stages[tensor_a]->Bind(0, "blockIdx.x");
         stages[tensor_a]->Bind(1, "threadIdx.x");
         int shape_size = tensor_a->shape.size();

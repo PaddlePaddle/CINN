@@ -1409,7 +1409,11 @@ void CudaScheduleConv(poly::StageMap stages,
   int thread_z = c / f_inner / block_z;
 
   int rc_factor = SplitEven(rc);
-
+  while (w * thread_z > 1024 && thread_z % 2 == 0) {
+    thread_z = thread_z / 2;
+    f_inner  = f_inner * 2;
+  }
+  CHECK_LE(w * thread_z, 1024) << "Wrong Param of Conv2d!";
   auto OL = stages[output]->CacheWrite("local", stages, output);
 
   auto tx     = stages[output]->axis(3);
