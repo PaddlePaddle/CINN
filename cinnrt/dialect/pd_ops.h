@@ -25,6 +25,9 @@ class PaddleDialect : public Dialect {
 
   static StringRef getDialectNamespace() { return "pd"; }
 
+  /// A hook used to materialize constant values with the given type.
+  Operation* materializeConstant(OpBuilder& builder, Attribute value, Type type, Location loc) override;
+
   Type parseType(DialectAsmParser& parser) const override { return Dialect::parseType(parser); }
   void printType(Type type, DialectAsmPrinter& printer) const override { Dialect::printType(type, printer); }
 };

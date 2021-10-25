@@ -230,6 +230,26 @@ function CI {
     make_doc
 }
 
+function CINNRT {
+    mkdir -p $build_dir
+    cd $build_dir
+    export runtime_include_dir=$workspace/cinn/runtime/cuda
+
+    prepare_ci
+    codestyle_check
+
+    proxy_off
+    mkdir -p $build_dir
+    cp $workspace/cmake/config.cmake $build_dir
+    # To enable Cuda backend, set(WITH_CUDA ON)
+    echo "set(WITH_CUDA $cuda_config)" >> $build_dir/config.cmake
+    echo "set(WITH_CUDNN $cudnn_config)" >> $build_dir/config.cmake
+    echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
+    cd $build_dir
+    cmake .. -DPUBLISH_LIBS=ON -DWITH_TESTING=ON
+
+    make cinnopt -j $JOBS
+}
 
 function main {
     # Parse command line.
@@ -262,6 +282,10 @@ function main {
             ci)
                 CI
                 shift
+                ;;
+            CINNRT)
+               CINNRT
+               shift
                 ;;
             prepare_model)
                 prepare_model
