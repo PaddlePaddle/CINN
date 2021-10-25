@@ -24,6 +24,7 @@
 
 #include "cinn/common/target.h"
 #include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/decomposer/test_helper.h"
 #include "cinn/frontend/decomposer/use_decomposer.h"
 #include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/net_builder.h"
@@ -39,13 +40,6 @@
 namespace cinn {
 namespace frontend {
 namespace {
-
-template <typename T>
-void random(T* value, int num) {
-  for (int idx = 0; idx < num; ++idx) {
-    *value++ = rand() / 100000.0f;
-  }
-}
 
 TEST(nn, CONV_GRAD) {
   int n = 32, ic = 16, h = 32, w = 32;
@@ -90,6 +84,25 @@ TEST(nn, CONV_GRAD) {
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto run_program = gc.Build();
+
+  // set input
+  std::vector<float> x(n * ic * h * w), weight(oc * ic * fh * fw), dy(n * oc * h * w);
+
+  InitRandomVector(&x, n * ic * h * w);
+  InitRandomVector(&weight, oc * ic * fh * fw);
+  InitRandomVector(&dy, n * oc * h * w);
+
+  std::vector<std::pair<std::string, std::vector<float>>> inputs = {{"x", x}, {"weight", weight}};
+
+  for (auto& input : inputs) {
+    scope->Var<hlir::framework::Tensor>(input.first);
+    auto tensor = scope->GetTensor(input.first);
+    auto* data  = tensor->mutable_data<float>(target);
+    LOG(INFO) << input.first << " " << tensor->shape().numel();
+    CopyFromVector(input.second, tensor, target);
+  }
+
+  run_program->Execute();
 }
 
 }  // namespace

@@ -173,6 +173,13 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   } else {
     conv_type = "forward";
   }
+
+#ifndef CINN_WITH_CUDNN
+  if (conv_type != "forward") {
+    LOG(FATAL) << "cudnn is not found, backward_data/backward_filter is not supported!"
+  }
+#endif
+
   // if target arch == x86
   if (target.arch == common::Target::Arch::X86) {
     CHECK_EQ(conv_type, "forward") << "arch x86 only support conv_type == forward.";
@@ -225,16 +232,24 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                        UniqName("Conv2d_nhwc_out"));
         }
       } else {
-        out = pe::Conv2d_NCHW(A.as_tensor_ref(),
-                              B.as_tensor_ref(),
-                              padding[0],
-                              padding[1],
-                              stride[0],
-                              stride[1],
-                              dilation[0],
-                              dilation[1],
-                              UniqName("Conv2d_nhwc_out"));
-        out.push_back(B.as_tensor_ref());
+        if (conv_type == "forward") {
+          out = pe::Conv2d_NCHW(A.as_tensor_ref(),
+                                B.as_tensor_ref(),
+                                padding[0],
+                                padding[1],
+                                stride[0],
+                                stride[1],
+                                dilation[0],
+                                dilation[1],
+                                UniqName("Conv2d_nhwc_out"));
+          out.push_back(B.as_tensor_ref());
+        } else {
+          // as backward_data and backward_filter is not support now, we built a fake op to instead.
+          // as the runtime use cudnn to compute the conv2d, so this fake op is not been called.
+          out = pe::Identity(A.as_tensor_ref());
+          out.push_back(A.as_tensor_ref());
+          out.push_back(B.as_tensor_ref());
+        }
       }
     } else if (data_format == "NHWC") {
       // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
@@ -269,6 +284,15 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     CHECK(arg_pack.size() == 4UL || arg_pack.size() == 3UL || arg_pack.size() == 6UL);
     poly::StageMap stages = arg_pack.back();
     if (target.arch == Target::Arch::NVGPU) {
+      // If conv_type is backward_filter or backward_data, we built a fake op.
+      // As runtime use cudnn to compute conv2d, this fake op is not to be called.
+      if (conv_type != "forward") {
+        Expr out = arg_pack[0];
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.front(), target);
+        *ret = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+        return;
+      }
+
       Expr Out             = arg_pack[0];
       Expr input_pad       = arg_pack[1];
       Expr weights         = arg_pack[2];
@@ -405,11 +429,11 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       out_shape_w =
           (inputs_shape[1][3] - 1) * stride[1] - 2 * padding[1] + ((inputs_shape[0][3] - 1) * dilation[1] + 1);
     } else if (conv_type == "backward_filter") {
-      CHECK(attrs.find("weights_shape") != attrs.end()) << "The shape of weights is not found! Please check.";
-      auto weights_shape = absl::get<std::vector<int>>(attrs.at("weights_shape"));
-      CHECK_EQ(weights_shape.size(), 4) << "The size of filter shape is not 2(fh,fw)!Please check";
-      out_shape_h = weights_shape[2];
-      out_shape_w = weights_shape[3];
+      CHECK(attrs.find("filter_shape") != attrs.end()) << "The shape of filter is not found! Please check.";
+      auto filter_shape = absl::get<std::vector<int>>(attrs.at("filter_shape"));
+      CHECK_EQ(filter_shape.size(), 4) << "The size of filter shape is not 4(oc, ic, fh, fw)!Please check";
+      out_shape_h = filter_shape[2];
+      out_shape_w = filter_shape[3];
     }
 
     res = {{inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};

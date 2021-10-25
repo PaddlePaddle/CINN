@@ -140,6 +140,17 @@ class NetBuilder : public BaseBuilder {
                          const std::string& dropout_implementation = "downgrade_in_infer");
 
   Variable sum(const std::vector<Variable>& inputs);
+
+  // conv2d grad, output(grad_x, grad_w)
+  std::vector<Variable> conv2d_grad(const Variable& x,
+                                    const Variable& w,
+                                    const Variable& dy,
+                                    const std::vector<int>& strides      = {1, 1},
+                                    const std::vector<int>& paddings     = {0, 0},
+                                    const std::vector<int>& dilations    = {1, 1},
+                                    const int groups                     = 1,
+                                    const std::string& layout            = "NCHW",
+                                    const std::string& padding_algorithm = "EXPLICIT");
 };
 
 }  // namespace frontend
