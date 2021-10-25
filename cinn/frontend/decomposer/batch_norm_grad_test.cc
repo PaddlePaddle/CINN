@@ -213,7 +213,7 @@ TEST(nn, BATCH_NORM_GRAD) {
   InitRandomVector(save_mean, c);
   InitRandomVector(save_var, c);
 
-  std::vector<std::pair<std::string, float*>> inputs = {
+  std::vector<std::pair<std::string, std::vector<float>>> inputs = {
       {"x", x}, {"dy", dy}, {"scale", scale}, {"save_mean", save_mean}, {"save_var", save_var}};
   for (auto& input : inputs) {
     scope->Var<hlir::framework::Tensor>(input.first);
@@ -225,8 +225,6 @@ TEST(nn, BATCH_NORM_GRAD) {
 
   std::vector<float> dx(num), dscale(c), dbias(c);
   std::vector<float> dstd(num), ddiff_0(num), dvar(c), ddiff2(c), ddiff_1(num), ddiff(num), dmean(c);
-
-  float *dx = new float[n * c * h * w], *dscale = new float[c], *dbias = new float[c];
   batch_norm_grad(x,
                   dy,
                   scale,
@@ -236,27 +234,27 @@ TEST(nn, BATCH_NORM_GRAD) {
                   c,
                   h,
                   w,
-                  dstd,
-                  ddiff_0,
-                  dvar,
-                  ddiff2,
-                  ddiff_1,
-                  ddiff,
-                  dmean,
-                  dx,
-                  dscale,
-                  dbias);
+                  &dstd,
+                  &ddiff_0,
+                  &dvar,
+                  &ddiff2,
+                  &ddiff_1,
+                  &ddiff,
+                  &dmean,
+                  &dx,
+                  &dscale,
+                  &dbias);
 
-  std::vector<std::pair<std::string, float*>> outputs = {{"var_12", dbias},
-                                                         {"var_18", dscale},
-                                                         /*{"var_20", dstd},
-                                                         {"var_21", ddiff_0},
-                                                         {"var_27", dvar},
-                                                         {"var_31", ddiff2},
-                                                         {"var_33", ddiff_1},
-                                                         {"var_34", ddiff},
-                                                         {"var_38", dmean},*/
-                                                         {"var_40", dx}};
+  std::vector<std::pair<std::string, std::vector<float>>> outputs = {{"var_12", dbias},
+                                                                     {"var_18", dscale},
+                                                                     /*{"var_20", dstd},
+                                                                     {"var_21", ddiff_0},
+                                                                     {"var_27", dvar},
+                                                                     {"var_31", ddiff2},
+                                                                     {"var_33", ddiff_1},
+                                                                     {"var_34", ddiff},
+                                                                     {"var_38", dmean},*/
+                                                                     {"var_40", dx}};
 
   for (auto& output : outputs) {
     auto tensor = scope->GetTensor(output.first);
