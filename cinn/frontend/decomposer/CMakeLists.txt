@@ -11,4 +11,4 @@ cc_test(test_activation_decomposer SRCS activation_test.cc DEPS cinncore)
 cc_test(test_elementwise_decomposer SRCS elementwise_test.cc DEPS cinncore)
 cc_test(test_broadcast_decomposer SRCS broadcast_test.cc DEPS cinncore)
 
-cc_test(test_batch_norm_train SRCS batch_norm_train_test.cc DEPS cinncore)
+cc_test(test_batch_norm_train_decomposer SRCS batch_norm_train_test.cc DEPS cinncore)

@@ -29,10 +29,12 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto& running_mean = instr->inputs[3];
   auto& running_var  = instr->inputs[4];
 
-  float epsilon        = instr.GetAttrs<float>("epsilon");
-  std::string layout   = instr.GetAttrs<std::string>("layout");
-  float running_factor = instr.GetAttrs<float>("running_factor");
+  float epsilon      = instr.GetAttrs<float>("epsilon");
+  std::string layout = instr.GetAttrs<std::string>("layout");
+  float momentum     = instr.GetAttrs<float>("momentum");
 
+  CHECK_EQ(x->shape.size(), 4UL) << "Only 4-D input tensor is supported, but get " << x->shape.size()
+                                 << "-D input tensor.";
   CinnBuilder* builder   = context.builder();
   std::vector<int> r_dim = {};
   float element_count    = 0;
@@ -72,10 +74,10 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto save_mean = builder->Div(sum, v_element_count);
   auto mean      = builder->BroadcastTo(save_mean, x->shape, {c_dim});
   // diff
-  auto diff  = builder->Sub(x, mean);
-  auto _diff = builder->Identity(diff);
+  auto diff      = builder->Sub(x, mean);
+  auto diff_copy = builder->Identity(diff);
   // diff2
-  auto diff2 = builder->Mul(diff, _diff);
+  auto diff2 = builder->Mul(diff, diff_copy);
 
   // sum variance, shape = [c]
   auto sum_diff2 = builder->Reduce(diff2, ReduceKind::kSum, r_dim);
@@ -92,9 +94,9 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
 
   // shape = [c]
   auto factor_0 = builder->BroadcastTo(
-      builder->ConstScalar<float>(running_factor, common::UniqName("factor_0")), running_mean->shape, {0});
+      builder->ConstScalar<float>(momentum, common::UniqName("factor_0")), running_mean->shape, {0});
   auto factor_1 = builder->BroadcastTo(
-      builder->ConstScalar<float>(1.0f - running_factor, common::UniqName("factor_1")), running_var->shape, {0});
+      builder->ConstScalar<float>(1.0f - momentum, common::UniqName("factor_1")), running_var->shape, {0});
   auto new_mean = builder->Add(builder->Mul(running_mean, factor_0), builder->Mul(save_mean, factor_1));
   auto new_var  = builder->Add(builder->Mul(running_var, factor_0), builder->Mul(save_var, factor_1));
 

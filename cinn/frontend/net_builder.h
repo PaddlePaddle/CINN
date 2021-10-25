@@ -147,9 +147,9 @@ class NetBuilder : public BaseBuilder {
                                          const Variable& bias,
                                          const Variable& running_mean,
                                          const Variable& running_var,
-                                         const float epsilon        = 1e-6f,
-                                         const float running_factor = 0.99f,
-                                         const std::string& layout  = "NCHW");
+                                         const float epsilon       = 1e-6f,
+                                         const float momentum      = 0.9f,
+                                         const std::string& layout = "NCHW");
 
   // batch norm grad, output(grad_x, grad_scale, grad_bias)
   std::vector<Variable> batch_norm_grad(const Variable& x,

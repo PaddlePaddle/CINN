@@ -252,11 +252,11 @@ std::vector<Variable> NetBuilder::batch_norm_train(const Variable& x,
                                                    const Variable& running_mean,
                                                    const Variable& running_var,
                                                    const float epsilon,
-                                                   const float running_factor,
+                                                   const float momentum,
                                                    const std::string& layout) {
   Instruction instr("batch_norm_train", {x, scale, bias, running_mean, running_var});
   instr.SetAttr("epsilon", epsilon);
-  instr.SetAttr("running_factor", running_factor);
+  instr.SetAttr("momentum", momentum);
   instr.SetAttr("layout", layout);
   InferShape(instr);
   AppendInstruction(instr);
