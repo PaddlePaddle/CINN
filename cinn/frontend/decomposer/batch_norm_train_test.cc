@@ -155,7 +155,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
   auto new_program = cinn_builder.Build();
 
   auto graph = std::make_shared<hlir::framework::Graph>(new_program, target);
-  // hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto nodes = std::get<0>(graph->topological_order());
   LOG(INFO) << graph->Visualize();
 
@@ -215,7 +215,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
 
     LOG(INFO) << output.first << " " << tensor->shape().numel();
     for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
-      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 5e-5);
+      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-4);
     }
   }
 }
