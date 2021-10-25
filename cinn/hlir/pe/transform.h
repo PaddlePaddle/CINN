@@ -61,6 +61,10 @@ ir::Tensor Concat(const ir::Tensor& A,
                   int axis                = 0,
                   const std::string& name = UniqName("T_Transform_Concat_out"));
 
+ir::Tensor Concat(const std::vector<ir::Tensor>& input_tensors,
+                  int axis                = 0,
+                  const std::string& name = UniqName("T_Transform_Concat_out"));
+
 std::vector<ir::Tensor> MatmulV2(const ir::Tensor& A,
                                  const ir::Tensor& B,
                                  bool trans_a                 = false,

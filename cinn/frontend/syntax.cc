@@ -359,6 +359,20 @@ Variable Program::elementwise_mul(const Variable& a, const Variable& b, int axis
   return instr.GetOutput(0);
 }
 
+Variable Program::elementwise_div(const Variable& a, const Variable& b, int axis) {
+  Instruction instr("divide", {a, b});
+  instr.SetAttr("axis", axis);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable Program::elementwise_sub(const Variable& a, const Variable& b, int axis) {
+  Instruction instr("substract", {a, b});
+  instr.SetAttr("axis", axis);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 #define SYNTAX_PRIM_REDUCE_IMPL(name__)                                                              \
   Variable Program::reduce_##name__(const Variable& a, const std::vector<int>& dim, bool keep_dim) { \
     Instruction instr("reduce_" #name__, {a});                                                       \
@@ -372,6 +386,12 @@ SYNTAX_PRIM_REDUCE_IMPL(sum)
 SYNTAX_PRIM_REDUCE_IMPL(prod)
 SYNTAX_PRIM_REDUCE_IMPL(min)
 SYNTAX_PRIM_REDUCE_IMPL(max)
+
+Variable Program::assign(const Variable& a) {
+  Instruction instr("identity", {a});
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
 
 Variable Program::relu(const Variable& a) {
   Instruction instr("relu", {a});
@@ -409,8 +429,15 @@ Variable Program::reshape(const Variable& a, const std::vector<int>& shape) {
   return instr.GetOutput(0);
 }
 
-Variable Program::concat(const Variable& a, const Variable& b, int axis) {
-  Instruction instr("concat", {a, b});
+Variable Program::concat(const std::vector<Variable>& input_vars, int axis) {
+  Instruction instr("concat", input_vars);
+  instr.SetAttr("axis", axis);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable Program::transpose(const Variable& a, const std::vector<int>& axis) {
+  Instruction instr("transpose", {a});
   instr.SetAttr("axis", axis);
   AppendInstruction(instr);
   return instr.GetOutput(0);

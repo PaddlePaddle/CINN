@@ -40,31 +40,35 @@ class TestReshape(unittest.TestCase):
             self.target = DefaultHostTarget()
 
     def paddle_verify(self, result):
+        main_program = fluid.Program()
         paddle.enable_static()
 
-        a = fluid.data(name='A', shape=[2, 2048, 1, 1], dtype='float32')
-        res = fluid.layers.reshape(x=a, shape=[-1, 2048], inplace=True)
+        with fluid.program_guard(main_program, fluid.Program()):
 
-        exe = fluid.Executor(fluid.CPUPlace())
-        exe.run(fluid.default_startup_program())
+            a = fluid.data(name='A', shape=[2, 2048, 1, 1], dtype='float32')
+            res = paddle.reshape(x=a, shape=[-1, 2048])
 
-        x = np.array(result[0]).reshape((2, 2048, 1, 1)).astype("float32")
-        output = exe.run(feed={"A": x}, fetch_list=[res])
-        output = np.array(output).reshape(-1)
-        print("result in paddle_verify: \n")
-        for i in range(0, output.shape[0]):
-            if np.abs(output[i] - result[len(result) - 1][i]) > 1e-4:
-                print("Error! ", i, "-th data has diff with target data:\n",
-                      output[i], " vs: ", result[len(result) - 1][i],
-                      ". Diff is: ", output[i] - result[len(result) - 1][i])
-        self.assertTrue(
-            np.allclose(result[len(result) - 1], output, atol=1e-4))
+            exe = fluid.Executor(fluid.CPUPlace())
+            exe.run(fluid.default_startup_program())
+
+            x = np.array(result[0]).reshape((2, 2048, 1, 1)).astype("float32")
+            output = exe.run(feed={"A": x}, fetch_list=[res])
+            output = np.array(output).reshape(-1)
+            print("result in paddle_verify: \n")
+            for i in range(0, output.shape[0]):
+                if np.abs(output[i] - result[len(result) - 1][i]) > 1e-4:
+                    print("Error! ", i,
+                          "-th data has diff with target data:\n", output[i],
+                          " vs: ", result[len(result) - 1][i], ". Diff is: ",
+                          output[i] - result[len(result) - 1][i])
+            self.assertTrue(
+                np.allclose(result[len(result) - 1], output, atol=1e-4))
 
     def test_basic(self):
         prog = Program()
 
         a = Variable("A").set_type(Float(32)).set_shape([2, 2048, 1, 1])
-        h = prog.reshape(a, {-1, 2048})
+        h = prog.reshape(a, [-1, 2048])
         self.assertEqual(prog.size(), 1)
         # print program
         for i in range(prog.size()):
@@ -84,43 +88,56 @@ class TestConcat(unittest.TestCase):
             self.target = DefaultHostTarget()
 
     def paddle_verify(self, result):
+        main_program = fluid.Program()
         paddle.enable_static()
 
-        a = fluid.data(name='A', shape=[1, 256, 14, 14], dtype='float32')
-        b = fluid.data(name='B', shape=[1, 256, 14, 14], dtype='float32')
-        res = fluid.layers.concat(input=[a, b], axis=1)
+        with fluid.program_guard(main_program, fluid.Program()):
 
-        exe = fluid.Executor(fluid.CPUPlace())
-        exe.run(fluid.default_startup_program())
+            a = fluid.data(name='A', shape=[1, 256, 14, 14], dtype='float32')
+            b = fluid.data(name='B', shape=[1, 256, 14, 14], dtype='float32')
+            c = fluid.data(name='C', shape=[1, 256, 14, 14], dtype='float32')
+            res = fluid.layers.concat(input=[a, b, c], axis=1)
 
-        x = np.array(result[0]).reshape((1, 256, 14, 14)).astype("float32")
-        y = np.array(result[0]).reshape((1, 256, 14, 14)).astype("float32")
-        output = exe.run(feed={"A": x, "B": y}, fetch_list=[res])
-        output = np.array(output).reshape(-1)
-        print("result in paddle_verify: \n")
-        for i in range(0, output.shape[0]):
-            if np.abs(output[i] - result[len(result) - 1][i]) > 1e-4:
-                print("Error! ", i, "-th data has diff with target data:\n",
-                      output[i], " vs: ", result[len(result) - 1][i],
-                      ". Diff is: ", output[i] - result[len(result) - 1][i])
-        self.assertTrue(
-            np.allclose(result[len(result) - 1], output, atol=1e-4))
+            exe = fluid.Executor(fluid.CPUPlace())
+            exe.run(fluid.default_startup_program())
+
+            x = np.array(result[0]).reshape((1, 256, 14, 14)).astype("float32")
+            y = np.array(result[1]).reshape((1, 256, 14, 14)).astype("float32")
+            z = np.array(result[2]).reshape((1, 256, 14, 14)).astype("float32")
+            output = exe.run(feed={"A": x, "B": y, "C": z}, fetch_list=[res])
+            output = np.array(output).reshape(-1)
+            print("result in paddle_verify: \n")
+            for i in range(0, output.shape[0]):
+                if np.abs(output[i] - result[len(result) - 1][i]) > 1e-4:
+                    print("Error! ", i,
+                          "-th data has diff with target data:\n", output[i],
+                          " vs: ", result[len(result) - 1][i], ". Diff is: ",
+                          output[i] - result[len(result) - 1][i])
+            self.assertTrue(
+                np.allclose(result[len(result) - 1], output, atol=1e-4))
 
     def test_basic(self):
         prog = Program()
 
         a = Variable("A").set_type(Float(32)).set_shape([1, 256, 14, 14])
         b = Variable("B").set_type(Float(32)).set_shape([1, 256, 14, 14])
-        h = prog.concat(a, b, 1)
+        c = Variable("C").set_type(Float(32)).set_shape([1, 256, 14, 14])
+        h = prog.concat([a, b, c], 1)
         self.assertEqual(prog.size(), 1)
         # print program
         for i in range(prog.size()):
             print(prog[i])
         tensor_data = [
             np.random.random([1, 256, 14, 14]).astype("float32"),
+            np.random.random([1, 256, 14, 14]).astype("float32"),
             np.random.random([1, 256, 14, 14]).astype("float32")
         ]
-        result = prog.build_and_get_output(self.target, [a, b], tensor_data, h)
+        result = prog.build_and_get_output(self.target, [a, b, c], tensor_data,
+                                           h)
         result = result.numpy(self.target).reshape(-1)
         tensor_data.append(result)
         self.paddle_verify(tensor_data)
+
+
+if __name__ == "__main__":
+    unittest.main()

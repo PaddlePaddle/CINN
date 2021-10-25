@@ -118,6 +118,8 @@ void BindFrontend(pybind11::module *m) {
       .def("batchnorm", &Program::batchnorm)
       .def("softmax", &Program::softmax)
       .def("pool2d", &Program::pool2d)
+      .def("concat", &Program::concat)
+      .def("reshape", &Program::reshape)
       .def("build_and_get_output",
            [](Program &self,
               const common::Target &target,
@@ -392,7 +394,7 @@ void BindFrontend(pybind11::module *m) {
           BINARY_OP_FOREACH(PY_REGISTER_FUNC)
 #undef PY_REGISTER_FUNC
       // clang-format on
-      .def("concat", &CinnBuilder::Concat, py::arg("lhs"), py::arg("rhs"), py::arg("axis") = 0)
+      .def("concat", &CinnBuilder::Concat, py::arg("input_vars"), py::arg("axis") = 0)
       .def("conv",
            &CinnBuilder::Conv,
            py::arg("lhs"),
