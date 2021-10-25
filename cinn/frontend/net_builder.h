@@ -150,25 +150,6 @@ class NetBuilder : public BaseBuilder {
                                          const float epsilon       = 1e-6f,
                                          const float momentum      = 0.9f,
                                          const std::string& layout = "NCHW");
-
-  // batch norm grad, output(grad_x, grad_scale, grad_bias)
-  std::vector<Variable> batch_norm_grad(const Variable& x,
-                                        const Variable& dy,
-                                        const Variable& scale,
-                                        const Variable& save_mean,
-                                        const Variable& save_var,
-                                        const std::string& layout = "NCHW");
-
-  // conv2d grad, output(grad_x, grad_w)
-  std::vector<Variable> conv2d_grad(const Variable& x,
-                                    const Variable& w,
-                                    const Variable& dy,
-                                    const std::vector<int>& stride       = {1, 1},
-                                    const std::vector<int>& padding      = {0, 0},
-                                    const std::vector<int>& dilation     = {1, 1},
-                                    const int groups                     = 1,
-                                    const std::string& layout            = "NCHW",
-                                    const std::string& padding_algorithm = "EXPLICIT");
 };
 
 }  // namespace frontend

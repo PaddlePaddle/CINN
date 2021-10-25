@@ -77,14 +77,14 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto diff      = builder->Sub(x, mean);
   auto diff_copy = builder->Identity(diff);
   // diff2
-  auto diff2 = builder->Mul(diff, diff_copy);
+  auto diff_square = builder->Mul(diff, diff_copy);
 
   // sum variance, shape = [c]
-  auto sum_diff2 = builder->Reduce(diff2, ReduceKind::kSum, r_dim);
+  auto sum_diff_square = builder->Reduce(diff_square, ReduceKind::kSum, r_dim);
   // variance, shape[c]
-  auto var2 = builder->Div(sum_diff2, v_element_count);
+  auto variance = builder->Div(sum_diff_square, v_element_count);
   // standard variance, shape[c] -> [n, c, h, w]
-  auto save_var = builder->Add(builder->Sqrt(var2), v_epsilon);
+  auto save_var = builder->Add(builder->Sqrt(variance), v_epsilon);
   auto var      = builder->BroadcastTo(save_var, x->shape, {c_dim});
 
   auto v_scale = builder->BroadcastTo(scale, x->shape, {c_dim});
