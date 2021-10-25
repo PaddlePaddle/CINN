@@ -35,26 +35,26 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
 
   CHECK_EQ(x->shape.size(), 4UL) << "Only 4-D input tensor is supported, but get " << x->shape.size()
                                  << "-D input tensor.";
-  CinnBuilder* builder   = context.builder();
-  std::vector<int> r_dim = {};
-  float element_count    = 0;
-  int c_dim              = 0;
+  CinnBuilder* builder        = context.builder();
+  std::vector<int> reduce_dim = {};
+  float element_count         = 0;
+  int channel_dim             = 0;
   if (layout == "NCHW") {
-    c_dim         = 1;
-    r_dim         = {0, 2, 3};
+    channel_dim   = 1;
+    reduce_dim    = {0, 2, 3};
     element_count = x->shape[0] * x->shape[2] * x->shape[3];
   } else if (layout == "NHWC") {
-    c_dim         = 3;
-    r_dim         = {0, 1, 2};
+    channel_dim   = 3;
+    reduce_dim    = {0, 1, 2};
     element_count = x->shape[0] * x->shape[1] * x->shape[2];
   } else {
     LOG(FATAL) << layout << " setting is not support!";
   }
 
   // shape [c]
-  auto v_element_count = builder->BroadcastTo(
+  auto element_count_broadcast = builder->BroadcastTo(
       builder->ConstScalar<float>(element_count, common::UniqName("element_count")), scale->shape, {0});
-  auto v_epsilon =
+  auto epsilon_broadcast =
       builder->BroadcastTo(builder->ConstScalar<float>(epsilon, common::UniqName("epsilon")), scale->shape, {0});
 
   /*****************batch norm train********************
@@ -69,10 +69,10 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
    */
 
   // compute sum, shape = [c]
-  auto sum = builder->Reduce(x, ReduceKind::kSum, r_dim);
+  auto sum = builder->Reduce(x, ReduceKind::kSum, reduce_dim);
   // compute mean = [c] -> [n, c, h, w]
-  auto save_mean = builder->Div(sum, v_element_count);
-  auto mean      = builder->BroadcastTo(save_mean, x->shape, {c_dim});
+  auto save_mean = builder->Div(sum, element_count_broadcast);
+  auto mean      = builder->BroadcastTo(save_mean, x->shape, {channel_dim});
   // diff
   auto diff      = builder->Sub(x, mean);
   auto diff_copy = builder->Identity(diff);
@@ -80,17 +80,17 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto diff_square = builder->Mul(diff, diff_copy);
 
   // sum variance, shape = [c]
-  auto sum_diff_square = builder->Reduce(diff_square, ReduceKind::kSum, r_dim);
+  auto sum_diff_square = builder->Reduce(diff_square, ReduceKind::kSum, reduce_dim);
   // variance, shape[c]
-  auto variance = builder->Div(sum_diff_square, v_element_count);
+  auto variance = builder->Div(sum_diff_square, element_count_broadcast);
   // standard variance, shape[c] -> [n, c, h, w]
-  auto save_var = builder->Add(builder->Sqrt(variance), v_epsilon);
-  auto var      = builder->BroadcastTo(save_var, x->shape, {c_dim});
+  auto save_var = builder->Add(builder->Sqrt(variance), epsilon_broadcast);
+  auto var      = builder->BroadcastTo(save_var, x->shape, {channel_dim});
 
-  auto v_scale = builder->BroadcastTo(scale, x->shape, {c_dim});
-  auto v_bias  = builder->BroadcastTo(bias, x->shape, {c_dim});
+  auto scale_4d = builder->BroadcastTo(scale, x->shape, {channel_dim});
+  auto bias_4d  = builder->BroadcastTo(bias, x->shape, {channel_dim});
   // (x - mean)/var * scale + bias
-  auto y = builder->Add(v_bias, builder->Mul(v_scale, builder->Div(diff, var)));
+  auto y = builder->Add(bias_4d, builder->Mul(scale_4d, builder->Div(diff, var)));
 
   // shape = [c]
   auto factor_0 = builder->BroadcastTo(
