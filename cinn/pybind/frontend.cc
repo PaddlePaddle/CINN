@@ -379,7 +379,15 @@ void BindFrontend(pybind11::module *m) {
            &NetBuilder::dropout_infer,
            py::arg("a"),
            py::arg("dropout_prob")           = 0.5f,
-           py::arg("dropout_implementation") = "downgrade_in_infer");
+           py::arg("dropout_implementation") = "downgrade_in_infer")
+      .def("batch_norm_grad",
+           &NetBuilder::batch_norm_grad,
+           py::arg("x"),
+           py::arg("dy"),
+           py::arg("scale"),
+           py::arg("save_mean"),
+           py::arg("save_var"),
+           py::arg("layout") = "NCHW");
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
