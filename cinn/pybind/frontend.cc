@@ -29,6 +29,7 @@
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
+#include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/utils/string.h"
@@ -129,7 +130,7 @@ void BindFrontend(pybind11::module *m) {
               const common::Target &target,
               const std::vector<Variable> &tensor_inputs,
               const std::vector<py::array> &input_data,
-              const Variable &tensor_out) {
+              const std::vector<Variable> &tensor_outputs) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
              if (target.arch == Target::Arch::NVGPU) {
@@ -162,8 +163,13 @@ void BindFrontend(pybind11::module *m) {
                }
              }
              program->Execute();
-             auto out = scope->GetTensor(tensor_out->id);
-             return out;
+
+             std::vector<hlir::framework::Tensor> outputs;
+             for (size_t i = 0; i < tensor_outputs.size(); i++) {
+               outputs.push_back(scope->GetTensor(tensor_outputs[i]->id));
+             }
+
+             return outputs;
            })
       .def("apply_pass", &ProgramPass::Apply)
 

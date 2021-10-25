@@ -104,8 +104,8 @@ class TestFrontend(unittest.TestCase):
             np.random.random([144, 24, 1, 1]).astype("float32")
         ]
         result = prog.build_and_get_output(self.target, [a, b, e], tensor_data,
-                                           h)
-        result = result.numpy(self.target).reshape(-1)
+                                           [h])
+        result = result[0].numpy(self.target).reshape(-1)
         tensor_data.append(result)
         self.paddle_verify(tensor_data)
 

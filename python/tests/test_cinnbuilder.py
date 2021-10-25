@@ -90,8 +90,8 @@ class TestCinnBuilder(unittest.TestCase):
             np.random.random([144, 24, 1, 1]).astype("float32")
         ]
         result = prog.build_and_get_output(self.target, [a, b, d], tensor_data,
-                                           e)
-        result = result.numpy(self.target).reshape(-1)
+                                           [e])
+        result = result[0].numpy(self.target).reshape(-1)
         tensor_data.append(result)
         self.paddle_verify_basic(tensor_data)
 

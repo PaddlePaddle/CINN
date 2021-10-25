@@ -17,9 +17,16 @@ from cinn import Target
 from cinn.frontend import *
 from cinn.common import *
 import numpy as np
+import paddle
 
 
 class OpTest(unittest.TestCase):
+    def init_results(self):
+        self.paddle_outputs = []
+        self.paddle_grads = []
+        self.cinn_outputs = []
+        self.cinn_grads = []
+
     def init_target(self):
         self.targets = [
             DefaultHostTarget(),
@@ -27,44 +34,47 @@ class OpTest(unittest.TestCase):
         ]
 
     def build_paddle_program():
-        pass
+        raise Exception("Not implemented.")
 
     def get_paddle_grads(self, outputs, inputs):
         grads = paddle.grad(outputs, inputs)
         return grads
 
     def build_cinn_program():
-        pass
+        raise Exception("Not implemented.")
 
     def get_cinn_output(self, prog, inputs, feed_data, outputs):
-        print("============ Before Decomposer Pass ============")
-        for i in range(prog.size()):
-            print(prog[i])
-
-        prog.apply_pass(self.targets[0], ["Decomposer"])
-        print("============ Before Decomposer Pass ============")
-        for i in range(prog.size()):
-            print(prog[i])
-
-        result = prog.build_and_get_output(self.targets[0], inputs, feed_data,
+        self.apply_pass(prog, self.targets[1])
+        result = prog.build_and_get_output(self.targets[1], inputs, feed_data,
                                            outputs)
-        result = result.numpy(self.targets[0])
+        outs_and_grads = []
+        for res in result:
+            outs_and_grads.append(res.numpy(self.targets[1]))
 
-        return result
+        return outs_and_grads
 
-    def get_cinn_grads(self, outputs, inputs):
-        pass
+    def apply_pass(self, prog, target):
+        print("============ Before Decomposer Pass ============")
+        for i in range(prog.size()):
+            print(prog[i])
 
-    def check_output(self):
-        paddle_outs = self.build_paddle_program()
-        cinn_outs = self.build_cinn_program()
+        prog.apply_pass(target, ["Decomposer"])
+        print("============ After Decomposer Pass ============")
+        for i in range(prog.size()):
+            print(prog[i])
 
-        self.assertEqual(len(paddle_outs), len(cinn_outs))
-        for i in range(len(paddle_outs)):
-            print("Check the %d -th output..." % i)
+    def check_outputs_and_grads(self):
+        self.build_paddle_program()
+        self.build_cinn_program()
+        print("============ Check Outputs ============")
+        self.check_results(self.paddle_outputs, self.cinn_outputs)
+        print("============ Check Grads ============")
+        self.check_results(self.paddle_grads, self.cinn_grads)
+
+    def check_results(self, expect_res, actual_res):
+        print(len(expect_res), len(actual_res))
+        self.assertEqual(len(expect_res), len(actual_res))
+        for i in range(len(expect_res)):
+            print("Check the %d -th Result..." % i)
             self.assertTrue(
-                np.allclose(paddle_outs[i], cinn_outs[i], atol=1e-4))
-
-    def check_grad(self, outputs, inputs):
-        paddle_grads = self.get_paddle_grads()
-        cinn_grads = self.get_cinn_grads()
+                np.allclose(expect_res[i], actual_res[i], atol=1e-4))

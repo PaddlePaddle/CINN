@@ -32,34 +32,43 @@ from cinn.common import *
 
 class TestReluOp(OpTest):
     def setUp(self):
+        self.init_results()
         self.init_case()
         self.init_target()
 
     def init_case(self):
-        self.inputs = {"x": np.random.random([4, 4]).astype("float32")}
+        self.inputs = {
+            "x": np.random.random([4, 4]).astype("float32"),
+            "dout": np.ones((4, 4)).astype("float32")
+        }
 
     def build_paddle_program(self):
         x = paddle.to_tensor(self.inputs["x"])
+        x.stop_gradient = False
         out = F.relu(x)
-        grads = self.get_paddle_grads([out], [x])
 
-        return tuple(out), grads
+        self.paddle_outputs = [out]
+        self.paddle_grads = self.get_paddle_grads([out], [x])
 
     def build_cinn_program(self):
         builder = NetBuilder("relu")
-        x = builder.create_input(Float(32), (4, 4), "x")
+        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         out = builder.relu(x)
-        x_grad = builder.relu_grad()
+
+        dout = builder.create_input(
+            Float(32), self.inputs["dout"].shape, "dout")
+        x_grad = builder.relu_grad(dout, out)
+
         prog = builder.build()
-        result = self.get_cinn_output(prog, [x], [self.inputs["x"]], out)
+        results = self.get_cinn_output(prog, [x, dout],
+                                       [self.inputs["x"], self.inputs["dout"]],
+                                       [out, x_grad])
 
-        return tuple(result)
+        self.cinn_outputs = [results[0]]
+        self.cinn_grads = [results[1]]
 
-    def test_check_output(self):
-        self.check_output()
-
-    def test_check_grad(slef):
-        self.check_grad()
+    def test_check_results(self):
+        self.check_outputs_and_grads()
 
 
 if __name__ == "__main__":
