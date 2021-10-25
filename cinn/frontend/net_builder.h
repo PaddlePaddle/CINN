@@ -141,15 +141,15 @@ class NetBuilder : public BaseBuilder {
 
   Variable sum(const std::vector<Variable>& inputs);
 
-  // batch norm training, output{y, new_running_mean, new_running_var, save_mean, save_var}
+  // batch norm training, output{y, moving_mean, moving_variance, save_mean, save_var}
   std::vector<Variable> batch_norm_train(const Variable& x,
                                          const Variable& scale,
                                          const Variable& bias,
-                                         const Variable& running_mean,
-                                         const Variable& running_var,
-                                         const float epsilon       = 1e-6f,
-                                         const float momentum      = 0.9f,
-                                         const std::string& layout = "NCHW");
+                                         const Variable& moving_mean,
+                                         const Variable& moving_variance,
+                                         const float epsilon            = 1e-6f,
+                                         const float momentum           = 0.9f,
+                                         const std::string& data_layout = "NCHW");
 };
 
 }  // namespace frontend

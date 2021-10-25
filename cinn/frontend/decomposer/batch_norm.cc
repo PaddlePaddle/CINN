@@ -23,15 +23,15 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   CHECK_EQ(instr->inputs.size(), 5UL) << " 5 input tensor for " << instr->op_type;
   CHECK_EQ(instr->outputs.size(), 5UL) << "5 output tensor for " << instr->op_type;
 
-  auto& x            = instr->inputs[0];
-  auto& scale        = instr->inputs[1];
-  auto& bias         = instr->inputs[2];
-  auto& running_mean = instr->inputs[3];
-  auto& running_var  = instr->inputs[4];
+  auto& x               = instr->inputs[0];
+  auto& scale           = instr->inputs[1];
+  auto& bias            = instr->inputs[2];
+  auto& moving_mean     = instr->inputs[3];
+  auto& moving_variance = instr->inputs[4];
 
   float epsilon      = instr.GetAttrs<float>("epsilon");
-  std::string layout = instr.GetAttrs<std::string>("layout");
   float momentum     = instr.GetAttrs<float>("momentum");
+  std::string layout = instr.GetAttrs<std::string>("data_layout");
 
   CHECK_EQ(x->shape.size(), 4UL) << "Only 4-D input tensor is supported, but get " << x->shape.size()
                                  << "-D input tensor.";
@@ -67,45 +67,45 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
    * running_mean = running_mean * factor + (1.0 - factor) * mean
    * running_var = running_var * factor + (1.0 - factor) * var
    */
+  // compute x sum, shape = [c]
+  auto sum     = builder->Reduce(x, ReduceKind::kSum, reduce_dim);
+  auto mean    = builder->Div(sum, element_count_broadcast);
+  auto mean_4d = builder->BroadcastTo(mean, x->shape, {channel_dim});
 
-  // compute sum, shape = [c]
-  auto sum = builder->Reduce(x, ReduceKind::kSum, reduce_dim);
-  // compute mean = [c] -> [n, c, h, w]
-  auto save_mean = builder->Div(sum, element_count_broadcast);
-  auto mean      = builder->BroadcastTo(save_mean, x->shape, {channel_dim});
-  // diff
-  auto diff      = builder->Sub(x, mean);
-  auto diff_copy = builder->Identity(diff);
-  // diff2
-  auto diff_square = builder->Mul(diff, diff_copy);
+  // compute x^2 sum
+  auto x_copy        = builder->Identity(x);
+  auto x_square      = builder->Mul(x, x_copy);
+  auto x_square_sum  = builder->Reduce(x_square, ReduceKind::kSum, reduce_dim);
+  auto x_square_mean = builder->Div(x_square_sum, element_count_broadcast);
 
-  // sum variance, shape = [c]
-  auto sum_diff_square = builder->Reduce(diff_square, ReduceKind::kSum, reduce_dim);
-  // variance, shape[c]
-  auto variance = builder->Div(sum_diff_square, element_count_broadcast);
-  // standard variance, shape[c] -> [n, c, h, w]
-  auto save_var = builder->Add(builder->Sqrt(variance), epsilon_broadcast);
-  auto var      = builder->BroadcastTo(save_var, x->shape, {channel_dim});
+  // E(x^2) - [E(x)]^2
+  auto mean_copy       = builder->Identity(mean);
+  auto variance        = builder->Sub(x_square_mean, builder->Mul(mean, mean_copy));
+  auto std_variance    = builder->Sqrt(builder->Add(variance, epsilon_broadcast));
+  auto std_variance_4d = builder->BroadcastTo(std_variance, x->shape, {channel_dim});
+  // y = (x - mean)/var
 
   auto scale_4d = builder->BroadcastTo(scale, x->shape, {channel_dim});
   auto bias_4d  = builder->BroadcastTo(bias, x->shape, {channel_dim});
   // (x - mean)/var * scale + bias
-  auto y = builder->Add(bias_4d, builder->Mul(scale_4d, builder->Div(diff, var)));
+  auto diff = builder->Sub(x, mean_4d);
+  auto y    = builder->Add(bias_4d, builder->Mul(scale_4d, builder->Div(diff, std_variance_4d)));
 
   // shape = [c]
   auto factor_0 = builder->BroadcastTo(
-      builder->ConstScalar<float>(momentum, common::UniqName("factor_0")), running_mean->shape, {0});
+      builder->ConstScalar<float>(momentum, common::UniqName("factor_0")), moving_mean->shape, {0});
   auto factor_1 = builder->BroadcastTo(
-      builder->ConstScalar<float>(1.0f - momentum, common::UniqName("factor_1")), running_var->shape, {0});
-  auto new_mean = builder->Add(builder->Mul(running_mean, factor_0), builder->Mul(save_mean, factor_1));
-  auto new_var  = builder->Add(builder->Mul(running_var, factor_0), builder->Mul(save_var, factor_1));
+      builder->ConstScalar<float>(1.0f - momentum, common::UniqName("factor_1")), moving_variance->shape, {0});
+
+  auto new_moving_mean     = builder->Add(builder->Mul(moving_mean, factor_0), builder->Mul(mean, factor_1));
+  auto new_moving_variance = builder->Add(builder->Mul(moving_variance, factor_0), builder->Mul(variance, factor_1));
 
   // map output id
   context.MapOutToOrigin(y, instr->outputs[0]);
-  context.MapOutToOrigin(save_mean, instr->outputs[1]);
-  context.MapOutToOrigin(save_var, instr->outputs[2]);
-  context.MapOutToOrigin(new_mean, instr->outputs[3]);
-  context.MapOutToOrigin(new_var, instr->outputs[4]);
+  context.MapOutToOrigin(mean, instr->outputs[1]);
+  context.MapOutToOrigin(variance, instr->outputs[2]);
+  context.MapOutToOrigin(new_moving_mean, instr->outputs[3]);
+  context.MapOutToOrigin(new_moving_variance, instr->outputs[4]);
 }
 
 }  // namespace decomposer

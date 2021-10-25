@@ -58,24 +58,21 @@ template <typename T>
 void cpu_run_batch_norm_train(const std::vector<T>& x,
                               const std::vector<T>& scale,
                               const std::vector<T>& bias,
-                              const std::vector<T>& running_mean,
-                              const std::vector<T>& running_var,
+                              const std::vector<T>& moving_mean,
+                              const std::vector<T>& moving_variance,
                               const int n,
                               const int c,
                               const int h,
                               const int w,
-                              std::vector<T>* y,
                               std::vector<T>* sum,
                               std::vector<T>* mean,
-                              std::vector<T>* diff,
-                              std::vector<T>* diff2,
-                              std::vector<T>* sum_diff2,
-                              std::vector<T>* mean_diff2,
-                              std::vector<T>* var,
-                              std::vector<T>* std,
-                              std::vector<T>* mul_scale,
-                              std::vector<T>* new_running_mean,
-                              std::vector<T>* new_running_var,
+                              std::vector<T>* sum_square,
+                              std::vector<T>* mean_square,
+                              std::vector<T>* variance,
+                              std::vector<T>* std_variance,
+                              std::vector<T>* y,
+                              std::vector<T>* new_moving_mean,
+                              std::vector<T>* new_moving_variance,
                               const float epsilon  = 1e-6,
                               const float momentum = 0.9f) {
   // sum
@@ -89,43 +86,36 @@ void cpu_run_batch_norm_train(const std::vector<T>& x,
     mean->at(idx) = sum->at(idx) / float(n * h * w);
   }
 
-  // diff
-  auto func_diff = [=](int idx, int idy, int idz, int ida) {
-    auto val = x[idx * c * h * w + idy * h * w + idz * w + ida] - mean->at(idy);
-    diff->at(idx * c * h * w + idy * h * w + idz * w + ida)  = val;
-    diff2->at(idx * c * h * w + idy * h * w + idz * w + ida) = val * val;
+  // square
+  memset(sum_square->data(), 0, sizeof(T) * c);
+  auto func_sum_square = [=](int idx, int idy, int idz, int ida) {
+    sum_square->at(idy) +=
+        x[idx * c * h * w + idy * h * w + idz * w + ida] * x[idx * c * h * w + idy * h * w + idz * w + ida];
   };
-  loop(func_diff, n, c, h, w);
+  loop(func_sum_square, n, c, h, w);
+  //
+  for (int idx = 0; idx < c; ++idx) {
+    mean_square->at(idx) = sum_square->at(idx) / float(n * h * w);
+  }
 
   // sum diff2
-  memset(sum_diff2->data(), 0, sizeof(T) * c);
-  auto func_sum_diff2 = [=](int idx, int idy, int idz, int ida) {
-    sum_diff2->at(idy) += diff2->at(idx * c * h * w + idy * h * w + idz * w + ida);
-  };
-  loop(func_sum_diff2, n, c, h, w);
-
-  // var
-  memset(var->data(), 0, sizeof(T) * c);
   for (int idx = 0; idx < c; ++idx) {
-    mean_diff2->at(idx) = sum_diff2->at(idx) / float(n * h * w);
-    var->at(idx)        = sqrt(mean_diff2->at(idx)) + epsilon;
+    variance->at(idx)     = mean_square->at(idx) - (mean->at(idx) * mean->at(idx));
+    std_variance->at(idx) = sqrt(variance->at(idx) + epsilon);
   }
 
   // compute output
   auto func_y = [=](int idx, int idy, int idz, int ida) {
-    std->at(idx * c * h * w + idy * h * w + idz * w + ida) =
-        diff->at(idx * c * h * w + idy * h * w + idz * w + ida) / var->at(idy);
-    mul_scale->at(idx * c * h * w + idy * h * w + idz * w + ida) =
-        std->at(idx * c * h * w + idy * h * w + idz * w + ida) * scale[idy];
     y->at(idx * c * h * w + idy * h * w + idz * w + ida) =
-        mul_scale->at(idx * c * h * w + idy * h * w + idz * w + ida) + bias[idy];
+        (x[idx * c * h * w + idy * h * w + idz * w + ida] - mean->at(idy)) / std_variance->at(idy) * scale[idy] +
+        bias[idy];
   };
   loop(func_y, n, c, h, w);
 
   // update runnning
   for (int idx = 0; idx < c; ++idx) {
-    new_running_mean->at(idx) = running_mean[idx] * momentum + mean->at(idx) * (1 - momentum);
-    new_running_var->at(idx)  = running_var[idx] * momentum + var->at(idx) * (1 - momentum);
+    new_moving_mean->at(idx)     = moving_mean[idx] * momentum + mean->at(idx) * (1 - momentum);
+    new_moving_variance->at(idx) = moving_variance[idx] * momentum + variance->at(idx) * (1 - momentum);
   }
 }
 
@@ -135,29 +125,26 @@ TEST(nn, BATCH_NORM_TRAIN) {
   NetBuilder net_builder("net_builder_batch_norm_train");
   {
     // create input
-    auto x            = net_builder.CreateInput(Float(32), {n, c, h, w}, "x");
-    auto scale        = net_builder.CreateInput(Float(32), {c}, "scale");
-    auto bias         = net_builder.CreateInput(Float(32), {c}, "bias");
-    auto running_mean = net_builder.CreateInput(Float(32), {c}, "running_mean");
-    auto running_var  = net_builder.CreateInput(Float(32), {c}, "running_var");
+    auto x               = net_builder.CreateInput(Float(32), {n, c, h, w}, "x");
+    auto scale           = net_builder.CreateInput(Float(32), {c}, "scale");
+    auto bias            = net_builder.CreateInput(Float(32), {c}, "bias");
+    auto moving_mean     = net_builder.CreateInput(Float(32), {c}, "moving_mean");
+    auto moving_variance = net_builder.CreateInput(Float(32), {c}, "moving_variance");
 
     // add batch norm train
-    auto outputs = net_builder.batch_norm_train(x, scale, bias, running_mean, running_var);
+    auto outputs = net_builder.batch_norm_train(x, scale, bias, moving_mean, moving_variance);
   }
   // build program
   auto program = net_builder.Build();
 
-  // auto target = ::cinn::common::DefaultHostTarget();
-  // auto target = ::cinn::common::DefaultNVGPUTarget();
   auto target = GetTarget();
-
   CinnBuilder cinn_builder("cinn_builder_batch_norm_train");
   {
-    auto x            = cinn_builder.CreateInput(Float(32), {n, c, h, w}, "x");
-    auto scale        = cinn_builder.CreateInput(Float(32), {c}, "scale");
-    auto bias         = cinn_builder.CreateInput(Float(32), {c}, "bias");
-    auto running_mean = cinn_builder.CreateInput(Float(32), {c}, "running_mean");
-    auto running_var  = cinn_builder.CreateInput(Float(32), {c}, "running_var");
+    auto x               = cinn_builder.CreateInput(Float(32), {n, c, h, w}, "x");
+    auto scale           = cinn_builder.CreateInput(Float(32), {c}, "scale");
+    auto bias            = cinn_builder.CreateInput(Float(32), {c}, "bias");
+    auto moving_mean     = cinn_builder.CreateInput(Float(32), {c}, "moving_mean");
+    auto moving_variance = cinn_builder.CreateInput(Float(32), {c}, "moving_variance");
   }
   // CinnBuilder cinn_builder;
   absl::flat_hash_map<std::string, Variable> variable_map;
@@ -170,19 +157,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
   auto graph = std::make_shared<hlir::framework::Graph>(new_program, target);
   // hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto nodes = std::get<0>(graph->topological_order());
-
-  /*
-  for (auto& node : nodes) {
-    for (auto link : node->inlinks()) {
-      std::cerr << link->source()->id() << " ";
-    }
-    std::cerr << " -> " << node->id() << " -> ";
-    for (auto link : node->outlinks()) {
-      std::cerr << link->sink()->id() << " ";
-    }
-    std::cerr << std::endl;
-  }
-  */
+  LOG(INFO) << graph->Visualize();
 
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
@@ -190,40 +165,37 @@ TEST(nn, BATCH_NORM_TRAIN) {
   auto run_program = gc.Build();
 
   // set input
-  std::vector<float> x(n * c * h * w), scale(c), bias(c), running_mean(c), running_var(c);
-  std::vector<float> y(n * c * h * w), sum(c), mean(c), diff(n * c * h * w), diff2(n * c * h * w), sum_diff2(c),
-      mean_diff2(c), var(c), std(n * c * h * w), mul_scale(n * c * h * w), new_running_mean(c), new_running_var(c);
+  std::vector<float> x(n * c * h * w), scale(c), bias(c), moving_mean(c), moving_variance(c);
+  std::vector<float> sum(c), mean(c), sum_square(c), mean_square(c), variance(c), std_variance(c);
+  std::vector<float> y(n * c * h * w), new_moving_mean(c), new_moving_variance(c);
 
   InitRandomVector(&x, n * c * h * w);
   InitRandomVector(&scale, c);
   InitRandomVector(&bias, c);
-  InitRandomVector(&running_mean, c);
-  InitRandomVector(&running_var, c);
+  InitRandomVector(&moving_mean, c);
+  InitRandomVector(&moving_variance, c);
 
   cpu_run_batch_norm_train(x,
                            scale,
                            bias,
-                           running_mean,
-                           running_var,
+                           moving_mean,
+                           moving_variance,
                            n,
                            c,
                            h,
                            w,
-                           &y,
                            &sum,
                            &mean,
-                           &diff,
-                           &diff2,
-                           &sum_diff2,
-                           &mean_diff2,
-                           &var,
-                           &std,
-                           &mul_scale,
-                           &new_running_mean,
-                           &new_running_var);
+                           &sum_square,
+                           &mean_square,
+                           &variance,
+                           &std_variance,
+                           &y,
+                           &new_moving_mean,
+                           &new_moving_variance);
 
   std::vector<std::pair<std::string, std::vector<float>>> inputs = {
-      {"x", x}, {"scale", scale}, {"bias", bias}, {"running_mean", running_mean}, {"running_var", running_var}};
+      {"x", x}, {"scale", scale}, {"bias", bias}, {"moving_mean", moving_mean}, {"moving_variance", moving_variance}};
   for (auto& input : inputs) {
     scope->Var<hlir::framework::Tensor>(input.first);
     auto tensor = scope->GetTensor(input.first);
@@ -231,17 +203,8 @@ TEST(nn, BATCH_NORM_TRAIN) {
     CopyFromVector(input.second, tensor, target);
   }
 
-  std::vector<std::pair<std::string, std::vector<float>>> outputs = {{"var_18", sum},
-                                                                     {"var_19", mean},
-                                                                     {"var_21", diff},
-                                                                     {"var_23", diff2},
-                                                                     {"var_24", sum_diff2},
-                                                                     {"var_25", mean_diff2},
-                                                                     {"var_27", var},
-                                                                     {"var_31", std},
-                                                                     {"var_40", new_running_mean},
-                                                                     {"var_43", new_running_var},
-                                                                     {"var_33", y}};
+  std::vector<std::pair<std::string, std::vector<float>>> outputs = {
+      {"var_43", new_moving_mean}, {"var_46", new_moving_variance}, {"var_36", y}};
 
   run_program->Execute();
 
@@ -252,7 +215,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
 
     LOG(INFO) << output.first << " " << tensor->shape().numel();
     for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
-      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-4);
+      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 5e-5);
     }
   }
 }

@@ -385,11 +385,11 @@ void BindFrontend(pybind11::module *m) {
            py::arg("x"),
            py::arg("scale"),
            py::arg("bias"),
-           py::arg("running_mean"),
-           py::arg("running_var"),
-           py::arg("epsilon")  = 1e-6,
-           py::arg("momentum") = 0.9f,
-           py::arg("layout")   = "NCHW");
+           py::arg("moving_mean"),
+           py::arg("moving_variance"),
+           py::arg("epsilon")     = 1e-6,
+           py::arg("momentum")    = 0.9f,
+           py::arg("data_layout") = "NCHW");
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
@@ -407,14 +407,12 @@ void BindFrontend(pybind11::module *m) {
            &CinnBuilder::Conv,
            py::arg("lhs"),
            py::arg("rhs"),
-           py::arg("stride")            = std::vector<int>{1, 1},
-           py::arg("padding")           = std::vector<int>{0, 0},
-           py::arg("dilation")          = std::vector<int>{1, 1},
+           py::arg("strides")           = std::vector<int>{1, 1},
+           py::arg("paddings")          = std::vector<int>{0, 0},
+           py::arg("dilations")         = std::vector<int>{1, 1},
            py::arg("groups")            = 1,
-           py::arg("conv_type")         = "forward",
            py::arg("data_format")       = "NCHW",
-           py::arg("padding_algorithm") = "EXPLICIT",
-           py::arg("filter")            = std::vector<int>{})
+           py::arg("padding_algorithm") = "EXPLICIT")
       .def("compare", &CinnBuilder::Compare, py::arg("lhs"), py::arg("rhs"), py::arg("kind"))
       .def("reduce",
            &CinnBuilder::Reduce,

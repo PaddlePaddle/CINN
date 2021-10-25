@@ -249,15 +249,15 @@ Variable NetBuilder::sum(const std::vector<Variable>& inputs) {
 std::vector<Variable> NetBuilder::batch_norm_train(const Variable& x,
                                                    const Variable& scale,
                                                    const Variable& bias,
-                                                   const Variable& running_mean,
-                                                   const Variable& running_var,
+                                                   const Variable& moving_mean,
+                                                   const Variable& moving_variance,
                                                    const float epsilon,
                                                    const float momentum,
-                                                   const std::string& layout) {
-  Instruction instr("batch_norm_train", {x, scale, bias, running_mean, running_var});
+                                                   const std::string& data_layout) {
+  Instruction instr("batch_norm_train", {x, scale, bias, moving_mean, moving_variance});
   instr.SetAttr("epsilon", epsilon);
   instr.SetAttr("momentum", momentum);
-  instr.SetAttr("layout", layout);
+  instr.SetAttr("data_layout", data_layout);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutputs();
