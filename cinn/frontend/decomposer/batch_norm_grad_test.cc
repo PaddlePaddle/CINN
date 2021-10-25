@@ -169,8 +169,7 @@ TEST(nn, BATCH_NORM_GRAD) {
   // build program
   auto program = net_builder.Build();
 
-  auto target = ::cinn::common::DefaultHostTarget();
-  // auto target = ::cinn::common::DefaultNVGPUTarget();
+  auto target = GetTarget();
   CinnBuilder cinn_builder("cinn_builder_batch_norm_grad");
   {
     auto x         = cinn_builder.CreateInput(Float(32), {n, c, h, w}, "x");
@@ -218,8 +217,8 @@ TEST(nn, BATCH_NORM_GRAD) {
   for (auto& input : inputs) {
     scope->Var<hlir::framework::Tensor>(input.first);
     auto tensor = scope->GetTensor(input.first);
-    auto* data  = tensor->mutable_data<float>(target);
-    memcpy(data, input.second, tensor->shape().numel() * sizeof(float));
+    // auto* data  = tensor->mutable_data<float>(target);
+    CopyFromVector(input.second, tensor, target);
   }
   run_program->Execute();
 
@@ -258,11 +257,10 @@ TEST(nn, BATCH_NORM_GRAD) {
 
   for (auto& output : outputs) {
     auto tensor = scope->GetTensor(output.first);
-    auto* data  = tensor->data<float>();
-
+    std::vector<float> data(tensor->shape().numel());
+    CopyToVector(tensor, &data);
     LOG(INFO) << output.first << " " << tensor->shape().numel();
     for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
-      // LOG(INFO) << data[idx] << " " << output.second[idx];
       ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-4);
       // ASSERT_FLOAT_EQ(data[idx], output.second[idx]);
     }

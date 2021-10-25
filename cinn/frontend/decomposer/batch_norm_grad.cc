@@ -28,7 +28,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto& save_mean = instr->inputs[3];
   auto& save_var  = instr->inputs[4];
 
-  CHECK_EQ(c->shape.size(), 4UL) << "Only 4-D input tensor is supported, but get " << c->shape.size()
+  CHECK_EQ(c->shape.size(), 4UL) << "Only 4-D input tensor is supported, but get " << x->shape.size()
                                  << "-D input tensor.";
   auto layout          = instr.GetAttrs<std::string>("layout");
   CinnBuilder* builder = context.builder();
