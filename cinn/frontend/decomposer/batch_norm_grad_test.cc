@@ -249,13 +249,13 @@ TEST(nn, BATCH_NORM_GRAD) {
 
   std::vector<std::pair<std::string, std::vector<float>>> outputs = {{"var_12", dbias},
                                                                      {"var_18", dscale},
-                                                                     /*{"var_20", dstd},
+                                                                     {"var_20", dstd},
                                                                      {"var_21", ddiff_0},
                                                                      {"var_27", dvar},
                                                                      {"var_31", ddiff2},
                                                                      {"var_33", ddiff_1},
                                                                      {"var_34", ddiff},
-                                                                     {"var_38", dmean},*/
+                                                                     {"var_38", dmean},
                                                                      {"var_40", dx}};
 
   for (auto& output : outputs) {
@@ -264,7 +264,8 @@ TEST(nn, BATCH_NORM_GRAD) {
     CopyToVector(tensor, &data);
     LOG(INFO) << output.first << " " << tensor->shape().numel();
     for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
-      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-4);
+      // LOG(INFO) << output.first << " " << idx << " -> " << data[idx] << " "<<output.second[idx];
+      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-3);
       // ASSERT_FLOAT_EQ(data[idx], output.second[idx]);
     }
   }
