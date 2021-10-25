@@ -203,8 +203,9 @@ TEST(nn, BATCH_NORM_TRAIN) {
     CopyFromVector(input.second, tensor, target);
   }
 
-  std::vector<std::pair<std::string, std::vector<float>>> outputs = {
-      {"var_43", new_moving_mean}, {"var_46", new_moving_variance}, {"var_36", y}};
+  std::vector<std::pair<std::string, std::vector<float>>> outputs = {{"new_moving_mean", new_moving_mean},
+                                                                     {"new_moving_variance", new_moving_variance},
+                                                                     {"batch_norm_train_output", y}};
 
   run_program->Execute();
 
