@@ -28,10 +28,9 @@ class OpTest(unittest.TestCase):
         self.cinn_grads = []
 
     def init_target(self):
-        self.targets = [
-            DefaultHostTarget(),
-            DefaultNVGPUTarget(),
-        ]
+        self.targets = [DefaultHostTarget()]
+        if is_compiled_with_cuda():
+            self.targets.append(DefaultNVGPUTarget())
 
     def build_paddle_program():
         raise Exception("Not implemented.")
@@ -43,13 +42,12 @@ class OpTest(unittest.TestCase):
     def build_cinn_program():
         raise Exception("Not implemented.")
 
-    def get_cinn_output(self, prog, inputs, feed_data, outputs):
-        self.apply_pass(prog, self.targets[1])
-        result = prog.build_and_get_output(self.targets[1], inputs, feed_data,
-                                           outputs)
+    def get_cinn_output(self, prog, target, inputs, feed_data, outputs):
+        self.apply_pass(prog, target)
+        result = prog.build_and_get_output(target, inputs, feed_data, outputs)
         outs_and_grads = []
         for res in result:
-            outs_and_grads.append(res.numpy(self.targets[1]))
+            outs_and_grads.append(res.numpy(target))
 
         return outs_and_grads
 
@@ -64,15 +62,15 @@ class OpTest(unittest.TestCase):
             print(prog[i])
 
     def check_outputs_and_grads(self):
-        self.build_paddle_program()
-        self.build_cinn_program()
-        print("============ Check Outputs ============")
-        self.check_results(self.paddle_outputs, self.cinn_outputs)
-        print("============ Check Grads ============")
-        self.check_results(self.paddle_grads, self.cinn_grads)
+        self.build_paddle_program(self.targets[0])
+        for target in self.targets:
+            self.build_cinn_program(target)
+            print("============ Check Outputs ============")
+            self.check_results(self.paddle_outputs, self.cinn_outputs)
+            print("============ Check Grads ============")
+            self.check_results(self.paddle_grads, self.cinn_grads)
 
     def check_results(self, expect_res, actual_res):
-        print(len(expect_res), len(actual_res))
         self.assertEqual(len(expect_res), len(actual_res))
         for i in range(len(expect_res)):
             print("Check the %d -th Result..." % i)

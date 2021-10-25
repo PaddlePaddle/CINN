@@ -38,11 +38,14 @@ class TestReluOp(OpTest):
 
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([4, 4]).astype("float32"),
-            "dout": np.ones((4, 4)).astype("float32")
+            "x": np.random.random([
+                32,
+                64,
+            ]).astype("float32"),
+            "dout": np.ones((32, 64)).astype("float32")
         }
 
-    def build_paddle_program(self):
+    def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"])
         x.stop_gradient = False
         out = F.relu(x)
@@ -50,22 +53,26 @@ class TestReluOp(OpTest):
         self.paddle_outputs = [out]
         self.paddle_grads = self.get_paddle_grads([out], [x])
 
-    def build_cinn_program(self):
+    def build_cinn_program(self, target):
         builder = NetBuilder("relu")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         out = builder.relu(x)
-
-        dout = builder.create_input(
-            Float(32), self.inputs["dout"].shape, "dout")
-        x_grad = builder.relu_grad(dout, out)
-
         prog = builder.build()
-        results = self.get_cinn_output(prog, [x, dout],
-                                       [self.inputs["x"], self.inputs["dout"]],
-                                       [out, x_grad])
+        forward_res = self.get_cinn_output(prog, target, [x],
+                                           [self.inputs["x"]], [out])
 
-        self.cinn_outputs = [results[0]]
-        self.cinn_grads = [results[1]]
+        builder = NetBuilder("relu_grad")
+        shape = self.inputs["dout"].shape
+        dout = builder.create_input(Float(32), shape, "dout")
+        out = builder.create_input(Float(32), shape, "out")
+        x_grad = builder.relu_grad(dout, out)
+        prog = builder.build()
+        backward_res = self.get_cinn_output(
+            prog, target, [dout, out], [self.inputs["dout"], forward_res[0]],
+            [x_grad])
+
+        self.cinn_outputs = forward_res
+        self.cinn_grads = backward_res
 
     def test_check_results(self):
         self.check_outputs_and_grads()
