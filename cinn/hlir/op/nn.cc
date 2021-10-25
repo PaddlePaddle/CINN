@@ -1910,6 +1910,19 @@ std::shared_ptr<OpStrategy> StrategyForGradOp(const framework::NodeAttr &attrs,
       << "Gradient operator will be decomposed into several primitive operators. Please Use Decomposer Program Pass.";
 }
 
+// batch norm grad
+std::vector<framework::shape_t> InferShapeForBatchNormGrad(const std::vector<framework::shape_t> &inputs_shape,
+                                                           const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 5U) << "The input's layout size is not 5! Please check again.";
+  return {inputs_shape[0], inputs_shape[2], inputs_shape[2]};
+}
+
+std::vector<Type> InferDtypeForBatchNormGrad(const std::vector<Type> &inputs_type,
+                                             const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  return {inputs_type[0], inputs_type[0], inputs_type[0]};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -2115,6 +2128,14 @@ CINN_REGISTER_HELPER(nn_grad_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise);
+
+  CINN_REGISTER_OP(batch_norm_grad)
+      .describe("This operator implements the batch normalization backward.")
+      .set_num_inputs(5)
+      .set_num_outputs(3)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBatchNormGrad))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBatchNormGrad))
+      .set_support_level(4);
 
   return true;
 }
