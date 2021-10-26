@@ -251,11 +251,16 @@ std::vector<Variable> NetBuilder::batch_norm_grad(const Variable& x,
                                                   const Variable& scale,
                                                   const Variable& save_mean,
                                                   const Variable& save_var,
-                                                  const std::string& layout) {
+                                                  const float epsilon,
+                                                  const std::string& data_layout) {
   Instruction instr("batch_norm_grad", {x, dy, scale, save_mean, save_var});
-  instr.SetAttr("layout", layout);
+  instr.SetAttr("epsilon", epsilon);
+  instr.SetAttr("data_layout", data_layout);
 
   InferShape(instr);
+  instr->outputs[0].set_id("grad_x");
+  instr->outputs[1].set_id("grad_scale");
+  instr->outputs[2].set_id("grad_bias");
   AppendInstruction(instr);
   return instr.GetOutputs();
 }

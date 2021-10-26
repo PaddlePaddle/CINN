@@ -147,7 +147,8 @@ class NetBuilder : public BaseBuilder {
                                         const Variable& scale,
                                         const Variable& save_mean,
                                         const Variable& save_var,
-                                        const std::string& layout = "NCHW");
+                                        const float epsilon            = 1e-6,
+                                        const std::string& data_layout = "NCHW");
 };
 
 }  // namespace frontend

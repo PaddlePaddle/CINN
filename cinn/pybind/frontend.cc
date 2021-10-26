@@ -386,8 +386,9 @@ void BindFrontend(pybind11::module *m) {
            py::arg("dy"),
            py::arg("scale"),
            py::arg("save_mean"),
-           py::arg("save_var"),
-           py::arg("layout") = "NCHW");
+           py::arg("save_variance"),
+           py::arg("epsilon")     = 1e-6,
+           py::arg("data_layout") = "NCHW");
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
