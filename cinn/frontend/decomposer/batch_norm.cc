@@ -90,7 +90,6 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   // (x - mean)/var * scale + bias
   auto diff = builder->Sub(x, mean_4d);
   auto y    = builder->Add(bias_4d, builder->Mul(scale_4d, builder->Div(diff, std_variance_4d)));
-  y.set_id(common::UniqName("batch_norm_train_output"));
 
   // shape = [c]
   auto factor_0 = builder->BroadcastTo(
@@ -98,10 +97,8 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto factor_1 = builder->BroadcastTo(
       builder->ConstScalar<float>(1.0f - momentum, common::UniqName("factor_1")), moving_variance->shape, {0});
 
-  auto new_moving_mean = builder->Add(builder->Mul(moving_mean, factor_0), builder->Mul(mean, factor_1));
-  new_moving_mean.set_id(common::UniqName("new_moving_mean"));
+  auto new_moving_mean     = builder->Add(builder->Mul(moving_mean, factor_0), builder->Mul(mean, factor_1));
   auto new_moving_variance = builder->Add(builder->Mul(moving_variance, factor_0), builder->Mul(variance, factor_1));
-  new_moving_variance.set_id(common::UniqName("new_moving_variance"));
 
   // map output id
   context.MapOutToOrigin(y, instr->outputs[0]);

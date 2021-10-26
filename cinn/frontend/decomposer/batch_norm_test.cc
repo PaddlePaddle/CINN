@@ -138,23 +138,9 @@ TEST(nn, BATCH_NORM_TRAIN) {
   auto program = net_builder.Build();
 
   auto target = GetTarget();
-  CinnBuilder cinn_builder("cinn_builder_batch_norm_train");
-  {
-    auto x               = cinn_builder.CreateInput(Float(32), {n, c, h, w}, "x");
-    auto scale           = cinn_builder.CreateInput(Float(32), {c}, "scale");
-    auto bias            = cinn_builder.CreateInput(Float(32), {c}, "bias");
-    auto moving_mean     = cinn_builder.CreateInput(Float(32), {c}, "moving_mean");
-    auto moving_variance = cinn_builder.CreateInput(Float(32), {c}, "moving_variance");
-  }
-  // CinnBuilder cinn_builder;
-  absl::flat_hash_map<std::string, Variable> variable_map;
-  DecomposerContext context(&cinn_builder, &variable_map);
-  auto decomposer = InstrDecomposerRegistry::Global()->Get("batch_norm_train", target);
+  RunDecomposer(&program, target);
 
-  decomposer->Run(program[0], context);
-  auto new_program = cinn_builder.Build();
-
-  auto graph = std::make_shared<hlir::framework::Graph>(new_program, target);
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto nodes = std::get<0>(graph->topological_order());
   LOG(INFO) << graph->Visualize();
@@ -203,9 +189,10 @@ TEST(nn, BATCH_NORM_TRAIN) {
     CopyFromVector(input.second, tensor, target);
   }
 
-  std::vector<std::pair<std::string, std::vector<float>>> outputs = {{"new_moving_mean", new_moving_mean},
-                                                                     {"new_moving_variance", new_moving_variance},
-                                                                     {"batch_norm_train_output", y}};
+  std::vector<std::pair<std::string, std::vector<float>>> outputs = {
+      {"batch_norm_train_moving_mean", new_moving_mean},
+      {"batch_norm_train_moving_variance", new_moving_variance},
+      {"batch_norm_train_output", y}};
 
   run_program->Execute();
 
