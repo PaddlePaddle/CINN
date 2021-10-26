@@ -81,4 +81,4 @@ class OpTest(unittest.TestCase):
         for i in range(len(expect_res)):
             print("Check the %d -th Result..." % i)
             self.assertTrue(
-                np.allclose(expect_res[i], actual_res[i], atol=1e-4))
+                np.allclose(expect_res[i], actual_res[i], atol=1e-6))

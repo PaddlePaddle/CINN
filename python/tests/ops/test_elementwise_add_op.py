@@ -21,6 +21,7 @@ import paddle
 import paddle.nn.functional as F
 import cinn
 from cinn.frontend import *
+from cinn.common import *
 
 
 class TestElementwiseAddOp(OpTest):
@@ -67,23 +68,20 @@ class TestElementwiseAddOp(OpTest):
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
         y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
         out = builder.elementwise_add(x, y, axis=self.axis)
-        prog = builder.build()
-        forward_res = self.get_cinn_output(
-            prog, target, [x, y], [self.inputs["x"], self.inputs["y"]], [out])
 
-        builder = NetBuilder("add_grad")
         dout = builder.create_input(
             Float(32), self.inputs["dout"].shape, "dout")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        y = builder.create_input(Float(32), self.inputs["y"].shape, "y")
         x_grad, y_grad = builder.elementwise_add_grad(
             dout, x, y, axis=self.axis)
-        prog = builder.build()
-        backward_res = self.get_cinn_output(
-            prog, target, [dout], [self.inputs["dout"]], [x_grad, y_grad])
 
-        self.cinn_outputs = forward_res
-        self.cinn_grads = backward_res
+        prog = builder.build()
+        res = self.get_cinn_output(
+            prog, target, [x, y, dout],
+            [self.inputs["x"], self.inputs["y"], self.inputs["dout"]],
+            [out, x_grad, y_grad])
+
+        self.cinn_outputs = [res[0]]
+        self.cinn_grads = [res[1], res[2]]
 
     def test_check_results(self):
         self.check_outputs_and_grads()

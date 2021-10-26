@@ -53,8 +53,8 @@ class TestSumOp(OpTest):
     def build_cinn_program(self, target):
         builder = NetBuilder("sum")
         x1 = builder.create_input(Float(32), self.inputs["x1"].shape, "x1")
-        x1 = builder.create_input(Float(32), self.inputs["x2"].shape, "x2")
-        out = builder.sum(x1, x2)
+        x2 = builder.create_input(Float(32), self.inputs["x2"].shape, "x2")
+        out = builder.sum([x1, x2])
         prog = builder.build()
         forward_res = self.get_cinn_output(
             prog, target, [x1, x2], [self.inputs["x1"], self.inputs["x2"]],

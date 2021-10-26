@@ -47,8 +47,6 @@ class TestReluOp(OpTest):
         self.paddle_grads = self.get_paddle_grads([out], [x],
                                                   [self.inputs["dout"]])
 
-    # Note: If the forward and backward operators are run in the same program,
-    # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("relu")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
