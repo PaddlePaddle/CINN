@@ -205,6 +205,33 @@ std::vector<ir::Tensor> Conv2d_NCHW(const ir::Tensor &input,
                        dilation_w * (weights->shape[3] - 1) + 1};
   input_pad_shape   = {input->shape[0], input->shape[1], input->shape[2] + 2 * pad_h, input->shape[3] + 2 * pad_w};
 
+  CHECK_EQ(weights->shape.size(), 4);
+  CHECK(weights->shape[2].is_constant());
+  CHECK(weights->shape[3].is_constant());
+  int kh = weights->shape[2].as_int32();
+  int kw = weights->shape[3].as_int32();
+  if (stride_h == 1 && stride_w == 1 && dilation_h == 1 && dilation_w == 1 && 2 < kh && kh < 8 && 2 < kw && kw < 8) {
+    auto &res = ScheduleParam::get_cuda_instance().GetParam();
+    if (res.empty()) {
+      CreateCudaSerialData();
+      LoadSerialData(&res);
+    }
+    std::string key =
+        "CudaWinogradConvSchedule " + std::to_string(input_pad_shape[0].as_int32()) + " " +
+        std::to_string(input_pad_shape[1].as_int32()) + " " + std::to_string(input_pad_shape[2].as_int32()) + " " +
+        std::to_string(input_pad_shape[3].as_int32()) + " " + std::to_string(weights->shape[0].as_int32()) + " " +
+        std::to_string(weights->shape[1].as_int32()) + " " + std::to_string(weights->shape[2].as_int32()) + " " +
+        std::to_string(weights->shape[3].as_int32()) + " " + std::to_string(output_shape[0].as_int32()) + " " +
+        std::to_string(output_shape[1].as_int32()) + " " + std::to_string(output_shape[2].as_int32()) + " " +
+        std::to_string(output_shape[3].as_int32());
+
+    if (res.count(key) != 0) {
+      LOG(INFO) << "Find saved winograd_conv2d schedule param! key is: " << key;
+      return Conv2d_winograd_NCHW(
+          input, weights, pad_h, pad_w, stride_h, stride_w, dilation_h, dilation_w, output_name);
+    }
+    LOG(INFO) << "Didn't find saved winograd_conv2d schedule param! key is: " << key;
+  }
   ir::Tensor input_pad;
   if (pad_h == 0 && pad_w == 0) {
     input_pad = Compute(

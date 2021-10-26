@@ -1199,10 +1199,11 @@ void CudaScheduleMul(poly::StageMap stages,
   stages[output]->Bind(1, "threadIdx.x");
 }
 
-inline void InputCudaParam(
+inline void InputDirectConvCudaParam(
     std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
     const std::string &key,
     const std::vector<std::vector<int>> &int_data) {
+  CHECK_EQ(int_data.size(), 6UL);
   std::unordered_map<std::string, std::vector<int>> schedule_data;
   schedule_data["rc"] = int_data[0];
   schedule_data["ry"] = int_data[1];
@@ -1213,52 +1214,82 @@ inline void InputCudaParam(
   model_data[key]     = schedule_data;
 }
 
+inline void InputWinogradConvCudaParam(
+    std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> &model_data,
+    const std::string &key,
+    const std::vector<std::vector<int>> &int_data) {
+  CHECK_EQ(int_data.size(), 4UL);
+  std::unordered_map<std::string, std::vector<int>> schedule_data;
+  schedule_data["rc"] = int_data[0];
+  schedule_data["x"]  = int_data[1];
+  schedule_data["y"]  = int_data[2];
+  schedule_data["b"]  = int_data[3];
+  model_data[key]     = schedule_data;
+}
+
 void CreateCudaSerialData(const std::string &file_name) {
   std::unordered_map<std::string, std::unordered_map<std::string, std::vector<int>>> model_data;
   // The format of serial data is:
   // hash_key: string = name of schedule + shape of input_pad + shape of weights + shape of output
   // value: vector of params
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 3 230 230 64 3 7 7 1 64 112 112",
-                 {{3, 1}, {7, 1}, {1, 7}, {1, 4, 8, 2}, {112, 1, 1, 1}, {1, 7, 16, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 64 56 56 64 64 1 1 1 64 56 56",
-                 {{4, 16}, {1, 1}, {1, 1}, {1, 8, 8, 1}, {56, 1, 1, 1}, {1, 2, 28, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 64 58 58 128 64 3 3 1 128 28 28",
-                 {{32, 2}, {1, 3}, {1, 3}, {4, 2, 16, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 64 56 56 128 64 1 1 1 128 28 28",
-                 {{4, 16}, {1, 1}, {1, 1}, {2, 2, 32, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 128 30 30 256 128 3 3 1 256 14 14",
-                 {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 2}, {7, 1, 2, 1}, {1, 1, 7, 2}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 128 28 28 256 128 1 1 1 256 14 14",
-                 {{16, 8}, {1, 1}, {1, 1}, {8, 1, 16, 2}, {14, 1, 1, 1}, {1, 1, 14, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 256 16 16 512 256 3 3 1 512 7 7",
-                 {{64, 4}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 256 14 14 512 256 1 1 1 512 7 7",
-                 {{16, 16}, {1, 1}, {1, 1}, {16, 1, 32, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 3 230 230 64 3 7 7 1 64 112 112",
+                           {{3, 1}, {7, 1}, {1, 7}, {1, 4, 8, 2}, {112, 1, 1, 1}, {1, 7, 16, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 56 56 64 64 1 1 1 64 56 56",
+                           {{4, 16}, {1, 1}, {1, 1}, {1, 8, 8, 1}, {56, 1, 1, 1}, {1, 2, 28, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 58 58 128 64 3 3 1 128 28 28",
+                           {{32, 2}, {1, 3}, {1, 3}, {4, 2, 16, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 56 56 128 64 1 1 1 128 28 28",
+                           {{4, 16}, {1, 1}, {1, 1}, {2, 2, 32, 1}, {28, 1, 1, 1}, {1, 2, 14, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 128 30 30 256 128 3 3 1 256 14 14",
+                           {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 2}, {7, 1, 2, 1}, {1, 1, 7, 2}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 128 28 28 256 128 1 1 1 256 14 14",
+                           {{16, 8}, {1, 1}, {1, 1}, {8, 1, 16, 2}, {14, 1, 1, 1}, {1, 1, 14, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 16 16 512 256 3 3 1 512 7 7",
+                           {{64, 4}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 14 14 512 256 1 1 1 512 7 7",
+                           {{16, 16}, {1, 1}, {1, 1}, {16, 1, 32, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
 
   // winograd
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 64 58 58 64 64 3 3 1 64 56 56",
-                 {{32, 2}, {1, 3}, {1, 3}, {4, 1, 8, 2}, {28, 1, 2, 1}, {1, 2, 7, 4}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 64 58 58 64 64 3 3 1 64 56 56",
+                           {{32, 2}, {1, 3}, {1, 3}, {4, 1, 8, 2}, {28, 1, 2, 1}, {1, 2, 7, 4}});
   // winograd
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 512 9 9 512 512 3 3 1 512 7 7",
-                 {{64, 8}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 512 9 9 512 512 3 3 1 512 7 7",
+                           {{64, 8}, {1, 3}, {1, 3}, {32, 1, 16, 1}, {7, 1, 1, 1}, {1, 1, 7, 1}});
   // winograd
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 256 16 16 256 256 3 3 1 256 14 14",
-                 {{64, 4}, {1, 3}, {1, 3}, {16, 1, 16, 1}, {14, 1, 1, 1}, {1, 1, 14, 1}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 256 16 16 256 256 3 3 1 256 14 14",
+                           {{64, 4}, {1, 3}, {1, 3}, {16, 1, 16, 1}, {14, 1, 1, 1}, {1, 1, 14, 1}});
   // winograd
-  InputCudaParam(model_data,
-                 "CudaScheduleConv 1 128 30 30 128 128 3 3 1 128 28 28",
-                 {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 1}, {14, 1, 2, 1}, {1, 1, 7, 4}});
+  InputDirectConvCudaParam(model_data,
+                           "CudaDirectConvSchedule 1 128 30 30 128 128 3 3 1 128 28 28",
+                           {{32, 4}, {1, 3}, {1, 3}, {8, 1, 16, 1}, {14, 1, 2, 1}, {1, 1, 7, 4}});
+
+  // winograd
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 64 58 58 64 64 3 3 1 64 56 56",
+                             {{8, 8}, {1, 2, 98, 1}, {2, 2, 2, 8}, {36, 1, 1, 1}});
+  // winograd
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 512 9 9 512 512 3 3 1 512 7 7",
+                             {{32, 16}, {1, 1, 8, 2}, {8, 1, 16, 4}, {16, 1, 1, 1}});
+  // winograd
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 256 16 16 256 256 3 3 1 256 14 14",
+                             {{32, 8}, {1, 1, 49, 1}, {16, 2, 1, 8}, {16, 1, 1, 1}});
+  // winograd
+  InputWinogradConvCudaParam(model_data,
+                             "CudaWinogradConvSchedule 1 128 30 30 128 128 3 3 1 128 28 28",
+                             {{8, 16}, {2, 2, 49, 1}, {4, 4, 4, 2}, {16, 1, 1, 1}});
 
   SaveSerialData(model_data, file_name);
 }
@@ -1354,7 +1385,7 @@ void CudaScheduleConv(poly::StageMap stages,
   int rc = input_pad->shape[1].as_int32();
 
   std::string key =
-      "CudaScheduleConv " + std::to_string(input_pad->shape[0].as_int32()) + " " +
+      "CudaDirectConvSchedule " + std::to_string(input_pad->shape[0].as_int32()) + " " +
       std::to_string(input_pad->shape[1].as_int32()) + " " + std::to_string(input_pad->shape[2].as_int32()) + " " +
       std::to_string(input_pad->shape[3].as_int32()) + " " + std::to_string(weights->shape[0].as_int32()) + " " +
       std::to_string(weights->shape[1].as_int32()) + " " + std::to_string(weights->shape[2].as_int32()) + " " +
@@ -1499,6 +1530,28 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
                               ir::Tensor &inverse,
                               ir::Tensor &wino_conv,
                               const common::Target &target) {
+  auto &res = ScheduleParam::get_cuda_instance().GetParam();
+  if (res.empty()) {
+    CreateCudaSerialData();
+    LoadSerialData(&res);
+  }
+  std::string key =
+      "CudaWinogradConvSchedule " + std::to_string(wino_input_pad->shape[0].as_int32()) + " " +
+      std::to_string(wino_input_pad->shape[1].as_int32()) + " " + std::to_string(wino_input_pad->shape[2].as_int32()) +
+      " " + std::to_string(wino_input_pad->shape[3].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[0].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[1].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[2].as_int32()) + " " +
+      std::to_string(wino_weights_dilation->shape[3].as_int32()) + " " +
+      std::to_string(wino_conv->shape[0].as_int32()) + " " + std::to_string(wino_conv->shape[1].as_int32()) + " " +
+      std::to_string(wino_conv->shape[2].as_int32()) + " " + std::to_string(wino_conv->shape[3].as_int32());
+  LOG(INFO) << "Key in CudaScheduleWinogradConv is : " << key;
+  CHECK_GT(res.count(key), 0);
+  auto &rc_param = res[key]["rc"];
+  auto &x_param  = res[key]["x"];
+  auto &y_param  = res[key]["y"];
+  auto &b_param  = res[key]["b"];
+
   wino_stages[wino_B]->ComputeInline();
 
   auto data_l = wino_stages[data_pack]->CacheWrite("local", wino_stages, data_pack);
@@ -1545,17 +1598,17 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[bgemm]->SplitOuter(0, 1);
 
   // x param is :  [1, 1, 8, 2]
-  wino_stages[bgemm]->Split(3, 2);
-  wino_stages[bgemm]->Split(3, 8);
-  wino_stages[bgemm]->Split(3, 1);
+  wino_stages[bgemm]->Split(3, x_param[3]);
+  wino_stages[bgemm]->Split(3, x_param[2]);
+  wino_stages[bgemm]->Split(3, x_param[1]);
   // y param is :  [8, 1, 16, 4]
-  wino_stages[bgemm]->Split(2, 4);
-  wino_stages[bgemm]->Split(2, 16);
-  wino_stages[bgemm]->Split(2, 1);
+  wino_stages[bgemm]->Split(2, y_param[3]);
+  wino_stages[bgemm]->Split(2, y_param[2]);
+  wino_stages[bgemm]->Split(2, y_param[1]);
   // b param is :  [16, 1, 1, 1]
-  wino_stages[bgemm]->Split(1, 1);
-  wino_stages[bgemm]->Split(1, 1);
-  wino_stages[bgemm]->Split(1, 1);
+  wino_stages[bgemm]->Split(1, b_param[3]);
+  wino_stages[bgemm]->Split(1, b_param[2]);
+  wino_stages[bgemm]->Split(1, b_param[1]);
 
   wino_stages[bgemm]->Reorder({0, 1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12});
 
@@ -1571,9 +1624,9 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[wino_OL]->ShowISL();
   LOG(INFO) << "wino_stages[bgemm]: ";
   wino_stages[bgemm]->ShowISL();
-  // wino_stages[wino_OL]->Fuse({10, 11});
+
   // rc param is :  [32, 16]
-  wino_stages[wino_OL]->Split(12, 16);
+  wino_stages[wino_OL]->Split(12, rc_param[1]);
 
   wino_stages[wino_OL]->Reorder({12, 13, 10, 11});
 
@@ -1582,9 +1635,7 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   auto bgemm_init = wino_OL->GetInitTensor(wino_stages, target);
   wino_stages[AA]->ComputeAt(wino_stages[wino_OL], 10);
   wino_stages[BB]->ComputeAt(wino_stages[wino_OL], 10);
-  /*   LOG(INFO) << "wino_stages[AA]2: " << wino_stages[AA]->n_out_dims();
-    wino_stages[AA]->ShowISL();
-    wino_stages[BB]->ShowISL(); */
+
   wino_stages[AA]->SyncThreads(10, {bgemm_init}, wino_stages);
   wino_stages[BB]->SyncThreads(wino_stages);
 
@@ -1600,7 +1651,7 @@ void CudaScheduleWinogradConv(poly::StageMap wino_stages,
   wino_stages[wino_conv]->Fuse({0, 1, 2, 3});
   LOG(INFO) << "wino_stages[wino_conv2]: ";
   wino_stages[wino_conv]->ShowISL();
-  wino_stages[wino_conv]->SplitOuter(0, 64);
+  wino_stages[wino_conv]->Split(0, 128);
   LOG(INFO) << "wino_stages[wino_conv3]: ";
   wino_stages[wino_conv]->ShowISL();
   wino_stages[wino_conv]->Bind(0, "threadIdx.x");
