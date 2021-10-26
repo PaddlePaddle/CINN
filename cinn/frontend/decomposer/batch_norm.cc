@@ -60,12 +60,12 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   /*****************batch norm train********************
    * mean = reduce_mean(x)
    * diff = x - mean
-   * diff2 = diff * diff
-   * var = reduce_mean(diff2)
+   * mean_square = reduce_mean(x*x)
+   * variance = mean_square - mean*mean
    * std_var = sqrtf(var)
    * y = diff/std_var * scale + bias
-   * running_mean = running_mean * factor + (1.0 - factor) * mean
-   * running_var = running_var * factor + (1.0 - factor) * var
+   * moving_mean = moving_mean * factor + (1.0 - factor) * mean
+   * moving_variance = moving_variance * factor + (1.0 - factor) * variance
    */
   // compute x sum, shape = [c]
   auto sum     = builder->Reduce(x, ReduceKind::kSum, reduce_dim);
@@ -143,8 +143,8 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
    * mean = reduce_mean(x)
    * diff = x - mean
    * mean_square = reduce_mean(x*x)
-   * var = mean_square - mean*mean
-   * std_var = sqrtf(var + epsilon)
+   * variance = mean_square - mean*mean
+   * std_var = sqrtf(variance + epsilon)
    * y = diff/std_var * scale + bias
    */
   /*****************batch norm grad*********************
@@ -154,13 +154,15 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
    * grad_diff = grad_std_norm / std_var
    * grad_std_var = -grad_std_norm * diff / var
    * grad_var = 0.5 * grad_std_var / std_var
-   * grad_mean = grad_var * -2 * mean
+   * grad_mean = grad_var * -2 * mean - reduce(grad_diff)
    * grad_mean_square = grad_var
    * grad_diff += grad_mean
-   * grad_x = grad_diff + 2 * x * grad_mean_square
+   * grad_x = grad_diff + 2 * x * grad_mean_square + grad_mean
    */
 
-  auto epsilon_2d = builder->BroadcastTo(builder->ConstScalar(epsilon), scale->shape, {0});
+  auto epsilon_2d = builder->BroadcastTo(builder->ConstScalar(epsilon, common::UniqName("epsilon")), scale->shape, {0});
+  auto element_count_2d = builder->BroadcastTo(
+      builder->ConstScalar(1.0f / element_count, common::UniqName("element_count")), scale->shape, {0});
   // grad bias = reduce(dy), shape = [c]
   auto grad_bias = builder->Reduce(dy, ReduceKind::kSum, reduce_dim);
 
@@ -176,6 +178,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   // grad scale = dy * (diff/std_var), shape = [c]
   auto grad_scale =
       builder->Reduce(builder->Mul(dy, builder->Div(diff, std_variance_4d)), ReduceKind::kSum, reduce_dim);
+
   // grad [(x - mean)/std_var] = dy * scale, shape = [n,c,h,w]
   auto scale_4d      = builder->BroadcastTo(scale, x->shape, {channel_dim});
   auto grad_std_norm = builder->Mul(dy, scale_4d);
@@ -184,28 +187,28 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto grad_diff = builder->Div(grad_std_norm, std_variance_4d);
 
   // grad std var = -1 * reduce((grad_std * diff) / (var), shape = [c])
-  auto grad_std_variance_2d = builder->Negetvie(
-      builder->Reduce(builder->Div(builder->Mul(grad_std_norm, diff), variance_4d)), ReduceKind::kSum, reduce_dim);
+  auto grad_std_variance_2d = builder->Negative(
+      builder->Reduce(builder->Div(builder->Mul(grad_std_norm, diff), variance_4d), ReduceKind::kSum, reduce_dim));
+
   // grad var = 1/2 * dy / std_var, do not mul 0.5 first
   auto grad_variance_2d_without_mul = builder->Div(grad_std_variance_2d, std_variance_2d);
-  // grad_x0
-  auto element_count_broadcast_2d = builder->BroadcastTo(
-      builder->ConstScalar(1.0f / element_count, common::UniqName("element_count")), scale->shape, {0});
-  auto grad_x0 =
-      builder->Mul(builder->BroadcastTo(
-                       builder->Mul(grad_variance_2d_without_mul, element_count_broadcast_2d), x->shape, {channel_dim}),
-                   x);
-  // -1.0 * grad_mean = reduce(grad_diff) + grad_variance_2d_without_mul * mean
-  auto minus_grad_mean = builder->Mul(element_count_broadcast_2d,
+
+  // grad_x0 = broadcastTo(grad_variance_2d_without_mul * 0.5 /element_count) * 2 * x
+  auto grad_x0 = builder->Mul(
+      x, builder->BroadcastTo(builder->Mul(grad_variance_2d_without_mul, element_count_2d), x->shape, {channel_dim}));
+
+  // -1.0 * grad_mean = ( -1.0 * reduce(grad_diff) + -1.0 * grad_variance_2d_without_mul * 0.5 * 2 * mean) /
+  // element_count_2d
+  auto minus_grad_mean = builder->Mul(element_count_2d,
                                       builder->Add(builder->Reduce(grad_diff, ReduceKind::kSum, reduce_dim),
                                                    builder->Mul(grad_variance_2d_without_mul, save_mean)));
-  // grad_x
-  auto grad_x =
-      builder
-          ->Sub(builder->Add(grad_diff, grad_x0), builder->BroadcastTo(minus_grad_mean, x->shape(), {channel_dim}))
 
-      // set output
-      context.MapOutToOrigin(grad_x, instr->outputs[0]);
+  // grad_x = grad_diff + boradcastTo(grad_mean) + grad_x0
+  auto grad_x =
+      builder->Sub(builder->Add(grad_diff, grad_x0), builder->BroadcastTo(minus_grad_mean, x->shape, {channel_dim}));
+
+  // set output
+  context.MapOutToOrigin(grad_x, instr->outputs[0]);
   context.MapOutToOrigin(grad_scale, instr->outputs[1]);
   context.MapOutToOrigin(grad_bias, instr->outputs[2]);
 }
