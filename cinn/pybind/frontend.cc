@@ -133,9 +133,7 @@ void BindFrontend(pybind11::module *m) {
               const std::vector<Variable> &tensor_outputs) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
-             if (target.arch == Target::Arch::NVGPU) {
-               hlir::framework::ApplyPass(g.get(), "OpFusion");
-             }
+             hlir::framework::ApplyPass(g.get(), "OpFusion");
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();
@@ -326,6 +324,12 @@ void BindFrontend(pybind11::module *m) {
            py::arg("x_num_col_dims") = 1,
            py::arg("y_num_col_dims") = 1)
       .def("elementwise_add", &NetBuilder::elementwise_add, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
+      .def("elementwise_add_grad",
+           &NetBuilder::elementwise_add_grad,
+           py::arg("dout"),
+           py::arg("x"),
+           py::arg("y"),
+           py::arg("axis") = -1)
       .def("elementwise_mul", &NetBuilder::elementwise_mul, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
       .def("relu", &NetBuilder::relu, py::arg("a"))
       .def("relu_grad", &NetBuilder::relu_grad, py::arg("dout"), py::arg("out"))
@@ -412,7 +416,18 @@ void BindFrontend(pybind11::module *m) {
            &NetBuilder::dropout_infer,
            py::arg("a"),
            py::arg("dropout_prob")           = 0.5f,
-           py::arg("dropout_implementation") = "downgrade_in_infer");
+           py::arg("dropout_implementation") = "downgrade_in_infer")
+      .def("batch_norm_train",
+           &NetBuilder::batch_norm_train,
+           py::arg("x"),
+           py::arg("scale"),
+           py::arg("bias"),
+           py::arg("moving_mean"),
+           py::arg("moving_variance"),
+           py::arg("epsilon")     = 1e-6,
+           py::arg("momentum")    = 0.9f,
+           py::arg("data_layout") = "NCHW")
+      .def("sum", &NetBuilder::sum, py::arg("inputs"));
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")

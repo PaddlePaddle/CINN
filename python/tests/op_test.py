@@ -35,8 +35,12 @@ class OpTest(unittest.TestCase):
     def build_paddle_program():
         raise Exception("Not implemented.")
 
-    def get_paddle_grads(self, outputs, inputs):
-        grads = paddle.grad(outputs, inputs)
+    def get_paddle_grads(self, outputs, inputs, grad_outputs):
+        grad_tensors = []
+        for grad in grad_outputs:
+            grad_tensors.append(paddle.to_tensor(grad))
+        grads = paddle.grad(outputs, inputs, grad_tensors)
+
         return grads
 
     def build_cinn_program():
@@ -67,8 +71,10 @@ class OpTest(unittest.TestCase):
             self.build_cinn_program(target)
             print("============ Check Outputs ============")
             self.check_results(self.paddle_outputs, self.cinn_outputs)
-            print("============ Check Grads ============")
-            self.check_results(self.paddle_grads, self.cinn_grads)
+
+            if len(self.cinn_grads) != 0:
+                print("============ Check Grads ============")
+                self.check_results(self.paddle_grads, self.cinn_grads)
 
     def check_results(self, expect_res, actual_res):
         self.assertEqual(len(expect_res), len(actual_res))
