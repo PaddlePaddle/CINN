@@ -258,14 +258,15 @@ std::vector<Variable> NetBuilder::batch_norm_train(const Variable& x,
   instr.SetAttr("epsilon", epsilon);
   instr.SetAttr("momentum", momentum);
   instr.SetAttr("data_layout", data_layout);
+
   InferShape(instr);
-  AppendInstruction(instr);
   instr->outputs[0].set_id(common::UniqName("batch_norm_train_output"));
   instr->outputs[1].set_id(common::UniqName("batch_norm_train_mean"));
   instr->outputs[2].set_id(common::UniqName("batch_norm_train_variance"));
   instr->outputs[3].set_id(common::UniqName("batch_norm_train_moving_mean"));
   instr->outputs[4].set_id(common::UniqName("batch_norm_train_moving_variance"));
 
+  AppendInstruction(instr);
   return instr.GetOutputs();
 }
 
