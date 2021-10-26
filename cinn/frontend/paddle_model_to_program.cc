@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "cinn/frontend/paddle/framework.pb.h"
 #include "cinn/frontend/paddle/model_parser.h"
 #include "cinn/frontend/paddle/pb/program_desc.h"
 #include "cinn/hlir/framework/node.h"
@@ -168,18 +169,104 @@ void PaddleModelToProgram::AddOpMapper_reshape2() {
 
 void PaddleModelToProgram::AddOpMapper_concat() {
   op_mappers_["concat"] = [&](const paddle::cpp::OpDesc& op_desc) {
-    // now only supports case: input tensor number is 2 .
-    CHECK_EQ(op_desc.Input("X").size(), 2UL);
-    auto x_name = op_desc.Input("X")[0];
-    auto x      = GetVar(utils::TransValidVarName(x_name));
-    auto y_name = op_desc.Input("X")[1];
-    auto y      = GetVar(utils::TransValidVarName(y_name));
-    int axis    = op_desc.GetAttr<int>("axis");
+    int input_size = op_desc.Input("X").size();
+    CHECK_GE(input_size, 2UL);
+    std::vector<Variable> input_vars;
+    for (int i = 0; i < input_size; i++) {
+      auto name = op_desc.Input("X")[i];
+      input_vars.push_back(GetVar(utils::TransValidVarName(name)));
+    }
+    int axis = op_desc.GetAttr<int>("axis");
     VLOG(4) << "axis in op concat is : " << axis;
-    auto out = program_->concat(x, y, axis);
+    auto out = program_->concat(input_vars, axis);
     CHECK_EQ(op_desc.Output("Out").size(), 1UL);
     auto out_name = op_desc.Output("Out").front();
     AddVar(utils::TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_assign() {
+  op_mappers_["assign"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);
+    auto x_name = op_desc.Input("X").front();
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+    auto x        = GetVar(TransValidVarName(x_name));
+    auto out      = program_->assign(x);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_fill_constant() {
+  op_mappers_["fill_constant"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+
+    CHECK(op_desc.HasAttr("shape"));
+    auto shape = op_desc.GetAttr<std::vector<int64_t>>("shape");
+    std::vector<int> shapes;
+    for (size_t i = 0; i < shape.size(); i++) {
+      CHECK_LE(shape[i], std::numeric_limits<int32_t>::max());
+      shapes.push_back(static_cast<int>(shape[i]));
+    }
+    CHECK(op_desc.HasAttr("dtype"));
+    auto dtype = op_desc.GetAttr<int>("dtype");
+    CHECK(op_desc.HasAttr("value"));
+    auto value = op_desc.GetAttr<float>("value");
+    CHECK(op_desc.HasAttr("str_value"));
+    auto str_value = op_desc.GetAttr<std::string>("str_value");
+    CHECK(op_desc.HasAttr("force_cpu"));
+    auto force_cpu = op_desc.GetAttr<bool>("force_cpu");
+
+    Variable out;
+    switch (dtype) {
+#define DO(desc, type)                                                                  \
+  case ::paddle::framework::proto::VarType::Type::VarType_Type_##desc:                  \
+    out = program_->fill_constant<type>(shapes, value, str_value, force_cpu, out_name); \
+    break;
+      DO(BOOL, bool);
+      DO(FP32, float);
+      DO(INT32, int);
+#undef DO
+      default:
+        LOG(FATAL) << "unknown data type " << dtype;
+    }
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_transpose2() {
+  op_mappers_["transpose2"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);
+    auto x_name = op_desc.Input("X").front();
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+    auto x        = GetVar(TransValidVarName(x_name));
+    CHECK(op_desc.HasAttr("axis"));
+    auto axis = op_desc.GetAttr<std::vector<int>>("axis");
+
+    auto out = program_->transpose(x, axis);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_exp() {
+  op_mappers_["exp"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);
+    auto x_name = op_desc.Input("X").front();
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+    auto x        = GetVar(TransValidVarName(x_name));
+
+    auto out = program_->primitive_exp(x);
+
+    AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;
   };
 }
@@ -250,6 +337,46 @@ void PaddleModelToProgram::AddOpMapper_elementwise_mul() {
     auto x   = GetVar(TransValidVarName(x_name));
     auto y   = GetVar(TransValidVarName(y_name));
     auto out = program_->elementwise_mul(x, y, axis);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_elementwise_div() {
+  op_mappers_["elementwise_div"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);
+    auto x_name = op_desc.Input("X").front();
+    CHECK_EQ(op_desc.Input("Y").size(), 1UL);
+    auto y_name = op_desc.Input("Y").front();
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+    CHECK(op_desc.HasAttr("axis"));
+    int axis = op_desc.GetAttr<int>("axis");
+
+    auto x   = GetVar(TransValidVarName(x_name));
+    auto y   = GetVar(TransValidVarName(y_name));
+    auto out = program_->elementwise_div(x, y, axis);
+
+    AddVar(TransValidVarName(out_name), out);
+    var_model_to_program_map_[out_name] = out->id;
+  };
+}
+
+void PaddleModelToProgram::AddOpMapper_elementwise_sub() {
+  op_mappers_["elementwise_sub"] = [&](const paddle::cpp::OpDesc& op_desc) {
+    CHECK_EQ(op_desc.Input("X").size(), 1UL);
+    auto x_name = op_desc.Input("X").front();
+    CHECK_EQ(op_desc.Input("Y").size(), 1UL);
+    auto y_name = op_desc.Input("Y").front();
+    CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+    auto out_name = op_desc.Output("Out").front();
+    CHECK(op_desc.HasAttr("axis"));
+    int axis = op_desc.GetAttr<int>("axis");
+
+    auto x   = GetVar(TransValidVarName(x_name));
+    auto y   = GetVar(TransValidVarName(y_name));
+    auto out = program_->elementwise_sub(x, y, axis);
 
     AddVar(TransValidVarName(out_name), out);
     var_model_to_program_map_[out_name] = out->id;

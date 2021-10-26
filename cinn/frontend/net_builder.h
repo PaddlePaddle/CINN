@@ -141,6 +141,16 @@ class NetBuilder : public BaseBuilder {
 
   Variable sum(const std::vector<Variable>& inputs);
 
+  // batch norm training, output{y, moving_mean, moving_variance, save_mean, save_var}
+  std::vector<Variable> batch_norm_train(const Variable& x,
+                                         const Variable& scale,
+                                         const Variable& bias,
+                                         const Variable& moving_mean,
+                                         const Variable& moving_variance,
+                                         const float epsilon            = 1e-6f,
+                                         const float momentum           = 0.9f,
+                                         const std::string& data_layout = "NCHW");
+
   // batch norm grad, output(grad_x, grad_scale, grad_bias)
   std::vector<Variable> batch_norm_grad(const Variable& x,
                                         const Variable& dy,

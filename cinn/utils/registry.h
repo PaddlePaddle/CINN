@@ -6,7 +6,6 @@
  * \brief Registry utility that helps to build registry singletons.
  */
 #pragma once
-#include <glog/raw_logging.h>
 
 #include <map>
 #include <string>
@@ -86,7 +85,7 @@ class Registry {
    * @return ref to the registered entry, used to set properties
    */
   inline EntryType &__REGISTER_OR_GET__(const std::string &name) {
-    RAW_LOG(INFO, "Register %s", name.c_str());
+    // Here if we use VLOG, we will get Seg Fault. Todo: Add VLOG and fix this. @Haoze
     if (!fmap_.count(name)) {
       return __REGISTER__(name);
     } else {
