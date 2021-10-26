@@ -108,6 +108,7 @@ Variable CinnBuilder::Conv(const Variable& lhs,
   instr.SetAttr("groups", groups);
   instr.SetAttr("data_format", data_format);
   instr.SetAttr("padding_algorithm", padding_algorithm);
+
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
