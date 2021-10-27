@@ -107,7 +107,7 @@ function make_doc {
     ln -s $build_dir/cinn/pybind/core_api.so $workspace/python/cinn/
     cd $workspace/docs
     mkdir -p docs/source/cpp
-    cat $workspace/tutorials/matmul.cc | python $workspace/tools/gen_c++_tutorial.py  > $workspace/docs/source/matmul.md
+    cat $workspace/tutorials/matmul.cc | python3 $workspace/tools/gen_c++_tutorial.py  > $workspace/docs/source/matmul.md
     make html
 }
 
