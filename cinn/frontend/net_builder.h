@@ -122,6 +122,25 @@ class NetBuilder : public BaseBuilder {
                      float momentum                 = 0.9f,
                      const std::string& data_layout = "NCHW");
 
+  // batch norm training, output{y, moving_mean, moving_variance, save_mean, save_variance}
+  std::vector<Variable> batch_norm_train(const Variable& x,
+                                         const Variable& scale,
+                                         const Variable& bias,
+                                         const Variable& moving_mean,
+                                         const Variable& moving_variance,
+                                         const float epsilon            = 1e-5f,
+                                         const float momentum           = 0.9f,
+                                         const std::string& data_layout = "NCHW");
+
+  // batch norm grad, output(grad_x, grad_scale, grad_bias)
+  std::vector<Variable> batch_norm_grad(const Variable& x,
+                                        const Variable& dy,
+                                        const Variable& scale,
+                                        const Variable& save_mean,
+                                        const Variable& save_variance,
+                                        const float epsilon            = 1e-5,
+                                        const std::string& data_layout = "NCHW");
+
   Variable scale(const Variable& a, float scale = 1.0f, float bias = 0.0f, bool bias_after_scale = true);
 
   Variable softmax(const Variable& a, int axis = -1, const std::string& data_format = "AnyLayout");
@@ -140,25 +159,6 @@ class NetBuilder : public BaseBuilder {
                          const std::string& dropout_implementation = "downgrade_in_infer");
 
   Variable sum(const std::vector<Variable>& inputs);
-
-  // batch norm training, output{y, moving_mean, moving_variance, save_mean, save_var}
-  std::vector<Variable> batch_norm_train(const Variable& x,
-                                         const Variable& scale,
-                                         const Variable& bias,
-                                         const Variable& moving_mean,
-                                         const Variable& moving_variance,
-                                         const float epsilon            = 1e-6f,
-                                         const float momentum           = 0.9f,
-                                         const std::string& data_layout = "NCHW");
-
-  // batch norm grad, output(grad_x, grad_scale, grad_bias)
-  std::vector<Variable> batch_norm_grad(const Variable& x,
-                                        const Variable& dy,
-                                        const Variable& scale,
-                                        const Variable& save_mean,
-                                        const Variable& save_var,
-                                        const float epsilon            = 1e-6,
-                                        const std::string& data_layout = "NCHW");
 };
 
 }  // namespace frontend

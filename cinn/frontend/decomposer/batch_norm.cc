@@ -20,8 +20,10 @@ namespace frontend {
 namespace decomposer {
 
 void batch_norm_train(const Instruction& instr, const DecomposerContext& context) {
-  CHECK_EQ(instr->inputs.size(), 5UL) << " 5 input tensor for " << instr->op_type;
-  CHECK_EQ(instr->outputs.size(), 5UL) << "5 output tensor for " << instr->op_type;
+  CHECK_EQ(instr->inputs.size(), 5UL) << "The number of the given inputs is not equal to the required for op "
+                                      << instr->op_type;
+  CHECK_EQ(instr->outputs.size(), 5UL) << "The number of the given outputs is not equal to the required for op "
+                                       << instr->op_type;
 
   auto& x               = instr->inputs[0];
   auto& scale           = instr->inputs[1];
@@ -109,11 +111,13 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
 }
 
 void batch_norm_grad(const Instruction& instr, const DecomposerContext& context) {
-  CHECK_EQ(instr->inputs.size(), 5UL) << " 5 input tensor for " << instr->op_type;
-  CHECK_EQ(instr->outputs.size(), 3UL) << "3 output tensor for " << instr->op_type;
+  CHECK_EQ(instr->inputs.size(), 5UL) << " The number of the given inputs is not equal to the required "
+                                      << instr->op_type;
+  CHECK_EQ(instr->outputs.size(), 3UL) << " The number of the given outputs is not equal to the required"
+                                       << instr->op_type;
 
-  auto& x             = instr->inputs[0];
-  auto& dy            = instr->inputs[1];
+  auto& dy            = instr->inputs[0];
+  auto& x             = instr->inputs[1];
   auto& scale         = instr->inputs[2];
   auto& save_mean     = instr->inputs[3];
   auto& save_variance = instr->inputs[4];
@@ -139,14 +143,6 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
     LOG(FATAL) << layout << " setting is not support!";
   }
 
-  /*****************batch norm train********************
-   * mean = reduce_mean(x)
-   * diff = x - mean
-   * mean_square = reduce_mean(x*x)
-   * variance = mean_square - mean*mean
-   * std_var = sqrtf(variance + epsilon)
-   * y = diff/std_var * scale + bias
-   */
   /*****************batch norm grad*********************
    * grad_bias = reduce_sum(dy)
    * grad_scale = reduce_sum(dy * (diff/std_var))
@@ -160,19 +156,19 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
    * grad_x = grad_diff + 2 * x * grad_mean_square + grad_mean
    */
 
-  auto epsilon_2d = builder->BroadcastTo(builder->ConstScalar(epsilon, common::UniqName("epsilon")), scale->shape, {0});
-  auto element_count_2d = builder->BroadcastTo(
+  auto epsilon_1d = builder->BroadcastTo(builder->ConstScalar(epsilon, common::UniqName("epsilon")), scale->shape, {0});
+  auto element_count_1d = builder->BroadcastTo(
       builder->ConstScalar(1.0f / element_count, common::UniqName("element_count")), scale->shape, {0});
   // grad bias = reduce(dy), shape = [c]
   auto grad_bias = builder->Reduce(dy, ReduceKind::kSum, reduce_dim);
 
   // grad scale = dy * (x - mean)/var, shape = [c]
   auto mean_4d     = builder->BroadcastTo(save_mean, x->shape, {channel_dim});
-  auto variance_2d = builder->Add(save_variance, epsilon_2d);
-  auto variance_4d = builder->BroadcastTo(variance_2d, x->shape, {channel_dim});
+  auto variance_1d = builder->Add(save_variance, epsilon_1d);
+  auto variance_4d = builder->BroadcastTo(variance_1d, x->shape, {channel_dim});
   // std variance
-  auto std_variance_2d = builder->Sqrt(variance_2d);
-  auto std_variance_4d = builder->BroadcastTo(std_variance_2d, x->shape, {channel_dim});
+  auto std_variance_1d = builder->Sqrt(variance_1d);
+  auto std_variance_4d = builder->BroadcastTo(std_variance_1d, x->shape, {channel_dim});
 
   auto diff = builder->Sub(x, mean_4d);
   // grad scale = dy * (diff/std_var), shape = [c]
@@ -187,21 +183,21 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto grad_diff = builder->Div(grad_std_norm, std_variance_4d);
 
   // grad std var = -1 * reduce((grad_std * diff) / (var), shape = [c])
-  auto grad_std_variance_2d = builder->Negative(
+  auto grad_std_variance_1d = builder->Negative(
       builder->Reduce(builder->Div(builder->Mul(grad_std_norm, diff), variance_4d), ReduceKind::kSum, reduce_dim));
 
   // grad var = 1/2 * dy / std_var, do not mul 0.5 first
-  auto grad_variance_2d_without_mul = builder->Div(grad_std_variance_2d, std_variance_2d);
+  auto grad_variance_1d_without_mul = builder->Div(grad_std_variance_1d, std_variance_1d);
 
-  // grad_x0 = broadcastTo(grad_variance_2d_without_mul * 0.5 /element_count) * 2 * x
+  // grad_x0 = broadcastTo(grad_variance_1d_without_mul * 0.5 /element_count) * 2 * x
   auto grad_x0 = builder->Mul(
-      x, builder->BroadcastTo(builder->Mul(grad_variance_2d_without_mul, element_count_2d), x->shape, {channel_dim}));
+      x, builder->BroadcastTo(builder->Mul(grad_variance_1d_without_mul, element_count_1d), x->shape, {channel_dim}));
 
-  // -1.0 * grad_mean = ( -1.0 * reduce(grad_diff) + -1.0 * grad_variance_2d_without_mul * 0.5 * 2 * mean) /
-  // element_count_2d
-  auto minus_grad_mean = builder->Mul(element_count_2d,
+  // -1.0 * grad_mean = ( -1.0 * reduce(grad_diff) + -1.0 * grad_variance_1d_without_mul * 0.5 * 2 * mean) /
+  // element_count_1d
+  auto minus_grad_mean = builder->Mul(element_count_1d,
                                       builder->Add(builder->Reduce(grad_diff, ReduceKind::kSum, reduce_dim),
-                                                   builder->Mul(grad_variance_2d_without_mul, save_mean)));
+                                                   builder->Mul(grad_variance_1d_without_mul, save_mean)));
 
   // grad_x = grad_diff + boradcastTo(grad_mean) + grad_x0
   auto grad_x =

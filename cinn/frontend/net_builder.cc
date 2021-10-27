@@ -186,6 +186,42 @@ Variable NetBuilder::batchnorm(const Variable& a,
   return instr.GetOutput(0);
 }
 
+// batch norm training, output{y, new_running_mean, new_running_var, save_mean, save_var}
+std::vector<Variable> NetBuilder::batch_norm_train(const Variable& x,
+                                                   const Variable& scale,
+                                                   const Variable& bias,
+                                                   const Variable& moving_mean,
+                                                   const Variable& moving_variance,
+                                                   const float epsilon,
+                                                   const float momentum,
+                                                   const std::string& data_layout) {
+  Instruction instr("batch_norm_train", {x, scale, bias, moving_mean, moving_variance});
+  instr.SetAttr("epsilon", epsilon);
+  instr.SetAttr("momentum", momentum);
+  instr.SetAttr("data_layout", data_layout);
+
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
+}
+
+// batch norm grad, output(grad_x, grad_scale, grad_bias)
+std::vector<Variable> NetBuilder::batch_norm_grad(const Variable& dy,
+                                                  const Variable& x,
+                                                  const Variable& scale,
+                                                  const Variable& save_mean,
+                                                  const Variable& save_variance,
+                                                  const float epsilon,
+                                                  const std::string& data_layout) {
+  Instruction instr("batch_norm_grad", {dy, x, scale, save_mean, save_variance});
+  instr.SetAttr("epsilon", epsilon);
+  instr.SetAttr("data_layout", data_layout);
+
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
+}
+
 Variable NetBuilder::scale(const Variable& a, float scale, float bias, bool bias_after_scale) {
   Instruction instr("scale", {a});
   instr.SetAttr("scale", scale);
@@ -243,52 +279,6 @@ Variable NetBuilder::sum(const std::vector<Variable>& inputs) {
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
-}
-
-// batch norm training, output{y, new_running_mean, new_running_var, save_mean, save_var}
-std::vector<Variable> NetBuilder::batch_norm_train(const Variable& x,
-                                                   const Variable& scale,
-                                                   const Variable& bias,
-                                                   const Variable& moving_mean,
-                                                   const Variable& moving_variance,
-                                                   const float epsilon,
-                                                   const float momentum,
-                                                   const std::string& data_layout) {
-  Instruction instr("batch_norm_train", {x, scale, bias, moving_mean, moving_variance});
-  instr.SetAttr("epsilon", epsilon);
-  instr.SetAttr("momentum", momentum);
-  instr.SetAttr("data_layout", data_layout);
-
-  InferShape(instr);
-  instr->outputs[0].set_id(common::UniqName("batch_norm_train_output"));
-  instr->outputs[1].set_id(common::UniqName("batch_norm_train_mean"));
-  instr->outputs[2].set_id(common::UniqName("batch_norm_train_variance"));
-  instr->outputs[3].set_id(common::UniqName("batch_norm_train_moving_mean"));
-  instr->outputs[4].set_id(common::UniqName("batch_norm_train_moving_variance"));
-
-  AppendInstruction(instr);
-  return instr.GetOutputs();
-}
-
-// batch norm grad, output(grad_x, grad_scale, grad_bias)
-std::vector<Variable> NetBuilder::batch_norm_grad(const Variable& x,
-                                                  const Variable& dy,
-                                                  const Variable& scale,
-                                                  const Variable& save_mean,
-                                                  const Variable& save_var,
-                                                  const float epsilon,
-                                                  const std::string& data_layout) {
-  Instruction instr("batch_norm_grad", {x, dy, scale, save_mean, save_var});
-  instr.SetAttr("epsilon", epsilon);
-  instr.SetAttr("data_layout", data_layout);
-
-  InferShape(instr);
-  instr->outputs[0].set_id(common::UniqName("batch_norm_grad_x"));
-  instr->outputs[1].set_id(common::UniqName("batch_norm_grad_scale"));
-  instr->outputs[2].set_id(common::UniqName("batch_norm_grad_bias"));
-
-  AppendInstruction(instr);
-  return instr.GetOutputs();
 }
 
 }  // namespace frontend

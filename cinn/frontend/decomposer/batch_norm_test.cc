@@ -73,7 +73,7 @@ void cpu_run_batch_norm_train(const std::vector<T>& x,
                               std::vector<T>* y,
                               std::vector<T>* new_moving_mean,
                               std::vector<T>* new_moving_variance,
-                              const float epsilon  = 1e-6,
+                              const float epsilon  = 1e-5,
                               const float momentum = 0.9f) {
   // sum
   memset(sum->data(), 0, sizeof(T) * c);
@@ -123,6 +123,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
   // parameter
   int n = 4, c = 16, h = 4, w = 4;
   NetBuilder net_builder("net_builder_batch_norm_train");
+  std::vector<std::string> output_names;
   {
     // create input
     auto x               = net_builder.CreateInput(Float(32), {n, c, h, w}, "x");
@@ -133,6 +134,9 @@ TEST(nn, BATCH_NORM_TRAIN) {
 
     // add batch norm train
     auto outputs = net_builder.batch_norm_train(x, scale, bias, moving_mean, moving_variance);
+    for (auto output : outputs) {
+      output_names.push_back(output->id);
+    }
   }
   // build program
   auto program = net_builder.Build();
@@ -143,8 +147,6 @@ TEST(nn, BATCH_NORM_TRAIN) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto nodes = std::get<0>(graph->topological_order());
-  LOG(INFO) << graph->Visualize();
-
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
 
@@ -190,9 +192,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
   }
 
   std::vector<std::pair<std::string, std::vector<float>>> outputs = {
-      {"batch_norm_train_moving_mean", new_moving_mean},
-      {"batch_norm_train_moving_variance", new_moving_variance},
-      {"batch_norm_train_output", y}};
+      {output_names[4], new_moving_variance}, {output_names[3], new_moving_mean}, {output_names[0], y}};
 
   run_program->Execute();
 
@@ -203,7 +203,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
 
     LOG(INFO) << output.first << " " << tensor->shape().numel();
     for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
-      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-4);
+      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 2e-4);
     }
   }
 }
@@ -226,10 +226,11 @@ void cpu_batch_norm_grad(const std::vector<T>& x,
                          std::vector<T>* grad_std_variance_2d,
                          std::vector<T>* grad_variance_2d_without_mul,
                          std::vector<T>* grad_x0,
-                         std::vector<T>* minus_grad_mean) {
+                         std::vector<T>* minus_grad_mean,
+                         float epsilon = 1e-5) {
   std::vector<T> save_std_varance(c);
   for (int idx = 0; idx < c; ++idx) {
-    save_std_varance[idx] = sqrt(save_variance[idx] + 1e-6);
+    save_std_varance[idx] = sqrt(save_variance[idx] + epsilon);
   }
   // grad bias
   memset(dbias->data(), 0, sizeof(float) * c);
@@ -263,7 +264,7 @@ void cpu_batch_norm_grad(const std::vector<T>& x,
   auto func_grad_std_variance_2d = [=](int idx, int idy, int idz, int ida) {
     grad_std_variance_2d->at(idy) += -1 * grad_std_norm->at(idx * c * h * w + idy * h * w + idz * w + ida) *
                                      (x[idx * c * h * w + idy * h * w + idz * w + ida] - save_mean[idy]) /
-                                     (save_variance[idy] + 1e-6);
+                                     (save_variance[idy] + epsilon);
   };
   loop(func_grad_std_variance_2d, n, c, h, w);
 
@@ -301,16 +302,20 @@ TEST(nn, BATCH_NORM_GRAD) {
   int n = 8, c = 16, h = 4, w = 4;
   int num = n * c * h * w;
   NetBuilder net_builder("net_builder_batch_norm_grad");
+  std::vector<std::string> output_names;
   {
     // create input
-    auto x             = net_builder.CreateInput(Float(32), {n, c, h, w}, "x");
     auto dy            = net_builder.CreateInput(Float(32), {n, c, h, w}, "dy");
+    auto x             = net_builder.CreateInput(Float(32), {n, c, h, w}, "x");
     auto scale         = net_builder.CreateInput(Float(32), {c}, "scale");
     auto save_mean     = net_builder.CreateInput(Float(32), {c}, "save_mean");
     auto save_variance = net_builder.CreateInput(Float(32), {c}, "save_variance");
 
     // add batch norm train
-    auto outputs = net_builder.batch_norm_grad(x, dy, scale, save_mean, save_variance);
+    auto outputs = net_builder.batch_norm_grad(dy, x, scale, save_mean, save_variance);
+    for (auto output : outputs) {
+      output_names.push_back(output->id);
+    }
   }
   // build program
   auto program = net_builder.Build();
@@ -320,17 +325,15 @@ TEST(nn, BATCH_NORM_GRAD) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto nodes = std::get<0>(graph->topological_order());
-  LOG(INFO) << graph->Visualize();
-
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto run_program = gc.Build();
 
   // set input
-  std::vector<float> x(num), dy(num), scale(c), save_mean(c), save_variance(c);
-  InitRandomVector(&x, num);
+  std::vector<float> dy(num), x(num), scale(c), save_mean(c), save_variance(c);
   InitRandomVector(&dy, num);
+  InitRandomVector(&x, num);
   InitRandomVector(&scale, c);
   InitRandomVector(&save_mean, c);
   InitRandomVector(&save_variance, c);
@@ -339,7 +342,7 @@ TEST(nn, BATCH_NORM_GRAD) {
   }
 
   std::vector<std::pair<std::string, std::vector<float>>> inputs = {
-      {"x", x}, {"dy", dy}, {"scale", scale}, {"save_mean", save_mean}, {"save_variance", save_variance}};
+      {"dy", dy}, {"x", x}, {"scale", scale}, {"save_mean", save_mean}, {"save_variance", save_variance}};
   for (auto& input : inputs) {
     scope->Var<hlir::framework::Tensor>(input.first);
     auto tensor = scope->GetTensor(input.first);
@@ -348,7 +351,7 @@ TEST(nn, BATCH_NORM_GRAD) {
   run_program->Execute();
 
   std::vector<float> dx(num), dscale(c), dbias(c);
-  std::vector<float> grad_std_norm(num), grad_diff(num), grad_std_variance_2d(c), grad_variance_2d_without_mul(c),
+  std::vector<float> grad_std_norm(num), grad_diff(num), grad_std_variance_1d(c), grad_variance_2d_without_mul(c),
       grad_x0(num), minus_grad_mean(c);
 
   cpu_batch_norm_grad(x,
@@ -365,15 +368,15 @@ TEST(nn, BATCH_NORM_GRAD) {
                       &dbias,
                       &grad_std_norm,
                       &grad_diff,
-                      &grad_std_variance_2d,
+                      &grad_std_variance_1d,
                       &grad_variance_2d_without_mul,
                       &grad_x0,
                       &minus_grad_mean);
 
   std::vector<std::pair<std::string, std::vector<float>>> outputs = {
-      {"batch_norm_grad_bias", dbias},
-      {"batch_norm_grad_scale", dscale},
-      {"batch_norm_grad_x", dx},
+      {output_names[2], dbias},
+      {output_names[1], dscale},
+      {output_names[0], dx},
   };
 
   for (auto& output : outputs) {
@@ -382,7 +385,7 @@ TEST(nn, BATCH_NORM_GRAD) {
     CopyToVector(tensor, &data);
     LOG(INFO) << output.first << " " << tensor->shape().numel();
     for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
-      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-4);
+      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 2e-4);
     }
   }
 }
