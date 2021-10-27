@@ -140,6 +140,16 @@ class NetBuilder : public BaseBuilder {
                          const std::string& dropout_implementation = "downgrade_in_infer");
 
   Variable sum(const std::vector<Variable>& inputs);
+
+  // batch norm training, output{y, moving_mean, moving_variance, save_mean, save_var}
+  std::vector<Variable> batch_norm_train(const Variable& x,
+                                         const Variable& scale,
+                                         const Variable& bias,
+                                         const Variable& moving_mean,
+                                         const Variable& moving_variance,
+                                         const float epsilon            = 1e-6f,
+                                         const float momentum           = 0.9f,
+                                         const std::string& data_layout = "NCHW");
 };
 
 }  // namespace frontend

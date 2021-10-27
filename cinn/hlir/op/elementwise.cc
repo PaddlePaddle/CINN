@@ -19,6 +19,7 @@
 #include "cinn/hlir/framework/node.h"
 #include "cinn/hlir/framework/op.h"
 #include "cinn/hlir/framework/op_strategy.h"
+#include "cinn/hlir/op/op_util.h"
 #include "cinn/hlir/pe/nn.h"
 #include "cinn/hlir/pe/schedule.h"
 #include "cinn/ir/ir_operators.h"
@@ -277,6 +278,76 @@ std::vector<Type> InferDtypeForSum(const std::vector<Type> &inputs_type, const f
   return res;
 }
 
+std::shared_ptr<OpStrategy> StrategyForFillConstant(const framework::NodeAttr &attrs,
+                                                    const std::vector<ir::Tensor> &inputs,
+                                                    const std::vector<Type> &out_type,
+                                                    const std::vector<std::vector<int>> &output_shapes,
+                                                    const Target &target) {
+  framework::CINNCompute fill_constant_compute([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of fill_constant compute is empty! Please check.";
+    bool force_cpu = false;
+    CHECK(attrs.attr_store.count("shape"));
+    auto shape = absl::get<std::vector<int>>(attrs.attr_store.at("shape"));
+    CHECK(attrs.attr_store.count("value"));
+    auto value = GetScalarExpr(attrs.attr_store.at("value"));
+    CHECK(attrs.attr_store.count("force_cpu"));
+    force_cpu = absl::get<bool>(attrs.attr_store.at("force_cpu"));
+
+    if (force_cpu) CINN_NOT_IMPLEMENTED
+
+    CHECK(!shape.empty()) << "shape attr is empty!";
+    auto shape_exprs = ToCinnExprs(shape);
+    auto out         = lang::Compute(
+        shape_exprs, [=](const std::vector<Expr> &indice) { return value; }, UniqName("fill_constant_Out"));
+    CHECK(out.defined()) << "can't create fill_constant with the given type " << out_type[0];
+    auto stages = CreateStages({out});
+    *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+  });
+
+  framework::CINNSchedule fill_constant_schedule([=](lang::Args args, lang::RetValue *ret) {
+    CHECK(!args.empty()) << "The input argument of create_const_float schedule is empty! Please check.";
+    CINNValuePack arg_pack = args[0];
+    CHECK_EQ(arg_pack.size(), 2UL);
+    Expr Out              = arg_pack[0];
+    poly::StageMap stages = arg_pack.back();
+    CHECK(Out.as_tensor());
+    if (target.arch == Target::Arch::NVGPU) {
+      pe::CudaScheduleInjective(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    } else if (target.arch == Target::Arch::X86) {
+      pe::ScheduleInjectiveCPU(stages[Out.as_tensor_ref()], output_shapes.front(), target);
+    }
+    *ret = arg_pack;
+  });
+
+  auto strategy = std::make_shared<framework::OpStrategy>();
+  strategy->AddImpl(fill_constant_compute, fill_constant_schedule, "strategy.fill_constant.x86", 1);
+
+  return strategy;
+}
+
+std::vector<shape_t> InferShapeForFillConstant(const std::vector<shape_t> &inputs_shape,
+                                               const framework::AttrMapType &attrs) {
+  CHECK(attrs.count("shape"));
+  auto shape = absl::get<std::vector<int>>(attrs.at("shape"));
+  CHECK(!shape.empty()) << "shape attr is empty!";
+  return {shape};
+}
+
+std::vector<Type> InferDtypeForFillConstant(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(attrs.count("value"));
+  auto scalar   = GetScalarExpr(attrs.at("value"));
+  auto out_type = scalar->type();
+  VLOG(3) << "scalar type: " << out_type;
+  return {out_type};
+}
+
+std::vector<std::vector<std::string>> InferLayoutForFillConstant(const std::vector<framework::shape_t> &input_shapes,
+                                                                 const std::vector<std::string> &input_layouts,
+                                                                 const framework::NodeAttr &attrs,
+                                                                 const Target &target) {
+  return {{""}, input_layouts};
+}
+
 StrategyForUnary(exp, Exp);
 StrategyForUnary(erf, Erf);
 StrategyForUnary(sqrt, Sqrt);
@@ -403,6 +474,19 @@ CINN_REGISTER_HELPER(elementwise_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForSum))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForSum))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise);
+
+  CINN_REGISTER_OP(fill_constant)
+      .describe("create tensor with the given value, type and shape")
+      .set_num_inputs(0)
+      .set_num_outputs(1)
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyForFillConstant)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForFillConstant))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForFillConstant))
+#ifndef CINN_WITH_CUDA
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForFillConstant))
+#endif
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise)
+      .set_support_level(4);
 
   return true;
 }

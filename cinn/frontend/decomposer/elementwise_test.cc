@@ -34,9 +34,10 @@ TEST(Decomposer, sum) {
     }
   };
 
-  std::vector<std::string> input_names  = {x.id().data(), y.id().data(), z.id().data()};
-  std::vector<std::string> output_names = {out->id};
-  RunAndCheck<float>(builder, input_names, output_names, sum_cpu);
+  std::vector<std::string> input_names        = {x.id().data(), y.id().data(), z.id().data()};
+  std::vector<std::string> output_names       = {out->id};
+  std::vector<std::vector<int>> output_shapes = {{32, 16}};
+  RunAndCheck<float>(builder, input_names, output_names, output_shapes, sum_cpu);
 }
 
 }  // namespace cinn::frontend

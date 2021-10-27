@@ -142,6 +142,7 @@ function prepare_model {
     _download_and_untar MobilenetV1.tar.gz
     _download_and_untar ResNet50.tar.gz
     _download_and_untar SqueezeNet.tar.gz
+    _download_and_untar FaceDet.tar.gz
 
     proxy_on
     mkdir -p $build_dir/paddle

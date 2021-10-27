@@ -53,6 +53,13 @@ class DecomposerPass : public ProgramPass {
           outputs[j] = it->second;
         }
       }
+      auto& inputs = (*prog)[i]->inputs;
+      for (size_t j = 0; j < inputs.size(); j++) {
+        auto it = var_map.find(inputs[j]->id);
+        if (it != var_map.end()) {
+          inputs[j] = it->second;
+        }
+      }
     }
   }
 };

@@ -18,7 +18,7 @@ namespace cinn::frontend {
 
 TEST(Decomposer, relu) {
   NetBuilder builder("relu");
-  auto x   = builder.CreateInput(Float(32), {20, 10});
+  auto x   = builder.CreateInput(Float(32), {20, 10}, "x");
   auto out = builder.relu(x);
 
   auto relu_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
@@ -31,15 +31,16 @@ TEST(Decomposer, relu) {
     }
   };
 
-  std::vector<std::string> input_names  = {x.id().data()};
-  std::vector<std::string> output_names = {out->id};
-  RunAndCheck<float>(builder, input_names, output_names, relu_cpu);
+  std::vector<std::string> input_names        = {x.id().data()};
+  std::vector<std::string> output_names       = {out->id};
+  std::vector<std::vector<int>> output_shapes = {{20, 10}};
+  RunAndCheck<float>(builder, input_names, output_names, output_shapes, relu_cpu);
 }
 
 TEST(Decomposer, relu_grad) {
   NetBuilder builder("relu_grad");
-  auto dout = builder.CreateInput(Float(32), {20, 10});
-  auto out  = builder.CreateInput(Float(32), {20, 10});
+  auto dout = builder.CreateInput(Float(32), {20, 10}, "dout");
+  auto out  = builder.CreateInput(Float(32), {20, 10}, "out");
   auto dx   = builder.relu_grad(dout, out);
 
   auto relu_grad_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
@@ -52,9 +53,10 @@ TEST(Decomposer, relu_grad) {
     }
   };
 
-  std::vector<std::string> input_names  = {dout.id().data(), out.id().data()};
-  std::vector<std::string> output_names = {dx->id};
-  RunAndCheck<float>(builder, input_names, output_names, relu_grad_cpu);
+  std::vector<std::string> input_names        = {dout.id().data(), out.id().data()};
+  std::vector<std::string> output_names       = {dx->id};
+  std::vector<std::vector<int>> output_shapes = {{20, 10}};
+  RunAndCheck<float>(builder, input_names, output_names, output_shapes, relu_grad_cpu);
 }
 
 }  // namespace cinn::frontend
