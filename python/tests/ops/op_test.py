@@ -18,9 +18,20 @@ from cinn.frontend import *
 from cinn.common import *
 import numpy as np
 import paddle
+import logging
+from contextlib import contextmanager
+import os
+
+logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
+logger = logging.getLogger()
 
 
 class OpTest(unittest.TestCase):
+    def __init__(self, *args, **kwargs):
+        super(OpTest, self).__init__(*args, **kwargs)
+        self.init_target()
+        self.init_results()
+
     def init_results(self):
         self.paddle_outputs = []
         self.paddle_grads = []
@@ -55,30 +66,35 @@ class OpTest(unittest.TestCase):
 
         return outs_and_grads
 
-    def apply_pass(self, prog, target):
-        print("============ Before Decomposer Pass ============")
-        for i in range(prog.size()):
-            print(prog[i])
+    def apply_pass(self, prog, target, passes=["Decomposer"]):
+        def print_program(prog):
+            if logger.getEffectiveLevel() != logging.DEBUG:
+                return
+            for i in range(prog.size()):
+                print(prog[i])
 
-        prog.apply_pass(target, ["Decomposer"])
-        print("============ After Decomposer Pass ============")
-        for i in range(prog.size()):
-            print(prog[i])
+        logger.debug("============ Before Decomposer Pass ============")
+        print_program(prog)
+
+        prog.apply_pass(target, passes)
+
+        logger.debug("============ After Decomposer Pass ============")
+        print_program(prog)
 
     def check_outputs_and_grads(self):
         self.build_paddle_program(self.targets[0])
         for target in self.targets:
             self.build_cinn_program(target)
-            print("============ Check Outputs ============")
+            logger.debug("============ Check Outputs ============")
             self.check_results(self.paddle_outputs, self.cinn_outputs)
 
             if len(self.cinn_grads) != 0:
-                print("============ Check Grads ============")
+                logger.debug("============ Check Grads ============")
                 self.check_results(self.paddle_grads, self.cinn_grads)
 
     def check_results(self, expect_res, actual_res):
         self.assertEqual(len(expect_res), len(actual_res))
         for i in range(len(expect_res)):
-            print("Check the %d -th Result..." % i)
+            logger.debug("Check the %d -th Result..." % i)
             self.assertTrue(
                 np.allclose(expect_res[i], actual_res[i], atol=1e-6))

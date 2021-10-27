@@ -26,9 +26,7 @@ from cinn.common import *
 
 class TestReluOp(OpTest):
     def setUp(self):
-        self.init_results()
         self.init_case()
-        self.init_target()
 
     def init_case(self):
         self.inputs = {
@@ -36,7 +34,7 @@ class TestReluOp(OpTest):
                 32,
                 64,
             ]).astype("float32"),
-            "dout": np.ones((32, 64)).astype("float32")
+            "dout": np.random.random((32, 64)).astype("float32")
         }
 
     def build_paddle_program(self, target):
@@ -47,6 +45,8 @@ class TestReluOp(OpTest):
         self.paddle_grads = self.get_paddle_grads([out], [x],
                                                   [self.inputs["dout"]])
 
+    # Note: If the forward and backward operators are run in the same program,
+    # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("relu")
         x = builder.create_input(Float(32), self.inputs["x"].shape, "x")

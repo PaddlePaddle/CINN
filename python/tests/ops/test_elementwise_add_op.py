@@ -26,15 +26,13 @@ from cinn.common import *
 
 class TestElementwiseAddOp(OpTest):
     def setUp(self):
-        self.init_results()
         self.init_case()
-        self.init_target()
 
     def init_case(self):
         self.inputs = {
             "x": np.random.random([32, 64]).astype("float32"),
             "y": np.random.random([32, 64]).astype("float32"),
-            "dout": np.ones((32, 64)).astype("float32")
+            "dout": np.random.random((32, 64)).astype("float32")
         }
         self.axis = -1
 
@@ -92,7 +90,7 @@ class TestAddCase1(TestElementwiseAddOp):
         self.inputs = {
             "x": np.random.random([8, 64, 256, 256]).astype("float32"),
             "y": np.random.random([256, 256]).astype("float32"),
-            "dout": np.ones((8, 64, 256, 256)).astype("float32")
+            "dout": np.random.random((8, 64, 256, 256)).astype("float32")
         }
         self.axis = -1
 
@@ -102,7 +100,7 @@ class TestAddCase2(TestElementwiseAddOp):
         self.inputs = {
             "x": np.random.random([8, 1, 32, 32]).astype("float32"),
             "y": np.random.random([64, 32]).astype("float32"),
-            "dout": np.ones((8, 64, 32, 32)).astype("float32")
+            "dout": np.random.random((8, 64, 32, 32)).astype("float32")
         }
         self.axis = 1
 
@@ -112,7 +110,7 @@ class TestAddCase3(TestElementwiseAddOp):
         self.inputs = {
             "x": np.random.random([4, 16, 8, 32]).astype("float32"),
             "y": np.random.random([4, 16]).astype("float32"),
-            "dout": np.ones((4, 16, 8, 32)).astype("float32")
+            "dout": np.random.random((4, 16, 8, 32)).astype("float32")
         }
         self.axis = 0
 
@@ -122,7 +120,7 @@ class TestAddCase4(TestElementwiseAddOp):
         self.inputs = {
             "x": np.random.random([4, 16, 8, 32]).astype("float32"),
             "y": np.random.random([1]).astype("float32"),
-            "dout": np.ones((4, 16, 8, 32)).astype("float32")
+            "dout": np.random.random((4, 16, 8, 32)).astype("float32")
         }
         self.axis = -1
 

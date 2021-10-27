@@ -26,9 +26,7 @@ from cinn.common import *
 
 class TestSumOp(OpTest):
     def setUp(self):
-        self.init_results()
         self.init_case()
-        self.init_target()
 
     def init_case(self):
         self.inputs = {
@@ -40,7 +38,7 @@ class TestSumOp(OpTest):
                 32,
                 64,
             ]).astype("float32"),
-            "dout": np.ones((32, 64)).astype("float32")
+            "dout": np.random.random((32, 64)).astype("float32")
         }
 
     def build_paddle_program(self, target):
