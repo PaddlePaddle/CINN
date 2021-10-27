@@ -226,8 +226,8 @@ function CI {
     run_demo
     prepare_model
     run_test
-
-    make_doc
+    # Temporary shutdown the doc test to speed up development
+    # make_doc
 }
 
 
