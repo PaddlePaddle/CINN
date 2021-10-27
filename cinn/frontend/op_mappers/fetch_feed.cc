@@ -32,8 +32,10 @@ void FeedOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx
   VLOG(4) << "Model get feed [" << feed_name << "]";
 
   const auto& feed_info = ctx.GetFeedInfo(feed_name);
-  auto input            = ctx.Builder()->CreateInput(feed_info.type, feed_info.shape, feed_name);
+  auto cinn_id          = cinn::utils::TransValidVarName(feed_name);
+  auto input            = ctx.Builder()->CreateInput(feed_info.type, feed_info.shape, cinn_id);
   ctx.AddVar(feed_name, input);
+  ctx.AddVarModelToProgram(feed_name, input.id().data());
 }
 
 }  // namespace op_mappers
