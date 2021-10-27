@@ -64,51 +64,47 @@ void cpu_run_batch_norm_train(const std::vector<T>& x,
                               const int c,
                               const int h,
                               const int w,
-                              std::vector<T>* sum,
-                              std::vector<T>* mean,
-                              std::vector<T>* sum_square,
-                              std::vector<T>* mean_square,
-                              std::vector<T>* variance,
-                              std::vector<T>* std_variance,
                               std::vector<T>* y,
                               std::vector<T>* new_moving_mean,
                               std::vector<T>* new_moving_variance,
+                              std::vector<T>* mean,
+                              std::vector<T>* variance,
                               const float epsilon  = 1e-5,
                               const float momentum = 0.9f) {
   // sum
-  memset(sum->data(), 0, sizeof(T) * c);
+  memset(mean->data(), 0, sizeof(T) * c);
   auto func_sum = [=](int idx, int idy, int idz, int ida) {
-    sum->at(idy) += x[idx * c * h * w + idy * h * w + idz * w + ida];
+    mean->at(idy) += x[idx * c * h * w + idy * h * w + idz * w + ida];
   };
   loop(func_sum, n, c, h, w);
   // mean
   for (int idx = 0; idx < c; ++idx) {
-    mean->at(idx) = sum->at(idx) / float(n * h * w);
+    mean->at(idx) /= float(n * h * w);
   }
 
   // square
-  memset(sum_square->data(), 0, sizeof(T) * c);
-  auto func_sum_square = [=](int idx, int idy, int idz, int ida) {
-    sum_square->at(idy) +=
+  std::vector<float> square_mean(c, 0);
+  auto func_sum_square = [&](int idx, int idy, int idz, int ida) {
+    square_mean.at(idy) +=
         x[idx * c * h * w + idy * h * w + idz * w + ida] * x[idx * c * h * w + idy * h * w + idz * w + ida];
   };
   loop(func_sum_square, n, c, h, w);
   //
   for (int idx = 0; idx < c; ++idx) {
-    mean_square->at(idx) = sum_square->at(idx) / float(n * h * w);
+    square_mean[idx] /= float(n * h * w);
   }
 
+  std::vector<float> std_variance(c);
   // sum diff2
   for (int idx = 0; idx < c; ++idx) {
-    variance->at(idx)     = mean_square->at(idx) - (mean->at(idx) * mean->at(idx));
-    std_variance->at(idx) = sqrt(variance->at(idx) + epsilon);
+    variance->at(idx) = square_mean[idx] - (mean->at(idx) * mean->at(idx));
+    std_variance[idx] = sqrt(variance->at(idx) + epsilon);
   }
 
   // compute output
-  auto func_y = [=](int idx, int idy, int idz, int ida) {
+  auto func_y = [&](int idx, int idy, int idz, int ida) {
     y->at(idx * c * h * w + idy * h * w + idz * w + ida) =
-        (x[idx * c * h * w + idy * h * w + idz * w + ida] - mean->at(idy)) / std_variance->at(idy) * scale[idy] +
-        bias[idy];
+        (x[idx * c * h * w + idy * h * w + idz * w + ida] - mean->at(idy)) / std_variance[idy] * scale[idy] + bias[idy];
   };
   loop(func_y, n, c, h, w);
 
@@ -146,7 +142,6 @@ TEST(nn, BATCH_NORM_TRAIN) {
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
-  auto nodes = std::get<0>(graph->topological_order());
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
 
@@ -154,8 +149,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
 
   // set input
   std::vector<float> x(n * c * h * w), scale(c), bias(c), moving_mean(c), moving_variance(c);
-  std::vector<float> sum(c), mean(c), sum_square(c), mean_square(c), variance(c), std_variance(c);
-  std::vector<float> y(n * c * h * w), new_moving_mean(c), new_moving_variance(c);
+  std::vector<float> y(n * c * h * w), new_moving_mean(c), new_moving_variance(c), save_mean(c), save_variance(c);
 
   InitRandomVector(&x, n * c * h * w);
   InitRandomVector(&scale, c);
@@ -172,15 +166,11 @@ TEST(nn, BATCH_NORM_TRAIN) {
                            c,
                            h,
                            w,
-                           &sum,
-                           &mean,
-                           &sum_square,
-                           &mean_square,
-                           &variance,
-                           &std_variance,
                            &y,
                            &new_moving_mean,
-                           &new_moving_variance);
+                           &new_moving_variance,
+                           &save_mean,
+                           &save_variance);
 
   std::vector<std::pair<std::string, std::vector<float>>> inputs = {
       {"x", x}, {"scale", scale}, {"bias", bias}, {"moving_mean", moving_mean}, {"moving_variance", moving_variance}};
@@ -191,8 +181,11 @@ TEST(nn, BATCH_NORM_TRAIN) {
     CopyFromVector(input.second, tensor, target);
   }
 
-  std::vector<std::pair<std::string, std::vector<float>>> outputs = {
-      {output_names[4], new_moving_variance}, {output_names[3], new_moving_mean}, {output_names[0], y}};
+  std::vector<std::pair<std::string, std::vector<float>>> outputs = {{output_names[4], new_moving_variance},
+                                                                     {output_names[3], new_moving_mean},
+                                                                     {output_names[2], save_variance},
+                                                                     {output_names[1], save_mean},
+                                                                     {output_names[0], y}};
 
   run_program->Execute();
 
@@ -203,7 +196,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
 
     LOG(INFO) << output.first << " " << tensor->shape().numel();
     for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
-      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 2e-4);
+      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-4);
     }
   }
 }
@@ -269,37 +262,111 @@ void cpu_batch_norm_grad(const std::vector<T>& x,
   loop(func_grad_std_variance_2d, n, c, h, w);
 
   for (int idx = 0; idx < c; ++idx) {
-    grad_variance_2d_without_mul->at(idx) = grad_std_variance_2d->at(idx) / save_std_varance[idx];
+    grad_variance_2d_without_mul->at(idx) = 0.5 * grad_std_variance_2d->at(idx) / save_std_varance[idx];
   }
-
   auto func_grad_x0 = [=](int idx, int idy, int idz, int ida) {
     grad_x0->at(idx * c * h * w + idy * h * w + idz * w + ida) =
-        x[idx * c * h * w + idy * h * w + idz * w + ida] * grad_variance_2d_without_mul->at(idy) / (n * h * w);
+        2 * x[idx * c * h * w + idy * h * w + idz * w + ida] * grad_variance_2d_without_mul->at(idy) / (n * h * w);
   };
   loop(func_grad_x0, n, c, h, w);
 
   memset(minus_grad_mean->data(), 0, sizeof(float) * c);
   auto func_minus_grad_mean = [=](int idx, int idy, int idz, int ida) {
-    minus_grad_mean->at(idy) += grad_diff->at(idx * c * h * w + idy * h * w + idz * w + ida);
+    minus_grad_mean->at(idy) += -1 * grad_diff->at(idx * c * h * w + idy * h * w + idz * w + ida);
   };
   loop(func_minus_grad_mean, n, c, h, w);
 
   for (int idx = 0; idx < c; ++idx) {
-    minus_grad_mean->at(idx) += grad_variance_2d_without_mul->at(idx) * save_mean.at(idx);
+    minus_grad_mean->at(idx) += -1 * 2 * grad_variance_2d_without_mul->at(idx) * save_mean.at(idx);
     minus_grad_mean->at(idx) /= (n * h * w);
   }
 
   auto func_grad_x = [=](int idx, int idy, int idz, int ida) {
     dx->at(idx * c * h * w + idy * h * w + idz * w + ida) =
         grad_diff->at(idx * c * h * w + idy * h * w + idz * w + ida) +
-        grad_x0->at(idx * c * h * w + idy * h * w + idz * w + ida) - minus_grad_mean->at(idy);
+        grad_x0->at(idx * c * h * w + idy * h * w + idz * w + ida) + minus_grad_mean->at(idy);
   };
   loop(func_grad_x, n, c, h, w);
 }
 
+void GradX(const std::vector<float>& grad_std_norm,
+           const std::vector<float>& x,
+           const std::vector<float>& mean,
+           const std::vector<float>& variance,
+           int n,
+           int c,
+           int h,
+           int w,
+           float epsilon = 1e-5) {
+  std::vector<float> std_variance(c);
+  for (int idx = 0; idx < c; ++idx) {
+    std_variance[idx] = sqrt(variance[idx] + epsilon);
+  }
+
+  std::vector<float> grad_diff(n * c * h * w);
+  auto func_0 = [&](int idx, int idy, int idz, int ida) {
+    grad_diff[idx * c * h * w + idy * h * w + idz * w + ida] =
+        grad_std_norm[idx * c * h * w + idy * h * w + idz * w + ida] / std_variance[idy];
+  };
+  loop(func_0, n, c, h, w);
+  for (auto value : grad_diff) {
+    std::cerr << value << " ";
+  }
+  std::cerr << std::endl;
+
+  std::vector<float> grad_std_variance(c, 0);
+  auto func_1 = [&](int idx, int idy, int idz, int ida) {
+    grad_std_variance[idy] += -1 * grad_std_norm[idx * c * h * w + idy * h * w + idz * w + ida] *
+                              (x[idx * c * h * w + idy * h * w + idz * w + ida] - mean[idy]) /
+                              (variance[idy] + epsilon);
+  };
+  loop(func_1, n, c, h, w);
+
+  std::vector<float> grad_variance(c);
+  for (int idx = 0; idx < c; ++idx) {
+    grad_variance[idx] = grad_std_variance[idx] * 0.5 / std_variance[idx];
+  }
+
+  for (auto value : grad_variance) {
+    std::cerr << value << " ";
+  }
+  std::cerr << std::endl;
+
+  std::vector<float> grad_square_diff(n * c * h * w);
+  auto func_11 = [&](int idx, int idy, int idz, int ida) {
+    grad_square_diff[idx * c * h * w + idy * h * w + idz * w + ida] =
+        grad_variance[idy] * 2 * (x[idx * c * h * w + idy * h * w + idz * w + ida] - mean[idy]) / float(n * h * w);
+  };
+  loop(func_11, n, c, h, w);
+
+  auto func_2 = [&](int idx, int idy, int idz, int ida) {
+    grad_diff[idx * c * h * w + idy * h * w + idz * w + ida] +=
+        grad_square_diff[idx * c * h * w + idy * h * w + idz * w + ida];
+  };
+  loop(func_2, n, c, h, w);
+
+  std::vector<float> grad_mean(c, 0);
+  auto func_3 = [&](int idx, int idy, int idz, int ida) {
+    grad_mean[idy] += -1 * grad_diff[idx * c * h * w + idy * h * w + idz * w + ida];
+  };
+  loop(func_3, n, c, h, w);
+
+  std::vector<float> grad_x(n * c * h * w);
+  auto func_4 = [&](int idx, int idy, int idz, int ida) {
+    grad_x[idx * c * h * w + idy * h * w + idz * w + ida] =
+        grad_diff[idx * c * h * w + idy * h * w + idz * w + ida] + grad_mean[idy] / (float(n * h * w));
+  };
+  loop(func_4, n, c, h, w);
+
+  for (auto value : grad_x) {
+    std::cerr << value << " ";
+  }
+  std::cerr << std::endl;
+}
+
 TEST(nn, BATCH_NORM_GRAD) {
   // parameter
-  int n = 8, c = 16, h = 4, w = 4;
+  int n = 8, c = 16, h = 8, w = 8;
   int num = n * c * h * w;
   NetBuilder net_builder("net_builder_batch_norm_grad");
   std::vector<std::string> output_names;
@@ -324,21 +391,27 @@ TEST(nn, BATCH_NORM_GRAD) {
   RunDecomposer(&program, target);
 
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
-  auto nodes = std::get<0>(graph->topological_order());
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
   hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto run_program = gc.Build();
 
   // set input
-  std::vector<float> dy(num), x(num), scale(c), save_mean(c), save_variance(c);
+  std::vector<float> dy(num), x(num), scale(c), save_mean(c, 0), save_variance(c, 0);
   InitRandomVector(&dy, num);
   InitRandomVector(&x, num);
   InitRandomVector(&scale, c);
-  InitRandomVector(&save_mean, c);
-  InitRandomVector(&save_variance, c);
+
+  auto func_save_mean = [&](int idx, int idy, int idz, int ida) {
+    save_mean[idy] += x[idx * c * h * w + idy * h * w + idz * w + ida];
+    save_variance[idy] +=
+        x[idx * c * h * w + idy * h * w + idz * w + ida] * x[idx * c * h * w + idy * h * w + idz * w + ida];
+  };
+  loop(func_save_mean, n, c, h, w);
   for (int idx = 0; idx < c; ++idx) {
-    save_variance[idx] = abs(save_variance[idx]);
+    save_mean[idx] /= float(n * h * w);
+    save_variance[idx] /= float(n * h * w);
+    save_variance[idx] -= (save_mean[idx] * save_mean[idx]);
   }
 
   std::vector<std::pair<std::string, std::vector<float>>> inputs = {
@@ -351,7 +424,7 @@ TEST(nn, BATCH_NORM_GRAD) {
   run_program->Execute();
 
   std::vector<float> dx(num), dscale(c), dbias(c);
-  std::vector<float> grad_std_norm(num), grad_diff(num), grad_std_variance_1d(c), grad_variance_2d_without_mul(c),
+  std::vector<float> grad_std_norm(num), grad_diff(num), grad_std_variance_1d(c), grad_variance_1d_without_mul(c),
       grad_x0(num), minus_grad_mean(c);
 
   cpu_batch_norm_grad(x,
@@ -369,9 +442,10 @@ TEST(nn, BATCH_NORM_GRAD) {
                       &grad_std_norm,
                       &grad_diff,
                       &grad_std_variance_1d,
-                      &grad_variance_2d_without_mul,
+                      &grad_variance_1d_without_mul,
                       &grad_x0,
                       &minus_grad_mean);
+  // GradX(grad_std_norm, x, save_mean, save_variance, n, c, h , w);
 
   std::vector<std::pair<std::string, std::vector<float>>> outputs = {
       {output_names[2], dbias},
@@ -385,7 +459,7 @@ TEST(nn, BATCH_NORM_GRAD) {
     CopyToVector(tensor, &data);
     LOG(INFO) << output.first << " " << tensor->shape().numel();
     for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
-      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 2e-4);
+      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-3);
     }
   }
 }

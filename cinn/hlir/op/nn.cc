@@ -1929,7 +1929,7 @@ std::vector<framework::shape_t> InferShapeForBatchNormTrain(const std::vector<fr
     CHECK_EQ(inputs_shape[0][3], inputs_shape[3][0]) << "x and moveing_mean dimension size is not equal!";
     CHECK_EQ(inputs_shape[0][3], inputs_shape[4][0]) << "x and moveing_variance dimension size is not equal!";
   } else {
-    LOG(FATAL) << "data layout shape is not support!";
+    LOG(FATAL) << "data_layout " << data_layout << " is not support!";
   }
 
   return {inputs_shape[0], inputs_shape[1], inputs_shape[1], inputs_shape[1], inputs_shape[1]};
@@ -1977,7 +1977,7 @@ std::vector<framework::shape_t> InferShapeForBatchNormGrad(const std::vector<fra
     CHECK_EQ(inputs_shape[0][3], inputs_shape[3][0]) << "dy and moveing_mean dimension size is not equal!";
     CHECK_EQ(inputs_shape[0][3], inputs_shape[4][0]) << "dy and moveing_variance dimension size is not equal!";
   } else {
-    LOG(FATAL) << "data layout shape is not support!";
+    LOG(FATAL) << "data_layout " << data_layout << " is not support!";
   }
 
   return {inputs_shape[0], inputs_shape[2], inputs_shape[2]};

@@ -133,8 +133,8 @@ class NetBuilder : public BaseBuilder {
                                          const std::string& data_layout = "NCHW");
 
   // batch norm grad, output(grad_x, grad_scale, grad_bias)
-  std::vector<Variable> batch_norm_grad(const Variable& x,
-                                        const Variable& dy,
+  std::vector<Variable> batch_norm_grad(const Variable& dy,
+                                        const Variable& x,
                                         const Variable& scale,
                                         const Variable& save_mean,
                                         const Variable& save_variance,
