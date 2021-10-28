@@ -48,7 +48,9 @@ class CUDAModule {
     // TODO(Superjomn) Determine whether to initialize all the devices.
     cuInit(0);
     cuDeviceGet(&device_, 0);
-    cuCtxCreate(&context_, 0, device_);
+    // cuCtxCreate(&context_, 0, device_);
+    cuCtxGetCurrent(&context_);
+    cuDevicePrimaryCtxRetain(&context_, device_);
   }
 
   void LaunchKernel(int device_id,
