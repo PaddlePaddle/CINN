@@ -1929,6 +1929,33 @@ std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<fram
 std::vector<framework::shape_t> InferShapeForBatchNormTrain(const std::vector<framework::shape_t> &inputs_shape,
                                                             const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 5U) << "The input's layout size is not 5! Please check again.";
+  std::string data_layout = "";
+  if (attrs.find("data_layout") != attrs.end()) {
+    data_layout = absl::get<std::string>(attrs.at("data_layout"));
+  } else {
+    LOG(FATAL) << "data_layout is not found, please check!";
+  }
+
+  CHECK_EQ(inputs_shape[0].size(), 4) << "x dimension size is not required!";
+  CHECK_EQ(inputs_shape[1].size(), 1) << "scale dimension size is not required!";
+  CHECK_EQ(inputs_shape[2].size(), 1) << "bias dimension size is not required!";
+  CHECK_EQ(inputs_shape[3].size(), 1) << "moving_mean dimension size is not required!";
+  CHECK_EQ(inputs_shape[4].size(), 1) << "moving_variance dimension size is not required!";
+
+  if (data_layout == "NCHW") {
+    CHECK_EQ(inputs_shape[0][1], inputs_shape[1][0]) << "x and scale dimension is not equal!";
+    CHECK_EQ(inputs_shape[0][1], inputs_shape[2][0]) << "x and bias dimension size is not equal!";
+    CHECK_EQ(inputs_shape[0][1], inputs_shape[3][0]) << "x and moveing_mean dimension size is not equal!";
+    CHECK_EQ(inputs_shape[0][1], inputs_shape[4][0]) << "x and moveing_variance dimension size is not equal!";
+  } else if (data_layout == "NHWC") {
+    CHECK_EQ(inputs_shape[0][3], inputs_shape[1][0]) << "x and scale dimension is not equal!";
+    CHECK_EQ(inputs_shape[0][3], inputs_shape[2][0]) << "x and bias dimension size is not equal!";
+    CHECK_EQ(inputs_shape[0][3], inputs_shape[3][0]) << "x and moveing_mean dimension size is not equal!";
+    CHECK_EQ(inputs_shape[0][3], inputs_shape[4][0]) << "x and moveing_variance dimension size is not equal!";
+  } else {
+    LOG(FATAL) << "data_layout " << data_layout << " is not support!";
+  }
+
   return {inputs_shape[0], inputs_shape[1], inputs_shape[1], inputs_shape[1], inputs_shape[1]};
 }
 
@@ -1945,6 +1972,45 @@ std::shared_ptr<OpStrategy> StrategyForGradOp(const framework::NodeAttr &attrs,
                                               const Target &target) {
   LOG(FATAL)
       << "Gradient operator will be decomposed into several primitive operators. Please Use Decomposer Program Pass.";
+}
+
+// batch norm grad
+std::vector<framework::shape_t> InferShapeForBatchNormGrad(const std::vector<framework::shape_t> &inputs_shape,
+                                                           const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 5U) << "The input's layout size is not 5! Please check again.";
+  std::string data_layout = "";
+  if (attrs.find("data_layout") != attrs.end()) {
+    data_layout = absl::get<std::string>(attrs.at("data_layout"));
+  } else {
+    LOG(FATAL) << "data_layout is not found, please check!";
+  }
+
+  CHECK_EQ(inputs_shape[0].size(), 4) << "dy dimension size is not required!";
+  CHECK_EQ(inputs_shape[1].size(), 4) << "x dimension size is not required!";
+  CHECK_EQ(inputs_shape[2].size(), 1) << "scale dimension size is not required!";
+  CHECK_EQ(inputs_shape[3].size(), 1) << "save_mean dimension size is not required!";
+  CHECK_EQ(inputs_shape[4].size(), 1) << "save_variance dimension size is not required!";
+
+  CHECK(inputs_shape[0] == inputs_shape[1]) << "dy and x shape is not equal!";
+  if (data_layout == "NCHW") {
+    CHECK_EQ(inputs_shape[0][1], inputs_shape[2][0]) << "dy and bias dimension size is not equal!";
+    CHECK_EQ(inputs_shape[0][1], inputs_shape[3][0]) << "dy and moveing_mean dimension size is not equal!";
+    CHECK_EQ(inputs_shape[0][1], inputs_shape[4][0]) << "dy and moveing_variance dimension size is not equal!";
+  } else if (data_layout == "NHWC") {
+    CHECK_EQ(inputs_shape[0][3], inputs_shape[2][0]) << "dy and bias dimension size is not equal!";
+    CHECK_EQ(inputs_shape[0][3], inputs_shape[3][0]) << "dy and moveing_mean dimension size is not equal!";
+    CHECK_EQ(inputs_shape[0][3], inputs_shape[4][0]) << "dy and moveing_variance dimension size is not equal!";
+  } else {
+    LOG(FATAL) << "data_layout " << data_layout << " is not support!";
+  }
+
+  return {inputs_shape[0], inputs_shape[2], inputs_shape[2]};
+}
+
+std::vector<Type> InferDtypeForBatchNormGrad(const std::vector<Type> &inputs_type,
+                                             const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  return {inputs_type[0], inputs_type[0], inputs_type[0]};
 }
 
 // conv2d grad
@@ -2174,6 +2240,14 @@ CINN_REGISTER_HELPER(nn_grad_ops) {
       .set_num_outputs(5)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBatchNormTrain))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBatchNormTrain))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(batch_norm_grad)
+      .describe("This operator implements the batch normalization backward.")
+      .set_num_inputs(5)
+      .set_num_outputs(3)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBatchNormGrad))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBatchNormGrad))
       .set_support_level(4);
 
   CINN_REGISTER_OP(conv2d_grad)
