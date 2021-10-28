@@ -95,6 +95,9 @@ class OpTest(unittest.TestCase):
     def check_results(self, expect_res, actual_res):
         self.assertEqual(len(expect_res), len(actual_res))
         for i in range(len(expect_res)):
+            if expect_res[i] is None:
+                continue
+
             logger.debug("Check the %d -th Result..." % i)
             self.assertTrue(
                 np.allclose(expect_res[i], actual_res[i], atol=1e-6))
