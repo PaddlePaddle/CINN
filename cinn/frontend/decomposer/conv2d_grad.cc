@@ -20,9 +20,9 @@ namespace decomposer {
 
 // conv2d backward data/filter
 void conv2d_grad(const Instruction& instr, const DecomposerContext& context) {
-  auto& x  = instr->inputs[0];
-  auto& w  = instr->inputs[1];
-  auto& dy = instr->inputs[2];
+  auto& dy = instr->inputs[0];
+  auto& x  = instr->inputs[1];
+  auto& w  = instr->inputs[2];
 
   CinnBuilder* builder = context.builder();
   // create backward data

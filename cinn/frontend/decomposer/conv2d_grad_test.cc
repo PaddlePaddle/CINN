@@ -53,11 +53,11 @@ TEST(nn, CONV_GRAD) {
   NetBuilder net_builder("net_builder");
   {
     // create input
+    auto dy     = net_builder.CreateInput(Float(32), {n, oc, h, w}, "dy");
     auto x      = net_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
     auto weight = net_builder.CreateInput(Float(32), {oc, ic, fh, fw}, "weight");
-    auto dy     = net_builder.CreateInput(Float(32), {n, oc, h, w}, "dy");
     // add batch norm train
-    auto outputs = net_builder.conv2d_grad(x, weight, dy, strides, paddings, dilations);
+    auto outputs = net_builder.conv2d_grad(dy, x, weight, strides, paddings, dilations);
   }
   // build program
   auto program = net_builder.Build();

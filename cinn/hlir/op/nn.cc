@@ -387,17 +387,17 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   int group               = 1;
   std::string data_format = "NCHW";
   std::string conv_type   = "";
-  if (attrs.find("padding") != attrs.end()) {
-    padding = absl::get<std::vector<int>>(attrs.at("padding"));
+  if (attrs.find("paddings") != attrs.end()) {
+    padding = absl::get<std::vector<int>>(attrs.at("paddings"));
   }
-  if (attrs.find("stride") != attrs.end()) {
-    stride = absl::get<std::vector<int>>(attrs.at("stride"));
+  if (attrs.find("strides") != attrs.end()) {
+    stride = absl::get<std::vector<int>>(attrs.at("strides"));
   }
-  if (attrs.find("dilation") != attrs.end()) {
-    dilation = absl::get<std::vector<int>>(attrs.at("dilation"));
+  if (attrs.find("dilations") != attrs.end()) {
+    dilation = absl::get<std::vector<int>>(attrs.at("dilations"));
   }
-  if (attrs.find("group") != attrs.end()) {
-    group = absl::get<int>(attrs.at("group"));
+  if (attrs.find("groups") != attrs.end()) {
+    group = absl::get<int>(attrs.at("groups"));
   }
   if (attrs.find("data_format") != attrs.end()) {
     data_format = absl::get<std::string>(attrs.at("data_format"));
@@ -1938,7 +1938,10 @@ std::shared_ptr<OpStrategy> StrategyForGradOp(const framework::NodeAttr &attrs,
 std::vector<framework::shape_t> InferShapeForConv2dGrad(const std::vector<framework::shape_t> &inputs_shape,
                                                         const framework::AttrMapType &attrs) {
   CHECK_EQ(inputs_shape.size(), 3U) << "The input's layout size is not 3! Please check again.";
-  return {inputs_shape[0], inputs_shape[1]};
+  CHECK_EQ(inputs_shape[0].size(), 4U) << "Dy shape is not 4, Please check again.";
+  CHECK_EQ(inputs_shape[1].size(), 4U) << "Dy shape is not 4, Please check again.";
+  CHECK_EQ(inputs_shape[2].size(), 4U) << "Dy shape is not 4, Please check again.";
+  return {inputs_shape[1], inputs_shape[2]};
 }
 
 std::vector<Type> InferDtypeForConv2dGrad(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {

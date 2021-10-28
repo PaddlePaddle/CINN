@@ -255,7 +255,7 @@ std::vector<Variable> NetBuilder::conv2d_grad(const Variable& dy,
                                               const int groups,
                                               const std::string& data_format,
                                               const std::string& padding_algorithm) {
-  Instruction instr("conv2d_grad", {x, w, dy});
+  Instruction instr("conv2d_grad", {dy, x, w});
   instr.SetAttr<std::vector<int>>("strides", strides);
   instr.SetAttr<std::vector<int>>("paddings", paddings);
   instr.SetAttr<std::vector<int>>("dilations", dilations);
