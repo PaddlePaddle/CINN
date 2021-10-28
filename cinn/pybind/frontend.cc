@@ -361,6 +361,25 @@ void BindFrontend(pybind11::module *m) {
            py::arg("epsilon")     = 1e-5f,
            py::arg("momentum")    = 0.9f,
            py::arg("data_layout") = "NCHW")
+      .def("batch_norm_train",
+           &NetBuilder::batch_norm_train,
+           py::arg("x"),
+           py::arg("scale"),
+           py::arg("bias"),
+           py::arg("moving_mean"),
+           py::arg("moving_variance"),
+           py::arg("epsilon")     = 1e-5,
+           py::arg("momentum")    = 0.9f,
+           py::arg("data_layout") = "NCHW")
+      .def("batch_norm_grad",
+           &NetBuilder::batch_norm_grad,
+           py::arg("dy"),
+           py::arg("x"),
+           py::arg("scale"),
+           py::arg("save_mean"),
+           py::arg("save_variance"),
+           py::arg("epsilon")     = 1e-5,
+           py::arg("data_layout") = "NCHW")
       .def("scale",
            &NetBuilder::scale,
            py::arg("a"),
@@ -381,17 +400,7 @@ void BindFrontend(pybind11::module *m) {
            &NetBuilder::dropout_infer,
            py::arg("a"),
            py::arg("dropout_prob")           = 0.5f,
-           py::arg("dropout_implementation") = "downgrade_in_infer")
-      .def("batch_norm_train",
-           &NetBuilder::batch_norm_train,
-           py::arg("x"),
-           py::arg("scale"),
-           py::arg("bias"),
-           py::arg("moving_mean"),
-           py::arg("moving_variance"),
-           py::arg("epsilon")     = 1e-6,
-           py::arg("momentum")    = 0.9f,
-           py::arg("data_layout") = "NCHW");
+           py::arg("dropout_implementation") = "downgrade_in_infer");
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
