@@ -56,7 +56,7 @@ void elementwise_add(const Instruction& instr, const DecomposerContext& context)
   auto y        = instr->inputs[1];
   auto output   = instr->outputs[0];
   int axis      = instr.GetAttrs<int>("axis");
-  axis          = axis > 0 ? axis : x->shape.size() - y->shape.size();
+  axis          = axis >= 0 ? axis : x->shape.size() - y->shape.size();
   auto* builder = context.builder();
 
   Variable out;
@@ -91,7 +91,7 @@ void elementwise_add_grad(const Instruction& instr, const DecomposerContext& con
   auto dx       = instr->outputs[0];
   auto dy       = instr->outputs[1];
   int axis      = instr.GetAttrs<int>("axis");
-  axis          = axis > 0 ? axis : dx->shape.size() - dy->shape.size();
+  axis          = axis >= 0 ? axis : dx->shape.size() - dy->shape.size();
   auto* builder = context.builder();
 
   Variable dx_t;

@@ -19,12 +19,17 @@
 
 #include "cinn/common/common.h"
 #include "cinn/frontend/cinn_builder.h"
+#include "cinn/frontend/decomposer/use_decomposer.h"
+#include "cinn/frontend/decomposer_registry.h"
 #include "cinn/frontend/interpreter.h"
 #include "cinn/frontend/net_builder.h"
+#include "cinn/frontend/pass/use_program_pass.h"
+#include "cinn/frontend/program_pass.h"
 #include "cinn/frontend/syntax.h"
 #include "cinn/hlir/framework/graph.h"
 #include "cinn/hlir/framework/graph_compiler.h"
 #include "cinn/hlir/framework/pass.h"
+#include "cinn/hlir/framework/tensor.h"
 #include "cinn/hlir/op/use_ops.h"
 #include "cinn/pybind/bind.h"
 #include "cinn/utils/string.h"
@@ -125,12 +130,10 @@ void BindFrontend(pybind11::module *m) {
               const common::Target &target,
               const std::vector<Variable> &tensor_inputs,
               const std::vector<py::array> &input_data,
-              const Variable &tensor_out) {
+              const std::vector<Variable> &tensor_outputs) {
              std::shared_ptr<hlir::framework::Graph> g(new hlir::framework::Graph(self, target));
              hlir::framework::ApplyPass(g.get(), "InferShape");
-             if (target.arch == Target::Arch::NVGPU) {
-               hlir::framework::ApplyPass(g.get(), "OpFusion");
-             }
+             hlir::framework::ApplyPass(g.get(), "OpFusion");
              std::shared_ptr<hlir::framework::Scope> scope = hlir::framework::BuildScope(target, g);
              hlir::framework::GraphCompiler gc(target, scope, g);
              auto program = gc.Build();
@@ -158,9 +161,16 @@ void BindFrontend(pybind11::module *m) {
                }
              }
              program->Execute();
-             auto out = scope->GetTensor(tensor_out->id);
-             return out;
+
+             std::vector<hlir::framework::Tensor> outputs;
+             for (size_t i = 0; i < tensor_outputs.size(); i++) {
+               outputs.push_back(scope->GetTensor(tensor_outputs[i]->id));
+             }
+
+             return outputs;
            })
+      .def("apply_pass", &ProgramPass::Apply)
+
       /**
        * @brief Test the performance of a single-op program
        * @param self The program built with only one op
@@ -314,6 +324,12 @@ void BindFrontend(pybind11::module *m) {
            py::arg("x_num_col_dims") = 1,
            py::arg("y_num_col_dims") = 1)
       .def("elementwise_add", &NetBuilder::elementwise_add, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
+      .def("elementwise_add_grad",
+           &NetBuilder::elementwise_add_grad,
+           py::arg("dout"),
+           py::arg("x"),
+           py::arg("y"),
+           py::arg("axis") = -1)
       .def("elementwise_mul", &NetBuilder::elementwise_mul, py::arg("a"), py::arg("b"), py::arg("axis") = -1)
       .def("relu", &NetBuilder::relu, py::arg("a"))
       .def("relu_grad", &NetBuilder::relu_grad, py::arg("dout"), py::arg("out"))
@@ -411,7 +427,8 @@ void BindFrontend(pybind11::module *m) {
            py::arg("dilations")         = std::vector<int>{1, 1},
            py::arg("groups")            = 1,
            py::arg("data_format")       = "NCHW",
-           py::arg("padding_algorithm") = "EXPLICIT");
+           py::arg("padding_algorithm") = "EXPLICIT")
+      .def("sum", &NetBuilder::sum, py::arg("inputs"));
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")

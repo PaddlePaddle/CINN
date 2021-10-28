@@ -40,6 +40,14 @@ void BindObject(py::module *);
 void BindShared(py::module *);
 void BindCinnValue(py::module *);
 
+bool IsCompiledWithCUDA() {
+#if !defined(CINN_WITH_CUDA)
+  return false;
+#else
+  return true;
+#endif
+}
+
 void BindTarget(py::module *m) {
   py::class_<Target> target(*m, "Target");
   target.def_readwrite("os", &Target::os)
@@ -67,6 +75,8 @@ void BindTarget(py::module *m) {
 
   py::enum_<Target::Feature> feature(target, "Feature");
   feature.value("JIT", Target::Feature::JIT).value("Debug", Target::Feature::Debug);
+
+  m->def("is_compiled_with_cuda", IsCompiledWithCUDA);
 }
 
 void BindType(py::module *m) {
