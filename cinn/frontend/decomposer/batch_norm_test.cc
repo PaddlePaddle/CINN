@@ -196,7 +196,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
 
     LOG(INFO) << output.first << " " << tensor->shape().numel();
     for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
-      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-4);
+      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-3);
     }
   }
 }
