@@ -209,9 +209,9 @@ TEST(Instruction, CONV_FORWARD) {
   auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
 
   absl::flat_hash_map<std::string, AttrType> attrs_map;
-  attrs_map["paddings"]     = std::vector<int>({ph, pw});
-  attrs_map["strides"]      = std::vector<int>({sh, sw});
-  attrs_map["dilations"]    = std::vector<int>({dila_h, dila_w});
+  attrs_map["padding"]      = std::vector<int>({ph, pw});
+  attrs_map["stride"]       = std::vector<int>({sh, sw});
+  attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});
   attrs_map["data_format"]  = std::string("NCHW");
   attrs_map["conv_type"]    = std::string("forward");
   attrs_map["filter_shape"] = std::vector<int>({fn, fc, fh, fw});
@@ -288,9 +288,9 @@ TEST(Instruction, CONV_BACKWARD_DATA) {
   auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
 
   absl::flat_hash_map<std::string, AttrType> attrs_map;
-  attrs_map["paddings"]     = std::vector<int>({ph, pw});
-  attrs_map["strides"]      = std::vector<int>({sh, sw});
-  attrs_map["dilations"]    = std::vector<int>({dila_h, dila_w});
+  attrs_map["padding"]      = std::vector<int>({ph, pw});
+  attrs_map["stride"]       = std::vector<int>({sh, sw});
+  attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});
   attrs_map["data_format"]  = std::string("NCHW");
   attrs_map["conv_type"]    = std::string("backward_data");
   attrs_map["filter_shape"] = std::vector<int>({fn, fc, fh, fw});
@@ -367,9 +367,9 @@ TEST(Instruction, CONV_BACKWARD_FILTER) {
   auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
 
   absl::flat_hash_map<std::string, AttrType> attrs_map;
-  attrs_map["paddings"]     = std::vector<int>({ph, pw});
-  attrs_map["strides"]      = std::vector<int>({sh, sw});
-  attrs_map["dilations"]    = std::vector<int>({dila_h, dila_w});
+  attrs_map["padding"]      = std::vector<int>({ph, pw});
+  attrs_map["stride"]       = std::vector<int>({sh, sw});
+  attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});
   attrs_map["data_format"]  = std::string("NCHW");
   attrs_map["conv_type"]    = std::string("backward_filter");
   attrs_map["filter_shape"] = std::vector<int>({fn, fc, fh, fw});

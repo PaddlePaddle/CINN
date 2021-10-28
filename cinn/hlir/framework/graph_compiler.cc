@@ -450,11 +450,11 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
             auto in_shape     = shape_dict.at(in_id);
             instr->attrs.insert(instr->attrs.end(), in_shape.begin(), in_shape.end());
           }
-          // paddings strides dilations  groups
-          AddAttrs(node->attrs.attr_store, {"paddings", "strides", "dilations"}, instr.get());
+          // padding stride dilation  group
+          AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
           if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
-            auto groups = absl::get<int>(node->attrs.attr_store.at("groups"));
-            instr->attrs.push_back(groups);
+            auto _group = absl::get<int>(node->attrs.attr_store.at("groups"));
+            instr->attrs.push_back(_group);
           } else {
             instr->attrs.push_back(1);
           }

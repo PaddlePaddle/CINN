@@ -59,6 +59,7 @@ TEST(nn, CONV_GRAD) {
     // add batch norm train
     auto outputs = net_builder.conv2d_grad(dy, x, weight, strides, paddings, dilations);
   }
+
   // build program
   auto program = net_builder.Build();
   auto target  = common::DefaultNVGPUTarget();

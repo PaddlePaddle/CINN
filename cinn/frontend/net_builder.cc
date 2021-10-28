@@ -289,6 +289,8 @@ std::vector<Variable> NetBuilder::conv2d_grad(const Variable& dy,
   instr.SetAttr<std::string>("padding_algorithm", padding_algorithm);
 
   InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
 }
 
 }  // namespace frontend

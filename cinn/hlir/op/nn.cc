@@ -149,14 +149,14 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   int groups              = 1;
   std::string key         = "";
   std::string conv_type   = "";
-  if (attrs.attr_store.find("paddings") != attrs.attr_store.end()) {
-    padding = absl::get<std::vector<int>>(attrs.attr_store.at("paddings"));
+  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
+    padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
-  if (attrs.attr_store.find("strides") != attrs.attr_store.end()) {
-    stride = absl::get<std::vector<int>>(attrs.attr_store.at("strides"));
+  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
+    stride = absl::get<std::vector<int>>(attrs.attr_store.at("stride"));
   }
-  if (attrs.attr_store.find("dilations") != attrs.attr_store.end()) {
-    dilation = absl::get<std::vector<int>>(attrs.attr_store.at("dilations"));
+  if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
+    dilation = absl::get<std::vector<int>>(attrs.attr_store.at("dilation"));
   }
   if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
     data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
@@ -387,17 +387,17 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   int group               = 1;
   std::string data_format = "NCHW";
   std::string conv_type   = "";
-  if (attrs.find("paddings") != attrs.end()) {
-    padding = absl::get<std::vector<int>>(attrs.at("paddings"));
+  if (attrs.find("padding") != attrs.end()) {
+    padding = absl::get<std::vector<int>>(attrs.at("padding"));
   }
-  if (attrs.find("strides") != attrs.end()) {
-    stride = absl::get<std::vector<int>>(attrs.at("strides"));
+  if (attrs.find("stride") != attrs.end()) {
+    stride = absl::get<std::vector<int>>(attrs.at("stride"));
   }
-  if (attrs.find("dilations") != attrs.end()) {
-    dilation = absl::get<std::vector<int>>(attrs.at("dilations"));
+  if (attrs.find("dilation") != attrs.end()) {
+    dilation = absl::get<std::vector<int>>(attrs.at("dilation"));
   }
-  if (attrs.find("groups") != attrs.end()) {
-    group = absl::get<int>(attrs.at("groups"));
+  if (attrs.find("group") != attrs.end()) {
+    group = absl::get<int>(attrs.at("group"));
   }
   if (attrs.find("data_format") != attrs.end()) {
     data_format = absl::get<std::string>(attrs.at("data_format"));

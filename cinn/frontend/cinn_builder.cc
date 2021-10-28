@@ -104,9 +104,9 @@ Variable CinnBuilder::Conv(const Variable& lhs,
                            const std::vector<int>& filter_shape) {
   Instruction instr("conv2d");
   instr.SetInputs({lhs, rhs});
-  instr.SetAttr("strides", strides);
-  instr.SetAttr("paddings", paddings);
-  instr.SetAttr("dilations", dilations);
+  instr.SetAttr("stride", strides);
+  instr.SetAttr("padding", paddings);
+  instr.SetAttr("dilation", dilations);
   instr.SetAttr("groups", groups);
   instr.SetAttr("conv_type", conv_type);
   instr.SetAttr("data_format", data_format);
