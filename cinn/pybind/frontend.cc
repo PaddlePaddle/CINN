@@ -417,16 +417,6 @@ void BindFrontend(pybind11::module *m) {
            py::arg("a"),
            py::arg("dropout_prob")           = 0.5f,
            py::arg("dropout_implementation") = "downgrade_in_infer")
-      .def("batch_norm_train",
-           &NetBuilder::batch_norm_train,
-           py::arg("x"),
-           py::arg("scale"),
-           py::arg("bias"),
-           py::arg("moving_mean"),
-           py::arg("moving_variance"),
-           py::arg("epsilon")     = 1e-6,
-           py::arg("momentum")    = 0.9f,
-           py::arg("data_layout") = "NCHW")
       .def("sum", &NetBuilder::sum, py::arg("inputs"));
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")

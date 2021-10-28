@@ -16,7 +16,7 @@
 
 import unittest
 import numpy as np
-from op_test import OpTest
+from op_test import OpTest, OpTestTool
 import paddle
 import paddle.nn.functional as F
 import cinn
@@ -24,6 +24,8 @@ from cinn.frontend import *
 from cinn.common import *
 
 
+@OpTestTool.skip_if(not is_compiled_with_cuda(),
+                    "x86 test will be skipped due to timeout.")
 class TestReluOp(OpTest):
     def setUp(self):
         self.init_case()

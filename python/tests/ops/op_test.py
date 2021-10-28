@@ -98,3 +98,9 @@ class OpTest(unittest.TestCase):
             logger.debug("Check the %d -th Result..." % i)
             self.assertTrue(
                 np.allclose(expect_res[i], actual_res[i], atol=1e-6))
+
+
+class OpTestTool:
+    @classmethod
+    def skip_if(cls, condition: object, reason: str):
+        return unittest.skipIf(condition, reason)
