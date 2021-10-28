@@ -67,48 +67,24 @@ def FuseRepeatedFCRelu2 : Pat<(PD_FusedRepeatedFCRelu (PD_FusedRepeatedFCRelu $x
 //   w_ = scale * w / sqrt(var + eps)
 //   b_ = B + scale * (b - mean) / sqrt(var + eps)
 //
-// Hence, we rewrite: 
-//   onnx.BatchNormalizationInferenceMode(
-//       onnx.Conv(x, w, b),
-//       scale, B, mean, var
-//   ) {eps = ...}
-//
-// as:
-//    onnx.Conv(x, w_, b_)
-//    
-//    where
-//      w_ = scale * w / sqrt(var + eps)
-//      b_ = B + scale * (b - mean) / sqrt(var + eps)
-//
 //===----------------------------------------------------------------------===//
-//def FuseBatchNormWithConvPattern: Pat<
-//  (BatchNorm:$res
-//    (ConvOp $x, $w, $b,
-//                $auto_pad, $dilation, $group, $kernel_shape, $pads, $strides),
-//    $scale, $B, $mean, $var, $epsilon, $momentum),
-//  (ConvOp
-//     $x,
-//     // w_
-//     (MulOp
-//        $w,
-//        (UnsqueezeV11Op
-//           (DivOp:$coefficientW
-//              $scale,
-//              (SqrtOp
-//                (AddOp
-//                    $var,
-//                    (ConstantOpFromDenseAttr
-//                       (createDenseElementsAttrFromFloatAttr $res, $epsilon))))),
-//           (createArrayAttrOfOneToRankOf $w))),
-//    // b_
-//     (AddOp
-//        $B,
-//        (MulOp
-//           $coefficientW,
-//           (subtractOrNeg $res, $b, $mean))),
-//
-//     $auto_pad, $dilation, $group, $kernel_shape, $pads, $strides),
-//     [], (addBenefit 1)
-//>;
+def FuseBatchNormWithConvPattern: Pat<
+    (PD_BatchNormOp
+        (PD_Conv2dOp $input, $filter, $bias),
+        $scale, $bias_2, $mean, $var, $epsilon),
+    (PD_Conv2dOp
+        $input,
+        (PD_MulOp $filter,
+            (PD_ElementwiseDiv:$coefficientW
+                $scale,
+                (PD_SqrtOp (PD_ElementwiseAdd $var, (PD_ConstantOp $epsilon), (CINN_createI32Attr<"1">))),
+                (CINN_createI32Attr<"1">))),
+        (PD_ElementwiseAdd
+            $bias,
+            (PD_MulOp 
+                (PD_ElementwiseSub $bias, $mean, (CINN_createI32Attr<"1">)),
+                $coefficientW),
+            (CINN_createI32Attr<"1">)))
+>;
 
 #endif // CINNRT_REWRITE
