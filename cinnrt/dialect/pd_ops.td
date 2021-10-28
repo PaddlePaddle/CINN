@@ -21,6 +21,22 @@ def PD_FeedOp : PD_Op<"Feed", [NoSideEffect]> {
   }];
 }
 
+def PD_ConstantOp : PD_Op<"Constant", [NoSideEffect, ConstantLike]> {
+  let summary = "constant Op";
+
+  let description = [{
+  }];
+
+  let arguments = (ins ElementsAttr:$value);
+  let results = (outs PD_Tensor:$out);
+
+  let builders = [
+    OpBuilder<"OpBuilder &builder, OperationState &state, Attribute value">,
+    OpBuilder<"OpBuilder &builder, OperationState &state, Type type, Attribute value">
+  ];
+  let hasFolder = 1;
+}
+
 def PD_AbsOp : PD_Op<"Abs", [NoSideEffect]> {
   let summary = "Computes the absolute value of a tensor";
 
@@ -31,7 +47,17 @@ def PD_AbsOp : PD_Op<"Abs", [NoSideEffect]> {
   let results = (outs PD_Tensor:$y);
 }
 
-def PD_ReluOp : PD_Op<"Relu", [NoSideEffect]> {
+def PD_SqrtOp : PD_Op<"sqrt", [NoSideEffect, SameOperandsAndResultType]> {
+  let summary = "Computes the sqrt value of a tensor";
+
+  let description = [{
+  }];
+
+  let arguments = (ins PD_Tensor:$x);
+  let results = (outs PD_Tensor:$y);
+}
+
+def PD_ReluOp : PD_Op<"Relu", [NoSideEffect, SameOperandsAndResultType]> {
   let summary = "Computes the Relu of a tensor";
 
   let description = [{
@@ -42,7 +68,7 @@ def PD_ReluOp : PD_Op<"Relu", [NoSideEffect]> {
   let hasCanonicalizer = 1;
 }
 
-def PD_Relu6Op : PD_Op<"Relu6", [NoSideEffect]> {
+def PD_Relu6Op : PD_Op<"Relu6", [NoSideEffect, SameOperandsAndResultType]> {
   let summary = "Computes the Relu6 of a tensor";
 
   let description = [{
@@ -52,23 +78,47 @@ def PD_Relu6Op : PD_Op<"Relu6", [NoSideEffect]> {
   let results = (outs PD_Tensor:$y);
 }
 
-def PD_ElementwiseAdd : PD_Op<"ElementwiseAdd", [NoSideEffect]> {
+def PD_ElementwiseAdd : PD_Op<"ElementwiseAdd", [NoSideEffect, Commutative, DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
   let summary = "ElementwiseAdd Op";
   let description = [{
   }];
 
-  let arguments = (ins PD_Tensor:$x, PD_Tensor:$y, I32Attr:$axis);
+  let arguments = (ins PD_Tensor:$x, PD_Tensor:$y, DefaultValuedAttr<I32Attr, "-1">:$axis);
   let results = (outs PD_Tensor:$out);
 
+  let builders = [
+    OpBuilder<"OpBuilder &builder, OperationState &state, Attribute value">,
+    OpBuilder<"OpBuilder &builder, OperationState &state, Type type, Attribute value">
+  ];
+
   let hasCanonicalizer = 1;
+  let hasFolder = 1;
 }
 
-def PD_ElementwiseMul : PD_Op<"ElementwiseMul", [NoSideEffect]> {
+def PD_ElementwiseSub : PD_Op<"ElementwiseSub", [NoSideEffect, DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+  let summary = "ElementwiseSub Op";
+  let description = [{
+  }];
+
+  let arguments = (ins PD_Tensor:$x, PD_Tensor:$y, DefaultValuedAttr<I32Attr, "-1">:$axis);
+  let results = (outs PD_Tensor:$out);
+}
+
+def PD_ElementwiseMul : PD_Op<"ElementwiseMul", [NoSideEffect, Commutative, DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
   let summary = "ElementwiseMul Op";
   let description = [{
   }];
 
-  let arguments = (ins PD_Tensor:$x, PD_Tensor:$y, I32Attr:$axis);
+  let arguments = (ins PD_Tensor:$x, PD_Tensor:$y, DefaultValuedAttr<I32Attr, "-1">:$axis);
+  let results = (outs PD_Tensor:$out);
+}
+
+def PD_ElementwiseDiv : PD_Op<"ElementwiseDiv", [NoSideEffect, DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+  let summary = "ElementwiseDiv Op";
+  let description = [{
+  }];
+
+  let arguments = (ins PD_Tensor:$x, PD_Tensor:$y, DefaultValuedAttr<I32Attr, "-1">:$axis);
   let results = (outs PD_Tensor:$out);
 }
 
@@ -84,6 +134,40 @@ def PD_MatmulOp : PD_Op<"Matmul", [NoSideEffect]> {
   let results = (outs PD_Tensor:$out);
 
   //let hasCanonicalizer = 1;
+}
+
+def PD_MulOp : PD_Op<"mul", [NoSideEffect, DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+  let summary = "paddle mul op";
+  let description = [{}];
+
+  let arguments = (ins PD_Tensor:$x, PD_Tensor:$y);
+  let results = (outs PD_Tensor:$out);
+
+  //let hasCanonicalizer = 1;
+}
+
+def PD_Conv2dOp : PD_Op<"conv2d", [NoSideEffect]> {
+  let summary = "paddle conv2d operation";
+  let description = [{
+  }];
+
+  let arguments = (ins PD_Tensor:$Input, PD_Tensor:$Filter, PD_Tensor:$Bias);
+  let results = (outs PD_Tensor:$Output);
+
+  //let hasCanonicalizer = 1;
+}
+
+def PD_BatchNormOp : PD_Op<"batch_norm", [NoSideEffect]> {
+  let summary = "paddle batch_norm operation";
+  let description = [{
+  }];
+
+  let arguments = (ins PD_Tensor:$X, PD_Tensor:$Scale, PD_Tensor:$Bias,
+                   PD_Tensor:$Mean, PD_Tensor:$Variance,
+                   DefaultValuedAttr<F32Attr, "1e-05">:$epsilon);
+  let results = (outs PD_Tensor:$Y);
+
+  let hasCanonicalizer = 1;
 }
 
 def PD_FusedFC : PD_Op<"FC", [NoSideEffect]> {

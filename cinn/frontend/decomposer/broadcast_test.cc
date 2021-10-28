@@ -22,9 +22,10 @@ TEST(Decomposer, elementwise_add_bcast0) {
   auto y   = builder.CreateInput(Float(32), {10, 20});
   auto out = builder.elementwise_add(x, y, 1);
 
-  auto prog     = builder.Build();
-  Target target = GetTarget();
-  RunDecomposer(&prog, target);
+  std::vector<std::string> input_names        = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names       = {out->id};
+  std::vector<std::vector<int>> output_shapes = {{4, 10, 20, 10}};
+  RunAndCheckShape<float>(builder, input_names, output_names, output_shapes);
 }
 
 TEST(Decomposer, elementwise_add_grad_bcast0) {
@@ -34,9 +35,10 @@ TEST(Decomposer, elementwise_add_grad_bcast0) {
   auto y         = builder.CreateInput(Float(32), {10, 20});
   auto out_grads = builder.elementwise_add_grad(dout, x, y, 1);
 
-  auto prog     = builder.Build();
-  Target target = GetTarget();
-  RunDecomposer(&prog, target);
+  std::vector<std::string> input_names        = {dout.id().data()};
+  std::vector<std::string> output_names       = {out_grads[0]->id, out_grads[1]->id};
+  std::vector<std::vector<int>> output_shapes = {{4, 1, 20, 10}, {10, 20}};
+  RunAndCheckShape<float>(builder, input_names, output_names, output_shapes);
 }
 
 TEST(Decomposer, elementwise_add_bcast1) {
@@ -45,9 +47,10 @@ TEST(Decomposer, elementwise_add_bcast1) {
   auto y   = builder.CreateInput(Float(32), {10, 1, 10});
   auto out = builder.elementwise_add(x, y, 1);
 
-  auto prog     = builder.Build();
-  Target target = GetTarget();
-  RunDecomposer(&prog, target);
+  std::vector<std::string> input_names        = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names       = {out->id};
+  std::vector<std::vector<int>> output_shapes = {{4, 10, 20, 10}};
+  RunAndCheckShape<float>(builder, input_names, output_names, output_shapes);
 }
 
 TEST(Decomposer, elementwise_add_grad_bcast1) {
@@ -57,9 +60,10 @@ TEST(Decomposer, elementwise_add_grad_bcast1) {
   auto y         = builder.CreateInput(Float(32), {10, 1, 10});
   auto out_grads = builder.elementwise_add_grad(dout, x, y, 1);
 
-  auto prog     = builder.Build();
-  Target target = GetTarget();
-  RunDecomposer(&prog, target);
+  std::vector<std::string> input_names        = {dout.id().data()};
+  std::vector<std::string> output_names       = {out_grads[0]->id, out_grads[1]->id};
+  std::vector<std::vector<int>> output_shapes = {{4, 1, 20, 1}, {10, 1, 10}};
+  RunAndCheckShape<float>(builder, input_names, output_names, output_shapes);
 }
 
 TEST(Decomposer, elementwise_add_bcast2) {
@@ -79,9 +83,10 @@ TEST(Decomposer, elementwise_add_bcast2) {
     }
   };
 
-  std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
-  std::vector<std::string> output_names = {out->id};
-  RunAndCheck<float>(builder, input_names, output_names, add_cpu);
+  std::vector<std::string> input_names        = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names       = {out->id};
+  std::vector<std::vector<int>> output_shapes = {{32, 16}};
+  RunAndCheck<float>(builder, input_names, output_names, output_shapes, add_cpu);
 }
 
 TEST(Decomposer, elementwise_add_grad_bcast2) {
@@ -103,9 +108,10 @@ TEST(Decomposer, elementwise_add_grad_bcast2) {
     }
   };
 
-  std::vector<std::string> input_names  = {dout.id().data()};
-  std::vector<std::string> output_names = {out_grads[0]->id, out_grads[1]->id};
-  RunAndCheck<float>(builder, input_names, output_names, add_grad_cpu);
+  std::vector<std::string> input_names        = {dout.id().data()};
+  std::vector<std::string> output_names       = {out_grads[0]->id, out_grads[1]->id};
+  std::vector<std::vector<int>> output_shapes = {{32, 16}, {1}};
+  RunAndCheck<float>(builder, input_names, output_names, output_shapes, add_grad_cpu);
 }
 
 TEST(Decomposer, elementwise_add_same_dims) {
@@ -124,9 +130,10 @@ TEST(Decomposer, elementwise_add_same_dims) {
     }
   };
 
-  std::vector<std::string> input_names  = {x.id().data(), y.id().data()};
-  std::vector<std::string> output_names = {out->id};
-  RunAndCheck<float>(builder, input_names, output_names, add_cpu);
+  std::vector<std::string> input_names        = {x.id().data(), y.id().data()};
+  std::vector<std::string> output_names       = {out->id};
+  std::vector<std::vector<int>> output_shapes = {{32, 16}};
+  RunAndCheck<float>(builder, input_names, output_names, output_shapes, add_cpu);
 }
 
 TEST(Decomposer, elementwise_add_grad_same_dims) {
@@ -148,9 +155,10 @@ TEST(Decomposer, elementwise_add_grad_same_dims) {
     }
   };
 
-  std::vector<std::string> input_names  = {dout.id().data()};
-  std::vector<std::string> output_names = {out_grads[0]->id, out_grads[1]->id};
-  RunAndCheck<float>(builder, input_names, output_names, add_grad_cpu);
+  std::vector<std::string> input_names        = {dout.id().data()};
+  std::vector<std::string> output_names       = {out_grads[0]->id, out_grads[1]->id};
+  std::vector<std::vector<int>> output_shapes = {{32, 16}, {32, 16}};
+  RunAndCheck<float>(builder, input_names, output_names, output_shapes, add_grad_cpu);
 }
 
 }  // namespace cinn::frontend

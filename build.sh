@@ -210,7 +210,11 @@ function run_demo {
 function run_test {
     cd $build_dir
     export LD_LIBRARY_PATH=$build_dir/paddle/mkldnn:$build_dir/thirds/install/mklml/lib:$LD_LIBRARY_PATH
-    ctest --parallel 10 -V
+    if [ ${TESTING_DEBUG_MODE:-OFF} == "ON" ] ; then
+        ctest --parallel 10 -V
+    else
+        ctest --parallel 10 --output-on-failure
+    fi
 }
 
 function CI {
@@ -226,10 +230,30 @@ function CI {
     run_demo
     prepare_model
     run_test
-
-    make_doc
+    # Temporary shutdown the doc test to speed up development
+    # make_doc
 }
 
+function CINNRT {
+    mkdir -p $build_dir
+    cd $build_dir
+    export runtime_include_dir=$workspace/cinn/runtime/cuda
+
+    prepare_ci
+    codestyle_check
+
+    proxy_off
+    mkdir -p $build_dir
+    cp $workspace/cmake/config.cmake $build_dir
+    # To enable Cuda backend, set(WITH_CUDA ON)
+    echo "set(WITH_CUDA $cuda_config)" >> $build_dir/config.cmake
+    echo "set(WITH_CUDNN $cudnn_config)" >> $build_dir/config.cmake
+    echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
+    cd $build_dir
+    cmake .. -DPUBLISH_LIBS=ON -DWITH_TESTING=ON
+
+    make cinnopt -j $JOBS
+}
 
 function main {
     # Parse command line.
@@ -262,6 +286,10 @@ function main {
             ci)
                 CI
                 shift
+                ;;
+            CINNRT)
+               CINNRT
+               shift
                 ;;
             prepare_model)
                 prepare_model
