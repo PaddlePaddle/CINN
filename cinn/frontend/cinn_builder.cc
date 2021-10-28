@@ -84,8 +84,8 @@ BINARY_OP_DEF(LeftShift, left_shift)
 BINARY_OP_DEF(RightShift, right_shift)
 #undef BINARY_OP_DEF
 
-Variable CinnBuilder::Concat(const Variable& lhs, const Variable& rhs, int axis) {
-  Instruction instr("concat", {lhs, rhs});
+Variable CinnBuilder::Concat(const std::vector<Variable>& input_vars, int axis) {
+  Instruction instr("concat", input_vars);
   instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);
@@ -112,6 +112,7 @@ Variable CinnBuilder::Conv(const Variable& lhs,
   instr.SetAttr("data_format", data_format);
   instr.SetAttr("padding_algorithm", padding_algorithm);
   instr.SetAttr("filter_shape", filter_shape);
+
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);

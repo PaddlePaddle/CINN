@@ -34,6 +34,16 @@ namespace cinn::frontend {
 
 using CPUKernelFunc = std::function<void(const std::vector<size_t>& lengths, const std::vector<void*>& ptrs)>;
 
+template <typename T, typename Alloc = std::allocator<T>>
+std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
+  os << "{ ";
+  for (auto e : vec) {
+    os << e << " ";
+  }
+  os << "}\n";
+  return os;
+}
+
 Target GetTarget() {
 #ifdef CINN_WITH_CUDA
   return common::DefaultNVGPUTarget();
@@ -85,9 +95,19 @@ void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
 }
 
 template <typename T>
-void CheckOutputs(const std::vector<std::vector<T>>& input_vecs,
-                  const std::vector<std::vector<T>>& output_vecs,
-                  CPUKernelFunc cpu_kernel_func) {
+void CheckOutput(const std::vector<T>& results, const std::vector<T>& references) {
+  CHECK_EQ(results.size(), references.size());
+
+  size_t numel = results.size();
+  for (size_t i = 0; i < numel; ++i) {
+    EXPECT_NEAR(results[i], references[i], 1.E-05);
+  }
+}
+
+template <typename T>
+void ComputeAndCheckOutputs(const std::vector<std::vector<T>>& input_vecs,
+                            const std::vector<std::vector<T>>& output_vecs,
+                            CPUKernelFunc cpu_kernel_func) {
   std::vector<std::vector<T>> output_refs;
   output_refs.resize(output_vecs.size());
   for (size_t i = 0; i < output_vecs.size(); ++i) {
@@ -110,13 +130,8 @@ void CheckOutputs(const std::vector<std::vector<T>>& input_vecs,
   cpu_kernel_func(lengths, ptrs);
 
   for (size_t i = 0; i < output_vecs.size(); ++i) {
-    auto* dev_ptr = output_vecs[i].data();
-    auto* ref_ptr = output_refs[i].data();
-    size_t numel  = output_vecs[i].size();
     LOG(INFO) << "Check the " << i << "-th output...";
-    for (size_t j = 0; j < numel; ++j) {
-      EXPECT_NEAR(dev_ptr[j], ref_ptr[j], 1.E-05);
-    }
+    CheckOutput<T>(output_vecs[i], output_refs[i]);
   }
 }
 
@@ -133,10 +148,12 @@ void RunDecomposer(Program* prog, const Target& target) {
 }
 
 template <typename T>
-void RunAndCheck(NetBuilder& builder,
-                 const std::vector<std::string>& input_names,
-                 const std::vector<std::string>& output_names,
-                 CPUKernelFunc cpu_kernel_func) {
+void RunAndCheckShape(NetBuilder& builder,
+                      const std::vector<std::string>& input_names,
+                      const std::vector<std::string>& output_names,
+                      const std::vector<std::vector<int>>& output_shapes,
+                      std::vector<std::vector<T>>* input_vecs  = nullptr,
+                      std::vector<std::vector<T>>* output_vecs = nullptr) {
   auto prog     = builder.Build();
   Target target = GetTarget();
   RunDecomposer(&prog, target);
@@ -146,7 +163,8 @@ void RunAndCheck(NetBuilder& builder,
   hlir::framework::GraphCompiler gc(target, scope, graph);
 
   auto runtime_program = gc.Build();
-  std::vector<std::vector<T>> input_vecs;
+  std::vector<std::vector<T>> input_vecs_internal;
+  std::vector<std::vector<T>>* input_vecs_ptr = input_vecs ? input_vecs : &input_vecs_internal;
   for (size_t i = 0; i < input_names.size(); ++i) {
     scope->Var<hlir::framework::Tensor>(input_names[i]);
     auto tensor = scope->GetTensor(input_names[i]);
@@ -154,20 +172,32 @@ void RunAndCheck(NetBuilder& builder,
     std::vector<T> vec;
     InitRandomVector<T>(&vec, tensor->shape().numel());
     CopyFromVector<T>(vec, tensor, target);
-    input_vecs.push_back(vec);
+    input_vecs_ptr->push_back(vec);
   }
   runtime_program->Execute();
 
-  std::vector<std::vector<T>> output_vecs;
-  for (auto& name : output_names) {
-    auto tensor = scope->GetTensor(name);
-
-    std::vector<T> vec;
-    CopyToVector<T>(tensor, &vec);
-    output_vecs.push_back(vec);
+  for (size_t i = 0; i < output_names.size(); ++i) {
+    auto tensor = scope->GetTensor(output_names[i]);
+    CHECK_EQ(tensor->shape().data() == output_shapes[i], true)
+        << "The " << i << "-th shape is expected to be " << output_shapes[i];
+    if (output_vecs) {
+      std::vector<T> vec;
+      CopyToVector<T>(tensor, &vec);
+      output_vecs->push_back(vec);
+    }
   }
+}
 
-  CheckOutputs<T>(input_vecs, output_vecs, cpu_kernel_func);
+template <typename T>
+void RunAndCheck(NetBuilder& builder,
+                 const std::vector<std::string>& input_names,
+                 const std::vector<std::string>& output_names,
+                 const std::vector<std::vector<int>>& output_shapes,
+                 CPUKernelFunc cpu_kernel_func) {
+  std::vector<std::vector<T>> input_vecs;
+  std::vector<std::vector<T>> output_vecs;
+  RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs);
+  ComputeAndCheckOutputs<T>(input_vecs, output_vecs, cpu_kernel_func);
 }
 
 }  // namespace cinn::frontend

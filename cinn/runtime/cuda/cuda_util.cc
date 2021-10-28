@@ -458,10 +458,15 @@ void cinn_gpu_cudnn_softmax(const std::vector<int> &attrs, cinn_buffer_t *input,
   for (int i = 0; i < rank; i++) {
     shape.push_back(attrs[i]);
   }
-  int axis = attrs.back();
-  axis     = axis < 0 ? rank + axis : axis;
-  if (shape.size() <= 2) {
-    shape.resize(4, 1);
+  int axis      = attrs.back();
+  axis          = axis < 0 ? rank + axis : axis;
+  int inner_num = 1;
+  int outer_num = 1;
+  for (int i = 0; i < shape.size(); i++) {
+    if (i < axis)
+      outer_num *= shape[i];
+    else if (i > axis)
+      inner_num *= shape[i];
   }
   rank = shape.size();
 
@@ -469,22 +474,21 @@ void cinn_gpu_cudnn_softmax(const std::vector<int> &attrs, cinn_buffer_t *input,
   float *in_data       = reinterpret_cast<float *>(input->memory);
   float *out_data      = reinterpret_cast<float *>(output->memory);
 
-  cudnnSoftmaxMode_t mode = axis == rank - 1 ? CUDNN_SOFTMAX_MODE_INSTANCE : CUDNN_SOFTMAX_MODE_CHANNEL;
   cudnnTensorDescriptor_t in_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&in_desc));
   CUDNN_CALL(
-      cudnnSetTensor4dDescriptor(in_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, shape[0], shape[1], shape[2], shape[3]));
+      cudnnSetTensor4dDescriptor(in_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, outer_num, shape[axis], inner_num, 1));
 
   cudnnTensorDescriptor_t out_desc;
   CUDNN_CALL(cudnnCreateTensorDescriptor(&out_desc));
-  CUDNN_CALL(cudnnSetTensor4dDescriptor(
-      out_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, shape[0], shape[1], shape[2], shape[3]));
+  CUDNN_CALL(
+      cudnnSetTensor4dDescriptor(out_desc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, outer_num, shape[axis], inner_num, 1));
 
   float alpha = 1.f;
   float beta  = 0.f;
 
-  CUDNN_CALL(
-      cudnnSoftmaxForward(cudnn, CUDNN_SOFTMAX_ACCURATE, mode, &alpha, in_desc, in_data, &beta, out_desc, out_data));
+  CUDNN_CALL(cudnnSoftmaxForward(
+      cudnn, CUDNN_SOFTMAX_ACCURATE, CUDNN_SOFTMAX_MODE_CHANNEL, &alpha, in_desc, in_data, &beta, out_desc, out_data));
 
   cudnnDestroyTensorDescriptor(in_desc);
   cudnnDestroyTensorDescriptor(out_desc);

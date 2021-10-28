@@ -59,6 +59,8 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
     args_cached_.clear();
   }
 
+  VLOG(2) << "Run function " << function_name_;
+
 #ifdef CINN_WITH_CUDNN
   auto& pod_args = PreparePodArgs(0, name2podargs);
   // Here conv2d and depthwise_conv2d are implemented by one cudnn api cudnnConvolutionForward

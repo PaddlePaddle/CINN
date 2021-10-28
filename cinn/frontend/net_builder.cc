@@ -245,6 +245,31 @@ Variable NetBuilder::sum(const std::vector<Variable>& inputs) {
   return instr.GetOutput(0);
 }
 
+// batch norm training, output{y, new_running_mean, new_running_var, save_mean, save_var}
+std::vector<Variable> NetBuilder::batch_norm_train(const Variable& x,
+                                                   const Variable& scale,
+                                                   const Variable& bias,
+                                                   const Variable& moving_mean,
+                                                   const Variable& moving_variance,
+                                                   const float epsilon,
+                                                   const float momentum,
+                                                   const std::string& data_layout) {
+  Instruction instr("batch_norm_train", {x, scale, bias, moving_mean, moving_variance});
+  instr.SetAttr("epsilon", epsilon);
+  instr.SetAttr("momentum", momentum);
+  instr.SetAttr("data_layout", data_layout);
+
+  InferShape(instr);
+  instr->outputs[0].set_id(common::UniqName("batch_norm_train_output"));
+  instr->outputs[1].set_id(common::UniqName("batch_norm_train_mean"));
+  instr->outputs[2].set_id(common::UniqName("batch_norm_train_variance"));
+  instr->outputs[3].set_id(common::UniqName("batch_norm_train_moving_mean"));
+  instr->outputs[4].set_id(common::UniqName("batch_norm_train_moving_variance"));
+
+  AppendInstruction(instr);
+  return instr.GetOutputs();
+}
+
 // conv2d grad, output(grad_x, grad_w)
 std::vector<Variable> NetBuilder::conv2d_grad(const Variable& dy,
                                               const Variable& x,
@@ -264,8 +289,6 @@ std::vector<Variable> NetBuilder::conv2d_grad(const Variable& dy,
   instr.SetAttr<std::string>("padding_algorithm", padding_algorithm);
 
   InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutputs();
 }
 
 }  // namespace frontend

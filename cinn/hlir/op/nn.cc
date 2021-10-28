@@ -1580,7 +1580,7 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
     ir::Tensor tensor_b = out2.as_tensor_ref();
     if (target.arch == Target::Arch::NVGPU) {
       if (tensor_a->shape.size() > 1) {
-        stages[tensor_a]->Split(1, 2);
+        stages[tensor_a]->Split(1, 5);
         stages[tensor_a]->Bind(0, "blockIdx.x");
         stages[tensor_a]->Bind(1, "threadIdx.x");
         int shape_size = tensor_a->shape.size();
@@ -1925,6 +1925,19 @@ std::vector<std::vector<std::string>> InferLayoutForUnary(const std::vector<fram
   return {input_layouts, input_layouts};
 }
 
+// batch norm train
+std::vector<framework::shape_t> InferShapeForBatchNormTrain(const std::vector<framework::shape_t> &inputs_shape,
+                                                            const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 5U) << "The input's layout size is not 5! Please check again.";
+  return {inputs_shape[0], inputs_shape[1], inputs_shape[1], inputs_shape[1], inputs_shape[1]};
+}
+
+std::vector<Type> InferDtypeForBatchNormTrain(const std::vector<Type> &inputs_type,
+                                              const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  return {inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0], inputs_type[0]};
+}
+
 std::shared_ptr<OpStrategy> StrategyForGradOp(const framework::NodeAttr &attrs,
                                               const std::vector<ir::Tensor> &inputs,
                                               const std::vector<Type> &out_type,
@@ -2154,6 +2167,14 @@ CINN_REGISTER_HELPER(nn_grad_ops) {
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForRelu))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForRelu))
       .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kElemWise);
+
+  CINN_REGISTER_OP(batch_norm_train)
+      .describe("This operator implements the batch normalization training forward.")
+      .set_num_inputs(5)
+      .set_num_outputs(5)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBatchNormTrain))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBatchNormTrain))
+      .set_support_level(4);
 
   CINN_REGISTER_OP(conv2d_grad)
       .describe("This operator implements the convolution backward.")

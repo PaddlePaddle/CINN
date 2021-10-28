@@ -166,6 +166,38 @@ ir::Tensor Concat(const ir::Tensor& A, const ir::Tensor& B, int axis, const std:
   return res;
 }
 
+ir::Tensor Concat(const std::vector<ir::Tensor>& input_tensors, int axis, const std::string& name) {
+  int input_size = input_tensors.size();
+  CHECK_GE(input_size, 2U) << "Concat should have at least 2 input tensors";
+  std::vector<Expr> output_shape = input_tensors[0]->shape;
+  int input_dim                  = output_shape.size();
+  CHECK(axis >= -input_dim && axis < input_dim) << "Concat's axis should be in [-R, R)"
+                                                << ", but get axis: " << axis << ", R: " << input_dim;
+  if (axis < 0) axis += output_shape.size();
+
+  for (int i = 1; i < input_size; i++) {
+    CHECK_EQ(input_tensors[i]->shape.size(), input_dim)
+        << "Dimensions of inputs tensors in Concat should be equal! Please check.";
+    output_shape[axis] = common::AutoSimplify(output_shape[axis] + input_tensors[i]->shape[axis]);
+  }
+
+  auto res = Compute(
+      output_shape,
+      [=](const std::vector<Expr>& indice) {
+        auto ret              = input_tensors[0](indice);
+        Expr accumulate_shape = Expr(0);
+        for (int i = 0; i < input_size - 1; i++) {
+          accumulate_shape             = common::AutoSimplify(accumulate_shape + input_tensors[i]->shape[axis]);
+          std::vector<Expr> new_indice = indice;
+          new_indice[axis]             = indice[axis] - accumulate_shape;
+          ret = ir::Select::Make(indice[axis] < accumulate_shape, ret, input_tensors[i + 1](new_indice));
+        }
+        return ret;
+      },
+      name);
+  return res;
+}
+
 std::vector<Tensor> MatmulV2(const Tensor& A,
                              const Tensor& B,
                              bool trans_a,

@@ -47,9 +47,9 @@ Program CreateTestProgram() {
   auto r = builder.Reshape(t, {M, N / 2});
   auto c = builder.Add(a, r);
   auto x = builder.Div(a, b);
-  auto d = builder.Concat(c, x, 1);
+  auto d = builder.Concat({c, x}, 1);
   auto e = builder.BroadcastTo(d, {B, M, N}, {1, 2});
-  auto f = builder.Concat(a, b, 1);
+  auto f = builder.Concat({a, b}, 1);
   auto g = builder.BroadcastTo(f, {B, M, N}, {1, 2});
   auto h = builder.Sub(e, g);
   auto i = builder.Max(e, h);

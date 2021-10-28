@@ -134,7 +134,7 @@ class CinnBuilder : public BaseBuilder {
   BINARY_OP_FOREACH(BINARY_OP_DECL)
 #undef BINARY_OP_DECL
 
-  Variable Concat(const Variable& lhs, const Variable& rhs, int axis = 0);
+  Variable Concat(const std::vector<Variable>& input_vars, int axis = 0);
 
   Variable Conv(const Variable& lhs,
                 const Variable& rhs,

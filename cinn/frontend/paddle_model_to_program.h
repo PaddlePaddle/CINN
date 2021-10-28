@@ -49,6 +49,8 @@ class PaddleModelToProgram {
     AddOpMapper_relu();
     AddOpMapper_elementwise_add();
     AddOpMapper_elementwise_mul();
+    AddOpMapper_elementwise_div();
+    AddOpMapper_elementwise_sub();
     AddOpMapper_conv2d();
     AddOpMapper_batchnorm();
     AddOpMapper_pool2d();
@@ -61,6 +63,10 @@ class PaddleModelToProgram {
     AddOpMapper_matmul();
     AddOpMapper_reshape2();
     AddOpMapper_concat();
+    AddOpMapper_assign();
+    AddOpMapper_fill_constant();
+    AddOpMapper_transpose2();
+    AddOpMapper_exp();
   }
 
   std::unique_ptr<Program> operator()(const std::string& model_dir, bool is_combined);
@@ -76,6 +82,8 @@ class PaddleModelToProgram {
   void AddOpMapper_relu();
   void AddOpMapper_elementwise_add();
   void AddOpMapper_elementwise_mul();
+  void AddOpMapper_elementwise_div();
+  void AddOpMapper_elementwise_sub();
   void AddOpMapper_conv2d();
   void AddOpMapper_batchnorm();
   void AddOpMapper_pool2d();
@@ -88,6 +96,10 @@ class PaddleModelToProgram {
   void AddOpMapper_matmul();
   void AddOpMapper_reshape2();
   void AddOpMapper_concat();
+  void AddOpMapper_assign();
+  void AddOpMapper_fill_constant();
+  void AddOpMapper_transpose2();
+  void AddOpMapper_exp();
   // @}
 
   const absl::flat_hash_map<std::string, Variable>& var_map() const { return var_map_; }
