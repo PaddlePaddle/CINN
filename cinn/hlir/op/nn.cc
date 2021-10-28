@@ -175,9 +175,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   }
 
 #ifndef CINN_WITH_CUDNN
-  if (conv_type != "forward") {
-    LOG(FATAL) << "cudnn is not found, backward_data/backward_filter is not supported!";
-  }
+  CHECK_NE(conv_type, "forward") << "cudnn is not found, backward_data/backward_filter is not supported!";
 #endif
 
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
@@ -384,7 +382,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
   std::vector<int> dilation({1, 1});
-  int group               = 1;
+  int groups              = 1;
   std::string data_format = "NCHW";
   std::string conv_type   = "";
   if (attrs.find("padding") != attrs.end()) {
@@ -396,8 +394,8 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   if (attrs.find("dilation") != attrs.end()) {
     dilation = absl::get<std::vector<int>>(attrs.at("dilation"));
   }
-  if (attrs.find("group") != attrs.end()) {
-    group = absl::get<int>(attrs.at("group"));
+  if (attrs.find("groups") != attrs.end()) {
+    groups = absl::get<int>(attrs.at("groups"));
   }
   if (attrs.find("data_format") != attrs.end()) {
     data_format = absl::get<std::string>(attrs.at("data_format"));
@@ -474,10 +472,10 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       res_shape = {batch, oc, out_shape_h, out_shape_w};
     } else if (conv_type == "backward_data") {
       // w(C_out, C_in/group, h, w) dy(Batch, C_out, h, w) dx(batch, C_in, h, w)
-      res_shape = {inputs_shape[1][0], inputs_shape[0][1] * group, out_shape_h, out_shape_w};
+      res_shape = {inputs_shape[1][0], inputs_shape[0][1] * groups, out_shape_h, out_shape_w};
     } else if (conv_type == "backward_filter") {
       // x(batch, C_in, h, w) dy(batch, C_out, h, w) dw (C_out, C_in/group, h, w)
-      res_shape = {inputs_shape[1][1], inputs_shape[0][1] / group, out_shape_h, out_shape_w};
+      res_shape = {inputs_shape[1][1], inputs_shape[0][1] / groups, out_shape_h, out_shape_w};
     }
 #ifdef CINN_WITH_CUDA
     return {res_shape};
