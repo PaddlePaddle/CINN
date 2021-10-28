@@ -175,7 +175,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   }
 
 #ifndef CINN_WITH_CUDNN
-  CHECK_NE(conv_type, "forward") << "cudnn is not found, backward_data/backward_filter is not supported!";
+  CHECK_EQ(conv_type, "forward") << "cudnn is not found, backward_data/backward_filter is not supported!";
 #endif
 
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
