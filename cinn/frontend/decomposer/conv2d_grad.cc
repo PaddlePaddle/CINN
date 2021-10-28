@@ -28,24 +28,24 @@ void conv2d_grad(const Instruction& instr, const DecomposerContext& context) {
   // create backward data
   auto dx = builder->Conv(w,
                           dy,
-                          instr.GetAttrs<std::vector<int>>("stride"),
-                          instr.GetAttrs<std::vector<int>>("padding"),
-                          instr.GetAttrs<std::vector<int>>("dilation"),
+                          instr.GetAttrs<std::vector<int>>("strides"),
+                          instr.GetAttrs<std::vector<int>>("paddings"),
+                          instr.GetAttrs<std::vector<int>>("dilations"),
                           instr.GetAttrs<int>("groups"),
                           "backward_data",
-                          instr.GetAttrs<std::string>("layout"),
+                          instr.GetAttrs<std::string>("data_format"),
                           instr.GetAttrs<std::string>("padding_algorithm"));
   context.MapOutToOrigin(dx, instr->outputs[0]);
 
   // create backward filter
   auto dw = builder->Conv(x,
                           dy,
-                          instr.GetAttrs<std::vector<int>>("stride"),
-                          instr.GetAttrs<std::vector<int>>("padding"),
-                          instr.GetAttrs<std::vector<int>>("dilation"),
+                          instr.GetAttrs<std::vector<int>>("strides"),
+                          instr.GetAttrs<std::vector<int>>("paddings"),
+                          instr.GetAttrs<std::vector<int>>("dilations"),
                           instr.GetAttrs<int>("groups"),
                           "backward_filter",
-                          instr.GetAttrs<std::string>("layout"),
+                          instr.GetAttrs<std::string>("data_format"),
                           instr.GetAttrs<std::string>("padding_algorithm"),
                           w->shape);
   context.MapOutToOrigin(dw, instr->outputs[1]);

@@ -149,14 +149,14 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   int groups              = 1;
   std::string key         = "";
   std::string conv_type   = "";
-  if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
-    padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
+  if (attrs.attr_store.find("paddings") != attrs.attr_store.end()) {
+    padding = absl::get<std::vector<int>>(attrs.attr_store.at("paddings"));
   }
-  if (attrs.attr_store.find("stride") != attrs.attr_store.end()) {
-    stride = absl::get<std::vector<int>>(attrs.attr_store.at("stride"));
+  if (attrs.attr_store.find("strides") != attrs.attr_store.end()) {
+    stride = absl::get<std::vector<int>>(attrs.attr_store.at("strides"));
   }
-  if (attrs.attr_store.find("dilation") != attrs.attr_store.end()) {
-    dilation = absl::get<std::vector<int>>(attrs.attr_store.at("dilation"));
+  if (attrs.attr_store.find("dilations") != attrs.attr_store.end()) {
+    dilation = absl::get<std::vector<int>>(attrs.attr_store.at("dilations"));
   }
   if (attrs.attr_store.find("data_format") != attrs.attr_store.end()) {
     data_format = absl::get<std::string>(attrs.attr_store.at("data_format"));
@@ -179,11 +179,6 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     LOG(FATAL) << "cudnn is not found, backward_data/backward_filter is not supported!"
   }
 #endif
-
-  // if target arch == x86
-  if (target.arch == common::Target::Arch::X86) {
-    CHECK_EQ(conv_type, "forward") << "arch x86 only support conv_type == forward.";
-  }
 
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
     std::vector<CINNValue> res;
@@ -244,11 +239,14 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                 UniqName("Conv2d_nhwc_out"));
           out.push_back(B.as_tensor_ref());
         } else {
+#ifdef CINN_WITH_CUDNN
           // as backward_data and backward_filter is not support now, we built a fake op to instead.
           // as the runtime use cudnn to compute the conv2d, so this fake op is not been called.
+          // When cinn support backward_filter/backward_data code gen, this code is to be removed.
           out = pe::Identity(A.as_tensor_ref());
           out.push_back(A.as_tensor_ref());
           out.push_back(B.as_tensor_ref());
+#endif
         }
       }
     } else if (data_format == "NHWC") {
@@ -284,15 +282,17 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     CHECK(arg_pack.size() == 4UL || arg_pack.size() == 3UL || arg_pack.size() == 6UL);
     poly::StageMap stages = arg_pack.back();
     if (target.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDNN
       // If conv_type is backward_filter or backward_data, we built a fake op.
       // As runtime use cudnn to compute conv2d, this fake op is not to be called.
+      // When cinn support backward_filter/backward_data code gen, this code is to be removed.
       if (conv_type != "forward") {
         Expr out = arg_pack[0];
         pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.front(), target);
         *ret = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
         return;
       }
-
+#endif
       Expr Out             = arg_pack[0];
       Expr input_pad       = arg_pack[1];
       Expr weights         = arg_pack[2];

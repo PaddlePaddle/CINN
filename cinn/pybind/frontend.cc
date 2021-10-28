@@ -382,9 +382,9 @@ void BindFrontend(pybind11::module *m) {
            py::arg("dropout_implementation") = "downgrade_in_infer")
       .def("conv2d_grad",
            &NetBuilder::conv2d_grad,
+           py::arg("dy"),
            py::arg("x"),
            py::arg("w"),
-           py::arg("dy"),
            py::arg("strides")           = std::vector<int>{1, 1},
            py::arg("paddings")          = std::vector<int>{0, 0},
            py::arg("dilations")         = std::vector<int>{1, 1},

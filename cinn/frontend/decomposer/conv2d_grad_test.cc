@@ -55,44 +55,27 @@ TEST(nn, CONV_GRAD) {
     // create input
     auto x      = net_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
     auto weight = net_builder.CreateInput(Float(32), {oc, ic, fh, fw}, "weight");
-    auto dy     = net_builder.CreateInput(Float(32), {n, oc, h, w}, "y");
+    auto dy     = net_builder.CreateInput(Float(32), {n, oc, h, w}, "dy");
     // add batch norm train
     auto outputs = net_builder.conv2d_grad(x, weight, dy, strides, paddings, dilations);
   }
   // build program
   auto program = net_builder.Build();
+  auto target  = common::DefaultNVGPUTarget();
+  RunDecomposer(&program, target);
 
-  auto target = ::cinn::common::DefaultNVGPUTarget();
-  CinnBuilder cinn_builder("cinn_builder");
-  {
-    // create input
-    auto x      = cinn_builder.CreateInput(Float(32), {n, ic, h, w}, "x");
-    auto weight = cinn_builder.CreateInput(Float(32), {oc, ic, fh, fw}, "weight");
-    auto dy     = cinn_builder.CreateInput(Float(32), {n, oc, h, w}, "dy");
-  }
-
-  absl::flat_hash_map<std::string, Variable> variable_map;
-  DecomposerContext context(&cinn_builder, &variable_map);
-  auto decomposer = InstrDecomposerRegistry::Global()->Get("conv2d_grad", target);
-
-  decomposer->Run(program[0], context);
-  auto new_program = cinn_builder.Build();
-
-  auto graph = std::make_shared<hlir::framework::Graph>(new_program, target);
-  auto nodes = graph->nodes();
-
+  auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
   auto run_program = gc.Build();
 
   // set input
   std::vector<float> x(n * ic * h * w), weight(oc * ic * fh * fw), dy(n * oc * h * w);
-
   InitRandomVector(&x, n * ic * h * w);
   InitRandomVector(&weight, oc * ic * fh * fw);
   InitRandomVector(&dy, n * oc * h * w);
 
-  std::vector<std::pair<std::string, std::vector<float>>> inputs = {{"x", x}, {"weight", weight}};
+  std::vector<std::pair<std::string, std::vector<float>>> inputs = {{"x", x}, {"weight", weight}, {"dy", dy}};
 
   for (auto& input : inputs) {
     scope->Var<hlir::framework::Tensor>(input.first);
@@ -101,7 +84,6 @@ TEST(nn, CONV_GRAD) {
     LOG(INFO) << input.first << " " << tensor->shape().numel();
     CopyFromVector(input.second, tensor, target);
   }
-
   run_program->Execute();
 }
 
