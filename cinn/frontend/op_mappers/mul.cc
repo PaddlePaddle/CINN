@@ -32,7 +32,6 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   VLOG(4) << "input y shape: " << cinn::utils::Join(y->shape, ",");
 
   auto tran_y = ctx.Builder()->transpose(y, {1, 0});
-  ctx.AddVar(y_name, tran_y, true);
 
   auto x_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "x_num_col_dims", 1);
   auto y_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "y_num_col_dims", 1);
