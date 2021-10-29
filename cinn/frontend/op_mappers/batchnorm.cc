@@ -138,7 +138,7 @@ void BatchNormGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
 
 CINN_REGISTER_HELPER(batchnorm) {
   CINN_REGISTER_OP_MAPPER(batchnorm, cinn::frontend::op_mappers::BatchnormOpMapper)
-  CINN_REGISTER_OP_MAPPER(batch_norm_train, cinn::frontend::op_mappers::BatchNormTrainOpMapper)
-  CINN_REGISTER_OP_MAPPER(batch_norm_grad, cinn::frontend::op_mappers::BatchNormGradOpMapper)
+  CINN_REGISTER_OP_MAPPER(batchnorm_train, cinn::frontend::op_mappers::BatchNormTrainOpMapper)
+  CINN_REGISTER_OP_MAPPER(batchnorm_grad, cinn::frontend::op_mappers::BatchNormGradOpMapper)
   return true;
 }
