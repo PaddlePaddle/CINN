@@ -93,14 +93,28 @@ class OpTest(unittest.TestCase):
                 self.check_results(self.paddle_grads, self.cinn_grads)
 
     def check_results(self, expect_res, actual_res):
+        def _max_relative_error(i, expect, actual, max_relative_error=1e-5):
+            diff = (np.abs(expect - actual) / np.abs(expect)).flatten()
+            max_diff = np.max(diff)
+            offset = np.argmax(diff > max_relative_error)
+            error_message = "The maximum relative error of %d-th output is %e, offset=%d, shape=%s, %e vs %e." % (
+                i, max_diff, offset, str(expect.shape),
+                expect.flatten()[offset], actual.flatten()[offset])
+            return error_message
+
         self.assertEqual(len(expect_res), len(actual_res))
         for i in range(len(expect_res)):
             if expect_res[i] is None:
                 continue
 
-            logger.debug("Check the %d -th Result..." % i)
-            self.assertTrue(
-                np.allclose(expect_res[i], actual_res[i], atol=1e-6))
+            if isinstance(expect_res[i], paddle.Tensor):
+                expect = expect_res[i].numpy()
+            else:
+                expect = expect_res[i]
+            actual = actual_res[i]
+            is_allclose = np.allclose(expect, actual, atol=1e-6)
+            self.assertTrue(is_allclose, _max_relative_error(
+                i, expect, actual))
 
 
 class OpTestTool:

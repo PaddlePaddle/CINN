@@ -41,6 +41,19 @@ namespace cinn {
 namespace frontend {
 namespace {
 
+struct Offset {
+  int n;
+  int c;
+  int h;
+  int w;
+
+  Offset(int arg_n, int arg_c, int arg_h, int arg_w) : n(arg_n), c(arg_c), h(arg_h), w(arg_w) {}
+
+  int operator()(int idx_n, int idx_c, int idx_h, int idx_w) const {
+    return idx_n * c * h * w + idx_c * h * w + idx_h * w + idx_w;
+  }
+};
+
 template <typename FuncType>
 void loop(FuncType func, const int n, const int c, const int h, const int w) {
   for (int idx = 0; idx < n; ++idx) {
@@ -71,12 +84,13 @@ void cpu_run_batch_norm_train(const std::vector<T>& x,
                               std::vector<T>* variance,
                               const float epsilon  = 1e-5,
                               const float momentum = 0.9f) {
+  Offset offset(n, c, h, w);
+
   // sum
   memset(mean->data(), 0, sizeof(T) * c);
-  auto func_sum = [=](int idx, int idy, int idz, int ida) {
-    mean->at(idy) += x[idx * c * h * w + idy * h * w + idz * w + ida];
-  };
+  auto func_sum = [=](int idx, int idy, int idz, int ida) { mean->at(idy) += x[offset(idx, idy, idz, ida)]; };
   loop(func_sum, n, c, h, w);
+
   // mean
   for (int idx = 0; idx < c; ++idx) {
     mean->at(idx) /= float(n * h * w);
@@ -85,26 +99,31 @@ void cpu_run_batch_norm_train(const std::vector<T>& x,
   // square
   std::vector<float> square_mean(c, 0);
   auto func_sum_square = [&](int idx, int idy, int idz, int ida) {
-    square_mean.at(idy) +=
-        x[idx * c * h * w + idy * h * w + idz * w + ida] * x[idx * c * h * w + idy * h * w + idz * w + ida];
+    square_mean.at(idy) += x[offset(idx, idy, idz, ida)] * x[offset(idx, idy, idz, ida)];
   };
   loop(func_sum_square, n, c, h, w);
-  //
+
   for (int idx = 0; idx < c; ++idx) {
     square_mean[idx] /= float(n * h * w);
   }
 
-  std::vector<float> std_variance(c);
   // sum diff2
+  std::vector<float> std_variance(c);
   for (int idx = 0; idx < c; ++idx) {
     variance->at(idx) = square_mean[idx] - (mean->at(idx) * mean->at(idx));
     std_variance[idx] = sqrt(variance->at(idx) + epsilon);
   }
 
   // compute output
+  std::vector<float> normalization(n * c * h * w);
+  auto func_normalization = [&](int idx, int idy, int idz, int ida) {
+    normalization[offset(idx, idy, idz, ida)] =
+        ((x[offset(idx, idy, idz, ida)] - mean->at(idy)) * scale[idy]) / std_variance[idy];
+  };
+  loop(func_normalization, n, c, h, w);
+
   auto func_y = [&](int idx, int idy, int idz, int ida) {
-    y->at(idx * c * h * w + idy * h * w + idz * w + ida) =
-        (x[idx * c * h * w + idy * h * w + idz * w + ida] - mean->at(idy)) / std_variance[idy] * scale[idy] + bias[idy];
+    y->at(offset(idx, idy, idz, ida)) = normalization[offset(idx, idy, idz, ida)] + bias[idy];
   };
   loop(func_y, n, c, h, w);
 
@@ -194,9 +213,13 @@ TEST(nn, BATCH_NORM_TRAIN) {
     std::vector<float> data(tensor->shape().numel());
     CopyToVector(tensor, &data);
 
-    LOG(INFO) << output.first << " " << tensor->shape().numel();
+    LOG(INFO) << output.first << ", shape=" << tensor->shape().numel();
     for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
-      ASSERT_LT(abs((data[idx] - output.second[idx]) / data[idx]), 1e-3);
+      float diff = abs((data[idx] - output.second[idx]) / data[idx]);
+      if (diff > 1e-5) {
+        LOG(INFO) << "i=" << idx << ", " << data[idx] << " vs " << output.second[idx] << ", diff=" << diff;
+      }
+      ASSERT_LT(diff, 1e-5);
     }
   }
 }

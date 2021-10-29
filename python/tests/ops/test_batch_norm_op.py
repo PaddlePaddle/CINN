@@ -42,8 +42,8 @@ class TestBatchNormOp(OpTest):
 
     def config(self):
         self.dtype = "float32"
-        self.x_shape = [128, 64, 112, 112]
-        self.param_shape = [64]
+        self.x_shape = [4, 16, 4, 4]
+        self.param_shape = [16]
         self.epsilon = 1e-05
         self.momentum = 0.9
         self.data_format = "NCHW"
@@ -78,7 +78,7 @@ class TestBatchNormOp(OpTest):
             data_format=self.data_format)
 
         # Cannot get save_mean and save_variance of paddle.
-        self.paddle_outputs = [out, running_mean, running_variance, None, None]
+        self.paddle_outputs = [out, None, None, running_mean, running_variance]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("batch_norm")
