@@ -38,12 +38,42 @@ void TransposeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void Transpose2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input("X").size(), 1UL);
+  auto x_name = op_desc.Input("X").front();
+  auto x      = ctx.GetVar(x_name);
+
+  auto axis = utils::GetAttrOrDefault<std::vector<int>>(op_desc, "axis");
+
+  VLOG(4) << "x shape: " << cinn::utils::Join(x->shape, ",");
+  VLOG(4) << "transpose2 perm : " << cinn::utils::Join(axis, ",");
+
+  auto out = ctx.Builder()->transpose(x, axis);
+
+  CHECK_EQ(op_desc.Output("Out").size(), 1UL);
+  auto out_name = op_desc.Output("Out").front();
+  ctx.AddVar(out_name, out);
+  ctx.AddVarModelToProgram(out_name, out->id);
+
+  CHECK_EQ(op_desc.Output("XShape").size(), 1UL);
+  auto xshape_name = op_desc.Output("XShape").front();
+
+  // TODO(jiangcheng05): a useless output in paddle, I don't why paddle
+  // add it in transpose2 op, even if the output no set value at any place
+  auto xshape   = Variable(cinn::utils::TransValidVarName(xshape_name));
+  xshape->type  = x->type;
+  xshape->shape = x->shape;
+
+  ctx.AddVar(xshape_name, xshape);
+  ctx.AddVarModelToProgram(xshape_name, xshape->id);
+}
+
 }  // namespace op_mappers
 }  // namespace frontend
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(transpose) {
   CINN_REGISTER_OP_MAPPER(transpose, cinn::frontend::op_mappers::TransposeOpMapper)
-  CINN_REGISTER_OP_MAPPER(transpose2, cinn::frontend::op_mappers::TransposeOpMapper)
+  CINN_REGISTER_OP_MAPPER(transpose2, cinn::frontend::op_mappers::Transpose2OpMapper)
   return true;
 }
