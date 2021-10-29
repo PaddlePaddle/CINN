@@ -44,5 +44,6 @@ void TransposeOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
 CINN_REGISTER_HELPER(transpose) {
   CINN_REGISTER_OP_MAPPER(transpose, cinn::frontend::op_mappers::TransposeOpMapper)
+  CINN_REGISTER_OP_MAPPER(transpose2, cinn::frontend::op_mappers::TransposeOpMapper)
   return true;
 }
