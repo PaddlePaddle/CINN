@@ -453,8 +453,8 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
           // padding stride dilation  group
           AddAttrs(node->attrs.attr_store, {"padding", "stride", "dilation"}, instr.get());
           if (node->attrs.attr_store.find("groups") != node->attrs.attr_store.end()) {
-            auto _group = absl::get<int>(node->attrs.attr_store.at("groups"));
-            instr->attrs.push_back(_group);
+            auto conv_groups = absl::get<int>(node->attrs.attr_store.at("groups"));
+            instr->attrs.push_back(conv_groups);
           } else {
             instr->attrs.push_back(1);
           }
