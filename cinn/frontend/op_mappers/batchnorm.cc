@@ -20,6 +20,11 @@ namespace frontend {
 namespace op_mappers {
 
 void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  auto get_output_name = [&op_desc](const std::string& op_name) {
+    CHECK_EQ(op_desc.Output(op_name).size(), 1UL);
+    return op_desc.Output(op_name).front();
+  };
+
   CHECK_EQ(op_desc.Input("X").size(), 1UL);
   auto x_name = op_desc.Input("X").front();
   CHECK_EQ(op_desc.Input("Scale").size(), 1UL);
@@ -30,8 +35,6 @@ void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   auto mean_name = op_desc.Input("Mean").front();
   CHECK_EQ(op_desc.Input("Variance").size(), 1UL);
   auto variance_name = op_desc.Input("Variance").front();
-  CHECK(!op_desc.Output("Y").empty());
-  auto out_name = op_desc.Output("Y").front();
 
   auto epsilon     = utils::GetAttrOrDefault<float>(op_desc, "epsilon", 1e-5f);
   auto momentum    = utils::GetAttrOrDefault<float>(op_desc, "momentum", 0.9f);
@@ -41,57 +44,40 @@ void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   auto bias        = ctx.GetVar(bias_name);
   auto mean        = ctx.GetVar(mean_name);
   auto variance    = ctx.GetVar(variance_name);
-  auto out         = ctx.Builder()->batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout);
 
-  ctx.AddVar(out_name, out);
-  ctx.AddVarModelToProgram(out_name, out->id);
-}
+  auto is_test = utils::GetAttrOrDefault<bool>(op_desc, "is_test", false);
 
-void BatchNormTrainOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
-  auto get_input_var = [&op_desc, &ctx](const std::string& op_name) {
-    CHECK_EQ(op_desc.Input(op_name).size(), 1UL);
-    auto var_name = op_desc.Input(op_name).front();
-    return ctx.GetVar(var_name);
-  };
+  if (is_test) {
+    auto out = ctx.Builder()->batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout);
 
-  auto get_output_name = [&op_desc](const std::string& op_name) {
-    CHECK_EQ(op_desc.Output(op_name).size(), 1UL);
-    return op_desc.Output(op_name).front();
-  };
+    auto out_name = get_output_name("Y");
+    ctx.AddVar(out_name, out);
+    ctx.AddVarModelToProgram(out_name, out->id);
+  } else {
+    // batch norm training, output{y, moving_mean, moving_variance, save_mean, save_variance}
+    auto out_vec = ctx.Builder()->batch_norm_train(x, scale, bias, mean, variance, epsilon, momentum, data_layout);
+    CHECK_EQ(out_vec.size(), 5ul) << "batch_norm_train API's should return 5 Variable!";
 
-  auto x        = get_input_var("X");
-  auto scale    = get_input_var("Scale");
-  auto bias     = get_input_var("Bias");
-  auto mean     = get_input_var("Mean");
-  auto variance = get_input_var("Variance");
+    auto y_name = get_output_name("Y");
+    ctx.AddVar(y_name, out_vec[0]);
+    ctx.AddVarModelToProgram(y_name, out_vec[0]->id);
 
-  auto data_layout = utils::GetAttrOrDefault<std::string>(op_desc, "data_layout", "NCHW");
-  auto momentum    = utils::GetAttrOrDefault<float>(op_desc, "momentum", 0.9f);
-  auto epsilon     = utils::GetAttrOrDefault<float>(op_desc, "epsilon", 1e-5f);
+    auto mean_out_name = get_output_name("MeanOut");
+    ctx.AddVar(mean_out_name, out_vec[1]);
+    ctx.AddVarModelToProgram(mean_out_name, out_vec[1]->id);
 
-  // batch norm training, output{y, moving_mean, moving_variance, save_mean, save_variance}
-  auto out_vec = ctx.Builder()->batch_norm_train(x, scale, bias, mean, variance, epsilon, momentum, data_layout);
-  CHECK_EQ(out_vec.size(), 5ul) << "batch_norm_train API's should return 5 Variable!";
+    auto variance_out_name = get_output_name("VarianceOut");
+    ctx.AddVar(variance_out_name, out_vec[2]);
+    ctx.AddVarModelToProgram(variance_out_name, out_vec[2]->id);
 
-  auto y_name = get_output_name("Y");
-  ctx.AddVar(y_name, out_vec[0]);
-  ctx.AddVarModelToProgram(y_name, out_vec[0]->id);
+    auto save_mean_name = get_output_name("SavedMean");
+    ctx.AddVar(save_mean_name, out_vec[3]);
+    ctx.AddVarModelToProgram(save_mean_name, out_vec[3]->id);
 
-  auto mean_out_name = get_output_name("MeanOut");
-  ctx.AddVar(mean_out_name, out_vec[1]);
-  ctx.AddVarModelToProgram(mean_out_name, out_vec[1]->id);
-
-  auto variance_out_name = get_output_name("VarianceOut");
-  ctx.AddVar(variance_out_name, out_vec[2]);
-  ctx.AddVarModelToProgram(variance_out_name, out_vec[2]->id);
-
-  auto save_mean_name = get_output_name("SavedMean");
-  ctx.AddVar(save_mean_name, out_vec[3]);
-  ctx.AddVarModelToProgram(save_mean_name, out_vec[3]->id);
-
-  auto saved_variance_name = get_output_name("SavedVariance");
-  ctx.AddVar(saved_variance_name, out_vec[4]);
-  ctx.AddVarModelToProgram(saved_variance_name, out_vec[4]->id);
+    auto saved_variance_name = get_output_name("SavedVariance");
+    ctx.AddVar(saved_variance_name, out_vec[4]);
+    ctx.AddVarModelToProgram(saved_variance_name, out_vec[4]->id);
+  }
 }
 
 void BatchNormGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
@@ -138,7 +124,6 @@ void BatchNormGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
 
 CINN_REGISTER_HELPER(batchnorm) {
   CINN_REGISTER_OP_MAPPER(batchnorm, cinn::frontend::op_mappers::BatchnormOpMapper)
-  CINN_REGISTER_OP_MAPPER(batchnorm_train, cinn::frontend::op_mappers::BatchNormTrainOpMapper)
   CINN_REGISTER_OP_MAPPER(batchnorm_grad, cinn::frontend::op_mappers::BatchNormGradOpMapper)
   return true;
 }
