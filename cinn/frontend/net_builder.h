@@ -35,7 +35,7 @@ class NetBuilder : public BaseBuilder {
   /**
    * Transpose matrix.
    */
-  Variable transpose(const Variable& operand, const std::vector<int>& axis);
+  Variable transpose(const Variable& a, const std::vector<int>& axis);
 
   /**
    * Multiply two matrix.
