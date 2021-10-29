@@ -11,4 +11,5 @@ gather_srcs(cinnapi_src SRCS
     pool2d.cc
     batchnorm.cc
     slice.cc
-    dropout.cc)
+    dropout.cc
+    batch_norm.cc)
