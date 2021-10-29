@@ -173,10 +173,10 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   } else {
     conv_type = "forward";
   }
-  // if target arch == x86
-  if (target.arch == common::Target::Arch::X86) {
-    CHECK_EQ(conv_type, "forward") << "arch x86 only support conv_type == forward.";
-  }
+
+#ifndef CINN_WITH_CUDNN
+  CHECK_EQ(conv_type, "forward") << "cudnn is not found, backward_data/backward_filter is not supported!";
+#endif
 
   framework::CINNCompute conv2d_compute([=](lang::Args args, lang::RetValue *ret) {
     std::vector<CINNValue> res;
@@ -225,16 +225,27 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                        UniqName("Conv2d_nhwc_out"));
         }
       } else {
-        out = pe::Conv2d_NCHW(A.as_tensor_ref(),
-                              B.as_tensor_ref(),
-                              padding[0],
-                              padding[1],
-                              stride[0],
-                              stride[1],
-                              dilation[0],
-                              dilation[1],
-                              UniqName("Conv2d_nhwc_out"));
-        out.push_back(B.as_tensor_ref());
+        if (conv_type == "forward") {
+          out = pe::Conv2d_NCHW(A.as_tensor_ref(),
+                                B.as_tensor_ref(),
+                                padding[0],
+                                padding[1],
+                                stride[0],
+                                stride[1],
+                                dilation[0],
+                                dilation[1],
+                                UniqName("Conv2d_nhwc_out"));
+          out.push_back(B.as_tensor_ref());
+        } else {
+#ifdef CINN_WITH_CUDNN
+          // as backward_data and backward_filter is not support now, we built a fake op to instead.
+          // as the runtime use cudnn to compute the conv2d, so this fake op is not been called.
+          // When cinn support backward_filter/backward_data code gen, this code is to be removed.
+          out = pe::Identity(A.as_tensor_ref());
+          out.push_back(A.as_tensor_ref());
+          out.push_back(B.as_tensor_ref());
+#endif
+        }
       }
     } else if (data_format == "NHWC") {
       // A is input: [N, H, W, C], B is filter: [C_out, C_in/group, filter_h, filter_w]
@@ -269,6 +280,17 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     CHECK(arg_pack.size() == 4UL || arg_pack.size() == 3UL || arg_pack.size() == 6UL);
     poly::StageMap stages = arg_pack.back();
     if (target.arch == Target::Arch::NVGPU) {
+#ifdef CINN_WITH_CUDNN
+      // If conv_type is backward_filter or backward_data, we built a fake op.
+      // As runtime use cudnn to compute conv2d, this fake op is not to be called.
+      // When cinn support backward_filter/backward_data code gen, this code is to be removed.
+      if (conv_type != "forward") {
+        Expr out = arg_pack[0];
+        pe::CudaScheduleInjective(stages[out.as_tensor_ref()], output_shapes.front(), target);
+        *ret = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+        return;
+      }
+#endif
       Expr Out             = arg_pack[0];
       Expr input_pad       = arg_pack[1];
       Expr weights         = arg_pack[2];
@@ -360,7 +382,7 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   std::vector<int> padding({0, 0});
   std::vector<int> stride({1, 1});
   std::vector<int> dilation({1, 1});
-  int group               = 1;
+  int groups              = 1;
   std::string data_format = "NCHW";
   std::string conv_type   = "";
   if (attrs.find("padding") != attrs.end()) {
@@ -372,8 +394,8 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
   if (attrs.find("dilation") != attrs.end()) {
     dilation = absl::get<std::vector<int>>(attrs.at("dilation"));
   }
-  if (attrs.find("group") != attrs.end()) {
-    group = absl::get<int>(attrs.at("group"));
+  if (attrs.find("groups") != attrs.end()) {
+    groups = absl::get<int>(attrs.at("groups"));
   }
   if (attrs.find("data_format") != attrs.end()) {
     data_format = absl::get<std::string>(attrs.at("data_format"));
@@ -405,11 +427,11 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       out_shape_w =
           (inputs_shape[1][3] - 1) * stride[1] - 2 * padding[1] + ((inputs_shape[0][3] - 1) * dilation[1] + 1);
     } else if (conv_type == "backward_filter") {
-      CHECK(attrs.find("weights_shape") != attrs.end()) << "The shape of weights is not found! Please check.";
-      auto weights_shape = absl::get<std::vector<int>>(attrs.at("weights_shape"));
-      CHECK_EQ(weights_shape.size(), 4) << "The size of filter shape is not 2(fh,fw)!Please check";
-      out_shape_h = weights_shape[2];
-      out_shape_w = weights_shape[3];
+      CHECK(attrs.find("filter_shape") != attrs.end()) << "The shape of filter is not found! Please check.";
+      auto filter_shape = absl::get<std::vector<int>>(attrs.at("filter_shape"));
+      CHECK_EQ(filter_shape.size(), 4) << "The size of filter shape is not 4(oc, ic, fh, fw)!Please check";
+      out_shape_h = filter_shape[2];
+      out_shape_w = filter_shape[3];
     }
 
     res = {{inputs_shape[0][0], inputs_shape[1][0], out_shape_h, out_shape_w}};
@@ -450,10 +472,10 @@ std::vector<shape_t> InferShapeForConv2d(const std::vector<shape_t> &inputs_shap
       res_shape = {batch, oc, out_shape_h, out_shape_w};
     } else if (conv_type == "backward_data") {
       // w(C_out, C_in/group, h, w) dy(Batch, C_out, h, w) dx(batch, C_in, h, w)
-      res_shape = {inputs_shape[1][0], inputs_shape[0][1] * group, out_shape_h, out_shape_w};
+      res_shape = {inputs_shape[1][0], inputs_shape[0][1] * groups, out_shape_h, out_shape_w};
     } else if (conv_type == "backward_filter") {
       // x(batch, C_in, h, w) dy(batch, C_out, h, w) dw (C_out, C_in/group, h, w)
-      res_shape = {inputs_shape[1][1], inputs_shape[0][1] / group, out_shape_h, out_shape_w};
+      res_shape = {inputs_shape[1][1], inputs_shape[0][1] / groups, out_shape_h, out_shape_w};
     }
 #ifdef CINN_WITH_CUDA
     return {res_shape};
@@ -1989,6 +2011,21 @@ std::vector<Type> InferDtypeForBatchNormGrad(const std::vector<Type> &inputs_typ
   return {inputs_type[0], inputs_type[0], inputs_type[0]};
 }
 
+// conv2d grad
+std::vector<framework::shape_t> InferShapeForConv2dGrad(const std::vector<framework::shape_t> &inputs_shape,
+                                                        const framework::AttrMapType &attrs) {
+  CHECK_EQ(inputs_shape.size(), 3U) << "The input's layout size is not 3! Please check again.";
+  CHECK_EQ(inputs_shape[0].size(), 4U) << "Dy shape is not 4, Please check again.";
+  CHECK_EQ(inputs_shape[1].size(), 4U) << "Dy shape is not 4, Please check again.";
+  CHECK_EQ(inputs_shape[2].size(), 4U) << "Dy shape is not 4, Please check again.";
+  return {inputs_shape[1], inputs_shape[2]};
+}
+
+std::vector<Type> InferDtypeForConv2dGrad(const std::vector<Type> &inputs_type, const framework::AttrMapType &attrs) {
+  CHECK(!inputs_type.empty()) << "The input's type size is 0! Please check again.";
+  return {inputs_type[0], inputs_type[0]};
+}
+
 }  // namespace op
 }  // namespace hlir
 }  // namespace cinn
@@ -2209,6 +2246,14 @@ CINN_REGISTER_HELPER(nn_grad_ops) {
       .set_num_outputs(3)
       .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForBatchNormGrad))
       .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForBatchNormGrad))
+      .set_support_level(4);
+
+  CINN_REGISTER_OP(conv2d_grad)
+      .describe("This operator implements the convolution backward.")
+      .set_num_inputs(3)
+      .set_num_outputs(2)
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForConv2dGrad))
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForConv2dGrad))
       .set_support_level(4);
 
   return true;

@@ -24,3 +24,7 @@ CINN_USE_REGISTER(broadcast_grad_decomposers)
 
 CINN_USE_REGISTER(batch_norm_train_decomposer)
 CINN_USE_REGISTER(batch_norm_grad_decomposer)
+
+#ifdef CINN_WITH_CUDNN
+CINN_USE_REGISTER(conv2d_grad_decomposer)
+#endif

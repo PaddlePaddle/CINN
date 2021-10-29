@@ -44,11 +44,15 @@ class CUDAModule {
     CHECK(!data.empty());
 
     cudaGetDeviceCount(&num_devices_);
+    CHECK_GT(num_devices_, 0) << "No available devices";
 
     // TODO(Superjomn) Determine whether to initialize all the devices.
-    cuInit(0);
-    cuDeviceGet(&device_, 0);
-    cuCtxCreate(&context_, 0, device_);
+    int current_device_id;
+    cudaGetDevice(&current_device_id);
+    cudaSetDevice(current_device_id);
+    cuDeviceGet(&device_, current_device_id);
+    cuCtxGetCurrent(&context_);
+    cuDevicePrimaryCtxRetain(&context_, device_);
   }
 
   void LaunchKernel(int device_id,

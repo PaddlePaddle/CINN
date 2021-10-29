@@ -417,6 +417,17 @@ void BindFrontend(pybind11::module *m) {
            py::arg("a"),
            py::arg("dropout_prob")           = 0.5f,
            py::arg("dropout_implementation") = "downgrade_in_infer")
+      .def("conv2d_grad",
+           &NetBuilder::conv2d_grad,
+           py::arg("dy"),
+           py::arg("x"),
+           py::arg("w"),
+           py::arg("strides")           = std::vector<int>{1, 1},
+           py::arg("paddings")          = std::vector<int>{0, 0},
+           py::arg("dilations")         = std::vector<int>{1, 1},
+           py::arg("groups")            = 1,
+           py::arg("data_format")       = "NCHW",
+           py::arg("padding_algorithm") = "EXPLICIT")
       .def("sum", &NetBuilder::sum, py::arg("inputs"));
 
   py::class_<CinnBuilder, BaseBuilder>(*m, "CinnBuilder")
@@ -439,8 +450,10 @@ void BindFrontend(pybind11::module *m) {
            py::arg("paddings")          = std::vector<int>{0, 0},
            py::arg("dilations")         = std::vector<int>{1, 1},
            py::arg("groups")            = 1,
+           py::arg("conv_type")         = "forward",
            py::arg("data_format")       = "NCHW",
-           py::arg("padding_algorithm") = "EXPLICIT")
+           py::arg("padding_algorithm") = "EXPLICIT",
+           py::arg("filter_shape")      = std::vector<int>{})
       .def("compare", &CinnBuilder::Compare, py::arg("lhs"), py::arg("rhs"), py::arg("kind"))
       .def("reduce",
            &CinnBuilder::Reduce,
