@@ -20,6 +20,7 @@
 
 #include "cinn/common/common.h"
 #include "cinn/ir/ir.h"
+#include "cinn/ir/ir_printer.h"
 
 namespace cinn {
 namespace poly {
@@ -498,6 +499,11 @@ void IslAstExprToCinnExpr(const isl::ast_expr& node, ir::Expr* expr) {
         } break;
         case isl_ast_op_fdiv_q:
           *expr = ir::Div::Make(ops[0], ops[1]);
+          break;
+        case isl_ast_op_select:
+          CHECK_EQ(ops.size(), 3UL) << "In ir::Select, the ops size should be 3";
+          ops[0]->set_type(Bool());
+          *expr = ir::Select::Make(ops[0], ops[1], ops[2]);
           break;
         default:
           LOG(FATAL) << "unsupported op " << op_type;

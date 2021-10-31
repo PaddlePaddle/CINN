@@ -401,10 +401,9 @@ std::vector<Shared<ScheduleGraphNode>> PolyGroupScheduler::Build() {
   }
   std::map<std::string, int> stage_level;
   for (auto& link : compute_at_links) {
-    if (stage_map.count(link.first) == 0 || stage_map.count(link.second.stage->tensor_->name) == 0) {
-      LOG(FATAL) << "stage_map note found!";
-      continue;
-    }
+    CHECK_NE(stage_map.count(link.first), 0) << link.first << " not found in stage_map";
+    CHECK_NE(stage_map.count(link.second.stage->tensor_->name), 0)
+        << link.second.stage->tensor_->name << " not found in stage_map";
     auto* a = stage_map.at(link.first);
     auto* b = stage_map.at(link.second.stage->tensor_->name);
     After(*a, *b, link.second.level);

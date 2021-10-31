@@ -73,7 +73,7 @@ class TestLoadEfficientNetModel(unittest.TestCase):
         for i in range(10):
             self.executor.run()
 
-        repeat = 10
+        repeat = 1000
         end4 = time.perf_counter()
         for i in range(repeat):
             self.executor.run()

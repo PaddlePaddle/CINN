@@ -26,7 +26,8 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
   common::ArgsBuilder builder;
   std::vector<std::string> all_args(in_args_[i].begin(), in_args_[i].end());
   all_args.insert(std::end(all_args), out_args_[i].begin(), out_args_[i].end());
-
+  for (auto& arg : all_args)
+    VLOG(3) << "In PreparePodArgs of [" << function_name_ << "] with int = [" << i << "], all_args have: " << arg;
   if (name2podargs != nullptr) {
     for (auto& arg : all_args) {
       CHECK_NE(name2podargs->count(arg), 0) << "Argument [" << arg << "] not found in the name2podargs";
@@ -44,7 +45,7 @@ std::vector<cinn_pod_value_t>& Instruction::PreparePodArgs(
   }
 
   args_cached_.emplace_back(builder.Build());
-  CHECK(args_cached_.size() > i);
+  if (args_cached_.size() <= i) return args_cached_.back();
   return args_cached_[i];
 }
 
@@ -102,6 +103,10 @@ void Instruction::Run(const std::map<std::string, cinn_pod_value_t>* name2podarg
   for (auto& it_fn : fn_) {
     auto& pod_args = PreparePodArgs(i, name2podargs);
     CHECK(it_fn) << "The LoweredFunc address should be set first by calling SetLoweredFunc method";
+    VLOG(1) << "Run " << i << "-th function of fn_:" << function_name_;
+    VLOG(1) << "fn_.size() is : " << fn_.size();
+    for (auto& arg : in_args_[i]) VLOG(1) << "in_args is : " << arg;
+    for (auto& arg : out_args_[i]) VLOG(1) << "out_args_ is : " << arg;
     it_fn(pod_args.data(), pod_args.size());
     i++;
   }

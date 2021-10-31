@@ -135,11 +135,16 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const Node* node) {
     ir::Expr temp = C[i];
     inputs.push_back(temp.as_tensor_ref());
   }
-
+  for (auto& i : inputs) {
+    VLOG(3) << "In GetOpFunc, inputs of LowerVec, it has tensor: " << i->name;
+  }
+  for (auto& i : inputs) VLOG(3) << "input name is : " << i->name;
   auto func = lang::LowerVec(GenOpFuncName(node), stages, inputs, {}, {}, nullptr, this->target_);
-  VLOG(3) << "The [" << func.size() << "] functions of node [" << node->attrs.node_name << "] are:\n";
   for (auto& i : func) {
-    VLOG(3) << i;
+    VLOG(3) << "Function [" << i->name << "]'s args is:";
+    for (auto& j : i->args) {
+      VLOG(3) << j.name();
+    }
   }
   return func;
 }
@@ -175,7 +180,10 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   absl::flat_hash_map<NodeData*, Expr> temp_var_map;
   ir::Tensor master_out_tensor;
   int master_index = GetMasterRefNode(nodes);
+  for (auto& i : nodes) VLOG(3) << "In nodes, the node name is : " << i->id();
+  bool has_winograd_conv2d = false;
   for (auto& node : nodes) {
+    VLOG(3) << "index is : " << index;
     std::vector<ir::Tensor> temp_inputs;
     std::vector<common::CINNValue> cinn_inputs;
     std::vector<std::vector<int>> output_shapes;
@@ -235,10 +243,24 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
       master_out_tensor = out.as_tensor_ref();
     }
     CHECK_GE(C.size(), 2);
-    CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
+    CHECK_EQ(C.size(), C->size());
+
+    std::vector<Expr> temp_C;
+    if (C.size() - 1 > node->outlinks_in_order().size()) {
+      for (int i = 1; i < C.size() - 1; i++) {
+        ir::Expr temp = C[i];
+        VLOG(3) << "C[" << i << "] name is : " << temp.as_tensor_ref()->name;
+        outputs.push_back(temp.as_tensor_ref());
+      }
+      common::CINNValuePack C_temp{{C[0], C.back()}};
+      has_winograd_conv2d = true;
+      C                   = C_temp;
+    }
     for (int i = 0; i < C.size() - 1; i++) {
       temp_var_map[temp_outvars[i]] = C[i];
+      VLOG(3) << "temp_outvars[" << i << "] is : " << temp_outvars[i]->id();
     }
+    CHECK_LE(C.size() - 1, node->outlinks_in_order().size());
     poly::StageMap temp_stages = C.back();
 
     for (auto& i : temp_stages) {
@@ -248,6 +270,8 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
     for (int i = 0; i < C->size() - 1; i++) {
       ir::Expr temp = C[i];
       stages->InsertLazily(temp.as_tensor_ref(), temp_stages[temp.as_tensor_ref()]);
+      VLOG(3) << "C[" << i << "] is " << temp.as_tensor_ref()->name << ", index is " << index
+              << " and fuse_number is : " << fuse_number;
       if (index < fuse_number - 1 && !temp.as_tensor_ref()->is_reduce_tensor()) {
         // assume that only the first out_var links to other op node which will compute inline
         if (i == 0) {
@@ -280,9 +304,12 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   fuse_name += "fused";
   VLOG(3) << "fuse_name: " << fuse_name;
   // args order: inputs + final output + other no_fused outputs
+  for (auto& i : inputs)
+    VLOG(3) << "before input = input + outputs, input name is : " << i->name << " and fused_name is : " << fuse_name;
   inputs.insert(inputs.end(), outputs.begin(), outputs.end());
 
   ir::Tensor final_out_tensor = outputs.front();
+  VLOG(3) << "final_out_tensor name is " << final_out_tensor->name;
   if (final_out_tensor->name != master_out_tensor->name) {
     stages[final_out_tensor]->CopyTransform(stages[master_out_tensor]);
     stages[final_out_tensor]->CopyLoopInfo(stages[master_out_tensor]);
@@ -291,14 +318,19 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
   for (auto& s : stages) {
     auto& compute_ats = s.second->GetComputeAts();
     auto tensor       = s.second->tensor();
-    if (tensor->is_reduce_tensor() && !compute_ats.empty()) {
+    VLOG(3) << "Stage tensor is : " << tensor->name;
+    if (!compute_ats.empty()) {
+      // if (tensor->is_reduce_tensor() && !compute_ats.empty() && !has_winograd_conv2d) {
+      VLOG(3) << "check this tensor's compute_at " << tensor->name;
       poly::ComputeAtRelation new_relation;
       CHECK_EQ(compute_ats.size(), 1U);
       auto new_stage = stages[final_out_tensor];
       for (auto& compute_at : compute_ats) {
         auto& old_relation     = compute_at.second;
         auto old_target_tensor = old_relation.stage->tensor();
+        VLOG(3) << tensor->name << " compute_at " << old_target_tensor->name;
         if (stages[old_target_tensor]->inlined()) {
+          VLOG(3) << "And " << old_target_tensor->name << " is inlined.";
           new_relation.stage = new_stage;
           new_relation.level = old_relation.level;
 
@@ -310,17 +342,20 @@ std::vector<ir::LoweredFunc> GraphCompiler::GetOpFunc(const std::vector<Node*>& 
       }
     }
   }
-
+  for (auto& i : inputs) VLOG(3) << "input name is : " << i->name << " and fused_name is : " << fuse_name;
   auto func = lang::LowerVec(fuse_name, stages, inputs, {}, {}, nullptr, this->target_);
-  VLOG(3) << "The [" << func.size() << "] functions are:\n";
   for (auto& i : func) {
-    VLOG(3) << "Function [" << i->name << "] is:\n";
-    VLOG(3) << i;
+    VLOG(3) << "Function [" << i->name << "]'s args is:";
+    if (has_winograd_conv2d) VLOG(3) << "Function is:\n" << i;
+    for (auto& j : i->args) {
+      VLOG(3) << j.name();
+    }
   }
   return func;
 }
 
 void GraphCompiler::ProcessFunction(const std::vector<ir::LoweredFunc>& lowered_func) {
+  VLOG(3) << "Lowered_func size is :" << lowered_func.size();
   if (lowered_func.size() > 1) {
     for (auto& i : lowered_func) {
       VLOG(3) << "In lowered_func, its name is : " << i->name;
@@ -631,14 +666,39 @@ std::vector<std::unique_ptr<Instruction>> GraphCompiler::BuildInstructions() {
         }
       }
       fuse_name += "fused";
-      VLOG(3) << fuse_name;
-      auto instr =
-          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_name));
+      VLOG(3) << "In buildInstructions, fuse_name is : " << fuse_name;
       VLOG(3) << "input_names: " << utils::Join(inputNames, ", ");
       VLOG(3) << "out_names: " << utils::Join(outputNames, ", ");
+
+      auto instr =
+          std::unique_ptr<Instruction>(new Instruction(target_, scope_.get(), inputNames, outputNames, fuse_name));
+
       auto* fn = compiler_->Lookup(fuse_name);
       CHECK(fn);
       instr->SetLoweredFunc(fn);
+      int i                   = 1;
+      std::string new_op_func = fuse_name + "_" + std::to_string(i);
+      if (function2input_args_.count(new_op_func) != 0) {
+        CHECK_GT(function2input_args_.count(fuse_name), 0);
+        instr->AddInArgs(function2input_args_[fuse_name]);
+        instr->AddOutArgs(function2output_args_[fuse_name]);
+      }
+      while (function2input_args_.count(new_op_func) != 0) {
+        auto* fn2 = compiler_->Lookup(new_op_func);
+        CHECK(fn2);
+        instr->SetLoweredFunc(fn2);
+        instr->AddInArgs(function2input_args_[new_op_func]);
+        instr->AddOutArgs(function2output_args_[new_op_func]);
+        i++;
+        new_op_func = fuse_name + "_" + std::to_string(i);
+      }
+
+      for (int j = 0; j < group.size(); j++) {
+        auto node = group[j];
+        if (node->attrs.attr_store.count("pre_run") && absl::get<bool>(node->attrs.attr_store["pre_run"]) == true) {
+          instr->pre_run = true;
+        }
+      }
       instructions.push_back(std::move(instr));
     }
   }

@@ -253,17 +253,17 @@ typedef char int8_t;
 __global__
 void elementwise_add(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
 {
-  if ((blockIdx.x < 100)) {
-    if ((threadIdx.x < 200)) {
-      C[((200 * blockIdx.x) + threadIdx.x)] = (X[((200 * blockIdx.x) + threadIdx.x)] * Y[((200 * blockIdx.x) + threadIdx.x)]);
+  if (((int)blockIdx.x < 100)) {
+    if (((int)threadIdx.x < 200)) {
+      C[((200 * (int)blockIdx.x) + (int)threadIdx.x)] = (X[((200 * (int)blockIdx.x) + (int)threadIdx.x)] * Y[((200 * (int)blockIdx.x) + (int)threadIdx.x)]);
     };
   };
 }__global__
 void elementwise_add_1(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ C, float* __restrict__ D)
 {
-  if ((blockIdx.x < 100)) {
-    if ((threadIdx.x < 200)) {
-      D[((200 * blockIdx.x) + threadIdx.x)] = (C[((200 * blockIdx.x) + threadIdx.x)] + Y[((200 * blockIdx.x) + threadIdx.x)]);
+  if (((int)blockIdx.x < 100)) {
+    if (((int)threadIdx.x < 200)) {
+      D[((200 * (int)blockIdx.x) + (int)threadIdx.x)] = (C[((200 * (int)blockIdx.x) + (int)threadIdx.x)] + Y[((200 * (int)blockIdx.x) + (int)threadIdx.x)]);
     };
   };
 }
@@ -318,11 +318,11 @@ typedef char int8_t;
 __global__
 void elementwise_add_splitouter(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ C)
 {
-  if ((blockIdx.x < 20)) {
-    if ((threadIdx.x < 5)) {
+  if (((int)blockIdx.x < 20)) {
+    if (((int)threadIdx.x < 5)) {
       for (int32_t j_outer = 0; j_outer < 17; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < cinn_nvgpu_min_fp32(6, (100 + (-6 * j_outer))); j_inner += 1) {
-          C[((500 * blockIdx.x) + ((6 * j_outer) + ((100 * threadIdx.x) + j_inner)))] = (X[((500 * blockIdx.x) + ((6 * j_outer) + ((100 * threadIdx.x) + j_inner)))] * Y[((500 * blockIdx.x) + ((6 * j_outer) + ((100 * threadIdx.x) + j_inner)))]);
+          C[((500 * (int)blockIdx.x) + ((6 * j_outer) + ((100 * (int)threadIdx.x) + j_inner)))] = (X[((500 * (int)blockIdx.x) + ((6 * j_outer) + ((100 * (int)threadIdx.x) + j_inner)))] * Y[((500 * (int)blockIdx.x) + ((6 * j_outer) + ((100 * (int)threadIdx.x) + j_inner)))]);
         };
       };
     };
@@ -426,10 +426,10 @@ void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y,
   float* COD_write_cache__reduce_init = _COD_write_cache;
   float* Y_read_cache = _Y_read_cache;
   float* input_pad_0_read_cache = _input_pad_0_read_cache;
-  if ((blockIdx.z < 8)) {
-    if ((blockIdx.y < 14)) {
-      if ((threadIdx.z < 16)) {
-        if ((threadIdx.x < 14)) {
+  if (((int)blockIdx.z < 8)) {
+    if (((int)blockIdx.y < 14)) {
+      if (((int)threadIdx.z < 16)) {
+        if (((int)threadIdx.x < 14)) {
         {
           for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
             COD_write_cache__reduce_init[rc_outer] = 0;
@@ -437,24 +437,24 @@ void schedule_conv2d_0(const float* __restrict__ X, const float* __restrict__ Y,
           for (int32_t rc_outer = 0; rc_outer < 16; rc_outer += 1) {
             {
               __syncthreads();
-              if ((threadIdx.z < 8)) {
-                input_pad_0_read_cache[((2 * threadIdx.x) + (28 * threadIdx.z))] = X[((56 * blockIdx.y) + ((6272 * rc_outer) + ((2 * threadIdx.x) + (784 * threadIdx.z))))];
+              if (((int)threadIdx.z < 8)) {
+                input_pad_0_read_cache[((2 * (int)threadIdx.x) + (28 * (int)threadIdx.z))] = X[((56 * (int)blockIdx.y) + ((6272 * rc_outer) + ((2 * (int)threadIdx.x) + (784 * (int)threadIdx.z))))];
               };
             };
             for (int32_t rc_inner = 0; rc_inner < 2; rc_inner += 1) {
-              if ((threadIdx.x < 8)) {
-                Y_read_cache[((threadIdx.x / 2) + ((8 * (threadIdx.x & 1)) + ((4 * rc_inner) + (16 * threadIdx.z))))] = Y[((threadIdx.x / 2) + ((128 * (threadIdx.x & 1)) + ((4096 * blockIdx.z) + ((4 * rc_inner) + ((8 * rc_outer) + (256 * threadIdx.z))))))];
+              if (((int)threadIdx.x < 8)) {
+                Y_read_cache[(((int)threadIdx.x / 2) + ((8 * ((int)threadIdx.x & 1)) + ((4 * rc_inner) + (16 * (int)threadIdx.z))))] = Y[(((int)threadIdx.x / 2) + ((128 * ((int)threadIdx.x & 1)) + ((4096 * (int)blockIdx.z) + ((4 * rc_inner) + ((8 * rc_outer) + (256 * (int)threadIdx.z))))))];
               };
             };
             __syncthreads();
             for (int32_t rc_inner = 0; rc_inner < 8; rc_inner += 1) {
               for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-                COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2 * threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * threadIdx.z) + rc_inner))]));
+                COD_write_cache[j_inner] = (COD_write_cache[j_inner] + (input_pad_0_read_cache[((28 * rc_inner) + (2 * (int)threadIdx.x))] * Y_read_cache[((8 * j_inner) + ((16 * (int)threadIdx.z) + rc_inner))]));
               };
             };
           };
           for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
-            COD[((14 * blockIdx.y) + ((6272 * blockIdx.z) + ((196 * rc_outer) + ((392 * threadIdx.z) + threadIdx.x))))] = COD_write_cache[rc_outer];
+            COD[((14 * (int)blockIdx.y) + ((6272 * (int)blockIdx.z) + ((196 * rc_outer) + ((392 * (int)threadIdx.z) + (int)threadIdx.x))))] = COD_write_cache[rc_outer];
           };
         }
         };
@@ -571,11 +571,11 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
   float* Conv2d_out_write_cache__reduce_init = _Conv2d_out_write_cache;
   float* Y_read_cache = _Y_read_cache;
   float* input_pad_0_read_cache = _input_pad_0_read_cache;
-  if ((blockIdx.y < 112)) {
+  if (((int)blockIdx.y < 112)) {
     for (int32_t j_outer_outer_inner = 0; j_outer_outer_inner < 4; j_outer_outer_inner += 1) {
       for (int32_t a_outer_outer_inner = 0; a_outer_outer_inner < 7; a_outer_outer_inner += 1) {
-        if ((threadIdx.z < 8)) {
-          if ((threadIdx.x < 16)) {
+        if (((int)threadIdx.z < 8)) {
+          if (((int)threadIdx.x < 16)) {
           {
             for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
               Conv2d_out_write_cache__reduce_init[rc_outer] = 0;
@@ -584,23 +584,23 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
               for (int32_t ry_outer = 0; ry_outer < 7; ry_outer += 1) {
                 {
                   __syncthreads();
-                  if ((threadIdx.z < 7)) {
-                    input_pad_0_read_cache[((2 * threadIdx.x) + threadIdx.z)] = ((((((((2 * blockIdx.y) + ry_outer) >= 3) && (((2 * blockIdx.y) + ry_outer) < 227)) && (((32 * a_outer_outer_inner) + ((2 * threadIdx.x) + threadIdx.z)) >= 3)) && (((32 * a_outer_outer_inner) + ((2 * threadIdx.x) + threadIdx.z)) < 227))) ? X[(-675 + ((32 * a_outer_outer_inner) + ((448 * blockIdx.y) + ((50176 * rc_outer) + ((224 * ry_outer) + ((2 * threadIdx.x) + threadIdx.z))))))] : 0);
+                  if (((int)threadIdx.z < 7)) {
+                    input_pad_0_read_cache[((2 * (int)threadIdx.x) + (int)threadIdx.z)] = ((((((((2 * (int)blockIdx.y) + ry_outer) >= 3) && (((2 * (int)blockIdx.y) + ry_outer) < 227)) && (((32 * a_outer_outer_inner) + ((2 * (int)threadIdx.x) + (int)threadIdx.z)) >= 3)) && (((32 * a_outer_outer_inner) + ((2 * (int)threadIdx.x) + (int)threadIdx.z)) < 227))) ? X[(-675 + ((32 * a_outer_outer_inner) + ((448 * (int)blockIdx.y) + ((50176 * rc_outer) + ((224 * ry_outer) + ((2 * (int)threadIdx.x) + (int)threadIdx.z))))))] : 0);
                   };
                 };
-                if ((threadIdx.x < 14)) {
-                  Y_read_cache[((threadIdx.x / 2) + ((7 * (threadIdx.x & 1)) + (14 * threadIdx.z)))] = Y[((threadIdx.x / 2) + ((147 * (threadIdx.x & 1)) + ((2352 * j_outer_outer_inner) + ((49 * rc_outer) + ((7 * ry_outer) + (294 * threadIdx.z))))))];
+                if (((int)threadIdx.x < 14)) {
+                  Y_read_cache[(((int)threadIdx.x / 2) + ((7 * ((int)threadIdx.x & 1)) + (14 * (int)threadIdx.z)))] = Y[(((int)threadIdx.x / 2) + ((147 * ((int)threadIdx.x & 1)) + ((2352 * j_outer_outer_inner) + ((49 * rc_outer) + ((7 * ry_outer) + (294 * (int)threadIdx.z))))))];
                 };
                 __syncthreads();
                 for (int32_t rx_inner = 0; rx_inner < 7; rx_inner += 1) {
                   for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-                    Conv2d_out_write_cache[j_inner] = (Conv2d_out_write_cache[j_inner] + (input_pad_0_read_cache[((2 * threadIdx.x) + rx_inner)] * Y_read_cache[((7 * j_inner) + ((14 * threadIdx.z) + rx_inner))]));
+                    Conv2d_out_write_cache[j_inner] = (Conv2d_out_write_cache[j_inner] + (input_pad_0_read_cache[((2 * (int)threadIdx.x) + rx_inner)] * Y_read_cache[((7 * j_inner) + ((14 * (int)threadIdx.z) + rx_inner))]));
                   };
                 };
               };
             };
             for (int32_t rc_outer = 0; rc_outer < 2; rc_outer += 1) {
-              Conv2d_out[((16 * a_outer_outer_inner) + ((112 * blockIdx.y) + ((200704 * j_outer_outer_inner) + ((12544 * rc_outer) + ((25088 * threadIdx.z) + threadIdx.x)))))] = Conv2d_out_write_cache[rc_outer];
+              Conv2d_out[((16 * a_outer_outer_inner) + ((112 * (int)blockIdx.y) + ((200704 * j_outer_outer_inner) + ((12544 * rc_outer) + ((25088 * (int)threadIdx.z) + (int)threadIdx.x)))))] = Conv2d_out_write_cache[rc_outer];
             };
           }
           };
@@ -751,6 +751,520 @@ void schedule_conv2d_1(const float* __restrict__ X, const float* __restrict__ Y,
   }
 }
 
+TEST(CodeGenCUDA2, test_schedule_winograd_conv2dc) {
+  Context::Global().ResetNameId();
+  int ni = 1;
+  int ci = 512;
+  int hi = 7;
+  int wi = 512;
+  int ki = 3;
+  Expr N(ni);
+  Expr C(ci);
+  Expr H(hi);
+  Expr W(wi);
+  Expr K(ki);
+
+  Target target = common::DefaultNVGPUTarget();
+
+  Placeholder<float> A("X", {N, C, H, H});
+  Placeholder<float> B("Y", {W, C, K, K});
+
+  auto res = hlir::pe::Conv2d_NCHW(A, B, 1, 1, 1, 1, 1, 1, "Conv2d_out", true);
+
+  auto stages = CreateStages(res);
+
+  auto pad_data = res[1];
+  auto conv     = res[0];
+
+  auto B_t = B.tensor();
+
+  hlir::pe::CudaScheduleConv(stages, pad_data, B_t, conv, target);
+
+  CodeGenCUDA_Dev codegen(target);
+
+  auto func = Lower("schedule_conv2d_1", stages, {A, B, conv}, {}, {}, nullptr, target);
+
+  Module::Builder builder("module", target);
+  builder.AddFunction(func);
+
+  auto source_code = codegen.Compile(builder.Build());
+
+  LOG(INFO) << "compiled schedule_conv2d_1 code:\n\n\n" << source_code;
+
+  using runtime::cuda::CUDAModule;
+
+  backends::NVRTC_Compiler compiler;
+
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr Ad, Bd, Cd;
+  cuMemAlloc(&Ad, ni * ci * hi * hi * sizeof(float));
+  cuMemAlloc(&Bd, wi * ci * ki * ki * sizeof(float));
+  cuMemAlloc(&Cd, ni * wi * hi * hi * sizeof(float));
+
+  std::vector<float> host_data1(ni * ci * hi * hi, 0);
+  std::vector<float> host_data2(wi * ci * ki * ki, 0);
+  std::vector<float> host_data3(ni * wi * hi * hi, 0);
+  for (float& v : host_data1) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+  for (float& v : host_data2) v = static_cast<float>(rand()) / INT_MAX;  // NOLINT
+
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
+
+  // launch the kernel
+
+  void* args[] = {&Ad, &Bd, &Cd};
+  dim3 grid(1, 7, 32);
+  dim3 block(7, 1, 16);
+  int repeat = 1000;
+
+  utils::Timer time1;
+  time1.Start();
+  for (int i = 0; i < repeat; i++) {
+    cuda_module.LaunchKernel(0, "schedule_conv2d_1", grid, block, args);
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+  auto time_average1 = time1.Stop() / static_cast<float>(repeat);
+  LOG(INFO) << "CINN Conv2d direct with schedule repeats " << repeat
+            << " times, average time cost is : " << time_average1 << "ms. ";
+  CUDA_CALL(cudaMemcpy(
+      host_data3.data(), reinterpret_cast<void*>(Cd), host_data3.size() * sizeof(float), cudaMemcpyDeviceToHost));
+
+  Placeholder<float> X("X", {N, C, H, H});
+  Placeholder<float> Y("Y", {W, C, K, K});
+
+  auto wino_res    = hlir::pe::Conv2d_winograd_NCHW(X, Y, 1, 1, 1, 1, 1, 1, "Winograd_Conv2d_out");
+  auto wino_stages = CreateStages(wino_res);
+
+  auto wino_weights_dilation = wino_res[0];
+  auto wino_input_pad        = wino_res[1];
+  auto wino_A                = wino_res[2];
+  auto wino_B                = wino_res[3];
+  auto wino_G                = wino_res[4];
+  auto kernel_pack           = wino_res[5];
+  auto input_tile            = wino_res[6];
+  auto data_pack             = wino_res[7];
+  auto bgemm                 = wino_res[8];
+  auto inverse               = wino_res[9];
+  auto wino_conv             = wino_res[10];
+
+  VLOG(3) << "kernel_pack shape is : " << utils::Join(kernel_pack->shape, ", ");
+  VLOG(3) << "input_tile shape is : " << utils::Join(input_tile->shape, ", ");
+  VLOG(3) << "data_pack shape is : " << utils::Join(data_pack->shape, ", ");
+  VLOG(3) << "bgemm shape is : " << utils::Join(bgemm->shape, ", ");
+  VLOG(3) << "inverse shape is : " << utils::Join(inverse->shape, ", ");
+
+  hlir::pe::CudaScheduleWinogradConv(wino_stages,
+                                     wino_weights_dilation,
+                                     wino_input_pad,
+                                     wino_A,
+                                     wino_B,
+                                     wino_G,
+                                     kernel_pack,
+                                     input_tile,
+                                     data_pack,
+                                     bgemm,
+                                     inverse,
+                                     wino_conv,
+                                     target);
+  CodeGenCUDA_Dev wino_codegen(target);
+
+  auto wino_func = lang::LowerVec(
+      "schedule_wino_conv2d", wino_stages, {X, Y, kernel_pack, data_pack, bgemm, wino_conv}, {}, {}, nullptr, target);
+
+  Module::Builder wino_builder("wino_module", target);
+  for (auto& i : wino_func) {
+    wino_builder.AddFunction(i);
+  }
+
+  auto wino_module = wino_builder.Build();
+
+  auto [host_module, device_module] = SplitCudaAndHostModule(wino_module);
+
+  auto wino_source_code = wino_codegen.Compile(wino_module);
+
+  LOG(INFO) << "compiled schedule_wino_conv2d code:\n\n\n" << wino_source_code;
+
+  backends::NVRTC_Compiler wino_compiler;
+
+  std::string target_code = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+
+
+__global__
+void schedule_wino_conv2d(const float* __restrict__ X, float* __restrict__ data_pack)
+{
+  float _input_tile_temp_buffer [ 16 ];
+  float _data_pack_write_cache [ 16 ];
+  float* data_pack_write_cache = _data_pack_write_cache;
+  float* data_pack_write_cache__reduce_init = _data_pack_write_cache;
+  float* input_tile = _input_tile_temp_buffer;
+  if (((int)blockIdx.x < 64)) {
+    if (((int)threadIdx.x < 128)) {
+    {
+      for (int32_t i = 0; i < 4; i += 1) {
+        for (int32_t j = 0; j < 4; j += 1) {
+          data_pack_write_cache__reduce_init[((4 * i) + j)] = 0;
+        };
+      };
+      for (int32_t i = 0; i < 4; i += 1) {
+        for (int32_t j = 0; j < 4; j += 1) {
+          input_tile[((4 * i) + j)] = ((((((((2 * ((((int)threadIdx.x & 15) / 4) & 3)) + i) >= 1) && (((2 * ((((int)threadIdx.x & 15) / 4) & 3)) + i) < 8)) && (((2 * (((int)threadIdx.x & 15) & 3)) + j) >= 1)) && (((2 * (((int)threadIdx.x & 15) & 3)) + j) < 8))) ? X[(-8 + (((((int)threadIdx.x & 15) / 16) * 25088) + ((49 * ((int)threadIdx.x / 16)) + ((14 * ((((int)threadIdx.x & 15) / 4) & 3)) + ((2 * (((int)threadIdx.x & 15) & 3)) + ((392 * (int)blockIdx.x) + ((7 * i) + j)))))))] : 0);
+        };
+      };
+      for (int32_t i = 0; i < 4; i += 1) {
+        for (int32_t j = 0; j < 4; j += 1) {
+          for (int32_t r_a = 0; r_a < 4; r_a += 1) {
+            for (int32_t r_b = 0; r_b < 4; r_b += 1) {
+              data_pack_write_cache[((4 * i) + j)] = (data_pack_write_cache[((4 * i) + j)] + (input_tile[((4 * r_a) + r_b)] * ((((((3 - r_a) == 0) && ((3 - i) == 0))) ? 1 : (((((3 - r_a) == 0) && ((2 - i) == 0))) ? 0 : (((((3 - r_a) == 0) && ((1 - i) == 0))) ? 0 : (((((3 - r_a) == 0) && ((-1 * i) == 0))) ? 0 : (((((2 - r_a) == 0) && ((3 - i) == 0))) ? 0 : (((((2 - r_a) == 0) && ((2 - i) == 0))) ? 1 : (((((2 - r_a) == 0) && ((1 - i) == 0))) ? 1 : (((((2 - r_a) == 0) && ((-1 * i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((3 - i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((2 - i) == 0))) ? 1 : (((((1 - r_a) == 0) && ((1 - i) == 0))) ? -1 : (((((1 - r_a) == 0) && ((-1 * i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((3 - i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((2 - i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((1 - i) == 0))) ? 0 : (((((-1 * r_a) == 0) && ((-1 * i) == 0))) ? 1 : 1)))))))))))))))) * (((((3 - r_b) == 0) && ((3 - j) == 0))) ? 1 : (((((3 - r_b) == 0) && ((2 - j) == 0))) ? 0 : (((((3 - r_b) == 0) && ((1 - j) == 0))) ? 0 : (((((3 - r_b) == 0) && ((-1 * j) == 0))) ? 0 : (((((2 - r_b) == 0) && ((3 - j) == 0))) ? 0 : (((((2 - r_b) == 0) && ((2 - j) == 0))) ? 1 : (((((2 - r_b) == 0) && ((1 - j) == 0))) ? 1 : (((((2 - r_b) == 0) && ((-1 * j) == 0))) ? -1 : (((((1 - r_b) == 0) && ((3 - j) == 0))) ? -1 : (((((1 - r_b) == 0) && ((2 - j) == 0))) ? 1 : (((((1 - r_b) == 0) && ((1 - j) == 0))) ? -1 : (((((1 - r_b) == 0) && ((-1 * j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((3 - j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((2 - j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((1 - j) == 0))) ? 0 : (((((-1 * r_b) == 0) && ((-1 * j) == 0))) ? 1 : 1)))))))))))))))))));
+            };
+          };
+        };
+      };
+      for (int32_t i = 0; i < 4; i += 1) {
+        for (int32_t j = 0; j < 4; j += 1) {
+          data_pack[((16 * ((int)threadIdx.x / 16)) + (((int)threadIdx.x & 15) + ((128 * (int)blockIdx.x) + ((32768 * i) + (8192 * j)))))] = data_pack_write_cache[((4 * i) + j)];
+        };
+      };
+    }
+    };
+  };
+}__global__
+void schedule_wino_conv2d_1(const float* __restrict__ Y, float* __restrict__ kernel_pack)
+{
+  float* kernel_pack__reduce_init = kernel_pack;
+  if (((int)blockIdx.x < 2048)) {
+    if (((int)threadIdx.x < 128)) {
+      for (int32_t i = 0; i < 4; i += 1) {
+        for (int32_t j = 0; j < 4; j += 1) {
+          kernel_pack__reduce_init[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576 * i) + ((262144 * j) + (int)threadIdx.x))))] = 0;
+          for (int32_t r_kh = 0; r_kh < 3; r_kh += 1) {
+            for (int32_t r_kw = 0; r_kw < 3; r_kw += 1) {
+              kernel_pack[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576 * i) + ((262144 * j) + (int)threadIdx.x))))] = (kernel_pack[((((int)blockIdx.x / 4) * 512) + ((128 * ((int)blockIdx.x & 3)) + ((1048576 * i) + ((262144 * j) + (int)threadIdx.x))))] + ((((((r_kh & 0) == 0) && ((r_kw & 0) == 0))) ? Y[((r_kw / 1) + (((r_kh / 1) * 3) + ((((int)blockIdx.x / 4) * 9) + ((589824 * ((int)blockIdx.x & 3)) + (4608 * (int)threadIdx.x)))))] : 0) * ((((((3 - i) == 0) && ((2 - r_kh) == 0))) ? 1 : (((((3 - i) == 0) && ((1 - r_kh) == 0))) ? 0 : (((((3 - i) == 0) && ((-1 * r_kh) == 0))) ? 0 : (((((2 - i) == 0) && ((2 - r_kh) == 0))) ? 0.5 : (((((2 - i) == 0) && ((1 - r_kh) == 0))) ? 0.5 : (((((2 - i) == 0) && ((-1 * r_kh) == 0))) ? 0.5 : (((((1 - i) == 0) && ((2 - r_kh) == 0))) ? 0.5 : (((((1 - i) == 0) && ((1 - r_kh) == 0))) ? -0.5 : (((((1 - i) == 0) && ((-1 * r_kh) == 0))) ? 0.5 : (((((-1 * i) == 0) && ((2 - r_kh) == 0))) ? 0 : (((((-1 * i) == 0) && ((1 - r_kh) == 0))) ? 0 : (((((-1 * i) == 0) && ((-1 * r_kh) == 0))) ? 1 : 1)))))))))))) * (((((3 - j) == 0) && ((2 - r_kw) == 0))) ? 1 : (((((3 - j) == 0) && ((1 - r_kw) == 0))) ? 0 : (((((3 - j) == 0) && ((-1 * r_kw) == 0))) ? 0 : (((((2 - j) == 0) && ((2 - r_kw) == 0))) ? 0.5 : (((((2 - j) == 0) && ((1 - r_kw) == 0))) ? 0.5 : (((((2 - j) == 0) && ((-1 * r_kw) == 0))) ? 0.5 : (((((1 - j) == 0) && ((2 - r_kw) == 0))) ? 0.5 : (((((1 - j) == 0) && ((1 - r_kw) == 0))) ? -0.5 : (((((1 - j) == 0) && ((-1 * r_kw) == 0))) ? 0.5 : (((((-1 * j) == 0) && ((2 - r_kw) == 0))) ? 0 : (((((-1 * j) == 0) && ((1 - r_kw) == 0))) ? 0 : (((((-1 * j) == 0) && ((-1 * r_kw) == 0))) ? 1 : 1)))))))))))))));
+            };
+          };
+        };
+      };
+    };
+  };
+}__global__
+void schedule_wino_conv2d_2(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ kernel_pack, const float* __restrict__ data_pack, float* __restrict__ bgemm)
+{
+  __shared__ float _data_pack_read_cache [ 256 ];
+  float _bgemm_write_cache [ 8 ];
+  __shared__ float _kernel_pack_read_cache [ 1024 ];
+  float _input_tile_temp_buffer [ 16 ];
+  float _data_pack_write_cache [ 16 ];
+  float* bgemm_write_cache = _bgemm_write_cache;
+  float* bgemm_write_cache__reduce_init = _bgemm_write_cache;
+  float* data_pack_read_cache = _data_pack_read_cache;
+  float* data_pack_write_cache = _data_pack_write_cache;
+  float* input_tile = _input_tile_temp_buffer;
+  float* kernel_pack_read_cache = _kernel_pack_read_cache;
+  if (((int)blockIdx.z < 16)) {
+    if (((int)blockIdx.y < 8)) {
+      if (((int)threadIdx.y < 16)) {
+        if (((int)threadIdx.x < 8)) {
+        {
+          for (int32_t ci_outer = 0; ci_outer < 4; ci_outer += 1) {
+            for (int32_t ci_inner = 0; ci_inner < 2; ci_inner += 1) {
+              bgemm_write_cache__reduce_init[((2 * ci_outer) + ci_inner)] = 0;
+            };
+          };
+          for (int32_t ci_outer = 0; ci_outer < 32; ci_outer += 1) {
+            {
+              __syncthreads();
+              if (((int)threadIdx.x < 8)) {
+                for (int32_t k_inner = 0; k_inner < 8; k_inner += 1) {
+                  kernel_pack_read_cache[((64 * (k_inner / 4)) + ((k_inner & 3) + ((128 * (int)threadIdx.x) + (4 * (int)threadIdx.y))))] = kernel_pack[((((int)blockIdx.z / 4) * 1048576) + ((512 * (k_inner / 4)) + ((262144 * ((int)blockIdx.z & 3)) + ((k_inner & 3) + ((64 * (int)blockIdx.y) + ((8192 * ci_outer) + ((1024 * (int)threadIdx.x) + (4 * (int)threadIdx.y))))))))];
+                };
+              };
+            };
+            if (((int)threadIdx.y < 16)) {
+              for (int32_t k_inner = 0; k_inner < 2; k_inner += 1) {
+                data_pack_read_cache[((2 * (int)threadIdx.x) + ((16 * (int)threadIdx.y) + k_inner))] = data_pack[((((int)blockIdx.z / 4) * 32768) + ((8192 * ((int)blockIdx.z & 3)) + ((256 * ci_outer) + ((2 * (int)threadIdx.x) + ((16 * (int)threadIdx.y) + k_inner)))))];
+              };
+            };
+            __syncthreads();
+            for (int32_t ci_inner = 0; ci_inner < 16; ci_inner += 1) {
+              for (int32_t k_inner = 0; k_inner < 4; k_inner += 1) {
+                for (int32_t a_inner = 0; a_inner < 2; a_inner += 1) {
+                  bgemm_write_cache[((2 * k_inner) + a_inner)] = (bgemm_write_cache[((2 * k_inner) + a_inner)] + (kernel_pack_read_cache[((64 * ci_inner) + ((4 * (int)threadIdx.y) + k_inner))] * data_pack_read_cache[((16 * ci_inner) + ((2 * (int)threadIdx.x) + a_inner))]));
+                };
+              };
+            };
+          };
+          for (int32_t ci_inner = 0; ci_inner < 4; ci_inner += 1) {
+            for (int32_t k_inner = 0; k_inner < 2; k_inner += 1) {
+              bgemm[((((int)blockIdx.z / 4) * 32768) + ((8192 * ((int)blockIdx.z & 3)) + ((1024 * (int)blockIdx.y) + ((16 * ci_inner) + ((2 * (int)threadIdx.x) + ((64 * (int)threadIdx.y) + k_inner))))))] = bgemm_write_cache[((2 * ci_inner) + k_inner)];
+            };
+          };
+        }
+        };
+      };
+    };
+  };
+}__global__
+void schedule_wino_conv2d_3(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ kernel_pack, const float* __restrict__ data_pack, const float* __restrict__ bgemm, float* __restrict__ Winograd_Conv2d_out)
+{
+  float _inverse_temp_buffer [ 4 ];
+  float _input_tile_temp_buffer [ 16 ];
+  float _data_pack_write_cache [ 16 ];
+  float _bgemm_write_cache [ 8 ];
+  __shared__ float _kernel_pack_read_cache [ 1024 ];
+  __shared__ float _data_pack_read_cache [ 256 ];
+  float* bgemm_write_cache = _bgemm_write_cache;
+  float* data_pack_read_cache = _data_pack_read_cache;
+  float* data_pack_write_cache = _data_pack_write_cache;
+  float* input_tile = _input_tile_temp_buffer;
+  float* inverse = _inverse_temp_buffer;
+  float* inverse__reduce_init = _inverse_temp_buffer;
+  float* kernel_pack_read_cache = _kernel_pack_read_cache;
+  if (((int)blockIdx.x < 64)) {
+    if (((int)threadIdx.x < 128)) {
+    {
+      for (int32_t k = 0; k < 2; k += 1) {
+        for (int32_t a = 0; a < 2; a += 1) {
+          inverse__reduce_init[((2 * k) + a)] = 0;
+          for (int32_t r_g_a = 0; r_g_a < 4; r_g_a += 1) {
+            for (int32_t r_g_b = 0; r_g_b < 4; r_g_b += 1) {
+              inverse[((2 * k) + a)] = (inverse[((2 * k) + a)] + (bgemm[((16 * ((int)threadIdx.x / 16)) + (((int)threadIdx.x & 15) + ((128 * (int)blockIdx.x) + ((32768 * r_g_a) + (8192 * r_g_b)))))] * ((((((3 - r_g_a) == 0) && ((1 - k) == 0))) ? 1 : (((((3 - r_g_a) == 0) && ((-1 * k) == 0))) ? 0 : (((((2 - r_g_a) == 0) && ((1 - k) == 0))) ? 1 : (((((2 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : (((((1 - r_g_a) == 0) && ((1 - k) == 0))) ? -1 : (((((1 - r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : (((((-1 * r_g_a) == 0) && ((1 - k) == 0))) ? 0 : (((((-1 * r_g_a) == 0) && ((-1 * k) == 0))) ? 1 : 1)))))))) * (((((3 - r_g_b) == 0) && ((1 - a) == 0))) ? 1 : (((((3 - r_g_b) == 0) && ((-1 * a) == 0))) ? 0 : (((((2 - r_g_b) == 0) && ((1 - a) == 0))) ? 1 : (((((2 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : (((((1 - r_g_b) == 0) && ((1 - a) == 0))) ? -1 : (((((1 - r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : (((((-1 * r_g_b) == 0) && ((1 - a) == 0))) ? 0 : (((((-1 * r_g_b) == 0) && ((-1 * a) == 0))) ? 1 : 1)))))))))));
+            };
+          };
+        };
+      };
+      for (int32_t k = 0; k < cinn_nvgpu_min_fp32(2, (7 + ((-2 * ((int)threadIdx.x / 4)) + (8 * ((int)threadIdx.x / 16))))); k += 1) {
+        for (int32_t a = 0; a < cinn_nvgpu_min_fp32(2, (31 + ((-2 * ((int)threadIdx.x & 15)) + (-4 * k)))); a += 1) {
+          if ((((1 + (int)threadIdx.x) & 3) >= a)) {
+            Winograd_Conv2d_out[((-7 * ((int)threadIdx.x / 16)) + ((14 * ((int)threadIdx.x / 4)) + ((2 * ((int)threadIdx.x & 3)) + ((392 * (int)blockIdx.x) + ((7 * k) + a)))))] = inverse[((2 * k) + a)];
+          };
+        };
+      };
+    }
+    };
+  };
+}
+
+}
+)ROC";
+
+  std::string target_code_tvm = R"ROC(
+extern "C" {
+
+#include "cinn_cuda_runtime_source.cuh"
+
+#ifdef __CUDACC_RTC__
+typedef int int32_t;
+typedef char int8_t;
+#endif
+
+__global__ void schedule_wino_conv2d(float* __restrict__ placeholder, float* __restrict__ data_pack) {
+  float d[16];
+  float data_pack_local[16];
+  for (int eps = 0; eps < 4; ++eps) {
+    for (int nu = 0; nu < 4; ++nu) {
+      d[(((eps * 4) + nu))] = (((((1 <= ((((((int)threadIdx.x) & 15) >> 2) * 2) + eps)) && (((((((int)threadIdx.x) & 15) >> 2) * 2) + eps) < 8)) && (1 <= (((((int)threadIdx.x) & 3) * 2) + nu))) && ((((((int)threadIdx.x) & 3) * 2) + nu) < 8)) ? placeholder[((((((((((int)blockIdx.x) * 392) + ((((int)threadIdx.x) >> 4) * 49)) + (((((int)threadIdx.x) & 15) >> 2) * 14)) + (eps * 7)) + ((((int)threadIdx.x) & 3) * 2)) + nu) - 8))] : 0.000000e+00f);
+    }
+  }
+  for (int eps_c = 0; eps_c < 4; ++eps_c) {
+    for (int nu_c = 0; nu_c < 4; ++nu_c) {
+      data_pack_local[(((eps_c * 4) + nu_c))] = 0.000000e+00f;
+      for (int r_a = 0; r_a < 4; ++r_a) {
+        for (int r_a1 = 0; r_a1 < 4; ++r_a1) {
+          data_pack_local[(((eps_c * 4) + nu_c))] = (data_pack_local[(((eps_c * 4) + nu_c))] + ((d[(((r_a * 4) + r_a1))] * (((r_a == 3) && (eps_c == 3)) ? 1.000000e+00f : (((r_a == 3) && (eps_c == 2)) ? 0.000000e+00f : (((r_a == 3) && (eps_c == 1)) ? 0.000000e+00f : (((r_a == 3) && (eps_c == 0)) ? 0.000000e+00f : (((r_a == 2) && (eps_c == 3)) ? 0.000000e+00f : (((r_a == 2) && (eps_c == 2)) ? 1.000000e+00f : (((r_a == 2) && (eps_c == 1)) ? 1.000000e+00f : (((r_a == 2) && (eps_c == 0)) ? -1.000000e+00f : (((r_a == 1) && (eps_c == 3)) ? -1.000000e+00f : (((r_a == 1) && (eps_c == 2)) ? 1.000000e+00f : (((r_a == 1) && (eps_c == 1)) ? -1.000000e+00f : (((r_a == 1) && (eps_c == 0)) ? 0.000000e+00f : (((r_a == 0) && (eps_c == 3)) ? 0.000000e+00f : (((r_a == 0) && (eps_c == 2)) ? 0.000000e+00f : (((r_a == 0) && (eps_c == 1)) ? 0.000000e+00f : (((r_a == 0) && (eps_c == 0)) ? 1.000000e+00f : 0.000000e+00f))))))))))))))))) * (((r_a1 == 3) && (nu_c == 3)) ? 1.000000e+00f : (((r_a1 == 3) && (nu_c == 2)) ? 0.000000e+00f : (((r_a1 == 3) && (nu_c == 1)) ? 0.000000e+00f : (((r_a1 == 3) && (nu_c == 0)) ? 0.000000e+00f : (((r_a1 == 2) && (nu_c == 3)) ? 0.000000e+00f : (((r_a1 == 2) && (nu_c == 2)) ? 1.000000e+00f : (((r_a1 == 2) && (nu_c == 1)) ? 1.000000e+00f : (((r_a1 == 2) && (nu_c == 0)) ? -1.000000e+00f : (((r_a1 == 1) && (nu_c == 3)) ? -1.000000e+00f : (((r_a1 == 1) && (nu_c == 2)) ? 1.000000e+00f : (((r_a1 == 1) && (nu_c == 1)) ? -1.000000e+00f : (((r_a1 == 1) && (nu_c == 0)) ? 0.000000e+00f : (((r_a1 == 0) && (nu_c == 3)) ? 0.000000e+00f : (((r_a1 == 0) && (nu_c == 2)) ? 0.000000e+00f : (((r_a1 == 0) && (nu_c == 1)) ? 0.000000e+00f : (((r_a1 == 0) && (nu_c == 0)) ? 1.000000e+00f : 0.000000e+00f))))))))))))))))));
+        }
+      }
+    }
+  }
+  for (int eps1 = 0; eps1 < 4; ++eps1) {
+    for (int nu1 = 0; nu1 < 4; ++nu1) {
+      data_pack[(((((eps1 * 32768) + (nu1 * 8192)) + (((int)blockIdx.x) * 128)) + ((int)threadIdx.x)))] = data_pack_local[(((eps1 * 4) + nu1))];
+    }
+  }
+}
+
+__global__ void schedule_wino_conv2d_2(const float* __restrict__ X, const float* __restrict__ Y, float* __restrict__ placeholder, float* __restrict__ data_pack, float* __restrict__ bgemm) {
+  float bgemm_local[8];
+  __shared__ float placeholder_shared[1024];
+  __shared__ float data_pack_shared[256];
+  for (int co_c_init = 0; co_c_init < 4; ++co_c_init) {
+    for (int p_c_init = 0; p_c_init < 2; ++p_c_init) {
+      bgemm_local[(((co_c_init * 2) + p_c_init))] = 0.000000e+00f;
+    }
+  }
+  for (int ci_outer = 0; ci_outer < 32; ++ci_outer) {
+    __syncthreads();
+    for (int ax0_ax1_fused_ax2_fused_ax3_fused_outer_outer_outer = 0; ax0_ax1_fused_ax2_fused_ax3_fused_outer_outer_outer < 8; ++ax0_ax1_fused_ax2_fused_ax3_fused_outer_outer_outer) {
+      placeholder_shared[((((ax0_ax1_fused_ax2_fused_ax3_fused_outer_outer_outer * 128) + (((int)threadIdx.y) * 8)) + ((int)threadIdx.x)))] = placeholder[(((((((((int)blockIdx.z) * 262144) + (ci_outer * 8192)) + (ax0_ax1_fused_ax2_fused_ax3_fused_outer_outer_outer * 1024)) + ((((((int)threadIdx.y) * 8) + ((int)threadIdx.x)) >> 6) * 512)) + (((int)blockIdx.y) * 64)) + (((((int)threadIdx.y) * 8) + ((int)threadIdx.x)) & 63)))];
+    }
+    for (int ax0_ax1_fused_ax2_fused_ax3_fused_outer_outer_outer1 = 0; ax0_ax1_fused_ax2_fused_ax3_fused_outer_outer_outer1 < 2; ++ax0_ax1_fused_ax2_fused_ax3_fused_outer_outer_outer1) {
+      data_pack_shared[((((ax0_ax1_fused_ax2_fused_ax3_fused_outer_outer_outer1 * 128) + (((int)threadIdx.y) * 8)) + ((int)threadIdx.x)))] = data_pack[((((((((int)blockIdx.z) * 8192) + (ci_outer * 256)) + (ax0_ax1_fused_ax2_fused_ax3_fused_outer_outer_outer1 * 128)) + (((int)threadIdx.y) * 8)) + ((int)threadIdx.x)))];
+    }
+    __syncthreads();
+    for (int ci_inner = 0; ci_inner < 16; ++ci_inner) {
+      for (int co_c = 0; co_c < 4; ++co_c) {
+        for (int p_c = 0; p_c < 2; ++p_c) {
+          bgemm_local[(((co_c * 2) + p_c))] = (bgemm_local[(((co_c * 2) + p_c))] + (placeholder_shared[((((ci_inner * 64) + (((int)threadIdx.y) * 4)) + co_c))] * data_pack_shared[((((ci_inner * 16) + (((int)threadIdx.x) * 2)) + p_c))]));
+        }
+      }
+    }
+  }
+  for (int co_inner_inner_inner = 0; co_inner_inner_inner < 4; ++co_inner_inner_inner) {
+    for (int p_inner_inner_inner = 0; p_inner_inner_inner < 2; ++p_inner_inner_inner) {
+      bgemm[(((((((((int)blockIdx.z) * 8192) + (((int)blockIdx.y) * 1024)) + (((int)threadIdx.y) * 64)) + (co_inner_inner_inner * 16)) + (((int)threadIdx.x) * 2)) + p_inner_inner_inner))] = bgemm_local[(((co_inner_inner_inner * 2) + p_inner_inner_inner))];
+    }
+  }
+}
+
+__global__ void schedule_wino_conv2d_3(const float* __restrict__ X, const float* __restrict__ Y, const float* __restrict__ kernel_pack, const float* __restrict__ data_pack, float* __restrict__ bgemm, float* __restrict__ T_relu) {
+  float inverse[4];
+  for (int vh = 0; vh < 2; ++vh) {
+    for (int vw = 0; vw < 2; ++vw) {
+      inverse[(((vh * 2) + vw))] = 0.000000e+00f;
+      for (int r_a = 0; r_a < 4; ++r_a) {
+        for (int r_a1 = 0; r_a1 < 4; ++r_a1) {
+          inverse[(((vh * 2) + vw))] = (inverse[(((vh * 2) + vw))] + ((bgemm[(((((r_a * 32768) + (r_a1 * 8192)) + (((int)blockIdx.x) * 128)) + ((int)threadIdx.x)))] * (((r_a == 3) && (vh == 1)) ? 1.000000e+00f : (((r_a == 3) && (vh == 0)) ? 0.000000e+00f : (((r_a == 2) && (vh == 1)) ? 1.000000e+00f : (((r_a == 2) && (vh == 0)) ? 1.000000e+00f : (((r_a == 1) && (vh == 1)) ? -1.000000e+00f : (((r_a == 1) && (vh == 0)) ? 1.000000e+00f : (((r_a == 0) && (vh == 1)) ? 0.000000e+00f : (((r_a == 0) && (vh == 0)) ? 1.000000e+00f : 0.000000e+00f))))))))) * (((r_a1 == 3) && (vw == 1)) ? 1.000000e+00f : (((r_a1 == 3) && (vw == 0)) ? 0.000000e+00f : (((r_a1 == 2) && (vw == 1)) ? 1.000000e+00f : (((r_a1 == 2) && (vw == 0)) ? 1.000000e+00f : (((r_a1 == 1) && (vw == 1)) ? -1.000000e+00f : (((r_a1 == 1) && (vw == 0)) ? 1.000000e+00f : (((r_a1 == 0) && (vw == 1)) ? 0.000000e+00f : (((r_a1 == 0) && (vw == 0)) ? 1.000000e+00f : 0.000000e+00f))))))))));
+        }
+      }
+    }
+  }
+  for (int ax2_inner = 0; ax2_inner < 2; ++ax2_inner) {
+    for (int ax3_inner = 0; ax3_inner < 2; ++ax3_inner) {
+      if (((((((int)threadIdx.x) & 15) >> 2) * 2) + ax2_inner) < 7) {
+        if ((((((int)threadIdx.x) & 3) * 2) + ax3_inner) < 7) {
+          T_relu[(((((((((int)blockIdx.x) * 392) + ((((int)threadIdx.x) >> 4) * 49)) + (((((int)threadIdx.x) & 15) >> 2) * 14)) + (ax2_inner * 7)) + ((((int)threadIdx.x) & 3) * 2)) + ax3_inner))] = inverse[(((ax2_inner * 2) + ax3_inner))];
+        }
+      }
+    }
+  }
+}
+
+}
+)ROC";
+
+  auto wino_ptx = wino_compiler(target_code);
+
+  CHECK(!wino_ptx.empty());
+
+  CUDAModule wino_cuda_module(wino_ptx, CUDAModule::Kind::PTX);
+
+  CUDA_CALL(cudaDeviceSynchronize());
+
+  CUdeviceptr wino_Ad, wino_Bd, wino_Cd;
+  cuMemAlloc(&wino_Ad, ni * ci * hi * hi * sizeof(float));
+  cuMemAlloc(&wino_Bd, wi * ci * ki * ki * sizeof(float));
+  cuMemAlloc(&wino_Cd, ni * wi * hi * hi * sizeof(float));
+
+  CUdeviceptr kernel_pack_Ad, input_tile_Ad, data_pack_Ad, bgemm_Ad, inverse_Ad;
+  cuMemAlloc(&kernel_pack_Ad, 4 * 4 * 512 * 512 * sizeof(float));
+  cuMemAlloc(&input_tile_Ad, 512 * 16 * 4 * 4 * sizeof(float));
+  cuMemAlloc(&data_pack_Ad, 4 * 4 * 512 * 16 * sizeof(float));
+  cuMemAlloc(&bgemm_Ad, 4 * 4 * 512 * 16 * sizeof(float));
+  cuMemAlloc(&inverse_Ad, 512 * 16 * 2 * 2 * sizeof(float));
+
+  std::vector<float> wino_host_data3(ni * wi * hi * hi, 0);
+
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(wino_Ad), host_data1.data(), host_data1.size() * sizeof(float), cudaMemcpyHostToDevice));
+  CUDA_CALL(cudaMemcpy(
+      reinterpret_cast<void*>(wino_Bd), host_data2.data(), host_data2.size() * sizeof(float), cudaMemcpyHostToDevice));
+
+  dim3 wino_grid(64, 1, 1);
+  dim3 wino_block(128, 1, 1);
+  dim3 wino_grid1(2048, 1, 1);
+  dim3 wino_block1(128, 1, 1);
+  dim3 wino_grid2(1, 8, 16);
+  dim3 wino_block2(8, 16, 1);
+  dim3 wino_grid3(64, 1, 1);
+  dim3 wino_block3(128, 1, 1);
+  int wino_repeat = 1000;
+
+  utils::Timer wino_time;
+
+  void* wino_args[]  = {&wino_Ad, &data_pack_Ad};
+  void* wino_args1[] = {&wino_Bd, &kernel_pack_Ad};
+  void* wino_args2[] = {&wino_Ad, &wino_Bd, &kernel_pack_Ad, &data_pack_Ad, &bgemm_Ad};
+  void* wino_args3[] = {&wino_Ad, &wino_Bd, &kernel_pack_Ad, &data_pack_Ad, &bgemm_Ad, &wino_Cd};
+  wino_time.Start();
+  for (int i = 0; i < wino_repeat; i++) {
+    wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d", wino_grid, wino_block, wino_args);
+    // CUDA_CALL(cudaDeviceSynchronize());
+    // wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d_1", wino_grid1, wino_block1, wino_args1);
+    // CUDA_CALL(cudaDeviceSynchronize());
+    // wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d_2", wino_grid2, wino_block2, wino_args2);
+    // CUDA_CALL(cudaDeviceSynchronize());
+    // wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d_3", wino_grid3, wino_block3, wino_args3);
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+  // CUDA_CALL(cudaDeviceSynchronize());
+  auto wino_time_average = wino_time.Stop() / static_cast<float>(wino_repeat);
+  LOG(INFO) << "Conv2d winograd CINN schedule_wino_conv2d with schedule repeats " << wino_repeat
+            << " times, average time cost is : " << wino_time_average << "ms. ";
+
+  wino_time.Start();
+  for (int i = 0; i < wino_repeat; i++) {
+    // wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d", wino_grid, wino_block, wino_args);
+    // CUDA_CALL(cudaDeviceSynchronize());
+    // wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d_1", wino_grid1, wino_block1, wino_args1);
+    // CUDA_CALL(cudaDeviceSynchronize());
+    wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d_2", wino_grid2, wino_block2, wino_args2);
+    // CUDA_CALL(cudaDeviceSynchronize());
+    // wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d_3", wino_grid3, wino_block3, wino_args3);
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+  // CUDA_CALL(cudaDeviceSynchronize());
+  auto wino_time_average2 = wino_time.Stop() / static_cast<float>(wino_repeat);
+  LOG(INFO) << "Conv2d winograd CINN schedule_wino_conv2d2 with schedule repeats " << wino_repeat
+            << " times, average time cost is : " << wino_time_average2 << "ms. ";
+
+  wino_time.Start();
+  for (int i = 0; i < wino_repeat; i++) {
+    // wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d", wino_grid, wino_block, wino_args);
+    // CUDA_CALL(cudaDeviceSynchronize());
+    // wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d_1", wino_grid1, wino_block1, wino_args1);
+    // CUDA_CALL(cudaDeviceSynchronize());
+    // wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d_2", wino_grid2, wino_block2, wino_args2);
+    // CUDA_CALL(cudaDeviceSynchronize());
+    wino_cuda_module.LaunchKernel(0, "schedule_wino_conv2d_3", wino_grid3, wino_block3, wino_args3);
+    CUDA_CALL(cudaDeviceSynchronize());
+  }
+  // CUDA_CALL(cudaDeviceSynchronize());
+  auto wino_time_average3 = wino_time.Stop() / static_cast<float>(wino_repeat);
+  LOG(INFO) << "Conv2d winograd CINN schedule_wino_conv2d3 with schedule repeats " << wino_repeat
+            << " times, average time cost is : " << wino_time_average3 << "ms. ";
+
+  CUDA_CALL(cudaMemcpy(wino_host_data3.data(),
+                       reinterpret_cast<void*>(wino_Cd),
+                       wino_host_data3.size() * sizeof(float),
+                       cudaMemcpyDeviceToHost));
+  CUDA_CALL(cudaDeviceSynchronize());
+  /*   int nums = 0;
+      for (int offset = 0; offset < ni * wi * hi * hi; offset++) {
+        if (wino_host_data3[offset] - host_data3[offset] > 1e-2 || wino_host_data3[offset] - host_data3[offset] <
+    -(1e-2)) { LOG(INFO) << "wino_host_data3[" << offset << "] is : " << wino_host_data3[offset]; LOG(INFO) <<
+    "host_data3[" << offset << "] is : " << host_data3[offset]; LOG(INFO) << "diff: [" << offset << "] is : " <<
+    wino_host_data3[offset] - host_data3[offset]; nums++;
+        }
+        EXPECT_NEAR(wino_host_data3[offset], host_data3[offset], 1e-2);
+      }
+    LOG(INFO) << "total diff nums is : " << nums; */
+}
+
 TEST(CodeGenCUDA, test_of_syncthreads) {
   Context::Global().ResetNameId();
   Expr M(100);
@@ -800,15 +1314,15 @@ void elementwise_add(const float* __restrict__ A, const float* __restrict__ B, f
 {
   float _B_read_cache [ 1 ];
   float* B_read_cache = _B_read_cache;
-  if ((blockIdx.x < 100)) {
-    if ((threadIdx.x < 200)) {
-      B_read_cache[0] = B[((200 * blockIdx.x) + threadIdx.x)];
+  if (((int)blockIdx.x < 100)) {
+    if (((int)threadIdx.x < 200)) {
+      B_read_cache[0] = B[((200 * (int)blockIdx.x) + (int)threadIdx.x)];
     };
   };
   __syncthreads();
-  if ((blockIdx.x < 100)) {
-    if ((threadIdx.x < 200)) {
-      C[((200 * blockIdx.x) + threadIdx.x)] = (A[((200 * blockIdx.x) + threadIdx.x)] * B_read_cache[0]);
+  if (((int)blockIdx.x < 100)) {
+    if (((int)threadIdx.x < 200)) {
+      C[((200 * (int)blockIdx.x) + (int)threadIdx.x)] = (A[((200 * (int)blockIdx.x) + (int)threadIdx.x)] * B_read_cache[0]);
     };
   };
 }
@@ -909,17 +1423,17 @@ void mul_cache_write(const float* __restrict__ A1, const float* __restrict__ B1,
   float _C1_write_cache [ 2 ];
   float* C1_write_cache = _C1_write_cache;
   float* C1_write_cache__reduce_init = _C1_write_cache;
-  if ((blockIdx.x < 8)) {
-    if ((threadIdx.x < 4)) {
+  if (((int)blockIdx.x < 8)) {
+    if (((int)threadIdx.x < 4)) {
       for (int32_t j_outer = 0; j_outer < 16; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
           C1_write_cache__reduce_init[j_inner] = 0;
           for (int32_t k1 = 0; k1 < 32; k1 += 1) {
-            C1_write_cache[j_inner] = (C1_write_cache[j_inner] + (A1[((128 * blockIdx.x) + ((32 * threadIdx.x) + k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
+            C1_write_cache[j_inner] = (C1_write_cache[j_inner] + (A1[((128 * (int)blockIdx.x) + ((32 * (int)threadIdx.x) + k1))] * B1[((32 * j_inner) + ((64 * j_outer) + k1))]));
           };
         };
         for (int32_t j_inner = 0; j_inner < 2; j_inner += 1) {
-          C1[((128 * blockIdx.x) + ((2 * j_outer) + ((32 * threadIdx.x) + j_inner)))] = C1_write_cache[j_inner];
+          C1[((128 * (int)blockIdx.x) + ((2 * j_outer) + ((32 * (int)threadIdx.x) + j_inner)))] = C1_write_cache[j_inner];
         };
       };
     };
@@ -1737,14 +2251,14 @@ void fn0(const float* __restrict__ A, const float* __restrict__ B, float* __rest
 {
   float _A_read_cache [ 200 ];
   float* A_read_cache = _A_read_cache;
-  if ((threadIdx.x < 10)) {
-    if ((blockIdx.x < 10)) {
+  if (((int)threadIdx.x < 10)) {
+    if (((int)blockIdx.x < 10)) {
     {
       for (int32_t j = 0; j < 200; j += 1) {
-        A_read_cache[j] = A[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))];
+        A_read_cache[j] = A[((200 * (int)blockIdx.x) + ((2000 * (int)threadIdx.x) + j))];
       };
       for (int32_t j = 0; j < 200; j += 1) {
-        C[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))] = (A_read_cache[j] + B[((200 * blockIdx.x) + ((2000 * threadIdx.x) + j))]);
+        C[((200 * (int)blockIdx.x) + ((2000 * (int)threadIdx.x) + j))] = (A_read_cache[j] + B[((200 * (int)blockIdx.x) + ((2000 * (int)threadIdx.x) + j))]);
       };
     }
     };
@@ -1873,13 +2387,13 @@ void fn1(const float* __restrict__ A, const float* __restrict__ B, float* __rest
 {
   float _A_read_cache [ 3 ];
   float* A_read_cache = _A_read_cache;
-  if ((threadIdx.x < 98)) {
-    if ((blockIdx.x < 20)) {
+  if (((int)threadIdx.x < 98)) {
+    if (((int)blockIdx.x < 20)) {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         for (int32_t i_at = 0; i_at < 3; i_at += 1) {
-          A_read_cache[i_at] = A[((10 * blockIdx.x) + ((200 * i_at) + ((200 * threadIdx.x) + j_inner)))];
+          A_read_cache[i_at] = A[((10 * (int)blockIdx.x) + ((200 * i_at) + ((200 * (int)threadIdx.x) + j_inner)))];
         };
-        C[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))] = (A_read_cache[0] + (A_read_cache[1] + (A_read_cache[2] + B[((10 * blockIdx.x) + ((200 * threadIdx.x) + j_inner))])));
+        C[((10 * (int)blockIdx.x) + ((200 * (int)threadIdx.x) + j_inner))] = (A_read_cache[0] + (A_read_cache[1] + (A_read_cache[2] + B[((10 * (int)blockIdx.x) + ((200 * (int)threadIdx.x) + j_inner))])));
       };
     };
   };
@@ -1979,15 +2493,15 @@ void fn_cacheread_computeat1(const float* __restrict__ AA, float* __restrict__ C
 {
   __shared__ float _AA_read_cache [ 600 ];
   float* AA_read_cache = _AA_read_cache;
-  if ((blockIdx.x < 95)) {
-    if ((threadIdx.x < 95)) {
+  if (((int)blockIdx.x < 95)) {
+    if (((int)threadIdx.x < 95)) {
     {
       for (int32_t i_at = 0; i_at < 6; i_at += 1) {
         for (int32_t j_at = 0; j_at < 6; j_at += 1) {
-          AA_read_cache[((100 * i_at) + (j_at + threadIdx.x))] = AA[((100 * blockIdx.x) + ((100 * i_at) + (j_at + threadIdx.x)))];
+          AA_read_cache[((100 * i_at) + (j_at + (int)threadIdx.x))] = AA[((100 * (int)blockIdx.x) + ((100 * i_at) + (j_at + (int)threadIdx.x)))];
         };
       };
-      C[((95 * blockIdx.x) + threadIdx.x)] = (AA_read_cache[threadIdx.x] + (AA_read_cache[(202 + threadIdx.x)] + AA_read_cache[(505 + threadIdx.x)]));
+      C[((95 * (int)blockIdx.x) + (int)threadIdx.x)] = (AA_read_cache[(int)threadIdx.x] + (AA_read_cache[(202 + (int)threadIdx.x)] + AA_read_cache[(505 + (int)threadIdx.x)]));
     }
     };
   };
@@ -2081,15 +2595,15 @@ void fn_cacheread_computeat2(const float* __restrict__ AA, float* __restrict__ C
 {
   float _AA_read_cache [ 36 ];
   float* AA_read_cache = _AA_read_cache;
-  if ((blockIdx.x < 50)) {
-    if ((threadIdx.x < 5)) {
+  if (((int)blockIdx.x < 50)) {
+    if (((int)threadIdx.x < 5)) {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
         for (int32_t i_at = 0; i_at < 6; i_at += 1) {
           for (int32_t j_at = 0; j_at < 6; j_at += 1) {
-            AA_read_cache[((6 * i_at) + j_at)] = AA[((100 * blockIdx.x) + ((100 * i_at) + ((10 * threadIdx.x) + (j_at + j_inner))))];
+            AA_read_cache[((6 * i_at) + j_at)] = AA[((100 * (int)blockIdx.x) + ((100 * i_at) + ((10 * (int)threadIdx.x) + (j_at + j_inner))))];
           };
         };
-        C[((50 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (AA_read_cache[30] + AA_read_cache[5]);
+        C[((50 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))] = (AA_read_cache[30] + AA_read_cache[5]);
       };
     };
   };
@@ -2244,10 +2758,10 @@ void fn2(const float* __restrict__ A, const float* __restrict__ B, float* __rest
 {
   __shared__ float _A_read_cache [ 1 ];
   float* A_read_cache = _A_read_cache;
-  if ((blockIdx.x < 100)) {
+  if (((int)blockIdx.x < 100)) {
     for (int32_t j = 0; j < 200; j += 1) {
-      A_read_cache[0] = A[((200 * blockIdx.x) + j)];
-      C[((200 * blockIdx.x) + j)] = (A_read_cache[0] + B[((200 * blockIdx.x) + j)]);
+      A_read_cache[0] = A[((200 * (int)blockIdx.x) + j)];
+      C[((200 * (int)blockIdx.x) + j)] = (A_read_cache[0] + B[((200 * (int)blockIdx.x) + j)]);
     };
   };
 }
@@ -2327,17 +2841,17 @@ void cache_write_local(const float* __restrict__ A, const float* __restrict__ B,
 {
   float _C_write_cache [ 40 ];
   float* C_write_cache = _C_write_cache;
-  if ((blockIdx.x < 10)) {
-    if ((threadIdx.x < 4)) {
+  if (((int)blockIdx.x < 10)) {
+    if (((int)threadIdx.x < 4)) {
     {
       for (int32_t j_outer = 0; j_outer < 8; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 5; j_inner += 1) {
-          C_write_cache[((5 * j_outer) + j_inner)] = (A[((160 * blockIdx.x) + ((5 * j_outer) + ((40 * threadIdx.x) + j_inner)))] + B[((160 * blockIdx.x) + ((5 * j_outer) + ((40 * threadIdx.x) + j_inner)))]);
+          C_write_cache[((5 * j_outer) + j_inner)] = (A[((160 * (int)blockIdx.x) + ((5 * j_outer) + ((40 * (int)threadIdx.x) + j_inner)))] + B[((160 * (int)blockIdx.x) + ((5 * j_outer) + ((40 * (int)threadIdx.x) + j_inner)))]);
         };
       };
       for (int32_t j_outer = 0; j_outer < 10; j_outer += 1) {
         for (int32_t j_inner = 0; j_inner < 4; j_inner += 1) {
-          C[((160 * blockIdx.x) + ((4 * j_outer) + ((40 * threadIdx.x) + j_inner)))] = C_write_cache[((4 * j_outer) + j_inner)];
+          C[((160 * (int)blockIdx.x) + ((4 * j_outer) + ((40 * (int)threadIdx.x) + j_inner)))] = C_write_cache[((4 * j_outer) + j_inner)];
         };
       };
     }
@@ -2410,10 +2924,10 @@ typedef char int8_t;
 __global__
 void external_function(const float* __restrict__ A, const float* __restrict__ B, float* __restrict__ C)
 {
-  if ((blockIdx.x < 40)) {
-    if ((threadIdx.x < 4)) {
+  if (((int)blockIdx.x < 40)) {
+    if (((int)threadIdx.x < 4)) {
       for (int32_t j_inner = 0; j_inner < 10; j_inner += 1) {
-        C[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))] = (cinn_nvgpu_tanh_fp32(A[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]) + cinn_nvgpu_cos_fp32(B[((40 * blockIdx.x) + ((10 * threadIdx.x) + j_inner))]));
+        C[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))] = (cinn_nvgpu_tanh_fp32(A[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))]) + cinn_nvgpu_cos_fp32(B[((40 * (int)blockIdx.x) + ((10 * (int)threadIdx.x) + j_inner))]));
       };
     };
   };

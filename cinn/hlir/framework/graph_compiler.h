@@ -59,6 +59,11 @@ class Program {
     for (auto& ins : prerun_instrs_) {
       ins->Run(name2podargs);
     }
+    for (auto& ins : instrs_) {
+      if (ins->size() == 4) {
+        ins->PreRun(name2podargs);
+      }
+    }
   }
   /**
    * Execute the program -- that is running all the instructions inside it.

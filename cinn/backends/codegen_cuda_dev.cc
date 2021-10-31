@@ -125,6 +125,14 @@ void CodeGenCUDA_Dev::Visit(const ir::_LoweredFunc_ *op) {
   Print(func_body);
 }
 
+void CodeGenCUDA_Dev::Visit(const ir::_Var_ *op) {
+  if (utils::Startswith(op->name, "threadIdx") || utils::Startswith(op->name, "blockIdx")) {
+    os() << "(int)" + op->name;
+  } else {
+    os() << op->name;
+  }
+}
+
 void CodeGenCUDA_Dev::Visit(const ir::Alloc *op) {
   CHECK(op->destination.as_buffer());
   PrintTempBufferCreation(op->destination.as_buffer_ref());

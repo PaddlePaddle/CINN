@@ -237,6 +237,19 @@ class Stage : public Object {
   const std::set<ir::Tensor>& ctrl_depends() const;
 
   /**
+   * Set the memory type of this stage's tensor.
+   * @param memory_type the memory type of this tensor. For example, memory_type="shared".
+   */
+  void SetBuffer(const std::string& memory_type);
+
+  /**
+   * Given two stages already satisfy ComputeAtRelation.IsCompatible, set compute_ats_ for them.
+   * @param other the other stage to set compute_ats_.
+   * @param level the level of ComputeAtRelation.
+   */
+  void SimpleComputeAt(Stage* other, int level);
+
+  /**
    * Create a cache Tensor and load the \p source into this buffer, replace all the reading in the readers with the
    * cache.
    * @param tensor the source memory to cache.
@@ -327,6 +340,7 @@ class Stage : public Object {
   Iterator Fuse(const Iterator& level0, const Iterator& level1);
   Iterator Fuse(int level0, int level1);
   Iterator Fuse(const std::vector<int>& levels);
+  Iterator Fuse(const std::vector<Iterator>& levels);
   Iterator Fuse(const std::string& level0, const std::string& level1);
 
   const isl::set& domain() const { return domain_; }
