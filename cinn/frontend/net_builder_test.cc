@@ -182,7 +182,7 @@ TEST(net_build, program_execute_reverse) {
   auto runtime_program = gc.Build();
 
   scope->Var<hlir::framework::Tensor>(std::string(input.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(reverse_out->id()));
+  scope->Var<hlir::framework::Tensor>(std::string(reverse_out->id));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
   SetRandData(input_tensor, target);
