@@ -95,6 +95,23 @@ class TestNetBuilder(unittest.TestCase):
         tensor_data.append(result)
         self.paddle_verify_basic(tensor_data)
 
+    def test_transpose(self):
+        builder = NetBuilder("test_basic")
+        a = builder.create_input(Float(32), (2, 3), "A")
+        b = builder.transpose(a, axis=[1, 0])
+        prog = builder.build()
+        self.assertEqual(prog.size(), 1)
+        # print program
+        for i in range(prog.size()):
+            print(prog[i])
+        tensor_data = [np.random.random([2, 3]).astype("float32")]
+        result = prog.build_and_get_output(self.target, [a], tensor_data, [b])
+        print(tensor_data[0])
+        print(result[0])
+        for i in range(2):
+            for j in range(3):
+                self.assertEqual(tensor_data[0][i][j], result[0][j][i])
+
 
 if __name__ == "__main__":
     unittest.main()
