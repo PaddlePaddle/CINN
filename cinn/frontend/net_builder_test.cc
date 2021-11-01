@@ -166,7 +166,7 @@ TEST(net_build, program_execute_reverse) {
   const int W = 224;
 
   NetBuilder builder("net_builder");
-  Variable input       = builder.CreateInput(Float(32), {B, C, H, W}, "Img");
+  Placeholder input    = builder.CreateInput(Float(32), {B, C, H, W}, "Img");
   Variable reverse_out = builder.reverse(input, {2, 3});
   auto program         = builder.Build();
 
@@ -182,7 +182,7 @@ TEST(net_build, program_execute_reverse) {
   auto runtime_program = gc.Build();
 
   scope->Var<hlir::framework::Tensor>(std::string(input.id()));
-  scope->Var<hlir::framework::Tensor>(std::string(reverse_out.id()));
+  scope->Var<hlir::framework::Tensor>(std::string(reverse_out->id()));
 
   auto input_tensor = scope->GetTensor(std::string(input.id()));
   SetRandData(input_tensor, target);
