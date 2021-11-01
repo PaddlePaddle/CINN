@@ -209,12 +209,12 @@ TEST(Instruction, CONV_FORWARD) {
   auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
 
   absl::flat_hash_map<std::string, AttrType> attrs_map;
-  attrs_map["padding"]       = std::vector<int>({ph, pw});
-  attrs_map["stride"]        = std::vector<int>({sh, sw});
-  attrs_map["dilation"]      = std::vector<int>({dila_h, dila_w});
-  attrs_map["data_format"]   = std::string("NCHW");
-  attrs_map["conv_type"]     = std::string("forward");
-  attrs_map["weights_shape"] = std::vector<int>({fn, fc, fh, fw});
+  attrs_map["padding"]      = std::vector<int>({ph, pw});
+  attrs_map["stride"]       = std::vector<int>({sh, sw});
+  attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});
+  attrs_map["data_format"]  = std::string("NCHW");
+  attrs_map["conv_type"]    = std::string("forward");
+  attrs_map["filter_shape"] = std::vector<int>({fn, fc, fh, fw});
 
   auto infer_shape = infer_shape_func({{in, ic, ih, iw}, {fn, fc, fh, fw}}, attrs_map);
   ASSERT_EQ(infer_shape[0][0], on);
@@ -288,12 +288,12 @@ TEST(Instruction, CONV_BACKWARD_DATA) {
   auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
 
   absl::flat_hash_map<std::string, AttrType> attrs_map;
-  attrs_map["padding"]       = std::vector<int>({ph, pw});
-  attrs_map["stride"]        = std::vector<int>({sh, sw});
-  attrs_map["dilation"]      = std::vector<int>({dila_h, dila_w});
-  attrs_map["data_format"]   = std::string("NCHW");
-  attrs_map["conv_type"]     = std::string("backward_data");
-  attrs_map["weights_shape"] = std::vector<int>({fn, fc, fh, fw});
+  attrs_map["padding"]      = std::vector<int>({ph, pw});
+  attrs_map["stride"]       = std::vector<int>({sh, sw});
+  attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});
+  attrs_map["data_format"]  = std::string("NCHW");
+  attrs_map["conv_type"]    = std::string("backward_data");
+  attrs_map["filter_shape"] = std::vector<int>({fn, fc, fh, fw});
 
   auto infer_shape = infer_shape_func({{fn, fc, fh, fw}, {on, oc, oh, ow}}, attrs_map);
   ASSERT_EQ(infer_shape[0][0], in);
@@ -367,12 +367,12 @@ TEST(Instruction, CONV_BACKWARD_FILTER) {
   auto infer_shape_func = Operator::GetAttrs<InferShapeFunction>("infershape")[conv2d];
 
   absl::flat_hash_map<std::string, AttrType> attrs_map;
-  attrs_map["padding"]       = std::vector<int>({ph, pw});
-  attrs_map["stride"]        = std::vector<int>({sh, sw});
-  attrs_map["dilation"]      = std::vector<int>({dila_h, dila_w});
-  attrs_map["data_format"]   = std::string("NCHW");
-  attrs_map["conv_type"]     = std::string("backward_filter");
-  attrs_map["weights_shape"] = std::vector<int>({fn, fc, fh, fw});
+  attrs_map["padding"]      = std::vector<int>({ph, pw});
+  attrs_map["stride"]       = std::vector<int>({sh, sw});
+  attrs_map["dilation"]     = std::vector<int>({dila_h, dila_w});
+  attrs_map["data_format"]  = std::string("NCHW");
+  attrs_map["conv_type"]    = std::string("backward_filter");
+  attrs_map["filter_shape"] = std::vector<int>({fn, fc, fh, fw});
 
   auto infer_shape = infer_shape_func({{in, ic, ih, iw}, {on, oc, oh, ow}}, attrs_map);
   ASSERT_EQ(infer_shape[0][0], fn);

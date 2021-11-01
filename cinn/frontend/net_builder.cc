@@ -137,9 +137,9 @@ Variable NetBuilder::depthwise_conv2d(const Variable& a,
                                       const std::string& padding_algorithm) {
   Instruction instr("depthwise_conv2d");
   instr.SetInputs({a, b});
-  instr.SetAttr("strides", strides);
-  instr.SetAttr("paddings", paddings);
-  instr.SetAttr("dilations", dilations);
+  instr.SetAttr("stride", strides);
+  instr.SetAttr("padding", paddings);
+  instr.SetAttr("dilation", dilations);
   instr.SetAttr("groups", groups);
   instr.SetAttr("data_format", data_format);
   instr.SetAttr("padding_algorithm", padding_algorithm);
@@ -287,6 +287,29 @@ Variable NetBuilder::sum(const std::vector<Variable>& inputs) {
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
+}
+
+// conv2d grad, output(grad_x, grad_w)
+std::vector<Variable> NetBuilder::conv2d_grad(const Variable& dy,
+                                              const Variable& x,
+                                              const Variable& w,
+                                              const std::vector<int>& strides,
+                                              const std::vector<int>& paddings,
+                                              const std::vector<int>& dilations,
+                                              const int groups,
+                                              const std::string& data_format,
+                                              const std::string& padding_algorithm) {
+  Instruction instr("conv2d_grad", {dy, x, w});
+  instr.SetAttr<std::vector<int>>("strides", strides);
+  instr.SetAttr<std::vector<int>>("paddings", paddings);
+  instr.SetAttr<std::vector<int>>("dilations", dilations);
+  instr.SetAttr<int>("groups", groups);
+  instr.SetAttr<std::string>("data_format", data_format);
+  instr.SetAttr<std::string>("padding_algorithm", padding_algorithm);
+
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutputs();
 }
 
 }  // namespace frontend
