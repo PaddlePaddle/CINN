@@ -94,7 +94,7 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   CHECK_EQ(op_desc.Input("Y").size(), 1UL);
   auto y_name = op_desc.Input("Y").front();
   auto x      = ctx.GetVar(x_name);
-  TransposeVar(y_name, ctx);
+  // TransposeVar(y_name, ctx);
   auto y = ctx.GetVar(y_name);
 
   auto x_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "x_num_col_dims", 1);

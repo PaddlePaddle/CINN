@@ -546,17 +546,17 @@ std::shared_ptr<OpStrategy> StrategyForMul(const framework::NodeAttr &attrs,
 
     for (int i = 0; i < B_tensor->shape.size(); i++) {
       if (i < y_num_col_dims) {
-        flatten_shape_B = flatten_shape_B * B_tensor->shape[i];
-      } else {
         reduce_shape_B = reduce_shape_B * B_tensor->shape[i];
+      } else {
+        flatten_shape_B = flatten_shape_B * B_tensor->shape[i];
       }
     }
     flatten_shape_B = common::AutoSimplify(flatten_shape_B);
     reduce_shape_B  = common::AutoSimplify(reduce_shape_B);
     CHECK(is_zero(reduce_shape_A - reduce_shape_B)) << "reduce_shape should be same after flattening";
     // flatten to 2 dims, new_shape_B: [N, K]
-    new_shape_B.push_back(flatten_shape_B);
     new_shape_B.push_back(reduce_shape_B);
+    new_shape_B.push_back(flatten_shape_B);
 
     Var axis_k(reduce_shape_A, UniqName("axis_k"));
     auto new_A = A_tensor->Reshape(new_shape_A, stages);
@@ -734,9 +734,9 @@ std::vector<std::vector<int>> InferShapeForMul(const std::vector<std::vector<int
 
   for (int i = 0; i < inputs_shape[1].size(); i++) {
     if (i < y_num_col_dims) {
-      flatten_shape_B *= inputs_shape[1][i];
-    } else {
       check_dim_y = check_dim_y * inputs_shape[1][i];
+    } else {
+      flatten_shape_B *= inputs_shape[1][i];
     }
   }
   CHECK_EQ(check_dim_x, check_dim_y) << "For matrix multiply: X * Y, second dim of X's shape :[" << check_dim_x

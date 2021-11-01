@@ -124,7 +124,7 @@ TEST(net_build, program_execute_fc) {
 
   NetBuilder builder("net_builder");
   auto a = builder.CreateInput(Float(32), {B, M, K}, "A");
-  auto w = builder.CreateInput(Float(32), {N, K}, "W");  // weight
+  auto w = builder.CreateInput(Float(32), {K, N}, "W");  // weight
   auto b = builder.CreateInput(Float(32), {N}, "B");     // bias
 
   auto mul_out = builder.mul(a, w, 2, 1);
