@@ -55,14 +55,16 @@ void Transpose2OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
   ctx.AddVar(out_name, out);
   ctx.AddVarModelToProgram(out_name, out->id);
 
+  // transpose2 adds an intermediate output(XShape) based on
+  // transpose, the XShape is used to carry the shape and lod of X which
+  // will be used in transpose_grad, in this way, the framework can reuse
+  // the memory of X immediately the transpose2_op is finished.
+  // Considering compatibility issues, we could not fix transpose2_op
   CHECK_EQ(op_desc.Output("XShape").size(), 1UL);
   auto xshape_name = op_desc.Output("XShape").front();
 
-  // TODO(jiangcheng05): a useless output in paddle, I don't why paddle
-  // add it in transpose2 op, even if the output no set value at any place
-  auto xshape   = Variable(cinn::utils::TransValidVarName(xshape_name));
-  xshape->type  = x->type;
-  xshape->shape = x->shape;
+  auto xshape = x;
+  xshape.set_id(cinn::utils::TransValidVarName(xshape_name));
 
   ctx.AddVar(xshape_name, xshape);
   ctx.AddVarModelToProgram(xshape_name, xshape->id);
