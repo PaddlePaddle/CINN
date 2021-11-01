@@ -95,6 +95,14 @@ class TestNetBuilder(unittest.TestCase):
         tensor_data.append(result)
         self.paddle_verify_basic(tensor_data)
 
+
+class TestNetBuilderOp(unittest.TestCase):
+    def setUp(self):
+        if enable_gpu == "ON":
+            self.target = DefaultNVGPUTarget()
+        else:
+            self.target = DefaultHostTarget()
+
     def test_transpose(self):
         builder = NetBuilder("test_basic")
         a = builder.create_input(Float(32), (2, 3), "A")
@@ -106,11 +114,40 @@ class TestNetBuilder(unittest.TestCase):
             print(prog[i])
         tensor_data = [np.random.random([2, 3]).astype("float32")]
         result = prog.build_and_get_output(self.target, [a], tensor_data, [b])
+        result = result[0].numpy(self.target)
         print(tensor_data[0])
-        print(result[0])
+        print(result)
         for i in range(2):
             for j in range(3):
-                self.assertEqual(tensor_data[0][i][j], result[0][j][i])
+                self.assertEqual(tensor_data[0][i][j], result[j][i])
+
+    def test_mul(self):
+        builder = NetBuilder("test_basic")
+        a = builder.create_input(Float(32), (2, 3), "A")
+        b = builder.create_input(Float(32), (2, 3), "B")
+        c = builder.mul(a, b)
+        prog = builder.build()
+        self.assertEqual(prog.size(), 1)
+        # print program
+        for i in range(prog.size()):
+            print(prog[i])
+        tensor_data = [
+            np.random.random([2, 3]).astype("float32"),
+            np.random.random([2, 3]).astype("float32")
+        ]
+        result = prog.build_and_get_output(self.target, [a, b], tensor_data, [c])
+        result = result[0].numpy(self.target)
+
+        #numpy mul need transpose before
+        tensor_data[1] = np.transpose(tensor_data[1])
+        print("A: ", tensor_data[0])
+        print("B: ", tensor_data[1])
+        print("C: ", result)
+
+        c_np = np.matmul(tensor_data[0], tensor_data[1])
+        print("C numpy: ", c_np)
+        self.assertTrue(
+            np.allclose(result, c_np, atol=1e-5))
 
 
 if __name__ == "__main__":
