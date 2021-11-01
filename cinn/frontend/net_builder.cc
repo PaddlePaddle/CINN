@@ -168,41 +168,28 @@ Variable NetBuilder::pool2d(const Variable& a,
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::batchnorm(const Variable& a,
-                               const Variable& scale,
-                               const Variable& bias,
-                               const Variable& mean,
-                               const Variable& variance,
-                               float epsilon,
-                               float momentum,
-                               const std::string& data_layout) {
-  Instruction instr("batchnorm");
-  instr.SetInputs({a, scale, bias, mean, variance});
-  instr.SetAttr("epsilon", epsilon);
-  instr.SetAttr("momentum", momentum);
-  instr.SetAttr("data_layout", data_layout);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-// batch norm training, output{y, new_running_mean, new_running_var, save_mean, save_var}
-std::vector<Variable> NetBuilder::batch_norm_train(const Variable& x,
-                                                   const Variable& scale,
-                                                   const Variable& bias,
-                                                   const Variable& moving_mean,
-                                                   const Variable& moving_variance,
-                                                   const float epsilon,
-                                                   const float momentum,
-                                                   const std::string& data_layout) {
-  Instruction instr("batch_norm_train", {x, scale, bias, moving_mean, moving_variance});
-  instr.SetAttr("epsilon", epsilon);
-  instr.SetAttr("momentum", momentum);
-  instr.SetAttr("data_layout", data_layout);
-
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutputs();
+std::vector<Variable> NetBuilder::batchnorm(const Variable& a,
+                                            const Variable& scale,
+                                            const Variable& bias,
+                                            const Variable& mean,
+                                            const Variable& variance,
+                                            float epsilon,
+                                            float momentum,
+                                            const std::string& data_layout,
+                                            bool is_test) {
+  std::unique_ptr<Instruction> instr;
+  if (is_test) {
+    instr = std::make_unique<Instruction>("batchnorm");
+  } else {
+    instr = std::make_unique<Instruction>("batch_norm_train");
+  }
+  instr->SetInputs({a, scale, bias, mean, variance});
+  instr->SetAttr("epsilon", epsilon);
+  instr->SetAttr("momentum", momentum);
+  instr->SetAttr("data_layout", data_layout);
+  InferShape(*instr);
+  AppendInstruction(*instr);
+  return instr->GetOutputs();
 }
 
 // batch norm grad, output(grad_x, grad_scale, grad_bias)

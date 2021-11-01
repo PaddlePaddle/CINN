@@ -47,36 +47,21 @@ void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
   auto is_test = utils::GetAttrOrDefault<bool>(op_desc, "is_test", false);
 
+  std::vector<std::string> output_names;
   if (is_test) {
-    auto out = ctx.Builder()->batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout);
-
-    auto out_name = get_output_name("Y");
-    ctx.AddVar(out_name, out);
-    ctx.AddVarModelToProgram(out_name, out->id);
+    output_names = {"Y"};
   } else {
-    // batch norm training, output{y, moving_mean, moving_variance, save_mean, save_variance}
-    auto out_vec = ctx.Builder()->batch_norm_train(x, scale, bias, mean, variance, epsilon, momentum, data_layout);
-    CHECK_EQ(out_vec.size(), 5ul) << "batch_norm_train API's should return 5 Variable!";
+    output_names = {"Y", "MeanOut", "VarianceOut", "SavedMean", "SavedVariance"};
+  }
 
-    auto y_name = get_output_name("Y");
-    ctx.AddVar(y_name, out_vec[0]);
-    ctx.AddVarModelToProgram(y_name, out_vec[0]->id);
+  auto outs = ctx.Builder()->batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout, is_test);
+  CHECK_EQ(outs.size(), output_names.size())
+      << "batch_norm_train API's should return" << output_names.size() << "Variables!";
 
-    auto mean_out_name = get_output_name("MeanOut");
-    ctx.AddVar(mean_out_name, out_vec[1]);
-    ctx.AddVarModelToProgram(mean_out_name, out_vec[1]->id);
-
-    auto variance_out_name = get_output_name("VarianceOut");
-    ctx.AddVar(variance_out_name, out_vec[2]);
-    ctx.AddVarModelToProgram(variance_out_name, out_vec[2]->id);
-
-    auto save_mean_name = get_output_name("SavedMean");
-    ctx.AddVar(save_mean_name, out_vec[3]);
-    ctx.AddVarModelToProgram(save_mean_name, out_vec[3]->id);
-
-    auto saved_variance_name = get_output_name("SavedVariance");
-    ctx.AddVar(saved_variance_name, out_vec[4]);
-    ctx.AddVarModelToProgram(saved_variance_name, out_vec[4]->id);
+  for (int i = 0; i < outs.size(); i++) {
+    auto out_name = get_output_name(output_names[i]);
+    ctx.AddVar(out_name, outs[i]);
+    ctx.AddVarModelToProgram(out_name, outs[i]->id);
   }
 }
 

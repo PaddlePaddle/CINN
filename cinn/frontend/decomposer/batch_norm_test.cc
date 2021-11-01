@@ -129,7 +129,7 @@ TEST(nn, BATCH_NORM_TRAIN) {
     auto moving_variance = net_builder.CreateInput(Float(32), {c}, "moving_variance");
 
     // add batch norm train
-    auto outputs = net_builder.batch_norm_train(x, scale, bias, moving_mean, moving_variance);
+    auto outputs = net_builder.batchnorm(x, scale, bias, moving_mean, moving_variance, false);
     for (auto output : outputs) {
       output_names.push_back(output->id);
     }
