@@ -166,11 +166,11 @@ TEST(net_build, program_execute_reverse) {
   const int W = 224;
 
   NetBuilder builder("net_builder");
-  Variable input = builder.CreateInput(Float(32), {B, C, H, W}, "Img");
+  Variable input       = builder.CreateInput(Float(32), {B, C, H, W}, "Img");
   Variable reverse_out = builder.reverse(input, {2, 3});
-  auto program = builder.Build();
+  auto program         = builder.Build();
 
-  #ifdef CINN_WITH_CUDA
+#ifdef CINN_WITH_CUDA
   Target target = common::DefaultNVGPUTarget();
 #else
   Target target = common::DefaultHostTarget();
