@@ -75,6 +75,8 @@ class NetBuilder : public BaseBuilder {
 
   Variable relu6(const Variable& a, float threshold = 6.0f);
 
+  Variable reverse(const Variable& x, const std::vector<int>& axis);
+
   /**
    * The convolution2D layer calculates the output based on the input, filter
    * and strides, paddings, dilations, groups parameters.
