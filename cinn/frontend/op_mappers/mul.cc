@@ -31,7 +31,11 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   CHECK_EQ(y->shape.size(), 2UL) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
   VLOG(4) << "input y shape: " << cinn::utils::Join(y->shape, ",");
 
+#ifdef CINN_WITH_CUDNN
+  auto tran_y = y;
+#else
   auto tran_y = ctx.Builder()->transpose(y, {1, 0});
+#endif
 
   auto x_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "x_num_col_dims", 1);
   auto y_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "y_num_col_dims", 1);
@@ -62,8 +66,11 @@ void MulBiasOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   CHECK_EQ(y->shape.size(), 2UL) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
   VLOG(4) << "input y shape: " << cinn::utils::Join(y->shape, ",");
 
+#ifdef CINN_WITH_CUDNN
+  auto tran_y = y;
+#else
   auto tran_y = ctx.Builder()->transpose(y, {1, 0});
-  ctx.AddVar(y_name, tran_y, true);
+#endif
 
   auto x_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "x_num_col_dims", 1);
   auto y_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "y_num_col_dims", 1);
