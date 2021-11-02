@@ -32,7 +32,9 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   VLOG(4) << "input y shape: " << cinn::utils::Join(y->shape, ",");
 
 #ifdef CINN_WITH_CUDNN
-  auto tran_y = y;
+  auto tran_shape = y->shape;
+  std::swap(tran_shape[0], tran_shape[1]);
+  auto tran_y = ctx.Builder()->reshape(y, tran_shape);
 #else
   auto tran_y = ctx.Builder()->transpose(y, {1, 0});
 #endif
@@ -67,7 +69,9 @@ void MulBiasOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   VLOG(4) << "input y shape: " << cinn::utils::Join(y->shape, ",");
 
 #ifdef CINN_WITH_CUDNN
-  auto tran_y = y;
+  auto tran_shape = y->shape;
+  std::swap(tran_shape[0], tran_shape[1]);
+  auto tran_y = ctx.Builder()->reshape(y, tran_shape);
 #else
   auto tran_y = ctx.Builder()->transpose(y, {1, 0});
 #endif

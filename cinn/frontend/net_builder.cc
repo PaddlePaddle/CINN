@@ -30,6 +30,14 @@ Variable NetBuilder::add(const Variable& a, const Variable& b) {
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::reshape(const Variable& operand, const std::vector<int>& shape) {
+  Instruction instr("reshape", {operand});
+  instr.SetAttr("shape", shape);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::transpose(const Variable& operand, const std::vector<int>& axis) {
   Instruction instr("transpose", {operand});
   instr.SetAttr("axis", axis);

@@ -35,6 +35,11 @@ class NetBuilder : public BaseBuilder {
   /**
    * Transpose matrix.
    */
+  Variable reshape(const Variable& a, const std::vector<int>& shape);
+
+  /**
+   * Transpose matrix.
+   */
   Variable transpose(const Variable& a, const std::vector<int>& axis);
 
   /**
