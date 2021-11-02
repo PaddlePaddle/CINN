@@ -16,7 +16,7 @@
 
 import unittest
 import numpy as np
-from op_test import OpTest, OpTestTool
+from op_test import OpTest, OpTestTool, random
 import paddle
 import paddle.nn.functional as F
 import cinn
@@ -28,22 +28,18 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestSumOp(OpTest):
     def setUp(self):
-        self.init_case()
-
-    def init_case(self):
+        self.config()
         self.inputs = {
-            "x1": np.random.random([
-                32,
-                64,
-            ]).astype("float32"),
-            "x2": np.random.random([
-                32,
-                64,
-            ]).astype("float32"),
-            "dout": np.random.random((32, 64)).astype("float32")
+            "x1": random(self.x_shape, self.dtype),
+            "x2": random(self.x_shape, self.dtype),
+            "dout": random(self.x_shape, self.dtype)
         }
 
-    def build_paddle_program(self, target):
+    def config(self):
+        self.dtype = "float32"
+        self.x_shape = [32, 64]
+
+    def build_paddle_program(self):
         x1 = paddle.to_tensor(self.inputs["x1"], stop_gradient=False)
         x2 = paddle.to_tensor(self.inputs["x2"], stop_gradient=False)
         out = paddle.add(x1, x2)

@@ -16,7 +16,7 @@
 
 import unittest
 import numpy as np
-from op_test import OpTest, OpTestTool
+from op_test import OpTest, OpTestTool, random
 import paddle
 import paddle.nn.functional as F
 import cinn
@@ -30,9 +30,9 @@ class TestElementwiseAddOp(OpTest):
     def setUp(self):
         self.config()
         self.inputs = {
-            "x": np.random.random(self.x_shape).astype(self.dtype),
-            "y": np.random.random(self.y_shape).astype(self.dtype),
-            "dout": np.random.random(self.dout_shape).astype(self.dtype)
+            "x": random(self.x_shape, self.dtype),
+            "y": random(self.y_shape, self.dtype),
+            "dout": random(self.dout_shape, self.dtype)
         }
 
     def config(self):
@@ -42,7 +42,7 @@ class TestElementwiseAddOp(OpTest):
         self.dout_shape = [32, 64]
         self.axis = -1
 
-    def build_paddle_program(self, target):
+    def build_paddle_program(self):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
         y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
 
@@ -108,6 +108,9 @@ class TestAddCase2(TestElementwiseAddOp):
         self.dout_shape = [8, 64, 32, 32]
         self.axis = 1
 
+    def test_check_results(self):
+        self.check_outputs_and_grads(max_relative_error=1e-3)
+
 
 class TestAddCase3(TestElementwiseAddOp):
     def config(self):
@@ -116,6 +119,9 @@ class TestAddCase3(TestElementwiseAddOp):
         self.y_shape = [4, 16]
         self.dout_shape = [4, 16, 8, 32]
         self.axis = 0
+
+    def test_check_results(self):
+        self.check_outputs_and_grads(max_relative_error=1e-4)
 
 
 class TestAddCase4(TestElementwiseAddOp):

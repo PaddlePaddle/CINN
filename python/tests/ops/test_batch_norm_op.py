@@ -16,7 +16,7 @@
 
 import unittest
 import numpy as np
-from op_test import OpTest, OpTestTool
+from op_test import OpTest, OpTestTool, random
 import paddle
 import paddle.nn.functional as F
 import cinn
@@ -28,27 +28,24 @@ from cinn.common import *
                     "x86 test will be skipped due to timeout.")
 class TestBatchNormOp(OpTest):
     def setUp(self):
-        def _random(shape, dtype):
-            return np.random.random(shape).astype(dtype)
-
         self.config()
         self.inputs = {
-            "x": _random(self.x_shape, self.dtype),
-            "scale": _random(self.param_shape, self.dtype),
-            "bias": _random(self.param_shape, self.dtype),
-            "moving_mean": _random(self.param_shape, self.dtype),
-            "moving_variance": _random(self.param_shape, self.dtype),
+            "x": random(self.x_shape, self.dtype),
+            "scale": random(self.param_shape, self.dtype),
+            "bias": random(self.param_shape, self.dtype),
+            "moving_mean": random(self.param_shape, self.dtype),
+            "moving_variance": random(self.param_shape, self.dtype),
         }
 
     def config(self):
         self.dtype = "float32"
-        self.x_shape = [4, 16, 4, 4]
+        self.x_shape = [8, 16, 8, 8]
         self.param_shape = [16]
         self.epsilon = 1e-05
         self.momentum = 0.9
         self.data_format = "NCHW"
 
-    def build_paddle_program(self, target):
+    def build_paddle_program(self):
         def _create_parameter(name):
             param = paddle.create_parameter(
                 name=name,
@@ -91,7 +88,9 @@ class TestBatchNormOp(OpTest):
             Float(32), self.inputs["moving_mean"].shape, "moving_mean")
         variance = builder.create_input(
             Float(32), self.inputs["moving_variance"].shape, "moving_variance")
-        outs = builder.batch_norm_train(x, scale, bias, mean, variance)
+        outs = builder.batch_norm_train(x, scale, bias, mean, variance,
+                                        self.epsilon, self.momentum,
+                                        self.data_format)
         prog = builder.build()
         forward_res = self.get_cinn_output(
             prog, target, [x, scale, bias, mean, variance], [
@@ -102,7 +101,7 @@ class TestBatchNormOp(OpTest):
         self.cinn_outputs = forward_res
 
     def test_check_results(self):
-        self.check_outputs_and_grads()
+        self.check_outputs_and_grads(max_relative_error=1e-2)
 
 
 if __name__ == "__main__":

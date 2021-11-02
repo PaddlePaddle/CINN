@@ -26,24 +26,31 @@ logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO').upper())
 logger = logging.getLogger()
 
 
+def random(shape, dtype="float32", low=-1.0, high=1.0):
+    if dtype == "float32":
+        return np.random.uniform(low, high, shape).astype(dtype)
+    else:
+        raise Exception("Not supported yet.")
+
+
 class OpTest(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(OpTest, self).__init__(*args, **kwargs)
-        self.init_target()
-        self.init_results()
+        self._init_targets()
+        self._init_results()
 
-    def init_results(self):
+    def _init_results(self):
         self.paddle_outputs = []
         self.paddle_grads = []
         self.cinn_outputs = []
         self.cinn_grads = []
 
-    def init_target(self):
-        self.targets = [DefaultHostTarget()]
+    def _init_targets(self):
+        self.targets = {"CPU": DefaultHostTarget()}
         if is_compiled_with_cuda():
-            self.targets.append(DefaultNVGPUTarget())
+            self.targets["NVGPU"] = DefaultNVGPUTarget()
 
-    def build_paddle_program():
+    def build_paddle_program(self):
         raise Exception("Not implemented.")
 
     def get_paddle_grads(self, outputs, inputs, grad_outputs):
@@ -54,7 +61,7 @@ class OpTest(unittest.TestCase):
 
         return grads
 
-    def build_cinn_program():
+    def build_cinn_program(self, target):
         raise Exception("Not implemented.")
 
     def get_cinn_output(self, prog, target, inputs, feed_data, outputs):
@@ -81,24 +88,27 @@ class OpTest(unittest.TestCase):
         logger.debug("============ After Decomposer Pass ============")
         print_program(prog)
 
-    def check_outputs_and_grads(self):
-        self.build_paddle_program(self.targets[0])
-        for target in self.targets:
-            self.build_cinn_program(target)
+    def check_outputs_and_grads(self, max_relative_error=1e-5):
+        self.build_paddle_program()
+        for device in self.targets.keys():
+            self.build_cinn_program(self.targets[device])
             logger.debug("============ Check Outputs ============")
-            self.check_results(self.paddle_outputs, self.cinn_outputs)
+            self.check_results(device, self.paddle_outputs, self.cinn_outputs,
+                               max_relative_error)
 
             if len(self.cinn_grads) != 0:
                 logger.debug("============ Check Grads ============")
-                self.check_results(self.paddle_grads, self.cinn_grads)
+                self.check_results(device, self.paddle_grads, self.cinn_grads,
+                                   max_relative_error)
 
-    def check_results(self, expect_res, actual_res):
-        def _max_relative_error(i, expect, actual, max_relative_error=1e-5):
+    def check_results(self, device, expect_res, actual_res,
+                      max_relative_error):
+        def _compute_max_relative_error(i, expect, actual):
             diff = (np.abs(expect - actual) / np.abs(expect)).flatten()
             max_diff = np.max(diff)
             offset = np.argmax(diff > max_relative_error)
-            error_message = "The maximum relative error of %d-th output is %e, offset=%d, shape=%s, %e vs %e." % (
-                i, max_diff, offset, str(expect.shape),
+            error_message = "[%s] The maximum relative error of %d-th output is %e, offset=%d, shape=%s, %e vs %e." % (
+                device, i, max_diff, offset, str(expect.shape),
                 expect.flatten()[offset], actual.flatten()[offset])
             return error_message
 
@@ -112,9 +122,12 @@ class OpTest(unittest.TestCase):
             else:
                 expect = expect_res[i]
             actual = actual_res[i]
-            is_allclose = np.allclose(expect, actual, atol=1e-6)
-            self.assertTrue(is_allclose, _max_relative_error(
-                i, expect, actual))
+            is_allclose = np.allclose(
+                expect, actual, atol=1e-6, rtol=max_relative_error)
+            logger.debug(is_allclose,
+                         _compute_max_relative_error(i, expect, actual))
+            self.assertTrue(is_allclose,
+                            _compute_max_relative_error(i, expect, actual))
 
 
 class OpTestTool:
