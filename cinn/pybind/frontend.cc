@@ -310,7 +310,8 @@ void BindFrontend(pybind11::module *m) {
   py::class_<NetBuilder, BaseBuilder>(*m, "NetBuilder")
       .def(py::init<const std::string &>(), py::arg("name") = "")
       .def("add", &NetBuilder::add, py::arg("a"), py::arg("b"))
-      .def("transpose", &NetBuilder::transpose, py::arg("a"), py::arg("axis") = std::vector<int>{0, 1})
+      .def("reshape", &NetBuilder::reshape, py::arg("a"), py::arg("shape"))
+      .def("transpose", &NetBuilder::transpose, py::arg("a"), py::arg("axis"))
       .def("mul",
            &NetBuilder::mul,
            py::arg("a"),

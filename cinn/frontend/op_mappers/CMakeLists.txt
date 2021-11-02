@@ -12,4 +12,5 @@ gather_srcs(cinnapi_src SRCS
     batchnorm.cc
     slice.cc
     dropout.cc
-    transpose.cc)
+    transpose.cc
+    reshape.cc)
