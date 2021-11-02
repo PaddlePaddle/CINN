@@ -21,23 +21,20 @@ def PD_FeedOp : PD_Op<"Feed", [NoSideEffect]> {
   }];
 }
 
-def PD_ConstantOp : PD_Op<"Constant", [NoSideEffect, ConstantLike]> {
+def PD_ConstantOp : PD_Op<"Constant", [NoSideEffect, ConstantLike, DeclareOpInterfaceMethods<InferTypeOpInterface>, AllTypesMatch<["value", "output"]>]> {
   let summary = "constant Op";
-
-  let description = [{
-  }];
+  let description = [{}];
 
   let arguments = (ins ElementsAttr:$value);
-  let results = (outs PD_Tensor:$out);
+  let results = (outs PD_Tensor:$output);
+  let hasFolder = 1;
 
   let builders = [
     OpBuilder<"OpBuilder &builder, OperationState &state, Attribute value">,
-    OpBuilder<"OpBuilder &builder, OperationState &state, Type type, Attribute value">
   ];
-  let hasFolder = 1;
 }
 
-def PD_AbsOp : PD_Op<"Abs", [NoSideEffect]> {
+def PD_AbsOp : PD_Op<"Abs", [NoSideEffect, SameOperandsAndResultType]> {
   let summary = "Computes the absolute value of a tensor";
 
   let description = [{
@@ -85,12 +82,6 @@ def PD_ElementwiseAdd : PD_Op<"ElementwiseAdd", [NoSideEffect, Commutative, Decl
 
   let arguments = (ins PD_Tensor:$x, PD_Tensor:$y, DefaultValuedAttr<I32Attr, "-1">:$axis);
   let results = (outs PD_Tensor:$out);
-
-  let builders = [
-    OpBuilder<"OpBuilder &builder, OperationState &state, Attribute value">,
-    OpBuilder<"OpBuilder &builder, OperationState &state, Type type, Attribute value">
-  ];
-
   let hasCanonicalizer = 1;
   let hasFolder = 1;
 }
