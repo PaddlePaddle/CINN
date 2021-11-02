@@ -17,11 +17,11 @@
 import cinn
 import numpy as np
 import paddle
-import paddle.nn.functional as F
 import unittest
 
 from cinn.frontend import *
 from cinn.common import *
+from op_test import OpTest, OpTestTool
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
@@ -39,7 +39,7 @@ class TestConv2dOp(OpTest):
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
         weight = paddle.to_tensor(self.inputs["weight"], stop_gradient=False)
-        out = F.conv2d(x, weight)
+        out = paddle.nn.functional.conv2d(x, weight)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
