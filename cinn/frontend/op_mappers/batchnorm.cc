@@ -55,8 +55,7 @@ void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   }
 
   auto outs = ctx.Builder()->batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout, is_test);
-  CHECK_EQ(outs.size(), output_names.size())
-      << "batch_norm_train API's should return" << output_names.size() << "Variables!";
+  CHECK_EQ(outs.size(), output_names.size()) << "batch_norm API's should return" << output_names.size() << "Variables!";
 
   for (int i = 0; i < outs.size(); i++) {
     auto out_name = get_output_name(output_names[i]);
@@ -108,7 +107,7 @@ void BatchNormGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(batchnorm) {
-  CINN_REGISTER_OP_MAPPER(batchnorm, cinn::frontend::op_mappers::BatchnormOpMapper)
-  CINN_REGISTER_OP_MAPPER(batchnorm_grad, cinn::frontend::op_mappers::BatchNormGradOpMapper)
+  CINN_REGISTER_OP_MAPPER(batch_norm, cinn::frontend::op_mappers::BatchnormOpMapper)
+  CINN_REGISTER_OP_MAPPER(batch_norm_grad, cinn::frontend::op_mappers::BatchNormGradOpMapper)
   return true;
 }
