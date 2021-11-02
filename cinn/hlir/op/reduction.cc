@@ -58,6 +58,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
   bool keep_dim = false;
   if (attrs.attr_store.count("dim")) {
     dim = absl::get<std::vector<int>>(attrs.attr_store.at("dim"));
+    std::sort(dim.begin(), dim.end());
   }
   if (attrs.attr_store.count("keep_dim")) {
     keep_dim = absl::get<bool>(attrs.attr_store.at("keep_dim"));
@@ -69,28 +70,48 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     Expr A_expr = a[0];
     CHECK(A_expr.as_tensor());
     ir::Tensor A = A_expr.as_tensor_ref();
-    auto out     = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
-    auto stages  = CreateStages({A, out});
-    *ret         = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+
+    // if do reduce on last axis and reduce axis size > 1.
+    // two step to do reduce: 1.[n,c,h,w] -> [c,w]; 2.[c,w] -> [c]
+    if (dim.back() == inputs[0]->shape.size() - 1 && dim.size() > 1) {
+      // do reduce parallel on last dimension
+      std::vector<int> dim0(dim.begin(), --dim.end());
+      auto out0 = pe_func(A, dim0, keep_dim, Expr(), UniqName(op_name + "_out0"));
+      // do reduce on last dimension
+      std::vector<int> dim1(1, out0->shape.size() - 1);
+      auto out1   = pe_func(out0, dim1, keep_dim, Expr(), UniqName(op_name + "_out1"));
+      auto stages = CreateStages({A, out0, out1});
+      *ret        = CINNValuePack{{CINNValue(out0), CINNValue(out1), CINNValue(stages)}};
+    } else {
+      auto out    = pe_func(A, dim, keep_dim, Expr(), UniqName(op_name + "_out"));
+      auto stages = CreateStages({A, out});
+      *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
+    }
   });
 
   framework::CINNSchedule reduction_schedule([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input argument of " << op_name << " schedule is empty! Please check.";
     CINNValuePack arg_pack = args[0];
-    CHECK_EQ(arg_pack.size(), 2UL);
-    Expr Out              = arg_pack[0];
-    poly::StageMap stages = arg_pack[1];
-    CHECK(Out.as_tensor());
-    auto out = Out.as_tensor_ref();
+    CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
     if (target.arch == Target::Arch::NVGPU) {
-      if (out->shape.size() > 1) {
-        stages[out]->Split(1, 2);
-        stages[out]->Bind(0, "blockIdx.x");
-        stages[out]->Bind(1, "threadIdx.x");
+      // if do two step reduce.
+      if (arg_pack.size() == 3) {
+        Expr out0 = arg_pack[0];
+        Expr out1 = arg_pack[1];
+        // first reduce
+        poly::StageMap stages = arg_pack[2];
+        int last_axis         = out0.as_tensor_ref()->shape.size() - 1;
+        stages[out0.as_tensor_ref()]->Bind(0, "blockIdx.x");
+        stages[out0.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
+
+        // second reduce
+        stages[out1.as_tensor_ref()]->Bind(0, "threadIdx.x");
       } else {
-        stages[out]->Split(0, 2);
-        stages[out]->Bind(0, "blockIdx.x");
-        stages[out]->Bind(1, "threadIdx.x");
+        Expr out0             = arg_pack[0];
+        poly::StageMap stages = arg_pack[1];
+        int last_axis         = out0.as_tensor_ref()->shape.size() - 1;
+        stages[out0.as_tensor_ref()]->Bind(0, "blockIdx.x");
+        stages[out0.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
       }
     }
     *ret = arg_pack;
@@ -171,16 +192,16 @@ StrategyForReduction(reduce_min, ReduceMin, PeFunc);
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(reduce_ops) {
-#define CINN_REGISTER_REDUCTION(op__, op_stragegy__)                                                                  \
-  CINN_REGISTER_OP(op__)                                                                                              \
-      .describe(#op__ " function")                                                                                    \
-      .set_num_inputs(1)                                                                                              \
-      .set_num_outputs(1)                                                                                             \
-      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__)  \
-      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                 \
-      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                 \
-      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                               \
-      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kCommReduce) \
+#define CINN_REGISTER_REDUCTION(op__, op_stragegy__)                                                                 \
+  CINN_REGISTER_OP(op__)                                                                                             \
+      .describe(#op__ " function")                                                                                   \
+      .set_num_inputs(1)                                                                                             \
+      .set_num_outputs(1)                                                                                            \
+      .set_attr<cinn::hlir::framework::StrategyFunction>("CINNStrategy", cinn::hlir::op::StrategyFor##op_stragegy__) \
+      .set_attr("infershape", MakeOpFunction(cinn::hlir::op::InferShapeForReduction))                                \
+      .set_attr("inferdtype", MakeOpFunction(cinn::hlir::op::InferDtypeForReduction))                                \
+      .set_attr("inferlayout", MakeOpFunction(cinn::hlir::op::InferLayoutForReduction))                              \
+      .set_attr<cinn::hlir::framework::OpPatternKind>("OpPattern", cinn::hlir::framework::OpPatternKind::kOpaque)    \
       .set_support_level(4);
 
   CINN_REGISTER_REDUCTION(reduce_sum, ReduceSum);
