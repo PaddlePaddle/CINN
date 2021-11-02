@@ -103,13 +103,25 @@ class OpTest(unittest.TestCase):
 
     def check_results(self, device, expect_res, actual_res,
                       max_relative_error):
-        def _compute_max_relative_error(i, expect, actual):
-            diff = (np.abs(expect - actual) / np.abs(expect)).flatten()
-            max_diff = np.max(diff)
-            offset = np.argmax(diff > max_relative_error)
-            error_message = "[%s] The maximum relative error of %d-th output is %e, offset=%d, shape=%s, %e vs %e." % (
-                device, i, max_diff, offset, str(expect.shape),
-                expect.flatten()[offset], actual.flatten()[offset])
+        def _compute_max_relative_error(output_id, expect, actual):
+            absolute_diff = np.abs(expect - actual).flatten()
+            relative_diff = absolute_diff / np.abs(expect).flatten()
+            max_diff = 0
+            min_diff = max_relative_error
+            offset = 0
+            num_diffs = 0
+            for i in range(len(relative_diff)):
+                if relative_diff[i] > max_diff:
+                    max_diff = relative_diff[i]
+                    offset = i
+                if relative_diff[i] > max_relative_error:
+                    num_diffs = num_diffs + 1
+                    # The following print can be used to debug.
+                    # print("i=%d, %e vs %e, relative_diff=%e, absolute_diff=%e" % (i, expect.flatten()[i], actual.flatten()[i], relative_diff[i], absolute_diff[i]))
+            error_message = "[%s] The %d-th output: total %d different results, offset=%d, shape=%s, %e vs %e, maximum_relative_diff=%e (absolute_diff=%e)." % (
+                device, output_id, num_diffs, offset, str(expect.shape),
+                expect.flatten()[offset], actual.flatten()[offset], max_diff,
+                absolute_diff[offset])
             return error_message
 
         self.assertEqual(len(expect_res), len(actual_res))
@@ -124,8 +136,8 @@ class OpTest(unittest.TestCase):
             actual = actual_res[i]
             is_allclose = np.allclose(
                 expect, actual, atol=1e-6, rtol=max_relative_error)
-            logger.debug(is_allclose,
-                         _compute_max_relative_error(i, expect, actual))
+            logger.debug("{} {}".format(
+                is_allclose, _compute_max_relative_error(i, expect, actual)))
             self.assertTrue(is_allclose,
                             _compute_max_relative_error(i, expect, actual))
 

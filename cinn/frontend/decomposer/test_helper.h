@@ -36,9 +36,15 @@ using CPUKernelFunc = std::function<void(const std::vector<size_t>& lengths, con
 
 template <typename T, typename Alloc = std::allocator<T>>
 std::ostream& operator<<(std::ostream& os, const std::vector<T, Alloc>& vec) {
-  os << "{ ";
+  os << "{";
+  bool is_first = true;
   for (auto e : vec) {
-    os << e << " ";
+    if (is_first) {
+      is_first = false;
+    } else {
+      os << ", ";
+    }
+    os << e;
   }
   os << "}\n";
   return os;
@@ -56,7 +62,7 @@ template <typename T>
 void InitRandomVector(std::vector<T>* vec, size_t numel) {
   std::random_device seed;
   std::default_random_engine engine(seed());
-  std::uniform_real_distribution<float> dist(-1.0, 1.0);
+  std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
   vec->resize(numel);
   for (size_t i = 0; i < numel; ++i) {
@@ -98,20 +104,30 @@ template <typename T>
 void CheckOutput(const std::vector<T>& results, const std::vector<T>& references) {
   CHECK_EQ(results.size(), references.size());
 
+  float max_diff = 0.0f;
+  int num_diffs  = 0;
+
   size_t numel = results.size();
   for (size_t i = 0; i < numel; ++i) {
-    EXPECT_NEAR(results[i], references[i], 1.E-05);
+    float diff = abs((results[i] - references[i]) / references[i]);
+    max_diff   = diff > max_diff ? diff : max_diff;
+    if (diff > 1e-5) {
+      num_diffs += 1;
+      LOG(INFO) << "i=" << i << ", " << results[i] << " vs " << references[i] << ", diff=" << diff;
+    }
   }
+  LOG(INFO) << "There are " << num_diffs << " different results; the maximum difference is " << max_diff << ".";
+  ASSERT_LT(max_diff, 1e-5);
 }
 
 template <typename T>
-void ComputeAndCheckOutputs(const std::vector<std::vector<T>>& input_vecs,
-                            const std::vector<std::vector<T>>& output_vecs,
-                            CPUKernelFunc cpu_kernel_func) {
-  std::vector<std::vector<T>> output_refs;
-  output_refs.resize(output_vecs.size());
+void ComputeReferenceCpu(const std::vector<std::vector<T>>& input_vecs,
+                         const std::vector<std::vector<T>>& output_vecs,
+                         std::vector<std::vector<T>>* output_refs,
+                         CPUKernelFunc cpu_kernel_func) {
+  output_refs->resize(output_vecs.size());
   for (size_t i = 0; i < output_vecs.size(); ++i) {
-    output_refs[i].resize(output_vecs[i].size());
+    output_refs->at(i).resize(output_vecs[i].size());
   }
 
   // Prepare the arguments for reference.
@@ -120,19 +136,14 @@ void ComputeAndCheckOutputs(const std::vector<std::vector<T>>& input_vecs,
   std::vector<size_t> lengths;
   lengths.push_back(n);
 
-  std::vector<void*> ptrs(input_vecs.size() + output_refs.size());
+  std::vector<void*> ptrs(input_vecs.size() + output_refs->size());
   for (size_t i = 0; i < input_vecs.size(); ++i) {
     ptrs[i] = const_cast<void*>(static_cast<const void*>(input_vecs[i].data()));
   }
-  for (size_t i = 0; i < output_refs.size(); ++i) {
-    ptrs[input_vecs.size() + i] = output_refs[i].data();
+  for (size_t i = 0; i < output_refs->size(); ++i) {
+    ptrs[input_vecs.size() + i] = output_refs->at(i).data();
   }
   cpu_kernel_func(lengths, ptrs);
-
-  for (size_t i = 0; i < output_vecs.size(); ++i) {
-    LOG(INFO) << "Check the " << i << "-th output...";
-    CheckOutput<T>(output_vecs[i], output_refs[i]);
-  }
 }
 
 void RunDecomposer(Program* prog, const Target& target) {
@@ -197,7 +208,14 @@ void RunAndCheck(NetBuilder& builder,
   std::vector<std::vector<T>> input_vecs;
   std::vector<std::vector<T>> output_vecs;
   RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs);
-  ComputeAndCheckOutputs<T>(input_vecs, output_vecs, cpu_kernel_func);
+
+  std::vector<std::vector<T>> output_refs;
+  ComputeReferenceCpu<T>(input_vecs, output_vecs, &output_refs, cpu_kernel_func);
+
+  for (size_t i = 0; i < output_vecs.size(); ++i) {
+    LOG(INFO) << "Check the " << i << "-th output, name=" << output_names[i] << ", shape=" << output_shapes[i];
+    CheckOutput<T>(output_vecs[i], output_refs[i]);
+  }
 }
 
 }  // namespace cinn::frontend
