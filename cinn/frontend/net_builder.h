@@ -76,6 +76,15 @@ class NetBuilder : public BaseBuilder {
   Variable relu6(const Variable& a, float threshold = 6.0f);
 
   /**
+   * This API reverses the Variable x along the given axis.
+   * Example 1: x = [[0, 1], [2, 3], [4, 5]], axis = [0]
+   *            output = [[4, 5], [2, 3], [0, 1]]
+   * Example 2: x = [[0, 1], [2, 3], [4, 5]], axis = [0, 1]
+   *            output = [[5, 4], [3, 2], [1, 0]]
+   */
+  Variable reverse(const Variable& x, const std::vector<int>& axis);
+
+  /**
    * The convolution2D layer calculates the output based on the input, filter
    * and strides, paddings, dilations, groups parameters.
    */
