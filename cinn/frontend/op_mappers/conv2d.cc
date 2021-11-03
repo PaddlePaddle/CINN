@@ -97,8 +97,7 @@ void Conv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 #ifdef CINN_WITH_CUDNN
   if (ctx.Target().arch == Target::Arch::NVGPU) {
     // The place to replace `ReverseHWVar(y_name, ctx);` by reverse op
-    Variable reverse_tmp = ctx.Builder()->reverse(y, {2});
-    y                    = ctx.Builder()->reverse(reverse_tmp, {3});
+    y = ctx.Builder()->reverse(y, {2, 3});
   }
 #endif
   auto out = ctx.Builder()->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
@@ -139,8 +138,7 @@ void DepthwiseConv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperC
 #ifdef CINN_WITH_CUDNN
   if (ctx.Target().arch == Target::Arch::NVGPU) {
     // The place to replace `ReverseHWVar(y_name, ctx);` by reverse op
-    Variable reverse_tmp = ctx.Builder()->reverse(y, {2});
-    y                    = ctx.Builder()->reverse(reverse_tmp, {3});
+    y = ctx.Builder()->reverse(y, {2, 3});
   }
 #endif
   Variable out;
