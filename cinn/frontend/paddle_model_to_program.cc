@@ -114,7 +114,7 @@ void PaddleModelToProgram::AddOpMapper_mul() {
     CHECK_EQ(op_desc.Input("Y").size(), 1UL);
     auto y_name = op_desc.Input("Y").front();
     auto x      = GetVar(utils::TransValidVarName(x_name));
-    TransposeVar(TransValidVarName(y_name));
+    // TransposeVar(TransValidVarName(y_name));
     auto y             = GetVar(utils::TransValidVarName(y_name));
     int x_num_col_dims = op_desc.GetAttr<int>("x_num_col_dims");
     int y_num_col_dims = op_desc.GetAttr<int>("y_num_col_dims");

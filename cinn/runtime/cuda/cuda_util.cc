@@ -75,8 +75,8 @@ void cinn_gpu_cublas_mul(const std::vector<int> &attrs,
   for (int i = 0; i < attrs[attrs.size() - 2]; i++) {
     M *= attrs[i];
   }
-  int N       = attrs[attrs.size() - 3];
-  int K       = attrs[attrs.size() - 4];
+  int N       = attrs[attrs.size() - 4];
+  int K       = attrs[attrs.size() - 3];
   float alpha = 1.f;
   float beta  = 0.f;
   // M,N * N,K

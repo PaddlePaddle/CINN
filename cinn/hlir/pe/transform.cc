@@ -387,20 +387,20 @@ std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string&
                                 << A->shape.size();
   CHECK_EQ(B->shape.size(), 2U) << "tensor_B's shape size should be two while current shape size is "
                                 << B->shape.size();
-  CHECK_EQ(A->shape[1], B->shape[1]) << "tensor_A's last shape should be same with tensor_B";
+  CHECK_EQ(A->shape[1], B->shape[0]) << "tensor_A's last shape should be same with tensor_B's first shape.";
   output_shape.push_back(A->shape[0]);
-  output_shape.push_back(B->shape[0]);
+  output_shape.push_back(B->shape[1]);
 
   if (target.arch == Target::Arch::X86) {
     int reduce_dim   = A->shape[1].as_int32();
     int split_factor = GetMulFactor(reduce_dim, A->type(), target);
     Var reduce_k_first(common::make_const(A->shape[1]->type(), reduce_dim / split_factor), UniqName("reduce_k_first"));
     auto mul_reduce_first = Compute(
-        {A->shape[0], B->shape[0], Expr(split_factor)},
+        {A->shape[0], B->shape[1], Expr(split_factor)},
         [=](const std::vector<Expr>& indice) {
           CHECK_EQ(indice.size(), 3U) << "indice size should be three while current size is " << indice.size();
           return lang::ReduceSum(A({indice[0], reduce_k_first * Expr(split_factor) + indice[2]}) *
-                                     B({indice[1], reduce_k_first * Expr(split_factor) + indice[2]}),
+                                     B({reduce_k_first * Expr(split_factor) + indice[2], indice[1]}),
                                  {reduce_k_first});
         },
         UniqName("mul_reduce_k_first"));
@@ -423,9 +423,9 @@ std::vector<Tensor> MulBase(const Tensor& A, const Tensor& B, const std::string&
           std::vector<Expr> B_indice;
           CHECK_EQ(indice.size(), 2U) << "indice size should be two while current size is " << indice.size();
           A_indice.push_back(indice[0]);
-          B_indice.push_back(indice[1]);
           A_indice.push_back(reduce_k);
           B_indice.push_back(reduce_k);
+          B_indice.push_back(indice[1]);
           return lang::ReduceSum(A(A_indice) * B(B_indice), {reduce_k});
         },
         name)};
@@ -460,13 +460,13 @@ std::vector<Tensor> MulMKL(const Tensor& A, const Tensor& B, const std::string& 
   int b_dim                 = shape_B.size();
   CHECK_EQ(a_dim, 2U) << "tensor_A's shape size should be two while current shape size is " << A->shape.size();
   CHECK_EQ(b_dim, 2U) << "tensor_B's shape size should be two while current shape size is " << B->shape.size();
-  // A: [M, K], B: [N, K]
+  // A: [M, K], B: [K, N]
   Expr x_width  = shape_A[1];
-  Expr y_height = shape_B[1];
+  Expr y_height = shape_B[0];
   Expr M        = shape_A[0];
-  Expr N        = shape_B[0];
+  Expr N        = shape_B[1];
   CHECK(is_zero(x_width - y_height)) << "matrix multiplication requires x_width to be same with y_height";
-  CHECK_EQ(A->shape[1], B->shape[1]) << "tensor_A's last shape should be same with tensor_B";
+  CHECK_EQ(A->shape[1], B->shape[0]) << "tensor_A's last shape should be same with tensor_B";
 
   auto call = Compute(
       {Expr(1)},
@@ -478,7 +478,7 @@ std::vector<Tensor> MulMKL(const Tensor& A, const Tensor& B, const std::string& 
                                     N,                                 // N
                                     x_width,                           // K
                                     common::make_bool(false),          // ta
-                                    common::make_bool(true),           // tb
+                                    common::make_bool(false),          // tb
                                     shape_A.back(),                    // lda
                                     shape_B.back(),                    // ldb
                                     N,                                 // ldc

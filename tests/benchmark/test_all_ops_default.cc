@@ -278,13 +278,13 @@ std::vector<std::vector<int>> shapes_mul = {{32, 32}, {32, 32}};
 TEST_DEFAULT(mul, mul, type1, type1)
 std::vector<std::vector<int>> shapes_mul1 = {{512, 512}, {512, 512}};
 TEST_DEFAULT(mul, mul1, type1, type1)
-std::vector<std::vector<int>> shapes_mul2 = {{100, 32}, {100, 32}};
+std::vector<std::vector<int>> shapes_mul2 = {{100, 32}, {32, 100}};
 TEST_DEFAULT(mul, mul2, type1, type1)
 std::vector<std::vector<int>> shapes_mul3 = {{1024, 1024}, {1024, 1024}};
 TEST_DEFAULT(mul, mul3, type1, type1)
 std::vector<std::vector<int>> shapes_mul4 = {{1}, {1}};
 TEST_DEFAULT(mul, mul4, type1, type1)
-std::vector<std::vector<int>> shapes_mul5 = {{1, 30}, {1, 30}};
+std::vector<std::vector<int>> shapes_mul5 = {{1, 30}, {30, 1}};
 TEST_DEFAULT(mul, mul5, type1, type1)
 
 // batchnorm
