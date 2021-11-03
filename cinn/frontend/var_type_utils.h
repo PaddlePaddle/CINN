@@ -18,6 +18,7 @@
 #include "cinn/common/type.h"
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/paddle/cpp/desc_api.h"
+#include "cinn/frontend/paddle/cpp/var_desc.h"
 
 namespace cinn {
 namespace frontend {
