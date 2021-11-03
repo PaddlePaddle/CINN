@@ -57,7 +57,7 @@ struct MlirToRuntimeTranslator::Impl {
 };
 
 bool MlirToRuntimeTranslator::EmitConstantOp(mlir::Operation* op) {
-  if (!cinnrt::cinn::Startswith(op->getName().getStringRef().str(), "cinn.constant")) return false;
+  if (!cinnrt::common::Startswith(op->getName().getStringRef().str(), "cinn.constant")) return false;
   VLOG(3) << "Emitting constant op [" << op->getName().getStringRef().str() << "]";
 
   auto attr = op->getAttr("value");

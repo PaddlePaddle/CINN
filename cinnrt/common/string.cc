@@ -5,7 +5,7 @@
 #include <cstring>
 
 namespace cinnrt {
-namespace cinn {
+namespace common {
 
 std::string StringFormat(const std::string &fmt_str, ...) {
   /* Reserve two times as much as the length of the fmt_str */
@@ -101,5 +101,5 @@ std::string TransValidVarName(std::string name) {
   return name;
 }
 
-}  // namespace cinn
+}  // namespace common
 }  // namespace cinnrt
