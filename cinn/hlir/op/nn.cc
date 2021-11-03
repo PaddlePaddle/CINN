@@ -214,6 +214,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                    UniqName("Conv2d_nchw_5d_out"),
                                    target);
         } else {
+#ifdef CINN_WITH_MKLDNN
           out = pe::Conv2d_NCHW_MKLDNN(A.as_tensor_ref(),
                                        B.as_tensor_ref(),
                                        padding[0],
@@ -223,6 +224,17 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                        dilation[0],
                                        dilation[1],
                                        UniqName("Conv2d_nhwc_out"));
+#else
+          out = pe::Conv2d_NCHW(A.as_tensor_ref(),
+                                B.as_tensor_ref(),
+                                padding[0],
+                                padding[1],
+                                stride[0],
+                                stride[1],
+                                dilation[0],
+                                dilation[1],
+                                UniqName("Conv2d_nhwc_out"));
+#endif
         }
       } else {
         if (conv_type == "forward") {
@@ -1547,12 +1559,16 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
       new_axis = A->shape.size() - 1;
     }
     std::vector<ir::Tensor> out;
+#ifdef CINN_WITH_MKLDNN
     bool use_mkldnn = false;
     if (use_mkldnn) {
       out = pe::SoftmaxMKLDNN(A, new_axis, UniqName("Softmax_mkldnn_output"));
     } else {
       out = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
     }
+#else
+    out = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
+#endif
     std::vector<CINNValue> res;
     for (auto &t : out) {
       stages->InsertLazily(t);

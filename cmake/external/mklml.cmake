@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# IF(NOT ${WITH_MKLML})
-#   return()
-# ENDIF(NOT ${WITH_MKLML})
+IF(NOT ${WITH_MKL_CBLAS})
+  return()
+ENDIF()
 
 # IF(APPLE)
 #     MESSAGE(WARNING "Mac is not supported with MKLML in Paddle yet. Force WITH_MKLML=OFF.")
@@ -77,6 +77,7 @@ SET(dummyfile ${CMAKE_CURRENT_BINARY_DIR}/mklml_dummy.c)
 
 FILE(WRITE ${dummyfile} "const char * dummy = \"${dummyfile}\";")
 ADD_LIBRARY(mklml STATIC ${dummyfile})
+add_definitions(-DCINN_WITH_MKL_CBLAS)
 
 TARGET_LINK_LIBRARIES(mklml ${MKLML_LIB} ${MKLML_IOMP_LIB})
 ADD_DEPENDENCIES(mklml ${MKLML_PROJECT})

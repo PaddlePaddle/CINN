@@ -26,6 +26,17 @@ JOBS=8
 cuda_config=OFF
 cudnn_config=OFF
 
+mklcblas_config=ON
+mkldnn_config=ON
+
+function mklcblas_off {
+  mklcblas_config=OFF
+}
+function mkldnn_off {
+  mkldnn_config=OFF
+}
+
+
 function gpu_on {
     cuda_config=ON
     cudnn_config=ON
@@ -119,6 +130,8 @@ function cmake_ {
     echo "set(WITH_CUDA $cuda_config)" >> $build_dir/config.cmake
     echo "set(WITH_CUDNN $cudnn_config)" >> $build_dir/config.cmake
     echo "set(WITH_MKL_CBLAS ON)" >> $build_dir/config.cmake
+    echo "set(WITH_MKL_CBLAS $mklcblas_config)" >> $build_dir/config.cmake
+    echo "set(WITH_MKLDNN $mkldnn_config)" >> $build_dir/config.cmake
     cd $build_dir
     cmake .. -DPUBLISH_LIBS=ON -DWITH_TESTING=ON -DPY_VERSION=3.6
 }
@@ -259,6 +272,15 @@ function main {
     # Parse command line.
     for i in "$@"; do
         case $i in
+            mklcblas_off)
+                mklcblas_off
+                mkldnn_off
+                shift
+                ;;
+            mkldnn_off)
+                mkldnn_off
+                shift
+                ;;
             gpu_on)
                 gpu_on
                 shift
