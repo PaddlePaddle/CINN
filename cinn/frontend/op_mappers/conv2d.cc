@@ -20,60 +20,20 @@ namespace cinn {
 namespace frontend {
 namespace op_mappers {
 
-inline void ReverseHWData(float* data, std::vector<int> shape) {
-  CHECK_EQ(shape.size(), 4UL);
-  for (int i = 0; i < shape[0] * shape[1]; i++) {
-    int num = shape[2] * shape[3];
-    std::reverse(data + (i * num), data + (i * num + num));
-  }
-}
-
-void ReverseHWVar(const std::string& origin_name, const OpMapperContext& ctx) {
-  const auto& name = cinn::utils::TransValidVarName(origin_name);
-  CheckVarNameValid(name);
-  auto* var = ctx.Scope().FindVar(name);
-  if (var) {
-    auto& tensor = absl::get<hlir::framework::Tensor>(*var);
-    if (ctx.Target().arch == Target::Arch::X86) {
-      float* data = tensor->mutable_data<float>(ctx.Target());
-      CHECK_EQ(tensor->shape().size(), 4UL)
-          << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
-      ReverseHWData(data, tensor->shape().data());
-    } else if (ctx.Target().arch == Target::Arch::NVGPU) {
-#ifdef CINN_WITH_CUDA
-      std::vector<float> data(tensor->shape().numel());
-      CUDA_CALL(cudaMemcpy(data.data(),
-                           reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.Target())),
-                           tensor->shape().numel() * sizeof(float),
-                           cudaMemcpyDeviceToHost));
-      CHECK_EQ(tensor->shape().size(), 4UL)
-          << "The y data's shape size of op [conv2d] is not equal to 4! Please check.";
-      ReverseHWData(data.data(), tensor->shape().data());
-      CUDA_CALL(cudaMemcpy(reinterpret_cast<void*>(tensor->mutable_data<float>(ctx.Target())),
-                           data.data(),
-                           tensor->shape().numel() * sizeof(float),
-                           cudaMemcpyHostToDevice));
-#else
-      LOG(FATAL) << "To use CUDA backends, you need to set WITH_CUDA ON!";
-#endif
-    } else {
-      CINN_NOT_IMPLEMENTED
-    }
-  } else {
-    LOG(FATAL) << "No var called [" << name << "] exists";
-  }
-}
-
 void Conv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
   CHECK_EQ(op_desc.Input("Input").size(), 1UL);
   auto x_name = op_desc.Input("Input").front();
   CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
   auto y_name = op_desc.Input("Filter").front();
-#ifdef CINN_WITH_CUDNN
-  if (ctx.Target().arch == Target::Arch::NVGPU) {
-    ReverseHWVar(y_name, ctx);
-  }
-#endif
+  // We replace `ReverseHWVar(y_name, ctx);` by reverse op to support CINN
+  // for training because we don't operate on data during net building in
+  // training stage. Consider a better code to integrate infer and training.
+  //#ifdef CINN_WITH_CUDNN
+  //  if (ctx.Target().arch == Target::Arch::NVGPU) {
+  //    ReverseHWVar(y_name, ctx);
+  //  }
+  //#endif
+
   CHECK_EQ(op_desc.Output("Output").size(), 1UL);
   auto out_name = op_desc.Output("Output").front();
 
@@ -89,7 +49,13 @@ void Conv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& c
 
   auto padding_algorithm = utils::GetAttrOrDefault<std::string>(op_desc, "padding_algorithm", "EXPLICIT");
   auto x                 = ctx.GetVar(x_name);
-  auto y                 = ctx.GetVar(y_name);
+  Variable y             = ctx.GetVar(y_name);
+#ifdef CINN_WITH_CUDNN
+  if (ctx.Target().arch == Target::Arch::NVGPU) {
+    // The place to replace `ReverseHWVar(y_name, ctx);` by reverse op
+    y = ctx.Builder()->reverse(y, {2, 3});
+  }
+#endif
   auto out = ctx.Builder()->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);
 
   ctx.AddVar(out_name, out);
@@ -101,11 +67,14 @@ void DepthwiseConv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperC
   auto x_name = op_desc.Input("Input").front();
   CHECK_EQ(op_desc.Input("Filter").size(), 1UL);
   auto y_name = op_desc.Input("Filter").front();
-#ifdef CINN_WITH_CUDNN
-  if (ctx.Target().arch == Target::Arch::NVGPU) {
-    ReverseHWVar(y_name, ctx);
-  }
-#endif
+  // We replace `ReverseHWVar(y_name, ctx);` by reverse op to support CINN
+  // for training because we don't operate on data during net building in
+  // training stage. Consider a better code to integrate infer and training.
+  //#ifdef CINN_WITH_CUDNN
+  //  if (ctx.Target().arch == Target::Arch::NVGPU) {
+  //    ReverseHWVar(y_name, ctx);
+  //  }
+  //#endif
   CHECK_EQ(op_desc.Output("Output").size(), 1UL);
   auto out_name = op_desc.Output("Output").front();
 
@@ -121,7 +90,13 @@ void DepthwiseConv2dOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperC
 
   auto padding_algorithm = utils::GetAttrOrDefault<std::string>(op_desc, "padding_algorithm", "EXPLICIT");
   auto x                 = ctx.GetVar(x_name);
-  auto y                 = ctx.GetVar(y_name);
+  Variable y             = ctx.GetVar(y_name);
+#ifdef CINN_WITH_CUDNN
+  if (ctx.Target().arch == Target::Arch::NVGPU) {
+    // The place to replace `ReverseHWVar(y_name, ctx);` by reverse op
+    y = ctx.Builder()->reverse(y, {2, 3});
+  }
+#endif
   Variable out;
   if (ctx.Target().arch == Target::Arch::X86) {
     out = ctx.Builder()->conv2d(x, y, strides, paddings, dilations, groups, data_format, padding_algorithm);

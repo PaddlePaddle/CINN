@@ -98,6 +98,14 @@ Variable NetBuilder::relu6(const Variable& a, float threshold) {
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::reverse(const Variable& x, const std::vector<int>& axis) {
+  Instruction instr("reverse", {x});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::conv2d(const Variable& a,
                             const Variable& b,
                             const std::vector<int>& strides,
