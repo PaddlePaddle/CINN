@@ -111,16 +111,27 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
       }
 
       int max_axis = 0, max_value = out0.as_tensor_ref()->shape[0].as_int32();
-      for (int idx = 0; idx < last_axis; ++idx) {
+      for (int idx = 0; idx <= last_axis; ++idx) {
         if (max_value < out0.as_tensor_ref()->shape[idx].as_int32()) {
-          max_value = out0.as_tensor_ref()->shape[idx].as_int32();
-          max_axis  = idx;
+          if (idx < last_axis) {
+            max_value = out0.as_tensor_ref()->shape[idx].as_int32();
+            max_axis  = idx;
+          } else {
+            if (max_value == 1) {
+              max_axis = last_axis;
+            }
+          }
         }
       }
 
-      stages[out0.as_tensor_ref()]->Bind(max_axis, "blockIdx.x");
+      if (max_axis < last_axis) {
+        stages[out0.as_tensor_ref()]->Bind(max_axis, "blockIdx.x");
+      }
       if (out0.as_tensor_ref()->shape[last_axis].as_int32() > 512) {
         stages[out0.as_tensor_ref()]->Split(last_axis, 512);
+        if (max_axis == last_axis) {
+          stages[out0.as_tensor_ref()]->Bind(last_axis, "blockIdx.x");
+        }
         stages[out0.as_tensor_ref()]->Bind(last_axis + 1, "threadIdx.x");
       } else {
         stages[out0.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
@@ -137,16 +148,27 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         }
 
         int max_axis = 0, max_value = out1.as_tensor_ref()->shape[0].as_int32();
-        for (int idx = 0; idx < last_axis; ++idx) {
+        for (int idx = 0; idx <= last_axis; ++idx) {
           if (max_value < out1.as_tensor_ref()->shape[idx].as_int32()) {
-            max_value = out1.as_tensor_ref()->shape[idx].as_int32();
-            max_axis  = idx;
+            if (idx < last_axis) {
+              max_value = out1.as_tensor_ref()->shape[idx].as_int32();
+              max_axis  = idx;
+            } else {
+              if (max_value == 1) {
+                max_axis = last_axis;
+              }
+            }
           }
         }
 
-        stages[out1.as_tensor_ref()]->Bind(max_axis, "blockIdx.x");
+        if (max_axis < last_axis) {
+          stages[out1.as_tensor_ref()]->Bind(max_axis, "blockIdx.x");
+        }
         if (out1.as_tensor_ref()->shape[last_axis].as_int32() > 512) {
           stages[out1.as_tensor_ref()]->Split(last_axis, 512);
+          if (max_axis == last_axis) {
+            stages[out1.as_tensor_ref()]->Bind(last_axis, "blockIdx.x");
+          }
           stages[out1.as_tensor_ref()]->Bind(last_axis + 1, "threadIdx.x");
         } else {
           stages[out1.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
