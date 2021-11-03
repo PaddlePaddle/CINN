@@ -182,7 +182,9 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
 
   void ResizeTempMemory(const std::string& tensor_name, int index, Expr* indice, const std::string& var_name) {
     if (extent_.defined()) {
-      std::string buffer_id = (*global_tensor_map_)[tensor_name]->buffer->name + var_->name;
+      VLOG(2) << "ResizeTempMemory tensor_name [" << tensor_name << "], index [" << index << "], indice [" << *indice
+              << "], var_name [" << var_name << "].";
+      std::string buffer_id = (*global_tensor_map_)[tensor_name]->buffer->name + std::to_string(index) + var_->name;
       if (resized_buffer_.count(buffer_id) != 0) {
         std::vector<Expr> buffer_shape               = IRCopy((*global_tensor_map_)[tensor_name]->buffer->shape);
         (*global_tensor_map_).at(tensor_name)->shape = buffer_shape;
@@ -209,6 +211,14 @@ struct ReplaceVarIndexOfCacheMutator : public ir::IRMutator<> {
       auto res            = copy1 - copy2;
       tensor_shape[index] = tensor_shape[index] - res;
       Simplify(&tensor_shape[index]);
+      VLOG(2) << "tensor_shape[index] - res is : " << tensor_shape[index];
+      if (tensor_shape[index].is_constant() && tensor_shape[index].get_constant() <= 0) {
+        tensor_shape[index] = Expr(1);
+      } else if (!tensor_shape[index].is_constant()) {
+        VLOG(2) << "Index is not constant: " << tensor_shape[index];
+        tensor_shape[index] = Expr(1);
+      }
+
       (*global_tensor_map_).at(tensor_name)->shape = tensor_shape;
 
       resized_buffer_.insert(buffer_id);
