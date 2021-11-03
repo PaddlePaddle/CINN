@@ -33,7 +33,7 @@ class TestConv2dOp(OpTest):
     def init_case(self):
         self.inputs = {
             "x": np.random.random([3, 16, 224, 224]).astype("float32"),
-            "weight": np.random.random([5, 5]).astype("float32")
+            "weight": np.random.random([16, 16, 5, 5]).astype("float32")
         }
 
     def build_paddle_program(self, target):
