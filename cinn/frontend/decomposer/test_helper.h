@@ -101,23 +101,35 @@ void CopyToVector(const hlir::framework::Tensor tensor, std::vector<T>* vec) {
 }
 
 template <typename T>
-void CheckOutput(const std::vector<T>& results, const std::vector<T>& references) {
+void CheckOutput(const std::vector<T>& results,
+                 const std::vector<T>& references,
+                 double max_relative_error = 1e-5,
+                 bool check_absolute_error = false) {
   CHECK_EQ(results.size(), references.size());
 
   float max_diff = 0.0f;
+  int offset     = 0;
   int num_diffs  = 0;
 
   size_t numel = results.size();
   for (size_t i = 0; i < numel; ++i) {
-    float diff = abs((results[i] - references[i]) / references[i]);
-    max_diff   = diff > max_diff ? diff : max_diff;
-    if (diff > 1e-5) {
+    float absolute_diff = abs((results[i] - references[i]));
+    float relative_diff = abs(absolute_diff / references[i]);
+    if (relative_diff > max_diff) {
+      max_diff = relative_diff;
+      offset   = i;
+    }
+    if ((relative_diff > max_relative_error) || (check_absolute_error && (absolute_diff > 1e-6))) {
       num_diffs += 1;
-      LOG(INFO) << "i=" << i << ", " << results[i] << " vs " << references[i] << ", diff=" << diff;
+      // LOG(INFO) << "- i=" << i << ", " << std::setprecision(8) << results[i] << " vs " << std::setprecision(8) <<
+      // references[i] << ", relative_diff=" << relative_diff << ", absolute_diff=" << absolute_diff;
     }
   }
-  LOG(INFO) << "There are " << num_diffs << " different results; the maximum difference is " << max_diff << ".";
-  ASSERT_LT(max_diff, 1e-5);
+  LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << results[offset] << " vs "
+            << references[offset] << ", maximum_relative_diff=" << max_diff
+            << "(absolute_diff=" << abs((results[offset] - references[offset])) << ")";
+  ASSERT_EQ(num_diffs, 0);
+  ASSERT_LT(max_diff, max_relative_error);
 }
 
 template <typename T>

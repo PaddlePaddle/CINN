@@ -59,39 +59,35 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto epsilon_broadcast =
       builder->BroadcastTo(builder->ConstScalar<float>(epsilon, common::UniqName("epsilon")), scale->shape, {0});
 
-  /*****************batch norm train********************
-   * mean = reduce_mean(x)
-   * diff = x - mean
-   * mean_square = reduce_mean(x*x)
-   * variance = mean_square - mean*mean
-   * std_var = sqrtf(var)
-   * y = diff/std_var * scale + bias
-   * moving_mean = moving_mean * factor + (1.0 - factor) * mean
-   * moving_variance = moving_variance * factor + (1.0 - factor) * variance
-   */
-  // compute x sum, shape = [c]
+  // batch norm train
+  // mean            = reduce_mean(x)
+  // mean_square     = reduce_mean(x * x)
+  // variance        = mean_square - mean * mean
+  // std_variance    = sqrtf(variance + epsilon)
+  // y               = scale * (x - mean) / std_variance + bias
+  // moving_mean     = moving_mean * momentum + (1.0 - momentum) * mean
+  // moving_variance = moving_variance * momentum + (1.0 - momentum) * variance
+
+  // compute saved mean, shape = [c]
   auto sum     = builder->Reduce(x, ReduceKind::kSum, reduce_dim);
   auto mean    = builder->Div(sum, element_count_broadcast);
   auto mean_4d = builder->BroadcastTo(mean, x->shape, {channel_dim});
 
-  // compute x^2 sum
-  auto x_copy        = builder->Identity(x);
-  auto x_square      = builder->Mul(x, x_copy);
+  // compute saved variance, shape = [c], simplified by equation: E(x^2) - [E(x)]^2
+  auto x_square      = builder->Mul(x, builder->Identity(x));
   auto x_square_sum  = builder->Reduce(x_square, ReduceKind::kSum, reduce_dim);
   auto x_square_mean = builder->Div(x_square_sum, element_count_broadcast);
 
-  // E(x^2) - [E(x)]^2
-  auto mean_copy       = builder->Identity(mean);
-  auto variance        = builder->Sub(x_square_mean, builder->Mul(mean, mean_copy));
+  auto variance        = builder->Sub(x_square_mean, builder->Mul(mean, builder->Identity(mean)));
   auto std_variance    = builder->Sqrt(builder->Add(variance, epsilon_broadcast));
   auto std_variance_4d = builder->BroadcastTo(std_variance, x->shape, {channel_dim});
-  // y = (x - mean)/var
 
-  auto scale_4d = builder->BroadcastTo(scale, x->shape, {channel_dim});
-  auto bias_4d  = builder->BroadcastTo(bias, x->shape, {channel_dim});
-  // (x - mean)/var * scale + bias
-  auto diff = builder->Sub(x, mean_4d);
-  auto y    = builder->Add(bias_4d, builder->Mul(scale_4d, builder->Div(diff, std_variance_4d)));
+  // y = scale * (x - mean) / std_variance + bias
+  auto scale_4d    = builder->BroadcastTo(scale, x->shape, {channel_dim});
+  auto bias_4d     = builder->BroadcastTo(bias, x->shape, {channel_dim});
+  auto scaled_diff = builder->Mul(scale_4d, builder->Sub(x, mean_4d));
+  auto y_nobias    = builder->Div(scaled_diff, std_variance_4d);
+  auto y           = builder->Add(y_nobias, bias_4d);
 
   // shape = [c]
   auto factor_0 = builder->BroadcastTo(
