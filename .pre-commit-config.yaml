@@ -58,3 +58,20 @@ repos:
             (?x)^(
                 cinnrt/.*
             )$
+-   repo: local
+    hooks:
+    -   id: copyright_checker_paddle
+        name: copyright_checker_paddle
+        entry: python ./tools/codestyle/copyright.paddle.hook
+        language: system
+        files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx|proto|py|sh)$
+        exclude: |
+            (?x)^(
+                cinn/.*
+                cmake/.*
+                docs/.*
+                python/.*
+                tutorials/.*
+                tests/.*
+                tools/.*
+            )$
