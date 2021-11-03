@@ -271,6 +271,11 @@ class Stage : public Object {
    */
   void ComputeAt(Stage* other, int level);
 
+  /**
+   * Factor a reduce axis.
+   */
+  void RFactor(int level);
+
   void ShowISL() const;
 
   void AddForLoopInTransform(std::vector<std::vector<Expr>>& indices);
