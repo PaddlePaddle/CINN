@@ -121,13 +121,13 @@ void CheckOutput(const std::vector<T>& results,
     }
     if ((relative_diff > max_relative_error) || (check_absolute_error && (absolute_diff > 1e-6))) {
       num_diffs += 1;
-      // LOG(INFO) << "- i=" << i << ", " << std::setprecision(8) << results[i] << " vs " << std::setprecision(8) <<
-      // references[i] << ", relative_diff=" << relative_diff << ", absolute_diff=" << absolute_diff;
+      VLOG(4) << "- i=" << i << ", " << std::setprecision(8) << results[i] << " vs " << std::setprecision(8)
+              << references[i] << ", relative_diff=" << relative_diff << ", absolute_diff=" << absolute_diff;
     }
   }
   LOG(INFO) << "- Total " << num_diffs << " different results, offset=" << offset << ", " << results[offset] << " vs "
             << references[offset] << ", maximum_relative_diff=" << max_diff
-            << "(absolute_diff=" << abs((results[offset] - references[offset])) << ")";
+            << " (absolute_diff=" << abs((results[offset] - references[offset])) << ")";
   ASSERT_EQ(num_diffs, 0);
   ASSERT_LT(max_diff, max_relative_error);
 }

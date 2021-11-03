@@ -143,7 +143,6 @@ void ComputeBatchNormTrainRef(const std::vector<T>& x,
 }
 
 TEST(Decomposer, BatchNormTrain) {
-  // parameter
   int n = 16, c = 32, h = 16, w = 16;
   float epsilon           = 1e-5;
   float momentum          = 0.9f;
@@ -151,21 +150,18 @@ TEST(Decomposer, BatchNormTrain) {
   NetBuilder net_builder("batch_norm_train");
   std::vector<std::string> output_names;
   {
-    // create input
     auto x               = net_builder.CreateInput(Float(32), {n, c, h, w}, "x");
     auto scale           = net_builder.CreateInput(Float(32), {c}, "scale");
     auto bias            = net_builder.CreateInput(Float(32), {c}, "bias");
     auto moving_mean     = net_builder.CreateInput(Float(32), {c}, "moving_mean");
     auto moving_variance = net_builder.CreateInput(Float(32), {c}, "moving_variance");
 
-    // add batch norm train
     auto outputs =
         net_builder.batch_norm_train(x, scale, bias, moving_mean, moving_variance, epsilon, momentum, data_layout);
     for (auto output : outputs) {
       output_names.push_back(output->id);
     }
   }
-  // build program
   auto program = net_builder.Build();
 
   auto target = GetTarget();
@@ -236,192 +232,119 @@ TEST(Decomposer, BatchNormTrain) {
   }
 }
 
-#if 0
 template <typename T>
-void cpu_batch_norm_grad(const std::vector<T>& x,
-                         const std::vector<T>& dy,
-                         const std::vector<T>& scale,
-                         const std::vector<T>& save_mean,
-                         const std::vector<T>& save_variance,
-                         const int n,
-                         const int c,
-                         const int h,
-                         const int w,
-                         std::vector<T>* dx,
-                         std::vector<T>* dscale,
-                         std::vector<T>* dbias,
-                         std::vector<T>* grad_std_norm,
-                         std::vector<T>* grad_diff,
-                         std::vector<T>* grad_std_variance_2d,
-                         std::vector<T>* grad_variance_2d_without_mul,
-                         std::vector<T>* grad_x0,
-                         std::vector<T>* minus_grad_mean,
-                         float epsilon = 1e-5) {
+void ComputeBatchNormGradRef(const std::vector<T>& y_grad,
+                             const std::vector<T>& x,
+                             const std::vector<T>& scale,
+                             const std::vector<T>& save_mean,
+                             const std::vector<T>& save_variance,
+                             const int n,
+                             const int c,
+                             const int h,
+                             const int w,
+                             std::vector<T>* x_grad,
+                             std::vector<T>* scale_grad,
+                             std::vector<T>* bias_grad,
+                             const float epsilon = 1e-5) {
   Offset offset(n, c, h, w);
 
-  std::vector<T> save_std_varance(c);
-  for (int idx = 0; idx < c; ++idx) {
-    save_std_varance[idx] = sqrt(save_variance[idx] + epsilon);
+  // bias_grad
+  memset(bias_grad->data(), 0, sizeof(T) * c);
+  auto func_bias_grad = [=](int in, int ic, int ih, int iw) { bias_grad->at(ic) += y_grad[offset(in, ic, ih, iw)]; };
+  Loop(func_bias_grad, n, c, h, w);
+
+  // std_variance
+  std::vector<T> std_variance(c);
+  for (int ic = 0; ic < c; ++ic) {
+    std_variance[ic] = sqrt(save_variance[ic] + epsilon);
   }
-  // grad bias
-  memset(dbias->data(), 0, sizeof(float) * c);
-  auto func_dbias = [=](int idx, int idy, int idz, int ida) {
-    dbias->at(idy) += dy[offset(idx, idy, idz, ida)];
-  };
-  Loop(func_dbias, n, c, h, w);
 
   // grad scale
-  memset(dscale->data(), 0, sizeof(float) * c);
-  auto func_dscale = [=](int idx, int idy, int idz, int ida) {
-    dscale->at(idy) += dy[offset(idx, idy, idz, ida)] *
-                       ((x[offset(idx, idy, idz, ida)] - save_mean[idy]) / save_std_varance[idy]);
+  memset(scale_grad->data(), 0, sizeof(T) * c);
+  auto func_scale_grad = [=](int in, int ic, int ih, int iw) {
+    int idx = offset(in, ic, ih, iw);
+    scale_grad->at(ic) += y_grad[idx] * (x[idx] - save_mean[ic]);
   };
-  Loop(func_dscale, n, c, h, w);
-
-  // grad_std
-  auto func_grad_std_norm = [=](int idx, int idy, int idz, int ida) {
-    grad_std_norm->at(offset(idx, idy, idz, ida)) = dy[offset(idx, idy, idz, ida)] * scale[idy];
-  };
-  Loop(func_grad_std_norm, n, c, h, w);
-
-  auto func_grad_diff = [=](int idx, int idy, int idz, int ida) {
-    grad_diff->at(offset(idx, idy, idz, ida)) =
-        grad_std_norm->at(offset(idx, idy, idz, ida)) / save_std_varance[idy];
-  };
-  Loop(func_grad_diff, n, c, h, w);
-
-  memset(grad_std_variance_2d->data(), 0, sizeof(float) * c);
-  auto func_grad_std_variance_2d = [=](int idx, int idy, int idz, int ida) {
-    grad_std_variance_2d->at(idy) += -1 * grad_std_norm->at(offset(idx, idy, idz, ida)) *
-                                     (x[offset(idx, idy, idz, ida)] - save_mean[idy]) /
-                                     (save_variance[idy] + epsilon);
-  };
-  Loop(func_grad_std_variance_2d, n, c, h, w);
-
-  for (int idx = 0; idx < c; ++idx) {
-    grad_variance_2d_without_mul->at(idx) = 0.5 * grad_std_variance_2d->at(idx) / save_std_varance[idx];
-  }
-  auto func_grad_x0 = [=](int idx, int idy, int idz, int ida) {
-    grad_x0->at(offset(idx, idy, idz, ida)) =
-        2 * x[offset(idx, idy, idz, ida)] * grad_variance_2d_without_mul->at(idy) / (n * h * w);
-  };
-  Loop(func_grad_x0, n, c, h, w);
-
-  memset(minus_grad_mean->data(), 0, sizeof(float) * c);
-  auto func_minus_grad_mean = [=](int idx, int idy, int idz, int ida) {
-    minus_grad_mean->at(idy) += -1 * grad_diff->at(offset(idx, idy, idz, ida));
-  };
-  Loop(func_minus_grad_mean, n, c, h, w);
-
-  for (int idx = 0; idx < c; ++idx) {
-    minus_grad_mean->at(idx) += -1 * 2 * grad_variance_2d_without_mul->at(idx) * save_mean.at(idx);
-    minus_grad_mean->at(idx) /= (n * h * w);
+  Loop(func_scale_grad, n, c, h, w);
+  for (int ic = 0; ic < c; ++ic) {
+    scale_grad->at(ic) /= std_variance[ic];
   }
 
-  auto func_grad_x = [=](int idx, int idy, int idz, int ida) {
-    dx->at(offset(idx, idy, idz, ida)) =
-        grad_diff->at(offset(idx, idy, idz, ida)) +
-        grad_x0->at(offset(idx, idy, idz, ida)) + minus_grad_mean->at(idy);
+  // std_norm_grad
+  std::vector<T> std_norm_grad(n * c * h * w);
+  auto func_std_norm_grad = [&](int in, int ic, int ih, int iw) {
+    int idx            = offset(in, ic, ih, iw);
+    std_norm_grad[idx] = y_grad[idx] * scale[ic];
   };
-  Loop(func_grad_x, n, c, h, w);
+  Loop(func_std_norm_grad, n, c, h, w);
+
+  // x_mean_diff_grad
+  std::vector<T> x_mean_diff_grad(n * c * h * w);
+  auto func_x_mean_diff_grad = [&](int in, int ic, int ih, int iw) {
+    int idx               = offset(in, ic, ih, iw);
+    x_mean_diff_grad[idx] = std_norm_grad[idx] / std_variance[ic];
+  };
+  Loop(func_x_mean_diff_grad, n, c, h, w);
+
+  // std_variance_grad
+  std::vector<T> std_variance_grad(c, 0);
+  auto func_std_variance_grad = [&](int in, int ic, int ih, int iw) {
+    int idx = offset(in, ic, ih, iw);
+    std_variance_grad[ic] += -1.0f * std_norm_grad[idx] * (x[idx] - save_mean[ic]) / (save_variance[ic] + epsilon);
+  };
+  Loop(func_std_variance_grad, n, c, h, w);
+
+  // variance_grad_without_mul
+  std::vector<T> variance_grad_without_mul(c);
+  for (int ic = 0; ic < c; ++ic) {
+    variance_grad_without_mul[ic] = std_variance_grad[ic] / std_variance[ic];
+  }
+
+  // x_grad_0
+  float element_count = static_cast<float>(n * h * w);
+  std::vector<T> x_grad_0(n * c * h * w);
+  auto func_x_grad_0 = [&](int in, int ic, int ih, int iw) {
+    int idx       = offset(in, ic, ih, iw);
+    x_grad_0[idx] = x[idx] * (variance_grad_without_mul[ic] / element_count);
+  };
+  Loop(func_x_grad_0, n, c, h, w);
+
+  // minus_mean_grad
+  std::vector<T> minus_mean_grad(c, 0);
+  auto func_minus_mean_grad = [&](int in, int ic, int ih, int iw) {
+    minus_mean_grad[ic] += x_mean_diff_grad[offset(in, ic, ih, iw)];
+  };
+  Loop(func_minus_mean_grad, n, c, h, w);
+  for (int ic = 0; ic < c; ++ic) {
+    minus_mean_grad[ic] += variance_grad_without_mul[ic] * save_mean[ic];
+    minus_mean_grad[ic] /= element_count;
+  }
+
+  auto func_x_grad = [=](int in, int ic, int ih, int iw) {
+    int idx         = offset(in, ic, ih, iw);
+    x_grad->at(idx) = x_mean_diff_grad[idx] + x_grad_0[idx] - minus_mean_grad[ic];
+  };
+  Loop(func_x_grad, n, c, h, w);
 }
 
-void GradX(const std::vector<float>& grad_std_norm,
-           const std::vector<float>& x,
-           const std::vector<float>& mean,
-           const std::vector<float>& variance,
-           int n,
-           int c,
-           int h,
-           int w,
-           float epsilon = 1e-5) {
-  std::vector<float> std_variance(c);
-  for (int idx = 0; idx < c; ++idx) {
-    std_variance[idx] = sqrt(variance[idx] + epsilon);
-  }
-
-  std::vector<float> grad_diff(n * c * h * w);
-  auto func_0 = [&](int idx, int idy, int idz, int ida) {
-    grad_diff[idx * c * h * w + idy * h * w + idz * w + ida] =
-        grad_std_norm[idx * c * h * w + idy * h * w + idz * w + ida] / std_variance[idy];
-  };
-  Loop(func_0, n, c, h, w);
-  for (auto value : grad_diff) {
-    std::cerr << value << " ";
-  }
-  std::cerr << std::endl;
-
-  std::vector<float> grad_std_variance(c, 0);
-  auto func_1 = [&](int idx, int idy, int idz, int ida) {
-    grad_std_variance[idy] += -1 * grad_std_norm[idx * c * h * w + idy * h * w + idz * w + ida] *
-                              (x[idx * c * h * w + idy * h * w + idz * w + ida] - mean[idy]) /
-                              (variance[idy] + epsilon);
-  };
-  Loop(func_1, n, c, h, w);
-
-  std::vector<float> grad_variance(c);
-  for (int idx = 0; idx < c; ++idx) {
-    grad_variance[idx] = grad_std_variance[idx] * 0.5 / std_variance[idx];
-  }
-
-  for (auto value : grad_variance) {
-    std::cerr << value << " ";
-  }
-  std::cerr << std::endl;
-
-  std::vector<float> grad_square_diff(n * c * h * w);
-  auto func_11 = [&](int idx, int idy, int idz, int ida) {
-    grad_square_diff[idx * c * h * w + idy * h * w + idz * w + ida] =
-        grad_variance[idy] * 2 * (x[idx * c * h * w + idy * h * w + idz * w + ida] - mean[idy]) / float(n * h * w);
-  };
-  Loop(func_11, n, c, h, w);
-
-  auto func_2 = [&](int idx, int idy, int idz, int ida) {
-    grad_diff[idx * c * h * w + idy * h * w + idz * w + ida] +=
-        grad_square_diff[idx * c * h * w + idy * h * w + idz * w + ida];
-  };
-  Loop(func_2, n, c, h, w);
-
-  std::vector<float> grad_mean(c, 0);
-  auto func_3 = [&](int idx, int idy, int idz, int ida) {
-    grad_mean[idy] += -1 * grad_diff[idx * c * h * w + idy * h * w + idz * w + ida];
-  };
-  Loop(func_3, n, c, h, w);
-
-  std::vector<float> grad_x(n * c * h * w);
-  auto func_4 = [&](int idx, int idy, int idz, int ida) {
-    grad_x[idx * c * h * w + idy * h * w + idz * w + ida] =
-        grad_diff[idx * c * h * w + idy * h * w + idz * w + ida] + grad_mean[idy] / (float(n * h * w));
-  };
-  Loop(func_4, n, c, h, w);
-
-  for (auto value : grad_x) {
-    std::cerr << value << " ";
-  }
-  std::cerr << std::endl;
-}
-
-TEST(nn, BATCH_NORM_GRAD) {
-  // parameter
-  int n = 4, c = 16, h = 4, w = 4;
-  int num = n * c * h * w;
-  NetBuilder net_builder("net_builder_batch_norm_grad");
+TEST(Decomposer, BatchNormGrad) {
+  int n = 16, c = 32, h = 16, w = 16;
+  int num       = n * c * h * w;
+  float epsilon = 1e-5;
+  NetBuilder net_builder("batch_norm_grad");
   std::vector<std::string> output_names;
   {
-    // create input
-    auto dy            = net_builder.CreateInput(Float(32), {n, c, h, w}, "dy");
-    auto x             = net_builder.CreateInput(Float(32), {n, c, h, w}, "x");
-    auto scale         = net_builder.CreateInput(Float(32), {c}, "scale");
-    auto save_mean     = net_builder.CreateInput(Float(32), {c}, "save_mean");
-    auto save_variance = net_builder.CreateInput(Float(32), {c}, "save_variance");
+    auto y_grad         = net_builder.CreateInput(Float(32), {n, c, h, w}, "y_grad");
+    auto x              = net_builder.CreateInput(Float(32), {n, c, h, w}, "x");
+    auto scale          = net_builder.CreateInput(Float(32), {c}, "scale");
+    auto saved_mean     = net_builder.CreateInput(Float(32), {c}, "saved_mean");
+    auto saved_variance = net_builder.CreateInput(Float(32), {c}, "saved_variance");
 
-    // add batch norm train
-    auto outputs = net_builder.batch_norm_grad(dy, x, scale, save_mean, save_variance);
+    auto outputs = net_builder.batch_norm_grad(y_grad, x, scale, saved_mean, saved_variance, epsilon);
     for (auto output : outputs) {
       output_names.push_back(output->id);
     }
   }
-  // build program
   auto program = net_builder.Build();
 
   auto target = GetTarget();
@@ -430,29 +353,30 @@ TEST(nn, BATCH_NORM_GRAD) {
   auto graph = std::make_shared<hlir::framework::Graph>(program, target);
   auto scope = BuildScope(target, graph);
   hlir::framework::GraphCompiler gc(target, scope, graph);
-  hlir::framework::ApplyPass(graph.get(), "OpFusion");
+  // hlir::framework::ApplyPass(graph.get(), "OpFusion");
   auto run_program = gc.Build();
 
   // set input
-  std::vector<float> dy(num), x(num), scale(c), save_mean(c, 0), save_variance(c, 0);
-  InitRandomVector(&dy, num);
+  std::vector<float> y_grad(num), x(num), scale(c), saved_mean(c, 0), saved_variance(c, 0);
+  InitRandomVector(&y_grad, num);
   InitRandomVector(&x, num);
   InitRandomVector(&scale, c);
 
-  auto func_save_mean = [&](int idx, int idy, int idz, int ida) {
-    save_mean[idy] += x[idx * c * h * w + idy * h * w + idz * w + ida];
-    save_variance[idy] +=
-        x[idx * c * h * w + idy * h * w + idz * w + ida] * x[idx * c * h * w + idy * h * w + idz * w + ida];
+  Offset offset(n, c, h, w);
+  auto func_save_mean = [&](int in, int ic, int ih, int iw) {
+    int idx = offset(in, ic, ih, iw);
+    saved_mean[ic] += x[idx];
+    saved_variance[ic] += x[idx] * x[idx];
   };
   Loop(func_save_mean, n, c, h, w);
-  for (int idx = 0; idx < c; ++idx) {
-    save_mean[idx] /= float(n * h * w);
-    save_variance[idx] /= float(n * h * w);
-    save_variance[idx] -= (save_mean[idx] * save_mean[idx]);
+  float element_count = static_cast<float>(n * h * w);
+  for (int ic = 0; ic < c; ++ic) {
+    saved_mean[ic] /= element_count;
+    saved_variance[ic] = saved_variance[ic] / element_count - saved_mean[ic] * saved_mean[ic];
   }
 
   std::vector<std::pair<std::string, std::vector<float>>> inputs = {
-      {"dy", dy}, {"x", x}, {"scale", scale}, {"save_mean", save_mean}, {"save_variance", save_variance}};
+      {"y_grad", y_grad}, {"x", x}, {"scale", scale}, {"saved_mean", saved_mean}, {"saved_variance", saved_variance}};
   for (auto& input : inputs) {
     scope->Var<hlir::framework::Tensor>(input.first);
     auto tensor = scope->GetTensor(input.first);
@@ -460,51 +384,29 @@ TEST(nn, BATCH_NORM_GRAD) {
   }
   run_program->Execute();
 
-  std::vector<float> dx(num), dscale(c), dbias(c);
-  std::vector<float> grad_std_norm(num), grad_diff(num), grad_std_variance_1d(c), grad_variance_1d_without_mul(c),
-      grad_x0(num), minus_grad_mean(c);
+  std::vector<float> x_grad(num), scale_grad(c), bias_grad(c);
+  ComputeBatchNormGradRef(
+      y_grad, x, scale, saved_mean, saved_variance, n, c, h, w, &x_grad, &scale_grad, &bias_grad, epsilon);
 
-  cpu_batch_norm_grad(x,
-                      dy,
-                      scale,
-                      save_mean,
-                      save_variance,
-                      n,
-                      c,
-                      h,
-                      w,
-                      &dx,
-                      &dscale,
-                      &dbias,
-                      &grad_std_norm,
-                      &grad_diff,
-                      &grad_std_variance_1d,
-                      &grad_variance_1d_without_mul,
-                      &grad_x0,
-                      &minus_grad_mean);
-  // GradX(grad_std_norm, x, save_mean, save_variance, n, c, h , w);
+  std::unordered_map<std::string, std::pair<std::string, std::vector<float>>> output_refs = {
+      {"bias_grad", {output_names[2], bias_grad}},
+      {"scale_grad", {output_names[1], scale_grad}},
+      {"x_grad", {output_names[0], x_grad}}};
 
-  std::vector<std::pair<std::string, std::vector<float>>> outputs = {
-      {output_names[2], dbias},
-      {output_names[1], dscale},
-      {output_names[0], dx},
-  };
-
-  for (auto& output : outputs) {
+  for (auto& iter : output_refs) {
+    auto output = iter.second;
     auto tensor = scope->GetTensor(output.first);
     std::vector<float> data(tensor->shape().numel());
     CopyToVector(tensor, &data);
-    LOG(INFO) << output.first << " " << tensor->shape().numel();
-    for (int idx = 0; idx < tensor->shape().numel(); ++idx) {
-      float diff = abs((data[idx] - output.second[idx]) / data[idx]);
-      if (diff > 1e-5) {
-        LOG(INFO) << "i=" << idx << ", " << data[idx] << " vs " << output.second[idx] << ", diff=" << diff;
-      }
-//      ASSERT_LT(diff, 1e-3);
+
+    LOG(INFO) << "output[" << iter.first << "], var_name=" << output.first << ", shape=" << tensor->shape().data();
+    if (iter.first == "x_grad") {
+      CheckOutput<float>(data, output.second, 1e-2, true);
+    } else {
+      CheckOutput<float>(data, output.second, 1e-5);
     }
   }
 }
-#endif
 
 }  // namespace
 }  // namespace frontend
