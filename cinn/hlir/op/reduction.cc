@@ -105,13 +105,24 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
         stages[out0.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
 
         // second reduce
-        stages[out1.as_tensor_ref()]->Bind(0, "threadIdx.x");
+        if (out1.as_tensor_ref()->shape[0].as_int32() > 256) {
+          stages[out1.as_tensor_ref()]->Split(0, 256);
+          stages[out1.as_tensor_ref()]->Bind(0, "blockIdx.x");
+          stages[out1.as_tensor_ref()]->Bind(1, "threadIdx.x");
+        } else {
+          stages[out1.as_tensor_ref()]->Bind(0, "threadIdx.x");
+        }
       } else {
         Expr out0             = arg_pack[0];
         poly::StageMap stages = arg_pack[1];
         int last_axis         = out0.as_tensor_ref()->shape.size() - 1;
         stages[out0.as_tensor_ref()]->Bind(0, "blockIdx.x");
-        stages[out0.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
+        if (out0.as_tensor_ref()->shape[last_axis].as_int32() > 512) {
+          stages[out0.as_tensor_ref()]->Split(last_axis, 512);
+          stages[out0.as_tensor_ref()]->Bind(last_axis + 1, "threadIdx.x");
+        } else {
+          stages[out0.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
+        }
       }
     }
     *ret = arg_pack;
