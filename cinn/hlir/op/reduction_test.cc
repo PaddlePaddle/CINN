@@ -70,7 +70,7 @@ void cpu_reduce_sum(const float* x,
   }
 }
 
-TEST(Operator, Operator_Reduction_Sum) {
+TEST(Operator, Operator_Reduction_Sum0) {
   auto reduce_sum = Operator::Get("reduce_sum");
   auto strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy")[reduce_sum];
 
@@ -81,7 +81,6 @@ TEST(Operator, Operator_Reduction_Sum) {
   NodeAttr attrs;
   auto dim                = {0, 2, 3};
   attrs.attr_store["dim"] = dim;
-  std::vector<int> axis   = {0, 2, 3};
   std::vector<ir::Tensor> inputs{X.tensor()};
   std::vector<Type> out_type{Float(32)};
 
@@ -202,6 +201,111 @@ TEST(Operator, Operator_Reduction_Sum) {
       ASSERT_LT(abs(res.first[idx] - res.second[idx]) / res.first[idx], 1e-4);
     }
   }
+}
+
+TEST(Operator, Operator_Reduction_Sum1) {
+  auto reduce_sum = Operator::Get("reduce_sum");
+  auto strategy   = Operator::GetAttrs<StrategyFunction>("CINNStrategy")[reduce_sum];
+
+  int n = 8, c = 64, h = 256, w = 256;
+  Expr N(n), C(c), H(h), W(w);
+  Placeholder<float> X("X", {N, C, H, W});
+
+  NodeAttr attrs;
+  auto dim                     = {0, 1};
+  attrs.attr_store["dim"]      = dim;
+  attrs.attr_store["keep_dim"] = true;
+  std::vector<ir::Tensor> inputs{X.tensor()};
+  std::vector<Type> out_type{Float(32)};
+
+  auto target = common::DefaultNVGPUTarget();
+  auto impl   = OpStrategy::SelectImpl(strategy(attrs, inputs, out_type, {{1, 1, 256, 256}}, target));
+
+  common::CINNValuePack cinn_input = common::CINNValuePack{{common::CINNValue(X)}};
+  common::CINNValuePack rets       = impl->fcompute(cinn_input);
+  rets                             = impl->fschedule(rets);
+  ASSERT_EQ(rets.size(), 2UL);
+
+  // the last element is a StageMap
+  for (int i = 0; i < rets->size() - 1; i++) {
+    Expr temp = rets[i];
+    inputs.push_back(temp.as_tensor_ref());
+  }
+  auto func = lang::LowerVec("reduce_sum_test_1", rets.back(), inputs, {}, {}, nullptr, target);
+  for (auto& f : func) {
+    LOG(INFO) << "Test Strategy Codegen:\n" << f;
+  }
+
+  Module::Builder builder("reduce_sum_1", target);
+  for (auto& f : func) {
+    builder.AddFunction(f);
+  }
+
+  auto module                    = builder.Build();
+  auto host_module_device_module = backends::SplitCudaAndHostModule(module);  // NOLINT
+  auto& host_module              = std::get<0>(host_module_device_module);
+  auto& device_module            = std::get<1>(host_module_device_module);
+  for (auto& func : host_module.functions()) {
+    LOG(INFO) << "host:\n" << func;
+  }
+  for (auto& func : device_module.functions()) {
+    LOG(INFO) << "device:\n" << func;
+  }
+
+  backends::CodeGenCUDA_Dev codegen(target);
+  auto source_code = codegen.Compile(builder.Build());
+  LOG(INFO) << "compiled code:\n\n\n" << source_code;
+
+  using runtime::cuda::CUDAModule;
+  backends::NVRTC_Compiler compiler;
+  auto ptx = compiler(source_code);
+  CHECK(!ptx.empty());
+
+  CUDA_CALL(cudaSetDevice(0));
+  CUDAModule cuda_module(ptx, CUDAModule::Kind::PTX);
+  void* reduce_sum_test_1_kernel = cuda_module.GetFunction(0, "reduce_sum_test_1");
+  CHECK(reduce_sum_test_1_kernel);
+
+  // LOG(INFO) << "kernel : " << reduce_sum_kernel << " " << reduce_sum_1_kernel;
+  void* stream = nullptr;
+  backends::RuntimeSymbolRegistry::Global().RegisterFn("reduce_sum_test_1_kernel_ptr_",
+                                                       reinterpret_cast<void*>(&reduce_sum_test_1_kernel));
+  backends::RuntimeSymbolRegistry::Global().RegisterVar("reduce_sum_test_1_kernel_stream_ptr_", stream);
+
+  auto jit = backends::SimpleJIT::Create();
+  jit->Link<backends::CodeGenCUDA_Host>(host_module);
+
+  auto fn_reduce_sum_test_1 = jit->Lookup("reduce_sum_test_1");
+  CHECK(fn_reduce_sum_test_1);
+
+  auto func_0 = reinterpret_cast<void (*)(cinn_pod_value_t*, int)>(fn_reduce_sum_test_1);
+
+  CUDA_CALL(cudaSetDevice(0));
+  srand(time(NULL));
+  auto buffer_x = common::BufferBuilder(Float(32), {n, c, h, w}).set_random().Build();
+  auto buffer_y = common::BufferBuilder(Float(32), {h, w}).set_random().Build();
+
+  void *dev_x = nullptr, *dev_y = nullptr;
+  CUDA_CALL(cudaMalloc(&dev_x, buffer_x->memory_size));
+  CUDA_CALL(cudaMalloc(&dev_y, buffer_y->memory_size));
+
+  CUDA_CALL(cudaMemcpy(dev_x, buffer_x->memory, buffer_x->memory_size, cudaMemcpyHostToDevice));
+
+  cinn_buffer_t _x;
+  cinn_buffer_t _y;
+
+  _x.memory = static_cast<uint8_t*>(dev_x);
+  _y.memory = static_cast<uint8_t*>(dev_y);
+
+  _x.memory_size = buffer_x->memory_size;
+  _y.memory_size = buffer_y->memory_size;
+
+  cinn_pod_value_t x_arg(&_x), y_arg(&_y);
+  cinn_pod_value_t args0[] = {x_arg, y_arg};
+
+  func_0(args0, 2);
+
+  CUDA_CALL(cudaMemcpy(buffer_y->memory, dev_y, buffer_y->memory_size, cudaMemcpyDeviceToHost));
 }
 
 }  // namespace framework

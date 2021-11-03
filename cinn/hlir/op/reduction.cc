@@ -94,34 +94,62 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
     CINNValuePack arg_pack = args[0];
     CHECK(arg_pack.size() == 2UL || arg_pack.size() == 3UL);
     if (target.arch == Target::Arch::NVGPU) {
-      // if do two step reduce.
-      if (arg_pack.size() == 3) {
-        Expr out0 = arg_pack[0];
-        Expr out1 = arg_pack[1];
-        // first reduce
-        poly::StageMap stages = arg_pack[2];
-        int last_axis         = out0.as_tensor_ref()->shape.size() - 1;
-        stages[out0.as_tensor_ref()]->Bind(0, "blockIdx.x");
-        stages[out0.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
-
-        // second reduce
-        if (out1.as_tensor_ref()->shape[0].as_int32() > 256) {
-          stages[out1.as_tensor_ref()]->Split(0, 256);
-          stages[out1.as_tensor_ref()]->Bind(0, "blockIdx.x");
-          stages[out1.as_tensor_ref()]->Bind(1, "threadIdx.x");
-        } else {
-          stages[out1.as_tensor_ref()]->Bind(0, "threadIdx.x");
-        }
+      Expr out0 = arg_pack[0];
+      poly::StageMap stages;
+      if (arg_pack.size() == 2) {
+        stages = arg_pack[1];
       } else {
-        Expr out0             = arg_pack[0];
-        poly::StageMap stages = arg_pack[1];
-        int last_axis         = out0.as_tensor_ref()->shape.size() - 1;
-        stages[out0.as_tensor_ref()]->Bind(0, "blockIdx.x");
-        if (out0.as_tensor_ref()->shape[last_axis].as_int32() > 512) {
-          stages[out0.as_tensor_ref()]->Split(last_axis, 512);
-          stages[out0.as_tensor_ref()]->Bind(last_axis + 1, "threadIdx.x");
+        stages = arg_pack[2];
+      }
+
+      int last_axis = out0.as_tensor_ref()->shape.size() - 1;
+      for (int idx = last_axis; idx >= 0; --idx) {
+        if (out0.as_tensor_ref()->shape[idx].as_int32() > 1) {
+          last_axis = idx;
+          break;
+        }
+      }
+
+      int max_axis = 0, max_value = out0.as_tensor_ref()->shape[0].as_int32();
+      for (int idx = 0; idx < last_axis; ++idx) {
+        if (max_value < out0.as_tensor_ref()->shape[idx].as_int32()) {
+          max_value = out0.as_tensor_ref()->shape[idx].as_int32();
+          max_axis  = idx;
+        }
+      }
+
+      stages[out0.as_tensor_ref()]->Bind(max_axis, "blockIdx.x");
+      if (out0.as_tensor_ref()->shape[last_axis].as_int32() > 512) {
+        stages[out0.as_tensor_ref()]->Split(last_axis, 512);
+        stages[out0.as_tensor_ref()]->Bind(last_axis + 1, "threadIdx.x");
+      } else {
+        stages[out0.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
+      }
+
+      if (arg_pack.size() == 3) {
+        Expr out1     = arg_pack[1];
+        int last_axis = out1.as_tensor_ref()->shape.size() - 1;
+        for (int idx = last_axis; idx >= 0; --idx) {
+          if (out1.as_tensor_ref()->shape[idx].as_int32() > 1) {
+            last_axis = idx;
+            break;
+          }
+        }
+
+        int max_axis = 0, max_value = out1.as_tensor_ref()->shape[0].as_int32();
+        for (int idx = 0; idx < last_axis; ++idx) {
+          if (max_value < out1.as_tensor_ref()->shape[idx].as_int32()) {
+            max_value = out1.as_tensor_ref()->shape[idx].as_int32();
+            max_axis  = idx;
+          }
+        }
+
+        stages[out1.as_tensor_ref()]->Bind(max_axis, "blockIdx.x");
+        if (out1.as_tensor_ref()->shape[last_axis].as_int32() > 512) {
+          stages[out1.as_tensor_ref()]->Split(last_axis, 512);
+          stages[out1.as_tensor_ref()]->Bind(last_axis + 1, "threadIdx.x");
         } else {
-          stages[out0.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
+          stages[out1.as_tensor_ref()]->Bind(last_axis, "threadIdx.x");
         }
       }
     }
