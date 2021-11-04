@@ -5,11 +5,11 @@
 #include <numeric>
 #include <vector>
 
-#include "cinnrt/common/buffer.h"
-#include "cinnrt/common/common.h"
-#include "cinnrt/common/object.h"
+#include "infrt/common/buffer.h"
+#include "infrt/common/common.h"
+#include "infrt/common/object.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace paddle {
 using common::Target;
 
@@ -32,7 +32,7 @@ struct Shape {
   std::vector<dim_t> data_;
 };
 
-class _Tensor_ : public cinnrt::common::Object {
+class _Tensor_ : public infrt::common::Object {
  public:
   _Tensor_() : buffer_(std::make_shared<Buffer>()) {}
 
@@ -85,4 +85,4 @@ class Tensor : public Shared<_Tensor_> {
 };
 
 }  // namespace paddle
-}  // namespace cinnrt
+}  // namespace infrt

@@ -1,15 +1,15 @@
-#include "cinnrt/host_context/core_runtime.h"
+#include "infrt/host_context/core_runtime.h"
 
 #include <absl/container/flat_hash_map.h>
 
 #include <string>
 #include <vector>
 
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/op_executable.h"
-#include "cinnrt/host_context/symbol_table.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/op_executable.h"
+#include "infrt/host_context/symbol_table.h"
 
-namespace cinnrt::host_context {
+namespace infrt::host_context {
 
 struct CoreRuntime::Impl {
   KernelRegistry* kernel_registry{};
@@ -68,4 +68,4 @@ llvm::SmallVector<ValueRef, 4> CoreRuntime::GetResults(llvm::ArrayRef<absl::stri
 
 CoreRuntime::~CoreRuntime() {}
 
-}  // namespace cinnrt::host_context
+}  // namespace infrt::host_context

@@ -1,14 +1,14 @@
-#include "cinnrt/paddle/model_parser.h"
+#include "infrt/paddle/model_parser.h"
 
 #include <fstream>
 #include <vector>
 
-#include "cinnrt/common/common.h"
-#include "cinnrt/common/string.h"
-#include "cinnrt/common/target.h"
-#include "cinnrt/common/type.h"
+#include "infrt/common/common.h"
+#include "infrt/common/string.h"
+#include "infrt/common/target.h"
+#include "infrt/common/type.h"
 
-namespace cinnrt::paddle {
+namespace infrt::paddle {
 
 int SizeOfType(framework_proto::VarType::Type type) {
   using Type = framework_proto::VarType::Type;
@@ -30,7 +30,7 @@ int SizeOfType(framework_proto::VarType::Type type) {
   return -1;
 }
 
-void TensorFromStream(std::istream &is, cinnrt::paddle::_Tensor_ *tensor, const cinnrt::common::Target &target) {
+void TensorFromStream(std::istream &is, infrt::paddle::_Tensor_ *tensor, const infrt::common::Target &target) {
   using Type = framework_proto::VarType::Type;
   uint32_t version;
   is.read(reinterpret_cast<char *>(&version), sizeof(version));
@@ -50,12 +50,12 @@ void TensorFromStream(std::istream &is, cinnrt::paddle::_Tensor_ *tensor, const 
   // read tensor
   std::vector<int32_t> dims_vec;
   std::copy(desc.dims().begin(), desc.dims().end(), std::back_inserter(dims_vec));
-  cinnrt::paddle::Shape dims(dims_vec);
+  infrt::paddle::Shape dims(dims_vec);
   tensor->Resize(dims);
   void *buf;
   size_t size = tensor->shape().numel() * SizeOfType(desc.data_type());
   // alllocate memory
-  if (target.arch == cinnrt::common::Target::Arch::X86) {
+  if (target.arch == infrt::common::Target::Arch::X86) {
     switch (static_cast<int>(desc.data_type())) {
 #define SET_TENSOR(desc, type, precision)     \
   case Type::VarType_Type_##desc:             \
@@ -63,22 +63,22 @@ void TensorFromStream(std::istream &is, cinnrt::paddle::_Tensor_ *tensor, const 
     tensor->set_type(precision);              \
     break
 
-      SET_TENSOR(FP32, float, cinnrt::common::Float(32));
-      SET_TENSOR(INT8, int8_t, cinnrt::common::Int(8));
-      SET_TENSOR(INT16, int16_t, cinnrt::common::Int(16));
-      SET_TENSOR(INT32, int32_t, cinnrt::common::Int(32));
-      SET_TENSOR(INT64, int64_t, cinnrt::common::Int(64));
+      SET_TENSOR(FP32, float, infrt::common::Float(32));
+      SET_TENSOR(INT8, int8_t, infrt::common::Int(8));
+      SET_TENSOR(INT16, int16_t, infrt::common::Int(16));
+      SET_TENSOR(INT32, int32_t, infrt::common::Int(32));
+      SET_TENSOR(INT64, int64_t, infrt::common::Int(64));
 #undef SET_TENSOR
       default:
         LOG(FATAL) << "unknown type " << desc.data_type();
     }
     // tensor->set_persistable(true);
     is.read(static_cast<char *>(buf), size);
-  } else if (target.arch == cinnrt::common::Target::Arch::NVGPU) {
+  } else if (target.arch == infrt::common::Target::Arch::NVGPU) {
 #ifdef CINNRT_WITH_CUDA
     if (desc.data_type() != Type::VarType_Type_FP32) LOG(FATAL) << "[CUDA] The type is not fp32!!";
     auto *data = tensor->mutable_data<float>(target);
-    tensor->set_type(cinnrt::common::Float(32));
+    tensor->set_type(infrt::common::Float(32));
     std::vector<float> temp(tensor->shape().numel());
     // LOG(INFO) <<"[CUDA] The tensor's size is "<< tensor->shape().numel();
     is.read(reinterpret_cast<char *>(temp.data()), size);
@@ -92,8 +92,8 @@ void TensorFromStream(std::istream &is, cinnrt::paddle::_Tensor_ *tensor, const 
   }
 }
 
-void LoadLoDTensor(std::istream &is, cinnrt::paddle::_Variable *var, const cinnrt::common::Target &target) {
-  auto &tensor = absl::get<cinnrt::paddle::Tensor>(*var);
+void LoadLoDTensor(std::istream &is, infrt::paddle::_Variable *var, const infrt::common::Target &target) {
+  auto &tensor = absl::get<infrt::paddle::Tensor>(*var);
   uint32_t version{};
   is.read(reinterpret_cast<char *>(&version), sizeof(version));
   VLOG(3) << "model version " << version;
@@ -140,10 +140,10 @@ std::unique_ptr<framework_proto::ProgramDesc> LoadProgram(const std::string &pat
 void LoadParams(const std::string &path) {}
 
 // Load directly to CPU, and latter transfer to other devices.
-void LoadParam(const std::string &path, cinnrt::paddle::_Variable *out, const cinnrt::common::Target &target) {
+void LoadParam(const std::string &path, infrt::paddle::_Variable *out, const infrt::common::Target &target) {
   std::ifstream fin(path, std::ios::binary);
   CHECK(fin.is_open()) << "failed to open file " << path;
   LoadLoDTensor(fin, out, target);
 }
 
-}  // namespace cinnrt::paddle
+}  // namespace infrt::paddle

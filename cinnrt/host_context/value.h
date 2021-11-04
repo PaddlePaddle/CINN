@@ -6,36 +6,36 @@
 #include <utility>
 #include <vector>
 
-#include "cinnrt/common/object.h"
-#include "cinnrt/common/shared.h"
-#include "cinnrt/host_context/function.h"
-#include "cinnrt/support/variant.h"
-#include "cinnrt/tensor/dense_host_tensor.h"
-#include "cinnrt/tensor/dense_tensor_view.h"
-#include "cinnrt/tensor/tensor_map.h"
-#include "cinnrt/tensor/tensor_shape.h"
+#include "infrt/common/object.h"
+#include "infrt/common/shared.h"
+#include "infrt/host_context/function.h"
+#include "infrt/support/variant.h"
+#include "infrt/tensor/dense_host_tensor.h"
+#include "infrt/tensor/dense_tensor_view.h"
+#include "infrt/tensor/tensor_map.h"
+#include "infrt/tensor/tensor_shape.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 struct MlirFunctionExecutable;
 
-using ValueVariantType = cinnrt::Variant<int16_t,
-                                         int32_t,
-                                         int64_t,
-                                         float,
-                                         double,
-                                         bool,
-                                         std::string,
-                                         tensor::TensorShape,
-                                         tensor::DenseHostTensor,
-                                         MlirFunctionExecutable*,
-                                         tensor::TensorMap,
-                                         std::vector<int16_t>,
-                                         std::vector<int32_t>,
-                                         std::vector<int64_t>,
-                                         std::vector<float>,
-                                         std::vector<double>>;
+using ValueVariantType = infrt::Variant<int16_t,
+                                        int32_t,
+                                        int64_t,
+                                        float,
+                                        double,
+                                        bool,
+                                        std::string,
+                                        tensor::TensorShape,
+                                        tensor::DenseHostTensor,
+                                        MlirFunctionExecutable*,
+                                        tensor::TensorMap,
+                                        std::vector<int16_t>,
+                                        std::vector<int32_t>,
+                                        std::vector<int64_t>,
+                                        std::vector<float>,
+                                        std::vector<double>>;
 
 //! Copy content from \param from to \param to.
 void CopyTo(const Value& from, Value* to);
@@ -43,7 +43,7 @@ void CopyTo(const Value& from, Value* to);
 /**
  * Represents any data type for value in host context.
  */
-class Value : public cinnrt::common::Object {
+class Value : public infrt::common::Object {
  public:
   using variant_type = ValueVariantType;
 
@@ -94,20 +94,20 @@ class Value : public cinnrt::common::Object {
 /**
  * Represents a counted reference of a Value.
  */
-class ValueRef : cinnrt::common::Shared<Value> {
+class ValueRef : infrt::common::Shared<Value> {
  public:
   ValueRef() = default;
-  explicit ValueRef(Value* n) : cinnrt::common::Shared<Value>(n) {}
+  explicit ValueRef(Value* n) : infrt::common::Shared<Value>(n) {}
   explicit ValueRef(int32_t val);
   explicit ValueRef(int64_t val);
   explicit ValueRef(float val);
   explicit ValueRef(double val);
   explicit ValueRef(bool val);
 
-  using cinnrt::common::Shared<Value>::get;
-  using cinnrt::common::Shared<Value>::Reset;
-  using cinnrt::common::Shared<Value>::operator->;
-  using cinnrt::common::Shared<Value>::operator*;
+  using infrt::common::Shared<Value>::get;
+  using infrt::common::Shared<Value>::Reset;
+  using infrt::common::Shared<Value>::operator->;
+  using infrt::common::Shared<Value>::operator*;
   //! Get a readonly data.
   template <typename T>
   const T& get() const {
@@ -125,18 +125,18 @@ class ValueRef : cinnrt::common::Shared<Value> {
   template <typename T>
   void Assign(const T& x) {
     if (!p_) {
-      p_ = cinnrt::common::make_shared<Value>();
+      p_ = infrt::common::make_shared<Value>();
     }
     *p_ = x;
   }
 
   template <typename T, typename... Args>
   void Assign(Args... args) {
-    p_ = cinnrt::common::make_shared<T>(std::forward<Args>(args)...);
+    p_ = infrt::common::make_shared<T>(std::forward<Args>(args)...);
   }
 
   inline bool IsValid() { return p_; }
 };
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

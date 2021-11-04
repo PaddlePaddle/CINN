@@ -10,20 +10,20 @@ def CINN_Dialect : Dialect {
     The CINN host dialect.
   }];
 
-  let cppNamespace = "::cinnrt::dialect";
+  let cppNamespace = "::infrt::dialect";
 }
 
 // Type definitions
 def StringType :
-    Type<CPred<"$_self.isa<::cinnrt::dt::StringType>()">, "!cinn.string type">,
-    BuildableType<"$_builder.getType<::cinnrt::dt::StringType>()">;
+    Type<CPred<"$_self.isa<::infrt::dt::StringType>()">, "!cinn.string type">,
+    BuildableType<"$_builder.getType<::infrt::dt::StringType>()">;
 
 def TensorType :
-    Type<CPred<"$_self.isa<::cinnrt::dt::TensorType>()">, "!cinn.tensor type">;
+    Type<CPred<"$_self.isa<::infrt::dt::TensorType>()">, "!cinn.tensor type">;
 
 def TensorMapType :
-    Type<CPred<"$_self.isa<::cinnrt::dt::TensorMapType>()">, "!cinn.tensor_map type">,
-    BuildableType<"$_builder.getType<::cinnrt::dt::TensorMapType>()">;
+    Type<CPred<"$_self.isa<::infrt::dt::TensorMapType>()">, "!cinn.tensor_map type">,
+    BuildableType<"$_builder.getType<::infrt::dt::TensorMapType>()">;
 
 def BufferType : OpaqueType<"b", "buffer", "buffer">;
 

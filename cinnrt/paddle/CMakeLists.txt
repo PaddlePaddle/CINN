@@ -5,15 +5,15 @@ add_subdirectory(pb)
 
 core_gather_headers()
 
-gather_srcs(cinnrt_src SRCS
+gather_srcs(infrt_src SRCS
     model_parser.cc
     scope.cc
     tensor.cc
     )
 
 foreach(cpp ${SRCS})
-  set(cinnrt_src
-    "${cinnrt_src};cinnrt/paddle/${cpp}"
+  set(infrt_src
+    "${infrt_src};infrt/paddle/${cpp}"
     CACHE INTERNAL "")
 endforeach()
 

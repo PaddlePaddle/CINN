@@ -1,9 +1,9 @@
 #ifndef CINNRT_REWRITE
 #define CINNRT_REWRITE
 
-include "cinnrt/dialect/cinn_base.td"
+include "infrt/dialect/cinn_base.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-include "cinnrt/dialect/pd_ops.td"
+include "infrt/dialect/pd_ops.td"
 
 //===----------------------------------------------------------------------===//
 // This is to fuse the composition: 'Matmul o ElementwiseAdd' into 'PD_FusedFC'.

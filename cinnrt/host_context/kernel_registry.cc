@@ -1,11 +1,11 @@
-#include "cinnrt/host_context/kernel_registry.h"
+#include "infrt/host_context/kernel_registry.h"
 
 #include <absl/container/flat_hash_map.h>
 
 #include "glog/logging.h"
 #include "llvm/ADT/SmallVector.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 struct KernelRegistry::Impl {
@@ -48,4 +48,4 @@ KernelRegistry *GetCpuKernelRegistry() {
 }
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

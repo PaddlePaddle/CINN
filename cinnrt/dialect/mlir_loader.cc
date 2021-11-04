@@ -1,4 +1,4 @@
-#include "cinnrt/dialect/mlir_loader.h"
+#include "infrt/dialect/mlir_loader.h"
 
 #include <absl/container/flat_hash_map.h>
 #include <llvm/Support/SourceMgr.h>
@@ -13,10 +13,10 @@
 #include <utility>
 #include <vector>
 
-#include "cinnrt/dialect/diagnostic_utils.h"
-#include "cinnrt/dialect/init_cinn_dialects.h"
+#include "infrt/dialect/diagnostic_utils.h"
+#include "infrt/dialect/init_cinn_dialects.h"
 
-namespace cinnrt::dialect {
+namespace infrt::dialect {
 
 mlir::OwningModuleRef LoadMlirSource(mlir::MLIRContext* context, absl::string_view mlir_source) {
   context->allowUnregisteredDialects();
@@ -93,4 +93,4 @@ class Translator {
   absl::flat_hash_map<std::string, int> subgraph_index_map_;
 };
 
-}  // namespace cinnrt::dialect
+}  // namespace infrt::dialect

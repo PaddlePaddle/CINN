@@ -1,8 +1,8 @@
-#include "cinnrt/tensor/tensor_metadata.h"
+#include "infrt/tensor/tensor_metadata.h"
 
 #include <llvm/Support/raw_ostream.h>
 
-namespace cinnrt {
+namespace infrt {
 namespace tensor {
 
 llvm::raw_ostream& operator<<(llvm::raw_ostream& os, TensorMetadata& meta) {
@@ -12,4 +12,4 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& os, TensorMetadata& meta) {
 }
 
 }  // namespace tensor
-}  // namespace cinnrt
+}  // namespace infrt

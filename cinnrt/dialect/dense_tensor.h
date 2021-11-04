@@ -6,7 +6,7 @@
 #include <string>
 
 using namespace mlir;  // NOLINT
-namespace cinnrt::dt {
+namespace infrt::dt {
 
 namespace detail {
 struct TensorTypeStorage;
@@ -50,9 +50,9 @@ class StringType : public mlir::Type::TypeBase<StringType, mlir::Type, mlir::Typ
   static StringType get(mlir::MLIRContext *context);
 };
 
-#include "cinnrt/dialect/dense_tensor_dialect.hpp.inc"
+#include "infrt/dialect/dense_tensor_dialect.hpp.inc"
 
 #define GET_OP_CLASSES
-#include "cinnrt/dialect/dense_tensor.hpp.inc"
+#include "infrt/dialect/dense_tensor.hpp.inc"
 
-}  // namespace cinnrt::dt
+}  // namespace infrt::dt

@@ -4,7 +4,7 @@
 
 using namespace mlir;  // NOLINT
 
-namespace cinnrt::dialect {
+namespace infrt::dialect {
 #define GET_OP_CLASSES
-#include "cinnrt/dialect/basic_kernels.hpp.inc"
-}  // namespace cinnrt::dialect
+#include "infrt/dialect/basic_kernels.hpp.inc"
+}  // namespace infrt::dialect

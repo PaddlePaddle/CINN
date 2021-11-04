@@ -1,15 +1,15 @@
-#include "cinnrt/kernel/basic_kernels.h"
+#include "infrt/kernel/basic_kernels.h"
 
 #include <iostream>
 #include <string>
 
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/kernel_utils.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/kernel_utils.h"
 #include "llvm/Support/raw_ostream.h"
 
-using cinnrt::host_context::Attribute;
+using infrt::host_context::Attribute;
 
-namespace cinnrt::kernel {
+namespace infrt::kernel {
 
 template <typename T>
 T add(T a, T b) {
@@ -66,4 +66,4 @@ void RegisterFloatBasicKernels(host_context::KernelRegistry *registry) {
   registry->AddKernel("cinn.print.f32", CINN_KERNEL(print<float>));
 }
 
-}  // namespace cinnrt::kernel
+}  // namespace infrt::kernel

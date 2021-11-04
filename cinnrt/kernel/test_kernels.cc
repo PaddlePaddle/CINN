@@ -1,4 +1,4 @@
-#include "cinnrt/kernel/test_kernels.h"
+#include "infrt/kernel/test_kernels.h"
 
 #include <llvm/ADT/FunctionExtras.h>
 #include <llvm/Support/raw_ostream.h>
@@ -10,16 +10,16 @@
 #include <iostream>
 #include <string>
 
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/kernel_utils.h"
-#include "cinnrt/host_context/mlir_function_executable.h"
-#include "cinnrt/tensor/dense_host_tensor.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/kernel_utils.h"
+#include "infrt/host_context/mlir_function_executable.h"
+#include "infrt/tensor/dense_host_tensor.h"
 
-using cinnrt::host_context::Attribute;
-using cinnrt::host_context::MlirFunctionExecutable;
-using cinnrt::host_context::RemainingArguments;
+using infrt::host_context::Attribute;
+using infrt::host_context::MlirFunctionExecutable;
+using infrt::host_context::RemainingArguments;
 
-namespace cinnrt::kernel {
+namespace infrt::kernel {
 namespace {
 class BenchmarkStats {
  public:
@@ -153,4 +153,4 @@ void RegisterTestKernels(host_context::KernelRegistry *registry) {
   registry->AddKernel("cinn.test.shadow_copy_tensor", CINN_KERNEL(ShadowCopyTensor));
 }
 
-}  // namespace cinnrt::kernel
+}  // namespace infrt::kernel

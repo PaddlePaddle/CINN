@@ -1,22 +1,22 @@
-#include "cinnrt/host_context/mlir_to_runtime_translate.h"
+#include "infrt/host_context/mlir_to_runtime_translate.h"
 
 #include <gtest/gtest.h>
 #include <llvm/Support/FormatVariadic.h>
 
 #include "cinn/utils/string.h"
-#include "cinnrt/common/global.h"
-#include "cinnrt/dialect/mlir_loader.h"
-#include "cinnrt/host_context/core_runtime.h"
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/kernel_utils.h"
-#include "cinnrt/host_context/mlir_program_executor.h"
-#include "cinnrt/kernel/basic_kernels.h"
-#include "cinnrt/kernel/control_flow_kernels.h"
-#include "cinnrt/kernel/tensor_kernels.h"
-#include "cinnrt/kernel/tensor_shape_kernels.h"
-#include "cinnrt/kernel/test_kernels.h"
+#include "infrt/common/global.h"
+#include "infrt/dialect/mlir_loader.h"
+#include "infrt/host_context/core_runtime.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/kernel_utils.h"
+#include "infrt/host_context/mlir_program_executor.h"
+#include "infrt/kernel/basic_kernels.h"
+#include "infrt/kernel/control_flow_kernels.h"
+#include "infrt/kernel/tensor_kernels.h"
+#include "infrt/kernel/tensor_shape_kernels.h"
+#include "infrt/kernel/test_kernels.h"
 
-namespace cinnrt::host_context {
+namespace infrt::host_context {
 
 TEST(MlirToRuntimeTranslate, basic) {
   mlir::MLIRContext context;
@@ -71,7 +71,7 @@ func @main() -> () {
 }
 
 TEST(TestMlir, shadow_copy_tensor_profile) {
-  mlir::MLIRContext* context = cinnrt::Global::getMLIRContext();
+  mlir::MLIRContext* context = infrt::Global::getMLIRContext();
 
   auto head = R"ROC(
 func @predict(%a: !cinn.tensor<X86, NCHW, F32>, %b: !cinn.tensor<X86, NCHW, F32>) -> (!cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>) {
@@ -136,4 +136,4 @@ cinn.return %a0, %b0: !cinn.tensor<X86, NCHW, F32>, !cinn.tensor<X86, NCHW, F32>
   }
 }
 
-}  // namespace cinnrt::host_context
+}  // namespace infrt::host_context

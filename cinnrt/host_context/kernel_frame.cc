@@ -1,8 +1,8 @@
-#include "cinnrt/host_context/kernel_frame.h"
+#include "infrt/host_context/kernel_frame.h"
 
 #include <memory>
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 std::ostream& operator<<(std::ostream& os, const KernelFrame& frame) {
@@ -12,4 +12,4 @@ std::ostream& operator<<(std::ostream& os, const KernelFrame& frame) {
 }
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

@@ -2,8 +2,8 @@
 
 #include "mlir/IR/Dialect.h"
 
-namespace cinnrt {
+namespace infrt {
 
 void RegisterCinnDialects(mlir::DialectRegistry& registry);
 
-}  // namespace cinnrt
+}  // namespace infrt

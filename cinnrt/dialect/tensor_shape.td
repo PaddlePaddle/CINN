@@ -2,8 +2,8 @@
 #else
 #define CINN_OPS
 
-include "cinnrt/dialect/cinn_base.td"
-include "cinnrt/dialect/tensor_shape_base.td"
+include "infrt/dialect/cinn_base.td"
+include "infrt/dialect/tensor_shape_base.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 // Base class for the operation in the TensorShape dialect

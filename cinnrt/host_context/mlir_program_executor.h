@@ -10,13 +10,13 @@
 #include <memory>
 #include <string>
 
-#include "cinnrt/host_context/core_runtime.h"
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/mlir_function_executable.h"
-#include "cinnrt/host_context/mlir_to_runtime_translate.h"
-#include "cinnrt/host_context/op_executable.h"
+#include "infrt/host_context/core_runtime.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/mlir_function_executable.h"
+#include "infrt/host_context/mlir_to_runtime_translate.h"
+#include "infrt/host_context/op_executable.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 /**
@@ -56,4 +56,4 @@ class MlirProgramExecutor : public MlirToRuntimeTranslator {
 };
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

@@ -1,3 +1,3 @@
-#include "cinnrt/tensor/dense_tensor_view.h"
+#include "infrt/tensor/dense_tensor_view.h"
 
-namespace cinnrt::tensor {}  // namespace cinnrt::tensor
+namespace infrt::tensor {}  // namespace infrt::tensor

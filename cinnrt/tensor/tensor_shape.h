@@ -2,7 +2,7 @@
 
 #include <llvm/ADT/ArrayRef.h>
 
-namespace cinnrt {
+namespace infrt {
 namespace tensor {
 
 /**
@@ -56,4 +56,4 @@ class DynamicTensorShape {
 };
 
 }  // namespace tensor
-}  // namespace cinnrt
+}  // namespace infrt

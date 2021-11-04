@@ -1,4 +1,4 @@
-#include "cinnrt/dialect/dense_tensor.h"
+#include "infrt/dialect/dense_tensor.h"
 
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/IR/Attributes.h>
@@ -14,16 +14,16 @@
 
 #include <tuple>
 
-#include "cinnrt/common/global.h"
-#include "cinnrt/dialect/tensor_shape.h"
+#include "infrt/common/global.h"
+#include "infrt/dialect/tensor_shape.h"
 
-namespace cinnrt::dt {
+namespace infrt::dt {
 
 void DTDialect::initialize() {
   allowUnknownTypes();
   addOperations<
 #define GET_OP_LIST
-#include "cinnrt/dialect/dense_tensor.cpp.inc"
+#include "infrt/dialect/dense_tensor.cpp.inc"
       >();
 }
 
@@ -77,7 +77,7 @@ llvm::Optional<PrecisionType> GetPrecisionType(mlir::StringRef key) {
 }
 
 TensorType TensorType::get(TargetType target, LayoutType layout, PrecisionType precision) {
-  return Base::get(::cinnrt::Global::getMLIRContext(), target, layout, precision);
+  return Base::get(::infrt::Global::getMLIRContext(), target, layout, precision);
 }
 
 TargetType TensorType::target() { return getImpl()->target_; }
@@ -91,11 +91,11 @@ raw_ostream &operator<<(raw_ostream &os, TensorType tensorType) {
   return os;
 }
 
-TensorMapType TensorMapType::get() { return Base::get(::cinnrt::Global::getMLIRContext()); }
+TensorMapType TensorMapType::get() { return Base::get(::infrt::Global::getMLIRContext()); }
 
 TensorMapType TensorMapType::get(mlir::MLIRContext *context) { return Base::get(context); }
 
-StringType StringType::get() { return Base::get(::cinnrt::Global::getMLIRContext()); }
+StringType StringType::get() { return Base::get(::infrt::Global::getMLIRContext()); }
 
 StringType StringType::get(mlir::MLIRContext *context) { return Base::get(context); }
 
@@ -224,6 +224,6 @@ static void printSetTensorOp(OpAsmPrinter &p, SetTensorOp op) {
 }
 
 #define GET_OP_CLASSES
-#include "cinnrt/dialect/dense_tensor.cpp.inc"
+#include "infrt/dialect/dense_tensor.cpp.inc"
 
-}  // namespace cinnrt::dt
+}  // namespace infrt::dt

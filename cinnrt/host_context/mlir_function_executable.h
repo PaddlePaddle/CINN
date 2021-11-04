@@ -4,11 +4,11 @@
 
 #include <string>
 
-#include "cinnrt/host_context/core_runtime.h"
-#include "cinnrt/host_context/function.h"
-#include "cinnrt/host_context/mlir_to_runtime_translate.h"
+#include "infrt/host_context/core_runtime.h"
+#include "infrt/host_context/function.h"
+#include "infrt/host_context/mlir_to_runtime_translate.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 struct KernelRegistry;
@@ -52,4 +52,4 @@ class MlirFunctionExecutable : public Function, public MlirToRuntimeTranslator {
 };
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

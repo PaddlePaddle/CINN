@@ -13,7 +13,7 @@ namespace mlir {
 class FuncOp;
 }  // namespace mlir
 
-namespace cinnrt::host_context {
+namespace infrt::host_context {
 
 class SymbolTable;
 class KernelRegistry;
@@ -73,4 +73,4 @@ class OpExecutableBuilder : public OpExecutable {
   CoreRuntimeBuilder* GetCallRuntimeBuilder();
 };
 
-}  // namespace cinnrt::host_context
+}  // namespace infrt::host_context

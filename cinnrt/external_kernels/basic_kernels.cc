@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/kernel_utils.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/kernel_utils.h"
 
 template <typename T>
 T add(T a, T b) {
@@ -28,7 +28,7 @@ void print(T a) {
   std::cout << a << std::endl;
 }
 
-void RegisterKernels(cinnrt::host_context::KernelRegistry *registry) {
+void RegisterKernels(infrt::host_context::KernelRegistry *registry) {
   // int32
   registry->AddKernel("external.add.i32", CINN_KERNEL(add<int32_t>));
   registry->AddKernel("external.sub.i32", CINN_KERNEL(sub<int32_t>));

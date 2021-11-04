@@ -2,13 +2,13 @@
 
 #include <absl/strings/string_view.h>
 
-#include "cinnrt/common/axis.h"
-#include "cinnrt/common/macros.h"
-#include "cinnrt/common/shared.h"
-#include "cinnrt/common/target.h"
-#include "cinnrt/common/type.h"
+#include "infrt/common/axis.h"
+#include "infrt/common/macros.h"
+#include "infrt/common/shared.h"
+#include "infrt/common/target.h"
+#include "infrt/common/type.h"
 
-namespace cinnrt {
+namespace infrt {
 
 // export some general concepts.
 using common::make_shared;
@@ -43,8 +43,8 @@ static void CheckVarNameValid(const absl::string_view name) {
         name.find('\n') == std::string::npos &&  //
         name.find('\r') == std::string::npos)
       << "Some invalid character found";
-  CHECK(!cinnrt::common::IsAxisNameReserved(std::string(name)))
+  CHECK(!infrt::common::IsAxisNameReserved(std::string(name)))
       << "The name [" << name << "] is reserved for internal axis";
 }
 
-}  // namespace cinnrt
+}  // namespace infrt

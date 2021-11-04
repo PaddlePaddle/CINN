@@ -6,10 +6,10 @@
 #include <string>
 #include <vector>
 
-#include "cinnrt/paddle/cpp/desc_api.h"
-#include "cinnrt/paddle/framework.pb.h"
+#include "infrt/paddle/cpp/desc_api.h"
+#include "infrt/paddle/framework.pb.h"
 
-namespace cinnrt::paddle::pb {
+namespace infrt::paddle::pb {
 namespace framework_proto = ::paddle::framework::proto;
 
 // convert between std::vector and protobuf repeated.
@@ -98,4 +98,4 @@ class VarDesc : public cpp::VarDescAPI {
   framework_proto::VarDesc *desc_;
 };
 
-}  // namespace cinnrt::paddle::pb
+}  // namespace infrt::paddle::pb

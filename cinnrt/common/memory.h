@@ -5,10 +5,10 @@
 
 #include <memory>
 
-#include "cinnrt/common/macros.h"
-#include "cinnrt/common/target.h"
+#include "infrt/common/macros.h"
+#include "infrt/common/target.h"
 
-namespace cinnrt {
+namespace infrt {
 
 class MemoryInterface {
  public:
@@ -23,7 +23,7 @@ class MemoryInterface {
  */
 class MemoryManager final {
  public:
-  using key_t = cinnrt::common::Target::Arch;
+  using key_t = infrt::common::Target::Arch;
 
   static MemoryManager& Global() {
     static auto* x = new MemoryManager;
@@ -51,9 +51,9 @@ class MemoryManager final {
  private:
   MemoryManager();
 
-  absl::flat_hash_map<cinnrt::common::Target::Arch, std::unique_ptr<MemoryInterface>> memory_mngs_;
+  absl::flat_hash_map<infrt::common::Target::Arch, std::unique_ptr<MemoryInterface>> memory_mngs_;
 
   CINN_DISALLOW_COPY_AND_ASSIGN(MemoryManager);
 };
 
-}  // namespace cinnrt
+}  // namespace infrt

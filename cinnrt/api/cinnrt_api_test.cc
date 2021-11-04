@@ -1,19 +1,18 @@
-#include "cinnrt/api/cinnrt_api.h"
-
 #include <gtest/gtest.h>
 
 #include <iostream>
 #include <vector>
 
-#include "cinnrt/common/buffer.h"
-#include "cinnrt/common/dtype.h"
+#include "infrt/api/infrt_api.h"
+#include "infrt/common/buffer.h"
+#include "infrt/common/dtype.h"
 #include "llvm/Support/raw_ostream.h"
 
-using cinnrt::CinnRtConfig;
-using cinnrt::CinnRtPredictor;
-using cinnrt::CreateCinnRtPredictor;
+using infrt::CinnRtConfig;
+using infrt::CinnRtPredictor;
+using infrt::CreateCinnRtPredictor;
 
-namespace cinnrt {
+namespace infrt {
 
 TEST(CinnRtPredictor, predictor) {
   std::vector<std::string> shared_libs;
@@ -26,13 +25,13 @@ TEST(CinnRtPredictor, predictor) {
   // set model dir
   config.set_model_dir("../../paddle/paddle_1.8_fc_model");
   // set mlir path
-  config.set_mlir_path("../../../cinnrt/dialect/mlir_tests/tensor_map.mlir");
+  config.set_mlir_path("../../../infrt/dialect/mlir_tests/tensor_map.mlir");
 
   std::shared_ptr<CinnRtPredictor> predictor = CreateCinnRtPredictor(config);
 
   auto* input                = predictor->GetInput(0);
   std::vector<int64_t> shape = {3, 3};
-  input->Init(shape, cinnrt::GetDType<float>());
+  input->Init(shape, infrt::GetDType<float>());
   llvm::outs() << input->shape() << "\n";
 
   // init input tensor
@@ -53,4 +52,4 @@ TEST(CinnRtPredictor, predictor) {
   }
 }
 
-}  // namespace cinnrt
+}  // namespace infrt

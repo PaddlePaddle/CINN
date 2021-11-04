@@ -4,10 +4,10 @@
 
 #include <utility>
 
-#include "cinnrt/host_context/value.h"
+#include "infrt/host_context/value.h"
 #include "llvm/ADT/SmallVector.h"
 
-namespace cinnrt::host_context {
+namespace infrt::host_context {
 
 /**
  * KernelFrame captures the states(input arguments, attributes, results) associated with a kernel invocation.
@@ -133,4 +133,4 @@ class KernelFrameBuilder : public KernelFrame {
   }
 };
 
-}  // namespace cinnrt::host_context
+}  // namespace infrt::host_context

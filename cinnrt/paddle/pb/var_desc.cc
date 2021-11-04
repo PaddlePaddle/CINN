@@ -1,11 +1,11 @@
-#include "cinnrt/paddle/pb/var_desc.h"
+#include "infrt/paddle/pb/var_desc.h"
 
 #include <google/protobuf/map.h>
 
-#include "cinnrt/paddle/cpp/desc_api.h"
-#include "cinnrt/paddle/framework.pb.h"
+#include "infrt/paddle/cpp/desc_api.h"
+#include "infrt/paddle/framework.pb.h"
 
-namespace cinnrt::paddle::pb {
+namespace infrt::paddle::pb {
 
 cpp::VarDescAPI::Type VarDesc::GetType() const {
   auto type = desc_->type().type();
@@ -322,4 +322,4 @@ std::vector<framework_proto::VarType::TensorDesc *> VarDesc::mutable_tensor_desc
   return std::vector<framework_proto::VarType::TensorDesc *>();
 }
 
-}  // namespace cinnrt::paddle::pb
+}  // namespace infrt::paddle::pb

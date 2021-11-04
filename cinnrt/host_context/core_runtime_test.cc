@@ -1,13 +1,13 @@
-#include "cinnrt/host_context/core_runtime.h"
+#include "infrt/host_context/core_runtime.h"
 
 #include <gtest/gtest.h>
 
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/kernel_utils.h"
-#include "cinnrt/host_context/op_executable.h"
-#include "cinnrt/host_context/symbol_table.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/kernel_utils.h"
+#include "infrt/host_context/op_executable.h"
+#include "infrt/host_context/symbol_table.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 int add(int a, int b) { return a + b; }
@@ -77,4 +77,4 @@ TEST(CoreRuntime, function) {
 }
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

@@ -2,10 +2,10 @@
 
 #include <glog/logging.h>
 
-#include "cinnrt/common/dtype.h"
-#include "cinnrt/tensor/tensor_shape.h"
+#include "infrt/common/dtype.h"
+#include "infrt/tensor/tensor_shape.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace tensor {
 
 struct TensorMetadata {
@@ -28,4 +28,4 @@ struct TensorMetadata {
 };
 
 }  // namespace tensor
-}  // namespace cinnrt
+}  // namespace infrt

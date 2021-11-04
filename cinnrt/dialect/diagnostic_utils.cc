@@ -1,8 +1,8 @@
-#include "cinnrt/dialect/diagnostic_utils.h"
+#include "infrt/dialect/diagnostic_utils.h"
 
 #include <string>
 
-namespace cinnrt::dialect {
+namespace infrt::dialect {
 
 struct MyScopedDiagnosicHandler::Impl {
   Impl() : diag_stream_(diag_str_) {}
@@ -30,4 +30,4 @@ mlir::LogicalResult MyScopedDiagnosicHandler::handler(mlir::Diagnostic *diag) {
   return mlir::failure(true);
 }
 
-}  // namespace cinnrt::dialect
+}  // namespace infrt::dialect

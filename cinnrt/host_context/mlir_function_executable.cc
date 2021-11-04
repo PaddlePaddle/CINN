@@ -1,12 +1,12 @@
-#include "cinnrt/host_context/mlir_function_executable.h"
+#include "infrt/host_context/mlir_function_executable.h"
 
 #include <glog/logging.h>
 
 #include <string>
 
-#include "cinnrt/host_context/core_runtime.h"
+#include "infrt/host_context/core_runtime.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 template <typename T>
@@ -107,4 +107,4 @@ void MlirFunctionExecutable::Execute(llvm::ArrayRef<Value*> arguments,
 }
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

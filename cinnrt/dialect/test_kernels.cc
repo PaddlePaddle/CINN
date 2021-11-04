@@ -1,4 +1,4 @@
-#include "cinnrt/dialect/test_kernels.h"
+#include "infrt/dialect/test_kernels.h"
 
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/OpDefinition.h"
@@ -6,7 +6,7 @@
 #include "mlir/IR/StandardTypes.h"
 #include "mlir/IR/TypeUtilities.h"
 
-namespace cinnrt::dialect {
+namespace infrt::dialect {
 
 //===----------------------------------------------------------------------===//
 // BenchmarkOp
@@ -133,6 +133,6 @@ static LogicalResult verify(BenchmarkOp op) {
 }
 
 #define GET_OP_CLASSES
-#include "cinnrt/dialect/test_kernels.cpp.inc"
+#include "infrt/dialect/test_kernels.cpp.inc"
 
-}  // namespace cinnrt::dialect
+}  // namespace infrt::dialect

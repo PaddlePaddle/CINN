@@ -4,11 +4,11 @@
 #include <memory>
 #include <string>
 
-#include "cinnrt/common/macros.h"
+#include "infrt/common/macros.h"
 
 //! Much of the concepts are borrowed from Halide project.
 
-namespace cinnrt {
+namespace infrt {
 namespace common {
 
 /**
@@ -206,4 +206,4 @@ static const char* kpod_value_t        = "cinn_pod_value_t";
 }  // namespace customized_type
 
 }  // namespace common
-}  // namespace cinnrt
+}  // namespace infrt

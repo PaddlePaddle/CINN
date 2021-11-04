@@ -1,11 +1,11 @@
-#include "cinnrt/kernel/control_flow_kernels.h"
+#include "infrt/kernel/control_flow_kernels.h"
 
 #include <glog/logging.h>
 
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/mlir_function_executable.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/mlir_function_executable.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace kernel {
 
 static void CINNCall(host_context::RemainingArguments args,
@@ -26,4 +26,4 @@ void RegisterControlFlowKernels(host_context::KernelRegistry* registry) {
 }
 
 }  // namespace kernel
-}  // namespace cinnrt
+}  // namespace infrt

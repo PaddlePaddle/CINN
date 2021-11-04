@@ -6,9 +6,9 @@
 #include <string>
 #include <utility>
 
-#include "cinnrt/host_context/value.h"
+#include "infrt/host_context/value.h"
 
-namespace cinnrt::host_context {
+namespace infrt::host_context {
 
 class KernelRegistry;
 class OpExecutable;
@@ -66,4 +66,4 @@ class CoreRuntimeBuilder : public CoreRuntime {
   OpExecutableBuilder* NewOpExecutable(absl::string_view op_name);
 };
 
-}  // namespace cinnrt::host_context
+}  // namespace infrt::host_context

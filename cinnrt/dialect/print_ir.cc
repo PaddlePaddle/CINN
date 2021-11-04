@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "cinnrt/common/global.h"
-#include "cinnrt/dialect/init_cinn_dialects.h"
+#include "infrt/common/global.h"
+#include "infrt/dialect/init_cinn_dialects.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ScopedPrinter.h"
@@ -95,10 +95,10 @@ int main(int argc, char **argv) {
   mlir::registerPassManagerCLOptions();
   cl::ParseCommandLineOptions(argc, argv, "mlir demo");
 
-  mlir::MLIRContext *context = cinnrt::Global::getMLIRContext();
+  mlir::MLIRContext *context = infrt::Global::getMLIRContext();
   context->allowUnregisteredDialects();
   auto &registry = context->getDialectRegistry();
-  cinnrt::RegisterCinnDialects(registry);
+  infrt::RegisterCinnDialects(registry);
 
   // mlir will verify module automatically after parsing.
   // https://github.com/llvm/llvm-project/blob/38d18d93534d290d045bbbfa86337e70f1139dc2/mlir/lib/Parser/Parser.cpp#L2051

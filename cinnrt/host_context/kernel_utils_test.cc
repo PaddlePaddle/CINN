@@ -1,8 +1,8 @@
-#include "cinnrt/host_context/kernel_utils.h"
+#include "infrt/host_context/kernel_utils.h"
 
 #include <gtest/gtest.h>
 
-namespace cinnrt::host_context {
+namespace infrt::host_context {
 
 int add_i32(int a, int b) { return a + b; }
 float add_f32(float a, float b) { return a + b; }
@@ -52,4 +52,4 @@ TEST(KernelImpl, pair) {
   ASSERT_EQ(results[1]->get<float>(), 3.f);
 }
 
-}  // namespace cinnrt::host_context
+}  // namespace infrt::host_context

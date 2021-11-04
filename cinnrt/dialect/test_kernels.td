@@ -4,7 +4,7 @@
 #else
 #define TEST_OPS
 
-include "cinnrt/dialect/cinn_base.td"
+include "infrt/dialect/cinn_base.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 // Base class for Test dialect ops.
@@ -13,9 +13,9 @@ class Test_Op<string mnemonic, list<OpTrait> traits = []> :
 
   // Each registered op in the Test namespace needs to provide all of a printer,
   // parser and verifier.
-  let printer = [{ return cinnrt::dialect::print(p, *this); }];
-  let verifier = [{ return cinnrt::dialect::verify(*this); }];
-  let parser = [{ return cinnrt::dialect::parse$cppClass(parser, result); }];
+  let printer = [{ return infrt::dialect::print(p, *this); }];
+  let verifier = [{ return infrt::dialect::verify(*this); }];
+  let parser = [{ return infrt::dialect::parse$cppClass(parser, result); }];
 }
 
 def BenchmarkOp : Test_Op<"benchmark"> {

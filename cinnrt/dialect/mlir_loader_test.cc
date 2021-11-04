@@ -1,4 +1,4 @@
-#include "cinnrt/dialect/mlir_loader.h"
+#include "infrt/dialect/mlir_loader.h"
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -8,9 +8,9 @@
 
 #include <string>
 
-#include "cinnrt/dialect/init_cinn_dialects.h"
+#include "infrt/dialect/init_cinn_dialects.h"
 
-namespace cinnrt::dialect {
+namespace infrt::dialect {
 
 TEST(MlirLoader, basic) {
   mlir::MLIRContext context;
@@ -40,4 +40,4 @@ func @main() -> f32 {
   }
 }
 
-}  // namespace cinnrt::dialect
+}  // namespace infrt::dialect

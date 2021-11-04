@@ -4,9 +4,9 @@
 
 #include <memory>
 
-#include "cinnrt/host_context/value.h"
+#include "infrt/host_context/value.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 /**
@@ -48,4 +48,4 @@ class SymbolTable {
 };
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

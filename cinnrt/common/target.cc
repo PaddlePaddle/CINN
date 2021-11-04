@@ -1,8 +1,8 @@
-#include "cinnrt/common/target.h"
+#include "infrt/common/target.h"
 
 #include <glog/logging.h>
 
-namespace cinnrt {
+namespace infrt {
 namespace common {
 
 bool Target::operator==(const Target &other) const {
@@ -100,4 +100,4 @@ std::ostream &operator<<(std::ostream &os, Target::Arch arch) {
 }
 
 }  // namespace common
-}  // namespace cinnrt
+}  // namespace infrt

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "cinnrt/tensor/dense_host_tensor.h"
+#include "infrt/tensor/dense_host_tensor.h"
 #include "mlir/IR/MLIRContext.h"
 
-namespace cinnrt {
+namespace infrt {
 
 // global variables
 class Global {
@@ -15,4 +15,4 @@ class Global {
   static mlir::MLIRContext *getMLIRContext();
 };  // class Global
 
-}  // namespace cinnrt
+}  // namespace infrt

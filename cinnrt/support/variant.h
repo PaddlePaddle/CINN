@@ -8,9 +8,9 @@
 #include <type_traits>
 #include <utility>
 
-#include "cinnrt/support/type_traits.h"
+#include "infrt/support/type_traits.h"
 
-namespace cinnrt {
+namespace infrt {
 
 // A Variant similar to absl::variant in C++17.
 //
@@ -194,4 +194,4 @@ decltype(auto) visit(F&& f, Variant&& v) {
   return internal::visitHelper(std::forward<F>(f), std::forward<Variant>(v), std::integral_constant<int, 0>());
 }
 
-}  // namespace cinnrt
+}  // namespace infrt

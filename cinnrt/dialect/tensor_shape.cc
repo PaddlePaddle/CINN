@@ -1,4 +1,4 @@
-#include "cinnrt/dialect/tensor_shape.h"
+#include "infrt/dialect/tensor_shape.h"
 
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/IR/Attributes.h>
@@ -12,7 +12,7 @@
 #include <mlir/IR/TypeUtilities.h>
 #include <mlir/Support/LogicalResult.h>
 
-namespace cinnrt::ts {
+namespace infrt::ts {
 using namespace mlir;
 
 void TensorShapeDialect::initialize() {
@@ -20,7 +20,7 @@ void TensorShapeDialect::initialize() {
   addTypes<ShapeType, PartialShapeType>();
   addOperations<
 #define GET_OP_LIST
-#include "cinnrt/dialect/tensor_shape.cpp.inc"
+#include "infrt/dialect/tensor_shape.cpp.inc"
       >();
 }
 
@@ -48,6 +48,6 @@ void TensorShapeDialect::printType(::mlir::Type type, ::mlir::DialectAsmPrinter 
 }
 
 #define GET_OP_CLASSES
-#include "cinnrt/dialect/tensor_shape.cpp.inc"
+#include "infrt/dialect/tensor_shape.cpp.inc"
 
-}  // namespace cinnrt::ts
+}  // namespace infrt::ts

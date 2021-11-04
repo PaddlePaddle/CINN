@@ -1,10 +1,10 @@
-#include "cinnrt/host_context/kernel_registry.h"
+#include "infrt/host_context/kernel_registry.h"
 
 #include <gtest/gtest.h>
 
-#include "cinnrt/host_context/kernel_utils.h"
+#include "infrt/host_context/kernel_utils.h"
 
-namespace cinnrt::host_context {
+namespace infrt::host_context {
 
 int add_i32(int a, int b) { return a + b; }
 
@@ -30,4 +30,4 @@ TEST(KernelRegistry, basic) {
   ASSERT_EQ(results[0]->get<int>(), 3);
 }
 
-}  // namespace cinnrt::host_context
+}  // namespace infrt::host_context

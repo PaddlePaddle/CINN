@@ -1,5 +1,5 @@
-#include "cinnrt/common/object.h"
+#include "infrt/common/object.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace common {}  // namespace common
-}  // namespace cinnrt
+}  // namespace infrt

@@ -1,12 +1,12 @@
-#include "cinnrt/host_context/op_executable.h"
+#include "infrt/host_context/op_executable.h"
 
 #include <gtest/gtest.h>
 
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/kernel_utils.h"
-#include "cinnrt/host_context/symbol_table.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/kernel_utils.h"
+#include "infrt/host_context/symbol_table.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 int add(int a, int b) { return a + b; }
@@ -39,4 +39,4 @@ TEST(OpExecutable, basic) {
 }
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

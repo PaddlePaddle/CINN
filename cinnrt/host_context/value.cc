@@ -1,8 +1,8 @@
-#include "cinnrt/host_context/value.h"
+#include "infrt/host_context/value.h"
 
-#include "cinnrt/tensor/dense_tensor_view.h"
+#include "infrt/tensor/dense_tensor_view.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 ValueRef::ValueRef(int32_t val) : Shared<Value>(new Value(val)) {}
@@ -52,4 +52,4 @@ void CopyTo(const Value& from, Value* to) {
 }
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

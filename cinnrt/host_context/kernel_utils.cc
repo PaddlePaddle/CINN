@@ -1,5 +1,5 @@
-#include "cinnrt/host_context/kernel_utils.h"
+#include "infrt/host_context/kernel_utils.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {}  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

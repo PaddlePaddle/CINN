@@ -1,12 +1,12 @@
-#include "cinnrt/common/axis.h"
+#include "infrt/common/axis.h"
 
 #include <glog/logging.h>
 
 #include <set>
 
-#include "cinnrt/common/common.h"
+#include "infrt/common/common.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace common {
 
 const std::vector<std::string> kAxises({
@@ -36,4 +36,4 @@ const std::string& axis_name(int level) {
 }
 
 }  // namespace common
-}  // namespace cinnrt
+}  // namespace infrt

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "cinnrt/host_context/function.h"
-#include "cinnrt/host_context/kernel_utils.h"
+#include "infrt/host_context/function.h"
+#include "infrt/host_context/kernel_utils.h"
 
-namespace cinnrt {
+namespace infrt {
 
 namespace host_context {
 struct KernelRegistry;
@@ -14,4 +14,4 @@ namespace kernel {
 void RegisterControlFlowKernels(host_context::KernelRegistry* registry);
 
 }  // namespace kernel
-}  // namespace cinnrt
+}  // namespace infrt

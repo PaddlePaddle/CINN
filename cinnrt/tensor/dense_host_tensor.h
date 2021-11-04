@@ -3,14 +3,14 @@
 #include <memory>
 #include <utility>
 
-#include "cinnrt/tensor/tensor_metadata.h"
-#include "cinnrt/tensor/tensor_shape.h"
+#include "infrt/tensor/tensor_metadata.h"
+#include "infrt/tensor/tensor_shape.h"
 
-namespace cinnrt {
+namespace infrt {
 class Buffer;
-}  // namespace cinnrt
+}  // namespace infrt
 
-namespace cinnrt::tensor {
+namespace infrt::tensor {
 
 enum class DeviceKind {
   kCPU = 0,
@@ -55,7 +55,7 @@ class DenseHostTensor : public HostTensor {
   void Init(const std::vector<int64_t>& shape, DType dtype);
   const TensorShape& shape() const;
 
-  const cinnrt::Buffer* buffer() const;
+  const infrt::Buffer* buffer() const;
 
   void* raw_data() const;
 
@@ -65,7 +65,7 @@ class DenseHostTensor : public HostTensor {
 
  private:
   // TODO(Superjomn) Discard the dependency of the Buffer in cinncore or create a general buffer in common.
-  std::shared_ptr<cinnrt::Buffer> buffer_;
+  std::shared_ptr<infrt::Buffer> buffer_;
 };
 
-}  // namespace cinnrt::tensor
+}  // namespace infrt::tensor

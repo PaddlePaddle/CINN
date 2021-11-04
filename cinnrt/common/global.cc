@@ -1,6 +1,6 @@
-#include "cinnrt/common/global.h"
+#include "infrt/common/global.h"
 
-namespace cinnrt {
+namespace infrt {
 
 Global::Global() {}
 
@@ -13,4 +13,4 @@ mlir::MLIRContext* Global::getMLIRContext() {
   return context;
 }
 
-}  // namespace cinnrt
+}  // namespace infrt

@@ -1,17 +1,17 @@
-#include "cinnrt/kernel/tensor_kernels.h"
+#include "infrt/kernel/tensor_kernels.h"
 
 #include <iostream>
 #include <vector>
 
-#include "cinnrt/common/global.h"
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/kernel_utils.h"
-#include "cinnrt/tensor/dense_host_tensor.h"
-#include "cinnrt/tensor/dense_tensor_view.h"
-#include "cinnrt/tensor/tensor_map.h"
-#include "cinnrt/tensor/tensor_shape.h"
+#include "infrt/common/global.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/kernel_utils.h"
+#include "infrt/tensor/dense_host_tensor.h"
+#include "infrt/tensor/dense_tensor_view.h"
+#include "infrt/tensor/tensor_map.h"
+#include "infrt/tensor/tensor_shape.h"
 
-namespace cinnrt::kernel {
+namespace infrt::kernel {
 using namespace host_context;  // NOLINT
 using namespace tensor;        // NOLINT
 
@@ -32,7 +32,7 @@ void FillTensorWithConstant(DenseHostTensor *tensor, Attribute<T> v) {
   MutableDTArrayView<T>(tensor).Fill(v.get());
 }
 
-TensorMap LoadParams(const std::string &path) { return *(cinnrt::tensor::LoadParams(path)); }
+TensorMap LoadParams(const std::string &path) { return *(infrt::tensor::LoadParams(path)); }
 
 DenseHostTensor GetParam(TensorMap map, Attribute<std::string> nameAttr) {
   auto &name = nameAttr.get();
@@ -54,4 +54,4 @@ void RegisterTensorKernels(host_context::KernelRegistry *registry) {
   registry->AddKernel("dt.shallow_copy_tensor", CINN_KERNEL(ShallowCopyTensor));
 }
 
-}  // namespace cinnrt::kernel
+}  // namespace infrt::kernel

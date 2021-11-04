@@ -1,6 +1,6 @@
-#include "cinnrt/dialect/pd_ops.h"
+#include "infrt/dialect/pd_ops.h"
 
-#include "cinnrt/dialect/cinn_base.h"
+#include "infrt/dialect/cinn_base.h"
 #include "mlir/IR/Matchers.h"
 #include "mlir/IR/PatternMatch.h"
 
@@ -8,13 +8,13 @@ namespace mlir {
 namespace pd {
 
 #define GET_OP_CLASSES
-#include "cinnrt/dialect/pd_ops.hpp.inc"
+#include "infrt/dialect/pd_ops.hpp.inc"
 #undef GET_OP_CLASSES
 
 PaddleDialect::PaddleDialect(MLIRContext *context) : Dialect("pd", context, TypeID::get<PaddleDialect>()) {
   addOperations<
 #define GET_OP_LIST
-#include "cinnrt/dialect/pd_ops.cpp.inc"
+#include "infrt/dialect/pd_ops.cpp.inc"
       >();
 #undef GET_OP_LIST
 }
@@ -27,10 +27,10 @@ mlir::Operation *PaddleDialect::materializeConstant(mlir::OpBuilder &builder,
 }
 
 #define GET_OP_CLASSES
-#include "cinnrt/dialect/pd_ops.cpp.inc"
+#include "infrt/dialect/pd_ops.cpp.inc"
 #undef GET_OP_CLASSES
 
-#include "cinnrt/dialect/rewrite.hpp.inc"
+#include "infrt/dialect/rewrite.hpp.inc"
 
 void ConstantOp::build(OpBuilder &builder, OperationState &state, Attribute value) {
   if (auto elem_attr = value.dyn_cast<ElementsAttr>()) {

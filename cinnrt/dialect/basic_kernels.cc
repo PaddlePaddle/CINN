@@ -1,4 +1,4 @@
-#include "cinnrt/dialect/basic_kernels.h"
+#include "infrt/dialect/basic_kernels.h"
 
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/IR/Attributes.h>
@@ -11,9 +11,9 @@
 #include <mlir/IR/TypeUtilities.h>
 #include <mlir/Support/LogicalResult.h>
 
-#include "cinnrt/dialect/dense_tensor.h"
+#include "infrt/dialect/dense_tensor.h"
 
-namespace cinnrt::dialect {
+namespace infrt::dialect {
 using namespace mlir;
 
 static ParseResult parseCallOp(OpAsmParser &parser, OperationState &result) {
@@ -120,6 +120,6 @@ static LogicalResult verify(ReturnOp op) {
 }
 
 #define GET_OP_CLASSES
-#include "cinnrt/dialect/basic_kernels.cpp.inc"
+#include "infrt/dialect/basic_kernels.cpp.inc"
 
-}  // namespace cinnrt::dialect
+}  // namespace infrt::dialect

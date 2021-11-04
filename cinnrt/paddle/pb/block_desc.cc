@@ -1,6 +1,6 @@
-#include "cinnrt/paddle/pb/block_desc.h"
+#include "infrt/paddle/pb/block_desc.h"
 
-namespace cinnrt::paddle::pb {
+namespace infrt::paddle::pb {
 
 template <>
 framework_proto::VarDesc* BlockDesc::GetVar<framework_proto::VarDesc>(int32_t idx) {
@@ -24,4 +24,4 @@ framework_proto::OpDesc* BlockDesc::AddOp<framework_proto::OpDesc>() {
   return desc_->add_ops();
 }
 
-}  // namespace cinnrt::paddle::pb
+}  // namespace infrt::paddle::pb

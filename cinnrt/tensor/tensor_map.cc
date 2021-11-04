@@ -1,19 +1,19 @@
-#include "cinnrt/tensor/tensor_map.h"
+#include "infrt/tensor/tensor_map.h"
 
 #include <fstream>
 #include <iostream>
 
-#include "cinnrt/common/string.h"
-#include "cinnrt/paddle/model_parser.h"
+#include "infrt/common/string.h"
+#include "infrt/paddle/model_parser.h"
 
-using Scope  = cinnrt::paddle::Scope;
-using Target = cinnrt::common::Target;
-using Type   = cinnrt::common::Type;
+using Scope  = infrt::paddle::Scope;
+using Target = infrt::common::Target;
+using Type   = infrt::common::Type;
 
-namespace cinnrt {
+namespace infrt {
 namespace tensor {
 
-cinnrt::DType CinnType2DType_(Type type) {
+infrt::DType CinnType2DType_(Type type) {
   if (type.is_bool()) return GetDType<bool>();
   if (type.is_int(8)) return GetDType<int8_t>();
   if (type.is_int(16)) return GetDType<int16_t>();
@@ -26,18 +26,18 @@ cinnrt::DType CinnType2DType_(Type type) {
   if (type.is_float(32)) return GetDType<float>();
   if (type.is_float(64)) return GetDType<double>();
   if (type.is_string()) return GetDType<std::string>();
-  return cinnrt::DType(cinnrt::DType::Kind::Unk);
+  return infrt::DType(infrt::DType::Kind::Unk);
 }
 
 TensorMap *LoadParams(const std::string &path) {
   std::cout << "loading params from: " << path << std::endl;
   TensorMap *map = new TensorMap();
   Scope scope;
-  const Target &target = cinnrt::common::DefaultHostTarget();
+  const Target &target = infrt::common::DefaultHostTarget();
 
   std::string model_path = path + "/__model__";
   // paddle::framework::proto::ProgramDesc pb_proto_prog = *cinn::frontend::paddle::LoadProgram(model_path);
-  auto pb_proto_prog = *cinnrt::paddle::LoadProgram(model_path);
+  auto pb_proto_prog = *infrt::paddle::LoadProgram(model_path);
   // cinn::frontend::paddle::pb::ProgramDesc pb_prog_desc(&pb_proto_prog);
   // cinn::frontend::paddle::TransformProgramDescAnyToCpp(pb_prog_desc, cpp_prog);
   auto main_block = pb_proto_prog.blocks(0);
@@ -47,10 +47,10 @@ TensorMap *LoadParams(const std::string &path) {
     std::ifstream param_file(param_path, std::ios::binary);
     switch (var.type().type()) {
       case ::paddle::framework::proto::VarType_Type_LOD_TENSOR: {
-        auto var_name = cinnrt::cinn::TransValidVarName(var.name());
+        auto var_name = infrt::cinn::TransValidVarName(var.name());
         // std::cout << "var name: " << var.name() << " " << var_name << std::endl;
-        auto *_var = scope.Var<cinnrt::paddle::Tensor>(var_name);
-        cinnrt::paddle::LoadLoDTensor(param_file, _var, target);
+        auto *_var = scope.Var<infrt::paddle::Tensor>(var_name);
+        infrt::paddle::LoadLoDTensor(param_file, _var, target);
         auto tensor     = scope.GetTensor(var_name);
         auto *src_data  = tensor->data<float>();
         auto &cinn_type = tensor->type();
@@ -74,4 +74,4 @@ TensorMap *LoadParams(const std::string &path) {
 }
 
 }  // namespace tensor
-}  // namespace cinnrt
+}  // namespace infrt

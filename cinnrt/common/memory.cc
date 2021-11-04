@@ -1,8 +1,8 @@
-#include "cinnrt/common/memory.h"
+#include "infrt/common/memory.h"
 
-namespace cinnrt {
+namespace infrt {
 
-using cinnrt::common::Target;
+using infrt::common::Target;
 
 namespace {
 
@@ -23,4 +23,4 @@ MemoryManager::MemoryManager() {
   Register(Target::Arch::X86, new X86MemoryMng);
 }
 
-}  // namespace cinnrt
+}  // namespace infrt

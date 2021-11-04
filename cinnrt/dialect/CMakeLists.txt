@@ -1,6 +1,6 @@
 core_gather_headers()
 
-gather_srcs(cinnrt_src SRCS
+gather_srcs(infrt_src SRCS
     dialect.cc
     types.cc
     basic_kernels.cc
@@ -27,28 +27,28 @@ mlir_add_rewriter(rewrite)
 
 # TODO(Superjomn) add a cmake function cc_executable to ecapsulate the following code
 add_executable(cinnopt opt.cc)
-target_link_libraries(cinnopt cinnrt ${mlir_libs})
-add_dependencies(cinnopt cinnrt)
+target_link_libraries(cinnopt infrt ${mlir_libs})
+add_dependencies(cinnopt infrt)
 
 add_executable(print-ir print_ir.cc)
-target_link_libraries(print-ir cinnrt ${mlir_libs})
+target_link_libraries(print-ir infrt ${mlir_libs})
 add_dependencies(print-ir pd_ops_inc)
 
 
 # MLIR opt tests
 # %{
-set(cinn_opt_path ${CMAKE_BINARY_DIR}/cinnrt/dialect/cinnopt)
+set(cinn_opt_path ${CMAKE_BINARY_DIR}/infrt/dialect/cinnopt)
 
 add_test(test_mlir_opt_on_basic ${cinn_opt_path}
-        ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/basic.mlir)
+        ${CMAKE_SOURCE_DIR}/infrt/dialect/mlir_tests/basic.mlir)
 add_test(test_mlir_opt_on_tensor_shape ${cinn_opt_path}
-        ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/tensor_shape.mlir)
+        ${CMAKE_SOURCE_DIR}/infrt/dialect/mlir_tests/tensor_shape.mlir)
 add_test(test_mlir_opt_on_paddle_ops
         ${cinn_opt_path}
-        ${CMAKE_SOURCE_DIR}/cinnrt/dialect/mlir_tests/paddle_ops.mlir)
+        ${CMAKE_SOURCE_DIR}/infrt/dialect/mlir_tests/paddle_ops.mlir)
 # %}
 
-cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS cinnrt ${MLIR_IR_LIBS})
+cc_test(test_mlir_loader SRCS mlir_loader_test.cc DEPS infrt ${MLIR_IR_LIBS})
 
 # execute mlir and run FileCheck
 cinn_exec_check(run_and_check_tensor_type mlir_tests/tensor_type.mlir)
@@ -56,6 +56,6 @@ cinn_exec_check(run_and_check_basic mlir_tests/basic.mlir)
 cinn_exec_check(run_and_check_benchmark mlir_tests/benchmark.mlir)
 #cinn_exec_check(run_and_check_dense_tensor mlir_tests/dense_tensor.mlir)
 add_test(test_mlir_dense_tensor
-        ${CMAKE_BINARY_DIR}/cinnrt/host_context/cinn-exec
+        ${CMAKE_BINARY_DIR}/infrt/host_context/cinn-exec
         -i
         ${CMAKE_CURRENT_SOURCE_DIR}/mlir_tests/dense_tensor.mlir)

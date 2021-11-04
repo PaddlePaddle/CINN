@@ -1,4 +1,4 @@
-#include "cinnrt/host_context/mlir_to_runtime_translate.h"
+#include "infrt/host_context/mlir_to_runtime_translate.h"
 
 #include <absl/container/flat_hash_map.h>
 #include <absl/types/optional.h>
@@ -15,18 +15,18 @@
 #include <utility>
 #include <vector>
 
-#include "cinnrt/common/string.h"
-#include "cinnrt/dialect/mlir_loader.h"
-#include "cinnrt/dialect/tensor_shape.h"
-#include "cinnrt/host_context/core_runtime.h"
-#include "cinnrt/host_context/kernel_frame.h"
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/mlir_function_executable.h"
-#include "cinnrt/host_context/op_executable.h"
-#include "cinnrt/host_context/value.h"
-#include "cinnrt/tensor/tensor_shape.h"
+#include "infrt/common/string.h"
+#include "infrt/dialect/mlir_loader.h"
+#include "infrt/dialect/tensor_shape.h"
+#include "infrt/host_context/core_runtime.h"
+#include "infrt/host_context/kernel_frame.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/mlir_function_executable.h"
+#include "infrt/host_context/op_executable.h"
+#include "infrt/host_context/value.h"
+#include "infrt/tensor/tensor_shape.h"
 
-namespace cinnrt::host_context {
+namespace infrt::host_context {
 
 template <typename T>
 std::string DumpToString(T& op) {  // NOLINT
@@ -57,7 +57,7 @@ struct MlirToRuntimeTranslator::Impl {
 };
 
 bool MlirToRuntimeTranslator::EmitConstantOp(mlir::Operation* op) {
-  if (!cinnrt::cinn::Startswith(op->getName().getStringRef().str(), "cinn.constant")) return false;
+  if (!infrt::cinn::Startswith(op->getName().getStringRef().str(), "cinn.constant")) return false;
   VLOG(3) << "Emitting constant op [" << op->getName().getStringRef().str() << "]";
 
   auto attr = op->getAttr("value");
@@ -484,4 +484,4 @@ void TestMlir(mlir::ModuleOp module, KernelRegistry* registry) {
   execute.Run();
 }
 
-}  // namespace cinnrt::host_context
+}  // namespace infrt::host_context

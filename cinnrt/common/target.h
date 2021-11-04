@@ -3,7 +3,7 @@
 #include <ostream>
 #include <vector>
 
-namespace cinnrt {
+namespace infrt {
 namespace common {
 
 struct Target {
@@ -89,4 +89,4 @@ static const Target& DefaultNVGPUTarget() {
 std::ostream& operator<<(std::ostream& os, Target::Arch arch);
 
 }  // namespace common
-}  // namespace cinnrt
+}  // namespace infrt

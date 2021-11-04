@@ -2,10 +2,10 @@
 #include <absl/types/variant.h>
 #include <glog/logging.h>
 
-#include "cinnrt/paddle/cpp/desc_api.h"
-#include "cinnrt/paddle/framework.pb.h"
+#include "infrt/paddle/cpp/desc_api.h"
+#include "infrt/paddle/framework.pb.h"
 
-namespace cinnrt::paddle::pb {
+namespace infrt::paddle::pb {
 
 namespace framework_proto = ::paddle::framework::proto;
 
@@ -153,4 +153,4 @@ void OpDesc::SetAttr<std::string>(const std::string &name, const std::string &v)
 template <>
 void OpDesc::SetAttr<std::vector<int>>(const std::string &name, const std::vector<int> &v);
 
-}  // namespace cinnrt::paddle::pb
+}  // namespace infrt::paddle::pb

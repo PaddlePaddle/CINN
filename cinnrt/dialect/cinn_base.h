@@ -8,9 +8,9 @@
 #include <mlir/IR/TypeUtilities.h>
 #include <mlir/IR/Types.h>
 
-#include "cinnrt/dialect/cinn_base.hpp.inc"
+#include "infrt/dialect/cinn_base.hpp.inc"
 
-namespace cinnrt::dialect {
+namespace infrt::dialect {
 
 class CINNDialect : public ::mlir::Dialect {
   explicit CINNDialect(::mlir::MLIRContext *context)
@@ -30,7 +30,7 @@ class CINNDialect : public ::mlir::Dialect {
   static ::llvm::StringRef getDialectNamespace() { return "cinn"; }
 };
 
-}  // namespace cinnrt::dialect
+}  // namespace infrt::dialect
 
 namespace mlir {
 

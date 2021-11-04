@@ -1,8 +1,8 @@
-#include "cinnrt/host_context/symbol_table.h"
+#include "infrt/host_context/symbol_table.h"
 
 #include <string>
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 struct SymbolTable::Impl {
@@ -63,4 +63,4 @@ REGISTER_TYPE__(bool)
 // @}
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

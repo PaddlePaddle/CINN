@@ -6,10 +6,10 @@
 #include <string>
 #include <vector>
 
-#include "cinnrt/common/macros.h"
-#include "cinnrt/paddle/tensor.h"
+#include "infrt/common/macros.h"
+#include "infrt/paddle/tensor.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace paddle {
 
 using _Variable = absl::variant<Tensor>;
@@ -51,4 +51,4 @@ _Variable* Scope::Var(const std::string& name) {
 }
 
 }  // namespace paddle
-}  // namespace cinnrt
+}  // namespace infrt

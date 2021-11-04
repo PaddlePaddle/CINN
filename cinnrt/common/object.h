@@ -2,9 +2,9 @@
 #include <cstring>
 #include <iostream>
 
-#include "cinnrt/common/shared.h"
+#include "infrt/common/shared.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace common {
 
 template <typename T>
@@ -63,4 +63,4 @@ using object_ptr    = Object*;
 using shared_object = Shared<Object>;
 
 }  // namespace common
-}  // namespace cinnrt
+}  // namespace infrt

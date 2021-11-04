@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace cinnrt {
+namespace infrt {
 namespace cinn {
 
 //! Get the content of a stream.
@@ -66,4 +66,4 @@ std::string GetStreamCnt(const T& x) {
 std::string TransValidVarName(std::string name);
 
 }  // namespace cinn
-}  // namespace cinnrt
+}  // namespace infrt

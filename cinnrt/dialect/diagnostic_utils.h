@@ -4,7 +4,7 @@
 
 #include <memory>
 
-namespace cinnrt::dialect {
+namespace infrt::dialect {
 
 /**
  * A scoped diagnostic handler to help debug MLIR process.
@@ -22,4 +22,4 @@ class MyScopedDiagnosicHandler : public mlir::SourceMgrDiagnosticHandler {
   std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace cinnrt::dialect
+}  // namespace infrt::dialect

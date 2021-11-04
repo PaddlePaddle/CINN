@@ -1,10 +1,10 @@
 #pragma once
 #include <glog/logging.h>
 
-#include "cinnrt/paddle/cpp/desc_api.h"
-#include "cinnrt/paddle/framework.pb.h"
+#include "infrt/paddle/cpp/desc_api.h"
+#include "infrt/paddle/framework.pb.h"
 
-namespace cinnrt::paddle::pb {
+namespace infrt::paddle::pb {
 
 namespace framework_proto = ::paddle::framework::proto;
 
@@ -54,4 +54,4 @@ class BlockDesc : public cpp::BlockDescAPI {
   framework_proto::BlockDesc* desc_;  // not_own
 };
 
-}  // namespace cinnrt::paddle::pb
+}  // namespace infrt::paddle::pb

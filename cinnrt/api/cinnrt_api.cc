@@ -1,5 +1,3 @@
-#include "cinnrt/api/cinnrt_api.h"
-
 #include <absl/container/flat_hash_map.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/DynamicLibrary.h>
@@ -8,29 +6,30 @@
 
 #include <vector>
 
-#include "cinnrt/common/global.h"
-#include "cinnrt/dialect/dense_tensor.h"
-#include "cinnrt/dialect/mlir_loader.h"
-#include "cinnrt/host_context/core_runtime.h"
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/mlir_function_executable.h"
-#include "cinnrt/host_context/mlir_to_runtime_translate.h"
-#include "cinnrt/host_context/op_executable.h"
-#include "cinnrt/host_context/value.h"
-#include "cinnrt/kernel/basic_kernels.h"
-#include "cinnrt/kernel/control_flow_kernels.h"
-#include "cinnrt/kernel/tensor_kernels.h"
-#include "cinnrt/kernel/tensor_shape_kernels.h"
-#include "cinnrt/kernel/test_kernels.h"
-#include "cinnrt/tensor/tensor_map.h"
+#include "infrt/api/infrt_api.h"
+#include "infrt/common/global.h"
+#include "infrt/dialect/dense_tensor.h"
+#include "infrt/dialect/mlir_loader.h"
+#include "infrt/host_context/core_runtime.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/mlir_function_executable.h"
+#include "infrt/host_context/mlir_to_runtime_translate.h"
+#include "infrt/host_context/op_executable.h"
+#include "infrt/host_context/value.h"
+#include "infrt/kernel/basic_kernels.h"
+#include "infrt/kernel/control_flow_kernels.h"
+#include "infrt/kernel/tensor_kernels.h"
+#include "infrt/kernel/tensor_shape_kernels.h"
+#include "infrt/kernel/test_kernels.h"
+#include "infrt/tensor/tensor_map.h"
 
-using namespace cinnrt::host_context;
-using namespace cinnrt::tensor;
-using namespace cinnrt::tensor;
-using cinnrt::dt::TensorMapType;
-using cinnrt::dt::TensorType;
+using namespace infrt::host_context;
+using namespace infrt::tensor;
+using namespace infrt::tensor;
+using infrt::dt::TensorMapType;
+using infrt::dt::TensorType;
 
-namespace cinnrt {
+namespace infrt {
 
 template <typename T>
 std::string DumpToString(T& op) {  // NOLINT
@@ -167,7 +166,7 @@ CinnRtPredictor::~CinnRtPredictor() {}
 void CinnRtPredictor::Run() { impl_->executor->Run(); }
 
 int CinnRtPredictor::Init(const CinnRtConfig& config) {
-  mlir::MLIRContext* context = cinnrt::Global::getMLIRContext();
+  mlir::MLIRContext* context = infrt::Global::getMLIRContext();
   auto module_ref            = dialect::LoadMlirFile(config.mlir_path(), context);
 
   KernelRegistry* registry = new KernelRegistry();
@@ -212,4 +211,4 @@ int CinnRtPredictor::GetOutputNum() { return impl_->executor->GetOutputNum(); }
 
 DenseHostTensor* CinnRtPredictor::GetOutput(int i) { return impl_->executor->GetOutput(i); }
 
-}  // namespace cinnrt
+}  // namespace infrt

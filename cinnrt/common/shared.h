@@ -3,7 +3,7 @@
 #include <string>
 #include <type_traits>
 
-namespace cinnrt {
+namespace infrt {
 namespace common {
 
 class RefCount {
@@ -134,4 +134,4 @@ void Shared<T>::Reset(T* x) {
 }
 
 }  // namespace common
-}  // namespace cinnrt
+}  // namespace infrt

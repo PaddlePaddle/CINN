@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-namespace cinnrt {
+namespace infrt {
 class DType {
  public:
   enum class Kind : uint8_t {
@@ -12,7 +12,7 @@ class DType {
 
   // Automatically generate the enum definition
 #define CINNRT_DTYPE(enum__, value__) enum__ = value__,
-#include "cinnrt/common/dtype.def"
+#include "infrt/common/dtype.def"
 #undef CINNRT_DTYPE
 
     BOOL = I1,
@@ -68,4 +68,4 @@ CINNRT_IMPL_GET_DTYPE(float, F32);
 CINNRT_IMPL_GET_DTYPE(double, F64);
 CINNRT_IMPL_GET_DTYPE(std::string, STRING);
 
-}  // namespace cinnrt
+}  // namespace infrt

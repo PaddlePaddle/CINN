@@ -1,9 +1,9 @@
-#include "cinnrt/paddle/pb/program_desc.h"
+#include "infrt/paddle/pb/program_desc.h"
 
 #include <algorithm>
 #include <limits>
 
-namespace cinnrt::paddle::pb {
+namespace infrt::paddle::pb {
 
 template <>
 framework_proto::BlockDesc* ProgramDesc::GetBlock<framework_proto::BlockDesc>(int32_t idx) {
@@ -16,4 +16,4 @@ framework_proto::BlockDesc* ProgramDesc::AddBlock<framework_proto::BlockDesc>() 
   return desc_->add_blocks();
 }
 
-}  // namespace cinnrt::paddle::pb
+}  // namespace infrt::paddle::pb

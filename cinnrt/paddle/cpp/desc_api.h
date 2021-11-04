@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace cinnrt::paddle::cpp {
+namespace infrt::paddle::cpp {
 
 /*
  * Compatible interfaces for all the different kinds of XXXDesc. All the XXXDesc
@@ -212,4 +212,4 @@ class ProgramDescAPI {
   virtual void SetVersion(int64_t version) = 0;
 };
 
-}  // namespace cinnrt::paddle::cpp
+}  // namespace infrt::paddle::cpp

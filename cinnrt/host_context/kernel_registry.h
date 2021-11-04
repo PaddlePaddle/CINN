@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 class KernelFrame;
@@ -38,7 +38,7 @@ class KernelRegistry {
 KernelRegistry *GetCpuKernelRegistry();
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt
 
 /**
  * compile function RegisterKernels in C way to avoid C++ name mangling.
@@ -46,7 +46,7 @@ KernelRegistry *GetCpuKernelRegistry();
 #ifdef __cplusplus
 extern "C" {
 #endif
-void RegisterKernels(cinnrt::host_context::KernelRegistry *registry);
+void RegisterKernels(infrt::host_context::KernelRegistry *registry);
 #ifdef __cplusplus
 }
 #endif

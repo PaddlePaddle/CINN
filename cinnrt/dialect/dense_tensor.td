@@ -2,8 +2,8 @@
 #else
 #define DT_OPS
 
-include "cinnrt/dialect/cinn_base.td"
-include "cinnrt/dialect/tensor_shape_base.td"
+include "infrt/dialect/cinn_base.td"
+include "infrt/dialect/tensor_shape_base.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 
 def DT_Dialect : Dialect {
@@ -13,7 +13,7 @@ def DT_Dialect : Dialect {
       The DenseTensor dialect.
   }];
 
-  let cppNamespace = "::cinnrt::dt";
+  let cppNamespace = "::infrt::dt";
 }
 
 class DT_Op<string mnemonic, list<OpTrait> traits = []> :
@@ -30,8 +30,8 @@ class CreateUninitTensorOp<string dtype>
   let arguments = (ins I64ArrayAttr:$shape);
   let results = (outs TensorType:$output);
 
-  let parser  = [{ return cinnrt::dt::parseCreateUninitTensorOp(parser, result); }];
-  let printer = [{ return cinnrt::dt::printCreateUninitTensorOp(p, *this); }];
+  let parser  = [{ return infrt::dt::parseCreateUninitTensorOp(parser, result); }];
+  let printer = [{ return infrt::dt::printCreateUninitTensorOp(p, *this); }];
 }
 
 
@@ -65,8 +65,8 @@ class FillTensorWithConstantOp<string dtype> :
   let results = (outs);
 
   // TODO: can be removed?
-  //let parser  = [{ return cinnrt::dt::parseFillTensorWithConstantOp(parser, result); }];
-  //let printer = [{ return cinnrt::dt::printFillTensorWithConstantOp(p, *this); }];
+  //let parser  = [{ return infrt::dt::parseFillTensorWithConstantOp(parser, result); }];
+  //let printer = [{ return infrt::dt::printFillTensorWithConstantOp(p, *this); }];
   let assemblyFormat = "`(` $input `:` type($input) `)`  attr-dict";
 }
 
@@ -93,8 +93,8 @@ class SetTensorOp<string dtype> :
   let arguments = (ins TensorType);
   let results = (outs);
 
-  let parser  = [{ return cinnrt::dt::parseSetTensorOp(parser, result); }];
-  let printer = [{ return cinnrt::dt::printSetTensorOp(p, *this); }];
+  let parser  = [{ return infrt::dt::parseSetTensorOp(parser, result); }];
+  let printer = [{ return infrt::dt::printSetTensorOp(p, *this); }];
 }
 
 def LoadParamsOp : DT_Op<"load_params", [NoSideEffect]> {

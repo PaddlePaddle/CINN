@@ -15,7 +15,7 @@ class Attribute;
 class Value;
 }  // namespace mlir
 
-namespace cinnrt::host_context {
+namespace infrt::host_context {
 
 class CoreRuntimeBuilder;
 class Value;
@@ -86,4 +86,4 @@ void MlirToRuntimeTranslate(mlir::ModuleOp module, CoreRuntimeBuilder* runtime);
  */
 void TestMlir(mlir::ModuleOp module, KernelRegistry* registry);
 
-}  // namespace cinnrt::host_context
+}  // namespace infrt::host_context

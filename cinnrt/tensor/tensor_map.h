@@ -2,9 +2,9 @@
 
 #include <string>
 
-#include "cinnrt/tensor/dense_host_tensor.h"
+#include "infrt/tensor/dense_host_tensor.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace tensor {
 
 using TensorMap = absl::flat_hash_map<std::string, tensor::DenseHostTensor*>;
@@ -12,4 +12,4 @@ using TensorMap = absl::flat_hash_map<std::string, tensor::DenseHostTensor*>;
 TensorMap* LoadParams(const std::string& path);
 
 }  // namespace tensor
-}  // namespace cinnrt
+}  // namespace infrt

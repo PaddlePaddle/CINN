@@ -14,15 +14,15 @@
 
 #include <iostream>
 
-#include "cinnrt/common/global.h"
-#include "cinnrt/dialect/init_cinn_dialects.h"
-#include "cinnrt/dialect/mlir_loader.h"
+#include "infrt/common/global.h"
+#include "infrt/dialect/init_cinn_dialects.h"
+#include "infrt/dialect/mlir_loader.h"
 
 int main(int argc, char **argv) {
-  mlir::MLIRContext *context = cinnrt::Global::getMLIRContext();
+  mlir::MLIRContext *context = infrt::Global::getMLIRContext();
 
   auto &registry = context->getDialectRegistry();
-  cinnrt::RegisterCinnDialects(registry);
+  infrt::RegisterCinnDialects(registry);
 
   mlir::registerCanonicalizerPass();
 

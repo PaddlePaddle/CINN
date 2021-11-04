@@ -1,11 +1,11 @@
-#include "cinnrt/common/buffer.h"
+#include "infrt/common/buffer.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 
 #include <cmath>
 
-namespace cinnrt {
+namespace infrt {
 void Buffer::Resize(uint32_t size) {
   if (size_ > 0) {
     Free();
@@ -30,7 +30,7 @@ void Buffer::Resize(uint32_t alignment, uint32_t size) {
   }
 }
 
-void Buffer::SetTarget(const cinnrt::common::Target& target) {
+void Buffer::SetTarget(const infrt::common::Target& target) {
   target_           = target;
   memory_mng_cache_ = MemoryManager::Global().RetrieveSafely(target_.arch);
 }
@@ -45,7 +45,7 @@ void Buffer::ResizeLazy(uint32_t alignment, uint32_t size) {
   Resize(alignment, size);
 }
 
-void Buffer::Resize(uint32_t size, const cinnrt::common::Target& target) {
+void Buffer::Resize(uint32_t size, const infrt::common::Target& target) {
   if (target.arch != target_.arch) {
     Free();
     SetTarget(target);
@@ -53,7 +53,7 @@ void Buffer::Resize(uint32_t size, const cinnrt::common::Target& target) {
   Resize(size);
 }
 
-void Buffer::Resize(uint32_t alignment, uint32_t size, const cinnrt::common::Target& target) {
+void Buffer::Resize(uint32_t alignment, uint32_t size, const infrt::common::Target& target) {
   if (target.arch != target_.arch) {
     Free();
     SetTarget(target);
@@ -61,7 +61,7 @@ void Buffer::Resize(uint32_t alignment, uint32_t size, const cinnrt::common::Tar
   Resize(alignment, size);
 }
 
-void Buffer::ResizeLazy(uint32_t size, const cinnrt::common::Target& target) {
+void Buffer::ResizeLazy(uint32_t size, const infrt::common::Target& target) {
   if (target.arch != target_.arch) {
     Free();
     SetTarget(target);
@@ -69,7 +69,7 @@ void Buffer::ResizeLazy(uint32_t size, const cinnrt::common::Target& target) {
   ResizeLazy(size);
 }
 
-void Buffer::ResizeLazy(uint32_t alignment, uint32_t size, const cinnrt::common::Target& target) {
+void Buffer::ResizeLazy(uint32_t alignment, uint32_t size, const infrt::common::Target& target) {
   if (target.arch != target_.arch) {
     Free();
     SetTarget(target);
@@ -77,4 +77,4 @@ void Buffer::ResizeLazy(uint32_t alignment, uint32_t size, const cinnrt::common:
   ResizeLazy(alignment, size);
 }
 
-}  // namespace cinnrt
+}  // namespace infrt

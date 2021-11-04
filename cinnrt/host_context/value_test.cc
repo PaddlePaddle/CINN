@@ -1,8 +1,8 @@
-#include "cinnrt/host_context/value.h"
+#include "infrt/host_context/value.h"
 
 #include <gtest/gtest.h>
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 TEST(ValueRef, test) {
@@ -17,4 +17,4 @@ TEST(ValueRef, test) {
 }
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

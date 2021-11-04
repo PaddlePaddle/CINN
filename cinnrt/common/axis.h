@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-namespace cinnrt {
+namespace infrt {
 namespace common {
 
 //! Get the predifined axis name.
@@ -12,4 +12,4 @@ const std::string& axis_name(int level);
 bool IsAxisNameReserved(const std::string& x);
 
 }  // namespace common
-}  // namespace cinnrt
+}  // namespace infrt

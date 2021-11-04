@@ -1,5 +1,5 @@
-#include "cinnrt/paddle/tensor.h"
+#include "infrt/paddle/tensor.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace paddle {}  // namespace paddle
-}  // namespace cinnrt
+}  // namespace infrt

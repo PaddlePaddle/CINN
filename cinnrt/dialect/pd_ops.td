@@ -4,7 +4,7 @@
 include "mlir/Interfaces/InferTypeOpInterface.td"
 include "mlir/Interfaces/LoopLikeInterface.td"
 include "mlir/IR/OpBase.td"
-include "cinnrt/dialect/pd_op_base.td"
+include "infrt/dialect/pd_op_base.td"
 
 def PD_FeedOp : PD_Op<"Feed", [NoSideEffect]> {
   let summary = "Feed Op";

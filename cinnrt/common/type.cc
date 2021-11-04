@@ -1,8 +1,8 @@
-#include "cinnrt/common/type.h"
+#include "infrt/common/type.h"
 
 #include <utility>
 
-namespace cinnrt {
+namespace infrt {
 namespace common {
 
 struct Type::Storage {
@@ -316,4 +316,4 @@ const Type &UI1() {
 }
 
 }  // namespace common
-}  // namespace cinnrt
+}  // namespace infrt

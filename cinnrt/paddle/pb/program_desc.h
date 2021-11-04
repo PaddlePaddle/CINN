@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-#include "cinnrt/paddle/cpp/desc_api.h"
-#include "cinnrt/paddle/framework.pb.h"
+#include "infrt/paddle/cpp/desc_api.h"
+#include "infrt/paddle/framework.pb.h"
 
-namespace cinnrt::paddle::pb {
+namespace infrt::paddle::pb {
 namespace framework_proto = ::paddle::framework::proto;
 
 class ProgramDesc : public cpp::ProgramDescAPI {
@@ -40,4 +40,4 @@ class ProgramDesc : public cpp::ProgramDescAPI {
   framework_proto::ProgramDesc *desc_;  // not_own
 };
 
-}  // namespace cinnrt::paddle::pb
+}  // namespace infrt::paddle::pb

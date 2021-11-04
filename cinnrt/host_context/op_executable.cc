@@ -1,13 +1,13 @@
-#include "cinnrt/host_context/op_executable.h"
+#include "infrt/host_context/op_executable.h"
 
 #include <string>
 
-#include "cinnrt/host_context/kernel_frame.h"
-#include "cinnrt/host_context/kernel_registry.h"
-#include "cinnrt/host_context/mlir_function_executable.h"
-#include "cinnrt/host_context/symbol_table.h"
+#include "infrt/host_context/kernel_frame.h"
+#include "infrt/host_context/kernel_registry.h"
+#include "infrt/host_context/mlir_function_executable.h"
+#include "infrt/host_context/symbol_table.h"
 
-namespace cinnrt::host_context {
+namespace infrt::host_context {
 
 struct OpExecutable::Impl {
   Impl(absl::string_view op_name, SymbolTable* symbol_table, KernelRegistry* kernel_registry)
@@ -119,4 +119,4 @@ void OpExecutable::Execute() {
 
 OpExecutable::~OpExecutable() {}
 
-}  // namespace cinnrt::host_context
+}  // namespace infrt::host_context

@@ -1,8 +1,8 @@
-#include "cinnrt/paddle/scope.h"
+#include "infrt/paddle/scope.h"
 
-#include "cinnrt/common/common.h"
+#include "infrt/common/common.h"
 
-namespace cinnrt {
+namespace infrt {
 namespace paddle {
 
 _Variable* Scope::FindVar(const std::string& name) const {
@@ -27,4 +27,4 @@ std::vector<absl::string_view> Scope::var_names() const {
 }
 
 }  // namespace paddle
-}  // namespace cinnrt
+}  // namespace infrt

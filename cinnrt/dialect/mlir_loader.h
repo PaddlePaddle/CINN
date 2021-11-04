@@ -6,9 +6,9 @@
 
 #include <memory>
 
-namespace cinnrt::dialect {
+namespace infrt::dialect {
 
 mlir::OwningModuleRef LoadMlirSource(mlir::MLIRContext* context, absl::string_view mlir_source);
 mlir::OwningModuleRef LoadMlirFile(absl::string_view file_name, mlir::MLIRContext* context);
 
-}  // namespace cinnrt::dialect
+}  // namespace infrt::dialect

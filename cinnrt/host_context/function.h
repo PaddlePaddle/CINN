@@ -3,7 +3,7 @@
 
 #include <string>
 
-namespace cinnrt {
+namespace infrt {
 namespace host_context {
 
 struct Value;
@@ -43,4 +43,4 @@ class Function {
 };
 
 }  // namespace host_context
-}  // namespace cinnrt
+}  // namespace infrt

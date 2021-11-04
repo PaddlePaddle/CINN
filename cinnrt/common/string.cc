@@ -1,10 +1,10 @@
-#include "cinnrt/common/string.h"
+#include "infrt/common/string.h"
 
 #include <stdarg.h>
 
 #include <cstring>
 
-namespace cinnrt {
+namespace infrt {
 namespace cinn {
 
 std::string StringFormat(const std::string &fmt_str, ...) {
@@ -102,4 +102,4 @@ std::string TransValidVarName(std::string name) {
 }
 
 }  // namespace cinn
-}  // namespace cinnrt
+}  // namespace infrt

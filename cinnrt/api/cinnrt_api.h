@@ -2,9 +2,9 @@
 #include <string>
 #include <vector>
 
-#include "cinnrt/tensor/dense_host_tensor.h"
+#include "infrt/tensor/dense_host_tensor.h"
 
-namespace cinnrt {
+namespace infrt {
 
 class CinnRtConfig {
   std::string model_dir_;
@@ -43,4 +43,4 @@ class CinnRtPredictor {
 
 std::shared_ptr<CinnRtPredictor> CreateCinnRtPredictor(const CinnRtConfig& config);
 
-}  // namespace cinnrt
+}  // namespace infrt

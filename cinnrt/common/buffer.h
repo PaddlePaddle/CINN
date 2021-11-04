@@ -4,11 +4,11 @@
 
 #include <memory>
 
-#include "cinnrt/common/macros.h"
-#include "cinnrt/common/memory.h"
-#include "cinnrt/common/target.h"
+#include "infrt/common/macros.h"
+#include "infrt/common/memory.h"
+#include "infrt/common/target.h"
 
-namespace cinnrt {
+namespace infrt {
 
 #ifdef __cplusplus
 extern "C" {
@@ -200,7 +200,7 @@ extern struct cinn_device_interface_t* cinn_x86_device_interface();
  */
 struct Buffer final {
   Buffer() = default;
-  explicit Buffer(const cinnrt::common::Target& target) { SetTarget(target); }
+  explicit Buffer(const infrt::common::Target& target) { SetTarget(target); }
 
   //! Resize the memory hold by this buffer *exactlly* to \p size.
   void Resize(uint32_t size);
@@ -211,14 +211,14 @@ struct Buffer final {
   void ResizeLazy(uint32_t alignment, uint32_t size);
 
   //! Resize the memory to \p size in target \p target.
-  void Resize(uint32_t size, const cinnrt::common::Target& target);
-  void Resize(uint32_t alignment, uint32_t size, const cinnrt::common::Target& target);
+  void Resize(uint32_t size, const infrt::common::Target& target);
+  void Resize(uint32_t alignment, uint32_t size, const infrt::common::Target& target);
 
   //! Lazily resize the memory to \p size in target \p target.
-  void ResizeLazy(uint32_t size, const cinnrt::common::Target& target);
-  void ResizeLazy(uint32_t alignment, uint32_t size, const cinnrt::common::Target& target);
+  void ResizeLazy(uint32_t size, const infrt::common::Target& target);
+  void ResizeLazy(uint32_t alignment, uint32_t size, const infrt::common::Target& target);
 
-  void SetTarget(const cinnrt::common::Target& target);
+  void SetTarget(const infrt::common::Target& target);
 
   const cinn_buffer_t* data() const { return &data_; }
   cinn_buffer_t* data() { return &data_; }
@@ -244,7 +244,7 @@ struct Buffer final {
   cinn_buffer_t data_;
 
   //! The place where this buffer locates.
-  cinnrt::common::Target target_;
+  infrt::common::Target target_;
 
   //! Number of bytes of this buffer.
   uint32_t size_{};
@@ -253,4 +253,4 @@ struct Buffer final {
   MemoryInterface* memory_mng_cache_{};
 };
 
-}  // namespace cinnrt
+}  // namespace infrt

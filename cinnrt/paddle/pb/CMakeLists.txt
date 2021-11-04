@@ -1,6 +1,6 @@
 core_gather_headers()
 
-gather_srcs(cinnrt_src SRCS
+gather_srcs(infrt_src SRCS
     var_desc.cc
     op_desc.cc
     block_desc.cc
@@ -8,8 +8,8 @@ gather_srcs(cinnrt_src SRCS
     )
 
 foreach(cpp ${SRCS})
-  set(cinnrt_src
-    "${cinnrt_src};cinnrt/paddle/pb/${cpp}"
+  set(infrt_src
+    "${infrt_src};infrt/paddle/pb/${cpp}"
     CACHE INTERNAL "")
 endforeach()
 
