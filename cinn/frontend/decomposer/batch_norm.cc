@@ -19,6 +19,11 @@ namespace cinn {
 namespace frontend {
 namespace decomposer {
 
+template <typename T>
+static Variable GetTensorFromScalar(CinnBuilder* builder, T value, std::string name, const std::vector<int>& shape) {
+  return builder->BroadcastTo(builder->ConstScalar<T>(value, common::UniqName(name)), shape, {0});
+}
+
 void batch_norm_train(const Instruction& instr, const DecomposerContext& context) {
   CHECK_EQ(instr->inputs.size(), 5UL) << "The number of the given inputs is not equal to the required for op "
                                       << instr->op_type;
@@ -53,12 +58,6 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
     LOG(FATAL) << layout << " setting is not support!";
   }
 
-  // shape [c]
-  auto element_count_broadcast = builder->BroadcastTo(
-      builder->ConstScalar<float>(element_count, common::UniqName("element_count")), scale->shape, {0});
-  auto epsilon_broadcast =
-      builder->BroadcastTo(builder->ConstScalar<float>(epsilon, common::UniqName("epsilon")), scale->shape, {0});
-
   // batch norm train
   // mean            = reduce_mean(x)
   // mean_square     = reduce_mean(x * x)
@@ -67,19 +66,21 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   // y               = scale * (x - mean) / std_variance + bias
   // moving_mean     = moving_mean * momentum + (1.0 - momentum) * mean
   // moving_variance = moving_variance * momentum + (1.0 - momentum) * variance
+  auto element_count_1d = GetTensorFromScalar<float>(builder, element_count, "element_count_mean", scale->shape);
+  auto epsilon_1d       = GetTensorFromScalar<float>(builder, epsilon, "epsilon", scale->shape);
 
   // compute saved mean, shape = [c]
   auto sum     = builder->Reduce(x, ReduceKind::kSum, reduce_dim);
-  auto mean    = builder->Div(sum, element_count_broadcast);
+  auto mean    = builder->Div(sum, element_count_1d);
   auto mean_4d = builder->BroadcastTo(mean, x->shape, {channel_dim});
 
   // compute saved variance, shape = [c], simplified by equation: E(x^2) - [E(x)]^2
   auto x_square      = builder->Mul(x, builder->Identity(x));
   auto x_square_sum  = builder->Reduce(x_square, ReduceKind::kSum, reduce_dim);
-  auto x_square_mean = builder->Div(x_square_sum, element_count_broadcast);
+  auto x_square_mean = builder->Div(x_square_sum, element_count_1d);
 
   auto variance        = builder->Sub(x_square_mean, builder->Mul(mean, builder->Identity(mean)));
-  auto std_variance    = builder->Sqrt(builder->Add(variance, epsilon_broadcast));
+  auto std_variance    = builder->Sqrt(builder->Add(variance, epsilon_1d));
   auto std_variance_4d = builder->BroadcastTo(std_variance, x->shape, {channel_dim});
 
   // y = scale * (x - mean) / std_variance + bias
@@ -89,13 +90,12 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   auto y_nobias    = builder->Div(scaled_diff, std_variance_4d);
   auto y           = builder->Add(y_nobias, bias_4d);
 
-  // shape = [c]
-  auto factor_0 = builder->BroadcastTo(
-      builder->ConstScalar<float>(momentum, common::UniqName("factor_0")), moving_mean->shape, {0});
-  auto factor_1 = builder->BroadcastTo(
-      builder->ConstScalar<float>(1.0f - momentum, common::UniqName("factor_1")), moving_variance->shape, {0});
+  auto factor_0 = GetTensorFromScalar<float>(builder, momentum, "factor_0", moving_mean->shape);
+  auto factor_1 = GetTensorFromScalar<float>(builder, 1.0f - momentum, "factor_1", moving_mean->shape);
 
-  auto new_moving_mean     = builder->Add(builder->Mul(moving_mean, factor_0), builder->Mul(mean, factor_1));
+  // new_moving_mean, shape = [c]
+  auto new_moving_mean = builder->Add(builder->Mul(moving_mean, factor_0), builder->Mul(mean, factor_1));
+  // new_moving_variance, shape = [c]
   auto new_moving_variance = builder->Add(builder->Mul(moving_variance, factor_0), builder->Mul(variance, factor_1));
 
   // map output id
