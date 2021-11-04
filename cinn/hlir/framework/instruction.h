@@ -58,15 +58,19 @@ class Instruction {
    * Set compiled function address.
    * @param fn The JIT compiled function address.
    */
-  void SetLoweredFunc(lower_func_ptr_t fn) { fn_.push_back(fn); }
+  void SetLoweredFunc(lower_func_ptr_t fn, const std::string& name = "") {
+    fn_.push_back(fn);
+    fn_names_.push_back(name);
+  }
 
   /**
    * Run the Instruction.
    */
-  void Run(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr);
+  void Run(const std::map<std::string, cinn_pod_value_t>* name2podargs = nullptr, bool dryrun = false);
 
   std::vector<std::vector<std::string>> GetInArgs() { return in_args_; }
   std::vector<std::vector<std::string>> GetOutArgs() { return out_args_; }
+  std::vector<std::string> GetFnNames() { return fn_names_; }
   void AddInArgs(const std::vector<std::string>& in_args) { in_args_.push_back(in_args); }
   void AddOutArgs(const std::vector<std::string>& out_args) { out_args_.push_back(out_args); }
   std::vector<int> attrs;
@@ -86,6 +90,7 @@ class Instruction {
   std::vector<std::vector<cinn_pod_value_t>> args_cached_;
 
   std::vector<lower_func_ptr_t> fn_{};
+  std::vector<std::string> fn_names_;
 };
 
 }  // namespace framework

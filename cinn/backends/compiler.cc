@@ -112,6 +112,8 @@ void Compiler::CompileCudaModule(const Module& module, const std::string& code) 
 
 void Compiler::CompileX86Module(const Module& module) { engine_->Link<CodeGenX86>(module); }
 
+void Compiler::ExportObject(const std::string& path) { engine_->ExportObject(path); }
+
 lower_func_ptr_t Compiler::Lookup(absl::string_view fn_name) {
   CHECK(engine_);
   if (engine_->Lookup(fn_name) != nullptr) {

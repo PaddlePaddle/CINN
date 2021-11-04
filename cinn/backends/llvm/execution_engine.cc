@@ -169,6 +169,11 @@ void ExecutionEngine::Link(const ir::Module &module) {
     VLOG(3) << "function: " << DumpToString(f);
   }
 
+  llvm::raw_svector_ostream rawstream(buffer_);
+  llvm::legacy::PassManager pass_manager;
+  machine->addPassesToEmitFile(pass_manager, rawstream, nullptr, llvm::CGFT_ObjectFile);
+  pass_manager.run(*m);
+
   CHECK(AddModule(std::move(m), std::move(ctx)));
 
   decltype(auto) es = jit_->getExecutionSession();
@@ -197,6 +202,12 @@ bool ExecutionEngine::AddModule(std::unique_ptr<llvm::Module> module, std::uniqu
   llvm::orc::ThreadSafeModule tsm(std::move(module), std::move(tsc));
   llvm::cantFail(jit_->addIRModule(std::move(tsm)));
   return true;
+}
+
+void ExecutionEngine::ExportObject(const std::string &path) {
+  FILE *of = fopen(path.c_str(), "w");
+  fwrite(buffer_.data(), 1, buffer_.size(), of);
+  fclose(of);
 }
 
 void *ExecutionEngine::Lookup(absl::string_view name) {
