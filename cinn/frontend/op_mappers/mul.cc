@@ -26,18 +26,33 @@ void MulOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx)
   CHECK_EQ(op_desc.Input("Y").size(), 1UL);
   auto y_name = op_desc.Input("Y").front();
   auto x      = ctx.GetVar(x_name);
-  auto y      = ctx.GetVar(y_name);
+  // We replace `TransposeVar(y_name, ctx)` by reshape op and transpose op to
+  // support CINN for training because we don't operate on data during net
+  // building in training stage. Consider a better code to integrate infer
+  // and training.
+  // TransposeVar(y_name, ctx);
+  auto y = ctx.GetVar(y_name);
 
   CHECK_EQ(y->shape.size(), 2UL) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
   VLOG(4) << "input y shape: " << cinn::utils::Join(y->shape, ",");
 
+  // In origin `TransposeVar(y_name, ctx)`, it transpose the variable when
+  // not using CUDNN, else just reshape.
+  Variable tran_y;
+  if (ctx.Target().arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDNN
-  auto tran_shape = y->shape;
-  std::swap(tran_shape[0], tran_shape[1]);
-  auto tran_y = ctx.Builder()->reshape(y, tran_shape);
+    auto tran_shape = y->shape;
+    std::swap(tran_shape[0], tran_shape[1]);
+    tran_y = ctx.Builder()->reshape(y, tran_shape);
+    VLOG(4) << "Run with CUDNN and reshape y to" << cinn::utils::Join(tran_y->shape, ",");
 #else
-  auto tran_y = ctx.Builder()->transpose(y, {1, 0});
+    tran_y = ctx.Builder()->transpose(y, {1, 0});
+    VLOG(4) << "Run Not with CUDNN and transpose y to" << cinn::utils::Join(tran_y->shape, ",");
 #endif
+  } else {
+    tran_y = ctx.Builder()->transpose(y, {1, 0});
+    VLOG(4) << "Run Not with CUDNN and transpose y to" << cinn::utils::Join(tran_y->shape, ",");
+  }
 
   auto x_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "x_num_col_dims", 1);
   auto y_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "y_num_col_dims", 1);
@@ -62,19 +77,34 @@ void MulBiasOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& 
   auto z_name = op_desc.Input("Z").front();
 
   auto x = ctx.GetVar(x_name);
+  // We replace `TransposeVar(y_name, ctx)` by reshape op and transpose op to
+  // support CINN for training because we don't operate on data during net
+  // building in training stage. Consider a better code to integrate infer
+  // and training.
+  // TransposeVar(y_name, ctx);
   auto y = ctx.GetVar(y_name);
   auto z = ctx.GetVar(z_name);
 
   CHECK_EQ(y->shape.size(), 2UL) << "The y data's shape size of op [mul] is not equal to 2! Please check.";
   VLOG(4) << "input y shape: " << cinn::utils::Join(y->shape, ",");
 
+  // In origin `TransposeVar(y_name, ctx)`, it transpose the variable when
+  // not using CUDNN, else just reshape.
+  Variable tran_y;
+  if (ctx.Target().arch == Target::Arch::NVGPU) {
 #ifdef CINN_WITH_CUDNN
-  auto tran_shape = y->shape;
-  std::swap(tran_shape[0], tran_shape[1]);
-  auto tran_y = ctx.Builder()->reshape(y, tran_shape);
+    auto tran_shape = y->shape;
+    std::swap(tran_shape[0], tran_shape[1]);
+    tran_y = ctx.Builder()->reshape(y, tran_shape);
+    VLOG(4) << "Run with CUDNN and reshape y to" << cinn::utils::Join(tran_y->shape, ",");
 #else
-  auto tran_y = ctx.Builder()->transpose(y, {1, 0});
+    tran_y = ctx.Builder()->transpose(y, {1, 0});
+    VLOG(4) << "Run Not with CUDNN and transpose y to" << cinn::utils::Join(tran_y->shape, ",");
 #endif
+  } else {
+    tran_y = ctx.Builder()->transpose(y, {1, 0});
+    VLOG(4) << "Run Not with CUDNN and transpose y to" << cinn::utils::Join(tran_y->shape, ",");
+  }
 
   auto x_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "x_num_col_dims", 1);
   auto y_num_col_dims = utils::GetAttrOrDefault<int>(op_desc, "y_num_col_dims", 1);
