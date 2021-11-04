@@ -1,9 +1,10 @@
+#include "infrt/api/infrt_api.h"
+
 #include <gtest/gtest.h>
 
 #include <iostream>
 #include <vector>
 
-#include "infrt/api/infrt_api.h"
 #include "infrt/common/buffer.h"
 #include "infrt/common/dtype.h"
 #include "llvm/Support/raw_ostream.h"

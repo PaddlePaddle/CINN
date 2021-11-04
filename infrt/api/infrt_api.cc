@@ -1,3 +1,5 @@
+#include "infrt/api/infrt_api.h"
+
 #include <absl/container/flat_hash_map.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/DynamicLibrary.h>
@@ -6,7 +8,6 @@
 
 #include <vector>
 
-#include "infrt/api/infrt_api.h"
 #include "infrt/common/global.h"
 #include "infrt/dialect/dense_tensor.h"
 #include "infrt/dialect/mlir_loader.h"
