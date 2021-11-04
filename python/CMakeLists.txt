@@ -47,7 +47,7 @@ ADD_TEST(NAME test_cinn_frontend
 
 ADD_TEST(NAME test_netbuilder
     COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_netbuilder.py "${WITH_CUDA}"
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_netbuilder.py "${WITH_CUDA}" "${WITH_CUDNN}"
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 

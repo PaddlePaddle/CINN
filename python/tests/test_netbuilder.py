@@ -29,6 +29,7 @@ import numpy as np
 import paddle.fluid as fluid
 import sys
 
+enable_cudnn = sys.argv.pop()
 enable_gpu = sys.argv.pop()
 
 
@@ -94,6 +95,33 @@ class TestNetBuilder(unittest.TestCase):
         result = result[0].numpy(self.target).reshape(-1)
         tensor_data.append(result)
         self.paddle_verify_basic(tensor_data)
+
+    def test_mul(self):
+        builder = NetBuilder("test_basic")
+        a = builder.create_input(Float(32), (16, 64), "A")
+        b = builder.create_input(Float(32), (16, 64), "B")
+        c = builder.mul(a, b)
+        prog = builder.build()
+        self.assertEqual(prog.size(), 1)
+        # print program
+        for i in range(prog.size()):
+            print(prog[i])
+        tensor_data = [
+            np.random.random([16, 64]).astype("float32"),
+            np.random.random([16, 64]).astype("float32")
+        ]
+        result = prog.build_and_get_output(self.target, [a, b], tensor_data,
+                                           [c])
+        result = result[0].numpy(self.target)
+
+        #numpy mul need transpose before
+        if enable_gpu == "OFF":
+            tensor_data[1] = np.transpose(tensor_data[1])
+        elif enable_cudnn == "OFF":
+            tensor_data[1] = np.transpose(tensor_data[1])
+        tensor_data[1] = tensor_data[1].reshape(64, 16)
+        c_np = np.matmul(tensor_data[0], tensor_data[1])
+        self.assertTrue(np.allclose(result, c_np, atol=1e-5))
 
 
 if __name__ == "__main__":
