@@ -75,8 +75,6 @@ class NetBuilder : public BaseBuilder {
 
   Variable relu6(const Variable& a, float threshold = 6.0f);
 
-  Variable reverse(const Variable& x, const std::vector<int>& axis);
-
   /**
    * This API reverses the Variable x along the given axis.
    * Example 1: x = [[0, 1], [2, 3], [4, 5]], axis = [0]
