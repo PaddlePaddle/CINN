@@ -33,6 +33,22 @@
 namespace cinn {
 namespace frontend {
 
+namespace paddle {
+// NOTE: Please Ensure the GradVarName function's definition is the
+// same as Paddle's!!! The definition ref to
+// https://github.com/PaddlePaddle/Paddle/blob/develop/paddle/fluid/framework/operator.h#L97
+inline std::string GradVarName(const std::string& var_name) {
+  constexpr char kGradVarSuffix[]     = "@GRAD";
+  constexpr size_t kGradVarSuffixSize = 5U;
+
+  std::string result;
+  result.reserve(var_name.size() + kGradVarSuffixSize);
+  result += var_name;
+  result += kGradVarSuffix;
+  return result;
+}
+}  // namespace paddle
+
 class OpMapperContext {
  public:
   OpMapperContext(const hlir::framework::Scope& scope,
