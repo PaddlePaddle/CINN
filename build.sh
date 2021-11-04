@@ -22,7 +22,6 @@ build_dir=$workspace/${build_dir_name}
 #export LLVM11_DIR=${workspace}/THIRDS/usr
 
 JOBS=8
-
 cuda_config=OFF
 cudnn_config=OFF
 
