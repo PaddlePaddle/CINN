@@ -18,12 +18,13 @@
 #include "cinn/common/type.h"
 #include "cinn/frontend/op_mapper_registry.h"
 #include "cinn/frontend/paddle/cpp/desc_api.h"
+#include "cinn/frontend/paddle/cpp/var_desc.h"
 
 namespace cinn {
 namespace frontend {
 namespace utils {
 
-common::Type CppVarType2CommonType(paddle::cpp::VarDescAPI::Type type) {
+inline common::Type CppVarType2CommonType(paddle::cpp::VarDescAPI::Type type) {
 #define SET_TYPE_CASE_ITEM(v_type, c_type)    \
   case paddle::cpp::VarDescAPI::Type::v_type: \
     return common::c_type();                  \
@@ -47,7 +48,7 @@ common::Type CppVarType2CommonType(paddle::cpp::VarDescAPI::Type type) {
   return common::Void();
 }
 
-OpMapperContext::FeedInfo GetFeedInfoFromDesc(const paddle::cpp::VarDesc& desc) {
+inline OpMapperContext::FeedInfo GetFeedInfoFromDesc(const paddle::cpp::VarDesc& desc) {
   OpMapperContext::FeedInfo info;
   for (auto num : desc.GetShape()) {
     info.shape.emplace_back(static_cast<int>(num));
