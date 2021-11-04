@@ -45,13 +45,17 @@ void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
   auto mean        = ctx.GetVar(mean_name);
   auto variance    = ctx.GetVar(variance_name);
 
-  auto is_test = utils::GetAttrOrDefault<bool>(op_desc, "is_test", false);
+  auto is_test         = utils::GetAttrOrDefault<bool>(op_desc, "is_test", false);
+  auto trainable_stats = utils::GetAttrOrDefault<bool>(op_desc, "trainable_statistics", false);
+  bool test_mode       = is_test && (!trainable_stats);
 
   std::vector<std::string> output_names;
-  if (is_test) {
+  if (test_mode) {
     output_names = {"Y"};
+    VLOG(4) << "Invoke batch_norm OpMapper with test mode";
   } else {
     output_names = {"Y", "MeanOut", "VarianceOut", "SavedMean", "SavedVariance"};
+    VLOG(4) << "Invoke batch_norm OpMapper with train mode";
   }
 
   auto outs = ctx.Builder()->batchnorm(x, scale, bias, mean, variance, epsilon, momentum, data_layout, is_test);
@@ -59,7 +63,16 @@ void BatchnormOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext
 
   for (int i = 0; i < outs.size(); i++) {
     auto out_name = get_output_name(output_names[i]);
-    ctx.AddVar(out_name, outs[i]);
+
+    bool replace_old_var = false;
+    if (output_names[i] == "MeanOut" || output_names[i] == "VarianceOut") {
+      // For batch_norm train, the MeanOut and VarianceOut share memory with Mean,
+      // so that its name is the same as the input Mean and Variance,
+      // Which means we need agree the out var replace the input var.
+      replace_old_var = true;
+    }
+
+    ctx.AddVar(out_name, outs[i], replace_old_var);
     ctx.AddVarModelToProgram(out_name, outs[i]->id);
   }
 }
@@ -86,20 +99,15 @@ void BatchNormGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   auto epsilon     = utils::GetAttrOrDefault<float>(op_desc, "epsilon", 1e-5f);
 
   // batch norm grad, output(grad_x, grad_scale, grad_bias)
-  auto out_vec = ctx.Builder()->batch_norm_grad(dy, x, scale, saved_mean, saved_variance, epsilon, data_layout);
-  CHECK_EQ(out_vec.size(), 3ul) << "batch_norm_grad API's should return 3 Variable!";
+  auto outs = ctx.Builder()->batch_norm_grad(dy, x, scale, saved_mean, saved_variance, epsilon, data_layout);
+  CHECK_EQ(outs.size(), 3ul) << "batch_norm_grad API's should return 3 Variable!";
 
-  auto dx_name = get_output_name(paddle::GradVarName("X"));
-  ctx.AddVar(dx_name, out_vec[0]);
-  ctx.AddVarModelToProgram(dx_name, out_vec[0]->id);
-
-  auto dscale_name = get_output_name(paddle::GradVarName("Scale"));
-  ctx.AddVar(dscale_name, out_vec[1]);
-  ctx.AddVarModelToProgram(dscale_name, out_vec[1]->id);
-
-  auto dbias_name = get_output_name(paddle::GradVarName("Bias"));
-  ctx.AddVar(dbias_name, out_vec[2]);
-  ctx.AddVarModelToProgram(dbias_name, out_vec[2]->id);
+  std::vector<std::string> output_names = {"X", "Scale", "Bias"};
+  for (int i = 0; i < outs.size(); i++) {
+    auto out_name = get_output_name(output_names[i]);
+    ctx.AddVar(out_name, outs[i]);
+    ctx.AddVarModelToProgram(out_name, outs[i]->id);
+  }
 }
 
 }  // namespace op_mappers

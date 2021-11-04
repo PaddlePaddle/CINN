@@ -123,7 +123,7 @@ class NetBuilder : public BaseBuilder {
                                   float epsilon                  = 1e-5f,
                                   float momentum                 = 0.9f,
                                   const std::string& data_layout = "NCHW",
-                                  bool is_test                   = true);
+                                  bool is_test                   = false);
 
   // batch norm grad, output(grad_x, grad_scale, grad_bias)
   std::vector<Variable> batch_norm_grad(const Variable& dy,
