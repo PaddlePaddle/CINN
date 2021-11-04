@@ -73,7 +73,7 @@ std::shared_ptr<OpStrategy> StrategyForReduce(const framework::NodeAttr &attrs,
 
     // if do reduce on last axis and reduce axis size > 1.
     // two step to do reduce: 1.[n,c,h,w] -> [c,w]; 2.[c,w] -> [c]
-    if (dim.back() == inputs[0]->shape.size() - 1 && dim.size() > 1) {
+    if (dim.back() == inputs[0]->shape.size() - 1 && dim.size() > 1 && target == common::DefaultNVGPUTarget()) {
       // do reduce parallel on last dimension
       std::vector<int> dim0(dim.begin(), --dim.end());
       auto out0 = pe_func(A, dim0, keep_dim, Expr(), UniqName(op_name + "_out0"));
@@ -192,6 +192,7 @@ std::vector<shape_t> InferShapeForReduction(const std::vector<shape_t> &inputs_s
   if (attrs.find("dim") != attrs.end()) {
     dim = absl::get<std::vector<int>>(attrs.at("dim"));
   }
+
   if (attrs.find("keep_dim") != attrs.end()) {
     keep_dim = absl::get<bool>(attrs.at("keep_dim"));
   }
