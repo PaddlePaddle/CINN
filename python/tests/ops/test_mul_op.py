@@ -40,16 +40,9 @@ class TestMulOp(OpTest):
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
         y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
-        out = paddle.fluid.layers.mul(x, y)
-        print("X is :", x)
-        print("Y is :", y)
-        yy = self.inputs["y"].reshape(-1)
-        print("yy is ", yy)
-        print("Out is :", out)
+        out = paddle.matmul(x, y)
         self.paddle_outputs = [out]
 
-    # Note: If the forward and backward operators are run in the same program,
-    # the forward result will be incorrect.
     def build_cinn_program(self, target):
         builder = NetBuilder("mul")
 

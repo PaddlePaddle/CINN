@@ -134,6 +134,7 @@ foreach(op_test_name ${CINN_OP_TEST})
     string(REGEX REPLACE ".py" "" op_test_name ${op_test_name})
     ADD_TEST(NAME ${op_test_name}
         COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-        python3 ${CMAKE_CURRENT_SOURCE_DIR}/${op_test_name}.py WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/${op_test_name}.py
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endforeach()
