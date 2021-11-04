@@ -216,7 +216,8 @@ void RunAndCheck(NetBuilder& builder,
                  const std::vector<std::string>& input_names,
                  const std::vector<std::string>& output_names,
                  const std::vector<std::vector<int>>& output_shapes,
-                 CPUKernelFunc cpu_kernel_func) {
+                 CPUKernelFunc cpu_kernel_func,
+                 double max_relative_error = 1e-5) {
   std::vector<std::vector<T>> input_vecs;
   std::vector<std::vector<T>> output_vecs;
   RunAndCheckShape<T>(builder, input_names, output_names, output_shapes, &input_vecs, &output_vecs);
@@ -226,7 +227,7 @@ void RunAndCheck(NetBuilder& builder,
 
   for (size_t i = 0; i < output_vecs.size(); ++i) {
     LOG(INFO) << "Check the " << i << "-th output, name=" << output_names[i] << ", shape=" << output_shapes[i];
-    CheckOutput<T>(output_vecs[i], output_refs[i]);
+    CheckOutput<T>(output_vecs[i], output_refs[i], max_relative_error);
   }
 }
 
