@@ -36,13 +36,14 @@ class TestBatchNormOp(OpTest):
             "moving_mean": random(self.param_shape, self.dtype),
             "moving_variance": random(self.param_shape, self.dtype),
         }
+        self.epsilon = 1e-05
+        self.momentum = 0.9
+        self.is_test = False
 
     def config(self):
         self.dtype = "float32"
         self.x_shape = [16, 32, 16, 16]
         self.param_shape = [32]
-        self.epsilon = 1e-05
-        self.momentum = 0.9
         self.data_format = "NCHW"
 
     def build_paddle_program(self):
@@ -71,7 +72,7 @@ class TestBatchNormOp(OpTest):
             bias=bias,
             epsilon=self.epsilon,
             momentum=self.momentum,
-            training=True,
+            training=not self.is_test,
             data_format=self.data_format)
 
         # Cannot get save_mean and save_variance of paddle.
@@ -88,9 +89,8 @@ class TestBatchNormOp(OpTest):
             Float(32), self.inputs["moving_mean"].shape, "moving_mean")
         variance = builder.create_input(
             Float(32), self.inputs["moving_variance"].shape, "moving_variance")
-        outs = builder.batch_norm_train(x, scale, bias, mean, variance,
-                                        self.epsilon, self.momentum,
-                                        self.data_format)
+        outs = builder.batchnorm(x, scale, bias, mean, variance, self.epsilon,
+                                 self.momentum, self.data_format, self.is_test)
         prog = builder.build()
         forward_res = self.get_cinn_output(
             prog, target, [x, scale, bias, mean, variance], [

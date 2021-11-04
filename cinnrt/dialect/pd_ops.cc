@@ -17,16 +17,13 @@ PaddleDialect::PaddleDialect(MLIRContext *context) : Dialect("pd", context, Type
 #include "cinnrt/dialect/pd_ops.cpp.inc"
       >();
 #undef GET_OP_LIST
-
-  // Support unknown operations because not all Paddle operations are registered.
-  // allowUnknownOperations();
 }
 
 mlir::Operation *PaddleDialect::materializeConstant(mlir::OpBuilder &builder,
                                                     mlir::Attribute value,
                                                     mlir::Type type,
                                                     mlir::Location loc) {
-  return builder.create<ConstantOp>(loc, type, value.cast<mlir::ElementsAttr>());
+  return builder.create<ConstantOp>(loc, value);
 }
 
 #define GET_OP_CLASSES
@@ -36,11 +33,10 @@ mlir::Operation *PaddleDialect::materializeConstant(mlir::OpBuilder &builder,
 #include "cinnrt/dialect/rewrite.hpp.inc"
 
 void ConstantOp::build(OpBuilder &builder, OperationState &state, Attribute value) {
-  ShapedType type;
   if (auto elem_attr = value.dyn_cast<ElementsAttr>()) {
     return ConstantOp::build(builder, state, elem_attr);
   } else if (value.isa<BoolAttr, FloatAttr, IntegerAttr>()) {
-    type = RankedTensorType::get(/*shape=*/{}, value.getType());
+    ShapedType type = RankedTensorType::get(/*shape=*/{}, value.getType());
     state.addAttribute("value", DenseElementsAttr::get(type, value));
     state.addTypes(type);
     return;
@@ -48,11 +44,15 @@ void ConstantOp::build(OpBuilder &builder, OperationState &state, Attribute valu
   llvm_unreachable("unsupported attribute type for building pd.constant");
 }
 
-void ConstantOp::build(OpBuilder &builder, OperationState &state, Type type, Attribute value) {
-  state.addAttribute("value", value);
-  state.addTypes(type);
+LogicalResult ConstantOp::inferReturnTypes(MLIRContext *context,
+                                           Optional<Location> location,
+                                           ValueRange operands,
+                                           DictionaryAttr attributes,
+                                           RegionRange regions,
+                                           SmallVectorImpl<Type> &inferredReturnTypes) {
+  inferredReturnTypes.push_back(attributes.get("value").getType());
+  return success();
 }
-
 ::mlir::OpFoldResult ConstantOp::fold(::llvm::ArrayRef<::mlir::Attribute> operands) { return value(); }
 
 LogicalResult ElementwiseAdd::inferReturnTypes(MLIRContext *context,

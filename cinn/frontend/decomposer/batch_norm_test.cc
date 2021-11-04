@@ -147,6 +147,7 @@ TEST(Decomposer, BatchNormTrain) {
   float epsilon           = 1e-5;
   float momentum          = 0.9f;
   std::string data_layout = "NCHW";
+  bool is_test            = false;
   NetBuilder net_builder("batch_norm_train");
   std::vector<std::string> output_names;
   {
@@ -157,7 +158,7 @@ TEST(Decomposer, BatchNormTrain) {
     auto moving_variance = net_builder.CreateInput(Float(32), {c}, "moving_variance");
 
     auto outputs =
-        net_builder.batch_norm_train(x, scale, bias, moving_mean, moving_variance, epsilon, momentum, data_layout);
+        net_builder.batchnorm(x, scale, bias, moving_mean, moving_variance, epsilon, momentum, data_layout, is_test);
     for (auto output : outputs) {
       output_names.push_back(output->id);
     }

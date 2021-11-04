@@ -66,7 +66,7 @@ void batch_norm_train(const Instruction& instr, const DecomposerContext& context
   // y               = scale * (x - mean) / std_variance + bias
   // moving_mean     = moving_mean * momentum + (1.0 - momentum) * mean
   // moving_variance = moving_variance * momentum + (1.0 - momentum) * variance
-  auto element_count_1d = GetTensorFromScalar<float>(builder, element_count, "element_count_mean", scale->shape);
+  auto element_count_1d = GetTensorFromScalar<float>(builder, element_count, "element_count", scale->shape);
   auto epsilon_1d       = GetTensorFromScalar<float>(builder, epsilon, "epsilon", scale->shape);
 
   // compute saved mean, shape = [c]
@@ -164,7 +164,7 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
 
   // std_norm = (x - saved_mean) / std_variance
   // scale_grad = y_grad * std_norm, shape = [c]
-  auto epsilon_1d = builder->BroadcastTo(builder->ConstScalar(epsilon, common::UniqName("epsilon")), scale->shape, {0});
+  auto epsilon_1d      = GetTensorFromScalar<float>(builder, epsilon, "epsilon", scale->shape);
   auto variance_1d     = builder->Add(save_variance, epsilon_1d);
   auto variance_4d     = builder->BroadcastTo(variance_1d, x->shape, {channel_dim});
   auto std_variance_1d = builder->Sqrt(variance_1d);
@@ -191,9 +191,8 @@ void batch_norm_grad(const Instruction& instr, const DecomposerContext& context)
   auto variance_grad_1d_without_mul = builder->Div(std_variance_grad_1d, std_variance_1d);
 
   // x_grad_0 = (variance_grad_1d_without_mul * 0.5 / element_count) * 2 * x
-  auto element_count_1d =
-      builder->BroadcastTo(builder->ConstScalar(element_count, common::UniqName("element_count")), scale->shape, {0});
-  auto x_grad_0 = builder->Mul(
+  auto element_count_1d = GetTensorFromScalar<float>(builder, element_count, "element_count", scale->shape);
+  auto x_grad_0         = builder->Mul(
       x, builder->BroadcastTo(builder->Div(variance_grad_1d_without_mul, element_count_1d), x->shape, {channel_dim}));
 
   // -1.0 * mean_grad = ((-1.0 * reduce(x_mean_diff_grad)) + (-1.0 * variance_grad_1d_without_mul * 0.5 * 2 * mean)) /
