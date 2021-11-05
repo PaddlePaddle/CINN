@@ -19,7 +19,10 @@
 
 #include "cinn/backends/extern_func_jit_register.h"
 #include "cinn/backends/function_prototype.h"
+
+#ifdef CINN_WITH_MKL_CBLAS
 #include "cinn/runtime/cpu/mkl_math.h"
+#endif
 
 extern "C" {
 

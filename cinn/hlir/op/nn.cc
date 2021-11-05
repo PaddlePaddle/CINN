@@ -149,6 +149,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   int groups              = 1;
   std::string key         = "";
   std::string conv_type   = "";
+  bool use_mkldnn         = false;
   if (attrs.attr_store.find("padding") != attrs.attr_store.end()) {
     padding = absl::get<std::vector<int>>(attrs.attr_store.at("padding"));
   }
@@ -163,6 +164,9 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
   }
   if (attrs.attr_store.find("groups") != attrs.attr_store.end()) {
     groups = absl::get<int>(attrs.attr_store.at("groups"));
+  }
+  if (attrs.attr_store.find("use_mkldnn") != attrs.attr_store.end()) {
+    use_mkldnn = absl::get<bool>(attrs.attr_store.at("use_mkldnn"));
   }
   if (attrs.attr_store.find("key") != attrs.attr_store.end()) {
     key = absl::get<std::string>(attrs.attr_store.at("key"));
@@ -191,17 +195,12 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
     CHECK_EQ(stride.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
     CHECK_EQ(dilation.size(), 2) << "The size of stride in conv2d op is not 2! Please check.";
     std::vector<ir::Tensor> out;
-    bool use_mkldnn = false;
-#ifdef CINN_WITH_MKLDNN
-    use_mkldnn = true;
-#endif
-    use_mkldnn = use_mkldnn && target.arch == Target::Arch::X86;
     VLOG(3) << "input shape: " << utils::Join(A.as_tensor_ref()->shape, ", ");
     VLOG(3) << "weight shape: " << utils::Join(B.as_tensor_ref()->shape, ", ");
     if (data_format == "NCHW") {
       // A is input: [N, C, H, W], B is filter: [C_out, C_in/group, filter_h, filter_w]
       if (target.arch == Target::Arch::X86) {
-        if (groups == 1) {
+        if (groups == 1 && !use_mkldnn) {
           out = pe::Conv2d_NCHW_5D(A.as_tensor_ref(),
                                    B.as_tensor_ref(),
                                    padding[0],
@@ -214,6 +213,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                    UniqName("Conv2d_nchw_5d_out"),
                                    target);
         } else {
+#ifdef CINN_WITH_MKLDNN
           out = pe::Conv2d_NCHW_MKLDNN(A.as_tensor_ref(),
                                        B.as_tensor_ref(),
                                        padding[0],
@@ -222,7 +222,19 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                        stride[1],
                                        dilation[0],
                                        dilation[1],
-                                       UniqName("Conv2d_nhwc_out"));
+                                       UniqName("Conv2d_nchw_mkldnn_out"));
+#else
+          out = pe::Conv2d_NCHW_5D(A.as_tensor_ref(),
+                                   B.as_tensor_ref(),
+                                   padding[0],
+                                   padding[1],
+                                   stride[0],
+                                   stride[1],
+                                   dilation[0],
+                                   dilation[1],
+                                   key,
+                                   UniqName("Conv2d_nchw_5D_out"));
+#endif
         }
       } else {
         if (conv_type == "forward") {
@@ -234,7 +246,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
                                 stride[1],
                                 dilation[0],
                                 dilation[1],
-                                UniqName("Conv2d_nhwc_out"));
+                                UniqName("Conv2d_nchw_out"));
           out.push_back(B.as_tensor_ref());
         } else {
 #ifdef CINN_WITH_CUDNN
@@ -303,6 +315,7 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
       arg_pack[1] = Expr(input_t);
       arg_pack[2] = Expr(weights_t);
       *ret        = CINNValuePack{{arg_pack[0], CINNValue(stages)}};
+      return;
     } else if (target.arch == Target::Arch::X86) {
       if (arg_pack.size() == 6UL) {
         Expr res              = arg_pack[0];
@@ -322,32 +335,42 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
         ir::Tensor packed_out_tensor = packed_out.as_tensor_ref();
         bool do_padding              = (padding[0] == 0 && padding[1] == 0) ? false : true;
 
-        if (is_1x1) {
-          pe::Conv2d_NCHWc_1X1_Schedule_CPU(stages,
-                                            res.as_tensor_ref(),
-                                            packed_out_tensor,
-                                            input_pad.as_tensor_ref(),
-                                            weights_dilation.as_tensor_ref(),
-                                            data.as_tensor_ref(),
-                                            target,
-                                            key,
-                                            do_padding);
+        if (groups == 1) {
+          if (is_1x1) {
+            pe::Conv2d_NCHWc_1X1_Schedule_CPU(stages,
+                                              res.as_tensor_ref(),
+                                              packed_out_tensor,
+                                              input_pad.as_tensor_ref(),
+                                              weights_dilation.as_tensor_ref(),
+                                              data.as_tensor_ref(),
+                                              target,
+                                              key,
+                                              do_padding);
+          } else {
+            pe::Conv2d_NCHWc_Schedule_CPU(stages,
+                                          res.as_tensor_ref(),
+                                          packed_out_tensor,
+                                          input_pad.as_tensor_ref(),
+                                          weights_dilation.as_tensor_ref(),
+                                          data.as_tensor_ref(),
+                                          target,
+                                          key,
+                                          do_padding);
+          }
+          if (do_padding) {
+            *ret = CINNValuePack{
+                {CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], arg_pack[3], CINNValue(stages)}};
+          } else {
+            *ret = CINNValuePack{{CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], CINNValue(stages)}};
+          }
+          return;
         } else {
-          pe::Conv2d_NCHWc_Schedule_CPU(stages,
-                                        res.as_tensor_ref(),
-                                        packed_out_tensor,
-                                        input_pad.as_tensor_ref(),
-                                        weights_dilation.as_tensor_ref(),
-                                        data.as_tensor_ref(),
-                                        target,
-                                        key,
-                                        do_padding);
-        }
-        if (do_padding) {
-          *ret = CINNValuePack{
-              {CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], arg_pack[3], CINNValue(stages)}};
-        } else {
-          *ret = CINNValuePack{{CINNValue(res), CINNValue(packed_out_tensor), arg_pack[2], CINNValue(stages)}};
+          // todo: opt group_conv schedule
+          VLOG(3) << "use simple group convolution schedule";
+          stages[input_pad.as_tensor_ref()]->ComputeInline();
+          stages[weights_dilation.as_tensor_ref()]->ComputeInline();
+          stages[data.as_tensor_ref()]->ComputeInline();
+          *ret = CINNValuePack{{arg_pack[0], CINNValue(packed_out_tensor), CINNValue(stages)}};
         }
         return;
       } else if (arg_pack.size() == 4UL) {
@@ -358,12 +381,10 @@ std::shared_ptr<OpStrategy> StrategyForConv2d(const framework::NodeAttr &attrs,
         CHECK(weights_dilation.as_tensor());
         stages[weights_dilation.as_tensor_ref()]->ComputeInline();
         *ret = CINNValuePack{{arg_pack[0], CINNValue(stages)}};
-      } else {
-        *ret = arg_pack;
+        return;
       }
-    } else {
-      *ret = arg_pack;
     }
+    *ret = arg_pack;
   });
 
   auto strategy = std::make_shared<framework::OpStrategy>();
@@ -1528,11 +1549,13 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
                                                const std::vector<Type> &out_type,
                                                const std::vector<std::vector<int>> &output_shapes,
                                                const Target &target) {
-  int axis = -1;
-  for (auto &iter : attrs.attr_store) {
-    if (iter.first == "axis") {
-      axis = absl::get<int>(iter.second);
-    }
+  int axis        = -1;
+  bool use_mkldnn = false;
+  if (attrs.attr_store.count("axis")) {
+    axis = absl::get<int>(attrs.attr_store.at("axis"));
+  }
+  if (attrs.attr_store.count("use_mkldnn")) {
+    use_mkldnn = absl::get<bool>(attrs.attr_store.at("use_mkldnn"));
   }
   framework::CINNCompute softmax_compute([=](lang::Args args, lang::RetValue *ret) {
     CHECK(!args.empty()) << "The input arguments of softmax compute is empty! Please check.";
@@ -1547,12 +1570,15 @@ std::shared_ptr<OpStrategy> StrategyForSoftmax(const framework::NodeAttr &attrs,
       new_axis = A->shape.size() - 1;
     }
     std::vector<ir::Tensor> out;
-    bool use_mkldnn = false;
+#ifdef CINN_WITH_MKLDNN
     if (use_mkldnn) {
       out = pe::SoftmaxMKLDNN(A, new_axis, UniqName("Softmax_mkldnn_output"));
     } else {
       out = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
     }
+#else
+    out = pe::Softmax(A, new_axis, UniqName("Softmax_output"));
+#endif
     std::vector<CINNValue> res;
     for (auto &t : out) {
       stages->InsertLazily(t);

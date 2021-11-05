@@ -46,9 +46,9 @@ class OpTest(unittest.TestCase):
         self.cinn_grads = []
 
     def _init_targets(self):
-        self.targets = {"CPU": DefaultHostTarget()}
+        self.target = {"CPU": DefaultHostTarget()}
         if is_compiled_with_cuda():
-            self.targets["NVGPU"] = DefaultNVGPUTarget()
+            self.target = {"NVGPU": DefaultNVGPUTarget()}
 
     def build_paddle_program(self):
         raise Exception("Not implemented.")
@@ -90,16 +90,17 @@ class OpTest(unittest.TestCase):
 
     def check_outputs_and_grads(self, max_relative_error=1e-5):
         self.build_paddle_program()
-        for device in self.targets.keys():
-            self.build_cinn_program(self.targets[device])
-            logger.debug("============ Check Outputs ============")
-            self.check_results(device, self.paddle_outputs, self.cinn_outputs,
-                               max_relative_error)
 
-            if len(self.cinn_grads) != 0:
-                logger.debug("============ Check Grads ============")
-                self.check_results(device, self.paddle_grads, self.cinn_grads,
-                                   max_relative_error)
+        device = self.target.keys()[0]
+        self.build_cinn_program(self.target[device])
+        logger.debug("============ Check Outputs ============")
+        self.check_results(device, self.paddle_outputs, self.cinn_outputs,
+                           max_relative_error)
+
+        if len(self.cinn_grads) != 0:
+            logger.debug("============ Check Grads ============")
+            self.check_results(device, self.paddle_grads, self.cinn_grads,
+                               max_relative_error)
 
     def check_results(self, device, expect_res, actual_res,
                       max_relative_error):

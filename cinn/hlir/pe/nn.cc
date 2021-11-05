@@ -280,6 +280,7 @@ std::vector<ir::Tensor> Conv2d_NCHWc(const ir::Tensor &input,
   return {packed_out, input_pad};
 }
 
+#ifdef CINN_WITH_MKLDNN
 std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
                                            const ir::Tensor &weights,
                                            int pad_h,
@@ -325,6 +326,7 @@ std::vector<ir::Tensor> Conv2d_NCHW_MKLDNN(const ir::Tensor &input,
   out->WithBuffer(input->type());
   return {out, call};
 }
+#endif
 
 std::vector<ir::Tensor> Conv2d_NHWC(const ir::Tensor &input,
                                     const ir::Tensor &weights,
@@ -568,6 +570,7 @@ std::vector<ir::Tensor> Softmax(const ir::Tensor &A, int axis, const std::string
   return {out, temp};
 }
 
+#ifdef CINN_WITH_MKLDNN
 std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A, int axis, const std::string &output_name) {
   CHECK_LE(A->shape.size(), 4U) << "Input's dimension of mkldnn softmax op is less than 4! Please check.";
   if (axis == -1) {
@@ -596,6 +599,7 @@ std::vector<ir::Tensor> SoftmaxMKLDNN(const ir::Tensor &A, int axis, const std::
   out->WithBuffer(A->type());
   return {out, call};
 }
+#endif
 
 ir::Tensor Slice(const ir::Tensor &A,
                  const std::vector<int> &starts,

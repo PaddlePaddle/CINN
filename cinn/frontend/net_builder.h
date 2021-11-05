@@ -33,6 +33,16 @@ class NetBuilder : public BaseBuilder {
   Variable add(const Variable& a, const Variable& b);
 
   /**
+   * Reshape Variable.
+   */
+  Variable reshape(const Variable& a, const std::vector<int>& shape);
+
+  /**
+   * Transpose matrix.
+   */
+  Variable transpose(const Variable& a, const std::vector<int>& axis);
+
+  /**
    * Multiply two matrix.
    */
   Variable mul(const Variable& a, const Variable& b, int x_num_col_dims = 1, int y_num_col_dims = 1);

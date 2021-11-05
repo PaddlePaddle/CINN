@@ -37,6 +37,7 @@ ScheduleParam::ScheduleParam() {}
 ScheduleParam::~ScheduleParam() {}
 
 int GetInnerSplitter(int origin, int other_axis) {
+  if (origin <= 1) return 1;
   int two_exp = 1;
   while (origin % two_exp == 0) {
     two_exp *= 2;
@@ -56,6 +57,7 @@ int GetInnerSplitter(int origin, int other_axis) {
 }
 
 int SplitEven(int origin) {
+  if (origin <= 1) return 1;
   int res = 1;
   while (origin % res == 0 && res * res < origin) {
     res *= 2;
