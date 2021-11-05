@@ -32,8 +32,8 @@ class TestConv2dOp(OpTest):
 
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([3, 16, 224, 224]).astype("float32"),
-            "weight": np.random.random([16, 16, 5, 5]).astype("float32")
+            "x": np.random.random([1, 3, 224, 224]).astype("float32"),
+            "weight": np.random.random([64, 3, 1, 1]).astype("float32")
         }
 
     def build_paddle_program(self, target):
@@ -57,3 +57,7 @@ class TestConv2dOp(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+if __name__ == "__main__":
+    unittest.main()

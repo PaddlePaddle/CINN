@@ -402,7 +402,7 @@ TEST(Decomposer, BatchNormGrad) {
 
     LOG(INFO) << "output[" << iter.first << "], var_name=" << output.first << ", shape=" << tensor->shape().data();
     if (iter.first == "x_grad") {
-      CheckOutput<float>(data, output.second, 1e-2, true);
+      CheckOutput<float>(data, output.second, 1e-1, true);
     } else {
       CheckOutput<float>(data, output.second, 1e-5);
     }

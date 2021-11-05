@@ -96,7 +96,7 @@ endfunction()
 
 function(mlir_add_rewriter td_base)
   set(LLVM_TARGET_DEFINITIONS ${td_base}.td)
-  mlir_tablegen(${td_base}.hpp.inc -gen-rewriters "-I${CMAKE_SOURCE_DIR}/cinnrt/dialect/pass")
+  mlir_tablegen(${td_base}.hpp.inc -gen-rewriters "-I${CMAKE_SOURCE_DIR}/infrt/dialect/pass")
   add_public_tablegen_target(${td_base}_IncGen)
   add_custom_target(${td_base}_inc DEPENDS ${td_base}_IncGen)
 endfunction()
@@ -106,5 +106,5 @@ endfunction()
 # @script: path to the mlir script file
 function (cinn_exec_check name script)
   add_test(NAME ${name}
-    COMMAND sh -c "${CMAKE_BINARY_DIR}/cinnrt/host_context/cinn-exec -i ${CMAKE_CURRENT_SOURCE_DIR}/${script}| ${LLVM_PATH}/bin/FileCheck  ${CMAKE_CURRENT_SOURCE_DIR}/${script}")
+    COMMAND sh -c "${CMAKE_BINARY_DIR}/infrt/host_context/cinn-exec -i ${CMAKE_CURRENT_SOURCE_DIR}/${script}| ${LLVM_PATH}/bin/FileCheck  ${CMAKE_CURRENT_SOURCE_DIR}/${script}")
 endfunction()
