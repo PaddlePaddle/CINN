@@ -56,5 +56,5 @@ repos:
         files: \.(c|cc|cxx|cpp|cu|h|hpp|hxx|proto|py|sh)$
         exclude: |
             (?x)^(
-                cinnrt/.*
+                infrt/.*
             )$
