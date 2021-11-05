@@ -48,6 +48,14 @@ bool IsCompiledWithCUDA() {
 #endif
 }
 
+bool IsCompiledWithCUDNN() {
+#if !defined(CINN_WITH_CUDNN)
+  return false;
+#else
+  return true;
+#endif
+}
+
 void BindTarget(py::module *m) {
   py::class_<Target> target(*m, "Target");
   target.def_readwrite("os", &Target::os)
@@ -77,6 +85,7 @@ void BindTarget(py::module *m) {
   feature.value("JIT", Target::Feature::JIT).value("Debug", Target::Feature::Debug);
 
   m->def("is_compiled_with_cuda", IsCompiledWithCUDA);
+  m->def("is_compiled_with_cudnn", IsCompiledWithCUDNN);
 }
 
 void BindType(py::module *m) {
