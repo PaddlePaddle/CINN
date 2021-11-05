@@ -43,27 +43,57 @@ TEST(Decomposer, elementwise_add_grad_bcast0) {
 
 TEST(Decomposer, elementwise_add_bcast1) {
   NetBuilder builder("elementwise_add");
-  auto x   = builder.CreateInput(Float(32), {4, 1, 20, 1});
-  auto y   = builder.CreateInput(Float(32), {10, 1, 10});
+  auto x   = builder.CreateInput(Float(32), {32, 64, 32, 32});
+  auto y   = builder.CreateInput(Float(32), {64});
   auto out = builder.elementwise_add(x, y, 1);
+
+  auto add_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
+    float* x   = static_cast<float*>(ptrs[0]);
+    float* y   = static_cast<float*>(ptrs[1]);
+    float* out = static_cast<float*>(ptrs[2]);
+    for (size_t i = 0; i < 32; ++i) {
+      for (size_t j = 0; j < 64; ++j) {
+        for (size_t k = 0; k < 32 * 32; ++k) {
+          out[(i * 64 + j) * 32 * 32 + k] = x[(i * 64 + j) * 32 * 32 + k] + y[j];
+        }
+      }
+    }
+  };
 
   std::vector<std::string> input_names        = {x.id().data(), y.id().data()};
   std::vector<std::string> output_names       = {out->id};
-  std::vector<std::vector<int>> output_shapes = {{4, 10, 20, 10}};
-  RunAndCheckShape<float>(builder, input_names, output_names, output_shapes);
+  std::vector<std::vector<int>> output_shapes = {{32, 64, 32, 32}};
+  RunAndCheck<float>(builder, input_names, output_names, output_shapes, add_cpu);
 }
 
 TEST(Decomposer, elementwise_add_grad_bcast1) {
   NetBuilder builder("elementwise_add_grad");
-  auto dout      = builder.CreateInput(Float(32), {4, 10, 20, 10});
-  auto x         = builder.CreateInput(Float(32), {4, 1, 20, 1});
-  auto y         = builder.CreateInput(Float(32), {10, 1, 10});
+  auto dout      = builder.CreateInput(Float(32), {32, 64, 32, 32});
+  auto x         = builder.CreateInput(Float(32), {32, 64, 32, 32});
+  auto y         = builder.CreateInput(Float(32), {64});
   auto out_grads = builder.elementwise_add_grad(dout, x, y, 1);
+
+  auto add_grad_cpu = [](const std::vector<size_t>& lengths, const std::vector<void*>& ptrs) {
+    float* dout = static_cast<float*>(ptrs[0]);
+    float* dx   = static_cast<float*>(ptrs[1]);
+    float* dy   = static_cast<float*>(ptrs[2]);
+    for (size_t j = 0; j < 64; ++j) {
+      dy[j] = 0;
+    }
+    for (size_t i = 0; i < 32; ++i) {
+      for (size_t j = 0; j < 64; ++j) {
+        for (size_t k = 0; k < 32 * 32; ++k) {
+          dx[(i * 64 + j) * 32 * 32 + k] = dout[(i * 64 + j) * 32 * 32 + k];
+          dy[j]                          = dy[j] + dout[(i * 64 + j) * 32 * 32 + k];
+        }
+      }
+    }
+  };
 
   std::vector<std::string> input_names        = {dout.id().data()};
   std::vector<std::string> output_names       = {out_grads[0]->id, out_grads[1]->id};
-  std::vector<std::vector<int>> output_shapes = {{4, 1, 20, 1}, {10, 1, 10}};
-  RunAndCheckShape<float>(builder, input_names, output_names, output_shapes);
+  std::vector<std::vector<int>> output_shapes = {{32, 64, 32, 32}, {64}};
+  RunAndCheck<float>(builder, input_names, output_names, output_shapes, add_grad_cpu);
 }
 
 TEST(Decomposer, elementwise_add_bcast2) {
