@@ -30,6 +30,22 @@ Variable NetBuilder::add(const Variable& a, const Variable& b) {
   return instr.GetOutput(0);
 }
 
+Variable NetBuilder::reshape(const Variable& operand, const std::vector<int>& shape) {
+  Instruction instr("reshape", {operand});
+  instr.SetAttr("shape", shape);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::transpose(const Variable& operand, const std::vector<int>& axis) {
+  Instruction instr("transpose", {operand});
+  instr.SetAttr("axis", axis);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
 Variable NetBuilder::mul(const Variable& a, const Variable& b, int x_num_col_dims, int y_num_col_dims) {
   Instruction instr("mul", {a, b});
   instr.SetAttr("x_num_col_dims", x_num_col_dims);
@@ -93,6 +109,14 @@ Variable NetBuilder::relu_grad(const Variable& dout, const Variable& out) {
 Variable NetBuilder::relu6(const Variable& a, float threshold) {
   Instruction instr("relu6", {a});
   instr.SetAttr("threshold", threshold);
+  InferShape(instr);
+  AppendInstruction(instr);
+  return instr.GetOutput(0);
+}
+
+Variable NetBuilder::reverse(const Variable& x, const std::vector<int>& axis) {
+  Instruction instr("reverse", {x});
+  instr.SetAttr("axis", axis);
   InferShape(instr);
   AppendInstruction(instr);
   return instr.GetOutput(0);
@@ -168,41 +192,28 @@ Variable NetBuilder::pool2d(const Variable& a,
   return instr.GetOutput(0);
 }
 
-Variable NetBuilder::batchnorm(const Variable& a,
-                               const Variable& scale,
-                               const Variable& bias,
-                               const Variable& mean,
-                               const Variable& variance,
-                               float epsilon,
-                               float momentum,
-                               const std::string& data_layout) {
-  Instruction instr("batchnorm");
-  instr.SetInputs({a, scale, bias, mean, variance});
-  instr.SetAttr("epsilon", epsilon);
-  instr.SetAttr("momentum", momentum);
-  instr.SetAttr("data_layout", data_layout);
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutput(0);
-}
-
-// batch norm training, output{y, new_running_mean, new_running_var, save_mean, save_var}
-std::vector<Variable> NetBuilder::batch_norm_train(const Variable& x,
-                                                   const Variable& scale,
-                                                   const Variable& bias,
-                                                   const Variable& moving_mean,
-                                                   const Variable& moving_variance,
-                                                   const float epsilon,
-                                                   const float momentum,
-                                                   const std::string& data_layout) {
-  Instruction instr("batch_norm_train", {x, scale, bias, moving_mean, moving_variance});
-  instr.SetAttr("epsilon", epsilon);
-  instr.SetAttr("momentum", momentum);
-  instr.SetAttr("data_layout", data_layout);
-
-  InferShape(instr);
-  AppendInstruction(instr);
-  return instr.GetOutputs();
+std::vector<Variable> NetBuilder::batchnorm(const Variable& a,
+                                            const Variable& scale,
+                                            const Variable& bias,
+                                            const Variable& mean,
+                                            const Variable& variance,
+                                            float epsilon,
+                                            float momentum,
+                                            const std::string& data_layout,
+                                            bool is_test) {
+  std::unique_ptr<Instruction> instr;
+  if (is_test) {
+    instr = std::make_unique<Instruction>("batchnorm");
+  } else {
+    instr = std::make_unique<Instruction>("batch_norm_train");
+  }
+  instr->SetInputs({a, scale, bias, mean, variance});
+  instr->SetAttr("epsilon", epsilon);
+  instr->SetAttr("momentum", momentum);
+  instr->SetAttr("data_layout", data_layout);
+  InferShape(*instr);
+  AppendInstruction(*instr);
+  return instr->GetOutputs();
 }
 
 // batch norm grad, output(grad_x, grad_scale, grad_bias)

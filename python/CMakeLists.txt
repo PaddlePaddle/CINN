@@ -118,6 +118,12 @@ ADD_TEST(NAME test_cinn_real_facedet
 )
 
 file(GLOB CINN_OP_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/ops/test_*.py")
+set(EXCLUDE_OP test_mul_op)
+
+foreach(op_test_name ${EXCLUDE_OP})
+    list(REMOVE_ITEM CINN_OP_TEST tests/ops/${op_test_name}.py)
+endforeach()
+
 foreach(op_test_name ${CINN_OP_TEST})
     string(REGEX REPLACE ".py" "" op_test_name ${op_test_name})
     ADD_TEST(NAME ${op_test_name}

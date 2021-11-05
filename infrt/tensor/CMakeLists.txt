@@ -23,7 +23,6 @@ set(external_kernels_lib "${CMAKE_BINARY_DIR}/paddle/libexternal_kernels.so")
 message(STATUS "tensor_map_mlir: ${tensor_map_mlir}")
 message(STATUS "external_kernels_lib: ${external_kernels_lib}")
 
-
 # Disable temporarily for the external-kernel's mkldnn is outdate
 # add_test(
 #     NAME run_and_check_tensor_map
