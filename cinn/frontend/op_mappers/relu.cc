@@ -45,12 +45,29 @@ void Relu6OpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ct
   ctx.AddVarModelToProgram(out_name, out->id);
 }
 
+void ReluGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContext& ctx) {
+  CHECK_EQ(op_desc.Input(paddle::GradVarName("Out")).size(), 1UL);
+  auto dout_name = op_desc.Input(paddle::GradVarName("Out")).front();
+  CHECK_EQ(op_desc.Input("Out").size(), 1UL);
+  auto out_name = op_desc.Input("Out").front();
+  CHECK_EQ(op_desc.Output(paddle::GradVarName("X")).size(), 1UL);
+  auto dx_name = op_desc.Output(paddle::GradVarName("X")).front();
+
+  auto dout = ctx.GetVar(dout_name);
+  auto out  = ctx.GetVar(out_name);
+  auto dx   = ctx.Builder()->relu_grad(dout, out);
+
+  ctx.AddVar(dx_name, dx);
+  ctx.AddVarModelToProgram(dx_name, dx->id);
+}
+
 }  // namespace op_mappers
 }  // namespace frontend
 }  // namespace cinn
 
 CINN_REGISTER_HELPER(relu) {
   CINN_REGISTER_OP_MAPPER(relu, cinn::frontend::op_mappers::ReluOpMapper)
+  CINN_REGISTER_OP_MAPPER(relu_grad, cinn::frontend::op_mappers::ReluGradOpMapper)
   CINN_REGISTER_OP_MAPPER(relu6, cinn::frontend::op_mappers::Relu6OpMapper)
   return true;
 }
