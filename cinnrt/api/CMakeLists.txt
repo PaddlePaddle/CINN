@@ -4,4 +4,6 @@ gather_srcs(cinnrt_src SRCS
     cinnrt_api.cc
     )
 
-cc_test(test_cinnrt_api SRCS cinnrt_api_test.cc DEPS cinnrt ${MLIR_IR_LIBS})
+if (WITH_MKL_CBLAS)
+  cc_test(test_cinnrt_api SRCS cinnrt_api_test.cc DEPS cinnrt ${MLIR_IR_LIBS})
+endif()
