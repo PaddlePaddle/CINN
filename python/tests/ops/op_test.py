@@ -39,7 +39,7 @@ class OpTest(unittest.TestCase):
         self.cinn_grads = []
 
     def init_target(self):
-        self.targets = [DefaultHostTarget()]
+        self.targets = []
         if is_compiled_with_cuda():
             self.targets.append(DefaultNVGPUTarget())
 
