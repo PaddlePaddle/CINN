@@ -120,6 +120,12 @@ ADD_TEST(NAME test_cinn_real_facedet
 file(GLOB CINN_OP_TEST RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "tests/ops/test_*.py")
 set(EXCLUDE_OP test_mul_op)
 
+ADD_TEST(NAME test_mul_op
+    COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
+    python3 ${CMAKE_CURRENT_SOURCE_DIR}/tests/ops/test_mul_op.py "${WITH_CUDNN}"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
 foreach(op_test_name ${EXCLUDE_OP})
     list(REMOVE_ITEM CINN_OP_TEST tests/ops/${op_test_name}.py)
 endforeach()
@@ -128,6 +134,7 @@ foreach(op_test_name ${CINN_OP_TEST})
     string(REGEX REPLACE ".py" "" op_test_name ${op_test_name})
     ADD_TEST(NAME ${op_test_name}
         COMMAND ${CMAKE_COMMAND} -E env PYTHONPATH=${CMAKE_BINARY_DIR}/python:$ENV{PYTHONPATH}
-        python3 ${CMAKE_CURRENT_SOURCE_DIR}/${op_test_name}.py WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        python3 ${CMAKE_CURRENT_SOURCE_DIR}/${op_test_name}.py
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     )
 endforeach()

@@ -39,9 +39,9 @@ class OpTest(unittest.TestCase):
         self.cinn_grads = []
 
     def init_target(self):
-        self.targets = [DefaultHostTarget()]
+        self.target = (DefaultHostTarget())
         if is_compiled_with_cuda():
-            self.targets.append(DefaultNVGPUTarget())
+            self.target = (DefaultNVGPUTarget())
 
     def build_paddle_program():
         raise Exception("Not implemented.")
@@ -82,15 +82,14 @@ class OpTest(unittest.TestCase):
         print_program(prog)
 
     def check_outputs_and_grads(self):
-        self.build_paddle_program(self.targets[0])
-        for target in self.targets:
-            self.build_cinn_program(target)
-            logger.debug("============ Check Outputs ============")
-            self.check_results(self.paddle_outputs, self.cinn_outputs)
+        self.build_paddle_program(self.target)
+        self.build_cinn_program(self.target)
+        logger.debug("============ Check Outputs ============")
+        self.check_results(self.paddle_outputs, self.cinn_outputs)
 
-            if len(self.cinn_grads) != 0:
-                logger.debug("============ Check Grads ============")
-                self.check_results(self.paddle_grads, self.cinn_grads)
+        if len(self.cinn_grads) != 0:
+            logger.debug("============ Check Grads ============")
+            self.check_results(self.paddle_grads, self.cinn_grads)
 
     def check_results(self, expect_res, actual_res):
         self.assertEqual(len(expect_res), len(actual_res))

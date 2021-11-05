@@ -14,46 +14,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cinn
-import numpy as np
-import paddle
 import unittest
-
+import numpy as np
+from op_test import OpTest, OpTestTool
+import paddle
+import paddle.nn.functional as F
+import cinn
 from cinn.frontend import *
 from cinn.common import *
-from op_test import OpTest, OpTestTool
+import sys
+
+enable_cudnn = sys.argv.pop()
 
 
-@OpTestTool.skip_if(not is_compiled_with_cuda(),
-                    "x86 test will be skipped due to timeout.")
-class TestConv2dOp(OpTest):
+class TestMulOp(OpTest):
     def setUp(self):
         self.init_case()
 
     def init_case(self):
         self.inputs = {
-            "x": np.random.random([1, 3, 224, 224]).astype("float32"),
-            "weight": np.random.random([64, 3, 1, 1]).astype("float32")
+            "x": np.random.random((16, 64)).astype("float32"),
+            "y": np.random.random((64, 16)).astype("float32")
         }
 
     def build_paddle_program(self, target):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
-        weight = paddle.to_tensor(self.inputs["weight"], stop_gradient=False)
-        out = paddle.nn.functional.conv2d(x, weight)
+        y = paddle.to_tensor(self.inputs["y"], stop_gradient=False)
+        out = paddle.matmul(x, y)
         self.paddle_outputs = [out]
 
     def build_cinn_program(self, target):
-        builder = NetBuilder("conv2d")
-        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
-        weight = builder.create_input(
-            Float(32), self.inputs["weight"].shape, "weight")
-        out = builder.conv2d(x, weight)
+        builder = NetBuilder("mul")
 
+        x = builder.create_input(Float(32), self.inputs["x"].shape, "x")
+
+        if enable_cudnn == "ON":
+            tran_y = self.inputs["y"].reshape(-1)
+        else:
+            tran_y = self.inputs["y"].transpose().reshape(-1)
+
+        y = builder.create_input(
+            Float(32), [self.inputs["y"].shape[1], self.inputs["y"].shape[0]],
+            "y")
+        out = builder.mul(x, y)
         prog = builder.build()
-        res = self.get_cinn_output(prog, target, [x, weight],
-                                   [self.inputs["x"], self.inputs["weight"]],
-                                   [out])
-        self.cinn_outputs = [res[0]]
+        forward_res = self.get_cinn_output(prog, target, [x, y],
+                                           [self.inputs["x"], tran_y], [out])
+
+        self.cinn_outputs = forward_res
 
     def test_check_results(self):
         self.check_outputs_and_grads()
