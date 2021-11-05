@@ -56,7 +56,7 @@ endif()
 find_package(Threads REQUIRED)
 
 set(cinnapi_src CACHE INTERNAL "" FORCE)
-set(cinnrt_src CACHE INTERNAL "" FORCE)
+set(infrt_src CACHE INTERNAL "" FORCE)
 set(core_src CACHE INTERNAL "" FORCE)
 set(core_includes CACHE INTERNAL "" FORCE)
 set(core_proto_includes CACHE INTERNAL "" FORCE)
@@ -86,7 +86,7 @@ set(global_test_args "--cinn_x86_builtin_code_root=${CMAKE_SOURCE_DIR}/cinn/back
 set(core_deps CACHE INTERNAL "" FORCE)
 set(hlir_src CACHE INTERNAL "" FORCE)
 add_subdirectory(cinn)
-add_subdirectory(cinnrt)
+add_subdirectory(infrt)
 add_subdirectory(tests)
 add_subdirectory(tutorials)
 
@@ -134,7 +134,7 @@ gen_cinncore(STATIC)
 gen_cinncore(SHARED)
 
 # MLIR td file generations
-set(cinnrt_mlir_incs
+set(infrt_mlir_incs
         ops_inc
         basic_kernels_inc
         test_kernels_inc
@@ -145,8 +145,8 @@ set(cinnrt_mlir_incs
         rewrite_inc
         )
 
-cc_library(cinnrt SRCS ${cinnrt_src} DEPS glog absl framework_proto ${mlir_libs})
-add_dependencies(cinnrt ${cinnrt_mlir_incs})
+cc_library(infrt SRCS ${infrt_src} DEPS glog absl framework_proto ${mlir_libs})
+add_dependencies(infrt ${infrt_mlir_incs})
 
 # --------distribute cinncore lib and include begin--------
 if (PUBLISH_LIBS)
