@@ -296,11 +296,11 @@ void MulScheduleCPU(poly::StageMap stages,
   // reduce_first init
   auto reduce_first_init    = reduce_first->GetInitTensor(stages, target);
   int reduce_first_init_dim = stages[reduce_first_init]->axis_names().size();
-  stages[reduce_first_init]->ComputeAt2(stages[reduce_first], reduce_first_init_dim - 2);
+  stages[reduce_first_init]->ComputeAt(stages[reduce_first], reduce_first_init_dim - 2);
   // output init
   auto out_init    = output->GetInitTensor(stages, target);
   int out_init_dim = stages[out_init]->axis_names().size();
-  stages[out_init]->ComputeAt2(stages[output], out_init_dim - 1);
+  stages[out_init]->ComputeAt(stages[output], out_init_dim - 1);
   // reduce_first
   int reduce_first_dim = stages[reduce_first]->axis_names().size();
   stages[reduce_first]->Reorder({reduce_first_dim - 1, reduce_first_dim - 2});
@@ -761,7 +761,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU(poly::StageMap stages,
   VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
 
   // CC: [batch, oh, ow, oc, ic, kh, kw] -> [batch_oc_outer_oh_outer_fused, oh_inner, ow, oc_inner, ic, kh, kw]
-  stages[CC]->ComputeAt2(stages[packed_out], 0);
+  stages[CC]->ComputeAt(stages[packed_out], 0);
   VLOG(3) << "cache write shape: " << utils::Join(CC->shape, ", ");
   // tempory solution because reorder may be wrong before ComputeAt
   // reorder: [batch_oc_outer_oh_outer_fused, oh_inner, ow_outer, ow_inner, oc_inner] ->
@@ -877,7 +877,7 @@ void Conv2d_NCHWc_1X1_Schedule_CPU_Nofuse(poly::StageMap stages,
 
   // CC: [batch, oc_outer, oh, ow, oc_inner]
   // packed_out: [batch, oc_outer, oh_outer, oh_inner, ow_outer, ow_inner, oc_inner]
-  stages[CC]->ComputeAt2(stages[packed_out], 2);
+  stages[CC]->ComputeAt(stages[packed_out], 2);
   VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
   VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // tempory solution because reordering before computeAt may be wrong
@@ -979,7 +979,7 @@ void Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
   // CC: [batch, oc_outer, oh, ow, oc_inner]
   // packed_out: [batch, oc_outer, oh, ow_outer, ow_inner, oc_inner]
   // not computeAt ow_outer but oh
-  stages[CC]->ComputeAt2(stages[packed_out], 2);
+  stages[CC]->ComputeAt(stages[packed_out], 2);
   VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
   VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
   // split ow
@@ -1084,7 +1084,7 @@ void Conv2d_NCHWc_Schedule_CPU(poly::StageMap stages,
   stages[packed_out]->Vectorize(stages[packed_out]->n_out_dims() - 1, packed_out->shape.back().as_int32());
 
   // CC
-  stages[CC]->ComputeAt2(stages[packed_out], 1);
+  stages[CC]->ComputeAt(stages[packed_out], 1);
   VLOG(3) << "cache write shape: " << utils::Join(CC->shape, ", ");
   VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
   VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
@@ -1191,7 +1191,7 @@ void Depthwise_Conv2d_NCHWc_Schedule_CPU_Nofuse(poly::StageMap stages,
 
   // CC: [batch, oc_outer, oh, ow, oc_inner]
   // packed_out: [batch, oc_outer, oh, ow_outer, ow_inner, oc_inner]
-  stages[CC]->ComputeAt2(stages[packed_out], 3);
+  stages[CC]->ComputeAt(stages[packed_out], 3);
   VLOG(3) << "stages[packed_out]->transformed_domain()" << stages[packed_out]->transformed_domain();
   VLOG(3) << "stages[CC]->transformed_domain()" << stages[CC]->transformed_domain();
 
