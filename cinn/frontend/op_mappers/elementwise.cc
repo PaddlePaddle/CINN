@@ -96,5 +96,6 @@ CINN_REGISTER_HELPER(elementwise) {
   CINN_REGISTER_OP_MAPPER(add, cinn::frontend::op_mappers::AddOpMapper)
   CINN_REGISTER_OP_MAPPER(elementwise_add, cinn::frontend::op_mappers::ElementwiseAddOpMapper)
   CINN_REGISTER_OP_MAPPER(elementwise_mul, cinn::frontend::op_mappers::ElementwiseMulOpMapper)
+  CINN_REGISTER_OP_MAPPER(sum, cinn::frontend::op_mappers::SumOpMapper)
   return true;
 }
