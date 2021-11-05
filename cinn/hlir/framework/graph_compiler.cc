@@ -153,8 +153,9 @@ int GetMasterRefNode(const std::vector<Node*>& nodes) {
   int master_index      = 0;
   int master_pattern    = op_pattern_dict[nodes[0]->op()];
   for (int i = 1; i < nodes.size(); i++) {
-    int pattern  = op_pattern_dict[nodes[i]->op()];
-    master_index = pattern >= master_pattern ? i : master_index;
+    int pattern    = op_pattern_dict[nodes[i]->op()];
+    master_index   = pattern >= master_pattern ? i : master_index;
+    master_pattern = std::max(pattern, master_pattern);
   }
   VLOG(3) << "master_index: " << master_index << ", master op: " << nodes[master_index]->op()->name;
   return master_index;
