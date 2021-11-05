@@ -50,3 +50,7 @@ class TestTransposeOp(OpTest):
 
     def test_check_results(self):
         self.check_outputs_and_grads()
+
+
+if __name__ == "__main__":
+    unittest.main()
