@@ -30,6 +30,7 @@
 #include "cinn/optim/map_extern_call.h"
 #include "cinn/optim/remove_nested_block.h"
 #include "cinn/optim/replace_const_param_to_integer.h"
+#include "cinn/optim/transform_computeat_forloop.h"
 #include "cinn/optim/transform_gpu_forloop.h"
 #include "cinn/optim/transform_polyfor_to_for.h"
 #include "cinn/optim/unroll_loops.h"
