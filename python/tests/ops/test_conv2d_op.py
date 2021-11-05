@@ -41,11 +41,16 @@ class TestConv2dOp(OpTest):
         x = paddle.to_tensor(self.inputs["x"], stop_gradient=False)
         weight = paddle.to_tensor(self.inputs["weight"], stop_gradient=False)
         dy = paddle.to_tensor(self.inputs["dy"])
-
         y = paddle.nn.functional.conv2d(x, weight)
-        paddle.autograd.backward([y], [dy], True)
 
-        self.paddle_outputs = [y.numpy(), x.grad.numpy(), weight.grad.numpy()]
+        if is_compiled_with_cudnn():
+            paddle.autograd.backward([y], [dy], True)
+            self.paddle_outputs = [
+                y.numpy(), x.grad.numpy(),
+                weight.grad.numpy()
+            ]
+        else:
+            self.paddle_outputs = [y.numpy()]
 
     def build_cinn_program(self, target):
         builder = NetBuilder("conv2d")
@@ -54,14 +59,21 @@ class TestConv2dOp(OpTest):
             Float(32), self.inputs["weight"].shape, "weight")
         dy = builder.create_input(Float(32), self.inputs["dy"].shape, "dy")
         y = builder.conv2d(x, weight)
-        x_grad, weight_grad = builder.conv2d_grad(dy, x, weight)
 
-        prog = builder.build()
-        res = self.get_cinn_output(
-            prog, target, [x, weight, dy],
-            [self.inputs["x"], self.inputs["weight"], self.inputs["dy"]],
-            [y, x_grad, weight_grad])
-        self.cinn_outputs = res
+        if is_compiled_with_cudnn():
+            x_grad, weight_grad = builder.conv2d_grad(dy, x, weight)
+            prog = builder.build()
+            res = self.get_cinn_output(
+                prog, target, [x, weight, dy],
+                [self.inputs["x"], self.inputs["weight"], self.inputs["dy"]],
+                [y, x_grad, weight_grad])
+            self.cinn_outputs = res
+        else:
+            prog = builder.build()
+            res = self.get_cinn_output(
+                prog, target, [x, weight],
+                [self.inputs["x"], self.inputs["weight"]], [y])
+            self.cinn_outputs = [res[0]]
 
     def test_check_results(self):
         self.check_outputs_and_grads()
