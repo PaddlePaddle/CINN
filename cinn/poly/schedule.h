@@ -155,7 +155,7 @@ class SchedulerBase {
    * [time,dim,time,dim,time,dim ...]
    */
   int space_size_{0};
-  mutable isl::ctx ctx_{*Context::isl_ctx()};
+  mutable isl::ctx ctx_{Context::isl_ctx()};
   mutable ScheduleGraph schedule_graph_;
   // Record the longest dimensions(of some stage) to be the final detailed dimension names. It might be used for ISL AST
   // to set iterator names and generate readable code.

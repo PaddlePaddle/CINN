@@ -69,11 +69,11 @@ class Context {
   /**
    * The global isl ctx.
    */
-  static isl::ctx* isl_ctx() { return &ctx_; }
+  static isl::ctx& isl_ctx() { return ctx_; }
 
-  static InfoRegistry* info_rgt() { return &info_rgt_; }
+  static InfoRegistry& info_rgt() { return info_rgt_; }
 
-  static DebugManager* debug_mgr() { return &debug_mgr_; }
+  static DebugManager& debug_mgr() { return debug_mgr_; }
 
  private:
   Context() = default;

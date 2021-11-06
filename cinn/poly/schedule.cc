@@ -235,7 +235,7 @@ std::map<std::string, isl::map> SchedulerBase::schedule_map() const {
   std::map<std::string, isl::map> res;
   for (auto &node : schedule_graph_.nodes()) {
     auto *schedule_node      = node->safe_as<ScheduleGraphNode>();
-    res[schedule_node->id()] = schedule_node->time_schedule.to_isl(*Context::isl_ctx());
+    res[schedule_node->id()] = schedule_node->time_schedule.to_isl(Context::isl_ctx());
   }
   return res;
 }
