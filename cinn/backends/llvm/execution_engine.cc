@@ -166,7 +166,7 @@ void ExecutionEngine::Link(const ir::Module &module) {
   optimize(m.get());
   CHECK(!llvm::verifyModule(*m, &llvm::errs())) << "Invalid optimized module detected";
   for (auto &f : *m) {
-    VLOG(3) << "function: " << DumpToString(f);
+    VLOG(5) << "function: " << DumpToString(f);
   }
 
   CHECK(AddModule(std::move(m), std::move(ctx)));

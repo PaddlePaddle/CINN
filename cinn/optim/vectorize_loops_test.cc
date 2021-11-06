@@ -91,7 +91,7 @@ void matmul(void* _args, int32_t num_args)
 
 TEST(Vectorize, TestMarkVectorize) {
   // create two forloops, check only one forloop is marked Vectorize.
-  Context::Global().info_rgt().Clear();
+  Context::info_rgt().Clear();
 
   using namespace ir;  // NOLINT
 
@@ -168,7 +168,7 @@ void matmul(const struct cinn_buffer_t *_A, const struct cinn_buffer_t *_B, stru
 }
 )ROC";
 
-  EXPECT_EQ(Context::Global().info_rgt().Get<int>("vectorized_forloop_count"), 1);
+  EXPECT_EQ(Context::info_rgt().Get<int>("vectorized_forloop_count"), 1);
 }
 
 TEST(Vectorize, vectorize) {
