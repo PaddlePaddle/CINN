@@ -73,6 +73,6 @@ endfunction()
 # @script: path to the mlir script file
 function (cinn_exec_check name script)
   add_test(NAME ${name}
-    COMMAND sh -c "${CMAKE_BINARY_DIR}/cinnrt/host_context/cinn-exec -i ${CMAKE_CURRENT_SOURCE_DIR}/${script}| FileCheck-10  ${CMAKE_CURRENT_SOURCE_DIR}/${script}")
+    COMMAND sh -c "${CMAKE_BINARY_DIR}/infrt/host_context/cinn-exec -i ${CMAKE_CURRENT_SOURCE_DIR}/${script}| FileCheck-10  ${CMAKE_CURRENT_SOURCE_DIR}/${script}")
 endfunction()
 

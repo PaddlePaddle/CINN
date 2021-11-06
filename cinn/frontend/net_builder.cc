@@ -184,10 +184,10 @@ Variable NetBuilder::pool2d(const Variable& a,
                             const std::string& padding_algorithm) {
   Instruction instr("pool2d");
   instr.SetInputs({a});
-  instr.SetAttr("pooling_type", pooling_type);
-  instr.SetAttr("ksize", ksize);
-  instr.SetAttr("strides", strides);
-  instr.SetAttr("paddings", paddings);
+  instr.SetAttr("pool_type", pooling_type);
+  instr.SetAttr("kernel_size", ksize);
+  instr.SetAttr("stride_size", strides);
+  instr.SetAttr("padding_size", paddings);
   instr.SetAttr("ceil_mode", ceil_mode);
   instr.SetAttr("exclusive", exclusive);
   instr.SetAttr("global_pooling", global_pooling);
