@@ -84,7 +84,7 @@ Expr LowerGroup(const poly::ScheduleGroup& group,
   if (stages.empty()) return Expr();
 
   // get isl generated expression
-  isl::set context(Context::Global().isl_ctx(), "{:}");
+  isl::set context(*Context::isl_ctx(), "{:}");
   poly::AstGen gen(context, stages, group);
   isl::ast_node ast = gen.Build();
   ir::Expr e;

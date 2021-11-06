@@ -99,7 +99,7 @@ void TimeSchedule::OrderAfter(const TimeSchedule &other, int level) {
 }
 
 isl::map TimeSchedule::to_isl(isl::ctx ctx) const {
-  VLOG(3) << "isl: " << __str__();
+  VLOG(4) << "isl: " << __str__();
   return isl::map(ctx, __str__());
 }
 
@@ -235,7 +235,7 @@ std::map<std::string, isl::map> SchedulerBase::schedule_map() const {
   std::map<std::string, isl::map> res;
   for (auto &node : schedule_graph_.nodes()) {
     auto *schedule_node      = node->safe_as<ScheduleGraphNode>();
-    res[schedule_node->id()] = schedule_node->time_schedule.to_isl(Context::Global().isl_ctx());
+    res[schedule_node->id()] = schedule_node->time_schedule.to_isl(*Context::isl_ctx());
   }
   return res;
 }

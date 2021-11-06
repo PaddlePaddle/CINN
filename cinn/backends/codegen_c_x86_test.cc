@@ -31,7 +31,7 @@ namespace backends {
 
 TEST(CodeGenCX86, basic) {
   // create two forloops, check only one forloop is marked Vectorize.
-  Context::Global().info_rgt().Clear();
+  Context::info_rgt()->Clear();
 
   using namespace ir;  // NOLINT
 
