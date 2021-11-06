@@ -92,18 +92,20 @@ void BatchNormGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperCon
   auto x              = get_input_var("X");
   auto dy             = get_input_var(paddle::GradVarName("Y"));
   auto scale          = get_input_var("Scale");
+  auto bias           = get_input_var("Bias");
   auto saved_mean     = get_input_var("SavedMean");
   auto saved_variance = get_input_var("SavedVariance");
 
   auto data_layout = utils::GetAttrOrDefault<std::string>(op_desc, "data_layout", "NCHW");
   auto epsilon     = utils::GetAttrOrDefault<float>(op_desc, "epsilon", 1e-5f);
 
+  ctx.Builder()->identity(bias);
+
   // batch norm grad, output(grad_x, grad_scale, grad_bias)
   auto outs = ctx.Builder()->batch_norm_grad(dy, x, scale, saved_mean, saved_variance, epsilon, data_layout);
   CHECK_EQ(outs.size(), 3ul) << "batch_norm_grad API's should return 3 Variable!";
 
-  std::vector<std::string> output_names = {
-      paddle::GradVarName("X"), paddle::GradVarName("Scale"), paddle::GradVarName("Bias")};
+  std::vector<std::string> output_names = {"X", "Scale", "Bias"};
 
   for (int i = 0; i < outs.size(); i++) {
     if (op_desc.Output(output_names[i]).empty()) {
