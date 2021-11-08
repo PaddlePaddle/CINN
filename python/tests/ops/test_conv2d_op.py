@@ -13,7 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import cinn
 import numpy as np
 import paddle
@@ -22,6 +21,9 @@ import unittest
 from cinn.frontend import *
 from cinn.common import *
 from op_test import OpTest, OpTestTool
+
+if is_compiled_with_cudnn():
+    paddle.set_flags({'FLAGS_cudnn_exhaustive_search': 1})
 
 
 @OpTestTool.skip_if(not is_compiled_with_cuda(),
