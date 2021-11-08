@@ -39,9 +39,9 @@ class OpTest(unittest.TestCase):
         self.cinn_grads = []
 
     def init_target(self):
-        self.target = (DefaultHostTarget())
+        self.target = DefaultHostTarget()
         if is_compiled_with_cuda():
-            self.target = (DefaultNVGPUTarget())
+            self.target = DefaultNVGPUTarget()
 
     def build_paddle_program():
         raise Exception("Not implemented.")

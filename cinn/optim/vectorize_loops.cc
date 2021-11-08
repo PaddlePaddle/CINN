@@ -405,7 +405,7 @@ struct VectorizeLoops_ : public IRMutator<Expr *> {
     }
     // the extent the forloops marked as Vectorized should be int constant
     if (forloop->is_vectorized()) {
-      Context::Global().info_rgt().Get<int>("vectorized_forloop_count")++;
+      Context::info_rgt().Get<int>("vectorized_forloop_count")++;
 
       CHECK(forloop->vectorize_info().valid());
 

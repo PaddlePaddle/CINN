@@ -25,8 +25,9 @@ void Buffer::Resize(uint32_t size) {
   }
 
   if (size_ != size) {
-    data_.memory = reinterpret_cast<uint8_t*>(Malloc(size));
-    size_        = size;
+    data_.memory      = reinterpret_cast<uint8_t*>(Malloc(size));
+    data_.memory_size = size;
+    size_             = size;
   }
 }
 
@@ -37,8 +38,9 @@ void Buffer::Resize(uint32_t alignment, uint32_t size) {
   }
 
   if (size_ != size) {
-    data_.memory = reinterpret_cast<uint8_t*>(AlignedAlloc(alignment, size));
-    size_        = size;
+    data_.memory      = reinterpret_cast<uint8_t*>(AlignedAlloc(alignment, size));
+    data_.memory_size = size;
+    size_             = size;
   }
 }
 
