@@ -131,6 +131,9 @@ void Conv2dGradOpMapper(const paddle::cpp::OpDesc& op_desc, const OpMapperContex
 CINN_REGISTER_HELPER(conv2d) {
   CINN_REGISTER_OP_MAPPER(conv2d, cinn::frontend::op_mappers::Conv2dOpMapper)
   CINN_REGISTER_OP_MAPPER(depthwise_conv2d, cinn::frontend::op_mappers::DepthwiseConv2dOpMapper)
+
+#ifdef CINN_WITH_CUDNN
   CINN_REGISTER_OP_MAPPER(conv2d_grad, cinn::frontend::op_mappers::Conv2dGradOpMapper)
+#endif
   return true;
 }
