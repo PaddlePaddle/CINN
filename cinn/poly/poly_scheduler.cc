@@ -335,7 +335,7 @@ std::unique_ptr<Schedule> PolyScheduler::BuildSchedule() {
 
   for (auto& group : schedule_groups_) {
     for (auto& node : group.nodes) {
-      res->schedule[node->id()] = node->time_schedule.to_isl(Context::Global().isl_ctx());
+      res->schedule[node->id()] = node->time_schedule.to_isl(Context::isl_ctx());
     }
   }
 

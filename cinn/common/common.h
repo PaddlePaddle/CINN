@@ -57,6 +57,7 @@ static void CheckVarNameValid(const absl::string_view name) {
   CHECK(!name.empty());
   CHECK(name.find(' ') == std::string::npos &&   //
         name.find('.') == std::string::npos &&   //
+        name.find('@') == std::string::npos &&   //
         name.find('/') == std::string::npos &&   //
         name.find('\t') == std::string::npos &&  //
         name.find('\n') == std::string::npos &&  //

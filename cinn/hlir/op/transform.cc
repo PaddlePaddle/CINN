@@ -944,7 +944,7 @@ std::shared_ptr<OpStrategy> StrategyForReverse(const framework::NodeAttr &attrs,
     Expr A = a[0];
     CHECK(A.as_tensor());
     auto out    = pe::Reverse(A.as_tensor_ref(), axis, UniqName("Reverse_output"));
-    auto stages = CreateStages({out});
+    auto stages = CreateStages({A.as_tensor_ref(), out});
     *ret        = CINNValuePack{{CINNValue(out), CINNValue(stages)}};
   });
 
